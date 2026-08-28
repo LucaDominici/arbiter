@@ -115,9 +115,10 @@ the prompt and a maximum 512 KiB diff on stdin. Output uses the reduced
 `dispatch=external-cli`. Retries are disabled. A truncated diff, failed coercion, or
 recorder rejection is a degradation and must not be silently treated as a clean review.
 
-Use the single sidecar writer in the Refactor / code-review evidence below. When the external
-seat is active, include `codex-reviewer` in that same `agents[]` list and set `count` to the total
-number actually dispatched; never write a second sidecar.
+Use the shared sidecar contract in the Refactor / code-review evidence below. The automatic CLI
+bridge records a fulfilled external seat first; the manual block writes the complete reviewer
+panel. When the external seat is active, preserve `codex-reviewer` in that same `agents[]` list
+and set `count` to the total number actually dispatched; never inflate the panel.
 
 **XS/S=1 depends on the completion gate.** A single reviewer is only safe because
 `scripts/check-review-completion.mjs` (#2177) fails the stage when a dispatched reviewer returned
@@ -349,9 +350,9 @@ never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-# The automatic `arbiter ship` bridge stamps this task's dispatch.json first. Read that
-# artifact so this remains the only sidecar writer and a fulfilled Codex seat cannot be
-# followed by an accidental second Anthropic seat.
+# The automatic `arbiter ship` bridge records a fulfilled Codex seat in the sidecar before this
+# block. This block writes the complete reviewer panel; preserve that seat and do not add another
+# Anthropic seat.
 # Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
 external_review_fulfilled=0
 dispatch_file="$(node -e 'const f=require("node:fs"),p=require("node:path");try{const t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;process.stdout.write(p.join(".arbiter","evidence","cross-model",t.replace(/[^a-zA-Z0-9_-]/g,"_").slice(0,64)||"unknown","dispatch.json"))}catch{}' 2>/dev/null || true)"

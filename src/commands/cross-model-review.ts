@@ -2,12 +2,16 @@
 // #2357 — the /ship-facing boundary for the optional external review seat.
 import { join, resolve } from 'node:path'
 import { detectExternalModel, type ExternalModelAccess } from '../detectors/external-model.js'
-import { invokeExternalReview, type ExternalReviewResult } from '../integrations/external-review.js'
+import {
+  assertSafeArbiterEvidenceRoot,
+  invokeExternalReview,
+  type ExternalReviewResult,
+} from '../integrations/external-review.js'
 import { resolveShipProfile } from './ship-profile.js'
 import { normTier, type ShipTier } from './ship-tier.js'
 import type { TaskPhase } from './task-state.js'
-import { readFileSync } from 'node:fs'
-import { ensureDir, toFsError, writeFileTranslated } from '../utils/fs.js'
+import { existsSync, lstatSync, readFileSync } from 'node:fs'
+import { ensureDir, toFsError, writeFile } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
@@ -36,7 +40,7 @@ export function runCrossModelReview(options: CrossModelReviewCommandOptions): Ex
   if (!cfg.diffEgressConsent) {
     throw new Error('crossModelReview.diffEgressConsent must be true to send the diff')
   }
-  return invokeExternalReview({
+  const result = invokeExternalReview({
     repoRoot,
     taskId: options.taskId,
     prompt: options.prompt,
@@ -47,6 +51,8 @@ export function runCrossModelReview(options: CrossModelReviewCommandOptions): Ex
     phase: options.phase ?? 'refactor',
     vertical: options.vertical ?? 'bugs',
   })
+  if (existsSync(repoRoot)) writeExternalReviewSidecar(repoRoot, options.taskId, result)
+  return result
 }
 
 export interface ShipCrossModelReviewOptions {
@@ -59,23 +65,110 @@ export interface ShipCrossModelReviewOptions {
   access?: ExternalModelAccess
 }
 
-/** Record the fulfilled external seat for the automatic ship path. */
-export function writeExternalReviewSidecar(repoRoot: string, result: ExternalReviewResult): void {
+type ReviewSidecar = {
+  count?: unknown
+  agents?: unknown
+  branch?: unknown
+  sha?: unknown
+  taskId?: unknown
+}
+
+function isRecord(value: unknown): value is ReviewSidecar {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function assertSafeSidecarFile(path: string): void {
+  try {
+    const stat = lstatSync(path)
+    if (stat.isSymbolicLink()) throw new Error(`${path} must not be a symbolic link`)
+    if (!stat.isFile()) throw new Error(`${path} must be a regular file`)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw toFsError(error, path)
+  }
+}
+
+function readSidecar(path: string): ReviewSidecar | null {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    if (!isRecord(parsed)) throw new Error(`${path} must contain a JSON object`)
+    return parsed
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw new Error(`cannot read dispatch sidecar ${path}: ${String(error)}`, { cause: error })
+  }
+}
+
+function isCurrentSidecar(
+  existing: ReviewSidecar | null,
+  branch: string,
+  sha: string,
+  taskId: string,
+): existing is ReviewSidecar {
+  return (
+    existing !== null &&
+    existing.branch === branch &&
+    existing.sha === sha &&
+    (existing.taskId === undefined || existing.taskId === taskId)
+  )
+}
+
+function readSidecarAgents(existing: ReviewSidecar): string[] | null {
+  if (existing.agents === undefined) return null
+  if (
+    !Array.isArray(existing.agents) ||
+    !existing.agents.every((agent) => typeof agent === 'string')
+  ) {
+    throw new Error('existing dispatch sidecar has invalid agent names')
+  }
+  const agents = [...existing.agents]
+  if (new Set(agents).size !== agents.length)
+    throw new Error('existing dispatch sidecar has duplicate agents')
+  if (
+    existing.count !== undefined &&
+    (typeof existing.count !== 'number' ||
+      !Number.isInteger(existing.count) ||
+      existing.count < 0 ||
+      existing.count > agents.length)
+  ) {
+    throw new Error('existing dispatch sidecar has an invalid count')
+  }
+  return agents
+}
+
+function sidecarAgents(
+  existing: ReviewSidecar | null,
+  branch: string,
+  sha: string,
+  taskId: string,
+): { count: number; agents: string[] } {
+  const fresh = { count: 1, agents: ['codex-reviewer'] }
+  if (!isCurrentSidecar(existing, branch, sha, taskId)) return fresh
+  const agents = readSidecarAgents(existing)
+  if (agents === null) return fresh
+  if (agents.length === 0) return fresh
+  if (!agents.includes('codex-reviewer')) agents[agents.length - 1] = 'codex-reviewer'
+  return { count: agents.length, agents }
+}
+
+/** Record the fulfilled external seat for a CLI review path without inflating the panel. */
+export function writeExternalReviewSidecar(
+  repoRoot: string,
+  taskId: string,
+  result: ExternalReviewResult,
+): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
   const arbiterDir = join(repoRoot, '.arbiter')
   ensureDir(arbiterDir)
-  writeFileTranslated(
-    join(arbiterDir, 'agents-dispatched.json'),
-    `${JSON.stringify(
-      {
-        count: 1,
-        agents: ['codex-reviewer'],
-        branch: currentBranch(repoRoot),
-        sha: headSha(repoRoot),
-      },
-      null,
-    )}\n`,
-  )
+  assertSafeArbiterEvidenceRoot(repoRoot)
+  const sidecarPath = join(arbiterDir, 'agents-dispatched.json')
+  assertSafeSidecarFile(sidecarPath)
+  const branch = currentBranch(repoRoot)
+  const sha = headSha(repoRoot)
+  if (branch === 'unknown' || sha === 'unknown')
+    throw new Error('cannot bind dispatch sidecar to Git HEAD')
+  const panel = sidecarAgents(readSidecar(sidecarPath), branch, sha, taskId)
+  writeFile(sidecarPath, `${JSON.stringify({ ...panel, taskId, branch, sha }, null, 2)}\n`)
 }
 
 /** Run the automatic refactor-step bridge; consent-off runs only the local degradation recorder. */
@@ -96,7 +189,7 @@ export function runShipCrossModelReview(
       access = undefined
     }
   }
-  return invokeExternalReview({
+  const result = invokeExternalReview({
     repoRoot,
     taskId: options.taskId,
     prompt: SHIP_CROSS_MODEL_PROMPT,
@@ -107,6 +200,8 @@ export function runShipCrossModelReview(
     phase: options.phase,
     vertical: options.vertical,
   })
+  if (existsSync(repoRoot)) writeExternalReviewSidecar(repoRoot, options.taskId, result)
+  return result
 }
 
 function readStdin(): string {

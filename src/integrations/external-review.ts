@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — one optional Codex reviewer seat, with the recorder as the trust boundary.
-import { existsSync } from 'node:fs'
+import { existsSync, lstatSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative } from 'node:path'
+import { isAbsolute, join, relative, sep } from 'node:path'
 import type { ExternalModelAccess } from '../detectors/external-model.js'
 import type { CrossModelReviewConfig, CrossModelReviewProvider } from '../wizard/types.js'
 import type { TaskPhase } from '../commands/task-state.js'
@@ -13,6 +13,7 @@ import {
   mkdtempTranslated,
   readFileTranslated,
   rmTranslated,
+  toFsError,
   writeFileTranslated,
 } from '../utils/fs.js'
 import { getLogger } from '../utils/logger.js'
@@ -565,6 +566,25 @@ function writeDispatchEvidence(
   writeFileTranslated(out, `${JSON.stringify(artifact, null, 2)}\n`)
 }
 
+/** Reject a pre-existing .arbiter link before default evidence writes can follow it. */
+export function assertSafeArbiterEvidenceRoot(repoRoot: string): void {
+  const repoResolved = realpathSync(repoRoot)
+  const arbiterDir = join(repoRoot, '.arbiter')
+  try {
+    const stat = lstatSync(arbiterDir)
+    if (stat.isSymbolicLink()) throw new Error(`${arbiterDir} must not be a symbolic link`)
+    if (!stat.isDirectory()) throw new Error(`${arbiterDir} must be a directory`)
+    const resolved = realpathSync(arbiterDir)
+    const outside = relative(repoResolved, resolved)
+    if (isAbsolute(outside) || outside === '..' || outside.startsWith(`..${sep}`)) {
+      throw new Error(`${arbiterDir} resolves outside the repository`)
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw toFsError(error, arbiterDir)
+  }
+}
+
 function finalizeResult(
   request: ExternalReviewRequest,
   plan: CrossModelPlan,
@@ -642,6 +662,12 @@ function persistExternalPayload(
 
 /** Invoke one external seat and hand its validated envelope to the existing recorder. */
 export function invokeExternalReview(request: ExternalReviewRequest): ExternalReviewResult {
+  if (
+    request.cfg.enabled &&
+    (request.dispatchEvidenceDir === undefined || request.evidenceDir === undefined)
+  ) {
+    assertSafeArbiterEvidenceRoot(request.repoRoot)
+  }
   const prepared = truncateDiff(request.diff)
   const tier = request.tier ?? 'Standard'
   const phase = request.phase ?? 'refactor'

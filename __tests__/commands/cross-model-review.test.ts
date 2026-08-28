@@ -248,7 +248,21 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       execFileSync('git', ['config', 'user.name', 'test-user'], { cwd: dir })
       execFileSync('git', ['add', '-A'], { cwd: dir })
       execFileSync('git', ['commit', '-q', '-m', 'fixture', '--no-gpg-sign'], { cwd: dir })
-      execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: dir })
+      const fixtureSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: dir,
+        encoding: 'utf8',
+      }).trim()
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(
+        join(dir, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({
+          count: 2,
+          agents: ['anthropic-reviewer', 'anthropic-reviewer-2'],
+          branch: 'task/#2357-cross-model-cli',
+          sha: fixtureSha,
+        }),
+      )
+      execFileSync('git', ['update-ref', 'refs/remotes/origin/main', fixtureSha], { cwd: dir })
 
       const result = spawnSync(
         process.execPath,
@@ -279,12 +293,13 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       )
       const sidecar = JSON.parse(
         readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
-      ) as { count: number; agents: string[]; branch: string; sha: string }
+      ) as { count: number; agents: string[]; branch: string; sha: string; taskId: string }
       expect(sidecar).toEqual({
-        count: 1,
-        agents: ['codex-reviewer'],
+        count: 2,
+        agents: ['anthropic-reviewer', 'codex-reviewer'],
         branch: 'task/#2357-cross-model-cli',
-        sha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim(),
+        sha: fixtureSha,
+        taskId: '#2357',
       })
     } finally {
       rmSync(dir, { recursive: true, force: true })

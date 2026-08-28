@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — cross-model review slot: pure planning, coercion and recorder boundary.
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { DEFAULT_CROSS_MODEL_REVIEW } from '../../src/config/schema.js'
@@ -151,6 +151,27 @@ describe('extractAgentReturnJson (#2357)', () => {
 
 describe('invokeExternalReview (#2357)', () => {
   beforeEach(() => mockedRunCli.mockReset())
+
+  it('rejects a symlinked default evidence root before dispatch', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-symlink-'))
+    const outside = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-outside-'))
+    try {
+      symlinkSync(outside, join(fixture, '.arbiter'), 'dir')
+      expect(() =>
+        invokeExternalReview({
+          repoRoot: fixture,
+          taskId: '#2357',
+          prompt: 'Review.',
+          diff: 'diff',
+          cfg: config(),
+          access: access(),
+        }),
+      ).toThrow(/symlink/i)
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
 
   it('uses read-only Codex stdin and persists only through the recorder (AC-3/AC-4/AC-7)', () => {
     mockedRunCli.mockImplementation((cmd) => {

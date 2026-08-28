@@ -185,7 +185,7 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
   it('uses one authoritative dispatch sidecar for cross-model review', () => {
     const content = renderShip()
     expect(content.match(/> \.arbiter\/agents-dispatched\.json/g) ?? []).toHaveLength(1)
-    expect(content).toContain('Use the single sidecar writer')
+    expect(content).toContain('manual block writes the complete reviewer')
     expect(content).toContain('codex-reviewer')
     expect(content).toContain('external_review_fulfilled')
     expect(content).toContain('evidence/cross-model')
