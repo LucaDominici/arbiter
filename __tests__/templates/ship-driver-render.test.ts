@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
-import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
@@ -27,6 +27,13 @@ function renderTickPrompt(overrides: Record<string, unknown> = {}): string {
 
 function renderShipCommand(): string {
   return renderTemplate('claude/commands/ship.md.ejs', baseData({}))
+}
+
+function renderPeerShipCommand(): string {
+  return renderTemplate(
+    'claude/commands/ship.md.ejs',
+    baseData({ collaborationMode: 'peer-review' }),
+  )
 }
 
 describe('supervisor.sh.ejs render', () => {
@@ -197,6 +204,60 @@ describe('ship command local-only state (#2343)', () => {
 
       expect(spawnSync('bash', ['-c', block as string], { cwd: worktree }).status).toBe(0)
       expect(readFileSync(excludePath, 'utf8')).toBe(expected)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('ship command cross-model sidecar (#2357)', () => {
+  it('preserves the automatic Codex seat when the manual panel is recorded', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-'))
+    try {
+      expect(
+        spawnSync('git', ['init', '-q', '-b', 'task/#2357-template'], { cwd: root }).status,
+      ).toBe(0)
+      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
+      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
+      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
+      const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+
+      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
+      mkdirSync(join(root, '.arbiter', 'evidence', 'cross-model', '_2357'), { recursive: true })
+      writeFileSync(
+        join(root, '.claude', '.task', 'status.json'),
+        JSON.stringify({ taskId: '#2357' }),
+      )
+      writeFileSync(
+        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
+        JSON.stringify({ branch: 'task/#2357-template', sha, fulfilled: [{}], degraded: [] }),
+      )
+      writeFileSync(
+        join(root, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({
+          count: 1,
+          agents: ['codex-reviewer'],
+          taskId: '#2357',
+          branch: 'task/#2357-template',
+          sha,
+        }),
+      )
+
+      const block = renderPeerShipCommand().match(
+        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
+      )?.[1]
+      expect(block).toBeDefined()
+      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
+      expect(result.status, result.stderr).toBe(0)
+      expect(
+        JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toEqual({
+        count: 2,
+        agents: ['bugs', 'codex-reviewer'],
+        taskId: '#2357',
+        branch: 'task/#2357-template',
+        sha,
+      })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

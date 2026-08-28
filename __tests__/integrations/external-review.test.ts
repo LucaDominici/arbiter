@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — cross-model review slot: pure planning, coercion and recorder boundary.
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { DEFAULT_CROSS_MODEL_REVIEW } from '../../src/config/schema.js'
@@ -9,6 +9,7 @@ import type { CrossModelReviewConfig } from '../../src/wizard/types.js'
 import type { ExternalModelAccess } from '../../src/detectors/external-model.js'
 import { runCli } from '../../src/utils/run-cli.js'
 import {
+  assertSafeArbiterEvidenceRoot,
   extractAgentReturnJson,
   externalSlotsForTier,
   invokeExternalReview,
@@ -170,6 +171,56 @@ describe('invokeExternalReview (#2357)', () => {
     } finally {
       rmSync(fixture, { recursive: true, force: true })
       rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a nested symlinked default evidence root before dispatch', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-nested-symlink-'))
+    const outside = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-nested-outside-'))
+    try {
+      mkdirSync(join(fixture, '.arbiter'))
+      symlinkSync(outside, join(fixture, '.arbiter', 'evidence'), 'dir')
+      mockedRunCli.mockImplementation((cmd) =>
+        cmd === 'codex'
+          ? { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
+          : {
+              stdout:
+                '[record-agent-return] OK — wrote .arbiter/evidence/agent-returns/_2357/codex-0.json',
+              stderr: '',
+              exitCode: 0,
+              durationMs: 1,
+            },
+      )
+      expect(() =>
+        invokeExternalReview({
+          repoRoot: fixture,
+          taskId: '#2357',
+          prompt: 'Review.',
+          diff: 'diff',
+          cfg: config(),
+          access: access(),
+        }),
+      ).toThrow(/symlink/i)
+      expect(existsSync(join(outside, '_2357', 'dispatch.json'))).toBe(false)
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('translates a missing repository root error', () => {
+    const parent = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-missing-'))
+    const missing = join(parent, 'missing')
+    try {
+      let thrown: unknown
+      try {
+        assertSafeArbiterEvidenceRoot(missing)
+      } catch (error) {
+        thrown = error
+      }
+      expect(thrown).toMatchObject({ name: 'ArbiterError', code: 'ENOENT' })
+    } finally {
+      rmSync(parent, { recursive: true, force: true })
     }
   })
 

@@ -2,7 +2,7 @@
 // #2357 — one optional Codex reviewer seat, with the recorder as the trust boundary.
 import { existsSync, lstatSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { isAbsolute, join, relative, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { ExternalModelAccess } from '../detectors/external-model.js'
 import type { CrossModelReviewConfig, CrossModelReviewProvider } from '../wizard/types.js'
 import type { TaskPhase } from '../commands/task-state.js'
@@ -383,6 +383,12 @@ function persistEnvelope(
   access: ExternalModelAccess,
   envelope: ExternalReviewPayload,
 ): string | null {
+  if (request.evidenceDir === undefined) {
+    assertSafeDirectoryPath(
+      request.repoRoot,
+      join(request.repoRoot, '.arbiter', 'evidence', 'agent-returns', sanitizeTask(request.taskId)),
+    )
+  }
   const result = runCli('node', recorderArgs(request, access), {
     cwd: request.repoRoot,
     input: JSON.stringify({
@@ -562,26 +568,57 @@ function writeDispatchEvidence(
     request.dispatchEvidenceDir ?? join(request.repoRoot, '.arbiter', 'evidence', 'cross-model')
   const taskDir = join(root, sanitizeTask(request.taskId))
   const out = join(taskDir, 'dispatch.json')
+  if (request.dispatchEvidenceDir === undefined) {
+    assertSafeDirectoryPath(request.repoRoot, taskDir)
+  }
   ensureDir(taskDir)
   writeFileTranslated(out, `${JSON.stringify(artifact, null, 2)}\n`)
 }
 
+function outsideRoot(root: string, candidate: string): boolean {
+  const path = relative(root, candidate)
+  return isAbsolute(path) || path === '..' || path.startsWith(`..${sep}`)
+}
+
+/** Reject symlinked or out-of-repository directory components before default evidence writes. */
+function assertSafeDirectoryPath(repoRoot: string, targetPath: string): void {
+  let repoResolved: string
+  try {
+    repoResolved = realpathSync(repoRoot)
+  } catch (error) {
+    throw toFsError(error, repoRoot)
+  }
+  const target = resolve(targetPath)
+  if (outsideRoot(repoResolved, target)) {
+    throw new Error(`${targetPath} resolves outside the repository`)
+  }
+  let current = target
+  while (current !== repoResolved) {
+    try {
+      const stat = lstatSync(current)
+      if (stat.isSymbolicLink()) throw new Error(`${current} must not be a symbolic link`)
+      if (!stat.isDirectory()) throw new Error(`${current} must be a directory`)
+      if (outsideRoot(repoResolved, realpathSync(current))) {
+        throw new Error(`${current} resolves outside the repository`)
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw toFsError(error, current)
+      }
+    }
+    current = dirname(current)
+  }
+}
+
 /** Reject a pre-existing .arbiter link before default evidence writes can follow it. */
 export function assertSafeArbiterEvidenceRoot(repoRoot: string): void {
-  const repoResolved = realpathSync(repoRoot)
-  const arbiterDir = join(repoRoot, '.arbiter')
-  try {
-    const stat = lstatSync(arbiterDir)
-    if (stat.isSymbolicLink()) throw new Error(`${arbiterDir} must not be a symbolic link`)
-    if (!stat.isDirectory()) throw new Error(`${arbiterDir} must be a directory`)
-    const resolved = realpathSync(arbiterDir)
-    const outside = relative(repoResolved, resolved)
-    if (isAbsolute(outside) || outside === '..' || outside.startsWith(`..${sep}`)) {
-      throw new Error(`${arbiterDir} resolves outside the repository`)
-    }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
-    throw toFsError(error, arbiterDir)
+  for (const path of [
+    join(repoRoot, '.arbiter'),
+    join(repoRoot, '.arbiter', 'evidence'),
+    join(repoRoot, '.arbiter', 'evidence', 'cross-model'),
+    join(repoRoot, '.arbiter', 'evidence', 'agent-returns'),
+  ]) {
+    assertSafeDirectoryPath(repoRoot, path)
   }
 }
 
