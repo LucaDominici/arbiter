@@ -582,7 +582,7 @@ describe('cross-product: check-all.mjs — debt ratchet gate at L2+, absent at L
   }
 })
 
-describe('cross-product: ci.yml — debt-ratchet job at L2+, absent at L1', () => {
+describe('cross-product: ci.yml — debt ratchet is consolidated into gate-full', () => {
   function renderCi(lang: Language, level: GovernanceLevel, enableDebtGates: boolean): string {
     return renderTemplate('github/workflows/01-pr-fast.yml.ejs', {
       ...configFor(lang, level),
@@ -592,15 +592,16 @@ describe('cross-product: ci.yml — debt-ratchet job at L2+, absent at L1', () =
   }
 
   for (const lang of LANGUAGES) {
-    it(`${lang}+L2: debt-ratchet job present`, () => {
+    it(`${lang}+L2: no duplicate debt-ratchet job`, () => {
       const content = renderCi(lang, 'L2', true)
-      expect(content).toContain('debt-ratchet:')
+      expect(content).not.toContain('\n  debt-ratchet:')
+      expect(content).toContain('node scripts/check-all.mjs L2')
     })
 
-    it(`${lang}+L3: debt-ratchet job present with --require-improvement`, () => {
+    it(`${lang}+L3: no duplicate debt-ratchet job`, () => {
       const content = renderCi(lang, 'L3', true)
-      expect(content).toContain('debt-ratchet:')
-      expect(content).toContain('--require-improvement')
+      expect(content).not.toContain('\n  debt-ratchet:')
+      expect(content).toContain('node scripts/check-all.mjs L2')
     })
 
     it(`${lang}+L1: debt-ratchet job absent`, () => {

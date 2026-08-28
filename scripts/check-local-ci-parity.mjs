@@ -184,7 +184,7 @@ const CI_COVERAGE = new Map([
   ['coverage', 'debt-gates'],
   ['coverage ratchet (#1483)', 'debt-gates'],
   ['gitleaks', 'security-early-fail'],
-  ['debt ratchet', 'debt-ratchet'],
+  ['debt ratchet', 'gate-full'],
   ['integration suite (INV-25)', 'integration-tests'],
   ['BDD suite (INV-25)', 'gate-full'],
   ['todo max-age', 'gate-full'],

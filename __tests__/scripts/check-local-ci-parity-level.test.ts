@@ -11,13 +11,12 @@ import { spawnSync } from 'node:child_process'
 
 const SCRIPT = join(process.cwd(), 'scripts', 'check-local-ci-parity.mjs')
 
-/** All 7 distinct job names CI_COVERAGE maps check-all IDs to, as of #2042. */
+/** All 6 distinct job names CI_COVERAGE maps check-all IDs to. */
 const REAL_CI_COVERAGE_JOBS = [
   'gate',
   'gate-full',
   'unit-tests',
   'debt-gates',
-  'debt-ratchet',
   'integration-tests',
   'security-early-fail',
 ]

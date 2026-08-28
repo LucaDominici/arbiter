@@ -727,47 +727,6 @@ jobs:
           <%= _sonarCmd %> -Dsonar.token="$SONAR_TOKEN"
 <% } %>
 
-<% if (enableDebtGates) { %>
-  debt-ratchet:
-    name: Debt Ratchet
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [gate]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-<% if (language === 'typescript') { %>
-        with:
-          # The debt ratchet's coverage collection runs the full unit suite; the
-          # TypeScript suite needs the built CLI (behavioral tests spawn dist/cli.js)
-          # and full git history (TDD-evidence sha reachability) — without both,
-          # vitest exits 1, no coverage summary is written, and the gate fails
-          # closed (#2226).
-          fetch-depth: 0
-<% } %><% if (language === 'typescript') { %>
-      - uses: ./.github/actions/setup-node-pnpm
-<% } %><% if (language === 'rust') { %>
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
-<% } %><% if (language === 'java') { %>
-      - uses: ./.github/actions/setup-java-maven
-<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
-<% } %><% } %><% if (language === 'go') { %>
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
-        with:
-          go-version-file: 'go.mod'
-<% } %><% if (language === 'python') { %>
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-      - run: pip install -e ".[dev]"
-<% } %><% if (language === 'typescript') { %>
-      - name: Build
-        run: npm run build
-<% } %>
-      - name: Run debt ratchet
-        run: node scripts/debt-report.mjs<% if (isL3Plus) { %> --require-improvement<% } else { %> --gate<% } %>
-<% } %>
 <% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>
 
   contract-verify:
@@ -985,7 +944,7 @@ jobs:
   if (enableSecurityScanning) _ciNeeds.push('security-early-fail', 'dependency-review');
   if (governanceLevel !== 'L1' || _multiLane) _ciNeeds.push('iac-scan');
   if (governanceLevel !== 'L1') _ciNeeds.push('docs-check', 'sonar-scan', 'gate-full');
-  if (enableDebtGates) _ciNeeds.push('debt-gates', 'debt-ratchet');
+  if (enableDebtGates) _ciNeeds.push('debt-gates');
   if (contractType && contractType !== 'none' && governanceLevel !== 'L1') _ciNeeds.push('contract-verify');
   if (governanceLevel !== 'L1' || _multiLane) _ciNeeds.push('classify-changes');
   if (_multiLane) _ciNeeds.push('cross-stack-guard');
@@ -1061,10 +1020,7 @@ jobs:
             echo "debt-gates failed"
             exit 1
           fi
-          if ! ok "${{ needs.debt-ratchet.result }}"; then
-            echo "debt-ratchet failed"
-            exit 1
-          fi<% } %><% if (governanceLevel !== 'L1') { %>
+<% } %><% if (governanceLevel !== 'L1') { %>
           if [[ "${{ needs.gate-full.result }}" != "success" && "${{ needs.gate-full.result }}" != "skipped" ]]; then
             echo "gate-full (L2) failed or was cancelled"
             exit 1
@@ -1136,5 +1092,4 @@ jobs:
       run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       failure_summary: Post-merge L2 gate failed on main — a change merged without full verification.
       status: failure
-<% } %>
-<% } -%>
+<% } %><% } -%>

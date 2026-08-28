@@ -106,6 +106,46 @@ describe('external model detection', () => {
     })
   })
 
+  it.each([
+    {
+      error: new CliError({
+        cmd: 'codex',
+        args: ['--version'],
+        exitCode: -1,
+        stdout: '',
+        stderr: '',
+        timedOut: true,
+        notFound: false,
+      }),
+      detail: 'codex CLI probe timed out',
+    },
+    { error: new Error('unexpected probe failure'), detail: 'codex CLI probe failed' },
+  ])('classifies probe failures as $detail', ({ error, detail }) => {
+    mockedRunCli.mockImplementation(() => {
+      throw error
+    })
+
+    expect(detectExternalModel('codex', { homeDir })).toMatchObject({
+      available: false,
+      authenticated: false,
+      error: detail,
+    })
+  })
+
+  it('keeps an installed CLI available when its version output is unparseable', () => {
+    mockedRunCli.mockReturnValue({
+      stdout: 'codex development build\n',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 1,
+    })
+
+    expect(detectExternalModel('codex', { homeDir })).toMatchObject({
+      available: true,
+      version: null,
+    })
+  })
+
   it('memoizes detections per process and can reset the cache', () => {
     detectExternalModel('codex', { homeDir, env: {} })
     detectExternalModel('codex', { homeDir, env: { OPENAI_API_KEY: 'new-value' } })

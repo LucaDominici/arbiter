@@ -135,6 +135,68 @@ describe('planCrossModelSlots (#2357)', () => {
       expect(plan.anthropic).toEqual(['bugs'])
     }
   })
+
+  it.each([
+    {
+      name: 'non-refactor phase',
+      input: { phase: 'plan' as const },
+      reason: 'disabled',
+    },
+    {
+      name: 'missing config',
+      input: { cfg: undefined },
+      reason: 'disabled',
+    },
+    {
+      name: 'disabled config',
+      input: { cfg: config({ enabled: false }) },
+      reason: 'disabled',
+    },
+    {
+      name: 'zero configured seats',
+      input: { cfg: config({ slots: { codeReview: 0, redTeamReview: 0 } }) },
+      reason: 'provider-not-configured',
+    },
+    {
+      name: 'provider omitted',
+      input: { cfg: config({ providers: [] }) },
+      reason: 'provider-not-configured',
+    },
+    {
+      name: 'access unavailable',
+      input: { access: undefined },
+      reason: 'provider-unavailable',
+    },
+  ])('falls back for $name', ({ input, reason }) => {
+    const plan = planCrossModelSlots({
+      tier: 'Standard',
+      phase: 'refactor',
+      totalSlots: 2,
+      verticals: [],
+      cfg: config(),
+      access: access(),
+      ...input,
+    })
+
+    expect(plan).toMatchObject({
+      external: [],
+      anthropic: ['bugs', 'bugs'],
+      degradationReason: reason,
+    })
+  })
+
+  it('defaults an empty vertical list to bugs for the external seat', () => {
+    expect(
+      planCrossModelSlots({
+        tier: 'Standard',
+        phase: 'refactor',
+        totalSlots: 2,
+        verticals: [],
+        cfg: config(),
+        access: access(),
+      }),
+    ).toMatchObject({ external: ['bugs'], anthropic: ['bugs'] })
+  })
 })
 
 describe('extractAgentReturnJson (#2357)', () => {
