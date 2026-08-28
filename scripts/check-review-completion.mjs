@@ -22,6 +22,7 @@
 // Without --task, resolves a task id from the sidecar's optional task/taskId field; otherwise
 // vacuously passes so the advisory check-all invocation does not guess task context.
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
@@ -375,6 +376,60 @@ function sidecarTask(sidecar) {
   return null
 }
 
+/**
+ * @param {DispatchSidecar} sidecar
+ * @param {string | undefined} requested
+ * @returns {string | null}
+ */
+function sidecarTaskError(sidecar, requested) {
+  const declared = [sidecar.task, sidecar.taskId].filter((value) => value !== undefined)
+  if (declared.some((value) => typeof value !== 'string' || !isTaskId(value))) {
+    return 'sidecar task/taskId must be GitHub issue ids like #2177'
+  }
+  const selected = requested ?? sidecarTask(sidecar)
+  if (selected && declared.some((value) => value !== selected)) {
+    return `requested task ${selected} disagrees with sidecar task ${declared.join(', ')}`
+  }
+  return null
+}
+
+/** @param {string[]} args @returns {string | null} */
+function gitLine(args) {
+  const result = spawnSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
+  return result.status === 0 ? String(result.stdout).trim() || null : null
+}
+
+/**
+ * @param {DispatchSidecar} sidecar
+ * @returns {string | null}
+ */
+function checkoutBindingError(sidecar) {
+  const branch = gitLine(['rev-parse', '--abbrev-ref', 'HEAD'])
+  if (branch === null) {
+    // FAIL-OPEN-INTENT: isolated non-git fixtures have no checkout identity; real git roots fail closed below when metadata exists.
+    return existsSync(join(repoRoot, '.git'))
+      ? 'cannot read the current git branch'
+      : null
+  }
+  if (branch !== sidecar.branch) {
+    return `sidecar branch ${sidecar.branch} does not match current branch ${branch}`
+  }
+  const head = gitLine(['rev-parse', 'HEAD'])
+  if (head === null) return 'cannot read current git HEAD'
+  const ancestor = spawnSync('git', ['merge-base', '--is-ancestor', sidecar.sha, head], {
+    cwd: repoRoot,
+    stdio: ['ignore', 'ignore', 'ignore'],
+  })
+  if (ancestor.status !== 0) {
+    return `sidecar sha ${sidecar.sha} is not an ancestor of current HEAD ${head}`
+  }
+  return null
+}
+
 function main() {
   if (!existsSync(sidecarPath)) {
     // FAIL-OPEN-INTENT: no dispatch sidecar means no review dispatch was recorded, so this task-scoped reconciliation has no subject.
@@ -393,6 +448,11 @@ function main() {
   }
   const { sidecar } = sidecarResult
 
+  const taskError = sidecarTaskError(sidecar, requestedTask)
+  if (taskError) {
+    process.stderr.write(`[check-review-completion] ERROR: ${taskError}\n`)
+    return 2
+  }
   const task = requestedTask ?? sidecarTask(sidecar)
   if (!task) {
     // FAIL-OPEN-INTENT: check-all has no task context and the legacy sidecar has no task id; avoid reconciling unrelated historical evidence.
@@ -403,6 +463,12 @@ function main() {
     process.stderr.write(
       `[check-review-completion] ERROR: --task must be a GitHub issue id like '#2177' (got: ${task})\n`,
     )
+    return 2
+  }
+
+  const checkoutError = checkoutBindingError(sidecar)
+  if (checkoutError) {
+    process.stderr.write(`[check-review-completion] ERROR: ${checkoutError}\n`)
     return 2
   }
 

@@ -286,6 +286,36 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/sidecar/i)
   })
 
+  it('rejects an explicit task that disagrees with the sidecar task', () => {
+    writeSidecar({
+      count: 1,
+      agents: ['alpha'],
+      taskId: '#9999',
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+    })
+    writeEnvelope('alpha', envelope('alpha'))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(2)
+    expect(output(result)).toMatch(/task/i)
+  })
+
+  it('binds the sidecar SHA to the current checkout when git metadata exists', () => {
+    const branchResult = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      cwd: process.cwd(),
+      encoding: 'utf-8',
+    })
+    if (branchResult.status !== 0) return
+    const currentBranch = branchResult.stdout.trim()
+    writeSidecar({ count: 1, agents: ['alpha'], branch: currentBranch, sha: 'deadbeef' })
+    writeEnvelope('alpha', envelope('alpha', { branch: currentBranch, sha: 'deadbeef' }))
+
+    const result = runCheck(sidecar, evidenceDir, process.cwd())
+    expect(result.exitCode).toBe(2)
+    expect(output(result)).toMatch(/checkout|ancestor|sha/i)
+  })
+
   it('accepts a complete well-formed envelope without a turn-budget field', () => {
     writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
     writeEnvelope('alpha', envelope('alpha'))
