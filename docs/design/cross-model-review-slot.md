@@ -26,12 +26,22 @@ One of the code-review slots is handed to an external vendor's CLI instead of a 
 The piece of luck that makes this nearly free: `codex exec` supports `--output-schema <path>`, i.e. it **returns JSON conforming to a schema we supply**. arbiter already owns that schema. The external reviewer natively returns an `arbiter-agent-return-v1` envelope and re-enters the `record-agent-return.mjs → check-agent-return.mjs` pipeline **without touching it**. No prose parsing, no brittle coercion.
 
 ```
-codex exec --sandbox read-only --ephemeral --skip-git-repo-check \
-  --output-schema schemas/agent-return-external.schema.json \
-  -o <tmp>/return.json -C <repoRoot> -
+codex exec --strict-config --ephemeral --ignore-user-config \
+  -c 'default_permissions="arbiter-cross-model-review"' \
+  -c 'permissions.arbiter-cross-model-review.extends=":read-only"' \
+  -c 'permissions.arbiter-cross-model-review.filesystem.:root="deny"' \
+  -c 'permissions.arbiter-cross-model-review.filesystem.:minimal="read"' \
+  -c 'permissions.arbiter-cross-model-review.network.enabled=false' \
+  --skip-git-repo-check --output-schema <tmp>/agent-return-external.schema.json \
+  -o <tmp>/return.json -C <tmp> -
 ```
 
-Prompt and diff on **stdin** (`RunCliOptions.input`), never in argv. `--sandbox read-only` means the external reviewer **cannot write**, which matches the `read-only` classification in `.claude/agents/agent-write-classes.json` and the read-only clause of rule `50-batch-execution`: legal in parallel without a worktree.
+Prompt and diff are on **stdin** (`RunCliOptions.input`), never in argv. The scratch-only profile
+extends Codex `:read-only`, denies the host filesystem root, permits reads only from the scratch
+directory, and disables network access. The legacy `--sandbox read-only` flag is not combined with
+`default_permissions`: Codex rejects those two overrides together, while the explicit profile
+preserves the read-only classification in `.claude/agents/agent-write-classes.json` and the
+read-only clause of rule `50-batch-execution`.
 
 The testable core is a **pure planner**, separated from the invoker that crosses the subprocess boundary:
 
@@ -84,7 +94,7 @@ Even with `--output-schema`, output can arrive fenced or with a preamble. Ordere
 - [ ] AC-1: `planCrossModelSlots` is pure and guarantees `external.length + anthropic === totalSlots` for **every** tier × availability combination — asserted in tests.
 - [ ] AC-2: if the provider is unavailable, unauthenticated, or consent is missing, the slot **reverts to Anthropic** and the panel keeps its expected size.
 - [ ] AC-3: `schemas/agent-return-external.schema.json` exists as the reduced projection (`verdict`, `confidence`, `findings[]`, `refutations[]`) and is passed to `--output-schema`.
-- [ ] AC-4: invocation goes through `runCli` with `--sandbox read-only`, `retries: 0`, an explicit `timeoutMs`, and prompt+diff on **stdin** (never argv) — asserted on the exact argv/options object.
+- [ ] AC-4: invocation goes through `runCli` with a scratch-only Codex profile extending `:read-only`, denying the host filesystem root, permitting scratch reads, disabling network, `retries: 0`, an explicit `timeoutMs`, and prompt+diff on **stdin** (never argv) — asserted on the exact argv/options object.
 - [ ] AC-5: the diff is truncated at 512 KB with an explicit marker, and truncation produces a dedicated degradation reason.
 - [ ] AC-6: `extractAgentReturnJson` handles, with table tests: bare JSON, fenced, prose→JSON, JSON→prose, two objects (last wins), braces inside strings, truncated ⇒ `null`, empty ⇒ `null`.
 - [ ] AC-7: persistence goes through `scripts/record-agent-return.mjs` with the provenance flags; raw stdout is never written under `.arbiter/evidence/`.

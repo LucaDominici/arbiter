@@ -108,8 +108,10 @@ The same command is available for an explicit manual rerun when the evidence nee
 git diff --binary origin/main...HEAD | arbiter review cross-model --task '#NNN' --tier Standard --phase refactor --vertical security --prompt 'Review this change for bugs, type safety, security, data integrity, and silent failures.'
 ```
 
-The boundary invokes `codex exec --sandbox read-only --ephemeral --skip-git-repo-check` with
-the prompt and a maximum 512 KiB diff on stdin. Output uses the reduced
+The boundary invokes `codex exec --strict-config --ephemeral --ignore-user-config` with a
+scratch-only profile extending `:read-only`, denying the host filesystem root, permitting scratch
+reads, and disabling network. (Codex rejects combining the legacy `--sandbox read-only` override
+with `default_permissions`.) The prompt and a maximum 512 KiB diff are passed on stdin. Output uses the reduced
 `schemas/agent-return-external.schema.json` projection and is persisted only through
 `scripts/record-agent-return.mjs` with `vendor=openai`, `cli=codex`, and
 `dispatch=external-cli`. Retries are disabled. A truncated diff, failed coercion, or
