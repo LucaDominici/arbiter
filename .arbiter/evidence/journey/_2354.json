@@ -1,6 +1,6 @@
 {
   "branch": "task/#2354-cross-model-review",
-  "sha": "5635382446fddf763db5ea9db32854a6f1281557",
+  "sha": "d3a08b1ff93cdab3bfd69d0e113eefa62860c337",
   "spec": "node dist/cli.js review cross-model --help",
   "target": "artifact"
 }
