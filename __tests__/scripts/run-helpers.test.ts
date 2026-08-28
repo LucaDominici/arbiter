@@ -18,8 +18,7 @@ function runHarness(script: string, env: Record<string, string> = {}) {
 describe('run-helpers — runCheck (HARD)', () => {
   it('scales the measured 24-core timeout budget up on low-core machines (#2370)', () => {
     const scale = (runHelpersMod as Record<string, unknown>).scaledTimeoutMs as
-      | ((cores: number) => number)
-      | undefined
+      ((cores: number) => number) | undefined
 
     expect(scale).toBeTypeOf('function')
     expect(scale!(24)).toBe(600_000)

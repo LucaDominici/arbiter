@@ -88,6 +88,11 @@ npx @arbiter/cli init
 That's the whole loop. For the full ten-minute walkthrough — install options,
 what lands in your repo, uninstalling — see [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
+The full gate supports 4-core development machines. Step timeouts preserve the
+measured 10-minute budget of the 24-core reference runner by scaling it with
+available cores (`10 minutes × 24 / cores`, with a 10-minute floor). A killed
+step is reported as `TIMEOUT`, separately from a command or assertion failure.
+
 ---
 
 ## Stack support

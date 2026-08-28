@@ -28,6 +28,7 @@
 // cannot pull from src/. Direct spawnSync use is the documented exception
 // to INV-12 for the gate runner itself (see scripts/check-all.mjs header).
 import { spawnSync } from 'node:child_process'
+import { availableParallelism } from 'node:os'
 import { resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -47,6 +48,17 @@ export function isMainModule(importMetaUrl) {
 }
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
+const REFERENCE_CORES = 24
+
+/**
+ * Preserve the measured 10-minute budget of the 24-core reference runner while
+ * giving slower machines the same core-seconds. More cores never shrink the
+ * hang ceiling below the measured reference budget (#2370).
+ */
+export function scaledTimeoutMs(cores = availableParallelism()) {
+  const effectiveCores = Math.max(1, Math.min(REFERENCE_CORES, cores))
+  return Math.ceil((DEFAULT_TIMEOUT_MS * REFERENCE_CORES) / effectiveCores)
+}
 // Explicit spawnSync output ceiling. Node's default is 1 MB; verbose checks
 // (the integration suite's render/init tree dumps) exceed it, and an overflow
 // silently kills the child (status=null) — surfacing as the misleading
@@ -77,7 +89,7 @@ function detectSelfSkip(stdout) {
   return m[1].trim() || 'self-skip'
 }
 
-/** @type {{ name: string; status: 'PASS'|'FAIL'|'WARN'|'SKIP'; elapsed: number }[]} */
+/** @type {{ name: string; status: 'PASS'|'FAIL'|'TIMEOUT'|'WARN'|'SKIP'; elapsed: number }[]} */
 let results = []
 let failed = 0
 
@@ -116,7 +128,7 @@ function spawn(name, cmd, args, opts) {
   const r = spawnSync(cmd, args, {
     encoding: 'utf-8',
     shell: false,
-    timeout: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    timeout: opts.timeoutMs ?? scaledTimeoutMs(),
     maxBuffer: opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES,
     ...(opts.cwd ? { cwd: opts.cwd } : {}),
     ...(opts.env ? { env: { ...process.env, ...opts.env } } : {}),
@@ -151,6 +163,14 @@ function recordFail(name, elapsed, msg) {
 `)
   if (IS_CI()) process.stdout.write(`::error::${name}::${msg}\n`)
   results.push({ name, status: 'FAIL', elapsed })
+  failed++
+}
+
+function recordTimeout(name, elapsed) {
+  process.stdout.write(`TIMEOUT (after ${elapsed}ms)
+`)
+  if (IS_CI()) process.stdout.write(`::error::${name}::timeout after ${elapsed}ms\n`)
+  results.push({ name, status: 'TIMEOUT', elapsed })
   failed++
 }
 
@@ -211,7 +231,8 @@ export function runCheck(name, cmd, args, opts = {}) {
 
   const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
   if (spawnErr) {
-    recordFail(name, elapsed, spawnErr.detail)
+    if (r.error?.code === 'ETIMEDOUT') recordTimeout(name, elapsed)
+    else recordFail(name, elapsed, spawnErr.detail)
     return
   }
   if (r.status === 0) {
@@ -269,7 +290,8 @@ export function runToolCheck(name, cmd, args, opts = {}) {
   }
   const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
   if (spawnErr) {
-    recordFail(name, elapsed, spawnErr.detail)
+    if (r.error?.code === 'ETIMEDOUT') recordTimeout(name, elapsed)
+    else recordFail(name, elapsed, spawnErr.detail)
     return
   }
   if (r.status === 0) {
