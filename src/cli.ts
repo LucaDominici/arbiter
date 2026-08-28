@@ -48,7 +48,11 @@ import {
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
-import { runCrossModelReview, runShipCrossModelReview } from './commands/cross-model-review.js'
+import {
+  runCrossModelReview,
+  runShipCrossModelReview,
+  writeExternalReviewSidecar,
+} from './commands/cross-model-review.js'
 import { buildShipOverrides, resolveShipProfile } from './commands/ship-profile.js'
 import { detectExternalModel } from './detectors/external-model.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
@@ -462,7 +466,7 @@ function runConfiguredShipReview(
   if (taskId === undefined) {
     throw new Error('crossModelReview is enabled but the active ship task id is missing')
   }
-  runShipCrossModelReview({
+  const review = runShipCrossModelReview({
     dir: root,
     taskId,
     tier: result.tier ?? normTier(tier),
@@ -471,6 +475,7 @@ function runConfiguredShipReview(
     cfg: config,
     ...(access !== undefined ? { access } : {}),
   })
+  writeExternalReviewSidecar(root, review)
 }
 
 program

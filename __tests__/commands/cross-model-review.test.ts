@@ -277,6 +277,15 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
         '"vendor": "openai"',
       )
+      const sidecar = JSON.parse(
+        readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
+      ) as { count: number; agents: string[]; branch: string; sha: string }
+      expect(sidecar).toEqual({
+        count: 1,
+        agents: ['codex-reviewer'],
+        branch: 'task/#2357-cross-model-cli',
+        sha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim(),
+      })
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

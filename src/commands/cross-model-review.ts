@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2357 — the /ship-facing boundary for the optional external review seat.
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { detectExternalModel, type ExternalModelAccess } from '../detectors/external-model.js'
 import { invokeExternalReview, type ExternalReviewResult } from '../integrations/external-review.js'
 import { resolveShipProfile } from './ship-profile.js'
 import { normTier, type ShipTier } from './ship-tier.js'
 import type { TaskPhase } from './task-state.js'
 import { readFileSync } from 'node:fs'
-import { toFsError } from '../utils/fs.js'
+import { ensureDir, toFsError, writeFileTranslated } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
+import { currentBranch, headSha } from '../evidence/git-checks.js'
 
 export const SHIP_CROSS_MODEL_PROMPT =
   'Review this change for bugs, type safety, security, data integrity, and silent failures.'
@@ -56,6 +57,25 @@ export interface ShipCrossModelReviewOptions {
   vertical: string
   cfg: CrossModelReviewConfig
   access?: ExternalModelAccess
+}
+
+/** Record the fulfilled external seat for the automatic ship path. */
+export function writeExternalReviewSidecar(repoRoot: string, result: ExternalReviewResult): void {
+  if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
+  const arbiterDir = join(repoRoot, '.arbiter')
+  ensureDir(arbiterDir)
+  writeFileTranslated(
+    join(arbiterDir, 'agents-dispatched.json'),
+    `${JSON.stringify(
+      {
+        count: 1,
+        agents: ['codex-reviewer'],
+        branch: currentBranch(repoRoot),
+        sha: headSha(repoRoot),
+      },
+      null,
+    )}\n`,
+  )
 }
 
 /** Run the automatic refactor-step bridge; consent-off runs only the local degradation recorder. */
