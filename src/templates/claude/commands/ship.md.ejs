@@ -97,6 +97,8 @@ When `arbiter.json` opts in to `crossModelReview.enabled` and records explicit
 and `externalReviewers` is only the external portion. The external seat is assigned
 to `security` when that vertical is active, otherwise `bugs`; unavailable, unauthenticated,
 or unconsented access falls back to Anthropic.
+For Standard with a fulfilled external seat, dispatch one Anthropic reviewer plus one
+`codex-reviewer`; do not dispatch two Anthropic reviewers in addition to Codex.
 
 When `arbiter ship` reaches the refactor step, it invokes the wired boundary below from the
 repository root; the diff is sent on stdin and the actual `codex exec` invocation is delegated.
@@ -349,8 +351,12 @@ never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-# If the optional external seat is fulfilled, use the literal agent name "codex-reviewer" instead.
-mkdir -p .arbiter && printf '{"count":1,"agents":["independent-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+# Set this only after the external recorder confirms a fulfilled Codex seat; leave it 0 on degradation.
+if [ "${external_review_fulfilled:-0}" = 1 ]; then
+  mkdir -p .arbiter && printf '{"count":1,"agents":["codex-reviewer"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+else
+  mkdir -p .arbiter && printf '{"count":1,"agents":["independent-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+fi
 ```
 
 Write this file only after the reviewer subagent has actually been dispatched — "I reviewed
@@ -383,8 +389,12 @@ not the split. Lead angles for this dispatch: <%- Array.from({ length: _tiers.St
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
 # review_agents: the exact reviewer names you dispatched — one per agent, same names the envelopes carry.
-# When the external seat is fulfilled, the literal name is "codex-reviewer"; keep it out when the seat degraded.
+# When the external seat is fulfilled, replace the last Anthropic seat with the literal "codex-reviewer".
 review_agents='<%- Array.from({ length: _tiers.Standard.reviewAgentCount }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>'
+if [ "${external_review_fulfilled:-0}" = 1 ]; then
+  review_agents='<%- Array.from({ length: Math.max(0, _tiers.Standard.reviewAgentCount - 1) }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>'
+  review_agents="${review_agents}${review_agents:+,}\"codex-reviewer\""
+fi
 mkdir -p .arbiter && printf '{"count":<%= _tiers.Standard.reviewAgentCount %>,"agents":[%s],"branch":"%s","sha":"%s"}\n' "$review_agents" "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 

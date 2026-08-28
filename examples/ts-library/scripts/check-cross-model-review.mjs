@@ -8,7 +8,7 @@
 // Exit codes (INV-53): 0 PASS/SKIP, 1 evidence or policy FAIL, 2 invocation/IO ERROR.
 // Usage: node scripts/check-cross-model-review.mjs [--root <dir>] [--task <id>]
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
@@ -159,7 +159,15 @@ if (artifact.requested.length === 0) {
   fail(`dispatch outcomes (${artifact.fulfilled.length + artifact.degraded.length}) do not match requested external slots (${artifact.requested.length})`)
 }
 
-const repoResolved = resolve(root)
+let repoResolved
+try {
+  repoResolved = realpathSync(root)
+}
+// FAIL-OPEN-INTENT: an unresolved repository root is an invocation error, never a pass.
+catch (cause) {
+  error(`cannot resolve repository root ${root}: ${cause instanceof Error ? cause.message : String(cause)}`)
+  process.exit(2)
+}
 const agentReturnsRoot = resolve(root, '.arbiter', 'evidence', 'agent-returns')
 for (const [index, fulfilled] of artifact.fulfilled.entries()) {
   const envelope = fulfilled.envelope
@@ -167,16 +175,35 @@ for (const [index, fulfilled] of artifact.fulfilled.entries()) {
   const envelopePath = resolve(root, envelope)
   const outside = relative(repoResolved, envelopePath).startsWith('..')
   if (outside) fail(`fulfilled[${index}].envelope escapes the repository: ${envelope}`)
-  const outsideAgentReturns = relative(agentReturnsRoot, envelopePath)
+  if (!existsSync(envelopePath)) fail(`fulfilled[${index}].envelope not found: ${envelope}`)
+  let envelopeResolved
+  let agentReturnsResolved
+  try {
+    envelopeResolved = realpathSync(envelopePath)
+    agentReturnsResolved = realpathSync(agentReturnsRoot)
+  }
+  // FAIL-OPEN-INTENT: an unresolved envelope or evidence root is rejected, never accepted.
+  catch (cause) {
+    fail(`fulfilled[${index}].envelope does not resolve to a repository file: ${envelope} (${cause instanceof Error ? cause.message : String(cause)})`)
+    process.exit(1)
+  }
+  const realOutside = relative(repoResolved, envelopeResolved).startsWith('..')
+  if (realOutside) fail(`fulfilled[${index}].envelope escapes the repository: ${envelope}`)
+  const outsideAgentReturns = relative(agentReturnsResolved, envelopeResolved)
   if (outsideAgentReturns === '' || outsideAgentReturns.startsWith('..') || isAbsolute(outsideAgentReturns)) {
     fail(`fulfilled[${index}].envelope must be under .arbiter/evidence/agent-returns: ${envelope}`)
   }
-  if (!existsSync(envelopePath)) fail(`fulfilled[${index}].envelope not found: ${envelope}`)
-  const envelopeValue = readJson(envelopePath, 'fulfilled envelope')
-  const envelopeSchemaErrors = validateSchema(envelopeValue, agentSchema, agentSchema, envelopePath)
+  const envelopeValue = readJson(envelopeResolved, 'fulfilled envelope')
+  const envelopeSchemaErrors = validateSchema(envelopeValue, agentSchema, agentSchema, envelopeResolved)
   if (envelopeSchemaErrors.length > 0) fail(envelopeSchemaErrors.join('; '))
   if (!isRecord(envelopeValue) || envelopeValue.taskId !== taskId) {
     fail(`fulfilled[${index}].envelope taskId must match active task ${JSON.stringify(taskId)}`)
+  }
+  if (envelopeValue.branch !== currentBranch) {
+    fail(`fulfilled[${index}].envelope branch ${JSON.stringify(envelopeValue.branch)} does not match current branch ${JSON.stringify(currentBranch)}`)
+  }
+  if (envelopeValue.sha !== currentSha) {
+    fail(`fulfilled[${index}].envelope SHA ${JSON.stringify(envelopeValue.sha)} does not match current HEAD ${JSON.stringify(currentSha)}`)
   }
   const provenance = isRecord(envelopeValue.provenance) ? envelopeValue.provenance : null
   if (

@@ -114,6 +114,8 @@ describe('ship sequencing — pure plan', () => {
     })
     expect(step.reviewAgents).toBe(2)
     expect(step.externalReviewers).toBe(1)
+    expect(step.action).toContain('dispatch 1 Anthropic code-review agent(s) + 1 Codex reviewer(s)')
+    expect(step.action).toContain('panel total: 2')
   })
 
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {

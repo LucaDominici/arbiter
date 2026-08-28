@@ -292,11 +292,6 @@ function reviewPhaseStepBody(
       reviewAgents: 0,
     }
   }
-  const step: Omit<ShipStep, 'verticals'> = {
-    phase,
-    action: `Clean up, then dispatch ${REVIEW_AGENTS[t]} code-review agent(s) + 1 adversarial verifier.`,
-    reviewAgents: REVIEW_AGENTS[t],
-  }
   const plan = planCrossModelSlots({
     tier: t,
     phase,
@@ -305,7 +300,16 @@ function reviewPhaseStepBody(
     ...(profile.crossModelReview !== undefined ? { cfg: profile.crossModelReview } : {}),
     ...(externalModelAccess !== undefined ? { access: externalModelAccess } : {}),
   })
-  return plan.external.length > 0 ? { ...step, externalReviewers: plan.external.length } : step
+  const externalCount = plan.external.length
+  const step: Omit<ShipStep, 'verticals'> = {
+    phase,
+    action:
+      externalCount > 0
+        ? `Clean up, then dispatch ${REVIEW_AGENTS[t] - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${REVIEW_AGENTS[t]}.`
+        : `Clean up, then dispatch ${REVIEW_AGENTS[t]} code-review agent(s) + 1 adversarial verifier.`,
+    reviewAgents: REVIEW_AGENTS[t],
+  }
+  return externalCount > 0 ? { ...step, externalReviewers: externalCount } : step
 }
 
 /** The phase body (count + action), before the size-derived vertical floor is attached. */

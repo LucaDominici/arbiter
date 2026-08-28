@@ -96,6 +96,8 @@ When `arbiter.json` opts in to `crossModelReview.enabled` and records explicit
 and `externalReviewers` is only the external portion. The external seat is assigned
 to `security` when that vertical is active, otherwise `bugs`; unavailable, unauthenticated,
 or unconsented access falls back to Anthropic.
+For Standard with a fulfilled external seat, dispatch one Anthropic reviewer plus one
+`codex-reviewer`; do not dispatch two Anthropic reviewers in addition to Codex.
 
 When `arbiter ship` reaches the refactor step, it invokes the wired boundary below from the
 repository root; the diff is sent on stdin and the actual `codex exec` invocation is delegated.
@@ -346,8 +348,12 @@ never a "no security surface" verdict.
 
 ```bash
 # Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-# If the optional external seat is fulfilled, use the literal agent name "codex-reviewer" instead.
-mkdir -p .arbiter && printf '{"count":1,"agents":["independent-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+# Set this only after the external recorder confirms a fulfilled Codex seat; leave it 0 on degradation.
+if [ "${external_review_fulfilled:-0}" = 1 ]; then
+  mkdir -p .arbiter && printf '{"count":1,"agents":["codex-reviewer"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+else
+  mkdir -p .arbiter && printf '{"count":1,"agents":["independent-review"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+fi
 ```
 
 Write this file only after the reviewer subagent has actually been dispatched — "I reviewed

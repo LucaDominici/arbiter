@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2358 — dispatch artifact schema and advisory gate.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -387,6 +387,28 @@ describe('check-cross-model-review (#2358)', () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(/openai|codex|provenance/i)
   })
 
+  it('rejects a fulfilled envelope stamped for another branch or SHA', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    json(
+      '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+      envelope({ sha: 'deadbeef' }),
+    )
+    writeArtifact(
+      dispatch({
+        fulfilled: [
+          {
+            provider: 'codex',
+            cliVersion: '0.5.1',
+            envelope: '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+          },
+        ],
+      }),
+    )
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/envelope|sha|current HEAD|match/i)
+  })
+
   it('rejects a fulfilled envelope outside the agent-return evidence directory', () => {
     json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
     json('.arbiter/evidence/arbitrary.json', envelope())
@@ -404,6 +426,31 @@ describe('check-cross-model-review (#2358)', () => {
     const result = run()
     expect(result.status).toBe(1)
     expect(`${result.stdout}${result.stderr}`).toMatch(/agent-returns|path|directory/i)
+  })
+
+  it('rejects a fulfilled envelope symlink that resolves outside the repository', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    const outside = mkdtempSync(join(tmpdir(), 'cross-model-review-outside-'))
+    const outsideEnvelope = join(outside, 'envelope.json')
+    writeFileSync(outsideEnvelope, `${JSON.stringify(envelope(), null, 2)}\n`)
+    mkdirSync(join(root, '.arbiter/evidence/agent-returns/_2358'), { recursive: true })
+    const linkedEnvelope = join(root, '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json')
+    symlinkSync(outsideEnvelope, linkedEnvelope)
+    writeArtifact(
+      dispatch({
+        fulfilled: [
+          {
+            provider: 'codex',
+            cliVersion: '0.5.1',
+            envelope: '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+          },
+        ],
+      }),
+    )
+    const result = run()
+    rmSync(outside, { recursive: true, force: true })
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/escapes|symlink|repository|agent-returns/i)
   })
 
   it('rejects a fulfilled file that is not a valid agent-return envelope', () => {
