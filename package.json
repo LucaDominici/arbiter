@@ -126,7 +126,7 @@
     }
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.1",
+    "@changesets/cli": "^2.31.1",
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.0.2",
     "@cucumber/cucumber": "^13.2.1",
