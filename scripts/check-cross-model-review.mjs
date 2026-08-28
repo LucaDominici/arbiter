@@ -197,10 +197,11 @@ function parseBooleanEnv(raw) {
   return undefined
 }
 
-function isValidReviewerPanel(agents, count) {
+function isValidReviewerPanel(agents, count, collaborationMode) {
+  const expectedCount = collaborationMode === 'trunk-solo' ? 1 : 2
   return (
     Number.isInteger(count) &&
-    count > 0 &&
+    count === expectedCount &&
     Array.isArray(agents) &&
     agents.length === count &&
     agents.every((agent) => typeof agent === 'string' && agent.length > 0) &&
@@ -458,7 +459,7 @@ if (recordPanel !== undefined) {
     error(`cannot parse reviewer panel: ${cause instanceof Error ? cause.message : String(cause)}`)
     throw cause
   }
-  if (!isValidReviewerPanel(agents, recordCount)) {
+  if (!isValidReviewerPanel(agents, recordCount, config.collaborationMode)) {
     error('reviewer panel count does not match its agent list')
   }
   writeFileContained(

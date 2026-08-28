@@ -472,6 +472,14 @@ describe('ship complete-action — chain batching (--chain, #2102)', () => {
   })
 })
 
+describe('ship close action ordering', () => {
+  it('commits before the exact-HEAD L2 gate', () => {
+    const action = shipStepFor('close', 'Standard', profile()).action
+    expect(action).toContain('Commit the candidate, then run `node scripts/check-all.mjs L2`')
+    expect(action).not.toContain('L2` before commit')
+  })
+})
+
 describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)', () => {
   it('arbiter-self → verification carries the 3 self-only authoring gates', () => {
     const step = shipStepFor('verification', 'Standard', profile({ isArbiterSelf: true }))

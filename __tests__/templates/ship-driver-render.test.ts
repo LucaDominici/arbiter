@@ -63,6 +63,7 @@ function installCrossModelChecker(
   writeFileSync(
     join(root, 'arbiter.json'),
     JSON.stringify({
+      collaborationMode: 'peer-review',
       crossModelReview: { enabled, diffEgressConsent: true, onUnavailable },
     }),
   )
@@ -263,7 +264,7 @@ describe('ship command cross-model sidecar (#2357)', () => {
       })
       writeFileSync(
         join(root, '.claude', '.task', 'status.json'),
-        JSON.stringify({ taskId: '#2357' }),
+        JSON.stringify({ taskId: '#2357', tier: 'Standard' }),
       )
       execFileSync('git', ['add', '.claude/.task/status.json'], { cwd: root })
       execFileSync('git', ['commit', '-q', '-m', 'task fixture'], { cwd: root })

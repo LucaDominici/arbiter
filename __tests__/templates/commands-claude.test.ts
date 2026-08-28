@@ -194,6 +194,7 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).toContain('manual block writes the complete reviewer')
     expect(content).toContain('codex-reviewer')
     expect(content).toContain('external_review_fulfilled')
+    expect(content).toContain('if [ "$task_tier" = Standard ]; then')
     expect(content).toContain('evidence/cross-model')
     expect(content).toMatch(/agents.*codex-reviewer|codex-reviewer.*agents/)
   })
@@ -287,10 +288,10 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).toMatch(/trunk.?solo.*1|1.*self.?review/i)
   })
 
-  it('trunk-solo external candidate keeps an Anthropic seat for the Standard panel', () => {
+  it('trunk-solo external candidate replaces its single seat without growing the panel', () => {
     const content = renderShip('typescript', 'L2', 'trunk-solo', 'pr-ff')
-    expect(content).toContain('candidate.length < total')
-    expect(content).toContain('candidate.push(`reviewer-${candidate.length + 1}`)')
+    expect(content).toContain('if [ "$task_tier" = Standard ]; then')
+    expect(content).not.toContain('while (candidate.length < total)')
   })
 })
 

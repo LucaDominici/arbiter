@@ -743,6 +743,7 @@ describe('check-cross-model-review (#2358)', () => {
     ['duplicate', ['codex-reviewer', 'codex-reviewer'], 2],
     ['non-string', [42], 1],
     ['without Codex', ['independent-review'], 1],
+    ['peer-review Codex-only', ['codex-reviewer'], 1],
   ])('rejects a %s recorded reviewer panel', (_label, agents, count) => {
     json('arbiter.json', {
       crossModelReview: { enabled: true, diffEgressConsent: true, onUnavailable: 'degrade' },
