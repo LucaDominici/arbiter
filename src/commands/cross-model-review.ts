@@ -231,20 +231,6 @@ function runShipCrossModelReview(
   options: ShipCrossModelReviewOptions,
 ): ReturnType<typeof invokeExternalReview> {
   const repoRoot = resolve(options.dir)
-  if (
-    options.cfg.enabled &&
-    options.cfg.diffEgressConsent &&
-    hasCurrentFulfilledReview(repoRoot, options.taskId)
-  ) {
-    return {
-      provider: 'codex',
-      status: 'fulfilled',
-      diffBytes: 0,
-      diffTruncated: false,
-      degradationReasons: [],
-      recorded: true,
-    }
-  }
   let diff = ''
   let access = options.cfg.diffEgressConsent ? options.access : undefined
   let preflightError: unknown
@@ -252,6 +238,16 @@ function runShipCrossModelReview(
   if (options.cfg.diffEgressConsent) {
     try {
       assertReviewTreeClean(repoRoot)
+      if (options.cfg.enabled && hasCurrentFulfilledReview(repoRoot, options.taskId)) {
+        return {
+          provider: 'codex',
+          status: 'fulfilled',
+          diffBytes: 0,
+          diffTruncated: false,
+          degradationReasons: [],
+          recorded: true,
+        }
+      }
       diff = runCli('git', ['diff', '--binary', 'origin/main...HEAD'], {
         cwd: repoRoot,
         timeoutMs: 15_000,

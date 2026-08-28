@@ -347,6 +347,9 @@ describe('runCrossModelReview (#2357)', () => {
         if (command === 'node' && args[0]?.endsWith('scripts/check-cross-model-review.mjs')) {
           return { stdout: '', stderr: 'invalid evidence', exitCode: 1, durationMs: 1 }
         }
+        if (command === 'git' && args[0] === 'status') {
+          return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+        }
         return { stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 }
       })
 
@@ -366,6 +369,63 @@ describe('runCrossModelReview (#2357)', () => {
         [expect.stringContaining('scripts/check-cross-model-review.mjs'), '--require-fulfilled'],
         expect.objectContaining({ cwd: dir, retries: 0 }),
       )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not reuse fulfilled cache evidence when the tree is dirty', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dirty-cache-'))
+    try {
+      const branch = 'task/#2357-dirty-cache'
+      const sha = 'a'.repeat(40)
+      mkdirSync(join(dir, '.git'))
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(
+        join(dir, '.arbiter', 'agents-dispatched.json'),
+        `${JSON.stringify({ count: 1, agents: ['codex-reviewer'], taskId: '#2357', branch, sha })}\n`,
+      )
+      mockedRunCli.mockImplementation((command, args) => {
+        if (command === 'git' && args[0] === 'rev-parse' && args[1] === '--abbrev-ref') {
+          return { stdout: `${branch}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD') {
+          return { stdout: `${sha}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        if (command === 'git' && args[0] === 'status') {
+          return { stdout: ' M tracked.txt\n', stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        if (command === 'node' && args[0]?.endsWith('scripts/check-cross-model-review.mjs')) {
+          return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+      })
+
+      runShipCrossModelReview({
+        dir,
+        taskId: '#2357',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+        cfg,
+        access: mockedDetect.mock.results[0]?.value,
+      })
+
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        expect.objectContaining({
+          diff: '',
+          preflightDegradation: 'invocation-failed',
+          preflightError: expect.objectContaining({
+            message: expect.stringContaining('uncommitted'),
+          }),
+        }),
+      )
+      expect(
+        mockedRunCli.mock.calls.some(
+          ([command, args]) =>
+            command === 'node' && args[0]?.endsWith('scripts/check-cross-model-review.mjs'),
+        ),
+      ).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
