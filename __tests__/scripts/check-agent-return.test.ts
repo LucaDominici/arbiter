@@ -23,6 +23,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { resolveCitation } from '../../scripts/lib/agent-return-validate.mjs'
 
 const CHECK_SCRIPT = new URL('../../scripts/check-agent-return.mjs', import.meta.url).pathname
 const RECORD_SCRIPT = new URL('../../scripts/record-agent-return.mjs', import.meta.url).pathname
@@ -228,6 +229,14 @@ describe('check-agent-return.mjs', () => {
       }),
     )
     expect(runCheck(evidenceDir, { cwd: tmpDir }).exitCode).toBe(1)
+  })
+
+  it('does not interpret a citation path as shell syntax', () => {
+    const marker = join(tmpDir, 'citation-shell-pwned')
+    const citationFile = `src/nope; touch ${marker}`
+    const result = resolveCitation(process.cwd(), 'f7b9cbdc', citationFile, 1)
+    expect(result.ok).toBe(false)
+    expect(existsSync(marker)).toBe(false)
   })
 
   // ─── --enforce dispatch cross-check ────────────────────────────────────────

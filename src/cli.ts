@@ -48,15 +48,16 @@ import {
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
-import { runCrossModelReview } from './commands/cross-model-review.js'
+import { runCrossModelReview, runShipCrossModelReview } from './commands/cross-model-review.js'
 import { buildShipOverrides, resolveShipProfile } from './commands/ship-profile.js'
 import { detectExternalModel } from './detectors/external-model.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
 import { runTaskMark } from './commands/task-mark.js'
-import { isTddPhase } from './commands/task-state.js'
+import { isTddPhase, readUnifiedState } from './commands/task-state.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
+import { normTier } from './commands/ship-tier.js'
 import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
 import type { GraphFormat } from './commands/graph.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
@@ -447,6 +448,29 @@ function externalModelAccessForShip(
   const config = profile.crossModelReview
   if (config === undefined || !config.enabled || !config.diffEgressConsent) return undefined
   return detectExternalModel('codex')
+}
+
+function runConfiguredShipReview(
+  root: string,
+  result: ReturnType<typeof runTaskShip>,
+  tier: string | undefined,
+  access: ReturnType<typeof detectExternalModel> | undefined,
+): void {
+  const config = result.profile.crossModelReview
+  if (result.phase !== 'refactor' || !config?.enabled) return
+  const taskId = readUnifiedState(root)?.taskId
+  if (taskId === undefined) {
+    throw new Error('crossModelReview is enabled but the active ship task id is missing')
+  }
+  runShipCrossModelReview({
+    dir: root,
+    taskId,
+    tier: result.tier ?? normTier(tier),
+    phase: result.phase,
+    vertical: result.step.verticals.includes('security') ? 'security' : 'bugs',
+    cfg: config,
+    ...(access !== undefined ? { access } : {}),
+  })
 }
 
 program
@@ -2004,6 +2028,7 @@ program
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
           ...(externalModelAccess !== undefined ? { externalModelAccess } : {}),
         })
+        runConfiguredShipReview(shipRoot, result, opts.tier, externalModelAccess)
         const lines = buildShipStepLines(result)
         process.stdout.write(lines.join('\n') + '\n')
       } catch (err) {

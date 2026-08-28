@@ -26,6 +26,8 @@
       "src/integrations/external-review.ts",
       "src/wizard",
       "src/generators",
+      ".agents/plan/PLAN.json",
+      ".arbiter/evidence/tdd",
       ".bloat-baseline.json",
       ".claude/agent-dispatch-matrix.json",
       ".claude/agent-dispatch-matrix.schema.json",
@@ -34,15 +36,24 @@
       "scripts/check-agent-dispatch.mjs",
       "scripts/data/advisory-ledger.json",
       "scripts/lib/gate-affects-registry.mjs",
+      "scripts/lib/agent-return-validate.mjs",
       ".claude/commands/ship.md",
       ".claude/AGENT_REGISTRY.md",
       "PRIVACY.md",
       "website/reference/cli.md",
       "docs/design/cross-model-review-config.md",
+      "docs/design",
+      "examples",
       "__tests__"
     ]
   },
   "files": [
+    { "path": ".agents/plan/PLAN.json", "operation": "modify" },
+    { "path": ".arbiter/evidence/tdd/#2354.json", "operation": "create" },
+    { "path": ".arbiter/evidence/tdd/#2355.json", "operation": "create" },
+    { "path": ".arbiter/evidence/tdd/#2356.json", "operation": "create" },
+    { "path": ".arbiter/evidence/tdd/#2357.json", "operation": "create" },
+    { "path": ".arbiter/evidence/tdd/#2358.json", "operation": "create" },
     { "path": "schemas/agent-return.schema.json", "operation": "modify" },
     { "path": "scripts/record-agent-return.mjs", "operation": "modify" },
     { "path": "src/templates/scripts/schemas/agent-return.schema.json.ejs", "operation": "modify" },
@@ -56,6 +67,7 @@
     { "path": "src/commands/method.ts", "operation": "modify" },
     { "path": "src/commands/settings.ts", "operation": "modify" },
     { "path": "__tests__/detectors/external-model.test.ts", "operation": "create" },
+    { "path": ".claude/agent-dispatch-matrix.json", "operation": "modify" },
     { "path": "PRIVACY.md", "operation": "modify" },
     { "path": "src/config/schema.ts", "operation": "modify" },
     { "path": "src/commands/configure.ts", "operation": "modify" },
@@ -66,8 +78,58 @@
     { "path": "src/commands/init/resolve-config.ts", "operation": "modify" },
     { "path": "src/commands/ship-profile.ts", "operation": "modify" },
     { "path": "docs/design/cross-model-review-config.md", "operation": "modify" },
+    { "path": "docs/design/agent-return-provenance.md", "operation": "modify" },
+    { "path": "docs/design/external-model-detection.md", "operation": "modify" },
+    { "path": "examples/go-library/.arbiter-generated-manifest.json", "operation": "modify" },
+    {
+      "path": "examples/go-library/schemas/agent-return-external.schema.json",
+      "operation": "create"
+    },
+    { "path": "examples/go-library/schemas/agent-return.schema.json", "operation": "modify" },
+    {
+      "path": "examples/go-library/schemas/cross-model-dispatch.schema.json",
+      "operation": "create"
+    },
+    { "path": "examples/go-library/scripts/check-cross-model-review.mjs", "operation": "create" },
+    { "path": "examples/go-library/scripts/lib/agent-return-validate.mjs", "operation": "modify" },
+    { "path": "examples/go-library/scripts/record-agent-return.mjs", "operation": "modify" },
+    { "path": "examples/python-library/.arbiter-generated-manifest.json", "operation": "modify" },
+    {
+      "path": "examples/python-library/schemas/agent-return-external.schema.json",
+      "operation": "create"
+    },
+    { "path": "examples/python-library/schemas/agent-return.schema.json", "operation": "modify" },
+    {
+      "path": "examples/python-library/schemas/cross-model-dispatch.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/scripts/check-cross-model-review.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/scripts/lib/agent-return-validate.mjs",
+      "operation": "modify"
+    },
+    { "path": "examples/python-library/scripts/record-agent-return.mjs", "operation": "modify" },
+    { "path": "examples/ts-library/.arbiter-generated-manifest.json", "operation": "modify" },
+    {
+      "path": "examples/ts-library/schemas/agent-return-external.schema.json",
+      "operation": "create"
+    },
+    { "path": "examples/ts-library/schemas/agent-return.schema.json", "operation": "modify" },
+    {
+      "path": "examples/ts-library/schemas/cross-model-dispatch.schema.json",
+      "operation": "create"
+    },
+    { "path": "examples/ts-library/scripts/check-cross-model-review.mjs", "operation": "create" },
+    { "path": "examples/ts-library/scripts/lib/agent-return-validate.mjs", "operation": "modify" },
+    { "path": "examples/ts-library/scripts/record-agent-return.mjs", "operation": "modify" },
     { "path": "__tests__/config/schema.test.ts", "operation": "modify" },
     { "path": "__tests__/commands/configure.test.ts", "operation": "modify" },
+    { "path": "__tests__/commands/doctor.test.ts", "operation": "modify" },
+    { "path": "__tests__/config/env-overrides.test.ts", "operation": "modify" },
+    { "path": "__tests__/generators/check-all.test.ts", "operation": "modify" },
     { "path": "__tests__/wizard/buildConfigFromAnswers.test.ts", "operation": "modify" },
     { "path": "__tests__/wizard/prompts.test.ts", "operation": "modify" },
     { "path": "__tests__/commands/ship-profile.test.ts", "operation": "modify" },
@@ -94,16 +156,20 @@
       "path": "src/templates/scripts/schemas/cross-model-dispatch.schema.json.ejs",
       "operation": "create"
     },
-    { "path": "src/templates/scripts/check-all.mjs.ejs", "operation": "modify" },
     { "path": "src/templates/scripts/gate-registry.yml.ejs", "operation": "modify" },
+    { "path": "src/templates/scripts/lib/agent-return-validate.mjs.ejs", "operation": "modify" },
     { "path": "src/generators/check-all.ts", "operation": "modify" },
     { "path": ".claude/agent-dispatch-matrix.schema.json", "operation": "modify" },
     { "path": "scripts/data/advisory-ledger.json", "operation": "modify" },
+    { "path": "scripts/check-agent-dispatch.mjs", "operation": "modify" },
+    { "path": "scripts/check-all.mjs", "operation": "modify" },
+    { "path": "scripts/lib/agent-return-validate.mjs", "operation": "modify" },
     { "path": ".bloat-baseline.json", "operation": "modify" },
     { "path": "__tests__/scripts/check-cross-model-review.test.ts", "operation": "create" },
     { "path": "__tests__/commands/cross-model-review.test.ts", "operation": "create" },
     { "path": "__tests__/scripts/check-agent-dispatch.test.ts", "operation": "modify" },
     { "path": "__tests__/templates/cross-model-dispatch-render.test.ts", "operation": "create" },
+    { "path": "__tests__/templates/commands-claude.test.ts", "operation": "modify" },
     { "path": "scripts/lib/gate-affects-registry.mjs", "operation": "modify" },
     { "path": "__tests__/templates/__snapshots__/high-fanout/check-all.mjs", "operation": "modify" }
   ],

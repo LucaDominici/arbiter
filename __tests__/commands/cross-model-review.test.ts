@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { detectExternalModel } from '../../src/detectors/external-model.js'
 import { invokeExternalReview } from '../../src/integrations/external-review.js'
 import { resolveShipProfile } from '../../src/commands/ship-profile.js'
-import { runCrossModelReview } from '../../src/commands/cross-model-review.js'
+import {
+  runCrossModelReview,
+  runShipCrossModelReview,
+} from '../../src/commands/cross-model-review.js'
+import { runCli } from '../../src/utils/run-cli.js'
 
 vi.mock('../../src/detectors/external-model.js', () => ({
   detectExternalModel: vi.fn(),
@@ -15,10 +19,15 @@ vi.mock('../../src/integrations/external-review.js', () => ({
 vi.mock('../../src/commands/ship-profile.js', () => ({
   resolveShipProfile: vi.fn(),
 }))
+vi.mock('../../src/utils/run-cli.js', async (importActual) => {
+  const actual = await importActual<typeof import('../../src/utils/run-cli.js')>()
+  return { ...actual, runCli: vi.fn() }
+})
 
 const mockedDetect = vi.mocked(detectExternalModel)
 const mockedInvoke = vi.mocked(invokeExternalReview)
 const mockedProfile = vi.mocked(resolveShipProfile)
+const mockedRunCli = vi.mocked(runCli)
 
 const cfg = {
   enabled: true,
@@ -32,6 +41,7 @@ const cfg = {
 describe('runCrossModelReview (#2357)', () => {
   beforeEach(() => {
     mockedInvoke.mockClear()
+    mockedRunCli.mockReset()
     mockedDetect.mockReturnValue({
       provider: 'codex',
       vendor: 'openai',
@@ -59,6 +69,7 @@ describe('runCrossModelReview (#2357)', () => {
       recorded: true,
       envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
     })
+    mockedRunCli.mockReturnValue({ stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 })
   })
 
   it('passes the configured profile, detected access, and stdin diff to the invoker', () => {
@@ -106,5 +117,43 @@ describe('runCrossModelReview (#2357)', () => {
       }),
     ).toThrow(/crossModelReview|consent/i)
     expect(mockedInvoke).not.toHaveBeenCalled()
+  })
+
+  it('ships the configured external review from the real refactor boundary', () => {
+    const result = runShipCrossModelReview({
+      dir: '/tmp/project',
+      taskId: '#2357',
+      tier: 'Standard',
+      phase: 'refactor',
+      vertical: 'security',
+      cfg,
+      access: mockedDetect.mock.results[0]?.value,
+    })
+
+    expect(result.status).toBe('fulfilled')
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'git',
+      ['diff', '--binary', 'origin/main...HEAD'],
+      expect.objectContaining({ cwd: '/tmp/project' }),
+    )
+    expect(mockedInvoke).toHaveBeenCalledWith(
+      expect.objectContaining({ repoRoot: '/tmp/project', taskId: '#2357', diff: 'diff', cfg }),
+    )
+  })
+
+  it('records a consent degradation without collecting or sending a diff', () => {
+    const noConsent = { ...cfg, diffEgressConsent: false }
+    runShipCrossModelReview({
+      dir: '/tmp/project',
+      taskId: '#2357',
+      tier: 'Standard',
+      phase: 'refactor',
+      vertical: 'security',
+      cfg: noConsent,
+    })
+
+    expect(mockedRunCli).not.toHaveBeenCalled()
+    expect(mockedInvoke).toHaveBeenCalledWith(expect.objectContaining({ diff: '', cfg: noConsent }))
+    expect(mockedInvoke.mock.calls[0]?.[0]).not.toHaveProperty('access')
   })
 })

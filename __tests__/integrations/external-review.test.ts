@@ -30,7 +30,7 @@ function config(overrides: Partial<CrossModelReviewConfig> = {}): CrossModelRevi
     enabled: true,
     diffEgressConsent: true,
     ...overrides,
-    slots: { ...DEFAULT_CROSS_MODEL_REVIEW.slots, ...(overrides.slots ?? {}), codeReview: 1 },
+    slots: { ...DEFAULT_CROSS_MODEL_REVIEW.slots, ...(overrides.slots ?? {}) },
   }
 }
 
@@ -221,7 +221,7 @@ describe('invokeExternalReview (#2357)', () => {
     ).toContain('agent-return-external')
   })
 
-  it('marks a 512 KiB diff truncation as degradation while keeping the prompt explicit (AC-5)', () => {
+  it('marks a 512 KiB diff truncation as degradation without returning the full prompt (AC-5)', () => {
     mockedRunCli.mockImplementation((cmd) =>
       cmd === 'codex'
         ? { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
@@ -237,8 +237,10 @@ describe('invokeExternalReview (#2357)', () => {
     })
     expect(result.status).toBe('degraded')
     expect(result.degradationReason).toBe('diff-truncated')
-    expect(result.prompt).toContain('diff-truncated')
-    expect(result.prompt).toContain('512 KiB')
+    const codexOptions = mockedRunCli.mock.calls[0]?.[2] as { input?: string } | undefined
+    expect(codexOptions?.input).toContain('diff-truncated')
+    expect(codexOptions?.input).toContain('512 KiB')
+    expect(result).not.toHaveProperty('prompt')
   })
 
   it('writes dispatch evidence for an enabled degraded run (#2358)', () => {
@@ -303,6 +305,34 @@ describe('invokeExternalReview (#2357)', () => {
         access: access(),
         dispatchEvidenceDir: evidenceRoot,
         tier: 'XS',
+        phase: 'refactor',
+        vertical: 'bugs',
+        branch: 'task/#2358-cross-model-degradation-evidence',
+        sha: 'deadbeef',
+      })
+      expect(result.degradationReasons).toEqual([])
+      const dispatch = JSON.parse(
+        readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf-8'),
+      )
+      expect(dispatch.requested).toEqual([])
+      expect(dispatch.degraded).toEqual([])
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('does not request or degrade when the external code-review slot is zero', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-dispatch-zero-'))
+    try {
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: 'diff',
+        cfg: config({ slots: { codeReview: 0, redTeamReview: 0 } }),
+        access: access(),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
         phase: 'refactor',
         vertical: 'bugs',
         branch: 'task/#2358-cross-model-degradation-evidence',

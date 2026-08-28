@@ -9,6 +9,7 @@
 // Usage: node scripts/check-cross-model-review.mjs [--root <dir>] [--task <id>]
 
 import { existsSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 
@@ -104,6 +105,18 @@ const evidencePath = join(
 )
 if (!existsSync(evidencePath)) fail(`dispatch evidence missing: ${evidencePath}`)
 
+function gitValue(args, label) {
+  try {
+    return execFileSync('git', ['-C', root, ...args], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim()
+    // FAIL-OPEN-INTENT: an unreadable revision is an ERROR, never a pass without binding evidence to the current checkout.
+  } catch (cause) {
+    error(`cannot resolve current ${label}: ${cause instanceof Error ? cause.message : String(cause)}`)
+  }
+}
+
 const schemaPath = join(root, 'schemas', 'cross-model-dispatch.schema.json')
 let schema
 try {
@@ -127,16 +140,29 @@ if (artifact.taskId !== taskId) {
   fail(`dispatch taskId ${JSON.stringify(artifact.taskId)} does not match active task ${JSON.stringify(taskId)}`)
 }
 
+const currentBranch = gitValue(['branch', '--show-current'], 'branch')
+const currentSha = gitValue(['rev-parse', 'HEAD'], 'HEAD SHA')
+if (artifact.branch !== currentBranch) {
+  fail(`dispatch branch ${JSON.stringify(artifact.branch)} does not match current branch ${JSON.stringify(currentBranch)}`)
+}
+try {
+  execFileSync('git', ['-C', root, 'merge-base', '--is-ancestor', artifact.sha, 'HEAD'], {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  // FAIL-OPEN-INTENT: a dispatch SHA outside the current history is stale evidence and fails below.
+} catch {
+  fail(`dispatch SHA ${JSON.stringify(artifact.sha)} is not an ancestor of current HEAD ${currentSha}`)
+}
+
 if (artifact.requested.length === 0) {
   if (artifact.fulfilled.length > 0 || artifact.degraded.length > 0) {
     fail('dispatch has outcomes but no requested external slot')
   }
 } else if (artifact.fulfilled.length === 0 && artifact.degraded.length === 0) {
   fail('every requested external slot must have a fulfilled or degraded outcome')
-} else if (artifact.fulfilled.length > artifact.requested.length) {
-  fail('dispatch has more fulfilled slots than requested external slots')
-} else if (artifact.degraded.length === 0 && artifact.fulfilled.length < artifact.requested.length) {
-  fail('dispatch leaves a requested external slot without an outcome')
+} else if (artifact.fulfilled.length + artifact.degraded.length !== artifact.requested.length) {
+  fail(`dispatch outcomes (${artifact.fulfilled.length + artifact.degraded.length}) do not match requested external slots (${artifact.requested.length})`)
 }
 
 const repoResolved = resolve(root)

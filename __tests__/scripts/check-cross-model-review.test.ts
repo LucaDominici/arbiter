@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 
 const REPO_ROOT = process.cwd()
 const SCRIPT = join(REPO_ROOT, 'scripts', 'check-cross-model-review.mjs')
@@ -89,6 +89,10 @@ const CROSS_MODEL_SCHEMA = {
 
 let root: string
 
+function git(args: string[]): string {
+  return execFileSync('git', args, { cwd: root, encoding: 'utf-8' }).trim()
+}
+
 function json(path: string, value: unknown): void {
   mkdirSync(join(root, path, '..'), { recursive: true })
   writeFileSync(join(root, path), `${JSON.stringify(value, null, 2)}\n`)
@@ -98,8 +102,8 @@ function dispatch(overrides: Record<string, unknown> = {}) {
   return {
     schema: 'arbiter-cross-model-dispatch-v1',
     taskId: '#2358',
-    branch: 'task/#2358-cross-model-degradation-evidence',
-    sha: 'deadbeef',
+    branch: git(['branch', '--show-current']),
+    sha: git(['rev-parse', 'HEAD']),
     ts: '2026-08-28T12:00:00.000Z',
     phase: 'refactor',
     requested: [{ provider: 'codex', vertical: 'security' }],
@@ -127,8 +131,8 @@ function envelope(overrides: Record<string, unknown> = {}) {
     agent: 'codex-reviewer',
     role: 'reviewer',
     taskId: '#2358',
-    branch: 'task/#2358-cross-model-degradation-evidence',
-    sha: 'deadbeef',
+    branch: git(['branch', '--show-current']),
+    sha: git(['rev-parse', 'HEAD']),
     ts: '2026-08-28T12:00:00.000Z',
     verdict: 'PASS',
     confidence: 1,
@@ -154,6 +158,17 @@ beforeEach(() => {
   writeFileSync(AGENT_SCHEMA.replace(REPO_ROOT, root), readFileSync(AGENT_SCHEMA))
   json('arbiter.json', { crossModelReview: { enabled: false, onUnavailable: 'degrade' } })
   json('.claude/.task/status.json', { taskId: '#2358' })
+  execFileSync('git', ['init', '-q', '-b', 'task/#2358-cross-model-degradation-evidence'], {
+    cwd: root,
+    stdio: 'ignore',
+  })
+  execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: root })
+  execFileSync('git', ['config', 'user.name', 'test-user'], { cwd: root })
+  execFileSync('git', ['add', '-A'], { cwd: root })
+  execFileSync('git', ['commit', '-q', '-m', 'fixture', '--no-gpg-sign'], {
+    cwd: root,
+    stdio: 'ignore',
+  })
 })
 
 afterEach(() => {
@@ -254,7 +269,7 @@ describe('check-cross-model-review (#2358)', () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(/reason|enum|schema/i)
   })
 
-  it('passes a fulfilled non-Anthropic dispatch with a closed reason when present', () => {
+  it('rejects fulfilled and degraded outcomes that exceed the requested slots', () => {
     json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
     json('.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json', envelope())
     writeArtifact(
@@ -278,7 +293,50 @@ describe('check-cross-model-review (#2358)', () => {
       }),
     )
     const result = run()
-    expect(result.status).toBe(0)
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/outcome|requested|slot/i)
+  })
+
+  it('rejects dispatch evidence stamped for another branch', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    writeArtifact(
+      dispatch({
+        branch: 'task/#9999-other-branch',
+        degraded: [
+          {
+            provider: 'codex',
+            vertical: 'security',
+            substitute: 'anthropic',
+            reason: 'cli-not-found',
+            detail: 'Command not found: codex',
+          },
+        ],
+      }),
+    )
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/branch|current/i)
+  })
+
+  it('rejects dispatch evidence whose SHA is not in the current history', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    writeArtifact(
+      dispatch({
+        sha: 'deadbeef',
+        degraded: [
+          {
+            provider: 'codex',
+            vertical: 'security',
+            substitute: 'anthropic',
+            reason: 'cli-not-found',
+            detail: 'Command not found: codex',
+          },
+        ],
+      }),
+    )
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/sha|ancestor|history/i)
   })
 
   it('rejects a fulfilled slot whose provenance is not the Codex provider', () => {

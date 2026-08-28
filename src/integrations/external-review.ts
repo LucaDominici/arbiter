@@ -84,8 +84,6 @@ export interface ExternalReviewResult {
   degradationReason?: ExternalReviewDegradationReason
   envelope?: ExternalReviewPayload
   recorded: boolean
-  /** Prompt sent to the child, retained for deterministic tests and dispatch evidence. */
-  prompt?: string
 }
 
 export interface CrossModelDispatchArtifact {
@@ -141,6 +139,7 @@ function configuredSlotCount(input: SlotInput): number | null {
   if (cfg === undefined || !cfg.enabled) return null
   if (!cfg.diffEgressConsent) return null
   if (!cfg.providers.includes('codex')) return null
+  if (cfg.slots.codeReview <= 0) return 0
   if (!input.access?.available) return null
   if (!input.access.authenticated) return null
   return Math.min(
@@ -152,6 +151,7 @@ function configuredSlotCount(input: SlotInput): number | null {
 
 function fallbackReason(input: SlotInput): ExternalReviewDegradationReason {
   if (input.cfg === undefined || !input.cfg.enabled) return 'disabled'
+  if (input.cfg.slots.codeReview <= 0) return 'provider-not-configured'
   if (!input.cfg.diffEgressConsent) return 'consent-missing'
   if (!input.cfg.providers.includes('codex')) return 'provider-not-configured'
   if (input.access?.available !== true) return 'provider-unavailable'
@@ -285,7 +285,7 @@ function resultFor(
   request: ExternalReviewRequest,
   prepared: ReturnType<typeof truncateDiff>,
   reasons: ExternalReviewDegradationReason[],
-  extra: Partial<Pick<ExternalReviewResult, 'envelope' | 'recorded' | 'prompt'>> = {},
+  extra: Partial<Pick<ExternalReviewResult, 'envelope' | 'recorded'>> = {},
 ): ExternalReviewResult {
   return {
     provider: 'codex',
@@ -296,7 +296,6 @@ function resultFor(
     ...(reasons[0] !== undefined ? { degradationReason: reasons[0] } : {}),
     recorded: extra.recorded ?? false,
     ...(extra.envelope !== undefined ? { envelope: extra.envelope } : {}),
-    ...(extra.prompt !== undefined ? { prompt: extra.prompt } : {}),
   }
 }
 
@@ -463,6 +462,7 @@ function requestedEntries(
 ): CrossModelDispatchArtifact['requested'] {
   if (
     !request.cfg.enabled ||
+    request.cfg.slots.codeReview <= 0 ||
     plan.phase !== 'refactor' ||
     externalSlotsForTier(request.tier ?? 'Standard') === 0
   )
@@ -475,7 +475,13 @@ function fulfilledEntries(
   result: ExternalReviewResult,
   envelopePath: string | null,
 ): CrossModelDispatchArtifact['fulfilled'] {
-  if (result.envelope === undefined || !result.recorded || envelopePath === null) return []
+  if (
+    result.status !== 'fulfilled' ||
+    result.envelope === undefined ||
+    !result.recorded ||
+    envelopePath === null
+  )
+    return []
   return [
     {
       provider: 'codex',
@@ -491,18 +497,26 @@ function degradedEntries(
   result: ExternalReviewResult,
   error?: unknown,
 ): CrossModelDispatchArtifact['degraded'] {
-  if (plan.phase !== 'refactor' || externalSlotsForTier(request.tier ?? 'Standard') === 0) return []
+  if (
+    request.cfg.slots.codeReview <= 0 ||
+    plan.phase !== 'refactor' ||
+    externalSlotsForTier(request.tier ?? 'Standard') === 0
+  )
+    return []
+  if (result.status !== 'degraded') return []
   const vertical = request.vertical ?? plan.external[0] ?? 'bugs'
-  return result.degradationReasons.map((originalReason) => {
-    const reason = dispatchReason(originalReason, error)
-    return {
+  const originalReason = result.degradationReasons.at(-1) ?? plan.degradationReason
+  if (originalReason === undefined) return []
+  const reason = dispatchReason(originalReason, error)
+  return [
+    {
       provider: 'codex',
       vertical,
       substitute: 'anthropic',
       reason,
       detail: dispatchDetail(reason, error),
-    }
-  })
+    },
+  ]
 }
 
 function writeDispatchEvidence(
@@ -563,7 +577,10 @@ function resultWithoutExternal(
   plan: CrossModelPlan,
   prepared: ReturnType<typeof truncateDiff>,
 ): ExternalReviewResult {
-  const noSeat = externalSlotsForTier(request.tier ?? 'Standard') === 0 || plan.phase !== 'refactor'
+  const noSeat =
+    request.cfg.slots.codeReview <= 0 ||
+    externalSlotsForTier(request.tier ?? 'Standard') === 0 ||
+    plan.phase !== 'refactor'
   const reasons = noSeat ? [] : [plan.degradationReason ?? 'provider-unavailable']
   const result = resultFor(request, prepared, reasons)
   return request.cfg.enabled ? finalizeResult(request, plan, result) : result
@@ -574,22 +591,19 @@ function persistExternalPayload(
   plan: CrossModelPlan,
   prepared: ReturnType<typeof truncateDiff>,
   reasons: ExternalReviewDegradationReason[],
-  input: { prompt: string; payload: ExternalReviewPayload },
+  payload: ExternalReviewPayload,
 ): ExternalReviewResult {
   let envelopePath: string | null
   try {
     if (request.access === undefined)
       throw new Error('external access disappeared before persistence')
-    envelopePath = persistEnvelope(request, request.access, input.payload)
+    envelopePath = persistEnvelope(request, request.access, payload)
     if (envelopePath === null) throw new Error('recorder did not confirm envelope persistence')
   } catch (error) {
     return finalizeResult(
       request,
       plan,
-      resultFor(request, prepared, [...reasons, 'envelope-rejected'], {
-        envelope: input.payload,
-        prompt: input.prompt,
-      }),
+      resultFor(request, prepared, [...reasons, 'envelope-rejected'], { envelope: payload }),
       null,
       error,
     )
@@ -598,9 +612,8 @@ function persistExternalPayload(
     request,
     plan,
     resultFor(request, prepared, reasons, {
-      envelope: input.payload,
+      envelope: payload,
       recorded: true,
-      prompt: input.prompt,
     }),
     envelopePath,
   )
@@ -625,32 +638,33 @@ export function invokeExternalReview(request: ExternalReviewRequest): ExternalRe
   }
   const reasons: ExternalReviewDegradationReason[] = prepared.truncated ? ['diff-truncated'] : []
   const prompt = buildPrompt(request.prompt, prepared.text, prepared.truncated)
-  const scratch = mkdtempTranslated(join(tmpdir(), 'arbiter-cross-model-review-'))
-  const outputPath = join(scratch, 'return.json')
-  const schemaPath = join(request.repoRoot, EXTERNAL_REVIEW_SCHEMA)
+  let scratch: string | null = null
   try {
+    scratch = mkdtempTranslated(join(tmpdir(), 'arbiter-cross-model-review-'))
+    const outputPath = join(scratch, 'return.json')
+    const schemaPath = join(request.repoRoot, EXTERNAL_REVIEW_SCHEMA)
     const codex = invokeCodex(request, prompt, outputPath, schemaPath)
     const payload = extractAgentReturnJson(outputText(outputPath, codex))
     if (payload === null) {
       return finalizeResult(
         request,
         initial,
-        resultFor(request, prepared, [...reasons, 'coercion-failed'], { prompt }),
+        resultFor(request, prepared, [...reasons, 'coercion-failed']),
         null,
       )
     }
-    return persistExternalPayload(request, initial, prepared, reasons, { prompt, payload })
+    return persistExternalPayload(request, initial, prepared, reasons, payload)
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('cross-model review unavailable:'))
       throw error
     return finalizeResult(
       request,
       initial,
-      resultFor(request, prepared, [...reasons, 'invocation-failed'], { prompt }),
+      resultFor(request, prepared, [...reasons, 'invocation-failed']),
       null,
       error,
     )
   } finally {
-    cleanupTemp(scratch)
+    if (scratch !== null) cleanupTemp(scratch)
   }
 }

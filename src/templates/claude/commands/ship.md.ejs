@@ -98,8 +98,9 @@ and `externalReviewers` is only the external portion. The external seat is assig
 to `security` when that vertical is active, otherwise `bugs`; unavailable, unauthenticated,
 or unconsented access falls back to Anthropic.
 
-When `arbiter ship` reports `External reviewers: 1`, run the wired boundary below from the
-repository root; it sends the diff on stdin and delegates the actual `codex exec` invocation.
+When `arbiter ship` reaches the refactor step, it invokes the wired boundary below from the
+repository root; the diff is sent on stdin and the actual `codex exec` invocation is delegated.
+The same command is available for an explicit manual rerun when the evidence needs refreshing.
 
 ```bash
 git diff --binary origin/main...HEAD | arbiter review cross-model --task '#NNN' --tier Standard --phase refactor --vertical security --prompt 'Review this change for bugs, type safety, security, data integrity, and silent failures.'
@@ -112,11 +113,9 @@ the prompt and a maximum 512 KiB diff on stdin. Output uses the reduced
 `dispatch=external-cli`. Retries are disabled. A truncated diff, failed coercion, or
 recorder rejection is a degradation and must not be silently treated as a clean review.
 
-The dispatch sidecar names the external seat when it is used:
-
-```bash
-mkdir -p .arbiter && printf '{"count":2,"agents":["independent-review","codex-reviewer"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
-```
+Use the single sidecar writer in the Refactor / code-review evidence below. When the external
+seat is active, include `codex-reviewer` in that same `agents[]` list and set `count` to the total
+number actually dispatched; never write a second sidecar.
 
 **XS/S=1 depends on the completion gate.** A single reviewer is only safe because
 `scripts/check-review-completion.mjs` (#2177) fails the stage when a dispatched reviewer returned

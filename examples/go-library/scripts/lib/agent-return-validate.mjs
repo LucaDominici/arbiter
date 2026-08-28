@@ -13,7 +13,7 @@
 // silent pass.
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { execSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 
 /**
  * Resolve a $ref within the root schema (only local "#/$defs/Name" refs supported).
@@ -188,7 +188,7 @@ function isGitRepo(repoRoot) {
 export function resolveCitation(repoRoot, sha, file, line) {
   if (isGitRepo(repoRoot)) {
     try {
-      execSync(`git cat-file -e ${sha}:${file}`, {
+      execFileSync('git', ['cat-file', '-e', `${sha}:${file}`], {
         cwd: repoRoot,
         encoding: 'utf-8',
         stdio: ['ignore', 'ignore', 'ignore'],
@@ -199,7 +199,7 @@ export function resolveCitation(repoRoot, sha, file, line) {
     }
     let content = ''
     try {
-      content = execSync(`git show ${sha}:${file}`, {
+      content = execFileSync('git', ['show', `${sha}:${file}`], {
         cwd: repoRoot,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],

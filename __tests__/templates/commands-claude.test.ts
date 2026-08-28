@@ -182,6 +182,13 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).toMatch(/branch.*sha|sha.*branch/i)
   })
 
+  it('uses one authoritative dispatch sidecar for cross-model review', () => {
+    const content = renderShip()
+    expect(content.match(/> \.arbiter\/agents-dispatched\.json/g) ?? []).toHaveLength(1)
+    expect(content).toContain('Use the single sidecar writer')
+    expect(content).toContain('codex-reviewer')
+  })
+
   it('refactor section includes acceptance-criteria PASS/FAIL/NOT-TESTED', () => {
     const content = renderShip()
     expect(content).toMatch(/PASS.*FAIL.*NOT.?TESTED|acceptance.?criteri/i)
