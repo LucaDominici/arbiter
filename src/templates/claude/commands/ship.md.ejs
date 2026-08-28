@@ -367,7 +367,7 @@ node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$c
 if [ "$checker_status" = 0 ]; then
   external_review_fulfilled=1
   review_agents_json="$candidate_review_agents_json"
-elif node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8"));process.exit(c.crossModelReview?.enabled===true&&c.crossModelReview?.onUnavailable==="fail"?0:1)}catch{process.exit(1)}'; then
+elif node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8")),r=process.env.ARBITER_CROSS_MODEL_REVIEW?.trim().toLowerCase(),o=r===undefined?undefined:["true","1","yes","on"].includes(r)?true:["false","0","no","off"].includes(r)?false:undefined;process.exit((o??c.crossModelReview?.enabled)===true&&c.crossModelReview?.onUnavailable==="fail"?0:1)}catch{process.exit(1)}'; then
   echo 'ERROR: cross-model review is required and did not fulfill its Codex seat' >&2
   exit "$checker_status"
 fi
@@ -491,7 +491,7 @@ node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$c
 if [ "$checker_status" = 0 ]; then
   external_review_fulfilled=1
   review_agents_json="$candidate_review_agents_json"
-elif node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8"));process.exit(c.crossModelReview?.enabled===true&&c.crossModelReview?.onUnavailable==="fail"?0:1)}catch{process.exit(1)}'; then
+elif node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8")),r=process.env.ARBITER_CROSS_MODEL_REVIEW?.trim().toLowerCase(),o=r===undefined?undefined:["true","1","yes","on"].includes(r)?true:["false","0","no","off"].includes(r)?false:undefined;process.exit((o??c.crossModelReview?.enabled)===true&&c.crossModelReview?.onUnavailable==="fail"?0:1)}catch{process.exit(1)}'; then
   echo 'ERROR: cross-model review is required and did not fulfill its Codex seat' >&2
   exit "$checker_status"
 fi

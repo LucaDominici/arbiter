@@ -48,6 +48,7 @@ function renderPeerShipCommand(): string {
 function installCrossModelChecker(
   root: string,
   onUnavailable: 'degrade' | 'fail' = 'degrade',
+  enabled = true,
 ): void {
   for (const rel of [
     'scripts/check-cross-model-review.mjs',
@@ -61,7 +62,7 @@ function installCrossModelChecker(
   }
   writeFileSync(
     join(root, 'arbiter.json'),
-    JSON.stringify({ crossModelReview: { enabled: true, onUnavailable } }),
+    JSON.stringify({ crossModelReview: { enabled, onUnavailable } }),
   )
 }
 
@@ -391,6 +392,38 @@ describe('ship command cross-model sidecar (#2357)', () => {
       )?.[1]
       expect(block).toBeDefined()
       const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
+      expect(result.status).not.toBe(0)
+      expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('applies the environment enable override to the fail policy', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-env-policy-'))
+    try {
+      expect(
+        spawnSync('git', ['init', '-q', '-b', 'task/#2357-env-policy'], { cwd: root }).status,
+      ).toBe(0)
+      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
+      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
+      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
+      installCrossModelChecker(root, 'fail', false)
+      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
+      writeFileSync(
+        join(root, '.claude', '.task', 'status.json'),
+        JSON.stringify({ taskId: '#2357' }),
+      )
+
+      const block = renderPeerShipCommand().match(
+        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
+      )?.[1]
+      expect(block).toBeDefined()
+      const result = spawnSync('bash', ['-c', block as string], {
+        cwd: root,
+        encoding: 'utf8',
+        env: { ...process.env, ARBITER_CROSS_MODEL_REVIEW: 'true' },
+      })
       expect(result.status).not.toBe(0)
       expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
     } finally {
