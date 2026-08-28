@@ -123,11 +123,27 @@ function hasCurrentFulfilledReview(repoRoot: string, taskId: string): boolean {
   const sha = headSha(repoRoot)
   if (branch === 'unknown' || sha === 'unknown') return false
   const sidecar = readSidecar(repoRoot)
-  return (
+  if (!(
     isCurrentSidecar(sidecar, branch, sha, taskId) &&
     Array.isArray(sidecar.agents) &&
     sidecar.agents.includes('codex-reviewer')
-  )
+  ))
+    return false
+  try {
+    return (
+      runCli(
+        'node',
+        [join(repoRoot, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
+        {
+          cwd: repoRoot,
+          timeoutMs: 5_000,
+          retries: 0,
+        },
+      ).exitCode === 0
+    )
+  } catch {
+    return false
+  }
 }
 
 function readSidecarAgents(existing: ReviewSidecar): string[] | null {
@@ -211,6 +227,8 @@ function runShipCrossModelReview(
   }
   let diff = ''
   let access = options.cfg.diffEgressConsent ? options.access : undefined
+  let preflightError: unknown
+  let preflightDegradation: 'diff-collection-failed' | undefined
   if (options.cfg.diffEgressConsent) {
     try {
       diff = runCli('git', ['diff', '--binary', 'origin/main...HEAD'], {
@@ -218,8 +236,10 @@ function runShipCrossModelReview(
         timeoutMs: 15_000,
       }).stdout
       // FAIL-OPEN-INTENT: a diff collection failure is recorded as an explicit degradation; no diff is sent.
-    } catch {
+    } catch (error) {
       access = undefined
+      preflightError = error
+      preflightDegradation = 'diff-collection-failed'
     }
   }
   const result = invokeExternalReview({
@@ -229,6 +249,7 @@ function runShipCrossModelReview(
     diff,
     cfg: options.cfg,
     ...(access !== undefined ? { access } : {}),
+    ...(preflightDegradation !== undefined ? { preflightDegradation, preflightError } : {}),
     tier: options.tier,
     phase: options.phase,
     vertical: options.vertical,

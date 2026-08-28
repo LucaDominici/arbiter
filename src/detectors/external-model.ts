@@ -18,7 +18,7 @@ interface ExternalModelAccess {
 interface ExternalModelDetectionOptions {
   /** Dependency injection for tests and callers inspecting another home directory. */
   homeDir?: string
-  /** Environment signal used for authentication inference; credential values are never read. */
+  /** Environment retained for compatibility; authentication comes from Codex auth-file presence. */
   env?: NodeJS.ProcessEnv
 }
 
@@ -26,7 +26,7 @@ interface ExternalModelProviderSpec {
   command: string
   versionArgs: readonly string[]
   vendor: 'openai'
-  /** Authentication is inferred from signal presence; the credential value is never read. */
+  /** Authentication is inferred from a local Codex auth-file signal; credential values are never read. */
   authSignal: string
   installHint: string
 }
@@ -36,7 +36,7 @@ const PROVIDER_SPECS: Record<ExternalModelProvider, ExternalModelProviderSpec> =
     command: 'codex',
     versionArgs: ['--version'],
     vendor: 'openai',
-    authSignal: 'OPENAI_API_KEY or ~/.codex/auth.json presence (inference; openai/codex#10233)',
+    authSignal: '~/.codex/auth.json presence (inference; openai/codex#10233)',
     installHint: 'Install the Codex CLI: https://github.com/openai/codex',
   },
 }
@@ -49,8 +49,6 @@ function parseVersion(stdout: string): string | null {
 
 function hasCodexAuth(options: ExternalModelDetectionOptions): boolean {
   // Authentication is inferred from presence only; the Codex auth caveat is tracked in openai/codex#10233.
-  const env = options.env ?? process.env
-  if (env.OPENAI_API_KEY !== undefined) return true
   return existsSync(join(options.homeDir ?? homedir(), '.codex', 'auth.json'))
 }
 

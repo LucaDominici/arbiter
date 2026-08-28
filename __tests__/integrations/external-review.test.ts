@@ -827,6 +827,40 @@ describe('invokeExternalReview (#2357)', () => {
     }
   })
 
+  it('records a diff collection failure as its own dispatch reason', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-diff-collection-'))
+    try {
+      const result = invokeExternalReview({
+        repoRoot,
+        taskId: '#2358',
+        prompt: 'Review.',
+        diff: '',
+        cfg: config(),
+        preflightDegradation: 'diff-collection-failed',
+        preflightError: new Error('git diff failed'),
+        evidenceDir: join(evidenceRoot, 'agent-returns'),
+        dispatchEvidenceDir: evidenceRoot,
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+      })
+
+      const dispatch = JSON.parse(
+        readFileSync(join(evidenceRoot, '_2358', 'dispatch.json'), 'utf8'),
+      )
+      expect(result).toMatchObject({
+        status: 'degraded',
+        degradationReason: 'diff-collection-failed',
+      })
+      expect(dispatch.degraded[0]).toMatchObject({
+        reason: 'diff-collection-failed',
+        detail: 'git diff failed',
+      })
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
+
   it('fails closed when an invocation failure meets the fail policy', () => {
     const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-invocation-fail-'))
     try {

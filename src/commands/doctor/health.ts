@@ -200,7 +200,7 @@ function checkExternalModelHealth(): HealthCheck {
       label: 'External Codex reviewer',
       status: 'WARN',
       detail: `${version}: not authenticated`,
-      hint: 'Set OPENAI_API_KEY or authenticate the Codex CLI before enabling cross-model review.',
+      hint: 'Authenticate the Codex CLI before enabling cross-model review.',
     }
   }
   return {

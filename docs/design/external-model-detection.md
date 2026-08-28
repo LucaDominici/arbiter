@@ -51,7 +51,7 @@ The module earns its keep immediately by being printed by `arbiter doctor health
 This is not a workaround to stay inside `check-anti-telemetry`: it is the better design. arbiter never sees a credential, never opens a socket, and the "zero telemetry" claim stays a green gate instead of becoming an asterisk. It mirrors the `gh` precedent exactly, already described in `PRIVACY.md` as "shells out to your local `gh` CLI, which uses its own auth — arbiter never receives or transmits a token itself". _Rejected_ an HTTP client: it violates the anti-telemetry constraint, adds a runtime dependency, and moves credential custody onto arbiter.
 
 **D2 — Codex authentication is an inference, and must be labelled as one.**
-Verified caveat: unlike `gh auth status --json`, **Codex has no non-interactive auth-status command** — it is an open upstream request (openai/codex#10233). So `authenticated` is derived from indirect signals (presence of `~/.codex/auth.json`, or `OPENAI_API_KEY` being _defined_), never from reading a credential's value and never logging one. This difference from `gh` must be written into the code and into the evidence: it is an inference, not an assertion, and passing it off as a verification would be exactly the kind of overclaim arbiter polices elsewhere.
+Verified caveat: unlike `gh auth status --json`, **Codex has no non-interactive auth-status command** — it is an open upstream request (openai/codex#10233). So `authenticated` is derived from the presence of `~/.codex/auth.json`, never from reading a credential's value and never logging one. This difference from `gh` must be written into the code and into the evidence: it is an inference, not an assertion, and passing it off as a verification would be exactly the kind of overclaim arbiter polices elsewhere.
 
 **D3 — New file, not an extension of `github.ts` (CANON-16 Existing Code Survey).**
 Survey performed: `src/detectors/github.ts` is the pattern to mirror, but `GithubAccess` carries `username`, is consumed by `WizardInput.githubAccess` and by the Q12 gating; widening it into a provider table would force the `gh` path to carry vendor fields it never reads. `src/capabilities/host-probe.ts` detects _host_ facts from env/fs and spawns nothing: wrong subject. `src/detectors/{language,build,package-manager}.ts` detect the _project's_ toolchain from marker files: wrong subject. `src/utils/run-cli.ts` is **reused**, not duplicated. Verdict: new file justified — sibling of `github.ts`, distinct subject (third-party model CLIs), same shape.
@@ -70,7 +70,7 @@ This PR is read-only and introduces no configuration. By being printed by `arbit
 ## Open questions
 
 - The presence probe costs ~50-200 ms per provider. Is per-process memoization enough, or is an on-disk cache with a TTL needed so it is not paid on every `arbiter` invocation?
-- If `OPENAI_API_KEY` is defined but `~/.codex/auth.json` is absent, does `codex exec` actually work? This must be confirmed empirically before treating the two signals as equivalent.
+- If a future Codex release changes its auth-file location, the detector must be updated from an observed CLI contract rather than guessing from environment variables.
 - Should `arbiter doctor health` always print providers, or only when at least one is `available` (so as not to advertise a feature to someone who will not use it)?
 
 ---

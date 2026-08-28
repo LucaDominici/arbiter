@@ -98,7 +98,8 @@ describe('runDoctorHealth (#539)', () => {
 
   it('reports authenticated external Codex access in the project health checks', async () => {
     resetExternalModelDetection()
-    vi.stubEnv('OPENAI_API_KEY', 'present-for-the-probe-only')
+    mkdirSync(join(dir, '.codex'), { recursive: true })
+    writeFileSync(join(dir, '.codex', 'auth.json'), '{}\n')
     mockRunCli.mockImplementation((command) => {
       if (command === 'git') {
         return { stdout: 'git version 2.40\n', stderr: '', exitCode: 0, durationMs: 0 }

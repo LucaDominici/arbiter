@@ -279,6 +279,68 @@ describe('runCrossModelReview (#2357)', () => {
         })
         .mockReturnValue({ stdout: 'diff-state', stderr: '', exitCode: 0, durationMs: 1 })
 
+      const result = runShipCrossModelReview({
+        dir,
+        taskId: '#2357',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'security',
+        cfg,
+        access: mockedDetect.mock.results[0]?.value,
+      })
+
+      expect(result.status).toBe('fulfilled')
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        expect.objectContaining({
+          diff: '',
+          cfg,
+          preflightDegradation: 'diff-collection-failed',
+          preflightError: expect.objectContaining({ message: 'git diff failed' }),
+        }),
+      )
+      expect(mockedInvoke.mock.calls.at(-1)?.[0]).not.toHaveProperty('access')
+      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not trust a matching sidecar without valid fulfilled dispatch evidence', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-cache-check-'))
+    try {
+      writeFileSync(join(dir, 'tracked.txt'), 'fixture\n')
+      execFileSync('git', ['init', '-q', '-b', 'task/#2357-cache-check'], { cwd: dir })
+      execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: dir })
+      execFileSync('git', ['config', 'user.name', 'test-user'], { cwd: dir })
+      execFileSync('git', ['add', 'tracked.txt'], { cwd: dir })
+      execFileSync('git', ['commit', '-q', '-m', 'fixture', '--no-gpg-sign'], { cwd: dir })
+      const branch = execFileSync('git', ['branch', '--show-current'], {
+        cwd: dir,
+        encoding: 'utf8',
+      }).trim()
+      const sha = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: dir,
+        encoding: 'utf8',
+      }).trim()
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(
+        join(dir, '.arbiter', 'agents-dispatched.json'),
+        `${JSON.stringify({ count: 1, agents: ['codex-reviewer'], taskId: '#2357', branch, sha })}\n`,
+      )
+
+      mockedRunCli.mockImplementation((command, args) => {
+        if (command === 'git' && args[0] === 'rev-parse' && args[1] === '--abbrev-ref') {
+          return { stdout: `${branch}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD') {
+          return { stdout: `${sha}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        if (command === 'node' && args[0]?.endsWith('scripts/check-cross-model-review.mjs')) {
+          return { stdout: '', stderr: 'invalid evidence', exitCode: 1, durationMs: 1 }
+        }
+        return { stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 }
+      })
+
       runShipCrossModelReview({
         dir,
         taskId: '#2357',
@@ -289,9 +351,12 @@ describe('runCrossModelReview (#2357)', () => {
         access: mockedDetect.mock.results[0]?.value,
       })
 
-      expect(mockedInvoke).toHaveBeenCalledWith(expect.objectContaining({ diff: '', cfg }))
-      expect(mockedInvoke.mock.calls.at(-1)?.[0]).not.toHaveProperty('access')
-      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))).toBe(true)
+      expect(mockedInvoke).toHaveBeenCalledTimes(1)
+      expect(mockedRunCli).toHaveBeenCalledWith(
+        'node',
+        [expect.stringContaining('scripts/check-cross-model-review.mjs'), '--require-fulfilled'],
+        expect.objectContaining({ cwd: dir, retries: 0 }),
+      )
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -338,6 +403,8 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}\\n\' > "$out"\n',
       )
       chmodSync(codex, 0o755)
+      mkdirSync(join(dir, '.codex'), { recursive: true })
+      writeFileSync(join(dir, '.codex', 'auth.json'), '{}\n')
 
       const sourceConfig = JSON.parse(
         readFileSync(join(REPO_ROOT, 'arbiter.json'), 'utf8'),
@@ -379,11 +446,14 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           2,
         )}\n`,
       )
+      writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.evidence/\ncodex-count\n')
 
       mkdirSync(join(dir, 'schemas'), { recursive: true })
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
       for (const relativePath of [
         'schemas/agent-return.schema.json',
+        'schemas/cross-model-dispatch.schema.json',
+        'scripts/check-cross-model-review.mjs',
         'scripts/record-agent-return.mjs',
         'scripts/lib/agent-return-validate.mjs',
         'scripts/lib/gate-args.mjs',
@@ -421,8 +491,8 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           encoding: 'utf8',
           env: {
             ...process.env,
+            HOME: dir,
             PATH: `${bin}:${process.env.PATH ?? ''}`,
-            OPENAI_API_KEY: 'cross-model-test-sentinel',
           },
           timeout: 30_000,
         },
@@ -451,20 +521,44 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         taskId: '#2357',
       })
 
-      execFileSync(
+      const cachedReviewCheck = spawnSync(
+        process.execPath,
+        [join(dir, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
+        {
+          cwd: dir,
+          encoding: 'utf8',
+          env: { ...process.env, HOME: dir, PATH: `${bin}:${process.env.PATH ?? ''}` },
+        },
+      )
+      expect(
+        cachedReviewCheck.status,
+        `${cachedReviewCheck.stdout}\n${cachedReviewCheck.stderr}\n` +
+          spawnSync('git', ['diff', '--name-only'], { cwd: dir, encoding: 'utf8' }).stdout +
+          spawnSync('git', ['diff', '--cached', '--name-only'], {
+            cwd: dir,
+            encoding: 'utf8',
+          }).stdout +
+          spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
+            cwd: dir,
+            encoding: 'utf8',
+          }).stdout,
+      ).toBe(0)
+
+      const second = spawnSync(
         process.execPath,
         [join(REPO_ROOT, 'dist', 'cli.js'), 'ship', '#2357', '--tier', 'Standard', '--dir', dir],
         {
           cwd: dir,
           env: {
             ...process.env,
+            HOME: dir,
             PATH: bin + ':' + (process.env.PATH ?? ''),
-            OPENAI_API_KEY: 'cross-model-test-sentinel',
           },
           stdio: 'ignore',
           timeout: 30_000,
         },
       )
+      expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0)
       expect(readFileSync(join(dir, 'codex-count'), 'utf8')).toBe('1')
     } finally {
       rmSync(dir, { recursive: true, force: true })

@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -40,11 +40,12 @@ describe('external model detection', () => {
     expect(mockedRunCli).toHaveBeenCalledWith('codex', ['--version'], expect.any(Object))
   })
 
-  it('detects an installed and authenticated Codex CLI without reading credentials', () => {
+  it('detects an installed and authenticated Codex CLI from auth-file presence only', () => {
     mkdirSync(join(homeDir, '.codex'), { recursive: true })
+    writeFileSync(join(homeDir, '.codex', 'auth.json'), '{}\n')
     const result = detectExternalModel('codex', {
       homeDir,
-      env: { OPENAI_API_KEY: 'secret-must-not-leak' },
+      env: {},
     })
 
     expect(result).toEqual({
@@ -59,13 +60,14 @@ describe('external model detection', () => {
     expect(JSON.stringify(mockedRunCli.mock.calls)).not.toContain('secret-must-not-leak')
   })
 
-  it('treats a present API-key variable as authentication without passing its value to codex', () => {
+  it('does not treat a present API-key variable as authentication or pass its value to codex', () => {
     const result = detectExternalModel('codex', {
       homeDir,
       env: { OPENAI_API_KEY: 'present-but-never-forwarded' },
     })
 
-    expect(result.authenticated).toBe(true)
+    expect(result.authenticated).toBe(false)
+    expect(result.error).toBe('Not authenticated')
     expect(mockedRunCli.mock.calls[0]?.[2]).toEqual(
       expect.objectContaining({ timeoutMs: 5000, retries: 0 }),
     )
