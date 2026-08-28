@@ -51,7 +51,10 @@
     { "path": ".agents/plan/PLAN.json", "operation": "modify" },
     { "path": ".arbiter/agents-dispatched.json", "operation": "modify" },
     { "path": ".arbiter/evidence/ac-fit/2354.json", "operation": "create" },
-    { "path": ".arbiter/evidence/agent-returns/_2354/Planck-the-2nd-0.json", "operation": "create" },
+    {
+      "path": ".arbiter/evidence/agent-returns/_2354/Planck-the-2nd-0.json",
+      "operation": "create"
+    },
     { "path": ".arbiter/evidence/journey/_2354.json", "operation": "create" },
     { "path": ".arbiter/evidence/plan-review/2354/latest.json", "operation": "create" },
     { "path": ".arbiter/evidence/tdd/#2354.json", "operation": "create" },
@@ -78,33 +81,102 @@
     { "path": "__tests__/config/schema.test.ts", "operation": "modify" },
     { "path": "__tests__/detectors/external-model.test.ts", "operation": "create" },
     { "path": "__tests__/generators/check-all.test.ts", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json", "operation": "modify" },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "operation": "modify"
+    },
     { "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json", "operation": "modify" },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "operation": "modify"
+    },
     { "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json", "operation": "modify" },
     { "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json", "operation": "modify" },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "operation": "modify"
+    },
     { "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json", "operation": "modify" },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "operation": "modify"
+    },
     { "path": "__tests__/integrations/external-review-subprocess.test.ts", "operation": "create" },
     { "path": "__tests__/integrations/external-review.test.ts", "operation": "create" },
     { "path": "__tests__/scripts/check-agent-dispatch.test.ts", "operation": "modify" },
@@ -115,7 +187,10 @@
     { "path": "__tests__/scripts/debt-lib-buffer.test.ts", "operation": "modify" },
     { "path": "__tests__/scripts/debt-report.test.ts", "operation": "modify" },
     { "path": "__tests__/skills/wave-drain-v2-protocol.test.ts", "operation": "modify" },
-    { "path": "__tests__/templates/__snapshots__/high-fanout/check-all.mjs", "operation": "modify" },
+    {
+      "path": "__tests__/templates/__snapshots__/high-fanout/check-all.mjs",
+      "operation": "modify"
+    },
     { "path": "__tests__/templates/check-all-render.test.ts", "operation": "modify" },
     { "path": "__tests__/templates/commands-claude.test.ts", "operation": "modify" },
     { "path": "__tests__/templates/cross-model-dispatch-render.test.ts", "operation": "create" },
@@ -130,9 +205,15 @@
     { "path": "examples/go-library/.arbiter-generated-manifest.json", "operation": "modify" },
     { "path": "examples/go-library/.claude/commands/ship.md", "operation": "modify" },
     { "path": "examples/go-library/.claude/skills/wave-drain/SKILL.md", "operation": "modify" },
-    { "path": "examples/go-library/schemas/agent-return-external.schema.json", "operation": "create" },
+    {
+      "path": "examples/go-library/schemas/agent-return-external.schema.json",
+      "operation": "create"
+    },
     { "path": "examples/go-library/schemas/agent-return.schema.json", "operation": "modify" },
-    { "path": "examples/go-library/schemas/cross-model-dispatch.schema.json", "operation": "create" },
+    {
+      "path": "examples/go-library/schemas/cross-model-dispatch.schema.json",
+      "operation": "create"
+    },
     { "path": "examples/go-library/scripts/check-all.mjs", "operation": "modify" },
     { "path": "examples/go-library/scripts/check-cross-model-review.mjs", "operation": "create" },
     { "path": "examples/go-library/scripts/lib/agent-return-validate.mjs", "operation": "modify" },
@@ -141,20 +222,38 @@
     { "path": "examples/python-library/.arbiter-generated-manifest.json", "operation": "modify" },
     { "path": "examples/python-library/.claude/commands/ship.md", "operation": "modify" },
     { "path": "examples/python-library/.claude/skills/wave-drain/SKILL.md", "operation": "modify" },
-    { "path": "examples/python-library/schemas/agent-return-external.schema.json", "operation": "create" },
+    {
+      "path": "examples/python-library/schemas/agent-return-external.schema.json",
+      "operation": "create"
+    },
     { "path": "examples/python-library/schemas/agent-return.schema.json", "operation": "modify" },
-    { "path": "examples/python-library/schemas/cross-model-dispatch.schema.json", "operation": "create" },
+    {
+      "path": "examples/python-library/schemas/cross-model-dispatch.schema.json",
+      "operation": "create"
+    },
     { "path": "examples/python-library/scripts/check-all.mjs", "operation": "modify" },
-    { "path": "examples/python-library/scripts/check-cross-model-review.mjs", "operation": "create" },
-    { "path": "examples/python-library/scripts/lib/agent-return-validate.mjs", "operation": "modify" },
+    {
+      "path": "examples/python-library/scripts/check-cross-model-review.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/scripts/lib/agent-return-validate.mjs",
+      "operation": "modify"
+    },
     { "path": "examples/python-library/scripts/optional-emissions.json", "operation": "modify" },
     { "path": "examples/python-library/scripts/record-agent-return.mjs", "operation": "modify" },
     { "path": "examples/ts-library/.arbiter-generated-manifest.json", "operation": "modify" },
     { "path": "examples/ts-library/.claude/commands/ship.md", "operation": "modify" },
     { "path": "examples/ts-library/.claude/skills/wave-drain/SKILL.md", "operation": "modify" },
-    { "path": "examples/ts-library/schemas/agent-return-external.schema.json", "operation": "create" },
+    {
+      "path": "examples/ts-library/schemas/agent-return-external.schema.json",
+      "operation": "create"
+    },
     { "path": "examples/ts-library/schemas/agent-return.schema.json", "operation": "modify" },
-    { "path": "examples/ts-library/schemas/cross-model-dispatch.schema.json", "operation": "create" },
+    {
+      "path": "examples/ts-library/schemas/cross-model-dispatch.schema.json",
+      "operation": "create"
+    },
     { "path": "examples/ts-library/scripts/check-all.mjs", "operation": "modify" },
     { "path": "examples/ts-library/scripts/check-cross-model-review.mjs", "operation": "create" },
     { "path": "examples/ts-library/scripts/lib/agent-return-validate.mjs", "operation": "modify" },
@@ -208,9 +307,15 @@
     { "path": "src/templates/scripts/lib/agent-return-validate.mjs.ejs", "operation": "modify" },
     { "path": "src/templates/scripts/optional-emissions.json.ejs", "operation": "modify" },
     { "path": "src/templates/scripts/record-agent-return.mjs.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/schemas/agent-return-external.schema.json", "operation": "create" },
+    {
+      "path": "src/templates/scripts/schemas/agent-return-external.schema.json",
+      "operation": "create"
+    },
     { "path": "src/templates/scripts/schemas/agent-return.schema.json.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/schemas/cross-model-dispatch.schema.json", "operation": "create" },
+    {
+      "path": "src/templates/scripts/schemas/cross-model-dispatch.schema.json",
+      "operation": "create"
+    },
     { "path": "src/utils/fs.ts", "operation": "modify" },
     { "path": "src/wizard/prompts.ts", "operation": "modify" },
     { "path": "src/wizard/types.ts", "operation": "modify" },
