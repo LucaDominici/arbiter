@@ -90,6 +90,36 @@ describe('ship sequencing — pure plan', () => {
     expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(2)
   })
 
+  it('adds an external reviewer seat without changing the total reviewAgents count (AC-2357.8)', () => {
+    const profileWithCrossModel = profile({
+      crossModelReview: {
+        enabled: true,
+        diffEgressConsent: true,
+        providers: ['codex'],
+        slots: { codeReview: 1, redTeamReview: 0 },
+        timeoutMs: 300_000,
+        onUnavailable: 'degrade',
+      },
+    })
+    const step = shipStepFor(
+      'refactor',
+      'Standard',
+      profileWithCrossModel,
+      undefined,
+      [],
+      {
+        provider: 'codex',
+        vendor: 'openai',
+        available: true,
+        authenticated: true,
+        version: '1.2.3',
+        error: null,
+      },
+    )
+    expect(step.reviewAgents).toBe(2)
+    expect(step.externalReviewers).toBe(1)
+  })
+
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {
     expect(
       shipStepFor(
