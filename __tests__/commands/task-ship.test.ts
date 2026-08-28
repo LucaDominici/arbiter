@@ -101,13 +101,9 @@ describe('ship sequencing — pure plan', () => {
         onUnavailable: 'degrade',
       },
     })
-    const step = shipStepFor(
-      'refactor',
-      'Standard',
-      profileWithCrossModel,
-      undefined,
-      [],
-      {
+    const step = shipStepFor('refactor', 'Standard', profileWithCrossModel, undefined, {
+      chainIds: [],
+      externalModelAccess: {
         provider: 'codex',
         vendor: 'openai',
         available: true,
@@ -115,7 +111,7 @@ describe('ship sequencing — pure plan', () => {
         version: '1.2.3',
         error: null,
       },
-    )
+    })
     expect(step.reviewAgents).toBe(2)
     expect(step.externalReviewers).toBe(1)
   })

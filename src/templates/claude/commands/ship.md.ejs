@@ -89,6 +89,28 @@ study: 1 reviewer catches 77% of known defects intent-to-treat but **88% per-pro
 actually completed), 2 reviewers 87.5%, 3 reviewers 90.1% — half a panel's value is
 fault-tolerance, not extra eyes, and false positives grow with panel size.
 
+### Optional cross-model review seat (#2357)
+
+When `arbiter.json` opts in to `crossModelReview.enabled` and records explicit
+`diffEgressConsent`, `/ship` replaces one code-review seat with the read-only
+`codex-reviewer` CLI seat. The panel never grows: `reviewAgents` remains the total,
+and `externalReviewers` is only the external portion. The external seat is assigned
+to `security` when that vertical is active, otherwise `bugs`; unavailable, unauthenticated,
+or unconsented access falls back to Anthropic.
+
+The invocation is `codex exec --sandbox read-only --ephemeral --skip-git-repo-check` with
+the prompt and a maximum 512 KiB diff on stdin. Output uses the reduced
+`schemas/agent-return-external.schema.json` projection and is persisted only through
+`scripts/record-agent-return.mjs` with `vendor=openai`, `cli=codex`, and
+`dispatch=external-cli`. Retries are disabled. A truncated diff, failed coercion, or
+recorder rejection is a degradation and must not be silently treated as a clean review.
+
+The dispatch sidecar names the external seat when it is used:
+
+```bash
+mkdir -p .arbiter && printf '{"count":2,"agents":["independent-review","codex-reviewer"],"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+```
+
 **XS/S=1 depends on the completion gate.** A single reviewer is only safe because
 `scripts/check-review-completion.mjs` (#2177) fails the stage when a dispatched reviewer returned
 no envelope and re-dispatches exactly that agent once — that gate plus its single targeted retry

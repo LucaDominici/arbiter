@@ -33,6 +33,8 @@ import {
 } from './ship-profile.js'
 import { companionGreenInstruction, companionStatusLine } from '../integrations/companions.js'
 import { runCli } from '../utils/run-cli.js'
+import type { ExternalModelAccess } from '../detectors/external-model.js'
+import { planCrossModelSlots } from '../integrations/external-review.js'
 import {
   gatherTierSignals,
   normTier,
@@ -123,6 +125,8 @@ export interface ShipStep {
   command?: string
   /** Number of review subagents the agent must dispatch in this phase (0 = none). */
   reviewAgents: number
+  /** #2357 — optional external seat; reviewAgents remains the total panel size. */
+  externalReviewers?: number
   /**
    * #1260 — the orthogonal VERTICAL floor for this ship's size (tier), as real
    * auditor-routing.json names. Larger size widens this breadth. The review phases
@@ -139,6 +143,20 @@ export interface ShipStep {
   selfOnlyChecks?: string[]
 }
 
+interface ShipStepContext {
+  taskId?: string
+  chainIds: readonly string[]
+  verticals: readonly string[]
+  externalModelAccess?: ExternalModelAccess
+}
+
+type ShipStepTail = readonly string[] | Omit<ShipStepContext, 'verticals'>
+
+function normalizeShipStepTail(tail: ShipStepTail): Omit<ShipStepContext, 'verticals'> {
+  if (Array.isArray(tail)) return { chainIds: tail as readonly string[] }
+  return tail as Omit<ShipStepContext, 'verticals'>
+}
+
 /**
  * The concrete step for a given phase + tier + ship profile. Size (tier) drives BOTH
  * `reviewAgents` and `verticals`; the #1288 profile drives the config-aware `complete` merge
@@ -151,13 +169,20 @@ export function shipStepFor(
   profile: ShipProfile = CONSUMER_DEFAULT_PROFILE,
   /** #2102 — the primary task id, named alongside `chainIds` in the close-step text. */
   taskId?: string,
-  /** #2102 — declared merge-train batch (`--chain`); empty ⇒ text is unchanged (single issue). */
-  chainIds: readonly string[] = [],
+  /** #2102/#2357 — legacy chain array or the optional injected review context. */
+  tail: ShipStepTail = [],
 ): ShipStep {
   const t = normTier(tier)
   const verticals = verticalsForTier(t)
+  const normalizedTail = normalizeShipStepTail(tail)
   const withVerticals = (step: Omit<ShipStep, 'verticals'>): ShipStep => ({ ...step, verticals })
-  return withVerticals(shipStepBody(phase, t, profile, taskId, chainIds))
+  return withVerticals(
+    shipStepBody(phase, t, profile, {
+      ...normalizedTail,
+      verticals,
+      ...(taskId !== undefined ? { taskId } : {}),
+    }),
+  )
 }
 
 /**
@@ -243,7 +268,13 @@ function isReviewPhase(phase: TaskPhase): phase is ReviewPhase {
   )
 }
 
-function reviewPhaseStepBody(phase: ReviewPhase, t: ShipTier): Omit<ShipStep, 'verticals'> {
+function reviewPhaseStepBody(
+  phase: ReviewPhase,
+  t: ShipTier,
+  profile: ShipProfile,
+  verticals: readonly string[],
+  externalModelAccess?: ExternalModelAccess,
+): Omit<ShipStep, 'verticals'> {
   if (phase === RED_TEAM_REVIEW_PHASE) {
     return {
       phase,
@@ -258,11 +289,20 @@ function reviewPhaseStepBody(phase: ReviewPhase, t: ShipTier): Omit<ShipStep, 'v
       reviewAgents: 0,
     }
   }
-  return {
+  const step: Omit<ShipStep, 'verticals'> = {
     phase,
     action: `Clean up, then dispatch ${REVIEW_AGENTS[t]} code-review agent(s) + 1 adversarial verifier.`,
     reviewAgents: REVIEW_AGENTS[t],
   }
+  const plan = planCrossModelSlots({
+    tier: t,
+    phase,
+    totalSlots: REVIEW_AGENTS[t],
+    verticals,
+    ...(profile.crossModelReview !== undefined ? { cfg: profile.crossModelReview } : {}),
+    ...(externalModelAccess !== undefined ? { access: externalModelAccess } : {}),
+  })
+  return plan.external.length > 0 ? { ...step, externalReviewers: plan.external.length } : step
 }
 
 /** The phase body (count + action), before the size-derived vertical floor is attached. */
@@ -270,10 +310,11 @@ function shipStepBody(
   phase: TaskPhase,
   t: ShipTier,
   profile: ShipProfile,
-  taskId?: string,
-  chainIds: readonly string[] = [],
+  context: ShipStepContext,
 ): Omit<ShipStep, 'verticals'> {
-  if (isReviewPhase(phase)) return reviewPhaseStepBody(phase, t)
+  if (isReviewPhase(phase)) {
+    return reviewPhaseStepBody(phase, t, profile, context.verticals, context.externalModelAccess)
+  }
 
   switch (phase) {
     case 'preflight':
@@ -327,7 +368,7 @@ function shipStepBody(
     case 'complete':
       return {
         phase,
-        action: completeAction(profile, taskId, chainIds),
+        action: completeAction(profile, context.taskId, context.chainIds),
         reviewAgents: 0,
       }
   }
@@ -394,6 +435,8 @@ export interface TaskShipOptions {
   gatherTierSignals?: (root: string, taskId: string | undefined) => TierSignals
   /** Test seam for deterministic companion evidence timestamps. */
   recordedAt?: string
+  /** #2357 — external-model detection is performed at the CLI edge and injected here. */
+  externalModelAccess?: ExternalModelAccess
 }
 
 export interface ShipResult {
@@ -420,6 +463,9 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
   ]
   if (result.step.command) lines.push(`Command: ${result.step.command}`)
   if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
+  if (result.step.externalReviewers !== undefined) {
+    lines.push(`External reviewers: ${result.step.externalReviewers}`)
+  }
   lines.push(`Tier: ${tier} · verticals: ${result.step.verticals.join(', ')}`)
   // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
   // consumer of the field, so the read is honest and not dead config).
@@ -693,7 +739,12 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   return {
     phase,
     // #2102 — thread taskId + chainIds through so the close-step text names the whole chain.
-    step: shipStepFor(phase, tier, profile, state?.taskId, state?.chainIds ?? []),
+    step: shipStepFor(phase, tier, profile, state?.taskId, {
+      chainIds: state?.chainIds ?? [],
+      ...(opts.externalModelAccess !== undefined
+        ? { externalModelAccess: opts.externalModelAccess }
+        : {}),
+    }),
     advanced: advancedPhase.advanced,
     done: phase === 'complete',
     tier,

@@ -67,9 +67,7 @@ describe('planCrossModelSlots (#2357)', () => {
           cfg: config(),
           access: providerAccess,
         })
-        expect(plan.external.length + plan.anthropic.length).toBe(
-          tier === 'Standard' ? 2 : 1,
-        )
+        expect(plan.external.length + plan.anthropic.length).toBe(tier === 'Standard' ? 2 : 1)
         if (!providerAccess.available || !providerAccess.authenticated) {
           expect(plan.external).toEqual([])
         }
@@ -112,7 +110,12 @@ describe('extractAgentReturnJson (#2357)', () => {
     [`first ${JSON.stringify({ verdict: 'FAIL' })} second ${JSON.stringify(payload)}`, payload],
     [
       `{"verdict":"PASS","confidence":0.9,"findings":[{"claim":"brace } in string"}],"refutations":[]}`,
-      { verdict: 'PASS', confidence: 0.9, findings: [{ claim: 'brace } in string' }], refutations: [] },
+      {
+        verdict: 'PASS',
+        confidence: 0.9,
+        findings: [{ claim: 'brace } in string' }],
+        refutations: [],
+      },
     ],
     ['{"verdict":"PASS"', null],
     ['', null],
@@ -127,8 +130,9 @@ describe('invokeExternalReview (#2357)', () => {
   beforeEach(() => mockedRunCli.mockReset())
 
   it('uses read-only Codex stdin and persists only through the recorder (AC-3/AC-4/AC-7)', () => {
-    mockedRunCli.mockImplementation((cmd, args) => {
-      if (cmd === 'codex') return { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
+    mockedRunCli.mockImplementation((cmd) => {
+      if (cmd === 'codex')
+        return { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
       return { stdout: '[recorded]', stderr: '', exitCode: 0, durationMs: 1 }
     })
 
@@ -184,9 +188,9 @@ describe('invokeExternalReview (#2357)', () => {
       ]),
       expect.objectContaining({ input: expect.not.stringContaining('[recorded]') }),
     )
-    expect(readFileSync(join(repoRoot, 'schemas', 'agent-return-external.schema.json'), 'utf-8')).toContain(
-      'agent-return-external',
-    )
+    expect(
+      readFileSync(join(repoRoot, 'schemas', 'agent-return-external.schema.json'), 'utf-8'),
+    ).toContain('agent-return-external')
   })
 
   it('marks a 512 KiB diff truncation as degradation while keeping the prompt explicit (AC-5)', () => {

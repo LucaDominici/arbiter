@@ -48,7 +48,8 @@ import {
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
-import { buildShipOverrides } from './commands/ship-profile.js'
+import { buildShipOverrides, resolveShipProfile } from './commands/ship-profile.js'
+import { detectExternalModel } from './detectors/external-model.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
@@ -435,6 +436,18 @@ program.helpCommand(false)
 program.addHelpText('after', '\nRun `arbiter help --all` for experimental commands.')
 
 // Global flags. Declared so `--help` documents them; values are consumed pre-parse above.
+function externalModelAccessForShip(
+  root: string,
+  overrides: Record<string, string>,
+): ReturnType<typeof detectExternalModel> | undefined {
+  const profile = resolveShipProfile(root, {
+    ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
+  })
+  const config = profile.crossModelReview
+  if (config === undefined || !config.enabled || !config.diffEgressConsent) return undefined
+  return detectExternalModel('codex')
+}
+
 program
   .option('--log-level <level>', 'Log level: error|warn|info|debug|trace (default: info)')
   .option('--log-format <format>', 'Log format: text|json (default: text)')
@@ -1930,10 +1943,12 @@ program
       try {
         // #1305 — desugar `--autonomy` + parse `--set` into ONE validated per-run overrides map,
         // gated by OVERRIDABLE_PATHS and persisted to the session layer (survives /clear).
-        const overrides = buildShipOverrides(opts.dir ?? process.cwd(), {
+        const shipRoot = opts.dir ?? process.cwd()
+        const overrides = buildShipOverrides(shipRoot, {
           sets: opts.set,
           ...(opts.autonomy !== undefined ? { autonomy: opts.autonomy } : {}),
         })
+        const externalModelAccess = externalModelAccessForShip(shipRoot, overrides)
         // #1260 — the review TIER drives BOTH the review-agent COUNT and the orthogonal
         // VERTICAL breadth (see A8: guidance, not auto-detected machinery). Without `--tier`,
         // respect the persisted tier; when none is persisted, normTier falls back to widest
@@ -1956,6 +1971,7 @@ program
             ...(opts.units !== undefined ? { units: opts.units } : {}),
           },
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+          ...(externalModelAccess !== undefined ? { externalModelAccess } : {}),
         })
         const lines = buildShipStepLines(result)
         process.stdout.write(lines.join('\n') + '\n')

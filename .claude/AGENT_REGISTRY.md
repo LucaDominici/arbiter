@@ -24,6 +24,7 @@ Source of truth: `.claude/agents/<name>.md`. Update this file whenever an agent 
 | `bridge-reviewer`  | Sonnet (pinned in frontmatter) | Low    | Short-circuit combinatorial logic; no code reading required; runs after context-checker completes |
 | `codebase-scanner` | Haiku (pinned in frontmatter)  | Low    | Read-only pattern search; fast latency; cost-optimized for high-frequency lookups                 |
 | `context-checker`  | Sonnet (pinned in frontmatter) | Medium | Must read CONTEXT_PACK.md + task diff in full; emits structured REVIEW_CONTEXT JSON               |
+| `codex-reviewer`   | Codex CLI (read-only)          | Medium | Optional cross-model code-review seat; replaces one Anthropic reviewer without growing the panel  |
 | `red-team`         | Inherit (session Opus/Fable)   | High   | Adversarial verdicts are the one stage worth the top tier; read-only tools pinned in frontmatter  |
 
 The Model column mirrors each agent's `model:` frontmatter — the static pyramid (AGENTS.md
