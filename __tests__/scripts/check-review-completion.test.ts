@@ -226,6 +226,24 @@ describe('check-review-completion.mjs', () => {
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
   })
 
+  it('rejects legacy reviewer returns from a different commit', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef' })
+    writeEnvelope('alpha', envelope('alpha', { sha: 'deadbeef' }))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toMatch(/found 0/)
+  })
+
+  it('rejects a named reviewer return for a different task', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope('alpha', envelope('alpha', { taskId: '#9999' }))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toMatch(/task/i)
+  })
+
   it('fails the legacy count fallback when only one of two reviewer envelopes was returned', () => {
     writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef' })
     writeEnvelope('alpha', envelope('alpha'))

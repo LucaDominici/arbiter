@@ -253,21 +253,26 @@ function isAgentEnvelopeFile(file, agent) {
 /**
  * @param {string} agent
  * @param {DispatchSidecar} sidecar
+ * @param {string} task
  * @param {string[]} files
  * @param {Record<string, unknown>[]} valid
  * @returns {string | null}
  */
-function checkAgentEnvelope(agent, sidecar, files, valid) {
+function checkAgentEnvelope(agent, sidecar, task, files, valid) {
   const matchingFiles = files.filter((file) => isAgentEnvelopeFile(file, agent))
   const matching = valid.filter((envelope) => envelope['agent'] === agent)
-  const branchMatch = matching.find((envelope) => envelope['branch'] === sidecar.branch)
+  const taskMatch = matching.filter((envelope) => envelope['taskId'] === task)
+  const branchMatch = taskMatch.find((envelope) => envelope['branch'] === sidecar.branch)
   if (branchMatch) {
     if (branchMatch['sha'] === sidecar.sha) return null
     return `${agent}: provenance mismatch — expected sha ${sidecar.sha}, observed ${branchMatch['sha']}`
   }
-  if (matching.length > 0) {
-    const observed = String(matching[0]['branch'])
+  if (taskMatch.length > 0) {
+    const observed = String(taskMatch[0]['branch'])
     return `${agent}: provenance mismatch — expected branch ${sidecar.branch}, observed ${observed}`
+  }
+  if (matching.length > 0) {
+    return `${agent}: provenance mismatch — expected task ${task}, observed ${matching[0]['taskId']}`
   }
   if (matchingFiles.length > 0) {
     return `${agent}: missing, empty, malformed, or schema-invalid return envelope`
@@ -277,11 +282,12 @@ function checkAgentEnvelope(agent, sidecar, files, valid) {
 
 /**
  * @param {DispatchSidecar} sidecar
+ * @param {string} task
  * @param {string[]} files
  * @param {Record<string, unknown>[]} valid
  * @returns {string[]}
  */
-function checkNamedAgentEnvelopes(sidecar, files, valid) {
+function checkNamedAgentEnvelopes(sidecar, task, files, valid) {
   const failures = []
   if (sidecar.agents.length < sidecar.count) {
     failures.push(
@@ -289,7 +295,7 @@ function checkNamedAgentEnvelopes(sidecar, files, valid) {
     )
   }
   for (const agent of sidecar.agents) {
-    const failure = checkAgentEnvelope(agent, sidecar, files, valid)
+    const failure = checkAgentEnvelope(agent, sidecar, task, files, valid)
     if (failure) failures.push(failure)
   }
   return failures
@@ -297,11 +303,18 @@ function checkNamedAgentEnvelopes(sidecar, files, valid) {
 
 /**
  * @param {DispatchSidecar} sidecar
+ * @param {string} task
  * @param {Record<string, unknown>[]} valid
  * @returns {string[]}
  */
-function checkLegacyReviewerCount(sidecar, valid) {
-  const reviewerCount = valid.filter((envelope) => envelope['role'] === 'reviewer').length
+function checkLegacyReviewerCount(sidecar, task, valid) {
+  const reviewerCount = valid.filter(
+    (envelope) =>
+      envelope['role'] === 'reviewer' &&
+      envelope['taskId'] === task &&
+      envelope['branch'] === sidecar.branch &&
+      envelope['sha'] === sidecar.sha,
+  ).length
   if (reviewerCount < sidecar.count) {
     return [
       `legacy dispatch expects ${sidecar.count} reviewer envelope(s) but found ${reviewerCount}`,
@@ -312,13 +325,14 @@ function checkLegacyReviewerCount(sidecar, valid) {
 
 /**
  * @param {DispatchSidecar} sidecar
+ * @param {string} task
  * @param {string[]} files
  * @param {Record<string, unknown>[]} valid
  * @returns {string[]}
  */
-function collectReviewFailures(sidecar, files, valid) {
-  if (Array.isArray(sidecar.agents)) return checkNamedAgentEnvelopes(sidecar, files, valid)
-  return checkLegacyReviewerCount(sidecar, valid)
+function collectReviewFailures(sidecar, task, files, valid) {
+  if (Array.isArray(sidecar.agents)) return checkNamedAgentEnvelopes(sidecar, task, files, valid)
+  return checkLegacyReviewerCount(sidecar, task, valid)
 }
 
 /**
@@ -414,7 +428,7 @@ function main() {
     return 2
   }
   const valid = readEnvelopes(listed.files, schema)
-  return reportReviewFailures(collectReviewFailures(sidecar, listed.files, valid))
+  return reportReviewFailures(collectReviewFailures(sidecar, task, listed.files, valid))
 }
 
 try {
