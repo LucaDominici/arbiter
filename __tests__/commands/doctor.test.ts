@@ -15,6 +15,7 @@ import { saveConfig, saveConfigAndSnapshot } from '../../src/utils/config.js'
 import { defaultConfig } from '../helpers/default-config.js'
 import { acquireLock } from '../../src/utils/file-lock.js'
 import type { LockInfo } from '../../src/utils/file-lock.js'
+import { resetExternalModelDetection } from '../../src/detectors/external-model.js'
 
 function realBootId(): string {
   try {
@@ -56,7 +57,10 @@ describe('runDoctorHealth (#539)', () => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-doctorh-'))
     vi.clearAllMocks()
   })
-  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    rmSync(dir, { recursive: true, force: true })
+  })
 
   function mockGitOk(): void {
     mockRunCli.mockReturnValue({
@@ -90,6 +94,28 @@ describe('runDoctorHealth (#539)', () => {
     expect(gitCheck?.status).toBe('FAIL')
     expect(result.fail).toBe(1)
     expect(result.exitCode).toBe(1)
+  })
+
+  it('reports authenticated external Codex access in the project health checks', async () => {
+    resetExternalModelDetection()
+    vi.stubEnv('OPENAI_API_KEY', 'present-for-the-probe-only')
+    mockRunCli.mockImplementation((command) => {
+      if (command === 'git') {
+        return { stdout: 'git version 2.40\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      if (command === 'codex') {
+        return { stdout: 'codex 0.5.1\n', stderr: '', exitCode: 0, durationMs: 0 }
+      }
+      return { stdout: '', stderr: '', exitCode: 0, durationMs: 0 }
+    })
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+
+    const result = await runDoctorHealth({ dir, json: true })
+
+    expect(result.checks.find((c) => c.id === 'external-model-codex')).toMatchObject({
+      status: 'PASS',
+      detail: expect.stringMatching(/codex.*0\.5\.1.*authenticated/i),
+    })
   })
 
   // ADR-051 (#1093): collaborationMode × governanceLevel coherence surfaced by doctor.

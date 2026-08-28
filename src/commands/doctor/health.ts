@@ -14,6 +14,7 @@ import { forceReleaseLock, isLockStale, readLockInfo } from '../../utils/file-lo
 import { ArbiterError } from '../../utils/errors.js'
 import { resolveChannel } from '../../utils/channel.js'
 import { detectLanguage } from '../../detectors/language.js'
+import { detectExternalModel } from '../../detectors/external-model.js'
 import { runProbes } from '../../compatibility/probe.js'
 import { isArbiterSelf } from '../ship-profile.js'
 import { diagnoseCompanions } from '../../integrations/companions.js'
@@ -143,6 +144,7 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
       'advisory — review the detected and recommended skills in your configured integrations.',
     hint: 'Review your configured integrations and installed skills.',
   })
+  out.push(checkExternalModelHealth())
 
   if (gitOk) {
     let hooksPath = ''
@@ -178,6 +180,35 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
   out.push(checkBypassCeremony(dir))
 
   return out
+}
+
+function checkExternalModelHealth(): HealthCheck {
+  const access = detectExternalModel('codex')
+  const version = access.version ? `codex ${access.version}` : 'codex'
+  if (!access.available) {
+    return {
+      id: 'external-model-codex',
+      label: 'External Codex reviewer',
+      status: 'WARN',
+      detail: `${version}: ${access.error ?? 'unavailable'}`,
+      hint: 'Install the Codex CLI to enable the optional cross-model review slot.',
+    }
+  }
+  if (!access.authenticated) {
+    return {
+      id: 'external-model-codex',
+      label: 'External Codex reviewer',
+      status: 'WARN',
+      detail: `${version}: not authenticated`,
+      hint: 'Set OPENAI_API_KEY or authenticate the Codex CLI before enabling cross-model review.',
+    }
+  }
+  return {
+    id: 'external-model-codex',
+    label: 'External Codex reviewer',
+    status: 'PASS',
+    detail: `${version}: authenticated`,
+  }
 }
 
 /**

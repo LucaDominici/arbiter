@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2355",
+  "test_path": "__tests__/detectors/external-model.test.ts",
+  "test_commit_sha": "31121c0a38821433b1202029cc5d69c26f2c6bc8",
+  "test_blob_sha": "0ec076b76eeac2d7cdee45c665f5fa344e57c5c6",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/detectors/external-model.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  02:15:35\n   Duration  123ms (transform 24ms, setup 7ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/detectors/external-model.test.ts [ __tests__/detectors/external-model.test.ts ]\nError: Cannot find module '/src/detectors/external-model.js' imported from __tests__/detectors/external-model.test.ts\n ❯ __tests__/detectors/external-model.test.ts:6:1\n      4| import { afterEach, beforeEach, describe, expect, it, vi } from 'vites…\n      5| import { CliError, runCli } from '../../src/utils/run-cli.js'\n      6| import {\n       | ^\n      7|   detectExternalModel,\n      8|   detectExternalModels,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/detectors/external-model.test.ts",
+  "recorded_at": "2026-08-28T00:15:35.487Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/detectors/external-model.test.ts"
+  ]
+}

@@ -105,3 +105,10 @@ This PR is read-only and introduces no configuration. By being printed by `arbit
 ## Wave placement
 
 Lane **B (provider detection)**, parallel-safe with Lane A. Blocks the config and slot issues.
+
+## Implementation status
+
+Issue #2355 implements the Codex probe and exposes its inferred availability and
+authentication state through `arbiter doctor health`. The probe remains local-only:
+it checks the CLI version and credential-presence signals without reading or logging
+credential contents.

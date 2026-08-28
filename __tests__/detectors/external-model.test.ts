@@ -23,7 +23,12 @@ describe('external model detection', () => {
     homeDir = mkdtempSync(join(tmpdir(), 'arbiter-external-model-'))
     resetExternalModelDetection()
     mockedRunCli.mockReset()
-    mockedRunCli.mockReturnValue({ stdout: 'codex 0.5.1\n', stderr: '', exitCode: 0, durationMs: 1 })
+    mockedRunCli.mockReturnValue({
+      stdout: 'codex 0.5.1\n',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 1,
+    })
   })
 
   afterEach(() => {
