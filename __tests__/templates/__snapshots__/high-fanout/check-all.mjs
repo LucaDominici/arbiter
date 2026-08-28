@@ -42,6 +42,9 @@ import { evaluateCoverageGate } from './lib/coverage-gate.mjs';
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
+let _coverageRunStartedAt = null;
+
+
 // Guard an arbiter-emitted gate artifact using the emission-time manifest rather
 // than filesystem existence alone. A missing optional artifact that was never
 // emitted stays a normal skip; a delivered guard later deleted is a gate failure.
@@ -1141,6 +1144,7 @@ runCheck('db integration tests', 'npm', ['run', 'test:integration'], { soft: gra
   // run that crashed (no summary) FAILS — never silently skipped.
   if (_inlineInspect('coverage threshold', 'npx vitest run --coverage --coverage.reporter=json-summary')) {} else {
     const _covStart = Date.now();
+    _coverageRunStartedAt = _covStart;
     process.stdout.write('[CHECK] coverage threshold ... ');
     const _covThreshold = 80;
     const _cov = spawnSync(
@@ -1287,10 +1291,10 @@ runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
 
 
 
-
-
-runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'], { soft: graceActive });
-
+const _debtRatchetArgs = _coverageRunStartedAt === null
+  ? ['scripts/debt-report.mjs', '--gate']
+  : ['scripts/debt-report.mjs', '--gate', '--coverage-summary', 'coverage/coverage-summary.json', '--coverage-started-at', String(_coverageRunStartedAt)];
+runCheck('debt ratchet', 'node', _debtRatchetArgs, { soft: graceActive });
 
 
 

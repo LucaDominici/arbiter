@@ -8,8 +8,33 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { collectMetrics, countTodos } from './debt-lib.mjs'
 
+function optionValue(name) {
+  const index = process.argv.indexOf(name)
+  if (index === -1) return undefined
+  const value = process.argv[index + 1]
+  if (!value || value.startsWith('-')) {
+    process.stderr.write(`[arbiter] ${name} requires a value\n`)
+    process.exit(2)
+  }
+  return value
+}
+
 const gateMode = process.argv.includes('--gate')
 const requireImprovement = process.argv.includes('--require-improvement')
+const coverageSummaryPath = optionValue('--coverage-summary')
+const coverageStartedAtRaw = optionValue('--coverage-started-at')
+const coverageStartedAt =
+  coverageStartedAtRaw === undefined ? undefined : Number(coverageStartedAtRaw)
+if (coverageStartedAtRaw !== undefined && !Number.isFinite(coverageStartedAt)) {
+  process.stderr.write('[arbiter] --coverage-started-at must be a finite epoch timestamp\n')
+  process.exit(2)
+}
+if (coverageSummaryPath !== undefined && coverageStartedAt === undefined) {
+  process.stderr.write(
+    '[arbiter] --coverage-summary requires --coverage-started-at for stale-report protection\n',
+  )
+  process.exit(2)
+}
 const cwd = process.cwd()
 const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json')
 
@@ -40,7 +65,10 @@ const baseline = rawBaseline
 // treating them as "missing tool" would let fileset/config drift silently
 // disable a ratchet metric (#1286, fail-closed CANON-22).
 const collectionErrors = []
-const current = collectMetrics(cwd, collectionErrors)
+const current = collectMetrics(cwd, collectionErrors, {
+  ...(coverageSummaryPath !== undefined ? { coverageSummaryPath } : {}),
+  ...(coverageStartedAt !== undefined ? { coverageStartedAt } : {}),
+})
 current.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' }
 
 if (collectionErrors.length > 0) {

@@ -881,7 +881,7 @@ describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
       metricsProfile: computeMetricsProfile(cfg),
     } as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/debt-report.mjs.ejs', data)
-    expect(content).toContain('collectMetrics(cwd, collectionErrors)')
+    expect(content).toContain('collectMetrics(cwd, collectionErrors, {')
     expect(content).toContain('collection FAILURE')
     expect(content).toContain('process.exit(1)')
   })

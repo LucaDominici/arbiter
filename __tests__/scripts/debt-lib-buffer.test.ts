@@ -147,6 +147,63 @@ describe('debt-lib collection failures (#2202)', () => {
 // replaces the `npx vitest run --coverage` invocation, and the enriched diagnostic
 // names the real cause from the run's own stdout/stderr instead of a bare ENOENT.
 describe('debt-lib coverage collection — injectable spawn seam (#2226)', () => {
+  it('reuses a fresh gate summary without spawning a second coverage run', () => {
+    const { dir, binDir, cleanup } = makeMetricsFixture()
+    try {
+      writeFileSync(
+        join(dir, 'coverage-summary.json'),
+        JSON.stringify({ total: { lines: { pct: 91 }, branches: { pct: 82 } } }),
+      )
+      const spawn = vi.fn(() => {
+        throw new Error('coverage must be reused')
+      })
+      const errors: Array<{ metric: string; reason: string }> = []
+
+      const metrics = withPath(binDir, () =>
+        collectMetrics(dir, errors, {
+          spawnCoverage: spawn,
+          coverageSummaryPath: 'coverage-summary.json',
+          coverageStartedAt: 0,
+        }),
+      )
+
+      expect(spawn).not.toHaveBeenCalled()
+      expect(metrics.coverageLine?.value).toBe(91)
+      expect(metrics.coverageBranch?.value).toBe(82)
+      expect(errors).not.toContainEqual(expect.objectContaining({ metric: 'coverageLine' }))
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails closed when the reused summary is missing or stale', () => {
+    const { dir, binDir, cleanup } = makeMetricsFixture()
+    try {
+      writeFileSync(
+        join(dir, 'coverage-summary.json'),
+        JSON.stringify({ total: { lines: { pct: 91 } } }),
+      )
+      const spawn = vi.fn(() => {
+        throw new Error('coverage must be reused')
+      })
+      const errors: Array<{ metric: string; reason: string }> = []
+
+      withPath(binDir, () =>
+        collectMetrics(dir, errors, {
+          spawnCoverage: spawn,
+          coverageSummaryPath: 'coverage-summary.json',
+          coverageStartedAt: Date.now() + 60_000,
+        }),
+      )
+
+      expect(spawn).not.toHaveBeenCalled()
+      expect(errors).toContainEqual(expect.objectContaining({ metric: 'coverageLine' }))
+      expect(errors[0]?.reason).toMatch(/stale/i)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('uses the injected spawn; shim exits 0 writing no summary → collection error, no coverage metric', () => {
     const { dir, binDir, cleanup } = makeMetricsFixture()
     try {

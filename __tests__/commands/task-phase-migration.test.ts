@@ -134,68 +134,77 @@ describe('legacy → unified migration (#1206, #549)', () => {
     expect(phaseOf()).toBe('refactor')
   })
 
-  it('refactor → verification rejects a missing gate-pass marker and leaves the phase unchanged', () => {
+  it('refactor → verification enters the phase before its gate marker exists', () => {
     seedLegacy('refactor')
-    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/missing.*gate-pass\.json/i)
-    expect(phaseOf()).toBe('refactor')
+    expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
+    expect(phaseOf()).toBe('verification')
   })
 
-  it('refactor → verification rejects a corrupt gate-pass marker', () => {
-    seedLegacy('refactor')
+  it('verification → close rejects a corrupt gate-pass marker', () => {
+    seedLegacy('verification')
     const markerDir = join(dir, '.arbiter')
     mkdirSync(markerDir, { recursive: true })
     writeFileSync(join(markerDir, 'gate-pass.json'), '{not-json', 'utf-8')
-    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(
-      /corrupt.*node scripts\/check-all\.mjs L2/i,
+    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(
+      /corrupt.*node scripts\/check-all\.mjs L1/i,
     )
-    expect(phaseOf()).toBe('refactor')
+    expect(phaseOf()).toBe('verification')
   })
 
   it.each(['null', '[]', '"a stale marker"'])(
-    'refactor → verification rejects a non-object marker: %s',
+    'verification → close rejects a non-object marker: %s',
     (marker) => {
-      seedLegacy('refactor')
+      seedLegacy('verification')
       const markerDir = join(dir, '.arbiter')
       mkdirSync(markerDir, { recursive: true })
       writeFileSync(join(markerDir, 'gate-pass.json'), marker, 'utf-8')
 
-      expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(
-        /marker must be a JSON object/i,
-      )
-      expect(phaseOf()).toBe('refactor')
+      expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/marker must be a JSON object/i)
+      expect(phaseOf()).toBe('verification')
     },
   )
 
-  it('refactor → verification rejects a stale head_sha marker', () => {
+  it('verification → close rejects a stale head_sha marker', () => {
     initGitRepo(dir)
-    seedLegacy('refactor')
+    seedLegacy('verification')
     writeGatePassMarker(dir, { head_sha: 'a'.repeat(40) })
-    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/head_sha/i)
-    expect(phaseOf()).toBe('refactor')
-  })
-
-  it('refactor → verification rejects a marker for another branch', () => {
-    initGitRepo(dir)
-    seedLegacy('refactor')
-    writeGatePassMarker(dir, { branch: 'task/other-branch' })
-    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/branch/i)
-    expect(phaseOf()).toBe('refactor')
-  })
-
-  it('refactor → verification rejects a marker recorded over a dirty tree', () => {
-    initGitRepo(dir)
-    seedLegacy('refactor')
-    writeGatePassMarker(dir, { tree_was_clean_at_run_time: false })
-    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/tree_was_clean_at_run_time/i)
-    expect(phaseOf()).toBe('refactor')
-  })
-
-  it('refactor → verification accepts a fresh correlated marker and writes the phase', () => {
-    initGitRepo(dir)
-    seedLegacy('refactor')
-    writeGatePassMarker(dir)
-    expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
+    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/head_sha/i)
     expect(phaseOf()).toBe('verification')
+  })
+
+  it('verification → close rejects a marker for another branch', () => {
+    initGitRepo(dir)
+    seedLegacy('verification')
+    writeGatePassMarker(dir, { branch: 'task/other-branch' })
+    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/branch/i)
+    expect(phaseOf()).toBe('verification')
+  })
+
+  it('verification → close rejects a marker recorded over a dirty tree', () => {
+    initGitRepo(dir)
+    seedLegacy('verification')
+    writeGatePassMarker(dir, { tree_was_clean_at_run_time: false })
+    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/tree_was_clean_at_run_time/i)
+    expect(phaseOf()).toBe('verification')
+  })
+
+  it('verification → close accepts a fresh correlated marker and writes the phase', () => {
+    initGitRepo(dir)
+    seedLegacy('verification')
+    writeGatePassMarker(dir)
+    expect(() => runTaskAdvance({ to: 'close', dir })).not.toThrow()
+    expect(phaseOf()).toBe('close')
+  })
+
+  it('verification → close accepts the fast L1 marker, but complete still requires L2', () => {
+    initGitRepo(dir)
+    seedLegacy('verification')
+    writeGatePassEvidence(dir, { taskId: '#549', level: 'L1' })
+
+    expect(() => runTaskAdvance({ to: 'close', dir })).not.toThrow()
+    expect(phaseOf()).toBe('close')
+    expect(() => runTaskAdvance({ to: 'complete', dir })).toThrow(/below.*L2/i)
+    expect(phaseOf()).toBe('close')
   })
 
   it('verification → close rejects a missing gate-pass marker', () => {
@@ -214,9 +223,9 @@ describe('legacy → unified migration (#1206, #549)', () => {
     vi.stubEnv('ARBITER_SKIP_GATE_MARKER', '1')
     vi.stubEnv('CI', 'false')
     try {
-      seedLegacy('refactor')
-      expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
-      expect(phaseOf()).toBe('verification')
+      seedLegacy('verification')
+      expect(() => runTaskAdvance({ to: 'close', dir })).not.toThrow()
+      expect(phaseOf()).toBe('close')
     } finally {
       vi.unstubAllEnvs()
     }
@@ -226,9 +235,9 @@ describe('legacy → unified migration (#1206, #549)', () => {
     vi.stubEnv('ARBITER_SKIP_GATE_MARKER', '1')
     vi.stubEnv('CI', 'true')
     try {
-      seedLegacy('refactor')
-      expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/missing.*gate-pass\.json/i)
-      expect(phaseOf()).toBe('refactor')
+      seedLegacy('verification')
+      expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/missing.*gate-pass\.json/i)
+      expect(phaseOf()).toBe('verification')
     } finally {
       vi.unstubAllEnvs()
     }

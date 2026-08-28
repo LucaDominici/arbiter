@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { parseCheckArgs, SUBCOMMANDS, LEVELS } from '../../scripts/lib/parse-check-args.mjs'
+import {
+  effectiveGateLevel,
+  parseCheckArgs,
+  SUBCOMMANDS,
+  LEVELS,
+} from '../../scripts/lib/parse-check-args.mjs'
 
 describe('parseCheckArgs — subcommands', () => {
   it('defaults to gate subcommand when no args given', () => {
@@ -38,6 +43,11 @@ describe('parseCheckArgs — back-compat aliases', () => {
     const r = parseCheckArgs(['check', 'L2'])
     expect(r.subcommand).toBe('check')
     expect(r.level).toBe('L2')
+  })
+
+  it('check evidence is always L1, even when a higher level is supplied', () => {
+    expect(effectiveGateLevel(parseCheckArgs(['check']))).toBe('L1')
+    expect(effectiveGateLevel(parseCheckArgs(['check', '--level', 'L3']))).toBe('L1')
   })
 })
 

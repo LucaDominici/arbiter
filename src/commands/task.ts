@@ -398,15 +398,16 @@ function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOp
 }
 
 /**
- * Require a current gate pass, bound to THIS tree, before entering a
- * post-implementation phase.
+ * Require a current gate pass, bound to THIS tree, before leaving the closing phases.
+ * `close` accepts the fast L1 marker so the operator can reach the final pre-push gate;
+ * `complete` calls this with L2 and remains the strict completion boundary.
  *
  * #2328: the verdict is computed in-engine (see src/evidence/gate-binding.ts) —
  * never by running a script out of the tree being gated — and every identity
  * axis fails closed: schema, level, age, commit, branch, checkout, toolchain
  * and working-tree content.
  */
-function checkGatePassMarkerGate(dir: string): void {
+function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
   const inCi = process.env.CI === 'true'
   const envBypass = getBoolFlag('ARBITER_SKIP_GATE_MARKER')
   if (envBypass && !inCi) {
@@ -420,7 +421,7 @@ function checkGatePassMarkerGate(dir: string): void {
   const markerPath = join(dir, '.arbiter', 'gate-pass.json')
   if (!existsSync(markerPath)) {
     throw new Error(
-      `gate-pass marker missing at ${markerPath}. Run \`node scripts/check-all.mjs L2\` first.`,
+      `gate-pass marker missing at ${markerPath}. Run \`node scripts/check-all.mjs ${minLevel}\` first.`,
     )
   }
 
@@ -430,18 +431,18 @@ function checkGatePassMarkerGate(dir: string): void {
   } catch (err) {
     throw new Error(
       `gate-pass marker corrupt at ${markerPath}: ${err instanceof Error ? err.message : String(err)}. ` +
-        'Run `node scripts/check-all.mjs L2` first.',
+        `Run \`node scripts/check-all.mjs ${minLevel}\` first.`,
       { cause: err },
     )
   }
 
   const verdict = verifyGatePassMarker(parsed, {
     root: dir,
-    minLevel: 'L2',
+    minLevel,
     maxAgeMin: getNumberFlag('ARBITER_EVIDENCE_MAX_AGE_MIN'),
   })
   if (!verdict.ok) {
-    throw new Error(`${verdict.reason}. Run \`node scripts/check-all.mjs L2\` again.`)
+    throw new Error(`${verdict.reason}. Run \`node scripts/check-all.mjs ${minLevel}\` again.`)
   }
 }
 
@@ -493,10 +494,9 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     },
     verification: () => {
       checkChainTddEvidenceGate(dir)
-      checkGatePassMarkerGate(dir)
     },
     close: () => {
-      checkGatePassMarkerGate(dir)
+      checkGatePassMarkerGate(dir, 'L1')
     },
     complete: () => {
       checkGatePassMarkerGate(dir)

@@ -51,11 +51,11 @@ type SealReason = 'explicit' | 'risk' | 'max-chain' | 'max-age'
 type SealVerdict = { sealed: false } | { sealed: true; reason: SealReason; detail: string }
 
 /**
- * Four ids and four hours. Both are deliberately unremarkable: the age budget matches the
+ * Five ids and four hours. Both are deliberately unremarkable: the age budget matches the
  * existing `ARBITER_PREPUSH_MAX_AGE_MIN` evidence budget (`.githooks/pre-push`), so a train
  * cannot outlive the gate evidence it is accumulating toward.
  */
-export const DEFAULT_TRAIN_LIMITS: TrainLimits = { maxChain: 4, maxAgeMinutes: 240 }
+export const DEFAULT_TRAIN_LIMITS: TrainLimits = { maxChain: 5, maxAgeMinutes: 240 }
 
 /**
  * Append ids to a chain, normalizing and de-duplicating while preserving arrival order.

@@ -37,7 +37,7 @@ import {
   setSkippedChecks,
   isMainModule,
 } from './lib/run-helpers.mjs'
-import { parseCheckArgs } from './lib/parse-check-args.mjs'
+import { effectiveGateLevel, parseCheckArgs } from './lib/parse-check-args.mjs'
 import { GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST } from './lib/gate-affects-registry.mjs'
 
 // isMain guard so computeSkipped can be imported without running checks.
@@ -68,7 +68,9 @@ export function computeSkipped(changedFiles, registry, blacklist) {
 }
 
 if (isMain) {
-  const { subcommand, level, jsonPath: _parsedJsonPath } = parseCheckArgs(process.argv.slice(2))
+  const parsedArgs = parseCheckArgs(process.argv.slice(2))
+  const { subcommand, jsonPath: _parsedJsonPath } = parsedArgs
+  const level = effectiveGateLevel(parsedArgs)
   let jsonPath = _parsedJsonPath
 
   // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
@@ -399,6 +401,7 @@ if (isMain) {
 
   // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
   if (subcommand !== 'check') {
+    const coverageRunStartedAt = Date.now()
     runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
     // Coverage no-regression ratchet (#1483): runs right after coverage, reading the
     // coverage/coverage-summary.json the run above emits (json-summary reporter). Fails if any
@@ -446,7 +449,14 @@ if (isMain) {
       '1',
     ])
     runCheck('emission coherence (INV-123)', 'node', ['scripts/check-emission-coherence.mjs', '.'])
-    runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'])
+    runCheck('debt ratchet', 'node', [
+      'scripts/debt-report.mjs',
+      '--gate',
+      '--coverage-summary',
+      'coverage/coverage-summary.json',
+      '--coverage-started-at',
+      String(coverageRunStartedAt),
+    ])
     runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'])
     runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])
     runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])

@@ -3,10 +3,10 @@
 // Re-generate with: arbiter update
 import { spawnSync } from 'node:child_process';
 import {
-  readFileSync, existsSync, readdirSync, rmSync, mkdirSync, chmodSync, renameSync,
+  readFileSync, existsSync, readdirSync, rmSync, mkdirSync, chmodSync, renameSync, statSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { walkRepo } from './lib/glob-walk.mjs';
 
 // The `eslint <paths> --format json` output for this repo exceeds the Node
@@ -450,6 +450,40 @@ function coverageFailureReason(err, raw, cwd) {
   ].filter(Boolean).join(' — ');
 }
 
+function readReusedCoverageSummary(cwd, opts) {
+  const rawPath = opts.coverageSummaryPath;
+  if (typeof rawPath !== 'string' || rawPath.length === 0) {
+    throw new Error('coverage summary path is missing');
+  }
+  const summaryPath = resolve(cwd, rawPath);
+  if (isAbsolute(rawPath) || relative(cwd, summaryPath).startsWith('..')) {
+    throw new Error('coverage summary path must stay inside the project root');
+  }
+  const stat = statSync(summaryPath);
+  if (!stat.isFile()) throw new Error(`coverage summary is not a file: ${summaryPath}`);
+  if (opts.coverageStartedAt !== undefined) {
+    if (!Number.isFinite(opts.coverageStartedAt)) {
+      throw new Error('coverage summary freshness timestamp is invalid');
+    }
+    if (stat.mtimeMs < opts.coverageStartedAt) {
+      throw new Error(`coverage summary is stale: ${summaryPath}`);
+    }
+  }
+  return JSON.parse(readFileSync(summaryPath, 'utf-8'));
+}
+
+function coverageMetricsFromSummary(summary) {
+  if (typeof summary.total?.lines?.pct !== 'number') {
+    throw new Error('coverage summary has no numeric total.lines.pct');
+  }
+  return {
+    coverageLine: { value: summary.total.lines.pct, unit: 'percent', direction: 'higher-is-better' },
+<% if (metricsProfile.includeBranchCoverage) { %>
+    coverageBranch: { value: summary.total.branches?.pct ?? 0, unit: 'percent', direction: 'higher-is-better' },
+<% } %>
+  };
+}
+
 /**
  * Collect TypeScript/JavaScript debt metrics.
  * @param {string} cwd
@@ -457,7 +491,7 @@ function coverageFailureReason(err, raw, cwd) {
  *   Sink for tool-ran-but-collection-failed events (distinct from
  *   tool-not-installed, which soft-skips). debt-report --gate hard-fails on
  *   any entry (#1286, fail-closed).
- * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null}} [opts]
+ * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null, coverageSummaryPath?: string, coverageStartedAt?: number}} [opts]
  *   spawnCoverage is injectable for tests, mirroring jscpdScan's opts.spawn
  *   seam: it replaces the `npx vitest run --coverage` invocation so a unit test
  *   can deterministically simulate "vitest ran, no summary written" (the
@@ -468,27 +502,31 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   const metrics = {};
 
   // ── Coverage (vitest json-summary reporter) ───────────────────────────────
-  // Stale-report poisoning guard, mirroring jscpdScan's reportPath guard above: a leftover .coverage-tmp from a previous run (this box's self-hosted CI workdir persists between jobs) must never be read as this run's output.
-  rmSync(resolve(cwd, '.coverage-tmp'), { recursive: true, force: true });
-  const spawnCoverage =
-    opts.spawnCoverage ??
-    ((dir, args) => spawnOrSkip('coverageLine', 'vitest', 'npx', args, { cwd: dir }));
-  const coverageRaw = spawnCoverage(cwd,
-    ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary', '--coverage.reportsDirectory=.coverage-tmp']);
-  if (coverageRaw !== null) {
+  if (opts.coverageSummaryPath !== undefined) {
     try {
-      const summary = JSON.parse(readFileSync(resolve(cwd, '.coverage-tmp/coverage-summary.json'), 'utf-8'));
-      if (typeof summary.total?.lines?.pct !== 'number') {
-        throw new Error('coverage summary has no numeric total.lines.pct');
-      }
-      metrics.coverageLine = { value: summary.total.lines.pct, unit: 'percent', direction: 'higher-is-better' };
-<% if (metricsProfile.includeBranchCoverage) { %>
-      metrics.coverageBranch = { value: summary.total.branches?.pct ?? 0, unit: 'percent', direction: 'higher-is-better' };
-<% } %>
+      Object.assign(metrics, coverageMetricsFromSummary(readReusedCoverageSummary(cwd, opts)));
     } catch (err) {
-      const reason = coverageFailureReason(err, coverageRaw, cwd);
+      const reason = `gate coverage summary unreadable: ${err instanceof Error ? err.message : String(err)}`;
       collectionErrors.push({ metric: 'coverageLine', reason });
       process.stderr.write(`[baseline] ERROR: ${reason}\n`);
+    }
+  } else {
+    // Stale-report poisoning guard, mirroring jscpdScan's reportPath guard above: a leftover .coverage-tmp from a previous run (this box's self-hosted CI workdir persists between jobs) must never be read as this run's output.
+    rmSync(resolve(cwd, '.coverage-tmp'), { recursive: true, force: true });
+    const spawnCoverage =
+      opts.spawnCoverage ??
+      ((dir, args) => spawnOrSkip('coverageLine', 'vitest', 'npx', args, { cwd: dir }));
+    const coverageRaw = spawnCoverage(cwd,
+      ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary', '--coverage.reportsDirectory=.coverage-tmp']);
+    if (coverageRaw !== null) {
+      try {
+        const summary = JSON.parse(readFileSync(resolve(cwd, '.coverage-tmp/coverage-summary.json'), 'utf-8'));
+        Object.assign(metrics, coverageMetricsFromSummary(summary));
+      } catch (err) {
+        const reason = coverageFailureReason(err, coverageRaw, cwd);
+        collectionErrors.push({ metric: 'coverageLine', reason });
+        process.stderr.write(`[baseline] ERROR: ${reason}\n`);
+      }
     }
   }
 

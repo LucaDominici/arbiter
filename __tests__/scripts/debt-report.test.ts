@@ -37,6 +37,17 @@ function makeTemp(): { dir: string; cleanup: () => void } {
 }
 
 describe('debt-report.mjs (gate: debt ratchet enforcement)', () => {
+  it('requires a freshness token when reusing a gate coverage summary', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const result = run(dir, ['--gate', '--coverage-summary', 'coverage/coverage-summary.json'])
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('--coverage-summary requires --coverage-started-at')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('exits 0 when no baseline exists (grace period)', () => {
     const { dir, cleanup } = makeTemp()
     try {

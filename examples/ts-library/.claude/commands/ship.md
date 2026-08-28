@@ -253,7 +253,7 @@ PRBODY
 )"
 
 gh pr checks --watch
-gh pr merge --merge --admin
+gh pr merge --merge
 
 ```
 

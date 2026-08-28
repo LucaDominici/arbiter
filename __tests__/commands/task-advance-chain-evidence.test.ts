@@ -138,7 +138,7 @@ describe('task advance: per-issue TDD evidence across a chain (#2331)', () => {
   it('leaves an unchained task exactly as it was — no chain, no new requirement', () => {
     const dir = tmpRepo('refactor', [])
     writeEvidence(dir, '#100')
-    // Fails on the pre-existing gate-pass marker check, never on a chain requirement.
-    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/gate/i)
+    // Verification runs the gate; the marker is required when leaving verification for close.
+    expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
   })
 })

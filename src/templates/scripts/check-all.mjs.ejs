@@ -41,6 +41,9 @@ import { evaluateCoverageGate } from './lib/coverage-gate.mjs';
 <% } %>
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+<% if (language === 'typescript' && enableDebtGates && coverageEnabled) { %>
+let _coverageRunStartedAt = null;
+<% } %>
 
 // Guard an arbiter-emitted gate artifact using the emission-time manifest rather
 // than filesystem existence alone. A missing optional artifact that was never
@@ -614,6 +617,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
   // run that crashed (no summary) FAILS — never silently skipped.
   if (_inlineInspect('coverage threshold', 'npx vitest run --coverage --coverage.reporter=json-summary')) {} else {
     const _covStart = Date.now();
+    _coverageRunStartedAt = _covStart;
     process.stdout.write('[CHECK] coverage threshold ... ');
     const _covThreshold = <%= coverageThreshold %>;
     const _cov = spawnSync(
@@ -1004,6 +1008,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
   // run that crashed (no summary) FAILS — never silently skipped.
   if (_inlineInspect('coverage threshold', 'npx vitest run --coverage --coverage.reporter=json-summary')) {} else {
     const _covStart = Date.now();
+    _coverageRunStartedAt = _covStart;
     process.stdout.write('[CHECK] coverage threshold ... ');
     const _covThreshold = <%= coverageThreshold %>;
     const _cov = spawnSync(
@@ -1189,6 +1194,11 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
   }
   }
 <% } %>
+<% } else if (g.id === 'debt-ratchet' && language === 'typescript' && enableDebtGates && coverageEnabled) { %>
+const _debtRatchetArgs = _coverageRunStartedAt === null
+  ? ['scripts/debt-report.mjs', '--gate']
+  : ['scripts/debt-report.mjs', '--gate', '--coverage-summary', 'coverage/coverage-summary.json', '--coverage-started-at', String(_coverageRunStartedAt)];
+runCheck('debt ratchet', 'node', _debtRatchetArgs, { soft: graceActive });
 <% } else { %>
 <% if (g.condition) { %>if (<%- g.condition %>) { <% } %>
 <% const _fn = g.kind === 'warn' ? 'runWarnCheck' : g.kind === 'tool' ? 'runToolCheck' : 'runCheck'; %>
@@ -1460,6 +1470,7 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
   // run that crashed (no summary) FAILS — never silently skipped.
   if (_inlineInspect('coverage threshold', 'npx vitest run --coverage --coverage.reporter=json-summary')) {} else {
     const _covStart = Date.now();
+    _coverageRunStartedAt = _covStart;
     process.stdout.write('[CHECK] coverage threshold ... ');
     const _covThreshold = <%= coverageThreshold %>;
     const _cov = spawnSync(

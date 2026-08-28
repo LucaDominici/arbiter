@@ -771,6 +771,21 @@ describe('generateCheckAll', () => {
     expect(content.slice(ratchetIdx)).toContain('graceActive')
   })
 
+  it('generated TypeScript L2 debt ratchet reuses the fresh coverage summary', () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: 'typescript',
+        enableDebtGates: true,
+        coverageEnabled: true,
+        governanceLevel: 'L2',
+      }),
+    )
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).toContain("'--coverage-summary'")
+    expect(content).toContain("'--coverage-started-at'")
+    expect(content).toContain('_coverageRunStartedAt')
+  })
+
   // ─── M24: Security scanning ─────────────────────────────────────────────────
 
   it('PII scan runs before the L1 section (early-fail, not inside L2 block)', () => {

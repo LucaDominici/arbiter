@@ -658,7 +658,7 @@ When the script is absent (brownfield trees predating its emission, ADR-110), no
 
 ```bash
 git fetch origin main && git rebase origin/main
-node scripts/check-all.mjs check
+   node scripts/check-all.mjs L2
 git push origin HEAD:main   # ff-only
 ```
 <% } else { %>
@@ -692,7 +692,7 @@ node scripts/pr-merge-watch.mjs \
   "$(gh pr view --json number -q .number)"
 <% } else { %>
 gh pr checks --watch
-gh pr merge --merge --admin
+gh pr merge --merge
 <% } %>
 ```
 <% } %>

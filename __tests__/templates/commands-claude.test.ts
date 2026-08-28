@@ -320,6 +320,7 @@ describe('claude commands: ship.md — merge step branching', () => {
     const content = renderShip('typescript', 'L2', 'peer-review', 'pr-ff')
     expect(content).toContain('gh pr create')
     expect(content).toContain('gh pr merge --merge')
+    expect(content).not.toContain('--admin')
     expect(content).not.toContain('gh pr merge --rebase')
   })
 

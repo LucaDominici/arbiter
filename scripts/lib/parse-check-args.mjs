@@ -16,6 +16,11 @@
 export const SUBCOMMANDS = ['check', 'gate', 'full', 'simulate-nightly', 'simulate-weekly']
 export const LEVELS = ['L1', 'L2', 'L3', 'L4']
 
+/** The fast `check` lane only executes L1 gates, so its evidence is always L1. */
+export function effectiveGateLevel({ subcommand, level }) {
+  return subcommand === 'check' ? 'L1' : level
+}
+
 /**
  * Parse argv into check-all options.
  * @param {string[]} argv  process.argv.slice(2)

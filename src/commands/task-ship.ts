@@ -215,7 +215,8 @@ function closeAction(): string {
   return (
     'CLOSER mode: single named target, no new issues or refactor beyond the diff ' +
     '(findings → PARKING list, one line, no action). Same error twice → 5-line root-cause, ' +
-    'else declare BLOCKED. Foreground-wait on the PR/gate checks; never end the turn on a promise.'
+    'else declare BLOCKED. Run `node scripts/check-all.mjs L2` before commit/push. ' +
+    'Foreground-wait on the PR/gate checks; never end the turn on a promise.'
   )
 }
 

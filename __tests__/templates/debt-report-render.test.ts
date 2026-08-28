@@ -67,6 +67,16 @@ describe('debt-report.mjs.ejs', () => {
     expect(rendered).toContain('require-improvement')
   })
 
+  it('requires a freshness token before reusing a gate coverage summary', () => {
+    const data = makeDataWithProfile({ language: 'typescript' })
+    const report = renderTemplate('scripts/debt-report.mjs.ejs', data)
+    const lib = renderTemplate('scripts/debt-lib.mjs.ejs', data)
+    expect(report).toContain('--coverage-summary requires --coverage-started-at')
+    expect(report).toContain('coverageSummaryPath')
+    expect(lib).toContain('coverage summary is stale')
+    expect(lib).toContain('coverageSummaryPath')
+  })
+
   it('keeps the self and rendered debt tolerance equal to the coverage ratchet', () => {
     const data = makeDataWithProfile({ language: 'typescript' })
     const rendered = renderTemplate('scripts/debt-report.mjs.ejs', data)

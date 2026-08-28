@@ -91,6 +91,23 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
     expect(md).toMatch(/--execute/)
   })
 
+  it('uses the exact-SHA merge watcher for the governed wave PR', () => {
+    expect(md).toContain('scripts/pr-merge-watch.mjs')
+    expect(md).not.toContain('gh pr merge')
+    expect(md).toContain('node scripts/check-all.mjs L2')
+  })
+
+  it('keeps the standard merge path for non-solo projects without admin bypass', () => {
+    const peerReview = renderTemplate('claude/skills/wave-drain/SKILL.md.ejs', {
+      ...selfConfig,
+      collaborationMode: 'peer-review',
+      maxParallelWorktrees: 3,
+    })
+    expect(peerReview).toContain('gh pr merge --merge')
+    expect(peerReview).not.toMatch(/gh pr merge[^\n]*--admin/)
+    expect(peerReview).not.toContain('scripts/pr-merge-watch.mjs')
+  })
+
   it('carries the cross-repo appendix: flock one-liner, merge-train, explicit caveats', () => {
     expect(md).toMatch(/Appendix — Cross-repo/i)
     expect(md).toMatch(/flock \/tmp\/<repo>-gate\.lock/)

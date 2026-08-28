@@ -339,7 +339,7 @@ wave.** The rest of the wave proceeds.
    # skill: verification — claim-based pass on the cumulative branch first
    # FULL GATE → writes gate-pass.json; under the per-repo mutex (ADR-103) so a
    # concurrent agent's gate never interleaves with this one:
-   arbiter gate-exec -- sh -c 'npm run test && node scripts/check-all.mjs check'
+   arbiter gate-exec -- sh -c 'npm run test && node scripts/check-all.mjs L2'
    ```
 
    `gate-pass.json` is required by the `enforce-gate-before-pr` hook.
@@ -361,8 +361,9 @@ wave.** The rest of the wave proceeds.
    Closes #N1
    Closes #N2
    ..."
-   gh pr checks --watch
-   gh pr merge --merge        # only when CI is GREEN
+   node scripts/pr-merge-watch.mjs \
+     "$(gh repo view --json nameWithOwner -q .nameWithOwner)" \
+     "$(gh pr view --json number -q .number)"
    node scripts/verify-pr-closes.mjs <PR#>   # post-merge: confirm every ref closed, close stragglers
    ```
 

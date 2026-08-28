@@ -63,6 +63,15 @@ describe('appendChainIds (#2331)', () => {
 })
 
 describe('evaluateSeal (#2331)', () => {
+  it('allows a five-issue train before sealing the next append', () => {
+    expect(DEFAULT_TRAIN_LIMITS.maxChain).toBe(5)
+    expect(evaluateSeal(signals({ chainSize: 4 }), DEFAULT_TRAIN_LIMITS)).toEqual({ sealed: false })
+    expect(evaluateSeal(signals({ chainSize: 5 }), DEFAULT_TRAIN_LIMITS)).toMatchObject({
+      sealed: true,
+      reason: 'max-chain',
+    })
+  })
+
   it('leaves a young, small, low-risk train open', () => {
     expect(evaluateSeal(signals(), DEFAULT_TRAIN_LIMITS)).toEqual({ sealed: false })
   })
@@ -191,14 +200,14 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
   })
 
   it('refuses the append once the train is full, naming the reason', () => {
-    ship({ chainAddIds: ['#101', '#102', '#103'] })
-    expect(() => ship({ chainAddIds: ['#104'] })).toThrow(/SEALED: max-chain/)
+    ship({ chainAddIds: ['#101', '#102', '#103', '#104'] })
+    expect(() => ship({ chainAddIds: ['#105'] })).toThrow(/SEALED: max-chain/)
   })
 
   it('leaves state untouched when it refuses — a sealed train never half-applies', () => {
-    ship({ chainAddIds: ['#101', '#102', '#103'] })
+    ship({ chainAddIds: ['#101', '#102', '#103', '#104'] })
     const before = chain()
-    expect(() => ship({ chainAddIds: ['#104'] })).toThrow()
+    expect(() => ship({ chainAddIds: ['#105'] })).toThrow()
     expect(chain()).toEqual(before)
   })
 

@@ -38,6 +38,7 @@ if (!process.env.TMPDIR) {
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
+
 // Guard an arbiter-emitted gate artifact using the emission-time manifest rather
 // than filesystem existence alone. A missing optional artifact that was never
 // emitted stays a normal skip; a delivered guard later deleted is a gate failure.
