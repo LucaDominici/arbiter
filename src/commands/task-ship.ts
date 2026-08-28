@@ -511,28 +511,40 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
  * write; everything downstream (evidence path lookup, task_id identity check) relies
  * on this form.
  */
-function seedShipState(
-  root: string,
-  rawTaskId: string | undefined,
-  tier: string | undefined,
-  overrides: Record<string, string> | undefined,
-  rawChainIds: string[] | undefined,
+function assertSeedWithinLimit(
+  existing: UnifiedTaskState | null,
+  taskId: string | undefined,
+  chainIds: readonly string[] | undefined,
+  limits: TrainLimits,
 ): void {
-  const taskId = rawTaskId !== undefined ? normalizeShipTaskId(rawTaskId) : undefined
+  if (chainIds === undefined) return
+  const primaryCount = taskId !== undefined || existing?.taskId !== undefined ? 1 : 0
+  const projectedSize = primaryCount + chainIds.length
+  if (projectedSize <= limits.maxChain) return
+  const seal = {
+    reason: 'max-chain' as const,
+    detail: `the requested seed would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
+  }
+  throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
+}
+
+function seedShipState(root: string, opts: TaskShipOptions): void {
+  const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : undefined
   // #2102 — same numeric-only guard as the primary id (rejects non-numeric ids loudly).
-  const chainIds = rawChainIds !== undefined ? rawChainIds.map(normalizeChainId) : undefined
+  const chainIds = opts.chainIds !== undefined ? opts.chainIds.map(normalizeChainId) : undefined
   const existing = readUnifiedState(root)
+  assertSeedWithinLimit(existing, taskId, chainIds, opts.trainLimits ?? DEFAULT_TRAIN_LIMITS)
   if (
     existing === null ||
     taskId !== undefined ||
-    tier !== undefined ||
-    overrides !== undefined ||
+    opts.tier !== undefined ||
+    opts.overrides !== undefined ||
     chainIds !== undefined
   ) {
     writeUnifiedState(root, {
       ...(taskId !== undefined ? { taskId } : {}),
-      ...(tier !== undefined ? { tier } : {}),
-      ...(overrides !== undefined ? { overrides } : {}),
+      ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+      ...(opts.overrides !== undefined ? { overrides: opts.overrides } : {}),
       ...(chainIds !== undefined ? { chainIds } : {}),
     })
   }
@@ -741,7 +753,7 @@ function persistTrainAppend(
 
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
-  seedShipState(root, opts.taskId, opts.tier, opts.overrides, opts.chainIds)
+  seedShipState(root, opts)
   applyChainAdd(root, opts)
 
   const state = readUnifiedState(root)

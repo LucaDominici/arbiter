@@ -521,6 +521,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
       for (const relativePath of [
         'schemas/agent-return.schema.json',
+        'schemas/agent-return-external.schema.json',
         'schemas/cross-model-dispatch.schema.json',
         'scripts/check-cross-model-review.mjs',
         'scripts/record-agent-return.mjs',

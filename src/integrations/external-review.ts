@@ -10,6 +10,7 @@ import type { ShipTier } from '../commands/ship-tier.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
 import {
   mkdtempTranslated,
+  readFileContained,
   readFileTranslated,
   rmTranslated,
   toFsError,
@@ -366,12 +367,21 @@ function invokeCodex(
     'codex',
     [
       'exec',
-      '--sandbox',
-      'read-only',
+      '--strict-config',
       '--ephemeral',
       '--ignore-user-config',
       '-c',
       'shell_environment_policy.inherit="none"',
+      '-c',
+      'default_permissions="arbiter-cross-model-review"',
+      '-c',
+      'permissions.arbiter-cross-model-review.extends=":read-only"',
+      '-c',
+      'permissions.arbiter-cross-model-review.filesystem.:root="deny"',
+      '-c',
+      'permissions.arbiter-cross-model-review.filesystem.:minimal="read"',
+      '-c',
+      'permissions.arbiter-cross-model-review.network.enabled=false',
       '--skip-git-repo-check',
       '--output-schema',
       schemaPath,
@@ -757,7 +767,12 @@ function invokeExternalReview(request: ExternalReviewRequest): ExternalReviewRes
   try {
     scratch = mkdtempTranslated(join(tmpdir(), 'arbiter-cross-model-review-'))
     const outputPath = join(scratch, 'return.json')
-    const schemaPath = join(request.repoRoot, EXTERNAL_REVIEW_SCHEMA)
+    const schemaPath = join(scratch, 'agent-return-external.schema.json')
+    writeFileContained(
+      scratch,
+      'agent-return-external.schema.json',
+      readFileContained(request.repoRoot, EXTERNAL_REVIEW_SCHEMA),
+    )
     const codex = invokeCodex(request, prompt, outputPath, schemaPath)
     const output = outputText(outputPath, codex)
     const payload = output === null ? null : extractAgentReturnJson(output)

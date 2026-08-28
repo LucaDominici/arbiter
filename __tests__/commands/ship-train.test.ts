@@ -254,3 +254,20 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
     ).toThrow(/SEALED: max-age/)
   })
 })
+
+it('refuses an initial --chain seed that exceeds the train limit', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-seed-limit-'))
+  try {
+    expect(() =>
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        chainIds: ['#101', '#102', '#103', '#104', '#105'],
+        profileOverride: TEST_PROFILE,
+      }),
+    ).toThrow(/SEALED: max-chain/)
+    expect(readUnifiedState(dir)).toBeNull()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

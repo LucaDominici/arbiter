@@ -330,7 +330,7 @@ describe('invokeExternalReview (#2357)', () => {
     }
   })
 
-  it('uses read-only Codex stdin and persists only through the recorder (AC-3/AC-4/AC-7)', () => {
+  it('uses a scratch-only read-only Codex profile and persists only through the recorder (AC-3/AC-4/AC-7)', () => {
     mockedRunCli.mockImplementation((cmd) => {
       if (cmd === 'codex')
         return { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
@@ -357,15 +357,23 @@ describe('invokeExternalReview (#2357)', () => {
       'codex',
       expect.arrayContaining([
         'exec',
-        '--sandbox',
-        'read-only',
+        '--strict-config',
         '--ephemeral',
         '--ignore-user-config',
         '-c',
         'shell_environment_policy.inherit="none"',
+        '-c',
+        'default_permissions="arbiter-cross-model-review"',
+        '-c',
+        'permissions.arbiter-cross-model-review.extends=":read-only"',
+        '-c',
+        'permissions.arbiter-cross-model-review.filesystem.:root="deny"',
+        '-c',
+        'permissions.arbiter-cross-model-review.filesystem.:minimal="read"',
+        '-c',
+        'permissions.arbiter-cross-model-review.network.enabled=false',
         '--skip-git-repo-check',
         '--output-schema',
-        join(repoRoot, 'schemas', 'agent-return-external.schema.json'),
         '-o',
         '-',
       ]),
@@ -380,6 +388,9 @@ describe('invokeExternalReview (#2357)', () => {
     const sandboxRoot = codexArgs[codexArgs.indexOf('-C') + 1]
     expect(sandboxRoot).toEqual(expect.any(String))
     expect(sandboxRoot).not.toBe(repoRoot)
+    const schemaPath = codexArgs[codexArgs.indexOf('--output-schema') + 1]
+    expect(schemaPath).toBe(join(sandboxRoot as string, 'agent-return-external.schema.json'))
+    expect(schemaPath).not.toBe(join(repoRoot, 'schemas', 'agent-return-external.schema.json'))
     expect(mockedRunCli.mock.calls[0]?.[2]).toMatchObject({ cwd: sandboxRoot })
     expect(codexArgs).not.toContain('Review this change.')
     expect(codexArgs).not.toContain('diff --git a/file b/file')
