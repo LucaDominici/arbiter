@@ -411,9 +411,7 @@ function checkoutBindingError(sidecar) {
   const branch = gitLine(['rev-parse', '--abbrev-ref', 'HEAD'])
   if (branch === null) {
     // FAIL-OPEN-INTENT: isolated non-git fixtures have no checkout identity; real git roots fail closed below when metadata exists.
-    return existsSync(join(repoRoot, '.git'))
-      ? 'cannot read the current git branch'
-      : null
+    return existsSync(join(repoRoot, '.git')) ? 'cannot read the current git branch' : null
   }
   if (branch !== sidecar.branch) {
     return `sidecar branch ${sidecar.branch} does not match current branch ${branch}`
