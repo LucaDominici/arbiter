@@ -7,6 +7,7 @@
 // blocks count. Fail-closed: a missing input is an error, never a pass.
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -167,5 +168,35 @@ describe('the emitted living examples (#2415 AC-3)', () => {
       cliSrc: CLI_SRC,
     })
     expect(problems).toEqual([])
+  })
+})
+
+// The CLI surface is not reachable through the exported functions — a crash in
+// --json (Array.map handing its index to basename's `suffix`) went unnoticed
+// until it was run by hand. Exercise the three entry points as a subprocess.
+describe('CLI surface (#2415)', () => {
+  const script = join(REPO_ROOT, 'scripts', 'check-emitted-markdown-refs.mjs')
+  const run = (args: string[]): { status: number | null; stdout: string; stderr: string } => {
+    const r = spawnSync('node', [script, ...args], { cwd: REPO_ROOT, encoding: 'utf-8' })
+    return { status: r.status, stdout: r.stdout, stderr: r.stderr }
+  }
+
+  it('--json emits parseable output naming the scanned trees', () => {
+    const { status, stdout } = run(['--json'])
+    expect(status).toBe(0)
+    const parsed = JSON.parse(stdout) as { roots: string[]; scanned: number; problems: string[] }
+    expect(parsed.roots).toEqual(['go-library', 'python-library', 'ts-library'])
+    expect(parsed.scanned).toBeGreaterThan(0)
+    expect(parsed.problems).toEqual([])
+  })
+
+  it('--self-test passes on pure fixtures', () => {
+    expect(run(['--self-test']).status).toBe(0)
+  })
+
+  it('exits 2 (never 0) when the examples directory is missing', () => {
+    const { status, stderr } = run(['--examples=does-not-exist'])
+    expect(status).toBe(2)
+    expect(stderr).toContain('examples dir not found')
   })
 })

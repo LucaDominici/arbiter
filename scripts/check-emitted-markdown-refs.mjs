@@ -404,7 +404,9 @@ function main() {
   }
   if (asJson) {
     process.stdout.write(
-      `${JSON.stringify({ roots: result.roots.map(basename), scanned: result.scanned, problems: result.problems }, null, 2)}\n`,
+      // `.map(basename)` would hand Array.map's index to basename's `suffix`
+      // parameter and throw — the arrow keeps it unary.
+      `${JSON.stringify({ roots: result.roots.map((r) => basename(r)), scanned: result.scanned, problems: result.problems }, null, 2)}\n`,
     )
   } else if (result.problems.length === 0) {
     process.stdout.write(
