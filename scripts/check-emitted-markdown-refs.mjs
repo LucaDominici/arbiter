@@ -214,73 +214,100 @@ export function emittedMarkdownFiles(root) {
     .sort()
 }
 
-function checkFile(root, rel, text, pkg, surface, problems) {
-  const at = (index) => `${basename(root)}/${rel}:${lineOf(text, index)}`
-  const masked = maskToCodeContext(text)
-
-  for (const m of text.matchAll(SCRIPT_RE)) {
-    if (existsSync(join(root, m[1])) || isGuarded(text, m[1])) continue
-    problems.push(`${at(m.index)} → missing script: ${m[1]}`)
+/** `node scripts/<x>.mjs` and `.claude/hooks/<x>.mjs` — both resolve to a path in the tree. */
+function checkPathRefs(root, text, at, problems) {
+  for (const [re, label] of [
+    [SCRIPT_RE, 'script'],
+    [HOOK_RE, 'hook'],
+  ]) {
+    for (const m of text.matchAll(re)) {
+      if (existsSync(join(root, m[1])) || isGuarded(text, m[1])) continue
+      problems.push(`${at(m.index)} → missing ${label}: ${m[1]}`)
+    }
   }
+}
 
-  for (const m of text.matchAll(HOOK_RE)) {
-    if (existsSync(join(root, m[1])) || isGuarded(text, m[1])) continue
-    problems.push(`${at(m.index)} → missing hook: ${m[1]}`)
-  }
-
-  const pmCitations = [...text.matchAll(PM_RUN_RE)].map((m) => [m.index, m[1], m[2]])
+/** Every `<pm> run <script>` / bare `pnpm <script>` citation, as [index, manager, script]. */
+function packageManagerCitations(text) {
+  const citations = [...text.matchAll(PM_RUN_RE)].map((m) => [m.index, m[1], m[2]])
   for (const m of text.matchAll(PNPM_BARE_RE)) {
-    if (!PNPM_BUILTINS.has(m[1])) pmCitations.push([m.index, 'pnpm', m[1]])
+    if (!PNPM_BUILTINS.has(m[1])) citations.push([m.index, 'pnpm', m[1]])
   }
-  for (const [index, manager, script] of pmCitations) {
-    if (!pkg.hasPackageJson) {
-      problems.push(
-        `${at(index)} → \`${manager} run ${script}\`: the emitted tree has no package.json`,
-      )
-      continue
-    }
-    if (pkg.manager !== null && manager !== pkg.manager) {
-      problems.push(
-        `${at(index)} → wrong package manager \`${manager}\`: the emitted lockfile is ${pkg.manager}`,
-      )
-      continue
-    }
-    if (!pkg.scripts.has(script)) {
-      problems.push(`${at(index)} → \`${manager} run ${script}\`: no such script in package.json`)
-    }
-  }
+  return citations
+}
 
-  // `arbiter <cmd> [sub]` — code context only (see header).
+/** The one rule a package-manager citation breaks, or null when it resolves. */
+function packageRefProblem(pkg, manager, script) {
+  if (!pkg.hasPackageJson) {
+    return `\`${manager} run ${script}\`: the emitted tree has no package.json`
+  }
+  if (pkg.manager !== null && manager !== pkg.manager) {
+    return `wrong package manager \`${manager}\`: the emitted lockfile is ${pkg.manager}`
+  }
+  if (!pkg.scripts.has(script)) {
+    return `\`${manager} run ${script}\`: no such script in package.json`
+  }
+  return null
+}
+
+function checkPackageRefs(text, pkg, at, problems) {
+  for (const [index, manager, script] of packageManagerCitations(text)) {
+    const problem = packageRefProblem(pkg, manager, script)
+    if (problem !== null) problems.push(`${at(index)} → ${problem}`)
+  }
+}
+
+/**
+ * Collect `arbiter <cmd> [sub]` citations from the code-context-masked text into the
+ * shape findPhantomCommands / findPhantomSubcommands consume, plus the first source
+ * offset per citation so a phantom can be reported at its own line.
+ */
+function collectArbiterCitations(masked) {
   const cited = new Set()
   const pairs = new Map()
   const firstIndex = new Map()
+  const remember = (key, index) => {
+    if (!firstIndex.has(key)) firstIndex.set(key, index)
+  }
   for (const m of masked.matchAll(ARBITER_RE)) {
     if (PROSE_STOPWORDS.has(m[1])) continue
     // The separator alternative can consume the preceding newline; step past it so
     // the reported line is the invocation's own.
     const index = masked[m.index] === '\n' ? m.index + 1 : m.index
     cited.add(m[1])
-    if (!firstIndex.has(m[1])) firstIndex.set(m[1], index)
-    if (m[2] !== undefined) {
-      if (!pairs.has(m[1])) pairs.set(m[1], new Set())
-      pairs.get(m[1]).add(m[2])
-      if (!firstIndex.has(`${m[1]} ${m[2]}`)) firstIndex.set(`${m[1]} ${m[2]}`, index)
-    }
+    remember(m[1], index)
+    if (m[2] === undefined) continue
+    if (!pairs.has(m[1])) pairs.set(m[1], new Set())
+    pairs.get(m[1]).add(m[2])
+    remember(`${m[1]} ${m[2]}`, index)
   }
-  for (const phantom of findPhantomCommands(cited, surface.realCommandNames)) {
+  return { cited, pairs, firstIndex }
+}
+
+function checkArbiterRefs(masked, surface, at, problems) {
+  const { cited, pairs, firstIndex } = collectArbiterCitations(masked)
+  const report = (phantom, label) =>
     problems.push(
-      `${at(firstIndex.get(phantom))} → unknown arbiter command: \`arbiter ${phantom}\``,
+      `${at(firstIndex.get(phantom) ?? 0)} → unknown arbiter ${label}: \`arbiter ${phantom}\``,
     )
+  for (const phantom of findPhantomCommands(cited, surface.realCommandNames)) {
+    report(phantom, 'command')
   }
   for (const phantom of findPhantomSubcommands(
     pairs,
     surface.subcommandsByCommand,
     surface.aliasToCanonical,
   )) {
-    problems.push(
-      `${at(firstIndex.get(phantom) ?? 0)} → unknown arbiter subcommand: \`arbiter ${phantom}\``,
-    )
+    report(phantom, 'subcommand')
   }
+}
+
+function checkFile(root, rel, text, pkg, surface, problems) {
+  const at = (index) => `${basename(root)}/${rel}:${lineOf(text, index)}`
+  checkPathRefs(root, text, at, problems)
+  checkPackageRefs(text, pkg, at, problems)
+  // `arbiter <cmd> [sub]` — code context only (see header).
+  checkArbiterRefs(maskToCodeContext(text), surface, at, problems)
 }
 
 /**
