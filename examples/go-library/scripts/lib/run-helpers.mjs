@@ -10,6 +10,7 @@
 //
 // Imported by scripts/check-all.mjs. Plain ESM (.mjs).
 import { spawnSync } from 'node:child_process';
+import { availableParallelism } from 'node:os';
 import { existsSync, readFileSync, statfsSync } from 'node:fs';
 import { join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,6 +104,15 @@ export function gateFileState(path, cwd = process.cwd()) {
 }
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+const REFERENCE_CORES = 24;
+
+// Preserve the measured 10-minute budget of the 24-core reference runner while
+// giving slower machines the same core-seconds. More cores never shrink the
+// hang ceiling below the measured reference budget (#2370).
+export function scaledTimeoutMs(cores = availableParallelism()) {
+  const effectiveCores = Math.max(1, Math.min(REFERENCE_CORES, cores));
+  return Math.ceil((DEFAULT_TIMEOUT_MS * REFERENCE_CORES) / effectiveCores);
+}
 // Explicit spawnSync output ceiling. Node's default is 1 MB; verbose checks can
 // exceed it, and an overflow silently kills the child (status=null), surfacing
 // as a misleading "exit null". An explicit ceiling + ENOBUFS-as-FAIL keeps the
@@ -161,7 +171,7 @@ function spawn(name, cmd, args, opts) {
   const r = spawnSync(cmd, args, {
     encoding: 'utf-8',
     shell: false,
-    timeout: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    timeout: opts.timeoutMs ?? scaledTimeoutMs(),
     maxBuffer: opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES,
     ...(opts.cwd ? { cwd: opts.cwd } : {}),
   });
@@ -196,6 +206,13 @@ function recordFail(name, elapsed, msg) {
   failed++;
 }
 
+function recordTimeout(name, elapsed) {
+  console.log(`TIMEOUT (after ${elapsed}ms)`);
+  if (IS_CI()) console.log(`::error::${name}::timeout after ${elapsed}ms`);
+  results.push({ name, status: 'TIMEOUT', elapsed });
+  failed++;
+}
+
 function recordWarn(name, elapsed, msg) {
   console.log(`WARN (${msg}, ${elapsed}ms)`);
   results.push({ name, status: 'WARN', elapsed });
@@ -219,7 +236,7 @@ export function runCheck(name, cmd, args, opts = {}) {
     return;
   }
   if (r.error && r.error.code === 'ETIMEDOUT') {
-    recordFail(name, elapsed, `timeout after ${elapsed}ms`);
+    recordTimeout(name, elapsed);
     return;
   }
   if (r.error && r.error.code === 'ENOBUFS') {
@@ -275,7 +292,7 @@ export function runToolCheck(name, cmd, args, opts = {}) {
     return;
   }
   if (r.error && r.error.code === 'ETIMEDOUT') {
-    recordFail(name, elapsed, `timeout after ${elapsed}ms`);
+    recordTimeout(name, elapsed);
     return;
   }
   if (r.error && r.error.code === 'ENOBUFS') {

@@ -370,15 +370,9 @@ if (isMain) {
   // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
   // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still
   // inside the L1 partition (captured by l1EndIdx below) → hash- and set-invariant.
-  // 20-min ceiling for the full vitest suite: the shared 10-min default is a
-  // hang-catcher, but on low-core containers the suite legitimately runs
-  // ~10.5 min while making progress — a ceiling that trips on a healthy slow
-  // run turns an environment budget into a phantom red (observed 2026-08-26:
-  // 616s green standalone vs 600s gate timeout on a 4-core box).
-  runCheck('unit tests', 'npm', ['test'], {
-    timeoutMs: 20 * 60 * 1000,
-    ...(vitestEnv ? { env: vitestEnv } : {}),
-  })
+  // The shared helper scales the measured 24-core timeout budget to the local
+  // core count (#2370); all suite-shaped steps use the same portability rule.
+  runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
   runCheck(
     'greenfield smoke',
     'npx',
@@ -558,7 +552,7 @@ if (isMain) {
         name: r.name,
         pass: r.status === 'PASS',
         // #2052: `pass` alone collapses SKIP into the same false as FAIL —
-        // `status` keeps the full PASS/FAIL/WARN/SKIP distinction visible to
+        // `status` keeps the full PASS/FAIL/TIMEOUT/WARN/SKIP distinction visible to
         // JSON consumers, not just the console summary table.
         status: r.status,
         durationMs: r.elapsed,
@@ -624,10 +618,10 @@ if (isMain) {
   }
 
   if (failed > 0) {
-    const failedResults = results.filter((r) => r.status === 'FAIL')
+    const failedResults = results.filter((r) => r.status === 'FAIL' || r.status === 'TIMEOUT')
     console.error(`=== FAILED: ${failed} check(s) ===`)
     console.error('Failed checks:')
-    for (const r of failedResults) console.error(`- ${r.name}`)
+    for (const r of failedResults) console.error(`- ${r.name} (${r.status})`)
     console.error('')
     process.exit(1)
   } else {

@@ -1030,10 +1030,10 @@ if (_failedCount === 0 && !_inspect) {
 }
 
 if (_failedCount > 0) {
-  const _failedResults = _allResults.filter((r) => r.status === 'FAIL');
+  const _failedResults = _allResults.filter((r) => r.status === 'FAIL' || r.status === 'TIMEOUT');
   console.error(`=== FAILED: ${_failedCount} check(s) ===`);
   console.error('Failed checks:');
-  for (const r of _failedResults) console.error(`- ${r.name}`);
+  for (const r of _failedResults) console.error(`- ${r.name} (${r.status})`);
   console.error('');
   process.exit(1);
 } else {
