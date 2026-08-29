@@ -341,6 +341,11 @@ Resolve everything in one work session, then let the `verification` phase run th
 once. This is a **speed** optimization, not a gate skip — the full gate still runs before
 commit (L1) and before push (L2).
 
+Optional, at `verification` and before release-class changes: run `/tabletop <scenario>` to
+walk one user journey end to end and record where the docs and the behaviour disagree
+(`docs/internal/METHOD/TABLETOP-SCENARIOS.md`). It is evidence-only and never edits the tree;
+blockers are hard stops — ship nothing until each one is fixed or filed with an owner.
+
 ---
 
 ## Red-team review

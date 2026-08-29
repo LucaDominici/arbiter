@@ -207,6 +207,9 @@ if (isMain) {
   runCheck('matrix fixtures', 'node', ['scripts/check-matrix-fixtures.mjs'])
   runCheck('matrix proven cells', 'node', ['scripts/check-matrix-proven-cells.mjs'])
   runCheck('skills-matrix-schema', 'node', ['scripts/check-skills-matrix.mjs'])
+  // #2429: a tabletop is high-recall/low-precision, so every blocker/major finding must
+  // terminate in an owner. Vacuous when .arbiter/evidence/tabletop/ holds nothing.
+  runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.mjs'])
   runCheck('template tests', 'node', ['scripts/check-template-tests.mjs'])
   runCheck('generator tests', 'node', ['scripts/check-generator-tests.mjs'])
   runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])

@@ -214,6 +214,7 @@ const CI_COVERAGE = new Map([
   ['matrix fixtures', 'gate-full'],
   ['matrix proven cells', 'gate-full'],
   ['skills-matrix-schema', 'gate-full'],
+  ['tabletop evidence (#2429)', 'gate-full'],
   ['template tests', 'gate-full'],
   ['generator tests', 'gate-full'],
   ['command tests', 'gate-full'],

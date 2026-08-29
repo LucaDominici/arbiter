@@ -99,7 +99,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 40 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 51 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -137,10 +137,13 @@ describe('generateCheckAll', () => {
     // + check-m16-handoff.mjs (M16 handoff-contract marker gate, #2103)
     // + lib/gate-evidence.mjs (#2328 — the gate-pass identity binding shared by the
     //   writer, both Claude hooks and the pre-push reuse rule)
+    // + check-tabletop-evidence.mjs + schemas/tabletop-evidence.schema.json (#2429 — the
+    //   tabletop evidence gate and the schema it validates against; emitted, not self-only,
+    //   because a consumer runs tabletops on its own journeys)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(49)
+    expect(result.files).toHaveLength(51)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-evidence.mjs'))).toBe(true)
     // #2399 — the review/dispatch evidence binding shared by the review gates and the Stop hook.
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/evidence-binding.mjs'))).toBe(true)

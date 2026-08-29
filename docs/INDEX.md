@@ -215,6 +215,7 @@
 | [Process — arbiter](internal/METHOD/PROCESS.md) | PROCESS | active | kind/method |
 | [arbiter Reuse Registry](internal/METHOD/REUSE_REGISTRY.md) | REUSE_REGISTRY | active | kind/method |
 | [SSOT Core Set — arbiter](internal/METHOD/SSOT_CORE_SET.md) | — | active | kind/ssot |
+| [Tabletop Scenarios — arbiter](internal/METHOD/TABLETOP-SCENARIOS.md) | TABLETOP-SCENARIOS | active | kind/method |
 | [Testing — arbiter](internal/METHOD/TESTING.md) | TESTING | active | kind/method |
 | [ADEQUACY-MAP — arbiter vs the field, docs vs code, and the adjustment plan](internal/PRODUCT/ADEQUACY-MAP.md) | — | active | kind/product |
 | [FEATURE_MATRIX — Product Truth RTM](internal/PRODUCT/FEATURE_MATRIX.md) | — | active | kind/product |

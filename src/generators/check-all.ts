@@ -349,6 +349,18 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-tdd-evidence.mjs'],
     tpl: 'scripts/check-tdd-evidence.mjs.ejs',
   },
+  // #2429: the tabletop evidence gate + the schema it validates against. Emitted (not
+  // self-only) because consumers run tabletops too — the exercise is a consumer practice,
+  // not an arbiter-internal audit. Zero-dep plain node; wired at L1 in check-all.mjs.ejs
+  // and vacuous when .arbiter/evidence/tabletop/ is absent.
+  {
+    rel: ['scripts', 'check-tabletop-evidence.mjs'],
+    tpl: 'scripts/check-tabletop-evidence.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'tabletop-evidence.schema.json'],
+    tpl: 'schemas/tabletop-evidence.schema.json.ejs',
+  },
   // #1456 (INV-133): TODO max-age enforcement gate. A TODO(#NNN) whose linked issue
   // was created more than MAX_AGE_DAYS ago FAILS the gate (age from issue created_at
   // only). Self-contained; wired at L2 in check-all.mjs.ejs. Graceful-SKIPs offline.
