@@ -165,9 +165,9 @@ or pass `codex exec --dangerously-bypass-hook-trust` in automation. Editing
 Claude-only surfaces with no Codex equivalent (by design, ADR-106 — accurate
 disclosure, not implementation parity):
 
-- **Commands** (11): `/task`, `/ship`, `/drain`, `/impact`, `/gold-audit`, `/wt-open`, `/wt-close`, `/wt-list`, `/wt-prune`, `/close-gold-gap`, `/levelup`
+- **Commands** (12): `/task`, `/ship`, `/drain`, `/impact`, `/gold-audit`, `/wt-open`, `/wt-close`, `/wt-list`, `/wt-prune`, `/close-gold-gap`, `/levelup`, `/tabletop`
 - **Agents** (4): `codebase-scanner`, `red-team`, `context-checker`, `bridge-reviewer`
-- **Skills** (14): `tdd`, `verification`, `architect-review`, `clean-code`, `understand-code`, `codebase-audit`, `epic-decompose`, `configure`, `brainstorming`, `wave-drain`, `impact`, `gold-audit`, `close-gold-gap`, `levelup`
+- **Skills** (15): `tdd`, `verification`, `architect-review`, `clean-code`, `understand-code`, `codebase-audit`, `epic-decompose`, `configure`, `brainstorming`, `wave-drain`, `impact`, `gold-audit`, `close-gold-gap`, `levelup`, `tabletop`
 - **Rules not derived into the Codex track** (4): `40-context-economy.md`, `55-brainstorm-terminal-state.md`, `75-impact-vault-reading.md`, `95-closer-mode.md` — each is coupled to a Claude-only mechanism (knowledge-map routing, brainstorm hook, `/impact` skill, CLOSER hook)
 
 **Decision:** This gap is intentional. OpenAI Codex has no plugin/hook extension
