@@ -545,7 +545,7 @@
     "scripts/check-workflow-test-integrity.mjs": "0613463a638d6b62f263ebe2dfa6da7cee60121fa28a7813c647d97c5140dbc7",
     "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
     "scripts/constraint-map.json": "d5f60a1a8b34336bbc40b82f851355f17f7ea98488ec574ebd9781cbf6e622d9",
-    "scripts/debt-lib.mjs": "737f9bd144f2284be3ea5a1cb4d7d55285953985536748b811b4d9ed40ce2e97",
+    "scripts/debt-lib.mjs": "a86d0761b424b2161aaf7308e2383f06113bc19ecf83e50a88c2caec51c8d741",
     "scripts/debt-report.mjs": "f1ed7332ad828ef220799db867b7f8610b805ce14ef3ced8dbb66ded7000574e",
     "scripts/done-evidence.mjs": "06fe94f02a7e1c5714fbb3555fb5fe1ca61c7811d32bc30fe74ad876ff0b9712",
     "scripts/evidence-collect.mjs": "bd42c89bdf0932745e6640e8ab8c17dfefb0ff68da78387aaeb90743b5d57987",
