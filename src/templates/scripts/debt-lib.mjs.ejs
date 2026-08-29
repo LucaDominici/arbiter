@@ -27,14 +27,28 @@ function run(cmd, args, opts) {
 
 // jscpd v5 ships its scanner as a prebuilt native `cpd` binary selected per
 // platform by `jscpd/run-jscpd.js` (#1304). On glibc Linux it installs the
-// `cpd-linux-x64-gnu` package, but that binary is built against GLIBC ≥ 2.34;
+// `jscpd-linux-x64-gnu` package, but that binary is built against GLIBC ≥ 2.34;
 // on an older CI image (glibc < 2.32) the loader rejects it — exit 1, no report
 // — so the duplication scan failed closed even though jscpd "is installed". The
-// `cpd-linux-x64-musl` variant is a *static-pie* ELF with no libc dependency, so
+// musl x64 platform package is a *static-pie* ELF with no libc dependency, so
 // it runs on any Linux regardless of glibc age. npm refuses to install a
 // `libc:["musl"]` optional dep on a glibc host, so we materialise it on demand
 // from the version-pinned registry into a local cache and run it directly.
-const JSCPD_STATIC_PKG = 'cpd-linux-x64-musl';
+// jscpd renamed its platform packages once already (`cpd-linux-x64-musl` ->
+// `jscpd-linux-x64-musl` in 5.0.16, #2370), so the package name is derived from
+// jscpd's own optionalDependencies rather than hardcoded.
+
+/**
+ * The optionalDependencies key jscpd declares for the musl x64 Linux platform
+ * package. Derived instead of hardcoded because jscpd has already renamed this
+ * package once (#2370).
+ * @param {{optionalDependencies?: Record<string, string>}} jscpdPkgJson - parsed jscpd package.json
+ * @returns {string | null}
+ */
+export function deriveStaticMuslPkgName(jscpdPkgJson) {
+  const optionalDeps = jscpdPkgJson?.optionalDependencies ?? {};
+  return Object.keys(optionalDeps).find((name) => name.endsWith('-linux-x64-musl')) ?? null;
+}
 
 /**
  * Materialise jscpd's static (musl, libc-independent) `cpd` binary into a local
@@ -46,10 +60,13 @@ const JSCPD_STATIC_PKG = 'cpd-linux-x64-musl';
  */
 function resolveStaticCpd(jscpdPkgDir) {
   if (process.platform !== 'linux' || process.arch !== 'x64') return null;
-  let version;
+  let pkgJson;
   try {
-    version = JSON.parse(readFileSync(join(jscpdPkgDir, 'package.json'), 'utf-8')).version;
+    pkgJson = JSON.parse(readFileSync(join(jscpdPkgDir, 'package.json'), 'utf-8'));
   } catch { return null; }
+  const version = pkgJson.version;
+  const staticPkgName = deriveStaticMuslPkgName(pkgJson);
+  if (!version || !staticPkgName) return null;
   const cacheRoot = resolve(jscpdPkgDir, '..', '.cache', 'jscpd-static', version);
   const cpdPath = join(cacheRoot, 'cpd');
   if (existsSync(cpdPath)) return cpdPath;
@@ -59,14 +76,21 @@ function resolveStaticCpd(jscpdPkgDir) {
     mkdirSync(cacheRoot, { recursive: true });
     tmp = join(cacheRoot, '.pack');
     mkdirSync(tmp, { recursive: true });
-    const pack = run('npm', ['pack', `${JSCPD_STATIC_PKG}@${version}`, '--silent'], { cwd: tmp });
+    const pack = run('npm', ['pack', `${staticPkgName}@${version}`, '--silent'], { cwd: tmp });
     if ((pack.status ?? 1) !== 0) return null;
     const tgz = readdirSync(tmp).find((f) => f.endsWith('.tgz'));
     if (!tgz) return null;
     const untar = run('tar', ['xzf', tgz, '-C', tmp], { cwd: tmp });
     if ((untar.status ?? 1) !== 0) return null;
-    const extracted = join(tmp, 'package', 'cpd-bin', 'cpd');
-    if (!existsSync(extracted)) return null;
+    // jscpd 5.0.16 ships the binary at package/bin/jscpd (was
+    // package/cpd-bin/cpd pre-rename, #2370). Try both so a consumer project
+    // pinned to an older jscpd (whose static package still uses the old
+    // layout) still resolves.
+    const extracted = [
+      join(tmp, 'package', 'bin', 'jscpd'),
+      join(tmp, 'package', 'cpd-bin', 'cpd'),
+    ].find((p) => existsSync(p));
+    if (!extracted) return null;
     renameSync(extracted, cpdPath);
     chmodSync(cpdPath, 0o755);
     rmSync(tmp, { recursive: true, force: true });

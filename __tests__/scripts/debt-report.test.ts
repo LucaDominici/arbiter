@@ -448,6 +448,32 @@ describe('resolveJscpdSpawn (#1304 glibc-resilient spawn)', () => {
     expect(isGlibcIncompatible({ status: 1, stderr: 'Found 3 clones' })).toBe(false)
   })
 
+  // #2370: jscpd renamed its musl platform package `cpd-linux-x64-musl` ->
+  // `jscpd-linux-x64-musl` in 5.0.16, which silently broke the hardcoded
+  // constant this used to be. Derive it from jscpd's own optionalDependencies
+  // instead so a future rename can't repeat the breakage.
+  it('derives the musl platform package name from jscpd optionalDependencies', async () => {
+    const { deriveStaticMuslPkgName } = await load()
+    expect(
+      deriveStaticMuslPkgName({
+        optionalDependencies: {
+          'jscpd-linux-x64-gnu': '5.0.16',
+          'jscpd-linux-x64-musl': '5.0.16',
+          'jscpd-darwin-arm64': '5.0.16',
+        },
+      }),
+    ).toBe('jscpd-linux-x64-musl')
+    // Pre-#2370 naming still resolves — the derivation is name-agnostic.
+    expect(
+      deriveStaticMuslPkgName({ optionalDependencies: { 'cpd-linux-x64-musl': '5.0.11' } }),
+    ).toBe('cpd-linux-x64-musl')
+    // No musl key, or no optionalDependencies at all: null, never a guess.
+    expect(
+      deriveStaticMuslPkgName({ optionalDependencies: { 'jscpd-linux-x64-gnu': '5.0.16' } }),
+    ).toBeNull()
+    expect(deriveStaticMuslPkgName({})).toBeNull()
+  })
+
   it('retries the static cpd binary when the native binary is glibc-incompatible', async () => {
     const { resolveJscpdSpawn } = await load()
     const calls: string[] = []
