@@ -49,31 +49,31 @@ const protectedPathPattern =
 const DESTRUCTIVE_HEADS = new Set(['rm', 'unlink', 'truncate', 'mv', 'cp', 'tee'])
 
 /** Drops a leading `sudo` and any leading `FOO=bar` env assignments before head detection. */
-function stripLeading(segment) {
-  let s = segment.trim().replace(/^sudo\s+/, '')
+function stripLeading(seg) {
+  let s = seg.trim().replace(/^sudo\s+/, '')
   while (/^[A-Za-z_][A-Za-z0-9_]*=\S*\s+/.test(s)) {
     s = s.replace(/^[A-Za-z_][A-Za-z0-9_]*=\S*\s+/, '')
   }
   return s
 }
 
-/** True when a `>`/`>>` redirect target (any fd) in `segment` is the protected path. */
-function redirectsIntoProtectedPath(segment) {
+/** True when a `>`/`>>` redirect target (any fd) in `seg` is the protected path. */
+function redirectsIntoProtectedPath(seg) {
   const redirectPattern = /(?:^|\s)\d*(>>|>)\s*(\S+)/g
   let m
-  while ((m = redirectPattern.exec(segment))) {
+  while ((m = redirectPattern.exec(seg))) {
     if (protectedPathPattern.test(` ${m[2]} `)) return true
   }
   return false
 }
 
-/** True when `segment`'s head is a destructive verb AND its arguments name the protected path. */
-function destructiveHeadOnProtectedPath(segment) {
-  const tokens = segment.split(/\s+/).filter(Boolean)
+/** True when `seg`'s head is a destructive verb AND its arguments name the protected path. */
+function destructiveHeadOnProtectedPath(seg) {
+  const tokens = seg.split(/\s+/).filter(Boolean)
   const head = tokens[0] ?? ''
   const isSedInPlace = head === 'sed' && tokens.some((t) => t === '--in-place' || /^-i/.test(t))
   if (!DESTRUCTIVE_HEADS.has(head) && !isSedInPlace) return false
-  return protectedPathPattern.test(segment)
+  return protectedPathPattern.test(seg)
 }
 
 const redactedCommand = stripQuotedAndHeredocs(command)
