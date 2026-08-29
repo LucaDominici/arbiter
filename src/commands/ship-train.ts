@@ -20,8 +20,6 @@
  */
 import { normalizeChainId } from './task-state.js'
 import type { ShipTier } from './ship-tier.js'
-import type { ShipConfig } from '../config/schema.js'
-import type { UnifiedTaskState } from './task-state.js'
 
 /** Bounds on how far one train may grow before it must be landed. */
 export interface TrainLimits {
@@ -53,52 +51,11 @@ type SealReason = 'explicit' | 'risk' | 'max-chain' | 'max-age'
 type SealVerdict = { sealed: false } | { sealed: true; reason: SealReason; detail: string }
 
 /**
- * Ten ids and eight hours (#2401). The train is the DEFAULT unit of ceremony, not an opt-in
- * for the occasional batch, so the bound is sized for a working session's worth of small
- * issues rather than for one careful experiment (it was 5/240 while `--chain-add` was opt-in).
- * A project that wants the tighter bound declares it: `ship.train` in `arbiter.json`.
+ * Five ids and four hours. Both are deliberately unremarkable: the age budget matches the
+ * existing `ARBITER_PREPUSH_MAX_AGE_MIN` evidence budget (`.githooks/pre-push`), so a train
+ * cannot outlive the gate evidence it is accumulating toward.
  */
-export const DEFAULT_TRAIN_LIMITS: TrainLimits = { maxChain: 10, maxAgeMinutes: 480 }
-
-/**
- * #2401 — the bounds a repo actually runs under: `ship.train` from `arbiter.json`, each field
- * falling back INDEPENDENTLY to the default, so declaring one bound never silently resets the
- * other. Pure by design (this module does no I/O) — the caller supplies the loaded config.
- */
-export function resolveTrainLimits(ship: ShipConfig | undefined): TrainLimits {
-  return {
-    maxChain: ship?.train?.maxChain ?? DEFAULT_TRAIN_LIMITS.maxChain,
-    maxAgeMinutes: ship?.train?.maxAgeMinutes ?? DEFAULT_TRAIN_LIMITS.maxAgeMinutes,
-  }
-}
-
-/**
- * #2401 — `arbiter ship #A #B #C` is sugar for `#A --chain #B --chain #C`: the train is the
- * default unit, so declaring one must cost no more than naming the issues.
- *
- * An explicit `--id` (the `task init` spelling) names the primary, which leaves EVERY
- * positional on the chain; without it the first positional is the primary. Ids stay raw here —
- * `seedShipState` normalizes and rejects malformed ones at the single existing boundary.
- *
- * The primary is dropped from the chain when it is repeated (`ship 101 101`, or `--id 101 101`):
- * it already rides the branch, so leaving it would spend a second slot against `maxChain` and put
- * `Closes #101` in the PR body twice. Compared on the bare number so `101` and `#101` are one id
- * — deliberately not via `normalizeChainId`, which throws, and rejecting a malformed id is the
- * seed boundary's job, not this one's.
- */
-export function splitTrainIds(
-  positional: readonly string[],
-  explicitId: string | undefined,
-  chain: readonly string[],
-): { taskId?: string; chainIds: string[] } {
-  const primary = explicitId ?? positional[0]
-  const extras = explicitId === undefined ? positional.slice(1) : positional
-  const bare = (id: string): string => id.replace(/^#/, '')
-  const chainIds = [...extras, ...chain].filter(
-    (id) => primary === undefined || bare(id) !== bare(primary),
-  )
-  return { ...(primary !== undefined ? { taskId: primary } : {}), chainIds }
-}
+export const DEFAULT_TRAIN_LIMITS: TrainLimits = { maxChain: 5, maxAgeMinutes: 240 }
 
 /**
  * Append ids to a chain, normalizing and de-duplicating while preserving arrival order.
@@ -170,79 +127,4 @@ export function evaluateSeal(signals: TrainSignals, limits: TrainLimits): SealVe
     }
   }
   return { sealed: false }
-}
-
-/** Is `taskId` a usable primary id (present and non-empty)? */
-export function hasShipTaskId(taskId: string | undefined): boolean {
-  return taskId !== undefined && taskId.length > 0
-}
-
-/** Does this seed replace the document's primary issue — i.e. start a different task entirely? */
-export function shipTaskChanged(
-  existing: UnifiedTaskState | null,
-  taskId: string | undefined,
-): boolean {
-  if (
-    existing === null ||
-    taskId === undefined ||
-    existing.taskId.length === 0 ||
-    taskId.length === 0
-  ) {
-    return false
-  }
-  return existing.taskId.replace(/^#/, '') !== taskId.replace(/^#/, '')
-}
-
-function seedPrimaryCount(
-  existing: UnifiedTaskState | null,
-  taskId: string | undefined,
-  taskChanged: boolean,
-): number {
-  if (hasShipTaskId(taskId)) return 1
-  return !taskChanged && hasShipTaskId(existing?.taskId) ? 1 : 0
-}
-
-function seedChainIds(
-  existing: UnifiedTaskState | null,
-  chainIds: readonly string[] | undefined,
-  taskChanged: boolean,
-): readonly string[] {
-  return chainIds ?? (taskChanged ? [] : (existing?.chainIds ?? []))
-}
-
-/** Size the seed would leave on the branch, or null when the seed touches neither id field. */
-function seedProjectedSize(
-  existing: UnifiedTaskState | null,
-  taskId: string | undefined,
-  chainIds: readonly string[] | undefined,
-): number | null {
-  if (chainIds === undefined && taskId === undefined) return null
-  const taskChanged = shipTaskChanged(existing, taskId)
-  return (
-    seedPrimaryCount(existing, taskId, taskChanged) +
-    seedChainIds(existing, chainIds, taskChanged).length
-  )
-}
-
-export type SeedSizeVerdict = { ok: true } | { ok: false; detail: string }
-
-/**
- * #2402 — may this seed declare a train of that size?
- *
- * Lifted out of the ship path because `arbiter task init` writes exactly the same `chainIds`
- * field and never checked the bound: `task init 1 2 ... 15` seeded a fifteen-issue train that no
- * limit ever saw, while `arbiter ship` refused the identical request. One rule, both writers.
- */
-export function evaluateSeedSize(
-  existing: UnifiedTaskState | null,
-  taskId: string | undefined,
-  chainIds: readonly string[] | undefined,
-  limits: TrainLimits,
-): SeedSizeVerdict {
-  const projectedSize = seedProjectedSize(existing, taskId, chainIds)
-  if (projectedSize === null || projectedSize <= limits.maxChain) return { ok: true }
-  return {
-    ok: false,
-    detail: `the requested seed would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
-  }
 }
