@@ -32,6 +32,12 @@ const EVIDENCE_REL = join('.arbiter', 'evidence', 'tabletop')
  * Deliberately not a YAML engine — an evidence header the gate cannot read with 20 lines of
  * parsing is an evidence header a human cannot read either.
  */
+/** Unquote a scalar and coerce a bare integer — the only two YAML shapes evidence uses. */
+function scalar(raw) {
+  const value = raw.trim().replace(/^['"]|['"]$/g, '')
+  return /^-?\d+$/.test(value) ? Number(value) : value
+}
+
 export function parseFrontmatter(text) {
   if (!text.startsWith('---\n')) return null
   const end = text.indexOf('\n---', 3)
@@ -43,42 +49,39 @@ export function parseFrontmatter(text) {
     const m = /^(\s*)([A-Za-z0-9_-]+):\s*(.*)$/.exec(line)
     if (!m) return null
     const [, indent, key, rawValue] = m
-    const value = rawValue.trim().replace(/^['"]|['"]$/g, '')
-    if (indent.length === 0) {
-      if (value === '') {
-        parent = {}
-        data[key] = parent
-      } else {
-        parent = null
-        data[key] = /^-?\d+$/.test(value) ? Number(value) : value
-      }
-    } else {
+    if (indent.length > 0) {
       if (!parent) return null
-      parent[key] = /^-?\d+$/.test(value) ? Number(value) : value
+      parent[key] = scalar(rawValue)
+      continue
     }
+    if (rawValue.trim() === '') {
+      parent = {}
+      data[key] = parent
+      continue
+    }
+    parent = null
+    data[key] = scalar(rawValue)
   }
   return { data, body: text.slice(end + 4) }
 }
 
-/** The JSON-Schema subset the evidence contract uses: type, required, pattern, enum, bounds. */
-function validateValue(value, schema, path, errors) {
-  const type = schema.type
+/** The declared `type` mismatch for one value, or null when the type holds. */
+function typeError(value, type, path) {
   if (type === 'integer' && !Number.isInteger(value)) {
-    errors.push(`${path}: expected an integer, got ${JSON.stringify(value)}`)
-    return
+    return `${path}: expected an integer, got ${JSON.stringify(value)}`
   }
   if (type === 'string' && typeof value !== 'string') {
-    errors.push(`${path}: expected a string, got ${JSON.stringify(value)}`)
-    return
+    return `${path}: expected a string, got ${JSON.stringify(value)}`
   }
-  if (type === 'object') {
-    if (typeof value !== 'object' || value === null) {
-      errors.push(`${path}: expected an object`)
-      return
-    }
-    validateObject(value, schema, path, errors)
-    return
+  if (type === 'object' && (typeof value !== 'object' || value === null)) {
+    return `${path}: expected an object`
   }
+  return null
+}
+
+/** The scalar constraints the evidence contract uses: pattern, minLength, minimum. */
+function constraintErrors(value, schema, path) {
+  const errors = []
   if (schema.pattern && !new RegExp(schema.pattern).test(String(value))) {
     errors.push(`${path}: "${String(value)}" does not match ${schema.pattern}`)
   }
@@ -88,6 +91,21 @@ function validateValue(value, schema, path, errors) {
   if (schema.minimum !== undefined && Number(value) < schema.minimum) {
     errors.push(`${path}: below the minimum of ${schema.minimum}`)
   }
+  return errors
+}
+
+/** The JSON-Schema subset the evidence contract uses: type, required, pattern, bounds. */
+function validateValue(value, schema, path, errors) {
+  const bad = typeError(value, schema.type, path)
+  if (bad) {
+    errors.push(bad)
+    return
+  }
+  if (schema.type === 'object') {
+    validateObject(value, schema, path, errors)
+    return
+  }
+  errors.push(...constraintErrors(value, schema, path))
 }
 
 function validateObject(obj, schema, path, errors) {
@@ -113,6 +131,23 @@ function cells(line) {
     .slice(trimmed.startsWith('|') ? 1 : 0, trimmed.endsWith('|') ? -1 : undefined)
     .split('|')
     .map((c) => c.trim())
+}
+
+/** Declared-value and owner violations for one findings row. */
+function rowErrors(row, contract, where, ownerRe) {
+  const errors = []
+  if (!contract.severity.includes(row.severity)) {
+    errors.push(`${where}: unknown severity "${row.severity}"`)
+  }
+  if (!contract.class.includes(row.class)) {
+    errors.push(`${where}: unknown class "${row.class}"`)
+  }
+  if (contract.ownerRequiredFor.includes(row.severity) && !ownerRe.test(row.owner)) {
+    errors.push(
+      `${where}: a ${row.severity} finding needs an owner (#NNN, an https URL, or fixed:<sha>), got "${row.owner}"`,
+    )
+  }
+  return errors
 }
 
 /**
@@ -148,18 +183,9 @@ export function parseFindingsTable(body, contract) {
     }
     const row = Object.fromEntries(contract.columns.map((c, idx) => [c, cs[idx]]))
     rows.push(row)
-    const where = `row ${rows.length} (step ${row.step || '?'})`
-    if (!contract.severity.includes(row.severity)) {
-      errors.push(`${where}: unknown severity "${row.severity}"`)
-    }
-    if (!contract.class.includes(row.class)) {
-      errors.push(`${where}: unknown class "${row.class}"`)
-    }
-    if (contract.ownerRequiredFor.includes(row.severity) && !ownerRe.test(row.owner)) {
-      errors.push(
-        `${where}: a ${row.severity} finding needs an owner (#NNN, an https URL, or fixed:<sha>), got "${row.owner}"`,
-      )
-    }
+    errors.push(
+      ...rowErrors(row, contract, `row ${rows.length} (step ${row.step || '?'})`, ownerRe),
+    )
   }
   return { errors, rows }
 }
@@ -230,4 +256,9 @@ function main(argv) {
   return 0
 }
 
-process.exit(main(process.argv.slice(2)))
+try {
+  process.exit(main(process.argv.slice(2)))
+} catch (err) {
+  process.stderr.write(`[tabletop-evidence] ERROR — unexpected: ${err.message}\n`)
+  process.exit(1)
+}
