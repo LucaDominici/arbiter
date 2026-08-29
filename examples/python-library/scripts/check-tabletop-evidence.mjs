@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
+// CATALOG: validates every tabletop evidence file (.arbiter/evidence/tabletop/*.md) against schemas/tabletop-evidence.schema.json — frontmatter counts must equal the findings table and every blocker/major finding must carry an owner.
+// CATALOG: rejected fold-in into check-agent-return.mjs because agent-return envelopes are per-dispatch verdict/citation artifacts with a different schema and lifecycle; tabletop evidence is a per-journey findings ledger.
+// CATALOG: rejected fold-in into check-acceptance.mjs because ac-fit is per-task acceptance verdicts against a plan anchor, not doc-vs-behaviour observations with owners.
 // scripts/check-tabletop-evidence.mjs
 // L1 gate (#2429): validate every tabletop evidence file under .arbiter/evidence/tabletop/.
 //
