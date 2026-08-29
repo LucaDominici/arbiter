@@ -254,6 +254,48 @@ generated directory is the literal, CI-verified `--level L1` output. Root `READM
 
 This was the last open item under #1836's F4 line — closes #1840.
 
+#### Reading the living examples as a consumer would (#2415, M-B) — `check-emitted-markdown-refs.mjs`
+
+Drift detection proves the committed examples still equal what the generators emit. It says
+nothing about whether that emission is _usable_. An emitted playbook was only ever read inside
+arbiter's own tree, where every helper script happens to exist — so the emitted `wave-drain`
+skill instructed three scripts consumers never receive (`route-auditors.mjs`,
+`check-acceptance.mjs`, `verify-pr-closes.mjs` → ENOENT mid-wave) and the emitted `configure`
+skill said `bun run arbiter …` six times inside an npm project with no `arbiter` script.
+
+`scripts/check-emitted-markdown-refs.mjs` closes that gap by reading the same committed trees
+the way the consumer standing in one does. It auto-discovers every directory under `examples/`
+carrying an `.arbiter-generated-manifest.json` (exactly the three GA living examples; a
+hand-written walkthrough has no marker), walks each one's emitted markdown surface
+(`.claude/commands/*.md`, `.claude/skills/**/*.md`, `.claude/agents/*.md`, `.agents/**/*.md`,
+`AGENTS.md`, `README.md`) and resolves every reference **against that tree**:
+
+| Reference                                  | Resolved against                                                            |
+| ------------------------------------------ | --------------------------------------------------------------------------- |
+| `node scripts/<x>.mjs`                     | the example's own `scripts/`                                                |
+| `npm\|bun\|pnpm\|yarn run <s>`, `pnpm <s>` | the example's `package.json` scripts **and** its lockfile's package manager |
+| `arbiter <cmd> [sub]`                      | the command surface parsed from `src/cli.ts`                                |
+| `.claude/hooks/<x>.mjs`                    | the example's own `.claude/hooks/`                                          |
+
+References inside fenced code blocks count — that is where playbooks put their commands, and
+the blind spot ADEQUACY-MAP §2 records for the backtick-anchored phantom-command scan. An
+absence is accepted only when the SAME file declares an existence guard for the SAME path
+(`[ -f scripts/x.mjs ] && … || echo "x: script absent — skipped"`), the identical doctrine
+`check-emission-coherence.mjs` applies: a guard can excuse an absence, prose cannot. The
+`arbiter` class is read only at a command position inside code context, so prose that merely
+contains the word ("… · arbiter gates remain the safety net") is not mistaken for an
+invocation; the command surface itself comes from `loadCommandSurface()` in
+`scripts/lib/cli-command-names.mjs`, shared with `check-phantom-command-scan.mjs` rather than
+re-derived.
+
+Fail-closed per INV-53: exit 1 on any unresolved reference (each printed as
+`example/file.md:line → missing target`), exit 2 when an input is missing or discovery finds
+fewer than the three expected trees — a silently narrowed scan is an error, never a pass.
+`--json` emits the machine form; `--self-test` runs pure fixtures with no repo. Wired at L1 in
+`check-all.mjs` immediately after `examples drift (#2222)`, on the same corpus. It audits
+emitted trees and has no consumer analog (a governed project has no `examples/`), so it is
+declared permanently self-only in `scripts/canon01-self-only.json`.
+
 ---
 
 ## v1 Fixture Set

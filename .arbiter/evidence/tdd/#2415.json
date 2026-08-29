@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2415",
+  "test_path": "__tests__/scripts/check-emitted-markdown-refs.test.ts",
+  "test_commit_sha": "d533114b972d4fa96e7b355cf5c4ab5d9cdf93a8",
+  "test_blob_sha": "bc25bd93b53542cdc71467619bb3852f88369e29",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/check-emitted-markdown-refs.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  20:35:07\n   Duration  99ms (transform 10ms, setup 6ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-emitted-markdown-refs.test.ts [ __tests__/scripts/check-emitted-markdown-refs.test.ts ]\nError: Cannot find module '../../scripts/check-emitted-markdown-refs.mjs' imported from __tests__/scripts/check-emitted-markdown-refs.test.ts\n ❯ __tests__/scripts/check-emitted-markdown-refs.test.ts:13:1\n     11| import { tmpdir } from 'node:os'\n     12| import { fileURLToPath } from 'node:url'\n     13| import {\n       | ^\n     14|   checkEmittedTree,\n     15|   discoverEmittedRoots,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-emitted-markdown-refs.test.ts",
+  "recorded_at": "2026-08-29T18:35:07.524Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-emitted-markdown-refs.test.ts"
+  ]
+}

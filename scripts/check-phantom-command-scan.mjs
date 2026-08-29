@@ -62,13 +62,7 @@ import { parse as parseYaml } from 'yaml'
 import { walkRepo } from './lib/glob-walk.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
 import { loadDocGateAllowlist, allowlistSummary } from './lib/doc-gate-allowlist.mjs'
-import {
-  extractTopLevelCommandNames,
-  extractCommandAliases,
-  extractCommandOptions,
-  extractSubcommandNames,
-  extractCommandAliasMappings,
-} from './lib/cli-command-names.mjs'
+import { extractCommandOptions, loadCommandSurface } from './lib/cli-command-names.mjs'
 
 function argValue(flag) {
   const arg = process.argv.find((a) => a.startsWith(`--${flag}=`))
@@ -132,12 +126,6 @@ const SKIP_PATH_SEGMENTS = [
   `${sep}audit${sep}`,
   `${sep}plans${sep}`,
 ]
-
-// `help` is commander's built-in meta-command — extractTopLevelCommandNames
-// deliberately excludes it (gen-cli-ref.mjs's generated table doesn't need a
-// row for it), but `arbiter help` genuinely runs, so the phantom-scan must
-// not flag it.
-const ALWAYS_VALID = new Set(['help'])
 
 // Matches an inline-code or fenced-code `arbiter <word>` invocation: the
 // backtick-wrapped form is how every doc in this repo cites a command (never
@@ -374,22 +362,11 @@ function main() {
     process.exit(2)
   }
   const cliSrc = readFileSync(CLI_TS, 'utf-8')
-  const { topLevelNames } = extractTopLevelCommandNames(cliSrc)
-  const aliases = extractCommandAliases(cliSrc)
-  const aliasToCanonical = extractCommandAliasMappings(cliSrc)
-  if (topLevelNames.size === 0) {
-    throw new Error('extracted zero top-level commands from cli.ts — parser out of date')
-  }
-  const realCommandNames = new Set([...topLevelNames, ...aliases, ...ALWAYS_VALID])
-
-  // AC-2231.5 (#2231): subcommand tree per top-level command — the extension
-  // that catches `arbiter review code` (the multi-pass dispatch removed in
-  // #1817) while leaving `arbiter review diff` and `arbiter task resume` alone.
-  const subcommandsByCommand = new Map()
-  for (const name of topLevelNames) {
-    const subs = extractSubcommandNames(cliSrc, name)
-    if (subs.size > 0) subcommandsByCommand.set(name, subs)
-  }
+  // #2415: the surface assembly (names ∪ aliases ∪ `help`, plus the per-command
+  // subcommand tree feeding findPhantomSubcommands' AC-2231.5 alias resolution)
+  // moved to the shared SSOT parser so check-emitted-markdown-refs.mjs validates
+  // against the identical surface instead of a second copy.
+  const { realCommandNames, subcommandsByCommand, aliasToCanonical } = loadCommandSurface(cliSrc)
 
   const files = ROOTS.flatMap(collectScanFiles)
   if (files.length === 0) {

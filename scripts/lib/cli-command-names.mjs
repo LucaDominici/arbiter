@@ -162,3 +162,37 @@ export function extractCommandAliasMappings(src) {
   }
   return map
 }
+
+/**
+ * Assemble the full "does this invocation exist" surface from src/cli.ts source
+ * text — the ∪ of top-level names, aliases and the always-valid `help`
+ * meta-command, plus the per-command subcommand tree and the alias→canonical
+ * map that `findPhantomSubcommands` needs to resolve `arbiter wt close`.
+ *
+ * Factored out of check-phantom-command-scan.mjs's main() (CANON-16
+ * refactor-first, #2415) so the emitted-markdown resolver validates against the
+ * exact same surface instead of re-assembling it with a second, drift-prone
+ * copy. Throws when the parser extracts zero commands — a silent empty surface
+ * would make every citation "valid" (fail-closed, INV-96).
+ */
+export function loadCommandSurface(src) {
+  const { topLevelNames } = extractTopLevelCommandNames(src)
+  if (topLevelNames.size === 0) {
+    throw new Error('extracted zero top-level commands from cli.ts — parser out of date')
+  }
+  // `help` is commander's built-in meta-command — extractTopLevelCommandNames
+  // deliberately excludes it (gen-cli-ref.mjs's generated table doesn't need a row
+  // for it), but `arbiter help` genuinely runs, so no scanner may flag it.
+  const realCommandNames = new Set([...topLevelNames, ...extractCommandAliases(src), 'help'])
+  const subcommandsByCommand = new Map()
+  for (const name of topLevelNames) {
+    const subs = extractSubcommandNames(src, name)
+    if (subs.size > 0) subcommandsByCommand.set(name, subs)
+  }
+  return {
+    topLevelNames,
+    realCommandNames,
+    subcommandsByCommand,
+    aliasToCanonical: extractCommandAliasMappings(src),
+  }
+}

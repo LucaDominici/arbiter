@@ -366,6 +366,10 @@ if (isMain) {
   runCheck('canon-01 declination (#1922)', 'node', ['scripts/check-canon01-declination.mjs'])
   // #2222: cheap (~2s) check catches example drift at commit time instead of after the weekly lane.
   runCheck('examples drift (#2222)', 'node', ['scripts/regenerate-examples.mjs', '--check'])
+  // #2415: the examples are the only place arbiter can read its own emissions the way a
+  // consumer does — every script/command/hook an emitted playbook cites must resolve in the
+  // tree that ships it, not in arbiter's. Runs right after the drift check, on the same corpus.
+  runCheck('emitted markdown refs (#2415)', 'node', ['scripts/check-emitted-markdown-refs.mjs'])
 
   // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
   // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still

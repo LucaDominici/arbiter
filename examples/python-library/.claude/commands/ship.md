@@ -307,7 +307,7 @@ gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
 - `__tests__/...`: <tests added/updated>
 
 ## Test plan
-- [ ] New tests pass (`npm run test run <path>`)
+- [ ] New tests pass (`pytest run <path>`)
 - [ ] Gate green (`node scripts/check-all.mjs L1`)
 - [ ] Acceptance criteria verified (list each criterion: PASS/FAIL)
 
