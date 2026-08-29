@@ -24,6 +24,13 @@
       "expires": "2026-09-12"
     },
     {
+      "path": "CONTRIBUTING.md",
+      "rule": "phantom-command",
+      "reason": "Step 1 of the plugin-authoring walkthrough instructs `arbiter plugin add <name>`; the command does not exist. Same ship-or-delete decision as the two website recipes and the spring-boot example README.",
+      "issue": "#2416",
+      "expires": "2026-09-25"
+    },
+    {
       "path": "website/recipes/plugin.md",
       "rule": "phantom-command",
       "reason": "Public recipe instructs `arbiter plugin add`; the command does not exist. Ship it or delete the promise — a product decision.",

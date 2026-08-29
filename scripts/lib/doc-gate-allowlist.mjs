@@ -43,6 +43,42 @@ function fail(message) {
 }
 
 /**
+ * Shape-validate ONE entry. Every failure is fatal: a malformed excuse is a
+ * silent hole in three gates at once.
+ */
+function validateEntry(entry, index, path) {
+  const missing = REQUIRED_KEYS.filter((k) => typeof entry?.[k] !== 'string' || !entry[k])
+  if (missing.length > 0) fail(`${path} entry #${index} missing key(s): ${missing.join(', ')}`)
+  if (!RULES.has(entry.rule)) fail(`${path} entry #${index} has unknown rule "${entry.rule}"`)
+  if (!ISO_DATE.test(entry.expires))
+    fail(`${path} entry #${index} expires "${entry.expires}" is not an ISO date (YYYY-MM-DD)`)
+}
+
+/** Resolve the allowlist path: `--allowlist=<path>` on argv (fixture seam) or the default. */
+function resolveAllowlistPath() {
+  const override = process.argv.find((a) => a.startsWith('--allowlist='))
+  return override ? resolve(override.slice('--allowlist='.length)) : DEFAULT_PATH
+}
+
+/** Read + JSON-parse the allowlist, exiting non-zero on anything unreadable. */
+function readAllowlistEntries(path) {
+  if (!existsSync(path)) fail(`${path} not found — the allowlist is required (fail-closed)`)
+  let parsed
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf-8'))
+  } catch (err) {
+    // Surfaced and exited inline rather than through fail(): an unreadable or
+    // unparseable allowlist must visibly stop the gate at the catch site.
+    process.stdout.write(
+      `  doc-gate-allowlist: ${path} failed to parse: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(1)
+  }
+  if (!Array.isArray(parsed?.entries)) fail(`${path} has no \`entries\` array`)
+  return parsed.entries
+}
+
+/**
  * Load the allowlist and return the excused-path set for one `rule`.
  *
  * Expiry is validated across EVERY entry, not just the requested rule's: an
@@ -59,29 +95,13 @@ function fail(message) {
 export function loadDocGateAllowlist(rule, todayIso = new Date().toISOString().slice(0, 10)) {
   if (!RULES.has(rule)) fail(`unknown rule "${rule}" (known: ${[...RULES].join(', ')})`)
 
-  const override = process.argv.find((a) => a.startsWith('--allowlist='))
-  const path = override ? resolve(override.slice('--allowlist='.length)) : DEFAULT_PATH
-
-  if (!existsSync(path)) fail(`${path} not found — the allowlist is required (fail-closed)`)
-
-  let parsed
-  try {
-    parsed = JSON.parse(readFileSync(path, 'utf-8'))
-  } catch (err) {
-    fail(`${path} failed to parse: ${err instanceof Error ? err.message : String(err)}`)
-  }
-
-  const entries = parsed?.entries
-  if (!Array.isArray(entries)) fail(`${path} has no \`entries\` array`)
+  const path = resolveAllowlistPath()
+  const entries = readAllowlistEntries(path)
 
   const excused = new Set()
   const expired = []
   for (const [i, entry] of entries.entries()) {
-    const missing = REQUIRED_KEYS.filter((k) => typeof entry?.[k] !== 'string' || !entry[k])
-    if (missing.length > 0) fail(`${path} entry #${i} missing key(s): ${missing.join(', ')}`)
-    if (!RULES.has(entry.rule)) fail(`${path} entry #${i} has unknown rule "${entry.rule}"`)
-    if (!ISO_DATE.test(entry.expires))
-      fail(`${path} entry #${i} expires "${entry.expires}" is not an ISO date (YYYY-MM-DD)`)
+    validateEntry(entry, i, path)
     if (entry.expires < todayIso) expired.push(`${entry.path} (${entry.rule}, ${entry.issue})`)
     if (entry.rule === rule) excused.add(entry.path)
   }
