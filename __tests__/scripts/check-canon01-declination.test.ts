@@ -276,4 +276,16 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
       cleanup()
     }
   })
+  // #2404 — every case above builds a SYNTHETIC repo, so none of them ever reads the
+  // committed registry. A `expires` date that rolls past is therefore invisible to the
+  // whole suite until the gate turns red in CI. This case runs the real gate against the
+  // real `scripts/canon01-self-only.json` at the roll date that broke it.
+  it('accepts the committed self-only registry at the 2026-08-30 roll date (#2404)', () => {
+    const r = spawnSync('node', [SCRIPT, '--now=2026-08-30'], {
+      cwd: resolve('.'),
+      encoding: 'utf-8',
+    })
+    expect(`${r.stdout}${r.stderr}`).not.toMatch(/EXPIRED/i)
+    expect(r.status).toBe(0)
+  })
 })

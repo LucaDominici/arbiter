@@ -242,6 +242,33 @@ describe('check-agent-return.mjs', () => {
     expect(r.stdout).toMatch(/evaporated|dispatch/i)
   })
 
+  // #2399: the tracked sidecar is shared by every branch — one recorded for another task
+  // says nothing about this task's returns.
+  it('exits 0 under --enforce when the sidecar belongs to another task', () => {
+    const sidecar = join(tmpDir, 'agents-dispatched.json')
+    writeFileSync(
+      sidecar,
+      JSON.stringify({ branch: 'main', count: 3, taskId: '#9999', ts: '2026-07-14T10:00:00Z' }),
+    )
+    mkdirSync(join(tmpDir, '.claude', '.task'), { recursive: true })
+    writeFileSync(
+      join(tmpDir, '.claude', '.task', 'status.json'),
+      JSON.stringify({ taskId: '#2399' }),
+    )
+    const r = runCheck(evidenceDir, { enforce: true, sidecar, cwd: tmpDir })
+    expect(r.exitCode).toBe(0)
+    expect(r.stdout).toContain('#9999')
+  })
+
+  it('keeps the cross-check armed under --enforce when no active task is known', () => {
+    const sidecar = join(tmpDir, 'agents-dispatched.json')
+    writeFileSync(
+      sidecar,
+      JSON.stringify({ branch: 'main', count: 3, taskId: '#9999', ts: '2026-07-14T10:00:00Z' }),
+    )
+    expect(runCheck(evidenceDir, { enforce: true, sidecar, cwd: tmpDir }).exitCode).toBe(1)
+  })
+
   it('exits 0 without --enforce even when sidecar records dispatches and no envelopes', () => {
     const sidecar = join(tmpDir, 'agents-dispatched.json')
     writeFileSync(sidecar, JSON.stringify({ branch: 'main', count: 3, ts: '2026-07-14T10:00:00Z' }))

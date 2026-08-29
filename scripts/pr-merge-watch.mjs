@@ -44,6 +44,56 @@ export function classify(rollup, required = []) {
   return rollup.every((c) => GREEN_OK.has(c.conclusion)) ? 'green' : 'pending'
 }
 
+const HARD_FAIL_HELP = [
+  'Fix the root cause, push, and re-run this watcher — the PR is owned until merged.',
+  'Do not abandon an open PR with red CI, and do not paper over the check.',
+]
+
+/**
+ * #2402 — the actionable block a red watcher exit prints.
+ *
+ * A bare rollup dump told the reader THAT something failed and nothing about what to do next, so
+ * red PRs were abandoned rather than driven. This names each failing check and hands over the
+ * exact command that pulls its job log: `detailsUrl` from the rollup ends in `/job/<id>` for a
+ * GitHub Actions check, which is what `gh run view --job` wants. Checks whose id cannot be
+ * recovered fall back to `gh pr checks`, so every failing check still gets a next step.
+ *
+ * @param {Array<{conclusion?: string, name?: string, context?: string, detailsUrl?: string}>} rollup
+ * @param {string|number} prNumber
+ * @returns {string}
+ */
+export function buildHardFailReport(rollup, prNumber) {
+  const failing = (Array.isArray(rollup) ? rollup : []).filter((c) => HARD_FAIL.has(c.conclusion))
+  const lines = [
+    `pr-merge-watch: hard-fail — ${failing.length} check(s) reported a red conclusion:`,
+  ]
+  for (const check of failing) {
+    const name = check.name ?? check.context ?? '(unnamed check)'
+    const jobId = jobIdFrom(check.detailsUrl)
+    lines.push(`  - ${name} (${check.conclusion})`)
+    lines.push(
+      jobId === null
+        ? `      log: gh pr checks ${prNumber} --json name,link   # then open the link for "${name}"`
+        : `      log: gh run view --job ${jobId} --log`,
+    )
+  }
+  if (failing.length === 0) {
+    lines.push('  (no check carried a hard-fail conclusion — re-read the rollup)')
+  }
+  return [...lines, ...HARD_FAIL_HELP.map((l) => `  ${l}`)].join('\n')
+}
+
+/**
+ * The Actions job id inside a check's `detailsUrl`, or null when the URL is absent or belongs to
+ * a non-Actions check (an external status has no job to pull).
+ * @param {string|undefined} detailsUrl
+ * @returns {string|null}
+ */
+function jobIdFrom(detailsUrl) {
+  const match = /\/job\/(\d+)/.exec(detailsUrl ?? '')
+  return match ? match[1] : null
+}
+
 /**
  * Fail-closed guard between the checked PR snapshot and the atomic promotion.
  * @param {Record<string, unknown>} checked
@@ -90,6 +140,44 @@ const SELF_TEST_FIXTURES = [
   },
 ]
 
+const HARD_FAIL_REPORT_FIXTURES = [
+  {
+    name: 'a failing Actions check yields its gh run view command',
+    rollup: [
+      { name: 'CI Required', conclusion: 'SUCCESS' },
+      {
+        name: 'Docs Build',
+        conclusion: 'FAILURE',
+        detailsUrl: 'https://github.com/o/r/actions/runs/1/job/42',
+      },
+    ],
+    expect: ['Docs Build (FAILURE)', 'gh run view --job 42 --log'],
+  },
+  {
+    name: 'a check with no job id falls back to gh pr checks',
+    rollup: [{ context: 'external/status', conclusion: 'TIMED_OUT' }],
+    expect: ['external/status (TIMED_OUT)', 'gh pr checks 7 --json name,link'],
+  },
+  {
+    name: 'the ownership rule is always printed',
+    rollup: [{ name: 'X', conclusion: 'CANCELLED' }],
+    expect: ['owned until merged'],
+  },
+]
+
+function runHardFailReportSelfTest() {
+  let failures = 0
+  for (const { name, rollup, expect: expected } of HARD_FAIL_REPORT_FIXTURES) {
+    const report = buildHardFailReport(rollup, 7)
+    const missing = expected.filter((needle) => !report.includes(needle))
+    const ok = missing.length === 0
+    const detail = ok ? '' : ` (missing: ${missing.join(', ')})`
+    process.stdout.write(`${ok ? 'PASS' : 'FAIL'} ${name}${detail}\n`)
+    if (!ok) failures++
+  }
+  return failures
+}
+
 function runSelfTest() {
   let failures = 0
   for (const { name, conclusions, expected } of SELF_TEST_FIXTURES) {
@@ -99,6 +187,7 @@ function runSelfTest() {
     process.stdout.write(`${ok ? 'PASS' : 'FAIL'} ${name} (expected ${expected}, got ${got})\n`)
     if (!ok) failures++
   }
+  failures += runHardFailReportSelfTest()
   return failures === 0 ? 0 : 1
 }
 
@@ -319,9 +408,7 @@ async function main() {
     const status = classify(rollup, ['CI Required'])
 
     if (status === 'hard-fail') {
-      process.stderr.write(
-        `pr-merge-watch: hard-fail — a check reported a red conclusion:\n${JSON.stringify(rollup, null, 2)}\n`,
-      )
+      process.stderr.write(`${buildHardFailReport(rollup, prNumber)}\n`)
       process.exit(1)
     }
 

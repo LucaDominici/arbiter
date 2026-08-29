@@ -20,6 +20,11 @@ the per-issue contract that `/ship` runs for one issue.
 It loads and executes the **`wave-drain`** skill. You are the orchestrator: you direct
 parallel agents, you do not implement.
 
+**A wave IS a train.** `/drain` is `/ship`'s train run at wave scale — same unit, same
+ceremony-once contract, more parallelism. What runs once per train and what stays per issue
+is the table in `ship.md` §Train; it is not restated here. Wave size and the train bound are
+the same number: `ship.train.maxChain` in `arbiter.json` (default 10).
+
 ## Defaults
 
 | Flag               | Default | Meaning                                                                        |

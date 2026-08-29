@@ -107,6 +107,9 @@ const SKIP_FILES = new Set([
   // #2148 pure exact-SHA policy declarations/validation; the watcher and branch
   // protection applicator own all I/O and convert validation errors fail-closed.
   'scripts/lib/exact-sha-policy.mjs',
+  // #2399 pure content-binding semantics (staleness reason + foreign-sidecar predicate);
+  // no entry point — its consumers own the exit contract and fail closed on a non-null reason.
+  'scripts/lib/evidence-binding.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

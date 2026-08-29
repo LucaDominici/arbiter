@@ -78,6 +78,12 @@ const ADVISORY = {
     },
     promoted: 'ARBITER_SPAWN_GUARD_HARD',
   },
+  'post-subagent-release.mjs': {
+    rationale:
+      '#2403: best-effort agents-active.json sidecar cleanup on SubagentStop; always exits 0.',
+    kind: 'payload',
+    value: { agent: 'arbiter-probe-writer', cwd: '/tmp/arbiter-probe-cwd' },
+  },
   'stop-finding-loss.mjs': {
     rationale: 'Default grading is advisory; ARBITER_FINDING_LOSS_HARD=1 explicitly promotes it.',
     kind: 'finding-loss-stop',

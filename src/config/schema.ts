@@ -180,6 +180,29 @@ export interface E2eEscalationPolicy {
   }
 }
 
+/**
+ * #2401 — `/ship` ceremony bounds. The train (one worktree/branch/gate/PR carrying N issues)
+ * is the DEFAULT unit of ceremony, so how far it may grow is a per-project decision rather
+ * than a constant. Absent ⇒ {@link DEFAULT_TRAIN_LIMITS} (maxChain 10, maxAgeMinutes 480).
+ */
+export interface ShipConfig {
+  /** Sealed-train bounds, resolved by `resolveTrainLimits` (src/commands/ship-train.ts). */
+  train?: {
+    /** Total ids on the branch (primary + chained) at which the next append is refused. Absent ⇒ 10. */
+    maxChain?: number
+    /** Age of the open train, in minutes, past which the next append is refused. Absent ⇒ 480. */
+    maxAgeMinutes?: number
+  }
+  review?: {
+    /**
+     * Review rounds the `refactor` phase may spend before the change must land with its
+     * remaining findings parked. Absent ⇒ {@link DEFAULT_REVIEW_MAX_ROUNDS} (2). Enforced by
+     * `arbiter ship`: the round past the cap is refused unless `--force-review` is passed.
+     */
+    maxRounds?: number
+  }
+}
+
 interface ContextPackConfig {
   /** File-pattern to ADR mappings. Used by `arbiter context-pack` to annotate @source: citations. */
   adrMappings?: ContextPackAdrMapping[]
@@ -355,6 +378,8 @@ export interface ArbiterConfigV2 {
   smokeJourneys?: SmokeJourneyPolicy
   /** #2043 (AC-2043.4/5): configurable e2e escalation ladder. Absent ⇒ {@link DEFAULT_E2E_ESCALATION}. */
   e2ePolicy?: E2eEscalationPolicy
+  /** #2401: `/ship` ceremony bounds — train size/age and the review round cap. */
+  ship?: ShipConfig
 }
 
 interface GovernanceConfig {
@@ -993,6 +1018,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateKit(draft['kit'], errors)
   validateSmokeJourneys(draft['smokeJourneys'], errors)
   validateE2ePolicy(draft['e2ePolicy'], errors)
+  validateShip(draft['ship'], errors)
 
   // #1394 — validate conformanceThresholds when present in config
   if (draft['conformanceThresholds'] !== undefined) {
@@ -1552,6 +1578,42 @@ function validateSmokeJourneys(raw: unknown, errors: string[]): void {
       )
     }
   }
+}
+
+/**
+ * #2401: every ship bound counts something that must exist at least once — a train carrying
+ * zero issues, or a review allowed zero rounds, is the feature switched off by typo rather
+ * than by decision. Rejected at the trust boundary so the ship never reads an absurd bound.
+ */
+function validateShipBound(path: string, raw: unknown, errors: string[]): void {
+  if (raw === undefined) return
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1) {
+    errors.push(`${path} must be an integer >= 1`)
+  }
+}
+
+function validateShipSection(
+  path: string,
+  raw: unknown,
+  bounds: readonly string[],
+  errors: string[],
+): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push(`${path} must be an object`)
+    return
+  }
+  for (const bound of bounds) validateShipBound(`${path}.${bound}`, raw[bound], errors)
+}
+
+function validateShip(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('ship must be an object')
+    return
+  }
+  validateShipSection('ship.train', raw['train'], ['maxChain', 'maxAgeMinutes'], errors)
+  validateShipSection('ship.review', raw['review'], ['maxRounds'], errors)
 }
 
 function validateE2ePolicy(raw: unknown, errors: string[]): void {

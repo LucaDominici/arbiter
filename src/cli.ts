@@ -58,6 +58,7 @@ import { runTaskMark } from './commands/task-mark.js'
 import { isTddPhase, readUnifiedState } from './commands/task-state.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
 import { normTier } from './commands/ship-tier.js'
+import { splitTrainIds } from './commands/ship-train.js'
 import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
 import type { GraphFormat } from './commands/graph.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
@@ -1746,6 +1747,16 @@ task
     runTaskResume({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
   })
 
+/**
+ * #2402 — commander folds `--no-pr` and `--pr <n>` onto one key: absent, `false` (the negation
+ * flag), or the number. Split them back apart here so the engine sees two explicit options and
+ * never has to know that encoding.
+ */
+function advanceLandingFlags(opts: { pr?: number | false }): { noPr?: true; pr?: number } {
+  if (opts.pr === false) return { noPr: true }
+  return typeof opts.pr === 'number' ? { pr: opts.pr } : {}
+}
+
 task
   .command('advance')
   .description('Advance (or reverse) the task lifecycle phase')
@@ -1761,6 +1772,16 @@ task
     false,
   )
   .option('--post-clear', 'Signal post-/clear re-entry (equivalent to ARBITER_POST_CLEAR=1)', false)
+  .option('--no-pr', 'Complete without a merged PR — this repo lands by direct push (logged)')
+  .option(
+    '--pr <n>',
+    'Verify this PR number when the branch carries more than one',
+    (v: string) => {
+      const n = parseInt(v, 10)
+      if (isNaN(n) || n <= 0) throw new Error('--pr must be a positive integer')
+      return n
+    },
+  )
   .action(
     (opts: {
       to: string
@@ -1768,6 +1789,7 @@ task
       dir?: string
       skipPlanReview: boolean
       postClear: boolean
+      pr?: number | false
     }) => {
       try {
         runTaskAdvance({
@@ -1775,6 +1797,7 @@ task
           reverse: opts.reverse,
           skipPlanReview: opts.skipPlanReview,
           postClear: opts.postClear,
+          ...advanceLandingFlags(opts),
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         })
       } catch (err) {
@@ -1874,7 +1897,7 @@ task
   })
 
 task
-  .command('init')
+  .command('init [ids...]')
   .description('Initialise / update the unified task document (#1206)')
   .option('--id <id>', 'Task id, e.g. #1206')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
@@ -1886,15 +1909,22 @@ task
     [] as string[],
   )
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { id?: string; tier?: string; plan?: string; chain: string[]; dir?: string }) => {
-    runTaskInit({
-      ...(opts.id !== undefined ? { id: opts.id } : {}),
-      ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
-      ...(opts.plan !== undefined ? { plan: opts.plan } : {}),
-      ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-  })
+  .action(
+    (
+      ids: string[],
+      opts: { id?: string; tier?: string; plan?: string; chain: string[]; dir?: string },
+    ) => {
+      // #2401 — `arbiter task init #A #B #C` is the same train sugar `arbiter ship` takes.
+      const train = splitTrainIds(ids, opts.id, opts.chain)
+      runTaskInit({
+        ...(train.taskId !== undefined ? { id: train.taskId } : {}),
+        ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+        ...(opts.plan !== undefined ? { plan: opts.plan } : {}),
+        ...(train.chainIds.length > 0 ? { chainIds: train.chainIds } : {}),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+    },
+  )
 
 task
   .command('get')
@@ -1943,8 +1973,24 @@ program
     },
   )
 
+/**
+ * #2400 — the review-round flags, forwarded only when actually supplied so an absent flag can
+ * never open a round or forgive the cap by accident. A named helper, not two inline spreads:
+ * the ship action is already at its complexity ceiling.
+ */
+function shipReviewFlags(opts: { reviewRound: boolean; forceReview: boolean }): {
+  reviewRound?: true
+  forceReview?: true
+} {
+  return {
+    ...(opts.reviewRound ? { reviewRound: true as const } : {}),
+    ...(opts.forceReview ? { forceReview: true as const } : {}),
+  }
+}
+
 program
-  .command('ship [id]')
+  // #2401 — variadic: `arbiter ship #A #B #C` declares a train, sugar for repeated `--chain`.
+  .command('ship [ids...]')
   .description('Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
   .option(
@@ -1990,10 +2036,30 @@ program
     [] as string[],
   )
   .option('--seal', 'Seal the open train now — land it before starting another (#2331)', false)
+  .option('--no-pr', 'Complete without a merged PR — this repo lands by direct push (logged)')
+  .option(
+    '--pr <n>',
+    'Verify this PR number when the branch carries more than one',
+    (v: string) => {
+      const n = parseInt(v, 10)
+      if (isNaN(n) || n <= 0) throw new Error('--pr must be a positive integer')
+      return n
+    },
+  )
+  .option(
+    '--review-round',
+    'Record another code-review round on this task (entering refactor records the first)',
+    false,
+  )
+  .option(
+    '--force-review',
+    'Take a review round past ship.review.maxRounds, and record that it was forced',
+    false,
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
-      id: string | undefined,
+      ids: string[],
       opts: {
         tier?: string
         autonomy?: string
@@ -2001,6 +2067,9 @@ program
         chain: string[]
         chainAdd: string[]
         seal: boolean
+        reviewRound: boolean
+        forceReview: boolean
+        pr?: number | false
         advance: boolean
         skipPlanReview: boolean
         postClear: boolean
@@ -2021,22 +2090,29 @@ program
         // VERTICAL breadth (see A8: guidance, not auto-detected machinery). Without `--tier`,
         // respect the persisted tier; when none is persisted, normTier falls back to widest
         // ('Standard') fail-safe.
+        // #2401 — `#A #B #C` positional sugar folds into the same chain the flags declare.
+        const train = splitTrainIds(ids, undefined, opts.chain)
         const result = runTaskShip({
           ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
-          ...(id !== undefined ? { taskId: id } : {}),
+          ...(train.taskId !== undefined ? { taskId: train.taskId } : {}),
           ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
-          // #2102 — only pass chainIds when the user actually supplied --chain: an absent flag
-          // must never clobber a chain declared earlier (e.g. at `task init`) with an empty array.
-          ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
+          // #2102 — only pass chainIds when the user actually supplied --chain (or the #2401
+          // positional sugar): an absent flag must never clobber a chain declared earlier
+          // (e.g. at `task init`) with an empty array.
+          ...(train.chainIds.length > 0 ? { chainIds: train.chainIds } : {}),
           // #2331 — same shape as --chain: only pass when actually supplied, so an absent flag
           // is never mistaken for "append nothing" and can never seal or clear a live train.
           ...(opts.chainAdd.length > 0 ? { chainAddIds: opts.chainAdd } : {}),
           ...(opts.seal ? { seal: true } : {}),
+          ...shipReviewFlags(opts),
           advance: opts.advance,
           advanceOpts: {
             skipPlanReview: opts.skipPlanReview,
             postClear: opts.postClear,
             ...(opts.units !== undefined ? { units: opts.units } : {}),
+            // #2402 — the landing gate fires on `--advance` into `complete`; without these the
+            // ship path would have no escape hatch the `task advance` path has.
+            ...advanceLandingFlags(opts),
           },
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
           ...(externalModelAccess !== undefined ? { externalModelAccess } : {}),

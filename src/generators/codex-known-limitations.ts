@@ -52,6 +52,14 @@ export interface KnownLimitations {
 const BRIDGED = 'Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`' as const
 
 /**
+ * Disclosure for a hook that is BOTH bridged in real time and backed by a gate.
+ * The gate half is not decoration: the bridge is edit-time and best-effort (a
+ * Codex session can run with hooks disabled), the gate is the enforced boundary —
+ * and the generated table is where a reader looks for the fallback command.
+ */
+const bridgedPlusGate = (gate: string): string => `${BRIDGED}; gate: ${gate}`
+
+/**
  * Descriptor per hook basename: what it enforces + the honest Codex-side
  * disclosure. `infra` hooks (dispatcher/shared lib) are implementation
  * plumbing, not enforcement surface, and are excluded from the table — the
@@ -101,22 +109,22 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   'enforce-gate-before-pr.mjs': {
     name: 'enforce-gate-before-pr.mjs',
     enforces: 'Blocks PR creation before the local gate passed',
-    codexEquivalent: 'Gate: `node scripts/check-all.mjs L2` before push (manual discipline)',
+    codexEquivalent: bridgedPlusGate('`node scripts/check-all.mjs L2` before push'),
   },
   'post-commit-check.mjs': {
     name: 'post-commit-check.mjs',
     enforces: 'Post-commit checklist verification',
-    codexEquivalent: 'None — manual discipline',
+    codexEquivalent: BRIDGED,
   },
   'check-no-unused-exports.mjs': {
     name: 'check-no-unused-exports.mjs',
     enforces: 'Blocks unused TypeScript exports (dead code)',
-    codexEquivalent: 'Gate: dead-code check (`knip`) in `check-all.mjs`',
+    codexEquivalent: bridgedPlusGate('dead-code check (`knip`) in `check-all.mjs`'),
   },
   'check-no-any.mjs': {
     name: 'check-no-any.mjs',
     enforces: 'Blocks TypeScript `any` types (INV-04)',
-    codexEquivalent: 'Gate: `tsc --strict`',
+    codexEquivalent: bridgedPlusGate('`tsc --strict`'),
   },
   'check-no-unwrap.mjs': {
     name: 'check-no-unwrap.mjs',
@@ -151,7 +159,7 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   'pre-compact.mjs': {
     name: 'pre-compact.mjs',
     enforces: 'Snapshots task state before context compaction',
-    codexEquivalent: 'None — no Codex compaction hook point',
+    codexEquivalent: BRIDGED,
   },
   'post-edit-dispatch.mjs': {
     name: 'post-edit-dispatch.mjs',
@@ -166,12 +174,12 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   'skill-forced-eval.mjs': {
     name: 'skill-forced-eval.mjs',
     enforces: 'Forces skill invocation before task start',
-    codexEquivalent: 'None — manual discipline',
+    codexEquivalent: BRIDGED,
   },
   'guard-task-completion.mjs': {
     name: 'guard-task-completion.mjs',
     enforces: 'Blocks premature done claims',
-    codexEquivalent: 'None — manual discipline',
+    codexEquivalent: BRIDGED,
   },
   'stop-evidence-guard.mjs': {
     name: 'stop-evidence-guard.mjs',
@@ -181,7 +189,7 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   'closer-mode-guard.mjs': {
     name: 'closer-mode-guard.mjs',
     enforces: 'CLOSER-mode enforcement in the close phase',
-    codexEquivalent: 'None — manual discipline',
+    codexEquivalent: BRIDGED,
   },
   'exitplanmode-banner.mjs': {
     name: 'exitplanmode-banner.mjs',
@@ -191,17 +199,17 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   'guard-done-evidence.mjs': {
     name: 'guard-done-evidence.mjs',
     enforces: 'Requires recorded evidence before done claims',
-    codexEquivalent: 'Gate: `arbiter verify tdd` / evidence checks',
+    codexEquivalent: bridgedPlusGate('`arbiter verify tdd` / evidence checks'),
   },
   'post-brainstorm-stop.mjs': {
     name: 'post-brainstorm-stop.mjs',
     enforces: 'Brainstorm terminal-state guardrail (#1265)',
-    codexEquivalent: 'None — manual discipline',
+    codexEquivalent: BRIDGED,
   },
   'check-circular-deps.mjs': {
     name: 'check-circular-deps.mjs',
     enforces: 'Detects circular deps per-edit (INV-01)',
-    codexEquivalent: 'Gate: `madge --circular src` in `check-all.mjs`',
+    codexEquivalent: bridgedPlusGate('`madge --circular src` in `check-all.mjs`'),
   },
   'wiki-on-commit.mjs': {
     name: 'wiki-on-commit.mjs',
@@ -212,6 +220,13 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
     name: 'pre-spawn-worktree-guard.mjs',
     enforces: 'Refuses a second write-intent sub-agent spawn onto the main tree (E5 #1947)',
     codexEquivalent: 'None — manual worktree discipline',
+  },
+  'post-subagent-release.mjs': {
+    name: 'post-subagent-release.mjs',
+    enforces:
+      'SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — releases the ' +
+      'finished dispatch agents-active.json sidecar entry (#2403)',
+    codexEquivalent: BRIDGED,
   },
   'stop-finding-loss.mjs': {
     name: 'stop-finding-loss.mjs',

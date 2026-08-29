@@ -25,6 +25,7 @@ import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { validateSchema, enforceCitations, loadSchema } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
+import { isForeignSidecar } from './lib/evidence-binding.mjs'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
@@ -41,6 +42,23 @@ const SIDECAR = arg('sidecar', argv)
   ? resolve(arg('sidecar', argv))
   : join(repoDefault, '.arbiter', 'agents-dispatched.json')
 const ENFORCE = argv.includes('--enforce')
+
+/**
+ * Task the cross-check below belongs to: `--task` when given, else the task state on disk.
+ * FAIL-OPEN-INTENT: `undefined` ("unknown task") is the STRICT side — nothing can be proven
+ * foreign, so the R1 cross-check runs exactly as it did before #2399. Only a sidecar that
+ * PROVABLY belongs to another task is skipped.
+ */
+function activeTaskId() {
+  if (arg('task', argv)) return arg('task', argv)
+  try {
+    const parsed = JSON.parse(readFileSync(join(REPO_ROOT, '.claude', '.task', 'status.json'), 'utf-8'))
+    return typeof parsed?.taskId === 'string' ? parsed.taskId : undefined
+    // FAIL-OPEN-INTENT: an unreadable task document means "unknown task" - the STRICT side, since nothing can then be proven foreign and every R1 cross-check below still runs.
+  } catch {
+    return undefined
+  }
+}
 
 function main() {
   if (!existsSync(EVIDENCE_DIR)) {
@@ -111,11 +129,20 @@ function main() {
   if (ENFORCE && existsSync(SIDECAR)) {
     try {
       const sidecar = JSON.parse(readFileSync(SIDECAR, 'utf-8'))
+      // #2399: the tracked sidecar is shared by every branch — one recorded for another
+      // task says nothing about THIS task's returns, so it counts as absent (an unknown
+      // active task proves nothing and keeps the cross-check armed).
+      const foreign = isForeignSidecar(sidecar, activeTaskId())
+      if (foreign) {
+        process.stdout.write(
+          `[check-agent-return] dispatch sidecar belongs to task ${sidecar.taskId ?? sidecar.task} — ignored for this task\n`,
+        )
+      }
       const count =
         typeof sidecar === 'object' && sidecar && typeof sidecar['count'] === 'number'
           ? sidecar['count']
           : 0
-      if (count > 0 && checked === 0) {
+      if (!foreign && count > 0 && checked === 0) {
         process.stdout.write(
           `[check-agent-return] FAIL: sidecar records ${count} dispatched agent(s) but zero return envelopes exist — findings evaporated into the context window (R1)\n`,
         )

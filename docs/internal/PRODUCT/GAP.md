@@ -136,19 +136,19 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:413                                                               | medium   |
 | - In FE projects, state store files MUST NOT contain async f | AGENTS.md:417                                                               | medium   |
 | unknown                                                      | AGENTS.md:426                                                               | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update`          | Tighte — AGENTS.md:529                                                      | medium   |
-| debt-baseline.json                                           | AGENTS.md:535                                                               | medium   |
-| --update                                                     | AGENTS.md:535                                                               | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update`          | Tighte — AGENTS.md:538                                                      | medium   |
+| debt-baseline.json                                           | AGENTS.md:544                                                               | medium   |
+| --update                                                     | AGENTS.md:544                                                               | medium   |
 | scripts/check-constraint-scan.mjs                            | docs/internal/SYSTEM/CANON.md:160                                           | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must | docs/internal/SYSTEM/CANON.md:252                                           | medium   |
 | **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314                                           | medium   |
 | **Tier-2 (advisory only                                      | do NOT hard-gate alone):** — docs/internal/SYSTEM/CANON.md:326              | medium   |
 | - **DRY-as-dogma**                                           | duplication _count_ gates, but "never r — docs/internal/SYSTEM/CANON.md:329 | medium   |
-| - Skip the gate before committing                            | .claude/CLAUDE.md:96                                                        | medium   |
-| main                                                         | .claude/CLAUDE.md:97                                                        | medium   |
-| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:99                                                        | medium   |
-| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:111                                                       | medium   |
-| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:115                                                       | medium   |
+| - Skip the gate before committing                            | .claude/CLAUDE.md:97                                                        | medium   |
+| main                                                         | .claude/CLAUDE.md:98                                                        | medium   |
+| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:100                                                       | medium   |
+| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:112                                                       | medium   |
+| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:116                                                       | medium   |
 
 ## Known Debt
 

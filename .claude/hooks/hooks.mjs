@@ -38,6 +38,7 @@ const HANDLERS = {
   ],
   'PostToolUseFailure:Bash': ['debug-state-on-failure.mjs'],
   PreCompact: ['pre-compact.mjs'],
+  SubagentStop: ['post-subagent-release.mjs'],
   'PostToolUse:ExitPlanMode': ['exitplanmode-banner.mjs'],
   UserPromptSubmit: ['skill-forced-eval.mjs', 'guard-task-completion.mjs'],
   Stop: ['stop-evidence-guard.mjs', 'stop-finding-loss.mjs'],

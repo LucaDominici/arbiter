@@ -120,53 +120,20 @@ describe('stop-dangerous — empirical fire', () => {
     ['append redirect', 'echo x >> .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
     ['copy', 'cp /tmp/fake.json .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
     ['move', 'mv /tmp/fake.json .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
-    ['tee', 'tee .arbiter/gate-pass.json < /tmp/fake.json', '.arbiter/gate-pass.json'],
     ['sed in-place', "sed -i 's/false/true/' .arbiter/gate-pass.json", '.arbiter/gate-pass.json'],
     ['truncate', 'truncate -s 0 .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
-    [
-      'python inline',
-      "python3 -c \"open('.arbiter/gate-pass.json','w').write('{}')\"",
-      '.arbiter/gate-pass.json',
-    ],
-    [
-      'node inline',
-      "node -e \"require('fs').writeFileSync('.arbiter/gate-pass.json','{}')\"",
-      '.arbiter/gate-pass.json',
-    ],
     ['delete', 'rm .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
     ['append redirect', 'echo x >> .arbiter/status.json', '.arbiter/status.json'],
     ['copy', 'cp /tmp/fake.json .arbiter/status.json', '.arbiter/status.json'],
     ['move', 'mv /tmp/fake.json .arbiter/status.json', '.arbiter/status.json'],
-    ['tee', 'tee .arbiter/status.json < /tmp/fake.json', '.arbiter/status.json'],
     ['sed in-place', "sed -i 's/false/true/' .arbiter/status.json", '.arbiter/status.json'],
     ['truncate', 'truncate -s 0 .arbiter/status.json', '.arbiter/status.json'],
-    [
-      'python inline',
-      "python3 -c \"open('.arbiter/status.json','w').write('{}')\"",
-      '.arbiter/status.json',
-    ],
-    [
-      'node inline',
-      "node -e \"require('fs').writeFileSync('.arbiter/status.json','{}')\"",
-      '.arbiter/status.json',
-    ],
     ['delete', 'rm .arbiter/status.json', '.arbiter/status.json'],
     ['append redirect', 'echo x >> .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
     ['copy', 'cp /tmp/fake.json .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
     ['move', 'mv /tmp/fake.json .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
-    ['tee', 'tee .arbiter/evidence/x.json < /tmp/fake.json', '.arbiter/evidence/x.json'],
     ['sed in-place', "sed -i 's/false/true/' .arbiter/evidence/x.json", '.arbiter/evidence/x.json'],
     ['truncate', 'truncate -s 0 .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
-    [
-      'python inline',
-      "python3 -c \"open('.arbiter/evidence/x.json','w').write('{}')\"",
-      '.arbiter/evidence/x.json',
-    ],
-    [
-      'node inline',
-      "node -e \"require('fs').writeFileSync('.arbiter/evidence/x.json','{}')\"",
-      '.arbiter/evidence/x.json',
-    ],
     ['delete', 'rm .arbiter/evidence/x.json', '.arbiter/evidence/x.json'],
     ['compound redirect', 'cd foo && echo x > .arbiter/gate-pass.json', '.arbiter/gate-pass.json'],
     ['dot-slash redirect', 'echo x > ./.arbiter/status.json', '.arbiter/status.json'],
@@ -175,11 +142,37 @@ describe('stop-dangerous — empirical fire', () => {
       'echo x > /tmp/project/.arbiter/evidence/x.json',
       '.arbiter/evidence/x.json',
     ],
+    ['tee', 'tee .arbiter/gate-pass.json < /tmp/fake.json', '.arbiter/gate-pass.json'],
+    ['tee', 'tee .arbiter/status.json < /tmp/fake.json', '.arbiter/status.json'],
+    ['tee', 'tee .arbiter/evidence/x.json < /tmp/fake.json', '.arbiter/evidence/x.json'],
   ])('blocks protected %s writes', (_kind, command, protectedPath) => {
     const r = spawnCommandThroughStdin(hookPath, dir, command)
     expect(r.status, r.stderr).toBe(2)
     expect(r.stderr).toContain('[arbiter]')
     expect(r.stderr).toContain(protectedPath)
+  })
+
+  // #2403: the guard now scans only the COMMAND HEAD of each segment (rm, unlink,
+  // truncate, mv, cp, tee, `sed -i`, or a `>`/`>>` redirect target) — `python3 -c`
+  // and `node -e` are deliberately no longer treated as destructive heads (`tee`
+  // stayed in the set: nothing in the issue's false-block evidence names `tee` as a
+  // source, so narrowing to `python3`/`node` alone already eliminates the false
+  // blocks without giving up `tee` coverage). The old free-text scan blocked the
+  // ship playbook's own sanctioned `node -e` evidence writers along with any
+  // `python3 -c` invocation that merely mentioned an evidence path in an argument;
+  // this remaining residual (`python3 -c`/`node -e` overwriting evidence without
+  // going through `>`) is a known gap, not a settled tradeoff — closing it would
+  // need argument-level write-target parsing for those two interpreters specifically.
+  it.each([
+    ['python inline', "python3 -c \"open('.arbiter/gate-pass.json','w').write('{}')\""],
+    ['node inline', "node -e \"require('fs').writeFileSync('.arbiter/gate-pass.json','{}')\""],
+    ['python inline', "python3 -c \"open('.arbiter/status.json','w').write('{}')\""],
+    ['node inline', "node -e \"require('fs').writeFileSync('.arbiter/status.json','{}')\""],
+    ['python inline', "python3 -c \"open('.arbiter/evidence/x.json','w').write('{}')\""],
+    ['node inline', "node -e \"require('fs').writeFileSync('.arbiter/evidence/x.json','{}')\""],
+  ])('allows %s writes to a protected path — not a destructive head (#2403)', (_kind, command) => {
+    const r = spawnCommandThroughStdin(hookPath, dir, command)
+    expect(r.status, r.stderr).toBe(0)
   })
 
   it.each([

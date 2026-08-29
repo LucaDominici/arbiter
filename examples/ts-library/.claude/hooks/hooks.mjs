@@ -46,6 +46,11 @@ const HANDLERS = {
   'PreCompact': [
     'pre-compact.mjs',
   ],
+  // #2403: SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — emitted
+  // at ALL levels (same M9 tier as the guard, PreToolUse:Task|Agent above).
+  'SubagentStop': [
+    'post-subagent-release.mjs',
+  ],
 };
 
 const eventKey = process.argv[2] ?? '';
