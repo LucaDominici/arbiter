@@ -517,7 +517,10 @@ describe('buildGap() — #2410 AC-2: Feature Gaps renders the row shape, not the
       knownDebt: [],
       lastReview: '2026-06-04',
     })
-    const featSection = out.slice(out.indexOf('## Feature Gaps'), out.indexOf('## Enforcement Gaps'))
+    const featSection = out.slice(
+      out.indexOf('## Feature Gaps'),
+      out.indexOf('## Enforcement Gaps'),
+    )
     expect(featSection).toContain(
       '| feature_id | capability | status | severity | blocks_v1 | issue | matrix |',
     )
