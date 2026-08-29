@@ -150,6 +150,13 @@ describe('CLI gate mode', () => {
       join(root, '__tests__/fixtures/skill-trees/with-superpowers/.claude/skills/tdd/SKILL.md'),
       sharedLines.join('\n'),
     )
+    // A real, in-scope file with wholly original prose — proves the stub was excluded (not just
+    // that the scan matched zero files, which would pass vacuously for the wrong reason).
+    mkdirSync(join(root, '.claude/skills/example'), { recursive: true })
+    writeFileSync(
+      join(root, '.claude/skills/example/SKILL.md'),
+      'An entirely original arbiter-authored sentence unrelated to the companion fixture.\n',
+    )
     const hashesPath = join(root, 'hashes.json')
     writeFileSync(
       hashesPath,

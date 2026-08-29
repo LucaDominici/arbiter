@@ -148,7 +148,26 @@ function buildLocalHashSets(root, files) {
 function runGate({ root, hashesPath, threshold }) {
   const hashesDoc = readJson(hashesPath, 'companion-line-hashes.json')
   const companionHashLists = hashesDoc.companions ?? {}
+  // Fail closed on a vacuous scan (INV-96, mirrors check-duplication.mjs's #1286 guard against a
+  // 0-file jscpd run silently passing): an empty hash file or a local corpus that matched zero
+  // files is NOT the same thing as "no overlap found" and must never look like a pass.
+  if (Object.keys(companionHashLists).length === 0) {
+    throw Object.assign(
+      new Error(
+        `no companion hashes in ${hashesPath} -- refusing a vacuous pass; run --refresh-hashes`,
+      ),
+      { exitCode: 2 },
+    )
+  }
   const files = collectLocalFiles(root)
+  if (files.length === 0) {
+    throw Object.assign(
+      new Error(
+        `no local skill/command files matched under ${root} -- refusing a vacuous pass (LOCAL_GLOBS drift?)`,
+      ),
+      { exitCode: 2 },
+    )
+  }
   const localHashSets = buildLocalHashSets(root, files)
   const pairs = evaluatePairs(localHashSets, companionHashLists)
   const failing = pairs.filter((p) => p.count >= threshold)
@@ -174,7 +193,7 @@ function runGate({ root, hashesPath, threshold }) {
     return 1
   }
   process.stdout.write(
-    `${LABEL} OK -- ${files.length} local files checked against ${Object.keys(companionHashLists).length} companion skills, scanned ${root === REPO_ROOT ? files.length : '(sub-root)'} for a >= ${threshold}-line overlap ceiling.\n`,
+    `${LABEL} OK -- ${files.length} local files checked against ${Object.keys(companionHashLists).length} companion skills for a >= ${threshold}-line overlap ceiling.\n`,
   )
   return 0
 }
@@ -236,14 +255,15 @@ function runRefresh({ sourcesPath, hashesPath, ghBin }) {
 function selfTest() {
   const dir = mkdtempSync(join(tmpdir(), 'skill-provenance-self-test-'))
   try {
-    // A companion "skill" with two known substantive lines.
-    const companionLine1 = 'this is a long enough sentence to count as substantive prose'
-    const companionLine2 = 'a second distinct substantive sentence used by the companion skill'
-    const companionHashes = [hashLine(companionLine1), hashLine(companionLine2)]
+    // A companion "skill" with OVERLAP_THRESHOLD known substantive lines.
+    const companionLines = Array.from(
+      { length: OVERLAP_THRESHOLD },
+      (_, i) => `this is companion substantive line number ${i} used for the self-test fixture`,
+    )
     const hashesDoc = {
       $schemaVersion: 1,
       generatedAt: '2026-01-01T00:00:00.000Z',
-      companions: { 'superpowers:probe': companionHashes },
+      companions: { 'superpowers:probe': companionLines.map(hashLine) },
     }
     const hashesPath = join(dir, 'hashes.json')
     writeFileSync(hashesPath, JSON.stringify(hashesDoc))
@@ -261,24 +281,14 @@ function selfTest() {
       return 1
     }
 
-    // Dirty tree: repeats the companion's two lines enough times (with distinct padding so each
-    // normalizes to a distinct hash) to cross the overlap threshold.
+    // Dirty tree: reproduces every companion line verbatim, genuinely crossing OVERLAP_THRESHOLD.
     const dirtyRoot = join(dir, 'dirty')
     mkdirSync(join(dirtyRoot, '.claude/skills/example'), { recursive: true })
-    const dirtyLines = [companionLine1, companionLine2]
-    for (let i = 0; i < OVERLAP_THRESHOLD; i++) {
-      // Vary a padding suffix per companion line so eight lines total are added, but keep the
-      // ORIGINAL two lines verbatim among them so those two hashes are guaranteed to match.
-      dirtyLines.push(`${companionLine1} — padding line number ${i} to reach the threshold`)
-    }
     writeFileSync(
       join(dirtyRoot, '.claude/skills/example/SKILL.md'),
-      `---\nname: example\n---\n\n${companionLine1}\n${companionLine2}\n`,
+      `---\nname: example\n---\n\n${companionLines.join('\n')}\n`,
     )
-    // The fixture only has 2 genuinely shared lines by construction above; to legitimately
-    // exercise the >= threshold branch, lower the threshold for this half of the self-test
-    // instead of fabricating additional shared upstream lines that don't exist in the fixture.
-    const dirtyExit = runGate({ root: dirtyRoot, hashesPath, threshold: 2 })
+    const dirtyExit = runGate({ root: dirtyRoot, hashesPath, threshold: OVERLAP_THRESHOLD })
     if (dirtyExit !== 1) {
       process.stderr.write(
         `${LABEL} self-test FAILED: dirty tree reported exit ${dirtyExit}, expected 1\n`,
