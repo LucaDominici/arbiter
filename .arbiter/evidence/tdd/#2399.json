@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2399",
+  "test_path": "__tests__/scripts/evidence-binding.test.ts",
+  "test_commit_sha": "14a140143effc24aa938c77825ba1e55977ae821",
+  "test_blob_sha": "90598b2b2303f966f7bfee025406b76300e52671",
+  "test_run_log": "\n RUN  v4.1.10 .\n\n ❯ __tests__/scripts/evidence-binding.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  13:36:21\n   Duration  100ms (transform 10ms, setup 7ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/evidence-binding.test.ts [ __tests__/scripts/evidence-binding.test.ts ]\nError: Cannot find module '../../scripts/lib/evidence-binding.mjs' imported from __tests__/scripts/evidence-binding.test.ts\n ❯ __tests__/scripts/evidence-binding.test.ts:10:1\n      8| import { join } from 'node:path'\n      9| import { tmpdir } from 'node:os'\n     10| import { evidenceStaleness, isForeignSidecar } from '../../scripts/lib…\n       | ^\n     11|\n     12| let repo: string\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/evidence-binding.test.ts",
+  "recorded_at": "2026-08-29T11:36:21.521Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/evidence-binding.test.ts"
+  ]
+}
