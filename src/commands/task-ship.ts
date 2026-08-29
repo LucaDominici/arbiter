@@ -48,9 +48,11 @@ import {
   DEFAULT_TRAIN_LIMITS,
   appendChainIds,
   evaluateSeal,
+  resolveTrainLimits,
   type TrainLimits,
   type TrainSignals,
 } from './ship-train.js'
+import { loadConfig } from '../utils/config.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
@@ -414,7 +416,10 @@ export interface TaskShipOptions {
   chainAddIds?: string[]
   /** #2331 — `--seal`: close the train now, whatever the other signals say. */
   seal?: boolean
-  /** Test seam: deterministic train bounds and clock without touching config or wall time. */
+  /**
+   * Test seam AND per-run override: deterministic train bounds without touching config or wall
+   * time. Beats `ship.train` in `arbiter.json` (#2401), which beats {@link DEFAULT_TRAIN_LIMITS}.
+   */
   trainLimits?: TrainLimits
   /** Test seam for a deterministic train clock. */
   now?: Date
@@ -573,12 +578,30 @@ function hasShipTaskId(taskId: string | undefined): boolean {
   return taskId !== undefined && taskId.length > 0
 }
 
-function seedShipState(root: string, opts: TaskShipOptions): void {
+/**
+ * #2401 — the bounds this run enforces: `--trainLimits` > `ship.train` in the TARGET repo's
+ * `arbiter.json` > the built-in default. Resolved ONCE per `runTaskShip` and threaded, so the
+ * seed check and the append check can never disagree about the limit mid-run.
+ *
+ * FAIL-SAFE, matching `resolveShipProfile`: `loadConfig` THROWS on a malformed config (absent
+ * returns null), and a config typo must not brick the ship — it degrades to the defaults, which
+ * still bound the train.
+ */
+function trainLimitsFor(root: string, opts: TaskShipOptions): TrainLimits {
+  if (opts.trainLimits !== undefined) return opts.trainLimits
+  try {
+    return resolveTrainLimits(loadConfig(root)?.ship)
+  } catch {
+    return DEFAULT_TRAIN_LIMITS
+  }
+}
+
+function seedShipState(root: string, opts: TaskShipOptions, limits: TrainLimits): void {
   const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : undefined
   // #2102 — same numeric-only guard as the primary id (rejects non-numeric ids loudly).
   const chainIds = opts.chainIds !== undefined ? opts.chainIds.map(normalizeChainId) : undefined
   const existing = readUnifiedState(root)
-  assertSeedWithinLimit(existing, taskId, chainIds, opts.trainLimits ?? DEFAULT_TRAIN_LIMITS)
+  assertSeedWithinLimit(existing, taskId, chainIds, limits)
   if (
     existing === null ||
     taskId !== undefined ||
@@ -802,13 +825,13 @@ function assertChainAddAllowed(
 function prepareChainAdd(
   root: string,
   opts: TaskShipOptions,
+  limits: TrainLimits,
 ): { additions: readonly string[]; now: Date } | null {
   const additions = opts.chainAddIds ?? []
   if (additions.length === 0 && opts.seal !== true) return null
 
   const state = readUnifiedState(root)
   const now = opts.now ?? new Date()
-  const limits = opts.trainLimits ?? DEFAULT_TRAIN_LIMITS
   assertChainAddAllowed(root, opts, state, now, limits)
   return { additions, now }
 }
@@ -845,8 +868,9 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
   // Validate the complete train mutation before seeding task metadata. A rejected append must
   // leave both fresh and existing state untouched, including task/tier/override fields.
-  const preparedChainAdd = prepareChainAdd(root, opts)
-  seedShipState(root, opts)
+  const trainLimits = trainLimitsFor(root, opts)
+  const preparedChainAdd = prepareChainAdd(root, opts, trainLimits)
+  seedShipState(root, opts, trainLimits)
   applyPreparedChainAdd(root, preparedChainAdd)
 
   const state = readUnifiedState(root)

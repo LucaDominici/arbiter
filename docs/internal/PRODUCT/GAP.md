@@ -136,9 +136,9 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:413                                                               | medium   |
 | - In FE projects, state store files MUST NOT contain async f | AGENTS.md:417                                                               | medium   |
 | unknown                                                      | AGENTS.md:426                                                               | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update`          | Tighte — AGENTS.md:529                                                      | medium   |
-| debt-baseline.json                                           | AGENTS.md:535                                                               | medium   |
-| --update                                                     | AGENTS.md:535                                                               | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update`          | Tighte — AGENTS.md:538                                                      | medium   |
+| debt-baseline.json                                           | AGENTS.md:544                                                               | medium   |
+| --update                                                     | AGENTS.md:544                                                               | medium   |
 | scripts/check-constraint-scan.mjs                            | docs/internal/SYSTEM/CANON.md:160                                           | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must | docs/internal/SYSTEM/CANON.md:252                                           | medium   |
 | **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314                                           | medium   |

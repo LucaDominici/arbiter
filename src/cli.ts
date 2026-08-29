@@ -58,6 +58,7 @@ import { runTaskMark } from './commands/task-mark.js'
 import { isTddPhase, readUnifiedState } from './commands/task-state.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
 import { normTier } from './commands/ship-tier.js'
+import { splitTrainIds } from './commands/ship-train.js'
 import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
 import type { GraphFormat } from './commands/graph.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
@@ -1874,7 +1875,7 @@ task
   })
 
 task
-  .command('init')
+  .command('init [ids...]')
   .description('Initialise / update the unified task document (#1206)')
   .option('--id <id>', 'Task id, e.g. #1206')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
@@ -1886,15 +1887,22 @@ task
     [] as string[],
   )
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { id?: string; tier?: string; plan?: string; chain: string[]; dir?: string }) => {
-    runTaskInit({
-      ...(opts.id !== undefined ? { id: opts.id } : {}),
-      ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
-      ...(opts.plan !== undefined ? { plan: opts.plan } : {}),
-      ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-  })
+  .action(
+    (
+      ids: string[],
+      opts: { id?: string; tier?: string; plan?: string; chain: string[]; dir?: string },
+    ) => {
+      // #2401 — `arbiter task init #A #B #C` is the same train sugar `arbiter ship` takes.
+      const train = splitTrainIds(ids, opts.id, opts.chain)
+      runTaskInit({
+        ...(train.taskId !== undefined ? { id: train.taskId } : {}),
+        ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+        ...(opts.plan !== undefined ? { plan: opts.plan } : {}),
+        ...(train.chainIds.length > 0 ? { chainIds: train.chainIds } : {}),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+    },
+  )
 
 task
   .command('get')
@@ -1944,7 +1952,8 @@ program
   )
 
 program
-  .command('ship [id]')
+  // #2401 — variadic: `arbiter ship #A #B #C` declares a train, sugar for repeated `--chain`.
+  .command('ship [ids...]')
   .description('Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
   .option(
@@ -1993,7 +2002,7 @@ program
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
-      id: string | undefined,
+      ids: string[],
       opts: {
         tier?: string
         autonomy?: string
@@ -2021,13 +2030,16 @@ program
         // VERTICAL breadth (see A8: guidance, not auto-detected machinery). Without `--tier`,
         // respect the persisted tier; when none is persisted, normTier falls back to widest
         // ('Standard') fail-safe.
+        // #2401 — `#A #B #C` positional sugar folds into the same chain the flags declare.
+        const train = splitTrainIds(ids, undefined, opts.chain)
         const result = runTaskShip({
           ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
-          ...(id !== undefined ? { taskId: id } : {}),
+          ...(train.taskId !== undefined ? { taskId: train.taskId } : {}),
           ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
-          // #2102 — only pass chainIds when the user actually supplied --chain: an absent flag
-          // must never clobber a chain declared earlier (e.g. at `task init`) with an empty array.
-          ...(opts.chain.length > 0 ? { chainIds: opts.chain } : {}),
+          // #2102 — only pass chainIds when the user actually supplied --chain (or the #2401
+          // positional sugar): an absent flag must never clobber a chain declared earlier
+          // (e.g. at `task init`) with an empty array.
+          ...(train.chainIds.length > 0 ? { chainIds: train.chainIds } : {}),
           // #2331 — same shape as --chain: only pass when actually supplied, so an absent flag
           // is never mistaken for "append nothing" and can never seal or clear a live train.
           ...(opts.chainAdd.length > 0 ? { chainAddIds: opts.chainAdd } : {}),

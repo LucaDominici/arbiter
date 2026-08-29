@@ -56,6 +56,56 @@ arbiter mark --tdd GREEN --last "<done>" --next "<exact next action>" --digest "
 
 ---
 
+## Train
+
+A **train** is one worktree, one branch, one plan, one gate and one PR carrying N issues. It is
+the **DEFAULT unit of ceremony** for every issue that does not widen the tier to Standard (the
+XS/S band, size ≤ M). Ten three-line fixes pass ONE ceremony, not ten.
+
+```bash
+arbiter ship #A #B #C          # declare a train — sugar for `#A --chain #B --chain #C`
+arbiter ship --chain-add #D    # grow it, or be refused and told to land it first
+arbiter ship --seal            # close it now; the next issue starts a new train
+```
+
+| Runs ONCE per train                 | Runs per issue                          |
+| ----------------------------------- | --------------------------------------- |
+| plan (one cumulative plan)          | its `AC-<issue>.<n>` anchor lines       |
+| plan-review                         | its TDD evidence file                   |
+| red-team                            | its `Closes #N` line in the PR body     |
+| code review + adversarial verify    |                                         |
+| cross-model review seat             |                                         |
+| full gate                           |                                         |
+| PR (`Closes #A`, `Closes #B`, …)    |                                         |
+
+**One plan, one anchor.** The train's plan carries a SINGLE `## Acceptance Criteria` section
+listing every member's criteria, namespaced per issue as `AC-<issue>.<n>` (`AC-2401.1`,
+`AC-2402.1`, …). The anchor parser accepts that dotted numeric form, and `check-acceptance`
+rejects duplicate ids — which is exactly what an un-namespaced multi-issue plan produces. Every
+other mandatory section (see §Plan contents) is written once, for the train.
+
+**Tier = widest member.** Compute each member's tier as usual and take the widest; the
+widen-only rule above applies unchanged (signals may widen, never narrow). An issue that widens
+the train to Standard does not join it — a risk-bearing issue rides its own train.
+
+**Stop rules** — the train seals, and the next issue starts a new one, on any of: an explicit
+`--seal`, a member that widens the tier to Standard, `maxChain` ids already on the branch, or
+`maxAgeMinutes` elapsed since the train opened. Both bounds come from `ship.train` in
+`arbiter.json` (defaults: 10 issues, 480 minutes); `ship.review.maxRounds` bounds review rework
+the same way (default 2). A refused `--chain-add` is the policy working — land the train.
+
+**Gate cadence.** Targeted tests during `green` / `refactor`, `node scripts/check-all.mjs L1`
+once at the landing commit, `L2` once at push — see §Gate economy, which governs a train exactly
+as it governs a single issue. Gates are per LANDING, ceremony is per TRAIN; neither is per issue.
+
+**Running the full per-issue ceremony over a batch of small issues is a playbook violation, not
+extra safety.** It buys no additional signal — the same plan reviewer, the same red-team, the
+same reviewer panel read the same kind of diff N times — and it spends the budget on the part of
+the work that was already cheap instead of on the residual 10% (merge, red gate, conflict) that
+is not.
+
+---
+
 ## Local-only state
 
 Before writing task state, ensure runtime files never get committed:
@@ -216,7 +266,7 @@ constraint → rewrite → repeat).
 - **Threat model & abuse cases** — who can abuse this and how. `n/a — no security surface` is accepted only with a one-line justification; a bare `n/a` is a plan-review FAIL.
 - **Input validation** — what is validated, where the trust boundary is, what happens on invalid input.
 - **Idiomatic patterns & pitfalls** — the recommended stdlib/framework APIs for this change and the known traps to avoid.
-- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4`; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
+- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4` — or the dotted per-issue `AC-<issue>.<n>` form a train plan uses, see §Train; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
 - **Test strategy** — which TDD units prove which AC, and at which level (unit/integration/gate).
 - **Risks** — what can go wrong, with the mitigation or the accepted residual.
 
