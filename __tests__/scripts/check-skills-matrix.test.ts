@@ -76,4 +76,17 @@ describe('check-skills-matrix.mjs (skills-matrix validation)', () => {
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('unknown SKILL_NAME')
   })
+
+  // #2428 provenance audit: every superpowers:* entry's referenceUrl must point at the real
+  // upstream repo (obra/superpowers), not the stale PotentialSuperpowers fork name.
+  it('every superpowers:* entry references the real upstream repo (obra/superpowers)', () => {
+    const matrix = JSON.parse(readFileSync(resolve('src/compatibility/skills-matrix.json'), 'utf-8'))
+    const superpowersEntries = matrix.skills.filter((s: { skillId: string }) =>
+      s.skillId.startsWith('superpowers:'),
+    )
+    expect(superpowersEntries.length).toBeGreaterThan(0)
+    for (const entry of superpowersEntries) {
+      expect(entry.referenceUrl).toBe('https://github.com/obra/superpowers')
+    }
+  })
 })

@@ -234,6 +234,43 @@ describe('gen-third-party-licenses.mjs', () => {
     expect(notice).not.toContain('THIRD_PARTY_LICENSES.txt')
   })
 
+  describe('companion plugins section (#2428)', () => {
+    it('THIRD_PARTY_LICENSES.md names Superpowers and ponytail, detected-never-bundled', () => {
+      const content = readFileSync(OUT, 'utf8')
+      expect(content).toContain('## Companion plugins')
+      expect(content).toContain('https://github.com/obra/superpowers')
+      expect(content).toContain('https://github.com/DietrichGebert/ponytail')
+      expect(content).toMatch(/superpowers/i)
+      expect(content).toMatch(/ponytail/i)
+      expect(content).toContain('MIT')
+      expect(content).toMatch(/never ship|ships no third-party skill text/i)
+    })
+
+    it('write-mode log line counts only production-dependency sections, not the companion heading', () => {
+      const result = run([])
+      expect(result.status).toBe(0)
+      const content = readFileSync(OUT, 'utf8')
+      const depSections = [...content.matchAll(/^## (.+?)@[^@\n]+$/gm)].length
+      const match = /\((\d+) production deps, full closure\)/.exec(result.stderr)
+      expect(match).not.toBeNull()
+      expect(Number(match?.[1])).toBe(depSections)
+    })
+
+    it('NOTICE carries the same detected-never-bundled policy sentence', () => {
+      const notice = readFileSync(resolve('NOTICE'), 'utf8')
+      expect(notice).toMatch(/companion plugin/i)
+      expect(notice).toMatch(/superpowers/i)
+      expect(notice).toMatch(/ponytail/i)
+      expect(notice).toMatch(/never ship|ships no third-party skill text/i)
+    })
+
+    it('docs/INTEGRATIONS.md links to the THIRD_PARTY_LICENSES.md companion section', () => {
+      const integrations = readFileSync(resolve('docs/INTEGRATIONS.md'), 'utf8')
+      expect(integrations).toMatch(/THIRD_PARTY_LICENSES\.md#companion-plugins/)
+      expect(integrations).toMatch(/NOTICE/)
+    })
+  })
+
   it('package.json files[] ships THIRD_PARTY_LICENSES.md', () => {
     const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf8'))
     expect(pkg.files).toContain('THIRD_PARTY_LICENSES.md')
