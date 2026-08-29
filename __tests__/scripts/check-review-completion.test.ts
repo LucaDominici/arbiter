@@ -389,6 +389,44 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toContain('#9999')
   })
 
+  // #2399 — the CI shape: `.claude/.task/status.json` is local-only and the gate runs with
+  // no --task, so the branch is the only task identity. A sidecar left by another branch's
+  // task must not fail this branch's gate (the #2396 symptom).
+  it('ignores a sidecar recorded on another branch when no task id is available', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'review-completion-git-'))
+    try {
+      const git = (args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf-8' })
+      expect(git(['init', '-q', '-b', 'task/#2399-x']).status).toBe(0)
+      expect(git(['config', 'user.email', 'test-user']).status).toBe(0)
+      expect(git(['config', 'user.name', 'Test']).status).toBe(0)
+      writeFileSync(join(repo, 'tracked.txt'), 'before\n')
+      expect(git(['add', 'tracked.txt']).status).toBe(0)
+      expect(git(['commit', '-qm', 'before']).status).toBe(0)
+      mkdirSync(join(repo, '.arbiter', 'evidence', 'agent-returns'), { recursive: true })
+      writeFileSync(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({
+          taskId: '#2354',
+          count: 1,
+          agents: ['alpha'],
+          branch: 'task/#2354-y',
+          sha: git(['rev-parse', 'HEAD']).stdout.trim(),
+        }),
+      )
+
+      const result = runCheck(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        join(repo, '.arbiter', 'evidence', 'agent-returns'),
+        repo,
+        null,
+      )
+      expect(result.exitCode).toBe(0)
+      expect(output(result)).toContain('task/#2354-y')
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+  })
+
   it('keeps an ancestor sidecar valid after an evidence-only commit', () => {
     const repo = mkdtempSync(join(tmpdir(), 'review-completion-git-'))
     try {

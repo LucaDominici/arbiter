@@ -625,6 +625,16 @@ function loadSidecarForCheck() {
       `dispatch sidecar belongs to task ${sidecarTask(sidecarResult.sidecar)}, not ${activeTask}`,
     )
   }
+  // #2399 — in CI there is no `.claude/.task/status.json` (it is local-only) and the gate
+  // runs without `--task`, so the BRANCH is the only task identity available. A sidecar
+  // recorded on another branch is another task's, and this tracked file is shared by all
+  // of them: absent, not a mismatch error.
+  const branch = gitLine(['rev-parse', '--abbrev-ref', 'HEAD'])
+  if (branch !== null && sidecarResult.sidecar.branch !== branch) {
+    return sidecarAbsent(
+      `dispatch sidecar was recorded on branch ${sidecarResult.sidecar.branch}, not ${branch}`,
+    )
+  }
   return sidecarResult
 }
 
