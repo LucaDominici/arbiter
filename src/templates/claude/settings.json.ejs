@@ -86,6 +86,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/hooks.mjs SubagentStop",
+            "timeout": 5
+          }
+        ]
+      }
     ]<% if (governanceLevel !== 'L1') { %>,
     "UserPromptSubmit": [
       {

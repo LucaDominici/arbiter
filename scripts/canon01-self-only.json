@@ -15,6 +15,10 @@
       "expires": "2026-08-29"
     },
     {
+      "path": ".claude/hooks/post-subagent-release.mjs",
+      "reason": "#2403: SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs, releasing the .arbiter/agents-active.json sidecar entry a finished write-intent dispatch registered. Deliberately self-only for now: pre-spawn-worktree-guard.mjs's sidecar-registration IS emitted to targets (a template twin exists), but wiring its cleanup companion through the generated dispatcher requires adding a HANDLERS['SubagentStop'] route plus a src/generators/claude.ts emission entry — out of scope for #2403's false-block fix; the generated settings.json.ejs SubagentStop block calls the dispatcher unconditionally (harmless no-op today) so a later PR can wire the route without touching settings.json again."
+    },
+    {
       "path": "scripts/build-kit.mjs",
       "reason": "Derives src/kit/derived.json from arbiter’s kit catalog + overlay + cross-language matrix. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
     },
