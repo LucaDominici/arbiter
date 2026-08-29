@@ -11,6 +11,7 @@ import { dirname, join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { resolveMaxParallelWorktrees } from '../../src/config/collaboration-mode-defaults.js'
 import { renderTemplate } from '../../src/utils/render.js'
+import { getNpmScript } from '../../scripts/check-self-dogfood.mjs'
 import type { ProjectConfig } from '../../src/wizard/types.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -23,9 +24,15 @@ const selfConfig = JSON.parse(readFileSync(join(repoRoot, 'arbiter.json'), 'utf-
   ProjectConfig,
   'automation' | 'collaborationMode' | 'enableSoloDevMode'
 >
+// #2415: drain.md.ejs now renders the project's own test command instead of a
+// hardcoded `npm run test` (which landed verbatim in Go and Python emissions).
+// The dual-side assertion below must therefore render with the SAME testCommand
+// the dogfood gate uses for arbiter itself — reuse its resolver rather than
+// hardcoding a second answer that can silently drift from the authority.
 const renderData = {
   ...selfConfig,
   maxParallelWorktrees: resolveMaxParallelWorktrees(selfConfig),
+  testCommand: getNpmScript('test', 'npm test'),
 }
 
 describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => {

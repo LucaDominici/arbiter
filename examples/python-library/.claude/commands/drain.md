@@ -60,7 +60,7 @@ without arbiter → N-PR + merge-train (skill appendix).
 5. **Local integration** on `wave-N-integration` (off `main`): sequential merge,
    minimum-overlap order from the REAL `git diff --name-only` of the branches → multiagent
    review + adversarial verify (evidence, INV-114) → **full gate under the mutex**
-   (`arbiter gate-exec -- sh -c 'npm run test && node scripts/check-all.mjs check'`) →
+   (`arbiter gate-exec -- sh -c 'pytest && node scripts/check-all.mjs check'`) →
    `gate-pass.json`.
 6. **One PR per wave**, `Closes #…`, merge only on GREEN CI.
 7. `/wt-close` + `arbiter worktree prune --stale 24` (dry-run, then `--execute`) → `/clear`

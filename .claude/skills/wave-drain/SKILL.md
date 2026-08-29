@@ -317,7 +317,10 @@ wave.** The rest of the wave proceeds.
    files first — not from the plan's estimates. Conflicts → hand to a dedicated conflict
    agent with the relevant DONE reports.
 3. **On the cumulative branch, once only — multiagent code review:**
-   - Route auditors: `node scripts/route-auditors.mjs --size-floor Standard`
+   - Route auditors:
+     `[ -f scripts/route-auditors.mjs ] && node scripts/route-auditors.mjs --size-floor Standard || echo "route-auditors: script absent — skipped"`
+     (arbiter's own wave-routing helper; a generated project does not receive it. The skip
+     is declared, never silent — record it in the wave roster and route the auditors by hand.)
    - Self-review pass + **Adversarial Verifier**: trace each feature end-to-end, hunt dead
      code and unwired options.
    - **FIT rubric (INV-138):** the review judges fit against the frozen anchor, not just
@@ -326,7 +329,10 @@ wave.** The rest of the wave proceeds.
      REJECT for that group. Non-goals violated ⇒ scope-creep finding. Record the
      per-criterion verdicts in `.arbiter/evidence/ac-fit/wave-N.json` (schema
      `arbiter-ac-fit-v1`), then run the deterministic check — anchor AND all-PASS fit:
-     `node scripts/check-acceptance.mjs --plan .claude/plans/wave-N.md --ac-fit .arbiter/evidence/ac-fit/wave-N.json`
+     `[ -f scripts/check-acceptance.mjs ] && node scripts/check-acceptance.mjs --plan .claude/plans/wave-N.md --ac-fit .arbiter/evidence/ac-fit/wave-N.json || echo "check-acceptance: script absent — skipped"`
+     (arbiter's own AC-fit verifier; a generated project does not receive it. When it is
+     absent the per-criterion verdicts above are still MANDATORY — record
+     `ac-fit: script absent — verdicts reviewed by hand` so the skip stays visible.)
    - Write the **evidence file** (fail-closed, INV-114).
    - Any still-unresolved `redTeamFindings` cap their mapped auditor's score (`[RT-xx UNRESOLVED]`).
    - **CRITICAL / MAJOR** → dispatch a fixer agent.
@@ -367,7 +373,10 @@ wave.** The rest of the wave proceeds.
    node scripts/pr-merge-watch.mjs \
      "$(gh repo view --json nameWithOwner -q .nameWithOwner)" \
      "$(gh pr view --json number -q .number)"
-   node scripts/verify-pr-closes.mjs <PR#>   # post-merge: confirm every ref closed, close stragglers
+   # post-merge: confirm every ref closed, close stragglers. arbiter's own helper —
+   # absent in a generated project, where the skip is declared and the refs checked by hand.
+   [ -f scripts/verify-pr-closes.mjs ] && node scripts/verify-pr-closes.mjs <PR#> \
+     || echo "verify-pr-closes: script absent — skipped"
    ```
 
    CI red → root-cause fix → re-gate (PRs are owned until merged green).

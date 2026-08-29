@@ -120,6 +120,10 @@
       "reason": "INV-123: cross-reference coherence of a generated tree. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
     },
     {
+      "path": "scripts/check-emitted-markdown-refs.mjs",
+      "reason": "#2415: resolves every script/package-script/arbiter-command/hook reference cited inside an emitted markdown playbook against the emitted tree under examples/ that ships it. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/) — it audits emitted trees and has no consumer analog: a governed target has no generator corpus and no examples/ directory, so an emitted twin would be a gate with no subject. Self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
       "path": "scripts/check-evidence-bundle.mjs",
       "reason": "INV-90: evidence bundles validate against the published schema. STILL PENDING: targets get a rich evidence-writing toolchain (`evidence-collect.mjs.ejs`, `evidence-writer.sh.ejs`, `done-evidence.mjs.ejs`) but `schemas/evidence-bundle.schema.json` has no template twin to validate the bundles those tools produce. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
       "expires": "2026-10-27"

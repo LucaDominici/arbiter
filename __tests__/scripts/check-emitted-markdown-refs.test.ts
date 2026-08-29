@@ -52,7 +52,7 @@ describe('checkEmittedTree — script references (#2415)', () => {
         ...NPM_PROJECT,
         'scripts/check-all.mjs': '// emitted',
         '.claude/commands/ship.md': 'Run `node scripts/check-all.mjs L1` before commit.\n',
-      })
+      }),
     ).toEqual([])
   })
 
@@ -69,7 +69,8 @@ describe('checkEmittedTree — script references (#2415)', () => {
   it('catches a reference that only appears inside a fenced code block', () => {
     const problems = problemsFor({
       ...NPM_PROJECT,
-      '.claude/commands/drain.md': '# Drain\n\n```bash\nnode scripts/verify-pr-closes.mjs 12\n```\n',
+      '.claude/commands/drain.md':
+        '# Drain\n\n```bash\nnode scripts/verify-pr-closes.mjs 12\n```\n',
     })
     expect(problems).toHaveLength(1)
     expect(problems[0]).toContain('.claude/commands/drain.md:4')
@@ -82,7 +83,7 @@ describe('checkEmittedTree — script references (#2415)', () => {
         ...NPM_PROJECT,
         '.claude/commands/ship.md':
           '`[ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file f`\n',
-      })
+      }),
     ).toEqual([])
   })
 })
@@ -133,7 +134,7 @@ describe('checkEmittedTree — arbiter command references (#2415)', () => {
       problemsFor({
         ...NPM_PROJECT,
         '.claude/commands/wt-close.md': '`arbiter wt close` then `arbiter ship #123`\n',
-      })
+      }),
     ).toEqual([])
   })
 })
