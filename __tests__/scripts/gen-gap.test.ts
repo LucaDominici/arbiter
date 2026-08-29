@@ -450,3 +450,116 @@ describe('gen-gap.mjs CLI', () => {
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// #2410 — path corruption, note-copying, and enforcement-gap token noise
+// ---------------------------------------------------------------------------
+
+describe('parseUnenforceable() — #2410 embedded em-dash regression', () => {
+  it('a signal that itself contains an em-dash is not mis-split into the doc column', () => {
+    // Arbiter's own governance prose routinely embeds an em-dash inside a prohibition
+    // sentence (e.g. "must not contradict — run drift check"). A non-greedy signal
+    // capture stops at the FIRST em-dash and mis-splits the rest of the sentence into
+    // the doc:line column — this fixture is exactly that shape.
+    const stdout =
+      '[UNENFORCEABLE] SSOT documents must not contradict — run drift check — docs/AGENTS.md:166\n'
+    const result = parseUnenforceable(stdout)
+    expect(result).toHaveLength(1)
+    expect(result[0].signal).toBe('SSOT documents must not contradict — run drift check')
+    expect(result[0].doc).toBe('docs/AGENTS.md')
+    expect(result[0].line).toBe(166)
+  })
+})
+
+describe('#2410 AC-1: __tests__ paths survive prettier', () => {
+  it('generated GAP.md contains __tests__/ literally, never the bold-mangled form', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      makeFixtures(dir, {
+        matrixRows: [
+          {
+            id: 'REQ-099',
+            capability: 'Path corruption regression',
+            status: 'Missing',
+            issue: '#2410',
+            note: 'Unit-tier coverage at __tests__/generators/foo.test.ts',
+          },
+        ],
+      })
+      const gapPath = join(dir, 'docs', 'internal', 'PRODUCT', 'GAP.md')
+      const code = await runCli(dir, gapPath, false)
+      expect(code).toBe(0)
+      const content = readFileSync(gapPath, 'utf-8')
+      expect(content).toContain('__tests__/')
+      expect(content).not.toContain('**tests**')
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+describe('buildGap() — #2410 AC-2: Feature Gaps renders the row shape, not the raw note', () => {
+  it('renders feature_id | capability | status | severity | blocks_v1 | issue | matrix, and links the matrix row instead of copying the note', () => {
+    const longNote = 'x'.repeat(300) + ' RTM evidence copied verbatim from FEATURE_MATRIX'
+    const out = buildGap({
+      featureGaps: [
+        {
+          id: 'REQ-100',
+          area: 'Something',
+          status: 'Partial',
+          missing: longNote,
+          issue: '#42',
+          severity: 'medium',
+          blocksV1: false,
+        },
+      ],
+      enforcementGaps: [],
+      knownDebt: [],
+      lastReview: '2026-06-04',
+    })
+    const featSection = out.slice(out.indexOf('## Feature Gaps'), out.indexOf('## Enforcement Gaps'))
+    expect(featSection).toContain(
+      '| feature_id | capability | status | severity | blocks_v1 | issue | matrix |',
+    )
+    expect(featSection).not.toContain(longNote)
+    expect(featSection).toContain('FEATURE_MATRIX.md#req-100')
+  })
+})
+
+describe('collectData() — #2410 AC-3: Enforcement Gaps has no token-noise rows', () => {
+  it('filters out bare single-token noise (uses:, ./, docker://, required:true, n/a) and keeps a real INV citation', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      makeFixtures(dir, {
+        matrixRows: [{ id: 'REQ-001', capability: 'Arch', status: 'Verified' }],
+      })
+      // Stand in for check-constraint-scan.mjs with the exact token-noise shape #2410
+      // reported (14 occurrences of bare `uses:`/`./`/`docker://`/`required:true`/`n/a`
+      // rows swept out of a long `_Enforcement:_` sentence), plus one real constraint.
+      const scriptsDir = join(dir, 'scripts')
+      mkdirSync(scriptsDir, { recursive: true })
+      writeFileSync(
+        join(scriptsDir, 'check-constraint-scan.mjs'),
+        [
+          '#!/usr/bin/env node',
+          'process.stdout.write([',
+          "  '[UNENFORCEABLE] uses: \\u2014 AGENTS.md:1',",
+          "  '[UNENFORCEABLE] ./ \\u2014 AGENTS.md:1',",
+          "  '[UNENFORCEABLE] docker:// \\u2014 AGENTS.md:1',",
+          "  '[UNENFORCEABLE] required:true \\u2014 AGENTS.md:1',",
+          "  '[UNENFORCEABLE] n/a \\u2014 AGENTS.md:1',",
+          "  '[UNENFORCEABLE] - INV-99: a real named policy sentence must not regress \\u2014 AGENTS.md:2',",
+          "  '',",
+          "].join('\\n'))",
+          '',
+        ].join('\n'),
+      )
+      const data = collectData(dir)
+      const KNOWN_GARBAGE = /^(uses:|\.\/|docker:\/\/|required:(true|false)|n\/a|glob)$/
+      expect(data.enforcementGaps.some((g) => KNOWN_GARBAGE.test(g.signal.trim()))).toBe(false)
+      expect(data.enforcementGaps.some((g) => g.signal.includes('INV-99'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+})
