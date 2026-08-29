@@ -53,6 +53,7 @@ function installCrossModelChecker(
   for (const rel of [
     'scripts/check-cross-model-review.mjs',
     'scripts/lib/agent-return-validate.mjs',
+    'scripts/lib/evidence-binding.mjs',
     'schemas/cross-model-dispatch.schema.json',
     'schemas/agent-return.schema.json',
   ]) {

@@ -293,6 +293,10 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // imports it to STAMP the marker, and the pre-push hook plus both Claude hooks
   // import it to VERIFY one. A project missing it fails closed everywhere.
   { rel: ['scripts', 'lib', 'gate-evidence.mjs'], tpl: 'scripts/lib/gate-evidence.mjs.ejs' },
+  // #2399: the review/dispatch evidence binding (ancestor + source-unchanged). Emitted
+  // unconditionally — the review gates and the Stop hook all import it, and a project
+  // missing it fails closed everywhere.
+  { rel: ['scripts', 'lib', 'evidence-binding.mjs'], tpl: 'scripts/lib/evidence-binding.mjs.ejs' },
   {
     rel: ['scripts', 'check-collab-mode-wired.mjs'],
     tpl: 'scripts/check-collab-mode-wired.mjs.ejs',

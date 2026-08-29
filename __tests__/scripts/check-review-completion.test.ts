@@ -340,7 +340,10 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/sidecar/i)
   })
 
-  it('rejects an explicit task that disagrees with the sidecar task', () => {
+  // #2399: the tracked sidecar is shared by every branch, so one recorded for another
+  // task is ABSENT for this one — required (exit 1) rather than a mismatch error, and the
+  // message names the other task so the failure does not read as a missing file.
+  it('treats a sidecar recorded for another task as absent', () => {
     writeSidecar({
       count: 1,
       agents: ['alpha'],
@@ -351,8 +354,9 @@ describe('check-review-completion.mjs', () => {
     writeEnvelope('alpha', envelope('alpha'))
 
     const result = runCheck(sidecar, evidenceDir, tmpDir)
-    expect(result.exitCode).toBe(2)
-    expect(output(result)).toMatch(/task/i)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toContain('#9999')
+    expect(output(result)).toMatch(/belongs to task/i)
   })
 
   it('rejects an explicit task when a legacy sidecar has no task id', () => {
@@ -362,6 +366,103 @@ describe('check-review-completion.mjs', () => {
     const result = runCheck(sidecar, evidenceDir, tmpDir, '#9999')
     expect(result.exitCode).toBe(2)
     expect(output(result)).toMatch(/task/i)
+  })
+
+  // #2399: the gate runs without --task in the L2 ring; a leftover sidecar from another
+  // branch's task must not fail it — it is absent, and the message says whose it is.
+  it('ignores a foreign sidecar for the task recorded in .claude/.task/status.json', () => {
+    mkdirSync(join(tmpDir, '.claude', '.task'), { recursive: true })
+    writeFileSync(
+      join(tmpDir, '.claude', '.task', 'status.json'),
+      JSON.stringify({ taskId: '#2399' }),
+    )
+    writeSidecar({
+      count: 1,
+      agents: ['alpha'],
+      taskId: '#9999',
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+    })
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir, null)
+    expect(result.exitCode).toBe(0)
+    expect(output(result)).toContain('#9999')
+  })
+
+  // #2399 — the CI shape: `.claude/.task/status.json` is local-only and the gate runs with
+  // no --task, so the branch is the only task identity. A sidecar left by another branch's
+  // task must not fail this branch's gate (the #2396 symptom).
+  it('ignores a sidecar recorded on another branch when no task id is available', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'review-completion-git-'))
+    try {
+      const git = (args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf-8' })
+      expect(git(['init', '-q', '-b', 'task/#2399-x']).status).toBe(0)
+      expect(git(['config', 'user.email', 'test-user']).status).toBe(0)
+      expect(git(['config', 'user.name', 'Test']).status).toBe(0)
+      writeFileSync(join(repo, 'tracked.txt'), 'before\n')
+      expect(git(['add', 'tracked.txt']).status).toBe(0)
+      expect(git(['commit', '-qm', 'before']).status).toBe(0)
+      mkdirSync(join(repo, '.arbiter', 'evidence', 'agent-returns'), { recursive: true })
+      writeFileSync(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({
+          taskId: '#2354',
+          count: 1,
+          agents: ['alpha'],
+          branch: 'task/#2354-y',
+          sha: git(['rev-parse', 'HEAD']).stdout.trim(),
+        }),
+      )
+
+      const result = runCheck(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        join(repo, '.arbiter', 'evidence', 'agent-returns'),
+        repo,
+        null,
+      )
+      expect(result.exitCode).toBe(0)
+      expect(output(result)).toContain('task/#2354-y')
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps an ancestor sidecar valid after an evidence-only commit', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'review-completion-git-'))
+    try {
+      const git = (args: string[]) => spawnSync('git', args, { cwd: repo, encoding: 'utf-8' })
+      expect(git(['init', '-q']).status).toBe(0)
+      expect(git(['config', 'user.email', 'test-user']).status).toBe(0)
+      expect(git(['config', 'user.name', 'Test']).status).toBe(0)
+      writeFileSync(join(repo, 'tracked.txt'), 'before\n')
+      expect(git(['add', 'tracked.txt']).status).toBe(0)
+      expect(git(['commit', '-qm', 'before']).status).toBe(0)
+      const base = git(['rev-parse', 'HEAD']).stdout.trim()
+      const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim()
+      const evidence = join(repo, '.arbiter', 'evidence', 'agent-returns', '_2177')
+      mkdirSync(evidence, { recursive: true })
+      writeFileSync(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({ taskId: TASK, count: 1, agents: ['alpha'], branch, sha: base }),
+      )
+      writeFileSync(
+        join(evidence, 'alpha.json'),
+        JSON.stringify(envelope('alpha', { branch, sha: base })),
+      )
+      // Committing the evidence moves HEAD without touching reviewed source.
+      expect(git(['add', '-f', '--', '.arbiter']).status).toBe(0)
+      expect(git(['commit', '-qm', 'record evidence']).status).toBe(0)
+
+      const result = runCheck(
+        join(repo, '.arbiter', 'agents-dispatched.json'),
+        join(repo, '.arbiter', 'evidence', 'agent-returns'),
+        repo,
+      )
+      expect(output(result)).toMatch(/reconciled/)
+      expect(result.exitCode).toBe(0)
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
   })
 
   it('binds the sidecar SHA to the current checkout when git metadata exists', () => {

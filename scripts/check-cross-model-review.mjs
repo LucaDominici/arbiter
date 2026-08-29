@@ -21,6 +21,7 @@ import { execFileSync } from 'node:child_process'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { enforceCitations, validateSchema } from './lib/agent-return-validate.mjs'
+import { evidenceStaleness } from './lib/evidence-binding.mjs'
 
 const args = process.argv.slice(2)
 const requireFulfilled = args.includes('--require-fulfilled')
@@ -326,11 +327,11 @@ if (artifact.branch !== currentBranch) {
     `dispatch branch ${JSON.stringify(artifact.branch)} does not match current branch ${JSON.stringify(currentBranch)}`,
   )
 }
-if (artifact.sha !== currentSha) {
-  fail(
-    `dispatch SHA ${JSON.stringify(artifact.sha)} does not match current HEAD ${JSON.stringify(currentSha)}`,
-  )
-}
+// #2399: bound to SOURCE CONTENT, not to an exact HEAD — an evidence-only commit
+// must not invalidate the evidence it just recorded. The dirty-checkout guard
+// below still covers uncommitted source changes.
+const dispatchStaleness = evidenceStaleness(root, artifact.sha, { branch: artifact.branch })
+if (dispatchStaleness !== null) fail(`dispatch evidence ${dispatchStaleness}`)
 
 const changedPaths = [
   gitValue(['diff', '--name-only'], 'working tree changes').split(/\r?\n/).filter(Boolean),
@@ -422,10 +423,11 @@ for (const [index, fulfilled] of artifact.fulfilled.entries()) {
       `fulfilled[${index}].envelope branch ${JSON.stringify(envelopeValue.branch)} does not match current branch ${JSON.stringify(currentBranch)}`,
     )
   }
-  if (envelopeValue.sha !== currentSha) {
-    fail(
-      `fulfilled[${index}].envelope SHA ${JSON.stringify(envelopeValue.sha)} does not match current HEAD ${JSON.stringify(currentSha)}`,
-    )
+  const envelopeStaleness = evidenceStaleness(root, envelopeValue.sha, {
+    branch: envelopeValue.branch,
+  })
+  if (envelopeStaleness !== null) {
+    fail(`fulfilled[${index}].envelope ${envelopeStaleness}`)
   }
   const provenance = isRecord(envelopeValue.provenance) ? envelopeValue.provenance : null
   if (

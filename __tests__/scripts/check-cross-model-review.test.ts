@@ -140,6 +140,16 @@ function dispatch(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function degradation() {
+  return {
+    provider: 'codex',
+    vertical: 'security',
+    substitute: 'anthropic',
+    reason: 'cli-not-found',
+    detail: 'Command not found: codex',
+  }
+}
+
 function run(env: Record<string, string> = {}, args: string[] = []) {
   return spawnSync(process.execPath, [SCRIPT, '--root', root, ...args], {
     cwd: REPO_ROOT,
@@ -515,30 +525,35 @@ describe('check-cross-model-review (#2358)', () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(/sha|ancestor|history/i)
   })
 
-  it('rejects dispatch evidence stamped to an ancestor of the current HEAD', () => {
+  it('rejects dispatch evidence once source changed after the dispatch commit', () => {
     json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
     const ancestor = git(['rev-parse', 'HEAD'])
-    execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'advance', '--no-gpg-sign'], {
+    writeFileSync(join(root, 'source.ts'), 'export const changed = true\n')
+    execFileSync('git', ['add', 'source.ts'], { cwd: root })
+    execFileSync('git', ['commit', '-q', '-m', 'source change', '--no-gpg-sign'], {
       cwd: root,
       stdio: 'ignore',
     })
-    writeArtifact(
-      dispatch({
-        sha: ancestor,
-        degraded: [
-          {
-            provider: 'codex',
-            vertical: 'security',
-            substitute: 'anthropic',
-            reason: 'cli-not-found',
-            detail: 'Command not found: codex',
-          },
-        ],
-      }),
-    )
+    writeArtifact(dispatch({ sha: ancestor, degraded: [degradation()] }))
     const result = run()
     expect(result.status).toBe(1)
-    expect(`${result.stdout}${result.stderr}`).toMatch(/current HEAD|match/i)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/source changed since/i)
+  })
+
+  // #2399: an evidence-only commit moves HEAD without touching reviewed source —
+  // the evidence it records must stay valid, or every refresh needs another commit.
+  it('accepts dispatch evidence after an evidence-only commit', () => {
+    json('arbiter.json', { crossModelReview: { enabled: true, onUnavailable: 'degrade' } })
+    const ancestor = git(['rev-parse', 'HEAD'])
+    writeArtifact(dispatch({ sha: ancestor, degraded: [degradation()] }))
+    execFileSync('git', ['add', '-f', '--', '.arbiter'], { cwd: root })
+    execFileSync('git', ['commit', '-q', '-m', 'record evidence', '--no-gpg-sign'], {
+      cwd: root,
+      stdio: 'ignore',
+    })
+    const result = run()
+    expect(`${result.stdout}${result.stderr}`).toMatch(/PASS/)
+    expect(result.status).toBe(0)
   })
 
   it('rejects dispatch evidence when tracked changes are staged after dispatch', () => {

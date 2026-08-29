@@ -21,6 +21,16 @@ try {
   gateEvidence = null;
 }
 
+// #2399 — the review-evidence binding (ancestor + source-unchanged). Loaded the same
+// lazy, fail-CLOSED way, and kept a SEPARATE binding so one missing module cannot null
+// both verifiers.
+let evidenceBinding = null;
+try {
+  evidenceBinding = await import('../../scripts/lib/evidence-binding.mjs');
+} catch {
+  evidenceBinding = null;
+}
+
 function main() {
   // --- stdin (Stop event payload) -------------------------------------------
   let input = {};
@@ -95,6 +105,9 @@ function main() {
   };
 
   // 1. plan-review — verdict PASS, on this branch, sha is an ancestor of HEAD.
+  // Deliberately ancestor-only: a plan is reviewed BEFORE the implementation commits, so
+  // source necessarily changes afterwards. The #2399 source-unchanged binding applies to
+  // evidence that describes reviewed CODE (the dispatch sidecar), never to the plan.
   const planPath = join(root, '.arbiter', 'evidence', 'plan-review', sanitizeTaskId(taskId), 'latest.json');
   const plan = readJson(planPath);
   if (plan === null) fail('plan-review evidence missing or unreadable (latest.json)');
@@ -102,11 +115,17 @@ function main() {
   if (plan.branch !== branch) fail(`plan-review evidence is for branch ${JSON.stringify(plan.branch)}, not ${branch}`);
   if (!isAncestor(plan.sha)) fail('plan-review evidence sha is not an ancestor of HEAD (stale)');
 
-  // 2. dispatch sidecar — review agents dispatched on this branch, ancestor of HEAD.
+  // 2. dispatch sidecar — review agents dispatched on this branch, and the source they
+  // reviewed is still the source at HEAD (#2399). The sidecar is a TRACKED, branch-shared
+  // file, so one recorded for a different task counts as ABSENT for this one.
+  if (evidenceBinding === null) fail('evidence binding verifier unavailable (scripts/lib/evidence-binding.mjs) — dispatch evidence cannot be bound to this tree');
   const dispatch = readJson(join(root, '.arbiter', 'agents-dispatched.json'));
   if (dispatch === null) fail('dispatch evidence missing (.arbiter/agents-dispatched.json)');
-  if (dispatch.branch !== branch) fail(`dispatch evidence is for branch ${JSON.stringify(dispatch.branch)}, not ${branch}`);
-  if (!isAncestor(dispatch.sha)) fail('dispatch evidence sha is not an ancestor of HEAD (stale)');
+  if (evidenceBinding.isForeignSidecar(dispatch, taskId)) fail(`dispatch evidence on disk was recorded for task ${JSON.stringify(dispatch.taskId ?? dispatch.task)}, not ${taskId} — dispatch this task's reviewers`);
+  const dispatchStaleness = evidenceBinding.evidenceStaleness(root, dispatch.sha, {
+    branch: dispatch.branch,
+  });
+  if (dispatchStaleness !== null) fail(`dispatch evidence ${dispatchStaleness}`);
 
   // 3. gate-pass — strict: THIS tree, in THIS checkout, under THIS toolchain, was
   // verified recently enough. The full identity binding replaces the old

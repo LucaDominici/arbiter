@@ -250,6 +250,37 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
     }
   })
 
+  // #2399 — the sidecar is tracked and shared by every branch.
+  it('exits 2 when the agents-dispatched sidecar was recorded for another task', () => {
+    const { dir, hookPath, branch, sha } = setup()
+    try {
+      writeCorrelatedEvidence(dir, branch, sha)
+      writeFileSync(
+        join(dir, '.arbiter', 'agents-dispatched.json'),
+        JSON.stringify({ count: 4, branch, sha, taskId: '#9999' }),
+      )
+      const r = runHook(hookPath, dir, { transcript_path: claimTranscript(dir) })
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/#9999/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  // #2399 — review evidence describes the source that was reviewed.
+  it('exits 2 when source changed after the dispatch commit', () => {
+    const { dir, hookPath, branch, sha } = setup()
+    try {
+      writeCorrelatedEvidence(dir, branch, sha)
+      commitMore(dir, 'src-change.ts')
+      const r = runHook(hookPath, dir, { transcript_path: claimTranscript(dir) })
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/source changed since/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('exits 2 when plan-review sha is not an ancestor of HEAD (divergent)', () => {
     const { dir, hookPath, branch, sha } = setup()
     try {

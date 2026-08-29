@@ -778,6 +778,8 @@ At **GO/handoff** (plan-review gate green):
   plan-review `latest.json` (written by the plan-review dispatch — not a CLI command since #1817),
   `.arbiter/agents-dispatched.json`
   (written in the refactor section above), `.arbiter/gate-pass.json` (written by the gate). The
-  `phase: complete` state releases the guard.
+  `phase: complete` state releases the guard. Review evidence binds to SOURCE CONTENT, not to an
+  exact HEAD: an evidence-only commit keeps it valid, a source change invalidates it, and a sidecar
+  whose `taskId` is another task counts as absent — record this task's own before claiming.
 - Never skip the gate, never commit to `main` outside the merge step, never leave the loop mid-phase
   without an `arbiter mark` cursor.

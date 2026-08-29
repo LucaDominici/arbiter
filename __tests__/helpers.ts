@@ -261,7 +261,7 @@ export function materializeGateEvidenceLib(dir: string): void {
   const libDir = join(dir, 'scripts', 'lib')
   mkdirSync(libDir, { recursive: true })
   const cfg = makeConfig(dir, { language: 'typescript' })
-  for (const name of ['gate-evidence.mjs', 'run-helpers.mjs']) {
+  for (const name of ['gate-evidence.mjs', 'run-helpers.mjs', 'evidence-binding.mjs']) {
     writeFileSync(join(libDir, name), renderTemplate(`scripts/lib/${name}.ejs`, cfg))
   }
 }
