@@ -8,10 +8,10 @@ canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
 related:
   [
-    'docs/ADR/050-pipeline-complexity-tiers.md',
-    'docs/ADR/051-collaboration-mode-workflow-axis.md',
-    'docs/ADR/053-ci-gap-closures-and-check-ladder.md',
-    'docs/ADR/101-runner-profile-cadence-axis.md',
+    'docs/internal/ADR/050-pipeline-complexity-tiers.md',
+    'docs/internal/ADR/051-collaboration-mode-workflow-axis.md',
+    'docs/internal/ADR/053-ci-gap-closures-and-check-ladder.md',
+    'docs/internal/ADR/101-runner-profile-cadence-axis.md',
   ]
 ---
 

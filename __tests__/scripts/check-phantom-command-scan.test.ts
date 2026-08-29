@@ -677,7 +677,9 @@ describe('check-phantom-command-scan.mjs — fenced blocks end-to-end (#2408)', 
         '```bash\n$ arbiter init --yes\n```\n\n```js\narbiter frobnicate\n```\n',
       )
       expect(r.status).toBe(0)
-      expect(r.stdout).not.toContain('phantom')
+      // `phantom:` / `phantom (` are the violation-line markers; the gate's own
+      // name also contains the word, so match the marker, not the bare word.
+      expect(r.stdout).not.toMatch(/phantom[:(]/)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

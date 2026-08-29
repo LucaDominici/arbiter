@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join, dirname, resolve, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { loadDocGateAllowlist, allowlistSummary } from './lib/doc-gate-allowlist.mjs'
 
 const CWD = process.cwd()
 const CANONICAL_PATHS_FILE = join(CWD, 'docs', 'internal', 'METHOD', 'CANONICAL_PATHS.md')
@@ -43,7 +44,9 @@ export const SKIP_PATH_SEGMENTS = [
   `${sep}.coverage-tmp${sep}`,
   `${sep}.evidence${sep}`,
   `${sep}report${sep}`,
-  `${sep}internal${sep}`,
+  // #2408: `internal` used to sit here, so no gate ever resolved a link under
+  // docs/internal/** — the SSOT backbone. What cannot be fixed as a one-liner
+  // now lives, dated, in scripts/data/doc-gate-allowlist.json instead.
 ]
 
 const ignored = new Set()
@@ -216,6 +219,73 @@ function checkGithubSelfLinks(files, aliases) {
   return broken
 }
 
+// #2408: frontmatter `related:` entries are links too — they are how docs/INDEX.md
+// and the wiki cross-reference the corpus — but no gate ever resolved one, which is
+// how 16 entries survived the docs/ -> docs/internal/ move still pointing at
+// `docs/ADR/**` and `docs/SYSTEM/**`.
+//
+// Only PATH-SHAPED entries are validated. The corpus also uses bare slugs as
+// related keys — ADR numbers (`053`), ADR titles (`088-ship-as-orchestration-
+// entrypoint`) and skill names (`tdd`, `gold-audit`) — which name a document
+// without asserting where it lives; resolving those would be guesswork, and
+// guesswork in a gate is noise. A path-shaped entry has a `/` and a file
+// extension.
+const RELATED_PATH_SHAPE = /\//
+const RELATED_HAS_EXTENSION = /\.[A-Za-z0-9]+$/
+
+/**
+ * Extract the quoted entries of the frontmatter `related:` key, if any.
+ * The block runs from `related:` to the next top-level frontmatter key.
+ */
+export function extractRelatedEntries(content) {
+  if (!content.startsWith('---')) return []
+  const end = content.indexOf('\n---', 3)
+  if (end < 0) return []
+  const frontmatter = content.slice(0, end)
+  const start = frontmatter.search(/^related:/m)
+  if (start < 0) return []
+  const rest = frontmatter.slice(start + 'related:'.length)
+  const nextKey = rest.search(/^[A-Za-z_][A-Za-z0-9_]*:/m)
+  const block = nextKey < 0 ? rest : rest.slice(0, nextKey)
+  return [...block.matchAll(/'([^']+)'|"([^"]+)"/g)].map((m) => m[1] ?? m[2])
+}
+
+/**
+ * Candidate filesystem locations for a `related:` entry. The corpus writes them
+ * in four shapes — repo-root (`docs/internal/ADR/050-x.md`), relative to the
+ * citing doc (`TARGET.md`), relative to `docs/` (`PRODUCT/PRD.md`) and relative
+ * to `docs/internal/` (`METHOD/PROCESS.md`) — and all four are legitimate; the
+ * entry resolves if ANY of them exists.
+ */
+export function relatedCandidates(fileDir, entry) {
+  return [
+    join(CWD, entry),
+    resolve(fileDir, entry),
+    join(CWD, 'docs', entry),
+    join(CWD, 'docs', 'internal', entry),
+  ]
+}
+
+function checkRelatedPaths(file, content, aliases) {
+  let broken = 0
+  const fileDir = dirname(file)
+  for (const entry of extractRelatedEntries(content)) {
+    if (!RELATED_PATH_SHAPE.test(entry) || !RELATED_HAS_EXTENSION.test(entry)) continue
+    if (ignored.has(entry)) continue
+    if (relatedCandidates(fileDir, entry).some((c) => existsSync(c))) continue
+
+    const redirectTarget = aliases.get(entry)
+    if (redirectTarget && existsSync(join(CWD, redirectTarget))) continue
+
+    process.stdout.write(
+      `  broken: ${relative(CWD, file)}: frontmatter related: → ${entry}
+`,
+    )
+    broken++
+  }
+  return broken
+}
+
 // Emit the deterministic report (consumed by gold-audit GA-DOC-08) in both branches.
 function writeDocLinksReport(brokenCount, filesScanned) {
   const out = join(CWD, '.arbiter', 'reports', 'doc-links.json')
@@ -224,6 +294,9 @@ function writeDocLinksReport(brokenCount, filesScanned) {
 }
 
 function main() {
+  const allow = loadDocGateAllowlist('doc-links')
+  process.stdout.write(allowlistSummary('check-doc-links', allow))
+
   const aliases = loadAliases()
   const markdownFiles = collectScanFiles()
 
@@ -235,7 +308,9 @@ function main() {
   let broken = 0
 
   for (const file of markdownFiles) {
+    if (allow.has(relative(CWD, file))) continue
     const raw = readFileSync(file, 'utf-8')
+    broken += checkRelatedPaths(file, raw, aliases)
     const content = stripCodeSpansAndBlocks(raw)
     const fileDir = dirname(file)
     for (const linkMatch of content.matchAll(LINK_PATTERN)) {
@@ -268,9 +343,10 @@ function main() {
   // Self-referential GitHub blob/tree URLs: scanned across every collected
   // markdown file plus the VitePress config (its nav/sidebar links are TS
   // string literals, never markdown, so collectScanFiles() never sees it).
+  const scannedMarkdown = markdownFiles.filter((f) => !allow.has(relative(CWD, f)))
   const githubSelfLinkFiles = existsSync(VITEPRESS_CONFIG)
-    ? [...markdownFiles, VITEPRESS_CONFIG]
-    : markdownFiles
+    ? [...scannedMarkdown, VITEPRESS_CONFIG]
+    : scannedMarkdown
   broken += checkGithubSelfLinks(githubSelfLinkFiles, aliases)
 
   writeDocLinksReport(broken, markdownFiles.length)

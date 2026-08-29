@@ -209,7 +209,7 @@ Phases 3 and 4 are complete and shipped:
 - **Phase 3** — `arbiter update` and `arbiter diff` commands with `arbiter.json` config persistence
 - **Phase 4** — Additional tool targets (Cursor `<project>/.cursorrules`, Copilot `<project>/.github/copilot-instructions.md`)
 
-See the [CLI Reference](../../website/reference/cli.md) for command documentation.
+See the [CLI Reference](../../../website/reference/cli.md) for command documentation.
 
 ### Additional Tool Targets
 

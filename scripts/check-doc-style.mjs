@@ -18,6 +18,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, sep, relative } from 'node:path'
 import { walkRepo } from './lib/glob-walk.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
+import { loadDocGateAllowlist, allowlistSummary } from './lib/doc-gate-allowlist.mjs'
 
 const CWD = process.cwd()
 
@@ -40,7 +41,11 @@ export const SKIP_PATH_SEGMENTS = [
   `${sep}.coverage-tmp${sep}`,
   `${sep}.evidence${sep}`,
   `${sep}report${sep}`,
-  `${sep}internal${sep}`,
+  // #2408: `internal` used to sit here, which exempted the entire SSOT backbone
+  // (FEATURE_MATRIX, PROCESS, TESTING, CANONICAL_PATHS, every ADR) from the one
+  // gate that checks frontmatter — a doc tree the gates skip is a doc tree that
+  // drifts. What cannot be fixed as a one-liner now lives, dated, in
+  // scripts/data/doc-gate-allowlist.json instead.
   `${sep}.claude${sep}plans${sep}`,
   `${sep}.claude${sep}.task${sep}`,
   // #1840 F4 (examples/ viventi): `examples/<name>/` directories are `arbiter
@@ -137,12 +142,16 @@ function findH1s(content, bodyStart) {
 }
 
 function main() {
+  const allow = loadDocGateAllowlist('doc-style')
+  process.stdout.write(allowlistSummary('check-doc-style', allow))
+
   const files = collectFiles()
   const errors = []
   const warnings = []
 
   for (const file of files) {
     const rel = relative(CWD, file)
+    if (allow.has(rel)) continue
     const content = readFileSync(file, 'utf-8')
     const fm = parseFrontmatter(content)
     if (!fm.present) {

@@ -6,7 +6,7 @@ last_review: '2026-05-23'
 owner: ''
 canonical_id: '050'
 tags: ['audience/dev', 'kind/adr']
-related: ['docs/SYSTEM/CI-TIER-MODEL.md']
+related: ['docs/internal/SYSTEM/CI-TIER-MODEL.md']
 ---
 
 # ADR-050: Pipeline Complexity Tiers — Archetype-Default + Governance Floor

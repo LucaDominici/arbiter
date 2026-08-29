@@ -1,3 +1,14 @@
+---
+title: 'Evidence Retention Policy — arbiter'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-08-29'
+owner: ''
+canonical_id: ''
+tags: ['audience/dev', 'kind/method']
+related: ['METHOD/PROCESS.md', 'METHOD/TESTING.md', 'SYSTEM/CANON.md']
+---
+
 # Evidence Retention Policy — arbiter
 
 This document defines how task-completion evidence is captured and validated for
