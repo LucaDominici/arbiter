@@ -483,19 +483,12 @@ function prGateRefusal(detail: string): UserFacingError {
  * task through (an unverifiable landing is not a landing), and a repo that never declared the
  * GitHub axis is still verified. Only an explicit `useGitHub: false` or an explicit `--no-pr`
  * skips — and `--no-pr` is written to the digest log, so a completion without a merged PR stays
- * attributable.
+ * attributable. Split across prGateSkipped / prGateBranch / prGateSnapshots below to stay inside
+ * the complexity-10 ratchet; `checkPrMergedGate` is the entry point.
  */
-function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions): void {
-  if (opts.noPr === true) {
-    appendLog(dir, 'complete ← no-pr (direct landing)')
-    return
-  }
-  if (!permitsGitHubCalls(dir)) {
-    // Skipped, never silent: a repo that has not set `permitGitHub: true` must not be shelled out
-    // to, but a completion that skipped the landing check still has to be attributable.
-    appendLog(dir, 'complete ← pr-check skipped (permitGitHub not set)')
-    return
-  }
+
+/** The branch to verify. Refuses when neither live git nor the task document names one. */
+function prGateBranch(dir: string): string {
   // Live git first, then the branch `task init` stamped on the document — a detached HEAD or an
   // unavailable git must not become a silent skip when the task already recorded its branch.
   const branch = detectCurrentBranch(dir) ?? readUnifiedState(dir)?.branch
@@ -505,16 +498,47 @@ function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions): void {
         'Pass --no-pr if this repo lands by direct push.',
     )
   }
-  let prs: PrSnapshot[]
+  return branch
+}
+
+/** The branch's PRs. An unreadable `gh` REFUSES here — an unverifiable landing is not a landing. */
+function prGateSnapshots(
+  dir: string,
+  branch: string,
+  opts: TaskAdvanceOptions,
+): readonly PrSnapshot[] {
   try {
-    prs = (opts.readPrs ?? readBranchPrs)(branch, dir)
+    return (opts.readPrs ?? readBranchPrs)(branch, dir)
   } catch (err) {
     throw prGateRefusal(
       `\`gh pr list --head ${branch}\` failed (${err instanceof Error ? err.message : String(err)}). ` +
         'An unverifiable landing is not a landing: fix `gh`, or pass --no-pr if this repo lands by direct push.',
     )
   }
-  const verdict = evaluateMerged(prs, branch, opts.pr)
+}
+
+/**
+ * The two explicit skips, each written to the digest log so a completion that did NOT verify a
+ * merged PR stays attributable. Returns true when the gate is satisfied without a PR check.
+ */
+function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
+  if (opts.noPr === true) {
+    appendLog(dir, 'complete ← no-pr (direct landing)')
+    return true
+  }
+  if (!permitsGitHubCalls(dir)) {
+    // Skipped, never silent: a repo that has not set `permitGitHub: true` must not be shelled out
+    // to, but a completion that skipped the landing check still has to be attributable.
+    appendLog(dir, 'complete ← pr-check skipped (permitGitHub not set)')
+    return true
+  }
+  return false
+}
+
+function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions): void {
+  if (prGateSkipped(dir, opts)) return
+  const branch = prGateBranch(dir)
+  const verdict = evaluateMerged(prGateSnapshots(dir, branch, opts), branch, opts.pr)
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
   appendLog(dir, `complete ← PR #${verdict.number} MERGED`)
 }

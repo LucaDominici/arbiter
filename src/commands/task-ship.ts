@@ -855,7 +855,7 @@ function applyPreparedChainAdd(
 }
 
 /** #2400 — a review round that passed the cap check and is waiting to be persisted. */
-export interface ReviewRoundPlan {
+interface ReviewRoundPlan {
   /** The round number this dispatch is, 1-based. */
   rounds: number
   maxRounds: number

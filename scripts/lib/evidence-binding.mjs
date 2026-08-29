@@ -46,8 +46,8 @@ function git(root, args) {
 /**
  * Why `sha` no longer describes the current checkout, or `null` when it still does.
  *
- * FAIL-OPEN-INTENT: every unresolvable fact returns a REASON (a rejection), never
- * `null` — an unreadable git is refused, not waved through.
+ * FAIL-CLOSED: every unresolvable fact returns a REASON (a rejection), never `null` —
+ * an unreadable git is refused, not waved through.
  *
  * @param {string} root repository root
  * @param {unknown} sha commit the evidence was recorded at
@@ -62,19 +62,43 @@ export function evidenceStaleness(root, sha, opts = {}) {
     return `sha ${short(sha)} does not resolve in this repository`
   }
 
-  if (branch !== undefined) {
-    const current = git(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
-    if (current.status !== 0) return 'cannot read the current branch'
-    const currentBranch = String(current.stdout).trim()
-    if (currentBranch !== branch) {
-      return `branch mismatch: evidence is for ${branch}, checkout is on ${currentBranch}`
-    }
-  }
+  const mismatch = branchMismatch(root, branch)
+  if (mismatch !== null) return mismatch
 
   if (git(root, ['merge-base', '--is-ancestor', sha, 'HEAD']).status !== 0) {
     return `sha ${short(sha)} is not an ancestor of HEAD`
   }
 
+  return sourceChange(root, sha, excludes)
+}
+
+/**
+ * Why the checkout is not on the branch the evidence names, or null when it is (or when the
+ * evidence names none). An unreadable branch is a REASON, never a pass.
+ *
+ * @param {string} root repository root
+ * @param {string | undefined} branch branch the evidence was recorded on
+ * @returns {string | null}
+ */
+function branchMismatch(root, branch) {
+  if (branch === undefined) return null
+  const current = git(root, ['rev-parse', '--abbrev-ref', 'HEAD'])
+  if (current.status !== 0) return 'cannot read the current branch'
+  const currentBranch = String(current.stdout).trim()
+  if (currentBranch === branch) return null
+  return `branch mismatch: evidence is for ${branch}, checkout is on ${currentBranch}`
+}
+
+/**
+ * Why the committed tree outside `excludes` differs between `sha` and HEAD, or null when it
+ * does not. An unreadable diff is a REASON, never a pass.
+ *
+ * @param {string} root repository root
+ * @param {string} sha commit the evidence was recorded at
+ * @param {readonly string[]} excludes paths that hold evidence itself
+ * @returns {string | null}
+ */
+function sourceChange(root, sha, excludes) {
   // `git diff --quiet` is a trichotomy: 0 unchanged, 1 changed, >=2 error.
   const diff = git(root, [
     'diff',
