@@ -54,6 +54,7 @@ function activeTaskId() {
   try {
     const parsed = JSON.parse(readFileSync(join(REPO_ROOT, '.claude', '.task', 'status.json'), 'utf-8'))
     return typeof parsed?.taskId === 'string' ? parsed.taskId : undefined
+    // FAIL-OPEN-INTENT: an unreadable task document means "unknown task" - the STRICT side, since nothing can then be proven foreign and every R1 cross-check below still runs.
   } catch {
     return undefined
   }

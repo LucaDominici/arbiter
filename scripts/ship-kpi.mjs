@@ -163,6 +163,7 @@ export function countHookBlocks(dir, sinceMs, untilMs) {
     let mtimeMs
     try {
       mtimeMs = statSync(full).mtimeMs
+      // FAIL-OPEN-INTENT: an unstattable session log is skipped, not counted - this is a reporting metric over a best-effort log dir, never a gate verdict.
     } catch {
       continue
     }
@@ -170,6 +171,7 @@ export function countHookBlocks(dir, sinceMs, untilMs) {
     let content
     try {
       content = readFileSync(full, 'utf-8')
+      // FAIL-OPEN-INTENT: an unreadable session log is skipped, not counted - see above.
     } catch {
       continue
     }
@@ -283,6 +285,7 @@ function touchedOnlyEvidencePaths(sha) {
       encoding: 'utf-8',
       maxBuffer: 10 * 1024 * 1024,
     })
+    // FAIL-OPEN-INTENT: `undefined` is this function's documented "sha is not local" answer - the caller then falls back to the commit message, which is the point of the contract.
   } catch {
     return undefined
   }
@@ -514,8 +517,10 @@ function runSelfTest() {
 }
 
 if (isMainModule(import.meta.url)) {
-  main().catch((e) => {
-    process.stderr.write(`ship-kpi: unexpected error: ${e.stack ?? e}\n`)
+  try {
+    await main()
+  } catch (err) {
+    process.stderr.write(`ship-kpi: unexpected error: ${err?.stack ?? err}\n`)
     process.exit(2)
-  })
+  }
 }

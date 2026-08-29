@@ -75,6 +75,7 @@ function activeTaskId() {
       readFileSync(join(repoRoot, '.claude', '.task', 'status.json'), 'utf-8'),
     )
     return isRecord(parsed) && typeof parsed['taskId'] === 'string' ? parsed['taskId'] : undefined
+    // FAIL-OPEN-INTENT: an unreadable status file only widens what counts as the active task; it never turns a stale or mismatched sidecar into a pass - every binding check still runs.
   } catch {
     return undefined
   }

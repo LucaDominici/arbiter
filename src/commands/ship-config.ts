@@ -25,6 +25,7 @@ import type { ShipConfig } from '../config/schema.js'
 export function shipConfigFor(root: string): ShipConfig | undefined {
   try {
     return loadConfig(root)?.ship
+    // FAIL-OPEN-INTENT: "declares nothing" leaves every built-in bound in force - the STRICT side, since a config typo then widens no limit and grants no permission.
   } catch {
     return undefined
   }
@@ -42,6 +43,7 @@ export function shipConfigFor(root: string): ShipConfig | undefined {
 export function permitsGitHubCalls(root: string): boolean {
   try {
     return loadConfig(root)?.permitGitHub === true
+    // FAIL-OPEN-INTENT: an unreadable config has not granted permission, so this denies - the swallow IS the fail-closed answer, and surfacing it would only add noise to a denial.
   } catch {
     return false
   }
