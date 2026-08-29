@@ -56,6 +56,57 @@ arbiter mark --tdd GREEN --last "<done>" --next "<exact next action>" --digest "
 
 ---
 
+## Train
+
+A **train** is one worktree, one branch, one plan, one gate and one PR carrying N issues. It is
+the **DEFAULT unit of ceremony** for every issue that does not widen the tier to Standard (the
+XS/S band, size ≤ M). Ten three-line fixes pass ONE ceremony, not ten.
+
+```bash
+arbiter ship #A #B #C          # declare a train — sugar for `#A --chain #B --chain #C`
+arbiter ship --chain-add #D    # grow it, or be refused and told to land it first
+arbiter ship --seal            # close it now; the next issue starts a new train
+```
+
+| Runs ONCE per train                 | Runs per issue                          |
+| ----------------------------------- | --------------------------------------- |
+| plan (one cumulative plan)          | its `AC-<issue>.<n>` anchor lines       |
+| plan-review                         | its TDD evidence file                   |
+| red-team                            | its `Closes #N` line in the PR body     |
+| code review + adversarial verify    |                                         |
+| review rounds (`ship.review.maxRounds`) |                                     |
+| cross-model review seat             |                                         |
+| full gate                           |                                         |
+| PR (`Closes #A`, `Closes #B`, …)    |                                         |
+
+**One plan, one anchor.** The train's plan carries a SINGLE `## Acceptance Criteria` section
+listing every member's criteria, namespaced per issue as `AC-<issue>.<n>` (`AC-2401.1`,
+`AC-2402.1`, …). The anchor parser accepts that dotted numeric form, and `check-acceptance`
+rejects duplicate ids — which is exactly what an un-namespaced multi-issue plan produces. Every
+other mandatory section (see §Plan contents) is written once, for the train.
+
+**Tier = widest member.** Compute each member's tier as usual and take the widest; the
+widen-only rule above applies unchanged (signals may widen, never narrow). An issue that widens
+the train to Standard does not join it — a risk-bearing issue rides its own train.
+
+**Stop rules** — the train seals, and the next issue starts a new one, on any of: an explicit
+`--seal`, a member that widens the tier to Standard, `maxChain` ids already on the branch, or
+`maxAgeMinutes` elapsed since the train opened. Both bounds come from `ship.train` in
+`arbiter.json` (defaults: 10 issues, 480 minutes); `ship.review.maxRounds` bounds review rework
+the same way (default 2). A refused `--chain-add` is the policy working — land the train.
+
+**Gate cadence.** Targeted tests during `green` / `refactor`, `node scripts/check-all.mjs L1`
+once at the landing commit, `L2` once at push — see §Gate economy, which governs a train exactly
+as it governs a single issue. Gates are per LANDING, ceremony is per TRAIN; neither is per issue.
+
+**Running the full per-issue ceremony over a batch of small issues is a playbook violation, not
+extra safety.** It buys no additional signal — the same plan reviewer, the same red-team, the
+same reviewer panel read the same kind of diff N times — and it spends the budget on the part of
+the work that was already cheap instead of on the residual 10% (merge, red gate, conflict) that
+is not.
+
+---
+
 ## Local-only state
 
 Before writing task state, ensure runtime files never get committed:
@@ -138,7 +189,7 @@ constraint → rewrite → repeat).
 - **Threat model & abuse cases** — who can abuse this and how. `n/a — no security surface` is accepted only with a one-line justification; a bare `n/a` is a plan-review FAIL.
 - **Input validation** — what is validated, where the trust boundary is, what happens on invalid input.
 - **Idiomatic patterns & pitfalls** — the recommended stdlib/framework APIs for this change and the known traps to avoid.
-- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4`; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
+- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4` — or the dotted per-issue `AC-<issue>.<n>` form a train plan uses, see §Train; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
 - **Test strategy** — which TDD units prove which AC, and at which level (unit/integration/gate).
 - **Risks** — what can go wrong, with the mitigation or the accepted residual.
 
@@ -222,6 +273,18 @@ commit (L1) and before push (L2).
 
 ## Refactor / code-review evidence
 
+**Review rounds are bounded.** Entering `refactor` opens round 1; each review dispatched after a
+FIX is `arbiter ship --review-round`, which counts. A completion-gate retry does not: re-dispatching
+a reviewer that returned no envelope re-reads the same diff, so it is the same round. Round N ≥ 2
+reviews the DELTA only — `git diff <lastReviewedSha>..HEAD`, printed as the step's `Review scope:`
+line — never the whole change again: re-reading a growing diff always finds something new, which is
+how a review loop burns a day without converging. Reviewer findings **below HIGH do not block
+landing** — park them (`arbiter note` each, then ONE follow-up issue) and land; that threshold is
+about REVIEWER findings, while the ac-fit verdicts below are a separate hard gate still requiring
+all-PASS. The cap is `ship.review.maxRounds` in `arbiter.json` (default 2): the round past it is
+refused naming both exits, and `arbiter ship --review-round --force-review` takes it deliberately
+and records `forced`. Rounds are counted per train, like every other ceremony.
+
 
 
 ---
@@ -269,12 +332,38 @@ Mark the work item done manually (no CLI command for the `markdown` backend — 
 removed in #1817; track closure in your issue tracker of choice).
 
 
-Advance to the terminal phase and close the worktree:
+Advance to the terminal phase and close the worktree. `--to complete` now VERIFIES the landing:
+it reads the branch's PR (`gh pr list --head <branch> --state all`) and refuses unless it is
+MERGED, naming the PR, its state and every check whose conclusion is FAILURE / TIMED_OUT /
+CANCELLED. A repo that lands by direct push passes `--no-pr` (logged as
+`complete ← no-pr (direct landing)`); `--pr <n>` names the PR when the branch carries more than
+one. An unreadable `gh` refuses too — an unverifiable landing is not a landing.
 
 ```bash
 arbiter task advance --to complete
 arbiter wt close NNN
 ```
+
+### Handover
+
+A session may end in exactly two states: the PR is **merged**, or the PR is labeled
+`needs-human` and the handover names the failing check. There is no third state — an open PR
+with red CI that nobody owns is the failure this rule exists to prevent.
+
+The handover file is `.arbiter/HANDOVER-<date>-<slug>.md` and its FIRST section is the open-PR
+table, so whoever picks it up sees the debt before the narrative:
+
+```markdown
+## Open PRs
+
+| PR   | Branch                  | CI state         | Blocker                          |
+| ---- | ----------------------- | ---------------- | -------------------------------- |
+| #123 | task/#120-thing         | red (Docs Build) | needs-human: link check 404s     |
+| #124 | task/#121-other         | green, unmerged  | awaiting required review         |
+```
+
+Every red row carries the check name and the `gh run view --job <id> --log` the watcher printed.
+A row with no blocker text is an unfinished handover, not a finished one.
 
 ---
 
@@ -315,5 +404,7 @@ At **GO/handoff** (plan-review gate green):
   `phase: complete` state releases the guard. Review evidence binds to SOURCE CONTENT, not to an
   exact HEAD: an evidence-only commit keeps it valid, a source change invalidates it, and a sidecar
   whose `taskId` is another task counts as absent — record this task's own before claiming.
+- An open PR with red CI is never abandoned — watch, fix, re-watch. Ending a session on one is
+  allowed only with the PR labeled `needs-human` and the failing check named in the handover.
 - Never skip the gate, never commit to `main` outside the merge step, never leave the loop mid-phase
   without an `arbiter mark` cursor.

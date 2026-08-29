@@ -487,6 +487,15 @@ node scripts/check-all.mjs L1   # before commit
 node scripts/check-all.mjs L2   # before push
 ```
 
+**Ceremony is per train, gates are per landing.** The unit both are priced against is the train
+(one worktree, branch, plan, gate and PR carrying N small issues), not the individual issue.
+Plan, plan-review, red-team, code review, the cross-model seat and the PR run once for
+the train; L1 runs once at the landing commit and L2 once at the push, whatever the train
+carries. `ship.train` in `arbiter.json` (`maxChain`, `maxAgeMinutes`) bounds how far a train
+may grow before it must be landed. Re-running the whole ceremony per issue over a batch of
+small issues is a violation of the playbook (`.claude/commands/ship.md` §Train), not extra
+safety.
+
 ---
 
 ## Enforcement Chain

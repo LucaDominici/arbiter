@@ -44,6 +44,15 @@
   "automation": {
     "autonomy": "L3"
   },
+  "ship": {
+    "train": {
+      "maxChain": 10,
+      "maxAgeMinutes": 480
+    },
+    "review": {
+      "maxRounds": 2
+    }
+  },
   "governance": {
     "ssotGuardPatterns": [
       "docs/internal/METHOD/",
