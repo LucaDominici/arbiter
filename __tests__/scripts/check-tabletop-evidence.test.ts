@@ -235,7 +235,7 @@ describe('check-tabletop-evidence (#2429)', () => {
 
   it('reports only the schema error when `findings` is a scalar, not three count mismatches', () => {
     const body = evidence([OWNED_MAJOR, MINOR]).replace(
-      /^findings:\n  blocker: 0\n  major: 1\n  minor: 1$/m,
+      ['findings:', '  blocker: 0', '  major: 1', '  minor: 1'].join('\n'),
       'findings: 2',
     )
     const { dir, cleanup } = stage({ 'greenfield-init-ts-2026-08-29.md': body })
