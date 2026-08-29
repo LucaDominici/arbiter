@@ -6,7 +6,7 @@ last_review: '2026-07-27'
 owner: ''
 canonical_id: '052'
 tags: ['audience/dev', 'kind/adr']
-related: ['docs/ADR/051-merge-train-collaboration-mode.md']
+related: ['docs/internal/ADR/051-collaboration-mode-workflow-axis.md']
 enforces: ['INV-101']
 ---
 

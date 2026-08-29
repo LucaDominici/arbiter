@@ -209,7 +209,7 @@
 | [Canonical Paths — arbiter](internal/METHOD/CANONICAL_PATHS.md) | — | active | kind/ssot |
 | [Codex Parity Runbook — arbiter](internal/METHOD/CODEX_PARITY_RUNBOOK.md) | — | active | kind/runbook |
 | [Engineering Defaults — arbiter](internal/METHOD/ENGINEERING_DEFAULTS.md) | — | active | kind/method |
-| [Evidence Retention Policy — arbiter](internal/METHOD/EVIDENCE_RETENTION.md) | — | — | — |
+| [Evidence Retention Policy — arbiter](internal/METHOD/EVIDENCE_RETENTION.md) | — | active | kind/method |
 | [arbiter Patterns Catalog](internal/METHOD/PATTERNS_CATALOG.md) | PATTERNS_CATALOG | active | kind/method |
 | [Process — arbiter](internal/METHOD/PROCESS.md) | PROCESS | active | kind/method |
 | [arbiter Reuse Registry](internal/METHOD/REUSE_REGISTRY.md) | REUSE_REGISTRY | active | kind/method |

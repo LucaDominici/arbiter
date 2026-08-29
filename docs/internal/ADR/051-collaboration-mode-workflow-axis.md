@@ -6,7 +6,7 @@ last_review: '2026-05-28'
 owner: ''
 canonical_id: '051'
 tags: ['audience/dev', 'kind/adr']
-related: ['docs/SYSTEM/WORKFLOW-MODEL.md', 'docs/ADR/050-pipeline-complexity-tiers.md']
+related: ['docs/SYSTEM/WORKFLOW-MODEL.md', 'docs/internal/ADR/050-pipeline-complexity-tiers.md']
 ---
 
 # ADR-051: Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy

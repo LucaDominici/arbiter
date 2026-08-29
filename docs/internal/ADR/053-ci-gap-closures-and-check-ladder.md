@@ -7,7 +7,10 @@ owner: ''
 canonical_id: '053'
 tags: ['audience/dev', 'kind/adr']
 related:
-  ['docs/ADR/050-pipeline-complexity-tiers.md', 'docs/ADR/051-collaboration-mode-workflow-axis.md']
+  [
+    'docs/internal/ADR/050-pipeline-complexity-tiers.md',
+    'docs/internal/ADR/051-collaboration-mode-workflow-axis.md',
+  ]
 ---
 
 # ADR-053 — CI Gap Closures, Per-Tier Nightly, Opt-In Selective Gates, and Local Provenance Log

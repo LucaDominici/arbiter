@@ -8,9 +8,9 @@ canonical_id: '101'
 tags: ['audience/dev', 'kind/adr']
 related:
   [
-    'docs/SYSTEM/CI-TIER-MODEL.md',
-    'docs/ADR/050-pipeline-complexity-tiers.md',
-    'docs/ADR/051-collaboration-mode-workflow-axis.md',
+    'docs/internal/SYSTEM/CI-TIER-MODEL.md',
+    'docs/internal/ADR/050-pipeline-complexity-tiers.md',
+    'docs/internal/ADR/051-collaboration-mode-workflow-axis.md',
   ]
 ---
 

@@ -6,7 +6,7 @@ last_review: '2026-06-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
-related: ['src/generators/resilience.ts', 'docs/PRODUCT/FEATURE_MATRIX.md']
+related: ['src/generators/resilience.ts', 'docs/internal/PRODUCT/FEATURE_MATRIX.md']
 ---
 
 # Resilience Patterns Generator

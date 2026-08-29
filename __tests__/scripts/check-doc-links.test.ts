@@ -314,3 +314,130 @@ describe('check-doc-links — self-referential GitHub blob/tree links', () => {
     }
   })
 })
+
+// ─── #2408: docs/internal/** coverage + frontmatter `related:` validation ─────
+// `internal` sat in SKIP_PATH_SEGMENTS, so nothing verified links under the SSOT
+// backbone; and no gate ever looked at frontmatter `related:` paths, which is
+// where the M-A audit found dead `docs/ADR/**` entries left over from the
+// docs/internal/ split.
+
+function runWithArgs(dir: string, args: string[]): { status: number; stdout: string } {
+  const result = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf-8', cwd: dir })
+  return { status: result.status ?? 1, stdout: result.stdout ?? '' }
+}
+
+function fm(related: string): string {
+  return `---\ntitle: 'X'\ndoc_version: '1.0.0'\nstatus: active\nlast_review: '2026-08-29'\nowner: ''\ncanonical_id: ''\ntags: []\nrelated: ${related}\n---\n\n# X\n`
+}
+
+describe('check-doc-links — docs/internal/** coverage (#2408)', () => {
+  it('exits 1 for a broken link under docs/internal/ (internal no longer skipped)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      mkdirSync(join(dir, 'docs', 'internal', 'METHOD'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'internal', 'METHOD', 'SOURCE.md'),
+        'See [missing](MISSING.md) for details.\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('MISSING.md')
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+describe('check-doc-links — frontmatter related: validation (#2408)', () => {
+  it('exits 1 when a related: entry names a path that does not exist', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      mkdirSync(join(dir, 'docs', 'internal', 'ADR'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'internal', 'ADR', '050-x.md'), fm("['docs/SYSTEM/GONE.md']"))
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('docs/SYSTEM/GONE.md')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('accepts repo-root, doc-relative and docs/-relative related: shapes', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'internal', 'PRODUCT', 'TARGET.md'), '# T\n')
+      writeFileSync(join(dir, 'docs', 'PUBLIC.md'), '# P\n')
+      writeFileSync(
+        join(dir, 'docs', 'internal', 'PRODUCT', 'SOURCE.md'),
+        fm("['docs/internal/PRODUCT/TARGET.md', 'TARGET.md', 'PUBLIC.md', 'PRODUCT/TARGET.md']"),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('ignores non-path related: entries (bare ADR slugs, skill names)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeFileSync(join(dir, 'docs', 'SOURCE.md'), fm("['088-ship-as-entrypoint', 'tdd', '053']"))
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+describe('check-doc-links — dated allowlist (#2408)', () => {
+  function writeAllowlist(dir: string, entries: unknown[]): string {
+    const path = join(dir, 'allowlist.json')
+    writeFileSync(path, JSON.stringify({ $schemaVersion: 1, description: 'test', entries }))
+    return path
+  }
+
+  it('suppresses a listed file and reports the allowlisted count', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      mkdirSync(join(dir, 'docs', 'internal'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'internal', 'SOURCE.md'), 'See [missing](MISSING.md).\n')
+      const allowlist = writeAllowlist(dir, [
+        {
+          path: 'docs/internal/SOURCE.md',
+          rule: 'doc-links',
+          reason: 'target is a decision owned by a sibling batch issue',
+          issue: '#2411',
+          expires: '2099-01-01',
+        },
+      ])
+      const result = runWithArgs(dir, [`--allowlist=${allowlist}`])
+      expect(result.status).toBe(0)
+      expect(result.stdout).toMatch(/1 file\(s\) allowlisted/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when an allowlist entry has expired', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeFileSync(join(dir, 'docs', 'OK.md'), '# ok\n')
+      const allowlist = writeAllowlist(dir, [
+        {
+          path: 'docs/internal/SOURCE.md',
+          rule: 'doc-links',
+          reason: 'target is a decision owned by a sibling batch issue',
+          issue: '#2411',
+          expires: '2020-01-01',
+        },
+      ])
+      const result = runWithArgs(dir, [`--allowlist=${allowlist}`])
+      expect(result.status).toBe(1)
+      expect(result.stdout).toMatch(/expired/)
+    } finally {
+      cleanup()
+    }
+  })
+})

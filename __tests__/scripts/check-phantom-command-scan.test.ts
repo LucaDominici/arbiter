@@ -15,6 +15,7 @@ import {
   extractCitedCommands,
   extractBareWordCommandCitations,
   extractSpawnedCommands,
+  extractFencedCitations,
   findPhantomCommands,
 } from '../../scripts/check-phantom-command-scan.mjs'
 
@@ -591,6 +592,177 @@ describe('check-phantom-command-scan.mjs — subcommand-token validation (AC-223
       )
       expect(r.status).toBe(0)
       expect(r.stdout).not.toContain('phantom:')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+// ─── #2408: fenced code blocks ────────────────────────────────────────────────
+// COMMAND_MENTION_RE anchors on a literal backtick, so every command inside a
+// fenced block — where install instructions actually live — was invisible.
+
+const CLI_MINIMAL =
+  "import { Command } from 'commander'\nconst program = new Command()\n" +
+  "program.command('init').description('Init')\n"
+
+describe('extractFencedCitations (#2408)', () => {
+  it('extracts an `arbiter <cmd>` invocation from a ```bash fence', () => {
+    const md = '```bash\narbiter frobnicate --json\n```\n'
+    expect(extractFencedCitations(md).commands).toEqual(new Set(['frobnicate']))
+  })
+
+  it('treats a `$ ` prompt and leading whitespace as noise', () => {
+    const md = '```console\n  $ arbiter frobnicate\n```\n'
+    expect(extractFencedCitations(md).commands).toEqual(new Set(['frobnicate']))
+  })
+
+  it('captures a subcommand token as a pair', () => {
+    const md = '```sh\narbiter plugin add my-plugin\n```\n'
+    expect(extractFencedCitations(md).pairs.get('plugin')).toEqual(new Set(['add']))
+  })
+
+  it('scans an unlabeled fence', () => {
+    const md = '```\narbiter frobnicate\n```\n'
+    expect(extractFencedCitations(md).commands).toEqual(new Set(['frobnicate']))
+  })
+
+  it('ignores a non-shell fence (```js) — code samples are not invocations', () => {
+    const md = '```js\narbiter frobnicate\n```\n'
+    expect(extractFencedCitations(md).commands).toEqual(new Set())
+  })
+
+  it('ignores prose outside any fence', () => {
+    expect(extractFencedCitations('arbiter frobnicate is not a fence.\n').commands).toEqual(
+      new Set(),
+    )
+  })
+
+  it('extracts a `node scripts/<x>.mjs` citation', () => {
+    const md = '```bash\nnode scripts/check-thing.mjs --write\n```\n'
+    expect(extractFencedCitations(md).scripts).toEqual(new Set(['scripts/check-thing.mjs']))
+  })
+})
+
+describe('check-phantom-command-scan.mjs — fenced blocks end-to-end (#2408)', () => {
+  function runFixture(dir: string, docPath: string, body: string, extra: string[] = []) {
+    const cliPath = join(dir, 'cli.ts')
+    writeFileSync(cliPath, CLI_MINIMAL)
+    mkdirSync(join(dir, docPath, '..'), { recursive: true })
+    writeFileSync(join(dir, docPath), body)
+    return spawnSync(
+      'node',
+      [SCRIPT, `--cli=${cliPath}`, `--roots=${join(dir, docPath.split('/')[0])}`, ...extra],
+      { encoding: 'utf-8', cwd: dir },
+    )
+  }
+
+  it('POSITIVE: exits 1 for a phantom cited only inside a ```bash fence', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-fence-'))
+    try {
+      const r = runFixture(dir, 'docs/install.md', '```bash\narbiter frobnicate\n```\n')
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('frobnicate')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('NEGATIVE: exits 0 for a real command in a fence and a phantom in a ```js fence', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-fence-ok-'))
+    try {
+      const r = runFixture(
+        dir,
+        'docs/install.md',
+        '```bash\n$ arbiter init --yes\n```\n\n```js\narbiter frobnicate\n```\n',
+      )
+      expect(r.status).toBe(0)
+      // `phantom:` / `phantom (` are the violation-line markers; the gate's own
+      // name also contains the word, so match the marker, not the bare word.
+      expect(r.stdout).not.toMatch(/phantom[:(]/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 1 when a fence cites a `node scripts/<x>.mjs` that does not exist', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-script-'))
+    try {
+      const r = runFixture(dir, 'docs/run.md', '```bash\nnode scripts/does-not-exist.mjs\n```\n')
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('scripts/does-not-exist.mjs')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 0 when the cited script exists in the scanned tree', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-script-ok-'))
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(join(dir, 'scripts', 'real.mjs'), '// real\n')
+      const r = runFixture(dir, 'docs/run.md', '```bash\nnode scripts/real.mjs\n```\n')
+      expect(r.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('suppresses a fenced phantom for an allowlisted file and reports the count', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-allow-'))
+    try {
+      const allowlist = join(dir, 'allowlist.json')
+      writeFileSync(
+        allowlist,
+        JSON.stringify({
+          $schemaVersion: 1,
+          description: 'test',
+          entries: [
+            {
+              path: 'docs/install.md',
+              rule: 'phantom-command',
+              reason: 'command decision owned by a sibling batch issue',
+              issue: '#2416',
+              expires: '2099-01-01',
+            },
+          ],
+        }),
+      )
+      const r = runFixture(dir, 'docs/install.md', '```bash\narbiter frobnicate\n```\n', [
+        `--allowlist=${allowlist}`,
+      ])
+      expect(r.status).toBe(0)
+      expect(r.stdout).toMatch(/1 file\(s\) allowlisted/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 1 when an allowlist entry has expired', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-allow-expired-'))
+    try {
+      const allowlist = join(dir, 'allowlist.json')
+      writeFileSync(
+        allowlist,
+        JSON.stringify({
+          $schemaVersion: 1,
+          description: 'test',
+          entries: [
+            {
+              path: 'docs/install.md',
+              rule: 'phantom-command',
+              reason: 'command decision owned by a sibling batch issue',
+              issue: '#2416',
+              expires: '2020-01-01',
+            },
+          ],
+        }),
+      )
+      const r = runFixture(dir, 'docs/install.md', '```bash\narbiter init\n```\n', [
+        `--allowlist=${allowlist}`,
+      ])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toMatch(/expired/)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

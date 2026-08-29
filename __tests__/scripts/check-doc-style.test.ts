@@ -125,3 +125,79 @@ No heading body.
     expect(r.stdout).toMatch(/no H1 heading/)
   })
 })
+
+// ─── #2408: docs/internal/** is no longer exempt ─────────────────────────────
+
+function runWithAllowlist(cwd: string, allowlist: string): { status: number; stdout: string } {
+  try {
+    const stdout = execFileSync('node', [SCRIPT, `--allowlist=${allowlist}`], {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    return { status: 0, stdout }
+  } catch (e) {
+    const err = e as { status?: number; stdout?: string }
+    return { status: err.status ?? 1, stdout: err.stdout ?? '' }
+  }
+}
+
+function writeAllowlist(entries: unknown[]): string {
+  const path = join(tmp, 'allowlist.json')
+  writeFileSync(path, JSON.stringify({ $schemaVersion: 1, description: 'test', entries }))
+  return path
+}
+
+describe('check-doc-style — docs/internal/** coverage (#2408)', () => {
+  it('exits 1 when a doc under docs/internal/ has no frontmatter', () => {
+    mkdirSync(join(tmp, 'docs', 'internal', 'METHOD'), { recursive: true })
+    writeFileSync(join(tmp, 'docs', 'internal', 'METHOD', 'X.md'), '# X\n\nNo frontmatter.\n')
+    const r = runScript(tmp)
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/internal.METHOD.X\.md: missing frontmatter block/)
+  })
+})
+
+describe('check-doc-style — dated allowlist (#2408)', () => {
+  it('suppresses a listed file and reports the allowlisted count', () => {
+    mkdirSync(join(tmp, 'docs', 'internal'), { recursive: true })
+    writeFileSync(join(tmp, 'docs', 'internal', 'X.md'), '# X\n')
+    const allowlist = writeAllowlist([
+      {
+        path: 'docs/internal/X.md',
+        rule: 'doc-style',
+        reason: 'prose rework owned by a sibling batch issue',
+        issue: '#2411',
+        expires: '2099-01-01',
+      },
+    ])
+    const r = runWithAllowlist(tmp, allowlist)
+    expect(r.status).toBe(0)
+    expect(r.stdout).toMatch(/1 file\(s\) allowlisted/)
+  })
+
+  it('exits 1 when an allowlist entry has expired', () => {
+    mkdirSync(join(tmp, 'docs', 'internal'), { recursive: true })
+    writeFileSync(join(tmp, 'docs', 'internal', 'X.md'), '# X\n')
+    const allowlist = writeAllowlist([
+      {
+        path: 'docs/internal/X.md',
+        rule: 'doc-style',
+        reason: 'prose rework owned by a sibling batch issue',
+        issue: '#2411',
+        expires: '2020-01-01',
+      },
+    ])
+    const r = runWithAllowlist(tmp, allowlist)
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/expired/)
+  })
+
+  it('exits 1 when the allowlist file is malformed (fail-closed)', () => {
+    writeFileSync(join(tmp, 'docs', 'ok.md'), FULL_FRONTMATTER)
+    const path = join(tmp, 'allowlist.json')
+    writeFileSync(path, '{ not json')
+    const r = runWithAllowlist(tmp, path)
+    expect(r.status).toBe(1)
+  })
+})

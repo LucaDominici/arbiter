@@ -112,29 +112,33 @@ describe('check-no-orphan-todo skip set (#1544/#1545)', () => {
   })
 })
 
-describe('check-doc-style skip set (#1544/#1545)', () => {
-  it('exposes its SKIP_PATH_SEGMENTS and prunes api/internal + the walkRepo widening', () => {
+// #2408 flipped `internal` from skipped to SCANNED in both doc gates — the SSOT
+// backbone was the one tree neither gate ever looked at. These cases now assert
+// the inverse: api/ (generated API reference) is still pruned, internal/ is not.
+
+describe('check-doc-style skip set (#1544/#1545, #2408)', () => {
+  it('exposes its SKIP_PATH_SEGMENTS, prunes api + the walkRepo widening, and SCANS internal', () => {
     expect(docStyle.SKIP_PATH_SEGMENTS.some((s) => s.includes('api'))).toBe(true)
-    expect(docStyle.SKIP_PATH_SEGMENTS.some((s) => s.includes('internal'))).toBe(true)
+    expect(docStyle.SKIP_PATH_SEGMENTS.some((s) => s.includes('internal'))).toBe(false)
     const root = fixture()
     writeFileSync(join(root, 'keep.md'), '# k')
     seed(root, 'api', 'leak.md', '# l') // gate-specific path segment
-    seed(root, 'internal', 'leak.md', '# l')
+    seed(root, 'internal', 'covered.md', '# c')
     seed(root, 'build', 'leak.md', '# l') // walkRepo widening
-    expect(rels(root, docStyle.walk(root))).toEqual(['keep.md'])
+    expect(rels(root, docStyle.walk(root))).toEqual(['internal/covered.md', 'keep.md'])
   })
 })
 
-describe('check-doc-links skip set (#1544/#1545)', () => {
-  it('exposes its SKIP_PATH_SEGMENTS and prunes api/internal + the walkRepo widening', () => {
+describe('check-doc-links skip set (#1544/#1545, #2408)', () => {
+  it('exposes its SKIP_PATH_SEGMENTS, prunes api + the walkRepo widening, and SCANS internal', () => {
     expect(docLinks.SKIP_PATH_SEGMENTS.some((s) => s.includes('api'))).toBe(true)
-    expect(docLinks.SKIP_PATH_SEGMENTS.some((s) => s.includes('internal'))).toBe(true)
+    expect(docLinks.SKIP_PATH_SEGMENTS.some((s) => s.includes('internal'))).toBe(false)
     const root = fixture()
     writeFileSync(join(root, 'keep.md'), '# k')
     seed(root, 'api', 'leak.md', '# l')
-    seed(root, 'internal', 'leak.md', '# l')
+    seed(root, 'internal', 'covered.md', '# c')
     seed(root, 'coverage', 'leak.md', '# l') // walkRepo widening
-    expect(rels(root, docLinks.findMarkdownFiles(root))).toEqual(['keep.md'])
+    expect(rels(root, docLinks.findMarkdownFiles(root))).toEqual(['internal/covered.md', 'keep.md'])
   })
 })
 

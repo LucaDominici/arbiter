@@ -211,14 +211,20 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
   // 2026-08-09 (#2251) legitimately added docs/architecture/realization.md — matches
   // c4-model.md's frontmatter shape per #2251's own AC-1: `kind/spine` (a backbone kind)
   // AND `canonical_id: 'REALIZATION'`, either alone would qualify it into the core set.
+  // 2026-08-29 (#2408) legitimately added docs/internal/METHOD/EVIDENCE_RETENTION.md — the
+  // doc was ALREADY a METHOD backbone doc; it simply had no frontmatter, because
+  // check-doc-style skipped docs/internal/** entirely and nothing ever asked for one. Giving
+  // it the `kind/method` + `status: active` block its seven METHOD siblings carry is what
+  // made the selector finally see it. Tagging it otherwise to stay under the ceiling would be
+  // gaming the counter, not bounding the surface.
   // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
   // the pre-growth ceiling. Bound updated to the current real count so the budget still
   // catches future unbounded growth.
-  it('selectSsotDocs returns at most 30 canonical core docs', () => {
+  it('selectSsotDocs returns at most 31 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(30)
+    ).toBeLessThanOrEqual(31)
   })
 })
