@@ -15,24 +15,13 @@
 // real incident (R3, 2026-03-01). Also carries the M2 one-task-per-dispatch check.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { getRepoRoot } from './lib.mjs'
+import { getRepoRoot, SIDECAR_PATH, readJsonOrNull, pruneStaleSidecarEntries } from './lib.mjs'
 
 const WRITE_CLASSES_PATH = join('.claude', 'agents', 'agent-write-classes.json')
-const SIDECAR_PATH = join('.arbiter', 'agents-active.json')
-const SIDECAR_TTL_MS = 2 * 60 * 60 * 1000 // 2h — mirrors `arbiter worktree prune --stale`
-
-function readJson(path) {
-  try {
-    return JSON.parse(readFileSync(path, 'utf-8'))
-    // FAIL-OPEN-INTENT: missing/malformed classification or sidecar file — caller treats null as "no data" and proceeds fail-closed on write-intent.
-  } catch {
-    return null
-  }
-}
 
 /** Loads the {agent: "read-only"|"write-intent"} classification map, root-relative. */
 function loadWriteClasses(root) {
-  const doc = readJson(join(root, WRITE_CLASSES_PATH))
+  const doc = readJsonOrNull(join(root, WRITE_CLASSES_PATH))
   return doc && typeof doc.classes === 'object' && doc.classes !== null ? doc.classes : {}
 }
 
@@ -40,11 +29,6 @@ function loadWriteClasses(root) {
 function isWorktreeCwd(cwd) {
   if (typeof cwd !== 'string' || cwd.length === 0) return false
   return /(^|[/\\])[^/\\]+\.worktrees([/\\]|$)/.test(cwd)
-}
-
-/** Drops sidecar entries older than SIDECAR_TTL_MS so a killed agent cannot wedge future spawns. */
-function pruneStale(entries, now) {
-  return entries.filter((e) => now - Number(e.ts ?? 0) < SIDECAR_TTL_MS)
 }
 
 function countTaskIds(prompt) {
@@ -86,8 +70,8 @@ function main() {
 
   const sidecarPath = join(root, SIDECAR_PATH)
   const now = Date.now()
-  const existing = readJson(sidecarPath)
-  let entries = pruneStale(Array.isArray(existing) ? existing : [], now)
+  const existing = readJsonOrNull(sidecarPath)
+  const entries = pruneStaleSidecarEntries(Array.isArray(existing) ? existing : [], now)
 
   if (!inWorktree && entries.length > 0) {
     const message =
@@ -101,20 +85,9 @@ function main() {
     process.exit(0)
   }
 
-  // No other writer on the main tree, or this spawn is worktree-isolated — allow and register.
-  entries = [
-    ...entries,
-    { agent: subagentType ?? 'unknown', ts: now, pid: process.pid, cwd: cwd ?? root },
-  ]
-  try {
-    mkdirSync(join(root, '.arbiter'), { recursive: true })
-    writeFileSync(sidecarPath, JSON.stringify(entries, null, 2) + '\n')
-    // FAIL-OPEN-INTENT: best-effort bookkeeping — a sidecar write failure must not block a legal spawn.
-  } catch {
-    void 0
-  }
-
-  // 3. One-task-per-dispatch (M2): count distinct #NNN ids in the prompt.
+  // 3. One-task-per-dispatch (M2): count distinct #NNN ids in the prompt. Checked
+  // BEFORE registering the sidecar entry — a rejected spawn must never occupy a slot
+  // (#2403: registering first let a rejected M2 spawn wedge the 2h TTL for nothing).
   const taskIdCount = countTaskIds(prompt)
   if (taskIdCount > 1) {
     const message =
@@ -126,6 +99,19 @@ function main() {
     }
     process.stderr.write(message) // advisory: soft grading always exits 0
     process.exit(0)
+  }
+
+  // No other writer on the main tree, no M2 violation — allow and register.
+  const updated = [
+    ...entries,
+    { agent: subagentType ?? 'unknown', ts: now, pid: process.pid, cwd: cwd ?? root },
+  ]
+  try {
+    mkdirSync(join(root, '.arbiter'), { recursive: true })
+    writeFileSync(sidecarPath, JSON.stringify(updated, null, 2) + '\n')
+    // FAIL-OPEN-INTENT: best-effort bookkeeping — a sidecar write failure must not block a legal spawn.
+  } catch {
+    void 0
   }
 
   process.exit(0)
