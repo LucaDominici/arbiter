@@ -102,7 +102,8 @@ All hard stops from `AGENTS.md` apply. Additionally:
 
 ## Known Limitations — Codex Governance Parity
 
-Codex does not have a native hook system. The table below is **generated from
+Codex has a hook system (`[features] hooks`), but it covers a smaller set of
+events than Claude Code. The table below is **generated from
 the actual Claude-track inventory for this configuration** (ADR-106, arbiter
 #1966) — do not edit it by hand; it is re-derived on every generation and
 checked against the emitted hook inventory by the arbiter parity gate.
@@ -110,6 +111,14 @@ checked against the emitted hook inventory by the arbiter parity gate.
 Hooks marked as *bridged* run in real time on Codex too, via
 `.codex/config.toml` → `codex-adapter.mjs`. Everything else is covered at
 gate time (`node scripts/check-all.mjs`) or is manual discipline, as stated.
+
+**A bridged hook only runs once you approve it.** Codex requires a one-time
+trust approval per project hook entry (stored as a `trusted_hash` under
+`[hooks.state]` in `~/.codex/config.toml`); an unapproved entry is skipped
+**silently** — no warning, no exit code, the guard simply does not run, and the
+table above then overstates your real coverage. Approve them once interactively,
+or pass `codex exec --dangerously-bypass-hook-trust` in automation. Editing
+`.codex/config.toml` re-invalidates the approval for the entries it changes.
 
 | Claude Code Hook | What it enforces | Codex equivalent |
 |-----------------|-----------------|------------------|

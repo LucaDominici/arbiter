@@ -1,16 +1,38 @@
+<% const hasClaude = tools.includes('claude') -%>
+<% const isTs = language === 'typescript' || language === 'multi' -%>
+<% const isL2 = governanceLevel !== 'L1' -%>
+<% const hasNoAnyHook = (locals.languageHooks || []).some(h => h.name === 'check-no-any.mjs') -%>
 [features]
-codex_hooks = true
+hooks = true
+
+# TRUST: Codex runs a project hook only after a one-time approval, recorded as a
+# trusted_hash under [hooks.state] in ~/.codex/config.toml and keyed by
+# <config-path>:<event>:<group-index>:<hook-index>. An unapproved entry is skipped
+# SILENTLY — no stderr, no exit code, the guard simply never runs. Editing this file
+# invalidates the approval for the entries it changes. Automation must therefore
+# pre-approve interactively once, or pass `codex exec --dangerously-bypass-hook-trust`.
 
 # ── PreToolUse: bash commands ─────────────────────────────────────────────────
 
 [[hooks.PreToolUse]]
-matcher = "^bash$"
+matcher = "^(Bash|bash)$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/stop-dangerous.mjs"
 timeout = 5
-
+<% if (hasClaude) { %>
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/enforce-gate-before-pr.mjs"
+timeout = 5
+<% } %>
+<% if (hasClaude && isL2) { %>
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/closer-mode-guard.mjs"
+timeout = 5
+<% } %>
 # ── PreToolUse: file edits (apply_patch) ─────────────────────────────────────
 
 [[hooks.PreToolUse]]
@@ -53,3 +75,98 @@ type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-pii.mjs"
 timeout = 5
 <% } %>
+<% if (hasClaude && hasNoAnyHook) { %>
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-any.mjs"
+timeout = 5
+<% } %>
+<% if (hasClaude && isTs) { %>
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/check-circular-deps.mjs"
+timeout = 10
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-unused-exports.mjs"
+timeout = 60
+<% } %>
+<% if (hasClaude) { %>
+# ── PostToolUse: after bash commands ─────────────────────────────────────────
+
+[[hooks.PostToolUse]]
+matcher = "^(Bash|bash)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/post-commit-check.mjs"
+timeout = 3
+
+# ── PreCompact ────────────────────────────────────────────────────────────────
+
+[[hooks.PreCompact]]
+
+[[hooks.PreCompact.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/pre-compact.mjs"
+timeout = 3
+<% } %>
+<% if (hasClaude && isL2) { %>
+# ── UserPromptSubmit ──────────────────────────────────────────────────────────
+
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/post-brainstorm-stop.mjs"
+timeout = 3
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/skill-forced-eval.mjs"
+timeout = 3
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/guard-task-completion.mjs"
+timeout = 3
+<% if (locals.enableEvidenceHarness !== false) { %>
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/guard-done-evidence.mjs"
+timeout = 3
+<% } %>
+<% } %>
+# ── Not bridged ───────────────────────────────────────────────────────────────
+#
+# Every Arbiter hook that is wired for Claude Code but NOT bridged above, with the
+# reason. The list covers the full Arbiter hook set; a hook this project does not
+# emit simply does not exist here. Machine-read by the codex-adapter parity test —
+# keep the `# unbridgeable: <file> — <reason>` shape.
+#
+# No Codex hook event exists:
+# unbridgeable: stop-evidence-guard.mjs — Claude `Stop`; Codex accepts a Stop handler
+#   only as an allowlisted executor MCP tool, never as a config.toml command hook.
+# unbridgeable: stop-finding-loss.mjs — Claude `Stop`; same reason as above.
+# unbridgeable: debug-state-on-failure.mjs — Claude `PostToolUseFailure`; Codex has no
+#   failed-tool-call hook event.
+# unbridgeable: exitplanmode-banner.mjs — Claude `PostToolUse:ExitPlanMode`; Codex has
+#   no plan-mode tool to hook.
+# unbridgeable: pre-spawn-worktree-guard.mjs — Claude `PreToolUse:Task|Agent`; Codex
+#   `SubagentStart` carries no `tool_input`, so the write-intent signal the guard keys
+#   off has no equivalent in the Codex payload.
+#
+# A Codex hook event exists, but bridging it would be wrong:
+# unbridgeable: post-edit-dispatch.mjs — rewrites the edited file (format + lint --fix);
+#   a hook that mutates the tree mid-turn races Codex's own apply_patch.
+# unbridgeable: wiki-on-commit.mjs — regenerates docs into the working tree; same
+#   mid-turn mutation race as post-edit-dispatch.
+# unbridgeable: pre-edit-plan-anchor.mjs — the Codex track anchors plans through
+#   `.agents/plan/PLAN.json`; bridging the Claude anchor would enforce against the
+#   wrong artifact and block every apply_patch.
+#
+# Not emitted by any generator (present only in arbiter's own .claude/settings.json),
+# so the generated config cannot reference a file it does not emit:
+# unbridgeable: check-no-direct-spawn.mjs — self-config only, no generator template.
+# unbridgeable: pre-edit-load-memory.mjs — self-config only, no generator template.

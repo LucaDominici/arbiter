@@ -42,12 +42,13 @@ describe('generateCodexHooks', () => {
     expect(() => parseToml(content)).not.toThrow()
   })
 
-  it('config.toml enables codex_hooks feature', () => {
+  it('config.toml enables the hooks feature (codex_hooks is deprecated)', () => {
     generateCodexHooks(makeConfig(dir))
     const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')
     const parsed = parseToml(content) as Record<string, unknown>
     const features = parsed.features as Record<string, unknown>
-    expect(features?.codex_hooks).toBe(true)
+    expect(features?.hooks).toBe(true)
+    expect(features?.codex_hooks).toBeUndefined()
   })
 
   it('config.toml wires stop-dangerous adapter for bash PreToolUse', () => {
