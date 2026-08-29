@@ -21,6 +21,7 @@
 import { normalizeChainId } from './task-state.js'
 import type { ShipTier } from './ship-tier.js'
 import type { ShipConfig } from '../config/schema.js'
+import type { UnifiedTaskState } from './task-state.js'
 
 /** Bounds on how far one train may grow before it must be landed. */
 export interface TrainLimits {
@@ -169,4 +170,79 @@ export function evaluateSeal(signals: TrainSignals, limits: TrainLimits): SealVe
     }
   }
   return { sealed: false }
+}
+
+/** Is `taskId` a usable primary id (present and non-empty)? */
+export function hasShipTaskId(taskId: string | undefined): boolean {
+  return taskId !== undefined && taskId.length > 0
+}
+
+/** Does this seed replace the document's primary issue — i.e. start a different task entirely? */
+export function shipTaskChanged(
+  existing: UnifiedTaskState | null,
+  taskId: string | undefined,
+): boolean {
+  if (
+    existing === null ||
+    taskId === undefined ||
+    existing.taskId.length === 0 ||
+    taskId.length === 0
+  ) {
+    return false
+  }
+  return existing.taskId.replace(/^#/, '') !== taskId.replace(/^#/, '')
+}
+
+function seedPrimaryCount(
+  existing: UnifiedTaskState | null,
+  taskId: string | undefined,
+  taskChanged: boolean,
+): number {
+  if (hasShipTaskId(taskId)) return 1
+  return !taskChanged && hasShipTaskId(existing?.taskId) ? 1 : 0
+}
+
+function seedChainIds(
+  existing: UnifiedTaskState | null,
+  chainIds: readonly string[] | undefined,
+  taskChanged: boolean,
+): readonly string[] {
+  return chainIds ?? (taskChanged ? [] : (existing?.chainIds ?? []))
+}
+
+/** Size the seed would leave on the branch, or null when the seed touches neither id field. */
+function seedProjectedSize(
+  existing: UnifiedTaskState | null,
+  taskId: string | undefined,
+  chainIds: readonly string[] | undefined,
+): number | null {
+  if (chainIds === undefined && taskId === undefined) return null
+  const taskChanged = shipTaskChanged(existing, taskId)
+  return (
+    seedPrimaryCount(existing, taskId, taskChanged) +
+    seedChainIds(existing, chainIds, taskChanged).length
+  )
+}
+
+export type SeedSizeVerdict = { ok: true } | { ok: false; detail: string }
+
+/**
+ * #2402 — may this seed declare a train of that size?
+ *
+ * Lifted out of the ship path because `arbiter task init` writes exactly the same `chainIds`
+ * field and never checked the bound: `task init 1 2 ... 15` seeded a fifteen-issue train that no
+ * limit ever saw, while `arbiter ship` refused the identical request. One rule, both writers.
+ */
+export function evaluateSeedSize(
+  existing: UnifiedTaskState | null,
+  taskId: string | undefined,
+  chainIds: readonly string[] | undefined,
+  limits: TrainLimits,
+): SeedSizeVerdict {
+  const projectedSize = seedProjectedSize(existing, taskId, chainIds)
+  if (projectedSize === null || projectedSize <= limits.maxChain) return { ok: true }
+  return {
+    ok: false,
+    detail: `the requested seed would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
+  }
 }

@@ -94,6 +94,43 @@ describe('ship.md bounded review rounds (#2400)', () => {
   }
 })
 
+// #2402 — a PR is owned until merged. The engine refuses `complete`; the doc is where the
+// session-ending rule lives, because no gate can observe "the agent walked away".
+describe('ship.md landing + handover (#2402)', () => {
+  for (const path of SHIP_TWINS) {
+    describe(path, () => {
+      it('AC-2402.3: §Complete states that advance --to complete requires MERGED', () => {
+        const body = flat(path)
+        const complete = body.slice(body.indexOf('## Complete'))
+        for (const marker of ['MERGED', '--no-pr', '--pr <n>', 'gh pr list --head']) {
+          expect(complete.includes(marker)).toBe(true)
+        }
+      })
+
+      it('AC-2402.3: carries a Handover subsection with the open-PR table', () => {
+        const body = flat(path)
+        expect(body.includes('### Handover')).toBe(true)
+        const handover = body.slice(body.indexOf('### Handover'))
+        for (const marker of [
+          '.arbiter/HANDOVER-<date>-<slug>.md',
+          '## Open PRs',
+          'needs-human',
+          'CI state',
+          'Blocker',
+        ]) {
+          expect(handover.includes(marker)).toBe(true)
+        }
+      })
+
+      it('AC-2402.3: §Hard stops forbids abandoning a red open PR', () => {
+        expect(
+          flat(path).includes('An open PR with red CI is never abandoned — watch, fix, re-watch'),
+        ).toBe(true)
+      })
+    })
+  }
+})
+
 describe('drain.md alignment (#2401)', () => {
   for (const path of DRAIN_TWINS) {
     it(`AC-2401.3: ${path} points at ship.md §Train instead of restating it`, () => {

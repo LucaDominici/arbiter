@@ -332,12 +332,38 @@ Mark the work item done manually (no CLI command for the `markdown` backend — 
 removed in #1817; track closure in your issue tracker of choice).
 
 
-Advance to the terminal phase and close the worktree:
+Advance to the terminal phase and close the worktree. `--to complete` now VERIFIES the landing:
+it reads the branch's PR (`gh pr list --head <branch> --state all`) and refuses unless it is
+MERGED, naming the PR, its state and every check whose conclusion is FAILURE / TIMED_OUT /
+CANCELLED. A repo that lands by direct push passes `--no-pr` (logged as
+`complete ← no-pr (direct landing)`); `--pr <n>` names the PR when the branch carries more than
+one. An unreadable `gh` refuses too — an unverifiable landing is not a landing.
 
 ```bash
 arbiter task advance --to complete
 arbiter wt close NNN
 ```
+
+### Handover
+
+A session may end in exactly two states: the PR is **merged**, or the PR is labeled
+`needs-human` and the handover names the failing check. There is no third state — an open PR
+with red CI that nobody owns is the failure this rule exists to prevent.
+
+The handover file is `.arbiter/HANDOVER-<date>-<slug>.md` and its FIRST section is the open-PR
+table, so whoever picks it up sees the debt before the narrative:
+
+```markdown
+## Open PRs
+
+| PR   | Branch                  | CI state         | Blocker                          |
+| ---- | ----------------------- | ---------------- | -------------------------------- |
+| #123 | task/#120-thing         | red (Docs Build) | needs-human: link check 404s     |
+| #124 | task/#121-other         | green, unmerged  | awaiting required review         |
+```
+
+Every red row carries the check name and the `gh run view --job <id> --log` the watcher printed.
+A row with no blocker text is an unfinished handover, not a finished one.
 
 ---
 
@@ -376,5 +402,7 @@ At **GO/handoff** (plan-review gate green):
   `.arbiter/agents-dispatched.json`
   (written in the refactor section above), `.arbiter/gate-pass.json` (written by the gate). The
   `phase: complete` state releases the guard.
+- An open PR with red CI is never abandoned — watch, fix, re-watch. Ending a session on one is
+  allowed only with the PR labeled `needs-human` and the failing check named in the handover.
 - Never skip the gate, never commit to `main` outside the merge step, never leave the loop mid-phase
   without an `arbiter mark` cursor.

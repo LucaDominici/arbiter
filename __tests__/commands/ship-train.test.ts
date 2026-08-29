@@ -21,6 +21,7 @@ import {
 } from '../../src/commands/ship-train'
 import type { TrainLimits } from '../../src/commands/ship-train'
 import { runTaskShip } from '../../src/commands/task-ship'
+import { runTaskInit } from '../../src/commands/task'
 import { readUnifiedState } from '../../src/commands/task-state'
 import type { ShipProfile } from '../../src/commands/ship-profile'
 
@@ -450,6 +451,43 @@ describe('splitTrainIds (#2401)', () => {
       taskId: '#101',
       chainIds: ['#102'],
     })
+  })
+})
+
+/**
+ * #2402 — `task init` writes the same `chainIds` field `ship` does and never checked the bound,
+ * so `task init 1 2 ... 15` seeded a train no limit ever saw while `ship` refused the identical
+ * request. One rule, both writers.
+ */
+describe('task init respects the train bound (#2402)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-init-bound-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  const ids = (n: number): string[] => Array.from({ length: n }, (_, i) => String(101 + i))
+
+  it('refuses a seed past the default ten-issue bound, writing nothing', () => {
+    expect(() => runTaskInit({ dir, id: '#100', chainIds: ids(10) })).toThrow(/SEALED: max-chain/)
+    expect(readUnifiedState(dir)).toBeNull()
+  })
+
+  it('accepts a seed that exactly fills the train', () => {
+    runTaskInit({ dir, id: '#100', chainIds: ids(9) })
+    expect(readUnifiedState(dir)?.chainIds).toHaveLength(9)
+  })
+
+  it('refuses the same request `arbiter ship` refuses, with the same seal', () => {
+    const oversized = ids(12)
+    expect(() => runTaskInit({ dir, id: '#100', chainIds: oversized })).toThrow(/SEALED: max-chain/)
+    expect(() =>
+      runTaskShip({ dir, taskId: '#100', chainIds: oversized, profileOverride: TEST_PROFILE }),
+    ).toThrow(/SEALED: max-chain/)
   })
 })
 

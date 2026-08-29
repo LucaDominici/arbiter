@@ -48,12 +48,16 @@ export { type ShipTier } from './ship-tier.js'
 import {
   appendChainIds,
   evaluateSeal,
+  evaluateSeedSize,
+  hasShipTaskId,
   resolveTrainLimits,
+  shipTaskChanged,
   type TrainLimits,
   type TrainSignals,
 } from './ship-train.js'
 import { evaluateReviewRound, resolveReviewMaxRounds, reviewScopeLine } from './ship-review.js'
-import { loadConfig } from '../utils/config.js'
+import { shipConfigFor } from './ship-config.js'
+import type { PrSnapshot } from './pr-merged.js'
 import type { ShipConfig } from '../config/schema.js'
 
 /**
@@ -470,6 +474,11 @@ export interface TaskShipOptions {
     skipPlanReview?: boolean
     postClear?: boolean
     units?: number
+    /** #2402 — forwarded to the `complete` landing gate; without these `ship --advance` into
+     *  `complete` would have no escape hatch at all. */
+    noPr?: boolean
+    pr?: number
+    readPrs?: (branch: string, dir: string) => PrSnapshot[]
   }
   /** Test seam for evidence emission without depending on local HOME/plugin state. */
   profileOverride?: ShipProfile
@@ -555,81 +564,17 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
  * write; everything downstream (evidence path lookup, task_id identity check) relies
  * on this form.
  */
-function seedPrimaryCount(
-  existing: UnifiedTaskState | null,
-  taskId: string | undefined,
-  taskChanged: boolean,
-): number {
-  if (hasShipTaskId(taskId)) return 1
-  return !taskChanged && hasShipTaskId(existing?.taskId) ? 1 : 0
-}
-
-function seedChainIds(
-  existing: UnifiedTaskState | null,
-  chainIds: readonly string[] | undefined,
-  taskChanged: boolean,
-): readonly string[] {
-  return chainIds ?? (taskChanged ? [] : (existing?.chainIds ?? []))
-}
-
-function seedProjectedSize(
-  existing: UnifiedTaskState | null,
-  taskId: string | undefined,
-  chainIds: readonly string[] | undefined,
-): number | null {
-  if (chainIds === undefined && taskId === undefined) return null
-  const taskChanged = shipTaskChanged(existing, taskId)
-  return (
-    seedPrimaryCount(existing, taskId, taskChanged) +
-    seedChainIds(existing, chainIds, taskChanged).length
-  )
-}
-
+/** #2402 — the seed bound now lives in `ship-train.ts`; both writers throw the same seal. */
 function assertSeedWithinLimit(
   existing: UnifiedTaskState | null,
   taskId: string | undefined,
   chainIds: readonly string[] | undefined,
   limits: TrainLimits,
 ): void {
-  const projectedSize = seedProjectedSize(existing, taskId, chainIds)
-  if (projectedSize === null || projectedSize <= limits.maxChain) return
-  const seal = {
-    reason: 'max-chain' as const,
-    detail: `the requested seed would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
-  }
+  const verdict = evaluateSeedSize(existing, taskId, chainIds, limits)
+  if (verdict.ok) return
+  const seal = { reason: 'max-chain' as const, detail: verdict.detail }
   throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
-}
-
-function shipTaskChanged(existing: UnifiedTaskState | null, taskId: string | undefined): boolean {
-  if (
-    existing === null ||
-    taskId === undefined ||
-    existing.taskId.length === 0 ||
-    taskId.length === 0
-  ) {
-    return false
-  }
-  return existing.taskId.replace(/^#/, '') !== taskId.replace(/^#/, '')
-}
-
-function hasShipTaskId(taskId: string | undefined): boolean {
-  return taskId !== undefined && taskId.length > 0
-}
-
-/**
- * The `ship` block of the TARGET repo's `arbiter.json`, read ONCE per `runTaskShip` so every
- * ceremony bound resolves off the same snapshot.
- *
- * FAIL-SAFE, matching `resolveShipProfile`: `loadConfig` THROWS on a malformed config (absent
- * returns null), and a config typo must not brick the ship — an unreadable config reads as
- * "declares nothing", which leaves every built-in bound in force.
- */
-function shipConfigFor(root: string): ShipConfig | undefined {
-  try {
-    return loadConfig(root)?.ship
-  } catch {
-    return undefined
-  }
 }
 
 /**

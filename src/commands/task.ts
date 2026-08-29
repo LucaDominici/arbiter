@@ -19,6 +19,11 @@ import {
   appendLog,
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
+import { evaluateMerged, type PrSnapshot } from './pr-merged.js'
+import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
+import { evaluateSeedSize, resolveTrainLimits } from './ship-train.js'
+import { UserFacingError } from '../utils/errors.js'
+import { t } from '../i18n/index.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
 import { pathExistsInCommit, resolveEvidenceCommit } from '../evidence/git-checks.js'
 import { detectHostCapabilities } from '../capabilities/host-probe.js'
@@ -46,6 +51,16 @@ export interface TaskAdvanceOptions {
   /** Caller-supplied implementation unit count; drives the clear-strategy decision.
    *  When absent, falls back to the tier's conservative default (→ 'stop'). */
   units?: number
+  /**
+   * #2402 — `--no-pr`: this repo lands by direct push (trunk mode), so there is no PR to verify.
+   * The escape hatch is LOGGED, never silent: a task that completed without a merged PR must say
+   * so in the digest.
+   */
+  noPr?: boolean
+  /** #2402 — `--pr <n>`: name the PR to verify when the branch carries more than one. */
+  pr?: number
+  /** Test seam for the `gh pr list` reader, so the gate is testable without a network. */
+  readPrs?: (branch: string, dir: string) => PrSnapshot[]
 }
 
 /** Current phase from the unified document (`preflight` for a fresh tree). */
@@ -125,10 +140,35 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   // #2102 — rejects a non-numeric id the same way `arbiter ship`'s primary-id normalizer does,
   // so a chain id can never silently fail the pre-push `#<id>` commit-message scan it feeds.
   if (opts.chainIds !== undefined) patch.chainIds = opts.chainIds.map(normalizeChainId)
+  // #2402 — the SAME train bound `arbiter ship` enforces. This writer had none, so
+  // `task init 1 2 ... 15` seeded a train no limit ever saw while `ship` refused the identical
+  // request; the positional-id sugar made that a one-line typo rather than fifteen flags.
+  assertSeedWithinTrainLimit(root, opts.id, patch.chainIds)
   const branch = detectCurrentBranch(root)
   if (branch !== undefined) patch.branch = branch
   const state = writeUnifiedState(root, patch)
   appendLog(root, `init task ${state.taskId || '(unset)'} tier=${state.tier || '(unset)'}`)
+}
+
+/**
+ * #2402 — refuse a `task init` that would seed a train past `ship.train.maxChain`. Shares the
+ * verdict with `arbiter ship`'s seed check (`evaluateSeedSize`) so the two writers of `chainIds`
+ * cannot disagree about the bound.
+ */
+function assertSeedWithinTrainLimit(
+  root: string,
+  taskId: string | undefined,
+  chainIds: readonly string[] | undefined,
+): void {
+  const verdict = evaluateSeedSize(
+    readUnifiedState(root),
+    taskId,
+    chainIds,
+    resolveTrainLimits(shipConfigFor(root)),
+  )
+  if (verdict.ok) return
+  const seal = { reason: 'max-chain' as const, detail: verdict.detail }
+  throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
 }
 
 /** Current git branch name, or undefined if not a repo / detached. */
@@ -407,6 +447,78 @@ function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOp
  * axis fails closed: schema, level, age, commit, branch, checkout, toolchain
  * and working-tree content.
  */
+/**
+ * #2402 — read the branch's PRs. Through `runCli` (INV-12: no raw child_process under `src/`),
+ * with a short timeout — this runs inside a phase gate, not a watcher.
+ */
+function readBranchPrs(branch: string, dir: string): PrSnapshot[] {
+  const out = runCli(
+    'gh',
+    [
+      'pr',
+      'list',
+      '--head',
+      branch,
+      '--state',
+      'all',
+      '--json',
+      'number,state,mergeStateStatus,statusCheckRollup',
+    ],
+    { cwd: dir, timeoutMs: 30_000 },
+  ).stdout
+  const parsed: unknown = JSON.parse(out)
+  return Array.isArray(parsed) ? (parsed as PrSnapshot[]) : []
+}
+
+/** The unverifiable / unmerged refusal, as one user-facing error. */
+function prGateRefusal(detail: string): UserFacingError {
+  return new UserFacingError(t('errors.E_PR_NOT_MERGED', { detail }))
+}
+
+/**
+ * #2402 — `complete` means MERGED. The Iron Law said so; nothing enforced it, and a PR was
+ * opened with red CI and abandoned while its task document read `complete`.
+ *
+ * FAIL-CLOSED in both directions that matter: an unreadable `gh` refuses rather than waving the
+ * task through (an unverifiable landing is not a landing), and a repo that never declared the
+ * GitHub axis is still verified. Only an explicit `useGitHub: false` or an explicit `--no-pr`
+ * skips — and `--no-pr` is written to the digest log, so a completion without a merged PR stays
+ * attributable.
+ */
+function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions): void {
+  if (opts.noPr === true) {
+    appendLog(dir, 'complete ← no-pr (direct landing)')
+    return
+  }
+  if (!permitsGitHubCalls(dir)) {
+    // Skipped, never silent: a repo that has not set `permitGitHub: true` must not be shelled out
+    // to, but a completion that skipped the landing check still has to be attributable.
+    appendLog(dir, 'complete ← pr-check skipped (permitGitHub not set)')
+    return
+  }
+  // Live git first, then the branch `task init` stamped on the document — a detached HEAD or an
+  // unavailable git must not become a silent skip when the task already recorded its branch.
+  const branch = detectCurrentBranch(dir) ?? readUnifiedState(dir)?.branch
+  if (branch === undefined || branch.length === 0) {
+    throw prGateRefusal(
+      'the current branch could not be determined, so the PR cannot be verified. ' +
+        'Pass --no-pr if this repo lands by direct push.',
+    )
+  }
+  let prs: PrSnapshot[]
+  try {
+    prs = (opts.readPrs ?? readBranchPrs)(branch, dir)
+  } catch (err) {
+    throw prGateRefusal(
+      `\`gh pr list --head ${branch}\` failed (${err instanceof Error ? err.message : String(err)}). ` +
+        'An unverifiable landing is not a landing: fix `gh`, or pass --no-pr if this repo lands by direct push.',
+    )
+  }
+  const verdict = evaluateMerged(prs, branch, opts.pr)
+  if (!verdict.merged) throw prGateRefusal(verdict.detail)
+  appendLog(dir, `complete ← PR #${verdict.number} MERGED`)
+}
+
 function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
   const inCi = process.env.CI === 'true'
   const envBypass = getBoolFlag('ARBITER_SKIP_GATE_MARKER')
@@ -499,7 +611,10 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
       checkGatePassMarkerGate(dir, 'L1')
     },
     complete: () => {
+      // Marker first: it is the cheap local check, and the pre-existing gate-level contract must
+      // keep failing before the network-touching PR verification runs.
       checkGatePassMarkerGate(dir)
+      checkPrMergedGate(dir, opts)
     },
   }
   phaseGates[to]?.()

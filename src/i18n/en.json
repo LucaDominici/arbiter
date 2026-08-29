@@ -77,7 +77,8 @@
     "E_INVALID_LEVEL": "Unknown governance level: \"{level}\". Valid: L1, L2, L3, L4",
     "E_INVALID_LANGUAGE": "Unknown language: \"{language}\". Valid: typescript, java, kotlin, rust, python, go, multi",
     "E_TRAIN_SEALED": "SEALED: {reason} \u2014 {detail}. Land this train (gate, push, one PR closing every id) before starting the next one.",
-    "E_REVIEW_ROUNDS_EXHAUSTED": "REVIEW ROUNDS EXHAUSTED \u2014 {detail}"
+    "E_REVIEW_ROUNDS_EXHAUSTED": "REVIEW ROUNDS EXHAUSTED \u2014 {detail}",
+    "E_PR_NOT_MERGED": "NOT MERGED \u2014 {detail} A PR is owned until it is merged."
   },
   "cli": {
     "shared": {

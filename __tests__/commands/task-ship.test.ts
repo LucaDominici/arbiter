@@ -326,7 +326,16 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     let guard = 0
     let done = false
     while (!done && guard < 20) {
-      const r = runTaskShip({ dir, advance: true, advanceOpts: { skipPlanReview: true } })
+      const r = runTaskShip({
+        dir,
+        advance: true,
+        // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
+        // remote, so the reader is seamed to a merged PR rather than the gate being disarmed.
+        advanceOpts: {
+          skipPlanReview: true,
+          readPrs: () => [{ number: 1206, state: 'MERGED' }],
+        },
+      })
       visited.push(r.phase)
       done = r.done
       guard++

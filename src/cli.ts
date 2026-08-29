@@ -1747,6 +1747,16 @@ task
     runTaskResume({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
   })
 
+/**
+ * #2402 — commander folds `--no-pr` and `--pr <n>` onto one key: absent, `false` (the negation
+ * flag), or the number. Split them back apart here so the engine sees two explicit options and
+ * never has to know that encoding.
+ */
+function advanceLandingFlags(opts: { pr?: number | false }): { noPr?: true; pr?: number } {
+  if (opts.pr === false) return { noPr: true }
+  return typeof opts.pr === 'number' ? { pr: opts.pr } : {}
+}
+
 task
   .command('advance')
   .description('Advance (or reverse) the task lifecycle phase')
@@ -1762,6 +1772,16 @@ task
     false,
   )
   .option('--post-clear', 'Signal post-/clear re-entry (equivalent to ARBITER_POST_CLEAR=1)', false)
+  .option('--no-pr', 'Complete without a merged PR — this repo lands by direct push (logged)')
+  .option(
+    '--pr <n>',
+    'Verify this PR number when the branch carries more than one',
+    (v: string) => {
+      const n = parseInt(v, 10)
+      if (isNaN(n) || n <= 0) throw new Error('--pr must be a positive integer')
+      return n
+    },
+  )
   .action(
     (opts: {
       to: string
@@ -1769,6 +1789,7 @@ task
       dir?: string
       skipPlanReview: boolean
       postClear: boolean
+      pr?: number | false
     }) => {
       try {
         runTaskAdvance({
@@ -1776,6 +1797,7 @@ task
           reverse: opts.reverse,
           skipPlanReview: opts.skipPlanReview,
           postClear: opts.postClear,
+          ...advanceLandingFlags(opts),
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         })
       } catch (err) {
@@ -2014,6 +2036,16 @@ program
     [] as string[],
   )
   .option('--seal', 'Seal the open train now — land it before starting another (#2331)', false)
+  .option('--no-pr', 'Complete without a merged PR — this repo lands by direct push (logged)')
+  .option(
+    '--pr <n>',
+    'Verify this PR number when the branch carries more than one',
+    (v: string) => {
+      const n = parseInt(v, 10)
+      if (isNaN(n) || n <= 0) throw new Error('--pr must be a positive integer')
+      return n
+    },
+  )
   .option(
     '--review-round',
     'Record another code-review round on this task (entering refactor records the first)',
@@ -2037,6 +2069,7 @@ program
         seal: boolean
         reviewRound: boolean
         forceReview: boolean
+        pr?: number | false
         advance: boolean
         skipPlanReview: boolean
         postClear: boolean
@@ -2077,6 +2110,9 @@ program
             skipPlanReview: opts.skipPlanReview,
             postClear: opts.postClear,
             ...(opts.units !== undefined ? { units: opts.units } : {}),
+            // #2402 — the landing gate fires on `--advance` into `complete`; without these the
+            // ship path would have no escape hatch the `task advance` path has.
+            ...advanceLandingFlags(opts),
           },
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
           ...(externalModelAccess !== undefined ? { externalModelAccess } : {}),
