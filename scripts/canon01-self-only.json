@@ -2,7 +2,8 @@
   "selfOnly": [
     {
       "path": ".claude/hooks/check-no-any.mjs",
-      "reason": "INV-04: blocks explicit `any` in edited TypeScript files. CONFIRMED self-only: target TS projects already receive equivalent enforcement via the emitted ESLint config (`src/templates/static-analysis/eslint.config.mjs.ejs`, `eslint.config.static.mjs.ejs`, `eslintrc-static.json.ejs`, all setting `@typescript-eslint/no-explicit-any`); a duplicate PostToolUse hook twin would enforce the same rule through a second mechanism."
+      "reason": "INV-04: blocks explicit `any` in edited TypeScript files. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": ".claude/hooks/check-no-direct-spawn.mjs",
@@ -10,7 +11,8 @@
     },
     {
       "path": ".claude/hooks/pre-edit-load-memory.mjs",
-      "reason": "Loads `.claude/memory-impl.md` before editing matching files. CONFIRMED self-only: `.claude/memory-impl.md` is arbiter-repo-specific accumulated-gotcha memory for this codebase's own development; no template emits an equivalent memory file or loader hook for target projects."
+      "reason": "Loads .claude/memory-impl.md before editing matching files. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/build-kit.mjs",
@@ -18,8 +20,8 @@
     },
     {
       "path": "scripts/check-acceptance.mjs",
-      "reason": "INV-138: the active plan freezes the issue's acceptance criteria. STILL PENDING: `src/generators/check-all.ts` documents this explicitly — \"The check-acceptance.mjs GATE stays self-only (not wired in generated check-all) — that wiring is the tracked ADR-110 follow-up\" — but no issue currently tracks that follow-up. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-138: the active plan freezes the issue’s acceptance criteria. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-adr-enforcement.mjs",
@@ -31,7 +33,8 @@
     },
     {
       "path": "scripts/check-agent-dispatch.mjs",
-      "reason": "Replays the declared agent-dispatch oracle (`.claude/agent-dispatch-matrix.json`) against `task-ship.ts::verticalsForTier`. CONFIRMED self-only: both the matrix and the ship-orchestrator's tier→vertical derivation are arbiter's own `/ship` internals; no template emits an agent-dispatch-matrix.json or ship-orchestrator derivation for target projects."
+      "reason": "Replays the declared agent-dispatch oracle against the compiled review-dispatch derivation. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-anti-telemetry.mjs",
@@ -43,7 +46,8 @@
     },
     {
       "path": "scripts/check-bloat-ratchet.mjs",
-      "reason": "CANON-16/INV-46: file-count and LOC ratchet for `src/`. CONFIRMED self-only: CANON-16 scopes this to arbiter's own generator-corpus directories (`src/`, `src/generators/`, `src/templates/`, `src/commands/`) and their growth discipline; a target project has none of these generator-authoring directories."
+      "reason": "CANON-16/INV-46: file-count and LOC ratchet for src/. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-brownfield-tests.mjs",
@@ -55,7 +59,8 @@
     },
     {
       "path": "scripts/check-bypass-ceremony.mjs",
-      "reason": "Bypass-rate ceiling and enforcement-theater detector over arbiter's own `.arbiter/evidence/bypass-log.jsonl` and every `runWarnCheck` call site in `scripts/check-all.mjs`. CONFIRMED self-only: both the bypass ledger and the check-all.mjs gate-roster audited are arbiter's own dev-process artifacts; no `advisory-ledger.json` or bypass-log template is emitted to targets."
+      "reason": "Bypass-rate ceiling and enforcement-theater detector. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-canon-enforcement-parity.mjs",
@@ -79,7 +84,8 @@
     },
     {
       "path": "scripts/check-ci-tool-parity.mjs",
-      "reason": "External-tool pin/install/use parity across `scripts/ci-tools.json`, CI, and the gate. CONFIRMED self-only: `scripts/ci-tools.json` and `scripts/install-ci-tools.mjs` are arbiter's own tool-installation pipeline; no template emits an equivalent tool-pin manifest or installer for target projects (targets that need gitleaks get a static `security/gitleaks.toml.ejs` config, not a pin/install/use parity gate)."
+      "reason": "External-tool pin/install/use parity across manifest, CI and gate. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-codex-parity.mjs",
@@ -95,7 +101,8 @@
     },
     {
       "path": "scripts/check-coverage-ratchet.mjs",
-      "reason": "INV-25: coverage no-regression ratchet over arbiter's own `coverage/coverage-summary.json` vs `.coverage-baseline.json`. CONFIRMED self-only: the equivalent concern already reaches targets via a different, already-emitted mechanism — `src/templates/scripts/verify-module-coverage.mjs.ejs` (INV-134, per-module baseline ratchet) and `src/templates/scripts/verify-fe-coverage.mjs.ejs`; a duplicate total-metric twin would be redundant."
+      "reason": "INV-25: coverage no-regression ratchet. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-deprecations.mjs",
@@ -103,17 +110,18 @@
     },
     {
       "path": "scripts/check-doc-path-citations.mjs",
-      "reason": "Backtick file-path citations in hand-authored prose resolve on disk (advisory). STILL PENDING: target projects receive a hand-authored docs corpus containing backtick path citations (e.g. `src/templates/root/docs/METHOD/PATTERNS_CATALOG.md.ejs`) but nothing verifies those citations resolve on a target's own disk. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "Backtick file-path citations in prose resolve on disk (advisory). STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-doc-style.mjs",
-      "reason": "Frontmatter shape, H1 presence and `last_review` date on hand-authored docs. STILL PENDING: the exact frontmatter schema this checks (`doc_version`, `canonical_id`, etc.) is already emitted to targets (`src/templates/governance/validation-evidence.md.ejs`, `src/templates/root/docs/METHOD/PATTERNS_CATALOG.md.ejs`) but no gate verifies a target's own docs conform to it. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "Frontmatter shape, H1 presence and last_review date on hand-authored docs. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-docker-action-runner-safety.mjs",
-      "reason": "Docker container-action / self-hosted-runner safety gate (#1756). CONFIRMED self-only: the incident and the hazard (a docker-container Action asking the HOST daemon to bind-mount `/github/workspace` on arbiter's own self-hosted `arbiter-slot-build-*` runners) are specific to arbiter's own runner infrastructure; a target's CI runner fleet is outside arbiter's knowledge and no template configures or audits it."
+      "reason": "Docker container-action and self-hosted-runner safety. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-emission-coherence.mjs",
@@ -121,12 +129,13 @@
     },
     {
       "path": "scripts/check-evidence-bundle.mjs",
-      "reason": "INV-90: evidence bundles validate against the published schema. STILL PENDING: targets get a rich evidence-writing toolchain (`evidence-collect.mjs.ejs`, `evidence-writer.sh.ejs`, `done-evidence.mjs.ejs`) but `schemas/evidence-bundle.schema.json` has no template twin to validate the bundles those tools produce. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-90: evidence bundles validate against the published schema. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-fixture-isolation.mjs",
-      "reason": "Fixture/smoke output must not contaminate the real evidence roots (`.arbiter/evidence`, `.evidence`). CONFIRMED self-only: this audits arbiter's own test-fixture corpus (`__tests__/fixtures/**`) and smoke-test output for leakage into arbiter's own dev evidence roots — a QA hygiene check on arbiter's own test suite, not a concern a generated target project has."
+      "reason": "Fixture and smoke output must not contaminate the real evidence roots. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-generator-tests.mjs",
@@ -146,16 +155,18 @@
     },
     {
       "path": "scripts/check-hardness-inventory.mjs",
-      "reason": "Hook hardness manifest drift check plus Codex-config parity, over arbiter's own `.claude/hooks/`. CONFIRMED self-only: the hardness manifest and the Codex-config cross-check are arbiter-repo-specific QA artifacts; no manifest or Codex-parity template is emitted for a target's hooks."
+      "reason": "Hook hardness manifest drift check. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-hook-contracts.mjs",
-      "reason": "Verifies every `.mjs` in arbiter's own `.claude/hooks/` is documented in `docs/internal/SYSTEM/HOOK-CONTRACTS.md` and actually loads. CONFIRMED self-only: `HOOK-CONTRACTS.md` is an arbiter-internal doc with no generated equivalent for a target's hooks."
+      "reason": "Hook exit-code and stdin contract conformance. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-hook-doc-parity.mjs",
-      "reason": "CANON-10: registered hooks reconcile with the CLAUDE.md hooks table. STILL PENDING: targets receive both `.claude/settings.json` (hooks) and `.claude/CLAUDE.md` (hooks table) from the generator, and either can drift post-generation exactly as arbiter's own hand-maintained pair can — no gate catches that drift for a target. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "CANON-10: registered hooks reconcile with the CLAUDE.md hooks table. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-id-stability.mjs",
@@ -187,13 +198,13 @@
     },
     {
       "path": "scripts/check-monthly-freshness.mjs",
-      "reason": "INV-82: monthly CI stamp within the freshness window. STILL PENDING: targets receive monthly CI (`src/templates/github/workflows/08-monthly.yml.ejs`, `_monthly.yml.ejs`) but no gate verifies the monthly stamp artifact stays fresh for them. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-82: monthly CI stamp within the freshness window. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-nightly-freshness.mjs",
-      "reason": "INV-93: nightly CI stamp within the freshness window. STILL PENDING: targets receive nightly CI (`06-nightly.yml.ejs`, `_nightly.yml.ejs`) but no gate verifies the nightly stamp artifact stays fresh for them. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-93: nightly CI stamp within the freshness window. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-no-direct-fs.mjs",
@@ -201,7 +212,8 @@
     },
     {
       "path": "scripts/check-no-passwithnotests.mjs",
-      "reason": "INV-25/#1039: forbids `--passWithNoTests` in named test-category scripts, scanning `package.json` and CI workflow text. CONFIRMED self-only: the equivalent anti-fake-green protection already reaches targets via a different, already-emitted mechanism — `src/templates/scripts/check-min-test-execution.mjs.ejs` (same INV-25, runtime collect-mode check across vitest/jest/pytest/go rather than a static flag-text scan); a duplicate static-scan twin would be redundant."
+      "reason": "INV-25: no --passWithNoTests silent-green in test scripts. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-no-raw-strings.mjs",
@@ -213,17 +225,18 @@
     },
     {
       "path": "scripts/check-no-work-refs.mjs",
-      "reason": "Privacy gate rejecting committed files containing provenance strings from Luca's private work repositories. CONFIRMED self-only: the forbidden-string set is specific to this maintainer's own private-repo names, not a generalizable target-project concern; no template can meaningfully parametrize a private individual's own repo-name list."
+      "reason": "Privacy gate rejecting private-repo provenance strings. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-node-version-ssot.mjs",
-      "reason": "INV-53: Node version SSOT via `.nvmrc`, no literal node-version pins. STILL PENDING: `.nvmrc` is emitted to targets (`src/templates/.nvmrc.ejs`) but nothing gates a target against a literal `node-version:` pin drifting from it. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-53: Node version SSOT via .nvmrc, no literal node-version pins. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-npm-ci-drift.mjs",
-      "reason": "`npm ci` would succeed under the pinned `packageManager`. STILL PENDING: npm-based target projects get a `package-lock.json` but no gate verifies `npm ci` succeeds under their pinned npm the way this self check does for arbiter's own lockfile. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "npm ci would succeed under the pinned packageManager. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-orchestration-integrity.mjs",
@@ -231,11 +244,13 @@
     },
     {
       "path": "scripts/check-orchestrator-coverage.mjs",
-      "reason": "Every `scripts/check-*.mjs` reachable from `scripts/check-all.mjs`. CONFIRMED self-only: this audits the completeness of arbiter's own growing gate-script family (`scripts/`), an authoring-process concern for the maintainers of arbiter itself; a target receives a single generated, largely static `check-all.mjs`, not an evolving script family that needs its own orphan-gate audit."
+      "reason": "Every scripts/check-*.mjs is reachable from check-all.mjs. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-perm-test-guards.mjs",
-      "reason": "Asserts every `chmod 0o000` unreadable-path test in arbiter's own test suite guards on `process.getuid?.() === 0`. CONFIRMED self-only: this inspects arbiter's own `__tests__/**` TypeScript test bodies for a root-CI hazard specific to arbiter's Vitest suite; a target project's own tests are outside arbiter's generator corpus and not something arbiter's generator audits."
+      "reason": "Permission tests that chmod 0o000 must guard against running as root. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-phantom-command-scan.mjs",
@@ -243,7 +258,8 @@
     },
     {
       "path": "scripts/check-phase-doc-consistency.mjs",
-      "reason": "INV-113: no source or template CODE reads/writes the legacy flat `.claude/.task-*` dotfiles; the migration shim is arbiter's own `src/commands/task-state.ts`. CONFIRMED self-only: this is a static scan of arbiter's own `src/**` generator source for a migration-hygiene hazard specific to arbiter's own CLI implementation, not a target's generated/consumed code."
+      "reason": "INV-113: single authoritative task-phase document, no legacy dotfiles. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-plugin-api-stability.mjs",
@@ -251,12 +267,13 @@
     },
     {
       "path": "scripts/check-private-paths-ignored.mjs",
-      "reason": "Asserts a fixed `MUST_IGNORE` list of arbiter-repo-specific private paths (e.g. `.arbiter/private/work-kit-source/x.md`) is gitignored. CONFIRMED self-only: the path list is hardcoded to this maintainer's own private-content locations in this repo, not a generalizable target-project convention."
+      "reason": "Asserts private paths are gitignored. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-reuse-survey.mjs",
-      "reason": "INV-70: a commit adding a new `src/`/`scripts/` file documents the reuse survey. STILL PENDING: `src/templates/root/docs/METHOD/REUSE_REGISTRY_SPEC.md.ejs` emits the \"Existing Code Survey:\" marker convention to targets, but no gate enforces it there (the script's own header already flagged this as \"pending the start-warn→promote decision (#2044 item c)\"; #2044 closed without doing that promotion). Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-70: a commit adding a new src/ or scripts/ file documents the reuse survey. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-runtime-dep-pins.mjs",
@@ -264,7 +281,8 @@
     },
     {
       "path": "scripts/check-script-cohesion.mjs",
-      "reason": "INV-94/CANON-21: every new `scripts/check-*.mjs` file must carry a `// CATALOG:` fold-in-rejection marker block. CONFIRMED self-only: this is an authoring/code-review convention for arbiter's own growing gate-script library, exercised only when arbiter's own maintainers add a new check script — a target project does not author new gate scripts into arbiter's `scripts/` family."
+      "reason": "INV-94/CANON-21: every new check script carries a CATALOG fold-in rejection. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-self-dogfood.mjs",
@@ -280,7 +298,8 @@
     },
     {
       "path": "scripts/check-spdx-headers.mjs",
-      "reason": "Verifies every `src/**/*.ts` file starts with `SPDX-License-Identifier: Apache-2.0`. CONFIRMED self-only: hardcoded to arbiter's own license (Apache-2.0) and its own generator source tree (`src/`); arbiter deliberately does not select or emit a license for target projects (no `LICENSE` template exists — see `src/templates/`), so there is no default license identifier a generic twin could check against without a product decision arbiter has not made."
+      "reason": "SPDX licence header presence on every source file. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-template-tests.mjs",
@@ -304,13 +323,13 @@
     },
     {
       "path": "scripts/check-workflow-hardening.mjs",
-      "reason": "INV-76/95: GitHub Actions hardening posture across workflows. STILL PENDING: arbiter generates the full `.github/workflows/*.yml` corpus for targets (unpinned actions, missing permissions/concurrency/timeouts are real risks in generated workflows too) but the hardening-posture audit only runs on arbiter's own rendered workflows. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-76/95: GitHub Actions hardening posture across workflows. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/check-workflow-parallelism.mjs",
-      "reason": "INV-120: workflow job-needs critical-path depth regression. STILL PENDING: the same generated-workflow-corpus gap — the needs-chain depth ratchet only runs on arbiter's own workflows, not a target's, even though the design note analyzes the template's own critical path. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-120: workflow job-needs critical-path depth regression. STAGED, not confirmed self-only: a general-purpose engineering gate that a governed target plausibly should also receive. Audit under #2275 — either emit a template twin or demote to an undated self-only entry with a construction argument.",
+      "expires": "2026-08-29"
     },
     {
       "path": "scripts/gen-adr-readme.mjs",
