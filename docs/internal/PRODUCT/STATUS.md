@@ -34,13 +34,15 @@ Arbiter installs a complete, standards-aligned AI governance stack into any proj
 
 **Missing** (1): REQ-033
 
-## Current Milestone
+## Milestones
 
-All milestones complete.
+_Source: MILESTONES.md open epics table (offline fallback)._
 
-## Open Milestones
-
-None — all milestones complete.
+| Epic  | Title                                                                                    |
+| ----- | ---------------------------------------------------------------------------------------- |
+| #1491 | Release-readiness remediation — pre-public-launch fix waves                              |
+| #1770 | Release v0.1 — public-launch wave (audit 2026-07-04)                                     |
+| #1943 | Anti-context-rot enforcers E1-E7 (M8/M12/M13/M14/M9/M1/M4/M6 TO-CREATE debt) — untracked |
 
 ## Navigation
 

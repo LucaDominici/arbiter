@@ -7,7 +7,12 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync, chmodSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
-import { collectData, buildStatus, buildMilestoneSection, runCli } from '../../scripts/gen-status.mjs'
+import {
+  collectData,
+  buildStatus,
+  buildMilestoneSection,
+  runCli,
+} from '../../scripts/gen-status.mjs'
 
 const SCRIPT = resolve('scripts/gen-status.mjs')
 
@@ -59,7 +64,10 @@ function makeFixtures(
 
   // MILESTONES.md — headings are flavor only (#2409 no longer parses "## M<n>" for state);
   // the "**Open epics:**" table is the fallback milestone source.
-  const openEpics = opts.openEpics === undefined ? [{ issue: '#100', title: 'Default Epic', state: 'OPEN' }] : opts.openEpics
+  const openEpics =
+    opts.openEpics === undefined
+      ? [{ issue: '#100', title: 'Default Epic', state: 'OPEN' }]
+      : opts.openEpics
   const epicsSection =
     openEpics === null
       ? ''
@@ -309,7 +317,9 @@ describe('buildMilestoneSection() — golden (#2409)', () => {
 
   it('live source, no open milestones', () => {
     const out = buildMilestoneSection({ source: 'live', items: [] })
-    expect(out).toBe('\n## Milestones\n\n_Source: live GitHub milestones._\n\nNo open milestones.\n')
+    expect(out).toBe(
+      '\n## Milestones\n\n_Source: live GitHub milestones._\n\nNo open milestones.\n',
+    )
   })
 
   it('fallback source, with items', () => {
@@ -547,7 +557,12 @@ describe('runCli() — --check determinism (#2409)', () => {
     try {
       makeFixtures(dir, { openEpics: [{ issue: '#9', title: 'Reproducible epic', state: 'OPEN' }] })
       writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ permitGitHub: true }))
-      const fakeBin = makeFakeGh(dir, JSON.stringify([{ title: 'Should be ignored', open_issues: 1, closed_issues: 0, due_on: null }]))
+      const fakeBin = makeFakeGh(
+        dir,
+        JSON.stringify([
+          { title: 'Should be ignored', open_issues: 1, closed_issues: 0, due_on: null },
+        ]),
+      )
       const statusPath = join(dir, 'docs', 'internal', 'PRODUCT', 'STATUS.md')
       await runCli(dir, statusPath, false) // committed content generated fallback-only
       const originalPath = process.env.PATH
