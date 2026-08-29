@@ -36,6 +36,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
+import { evidenceStaleness, isForeignSidecar } from './lib/evidence-binding.mjs'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
@@ -59,6 +60,26 @@ const evidenceDir = arg('evidence-dir', argv)
 const schemaPath = arg('schema', argv)
   ? resolve(arg('schema', argv))
   : join(repoRoot, 'schemas', 'agent-return.schema.json')
+
+/**
+ * Task this run reconciles: the explicit `--task` when given, else the task state on disk.
+ * `undefined` means "unknown" — nothing can then be proven foreign, which is exactly the
+ * pre-#2399 behaviour.
+ * FAIL-OPEN-INTENT: an unreadable status file only widens what counts as the active task; it
+ * never turns a stale or mismatched sidecar into a pass — every binding check below still runs.
+ */
+function activeTaskId() {
+  if (requestedTask) return requestedTask
+  try {
+    const parsed = JSON.parse(
+      readFileSync(join(repoRoot, '.claude', '.task', 'status.json'), 'utf-8'),
+    )
+    return isRecord(parsed) && typeof parsed['taskId'] === 'string' ? parsed['taskId'] : undefined
+  } catch {
+    return undefined
+  }
+}
+const activeTask = activeTaskId()
 
 /**
  * @typedef {{ count: number, branch: string, sha: string, agents?: string[], task?: string, taskId?: string }} DispatchSidecar
@@ -519,25 +540,17 @@ function checkoutBindingError(sidecar) {
     // FAIL-OPEN-INTENT: isolated non-git fixtures have no checkout identity; real git roots fail closed below when metadata exists.
     return existsSync(join(repoRoot, '.git')) ? 'cannot read the current git branch' : null
   }
-  if (branch !== sidecar.branch) {
-    return `sidecar branch ${sidecar.branch} does not match current branch ${branch}`
-  }
-  const head = gitLine(['rev-parse', 'HEAD'])
-  if (head === null) return 'cannot read current git HEAD'
-  const ancestor = spawnSync('git', ['merge-base', '--is-ancestor', sidecar.sha, head], {
-    cwd: repoRoot,
-    stdio: ['ignore', 'ignore', 'ignore'],
-  })
-  if (ancestor.status !== 0) {
-    return `sidecar sha ${sidecar.sha} is not an ancestor of current HEAD ${head}`
-  }
-  const trackedError = trackedChangesError(sidecar.sha, head)
+  // #2399: branch + ancestry + CONTENT in one binding (evidence-only commits are not a
+  // source change); the uncommitted legs below still fail closed on a dirty checkout.
+  const staleness = evidenceStaleness(repoRoot, sidecar.sha, { branch: sidecar.branch })
+  if (staleness !== null) return `review sidecar ${staleness}`
+  const trackedError = trackedChangesError(sidecar.sha)
   if (trackedError) return trackedError
   return dirtyCheckoutError(sidecar.sha)
 }
 
-function trackedChangesError(sha, head) {
-  for (const diffArgs of [[`${sha}..${head}`], [], ['--cached']]) {
+function trackedChangesError(sha) {
+  for (const diffArgs of [[], ['--cached']]) {
     const changed = spawnSync('git', ['diff', '--name-only', ...diffArgs], {
       cwd: repoRoot,
       encoding: 'utf-8',
@@ -572,6 +585,25 @@ function dirtyCheckoutError(sha) {
   return null
 }
 
+/**
+ * #2399 — a sidecar recorded for another task is ABSENT, not a mismatch: the tracked
+ * `.arbiter/agents-dispatched.json` is shared by every branch, so one task's sidecar
+ * otherwise fails every other branch's gate.
+ *
+ * @param {string} reason
+ * @returns {{ exitCode: number }}
+ */
+function sidecarAbsent(reason) {
+  if (requestedTask) {
+    process.stderr.write(
+      `[check-review-completion] FAIL: dispatch sidecar is required for task ${requestedTask} (${reason})\n`,
+    )
+    return { exitCode: 1 }
+  }
+  process.stdout.write(`[check-review-completion] OK — ${reason}, vacuous pass\n`)
+  return { exitCode: 0 }
+}
+
 function loadSidecarForCheck() {
   const sidecarState = inspectFilePath(sidecarPath)
   if ('error' in sidecarState) {
@@ -580,24 +612,18 @@ function loadSidecarForCheck() {
     )
     return { exitCode: 2 }
   }
-  if (!sidecarState.exists) {
-    if (requestedTask) {
-      process.stderr.write(
-        `[check-review-completion] FAIL: dispatch sidecar is required for task ${requestedTask}\n`,
-      )
-      return { exitCode: 1 }
-    }
-    process.stdout.write(
-      '[check-review-completion] OK — dispatch sidecar not found, vacuous pass\n',
-    )
-    return { exitCode: 0 }
-  }
+  if (!sidecarState.exists) return sidecarAbsent('dispatch sidecar not found')
   const sidecarResult = readDispatchSidecar()
   if ('error' in sidecarResult) {
     process.stderr.write(
       `[check-review-completion] ERROR: cannot read sidecar ${sidecarPath}: ${sidecarResult.error}\n`,
     )
     return { exitCode: 2 }
+  }
+  if (isForeignSidecar(sidecarResult.sidecar, activeTask)) {
+    return sidecarAbsent(
+      `dispatch sidecar belongs to task ${sidecarTask(sidecarResult.sidecar)}, not ${activeTask}`,
+    )
   }
   return sidecarResult
 }
