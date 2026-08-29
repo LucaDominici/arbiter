@@ -86,7 +86,9 @@ describe('check-tabletop-evidence (#2429)', () => {
   })
 
   it('accepts a well-formed evidence file with owned findings', () => {
-    const { dir, cleanup } = stage({ 'greenfield-init-ts-2026-08-29.md': evidence([OWNED_MAJOR, MINOR]) })
+    const { dir, cleanup } = stage({
+      'greenfield-init-ts-2026-08-29.md': evidence([OWNED_MAJOR, MINOR]),
+    })
     try {
       const r = run(dir)
       expect(r.out).toContain('OK')
@@ -126,7 +128,9 @@ describe('check-tabletop-evidence (#2429)', () => {
 
   it('fails on a major finding whose owner cell is a bare em-dash', () => {
     const unowned = OWNED_MAJOR.replace('| #2429 |', '| — |')
-    const { dir, cleanup } = stage({ 'greenfield-init-ts-2026-08-29.md': evidence([unowned, MINOR]) })
+    const { dir, cleanup } = stage({
+      'greenfield-init-ts-2026-08-29.md': evidence([unowned, MINOR]),
+    })
     try {
       expect(run(dir).status).toBe(1)
     } finally {

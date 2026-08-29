@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "tabletop-evidence.schema.json",
+  "title": "Tabletop evidence",
+  "description": "Frontmatter and findings-table contract for a file under .arbiter/evidence/tabletop/. Enforced by scripts/check-tabletop-evidence.mjs (#2429).",
+  "type": "object",
+  "required": ["scenario", "sha", "date", "persona", "steps", "findings"],
+  "properties": {
+    "scenario": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Catalogue slug from docs/internal/METHOD/TABLETOP-SCENARIOS.md, or a slugified free-text use case."
+    },
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "description": "Commit the tabletop was walked against — findings are only readable against a pinned tree."
+    },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "persona": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Who the agent narrated the journey as."
+    },
+    "steps": { "type": "integer", "minimum": 1 },
+    "findings": {
+      "type": "object",
+      "required": ["blocker", "major", "minor"],
+      "description": "Per-severity counts; must equal the findings-table row counts.",
+      "properties": {
+        "blocker": { "type": "integer", "minimum": 0 },
+        "major": { "type": "integer", "minimum": 0 },
+        "minor": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "x-findings-table": {
+    "description": "The findings table's shape. Kept here so the gate, the skill and the reader share one source of truth.",
+    "columns": [
+      "step",
+      "doc claim (path:line)",
+      "observed",
+      "severity",
+      "class",
+      "proposed permanent check",
+      "owner"
+    ],
+    "severity": ["blocker", "major", "minor"],
+    "class": ["phantom-command", "doc-drift", "missing-gate", "ux", "bug"],
+    "ownerRequiredFor": ["blocker", "major"],
+    "ownerPattern": "^(#[0-9]+|https://\\S+|fixed:[0-9a-f]{7,40})$"
+  }
+}

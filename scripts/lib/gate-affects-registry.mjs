@@ -110,6 +110,9 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'no work refs', affects: ALWAYS },
   { name: 'private paths ignored', affects: ALWAYS },
   { name: 'no tracked artifacts (INV-117)', affects: ALWAYS },
+  // #2429: reads .arbiter/evidence/tabletop/, which is outside every narrow bucket
+  // (not docs/, not .github/, not src/templates/) — ALWAYS is the honest default.
+  { name: 'tabletop evidence (#2429)', affects: ALWAYS },
   // #2159: found unwired by check-unwired-guards.mjs itself — see check-all.mjs.
   { name: 'hook routing (#2129)', affects: ALWAYS },
   { name: 'safety adopt ratchet (#2291)', affects: ALWAYS },

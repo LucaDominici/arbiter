@@ -217,14 +217,18 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
   // it the `kind/method` + `status: active` block its seven METHOD siblings carry is what
   // made the selector finally see it. Tagging it otherwise to stay under the ceiling would be
   // gaming the counter, not bounding the surface.
+  // 2026-08-29 (#2429) legitimately added docs/internal/METHOD/TABLETOP-SCENARIOS.md — the
+  // seeded scenario catalogue for /tabletop, carrying the same `kind/method` +
+  // `canonical_id` frontmatter its eight METHOD siblings carry. Either alone qualifies it;
+  // demoting it to a non-backbone kind to duck the ceiling would be gaming the counter.
   // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
   // the pre-growth ceiling. Bound updated to the current real count so the budget still
   // catches future unbounded growth.
-  it('selectSsotDocs returns at most 31 canonical core docs', () => {
+  it('selectSsotDocs returns at most 32 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(31)
+    ).toBeLessThanOrEqual(32)
   })
 })

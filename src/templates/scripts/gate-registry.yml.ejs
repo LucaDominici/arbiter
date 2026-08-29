@@ -138,6 +138,8 @@ gates:
   - { id: assertion-delta, name: 'assertion delta (anti-fake-green)', level: L1, kind: check, cmd: ['node', ['scripts/check-assertion-delta.mjs']] }
   - { id: oracle-discrimination, name: 'oracle discrimination (anti-fake-green)', level: L1, kind: check, emitIf: "archetype === 'frontend-spa' || archetype === 'backend-web-db'", cmd: ['node', ['scripts/check-oracle-discrimination.mjs']] }
 
+  - { id: tabletop-evidence, name: 'tabletop evidence (#2429)', level: L1, kind: check, cmd: ['node', ['scripts/check-tabletop-evidence.mjs']] }
+
   # ── L2 ─────────────────────────────────────────────────────────────────────
   - { id: gitleaks, name: gitleaks, level: L2, kind: check, emitIf: "enableSecurityScanning", soft: true, cmd: ['gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1']] }
   - { id: npm-audit, name: audit, level: L2, kind: inline, emitIf: "language === 'typescript' && enableSecurityScanning" }

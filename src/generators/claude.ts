@@ -338,6 +338,7 @@ export const CLAUDE_COMMANDS: readonly string[] = [
   'wt-prune.md',
   'close-gold-gap.md',
   'levelup.md',
+  'tabletop.md',
 ]
 
 function generateClaudeCommands(
