@@ -61,10 +61,12 @@ function escapeRegExp(s) {
 
 // ─── Extraction ──────────────────────────────────────────────────────────────
 // A directive prohibition is a line (or a bullet inside a `**Never:**`/`**Don't:**` block)
-// that bans something. Explanatory fields (**Why:**/**Source/**Enforcement) and blockquotes
-// are NOT prohibitions. `\bnever\b` is word-bounded so "whenever" never triggers.
+// that bans something. Explanatory fields (**Why:**/**Source/**Enforcement, and their
+// `- _Enforcement:_` italic-bullet spelling used by AGENTS.md's INV entries) and
+// blockquotes are NOT prohibitions. `\bnever\b` is word-bounded so "whenever" never triggers.
 const NEVER_BLOCK_HEADER = /^\s*\*\*(Never|Don't|Do ?not)\b[^*]*\*\*\s*$/i
-const EXCLUDED_FIELD = /^\s*(>|\*\*(Why|Source|Sources|Enforcement|Promoted|Tradeoff)\b)/i
+const EXCLUDED_FIELD =
+  /^\s*(>|(?:[-*]\s+)?(?:\*\*|_)(Why|Source|Sources|Enforcement|Promoted|Tradeoff)\b)/i
 const BULLET = /^\s*[-*]\s+/
 // Inline markers, in scan order. Each captures the slice AFTER the marker for token derivation.
 const INLINE_MARKERS = [
@@ -87,10 +89,17 @@ function tokensIn(text) {
 // Every backtick token AFTER the marker is a prohibited symbol — `MUST NOT use `a` or `b``
 // bans both. Tokens BEFORE the marker (e.g. the approved wrapper in "use `x`, never `y`") are
 // excluded by construction. Returns [] when no token follows (→ UNENFORCEABLE).
+// ponytail: clipped to the first sentence boundary (". ") after the marker — a long
+// explanatory bullet's NEXT clause routinely mentions unrelated backtick paths/tokens
+// (e.g. "...must NOT contain `push.branches`. ...used by `cosign copy`."), and sweeping
+// the whole rest of the line falsely prohibits every token in the trailing prose too.
 function tokensAfter(line, markerRe) {
   const m = markerRe.exec(line)
   if (!m) return []
-  return tokensIn(line.slice(m.index + m[0].length))
+  let tail = line.slice(m.index + m[0].length)
+  const boundary = tail.indexOf('. ')
+  if (boundary !== -1) tail = tail.slice(0, boundary + 1)
+  return tokensIn(tail)
 }
 
 // Returns [{ doc, line, text, token }] — token may be null (→ UNENFORCEABLE).

@@ -75,6 +75,10 @@ import { isMainModule } from './lib/run-helpers.mjs'
 /**
  * Parse `[UNENFORCEABLE] signal — doc:line` lines from constraint-scan stdout.
  * Separator is em-dash U+2014, not a hyphen — a hyphen regex silently zeroes the section.
+ * The signal capture is greedy: arbiter's own prose routinely embeds an em-dash inside the
+ * signal text itself (e.g. "must not contradict — run drift check"), so a non-greedy match
+ * stops at the FIRST em-dash and mis-splits the signal into the doc column. Greedy + a doc
+ * group that excludes em-dash finds the real (last, well-formed `doc:line`) separator instead.
  * @param {string} stdout
  * @returns {Array<{signal: string, doc: string, line: number}>}
  */
@@ -82,7 +86,7 @@ export function parseUnenforceable(stdout) {
   const gaps = []
   for (const line of stdout.split('\n')) {
     // U+2014 em-dash between signal and doc:line
-    const m = line.match(/^\[UNENFORCEABLE\]\s+(.+?)\s+—\s+(.+?):(\d+)$/)
+    const m = line.match(/^\[UNENFORCEABLE\]\s+(.+)\s+—\s+([^—\n]+):(\d+)$/)
     if (!m) continue
     gaps.push({ signal: m[1].trim(), doc: m[2].trim(), line: parseInt(m[3], 10) })
   }
@@ -120,6 +124,19 @@ function parseConvergenceDebt(content) {
     })
   }
   return debt
+}
+
+/**
+ * Guard `__tests__/...`-style paths from prettier's markdown formatter, which parses
+ * intraword `__..__` as strong emphasis and rewrites it to bold-asterisk form — corrupting
+ * the path (#2410: a committed GAP.md carried 14 mangled occurrences, 0 correct ones).
+ * Wraps any not-already-backticked `__word__[/more/path]` run in a code span so prettier's
+ * markdown parser treats it as literal inline code instead of emphasis syntax.
+ * @param {string} text
+ * @returns {string}
+ */
+function guardTestPaths(text) {
+  return text.replace(/(?<!`)(__[\w-]+__(?:\/[\w./-]*)?)(?!`)/g, '`$1`')
 }
 
 // ---------------------------------------------------------------------------
@@ -160,9 +177,9 @@ export function collectData(root) {
     const status = /** @type {'Partial'|'Missing'} */ (m[5])
     featureGaps.push({
       id: m[1].trim(),
-      area: m[2].trim().replace(/\|/g, '\\|'),
+      area: guardTestPaths(m[2].trim().replace(/\|/g, '\\|')),
       status,
-      missing: m[10].trim().replace(/\|/g, '\\|'),
+      missing: guardTestPaths(m[10].trim().replace(/\|/g, '\\|')),
       issue: m[9].trim(),
       severity: status === 'Missing' ? 'high' : 'medium',
       blocksV1: status === 'Missing',
@@ -184,9 +201,15 @@ export function collectData(root) {
       // RT-01: check result.error before parsing stdout
       if (!result.error && result.stdout) {
         for (const gap of parseUnenforceable(result.stdout)) {
+          // #2410 AC-3: a real constraint is an INV-NN/CANON-NN citation or a named
+          // policy sentence — both are multi-word. A bare code token/path/flag swept out
+          // of a longer sentence (`push.branches`, `debt-baseline.json`, `--no-verify`)
+          // has no whitespace and is token noise, not a constraint; drop it.
+          if (!/\s/.test(gap.signal.trim())) continue
           enforcementGaps.push({
             ...gap,
-            signal: gap.signal.replace(/\|/g, '\\|'),
+            signal: guardTestPaths(gap.signal.replace(/\|/g, '\\|')),
+            doc: guardTestPaths(gap.doc),
             severity: 'medium',
             blocksV1: false,
           })
@@ -281,13 +304,15 @@ export function buildGap(data) {
           .join('\n')
       : '_No v1-blocking gaps._'
 
+  // #2410 AC-2: render the row shape, not the FEATURE_MATRIX `note` column verbatim —
+  // a copied note can run to thousands of characters. Link to the matrix row instead.
   const featureGapsRows =
     allFeatureGaps.length > 0
       ? allFeatureGaps
-          .map(
-            (g) =>
-              `| ${g.id} | ${g.area} | ${g.status} | ${g.severity} | ${g.blocksV1 ? 'yes' : 'no'} | ${g.issue || '—'} | ${g.missing || '—'} |`,
-          )
+          .map((g) => {
+            const anchor = `FEATURE_MATRIX.md#${g.id.toLowerCase()}`
+            return `| ${g.id} | ${g.area} | ${g.status} | ${g.severity} | ${g.blocksV1 ? 'yes' : 'no'} | ${g.issue || '—'} | [${g.id}](${anchor}) |`
+          })
           .join('\n')
       : '_No feature gaps._'
 
@@ -333,7 +358,7 @@ ${v1BlockersSection}`
 
 ## Feature Gaps
 
-| feature_id | capability | status | severity | blocks_v1 | issue | notes |
+| feature_id | capability | status | severity | blocks_v1 | issue | matrix |
 | --- | --- | --- | --- | --- | --- | --- |
 ${featureGapsRows}
 
