@@ -150,7 +150,7 @@
     "test-pyramid.json"
   ],
   "contentHashes": {
-    ".agents/CODEX.md": "9a817b2c9f5c77a9c1bfaa8c246062027f4d11d0c67dff714d08184c1a40448d",
+    ".agents/CODEX.md": "4ea7f662419e764e4100676e3f3906157e0e27d8e779447119e0333258c69300",
     ".agents/plan/README.md": "bdca22392d62033e1038d713937c788aef6d31064e9c08a6dda112842e1a9c07",
     ".agents/rules/05-agent-lifecycle.md": "0cfaa8a26aace5594a65ce4bf01395cdeae1581fe77cbd2b4ec79e3d8181e910",
     ".agents/rules/25-todo-folder-policy.md": "4db8c0a73cc7397b65e1755dc77d2b85172495e66d434513ed5f3a01f3572a1d",
@@ -164,8 +164,8 @@
     ".claude/hooks/lib.mjs": "2367080d6ff3a86c55e444886ffd795d5eb5ff98a5065921853cca41cad3955d",
     ".claude/hooks/pre-edit-ssot-guard.mjs": "2317c2075bea7c4f19d4164d89e79867fc65886ad29e6033c34349f4b027ae78",
     ".claude/hooks/stop-dangerous.mjs": "f2896a9bc48e44dd9e201a766a9880cd18a39c446605ca3fe2b6adad16425a34",
-    ".codex/codex-adapter.mjs": "c2184f2b7ff5261c817d28c3a3d023fac3ad48b0ee3c5f4dedec11df4b45b962",
-    ".codex/config.toml": "9cc377ba0604f8da62fb46c6950a94886671ff172fb8b7903aa8e446bc296d7b",
+    ".codex/codex-adapter.mjs": "09e7a7489384192c00de97aabedb0996ce7f2baa7dbec2450f86521d2e4504df",
+    ".codex/config.toml": "87d2d097e259246c05d4a5b2558e94fae1f606a300577068250c81477f080071",
     ".env.example": "37bd176675e9c72ced2f6f62ddbf68189b0dc7dc2656f902180aceaa1b50f734",
     ".eslintrc-static.json": "3a3aa03974af8d2e0db99302c30d606043cd98cf771d8e1303fc574f12f0b137",
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",

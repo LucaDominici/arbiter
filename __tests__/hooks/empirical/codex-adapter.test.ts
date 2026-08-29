@@ -307,6 +307,44 @@ describe('codex-adapter stdin payload bridge (#2385)', () => {
     expect(path).toBeNull()
   })
 
+  // codex-cli 0.150.1 sends tool_name "Bash" (capital B) for shell calls — the
+  // lower-case spelling the adapter was written against never appears, so this
+  // case is the one that actually fires in production.
+  it('maps the capital-B Bash tool name Codex actually sends', () => {
+    const hook = writeProbeHook(dir, out)
+    const result = runAdapter({ ...makeBashPayload('echo hi'), tool_name: 'Bash' }, hook)
+    expect(result.status).toBe(0)
+
+    const { payload, command } = readProbe(out)
+    expect(payload.tool_name).toBe('Bash')
+    expect(payload.tool_input).toEqual({ command: 'echo hi' })
+    expect(command).toBe('echo hi')
+  })
+
+  it('blocks on a dangerous command under the capital-B tool name', () => {
+    const result = runAdapter(
+      { ...makeBashPayload('rm -rf /'), tool_name: 'Bash' },
+      STOP_DANGEROUS_HOOK,
+    )
+    expect(result.status).toBe(2)
+  })
+
+  it('passes tool_use_id and tool_response through to the hook', () => {
+    const hook = writeProbeHook(dir, out)
+    runAdapter(
+      {
+        ...makeBashPayload('echo hi'),
+        tool_name: 'Bash',
+        tool_use_id: 'call_123',
+        tool_response: { output: 'hi' },
+      },
+      hook,
+    )
+    const { payload } = readProbe(out)
+    expect(payload.tool_use_id).toBe('call_123')
+    expect(payload.tool_response).toEqual({ output: 'hi' })
+  })
+
   it('forwards a non-tool event (UserPromptSubmit) payload unchanged, once', () => {
     const hook = writeProbeHook(dir, out)
     const result = runAdapter(
@@ -356,6 +394,18 @@ describe('codex-adapter stdin payload bridge (#2385)', () => {
 })
 
 describe('codex config bridge parity with .claude/settings.json (#2385)', () => {
+  // Both facts are empirical (codex-cli 0.150.1): the shell tool is "Bash", and
+  // [features].codex_hooks is deprecated in favour of [features].hooks. Getting
+  // either wrong is SILENT — an unmatched matcher and a deprecated flag both
+  // leave the bridge inert with no error.
+  it('matches the Bash tool name Codex sends and uses the current hooks feature flag', () => {
+    const codexConfig = readFileSync(join(process.cwd(), '.codex/config.toml'), 'utf-8')
+    expect(codexConfig).toContain('matcher = "^(Bash|bash)$"')
+    expect(codexConfig).not.toContain('matcher = "^bash$"')
+    expect(codexConfig).toMatch(/^\[features\]\nhooks = true$/m)
+    expect(codexConfig).not.toContain('codex_hooks')
+  })
+
   it('bridges or explicitly classifies every command hook wired for Claude', () => {
     const settings = JSON.parse(
       readFileSync(join(process.cwd(), '.claude/settings.json'), 'utf-8'),

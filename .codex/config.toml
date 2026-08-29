@@ -1,10 +1,17 @@
 [features]
-codex_hooks = true
+hooks = true
+
+# TRUST: Codex runs a project hook only after a one-time approval, recorded as a
+# trusted_hash under [hooks.state] in ~/.codex/config.toml and keyed by
+# <config-path>:<event>:<group-index>:<hook-index>. An unapproved entry is skipped
+# SILENTLY — no stderr, no exit code, the guard simply never runs. Editing this file
+# invalidates the approval for the entries it changes. Automation must therefore
+# pre-approve interactively once, or pass `codex exec --dangerously-bypass-hook-trust`.
 
 # ── PreToolUse: bash commands ─────────────────────────────────────────────────
 
 [[hooks.PreToolUse]]
-matcher = "^bash$"
+matcher = "^(Bash|bash)$"
 
 [[hooks.PreToolUse.hooks]]
 type = "command"
@@ -85,7 +92,7 @@ timeout = 60
 # ── PostToolUse: after bash commands ─────────────────────────────────────────
 
 [[hooks.PostToolUse]]
-matcher = "^bash$"
+matcher = "^(Bash|bash)$"
 
 [[hooks.PostToolUse.hooks]]
 type = "command"

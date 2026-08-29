@@ -19,7 +19,7 @@ describe('brownfield: generateCodexHooks on existing .codex/', () => {
   it('backs up existing config.toml before replacing (CANON-11)', () => {
     const codexDir = join(dir, '.codex')
     mkdirSync(codexDir, { recursive: true })
-    const original = '# hand-written config\n[features]\ncodex_hooks = false\n'
+    const original = '# hand-written config\n[features]\nhooks = false\n'
     writeFileSync(join(codexDir, 'config.toml'), original)
 
     generateCodexHooks(makeConfig(dir))
@@ -29,7 +29,7 @@ describe('brownfield: generateCodexHooks on existing .codex/', () => {
     expect(backup).toBe(original)
 
     const updated = readFileSync(join(codexDir, 'config.toml'), 'utf-8')
-    expect(updated).toContain('codex_hooks = true')
+    expect(updated).toContain('hooks = true')
   })
 
   it('preserves custom codex-adapter.mjs if already present (skipIfExists)', () => {

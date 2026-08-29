@@ -5,7 +5,7 @@
 // Codex and Claude Code deliver the SAME envelope on stdin
 // (`{ hook_event_name, tool_name, tool_input, cwd, session_id, transcript_path, ... }`);
 // only the tool vocabulary differs. This adapter rewrites the Codex tool vocabulary
-// (`bash` -> `Bash`, `apply_patch` -> `Edit`/`Write` once per file) and pipes the
+// (`Bash`/`bash` -> `Bash`, `apply_patch` -> `Edit`/`Write` once per file) and pipes the
 // rewritten payload on the hook's stdin, while ALSO exporting the legacy
 // `CLAUDE_TOOL_INPUT_*` env vars. Both channels are populated on purpose: hooks that
 // parse stdin JSON and hooks that read the env var both work, and `lib.mjs`'s
@@ -111,7 +111,10 @@ if (toolName === 'apply_patch') {
   process.exit(0)
 }
 
-if (toolName === 'bash') {
+// codex-cli sends 'Bash' (capital B) for shell calls; 'bash' is kept for older
+// builds. Both spellings must also be in the config.toml matcher, or the hook
+// never reaches this adapter at all.
+if (toolName === 'Bash' || toolName === 'bash') {
   const command = toolInput.command ?? ''
   if (!command) process.exit(0)
   runHook({ tool_name: 'Bash', tool_input: { command } }, { CLAUDE_TOOL_INPUT_COMMAND: command })
