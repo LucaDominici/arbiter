@@ -221,6 +221,13 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
     enforces: 'Refuses a second write-intent sub-agent spawn onto the main tree (E5 #1947)',
     codexEquivalent: 'None — manual worktree discipline',
   },
+  'post-subagent-release.mjs': {
+    name: 'post-subagent-release.mjs',
+    enforces:
+      'SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — releases the ' +
+      'finished dispatch agents-active.json sidecar entry (#2403)',
+    codexEquivalent: BRIDGED,
+  },
   'stop-finding-loss.mjs': {
     name: 'stop-finding-loss.mjs',
     enforces: 'Detects research dispatches with zero persisted findings (E6b #1948)',

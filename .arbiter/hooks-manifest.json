@@ -300,6 +300,15 @@
       "rationale": "E5 (#1947, design doc §E5): PreToolUse Task|Agent tripwire flagging a second write-intent sub-agent spawn onto the main working tree (M9) plus the M2 one-task-per-dispatch check. Defaults to advisory (stderr nudge, exit 0); ARBITER_SPAWN_GUARD_HARD=1 promotes to hard (exit 2). Wired in .claude/settings.json's PreToolUse matchers (Task|Agent) per OD-14 2026-07-17. Not auto-spawnable via the env-only/file-with-content fixture shapes (stdin is a structured Task/Agent tool_input payload); empirical exit-code coverage in __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts."
     },
     {
+      "file": "post-subagent-release.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "#2403: SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — removes the finished dispatch's agents-active.json sidecar entry so it does not wedge the next spawn for the 2h TTL. Always exits 0. Wired in .claude/settings.json's SubagentStop matcher, emitted at ALL levels (same M9 tier as the guard). Not auto-spawnable via the env-only/file-with-content fixture shapes (stdin is a structured SubagentStop payload)."
+    },
+    {
       "file": "stop-finding-loss.mjs.ejs",
       "classification": "ADVISORY",
       "tools": [

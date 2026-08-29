@@ -73,6 +73,7 @@ export const REQUIRED_RAW_HOOKS = [
   'check-no-skipped-tests.mjs',
   'post-brainstorm-stop.mjs',
   'pre-spawn-worktree-guard.mjs',
+  'post-subagent-release.mjs',
 ]
 
 // ─── helpers ────────────────────────────────────────────────────────────────

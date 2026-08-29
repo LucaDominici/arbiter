@@ -188,6 +188,9 @@ export function planClaudeHooks(config: ProjectConfig): ClaudeHookPlanEntry[] {
     // E5 (#1947): emitted at ALL levels (M9 never scales down, design doc §E5)
     // and wired through PreToolUse:Task|Agent.
     'pre-spawn-worktree-guard.mjs',
+    // #2403: SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — ships
+    // wherever the guard ships (same M9 all-levels tier), wired through SubagentStop.
+    'post-subagent-release.mjs',
   ]) {
     const renderedForLanguage =
       f === 'check-no-orphan-todo.mjs' || f === 'check-no-placeholders.mjs'

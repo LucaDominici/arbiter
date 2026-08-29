@@ -62,7 +62,7 @@
   {
     "path": "hooks/hooks.mjs",
     "reason": "Arbiter self-dogfood: RE-AFFIRMED (#2014): arbiter deliberately keeps per-hook wiring in its own settings.json. It wires hooks the dispatcher does not carry (check-no-direct-spawn.mjs and pre-edit-load-memory.mjs) and activates hooks self-first per OD-14 (stop-finding-loss.mjs and pre-spawn-worktree-guard.mjs). Collapsing self into the dispatcher would either lose those hooks or force the template to carry arbiter-only handlers. The dispatcher remains the Track-B shape emitted to targets and is never deleted. Re-affirming the wiring mechanism does not license leaving an applicable hook dormant: closer-mode-guard.mjs was wired under #2014 because it applies to arbiter. check-no-mockmvc.mjs and check-no-raw-types.mjs remain unwired because they are Java-language hooks inapplicable to this TypeScript repo — by language, not by deferral.",
-    "diffHash": "5652516a335bd527eda8a8660edd0addb014910041899ae93556f0a072e6ddee"
+    "diffHash": "14b83b1eda8f076052f0cd7a8264997ea006a0153536c3ff8bf2f002bf1c3aee"
   },
   {
     "path": "hooks/post-commit-check.mjs",

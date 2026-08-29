@@ -39,6 +39,7 @@
         ".claude/hooks/post-brainstorm-stop.mjs",
         ".claude/hooks/post-commit-check.mjs",
         ".claude/hooks/post-edit-dispatch.mjs",
+        ".claude/hooks/post-subagent-release.mjs",
         ".claude/hooks/pre-compact.mjs",
         ".claude/hooks/pre-edit-plan-anchor.mjs",
         ".claude/hooks/pre-edit-ssot-guard.mjs",

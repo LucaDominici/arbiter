@@ -108,6 +108,20 @@ type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/pre-compact.mjs"
 timeout = 3
 
+# ── SubagentStop ──────────────────────────────────────────────────────────────
+# #2403: cleanup companion to pre-spawn-worktree-guard.mjs. Unlike the guard (which
+# keys off `tool_input.subagent_type`), this hook reads only top-level envelope
+# fields (`agent`/`subagent_type`/`agent_type`, `cwd`) that Codex's non-tool
+# passthrough already forwards verbatim — and degrades gracefully when they are
+# absent. Always exits 0.
+
+[[hooks.SubagentStop]]
+
+[[hooks.SubagentStop.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/post-subagent-release.mjs"
+timeout = 3
+
 
 # ── UserPromptSubmit ──────────────────────────────────────────────────────────
 
