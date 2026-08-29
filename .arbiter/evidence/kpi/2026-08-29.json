@@ -1,0 +1,77 @@
+{
+  "since": "2026-08-27",
+  "until": "2026-08-29",
+  "repo": null,
+  "generatedAt": "2026-08-29T09:58:31.908Z",
+  "ciRedAtOpenApproximation": "ciRedAtOpen reflects the CURRENT statusCheckRollup, not the first run at PR-open time — GitHub does not retain that snapshot via gh.",
+  "rows": [
+    {
+      "number": 2395,
+      "commits": 67,
+      "evidenceOnlyCommits": 8,
+      "reviewLoopCommits": 26,
+      "leadTimeHours": 22.7,
+      "ciRedAtOpen": true,
+      "additions": 12983,
+      "deletions": 967
+    },
+    {
+      "number": 2394,
+      "commits": 11,
+      "evidenceOnlyCommits": 3,
+      "reviewLoopCommits": 1,
+      "leadTimeHours": 1.6,
+      "ciRedAtOpen": false,
+      "additions": 472,
+      "deletions": 32
+    },
+    {
+      "number": 2393,
+      "commits": 3,
+      "evidenceOnlyCommits": 0,
+      "reviewLoopCommits": 0,
+      "leadTimeHours": 1.3,
+      "ciRedAtOpen": false,
+      "additions": 1337,
+      "deletions": 129
+    },
+    {
+      "number": 2392,
+      "commits": 3,
+      "evidenceOnlyCommits": 1,
+      "reviewLoopCommits": 0,
+      "leadTimeHours": 0.6,
+      "ciRedAtOpen": false,
+      "additions": 122,
+      "deletions": 32
+    },
+    {
+      "number": 2390,
+      "commits": 7,
+      "evidenceOnlyCommits": 0,
+      "reviewLoopCommits": 0,
+      "leadTimeHours": 25.1,
+      "ciRedAtOpen": false,
+      "additions": 1521,
+      "deletions": 606
+    }
+  ],
+  "aggregate": {
+    "prsMerged": 5,
+    "issuesClosed": 33,
+    "issuesPer24h": 13.7,
+    "medianCommitsPerPr": 7,
+    "medianLeadTimeHours": 1.6,
+    "pctEvidenceOnlyCommits": 13.2,
+    "pctReviewLoopCommits": 29.7,
+    "openPrsStale": [
+      2396,
+      2338
+    ],
+    "pctMainEvidenceOnlyCommits": 10.2
+  },
+  "hookBlocks": {
+    "pre-spawn-worktree-guard": 10,
+    "stop-dangerous": 14
+  }
+}
