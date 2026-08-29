@@ -62,6 +62,38 @@ describe('ship.md §Train (#2401)', () => {
   }
 })
 
+// #2400 — the convergence rule is a doc rule as much as an engine rule: the engine counts the
+// rounds, but only ship.md tells the agent to review the delta and to park sub-HIGH findings.
+describe('ship.md bounded review rounds (#2400)', () => {
+  for (const path of SHIP_TWINS) {
+    describe(path, () => {
+      it('AC-2400.3: §Refactor documents delta-only re-review and the severity threshold', () => {
+        const body = flat(path)
+        const refactor = body.slice(body.indexOf('## Refactor / code-review evidence'))
+        for (const marker of [
+          '--review-round',
+          '--force-review',
+          'git diff <lastReviewedSha>..HEAD',
+          'below HIGH do not block landing',
+          'ship.review.maxRounds',
+        ]) {
+          expect(refactor.includes(marker)).toBe(true)
+        }
+      })
+
+      it('AC-2400.3: scopes the HIGH threshold to reviewer findings, sparing the ac-fit gate', () => {
+        expect(flat(path).includes('ac-fit verdicts below are a separate hard gate')).toBe(true)
+      })
+
+      it('AC-2400.3: counts review rounds per train, in the §Train table', () => {
+        const body = flat(path)
+        const train = body.slice(body.indexOf('## Train '), body.indexOf('## Local-only state'))
+        expect(train.includes('review rounds (`ship.review.maxRounds`)')).toBe(true)
+      })
+    })
+  }
+})
+
 describe('drain.md alignment (#2401)', () => {
   for (const path of DRAIN_TWINS) {
     it(`AC-2401.3: ${path} points at ship.md §Train instead of restating it`, () => {

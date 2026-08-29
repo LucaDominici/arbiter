@@ -20,6 +20,7 @@ import {
   writeUnifiedState,
   appendLog,
   normalizeChainId,
+  reviewStateOf,
   type UnifiedTaskState,
 } from './task-state.js'
 import { runTaskAdvance } from './task.js'
@@ -45,14 +46,15 @@ import {
 
 export { type ShipTier } from './ship-tier.js'
 import {
-  DEFAULT_TRAIN_LIMITS,
   appendChainIds,
   evaluateSeal,
   resolveTrainLimits,
   type TrainLimits,
   type TrainSignals,
 } from './ship-train.js'
+import { evaluateReviewRound, resolveReviewMaxRounds, reviewScopeLine } from './ship-review.js'
 import { loadConfig } from '../utils/config.js'
+import type { ShipConfig } from '../config/schema.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
@@ -143,6 +145,12 @@ export interface ShipStep {
    * not exist — skipped, not faked (INV-115). Only the `verification` phase carries any.
    */
   selfOnlyChecks?: string[]
+  /**
+   * #2400 — for a re-review (round ≥ 2), the diff range this round covers and the severity rule
+   * that ends it. Absent on round 1 (which reads the whole change) and on every invocation that
+   * did not dispatch a round.
+   */
+  reviewScope?: string
 }
 
 interface ShipStepContext {
@@ -150,6 +158,8 @@ interface ShipStepContext {
   chainIds: readonly string[]
   verticals: readonly string[]
   externalModelAccess?: ExternalModelAccess
+  /** #2400 — the review round this invocation opened, when it opened one. */
+  review?: ReviewRoundPlan
 }
 
 type ShipStepTail = readonly string[] | Omit<ShipStepContext, 'verticals'>
@@ -271,13 +281,22 @@ function isReviewPhase(phase: TaskPhase): phase is ReviewPhase {
   )
 }
 
+/**
+ * #2400 — the delta-scope annotation for a re-review, or undefined when there is nothing to
+ * narrow: round 1 reads the whole change, and a round whose base sha is unknown has no range.
+ */
+function reviewScopeFor(plan: ReviewRoundPlan | undefined): string | undefined {
+  if (plan === undefined || plan.rounds < 2 || plan.base === null) return undefined
+  return reviewScopeLine(plan.base, plan.rounds, plan.maxRounds)
+}
+
 function reviewPhaseStepBody(
   phase: ReviewPhase,
   t: ShipTier,
   profile: ShipProfile,
-  verticals: readonly string[],
-  externalModelAccess?: ExternalModelAccess,
+  context: Pick<ShipStepContext, 'verticals' | 'externalModelAccess' | 'review'>,
 ): Omit<ShipStep, 'verticals'> {
+  const { verticals, externalModelAccess, review: reviewPlan } = context
   if (phase === RED_TEAM_REVIEW_PHASE) {
     return {
       phase,
@@ -302,6 +321,7 @@ function reviewPhaseStepBody(
     ...(externalModelAccess !== undefined ? { access: externalModelAccess } : {}),
   })
   const externalCount = plan.external.length
+  const scope = reviewScopeFor(reviewPlan)
   const step: Omit<ShipStep, 'verticals'> = {
     phase,
     action:
@@ -309,6 +329,7 @@ function reviewPhaseStepBody(
         ? `Clean up, then dispatch ${reviewAgents - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${reviewAgents}.`
         : `Clean up, then dispatch ${reviewAgents} code-review agent(s) + 1 adversarial verifier.`,
     reviewAgents,
+    ...(scope !== undefined ? { reviewScope: scope } : {}),
   }
   return externalCount > 0 ? { ...step, externalReviewers: externalCount } : step
 }
@@ -321,7 +342,7 @@ function shipStepBody(
   context: ShipStepContext,
 ): Omit<ShipStep, 'verticals'> {
   if (isReviewPhase(phase)) {
-    return reviewPhaseStepBody(phase, t, profile, context.verticals, context.externalModelAccess)
+    return reviewPhaseStepBody(phase, t, profile, context)
   }
 
   switch (phase) {
@@ -423,6 +444,18 @@ export interface TaskShipOptions {
   trainLimits?: TrainLimits
   /** Test seam for a deterministic train clock. */
   now?: Date
+  /**
+   * #2400 — `--review-round`: record another review round on a task already in `refactor`.
+   * Entering `refactor` records round 1 on its own; every re-dispatch after that says so here,
+   * because no git heuristic can tell a commit made FOR a review from one made in RESPONSE to it.
+   */
+  reviewRound?: boolean
+  /** #2400 — `--force-review`: take a round past the cap, and record that it was forced. */
+  forceReview?: boolean
+  /** Test seam: the review-round cap, bypassing `ship.review.maxRounds`. */
+  reviewMaxRounds?: number
+  /** Test seam: HEAD for the review pin. `null` means "unreadable"; absent means "ask git". */
+  headSha?: string | null
   /** #1291 — per-run --autonomy override (flag > arbiter.json automation.autonomy > L0). */
   autonomy?: string
   /**
@@ -472,6 +505,11 @@ function optionalShipStepLines(result: ShipResult): string[] {
   if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
   if (result.step.externalReviewers !== undefined) {
     lines.push(`External reviewers: ${result.step.externalReviewers}`)
+  }
+  // #2400 — a re-review reads the delta, not the whole change. Printed only for the round it
+  // describes, so it can never be mistaken for a standing property of the phase.
+  if (result.step.reviewScope !== undefined) {
+    lines.push(`Review scope: ${result.step.reviewScope}`)
   }
   return lines
 }
@@ -579,21 +617,28 @@ function hasShipTaskId(taskId: string | undefined): boolean {
 }
 
 /**
- * #2401 — the bounds this run enforces: `--trainLimits` > `ship.train` in the TARGET repo's
- * `arbiter.json` > the built-in default. Resolved ONCE per `runTaskShip` and threaded, so the
- * seed check and the append check can never disagree about the limit mid-run.
+ * The `ship` block of the TARGET repo's `arbiter.json`, read ONCE per `runTaskShip` so every
+ * ceremony bound resolves off the same snapshot.
  *
  * FAIL-SAFE, matching `resolveShipProfile`: `loadConfig` THROWS on a malformed config (absent
- * returns null), and a config typo must not brick the ship — it degrades to the defaults, which
- * still bound the train.
+ * returns null), and a config typo must not brick the ship — an unreadable config reads as
+ * "declares nothing", which leaves every built-in bound in force.
  */
-function trainLimitsFor(root: string, opts: TaskShipOptions): TrainLimits {
-  if (opts.trainLimits !== undefined) return opts.trainLimits
+function shipConfigFor(root: string): ShipConfig | undefined {
   try {
-    return resolveTrainLimits(loadConfig(root)?.ship)
+    return loadConfig(root)?.ship
   } catch {
-    return DEFAULT_TRAIN_LIMITS
+    return undefined
   }
+}
+
+/**
+ * #2401 — the bounds this run enforces: `--trainLimits` > `ship.train` > the built-in default.
+ * Threaded from one resolve so the seed check and the append check can never disagree about the
+ * limit mid-run.
+ */
+function trainLimitsFor(ship: ShipConfig | undefined, opts: TaskShipOptions): TrainLimits {
+  return opts.trainLimits ?? resolveTrainLimits(ship)
 }
 
 function seedShipState(root: string, opts: TaskShipOptions, limits: TrainLimits): void {
@@ -864,11 +909,100 @@ function applyPreparedChainAdd(
   persistTrainAppend(root, readUnifiedState(root), prepared.additions, prepared.now)
 }
 
+/** #2400 — a review round that passed the cap check and is waiting to be persisted. */
+export interface ReviewRoundPlan {
+  /** The round number this dispatch is, 1-based. */
+  rounds: number
+  maxRounds: number
+  /** HEAD the PREVIOUS round was pinned to — the diff base for this one. Null on round 1. */
+  base: string | null
+  /** HEAD now; becomes the base for the next round. Null when git could not be read. */
+  head: string | null
+  forced: boolean
+}
+
+/**
+ * HEAD, or null when it cannot be read (a fresh tree with no commit, or no git at all).
+ *
+ * FAIL-CLOSED on the cap: an unreadable sha costs the round its delta scope, never its count.
+ * The opposite choice — skipping the round because HEAD is unknown — would silently disarm the
+ * bound this feature exists to enforce.
+ */
+function headShaFor(root: string, opts: TaskShipOptions): string | null {
+  if (opts.headSha !== undefined) return opts.headSha
+  try {
+    const sha = runCli('git', ['rev-parse', 'HEAD'], { cwd: root }).stdout.trim()
+    return sha.length > 0 ? sha : null
+    // FAIL-OPEN-INTENT: a missing HEAD costs the scope line, not the round (see above).
+  } catch {
+    return null
+  }
+}
+
+/** The phase this invocation ends in — `--advance`'s target, or the phase it is already on. */
+function resultingPhase(phase: TaskPhase, opts: TaskShipOptions): TaskPhase {
+  if (opts.advance !== true) return phase
+  return advanceTargetFor(phase) ?? phase
+}
+
+/**
+ * #2400 — decide whether this invocation opens a review round, and refuse it once the cap is
+ * spent.
+ *
+ * A round is opened by ENTERING `refactor` (the first review of the change) or by an explicit
+ * `--review-round` while there (every re-dispatch after a fix). Both run through the same cap.
+ * Throws rather than returning a verdict because the caller must stop: a refused round is the
+ * signal to land the change with its remaining findings parked.
+ */
+function prepareReviewRound(
+  root: string,
+  phase: TaskPhase,
+  opts: TaskShipOptions,
+  ship: ShipConfig | undefined,
+): ReviewRoundPlan | null {
+  if (resultingPhase(phase, opts) !== REFACTOR_PHASE) return null
+  if (opts.advance !== true && opts.reviewRound !== true) return null
+  const previous = reviewStateOf(readUnifiedState(root))
+  const maxRounds = opts.reviewMaxRounds ?? resolveReviewMaxRounds(ship)
+  const forced = opts.forceReview === true
+  const verdict = evaluateReviewRound({ rounds: previous.rounds, maxRounds, forced })
+  if (!verdict.allowed) {
+    // UserFacingError, not Error: a spent cap is the policy working as designed, not a fault.
+    throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: verdict.detail }))
+  }
+  return {
+    rounds: previous.rounds + 1,
+    maxRounds,
+    base: previous.lastReviewedSha,
+    head: headShaFor(root, opts),
+    forced,
+  }
+}
+
+/** Persist an accepted round. Split from the decision so each half stays legible. */
+function applyReviewRound(root: string, plan: ReviewRoundPlan | null): void {
+  if (plan === null) return
+  // `forced` is STICKY: it records that this task once needed a round past its cap, which stays
+  // true however many ordinary rounds follow. `review` is replaced wholesale by the patch merge,
+  // so carrying it forward here is what keeps the record from being erased by the next round.
+  const wasForced = reviewStateOf(readUnifiedState(root)).forced === true
+  writeUnifiedState(root, {
+    review: {
+      rounds: plan.rounds,
+      lastReviewedSha: plan.head,
+      ...(plan.forced || wasForced ? { forced: true } : {}),
+    },
+  })
+  const at = plan.head === null ? 'an unknown sha' : plan.head.slice(0, 7)
+  appendLog(root, `review → round ${plan.rounds} at ${at}${plan.forced ? ' (forced)' : ''}`)
+}
+
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
+  const shipConfig = shipConfigFor(root)
   // Validate the complete train mutation before seeding task metadata. A rejected append must
   // leave both fresh and existing state untouched, including task/tier/override fields.
-  const trainLimits = trainLimitsFor(root, opts)
+  const trainLimits = trainLimitsFor(shipConfig, opts)
   const preparedChainAdd = prepareChainAdd(root, opts, trainLimits)
   seedShipState(root, opts, trainLimits)
   applyPreparedChainAdd(root, preparedChainAdd)
@@ -876,12 +1010,16 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'
   const tier = shipTierFor(root, state, opts)
+  // #2400 — decide the round BEFORE the phase advances, so a refused round leaves the document
+  // exactly as it was (same contract as a sealed train).
+  const preparedRound = prepareReviewRound(root, phase, opts, shipConfig)
 
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.
   const profile = shipProfileFor(root, opts)
   const advancedPhase = advanceShipPhase(root, phase, opts)
   phase = advancedPhase.phase
+  applyReviewRound(root, preparedRound)
   writeVerificationCompanionEvidence(root, phase, state?.taskId, profile, opts)
 
   return {
@@ -892,6 +1030,9 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
       ...(opts.externalModelAccess !== undefined
         ? { externalModelAccess: opts.externalModelAccess }
         : {}),
+      // #2400 — the delta scope belongs to the round just recorded, not to the phase: a bare
+      // `arbiter ship` re-reading the step must not re-announce a review it did not dispatch.
+      ...(preparedRound !== null ? { review: preparedRound } : {}),
     }),
     advanced: advancedPhase.advanced,
     done: phase === 'complete',

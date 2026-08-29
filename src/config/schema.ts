@@ -195,10 +195,9 @@ export interface ShipConfig {
   }
   review?: {
     /**
-     * Rework rounds a review stage may take before the task stops. Absent ⇒ 2.
-     * DECLARED, typed and validated here only — nothing enforces it yet; wiring it into the
-     * plan-review / code-review loops is tracked separately. A reader is what turns this from
-     * a documented default into a bound, so do not treat its presence as enforcement.
+     * Review rounds the `refactor` phase may spend before the change must land with its
+     * remaining findings parked. Absent ⇒ {@link DEFAULT_REVIEW_MAX_ROUNDS} (2). Enforced by
+     * `arbiter ship`: the round past the cap is refused unless `--force-review` is passed.
      */
     maxRounds?: number
   }

@@ -1951,6 +1951,21 @@ program
     },
   )
 
+/**
+ * #2400 — the review-round flags, forwarded only when actually supplied so an absent flag can
+ * never open a round or forgive the cap by accident. A named helper, not two inline spreads:
+ * the ship action is already at its complexity ceiling.
+ */
+function shipReviewFlags(opts: { reviewRound: boolean; forceReview: boolean }): {
+  reviewRound?: true
+  forceReview?: true
+} {
+  return {
+    ...(opts.reviewRound ? { reviewRound: true as const } : {}),
+    ...(opts.forceReview ? { forceReview: true as const } : {}),
+  }
+}
+
 program
   // #2401 — variadic: `arbiter ship #A #B #C` declares a train, sugar for repeated `--chain`.
   .command('ship [ids...]')
@@ -1999,6 +2014,16 @@ program
     [] as string[],
   )
   .option('--seal', 'Seal the open train now — land it before starting another (#2331)', false)
+  .option(
+    '--review-round',
+    'Record another code-review round on this task (entering refactor records the first)',
+    false,
+  )
+  .option(
+    '--force-review',
+    'Take a review round past ship.review.maxRounds, and record that it was forced',
+    false,
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
@@ -2010,6 +2035,8 @@ program
         chain: string[]
         chainAdd: string[]
         seal: boolean
+        reviewRound: boolean
+        forceReview: boolean
         advance: boolean
         skipPlanReview: boolean
         postClear: boolean
@@ -2044,6 +2071,7 @@ program
           // is never mistaken for "append nothing" and can never seal or clear a live train.
           ...(opts.chainAdd.length > 0 ? { chainAddIds: opts.chainAdd } : {}),
           ...(opts.seal ? { seal: true } : {}),
+          ...shipReviewFlags(opts),
           advance: opts.advance,
           advanceOpts: {
             skipPlanReview: opts.skipPlanReview,

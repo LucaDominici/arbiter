@@ -74,6 +74,7 @@ arbiter ship --seal            # close it now; the next issue starts a new train
 | plan-review                         | its TDD evidence file                   |
 | red-team                            | its `Closes #N` line in the PR body     |
 | code review + adversarial verify    |                                         |
+| review rounds (`ship.review.maxRounds`) |                                     |
 | cross-model review seat             |                                         |
 | full gate                           |                                         |
 | PR (`Closes #A`, `Closes #B`, …)    |                                         |
@@ -381,6 +382,18 @@ threshold was evaluated.
 ---
 
 ## Refactor / code-review evidence
+
+**Review rounds are bounded.** Entering `refactor` opens round 1; each review dispatched after a
+FIX is `arbiter ship --review-round`, which counts. A completion-gate retry does not: re-dispatching
+a reviewer that returned no envelope re-reads the same diff, so it is the same round. Round N ≥ 2
+reviews the DELTA only — `git diff <lastReviewedSha>..HEAD`, printed as the step's `Review scope:`
+line — never the whole change again: re-reading a growing diff always finds something new, which is
+how a review loop burns a day without converging. Reviewer findings **below HIGH do not block
+landing** — park them (`arbiter note` each, then ONE follow-up issue) and land; that threshold is
+about REVIEWER findings, while the ac-fit verdicts below are a separate hard gate still requiring
+all-PASS. The cap is `ship.review.maxRounds` in `arbiter.json` (default 2): the round past it is
+refused naming both exits, and `arbiter ship --review-round --force-review` takes it deliberately
+and records `forced`. Rounds are counted per train, like every other ceremony.
 
 <% if (governanceLevel !== 'L1') { %>
 <% if (_soloMode) { %>

@@ -132,6 +132,34 @@ export interface UnifiedTaskState {
    * parent epic. Absent/empty ⇒ no chain (the pre-push enforcer is then a no-op).
    */
   chainIds?: string[]
+  /**
+   * #2400 — bounded review rounds. Absent on every task that has not reached `refactor` (and on
+   * every document written before review tracking existed), which {@link reviewStateOf} reads as
+   * round 0 — the key is never written speculatively.
+   */
+  review?: ReviewState
+}
+
+/** #2400 — how many review rounds this task has spent, and what the last one was pinned to. */
+export interface ReviewState {
+  /** Rounds recorded so far. 0 ⇒ the change has never been reviewed. */
+  rounds: number
+  /**
+   * HEAD when the last round was recorded — the diff BASE for the next round, so round N ≥ 2
+   * reviews `lastReviewedSha..HEAD` instead of the whole change. `null` when HEAD was
+   * unreadable at the time (the round still counts; an unreadable sha must never disarm the cap).
+   */
+  lastReviewedSha: string | null
+  /** True once a round past the cap was authorized with `--force-review`. */
+  forced?: boolean
+}
+
+/**
+ * #2400 — the review record, defaulted for a document that has none. The migration for every
+ * status.json written before this field existed is exactly this read: absent ⇒ round 0.
+ */
+export function reviewStateOf(state: UnifiedTaskState | null): ReviewState {
+  return state?.review ?? { rounds: 0, lastReviewedSha: null }
 }
 
 /** A partial update applied to the unified document; `cursor` may itself be partial. */
