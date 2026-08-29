@@ -80,7 +80,9 @@ describe('check-skills-matrix.mjs (skills-matrix validation)', () => {
   // #2428 provenance audit: every superpowers:* entry's referenceUrl must point at the real
   // upstream repo (obra/superpowers), not the stale PotentialSuperpowers fork name.
   it('every superpowers:* entry references the real upstream repo (obra/superpowers)', () => {
-    const matrix = JSON.parse(readFileSync(resolve('src/compatibility/skills-matrix.json'), 'utf-8'))
+    const matrix = JSON.parse(
+      readFileSync(resolve('src/compatibility/skills-matrix.json'), 'utf-8'),
+    )
     const superpowersEntries = matrix.skills.filter((s: { skillId: string }) =>
       s.skillId.startsWith('superpowers:'),
     )

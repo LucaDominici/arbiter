@@ -11,7 +11,7 @@
       "role": "TDD enforcement",
       "integrationStatus": "proven",
       "replaces": ["tdd"],
-      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+      "referenceUrl": "https://github.com/obra/superpowers"
     },
     {
       "skillId": "superpowers:verification-before-completion",
@@ -20,7 +20,7 @@
       "role": "completion-claim verification",
       "integrationStatus": "proven",
       "replaces": ["verification"],
-      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+      "referenceUrl": "https://github.com/obra/superpowers"
     },
     {
       "skillId": "superpowers:brainstorming",
@@ -29,7 +29,7 @@
       "role": "pre-implementation design",
       "integrationStatus": "beta",
       "replaces": [],
-      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+      "referenceUrl": "https://github.com/obra/superpowers"
     },
     {
       "skillId": "superpowers:writing-plans",
@@ -38,7 +38,7 @@
       "role": "plan authoring",
       "integrationStatus": "beta",
       "replaces": [],
-      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+      "referenceUrl": "https://github.com/obra/superpowers"
     },
     {
       "skillId": "superpowers:systematic-debugging",
@@ -47,7 +47,7 @@
       "role": "debug discipline",
       "integrationStatus": "beta",
       "replaces": [],
-      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+      "referenceUrl": "https://github.com/obra/superpowers"
     },
     {
       "skillId": "superpowers:subagent-driven-development",
@@ -56,7 +56,7 @@
       "role": "parallel implementation",
       "integrationStatus": "beta",
       "replaces": [],
-      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+      "referenceUrl": "https://github.com/obra/superpowers"
     },
     {
       "skillId": "superpowers:using-superpowers",
@@ -65,7 +65,7 @@
       "role": "session bootstrap (skill discovery)",
       "integrationStatus": "beta",
       "replaces": [],
-      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+      "referenceUrl": "https://github.com/obra/superpowers"
     },
     {
       "skillId": "pr-review-toolkit:review-pr",

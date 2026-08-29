@@ -48,10 +48,19 @@
 // (`UNKNOWN`) license or uninstalled production dep: a legal artifact must never
 // silently omit an obligation.
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const ROOT = process.cwd()
 const OUT_FILE = resolve(ROOT, 'THIRD_PARTY_LICENSES.md')
+
+// Resolved from THIS script's own location, never from ROOT (=process.cwd()): tests run this
+// generator with cwd pointed at a throwaway fixture root that has no src/ tree at all
+// (__tests__/scripts/gen-third-party-licenses.test.ts). The companion-plugins section (#2428)
+// is arbiter's own SSOT data, not part of the fixture-driven npm dependency closure, so it must
+// resolve against the real repo regardless of cwd.
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
+const SKILLS_MATRIX_PATH = resolve(SCRIPT_DIR, '../src/compatibility/skills-matrix.json')
 
 // --lockfile-fixture=<path> or --lockfile-fixture <path>: substitute a JSON file
 // for the repo's package-lock.json (testing only). Supports both `=` and
@@ -119,6 +128,47 @@ const EFFECTIVE_OVERRIDES = _overridesPath
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'))
+}
+
+/**
+ * Curated license map for companion Claude Code skill suites (#2428) — arbiter DETECTS these at
+ * runtime and REFERENCES them (see docs/INTEGRATIONS.md's detect-and-reference policy); it never
+ * vendors, ships, or bundles their skill text. Keyed by `pluginOwner` from
+ * src/compatibility/skills-matrix.json, mirroring the LICENSE_OVERRIDES escape-hatch pattern
+ * above: license identity for a companion cannot be derived from the matrix's `role`/`replaces`
+ * fields, so it is curated by hand here rather than invented. Unlisted owners fall back to the
+ * "See plugin repo" phrasing docs/INTEGRATIONS.md's own License references table already uses.
+ */
+const COMPANION_LICENSES = {
+  superpowers: 'MIT',
+  ponytail: 'MIT',
+}
+
+/**
+ * Render the "Companion plugins" section from src/compatibility/skills-matrix.json — the SAME
+ * SSOT `referenceUrl` fixed by #2428, so a future stale-URL bug fixed there is reflected here
+ * automatically instead of drifting a second hardcoded copy. One row per distinct `pluginOwner`
+ * (first `referenceUrl` seen wins — every current owner is consistent across its entries).
+ */
+function renderCompanionSection() {
+  const matrix = readJson(SKILLS_MATRIX_PATH)
+  const owners = new Map()
+  for (const skill of matrix.skills ?? []) {
+    if (!owners.has(skill.pluginOwner)) owners.set(skill.pluginOwner, skill.referenceUrl)
+  }
+  const rows = [...owners.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([owner, url]) => {
+      const license = COMPANION_LICENSES[owner] ?? 'See plugin repo'
+      return `- **${owner}** — ${license}${url ? ` — ${url}` : ''}\n`
+    })
+  return (
+    '## Companion plugins — detected at runtime, never bundled\n\n' +
+    "arbiter's skill-detector recognises external Claude Code skill suites already installed " +
+    "in the user's environment (see `docs/INTEGRATIONS.md`) and references them instead of " +
+    'duplicating equivalent content — arbiter ships no third-party skill text.\n\n' +
+    rows.join('')
+  )
 }
 
 function findLicenseText(pkgDir) {
@@ -228,7 +278,7 @@ function generate() {
   const deps = productionClosure()
 
   if (deps.length === 0) {
-    return HEADER + '_No production dependencies._\n'
+    return HEADER + '_No production dependencies._\n\n' + renderCompanionSection()
   }
 
   const sections = []
@@ -289,7 +339,7 @@ function generate() {
     )
   }
 
-  return HEADER + sections.join('\n')
+  return HEADER + sections.join('\n') + '\n' + renderCompanionSection()
 }
 
 const isCheck = process.argv.includes('--check')
@@ -320,7 +370,9 @@ try {
     process.stderr.write('[gen-third-party-licenses] OK — THIRD_PARTY_LICENSES.md is up to date\n')
   } else {
     writeFileSync(OUT_FILE, content)
-    const sectionCount = (content.match(/^## /gm) ?? []).length
+    // Only `## <name>@<version>` headings count as production deps — the `## Companion
+    // plugins…` heading (#2428) has no `@version` and must never inflate this count.
+    const sectionCount = (content.match(/^## .+@[^@\n]+$/gm) ?? []).length
     process.stderr.write(
       `[gen-third-party-licenses] wrote THIRD_PARTY_LICENSES.md (${sectionCount} production deps, full closure)\n`,
     )

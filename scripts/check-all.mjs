@@ -422,6 +422,9 @@ if (isMain) {
     // Fail-closed wrapper: bare `npx jscpd --silent` exits 0 on a 0-file scan
     // under v5, making the gate vacuous on fileset drift (#1286).
     runCheck('duplication', 'node', ['scripts/check-duplication.mjs'])
+    // #2428: local SKILL.md/command corpus vs the committed companion-line-hash snapshot
+    // (never live network — --refresh-hashes is a separate, manual, fail-closed-offline step).
+    runCheck('skill provenance (#2428)', 'node', ['scripts/check-skill-provenance.mjs'])
     runCheck('audit', 'npm', ['audit', '--omit=dev', '--audit-level=high'])
     // Consumer-resolution audit (#1718, follow-up to #1670 parts 2&3): the dev-tree
     // `audit` step above sees npm `overrides`, which npm silently drops for anyone

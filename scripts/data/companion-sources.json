@@ -1,0 +1,104 @@
+{
+  "$schemaVersion": 1,
+  "_comment": "Upstream companion skill files fetched by `node scripts/check-skill-provenance.mjs --refresh-hashes` (gh api, raw content). Never committed verbatim (#2428) -- only sha256 hashes of normalized lines land in scripts/data/companion-line-hashes.json. One entry per upstream SKILL.md; superpowers list matches the 2026-08-29 provenance audit (14 skills, obra/superpowers).",
+  "sources": [
+    {
+      "companion": "superpowers",
+      "skillId": "brainstorming",
+      "repo": "obra/superpowers",
+      "path": "skills/brainstorming/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "dispatching-parallel-agents",
+      "repo": "obra/superpowers",
+      "path": "skills/dispatching-parallel-agents/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "executing-plans",
+      "repo": "obra/superpowers",
+      "path": "skills/executing-plans/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "finishing-a-development-branch",
+      "repo": "obra/superpowers",
+      "path": "skills/finishing-a-development-branch/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "receiving-code-review",
+      "repo": "obra/superpowers",
+      "path": "skills/receiving-code-review/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "requesting-code-review",
+      "repo": "obra/superpowers",
+      "path": "skills/requesting-code-review/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "subagent-driven-development",
+      "repo": "obra/superpowers",
+      "path": "skills/subagent-driven-development/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "systematic-debugging",
+      "repo": "obra/superpowers",
+      "path": "skills/systematic-debugging/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "test-driven-development",
+      "repo": "obra/superpowers",
+      "path": "skills/test-driven-development/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "using-git-worktrees",
+      "repo": "obra/superpowers",
+      "path": "skills/using-git-worktrees/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "using-superpowers",
+      "repo": "obra/superpowers",
+      "path": "skills/using-superpowers/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "verification-before-completion",
+      "repo": "obra/superpowers",
+      "path": "skills/verification-before-completion/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "writing-plans",
+      "repo": "obra/superpowers",
+      "path": "skills/writing-plans/SKILL.md",
+      "license": "MIT"
+    },
+    {
+      "companion": "superpowers",
+      "skillId": "writing-skills",
+      "repo": "obra/superpowers",
+      "path": "skills/writing-skills/SKILL.md",
+      "license": "MIT"
+    }
+  ]
+}

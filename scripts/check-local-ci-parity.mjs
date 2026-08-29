@@ -304,6 +304,7 @@ const CI_COVERAGE = new Map([
   // 'docs:build' is invoked via the docsCheck() warn-helper (not run[Tool]Check),
   // so the parity regex never extracts it — no CI_COVERAGE entry is required.
   ['duplication', 'gate-full'],
+  ['skill provenance (#2428)', 'gate-full'],
   ['dogfood', 'gate-full'],
   ['canon-01 declination (#1922)', 'gate-full'],
   ['canon-15 wired gate (#1923)', 'gate-full'],

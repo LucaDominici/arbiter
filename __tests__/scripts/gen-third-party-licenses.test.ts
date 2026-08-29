@@ -243,7 +243,7 @@ describe('gen-third-party-licenses.mjs', () => {
       expect(content).toMatch(/superpowers/i)
       expect(content).toMatch(/ponytail/i)
       expect(content).toContain('MIT')
-      expect(content).toMatch(/never ship|ships no third-party skill text/i)
+      expect(content).toMatch(/never ship|ships\s+no\s+third-party\s+skill\s+text/i)
     })
 
     it('write-mode log line counts only production-dependency sections, not the companion heading', () => {
@@ -261,7 +261,7 @@ describe('gen-third-party-licenses.mjs', () => {
       expect(notice).toMatch(/companion plugin/i)
       expect(notice).toMatch(/superpowers/i)
       expect(notice).toMatch(/ponytail/i)
-      expect(notice).toMatch(/never ship|ships no third-party skill text/i)
+      expect(notice).toMatch(/never ship|ships\s+no\s+third-party\s+skill\s+text/i)
     })
 
     it('docs/INTEGRATIONS.md links to the THIRD_PARTY_LICENSES.md companion section', () => {

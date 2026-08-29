@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 116)
+1. Create `NNN-short-title.md` in this directory (next free number after 117)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -144,3 +144,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 114 | [extended-set activation + live-SSOT drift binding (#2044)](114-extended-invariants-live-ssot.md)                                                                     | Accepted   | 2026-08-04 |  |
 | 115 | [Bounded Sealed Trains — When a Batch Stops Taking Issues](115-bounded-sealed-trains.md)                                                                              | Accepted   | 2026-08-22 |  |
 | 116 | [Evidence Binds to Source Content; the Train Is the Ceremony Unit; a PR Is Owned Until Merged](116-evidence-content-binding-train-ceremony-pr-ownership.md)           | Accepted   | 2026-08-29 |  |
+| 117 | [Companion Skill Provenance — Detected, Never Bundled](117-companion-skill-provenance.md)                                                                             | Accepted   | 2026-08-29 |  |

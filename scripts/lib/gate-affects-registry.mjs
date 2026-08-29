@@ -188,6 +188,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'coverage ratchet (#1483)', affects: ALWAYS },
   { name: 'dead code', affects: ALWAYS },
   { name: 'duplication', affects: ALWAYS },
+  { name: 'skill provenance (#2428)', affects: ALWAYS },
   { name: 'audit', affects: ALWAYS },
   { name: 'consumer audit', affects: ALWAYS },
   { name: 'gitleaks', affects: ALWAYS },

@@ -90,3 +90,7 @@ Example (generated `AGENTS.md` fragment):
 | `claude-plugins-official/frontend-design`   | See plugin repo | Anthropic / claude-plugins-official |
 
 Arbiter's own code is Apache-2.0. Integration references do not transfer or extend that license to upstream content.
+
+For the full, generated license attribution of every detected companion (name, license, source
+URL), see the ["Companion plugins" section](../THIRD_PARTY_LICENSES.md#companion-plugins-detected-at-runtime-never-bundled)
+of THIRD_PARTY_LICENSES.md, and the short policy statement in NOTICE.

@@ -461,3 +461,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Companion plugins — detected at runtime, never bundled
+
+arbiter's skill-detector recognises external Claude Code skill suites already installed in the user's environment (see `docs/INTEGRATIONS.md`) and references them instead of duplicating equivalent content — arbiter ships no third-party skill text.
+
+- **frontend-design** — See plugin repo
+- **ponytail** — MIT — https://github.com/DietrichGebert/ponytail
+- **pr-review-toolkit** — See plugin repo — https://github.com/anthropics/claude-code
+- **superpowers** — MIT — https://github.com/obra/superpowers
