@@ -1,10 +1,30 @@
 {
   "$schemaVersion": 1,
-  "_comment": "E5 (#1947): write-intent classification for pre-spawn-worktree-guard.mjs. Derived from .claude/agents/*.md — an agent with a `tools:` frontmatter restricted to Read/Grep/Glob (or a description naming it a reviewer/verifier/scanner with no file-mutation role) is read-only; everything else defaults write-intent (fail-closed, see the hook). Kept in parity with .claude/agents/*.md by a 3-line extension to scripts/check-catalog-agents-parity.mjs.",
+  "_comment": "E5 (#1947): write-intent classification for pre-spawn-worktree-guard.mjs. A local (unscoped) name is derived from .claude/agents/*.md — an agent with a `tools:` frontmatter restricted to Read/Grep/Glob (or a description naming it a reviewer/verifier/scanner with no file-mutation role) is read-only; everything else defaults write-intent (fail-closed, see the hook). Kept in parity with .claude/agents/*.md by a carve-out in scripts/check-catalog-agents-parity.mjs (unscoped names only — Claude Code built-ins and `plugin:agent` scoped names are exempt from the local-file check, #2403). Unknown/unlisted type => write-intent by default; write-intent entries below are documented for clarity, not required for correctness.",
   "classes": {
+    "Explore": "read-only",
+    "Plan": "read-only",
     "codebase-scanner": "read-only",
     "context-checker": "read-only",
     "red-team": "read-only",
-    "bridge-reviewer": "read-only"
+    "bridge-reviewer": "read-only",
+    "claude-code-guide": "read-only",
+    "ai-pr-gate": "read-only",
+    "feature-dev:code-explorer": "read-only",
+    "feature-dev:code-architect": "read-only",
+    "feature-dev:code-reviewer": "read-only",
+    "pr-review-toolkit:comment-analyzer": "read-only",
+    "pr-review-toolkit:pr-test-analyzer": "read-only",
+    "pr-review-toolkit:silent-failure-hunter": "read-only",
+    "pr-review-toolkit:type-design-analyzer": "read-only",
+    "hookify:conversation-analyzer": "read-only",
+    "general-purpose": "write-intent",
+    "claude": "write-intent",
+    "fork": "write-intent",
+    "codex:codex-rescue": "write-intent",
+    "code-simplifier:code-simplifier": "write-intent",
+    "pr-review-toolkit:code-reviewer": "write-intent",
+    "pr-review-toolkit:code-simplifier": "write-intent",
+    "statusline-setup": "write-intent"
   }
 }

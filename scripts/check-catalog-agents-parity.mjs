@@ -197,13 +197,32 @@ if (canonSrc) {
 }
 
 // E5 (#1947): agent-write-classes.json ↔ .claude/agents/*.md parity — every
-// classified agent name must have a real agent file (no phantom entry feeding
-// pre-spawn-worktree-guard.mjs a stale classification). Real-repo-files mode only.
+// LOCAL classified agent name must have a real agent file (no phantom entry
+// feeding pre-spawn-worktree-guard.mjs a stale classification). Real-repo-files
+// mode only.
+//
+// #2403: the classification map also covers agent types this hook never owns a
+// `.claude/agents/*.md` for — Claude Code built-ins (Explore, Plan, general-purpose,
+// claude, fork, statusline-setup) and plugin-provided agents (a `plugin:agent`
+// scoped name, e.g. `feature-dev:code-explorer`). Neither is backed by a local
+// agent file by construction, so both are exempt from the orphan check; only a
+// bare (unscoped) name still requires a matching `.claude/agents/<name>.md` —
+// that is the real typo/stale-classification guard this check exists for.
+const BUILTIN_AGENT_TYPES = new Set([
+  'Explore',
+  'Plan',
+  'general-purpose',
+  'claude',
+  'fork',
+  'statusline-setup',
+  'claude-code-guide',
+])
 if (catalogArg == null && agentsArg == null) {
   const writeClassesPath = resolve(root, '.claude/agents/agent-write-classes.json')
   try {
     const classes = JSON.parse(readFileSync(writeClassesPath, 'utf-8')).classes ?? {}
     for (const name of Object.keys(classes)) {
+      if (name.includes(':') || BUILTIN_AGENT_TYPES.has(name)) continue
       if (!existsSync(resolve(root, `.claude/agents/${name}.md`))) {
         process.stdout.write(
           `  ORPHAN in agent-write-classes.json: ${name} (no .claude/agents/${name}.md)\n`,
