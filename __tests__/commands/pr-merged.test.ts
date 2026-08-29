@@ -7,12 +7,14 @@
  * refusal text an agent actually has to act on — the failing check names, not just "not merged".
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { evaluateMerged, failingCheckNames, type PrSnapshot } from '../../src/commands/pr-merged'
 import { runTaskAdvance } from '../../src/commands/task'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state'
+import { writeGatePassEvidence } from '../helpers.js'
 
 const BRANCH = 'task/#2402-owned-until-merged'
 
@@ -141,22 +143,49 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
   let dir: string
   const log = (): string => readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')
 
+  const git = (args: string[]): void => {
+    execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+  }
+
+  /**
+   * #2402: the marker gate (`checkGatePassMarkerGate`, src/commands/task.ts) refuses
+   * `ARBITER_SKIP_GATE_MARKER` under CI by design — CI must never honor a bypass that hides a
+   * missing gate run. So instead of disarming the gate, these tests stamp a REAL gate-pass marker
+   * for a real checkout, the same way __tests__/commands/task-phase-migration.test.ts does: a git
+   * repo initialized on the branch under test, then `writeGatePassEvidence` (helpers.ts), which
+   * builds the marker through scripts/lib/gate-evidence.mjs so head_sha/branch/tree_hash/
+   * toolchain_fingerprint are bound to THIS temp checkout rather than hand-written.
+   */
+  const initGitRepo = (): void => {
+    git(['init', '-q', '-b', BRANCH])
+    git(['config', 'user.email', 'test@arbiter.dev'])
+    git(['config', 'user.name', 'test-user'])
+    // Mirrors arbiter's own .gitignore: task/gate runtime state is not tree content.
+    writeFileSync(join(dir, '.gitignore'), '.arbiter/\n.claude/.task/\n.claude/.task-*\n', 'utf-8')
+    git(['add', '-A'])
+    git(['commit', '-q', '-m', 'fixture', '--no-gpg-sign'])
+  }
+
+  const stampMarker = (): void => {
+    writeGatePassEvidence(dir, { taskId: '#2402' })
+  }
+
   const seedClose = (): void => {
-    mkdirSync(join(dir, '.arbiter'), { recursive: true })
-    // The marker gate runs first and is not what these tests exercise; disarm it explicitly.
-    process.env['ARBITER_SKIP_GATE_MARKER'] = '1'
     writeUnifiedState(dir, { taskId: '#2402', phase: 'close', branch: BRANCH })
   }
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-landing-'))
-    // An explicit GitHub repo: the gate must fire rather than skip.
+    initGitRepo()
+    // An explicit GitHub repo: the gate must fire rather than skip. Written after the initial
+    // commit (untracked) so a later rewrite stays an untracked `??` line, not a dirty tracked
+    // file — `git status --porcelain` gates the marker's tree_was_clean_at_run_time on that.
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(validConfig({ permitGitHub: true })))
+    stampMarker()
     seedClose()
   })
 
   afterEach(() => {
-    delete process.env['ARBITER_SKIP_GATE_MARKER']
     rmSync(dir, { recursive: true, force: true })
   })
 
@@ -224,6 +253,9 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
 
   it('skips the gate for a repo that declares it does not use GitHub', () => {
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(validConfig({ useGitHub: false })))
+    // The marker still gates unconditionally before the PR-check axis is even consulted, and it
+    // is bound to tree content — re-stamp it over the rewritten arbiter.json.
+    stampMarker()
     runTaskAdvance({
       to: 'complete',
       dir,
