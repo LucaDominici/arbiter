@@ -10,7 +10,7 @@
 // temp git repo, which is how getRepoRoot() and the sidecar/write-classes reads
 // pick up the fixture state (mirrors __tests__/hooks/enforce-gate-before-pr-worktree.test.ts).
 import { spawnSync, execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
@@ -139,6 +139,38 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
     )
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('one-task-per-dispatch')
+  })
+
+  it('#2403 AC-2: an M2-rejected spawn leaves no sidecar entry (hard grading)', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    const result = runHook(
+      dir,
+      {
+        tool_input: {
+          subagent_type: 'general-purpose',
+          isolation: 'worktree',
+          prompt: 'work on #12 and also #34',
+        },
+      },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+    expect(result.status).toBe(2)
+    expect(existsSync(join(dir, '.arbiter', 'agents-active.json'))).toBe(false)
+  })
+
+  it('#2403 AC-2: a second-writer-rejected spawn leaves the sidecar unchanged (hard grading)', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    writeSidecar(dir, [{ agent: 'general-purpose', ts: Date.now(), pid: 1, cwd: dir }])
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'unknown-type', prompt: 'do a thing for #100' } },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+    expect(result.status).toBe(2)
+    const sidecar = JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-active.json'), 'utf-8'))
+    expect(sidecar.length).toBe(1)
   })
 
   it('exits 0 with advisory stderr: same M2 violation at soft (default) grading', () => {

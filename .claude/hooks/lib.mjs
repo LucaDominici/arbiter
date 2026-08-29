@@ -412,6 +412,22 @@ const DANGEROUS_LITERALS = [
 ]
 
 /**
+ * Strips heredoc bodies and quoted-string spans so pattern matching sees only the
+ * executed/literal command shape, never text a quoted argument or heredoc payload
+ * merely *mentions* (#2403). Shared by isDangerousCommand below and by
+ * stop-dangerous.mjs's protected-Arbiter-state-write guard.
+ *
+ * @param {string} command
+ * @returns {string}
+ */
+export function stripQuotedAndHeredocs(command) {
+  return String(command ?? '')
+    .replace(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1[\s\S]*?^\s*\2\s*$/gm, ' ')
+    .replace(/'[^']*'/g, ' ')
+    .replace(/"[^"]*"/g, ' ')
+}
+
+/**
  * True when `command` actually runs something destructive.
  *
  * The previous form was a bare substring scan with two failure modes in opposite
@@ -430,11 +446,8 @@ export function isDangerousCommand(command) {
 
   // The forced push is the opposite case — it is the one that kept firing on prose
   // (an issue body describing this very guard), so it is matched on the text with
-  // heredoc bodies and quoted spans removed. Heredocs first: they can contain quotes.
-  const executed = raw
-    .replace(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1[\s\S]*?^\s*\2\s*$/gm, ' ')
-    .replace(/'[^']*'/g, ' ')
-    .replace(/"[^"]*"/g, ' ')
+  // heredoc bodies and quoted spans removed.
+  const executed = stripQuotedAndHeredocs(raw)
 
   // --force-with-lease refuses to overwrite refs the local side has not seen, so it is
   // the form a rebase is supposed to use; only the unguarded variants are blocked.
@@ -453,6 +466,28 @@ export function getRepoRoot() {
   }
   logWarn('getRepoRoot: git rev-parse failed, falling back to cwd')
   return process.cwd()
+}
+
+// E5 (#1947): shared write-intent-agent sidecar contract — pre-spawn-worktree-guard.mjs
+// registers entries, post-subagent-release.mjs (SubagentStop) removes them on cleanup.
+// Both files import from here rather than duplicating the path/TTL/prune logic.
+export const SIDECAR_PATH = join('.arbiter', 'agents-active.json')
+export const SIDECAR_TTL_MS = 2 * 60 * 60 * 1000 // 2h — mirrors `arbiter worktree prune --stale`
+
+/** Generic best-effort JSON read; missing/malformed file => null (caller decides fallback). */
+export function readJsonOrNull(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8'))
+    // FAIL-OPEN-INTENT: a caller reading optional bookkeeping/config JSON must not crash
+    // on a missing or malformed file — null lets it fall back to a safe default.
+  } catch {
+    return null
+  }
+}
+
+/** Drops sidecar entries older than SIDECAR_TTL_MS so a killed agent cannot wedge future spawns. */
+export function pruneStaleSidecarEntries(entries, now) {
+  return entries.filter((e) => now - Number(e.ts ?? 0) < SIDECAR_TTL_MS)
 }
 
 /**

@@ -356,6 +356,15 @@
       "promotedBy": "ARBITER_SPAWN_GUARD_HARD"
     },
     {
+      "file": "post-subagent-release.mjs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "rationale": "E5 #1947, #2403. SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — removes the finished dispatch's agents-active.json sidecar entry so it does not wedge the next spawn for the 2h TTL. Always exits 0. Driven by a SubagentStop payload on stdin, not a tool-input path."
+    },
+    {
       "file": "stop-finding-loss.mjs",
       "classification": "ADVISORY",
       "tools": [
