@@ -186,6 +186,69 @@ describe('check-tabletop-evidence (#2429)', () => {
     }
   })
 
+  it('finds the findings table past an unrelated seven-column table in the narrative', () => {
+    const decoy = [
+      '| a | b | c | d | e | f | g |',
+      '| - | - | - | - | - | - | - |',
+      '| 1 | 2 | 3 | 4 | 5 | 6 | 7 |',
+      '',
+    ].join('\n')
+    const body = evidence([OWNED_MAJOR, MINOR]).replace(
+      '# Tabletop — greenfield-init-ts\n',
+      `# Tabletop — greenfield-init-ts\n\n${decoy}`,
+    )
+    const { dir, cleanup } = stage({ 'greenfield-init-ts-2026-08-29.md': body })
+    try {
+      const r = run(dir)
+      expect(r.out).toContain('OK')
+      expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('accepts a clean tabletop: header, separator, and no findings rows', () => {
+    const { dir, cleanup } = stage({
+      'greenfield-init-ts-2026-08-29.md': evidence([], { blocker: 0, major: 0, minor: 0 }),
+    })
+    try {
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails when the findings table has no separator row under its header', () => {
+    const body = evidence([OWNED_MAJOR, MINOR]).replace(
+      '| --- | --- | --- | --- | --- | --- | --- |\n',
+      '',
+    )
+    const { dir, cleanup } = stage({ 'greenfield-init-ts-2026-08-29.md': body })
+    try {
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.out).toContain('separator')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('reports only the schema error when `findings` is a scalar, not three count mismatches', () => {
+    const body = evidence([OWNED_MAJOR, MINOR]).replace(
+      /^findings:\n  blocker: 0\n  major: 1\n  minor: 1$/m,
+      'findings: 2',
+    )
+    const { dir, cleanup } = stage({ 'greenfield-init-ts-2026-08-29.md': body })
+    try {
+      const r = run(dir)
+      expect(r.status).toBe(1)
+      expect(r.out).toContain('findings: expected an object')
+      expect(r.out).not.toContain('frontmatter says undefined')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('fails on an unknown severity or class value', () => {
     const badClass = MINOR.replace('| ux |', '| vibes |')
     const { dir, cleanup } = stage({

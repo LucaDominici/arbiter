@@ -158,17 +158,26 @@ function rowErrors(row, contract, where, ownerRe) {
 export function parseFindingsTable(body, contract) {
   const errors = []
   const lines = body.split('\n')
+  const want = contract.columns.map((c) => c.toLowerCase()).join(' | ')
+  // Match the header by CONTENT, not by cell count: the separator row and any other
+  // seven-column table in the narrative also have seven cells, and matching one of those
+  // would report a header mismatch against a table that is not the findings table.
   const headerIdx = lines.findIndex(
-    (l) => l.trim().startsWith('|') && cells(l).length === contract.columns.length,
+    (l) =>
+      l.trim().startsWith('|') &&
+      cells(l)
+        .map((c) => c.toLowerCase())
+        .join(' | ') === want,
   )
   if (headerIdx === -1) {
-    errors.push(`no findings table with the ${contract.columns.length} declared columns`)
+    errors.push(`no findings table with the declared header: ${want}`)
     return { errors, rows: [] }
   }
-  const header = cells(lines[headerIdx]).map((c) => c.toLowerCase())
-  const want = contract.columns.map((c) => c.toLowerCase())
-  if (header.join(' | ') !== want.join(' | ')) {
-    errors.push(`findings-table header is "${header.join(' | ')}", expected "${want.join(' | ')}"`)
+  // The row scan starts past the separator; if that line is not one, the first finding
+  // would be silently skipped — and a silently dropped blocker is the one thing this gate
+  // exists to prevent.
+  if (!/^\s*\|[\s:|-]+\|\s*$/.test(lines[headerIdx + 1] ?? '')) {
+    errors.push('findings table has no `| --- |` separator row under its header')
     return { errors, rows: [] }
   }
   const rows = []
@@ -209,8 +218,12 @@ function checkFile(path, schema) {
   const errors = validateFrontmatter(parsed.data, schema)
   const contract = schema['x-findings-table']
   const table = parseFindingsTable(parsed.body, contract)
+  const tableOk = table.errors.length === 0
   errors.push(...table.errors)
-  if (table.errors.length === 0) {
+  // Only reconcile counts once BOTH sides parsed. A malformed `findings:` block already
+  // failed the schema; adding three "says undefined, table has N" lines on top buries the
+  // one error that explains the file.
+  if (tableOk && errors.length === 0) {
     errors.push(...checkCounts(parsed.data.findings, table.rows, contract))
   }
   return errors
