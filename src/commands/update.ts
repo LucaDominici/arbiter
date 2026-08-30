@@ -1038,6 +1038,21 @@ function saveValidatedConfig(
   saveConfigAndSnapshot(targetDir, validation.config)
 }
 
+/**
+ * #2353: resolve this run's selection policy — `.arbiterignore` (committed,
+ * repo-permanent) plus `--only` (per-invocation, defaults to "everything").
+ * Extracted out of `runUpdate` so its `??` default stays a single, separately
+ * testable decision point instead of adding to that function's own branching.
+ */
+function resolveSelectionPolicy(
+  options: UpdateOptions,
+  targetDir: string,
+): { only: string[]; selectPredicate: (key: string) => SelectionVerdict } {
+  const only = options.only ?? []
+  const ignorePatterns = loadIgnorePatterns(targetDir)
+  return { only, selectPredicate: buildSelectionPredicate({ patterns: ignorePatterns, only }) }
+}
+
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const targetDir = resolve(options.dir ?? process.cwd())
   const log = updateLogger(options.json)
@@ -1075,9 +1090,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     // (a committed, permanent decision); `--only` narrows this one run. Built once
     // and threaded into every session below so the plan and the apply can never
     // disagree about what is in scope.
-    const only = options.only ?? []
-    const ignorePatterns = loadIgnorePatterns(targetDir)
-    const selectPredicate = buildSelectionPredicate({ patterns: ignorePatterns, only })
+    const { only, selectPredicate } = resolveSelectionPolicy(options, targetDir)
     if (options.adoptPlan) {
       const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, {
         adoptPredicate,
