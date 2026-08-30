@@ -56,7 +56,8 @@ function escapeRegExp(s) {
 }
 
 const NEVER_BLOCK_HEADER = /^\s*\*\*(Never|Don't|Do ?not)\b[^*]*\*\*\s*$/i
-const EXCLUDED_FIELD = /^\s*(>|\*\*(Why|Source|Sources|Enforcement|Promoted|Tradeoff)\b)/i
+const EXCLUDED_FIELD =
+  /^\s*(>|(?:[-*]\s+)?(?:\*\*|_)(Why|Source|Sources|Enforcement|Promoted|Tradeoff)\b)/i
 const BULLET = /^\s*[-*]\s+/
 const INLINE_MARKERS = [
   /MUST\s+NOT\b/i,
@@ -81,7 +82,10 @@ function tokensIn(text) {
 function tokensAfter(line, markerRe) {
   const m = markerRe.exec(line)
   if (!m) return []
-  return tokensIn(line.slice(m.index + m[0].length))
+  let tail = line.slice(m.index + m[0].length)
+  const boundary = tail.indexOf('. ')
+  if (boundary !== -1) tail = tail.slice(0, boundary + 1)
+  return tokensIn(tail)
 }
 
 function extractProhibitions(docPath, body) {

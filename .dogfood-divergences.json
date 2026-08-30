@@ -166,7 +166,7 @@
     "path": "check-constraint-scan.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). The load-bearing difference is one constant: ENFORCE_DEFAULT is true in self and false in the template. That is the documented start-warn-promote-later rollout (#1214) — arbiter hard-fails on an un-covered derivable prohibition with a live hit, while a freshly generated project warns until it has curated constraint-map.json. Self also reads docs/internal/SYSTEM/CANON.md (the #1770 layout) vs the template's docs/SYSTEM/CANON.md, and carries the INV-94 CATALOG block plus section banners. The extraction grammar, the token-shape filter and the INV-96 fail-closed handling of a missing/malformed map are identical. PERMANENT: self-stricter-than-emitted is the deliberate rollout posture, not lag.",
-    "diffHash": "94a8e401b503ef43104b5fbfc6d9b8e7b0e411a01d2d11a781713a26fcb6e029"
+    "diffHash": "d5c2ff456e0b8b123e8913db754b02f2741f1adcc33fd5c9abd7d72db69a970c"
   },
   {
     "path": "check-consumer-audit.mjs",
