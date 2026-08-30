@@ -263,7 +263,13 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'root',
-      enabled: config.permitGitHub ?? config.useGitHub,
+      // #2434: was gated wholesale on `permitGitHub ?? useGitHub`, which withheld
+      // SECURITY.md / CONTRIBUTING.md / .editorconfig / .nvmrc /
+      // commitlint.config.js — files the README and QUICKSTART call "baseline repo
+      // hygiene" and which have nothing to do with GitHub permission — from every
+      // default init. The GitHub predicate now sits on the ONE file in this
+      // generator that is GitHub-bound: `.github/CODEOWNERS` (see root.ts).
+      enabled: true,
       run: (opts) => generateRoot(config, opts).files,
     },
     {

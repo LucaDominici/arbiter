@@ -127,6 +127,12 @@ export type GovernanceLevel = 'L1' | 'L2' | 'L3' | 'L4'
 //   end-to-end verification of the named tool.
 export type AiTool = 'claude' | 'codex' | 'cursor' | 'copilot' | 'gemini' | 'windsurf' | 'aider'
 
+// #2417: the single SSOT for the customer-facing set (ADR-095 point 2 — "every
+// other site references it"). `init --tools` (parseTools) and
+// `configure --set tools=` must both validate against exactly this list; a
+// second, independently hand-maintained copy is the bug class this closes.
+export const SUPPORTED_AI_TOOLS: readonly AiTool[] = ['claude', 'codex']
+
 export type Archetype =
   'backend-web-db' | 'cli' | 'library' | 'data-pipeline' | 'frontend-spa' | 'embedded'
 
