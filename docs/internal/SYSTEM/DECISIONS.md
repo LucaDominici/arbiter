@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-08-29'
+last_review: '2026-08-30'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -136,3 +136,4 @@ related: []
 | 115 | [Bounded Sealed Trains — When a Batch Stops Taking Issues](../ADR/115-bounded-sealed-trains.md) | Accepted | 2026-08-22 |
 | 116 | [Evidence Binds to Source Content; the Train Is the Ceremony Unit; a PR Is Owned Until Merged](../ADR/116-evidence-content-binding-train-ceremony-pr-ownership.md) | Accepted | 2026-08-29 |
 | 117 | [Companion Skill Provenance — Detected, Never Bundled](../ADR/117-companion-skill-provenance.md) | Accepted | 2026-08-29 |
+| 118 | [`arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](../ADR/118-plugin-add-ship-minimal.md) | Accepted | 2026-08-30 |

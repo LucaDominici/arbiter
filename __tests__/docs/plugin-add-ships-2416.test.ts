@@ -22,7 +22,8 @@ describe('#2416 — plugin add docs match the shipped minimal command', () => {
   it('plugin.md no longer promises a scaffolder that creates index.js/package.json/templates/', () => {
     const text = read(PLUGIN_RECIPE)
     expect(text).not.toContain('This creates:')
-    expect(text).not.toMatch(/index\.js\s*#\s*ArbiterPlugin implementation/)
+    expect(text).not.toMatch(/^## Scaffold\s*$/m)
+    expect(text).toMatch(/does not scaffold/)
   })
 
   it('plugin.md still instructs the real `arbiter plugin add` command', () => {
@@ -39,7 +40,7 @@ describe('#2416 — plugin add docs match the shipped minimal command', () => {
   })
 
   it('spring-boot README instructs the real `arbiter plugin add` command', () => {
-    expect(read(SPRING_BOOT_README)).toMatch(/`arbiter plugin add /)
+    expect(read(SPRING_BOOT_README)).toMatch(/arbiter plugin add arbiter-plugin-spring-boot/)
   })
 
   it('spring-boot README no longer cites the phantom `arbiter integrations` command', () => {

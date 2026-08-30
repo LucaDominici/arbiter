@@ -24,34 +24,6 @@
       "expires": "2026-09-12"
     },
     {
-      "path": "CONTRIBUTING.md",
-      "rule": "phantom-command",
-      "reason": "Step 1 of the plugin-authoring walkthrough instructs `arbiter plugin add <name>`; the command does not exist. Same ship-or-delete decision as the two website recipes and the spring-boot example README.",
-      "issue": "#2416",
-      "expires": "2026-09-25"
-    },
-    {
-      "path": "website/recipes/plugin.md",
-      "rule": "phantom-command",
-      "reason": "Public recipe instructs `arbiter plugin add`; the command does not exist. Ship it or delete the promise — a product decision.",
-      "issue": "#2416",
-      "expires": "2026-09-25"
-    },
-    {
-      "path": "website/recipes/custom-invariant.md",
-      "rule": "phantom-command",
-      "reason": "Same `arbiter plugin add` promise as the plugin recipe; resolved by the same decision.",
-      "issue": "#2416",
-      "expires": "2026-09-25"
-    },
-    {
-      "path": "examples/plugins/spring-boot/README.md",
-      "rule": "phantom-command",
-      "reason": "Example README instructs `arbiter plugin add` and cites `arbiter integrations list --recommended`; neither command is registered. Both are the plugin-registry surface awaiting the same ship-or-delete call.",
-      "issue": "#2416",
-      "expires": "2026-09-25"
-    },
-    {
       "path": "src/templates/governance/qa-audit-phases.md.ejs",
       "rule": "phantom-command",
       "reason": "The emitted governance playbook documents `arbiter audit run` and says so explicitly (\"planned, not yet shipped\"). Excusing the file also keeps `audit` out of the emitted-surface ledger, which would otherwise demand a row for a command that deliberately does not exist.",

@@ -225,7 +225,8 @@
       "load_error": "Failed to load plugin \"{name}\": {message}\n  arbiter.json was not modified.\n  {hint}",
       "retry_network": "Network issue detected. Remove the plugin from arbiter.json's `plugins` array, then re-run `arbiter update`.",
       "retry_local": "Verify the package is installed (`npm install {name}`), or remove it from arbiter.json's `plugins` array and re-run `arbiter update`.",
-      "security_advisory": "  Security advisory: Plugin {name} will execute Node code during `arbiter update`. Verify source before use."
+      "security_advisory": "  Security advisory: Plugin {name} will execute Node code during `arbiter update`. Verify source before use.",
+      "already_configured": "  Plugin already configured: {name}"
     },
     "diff": {
       "banner": "\n  Arbiter \u2014 diff (dry run)\n",
