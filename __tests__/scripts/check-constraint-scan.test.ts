@@ -444,3 +444,39 @@ describe('check-constraint-scan.mjs (INV-115) — real-doc canary (false-negativ
     expect(r.stdout).toMatch(/UNENFORCEABLE.*CLAUDE\.md/)
   })
 })
+
+describe('check-constraint-scan.mjs (INV-115) — #2410 extraction-quality follow-ups', () => {
+  it('a `- _Enforcement:_` italic-bullet field is excluded like `**Enforcement:**` (not a prohibition)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(
+        dir,
+        '- _Enforcement:_ reads `manifest.json`; never false-fail when `required:true` is absent or `uses:` is unset\n',
+      )
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.stdout).not.toContain('UNENFORCEABLE')
+      expect(r.stdout).not.toContain('required:true')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('tokensAfter clips at the sentence boundary — a token in the NEXT clause is not swept in', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(
+        dir,
+        '- must NOT contain `push.branches`. Unrelated text mentions `cosign copy` too.\n',
+      )
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.stdout).toContain('push.branches')
+      expect(r.stdout).not.toContain('cosign copy')
+    } finally {
+      cleanup()
+    }
+  })
+})
