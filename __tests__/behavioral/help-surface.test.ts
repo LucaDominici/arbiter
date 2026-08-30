@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-// Behavioral tests (#1770 T5, superseded by T2 tier-3 cathedral cut): public
-// 14-command CLI surface — spawn the real CLI binary and assert default
-// --help shows exactly the public commands while `arbiter help --all` still
+// Behavioral tests (#1770 T5, superseded by T2 tier-3 cathedral cut; #2416 adds
+// `plugin`): public 16-command CLI surface — spawn the real CLI binary and assert
+// default --help shows exactly the public commands while `arbiter help --all` still
 // lists the experimental (hidden) surface.
 import { describe, it, expect } from 'vitest'
 import { resolve, join } from 'node:path'
@@ -24,6 +24,7 @@ const PUBLIC_COMMANDS = [
   'ship',
   'note',
   'gold-audit',
+  'plugin',
   'worktree',
   'gate-exec',
   'review',
@@ -56,8 +57,8 @@ function commandNames(helpText: string): string[] {
   return names
 }
 
-describe('arbiter --help — public 14-command surface (#1770 T5, T2 tier-3)', () => {
-  it('default help lists exactly the 15 public commands', () => {
+describe('arbiter --help — public 16-command surface (#1770 T5, T2 tier-3, #2416)', () => {
+  it('default help lists exactly the 16 public commands', () => {
     const { status, stdout } = spawn(['--help'])
     expect(status).toBe(0)
     const names = commandNames(stdout)
