@@ -495,7 +495,7 @@
     "scripts/check-claude-md-lint.mjs": "728290c33cca5e5e0a1c7297d94f44a19f3f2a3face598b88eaba32058711257",
     "scripts/check-collab-mode-wired.mjs": "998ef0a8d0c506846c1002c906b786e375a71301748071c54f65c9e0a44284d0",
     "scripts/check-commit-footer-rationale.mjs": "009ec6af115c59c241b52e9e6d643e1ba35e3ba25483e5d98cc3418f1be3c56a",
-    "scripts/check-constraint-scan.mjs": "76e91acf40b58ebf2c6f3331e7039ddc83b93efac6af9e8f6ac10d243680562c",
+    "scripts/check-constraint-scan.mjs": "dd8256a55f38a621d870bf410b19d2f0be23b55f52fb258eaeae84a55b184a22",
     "scripts/check-continue-on-error.mjs": "9449a69ae77dabde2653dfc92ce06d92988b8e6c0a90858b82e96d1b9cb4103d",
     "scripts/check-cross-model-review.mjs": "a4ec2aa9439abf7da9fdf9458111369f3e72a2be41b70c83cd0cf6e87db1b621",
     "scripts/check-decision-registry.mjs": "0fb20ad1ca516b366921cf1f5b4e47fedfb8ef6801316b844cbf6836ff8f4e80",
