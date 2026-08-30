@@ -481,204 +481,208 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
   const seatTimeoutMs = externalSeatTimeoutMs()
   const harnessTimeoutMs = externalSeatHarnessTimeoutMs()
 
-  it('invokes the external seat from the real CLI refactor boundary', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'arbiter-ship-cross-model-'))
-    try {
-      const bin = join(dir, 'bin')
-      mkdirSync(bin, { recursive: true })
-      const codex = join(bin, 'codex')
-      writeFileSync(
-        codex,
-        '#!/bin/sh\n' +
-          'if [ "$1" = "--version" ]; then printf "codex 1.2.3\\n"; exit 0; fi\n' +
-          // #2431: drain stdin to EOF — the seat writes the prompt there, and exiting
-          // without reading it makes that write race this process's exit and return EPIPE.
-          'cat > "$(dirname "$0")/../codex-stdin.txt"\n' +
-          'out=""\n' +
-          'while [ "$#" -gt 0 ]; do\n' +
-          '  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi\n' +
-          'done\n' +
-          'count_file="$(dirname "$0")/../codex-count"\n' +
-          'count=0\n' +
-          'if [ -f "$count_file" ]; then count=$(cat "$count_file"); fi\n' +
-          'printf "%s" "$((count + 1))" > "$count_file"\n' +
-          'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}\\n\' > "$out"\n',
-      )
-      chmodSync(codex, 0o755)
-      mkdirSync(join(dir, '.codex'), { recursive: true })
-      writeFileSync(join(dir, '.codex', 'auth.json'), '{}\n')
+  it(
+    'invokes the external seat from the real CLI refactor boundary',
+    () => {
+      const dir = mkdtempSync(join(tmpdir(), 'arbiter-ship-cross-model-'))
+      try {
+        const bin = join(dir, 'bin')
+        mkdirSync(bin, { recursive: true })
+        const codex = join(bin, 'codex')
+        writeFileSync(
+          codex,
+          '#!/bin/sh\n' +
+            'if [ "$1" = "--version" ]; then printf "codex 1.2.3\\n"; exit 0; fi\n' +
+            // #2431: drain stdin to EOF — the seat writes the prompt there, and exiting
+            // without reading it makes that write race this process's exit and return EPIPE.
+            'cat > "$(dirname "$0")/../codex-stdin.txt"\n' +
+            'out=""\n' +
+            'while [ "$#" -gt 0 ]; do\n' +
+            '  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi\n' +
+            'done\n' +
+            'count_file="$(dirname "$0")/../codex-count"\n' +
+            'count=0\n' +
+            'if [ -f "$count_file" ]; then count=$(cat "$count_file"); fi\n' +
+            'printf "%s" "$((count + 1))" > "$count_file"\n' +
+            'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}\\n\' > "$out"\n',
+        )
+        chmodSync(codex, 0o755)
+        mkdirSync(join(dir, '.codex'), { recursive: true })
+        writeFileSync(join(dir, '.codex', 'auth.json'), '{}\n')
 
-      const sourceConfig = JSON.parse(
-        readFileSync(join(REPO_ROOT, 'arbiter.json'), 'utf8'),
-      ) as Record<string, unknown>
-      sourceConfig.collaborationMode = 'peer-review'
-      sourceConfig.crossModelReview = {
-        enabled: true,
-        diffEgressConsent: true,
-        providers: ['codex'],
-        slots: { codeReview: 1, redTeamReview: 0 },
-        timeoutMs: seatTimeoutMs,
-        onUnavailable: 'degrade',
-      }
-      writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)
-      writeFileSync(
-        join(dir, 'package.json'),
-        '{"name":"cross-model-cli-fixture","version":"1.0.0"}\n',
-      )
+        const sourceConfig = JSON.parse(
+          readFileSync(join(REPO_ROOT, 'arbiter.json'), 'utf8'),
+        ) as Record<string, unknown>
+        sourceConfig.collaborationMode = 'peer-review'
+        sourceConfig.crossModelReview = {
+          enabled: true,
+          diffEgressConsent: true,
+          providers: ['codex'],
+          slots: { codeReview: 1, redTeamReview: 0 },
+          timeoutMs: seatTimeoutMs,
+          onUnavailable: 'degrade',
+        }
+        writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)
+        writeFileSync(
+          join(dir, 'package.json'),
+          '{"name":"cross-model-cli-fixture","version":"1.0.0"}\n',
+        )
 
-      const statusDir = join(dir, '.claude', '.task')
-      mkdirSync(statusDir, { recursive: true })
-      writeFileSync(
-        join(statusDir, 'status.json'),
-        `${JSON.stringify(
-          {
+        const statusDir = join(dir, '.claude', '.task')
+        mkdirSync(statusDir, { recursive: true })
+        writeFileSync(
+          join(statusDir, 'status.json'),
+          `${JSON.stringify(
+            {
+              taskId: '#2357',
+              phase: 'refactor',
+              tier: 'Standard',
+              plan: '',
+              branch: '',
+              cursor: { tddPhase: null, lastAction: '', nextAction: '' },
+              handoffStrategy: null,
+              handoffReady: false,
+              runId: 'cross-model-cli-test',
+              timestamps: {},
+              gateDecisions: [],
+            },
+            null,
+            2,
+          )}\n`,
+        )
+        writeFileSync(
+          join(dir, '.gitignore'),
+          '.claude/.task/\n.evidence/\ncodex-count\ncodex-stdin.txt\n',
+        )
+
+        mkdirSync(join(dir, 'schemas'), { recursive: true })
+        mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+        for (const relativePath of [
+          'schemas/agent-return.schema.json',
+          'schemas/agent-return-external.schema.json',
+          'schemas/cross-model-dispatch.schema.json',
+          'scripts/check-cross-model-review.mjs',
+          'scripts/record-agent-return.mjs',
+          'scripts/lib/agent-return-validate.mjs',
+          'scripts/lib/evidence-binding.mjs',
+          'scripts/lib/gate-args.mjs',
+        ]) {
+          copyFileSync(join(REPO_ROOT, relativePath), join(dir, relativePath))
+        }
+
+        execFileSync('git', ['init', '-q', '-b', 'task/#2357-cross-model-cli'], { cwd: dir })
+        execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: dir })
+        execFileSync('git', ['config', 'user.name', 'test-user'], { cwd: dir })
+        execFileSync('git', ['add', '-A'], { cwd: dir })
+        execFileSync('git', ['commit', '-q', '-m', 'fixture', '--no-gpg-sign'], { cwd: dir })
+        const fixtureSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+          cwd: dir,
+          encoding: 'utf8',
+        }).trim()
+        mkdirSync(join(dir, '.arbiter'), { recursive: true })
+        writeFileSync(
+          join(dir, '.arbiter', 'agents-dispatched.json'),
+          JSON.stringify({
+            count: 2,
+            agents: ['anthropic-reviewer', 'anthropic-reviewer-2'],
             taskId: '#2357',
-            phase: 'refactor',
-            tier: 'Standard',
-            plan: '',
-            branch: '',
-            cursor: { tddPhase: null, lastAction: '', nextAction: '' },
-            handoffStrategy: null,
-            handoffReady: false,
-            runId: 'cross-model-cli-test',
-            timestamps: {},
-            gateDecisions: [],
+            branch: 'task/#2357-cross-model-cli',
+            sha: fixtureSha,
+          }),
+        )
+        execFileSync('git', ['update-ref', 'refs/remotes/origin/main', fixtureSha], { cwd: dir })
+
+        const result = spawnSync(
+          process.execPath,
+          [join(REPO_ROOT, 'dist', 'cli.js'), 'ship', '#2357', '--tier', 'Standard', '--dir', dir],
+          {
+            cwd: dir,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              HOME: dir,
+              PATH: `${bin}:${process.env.PATH ?? ''}`,
+            },
+            timeout: harnessTimeoutMs,
           },
-          null,
-          2,
-        )}\n`,
-      )
-      writeFileSync(
-        join(dir, '.gitignore'),
-        '.claude/.task/\n.evidence/\ncodex-count\ncodex-stdin.txt\n',
-      )
+        )
 
-      mkdirSync(join(dir, 'schemas'), { recursive: true })
-      mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
-      for (const relativePath of [
-        'schemas/agent-return.schema.json',
-        'schemas/agent-return-external.schema.json',
-        'schemas/cross-model-dispatch.schema.json',
-        'scripts/check-cross-model-review.mjs',
-        'scripts/record-agent-return.mjs',
-        'scripts/lib/agent-return-validate.mjs',
-        'scripts/lib/evidence-binding.mjs',
-        'scripts/lib/gate-args.mjs',
-      ]) {
-        copyFileSync(join(REPO_ROOT, relativePath), join(dir, relativePath))
-      }
-
-      execFileSync('git', ['init', '-q', '-b', 'task/#2357-cross-model-cli'], { cwd: dir })
-      execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: dir })
-      execFileSync('git', ['config', 'user.name', 'test-user'], { cwd: dir })
-      execFileSync('git', ['add', '-A'], { cwd: dir })
-      execFileSync('git', ['commit', '-q', '-m', 'fixture', '--no-gpg-sign'], { cwd: dir })
-      const fixtureSha = execFileSync('git', ['rev-parse', 'HEAD'], {
-        cwd: dir,
-        encoding: 'utf8',
-      }).trim()
-      mkdirSync(join(dir, '.arbiter'), { recursive: true })
-      writeFileSync(
-        join(dir, '.arbiter', 'agents-dispatched.json'),
-        JSON.stringify({
+        expect(result.status).toBe(0)
+        const artifact = JSON.parse(
+          readFileSync(
+            join(dir, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
+            'utf8',
+          ),
+        ) as { fulfilled: Array<{ envelope: string }>; degraded: unknown[] }
+        // #2431: a bare "expected [] to have length 1" says nothing about WHY the seat did
+        // not answer, which is the one thing a load-sensitive failure has to report.
+        const why = JSON.stringify(artifact.degraded)
+        expect(artifact.fulfilled, why).toHaveLength(1)
+        expect(artifact.degraded, why).toEqual([])
+        // #2431: the seat writes the prompt to the CLI's stdin. A stub that exits without
+        // reading it makes that write race the child's exit and return EPIPE, which degrades
+        // the seat with no timeout in sight. Asserting the prompt arrived keeps the stub
+        // draining stdin — and proves the diff reaches the seat at all.
+        expect(readFileSync(join(dir, 'codex-stdin.txt'), 'utf8')).toContain('--- BEGIN DIFF ---')
+        expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
+          '"vendor": "openai"',
+        )
+        const sidecar = JSON.parse(
+          readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
+        ) as { count: number; agents: string[]; branch: string; sha: string; taskId: string }
+        expect(sidecar).toEqual({
           count: 2,
-          agents: ['anthropic-reviewer', 'anthropic-reviewer-2'],
-          taskId: '#2357',
+          agents: ['anthropic-reviewer', 'codex-reviewer'],
           branch: 'task/#2357-cross-model-cli',
           sha: fixtureSha,
-        }),
-      )
-      execFileSync('git', ['update-ref', 'refs/remotes/origin/main', fixtureSha], { cwd: dir })
+          taskId: '#2357',
+        })
 
-      const result = spawnSync(
-        process.execPath,
-        [join(REPO_ROOT, 'dist', 'cli.js'), 'ship', '#2357', '--tier', 'Standard', '--dir', dir],
-        {
-          cwd: dir,
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            HOME: dir,
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
-          },
-          timeout: harnessTimeoutMs,
-        },
-      )
-
-      expect(result.status).toBe(0)
-      const artifact = JSON.parse(
-        readFileSync(
-          join(dir, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
-          'utf8',
-        ),
-      ) as { fulfilled: Array<{ envelope: string }>; degraded: unknown[] }
-      // #2431: a bare "expected [] to have length 1" says nothing about WHY the seat did
-      // not answer, which is the one thing a load-sensitive failure has to report.
-      const why = JSON.stringify(artifact.degraded)
-      expect(artifact.fulfilled, why).toHaveLength(1)
-      expect(artifact.degraded, why).toEqual([])
-      // #2431: the seat writes the prompt to the CLI's stdin. A stub that exits without
-      // reading it makes that write race the child's exit and return EPIPE, which degrades
-      // the seat with no timeout in sight. Asserting the prompt arrived keeps the stub
-      // draining stdin — and proves the diff reaches the seat at all.
-      expect(readFileSync(join(dir, 'codex-stdin.txt'), 'utf8')).toContain('--- BEGIN DIFF ---')
-      expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
-        '"vendor": "openai"',
-      )
-      const sidecar = JSON.parse(
-        readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
-      ) as { count: number; agents: string[]; branch: string; sha: string; taskId: string }
-      expect(sidecar).toEqual({
-        count: 2,
-        agents: ['anthropic-reviewer', 'codex-reviewer'],
-        branch: 'task/#2357-cross-model-cli',
-        sha: fixtureSha,
-        taskId: '#2357',
-      })
-
-      const cachedReviewCheck = spawnSync(
-        process.execPath,
-        [join(dir, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
-        {
-          cwd: dir,
-          encoding: 'utf8',
-          env: { ...process.env, HOME: dir, PATH: `${bin}:${process.env.PATH ?? ''}` },
-        },
-      )
-      expect(
-        cachedReviewCheck.status,
-        `${cachedReviewCheck.stdout}\n${cachedReviewCheck.stderr}\n` +
-          spawnSync('git', ['diff', '--name-only'], { cwd: dir, encoding: 'utf8' }).stdout +
-          spawnSync('git', ['diff', '--cached', '--name-only'], {
+        const cachedReviewCheck = spawnSync(
+          process.execPath,
+          [join(dir, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
+          {
             cwd: dir,
             encoding: 'utf8',
-          }).stdout +
-          spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
-            cwd: dir,
-            encoding: 'utf8',
-          }).stdout,
-      ).toBe(0)
-
-      const second = spawnSync(
-        process.execPath,
-        [join(REPO_ROOT, 'dist', 'cli.js'), 'ship', '#2357', '--tier', 'Standard', '--dir', dir],
-        {
-          cwd: dir,
-          env: {
-            ...process.env,
-            HOME: dir,
-            PATH: bin + ':' + (process.env.PATH ?? ''),
+            env: { ...process.env, HOME: dir, PATH: `${bin}:${process.env.PATH ?? ''}` },
           },
-          stdio: 'ignore',
-          timeout: harnessTimeoutMs,
-        },
-      )
-      expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0)
-      expect(readFileSync(join(dir, 'codex-count'), 'utf8')).toBe('1')
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  }, harnessTimeoutMs)
+        )
+        expect(
+          cachedReviewCheck.status,
+          `${cachedReviewCheck.stdout}\n${cachedReviewCheck.stderr}\n` +
+            spawnSync('git', ['diff', '--name-only'], { cwd: dir, encoding: 'utf8' }).stdout +
+            spawnSync('git', ['diff', '--cached', '--name-only'], {
+              cwd: dir,
+              encoding: 'utf8',
+            }).stdout +
+            spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
+              cwd: dir,
+              encoding: 'utf8',
+            }).stdout,
+        ).toBe(0)
+
+        const second = spawnSync(
+          process.execPath,
+          [join(REPO_ROOT, 'dist', 'cli.js'), 'ship', '#2357', '--tier', 'Standard', '--dir', dir],
+          {
+            cwd: dir,
+            env: {
+              ...process.env,
+              HOME: dir,
+              PATH: bin + ':' + (process.env.PATH ?? ''),
+            },
+            stdio: 'ignore',
+            timeout: harnessTimeoutMs,
+          },
+        )
+        expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0)
+        expect(readFileSync(join(dir, 'codex-count'), 'utf8')).toBe('1')
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+    harnessTimeoutMs,
+  )
 
   it('treats a sidecar without taskId as stale instead of reusing its panel', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-task-required-'))

@@ -624,6 +624,35 @@ All three must pass before committing. The CI workflow runs the same checks. See
 
 ---
 
+## Tests That Survive a Busy Host
+
+A test that passes 15/15 alone and fails 4/10 on a loaded machine is not flaky in the
+"mysterious" sense. Its assertions are right; its **premise** stopped holding once the host got
+busy. Two shapes have caused this in arbiter's subprocess fixtures (#2431):
+
+**A wall-clock literal in the fixture's config.** `timeoutMs: 5_000` is a budget for a child
+process, measured once on an idle host. On a contended fork pool a cold `node` start alone can
+blow it — the code under test then degrades exactly as designed, and the assertion fails for a
+reason unrelated to what it is testing. Derive the budget from the pool the suite actually runs
+with instead: `__tests__/helpers/external-seat-budget.ts` scales `ciMaxWorkers()`,
+`VITEST_MAX_WORKERS`, or `availableParallelism() - 1` into one. Derive it from the **configured**
+pool size, never from instantaneous host load — a budget that reads the load average is itself
+non-deterministic. And scale the harness with it: raising a child's budget past the `spawnSync`
+timeout or the `testTimeout` that bounds it only moves the failure, so both come from one factor.
+
+**A stub that exits without reading its stdin.** When the parent passes `input:` to `spawnSync`,
+it is writing into a pipe whose read end may already be closed, and the call returns `EPIPE` — a
+start failure, surfaced as a fatal non-zero exit with no timeout in sight. Which side wins is the
+scheduler's call, which is why it only shows up under load. Drain stdin to EOF in the stub
+(`cat > …`) and **assert the input arrived**, so the drain is held in place by a contract rather
+than by a comment.
+
+The original failure usually needs a machine you do not have, so prove the mechanism instead: a
+deterministic test that a starved budget degrades and a scaled one does not. Never widen the
+assertion to accept the degraded outcome — the contract is not what moves.
+
+---
+
 ## Conventions
 
 Coding conventions, naming rules, error handling patterns, and the PR checklist for arbiter contributors.

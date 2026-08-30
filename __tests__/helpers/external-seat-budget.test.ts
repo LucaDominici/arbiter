@@ -5,10 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { availableParallelism } from 'node:os'
 import { ciMaxWorkers } from '../../vitest.config'
-import {
-  externalSeatHarnessTimeoutMs,
-  externalSeatTimeoutMs,
-} from './external-seat-budget.js'
+import { externalSeatHarnessTimeoutMs, externalSeatTimeoutMs } from './external-seat-budget.js'
 
 // vitest sizes its default pool at `availableParallelism() - 1`, so a `parallelism` of 2
 // stands for a one-worker pool and 9 for an eight-worker pool.
