@@ -5,12 +5,22 @@
 
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs'
+import {
+  mkdtempSync,
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  readdirSync,
+  existsSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
   buildLlmsTxt,
   readDocCount,
+  readInvMax,
+  buildCommandsRunbookList,
   findMissingPaths,
   runCli,
 } from '../../scripts/gen-llms-txt.mjs'
@@ -59,7 +69,16 @@ describe('idempotency guard (repo-root artifacts)', () => {
     const outPath = resolve('llms.txt')
     const config = JSON.parse(readFileSync(configPath, 'utf-8'))
     const docCount = readDocCount(indexPath)
-    const generated = buildLlmsTxt(config, { docCount })
+    const invMax = readInvMax(resolve('src/invariants/catalog.ts'))
+    const names = readdirSync(resolve('.claude/commands'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => f.replace(/\.md$/, ''))
+      .sort()
+    const selfOnly = JSON.parse(
+      readFileSync(resolve('scripts/data/self-only-surfaces.json'), 'utf-8'),
+    )
+    const commandsList = buildCommandsRunbookList(names, selfOnly)
+    const generated = buildLlmsTxt(config, { docCount, invMax, commandsList })
     const committed = readFileSync(outPath, 'utf-8')
     expect(generated).toBe(committed)
   })
@@ -164,7 +183,16 @@ describe('buildLlmsTxt()', () => {
 
   it('the real committed config renders exactly 20 bullets', () => {
     const config = JSON.parse(readFileSync(resolve('llms-txt.config.json'), 'utf-8'))
-    const out = buildLlmsTxt(config, { docCount: 1 })
+    const invMax = readInvMax(resolve('src/invariants/catalog.ts'))
+    const names = readdirSync(resolve('.claude/commands'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => f.replace(/\.md$/, ''))
+      .sort()
+    const selfOnly = JSON.parse(
+      readFileSync(resolve('scripts/data/self-only-surfaces.json'), 'utf-8'),
+    )
+    const commandsList = buildCommandsRunbookList(names, selfOnly)
+    const out = buildLlmsTxt(config, { docCount: 1, invMax, commandsList })
     const bulletLines = out.split('\n').filter((l) => l.startsWith('- '))
     expect(bulletLines).toHaveLength(20)
   })
@@ -193,6 +221,75 @@ describe('readDocCount()', () => {
       expect(() => readDocCount(indexPath)).toThrow()
     } finally {
       cleanup()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// readInvMax() — #2417: invariant range read from the catalog max, never
+// hand-typed.
+// ---------------------------------------------------------------------------
+
+describe('readInvMax()', () => {
+  it('parses the highest INV-NN id from a catalog.ts fixture', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalogPath = join(dir, 'catalog.ts')
+      writeFileSync(
+        catalogPath,
+        "export const catalog = [{ id: 'INV-01' }, { id: 'INV-07' }, { id: 'INV-139' }, { id: 'INV-42' }]\n",
+      )
+      expect(readInvMax(catalogPath)).toBe(139)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('throws when no INV-NN id is found (fail-closed)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalogPath = join(dir, 'catalog.ts')
+      writeFileSync(catalogPath, 'export const catalog = []\n')
+      expect(() => readInvMax(catalogPath)).toThrow()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('the real src/invariants/catalog.ts max matches the live catalog', () => {
+    // Cross-check against the same extraction the repo's own parity gate uses
+    // (scripts/check-catalog-agents-parity.mjs) so this never silently drifts.
+    const src = readFileSync(resolve('src/invariants/catalog.ts'), 'utf-8')
+    const ids = [...src.matchAll(/id:\s*'INV-(\d+)'/g)].map((m) => Number(m[1]))
+    const expectedMax = Math.max(...ids)
+    expect(readInvMax(resolve('src/invariants/catalog.ts'))).toBe(expectedMax)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// buildCommandsRunbookList() — #2417 AC-1/AC-2: self-only manifest consumed
+// by the runbook list, marking self-only commands instead of hand-listing.
+// ---------------------------------------------------------------------------
+
+describe('buildCommandsRunbookList()', () => {
+  it('marks self-only commands and leaves emitted ones unmarked', () => {
+    const list = buildCommandsRunbookList(['drain', 'gap', 'ship'], { commands: ['gap'] })
+    expect(list).toContain('[drain.md](.claude/commands/drain.md)')
+    expect(list).not.toMatch(/drain\.md\)[^,]*self-only/)
+    expect(list).toMatch(/gap\.md\).*self-only/)
+  })
+
+  it('the real .claude/commands/ + self-only-surfaces.json produce a mark for every self-only command', () => {
+    const names = readdirSync(resolve('.claude/commands'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => f.replace(/\.md$/, ''))
+      .sort()
+    const selfOnly = JSON.parse(
+      readFileSync(resolve('scripts/data/self-only-surfaces.json'), 'utf-8'),
+    )
+    const list = buildCommandsRunbookList(names, selfOnly)
+    for (const name of selfOnly.commands) {
+      expect(list).toMatch(new RegExp(`${name}\\.md\\).*self-only`))
     }
   })
 })

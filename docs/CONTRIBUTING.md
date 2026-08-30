@@ -417,8 +417,8 @@ This guide covers how to set up a local development environment, run the test su
 
 ## Prerequisites
 
-- **Node.js >= 20** — arbiter uses the native `node:fs`, `node:path`, and `node:child_process` APIs available since Node 18, but Node 20 is the minimum because `tsx` requires it.
-- **npm >= 10** — comes bundled with Node 20.
+- **Node.js >= 22** — arbiter uses the native `node:fs`, `node:path`, and `node:child_process` APIs available since Node 18, but Node 22 is the minimum, matching `package.json`'s `engines.node` (`>=22.0.0`).
+- **npm >= 10** — comes bundled with Node 22.
 - **gh CLI (optional)** — required only for running tests that exercise GitHub provisioning. See [ADR-003](internal/ADR/003-gh-cli-required.md).
 - **Git** — must be on `PATH` for detector tests that call `git` CLI.
 

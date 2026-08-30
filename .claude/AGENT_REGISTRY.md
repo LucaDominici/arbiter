@@ -12,20 +12,22 @@ related: []
 # Agent Registry
 
 Canonical index of all sub-agents available to Claude Code in this repo.
-Source of truth: `.claude/agents/<name>.md`. Update this file whenever an agent is added, modified, or removed.
+Source of truth: `.claude/agents/<name>.md` — except a row explicitly marked "CLI seat",
+which has no agent file by construction (see the `codex-reviewer` row below). Update this
+file whenever an agent is added, modified, or removed.
 
 ---
 
 ## Agents
 
-| Agent              | Model                          | Effort | Cost Rationale                                                                                    |
-| ------------------ | ------------------------------ | ------ | ------------------------------------------------------------------------------------------------- |
-| `ai-pr-gate`       | Sonnet (pinned in frontmatter) | Low    | Read-only INV-91 compliance check; scans PR labels + reviewer identity; fast and targeted         |
-| `bridge-reviewer`  | Sonnet (pinned in frontmatter) | Low    | Short-circuit combinatorial logic; no code reading required; runs after context-checker completes |
-| `codebase-scanner` | Haiku (pinned in frontmatter)  | Low    | Read-only pattern search; fast latency; cost-optimized for high-frequency lookups                 |
-| `context-checker`  | Sonnet (pinned in frontmatter) | Medium | Must read CONTEXT_PACK.md + task diff in full; emits structured REVIEW_CONTEXT JSON               |
-| `codex-reviewer`   | Codex CLI (read-only)          | Medium | Optional cross-model code-review seat; replaces one Anthropic reviewer without growing the panel  |
-| `red-team`         | Inherit (session Opus/Fable)   | High   | Adversarial verdicts are the one stage worth the top tier; read-only tools pinned in frontmatter  |
+| Agent              | Model                          | Effort | Cost Rationale                                                                                                                                                    |
+| ------------------ | ------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai-pr-gate`       | Sonnet (pinned in frontmatter) | Low    | Read-only INV-91 compliance check; scans PR labels + reviewer identity; fast and targeted                                                                         |
+| `bridge-reviewer`  | Sonnet (pinned in frontmatter) | Low    | Short-circuit combinatorial logic; no code reading required; runs after context-checker completes                                                                 |
+| `codebase-scanner` | Haiku (pinned in frontmatter)  | Low    | Read-only pattern search; fast latency; cost-optimized for high-frequency lookups                                                                                 |
+| `context-checker`  | Sonnet (pinned in frontmatter) | Medium | Must read CONTEXT_PACK.md + task diff in full; emits structured REVIEW_CONTEXT JSON                                                                               |
+| `codex-reviewer`   | Codex CLI (read-only)          | Medium | **CLI seat** (`arbiter review cross-model`), not an agent file — optional cross-model code-review seat; replaces one Anthropic reviewer without growing the panel |
+| `red-team`         | Inherit (session Opus/Fable)   | High   | Adversarial verdicts are the one stage worth the top tier; read-only tools pinned in frontmatter                                                                  |
 
 The Model column mirrors each agent's `model:` frontmatter — the static pyramid (AGENTS.md
 §Model-Pyramid): Haiku for mechanical scans, Sonnet for structured review passes, the

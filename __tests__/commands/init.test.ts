@@ -158,6 +158,20 @@ const mockRunCli = vi.mocked(runCli)
 const mockDetectLanguageWithSource = vi.mocked(detectLanguageWithSource)
 const mockDetectGithubAccess = vi.mocked(detectGithubAccess)
 
+/**
+ * #2434: a `--dry-run` DOES now enter the registry — that is how the preview
+ * learns the 271 paths a real run writes, instead of the 3 the migration plan
+ * knew about. What must still hold is that it never enters it in WRITE mode, so
+ * the guarantee these dry-run cells protect is asserted on the options, not on
+ * the call count. `runGeneratorsFromRegistry`'s third argument carries the mode.
+ */
+function expectRegistryNeverWrote(): void {
+  const writeCalls = mockRunGeneratorsFromRegistry.mock.calls.filter(
+    (call) => call[2]?.dryRun !== true,
+  )
+  expect(writeCalls).toEqual([])
+}
+
 describe('runInit', () => {
   let dir: string
   let exitSpy: ReturnType<typeof vi.spyOn>
@@ -402,7 +416,7 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expectRegistryNeverWrote()
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Dry run'))
   })
 
@@ -418,7 +432,7 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expectRegistryNeverWrote()
   })
 
   it('exits 1 when runProbes throws unexpectedly', async () => {
@@ -644,7 +658,7 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expectRegistryNeverWrote()
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
