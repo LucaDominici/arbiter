@@ -128,6 +128,9 @@ async function loadStatus(name: string, targetDir: string): Promise<PluginStatus
   try {
     await loadPlugin(name, targetDir)
     return 'loaded'
+    // `plugin list` is a report over every configured entry, so one unresolvable plugin must
+    // render as its own row rather than abort the listing of the ones that do load (ADR-118).
+    // FAIL-OPEN-INTENT: not swallowed — the returned `not found`/`error` status IS the surface.
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return /not found/i.test(message) ? 'not found' : 'error'
