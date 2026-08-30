@@ -126,8 +126,7 @@ function permitsGitHubCallsForScript(root) {
     if (!existsSync(cfgPath)) return false
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'))
     return cfg.permitGitHub === true
-    // FAIL-OPEN-INTENT: an unreadable/malformed arbiter.json has not granted permission, so this
-    // denies rather than throws — mirrors ship-config.ts's own FAIL-OPEN-INTENT for the same read.
+    // FAIL-OPEN-INTENT: an unreadable/malformed arbiter.json has not granted permission (denies, mirrors ship-config.ts).
   } catch {
     return false
   }
@@ -137,7 +136,9 @@ function permitsGitHubCallsForScript(root) {
  * Live GitHub milestones (gh api), when permitted and reachable. Never throws: every failure
  * mode (no permission, no `gh` binary, unauthenticated, network down, malformed JSON) degrades to
  * null so the caller falls back to the MILESTONES.md table — a docs generator must never hard-fail
- * because a live network call didn't work (#2409 AC-1).
+ * because a live network call didn't work (#2409 AC-1). The `.map` below only reads optional
+ * fields via `?.` and coerces with `String()`/`Number()`, neither of which throws — no try/catch
+ * needed for it.
  */
 function fetchLiveMilestones(root) {
   if (!permitsGitHubCallsForScript(root)) return null
@@ -145,18 +146,12 @@ function fetchLiveMilestones(root) {
   const result = ghJson(['api', 'repos/{owner}/{repo}/milestones?state=open'])
   if (!result.ok) return null
   if (!Array.isArray(result.data)) return null
-  // FAIL-OPEN-INTENT: a live response shape we don't recognize degrades to fallback rather than
-  // crashing the generator — see the function-level note above.
-  try {
-    return result.data.map((m) => ({
-      title: String(m?.title ?? ''),
-      openIssues: Number(m?.open_issues ?? 0),
-      closedIssues: Number(m?.closed_issues ?? 0),
-      dueOn: typeof m?.due_on === 'string' ? m.due_on.slice(0, 10) : null,
-    }))
-  } catch {
-    return null
-  }
+  return result.data.map((m) => ({
+    title: String(m?.title ?? ''),
+    openIssues: Number(m?.open_issues ?? 0),
+    closedIssues: Number(m?.closed_issues ?? 0),
+    dueOn: typeof m?.due_on === 'string' ? m.due_on.slice(0, 10) : null,
+  }))
 }
 
 /**
