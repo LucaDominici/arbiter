@@ -104,6 +104,16 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
 
       expect(result.status, result.degradationReasons.join(',')).toBe('fulfilled')
       expect(result.recorded).toBe(true)
+      // #2431: the seat feeds the prompt on the CLI's stdin. A stub that exits without
+      // reading it leaves the parent writing into a pipe whose read end is already gone,
+      // and `spawnSync` returns EPIPE — a start failure `runCli` reports as a fatal
+      // "Codex exited with status -1", which degrades the seat. It is a race the host's
+      // scheduler decides: 287 of 1500 invocations EPIPE'd at load ~100, 0 of 1500 once
+      // the stub consumed its stdin. Asserting the prompt ARRIVED is what keeps the stub
+      // draining it, and it is the contract the fixture should have been proving anyway.
+      expect(readFileSync(join(fixture, 'codex-stdin.txt'), 'utf-8')).toContain(
+        '--- BEGIN DIFF ---',
+      )
       const taskDir = join(evidenceDir, '_2357')
       const files = readdirSync(taskDir)
       expect(files).toHaveLength(1)

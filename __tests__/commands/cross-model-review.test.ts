@@ -611,6 +611,11 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       const why = JSON.stringify(artifact.degraded)
       expect(artifact.fulfilled, why).toHaveLength(1)
       expect(artifact.degraded, why).toEqual([])
+      // #2431: the seat writes the prompt to the CLI's stdin. A stub that exits without
+      // reading it makes that write race the child's exit and return EPIPE, which degrades
+      // the seat with no timeout in sight. Asserting the prompt arrived keeps the stub
+      // draining stdin — and proves the diff reaches the seat at all.
+      expect(readFileSync(join(dir, 'codex-stdin.txt'), 'utf8')).toContain('--- BEGIN DIFF ---')
       expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
         '"vendor": "openai"',
       )
