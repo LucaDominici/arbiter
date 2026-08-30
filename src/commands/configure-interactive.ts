@@ -15,6 +15,7 @@ import { loadConfig } from '../utils/config.js'
 import { t } from '../i18n/index.js'
 import { runConfigure } from './configure.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
+import { SUPPORTED_AI_TOOLS } from '../wizard/types.js'
 
 // Returns ['path=value', ...] for fields that changed, or null if cancelled.
 type GroupFn = (config: ArbiterConfigV2) => Promise<string[] | null>
@@ -229,7 +230,9 @@ async function promptCollaborationGroup(config: ArbiterConfigV2): Promise<string
 async function promptAccessGroup(config: ArbiterConfigV2): Promise<string[] | null> {
   note(t('cli.configure.interactive.access_header'))
 
-  const allTools = ['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider']
+  // #2367 (ADR-119): offer exactly the customer-facing SSOT — the hand-rolled
+  // seven-entry copy advertised five tools `configure --set tools=` rejected.
+  const allTools: readonly string[] = SUPPORTED_AI_TOOLS
   const tools = await multiselect({
     message: 'Active AI tools',
     options: allTools.map((v) => ({ value: v, label: v })),

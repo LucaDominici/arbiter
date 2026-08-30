@@ -254,19 +254,30 @@ describe('runConfigure — tools', () => {
   it('sets tools to a comma-separated list of valid AI tools', async () => {
     writeV2Config(dir)
 
-    await runConfigure({ dir, sets: ['tools=codex,cursor'] })
+    await runConfigure({ dir, sets: ['tools=codex,claude'] })
 
     const raw = readArbiterJson(dir)
-    expect(raw['tools']).toEqual(['codex', 'cursor'])
+    expect(raw['tools']).toEqual(['codex', 'claude'])
   })
 
   it('sets tools to a single tool', async () => {
     writeV2Config(dir)
 
-    await runConfigure({ dir, sets: ['tools=copilot'] })
+    await runConfigure({ dir, sets: ['tools=codex'] })
 
     const raw = readArbiterJson(dir)
-    expect(raw['tools']).toEqual(['copilot'])
+    expect(raw['tools']).toEqual(['codex'])
+  })
+
+  // #2417: `init --tools` and `configure --set tools=` must agree on the
+  // accepted set (ADR-095: claude + codex are the only customer-facing AI
+  // tools; cursor/copilot/gemini/windsurf/aider are experimental and rejected
+  // everywhere else). configure's VALID_TOOLS previously accepted all seven,
+  // contradicting ADR-095's "every other site references it" mandate.
+  it('rejects an experimental/non-customer-facing tool (ADR-095)', async () => {
+    writeV2Config(dir)
+
+    await expect(runConfigure({ dir, sets: ['tools=cursor'] })).rejects.toThrow()
   })
 })
 

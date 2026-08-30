@@ -7,53 +7,31 @@ import {
 import type { GeneratorSpec } from '../../src/generators/registry.js'
 import { makeConfig } from '../helpers.js'
 
-describe('buildRegistry — gemini/windsurf/aider wired (#295)', () => {
-  it('gemini spec is enabled when tools includes gemini', () => {
-    const specs = buildRegistry(makeConfig('/tmp', { tools: ['gemini'] }))
-    const spec = specs.find((s) => s.key === 'gemini')
-    expect(spec).toBeDefined()
-    expect(spec?.enabled).toBe(true)
+describe('buildRegistry — retired experimental tool generators (#2367, ADR-119)', () => {
+  const RETIRED = ['cursor', 'copilot', 'gemini', 'windsurf', 'aider']
+
+  it('builds no spec for any retired tool', () => {
+    const keys = buildRegistry(makeConfig('/tmp', { tools: ['claude', 'codex'] })).map(
+      (s) => s.key as string,
+    )
+    for (const tool of RETIRED) {
+      expect(keys).not.toContain(tool)
+    }
   })
 
-  it('gemini spec is disabled when tools does not include gemini', () => {
-    const specs = buildRegistry(makeConfig('/tmp', { tools: ['claude'] }))
-    const spec = specs.find((s) => s.key === 'gemini')
-    expect(spec).toBeDefined()
-    expect(spec?.enabled).toBe(false)
+  it('the claude and codex specs are still wired and gated on tools', () => {
+    const both = buildRegistry(makeConfig('/tmp', { tools: ['claude', 'codex'] }))
+    expect(both.find((s) => s.key === 'claude')?.enabled).toBe(true)
+    expect(both.find((s) => s.key === 'codex')?.enabled).toBe(true)
+
+    const claudeOnly = buildRegistry(makeConfig('/tmp', { tools: ['claude'] }))
+    expect(claudeOnly.find((s) => s.key === 'codex')?.enabled).toBe(false)
   })
 
-  it('windsurf spec is enabled when tools includes windsurf', () => {
-    const specs = buildRegistry(makeConfig('/tmp', { tools: ['windsurf'] }))
-    const spec = specs.find((s) => s.key === 'windsurf')
-    expect(spec).toBeDefined()
-    expect(spec?.enabled).toBe(true)
-  })
-
-  it('windsurf spec is disabled when tools does not include windsurf', () => {
-    const specs = buildRegistry(makeConfig('/tmp', { tools: ['claude'] }))
-    const spec = specs.find((s) => s.key === 'windsurf')
-    expect(spec).toBeDefined()
-    expect(spec?.enabled).toBe(false)
-  })
-
-  it('aider spec is enabled when tools includes aider', () => {
-    const specs = buildRegistry(makeConfig('/tmp', { tools: ['aider'] }))
-    const spec = specs.find((s) => s.key === 'aider')
-    expect(spec).toBeDefined()
-    expect(spec?.enabled).toBe(true)
-  })
-
-  it('aider spec is disabled when tools does not include aider', () => {
-    const specs = buildRegistry(makeConfig('/tmp', { tools: ['claude'] }))
-    const spec = specs.find((s) => s.key === 'aider')
-    expect(spec).toBeDefined()
-    expect(spec?.enabled).toBe(false)
-  })
-
-  it('all three disabled when aiRulez is already managed', () => {
+  it('both tool specs are disabled when aiRulez already manages the repo', () => {
     const specs = buildRegistry(
       makeConfig('/tmp', {
-        tools: ['gemini', 'windsurf', 'aider'],
+        tools: ['claude', 'codex'],
         existing: {
           agentsMd: false,
           claudeDir: false,
@@ -70,9 +48,8 @@ describe('buildRegistry — gemini/windsurf/aider wired (#295)', () => {
         },
       }),
     )
-    expect(specs.find((s) => s.key === 'gemini')?.enabled).toBe(false)
-    expect(specs.find((s) => s.key === 'windsurf')?.enabled).toBe(false)
-    expect(specs.find((s) => s.key === 'aider')?.enabled).toBe(false)
+    expect(specs.find((s) => s.key === 'claude')?.enabled).toBe(false)
+    expect(specs.find((s) => s.key === 'codex')?.enabled).toBe(false)
   })
 })
 

@@ -18,7 +18,7 @@
     },
     {
       "path": "scripts/check-acceptance.mjs",
-      "reason": "INV-138: the active plan freezes the issue's acceptance criteria. STILL PENDING: `src/generators/check-all.ts` documents this explicitly — \"The check-acceptance.mjs GATE stays self-only (not wired in generated check-all) — that wiring is the tracked ADR-110 follow-up\" — but no issue currently tracks that follow-up. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
+      "reason": "INV-138: the active plan freezes the issue's acceptance criteria. STILL PENDING: `src/generators/check-all.ts` documents this explicitly — \"The check-acceptance.mjs GATE stays self-only (not wired in generated check-all) — that wiring is the tracked ADR-110 follow-up\". Tracked by https://github.com/LucaDominici/arbiter/issues/2405 (open).",
       "expires": "2026-10-27"
     },
     {

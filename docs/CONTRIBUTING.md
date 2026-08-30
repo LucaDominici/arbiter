@@ -417,8 +417,8 @@ This guide covers how to set up a local development environment, run the test su
 
 ## Prerequisites
 
-- **Node.js >= 20** — arbiter uses the native `node:fs`, `node:path`, and `node:child_process` APIs available since Node 18, but Node 20 is the minimum because `tsx` requires it.
-- **npm >= 10** — comes bundled with Node 20.
+- **Node.js >= 22** — arbiter uses the native `node:fs`, `node:path`, and `node:child_process` APIs available since Node 18, but Node 22 is the minimum, matching `package.json`'s `engines.node` (`>=22.0.0`).
+- **npm >= 10** — comes bundled with Node 22.
 - **gh CLI (optional)** — required only for running tests that exercise GitHub provisioning. See [ADR-003](internal/ADR/003-gh-cli-required.md).
 - **Git** — must be on `PATH` for detector tests that call `git` CLI.
 
@@ -487,8 +487,6 @@ src/
     agents-md.ts          # AGENTS.md
     claude.ts             # .claude/ tree
     codex.ts              # .agents/ tree
-    cursor.ts             # .cursorrules
-    copilot.ts            # .github/copilot-instructions.md
     github.ts             # .github/ tree + branch protection + labels
     root.ts               # CODEOWNERS, SECURITY.md, CONTRIBUTING.md, .editorconfig
     check-all.ts          # scripts/check-all.mjs
@@ -752,9 +750,9 @@ type(scope): summary
 **Examples:**
 
 ```
-feat(generators): add Gemini CLI overlay generator
+feat(generators): add a Codex known-limitations table generator
 fix(detectors): detect Bun projects via bun.lockb
-docs(adr): add ADR-012 for Gemini CLI thin pointer
+docs(adr): add ADR-012 for the AGENTS.md thin pointer
 test(integration): verify ai-rulez coexistence skip
 chore(deps): bump ejs to 3.1.10
 ```
