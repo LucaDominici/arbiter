@@ -590,6 +590,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter init`       | Initialise / update the unified task document (#1206)                           |
 | `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
 | `arbiter obsidian`   | Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)        |
+| `arbiter plugin`     | Manage third-party arbiter plugins (arbiter.json `plugins[]`)                   |
 | `arbiter review`     | Semantic diff between graph snapshots (#262)                                    |
 | `arbiter ship`       | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
 | `arbiter task`       | Manage task lifecycle state                                                     |
@@ -709,6 +710,15 @@ Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979).
 - `--write` — Reserved for a future writer; v1 is read-only (ADR-001)
 - `--dry-run` — Report only — writes nothing (default)
 - `--json` — Emit machine-readable JSON output
+
+## arbiter plugin
+
+Manage third-party arbiter plugins (arbiter.json `plugins[]`).
+
+**Subcommands:**
+
+- `arbiter plugin add` — Resolve, install, validate, and register a plugin (local path or npm package)
+- `arbiter plugin list` — List configured plugins with load status
 
 ## arbiter review
 

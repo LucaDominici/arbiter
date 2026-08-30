@@ -185,6 +185,18 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     },
   ],
   [
+    'E_PLUGIN_UNRESOLVABLE',
+    {
+      code: 'E_PLUGIN_UNRESOLVABLE',
+      summary: '`plugin add` could not load the given package or path',
+      detail:
+        'The package/path passed to `arbiter plugin add` did not resolve or failed plugin-loader validation. arbiter.json was not modified.',
+      recovery:
+        'Verify the package name or path is correct and, for an npm package, that it installed successfully.',
+      docUrl: 'https://arbiter.dev/reference/cli#plugin',
+    },
+  ],
+  [
     'E_JSON_REQUIRES_YES',
     {
       code: 'E_JSON_REQUIRES_YES',

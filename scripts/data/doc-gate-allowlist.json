@@ -1,34 +1,27 @@
 {
   "$schemaVersion": 1,
-  "description": "#2408: dated per-file excuses for the three doc gates (check-doc-links, check-doc-style, check-phantom-command-scan). An entry is only legitimate when the real fix is a prose or product decision owned by another issue \u2014 a path/link/frontmatter one-liner gets fixed, never listed. Every entry expires; the gate goes RED the day after, so the debt cannot rot silently. Rules: doc-links | doc-style | phantom-command.",
+  "description": "#2408: dated per-file excuses for the three doc gates (check-doc-links, check-doc-style, check-phantom-command-scan). An entry is only legitimate when the real fix is a prose or product decision owned by another issue — a path/link/frontmatter one-liner gets fixed, never listed. Every entry expires; the gate goes RED the day after, so the debt cannot rot silently. Rules: doc-links | doc-style | phantom-command.",
   "entries": [
     {
-      "path": "CONTRIBUTING.md",
-      "rule": "phantom-command",
-      "reason": "Step 1 of the plugin-authoring walkthrough instructs `arbiter plugin add <name>`; the command does not exist. Same ship-or-delete decision as the two website recipes and the spring-boot example README.",
-      "issue": "#2416",
-      "expires": "2026-09-25"
+      "path": "docs/internal/ADR/051-collaboration-mode-workflow-axis.md",
+      "rule": "doc-links",
+      "reason": "related: cites docs/SYSTEM/WORKFLOW-MODEL.md, which exists nowhere in the tree — there is no path to rewrite it to. Whether the model doc is written or the citation dropped is an ADR correction, not a link fix.",
+      "issue": "#2412",
+      "expires": "2026-09-12"
     },
     {
-      "path": "website/recipes/plugin.md",
-      "rule": "phantom-command",
-      "reason": "Public recipe instructs `arbiter plugin add`; the command does not exist. Ship it or delete the promise \u2014 a product decision.",
-      "issue": "#2416",
-      "expires": "2026-09-25"
+      "path": "docs/research/enterprise-doc-standard-2026.md",
+      "rule": "doc-links",
+      "reason": "related: cites docs/audit/IS-ARBITER-WORTH-IT.md and docs/design/solo-developer-gate-model.md; neither exists under any prefix, so the research doc's cross-references need re-sourcing, not a path rewrite.",
+      "issue": "#2411",
+      "expires": "2026-09-12"
     },
     {
-      "path": "website/recipes/custom-invariant.md",
+      "path": ".claude/skills/ssot-navigation/SKILL.md",
       "rule": "phantom-command",
-      "reason": "Same `arbiter plugin add` promise as the plugin recipe; resolved by the same decision.",
-      "issue": "#2416",
-      "expires": "2026-09-25"
-    },
-    {
-      "path": "examples/plugins/spring-boot/README.md",
-      "rule": "phantom-command",
-      "reason": "Example README instructs `arbiter plugin add` and cites `arbiter integrations list --recommended`; neither command is registered. Both are the plugin-registry surface awaiting the same ship-or-delete call.",
-      "issue": "#2416",
-      "expires": "2026-09-25"
+      "reason": "The skill's recipe fence instructs `arbiter invariants list`; no `invariants` command is registered in cli.ts. Shipping the command or rewriting the recipe is a self-doc correction, not a citation typo.",
+      "issue": "#2411",
+      "expires": "2026-09-12"
     },
     {
       "path": "src/templates/governance/qa-audit-phases.md.ejs",
@@ -40,7 +33,7 @@
     {
       "path": "docs/REFERENCE/gdpr-overlay.md",
       "rule": "phantom-command",
-      "reason": "Cites `node scripts/check-gdpr-controls.mjs`, which is an overlay-conditional gate emitted into the CONSUMER's tree \u2014 correctly absent from arbiter's own scripts/. Do not create the file; the fix is resolving emitted-doc citations against the emitted tree.",
+      "reason": "Cites `node scripts/check-gdpr-controls.mjs`, which is an overlay-conditional gate emitted into the CONSUMER's tree — correctly absent from arbiter's own scripts/. Do not create the file; the fix is resolving emitted-doc citations against the emitted tree.",
       "issue": "#2415",
       "expires": "2026-09-25"
     }

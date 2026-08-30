@@ -152,8 +152,8 @@ git checkout -- .github/   # or remove hand-picked generated workflow files
 See [docs/QUICKSTART.md](docs/QUICKSTART.md#4-uninstall) for the full uninstall
 walkthrough, including restoring backed-up files.
 
-The public CLI surface is 15 commands: `init`, `update`, `diff`, `configure`,
-`doctor`, `validate`, `task`, `ship`, `note`, `gold-audit`, `worktree`,
+The public CLI surface is 16 commands: `init`, `update`, `diff`, `configure`,
+`doctor`, `validate`, `task`, `ship`, `note`, `gold-audit`, `plugin`, `worktree`,
 `gate-exec`, `review`, `explain`, `obsidian`.
 Experimental commands are hidden from default `--help` but stay fully
 functional — list them with `arbiter help --all`. See the
