@@ -41,7 +41,10 @@ describe('website/reference/cli.md — hidden commands labelled hidden (#2417 AC
     const handWritten = markerIdx === -1 ? docSrc : docSrc.slice(0, markerIdx)
 
     for (const name of hiddenNames) {
-      const headingRe = new RegExp('^## `arbiter ' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '`', 'm')
+      const headingRe = new RegExp(
+        '^## `arbiter ' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '`',
+        'm',
+      )
       const m = headingRe.exec(handWritten)
       if (m === null) continue // not hand-documented outside the marker — nothing to label
       const sectionEnd = handWritten.indexOf('\n---', m.index)
@@ -54,7 +57,9 @@ describe('website/reference/cli.md — hidden commands labelled hidden (#2417 AC
 describe('scripts/canon01-self-only.json — check-acceptance entry does not contradict itself (#2417)', () => {
   it('does not simultaneously claim "no issue tracks" the follow-up and cite one that does', () => {
     const doc = JSON.parse(readFileSync(resolve('scripts/canon01-self-only.json'), 'utf-8'))
-    const entry = doc.selfOnly.find((e: { path: string }) => e.path === 'scripts/check-acceptance.mjs')
+    const entry = doc.selfOnly.find(
+      (e: { path: string }) => e.path === 'scripts/check-acceptance.mjs',
+    )
     expect(entry).toBeDefined()
     const reason: string = entry.reason
     const claimsUntracked = /no (?:open )?issue (?:currently )?tracks/i.test(reason)
@@ -65,10 +70,7 @@ describe('scripts/canon01-self-only.json — check-acceptance entry does not con
 
 describe('configure SKILL.md.ejs example uses an accepted --tools value (#2417)', () => {
   it('the `configure --set tools=` example cites only claude/codex (ADR-095 customer-facing set)', () => {
-    const src = readFileSync(
-      resolve('src/templates/claude/skills/configure/SKILL.md.ejs'),
-      'utf-8',
-    )
+    const src = readFileSync(resolve('src/templates/claude/skills/configure/SKILL.md.ejs'), 'utf-8')
     const m = /--set tools=([a-z,]+)/.exec(src)
     expect(m).not.toBeNull()
     const tools = (m?.[1] ?? '').split(',')

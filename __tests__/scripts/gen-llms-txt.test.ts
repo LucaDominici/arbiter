@@ -69,7 +69,16 @@ describe('idempotency guard (repo-root artifacts)', () => {
     const outPath = resolve('llms.txt')
     const config = JSON.parse(readFileSync(configPath, 'utf-8'))
     const docCount = readDocCount(indexPath)
-    const generated = buildLlmsTxt(config, { docCount })
+    const invMax = readInvMax(resolve('src/invariants/catalog.ts'))
+    const names = readdirSync(resolve('.claude/commands'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => f.replace(/\.md$/, ''))
+      .sort()
+    const selfOnly = JSON.parse(
+      readFileSync(resolve('scripts/data/self-only-surfaces.json'), 'utf-8'),
+    )
+    const commandsList = buildCommandsRunbookList(names, selfOnly)
+    const generated = buildLlmsTxt(config, { docCount, invMax, commandsList })
     const committed = readFileSync(outPath, 'utf-8')
     expect(generated).toBe(committed)
   })
@@ -174,7 +183,16 @@ describe('buildLlmsTxt()', () => {
 
   it('the real committed config renders exactly 20 bullets', () => {
     const config = JSON.parse(readFileSync(resolve('llms-txt.config.json'), 'utf-8'))
-    const out = buildLlmsTxt(config, { docCount: 1 })
+    const invMax = readInvMax(resolve('src/invariants/catalog.ts'))
+    const names = readdirSync(resolve('.claude/commands'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => f.replace(/\.md$/, ''))
+      .sort()
+    const selfOnly = JSON.parse(
+      readFileSync(resolve('scripts/data/self-only-surfaces.json'), 'utf-8'),
+    )
+    const commandsList = buildCommandsRunbookList(names, selfOnly)
+    const out = buildLlmsTxt(config, { docCount: 1, invMax, commandsList })
     const bulletLines = out.split('\n').filter((l) => l.startsWith('- '))
     expect(bulletLines).toHaveLength(20)
   })
@@ -255,10 +273,7 @@ describe('readInvMax()', () => {
 
 describe('buildCommandsRunbookList()', () => {
   it('marks self-only commands and leaves emitted ones unmarked', () => {
-    const list = buildCommandsRunbookList(
-      ['drain', 'gap', 'ship'],
-      { commands: ['gap'] },
-    )
+    const list = buildCommandsRunbookList(['drain', 'gap', 'ship'], { commands: ['gap'] })
     expect(list).toContain('[drain.md](.claude/commands/drain.md)')
     expect(list).not.toMatch(/drain\.md\)[^,]*self-only/)
     expect(list).toMatch(/gap\.md\).*self-only/)

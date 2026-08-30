@@ -41,8 +41,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       code: 'E_INVALID_TOOL',
       summary: 'Unknown AI tool name',
       detail: 'The --tools flag received a value that is not a recognized AI tool identifier.',
-      recovery:
-        'Valid tools: claude, codex, cursor, copilot, gemini, windsurf, aider. Example: `arbiter init --tools claude,codex`.',
+      recovery: 'Valid tools: claude, codex. Example: `arbiter init --tools claude,codex`.',
       docUrl: 'https://arbiter.dev/reference/cli#init',
     },
   ],

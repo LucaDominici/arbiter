@@ -1,0 +1,16 @@
+{
+  "commands": ["gap", "replay", "review-code", "status"],
+  "skills": [
+    "context-rot-management",
+    "refutation",
+    "senior-survey",
+    "ssot-navigation",
+    "visual-verification"
+  ],
+  "agents": ["ai-pr-gate"],
+  "hooks": [
+    ".claude/hooks/check-no-any.mjs",
+    ".claude/hooks/check-no-direct-spawn.mjs",
+    ".claude/hooks/pre-edit-load-memory.mjs"
+  ]
+}
