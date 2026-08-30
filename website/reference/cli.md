@@ -117,7 +117,7 @@ The interactive wizard is state-reactive — it behaves differently based on wha
 | `windsurf` | `windsurf-instructions.md` (thin pointer to AGENTS.md)               |
 | `aider`    | `.aider.conf.yml` (YAML convention mapping + AGENTS.md reference)    |
 
-Both supported tools: `--tools claude,codex` (the `gemini`/`windsurf`/`aider` generators above are experimental and not yet selectable via `--tools`)
+Both supported tools: `--tools claude,codex` (the `cursor`/`copilot`/`gemini`/`windsurf`/`aider` generators above are experimental and not selectable via `--tools` — see [ADR-095](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/095-supported-ai-tools-claude-codex.md))
 
 ---
 
@@ -237,6 +237,10 @@ arbiter validate [options]
 ---
 
 ## `arbiter upgrade-level`
+
+**Hidden command** — fully functional but omitted from the default `arbiter --help` listing
+and not part of the stable public surface; see [Experimental Commands](#experimental-commands)
+below. List it from the CLI with `arbiter help --all`.
 
 Upgrade the governance level with a bounded grace period for new gates.
 
