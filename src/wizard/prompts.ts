@@ -75,29 +75,6 @@ export function determineFlow(existing: ExistingState): WizardFlow {
   return 'greenfield'
 }
 
-interface SimpleToolEntry {
-  tool: AiTool
-  filePath: string
-  existsAlready: boolean
-}
-
-function addSimpleToolFiles(
-  tools: AiTool[],
-  aiRulez: boolean,
-  entries: SimpleToolEntry[],
-  replaced: string[],
-  created: string[],
-): void {
-  for (const { tool, filePath, existsAlready } of entries) {
-    if (!tools.includes(tool) || aiRulez) continue
-    if (existsAlready) {
-      replaced.push(filePath)
-    } else {
-      created.push(filePath)
-    }
-  }
-}
-
 export function buildMigrationPlan(
   existing: ExistingState,
   tools: AiTool[],
@@ -138,36 +115,6 @@ export function buildMigrationPlan(
       created.push('.agents/ (CODEX.md, rules, plan)')
     }
   }
-
-  addSimpleToolFiles(
-    tools,
-    existing.aiRulez,
-    [
-      { tool: 'cursor', filePath: '.cursorrules', existsAlready: false },
-      {
-        tool: 'copilot',
-        filePath: '.github/copilot-instructions.md',
-        existsAlready: false,
-      },
-      {
-        tool: 'gemini',
-        filePath: '.gemini/GEMINI.md',
-        existsAlready: existing.geminiDir,
-      },
-      {
-        tool: 'windsurf',
-        filePath: 'windsurf-instructions.md',
-        existsAlready: existing.windsurfRules,
-      },
-      {
-        tool: 'aider',
-        filePath: '.aider.conf.yml',
-        existsAlready: existing.aiderConf,
-      },
-    ],
-    replaced,
-    created,
-  )
 
   if (useGitHub) {
     created.push('GitHub workflows + templates (01-pr-fast.yml, PR template, issue templates)')
@@ -812,9 +759,9 @@ export function buildLanguageOptions(): Opt<Language>[] {
   ]
 }
 
-// Customer-facing supported tools only (see AiTool support policy in types.ts).
-// Experimental tools (cursor/copilot/gemini/windsurf/aider) are intentionally
-// not offered in the wizard — their generators are retained but unadvertised.
+// The supported tools — since #2367 (ADR-119) the only tools that exist. The
+// five retired experimental targets are gone from the tree, not merely hidden
+// from this list; see the AiTool support policy in types.ts.
 const TOOL_OPTIONS: Opt<AiTool>[] = [
   { value: 'claude', label: 'Claude Code (Anthropic)' },
   { value: 'codex', label: 'Codex (OpenAI)' },

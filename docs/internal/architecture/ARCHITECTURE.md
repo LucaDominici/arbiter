@@ -209,24 +209,28 @@ Applied to `main` via `gh api`:
 Phases 3 and 4 are complete and shipped:
 
 - **Phase 3** — `arbiter update` and `arbiter diff` commands with `arbiter.json` config persistence
-- **Phase 4** — Additional tool targets (Cursor `<project>/.cursorrules`, Copilot `<project>/.github/copilot-instructions.md`)
+- **Phase 4** — Additional tool targets (Cursor, Copilot, Gemini CLI, Windsurf, Aider) — shipped in v0.1, demoted to experimental by ADR-095, and **retired** by ADR-119 (#2367)
 
 See the [CLI Reference](../../../website/reference/cli.md) for command documentation.
 
 ### Additional Tool Targets
 
-| Tool       | File                                        | Status              |
-| ---------- | ------------------------------------------- | ------------------- |
-| Cursor     | `.cursorrules`                              | Shipped             |
-| Copilot    | `<project>/.github/copilot-instructions.md` | Shipped             |
-| Gemini CLI | `GEMINI.md`                                 | Planned (Phase 6-8) |
-| Windsurf   | `.windsurfrules`                            | Planned (Phase 6-8) |
+| Tool       | File                                        | Status                  |
+| ---------- | ------------------------------------------- | ----------------------- |
+| Cursor     | `.cursorrules`                              | Retired 0.6.0 (ADR-119) |
+| Copilot    | `<project>/.github/copilot-instructions.md` | Retired 0.6.0 (ADR-119) |
+| Gemini CLI | `GEMINI.md`                                 | Retired 0.6.0 (ADR-119) |
+| Windsurf   | `windsurf-instructions.md`                  | Retired 0.6.0 (ADR-119) |
+| Aider      | `.aider.conf.yml`                           | Retired 0.6.0 (ADR-119) |
 
-All targets follow the same thin-pointer pattern: point to `AGENTS.md`, add only tool-specific configuration.
+All five followed the same thin-pointer pattern — point at `AGENTS.md`, add only tool-specific
+configuration — and none was ever validated against the live tool while `--tools` rejected it, so
+ADR-119 deleted them instead of carrying them indefinitely. A tool returns only by meeting the
+promotion criteria in ADR-119 (runnable adapter, empirical live-tool tests, an ADR-106 parity gate,
+and a fixture). The emittable tool set is exactly Claude Code and Codex.
 
 ### Phases 6-8: Future Work
 
-- Gemini CLI and Windsurf overlay generation
 - Plugin / extension API for community-contributed tool targets
 - Template customization and inheritance
 
@@ -345,7 +349,7 @@ The generation pipeline enforces the layer model through two mechanisms:
 
 `src/utils/fs.ts` exposes `writeFile(path, content, opts)` with:
 
-- `{ backup: true }` — write a `.arbiter-backup` copy of the existing file, then replace. Used for `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `<project>/.cursorrules`, `<project>/.github/copilot-instructions.md`.
+- `{ backup: true }` — write a `.arbiter-backup` copy of the existing file, then replace. Used for `AGENTS.md`, `CLAUDE.md` and `CODEX.md`.
 - `{ skipIfExists: true }` — do nothing if the file exists. Used for hooks, rules, commands, GitHub files, `scripts/check-all.mjs`.
 - `mergeSettingsJson()` — deep merge for `settings.json`: hooks union by matcher+command, permissions union arrays, other keys keep existing value.
 
@@ -446,7 +450,7 @@ interface ProjectConfig {
   formatCommand: string // e.g. 'npm run format'
 
   // Tool selection
-  tools: Array<'claude' | 'codex' | 'cursor' | 'copilot'>
+  tools: Array<'claude' | 'codex'>
 
   // Governance
   governanceLevel: 'L1' | 'L2' | 'L3'
@@ -561,18 +565,6 @@ original 8 — it is a representative sample of the pattern, not a complete inve
 | generated Codex rule mirror        | `<project>/.agents/rules/90-exec-protocol.md` | Static  |
 | generated task-plan artifact       | `<project>/.agents/plan/PLAN.json`            | Static  |
 | generated context artifact         | `<project>/.agents/plan/CONTEXT_PACK.md`      | Static  |
-
-### `cursor/` (1 file)
-
-| File              | Output         | Type    |
-| ----------------- | -------------- | ------- |
-| `cursorrules.ejs` | `.cursorrules` | Dynamic |
-
-### `copilot/` (1 file)
-
-| File                                                | Output                                      | Type    |
-| --------------------------------------------------- | ------------------------------------------- | ------- |
-| `src/templates/copilot/copilot-instructions.md.ejs` | `<project>/.github/copilot-instructions.md` | Dynamic |
 
 ### `github/` (multiple files)
 

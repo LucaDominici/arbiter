@@ -107,17 +107,12 @@ The interactive wizard is state-reactive — it behaves differently based on wha
 
 ## Tool Values (`--tools`)
 
-| Value      | What it generates                                                    |
-| ---------- | -------------------------------------------------------------------- |
-| `claude`   | `.claude/CLAUDE.md`, `.claude/settings.json`, hooks, rules, commands |
-| `codex`    | `.agents/CODEX.md`, `.agents/rules/`, `.agents/plan/`                |
-| `cursor`   | `.cursorrules`                                                       |
-| `copilot`  | `<project>/.github/copilot-instructions.md`                          |
-| `gemini`   | `<project>/.gemini/GEMINI.md` (thin pointer to AGENTS.md)            |
-| `windsurf` | `windsurf-instructions.md` (thin pointer to AGENTS.md)               |
-| `aider`    | `.aider.conf.yml` (YAML convention mapping + AGENTS.md reference)    |
+| Value    | What it generates                                                    |
+| -------- | -------------------------------------------------------------------- |
+| `claude` | `.claude/CLAUDE.md`, `.claude/settings.json`, hooks, rules, commands |
+| `codex`  | `.agents/CODEX.md`, `.agents/rules/`, `.agents/plan/`                |
 
-Both supported tools: `--tools claude,codex` (the `cursor`/`copilot`/`gemini`/`windsurf`/`aider` generators above are experimental and not selectable via `--tools` — see [ADR-095](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/095-supported-ai-tools-claude-codex.md))
+Both supported tools: `--tools claude,codex`. These two are the whole list — see [ADR-095](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/095-supported-ai-tools-claude-codex.md) for why the surface is narrow and [ADR-119](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/119-experimental-tool-generators-retired.md) for the retirement of the five formerly-experimental generators. Any other value fails with `E_INVALID_TOOL`.
 
 ---
 

@@ -98,7 +98,9 @@ step is reported as `TIMEOUT`, separately from a command or assertion failure.
 ## Stack support
 
 **Supported:** TypeScript, Java, Go, Python, Rust · Claude Code, Codex.
-**Experimental:** Kotlin · Cursor, Aider, Copilot, Gemini, Windsurf.
+**Experimental:** Kotlin. (No experimental AI tools — the Cursor, Aider, Copilot,
+Gemini and Windsurf generators were retired in ADR-119; `--tools` accepts exactly
+`claude` and `codex`.)
 
 > Tier rule: a language is **Supported** iff all of its _required cells_ —
 > `static_analysis`, `coverage`, `architecture`, `security` in

@@ -487,8 +487,6 @@ src/
     agents-md.ts          # AGENTS.md
     claude.ts             # .claude/ tree
     codex.ts              # .agents/ tree
-    cursor.ts             # .cursorrules
-    copilot.ts            # .github/copilot-instructions.md
     github.ts             # .github/ tree + branch protection + labels
     root.ts               # CODEOWNERS, SECURITY.md, CONTRIBUTING.md, .editorconfig
     check-all.ts          # scripts/check-all.mjs
@@ -752,9 +750,9 @@ type(scope): summary
 **Examples:**
 
 ```
-feat(generators): add Gemini CLI overlay generator
+feat(generators): add a Codex known-limitations table generator
 fix(detectors): detect Bun projects via bun.lockb
-docs(adr): add ADR-012 for Gemini CLI thin pointer
+docs(adr): add ADR-012 for the AGENTS.md thin pointer
 test(integration): verify ai-rulez coexistence skip
 chore(deps): bump ejs to 3.1.10
 ```

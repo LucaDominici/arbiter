@@ -27,7 +27,9 @@ describe('brownfield: ai-rulez coexistence', () => {
       testCommand: 'npm test',
       lintCommand: 'npm run lint',
       formatCommand: 'npx prettier --check .',
-      tools: ['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'],
+      // #2367 (ADR-119): every tool arbiter emits for — the retired experimental
+      // targets are gone, so this IS the full tool set.
+      tools: ['claude', 'codex'],
       useGitHub: true,
       githubOwner: 'test-owner',
       githubRepo: 'test-repo',
@@ -68,18 +70,6 @@ describe('brownfield: ai-rulez coexistence', () => {
     expect(existsSync(join(dir, '.agents', 'CODEX.md'))).toBe(false)
   })
 
-  it('does NOT generate .cursorrules when ai-rulez is present', () => {
-    const config = configWithAiRulez()
-    runGenerators(config)
-    expect(existsSync(join(dir, '.cursorrules'))).toBe(false)
-  })
-
-  it('does NOT generate copilot-instructions.md when ai-rulez is present', () => {
-    const config = configWithAiRulez()
-    runGenerators(config)
-    expect(existsSync(join(dir, '.github', 'copilot-instructions.md'))).toBe(false)
-  })
-
   it('still generates GitHub infra files (CI, PR template, etc.)', () => {
     const config = configWithAiRulez()
     runGenerators(config)
@@ -104,8 +94,6 @@ describe('brownfield: ai-rulez coexistence', () => {
     // Should NOT contain tool-specific paths
     expect(paths.every((p) => !p.includes('.claude/'))).toBe(true)
     expect(paths.every((p) => !p.includes('.agents/'))).toBe(true)
-    expect(paths.every((p) => !p.endsWith('.cursorrules'))).toBe(true)
-    expect(paths.every((p) => !p.endsWith('copilot-instructions.md'))).toBe(true)
 
     // Should contain AGENTS.md + GitHub + root
     expect(paths.some((p) => p.endsWith('AGENTS.md'))).toBe(true)
