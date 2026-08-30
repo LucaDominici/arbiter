@@ -240,6 +240,7 @@ function enforcerExists(enforcer, kind, root) {
       return configs.some((c) => {
         try {
           return activeRe.test(readFileSync(join(root, c), 'utf8'))
+          // FAIL-OPEN-INTENT: unreadable config just means THIS candidate can't vouch for the rule — other readable candidates in `configs` are still checked, nothing here drops a real violation.
         } catch {
           return false
         }
