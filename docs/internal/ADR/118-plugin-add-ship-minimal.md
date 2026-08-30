@@ -42,7 +42,7 @@ deferred, not built, until something actually needs it).
   and registered as-is — no install step. An npm name is installed as a devDependency via the
   package manager `src/detectors/package-manager.ts` already detects (`--no-install` skips this).
   Either way, the package is validated through the same `src/utils/plugin-loader.ts` `arbiter
-  update` uses — **before** `arbiter.json` is touched, so a plugin that fails to load never gets
+update` uses — **before** `arbiter.json` is touched, so a plugin that fails to load never gets
   persisted. `plugins[]` is kept sorted and de-duplicated (idempotent re-add).
 - `plugin list` loads every configured entry the same way and reports `loaded` / `not found` /
   `error` per plugin.

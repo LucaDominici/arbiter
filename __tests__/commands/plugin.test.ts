@@ -149,9 +149,7 @@ describe('runPluginAdd', () => {
     writeV2Config(dir)
     const before = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
 
-    await expect(
-      runPluginAdd({ dir, pkg: './does-not-exist', install: true }),
-    ).rejects.toThrow()
+    await expect(runPluginAdd({ dir, pkg: './does-not-exist', install: true })).rejects.toThrow()
 
     const after = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
     expect(after).toBe(before)
