@@ -71,3 +71,8 @@ __tests__/templates/__snapshots__/high-fanout/
 # src/state/retired-renders.ts), so reformatting it would silently void the
 # proof this fixture exists to provide. Same reasoning as the approval snapshots.
 __tests__/fixtures/retired-renders/
+
+# #2436: Stryker mutation-testing scratch sandbox — untracked, regenerable, and
+# never guaranteed to hold formatted content. An interrupted run left one behind
+# with no ignore entry, and `prettier --check .` walked straight into it.
+.stryker-tmp/
