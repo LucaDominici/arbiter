@@ -187,7 +187,7 @@ Both supported tools: `--tools claude,codex` (the `gemini`/`windsurf`/`aider` ge
 
 When `gh` is authenticated, `arbiter init` also:
 
-1. **Provisions 15 standard labels** via `gh label create/edit`
+1. **Provisions 14 standard labels** via `gh label create/edit`
 2. **Applies branch protection to `main`** via `gh api`
 3. **Creates a GitHub Project board** with Priority and Size fields
 

@@ -313,7 +313,7 @@ Output per gate:
 [DRILL] exit code contract
   ✓ PASS  A (clean)  → exit 0  (expected 0)
   ✓ PASS  B (drift)  → exit 1  (expected 1)
-  ✓ PASS  C (error)  → exit 0  (expected 0)
+  ✓ PASS  C (error)  → exit 2  (expected 2)
 ```
 
 Exit `0` if all phases pass all gates. Exit `1` if any phase fails.
@@ -393,13 +393,13 @@ runs this suite within a ≤26 h heartbeat window.
 
 ## Per-Stack Toolchain Matrix
 
-| Stack       | Fixture path           | Runner command                            | Toolchain action + SHA                                                                                                                           | Tier       |
-| ----------- | ---------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| TypeScript  | `ts-library/`          | `npm ci --no-audit --no-fund && npm test` | `actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e` # v6.4.0                                                                           | T4 nightly |
-| Python      | `python-library/`      | `pip install -e '.[test]' && pytest`      | `actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca` # v5                                                                             | T4 nightly |
-| Go          | `go-library/`          | `go test ./...`                           | `actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0` # v5                                                                                 | T4 nightly |
-| Java/Gradle | `java-library-gradle/` | `./gradlew test --no-daemon`              | `actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea` # v4 + `gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d` # v4 | T4 nightly |
-| Rust        | `rust-library/`        | `cargo test --frozen`                     | `dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd` # branch:stable (see SHA-pin policy)                                           | T4 nightly |
+| Stack       | Fixture path           | Runner command                            | Toolchain action                                     | Tier       |
+| ----------- | ---------------------- | ----------------------------------------- | ---------------------------------------------------- | ---------- |
+| TypeScript  | `ts-library/`          | `npm ci --no-audit --no-fund && npm test` | `actions/setup-node`                                 | T4 nightly |
+| Python      | `python-library/`      | `pip install -e '.[test]' && pytest`      | `actions/setup-python`                               | T4 nightly |
+| Go          | `go-library/`          | `go test ./...`                           | `actions/setup-go`                                   | T4 nightly |
+| Java/Gradle | `java-library-gradle/` | `./gradlew test --no-daemon`              | `actions/setup-java` + `gradle/actions/setup-gradle` | T4 nightly |
+| Rust        | `rust-library/`        | `cargo test --frozen`                     | `dtolnay/rust-toolchain` (see SHA-pin policy)        | T4 nightly |
 
 All native E2E tests are **skipped at T1 (PR fast)** — the target runners do not have all
 toolchains installed and cold downloads would exceed the T1 time budget. The `VITEST_NATIVE=1`
@@ -416,33 +416,28 @@ SHA, not a floating tag or branch. This is enforced by `check-action-pins.mjs` (
 
 ### Canonical SHAs used by bake-e2e-native
 
-| Action                        | SHA                                        | Human label   |
-| ----------------------------- | ------------------------------------------ | ------------- |
-| `actions/checkout`            | `de0fac2e4500dabe0009e67214ff5f5447ce83dd` | v6.0.2        |
-| `actions/setup-node`          | `48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e` | v6.4.0        |
-| `actions/setup-python`        | `a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca` | v5            |
-| `actions/setup-go`            | `40f1582dade4d2f1c86a3da5e27c02b98fee3ec0` | v5            |
-| `actions/setup-java`          | `c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea` | v4            |
-| `gradle/actions/setup-gradle` | `0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d` | v4            |
-| `dtolnay/rust-toolchain`      | `29eef335eb45f53c3dc45d8f50abf17af8e2b0bd` | branch:stable |
+The actual pinned SHAs live only in `.github/workflows/_nightly.yml` (the `bake-e2e-native`
+job) — hand-copying them into prose drifts every time a pin rotates (#2412). Run
+`node scripts/check-action-pins.mjs` to verify the committed pins, or read the workflow
+file directly for the current values.
 
 **`dtolnay/rust-toolchain` is branch-tracked, not a tagged release.**
-The SHA above is the HEAD of the `stable` branch as of 2026-05-24. It decays as upstream
-advances. Refresh cadence: check the branch HEAD before each quarterly dependency bump PR.
-The inline workflow comment `# branch:stable @ 2026-05-24` documents the last refresh date.
-Tracked in E2E-RUNTIMES.md §Update Procedure step 5.
+Its pin is the HEAD of the `stable` branch at the time of the last refresh. It decays as
+upstream advances. Refresh cadence: check the branch HEAD before each quarterly dependency
+bump PR. The inline workflow comment `# branch:stable @ YYYY-MM-DD` documents the last
+refresh date. Tracked in this document's own §Update Procedure step 5, below.
 
 ---
 
 ## Heartbeat Coverage (INV-75)
 
 INV-75 mandates a T4 nightly heartbeat: the full native E2E suite must run within ≤26 h.
-The `bake-e2e-native` job in `.github/workflows/06-nightly.yml` satisfies this requirement.
+The `bake-e2e-native` job in `.github/workflows/_nightly.yml` satisfies this requirement.
 It runs as a matrix over `{stack: [ts, python, go, java, rust]}` so each cell runs
 independently (fast-fail isolation, better failure attribution).
 
-The job is wired in **both** `nightly-required.needs:` AND the `RESULTS=(...)` shell array
-(lines ~154-161 in `06-nightly.yml`). Adding a job to `needs:` alone is **not** sufficient
+The job is wired in **both** the `nightly-required` job's `needs:` AND its
+`RESULTS=(...)` shell array in `_nightly.yml`. Adding a job to `needs:` alone is **not** sufficient
 to make it a blocking hard-failure — the `RESULTS` array must also include
 `"${{ needs.bake-e2e-native.result }}"`. This is enforced by this documentation; there is no
 automated check for RESULTS completeness (pre-existing gap, out of scope for #1042).
@@ -473,8 +468,8 @@ When adding a new proven-tier language or archetype:
    `check-matrix-fixtures.mjs`.
 2. Add the language entry to the `STACKS` constant in `fixture-native.test.ts`.
 3. Add a row to the per-stack matrix table above.
-4. Wire the toolchain step in the `bake-e2e-native` matrix job in `06-nightly.yml` **and**
-   mirror the same step into `src/templates/github/workflows/06-nightly.yml.ejs` (CANON-18).
+4. Wire the toolchain step in the `bake-e2e-native` matrix job in `_nightly.yml` **and**
+   mirror the same step into `src/templates/github/workflows/_nightly.yml.ejs` (CANON-18).
    Run `npx vitest run __tests__/parity/ci-tier-render-parity.test.ts` to verify parity.
 5. If using `dtolnay/rust-toolchain`, refresh the stable-branch SHA and update the inline
    `# branch:stable @ YYYY-MM-DD` comment and the table above.
@@ -520,8 +515,7 @@ Rules:
 
 ## Known Posture
 
-| Gap                                                              | Accepted     | Rationale                                                                                                                                                                         |
-| ---------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `java-library-gradle/` has no `gradle/verification-metadata.xml` | Yes          | Minimal-fixture posture: mavenCentral artifacts flow without hash verification. Real Java projects MUST add their own `verification-metadata.xml`. Tracked as follow-up to #1042. |
-| `dtolnay/rust-toolchain` is branch-tracked                       | Documented   | SHA pinned to `stable` HEAD as of 2026-05-24. Manual refresh required per §SHA-Pin Policy above.                                                                                  |
-| `nightly-required` RESULTS array incomplete                      | Pre-existing | `fuzz` and `soak-e2e` are in `needs:` but NOT in the `RESULTS=(...)` array. This PR adds `bake-e2e-native` to RESULTS; the broader gap is out of scope.                           |
+| Gap                                                              | Accepted   | Rationale                                                                                                                                                                         |
+| ---------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `java-library-gradle/` has no `gradle/verification-metadata.xml` | Yes        | Minimal-fixture posture: mavenCentral artifacts flow without hash verification. Real Java projects MUST add their own `verification-metadata.xml`. Tracked as follow-up to #1042. |
+| `dtolnay/rust-toolchain` is branch-tracked                       | Documented | SHA pinned to `stable` HEAD as of last refresh. Manual refresh required per §SHA-Pin Policy above.                                                                                |

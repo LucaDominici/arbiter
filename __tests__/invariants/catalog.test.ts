@@ -882,12 +882,12 @@ describe('defaultPresetForLevel', () => {
 })
 
 // ---------------------------------------------------------------------------
-// T9 — INV-73 W4 transition state (#880)
+// T9 — INV-73 full 8/8 canonical contract (#880, closed #2412)
 // ---------------------------------------------------------------------------
 
-describe('INV-73 migration status', () => {
-  it('INV-73 minPresent is 6 (6 canonical workflows in W10 baseline: 01+02+03+06+07+09)', () => {
+describe('INV-73 workflow presence', () => {
+  it('INV-73 minPresent is 8 (all 8 canonical workflow files required)', () => {
     const inv73 = INVARIANT_CATALOG.find((inv) => inv.id === 'INV-73')
-    expect(inv73!.minPresent).toBe(6)
+    expect(inv73!.minPresent).toBe(8)
   })
 })

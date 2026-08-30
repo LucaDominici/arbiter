@@ -1,15 +1,15 @@
 ---
-title: 'ADR-007: 15 standard labels as canonical set'
+title: 'ADR-007: 14 standard labels as canonical set'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-08-29'
 owner: ''
 canonical_id: '007'
 tags: ['audience/dev', 'kind/adr']
 related: []
 ---
 
-# ADR-007: 15 standard labels as canonical set
+# ADR-007: 14 standard labels as canonical set
 
 **Status:** Accepted
 **Date:** 2026-04-01
@@ -21,7 +21,10 @@ GitHub labels are used for issue triage, capacity planning, and workflow automat
 
 ## Decision
 
-14 labels provisioned idempotently (`gh label create/edit`):
+14 labels provisioned idempotently (`gh label create/edit`), emitted by two modules:
+`src/github/labels.ts` (`STANDARD_LABELS`: the 8 type + 3 priority = 11) and
+`src/generators/labels.ts` (`TASK_SIZE_LABELS`: the 3 task-size labels), the latter
+spread into the former's provisioning list.
 
 | Category      | Labels                                                             |
 | ------------- | ------------------------------------------------------------------ |
@@ -34,7 +37,7 @@ GitHub labels are used for issue triage, capacity planning, and workflow automat
 - Type labels mirror commit convention types, creating consistency between commits and issues.
 - Size labels enable capacity planning.
 - Priority labels enable triage.
-- 15 is deliberately minimal -- enough for real use without labeling becoming overhead.
+- 14 is deliberately minimal -- enough for real use without labeling becoming overhead.
 
 ## Consequences
 
@@ -47,4 +50,4 @@ GitHub labels are used for issue triage, capacity planning, and workflow automat
 **Negative:**
 
 - Projects with existing label schemes need to reconcile with the standard set.
-- 15 labels may be insufficient for very large projects (can be extended per-project).
+- 14 labels may be insufficient for very large projects (can be extended per-project).

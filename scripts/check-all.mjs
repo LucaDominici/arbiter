@@ -6,14 +6,16 @@
 //                simulate-nightly (T4), simulate-weekly (T5)
 //   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
 //
-// check (T1, "check" subcommand — L1 fast checks): 126 hard checks (runCheck/runToolCheck)
-//   + 1 advisory (runWarnCheck), as of #2039 + #2291 + #2326.
-// gate (T1+T2, "gate" subcommand, default): check + T2 extended checks, cumulative total
-//   151 hard checks + 10 advisories, as of #2039 + #2291 + #2326 + #2358.
-// These counts are hand-maintained (#2042 fixed a ~2x stale count and a 25/37-gate-name
-// drift found by audit) — do not hand-copy an enumerated gate list here, it WILL drift.
-// For the exhaustive, always-current list: grep this file for `run(Check|ToolCheck|WarnCheck)(`
-// between the "check: T1 fast checks" and "─── Summary" section markers below, or run
+// check (T1, "check" subcommand — L1 fast checks): runs the hard + advisory checks
+//   registered between the "check: T1 fast checks" and "gate: T1+T2 extended checks"
+//   section markers below.
+// gate (T1+T2, "gate" subcommand, default): check + the T2 extended checks registered
+//   between "gate: T1+T2 extended checks" and "─── Summary" below.
+// A prior version of this comment hand-counted the totals (#2042 fixed a ~2x stale
+// count and a 25/37-gate-name drift found by audit; #2412 removed the counts entirely
+// after they drifted again) — do not hand-copy an enumerated gate list or count here,
+// it WILL drift. For the exhaustive, always-current list: grep this file for
+// `run(Check|ToolCheck|WarnCheck)(` between the markers below, or run
 // `node scripts/check-all.mjs gate --level L2 --json` and inspect the emitted result.
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)

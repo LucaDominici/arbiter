@@ -453,7 +453,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     languages: ['java'],
     alwaysActive: false,
     minGovernanceLevel: 'L2',
-    enforcement: 'CI gate (pitest in check-all.mjs L2) + generated pitest config',
+    enforcement: 'generated: 05-release.yml mutation-blocking job + generated pitest config',
   },
 
   // ─── Governance: Suppression Expiry ─────────────────────────────────────────
@@ -1207,7 +1207,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'degrade the deployment pipeline and break branch-protection required checks.',
     alwaysActive: false,
     enforcement: 'scripts/check-ci-tiers.mjs (L1 gate)',
-    minPresent: 6,
+    minPresent: 8,
   },
 
   {

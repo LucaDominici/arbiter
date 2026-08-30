@@ -6,7 +6,7 @@ last_review: '2026-05-28'
 owner: ''
 canonical_id: '051'
 tags: ['audience/dev', 'kind/adr']
-related: ['docs/SYSTEM/WORKFLOW-MODEL.md', 'docs/internal/ADR/050-pipeline-complexity-tiers.md']
+related: ['docs/internal/ADR/050-pipeline-complexity-tiers.md']
 ---
 
 # ADR-051: Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy
@@ -152,4 +152,3 @@ INV-100 enforces that every arbiter-scaffolded project declares `collaborationMo
 - [Accelerate — Forsgren, Humble, Kim](https://itrevolution.com/product/accelerate/)
 - [Kent Beck, "Party of One for Code Review"](https://tidyfirst.substack.com/p/party-of-one-for-code-review)
 - Related: ADR-050 (pipeline complexity tiers)
-- Related: `docs/SYSTEM/WORKFLOW-MODEL.md` (diagrams + synthesis)

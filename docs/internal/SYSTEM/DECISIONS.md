@@ -25,7 +25,7 @@ related: []
 | 004 | [skipIfExists on hooks, rules, and commands](../ADR/004-skip-if-exists.md) | Accepted | 2026-05-20 |
 | 005 | [Deep merge for settings.json](../ADR/005-deep-merge-settings.md) | Accepted | 2026-05-20 |
 | 006 | [TypeScript + Node for the CLI runtime](../ADR/006-typescript-node-cli.md) | Accepted | 2026-05-20 |
-| 007 | [15 standard labels as canonical set](../ADR/007-standard-labels.md) | Accepted | 2026-05-20 |
+| 007 | [14 standard labels as canonical set](../ADR/007-standard-labels.md) | Accepted | 2026-08-29 |
 | 008 | [Governance levels L1/L2/L3](../ADR/008-governance-levels.md) | Accepted | 2026-05-20 |
 | 009 | [EJS over Handlebars (and other template engines)](../ADR/009-ejs-over-handlebars.md) | Accepted | 2026-05-20 |
 | 010 | [ai-rulez coexistence — detect and skip tool configs](../ADR/010-ai-rulez-coexistence.md) | Accepted | 2026-05-20 |
@@ -41,7 +41,7 @@ related: []
 | 020 | [CLI-first over MCP for tool integrations](../ADR/020-cli-first-over-mcp.md) | Accepted | 2026-05-20 |
 | 021 | [Archetype Axis and Architecture Style Knob](../ADR/021-archetype-axis.md) | Accepted | 2026-05-20 |
 | 022 | [Universal Baseline-Freeze (MB)](../ADR/022-universal-baseline-freeze.md) | Accepted | 2026-05-20 |
-| 023 | [Self-Hosted CI Runner (docker-ci-build)](../ADR/023-self-hosted-ci-runner.md) | Accepted | 2026-05-20 |
+| 023 | [Self-Hosted CI Runner (docker-ci-build)](../ADR/023-self-hosted-ci-runner.md) | superseded | 2026-07-04 |
 | 024 | [Suppression Pattern with Mandatory Expiry](../ADR/024-suppression-expiry-escape-hatch.md) | Accepted | 2026-05-20 |
 | 025 | [Claim-Verified Governance Documents](../ADR/025-claim-verified-governance-docs.md) | Accepted | 2026-07-01 |
 | 026 | [Scaled Thresholds and Practical/Pedantic Strictness Tiers](../ADR/026-scaled-thresholds.md) | Accepted | 2026-05-20 |

@@ -33,6 +33,12 @@ Two orthogonal axes decide **which** workflows are emitted and **when** they run
 The executable SSOT for the cadence axis is `scripts/lib/ci-cadence.mjs`; the emit axis
 lives in `src/generators/github.ts` and is enforced by `scripts/check-ci-tiers.mjs`.
 
+The cadence buckets and the bucket→workflow table below describe **Track B** — the
+canonical workflow file set `arbiter init`/`arbiter update` generate into a governed
+target project. Arbiter's own **Track A** self-CI (`.github/workflows/` in this repo)
+carries the same canonical filenames plus additional self-only reusable workflows
+(`_nightly.yml`, `_weekly.yml`, `_monthly.yml`, etc.) not covered by this table.
+
 ## The four cadence buckets
 
 | Bucket             | Triggers                                    | Purpose                                                                 |
