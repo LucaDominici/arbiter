@@ -4,7 +4,7 @@
 // loading, dry-run preview, and rollback/verification of generation output. Pure
 // extraction, no behavior change.
 import { existsSync } from 'node:fs'
-import { resolve, join, normalize, isAbsolute, sep, basename } from 'node:path'
+import { resolve, join, normalize, isAbsolute, sep, basename, relative } from 'node:path'
 import { ArbiterError } from '../../utils/errors.js'
 import { t } from '../../i18n/index.js'
 import { getLogger } from '../../utils/logger.js'
@@ -103,6 +103,7 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
 
     maybeCaptureBaseline(config, targetDir, initOptions.brownfield, packageManager)
     activateGitHooks(targetDir, log)
+    if (!initOptions.json) printInstallHint(config, targetDir, packageManager)
     emitInitOutput(
       initOptions.json,
       generatorErrors.map((error) => `${error.key}: ${error.message}`),
@@ -195,6 +196,30 @@ function emitInitOutput(
     process.exit(statusToExitCode('error'))
   }
   process.stdout.write(`${t('cli.init.verify_hint')}\n`)
+}
+
+/**
+ * #2434: init injects the gate toolchain (`TS_GATE_DEVDEPS` — typescript,
+ * @types/node, @eslint/js, typescript-eslint, vitest, …) into the target's
+ * devDependencies but never installs it, so the very next command its own
+ * epilogue printed (`node scripts/check-all.mjs L1`) went red with four
+ * module-resolution failures.
+ *
+ * init NAMES the step rather than running it: it never spawns a package manager
+ * (the debt-baseline path already defers the same way, see
+ * `reportMissingTypescriptDependencies`), `--yes` suppresses prompts rather than
+ * authorizing network work, and an install is the one side effect a user must be
+ * able to run under their own manager, lockfile and registry policy.
+ */
+function printInstallHint(
+  config: ProjectConfig,
+  targetDir: string,
+  packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun',
+): void {
+  if (!existsSync(join(targetDir, 'package.json'))) return
+  if (existsSync(join(targetDir, 'node_modules'))) return
+  const installCommand = `${packageManager ?? config.packageManager ?? 'npm'} install`
+  process.stdout.write(`${t('cli.init.install_first_hint', { installCommand })}\n`)
 }
 
 function activateGitHooks(targetDir: string, log: (message: string) => void): void {
@@ -369,12 +394,51 @@ export interface DryRunPreview {
   skipped: string[]
 }
 
+/**
+ * #2434: the preview used to be `buildMigrationPlan` alone — three entries on a
+ * greenfield repo where the real run wrote 271 files, so it structurally could
+ * not name generator output. It now ALSO runs the registry in dryRun mode, the
+ * same path `diff` uses (`src/commands/diff.ts`): `writeFile` computes the
+ * prospective action without touching disk, so the preview is exactly what init
+ * would write. The migration plan's entries are kept alongside it — they carry
+ * the brownfield consent narrative (`settings.json (deep-merged)`, `hooks/
+ * (existing hooks preserved)`) that a flat per-file list does not spell out (#540).
+ */
 export function computeDryRunPreview(config: ProjectConfig): DryRunPreview {
   const plan = buildMigrationPlan(config.existing, config.tools, config.useGitHub)
+  const created = [...plan.created]
+  const modified = [...plan.replaced, ...plan.merged]
+  const skipped = [...plan.preserved]
+
+  beginGenerationSession({
+    targetDir: config.targetDir,
+    prevHashes: loadGeneratedManifest(config.targetDir),
+    // The preview lists withheld files in `skipped`; the default per-file
+    // logger.warn would only double-emit that. `diff` suppresses it the same way.
+    onWithheld: () => {},
+    adoptPredicate: buildAdoptPredicate({}),
+  })
+  let results: WriteResult[]
+  try {
+    results = runGeneratorsFromRegistry(buildRegistry(config), [], { dryRun: true })
+  } finally {
+    endGenerationSession()
+  }
+
+  for (const result of results) {
+    // Deliberate non-emissions are not files init "would write" — listing them
+    // would repeat the false "skipped — already exists" claim printResults fixed.
+    if (result.reason === 'not-applicable') continue
+    const path = relative(config.targetDir, result.path).split(sep).join('/')
+    if (result.action === 'created') created.push(path)
+    else if (result.action === 'skipped') skipped.push(path)
+    else modified.push(path)
+  }
+
   return {
-    created: plan.created,
-    modified: [...plan.replaced, ...plan.merged],
-    skipped: plan.preserved,
+    created: [...new Set(created)],
+    modified: [...new Set(modified)],
+    skipped: [...new Set(skipped)],
   }
 }
 
@@ -545,5 +609,9 @@ export function displayDryRunPreview(config: ProjectConfig): void {
     }
   }
 
+  // #2434: the ONE thing this plan cannot resolve before writing anything — the
+  // doc-set skeletons are decided by an engine that reads a manifest the same run
+  // emits. Say so, rather than guessing rows and over-claiming.
+  process.stdout.write(`${t('cli.init.dry_run_deferred_note')}\n`)
   process.stdout.write(`${t('cli.init.dry_run_run_hint')}\n`)
 }

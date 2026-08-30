@@ -125,13 +125,35 @@ data-pipeline).
 
 ## What gets generated
 
-| Path                           | Purpose                                       |
-| ------------------------------ | --------------------------------------------- |
-| `AGENTS.md`                    | Canonical governance doc every AI tool reads  |
-| `.claude/` / `.agents/`        | Tool-specific hooks, rules, and pointer files |
-| `.github/workflows/ci.yml`     | CI gate mirroring the local check             |
-| `scripts/check-all.mjs`        | The local gate runner (`L1`/`L2`/`L3`/`L4`)   |
-| `SECURITY.md`, `.editorconfig` | Baseline repo hygiene files                   |
+### Always generated
+
+| Path                    | Purpose                                                       |
+| ----------------------- | ------------------------------------------------------------- |
+| `AGENTS.md`             | Canonical governance doc every AI tool reads                  |
+| `arbiter.json`          | The stored config every later `update`/`diff` reads           |
+| `.claude/` / `.agents/` | Tool-specific hooks, rules, and pointer files (per `--tools`) |
+| `scripts/check-all.mjs` | The local gate runner (`L1`/`L2`/`L3`/`L4`)                   |
+| `.githooks/`            | pre-commit (`L1`), pre-push (`L2`), commit-msg                |
+| `SECURITY.md`           | Vulnerability-reporting policy                                |
+| `CONTRIBUTING.md`       | Contribution + gate expectations for the repo                 |
+| `.editorconfig`         | Baseline whitespace/charset hygiene                           |
+| `.nvmrc`                | Node version the emitted governance tooling runs on           |
+| `commitlint.config.js`  | Conventional-commit config the `commit-msg` hook reads        |
+
+### Generated only with `--github`
+
+Without `--github` (or `permitGitHub: true` in `arbiter.json`) no `.github/` directory
+is created at all — `examples/ts-library/` above is exactly that case.
+
+| Path                                   | Purpose                                                        |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `.github/workflows/01-pr-fast.yml`     | The PR gate mirroring the local `L1` check                     |
+| `.github/workflows/02-pr-extended.yml` | The extended lane mirroring `L2` (more lanes at higher levels) |
+| `.github/PULL_REQUEST_TEMPLATE.md`     | PR template                                                    |
+| `.github/ISSUE_TEMPLATE/`              | Bug / feature / task-brief / epic forms                        |
+| `.github/labels.yml`                   | Label set the workflows apply                                  |
+| `.github/dependabot.yml`               | Dependency update schedule                                     |
+| `.github/CODEOWNERS`                   | Review routing — only when a GitHub owner is detected          |
 
 Everything arbiter generates is a normal, version-controlled file. Uninstalling
 is a file operation, not a service to tear down:

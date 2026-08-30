@@ -282,7 +282,10 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
             // `check-all.mjs L1` line it sends the user to next — otherwise the very
             // first command the quickstart prints reds with four resolver failures.
             // The cell then follows exactly those printed steps, in that order.
-            const installAt = init.output.indexOf('npm install')
+            // Match the hint's own distinctive wording, not a bare `npm install`:
+            // other lines (the debt-baseline deferral at L2+) also name an install
+            // command, and indexOf would silently start asserting about those.
+            const installAt = init.output.indexOf('did not install it')
             const gateAt = init.output.indexOf('scripts/check-all.mjs L1')
             expect(
               installAt,
