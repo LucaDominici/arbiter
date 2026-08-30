@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 118)
+1. Create `NNN-short-title.md` in this directory (next free number after 120)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -145,4 +145,6 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 115 | [Bounded Sealed Trains — When a Batch Stops Taking Issues](115-bounded-sealed-trains.md)                                                                              | Accepted   | 2026-08-22 |  |
 | 116 | [Evidence Binds to Source Content; the Train Is the Ceremony Unit; a PR Is Owned Until Merged](116-evidence-content-binding-train-ceremony-pr-ownership.md)           | Accepted   | 2026-08-29 |  |
 | 117 | [Companion Skill Provenance — Detected, Never Bundled](117-companion-skill-provenance.md)                                                                             | Accepted   | 2026-08-29 |  |
-| 118 | [Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](118-ignore-stryker-tmp-scratch-sandbox.md)                                                | Accepted   | 2026-08-30 | Add .stryker-tmp/ to both .gitignore and .prettierignore, matching the |
+| 118 | [`arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](118-plugin-add-ship-minimal.md)                                                               | Accepted   | 2026-08-30 |  |
+| 119 | [Experimental tool generators — promotion criteria, and retire all five](119-experimental-tool-generators-retired.md)                                                 | Accepted   | 2026-08-30 |  |
+| 120 | [Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](120-ignore-stryker-tmp-scratch-sandbox.md)                                                | Accepted   | 2026-08-30 | Add .stryker-tmp/ to both .gitignore and .prettierignore, matching the |
