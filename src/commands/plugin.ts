@@ -8,6 +8,7 @@
 // it); see docs/internal/ADR/118-plugin-add-ship-minimal.md.
 import { resolve, join } from 'node:path'
 import { loadConfig, saveConfig } from '../utils/config.js'
+import type { ArbiterConfig } from '../utils/config.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { detectPackageManager } from '../detectors/package-manager.js'
 import type { PackageManager } from '../detectors/package-manager.js'
@@ -18,14 +19,18 @@ import { jsonOutput } from '../utils/json-output.js'
 import { ArbiterError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 
-export interface PluginAddOptions {
+// Not exported: both option shapes have zero consumers outside this module (cli.ts and the
+// unit test pass object literals, structurally typed at the call site), and the debt ratchet's
+// publicApiSurface metric only moves for surface that is genuinely used across a boundary —
+// same call made for RunInteractiveOptions in c50e6d8e (#2346).
+interface PluginAddOptions {
   dir?: string | undefined
   pkg: string
   install: boolean
   json?: boolean | undefined
 }
 
-export interface PluginListOptions {
+interface PluginListOptions {
   dir?: string | undefined
   json?: boolean | undefined
 }
@@ -48,8 +53,19 @@ const INSTALL_ARGS: Record<PackageManager, (spec: string) => string[]> = {
   bun: (spec) => ['add', '--dev', spec],
 }
 
-function configNotFoundError(): ArbiterError {
-  return ArbiterError.fromKey(
+/**
+ * Load the target config, or terminate the command the way its output mode demands:
+ * a `--json` run emits the error envelope and exits 1, a human run throws so the CLI
+ * wrapper prints `Error: ...`. Shared by `add` and `list` — the same precondition.
+ */
+function requireConfig(targetDir: string, command: string, json: boolean): ArbiterConfig {
+  const stored = loadConfig(targetDir)
+  if (stored) return stored
+  if (json) {
+    jsonOutput(command, 'error', {}, [t('cli.plugin.no_config')])
+    process.exit(1)
+  }
+  throw ArbiterError.fromKey(
     'E_CONFIG_NOT_FOUND',
     'errors.E_CONFIG_NOT_FOUND',
     {},
@@ -57,17 +73,48 @@ function configNotFoundError(): ArbiterError {
   )
 }
 
+/**
+ * Validate-before-persist: run the package through the same loader `arbiter update`
+ * uses, and terminate (envelope + exit 1, or throw) if it does not load — so
+ * `arbiter.json` is never touched for a plugin that cannot be resolved.
+ */
+async function requireLoadable(name: string, targetDir: string, json: boolean): Promise<void> {
+  try {
+    await loadPlugin(name, targetDir)
+    return
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (json) {
+      jsonOutput('plugin add', 'error', { name }, [message])
+      process.exit(1)
+    }
+    throw ArbiterError.fromKey('E_PLUGIN_UNRESOLVABLE', 'cli.plugin.load_error', {
+      name,
+      message,
+      hint: 'Verify the package name or path is correct and that it is installed.',
+    })
+  }
+}
+
+/** Persist `plugins[]` under the repo lock — the only write this command performs. */
+async function persistPlugins(
+  targetDir: string,
+  stored: ArbiterConfig,
+  plugins: string[],
+): Promise<void> {
+  ensureDir(join(targetDir, '.arbiter'))
+  const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
+  try {
+    await saveConfig(targetDir, { ...stored, plugins })
+  } finally {
+    await lock.release()
+  }
+}
+
 export async function runPluginAdd(options: PluginAddOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const stored = loadConfig(targetDir)
-  if (!stored) {
-    if (options.json) {
-      jsonOutput('plugin add', 'error', {}, [t('cli.plugin.no_config')])
-      process.exit(1)
-      return
-    }
-    throw configNotFoundError()
-  }
+  const json = options.json === true
+  const stored = requireConfig(targetDir, 'plugin add', json)
 
   const spec = options.pkg
   const local = isLocalSpec(spec)
@@ -78,43 +125,18 @@ export async function runPluginAdd(options: PluginAddOptions): Promise<void> {
     runCli(pm.name, INSTALL_ARGS[pm.name](spec), { cwd: targetDir, timeoutMs: 180_000 })
   }
 
-  try {
-    await loadPlugin(name, targetDir)
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    if (options.json) {
-      jsonOutput('plugin add', 'error', { name }, [message])
-      process.exit(1)
-      return
-    }
-    throw ArbiterError.fromKey('E_PLUGIN_UNRESOLVABLE', 'cli.plugin.load_error', {
-      name,
-      message,
-      hint: 'Verify the package name or path is correct and that it is installed.',
-    })
-  }
+  await requireLoadable(name, targetDir, json)
 
   const existing = stored.plugins ?? []
-  const alreadyConfigured = existing.includes(name)
-  const plugins = alreadyConfigured
-    ? existing
-    : [...existing, name].sort((a, b) => a.localeCompare(b))
+  const added = !existing.includes(name)
+  const plugins = added ? [...existing, name].sort((a, b) => a.localeCompare(b)) : existing
+  if (added) await persistPlugins(targetDir, stored, plugins)
 
-  if (!alreadyConfigured) {
-    ensureDir(join(targetDir, '.arbiter'))
-    const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
-    try {
-      await saveConfig(targetDir, { ...stored, plugins })
-    } finally {
-      await lock.release()
-    }
-  }
-
-  if (options.json) {
-    jsonOutput('plugin add', 'ok', { name, added: !alreadyConfigured, plugins })
+  if (json) {
+    jsonOutput('plugin add', 'ok', { name, added, plugins })
     return
   }
-  if (alreadyConfigured) {
+  if (!added) {
     process.stdout.write(`${t('cli.plugin.already_configured', { name })}\n`)
     return
   }
@@ -139,15 +161,7 @@ async function loadStatus(name: string, targetDir: string): Promise<PluginStatus
 
 export async function runPluginList(options: PluginListOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const stored = loadConfig(targetDir)
-  if (!stored) {
-    if (options.json) {
-      jsonOutput('plugin list', 'error', {}, [t('cli.plugin.no_config')])
-      process.exit(1)
-      return
-    }
-    throw configNotFoundError()
-  }
+  const stored = requireConfig(targetDir, 'plugin list', options.json === true)
 
   const names = stored.plugins ?? []
   const plugins: { name: string; status: PluginStatus }[] = []
