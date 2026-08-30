@@ -276,6 +276,21 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
           commitAll(dir, 'chore: post-init')
 
           if (cell.language === 'typescript') {
+            // #2434 AC-5: init injects the gate toolchain (@types/node, @eslint/js,
+            // typescript-eslint, vitest, …) into devDependencies but never installs
+            // it. Its epilogue must NAME the install step, and name it BEFORE the
+            // `check-all.mjs L1` line it sends the user to next — otherwise the very
+            // first command the quickstart prints reds with four resolver failures.
+            // The cell then follows exactly those printed steps, in that order.
+            const installAt = init.output.indexOf('npm install')
+            const gateAt = init.output.indexOf('scripts/check-all.mjs L1')
+            expect(
+              installAt,
+              `init epilogue never named the install step:\n${init.output.slice(-3000)}`,
+            ).toBeGreaterThan(-1)
+            expect(gateAt).toBeGreaterThan(-1)
+            expect(installAt).toBeLessThan(gateAt)
+
             const install = spawnSync('npm', ['install', '--no-audit', '--no-fund'], {
               cwd: dir,
               encoding: 'utf-8',
