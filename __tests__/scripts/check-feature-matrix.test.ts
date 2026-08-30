@@ -159,6 +159,51 @@ describe('check-feature-matrix.mjs --check', () => {
     expect(status).toBe(1)
   })
 
+  // #2413 AC-1: ref existence must be checked for ALL statuses, not just
+  // Done/Verified — the audit found REQ-044 (Partial) pointing code_ref at a
+  // never-existed file and REQ-054 (Partial) pointing doc_ref at the wrong dir.
+  it('exits 1 when a Partial row has a code_ref that does not exist on disk', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/commands/does-not-exist.ts | | | | |`,
+    ])
+    const { status, stdout } = runWithMatrix(matrix)
+    expect(status).toBe(1)
+    expect(stdout).toContain('code_ref')
+    expect(stdout).toContain('File not found')
+  })
+
+  it('exits 1 when a Partial row has a doc_ref that does not exist on disk', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | docs/does-not-exist.md | | |`,
+    ])
+    const { status, stdout } = runWithMatrix(matrix)
+    expect(status).toBe(1)
+    expect(stdout).toContain('doc_ref')
+    expect(stdout).toContain('File not found')
+  })
+
+  it('exits 1 when a Partial row has a test_ref that does not exist on disk', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | __tests__/does-not-exist.test.ts | | | |`,
+    ])
+    const { status, stdout } = runWithMatrix(matrix)
+    expect(status).toBe(1)
+    expect(stdout).toContain('test_ref')
+    expect(stdout).toContain('File not found')
+  })
+
+  it('exits 0 when a Partial row has refs that exist on disk', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | src/foo.test.ts | docs/foo.md | | |`,
+    ])
+    const { status } = run([], matrix, {
+      'src/foo.ts': '',
+      'src/foo.test.ts': '',
+      'docs/foo.md': '',
+    })
+    expect(status).toBe(0)
+  })
+
   it('exits 1 when Missing row has no issue_ref', () => {
     const matrix = makeMatrix([`| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Missing | | | | | |`])
     const { status } = runWithMatrix(matrix)
@@ -253,7 +298,7 @@ describe('check-feature-matrix.mjs --check', () => {
     const matrix = makeMatrix([
       `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | no issue tracked |`,
     ])
-    const { status, stdout } = runWithMatrix(matrix)
+    const { status, stdout } = run([], matrix, { 'src/foo.ts': '' })
     expect(status).toBe(0)
     expect(stdout).toContain('lack a tracked issue_ref')
   })
@@ -263,7 +308,7 @@ describe('check-feature-matrix.mjs --check', () => {
     const matrix = makeMatrix([
       `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | #42 | tracked |`,
     ])
-    const { status, stdout } = runWithMatrix(matrix)
+    const { status, stdout } = run([], matrix, { 'src/foo.ts': '' })
     expect(status).toBe(0)
     expect(stdout).not.toContain('lack a tracked issue_ref')
   })
@@ -302,6 +347,8 @@ describe('KIT catalog error handling (#1196)', () => {
         MINIMAL_MATRIX,
         'utf-8',
       )
+      mkdirSync(join(dir, 'src'), { recursive: true })
+      writeFileSync(join(dir, 'src', 'foo.ts'), '', 'utf-8')
       // no src/kit/catalog.json
       const r = spawnSync('node', [SCRIPT, '--check'], { encoding: 'utf-8', cwd: dir })
       expect(r.status).toBe(0)
@@ -317,6 +364,7 @@ describe('source_ref upward resolution (#2163)', () => {
     'AGENTS.md': AGENTS_MD_FIXTURE,
     'docs/internal/ADR/README.md': ADR_README_FIXTURE,
     'docs/PRODUCT/PRD.md': PRD_MD_FIXTURE,
+    'src/foo.ts': '',
   }
 
   function runWithSourceRef(sourceRefCell: string): RunResult {
@@ -475,7 +523,7 @@ describe('verification_tier enum (12th column, #2242)', () => {
       const matrix = makeMatrix([
         `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | | | ${tier} |`,
       ])
-      const { status } = runWithMatrix(matrix)
+      const { status } = run([], matrix, { 'src/foo.ts': '' })
       expect(status, `tier ${tier} should pass`).toBe(0)
     }
   })
@@ -494,7 +542,7 @@ describe('verification_tier enum (12th column, #2242)', () => {
     const matrix = makeMatrix([
       `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | no tier yet |`,
     ])
-    const { status } = runWithMatrix(matrix)
+    const { status } = run([], matrix, { 'src/foo.ts': '' })
     expect(status).toBe(0)
   })
 })

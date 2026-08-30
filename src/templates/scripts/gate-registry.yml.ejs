@@ -120,8 +120,8 @@ gates:
   - { id: iso9001, name: 'iso9001 QMS (RTM + doc-control + CAPA)', level: L1, kind: check, condition: "gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')", cmd: ['node', ['scripts/check-iso9001.mjs']] }
   - { id: regulated-overlay, name: 'regulated overlay (SoD + retention + signing + mutation)', level: L1, kind: check, condition: "gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')", cmd: ['node', ['scripts/check-regulated-overlay.mjs']] }
   - { id: ci-tiers, name: 'ci tiers (INV-73)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-ci-tiers.mjs']] }
-  - { id: action-pins, name: 'action pins (INV-75)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-action-pins.mjs']] }
-  - { id: workflow-perms, name: 'workflow perms (INV-76)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-perms.mjs']] }
+  - { id: action-pins, name: 'action pins (INV-76)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-action-pins.mjs']] }
+  - { id: workflow-perms, name: 'workflow perms (INV-77)', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-perms.mjs']] }
   - { id: workflow-runners, name: 'workflow runners', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-runners.mjs']] }
   - { id: workflow-docs-sync, name: 'workflow docs sync', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-docs-sync.mjs']] }
   - { id: workflow-test-integrity, name: 'workflow test integrity', level: L1, kind: check, emitIf: "_hasGitHubWorkflows", cmd: ['node', ['scripts/check-workflow-test-integrity.mjs']] }

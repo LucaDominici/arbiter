@@ -19,6 +19,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { renderTemplate } from '../../src/utils/render.js'
 import { loadGateRegistry, validatePromotions } from '../../src/generators/check-all.js'
+import { INVARIANT_CATALOG } from '../../src/invariants/catalog.js'
 import { makeConfig } from '../helpers.js'
 
 function renderGate(data: Record<string, unknown>): string {
@@ -454,4 +455,58 @@ describe('gate registry: promotes_to and audit (#9003)', () => {
     ]
     expect(() => validatePromotions(entries)).toThrow(/declares promotes_to and kind: inline/)
   })
+})
+
+describe('gate-registry INV-label correctness (#2413)', () => {
+  // #2413: action-pins was labeled "(INV-75)" (the heartbeat-watchdog invariant)
+  // when its actual enforcement is INV-76 (SHA-pinned actions) — a citation
+  // that had silently drifted off-by-one for the whole INV-73..82 GitHub CI
+  // block. This pins every `(INV-NN)` gate label in the template to the
+  // catalog entry it actually cites: the gate's own enforcement script
+  // basename must appear in that INV's title/description/enforcement text.
+  const templatePath = resolve('src/templates/scripts/gate-registry.yml.ejs')
+  const template = readFileSync(templatePath, 'utf-8')
+  const catalogById = new Map(INVARIANT_CATALOG.map((inv) => [inv.id, inv]))
+
+  // Gates that legitimately share an invariant with a sibling gate whose own
+  // enforcement script IS the one named in the catalog text — a naive
+  // "script basename in catalog text" check would false-positive on these.
+  // Manually verified against src/invariants/catalog.ts (#2413):
+  const SHARED_INVARIANT_EXCEPTIONS: Record<string, string> = {
+    // INV-25's catalog text only names the pre-push hook; check-min-test-execution.mjs
+    // is documented as INV-25's generated-target sibling in scripts/canon01-self-only.json.
+    'min-test-execution':
+      'INV-25 shares scripts/canon01-self-only.json documentation with check-min-test-execution.mjs, not named in the catalog entry itself',
+    // INV-124's catalog text only names check-test-pyramid.mjs; test-scope-tier
+    // enforces the same "declared test levels must be non-empty" invariant via a
+    // sibling script.
+    'test-scope-tier':
+      'INV-124 covers both check-test-pyramid.mjs and check-test-scope-tier.mjs; only the former is named in the catalog text',
+  }
+
+  const entryRe =
+    /\{ id: ([\w-]+), name: '([^']*)\(INV-(\d+)\)'[^}]*cmd: \['node', \['([^']+)'\]\]/g
+  const entries: { id: string; label: string; inv: string; script: string }[] = []
+  let m: RegExpExecArray | null
+  while ((m = entryRe.exec(template))) {
+    entries.push({ id: m[1], label: m[2].trim(), inv: m[3], script: m[4] })
+  }
+
+  it('finds INV-labeled check gates in the template (fixture sanity)', () => {
+    expect(entries.length).toBeGreaterThan(20)
+  })
+
+  for (const entry of entries) {
+    if (entry.id in SHARED_INVARIANT_EXCEPTIONS) continue
+    it(`${entry.id}: label "(INV-${entry.inv})" matches that INV's own catalog enforcement`, () => {
+      const inv = catalogById.get(`INV-${entry.inv}`)
+      expect(inv, `INV-${entry.inv} must exist in the catalog`).toBeDefined()
+      const scriptBase = entry.script.split('/').pop() ?? entry.script
+      const haystack = `${inv!.title} ${inv!.description} ${inv!.enforcement ?? ''}`
+      expect(
+        haystack.includes(scriptBase),
+        `gate "${entry.id}" is labeled (INV-${entry.inv}) but that catalog entry never mentions ${scriptBase} — wrong INV number?`,
+      ).toBe(true)
+    })
+  }
 })

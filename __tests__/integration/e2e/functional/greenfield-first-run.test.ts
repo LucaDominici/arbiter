@@ -563,10 +563,10 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
 
         // The workflow gates themselves run for real against the emitted workflows.
         for (const [id, name] of [
-          ['action-pins', 'action pins (INV-75)'],
+          ['action-pins', 'action pins (INV-76)'],
           ['workflow-sha-pinning', 'workflow sha pinning'],
           ['ci-tiers', 'ci tiers (INV-73)'],
-          ['workflow-perms', 'workflow perms (INV-76)'],
+          ['workflow-perms', 'workflow perms (INV-77)'],
         ] as const) {
           const g = runGate(dir, 'L1', id)
           expect(gateStatus(g.output, name), `${id}:\n${g.output.slice(-2000)}`).toBe('PASS')
@@ -602,7 +602,7 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
         )
 
         for (const [id, name] of [
-          ['action-pins', 'action pins (INV-75)'],
+          ['action-pins', 'action pins (INV-76)'],
           ['workflow-sha-pinning', 'workflow sha pinning'],
         ] as const) {
           const g = runGate(dir, 'L1', id)
