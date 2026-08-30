@@ -73,7 +73,7 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 - **Test approach:** schema validation on the baseline JSON plus snapshot tests that
   pin the published thresholds. The snapshot deliberately fails when a threshold
   changes so reviewers must accept the new floor explicitly.
-- **Rejected alternatives:** embedding thresholds in `thresholds-l1-l2-l3.ts` only;
+- **Rejected alternatives:** embedding thresholds in `src/kit/thresholds.ts` only;
   rejected because external tooling and audits read the JSON directly and a code
   constant cannot be consumed without a build.
 
@@ -156,7 +156,7 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 2. When an entry's pattern does not fit, document _why_ in the plan and propose a
    new entry here in the same PR.
 3. Keep entries small. The schema is six fields per entry on purpose: anything
-   longer belongs in a dedicated design doc under `docs/SYSTEM/`.
+   longer belongs in a dedicated design doc under `docs/internal/SYSTEM/`.
 
 ## How to add a new entry
 

@@ -126,12 +126,11 @@ Cross-track work without that override fails CODEOWNERS review.
 
 Track names are a closed vocabulary. To change it:
 
-1. Open an ADR under `docs/ADR/` proposing the change.
+1. Open an ADR under `docs/internal/ADR/` proposing the change.
 2. Update this file in the same PR.
 3. Update `.github/labels.yml` (and the EJS source) to add/remove the
    matching `track: <name>` label.
 4. Update CODEOWNERS to add/remove the owner pattern.
-5. Run `node scripts/knowledge-map-update.mjs` after merging.
 
 Renaming a track is a breaking change. Existing labels and frontmatter
 references must be migrated in the same PR.
@@ -354,7 +353,9 @@ Write an RFC when your change:
 
 ## Process
 
-1. **Copy** the RFC template to a new `<project>/docs/rfc/NNNN-short-title.md` file (replace `NNNN` with the next available number).
+1. **Write** the RFC as a new `<project>/docs/rfc/NNNN-short-title.md` file (replace `NNNN`
+   with the next available number) — there is no template file to copy from (the original
+   template was deleted along with `docs/rfc/` in #1244); cover the sections in "Fill in" below.
 2. **Fill in** all sections. "Unresolved Questions" is required — leave it empty only if there genuinely are none.
 3. **Open a PR** with just the RFC file. Set the PR title to `RFC NNNN: <short title>`.
 4. **7-day comment window** — the PR stays open for at least 7 calendar days after the last substantive edit.
@@ -368,5 +369,7 @@ Implementation PRs link back to the accepted RFC with `Implements RFC NNNN`.
 
 ## RFC numbering
 
-RFCs are numbered sequentially. The first accepted RFC is `0001`. The accepted-RFC
-index and the RFC template are compiled into the generated wiki (Obsidian viewer).
+RFCs are numbered sequentially. The first accepted RFC is `0001`. As of this writing no
+RFC has been filed since the process was consolidated here (#1244) — `docs/rfc/` does not
+yet exist; the first accepted RFC creates it. `gen-wiki.mjs` does not currently compile RFC
+content into the generated wiki.

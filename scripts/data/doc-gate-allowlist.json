@@ -1,21 +1,7 @@
 {
   "$schemaVersion": 1,
-  "description": "#2408: dated per-file excuses for the three doc gates (check-doc-links, check-doc-style, check-phantom-command-scan). An entry is only legitimate when the real fix is a prose or product decision owned by another issue — a path/link/frontmatter one-liner gets fixed, never listed. Every entry expires; the gate goes RED the day after, so the debt cannot rot silently. Rules: doc-links | doc-style | phantom-command.",
+  "description": "#2408: dated per-file excuses for the three doc gates (check-doc-links, check-doc-style, check-phantom-command-scan). An entry is only legitimate when the real fix is a prose or product decision owned by another issue \u2014 a path/link/frontmatter one-liner gets fixed, never listed. Every entry expires; the gate goes RED the day after, so the debt cannot rot silently. Rules: doc-links | doc-style | phantom-command.",
   "entries": [
-    {
-      "path": "docs/research/enterprise-doc-standard-2026.md",
-      "rule": "doc-links",
-      "reason": "related: cites docs/audit/IS-ARBITER-WORTH-IT.md and docs/design/solo-developer-gate-model.md; neither exists under any prefix, so the research doc's cross-references need re-sourcing, not a path rewrite.",
-      "issue": "#2411",
-      "expires": "2026-09-12"
-    },
-    {
-      "path": ".claude/skills/ssot-navigation/SKILL.md",
-      "rule": "phantom-command",
-      "reason": "The skill's recipe fence instructs `arbiter invariants list`; no `invariants` command is registered in cli.ts. Shipping the command or rewriting the recipe is a self-doc correction, not a citation typo.",
-      "issue": "#2411",
-      "expires": "2026-09-12"
-    },
     {
       "path": "CONTRIBUTING.md",
       "rule": "phantom-command",
@@ -26,7 +12,7 @@
     {
       "path": "website/recipes/plugin.md",
       "rule": "phantom-command",
-      "reason": "Public recipe instructs `arbiter plugin add`; the command does not exist. Ship it or delete the promise — a product decision.",
+      "reason": "Public recipe instructs `arbiter plugin add`; the command does not exist. Ship it or delete the promise \u2014 a product decision.",
       "issue": "#2416",
       "expires": "2026-09-25"
     },
@@ -54,7 +40,7 @@
     {
       "path": "docs/REFERENCE/gdpr-overlay.md",
       "rule": "phantom-command",
-      "reason": "Cites `node scripts/check-gdpr-controls.mjs`, which is an overlay-conditional gate emitted into the CONSUMER's tree — correctly absent from arbiter's own scripts/. Do not create the file; the fix is resolving emitted-doc citations against the emitted tree.",
+      "reason": "Cites `node scripts/check-gdpr-controls.mjs`, which is an overlay-conditional gate emitted into the CONSUMER's tree \u2014 correctly absent from arbiter's own scripts/. Do not create the file; the fix is resolving emitted-doc citations against the emitted tree.",
       "issue": "#2415",
       "expires": "2026-09-25"
     }

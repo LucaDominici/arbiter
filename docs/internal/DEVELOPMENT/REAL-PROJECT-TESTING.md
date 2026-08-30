@@ -99,7 +99,7 @@ The `tier` field selects which E2E layer exercises the fixture:
 | `bake`       | `arbiter init` → structural snapshot diff → parse generated manifests (no exec) | Most fixtures (`backend-*`, `bdd`, `frontend-spa` …)                                                                                                                                                                                                                                                                      |
 | `functional` | `bake` + execute the generated project's own L1 gate inside a clean tmpdir copy | Cheapest fixture per stack (`*-library`); promoted to the dedicated `generator-matrix.yml` workflow (dispatchable + weekly + pre-release, #1840 F4 tranche-2). Also the `backend-web-db` archetype's 3 GA fixtures (`ts-backend-web-db`, `python-backend-web`, `go-backend-web-gcr`) as of #1840 F4 tranche-3 — see below |
 
-The bake-and-run harness lives in `__tests__/e2e/bake/` and `__tests__/e2e/functional/`. Industry pattern reference: Nx (`create-nx-workspace` Verdaccio), Cookiecutter (`pytest-cookies`), Spring Initializr (`initializr-generator-test`).
+The bake-and-run harness lives in `__tests__/integration/e2e/bake/` and `__tests__/integration/e2e/functional/`. Industry pattern reference: Nx (`create-nx-workspace` Verdaccio), Cookiecutter (`pytest-cookies`), Spring Initializr (`initializr-generator-test`).
 
 #### Packaged-artifact outsider simulation (#1770)
 
@@ -298,23 +298,48 @@ declared permanently self-only in `scripts/canon01-self-only.json`.
 
 ---
 
-## v1 Fixture Set
+## Fixture Set
 
-| Fixture                      | Language   | Archetype      | Levels     |
-| ---------------------------- | ---------- | -------------- | ---------- |
-| `ts-library`                 | typescript | library        | L1, L2     |
-| `ts-backend-web-db`          | typescript | backend-web-db | L1, L2     |
-| `ts-frontend-spa`            | typescript | frontend-spa   | L1, L2     |
-| `java-library-gradle`        | java       | library        | L1, L2     |
-| `java-backend-web-db-gradle` | java       | backend-web-db | L1, L2     |
-| `rust-library`               | rust       | library        | L1, L2     |
-| `rust-cli`                   | rust       | cli            | L1, L2, L3 |
-| `rust-embedded`              | rust       | embedded       | L1         |
-| `go-library`                 | go         | library        | L1, L2     |
-| `python-library`             | python     | library        | L1, L2     |
-| `python-data-pipeline`       | python     | data-pipeline  | L1, L2, L3 |
+| Fixture                        | Language   | Archetype      | Levels         |
+| ------------------------------ | ---------- | -------------- | -------------- |
+| `go-backend-web-gcr`           | go         | backend-web-db | L1, L2, L3, L4 |
+| `go-bdd`                       | go         | library        | L1, L2, L3, L4 |
+| `go-library`                   | go         | library        | L1, L2, L3, L4 |
+| `java-backend-web-db-acr`      | java       | backend-web-db | L1, L2, L3, L4 |
+| `java-backend-web-db-gradle`   | java       | backend-web-db | L1, L2, L3, L4 |
+| `java-bdd-gradle`              | java       | backend-web-db | L1, L2, L3, L4 |
+| `java-library-gradle`          | java       | library        | L1, L2, L3, L4 |
+| `java-spring-L3`               | java       | backend-web-db | L1, L2, L3, L4 |
+| `java-spring-L4`               | java       | backend-web-db | L1, L2, L3, L4 |
+| `kotlin-backend-web-db-gradle` | kotlin     | backend-web-db | L1, L2, L3     |
+| `markdown-only`                | typescript | library        | L1, L2, L3, L4 |
+| `multi-lane-fe-be`             | typescript | frontend-spa   | L1, L2, L3, L4 |
+| `python-backend-web`           | python     | backend-web-db | L1, L2, L3, L4 |
+| `python-backend-web-ecs`       | python     | backend-web-db | L1, L2, L3, L4 |
+| `python-bdd`                   | python     | library        | L1, L2, L3, L4 |
+| `python-data-pipeline`         | python     | data-pipeline  | L1, L2, L3, L4 |
+| `python-library`               | python     | library        | L1, L2, L3, L4 |
+| `rust-bdd`                     | rust       | library        | L1, L2, L3, L4 |
+| `rust-cli`                     | rust       | cli            | L1, L2, L3, L4 |
+| `rust-embedded`                | rust       | embedded       | L1             |
+| `rust-library`                 | rust       | library        | L1, L2, L3, L4 |
+| `ts-backend-web-db`            | typescript | backend-web-db | L1, L2, L3, L4 |
+| `ts-backend-web-db-ghcr`       | typescript | backend-web-db | L1, L2, L3, L4 |
+| `ts-backend-web-db-none`       | typescript | backend-web-db | L1, L2, L3, L4 |
+| `ts-bdd`                       | typescript | library        | L1, L2, L3, L4 |
+| `ts-codex-only`                | typescript | library        | L1             |
+| `ts-frontend-spa`              | typescript | frontend-spa   | L1, L2, L3, L4 |
+| `ts-library`                   | typescript | library        | L1, L2, L3, L4 |
+| `vue-frontend-spa`             | typescript | frontend-spa   | L1, L2, L3, L4 |
+| `zero-gh-invariant`            | typescript | library        | L1, L2         |
 
-11 fixtures (with varying levels) = 25 matrix jobs. The aggregate step requires ≥10 to pass.
+Each fixture directory carries a `manifest.json` declaring `language`, `archetype`, and
+`levels` (INV-32, enforced by `scripts/check-matrix-fixtures.mjs` at L1 — see
+[INV-32](#inv-32) below). The set grows as new languages/archetypes reach `proven` in
+`src/compatibility/cross-language-matrix.json`; it is no longer run through a fixed
+25-job nightly matrix with an aggregate ≥10-pass threshold — that workflow was retired
+in favor of the [Generator Matrix workflow](../../../.github/workflows/generator-matrix.yml)
+(5 DEEP cells, weekly + pre-release) and the bake-and-run harness described above.
 
 Notes on archetype-specific fixtures:
 
@@ -485,10 +510,6 @@ L2 is expected to be stricter than L1 because it adds coverage and security/depe
 
 - Python fixtures need `pytest-cov` available for coverage and `pip-audit` for dependency audit.
 - Rust fixtures need `cargo-audit` and `cargo-tarpaulin`, and public functions should satisfy the stricter lint surface that the generated project enables.
-
-### Aggregate step fails with "only N of ≥10 passed"
-
-Fewer than 10 matrix cells reported `conclusion === "success"` via the GitHub Jobs API. Check the individual run cells in the Actions UI — look for infra failures vs. real Arbiter regressions.
 
 ### `check-matrix-fixtures.mjs` fails with "language X has proven cells but no fixture"
 

@@ -109,7 +109,7 @@ step is reported as `TIMEOUT`, separately from a command or assertion failure.
 | Language   | Detected from              | Build tool   | Lint          | Format   | Status       |
 | ---------- | -------------------------- | ------------ | ------------- | -------- | ------------ |
 | TypeScript | `package.json`             | npm          | eslint        | prettier | Supported    |
-| Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | —        | Supported    |
+| Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | spotless | Supported    |
 | Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  | Supported    |
 | Go         | `go.mod`                   | go           | golangci-lint | gofmt    | Supported    |
 | Python     | `pyproject.toml`           | pip/uv       | ruff          | ruff     | Supported    |
@@ -122,8 +122,9 @@ step is reported as `TIMEOUT`, separately from a command or assertion failure.
 [`examples/ts-library/`](examples/ts-library/), [`examples/python-library/`](examples/python-library/),
 and [`examples/go-library/`](examples/go-library/) are exactly what `arbiter init` generates today for
 each of these three stacks (TypeScript, Python, Go) — not a hand-curated demo. A dedicated CI cell in the
-[Generator Matrix workflow](.github/workflows/generator-matrix.yml) regenerates all three on every
-run and fails the build on any drift, so these directories can't go stale. See
+[Generator Matrix workflow](.github/workflows/generator-matrix.yml) regenerates all three on a
+weekly cadence and before every pre-release, and fails the build on any drift, so these
+directories can't go stale. See
 [`examples/README.md`](examples/README.md) for how to regenerate them yourself and for the
 hand-written walkthroughs covering the other archetypes (frontend-spa, backend-web-db, cli,
 data-pipeline).
