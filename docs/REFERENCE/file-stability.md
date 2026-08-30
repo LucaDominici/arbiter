@@ -380,11 +380,12 @@ Measured on a pinned, origin-free clone of the java consumer: 254 files restored
 which #2295 found only two matching an emitted name (measured there at 92 emitted checks, on the arbiter
 version current at the time). That parallel, uninvoked gate spine is the concrete harm the silence hid.
 
-**Known gap — `update --adopt-plan` does not preview restorations.** `partitionPlanResults` buckets on
-`replaced`/`backed-up-and-replaced` and on `withheld`; a restoration is `created`, so it lands in neither and
-the read-only preview stays silent about files the real run will put back. Same class as the two write
-channels #2120 surfaced and the deletions #2221 added as `wouldRetire` — registered here rather than fixed
-in #2295, whose scope is the run itself — tracked as #2305.
+**`update --adopt-plan` previews restorations too (#2305).** `partitionPlanResults` buckets a re-emission
+(`action: 'created'`, `restored: true`) into its own `restore` bucket — distinct from `replaced`/
+`backed-up-and-replaced` (`regenerate`) and from `withheld` — so a file the real run would put back is named
+under "would restore N file(s)" before anything is written. `update --json` carries the same set as
+`data.wouldRestore`. Same class as the two write channels #2120 surfaced and the deletions #2221 added as
+`wouldRetire`: a write channel the run declares must never be a preview channel the plan stays silent about.
 
 ### Protected classes — three classes, and only one adopts by default
 
