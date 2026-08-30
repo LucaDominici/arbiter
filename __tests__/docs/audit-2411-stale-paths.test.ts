@@ -114,10 +114,15 @@ describe('#2411 — PRD-DOCS-EVOLUTION.md counts do not overclaim', () => {
   })
 })
 
-describe('#2411 — CANONICAL_PATHS.md QUICKSTART alias', () => {
-  it('no longer claims docs/QUICKSTART.md redirects to CONTRIBUTING.md now that the file exists again', () => {
+// Correction: the #1242 consolidation invariant (__tests__/docs/consolidation-1242.test.ts)
+// requires the alias row to stay forever, append-only, even though docs/QUICKSTART.md was
+// later deliberately repurposed as its own doc (T7, #1770) — same precedent already applied
+// to docs/architecture/README.md in that test. Removing the row broke that invariant, so the
+// row is kept; this is documented behavior, not a bug this issue fixes.
+describe('#2411 — CANONICAL_PATHS.md QUICKSTART alias stays (append-only trail)', () => {
+  it('docs/QUICKSTART.md exists again as its own doc, and the historical alias row is preserved per policy', () => {
     expect(existsSync(resolve('docs/QUICKSTART.md'))).toBe(true)
-    expect(canonicalPaths).not.toMatch(/`docs\/QUICKSTART\.md`\s*\|\s*`docs\/CONTRIBUTING\.md`/)
+    expect(canonicalPaths).toMatch(/`docs\/QUICKSTART\.md`\s*\|\s*`docs\/CONTRIBUTING\.md`/)
   })
 })
 
@@ -135,7 +140,9 @@ describe('#2411 — ENGINEERING_DEFAULTS.md complexity limits and detector scope
   })
 
   it('does not overclaim readFileSync is forbidden when it is not gate-enforced', () => {
-    expect(engineeringDefaults).not.toContain('Direct `readFileSync` calls are forbidden in detectors.')
+    expect(engineeringDefaults).not.toContain(
+      'Direct `readFileSync` calls are forbidden in detectors.',
+    )
   })
 })
 

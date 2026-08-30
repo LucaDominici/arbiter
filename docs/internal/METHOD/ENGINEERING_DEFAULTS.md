@@ -104,10 +104,10 @@ Deliverables are NOT: "using the Strategy Pattern" or "adding an Abstract Factor
 
 ## Rule
 
-File reads in `src/detectors/` should go through the shared helpers in
+All file reads in `src/detectors/` MUST go through the shared helpers in
 `src/utils/safe-read.ts`. This is not currently gate-enforced — no check script scans
 `src/detectors/` for direct `readFileSync` calls — and several detectors (including
-`scaffold-wiring.ts`, listed in Scope below) still use `readFileSync` directly.
+`scaffold-wiring.ts`, listed in Scope below) still call it directly.
 
 ## Helpers
 
