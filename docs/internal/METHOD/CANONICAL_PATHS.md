@@ -50,7 +50,6 @@ related: []
 | `docs/SYSTEM/ID-STABILITY.md`                 | `docs/GOVERNANCE.md`                            | 2026-06-08 |
 | `docs/METHOD/TAG_TAXONOMY.md`                 | `docs/GOVERNANCE.md`                            | 2026-06-08 |
 | `docs/GOVERNANCE/GOOD-FIRST-ISSUE-POLICY.md`  | `docs/GOVERNANCE.md`                            | 2026-06-08 |
-| `docs/QUICKSTART.md`                          | `docs/CONTRIBUTING.md`                          | 2026-06-08 |
 | `docs/SETUP.md`                               | `docs/CONTRIBUTING.md`                          | 2026-06-08 |
 | `docs/install/windows.md`                     | `docs/CONTRIBUTING.md`                          | 2026-06-08 |
 | `docs/CODING_STANDARDS.md`                    | `docs/CONTRIBUTING.md`                          | 2026-06-08 |

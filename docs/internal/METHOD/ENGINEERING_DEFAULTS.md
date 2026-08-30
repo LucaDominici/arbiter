@@ -64,9 +64,9 @@ Deliverables are NOT: "using the Strategy Pattern" or "adding an Abstract Factor
 | Metric                            | Limit | Target |
 | --------------------------------- | ----- | ------ |
 | Cognitive complexity per function | 15    | <10    |
-| Nesting depth                     | 3     | ≤2     |
+| Nesting depth                     | 4     | ≤2     |
 | Parameters per function           | 5     | ≤3     |
-| Lines per function                | 40    | <25    |
+| Lines per function                | 100   | <25    |
 | Exported symbols per module       | 10    | ≤7     |
 
 **Enforcement:** ESLint `complexity` rule + `max-depth` + `max-params`.
@@ -104,8 +104,10 @@ Deliverables are NOT: "using the Strategy Pattern" or "adding an Abstract Factor
 
 ## Rule
 
-All file reads in `src/detectors/` MUST go through the shared helpers in
-`src/utils/safe-read.ts`. Direct `readFileSync` calls are forbidden in detectors.
+File reads in `src/detectors/` should go through the shared helpers in
+`src/utils/safe-read.ts`. This is not currently gate-enforced — no check script scans
+`src/detectors/` for direct `readFileSync` calls — and several detectors (including
+`scaffold-wiring.ts`, listed in Scope below) still use `readFileSync` directly.
 
 ## Helpers
 
@@ -127,8 +129,7 @@ operators need to see (#684).
 
 ## Scope
 
-Applies to: `src/detectors/build.ts`, `src/detectors/framework.ts`,
-`src/detectors/scaffold-wiring.ts`, and any future detector added under `src/detectors/`.
+Applies to: every file under `src/detectors/`.
 
 Does NOT apply to test helpers or scripts.
 

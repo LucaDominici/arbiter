@@ -100,13 +100,18 @@ step is reported as `TIMEOUT`, separately from a command or assertion failure.
 **Supported:** TypeScript, Python, Go · Claude Code, Codex.
 **Experimental:** Java, Kotlin, Rust · Cursor, Aider, Copilot, Gemini, Windsurf.
 
-| Language   | Detected from              | Build tool   | Lint          | Format   | Status       |
-| ---------- | -------------------------- | ------------ | ------------- | -------- | ------------ |
-| TypeScript | `package.json`             | npm          | eslint        | prettier | Supported    |
-| Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | —        | Experimental |
-| Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  | Experimental |
-| Go         | `go.mod`                   | go           | golangci-lint | gofmt    | Supported    |
-| Python     | `pyproject.toml`           | pip/uv       | ruff          | ruff     | Supported    |
+| Language   | Detected from                            | Build tool   | Lint          | Format   | Static analysis maturity¹ |
+| ---------- | ---------------------------------------- | ------------ | ------------- | -------- | ------------------------- |
+| TypeScript | `package.json`                           | npm          | eslint        | prettier | proven                    |
+| Java       | `pom.xml` / `build.gradle`               | gradle/maven | checkstyle    | spotless | proven                    |
+| Rust       | `Cargo.toml`                             | cargo        | clippy        | rustfmt  | proven                    |
+| Go         | `go.mod`                                 | go           | golangci-lint | gofmt    | proven                    |
+| Python     | `pyproject.toml`                         | pip/uv       | ruff          | ruff     | proven                    |
+| Kotlin     | `build.gradle.kts` (+ `src/main/kotlin`) | gradle       | detekt        | —        | beta                      |
+
+> ¹ From `src/compatibility/cross-language-matrix.json`'s `static_analysis` category — the
+> lint/format tooling above. It is not the same axis as the Supported/Experimental split
+> below, which also weighs mutation/contract/e2e coverage and real-project testing depth.
 
 ---
 
@@ -115,8 +120,9 @@ step is reported as `TIMEOUT`, separately from a command or assertion failure.
 [`examples/ts-library/`](examples/ts-library/), [`examples/python-library/`](examples/python-library/),
 and [`examples/go-library/`](examples/go-library/) are exactly what `arbiter init` generates today for
 each of the three supported stacks above — not a hand-curated demo. A dedicated CI cell in the
-[Generator Matrix workflow](.github/workflows/generator-matrix.yml) regenerates all three on every
-run and fails the build on any drift, so these directories can't go stale. See
+[Generator Matrix workflow](.github/workflows/generator-matrix.yml) regenerates all three on a
+weekly cadence and before every pre-release, and fails the build on any drift, so these
+directories can't go stale. See
 [`examples/README.md`](examples/README.md) for how to regenerate them yourself and for the
 hand-written walkthroughs covering the other archetypes (frontend-spa, backend-web-db, cli,
 data-pipeline).

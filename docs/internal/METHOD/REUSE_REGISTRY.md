@@ -52,7 +52,7 @@ Shell-facing gate helpers. Used by `scripts/check-*.mjs` and CI entry points.
 
 - path: scripts/lib/parse-check-args.mjs
 - purpose: argv parser for `scripts/check-all.mjs` that maps subcommands and
-  level aliases to check tiers (L1–L5).
+  level aliases to check tiers (L1–L4).
 - key_exports: SUBCOMMANDS
 - when_to_use: any script that needs to parse `check-all`-style level arguments
   from `process.argv`.
@@ -281,18 +281,6 @@ TypeScript utilities used across generators, commands, and the CLI core.
 - tests: `__tests__/utils/maturity-check.test.ts`
 - since: 0.1.0
 
-### perf
-
-- path: src/utils/perf.ts
-- purpose: Performance measurement utility computing p50/p95/p99 percentile
-  stats over repeated synchronous or async iterations.
-- key_exports: PercentileResult, measure
-- when_to_use: benchmarks and profiling tests that need statistical percentile
-  measurements.
-- when_to_avoid: production code paths; measurement overhead is not negligible.
-- tests: no dedicated test is currently registered
-- since: 0.1.0
-
 ### platform
 
 - path: src/utils/platform.ts
@@ -352,19 +340,6 @@ TypeScript utilities used across generators, commands, and the CLI core.
   profile for debugging slow runs.
 - when_to_avoid: production code paths or test suites; profiling is opt-in.
 - tests: (see source)
-- since: 0.1.0
-
-### release-bucket
-
-- path: src/utils/release-bucket.ts
-- purpose: Four-way release tier bucket (`lib`/`service`/`cli`/`batch`)
-  mapping archetypes to their publish job type.
-- key_exports: ReleaseBucket, getReleaseBucket
-- when_to_use: release workflow generators and maturity checks that need the
-  publish tier for a given archetype.
-- when_to_avoid: contexts where the archetype is unknown or the bucket is
-  hardcoded in configuration.
-- tests: no dedicated test is currently registered
 - since: 0.1.0
 
 ### render
@@ -428,32 +403,6 @@ TypeScript utilities used across generators, commands, and the CLI core.
 - when_to_avoid: required files where absence is an error; use `readFileSync`
   directly and let it throw.
 - tests: `__tests__/utils/safe-read.test.ts`
-- since: 0.1.0
-
-### seed
-
-- path: src/utils/seed.ts
-- purpose: Deterministic seeded RNG and clock for byte-identical generator
-  output plus canonical JSON hashing.
-- key_exports: SeededRng, seededClock, canonicalJsonHash
-- when_to_use: generators and tests that need reproducible pseudo-random values
-  without `Date.now()` or `Math.random()`.
-- when_to_avoid: security-sensitive contexts; the RNG is deterministic, not
-  cryptographic.
-- tests: no dedicated test is currently registered
-- since: 0.1.0
-
-### vault-sync
-
-- path: src/utils/vault-sync.ts
-- purpose: Write vault files with `arbiter:generated` markers for idempotent
-  emission and preservation of manual edits between regenerations.
-- key_exports: writeVaultFile, updateVaultFile
-- when_to_use: generators that emit files the user may edit and that must
-  survive re-generation without overwriting changes.
-- when_to_avoid: fully machine-owned files where overwrite-on-regenerate is
-  the intended semantics; use `fs.writeFile` directly.
-- tests: no dedicated test is currently registered
 - since: 0.1.0
 
 ---

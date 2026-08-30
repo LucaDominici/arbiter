@@ -7,13 +7,7 @@ owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference', 'doc-standard', 'gold-doc']
 related:
-  [
-    'standards/gold-doc-set.yml',
-    'scripts/check-doc-set.mjs',
-    'scripts/check-monthly-freshness.mjs',
-    'docs/audit/IS-ARBITER-WORTH-IT.md',
-    'docs/design/solo-developer-gate-model.md',
-  ]
+  ['standards/gold-doc-set.yml', 'scripts/check-doc-set.mjs', 'scripts/check-monthly-freshness.mjs']
 ---
 
 # Enterprise Software Documentation Standard (2026)

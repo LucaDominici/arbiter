@@ -33,13 +33,18 @@ related: ['docs/internal/SYSTEM/CANON.md']
 
 ## Dimensions
 
-| ID               | Title                                      | Pass condition                                                                       |
-| ---------------- | ------------------------------------------ | ------------------------------------------------------------------------------------ |
-| D-TEST-LEVELS    | Declared test levels populated             | `test-pyramid.json` present; every `status:required` level has ≥1 matching test file |
-| D-LIVE-E2E       | Non-mocked live API e2e layer exists       | `*.e2e.ts` or `e2e/**/*.ts` files found in the repo tree                             |
-| D-FE-RENDER-GATE | FE archetypes have behavioural/visual gate | playwright/vitest-browser/chromatic config found (skip when archetype is non-FE)     |
-| D-DOMAIN-API     | Domain↔API surface completeness checked    | OpenAPI spec file or Pact config found                                               |
-| D-DONE-EVIDENCE  | Done-evidence requires reality-contact     | `.arbiter/evidence/` directory exists and contains evidence files                    |
+| ID                    | Title                                         | Pass condition                                                                                   |
+| --------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| D-TEST-LEVELS         | Declared test levels populated                | `test-pyramid.json` present; every `status:required` level has ≥1 matching test file             |
+| D-LIVE-E2E            | Non-mocked live API e2e layer exists          | `*.e2e.ts` or `e2e/**/*.ts` files found in the repo tree                                         |
+| D-FE-RENDER-GATE      | FE archetypes have behavioural/visual gate    | playwright/vitest-browser/chromatic config found (skip when archetype is non-FE)                 |
+| D-DOMAIN-API          | Domain↔API surface completeness checked       | OpenAPI spec file or Pact config found                                                           |
+| D-DONE-EVIDENCE       | Done-evidence requires reality-contact        | `.arbiter/evidence/` directory exists and contains evidence files                                |
+| D-GATE-GREEN          | Local gate most recently ran green            | `.arbiter/gate/local-result.json` has `pass: true`                                               |
+| D-COVERAGE-THRESHOLDS | All coverage metrics ≥ 80%                    | `coverage/coverage-summary.json` totals all meet the 80% floor                                   |
+| D-INVARIANTS-ENFORCED | Invariants catalog is present                 | `src/invariants/catalog.ts`, `.arbiter/invariants.json`, or a non-trivial `GLOBAL_INVARIANTS.md` |
+| D-NO-OVERCLAIM        | Done-evidence explicitly asserts no overclaim | `.claude/.last-done-evidence.json` has `no_overclaim: true`                                      |
+| D-COMMIT-HYGIENE      | Commit message hygiene enforced               | non-empty `.githooks/`/`.husky/` AND a non-empty commitlint config                               |
 
 ---
 
@@ -105,5 +110,6 @@ The following are deferred to follow-up issues:
 - Integration with `gold-audit.mjs` (registry-driven YAML checks)
 - `--output <file>` flag to write the report to a markdown file
 - Detailed spec for `D-DONE-EVIDENCE` reality-contact criteria (awaiting Luca's spec)
-- Additional discipline dimensions: gate green, coverage, invariants, no overclaim,
-  docs convention (queued feature #1 in the issue)
+- Additional discipline dimension: docs convention (queued feature #1 in the issue;
+  gate-green/coverage/invariants/no-overclaim have since shipped as
+  D-GATE-GREEN/D-COVERAGE-THRESHOLDS/D-INVARIANTS-ENFORCED/D-NO-OVERCLAIM above)

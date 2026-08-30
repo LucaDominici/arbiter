@@ -18,6 +18,13 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
+> **Historical — paths superseded.** M1-M4 deliverable paths below reflect the original
+> 2026-05 doc layout (`docs/ADR/`, `docs/architecture/`, `docs/REFERENCE/`, flat `docs/`
+> root files). The tree was reorganized into `docs/internal/...` in later milestones; see
+> `docs/internal/METHOD/CANONICAL_PATHS.md` for the current location of every moved file.
+> Deliverable paths below are kept as originally written, for audit-trail fidelity — do
+> not follow them literally.
+
 ## M1 — Documentation Foundation ✅ DONE
 
 **Issue:** #10
@@ -165,9 +172,9 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 **Deliverables:**
 
 - `.github/workflows/ci.yml` — New `docs-check` job (blocks merge if code changes with no docs changes)
-- `docs/ADR/012-doc-enforcement.md` — Decision: 3-layer docs enforcement
-- `docs/ADR/013-testing-matrix.md` — Decision: fixture-based per-claim testing
-- `src/templates/github/ci.yml.ejs` — Updated: include docs-check for L2+ governed projects
+- `docs/internal/ADR/012-doc-enforcement.md` — Decision: 3-layer docs enforcement
+- `docs/internal/ADR/013-testing-matrix.md` — Decision: fixture-based per-claim testing
+- `src/templates/github/workflows/five-lane/ci.yml.ejs` — Updated: include docs-check for L2+ governed projects
 
 **Exit criteria:** PRs changing `src/` without `docs/` fail CI on arbiter itself. Arbiter generates the same enforcement for L2+ target projects.
 
@@ -245,7 +252,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 **Deliverables:**
 
-- `src/templates/github/workflows/ci.yml.ejs` — Go and Python CI job branches
+- `src/templates/github/workflows/five-lane/ci.yml.ejs` — Go and Python CI job branches
 - `src/templates/scripts/check-all.mjs.ejs` — Go and Python gate checks
 - `src/templates/agents-md/AGENTS.md.ejs` — Go and Python coding standards + invariants
 - `src/detectors/language-hooks.ts` — Go hooks (error handling), Python hooks (type hints)
@@ -712,7 +719,7 @@ Nightly pipeline:
 Evidence harness:
 
 - Generate `.evidence/` directory structure
-- Generate `scripts/evidence-collect.mjs` — collects logs, reports, generates `SUMMARY.json`
+- Generate `evidence-collect.mjs.ejs` — collects logs, reports, generates `SUMMARY.json`
 - SUMMARY.json schema: `{obs_gate: "PASS"|"FAIL", tests: {...}, coverage: {...}, timestamp, commit}`
 - Gate: evidence REQUIRED for L3 merge
 
@@ -773,7 +780,7 @@ Playwright quality (frontend-spa TypeScript only):
 
 Gate (dual-sided, CANON-01/14):
 
-- `scripts/check-test-naming.mjs.ejs` — language-specific naming convention gate (HARD L1+) for all 5 stacks
+- `src/templates/scripts/check-test-naming.mjs.ejs` — language-specific naming convention gate (HARD L1+) for all 5 stacks
 - Wired in `check-all.mjs.ejs` and in arbiter's own `scripts/check-all.mjs`
 
 **Dependencies:** M26, MH (#89 — test pyramid profile).
@@ -1010,12 +1017,11 @@ all six header markers while preserving this audit's historical finding.
 | #2019 | docs(ssot): retarget stale governance paths to docs/internal/...                                    | OPEN  |
 | #2024 | docs(gap): land GAP.md — verified claim inventory (run #2000)                                       | OPEN  |
 
-**Verified-claim inventory:** `docs/internal/SYSTEM/GAP.md` (landing via #2024, not
-yet on `main` as of this reconciliation; not to be confused with the generated
-feature-gap register at `docs/internal/PRODUCT/GAP.md`) is the current
+**Verified-claim inventory:** `docs/internal/SYSTEM/GAP.md` (landed; not to be confused
+with the generated feature-gap register at `docs/internal/PRODUCT/GAP.md`) is the current
 ground-truth audit of 78 documentation/enforcement claims: 46 VERO, 5 FALSO, 9
 PARZIALE, 4 VACUO, 2 GRANDFATHERED (VERO but ratchet-excused). Treat it as the
-authoritative claim inventory once merged.
+authoritative claim inventory.
 
 ### c. Operative source of truth
 

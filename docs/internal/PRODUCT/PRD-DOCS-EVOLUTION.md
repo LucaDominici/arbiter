@@ -17,7 +17,7 @@ related: []
 
 ## 1. Problem
 
-arbiter has **333 documentation files**. The owner — who hand-wrote ~none of them; they are
+arbiter has far more documentation files than a single owner can navigate. The owner — who hand-wrote ~none of them; they are
 LLM-generated — gets lost navigating them. The hand-maintained surface is far larger than what is
 actually authoritative. The bespoke Obsidian "knowledge-map" machinery (scripts + gh-action sync +
 manual vault curation) adds maintenance cost without solving navigation. Meanwhile the load-bearing
@@ -26,7 +26,7 @@ marketing, and point-in-time files.
 
 ## 2. Goals
 
-- **G1.** Reduce the hand-maintained doc surface from 333 to **≈10-12 authoritative SSOT core
+- **G1.** Reduce the hand-maintained doc surface to **≈10-12 authoritative SSOT core
   files** (the things a human reads/maintains), without losing information.
 - **G2.** Replace hand-written _navigation/explanation_ with an **auto-generated, queryable wiki**
   (Karpathy LLM-Wiki pattern) grounded in source, so explanatory docs need no manual upkeep.
@@ -39,7 +39,7 @@ marketing, and point-in-time files.
 
 ## 3. Non-goals
 
-- Not touching **ADR/** (91 files) — append-only decision history.
+- Not touching **ADR/** — append-only decision history, growing on every accepted ADR.
 - Not touching **generated registries/indexes** (INDEX, SSOT_CORE_SET, DECISIONS, KNOWLEDGE_MAP→to
   be retired, HOOK-CONTRACTS, REUSE_REGISTRY, CLI/HOOKS/TEMPLATES/STACK-SUPPORT, api).
 - The wiki is **non-authoritative**: it navigates, it never overrides SSOT (CANON/invariants/ADR win
@@ -54,18 +54,18 @@ marketing, and point-in-time files.
    PLUGIN-API, SEMVER). See DISPOSITION-REGISTER §KEEP-CORE.
 2. **Generated tier** — indexes/registries (unchanged) + the **new generated wiki** (`wiki/`,
    Obsidian-compatible) compiled from source + the core.
-3. **History tier** — `docs/ADR/` (untouched).
+3. **History tier** — `docs/internal/ADR/` (untouched).
 
 ## 5. Success metrics
 
-- Hand doc count: **333 → ≤ 20** (core + gated contracts + generated indexes; ADR excluded as
-  history).
+- Hand doc count: reduced toward a **≤ 20** target (core + gated contracts + generated indexes;
+  ADR excluded as history) — not yet met; the hand-maintained surface is still well above target.
 - WIKI/DELETE executed: ≥ 80% of narrative files removed from the SSOT tree with **zero broken
   gates** (`check-all --level L2` green throughout).
 - Wiki freshness: a wiki-lint **gate** fails on any broken link / orphan / stale page → drift
   impossible.
 - Navigation: owner can answer "where is X / how does Y work" via the wiki Query in < 30s without
-  grepping 333 files.
+  grepping the full doc tree.
 - Maintenance: bespoke knowledge-map scripts + gh-action **deleted**; net LOC of doc-tooling down.
 
 ## 6. Phased delivery (sequenced — see issues)

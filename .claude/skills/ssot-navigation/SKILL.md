@@ -60,8 +60,8 @@ gh issue list --label "canon/NN-*"
 # Explain an invariant in human language
 arbiter explain INV-NN
 
-# List all active invariants (core set, default filter)
-arbiter invariants list
+# List all active invariants and error codes, grouped by category
+arbiter explain --list
 ```
 
 ## Anti-Patterns
