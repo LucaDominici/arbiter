@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2431",
+  "test_path": "__tests__/helpers/external-seat-budget.test.ts",
+  "test_commit_sha": "3ec439cd2462aa1658c8710cefd98499d40bbe24",
+  "test_blob_sha": "20e9eedaeb638252f81031518c040a218a700b28",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/helpers/external-seat-budget.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  21:32:40\n   Duration  668ms (transform 127ms, setup 34ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/helpers/external-seat-budget.test.ts [ __tests__/helpers/external-seat-budget.test.ts ]\nError: Cannot find module './external-seat-budget.js' imported from __tests__/helpers/external-seat-budget.test.ts\n ❯ __tests__/helpers/external-seat-budget.test.ts:8:1\n      6| import { availableParallelism } from 'node:os'\n      7| import { ciMaxWorkers } from '../../vitest.config'\n      8| import {\n       | ^\n      9|   externalSeatHarnessTimeoutMs,\n     10|   externalSeatTimeoutMs,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/helpers/external-seat-budget.test.ts",
+  "recorded_at": "2026-08-30T21:32:41.548Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/helpers/external-seat-budget.test.ts"
+  ]
+}
