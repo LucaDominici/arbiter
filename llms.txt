@@ -7,9 +7,9 @@ arbiter tells agents WHAT rules apply, then enforces them mechanically — perso
 ## Core governance
 
 - [AGENTS.md](AGENTS.md): Canonical governance + invariants (INV-NN). Read first.
-- [GLOBAL_INVARIANTS.md](GLOBAL_INVARIANTS.md): Hand-maintained invariant mosaic (INV-01..INV-139, catalog max). Authoritative when present.
+- [GLOBAL_INVARIANTS.md](GLOBAL_INVARIANTS.md): Hand-maintained invariant mosaic (INV-01..INV-128). Authoritative when present.
 - [docs/internal/SYSTEM/CANON.md](docs/internal/SYSTEM/CANON.md): Process rules CANON-NN from audit waves #151-#186. Cite on violation.
-- [docs/INDEX.md](docs/INDEX.md): Generated index of 242 docs with canonical_id/status/kind. Navigation entry point.
+- [docs/INDEX.md](docs/INDEX.md): Generated index of 241 docs with canonical_id/status/kind. Navigation entry point.
 - [.claude/knowledge-map.json](.claude/knowledge-map.json): Machine-readable track routing (frontend/backend/docs).
 - [.claude/AGENT_REGISTRY.md](.claude/AGENT_REGISTRY.md): Sub-agents (red-team, bridge-reviewer, context-checker, codebase-scanner, ai-pr-gate) + interaction chains.
 
@@ -17,7 +17,7 @@ arbiter tells agents WHAT rules apply, then enforces them mechanically — perso
 
 - [website/reference/cli.md](website/reference/cli.md): Generated CLI reference (all subcommands, exit codes 0/1/2/78, --json envelopes). Source of truth: src/cli.ts.
 - [scripts/check-all.mjs](scripts/check-all.mjs): The gate. `node scripts/check-all.mjs L1` (pre-commit, ~2 min) / `L2` (pre-push, ~10 min) / `full` (~35 min).
-- [.claude/commands/](.claude/commands/): Slash-command runbooks for agents — [close-gold-gap.md](.claude/commands/close-gold-gap.md), [drain.md](.claude/commands/drain.md), [gap.md](.claude/commands/gap.md) (self-only), [gold-audit.md](.claude/commands/gold-audit.md), [impact.md](.claude/commands/impact.md), [levelup.md](.claude/commands/levelup.md), [replay.md](.claude/commands/replay.md) (self-only), [review-code.md](.claude/commands/review-code.md) (self-only), [ship.md](.claude/commands/ship.md), [status.md](.claude/commands/status.md) (self-only), [tabletop.md](.claude/commands/tabletop.md), [task.md](.claude/commands/task.md), [wt-close.md](.claude/commands/wt-close.md), [wt-list.md](.claude/commands/wt-list.md), [wt-open.md](.claude/commands/wt-open.md), [wt-prune.md](.claude/commands/wt-prune.md) ((self-only) = arbiter's own dogfooding process, never emitted to a generated project; see scripts/data/self-only-surfaces.json).
+- [.claude/commands/](.claude/commands/): Slash-command runbooks for agents — [ship.md](.claude/commands/ship.md) (issue -> merged PR orchestrator), [task.md](.claude/commands/task.md), [drain.md](.claude/commands/drain.md), [review-code.md](.claude/commands/review-code.md), [impact.md](.claude/commands/impact.md), [gold-audit.md](.claude/commands/gold-audit.md), [gap.md](.claude/commands/gap.md), [status.md](.claude/commands/status.md), [replay.md](.claude/commands/replay.md), [levelup.md](.claude/commands/levelup.md), [close-gold-gap.md](.claude/commands/close-gold-gap.md), [wt-open.md](.claude/commands/wt-open.md), [wt-close.md](.claude/commands/wt-close.md), [wt-list.md](.claude/commands/wt-list.md), [wt-prune.md](.claude/commands/wt-prune.md).
 
 ## Method and architecture
 

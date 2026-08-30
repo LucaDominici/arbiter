@@ -138,3 +138,4 @@ related: []
 | 117 | [Companion Skill Provenance — Detected, Never Bundled](../ADR/117-companion-skill-provenance.md) | Accepted | 2026-08-29 |
 | 118 | [`arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](../ADR/118-plugin-add-ship-minimal.md) | Accepted | 2026-08-30 |
 | 119 | [Experimental tool generators — promotion criteria, and retire all five](../ADR/119-experimental-tool-generators-retired.md) | Accepted | 2026-08-30 |
+| 120 | [Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](../ADR/120-ignore-stryker-tmp-scratch-sandbox.md) | Accepted | 2026-08-30 |
