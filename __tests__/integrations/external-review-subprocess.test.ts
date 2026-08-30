@@ -27,6 +27,9 @@ function reviewRequest(overrides: {
   timeoutMs: number
   evidenceDir: string
   env: NodeJS.ProcessEnv
+  /** Set to keep the dispatch artifact out of the checkout; omit to exercise the repo-root
+   *  default path (and the `assertSafeArbiterEvidenceRoot` guard that comes with it). */
+  dispatchEvidenceDir?: string
 }): Parameters<typeof invokeExternalReview>[0] {
   return {
     repoRoot: process.cwd(),
@@ -49,6 +52,9 @@ function reviewRequest(overrides: {
     },
     evidenceDir: overrides.evidenceDir,
     env: overrides.env,
+    ...(overrides.dispatchEvidenceDir !== undefined
+      ? { dispatchEvidenceDir: overrides.dispatchEvidenceDir }
+      : {}),
   }
 }
 
@@ -66,6 +72,9 @@ describe('external review subprocess boundary (#2357)', () => {
     writeFileSync(
       codex,
       `#!/bin/sh
+# #2431: drain stdin to EOF before doing anything else — the seat writes the prompt there,
+# and exiting without reading it makes that write race this process's exit and return EPIPE.
+cat > "$(dirname "$0")/../codex-stdin.txt"
 out=""
 while [ "$#" -gt 0 ]; do
   if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
@@ -139,6 +148,9 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
       writeFileSync(
         slowCodex,
         `#!/bin/sh
+# Drains stdin for the same reason as the fast stub above (#2431) — this one is only slow,
+# not careless.
+cat > "$(dirname "$0")/../slow-codex-stdin.txt"
 out=""
 while [ "$#" -gt 0 ]; do
   if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
@@ -159,6 +171,7 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
           taskId: '#2431',
           timeoutMs: externalSeatTimeoutMs({ ...budget, parallelism: 2 }),
           evidenceDir: join(fixture, 'evidence-starved'),
+          dispatchEvidenceDir: join(fixture, 'dispatch-starved'),
           env: slowEnv,
         }),
       )
@@ -172,6 +185,7 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
           taskId: '#2431',
           timeoutMs: externalSeatTimeoutMs({ ...budget, parallelism: 9 }),
           evidenceDir: join(fixture, 'evidence-scaled'),
+          dispatchEvidenceDir: join(fixture, 'dispatch-scaled'),
           env: slowEnv,
         }),
       )

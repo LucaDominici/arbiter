@@ -491,6 +491,9 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         codex,
         '#!/bin/sh\n' +
           'if [ "$1" = "--version" ]; then printf "codex 1.2.3\\n"; exit 0; fi\n' +
+          // #2431: drain stdin to EOF — the seat writes the prompt there, and exiting
+          // without reading it makes that write race this process's exit and return EPIPE.
+          'cat > "$(dirname "$0")/../codex-stdin.txt"\n' +
           'out=""\n' +
           'while [ "$#" -gt 0 ]; do\n' +
           '  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi\n' +
@@ -545,7 +548,10 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           2,
         )}\n`,
       )
-      writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.evidence/\ncodex-count\n')
+      writeFileSync(
+        join(dir, '.gitignore'),
+        '.claude/.task/\n.evidence/\ncodex-count\ncodex-stdin.txt\n',
+      )
 
       mkdirSync(join(dir, 'schemas'), { recursive: true })
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
