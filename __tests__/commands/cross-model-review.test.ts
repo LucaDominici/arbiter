@@ -24,6 +24,10 @@ import {
   writeExternalReviewSidecar,
 } from '../../src/commands/cross-model-review.js'
 import { runCli } from '../../src/utils/run-cli.js'
+import {
+  externalSeatHarnessTimeoutMs,
+  externalSeatTimeoutMs,
+} from '../helpers/external-seat-budget.js'
 
 const REPO_ROOT = process.cwd()
 
@@ -467,6 +471,16 @@ describe('runCrossModelReview (#2357)', () => {
 })
 
 describe('arbiter ship cross-model wiring (#2357)', () => {
+  // #2431: `timeoutMs` here is a WALL-CLOCK budget for every child the seat spawns (the
+  // codex stub, then `node scripts/record-agent-return.mjs`), and the two `spawnSync`
+  // ceilings below bound the CLI that spawns them. Pinned to idle-host literals (5 s / 30 s)
+  // this fixture asserted a true contract on a false premise: under a loaded fork pool a
+  // cold node start alone blew the 5 s, the seat degraded, and `fulfilled` failed for a
+  // reason that had nothing to do with the wiring under test. Both now derive from the
+  // vitest pool size, so the premise scales with the contention the suite itself creates.
+  const seatTimeoutMs = externalSeatTimeoutMs()
+  const harnessTimeoutMs = externalSeatHarnessTimeoutMs()
+
   it('invokes the external seat from the real CLI refactor boundary', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-ship-cross-model-'))
     try {
@@ -500,7 +514,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         diffEgressConsent: true,
         providers: ['codex'],
         slots: { codeReview: 1, redTeamReview: 0 },
-        timeoutMs: 5_000,
+        timeoutMs: seatTimeoutMs,
         onUnavailable: 'degrade',
       }
       writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)
@@ -581,7 +595,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             HOME: dir,
             PATH: `${bin}:${process.env.PATH ?? ''}`,
           },
-          timeout: 30_000,
+          timeout: harnessTimeoutMs,
         },
       )
 
@@ -642,7 +656,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             PATH: bin + ':' + (process.env.PATH ?? ''),
           },
           stdio: 'ignore',
-          timeout: 30_000,
+          timeout: harnessTimeoutMs,
         },
       )
       expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0)
@@ -650,7 +664,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  })
+  }, harnessTimeoutMs)
 
   it('treats a sidecar without taskId as stale instead of reusing its panel', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-task-required-'))
