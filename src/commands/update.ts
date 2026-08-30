@@ -39,6 +39,13 @@ import type { GeneratorKey } from '../config/diff.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { ArbiterConfigV2 } from '../utils/config.js'
 import { buildAdoptPredicate, recordLocalOverride } from './adopt-policy.js'
+import {
+  IGNORE_FILE_NAME,
+  buildSelectionPredicate,
+  loadIgnorePatterns,
+  matchesOnly,
+  type SelectionVerdict,
+} from '../config/arbiter-ignore.js'
 import type { AdoptRecord } from './adopt-policy.js'
 import {
   applyRetirement,
@@ -118,6 +125,16 @@ export interface UpdateOptions {
    * `arbiter:preserve` marker is never overwritten regardless (#1980).
    */
   refreshDerived?: boolean
+  /**
+   * #2353: restrict THIS run to the managed files matching these globs (matched
+   * against manifest keys). The inverse of `.arbiterignore`, which is permanent —
+   * `--only` is per-invocation, for adopting ONE upstream fix without re-syncing
+   * the whole generated surface. Every other managed file is skipped and KEEPS its
+   * manifest entry, so a scoped run never amputates the manifest.
+   *
+   * `.arbiterignore` wins on conflict: a committed decision outranks a flag.
+   */
+  only?: string[]
 }
 
 /**
@@ -369,10 +386,12 @@ function selectAndRun(
   }
 }
 
-/** T1: the adopt-policy hooks threaded into a generation session. */
-interface AdoptOpts {
+/** T1/#2353: the policy hooks threaded into a generation session. */
+interface SessionOpts {
   adoptPredicate: (key: string, provenanceKnown: boolean) => boolean
   onAdopt: (key: string, priorContent: string, newContent: string) => void
+  /** #2353: `.arbiterignore` / `--only`. See `config/arbiter-ignore.ts`. */
+  selectPredicate: (key: string) => SelectionVerdict
 }
 
 /**
@@ -394,13 +413,14 @@ function selectAndRunWithManifest(
   snapshot: ArbiterConfigV2 | null,
   stored: ArbiterConfigV2,
   targetDir: string,
-  adoptOpts: AdoptOpts,
+  adoptOpts: SessionOpts,
 ): ReturnType<typeof selectAndRun> {
   const prevManifest = loadGeneratedManifest(targetDir)
   beginGenerationSession({
     targetDir,
     prevHashes: prevManifest,
     adoptPredicate: adoptOpts.adoptPredicate,
+    selectPredicate: adoptOpts.selectPredicate,
     onAdopt: adoptOpts.onAdopt,
   })
   const out = selectAndRun(specs, snapshot, stored, false)
@@ -421,9 +441,14 @@ function selectAndRunWithManifest(
   // Partial, config-impacted runs still merge because untouched generators were
   // not visited and their ownership entries remain valid.
   const fullRegistryRun = out.keysRun === null || out.keysRun.has('*')
+  // #2353: an EXCLUDED key (`.arbiterignore` / `--only`) is retained on the same
+  // grounds and for a sharper reason — dropping it would make the opt-out destroy
+  // the very provenance record that lets a later un-ignore re-adopt the file, and
+  // would shrink a `--only` run's manifest to the one path it touched.
   const retainedWithheldHashes = Object.fromEntries(
     out.results.flatMap((result) => {
-      if (result.withheld !== true || result.adopted === true) return []
+      const excluded = result.excluded !== undefined
+      if (!excluded && (result.withheld !== true || result.adopted === true)) return []
       const key = manifestKey(targetDir, result.path)
       return key !== null && prevManifest[key] !== undefined ? [[key, prevManifest[key]]] : []
     }),
@@ -467,14 +492,15 @@ function runAdoptPlan(
   snapshot: ArbiterConfigV2 | null,
   stored: ArbiterConfigV2,
   targetDir: string,
-  adoptPredicate: (key: string, provenanceKnown: boolean) => boolean,
+  policy: Omit<SessionOpts, 'onAdopt'>,
 ): { records: AdoptRecord[]; results: WriteResult[]; retirement: RetirementPlan } {
   const prevManifest = loadGeneratedManifest(targetDir)
   const collected: AdoptRecord[] = []
   beginGenerationSession({
     targetDir,
     prevHashes: prevManifest,
-    adoptPredicate,
+    adoptPredicate: policy.adoptPredicate,
+    selectPredicate: policy.selectPredicate,
     onAdopt: (key, priorContent, newContent) => collected.push({ key, priorContent, newContent }),
   })
   let out: ReturnType<typeof selectAndRun>
@@ -716,6 +742,10 @@ interface UpdateSummary extends Record<string, unknown> {
   withheldSafety: number
   /** #2295: files re-emitted into a path the consumer had deleted after emission. */
   restored: number
+  /** #2353: managed files declined by `.arbiterignore`. */
+  ignored: number
+  /** #2353: managed files outside this run's `--only` allowlist. */
+  deselected: number
 }
 
 /**
@@ -798,6 +828,79 @@ function printGeneratorFailures(generatorErrorLines: string[], backendWarnings: 
       .join('\n')}\n`,
   )
   if (backendWarnings.length > 0) printBackendWarnings(backendWarnings)
+}
+
+/**
+ * #2353: the manifest keys this run's selection policy declined, by mechanism.
+ * Sorted for a deterministic report.
+ */
+function excludedKeys(
+  results: WriteResult[],
+  targetDir: string,
+  kind: 'ignored' | 'deselected',
+): string[] {
+  return results
+    .filter((r) => r.excluded === kind)
+    .map((r) => manifestKey(targetDir, r.path))
+    .filter((k): k is string => k !== null)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+}
+
+/**
+ * #2353: the operator-facing side of the opt-out. The per-file lines are printed
+ * by `printResults`; what belongs here is only what a per-file line cannot say:
+ *
+ *  - the CONFLICT — `--only` named a file `.arbiterignore` also matches. The
+ *    ignore wins (a committed decision outranks one run's flag), and silently
+ *    dropping the file would look like the flag simply did not work.
+ *  - an `--only` that selected NOTHING. A scoped run that writes nothing is
+ *    indistinguishable from a successful no-op, so it is a warning, not silence.
+ *  - an ignored SAFETY-CLASS file. Ignoring it is the consumer's call, but it takes
+ *    the hook out of `withheldSafetyKeys` and therefore out of the adopt ratchet's
+ *    view, so the bypass is stated rather than inferred. Kept OFF the warnings
+ *    channel that drives the exit code (like `retirementWarning`): a standing
+ *    configuration must not pin `update` at exit 1 forever.
+ */
+function reportSelection(
+  results: WriteResult[],
+  targetDir: string,
+  only: string[],
+  json: boolean | undefined,
+): { ignored: string[]; deselected: string[] } {
+  const ignored = excludedKeys(results, targetDir, 'ignored')
+  const deselected = excludedKeys(results, targetDir, 'deselected')
+  if (json) return { ignored, deselected }
+
+  const conflicted = only.length > 0 ? ignored.filter((k) => matchesOnly(only, k)) : []
+  if (conflicted.length > 0) {
+    process.stdout.write(
+      `\n  --only named ${conflicted.length} file(s) that ${IGNORE_FILE_NAME} also matches; ` +
+        `the ignore WINS \u2014 a committed opt-out outranks one run's flag. ` +
+        `Not written: ${conflicted.join(', ')}\n`,
+    )
+  }
+  // "matched nothing" is a property of the PATTERNS, not of what got written: an
+  // --only run against an already-up-to-date repo legitimately writes zero files.
+  const onlyMatchedSomething = results.some((r) => {
+    const key = manifestKey(targetDir, r.path)
+    return key !== null && matchesOnly(only, key)
+  })
+  if (only.length > 0 && !onlyMatchedSomething) {
+    process.stderr.write(
+      `\n  Warning: --only (${only.join(', ')}) matched no managed file \u2014 nothing was written. ` +
+        `Patterns match manifest keys; .arbiter-generated-manifest.json lists them.\n`,
+    )
+  }
+  const ignoredSafety = ignored.filter((k) => isSafetyClassKey(k))
+  if (ignoredSafety.length > 0) {
+    process.stderr.write(
+      `\n  Note: ${ignoredSafety.length} safety-class file(s) listed in ${IGNORE_FILE_NAME} ` +
+        `were not emitted: ${ignoredSafety.join(', ')}\n` +
+        `  They no longer adopt shipped security/enforcement fixes, and the safety-adopt ` +
+        `ratchet cannot see them. Remove the pattern to resume enforcement.\n`,
+    )
+  }
+  return { ignored, deselected }
 }
 
 /**
@@ -968,8 +1071,18 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     // would be adopted and stop before ANY write (config, manifest, generated
     // files, plugins, GitHub calls). Never reaches saveConfigAndSnapshot.
     const adoptPredicate = buildAdoptPredicate(options)
+    // #2353: the consumer's opt-out. `.arbiterignore` is read from the TARGET repo
+    // (a committed, permanent decision); `--only` narrows this one run. Built once
+    // and threaded into every session below so the plan and the apply can never
+    // disagree about what is in scope.
+    const only = options.only ?? []
+    const ignorePatterns = loadIgnorePatterns(targetDir)
+    const selectPredicate = buildSelectionPredicate({ patterns: ignorePatterns, only })
     if (options.adoptPlan) {
-      const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, adoptPredicate)
+      const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, {
+        adoptPredicate,
+        selectPredicate,
+      })
       printAdoptPlan(plan.records, plan.results, plan.retirement, targetDir, options.json)
       return { keysRun: null }
     }
@@ -989,8 +1102,13 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       errors: generatorErrors,
     } = selectAndRunWithManifest(specs, snapshot, nextConfig, targetDir, {
       adoptPredicate,
+      selectPredicate,
       onAdopt,
     })
+    // Computed on the REGISTRY results only, before plugin results are merged in:
+    // a plugin write carries no selection verdict, and counting it would hide an
+    // `--only` that matched nothing.
+    const selection = reportSelection(results, targetDir, only, options.json)
     const pluginResults = await runPlugins(
       targetDir,
       Array.isArray(stored.plugins) ? stored.plugins : [],
@@ -1038,6 +1156,8 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       adopted: adopted.length,
       withheldSafety: stillWithheldSafety.length,
       restored: restored.length,
+      ignored: selection.ignored.length,
+      deselected: selection.deselected.length,
     }
     emitUpdateOutcome(options, summary, generatorErrors, allWarnings)
 

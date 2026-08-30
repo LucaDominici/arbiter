@@ -734,6 +734,20 @@ program
     false,
   )
   .option(
+    '--only <globs>',
+    'Restrict this run to the managed files matching these globs (comma-separated, ' +
+      'repeatable), matched against manifest keys. Every other managed file is skipped ' +
+      'and keeps its manifest entry. .arbiterignore wins on conflict (#2353).',
+    (value: string, previous: string[]) => [
+      ...previous,
+      ...value
+        .split(',')
+        .map((g) => g.trim())
+        .filter((g) => g.length > 0),
+    ],
+    [] as string[],
+  )
+  .option(
     '--refresh-derived',
     'Force-refresh the codex-track derived file set (.agents/rules/*, .claude/hooks/* ' +
       'when codex-only, .codex/codex-adapter.mjs) even though these are skipIfExists by ' +
@@ -753,6 +767,7 @@ program
       adoptGovernance: boolean
       adoptPlan: boolean
       refreshDerived: boolean
+      only: string[]
     }) => {
       if (_channelFlag !== undefined) {
         const config = loadConfig(opts.dir ?? '.')
@@ -769,6 +784,7 @@ program
         adoptGovernance: opts.adoptGovernance,
         adoptPlan: opts.adoptPlan,
         refreshDerived: opts.refreshDerived,
+        only: opts.only,
       })
     },
   )

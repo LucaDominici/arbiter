@@ -511,12 +511,19 @@ export function printResults(results: WriteResult[], targetDir: string): void {
     // "skipped — already exists" (false claim on a clean project, M1/#1491).
     if (result.reason === 'not-applicable') continue
     const icon = result.action === 'skipped' ? '│  ' : '├──'
+    // #2353: an EXCLUDED file was declined by the repo's own selection policy, so
+    // "already exists" would be a false claim (it may not exist at all) and would
+    // hide which mechanism decided. Named ahead of the generic skip label.
     const label =
-      result.action === 'skipped'
-        ? ' (skipped — already exists)'
-        : result.action === 'backed-up-and-replaced'
-          ? ' (backed up + replaced)'
-          : ''
+      result.excluded === 'ignored'
+        ? ' — skipped (.arbiterignore)'
+        : result.excluded === 'deselected'
+          ? ' — skipped (outside --only)'
+          : result.action === 'skipped'
+            ? ' (skipped — already exists)'
+            : result.action === 'backed-up-and-replaced'
+              ? ' (backed up + replaced)'
+              : ''
     const relPath = result.path.replace(targetDir + '/', '')
     process.stdout.write(`${t('cli.init.file_entry', { icon, relPath, label })}\n`)
   }

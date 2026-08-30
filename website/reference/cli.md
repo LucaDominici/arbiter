@@ -264,13 +264,63 @@ arbiter update [options]
 
 **Options:**
 
-| Flag           | Type    | Default | Description                                                                                         |
-| -------------- | ------- | ------- | --------------------------------------------------------------------------------------------------- |
-| `--dir <path>` | string  | `cwd`   | Target directory (default: current directory)                                                       |
-| `--github`     | boolean | `false` | Force GitHub setup even if `useGitHub` is false in config                                           |
-| `--json`       | boolean | `false` | Emit machine-readable JSON output                                                                   |
-| `--force`      | boolean | `false` | Override adverse git state check (detached HEAD, rebase, merge, etc.) — emits warning and continues |
-| `-h, --help`   | —       | —       | Show help                                                                                           |
+| Flag             | Type     | Default | Description                                                                                         |
+| ---------------- | -------- | ------- | --------------------------------------------------------------------------------------------------- |
+| `--dir <path>`   | string   | `cwd`   | Target directory (default: current directory)                                                       |
+| `--github`       | boolean  | `false` | Force GitHub setup even if `useGitHub` is false in config                                           |
+| `--json`         | boolean  | `false` | Emit machine-readable JSON output                                                                   |
+| `--force`        | boolean  | `false` | Override adverse git state check (detached HEAD, rebase, merge, etc.) — emits warning and continues |
+| `--only <globs>` | string[] | `[]`    | Restrict this run to the managed files matching these globs (comma-separated, repeatable)           |
+| `-h, --help`     | —        | —       | Show help                                                                                           |
+
+### Selecting what `update` may touch
+
+By default `arbiter update` re-materializes every file recorded in
+`.arbiter-generated-manifest.json`. A project that has since grown its own
+hand-authored equivalent for part of that surface can narrow what it accepts, in
+two directions — one mechanism, matched the same way in both:
+
+| Mechanism        | Scope                | Honoured by         |
+| ---------------- | -------------------- | ------------------- |
+| `.arbiterignore` | permanent, committed | `update` and `diff` |
+| `--only <globs>` | a single run         | `update`            |
+
+`.arbiterignore` lives at the repo root and uses **gitignore syntax**: one pattern
+per line, `#` comments and blank lines skipped, `!` negates, and the **last**
+matching pattern decides. Patterns are matched against manifest keys — the
+repo-relative POSIX path each generated file is tracked under in
+`.arbiter-generated-manifest.json` — so `/AGENTS.md` is anchored to the root,
+`docs/` covers everything under `docs`, `AGENTS.md` matches at any depth, and
+`*` / `**` behave as usual.
+
+```gitignore
+# .arbiterignore — this repo keeps its own CI numbering and docs
+.github/workflows/**
+docs/
+# …but still take the shipped security hooks
+!.claude/hooks/check-no-pii.mjs
+```
+
+Semantics:
+
+- An ignored file is **never written**. `update` reports it as
+  `skipped (.arbiterignore)`; `diff` gives it its own `ignored` status and stops
+  counting it as a pending change.
+- Its entry **stays in `.arbiter-generated-manifest.json`**, so deleting the
+  pattern re-adopts the file on the next `update` — ignoring is reversible, not a
+  deletion from arbiter's ownership record.
+- `--only` is the inverse allowlist for one invocation, e.g.
+  `arbiter update --only .claude/hooks/check-no-pii.mjs,.github/labels.yml`.
+  Every other managed file is skipped and keeps its manifest entry. If `--only`
+  matches nothing, `update` warns rather than silently doing nothing.
+- On conflict, **`.arbiterignore` wins** over `--only` — a committed opt-out
+  outranks one run's flag — and the run prints which files that affected.
+- Ignoring a safety-class file (`.claude/hooks/*.mjs`) also takes it out of the
+  safety-adopt ratchet's view. That is allowed, and `update` says so on stderr.
+
+`arbiter init` does not emit an `.arbiterignore`: the file is the consumer's own,
+and a generated copy would be restored after deletion and reported as withheld
+after editing. Create it by hand when you need it.
 
 ---
 

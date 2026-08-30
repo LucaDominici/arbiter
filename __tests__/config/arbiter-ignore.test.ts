@@ -8,7 +8,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  ARBITER_IGNORE_FILE,
+  IGNORE_FILE_NAME,
   loadIgnorePatterns,
   isIgnored,
   matchesOnly,
@@ -29,7 +29,7 @@ describe('#2353 loadIgnorePatterns', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-ignore-'))
     try {
       writeFileSync(
-        join(dir, ARBITER_IGNORE_FILE),
+        join(dir, IGNORE_FILE_NAME),
         [
           '# own CI numbering scheme',
           '',

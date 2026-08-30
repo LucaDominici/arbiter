@@ -147,11 +147,10 @@ describe('#2353 diff honours .arbiterignore', () => {
     cleanupTestProject(dir)
   })
 
-  it('reports an ignored file as ignored, and does not count it as a pending change', async () => {
-    await initProject(dir)
-    writeFileSync(join(dir, '.arbiterignore'), `${IGNORED}\n`)
-    rmSync(join(dir, IGNORED))
-
+  function diffJson(target: string): {
+    hasChanges: boolean
+    files: { path: string; status: string }[]
+  } {
     const out: string[] = []
     const stdoutSpy = vi
       .spyOn(process.stdout, 'write')
@@ -159,22 +158,38 @@ describe('#2353 diff honours .arbiterignore', () => {
         out.push(String(chunk))
         return true
       })
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
     try {
-      runDiff({ dir, json: true })
+      runDiff({ dir: target, json: true })
     } finally {
       stdoutSpy.mockRestore()
-      exitSpy.mockRestore()
     }
+    return (
+      JSON.parse(out.join('')) as {
+        data: { hasChanges: boolean; files: { path: string; status: string }[] }
+      }
+    ).data
+  }
 
-    const payload = JSON.parse(out.join('')) as {
-      data: { hasChanges: boolean; files: { path: string; status: string }[] }
+  it('reports an ignored file as ignored, and stops counting it as a pending change', async () => {
+    await initProject(dir)
+    rmSync(join(dir, IGNORED))
+
+    // Self-calibrating: whatever this build's fresh init leaves pending IS the set
+    // that must flip to `ignored`, so the assertion cannot rot as templates change.
+    const before = diffJson(dir)
+    const pending = before.files.filter((f) => f.status !== 'unchanged').map((f) => f.path)
+    expect(pending).toContain(IGNORED)
+    expect(before.hasChanges).toBe(true)
+
+    writeFileSync(join(dir, '.arbiterignore'), pending.map((p) => `/${p}`).join('\n'))
+
+    const after = diffJson(dir)
+    expect(after.files.find((f) => f.path === IGNORED)?.status).toBe('ignored')
+    for (const path of pending) {
+      expect(after.files.find((f) => f.path === path)?.status).toBe('ignored')
     }
-    const entry = payload.data.files.find((f) => f.path === IGNORED)
-    expect(entry?.status).toBe('ignored')
-    // A deleted-but-ignored file is NOT a pending write: it must not pin diff's
-    // exit code at 1 forever.
-    expect(payload.data.hasChanges).toBe(false)
+    // An ignored file is not a pending write: it must not pin diff's exit code at 1.
+    expect(after.hasChanges).toBe(false)
   }, 60_000)
 })
 
@@ -196,6 +211,9 @@ describe('#2353 update --only', () => {
 
   it('writes only the matching path and PRESERVES the whole manifest', async () => {
     await initProject(dir)
+    // Settle first: a plain update prunes the keys this config no longer emits, so
+    // the comparison isolates `--only`'s effect from that pre-existing pruning.
+    await runUpdate({ dir, json: true, github: false })
     const before = manifestKeys(dir)
     rmSync(join(dir, IGNORED))
     rmSync(join(dir, KEPT))
@@ -204,8 +222,12 @@ describe('#2353 update --only', () => {
 
     expect(existsSync(join(dir, KEPT))).toBe(true)
     expect(existsSync(join(dir, IGNORED))).toBe(false)
-    // The whole point: a scoped run must not amputate the manifest to one entry.
-    expect(manifestKeys(dir).sort()).toEqual(before.sort())
+    // The whole point: a scoped run must not amputate the manifest to the one path
+    // it touched. Superset, not equality — a restored file legitimately (re-)enters
+    // the manifest, and a key must never LEAVE it because of `--only`.
+    const after = manifestKeys(dir)
+    expect(after).toEqual(expect.arrayContaining(before))
+    expect(after.length).toBeGreaterThanOrEqual(before.length)
   }, 60_000)
 
   it('lets .arbiterignore WIN over a conflicting --only, and says why', async () => {

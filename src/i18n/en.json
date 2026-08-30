@@ -237,6 +237,7 @@
       "run_update": "\n  Run `arbiter update` to apply changes.\n",
       "remote_header": "\n  Remote side effects (`arbiter update --github` would perform):",
       "remote_effect": "  \u2192 {op}  {target}",
+      "ignored_file": "  \u2013 {key}  (skipped \u2014 .arbiterignore)",
       "withheld_file": "  ! {key}  (template fix WITHHELD \u2014 user-modified)",
       "withheld_header": "\n  Withheld template fixes ({count}) \u2014 preserved because user-modified, fix NOT applied:",
       "withheld_hint": "  These files are behind the current template. Review the upstream changes and merge them manually, or run `arbiter diff --withheld` for a focused list.",
