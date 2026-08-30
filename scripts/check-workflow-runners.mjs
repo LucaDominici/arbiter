@@ -4,7 +4,7 @@
 // Validates that all workflow jobs use the expected runner label.
 // Enforcing: exits 1 on unexpected labels (#2005). Use --runner or the
 // `${{ ... }}` / `$CI_` expression forms for legitimate CI_BUILD_RUNNER_LABEL
-// customization per INV-13 — those are not violations.
+// customization per INV-89 — those are not violations.
 // Part of the anti-drift validator family (W6).
 //
 // Usage: node scripts/check-workflow-runners.mjs [--dir <path>] [--runner <label>] [--help]
@@ -21,7 +21,7 @@ const { cwd: CWD } = parseHelpAndDir(args, {
     '',
     'Validates that all workflow jobs use the expected runner label.',
     'Enforcing: exits 1 on unexpected labels (runner customization via --runner',
-    'or ${{ ... }} / $CI_ expressions is allowed per INV-13).',
+    'or ${{ ... }} / $CI_ expressions is allowed per INV-89).',
     '',
     'Options:',
     '  --dir <path>        Root directory to scan (default: cwd)',
@@ -67,7 +67,7 @@ if (violations > 0) {
   process.stdout.write(
     `check-workflow-runners: FAIL — ${violations} job(s) use non-standard runner label (INV-89). ` +
       `Use "${EXPECTED_RUNNER}", pass --runner <label>, or use a \${{ ... }}/$CI_ expression for ` +
-      `CI_BUILD_RUNNER_LABEL customization (INV-13).\n`,
+      `CI_BUILD_RUNNER_LABEL customization (INV-89).\n`,
   )
   process.exit(1)
 }

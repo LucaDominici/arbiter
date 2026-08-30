@@ -90,7 +90,7 @@
 | [ADR-004: skipIfExists on hooks, rules, and commands](internal/ADR/004-skip-if-exists.md) | 004 | active | kind/adr |
 | [ADR-005: Deep merge for settings.json](internal/ADR/005-deep-merge-settings.md) | 005 | active | kind/adr |
 | [ADR-006: TypeScript + Node for the CLI runtime](internal/ADR/006-typescript-node-cli.md) | 006 | active | kind/adr |
-| [ADR-007: 15 standard labels as canonical set](internal/ADR/007-standard-labels.md) | 007 | active | kind/adr |
+| [ADR-007: 14 standard labels as canonical set](internal/ADR/007-standard-labels.md) | 007 | active | kind/adr |
 | [ADR-008: Governance levels L1/L2/L3](internal/ADR/008-governance-levels.md) | 008 | active | kind/adr |
 | [ADR-009: EJS over Handlebars (and other template engines)](internal/ADR/009-ejs-over-handlebars.md) | 009 | active | kind/adr |
 | [ADR-010: ai-rulez coexistence — detect and skip tool configs](internal/ADR/010-ai-rulez-coexistence.md) | 010 | active | kind/adr |
@@ -106,7 +106,7 @@
 | [ADR-020: CLI-first over MCP for tool integrations](internal/ADR/020-cli-first-over-mcp.md) | 020 | active | kind/adr |
 | [ADR-021: Archetype Axis and Architecture Style Knob](internal/ADR/021-archetype-axis.md) | 021 | active | kind/adr |
 | [ADR-022 — Universal Baseline-Freeze (MB)](internal/ADR/022-universal-baseline-freeze.md) | 022 | active | kind/adr |
-| [ADR-023 — Self-Hosted CI Runner (docker-ci-build)](internal/ADR/023-self-hosted-ci-runner.md) | 023 | active | kind/adr |
+| [ADR-023 — Self-Hosted CI Runner (docker-ci-build)](internal/ADR/023-self-hosted-ci-runner.md) | 023 | superseded | kind/adr |
 | [ADR-024 — Suppression Pattern with Mandatory Expiry](internal/ADR/024-suppression-expiry-escape-hatch.md) | 024 | active | kind/adr |
 | [ADR-025 — Claim-Verified Governance Documents](internal/ADR/025-claim-verified-governance-docs.md) | 025 | active | kind/adr |
 | [ADR-026 — Scaled Thresholds and Practical/Pedantic Strictness Tiers](internal/ADR/026-scaled-thresholds.md) | 026 | active | kind/adr |

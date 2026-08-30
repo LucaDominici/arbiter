@@ -401,8 +401,8 @@
   {
     "path": "check-workflow-runners.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). 49-/27+ dominated by one substitution: self imports collectYamlFiles and parseHelpAndDir from scripts/lib/workflow-scan.mjs (self-only, so the template inlines both). The only content difference is that self's messages cite CI_BUILD_RUNNER_LABEL and INV-13 by name — arbiter's own runner-label contract (ADR-023) — where the template stays generic. The expected-label rule and the ${{ … }} / $CI_ expression escape hatch are identical. PERMANENT.",
-    "diffHash": "4a3c23503ea1f8869e2e52f5c4d7561eed9296f3c0b136d5da230735c613e8d4"
+    "reason": "Read line-by-line (#2275). 49-/27+ dominated by one substitution: self imports collectYamlFiles and parseHelpAndDir from scripts/lib/workflow-scan.mjs (self-only, so the template inlines both). The only content difference is that self's messages cite CI_BUILD_RUNNER_LABEL and INV-89 by name — arbiter's own runner-label-drift gate (fixed from a foreign INV-13 citation by #2412) — where the template stays generic. The expected-label rule and the ${{ … }} / $CI_ expression escape hatch are identical. PERMANENT.",
+    "diffHash": "bbcef615882ecc6c1c0eab83e37fbcac41054d7842306045b098c05c6b577a7d"
   },
   {
     "path": "check-workflow-test-integrity.mjs",

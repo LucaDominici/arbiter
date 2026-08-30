@@ -1,8 +1,8 @@
 ---
 title: 'ADR-023 — Self-Hosted CI Runner (docker-ci-build)'
 doc_version: '1.0.0'
-status: active
-last_review: '2026-05-20'
+status: superseded
+last_review: '2026-07-04'
 owner: ''
 canonical_id: '023'
 tags: ['audience/dev', 'kind/adr']
@@ -69,7 +69,12 @@ The `vars.CI_BUILD_RUNNER_LABEL` escape hatch allows overriding to any label (in
 
 ## 2026-05-20 — Default flipped to `ubuntu-latest` (#959)
 
-**Status:** This ADR's original "Decision" is **partially superseded** for arbiter-as-a-framework, while the override mechanism remains intact.
+**Status:** This ADR is superseded (see frontmatter). Its original per-project default
+(`docker-ci-build`) was reversed for Track B (target projects arbiter generates) by this
+amendment and closed further by the 2026-07-04 amendment below. The override mechanism
+(`CI_BUILD_RUNNER_LABEL`) remains intact and unamended. Arbiter's own CI (Track A, this
+repo) is unaffected by this flip — it still runs on `docker-ci-build`, governed directly
+by AGENTS.md's CI runner convention rather than by this ADR's now-superseded default.
 
 **Reason for flip:** arbiter is a framework for AI-assisted development on heterogeneous projects. Scaffolded projects rarely have a self-hosted pool. Defaulting to `docker-ci-build` forced new users into an infra ramp-up (registering a runner) before CI could green — a silent regression for first-time onboarding.
 

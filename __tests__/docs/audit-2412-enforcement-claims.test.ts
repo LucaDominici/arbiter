@@ -169,7 +169,9 @@ describe('#2412 — TESTING.md action-SHA claims match the real workflow pins (o
   it('bake-e2e-native is attributed to _nightly.yml, not 06-nightly.yml', () => {
     const text = read('docs/internal/METHOD/TESTING.md')
     expect(text).not.toMatch(/bake-e2e-native[^\n]*`06-nightly\.yml`/)
-    expect(text).not.toContain('mirror the same step into `src/templates/github/workflows/06-nightly.yml.ejs`')
+    expect(text).not.toContain(
+      'mirror the same step into `src/templates/github/workflows/06-nightly.yml.ejs`',
+    )
   })
 
   it('Known Posture no longer claims the RESULTS array is missing fuzz/soak (it is present)', () => {

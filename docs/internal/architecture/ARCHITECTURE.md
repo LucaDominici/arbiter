@@ -167,18 +167,20 @@ Always includes a `ci-required` job as the merge gate (required status check for
 
 ### Quality Gate Script (`scripts/check-all.mjs`)
 
-Three-level gate system:
-
-| Level | Checks                              | When                  |
-| ----- | ----------------------------------- | --------------------- |
-| L1    | Format + lint + unit tests          | Pre-commit (fast)     |
-| L2    | L1 + integration + coverage + audit | Pre-push (matches CI) |
-| L3    | L2 + E2E + evidence                 | Release / audit       |
+Two subcommands drive four back-compat governance levels (L1-L4). See the script's own
+header comment for the current, non-hand-counted list of checks per subcommand — a hand
+count here drifted twice and was removed for it (#2412):
 
 ```bash
-node scripts/check-all.mjs L1   # fast local check
-node scripts/check-all.mjs L2   # full gate (default)
-node scripts/check-all.mjs       # defaults to L2
+node scripts/check-all.mjs check   # T1 fast checks (~2 min) — pre-commit
+node scripts/check-all.mjs gate    # T1+T2 extended checks (~10 min, default) — pre-push, matches CI
+node scripts/check-all.mjs full    # gate + T3 dry-run (~35 min) — release / audit
+
+# Back-compat level aliases:
+node scripts/check-all.mjs L1   # -> check --level L1
+node scripts/check-all.mjs L2   # -> gate  --level L2 (default)
+node scripts/check-all.mjs L3   # -> gate  --level L3
+node scripts/check-all.mjs L4   # -> gate  --level L4
 ```
 
 ### Labels
