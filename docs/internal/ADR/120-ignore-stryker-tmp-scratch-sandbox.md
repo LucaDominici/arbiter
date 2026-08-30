@@ -4,7 +4,7 @@ doc_version: '1.0.0'
 status: active
 last_review: '2026-08-30'
 owner: ''
-canonical_id: '118'
+canonical_id: '120'
 tags: ['audience/dev', 'kind/adr']
 related: []
 ---
