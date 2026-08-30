@@ -78,15 +78,11 @@ describe('README stack tiers match cross-language-matrix.json (#2413)', () => {
     const supported = Object.values(declared).filter((r) => r.tier === 'Supported')
     const experimental = Object.values(declared).filter((r) => r.tier === 'Experimental')
     for (const row of supported) {
-      expect(
-        readme,
-        `"${row.displayName}" missing from the Supported: summary line`,
-      ).toContain(row.displayName)
+      expect(readme, `"${row.displayName}" missing from the Supported: summary line`).toContain(
+        row.displayName,
+      )
     }
-    expect(
-      experimental.length,
-      'exactly one Experimental language expected today (Kotlin)',
-    ).toBe(1)
+    expect(experimental.length, 'exactly one Experimental language expected today (Kotlin)').toBe(1)
     expect(
       readme,
       `"${experimental[0].displayName}" missing from the Experimental: summary line`,

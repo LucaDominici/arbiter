@@ -475,11 +475,13 @@ describe('gate-registry INV-label correctness (#2413)', () => {
   const SHARED_INVARIANT_EXCEPTIONS: Record<string, string> = {
     // INV-25's catalog text only names the pre-push hook; check-min-test-execution.mjs
     // is documented as INV-25's generated-target sibling in scripts/canon01-self-only.json.
-    'min-test-execution': 'INV-25 shares scripts/canon01-self-only.json documentation with check-min-test-execution.mjs, not named in the catalog entry itself',
+    'min-test-execution':
+      'INV-25 shares scripts/canon01-self-only.json documentation with check-min-test-execution.mjs, not named in the catalog entry itself',
     // INV-124's catalog text only names check-test-pyramid.mjs; test-scope-tier
     // enforces the same "declared test levels must be non-empty" invariant via a
     // sibling script.
-    'test-scope-tier': 'INV-124 covers both check-test-pyramid.mjs and check-test-scope-tier.mjs; only the former is named in the catalog text',
+    'test-scope-tier':
+      'INV-124 covers both check-test-pyramid.mjs and check-test-scope-tier.mjs; only the former is named in the catalog text',
   }
 
   const entryRe =

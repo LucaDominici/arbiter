@@ -97,16 +97,23 @@ step is reported as `TIMEOUT`, separately from a command or assertion failure.
 
 ## Stack support
 
-**Supported:** TypeScript, Python, Go · Claude Code, Codex.
-**Experimental:** Java, Kotlin, Rust · Cursor, Aider, Copilot, Gemini, Windsurf.
+**Supported:** TypeScript, Java, Go, Python, Rust · Claude Code, Codex.
+**Experimental:** Kotlin · Cursor, Aider, Copilot, Gemini, Windsurf.
+
+> Tier rule: a language is **Supported** iff all of its _required cells_ —
+> `static_analysis`, `coverage`, `architecture`, `security` in
+> [`src/compatibility/cross-language-matrix.json`](src/compatibility/cross-language-matrix.json)
+> — are `proven`; otherwise **Experimental**. Kotlin is `beta` on all four, so
+> it is the sole Experimental language today.
 
 | Language   | Detected from              | Build tool   | Lint          | Format   | Status       |
 | ---------- | -------------------------- | ------------ | ------------- | -------- | ------------ |
 | TypeScript | `package.json`             | npm          | eslint        | prettier | Supported    |
-| Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | —        | Experimental |
-| Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  | Experimental |
+| Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | —        | Supported    |
+| Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  | Supported    |
 | Go         | `go.mod`                   | go           | golangci-lint | gofmt    | Supported    |
 | Python     | `pyproject.toml`           | pip/uv       | ruff          | ruff     | Supported    |
+| Kotlin     | `build.gradle.kts`         | gradle       | detekt        | —        | Experimental |
 
 ---
 
@@ -114,7 +121,7 @@ step is reported as `TIMEOUT`, separately from a command or assertion failure.
 
 [`examples/ts-library/`](examples/ts-library/), [`examples/python-library/`](examples/python-library/),
 and [`examples/go-library/`](examples/go-library/) are exactly what `arbiter init` generates today for
-each of the three supported stacks above — not a hand-curated demo. A dedicated CI cell in the
+each of these three stacks (TypeScript, Python, Go) — not a hand-curated demo. A dedicated CI cell in the
 [Generator Matrix workflow](.github/workflows/generator-matrix.yml) regenerates all three on every
 run and fails the build on any drift, so these directories can't go stale. See
 [`examples/README.md`](examples/README.md) for how to regenerate them yourself and for the
@@ -176,8 +183,8 @@ network calls. See [PRIVACY.md](PRIVACY.md).
 
 ## Status
 
-Beta. TypeScript, Python, and Go are supported; Java, Kotlin, and Rust are
-experimental. Issues and PRs welcome — no SLA.
+Beta. TypeScript, Java, Go, Python, and Rust are supported; Kotlin is
+experimental (see [Stack support](#stack-support) for the tier rule). Issues and PRs welcome — no SLA.
 
 ---
 

@@ -65,13 +65,15 @@ describe('#2246 — FEATURE_MATRIX.md arbiter-internal rows cite GATE-tier evide
     )
   })
 
-  it('REQ-044 cites check-plugin-api-stability.test.ts and flags the code_ref finding', () => {
+  // #2413: the #2246 backfill's own FINDING (code_ref pointed at a never-existed
+  // src/commands/plugin.ts) is now fixed — code_ref repoints to the real loader
+  // module and the gate enforces ref-existence on Partial rows going forward
+  // (see __tests__/scripts/check-feature-matrix.test.ts), so this pin now
+  // asserts the corrected citation instead of the stale finding.
+  it('REQ-044 cites check-plugin-api-stability.test.ts and a real code_ref', () => {
     const doc = read(MATRIX)
     expect(doc).toContain(
-      '| REQ-044 | Plugin system |  | L2 | Partial | src/commands/plugin.ts | __tests__/scripts/check-plugin-api-stability.test.ts |',
-    )
-    expect(doc).toContain(
-      'FINDING (#2246 backfill): code_ref src/commands/plugin.ts does not exist',
+      '| REQ-044 | Plugin system |  | L2 | Partial | src/utils/plugin-loader.ts | __tests__/scripts/check-plugin-api-stability.test.ts |',
     )
   })
 })

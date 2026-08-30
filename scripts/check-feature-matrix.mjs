@@ -497,6 +497,12 @@ for (const row of rows) {
   // whenever non-empty, independent of status ladder outcome below.
   checkVerificationTier(row, failures)
 
+  // AC-1 (#2413): ref existence is checked for EVERY status whenever a
+  // code_ref/test_ref/doc_ref cell is non-empty, not just Done/Verified — a
+  // stale ref on a Partial row (the audit's REQ-044/REQ-054 defects) is just
+  // as false as one on a Done row.
+  checkAllRefs(row, projectRoot, failures, id)
+
   if (!['Missing', 'Partial', 'Done', 'Verified'].includes(status)) {
     failures.push(`${id}: unknown status "${status}"`)
     continue
@@ -522,7 +528,6 @@ for (const row of rows) {
     if (!row.codeRef.trim()) failures.push(`${id}: Done requires code_ref`)
     if (!row.testRef.trim()) failures.push(`${id}: Done requires test_ref`)
     if (!row.docRef.trim()) failures.push(`${id}: Done requires doc_ref`)
-    checkAllRefs(row, projectRoot, failures, id)
     continue
   }
 
@@ -531,7 +536,6 @@ for (const row of rows) {
     if (!row.testRef.trim()) failures.push(`${id}: Verified requires test_ref`)
     if (!row.docRef.trim()) failures.push(`${id}: Verified requires doc_ref`)
     if (!row.issueRef.trim()) failures.push(`${id}: Verified requires issue_ref`)
-    checkAllRefs(row, projectRoot, failures, id)
     // test_ref title parsing: check that the referenced test file exists (presence proxy)
     // Full title parsing would require reading test files — presence is the enforceable signal.
   }

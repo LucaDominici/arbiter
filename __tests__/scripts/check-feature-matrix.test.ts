@@ -298,7 +298,7 @@ describe('check-feature-matrix.mjs --check', () => {
     const matrix = makeMatrix([
       `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | no issue tracked |`,
     ])
-    const { status, stdout } = runWithMatrix(matrix)
+    const { status, stdout } = run([], matrix, { 'src/foo.ts': '' })
     expect(status).toBe(0)
     expect(stdout).toContain('lack a tracked issue_ref')
   })
@@ -308,7 +308,7 @@ describe('check-feature-matrix.mjs --check', () => {
     const matrix = makeMatrix([
       `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | #42 | tracked |`,
     ])
-    const { status, stdout } = runWithMatrix(matrix)
+    const { status, stdout } = run([], matrix, { 'src/foo.ts': '' })
     expect(status).toBe(0)
     expect(stdout).not.toContain('lack a tracked issue_ref')
   })
@@ -347,6 +347,8 @@ describe('KIT catalog error handling (#1196)', () => {
         MINIMAL_MATRIX,
         'utf-8',
       )
+      mkdirSync(join(dir, 'src'), { recursive: true })
+      writeFileSync(join(dir, 'src', 'foo.ts'), '', 'utf-8')
       // no src/kit/catalog.json
       const r = spawnSync('node', [SCRIPT, '--check'], { encoding: 'utf-8', cwd: dir })
       expect(r.status).toBe(0)
@@ -362,6 +364,7 @@ describe('source_ref upward resolution (#2163)', () => {
     'AGENTS.md': AGENTS_MD_FIXTURE,
     'docs/internal/ADR/README.md': ADR_README_FIXTURE,
     'docs/PRODUCT/PRD.md': PRD_MD_FIXTURE,
+    'src/foo.ts': '',
   }
 
   function runWithSourceRef(sourceRefCell: string): RunResult {
@@ -520,7 +523,7 @@ describe('verification_tier enum (12th column, #2242)', () => {
       const matrix = makeMatrix([
         `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | | | ${tier} |`,
       ])
-      const { status } = runWithMatrix(matrix)
+      const { status } = run([], matrix, { 'src/foo.ts': '' })
       expect(status, `tier ${tier} should pass`).toBe(0)
     }
   })
@@ -539,7 +542,7 @@ describe('verification_tier enum (12th column, #2242)', () => {
     const matrix = makeMatrix([
       `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | no tier yet |`,
     ])
-    const { status } = runWithMatrix(matrix)
+    const { status } = run([], matrix, { 'src/foo.ts': '' })
     expect(status).toBe(0)
   })
 })
