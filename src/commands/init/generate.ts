@@ -103,7 +103,7 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
 
     maybeCaptureBaseline(config, targetDir, initOptions.brownfield, packageManager)
     activateGitHooks(targetDir, log)
-    if (!initOptions.json) printInstallHint(config, targetDir, packageManager)
+    printInstallHint(config, targetDir, packageManager, initOptions.json)
     emitInitOutput(
       initOptions.json,
       generatorErrors.map((error) => `${error.key}: ${error.message}`),
@@ -210,12 +210,20 @@ function emitInitOutput(
  * `reportMissingTypescriptDependencies`), `--yes` suppresses prompts rather than
  * authorizing network work, and an install is the one side effect a user must be
  * able to run under their own manager, lockfile and registry policy.
+ *
+ * The `--json` suppression lives HERE, alongside the other two conditions that
+ * decide whether the hint applies, rather than at the call site:
+ * `generateAndFinalize` sits on the complexity ceiling, and a fourth branch
+ * there is a debt-ratchet regression for a condition that belongs to this
+ * function's own contract anyway.
  */
 function printInstallHint(
   config: ProjectConfig,
   targetDir: string,
-  packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun',
+  packageManager: 'npm' | 'pnpm' | 'yarn' | 'bun' | undefined,
+  json: boolean | undefined,
 ): void {
+  if (json === true) return
   if (!existsSync(join(targetDir, 'package.json'))) return
   if (existsSync(join(targetDir, 'node_modules'))) return
   const installCommand = `${packageManager ?? config.packageManager ?? 'npm'} install`
