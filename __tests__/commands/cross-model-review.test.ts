@@ -606,8 +606,11 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           'utf8',
         ),
       ) as { fulfilled: Array<{ envelope: string }>; degraded: unknown[] }
-      expect(artifact.fulfilled).toHaveLength(1)
-      expect(artifact.degraded).toEqual([])
+      // #2431: a bare "expected [] to have length 1" says nothing about WHY the seat did
+      // not answer, which is the one thing a load-sensitive failure has to report.
+      const why = JSON.stringify(artifact.degraded)
+      expect(artifact.fulfilled, why).toHaveLength(1)
+      expect(artifact.degraded, why).toEqual([])
       expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
         '"vendor": "openai"',
       )

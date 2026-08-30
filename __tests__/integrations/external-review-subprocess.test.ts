@@ -102,7 +102,7 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
         }),
       )
 
-      expect(result.status).toBe('fulfilled')
+      expect(result.status, result.degradationReasons.join(',')).toBe('fulfilled')
       expect(result.recorded).toBe(true)
       const taskDir = join(evidenceDir, '_2357')
       const files = readdirSync(taskDir)
@@ -146,26 +146,26 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
       // reported failure, made deterministic instead of load-dependent.
       const starved = invokeExternalReview(
         reviewRequest({
-          taskId: '#2431-starved',
+          taskId: '#2431',
           timeoutMs: externalSeatTimeoutMs({ ...budget, parallelism: 2 }),
           evidenceDir: join(fixture, 'evidence-starved'),
           env: slowEnv,
         }),
       )
-      expect(starved.status).toBe('degraded')
+      expect(starved.status, starved.degradationReasons.join(',')).toBe('degraded')
       expect(starved.degradationReasons).toContain('invocation-failed')
 
       // The same seat, the same stub, an eight-worker pool: the budget scales past what
       // the seat costs and the contract holds.
       const scaled = invokeExternalReview(
         reviewRequest({
-          taskId: '#2431-scaled',
+          taskId: '#2431',
           timeoutMs: externalSeatTimeoutMs({ ...budget, parallelism: 9 }),
           evidenceDir: join(fixture, 'evidence-scaled'),
           env: slowEnv,
         }),
       )
-      expect(scaled.status).toBe('fulfilled')
+      expect(scaled.status, scaled.degradationReasons.join(',')).toBe('fulfilled')
       expect(scaled.recorded).toBe(true)
     },
     externalSeatHarnessTimeoutMs(),
