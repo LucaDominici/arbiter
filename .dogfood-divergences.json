@@ -231,7 +231,7 @@
     "path": "check-fail-closed-audit.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self is a strict superset on two axes. (1) Corpus: self classifies .github/workflows/*.yml as a `yaml` kind and runs the `|| true` fail-open scan over workflow files; the template audits only scripts/, .githooks/ and .claude/hooks/. (2) The library allowlist: 26 named scripts/lib/* modules exempted from the entry-point error-handling contract because they export semantics rather than being entry points (gold-audit-lib, anti-fake-green-core, secret-presence-core, continue-on-error-core, doc-set-resolve, dist-staleness, acceptance-criteria, consumer-reliability-bar, self-only-surfaces (#2417 pure commands/skills/agents/hooks derivation; no entry point — consumers own the exit contract), …). Nearly every one of those files is self-only, so the list has no subject in a target. Self also handles the ENOENT readdir/stat race explicitly with a FAIL-OPEN-INTENT marker and rethrows everything else, where the template swallows. (3) #2418: self's baseline is a v2 debt LEDGER — every row dated (`since`), owned (`owner`) and bounded (`expires` <= 90 days, or a written `permanent` rationale), with the gate failing on an expired row, an over-long window, or a row whose file no longer violates (shrink-only ratchet), and `--update-baseline` preserving surviving rows verbatim while refusing a new row without `--owner`. Self also resolves catches that delegate to a file-local surfacing helper (the `fail(msg)`/`invoke(msg)` convention) and flushes its finding report via process.exitCode instead of process.exit. The template keeps the v1 bare-path list: a freshly generated project has no owner roster and no dated history to migrate from, and its first `--update-baseline` would stamp a fabricated owner on every row. PERMANENT.",
-    "diffHash": "fb134f79dfa3ad9ffda42be51e5900b57f624dabd725c61e9136be531aebc9a2"
+    "diffHash": "961c05c3333235a9c6d79b69e016992e2653da72a92467fa4e63e5c397541cbf"
   },
   {
     "dest": "scripts",
@@ -329,8 +329,8 @@
   {
     "path": "check-suppression-expiry.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). 0-/3+: the template side of the diff is EMPTY. Self adds the SPDX header, a blank comment line and a usage line. Zero executable divergence. PERMANENT (SPDX-header class, same as check-pii-scan.mjs).",
-    "diffHash": "5e186bf88aebbf88cf0f863d3350623d1632354f77ddfc014d8728bf5303b37c"
+    "reason": "Read line-by-line (#2275). The template side of the diff is EMPTY: self adds the SPDX header, a blank comment line and a usage line. #2418 adds ONE executable axis: self routes the ledger read through `readLedgerOrDie`, so a suppressions file that EXISTS but is unreadable/malformed exits 2 instead of being skipped in silence (the template still returns early, leaving the over-long-window scan vacuous for that file). Self-only because the fail-closed audit that motivates it (INV-96) is a self-superset gate; a target project's template keeps the lenient read until the same hardening ships there. PERMANENT.",
+    "diffHash": "d62e61d4de9aaec6616fc3a84d925fded1c9f63e26777d318cc789ff404fd3fd"
   },
   {
     "path": "check-suppression-rationale.mjs",
