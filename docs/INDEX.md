@@ -203,7 +203,7 @@
 | [ADR-117: Companion Skill Provenance — Detected, Never Bundled](internal/ADR/117-companion-skill-provenance.md) | 117 | active | kind/adr |
 | [ADR-118: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](internal/ADR/118-plugin-add-ship-minimal.md) | 118 | active | kind/adr |
 | [ADR-119: Experimental tool generators — promotion criteria, and retire all five](internal/ADR/119-experimental-tool-generators-retired.md) | 119 | active | kind/adr |
-| [ADR-120: Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](internal/ADR/120-ignore-stryker-tmp-scratch-sandbox.md) | 118 | active | kind/adr |
+| [ADR-120: Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](internal/ADR/120-ignore-stryker-tmp-scratch-sandbox.md) | 120 | active | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-000_template.md) | — | draft | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-TEMPLATE.md) | — | active | kind/adr |
 | [Architectural Decision Records](internal/ADR/README.md) | — | active | kind/adr |
