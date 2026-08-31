@@ -525,7 +525,9 @@ function validateRows(rows) {
     const hasExpiry = e.expires !== undefined
     const hasRationale = e.permanent !== undefined
     if (hasExpiry && hasRationale) {
-      problems.push(`${file}: carries BOTH \`expires\` and \`permanent\` — a row is one or the other`)
+      problems.push(
+        `${file}: carries BOTH \`expires\` and \`permanent\` — a row is one or the other`,
+      )
     } else if (!hasExpiry && !hasRationale) {
       problems.push(
         `${file}: needs \`expires\` (at most ${MAX_WINDOW_DAYS} days out) or a \`permanent\` rationale`,
@@ -618,7 +620,11 @@ function rebuildBaseline(findingFiles) {
       },
   )
   writeBaseline(rows)
-  return { kept: rows.length - added.length, added: added.length, dropped: priorRows.size - (rows.length - added.length) }
+  return {
+    kept: rows.length - added.length,
+    added: added.length,
+    dropped: priorRows.size - (rows.length - added.length),
+  }
 }
 
 function audit() {

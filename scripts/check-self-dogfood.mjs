@@ -91,7 +91,9 @@ export function getNpmScript(name, fallback) {
   try {
     pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
   } catch (err) {
-    throw new Error(`cannot read ${pkgPath} to resolve the "${name}" script: ${err?.message ?? err}`)
+    throw new Error(
+      `cannot read ${pkgPath} to resolve the "${name}" script: ${err?.message ?? err}`,
+    )
   }
   if (pkg.scripts && pkg.scripts[name]) {
     return `npm run ${name}`
