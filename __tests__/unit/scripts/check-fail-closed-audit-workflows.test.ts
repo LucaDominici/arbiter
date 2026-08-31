@@ -22,7 +22,7 @@ function makeRoot(): string {
   // baseline must exist so the script doesn't exit early
   writeFileSync(
     join(root, 'scripts', 'data', 'fail-closed-baseline.json'),
-    JSON.stringify({ schema: 'arbiter-fail-closed-baseline-v1', generated_at: null, files: [] }),
+    JSON.stringify({ schema: 'arbiter-fail-closed-baseline-v2', generated_at: null, files: [] }),
   )
   return root
 }
