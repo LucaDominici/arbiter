@@ -23,29 +23,44 @@ import { parse as parseYaml } from 'yaml'
 
 const CWD = process.cwd()
 
+/**
+ * Registry filenames under standards/. #2418: an unreadable registry DIRECTORY used to
+ * yield an EMPTY id set, so every `enforces:` ref was judged against nothing. Unreadable
+ * input is a hard failure — the top-level handler turns the throw into exit 1.
+ */
+function goldRegistryFiles(dir) {
+  try {
+    return readdirSync(dir).filter((f) => /^gold-registry(\.[a-z0-9]+)?\.yml$/.test(f))
+  } catch (err) {
+    throw new Error(`standards/ exists but cannot be listed: ${err?.message ?? err}`)
+  }
+}
+
+/**
+ * Check ids declared by one registry file. #2418: a malformed registry used to `continue`,
+ * contributing no ids — a ref into it was then reported as dangling (right verdict, wrong
+ * reason) or the whole registry vanished silently. Name the real fault instead.
+ */
+function registryCheckIds(dir, file) {
+  let doc
+  try {
+    doc = parseYaml(readFileSync(join(dir, file), 'utf-8'))
+  } catch (err) {
+    throw new Error(`standards/${file} is malformed and cannot be read: ${err?.message ?? err}`)
+  }
+  const checks = doc && Array.isArray(doc.checks) ? doc.checks : []
+  return checks
+    .filter((c) => c && typeof c === 'object' && typeof c.id === 'string')
+    .map((c) => c.id)
+}
+
 /** All gold-check ids declared by any standards/gold-registry(.stack).yml (any prefix — GA/GO/TS/…). */
 function goldCheckIds() {
   const ids = new Set()
   const dir = resolve(CWD, 'standards')
   if (!existsSync(dir)) return ids
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return ids
-  }
-  for (const f of entries) {
-    if (!/^gold-registry(\.[a-z0-9]+)?\.yml$/.test(f)) continue
-    let doc
-    try {
-      doc = parseYaml(readFileSync(join(dir, f), 'utf-8'))
-    } catch {
-      continue // a malformed registry contributes no ids — refs resolve only against real ids
-    }
-    const checks = doc && Array.isArray(doc.checks) ? doc.checks : []
-    for (const c of checks) {
-      if (c && typeof c === 'object' && typeof c.id === 'string') ids.add(c.id)
-    }
+  for (const file of goldRegistryFiles(dir)) {
+    for (const id of registryCheckIds(dir, file)) ids.add(id)
   }
   return ids
 }
@@ -115,8 +130,10 @@ function invariantIds() {
   let text
   try {
     text = readFileSync(p, 'utf-8')
-  } catch {
-    return ids
+  } catch (err) {
+    // #2418: an unreadable catalog used to yield an empty invariant set, silently turning
+    // every `enforces: INV-nn` ref into a dangling ref (or none). Fail on the real fault.
+    throw new Error(`src/invariants/catalog.ts exists but cannot be read: ${err?.message ?? err}`)
   }
   // Strip comments (string-aware) first, so an INV id that exists ONLY in a `/* … */` or `// …`
   // comment (e.g. a removed/reserved entry) is NOT treated as a real invariant (anti-fake-green).

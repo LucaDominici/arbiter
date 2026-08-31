@@ -12,8 +12,6 @@ import { generateCheckAll } from './check-all.js'
 import { generateAntiProforma } from './anti-proforma.js'
 import { generateCommitFooter } from './commit-footer.js'
 import { generateStackConformity } from './check-stack-conformity.js'
-import { generateCursor } from './cursor.js'
-import { generateCopilot } from './copilot.js'
 import { generateCoverage } from './coverage.js'
 import { generateDuplication } from './duplication.js'
 import { generateDebtGates } from './debt-gates.js'
@@ -35,9 +33,6 @@ import { generateIntegrationTesting } from './integration-testing.js'
 import { generateContractTesting } from './contract-testing.js'
 import { generateGlobalInvariants } from './global-invariants.js'
 import { generateSkills } from './skills.js'
-import { generateGemini } from './gemini.js'
-import { generateWindsurf } from './windsurf.js'
-import { generateAider } from './aider.js'
 import { generateAgentsClaude } from './agents-claude.js'
 import { generateSsot } from './ssot.js'
 import { generateAntiDriftValidators } from './anti-drift-validators.js'
@@ -146,31 +141,6 @@ function buildAiToolSpecs(
       run: (opts) => generateCodex(config, opts).files,
     },
     {
-      key: 'cursor',
-      enabled: noAiRulez && config.tools.includes('cursor'),
-      run: (opts) => generateCursor(config, opts).files,
-    },
-    {
-      key: 'copilot',
-      enabled: noAiRulez && config.tools.includes('copilot'),
-      run: (opts) => generateCopilot(config, opts).files,
-    },
-    {
-      key: 'gemini',
-      enabled: noAiRulez && config.tools.includes('gemini'),
-      run: (opts) => generateGemini(config, opts).files,
-    },
-    {
-      key: 'windsurf',
-      enabled: noAiRulez && config.tools.includes('windsurf'),
-      run: (opts) => generateWindsurf(config, opts).files,
-    },
-    {
-      key: 'aider',
-      enabled: noAiRulez && config.tools.includes('aider'),
-      run: (opts) => generateAider(config, opts).files,
-    },
-    {
       key: 'skills',
       enabled: noAiRulez,
       run: (opts) => generateSkills(config, installedSkills, opts).files,
@@ -263,7 +233,13 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'root',
-      enabled: config.permitGitHub ?? config.useGitHub,
+      // #2434: was gated wholesale on `permitGitHub ?? useGitHub`, which withheld
+      // SECURITY.md / CONTRIBUTING.md / .editorconfig / .nvmrc /
+      // commitlint.config.js — files the README and QUICKSTART call "baseline repo
+      // hygiene" and which have nothing to do with GitHub permission — from every
+      // default init. The GitHub predicate now sits on the ONE file in this
+      // generator that is GitHub-bound: `.github/CODEOWNERS` (see root.ts).
+      enabled: true,
       run: (opts) => generateRoot(config, opts).files,
     },
     {

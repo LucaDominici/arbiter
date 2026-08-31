@@ -70,10 +70,12 @@ describe('dead script-lib exports stay cut (#1888)', () => {
   })
 
   it('fail-closed-baseline.json no longer lists the two deleted files', () => {
+    // #2418: baseline rows are dated/owned objects, not bare strings.
     const baseline = JSON.parse(
       readFileSync(join(ROOT, 'scripts/data/fail-closed-baseline.json'), 'utf8'),
-    ) as { files: string[] }
-    expect(baseline.files).not.toContain('scripts/lib/check-registry.mjs')
-    expect(baseline.files).not.toContain('scripts/lib/full-gate-blacklist.mjs')
+    ) as { files: { file: string }[] }
+    const paths = baseline.files.map((e) => e.file)
+    expect(paths).not.toContain('scripts/lib/check-registry.mjs')
+    expect(paths).not.toContain('scripts/lib/full-gate-blacklist.mjs')
   })
 })

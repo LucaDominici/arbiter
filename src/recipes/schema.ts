@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod'
 
-const AiToolSchema = z.enum(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
+// #2367 (ADR-119): mirrors the narrowed `AiTool` union — a recipe can only ask
+// for tools arbiter actually emits for.
+const AiToolSchema = z.enum(['claude', 'codex'])
 
 const GovernanceLevelSchema = z.enum(['L1', 'L2', 'L3', 'L4'])
 

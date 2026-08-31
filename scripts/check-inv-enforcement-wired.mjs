@@ -19,8 +19,24 @@ const generatorsPath = generatorsArg
   ? resolve(generatorsArg.split('=')[1])
   : resolve(root, 'src/generators')
 
-const catalogSrc = readFileSync(catalogPath, 'utf-8')
-const gateSrc = readFileSync(gatePath, 'utf-8')
+/**
+ * Read an input the wiring verdict depends on. #2418: these two reads ran bare — an
+ * unreadable catalog or gate file crashed with a raw stack under node's generic exit code
+ * instead of the INV-53 invocation code.
+ */
+function readOrDie(path, what) {
+  try {
+    return readFileSync(path, 'utf-8')
+  } catch (err) {
+    process.stderr.write(
+      `[check-inv-enforcement-wired] ERROR: cannot read ${what} at ${path}: ${err?.message ?? err}\n`,
+    )
+    process.exit(2)
+  }
+}
+
+const catalogSrc = readOrDie(catalogPath, 'the invariant catalog')
+const gateSrc = readOrDie(gatePath, 'the gate file')
 
 // Track-B scripts: generated into governed target projects, NOT run as arbiter self-gates.
 // Citing them in catalog enforcement fields is correct documentation; their absence from
@@ -123,10 +139,16 @@ for (const name of uniqueChecks) {
 // mention in a comment is the same unverified assertion this pass exists to kill.
 function emissionLiterals(dir) {
   let entries
+  // #2418: an unreadable generators dir used to return an EMPTY literal set, which reads
+  // as "no exemption is emitted by anything" — the right verdict for the wrong reason, and
+  // indistinguishable from a genuine emission gap. Name the real fault instead.
   try {
     entries = readdirSync(dir)
-  } catch {
-    return new Set() // unreadable generators dir ⇒ nothing proven (fail closed)
+  } catch (err) {
+    process.stderr.write(
+      `[check-inv-enforcement-wired] ERROR: cannot list the generators dir ${dir}: ${err?.message ?? err}\n`,
+    )
+    process.exit(2)
   }
   const literals = new Set()
   for (const file of entries) {
@@ -134,8 +156,13 @@ function emissionLiterals(dir) {
     let src
     try {
       src = readFileSync(join(dir, file), 'utf-8')
-    } catch {
-      continue
+    } catch (err) {
+      // A generator that cannot be read may be the very one emitting an exempted script:
+      // skipping it silently turned a read fault into a phantom emission gap.
+      process.stderr.write(
+        `[check-inv-enforcement-wired] ERROR: cannot read generator ${file}: ${err?.message ?? err}\n`,
+      )
+      process.exit(2)
     }
     for (const m of src.matchAll(/(['"`])([^'"`\n]*)\1/g)) literals.add(m[2])
   }

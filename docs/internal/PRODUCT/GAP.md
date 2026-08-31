@@ -87,15 +87,15 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-85:** No kit source leakage — committed kit files mu | AGENTS.md:228                     | medium   |
 | - The nightly CI stamp artifact (`.arbiter/nightly/last-run. | AGENTS.md:264                     | medium   |
 | - Every gate, hook, check, and generator emitted by arbiter  | AGENTS.md:276                     | medium   |
-| - **INV-117:** arbiter self-repo must not track binary build | AGENTS.md:335                     | medium   |
-| - **INV-120:** Workflow needs-chain depth must not exceed th | AGENTS.md:341                     | medium   |
-| - **INV-121:** Stack conformity — the repo-root manifest mus | AGENTS.md:343                     | medium   |
-| - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:370                     | medium   |
-| - **INV-139:** Fixture and smoke output must never land in r | AGENTS.md:396                     | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:408                     | medium   |
-| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:412                     | medium   |
-| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:416                     | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:537                     | medium   |
+| - **INV-117:** arbiter self-repo must not track binary build | AGENTS.md:336                     | medium   |
+| - **INV-120:** Workflow needs-chain depth must not exceed th | AGENTS.md:342                     | medium   |
+| - **INV-121:** Stack conformity — the repo-root manifest mus | AGENTS.md:344                     | medium   |
+| - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:371                     | medium   |
+| - **INV-139:** Fixture and smoke output must never land in r | AGENTS.md:397                     | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:409                     | medium   |
+| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:413                     | medium   |
+| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:417                     | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:538                     | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must | docs/internal/SYSTEM/CANON.md:252 | medium   |
 | **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314 | medium   |
 | **Tier-2 (advisory only — do NOT hard-gate alone):**         | docs/internal/SYSTEM/CANON.md:326 | medium   |

@@ -143,10 +143,11 @@ describe('#2412 — check-workflow-runners.mjs cites its own INV-89, not foreign
 
 describe('#2412 — fail-closed-baseline.json lists no deleted paths', () => {
   it('every grandfathered path still exists on disk', () => {
+    // #2418: baseline rows are dated/owned objects, not bare strings.
     const baseline = JSON.parse(read('scripts/data/fail-closed-baseline.json')) as {
-      files: string[]
+      files: { file: string }[]
     }
-    const dead = baseline.files.filter((p) => !existsSync(resolve(p)))
+    const dead = baseline.files.map((e) => e.file).filter((p) => !existsSync(resolve(p)))
     expect(dead).toEqual([])
   })
 })

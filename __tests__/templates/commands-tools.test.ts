@@ -5,11 +5,13 @@ import { buildKnownLimitations } from '../../src/generators/codex-known-limitati
 import type { Language } from '../../src/wizard/types.js'
 
 /**
- * M11: Workflow commands — other tools (Codex, Cursor, Copilot) must include
- * workflow sections when generateWorkflow is enabled. Content must be
+ * M11: Workflow commands — every emitted tool file must include a workflow
+ * section when generateWorkflow is enabled, and the content must be
  * stack-parameterized.
  *
- * INV-11: Full matrix coverage across tools and stacks.
+ * INV-11: Full matrix coverage across tools and stacks. Since #2367 (ADR-119)
+ * the emitted tool set is Claude and Codex only — the Cursor and Copilot
+ * render cases were retired with their templates.
  */
 
 const GATE_MAP: Record<string, string> = {
@@ -31,25 +33,6 @@ function renderCodexMd(language: Language, testCommand?: string): string {
     ...config,
     knownLimitations: buildKnownLimitations(config),
   } as unknown as Record<string, unknown>)
-}
-
-function renderCursorrules(language: Language, testCommand?: string): string {
-  const config = makeConfig('/tmp/test', {
-    language,
-    testCommand: testCommand ?? GATE_MAP[language] ?? 'echo test',
-  })
-  return renderTemplate('cursor/.cursorrules.ejs', config as unknown as Record<string, unknown>)
-}
-
-function renderCopilotInstructions(language: Language, testCommand?: string): string {
-  const config = makeConfig('/tmp/test', {
-    language,
-    testCommand: testCommand ?? GATE_MAP[language] ?? 'echo test',
-  })
-  return renderTemplate(
-    'copilot/copilot-instructions.md.ejs',
-    config as unknown as Record<string, unknown>,
-  )
 }
 
 // INV-11: Full 5-stack matrix for each tool
@@ -90,32 +73,4 @@ describe('codex CODEX.md — Known Limitations parity section (#162)', () => {
     const content = renderCodexMd('typescript')
     expect(content).toContain('Known Limitations')
   })
-})
-
-describe('cursor .cursorrules — workflow section', () => {
-  it('includes workflow/task lifecycle section', () => {
-    const content = renderCursorrules('typescript')
-    expect(content).toMatch(/workflow|task lifecycle|start.task/i)
-  })
-
-  for (const lang of STACK_LANGUAGES) {
-    it(`workflow references correct gate for ${lang}`, () => {
-      const content = renderCursorrules(lang)
-      expect(content).toContain(GATE_MAP[lang])
-    })
-  }
-})
-
-describe('copilot instructions — workflow section', () => {
-  it('includes workflow/task lifecycle section', () => {
-    const content = renderCopilotInstructions('typescript')
-    expect(content).toMatch(/workflow|task lifecycle|start.task/i)
-  })
-
-  for (const lang of STACK_LANGUAGES) {
-    it(`workflow references correct gate for ${lang}`, () => {
-      const content = renderCopilotInstructions(lang)
-      expect(content).toContain(GATE_MAP[lang])
-    })
-  }
 })

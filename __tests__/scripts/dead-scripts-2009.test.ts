@@ -34,18 +34,20 @@ describe('dead zero-caller scripts stay cut (#2009)', () => {
     expect(existsSync(join(ROOT, rel))).toBe(false)
   })
 
+  // #2418: baseline rows are dated/owned objects, not bare strings.
+  const baselinePaths = (): string[] =>
+    (
+      JSON.parse(readFileSync(join(ROOT, 'scripts/data/fail-closed-baseline.json'), 'utf8')) as {
+        files: { file: string }[]
+      }
+    ).files.map((e) => e.file)
+
   it('fail-closed-baseline.json no longer lists the deleted scripts', () => {
-    const baseline = JSON.parse(
-      readFileSync(join(ROOT, 'scripts/data/fail-closed-baseline.json'), 'utf8'),
-    ) as { files: string[] }
-    for (const rel of CUT) expect(baseline.files).not.toContain(rel)
+    for (const rel of CUT) expect(baselinePaths()).not.toContain(rel)
   })
 
   it('keeps update-kit-baseline.mjs — sole regenerator of the live src/kit ratchet', () => {
     expect(existsSync(join(ROOT, 'scripts/update-kit-baseline.mjs'))).toBe(true)
-    const baseline = JSON.parse(
-      readFileSync(join(ROOT, 'scripts/data/fail-closed-baseline.json'), 'utf8'),
-    ) as { files: string[] }
-    expect(baseline.files).toContain('scripts/update-kit-baseline.mjs')
+    expect(baselinePaths()).toContain('scripts/update-kit-baseline.mjs')
   })
 })

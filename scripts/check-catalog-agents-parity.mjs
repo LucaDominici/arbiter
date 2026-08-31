@@ -28,17 +28,28 @@ const canonPath =
       ? resolve(root, 'docs/internal/SYSTEM/CANON.md')
       : null
 
-const catalogSrc = readFileSync(catalogPath, 'utf-8')
-const agentsSrc = readFileSync(agentsPath, 'utf-8')
-// CANON.md is optional — only loaded when explicitly requested or when using real repo files.
-let canonSrc = ''
-if (canonPath != null) {
+/**
+ * Read an input the gate cannot decide without. #2418: these reads used to run bare (an
+ * unreadable catalog crashed with a raw stack under node's generic exit code) or, for
+ * CANON.md, to fall back to an EMPTY string — which silently turned every CANON parity
+ * check into a vacuous pass. An unreadable input is an invocation fault: exit 2.
+ */
+function readOrDie(path, what) {
   try {
-    canonSrc = readFileSync(canonPath, 'utf-8')
-  } catch {
-    canonSrc = ''
+    return readFileSync(path, 'utf-8')
+  } catch (err) {
+    process.stderr.write(
+      `[check-catalog-agents-parity] ERROR: cannot read ${what} at ${path}: ${err?.message ?? err}\n`,
+    )
+    process.exit(2)
   }
 }
+
+const catalogSrc = readOrDie(catalogPath, 'the invariant catalog')
+const agentsSrc = readOrDie(agentsPath, 'AGENTS.md')
+// CANON.md is only resolved when explicitly requested or when running against real repo
+// files; when it IS resolved it must be readable — a vacuous CANON pass is a fake green.
+const canonSrc = canonPath != null ? readOrDie(canonPath, 'CANON.md') : ''
 
 // Extract {id, title} pairs from catalog.ts.
 // IDs are always single-quoted; titles may use single or double quotes, and may
@@ -219,8 +230,20 @@ const BUILTIN_AGENT_TYPES = new Set([
 ])
 if (catalogArg == null && agentsArg == null) {
   const writeClassesPath = resolve(root, '.claude/agents/agent-write-classes.json')
-  try {
-    const classes = JSON.parse(readFileSync(writeClassesPath, 'utf-8')).classes ?? {}
+  // #2418: the whole block used to sit in a swallowing catch, so a MALFORMED
+  // agent-write-classes.json was indistinguishable from an absent one and the orphan
+  // scan silently vanished. Absence stays optional (E5 implement-but-not-activated);
+  // a file that exists but cannot be parsed is a hard fault.
+  if (existsSync(writeClassesPath)) {
+    let classes
+    try {
+      classes = JSON.parse(readFileSync(writeClassesPath, 'utf-8')).classes ?? {}
+    } catch (err) {
+      process.stderr.write(
+        `[check-catalog-agents-parity] ERROR: ${writeClassesPath} exists but is unreadable/malformed: ${err?.message ?? err}\n`,
+      )
+      process.exit(2)
+    }
     for (const name of Object.keys(classes)) {
       if (name.includes(':') || BUILTIN_AGENT_TYPES.has(name)) continue
       if (!existsSync(resolve(root, `.claude/agents/${name}.md`))) {
@@ -230,8 +253,6 @@ if (catalogArg == null && agentsArg == null) {
         violations++
       }
     }
-  } catch {
-    // agent-write-classes.json is optional (E5 implement-but-not-activated) — absence is not a violation.
   }
 }
 

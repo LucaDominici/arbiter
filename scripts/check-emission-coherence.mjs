@@ -49,8 +49,12 @@ import { isMainModule } from './lib/run-helpers.mjs'
 function read(dir, rel) {
   try {
     return readFileSync(join(dir, rel), 'utf8')
-  } catch {
-    return null
+  } catch (err) {
+    // #2418: callers read `null` as "this file was not emitted". ENOENT is exactly that.
+    // Any OTHER fault (EACCES, EISDIR, a truncated read) is a real defect that used to
+    // masquerade as absence and quietly excuse a missing emission.
+    if (err?.code === 'ENOENT') return null
+    throw err
   }
 }
 
@@ -68,6 +72,12 @@ export function loadOptionalManifest(dir) {
   try {
     parsed = JSON.parse(raw)
   } catch (err) {
+    // #2418: the problem is returned to the caller AND written out here — this function is
+    // exported, and a consumer that ignored `problems` used to turn a malformed manifest
+    // into a silently empty allowlist.
+    process.stderr.write(
+      `check-emission-coherence: optional-emissions.json is not valid JSON: ${err.message}\n`,
+    )
     return {
       paths: new Set(),
       problems: [`optional-emissions.json is not valid JSON: ${err.message}`],
@@ -185,8 +195,10 @@ function emittedNpmScripts(dir) {
     const parsed = JSON.parse(packageJson)
     if (parsed?.scripts === null || typeof parsed?.scripts !== 'object') return new Set()
     return new Set(Object.keys(parsed.scripts))
-  } catch {
-    return new Set()
+  } catch (err) {
+    // #2418: an unparseable emitted package.json used to yield an EMPTY script surface,
+    // which silently changed what every `npm run <name>` promise was checked against.
+    throw new Error(`emitted package.json in ${dir} is not valid JSON: ${err.message}`)
   }
 }
 

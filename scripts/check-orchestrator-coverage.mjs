@@ -29,31 +29,43 @@ const ALLOWLIST_PATH = join(SCRIPTS_DIR, 'data', 'orchestrator-coverage-allowlis
  * can never silence an orphan with an empty justification).
  * @returns {{ entries: Array<{script:string,rationale:string}>, scripts: Set<string>, problems: string[] }}
  */
-export function loadCoverageAllowlist(path = ALLOWLIST_PATH) {
+/** An allowlist that silences nothing, carrying `problems` for the caller to surface. */
+const emptyAllowlist = (problems = []) => ({ entries: [], scripts: new Set(), problems })
+
+/**
+ * Read + parse the allowlist. Returns the raw `allowlist` array, or an `{ empty }` result
+ * describing why there is none. #2418: ENOENT ("no allowlist") is a legitimate state; any
+ * OTHER read fault used to produce the same empty result, silently widening the set of
+ * scripts treated as unsilenced. Parse problems are ALSO written out here, because this
+ * module is exported and a consumer that ignored `problems` saw a silently empty allowlist.
+ */
+function readAllowlistArray(path) {
   let raw
   try {
     raw = readFileSync(path, 'utf8')
-  } catch {
-    return { entries: [], scripts: new Set(), problems: [] }
+  } catch (err) {
+    if (err?.code === 'ENOENT') return { empty: emptyAllowlist() }
+    const reason = `allowlist at ${path} exists but cannot be read: ${err?.message ?? err}`
+    process.stderr.write(`check-orchestrator-coverage: ${reason}\n`)
+    return { empty: emptyAllowlist([reason]) }
   }
   let parsed
   try {
     parsed = JSON.parse(raw)
   } catch (err) {
-    return {
-      entries: [],
-      scripts: new Set(),
-      problems: [`allowlist is not valid JSON: ${err.message}`],
-    }
+    const reason = `allowlist is not valid JSON: ${err.message}`
+    process.stderr.write(`check-orchestrator-coverage: ${reason}\n`)
+    return { empty: emptyAllowlist([reason]) }
   }
-  const list = Array.isArray(parsed?.allowlist) ? parsed.allowlist : null
-  if (list === null) {
-    return {
-      entries: [],
-      scripts: new Set(),
-      problems: ['allowlist must have an "allowlist" array'],
-    }
+  if (!Array.isArray(parsed?.allowlist)) {
+    return { empty: emptyAllowlist(['allowlist must have an "allowlist" array']) }
   }
+  return { list: parsed.allowlist }
+}
+
+export function loadCoverageAllowlist(path = ALLOWLIST_PATH) {
+  const { empty, list } = readAllowlistArray(path)
+  if (empty !== undefined) return empty
   const entries = []
   const scripts = new Set()
   const problems = []
@@ -118,7 +130,14 @@ function main() {
   const transitiveSrcs = TRANSITIVE_AGGREGATORS.map((f) => {
     try {
       return readFileSync(join(SCRIPTS_DIR, f), 'utf8')
-    } catch {
+    } catch (err) {
+      // #2418: an unreadable aggregator used to substitute an EMPTY source, silently
+      // shrinking the set of scripts counted as reachable. This gate is advisory, so it
+      // still continues — but the substitution is now visible in the output.
+      process.stderr.write(
+        `check-orchestrator-coverage: WARN — cannot read transitive aggregator ${f} ` +
+          `(${err?.message ?? err}); its reachable scripts will be reported as orphans\n`,
+      )
       return ''
     }
   })

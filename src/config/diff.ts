@@ -7,11 +7,6 @@ export type GeneratorKey =
   | 'baseline-gitignore'
   | 'claude'
   | 'codex'
-  | 'cursor'
-  | 'copilot'
-  | 'gemini'
-  | 'windsurf'
-  | 'aider'
   | 'skills'
   | 'agents-claude'
   | 'github'
@@ -134,20 +129,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   // `tools` key as belt-and-suspenders: any tool change should re-run the
   // githooks generator because tool config can affect which gate steps the
   // generated hooks invoke.
-  tools: [
-    'agents-md',
-    'claude',
-    'codex',
-    'cursor',
-    'copilot',
-    'gemini',
-    'windsurf',
-    'aider',
-    'skills',
-    'agents-claude',
-    'githooks',
-    'ship-driver',
-  ],
+  tools: ['agents-md', 'claude', 'codex', 'skills', 'agents-claude', 'githooks', 'ship-driver'],
   useGitHub: ['github', 'root', 'check-all'],
   permitGitHub: ['github', 'root', 'check-all', 'ci-tier', 'github-setup'],
   'features.debtGates': [
