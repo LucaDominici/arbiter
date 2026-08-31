@@ -209,15 +209,16 @@ function loadLedgerByName() {
 }
 
 /**
- * Validate one runWarnCheck site's ledger entry. Returns a violation message, or null when
- * the entry satisfies the dated-debt discipline (future promoteBy, or permanent + rationale).
+ * Validate one advisory site's ledger entry. Returns a violation message, or null when the entry
+ * satisfies the dated-debt discipline (future promoteBy, or permanent + rationale). `source` names
+ * where the site was found so the failure points at the right file to edit (#2419).
  * @param {string} name
  * @param {Record<string, unknown> | undefined} entry
+ * @param {string} [source]
  * @returns {string | null}
  */
-function validateLedgerEntry(name, entry) {
-  if (!entry)
-    return `"${name}": runWarnCheck site has no scripts/data/advisory-ledger.json entry (missing)`
+function validateLedgerEntry(name, entry, source = 'runWarnCheck site') {
+  if (!entry) return `"${name}": ${source} has no scripts/data/advisory-ledger.json entry (missing)`
   if (entry.permanent === true) {
     const hasRationale = typeof entry.rationale === 'string' && entry.rationale.trim() !== ''
     return hasRationale ? null : `"${name}": permanent:true entry has no rationale`
@@ -242,18 +243,26 @@ function validateLedgerEntry(name, entry) {
  * @returns {{ sites: string[], violations: string[] }}
  */
 function checkAdvisoryPermanent() {
-  const sites = [
+  /** @type {{ name: string, source: string }[]} */
+  const found = [
     ...(existsSync(CHECK_ALL_PATH)
-      ? extractWarnCheckSites(readFileSync(CHECK_ALL_PATH, 'utf-8'))
+      ? extractWarnCheckSites(readFileSync(CHECK_ALL_PATH, 'utf-8')).map((name) => ({
+          name,
+          source: 'runWarnCheck site',
+        }))
       : []),
     ...(existsSync(GUARD_ROSTER_PATH)
-      ? extractGhAuditGuards(readFileSync(GUARD_ROSTER_PATH, 'utf-8'))
+      ? extractGhAuditGuards(readFileSync(GUARD_ROSTER_PATH, 'utf-8')).map((name) => ({
+          name,
+          source: "class:'gh-audit' guard in scripts/lib/anti-fake-green-guards.mjs",
+        }))
       : []),
   ]
-  if (sites.length === 0) return { sites, violations: [] }
+  const sites = found.map((f) => f.name)
+  if (found.length === 0) return { sites, violations: [] }
   const byName = loadLedgerByName()
-  const violations = sites
-    .map((name) => validateLedgerEntry(name, byName.get(name)))
+  const violations = found
+    .map(({ name, source }) => validateLedgerEntry(name, byName.get(name), source))
     .filter((v) => v !== null)
   return { sites, violations }
 }
