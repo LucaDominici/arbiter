@@ -202,7 +202,8 @@ Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
 - **INV-67:** No internal mocking in E2E — backend endpoints are exercised against the real service
 - **INV-68:** MCP-first forensic inspection — debug via MCP tools before raw shell
 - **INV-69:** Design rationale traceability — new abstractions cite their motivating ADR
-- **INV-70:** Reuse before new — canonical registry search precedes creating a new module. Enforcement is code review; its only mechanical proxy, `scripts/check-reuse-survey.mjs`, is **ADVISORY** (`runWarnCheck`; promoteBy 2026-10-14 in `scripts/data/advisory-ledger.json`, hard flip tracked as #2044 item c) and cannot fail a gate (#2419)
+- **INV-70:** Reuse before new — canonical registry search precedes creating a new module
+  - _Enforcement:_ code review — this invariant has no hard gate. Its only mechanical proxy, `scripts/check-reuse-survey.mjs`, is **ADVISORY** (`runWarnCheck`, promoteBy 2026-10-14 in `scripts/data/advisory-ledger.json`; the hard flip is #2044 item c) and cannot fail a build (#2419).
 - **INV-71:** Track D task completion — docs-only changes follow the documented completion rules
 
 ## GitHub CI Tier Invariants (INV-73..INV-82, INV-136)

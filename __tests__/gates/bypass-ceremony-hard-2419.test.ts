@@ -64,11 +64,16 @@ describe('#2419 AC-2 — bypass-ceremony is a hard check that runs at L1', () =>
 
 describe('#2419 AC-3 — advisory guards are labelled advisory WITH their promotion date', () => {
   it('AGENTS.md marks the INV-70 reuse survey advisory, citing the ledger promoteBy verbatim', () => {
-    const agents = readFileSync(AGENTS, 'utf-8')
-    const line = agents.split('\n').find((l) => l.includes('**INV-70:**'))
-    expect(line, 'no INV-70 line in AGENTS.md').toBeDefined()
-    expect(line as string).toMatch(/advisory/i)
-    expect(line as string).toContain(promoteByOf('reuse survey (INV-70)'))
+    // The label lives in the sub-bullet, never on the `**INV-70:**` line itself — that line's text
+    // must stay byte-equal to the catalog title (INV-51/CANON-08 parity, check-catalog-agents-parity).
+    const lines = readFileSync(AGENTS, 'utf-8').split('\n')
+    const idx = lines.findIndex((l) => l.includes('**INV-70:**'))
+    expect(idx, 'no INV-70 line in AGENTS.md').toBeGreaterThan(-1)
+    const claim = lines[idx + 1]
+    expect(claim).toMatch(/_Enforcement:_/)
+    expect(claim).toMatch(/advisory/i)
+    expect(claim).toContain('scripts/check-reuse-survey.mjs')
+    expect(claim).toContain(promoteByOf('reuse survey (INV-70)'))
   })
 
   it('AGENTS.md marks the gh-audit anti-fake-green guards advisory with their promotion date', () => {
