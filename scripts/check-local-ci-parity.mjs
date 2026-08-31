@@ -403,6 +403,9 @@ const CI_COVERAGE = new Map([
   ['adr index (INV-107)', 'gate-full'],
   ['adr digest (INV-107)', 'gate-full'],
   ['adr enforcement linkage (#1473)', 'gate-full'],
+  // #2419 AC-2: promoted warn → check, so the parity extractor now sees it. Runs inside
+  // check-all L1, which gate-full executes end-to-end.
+  ['bypass ceremony (E4 #1949)', 'gate-full'],
   ['cli ref parity (INV-111)', 'gate-full'],
   ['phase doc consistency (INV-113)', 'gate-full'],
   ['canonical paths', 'gate-full'],

@@ -1,6 +1,6 @@
 {
   "schema": "arbiter-advisory-ledger-v1",
-  "_doc": "Declared-intent ledger for runWarnCheck advisory gates (E4 ceremony detector, M15b #1943/#1949). Every runWarnCheck call site in scripts/check-all.mjs MUST have an entry here: either a dated promotion (promoteBy) or permanent:true with rationale. This is the dated-debt discipline of suppressions expiry (INV-31) applied to the gate roster itself — an advisory gate with no dated promotion is ceremony ('advisory-forever'). scripts/check-bypass-ceremony.mjs (#1949) enforces this ledger. The 2 pre-existing runWarnCheck gates 'orchestrator coverage (#1410)' and 'conformance' were resolved by owner decision OD-14 (2026-07-17): dated promoteBy 2026-10-14, same window as the seeded #1943 entries — neither is permanent.",
+  "_doc": "Declared-intent ledger for advisory gates (E4 ceremony detector, M15b #1943/#1949). Every runWarnCheck call site in scripts/check-all.mjs, AND every `class: 'gh-audit'` guard in scripts/lib/anti-fake-green-guards.mjs (whose exit 1 is advisory unless the aggregate runs --enforce, #2419 AC-3), MUST have an entry here: either a dated promotion (promoteBy) or permanent:true with rationale. This is the dated-debt discipline of suppressions expiry (INV-31) applied to the gate roster itself — an advisory gate with no dated promotion is ceremony ('advisory-forever'). scripts/check-bypass-ceremony.mjs (#1949) enforces this ledger, itself a HARD L1 check since #2419 AC-2. The 2 pre-existing runWarnCheck gates 'orchestrator coverage (#1410)' and 'conformance' were resolved by owner decision OD-14 (2026-07-17): dated promoteBy 2026-10-14, same window as the seeded #1943 entries — neither is permanent.",
   "entries": [
     {
       "check": "agent-return envelope (E1 #1943)",
@@ -51,16 +51,22 @@
       "rationale": "OD-14 (2026-07-17): pre-existing advisory gate, classified dated-promotion (not permanent) — same promoteBy window as the seeded #1943 enforcer entries. Promote to runCheck once the conformance surface has a stable pass baseline."
     },
     {
-      "check": "bypass ceremony (E4 #1949)",
-      "since": "2026-07-17",
-      "promoteBy": "2026-10-14",
-      "rationale": "OD-14 (2026-07-17): advisory-first wiring for the ceremony detector itself (self-referential — this entry satisfies its own ledger-completeness predicate). Advisory until the bypass-log and ledger are routinely populated across a full gate cycle; promote to runCheck at gated-review."
-    },
-    {
       "check": "reuse survey (INV-70)",
       "since": "2026-07-22",
       "promoteBy": "2026-10-14",
       "rationale": "#2079 (F-SSOT-05a): first mechanical proxy for INV-70 (reuse-before-new). Advisory during the start-warn bake-in; the hard flip + core-vs-extended promotion are #2044 item (c), which is blocked on bake-in across the dogfooding consumer repos. Same promoteBy window as the seeded #1943/OD-14 entries."
+    },
+    {
+      "check": "min-review-time",
+      "since": "2026-08-31",
+      "promoteBy": "2026-11-28",
+      "rationale": "#2419 AC-3: `class: 'gh-audit'` member of the anti-fake-green roster. The aggregate runs HARD, but a gh-audit guard's exit 1 is ADVISORY — only `--enforce` makes it fail — so it is a second population of advisory gates that the runWarnCheck scan could not see. Advisory while the gh review-window signal accumulates across merged PRs; promote by flipping the aggregate to --enforce for the gh-audit class."
+    },
+    {
+      "check": "ownership-distribution",
+      "since": "2026-08-31",
+      "promoteBy": "2026-11-28",
+      "rationale": "#2419 AC-3: `class: 'gh-audit'` member of the anti-fake-green roster, advisory on the same terms as min-review-time. Advisory while the assignee-concentration threshold is validated against real backlog shape under trunk-solo (ADR-091 exempts the solo case); promote by flipping the aggregate to --enforce for the gh-audit class."
     }
   ]
 }

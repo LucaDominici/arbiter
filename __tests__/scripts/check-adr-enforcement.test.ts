@@ -232,7 +232,9 @@ describe('check-adr-enforcement — mandatory enforces (#2419 AC-1)', () => {
     const a = numberedAdr('025', 'active', null)
     const r = runGate(
       { [a.name]: a.body },
-      { allowlist: allowlist([[a.name, isoDay(90), 'historical: predates the enforces contract']]) },
+      {
+        allowlist: allowlist([[a.name, isoDay(90), 'historical: predates the enforces contract']]),
+      },
     )
     expect(r.status).toBe(0)
   })

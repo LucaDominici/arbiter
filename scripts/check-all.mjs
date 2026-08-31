@@ -252,6 +252,10 @@ if (isMain) {
   runCheck('adr index (INV-107)', 'node', ['scripts/check-adr-index.mjs'])
   runCheck('adr digest (INV-107)', 'node', ['scripts/gen-adr-readme.mjs', '--check'])
   runCheck('adr enforcement linkage (#1473)', 'node', ['scripts/check-adr-enforcement.mjs'])
+  // #2419 AC-2: promoted from runWarnCheck at L2. The police for advisory-forever gates was
+  // itself an advisory gate in the partition a commit never runs, so an expired promoteBy could
+  // not fail anything. Hard, and at L1 — an amnesty that lapses reds the very next commit.
+  runCheck('bypass ceremony (E4 #1949)', 'node', ['scripts/check-bypass-ceremony.mjs'])
   runCheck('cli ref parity (INV-111)', 'node', ['scripts/gen-cli-ref.mjs', '--check'])
   // F2 (#1838, item 4): extends INV-111 beyond the generated cli.md region —
   // hand-authored prose (PRIVACY.md, docs/, website/) can cite a phantom
@@ -493,7 +497,7 @@ if (isMain) {
     ])
     runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
     runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
-    runWarnCheck('bypass ceremony (E4 #1949)', 'node', ['scripts/check-bypass-ceremony.mjs'])
+    // bypass ceremony (E4 #1949) moved to the L1 partition as a hard check — see #2419 AC-2.
     // reuse survey (INV-70, #2079): advisory pending the start-warn→promote decision (#2044 item c).
     runWarnCheck('reuse survey (INV-70)', 'node', ['scripts/check-reuse-survey.mjs'])
     runCheck('commit-footer rationale (INV-119)', 'node', [
