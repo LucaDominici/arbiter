@@ -19,15 +19,15 @@ host is the single blocker for every merge.**
 
 ## The merge queue (in order; each head L2-validated locally before push)
 
-| # | PR    | branch                                   | carries                                            |
-| - | ----- | ---------------------------------------- | -------------------------------------------------- |
-| 1 | #2439 | `docs/handover-cloud-2026-08-30`         | previous handover runbook (docs-only)              |
-| 2 | #2441 | `train/2026-08-30-mb2`                   | #2353 #2416 #2417 #2434 — the four WIP refs        |
-| 3 | #2456 | `train/2026-08-30-mb3`                   | #2305 + tabletop evidence (3 scenarios, ref #2429) |
-| 4 | #2457 | `task/#2367-experimental-tools-decision` | ADR-119: retire the 5 experimental generators      |
-| 5 | #2459 | `train/2026-08-30-mc1`                   | #2431 flake root-fix + #2436 clean-main hygiene    |
-| 6 | #2464 | `task/#2418-fail-closed-baseline`        | INV-96 baseline dated/owned/ratcheting, 184→156    |
-| 7 | #2465 | `task/#2435-ship-phase-gates`            | 5 ungated phases gated; close documented           |
+| #   | PR    | branch                                   | carries                                            |
+| --- | ----- | ---------------------------------------- | -------------------------------------------------- |
+| 1   | #2439 | `docs/handover-cloud-2026-08-30`         | previous handover runbook (docs-only)              |
+| 2   | #2441 | `train/2026-08-30-mb2`                   | #2353 #2416 #2417 #2434 — the four WIP refs        |
+| 3   | #2456 | `train/2026-08-30-mb3`                   | #2305 + tabletop evidence (3 scenarios, ref #2429) |
+| 4   | #2457 | `task/#2367-experimental-tools-decision` | ADR-119: retire the 5 experimental generators      |
+| 5   | #2459 | `train/2026-08-30-mc1`                   | #2431 flake root-fix + #2436 clean-main hygiene    |
+| 6   | #2464 | `task/#2418-fail-closed-baseline`        | INV-96 baseline dated/owned/ratcheting, 184→156    |
+| 7   | #2465 | `task/#2435-ship-phase-gates`            | 5 ungated phases gated; close documented           |
 
 Stacking: 3–7 each base on the row above (5 on 4's branch, 6 and 7 both on 5). #2464 and
 #2465 both touch `scripts/check-local-ci-parity.mjs`: whichever merges second needs a
@@ -72,7 +72,7 @@ same pattern (push → PR → back of the queue) if they finish green.
    forbidden at L2+. Tabletop evidence rides a source train.
 4. The milestone numbers are 13/14/15/16 (M-A..M-D); the GitHub MCP issue_write takes the
    number, and issue_read only shows the title.
-5. Consumer-repo clones (viafera/haben/coach-system) were **denied by the session's
+5. Consumer-repo clones (the three private consumer repos) were **denied by the session's
    permission classifier** — #2318/#2310/#2291 need either that permission or a local
    session. The repos themselves are reachable (list_repos, add_repo fine).
 
