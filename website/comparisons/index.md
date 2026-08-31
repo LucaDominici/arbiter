@@ -46,8 +46,11 @@ Most alternatives in this space are persona frameworks: they tell the AI _who to
 > **¹** Provided by arbiter's _optional orchestration layer_ (`/ship`, `/drain`, and the
 > `bridge-reviewer`/`codebase-scanner`/`context-checker`/`red-team` sub-agents), which is distinct
 > from — and not required by — the installer **core**. Arbiter does **not** ship agent _personas_.
-> "Claude + Codex" are the supported tools out of the box; Cursor, Copilot, Windsurf, Aider, and
-> Gemini CLI generators exist but are **experimental** — not yet selectable via `--tools`.
+> Claude Code and Codex are the **only** tools arbiter targets: `--tools` accepts exactly those
+> two, and as of [ADR-119](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/119-experimental-tool-generators-retired.md)
+> nothing else exists in the tree — the previously "experimental" Cursor, Copilot, Windsurf, Aider
+> and Gemini CLI generators were retired rather than left unreachable, so the advertised set, the
+> emittable set and the type are the same set.
 > Arbiter emits configuration for Claude Code and Codex, but does not run cross-model review or
 > orchestration. Its requirements traceability is enforced by INV-112, CANON-23, and
 > `scripts/check-feature-matrix.mjs`; it does not yet create a durable specification artifact, so

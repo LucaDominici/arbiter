@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2436",
+  "test_path": "__tests__/gates/format-stryker-tmp.test.ts",
+  "test_commit_sha": "6d4f9042475ceb09fc0078f010b18139ecac83f2",
+  "test_blob_sha": "7c62166832d262d3ff8a30f3ee0ee15ec0875b7c",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/gates/format-stryker-tmp.test.ts (1 test | 1 failed) 282ms\n     × prettier --check stays green for a badly formatted file under .stryker-tmp/ 280ms\n\n Test Files  1 failed (1)\n      Tests  1 failed (1)\n   Start at  21:39:45\n   Duration  745ms (transform 28ms, setup 21ms, import 25ms, tests 282ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/gates/format-stryker-tmp.test.ts > format gate ignores .stryker-tmp/ (#2436 AC-1) > prettier --check stays green for a badly formatted file under .stryker-tmp/\nAssertionError: expected prettier --check to ignore .stryker-tmp/regression-2436, got:\nChecking formatting...\n[warn] .stryker-tmp/regression-2436/sandbox-ZAPOFG/examples/go-library/AGENTS.md\n[warn] Code style issues found in the above file. Run Prettier with --write to fix.\n: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/gates/format-stryker-tmp.test.ts:38:91\n     36|\n     37|     const { status, output } = prettierCheck(SANDBOX_REL)\n     38|     expect(status, `expected prettier --check to ignore ${SANDBOX_REL}…\n       |                                                                                           ^\n     39|   })\n     40| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/gates/format-stryker-tmp.test.ts",
+  "recorded_at": "2026-08-30T21:39:46.719Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/gates/format-stryker-tmp.test.ts"
+  ]
+}

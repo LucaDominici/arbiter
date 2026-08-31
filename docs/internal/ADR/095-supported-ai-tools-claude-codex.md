@@ -86,9 +86,16 @@ hard floor); the policy is expressed via local constants and comments.
   product's point of view; they must be either revived (with verification) or
   eventually removed if they bit-rot.
 
+> **Update (2026-08-30, #2367):** the "Negative" consequence above was actioned. All five
+> experimental generators, their templates and their tests were **retired** by
+> [ADR-119](119-experimental-tool-generators-retired.md), which also writes down the
+> promotion criteria this ADR left implicit. The decision above stands — the supported set
+> is still `claude` + `codex`; only the "code retained and unit-tested" clause is superseded.
+
 ## Links
 
-- Related ADRs: ADR-001 (AGENTS.md canonical), ADR-010 (ai-rulez coexistence)
+- Related ADRs: ADR-001 (AGENTS.md canonical), ADR-010 (ai-rulez coexistence),
+  ADR-119 (experimental tool generators retired — completes this ADR)
 - Surfaces: `src/wizard/types.ts` (policy), `src/commands/init.ts` (`parseTools`),
   `src/wizard/prompts.ts` (`TOOL_OPTIONS`), `src/cli.ts` (help), `src/agent-rules/targets.ts`,
   `src/templates/claude/skills/configure/SKILL.md.ejs`, `README.md`,

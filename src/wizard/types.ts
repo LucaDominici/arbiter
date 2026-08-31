@@ -113,19 +113,33 @@ export type GovernanceLevel = 'L1' | 'L2' | 'L3' | 'L4'
 // AI coding tools arbiter can target. Canonical support policy (read before
 // widening any user-facing surface):
 //
-//   SUPPORTED (customer-facing): 'claude' and 'codex' ONLY. These two are
-//   dogfooded end-to-end — Claude Code daily; Codex via a runnable adapter with
-//   empirical tests — so they are the surface advertised by `init --tools`,
-//   offered in the wizard, and documented.
+//   SUPPORTED (customer-facing): 'claude' and 'codex' — and, since #2367
+//   (ADR-119), NOTHING ELSE EXISTS. These two are dogfooded end-to-end —
+//   Claude Code daily; Codex via a runnable adapter with empirical tests — so
+//   they are the surface advertised by `init --tools`, offered in the wizard,
+//   and documented. The advertised set, the emittable set and the type are now
+//   the same set: there is no longer a hidden experimental tier behind them.
 //
-//   EXPERIMENTAL (NOT customer-facing): 'cursor' | 'copilot' | 'gemini' |
-//   'windsurf' | 'aider'. Their generators/emitters produce config but are NOT
-//   validated against the live tool; advertising them would be an overclaim.
-//   The code is RETAINED and unit-tested for internal/experimental use, but
-//   these values are rejected by `parseTools`, hidden from the wizard, and
-//   absent from user-facing docs and `--help`. Do not re-expose without
-//   end-to-end verification of the named tool.
-export type AiTool = 'claude' | 'codex' | 'cursor' | 'copilot' | 'gemini' | 'windsurf' | 'aider'
+//   RETIRED (#2367 / ADR-119): 'cursor', 'copilot', 'gemini', 'windsurf' and
+//   'aider' were retained-but-unreachable experimental generators — emitting
+//   config never validated against the live tool, while `parseTools` rejected
+//   the only values that could reach them. Their generators, templates and
+//   tests are DELETED; git history is the archive. A tool returns only by
+//   earning the promotion criteria in ADR-119 §Promotion criteria (runnable
+//   adapter, empirical tests against the live tool, an ADR-106 derive-from-
+//   Claude emission-parity gate, and a fixture) — never by re-adding a
+//   generator with unit tests alone.
+//
+//   Widening this union is therefore a deliberate, gated act: add the member
+//   here, to SUPPORTED_AI_TOOLS below, and to AI_TOOLS in config/schema.ts —
+//   the three must stay identical.
+export type AiTool = 'claude' | 'codex'
+
+// #2417: the single SSOT for the customer-facing set (ADR-095 point 2 — "every
+// other site references it"). `init --tools` (parseTools) and
+// `configure --set tools=` must both validate against exactly this list; a
+// second, independently hand-maintained copy is the bug class this closes.
+export const SUPPORTED_AI_TOOLS: readonly AiTool[] = ['claude', 'codex']
 
 export type Archetype =
   'backend-web-db' | 'cli' | 'library' | 'data-pipeline' | 'frontend-spa' | 'embedded'

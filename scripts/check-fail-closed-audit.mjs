@@ -110,6 +110,10 @@ const SKIP_FILES = new Set([
   // #2399 pure content-binding semantics (staleness reason + foreign-sidecar predicate);
   // no entry point — its consumers own the exit contract and fail closed on a non-null reason.
   'scripts/lib/evidence-binding.mjs',
+  // #2417 pure self-only-surfaces derivation (commands/skills/agents/hooks diffed against
+  // the emitted templates); no entry point — consumers (gen-llms-txt.mjs,
+  // __tests__/scripts/self-only-surfaces.test.ts) own the exit contract.
+  'scripts/lib/self-only-surfaces.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

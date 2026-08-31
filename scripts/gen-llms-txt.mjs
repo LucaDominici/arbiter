@@ -12,15 +12,17 @@
 //   node scripts/gen-llms-txt.mjs --check   # exit 1 if llms.txt is stale, 2 on error
 //
 // Exported functions (for unit tests):
-//   buildLlmsTxt(config, { docCount })          → string
+//   buildLlmsTxt(config, { docCount, invMax, commandsList }) → string
 //   readDocCount(indexPath)                     → number (throws if unparseable)
+//   readInvMax(catalogPath)                     → number (throws if unparseable; #2417)
+//   buildCommandsRunbookList(names, selfOnly)    → string (#2417 AC-2, marks self-only commands)
 //   findMissingPaths(config, root)               → string[] (empty = all paths resolve)
 //   runCli(configPath, indexPath, outPath, check) → Promise<0|1|2>  (INV-53: 0=OK/1=drift/2=error)
 //
 // llms.txt has NO trailing newline (byte-for-byte match with the hand-authored
 // original) — never append one. Generated-only: never hand-edit llms.txt.
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { isMainModule } from './lib/run-helpers.mjs'
 
@@ -39,16 +41,22 @@ function renderEntry(entry) {
  * No trailing newline. Sections separated by a blank line; bullets by a single
  * newline (no blank line between bullets in the same section).
  */
-export function buildLlmsTxt(config, { docCount }) {
+export function buildLlmsTxt(config, vars) {
   const sections = config.sections.map(
     (s) => `## ${s.heading}\n\n${s.entries.map(renderEntry).join('\n')}`,
   )
-  const body =
+  let body =
     `# ${config.title}\n\n` +
     `> ${config.summary}\n\n` +
     `${config.intro}\n\n` +
     sections.join('\n\n')
-  return body.replace(/\{\{docCount\}\}/g, String(docCount))
+  // Generic {{key}} substitution over every provided var (docCount, invMax,
+  // commandsList, ...) — a var not present in the template is simply never
+  // matched, so callers may pass a superset of what a given config uses.
+  for (const [key, value] of Object.entries(vars)) {
+    body = body.replaceAll(`{{${key}}}`, String(value))
+  }
+  return body
 }
 
 /** Parse the `N documents.` line written by scripts/gen-doc-index.mjs. Throws if not found. */
@@ -59,6 +67,36 @@ export function readDocCount(indexPath) {
     throw new Error(`could not parse doc count ("N documents.") from ${indexPath}`)
   }
   return Number(m[1])
+}
+
+/**
+ * Parse the highest `id: 'INV-NN'` from src/invariants/catalog.ts (#2417 —
+ * the invariant range must be read from the catalog max, never hand-typed).
+ * Throws if no INV-NN id is found (fail-closed, mirrors readDocCount).
+ */
+export function readInvMax(catalogPath) {
+  const content = readFileSync(catalogPath, 'utf-8')
+  const ids = [...content.matchAll(/id:\s*'INV-(\d+)'/g)].map((m) => Number(m[1]))
+  if (ids.length === 0) {
+    throw new Error(`could not parse any INV-NN id from ${catalogPath}`)
+  }
+  return Math.max(...ids)
+}
+
+/**
+ * Build the `.claude/commands/` runbook list markdown fragment (#2417 AC-1/AC-2):
+ * every command in `names` gets a `[name.md](.claude/commands/name.md)` link;
+ * a command listed in `selfOnly.commands` is marked "(self-only)" — never
+ * hand-listed, derived from scripts/data/self-only-surfaces.json.
+ */
+export function buildCommandsRunbookList(names, selfOnly) {
+  const selfOnlySet = new Set(selfOnly.commands ?? [])
+  return names
+    .map((name) => {
+      const link = `[${name}.md](.claude/commands/${name}.md)`
+      return selfOnlySet.has(name) ? `${link} (self-only)` : link
+    })
+    .join(', ')
 }
 
 /**
@@ -82,6 +120,12 @@ function extractProseLinkTargets(text) {
  * Validate every entry path (+ extraLinks paths + relative markdown links embedded in
  * the description prose) resolves under root, as a file or dir (trailing slash stripped
  * before existsSync). Returns the list of missing raw path strings (empty = all resolve).
+ *
+ * A `{{token}}` (docCount, invMax, commandsList, ...) is never a markdown link, so it is
+ * never extracted here — same precedent as {{docCount}}. The `{{commandsList}}` token's
+ * per-command links are guaranteed to resolve structurally instead: loadCommandsList()
+ * builds them from a real `readdirSync('.claude/commands')`, so a link to a
+ * non-existent command file cannot occur.
  */
 export function findMissingPaths(config, root) {
   const missing = []
@@ -120,6 +164,47 @@ function loadConfig(configPath) {
 function loadDocCount(indexPath) {
   try {
     return { docCount: readDocCount(indexPath) }
+    // FAIL-OPEN-INTENT: error is returned (not thrown) — runCli() surfaces it to stderr and exits 2.
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+/** Does the config template reference `{{key}}` anywhere? (skip computing an unused var) */
+function usesVar(config, key) {
+  return JSON.stringify(config).includes(`{{${key}}}`)
+}
+
+/**
+ * #2417: read the invariant range from the catalog max — only when the config
+ * actually references {{invMax}} (so fixture configs without it never need a
+ * real src/invariants/catalog.ts to exist).
+ */
+function loadInvMax(root, config) {
+  if (!usesVar(config, 'invMax')) return { invMax: undefined }
+  try {
+    return { invMax: readInvMax(resolve(root, 'src/invariants/catalog.ts')) }
+    // FAIL-OPEN-INTENT: error is returned (not thrown) — runCli() surfaces it to stderr and exits 2.
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+/**
+ * #2417 AC-1/AC-2: build the self-only-marked commands runbook list — only
+ * when the config actually references {{commandsList}}.
+ */
+function loadCommandsList(root, config) {
+  if (!usesVar(config, 'commandsList')) return { commandsList: undefined }
+  try {
+    const names = readdirSync(resolve(root, '.claude/commands'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => f.replace(/\.md$/, ''))
+      .sort()
+    const selfOnly = JSON.parse(
+      readFileSync(resolve(root, 'scripts/data/self-only-surfaces.json'), 'utf-8'),
+    )
+    return { commandsList: buildCommandsRunbookList(names, selfOnly) }
     // FAIL-OPEN-INTENT: error is returned (not thrown) — runCli() surfaces it to stderr and exits 2.
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) }
@@ -167,6 +252,19 @@ export async function runCli(configPath, indexPath, outPath, check) {
     }
 
     const root = resolve(configPath, '..')
+
+    const { invMax, error: invMaxErr } = loadInvMax(root, config)
+    if (invMaxErr) {
+      process.stderr.write(`gen-llms-txt: ${invMaxErr}\n`)
+      return 2
+    }
+
+    const { commandsList, error: commandsListErr } = loadCommandsList(root, config)
+    if (commandsListErr) {
+      process.stderr.write(`gen-llms-txt: ${commandsListErr}\n`)
+      return 2
+    }
+
     const missing = findMissingPaths(config, root)
     if (missing.length > 0) {
       process.stderr.write(
@@ -175,7 +273,7 @@ export async function runCli(configPath, indexPath, outPath, check) {
       return 2
     }
 
-    const generated = buildLlmsTxt(config, { docCount })
+    const generated = buildLlmsTxt(config, { docCount, invMax, commandsList })
     return check ? checkDrift(outPath, generated) : writeOutput(outPath, generated)
   } catch (err) {
     process.stderr.write(`gen-llms-txt: ${err instanceof Error ? err.message : String(err)}\n`)

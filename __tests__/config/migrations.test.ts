@@ -182,18 +182,34 @@ describe("migrate — v1 (version: '0.1')", () => {
     expect(result.features.debtGates).toBe(false)
   })
 
-  // #1594: the migration tool-filter must use the canonical 7-entry AI_TOOLS set,
-  // not a stale 4-entry hand-copy that silently strips gemini/windsurf/aider.
-  it.each(['gemini', 'windsurf', 'aider'])('preserves newer tool "%s" across v1→v2', (tool) => {
-    const v1 = {
+  // #1594: the migration tool-filter must read the canonical AI_TOOLS set rather
+  // than a stale hand-copy. #2367 (ADR-119) narrowed that set to claude+codex, so
+  // the same filter now drops a retired tool from a v1 config instead of carrying
+  // it forward — the supported tool survives, the retired one is stripped, and the
+  // migration never fails (ADR-105 never-brick).
+  it.each(['cursor', 'copilot', 'gemini', 'windsurf', 'aider'])(
+    'strips retired tool "%s" across v1→v2 while preserving claude',
+    (tool) => {
+      const v1 = {
+        version: '0.1',
+        tools: ['claude', tool],
+        governanceLevel: 'L2',
+        useGitHub: false,
+      }
+      const result = migrate(v1)
+      expect(result.tools).toContain('claude')
+      expect(result.tools).not.toContain(tool)
+    },
+  )
+
+  it('preserves codex across v1→v2 (the canonical set is read, not hand-copied)', () => {
+    const result = migrate({
       version: '0.1',
-      tools: ['claude', tool],
+      tools: ['claude', 'codex'],
       governanceLevel: 'L2',
       useGitHub: false,
-    }
-    const result = migrate(v1)
-    expect(result.tools).toContain('claude')
-    expect(result.tools).toContain(tool)
+    })
+    expect(result.tools).toEqual(['claude', 'codex'])
   })
 
   it('v1 contractType grpc → features.contractTesting=true', () => {
