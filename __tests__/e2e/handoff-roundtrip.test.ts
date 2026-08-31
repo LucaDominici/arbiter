@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -39,6 +39,14 @@ describe('handoff roundtrip E2E (#703)', () => {
     dirs.push(d)
     mkdirSync(join(d, '.claude'), { recursive: true })
     writeUnifiedState(d, { taskId: '#703', phase: phase as never })
+    // #2435: leaving a red-team phase asserts the evidence ship.md promises it records; this
+    // roundtrip exercises the model-switch crossing, so the fixture supplies it.
+    mkdirSync(join(d, '.arbiter', 'evidence', 'redteam'), { recursive: true })
+    writeFileSync(
+      join(d, '.arbiter', 'evidence', 'redteam', '#703.json'),
+      JSON.stringify({ findings: [] }),
+      'utf-8',
+    )
     return d
   }
 
@@ -76,6 +84,14 @@ describe('handoff via CLI subprocess (#703)', () => {
     dirs.push(d)
     mkdirSync(join(d, '.claude'), { recursive: true })
     writeUnifiedState(d, { taskId: '#703', phase: 'red-team-review' })
+    // #2435: the red-team evidence gate precedes the handoff crossing; this case asserts the
+    // handoff exit code, so the fixture records the evidence that phase promises.
+    mkdirSync(join(d, '.arbiter', 'evidence', 'redteam'), { recursive: true })
+    writeFileSync(
+      join(d, '.arbiter', 'evidence', 'redteam', '#703.json'),
+      JSON.stringify({ findings: [] }),
+      'utf-8',
+    )
     return d
   }
 

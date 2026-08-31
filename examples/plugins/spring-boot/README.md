@@ -22,14 +22,18 @@ Canonical example arbiter plugin for Spring Boot projects. Demonstrates the plug
 
 ```bash
 cd your-spring-boot-project
-npm install arbiter-plugin-spring-boot
 arbiter plugin add arbiter-plugin-spring-boot
 arbiter init --yes
 ```
 
+`plugin add` installs the package as a devDependency (detecting your package manager),
+validates it loads, and registers it in `arbiter.json`'s `plugins` array — pass
+`--no-install` if you already installed it yourself.
+
 ## Discovery
 
-This package uses keyword `arbiter-plugin` so it appears in `arbiter integrations list --recommended` and on the [plugin registry](https://arbiter.dev/plugins).
+This package uses keyword `arbiter-plugin` in `package.json`, the naming convention every
+arbiter plugin follows (see below), and is listed on the [plugin registry](https://arbiter.dev/plugins).
 
 ## Development
 

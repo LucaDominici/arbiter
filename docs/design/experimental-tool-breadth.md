@@ -1,8 +1,8 @@
 ---
 title: 'Experimental Tool Breadth — five generators maintained but unreachable'
 doc_version: '0.1.0'
-status: draft
-last_review: '2026-08-26'
+status: decided
+last_review: '2026-08-30'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -10,6 +10,13 @@ related: ['src/wizard/types.ts', 'src/generators/registry.ts']
 ---
 
 # Experimental Tool Breadth — five generators maintained but unreachable
+
+> **DECIDED (2026-08-30, #2367).** All five were **retired** — generators, templates and
+> tests deleted, `AiTool` narrowed to `claude | codex`. The promotion criteria that were
+> missing are now written down. See
+> [ADR-119](../internal/ADR/119-experimental-tool-generators-retired.md) for the recorded
+> decision per tool and the rationale; the rest of this document is the design record that
+> produced it.
 
 Five tool generators are built, tested and maintained — and reachable by nobody.
 

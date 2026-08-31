@@ -147,3 +147,9 @@ graphify-out/
 # #2326: self-surface hardness fixtures (written inside the repo so the hooks'
 # repo-root scoping matches production; removed in a finally, never committed)
 .arb-hardness-tmp*/
+
+# #2436: Stryker mutation-testing scratch sandbox (stryker.config.json has no
+# explicit tempDirName, so it defaults here). An interrupted run can leave this
+# untracked and un-ignored, and every tool that walks the tree (format, lint,
+# git status) then trips over its contents — regenerable, never committed.
+.stryker-tmp/

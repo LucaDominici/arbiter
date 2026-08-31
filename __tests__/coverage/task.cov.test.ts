@@ -51,6 +51,18 @@ function tmpRepo(): string {
 
 function seed(dir: string, fields: Partial<Parameters<typeof writeUnifiedState>[1]>): void {
   writeUnifiedState(dir, fields)
+  // #2435: leaving a red-team phase now asserts the evidence ship.md promises that phase
+  // records, so a fixture seeded AT one stands for a red team that actually ran. Written for
+  // both the seeded id and the `unknown` fallback the sanitiser produces for an id-less doc.
+  if (fields.phase !== 'red-team-review' && fields.phase !== 'red-team-rework') return
+  const evDir = join(dir, '.arbiter', 'evidence', 'redteam')
+  mkdirSync(evDir, { recursive: true })
+  const ids = [fields.taskId, 'unknown'].filter(
+    (v): v is string => typeof v === 'string' && v.length > 0,
+  )
+  for (const id of ids) {
+    writeFileSync(join(evDir, `${id}.json`), JSON.stringify({ findings: [] }), 'utf-8')
+  }
 }
 
 /** Capture process.stdout / process.stderr writes for the duration of a callback. */
@@ -596,7 +608,9 @@ describe('runTaskAdvance structural guards', () => {
 
   it('backward transition with --reverse → allowed', () => {
     const dir = tmpRepo()
-    seed(dir, { phase: 'refactor' })
+    // #2435: entering `plan` asserts preflight's "seed task state" promise, so the fixture
+    // carries the id every later evidence gate keys on.
+    seed(dir, { taskId: '#5', phase: 'refactor' })
     runTaskAdvance({ to: 'plan', dir, reverse: true })
     expect(readUnifiedState(dir)?.phase).toBe('plan')
   })
@@ -621,7 +635,7 @@ describe('runTaskAdvance structural guards', () => {
     expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
   })
 
-  it('plan → red-team-review (no gate) advances and logs the transition', () => {
+  it('plan → red-team-review (plan-review gate disabled) advances and logs the transition', () => {
     const dir = tmpRepo()
     seed(dir, { phase: 'plan' })
     runTaskAdvance({ to: 'red-team-review', dir })

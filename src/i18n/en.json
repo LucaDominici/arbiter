@@ -115,6 +115,7 @@
       "prompt_level": "Select governance level:",
       "prompt_language": "Select primary language:",
       "prompt_archetype": "Select project archetype:",
+      "install_first_hint": "\n  Next: run `{installCommand}` first — init added the gate toolchain to devDependencies but did not install it.",
       "verify_hint": "\n  Run: node scripts/check-all.mjs L1  to verify\n",
       "existing_agents_md": "  \u251c\u2500\u2500 Existing AGENTS.md detected \u2014 will back up",
       "existing_claude_dir": "  \u251c\u2500\u2500 Existing .claude/ detected \u2014 will merge",
@@ -133,6 +134,7 @@
       "dry_run_modify_file": "  ~ {entry}",
       "dry_run_skip_header": "  [skip]",
       "dry_run_skip_file": "  = {entry}",
+      "dry_run_deferred_note": "\n  Not listed: the doc-set skeletons. They are resolved from standards/gold-doc-set.yml, which this same run writes, so they can only be decided once init has run.",
       "dry_run_run_hint": "\n  Run without --dry-run to apply.\n",
       "gate_failed": "\n  arbiter init aborted: L3 maturity gate failed.\n",
       "coherence_gate_failed": "\n  arbiter init aborted: collaborationMode \u00d7 governanceLevel coherence gate failed.\n",
@@ -225,7 +227,8 @@
       "load_error": "Failed to load plugin \"{name}\": {message}\n  arbiter.json was not modified.\n  {hint}",
       "retry_network": "Network issue detected. Remove the plugin from arbiter.json's `plugins` array, then re-run `arbiter update`.",
       "retry_local": "Verify the package is installed (`npm install {name}`), or remove it from arbiter.json's `plugins` array and re-run `arbiter update`.",
-      "security_advisory": "  Security advisory: Plugin {name} will execute Node code during `arbiter update`. Verify source before use."
+      "security_advisory": "  Security advisory: Plugin {name} will execute Node code during `arbiter update`. Verify source before use.",
+      "already_configured": "  Plugin already configured: {name}"
     },
     "diff": {
       "banner": "\n  Arbiter \u2014 diff (dry run)\n",
@@ -237,6 +240,7 @@
       "run_update": "\n  Run `arbiter update` to apply changes.\n",
       "remote_header": "\n  Remote side effects (`arbiter update --github` would perform):",
       "remote_effect": "  \u2192 {op}  {target}",
+      "ignored_file": "  \u2013 {key}  (skipped \u2014 .arbiterignore)",
       "withheld_file": "  ! {key}  (template fix WITHHELD \u2014 user-modified)",
       "withheld_header": "\n  Withheld template fixes ({count}) \u2014 preserved because user-modified, fix NOT applied:",
       "withheld_hint": "  These files are behind the current template. Review the upstream changes and merge them manually, or run `arbiter diff --withheld` for a focused list.",
