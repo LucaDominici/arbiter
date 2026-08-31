@@ -84,13 +84,17 @@ export const REQUIRED_RAW_HOOKS = [
  */
 export function getNpmScript(name, fallback) {
   const pkgPath = join(repoRoot, 'package.json')
+  // #2418: an unreadable or malformed package.json used to fall through silently to the
+  // fallback command, so the remediation hint this gate prints could name a command that
+  // does not exist while nothing said why.
+  let pkg
   try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-    if (pkg.scripts && pkg.scripts[name]) {
-      return `npm run ${name}`
-    }
-  } catch {
-    // ignore
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+  } catch (err) {
+    throw new Error(`cannot read ${pkgPath} to resolve the "${name}" script: ${err?.message ?? err}`)
+  }
+  if (pkg.scripts && pkg.scripts[name]) {
+    return `npm run ${name}`
   }
   return fallback
 }

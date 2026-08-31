@@ -297,7 +297,7 @@ and challenge it if it does not hold up.
 | Layer       | Mechanism                                                                                       |
 | ----------- | ----------------------------------------------------------------------------------------------- |
 | INV-96      | `scripts/check-fail-closed-audit.mjs` (L2 gate) — fails when a NEW script violates the contract |
-| Baseline    | `scripts/data/fail-closed-baseline.json` — grandfathers historical files until each is fixed    |
+| Baseline    | `scripts/data/fail-closed-baseline.json` — dated/owned debt ledger, ≤90-day rows, shrink-only   |
 | Templates   | `src/templates/root/docs/SYSTEM/FAIL_CLOSED.md.ejs` (L2+) — ships doctrine into target projects |
 | Self-config | This document — read by humans and AI agents working on arbiter                                 |
 

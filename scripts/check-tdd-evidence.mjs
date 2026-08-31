@@ -281,8 +281,14 @@ function evidenceProducedHere(run, mergeBase, taskId) {
       ['log', '--format=%H', `${mergeBase}..HEAD`, '--', `.arbiter/evidence/tdd/${taskId}.json`],
       { cwd: repoRoot },
     )
-  } catch {
-    touched = ''
+  } catch (err) {
+    // #2418: a failed `git log` used to be indistinguishable from "no commit touched this
+    // evidence file", so a broken git invocation silently produced the verdict "evidence
+    // inherited from main". Not knowing is not the same as knowing it was inherited.
+    throw new Error(
+      `cannot determine whether ${taskId} evidence was produced on this branch — ` +
+        `git log ${mergeBase}..HEAD failed: ${err?.message ?? err}`,
+    )
   }
   if (touched.length > 0) return true
   process.stdout.write(`  ${taskId}: evidence inherited from main, not produced on this branch\n`)
@@ -407,5 +413,13 @@ export function main(opts) {
 
 // Only run main when invoked as CLI (not imported in tests)
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main()
+  try {
+    main()
+  } catch (err) {
+    // #2418, fail-closed (INV-96): an unexpected error here used to escape as an unhandled
+    // rejection with a raw stack and node's generic exit code. It is an invocation fault
+    // (INV-53 exit 2) — never a pass.
+    process.stderr.write(`check-tdd-evidence: unexpected error — ${err?.message ?? err}\n`)
+    process.exit(2)
+  }
 }

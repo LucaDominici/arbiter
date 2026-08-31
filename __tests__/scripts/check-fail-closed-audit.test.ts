@@ -352,6 +352,78 @@ describe('check-fail-closed-audit', () => {
     expect(r.stdout).toContain('baseline updated')
   })
 
+  // ── #2418: a catch that delegates to a file-local TERMINAL helper is surfacing ──
+  // The `fail(msg)` / `invoke(msg)` convention (write to stderr, exit non-zero) is the
+  // dominant shape across the meta-check family. The textual detector could not see
+  // through the call, so every script using it was forced into the baseline.
+
+  it('does NOT flag a catch that delegates to a file-local fail() helper', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'delegating.mjs'),
+      [
+        '#!/usr/bin/env node',
+        'function fail(msg) {',
+        '  process.stderr.write(`FAIL: ${msg}\\n`)',
+        '  process.exit(1)',
+        '}',
+        'try {',
+        '  doThing()',
+        '} catch (e) {',
+        '  fail(e.message)',
+        '}',
+      ].join('\n'),
+    )
+    expect(runAudit(env.root).status).toBe(0)
+  })
+
+  it('still flags a catch that delegates to a helper which merely returns', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'soft-helper.mjs'),
+      [
+        '#!/usr/bin/env node',
+        'function quiet(msg) {',
+        '  return msg',
+        '}',
+        'function run() {',
+        '  try {',
+        '    return doThing()',
+        '  } catch (e) {',
+        '    quiet(e)',
+        '  }',
+        '}',
+        'try { run() } catch (e) { console.error(e); process.exit(1) }',
+      ].join('\n'),
+    )
+    const r = runAudit(env.root)
+    expect(r.status).toBe(1)
+    expect(r.stdout).toContain('soft-helper.mjs')
+    expect(r.stdout).toContain('node-swallowed-catch')
+  })
+
+  it('still flags a catch delegating to a helper that only CONDITIONALLY exits', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'maybe-exit.mjs'),
+      [
+        '#!/usr/bin/env node',
+        'function maybeFail(msg) {',
+        '  if (!msg) return',
+        '  process.exit(1)',
+        '}',
+        'function run() {',
+        '  try {',
+        '    return doThing()',
+        '  } catch (e) {',
+        '    maybeFail(e.message)',
+        '  }',
+        '}',
+        'try { run() } catch (e) { console.error(e); process.exit(1) }',
+      ].join('\n'),
+    )
+    const r = runAudit(env.root)
+    expect(r.status).toBe(1)
+    expect(r.stdout).toContain('maybe-exit.mjs')
+  })
+
   // ── #2418: the baseline is dated, owned and decaying — not an open-ended ledger ──
 
   describe('#2418 baseline policy', () => {

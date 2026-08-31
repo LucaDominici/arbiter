@@ -28,19 +28,25 @@ function goldCheckIds() {
   const ids = new Set()
   const dir = resolve(CWD, 'standards')
   if (!existsSync(dir)) return ids
+  // #2418: an unreadable registry directory used to yield an EMPTY id set, so every
+  // `enforces:` ref was judged against nothing. Unreadable input is a hard failure —
+  // the top-level handler below turns the throw into exit 1.
   let entries
   try {
     entries = readdirSync(dir)
-  } catch {
-    return ids
+  } catch (err) {
+    throw new Error(`standards/ exists but cannot be listed: ${err?.message ?? err}`)
   }
   for (const f of entries) {
     if (!/^gold-registry(\.[a-z0-9]+)?\.yml$/.test(f)) continue
     let doc
     try {
       doc = parseYaml(readFileSync(join(dir, f), 'utf-8'))
-    } catch {
-      continue // a malformed registry contributes no ids — refs resolve only against real ids
+    } catch (err) {
+      // #2418: this used to `continue` — a malformed registry contributed no ids, so a
+      // ref into it was reported as dangling (right verdict, wrong reason) or, worse,
+      // the whole registry vanished silently. Name the real fault instead.
+      throw new Error(`standards/${f} is malformed and cannot be read: ${err?.message ?? err}`)
     }
     const checks = doc && Array.isArray(doc.checks) ? doc.checks : []
     for (const c of checks) {
@@ -115,8 +121,10 @@ function invariantIds() {
   let text
   try {
     text = readFileSync(p, 'utf-8')
-  } catch {
-    return ids
+  } catch (err) {
+    // #2418: an unreadable catalog used to yield an empty invariant set, silently turning
+    // every `enforces: INV-nn` ref into a dangling ref (or none). Fail on the real fault.
+    throw new Error(`src/invariants/catalog.ts exists but cannot be read: ${err?.message ?? err}`)
   }
   // Strip comments (string-aware) first, so an INV id that exists ONLY in a `/* … */` or `// …`
   // comment (e.g. a removed/reserved entry) is NOT treated as a real invariant (anti-fake-green).

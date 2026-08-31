@@ -1520,8 +1520,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'bare || true clauses without // FAIL-OPEN-INTENT: annotation, Node scripts that do not ' +
       'wrap top-level work in try/catch exit(1) or consume run-helpers.mjs, and bare catch {} ' +
       'swallowing without // FAIL-OPEN-INTENT: annotation. ' +
-      'New scripts outside the baseline must pass all checks; existing violations are frozen ' +
-      'in scripts/data/fail-closed-baseline.json.',
+      'New scripts outside the baseline must pass all checks. The baseline in ' +
+      'scripts/data/fail-closed-baseline.json is a decaying debt ledger, not a freeze: every ' +
+      'row carries since + owner and either an expires date at most 90 days out or a written ' +
+      'permanent rationale, and the gate fails on an expired row, on a longer window, and on a ' +
+      'row whose file no longer violates — so the ledger can only shrink.',
     enforcement: 'scripts/check-fail-closed-audit.mjs',
   },
 

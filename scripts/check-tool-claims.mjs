@@ -59,8 +59,10 @@ function getAllTrackedFiles() {
   try {
     const out = execFileSync('git', ['ls-files'], { encoding: 'utf8' })
     return out.trim().split('\n').filter(Boolean)
-  } catch {
-    return []
+  } catch (err) {
+    // #2418: a failed `git ls-files` used to return an EMPTY corpus — the scan then found
+    // nothing and the gate reported OK, the textbook fake green. No corpus, no verdict.
+    throw new Error(`cannot enumerate tracked files (git ls-files failed): ${err?.message ?? err}`)
   }
 }
 
@@ -102,8 +104,12 @@ try {
     let content
     try {
       content = readFileSync(join(process.cwd(), file), 'utf8')
-    } catch {
-      continue
+    } catch (err) {
+      // #2418: a tracked doc that could not be read was silently skipped, so the very
+      // file carrying a false claim could drop out of the scan and leave the gate green.
+      // (A file deleted from the tree but still in the index is the same defect: the
+      // index is the corpus this gate promises to have scanned.)
+      throw new Error(`tracked file ${file} is listed but unreadable: ${err?.message ?? err}`)
     }
     const lines = content.split('\n')
     for (let i = 0; i < lines.length; i++) {

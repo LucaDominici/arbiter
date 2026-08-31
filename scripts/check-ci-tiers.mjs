@@ -45,8 +45,15 @@ function readMinPresent() {
   let src
   try {
     src = readFileSync(catalogPath, 'utf-8')
-  } catch {
-    return ALL_CANONICAL.length
+  } catch (err) {
+    // #2418: a catalog that EXISTS but cannot be read used to silently substitute the
+    // "require all 8" default — a policy swap nobody could see in the output. The
+    // threshold this gate enforces must come from the catalog or not at all.
+    process.stderr.write(
+      `check-ci-tiers: ERROR — ${catalogPath} exists but cannot be read (${err?.message ?? err}); ` +
+        `the INV-73 minPresent threshold cannot be resolved\n`,
+    )
+    process.exit(2)
   }
   // Match the INV-73 block (from id: 'INV-73' to the next top-level object or end)
   const inv73Block = src.match(/id:\s*['"]INV-73['"][\s\S]*?(?=\},\s*\{|\},\s*\/\/|$)/)

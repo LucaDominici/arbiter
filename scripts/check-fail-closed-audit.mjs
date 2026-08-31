@@ -23,13 +23,19 @@
 //
 // Usage:
 //   node scripts/check-fail-closed-audit.mjs                       # audit + baseline diff
-//   node scripts/check-fail-closed-audit.mjs --update-baseline     # rewrite baseline
+//   node scripts/check-fail-closed-audit.mjs --update-baseline --owner <name>
 //   node scripts/check-fail-closed-audit.mjs --root <dir>          # alternate root
 //
-// Baseline grandfathering: every currently non-conformant file is listed in
-// `scripts/data/fail-closed-baseline.json`. New violations outside that list
-// fail the gate. To remove a file from the baseline (i.e. when it has been
-// fixed) regenerate the baseline with `--update-baseline`.
+// Baseline grandfathering (#2418): the baseline is a DEBT LEDGER, not an exemption
+// list. Every row in `scripts/data/fail-closed-baseline.json` names when the
+// exemption was granted (`since`), who owns repaying it (`owner`), and when it
+// lapses (`expires`, at most 90 days out) — or, for the rare file that can never
+// conform, a written `permanent` rationale. The gate FAILS on an expired row, on a
+// window longer than 90 days, on a row whose file no longer violates (so the ledger
+// can only shrink), and on any new violation outside the ledger. Regenerating with
+// `--update-baseline` preserves each surviving row's metadata VERBATIM — a
+// regeneration never renews an expiry, that is a deliberate hand edit — and refuses
+// to grandfather a newly-violating file unless `--owner <name>` names its owner.
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 
@@ -37,6 +43,9 @@ const args = process.argv.slice(2)
 const rootArgIdx = args.indexOf('--root')
 const ROOT = rootArgIdx >= 0 ? resolve(args[rootArgIdx + 1] ?? '.') : process.cwd()
 const UPDATE = args.includes('--update-baseline')
+const ownerArgIdx = args.indexOf('--owner')
+const OWNER = ownerArgIdx >= 0 ? (args[ownerArgIdx + 1] ?? '').trim() : ''
+const windowArgIdx = args.indexOf('--window')
 const BASELINE_PATH = resolve(ROOT, 'scripts/data/fail-closed-baseline.json')
 
 // INV-96 scope: PUBLIC dirs only. Never add .env, secrets/, or any path .gitignore'd — audit output reaches CI logs.
@@ -291,14 +300,52 @@ function readBraceBlock(masked, openIdx) {
   return masked.slice(openIdx + 1)
 }
 
+// Declaration opener for a named function or arrow const, capturing the name and ending
+// on the body's `{` so readBraceBlock can lift the body. Built from a string for symmetry
+// with the other body-scanning regexes.
+const FN_DECL_RE = new RegExp(
+  '(?:function\\s+([A-Za-z_$][\\w$]*)\\s*\\([^)]*\\)\\s*' +
+    '|(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*(?:async\\s+)?\\([^)]*\\)\\s*=>\\s*)\\{',
+  'g',
+)
+/**
+ * Names of file-local functions that SURFACE what they are handed: the body itself carries
+ * a surface/propagate token (the `fail(msg)` / `invoke(msg)` / `die(msg)` convention that
+ * writes the failure out, records it, throws, or exits). A catch delegating to one of these
+ * surfaces the error through a named helper — same semantics the in-body rule already
+ * accepts, one indirection deeper — so it is not a swallow.
+ *
+ * Conservative on purpose: a helper containing any `return` can fall through WITHOUT
+ * surfacing, so it does not qualify. Without this, every gate script using the convention
+ * was forced into the baseline for errors it was in fact reporting (#2418).
+ */
+function surfacingHelperNames(masked) {
+  const names = new Set()
+  FN_DECL_RE.lastIndex = 0
+  let m
+  while ((m = FN_DECL_RE.exec(masked)) !== null) {
+    const name = m[1] ?? m[2]
+    if (!name) continue
+    const body = readBraceBlock(masked, FN_DECL_RE.lastIndex - 1)
+    if (!SURFACE_RE.test(body)) continue
+    if (/\breturn\b/.test(body)) continue
+    names.add(name)
+  }
+  return names
+}
+
 /**
  * Find every fail-open swallowed `catch` in `content`. A catch is a swallow when its body
- * (masked) carries no surface/propagate token. Suppressed when the previous non-blank line
- * in the ORIGINAL source is a `// FAIL-OPEN-INTENT:` (or `# …`) marker.
+ * (masked) carries no surface/propagate token and does not delegate to a surfacing helper.
+ * Suppressed when the previous non-blank line in the ORIGINAL source is a
+ * `// FAIL-OPEN-INTENT:` (or `# …`) marker.
  */
 function findSwallowedCatches(content) {
   const masked = maskCode(content)
   const lines = content.split('\n')
+  const surfacing = surfacingHelperNames(masked)
+  const delegatesRe =
+    surfacing.size > 0 ? new RegExp(`\\b(?:${[...surfacing].join('|')})\\s*\\(`) : null
   const hits = []
   CATCH_OPEN_RE.lastIndex = 0
   let m
@@ -306,6 +353,7 @@ function findSwallowedCatches(content) {
     const openIdx = m.index + m[0].length - 1
     const body = readBraceBlock(masked, openIdx)
     if (SURFACE_RE.test(body)) continue
+    if (delegatesRe !== null && delegatesRe.test(body)) continue
     const lineNo = masked.slice(0, m.index).split('\n').length // 1-based
     let allowlisted = false
     for (let j = lineNo - 2; j >= 0; j--) {
@@ -402,33 +450,126 @@ function auditNode(content, entryScript) {
   return violations
 }
 
-function loadBaseline() {
-  if (!existsSync(BASELINE_PATH)) {
-    return { schema: 'arbiter-fail-closed-baseline-v1', generated_at: null, files: [] }
-  }
+// ─── Baseline ledger (#2418) ───────────────────────────────────────────────────
+
+const BASELINE_SCHEMA = 'arbiter-fail-closed-baseline-v2'
+const MAX_WINDOW_DAYS = 90
+/** A `permanent` row must carry a written reason, not a token word like "legacy". */
+const MIN_RATIONALE_CHARS = 24
+const DAY_MS = 86_400_000
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+const isoDay = (offsetDays = 0) =>
+  new Date(Date.now() + offsetDays * DAY_MS).toISOString().slice(0, 10)
+const daysUntil = (iso) => (Date.parse(`${iso}T00:00:00Z`) - Date.now()) / DAY_MS
+
+function fatal(message) {
+  process.stderr.write(`[check-fail-closed-audit] ERROR: ${message}\n`)
+  process.exit(2)
+}
+
+/** Read the ledger with no policy opinion — the shape `--update-baseline` migrates from. */
+function readBaselineRaw() {
+  if (!existsSync(BASELINE_PATH)) return null
+  let raw
   try {
-    const raw = readFileSync(BASELINE_PATH, 'utf-8')
-    const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.files)) {
-      process.stderr.write(
-        `[check-fail-closed-audit] ERROR: malformed baseline at ${BASELINE_PATH}\n`,
-      )
-      process.exit(2)
-    }
-    return parsed
+    raw = readFileSync(BASELINE_PATH, 'utf-8')
   } catch (err) {
+    fatal(
+      `cannot read baseline ${BASELINE_PATH}: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
+  let parsed
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    fatal(
+      `malformed JSON in baseline ${BASELINE_PATH}: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.files)) {
+    fatal(`malformed baseline at ${BASELINE_PATH}: expected an object with a \`files\` array`)
+  }
+  return parsed
+}
+
+/**
+ * Structural contract for the ledger. Returns human-readable problems; an empty array
+ * means every row is dated, owned and bounded. Shape problems are a DATA fault (exit 2),
+ * distinct from a policy breach (expired / over-long / stale — exit 1).
+ */
+function validateRows(rows) {
+  const problems = []
+  const seen = new Set()
+  for (let i = 0; i < rows.length; i++) {
+    const e = rows[i]
+    if (!e || typeof e !== 'object' || Array.isArray(e)) {
+      problems.push(
+        `entry #${i + 1}: not an object — the v1 bare-path shape carries no date or owner`,
+      )
+      continue
+    }
+    const file = e.file
+    if (typeof file !== 'string' || file.trim() === '') {
+      problems.push(`entry #${i + 1}: missing \`file\``)
+      continue
+    }
+    if (seen.has(file)) problems.push(`${file}: duplicate entry`)
+    seen.add(file)
+    if (typeof e.since !== 'string' || !ISO_DATE.test(e.since)) {
+      problems.push(`${file}: missing or malformed \`since\` (expected YYYY-MM-DD)`)
+    }
+    if (typeof e.owner !== 'string' || e.owner.trim() === '') {
+      problems.push(`${file}: missing \`owner\` — an unowned exemption is nobody's debt`)
+    }
+    const hasExpiry = e.expires !== undefined
+    const hasRationale = e.permanent !== undefined
+    if (hasExpiry && hasRationale) {
+      problems.push(`${file}: carries BOTH \`expires\` and \`permanent\` — a row is one or the other`)
+    } else if (!hasExpiry && !hasRationale) {
+      problems.push(
+        `${file}: needs \`expires\` (at most ${MAX_WINDOW_DAYS} days out) or a \`permanent\` rationale`,
+      )
+    } else if (hasExpiry && (typeof e.expires !== 'string' || !ISO_DATE.test(e.expires))) {
+      problems.push(`${file}: malformed \`expires\` (expected YYYY-MM-DD)`)
+    } else if (
+      hasRationale &&
+      (typeof e.permanent !== 'string' || e.permanent.trim().length < MIN_RATIONALE_CHARS)
+    ) {
+      problems.push(
+        `${file}: \`permanent\` needs a written rationale of at least ${MIN_RATIONALE_CHARS} characters`,
+      )
+    }
+  }
+  return problems
+}
+
+function loadBaseline() {
+  const parsed = readBaselineRaw()
+  if (parsed === null) return { schema: BASELINE_SCHEMA, generated_at: null, files: [] }
+  if (parsed.schema !== BASELINE_SCHEMA) {
+    fatal(
+      `baseline schema \`${String(parsed.schema)}\` is not \`${BASELINE_SCHEMA}\` — every row must ` +
+        `carry \`since\` + \`owner\` + \`expires\` (or a \`permanent\` rationale). Migrate it with ` +
+        `\`node scripts/check-fail-closed-audit.mjs --update-baseline --owner <name>\`.`,
+    )
+  }
+  const problems = validateRows(parsed.files)
+  if (problems.length > 0) {
     process.stderr.write(
-      `[check-fail-closed-audit] ERROR: cannot read baseline ${BASELINE_PATH}: ${err instanceof Error ? err.message : String(err)}\n`,
+      `[check-fail-closed-audit] ERROR: ${problems.length} malformed baseline row(s) in ${BASELINE_PATH}:\n` +
+        problems.map((p) => `  - ${p}\n`).join(''),
     )
     process.exit(2)
   }
+  return parsed
 }
 
-function writeBaseline(files) {
+function writeBaseline(rows) {
   const out = {
-    schema: 'arbiter-fail-closed-baseline-v1',
+    schema: BASELINE_SCHEMA,
     generated_at: new Date().toISOString(),
-    files: [...files].sort(),
+    files: [...rows].sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0)),
   }
   try {
     writeFileSync(BASELINE_PATH, JSON.stringify(out, null, 2) + '\n')
@@ -438,6 +579,46 @@ function writeBaseline(files) {
     )
     process.exit(2)
   }
+}
+
+/**
+ * Rebuild the ledger from the live findings. Surviving rows keep their metadata
+ * VERBATIM (a regeneration must never renew an expiry — renewal is a hand edit that
+ * shows up in review); rows whose file no longer violates are dropped; a newly
+ * violating file is only grandfathered when `--owner` names who owns repaying it.
+ */
+function rebuildBaseline(findingFiles) {
+  const prior = readBaselineRaw()
+  const priorRows = new Map()
+  for (const e of prior?.files ?? []) {
+    if (e && typeof e === 'object' && typeof e.file === 'string') priorRows.set(e.file, e)
+  }
+  let window = MAX_WINDOW_DAYS
+  if (windowArgIdx >= 0) {
+    window = Number(args[windowArgIdx + 1])
+    if (!Number.isInteger(window) || window < 1 || window > MAX_WINDOW_DAYS) {
+      fatal(`--window must be an integer between 1 and ${MAX_WINDOW_DAYS} days`)
+    }
+  }
+  const added = findingFiles.filter((f) => !priorRows.has(f))
+  if (added.length > 0 && OWNER === '') {
+    fatal(
+      `refusing to grandfather ${added.length} newly-violating file(s) without an owner — ` +
+        `re-run with \`--owner <name>\`, or fix them:\n` +
+        added.map((f) => `  - ${f}\n`).join(''),
+    )
+  }
+  const rows = findingFiles.map(
+    (f) =>
+      priorRows.get(f) ?? {
+        file: f,
+        since: isoDay(0),
+        owner: OWNER,
+        expires: isoDay(window),
+      },
+  )
+  writeBaseline(rows)
+  return { kept: rows.length - added.length, added: added.length, dropped: priorRows.size - (rows.length - added.length) }
 }
 
 function audit() {
@@ -479,37 +660,92 @@ function audit() {
 const findings = audit()
 
 if (UPDATE) {
-  const files = findings.map((f) => f.file)
-  writeBaseline(files)
+  const files = findings.map((f) => f.file).sort()
+  const { kept, added, dropped } = rebuildBaseline(files)
   process.stdout.write(
-    `[check-fail-closed-audit] baseline updated — ${files.length} grandfathered file(s)\n`,
+    `[check-fail-closed-audit] baseline updated — ${files.length} grandfathered file(s) ` +
+      `(${kept} kept verbatim, ${added} newly owned by ${OWNER || '<none>'}, ${dropped} dropped)\n`,
   )
   process.exit(0)
 }
 
 const baseline = loadBaseline()
-const baselineSet = new Set(baseline.files)
-const newViolations = findings.filter((f) => !baselineSet.has(f.file))
+const baselineSet = new Set(baseline.files.map((e) => e.file))
+const violatingSet = new Set(findings.map((f) => f.file))
 
-if (newViolations.length > 0) {
-  process.stdout.write(
-    `[check-fail-closed-audit] FAIL: ${newViolations.length} new file(s) violate fail-closed contract\n`,
-  )
-  for (const v of newViolations) {
-    process.stdout.write(`  ${v.file} (${v.kind}):\n`)
-    for (const item of v.violations) {
-      process.stdout.write(`    - [${item.kind}] ${item.detail}\n`)
-    }
+// Ledger policy (#2418): a row is stale once its file stops violating (fixed or deleted)
+// — the ledger may only shrink. A live row lapses on its `expires` date, and no row may
+// be written more than MAX_WINDOW_DAYS out, so no exemption outlives one quarter.
+const stale = []
+const expired = []
+const overlong = []
+for (const entry of baseline.files) {
+  if (!violatingSet.has(entry.file)) {
+    stale.push(entry.file)
+    continue
   }
-  process.stdout.write(
-    '\nFix the script (see docs/SYSTEM/FAIL_CLOSED.md) or, for a legitimate exception,\n' +
-      'mark the offending line with `# FAIL-OPEN-INTENT: <reason>` (bash) or\n' +
-      '`// FAIL-OPEN-INTENT: <reason>` (node).\n',
-  )
-  process.exit(1)
+  if (typeof entry.expires !== 'string') continue
+  const remaining = daysUntil(entry.expires)
+  if (remaining < 0) {
+    expired.push(`${entry.file} — expired ${entry.expires} (owner ${entry.owner})`)
+  } else if (remaining > MAX_WINDOW_DAYS) {
+    overlong.push(`${entry.file} — expires ${entry.expires}, ${Math.ceil(remaining)} days out`)
+  }
 }
 
-process.stdout.write(
-  `[check-fail-closed-audit] OK — ${findings.length} grandfathered, 0 new violations\n`,
-)
-process.exit(0)
+const newViolations = findings.filter((f) => !baselineSet.has(f.file))
+
+if (stale.length > 0 || expired.length > 0 || overlong.length > 0 || newViolations.length > 0) {
+  process.stdout.write('[check-fail-closed-audit] FAIL\n')
+  if (expired.length > 0) {
+    process.stdout.write(
+      `\n${expired.length} EXPIRED baseline row(s) — fix the file or renew the row with a new owner+date:\n` +
+        expired.map((l) => `  - ${l}\n`).join(''),
+    )
+  }
+  if (overlong.length > 0) {
+    process.stdout.write(
+      `\n${overlong.length} baseline row(s) exempt for more than ${MAX_WINDOW_DAYS} days — no exemption may outlive one quarter:\n` +
+        overlong.map((l) => `  - ${l}\n`).join(''),
+    )
+  }
+  if (stale.length > 0) {
+    process.stdout.write(
+      `\n${stale.length} baseline row(s) whose file no longer violates (or no longer exists) — ` +
+        `drop them, the ledger only shrinks:\n` +
+        stale.map((f) => `  - ${f}\n`).join(''),
+    )
+  }
+  if (newViolations.length > 0) {
+    process.stdout.write(
+      `\n${newViolations.length} new file(s) violate the fail-closed contract:\n`,
+    )
+    for (const v of newViolations) {
+      process.stdout.write(`  ${v.file} (${v.kind}):\n`)
+      for (const item of v.violations) {
+        process.stdout.write(`    - [${item.kind}] ${item.detail}\n`)
+      }
+    }
+    process.stdout.write(
+      '\nFix the script (see docs/SYSTEM/FAIL_CLOSED.md) or, for a legitimate exception,\n' +
+        'mark the offending line with `# FAIL-OPEN-INTENT: <reason>` (bash) or\n' +
+        '`// FAIL-OPEN-INTENT: <reason>` (node).\n',
+    )
+  }
+  // #2418: `process.exit()` discards stdout still queued on a PIPE, which truncated this
+  // report to the first ~90 files whenever the gate ran under a wrapper. Setting the code
+  // and letting the process end naturally flushes the whole finding list.
+  process.exitCode = 1
+} else {
+  const permanent = baseline.files.filter((e) => typeof e.permanent === 'string').length
+  const nextExpiry = baseline.files
+    .filter((e) => typeof e.expires === 'string')
+    .sort((a, b) => (a.expires < b.expires ? -1 : 1))[0]
+  process.stdout.write(
+    `[check-fail-closed-audit] OK — ${baseline.files.length} grandfathered ` +
+      `(${permanent} permanent), 0 new violations` +
+      (nextExpiry ? `; next expiry ${nextExpiry.expires} (${nextExpiry.file})` : '') +
+      '\n',
+  )
+  process.exitCode = 0
+}

@@ -274,6 +274,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-96:** Fail-closed audit — every gate script must default to BLOCK on uncertainty
   - _Enforcement:_ `scripts/check-fail-closed-audit.mjs`
   - Every gate, hook, check, and generator emitted by arbiter must default to BLOCK on uncertainty, never SKIP. Audits scripts/, .githooks/, and .claude/hooks/ for fail-open anti-patterns. New scripts outside the baseline must pass all checks.
+  - _Baseline decay (#2418):_ `scripts/data/fail-closed-baseline.json` grandfathers exactly 156 files, and it is a debt ledger, not an exemption list. Every row carries `since` + `owner` and either an `expires` date at most **90 days** out or a written permanent rationale. The gate FAILS on an expired row, on a window longer than 90 days, and on a row whose file no longer violates — so the list may **only shrink**, never grow silently: `--update-baseline` preserves each surviving row verbatim (regeneration never renews an expiry) and refuses to grandfather a newly-violating file without `--owner`. `scripts/check-all.mjs` and the meta-check family (the gates that audit arbiter's own enforcement) are NOT in the baseline — the auditors are not exempt from the audit.
 
 ## Supply Chain (INV-92)
 

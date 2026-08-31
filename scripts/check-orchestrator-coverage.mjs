@@ -33,13 +33,29 @@ export function loadCoverageAllowlist(path = ALLOWLIST_PATH) {
   let raw
   try {
     raw = readFileSync(path, 'utf8')
-  } catch {
-    return { entries: [], scripts: new Set(), problems: [] }
+  } catch (err) {
+    // #2418: "no allowlist" is a legitimate state (ENOENT ⇒ nothing is silenced). Any
+    // other read fault used to produce the same empty result, silently widening the set
+    // of scripts treated as unsilenced — or hiding that the allowlist could not be read.
+    if (err?.code === 'ENOENT') return { entries: [], scripts: new Set(), problems: [] }
+    process.stderr.write(
+      `check-orchestrator-coverage: allowlist at ${path} exists but cannot be read: ${err?.message ?? err}\n`,
+    )
+    return {
+      entries: [],
+      scripts: new Set(),
+      problems: [`allowlist at ${path} exists but cannot be read: ${err?.message ?? err}`],
+    }
   }
   let parsed
   try {
     parsed = JSON.parse(raw)
   } catch (err) {
+    // Returned to the caller AND written out here: this function is exported, and a
+    // consumer that ignored `problems` used to see a silently empty allowlist (#2418).
+    process.stderr.write(
+      `check-orchestrator-coverage: allowlist is not valid JSON: ${err.message}\n`,
+    )
     return {
       entries: [],
       scripts: new Set(),
@@ -118,7 +134,14 @@ function main() {
   const transitiveSrcs = TRANSITIVE_AGGREGATORS.map((f) => {
     try {
       return readFileSync(join(SCRIPTS_DIR, f), 'utf8')
-    } catch {
+    } catch (err) {
+      // #2418: an unreadable aggregator used to substitute an EMPTY source, silently
+      // shrinking the set of scripts counted as reachable. This gate is advisory, so it
+      // still continues — but the substitution is now visible in the output.
+      process.stderr.write(
+        `check-orchestrator-coverage: WARN — cannot read transitive aggregator ${f} ` +
+          `(${err?.message ?? err}); its reachable scripts will be reported as orphans\n`,
+      )
       return ''
     }
   })

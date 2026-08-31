@@ -595,14 +595,23 @@ if (isMain) {
       const root = GIT_CWD ?? process.cwd()
       // #1441: stamp the task id so the fail-closed Stop hook can reject a prior
       // task's gate-pass on the same branch (anti-replay, beyond branch+sha).
+      // #2418: an ABSENT status file is a resolved fact — there is no task, so
+      // 'unknown' is honest. A PRESENT but unreadable/unparseable one is an
+      // UNRESOLVED fact: swallowing it stamped the marker with a fabricated
+      // 'unknown' id, which the anti-replay check then cannot distinguish from a
+      // genuinely task-less run. Surface it and write NO marker instead.
       const taskId = (() => {
+        const statusPath = resolve(root, '.claude/.task/status.json')
+        if (!existsSync(statusPath)) return 'unknown'
         try {
-          const statusPath = resolve(root, '.claude/.task/status.json')
-          if (!existsSync(statusPath)) return 'unknown'
           const s = JSON.parse(readFileSync(statusPath, 'utf-8'))
           return typeof s.taskId === 'string' && s.taskId.length > 0 ? s.taskId : 'unknown'
-        } catch {
-          return 'unknown'
+        } catch (err) {
+          process.stderr.write(
+            `check-all: warning: gate marker NOT written — ${statusPath} exists but could not ` +
+              `be read as task state (${err.message}), so the marker cannot name the task it binds\n`,
+          )
+          return null
         }
       })()
       // #2328: the marker binds tree content, checkout identity, toolchain
@@ -613,12 +622,15 @@ if (isMain) {
       // Loaded lazily so a checkout missing the verifier writes NO marker (fail
       // closed) instead of crashing an otherwise-green gate at import time.
       const { buildGateEvidence } = await import('./lib/gate-evidence.mjs')
-      const evidence = buildGateEvidence({ root, level, taskId })
+      const evidence = taskId === null ? null : buildGateEvidence({ root, level, taskId })
       if (evidence === null) {
-        process.stderr.write(
-          'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
-            'could not be resolved, so nothing can bind this gate result to this tree\n',
-        )
+        // taskId === null already reported its own, more specific reason.
+        if (taskId !== null) {
+          process.stderr.write(
+            'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
+              'could not be resolved, so nothing can bind this gate result to this tree\n',
+          )
+        }
       } else {
         const markerPath = resolve(root, '.arbiter/gate-pass.json')
         mkdirSync(dirname(markerPath), { recursive: true })

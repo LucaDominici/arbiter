@@ -142,7 +142,7 @@
     "path": "check-ci-tiers.mjs",
     "dest": "scripts",
     "reason": "#1900 RESOLVED (A1/wave1 action plan): the template's INV-72 mislabel (file-lock semantics, unrelated) was corrected to INV-73 (CI tier presence) — both sides now cite the same invariant. Remaining divergence: self implements a minPresent/collab-aware-missing floor read from src/invariants/catalog.ts at runtime; the template resolves the required set at RENDER time via EJS. That structural difference is out of scope for the label fix — tracked separately if/when the two engines are unified. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "0ac605badb8c3ae47764a2705c2addd8b9b3d6eacd2a39eec124d989a3a58323"
+    "diffHash": "9622d5c3e0ee59d7759674f8aa5bde1a23c71691cc890ee561e242ba1afc2317"
   },
   {
     "path": "check-claude-md-lint.mjs",
@@ -225,13 +225,13 @@
     "path": "check-exit-code-contract.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self widens the valid exit set from {0,1,2} to {0,1,2,78} — 78 is arbiter's CONFIG exit code — and skips the gitignored .arbiter/ scratch tree, which can hold copied build output (a killed e2e run's leftover dist/ copy) that the repo does not ship and must never fail the scan. The template additionally carries a --help block self dropped. PERMANENT: exit 78 is an arbiter-internal CLI convention and .arbiter/ is arbiter's own runtime scratch; shipping either would broaden the contract INV-53 deliberately narrows for targets.",
-    "diffHash": "6a9fe55a24cb1a4c9aef51b1900a440ea0725cf22615ff46c9cfaccdd287a4e3"
+    "diffHash": "88fae71b10c5fad2dc6ea243a915e8c3f77eb68140e64eef3a455e84f454097f"
   },
   {
     "path": "check-fail-closed-audit.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). Self is a strict superset on two axes. (1) Corpus: self classifies .github/workflows/*.yml as a `yaml` kind and runs the `|| true` fail-open scan over workflow files; the template audits only scripts/, .githooks/ and .claude/hooks/. (2) The library allowlist: 26 named scripts/lib/* modules exempted from the entry-point error-handling contract because they export semantics rather than being entry points (gold-audit-lib, anti-fake-green-core, secret-presence-core, continue-on-error-core, doc-set-resolve, dist-staleness, acceptance-criteria, consumer-reliability-bar, self-only-surfaces (#2417 pure commands/skills/agents/hooks derivation; no entry point — consumers own the exit contract), …). Nearly every one of those files is self-only, so the list has no subject in a target. Self also handles the ENOENT readdir/stat race explicitly with a FAIL-OPEN-INTENT marker and rethrows everything else, where the template swallows. PERMANENT.",
-    "diffHash": "dcf34a8fbf031223f8187f4926503943b5ac3b44c98f9ad9b17cd00ff1c1b6f6"
+    "reason": "Read line-by-line (#2275). Self is a strict superset on two axes. (1) Corpus: self classifies .github/workflows/*.yml as a `yaml` kind and runs the `|| true` fail-open scan over workflow files; the template audits only scripts/, .githooks/ and .claude/hooks/. (2) The library allowlist: 26 named scripts/lib/* modules exempted from the entry-point error-handling contract because they export semantics rather than being entry points (gold-audit-lib, anti-fake-green-core, secret-presence-core, continue-on-error-core, doc-set-resolve, dist-staleness, acceptance-criteria, consumer-reliability-bar, self-only-surfaces (#2417 pure commands/skills/agents/hooks derivation; no entry point — consumers own the exit contract), …). Nearly every one of those files is self-only, so the list has no subject in a target. Self also handles the ENOENT readdir/stat race explicitly with a FAIL-OPEN-INTENT marker and rethrows everything else, where the template swallows. (3) #2418: self's baseline is a v2 debt LEDGER — every row dated (`since`), owned (`owner`) and bounded (`expires` <= 90 days, or a written `permanent` rationale), with the gate failing on an expired row, an over-long window, or a row whose file no longer violates (shrink-only ratchet), and `--update-baseline` preserving surviving rows verbatim while refusing a new row without `--owner`. Self also resolves catches that delegate to a file-local surfacing helper (the `fail(msg)`/`invoke(msg)` convention) and flushes its finding report via process.exitCode instead of process.exit. The template keeps the v1 bare-path list: a freshly generated project has no owner roster and no dated history to migrate from, and its first `--update-baseline` would stamp a fabricated owner on every row. PERMANENT.",
+    "diffHash": "fb134f79dfa3ad9ffda42be51e5900b57f624dabd725c61e9136be531aebc9a2"
   },
   {
     "dest": "scripts",
@@ -249,7 +249,7 @@
     "path": "check-inline-suppressions.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). The old boilerplate was backwards for this pin and is corrected here: 80-/1+ means the TEMPLATE carries more text, not that self is missing checks. Self replaces ~80 inlined lines (checkExpiry, validateEntry, parseArgs) with a single import from scripts/lib/suppressions-shared.mjs, shared with check-suppressions.mjs and check-suppression-rationale.mjs. That lib is self-only — src/templates/scripts/lib/ has no suppressions-shared twin — so the emitted gate must inline the identical logic to stay self-contained. Required fields, REASON_MIN_LEN=10, WARN_DAYS=30 and the expiry semantics are the same on both sides. PERMANENT: forced by what arbiter ships, not by a policy difference.",
-    "diffHash": "ec30d5f71845995b157b5cf083b5c828d0b3aee1847b7ef6e2cfeb6f6ec1781a"
+    "diffHash": "bff9b0ae2abedc0b19a44cd785ad669901354cab7dd31522543651b5dbe626e7"
   },
   {
     "path": "check-muted-test.mjs",
@@ -324,13 +324,13 @@
     "path": "check-local-ci-parity.mjs",
     "dest": "scripts",
     "reason": "#1977: arbiter's own scripts/check-local-ci-parity.mjs predates and is NOT generated from scripts/check-local-ci-parity.mjs.ejs — it carries arbiter-self-specific CI_COVERAGE/check-level-parity logic (INV-59/INV-87/#1225) tied to arbiter's own Makefile+check-all.mjs check IDs, which no generated consumer project has. The new template is a generic, trunk-solo-only parity script (static Makefile<->workflow check + runtime gate-result hash comparison) emitted to consumer projects; arbiter itself is peer-review, so it never receives this template's own output. Intentional, permanent divergence — not a rollout-baseline placeholder. Re-pinned #2326: one more arbiter-self-only CI_COVERAGE id ('hardness inventory (self hooks)'), squarely inside this entry's existing rationale — no consumer project has arbiter's .claude/hooks self-hardness gate. Re-pinned #2387: one further arbiter-self-only CI_COVERAGE id (\"orchestration integrity (#2387)\"), same class — that gate resolves references against arbiter's own skill/command/agent registry and scans the template tree, so a generated target never runs it and the shipped template must not claim CI coverage for it. Re-pinned #2415: one further arbiter-self-only CI_COVERAGE id ('emitted markdown refs (#2415)'), same class — that gate resolves references inside emitted markdown against arbiter's own examples/ trees, which no generated target has, so the shipped template must not claim CI coverage for it. Re-pinned #2428: one further arbiter-self-only CI_COVERAGE id ('skill provenance (#2428)'), same class — that gate audits arbiter's own authored .claude/skills + .claude/commands corpus against companion upstream skill line-hashes, which no generated consumer project has (it receives arbiter's emitted skills verbatim, it does not author its own to audit for provenance), so the shipped template must not claim CI coverage for it.",
-    "diffHash": "9e75c512686b4770b77999920d93fae9f03baec7a9149ce9f3752cff008b12fb"
+    "diffHash": "a3751848ffc05a12fd3a730c885a1600c2ab4e9dec1a57dc56bfe303fc9ee8a2"
   },
   {
     "path": "check-suppression-expiry.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). 0-/3+: the template side of the diff is EMPTY. Self adds the SPDX header, a blank comment line and a usage line. Zero executable divergence. PERMANENT (SPDX-header class, same as check-pii-scan.mjs).",
-    "diffHash": "f91f42eef9a6d5b475e1296fc9c38d4509c84dbd81091ccdb3082a7d899e9a88"
+    "diffHash": "5e186bf88aebbf88cf0f863d3350623d1632354f77ddfc014d8728bf5303b37c"
   },
   {
     "path": "check-suppression-rationale.mjs",
@@ -348,7 +348,7 @@
     "path": "check-tdd-evidence.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). The largest pin, and the two sides are deliberately different programs. The TEMPLATE is self-contained by design: it inlines the TddEvidenceV1 schema, the failure-signature list and the git reachability checks so a target needs no local arbiter install. SELF delegates verification to `tsx src/cli.ts verify tdd` and exports its helpers for unit tests. Both sides now enforce the produced-here floor over subject ∪ body ids (#2217, #2307), so an already-merged task's inherited evidence cannot satisfy the branch floor ('without this the floor is theatre') on EITHER the body- or the subject-cited path. The template applies it TRACKED-CONDITIONALLY: a generated .gitignore ignores .arbiter/ wholesale, so where the evidence file is untracked the guard warns and stands down rather than rejecting every branch, and becomes live the moment a target un-ignores .arbiter/evidence/tdd/*.json (as arbiter does for itself). Both sides exempt only an allowlisted docs-only file set; executable changes in flat, cmd/, internal/, pkg/, nested-module, and gate-script layouts remain governed. Both sides share the ARBITER-SKIP-TDD rejection. PERMANENT: each side's design is forced by whether the arbiter CLI is present.",
-    "diffHash": "f90ecae9f84a68eada99bea759e7345e8c365eefbdf5d4fd2a84020455abaaff"
+    "diffHash": "f521252e078258a01359a58a9133bf29f386343d48efc668bbcfeec9ac3537f5"
   },
   {
     "path": "check-test-naming.mjs",

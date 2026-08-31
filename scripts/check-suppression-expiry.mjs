@@ -43,8 +43,14 @@ function checkJsonFile(filePath) {
   let data
   try {
     data = JSON.parse(readFileSync(filePath, 'utf-8'))
-  } catch {
-    return
+  } catch (err) {
+    // #2418: a suppression ledger that exists but cannot be parsed used to be skipped in
+    // silence — the entries inside it were then never checked for an over-long window and
+    // the gate still printed OK over the files it *could* read.
+    process.stderr.write(
+      `check-suppression-expiry: ERROR — ${filePath} exists but is unreadable/malformed: ${err?.message ?? err}\n`,
+    )
+    process.exit(2)
   }
   if (!Array.isArray(data)) return
 

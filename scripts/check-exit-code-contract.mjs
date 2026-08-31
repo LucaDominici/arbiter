@@ -101,21 +101,27 @@ function scanFile(filePath) {
 }
 
 if (args.length > 0) {
-  const accessible = args.filter((p) => {
+  // #2418: inaccessible paths used to be silently filtered out, so a typo'd or unreadable
+  // scan root shrank the corpus and the gate still reported PASS over whatever survived —
+  // an unauditable path must stop the audit, not narrow it.
+  const inaccessible = []
+  for (const p of args) {
     try {
       statSync(p)
-      return true
-    } catch {
-      return false
+    } catch (err) {
+      process.stderr.write(`  [error] scan path ${p} is unusable: ${err?.message ?? err}\n`)
+      inaccessible.push(p)
     }
-  })
-  if (accessible.length === 0) {
+  }
+  if (inaccessible.length > 0) {
     process.stderr.write(
-      '  [error] No valid scan paths — all provided paths are missing or inaccessible.\n',
+      `  [error] ${inaccessible.length} scan path(s) missing or inaccessible — refusing to ` +
+        `audit a partial corpus:\n` +
+        inaccessible.map((p) => `    - ${p}\n`).join(''),
     )
     process.exit(2)
   }
-  for (const dir of accessible) scan(dir)
+  for (const dir of args) scan(dir)
 } else {
   scan(process.cwd())
 }

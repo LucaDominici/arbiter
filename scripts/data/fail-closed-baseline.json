@@ -1,190 +1,942 @@
 {
-  "schema": "arbiter-fail-closed-baseline-v1",
-  "generated_at": "2026-08-30T01:52:07.923Z",
+  "schema": "arbiter-fail-closed-baseline-v2",
+  "generated_at": "2026-08-31T01:55:02.785Z",
   "files": [
-    ".claude/hooks/check-circular-deps.mjs",
-    ".claude/hooks/check-no-any.mjs",
-    ".claude/hooks/check-no-direct-spawn.mjs",
-    ".claude/hooks/check-no-mockmvc.mjs",
-    ".claude/hooks/check-no-orphan-todo.mjs",
-    ".claude/hooks/check-no-pii.mjs",
-    ".claude/hooks/check-no-placeholders.mjs",
-    ".claude/hooks/check-no-raw-types.mjs",
-    ".claude/hooks/check-no-skipped-tests.mjs",
-    ".claude/hooks/check-no-unused-exports.mjs",
-    ".claude/hooks/debug-state-on-failure.mjs",
-    ".claude/hooks/enforce-read-only.mjs",
-    ".claude/hooks/exitplanmode-banner.mjs",
-    ".claude/hooks/guard-task-completion.mjs",
-    ".claude/hooks/hooks.mjs",
-    ".claude/hooks/lib.mjs",
-    ".claude/hooks/post-brainstorm-stop.mjs",
-    ".claude/hooks/post-edit-dispatch.mjs",
-    ".claude/hooks/pre-compact.mjs",
-    ".claude/hooks/pre-edit-load-memory.mjs",
-    ".claude/hooks/pre-edit-ssot-guard.mjs",
-    ".claude/hooks/skill-forced-eval.mjs",
-    ".claude/hooks/stop-dangerous.mjs",
-    ".claude/hooks/stop-evidence-guard.mjs",
-    ".github/workflows/01-pr-fast.yml",
-    ".github/workflows/02-pr-extended.yml",
-    ".github/workflows/07-weekly.yml",
-    ".github/workflows/08-monthly.yml",
-    "scripts/apply-branch-protection.mjs",
-    "scripts/audit-toolchain.mjs",
-    "scripts/bloat-lib.mjs",
-    "scripts/check-adr-enforcement.mjs",
-    "scripts/check-agent-dispatch.mjs",
-    "scripts/check-all.mjs",
-    "scripts/check-anti-proforma.mjs",
-    "scripts/check-api-e2e.mjs",
-    "scripts/check-api-snapshot.mjs",
-    "scripts/check-canon-references.mjs",
-    "scripts/check-canonical-paths.mjs",
-    "scripts/check-catalog-agents-parity.mjs",
-    "scripts/check-ci-tiers.mjs",
-    "scripts/check-command-tests.mjs",
-    "scripts/check-commit-footer-rationale.mjs",
-    "scripts/check-deprecations.mjs",
-    "scripts/check-doc-links.mjs",
-    "scripts/check-doc-set.mjs",
-    "scripts/check-doc-style.mjs",
-    "scripts/check-docs.mjs",
-    "scripts/check-emission-coherence.mjs",
-    "scripts/check-exit-code-contract.mjs",
-    "scripts/check-generator-tests.mjs",
-    "scripts/check-gold-registries.mjs",
-    "scripts/check-hardness-inventory.mjs",
-    "scripts/check-hook-contracts.mjs",
-    "scripts/check-id-stability.mjs",
-    "scripts/check-inline-suppressions.mjs",
-    "scripts/check-install-command.mjs",
-    "scripts/check-inv-enforcement-wired.mjs",
-    "scripts/check-local-ci-parity.mjs",
-    "scripts/check-matrix-proven-cells.mjs",
-    "scripts/check-muted-test.mjs",
-    "scripts/check-no-orphan-todo.mjs",
-    "scripts/check-no-placeholders.mjs",
-    "scripts/check-no-raw-strings.mjs",
-    "scripts/check-no-tracked-artifacts.mjs",
-    "scripts/check-no-work-refs.mjs",
-    "scripts/check-node-version-ssot.mjs",
-    "scripts/check-orchestrator-coverage.mjs",
-    "scripts/check-pack-size.mjs",
-    "scripts/check-pipe-tee-hazard.mjs",
-    "scripts/check-plugin-api-stability.mjs",
-    "scripts/check-pr-size-gate.mjs",
-    "scripts/check-secret-scan.mjs",
-    "scripts/check-self-dogfood.mjs",
-    "scripts/check-skip-critical-e2e.mjs",
-    "scripts/check-spdx-headers.mjs",
-    "scripts/check-stride-traceability.mjs",
-    "scripts/check-suppression-expiry.mjs",
-    "scripts/check-tdd-evidence.mjs",
-    "scripts/check-template-tests.mjs",
-    "scripts/check-test-naming.mjs",
-    "scripts/check-tier-coverage.mjs",
-    "scripts/check-todo-max-age.mjs",
-    "scripts/check-tool-claims.mjs",
-    "scripts/check-validator-helptext.mjs",
-    "scripts/check-workflow-cache-strategy.mjs",
-    "scripts/check-workflow-cosign.mjs",
-    "scripts/check-workflow-docs-sync.mjs",
-    "scripts/check-workflow-parallelism.mjs",
-    "scripts/check-workflow-runners.mjs",
-    "scripts/check-workflow-test-integrity.mjs",
-    "scripts/ci-classify-changes.mjs",
-    "scripts/debt-lib.mjs",
-    "scripts/debt-report.mjs",
-    "scripts/detect-track.mjs",
-    "scripts/docs-add-frontmatter.mjs",
-    "scripts/emit-context-pack.mjs",
-    "scripts/evidence-prune.mjs",
-    "scripts/evidence-rotate.mjs",
-    "scripts/gen-doc-index.mjs",
-    "scripts/gen-gap.mjs",
-    "scripts/gen-third-party-licenses.mjs",
-    "scripts/gen-wiki.mjs",
-    "scripts/gold-audit.mjs",
-    "scripts/gold-report.mjs",
-    "scripts/lib/derived-artifacts.mjs",
-    "scripts/lib/gate-affects-registry.mjs",
-    "scripts/lib/log-bypass.mjs",
-    "scripts/lib/loud-bypass.mjs",
-    "scripts/pii-scan.mjs",
-    "scripts/run-self-canary.mjs",
-    "scripts/self-validation.mjs",
-    "scripts/setup-repo.sh",
-    "scripts/snapshot-compat-fixture.mjs",
-    "scripts/sync-action-pins.mjs",
-    "scripts/sync-changelog.mjs",
-    "scripts/sync-public-governance.mjs",
-    "scripts/update-bloat-baseline.mjs",
-    "scripts/update-kit-baseline.mjs",
-    "scripts/validate-adr-prefix.mjs",
-    "scripts/verify-spotbugs.mjs",
-    "scripts/visual-verify.mjs",
-    "src/capabilities/host-probe.ts",
-    "src/cli.ts",
-    "src/commands/doctor.ts",
-    "src/commands/doctor/clean.ts",
-    "src/commands/doctor/health.ts",
-    "src/commands/gold-audit.ts",
-    "src/commands/graph.ts",
-    "src/commands/init.ts",
-    "src/commands/init/generate.ts",
-    "src/commands/ship-profile.ts",
-    "src/commands/task-note.ts",
-    "src/commands/task-record-red.ts",
-    "src/commands/task-record-tech-debt.ts",
-    "src/commands/task.ts",
-    "src/commands/verify-plan.ts",
-    "src/commands/worktree.ts",
-    "src/compatibility/matcher.ts",
-    "src/compatibility/probe.ts",
-    "src/config/override-resolver.ts",
-    "src/conformance/dimensions.ts",
-    "src/conformance/engine.ts",
-    "src/conformance/shared.ts",
-    "src/detectors/git.ts",
-    "src/detectors/github.ts",
-    "src/detectors/language.ts",
-    "src/detectors/package.ts",
-    "src/detectors/workflow-collision.ts",
-    "src/evidence/git-checks.ts",
-    "src/evidence/load.ts",
-    "src/evidence/tdd.ts",
-    "src/generators/api-e2e.ts",
-    "src/generators/local-wrapper.ts",
-    "src/generators/modulith.ts",
-    "src/generators/registry.ts",
-    "src/github/branch-protection.ts",
-    "src/github/labels.ts",
-    "src/github/project-board.ts",
-    "src/graph/builders/ast.ts",
-    "src/graph/builders/canon.ts",
-    "src/graph/builders/req.ts",
-    "src/graph/builders/utils.ts",
-    "src/graph/load.ts",
-    "src/integrations/skill-detector.ts",
-    "src/kit/brownfield-detect.ts",
-    "src/kit/measure.ts",
-    "src/recipes/loader.ts",
-    "src/risk/classifier.ts",
-    "src/state/backups.ts",
-    "src/state/generated-manifest.ts",
-    "src/templates/claude/hooks/check-no-skipped-tests.mjs",
-    "src/templates/claude/hooks/check-no-unused-exports.mjs",
-    "src/templates/claude/hooks/post-brainstorm-stop.mjs",
-    "src/utils/config.ts",
-    "src/utils/evidence-log.ts",
-    "src/utils/file-lock.ts",
-    "src/utils/fs.ts",
-    "src/utils/pkg.ts",
-    "src/utils/prettier-format.ts",
-    "src/utils/replay.ts",
-    "src/utils/safe-read.ts",
-    "src/verify/run.ts",
-    "src/worktree/harvest.ts"
+    {
+      "file": ".claude/hooks/check-circular-deps.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-any.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-direct-spawn.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-mockmvc.mjs",
+      "since": "2026-05-27",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-orphan-todo.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-pii.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-placeholders.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-raw-types.mjs",
+      "since": "2026-05-27",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-skipped-tests.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/check-no-unused-exports.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/debug-state-on-failure.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/enforce-read-only.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/exitplanmode-banner.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/guard-task-completion.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/hooks.mjs",
+      "since": "2026-05-27",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/lib.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/post-brainstorm-stop.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/post-edit-dispatch.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/pre-compact.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/pre-edit-load-memory.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/skill-forced-eval.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/stop-dangerous.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".claude/hooks/stop-evidence-guard.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".github/workflows/01-pr-fast.yml",
+      "since": "2026-05-25",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": ".github/workflows/02-pr-extended.yml",
+      "since": "2026-05-25",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/apply-branch-protection.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/audit-toolchain.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/bloat-lib.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-api-e2e.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-api-snapshot.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-canonical-paths.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-command-tests.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-commit-footer-rationale.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-deprecations.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-doc-links.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-doc-style.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-docs.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-generator-tests.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-install-command.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-matrix-proven-cells.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-muted-test.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-no-orphan-todo.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-no-placeholders.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-no-raw-strings.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-no-tracked-artifacts.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-no-work-refs.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-node-version-ssot.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-pack-size.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-pipe-tee-hazard.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-plugin-api-stability.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-pr-size-gate.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-secret-scan.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-skip-critical-e2e.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-spdx-headers.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-stride-traceability.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-template-tests.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-test-naming.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-tier-coverage.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-validator-helptext.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-workflow-cache-strategy.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-workflow-cosign.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-workflow-docs-sync.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-workflow-parallelism.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-workflow-runners.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-workflow-test-integrity.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/ci-classify-changes.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/debt-lib.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/debt-report.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/detect-track.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/docs-add-frontmatter.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/emit-context-pack.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/evidence-prune.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/evidence-rotate.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/gen-doc-index.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/gen-gap.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/gen-third-party-licenses.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/gen-wiki.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/gold-audit.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/gold-report.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/lib/derived-artifacts.mjs",
+      "since": "2026-07-23",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/lib/gate-affects-registry.mjs",
+      "since": "2026-07-23",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/lib/log-bypass.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/lib/loud-bypass.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/pii-scan.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/run-self-canary.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/self-validation.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/setup-repo.sh",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/snapshot-compat-fixture.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/sync-action-pins.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/sync-changelog.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/sync-public-governance.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/update-bloat-baseline.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/update-kit-baseline.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/validate-adr-prefix.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/verify-spotbugs.mjs",
+      "since": "2026-05-27",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/visual-verify.mjs",
+      "since": "2026-05-21",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/capabilities/host-probe.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/cli.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/doctor/clean.ts",
+      "since": "2026-07-10",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/doctor/health.ts",
+      "since": "2026-07-10",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/gold-audit.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/graph.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/init/generate.ts",
+      "since": "2026-07-10",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/ship-profile.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/task-note.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/task-record-red.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/task-record-tech-debt.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/task.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/verify-plan.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/commands/worktree.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/compatibility/matcher.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/compatibility/probe.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/config/override-resolver.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/conformance/dimensions.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/conformance/engine.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/conformance/shared.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/detectors/git.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/detectors/github.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/detectors/language.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/detectors/package.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/detectors/workflow-collision.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/evidence/git-checks.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/evidence/load.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/evidence/tdd.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/generators/api-e2e.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/generators/local-wrapper.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/generators/modulith.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/generators/registry.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/github/branch-protection.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/github/labels.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/github/project-board.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/graph/builders/ast.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/graph/builders/canon.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/graph/builders/req.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/graph/builders/utils.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/graph/load.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/integrations/skill-detector.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/kit/brownfield-detect.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/kit/measure.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/recipes/loader.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/risk/classifier.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/state/backups.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/state/generated-manifest.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/templates/claude/hooks/check-no-skipped-tests.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/templates/claude/hooks/check-no-unused-exports.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/templates/claude/hooks/post-brainstorm-stop.mjs",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/utils/config.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/utils/evidence-log.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/utils/file-lock.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/utils/fs.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/utils/pkg.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/utils/prettier-format.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/utils/replay.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/utils/safe-read.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/verify/run.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    },
+    {
+      "file": "src/worktree/harvest.ts",
+      "since": "2026-06-26",
+      "owner": "LucaDominici",
+      "expires": "2026-11-29"
+    }
   ]
 }

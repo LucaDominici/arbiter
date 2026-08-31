@@ -28,15 +28,31 @@ if (!existsSync(docPath)) {
   process.exit(1)
 }
 
+// #2418: both reads below used to run bare — an unreadable hooks directory or doc file
+// crashed the gate with a raw stack under node's generic exit code, and the INV-53
+// contract (2 = invocation/IO error) went unhonoured. They are the gate's only inputs:
+// if either cannot be read, there is nothing to compare and that is an error, not a pass.
+function die(what, err) {
+  process.stderr.write(`check-hook-contracts: cannot read ${what}: ${err?.message ?? err}\n`)
+  process.exit(2)
+}
+
 // Collect .mjs filenames from the hooks directory
-const filesInDir = new Set(
-  readdirSync(hooksDir)
-    .filter((f) => f.endsWith('.mjs'))
-    .sort(),
-)
+let hookFileNames
+try {
+  hookFileNames = readdirSync(hooksDir)
+} catch (err) {
+  die(`the hooks directory ${hooksDir}`, err)
+}
+const filesInDir = new Set(hookFileNames.filter((f) => f.endsWith('.mjs')).sort())
 
 // Collect hook filenames referenced in the doc (backtick-quoted *.mjs)
-const docContent = readFileSync(docPath, 'utf-8')
+let docContent
+try {
+  docContent = readFileSync(docPath, 'utf-8')
+} catch (err) {
+  die(docPath, err)
+}
 const docMatches = docContent.matchAll(/`([a-z][a-z0-9-]*\.mjs)`/g)
 const filesInDoc = new Set([...docMatches].map((m) => m[1]))
 
