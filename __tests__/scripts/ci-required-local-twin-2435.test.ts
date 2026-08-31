@@ -43,7 +43,11 @@ function fixture(needs: string, extraJobs = ''): string {
     `name: pr\non: [pull_request]\njobs:\n  gate:\n    runs-on: ubuntu-latest\n${extraJobs}  ci-required:\n    needs: [${needs}]\n    runs-on: ubuntu-latest\n`,
     'utf-8',
   )
-  writeFileSync(join(d, 'Makefile'), '.PHONY: help gate\n\nhelp:\n\t@true\n\ngate:\n\t@true\n', 'utf-8')
+  writeFileSync(
+    join(d, 'Makefile'),
+    '.PHONY: help gate\n\nhelp:\n\t@true\n\ngate:\n\t@true\n',
+    'utf-8',
+  )
   return d
 }
 
@@ -55,10 +59,7 @@ describe('#2435 AC-6 — every ci-required dependency has a local twin or a CI-o
   })
 
   it('fails when a needed job has no local twin and no declaration (AC-6)', () => {
-    const dir = fixture(
-      'gate, mystery-job',
-      '  mystery-job:\n    runs-on: ubuntu-latest\n',
-    )
+    const dir = fixture('gate, mystery-job', '  mystery-job:\n    runs-on: ubuntu-latest\n')
     const { code, out } = run(dir)
     expect(code).toBe(1)
     expect(out).toContain('mystery-job')
@@ -76,7 +77,7 @@ describe('#2435 AC-6 — every ci-required dependency has a local twin or a CI-o
     expect(start, 'no single-place CI-only declaration found').toBeGreaterThan(-1)
     const block = source.slice(start, start + 4000)
     for (const job of ['dependency-review', 'iac-scan']) {
-      const entry = block.match(new RegExp(`\\['${job}',\\s*\\n?\\s*'([^']+)'`))
+      const entry = block.match(new RegExp(`'${job}',\\s*\\n?\\s*'([^']+)'`))
       expect(entry, `${job} is not declared CI-only`).not.toBeNull()
       expect((entry as RegExpMatchArray)[1].length).toBeGreaterThan(30)
     }

@@ -121,10 +121,17 @@ describe('leaving red-team-review — the tier-N dispatch promise is asserted (A
   })
 })
 
-describe('advance --to refactor — the RED evidence the green gate read must still hold (AC-1)', () => {
-  it('refuses when the active task has no RED evidence (AC-1)', () => {
+describe('advance --to refactor — the review machinery must have an id to key on (AC-1)', () => {
+  it('refuses an id-less document, which would vacuous-pass review-completion (AC-1)', () => {
+    const dir = tmpRepo()
+    writeUnifiedState(dir, { phase: 'green' })
+    expect(() => runTaskAdvance({ to: 'refactor', dir })).toThrow(/task id/i)
+  })
+
+  it('advances once the task is seeded (AC-1)', () => {
     const dir = tmpRepo()
     seed(dir, 'green')
-    expect(() => runTaskAdvance({ to: 'refactor', dir })).toThrow(/TDD evidence gate/)
+    runTaskAdvance({ to: 'refactor', dir })
+    expect(readUnifiedState(dir)?.phase).toBe('refactor')
   })
 })

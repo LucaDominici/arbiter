@@ -27,10 +27,11 @@ describe('#2435 AC-2 — review-completion is a hard check at L2', () => {
 
   it("arbiter's own check-all.mjs runs it as a hard check, not a warn (AC-2)", () => {
     const source = readFileSync(SELF_CHECK_ALL, 'utf-8')
-    const line = source
-      .split('\n')
-      .find((l) => l.includes("'scripts/check-review-completion.mjs'"))
-    expect(line, 'check-review-completion.mjs is not wired into scripts/check-all.mjs').toBeDefined()
+    const line = source.split('\n').find((l) => l.includes("'scripts/check-review-completion.mjs'"))
+    expect(
+      line,
+      'check-review-completion.mjs is not wired into scripts/check-all.mjs',
+    ).toBeDefined()
     expect(line as string).toContain('runCheck(')
     expect(line as string).not.toContain('runWarnCheck(')
   })

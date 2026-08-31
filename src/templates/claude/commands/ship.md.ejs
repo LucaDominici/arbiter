@@ -218,11 +218,13 @@ The selected tier may be widened by deterministic signals only: a FRESH `graphif
 |-------|-------------------|---------------|
 | `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), stop the ship. When the script is absent (brownfield trees predating its emission, ADR-110) a missing script is never a not-ready verdict — but the skip is declared, never silent: record `readiness: script absent — skipped` in the plan preamble so the omission stays visible. Seed task state (see Local-only state above) | — |
 | `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; run the `senior-survey` skill for every new `src/` file the plan introduces (the pre-edit hook validates its Survey block); pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`); the plan carries every mandatory section (see §Plan contents) — a missing section is a FAIL | — |
-| `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
+| `red-team-review` | Dispatch tier-N red-team agents, recording their findings at `.arbiter/evidence/redteam/<task-id>.json` (the advance out of this phase asserts that file exists); route CRITICAL → `red-team-rework` | tier-N |
+| `red-team-rework` | Lateral rework phase entered only on a CRITICAL red-team finding: revise the plan, then re-enter `red-team-review` (or `plan` for a full replan) | — |
 | `red` | Write failing tests with the `tdd` skill (red → verify-red is its own step: watch each test fail for the right reason) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass, continuing the `tdd` loop (composes with active companion plugins — see below) | — |
 | `refactor` | Clean up; <%= _refactorLabel %> | <%= _refactorCount %> |
 | `verification` | Run the `verification` skill, then the gate: `<%= _testCommand %>` then `node scripts/check-all.mjs check` | — |
+| `close` | The closing phase (#A11): entry requires a valid L1 gate-pass marker and switches the active rule set to CLOSER mode (`.claude/rules/95-closer-mode.md`) — single named target, no discovery, findings to the PARKING list | — |
 | `complete` | Commit, push, open/merge PR, close issue, clean up | — |
 
 ### Model tier per dispatch (static guidance, AGENTS.md §Model-Pyramid)
