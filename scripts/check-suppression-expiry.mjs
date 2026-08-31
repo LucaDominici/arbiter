@@ -38,20 +38,25 @@ const SUPPRESSIONS_DIR = join(CWD, 'suppressions')
 let violations = 0
 let checked = 0
 
-function checkJsonFile(filePath) {
-  if (!existsSync(filePath)) return
-  let data
+/**
+ * Parse one suppression ledger. #2418: a ledger that exists but cannot be parsed used to be
+ * skipped in silence — the entries inside were never checked for an over-long window and the
+ * gate still printed OK over the files it *could* read. Unreadable input is exit 2.
+ */
+function readLedgerOrDie(filePath) {
   try {
-    data = JSON.parse(readFileSync(filePath, 'utf-8'))
+    return JSON.parse(readFileSync(filePath, 'utf-8'))
   } catch (err) {
-    // #2418: a suppression ledger that exists but cannot be parsed used to be skipped in
-    // silence — the entries inside it were then never checked for an over-long window and
-    // the gate still printed OK over the files it *could* read.
     process.stderr.write(
       `check-suppression-expiry: ERROR — ${filePath} exists but is unreadable/malformed: ${err?.message ?? err}\n`,
     )
     process.exit(2)
   }
+}
+
+function checkJsonFile(filePath) {
+  if (!existsSync(filePath)) return
+  const data = readLedgerOrDie(filePath)
   if (!Array.isArray(data)) return
 
   const now = new Date()

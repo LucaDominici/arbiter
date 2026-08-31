@@ -335,10 +335,23 @@ function surfacingHelperNames(masked) {
 }
 
 /**
+ * True when the nearest non-blank line ABOVE `lineNo` (1-based, original source) declares
+ * `// FAIL-OPEN-INTENT:` / `# FAIL-OPEN-INTENT:` — the marker that turns an undeclared
+ * swallow into a declared, reviewed exception.
+ */
+function hasIntentMarkerAbove(lines, lineNo) {
+  for (let j = lineNo - 2; j >= 0; j--) {
+    const prev = (lines[j] ?? '').trim()
+    if (prev === '') continue
+    return FAIL_OPEN_MARK_JS.test(prev) || FAIL_OPEN_MARK.test(prev)
+  }
+  return false
+}
+
+/**
  * Find every fail-open swallowed `catch` in `content`. A catch is a swallow when its body
  * (masked) carries no surface/propagate token and does not delegate to a surfacing helper.
- * Suppressed when the previous non-blank line in the ORIGINAL source is a
- * `// FAIL-OPEN-INTENT:` (or `# …`) marker.
+ * Suppressed when the line above the catch carries a FAIL-OPEN-INTENT marker.
  */
 function findSwallowedCatches(content) {
   const masked = maskCode(content)
@@ -350,19 +363,11 @@ function findSwallowedCatches(content) {
   CATCH_OPEN_RE.lastIndex = 0
   let m
   while ((m = CATCH_OPEN_RE.exec(masked)) !== null) {
-    const openIdx = m.index + m[0].length - 1
-    const body = readBraceBlock(masked, openIdx)
-    if (SURFACE_RE.test(body)) continue
-    if (delegatesRe !== null && delegatesRe.test(body)) continue
+    const body = readBraceBlock(masked, m.index + m[0].length - 1)
+    const surfaced = SURFACE_RE.test(body) || (delegatesRe !== null && delegatesRe.test(body))
+    if (surfaced) continue
     const lineNo = masked.slice(0, m.index).split('\n').length // 1-based
-    let allowlisted = false
-    for (let j = lineNo - 2; j >= 0; j--) {
-      const prev = (lines[j] ?? '').trim()
-      if (prev === '') continue
-      if (FAIL_OPEN_MARK_JS.test(prev) || FAIL_OPEN_MARK.test(prev)) allowlisted = true
-      break
-    }
-    if (!allowlisted) hits.push(lineNo)
+    if (!hasIntentMarkerAbove(lines, lineNo)) hits.push(lineNo)
   }
   return hits
 }
@@ -493,6 +498,53 @@ function readBaselineRaw() {
   return parsed
 }
 
+const isRowObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+const isFilledString = (v) => typeof v === 'string' && v.trim() !== ''
+const isIsoDate = (v) => typeof v === 'string' && ISO_DATE.test(v)
+const isRationale = (v) => typeof v === 'string' && v.trim().length >= MIN_RATIONALE_CHARS
+
+/**
+ * The lapse half of a row's contract: EXACTLY one of `expires` / `permanent`, well-formed.
+ * A row with both is ambiguous about when it dies; a row with neither never dies at all.
+ */
+function validateRowLapse(file, entry) {
+  const hasExpiry = entry.expires !== undefined
+  const hasRationale = entry.permanent !== undefined
+  if (hasExpiry === hasRationale) {
+    return hasExpiry
+      ? [`${file}: carries BOTH \`expires\` and \`permanent\` — a row is one or the other`]
+      : [
+          `${file}: needs \`expires\` (at most ${MAX_WINDOW_DAYS} days out) or a \`permanent\` rationale`,
+        ]
+  }
+  if (hasExpiry) {
+    return isIsoDate(entry.expires) ? [] : [`${file}: malformed \`expires\` (expected YYYY-MM-DD)`]
+  }
+  return isRationale(entry.permanent)
+    ? []
+    : [
+        `${file}: \`permanent\` needs a written rationale of at least ${MIN_RATIONALE_CHARS} characters`,
+      ]
+}
+
+/** Structural problems of ONE ledger row (duplicates are a whole-ledger concern). */
+function validateRow(entry, index) {
+  if (!isRowObject(entry)) {
+    return [`entry #${index + 1}: not an object — the v1 bare-path shape carries no date or owner`]
+  }
+  const file = entry.file
+  if (!isFilledString(file)) return [`entry #${index + 1}: missing \`file\``]
+  const problems = []
+  if (!isIsoDate(entry.since)) {
+    problems.push(`${file}: missing or malformed \`since\` (expected YYYY-MM-DD)`)
+  }
+  if (!isFilledString(entry.owner)) {
+    problems.push(`${file}: missing \`owner\` — an unowned exemption is nobody's debt`)
+  }
+  problems.push(...validateRowLapse(file, entry))
+  return problems
+}
+
 /**
  * Structural contract for the ledger. Returns human-readable problems; an empty array
  * means every row is dated, owned and bounded. Shape problems are a DATA fault (exit 2),
@@ -502,46 +554,12 @@ function validateRows(rows) {
   const problems = []
   const seen = new Set()
   for (let i = 0; i < rows.length; i++) {
-    const e = rows[i]
-    if (!e || typeof e !== 'object' || Array.isArray(e)) {
-      problems.push(
-        `entry #${i + 1}: not an object — the v1 bare-path shape carries no date or owner`,
-      )
-      continue
+    const file = isRowObject(rows[i]) ? rows[i].file : undefined
+    if (isFilledString(file)) {
+      if (seen.has(file)) problems.push(`${file}: duplicate entry`)
+      seen.add(file)
     }
-    const file = e.file
-    if (typeof file !== 'string' || file.trim() === '') {
-      problems.push(`entry #${i + 1}: missing \`file\``)
-      continue
-    }
-    if (seen.has(file)) problems.push(`${file}: duplicate entry`)
-    seen.add(file)
-    if (typeof e.since !== 'string' || !ISO_DATE.test(e.since)) {
-      problems.push(`${file}: missing or malformed \`since\` (expected YYYY-MM-DD)`)
-    }
-    if (typeof e.owner !== 'string' || e.owner.trim() === '') {
-      problems.push(`${file}: missing \`owner\` — an unowned exemption is nobody's debt`)
-    }
-    const hasExpiry = e.expires !== undefined
-    const hasRationale = e.permanent !== undefined
-    if (hasExpiry && hasRationale) {
-      problems.push(
-        `${file}: carries BOTH \`expires\` and \`permanent\` — a row is one or the other`,
-      )
-    } else if (!hasExpiry && !hasRationale) {
-      problems.push(
-        `${file}: needs \`expires\` (at most ${MAX_WINDOW_DAYS} days out) or a \`permanent\` rationale`,
-      )
-    } else if (hasExpiry && (typeof e.expires !== 'string' || !ISO_DATE.test(e.expires))) {
-      problems.push(`${file}: malformed \`expires\` (expected YYYY-MM-DD)`)
-    } else if (
-      hasRationale &&
-      (typeof e.permanent !== 'string' || e.permanent.trim().length < MIN_RATIONALE_CHARS)
-    ) {
-      problems.push(
-        `${file}: \`permanent\` needs a written rationale of at least ${MIN_RATIONALE_CHARS} characters`,
-      )
-    }
+    problems.push(...validateRow(rows[i], i))
   }
   return problems
 }
@@ -583,6 +601,25 @@ function writeBaseline(rows) {
   }
 }
 
+/** The existing ledger keyed by path — the metadata a rebuild must carry over verbatim. */
+function priorRowsByFile() {
+  const rows = new Map()
+  for (const entry of readBaselineRaw()?.files ?? []) {
+    if (isRowObject(entry) && typeof entry.file === 'string') rows.set(entry.file, entry)
+  }
+  return rows
+}
+
+/** Exemption window for NEW rows: `--window <days>`, capped at the policy maximum. */
+function resolveWindowDays() {
+  if (windowArgIdx < 0) return MAX_WINDOW_DAYS
+  const days = Number(args[windowArgIdx + 1])
+  if (!Number.isInteger(days) || days < 1 || days > MAX_WINDOW_DAYS) {
+    fatal(`--window must be an integer between 1 and ${MAX_WINDOW_DAYS} days`)
+  }
+  return days
+}
+
 /**
  * Rebuild the ledger from the live findings. Surviving rows keep their metadata
  * VERBATIM (a regeneration must never renew an expiry — renewal is a hand edit that
@@ -590,18 +627,8 @@ function writeBaseline(rows) {
  * violating file is only grandfathered when `--owner` names who owns repaying it.
  */
 function rebuildBaseline(findingFiles) {
-  const prior = readBaselineRaw()
-  const priorRows = new Map()
-  for (const e of prior?.files ?? []) {
-    if (e && typeof e === 'object' && typeof e.file === 'string') priorRows.set(e.file, e)
-  }
-  let window = MAX_WINDOW_DAYS
-  if (windowArgIdx >= 0) {
-    window = Number(args[windowArgIdx + 1])
-    if (!Number.isInteger(window) || window < 1 || window > MAX_WINDOW_DAYS) {
-      fatal(`--window must be an integer between 1 and ${MAX_WINDOW_DAYS} days`)
-    }
-  }
+  const priorRows = priorRowsByFile()
+  const window = resolveWindowDays()
   const added = findingFiles.filter((f) => !priorRows.has(f))
   if (added.length > 0 && OWNER === '') {
     fatal(
