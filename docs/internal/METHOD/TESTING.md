@@ -275,8 +275,10 @@ Every enforcement script in Arbiter must:
 2. Exit `1` when it detects a violation (FAIL)
 3. Exit `2` when it cannot run (bad args, missing environment, invalid invocation)
 
-The A/B/C drill proves each gate honors this contract by exercising all three paths
-against controlled fixtures.
+The contract binds every enforcement script. The A/B/C drill proves it only for the gates
+**registered** in the `GATES` array of `scripts/self-validation.mjs`, by exercising all
+three paths against controlled fixtures. See §Staged Rollout for the registered count —
+an unregistered gate is bound by the contract but is not proven by the drill.
 
 ## The Three Phases
 
@@ -362,15 +364,22 @@ diff src/templates/scripts/self-validation.mjs.ejs scripts/self-validation.mjs
 
 ## Staged Rollout
 
-Initial coverage (shipped with INV-53, issue #258):
+**Registered coverage: 2 gates** — the drill's real reach, not a target. Shipped with
+INV-53 (issue #258) and unchanged since:
 
 - `exit-code-contract` — checks the contract lint itself
 - `pipe/tee-hazard` — advisory check, always exits 0
 
-Future gates (separate issues):
+Every other `scripts/check-*.mjs` enforcement script is bound by the exit contract above
+and is enforced by `scripts/check-exit-code-contract.mjs` (a static scan for exit codes
+outside `0/1/2/78`), but its runtime PASS/FAIL/ERROR behaviour is **not** proven by the
+drill. Registering a gate requires that gate to accept a fixture scan-root override plus
+a per-gate A/B/C fixture design, so coverage grows one gate at a time, per issue.
 
-- `orphan-todo`, `no-placeholders`, `bloat-ratchet`, `hardness-inventory`, etc.
-- Full 18-gate coverage tracked in a follow-up issue.
+The count above is not prose: `__tests__/docs/self-validation-drill-count-2420.test.ts`
+pins it to `GATES.length` in `scripts/self-validation.mjs` and in its template twin
+`src/templates/scripts/self-validation.mjs.ejs`. Adding a gate to the drill without
+updating this number fails L1, and so does the reverse (#2420).
 
 ---
 
@@ -439,8 +448,12 @@ independently (fast-fail isolation, better failure attribution).
 The job is wired in **both** the `nightly-required` job's `needs:` AND its
 `RESULTS=(...)` shell array in `_nightly.yml`. Adding a job to `needs:` alone is **not** sufficient
 to make it a blocking hard-failure — the `RESULTS` array must also include
-`"${{ needs.bake-e2e-native.result }}"`. This is enforced by this documentation; there is no
-automated check for RESULTS completeness (pre-existing gap, out of scope for #1042).
+`"${{ needs.bake-e2e-native.result }}"`.
+
+This is no longer documentation-only: `__tests__/github/nightly-results-completeness-2420.test.ts`
+asserts that `nightly-required`'s `needs:` list and its `RESULTS=(...)` array name the same jobs
+in the same order, in `.github/workflows/_nightly.yml` **and** in the CANON-18 template twin
+`src/templates/github/workflows/_nightly.yml.ejs` (#2420, closing the gap left open by #1042).
 
 ---
 

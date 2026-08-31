@@ -10,14 +10,21 @@
 // CATALOG: (check-no-skipped-tests guards .skip; check-fail-closed-audit guards
 // CATALOG: gate scripts, not tests), so this cannot fold into an existing gate.
 //
+// Usage: node scripts/check-perm-test-guards.mjs [--dir <path>]
+//   --dir <path>  scan root override (default: <repo>/__tests__). Fixture hook, the same
+//                 idiom the scan-family gates already share (check-secret-scan.mjs,
+//                 check-workflow-test-integrity.mjs, check-workflow-docs-sync.mjs).
+//
+// Exit codes per INV-53:
 // Exits 0: every chmod-to-unreadable test site has a root guard within range.
 // Exits 1: an unguarded site exists (would pass locally, fail as root in CI).
-import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+// Exits 2: the check cannot run (--dir given without a value, or naming a missing path).
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const TESTS_DIR = join(REPO_ROOT, '__tests__')
+const DEFAULT_TESTS_DIR = join(REPO_ROOT, '__tests__')
 const GUARD_WINDOW = 6 // lines above the chmod within which the root guard must appear
 const GUARD_RE = /process\.getuid\?\.\(\)\s*===\s*0/
 // chmod to an unreadable mode: 0o000, octal/decimal 0, or the string '0o000'.
@@ -33,9 +40,30 @@ function walk(dir, out) {
   return out
 }
 
+// Resolve the scan root from argv. Returns null when the invocation is unusable, so the
+// caller can exit 2 (ERROR) rather than exit 0 (PASS) on a scan that never happened.
+function resolveScanRoot(argv) {
+  const flagIndex = argv.indexOf('--dir')
+  if (flagIndex === -1) return DEFAULT_TESTS_DIR
+  const value = argv[flagIndex + 1]
+  if (value === undefined || value.startsWith('--')) {
+    process.stderr.write('check-perm-test-guards: ERROR — --dir requires a path argument\n')
+    return null
+  }
+  const root = resolve(value)
+  if (!existsSync(root)) {
+    process.stderr.write(`check-perm-test-guards: ERROR — --dir path does not exist: ${value}\n`)
+    return null
+  }
+  return root
+}
+
 function main() {
+  const scanRoot = resolveScanRoot(process.argv.slice(2))
+  if (scanRoot === null) process.exit(2)
+
   const violations = []
-  for (const file of walk(TESTS_DIR, [])) {
+  for (const file of walk(scanRoot, [])) {
     const lines = readFileSync(file, 'utf-8').split('\n')
     for (let i = 0; i < lines.length; i++) {
       if (!UNREADABLE_CHMOD_RE.test(lines[i])) continue
