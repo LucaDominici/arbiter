@@ -1,0 +1,326 @@
+---
+title: 'ID Registry — every identifier scheme, and the mechanism that keeps it honest'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-09-02'
+owner: ''
+canonical_id: 'id-registry'
+tags: ['audience/dev', 'kind/reference']
+related:
+  [
+    'docs/internal/SYSTEM/OD-REGISTRY.md',
+    'docs/internal/SYSTEM/CANON.md',
+    'schemas/id-registry.schema.json',
+  ]
+---
+
+# ID Registry
+
+The registry of registries. Every identifier scheme that appears as a **citation** in an arbiter
+artifact is declared here with the file that owns its instances, the gate that validates them, the
+CLI surface that reads them, and the agent-edit hook that catches a violation before CI does.
+
+Two mechanisms consume this file, and nothing else may:
+
+- `scripts/check-id-registry.mjs` — the block below parses and validates against
+  `schemas/id-registry.schema.json`; no two schemes may share a prefix or own overlapping
+  patterns; every declared `ssot` path resolves on disk; every `staged` entry carries a future
+  `expires`; every cited `OD-NN` resolves to a row in the OD registry.
+- `scripts/check-ontology-wired.mjs` — the anti-prose meta-gate: for every row, the `gate` script
+  exists and is registered on the side its `track` names (`self` ⇒ `scripts/check-all.mjs`,
+  `target` ⇒ `src/templates/scripts/check-all.mjs.ejs`), the `tool` verb resolves in `src/cli.ts`,
+  and the `hook` path exists and is registered in `.claude/settings.json`. Anything unmapped fails,
+  named, against the ratchet in `scripts/data/ontology-baseline.json`.
+
+**Scope.** Citation-shaped identifiers only. Level and tier vocabularies (`L1`–`L4` governance,
+`L0`–`L3` autonomy, `XS`/`S`/`Standard` ship tiers, track letters `A`–`D`) are enum values inside a
+typed config, not citations, and are owned by `src/config/schema.ts`.
+
+**`n/a` is never blank.** A `gate`, `tool` or `hook` of `n/a` requires a `note` giving the reason —
+an unreasoned `n/a` is a blanket exemption and the gate rejects it.
+
+**`staged` is a dated obligation, not a wish.** A staged row names the wave that wires it and fails
+the gate once `expires` passes, the same dated-debt discipline as `scripts/canon01-self-only.json`
+and INV-31.
+
+<!-- ID_REGISTRY_START -->
+
+```json
+{
+  "registryVersion": "1.0.0",
+  "schemes": [
+    {
+      "prefix": "INV",
+      "pattern": "^INV-[0-9]{2,3}$",
+      "meaning": "A mechanically enforced invariant of the framework.",
+      "ssot": "src/invariants/catalog.ts",
+      "gate": "scripts/check-inv-enforcement-wired.mjs",
+      "track": "self",
+      "tool": "arbiter validate",
+      "hook": "n/a",
+      "status": "active",
+      "graphNode": "INV",
+      "note": "No single edit-time hook: an invariant is enforced by the gate its `enforcement` field names, and INV-52 already fails when that script is not wired into check-all.mjs."
+    },
+    {
+      "prefix": "PROJ",
+      "pattern": "^PROJ-[0-9]{2,3}$",
+      "meaning": "A project-declared invariant living in the consumer's arbiter.json.",
+      "ssot": "src/config/schema.ts",
+      "gate": "n/a",
+      "track": "target",
+      "tool": "arbiter validate",
+      "hook": "n/a",
+      "status": "active",
+      "note": "Shape is enforced by the arbiter.json config schema (ADR-112) rather than a standalone script; `arbiter validate` is the surface that runs it, and the SSOT column names the schema that defines the field."
+    },
+    {
+      "prefix": "CANON",
+      "pattern": "^CANON-[0-9]{2}$",
+      "meaning": "A process-level canon rule derived from an audit wave.",
+      "ssot": "docs/internal/SYSTEM/CANON.md",
+      "gate": "n/a",
+      "track": "self",
+      "tool": "n/a",
+      "hook": "n/a",
+      "status": "staged",
+      "expires": "2026-11-01",
+      "note": "The bland one: 23 rules in prose with four conventional fields and no parser. Wave 2 gives CANON a typed catalog (src/canon/catalog.ts) with an enforcement field plus scripts/check-canon-enforcement-wired.mjs, a direct mirror of INV-52. Until then no mechanism can tell a satisfied rule from a cited one."
+    },
+    {
+      "prefix": "ADR",
+      "pattern": "^ADR-[0-9]{3}$",
+      "meaning": "An architecture decision record.",
+      "ssot": "docs/internal/ADR",
+      "gate": "scripts/check-adr-index.mjs",
+      "track": "self",
+      "tool": "arbiter graph build",
+      "hook": "n/a",
+      "status": "active",
+      "graphNode": "ADR",
+      "note": "Frontmatter is machine-read; the body is not. Wave 2 adds the MADR `confirmation` field and scripts/check-adr-confirmation.mjs so a decision must name the gate proving it is still live."
+    },
+    {
+      "prefix": "D",
+      "pattern": "^D-[0-9]{2}$",
+      "meaning": "A blocked project decision awaiting an owner, in a governed project's registry.",
+      "ssot": "src/templates/docs/skeletons/decision-registry.md.ejs",
+      "gate": "scripts/check-decision-registry.mjs",
+      "track": "target",
+      "tool": "arbiter doc-set",
+      "hook": "n/a",
+      "status": "active",
+      "note": "A target-project scheme (ADR-113): arbiter owns the template and the gate, the consumer owns the instances, so the gate is wired in the generated check-all rather than arbiter's own."
+    },
+    {
+      "prefix": "REQ",
+      "pattern": "^REQ-[0-9]{3}$",
+      "meaning": "A requirement row in the requirements-traceability matrix.",
+      "ssot": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+      "gate": "scripts/check-feature-matrix.mjs",
+      "track": "both",
+      "tool": "arbiter graph build",
+      "hook": "n/a",
+      "status": "active",
+      "graphNode": "REQ",
+      "note": "No edit-time hook: a matrix row's status ladder is fail-closed on refs that must resolve on disk, which is a whole-file property the gate computes — a per-edit check would pass on a row the next edit invalidates."
+    },
+    {
+      "prefix": "AC",
+      "pattern": "^AC-[0-9]+$",
+      "meaning": "An acceptance criterion, frozen from the issue into the plan and verdicted per task.",
+      "ssot": "src/commands/task-state.ts",
+      "gate": "scripts/check-acceptance.mjs",
+      "track": "self",
+      "tool": "arbiter task get",
+      "hook": "n/a",
+      "status": "active",
+      "note": "Issue-scoped rather than globally numbered: AC-1 means something different under each task id, which is why the pattern carries no width. The SSOT is the module owning the shape, not the runtime .claude/.task/status.json it writes — that file is per-checkout state and absent on a fresh clone."
+    },
+    {
+      "prefix": "#",
+      "pattern": "^#[0-9]+$",
+      "meaning": "A GitHub issue or pull request.",
+      "ssot": "github",
+      "gate": "n/a",
+      "track": "self",
+      "tool": "arbiter task get",
+      "hook": "n/a",
+      "status": "active",
+      "note": "GitHub owns the instances; arbiter validates only the citation shape, which the plan and evidence schemas already pin to ^#[0-9]+$."
+    },
+    {
+      "prefix": "N",
+      "pattern": "^N[0-9]{2}$",
+      "meaning": "A KIT dimension: one measurable capability of the governance kit.",
+      "ssot": "src/kit/catalog.json",
+      "gate": "scripts/check-kit-catalog-parity.mjs",
+      "track": "self",
+      "tool": "n/a",
+      "hook": "n/a",
+      "status": "active",
+      "note": "No CLI verb reads KIT dimensions directly; they are consumed by scripts/build-kit.mjs and joined onto RTM rows by the feature-matrix gate."
+    },
+    {
+      "prefix": "GA",
+      "pattern": "^GA-[A-Z]+-[0-9]{2}$",
+      "meaning": "A gold-audit check.",
+      "ssot": "standards/gold-registry.yml",
+      "gate": "scripts/gold-audit.mjs",
+      "track": "both",
+      "tool": "arbiter gold-audit",
+      "hook": "n/a",
+      "status": "active",
+      "note": "No edit-time hook: a gold-audit check's verdict is computed from the repository as a whole by the audit engine, so there is no single edited file whose validity a hook could decide."
+    },
+    {
+      "prefix": "RT",
+      "pattern": "^RT-[0-9]{2}$",
+      "meaning": "A red-team finding carried forward into code review.",
+      "ssot": "src/commands/task-state.ts",
+      "gate": "n/a",
+      "track": "self",
+      "tool": "arbiter task get",
+      "hook": "n/a",
+      "status": "active",
+      "note": "Findings live in the typed UnifiedTaskState written by src/commands/task-state.ts, whose shape is enforced at write time rather than by a separate script; the runtime .claude/.task/status.json is per-checkout state, not a tracked SSOT."
+    },
+    {
+      "prefix": "OD",
+      "pattern": "^OD-[0-9]{2}$",
+      "meaning": "An owner decision: a judgement call only the project owner can make.",
+      "ssot": "docs/internal/SYSTEM/OD-REGISTRY.md",
+      "gate": "scripts/check-id-registry.mjs",
+      "track": "self",
+      "tool": "n/a",
+      "hook": "n/a",
+      "status": "active",
+      "note": "Was the blandest scheme in the repo: cited in hooks, tests and the advisory ledger with no registry defining it. The gate now resolves every OD-NN citation against the registry, so an invented decision id fails."
+    },
+    {
+      "prefix": "M",
+      "pattern": "^M[0-9]{1,2}$",
+      "meaning": "An agent-orchestration methodology measure.",
+      "ssot": "docs/methodology/agent-orchestration-and-context-hygiene.md",
+      "gate": "scripts/check-methodology-coverage.mjs",
+      "track": "self",
+      "tool": "arbiter method",
+      "hook": "n/a",
+      "status": "active",
+      "note": "The prefix is now methodology-only. Product milestones used to share it; they move to MS-NN so a bare M13 can no longer mean either adversarial refutation or a shipping milestone."
+    },
+    {
+      "prefix": "E",
+      "pattern": "^E[0-9]{1,2}[a-z]?$",
+      "meaning": "An anti-context-rot enforcer.",
+      "ssot": "docs/design/anti-context-rot-enforcers.md",
+      "gate": "n/a",
+      "track": "self",
+      "tool": "n/a",
+      "hook": "n/a",
+      "status": "staged",
+      "expires": "2026-11-01",
+      "note": "Second live collision: standards/gold-registry.yml also keys enforcement dimensions E1-E7. The two are disambiguated only by which file you are reading, which no mechanism checks. Wave 2 resolves it in the same pass that types the CANON catalog, by giving the gold-registry dimensions a distinct prefix."
+    },
+    {
+      "prefix": "MS",
+      "pattern": "^MS-[0-9]{2}$",
+      "meaning": "A product milestone with a GSN goal, exit criteria and dependencies.",
+      "ssot": "docs/internal/PRODUCT/MILESTONES.yml",
+      "gate": "scripts/check-milestones.mjs",
+      "track": "both",
+      "tool": "arbiter graph build",
+      "hook": ".claude/hooks/post-edit-artifact-schema.mjs",
+      "status": "staged",
+      "expires": "2026-11-15",
+      "graphNode": "MILESTONE",
+      "note": "Wave 3. Claims the prefix now so the MN collision is closed before any instance exists; the SSOT file, the gate and the MILESTONE node land together."
+    },
+    {
+      "prefix": "SRC",
+      "pattern": "^SRC-[0-9]{3}$",
+      "meaning": "An external source whose application to the architecture is certified, not merely cited.",
+      "ssot": "docs/internal/PRODUCT/SOURCES.md",
+      "gate": "scripts/check-sources.mjs",
+      "track": "both",
+      "tool": "arbiter sources",
+      "hook": ".claude/hooks/guard-sota-required.mjs",
+      "status": "staged",
+      "expires": "2026-12-15",
+      "graphNode": "SOURCE",
+      "note": "Wave 5. The gate is deterministic first: a quoted span must be a literal substring of the committed excerpt whose hash matches, before any judgement about relevance is asked of a model."
+    },
+    {
+      "prefix": "UC",
+      "pattern": "^UC-[0-9]{2}$",
+      "meaning": "A structured use case with an actor, a goal and the tests that prove it.",
+      "ssot": "docs/internal/PRODUCT/USE_CASES.md",
+      "gate": "scripts/check-use-cases.mjs",
+      "track": "both",
+      "tool": "arbiter graph build",
+      "hook": ".claude/hooks/post-edit-artifact-schema.mjs",
+      "status": "staged",
+      "expires": "2027-01-31",
+      "graphNode": "USECASE",
+      "note": "Wave 8. Unifies three mutually unlinked near-misses: the prose use-case matrix, the tabletop scenario catalogue and the single Gherkin feature."
+    },
+    {
+      "prefix": "TT",
+      "pattern": "^TT-[0-9]{2}$",
+      "meaning": "A tabletop scenario definition, exercised against a use case or runbook.",
+      "ssot": "docs/internal/METHOD/TABLETOP-SCENARIOS.md",
+      "gate": "scripts/check-tabletop-evidence.mjs",
+      "track": "both",
+      "tool": "n/a",
+      "hook": ".claude/hooks/post-edit-artifact-schema.mjs",
+      "status": "staged",
+      "expires": "2027-01-31",
+      "graphNode": "SCENARIO",
+      "note": "Wave 8. The evidence half is already schema'd and gated; the scenario definitions are not, so an exercise can be walked against a scenario nothing validates."
+    },
+    {
+      "prefix": "RB",
+      "pattern": "^RB-[0-9]{2}$",
+      "meaning": "A runbook that handles the violation of a named operational invariant.",
+      "ssot": "docs/internal/runbooks",
+      "gate": "scripts/check-runbook-coverage.mjs",
+      "track": "both",
+      "tool": "arbiter doc-set",
+      "hook": "n/a",
+      "status": "staged",
+      "expires": "2027-01-31",
+      "graphNode": "RUNBOOK",
+      "note": "Wave 8. Coverage is the same algebra as requirement-to-test: an operational invariant with no runbook and a runbook handling no invariant are both defects."
+    },
+    {
+      "prefix": "FS",
+      "pattern": "^FS-[0-9]{2}$",
+      "meaning": "A feasibility study that informs a decision.",
+      "ssot": "docs/architecture/feasibility.md",
+      "gate": "scripts/check-doc-set.mjs",
+      "track": "both",
+      "tool": "arbiter doc-set",
+      "hook": "n/a",
+      "status": "staged",
+      "expires": "2027-01-31",
+      "note": "Wave 8. One retroactive document exists with no template, no doc-set row and no gate; the contract rides the doc-set engine rather than earning a script of its own."
+    },
+    {
+      "prefix": "EP",
+      "pattern": "^EP-[0-9]{2}$",
+      "meaning": "An epic: a decomposable unit of work targeting a milestone.",
+      "ssot": "docs/internal/PRODUCT/MILESTONES.yml",
+      "gate": "scripts/check-milestones.mjs",
+      "track": "both",
+      "tool": "arbiter graph build",
+      "hook": ".claude/hooks/post-edit-artifact-schema.mjs",
+      "status": "staged",
+      "expires": "2027-01-31",
+      "graphNode": "EPIC",
+      "note": "Wave 8. Shares the milestone SSOT and gate deliberately: an epic that targets no milestone is the defect the join exists to surface."
+    }
+  ]
+}
+```
+
+<!-- ID_REGISTRY_END -->

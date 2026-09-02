@@ -180,3 +180,6 @@ timeout = 3
 # so the generated config cannot reference a file it does not emit:
 # unbridgeable: check-no-direct-spawn.mjs — self-config only, no generator template.
 # unbridgeable: pre-edit-load-memory.mjs — self-config only, no generator template.
+# unbridgeable: post-edit-artifact-schema.mjs — self-config only (staged self-only in
+#   scripts/canon01-self-only.json until the target-side ID registry exists); its registered
+#   instances are arbiter's own governance SSOT paths, which a Codex-driven target does not have.

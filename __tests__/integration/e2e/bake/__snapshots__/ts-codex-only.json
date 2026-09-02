@@ -168,7 +168,7 @@
     ".claude/hooks/pre-edit-ssot-guard.mjs": "2317c2075bea7c4f19d4164d89e79867fc65886ad29e6033c34349f4b027ae78",
     ".claude/hooks/stop-dangerous.mjs": "68c4eeb410fa1db2731c9bca59be4acfc2c62413795639e116edc82ff2b8aef4",
     ".codex/codex-adapter.mjs": "09e7a7489384192c00de97aabedb0996ce7f2baa7dbec2450f86521d2e4504df",
-    ".codex/config.toml": "87d2d097e259246c05d4a5b2558e94fae1f606a300577068250c81477f080071",
+    ".codex/config.toml": "f9ced7c61fd6e19e7314bd61f71426337c1f85584309a6e8ea9e4f24bee9abbe",
     ".env.example": "37bd176675e9c72ced2f6f62ddbf68189b0dc7dc2656f902180aceaa1b50f734",
     ".eslintrc-static.json": "3a3aa03974af8d2e0db99302c30d606043cd98cf771d8e1303fc574f12f0b137",
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",

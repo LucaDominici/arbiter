@@ -224,11 +224,20 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
   // This is a stale counter, not a regression: ground truth (§7 of the playbook) wins over
   // the pre-growth ceiling. Bound updated to the current real count so the budget still
   // catches future unbounded growth.
-  it('selectSsotDocs returns at most 32 canonical core docs', () => {
+  // 2026-09-02 (ontology wave 1) legitimately added two: docs/internal/SYSTEM/ID-REGISTRY.md,
+  // the registry of every identifier scheme — the file an agent reads to learn what INV/ADR/REQ/
+  // MS/SRC even mean — and docs/internal/SYSTEM/OD-REGISTRY.md, which the id-registry gate
+  // resolves every OD-NN citation against. Both carry the `canonical_id` their SYSTEM siblings
+  // (CANON.md, HOOK-CONTRACTS.md) carry, and either alone qualifies them. Clearing OD-REGISTRY's
+  // canonical_id to stay under the ceiling was tried and reverted: it is precisely the demotion
+  // the note above forbids, and the honest remedy is the one that note itself names — ground
+  // truth wins over the pre-growth ceiling, and the bound moves to the new real count so it
+  // keeps catching unbounded growth.
+  it('selectSsotDocs returns at most 34 canonical core docs', () => {
     const core = selectSsotDocs(ROOT)
     expect(
       core.length,
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
-    ).toBeLessThanOrEqual(32)
+    ).toBeLessThanOrEqual(34)
   })
 })

@@ -818,3 +818,43 @@ Unparseable documents are skipped, non-JSON artifacts are out of scope, and NO-D
 **Enforcement:** `scripts/check-fixture-isolation.mjs` (L1, self) — wired in `scripts/check-all.mjs` and enrolled in the anti-fake-green aggregate roster (`scripts/lib/anti-fake-green-guards.mjs`, class `file-scan`) with a discrimination proof in `scripts/lib/guard-flip-registry.mjs`. Verified by `__tests__/scripts/check-fixture-isolation.test.ts` (red→green). Exit codes per INV-53: 0=PASS/NO-DATA, 1=contamination, 2=ERROR.
 
 ---
+
+### INV-140: Every identifier scheme is registered, collision-free, and its citations resolve
+
+An identifier scheme that lives only in the heads of the people using it drifts into two schemes wearing one prefix. That happened twice here: `MN` meant both a product milestone and an agent-orchestration methodology measure, and `E1`–`E7` meant both an anti-context-rot enforcer and a gold-registry enforcement dimension — so a bare citation was ambiguous and no mechanism could say so. Worse, `OD-NN` was cited in a hook, two empirical tests and the advisory ledger with **no file defining it**, which makes an invented decision id indistinguishable from a real one.
+
+`docs/internal/SYSTEM/ID-REGISTRY.md` declares every scheme in one machine-parsed block — prefix, anchored pattern, SSOT, gate, track, tool, hook, status. The gate proves no two schemes can match the same identifier (each pattern is expanded into a canonical sample and cross-matched against every other regex), that every declared SSOT resolves on disk, and that every `OD-NN` in the tree resolves to a row in `docs/internal/SYSTEM/OD-REGISTRY.md`. A `staged` row is a **dated** obligation: it names the wave that wires it and fails the gate once its `expires` passes — the dated-debt discipline of INV-31 applied to the ontology itself.
+
+**Enforcement:** `scripts/check-id-registry.mjs` (L1, self) — wired in `scripts/check-all.mjs`, validating against `schemas/id-registry.schema.json` through the shared validator in `scripts/lib/agent-return-validate.mjs` (no second validator, CANON-16). Verified by `__tests__/scripts/check-id-registry.test.ts`. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
+
+---
+
+### INV-141: No artifact type exists as documentation alone — every active scheme is wired
+
+The failure this closes is the one every governance framework dies of: a rule is written, nothing runs it, and the document reads like coverage in an audit. For each `active` row in the ID registry the gate proves three legs are real — the gate script is registered on the side its `track` names (`scripts/check-all.mjs` for self, the declarative Track-B roster `src/templates/scripts/gate-registry.yml.ejs` for target, so a correctly-declined gate is never mistaken for an unwired one), the `tool` verb resolves to a `.command()` in `src/cli.ts`, and the `hook` file exists **and** is registered in `.claude/settings.json`, because an unregistered hook never fires.
+
+`staged` rows are exempt by design — a stage is a dated obligation enforced by INV-140, not a second copy of the same failure — and are counted instead, against a monotone ratchet over the unwired legs. There is deliberately no `--allow-increase`: the count may fall freely, and raising it means hand-editing `scripts/data/ontology-baseline.json` in the same PR as the row that needs it, where the number lands in the diff beside its justification.
+
+**Enforcement:** `scripts/check-ontology-wired.mjs` (L1, self) — wired in `scripts/check-all.mjs`, with the ratchet in `scripts/data/ontology-baseline.json`. Verified by `__tests__/scripts/check-ontology-wired.test.ts`. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
+
+---
+
+### INV-142: An edited ontology artifact is schema-valid at edit time, not at merge time
+
+A schema checked only in CI teaches the agent an hour late, after a commit and a push, when the cheapest moment to learn was the edit itself. One `PostToolUse` hook carries a table of registered instances — a path or directory prefix, the schema, and how to extract the document (the whole file, or a fenced JSON block between sentinels) — and validates whatever was just written, blocking with exit 2.
+
+One hook rather than one per artifact is the point: each wave that lands an artifact type adds a single line to the table and that type becomes edit-time enforced for free. The hook fails **open** on its own infrastructure — if the validator or the schema cannot be loaded it exits 0 — because a guard that blocks an unrelated edit when its own dependency moved is a worse failure than the one it prevents; the CI gate remains the backstop.
+
+**Enforcement:** `.claude/hooks/post-edit-artifact-schema.mjs` (`PostToolUse` → `Edit|Write`, self) — registered in `.claude/settings.json`. Exit 2 is the only blocking code under the hook protocol; exit 1 prints and the agent never sees it, which would make the guard decoration. Verified by `__tests__/hooks/post-edit-artifact-schema.test.ts`.
+
+---
+
+### INV-143: The arbiter <-> forma schema contract is pinned and gated on both sides
+
+arbiter owns the governance ontology; forma owns the stack-agnostic C4 model shape and renders what arbiter defines. Two repositories sharing schemas by good intentions drift the first time either ships a change alone, and the drift surfaces as a visualiser silently rendering a model it half-understands.
+
+`schemas/CONTRACT.json` names, for each shared schema, the owning repository, the path inside it, a sha256, and which repos vendor a pinned copy. Both repositories hold a byte-identical copy and each gates its own half: the owner re-hashes what it owns, the consumer re-hashes what it vendored. Editing a shared shape without re-pinning turns the owning repo red at once; a stale vendored copy turns the consuming repo red. When both checkouts sit side by side the gate also proves the two manifests are byte-identical and the sibling's live files still hash to the pin — and when they do not, that half **skips out loud** rather than passing in silence, because a cross-repo check that quietly does nothing is the exact failure the contract exists to prevent.
+
+**Enforcement:** `scripts/check-forma-contract.mjs` (L1, self) — wired in `scripts/check-all.mjs`; forma runs the mirror `scripts/check-arbiter-contract.mjs` in its own CI and `npm test`. Verified by `__tests__/scripts/check-forma-contract.test.ts`. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
+
+---

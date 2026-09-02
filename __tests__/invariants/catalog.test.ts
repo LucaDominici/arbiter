@@ -20,10 +20,10 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 137
+const EXPECTED_TOTAL_ENTRIES = 141
 const EXPECTED_TIER4_OPERATIONAL = 49
-const EXPECTED_TIER5_GOVERNANCE = 52
-const EXPECTED_SELFONLY = 31
+const EXPECTED_TIER5_GOVERNANCE = 56
+const EXPECTED_SELFONLY = 35
 
 // ---------------------------------------------------------------------------
 // INVARIANT_CATALOG structure
@@ -60,6 +60,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, operational/Tier-4, all-languages)
     // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
+    // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
+    // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
+    // all selfOnly governance/Tier-5)
     expect(INVARIANT_CATALOG).toHaveLength(EXPECTED_TOTAL_ENTRIES)
   })
 
@@ -84,9 +87,12 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor)
     // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
+    // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
+    // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
+    // all selfOnly governance/Tier-5)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(137)
+    expect(unique.size).toBe(EXPECTED_TOTAL_ENTRIES)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -206,6 +212,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance, all-languages)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
+    // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
+    // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
+    // all selfOnly governance/Tier-5)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
     expect(tier5).toHaveLength(EXPECTED_TIER5_GOVERNANCE)
   })
@@ -766,6 +775,9 @@ describe('getFilteredInvariants', () => {
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, selfOnly)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
+    // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
+    // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
+    // all selfOnly governance/Tier-5)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
     expect(selfOnly).toHaveLength(EXPECTED_SELFONLY)
     const ids = selfOnly.map((inv) => inv.id)

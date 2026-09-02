@@ -81,6 +81,8 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 
 - `docs/architecture/analysis.md` — Arbiter — Current-State Analysis
 - `docs/architecture/feasibility.md` — Arbiter — Feasibility Study
+- `docs/internal/SYSTEM/ID-REGISTRY.md` — ID Registry — every identifier scheme, and the mechanism that keeps it honest
+- `docs/internal/SYSTEM/OD-REGISTRY.md` — Owner Decision Registry — the calls only the owner can make
 
 <!-- END GENERATED INVENTORY -->
 

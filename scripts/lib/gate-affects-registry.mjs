@@ -141,6 +141,13 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'third-party licenses', affects: ALWAYS },
   { name: 'global-invariants parity', affects: ALWAYS },
   { name: 'enforcement wired', affects: ALWAYS },
+  // ALWAYS, and not out of caution: the id-registry gate scans the WHOLE tree for OD-NN
+  // citations, so any edited file can change its verdict. The ontology meta-gate reads the
+  // registry, check-all.mjs, src/cli.ts, .claude/settings.json and the Track-B gate roster;
+  // the contract gate reads schemas/ plus a sibling checkout. None is narrowable to a path set.
+  { name: 'id registry (INV-140)', affects: ALWAYS },
+  { name: 'ontology wired (INV-141)', affects: ALWAYS },
+  { name: 'forma schema contract (INV-143)', affects: ALWAYS },
   { name: 'orchestrator coverage (#1410)', affects: ALWAYS },
   { name: 'constraint scan (INV-115)', affects: ALWAYS },
   { name: 'agent-dispatch matrix (#1267)', affects: ALWAYS },

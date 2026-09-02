@@ -223,6 +223,11 @@ const CI_COVERAGE = new Map([
   ['global-invariants parity', 'gate-full'],
   ['kit catalog parity', 'gate-full'],
   ['enforcement wired', 'gate-full'],
+  // The ontology gates (INV-140/141/143). All three are L1 and therefore inside the L2 run that
+  // gate-full performs end-to-end; none needs a job of its own.
+  ['id registry (INV-140)', 'gate-full'],
+  ['ontology wired (INV-141)', 'gate-full'],
+  ['forma schema contract (INV-143)', 'gate-full'],
   ['constraint scan (INV-115)', 'gate-full'],
   ['agent-dispatch matrix (#1267)', 'gate-full'],
   ['node version ssot', 'gate-full'],

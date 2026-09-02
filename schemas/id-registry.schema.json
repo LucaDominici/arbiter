@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://arbiter.dev/schemas/id-registry/v1",
+  "title": "ArbiterIdRegistry",
+  "description": "The registry of registries: every identifier scheme arbiter recognises, the regex that matches it, the file that owns its instances, and the mechanism that keeps it honest. Instances live in the machine-parsable table of docs/internal/SYSTEM/ID-REGISTRY.md. Enforced by scripts/check-id-registry.mjs (schema + prefix collisions + SSOT resolution) and scripts/check-ontology-wired.mjs (every row is wired to a real gate, tool and hook).",
+  "type": "object",
+  "required": ["registryVersion", "schemes"],
+  "additionalProperties": false,
+  "properties": {
+    "registryVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semver of the registry contract itself. MAJOR changes when a column's meaning changes."
+    },
+    "schemes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Scheme" }
+    }
+  },
+  "$defs": {
+    "Scheme": {
+      "type": "object",
+      "required": [
+        "prefix",
+        "pattern",
+        "meaning",
+        "ssot",
+        "gate",
+        "track",
+        "tool",
+        "hook",
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*$|^#$",
+          "description": "The literal token that opens an identifier, e.g. 'INV', 'MS', 'SRC'. '#' is the GitHub issue scheme. Two schemes may never share a prefix — that is the collision the gate exists to make impossible."
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Anchored regex matching a full identifier of this scheme, e.g. '^INV-[0-9]{2,3}$'. Used by the gate to detect two schemes whose patterns can match the same string."
+        },
+        "meaning": {
+          "type": "string",
+          "minLength": 12,
+          "description": "What one identifier of this scheme denotes. One sentence; the registry is an index, not documentation."
+        },
+        "ssot": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Repo-relative path of the file that owns the instances, or 'github' for schemes GitHub owns. The gate fails when a declared path does not exist."
+        },
+        "gate": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Repo-relative path of the check script that validates instances of this scheme, or 'n/a' with a reason in `note`. check-ontology-wired.mjs additionally asserts the script is registered in scripts/check-all.mjs."
+        },
+        "track": {
+          "type": "string",
+          "enum": ["self", "target", "both"],
+          "description": "Where the gate runs. 'self' = wired in scripts/check-all.mjs. 'target' = a Track-B emission wired in the generated src/templates/scripts/check-all.mjs.ejs (arbiter itself owns no instances of the scheme). 'both' = wired on both sides. check-ontology-wired.mjs picks which wiring it demands from this value, so a Track-B gate is never mistaken for an unwired one."
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 2,
+          "description": "The CLI surface that reads or writes instances, e.g. 'arbiter validate', 'arbiter graph build'. 'n/a' requires a reason in `note`."
+        },
+        "hook": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Repo-relative path of a .claude hook that enforces this scheme at agent-edit time, or 'n/a' with a reason in `note`."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "staged", "retired"],
+          "description": "active = fully wired. staged = an obligation with a deadline; `expires` is then mandatory and the gate fails once the date passes. retired = the prefix is burned and must never be reused."
+        },
+        "graphNode": {
+          "type": "string",
+          "pattern": "^[A-Z_]+$",
+          "description": "The NodeKind in src/graph/model.ts that carries instances of this scheme, when the provenance graph models it."
+        },
+        "expires": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Mandatory for status 'staged': the date by which the staged legs must be wired. A passed date is a gate failure, mirroring the dated-debt discipline of INV-31 and scripts/canon01-self-only.json."
+        },
+        "note": {
+          "type": "string",
+          "minLength": 12,
+          "description": "Mandatory whenever gate, tool or hook is 'n/a', or when status is 'staged' or 'retired'. An 'n/a' without a reason is a blanket exemption, so the gate rejects it."
+        }
+      }
+    }
+  }
+}

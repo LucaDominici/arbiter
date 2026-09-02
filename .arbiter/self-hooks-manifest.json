@@ -325,7 +325,7 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "UserPromptSubmit hard block (exit 2) — after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit prompts and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
+      "rationale": "UserPromptSubmit hard block (exit 2) \u2014 after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit prompts and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
     },
     {
       "file": "wiki-on-commit.mjs",
@@ -362,7 +362,7 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "E5 #1947, #2403. SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — removes the finished dispatch's agents-active.json sidecar entry so it does not wedge the next spawn for the 2h TTL. Always exits 0. Driven by a SubagentStop payload on stdin, not a tool-input path."
+      "rationale": "E5 #1947, #2403. SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs \u2014 removes the finished dispatch's agents-active.json sidecar entry so it does not wedge the next spawn for the 2h TTL. Always exits 0. Driven by a SubagentStop payload on stdin, not a tool-input path."
     },
     {
       "file": "stop-finding-loss.mjs",
@@ -373,6 +373,16 @@
       "spawnable": false,
       "rationale": "E6b #1948. Advisory by default; ARBITER_FINDING_LOSS_HARD=1 promotes it. Needs a Stop transcript with >=2 agent dispatches, supplied via stdin.",
       "promotedBy": "ARBITER_FINDING_LOSS_HARD"
+    },
+    {
+      "file": "post-edit-artifact-schema.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "INV-142: validates an edited ontology artifact against its registered schema. NOT spawnable in place: its two registered instances are the live ID registry (docs/internal/SYSTEM/ID-REGISTRY.md \u2014 driving the hook means corrupting the SSOT that check-id-registry.mjs and check-ontology-wired.mjs read, on the developer's own tree) and .arbiter/evidence/agent-returns/, where planting a fixture is exactly what INV-139 forbids. Its decision logic is therefore exported pure (selectEntry, extractDocument) and observed by __tests__/hooks/post-edit-artifact-schema.test.ts, which also spawns the hook against a real violation in a scratch clone to assert exit 2."
     }
   ]
 }
