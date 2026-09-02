@@ -292,3 +292,106 @@ jobs:
     }
   })
 })
+
+// ─── #2476: base-branch filter on a pull_request trigger (fail-open by no-run) ──
+//
+// On a `pull_request` event `branches:` filters the BASE branch. A merge-gate
+// workflow restricted to `branches: [main]` creates NO RUN AT ALL for a pull
+// request based on a task or train branch — so a stacked pull request shows no
+// failing checks because it has no checks. Both directions are asserted here: the
+// bad shape must go red, the fixed shape must stay green. A gate never seen to
+// fail protects nothing.
+
+/** A workflow carrying a merge-gate aggregator job, with an injectable `on:` block. */
+function writeGateWf(dir: string, name: string, onBlock: string) {
+  mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+  writeFileSync(
+    join(dir, '.github', 'workflows', name),
+    `name: PR Fast
+${onBlock}
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm run lint
+  ci-required:
+    needs: [gate]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`,
+  )
+}
+
+describe('check-workflow-test-integrity.mjs — pull_request base-branch filter (#2476)', () => {
+  it.each([
+    ['branches', `on:\n  pull_request:\n    branches: [main]\n`],
+    ['branches (multi)', `on:\n  pull_request:\n    branches: [main, develop]\n`],
+    ['branches-ignore', `on:\n  pull_request:\n    branches-ignore: [gh-pages]\n`],
+    [
+      'branches alongside types',
+      `on:\n  pull_request:\n    types: [opened, synchronize]\n    branches: [main]\n`,
+    ],
+    ['pull_request_target', `on:\n  pull_request_target:\n    branches: [main]\n`],
+  ])('exits 1 when a merge-gate workflow filters the PR base branch via %s', (_label, onBlock) => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeGateWf(dir, '01-pr-fast.yml', onBlock)
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/base-branch filter/)
+      expect(result.stderr).toMatch(/#2476/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when the same merge-gate workflow has no PR base-branch filter', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeGateWf(
+        dir,
+        '01-pr-fast.yml',
+        `on:\n  push:\n    branches: [main]\n  pull_request:\n    types: [opened, synchronize]\n`,
+      )
+      const result = run(dir)
+      expect(result.stderr).toBe('')
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('leaves the push: base filter alone — only the pull_request trigger is governed', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeGateWf(dir, '01-pr-fast.yml', `on:\n  push:\n    branches: [main]\n  pull_request:\n`)
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exempts a supplementary lane — no merge-gate aggregator job, no rule', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+      writeFileSync(
+        join(dir, '.github', 'workflows', '15-codeql.yml'),
+        `name: CodeQL
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo scan
+`,
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})
