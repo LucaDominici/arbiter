@@ -14,7 +14,10 @@
 // `branchingStrategy` values — the `github-flow-with-develop` branch of the EJS
 // conditional is never exercised by the render-parity fixture.
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
 import { parse as parseYaml } from 'yaml'
 import { renderTemplate } from '../../src/utils/render.js'
 
@@ -89,4 +92,85 @@ describe('#2476 — PR-tier workflows do not filter the pull_request base branch
       expect(push.branches).toEqual(expected)
     },
   )
+})
+
+// The rule is enforced on two surfaces, and they are DIFFERENT implementations:
+// arbiter's own scripts/check-workflow-test-integrity.mjs parses the workflow with
+// the `yaml` package, while the twin arbiter SHIPS is line-based on purpose (a
+// generated project is not required to carry `yaml`). The dogfood diff-pin proves
+// the two files stay in sync, not that the shipped one WORKS — so exercise the
+// rendered twin directly, in both directions. A gate never seen to fail protects
+// nothing.
+describe('#2476 — the SHIPPED check-workflow-test-integrity twin enforces the same rule', () => {
+  const MERGE_GATE_JOBS = `jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm run lint
+  ci-required:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`
+
+  function runTwin(workflow: string, name = '01-pr-fast.yml') {
+    const root = mkdtempSync(join(tmpdir(), 'twin-2476-'))
+    try {
+      const script = join(root, 'check-workflow-test-integrity.mjs')
+      writeFileSync(
+        script,
+        renderTemplate('scripts/check-workflow-test-integrity.mjs.ejs', { projectName: 'demo' }),
+      )
+      const repo = join(root, 'repo')
+      mkdirSync(join(repo, '.github', 'workflows'), { recursive: true })
+      writeFileSync(join(repo, '.github', 'workflows', name), workflow)
+      const r = spawnSync('node', [script, '--dir', repo], { encoding: 'utf-8' })
+      return { status: r.status ?? 1, stderr: r.stderr ?? '' }
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+
+  it('fails a merge-gate workflow that filters the pull_request base branch', () => {
+    const r = runTwin(`name: PR Fast
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened]
+    branches: [main]
+${MERGE_GATE_JOBS}`)
+    expect(r.stderr).toMatch(/base-branch filter/)
+    expect(r.stderr).toMatch(/#2476/)
+    expect(r.status).toBe(1)
+  })
+
+  it('passes the same workflow once the base filter is gone', () => {
+    const r = runTwin(`name: PR Fast
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened]
+${MERGE_GATE_JOBS}`)
+    expect(r.stderr).toBe('')
+    expect(r.status).toBe(0)
+  })
+
+  it('exempts a supplementary lane that carries no merge-gate aggregator job', () => {
+    const r = runTwin(
+      `name: CodeQL
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo scan
+`,
+      '15-codeql.yml',
+    )
+    expect(r.status).toBe(0)
+  })
 })

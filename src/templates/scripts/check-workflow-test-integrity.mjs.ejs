@@ -64,6 +64,88 @@ function enclosingStepId(lines, i) {
   return stepId;
 }
 
+// #2476 — a base-branch filter on a `pull_request` trigger is a fail-open BY NO-RUN.
+//
+// On a `pull_request` event, `branches:` filters the BASE branch, not the head. A
+// merge-gate workflow declaring `branches: [main]` therefore matches NOTHING for a
+// pull request based on a stacked (task/train) branch, and no workflow run is created
+// at all. That is worse than a red check: the pull request shows no FAILING checks
+// because it has no checks, so a "no failing checks ⇒ mergeable" read is satisfied by
+// a pull request that was never tested. Branch protection is no backstop — it is
+// configured on the BASE branch, and a stacked branch usually carries none.
+//
+// The rule: run creation must be unconditional in the base branch. Per-branch economy
+// belongs INSIDE the workflow, in a job-level `if:`, where a skipped job still reports
+// a result the aggregator can read. `branches-ignore` is rejected for the same reason:
+// it is an allowlist by omission.
+//
+// SCOPE — only a workflow carrying a MERGE-GATE AGGREGATOR job (a job id ending in
+// `-required`, the required-status-check convention arbiter emits). Those are the
+// workflows whose absence reads as "CI is green". Supplementary, path-scoped lanes
+// (CodeQL, a frontend lane, contract smoke tests) carry no aggregator and are exempt.
+//
+// Implementation note: the self copy parses the workflow with the `yaml` package.
+// This emitted twin is line-based on purpose — a generated project is not required to
+// carry `yaml` as a dependency, and a gate script must never fail on a missing import.
+// The rule enforced is identical.
+const PR_TRIGGER_RE = /^ {2}(pull_request|pull_request_target):/;
+const BASE_FILTER_RE = /^ {4}(branches|branches-ignore):/;
+const AGGREGATOR_JOB_RE = /^ {2}([\w-]*-required):/;
+const STRUCTURE_FREE_RE = /^\s*(?:#|$)/;
+
+/** True when the workflow declares a merge-gate aggregator job (`*-required`). */
+function hasMergeGateAggregator(lines) {
+  let inJobs = false;
+  for (const line of lines) {
+    if (STRUCTURE_FREE_RE.test(line)) continue;
+    if (/^["']?jobs["']?:/.test(line)) {
+      inJobs = true;
+      continue;
+    }
+    if (inJobs && /^\S/.test(line)) {
+      inJobs = false;
+      continue;
+    }
+    if (inJobs && AGGREGATOR_JOB_RE.test(line)) return true;
+  }
+  return false;
+}
+
+/** Base-branch filter keys declared on a merge-gate workflow's pull_request trigger(s). */
+function prBaseBranchFilters(lines) {
+  if (!hasMergeGateAggregator(lines)) return [];
+  const found = [];
+  let inOn = false;
+  let event = null;
+  for (const line of lines) {
+    if (STRUCTURE_FREE_RE.test(line)) continue;
+    if (/^["']?on["']?:/.test(line)) {
+      inOn = true;
+      event = null;
+      continue;
+    }
+    if (!inOn) continue;
+    if (/^\S/.test(line)) {
+      inOn = false;
+      event = null;
+      continue;
+    }
+    const trigger = PR_TRIGGER_RE.exec(line);
+    if (trigger) {
+      event = trigger[1];
+      continue;
+    }
+    if (/^ {2}\S/.test(line)) {
+      event = null;
+      continue;
+    }
+    if (!event) continue;
+    const filter = BASE_FILTER_RE.exec(line);
+    if (filter) found.push(`${event}.${filter[1]}`);
+  }
+  return found;
+}
+
 function collectYamlFiles(dir) {
   if (!existsSync(dir)) return [];
   const results = [];
@@ -116,6 +198,14 @@ for (const file of yamlFiles) {
         violations++;
       }
     }
+  }
+
+  // #2476: a merge-gate workflow that filters the pull_request BASE branch.
+  for (const key of prBaseBranchFilters(content.split('\n'))) {
+    process.stderr.write(
+      `[FAIL] ${file}: merge-gate workflow declares a base-branch filter '${key}' on its pull_request trigger — a pull request based on a stacked branch then creates NO RUN AT ALL and shows no failing checks because it has no checks (#2476). Remove the filter; gate per-branch economy with a job-level 'if:' instead.\n`,
+    );
+    violations++;
   }
 
   // #1491: a GATE command whose non-zero exit is swallowed by `|| true` / `|| exit 0` / `|| :`.

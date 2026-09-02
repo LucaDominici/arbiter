@@ -32,6 +32,43 @@ The pattern below achieves ≤ 15 min critical path by:
 
 ---
 
+## Trigger contract — never filter the pull_request base branch (#2476)
+
+On a `pull_request` event, `branches:` filters the **base** branch, not the head. A
+merge-gate workflow declaring `branches: [main]` therefore matches nothing for a pull
+request whose base is a task or train branch, and **GitHub creates no workflow run at
+all**.
+
+That is strictly worse than a red check. The pull request displays no _failing_ checks
+because it has no checks, so every human or automated "no failing checks ⇒ mergeable"
+read is satisfied by a pull request that was never tested. Branch protection is no
+backstop either: protection is configured on the _base_ branch, and a task or train
+branch carries none, so nothing is required there. Stacked pull requests are an in-use
+practice here — the cloud handover runbooks describe merge trains where each row bases
+on the row above — so coverage was being decided by merge order rather than by the gate.
+
+The rule, for any workflow carrying a merge-gate aggregator job (`ci-required`,
+`extended-required`):
+
+- **No `branches:` and no `branches-ignore:`** on the `pull_request` /
+  `pull_request_target` trigger. Run creation is unconditional in the base branch.
+- **No `paths-ignore:`** on that trigger either — it suppresses run creation the same
+  way, so the aggregator goes absent instead of reporting.
+- Per-branch or per-path economy belongs **inside** the workflow: a job-level `if:`
+  (T1's `classify-changes` / `docs_only`) or an in-workflow trigger job (T2's
+  `check-trigger`). A skipped job still reports a result the aggregator reads, so the
+  required check is always present and always honest.
+- The `push:` trigger keeps its branch list. That lane is the post-merge catch-net for
+  long-lived branches; widening it would multiply runner cost on every task-branch push
+  for coverage the `pull_request` trigger already provides.
+
+Mechanically enforced by `scripts/check-workflow-test-integrity.mjs` (INV-89), which
+fails any workflow with a `*-required` aggregator job that filters its pull_request base
+branch. Supplementary, path-scoped lanes (CodeQL, the frontend lane, contract smoke
+tests) carry no aggregator, are not read as "CI is green", and are exempt.
+
+---
+
 ## Annotated reference snippet
 
 ```yaml
@@ -42,8 +79,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # No `branches:` here — see "Trigger contract" below (#2476).
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read

@@ -10,6 +10,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { parse as parseYaml } from 'yaml'
+
 import { collectYamlFiles, parseHelpAndDir } from './lib/workflow-scan.mjs'
 
 const args = process.argv.slice(2)
@@ -73,6 +75,72 @@ function enclosingStepId(lines, i) {
   return stepId
 }
 
+// #2476 — a base-branch filter on a `pull_request` trigger is a fail-open BY NO-RUN.
+//
+// On a `pull_request` event, `branches:` filters the BASE branch, not the head. A
+// merge-gate workflow declaring `branches: [main]` therefore matches NOTHING for a
+// pull request based on a task or train branch, and GitHub creates no workflow run
+// at all. That is strictly worse than a red check: the pull request displays no
+// FAILING checks because it has no checks, so every human or automated
+// "no failing checks ⇒ mergeable" read is satisfied by a pull request that was
+// never tested. Branch protection is no backstop — protection is configured on the
+// BASE branch, and a task or train branch carries none, so nothing is required
+// there. Stacked pull requests are an in-use practice in this repo (the cloud
+// handover runbooks describe merge trains where each row bases on the row above),
+// so coverage was decided by merge order rather than by the gate.
+//
+// The rule: run creation must be UNCONDITIONAL on the base branch. Any per-branch
+// economy belongs INSIDE the workflow, in a job-level `if:`, where a skipped job
+// still reports a result the aggregator can read. `branches-ignore` is rejected for
+// the same reason — it is an allowlist by omission, and a base a future convention
+// invents would silently stop being tested.
+//
+// SCOPE — a workflow that carries a MERGE-GATE AGGREGATOR job (a job id ending in
+// `-required`; this project's documented required-status-check convention, see
+// docs/internal/architecture/ARCHITECTURE.md). Those are the workflows whose absence
+// is read as "CI is green". Supplementary, path-scoped lanes (CodeQL, the frontend
+// lane, contract smoke tests) carry no aggregator, are not read that way, and are
+// deliberately left to their own economics.
+const PR_TRIGGER_EVENTS = ['pull_request', 'pull_request_target']
+const BASE_FILTER_KEYS = ['branches', 'branches-ignore']
+
+/** True when the workflow declares a merge-gate aggregator job (`*-required`). */
+function hasMergeGateAggregator(doc) {
+  const jobs = doc?.jobs
+  if (!jobs || typeof jobs !== 'object') return false
+  return Object.keys(jobs).some((id) => id.endsWith('-required'))
+}
+
+/**
+ * Base-branch filter keys declared on a workflow's pull_request trigger(s).
+ * Returns [] for a workflow that declares none, that is not a merge gate, or whose
+ * YAML does not parse (a broken workflow is a different defect, owned elsewhere).
+ */
+function prBaseBranchFilters(content) {
+  let doc
+  try {
+    doc = parseYaml(content)
+  } catch {
+    return []
+  }
+  if (!doc || typeof doc !== 'object') return []
+  if (!hasMergeGateAggregator(doc)) return []
+  // A YAML 1.1 loader folds the bare key `on` to boolean true; `yaml`@2 (YAML 1.2
+  // core schema) keeps it a string. Accept both so the rule cannot be dodged by
+  // a parser swap.
+  const on = doc.on ?? doc[true]
+  if (!on || typeof on !== 'object' || Array.isArray(on)) return []
+  const found = []
+  for (const event of PR_TRIGGER_EVENTS) {
+    const cfg = on[event]
+    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) continue
+    for (const key of BASE_FILTER_KEYS) {
+      if (cfg[key] !== undefined && cfg[key] !== null) found.push(`${event}.${key}`)
+    }
+  }
+  return found
+}
+
 const yamlFiles = collectYamlFiles(WORKFLOWS_DIR)
 let violations = 0
 
@@ -114,6 +182,17 @@ for (const file of yamlFiles) {
         violations++
       }
     }
+  }
+
+  // Check (#2476): a merge-gate workflow that filters the pull_request BASE branch.
+  for (const key of prBaseBranchFilters(content)) {
+    process.stderr.write(
+      `[FAIL] ${file}: merge-gate workflow declares a base-branch filter '${key}' on its ` +
+        `pull_request trigger — a pull request based on a task or train branch then creates NO ` +
+        `RUN AT ALL and shows no failing checks because it has no checks (#2476). Remove the ` +
+        `filter; gate per-branch economy with a job-level 'if:' instead.\n`,
+    )
+    violations++
   }
 
   // Check (#1491): a GATE command whose non-zero exit is swallowed by `|| true` / `|| exit 0` /
