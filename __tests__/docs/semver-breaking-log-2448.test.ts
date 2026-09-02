@@ -113,9 +113,15 @@ describe('#2448 — SEMVER.md breaking-changes-log cites only released versions'
     expect(invalid).toEqual([])
   })
 
-  it('never cites a never-released version like the original 1.0.0 mistake (#2448)', () => {
+  it('does not cite 1.0.0 unless arbiter has actually released a 1.0.0 (#2448 regression)', () => {
+    // Asserts the CONDITIONAL, not the premise: "arbiter hasn't released 1.0.0
+    // yet" is a fact about today's CHANGELOG.md, not the property under test,
+    // and would falsely fail this test the day 1.0.0 is genuinely released
+    // (at which point citing it becomes entirely legitimate). Test 3 above
+    // already enforces the real rule mechanically; this test only pins the
+    // specific #2448 regression shape so it reads directly in a failure report.
     const released = readReleasedChangelogVersions(changelogBody)
-    expect(released).not.toContain('1.0.0')
+    if (released.includes('1.0.0')) return // genuinely released — citing it is fine, not this test's concern
     const cited = readBreakingLogVersions(semverBody)
     expect(cited).not.toContain('1.0.0')
   })
