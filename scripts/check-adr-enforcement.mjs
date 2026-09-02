@@ -206,40 +206,119 @@ function loadAllowlist() {
 }
 
 /**
- * Validate one allowlist entry against the scanned ADR state. Returns the covered ADR filename, or
- * a violation message when the entry is stale (no such ADR / status owes nothing / the ADR now
- * declares `enforces:`), undated, expired, or unjustified. The stale rules are what keep the list
- * shrinking instead of accumulating permanent amnesty.
+ * Is the entry still describing REALITY? These three rules are what let the allowlist shrink: an
+ * entry whose ADR is gone, whose status no longer owes an `enforces:`, or which has since declared
+ * one, FAILS as prunable instead of lingering as permanent amnesty.
+ * @param {string} adr
+ * @param {{ status: string | null, mandatory: boolean, declares: boolean } | undefined} state
+ * @returns {string | null}
+ */
+function staleEntryViolation(adr, state) {
+  if (state === undefined) return `${adr}: stale allowlist entry — no such ADR file (prune it)`
+  if (!state.mandatory)
+    return `${adr}: stale allowlist entry — status "${state.status}" owes no enforces (prune it)`
+  if (state.declares)
+    return `${adr}: stale allowlist entry — the ADR now declares enforces (prune it)`
+  return null
+}
+
+/**
+ * Is the amnesty itself well-formed and still LIVE? The dated-debt discipline of suppressions
+ * expiry (INV-31): a real justification plus a future date, or it is permanent amnesty wearing one.
+ * @param {string} adr
+ * @param {Record<string, unknown>} entry
+ * @param {number} now
+ * @returns {string | null}
+ */
+function amnestyViolation(adr, entry, now) {
+  const rationale = typeof entry.rationale === 'string' ? entry.rationale.trim() : ''
+  if (rationale === '') return `${adr}: allowlist entry has no rationale`
+  const expires = typeof entry.expires === 'string' ? entry.expires : ''
+  const at = Date.parse(expires)
+  if (expires === '' || Number.isNaN(at))
+    return `${adr}: allowlist entry has no valid \`expires\` date`
+  if (at < now)
+    return `${adr}: allowlist amnesty expired ${expires} — declare enforces or re-date it`
+  return null
+}
+
+/**
+ * Validate one allowlist entry against the scanned ADR state, along the two axes above: it must
+ * still describe reality, AND its amnesty must still be live.
  * @returns {{ adr: string, violation: string | null }}
  */
 function validateAllowlistEntry(entry, adrState, now) {
   const adr = typeof entry?.adr === 'string' ? entry.adr.trim() : ''
   if (adr === '') return { adr, violation: 'allowlist entry has no `adr` filename' }
-  const state = adrState.get(adr)
-  if (state === undefined)
-    return { adr, violation: `${adr}: stale allowlist entry — no such ADR file (prune it)` }
-  if (!state.mandatory)
+  const stale = staleEntryViolation(adr, adrState.get(adr))
+  return { adr, violation: stale ?? amnestyViolation(adr, entry, now) }
+}
+
+/** The state recorded for a numbered ADR whose status could not be read at all (fail-closed). */
+function unverifiableState() {
+  return { status: null, mandatory: true, declares: false, unverifiable: true }
+}
+
+/**
+ * Read one ADR file. `null` when unreadable — the caller records a numbered ADR as unverifiable,
+ * which main() reports as a FAIL, so an unreadable ADR is never a silent skip.
+ * @returns {string | null}
+ */
+function readAdr(adrDir, f) {
+  try {
+    return readFileSync(join(adrDir, f), 'utf-8')
+    // FAIL-OPEN-INTENT: null is recorded as `unverifiable` by the caller and reported as a FAIL — fail-closed.
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Classify ONE ADR's frontmatter: the state a numbered ADR contributes to the mandatory-enforces
+ * audit, the `enforces:` refs it declares, and whether a claim is hidden behind broken YAML.
+ * Unparseable frontmatter leaves the STATUS unreadable too, so a numbered ADR is recorded
+ * unverifiable rather than skipped (#2419, INV-96).
+ * @returns {{ state: object | null, list: string[], fmClaimsEnforces: boolean }}
+ */
+function adrRecord(raw, numbered) {
+  const fm = extractFrontmatter(raw)
+  if (!fm.ok) {
     return {
-      adr,
-      violation: `${adr}: stale allowlist entry — status "${state.status}" owes no enforces (prune it)`,
+      state: numbered ? unverifiableState() : null,
+      list: [],
+      fmClaimsEnforces: fm.hasFrontmatter && declaresEnforces(fm.region),
     }
-  if (state.declares)
-    return {
-      adr,
-      violation: `${adr}: stale allowlist entry — the ADR now declares enforces (prune it)`,
+  }
+  const list = enforcesList(fm.data.enforces)
+  if (!numbered) return { state: null, list, fmClaimsEnforces: false }
+  const status = typeof fm.data.status === 'string' ? fm.data.status.trim().toLowerCase() : ''
+  return {
+    state: {
+      status,
+      mandatory: MANDATORY_STATUSES.has(status),
+      declares: list.length > 0,
+      unverifiable: false,
+    },
+    list,
+    fmClaimsEnforces: false,
+  }
+}
+
+/**
+ * Resolve one ADR's declared refs. INV-* ⇒ invariant; every other ref ⇒ a gold-check id (any
+ * registry prefix: GA/GO/TS/…). Returns the refs that resolve to nothing.
+ * @returns {{ adr: string, target: string, reason: string }[]}
+ */
+function dangleRefs(adr, list, golds, invs) {
+  const out = []
+  for (const target of list) {
+    if (/^INV-\d+$/.test(target)) {
+      if (!invs.has(target)) out.push({ adr, target, reason: 'no such invariant id' })
+    } else if (!golds.has(target)) {
+      out.push({ adr, target, reason: 'no such gold-check id' })
     }
-  const rationale = typeof entry.rationale === 'string' ? entry.rationale.trim() : ''
-  if (rationale === '') return { adr, violation: `${adr}: allowlist entry has no rationale` }
-  const expires = typeof entry.expires === 'string' ? entry.expires : ''
-  const at = Date.parse(expires)
-  if (expires === '' || Number.isNaN(at))
-    return { adr, violation: `${adr}: allowlist entry has no valid \`expires\` date` }
-  if (at < now)
-    return {
-      adr,
-      violation: `${adr}: allowlist amnesty expired ${expires} — declare enforces or re-date it`,
-    }
-  return { adr, violation: null }
+  }
+  return out
 }
 
 /**
@@ -261,51 +340,22 @@ function scanAdrs(adrDir, golds, invs) {
   for (const f of files) {
     if (!f.endsWith('.md')) continue
     const numbered = NUMBERED_ADR_RE.test(f)
-    let raw
-    try {
-      raw = readFileSync(join(adrDir, f), 'utf-8')
-      // FAIL-OPEN-INTENT: an unreadable ADR file is recorded as `unverifiable` below for numbered ADRs, which main() reports as a FAIL — fail-closed.
-    } catch {
-      if (numbered)
-        adrState.set(f, { status: null, mandatory: true, declares: false, unverifiable: true })
+    const raw = readAdr(adrDir, f)
+    if (raw === null) {
+      if (numbered) adrState.set(f, unverifiableState())
       continue
     }
-    const fm = extractFrontmatter(raw)
-    if (!fm.ok) {
-      // Unparseable frontmatter is a violation when it claims enforcement — an unverifiable
-      // `enforces:` hidden behind broken YAML must FAIL, never silently pass (fail-closed).
-      if (fm.hasFrontmatter && declaresEnforces(fm.region)) {
-        dangling.push({
-          adr: f,
-          target: '(frontmatter)',
-          reason: 'declares enforces but frontmatter is unparseable',
-        })
-      }
-      // #2419: for a numbered ADR the STATUS is also unreadable, so the mandatory-enforces
-      // contract cannot be checked at all. Recorded unverifiable ⇒ FAIL, never skipped.
-      if (numbered)
-        adrState.set(f, { status: null, mandatory: true, declares: false, unverifiable: true })
-      continue
-    }
-    const list = enforcesList(fm.data.enforces)
-    if (numbered) {
-      const status = typeof fm.data.status === 'string' ? fm.data.status.trim().toLowerCase() : ''
-      adrState.set(f, {
-        status,
-        mandatory: MANDATORY_STATUSES.has(status),
-        declares: list.length > 0,
-        unverifiable: false,
+    const { state, list, fmClaimsEnforces } = adrRecord(raw, numbered)
+    if (fmClaimsEnforces) {
+      dangling.push({
+        adr: f,
+        target: '(frontmatter)',
+        reason: 'declares enforces but frontmatter is unparseable',
       })
     }
-    for (const target of list) {
-      totalRefs++
-      // INV-* ⇒ invariant; every other ref ⇒ a gold-check id (any registry prefix: GA/GO/TS/…).
-      if (/^INV-\d+$/.test(target)) {
-        if (!invs.has(target)) dangling.push({ adr: f, target, reason: 'no such invariant id' })
-      } else if (!golds.has(target)) {
-        dangling.push({ adr: f, target, reason: 'no such gold-check id' })
-      }
-    }
+    if (state !== null) adrState.set(f, state)
+    totalRefs += list.length
+    dangling.push(...dangleRefs(f, list, golds, invs))
   }
   return { dangling, totalRefs, adrState }
 }
