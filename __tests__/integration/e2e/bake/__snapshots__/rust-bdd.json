@@ -346,7 +346,7 @@
     "scripts/check-workflow-perms.mjs": "db6835efc2c25c5ba3abfa20ab637180c739595fb98efac592ca4c2c3bcfab0b",
     "scripts/check-workflow-runners.mjs": "5f4c3ebe868c59ef0e7b7ac624e97f11eb60a2d3a2c699e7d7e66a80dbbf36b4",
     "scripts/check-workflow-sha-pinning.mjs": "9fa8e601f4fbd2457c66ec872fddd8c40415f25ebf7318033a88e620f0a05cb5",
-    "scripts/check-workflow-test-integrity.mjs": "8976d60d9624add01f85f3977ba1874ac629d1706e00d86de7ae8ff16ecf3fca",
+    "scripts/check-workflow-test-integrity.mjs": "ab9101c38de2e5411441e91d229ee66a6f33f7e83e6b6e891a9d9c9f82bf8b6a",
     "scripts/checks/check-rust-no-unsafe.mjs": "bf0d2691f8483913e74344c44e5250d49d02c9cdf26711d15478f078cd45df53",
     "scripts/checks/check-rust-no-unwrap.mjs": "b435dee8fee04560b9ece381dc9fb3ee90adf832ed6f9ba8352eec63b0771c71",
     "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",

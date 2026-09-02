@@ -553,7 +553,7 @@
     "scripts/check-workflow-perms.mjs": "c8e186d9c096702148a52055e84b97980434b39e6649931ef843f34ed2ec6f78",
     "scripts/check-workflow-runners.mjs": "9b7371e121e27917e7a19ba08c0ef555d4328e30167633a7de0b2e0ffb247a29",
     "scripts/check-workflow-sha-pinning.mjs": "044c690ce77924b33fa06a6b48b58b71d7ab906973da2396fe47ea5ad92c50c7",
-    "scripts/check-workflow-test-integrity.mjs": "0613463a638d6b62f263ebe2dfa6da7cee60121fa28a7813c647d97c5140dbc7",
+    "scripts/check-workflow-test-integrity.mjs": "0e7577ab72997a581c56a089c1d372547417c179584d6afc635c42f9fe6daaed",
     "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
     "scripts/constraint-map.json": "d5f60a1a8b34336bbc40b82f851355f17f7ea98488ec574ebd9781cbf6e622d9",
     "scripts/debt-lib.mjs": "a86d0761b424b2161aaf7308e2383f06113bc19ecf83e50a88c2caec51c8d741",
