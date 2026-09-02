@@ -408,7 +408,7 @@
     "path": "check-workflow-test-integrity.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Dominated by the scripts/lib/workflow-scan.mjs import (self) against an inlined walker and arg parser (template). The content differences are arbiter-specific allowlist entries: 'notify' added to INFORMATIONAL_PATTERNS to cover _notify.yml and _post-merge-notify.yml, and the #2058 note naming the two supplementary-artifact upload steps (JUnit output, the gate's own --json result) that run after the real signal already succeeded or failed. The INV-80 continue-on-error rule, the drift-shadow `parity` step-scoped allowlist and the #1491 gate-command `|| true` swallow detection are identical. #2476 adds the pull_request base-branch-filter rule to BOTH sides with identical semantics and an identical scope (only a workflow carrying a `*-required` merge-gate aggregator job is bound), but DELIBERATELY different implementations: self parses the workflow with the `yaml` package (already a direct dependency and already imported by four sibling gate scripts), while the shipped twin is line-based because a generated project is not required to carry `yaml` and a gate script must never fail on a missing import. The shipped twin is not merely diff-pinned — it is rendered and EXECUTED in both directions by __tests__/templates/pr-tier-base-branch-filter.test.ts, so a bug in the line-based path cannot hide behind this pin. PERMANENT.",
-    "diffHash": "a4d9dcd550eafaad7603ddf64da1800de6af5786767ae7053987166b133aa71b"
+    "diffHash": "0187ea19f609db50d2a6595f8f6390e49ce9c73cfb6626e95285d0f92481f674"
   },
   {
     "path": "glob-walk.mjs",

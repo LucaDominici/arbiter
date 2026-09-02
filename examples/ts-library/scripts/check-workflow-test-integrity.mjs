@@ -111,25 +111,29 @@ function hasMergeGateAggregator(lines) {
   return false;
 }
 
-/** Base-branch filter keys declared on a merge-gate workflow's pull_request trigger(s). */
-function prBaseBranchFilters(lines) {
-  if (!hasMergeGateAggregator(lines)) return [];
-  const found = [];
+/** The structure-bearing lines inside the top-level `on:` block. */
+function onBlockLines(lines) {
+  const block = [];
   let inOn = false;
-  let event = null;
   for (const line of lines) {
     if (STRUCTURE_FREE_RE.test(line)) continue;
     if (/^["']?on["']?:/.test(line)) {
       inOn = true;
-      event = null;
       continue;
     }
     if (!inOn) continue;
-    if (/^\S/.test(line)) {
-      inOn = false;
-      event = null;
-      continue;
-    }
+    if (/^\S/.test(line)) break;
+    block.push(line);
+  }
+  return block;
+}
+
+/** Base-branch filter keys declared on a merge-gate workflow's pull_request trigger(s). */
+function prBaseBranchFilters(lines) {
+  if (!hasMergeGateAggregator(lines)) return [];
+  const found = [];
+  let event = null;
+  for (const line of onBlockLines(lines)) {
     const trigger = PR_TRIGGER_RE.exec(line);
     if (trigger) {
       event = trigger[1];
@@ -139,8 +143,7 @@ function prBaseBranchFilters(lines) {
       event = null;
       continue;
     }
-    if (!event) continue;
-    const filter = BASE_FILTER_RE.exec(line);
+    const filter = event ? BASE_FILTER_RE.exec(line) : null;
     if (filter) found.push(`${event}.${filter[1]}`);
   }
   return found;

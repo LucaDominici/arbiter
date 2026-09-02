@@ -111,34 +111,46 @@ function hasMergeGateAggregator(doc) {
   return Object.keys(jobs).some((id) => id.endsWith('-required'))
 }
 
-/**
- * Base-branch filter keys declared on a workflow's pull_request trigger(s).
- * Returns [] for a workflow that declares none, that is not a merge gate, or whose
- * YAML does not parse (a broken workflow is a different defect, owned elsewhere).
- */
-function prBaseBranchFilters(content) {
+/** Parse a workflow; null when it is not a YAML mapping (a different defect, owned elsewhere). */
+function parseWorkflow(content) {
   let doc
   try {
     doc = parseYaml(content)
   } catch {
-    return []
+    return null
   }
-  if (!doc || typeof doc !== 'object') return []
-  if (!hasMergeGateAggregator(doc)) return []
-  // A YAML 1.1 loader folds the bare key `on` to boolean true; `yaml`@2 (YAML 1.2
-  // core schema) keeps it a string. Accept both so the rule cannot be dodged by
-  // a parser swap.
+  return doc && typeof doc === 'object' ? doc : null
+}
+
+/**
+ * The workflow's `on:` trigger mapping, or null when absent/scalar/sequence.
+ * A YAML 1.1 loader folds the bare key `on` to boolean true; `yaml`@2 (YAML 1.2
+ * core schema) keeps it a string. Accept both so the rule cannot be dodged by a
+ * parser swap.
+ */
+function triggerMap(doc) {
   const on = doc.on ?? doc[true]
-  if (!on || typeof on !== 'object' || Array.isArray(on)) return []
-  const found = []
-  for (const event of PR_TRIGGER_EVENTS) {
-    const cfg = on[event]
-    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) continue
-    for (const key of BASE_FILTER_KEYS) {
-      if (cfg[key] !== undefined && cfg[key] !== null) found.push(`${event}.${key}`)
-    }
-  }
-  return found
+  return on && typeof on === 'object' && !Array.isArray(on) ? on : null
+}
+
+/** Base-branch filter keys declared on one trigger's config, qualified by event name. */
+function baseFilterKeys(event, cfg) {
+  if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return []
+  return BASE_FILTER_KEYS.filter((key) => cfg[key] !== undefined && cfg[key] !== null).map(
+    (key) => `${event}.${key}`,
+  )
+}
+
+/**
+ * Base-branch filter keys declared on a merge-gate workflow's pull_request trigger(s).
+ * Returns [] for a workflow that declares none or that is not a merge gate.
+ */
+function prBaseBranchFilters(content) {
+  const doc = parseWorkflow(content)
+  if (!doc || !hasMergeGateAggregator(doc)) return []
+  const on = triggerMap(doc)
+  if (!on) return []
+  return PR_TRIGGER_EVENTS.flatMap((event) => baseFilterKeys(event, on[event]))
 }
 
 const yamlFiles = collectYamlFiles(WORKFLOWS_DIR)
