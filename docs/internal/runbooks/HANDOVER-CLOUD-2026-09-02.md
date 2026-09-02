@@ -24,22 +24,22 @@ passing one.
 
 ## The merge queue (in order; each head L2-validated locally before push)
 
-| #   | PR    | branch                                     | base       | carries                                                |
-| --- | ----- | ------------------------------------------ | ---------- | ------------------------------------------------------ |
-| 1   | #2439 | `docs/handover-cloud-2026-08-30`           | main       | 08-30 handover runbook (docs-only)                     |
-| 2   | #2441 | `train/2026-08-30-mb2`                     | main       | #2353 #2416 #2417 #2434 — the four WIP refs            |
-| 3   | #2456 | `train/2026-08-30-mb3`                     | main       | #2305 + tabletop evidence (3 scenarios)                |
-| 4   | #2457 | `task/#2367-experimental-tools-decision`   | main       | ADR-119: retire the 5 experimental generators          |
-| 5   | #2459 | `train/2026-08-30-mc1`                     | main       | #2431 flake root-fix + #2436 clean-main hygiene        |
-| 6   | #2464 | `task/#2418-fail-closed-baseline`          | main       | INV-96 baseline dated/owned/ratcheting, 184 → 156      |
-| 7   | #2465 | `task/#2435-ship-phase-gates`              | main       | 5 ungated ship phases gated; close documented          |
-| 8   | #2469 | `docs/handover-cloud-2026-08-31`           | main       | 08-31 handover runbook (docs-only)                     |
-| 9   | #2473 | `task/#2419-meta-gates`                    | main       | mandatory ADR enforces, hard bypass-ceremony           |
-| 10  | #2474 | `task/#2420-registries-drills`             | main       | RESULTS completeness gate, honest drill count          |
-| 11  | #2475 | `task/#2447-file-stability-truth`          | row 9      | file-stability.md describes the real update mechanism  |
-| 12  | #2477 | `task/#2449-deprecations-source-scan`      | row 9      | orphan `@deprecated` scan; 3 live deprecations dated   |
-| 13  | #2478 | `task/#2448-semver-breaking-log`           | row 9      | breaking-log cites 0.2.0, pinned to CHANGELOG headings |
-| 14  | (TBD) | `task/#2450-fixture-inventory`             | row 9      | fixture-inventory table pinned to the compat MANIFEST  |
+| #   | PR    | branch                                   | base  | carries                                                |
+| --- | ----- | ---------------------------------------- | ----- | ------------------------------------------------------ |
+| 1   | #2439 | `docs/handover-cloud-2026-08-30`         | main  | 08-30 handover runbook (docs-only)                     |
+| 2   | #2441 | `train/2026-08-30-mb2`                   | main  | #2353 #2416 #2417 #2434 — the four WIP refs            |
+| 3   | #2456 | `train/2026-08-30-mb3`                   | main  | #2305 + tabletop evidence (3 scenarios)                |
+| 4   | #2457 | `task/#2367-experimental-tools-decision` | main  | ADR-119: retire the 5 experimental generators          |
+| 5   | #2459 | `train/2026-08-30-mc1`                   | main  | #2431 flake root-fix + #2436 clean-main hygiene        |
+| 6   | #2464 | `task/#2418-fail-closed-baseline`        | main  | INV-96 baseline dated/owned/ratcheting, 184 → 156      |
+| 7   | #2465 | `task/#2435-ship-phase-gates`            | main  | 5 ungated ship phases gated; close documented          |
+| 8   | #2469 | `docs/handover-cloud-2026-08-31`         | main  | 08-31 handover runbook (docs-only)                     |
+| 9   | #2473 | `task/#2419-meta-gates`                  | main  | mandatory ADR enforces, hard bypass-ceremony           |
+| 10  | #2474 | `task/#2420-registries-drills`           | main  | RESULTS completeness gate, honest drill count          |
+| 11  | #2475 | `task/#2447-file-stability-truth`        | row 9 | file-stability.md describes the real update mechanism  |
+| 12  | #2477 | `task/#2449-deprecations-source-scan`    | row 9 | orphan `@deprecated` scan; 3 live deprecations dated   |
+| 13  | #2478 | `task/#2448-semver-breaking-log`         | row 9 | breaking-log cites 0.2.0, pinned to CHANGELOG headings |
+| 14  | (TBD) | `task/#2450-fixture-inventory`           | row 9 | fixture-inventory table pinned to the compat MANIFEST  |
 
 Rows 11-14 are **stacked on row 9** and each is independent of the others (disjoint file sets), so
 row 9 merges first and GitHub then auto-retargets them to `main`. Merge protocol unchanged: CI
