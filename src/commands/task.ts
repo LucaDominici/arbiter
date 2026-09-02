@@ -190,12 +190,36 @@ export interface TaskGetOptions {
 }
 
 /**
+ * #2435 — `.claude/.task/status.json` lives at a FIXED path, so a checkout that never ran
+ * `task init` still reads whatever the previous task left behind. A maintainer starting
+ * fresh was told, silently and with exit 0, that their task was already seeded at some
+ * phase — state belonging to an unrelated, long-finished branch.
+ *
+ * The warning goes to stderr so the documented single-value stdout contract
+ * (`task get --field phase` in a shell substitution) is untouched; it is the visibility
+ * that was missing, not the value. Silent when the checkout is not a git work tree, or
+ * when the document records no branch (written before branch stamping existed).
+ */
+function warnOnForeignTaskState(root: string, state: UnifiedTaskState): void {
+  const recorded = state.branch
+  if (recorded === undefined || recorded.length === 0) return
+  const actual = detectCurrentBranch(root)
+  if (actual === undefined || actual === recorded) return
+  process.stderr.write(
+    `WARNING: task state is foreign — .claude/.task/status.json records task ${state.taskId || '(none)'} ` +
+      `on branch "${recorded}", but the checkout is on "${actual}". ` +
+      `The value below belongs to that other task. Run \`arbiter task init --id <id>\` to seed this one.\n`,
+  )
+}
+
+/**
  * Print a single task-state field to stdout for shell consumers (replaces `cat .claude/.task-*`).
  * Exit 2 on an unknown field name.
  */
 export function runTaskGet(opts: TaskGetOptions): void {
   const root = opts.dir ?? process.cwd()
   const s = readUnifiedState(root)
+  if (s) warnOnForeignTaskState(root, s)
   const values: Record<string, string> = s
     ? {
         phase: s.phase,
@@ -618,15 +642,40 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
   }
 
   const PLANNING_PHASES: ReadonlySet<TaskPhase> = new Set(['red-team-review', 'red-team-rework'])
+  // #2435 — the gate for a phase runs on ENTRY, so the promise `.claude/commands/ship.md`
+  // makes for phase P is asserted by the entry gate of the phase P is left FOR. Every row
+  // of that table promising a dispatch or an evidence artifact (`plan`, `red-team-review`,
+  // `refactor`) now owns an entry here; five of ten phases previously asserted nothing, so
+  // a ship could reach `verification` with no plan reviewed and no red team ever dispatched.
+  // `__tests__/docs/ship-phase-gates-2435.test.ts` derives that expectation from ship.md.
   const phaseGates: Partial<Record<TaskPhase, () => void>> = {
+    plan: () => {
+      checkTaskSeededGate(dir)
+    },
+    'red-team-review': () => {
+      // Leaving `plan`: its row promises a plan-review dispatch writing a PASS verdict.
+      // The same assertion already guarded the plan → red edge; it now guards every exit.
+      checkPlanReviewGate(dir, claudeDir, opts)
+    },
+    'red-team-rework': () => {
+      checkRedTeamEvidenceGate(dir, current, PLANNING_PHASES)
+    },
     red: () => {
       checkPlanReviewGate(dir, claudeDir, opts)
+      checkRedTeamEvidenceGate(dir, current, PLANNING_PHASES)
       if (PLANNING_PHASES.has(current)) {
         checkHandoffGate(dir, claudeDir, opts)
       }
     },
     green: () => {
       checkTddEvidenceGate(dir, claudeDir)
+    },
+    refactor: () => {
+      // Entering `refactor` opens review round 1 and arms the review-completion
+      // reconciliation — both key on the task id, and `check-review-completion.mjs`
+      // vacuous-passes when that id is unavailable. An id-less document therefore disarms
+      // the very gate this phase's ship.md row promises, so it is refused here.
+      checkTaskSeededGate(dir)
     },
     verification: () => {
       checkChainTddEvidenceGate(dir)
@@ -653,6 +702,46 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
 function checkTddEvidenceGate(dir: string, claudeDir: string): void {
   assertTddEvidenceFor(readTaskIdFromDisk(dir) ?? 'unknown', dir)
   void claudeDir
+}
+
+/**
+ * #2435 — `preflight` promises "Seed task state"; without a task id every downstream gate
+ * degrades to a vacuous pass (evidence has no id to key on) and `task get` reports whatever
+ * the previous task left at the fixed status path. Refusing the preflight → plan edge is the
+ * cheapest place to make that promise real.
+ */
+function checkTaskSeededGate(dir: string): void {
+  const taskId = readTaskIdFromDisk(dir)
+  if (taskId !== undefined && taskId.trim().length > 0) return
+  throw new Error(
+    'task-seed gate: no task id in .claude/.task/status.json — `preflight` promises seeded ' +
+      'task state, and every later evidence gate keys on that id. ' +
+      'Run `arbiter task init --id <id> --tier <tier>` first.',
+  )
+}
+
+/**
+ * #2435 — `.claude/commands/ship.md` promises the `red-team-review` phase dispatches tier-N
+ * red-team agents and records them at `.arbiter/evidence/redteam/<task-id>.json`. Nothing
+ * asserted it, so `arbiter task advance --to red` succeeded with no red team ever run.
+ *
+ * Scoped to the exits FROM a red-team phase: entering `red` straight from `plan` is not a
+ * path the red-team promise covers.
+ */
+function checkRedTeamEvidenceGate(
+  dir: string,
+  current: TaskPhase,
+  planningPhases: ReadonlySet<TaskPhase>,
+): void {
+  if (!planningPhases.has(current)) return
+  const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
+  const path = join(dir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`)
+  if (existsSync(path)) return
+  throw new Error(
+    `red-team evidence gate: no red-team evidence at ${path}. ` +
+      'The `red-team-review` phase dispatches tier-N red-team agents and records their ' +
+      'findings there (see .claude/commands/ship.md §Red-team review) — record it before advancing.',
+  )
 }
 
 /**

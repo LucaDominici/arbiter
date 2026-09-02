@@ -165,6 +165,162 @@ if (process.env.PARITY_STATIC_CHECK_ONLY === '1') {
   process.exit(checkStaticParity(ROOT))
 }
 
+// ─── ci-required ↔ local-twin parity (#2435, AC-6) ───────────────────────────
+//
+// docs/REFERENCE/fix-on-red.md:74-76 makes "reproduce the failed gate locally before push"
+// a floor invariant at EVERY autonomy level. `ci-required` is the sole required check, so a
+// job it depends on with no local counterpart makes that floor unsatisfiable by construction
+// — when it goes red the mandated reproduce step does not exist. Every needed job must
+// therefore resolve to one of:
+//   1. a Makefile .PHONY target of the same name,
+//   2. an explicit local command in REQUIRED_JOB_LOCAL_TWIN, or
+//   3. a CI_ONLY_REQUIRED_JOBS declaration — the single place a job is exempted from the
+//      floor, and the reason it cannot have a twin.
+// The two tables are a SUPERSET of one workflow's `needs:` list (which varies with language
+// and governance level), so an entry with no matching job is expected, not an error.
+
+/**
+ * Jobs that CANNOT have a local twin, and why. This is the ONE place a required CI job is
+ * declared exempt from the reproduce-before-push floor — nothing else grants that exemption.
+ */
+const CI_ONLY_REQUIRED_JOBS = new Map([
+  [
+    'dependency-review',
+    'GitHub dependency-review-action — it diffs the pull request base and head dependency graphs through the GitHub API, so there is nothing to run against a local checkout.',
+  ],
+  [
+    'iac-scan',
+    'Checkov and tflint over the IaC tree — third-party binaries arbiter neither vendors nor installs, so no gate id or Makefile target can honestly stand in for them.',
+  ],
+  [
+    'sonar-scan',
+    'SonarCloud server-side analysis — the verdict is computed by the hosted service against a project token, not by anything runnable in the checkout.',
+  ],
+  [
+    'docs-check',
+    'Compares the pull_request event base and head SHAs to require a docs change beside a code change — a property of the PR diff, not of the working tree.',
+  ],
+  [
+    'classify-changes',
+    'Classifies the pull_request diff to drive docs-only job skipping — it consumes the GitHub event payload and has no working-tree meaning.',
+  ],
+])
+
+/** Jobs whose local twin is a command rather than a same-named Makefile target. */
+const REQUIRED_JOB_LOCAL_TWIN = new Map([
+  ['gate-full', 'node scripts/check-all.mjs L2'],
+  ['debt-gates', 'node scripts/check-all.mjs L2'],
+  ['security-early-fail', 'node scripts/check-all.mjs L1'],
+  ['unit-tests', 'npm run test'],
+  [
+    'generated-gate-min',
+    'npx vitest run --config vitest.integration.config.ts __tests__/integration/e2e/functional/fixture-functional.test.ts',
+  ],
+])
+
+/** `.PHONY` targets declared by the Makefile, or an empty set when there is none. */
+function makefilePhonyTargets(root) {
+  const makefilePath = join(root, 'Makefile')
+  if (!existsSync(makefilePath)) return new Set()
+  const phonyMatch = readFileSync(makefilePath, 'utf-8').match(/^\.PHONY:\s*(.+)$/m)
+  if (!phonyMatch) return new Set()
+  return new Set(phonyMatch[1].trim().split(/\s+/))
+}
+
+/** `[a, b, c]` → the trimmed, non-empty entries. */
+function parseInlineList(body) {
+  return new Set(
+    body
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
+  )
+}
+
+/** The consecutive `- item` lines starting at `from`. */
+function parseYamlListItems(lines, from) {
+  const items = new Set()
+  for (let j = from; j < lines.length; j += 1) {
+    const item = lines[j].match(/^\s*-\s*(\S+)\s*$/)
+    if (!item) break
+    items.add(item[1])
+  }
+  return items
+}
+
+/** The `needs:` of the `ci-required` job in ONE workflow file, or null when it has none. */
+function ciRequiredNeedsIn(lines) {
+  const start = lines.findIndex((l) => /^ {2}ci-required:\s*$/.test(l))
+  if (start === -1) return null
+  for (let i = start + 1; i < lines.length; i += 1) {
+    // A new top-level job ends the block.
+    if (/^ {2}\S/.test(lines[i])) return null
+    const inline = lines[i].match(/^\s*needs:\s*\[(.*)\]\s*$/)
+    if (inline) return parseInlineList(inline[1])
+    if (/^\s*needs:\s*$/.test(lines[i])) return parseYamlListItems(lines, i + 1)
+  }
+  return null
+}
+
+/**
+ * The job ids `ci-required` lists under `needs:`, across every workflow file.
+ * Returns null (neutral — caller should skip) when no `ci-required` job is declared.
+ */
+function readCiRequiredNeeds(root) {
+  const wfDir = join(root, '.github', 'workflows')
+  if (!existsSync(wfDir)) return null
+  let wfFiles
+  try {
+    wfFiles = readdirSync(wfDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+  } catch {
+    return null
+  }
+  for (const wfFile of wfFiles) {
+    const needs = ciRequiredNeedsIn(readFileSync(join(wfDir, wfFile), 'utf-8').split('\n'))
+    if (needs !== null) return needs
+  }
+  return null
+}
+
+function checkRequiredJobLocalTwins(root) {
+  const needs = readCiRequiredNeeds(root)
+  if (needs === null) {
+    process.stdout.write(
+      '[skip] ci-required twins: no `ci-required` job declared — skipping local-twin check\n',
+    )
+    return 0
+  }
+
+  const makeTargets = makefilePhonyTargets(root)
+  const unreproducible = []
+  for (const job of needs) {
+    if (makeTargets.has(job)) continue
+    if (REQUIRED_JOB_LOCAL_TWIN.has(job)) continue
+    if (CI_ONLY_REQUIRED_JOBS.has(job)) continue
+    unreproducible.push(job)
+  }
+
+  if (unreproducible.length === 0) {
+    process.stdout.write(
+      `check-local-ci-parity: ci-required local-twin parity OK (${needs.size} required job(s))\n`,
+    )
+    return 0
+  }
+
+  process.stderr.write('check-local-ci-parity: FAIL — ci-required local-twin drift\n')
+  process.stderr.write('  Required CI jobs with no local counterpart:\n')
+  for (const job of unreproducible.sort()) process.stderr.write(`    ${job}\n`)
+  process.stderr.write(
+    '  Fix: add a Makefile target of that name, add the local command to REQUIRED_JOB_LOCAL_TWIN, ' +
+      'or declare it in CI_ONLY_REQUIRED_JOBS with the reason no local twin can exist.\n',
+  )
+  return 1
+}
+
+if (process.env.PARITY_REQUIRED_JOBS_ONLY === '1') {
+  process.exit(checkRequiredJobLocalTwins(ROOT))
+}
+
 // ─── Check-level parity check (#1225, INV-59 extension) ───────────────────────
 // CI_COVERAGE: maps check-all check IDs to CI job names. After gate-full ships,
 // all non-skip checks map to 'gate-full' which runs check-all L2 end-to-end.
@@ -247,6 +403,9 @@ const CI_COVERAGE = new Map([
   ['adr index (INV-107)', 'gate-full'],
   ['adr digest (INV-107)', 'gate-full'],
   ['adr enforcement linkage (#1473)', 'gate-full'],
+  // #2419 AC-2: promoted warn → check, so the parity extractor now sees it. Runs inside
+  // check-all L1, which gate-full executes end-to-end.
+  ['bypass ceremony (E4 #1949)', 'gate-full'],
   ['cli ref parity (INV-111)', 'gate-full'],
   ['phase doc consistency (INV-113)', 'gate-full'],
   ['canonical paths', 'gate-full'],
@@ -313,6 +472,9 @@ const CI_COVERAGE = new Map([
   ['emitted markdown refs (#2415)', 'gate-full'],
   ['emission coherence (INV-123)', 'gate-full'],
   ['STRIDE/RACI traceability', 'gate-full'],
+  // #2435 AC-2: promoted warn → check, so the parity extractor now sees it. Runs inside
+  // check-all L2, which gate-full executes end-to-end.
+  ['review completion (#2177)', 'gate-full'],
   ['tdd-evidence', 'gate-full'],
   ['evidence-bundle', 'gate-full'],
   ['fail-closed audit (INV-96)', 'gate-full'],
@@ -417,6 +579,12 @@ if (process.env.PARITY_CHECK_LEVEL_ONLY === '1') {
 const staticCode = checkStaticParity(ROOT)
 if (staticCode !== 0) {
   process.exit(staticCode)
+}
+
+// #2435 AC-6 — likewise unconditional: it reads only the workflow and the Makefile.
+const requiredJobsCode = checkRequiredJobLocalTwins(ROOT)
+if (requiredJobsCode !== 0) {
+  process.exit(requiredJobsCode)
 }
 
 // Run check-level parity BEFORE the local-result guard (RT-06: must not be dead

@@ -20,9 +20,14 @@ can only confirm what the code already does, never what it was supposed to do.
 
 1. **RED** — Write one failing test for the next behavior
 2. **Verify RED** — Run the test, confirm it fails for the right reason
-3. **GREEN** — Write minimal code to pass
-4. **Verify GREEN** — Run all tests, all pass
-5. **REFACTOR** — Clean up without breaking tests
+3. **Record RED** — `arbiter task record-red --test-path <path>` (add `--task '#NNN'` for a
+   secondary issue on a train). It runs the test, captures the failure, and writes the
+   SHA-pinned evidence file that the `red → green` phase gate reads; advancing into `green`
+   refuses without it. A step of the loop, not a separate ceremony: a loop that stops at
+   "Verify RED" leaves the next phase gate red.
+4. **GREEN** — Write minimal code to pass
+5. **Verify GREEN** — Run all tests, all pass
+6. **REFACTOR** — Clean up without breaking tests
 
 ## Test Command
 

@@ -215,6 +215,74 @@ describe('check-bypass-ceremony.mjs', () => {
     })
   })
 
+  // ── #2419 AC-3: gh-audit guards are advisory too, and owe the same dated promotion ──
+  // The anti-fake-green aggregate runs HARD, but its `class: 'gh-audit'` members exit 1 as
+  // ADVISORY (only `--enforce` makes them fail). That is a second population of advisory-forever
+  // gates, invisible to a detector that only reads runWarnCheck call sites. AGENTS.md now labels
+  // them advisory WITH a promotion date; this is what makes that date able to go red.
+  describe('detector (b): gh-audit guards in the anti-fake-green roster (#2419 AC-3)', () => {
+    function writeGuardRoster(root: string, guards: { name: string; cls: string }[]): void {
+      const libDir = join(root, 'scripts', 'lib')
+      mkdirSync(libDir, { recursive: true })
+      const body = guards
+        .map(
+          (g) =>
+            `  { name: '${g.name}', script: 'scripts/check-${g.name}.mjs', class: '${g.cls}' },`,
+        )
+        .join('\n')
+      writeFileSync(
+        join(libDir, 'anti-fake-green-guards.mjs'),
+        `export const GUARDS = [\n${body}\n]\n`,
+      )
+    }
+
+    it('vacuous pass when the guard roster is absent (never reds a repo without one)', () => {
+      expect(run(['--root', tmpDir]).exitCode).toBe(0)
+    })
+
+    it('fails when a gh-audit guard has no ledger entry', () => {
+      writeGuardRoster(tmpDir, [{ name: 'min-review-time', cls: 'gh-audit' }])
+      const r = run(['--root', tmpDir])
+      expect(r.exitCode).toBe(1)
+      expect(r.stdout).toMatch(/min-review-time/)
+      expect(r.stdout).toMatch(/missing/i)
+    })
+
+    it('passes when every gh-audit guard has a future promoteBy entry', () => {
+      writeGuardRoster(tmpDir, [
+        { name: 'min-review-time', cls: 'gh-audit' },
+        { name: 'ownership-distribution', cls: 'gh-audit' },
+      ])
+      writeLedger(tmpDir, [
+        { check: 'min-review-time', promoteBy: isoDaysAhead(90), rationale: 'gh-audit advisory' },
+        {
+          check: 'ownership-distribution',
+          promoteBy: isoDaysAhead(90),
+          rationale: 'gh-audit advisory',
+        },
+      ])
+      expect(run(['--root', tmpDir]).exitCode).toBe(0)
+    })
+
+    it('fails when a gh-audit guard ledger entry has expired', () => {
+      writeGuardRoster(tmpDir, [{ name: 'min-review-time', cls: 'gh-audit' }])
+      writeLedger(tmpDir, [
+        { check: 'min-review-time', promoteBy: isoDaysBehind(1), rationale: 'stale' },
+      ])
+      const r = run(['--root', tmpDir])
+      expect(r.exitCode).toBe(1)
+      expect(r.stdout).toMatch(/expired|past/i)
+    })
+
+    it('does NOT demand a ledger entry for file-scan or context-rot guards (they fail hard already)', () => {
+      writeGuardRoster(tmpDir, [
+        { name: 'muted-test', cls: 'file-scan' },
+        { name: 'agent-return', cls: 'context-rot' },
+      ])
+      expect(run(['--root', tmpDir]).exitCode).toBe(0)
+    })
+  })
+
   it('supports --json output for the doctor surface', () => {
     writeCheckAll(tmpDir, ['conformance'])
     writeLedger(tmpDir, [{ check: 'conformance', permanent: true, rationale: 'informational' }])

@@ -741,10 +741,12 @@ reference) are kept in parity by a test — powerful, but a standing maintenance
 
 A public command subset ships via `arbiter --help`; the rest are hidden/experimental but fully
 functional, visible via `arbiter help --all` (e.g. `settings`, `doc-set`, `upgrade-level`, `verify
-graph`). "Experimental" AI tools (Cursor, Aider, Copilot, Gemini, Windsurf) and stacks (Java,
-Kotlin, Rust) generate output that is not held to the same proven-cell fixture bar as the supported
-set (TypeScript, Python, Go × Claude, Codex). Users enabling those axes get less-verified
-governance.
+graph`). "Experimental" stacks (Java, Kotlin, Rust) generate output that is not held to the same
+proven-cell fixture bar as the supported set (TypeScript, Python, Go × Claude, Codex). Users
+enabling those axes get less-verified governance. The AI-tool axis no longer has an experimental
+tier at all: the five unreachable tool generators (Cursor, Aider, Copilot, Gemini, Windsurf) were
+retired by ADR-119 (#2367) rather than carried unverified, so the tool axis is exactly Claude and
+Codex.
 
 ### 11.9 Risk register
 

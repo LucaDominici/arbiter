@@ -21,15 +21,19 @@ const DEFAULT_CATALOG = `export const INVARIANT_CATALOG = [\n  { id: 'INV-59', t
 /** Build a repo skeleton (registry + invariant catalog) and run the gate over the given ADRs. */
 function runGate(
   adrs: Record<string, string>,
-  opts: { registry?: string; catalog?: string } = {},
+  opts: { registry?: string; catalog?: string; allowlist?: string } = {},
 ): { status: number; stdout: string; stderr: string } {
   const dir = mkdtempSync(join(tmpdir(), 'adr-enf-'))
   try {
     mkdirSync(join(dir, 'docs', 'internal', 'ADR'), { recursive: true })
     mkdirSync(join(dir, 'standards'), { recursive: true })
     mkdirSync(join(dir, 'src', 'invariants'), { recursive: true })
+    mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
     writeFileSync(join(dir, 'standards', 'gold-registry.yml'), opts.registry ?? DEFAULT_REGISTRY)
     writeFileSync(join(dir, 'src', 'invariants', 'catalog.ts'), opts.catalog ?? DEFAULT_CATALOG)
+    if (opts.allowlist !== undefined) {
+      writeFileSync(join(dir, 'scripts', 'data', 'adr-enforces-allowlist.json'), opts.allowlist)
+    }
     for (const [name, body] of Object.entries(adrs)) {
       writeFileSync(join(dir, 'docs', 'internal', 'ADR', name), body)
     }
@@ -38,6 +42,33 @@ function runGate(
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+}
+
+/** ISO `YYYY-MM-DD`, `days` in the future (positive) or the past (negative). */
+function isoDay(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+/** A numbered ADR file body — the shape the mandatory-`enforces:` rule is scoped to. */
+function numberedAdr(
+  num: string,
+  status: string,
+  enforces: string[] | null,
+  slug = 'decision',
+): { name: string; body: string } {
+  const fm = enforces === null ? '' : `enforces: [${enforces.join(', ')}]\n`
+  return {
+    name: `${num}-${slug}.md`,
+    body: `---\ntitle: 'ADR-${num}: t'\nstatus: ${status}\ncanonical_id: '${num}'\n${fm}---\n\n# ADR-${num}\n`,
+  }
+}
+
+/** An allowlist document with one entry per `[file, expires, rationale]` triple. */
+function allowlist(entries: [string, string, string][]): string {
+  return JSON.stringify({
+    schema: 'arbiter-adr-enforces-allowlist-v1',
+    entries: entries.map(([adr, expires, rationale]) => ({ adr, expires, rationale })),
+  })
 }
 
 function adr(id: string, enforces: string[] | null): string {
@@ -166,5 +197,122 @@ describe('check-adr-enforcement gate (#1473)', () => {
     const r = runGate({ '018.md': body })
     // The broken FM declared no enforcement key — a body mention must not fabricate a FAIL.
     expect(r.status).toBe(0)
+  })
+})
+
+// ─── #2419 AC-1: `enforces:` is MANDATORY for accepted/active ADRs ────────────
+// Before #2419 the gate validated only the 3 of 120 ADRs that opted in with an `enforces:` key,
+// so it could never fail: 111 active/accepted ADRs claimed nothing and were never asked to.
+// The dated allowlist is the amnesty for the historical ones — and it expires.
+describe('check-adr-enforcement — mandatory enforces (#2419 AC-1)', () => {
+  it('FAILs an active NUMBERED ADR that declares no enforces and is not allowlisted', () => {
+    const a = numberedAdr('021', 'active', null)
+    const r = runGate({ [a.name]: a.body })
+    expect(r.status).toBe(1)
+    expect(r.stderr + r.stdout).toMatch(/021-decision\.md/)
+    expect(r.stderr + r.stdout).toMatch(/enforces/i)
+  })
+
+  it('FAILs an ACCEPTED numbered ADR that declares no enforces (accepted counts, not just active)', () => {
+    const a = numberedAdr('022', 'accepted', null)
+    expect(runGate({ [a.name]: a.body }).status).toBe(1)
+  })
+
+  it('FAILs a numbered ADR whose enforces: key is present but EMPTY (an empty claim is no claim)', () => {
+    const body = `---\ntitle: 'ADR-023: t'\nstatus: active\ncanonical_id: '023'\nenforces:\n---\n\n# b\n`
+    expect(runGate({ '023-empty.md': body }).status).toBe(1)
+  })
+
+  it('PASSes an active numbered ADR that declares a resolving enforces ref', () => {
+    const a = numberedAdr('024', 'active', ['INV-59'])
+    expect(runGate({ [a.name]: a.body }).status).toBe(0)
+  })
+
+  it('PASSes an allowlisted historical ADR with a FUTURE expires and a rationale', () => {
+    const a = numberedAdr('025', 'active', null)
+    const r = runGate(
+      { [a.name]: a.body },
+      {
+        allowlist: allowlist([[a.name, isoDay(90), 'historical: predates the enforces contract']]),
+      },
+    )
+    expect(r.status).toBe(0)
+  })
+
+  it('FAILs when the allowlist entry has EXPIRED (dated amnesty, not permanent)', () => {
+    const a = numberedAdr('026', 'active', null)
+    const r = runGate(
+      { [a.name]: a.body },
+      { allowlist: allowlist([[a.name, isoDay(-1), 'historical']]) },
+    )
+    expect(r.status).toBe(1)
+    expect(r.stderr + r.stdout).toMatch(/expire/i)
+  })
+
+  it('FAILs when the allowlist entry has no valid expires date at all', () => {
+    const a = numberedAdr('027', 'active', null)
+    const r = runGate(
+      { [a.name]: a.body },
+      { allowlist: allowlist([[a.name, 'someday', 'historical']]) },
+    )
+    expect(r.status).toBe(1)
+  })
+
+  it('FAILs when an allowlist entry carries no rationale', () => {
+    const a = numberedAdr('028', 'active', null)
+    const r = runGate({ [a.name]: a.body }, { allowlist: allowlist([[a.name, isoDay(90), '  ']]) })
+    expect(r.status).toBe(1)
+    expect(r.stderr + r.stdout).toMatch(/rationale/i)
+  })
+
+  it('FAILs a STALE allowlist entry whose ADR now declares enforces (the list can only shrink)', () => {
+    const a = numberedAdr('029', 'active', ['INV-59'])
+    const r = runGate(
+      { [a.name]: a.body },
+      { allowlist: allowlist([[a.name, isoDay(90), 'historical']]) },
+    )
+    expect(r.status).toBe(1)
+    expect(r.stderr + r.stdout).toMatch(/stale|prune/i)
+  })
+
+  it('FAILs a STALE allowlist entry naming an ADR file that does not exist', () => {
+    const a = numberedAdr('030', 'active', ['INV-59'])
+    const r = runGate(
+      { [a.name]: a.body },
+      { allowlist: allowlist([['999-ghost.md', isoDay(90), 'historical']]) },
+    )
+    expect(r.status).toBe(1)
+    expect(r.stderr + r.stdout).toMatch(/999-ghost\.md/)
+  })
+
+  it('does NOT require enforces for superseded / deprecated / proposed / draft ADRs', () => {
+    const files: Record<string, string> = {}
+    for (const [i, status] of ['superseded', 'deprecated', 'proposed', 'draft'].entries()) {
+      const a = numberedAdr(String(31 + i).padStart(3, '0'), status, null)
+      files[a.name] = a.body
+    }
+    expect(runGate(files).status).toBe(0)
+  })
+
+  it('does NOT require enforces from non-ADR files in the directory (README / templates)', () => {
+    const readme = `---\ntitle: 'ADRs'\nstatus: active\ncanonical_id: ''\n---\n\n# index\n`
+    const tpl = `---\ntitle: 'template'\nstatus: active\ncanonical_id: ''\n---\n\n# tpl\n`
+    const r = runGate({ 'README.md': readme, 'ADR-TEMPLATE.md': tpl, 'ADR-000_template.md': tpl })
+    expect(r.status).toBe(0)
+  })
+
+  it('FAILs a numbered ADR whose frontmatter is unparseable — status is unverifiable (INV-96)', () => {
+    const broken = `---\ntitle: 'x\nfoo: [unclosed\n---\n\n# body\n`
+    const r = runGate({ '035-broken.md': broken })
+    expect(r.status).toBe(1)
+    expect(r.stderr + r.stdout).toMatch(/unverifiable|unparseable/i)
+  })
+
+  it('names the unreadable allowlist as the cause rather than burying it under N missing lines', () => {
+    const a = numberedAdr('036', 'active', null)
+    const r = runGate({ [a.name]: a.body }, { allowlist: '{ not json' })
+    expect(r.status).toBe(1)
+    expect(r.stderr + r.stdout).toMatch(/allowlist/i)
+    expect(r.stderr + r.stdout).toMatch(/unreadable|unparseable|malformed/i)
   })
 })
