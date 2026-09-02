@@ -27,7 +27,9 @@ interface ManifestEntry {
 }
 
 /** Rows of the "Current fixture inventory" markdown table, keyed by their Path cell. */
-function inventoryTableRows(body: string): { version: string; archetype: string; language: string; path: string }[] {
+function inventoryTableRows(
+  body: string,
+): { version: string; archetype: string; language: string; path: string }[] {
   const heading = /^#+\s+Current fixture inventory\s*$/
   const lines = body.split('\n')
   const start = lines.findIndex((l) => heading.test(l))
@@ -50,7 +52,12 @@ function inventoryTableRows(body: string): { version: string; archetype: string;
     }
     if (!seenSeparator) continue // header row (column titles) — not a data row
     const [version, archetype, language, path] = cells
-    if (version !== undefined && archetype !== undefined && language !== undefined && path !== undefined) {
+    if (
+      version !== undefined &&
+      archetype !== undefined &&
+      language !== undefined &&
+      path !== undefined
+    ) {
       rows.push({ version, archetype, language, path })
     }
   }
@@ -63,7 +70,9 @@ function fixtureDirsOnDisk(): string[] {
 }
 
 describe('#2450 — backward-compat-harness.md fixture inventory matches MANIFEST.json', () => {
-  const manifest: ManifestEntry[] = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8')) as ManifestEntry[]
+  const manifest: ManifestEntry[] = JSON.parse(
+    readFileSync(MANIFEST_PATH, 'utf-8'),
+  ) as ManifestEntry[]
   const doc = readFileSync(DOC_PATH, 'utf-8')
   const rows = inventoryTableRows(doc)
 
