@@ -2,15 +2,35 @@
 // Gate: verify no symbol in the active deprecation window has been silently removed. (#600, #606)
 // Parses docs/DEPRECATIONS.md for active-deprecation rows, then greps src/ for each symbol.
 // Also validates CLI_DEPRECATED_FLAGS registry: each entry must have deprecatedIn ≠ removeIn.
-// Exits 0: all active deprecated symbols still present in src/, or no active deprecations.
-// Exits 1: a symbol in the active window is missing from src/ (removal without process).
+// #2449: also scans src/ for JSDoc `@deprecated` tags — the reverse direction. A symbol
+// tagged deprecated in source but absent from the Active table is a documentation gap
+// (the deprecation carries no version and no removal window), and fails the gate.
+// Exits 0: doc rows and source tags agree in both directions.
+// Exits 1: a symbol in the active window is missing from src/ (removal without process),
+//          or a src/ symbol is tagged @deprecated with no Active-table row (#2449).
 // Override: ALLOW_REMOVE_DEPRECATED=1 env var skips the gate (document in DEPRECATIONS.md).
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { execFileSync } from 'node:child_process'
 
 const ROOT = process.cwd()
 const DEPRECATIONS_FILE = join(ROOT, 'docs', 'DEPRECATIONS.md')
+const SRC_DIR = join(ROOT, 'src')
+const SOURCE_EXT = /\.(?:ts|mts|cts|tsx)$/
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.git'])
+
+/** Strip markdown code ticks and surrounding whitespace from an Active-table cell. */
+function normalizeSymbol(raw) {
+  return String(raw ?? '')
+    .replace(/`/g, '')
+    .trim()
+}
+
+/** Last dot-separated segment of a symbol: `features.soloDevMode` → `soloDevMode`. */
+function leafOf(symbol) {
+  const parts = symbol.split('.')
+  return parts[parts.length - 1]
+}
 
 if (process.env.ALLOW_REMOVE_DEPRECATED === '1') {
   process.stdout.write('check-deprecations: ALLOW_REMOVE_DEPRECATED=1 — skipping gate\n')
@@ -26,7 +46,7 @@ const content = readFileSync(DEPRECATIONS_FILE, 'utf-8')
 
 // Parse the Active Deprecations table.
 // Expected row format: | symbol | deprecated-in | remove-in | replacement | status |
-// Skip header rows, separator rows, and "none yet" placeholder rows.
+// Skip header rows, separator rows, and the "_(none currently active)_" empty-table marker.
 const activeRows = []
 let inActiveSection = false
 
@@ -50,8 +70,8 @@ for (const line of content.split('\n')) {
     .map((c) => c.trim())
   if (cols.length < 2) continue
 
-  const symbol = cols[0]
-  // Skip placeholder rows
+  const symbol = normalizeSymbol(cols[0])
+  // Skip the empty-table marker row and the header row
   if (!symbol || symbol.startsWith('_') || symbol === 'Symbol / Flag / Behavior') continue
 
   activeRows.push(symbol)
@@ -63,11 +83,15 @@ for (const line of content.split('\n')) {
 let violations = 0
 for (const symbol of activeRows) {
   try {
-    execFileSync('grep', ['-r', '--include=*.ts', '--include=*.mjs', '-l', symbol, 'src/'], {
-      encoding: 'utf-8',
-      cwd: ROOT,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
+    execFileSync(
+      'grep',
+      ['-r', '--include=*.ts', '--include=*.mjs', '-l', leafOf(symbol), 'src/'],
+      {
+        encoding: 'utf-8',
+        cwd: ROOT,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      },
+    )
   } catch {
     console.error(
       `  check-deprecations: "${symbol}" is in active deprecation window but not found in src/. ` +
@@ -113,11 +137,87 @@ if (existsSync(CLI_REGISTRY_SRC)) {
   }
 }
 
+// ── Source @deprecated tag scan (#2449) ──────────────────────────────────────
+// The reverse direction of the check above: every JSDoc `@deprecated` tag in src/
+// must have a row in the Active table, so no deprecation can exist without a
+// version and a removal window.
+
+/** Recursively collect TypeScript source files under `dir`. */
+function collectSourceFiles(dir, out = []) {
+  if (!existsSync(dir)) return out
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!SKIP_DIRS.has(entry.name)) collectSourceFiles(join(dir, entry.name), out)
+    } else if (SOURCE_EXT.test(entry.name)) {
+      out.push(join(dir, entry.name))
+    }
+  }
+  return out
+}
+
+/** Extract the declared identifier from a declaration line, or '' when none is found. */
+function identifierFromDeclaration(line) {
+  const keyword = line.match(
+    /\b(?:function|class|interface|type|enum|const|let|var|namespace)\s+([A-Za-z_$][\w$]*)/,
+  )
+  if (keyword) return keyword[1]
+  const member = line.match(/([A-Za-z_$][\w$]*)\s*[?!]?\s*[:(<=]/)
+  return member ? member[1] : ''
+}
+
+/**
+ * Index of the line holding the declaration that a JSDoc comment starting at
+ * `tagLine` documents: the first non-blank, non-comment line after the block ends.
+ */
+function declarationLineIndex(lines, tagLine) {
+  let i = tagLine
+  if (!lines[i].includes('*/')) {
+    while (i < lines.length && !lines[i].includes('*/')) i++
+  }
+  i++
+  while (i < lines.length && (lines[i].trim() === '' || lines[i].trim().startsWith('//'))) i++
+  return i
+}
+
+/** All `@deprecated`-tagged symbols in src/, as { name, file, line } records. */
+function collectDeprecatedSymbols() {
+  const found = []
+  for (const file of collectSourceFiles(SRC_DIR)) {
+    const lines = readFileSync(file, 'utf-8').split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      if (!/^\s*(?:\/\*\*|\*|\/\/)?[^\n]*@deprecated\b/.test(lines[i])) continue
+      const declIndex = declarationLineIndex(lines, i)
+      const name = declIndex < lines.length ? identifierFromDeclaration(lines[declIndex]) : ''
+      found.push({ name, file: relative(ROOT, file), line: i + 1 })
+    }
+  }
+  return found
+}
+
+const documentedNames = new Set()
+for (const symbol of activeRows) {
+  documentedNames.add(symbol)
+  documentedNames.add(leafOf(symbol))
+}
+
+const sourceTags = collectDeprecatedSymbols()
+for (const tag of sourceTags) {
+  if (tag.name && documentedNames.has(tag.name)) continue
+  const label = tag.name ? `"${tag.name}"` : 'an unnamed symbol'
+  console.error(
+    `  check-deprecations: ${label} is tagged @deprecated at ${tag.file}:${tag.line} but has ` +
+      `no row in the docs/DEPRECATIONS.md Active table. Add a row (Deprecated in / Remove in / ` +
+      `Replacement), or drop the @deprecated tag if the symbol is not actually deprecated.`,
+  )
+  violations++
+}
+
 if (violations > 0) {
   console.error(`\n  ${violations} deprecation violation(s). See docs/DEPRECATIONS.md.\n`)
   process.exit(1)
 } else {
   process.stdout.write(
-    `check-deprecations: OK (${activeRows.length} active deprecated symbol(s) present; CLI flag version gaps valid)\n`,
+    `check-deprecations: OK (${activeRows.length} active deprecated symbol(s) present; ` +
+      `${sourceTags.length} source @deprecated tag(s) documented; CLI flag version gaps valid)\n`,
   )
 }
