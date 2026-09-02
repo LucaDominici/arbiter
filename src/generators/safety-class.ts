@@ -78,8 +78,13 @@ const GATE_SPINE_PATTERN = /^scripts\/(?:check-all\.mjs|lib\/[^/]+\.mjs)$/
  * file that looks governance-ish". A project that genuinely wants one frozen
  * marks it with `arbiter:preserve` (checked ahead of every adopt policy), which
  * works in JSON as an ordinary key.
+ *
+ * Exported (#2447) so `docs/REFERENCE/file-stability.md`'s File Map can be
+ * pinned against the SAME set the generators consult, rather than a
+ * hand-copied literal that could independently drift from the code — see
+ * `__tests__/docs/file-stability-truth-2447.test.ts`.
  */
-const GOVERNANCE_CLASS_KEYS = new Set(['AGENTS.md', '.claude/settings.json'])
+export const GOVERNANCE_CLASS_KEYS = new Set(['AGENTS.md', '.claude/settings.json'])
 
 /**
  * True when `key` (a manifest-style, posix-normalized, targetDir-relative
