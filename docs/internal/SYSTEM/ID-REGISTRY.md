@@ -97,7 +97,7 @@ and INV-31.
       "hook": "n/a",
       "status": "active",
       "graphNode": "ADR",
-      "note": "Frontmatter is machine-read; the body is not. Wave 2 adds the MADR `confirmation` field and scripts/check-adr-confirmation.mjs so a decision must name the gate proving it is still live."
+      "note": "Two gates, one scheme: check-adr-index.mjs owns structure (canonical_id, index parity) and check-adr-enforcement.mjs owns the `enforces:` linkage — every declared ref must resolve to a real gold-check or invariant. That linkage was OPT-IN, so 115 of 118 numbered ADRs named nothing keeping them true; #2480 added a coverage ratchet (scripts/data/adr-enforcement-baseline.json) that pins the count so a NEW decision must declare its enforcement while the corpus is paid down. No separate check-adr-confirmation.mjs was written: a second gate for the same field would have duplicated the one that already resolves it (CANON-16)."
     },
     {
       "prefix": "D",

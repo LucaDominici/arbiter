@@ -1,0 +1,5 @@
+{
+  "_doc": "Coverage ratchet for scripts/check-adr-enforcement.mjs (#2480). `unclaimed` is the number of NUMBERED ADRs whose frontmatter declares no `enforces:` — i.e. decisions that name nothing keeping them true. The linkage gate was opt-in, so the corpus inherited 115 of them; this pins that debt so it can only be paid down. A fall is free. A rise fails the gate: a NEW decision must name its enforcement. There is no --allow-increase flag — raising the number means hand-editing this file in the same PR as the ADR that needs it, where the new number lands in the diff beside its justification. Templates and the generated README are excluded: a template has no decision to enforce.",
+  "_measured": "2026-09-02: 118 numbered ADRs, 3 declaring enforces (042, 052, 110), 115 unclaimed.",
+  "unclaimed": 115
+}

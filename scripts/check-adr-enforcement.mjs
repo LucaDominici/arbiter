@@ -9,7 +9,16 @@
 // "we enforce X" claim is documentation pretending to be enforcement (a fake-green). Deterministic,
 // pure (reads the tree, no spawn — INV-12).
 //
-// Exit: 0 = all refs resolve (or none declared); 1 = at least one dangling/unverifiable ref.
+// COVERAGE RATCHET (#2480): the linkage above is sound but was OPT-IN — 115 of 118 numbered ADRs
+// declared nothing, so the gate could pass while almost no decision named what keeps it true. The
+// ratchet closes that without a flag day: the count of numbered ADRs declaring NO `enforces:` is
+// pinned in scripts/data/adr-enforcement-baseline.json and may FALL freely but never rise. A new
+// ADR must therefore name its enforcement, while the existing corpus is grandfathered and paid
+// down one decision at a time. Templates and the generated README are excluded — a template has no
+// decision to enforce.
+//
+// Exit: 0 = all refs resolve (or none declared) AND the unclaimed count has not risen;
+//       1 = at least one dangling/unverifiable ref, or the ratchet rose.
 //
 // CATALOG: rejected fold-in into scripts/check-adr-index.mjs because that gate validates ADR
 // CATALOG:   structure (canonical_id / index parity), not the cross-artifact enforces↔check/INV
@@ -17,11 +26,14 @@
 // CATALOG: rejected fold-in into scripts/lib/gold-audit-lib.mjs because that is the pure scored-
 // CATALOG:   payload evaluator; an ADR-frontmatter traceability gate is presentation/governance.
 
-import { readdirSync, readFileSync, existsSync } from 'node:fs'
+import { readdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
 const CWD = process.cwd()
+const BASELINE_REL = 'scripts/data/adr-enforcement-baseline.json'
+/** A numbered decision record. Templates and README carry no decision, so they are not counted. */
+const NUMBERED_ADR = /^\d{3}-.*\.md$/
 
 /** All gold-check ids declared by any standards/gold-registry(.stack).yml (any prefix — GA/GO/TS/…). */
 function goldCheckIds() {
@@ -169,6 +181,7 @@ function main() {
   const golds = goldCheckIds()
   const invs = invariantIds()
   const dangling = []
+  const unclaimed = []
   let totalRefs = 0
   let files
   try {
@@ -198,7 +211,10 @@ function main() {
       continue
     }
     const declared = fm.data.enforces
-    if (declared === undefined || declared === null) continue // absent / empty ⇒ none declared
+    if (declared === undefined || declared === null) {
+      if (NUMBERED_ADR.test(f)) unclaimed.push(f)
+      continue // absent / empty ⇒ none declared
+    }
     const list = (Array.isArray(declared) ? declared : [declared])
       .map((raw2) => (typeof raw2 === 'string' ? raw2.trim() : String(raw2)))
       .filter((s) => s !== '')
@@ -219,8 +235,71 @@ function main() {
     for (const d of dangling) process.stderr.write(`    ${d.adr}: ${d.target} — ${d.reason}\n`)
     return 1
   }
-  process.stdout.write(`check-adr-enforcement: OK — ${totalRefs} enforces ref(s) all resolve\n`)
+
+  const ratchet = checkRatchet(unclaimed, process.argv.includes('--update-baseline'))
+  if (ratchet.code !== 0) return ratchet.code
+  process.stdout.write(
+    `check-adr-enforcement: OK — ${totalRefs} enforces ref(s) all resolve; ` +
+      `${unclaimed.length} ADR(s) declare none (baseline ${ratchet.allowed})\n`,
+  )
   return 0
+}
+
+/**
+ * The coverage ratchet. A fall is free and needs no ceremony; a rise means a decision shipped
+ * without naming what keeps it true, and is refused. Deliberately no --allow-increase: raising the
+ * number means hand-editing the baseline in the same PR as the ADR that needs it, where the new
+ * number lands in the diff beside its justification.
+ * @returns {{ code: number, allowed?: number }}
+ */
+function checkRatchet(unclaimed, updateBaseline) {
+  const path = resolve(CWD, BASELINE_REL)
+  if (!existsSync(path)) {
+    process.stderr.write(`check-adr-enforcement: ERROR — ${BASELINE_REL} not found\n`)
+    return { code: 1 }
+  }
+  let baseline
+  try {
+    baseline = JSON.parse(readFileSync(path, 'utf-8'))
+  } catch (err) {
+    process.stderr.write(`check-adr-enforcement: ERROR — ${BASELINE_REL}: ${err?.message ?? err}\n`)
+    return { code: 1 }
+  }
+  const allowed = baseline.unclaimed
+  if (typeof allowed !== 'number') {
+    process.stderr.write(
+      `check-adr-enforcement: ERROR — ${BASELINE_REL} has no numeric "unclaimed"\n`,
+    )
+    return { code: 1 }
+  }
+  if (updateBaseline) {
+    if (unclaimed.length > allowed) {
+      process.stderr.write(
+        `check-adr-enforcement: refusing --update-baseline — unclaimed rose ${allowed} → ` +
+          `${unclaimed.length}. Declare the new ADR's enforcement, or raise the number by hand.\n`,
+      )
+      return { code: 1 }
+    }
+    writeFileSync(
+      path,
+      `${JSON.stringify({ ...baseline, unclaimed: unclaimed.length }, null, 2)}\n`,
+    )
+    process.stdout.write(
+      `check-adr-enforcement: baseline updated — unclaimed ${unclaimed.length}\n`,
+    )
+    return { code: 0, allowed: unclaimed.length }
+  }
+  if (unclaimed.length > allowed) {
+    process.stderr.write(
+      `check-adr-enforcement: FAIL — ${unclaimed.length} ADR(s) declare no enforcement, ` +
+        `baseline allows ${allowed}. A decision that names nothing keeping it true cannot be\n` +
+        `    distinguished later from one that was never enforced. Add an enforces: [<check-id>|INV-nn]\n` +
+        `    key to the new ADR's frontmatter. Highest-numbered unclaimed (a new ADR sorts last):\n`,
+    )
+    for (const f of unclaimed.slice(-5)) process.stderr.write(`    ${f}\n`)
+    return { code: 1 }
+  }
+  return { code: 0, allowed }
 }
 
 try {
