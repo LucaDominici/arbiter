@@ -8,6 +8,7 @@ import {
   guardBrownfieldDirtyTree,
   rollbackGeneration,
 } from '../../src/commands/init.js'
+import { makeConfig } from '../helpers.js'
 import { UserFacingError } from '../../src/utils/errors.js'
 
 vi.mock('../../src/utils/run-cli.js', () => ({
@@ -21,59 +22,51 @@ import { runCli } from '../../src/utils/run-cli.js'
 const mockRunCli = vi.mocked(runCli)
 
 // ── computeDryRunPreview ──────────────────────────────────────────────────────
+//
+// #540 guards the brownfield promise: an existing file is never silently clobbered by
+// the preview's account of the run. #2452 rewired the preview onto the real generator
+// plan, so these now assert against actual emitted paths instead of the old
+// hand-maintained stub's directory blobs. The preview-equals-plan RELATIONSHIP itself
+// is pinned in __tests__/commands/init-dryrun-plan-parity.test.ts.
 
 describe('computeDryRunPreview (#540)', () => {
-  function makeConfig(overrides: Record<string, unknown> = {}) {
-    return {
-      existing: {
-        agentsMd: false,
-        claudeDir: false,
-        agentsDir: false,
-        aiRulez: false,
-        settingsJson: false,
-        checkAllScript: false,
-        geminiDir: false,
-        windsurfRules: false,
-        aiderConf: false,
-      },
-      tools: ['claude'] as const,
-      useGitHub: false,
-      ...overrides,
-    }
-  }
+  let previewDir: string
 
-  it('greenfield: all files in created, none in modified or skipped', () => {
-    const preview = computeDryRunPreview(makeConfig() as Parameters<typeof computeDryRunPreview>[0])
-    expect(preview.created.length).toBeGreaterThan(0)
+  beforeEach(() => {
+    previewDir = mkdtempSync(join(tmpdir(), 'arbiter-dryrun-preview-'))
+  })
+
+  afterEach(() => {
+    rmSync(previewDir, { recursive: true, force: true })
+  })
+
+  it('greenfield: real emitted files land in created, nothing is claimed as modified', async () => {
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
+    expect(preview.created).toContain('AGENTS.md')
+    expect(preview.created.length).toBeGreaterThan(1)
     expect(preview.modified).toHaveLength(0)
-    expect(preview.skipped).toHaveLength(0)
-  })
+  }, 120_000)
 
-  it('brownfield agentsMd: AGENTS.md appears in modified not created', () => {
-    const preview = computeDryRunPreview(
-      makeConfig({ existing: { ...makeConfig().existing, agentsMd: true } }) as Parameters<
-        typeof computeDryRunPreview
-      >[0],
-    )
-    expect(preview.modified.some((s) => s.includes('AGENTS.md'))).toBe(true)
-    expect(preview.created.some((s) => s.includes('AGENTS.md'))).toBe(false)
-  })
+  it('brownfield agentsMd: an existing AGENTS.md is previewed as modified, not created', async () => {
+    writeFileSync(join(previewDir, 'AGENTS.md'), '# hand-written governance\n')
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
+    expect(preview.modified).toContain('AGENTS.md')
+    expect(preview.created).not.toContain('AGENTS.md')
+  }, 120_000)
 
-  it('brownfield claudeDir: hooks entry in skipped', () => {
-    const preview = computeDryRunPreview(
-      makeConfig({ existing: { ...makeConfig().existing, claudeDir: true } }) as Parameters<
-        typeof computeDryRunPreview
-      >[0],
-    )
-    expect(preview.skipped.some((s) => s.includes('hooks'))).toBe(true)
-  })
+  it('brownfield: an existing skip-if-exists file is previewed as skipped, by name', async () => {
+    writeFileSync(join(previewDir, '.gitignore'), 'vendor/\n')
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
+    expect(preview.skipped).toContain('.gitignore')
+    expect(preview.created).not.toContain('.gitignore')
+  }, 120_000)
 
-  it('preview object always has all three keys', () => {
-    const preview = computeDryRunPreview(makeConfig() as Parameters<typeof computeDryRunPreview>[0])
+  it('preview object always has all three keys', async () => {
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
     expect(Array.isArray(preview.created)).toBe(true)
     expect(Array.isArray(preview.modified)).toBe(true)
     expect(Array.isArray(preview.skipped)).toBe(true)
-  })
+  }, 120_000)
 })
 
 // ── guardBrownfieldDirtyTree ──────────────────────────────────────────────────

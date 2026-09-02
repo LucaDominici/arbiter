@@ -4,16 +4,15 @@
 // loading, dry-run preview, and rollback/verification of generation output. Pure
 // extraction, no behavior change.
 import { existsSync } from 'node:fs'
-import { resolve, join, normalize, isAbsolute, sep, basename } from 'node:path'
+import { resolve, join, normalize, isAbsolute, relative, sep, basename } from 'node:path'
 import { ArbiterError } from '../../utils/errors.js'
 import { t } from '../../i18n/index.js'
 import { getLogger } from '../../utils/logger.js'
-import { buildMigrationPlan } from '../../wizard/prompts.js'
 import type { ArbiterConfig } from '../../utils/config.js'
 import type { Invariant } from '../../invariants/types.js'
 import { levelAtLeast } from '../../config/levels.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../../generators/registry.js'
-import type { GeneratorFailure } from '../../generators/registry.js'
+import type { GeneratorFailure, GeneratorSpec } from '../../generators/registry.js'
 import { loadPlugin } from '../../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../../utils/render.js'
 import { copyFileTranslated, unlinkTranslated, writeFile } from '../../utils/fs.js'
@@ -28,6 +27,7 @@ import { beginGenerationSession, endGenerationSession } from '../../utils/fs.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../../state/generated-manifest.js'
 import { buildAdoptPredicate, recordLocalOverride } from '../adopt-policy.js'
 import { detectInstalledSkills } from '../../integrations/skill-detector.js'
+import type { InstalledSkill } from '../../integrations/types.js'
 import { computeSkipReport, excludeOwnEmittedSkills } from '../../generators/skills.js'
 import { jsonOutput, statusToExitCode } from '../../utils/json-output.js'
 
@@ -35,7 +35,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   return runGeneratorsFromRegistry(buildRegistry(config), [], { dryRun: false })
 }
 
-export interface GenerateAndFinalizeOptions {
+interface GenerateAndFinalizeOptions {
   config: ProjectConfig
   targetDir: string
   initOptions: InitOptions
@@ -51,34 +51,21 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
   const committed: WriteResult[] = []
 
   try {
-    const installedSkills = detectAndAuditSkills(targetDir)
-    const prevManifest = loadGeneratedManifest(targetDir)
-    // #2035 (TC-5): plugin-contributed invariants must reach the generators, so
-    // the plugin list + their invariants are collected BEFORE generation and
-    // merged into the ProjectConfig (config-declared projectInvariants win on
-    // id conflict — deterministic precedence: catalog < plugin < config).
-    const storedBefore = loadConfig(targetDir)
-    const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
-    const mergedConfig = mergeProjectInvariants(
+    // #2452: the real run and `init --dry-run` execute the SAME plan through the
+    // SAME entry point — only `dryRun` and the side-effecting `onAdopt` differ.
+    // There is no second, hand-maintained preview to drift away from it.
+    const execution = await executeInitGeneration({
       config,
-      await collectPluginInvariants(targetDir, plugins),
-    )
-    beginGenerationSession({
       targetDir,
-      prevHashes: prevManifest,
-      adoptPredicate: buildAdoptPredicate({
-        adoptGovernance: initOptions.adoptGovernance === true,
-      }),
+      dryRun: false,
+      adoptGovernance: initOptions.adoptGovernance === true,
       onAdopt: (key, priorContent, newContent): void => {
         recordLocalOverride(targetDir, { key, priorContent, newContent })
       },
     })
-    const { results, errors: generatorErrors } = runGeneratorsWithErrors(
-      mergedConfig,
-      installedSkills,
-    )
-    const generatedHashes = endGenerationSession()
-    saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes })
+    const { results, errors: generatorErrors, mergedConfig, plugins } = execution
+    writeSkillAudit(targetDir, execution.installedSkills)
+    saveGeneratedManifest(targetDir, { ...execution.prevManifest, ...execution.generatedHashes })
     committed.push(...results)
 
     const newConfig = buildArbiterConfig(mergedConfig)
@@ -122,18 +109,27 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
   }
 }
 
-function detectAndAuditSkills(targetDir: string): ReturnType<typeof detectInstalledSkills> {
+/**
+ * #2452: detection ONLY — no write. The generator registry is built from this set, so
+ * the preview and the real run must resolve it identically; the audit artifact that
+ * used to be written from here is now {@link writeSkillAudit}, which a dry run skips.
+ */
+function detectSkillsForPlan(targetDir: string): InstalledSkill[] {
   const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
-  const installedSkills = excludeOwnEmittedSkills(detectInstalledSkills({ targetDir, claudeHome }))
-  const skipReport = computeSkipReport(installedSkills)
-  if (installedSkills.length > 0) {
-    writeFile(
-      join(targetDir, '.arbiter', 'detected-integrations.json'),
-      JSON.stringify({ detectedSkills: installedSkills, skippedGenerators: skipReport }, null, 2) +
-        '\n',
-    )
-  }
-  return installedSkills
+  return excludeOwnEmittedSkills(detectInstalledSkills({ targetDir, claudeHome }))
+}
+
+/** Persist the detected-integrations audit artifact. Real runs only — this is a write. */
+function writeSkillAudit(targetDir: string, installedSkills: InstalledSkill[]): void {
+  if (installedSkills.length === 0) return
+  writeFile(
+    join(targetDir, '.arbiter', 'detected-integrations.json'),
+    JSON.stringify(
+      { detectedSkills: installedSkills, skippedGenerators: computeSkipReport(installedSkills) },
+      null,
+      2,
+    ) + '\n',
+  )
 }
 
 function printBrownfieldConflicts(
@@ -227,27 +223,6 @@ function activateGitHooks(targetDir: string, log: (message: string) => void): vo
       'Could not set core.hooksPath automatically. Activate manually: git config core.hooksPath .githooks',
     )
   }
-}
-
-/**
- * Same as {@link runGenerators} but also returns generator failures collected
- * by `safeRun` (#483). Callers that surface command-level exit codes must use
- * this variant and surface any non-empty `errors` array via a non-zero exit
- * (INV-53 status=error → exit 2). The plain `runGenerators` wrapper is kept
- * for legacy callers (brownfield integration tests) that only consume results.
- */
-export function runGeneratorsWithErrors(
-  config: ProjectConfig,
-  installedSkills: Parameters<typeof buildRegistry>[1] = [],
-): {
-  results: WriteResult[]
-  errors: GeneratorFailure[]
-} {
-  const errors: GeneratorFailure[] = []
-  const results = runGeneratorsFromRegistry(buildRegistry(config, installedSkills), errors, {
-    dryRun: false,
-  })
-  return { results, errors }
 }
 
 /** Throws if resolvedPath does not start with safeRoot + path separator. */
@@ -363,19 +338,124 @@ export async function runPlugins(
   return all
 }
 
-export interface DryRunPreview {
+interface DryRunPreview {
   created: string[]
   modified: string[]
   skipped: string[]
 }
 
-export function computeDryRunPreview(config: ProjectConfig): DryRunPreview {
-  const plan = buildMigrationPlan(config.existing, config.tools, config.useGitHub)
+/**
+ * #2452: the ONE plan an init run executes — the generator specs plus every input the
+ * registry resolves them against. Built once, then executed either dry (preview) or wet
+ * (the real run). Holding it in a single shape is what makes the preview structurally
+ * incapable of drifting from the run, the way `diff` already cannot drift from `update`
+ * (#1077).
+ */
+interface InitGenerationPlan {
+  /** Config with plugin-contributed invariants merged in (catalog < plugin < config). */
+  mergedConfig: ProjectConfig
+  specs: GeneratorSpec[]
+  installedSkills: InstalledSkill[]
+  plugins: string[]
+  prevManifest: Record<string, string>
+}
+
+/**
+ * Resolve the plan. Read-only: detection, config/manifest reads, and plugin-module
+ * loading for their declared invariants — no file is written here, by either caller.
+ */
+async function buildInitGenerationPlan(
+  config: ProjectConfig,
+  targetDir: string,
+): Promise<InitGenerationPlan> {
+  const installedSkills = detectSkillsForPlan(targetDir)
+  // #2035 (TC-5): plugin-contributed invariants must reach the generators, so the
+  // plugin list + their invariants are collected BEFORE generation and merged into
+  // the ProjectConfig (config-declared projectInvariants win on id conflict —
+  // deterministic precedence: catalog < plugin < config).
+  const storedBefore = loadConfig(targetDir)
+  const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
+  const mergedConfig = mergeProjectInvariants(
+    config,
+    await collectPluginInvariants(targetDir, plugins),
+  )
   return {
-    created: plan.created,
-    modified: [...plan.replaced, ...plan.merged],
-    skipped: plan.preserved,
+    mergedConfig,
+    specs: buildRegistry(mergedConfig, installedSkills),
+    installedSkills,
+    plugins,
+    prevManifest: loadGeneratedManifest(targetDir),
   }
+}
+
+export interface InitGenerationResult extends InitGenerationPlan {
+  results: WriteResult[]
+  errors: GeneratorFailure[]
+  generatedHashes: Record<string, string>
+}
+
+/**
+ * Build the plan and execute it. `dryRun: true` resolves the PROSPECTIVE action for
+ * every file without touching disk (`writeFile` shares one `resolveWriteAction` between
+ * both paths — #1077), so the caller sees exactly what `dryRun: false` would have done.
+ *
+ * The only input a dry run withholds is `onAdopt`: recording a reversible local override
+ * is a write, and a preview must not perform the side effects it is previewing. The
+ * adopt PREDICATE is still applied in both modes, so a file the real run would
+ * force-adopt is classified the same way in the preview.
+ */
+export async function executeInitGeneration(args: {
+  config: ProjectConfig
+  targetDir: string
+  dryRun: boolean
+  adoptGovernance?: boolean
+  onAdopt?: (key: string, priorContent: string, newContent: string) => void
+}): Promise<InitGenerationResult> {
+  const { config, targetDir, dryRun } = args
+  const plan = await buildInitGenerationPlan(config, targetDir)
+  beginGenerationSession({
+    targetDir,
+    prevHashes: plan.prevManifest,
+    adoptPredicate: buildAdoptPredicate({ adoptGovernance: args.adoptGovernance === true }),
+    ...(dryRun || args.onAdopt === undefined ? {} : { onAdopt: args.onAdopt }),
+  })
+  const errors: GeneratorFailure[] = []
+  let results: WriteResult[]
+  let generatedHashes: Record<string, string>
+  try {
+    results = runGeneratorsFromRegistry(plan.specs, errors, { dryRun })
+  } finally {
+    generatedHashes = endGenerationSession()
+  }
+  return { ...plan, results, errors, generatedHashes }
+}
+
+/**
+ * #2452: the `--dry-run` preview is a PROJECTION of the plan above, never a parallel
+ * hand-maintained list. It previously came from `buildMigrationPlan` — a ~8-entry stub
+ * of directory blobs that named none of the real writes and none of the real
+ * skip-if-exists preserves, so a brownfield adopter evaluating whether arbiter was safe
+ * to run saw a preview bearing no relation to the run.
+ *
+ * `not-applicable` results are dropped for the same reason `printResults` drops them
+ * (#1491): they were deliberately never emitted, so listing them as "already exists"
+ * would be a false claim.
+ */
+export async function computeDryRunPreview(config: ProjectConfig): Promise<DryRunPreview> {
+  const { results } = await executeInitGeneration({
+    config,
+    targetDir: config.targetDir,
+    dryRun: true,
+  })
+  const preview: DryRunPreview = { created: [], modified: [], skipped: [] }
+  for (const result of results) {
+    if (result.reason === 'not-applicable') continue
+    const rel = relative(config.targetDir, result.path)
+    if (result.action === 'created') preview.created.push(rel)
+    else if (result.action === 'skipped') preview.skipped.push(rel)
+    else preview.modified.push(rel)
+  }
+  return preview
 }
 
 function errMsg(err: unknown): string {
@@ -522,8 +602,8 @@ export function printResults(results: WriteResult[], targetDir: string): void {
   }
 }
 
-export function displayDryRunPreview(config: ProjectConfig): void {
-  const preview = computeDryRunPreview(config)
+export async function displayDryRunPreview(config: ProjectConfig): Promise<void> {
+  const preview = await computeDryRunPreview(config)
   process.stdout.write(`${t('cli.init.dry_run_notice_full')}\n`)
 
   if (preview.created.length > 0) {

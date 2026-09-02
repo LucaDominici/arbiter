@@ -76,6 +76,25 @@ run the detected manager's install command, then `node scripts/capture-debt-base
 This is distinct from debt collection: an unavailable optional collector is a loud soft-skip,
 while a collector that runs but cannot produce a trustworthy result is fail-closed.
 
+### Preview before anything is written
+
+Every "what would this do to my repo?" question has exactly one read-only answer, and none
+of them writes a byte:
+
+- **Before adoption** — `npx @arbiter/cli init --yes --dry-run` names every file `init`
+  would create and every existing file it would keep untouched. The preview is the real
+  generator plan executed in dry mode, not a separately maintained summary, so what it lists
+  is what the run without `--dry-run` does.
+- **After adoption** — `arbiter diff` is the whole-run preview of `arbiter update` (`update`
+  with the writes elided); `arbiter diff --withheld` narrows it to the template fixes held
+  back from files you have edited; `arbiter update --adopt-plan` previews exactly which of
+  those adoption would overwrite. See
+  [REFERENCE/file-stability.md](REFERENCE/file-stability.md).
+
+There is no `update --dry-run`. `diff` already is the whole-run preview of `update`, and a
+second spelling of it would be one more surface that can drift away from the run it claims
+to describe.
+
 ## 3. Run your first gated task
 
 Every change flows through the same local gate before it can be committed:
