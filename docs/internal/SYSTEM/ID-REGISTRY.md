@@ -79,13 +79,12 @@ and INV-31.
       "pattern": "^CANON-[0-9]{2}$",
       "meaning": "A process-level canon rule derived from an audit wave.",
       "ssot": "docs/internal/SYSTEM/CANON.md",
-      "gate": "n/a",
+      "gate": "scripts/check-canon-enforcement-parity.mjs",
       "track": "self",
       "tool": "n/a",
       "hook": "n/a",
-      "status": "staged",
-      "expires": "2026-11-01",
-      "note": "The bland one: 23 rules in prose with four conventional fields and no parser. Wave 2 gives CANON a typed catalog (src/canon/catalog.ts) with an enforcement field plus scripts/check-canon-enforcement-wired.mjs, a direct mirror of INV-52. Until then no mechanism can tell a satisfied rule from a cited one."
+      "status": "active",
+      "note": "Corrected 2026-09-02: this row first shipped as `staged` on the claim that CANON was unparsed prose. It is not. check-canon-enforcement-parity.mjs (B1) parses every `## CANON-NN` entry and requires its Enforcement field to either cite a gate/hook/test that exists AND is wired, or declare a dated promotion that has not expired — prose with neither fails. It currently reports 23 entries, 23 gated. No CLI verb reads CANON, and no edit-time hook: the parity the gate checks is whole-file (entry vs the wiring of the script it names), which a per-edit check cannot decide."
     },
     {
       "prefix": "ADR",
@@ -207,20 +206,19 @@ and INV-31.
       "tool": "arbiter method",
       "hook": "n/a",
       "status": "active",
-      "note": "The prefix is now methodology-only. Product milestones used to share it; they move to MS-NN so a bare M13 can no longer mean either adversarial refutation or a shipping milestone."
+      "note": "The prefix is assigned to the methodology measures, and MS-NN (below) claims the milestone scheme so a NEW bare M13 can only mean adversarial refutation. The migration is not retroactive and this row does not pretend otherwise: docs/internal/PRODUCT/MILESTONES.md still carries 33 historical `## MN` headings, which wave 3 supersedes when MILESTONES.yml becomes the milestone SSOT and the prose file becomes a record. Four ADR titles keep their historical `(M19)`/`(M20)`/`(M21)`/`(M24)` suffix deliberately — a title records what a decision was called, and rewriting it would falsify the record."
     },
     {
       "prefix": "E",
       "pattern": "^E[0-9]{1,2}[a-z]?$",
       "meaning": "An anti-context-rot enforcer.",
       "ssot": "docs/design/anti-context-rot-enforcers.md",
-      "gate": "n/a",
+      "gate": "scripts/check-anti-fake-green.mjs",
       "track": "self",
       "tool": "n/a",
       "hook": "n/a",
-      "status": "staged",
-      "expires": "2026-11-01",
-      "note": "Second live collision: standards/gold-registry.yml also keys enforcement dimensions E1-E7. The two are disambiguated only by which file you are reading, which no mechanism checks. Wave 2 resolves it in the same pass that types the CANON catalog, by giving the gold-registry dimensions a distinct prefix."
+      "status": "active",
+      "note": "Corrected 2026-09-02: this row first shipped as `staged`, claiming a collision with standards/gold-registry.yml and no gate. Both claims were wrong. The gold-registry keys its checks GA-ENF-NN and its D-ENFORCEMENT dimension only NAMES E1-E7 in a title and a comment, referring to these same enforcers — a cross-reference, not a second scheme. And the enforcers are gated: scripts/lib/anti-fake-green-guards.mjs enumerates them as class `context-rot` with a mandatory red-path flip proof in scripts/lib/guard-flip-registry.mjs, adjudicated by scripts/check-anti-fake-green.mjs. No CLI verb and no edit-time hook: an enforcer is a gate, and what needs proving is that it goes red on a bad input — a whole-repo property."
     },
     {
       "prefix": "MS",
@@ -234,7 +232,7 @@ and INV-31.
       "status": "staged",
       "expires": "2026-11-15",
       "graphNode": "MILESTONE",
-      "note": "Wave 3. Claims the prefix now so the MN collision is closed before any instance exists; the SSOT file, the gate and the MILESTONE node land together."
+      "note": "Wave 3. Claims the prefix now so no NEW milestone is numbered into the methodology namespace; the SSOT file, the gate and the MILESTONE node land together, and the 33 historical MN headings in MILESTONES.md are superseded rather than renamed in place."
     },
     {
       "prefix": "SRC",

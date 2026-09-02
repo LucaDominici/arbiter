@@ -25,11 +25,16 @@ related:
 
 arbiter governs a project's lifecycle, but only part of that lifecycle is codified. Invariants are
 a typed catalog with a gate that refuses an unwired enforcement claim. Requirements are a matrix
-with a fail-closed status ladder. Evidence has schemas. Then the codification stops: CANON is 23
-prose rules with no parser, ADR bodies are unread, milestones are prose whose `MN` ids collide with
-the methodology measures `M1`–`M16`, `E1`–`E7` names two unrelated things, `OD-NN` was cited in
-five files with **no file defining it**, and use cases, runbooks, tabletop definitions, feasibility
-studies and external sources have no shape at all.
+with a fail-closed status ladder. Evidence has schemas. CANON is parsed too, and its parity gate
+refuses an Enforcement field that is neither a wired gate nor a dated promotion. Then the
+codification thins out: milestones are prose whose `MN` ids collide with the methodology measures
+`M1`–`M16`, `E1`–`E7` names two unrelated subsystems, `OD-NN` was cited in five files with **no
+file defining it**, arc42 has no section-level gate, feasibility has no doc-set row, and use cases,
+runbooks, tabletop definitions and external sources have no shape at all.
+
+An earlier draft of this ADR listed CANON among the ungoverned. That was wrong — a reminder that
+the survey which precedes a rule like this one is itself worth gating, and the reason the registry
+below records a mechanism per row rather than an impression.
 
 The asymmetry is not an accident of effort — it is what happens without a rule about what
 "codified" means. A well-written document reads like governance. It is indistinguishable, in a
