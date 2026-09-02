@@ -55,11 +55,20 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
   which files were changed and which were skipped.
 - **Docs the user would read:** `docs/QUICKSTART.md`,
   `docs/internal/DEVELOPMENT/CONFORMANCE.md`, `docs/DEPRECATIONS.md`
-- **Executable probes:** `node dist/cli.js update --help`; a dry-run update against a fixture
-  under `__tests__/fixtures/real-projects/`; render the Go gate registry and diff it against
-  the materialized Go example; read the brownfield-detection code path.
-- **Exit criterion:** The dry-run names every write and every skip-if-exists, and no
+- **Executable probes:** `node dist/cli.js update --help`; `node dist/cli.js init --dry-run`
+  against a copy of a fixture under `__tests__/fixtures/real-projects/`, then — once the kit
+  is installed — `node dist/cli.js diff` (the read-only preview of what `update` would write)
+  and `node dist/cli.js update --adopt-plan` (the preview of what adoption would overwrite);
+  render the Go gate registry and diff it against the materialized Go example; read the
+  brownfield-detection code path.
+- **Exit criterion:** The preview names every write and every skip-if-exists — `init
+--dry-run` is driven by the same generator plan the real run executes (#2452) — and no
   documented skip promise is contradicted by the plan.
+
+> There is no `update --dry-run`. The whole-run preview of `update` is `arbiter diff`
+> ("`update` with the writes elided"); `update --adopt-plan` previews the narrower
+> question of which withheld files adoption would overwrite. Naming a third spelling
+> would only add a surface that can drift.
 
 ## 3. `/ship` one XS issue to a merged PR
 
@@ -118,8 +127,9 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
   deprecations are now due.
 - **Docs the user would read:** `docs/SEMVER.md`, `docs/DEPRECATIONS.md`, `CHANGELOG.md`,
   `docs/REFERENCE/backward-compat-harness.md`
-- **Executable probes:** a dry-run update on a materialized example under `examples/`;
+- **Executable probes:** `node dist/cli.js diff` (and `diff --withheld`) on a materialized
+  example under `examples/`; `node dist/cli.js update --adopt-plan` on the same tree;
   `node scripts/check-api-snapshot.mjs`; read `CHANGELOG.md` against the deprecation window
   the semver policy promises.
 - **Exit criterion:** Every deprecation listed carries a version and a removal window, and
-  the dry-run's skip set matches what the semver policy says an upgrade preserves.
+  the preview's skip set matches what the semver policy says an upgrade preserves.

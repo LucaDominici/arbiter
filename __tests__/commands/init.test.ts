@@ -391,7 +391,9 @@ describe('runInit', () => {
     expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
   })
 
-  it('dry-run returns early without generating files', async () => {
+  // #2452: a dry run DOES drive the generator registry — that is what makes the
+  // preview truthful — but only ever with `dryRun: true`, so nothing is written.
+  it('dry-run drives the registry in dry mode and never writes', async () => {
     const { runInit } = await import('../../src/commands/init.js')
     await runInit({
       yes: true,
@@ -402,11 +404,16 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { dryRun: false },
+    )
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Dry run'))
   })
 
-  it('brownfield dry-run calls displayMigrationPlan', async () => {
+  it('brownfield dry-run previews without writing', async () => {
     mockDetermineFlow.mockReturnValueOnce('brownfield')
     const { runInit } = await import('../../src/commands/init.js')
     await runInit({
@@ -418,7 +425,11 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { dryRun: false },
+    )
   })
 
   it('exits 1 when runProbes throws unexpectedly', async () => {
@@ -644,7 +655,11 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { dryRun: false },
+    )
     expect(exitSpy).not.toHaveBeenCalled()
   })
 

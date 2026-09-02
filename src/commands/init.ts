@@ -171,7 +171,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     assertKnownLanguage(config.language)
 
     if (options.dryRun) {
-      displayDryRunPreview(config)
+      await displayDryRunPreview(config)
       return
     }
 

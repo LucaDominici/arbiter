@@ -19,7 +19,7 @@
 // ARE mocked (they shell out) so their early-return / failure branches stay
 // deterministic and offline.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -232,18 +232,28 @@ describe('buildArbiterConfig — optional-spread branches', () => {
 
 // ---------------------------------------------------------------------------
 describe('computeDryRunPreview', () => {
-  it('returns created/modified/skipped buckets from the migration plan', () => {
-    const preview = computeDryRunPreview(makeConfig(dir))
+  // #2452: the preview is now a projection of the real generator plan run dry, so
+  // these assert the projection's shape — the preview-equals-plan RELATIONSHIP is
+  // pinned in __tests__/commands/init-dryrun-plan-parity.test.ts.
+  it('returns created/modified/skipped buckets of real target-relative paths', async () => {
+    const preview = await computeDryRunPreview(makeConfig(dir))
     expect(Array.isArray(preview.created)).toBe(true)
     expect(Array.isArray(preview.modified)).toBe(true)
     expect(Array.isArray(preview.skipped)).toBe(true)
-  })
+    expect(preview.created).toContain('AGENTS.md')
+    for (const entry of preview.created) expect(entry.startsWith('/')).toBe(false)
+  }, 120_000)
 
-  it('merges replaced + merged into the modified bucket', () => {
-    // useGitHub=true exercises a different branch of buildMigrationPlan inputs.
-    const preview = computeDryRunPreview(makeConfig(dir, { useGitHub: true }))
-    expect(preview.modified).toEqual(expect.any(Array))
-  })
+  it('writes nothing — a dry run must not perform the side effects it previews', async () => {
+    const probe = mkdtempSync(join(tmpdir(), 'arbiter-init-cov-dry-'))
+    try {
+      await computeDryRunPreview(makeConfig(probe, { useGitHub: true }))
+      expect(existsSync(join(probe, 'AGENTS.md'))).toBe(false)
+      expect(readdirSync(probe)).toEqual([])
+    } finally {
+      rmSync(probe, { recursive: true, force: true })
+    }
+  }, 120_000)
 })
 
 // ---------------------------------------------------------------------------
