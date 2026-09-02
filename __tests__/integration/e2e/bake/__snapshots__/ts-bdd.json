@@ -359,7 +359,7 @@
     "scripts/check-workflow-perms.mjs": "15bc10f2322ab8e385049155a5a88ec1cb95c46b9fb00f3f651604f9e82bdfda",
     "scripts/check-workflow-runners.mjs": "93d8674fa11728af368c8417d4923107b2b3510f859218c34c0f1d16936511b8",
     "scripts/check-workflow-sha-pinning.mjs": "307597a8b85d515be49166fd03dadfc1921717822a1f0824a7591ac32f624262",
-    "scripts/check-workflow-test-integrity.mjs": "56ca32482a5bea2494a175d79b1fee2b69d382c437754f352d8176129d34a55f",
+    "scripts/check-workflow-test-integrity.mjs": "0a768edc697b22aae81343f39e1f3c53e2f6bf5ce530d88b779bc0a011d0ed1c",
     "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
     "scripts/constraint-map.json": "d5f60a1a8b34336bbc40b82f851355f17f7ea98488ec574ebd9781cbf6e622d9",
     "scripts/gh-cleanup-expired-artifacts.mjs": "4ca6f4c99f6505d374592a4cea5cc663de574009510a6cdd9b77d672d694e83e",
