@@ -1,8 +1,8 @@
 ---
 title: 'Generated File Format Stability Map'
-doc_version: '1.1.0'
+doc_version: '1.2.0'
 status: active
-last_review: '2026-08-03'
+last_review: '2026-09-02'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -31,12 +31,12 @@ Every file arbiter generates has a declared stability status. This determines th
 
 ### AGENTS.md
 
-| Property       | Value                                                                                                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Default path   | `AGENTS.md` (project root)                                                                                                                                               |
-| Status         | **stable**                                                                                                                                                               |
-| User-editable  | Yes — the custom-content zone between the generation markers is preserved on update.                                                                                     |
-| Merge strategy | arbiter preserves lines between `<!-- arbiter:custom:start -->` and `<!-- arbiter:custom:end -->` markers on every `arbiter update`. Generated sections are regenerated. |
+| Property       | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Default path   | `AGENTS.md` (project root)                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Status         | **stable**                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| User-editable  | Yes, but there is no preserved custom-content zone inside the file — see Merge strategy. Mark it `arbiter:preserve` (see below) to opt the whole file out of every future overwrite.                                                                                                                                                                                                                                                                                    |
+| Merge strategy | Governance class (#2120/#2141; `src/generators/safety-class.ts` `isGovernanceClassKey`) — there is no line-level marker merge. **Pristine** (on-disk `sha256` matches the last recorded render): re-rendered from config + template on every `arbiter update`, prior bytes backed up to `AGENTS.md.arbiter-backup` first. **Diverged** (any hand edit since the last render): withheld **whole** — arbiter leaves the file untouched and reports it under `arbiter diff --withheld`, never merges into it. `arbiter update --adopt-governance` force-adopts the shipped render over a diverged copy (same backup + a reversible `.arbiter/evidence/local-overrides/` envelope). See §Protected classes below for the full mechanism shared with `.claude/settings.json`. |
 
 ### .claude/settings.json
 
@@ -53,6 +53,15 @@ Only the merge is bespoke; the write is not (#2120). The merged result goes thro
 file no protection mechanism reached — the generator compared, backed up and wrote it by hand. JSON has no
 comments, but the marker is a whole-file substring test, so an ordinary key carries it:
 `{ "_arbiter": "arbiter:preserve", … }`.
+
+### .claude/knowledge-map.json
+
+| Property       | Value                                                                                                                                                                                                                                          |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Default path   | `.claude/knowledge-map.json`                                                                                                                                                                                                                   |
+| Status         | **evolving**                                                                                                                                                                                                                                    |
+| User-editable  | No — machine-readable track-routing map (#720), not meant for hand edits.                                                                                                                                                                      |
+| Merge strategy | Plain `skipIfExists` file (`src/generators/claude.ts`) — not governance, safety, or gate-spine class. Standard #1328 manifest protocol: **pristine** → rewritten to propagate a template fix; **user-modified** → withheld and reported (`arbiter diff --withheld`), adoptable only via the broad `arbiter update --adopt` (no per-file adopt flag of its own). |
 
 ### GLOBAL_INVARIANTS.md
 
