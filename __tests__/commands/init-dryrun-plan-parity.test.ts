@@ -155,10 +155,11 @@ describe('#2452 — init --dry-run previews the plan the real run executes', () 
     const preview = new Set(previewPaths(await computeDryRunPreview(config)))
     const full = await executeInitGeneration({ config, targetDir: dir, dryRun: false })
 
-    // Whatever the full run touches beyond the preview must be exactly the excluded
-    // generators' doing. If that difference ever empties out, the exclusion list above
-    // is stale and must shrink; if it grows a path from another generator, the preview
-    // has started lying again and this fails.
+    // The full run must still touch something the preview cannot speak for. If that
+    // difference ever empties out, the exclusion list above is stale and must shrink.
+    // The converse — a NEW divergence appearing in some other generator — is caught by
+    // the first test in this file, which replays every non-excluded spec for real and
+    // demands the preview match it path for path.
     const unpreviewed = touchedPaths(full.results, dir).filter((p) => !preview.has(p))
     expect(unpreviewed.length).toBeGreaterThan(0)
   }, 120_000)

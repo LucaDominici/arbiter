@@ -7,7 +7,7 @@
 // Release protocol (see docs/REFERENCE/backward-compat-harness.md):
 //   Before bumping the package version, run this script for each supported archetype
 //   to seed a fixture from the current code. This creates a historical record that
-//   future arbiter update --dry-run must pass without schema errors.
+//   future arbiter diff (the read-only preview of update) must pass without schema errors.
 //   NEVER fake-pin historical data — only capture real arbiter init output.
 import {
   mkdtempSync,
