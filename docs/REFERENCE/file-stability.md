@@ -522,6 +522,66 @@ in its content (a comment is the natural place, e.g. `<!-- arbiter:preserve -->`
 > arbiter version bump — runs the full registry and re-evaluates every `skipIfExists` file, propagating
 > all pending fixes. So if a fix does not land after a config-only update, re-run `arbiter update`.
 
+### Per-file opt-out — `.arbiterignore` and `update --only` (#2353)
+
+**Issue:** #2353
+
+The preserve marker above is per-FILE and requires editing the file. A consumer that has grown its own
+hand-authored equivalent for a whole slice of the generated surface — its own CI workflow numbering, its
+own `docs/`, its own `run.sh` — needs to decline that slice wholesale, and to take ONE upstream fix
+without re-syncing everything else. Before #2353 there was no supported way: the only route was
+`arbiter diff --json` plus hand-copying content out of a throwaway rendered clone.
+
+One mechanism, two directions:
+
+| Mechanism        | Scope                | Honoured by         |
+| ---------------- | -------------------- | ------------------- |
+| `.arbiterignore` | permanent, committed | `update` and `diff` |
+| `--only <globs>` | a single run         | `update`            |
+
+`.arbiterignore` lives at the repo root and uses **gitignore syntax** — one pattern per line, `#`
+comments and blank lines skipped, `!` negates, and the **last** matching pattern decides. Patterns are
+matched against **manifest keys**: the repo-relative POSIX path each generated file is tracked under in
+`.arbiter-generated-manifest.json`. So `/AGENTS.md` is anchored to the root, `docs/` covers everything
+under `docs`, a bare `AGENTS.md` matches at any depth, and `*` / `**` behave as usual. There is
+deliberately no separate "template id" namespace — a glob over manifest keys already selects a
+generator's whole output, and a second id space would be a second thing to keep in sync.
+
+```gitignore
+# this repo keeps its own CI numbering and docs
+.github/workflows/**
+docs/
+# …but still take the shipped security hooks
+!.claude/hooks/check-no-pii.mjs
+```
+
+Semantics:
+
+- An ignored file is **never written** — the check runs at the single write chokepoint
+  (`resolveWriteAction`), ahead of every other branch including the preserve marker and the
+  restoration branch, so a declined path is not read, compared, adopted or re-emitted.
+- `update` reports it as `skipped (.arbiterignore)`; `diff` gives it its own `ignored` status and stops
+  counting it as a pending change, so a standing opt-out never pins `diff` at exit 1.
+- Its **manifest entry survives**. Ignoring is reversible: delete the pattern and the next `update`
+  re-adopts the file. This is also why the check is NOT a registry-level filter — an un-emitted file is
+  an unvisited manifest key, which `planRetirement` treats as a retirement/stale candidate. An opt-out
+  that deletes files would be the opposite of an opt-out.
+- `--only` is the inverse allowlist for one invocation, e.g.
+  `arbiter update --only .claude/hooks/check-no-pii.mjs,.github/labels.yml`. Every other managed file is
+  skipped and **keeps its manifest entry** — a scoped run must never amputate the manifest to the one
+  path it touched. An `--only` that matches nothing warns instead of silently doing nothing.
+- On conflict `.arbiterignore` **wins** over `--only` — a committed opt-out outranks one run's flag —
+  and the run prints which files that decided.
+- Ignoring a safety-class file (`.claude/hooks/*.mjs`) also removes it from `withheldSafetyKeys`, and
+  therefore from the safety-adopt ratchet's view. That is the consumer's call to make; `update` states
+  it on stderr rather than leaving the bypass to be inferred. It stays off the warnings channel that
+  drives the exit code, for the same reason retirement does: a standing configuration must not pin
+  `update` at exit 1 forever.
+
+`arbiter init` does not emit an `.arbiterignore` template. A generated opt-out file is self-referential:
+it would land in the manifest, be restored after deletion, and be reported as withheld once edited.
+Create it by hand.
+
 ### First run, corruption, and `doctor repair-state`
 
 - **No manifest yet** (a project initialised by an older arbiter, or before this feature) → every

@@ -58,16 +58,17 @@ describe('arbiter config', () => {
     expect(() => loadConfig(dir)).toThrow(/invalid JSON/)
   })
 
+  // #2367 (ADR-119): "all tool types" is now exactly claude + codex.
   it('saveConfig preserves all tool types', async () => {
     const config = {
       version: '0.1',
-      tools: ['claude', 'codex', 'cursor', 'copilot'] as const,
+      tools: ['claude', 'codex'] as const,
       governanceLevel: 'L3' as const,
       useGitHub: false,
     }
     await saveConfig(dir, config)
     const loaded = loadConfig(dir)
-    expect(loaded!.tools).toEqual(['claude', 'codex', 'cursor', 'copilot'])
+    expect(loaded!.tools).toEqual(['claude', 'codex'])
     expect(loaded!.governanceLevel).toBe('L3')
   })
 

@@ -18,14 +18,22 @@ Custom invariants extend a project's governance contract with rules specific to 
 - Your team has a naming convention, banned dependency, or architectural constraint not covered by the built-in INV-NN catalog.
 - You want the rule enforced by `arbiter verify plan` in CI alongside the built-in rules.
 
-## Step 1 — Scaffold a plugin
+## Step 1 — Author and register a plugin
 
-```bash
-arbiter plugin add my-rules
-cd my-rules
+`arbiter plugin add` does not scaffold a plugin — hand-author a minimal package:
+
+```
+my-rules/
+├── index.js        # ArbiterPlugin implementation, see Step 2
+├── package.json    # keywords must include "arbiter-plugin"
+└── templates/      # empty is fine — this plugin contributes rules, not files
 ```
 
-This creates `my-rules/index.js` with a minimal `ArbiterPlugin` stub.
+Then register it:
+
+```bash
+arbiter plugin add ./my-rules
+```
 
 ## Step 2 — Add a verify-plan rule
 
@@ -62,6 +70,8 @@ module.exports = {
 Rules receive `ctx.changedFiles` (files in the current plan diff) and return an array of violations. An empty array means PASS.
 
 ## Step 3 — Register in arbiter config
+
+Already done by `arbiter plugin add ./my-rules` in Step 1 — it wrote:
 
 ```json
 {

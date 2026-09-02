@@ -483,7 +483,11 @@ if (isMain) {
     // to runCheck at gated-review). Vacuous-pass when no evidence — wired now so the path is real.
     runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
     runWarnCheck('cross-model review (#2358)', 'node', ['scripts/check-cross-model-review.mjs'])
-    runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
+    // #2435 AC-2: promoted from runWarnCheck. `refactor` promises a code-review dispatch and
+    // nothing could fail a build over it, so a ship reached `verification` with no review ever
+    // dispatched. The check vacuous-passes with no sidecar for this task/branch, so the
+    // promotion costs nothing where no review was owed and refuses where one was.
+    runCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
     runWarnCheck('refutation majority (E2 #1943)', 'node', [
       'scripts/check-refutation-verdicts.mjs',
     ])

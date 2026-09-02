@@ -84,8 +84,9 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 - **Avoid when:** the output is a single static file with no variation. Just check
   the static file into the templates tree.
 - **Registry path:** `src/generators/`
-- **Variation axis:** the target tool (claude / codex / cursor / aider / windsurf /
-  gemini / copilot) and the domain (CI, hooks, agents, boundaries, security).
+- **Variation axis:** the target tool (claude / codex — the five experimental targets
+  were retired in 0.6.0, ADR-119) and the domain (CI, hooks, agents, boundaries,
+  security).
 - **Test approach:** snapshot tests that render each EJS template against three
   matrix points per language and diff against committed fixtures. The full matrix
   is covered by `__tests__/fixtures/real-projects/`.
@@ -136,7 +137,7 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
 - **Avoid when:** the content is per-conversation context (use a slash command) or
   per-edit guardrail (use a hook). Rules are always-loaded prose.
 - **Registry path:** `src/templates/claude/`
-- **Variation axis:** the target agent runtime (claude / codex / aider) and the
+- **Variation axis:** the target agent runtime (claude / codex) and the
   governance level (L1 / L2 / L3). EJS `<% if (governanceLevel >= 'L2') %>` guards
   gate optional rules.
 - **Test approach:** template render snapshots per tool × governance level, plus a

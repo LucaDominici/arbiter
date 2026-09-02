@@ -737,6 +737,10 @@ jobs:
 <% if (language === 'typescript') { %>
             "${{ needs.duplication-baseline.result }}"
 <% } %>
+<% if (_isService) { %>
+            "${{ needs.toxiproxy-resilience.result }}"
+            "${{ needs.load-smoke.result }}"
+<% } %>
 <% if (locals.enableNativeBakeE2E) { %>
             "${{ needs.bake-e2e-native.result }}"
 <% } %>
