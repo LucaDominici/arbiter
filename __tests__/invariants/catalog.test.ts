@@ -20,9 +20,9 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 142
+const EXPECTED_TOTAL_ENTRIES = 143
 const EXPECTED_TIER4_OPERATIONAL = 49
-const EXPECTED_TIER5_GOVERNANCE = 57
+const EXPECTED_TIER5_GOVERNANCE = 58
 const EXPECTED_SELFONLY = 35
 
 // ---------------------------------------------------------------------------
@@ -550,7 +550,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all-languages, operational)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all-languages, operational)
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
-    expect(result).toHaveLength(90)
+    // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    expect(result).toHaveLength(91)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -585,7 +586,8 @@ describe('getFilteredInvariants', () => {
     })
     // +1 from INV-137 (L1+, all languages, smoke-journey floor) — threshold < 76 → < 77
     // +1 from INV-144 (L1+, all languages, arc42 slot completeness) — → < 78
-    expect(result.length).toBeLessThan(78)
+    // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    expect(result.length).toBeLessThan(79)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -667,7 +669,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all languages, operational)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all languages, operational)
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
-    expect(result).toHaveLength(85)
+    // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    expect(result).toHaveLength(86)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -702,7 +705,8 @@ describe('getFilteredInvariants', () => {
       invariantTiers: ALL_TIERS,
     })
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
-    expect(result).toHaveLength(86)
+    // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    expect(result).toHaveLength(87)
   })
 
   it('essential preset at L1 returns minimal set', () => {

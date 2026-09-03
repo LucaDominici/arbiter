@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-09-02'
+last_review: '2026-09-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 118)
+1. Create `NNN-short-title.md` in this directory (next free number after 119)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -146,3 +146,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 116 | [Evidence Binds to Source Content; the Train Is the Ceremony Unit; a PR Is Owned Until Merged](116-evidence-content-binding-train-ceremony-pr-ownership.md)           | Accepted   | 2026-08-29 |  |
 | 117 | [Companion Skill Provenance — Detected, Never Bundled](117-companion-skill-provenance.md)                                                                             | Accepted   | 2026-08-29 |  |
 | 118 | [The lifecycle ontology is wired, not written](118-lifecycle-ontology-wired-not-written.md)                                                                           | Accepted   | 2026-09-02 |  |
+| 119 | [Adversarial review hops until nothing above low survives](119-adversarial-review-hops-until-low-only.md)                                                             | Accepted   | 2026-09-03 |  |

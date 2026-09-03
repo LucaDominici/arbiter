@@ -880,4 +880,20 @@ A counter that is present but not a number is an **ERROR**, not a bootstrap: `"s
 
 **Enforcement:** `scripts/check-arc42-slots.mjs`. Self: L1, `runCheck`, unconditional, wired in `scripts/check-all.mjs`; ratchet in `scripts/data/arc42-baseline.json`. Track B is deliberately weaker and says so: the `gate-registry.yml.ejs` row is L2, `runWarnCheck`, gated on `enableDebtGates`, because a freshly generated arc42 is hollow by construction. Verified by `__tests__/scripts/check-arc42-slots.test.ts` (43 cases), which reads the real skeletons and a package-shaped `dist`-only layout rather than fixtures alone — a fixture that grades itself is what let the nine-vs-ten `CANVAS_SLOTS` drift go unnoticed. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
 
+### INV-145: Adversarial review closes only when nothing above low severity survives
+
+One pass of review finds what one reader happened to look for. A high-stakes change is therefore attacked by independent skeptics carrying a REFUTE mandate, and the loop **repeats** — each hop attacking the fixes the previous hop forced — until no finding above `low` is left unaddressed.
+
+This is the complement of the refutation-majority rule (E2 #1943, M13), not a duplicate of it. That rule stops a **phantom** finding being acted on; this one stops the loop **ending while something real is still open**. Both read the same skeptic envelopes, so the second axis needs no new artifact — only the obligation to keep hopping.
+
+Three properties are load-bearing, and each was chosen against a specific failure:
+
+- **Severity is the highest any skeptic assigned.** When two disagree, the loop clears the worse reading. Taking the kinder one would let a second opinion lower the bar.
+- **Below quorum or majority-REFUTED never blocks.** Fixing the false negative must not reintroduce the false positive the majority rule exists to prevent: one skeptic's false alarm cannot hold a wave hostage.
+- **The floor runs even when nothing was acted on.** A round that addressed nothing while the skeptics upheld a `high` is exactly what this catches — an early return there made it unreachable for its own subject, a bug found by its own tests rather than by review.
+
+A hop that cannot reach an independent reviewer (model unavailable, rate limit, the cross-model seat offline) may be self-probed, but the marker carries `degraded: true`, the gate reports DEGRADED on every run, and the round never counts as independent. A self-review filed as an independent one is the fake-green this catalog exists to prevent. The strongest skeptic remains a **different model** (`crossModelReview`); the same-model fan-out is a declared fallback, weaker because its blind spots are correlated with the author's — see ADR-119.
+
+**Enforcement:** `scripts/check-refutation-verdicts.mjs`, wired on both tracks as `refutation majority (E2 #1943)` — `runWarnCheck` in `scripts/check-all.mjs`, a row in `src/templates/scripts/gate-registry.yml.ejs`, and the engine itself emitted via `src/templates/scripts/check-refutation-verdicts.mjs.ejs` (kept byte-identical). Marker-gated. Verified by `__tests__/scripts/check-refutation-verdicts.test.ts` (15 cases, tamper-proven in both directions). Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR. CANON-24.
+
 ---

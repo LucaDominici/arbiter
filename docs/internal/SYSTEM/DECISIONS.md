@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-09-02'
+last_review: '2026-09-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -137,3 +137,4 @@ related: []
 | 116 | [Evidence Binds to Source Content; the Train Is the Ceremony Unit; a PR Is Owned Until Merged](../ADR/116-evidence-content-binding-train-ceremony-pr-ownership.md) | Accepted | 2026-08-29 |
 | 117 | [Companion Skill Provenance — Detected, Never Bundled](../ADR/117-companion-skill-provenance.md) | Accepted | 2026-08-29 |
 | 118 | [The lifecycle ontology is wired, not written](../ADR/118-lifecycle-ontology-wired-not-written.md) | Accepted | 2026-09-02 |
+| 119 | [Adversarial review hops until nothing above low survives](../ADR/119-adversarial-review-hops-until-low-only.md) | Accepted | 2026-09-03 |

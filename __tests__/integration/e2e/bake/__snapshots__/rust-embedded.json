@@ -264,7 +264,7 @@
     ".githooks/pre-push": "ae6f9b594b8f67052a9b19315ca5d467424d65d0646203fe9a9e583b18c68c57",
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",
-    "AGENTS.md": "f81a9beae7a6b6834a6dad35403f4dacf3cc07ffbe1d807dc2fac969da24a38b",
+    "AGENTS.md": "a2821d3eabb74be55b6e0ee605d32d06ce014134fdba6e5be12e3d8d0c807520",
     "DECISION_REGISTRY.md": "ea1375dcaadcfd6f328ba5ff445abb755f2db61b3ff95dfd7a7e839cfb2dba7f",
     "Makefile": "00a2c4ccfd4713e1ab769d70683e527744e8d02270c0392ba873774e1977b864",
     "api-e2e.json": "2c740244b414dbe4f5ebd0ab726f41a169b4e6a6821b129653304d99be9aeb91",

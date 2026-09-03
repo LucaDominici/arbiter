@@ -295,7 +295,7 @@
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".trivyignore": "4b1e090b79bedce32e59a6362370898dcec94c35330244d1af0d7b3f8cc9adfa",
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",
-    "AGENTS.md": "dd565338f099077d569cbcaddb656752c2aaca17b4b5bf45b6fdfb2b594fec2f",
+    "AGENTS.md": "b322e0a2bdf48c11721e6beae145c2293602f325fff8ad7cbef2a9e77319966c",
     "DECISION_REGISTRY.md": "6deeed8b915048f70fbf8c1354b0dda44e330c4062b7e65cd3d61a9f453d9ab4",
     "Makefile": "11c9ade36a50e968b74e7de14eea86a1cb497d6f947fce78149da0cbf4f8843e",
     "__tests__/contract/error-shape.contract.test.ts": "208c6f897162c3a17c6970443577ddc81804750ddf3bd3e70f8d516f344ba672",

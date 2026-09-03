@@ -22,6 +22,7 @@ function run(evidenceDir: string): { exitCode: number; stdout: string; stderr: s
 
 function skepticEnvelope(
   refutations: { target: string; verdict: string }[],
+  findings: { id: string; severity: string }[] = [],
 ): Record<string, unknown> {
   return {
     schema: 'arbiter-agent-return-v1',
@@ -33,7 +34,13 @@ function skepticEnvelope(
     ts: '2026-07-14T10:00:00.000Z',
     verdict: 'PASS',
     confidence: 0.7,
-    findings: [],
+    findings: findings.map((f) => ({
+      id: f.id,
+      severity: f.severity,
+      kind: 'structural',
+      claim: `finding ${f.id}`,
+      citations: [],
+    })),
     refutations,
   }
 }
@@ -138,5 +145,93 @@ describe('check-refutation-verdicts.mjs', () => {
     const r = run(evidenceDir)
     expect(r.exitCode).toBe(1)
     expect(r.stdout).toMatch(/f2.*majority-refuted/i)
+  })
+
+  // ── INV-145 / CANON-24: the severity floor ────────────────────────────────────────────────
+  // The majority axis above stops a PHANTOM finding being acted on. This one stops the loop
+  // ending while something REAL is still open — the two halves of one mechanism, over one set
+  // of envelopes.
+
+  const upheldBy = (ids: string[]) => ids.map((id) => ({ target: id, verdict: 'UPHELD' }))
+
+  it('fails when a majority-upheld high finding is left out of the acted-on set', () => {
+    writeMarker({ task: '#1943', skeptics: 2, findings: ['f-done'] })
+    const reported = [
+      { id: 'f-done', severity: 'high' },
+      { id: 'f-open', severity: 'high' },
+    ]
+    writeSkeptic('a.json', skepticEnvelope(upheldBy(['f-done', 'f-open']), reported))
+    writeSkeptic('b.json', skepticEnvelope(upheldBy(['f-done', 'f-open']), reported))
+    const r = run(evidenceDir)
+    expect(r.exitCode).toBe(1)
+    expect(r.stdout).toContain('"f-open" (high) is majority-upheld but not in the acted-on set')
+  })
+
+  it('passes once it is addressed, with only a low finding left open', () => {
+    // Same tree, one field different — the tamper proof in the other direction.
+    writeMarker({ task: '#1943', skeptics: 2, findings: ['f-done', 'f-open'] })
+    const reported = [
+      { id: 'f-done', severity: 'high' },
+      { id: 'f-open', severity: 'high' },
+      { id: 'f-nit', severity: 'low' },
+    ]
+    writeSkeptic('a.json', skepticEnvelope(upheldBy(['f-done', 'f-open', 'f-nit']), reported))
+    writeSkeptic('b.json', skepticEnvelope(upheldBy(['f-done', 'f-open', 'f-nit']), reported))
+    const r = run(evidenceDir)
+    expect(r.exitCode).toBe(0)
+    expect(r.stdout).toContain('nothing above `low` left unaddressed')
+  })
+
+  it('takes the WORST severity when skeptics disagree', () => {
+    // A kinder second reading must not lower the bar the loop has to clear.
+    writeMarker({ task: '#1943', skeptics: 2, findings: [] })
+    writeSkeptic('a.json', skepticEnvelope(upheldBy(['f-x']), [{ id: 'f-x', severity: 'med' }]))
+    writeSkeptic(
+      'b.json',
+      skepticEnvelope(upheldBy(['f-x']), [{ id: 'f-x', severity: 'critical' }]),
+    )
+    const r = run(evidenceDir)
+    expect(r.exitCode).toBe(1)
+    expect(r.stdout).toContain('(critical)')
+  })
+
+  it('a majority-REFUTED high finding never blocks — one false alarm cannot hold a wave hostage', () => {
+    // Exactly the R4 failure the majority rule exists to prevent; the floor must not reintroduce it.
+    writeMarker({ task: '#1943', skeptics: 2, findings: [] })
+    const reported = [{ id: 'f-phantom', severity: 'high' }]
+    const refuted = [{ target: 'f-phantom', verdict: 'REFUTED' }]
+    writeSkeptic('a.json', skepticEnvelope(refuted, reported))
+    writeSkeptic('b.json', skepticEnvelope(refuted, reported))
+    expect(run(evidenceDir).exitCode).toBe(0)
+  })
+
+  it('a finding below quorum does not block', () => {
+    writeMarker({ task: '#1943', skeptics: 3, findings: [] })
+    writeSkeptic(
+      'a.json',
+      skepticEnvelope(upheldBy(['f-lonely']), [{ id: 'f-lonely', severity: 'high' }]),
+    )
+    expect(run(evidenceDir).exitCode).toBe(0)
+  })
+
+  it('a low or info finding never blocks, however many skeptics upheld it', () => {
+    writeMarker({ task: '#1943', skeptics: 2, findings: [] })
+    const reported = [
+      { id: 'f-low', severity: 'low' },
+      { id: 'f-info', severity: 'info' },
+    ]
+    writeSkeptic('a.json', skepticEnvelope(upheldBy(['f-low', 'f-info']), reported))
+    writeSkeptic('b.json', skepticEnvelope(upheldBy(['f-low', 'f-info']), reported))
+    expect(run(evidenceDir).exitCode).toBe(0)
+  })
+
+  it('reports a degraded round out loud, and still adjudicates it', () => {
+    // A hop that could not reach an independent skeptic is accepted but must never be recorded
+    // as independent — a self-review filed as an independent one is the fake-green itself.
+    writeMarker({ task: '#1943', skeptics: 1, findings: [], degraded: true })
+    writeSkeptic('a.json', skepticEnvelope(upheldBy(['f-nit']), [{ id: 'f-nit', severity: 'low' }]))
+    const r = run(evidenceDir)
+    expect(r.exitCode).toBe(0)
+    expect(r.stdout).toContain('DEGRADED')
   })
 })

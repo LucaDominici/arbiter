@@ -2739,4 +2739,37 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(43 cases), which reads the real skeletons and a package-shaped dist-only layout rather ' +
       'than fixtures alone. exit 0=PASS, 1=violation, 2=ERROR per INV-53.',
   },
+  {
+    id: 'INV-145',
+    tier: 'governance',
+    selfOnly: false,
+    alwaysActive: true,
+    title: 'Adversarial review closes only when nothing above low severity survives',
+    description:
+      'One pass of review finds what one reader happens to look for. A high-stakes change is ' +
+      'therefore reviewed by independent skeptics carrying a REFUTE mandate, and the loop REPEATS ' +
+      '— each hop attacking the fixes the previous hop forced — until no finding above `low` is ' +
+      'left unaddressed. This is the complement of the refutation-majority rule, not a duplicate ' +
+      'of it: that rule stops a phantom finding being acted on (the false positive), this one ' +
+      'stops the loop ending while something real is still open (the false negative). Both read ' +
+      'the same skeptic envelopes, so the second axis needs no new artifact. Severity is the ' +
+      'HIGHEST any skeptic assigned — when two disagree the loop must clear the worse reading, ' +
+      'not the kinder one. A finding below quorum, or majority-REFUTED, never blocks: one ' +
+      "skeptic's false alarm must not hold a wave hostage, which is the very failure the " +
+      'majority rule exists to prevent. A hop that cannot reach an independent reviewer may be ' +
+      'self-probed, but the marker records `degraded` and the round never counts as independent — ' +
+      'a self-review filed as an independent one is precisely the fake-green this catalog exists ' +
+      'to prevent.',
+    enforcement:
+      'scripts/check-refutation-verdicts.mjs — wired on BOTH tracks already as ' +
+      "'refutation majority (E2 #1943)': runWarnCheck in scripts/check-all.mjs and a registry row " +
+      'in src/templates/scripts/gate-registry.yml.ejs, so this axis inherits that wiring rather ' +
+      'than adding a second gate over the same evidence (CANON-16). Marker-gated exactly as the ' +
+      'majority axis is: with .arbiter/evidence/agent-returns/<task>/refutation-required.json ' +
+      'present, every majority-UPHELD finding at critical/high/med must appear in the acted-on ' +
+      'set; absent the marker the gate passes vacuously. Verified by ' +
+      '__tests__/scripts/check-refutation-verdicts.test.ts, tamper-proven in both directions ' +
+      '(an unaddressed high fails; the same tree with it addressed and only a low left passes). ' +
+      'exit 0=PASS, 1=violation, 2=ERROR per INV-53. CANON-24.',
+  },
 ]
