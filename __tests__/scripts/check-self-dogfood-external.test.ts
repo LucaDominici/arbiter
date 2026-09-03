@@ -101,6 +101,18 @@ describe('EXTERNAL_CI_FAMILIES', () => {
     expect(scripts.include('check-all')).toBe(false)
   })
 
+  // #2466: self-validation.mjs.ejs / scripts/self-validation.mjs is a zero-interpolation
+  // twin — same shape as the check-*/record-* gates already in scope — but its basename
+  // matched neither prefix, so it silently sat OUTSIDE R-02 parity. TESTING.md's "Adding a
+  // Gate to the Drill" section documents `diff <template> <materialized> # must produce no
+  // output` as the verification step; that instruction is only honest if something keeps
+  // the two byte-identical after this task, not just on the day it was checked by hand.
+  it('check-scripts family admits the self-validation drill twin (#2466)', () => {
+    const scripts = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'check-scripts')
+    expect(scripts.include('self-validation')).toBe(true)
+    expect(matchedFamilyBasenames(repoRoot, scripts)).toContain('self-validation')
+  })
+
   it('script-libs family basename-intersects scripts/lib with its shipped twins', () => {
     const libs = EXTERNAL_CI_FAMILIES.find((f: { key: string }) => f.key === 'script-libs')
     expect(libs.templateDir).toBe('src/templates/scripts/lib')
