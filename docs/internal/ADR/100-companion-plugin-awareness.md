@@ -1,7 +1,7 @@
 ---
 title: 'Companion-plugin awareness in /ship'
 doc_version: '1.0.0'
-status: accepted
+status: active
 last_review: '2026-07-01'
 owner: ''
 canonical_id: '100'

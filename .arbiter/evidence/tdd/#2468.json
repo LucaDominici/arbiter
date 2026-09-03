@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2468",
+  "test_path": "__tests__/scripts/adr-status-vocabulary.test.ts",
+  "test_commit_sha": "3dfe93922eb6a54045359f65d1ee69812541bf4d",
+  "test_blob_sha": "9eda610ddc82828c90f3140b235d13d636d76540",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/adr-status-vocabulary.test.ts (2 tests | 1 failed) 64ms\n     × never draws a numbered ADR's frontmatter status from the retired \"accepted\" alias 15ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed (2)\n   Start at  03:52:52\n   Duration  435ms (transform 75ms, setup 27ms, import 68ms, tests 64ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/adr-status-vocabulary.test.ts > ADR status vocabulary — single canonical source (#2468) > never draws a numbered ADR's frontmatter status from the retired \"accepted\" alias\nAssertionError: expected [ { …(2) }, { …(2) }, { …(2) }, …(1) ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   {\n+     \"f\": \"095-supported-ai-tools-claude-codex.md\",\n+     \"status\": \"accepted\",\n+   },\n+   {\n+     \"f\": \"096-probe-incidental-discovery-loop.md\",\n+     \"status\": \"accepted\",\n+   },\n+   {\n+     \"f\": \"097-context-rot-management-skill.md\",\n+     \"status\": \"accepted\",\n+   },\n+   {\n+     \"f\": \"100-companion-plugin-awareness.md\",\n+     \"status\": \"accepted\",\n+   },\n+ ]\n\n ❯ __tests__/scripts/adr-status-vocabulary.test.ts:74:31\n     72|       .filter(({ status }) => status === 'accepted' && !canonical.has(…\n     73|\n     74|     expect(usingRetiredAlias).toEqual([])\n       |                               ^\n     75|   })\n     76|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/adr-status-vocabulary.test.ts",
+  "recorded_at": "2026-09-03T03:52:53.172Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/adr-status-vocabulary.test.ts"
+  ]
+}
