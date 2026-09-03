@@ -26,9 +26,10 @@ const TESTING_DOC = join(repoRoot, 'docs/internal/METHOD/TESTING.md')
 function extractDocumentedDiffCommand(): string[] {
   const doc = readFileSync(TESTING_DOC, 'utf-8')
   const sectionStart = doc.indexOf('## Adding a Gate to the Drill')
-  expect(sectionStart, 'TESTING.md must have an "Adding a Gate to the Drill" section').toBeGreaterThan(
-    -1,
-  )
+  expect(
+    sectionStart,
+    'TESTING.md must have an "Adding a Gate to the Drill" section',
+  ).toBeGreaterThan(-1)
   const section = doc.slice(sectionStart, doc.indexOf('\n## ', sectionStart + 1))
   const match = section.match(/^diff (\S+) (\S+)\s*$/m)
   expect(
@@ -48,7 +49,7 @@ describe('#2466 TESTING.md twin-diff verification step is executable and passes'
   it('running the documented diff command produces no output on this tree', () => {
     const [a, b] = extractDocumentedDiffCommand()
     let failed = false
-    let output = ''
+    let output: string
     try {
       output = execFileSync('diff', [a, b], { cwd: repoRoot, encoding: 'utf-8' })
     } catch (err) {
