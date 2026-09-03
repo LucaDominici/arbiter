@@ -378,7 +378,7 @@
     "scripts/verify-mutation-baseline.mjs": "51381241b6fd038513c879aa02b5f1af681d1e0589b3838ee6d79a45da2be5fc",
     "smoke-journeys.json": "3a41758d1a422ca1317c0c3e0e20c0d3b14e9a3602d736b7bdaca8357b345932",
     "standards/doc-profile": "54db4a778d47862a6896b74b4346d4b415aec1046b1f4001cb25076fcd866a38",
-    "standards/gold-doc-set.yml": "97f97d08ccb3ad832733435728a8286ea49973bec7804bebbdd3cdd21ddeb85c",
+    "standards/gold-doc-set.yml": "1bb9b6ab0d94e3fd4fcdac4936e81c7e1d9a366f74323dfcd2f97a02d50f9249",
     "standards/gold-registry.yml": "4ccde6077b22f84b5f78542e014eee94d33141a624d3bad663a70eeef9ed92b1",
     "standards/thresholds.yml": "1208e55cded6b436d2915bde124bdb202a5ccb5bd2514613d8d4ae8a52cbb665",
     "suppressions/.gitleaksignore": "863d27bf7110b0bb14a53ee60c4d7d94225704d3706c020164c82c8e4ef6dc52",

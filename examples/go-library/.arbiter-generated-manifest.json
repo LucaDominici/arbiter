@@ -183,7 +183,7 @@
     "scripts/verify-mutation-baseline.mjs": "d3fb585b5c4eecf83fe71c7887cd15aa8a93bb8390882c287ddc314f0163d3a7",
     "smoke-journeys.json": "80d4ac119ae83881947417e143455943a32ee5637e5c9db5eaf6c6d16cb0d6a4",
     "standards/doc-profile": "54db4a778d47862a6896b74b4346d4b415aec1046b1f4001cb25076fcd866a38",
-    "standards/gold-doc-set.yml": "97f97d08ccb3ad832733435728a8286ea49973bec7804bebbdd3cdd21ddeb85c",
+    "standards/gold-doc-set.yml": "1bb9b6ab0d94e3fd4fcdac4936e81c7e1d9a366f74323dfcd2f97a02d50f9249",
     "standards/gold-registry.yml": "4ccde6077b22f84b5f78542e014eee94d33141a624d3bad663a70eeef9ed92b1",
     "standards/thresholds.yml": "1208e55cded6b436d2915bde124bdb202a5ccb5bd2514613d8d4ae8a52cbb665",
     "suppressions/.gitleaksignore": "5879d512074974501a861e32e535e7c5820c130e7b3138b695f6cc654bee6d2b",

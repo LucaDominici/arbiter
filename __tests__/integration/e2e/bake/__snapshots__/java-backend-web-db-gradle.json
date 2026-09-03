@@ -416,7 +416,7 @@
     "src/test/java/com/example/support/RestAssuredBaseIT.java": "80046871a3a44ccde746ac05fdead596ccdd678ef531faeafe3111b345912088",
     "src/test/resources/features/example.feature": "971564b0b51249d08e7093641ac6b3969f086d01c343b1999adfb776c7e9d22d",
     "standards/doc-profile": "54db4a778d47862a6896b74b4346d4b415aec1046b1f4001cb25076fcd866a38",
-    "standards/gold-doc-set.yml": "97f97d08ccb3ad832733435728a8286ea49973bec7804bebbdd3cdd21ddeb85c",
+    "standards/gold-doc-set.yml": "1bb9b6ab0d94e3fd4fcdac4936e81c7e1d9a366f74323dfcd2f97a02d50f9249",
     "standards/gold-registry.java.yml": "0dbb24aad080ee49fa38315bb4d3906e7d71827c8fd2a5c622446be4c9eef4d8",
     "standards/gold-registry.yml": "4ccde6077b22f84b5f78542e014eee94d33141a624d3bad663a70eeef9ed92b1",
     "standards/thresholds.yml": "1208e55cded6b436d2915bde124bdb202a5ccb5bd2514613d8d4ae8a52cbb665",

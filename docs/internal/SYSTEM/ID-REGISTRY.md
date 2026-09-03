@@ -301,7 +301,7 @@ and INV-31.
       "hook": "n/a",
       "status": "staged",
       "expires": "2027-01-31",
-      "note": "Wave 8. One retroactive document exists with no template, no doc-set row and no gate; the contract rides the doc-set engine rather than earning a script of its own."
+      "note": "The doc-set row landed in wave 2, on BOTH tracks: standards/gold-doc-set.yml and src/templates/standards/gold-doc-set.yml.ejs, so presence and freshness are gated for arbiter and for every governed project. Still staged for wave 8, which owes the FS-NN identifier itself \u2014 frontmatter carrying the id and its `informs` edges \u2014 without which the study is a gated document but not yet an addressable node. The contract rides the doc-set engine rather than earning a script of its own."
     },
     {
       "prefix": "EP",
