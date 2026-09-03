@@ -122,12 +122,12 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 092 | [jscpd v5 Migration — Fail-Closed Duplication Gate](092-jscpd-v5-fail-closed-duplication-gate.md)                                                                     | Accepted   | 2026-06-10 |  |
 | 093 | [Dual-Side the /ship Orchestrator](093-dual-side-ship-orchestrator.md)                                                                                                | proposed   | 2026-06-11 |  |
 | 094 | [Project Profile Resolver — one catalog + one precedence layer](094-project-profile-resolver.md)                                                                      | proposed   | 2026-06-11 |  |
-| 095 | [Supported AI tools — claude + codex; rest experimental](095-supported-ai-tools-claude-codex.md)                                                                      | accepted   | 2026-06-13 |  |
-| 096 | [Probe — always-on incidental-discovery loop](096-probe-incidental-discovery-loop.md)                                                                                 | accepted   | 2026-06-15 |  |
-| 097 | [Context-rot-management skill (CLI-first 3-layer redundancy)](097-context-rot-management-skill.md)                                                                    | accepted   | 2026-06-19 |  |
+| 095 | [Supported AI tools — claude + codex; rest experimental](095-supported-ai-tools-claude-codex.md)                                                                      | Accepted   | 2026-06-13 |  |
+| 096 | [Probe — always-on incidental-discovery loop](096-probe-incidental-discovery-loop.md)                                                                                 | Accepted   | 2026-06-15 |  |
+| 097 | [Context-rot-management skill (CLI-first 3-layer redundancy)](097-context-rot-management-skill.md)                                                                    | Accepted   | 2026-06-19 |  |
 | 098 | [Progressive-adoption tiers (bootstrap on-ramp)](098-progressive-adoption-tiers.md)                                                                                   | Accepted   | 2026-06-20 |  |
 | 099 | [Native zero-dependency xlsx writer (drop exceljs)](099-native-xlsx-writer.md)                                                                                        | Accepted   | 2026-06-30 |  |
-| 100 | [Companion-plugin awareness in /ship](100-companion-plugin-awareness.md)                                                                                              | accepted   | 2026-07-01 |  |
+| 100 | [Companion-plugin awareness in /ship](100-companion-plugin-awareness.md)                                                                                              | Accepted   | 2026-07-01 |  |
 | 101 | [runnerProfile cadence axis (solo/fleet)](101-runner-profile-cadence-axis.md)                                                                                         | Accepted   | 2026-07-01 |  |
 | 102 | [gate the workflow-template-emitted dims at L3](102-l3-workflow-dim-gating.md)                                                                                        | Accepted   | 2026-07-01 |  |
 | 103 | [Worktree-Isolated Parallel Execution Carve-out](103-worktree-parallel-carveout.md)                                                                                   | Accepted   | 2026-08-23 |  |
