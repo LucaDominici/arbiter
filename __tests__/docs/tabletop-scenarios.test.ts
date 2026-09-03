@@ -114,16 +114,14 @@ describe('tabletop scenario catalogue (#2429)', () => {
       const heading = block.split('\n')[0]
       for (const p of citedProbePaths(block)) {
         checked++
-        expect(existsSync(p), `${heading} cites a probe path that does not exist: ${p}`).toBe(
-          true,
-        )
+        expect(existsSync(p), `${heading} cites a probe path that does not exist: ${p}`).toBe(true)
       }
     }
     // At least the two probes this fix relies on (below) must have been walked.
     expect(checked).toBeGreaterThan(0)
   })
 
-  it('never leaves a scenario\'s probes field empty (a probeless scenario must say so)', () => {
+  it("never leaves a scenario's probes field empty (a probeless scenario must say so)", () => {
     for (const block of scenarioBlocks(catalogue())) {
       const heading = block.split('\n')[0]
       const text = executableProbesText(block)
