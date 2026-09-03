@@ -593,7 +593,7 @@
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
     "scripts/run-postman-tests.sh": "e859d168c5df6e2f9377e1190c764e8250c1bf31df4a9d2eecd9cd1276f2077f",
     "scripts/seed-test-data.sh": "c09b5221748953371060c5a754f40bf5eca274419ffbc907cbcfbac668caf2a7",
-    "scripts/self-validation.mjs": "371bf749b0846563956e1e5320a1618898a4bd4369e65f275ec76fb9e5dff7e8",
+    "scripts/self-validation.mjs": "bb50ed871af6c4c0c0d68073cb43607c6c1dae812c5ee6e0b4be4b5c95cb9c30",
     "scripts/setup-hooks.sh": "e0656ba08041e0c9a36d50194a5eba0bbc55b835228cb10509682c711b759de5",
     "scripts/test-gate-layering.mjs": "bcd57e8a244bb2be1406e975eb1a94713ca90cbc4436d9afe2dd3dfafe2e19e4",
     "scripts/validate-api-snapshots.mjs": "e2eb8527d23cec7aab3589f1aad5cc3a5d858ec793eb0867da1a6f98fa88270b",

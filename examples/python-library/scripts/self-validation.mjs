@@ -7,125 +7,120 @@
 //   A (clean)  — run gate against a clean project dir → expect exit 0
 //   B (drift)  — run gate against a dir with a known violation → expect exit 1
 //   C (error)  — run gate with invalid args → expect gate's defined error exit
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
-const RESET = "\x1b[0m";
-const GREEN = "\x1b[32m";
-const RED = "\x1b[31m";
-const BOLD = "\x1b[1m";
+const RESET = '\x1b[0m'
+const GREEN = '\x1b[32m'
+const RED = '\x1b[31m'
+const BOLD = '\x1b[1m'
 
 function pass(msg) {
-  console.log(`  ${GREEN}✓ PASS${RESET}  ${msg}`);
+  process.stdout.write(`  ${GREEN}✓ PASS${RESET}  ${msg}
+`)
 }
 function fail(msg) {
-  console.log(`  ${RED}✗ FAIL${RESET}  ${msg}`);
+  process.stdout.write(`  ${RED}✗ FAIL${RESET}  ${msg}
+`)
 }
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, {
-    encoding: "utf-8",
+    encoding: 'utf-8',
     cwd: opts.cwd ?? process.cwd(),
-  });
+  })
   if (r.error) {
     process.stderr.write(
-      `  [run] spawn failed for "${cmd} ${args.join(" ")}": ${r.error.message}\n`,
-    );
-    r._exitCode = 2;
+      `  [run] spawn failed for "${cmd} ${args.join(' ')}": ${r.error.message}\n`,
+    )
+    r._exitCode = 2
   } else {
-    r._exitCode = r.status ?? 1;
+    r._exitCode = r.status ?? 1
   }
-  return r;
+  return r
 }
 
 function makeCleanDir() {
-  const d = mkdtempSync(join(tmpdir(), "sv-clean-"));
-  writeFileSync(join(d, "clean.mjs"), "process.exit(0);\n");
-  return d;
+  const d = mkdtempSync(join(tmpdir(), 'sv-clean-'))
+  writeFileSync(join(d, 'clean.mjs'), 'process.exit(0);\n')
+  return d
 }
 
 function makeDriftDir() {
-  const d = mkdtempSync(join(tmpdir(), "sv-drift-"));
-  writeFileSync(join(d, "bad.mjs"), "process.exit(42);\n");
-  return d;
+  const d = mkdtempSync(join(tmpdir(), 'sv-drift-'))
+  writeFileSync(join(d, 'bad.mjs'), 'process.exit(42);\n')
+  return d
 }
 
 const GATES = [
   {
-    id: "exit-code-contract",
-    label: "exit code contract",
-    cmd: "node",
-    argsA: (clean) => ["scripts/check-exit-code-contract.mjs", clean],
-    argsB: (drift) => ["scripts/check-exit-code-contract.mjs", drift],
-    argsC: () => [
-      "scripts/check-exit-code-contract.mjs",
-      "--nonexistent-path-xyz-abc",
-    ],
+    id: 'exit-code-contract',
+    label: 'exit code contract',
+    cmd: 'node',
+    argsA: (clean) => ['scripts/check-exit-code-contract.mjs', clean],
+    argsB: (drift) => ['scripts/check-exit-code-contract.mjs', drift],
+    argsC: () => ['scripts/check-exit-code-contract.mjs', '--nonexistent-path-xyz-abc'],
     expectA: 0,
     expectB: 1,
     expectC: 2,
   },
   {
-    id: "pipe-tee-hazard",
-    label: "pipe/tee hazard (advisory)",
-    cmd: "node",
-    argsA: (clean) => ["scripts/check-pipe-tee-hazard.mjs", clean],
+    id: 'pipe-tee-hazard',
+    label: 'pipe/tee hazard (advisory)',
+    cmd: 'node',
+    argsA: (clean) => ['scripts/check-pipe-tee-hazard.mjs', clean],
     argsB: (drift) => {
-      writeFileSync(
-        join(drift, "hazard.sh"),
-        "#!/bin/bash\ncmd | tee out.log\n",
-      );
-      return ["scripts/check-pipe-tee-hazard.mjs", drift];
+      writeFileSync(join(drift, 'hazard.sh'), '#!/bin/bash\ncmd | tee out.log\n')
+      return ['scripts/check-pipe-tee-hazard.mjs', drift]
     },
-    argsC: () => [
-      "scripts/check-pipe-tee-hazard.mjs",
-      "--nonexistent-path-xyz-abc",
-    ],
+    argsC: () => ['scripts/check-pipe-tee-hazard.mjs', '--nonexistent-path-xyz-abc'],
     expectA: 0,
     expectB: 0,
     expectC: 0,
   },
-];
+]
 
-let totalPassed = 0;
-let totalFailed = 0;
+let totalPassed = 0
+let totalFailed = 0
 
 for (const gate of GATES) {
-  console.log(`\n${BOLD}[DRILL] ${gate.label}${RESET}`);
-  const clean = makeCleanDir();
-  const drift = makeDriftDir();
+  process.stdout.write(`\n${BOLD}[DRILL] ${gate.label}${RESET}
+`)
+  const clean = makeCleanDir()
+  const drift = makeDriftDir()
   try {
     const phases = [
-      { label: "A (clean)", args: gate.argsA(clean), expect: gate.expectA },
-      { label: "B (drift)", args: gate.argsB(drift), expect: gate.expectB },
-      { label: "C (error)", args: gate.argsC(), expect: gate.expectC },
-    ];
+      { label: 'A (clean)', args: gate.argsA(clean), expect: gate.expectA },
+      { label: 'B (drift)', args: gate.argsB(drift), expect: gate.expectB },
+      { label: 'C (error)', args: gate.argsC(), expect: gate.expectC },
+    ]
     for (const { label, args, expect } of phases) {
-      const r = run(gate.cmd, args);
-      const got = r._exitCode;
-      const msg = `${label}  → exit ${got}  (expected ${expect})`;
+      const r = run(gate.cmd, args)
+      const got = r._exitCode
+      const msg = `${label}  → exit ${got}  (expected ${expect})`
       if (got === expect) {
-        pass(msg);
-        totalPassed++;
+        pass(msg)
+        totalPassed++
       } else {
-        fail(msg);
-        if (r.stdout?.trim())
-          process.stderr.write(`    stdout: ${r.stdout.trim()}\n`);
-        if (r.stderr?.trim())
-          process.stderr.write(`    stderr: ${r.stderr.trim()}\n`);
-        totalFailed++;
+        fail(msg)
+        if (r.stdout?.trim()) process.stderr.write(`    stdout: ${r.stdout.trim()}\n`)
+        if (r.stderr?.trim()) process.stderr.write(`    stderr: ${r.stderr.trim()}\n`)
+        totalFailed++
       }
     }
   } finally {
-    rmSync(clean, { recursive: true, force: true });
-    rmSync(drift, { recursive: true, force: true });
+    rmSync(clean, { recursive: true, force: true })
+    rmSync(drift, { recursive: true, force: true })
   }
 }
 
-console.log(`\n${"─".repeat(52)}`);
-console.log(`Passed: ${totalPassed}  Failed: ${totalFailed}`);
-console.log(`${"─".repeat(52)}\n`);
+process.stdout.write(`\n${'─'.repeat(52)}
+`)
+process.stdout.write(`Passed: ${totalPassed}  Failed: ${totalFailed}
+`)
+process.stdout.write(`${'─'.repeat(52)}\n
+`)
 
-process.exit(totalFailed > 0 ? 1 : 0);
+process.exit(totalFailed > 0 ? 1 : 0)

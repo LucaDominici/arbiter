@@ -623,12 +623,18 @@ export const EXTERNAL_CI_FAMILIES = [
     // (#2229): the debt toolchain ships .ejs twins whose R-02 render now
     // supplies metricsProfile — a single-sided edit to the materialized debt
     // scripts must trip parity exactly like any gate twin.
+    // self-validation admitted alongside them (#2466): it is a zero-interpolation
+    // twin exactly like the gates above (INV-53's A/B/C drill harness), but its
+    // basename matched neither the check-* nor record-* prefix, so it sat outside
+    // R-02 parity — the only thing keeping it in sync with its template was a
+    // human running the `diff` TESTING.md documents by hand.
     include: (base) =>
       (base.startsWith('check-') ||
         base.startsWith('record-') ||
         base === 'debt-lib' ||
         base === 'debt-report' ||
-        base === 'capture-debt-baseline') &&
+        base === 'capture-debt-baseline' ||
+        base === 'self-validation') &&
       base !== 'check-all',
   },
   // #1943 residual c: the E1-E7 enforcer twins import shared helpers from
