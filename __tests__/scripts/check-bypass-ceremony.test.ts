@@ -67,7 +67,9 @@ function writeCheckAllMixed(
 ): void {
   const scriptsDir = join(root, 'scripts')
   mkdirSync(scriptsDir, { recursive: true })
-  const warnLines = warnCheckNames.map((n) => `  runWarnCheck('${n}', 'node', ['scripts/noop.mjs'])`)
+  const warnLines = warnCheckNames.map(
+    (n) => `  runWarnCheck('${n}', 'node', ['scripts/noop.mjs'])`,
+  )
   const hardLines = hardCheckNames.map((n) => `  runCheck('${n}', 'node', ['scripts/noop.mjs'])`)
   const body = [...warnLines, ...hardLines].join('\n')
   writeFileSync(join(scriptsDir, 'check-all.mjs'), `function main() {\n${body}\n}\n`)
@@ -308,9 +310,7 @@ describe('check-bypass-ceremony.mjs', () => {
 
     it('passes when a ledger entry still names a live runWarnCheck site', () => {
       writeCheckAll(tmpDir, ['conformance'])
-      writeLedger(tmpDir, [
-        { check: 'conformance', permanent: true, rationale: 'informational' },
-      ])
+      writeLedger(tmpDir, [{ check: 'conformance', permanent: true, rationale: 'informational' }])
       expect(run(['--root', tmpDir]).exitCode).toBe(0)
     })
 

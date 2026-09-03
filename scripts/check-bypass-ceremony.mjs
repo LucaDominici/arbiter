@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// CATALOG: E4 (#1943/#1949, M15b) — bypass ceremony detector. Two detectors, one axis
+// CATALOG: E4 (#1943/#1949, M15b) — bypass ceremony detector. Three detectors, one axis
 // CATALOG: (enforcement theater): (a) bypass-rate ceiling — a gate bypassed more than N
 // CATALOG: times/month via .arbiter/evidence/bypass-log.jsonl is flagged for demotion or
 // CATALOG: deletion; (b) advisory-permanent — every runWarnCheck(...) call site in
@@ -8,15 +8,20 @@
 // CATALOG: scripts/lib/anti-fake-green-guards.mjs (whose exit 1 is advisory unless the
 // CATALOG: aggregate runs --enforce, #2419) must have a scripts/data/advisory-ledger.json
 // CATALOG: entry with a future promoteBy or permanent:true + rationale (the dated-debt
-// CATALOG: discipline of suppressions expiry, INV-31, applied to the gate roster itself).
+// CATALOG: discipline of suppressions expiry, INV-31, applied to the gate roster itself);
+// CATALOG: (c) orphan ledger entries (#2467) — the REVERSE of (b): every ledger entry must
+// CATALOG: still name a live advisory site (a runWarnCheck call or a gh-audit guard). A check
+// CATALOG: promoted to a hard runCheck, renamed, or removed otherwise rots its ledger row
+// CATALOG: silently forever, since (b) never looks in that direction.
 // CATALOG: Rejected fold-in into check-suppressions.mjs: that lints suppression *comments*
 // CATALOG: with a different required-field shape (owner/scope), not the gate roster; rejected
 // CATALOG: fold-in into check-audit-dry-pass.mjs: shares the JSONL-ledger shape but a wholly
 // CATALOG: different predicate (dry-pass termination vs bypass-rate ceiling).
 //
-// Exit codes (INV-53): 0 PASS, 1 FAIL (ceiling exceeded / ledger entry missing or expired /
-// malformed input), 2 ERROR (invocation/IO failure outside the audited files themselves).
-// Vacuous pass when no bypass-log exists and check-all.mjs has no runWarnCheck sites.
+// Exit codes (INV-53): 0 PASS, 1 FAIL (ceiling exceeded / ledger entry missing, expired, or
+// orphaned / malformed input), 2 ERROR (invocation/IO failure outside the audited files
+// themselves). Vacuous pass when no bypass-log exists, check-all.mjs has no runWarnCheck sites,
+// and the advisory ledger has no entries.
 //
 // Usage:
 //   node scripts/check-bypass-ceremony.mjs [--root <dir>] [--json]
@@ -169,6 +174,23 @@ function extractWarnCheckSites(body) {
 }
 
 /**
+ * Extract every runCheck('name', ...) call-site name from check-all.mjs source (HARD checks).
+ * Used only by detector (c) (#2467) to say whether an orphaned ledger entry's check has been
+ * PROMOTED to hard (a more useful message) versus not found anywhere — never to decide advisory
+ * status by name pattern. `runCheck(` does not match inside `runWarnCheck(` or `runToolCheck(`
+ * (neither contains that exact substring), so no site is double-counted across extractors.
+ * @param {string} body
+ * @returns {string[]}
+ */
+function extractHardCheckSites(body) {
+  const siteRe = /runCheck\(\s*['"]([^'"]+)['"]/g
+  /** @type {string[]} */
+  const sites = []
+  for (const m of body.matchAll(siteRe)) sites.push(m[1])
+  return sites
+}
+
+/**
  * #2419 AC-3 — the SECOND population of advisory gates. `scripts/check-anti-fake-green.mjs` runs
  * HARD, but a `class: 'gh-audit'` member's exit 1 is ADVISORY (only `--enforce` makes the aggregate
  * fail on it), so those guards are advisory-forever in exactly the way runWarnCheck sites are —
@@ -191,21 +213,49 @@ function extractGhAuditGuards(body) {
 }
 
 /**
+ * Load and parse the advisory ledger once, shared by detector (b) (forward: every advisory site
+ * has an entry) and detector (c) (reverse: every entry names a still-advisory site, #2467).
+ * `error` is set — and `entries`/`byName` are empty — when the file exists but is not valid JSON
+ * or its `entries` field is not an array: the fail-closed signal that a ledger-derived detector
+ * cannot proceed on trust and must report the ledger itself as broken, distinct from a
+ * legitimately empty ledger (`entries: []`, no error).
+ * @returns {{ entries: Record<string, unknown>[], byName: Map<string, Record<string, unknown>>, error: string | null }}
+ */
+function loadLedger() {
+  if (!existsSync(LEDGER_PATH)) return { entries: [], byName: new Map(), error: null }
+  /** @type {unknown} */
+  let parsed
+  try {
+    parsed = JSON.parse(readFileSync(LEDGER_PATH, 'utf-8'))
+  } catch (err) {
+    return {
+      entries: [],
+      byName: new Map(),
+      error: `advisory-ledger.json is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+  const entriesRaw = /** @type {{ entries?: unknown }} */ (parsed).entries
+  if (!Array.isArray(entriesRaw)) {
+    return {
+      entries: [],
+      byName: new Map(),
+      error: 'advisory-ledger.json "entries" is not an array',
+    }
+  }
+  const entries = /** @type {Record<string, unknown>[]} */ (entriesRaw)
+  const byName = new Map(entries.map((e) => [String(e.check ?? ''), e]))
+  return { entries, byName, error: null }
+}
+
+/**
  * Load the advisory ledger entries as a Map keyed by `check` name. A missing or malformed
  * ledger degrades to an empty map — fail-closed: every site is then reported "missing"
- * rather than silently skipped.
+ * rather than silently skipped. Thin wrapper over loadLedger() for detector (b)'s existing shape.
  * @returns {Map<string, Record<string, unknown>>}
  */
 function loadLedgerByName() {
-  if (!existsSync(LEDGER_PATH)) return new Map()
-  try {
-    const parsed = JSON.parse(readFileSync(LEDGER_PATH, 'utf-8'))
-    const entries = Array.isArray(parsed.entries) ? parsed.entries : []
-    return new Map(entries.map((e) => [String(e.check ?? ''), e]))
-    // FAIL-OPEN-INTENT: malformed ledger degrades to an empty Map — every site then reports missing, fail-closed.
-  } catch {
-    return new Map()
-  }
+  // FAIL-OPEN-INTENT: malformed ledger degrades to an empty Map — every site then reports missing, fail-closed.
+  return loadLedger().byName
 }
 
 /**
@@ -267,6 +317,57 @@ function checkAdvisoryPermanent() {
   return { sites, violations }
 }
 
+/**
+ * Detector (c) (#2467) — the REVERSE direction of detector (b): every advisory-ledger.json entry
+ * must name a check that is STILL an advisory site (a live runWarnCheck call, or a class:'gh-audit'
+ * guard) — never inferred from the check's name, only from the exact same two sources detector (b)
+ * already treats as ground truth. A check promoted to a hard runCheck, renamed, or removed leaves
+ * its ledger entry an orphan: it describes an advisory bypass for a check that either is no longer
+ * advisory or no longer exists. Fail-closed: when scripts/check-all.mjs is unreadable, there is no
+ * source of truth for ANY entry's advisory status, so a non-empty ledger fails loudly rather than
+ * passing on missing information — the caller handles the malformed-ledger case the same way.
+ * @param {{ entries: Record<string, unknown>[] }} ledger
+ * @returns {string[]}
+ */
+function checkOrphanEntries(ledger) {
+  if (ledger.entries.length === 0) return []
+  if (!existsSync(CHECK_ALL_PATH)) {
+    return [
+      `scripts/check-all.mjs not found — cannot determine advisory status for ${ledger.entries.length} advisory-ledger entrie(s) (fail-closed)`,
+    ]
+  }
+  const checkAllBody = readFileSync(CHECK_ALL_PATH, 'utf-8')
+  const advisoryNames = new Set([
+    ...extractWarnCheckSites(checkAllBody),
+    ...(existsSync(GUARD_ROSTER_PATH)
+      ? extractGhAuditGuards(readFileSync(GUARD_ROSTER_PATH, 'utf-8'))
+      : []),
+  ])
+  const hardNames = new Set(extractHardCheckSites(checkAllBody))
+  /** @type {string[]} */
+  const violations = []
+  for (const entry of ledger.entries) {
+    const name = typeof entry.check === 'string' ? entry.check : ''
+    if (name === '') {
+      violations.push(
+        'advisory-ledger.json has an entry with no "check" name — cannot verify (fail-closed)',
+      )
+      continue
+    }
+    if (advisoryNames.has(name)) continue
+    if (hardNames.has(name)) {
+      violations.push(
+        `"${name}": advisory-ledger.json entry describes a bypass for a check that has been promoted to a hard runCheck in scripts/check-all.mjs — orphan entry, prune it`,
+      )
+    } else {
+      violations.push(
+        `"${name}": advisory-ledger.json entry names a check not found in scripts/check-all.mjs (neither a runWarnCheck site nor a gh-audit guard) — orphan entry, prune it`,
+      )
+    }
+  }
+  return violations
+}
+
 function main() {
   const { records, malformed } = parseBypassLog()
   if (malformed.length > 0) {
@@ -285,7 +386,12 @@ function main() {
 
   const thresholds = loadThresholds()
   const { channels, violations: rateViolations } = checkBypassRate(records, thresholds)
-  const { violations: ledgerViolations } = checkAdvisoryPermanent()
+  const { violations: advisoryPermanentViolations } = checkAdvisoryPermanent()
+  const ledger = loadLedger()
+  const orphanViolations = ledger.error
+    ? [`advisory ledger: ${ledger.error} — cannot verify orphan entries (fail-closed)`]
+    : checkOrphanEntries(ledger)
+  const ledgerViolations = [...advisoryPermanentViolations, ...orphanViolations]
 
   for (const v of rateViolations) process.stdout.write(`[check-bypass-ceremony] FAIL: ${v}\n`)
   for (const v of ledgerViolations) process.stdout.write(`[check-bypass-ceremony] FAIL: ${v}\n`)
