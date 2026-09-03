@@ -39,6 +39,24 @@ function scenarioBlocks(text: string): string[] {
     .map((b) => `## ${b}`)
 }
 
+/** The raw text of a scenario block's `**Executable probes:**` field, if present. */
+function executableProbesText(block: string): string | null {
+  const m = /\*\*Executable probes:\*\*([\s\S]*?)(?=\n- \*\*Exit criterion:\*\*)/.exec(block)
+  return m ? m[1] : null
+}
+
+/**
+ * Repo-relative script/doc paths cited inside a scenario's `Executable probes` field.
+ * Filters out CLI invocations (`node dist/cli.js …`), bare flags, and shell commands
+ * (`gh pr checks --help`) — those aren't paths this repo tracks and cannot be stat'd.
+ * `dist/` is excluded too: it is a build artifact, not a committed source path.
+ */
+function citedProbePaths(block: string): string[] {
+  const text = executableProbesText(block) ?? ''
+  const spans = [...text.matchAll(/`([^`]+)`/g)].map((m) => m[1])
+  return spans.filter((s) => /^(scripts|src|docs|\.claude|__tests__|examples)\//.test(s))
+}
+
 describe('tabletop scenario catalogue (#2429)', () => {
   it('exists with the repo frontmatter convention', () => {
     expect(existsSync(CATALOGUE)).toBe(true)
@@ -80,5 +98,63 @@ describe('tabletop scenario catalogue (#2429)', () => {
 
   it('is indexed in docs/INDEX.md', () => {
     expect(readFileSync('docs/INDEX.md', 'utf-8')).toContain('METHOD/TABLETOP-SCENARIOS.md')
+  })
+
+  // #2445 — a probe that answers a different question than its scenario's exit criterion
+  // is worse than no probe: it manufactures a green result exactly where the doc exists to
+  // create real confidence. Mechanically proving "this probe is plausibly about this axis"
+  // in general is not attempted here (there is no reliable, generalizable text signal for
+  // it — see the two scripts' own header comments this fix reasoned from). What IS asserted
+  // mechanically, for every current and future scenario: every probe path a scenario cites
+  // must actually exist. On top of that, two regression pins guard the specific mismatches
+  // #2445 found and fixed from silently regressing.
+  it('cites only probe paths that exist', () => {
+    let checked = 0
+    for (const block of scenarioBlocks(catalogue())) {
+      const heading = block.split('\n')[0]
+      for (const p of citedProbePaths(block)) {
+        checked++
+        expect(existsSync(p), `${heading} cites a probe path that does not exist: ${p}`).toBe(true)
+      }
+    }
+    // At least the two probes this fix relies on (below) must have been walked.
+    expect(checked).toBeGreaterThan(0)
+  })
+
+  it("never leaves a scenario's probes field empty (a probeless scenario must say so)", () => {
+    for (const block of scenarioBlocks(catalogue())) {
+      const heading = block.split('\n')[0]
+      const text = executableProbesText(block)
+      expect(text, `${heading} missing Executable probes field`).toBeTruthy()
+      expect(
+        (text ?? '').trim().length,
+        `${heading} has an empty Executable probes field`,
+      ).toBeGreaterThan(0)
+    }
+  })
+
+  it('regression: drain-wave-of-four cites the disjointness mechanism, not the dispatch-matrix one (#2445)', () => {
+    const wave = scenarioBlocks(catalogue()).find((b) => b.includes('`drain-wave-of-four`'))
+    expect(wave, 'drain-wave-of-four scenario not found').toBeTruthy()
+    const probes = executableProbesText(wave ?? '') ?? ''
+    // check-agent-dispatch.mjs verifies the review-dispatch matrix (tier->vertical floor,
+    // model-diversity, refutation-skeptic counts) — a different axis from this scenario's
+    // exit criterion (disjoint file-sets, worktree isolation, single-wave-PR shape).
+    expect(probes).not.toContain('check-agent-dispatch.mjs')
+    // check-touched-vs-manifest.mjs is the harvest-time mechanism behind the disjoint-
+    // file-set precondition (touched files must stay inside a group's declared manifest).
+    expect(probes).toContain('check-touched-vs-manifest.mjs')
+  })
+
+  it('regression: consumer-upgrade-delta cites the deprecation-window mechanism, not the API-snapshot one (#2445)', () => {
+    const upgrade = scenarioBlocks(catalogue()).find((b) => b.includes('`consumer-upgrade-delta`'))
+    expect(upgrade, 'consumer-upgrade-delta scenario not found').toBeTruthy()
+    const probes = executableProbesText(upgrade ?? '') ?? ''
+    // check-api-snapshot.mjs verifies arbiter's own internal TS export surface
+    // (plugin/invariants/compatibility types) hasn't drifted — unrelated to whether a
+    // listed deprecation carries a version+removal window or the upgrade preview's skip
+    // set matches semver-preserved files.
+    expect(probes).not.toContain('check-api-snapshot.mjs')
+    expect(probes).toContain('check-deprecations.mjs')
   })
 })

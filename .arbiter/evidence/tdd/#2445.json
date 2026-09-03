@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2445",
+  "test_path": "__tests__/docs/tabletop-scenarios.test.ts",
+  "test_commit_sha": "1c9925a6a330d3306db16a636b73fc27432a344b",
+  "test_blob_sha": "40bb85cf4a4f1103a8e26f48a65167573716f74b",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/docs/tabletop-scenarios.test.ts (9 tests | 2 failed) 20ms\n     × regression: drain-wave-of-four cites the disjointness mechanism, not the dispatch-matrix one (#2445) 7ms\n     × regression: consumer-upgrade-delta cites the deprecation-window mechanism, not the API-snapshot one (#2445) 2ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 7 passed (9)\n   Start at  23:30:55\n   Duration  311ms (transform 49ms, setup 15ms, import 49ms, tests 20ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/docs/tabletop-scenarios.test.ts > tabletop scenario catalogue (#2429) > regression: drain-wave-of-four cites the disjointness mechanism, not the dispatch-matrix one (#2445)\nAssertionError: expected ' `node dist/cli.js worktree --help`; …' not to contain 'check-agent-dispatch.mjs'\n\n- Expected\n+ Received\n\n- check-agent-dispatch.mjs\n+  `node dist/cli.js worktree --help`; `node dist/cli.js worktree list`;\n+   read the wave-drain skill against the batch-execution carve-out conditions; run\n+   `node scripts/check-agent-dispatch.mjs`.\n\n ❯ __tests__/docs/tabletop-scenarios.test.ts:145:24\n    143|     // model-diversity, refutation-skeptic counts) — a different axis …\n    144|     // exit criterion (disjoint file-sets, worktree isolation, single-…\n    145|     expect(probes).not.toContain('check-agent-dispatch.mjs')\n       |                        ^\n    146|     // check-touched-vs-manifest.mjs is the harvest-time mechanism beh…\n    147|     // file-set precondition (touched files must stay inside a group's…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/docs/tabletop-scenarios.test.ts > tabletop scenario catalogue (#2429) > regression: consumer-upgrade-delta cites the deprecation-window mechanism, not the API-snapshot one (#2445)\nAssertionError: expected ' `node dist/cli.js diff` (and `diff -…' not to contain 'check-api-snapshot.mjs'\n\n- Expected\n+ Received\n\n- check-api-snapshot.mjs\n+  `node dist/cli.js diff` (and `diff --withheld`) on a materialized\n+   example under `examples/`; `node dist/cli.js update --adopt-plan` on the same tree;\n+   `node scripts/check-api-snapshot.mjs`; read `CHANGELOG.md` against the deprecation window\n+   the semver policy promises.\n\n ❯ __tests__/docs/tabletop-scenarios.test.ts:159:24\n    157|     // listed deprecation carries a version+removal window or the upgr…\n    158|     // set matches semver-preserved files.\n    159|     expect(probes).not.toContain('check-api-snapshot.mjs')\n       |                        ^\n    160|     expect(probes).toContain('check-deprecations.mjs')\n    161|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/docs/tabletop-scenarios.test.ts",
+  "recorded_at": "2026-09-02T23:30:55.983Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/docs/tabletop-scenarios.test.ts"
+  ]
+}
