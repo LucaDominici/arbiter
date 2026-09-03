@@ -190,9 +190,10 @@ describe('tabletop scenario catalogue (#2429)', () => {
   // exact defect #2454 fixed) goes red here again, for any language or archetype.
   it('a "service" scenario\'s "materialized <Language> example" diff either matches a non-library archetype or states the gap explicitly (#2454)', () => {
     const examples = materializedExamples()
-    expect(examples.length, 'no materialized examples found under examples/ at all').toBeGreaterThan(
-      0,
-    )
+    expect(
+      examples.length,
+      'no materialized examples found under examples/ at all',
+    ).toBeGreaterThan(0)
 
     for (const block of scenarioBlocks(catalogue())) {
       const heading = block.split('\n')[0]
