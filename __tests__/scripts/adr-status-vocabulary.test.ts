@@ -56,7 +56,7 @@ describe('ADR status vocabulary — single canonical source (#2468)', () => {
   // pre-existing non-canonical values (`proposed`, `superseded`) are a separate, out-of-scope
   // finding (captured via `arbiter note`, not fixed here) — this assertion targets only the
   // `accepted` class the issue names, so it does not widen this task's diff to cover them.
-  it("never draws a numbered ADR's frontmatter status from the retired \"accepted\" alias", () => {
+  it('never draws a numbered ADR\'s frontmatter status from the retired "accepted" alias', () => {
     const canonical = canonicalStatuses()
     const files = readdirSync(ADR_DIR).filter((f) => NUMBERED_ADR.test(f))
     // Sanity: the relationship below is vacuous if the directory is ever empty — guard against
