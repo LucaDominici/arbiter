@@ -90,7 +90,7 @@ the same hole. Standard tier — rides alone.
 
 `#2488` removes the base filter from both merge-gate workflows. Six further templates keep one and
 carry no merge-gate aggregator, so the new rule does not bind them — including
-`five-lane/ci.yml.ejs`, which calls itself "CI (PR-blocking)" while suppressing run creation. Filed
+`src/templates/github/workflows/five-lane/ci.yml.ejs`, which calls itself "CI (PR-blocking)" while suppressing run creation. Filed
 as **#2485**. Widening the trigger also makes a same-head/different-base concurrency collision
 reachable; its symptom is a _cancelled_ run, which is visible and never reads as green, so it was
 deliberately left out of the minimal diff — filed as **#2486**.
