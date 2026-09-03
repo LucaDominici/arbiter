@@ -399,7 +399,7 @@
     "scripts/pr-merge-watch.mjs": "a3aa8f666c9105b78ef9d7385e4a0db213e473c7b59ab4d4157b9e236c2018c3",
     "scripts/record-agent-return.mjs": "3a0cad559d36cd2aac5ad28e5cb487b3824148bfc2290cb67daf6534d4670827",
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
-    "scripts/self-validation.mjs": "371bf749b0846563956e1e5320a1618898a4bd4369e65f275ec76fb9e5dff7e8",
+    "scripts/self-validation.mjs": "bb50ed871af6c4c0c0d68073cb43607c6c1dae812c5ee6e0b4be4b5c95cb9c30",
     "scripts/setup-hooks.sh": "e0656ba08041e0c9a36d50194a5eba0bbc55b835228cb10509682c711b759de5",
     "scripts/test-gate-layering.mjs": "cc28e82971b45b7c1a1d06e3c886c64976c8fba6d8bc7bd82cd913c9ace68f9a",
     "scripts/verify-module-coverage.mjs": "30eb3da9693974e2a62e02888a11545cfba45eae50ecc66e3b4c6af4483c4463",
