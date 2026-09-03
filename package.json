@@ -29,6 +29,7 @@
     "scripts/check-doc-set.mjs",
     "scripts/gold-audit.mjs",
     "scripts/check-doc-freshness.mjs",
+    "scripts/check-arc42-slots.mjs",
     "scripts/check-doc-style.mjs",
     "scripts/lib",
     "README.md",

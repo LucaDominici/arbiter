@@ -221,6 +221,18 @@ and INV-31.
       "note": "Corrected 2026-09-02: this row first shipped as `staged`, claiming a collision with standards/gold-registry.yml and no gate. Both claims were wrong. The gold-registry keys its checks GA-ENF-NN and its D-ENFORCEMENT dimension only NAMES E1-E7 in a title and a comment, referring to these same enforcers — a cross-reference, not a second scheme. And the enforcers are gated: scripts/lib/anti-fake-green-guards.mjs enumerates them as class `context-rot` with a mandatory red-path flip proof in scripts/lib/guard-flip-registry.mjs, adjudicated by scripts/check-anti-fake-green.mjs. No CLI verb and no edit-time hook: an enforcer is a gate, and what needs proving is that it goes red on a bad input — a whole-repo property."
     },
     {
+      "prefix": "ARC",
+      "pattern": "^ARC-[0-9]{2}$",
+      "meaning": "One of the twelve arc42 slots of a project's architecture document.",
+      "ssot": "docs/architecture/arc42.md",
+      "gate": "scripts/check-arc42-slots.mjs",
+      "track": "both",
+      "tool": "arbiter doc-set",
+      "hook": "n/a",
+      "status": "active",
+      "note": "NOT the bare `A` prefix the programme plan proposed: `A2`, `A4` and `A11` are already in use as audit-wave and action-plan ids (docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md, docs/internal/ADR/037-evidence-harness-target-projects.md, .claude/rules/95-closer-mode.md), so `A` would have collided on the day it was registered — this registry catching its own plan is the mechanism working. A fixed enumeration rather than minted ids, like CANON: the twelve slots are arc42's, and a project neither invents nor retires one. The pattern is deliberately the loose `[0-9]{2}` shared by every other scheme rather than an exact 01-12 alternation: this registry's job is collision detection, which needs a pattern the gate can expand into a sample, and check-arc42-slots.mjs is what enumerates the real twelve. `hook: n/a` — the artifact is prose under a heading, not a schema'd document, so there is nothing for post-edit-artifact-schema.mjs to validate at edit time; the gate is the enforcement."
+    },
+    {
       "prefix": "MS",
       "pattern": "^MS-[0-9]{2}$",
       "meaning": "A product milestone with a GSN goal, exit criteria and dependencies.",
@@ -301,7 +313,7 @@ and INV-31.
       "hook": "n/a",
       "status": "staged",
       "expires": "2027-01-31",
-      "note": "The doc-set row landed in wave 2, on BOTH tracks: standards/gold-doc-set.yml and src/templates/standards/gold-doc-set.yml.ejs, so presence and freshness are gated for arbiter and for every governed project. Still staged for wave 8, which owes the FS-NN identifier itself \u2014 frontmatter carrying the id and its `informs` edges \u2014 without which the study is a gated document but not yet an addressable node. The contract rides the doc-set engine rather than earning a script of its own."
+      "note": "The doc-set row landed in wave 2, on BOTH tracks: standards/gold-doc-set.yml and src/templates/standards/gold-doc-set.yml.ejs, so presence and freshness are gated for arbiter and for every governed project. Still staged for wave 8, which owes the FS-NN identifier itself — frontmatter carrying the id and its `informs` edges — without which the study is a gated document but not yet an addressable node. The contract rides the doc-set engine rather than earning a script of its own."
     },
     {
       "prefix": "EP",

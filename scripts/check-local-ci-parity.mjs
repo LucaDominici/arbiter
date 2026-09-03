@@ -227,6 +227,7 @@ const CI_COVERAGE = new Map([
   // gate-full performs end-to-end; none needs a job of its own.
   ['id registry (INV-140)', 'gate-full'],
   ['ontology wired (INV-141)', 'gate-full'],
+  ['arc42 slots (INV-144)', 'gate-full'],
   ['forma schema contract (INV-143)', 'gate-full'],
   ['constraint scan (INV-115)', 'gate-full'],
   ['agent-dispatch matrix (#1267)', 'gate-full'],

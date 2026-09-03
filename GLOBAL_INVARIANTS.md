@@ -858,3 +858,26 @@ arbiter owns the governance ontology; forma owns the stack-agnostic C4 model sha
 **Enforcement:** `scripts/check-forma-contract.mjs` (L1, self) — wired in `scripts/check-all.mjs`; forma runs the mirror `scripts/check-arbiter-contract.mjs` in its own CI and `npm test`. Verified by `__tests__/scripts/check-forma-contract.test.ts`. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
 
 ---
+
+### INV-144: The architecture document is a filled structure, not a surviving skeleton
+
+arc42 is twelve enumerable slots, and a project that scaffolds one and never fills it has a document that answers no question while satisfying every presence check. Presence gates cannot see this: the file exists, it is fresh, and every section heading is there. What is missing is the content.
+
+This invariant makes the structure addressable. `ARC-01`..`ARC-12` are parsed out of the architecture document, and every slot the arc42 skeleton for that project's tier column provides must be present in it — a section **deleted** from the document is a structural gap, not a simplification. The required set is **read** from the skeleton (`arc42-canvas` for the solo/small columns, `arc42-full` for enterprise, exactly as `src/generators/doc-set.ts` already decides) rather than restated in the gate, so the two can never hold different opinions about what a tier owes, and adding a section to a skeleton automatically makes it required of the projects that receive it. The converse is guarded by a second ratchet over the skeleton's **own** gaps against canonical arc42: without it, deleting a section from a skeleton would quietly lower the bar for every project downstream and the gate would report the weakened bar as a pass.
+
+A hollow slot — a body that is nothing but the skeleton's prompt comment, or exactly one placeholder token — is **counted, not forbidden**. The count may fall freely and may never rise, so a section may be left unfilled but a new unfilled one may not be added; `--update-baseline` refuses a rise, which is the load-bearing property. With no baseline file at all the current count is recorded rather than failed: a freshly generated arc42 is hollow by construction, and a gate that made `arbiter init` produce a red repo would only teach people to delete the gate.
+
+A stub is recognised **structurally**, not by keyword. The first design scanned for `TODO`/`TBD` markers; run over arbiter's own arc42 it produced three false positives, every one of them prose _about_ todo gates and a technical-debt count. Emptiness after stripping comments is the honest signal.
+
+An adversarial review of the first implementation refuted its own Track-B claim, and the corrections are the substance of this invariant. Four of them are worth stating because each was a way the gate could have looked green while enforcing nothing:
+
+- The engine was **not in `package.json` `files[]`**, so an installed arbiter resolved a path that did not exist and reported `MODULE_NOT_FOUND` as an arc42 _slot violation_. This had already happened once (#2335) and the guard written then was a hand-maintained list of literal paths, which is why it did not ratchet. `scripts/check-tarball-contents.mjs` now **derives** the required engines from the `scripts/*.mjs` literals in the files that call `packageRoot()`, so a new route to `engineFor()` cannot be added without shipping its script.
+- Skeletons resolved from `src/templates/`, which exists only in a dev checkout; the package ships `dist/`. Resolution now probes source first, shipped second — correct in both layouts.
+- The baseline was tolerated **in memory only**, so no governed project ever grew one and `allowed` was recomputed as "whatever it is today" on every run. The first clean run now writes it.
+- `skeletonGaps` was a single scalar measured on the enterprise column, leaving the Canvas skeleton — the one solo and small projects receive, and the one arbiter's own CI never resolves — entirely unguarded. It is keyed per column now.
+
+A counter that is present but not a number is an **ERROR**, not a bootstrap: `"stubs": "0"` is a two-character diff that reads as a formatting nit and would otherwise disable the ratchet permanently while `--json` kept reporting `baseline == stubs`, i.e. health.
+
+**Enforcement:** `scripts/check-arc42-slots.mjs`. Self: L1, `runCheck`, unconditional, wired in `scripts/check-all.mjs`; ratchet in `scripts/data/arc42-baseline.json`. Track B is deliberately weaker and says so: the `gate-registry.yml.ejs` row is L2, `runWarnCheck`, gated on `enableDebtGates`, because a freshly generated arc42 is hollow by construction. Verified by `__tests__/scripts/check-arc42-slots.test.ts` (43 cases), which reads the real skeletons and a package-shaped `dist`-only layout rather than fixtures alone — a fixture that grades itself is what let the nine-vs-ten `CANVAS_SLOTS` drift go unnoticed. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
+
+---

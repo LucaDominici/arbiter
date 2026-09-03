@@ -466,6 +466,17 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // check-doc-set.mjs above — delegates to `npx arbiter doc-set --freshness`. Emitted
   // unconditionally but wired OUTSIDE check-all.mjs L2 (monthly + release lane only, per the
   // solo-developer-gate-model doctrine) — see _monthly.yml.ejs / 05-release.yml.ejs.
+  // INV-144: arc42 slot-completeness thin runner, same shape/rationale as check-doc-set.mjs —
+  // delegates to `npx arbiter doc-set --arc42`. The skeletons the audit compares against stay in
+  // arbiter's own tree, so a governed project is held to the skeleton IT received without carrying
+  // a copy that could drift. Wired L2 warn in the registry: hollow sections are a real finding, but
+  // a freshly generated arc42 is hollow by construction and must not make `arbiter init` red.
+  // The registry row is L2 + warn + enableDebtGates — deliberately weaker than the self side's
+  // L1 + runCheck + unconditional, and declared as such in the INV-144 catalog entry.
+  {
+    rel: ['scripts', 'check-arc42-slots.mjs'],
+    tpl: 'scripts/check-arc42-slots.mjs.ejs',
+  },
   {
     rel: ['scripts', 'check-doc-freshness.mjs'],
     tpl: 'scripts/check-doc-freshness.mjs.ejs',

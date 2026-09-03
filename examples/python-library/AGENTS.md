@@ -115,6 +115,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-115:** Free-text governance prohibitions must resolve to a verified enforcer, live scan, or explicit triage
 - **INV-118:** Anti-proforma test gate — every test must carry a real assertion
 - **INV-129:** No tracked data/state files or compiled binaries in the index
+- **INV-144:** The architecture document is a filled structure, not a surviving skeleton
 
 ---
 

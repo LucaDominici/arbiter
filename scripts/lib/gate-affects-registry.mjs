@@ -147,6 +147,10 @@ export const GATE_AFFECTS_REGISTRY = [
   // the contract gate reads schemas/ plus a sibling checkout. None is narrowable to a path set.
   { name: 'id registry (INV-140)', affects: ALWAYS },
   { name: 'ontology wired (INV-141)', affects: ALWAYS },
+  // ALWAYS, like its two ontology siblings: the gate reads the arc42 skeletons, the doc-set
+  // manifest, the tier profile and the architecture document itself, so no single changed-path
+  // predicate covers it — a narrower rule would let a skeleton edit skip the gate that guards it.
+  { name: 'arc42 slots (INV-144)', affects: ALWAYS },
   { name: 'forma schema contract (INV-143)', affects: ALWAYS },
   { name: 'orchestrator coverage (#1410)', affects: ALWAYS },
   { name: 'constraint scan (INV-115)', affects: ALWAYS },

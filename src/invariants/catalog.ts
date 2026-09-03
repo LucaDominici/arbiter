@@ -2700,4 +2700,43 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'INV-53. Confirmed self-only: the subject is the boundary between these two repositories, ' +
       'which a governed target owns neither side of.',
   },
+  {
+    id: 'INV-144',
+    tier: 'governance',
+    selfOnly: false,
+    alwaysActive: true,
+    title: 'The architecture document is a filled structure, not a surviving skeleton',
+    description:
+      'arc42 is twelve enumerable slots, and a project that scaffolds one and never fills it has ' +
+      'a document that answers no question while satisfying every presence check. This invariant ' +
+      'makes the structure addressable: ARC-01..ARC-12 are parsed out of the architecture ' +
+      "document, and every slot the arc42 skeleton for that project's tier column provides must " +
+      'be present in it — a section deleted from the document is a structural gap, not a ' +
+      'simplification. The required set is READ from the skeleton rather than restated, so the ' +
+      "gate can never hold a second opinion about what a tier owes, and the skeleton's own gaps " +
+      'against canonical arc42 ride a second ratchet, so dropping a section from a skeleton ' +
+      'cannot quietly lower the bar for every project that receives it. A hollow slot — a body ' +
+      'that is nothing but the skeleton prompt, or a lone filler word standing in for content — ' +
+      'is counted, not ' +
+      'forbidden: the count may fall freely and may never rise, so a section may be left unfilled ' +
+      'but a new unfilled one may not be added. On a first run with no baseline the count is ' +
+      'recorded AND PERSISTED, because a freshly generated arc42 is hollow by construction and a ' +
+      'gate that made `arbiter init` produce a red repo would only teach people to delete the ' +
+      'gate — but a count tolerated only in memory means the ratchet never arms in a governed ' +
+      'project at all, so the first clean run writes the baseline it measured.',
+    enforcement:
+      'scripts/check-arc42-slots.mjs — self: L1, runCheck, unconditional, wired in ' +
+      "scripts/check-all.mjs as 'arc42 slots (INV-144)'. Track B is DELIBERATELY WEAKER and the " +
+      'asymmetry is declared here rather than left to be discovered: the row in ' +
+      'src/templates/scripts/gate-registry.yml.ejs is L2, runWarnCheck, and gated on ' +
+      'enableDebtGates, because a freshly generated arc42 is hollow by construction and a gate ' +
+      'that made `arbiter init` produce a red repo would only teach people to delete it. The ' +
+      'governed project receives a thin runner delegating to `arbiter doc-set --arc42`, so the ' +
+      'engine and its skeletons stay in one place and no copy can drift; the engine ships via ' +
+      'package.json files[], enforced by the DERIVED engine set in check-tarball-contents.mjs ' +
+      '(#2335/#2480 — a hand-maintained list of the same paths failed to ratchet and let a ' +
+      'fourth engine ship unshipped). Verified by __tests__/scripts/check-arc42-slots.test.ts ' +
+      '(43 cases), which reads the real skeletons and a package-shaped dist-only layout rather ' +
+      'than fixtures alone. exit 0=PASS, 1=violation, 2=ERROR per INV-53.',
+  },
 ]

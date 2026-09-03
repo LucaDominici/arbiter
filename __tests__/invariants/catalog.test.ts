@@ -20,9 +20,9 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 141
+const EXPECTED_TOTAL_ENTRIES = 142
 const EXPECTED_TIER4_OPERATIONAL = 49
-const EXPECTED_TIER5_GOVERNANCE = 56
+const EXPECTED_TIER5_GOVERNANCE = 57
 const EXPECTED_SELFONLY = 35
 
 // ---------------------------------------------------------------------------
@@ -63,6 +63,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
     // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
     // all selfOnly governance/Tier-5)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness — governance/Tier-5, and the
+    // FIRST of this programme's invariants that is NOT selfOnly: a governed project's own arc42 is
+    // exactly the document it governs, so it is emitted on Track B and counted in every filtered set.)
     expect(INVARIANT_CATALOG).toHaveLength(EXPECTED_TOTAL_ENTRIES)
   })
 
@@ -90,6 +93,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
     // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
     // all selfOnly governance/Tier-5)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness — governance/Tier-5, and the
+    // FIRST of this programme's invariants that is NOT selfOnly: a governed project's own arc42 is
+    // exactly the document it governs, so it is emitted on Track B and counted in every filtered set.)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
     expect(unique.size).toBe(EXPECTED_TOTAL_ENTRIES)
@@ -215,6 +221,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
     // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
     // all selfOnly governance/Tier-5)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness — governance/Tier-5, and the
+    // FIRST of this programme's invariants that is NOT selfOnly: a governed project's own arc42 is
+    // exactly the document it governs, so it is emitted on Track B and counted in every filtered set.)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
     expect(tier5).toHaveLength(EXPECTED_TIER5_GOVERNANCE)
   })
@@ -540,7 +549,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all-languages, operational)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all-languages, operational)
-    expect(result).toHaveLength(89)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
+    expect(result).toHaveLength(90)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -574,7 +584,8 @@ describe('getFilteredInvariants', () => {
       invariantTiers: ALL_TIERS,
     })
     // +1 from INV-137 (L1+, all languages, smoke-journey floor) — threshold < 76 → < 77
-    expect(result.length).toBeLessThan(77)
+    // +1 from INV-144 (L1+, all languages, arc42 slot completeness) — → < 78
+    expect(result.length).toBeLessThan(78)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -655,7 +666,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all languages, operational)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all languages, operational)
-    expect(result).toHaveLength(84)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
+    expect(result).toHaveLength(85)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -689,7 +701,8 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(85)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
+    expect(result).toHaveLength(86)
   })
 
   it('essential preset at L1 returns minimal set', () => {
