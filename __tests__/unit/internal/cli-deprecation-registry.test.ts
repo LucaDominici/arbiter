@@ -35,6 +35,39 @@ describe('CLI_DEPRECATED_FLAGS registry (#606)', () => {
   })
 })
 
+// #2453: `update`'s `--no-adopt-gate-spine` / `--no-adopt-governance` were
+// permanent no-ops living entirely OUTSIDE this registry — accepted by
+// commander, doing nothing, with no warning and no removal window. AC-1
+// requires each to either do what it says or enter this registry with a warn
+// stage and a real removal window. They are obsolete (the behavior they name
+// — withhold — is already the unconditional default since #2119/#2141, so
+// there is nothing left for a negation to opt into), so: deprecate.
+describe('#2453: --no-adopt-gate-spine / --no-adopt-governance are registered, not silent', () => {
+  function entryFor(flag: string): DeprecatedFlagRecord {
+    const entry = CLI_DEPRECATED_FLAGS.find((e) => e.flag === flag)
+    if (entry === undefined) {
+      throw new Error(`expected CLI_DEPRECATED_FLAGS to contain an entry for "${flag}"`)
+    }
+    return entry
+  }
+
+  it('--no-adopt-gate-spine is registered at warn stage with a real removal version', () => {
+    const entry = entryFor('--no-adopt-gate-spine')
+    expect(entry.stage).toBe('warn')
+    expect(entry.deprecatedIn).toMatch(/^\d+\.\d+\.\d+$/)
+    expect(entry.removeIn).toMatch(/^\d+\.\d+\.\d+$/)
+    expect(entry.removeIn).not.toBe(entry.deprecatedIn)
+  })
+
+  it('--no-adopt-governance is registered at warn stage with a real removal version', () => {
+    const entry = entryFor('--no-adopt-governance')
+    expect(entry.stage).toBe('warn')
+    expect(entry.deprecatedIn).toMatch(/^\d+\.\d+\.\d+$/)
+    expect(entry.removeIn).toMatch(/^\d+\.\d+\.\d+$/)
+    expect(entry.removeIn).not.toBe(entry.deprecatedIn)
+  })
+})
+
 describe('DeprecatedFlagRecord type shape (#606)', () => {
   it('compiles with all required fields', () => {
     const sample: DeprecatedFlagRecord = {
