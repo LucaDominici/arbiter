@@ -21,13 +21,13 @@ Override: `ALLOW_REMOVE_DEPRECATED=1 node scripts/check-all.mjs` (document the e
 
 ## Format
 
-| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement                       | Status    | Stage |
-| ------------------------ | ------------- | --------- | --------------------------------- | --------- | ----- |
-| soloDevMode              | 0.2.0         | 1.0.0     | `collaborationMode: 'trunk-solo'` | in-window | —     |
-| enableSoloDevMode        | 0.2.0         | 1.0.0     | `collaborationMode: 'trunk-solo'` | in-window | —     |
-| ciTierMode               | 0.2.0         | 1.0.0     | `pipelineStyle`                   | in-window | —     |
-| `--no-adopt-gate-spine`  | 0.5.0         | 0.8.0     | (none — omit the flag; withholding is already the default) | in-window | warn |
-| `--no-adopt-governance`  | 0.5.0         | 0.8.0     | (none — omit the flag; withholding is already the default) | in-window | warn |
+| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement                                                | Status    | Stage |
+| ------------------------ | ------------- | --------- | ---------------------------------------------------------- | --------- | ----- |
+| soloDevMode              | 0.2.0         | 1.0.0     | `collaborationMode: 'trunk-solo'`                          | in-window | —     |
+| enableSoloDevMode        | 0.2.0         | 1.0.0     | `collaborationMode: 'trunk-solo'`                          | in-window | —     |
+| ciTierMode               | 0.2.0         | 1.0.0     | `pipelineStyle`                                            | in-window | —     |
+| `--no-adopt-gate-spine`  | 0.5.0         | 0.8.0     | (none — omit the flag; withholding is already the default) | in-window | warn  |
+| `--no-adopt-governance`  | 0.5.0         | 0.8.0     | (none — omit the flag; withholding is already the default) | in-window | warn  |
 
 **Why `remove-in = 1.0.0`:** all three are `arbiter.json` / wizard-answer config fields, and
 `docs/SEMVER.md` classifies removing a config schema field as MAJOR. Pre-1.0 the next MAJOR is
