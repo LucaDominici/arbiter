@@ -1,8 +1,8 @@
 ---
-title: 'Cloud handover — 2026-09-02 (runner still down; fourteen validated landings queued)'
-doc_version: '1.0.0'
+title: 'Cloud handover — 2026-09-02 (runner still down; eighteen validated landings queued)'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-09-02'
+last_review: '2026-09-03'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/runbook']
@@ -39,14 +39,20 @@ passing one.
 | 11  | #2475 | `task/#2447-file-stability-truth`        | row 9 | file-stability.md describes the real update mechanism  |
 | 12  | #2477 | `task/#2449-deprecations-source-scan`    | row 9 | orphan `@deprecated` scan; 3 live deprecations dated   |
 | 13  | #2478 | `task/#2448-semver-breaking-log`         | row 9 | breaking-log cites 0.2.0, pinned to CHANGELOG headings |
-| 14  | (TBD) | `task/#2450-fixture-inventory`           | row 9 | fixture-inventory table pinned to the compat MANIFEST  |
+| 14  | #2481 | `task/#2450-fixture-inventory`           | row 9 | fixture-inventory table pinned to the compat MANIFEST  |
+| 15  | #2488 | `task/#2476-stacked-pr-ci`               | main  | stacked PRs get a real CI run (the fail-open below)    |
+| 16  | #2492 | `task/#2452-dryrun-preview-truth`        | main  | `init --dry-run` previews the plan the real run runs   |
+| 17  | #2494 | `task/#2445-tabletop-probe-truth`        | row16 | tabletop probes 4 and 6 match their exit criteria      |
+| 18  | #2483 | `docs/handover-cloud-2026-09-02`         | main  | this runbook (docs-only)                               |
 
 Rows 11-14 are **stacked on row 9** and each is independent of the others (disjoint file sets), so
-row 9 merges first and GitHub then auto-retargets them to `main`. Merge protocol unchanged: CI
+row 9 merges first and GitHub then auto-retargets them to `main`. Rows 15, 16 and 18 are based on
+`main` and merge independently; row 17 is stacked on row 16 because both edit
+`TABLETOP-SCENARIOS.md`. Merge protocol unchanged: CI
 green per PR, merge in table order, `git fetch` between merges,
 `node scripts/ship-kpi.mjs --since 2026-08-29` after each, ADEQUACY-MAP §2 refresh at M-A/M-B close.
 
-## Two findings that need attention before the queue does
+## Findings that need attention before the queue does
 
 ### #2479 — the Consumer Reliability Bar has been red for days (NEEDS THE OWNER)
 
@@ -80,6 +86,39 @@ Coverage currently depends on merge order rather than on the gate. The fix must 
 `src/templates/github/workflows/*.ejs` twins (CANON-18), or every generated project keeps shipping
 the same hole. Standard tier — rides alone.
 
+### #2476 is fixed (row 15) — and fixing it uncovered more
+
+`#2488` removes the base filter from both merge-gate workflows. Six further templates keep one and
+carry no merge-gate aggregator, so the new rule does not bind them — including
+`five-lane/ci.yml.ejs`, which calls itself "CI (PR-blocking)" while suppressing run creation. Filed
+as **#2485**. Widening the trigger also makes a same-head/different-base concurrency collision
+reachable; its symptom is a _cancelled_ run, which is visible and never reads as green, so it was
+deliberately left out of the minimal diff — filed as **#2486**.
+
+### Governance findings filed later in the session
+
+- **#2489 — a killed agent tombstones the spawn guard for 2 hours.** `pruneStaleSidecarEntries`
+  filters only on TTL age; every entry records a `pid` that is never read. A container restart
+  therefore blocks all further write-agent dispatches until the TTL expires. Verified: pid dead,
+  entry 37 minutes old, guard still refusing.
+- **#2493 — the SSOT one-shot bypass marker is repo-global and unscoped.** `pre-edit-ssot-guard`
+  anchors on the harness's cwd, so a worktree agent must write the marker into the main checkout,
+  and the marker names no target file. Under ADR-103's sanctioned parallel worktrees, one agent's
+  bypass can be consumed by another agent's unrelated edit. The mechanism is verified; the race
+  itself was **not** reproduced (this session serialises agents), so treat it as latent by design
+  rather than as an observed incident.
+- **#2487 — 16 `arbiter note` findings recovered from ephemeral spools** across seven shipped
+  tasks, transcribed before the container could reclaim them. Captured, explicitly **not** triaged;
+  some may duplicate existing issues. Its second acceptance criterion is the real point: a spool
+  that lives only as long as its container keeps losing findings exactly when work is most
+  autonomous.
+- **#2482** — `gen-wiki.mjs` regenerates every page and prunes none, so a stale page left by a
+  branch switch in a long-lived worktree fails wiki lint.
+- **#2490 / #2491** — `init --json --dry-run` silently ignores `--json` and exits 0, so a CI
+  consumer crashes on the parse rather than on a status check; and `doc-set-skeletons` is the one
+  generator `init --dry-run` still cannot preview — a measured 5-path gap held open by an
+  asserted-live test exception rather than hidden.
+
 ## What changed vs the 08-31 runbook
 
 - #2419 and #2420 finished and landed as rows 9-10. #2420 uncovered a live fail-open: two nightly
@@ -107,18 +146,32 @@ the same hole. Standard tier — rides alone.
    to the next, so any gate or push meant for a worktree needs its own explicit `cd` in the same
    command — otherwise it silently runs against the main checkout and measures the wrong tree.
 4. **Stacked PRs get no CI at all** (#2476) — do not read their empty check list as green.
-5. Agents report green confidently and still ship real defects that are only visible on reading
-   the diff. Four caught this session: a test that would fail on correct content the day arbiter
+5. **A container restart leaves the worktree intact but tombstones the spawn guard.** Commits in
+   `.claude/worktrees/<name>` survive — resume in place, never restart the task from scratch. The
+   dead dispatch's sidecar entry does not survive gracefully: clear it after verifying the pid is
+   dead (#2489).
+6. **A doc edit is never just a doc edit.** Adding or retitling a file under `docs/` changes the
+   generated repo-root `llms.txt` (and possibly `docs/INDEX.md`); forgetting to regenerate fails a
+   drift check _and_ a unit test, which then cascades into coverage and both ratchets. One full
+   ~25-minute gate cycle was lost to exactly this.
+7. **Verify a snapshot rebake's diff scope.** `BAKE_UPDATE_SNAPSHOTS=1` blesses whatever the
+   current output happens to be; confirm every changed hash is one you intended before committing.
+8. Agents report green confidently and still ship real defects that are only visible on reading
+   the diff. Caught this session: a test that would fail on correct content the day arbiter
    ships 1.0.0; an unmeasured complexity regression the agent never ran the ratchet for; an
-   undrained findings spool; and a stale-evidence push refusal. Audit every claim against a tool
-   result before pushing — the gates caught the rest, but only because nothing was bypassed.
+   undrained findings spool; a stale-evidence push refusal; a regenerated `llms.txt`; and a stale
+   fixture-snapshot set. Audit every claim against a tool result before pushing — the gates caught
+   the rest, but only because nothing was bypassed. One agent corrected _me_ on a misdiagnosis and
+   was right; verify a correction as carefully as a claim.
 
 ## Open backlog after the queue drains
 
 - **Needs the owner:** #2479 (consumer reliability, above). #2318 #2310 #2291 remain blocked on
   permission to the pinned private consumer repositories — reachable via `list_repos`/`add_repo`,
   but cloning them is denied by the session's permission classifier.
-- **M-A:** #2433, #2445, #2451; #2414 tracking.
-- **M-C:** #2476, #2479, #2384 #2301 #2150 #2405 #2427, plus #2455 #2458 #2460-#2463 #2466-#2468.
-- **M-B:** #2452 #2453 #2454 (brownfield tabletop findings).
+- **M-A:** #2433, #2451; #2414 tracking. (#2445 shipped as row 17.)
+- **M-C:** #2479, #2384 #2301 #2150 #2405 #2427, plus #2455 #2458 #2460-#2463 #2466-#2468, and the
+  new #2485 #2486 #2487 #2489 #2493. (#2476 shipped as row 15.)
+- **M-B:** #2453 #2454 (brownfield tabletop findings), plus the new #2490 #2491. (#2452 shipped as
+  row 16.)
 - #2397: the runner outage post-mortem plus the original nightly regression.
