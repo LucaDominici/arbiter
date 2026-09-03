@@ -722,11 +722,13 @@ program
   )
   .option(
     '--no-adopt-gate-spine',
-    'Accepted no-op: withholding a customized gate spine is the default since #2119.',
+    'DEPRECATED (#2453, removed in 0.8.0): no-op — withholding a customized gate spine is ' +
+      'already the default since #2119. See docs/DEPRECATIONS.md.',
   )
   .option(
     '--no-adopt-governance',
-    'Accepted no-op: withholding a diverged governance file is the default since #2141.',
+    'DEPRECATED (#2453, removed in 0.8.0): no-op — withholding a diverged governance file is ' +
+      'already the default since #2141. See docs/DEPRECATIONS.md.',
     (_value, previous) => previous,
   )
   .option(

@@ -344,6 +344,49 @@ describe('#2119 red-path: the gate spine is withheld, and the ratchet cycle term
     }
   })
 
+  // #2453: a permanent no-op living outside the CLI_DEPRECATED_FLAGS registry is
+  // silent harm — a consumer who passes it believes they withheld the spine
+  // deliberately, and gets no signal that the flag does nothing on its own
+  // (withholding is already the unconditional default). The flag stays a no-op
+  // (behavior does NOT change — see the two tests above), but it must now emit
+  // a real deprecation notice carrying a removal version, on the actual CLI
+  // process, not merely a table row in docs/DEPRECATIONS.md.
+  it('#2453: `--no-adopt-gate-spine` emits a stderr deprecation notice with a removal version', () => {
+    erode(SPINE, 'hand-tuned gate entrypoint')
+
+    const r = runCli('--adopt-plan', '--no-adopt-gate-spine')
+
+    expect(r.status).toBe(0)
+    expect(r.stderr.toLowerCase()).toContain('deprecated')
+    expect(r.stderr).toContain('--no-adopt-gate-spine')
+    // Must name an actual future version, not just the word "deprecated" —
+    // otherwise this is theater with no enforceable removal window.
+    expect(r.stderr).toMatch(/\b\d+\.\d+\.\d+\b/)
+  })
+
+  it('#2453: `--no-adopt-governance` emits a stderr deprecation notice with a removal version', () => {
+    erode('AGENTS.md', 'hand-tuned governance contract')
+
+    const r = runCli('--adopt-plan', '--no-adopt-governance')
+
+    expect(r.status).toBe(0)
+    expect(r.stderr.toLowerCase()).toContain('deprecated')
+    expect(r.stderr).toContain('--no-adopt-governance')
+    expect(r.stderr).toMatch(/\b\d+\.\d+\.\d+\b/)
+  })
+
+  // The deprecation notice must fire on its own — a consumer relying only on
+  // the withhold-by-default behavior (no flag at all) gets no notice, because
+  // there is nothing deprecated about calling `update` bare.
+  it('#2453: a bare `update` (no legacy flag) emits no deprecation notice', () => {
+    erode(SPINE, 'hand-tuned gate entrypoint')
+
+    const r = runCli('--adopt-plan')
+
+    expect(r.status).toBe(0)
+    expect(r.stderr.toLowerCase()).not.toContain('deprecated')
+  })
+
   // N1 — the confinement of the fix: a PRISTINE spine (untouched since arbiter
   // generated it) must still receive template fixes. Only a CUSTOMIZED one is
   // frozen. Re-baselining the manifest onto the local bytes is what makes this

@@ -74,6 +74,42 @@ describe('check-deprecations.mjs (deprecation window enforcement)', () => {
     }
   })
 
+  // #2453: a CLI-flag symbol IS a leading-dash string ("--no-adopt-gate-spine").
+  // The grep call that verifies a symbol is still present in src/ must not
+  // treat the pattern as a grep option — that would report every active,
+  // correctly-wired CLI flag deprecation as "removed" and block the gate.
+  it('exits 0 for a dash-prefixed CLI flag symbol present in src/ (grep pattern, not option)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'docs'))
+      mkdirSync(join(dir, 'src'))
+      writeFileSync(
+        join(dir, 'docs', 'DEPRECATIONS.md'),
+        [
+          '# Active Deprecations',
+          '',
+          '| Symbol / Flag / Behavior | Deprecated In | Remove In | Replacement | Status |',
+          '| --- | --- | --- | --- | --- |',
+          '| `--no-adopt-gate-spine` | 0.5.0 | 0.8.0 | (none) | in-window |',
+          '',
+          '# Removed Deprecations',
+          '',
+          'None yet.',
+        ].join('\n'),
+      )
+      writeFileSync(
+        join(dir, 'src', 'cli.ts'),
+        "program.option('--no-adopt-gate-spine', 'deprecated')",
+      )
+      const result = run(dir)
+      expect(result.stderr).not.toContain('not found in src/')
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('OK')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('exits 1 when an active deprecated symbol is missing from src/', () => {
     const { dir, cleanup } = makeTemp()
     try {

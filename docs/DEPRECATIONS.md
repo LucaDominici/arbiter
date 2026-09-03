@@ -21,11 +21,13 @@ Override: `ALLOW_REMOVE_DEPRECATED=1 node scripts/check-all.mjs` (document the e
 
 ## Format
 
-| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement                       | Status    | Stage |
-| ------------------------ | ------------- | --------- | --------------------------------- | --------- | ----- |
-| soloDevMode              | 0.2.0         | 1.0.0     | `collaborationMode: 'trunk-solo'` | in-window | —     |
-| enableSoloDevMode        | 0.2.0         | 1.0.0     | `collaborationMode: 'trunk-solo'` | in-window | —     |
-| ciTierMode               | 0.2.0         | 1.0.0     | `pipelineStyle`                   | in-window | —     |
+| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement                                                | Status    | Stage |
+| ------------------------ | ------------- | --------- | ---------------------------------------------------------- | --------- | ----- |
+| soloDevMode              | 0.2.0         | 1.0.0     | `collaborationMode: 'trunk-solo'`                          | in-window | —     |
+| enableSoloDevMode        | 0.2.0         | 1.0.0     | `collaborationMode: 'trunk-solo'`                          | in-window | —     |
+| ciTierMode               | 0.2.0         | 1.0.0     | `pipelineStyle`                                            | in-window | —     |
+| `--no-adopt-gate-spine`  | 0.5.0         | 0.8.0     | (none — omit the flag; withholding is already the default) | in-window | warn  |
+| `--no-adopt-governance`  | 0.5.0         | 0.8.0     | (none — omit the flag; withholding is already the default) | in-window | warn  |
 
 **Why `remove-in = 1.0.0`:** all three are `arbiter.json` / wizard-answer config fields, and
 `docs/SEMVER.md` classifies removing a config schema field as MAJOR. Pre-1.0 the next MAJOR is
@@ -33,6 +35,21 @@ Override: `ALLOW_REMOVE_DEPRECATED=1 node scripts/check-all.mjs` (document the e
 still live back-compat aliases read by `src/config/resolve-project-config.ts`,
 `src/config/collaboration-mode-defaults.ts`, `src/generators/github.ts`, `src/wizard/prompts.ts`
 and the generated `check-ci-tiers.mjs`, so they are genuinely deprecated-but-live, not dead tags.
+
+**Why `--no-adopt-gate-spine` / `--no-adopt-governance` are deprecated, not fixed (#2453):**
+#2119 and #2141 flipped `update`'s default from adopt to withhold for the gate spine
+(`scripts/check-all.mjs`, `scripts/lib/*.mjs`) and governance files (`AGENTS.md`,
+`.claude/settings.json`). Both flags were kept as accepted no-ops purely so a consumer's
+pre-#2119/#2141 script (written when adoption was the default and these flags opted OUT of it)
+would not break on an unknown-option error the day the default flipped underneath it. There is
+no live behavior left for either flag to opt into: withholding is now unconditional, so there is
+nothing a negation can meaningfully negate. That made a bare `--no-adopt-gate-spine` /
+`--no-adopt-governance` a **silent** no-op — accepted, doing nothing, with no signal to a
+consumer who believed the flag mattered. Registered here at `warn` stage (#2453) so passing
+either now prints a real stderr deprecation notice via `src/internal/cli-deprecation-registry.ts`
+(wired at `src/cli.ts`); `remove-in = 0.8.0` gives ≥1 MINOR of runway before the flag is
+rejected outright. The **positive** opt-ins, `--adopt-gate-spine` / `--adopt-governance`, are
+unaffected — they still work exactly as #2119/#2141 shipped them.
 
 ## Closed / Removed Deprecations
 

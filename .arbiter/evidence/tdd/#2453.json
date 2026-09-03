@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2453",
+  "test_path": "__tests__/unit/internal/cli-deprecation-registry.test.ts",
+  "test_commit_sha": "601aa7eb02a5007377718124be2666595675f261",
+  "test_blob_sha": "f06506c8321c16b5baaa5e407f2ce106713cf3ee",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/unit/internal/cli-deprecation-registry.test.ts (7 tests | 2 failed) 8ms\n     × --no-adopt-gate-spine is registered at warn stage with a real removal version 3ms\n     × --no-adopt-governance is registered at warn stage with a real removal version 1ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 5 passed (7)\n   Start at  01:54:24\n   Duration  244ms (transform 37ms, setup 22ms, import 30ms, tests 8ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/unit/internal/cli-deprecation-registry.test.ts > #2453: --no-adopt-gate-spine / --no-adopt-governance are registered, not silent > --no-adopt-gate-spine is registered at warn stage with a real removal version\nError: expected CLI_DEPRECATED_FLAGS to contain an entry for \"--no-adopt-gate-spine\"\n ❯ entryFor __tests__/unit/internal/cli-deprecation-registry.test.ts:49:13\n     47|     const entry = CLI_DEPRECATED_FLAGS.find((e) => e.flag === flag)\n     48|     if (entry === undefined) {\n     49|       throw new Error(`expected CLI_DEPRECATED_FLAGS to contain an ent…\n       |             ^\n     50|     }\n     51|     return entry\n ❯ __tests__/unit/internal/cli-deprecation-registry.test.ts:55:19\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/unit/internal/cli-deprecation-registry.test.ts > #2453: --no-adopt-gate-spine / --no-adopt-governance are registered, not silent > --no-adopt-governance is registered at warn stage with a real removal version\nError: expected CLI_DEPRECATED_FLAGS to contain an entry for \"--no-adopt-governance\"\n ❯ entryFor __tests__/unit/internal/cli-deprecation-registry.test.ts:49:13\n     47|     const entry = CLI_DEPRECATED_FLAGS.find((e) => e.flag === flag)\n     48|     if (entry === undefined) {\n     49|       throw new Error(`expected CLI_DEPRECATED_FLAGS to contain an ent…\n       |             ^\n     50|     }\n     51|     return entry\n ❯ __tests__/unit/internal/cli-deprecation-registry.test.ts:63:19\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/unit/internal/cli-deprecation-registry.test.ts",
+  "recorded_at": "2026-09-03T01:54:25.008Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/unit/internal/cli-deprecation-registry.test.ts"
+  ]
+}
