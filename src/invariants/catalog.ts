@@ -2565,9 +2565,14 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '__tests__/scripts/rework-log.test.ts (red→green). The orchestration tools ' +
       '(issue-readiness.mjs, rework-log.mjs, lib/acceptance-criteria.mjs) ARE emitted to ' +
       'governed targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS ' +
-      '(CANON-01/04, __tests__/templates/acceptance-anchor-scripts-render.test.ts); selfOnly ' +
-      'because the check-acceptance GATE wiring in generated check-all.mjs is the tracked ' +
-      'ADR-110 follow-up. exit 0=PASS/SKIP, 1=FAIL, 2=ERROR per INV-53.',
+      '(CANON-01/04, __tests__/templates/acceptance-anchor-scripts-render.test.ts), and #2405 ' +
+      'closed the ADR-110 follow-up: check-acceptance.mjs is emitted from ' +
+      'src/templates/scripts/check-acceptance.mjs.ejs and wired in the generated check-all ' +
+      'via the `acceptance-anchor` row of gate-registry.yml.ejs (advisory). The catalog entry ' +
+      'stays selfOnly because ACTIVATION is opt-in per project ' +
+      '(features.acceptanceAnchor / ARBITER_ACCEPTANCE_ANCHOR): the mechanism now exists in ' +
+      'every governed tree, but the RULE is not one every target is held to by default. ' +
+      'exit 0=PASS/SKIP, 1=FAIL, 2=ERROR per INV-53.',
     adr: 'ADR-110',
   },
   {

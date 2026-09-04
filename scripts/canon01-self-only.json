@@ -17,11 +17,6 @@
       "reason": "Derives src/kit/derived.json from arbiter’s kit catalog + overlay + cross-language matrix. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
     },
     {
-      "path": "scripts/check-acceptance.mjs",
-      "reason": "INV-138: the active plan freezes the issue's acceptance criteria. STILL PENDING: `src/generators/check-all.ts` documents this explicitly — \"The check-acceptance.mjs GATE stays self-only (not wired in generated check-all) — that wiring is the tracked ADR-110 follow-up\". Tracked by https://github.com/LucaDominici/arbiter/issues/2405 (open).",
-      "expires": "2026-10-27"
-    },
-    {
       "path": "scripts/check-adr-enforcement.mjs",
       "reason": "Every ADR `enforces:` claim resolves to a real gold-audit check or invariant. Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
     },
@@ -103,13 +98,11 @@
     },
     {
       "path": "scripts/check-doc-path-citations.mjs",
-      "reason": "Backtick file-path citations in hand-authored prose resolve on disk (advisory). STILL PENDING: target projects receive a hand-authored docs corpus containing backtick path citations (e.g. `src/templates/root/docs/METHOD/PATTERNS_CATALOG.md.ejs`) but nothing verifies those citations resolve on a target's own disk. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "Bare backtick file-path citations in hand-authored prose resolve on disk. Self-only by construction, per the construction rationale already written into the script's own #2243/#2260 header: \"arbiter's own doc corpus is not something a consuming project's generated gate needs to validate against ITS OWN filesystem\", following the precedent of check-phantom-command-scan.mjs — no .ejs twin, no gate-registry.yml.ejs row. The gate's substance is a triage of arbiter's own 124-hit corpus into RUNTIME_ROOT_SKIP / PLACEHOLDER_PATTERNS / gitignored buckets, and its header records the deliberate refusal of a blanket `scripts/`-prefix skip precisely because arbiter has its own scripts/. A citation naming a file in a governed TARGET carries the `<project>/` prefix the corpus uses, which is not path-shaped and never reaches the scanner."
     },
     {
       "path": "scripts/check-doc-style.mjs",
-      "reason": "Frontmatter shape, H1 presence and `last_review` date on hand-authored docs. STILL PENDING: the exact frontmatter schema this checks (`doc_version`, `canonical_id`, etc.) is already emitted to targets (`src/templates/governance/validation-evidence.md.ejs`, `src/templates/root/docs/METHOD/PATTERNS_CATALOG.md.ejs`) but no gate verifies a target's own docs conform to it. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "Frontmatter shape (8 required keys), single H1, and `last_review` ISO date on hand-authored .md docs. Self-only by construction: this is arbiter's own house schema for its SSOT backbone, and arbiter deliberately does NOT hold generated trees to it — the script's own SKIP list says so, exempting `examples/<name>/` because those files \"are governed by the TARGET project's own doc conventions, not arbiter's\". The emitted docs do not satisfy it and were never meant to: `src/templates/governance/validation-evidence.md.ejs` carries only title/doc_version/governance_level, `src/templates/root/docs/METHOD/PATTERNS_CATALOG.md.ejs` omits `last_review` and `owner` and emits no frontmatter at all at L1. Run inside examples/ts-library the gate reports 3 hard errors against arbiter's own generated AGENTS.md, CONTRIBUTING.md and SECURITY.md, so a twin would RED every target on day 1 over arbiter's house style."
     },
     {
       "path": "scripts/check-docker-action-runner-safety.mjs",
@@ -125,8 +118,7 @@
     },
     {
       "path": "scripts/check-evidence-bundle.mjs",
-      "reason": "INV-90: evidence bundles validate against the published schema. STILL PENDING: targets get a rich evidence-writing toolchain (`evidence-collect.mjs.ejs`, `evidence-writer.sh.ejs`, `done-evidence.mjs.ejs`) but `schemas/evidence-bundle.schema.json` has no template twin to validate the bundles those tools produce. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-90: every `.evidence/task-NNN/*.json` bundle validates against schemas/evidence-bundle.schema.json. Self-only by construction: that schema describes an ARBITER-ONLY artifact layout. The evidence toolchain arbiter emits writes three different shapes and none of them is `.evidence/task-NNN/` — `evidence-collect.mjs.ejs` writes a flat `.evidence/SUMMARY.json`, `done-evidence.mjs.ejs` writes `.claude/.last-done-evidence.json`, and `evidence-writer.sh.ejs` writes `.arbiter/evidence/tdd/<task-id>.json` in the TddEvidenceV1 shape. The schema-validation gate for the shape targets actually produce IS emitted: `src/templates/scripts/check-tdd-evidence.mjs.ejs`, which deliberately inlines its schema so a target needs no local arbiter install. An evidence-bundle.schema.json.ejs twin would validate a directory no emitted tool creates."
     },
     {
       "path": "scripts/check-fixture-isolation.mjs",
@@ -158,8 +150,7 @@
     },
     {
       "path": "scripts/check-hook-doc-parity.mjs",
-      "reason": "CANON-10: registered hooks reconcile with the CLAUDE.md hooks table. STILL PENDING: targets receive both `.claude/settings.json` (hooks) and `.claude/CLAUDE.md` (hooks table) from the generator, and either can drift post-generation exactly as arbiter's own hand-maintained pair can — no gate catches that drift for a target. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "CANON-10: hooks registered in `.claude/settings.json` reconcile row-for-row with the hooks table in `.claude/CLAUDE.md`. Self-only by construction because the SSOT PAIR it reconciles does not exist in that shape in a target. Arbiter registers each hook script directly in its own settings.json; a generated target registers ONE dispatcher per event (`node .claude/hooks/hooks.mjs 'PreToolUse:Edit|Write'`) and routes to individual hooks inside `hooks.mjs`. Run against a generated tree the gate reports 14 violations purely from that shape difference (8 MISSING rows for `hooks.mjs`, 6 STALE rows for the real hook filenames). The target's equivalent axis is owned by an emitted gate built for the dispatcher shape: `src/templates/scripts/check-hook-routing.mjs.ejs`, whose own header says it \"validates the complete emitted-hook -> dispatcher -> settings route\" and exists to catch \"brownfield and user-preservation drift after update at target runtime\"."
     },
     {
       "path": "scripts/check-id-stability.mjs",
@@ -191,13 +182,11 @@
     },
     {
       "path": "scripts/check-monthly-freshness.mjs",
-      "reason": "INV-82: monthly CI stamp within the freshness window. STILL PENDING: targets receive monthly CI (`src/templates/github/workflows/08-monthly.yml.ejs`, `_monthly.yml.ejs`) but no gate verifies the monthly stamp artifact stays fresh for them. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-82: the monthly CI stamp artifact (.arbiter/monthly/last-run.json) is within the 32-day window. Self-only by construction: the LIVENESS signal a governed target gets is the emitted `src/templates/github/workflows/09-heartbeat.yml.ejs` job `assert-monthly-freshness`, which asks the GitHub Actions API directly (`gh run list --workflow=08-monthly.yml`) and opens/closes a `heartbeat-monthly-missed` issue — an authoritative reading of whether 08-monthly.yml actually ran, needing no artifact on disk. This script instead reads a LOCAL stamp file that no arbiter template and no workflow writes (grep for `monthly/last-run.json` across the repo returns only this script's own help text), so an emitted twin would be a permanently vacuous gate in every target while the real check already ships in the heartbeat workflow."
     },
     {
       "path": "scripts/check-nightly-freshness.mjs",
-      "reason": "INV-93: nightly CI stamp within the freshness window. STILL PENDING: targets receive nightly CI (`06-nightly.yml.ejs`, `_nightly.yml.ejs`) but no gate verifies the nightly stamp artifact stays fresh for them. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-93: the nightly CI stamp artifact (.arbiter/nightly/last-run.json) is within the 26-hour window. Self-only by construction for the same reason its monthly sibling is, but against a different emitted job and threshold: `09-heartbeat.yml.ejs`'s `assert-nightly-freshness` enforces the SAME 26h bound (template line 49, `if [ \"$AGE_HOURS\" -gt 26 ]`) over `gh run list --workflow=06-nightly.yml`, so the emitted mechanism is a strict superset of this one — it also catches a nightly that never ran at all, which a missing stamp file reads as a vacuous PASS here. The stamp path itself is written by nothing in the repo or the template corpus."
     },
     {
       "path": "scripts/check-no-direct-fs.mjs",
@@ -221,13 +210,11 @@
     },
     {
       "path": "scripts/check-node-version-ssot.mjs",
-      "reason": "INV-53: Node version SSOT via `.nvmrc`, no literal node-version pins. STILL PENDING: `.nvmrc` is emitted to targets (`src/templates/.nvmrc.ejs`) but nothing gates a target against a literal `node-version:` pin drifting from it. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-53: Node version SSOT via `.nvmrc`, no literal `node-version:` pins. Self-only by construction because the gate decomposes into three checks that are already answered for a target by generation itself: (1) `.nvmrc` exists with an exact semver — guaranteed by `src/templates/.nvmrc.ejs`, which renders `nodeVersion` unconditionally; (3) the runtime major matches `.nvmrc` — enforced for targets as a HARD pre-push block by `src/templates/githooks/pre-push.ejs` lines 17-25, which is arbiter's own check-3 shipped verbatim; and (2), the literal-pin scan, walks `src/templates/**` — arbiter's generator corpus — because a literal pin inside a TEMPLATE is the drift that would propagate to every governed project, while every workflow template arbiter emits already uses `node-version-file: '.nvmrc'`."
     },
     {
       "path": "scripts/check-npm-ci-drift.mjs",
-      "reason": "`npm ci` would succeed under the pinned `packageManager`. STILL PENDING: npm-based target projects get a `package-lock.json` but no gate verifies `npm ci` succeeds under their pinned npm the way this self check does for arbiter's own lockfile. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "Verifies `npm ci` succeeds under the pinned `packageManager`. Self-only ONLY as a standalone script: the twin is already emitted, INLINE rather than as a sibling .ejs file. `src/templates/scripts/gate-registry.yml.ejs` declares `{ id: npm-ci-drift, level: L1, kind: inline, language: typescript, emitIf: \"packageManager === 'npm'\" }` and `src/templates/scripts/check-all.mjs.ejs` renders the body that runs the identical `npx -y npm@<pin> ci --dry-run` probe against the target's own pin, with a SKIP branch for a project with no npm pin or lockfile. It is visible in generated output as the `npm-ci drift` gate of examples/ts-library/scripts/check-all.mjs. CANON-01 is satisfied by that inline emission; only the basename-matching classifier cannot see it."
     },
     {
       "path": "scripts/check-orchestration-integrity.mjs",
@@ -259,8 +246,7 @@
     },
     {
       "path": "scripts/check-reuse-survey.mjs",
-      "reason": "INV-70: a commit adding a new `src/`/`scripts/` file documents the reuse survey. STILL PENDING: `src/templates/root/docs/METHOD/REUSE_REGISTRY_SPEC.md.ejs` emits the \"Existing Code Survey:\" marker convention to targets, but no gate enforces it there (the script's own header already flagged this as \"pending the start-warn→promote decision (#2044 item c)\"; #2044 closed without doing that promotion). Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-70: a commit range that ADDS a file under src/ or scripts/ documents the CANON-16 survey via the \"Existing Code Survey:\" marker. Self-only by construction: the survey convention is enforced for targets EARLIER and HARDER than this advisory post-hoc grep. `src/templates/claude/hooks/pre-edit-plan-anchor.mjs.ejs` is emitted into every governed tree (examples/ts-library/.claude/hooks/pre-edit-plan-anchor.mjs, dispatched by hooks.mjs on `PreToolUse:Edit|Write`) and BLOCKS the Write of a new src/ file whose active plan lacks a `## Existing Code Survey` section for that path. A twin of this script would re-litigate at commit time, advisory-only, what the emitted hook already refuses at authoring time."
     },
     {
       "path": "scripts/check-runtime-dep-pins.mjs",
@@ -312,13 +298,11 @@
     },
     {
       "path": "scripts/check-workflow-hardening.mjs",
-      "reason": "INV-76/95: GitHub Actions hardening posture across workflows. STILL PENDING: arbiter generates the full `.github/workflows/*.yml` corpus for targets (unpinned actions, missing permissions/concurrency/timeouts are real risks in generated workflows too) but the hardening-posture audit only runs on arbiter's own rendered workflows. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-76/95: multi-axis GitHub Actions hardening posture, emitting `.arbiter/reports/workflow-hardening.json`. Self-only in its PRESENT construction: the report is the value-source for the D-ACTIONS dimension of arbiter's own `standards/gold-registry.yml` (rows GA-ACT-01..05), and the registry arbiter emits, `src/templates/standards/gold-registry.yml.ejs`, has no D-ACTIONS dimension at all (10 rows across D-DOCS/D-EFFECTIVENESS/D-ENFORCEMENT), so an emitted twin would write a report nothing reads. Three of its seven axes are already emitted for targets as standalone gates — `check-action-pins.mjs.ejs` and `check-workflow-sha-pinning.mjs.ejs` (unpinned actions) and `check-workflow-perms.mjs.ejs` (missing top-level permissions). The remaining four (concurrency, timeout-minutes, cancellable deploy/audit, branch write-back) have no target twin; closing that is a target D-ACTIONS design, tracked as a follow-up rather than half-shipped here."
     },
     {
       "path": "scripts/check-workflow-parallelism.mjs",
-      "reason": "INV-120: workflow job-needs critical-path depth regression. STILL PENDING: the same generated-workflow-corpus gap — the needs-chain depth ratchet only runs on arbiter's own workflows, not a target's, even though the design note analyzes the template's own critical path. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
-      "expires": "2026-10-27"
+      "reason": "INV-120: the workflow job-`needs:` critical-path depth must not regress. Self-only in its PRESENT construction: the thresholds are calibrated against arbiter's OWN rendered corpus — FILE_OVERRIDES pins `01-pr-fast: 3` with an in-script design note explaining that the spec's ≤2 \"would fail on the current templates\" because of the Java Maven classify-changes → build-reactor → gate → unit-tests path. Those numbers are a property of one rendering: `src/templates/github/workflows/01-pr-fast.yml.ejs` is 1095 lines carrying 208 EJS conditionals, of which arbiter's own 629-line 01-pr-fast.yml is a single configuration, so arbiter's green run proves nothing about a target's graph. A twin therefore needs per-archetype limits derived from the rendered graph rather than arbiter's constants — a design task tracked as a follow-up, not a copied .ejs."
     },
     {
       "path": "scripts/gen-adr-readme.mjs",

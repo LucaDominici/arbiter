@@ -297,29 +297,46 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
       expect(deferring).toEqual([])
     })
 
-    it('gives every entry a rationale that names a concrete mechanism', () => {
-      const thin = REGISTRY.selfOnly.filter(
-        (e) => e.reason.length < 120 || !/\.ejs|\.yml|src\/templates\/|\.mjs/.test(e.reason),
-      ).map((e) => e.path)
+    // The twelve entries #2405 audited. A resolved entry must CITE evidence, not assert a
+    // verdict: the twelve pre-resolution reasons ran 272-464 chars and two named no artifact
+    // at all, so the bar is length AND >=2 distinct concrete artifact references.
+    const AUDITED_2405 = [
+      'scripts/check-acceptance.mjs',
+      'scripts/check-doc-path-citations.mjs',
+      'scripts/check-doc-style.mjs',
+      'scripts/check-evidence-bundle.mjs',
+      'scripts/check-hook-doc-parity.mjs',
+      'scripts/check-monthly-freshness.mjs',
+      'scripts/check-nightly-freshness.mjs',
+      'scripts/check-node-version-ssot.mjs',
+      'scripts/check-npm-ci-drift.mjs',
+      'scripts/check-reuse-survey.mjs',
+      'scripts/check-workflow-hardening.mjs',
+      'scripts/check-workflow-parallelism.mjs',
+    ]
+    const audited = () => REGISTRY.selfOnly.filter((e) => AUDITED_2405.includes(e.path))
+
+    it('gives every audited entry a rationale that cites concrete artifacts', () => {
+      const ARTIFACT = /[\w./-]+\.(?:ejs|mjs|yml|json|ts)\b/g
+      const thin = audited()
+        .filter((e) => e.reason.length < 600 || new Set(e.reason.match(ARTIFACT) ?? []).size < 2)
+        .map((e) => e.path)
       expect(thin).toEqual([])
     })
 
-    // A rationale that reads identically for two different checks is not a rationale, so
-    // the contract is sentence-level, not whole-string: no substantial sentence (>=60 chars)
-    // may be shared by two entries. Boilerplate ("Tracked by <issue>.", "a governed target
-    // plausibly should also receive this") is exactly what this catches; the shared
-    // by-construction CLAUSE ("Its subject is arbiter's own generator corpus...") that the
-    // pre-existing permanent entries deliberately reuse is excluded by name, because there
-    // the specificity lives in the entry's own leading sentence.
-    it('gives no two entries the same rationale sentence — boilerplate is not a rationale', () => {
-      const BY_CONSTRUCTION = 'A target project has no generator corpus'
+    // A rationale that reads identically for two different checks is not a rationale, so the
+    // contract is sentence-level, not whole-string: no substantial sentence (>=60 chars) may
+    // be shared by two of the audited entries. Pre-#2405 all twelve shared the boilerplate
+    // "Tracked by https://github.com/LucaDominici/arbiter/issues/2405." sentence. Scoped to
+    // the audited set: the older permanent FAMILIES (the governance-doc gates, the published-
+    // CLI-artifact gates) deliberately share one by-construction clause, and re-litigating
+    // those is outside this issue.
+    it('gives no two audited entries the same rationale sentence', () => {
       const bySentence = new Map<string, string[]>()
-      for (const e of REGISTRY.selfOnly) {
+      for (const e of audited()) {
         for (const raw of e.reason.split(/(?<=\.)\s+/)) {
           const sentence = raw.trim()
           if (sentence.length < 60) continue
-          if (sentence.includes(BY_CONSTRUCTION)) continue
-          if (sentence.startsWith('Its subject is arbiter')) continue
           bySentence.set(sentence, [...(bySentence.get(sentence) ?? []), e.path])
         }
       }
