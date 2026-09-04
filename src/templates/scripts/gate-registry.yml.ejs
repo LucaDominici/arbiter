@@ -247,6 +247,10 @@ gates:
   - { id: audit-dry-pass, name: 'audit dry-pass (E3 #1943)', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')", cmd: ['node', ['scripts/check-audit-dry-pass.mjs', '--all']] }
   - { id: handoff-lint, name: 'handoff lint (E6a #1943)', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')", cmd: ['node', ['scripts/check-handoff-doc.mjs']] }
   - { id: cross-model-review, name: 'cross-model review (#2358)', level: L2, kind: warn, emitIf: "enableDebtGates", cmd: ['node', ['scripts/check-cross-model-review.mjs']] }
+  # #2405 (ADR-110 follow-up, INV-138): the acceptance-criteria anchor gate. Advisory
+  # (`warn`) because the anchor is opt-in per project — the script itself is inert unless
+  # `features.acceptanceAnchor` is on, and vacuous-passes with no active task.
+  - { id: acceptance-anchor, name: 'acceptance anchor (INV-138)', level: L2, kind: warn, condition: "gateFilePresent('scripts/check-acceptance.mjs', 'acceptance anchor (INV-138)')", cmd: ['node', ['scripts/check-acceptance.mjs']] }
   - { id: tdd-evidence, name: 'tdd-evidence (INV-131)', level: L2, kind: check, soft: true, cmd: ['node', ['scripts/check-tdd-evidence.mjs']] }
   - { id: todo-max-age, name: 'todo max-age (INV-133)', level: L2, kind: check, soft: true, cmd: ['node', ['scripts/check-todo-max-age.mjs']] }
   - { id: evidence-gate, name: 'evidence gate (INV-33)', level: L3, kind: inline, emitIf: "isL3Plus" }

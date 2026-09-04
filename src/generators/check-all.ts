@@ -436,12 +436,19 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // preflight/FIT-rubric steps invoke issue-readiness.mjs / rework-log.mjs, so the
   // files must exist in every governed tree (INV-123 emission coherence — command-doc
   // references are unguarded by construction). Both share the pure parsing core in
-  // scripts/lib/acceptance-criteria.mjs, co-emitted like glob-walk above. The
-  // check-acceptance.mjs GATE stays self-only (not wired in generated check-all) —
-  // that wiring is the tracked ADR-110 follow-up.
+  // scripts/lib/acceptance-criteria.mjs, co-emitted like glob-walk above. #2405 closed
+  // the ADR-110 follow-up: the check-acceptance.mjs GATE is emitted here too and wired
+  // in gate-registry.yml.ejs (`acceptance-anchor`), so CANON-01 holds for the gate as
+  // well as for the tools. It is inert until a target opts in via
+  // `features.acceptanceAnchor` (or ARBITER_ACCEPTANCE_ANCHOR=1), and vacuous-passes
+  // with no active task, so a fresh consumer is never day-1 red.
   {
     rel: ['scripts', 'issue-readiness.mjs'],
     tpl: 'scripts/issue-readiness.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'check-acceptance.mjs'],
+    tpl: 'scripts/check-acceptance.mjs.ejs',
   },
   {
     rel: ['scripts', 'rework-log.mjs'],
