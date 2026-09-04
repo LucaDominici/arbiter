@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2301",
+  "test_path": "__tests__/scripts/check-guard-flip.test.ts",
+  "test_commit_sha": "abb471a5a90470fb7c3403a368498e59db22e405",
+  "test_blob_sha": "91baa4320d6adfefb6313c01339d9bf3e7c04d9f",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/check-guard-flip.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  07:07:30\n   Duration  380ms (transform 168ms, setup 20ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-guard-flip.test.ts [ __tests__/scripts/check-guard-flip.test.ts ]\nError: Cannot find module '../../scripts/lib/gate-roster.mjs' imported from __tests__/scripts/check-guard-flip.test.ts\n ❯ __tests__/scripts/check-guard-flip.test.ts:17:1\n     15| import { GUARDS, CONTEXT_ROT_GATES } from '../../scripts/lib/anti-fake…\n     16| import { FLIP_REGISTRY } from '../../scripts/lib/guard-flip-registry.m…\n     17| import {\n       | ^\n     18|   deriveAbsenceFamily,\n     19|   auditInversionRegistry,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-guard-flip.test.ts",
+  "recorded_at": "2026-09-04T07:07:31.268Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-guard-flip.test.ts"
+  ]
+}
