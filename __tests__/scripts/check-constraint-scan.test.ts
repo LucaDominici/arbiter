@@ -439,9 +439,10 @@ describe('check-constraint-scan.mjs (INV-115) — real-doc canary (false-negativ
     expect(r.stdout).toMatch(/\[COVERED\].*\bany\b/)
     expect(r.stdout).toMatch(/\[COVERED\].*\bvar\b/)
     // The `**Never:**` block in .claude/CLAUDE.md must yield prohibitions (not be skipped).
-    // Pure-prose ones (skip the gate / commit to main) are UNENFORCEABLE, sourced from CLAUDE.md —
-    // pinned to the doc so a broken block parser can't pass on AGENTS.md/CANON.md unenforceables.
-    expect(r.stdout).toMatch(/UNENFORCEABLE.*CLAUDE\.md/)
+    // Since #2384 the pure-prose ones (commit to main, root-cause discipline) are triaged into
+    // the ACCEPTED bucket rather than left untriaged — still pinned to the doc, so a broken
+    // block parser cannot pass on AGENTS.md/CANON.md classifications alone.
+    expect(r.stdout).toMatch(/\[ACCEPTED\].*CLAUDE\.md/)
   })
 })
 
@@ -478,5 +479,270 @@ describe('check-constraint-scan.mjs (INV-115) — #2410 extraction-quality follo
     } finally {
       cleanup()
     }
+  })
+})
+
+// ─── #2384: prose triage, the accepted bucket, and the coverage ratchet ──────────────────
+// INV-115 could only ever mark a prohibition COVERED when it carried a grep-able code
+// token, so every judgment-level rule ("Skip the gate before committing") was stuck in the
+// UNENFORCEABLE bucket regardless of whether a real enforcer existed. These tests pin the
+// three honest outcomes of triage — mapped-to-a-real-enforcer, explicitly ACCEPTED with a
+// rationale, or still untriaged — plus the one-way ratchet that stops the ratio drifting back.
+const PROSE = 'Skip the gate before committing'
+
+function writeRawMap(dir: string, map: unknown): string {
+  const p = join(dir, 'map.json')
+  writeFileSync(p, JSON.stringify(map))
+  return p
+}
+
+function writeBaseline(dir: string, metrics: Record<string, unknown>): string {
+  const p = join(dir, 'baseline.json')
+  writeFileSync(p, JSON.stringify({ version: 1, capturedAt: '2026-01-01T00:00:00Z', metrics }))
+  return p
+}
+
+function count(n: number, direction: string) {
+  return { value: n, unit: 'count', direction }
+}
+
+describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage ratchet', () => {
+  it('22. a token-less prohibition mapped by its prose key resolves to COVERED, not UNENFORCEABLE', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeRawMap(dir, {
+        [`prose:- ${PROSE}`]: { kind: 'hook', enforcer: 'check-no-orphan-todo.mjs' },
+      })
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('[COVERED]')
+      expect(r.stdout).not.toContain('[UNENFORCEABLE]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('23. kind "accepted" + a rationale reports ACCEPTED (triaged), not UNENFORCEABLE', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeRawMap(dir, {
+        [`prose:- ${PROSE}`]: {
+          kind: 'accepted',
+          rationale: 'Judgment-level rule with no mechanical enforcer; reviewed by a human at PR time.',
+        },
+      })
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('[ACCEPTED]')
+      expect(r.stdout).not.toContain('[UNENFORCEABLE]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('24. kind "accepted" with no rationale is MAP-INVALID and FAILS (acceptance is never free)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeRawMap(dir, { [`prose:- ${PROSE}`]: { kind: 'accepted' } })
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[MAP-INVALID]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('25. a prose entry naming a non-existent enforcer is still MAP-FICTION (AC-2)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeRawMap(dir, {
+        [`prose:- ${PROSE}`]: { kind: 'script', enforcer: 'check-does-not-exist-2384.mjs' },
+      })
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[MAP-FICTION]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('26. a prose entry matching no extracted prohibition is MAP-DEAD and FAILS (map cannot rot)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeRawMap(dir, {
+        [`prose:- ${PROSE}`]: { kind: 'hook', enforcer: 'check-no-orphan-todo.mjs' },
+        'prose:- A prohibition nobody wrote': { kind: 'hook', enforcer: 'check-no-orphan-todo.mjs' },
+      })
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[MAP-DEAD]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('27. kind "githook" resolves under .githooks/ (and a missing one is MAP-FICTION)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const ok = writeRawMap(dir, {
+        [`prose:- ${PROSE}`]: { kind: 'githook', enforcer: 'pre-commit' },
+      })
+      expect(run([`--docs=${doc}`, `--src=${src}`, `--map=${ok}`]).stdout).toContain('[COVERED]')
+      const bad = join(dir, 'bad.json')
+      writeFileSync(
+        bad,
+        JSON.stringify({ [`prose:- ${PROSE}`]: { kind: 'githook', enforcer: 'no-such-hook' } }),
+      )
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${bad}`])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[MAP-FICTION]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('28. `**Extended to:**` is an explanatory metadata field, not a prohibition', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(
+        dir,
+        '**Extended to:** INV-115 — generalised to free-text prohibitions (NEVER / MUST NOT / DO NOT).\n',
+      )
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status).toBe(0)
+      expect(r.stdout).not.toContain('[UNENFORCEABLE]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('29. the ratchet FAILS when the unenforceable count rises above the baseline', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const base = writeBaseline(dir, {
+        covered: count(0, 'higher-is-better'),
+        unenforceable: count(0, 'lower-is-better'),
+      })
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${base}`])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[RATCHET]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('30. the ratchet FAILS when the covered count falls below the baseline', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeRawMap(dir, {
+        [`prose:- ${PROSE}`]: {
+          kind: 'accepted',
+          rationale: 'Judgment-level rule with no mechanical enforcer; reviewed by a human at PR time.',
+        },
+      })
+      const base = writeBaseline(dir, {
+        covered: count(5, 'higher-is-better'),
+        unenforceable: count(0, 'lower-is-better'),
+      })
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${base}`])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[RATCHET]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('31. an absent baseline does not fail the gate — it reports RATCHET-UNSET', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const missing = join(dir, 'no-such-baseline.json')
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${missing}`])
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('[RATCHET-UNSET]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('32. --update-baseline REFUSES to record a regression (a ratchet that loosens is not a ratchet)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const base = writeBaseline(dir, {
+        covered: count(3, 'higher-is-better'),
+        unenforceable: count(0, 'lower-is-better'),
+      })
+      const before = readFileSync(base, 'utf8')
+      const r = run([
+        `--docs=${doc}`,
+        `--src=${src}`,
+        `--map=${map}`,
+        `--baseline=${base}`,
+        '--update-baseline',
+      ])
+      expect(r.status).toBe(1)
+      expect(readFileSync(base, 'utf8')).toBe(before)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('33. --update-baseline TIGHTENS when the numbers improved', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeRawMap(dir, {
+        [`prose:- ${PROSE}`]: { kind: 'hook', enforcer: 'check-no-orphan-todo.mjs' },
+      })
+      const base = writeBaseline(dir, {
+        covered: count(0, 'higher-is-better'),
+        unenforceable: count(9, 'lower-is-better'),
+      })
+      const r = run([
+        `--docs=${doc}`,
+        `--src=${src}`,
+        `--map=${map}`,
+        `--baseline=${base}`,
+        '--update-baseline',
+      ])
+      expect(r.status).toBe(0)
+      const updated = JSON.parse(readFileSync(base, 'utf8'))
+      expect(updated.metrics.covered.value).toBe(1)
+      expect(updated.metrics.unenforceable.value).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('34. the arbiter self-repo has ZERO untriaged prohibitions (AC-1/AC-3)', () => {
+    const r = run([])
+    expect(r.status).toBe(0)
+    expect(r.stdout).not.toContain('[UNENFORCEABLE]')
+    expect(r.stdout).toMatch(/0 unenforceable/)
   })
 })
