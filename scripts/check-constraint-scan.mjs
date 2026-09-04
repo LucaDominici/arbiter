@@ -288,6 +288,25 @@ function metricValue(metrics, key, fallback) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
+// Reads the committed baseline's ratchet floors. An unreadable or malformed baseline is
+// fail-closed (exit 2) — a ratchet that cannot read its floor must not silently pass. A
+// well-formed baseline missing a metric falls back to the permissive floor for that metric.
+function readBaselineBounds(path) {
+  let base
+  try {
+    base = JSON.parse(readFileSync(path, 'utf8'))
+  } catch (err) {
+    process.stderr.write(`[constraint-scan] invalid baseline JSON at ${path}: ${err.message}\n`)
+    process.exit(2)
+  }
+  const metrics =
+    base && typeof base === 'object' && !Array.isArray(base) ? base.metrics : undefined
+  return {
+    baseCovered: metricValue(metrics, 'covered', 0),
+    baseUnenf: metricValue(metrics, 'unenforceable', Number.POSITIVE_INFINITY),
+  }
+}
+
 function ratchetOk(args, root, covered, accepted, unenforceable) {
   if (!args.ratchetScoped) return true
   const path = resolve(root, args.baseline)
@@ -313,17 +332,7 @@ function ratchetOk(args, root, covered, accepted, unenforceable) {
     )
     return true
   }
-  let base
-  try {
-    base = JSON.parse(readFileSync(path, 'utf8'))
-  } catch (err) {
-    process.stderr.write(`[constraint-scan] invalid baseline JSON at ${path}: ${err.message}\n`)
-    process.exit(2)
-  }
-  const metrics =
-    base && typeof base === 'object' && !Array.isArray(base) ? base.metrics : undefined
-  const baseCovered = metricValue(metrics, 'covered', 0)
-  const baseUnenf = metricValue(metrics, 'unenforceable', Number.POSITIVE_INFINITY)
+  const { baseCovered, baseUnenf } = readBaselineBounds(path)
   let regressed = false
   if (covered < baseCovered) {
     process.stdout.write(`[RATCHET] covered fell ${baseCovered} -> ${covered} (${args.baseline})\n`)
