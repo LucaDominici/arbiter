@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "capturedAt": "2026-09-04T02:07:03.468Z",
+  "metrics": {
+    "covered": {
+      "value": 22,
+      "unit": "count",
+      "direction": "higher-is-better"
+    },
+    "accepted": {
+      "value": 6,
+      "unit": "count",
+      "direction": "informational"
+    },
+    "unenforceable": {
+      "value": 0,
+      "unit": "count",
+      "direction": "lower-is-better"
+    }
+  }
+}

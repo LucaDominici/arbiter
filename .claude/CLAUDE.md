@@ -113,6 +113,6 @@ A failure is never dismissed because "it was already broken" or "it's not from m
 Pre-existing red, flaky infra, a stale pin, a lapsed suppression, a nightly that's been
 failing for days — all of it gets **fixed at the root cause**, or, when out of the current
 scope, **filed as a tracked issue** that will itself be driven to a fix. "Pre-existing" is an
-explanation of origin, never a reason to leave it broken. When you discover a problem you are
+explanation of origin, not a reason to leave it broken. When you discover a problem you are
 not fixing this instant, open an issue for it before moving on; the backlog is the queue, not
 the graveyard.

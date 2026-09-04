@@ -5,27 +5,42 @@
 // governance docs and classifies each as COVERED (verified enforcer), ENFORCED-BY-SCAN
 // (derivable token, live-grepped), or UNENFORCEABLE (triage). Mirrors the self-repo gate
 // (scripts/check-constraint-scan.mjs); extends CANON-09 to free-text governance.
-// Usage: node scripts/check-constraint-scan.mjs [--docs=a,b] [--src=dir] [--map=path] [--enforce[=true|false]] [--help]
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+// Usage: node scripts/check-constraint-scan.mjs [--docs=a,b] [--src=dir] [--map=path]
+//        [--enforce[=true|false]] [--baseline=path] [--update-baseline] [--help]
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 
 // Generated default: WARN on un-covered derivable prohibitions (start-warn-promote-later).
 // Curate `constraint-map.json`, then run with --enforce=true to hard-fail in CI.
 const ENFORCE_DEFAULT = false
 
+// AC-3 ratchet (#2384): the covered/unenforceable ratio is pinned in a committed
+// baseline so triage cannot silently drift back. Same one-way shape as
+// scripts/debt-baseline.json — --update-baseline only ever tightens.
+const BASELINE_DEFAULT = 'scripts/data/constraint-coverage-baseline.json'
+const PROSE_PREFIX = 'prose:'
+// An acceptance is a claim that no mechanism can carry this rule. It costs a written
+// reason, or it is a loophole: too-short rationales are MAP-INVALID, never ACCEPTED.
+const MIN_RATIONALE = 40
+
 const HELP = `Usage: node scripts/check-constraint-scan.mjs [options]
 
 Extracts hard prohibitions from governance docs and classifies each:
   COVERED          — mapped to an existing, verified enforcer (gate/hook/inv/lint/template)
   ENFORCED-BY-SCAN — derivable code token, live-grepped against --src every run
-  UNENFORCEABLE    — prose / path / non-code token → human triage (warn)
-A map entry naming a non-existent enforcer is MAP-FICTION and always fails.
+  ACCEPTED         — judgment-level prose, explicitly triaged with a written rationale
+  UNENFORCEABLE    — prose / path / non-code token, NOT yet triaged (the backlog)
+A map entry naming a non-existent enforcer is MAP-FICTION and always fails; a
+"prose:<verbatim line>" entry matching no extracted prohibition is MAP-DEAD; an
+"accepted" entry without a written rationale is MAP-INVALID. Both also fail.
 
 Options:
   --docs=<a,b,c>   Comma-separated governance docs (default: AGENTS.md,docs/SYSTEM/CANON.md,.claude/CLAUDE.md)
   --src=<dir>      Source root to scan for live hits (default: src)
   --map=<path>     Constraint map JSON (default: scripts/constraint-map.json)
   --enforce[=bool] Hard-fail on ENFORCED-BY-SCAN live hits (default: ${ENFORCE_DEFAULT})
+  --baseline=<p>   Coverage ratchet baseline (default: ${BASELINE_DEFAULT})
+  --update-baseline  Tighten the baseline; REFUSES to record a regression
   --help, -h       Show this help and exit
 `
 
@@ -40,8 +55,15 @@ function parseArgs(argv) {
   const src = get('src')
   const map = get('map')
   const enforceRaw = get('enforce')
+  const baseline = get('baseline')
   return {
     help: argv.includes('--help') || argv.includes('-h'),
+    baseline: baseline || BASELINE_DEFAULT,
+    updateBaseline: argv.includes('--update-baseline'),
+    // The ratchet measures THIS project's governance corpus against THIS project's map.
+    // A run pointed at fixture docs or a fixture map measures something else, so it is
+    // not ratcheted unless the caller named a baseline explicitly.
+    ratchetScoped: baseline !== undefined || (docs === undefined && map === undefined),
     docs: docs
       ? docs.split(',').map((s) => s.trim()).filter(Boolean)
       : ['AGENTS.md', 'docs/SYSTEM/CANON.md', '.claude/CLAUDE.md'],
@@ -57,7 +79,7 @@ function escapeRegExp(s) {
 
 const NEVER_BLOCK_HEADER = /^\s*\*\*(Never|Don't|Do ?not)\b[^*]*\*\*\s*$/i
 const EXCLUDED_FIELD =
-  /^\s*(>|(?:[-*]\s+)?(?:\*\*|_)(Why|Source|Sources|Enforcement|Promoted|Tradeoff)\b)/i
+  /^\s*(>|(?:[-*]\s+)?(?:\*\*|_)(Why|Source|Sources|Enforcement|Promoted|Extended|Tradeoff)\b)/i
 const BULLET = /^\s*[-*]\s+/
 const INLINE_MARKERS = [
   /MUST\s+NOT\b/i,
@@ -214,11 +236,97 @@ function enforcerExists(enforcer, kind, root) {
         }
       })
     }
+    case 'githook':
+      return existsSync(join(root, '.githooks', enforcer))
     case 'template':
       return existsSync(join(root, enforcer))
     default:
       return false
   }
+}
+
+// ─── Coverage ratchet (AC-3, #2384) ──────────────────────────────────────────
+// One-way, same contract as scripts/capture-debt-baseline.mjs --update: covered may only
+// rise, unenforceable may only fall, and --update-baseline REFUSES to write a regression
+// (an "update" that silently accepts a rise is not a ratchet). `accepted` is recorded for
+// visibility but not ratcheted — a new acceptance earns its rationale in a reviewed diff.
+function metricValue(metrics, key, fallback) {
+  const raw = metrics && typeof metrics === 'object' ? metrics[key] : undefined
+  const value = raw && typeof raw === 'object' ? raw.value : undefined
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+// Reads the committed baseline's ratchet floors. An unreadable or malformed baseline is
+// fail-closed (exit 2) — a ratchet that cannot read its floor must not silently pass. A
+// well-formed baseline missing a metric falls back to the permissive floor for that metric.
+function readBaselineBounds(path) {
+  let base
+  try {
+    base = JSON.parse(readFileSync(path, 'utf8'))
+  } catch (err) {
+    process.stderr.write(`[constraint-scan] invalid baseline JSON at ${path}: ${err.message}\n`)
+    process.exit(2)
+  }
+  const metrics =
+    base && typeof base === 'object' && !Array.isArray(base) ? base.metrics : undefined
+  return {
+    baseCovered: metricValue(metrics, 'covered', 0),
+    baseUnenf: metricValue(metrics, 'unenforceable', Number.POSITIVE_INFINITY),
+  }
+}
+
+function ratchetOk(args, root, covered, accepted, unenforceable) {
+  if (!args.ratchetScoped) return true
+  const path = resolve(root, args.baseline)
+  const next = {
+    version: 1,
+    capturedAt: new Date().toISOString(),
+    metrics: {
+      covered: { value: covered, unit: 'count', direction: 'higher-is-better' },
+      accepted: { value: accepted, unit: 'count', direction: 'informational' },
+      unenforceable: { value: unenforceable, unit: 'count', direction: 'lower-is-better' },
+    },
+  }
+  if (!existsSync(path)) {
+    if (args.updateBaseline) {
+      writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`)
+      process.stdout.write(`[RATCHET-UPDATED] ${args.baseline} seeded at ${covered}/${unenforceable}\n`)
+      return true
+    }
+    process.stdout.write(
+      `[RATCHET-UNSET] no baseline at ${args.baseline} — coverage is not ratcheted yet\n`,
+    )
+    return true
+  }
+  const { baseCovered, baseUnenf } = readBaselineBounds(path)
+  let regressed = false
+  if (covered < baseCovered) {
+    process.stdout.write(`[RATCHET] covered fell ${baseCovered} -> ${covered} (${args.baseline})\n`)
+    regressed = true
+  }
+  if (unenforceable > baseUnenf) {
+    process.stdout.write(
+      `[RATCHET] unenforceable rose ${baseUnenf} -> ${unenforceable} (${args.baseline})\n`,
+    )
+    regressed = true
+  }
+  if (args.updateBaseline) {
+    if (regressed) {
+      process.stdout.write(
+        '[RATCHET] refusing to update the baseline with a regression — triage the prohibitions instead\n',
+      )
+      return false
+    }
+    next.metrics.covered.value = Math.max(covered, baseCovered)
+    next.metrics.unenforceable.value = Math.min(unenforceable, baseUnenf)
+    writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`)
+    process.stdout.write(
+      `[RATCHET-UPDATED] ${args.baseline}: ${next.metrics.covered.value} covered, ` +
+        `${next.metrics.unenforceable.value} unenforceable\n`,
+    )
+    return true
+  }
+  return !regressed
 }
 
 function main() {
@@ -320,9 +428,12 @@ function main() {
   }
 
   let fiction = 0
+  let invalid = 0
   let violations = 0
   const seenCovered = new Set()
+  const seenAccepted = new Set()
   const seenUnenf = new Set()
+  const usedProseKeys = new Set()
 
   for (const pr of prohibitions) {
     const tok = pr.token
@@ -336,6 +447,39 @@ function main() {
       } else {
         process.stdout.write(
           `[MAP-FICTION] ${tok} → ${kind}:${enforcer} (enforcer not found) — ${pr.doc}:${pr.line}\n`,
+        )
+        fiction++
+      }
+      continue
+    }
+    // A prose entry triages one WHOLE LINE by its verbatim text — the only stable key a
+    // token-less prohibition has. It is consulted before token derivation because an explicit
+    // human triage decision for the line supersedes any token scan on that same line.
+    const proseKey = PROSE_PREFIX + pr.text
+    if (Object.prototype.hasOwnProperty.call(map, proseKey)) {
+      usedProseKeys.add(proseKey)
+      const { enforcer, kind, rationale } = map[proseKey]
+      const label = pr.text.slice(0, 60)
+      if (kind === 'accepted') {
+        if (typeof rationale !== 'string' || rationale.trim().length < MIN_RATIONALE) {
+          process.stdout.write(
+            `[MAP-INVALID] ${label} — accepted needs a rationale of >=${MIN_RATIONALE} chars ` +
+              `(${pr.doc}:${pr.line})\n`,
+          )
+          invalid++
+        } else if (!seenAccepted.has(proseKey)) {
+          process.stdout.write(`[ACCEPTED] ${label} — ${pr.doc}:${pr.line} — ${rationale}\n`)
+          seenAccepted.add(proseKey)
+        }
+      } else if (enforcerExists(enforcer, kind, root)) {
+        if (!seenCovered.has(proseKey)) {
+          process.stdout.write(`[COVERED] ${label} → ${kind}:${enforcer} — ${pr.doc}:${pr.line}\n`)
+          seenCovered.add(proseKey)
+        }
+      } else {
+        process.stdout.write(
+          `[MAP-FICTION] ${label} → ${kind}:${enforcer} (enforcer not found) — ` +
+            `${pr.doc}:${pr.line}\n`,
         )
         fiction++
       }
@@ -360,8 +504,22 @@ function main() {
     }
   }
 
+  // A prose entry matching nothing is rot: the line it triaged was reworded or deleted, and
+  // the entry now silently vouches for a prohibition the docs no longer make.
+  for (const key of Object.keys(map)) {
+    if (!key.startsWith(PROSE_PREFIX) || usedProseKeys.has(key)) continue
+    process.stdout.write(
+      `[MAP-DEAD] ${key.slice(PROSE_PREFIX.length).slice(0, 60)} — matches no prohibition\n`,
+    )
+    invalid++
+  }
+
   if (fiction > 0) {
     process.stdout.write(`[check-constraint-scan] FAIL: ${fiction} map-fiction entry(ies)\n`)
+    process.exit(1)
+  }
+  if (invalid > 0) {
+    process.stdout.write(`[check-constraint-scan] FAIL: ${invalid} invalid/dead map entry(ies)\n`)
     process.exit(1)
   }
   if (violations > 0) {
@@ -372,9 +530,18 @@ function main() {
     process.stdout.write('[check-constraint-scan] FAIL: scan incomplete — some source files could not be read\n')
     process.exit(1)
   }
+  const summary =
+    `${seenCovered.size} covered, ${seenAccepted.size} accepted, ` +
+    `${seenUnenf.size} unenforceable (triage)`
+  if (!ratchetOk(args, root, seenCovered.size, seenAccepted.size, seenUnenf.size)) {
+    process.stdout.write(`[check-constraint-scan] FAIL: coverage ratchet — ${summary}
+`)
+    process.exit(1)
+  }
   process.stdout.write(
     `[check-constraint-scan] OK — ${docsScanned} doc(s), ${prohibitions.length} prohibition(s): ` +
-      `${seenCovered.size} covered, ${seenUnenf.size} unenforceable (triage)\n`,
+      `${summary}
+`,
   )
   process.exit(0)
 }

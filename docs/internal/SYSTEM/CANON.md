@@ -326,7 +326,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Tier-2 (advisory only — do NOT hard-gate alone):**
 
 - **SOLID principles** — useful design vocabulary; little controlled evidence that mechanical conformance reduces defects.
-- **DRY-as-dogma** — duplication _count_ gates, but "never repeat anything" over-abstracts; only inconsistent/significant clones are Tier-1.
+- **DRY-as-dogma** — duplication _count_ gates, but blanket "repeat nothing" dogma over-abstracts; only inconsistent/significant clones are Tier-1.
 - **Cognitive complexity (Campbell / SonarSource 2018)** — plausible and popular but not independently replicated to McCabe's standard; advisory until validated.
 
 **Why:** Quality enforcement that fails the build on contested heuristics breeds gate-fatigue and bypasses, eroding trust in the gates that _are_ validated. Anchoring hard gates to replicated evidence keeps the gate set defensible and the signal high. Conversely, leaving a validated concern (duplication, complexity, debt) to advice alone is how anti-bloat rots — the owner's primary failure mode. This rule draws the line and forces each new gate to declare its tier.
