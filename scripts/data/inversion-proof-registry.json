@@ -1,0 +1,153 @@
+{
+  "$comment": [
+    "CANON-24 inversion-proof deferral ledger (#2301). Output of the one-off audit that asked, of",
+    "every ABSENCE-asserting gate wired in scripts/check-all.mjs (check-no-*, ratchets, parity):",
+    "'which concrete change makes this red?' A gate with an answer carries a flip proof in",
+    "scripts/lib/guard-flip-registry.mjs. A gate whose answer could not be reduced to a planted",
+    "bad/clean fixture in this pass is a ROW HERE — never an omission.",
+    "",
+    "BANKED, not merely capped: scripts/check-guard-flip.mjs fails when deferred.length != ceiling,",
+    "in BOTH directions. Growing the ledger means editing this file AND the DEFERRED_CEILING literal",
+    "in __tests__/scripts/check-guard-flip.test.ts; shrinking it means lowering the ceiling in the",
+    "same commit, so a proven row cannot leave slack for a later silent re-fill.",
+    "",
+    "Every field is machine-verified offline by auditInversionRegistry (scripts/lib/gate-roster.mjs):",
+    "`gate` must be in the family derived live from check-all.mjs (a stale or fabricated row fails),",
+    "`script`/`category` must agree with that derivation, `reason` must be substantive, and `expires`",
+    "must not have passed. `issue` is recorded PROVENANCE and buys nothing on its own: the exemption",
+    "is bounded by `expires`, which a clock verifies in every environment. A GitHub-API liveness",
+    "check was rejected deliberately — it cannot run offline or in a tokenless job, and a check that",
+    "silently no-ops in some environments is the corollary #2301 itself names."
+  ],
+  "ceiling": 16,
+  "deferred": [
+    {
+      "gate": "no redacted tokens",
+      "script": "scripts/check-no-redacted-tokens.mjs",
+      "category": "no",
+      "reason": "git ls-files is redirectable via ARBITER_HOOK_GIT_CWD, but each file body is read as join(ROOT, rel) against the script's own repo root, so a fixture repo's files are never opened. No injection point without changing the gate.",
+      "issue": 2301,
+      "expires": "2026-12-31"
+    },
+    {
+      "gate": "bloat ratchet",
+      "script": "scripts/check-bloat-ratchet.mjs",
+      "category": "ratchet",
+      "reason": "Counts src/ buckets from process.cwd() against .bloat-baseline.json, and BOOTSTRAPS a missing baseline with exit 0 — so a naive clean fixture passes vacuously. A sound proof must first materialise every BLOAT_BUCKETS path, then invert one.",
+      "issue": 2301,
+      "expires": "2027-02-28"
+    },
+    {
+      "gate": "coverage ratchet (#1483)",
+      "script": "scripts/check-coverage-ratchet.mjs",
+      "category": "ratchet",
+      "reason": "Compares coverage/coverage-summary.json against .coverage-baseline.json, both at fixed repo-relative paths with no override flag, and bootstraps a missing baseline at exit 0. Inverting it means fabricating a v8 summary artifact.",
+      "issue": 2301,
+      "expires": "2027-02-28"
+    },
+    {
+      "gate": "debt ratchet",
+      "script": "scripts/debt-report.mjs",
+      "category": "ratchet",
+      "reason": "--gate aggregates jscpd/knip/eslint metrics measured over the live repo from process.cwd() with no root flag; an inversion fixture needs a whole synthetic project plus those external tools, not a planted file.",
+      "issue": 2301,
+      "expires": "2027-02-28"
+    },
+    {
+      "gate": "gold-audit no-regress (#1373)",
+      "script": "scripts/gold-audit.mjs",
+      "category": "ratchet",
+      "reason": "Scores the live repo from process.cwd() across many registries and compares the result against a committed report; inverting the no-regress arm means fabricating a complete audit report, not a single planted file.",
+      "issue": 2301,
+      "expires": "2027-02-28"
+    },
+    {
+      "gate": "safety adopt ratchet (#2291)",
+      "script": "scripts/check-safety-adopt-ratchet.mjs",
+      "category": "ratchet",
+      "reason": "Named in #2301 as structurally dead: it iterates manifest.withheldSafety, absent on all three measured pins, so it prints OK and exits 0 by construction. --manifest makes it fixture-injectable, but the fix and its proof belong to #2291, not to the mechanism issue.",
+      "issue": 2291,
+      "expires": "2027-02-28"
+    },
+    {
+      "gate": "action pin parity",
+      "script": "scripts/sync-action-pins.mjs",
+      "category": "parity",
+      "reason": "--check walks .github/workflows plus every src/templates/**/*.ejs from process.cwd() with no root flag; a fixture needs both trees, and the by-name last-occurrence indexing defect it hides is #2298's subject, not this issue's.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "ci tool parity",
+      "script": "scripts/check-ci-tool-parity.mjs",
+      "category": "parity",
+      "reason": "Reconciles three surfaces (scripts/ci-tools.json, check-all.mjs, the CI workflow + installer) read from fixed repo-relative paths with no override flag; a fixture would have to reproduce all three.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "cli ref parity (INV-111)",
+      "script": "scripts/gen-cli-ref.mjs",
+      "category": "parity",
+      "reason": "Regenerates the CLI reference from src/cli.ts and diffs it against the committed doc; both paths are fixed with no root flag, so the fixture needs a parseable cli.ts and the generated doc, not a planted file.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "codex parity (#1966)",
+      "script": "scripts/check-codex-parity.mjs",
+      "category": "parity",
+      "reason": "Takes --dir, but compares a fully rendered target tree against the .codex/ template corpus; the bad fixture is a generated project with one divergence, which this pass did not build.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "codex self-parity (#1966)",
+      "script": "scripts/check-codex-self-parity.mjs",
+      "category": "parity",
+      "reason": "Takes --repo, but reconciles .claude/ against .codex/ across commands, agents and skills at once; a bad fixture must reproduce both trees coherently enough that only the planted divergence differs.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "global-invariants parity",
+      "script": "scripts/check-global-invariants-parity.mjs",
+      "category": "parity",
+      "reason": "Reads the invariant catalog and the emitted global-invariants surface from fixed repo-relative paths under process.cwd(), with no catalog/target override flags to point at a fixture.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "hook doc parity (CANON-10, #1838)",
+      "script": "scripts/check-hook-doc-parity.mjs",
+      "category": "parity",
+      "reason": "Reads .claude/settings.json and .claude/CLAUDE.md from fixed repo-relative paths with no override flag; a fixture cannot be injected without adding one.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "kit catalog parity",
+      "script": "scripts/check-kit-catalog-parity.mjs",
+      "category": "parity",
+      "reason": "Reconciles src/kit/catalog.json against the build-derived src/kit/derived.json from fixed paths under process.cwd(); a fixture must also reproduce the derivation step, not just the two files.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "local-ci parity",
+      "script": "scripts/check-local-ci-parity.mjs",
+      "category": "parity",
+      "reason": "Takes --dir, but reconciles every check-all.mjs step against the CI workflow surface; the bad fixture is a complete local-plus-CI pair with exactly one step missing, which this pass did not build.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    },
+    {
+      "gate": "version parity (#1838)",
+      "script": "scripts/check-version-parity.mjs",
+      "category": "parity",
+      "reason": "Reads package.json plus several documentation surfaces from fixed repo-relative paths with no override flag; there is no injection point for a fixture without changing the gate.",
+      "issue": 2301,
+      "expires": "2027-03-31"
+    }
+  ]
+}

@@ -160,6 +160,49 @@ const plantAssertionDeltaRepo = (d, keepBoth) => {
   git(repo, 'commit', '-q', '-m', 'test: refactor')
 }
 
+// ── CANON-24 absence-family fixtures (#2301) ──────────────────────────────────────────────────
+// The forbidden tokens below are ASSEMBLED at runtime, never written literally: this file is a
+// tracked .mjs and every one of these gates scans tracked .mjs files, so a literal fixture token
+// would make the repo fail its own gate.
+const ORPHAN = `// TO${'DO'}: unbound work item`
+const ANCHORED = `// TO${'DO'}(#2301): bound work item`
+const PLACEHOLDER_TOKEN = `// ${'FIX'}${'ME'}: left behind`
+const WORK_REF = ['via', 'fera'].join('')
+
+/** A minimal git repo at `dir` with `files` committed. Never touches the host repo. */
+const gitFixture = (dir, files) => {
+  for (const [rel, body] of Object.entries(files)) write(dir, rel, body)
+  git(dir, 'init', '-q')
+  git(dir, 'add', '-A')
+  git(dir, 'commit', '-q', '-m', 'fixture')
+}
+
+/** An invariant catalog + AGENTS.md pair; `mirrored` decides whether AGENTS.md carries the row. */
+const plantCatalogParity = (d, mirrored) => {
+  // id and title must sit on SEPARATE lines: the catalog parser is line-based and skips to the
+  // next line after matching an id, so a one-line entry parses as zero invariants (vacuous pass).
+  write(
+    d,
+    'catalog.ts',
+    "export const CATALOG = [\n  {\n    id: 'INV-01',\n    title: 'Thing is enforced',\n  },\n]\n",
+  )
+  write(d, 'AGENTS.md', mirrored ? '# A\n\n- **INV-01:** Thing is enforced\n' : '# A\n\nno rows\n')
+}
+
+/** A CANON.md whose single entry either cites a wired gate (clean) or is prose only (bad). */
+const plantCanonParity = (d, wired) => {
+  write(d, 'scripts/check-fixture-gate.mjs', 'process.exit(0)\n')
+  write(d, 'check-all.mjs', "runCheck('fixture', 'node', ['scripts/check-fixture-gate.mjs'])\n")
+  write(d, 'settings.json', '{}\n')
+  write(
+    d,
+    'CANON.md',
+    '## CANON-01 — fixture rule\n\n**Rule:** a rule.\n\n**Enforcement:** ' +
+      (wired ? '`scripts/check-fixture-gate.mjs` (L1 gate)' : 'checked at PR review.') +
+      '\n',
+  )
+}
+
 /** The discrimination proofs, keyed by guard name (must cover every entry in GUARDS). */
 export const FLIP_REGISTRY = {
   // ── gh-audit guards: proven via their pure classifiers ────────────────────────────────────
@@ -341,5 +384,85 @@ export const FLIP_REGISTRY = {
     plantBad: (d) => plantAssertionDeltaRepo(d, false),
     // HEAD keeps both base assertions and adds a third — net-positive, legitimate.
     plantClean: (d) => plantAssertionDeltaRepo(d, true),
+  },
+  // ── CANON-24 absence-asserting family (#2301): keyed by their scripts/check-all.mjs check name.
+  // Each names the concrete change that must turn the gate red, and proves it by inverting it.
+  // (`no passWithNoTests (INV-25)` needs no entry — the same script is proven above as
+  //  `no-empty-suite`, and the roster resolves a proof by script as well as by name.)
+  placeholders: {
+    kind: 'file-scan',
+    argv: (d) => [d],
+    // a leftover marker in a scanned source file → the gate must see it
+    plantBad: (d) => write(d, join('src', 'a.ts'), `export const a = 1\n${PLACEHOLDER_TOKEN}\n`),
+    plantClean: (d) => write(d, join('src', 'a.ts'), 'export const a = 1\n// documented\n'),
+  },
+  'orphan TODOs': {
+    kind: 'file-scan',
+    // this gate resolves its scan dirs with join(process.cwd(), dir), so an absolute --dir would
+    // land under the repo root; run it FROM the fixture with a relative dir instead.
+    inject: 'cwd',
+    argv: () => ['src'],
+    // an unbound work item is the violation; the same line bound to a task id is clean
+    plantBad: (d) => write(d, join('src', 'a.ts'), `${ORPHAN}\nexport const a = 1\n`),
+    plantClean: (d) => write(d, join('src', 'a.ts'), `${ANCHORED}\nexport const a = 1\n`),
+  },
+  'i18n raw strings': {
+    kind: 'file-scan',
+    argv: (d) => [d],
+    // a user-facing throw carrying a raw literal instead of a t() key
+    plantBad: (d) => write(d, join('src', 'a.ts'), "throw new UserFacingError('a raw message')\n"),
+    plantClean: (d) => write(d, join('src', 'a.ts'), "throw new UserFacingError(t('a.key'))\n"),
+  },
+  'no direct-fs outside the façade': {
+    kind: 'file-scan',
+    argv: (d) => ['--root', d],
+    // a src/ module importing a WRITE op straight from node:fs, bypassing src/utils/fs.ts
+    plantBad: (d) =>
+      write(
+        d,
+        join('src', 'a.ts'),
+        "import { writeFileSync } from 'node:fs'\nexport const w = () => writeFileSync('x', 'y')\n",
+      ),
+    // the same module reading through node:fs is not a façade bypass — must stay green
+    plantClean: (d) =>
+      write(
+        d,
+        join('src', 'a.ts'),
+        "import { readFileSync } from 'node:fs'\nexport const r = () => readFileSync('x', 'utf-8')\n",
+      ),
+  },
+  'no work refs': {
+    kind: 'file-scan',
+    inject: 'cwd',
+    argv: () => ['all'],
+    // a tracked source file carrying a private-repo provenance string
+    plantBad: (d) => gitFixture(d, { 'src/a.ts': `export const origin = '${WORK_REF}'\n` }),
+    plantClean: (d) => gitFixture(d, { 'src/a.ts': "export const origin = 'public'\n" }),
+  },
+  'no tracked artifacts (INV-117)': {
+    kind: 'file-scan',
+    env: (d) => ({ ARBITER_HOOK_GIT_CWD: d }),
+    // a data/state file committed to the index — invisible to gitleaks and to the PII scan
+    plantBad: (d) => gitFixture(d, { 'data.sqlite': 'SQLite format 3\u0000' }),
+    plantClean: (d) => gitFixture(d, { 'README.md': '# fixture\n' }),
+  },
+  'canon enforcement parity (B1)': {
+    kind: 'file-scan',
+    argv: (d) => [
+      `--root=${d}`,
+      `--canon=${join(d, 'CANON.md')}`,
+      `--gate=${join(d, 'check-all.mjs')}`,
+      `--settings=${join(d, 'settings.json')}`,
+    ],
+    // an Enforcement field that is prose with no wired citation and no dated promotion
+    plantBad: (d) => plantCanonParity(d, false),
+    plantClean: (d) => plantCanonParity(d, true),
+  },
+  'catalog parity': {
+    kind: 'file-scan',
+    argv: (d) => [`--catalog=${join(d, 'catalog.ts')}`, `--agents=${join(d, 'AGENTS.md')}`],
+    // a catalog invariant with no matching row in AGENTS.md — the parity break
+    plantBad: (d) => plantCatalogParity(d, false),
+    plantClean: (d) => plantCatalogParity(d, true),
   },
 }

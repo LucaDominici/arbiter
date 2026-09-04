@@ -144,6 +144,10 @@ const CHECK_ALL = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
 // improvement is a failure in this repo, AGENTS.md §template-tests baseline).
 const DEFERRED_CEILING = 16
 
+// The rosters whose proofs may also cover a family gate by SCRIPT (check-no-passwithnotests is
+// wired both as the INV-25 gate and as the anti-fake-green `no-empty-suite` guard).
+const BASE_ROSTER = [...GUARDS, ...CONTEXT_ROT_GATES]
+
 describe('CANON-24 — the absence-asserting gate family is derived, not hand-listed (#2301)', () => {
   it('derives every check-no-*, ratchet and parity gate wired in check-all.mjs', () => {
     const family = deriveAbsenceFamily(CHECK_ALL)
@@ -164,11 +168,15 @@ describe('CANON-24 — the absence-asserting gate family is derived, not hand-li
     const registry = loadInversionRegistry(resolve('.'))
     const deferred = new Set(registry.deferred.map((d: { gate: string }) => d.gate))
     const orphans = family
-      .filter((f: { name: string }) => !deferred.has(f.name) && !flipProofFor(f, FLIP_REGISTRY))
+      .filter(
+        (f: { name: string }) =>
+          !deferred.has(f.name) && !flipProofFor(f, FLIP_REGISTRY, BASE_ROSTER),
+      )
       .map((f: { name: string }) => f.name)
-    expect(orphans, `absence-asserting gates with neither proof nor ledger row: ${orphans}`).toEqual(
-      [],
-    )
+    expect(
+      orphans,
+      `absence-asserting gates with neither proof nor ledger row: ${orphans}`,
+    ).toEqual([])
   })
 
   it('the deferral ledger is banked at its ceiling (non-increasing, no unbanked slack)', () => {
@@ -221,9 +229,9 @@ describe('CANON-24 — the ledger auditor discriminates (#2301)', () => {
   })
 
   it('rejects a row whose script disagrees with the wired gate', () => {
-    expect(audit({ ceiling: 1, deferred: [row({ script: 'scripts/check-other.mjs' })] }).join(' ')).toMatch(
-      /script/i,
-    )
+    expect(
+      audit({ ceiling: 1, deferred: [row({ script: 'scripts/check-other.mjs' })] }).join(' '),
+    ).toMatch(/script/i)
   })
 
   it('rejects a row whose deferral has expired', () => {
@@ -286,7 +294,8 @@ describe('CANON-24 — the harness itself goes red when its own enforcement is i
               gate: 'no fabricated thing',
               script: 'scripts/check-no-fabricated.mjs',
               category: 'no',
-              reason: 'synthetic fixture row used to prove the harness accepts a well-formed ledger',
+              reason:
+                'synthetic fixture row used to prove the harness accepts a well-formed ledger',
               issue: 2301,
               expires: '2099-01-01',
             },
@@ -314,7 +323,7 @@ describe('CANON-24 — each newly-registered absence-gate flip proof discriminat
   it('every family gate with a proof rejects its planted bad fixture and accepts the clean one', () => {
     const family = deriveAbsenceFamily(CHECK_ALL)
     for (const gate of family) {
-      const entry = flipProofFor(gate, FLIP_REGISTRY)
+      const entry = flipProofFor(gate, FLIP_REGISTRY, BASE_ROSTER)
       if (!entry) continue
       expect(flipGuard(gate, entry), `${gate.name} does not discriminate`).toEqual([])
     }

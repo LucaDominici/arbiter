@@ -350,3 +350,20 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Promoted to:** INV-112 (RTM/FEATURE_MATRIX required at L2+)
 
 **Source issues:** feat-feature-matrix-rtm 2026-06-02
+
+---
+
+## CANON-24 — Name the change that turns a gate red, and prove it by inverting it
+
+**Rule:** Every gate that is introduced or modified MUST name the concrete change that has to turn it RED, and MUST prove it by inverting that change — a planted BAD case the gate rejects and a CLEAN case it accepts. If the change cannot be named, the criterion is vacuous and the gate does not land. A test that still passes with the fix removed is not the oracle. For the ABSENCE-asserting family (`check-no-*`, ratchets, parity), the proof is machine-required: a member of that family with neither a flip proof nor a banked deferral row fails the build.
+
+**Why:** On 2026-08-16, six green gates that had stopped checking anything were found across two repositories in a single day — among them a gate whose oracle function was never invoked and whose result was a tautological `ok: size > 0`, tests that self-skipped because the CI runner is root and `chmod 000` does not constrain root, and a pin checker that indexed by name and kept only the last occurrence. Three of the six were found by accident while working on something else; none was found by the gate that should have found it. This is the most dangerous defect class arbiter has, because **the symptom of it IS the green**: a red gate costs time, a blind gate costs trust, and every coverage claim built on it inherits the falsity. Four corollaries, each measured on that day:
+
+1. A ratchet must be built non-increasing AND with machine-verified entries. A free-text row (`"PENDING #9999"`) voids the criterion — the same disease one floor up.
+2. **Beware criteria that shorten.** Re-adding an `exclude` REDUCES the error list, so a count-based guard approves the blindness. Assert programme membership first (how many files am I actually checking?), content second.
+3. **The environment can silently disable a test.** The runner is root and `skipIf(!TOOL)` can switch off a whole file. Bind in EVERY environment — provoke `EISDIR` rather than a permission bit, and gate only the part that genuinely needs the binary.
+4. **An upstream failure masks downstream ones.** Expect each fix to unblock the next red.
+
+**Enforcement:** `scripts/check-guard-flip.mjs` + `__tests__/scripts/check-guard-flip.test.ts` (L2, via the unit-test step). The harness derives the absence-asserting family live from `scripts/check-all.mjs` (`scripts/lib/gate-roster.mjs`), runs each member against its planted bad/clean fixture in `scripts/lib/guard-flip-registry.mjs`, and fails on a member that accepts the bad fixture (VACUOUS), rejects the clean one (over-eager), or has no proof at all (UNCOVERED). The one-off audit's unproven residue lives in `scripts/data/inversion-proof-registry.json`, BANKED: the harness fails when the ledger's length differs from its declared ceiling in either direction, so a new family gate cannot be waved through by appending a row, and a proven row cannot leave re-fillable slack. Each ledger row is machine-verified offline — the gate it names must still be in the derived family, its script and category must agree with that derivation, its reason must be substantive, and its `expires` date must not have passed. A GitHub-API liveness check on the cited issue was rejected deliberately: it cannot run offline or in a tokenless job, and a check that silently no-ops in some environments is corollary 3 above.
+
+**Source issues:** #2301 (mechanism); instances #2288, #2290, #2294, #2298, #2291
