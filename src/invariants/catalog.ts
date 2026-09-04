@@ -2819,7 +2819,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Track-B emission (a gate-registry.yml.ejs row plus the emitted schema) lands with it — ' +
       'claiming both tracks before that exists is the error INV-144 was caught making. A missing ' +
       'MILESTONES.yml SKIPs out loud rather than passing silently, so a project without a codified ' +
-      'roadmap is distinguishable from one whose gate never ran. Verified by ' +
+      'roadmap is distinguishable from one whose gate never ran. `--emit <path>` writes the machine ' +
+      'projection forma consumes (schema arbiter-milestones-v1) — written only AFTER every rule ' +
+      'passes, so an invalid plan cannot produce a projection, and omitting estimate_days rather ' +
+      'than defaulting it so a consumer can tell "no estimate" from "zero". Verified by ' +
       '__tests__/scripts/check-milestones.test.ts (42 cases), tamper-proven in both directions on ' +
       'every rule: a cycle, a dangling depends_on, a duplicate id, a `later` carrying a due date, ' +
       '`done` without evidence and `verified` citing an unresolvable ref each fail, and the same ' +

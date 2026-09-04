@@ -34,13 +34,20 @@
 // The skip prints its reason and is visible in --json as `verdict: "skip"`, so it cannot be
 // mistaken for a pass by a reader or by runCheck's marker grep.
 //
-// Usage: node scripts/check-milestones.mjs [--dir <repo>] [--json]
+// Usage: node scripts/check-milestones.mjs [--dir <repo>] [--json] [--emit <path>]
+//
+// --emit writes the machine projection forma consumes (schema arbiter-milestones-v1). forma has
+// ZERO dependencies by design and cannot parse YAML: the SSOT stays YAML because humans edit it,
+// and arbiter emits the JSON. It is written ONLY after every rule has passed, so an invalid
+// milestone set cannot produce a projection — a property a separate generator could not offer.
+//
 // Exit: 0 pass or skip, 1 violation, 2 error (INV-53).
 //
 // Exports for unit tests: findDuplicateIds, findDanglingDeps, findCycle, findDoneWithoutEvidence,
-//                         findUnresolvedEvidence, evidenceResolves, collectViolations
+//                         findUnresolvedEvidence, evidenceResolves, collectViolations,
+//                         annotateSchemaViolations, milestoneProjection
 
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
@@ -248,9 +255,48 @@ export function annotateSchemaViolations(violations, milestones) {
 /** @param {string[]} argv */
 function parseArgs(argv) {
   const dirIndex = argv.indexOf('--dir')
+  const emitIndex = argv.indexOf('--emit')
   return {
     root: dirIndex >= 0 && argv[dirIndex + 1] ? resolve(argv[dirIndex + 1]) : process.cwd(),
     json: argv.includes('--json'),
+    emit: emitIndex >= 0 && argv[emitIndex + 1] ? resolve(argv[emitIndex + 1]) : null,
+  }
+}
+
+/**
+ * The machine projection forma consumes. forma has ZERO dependencies by design and therefore
+ * cannot parse YAML: the SSOT stays YAML because humans edit it, and arbiter emits the JSON. That
+ * asymmetry is what "arbiter defines, forma derives" means in practice — forma reads arbiter's
+ * machine output instead of reimplementing its parser, so the two repos cannot hold a second
+ * opinion about the same plan.
+ *
+ * Only what a scheduler needs. The GSN goal and the exit criteria are governance, not schedule,
+ * and shipping them here would invite a consumer to re-render arbiter's evidence rules.
+ *
+ * `estimate_days` and `due` are OMITTED when the SSOT has none rather than defaulted: a consumer
+ * must be able to tell "no estimate was given" from "the estimate is zero", which is exactly the
+ * distinction forma's own duration heuristic has to declare on screen.
+ * @param {Array<Record<string, unknown>>} milestones
+ * @returns {{ schema: string, milestones: Array<Record<string, unknown>> }}
+ */
+export function milestoneProjection(milestones) {
+  return {
+    schema: 'arbiter-milestones-v1',
+    milestones: [...milestones]
+      .sort((a, b) => String(a['id']).localeCompare(String(b['id'])))
+      .map((m) => {
+        /** @type {Record<string, unknown>} */
+        const row = {
+          id: m['id'],
+          title: m['title'],
+          depends_on: Array.isArray(m['depends_on']) ? [...m['depends_on']].sort() : [],
+          horizon: m['horizon'],
+          status: m['status'],
+        }
+        if (typeof m['estimate_days'] === 'number') row['estimate_days'] = m['estimate_days']
+        if (typeof m['due'] === 'string') row['due'] = m['due']
+        return row
+      }),
   }
 }
 
@@ -276,7 +322,7 @@ function report(json, verdict, message, violations) {
 
 /** @param {string[]} argv @returns {number} */
 function main(argv) {
-  const { root, json } = parseArgs(argv)
+  const { root, json, emit } = parseArgs(argv)
   const path = join(root, MILESTONES_REL)
   if (!existsSync(path)) {
     report(json, 'skip', `${MILESTONES_REL} absent — no roadmap codified in this project`, [])
@@ -311,6 +357,14 @@ function main(argv) {
   if (violations.length > 0) {
     report(json, 'fail', 'structural violations', violations)
     return 1
+  }
+  // Emitted only here — AFTER schema validation and every structural rule has passed. Putting the
+  // projection behind the gate rather than in a separate generator buys the property that an
+  // invalid milestone set cannot produce a projection at all.
+  if (emit) {
+    mkdirSync(dirname(emit), { recursive: true })
+    writeFileSync(emit, `${JSON.stringify(milestoneProjection(milestones), null, 2)}\n`, 'utf-8')
+    if (!json) process.stdout.write(`check-milestones: projection written to ${emit}\n`)
   }
   report(json, 'pass', `${milestones.length} milestone(s), acyclic, evidence-complete`, [])
   return 0

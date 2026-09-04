@@ -29,7 +29,7 @@
  *     rather than reimplementing a validator.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -401,5 +401,114 @@ describe('the gate as invoked — INV-53 exit codes', () => {
   it('makes a skip visible as a verdict under --json, not as a pass', () => {
     const r = spawnSync('node', [GATE, '--dir', dir, '--json'], { encoding: 'utf-8' })
     expect(JSON.parse(r.stdout ?? '{}').verdict).toBe('skip')
+  })
+})
+
+// ── --emit: the JSON projection forma consumes (#2480 wave 6) ────────────────
+//
+// forma has ZERO dependencies by design and therefore cannot parse YAML. The milestone SSOT stays
+// YAML (humans edit it); arbiter emits the machine projection. That asymmetry is the whole point of
+// "arbiter defines, forma derives" — forma reads arbiter's machine outputs rather than reimplementing
+// its parser, which is how the two repos avoid holding a second opinion about the same data.
+//
+// --emit lives on the GATE rather than in a new gen-* script, and that buys a real property: the
+// projection is written by the same code path that just schema-validated the SSOT, so an INVALID
+// milestone set cannot produce a projection at all. A separate generator could emit a document the
+// gate would reject.
+describe('--emit (#2480 wave 6)', () => {
+  let dir: string
+  const VALID = `milestones:
+  - id: MS-01
+    title: A sufficiently long title
+    goal:
+      claim: a claim long enough to pass
+      strategy: a strategy long enough to pass
+    exit_criteria:
+      - id: EC-01
+        description: something checkable
+    depends_on: []
+    horizon: next
+    estimate_days: 12
+    status: planned
+  - id: MS-02
+    title: A second milestone title
+    goal:
+      claim: another claim long enough
+      strategy: another strategy long enough
+    exit_criteria:
+      - id: EC-01
+        description: something checkable
+    depends_on: [MS-01]
+    horizon: later
+    status: planned
+`
+  const write = (yaml: string): void => {
+    mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
+    writeFileSync(join(dir, 'docs', 'internal', 'PRODUCT', 'MILESTONES.yml'), yaml)
+  }
+  const emit = (out: string): { status: number; stderr: string } => {
+    const r = spawnSync('node', [GATE, '--dir', dir, '--emit', out], { encoding: 'utf-8' })
+    return { status: r.status ?? -1, stderr: (r.stderr ?? '') + (r.stdout ?? '') }
+  }
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-emit-'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('writes a projection carrying exactly what a scheduler needs', () => {
+    write(VALID)
+    const out = join(dir, 'milestones.json')
+    expect(emit(out).status).toBe(0)
+    const doc = JSON.parse(readFileSync(out, 'utf-8')) as {
+      schema: string
+      milestones: Array<Record<string, unknown>>
+    }
+    expect(doc.schema).toBe('arbiter-milestones-v1')
+    expect(doc.milestones).toHaveLength(2)
+    expect(doc.milestones[0]).toMatchObject({
+      id: 'MS-01',
+      depends_on: [],
+      horizon: 'next',
+      estimate_days: 12,
+      status: 'planned',
+    })
+    expect(doc.milestones[1]).toMatchObject({ id: 'MS-02', depends_on: ['MS-01'] })
+  })
+
+  it('REFUSES to emit an invalid SSOT — a projection of a broken plan is worse than none', () => {
+    write(VALID.replace('horizon: later', "horizon: later\n    due: '2026-12-01'"))
+    const out = join(dir, 'milestones.json')
+    const r = emit(out)
+    expect(r.status).toBe(1)
+    expect(existsSync(out)).toBe(false)
+  })
+
+  it('omits estimate_days when the SSOT does not carry one, rather than inventing a default', () => {
+    write(VALID)
+    const out = join(dir, 'milestones.json')
+    emit(out)
+    const doc = JSON.parse(readFileSync(out, 'utf-8')) as {
+      milestones: Array<Record<string, unknown>>
+    }
+    expect(doc.milestones[1]).not.toHaveProperty('estimate_days')
+  })
+
+  it('is deterministic: two emissions of the same SSOT are byte-identical', () => {
+    write(VALID)
+    const a = join(dir, 'a.json')
+    const b = join(dir, 'b.json')
+    emit(a)
+    emit(b)
+    expect(readFileSync(a, 'utf-8')).toBe(readFileSync(b, 'utf-8'))
+  })
+
+  it('still runs the gate: --emit on a cyclic set fails and writes nothing', () => {
+    write(VALID.replace('depends_on: []', 'depends_on: [MS-02]'))
+    const out = join(dir, 'milestones.json')
+    expect(emit(out).status).toBe(1)
+    expect(existsSync(out)).toBe(false)
   })
 })
