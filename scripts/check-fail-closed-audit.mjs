@@ -80,6 +80,10 @@ const SKIP_FILES = new Set([
   'scripts/lib/secret-presence-core.mjs', // #1497 pure scan semantics; consumers own the exit contract
   'scripts/lib/anti-fake-green-guards.mjs', // #1497 pure guard roster data; no entry point
   'scripts/lib/guard-flip-registry.mjs', // #1497 pure flip-proof registry; no entry point
+  // CANON-24 #2301: pure gate-roster parser + inversion-ledger semantics; consumers
+  // (check-canon01-declination.mjs, check-guard-flip.mjs) own the exit contract and both
+  // fail closed on an unreadable gate source or ledger.
+  'scripts/lib/gate-roster.mjs',
   'scripts/lib/ci-cadence.mjs', // #1502 pure cadence-bucket SSOT/partition helper; no entry point
   'scripts/lib/cli-command-names.mjs', // #1838 pure cli.ts command-name parser; consumers (gen-cli-ref, phantom-command-scan) own the exit contract and fail closed on zero-extraction
   'scripts/lib/action-pins.mjs', // #2298 pure CROSS_MAJOR_ALLOWLIST data + effectiveMajor helper; no entry point, consumers (sync-action-pins.mjs, check-action-pins.mjs) own the exit contract

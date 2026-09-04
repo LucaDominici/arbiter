@@ -112,6 +112,43 @@ Every feature implementation must include tests for each of the following patter
 | Tenant isolation    | Data from tenant A must not leak to tenant B                       | ✓        |
 | Concurrency         | Concurrent access does not produce incorrect results               | ✓        |
 
+## Inversion Proofs for Gates (CANON-24, #2301)
+
+A gate is a claim about the codebase. The way that claim fails is not usually a red build — it is a
+gate that has quietly stopped checking anything and keeps reporting green. Six of those were found
+across two repositories in a single day; three were found by accident, and none was found by the
+gate that should have found it. The symptom of this class **is** the green, so nothing short of an
+inversion proof distinguishes "nothing is wrong" from "nothing is being looked at".
+
+**The requirement.** For every gate you add or modify, write down the concrete change that must turn
+it RED, then prove it by making that change:
+
+| Step | What you produce                                                                              |
+| ---- | --------------------------------------------------------------------------------------------- |
+| 1    | A one-line statement of the change: "re-adding an `exclude` to the test tsconfig"             |
+| 2    | A planted **BAD** fixture embodying exactly that change — the gate must exit 1                |
+| 3    | A planted **CLEAN** fixture that differs only in that respect — the gate must exit 0          |
+| 4    | The pair registered in `scripts/lib/guard-flip-registry.mjs`, keyed by the check-all.mjs name |
+
+If you cannot name the change in step 1, the criterion is vacuous — stop and redesign the gate. A
+test that passes with the fix removed is not your oracle.
+
+**What is machine-enforced today.** `scripts/check-guard-flip.mjs` derives the ABSENCE-asserting gate
+family live from `scripts/check-all.mjs` — `check-no-*`, ratchets, and parity checks, the shape where
+"found nothing" and "looked at nothing" are the same exit code — and fails when a member accepts its
+bad fixture, rejects its clean one, or has no proof at all. The audit residue lives in
+`scripts/data/inversion-proof-registry.json` and is BANKED at a fixed cardinality, so appending a row
+is not a way in for a new gate.
+
+**Four traps, all measured:**
+
+| Trap                        | How it bites                                                                                 | Do this instead                                                                              |
+| --------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| The vacuous ratchet         | A free-text ledger row (`PENDING #9999`) exempts a gate while verifying nothing              | Verify every row against a live derivation, and bound it with an `expires` a clock can check |
+| The criterion that shortens | Re-adding an `exclude` REDUCES the error list, so a count-based guard approves the blindness | Assert programme membership first (how many files am I checking?), content second            |
+| The silent environment      | The runner is root, so `chmod 000` binds nothing; `skipIf(!TOOL)` switches off a whole file  | Provoke `EISDIR`; gate only the part that genuinely needs the binary (see the section below) |
+| The masking upstream        | A collection error kills the gate before it ever compares the value it claims to protect     | Expect each fix to unblock the next red; do not stop at the first green                      |
+
 ## Environment-Independent Tests (#2288)
 
 A test that quietly does nothing on the CI runner is worse than a missing test: it reports green
