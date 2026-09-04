@@ -247,6 +247,47 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
       'the full unfiltered gate is the only merge authority.',
     isGateBypass: false,
   },
+  // ── Gate mutex (#2427) ────────────────────────────────────────────────────
+  {
+    name: 'ARBITER_GATE_MUTEX_MODE',
+    type: 'string',
+    default: 'wait',
+    purpose:
+      'How a gate behaves when another gate already holds the per-repo mutex: `wait` ' +
+      '(default — block, announcing the wait on stderr immediately, then fail closed when ' +
+      'the budget expires), `fail` (refuse at once, never queue), `off` (run unserialised; ' +
+      'also the automatic fallback where flock(1) does not exist).',
+    isGateBypass: false,
+  },
+  {
+    name: 'ARBITER_GATE_MUTEX_WAIT_SEC',
+    type: 'number',
+    default: 1800,
+    purpose:
+      'Seconds a queued gate blocks on the per-repo mutex before failing closed (#2427). ' +
+      'Sized above one full L2 run so a legitimate queue is not cut short.',
+    isGateBypass: false,
+  },
+  {
+    name: 'ARBITER_GATE_MUTEX_HELD',
+    type: 'string',
+    default: '',
+    purpose:
+      'Set BY the mutex wrapper (and by `arbiter gate-exec`) to the lock path it already ' +
+      'holds, so a nested gate recognises the mutex as taken instead of self-deadlocking ' +
+      'waiting on it (#2427). Not a user-facing knob.',
+    isGateBypass: false,
+  },
+  {
+    name: 'ARBITER_GATE_PARENT_PID',
+    type: 'string',
+    default: '',
+    purpose:
+      'Set BY the mutex wrapper to the pid of the process the gate exists to serve. The gate ' +
+      'checks it between checks and aborts when it is gone, so a SIGKILL that no signal can ' +
+      'forward cannot leave an orphan gate stamping evidence (#2427). Not a user-facing knob.',
+    isGateBypass: false,
+  },
   // ── Loud-bypass audit metadata (ADR-072) ─────────────────────────────────
   {
     name: 'ARBITER_BYPASS_LOG_PATH',

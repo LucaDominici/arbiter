@@ -27,8 +27,9 @@
 // runWarnCheck (informational), runToolCheck (CI-aware tool gate).
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { minimatch } from 'minimatch'
 import {
   runCheck,
@@ -37,8 +38,10 @@ import {
   getResults,
   getFailed,
   setSkippedChecks,
+  setOrphanGuard,
   isMainModule,
 } from './lib/run-helpers.mjs'
+import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs'
 import { effectiveGateLevel, parseCheckArgs } from './lib/parse-check-args.mjs'
 import { GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST } from './lib/gate-affects-registry.mjs'
 
@@ -78,6 +81,64 @@ if (isMain) {
   // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
   // git-dependent checks (commitlint, docs) must run from the original repo path.
   const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD
+
+  // ─── #2427: one gate per repo, and never an orphan ──────────────────────────
+  // Two L2 runs in one worktree interfered (a half-deleted vitepress temp file
+  // broke docs:build; a subprocess-heavy unit test flaked under the doubled
+  // load), and the orphan of a killed `git push` went on to stamp a green marker.
+  //
+  // The mutex is the SAME per-repo flock `arbiter gate-exec` takes — keyed off
+  // GIT_CWD when present, because the pre-push '#'-in-path branch runs this file
+  // from an rsync'd copy under /tmp and keying off cwd there would derive a fresh
+  // key per run, i.e. a null mutex. Re-exec (rather than acquire-in-place) is how
+  // a synchronous gate can hold a kernel lock for its whole life; the wrapper
+  // publishes ARBITER_GATE_MUTEX_HELD so this branch runs exactly once.
+  //
+  // Fail-open by design ONLY where there is no repo to key on: a checkout git
+  // cannot answer for has no per-repo mutex to take, and refusing to run the
+  // gate there would break every non-git consumer for no safety gain — the
+  // start/end binding below is what actually prevents the false green.
+  const MUTEX_ROOT = GIT_CWD ?? process.cwd()
+  if (!process.env[GATE_MUTEX_HELD_ENV]) {
+    let lockPath = null
+    try {
+      lockPath = gateLockPathFor(MUTEX_ROOT)
+      // FAIL-OPEN-INTENT: no resolvable repo ⇒ no per-repo mutex exists to take.
+    } catch {
+      lockPath = null
+    }
+    if (lockPath !== null) {
+      const wrapper = resolve(dirname(fileURLToPath(import.meta.url)), 'lib/gate-mutex.mjs')
+      const relayed = spawnSync(
+        process.execPath,
+        [wrapper, 'run', '--dir', MUTEX_ROOT, '--', process.execPath, ...process.argv.slice(1)],
+        { stdio: 'inherit' },
+      )
+      process.exit(relayed.status ?? 1)
+    }
+  }
+
+  // Armed for the whole run: between every two checks the gate confirms the
+  // process it was launched to serve is still alive, so a SIGKILL'd parent — the
+  // one signal nothing can forward — cannot leave a gate measuring a tree nobody
+  // is waiting on, let alone stamping evidence for it.
+  setOrphanGuard()
+
+  // #2427 AC-1: the identity of the tree this gate is about to measure, sampled
+  // BEFORE the first check. `buildGateEvidence` re-measures at the end and
+  // refuses to stamp anything if the two disagree — which is exactly what the
+  // orphan of a killed push produced: twenty minutes of checks against one tree,
+  // a marker naming another. Loaded lazily and tolerantly: a checkout without
+  // the verifier simply stamps no marker (fail closed), it does not lose the run.
+  const gateStart = await (async () => {
+    try {
+      const { captureGateStart } = await import('./lib/gate-evidence.mjs')
+      return captureGateStart(GIT_CWD ?? process.cwd())
+      // FAIL-OPEN-INTENT: null is the REJECTING value — no start means no marker.
+    } catch {
+      return null
+    }
+  })()
 
   // Worktree paths containing '#' break Vite's URL parsing. Create a symlink
   // without '#' and pass VITEST_ROOT so vitest resolves the root from the symlink.
@@ -621,11 +682,16 @@ if (isMain) {
       // Loaded lazily so a checkout missing the verifier writes NO marker (fail
       // closed) instead of crashing an otherwise-green gate at import time.
       const { buildGateEvidence } = await import('./lib/gate-evidence.mjs')
-      const evidence = buildGateEvidence({ root, level, taskId })
+      // #2427: `gateStart` is the identity captured before the first check ran.
+      // buildGateEvidence returns null when it is missing, incomplete, or no
+      // longer matches the tree — a green gate with no marker is honest, a
+      // marker for a tree the gate did not measure end to end is not.
+      const evidence = buildGateEvidence({ root, level, taskId, start: gateStart })
       if (evidence === null) {
         process.stderr.write(
           'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
-            'could not be resolved, so nothing can bind this gate result to this tree\n',
+            'could not be resolved, or the commit/tree moved while the gate was running, ' +
+            'so nothing can bind this gate result to this tree (#2427)\n',
         )
       } else {
         const markerPath = resolve(root, '.arbiter/gate-pass.json')

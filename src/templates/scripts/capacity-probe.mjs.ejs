@@ -10,11 +10,10 @@
 // Usage: capacity-probe <owner/repo>
 // Prints one line, exit 0 (OK) or 1 (SATURATED).
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { cpus, loadavg, tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { cpus, loadavg } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { countLockWaiters } from './lib/waiter-count.mjs'
+import { gateLockPathFor } from './lib/gate-mutex.mjs'
 
 // ── local load — Node stdlib covers this, no /proc parsing or `nproc` shell-out needed ──
 
@@ -24,22 +23,12 @@ export function localLoad() {
 
 // ── gate-queue depth ──
 //
-// Mirrors src/commands/gate-exec.ts's deriveGateKey()/gateLockPath() exactly
-// (sha256 of the resolved git-common-dir, first 16 hex chars). Tolerated
-// duplication (#2098 scope: only the fd-count logic is a shared helper, not
-// the key derivation) — pinned safe by a parity test
-// (__tests__/scripts/capacity-probe.test.ts) that asserts this function
-// produces the byte-identical path to the real gateLockPath().
-export function gateLockPathFor(dir, env = process.env) {
-  const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
-    cwd: dir,
-    encoding: 'utf-8',
-  }).trim()
-  const absolute = resolve(dir, commonDir)
-  const key = createHash('sha256').update(absolute).digest('hex').slice(0, 16)
-  const base = env.XDG_RUNTIME_DIR || tmpdir()
-  return join(base, 'arbiter', `${key}-gate.lock`)
-}
+// #2427 extracted the key derivation this file used to carry as a documented
+// duplicate: it now lives in scripts/lib/gate-mutex.mjs, the ONE .mjs-side copy
+// of the gate mutex's lock-path derivation, which the pre-push hook and the gate
+// itself also use. Re-exported here so this script's own consumers keep their
+// import path.
+export { gateLockPathFor }
 
 export function gateQueueDepth(dir = process.cwd()) {
   try {

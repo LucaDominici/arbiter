@@ -236,9 +236,13 @@ describe('#2427 AC-3 — killing the parent kills the gate, with no surviving ch
     const payload = join(dir, 'long.mjs')
     writeFileSync(
       payload,
-      `import { writeFileSync } from 'node:fs'
+      // Node exposes no getpgrp(); field 5 of /proc/self/stat is the process
+      // group, read after the last ')' so a comm containing parens cannot shift it.
+      `import { readFileSync, writeFileSync } from 'node:fs'
+const stat = readFileSync('/proc/self/stat', 'utf-8')
+const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ')
 writeFileSync(process.argv[2], String(process.pid))
-writeFileSync(process.argv[3], String(process.getpgrp()))
+writeFileSync(process.argv[3], fields[2])
 setInterval(() => {}, 1000)
 `,
     )
