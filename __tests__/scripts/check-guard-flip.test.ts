@@ -8,12 +8,18 @@
 // must not.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { flipGuard } from '../../scripts/check-guard-flip.mjs'
 import { GUARDS, CONTEXT_ROT_GATES } from '../../scripts/lib/anti-fake-green-guards.mjs'
 import { FLIP_REGISTRY } from '../../scripts/lib/guard-flip-registry.mjs'
+import {
+  deriveAbsenceFamily,
+  auditInversionRegistry,
+  loadInversionRegistry,
+  flipProofFor,
+} from '../../scripts/lib/gate-roster.mjs'
 
 const HARNESS = resolve('scripts/check-guard-flip.mjs')
 
@@ -119,5 +125,198 @@ describe('check-guard-flip — the harness itself discriminates', () => {
       const failures = flipGuard({ name: 'overeager', script }, entry)
       expect(failures.join(' ')).toMatch(/rejected a CLEAN fixture/)
     })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// CANON-24 / #2301 — inversion-proof completeness over the absence-asserting gate family.
+// The class this guards: a gate that has stopped checking anything still reports green, so the
+// symptom of the defect IS the green. The mechanism: every gate in check-all.mjs that asserts the
+// ABSENCE of something (check-no-*, ratchets, parity) must either carry a flip proof here or be a
+// row in the deferral ledger — and the ledger is banked at a fixed cardinality, so a NEW such gate
+// has only one way in: a proof that it goes red when the condition it protects is inverted.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+const CHECK_ALL = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
+
+// The cardinality of the deferral ledger, pinned as a literal. Raising it requires editing BOTH
+// scripts/data/inversion-proof-registry.json and this line — a ratchet that cannot be widened by
+// a one-file diff. Lowering it is mandatory when a row is proven and removed (unbanked
+// improvement is a failure in this repo, AGENTS.md §template-tests baseline).
+const DEFERRED_CEILING = 16
+
+describe('CANON-24 — the absence-asserting gate family is derived, not hand-listed (#2301)', () => {
+  it('derives every check-no-*, ratchet and parity gate wired in check-all.mjs', () => {
+    const family = deriveAbsenceFamily(CHECK_ALL)
+    expect(family.length).toBeGreaterThanOrEqual(25)
+    const byName = new Map(family.map((f: { name: string }) => [f.name, f]))
+    // one representative of each category — a rename in check-all.mjs must surface here
+    expect(byName.get('no work refs')?.category).toBe('no')
+    expect(byName.get('bloat ratchet')?.category).toBe('ratchet')
+    expect(byName.get('catalog parity')?.category).toBe('parity')
+    for (const entry of family) {
+      expect(['no', 'ratchet', 'parity']).toContain(entry.category)
+      expect(entry.script).toMatch(/^scripts\/.+\.mjs$/)
+    }
+  })
+
+  it('every family gate is either flip-proven or a row in the deferral ledger', () => {
+    const family = deriveAbsenceFamily(CHECK_ALL)
+    const registry = loadInversionRegistry(resolve('.'))
+    const deferred = new Set(registry.deferred.map((d: { gate: string }) => d.gate))
+    const orphans = family
+      .filter((f: { name: string }) => !deferred.has(f.name) && !flipProofFor(f, FLIP_REGISTRY))
+      .map((f: { name: string }) => f.name)
+    expect(orphans, `absence-asserting gates with neither proof nor ledger row: ${orphans}`).toEqual(
+      [],
+    )
+  })
+
+  it('the deferral ledger is banked at its ceiling (non-increasing, no unbanked slack)', () => {
+    const registry = loadInversionRegistry(resolve('.'))
+    expect(registry.ceiling).toBe(DEFERRED_CEILING)
+    expect(registry.deferred.length).toBe(DEFERRED_CEILING)
+  })
+})
+
+describe('CANON-24 — the ledger auditor discriminates (#2301)', () => {
+  const family = [
+    { name: 'no work refs', script: 'scripts/check-no-work-refs.mjs', category: 'no' },
+    { name: 'bloat ratchet', script: 'scripts/check-bloat-ratchet.mjs', category: 'ratchet' },
+  ]
+  const row = (over: Record<string, unknown> = {}) => ({
+    gate: 'no work refs',
+    script: 'scripts/check-no-work-refs.mjs',
+    category: 'no',
+    reason:
+      'the gate reads tracked files through the script’s own repo root, so a fixture cannot be injected',
+    issue: 2301,
+    expires: '2099-01-01',
+    ...over,
+  })
+  const now = new Date('2026-09-04T00:00:00Z')
+  const audit = (registry: unknown) => auditInversionRegistry({ family, registry, now })
+
+  it('accepts a well-formed ledger', () => {
+    expect(audit({ ceiling: 1, deferred: [row()] })).toEqual([])
+  })
+
+  it('rejects a ledger larger than its ceiling (the ratchet)', () => {
+    const problems = audit({
+      ceiling: 1,
+      deferred: [row(), row({ gate: 'bloat ratchet', script: 'scripts/check-bloat-ratchet.mjs' })],
+    })
+    expect(problems.join(' ')).toMatch(/ceiling/i)
+  })
+
+  it('rejects a ceiling above the ledger (unbanked improvement)', () => {
+    expect(audit({ ceiling: 5, deferred: [row()] }).join(' ')).toMatch(/unbanked|ceiling/i)
+  })
+
+  it('rejects a row naming a gate that is not in the derived family (a fabricated row)', () => {
+    const problems = audit({
+      ceiling: 1,
+      deferred: [row({ gate: 'a gate that does not exist', script: 'scripts/check-nope.mjs' })],
+    })
+    expect(problems.join(' ')).toMatch(/not in the absence-asserting family/i)
+  })
+
+  it('rejects a row whose script disagrees with the wired gate', () => {
+    expect(audit({ ceiling: 1, deferred: [row({ script: 'scripts/check-other.mjs' })] }).join(' ')).toMatch(
+      /script/i,
+    )
+  })
+
+  it('rejects a row whose deferral has expired', () => {
+    expect(audit({ ceiling: 1, deferred: [row({ expires: '2026-01-01' })] }).join(' ')).toMatch(
+      /expired/i,
+    )
+  })
+
+  it('rejects a row with no reason (a reasonless row is a blanket exemption)', () => {
+    expect(audit({ ceiling: 1, deferred: [row({ reason: '   ' })] }).join(' ')).toMatch(/reason/i)
+  })
+
+  it('rejects a duplicated gate row', () => {
+    expect(audit({ ceiling: 2, deferred: [row(), row()] }).join(' ')).toMatch(/duplicate/i)
+  })
+
+  it('rejects a row with no positive-integer issue reference', () => {
+    expect(audit({ ceiling: 1, deferred: [row({ issue: 'PENDING #9999' })] }).join(' ')).toMatch(
+      /issue/i,
+    )
+  })
+
+  it('rejects a malformed ledger shape outright (fail-closed)', () => {
+    expect(audit({ deferred: 'nope' }).length).toBeGreaterThan(0)
+    expect(audit(null).length).toBeGreaterThan(0)
+  })
+})
+
+describe('CANON-24 — the harness itself goes red when its own enforcement is inverted (#2301)', () => {
+  // A synthetic check-all.mjs declaring an absence-asserting gate that exists in NEITHER the
+  // flip registry nor the ledger. This is the exact change that must turn the harness red — if
+  // the completeness check were deleted, this case would pass and the harness would be ceremony.
+  const FAKE_GATE = "runCheck('no fabricated thing', 'node', ['scripts/check-no-fabricated.mjs'])\n"
+
+  it('an unproven, unledgered absence gate makes the harness exit 1 (UNCOVERED)', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, FAKE_GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const r = spawnSync('node', [HARNESS, `--gate=${gate}`, `--registry=${reg}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(1)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/no fabricated thing/)
+    })
+  })
+
+  it('the same gate passes once a ledger row covers it — and only while the ceiling allows', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, FAKE_GATE)
+      const covered = join(dir, 'covered.json')
+      writeFileSync(
+        covered,
+        JSON.stringify({
+          ceiling: 1,
+          deferred: [
+            {
+              gate: 'no fabricated thing',
+              script: 'scripts/check-no-fabricated.mjs',
+              category: 'no',
+              reason: 'synthetic fixture row used to prove the harness accepts a well-formed ledger',
+              issue: 2301,
+              expires: '2099-01-01',
+            },
+          ],
+        }),
+      )
+      const ok = spawnSync('node', [HARNESS, `--gate=${gate}`, `--registry=${covered}`], {
+        encoding: 'utf-8',
+      })
+      expect(ok.status).toBe(0)
+
+      // …and the ratchet still binds: the same row over a zero ceiling is red.
+      const overflow = join(dir, 'overflow.json')
+      const parsed = JSON.parse(readFileSync(covered, 'utf-8'))
+      writeFileSync(overflow, JSON.stringify({ ...parsed, ceiling: 0 }))
+      const bad = spawnSync('node', [HARNESS, `--gate=${gate}`, `--registry=${overflow}`], {
+        encoding: 'utf-8',
+      })
+      expect(bad.status).toBe(1)
+    })
+  })
+})
+
+describe('CANON-24 — each newly-registered absence-gate flip proof discriminates (#2301)', () => {
+  it('every family gate with a proof rejects its planted bad fixture and accepts the clean one', () => {
+    const family = deriveAbsenceFamily(CHECK_ALL)
+    for (const gate of family) {
+      const entry = flipProofFor(gate, FLIP_REGISTRY)
+      if (!entry) continue
+      expect(flipGuard(gate, entry), `${gate.name} does not discriminate`).toEqual([])
+    }
   })
 })
