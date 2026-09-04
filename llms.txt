@@ -9,7 +9,7 @@ arbiter tells agents WHAT rules apply, then enforces them mechanically — perso
 - [AGENTS.md](AGENTS.md): Canonical governance + invariants (INV-NN). Read first.
 - [GLOBAL_INVARIANTS.md](GLOBAL_INVARIANTS.md): Hand-maintained invariant mosaic (INV-01..INV-128). Authoritative when present.
 - [docs/internal/SYSTEM/CANON.md](docs/internal/SYSTEM/CANON.md): Process rules CANON-NN from audit waves #151-#186. Cite on violation.
-- [docs/INDEX.md](docs/INDEX.md): Generated index of 240 docs with canonical_id/status/kind. Navigation entry point.
+- [docs/INDEX.md](docs/INDEX.md): Generated index of 241 docs with canonical_id/status/kind. Navigation entry point.
 - [.claude/knowledge-map.json](.claude/knowledge-map.json): Machine-readable track routing (frontend/backend/docs).
 - [.claude/AGENT_REGISTRY.md](.claude/AGENT_REGISTRY.md): Sub-agents (red-team, bridge-reviewer, context-checker, codebase-scanner, ai-pr-gate) + interaction chains.
 
