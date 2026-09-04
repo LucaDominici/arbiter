@@ -83,6 +83,47 @@ A syntax nobody can compute by hand is a syntax nobody adopts, so the producer s
 
 ---
 
+## `Verified` requires a verification envelope (#2480)
+
+`Verified` sits at the top of the status ladder, and until now it was a word someone typed. The
+ladder already refuses to skip a step and every ref has to exist — but nothing checked that the
+requirement had ever actually been **proven**, by running something, with a transcript. That is the
+same fail-closed hole INV-146 closed for milestone `done`: **a status is not evidence.**
+
+A `Verified` row therefore requires `.arbiter/evidence/rtm/<REQ-NNN>.json`, conforming to
+`schemas/rtm-verdict.schema.json`:
+
+| Field | Why it is required |
+| --- | --- |
+| `verdict` | One of `PROVEN`/`FAILING`/`STALE`/`UNRESOLVED`/`UNCOVERED`. Only `PROVEN` admits `Verified`; the other four are recordable states, not failures to hide — a requirement known to be `FAILING` is better governance than one silently parked at `Partial`. |
+| `justification` | Why the cited evidence establishes the claim. A verdict with no argument is an opinion with a schema around it. |
+| `command` | What was actually executed. `PROVEN` means something was **run**, not that someone read the code and was satisfied. |
+| `transcript_digest` | sha256 of that command's output. Not re-verifiable offline by design: its job is to make the claim specific and attributable, not to re-run CI inside a lint gate. |
+| `citations` | Where the proof lives, in the **pinned-span grammar above** — so a citation that drifts is reported `OUTDATED` by the same mechanism, not a second one. |
+
+The envelope must also declare the `feature_id` of the row it stands under: evidence copied from
+another requirement proves that other requirement.
+
+### The ratchet, and what is not being claimed
+
+Four rows were already `Verified` when this rule landed. One — **REQ-028**, the matrix requirement
+itself — was **earned**: its suite was executed and the real transcript digest recorded. The other
+three are grandfathered by a monotone ratchet in `scripts/data/rtm-verdict-baseline.json`, which
+starts at **3**, may fall freely, and may never rise.
+
+No evidence is reconstructed after the fact for a verdict nobody recorded — the same forward-only
+posture the milestone migration takes, and for the same reason: inventing evidence to satisfy a
+fail-closed gate is precisely the fake-green the gate exists to prevent. Each grandfathered row is
+a candidate to be earned the way REQ-028 was.
+
+**Self track only, for a concrete reason.** The Track-B gate would need
+`schemas/rtm-verdict.schema.json` emitted alongside it, which is a generator change (CANON-11) and
+a new template. Porting the rule without the schema would hand every governed project an error the
+moment it marked a row `Verified` — worse than not porting. The span-pinning rule above ports
+because it needs no new file; this one waits for its schema emission.
+
+---
+
 ## Verification tier
 
 `verification_tier` (optional, 12th column, #2242): the KIND of proof a requirement

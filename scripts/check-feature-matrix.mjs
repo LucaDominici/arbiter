@@ -21,7 +21,9 @@
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
+import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 
 const ROOT = process.cwd()
 
@@ -200,6 +202,136 @@ function checkRefExists(ref, projectRoot) {
   const absPath = resolve(projectRoot, ref)
   if (!existsSync(absPath)) return `File not found: ${ref}`
   return null
+}
+
+// ─── RTM axis 2: a Verified row must carry a verification envelope (#2480) ───
+//
+// `Verified` sat at the top of the status ladder as a word someone typed. The ladder refuses to
+// skip a step and the refs must exist, but nothing ever checked that the requirement had been
+// PROVEN — by running something, with a transcript. Same fail-closed hole INV-146 closed for
+// milestone `done`: a status is not evidence.
+//
+// Citations reuse axis 1's pinned-span grammar, so a citation that drifts is reported OUTDATED by
+// the same mechanism rather than a second one.
+const RTM_EVIDENCE_DIR = ['.arbiter', 'evidence', 'rtm']
+const RTM_BASELINE_REL = ['scripts', 'data', 'rtm-verdict-baseline.json']
+
+/**
+ * Read the monotone ratchet. Both failure modes resolve to 0 — tolerate nothing — because the
+ * alternative, tolerating whatever happens to exist, is how a ratchet quietly stops ratcheting.
+ * But ABSENT and CORRUPT are different claims and only one of them is routine: a missing baseline
+ * is a project that has not needed one, while an unreadable baseline is a defect the operator
+ * should hear about rather than discover as an unexplained strictness.
+ */
+function rtmBaseline(projectRoot) {
+  const path = resolve(projectRoot, ...RTM_BASELINE_REL)
+  if (!existsSync(path)) return 0
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf-8'))
+    const n = raw?.verifiedWithoutEnvelope
+    if (typeof n === 'number' && Number.isInteger(n) && n >= 0) return n
+    process.stderr.write(
+      `check-feature-matrix: rtm baseline has no integer verifiedWithoutEnvelope — treating as 0, ` +
+        `which tolerates nothing\n`,
+    )
+    return 0
+  } catch (err) {
+    process.stderr.write(
+      `check-feature-matrix: rtm baseline is unreadable (${err.message}) — treating as 0, which ` +
+        `tolerates nothing\n`,
+    )
+    return 0
+  }
+}
+
+/**
+ * Validate one Verified row's envelope. Returns { failures, missing } — `missing` marks the row as
+ * counting against the grandfathering ratchet rather than failing outright, so the four rows that
+ * predate this rule are tolerated without inventing evidence for claims nobody recorded.
+ */
+export function checkRtmEnvelope(row, projectRoot, schema) {
+  const id = row.featureId
+  const path = resolve(projectRoot, ...RTM_EVIDENCE_DIR, `${id}.json`)
+  if (!existsSync(path)) return { failures: [], missing: true }
+  let doc
+  try {
+    doc = JSON.parse(readFileSync(path, 'utf-8'))
+  } catch (err) {
+    // Surfaced as well as returned: the returned string becomes the gate verdict, but the audit
+    // (INV-96) reads a swallowed catch as fail-open, and it is right to — a reader of this code
+    // should be able to see the error escape without tracing the caller's reporting.
+    process.stderr.write(`check-feature-matrix: ${id} envelope parse failed — ${err.message}\n`)
+    return {
+      failures: [`${id}: verification envelope is not valid JSON — ${err.message}`],
+      missing: false,
+    }
+  }
+  return {
+    failures: [
+      ...validateSchema(doc, schema, schema, `${id} envelope`).map(
+        (v) => `${id}: verification envelope — ${v}`,
+      ),
+      ...envelopeIdentityFailures(doc, id),
+      ...envelopeCitationFailures(doc, id, projectRoot),
+    ],
+    missing: false,
+  }
+}
+
+/** The envelope must be ABOUT this row, and must record the one verdict that admits `Verified`. */
+function envelopeIdentityFailures(doc, id) {
+  const failures = []
+  if (doc?.feature_id && doc.feature_id !== id) {
+    failures.push(
+      `${id}: verification envelope declares feature_id "${doc.feature_id}" — evidence copied ` +
+        `from another requirement proves that other requirement, not this one`,
+    )
+  }
+  if (doc?.verdict && doc.verdict !== 'PROVEN') {
+    failures.push(
+      `${id}: status Verified requires verdict PROVEN, envelope records "${doc.verdict}"`,
+    )
+  }
+  return failures
+}
+
+/** Citations ride axis 1's pinned-span grammar, so a drifted citation is OUTDATED, not a new rule. */
+function envelopeCitationFailures(doc, id, projectRoot) {
+  const failures = []
+  for (const citation of Array.isArray(doc?.citations) ? doc.citations : []) {
+    const err = checkRefSpan(String(citation), projectRoot)
+    if (err) failures.push(`${id}: verification envelope citation — ${err}`)
+  }
+  return failures
+}
+
+/**
+ * Apply the rule across the matrix and adjudicate the ratchet. A fall is free; a rise fails and
+ * names both numbers, because the whole point of a monotone counter is that growth has to be
+ * deliberate and visible in the diff.
+ */
+export function checkRtmEnvelopes(rows, projectRoot, schema) {
+  const failures = []
+  const uncovered = []
+  for (const row of rows) {
+    if (row.status !== 'Verified') continue
+    const result = checkRtmEnvelope(row, projectRoot, schema)
+    failures.push(...result.failures)
+    if (result.missing) uncovered.push(row.featureId)
+  }
+  const baseline = rtmBaseline(projectRoot)
+  if (uncovered.length > baseline) {
+    // Name the rows. "N rows lack evidence" tells a reader there is work; naming them tells the
+    // reader WHERE, which is the difference between a defect report and a statistic.
+    failures.push(
+      `RTM verdict ratchet: ${uncovered.length} Verified row(s) carry no verification envelope ` +
+        `(${uncovered.join(', ')}), baseline ${baseline}. A Verified row needs ` +
+        `.arbiter/evidence/rtm/<REQ-NNN>.json — status is not evidence. Falls are free; a rise ` +
+        `must be hand-edited into scripts/data/rtm-verdict-baseline.json in the same change that ` +
+        `earns it.`,
+    )
+  }
+  return failures
 }
 
 function checkAllRefs(row, projectRoot, failures, id) {
@@ -734,6 +866,27 @@ if (partialNoIssue.length > 0) {
 // 7. tests_ref glob ban (D4, #2163): infalsifiable glob coverage on Done/Verified rows
 const globBaseline = loadGlobBaseline(GLOB_BASELINE_PATH)
 checkTestRefGlobBan(rows, globBaseline, failures)
+
+// 8. RTM axis 2 (#2480): a Verified row must carry a PROVEN verification envelope. The schema
+// lives beside the gate in arbiter; a governed project receives its own copy. Absent schema is an
+// ERROR, never a silent skip — a rule that quietly stops applying is the failure this gate exists
+// to prevent.
+{
+  const schemaPath = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'schemas',
+    'rtm-verdict.schema.json',
+  )
+  if (existsSync(schemaPath)) {
+    failures.push(...checkRtmEnvelopes(rows, ROOT, loadSchema(schemaPath)))
+  } else if (rows.some((row) => row.status === 'Verified')) {
+    failures.push(
+      'RTM axis 2: schemas/rtm-verdict.schema.json is missing, so no Verified row can be ' +
+        'adjudicated. Restore it rather than letting the rule lapse silently.',
+    )
+  }
+}
 
 // ─── Report ──────────────────────────────────────────────────────────────────
 failures.sort() // D5: deterministic output regardless of row order

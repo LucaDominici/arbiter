@@ -1,0 +1,12 @@
+{
+  "feature_id": "REQ-028",
+  "verdict": "PROVEN",
+  "justification": "src/generators/feature-matrix.ts emits FEATURE_MATRIX.md and its gate into a governed project, and __tests__/generators/feature-matrix.test.ts exercises that emission: 13 cases covering the sentinel block, the status vocabulary, the skipIfExists posture that keeps the matrix user-owned after first write, and the gate being written alongside it. The suite was executed for this verdict rather than read.",
+  "command": "npx vitest run __tests__/generators/feature-matrix.test.ts",
+  "transcript_digest": "48a7c27205f15a9630b070126935a7bb1ff669d7ca0c07b173db6189d993601f",
+  "citations": [
+    "src/generators/feature-matrix.ts#L1-L30@1097d39051c5",
+    "__tests__/generators/feature-matrix.test.ts#L1-L25@837f642012f2"
+  ],
+  "recorded_at": "2026-09-04T10:18:31Z"
+}

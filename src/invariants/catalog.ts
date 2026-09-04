@@ -1924,6 +1924,17 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'additive: an unpinned ref is unaffected, so adoption is per-row and deliberate rather than ' +
       'a mass rewrite. `--pin <path>#Lx-Ly` produces the pinned ref, because a syntax nobody can ' +
       'compute by hand is a syntax nobody adopts. ' +
+      'Axis 2 (SELF TRACK ONLY): a `Verified` row must carry ' +
+      '.arbiter/evidence/rtm/<REQ-NNN>.json conforming to schemas/rtm-verdict.schema.json with ' +
+      'verdict PROVEN, a justification, the command executed and its transcript digest — status ' +
+      'is not evidence, the same fail-closed rule INV-146 applies to milestone `done`. Citations ' +
+      "reuse axis 1's pinned-span grammar, so a drifted citation is OUTDATED by that mechanism " +
+      'rather than a second one. Four rows predate the rule; REQ-028 was EARNED (suite executed, ' +
+      'transcript recorded) and three are grandfathered by a monotone ratchet in ' +
+      'scripts/data/rtm-verdict-baseline.json that may fall and never rise — no verdict is ' +
+      'reconstructed after the fact. Self-only because the Track-B gate would need the schema ' +
+      'EMITTED alongside it (a generator change, CANON-11); porting the rule without the schema ' +
+      'would hand a governed project an error the moment it marked a row Verified. ' +
       'Wired into scripts/check-all.mjs L1. Generated for target projects at L2+ by ' +
       'src/generators/feature-matrix.ts (CANON-23).',
   },

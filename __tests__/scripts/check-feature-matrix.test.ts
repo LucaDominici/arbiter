@@ -658,3 +658,151 @@ describe('span-pinned refs (#2480 — RTM axis 1)', () => {
     }
   })
 })
+
+// ── RTM axis 2: a Verified row must carry a verification envelope (#2480) ────
+//
+// `Verified` is the top of the status ladder and, until now, it was a word someone typed. The
+// ladder already refuses to skip a step and the refs already have to exist — but nothing checked
+// that the requirement was ever actually PROVEN, by running something, with a transcript. That is
+// the same fail-closed hole INV-146 closed for milestone `done`: a status is not evidence.
+//
+// A Verified row therefore requires .arbiter/evidence/rtm/<REQ-NNN>.json conforming to
+// schemas/rtm-verdict.schema.json, carrying verdict PROVEN, a justification, the command that was
+// run, a transcript digest, and citations. The citations reuse axis 1's pinned-span grammar, so a
+// citation that drifts goes OUTDATED by the same mechanism rather than a second one.
+//
+// The four Verified rows that predate this rule are grandfathered by a monotone ratchet, not by
+// silence: the count may fall and may never rise, and no evidence is invented after the fact for a
+// claim nobody recorded — the same forward-only posture as the milestone migration.
+describe('RTM axis 2 — Verified requires a verification envelope (#2480)', () => {
+  const SRC = ['alpha', 'beta', 'gamma', 'delta', 'epsilon'].join('\n')
+  const pinOf = (from: number, to: number): string =>
+    createHash('sha256')
+      .update(
+        SRC.split('\n')
+          .slice(from - 1, to)
+          .join('\n'),
+      )
+      .digest('hex')
+      .slice(0, 12)
+
+  const verifiedRow = `| REQ-001 | Cap | ${ALL_DIMS} | L2 | Verified | src/x.ts | __tests__/x.test.ts | docs/x.md | #1 | n |`
+
+  const envelope = (over: Record<string, unknown> = {}): string =>
+    JSON.stringify({
+      feature_id: 'REQ-001',
+      verdict: 'PROVEN',
+      justification: 'The suite exercises the boundary end to end and fails when it is removed.',
+      command: 'npx vitest run __tests__/x.test.ts',
+      transcript_digest: 'a'.repeat(64),
+      citations: [`src/x.ts#L2-L4@${pinOf(2, 4)}`],
+      recorded_at: '2026-09-04T09:00:00Z',
+      ...over,
+    })
+
+  const files = (extra: Record<string, string> = {}): Record<string, string> => ({
+    'src/x.ts': SRC,
+    '__tests__/x.test.ts': SRC,
+    'docs/x.md': SRC,
+    'scripts/data/rtm-verdict-baseline.json': JSON.stringify({ verifiedWithoutEnvelope: 0 }),
+    ...extra,
+  })
+
+  it('accepts a Verified row whose envelope conforms and whose citations resolve', () => {
+    const r = run(
+      [],
+      makeMatrix([verifiedRow]),
+      files({ '.arbiter/evidence/rtm/REQ-001.json': envelope() }),
+    )
+    expect(r.status).toBe(0)
+  })
+
+  it('refuses a Verified row with no envelope at all — status is not evidence', () => {
+    const r = run([], makeMatrix([verifiedRow]), files())
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/REQ-001/)
+    expect(r.stdout).toMatch(/envelope/i)
+  })
+
+  it('refuses a verdict that is not PROVEN on a Verified row', () => {
+    const r = run(
+      [],
+      makeMatrix([verifiedRow]),
+      files({ '.arbiter/evidence/rtm/REQ-001.json': envelope({ verdict: 'FAILING' }) }),
+    )
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/FAILING/)
+  })
+
+  it('refuses an envelope missing its justification — a verdict with no argument is an opinion', () => {
+    const r = run(
+      [],
+      makeMatrix([verifiedRow]),
+      files({ '.arbiter/evidence/rtm/REQ-001.json': envelope({ justification: '' }) }),
+    )
+    expect(r.status).toBe(1)
+  })
+
+  it('refuses an envelope with no transcript digest — PROVEN means something was RUN', () => {
+    const r = run(
+      [],
+      makeMatrix([verifiedRow]),
+      files({ '.arbiter/evidence/rtm/REQ-001.json': envelope({ transcript_digest: '' }) }),
+    )
+    expect(r.status).toBe(1)
+  })
+
+  it('reports a citation whose pin has drifted as OUTDATED, reusing axis 1', () => {
+    const r = run(
+      [],
+      makeMatrix([verifiedRow]),
+      files({
+        '.arbiter/evidence/rtm/REQ-001.json': envelope({
+          citations: ['src/x.ts#L2-L4@000000000000'],
+        }),
+      }),
+    )
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/OUTDATED/)
+  })
+
+  it('refuses an envelope whose feature_id does not match the row it sits under', () => {
+    const r = run(
+      [],
+      makeMatrix([verifiedRow]),
+      files({ '.arbiter/evidence/rtm/REQ-001.json': envelope({ feature_id: 'REQ-999' }) }),
+    )
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/REQ-999/)
+  })
+
+  it('leaves Done, Partial and Missing rows alone — the rule is about the top of the ladder', () => {
+    const partial = `| REQ-002 | Cap | ${ALL_DIMS} | L2 | Partial | src/x.ts |  |  | #1 | n |`
+    const r = run([], makeMatrix([partial]), files())
+    expect(r.status).toBe(0)
+  })
+
+  it('grandfathers pre-existing Verified rows up to the baseline count', () => {
+    const r = run(
+      [],
+      makeMatrix([verifiedRow]),
+      files({
+        'scripts/data/rtm-verdict-baseline.json': JSON.stringify({ verifiedWithoutEnvelope: 1 }),
+      }),
+    )
+    expect(r.status).toBe(0)
+  })
+
+  it('refuses a RISE above the baseline — the ratchet is monotone', () => {
+    const second = `| REQ-002 | Cap | N01 | L2 | Verified | src/x.ts | __tests__/x.test.ts | docs/x.md | #2 | n |`
+    const r = run(
+      [],
+      makeMatrix([verifiedRow, second]),
+      files({
+        'scripts/data/rtm-verdict-baseline.json': JSON.stringify({ verifiedWithoutEnvelope: 1 }),
+      }),
+    )
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/ratchet|baseline/i)
+  })
+})

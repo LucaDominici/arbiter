@@ -242,8 +242,8 @@
   {
     "dest": "scripts",
     "path": "check-feature-matrix.mjs",
-    "reason": "#1887-B: self's own scripts/check-feature-matrix.mjs validates arbiter's OWN docs/internal/PRODUCT/FEATURE_MATRIX.md against arbiter's OWN src/kit/catalog.json (KIT-dimension coverage + L4 audit_trail DoD) — the shipped template (src/templates/scripts/check-feature-matrix.mjs.ejs) is a deliberately SCOPED-DOWN port for target projects, which have no docs/internal/PRODUCT/ tree or KIT catalog equivalent. The two files validate structurally different documents at different paths by design; this is not staleness to reconcile.",
-    "diffHash": "f6a4734a1551fa56be165c2b9d7f08f76efeb16da3175157cb65951d8753c7a2"
+    "reason": "#1887-B: self's own scripts/check-feature-matrix.mjs validates arbiter's OWN docs/internal/PRODUCT/FEATURE_MATRIX.md against arbiter's OWN src/kit/catalog.json (KIT-dimension coverage + L4 audit_trail DoD) — the shipped template (src/templates/scripts/check-feature-matrix.mjs.ejs) is a deliberately SCOPED-DOWN port for target projects, which have no docs/internal/PRODUCT/ tree or KIT catalog equivalent. The two files validate structurally different documents at different paths by design; this is not staleness to reconcile. | #2480 adds a SECOND, deliberate divergence: the RTM axis-2 rule (a `Verified` row must carry a .arbiter/evidence/rtm/<REQ-NNN>.json verification envelope) is SELF-TRACK ONLY. The emitted gate would need schemas/rtm-verdict.schema.json emitted alongside it — a generator change (CANON-11) plus a new template — and porting the rule without the schema would hand every governed project an error the moment it marked a row Verified, which is worse than not porting. The span-pinning rule from the same wave DID port, because it needs no new file. This asymmetry is scheduled, not permanent.",
+    "diffHash": "5ebfdbd7227a01919a15a812eb5ae55d61636367614eab50bbcb8c28e2431703"
   },
   {
     "path": "check-grace-window.mjs",
