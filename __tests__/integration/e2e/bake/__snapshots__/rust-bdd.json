@@ -358,7 +358,7 @@
     "scripts/issue-readiness.mjs": "6e353eaf3efa56f57cdab8d2b6ceb600b14d62d01262a6ffe3157d69791eb606",
     "scripts/knowledge-map-update.mjs": "bbf354c1fc3abadd280dfe628c9e9ed369a0c6f32d7cd6b43c176aae8ecc1bd8",
     "scripts/lib/acceptance-criteria.mjs": "14353a73537b2baa6611858bbcf6b789882bb0b39805c118aac63aa1461e8b2b",
-    "scripts/lib/agent-return-validate.mjs": "b21b4f4d365b0e2936bda5205299250c4b2112e5365cb2f21816479007f9a6ef",
+    "scripts/lib/agent-return-validate.mjs": "53f9633bf657674ee362ab13c90fcb55fb5d3c9b0590be583e2ec1517bd86225",
     "scripts/lib/e2e-reliability.mjs": "22c5fdafc559b9a53b5bc74a3b2fe96f9757d6ed6bf9765cb384964343bbc1c5",
     "scripts/lib/evidence-binding.mjs": "b5b164dc8d11eae98a69ae00443535d01203e3b2ccbf51fa81d0f2585b55e776",
     "scripts/lib/exact-sha-policy.mjs": "e47259f61c47e9f22316950c10395ded10911a52a2eff2a471d8efcdaf8bd6c7",
