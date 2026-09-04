@@ -114,10 +114,16 @@ describe('acceptance-anchor script templates (ADR-110)', () => {
         join(dir, 'scripts', 'check-acceptance.mjs'),
         render('scripts/check-acceptance.mjs.ejs'),
       )
-      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ features: { acceptanceAnchor: true } }))
+      writeFileSync(
+        join(dir, 'arbiter.json'),
+        JSON.stringify({ features: { acceptanceAnchor: true } }),
+      )
 
       const run = () =>
-        spawnSync(process.execPath, ['scripts/check-acceptance.mjs'], { cwd: dir, encoding: 'utf-8' })
+        spawnSync(process.execPath, ['scripts/check-acceptance.mjs'], {
+          cwd: dir,
+          encoding: 'utf-8',
+        })
 
       // No active task → vacuous SKIP (exit 0), so a fresh target is never day-1 red.
       expect(run().status).toBe(0)

@@ -67,7 +67,8 @@ describe('scripts/canon01-self-only.json — no entry contradicts itself (#2417)
     const contradictory = doc.selfOnly
       .filter(
         (e) =>
-          /no (?:open )?issue (?:currently )?tracks/i.test(e.reason) && /tracked by/i.test(e.reason),
+          /no (?:open )?issue (?:currently )?tracks/i.test(e.reason) &&
+          /tracked by/i.test(e.reason),
       )
       .map((e) => e.path)
     expect(contradictory).toEqual([])

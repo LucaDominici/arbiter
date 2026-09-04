@@ -291,9 +291,11 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
     })
 
     it('carries no reason that defers, or cites the audit issue as still pending', () => {
-      const deferring = REGISTRY.selfOnly.filter((e) =>
-        /STILL PENDING|Audit under #|plausibly should also receive|issues\/2405/i.test(e.reason),
-      ).map((e) => e.path)
+      const deferring = REGISTRY.selfOnly
+        .filter((e) =>
+          /STILL PENDING|Audit under #|plausibly should also receive|issues\/2405/i.test(e.reason),
+        )
+        .map((e) => e.path)
       expect(deferring).toEqual([])
     })
 
