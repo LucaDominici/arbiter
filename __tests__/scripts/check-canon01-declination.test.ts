@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -276,6 +276,70 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
       cleanup()
     }
   })
+  // #2405 — the twelve STAGED entries carried a generic reason text that cited a closed
+  // issue scoped to a DIFFERENT registry. Re-dating them is the failure mode this issue
+  // exists to end, so the contract is pinned here, against the COMMITTED registry:
+  // a self-only entry is permanent-by-construction or it does not exist.
+  describe('committed self-only registry contract (#2405)', () => {
+    const REGISTRY = JSON.parse(
+      readFileSync(resolve('scripts/canon01-self-only.json'), 'utf-8'),
+    ) as { selfOnly: Array<{ path: string; reason: string; expires?: string }> }
+
+    it('carries no STAGED (expires-dated) entry — audit-later is not a resolution', () => {
+      const staged = REGISTRY.selfOnly.filter((e) => e.expires != null).map((e) => e.path)
+      expect(staged).toEqual([])
+    })
+
+    it('carries no reason that defers, or cites the audit issue as still pending', () => {
+      const deferring = REGISTRY.selfOnly.filter((e) =>
+        /STILL PENDING|Audit under #|plausibly should also receive|issues\/2405/i.test(e.reason),
+      ).map((e) => e.path)
+      expect(deferring).toEqual([])
+    })
+
+    it('gives every entry a rationale that names a concrete mechanism', () => {
+      const thin = REGISTRY.selfOnly.filter(
+        (e) => e.reason.length < 120 || !/\.ejs|\.yml|src\/templates\/|\.mjs/.test(e.reason),
+      ).map((e) => e.path)
+      expect(thin).toEqual([])
+    })
+
+    // A rationale that reads identically for two different checks is not a rationale, so
+    // the contract is sentence-level, not whole-string: no substantial sentence (>=60 chars)
+    // may be shared by two entries. Boilerplate ("Tracked by <issue>.", "a governed target
+    // plausibly should also receive this") is exactly what this catches; the shared
+    // by-construction CLAUSE ("Its subject is arbiter's own generator corpus...") that the
+    // pre-existing permanent entries deliberately reuse is excluded by name, because there
+    // the specificity lives in the entry's own leading sentence.
+    it('gives no two entries the same rationale sentence — boilerplate is not a rationale', () => {
+      const BY_CONSTRUCTION = 'A target project has no generator corpus'
+      const bySentence = new Map<string, string[]>()
+      for (const e of REGISTRY.selfOnly) {
+        for (const raw of e.reason.split(/(?<=\.)\s+/)) {
+          const sentence = raw.trim()
+          if (sentence.length < 60) continue
+          if (sentence.includes(BY_CONSTRUCTION)) continue
+          if (sentence.startsWith('Its subject is arbiter')) continue
+          bySentence.set(sentence, [...(bySentence.get(sentence) ?? []), e.path])
+        }
+      }
+      const shared = [...bySentence.entries()].filter(([, paths]) => paths.length > 1)
+      expect(shared.map(([sentence, paths]) => `${paths.join(' + ')}: ${sentence}`)).toEqual([])
+    })
+
+    it('no longer claims check-acceptance.mjs is self-only — it is emitted (ADR-110)', () => {
+      expect(REGISTRY.selfOnly.map((e) => e.path)).not.toContain('scripts/check-acceptance.mjs')
+    })
+
+    it('pins the ratchet baseline to the registry it measures, and it fell', () => {
+      const baseline = JSON.parse(
+        readFileSync(resolve('scripts/canon01-baseline.json'), 'utf-8'),
+      ) as { selfOnly: number }
+      expect(baseline.selfOnly).toBe(REGISTRY.selfOnly.length)
+      expect(baseline.selfOnly).toBeLessThan(85)
+    })
+  })
+
   // #2404 — every case above builds a SYNTHETIC repo, so none of them ever reads the
   // committed registry. A `expires` date that rolls past is therefore invisible to the
   // whole suite until the gate turns red in CI. This case runs the real gate against the
