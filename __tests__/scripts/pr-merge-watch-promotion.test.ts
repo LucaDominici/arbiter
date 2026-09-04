@@ -225,7 +225,6 @@ describe('pr-merge-watch exact-SHA promotion (#2148)', () => {
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
     expect(state.base).toBe(HEAD)
   })
-
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

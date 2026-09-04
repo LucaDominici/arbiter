@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-08-29'
+last_review: '2026-09-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -70,7 +70,7 @@ related: []
 | 049 | [Java Static Analysis: Baseline Audit and Wiring Fixes](../ADR/049-java-static-analysis-baseline.md) | Accepted | 2026-05-20 |
 | 050 | [Pipeline Complexity Tiers — Archetype-Default + Governance Floor](../ADR/050-pipeline-complexity-tiers.md) | Accepted | 2026-05-23 |
 | 051 | [Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy](../ADR/051-collaboration-mode-workflow-axis.md) | Accepted | 2026-05-28 |
-| 052 | [Exact-SHA Landing and Cosign Preservation](../ADR/052-fast-forward-merge-cosign-preservation.md) | Accepted | 2026-07-27 |
+| 052 | [Exact-SHA Landing and Cosign Preservation](../ADR/052-fast-forward-merge-cosign-preservation.md) | Accepted | 2026-09-04 |
 | 053 | [CI Gap Closures, Per-Tier Nightly, Opt-In Selective Gates, and Local Provenance Log](../ADR/053-ci-gap-closures-and-check-ladder.md) | Accepted | 2026-05-28 |
 | 054 | [Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](../ADR/054-phase-3-5-handoff-modeled-as-status-json-fields.md) | Accepted | 2026-05-31 |
 | 055 | [SpotBugs security hard-block baseline script (#212)](../ADR/055-spotbugs-security-hard-block-baseline-script.md) | Accepted | 2026-05-31 |

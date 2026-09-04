@@ -160,22 +160,18 @@ function refuse(reason, detail = {}) {
   })
 }
 
-/**
- * Resolve an `arbiter.json` object to its landing arc.
- *
- * Pure: it never touches the network, the filesystem or `process` — the caller owns
- * the exit contract and converts a refusal fail-closed BEFORE any GitHub call.
- *
- * @param {unknown} config parsed `arbiter.json` (any shape — malformed input is expected)
- * @returns {{supported: boolean, mode: string|null, arc: LandingArc|null, blockedOn: string|null, reason: string}}
- */
-export function resolveLandingContract(config) {
+/** Refuse anything that is not a plain object — a malformed config carries no arc. */
+function refuseMalformedConfig(config) {
   if (config === null || typeof config !== 'object' || Array.isArray(config)) {
     return refuse(
       `arbiter.json did not resolve to an object (got ${shapeOf(config)}): exact-SHA landing refused — a malformed config has no landing arc`,
     )
   }
-  const mode = config.collaborationMode
+  return null
+}
+
+/** Refuse an absent or non-string `collaborationMode` — neither ever defaults to an arc. */
+function refuseUnusableMode(mode) {
   if (mode === undefined || mode === null) {
     return refuse(
       'collaborationMode is absent: exact-SHA landing refused — the landing contract has no default arc, and an unresolved mode must never fall through to a supported one',
@@ -186,7 +182,11 @@ export function resolveLandingContract(config) {
       `collaborationMode is not a string (got ${shapeOf(mode)}): exact-SHA landing refused — a malformed mode has no landing arc`,
     )
   }
-  const arc = Object.hasOwn(LANDING_CONTRACT, mode) ? LANDING_CONTRACT[mode] : null
+  return null
+}
+
+/** Refuse an unknown arc, and a declared-but-unsupported one, citing where the work lives. */
+function refuseUnlandableArc(mode, arc) {
   if (arc === null) {
     return refuse(
       `collaborationMode "${mode}" is not a known landing arc (known: ${KNOWN_MODES.join(', ')}): exact-SHA landing refused — an unrecognised mode never resolves to a supported arc`,
@@ -199,6 +199,29 @@ export function resolveLandingContract(config) {
       { mode, arc, blockedOn: arc.blockedOn },
     )
   }
+  return null
+}
+
+/**
+ * Resolve an `arbiter.json` object to its landing arc.
+ *
+ * Pure: it never touches the network, the filesystem or `process` — the caller owns
+ * the exit contract and converts a refusal fail-closed BEFORE any GitHub call.
+ *
+ * Every guard below refuses; there is no branch that permits by omission.
+ *
+ * @param {unknown} config parsed `arbiter.json` (any shape — malformed input is expected)
+ * @returns {{supported: boolean, mode: string|null, arc: LandingArc|null, blockedOn: string|null, reason: string}}
+ */
+export function resolveLandingContract(config) {
+  const malformed = refuseMalformedConfig(config)
+  if (malformed !== null) return malformed
+  const mode = config.collaborationMode
+  const unusable = refuseUnusableMode(mode)
+  if (unusable !== null) return unusable
+  const arc = Object.hasOwn(LANDING_CONTRACT, mode) ? LANDING_CONTRACT[mode] : null
+  const unlandable = refuseUnlandableArc(mode, arc)
+  if (unlandable !== null) return unlandable
   const mergeMode = config.solo?.mergeMode
   if (mergeMode !== arc.requiredMergeMode) {
     return refuse(

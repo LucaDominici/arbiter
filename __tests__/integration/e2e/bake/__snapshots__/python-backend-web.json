@@ -379,7 +379,7 @@
     "scripts/lib/agent-return-validate.mjs": "b21b4f4d365b0e2936bda5205299250c4b2112e5365cb2f21816479007f9a6ef",
     "scripts/lib/e2e-reliability.mjs": "22c5fdafc559b9a53b5bc74a3b2fe96f9757d6ed6bf9765cb384964343bbc1c5",
     "scripts/lib/evidence-binding.mjs": "b5b164dc8d11eae98a69ae00443535d01203e3b2ccbf51fa81d0f2585b55e776",
-    "scripts/lib/exact-sha-policy.mjs": "e32e688a19d91e8288ce462bb9994f3f410c504debf7b33ecde4a6f0fb58c803",
+    "scripts/lib/exact-sha-policy.mjs": "9d91e9d587201d1eb5433d4427dfec28c36522c155572def73fcea0b0c572526",
     "scripts/lib/gate-args.mjs": "ab20047c912a847b6773130957f7ba3ba5b96d8241bffdced7371cdb8ff029bc",
     "scripts/lib/gate-evidence.mjs": "cbaf3f731f2a8518f9cb408ae6460eb623bb34cf310e4226b7079e338cf3718a",
     "scripts/lib/glob-walk.mjs": "a71a14af1cb1d8b4068f8aede857299f884740327799d4290ba6fb3e15126638",

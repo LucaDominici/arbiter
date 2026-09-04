@@ -70,13 +70,13 @@ reads as "known, refused and tracked". `LANDING_CONTRACT` and `resolveLandingCon
 branch-protection applicator and the `/ship` merge step read the arc instead of each
 re-deciding from a `collaborationMode` literal.
 
-| `collaborationMode` | `supported` | `requiresTrustedUpdater` | `blockedOn` | landing | `main == gatedHeadSha` |
-| ------------------- | ----------- | ------------------------ | ----------- | ------- | ---------------------- |
-| `trunk-solo` (+ `solo.mergeMode: pr-ff`) | `true` | `false` | — | atomic non-force `updateRefs` CAS | **yes** |
-| `peer-review` | `false` | `true` | #2289 | GitHub PR merge (merge commit) | no — `main` gets a new tip |
-| `gated-review` | `false` | `true` | #2289 | GitHub PR merge (merge commit / merge queue) | no — `main` gets a new tip |
+| `collaborationMode`                      | `supported` | `requiresTrustedUpdater` | `blockedOn` | landing                                      | `main == gatedHeadSha`     |
+| ---------------------------------------- | ----------- | ------------------------ | ----------- | -------------------------------------------- | -------------------------- |
+| `trunk-solo` (+ `solo.mergeMode: pr-ff`) | `true`      | `false`                  | —           | atomic non-force `updateRefs` CAS            | **yes**                    |
+| `peer-review`                            | `false`     | `true`                   | #2289       | GitHub PR merge (merge commit)               | no — `main` gets a new tip |
+| `gated-review`                           | `false`     | `true`                   | #2289       | GitHub PR merge (merge commit / merge queue) | no — `main` gets a new tip |
 
-An **unknown**, **absent** or **malformed** `collaborationMode` resolves to *refused*, never
+An **unknown**, **absent** or **malformed** `collaborationMode` resolves to _refused_, never
 to a default arc: on a merge trust boundary an ambiguity resolves toward refusing. The
 watcher evaluates the arc before its first `gh` invocation, so an unsupported mode reads
 nothing about the repository at all.

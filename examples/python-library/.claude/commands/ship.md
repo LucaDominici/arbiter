@@ -299,7 +299,14 @@ and records `forced`. Rounds are counted per train, like every other ceremony.
 
 
 
-**peer-review / gated-review:** open a PR and merge without rewriting its commits:
+**peer-review / gated-review:** open a PR and merge without rewriting its commits.
+
+> **This arc does NOT land the exact gated SHA.** The GitHub merge gives `main` a new
+> tip, so here `main != gatedHeadSha` — the exact-SHA guarantee of `trunk-solo + pr-ff`
+> does not carry over. Landing the gated head itself needs a trusted updater (a GitHub
+> App authorised to advance the ref), tracked on #2289. Until it exists this is the only
+> landing path available in these modes, and `scripts/pr-merge-watch.mjs` refuses them
+> outright rather than pretending otherwise.
 
 
 ```bash
