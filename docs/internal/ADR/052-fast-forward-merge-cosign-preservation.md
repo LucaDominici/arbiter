@@ -1,8 +1,8 @@
 ---
 title: 'ADR-052: Exact-SHA Landing and Cosign Preservation'
-doc_version: '2.0.0'
+doc_version: '2.1.0'
 status: active
-last_review: '2026-07-27'
+last_review: '2026-09-04'
 owner: ''
 canonical_id: '052'
 tags: ['audience/dev', 'kind/adr']
@@ -13,7 +13,7 @@ enforces: ['INV-101']
 # ADR-052 — Exact-SHA Landing and Cosign Preservation
 
 **Status:** Accepted
-**Issue:** #1082, corrected by #2148
+**Issue:** #1082, corrected by #2148, made mode-aware by #2150
 **Invariant:** INV-101
 
 ## Context
@@ -61,6 +61,37 @@ Linearity and identity are enforced by the atomic non-force CAS, not by the misl
 remaining manual merge-button/admin bypass completely; until then, the watcher, `/ship`,
 live-policy check and L1 wiring gate prohibit that path.
 
+### Mode-aware landing contract (#2150)
+
+The CAS above is confined to `trunk-solo`. The other two collaboration modes are **declared
+and refused**, not omitted — an absent arc reads as "never considered", an unsupported arc
+reads as "known, refused and tracked". `LANDING_CONTRACT` and `resolveLandingContract()` in
+`scripts/lib/exact-sha-policy.mjs` are the single source of that decision; the watcher, the
+branch-protection applicator and the `/ship` merge step read the arc instead of each
+re-deciding from a `collaborationMode` literal.
+
+| `collaborationMode` | `supported` | `requiresTrustedUpdater` | `blockedOn` | landing | `main == gatedHeadSha` |
+| ------------------- | ----------- | ------------------------ | ----------- | ------- | ---------------------- |
+| `trunk-solo` (+ `solo.mergeMode: pr-ff`) | `true` | `false` | — | atomic non-force `updateRefs` CAS | **yes** |
+| `peer-review` | `false` | `true` | #2289 | GitHub PR merge (merge commit) | no — `main` gets a new tip |
+| `gated-review` | `false` | `true` | #2289 | GitHub PR merge (merge commit / merge queue) | no — `main` gets a new tip |
+
+An **unknown**, **absent** or **malformed** `collaborationMode` resolves to *refused*, never
+to a default arc: on a merge trust boundary an ambiguity resolves toward refusing. The
+watcher evaluates the arc before its first `gh` invocation, so an unsupported mode reads
+nothing about the repository at all.
+
+### Deferred to #2289 — trusted updater (GitHub App)
+
+Absent here and tracked, never stubbed: a GitHub App as the only actor authorised to advance
+`main`; removing or fail-closing the manual merge-button / admin path; the review branch
+(`reviewDecision === 'APPROVED'`, which `trunk-solo` has no second approver for and which
+would weaken the delivered path if wired now); and the **live** tests for the non-solo modes
+(missing approval = RED, missing check = RED, SHA drift = RED, happy path
+`main == gatedHeadSha`). A skipped or auto-green test on an unimplemented trust boundary is a
+false declaration of safety, so none was written. #2289 is blocked only on the owner creating
+the App and is actionable the moment it exists.
+
 ## Enforcement
 
 - `scripts/check-merge-method.mjs` fails closed unless policy, applicator and watcher are
@@ -68,7 +99,11 @@ live-policy check and L1 wiring gate prohibit that path.
 - `pr-merge-watch.mjs` validates live repository and branch-protection settings immediately
   before mutation.
 - `scripts/apply-branch-protection.mjs` imports the same executable policy as the watcher.
-- `src/templates/claude/commands/ship.md.ejs` routes `trunk-solo + pr-ff` through the watcher.
+- `src/templates/claude/commands/ship.md.ejs` routes `trunk-solo + pr-ff` through the watcher,
+  and its `peer-review` / `gated-review` arc declares openly that there `main != gatedHeadSha`.
+- `pr-merge-watch.mjs` resolves the landing arc through `resolveLandingContract()` before its
+  first GitHub call; the refusal for every unsupported/unknown/absent/malformed mode is
+  asserted mode by mode in `__tests__/scripts/pr-merge-watch-promotion.test.ts`.
 - Tests exercise successful atomic promotion, stale base/head, live drift, policy wiring and
   post-merge SHA equality.
 
