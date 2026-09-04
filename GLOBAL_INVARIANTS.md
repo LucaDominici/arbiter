@@ -897,3 +897,21 @@ A hop that cannot reach an independent reviewer (model unavailable, rate limit, 
 **Enforcement:** `scripts/check-refutation-verdicts.mjs`, wired on both tracks as `refutation majority (E2 #1943)` — `runWarnCheck` in `scripts/check-all.mjs`, a row in `src/templates/scripts/gate-registry.yml.ejs`, and the engine itself emitted via `src/templates/scripts/check-refutation-verdicts.mjs.ejs` (kept byte-identical). Marker-gated. Verified by `__tests__/scripts/check-refutation-verdicts.test.ts` (15 cases, tamper-proven in both directions). Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR. CANON-24.
 
 ---
+
+### INV-146: A milestone is done only when its exit criteria carry evidence
+
+A roadmap in prose cannot be wrong, because nothing reads it. Milestones are therefore a typed SSOT — `docs/internal/PRODUCT/MILESTONES.yml` — where each entry carries a GSN goal (the claim, plus the strategy by which its exit criteria are argued to establish that claim), exit criteria, dependencies and a Now/Next/Later horizon.
+
+Three properties are enforced that a document cannot hold, and each was chosen against a specific failure:
+
+- **The dependency graph is acyclic.** A plan that quietly requires itself is unschedulable, and no reader of a prose roadmap has ever caught one. The gate reports the cycle **as its path** (`MS-01 -> MS-02 -> MS-01`), because "a cycle exists" is a puzzle rather than a defect report.
+- **Granularity decays with distance.** `due` is required for `now`, optional for `next`, and **forbidden** for `later`. A date on a milestone nobody has scoped is false precision, so the schema refuses it rather than trusting a convention readers are expected to follow. This rule is enforceable only since #2509 taught the shared validator `if`/`then`/`not` — before that it was a schema keyword that never ran, which is the failure mode this whole programme exists to eliminate.
+- **`done` is fail-closed on evidence.** Every exit criterion of a `done` or `verified` milestone must cite a resolvable artifact, and `verified` requires those citations to actually resolve. This is the reason the gate exists: a roadmap whose `done` means "someone typed done" is not a weaker roadmap — it is a false claim with a schema around it.
+
+The migration is **forward-only** by owner decision. The 33 historical `## MN` headings stay in the prose archive rather than having exit-criteria evidence reconstructed after the fact to satisfy the gate; inventing that evidence is exactly the fake-green the rule is built to stop. Accepted cost: no plan history before the SSOT existed.
+
+A missing `MILESTONES.yml` **skips out loud** — a project need not have codified a roadmap, but a skip must never be mistakable for a pass, so it prints `[SKIP]` and surfaces as `verdict: "skip"` under `--json`.
+
+**Enforcement:** `scripts/check-milestones.mjs`, wired on the self track as `milestones (INV-146)` via `runCheck` in `scripts/check-all.mjs`. Self-only for now, declared rather than left to be found: the `MS` scheme is `staged` in the ID registry with a dated expiry and the Track-B emission lands with it — claiming both tracks before that exists is the error INV-144 was caught making. Verified by `__tests__/scripts/check-milestones.test.ts` (42 cases), tamper-proven in both directions on every rule: a cycle, a dangling `depends_on`, a duplicate id, a `later` carrying a `due`, `done` without evidence and `verified` citing an unresolvable ref each fail, and the same tree with the defect removed passes. Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
+
+---

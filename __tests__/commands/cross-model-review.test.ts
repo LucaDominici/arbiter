@@ -500,7 +500,12 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         diffEgressConsent: true,
         providers: ['codex'],
         slots: { codeReview: 1, redTeamReview: 0 },
-        timeoutMs: 5_000,
+        // #2501: this case proves the external seat is INVOKED from the real CLI boundary; it is
+        // not a test of the timeout. A 5s budget made it race a wall clock, so on a loaded machine
+        // the stub missed the deadline, the seat degraded, and `findings` came back empty — a red
+        // that says nothing about the wiring under test. Generous headroom, still inside the outer
+        // spawn timeout below so a genuine hang is still caught rather than waited on forever.
+        timeoutMs: 20_000,
         onUnavailable: 'degrade',
       }
       writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)
@@ -581,7 +586,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             HOME: dir,
             PATH: `${bin}:${process.env.PATH ?? ''}`,
           },
-          timeout: 30_000,
+          timeout: 120_000,
         },
       )
 

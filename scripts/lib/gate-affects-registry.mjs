@@ -151,6 +151,10 @@ export const GATE_AFFECTS_REGISTRY = [
   // manifest, the tier profile and the architecture document itself, so no single changed-path
   // predicate covers it — a narrower rule would let a skeleton edit skip the gate that guards it.
   { name: 'arc42 slots (INV-144)', affects: ALWAYS },
+  // ALWAYS: the gate reads MILESTONES.yml, its schema and the INV catalog (to resolve an
+  // INV-NN evidence_ref), so no changed-path predicate covers it without letting an edit to one
+  // of those skip the gate that guards it.
+  { name: 'milestones (INV-146)', affects: ALWAYS },
   { name: 'forma schema contract (INV-143)', affects: ALWAYS },
   { name: 'orchestrator coverage (#1410)', affects: ALWAYS },
   { name: 'constraint scan (INV-115)', affects: ALWAYS },

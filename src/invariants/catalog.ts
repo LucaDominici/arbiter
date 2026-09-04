@@ -2772,4 +2772,38 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(an unaddressed high fails; the same tree with it addressed and only a low left passes). ' +
       'exit 0=PASS, 1=violation, 2=ERROR per INV-53. CANON-24.',
   },
+  {
+    id: 'INV-146',
+    tier: 'governance',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'A milestone is done only when its exit criteria carry evidence',
+    description:
+      'A roadmap in prose cannot be wrong, because nothing reads it. Milestones are therefore a ' +
+      'typed SSOT — docs/internal/PRODUCT/MILESTONES.yml — carrying a GSN goal (claim plus the ' +
+      'strategy by which the exit criteria are argued to establish it), exit criteria, ' +
+      'dependencies and a Now/Next/Later horizon. Three properties are enforced that a document ' +
+      'cannot hold: the dependency graph is ACYCLIC, so a plan cannot quietly require itself; ' +
+      'granularity DECAYS with distance, so a `later` milestone may not carry a due date, which ' +
+      'is false precision the schema refuses rather than a convention readers are trusted to ' +
+      'follow; and `done` is FAIL-CLOSED on evidence — every exit criterion must cite a resolvable ' +
+      'artifact, and `verified` requires those citations to actually resolve. That last rule is ' +
+      'the reason the gate exists: a roadmap whose `done` means "someone typed done" is not a ' +
+      'weaker roadmap, it is a false claim with a schema around it. The migration is FORWARD-ONLY ' +
+      'by owner decision — historical milestones stay in the prose archive rather than having ' +
+      'exit-criteria evidence reconstructed after the fact to satisfy the gate, which would be ' +
+      'exactly the fake-green this catalog exists to prevent.',
+    enforcement:
+      'scripts/check-milestones.mjs — wired on the SELF track as ' +
+      "'milestones (INV-146)' via runCheck in scripts/check-all.mjs. Self-only for now: the MS " +
+      'scheme is `staged` in docs/internal/SYSTEM/ID-REGISTRY.md with a dated expiry, and the ' +
+      'Track-B emission (a gate-registry.yml.ejs row plus the emitted schema) lands with it — ' +
+      'claiming both tracks before that exists is the error INV-144 was caught making. A missing ' +
+      'MILESTONES.yml SKIPs out loud rather than passing silently, so a project without a codified ' +
+      'roadmap is distinguishable from one whose gate never ran. Verified by ' +
+      '__tests__/scripts/check-milestones.test.ts (42 cases), tamper-proven in both directions on ' +
+      'every rule: a cycle, a dangling depends_on, a duplicate id, a `later` carrying a due date, ' +
+      '`done` without evidence and `verified` citing an unresolvable ref each fail, and the same ' +
+      'tree with the defect removed passes. exit 0=PASS or SKIP, 1=violation, 2=ERROR per INV-53.',
+  },
 ]

@@ -175,7 +175,10 @@ describe('findDoneWithoutEvidence — the fail-closed rule', () => {
 
   it('refuses done when an evidence_ref is present but blank', () => {
     const out = findDoneWithoutEvidence([
-      milestone({ status: 'done', exit_criteria: [{ id: 'EC-01', description: 'x', evidence_ref: '   ' }] }),
+      milestone({
+        status: 'done',
+        exit_criteria: [{ id: 'EC-01', description: 'x', evidence_ref: '   ' }],
+      }),
     ])
     expect(out.length).toBe(1)
   })
@@ -232,7 +235,12 @@ describe('evidenceResolves', () => {
 describe('findUnresolvedEvidence', () => {
   it('ignores a done milestone — only verified demands resolution', () => {
     const out = findUnresolvedEvidence(
-      [milestone({ status: 'done', exit_criteria: [{ id: 'EC-01', description: 'x', evidence_ref: 'nope/missing.mjs' }] })],
+      [
+        milestone({
+          status: 'done',
+          exit_criteria: [{ id: 'EC-01', description: 'x', evidence_ref: 'nope/missing.mjs' }],
+        }),
+      ],
       REPO_ROOT,
     )
     expect(out).toEqual([])
@@ -240,7 +248,12 @@ describe('findUnresolvedEvidence', () => {
 
   it('reports a verified milestone whose evidence does not resolve', () => {
     const out = findUnresolvedEvidence(
-      [milestone({ status: 'verified', exit_criteria: [{ id: 'EC-01', description: 'x', evidence_ref: 'nope/missing.mjs' }] })],
+      [
+        milestone({
+          status: 'verified',
+          exit_criteria: [{ id: 'EC-01', description: 'x', evidence_ref: 'nope/missing.mjs' }],
+        }),
+      ],
       REPO_ROOT,
     )
     expect(out.length).toBe(1)
@@ -249,7 +262,12 @@ describe('findUnresolvedEvidence', () => {
 
   it('accepts a verified milestone whose evidence resolves', () => {
     const out = findUnresolvedEvidence(
-      [milestone({ status: 'verified', exit_criteria: [{ id: 'EC-01', description: 'x', evidence_ref: 'scripts/check-all.mjs' }] })],
+      [
+        milestone({
+          status: 'verified',
+          exit_criteria: [{ id: 'EC-01', description: 'x', evidence_ref: 'scripts/check-all.mjs' }],
+        }),
+      ],
       REPO_ROOT,
     )
     expect(out).toEqual([])

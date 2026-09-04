@@ -231,6 +231,9 @@ if (isMain) {
   runCheck('id registry (INV-140)', 'node', ['scripts/check-id-registry.mjs'])
   runCheck('ontology wired (INV-141)', 'node', ['scripts/check-ontology-wired.mjs'])
   runCheck('arc42 slots (INV-144)', 'node', ['scripts/check-arc42-slots.mjs'])
+  // INV-146: the milestone SSOT is well-formed, acyclic, and fail-closed on `done`. SKIPs out
+  // loud when no MILESTONES.yml exists — a project need not have codified a roadmap.
+  runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs'])
   // INV-143: the arbiter <-> forma schema contract. Owner-side pins always verified; the
   // cross-checkout half runs only when a forma checkout sits beside this one, and SKIPS out
   // loud otherwise — forma's own scripts/check-arbiter-contract.mjs gates the other half.
