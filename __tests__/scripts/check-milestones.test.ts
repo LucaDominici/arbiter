@@ -496,6 +496,49 @@ describe('--emit (#2480 wave 6)', () => {
     expect(doc.milestones[1]).not.toHaveProperty('estimate_days')
   })
 
+  it('carries members, because reconciliation needs the CLAIM as well as reality', () => {
+    // The first cut of this projection omitted `members`, reasoning "only what a scheduler needs".
+    // That was under-inclusive. The SSOT states that GitHub milestones are a PROJECTION of this
+    // file and that drift is a finding — and drift is precisely the comparison between what the
+    // SSOT CLAIMS a milestone contains and what GitHub actually holds. forma sees GitHub's side
+    // already (each issue carries `ms`, the milestone title); without the claimed side it can
+    // detect a milestone that has no GitHub counterpart but never an issue filed under the wrong
+    // one, which is the more common drift. Membership is not governance — it is the join key.
+    write(
+      VALID.replace(
+        '    depends_on: []',
+        '    members:\n      issues: [11, 22]\n      label: programme/x\n    depends_on: []',
+      ),
+    )
+    const out = join(dir, 'milestones.json')
+    expect(emit(out).status).toBe(0)
+    const doc = JSON.parse(readFileSync(out, 'utf-8')) as {
+      milestones: Array<Record<string, unknown>>
+    }
+    expect(doc.milestones[0]!['members']).toEqual({ issues: [11, 22], label: 'programme/x' })
+  })
+
+  it('omits members entirely when the SSOT declares none, rather than inventing an empty claim', () => {
+    write(VALID)
+    const out = join(dir, 'milestones.json')
+    emit(out)
+    const doc = JSON.parse(readFileSync(out, 'utf-8')) as {
+      milestones: Array<Record<string, unknown>>
+    }
+    expect(doc.milestones[0]).not.toHaveProperty('members')
+  })
+
+  it('still excludes the GSN goal and exit criteria — those ARE governance, not schedule', () => {
+    write(VALID)
+    const out = join(dir, 'milestones.json')
+    emit(out)
+    const doc = JSON.parse(readFileSync(out, 'utf-8')) as {
+      milestones: Array<Record<string, unknown>>
+    }
+    expect(doc.milestones[0]).not.toHaveProperty('goal')
+    expect(doc.milestones[0]).not.toHaveProperty('exit_criteria')
+  })
+
   it('is deterministic: two emissions of the same SSOT are byte-identical', () => {
     write(VALID)
     const a = join(dir, 'a.json')

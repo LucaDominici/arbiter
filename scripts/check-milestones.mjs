@@ -295,6 +295,14 @@ export function milestoneProjection(milestones) {
         }
         if (typeof m['estimate_days'] === 'number') row['estimate_days'] = m['estimate_days']
         if (typeof m['due'] === 'string') row['due'] = m['due']
+        // `members` is the CLAIM: which issues this milestone says it contains. It is not
+        // governance and it is not optional colour — it is the join key. The consumer already sees
+        // GitHub's side (each issue carries its milestone), and reconciliation drift is exactly the
+        // comparison of the two. Without the claimed side a consumer can spot a milestone with no
+        // GitHub counterpart but never an issue filed under the wrong one, which is the drift that
+        // actually happens. Omitted entirely when the SSOT declares none, so "no claim" stays
+        // distinguishable from "claims nothing".
+        if (m['members'] && typeof m['members'] === 'object') row['members'] = m['members']
         return row
       }),
   }
