@@ -1,9 +1,115 @@
 {
-  "any": { "enforcer": "@typescript-eslint/no-explicit-any", "kind": "lint" },
-  "var": { "enforcer": "no-var", "kind": "lint" },
-  "child_process": { "enforcer": "check-no-direct-spawn.mjs", "kind": "hook" },
+  "//": "INV-115 constraint map. Keys are either a prohibited code token or \"prose:<verbatim governance line>\" for a prohibition that carries no grep-able token. Values: {kind,enforcer} for a real, verified enforcer, or {kind:\"accepted\",rationale} for a judgment-level rule no mechanism can carry. See scripts/check-constraint-scan.mjs --help.",
+  "any": {
+    "enforcer": "@typescript-eslint/no-explicit-any",
+    "kind": "lint"
+  },
+  "var": {
+    "enforcer": "no-var",
+    "kind": "lint"
+  },
+  "child_process": {
+    "enforcer": "check-no-direct-spawn.mjs",
+    "kind": "hook"
+  },
   ".unwrap()": {
     "enforcer": "src/templates/scripts/checks/check-rust-no-unwrap.mjs.ejs",
     "kind": "template"
+  },
+  "prose:On an error, stop the patch-spiral. Do not attempt a second fix before performing": {
+    "kind": "accepted",
+    "rationale": "Judgment-level Iron Law: no mechanism can distinguish a diagnosed fix from a guess. Carried by review and by the five-line root-cause writeup CLOSER rule 4 demands after two failed attempts."
+  },
+  "prose:- **INV-44:** SpotBugs security-category bugs MUST NEVER be suppressed or baselined": {
+    "kind": "template",
+    "enforcer": "src/templates/scripts/verify-spotbugs.mjs.ejs"
+  },
+  "prose:- **INV-28:** SSOT documents must not contradict — run drift check before merge": {
+    "kind": "gate",
+    "enforcer": "check-drift.mjs"
+  },
+  "prose:- **INV-48:** EJS template render-test coverage must not regress": {
+    "kind": "gate",
+    "enforcer": "check-template-tests.mjs"
+  },
+  "prose:- **INV-85:** No kit source leakage — committed kit files must not contain employer-specific tokens": {
+    "kind": "gate",
+    "enforcer": "check-no-redacted-tokens.mjs"
+  },
+  "prose:- The nightly CI stamp artifact (`.arbiter/nightly/last-run.json`) must not be older than 26 hours when present. Exit 0 vacuously when no artifact exists.": {
+    "kind": "gate",
+    "enforcer": "check-nightly-freshness.mjs"
+  },
+  "prose:- Every gate, hook, check, and generator emitted by arbiter must default to BLOCK on uncertainty, never SKIP. Audits scripts/, .githooks/, and .claude/hooks/ for fail-open anti-patterns. New scripts outside the baseline must pass all checks.": {
+    "kind": "gate",
+    "enforcer": "check-fail-closed-audit.mjs"
+  },
+  "prose:- When `deployTarget` is not `\"none\"`, `10-deploy-prod.yml` must trigger on `release:` events only and must NOT contain `push.branches`. Branch-push triggers on release workflows create unsigned pre-release artifacts that pollute the digest namespace used by `cosign copy`.": {
+    "kind": "gate",
+    "enforcer": "check-workflow-cosign.mjs"
+  },
+  "prose:- **INV-117:** arbiter self-repo must not track binary build artifacts": {
+    "kind": "gate",
+    "enforcer": "check-no-tracked-artifacts.mjs"
+  },
+  "prose:- **INV-120:** Workflow needs-chain depth must not exceed the configured limit (parallelism regression gate)": {
+    "kind": "gate",
+    "enforcer": "check-workflow-parallelism.mjs"
+  },
+  "prose:- **INV-121:** Stack conformity — the repo-root manifest must not contradict declared axes": {
+    "kind": "template",
+    "enforcer": "src/templates/scripts/check-stack-conformity.mjs.ejs"
+  },
+  "prose:- **INV-130:** E2E flaky-test quarantine annotates but never suppresses, and cannot rot": {
+    "kind": "template",
+    "enforcer": "src/templates/scripts/check-e2e-quarantine.mjs.ejs"
+  },
+  "prose:- **INV-139:** Fixture and smoke output must never land in real evidence directories": {
+    "kind": "gate",
+    "enforcer": "check-fixture-isolation.mjs"
+  },
+  "prose:- In FE projects (archetype frontend-spa or lanes:[frontend]), direct fetch()/axios.\\* calls MUST NOT appear in UI component files, composables/hooks, or state stores. All HTTP I/O must be confined to a dedicated adapter/api layer. Mirrors FE001 of the FRONTEND_CONSTITUTION.": {
+    "kind": "template",
+    "enforcer": "src/templates/scripts/check-fe-boundaries.mjs.ejs"
+  },
+  "prose:- In FE projects, domain and store files MUST NOT import or reference browser APIs (window, document, localStorage, sessionStorage, matchMedia, navigator, location, history, IndexedDB). Browser coupling makes domain logic untestable in Node.js and prevents SSR. Mirrors FE002 of the FRONTEND_CONSTITUTION.": {
+    "kind": "template",
+    "enforcer": "src/templates/scripts/check-fe-boundaries.mjs.ejs"
+  },
+  "prose:- In FE projects, state store files MUST NOT contain async fetch calls or direct API caching. Server state MUST be delegated to a data-fetching library (TanStack Query, SWR, or equivalent). Mirrors FE003 of the FRONTEND_CONSTITUTION.": {
+    "kind": "template",
+    "enforcer": "src/templates/scripts/check-fe-boundaries.mjs.ejs"
+  },
+  "prose:**Rule:** Never manually edit `debt-baseline.json` to loosen metrics — that defeats the ratchet. Only run `--update` after genuine improvements.": {
+    "kind": "accepted",
+    "rationale": "A hand-loosened baseline is legal JSON every gate accepts; only the reviewed diff on the committed scripts/debt-baseline.json catches it. capture-debt-baseline.mjs --update is the one-way path."
+  },
+  "prose:**Rule:** Every direct `fs.*` failure handler in `src/` must translate raw NodeJS.ErrnoException codes (ENOENT, EACCES, EPERM, EBUSY, EMFILE, ENOSPC) into an `ArbiterError` with a human-readable hint via `src/utils/errors.ts` / `error-catalog.ts`. Raw NodeJS stack traces or bare errno strings MUST NOT leak to user-facing stdout/stderr from CLI commands.": {
+    "kind": "lint",
+    "enforcer": "fs-errno/fs-errno-translation"
+  },
+  "prose:**Rule:** A code-quality rule may be promoted to a **HARD GATE** (fails the build) only if it is **Tier-1** — backed by replicated empirical evidence linking the metric to a defect/maintainability outcome. Rules that are **Tier-2** — intuitive but empirically contested — may inform review and advisory output but MUST NOT fail the gate on their own. Every claimed gate must be wired to a real check (CANON-09); a gate that mutes its own findings is a lie and is forbidden.": {
+    "kind": "accepted",
+    "rationale": "Tier assignment is an evidence judgment about a metric, not a property any gate can read off a file. Carried at review, plus check-bypass-ceremony.mjs, which forces every advisory site to hold a dated ledger entry."
+  },
+  "prose:**Tier-2 (advisory only — do NOT hard-gate alone):**": {
+    "kind": "accepted",
+    "rationale": "Heading for the Tier-2 list; restates CANON-22's rule above. No mechanism can classify a quality rule's empirical tier, so this stays a review-time judgment."
+  },
+  "prose:- Skip the gate before committing": {
+    "kind": "githook",
+    "enforcer": "pre-commit"
+  },
+  "prose:- Commit directly to `main`": {
+    "kind": "accepted",
+    "rationale": "Enforced out-of-band by GitHub branch protection (required 'CI Required' status, force-push and deletion off), applied by scripts/apply-branch-protection.mjs and re-validated live by scripts/pr-merge-watch.mjs. No local gate can read a remote branch-protection setting."
+  },
+  "prose:- Leave orphan TODOs without task IDs": {
+    "kind": "hook",
+    "enforcer": "check-no-orphan-todo.mjs"
+  },
+  "prose:A failure is never dismissed because \"it was already broken\" or \"it's not from my change.\"": {
+    "kind": "accepted",
+    "rationale": "Judgment-level Iron Law about attribution, not a checkable property of code: no gate can tell whether a red was inherited or introduced. Carried by review and by the pre-existing-failure clause of CLOSER rule 5."
   }
 }

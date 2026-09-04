@@ -76,34 +76,9 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 
 ## Enforcement Gaps
 
-| constraint                                                   | location                          | severity |
-| ------------------------------------------------------------ | --------------------------------- | -------- |
-| On an error, stop the patch-spiral. Do not attempt a second  | AGENTS.md:79                      | medium   |
-| layers do not prevent this; only verification does.          | AGENTS.md:90                      | medium   |
-| The guidance is applied statically, never at runtime: sub-ag | AGENTS.md:104                     | medium   |
-| - **INV-44:** SpotBugs security-category bugs MUST NEVER be  | AGENTS.md:155                     | medium   |
-| - **INV-28:** SSOT documents must not contradict — run drift | AGENTS.md:166                     | medium   |
-| - **INV-48:** EJS template render-test coverage must not reg | AGENTS.md:177                     | medium   |
-| - **INV-85:** No kit source leakage — committed kit files mu | AGENTS.md:229                     | medium   |
-| - The nightly CI stamp artifact (`.arbiter/nightly/last-run. | AGENTS.md:265                     | medium   |
-| - Every gate, hook, check, and generator emitted by arbiter  | AGENTS.md:277                     | medium   |
-| - **INV-117:** arbiter self-repo must not track binary build | AGENTS.md:336                     | medium   |
-| - **INV-120:** Workflow needs-chain depth must not exceed th | AGENTS.md:342                     | medium   |
-| - **INV-121:** Stack conformity — the repo-root manifest mus | AGENTS.md:344                     | medium   |
-| - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:371                     | medium   |
-| - **INV-139:** Fixture and smoke output must never land in r | AGENTS.md:397                     | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:409                     | medium   |
-| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:413                     | medium   |
-| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:417                     | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:538                     | medium   |
-| **Rule:** Every direct `fs.*` failure handler in `src/` must | docs/internal/SYSTEM/CANON.md:252 | medium   |
-| **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314 | medium   |
-| **Tier-2 (advisory only — do NOT hard-gate alone):**         | docs/internal/SYSTEM/CANON.md:326 | medium   |
-| - **DRY-as-dogma** — duplication _count_ gates, but "never r | docs/internal/SYSTEM/CANON.md:329 | medium   |
-| - Skip the gate before committing                            | .claude/CLAUDE.md:97              | medium   |
-| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:100             | medium   |
-| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:112             | medium   |
-| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:116             | medium   |
+| constraint                      | location | severity |
+| ------------------------------- | -------- | -------- |
+| _No unenforceable constraints._ |
 
 ## Known Debt
 

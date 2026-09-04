@@ -532,7 +532,8 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
       const map = writeRawMap(dir, {
         [`prose:- ${PROSE}`]: {
           kind: 'accepted',
-          rationale: 'Judgment-level rule with no mechanical enforcer; reviewed by a human at PR time.',
+          rationale:
+            'Judgment-level rule with no mechanical enforcer; reviewed by a human at PR time.',
         },
       })
       const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
@@ -581,7 +582,10 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
       const src = writeSrc(dir, {})
       const map = writeRawMap(dir, {
         [`prose:- ${PROSE}`]: { kind: 'hook', enforcer: 'check-no-orphan-todo.mjs' },
-        'prose:- A prohibition nobody wrote': { kind: 'hook', enforcer: 'check-no-orphan-todo.mjs' },
+        'prose:- A prohibition nobody wrote': {
+          kind: 'hook',
+          enforcer: 'check-no-orphan-todo.mjs',
+        },
       })
       const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
       expect(r.status).toBe(1)
@@ -656,7 +660,8 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
       const map = writeRawMap(dir, {
         [`prose:- ${PROSE}`]: {
           kind: 'accepted',
-          rationale: 'Judgment-level rule with no mechanical enforcer; reviewed by a human at PR time.',
+          rationale:
+            'Judgment-level rule with no mechanical enforcer; reviewed by a human at PR time.',
         },
       })
       const base = writeBaseline(dir, {

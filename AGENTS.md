@@ -87,7 +87,7 @@ Run targeted local verification — an end-to-end exercise of the changed behavi
 not just a green typecheck or unit-test run — before every push. This is the
 dominant agent failure mode: of observed real agent errors, the majority (5 of 8)
 were claims of success without the change ever having been exercised. Review
-layers do not prevent this; only verification does.
+layers fail to prevent this; only verification does.
 
 ### Model-Pyramid: 90/10 Guidance (Not Machinery)
 
@@ -101,7 +101,7 @@ about model selection, not a runtime feature: arbiter does not measure, select, 
 on model tier at any pipeline stage — the tier-assignment machinery this replaces stays
 deprecated, not reintroduced.
 
-The guidance is applied statically, never at runtime: sub-agents pin their tier in
+The guidance is applied statically, not at runtime: sub-agents pin their tier in
 frontmatter (`model:` in `.claude/agents/*.md` — Haiku for mechanical scans, Sonnet for
 structured review passes, `inherit` where an adversarial judgment is the deliverable), and
 the orchestration commands (`/ship`, `/drain`) carry per-phase dispatch guidance. The
@@ -378,7 +378,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `scripts/check-tdd-evidence.mjs` (L2, Track-B — not an arbiter self-gate) — emitted unconditionally for all governed targets via `src/generators/check-all.ts` UNCONDITIONAL_EMISSIONS from `src/templates/scripts/check-tdd-evidence.mjs.ejs` (CANON-01/04/11). The self-contained gate (inlines the v1 evidence schema + git checks, so no local arbiter install is needed) re-verifies, on a fresh CI checkout, that every task-ID commit on the branch carries valid TDD evidence: file present + schema-valid, `task_id` matches, a recognised test-runner FAILURE signature present (proves RED), `test_commit_sha` exists in history, `test_path` exists in that commit. The `ARBITER-SKIP-TDD` trailer is forbidden. Wired HARD (`runCheck`) at L2 in the generated `scripts/check-all.mjs`, independent of debt gates. Self-SKIPs (exit 0) when origin/main is unavailable or no task-ID commits exist. Arbiter dogfoods its own `scripts/check-tdd-evidence.mjs` (which delegates to the CLI; `--dir <repo>` points it at another checkout). exit 0=PASS/vacuous, 1=FAIL (missing/inconsistent evidence or forbidden trailer), 2=ERROR per INV-53 (#1446).
   - _Evidence is owed per CHANGE, not per commit (#2217, both tracks):_ task ids in a commit SUBJECT are verified individually, as before. A branch with **no** subject-scoped id that changes `src/` must carry **at least one** verified evidence among the tasks its commit BODIES cite (`Refs #NNN`) — the convention for a commit with no TDD cycle of its own, which used to parse to zero ids and pass **vacuously**. No commit type is trusted to declare itself exempt; a docs- or chore-only branch stays vacuous because it changes no source. `src/templates/**` counts as source. The failure names the two ways forward: record real evidence for a cited task, or move the source change onto its own branch whose subject carries the id. Arbiter's own gate adds one guard the emitted gate deliberately omits: the evidence file must have been COMMITTED on the branch, so inherited evidence from `main` cannot satisfy the floor. It is omitted for targets because the generated `.gitignore` ignores `.arbiter/` wholesale — the check would reject every target branch until a project un-ignores `.arbiter/evidence/tdd/*.json` as arbiter does for itself.
   - _The pin is rebase-stable (#2116):_ in BOTH tracks `test_commit_sha` must be REACHABLE from HEAD, not merely present as an object — a pre-rebase commit lingering behind a stale branch is not history anyone can reach, and it stops resolving entirely once that branch is deleted. Because a rebase rewrites every sha, evidence also records `test_blob_sha`, the RED test's content, which a rebase preserves. Re-resolving a rewritten commit from that blob (and running every downstream check against the resolved commit) is arbiter's own `verify tdd` path; the self-contained target gate asserts reachability only and fails loudly, requiring the evidence to be re-recorded. Evidence recorded before the pin existed cannot be healed on either track.
-  - _The RED commit is committable (#2051):_ a genuine RED contains a test that FAILS, which the pre-commit L1 gate would block — the commit `record-red` must point at could never be made without `--no-verify`. The generated `.githooks/pre-commit` resolves this for exactly that commit shape: `phase=red` AND every staged path a test. Secret scanning and lint still run; source staged alongside, or any other phase, runs the full gate, as does the GREEN commit that follows.
+  - _The RED commit is committable (#2051):_ a genuine RED contains a test that FAILS, which the pre-commit L1 gate would block — the commit `record-red` must point at could not be made without `--no-verify`. The generated `.githooks/pre-commit` resolves this for exactly that commit shape: `phase=red` AND every staged path a test. Secret scanning and lint still run; source staged alongside, or any other phase, runs the full gate, as does the GREEN commit that follows.
 
 - **INV-132:** arbiter init exposes a progressive-adoption tier on-ramp (bootstrap → L4)
   - _Enforcement:_ `src/commands/init.ts` (`resolveAdoptionTier` desugars `--tier` into `governanceLevel` + `brownfield`; `runInit` applies it before level resolution) + the `--tier` CLI option in `src/cli.ts`. `--tier bootstrap` is the gentlest Day-1 entry — governance L1 (the minimal runnable gate) + brownfield baseline lock-in so a messy repo's pre-existing debt is captured, not thrown as day-1 red; `L1`–`L4` are governance-level aliases. The tier adds NO new persisted config field (a view over `(governanceLevel, brownfield, grace)`); graduation uses the existing `arbiter upgrade-level` (grace-softened, ADR-028) + `arbiter configure` flows. Verified by `__tests__/commands/init-tier.test.ts` (red→green). Documented in ADR-098. selfOnly — governs arbiter's own init CLI behaviour, not a gate emitted to targets (#1447).
@@ -423,7 +423,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 ### TypeScript
 
 - Strict mode always on (`"strict": true` in tsconfig)
-- No `any` — use `unknown` and narrow, or create proper types
+- No `any`. Use `unknown` and narrow, or create proper types.
 - Prefer `const` over `let`, never `var`
 - Async/await over callbacks or raw Promises
 - Named exports preferred over default exports
@@ -535,7 +535,7 @@ Proactive debt regression prevention. Baseline metrics stored in `debt-baseline.
 **Commands:**
 
 - `node scripts/capture-debt-baseline.mjs` — Capture current metrics as baseline
-- `node scripts/capture-debt-baseline.mjs --update` — Tighten baseline (only accepts improvements, never loosens)
+- `node scripts/capture-debt-baseline.mjs --update` — Tighten baseline (accepts improvements only; refuses to loosen)
 - `node scripts/debt-report.mjs` — Print current vs baseline comparison report
 - `node scripts/debt-report.mjs --gate` — Fail if any metric regressed (used in L2 gate)
 
