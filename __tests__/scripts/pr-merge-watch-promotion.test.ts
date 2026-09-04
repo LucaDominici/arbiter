@@ -23,14 +23,14 @@ function runWatcher(
     collaborationMode: 'trunk-solo',
     solo: { mergeMode: 'pr-ff' },
   },
-  options: { timeoutMin?: number; intervalSec?: number } = {},
+  options: { timeoutMin?: number; intervalSec?: number; rawConfig?: string } = {},
 ) {
-  const { timeoutMin = 1, intervalSec = 0 } = options
+  const { timeoutMin = 1, intervalSec = 0, rawConfig } = options
   const root = mkdtempSync(join(tmpdir(), 'arbiter-ff-watch-'))
   roots.push(root)
   const statePath = join(root, 'state.json')
   const ghPath = join(root, 'gh')
-  writeFileSync(join(root, 'arbiter.json'), JSON.stringify(config))
+  writeFileSync(join(root, 'arbiter.json'), rawConfig ?? JSON.stringify(config))
   writeFileSync(
     statePath,
     JSON.stringify({
@@ -226,13 +226,68 @@ describe('pr-merge-watch exact-SHA promotion (#2148)', () => {
     expect(state.base).toBe(HEAD)
   })
 
-  it('fails before any GitHub call outside trunk-solo + pr-ff', () => {
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #2150 AC-3 (testable half) — the non-solo path is fail-closed and asserted
+// MODE BY MODE. Each case proves two things at once: the watcher exits non-zero,
+// and `state.calls` is EMPTY — the refusal happened before the first `gh`
+// invocation, so no GitHub state was read or touched on an unsupported arc.
+// The live tests (missing approval = RED, missing check = RED, SHA drift = RED,
+// happy path for the non-solo modes) are absent here and tracked on #2289 —
+// never stubbed with a skip or a todo.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('pr-merge-watch landing-contract refusal (#2150, AC-3)', () => {
+  it.each([['peer-review'], ['gated-review']])(
+    'refuses %s before any GitHub call, citing the deferred issue',
+    (mode) => {
+      const { result, state } = runWatcher(
+        {},
+        { collaborationMode: mode, solo: { mergeMode: 'pr-ff' } },
+      )
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain(mode)
+      expect(result.stderr).toContain('#2289')
+      expect(state.calls).toEqual([])
+    },
+  )
+
+  it('refuses an UNKNOWN collaborationMode before any GitHub call', () => {
     const { result, state } = runWatcher(
       {},
-      { collaborationMode: 'peer-review', solo: { mergeMode: 'pr-ff' } },
+      { collaborationMode: 'mob-programming', solo: { mergeMode: 'pr-ff' } },
     )
     expect(result.status).toBe(1)
-    expect(result.stderr).toContain('requires trunk-solo + pr-ff')
+    expect(result.stderr).toContain('mob-programming')
+    expect(state.calls).toEqual([])
+  })
+
+  it('refuses an ABSENT collaborationMode before any GitHub call', () => {
+    const { result, state } = runWatcher({}, { solo: { mergeMode: 'pr-ff' } })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/absent|missing/i)
+    expect(state.calls).toEqual([])
+  })
+
+  it('refuses a MALFORMED config (valid JSON, not an object) before any GitHub call', () => {
+    const { result, state } = runWatcher({}, undefined, { rawConfig: '["trunk-solo"]' })
+    expect(result.status).toBe(1)
+    expect(state.calls).toEqual([])
+  })
+
+  it('refuses an UNPARSEABLE arbiter.json before any GitHub call', () => {
+    const { result, state } = runWatcher({}, undefined, { rawConfig: '{ not json' })
+    expect(result.status).toBe(2)
+    expect(state.calls).toEqual([])
+  })
+
+  it('refuses trunk-solo with a non-pr-ff merge mode before any GitHub call', () => {
+    const { result, state } = runWatcher(
+      {},
+      { collaborationMode: 'trunk-solo', solo: { mergeMode: 'direct' } },
+    )
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('pr-ff')
     expect(state.calls).toEqual([])
   })
 })
