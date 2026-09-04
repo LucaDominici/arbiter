@@ -80,6 +80,14 @@ function setupRepo(opts: SetupOpts = {}): string {
     mode: 0o755,
   })
 
+  // #2427: the hook now launches the gate THROUGH the per-repo mutex wrapper, so
+  // the real helper (and the run-helpers module it imports) must be on disk —
+  // this fixture exercises the shipped hook verbatim, stubbing only the gate.
+  mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+  for (const lib of ['gate-mutex.mjs', 'run-helpers.mjs']) {
+    copyFileSync(join(REPO_ROOT, 'scripts', 'lib', lib), join(dir, 'scripts', 'lib', lib))
+  }
+
   // Per-test classifier stub (committed so the hook's porcelain check stays clean).
   writeFileSync(join(dir, 'scripts', 'ci-classify-changes.mjs'), classifierStub(opts.classifier), {
     mode: 0o755,

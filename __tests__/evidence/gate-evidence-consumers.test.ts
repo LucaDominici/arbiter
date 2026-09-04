@@ -32,7 +32,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildGateEvidence } from '../../scripts/lib/gate-evidence.mjs'
+import { buildGateEvidence, captureGateStart } from '../../scripts/lib/gate-evidence.mjs'
 import { runTaskAdvance } from '../../src/commands/task.js'
 import { writeTaskStateFile } from '../helpers.js'
 
@@ -59,7 +59,9 @@ function git(dir: string, args: string[]): string {
 /** The shared verifier, as a project would carry it. */
 function installGateEvidenceLib(dir: string): void {
   mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
-  for (const file of ['gate-evidence.mjs', 'run-helpers.mjs']) {
+  // #2427: gate-mutex.mjs joins the set — the pre-push consumer below launches
+  // the gate THROUGH it, so a fixture without it never reaches the stub at all.
+  for (const file of ['gate-evidence.mjs', 'gate-mutex.mjs', 'run-helpers.mjs']) {
     copyFileSync(join(REPO_ROOT, 'scripts', 'lib', file), join(dir, 'scripts', 'lib', file))
   }
 }
@@ -94,7 +96,12 @@ function cloneRepo(src: string): string {
 
 /** Stamp REAL evidence for `stampedIn` into the `.arbiter/` of `writtenTo`. */
 function stampEvidence(stampedIn: string, writtenTo: string = stampedIn): void {
-  const marker = buildGateEvidence({ root: stampedIn, level: 'L2', taskId: TASK_ID })
+  const marker = buildGateEvidence({
+    root: stampedIn,
+    level: 'L2',
+    taskId: TASK_ID,
+    start: captureGateStart(stampedIn),
+  })
   expect(marker).not.toBeNull()
   mkdirSync(join(writtenTo, '.arbiter'), { recursive: true })
   writeFileSync(

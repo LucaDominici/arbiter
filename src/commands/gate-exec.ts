@@ -169,6 +169,10 @@ export async function runGateExec(opts: GateExecOptions): Promise<number> {
       ['-c', SUPERVISOR_SCRIPT, 'gate-exec-supervisor', sentinelPath, ...opts.cmdArgs],
       {
         cwd: dir,
+        // #2427: publish the mutex this process already holds so a gate that can
+        // take the lock itself (`scripts/check-all.mjs`, `scripts/lib/gate-mutex.mjs`)
+        // recognises it as already held and does not self-deadlock waiting on it.
+        env: { ...process.env, ARBITER_GATE_MUTEX_HELD: lockPath },
         extraFds: [lockFd],
         detached: true,
         teardownProcessGroupOnSignal: true,

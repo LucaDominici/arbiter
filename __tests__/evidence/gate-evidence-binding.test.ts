@@ -28,6 +28,7 @@ import {
   GATE_EVIDENCE_TOOLCHAIN_INPUTS,
   GATE_EVIDENCE_FUTURE_SKEW_MIN,
   buildGateEvidence,
+  captureGateStart,
   computeToolchainFingerprint,
   computeTreeHash,
   verifyGateEvidence,
@@ -82,7 +83,12 @@ type Marker = Record<string, unknown>
 
 /** Build a marker through the REAL writer path, then plant `overrides` on it. */
 function markerFor(root: string, overrides: Marker = {}): Marker {
-  const built = buildGateEvidence({ root, level: 'L2', taskId: '#2328' })
+  const built = buildGateEvidence({
+    root,
+    level: 'L2',
+    taskId: '#2328',
+    start: captureGateStart(root),
+  })
   expect(built).not.toBeNull()
   return { ...(built as Marker), ...overrides }
 }
@@ -456,7 +462,12 @@ describe('#2328 gate-evidence binding — level', () => {
 
   it('accepts evidence recorded ABOVE the required level', () => {
     const dir = track(makeRepo())
-    const marker = buildGateEvidence({ root: dir, level: 'L3', taskId: '#2328' })
+    const marker = buildGateEvidence({
+      root: dir,
+      level: 'L3',
+      taskId: '#2328',
+      start: captureGateStart(dir),
+    })
     expect(verify(marker, dir, { minLevel: 'L2' })).toEqual({ ok: true })
   })
 
@@ -494,7 +505,9 @@ describe('#2328 gate-evidence binding — commit and task correlation', () => {
 describe('#2328 gate-evidence binding — writer fails closed', () => {
   it('refuses to build evidence outside a git checkout', () => {
     const dir = track(realpathSync(mkdtempSync(join(tmpdir(), 'arbiter-gate-nogit-'))))
-    expect(buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328' })).toBeNull()
+    expect(
+      buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328', start: captureGateStart(dir) }),
+    ).toBeNull()
   })
 
   /**
@@ -541,7 +554,9 @@ describe('#2328 gate-evidence binding — writer fails closed', () => {
     expect(computeTreeHash(dir)).toBeNull()
     // HEAD still resolves — only the tree computation is broken.
     expect(git(dir, ['rev-parse', 'HEAD'])).toMatch(/^[0-9a-f]{40}$/)
-    expect(buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328' })).toBeNull()
+    expect(
+      buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328', start: captureGateStart(dir) }),
+    ).toBeNull()
   })
 
   it('rejects a marker whose tree hash cannot be recomputed at verify time', () => {
@@ -556,7 +571,12 @@ describe('#2328 gate-evidence binding — writer fails closed', () => {
 
   it('stamps every field the verifier requires', () => {
     const dir = track(makeRepo())
-    const marker = buildGateEvidence({ root: dir, level: 'L2', taskId: '#2328' }) as Marker
+    const marker = buildGateEvidence({
+      root: dir,
+      level: 'L2',
+      taskId: '#2328',
+      start: captureGateStart(dir),
+    }) as Marker
     for (const field of GATE_EVIDENCE_STRING_FIELDS) {
       expect(typeof marker[field], `field ${field}`).toBe('string')
       expect(String(marker[field]).trim().length, `field ${field}`).toBeGreaterThan(0)

@@ -154,7 +154,17 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
           // #2104: the gate resolves a tmpfs TMPDIR before any spawn. Stubbed to null so
           // this harness stays hermetic (no TMPDIR mutation) and host-independent.
           'export const resolveTmpfsTmpdir = () => null;\n' +
-          'export const gateFileState = () => "never-emitted";\n',
+          'export const gateFileState = () => "never-emitted";\n' +
+          // #2427: the gate arms the orphan guard right after arg-parsing.
+          'export const setOrphanGuard = () => {};\n',
+      )
+      // #2427: and imports the mutex helper, whose lock derivation is stubbed to
+      // throw here — this harness runs in a bare temp dir with no git repo, which
+      // is exactly the no-mutex-to-take path.
+      writeFileSync(
+        join(scriptsDir, 'lib', 'gate-mutex.mjs'),
+        'export const GATE_MUTEX_HELD_ENV = "ARBITER_GATE_MUTEX_HELD";\n' +
+          'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
       )
       writeFileSync(join(scriptsDir, 'check-all.mjs'), prefix + '\nprocess.exit(0);\n')
       const r = spawnSync('node', [join(scriptsDir, 'check-all.mjs'), ...args], {

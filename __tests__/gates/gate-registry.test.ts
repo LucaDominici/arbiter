@@ -41,6 +41,12 @@ function runScript(
       renderTemplate('scripts/lib/run-helpers.mjs.ejs', {}),
       'utf-8',
     )
+    // #2427: the emitted gate takes the per-repo mutex before its first check.
+    writeFileSync(
+      join(dir, 'lib', 'gate-mutex.mjs'),
+      renderTemplate('scripts/lib/gate-mutex.mjs.ejs', {}),
+      'utf-8',
+    )
     // TypeScript + coverage-enabled renders the coverage-gate import as well.
     writeFileSync(
       join(dir, 'lib', 'coverage-gate.mjs'),
@@ -202,6 +208,10 @@ describe('declarative gate registry (#2041)', () => {
         writeFileSync(
           join(project, 'scripts', 'lib', 'run-helpers.mjs'),
           renderTemplate('scripts/lib/run-helpers.mjs.ejs', {}),
+        )
+        writeFileSync(
+          join(project, 'scripts', 'lib', 'gate-mutex.mjs'),
+          renderTemplate('scripts/lib/gate-mutex.mjs.ejs', {}),
         )
         if (buildTool === 'gradle') {
           writeFileSync(join(project, 'gradlew'), script)

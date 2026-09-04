@@ -19,10 +19,12 @@ import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
 interface RenderedLib {
+  captureGateStart: (root: string) => Record<string, unknown> | null
   buildGateEvidence: (opts: {
     root: string
     level: string
     taskId: string
+    start: Record<string, unknown> | null
   }) => Record<string, unknown> | null
   verifyGateEvidence: (
     marker: unknown,
@@ -79,7 +81,12 @@ describe('scripts/lib/gate-evidence.mjs.ejs — rendering (#2328, INV-48/CANON-0
 
   it('the emitted verifier accepts evidence it just stamped for this tree', () => {
     const dir = makeRepo()
-    const marker = lib.buildGateEvidence({ root: dir, level: 'L2', taskId: '#1' })
+    const marker = lib.buildGateEvidence({
+      root: dir,
+      level: 'L2',
+      taskId: '#1',
+      start: lib.captureGateStart(dir),
+    })
     expect(marker).not.toBeNull()
     expect(lib.verifyGateEvidence(marker, { root: dir, minLevel: 'L2', maxAgeMin: 240 })).toEqual({
       ok: true,
@@ -113,10 +120,12 @@ describe('scripts/lib/gate-evidence.mjs.ejs — rendering (#2328, INV-48/CANON-0
     ],
   ])('the emitted verifier rejects: %s', (_label, plant, pattern) => {
     const dir = makeRepo()
-    const marker = lib.buildGateEvidence({ root: dir, level: 'L2', taskId: '#1' }) as Record<
-      string,
-      unknown
-    >
+    const marker = lib.buildGateEvidence({
+      root: dir,
+      level: 'L2',
+      taskId: '#1',
+      start: lib.captureGateStart(dir),
+    }) as Record<string, unknown>
     plant(marker)
     const result = lib.verifyGateEvidence(marker, { root: dir, minLevel: 'L2', maxAgeMin: 240 })
     expect(result.ok).toBe(false)
@@ -125,7 +134,12 @@ describe('scripts/lib/gate-evidence.mjs.ejs — rendering (#2328, INV-48/CANON-0
 
   it('the emitted verifier rejects evidence once the working tree changed', () => {
     const dir = makeRepo()
-    const marker = lib.buildGateEvidence({ root: dir, level: 'L2', taskId: '#1' })
+    const marker = lib.buildGateEvidence({
+      root: dir,
+      level: 'L2',
+      taskId: '#1',
+      start: lib.captureGateStart(dir),
+    })
     writeFileSync(join(dir, 'app.txt'), 'tampered\n')
     const result = lib.verifyGateEvidence(marker, { root: dir, minLevel: 'L2', maxAgeMin: 240 })
     expect(result.ok).toBe(false)

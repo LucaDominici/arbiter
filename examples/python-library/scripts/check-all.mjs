@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 // Helper trinity (#351, CANON-01) — runCheck (HARD), runWarnCheck (info),
 // runToolCheck (CI-aware tool gate). pushResult/getResults/getFailed power the
 // inline ad-hoc gates that classify status outside of spawnSync.
@@ -19,9 +20,11 @@ import {
   getResults,
   getFailed,
   setMode,
+  setOrphanGuard,
   resolveTmpfsTmpdir,
   gateFileState,
 } from './lib/run-helpers.mjs';
+import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs';
 
 // ─── TMPDIR on tmpfs (dominant wall-clock lever for fsync-bound suites) ──────
 // Set BEFORE any child spawns so every one of them inherits it; see
@@ -141,6 +144,54 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
   }
 }
 // <<< ARG-PARSE-END (#1504)
+
+// ─── one gate per repo, and never an orphan (#2427) ─────────────────────────
+// Two gates in one checkout trample each other's temp files and starve each
+// other's test workers, and the orphan of a killed `git push` once ran to
+// completion and stamped a green marker for a tree it had never finished
+// testing. Both are fixed here.
+//
+// The mutex is the per-repo flock `arbiter gate-exec` takes, keyed off
+// ARBITER_HOOK_GIT_CWD when set — the pre-push '#'-in-path branch runs this file
+// from an rsync'd copy under /tmp, and keying off cwd there would mint a fresh
+// key per push, i.e. a null mutex. A synchronous gate cannot hold a kernel lock
+// across its own lifetime, so it re-execs itself once under the wrapper; the
+// wrapper publishes ARBITER_GATE_MUTEX_HELD so this branch runs exactly once.
+//
+// FAIL-OPEN-INTENT (narrow): a checkout git cannot answer for has no per-repo
+// mutex to take at all. The start/end evidence binding below is what actually
+// prevents a false green there.
+const _mutexRoot = process.env.ARBITER_HOOK_GIT_CWD ?? process.cwd();
+if (!process.env[GATE_MUTEX_HELD_ENV]) {
+  let _lockPath = null;
+  try {
+    _lockPath = gateLockPathFor(_mutexRoot);
+  } catch { _lockPath = null; }
+  if (_lockPath !== null) {
+    const _wrapper = resolve(dirname(fileURLToPath(import.meta.url)), 'lib/gate-mutex.mjs');
+    const _relayed = spawnSync(
+      process.execPath,
+      [_wrapper, 'run', '--dir', _mutexRoot, '--', process.execPath, ...process.argv.slice(1)],
+      { stdio: 'inherit' },
+    );
+    process.exit(_relayed.status ?? 1);
+  }
+}
+
+// Between every two checks, confirm the process this gate was launched to serve
+// is still alive. SIGKILL cannot be trapped or forwarded, so this is the only
+// thing that stops a gate whose parent was killed by pid.
+setOrphanGuard();
+
+// #2427 AC-1: the identity of the tree this gate is about to measure, sampled
+// BEFORE the first check. buildGateEvidence re-measures at the end and refuses
+// to stamp anything if the two disagree.
+const _gateStart = await (async () => {
+  try {
+    const { captureGateStart } = await import('./lib/gate-evidence.mjs');
+    return captureGateStart(_mutexRoot);
+  } catch { return null; }
+})();
 
 // ─── Embedded gate registry (#2041, AC-2041.4) ────────────────────────────────
 // The declarative registry rendered from gate-registry.yml.ejs — consumed by
@@ -932,11 +983,16 @@ if (_failedCount === 0 && !_inspect) {
     // Loaded lazily so a project missing the verifier writes NO marker (fail
     // closed) instead of crashing an otherwise-green gate at import time.
     const { buildGateEvidence } = await import('./lib/gate-evidence.mjs');
-    const _evidence = buildGateEvidence({ root: process.cwd(), level, taskId: _taskId });
+    // #2427: `_gateStart` is the identity captured before the first check ran; a
+    // marker is refused outright when it is missing, incomplete, or no longer
+    // matches. A green gate with no marker is honest; a marker naming a tree the
+    // gate did not measure end to end is not.
+    const _evidence = buildGateEvidence({ root: process.cwd(), level, taskId: _taskId, start: _gateStart });
     if (_evidence === null) {
       process.stderr.write(
         'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
-          'could not be resolved, so nothing can bind this gate result to this tree\n',
+          'could not be resolved, or the commit/tree moved while the gate was running, ' +
+          'so nothing can bind this gate result to this tree (#2427)\n',
       );
     } else {
       const _markerPath = resolve(process.cwd(), '.arbiter/gate-pass.json');

@@ -185,21 +185,37 @@ if [ -f ".arbiter/gate-pass.json" ] && [ -f "scripts/lib/gate-evidence.mjs" ]; t
 fi
 # ─── end green-evidence reuse ────────────────────────────────────────────────
 
+# ─── one gate per repo, foreground (#2427) ───────────────────────────────────
+# Both branches below launch the heavy gate through scripts/lib/gate-mutex.mjs,
+# which takes the SAME per-repo flock `arbiter gate-exec` takes. Two pushes (or a
+# push and an agent's gate) in one repo therefore serialise instead of trampling
+# each other's temp files and starving each other's test workers.
+#
+# The wrapper runs the gate in THIS process group — no setsid, no `&`, no detach
+# — so a Ctrl-C on the push reaches the gate, and a pid-targeted signal is
+# forwarded down the descendant tree. The gate additionally watches the pid that
+# launched it and aborts between checks if it is gone, which covers the one
+# signal nothing can forward: SIGKILL. That is the orphan that finished long
+# after its push died and stamped a green marker for a tree it never tested.
+ORIG_DIR="$(pwd -P)"
+
 
 # Vite/vitest (v5+) cannot handle '#' in the project root path.
 # Use pwd -P (physical path) to detect symlink-based worktrees where $PWD
 # may not contain '#' even though the real path does.
 # Rsync to a '#'-free temp dir and run the gate from there.
-ORIG_DIR="$(pwd -P)"
 if [[ "$ORIG_DIR" == *"#"* ]]; then
   TMP_DIR=$(mktemp -d /tmp/arbiter-hook-XXXXXX)
   trap 'rm -rf "$TMP_DIR"' EXIT
   rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
   ln -sfn "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
   cd "$TMP_DIR"
-  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs gate --json "$ORIG_DIR/.arbiter/gate/local-result.json"
+  # --dir "$ORIG_DIR": the mutex key derives from the REAL repo's git-common-dir.
+  # Keying it off this rsync'd /tmp copy would mint a fresh key per push — a null
+  # mutex that serialises nothing.
+  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/lib/gate-mutex.mjs run --dir "$ORIG_DIR" -- node scripts/check-all.mjs gate --json "$ORIG_DIR/.arbiter/gate/local-result.json"
   exit $?
 fi
 
 
-node scripts/check-all.mjs gate --json .arbiter/gate/local-result.json
+node scripts/lib/gate-mutex.mjs run --dir "$ORIG_DIR" -- node scripts/check-all.mjs gate --json .arbiter/gate/local-result.json

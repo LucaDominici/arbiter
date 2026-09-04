@@ -47,6 +47,73 @@ export function isMainModule(importMetaUrl) {
   return resolvePath(entry) === fileURLToPath(importMetaUrl)
 }
 
+/**
+ * True when `pid` still exists. EPERM means it exists but belongs to another
+ * user, which is still ALIVE — reading it as dead is what would make the orphan
+ * guard below abort a healthy gate.
+ *
+ * @param {number} pid
+ * @returns {boolean}
+ */
+export function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+    // FAIL-OPEN-INTENT: EPERM is a LIVE process we may not signal; every other
+    // errno (ESRCH) is genuinely gone.
+  } catch (err) {
+    return err?.code === 'EPERM'
+  }
+}
+
+// ── Orphan guard (#2427, AC-3) ───────────────────────────────────────────────
+//
+// A `git push` was killed while its pre-push L2 ran; the gate was reparented and
+// kept going for another twenty minutes against a tree that had since moved on,
+// then stamped a green marker for it. Signal delivery cannot be relied on here —
+// a SIGKILL aimed at one pid is untrappable and never reaches the gate at all —
+// so the gate watches, from the inside, the process it was launched to serve.
+//
+// Opt-in: nothing changes for the many other scripts that import this module.
+// `scripts/check-all.mjs` arms it; `gate-mutex.mjs` publishes the pid to watch
+// through ARBITER_GATE_PARENT_PID so an intermediate `flock` cannot mask the
+// death of the real parent.
+/** @type {number|null} */
+let watchedPid = null
+
+/**
+ * Arm the orphan guard. With no argument it watches ARBITER_GATE_PARENT_PID when
+ * set (the process that started the gate), else this process's own parent.
+ *
+ * @param {number} [pid]
+ */
+export function setOrphanGuard(pid) {
+  if (Number.isInteger(pid) && pid > 0) {
+    watchedPid = pid
+    return
+  }
+  const declared = Number(process.env.ARBITER_GATE_PARENT_PID)
+  watchedPid = Number.isInteger(declared) && declared > 0 ? declared : process.ppid
+}
+
+/**
+ * Checked before EVERY spawn: the cheapest boundary at which an orphaned gate
+ * can stop without leaving a half-run check behind. Exits 2 (ERROR, per the
+ * project-wide 0=PASS / 1=FAIL / 2=ERROR / 78=CONFIG contract) and loudly — this
+ * is an aborted run, not a failed check, and an orphan that ran to completion
+ * would go on to stamp a marker.
+ */
+function assertNotOrphaned() {
+  if (watchedPid === null || isProcessAlive(watchedPid)) return
+  process.stderr.write(
+    `\n[ORPHANED] the process this gate was launched to serve (pid ${watchedPid}) is gone — ` +
+      'aborting before the next check. A gate that outlives its parent measures a tree ' +
+      'nobody is waiting on, and must never stamp evidence for it (#2427).\n',
+  )
+  process.exit(2)
+}
+
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 const REFERENCE_CORES = 24
 
@@ -117,12 +184,14 @@ export function resetState() {
   results = []
   failed = 0
   skippedChecks = new Set()
+  watchedPid = null
 }
 
 /**
  * Internal: run cmd and classify the outcome. Returns the spawnSync result and elapsed ms.
  */
 function spawn(name, cmd, args, opts) {
+  assertNotOrphaned()
   const start = Date.now()
   process.stdout.write(`[CHECK] ${name} ... `)
   const r = spawnSync(cmd, args, {
