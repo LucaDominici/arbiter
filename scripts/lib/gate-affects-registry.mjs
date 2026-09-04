@@ -155,6 +155,9 @@ export const GATE_AFFECTS_REGISTRY = [
   // INV-NN evidence_ref), so no changed-path predicate covers it without letting an edit to one
   // of those skip the gate that guards it.
   { name: 'milestones (INV-146)', affects: ALWAYS },
+  // ALWAYS: the gate reads SOURCES.md, its schema and every committed excerpt — no changed-path
+  // predicate covers that set without letting an edit to one of them skip the gate that guards it.
+  { name: 'sources tier 1 (INV-147)', affects: ALWAYS },
   { name: 'forma schema contract (INV-143)', affects: ALWAYS },
   { name: 'orchestrator coverage (#1410)', affects: ALWAYS },
   { name: 'constraint scan (INV-115)', affects: ALWAYS },

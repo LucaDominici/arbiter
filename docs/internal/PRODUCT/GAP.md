@@ -92,10 +92,10 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-121:** Stack conformity — the repo-root manifest mus | AGENTS.md:343                     | medium   |
 | - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:370                     | medium   |
 | - **INV-139:** Fixture and smoke output must never land in r | AGENTS.md:396                     | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:429                     | medium   |
-| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:433                     | medium   |
-| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:437                     | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:558                     | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:432                     | medium   |
+| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:436                     | medium   |
+| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:440                     | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:561                     | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must | docs/internal/SYSTEM/CANON.md:252 | medium   |
 | **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314 | medium   |
 | **Tier-2 (advisory only — do NOT hard-gate alone):**         | docs/internal/SYSTEM/CANON.md:326 | medium   |

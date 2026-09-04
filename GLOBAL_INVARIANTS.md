@@ -915,3 +915,27 @@ A missing `MILESTONES.yml` **skips out loud** — a project need not have codifi
 **Enforcement:** `scripts/check-milestones.mjs`, wired on the self track as `milestones (INV-146)` via `runCheck` in `scripts/check-all.mjs`. Self-only for now, declared rather than left to be found: the `MS` scheme is `staged` in the ID registry with a dated expiry and the Track-B emission lands with it — claiming both tracks before that exists is the error INV-144 was caught making. Verified by `__tests__/scripts/check-milestones.test.ts` (42 cases), tamper-proven in both directions on every rule: a cycle, a dangling `depends_on`, a duplicate id, a `later` carrying a `due`, `done` without evidence and `verified` citing an unresolvable ref each fail, and the same tree with the defect removed passes. Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
 
 ---
+
+### INV-147: A cited source is quotable, and the quotation checks out
+
+A URL in a document proves nothing. The page can change under the citation, or can never have said what it is cited for, and in neither case does anything notice. That is how a bibliography becomes decoration: it looks like evidence and is not checkable.
+
+A source is therefore admitted only with a **committed, citation-length excerpt** and the sha256 of that excerpt. Every quotation the project makes must appear in it **literally**.
+
+Both halves are load-bearing, and neither is sufficient alone:
+
+- a **substring check alone** passes on an excerpt someone edited after the fact, so the evidence could drift away from what was actually read;
+- a **hash alone** proves the excerpt is unchanged while saying nothing about whether the quotation appears in it at all.
+
+Together they make "this source says X" falsifiable **without a network call**, which is what lets the rule run in a pre-commit hook on a machine with no credentials.
+
+Two things this rule deliberately refuses to do:
+
+- **It never dereferences the `url`.** That field is recorded provenance. A gate that fails when a website is down fails for a reason unrelated to the claim it guards; link-liveness is a separate, advisory, networked concern.
+- **It does not judge relevance.** Whether a source actually supports a decision is a judgement, not a decidable property. Tier 1 settles only what a machine can settle alone; tier 2 puts relevance to independent skeptics, and tier 3 requires a `SOURCE`→ADR→FILE path in the graph before a source may claim `applied-certified`.
+
+A missing `SOURCES.md` **skips out loud** — a project need not cite anything, but a skip must never be mistakable for a pass.
+
+**Enforcement:** `scripts/check-sources.mjs`, wired on the self track as `sources tier 1 (INV-147)` via `runCheck` in `scripts/check-all.mjs`. Self-only for now and declared as such: the Track-B emission needs `schemas/source-record.schema.json` shipped alongside the gate (CANON-11), and the `SRC` row stays `staged` in the ID registry until its source-management CLI verb and its SOTA-required hook land with tiers 2 and 3. Neither exists yet, so neither is named here as though it did — a documented command name is a claim the phantom-command scan (INV-111) will hold this file to. Verified by `__tests__/scripts/check-sources.test.ts` (12 cases) and tamper-proven on arbiter's own two recorded sources in both directions: editing an excerpt so the quote still appears but the hash drifts fails, and claiming a quote the source never made fails. Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
+
+---

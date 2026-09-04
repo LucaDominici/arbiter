@@ -234,6 +234,11 @@ if (isMain) {
   // INV-146: the milestone SSOT is well-formed, acyclic, and fail-closed on `done`. SKIPs out
   // loud when no MILESTONES.yml exists — a project need not have codified a roadmap.
   runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs'])
+  // INV-147: tier 1 of the source chain — every quotation is a literal substring of a committed
+  // excerpt whose hash matches. Deterministic and offline; SKIPs out loud when a project cites
+  // nothing. Relevance (tier 2) and graph reachability (tier 3) are judgements this gate refuses
+  // to fake.
+  runCheck('sources tier 1 (INV-147)', 'node', ['scripts/check-sources.mjs'])
   // INV-143: the arbiter <-> forma schema contract. Owner-side pins always verified; the
   // cross-checkout half runs only when a forma checkout sits beside this one, and SKIPS out
   // loud otherwise — forma's own scripts/check-arbiter-contract.mjs gates the other half.

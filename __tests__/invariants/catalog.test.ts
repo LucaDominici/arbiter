@@ -20,10 +20,10 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 144
+const EXPECTED_TOTAL_ENTRIES = 145
 const EXPECTED_TIER4_OPERATIONAL = 49
-const EXPECTED_TIER5_GOVERNANCE = 59
-const EXPECTED_SELFONLY = 36
+const EXPECTED_TIER5_GOVERNANCE = 60
+const EXPECTED_SELFONLY = 37
 
 // ---------------------------------------------------------------------------
 // INVARIANT_CATALOG structure

@@ -2825,4 +2825,39 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '`done` without evidence and `verified` citing an unresolvable ref each fail, and the same ' +
       'tree with the defect removed passes. exit 0=PASS or SKIP, 1=violation, 2=ERROR per INV-53.',
   },
+  {
+    id: 'INV-147',
+    tier: 'governance',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'A cited source is quotable, and the quotation checks out',
+    description:
+      'A URL in a document proves nothing: the page can change, or can never have said what it is ' +
+      'cited for, and nobody notices either way. A source is therefore admitted as evidence only ' +
+      'with a COMMITTED, citation-length excerpt and the sha256 of that excerpt, so every ' +
+      'quotation the project makes is checkable offline, by machine, against evidence that cannot ' +
+      'drift without the gate noticing. Both halves are load-bearing and neither is sufficient ' +
+      'alone: a substring check passes on an excerpt someone edited after the fact, and a hash ' +
+      'proves the excerpt is unchanged while saying nothing about whether the quotation appears in ' +
+      'it at all. Deliberately NOT done: the url is recorded provenance and is never dereferenced ' +
+      '— a gate that fails when a website is down fails for a reason unrelated to the claim it ' +
+      'guards — and RELEVANCE is a judgement, not a decidable property, so tier 1 refuses to ' +
+      'pretend it can settle it and leaves that to independent skeptics (tier 2) and graph ' +
+      'reachability (tier 3).',
+    enforcement:
+      "scripts/check-sources.mjs — wired on the SELF track as 'sources tier 1 (INV-147)' via " +
+      'runCheck in scripts/check-all.mjs. Validates docs/internal/PRODUCT/SOURCES.md against ' +
+      'schemas/source-record.schema.json, then proves each excerpt hashes to its recorded ' +
+      'content_hash and contains every quoted_text literally. A missing SOURCES.md SKIPs out loud ' +
+      '— a project need not cite anything, but a skip must never be mistakable for a pass. ' +
+      'Self-only for now, declared rather than left to be found: the Track-B emission needs the ' +
+      'schema shipped alongside the gate (a generator change, CANON-11), exactly as INV-112 axis 2 ' +
+      'does, and the SRC row stays `staged` in the ID registry until its CLI verb (arbiter ' +
+      'sources) and its SOTA-required hook land with tiers 2 and 3 — neither exists yet, so neither ' +
+      'is cited here as enforcement. Verified by ' +
+      "__tests__/scripts/check-sources.test.ts (12 cases) and tamper-proven on arbiter's own two " +
+      'recorded sources in both directions: editing an excerpt so the quote still appears but the ' +
+      'hash drifts fails, and claiming a quote the source never made fails. exit 0=PASS or SKIP, ' +
+      '1=violation, 2=ERROR per INV-53.',
+  },
 ]
