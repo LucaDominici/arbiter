@@ -104,8 +104,9 @@ function childPids(pid) {
         if (Number.isInteger(child) && child > 0) out.push(child)
       }
     }
-    // FAIL-OPEN-INTENT: an unreadable procfs entry means "no discoverable children",
-    // which only narrows the teardown — the orphan guard still covers the residual.
+    // An unreadable procfs entry means "no discoverable children", which only
+    // narrows the teardown — the orphan guard is the backstop for the residual.
+    // FAIL-OPEN-INTENT: procfs is Linux-only and best-effort; the teardown degrades to the direct child.
   } catch {
     return out
   }
@@ -121,8 +122,7 @@ export function killTree(pid, signal) {
   for (const child of childPids(pid)) killTree(child, signal)
   try {
     process.kill(pid, signal)
-    // FAIL-OPEN-INTENT: ESRCH means the process is already gone, which is the
-    // outcome this function exists to produce.
+    // FAIL-OPEN-INTENT: ESRCH means the process is already gone — the very outcome this function exists to produce.
   } catch {
     void 0
   }
@@ -195,31 +195,9 @@ function runForeground(argv, { env, cwd }) {
   })
 }
 
-/**
- * Run the gate under the per-repo mutex.
- *
- * Modes (`ARBITER_GATE_MUTEX_MODE`): `wait` (default — block, having ANNOUNCED
- * the wait on stderr the moment it starts, then fail closed when the budget
- * expires), `fail` (never queue: refuse immediately if another gate holds the
- * mutex), `off` (run unserialised — also the automatic fallback where `flock(1)`
- * does not exist, e.g. the macOS base system, announced loudly).
- *
- * Returns the gate's own exit code verbatim, or GATE_MUTEX_BUSY_EXIT when the
- * mutex could not be taken. That code is deliberately rare but not reserved: a
- * gate that itself exits 111 is indistinguishable, which is why the refusal is
- * always accompanied by its own stderr line.
- */
-export async function runUnderGateLock({
-  dir = process.cwd(),
-  cmdArgs = [],
-  env = process.env,
-} = {}) {
-  if (cmdArgs.length === 0) {
-    process.stderr.write('gate-mutex: nothing to run — expected a command after `--`\n')
-    return 2
-  }
-  const lockPath = gateLockPathFor(dir, env)
-  const childEnv = {
+/** The gate's environment: the mutex now held, and the pid the gate serves. */
+function gateChildEnv(env, lockPath) {
+  return {
     ...env,
     [GATE_MUTEX_HELD_ENV]: lockPath,
     // The process the gate exists to SERVE — this wrapper's own parent (the git
@@ -228,44 +206,78 @@ export async function runUnderGateLock({
     // launcher rather than an intermediate relay.
     [GATE_MUTEX_PARENT_ENV]: env[GATE_MUTEX_PARENT_ENV] || String(process.ppid),
   }
+}
+
+/**
+ * The mode actually in force. `off` when asked for, and also where `flock(1)`
+ * does not exist (the macOS base system) — announced loudly, because a gate
+ * running unserialised is a fact the operator must be able to see.
+ */
+function effectiveMode(env) {
+  const requested = env.ARBITER_GATE_MUTEX_MODE ?? 'wait'
+  if (requested === 'off' || flockAvailable(env)) return requested
+  process.stderr.write(
+    'gate-mutex: flock(1) is not available on this platform — the gate is running ' +
+      'UNSERIALISED. Two gates in this repo can now interfere; run them one at a time, ' +
+      'or use `arbiter gate-exec` on a platform that has flock.\n',
+  )
+  return 'off'
+}
+
+/**
+ * Say so the moment the gate starts queueing. A push that stalls silently for
+ * twenty minutes is how operators learn to reach for --no-verify.
+ */
+function announceWait(mode, lockPath, waitSec, env) {
+  if (mode === 'fail' || !mutexIsBusy(lockPath, env)) return
+  process.stderr.write(
+    `gate-mutex: another gate is already running in this repo — waiting up to ${waitSec}s ` +
+      `for ${lockPath}. Set ARBITER_GATE_MUTEX_MODE=fail to refuse instead of queueing.\n`,
+  )
+}
+
+/** The refusal line, so a caller never has to infer "the gate did not run". */
+function announceRefusal(mode, lockPath, waitSec) {
+  process.stderr.write(
+    `gate-mutex: refusing to run — another gate holds ${lockPath}` +
+      `${mode === 'fail' ? '' : ` after waiting ${waitSec}s`}. The gate did NOT run.\n`,
+  )
+}
+
+/**
+ * Run the gate under the per-repo mutex.
+ *
+ * Modes (`ARBITER_GATE_MUTEX_MODE`): `wait` (default — block, having ANNOUNCED
+ * the wait on stderr the moment it starts, then fail closed when the budget
+ * expires), `fail` (never queue: refuse immediately if another gate holds the
+ * mutex), `off` (run unserialised — also the automatic fallback where `flock(1)`
+ * does not exist).
+ *
+ * Returns the gate's own exit code verbatim, or GATE_MUTEX_BUSY_EXIT when the
+ * mutex could not be taken. That code is deliberately rare but not reserved: a
+ * gate that itself exits 111 is indistinguishable, which is why the refusal is
+ * always accompanied by its own stderr line.
+ */
+export async function runUnderGateLock(opts = {}) {
+  const { dir = process.cwd(), cmdArgs = [], env = process.env } = opts
+  if (cmdArgs.length === 0) {
+    process.stderr.write('gate-mutex: nothing to run — expected a command after `--`\n')
+    return 2
+  }
+  const lockPath = gateLockPathFor(dir, env)
+  const childEnv = gateChildEnv(env, lockPath)
 
   // Already held by an ancestor (`arbiter gate-exec`, or an outer gate-mutex):
   // re-acquiring the same flock from a second process would DEADLOCK.
-  if (env[GATE_MUTEX_HELD_ENV] === lockPath) {
-    return runForeground(cmdArgs, { env: childEnv })
-  }
-
-  const mode = env.ARBITER_GATE_MUTEX_MODE ?? 'wait'
-  if (mode === 'off' || !flockAvailable(env)) {
-    if (mode !== 'off') {
-      process.stderr.write(
-        'gate-mutex: flock(1) is not available on this platform — the gate is running ' +
-          'UNSERIALISED. Two gates in this repo can now interfere; run them one at a time, ' +
-          'or use `arbiter gate-exec` on a platform that has flock.\n',
-      )
-    }
-    return runForeground(cmdArgs, { env: childEnv })
-  }
+  const mode = env[GATE_MUTEX_HELD_ENV] === lockPath ? 'off' : effectiveMode(env)
+  if (mode === 'off') return runForeground(cmdArgs, { env: childEnv })
 
   const waitSec = waitBudgetSec(env)
-  if (mode !== 'fail' && mutexIsBusy(lockPath, env)) {
-    // Announced BEFORE the block starts: a push that stalls silently for twenty
-    // minutes is how operators learn to reach for --no-verify.
-    process.stderr.write(
-      `gate-mutex: another gate is already running in this repo — waiting up to ${waitSec}s ` +
-        `for ${lockPath}. Set ARBITER_GATE_MUTEX_MODE=fail to refuse instead of queueing.\n`,
-    )
-  }
-
+  announceWait(mode, lockPath, waitSec, env)
   const exitCode = await runForeground(gateMutexArgv(lockPath, cmdArgs, { mode, waitSec }), {
     env: childEnv,
   })
-  if (exitCode === GATE_MUTEX_BUSY_EXIT) {
-    process.stderr.write(
-      `gate-mutex: refusing to run — another gate holds ${lockPath}` +
-        `${mode === 'fail' ? '' : ` after waiting ${waitSec}s`}. The gate did NOT run.\n`,
-    )
-  }
+  if (exitCode === GATE_MUTEX_BUSY_EXIT) announceRefusal(mode, lockPath, waitSec)
   return exitCode
 }
 
@@ -292,14 +304,22 @@ async function main(argv) {
   return 2
 }
 
+// Top-level guard: a synchronous throw (bad argv) and a rejected run must both
+// end the process non-zero rather than fall through to the shell's default 0,
+// which a caller would read as "the gate ran and passed".
 if (isMainModule(import.meta.url)) {
-  main(process.argv.slice(2)).then(
-    (code) => {
-      process.exitCode = code
-    },
-    (err) => {
-      process.stderr.write(`gate-mutex: unexpected error: ${err?.stack ?? err}\n`)
-      process.exitCode = 1
-    },
-  )
+  try {
+    main(process.argv.slice(2)).then(
+      (code) => {
+        process.exitCode = code
+      },
+      (err) => {
+        process.stderr.write(`gate-mutex: unexpected error: ${err?.stack ?? err}\n`)
+        process.exit(1)
+      },
+    )
+  } catch (err) {
+    process.stderr.write(`gate-mutex: unexpected error: ${err?.stack ?? err}\n`)
+    process.exit(1)
+  }
 }

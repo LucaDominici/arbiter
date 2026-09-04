@@ -60,6 +60,18 @@ function isolatedEnv(): NodeJS.ProcessEnv {
   }
 }
 
+/**
+ * Tear a wrapper down the way a real signal does. SIGKILL on the wrapper alone
+ * would orphan `flock` and the gate beneath it — the exact leak #2427 exists to
+ * remove, and a test (least of all a FAILING one) must not manufacture it.
+ */
+async function terminate(child: { pid?: number; kill: (s: NodeJS.Signals) => boolean }) {
+  const pid = child.pid ?? 0
+  if (pid <= 0 || !isProcessAlive(pid)) return
+  child.kill('SIGTERM')
+  if (!(await waitFor(() => !isProcessAlive(pid), 10_000))) child.kill('SIGKILL')
+}
+
 async function waitFor(predicate: () => boolean, timeoutMs = 15_000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
@@ -165,7 +177,7 @@ appendFileSync(process.argv[3], tag + '-exit\\n')
       expect(existsSync(marker)).toBe(false)
       expect(r.stderr).toMatch(/another gate/i)
     } finally {
-      holder.kill('SIGKILL')
+      await terminate(holder)
     }
   }, 40_000)
 
@@ -190,11 +202,11 @@ appendFileSync(process.argv[3], tag + '-exit\\n')
       })
       // The announcement must arrive while still WAITING, long before the holder ends.
       const announced = await waitFor(() => /waiting/i.test(stderr), 2000)
-      waiter.kill('SIGKILL')
+      await terminate(waiter)
       expect(announced).toBe(true)
       expect(stderr).toMatch(/gate/i)
     } finally {
-      holder.kill('SIGKILL')
+      await terminate(holder)
     }
   }, 40_000)
 
@@ -262,7 +274,7 @@ setInterval(() => {}, 1000)
         ),
       )
     } finally {
-      wrapper.kill('SIGKILL')
+      await terminate(wrapper)
       const pid = existsSync(pidFile) ? Number(readFileSync(pidFile, 'utf-8')) : 0
       if (pid > 0 && isProcessAlive(pid)) process.kill(pid, 'SIGKILL')
     }
@@ -288,13 +300,19 @@ setInterval(() => {}, 1000)
         stdio: 'ignore',
       },
     )
-    expect(await waitFor(() => existsSync(pidFile))).toBe(true)
-    const gatePid = Number(readFileSync(pidFile, 'utf-8'))
-    expect(isProcessAlive(gatePid)).toBe(true)
+    let died = false
+    let gatePid = 0
+    try {
+      expect(await waitFor(() => existsSync(pidFile))).toBe(true)
+      gatePid = Number(readFileSync(pidFile, 'utf-8'))
+      expect(isProcessAlive(gatePid)).toBe(true)
 
-    wrapper.kill('SIGTERM')
-    const died = await waitFor(() => !isProcessAlive(gatePid), 15_000)
-    if (!died) process.kill(gatePid, 'SIGKILL')
+      wrapper.kill('SIGTERM')
+      died = await waitFor(() => !isProcessAlive(gatePid), 15_000)
+    } finally {
+      if (gatePid > 0 && isProcessAlive(gatePid)) process.kill(gatePid, 'SIGKILL')
+      await terminate(wrapper)
+    }
     expect(died).toBe(true)
   }, 40_000)
 
@@ -318,10 +336,18 @@ setInterval(() => {}, 1000)
         stdio: 'ignore',
       },
     )
-    expect(await waitFor(() => existsSync(pidFile))).toBe(true)
-    const gatePid = Number(readFileSync(pidFile, 'utf-8'))
-    wrapper.kill('SIGTERM')
-    expect(await waitFor(() => !isProcessAlive(gatePid), 15_000)).toBe(true)
+    let released = false
+    let gatePid = 0
+    try {
+      expect(await waitFor(() => existsSync(pidFile))).toBe(true)
+      gatePid = Number(readFileSync(pidFile, 'utf-8'))
+      wrapper.kill('SIGTERM')
+      released = await waitFor(() => !isProcessAlive(gatePid), 15_000)
+    } finally {
+      if (gatePid > 0 && isProcessAlive(gatePid)) process.kill(gatePid, 'SIGKILL')
+      await terminate(wrapper)
+    }
+    expect(released).toBe(true)
 
     const r = spawnSync('node', [GATE_MUTEX, 'run', '--dir', dir, '--', 'node', '-e', '0'], {
       env: { ...env, ARBITER_GATE_MUTEX_MODE: 'fail' },
