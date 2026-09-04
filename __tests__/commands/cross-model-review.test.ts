@@ -585,6 +585,11 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             ...process.env,
             HOME: dir,
             PATH: `${bin}:${process.env.PATH ?? ''}`,
+            // #2501: the availability probe is a wall-clock spawn of `codex --version`, and its
+            // 5s default is what actually failed under load — not the invocation timeout raised
+            // above. This case proves the seat is REACHED from the CLI boundary; it is not a test
+            // of how fast a process starts.
+            ARBITER_EXTERNAL_PROBE_TIMEOUT_MS: '60000',
           },
           timeout: 120_000,
         },
@@ -597,8 +602,13 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           'utf8',
         ),
       ) as { fulfilled: Array<{ envelope: string }>; degraded: unknown[] }
+      // Name the degradation when there is one: `expected [] to have a length of 1` sends the
+      // next reader hunting through the invoker, and the answer is always in `degraded`.
+      expect({ fulfilled: artifact.fulfilled.length, degraded: artifact.degraded }).toEqual({
+        fulfilled: 1,
+        degraded: [],
+      })
       expect(artifact.fulfilled).toHaveLength(1)
-      expect(artifact.degraded).toEqual([])
       expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
         '"vendor": "openai"',
       )

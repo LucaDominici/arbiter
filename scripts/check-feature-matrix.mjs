@@ -21,6 +21,7 @@
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
+import { createHash } from 'node:crypto'
 
 const ROOT = process.cwd()
 
@@ -84,6 +85,111 @@ function splitRefs(cell) {
   return cell.split(',').map(normalizeRef).filter(Boolean)
 }
 
+/** Split a ref cell into RAW refs, anchors intact — the span check needs what normalizeRef drops. */
+function splitRawRefs(cell) {
+  if (!cell || !cell.trim()) return []
+  return cell
+    .split(',')
+    .map((r) => r.trim())
+    .filter(Boolean)
+}
+
+// ─── Span-pinned refs: OUTDATED detection (#2480 wave 4, RTM axis 1) ─────────
+//
+// A citation by line number cannot survive the file being edited, and until now nothing checked
+// it: normalizeRef strips `#L10-L20` before the existence test, so a span pointing past the end of
+// the file — or at lines that have since become something else — left the row reading Verified.
+// That is the "the requirement changed, the test did not" failure the RTM exists to catch.
+//
+// The grammar is `path#Lx-Ly` optionally followed by `@<12 hex>`, a sha256 prefix over the span's
+// exact text. Both rules are ADDITIVE: a ref with no anchor behaves exactly as it did, so adoption
+// is per-row and no existing row had to be rewritten to land this.
+const SPAN_RE = /^(?<path>[^#]+)#L(?<from>\d+)-L(?<to>\d+)(?:@(?<pin>[0-9a-f]{12}))?$/
+
+/** The pinned text of a span: lines from..to inclusive, joined with \n, no trailing newline. */
+export function spanText(content, from, to) {
+  return content
+    .split('\n')
+    .slice(from - 1, to)
+    .join('\n')
+}
+
+/** 12 hex chars of sha256 over the span text — short enough to read in a table cell, long enough
+ * that an accidental collision is not the explanation for a green row. */
+export function spanPin(content, from, to) {
+  return createHash('sha256')
+    .update(spanText(content, from, to))
+    .digest('hex')
+    .slice(0, 12)
+}
+
+/**
+ * Validate a raw ref's line span, if it carries one. Returns an error string or null.
+ * A ref with no `#Lx-Ly` anchor is not this check's business and returns null.
+ */
+export function checkRefSpan(rawRef, projectRoot) {
+  const m = SPAN_RE.exec(rawRef.trim())
+  if (!m || !m.groups) return null
+  const { path: relPath, pin } = m.groups
+  const from = Number(m.groups['from']),
+    to = Number(m.groups['to'])
+  if (from < 1 || to < from) return `invalid line span (from > to, or zero): ${rawRef}`
+  const abs = resolve(projectRoot, relPath)
+  if (!existsSync(abs)) return null // absence is checkRefExists's finding, not a second report
+  const content = readFileSync(abs, 'utf-8')
+  const lines = content.split('\n').length
+  if (to > lines) {
+    return `line span runs past end of file (${lines} line(s)): ${rawRef}`
+  }
+  if (!pin) return null
+  const actual = spanPin(content, from, to)
+  if (actual !== pin) {
+    return (
+      `OUTDATED — the cited span no longer hashes to its pin, so the citation no longer proves ` +
+      `what this row claims (pinned ${pin}, now ${actual}): ${rawRef}. ` +
+      `Re-read the span, then re-pin with \`node scripts/check-feature-matrix.mjs --pin ${relPath}#L${from}-L${to}\``
+    )
+  }
+  return null
+}
+
+// ─── --pin: produce a pinned ref, so a pin is computed and never hand-written ──
+//
+// Without a producer the pin syntax would be theatre: nobody hand-computes a sha256 prefix, so
+// nobody would adopt it and the OUTDATED rule would guard an empty set. `--pin path#Lx-Ly` prints
+// the ref to paste into the matrix cell.
+{
+  const pinIndex = args.indexOf('--pin')
+  if (pinIndex >= 0) {
+    const target = (args[pinIndex + 1] || '').trim()
+    const m = /^([^#]+)#L(\d+)-L(\d+)(?:@[0-9a-f]{12})?$/.exec(target)
+    if (!m) {
+      process.stderr.write(
+        `check-feature-matrix: --pin expects <path>#L<from>-L<to>, got "${target}"\n`,
+      )
+      process.exit(2)
+    }
+    const [, relPath, fromRaw, toRaw] = m
+    const from = Number(fromRaw),
+      to = Number(toRaw)
+    const abs = resolve(process.cwd(), relPath)
+    if (!existsSync(abs)) {
+      process.stderr.write(`check-feature-matrix: --pin cannot read ${relPath}\n`)
+      process.exit(2)
+    }
+    const content = readFileSync(abs, 'utf-8')
+    const lines = content.split('\n').length
+    if (from < 1 || to < from || to > lines) {
+      process.stderr.write(
+        `check-feature-matrix: --pin span L${from}-L${to} is outside ${relPath} (${lines} line(s))\n`,
+      )
+      process.exit(2)
+    }
+    process.stdout.write(`${relPath}#L${from}-L${to}@${spanPin(content, from, to)}\n`)
+    process.exit(0)
+  }
+}
+
 /** Check that a ref is valid: non-URL, non-glob, exists on disk. Returns error string or null. */
 function checkRefExists(ref, projectRoot) {
   if (/^https?:\/\//i.test(ref)) return `URL ref requires 'url:' prefix: ${ref}`
@@ -104,6 +210,10 @@ function checkAllRefs(row, projectRoot, failures, id) {
   ]) {
     for (const ref of splitRefs(value)) {
       const err = checkRefExists(ref, projectRoot)
+      if (err) failures.push(`${id}: ${label} — ${err}`)
+    }
+    for (const raw of splitRawRefs(value)) {
+      const err = checkRefSpan(raw, projectRoot)
       if (err) failures.push(`${id}: ${label} — ${err}`)
     }
   }

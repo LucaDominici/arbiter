@@ -45,6 +45,44 @@ via `--update-baseline`); a `Verified` row is never baseline-exemptible.
 
 ---
 
+## Span-pinned refs (#2480)
+
+A `code_ref` / `test_ref` / `doc_ref` may name a **line span** and, optionally, pin it:
+
+```
+src/generators/doc-set.ts#L120-L164
+src/generators/doc-set.ts#L120-L164@50fe5b01c51d
+```
+
+Ref **existence** and ref **accuracy** are different claims, and until now only the first was
+checked: `#L120-L164` was stripped before the file test, so a span could point past the end of the
+file — or at lines that had since become something else entirely — while the row still read
+`Verified`. That is the "the requirement changed, the test did not" failure a traceability matrix
+exists to catch, and a whole-file ref cannot express it.
+
+Two rules, both **additive** — a ref with no anchor behaves exactly as it always has, so adoption
+is per-row and deliberate rather than a mass rewrite:
+
+1. A line span must **exist**. A range past the end of the file, a reversed range, or a zero line
+   number is a defect.
+2. A pinned span must still **hash to its pin**. The pin is the first 12 hex characters of the
+   sha256 of the span's exact text. A mismatch is reported as `OUTDATED` and names both the old and
+   the current hash.
+
+Rule 2 is what survives a refactor: the pin catches the span moving *even when its content is
+unchanged*, because the citation then points at different lines than the ones that were reviewed.
+
+Produce a pin — never hand-compute one:
+
+```bash
+node scripts/check-feature-matrix.mjs --pin 'src/generators/doc-set.ts#L120-L164'
+# → src/generators/doc-set.ts#L120-L164@50fe5b01c51d
+```
+
+A syntax nobody can compute by hand is a syntax nobody adopts, so the producer ships with the rule.
+
+---
+
 ## Verification tier
 
 `verification_tier` (optional, 12th column, #2242): the KIND of proof a requirement

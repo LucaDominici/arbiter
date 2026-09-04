@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 
 const SCRIPT = resolve('scripts/check-feature-matrix.mjs')
@@ -560,5 +561,100 @@ describe('determinism (#2163)', () => {
     expect(idxReq001).toBeGreaterThan(-1)
     expect(idxReq002).toBeGreaterThan(-1)
     expect(idxReq001).toBeLessThan(idxReq002)
+  })
+})
+
+// ── Span-pinned refs: OUTDATED detection (#2480 wave 4, RTM axis 1) ──────────
+//
+// A ref may name a line span, and today `normalizeRef` strips the anchor before the existence
+// check — so `src/x.ts#L10-L20` is tolerated but never verified. The span can point past the end
+// of the file, or at lines that have since become something else entirely, and the matrix still
+// reads Verified. This is exactly the "the requirement changed, the test did not" failure the RTM
+// exists to catch, and nothing catches it.
+//
+// Two rules, both additive: an unpinned ref keeps behaving as it does today.
+//   1. A line span must EXIST — a range past the end of the file is a defect, not a rounding error.
+//   2. A ref may carry `@<hash>` over the span's exact text. A mismatch is OUTDATED: the cited
+//      lines moved or changed, so the citation no longer proves what the row claims.
+describe('span-pinned refs (#2480 — RTM axis 1)', () => {
+  const SRC = ['alpha', 'beta', 'gamma', 'delta', 'epsilon'].join('\n')
+  const pinOf = (from: number, to: number): string =>
+    createHash('sha256')
+      .update(
+        SRC.split('\n')
+          .slice(from - 1, to)
+          .join('\n'),
+      )
+      .digest('hex')
+      .slice(0, 12)
+
+  const rowWith = (ref: string): string =>
+    `| REQ-001 | Cap | ${ALL_DIMS} | L2 | Partial | ${ref} |  |  | #1 | n |`
+
+  it('accepts a line span that exists', () => {
+    const r = run([], makeMatrix([rowWith('src/x.ts#L2-L4')]), { 'src/x.ts': SRC })
+    expect(r.status).toBe(0)
+  })
+
+  it('rejects a line span that runs past the end of the file', () => {
+    const r = run([], makeMatrix([rowWith('src/x.ts#L4-L99')]), { 'src/x.ts': SRC })
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/L4-L99/)
+  })
+
+  it('rejects a reversed line span', () => {
+    const r = run([], makeMatrix([rowWith('src/x.ts#L4-L2')]), { 'src/x.ts': SRC })
+    expect(r.status).toBe(1)
+  })
+
+  it('accepts a pin whose hash matches the cited span', () => {
+    const r = run([], makeMatrix([rowWith(`src/x.ts#L2-L4@${pinOf(2, 4)}`)]), { 'src/x.ts': SRC })
+    expect(r.status).toBe(0)
+  })
+
+  it('reports OUTDATED when the cited span no longer hashes to its pin', () => {
+    const r = run([], makeMatrix([rowWith('src/x.ts#L2-L4@000000000000')]), { 'src/x.ts': SRC })
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/OUTDATED/)
+    expect(r.stdout).toMatch(/L2-L4/)
+  })
+
+  it('catches the real failure: the pin still matches its own span after unrelated edits above it', () => {
+    // The span moved down by one line. Its CONTENT is unchanged, but the citation now points at
+    // different lines — which is precisely what a line-number citation cannot survive and a hash
+    // must catch.
+    const shifted = ['inserted', ...SRC.split('\n')].join('\n')
+    const r = run([], makeMatrix([rowWith(`src/x.ts#L2-L4@${pinOf(2, 4)}`)]), {
+      'src/x.ts': shifted,
+    })
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/OUTDATED/)
+  })
+
+  it('leaves an unpinned ref with no anchor exactly as it was', () => {
+    const r = run([], makeMatrix([rowWith('src/x.ts')]), { 'src/x.ts': SRC })
+    expect(r.status).toBe(0)
+  })
+
+  it('still reports a missing file before it ever looks at the span', () => {
+    const r = run([], makeMatrix([rowWith('src/gone.ts#L1-L2')]), { 'src/x.ts': SRC })
+    expect(r.status).toBe(1)
+    expect(r.stdout).toMatch(/File not found/)
+  })
+
+  it('--pin emits a ref that then validates, so a pin is producible and not hand-computed', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'check-fm-pin-'))
+    try {
+      mkdirSync(join(dir, 'src'), { recursive: true })
+      writeFileSync(join(dir, 'src', 'x.ts'), SRC, 'utf-8')
+      const r = spawnSync('node', [SCRIPT, '--pin', 'src/x.ts#L2-L4'], {
+        encoding: 'utf-8',
+        cwd: dir,
+      })
+      expect(r.status).toBe(0)
+      expect((r.stdout ?? '').trim()).toBe(`src/x.ts#L2-L4@${pinOf(2, 4)}`)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

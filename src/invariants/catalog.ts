@@ -1916,6 +1916,14 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement:
       'scripts/check-feature-matrix.mjs (L1 gate, fail-closed): validates status ladder, ' +
       'KIT-dim coverage, counter integrity, ref existence, and level-gated DoD rules. ' +
+      'Ref existence is not the same claim as ref ACCURACY: a ref may carry a line span ' +
+      "`path#Lx-Ly`, optionally pinned as `@<12 hex>` over that span's exact text. A span past " +
+      'the end of the file, or a pin that no longer matches, is OUTDATED — the citation stopped ' +
+      'proving what the row claims, which is the "the requirement changed, the test did not" ' +
+      'failure a matrix exists to catch and which whole-file refs cannot express. Both rules are ' +
+      'additive: an unpinned ref is unaffected, so adoption is per-row and deliberate rather than ' +
+      'a mass rewrite. `--pin <path>#Lx-Ly` produces the pinned ref, because a syntax nobody can ' +
+      'compute by hand is a syntax nobody adopts. ' +
       'Wired into scripts/check-all.mjs L1. Generated for target projects at L2+ by ' +
       'src/generators/feature-matrix.ts (CANON-23).',
   },

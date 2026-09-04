@@ -229,6 +229,19 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     purpose: 'Build-step probe timeout (ms).',
     isGateBypass: false,
   },
+  {
+    name: 'ARBITER_EXTERNAL_PROBE_TIMEOUT_MS',
+    type: 'number',
+    default: 5000,
+    purpose:
+      'External-model availability probe timeout (ms) — the `<provider> --version` spawn in ' +
+      'src/detectors/external-model.ts. Five seconds is ample on an idle machine, but this is a ' +
+      'wall-clock probe against a spawned process: on a loaded box the spawn alone can exceed it ' +
+      'and the provider is then reported unavailable for a reason unrelated to the provider, so ' +
+      'the cross-model seat degrades and the caller cannot tell that from "codex is not ' +
+      'installed" (#2501).',
+    isGateBypass: false,
+  },
   // ── Workflow / parallelism ───────────────────────────────────────────────
   {
     name: 'ARBITER_MAX_NEEDS_CHAIN',
