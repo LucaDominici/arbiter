@@ -23,7 +23,7 @@ const ALL_TIERS: InvariantTier[] = [
 const EXPECTED_TOTAL_ENTRIES = 145
 const EXPECTED_TIER4_OPERATIONAL = 49
 const EXPECTED_TIER5_GOVERNANCE = 60
-const EXPECTED_SELFONLY = 37
+const EXPECTED_SELFONLY = 36
 
 // ---------------------------------------------------------------------------
 // INVARIANT_CATALOG structure
@@ -525,7 +525,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-33')
   })
 
-  it('returns 69 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 + INV-109 + INV-112 included)', () => {
+  it('returns 70 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 + INV-109 + INV-112 included)', () => {
     // Updated in #1127: +4 (INV-102/103/104/105 — typescript, L2, operational tier)
     // Updated CANON-22: +1 (INV-109 duplication gate, typescript L2 operational)
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
@@ -551,7 +551,7 @@ describe('getFilteredInvariants', () => {
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all-languages, operational)
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(result).toHaveLength(91)
+    expect(result).toHaveLength(92)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -565,7 +565,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-40')
   })
 
-  it('returns fewer than 59 for unknown language (language-specific excluded)', () => {
+  it('returns fewer than 60 for unknown language (language-specific excluded)', () => {
     // +1 from INV-112 (no language restriction) — threshold updated from 57→58
     // +1 from INV-115 (no language restriction, governance L1+) — threshold 58→59
     // +2 from INV-118 (L1+, all languages) + INV-119 (L2+, all languages) — threshold 59→61 → < 64
@@ -587,7 +587,7 @@ describe('getFilteredInvariants', () => {
     // +1 from INV-137 (L1+, all languages, smoke-journey floor) — threshold < 76 → < 77
     // +1 from INV-144 (L1+, all languages, arc42 slot completeness) — → < 78
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(result.length).toBeLessThan(79)
+    expect(result.length).toBeLessThan(80)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -646,7 +646,7 @@ describe('getFilteredInvariants', () => {
     }
   })
 
-  it('Java + L2 + all tiers returns 64 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
+  it('Java + L2 + all tiers returns 65 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages)
     // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
@@ -670,7 +670,7 @@ describe('getFilteredInvariants', () => {
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all languages, operational)
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(result).toHaveLength(86)
+    expect(result).toHaveLength(87)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -682,7 +682,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-28')
   })
 
-  it('Java + L3 + all tiers returns 65 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
+  it('Java + L3 + all tiers returns 66 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages, governance tier)
     // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
@@ -706,7 +706,7 @@ describe('getFilteredInvariants', () => {
     })
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(result).toHaveLength(87)
+    expect(result).toHaveLength(88)
   })
 
   it('essential preset at L1 returns minimal set', () => {

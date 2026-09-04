@@ -139,6 +139,7 @@ gates:
   - { id: oracle-discrimination, name: 'oracle discrimination (anti-fake-green)', level: L1, kind: check, emitIf: "archetype === 'frontend-spa' || archetype === 'backend-web-db'", cmd: ['node', ['scripts/check-oracle-discrimination.mjs']] }
 
   - { id: tabletop-evidence, name: 'tabletop evidence (#2429)', level: L1, kind: check, cmd: ['node', ['scripts/check-tabletop-evidence.mjs']] }
+  - { id: sources, name: 'source certification (INV-147)', level: L1, kind: check, cmd: ['node', ['scripts/check-sources.mjs']] }
 
   # ── L2 ─────────────────────────────────────────────────────────────────────
   - { id: gitleaks, name: gitleaks, level: L2, kind: check, emitIf: "enableSecurityScanning", soft: true, cmd: ['gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1']] }

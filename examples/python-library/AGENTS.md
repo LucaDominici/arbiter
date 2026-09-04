@@ -117,6 +117,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-129:** No tracked data/state files or compiled binaries in the index
 - **INV-144:** The architecture document is a filled structure, not a surviving skeleton
 - **INV-145:** Adversarial review closes only when nothing above low severity survives
+- **INV-147:** A cited source is quotable, and the quotation checks out
 
 ---
 

@@ -88,6 +88,12 @@ const PATH_ALLOWLIST = new Set([
   // sentence false, and dropping the name would leave the reader unable to find the other half.
   'website/governance/AGENTS.md:scripts/check-arbiter-contract.mjs',
   'AGENTS.md:scripts/check-arbiter-contract.mjs',
+  // INV-147 (#2480): the SOTA gate reads docs/SOURCES.md in a GOVERNED PROJECT and
+  // docs/internal/PRODUCT/SOURCES.md in arbiter's own tree. The row has to name both to describe
+  // the one divergence between the two copies; repointing the target path at arbiter's would make
+  // the sentence false, and dropping it would leave a reader unable to find their own registry.
+  'website/governance/AGENTS.md:docs/SOURCES.md',
+  'AGENTS.md:docs/SOURCES.md',
   'GLOBAL_INVARIANTS.md:scripts/check-arbiter-contract.mjs',
   'docs/internal/ADR/118-lifecycle-ontology-wired-not-written.md:scripts/check-arbiter-contract.mjs',
   // A 1.0.0 breaking-changes row recording a rename between two modules that

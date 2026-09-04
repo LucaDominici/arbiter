@@ -361,6 +361,20 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['schemas', 'tabletop-evidence.schema.json'],
     tpl: 'schemas/tabletop-evidence.schema.json.ejs',
   },
+  // #2480 (INV-147): SOTA source certification, tier 1 — every quoted span a project claims must
+  // be a literal substring of a committed excerpt whose sha256 matches what was recorded. The rule
+  // is generic and deterministic offline, so it ports whole; only the registry's path differs
+  // (docs/SOURCES.md here, docs/internal/PRODUCT/SOURCES.md in arbiter's own tree). Emitted with
+  // its schema, because a gate that errors the moment a project records a source is worse than no
+  // gate; wired at L1 in check-all.mjs.ejs and SKIPs out loud when docs/SOURCES.md is absent.
+  {
+    rel: ['scripts', 'check-sources.mjs'],
+    tpl: 'scripts/check-sources.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'source-record.schema.json'],
+    tpl: 'schemas/source-record.schema.json.ejs',
+  },
   // #1456 (INV-133): TODO max-age enforcement gate. A TODO(#NNN) whose linked issue
   // was created more than MAX_AGE_DAYS ago FAILS the gate (age from issue created_at
   // only). Self-contained; wired at L2 in check-all.mjs.ejs. Graceful-SKIPs offline.

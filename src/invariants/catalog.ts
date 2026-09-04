@@ -1924,7 +1924,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'additive: an unpinned ref is unaffected, so adoption is per-row and deliberate rather than ' +
       'a mass rewrite. `--pin <path>#Lx-Ly` produces the pinned ref, because a syntax nobody can ' +
       'compute by hand is a syntax nobody adopts. ' +
-      'Axis 2 (SELF TRACK ONLY): a `Verified` row must carry ' +
+      'Axis 2 (BOTH TRACKS): a `Verified` row must carry ' +
       '.arbiter/evidence/rtm/<REQ-NNN>.json conforming to schemas/rtm-verdict.schema.json with ' +
       'verdict PROVEN, a justification, the command executed and its transcript digest — status ' +
       'is not evidence, the same fail-closed rule INV-146 applies to milestone `done`. Citations ' +
@@ -1932,9 +1932,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'rather than a second one. Four rows predate the rule; REQ-028 was EARNED (suite executed, ' +
       'transcript recorded) and three are grandfathered by a monotone ratchet in ' +
       'scripts/data/rtm-verdict-baseline.json that may fall and never rise — no verdict is ' +
-      'reconstructed after the fact. Self-only because the Track-B gate would need the schema ' +
-      'EMITTED alongside it (a generator change, CANON-11); porting the rule without the schema ' +
-      'would hand a governed project an error the moment it marked a row Verified. ' +
+      'reconstructed after the fact. The axis was self-only until its contract could travel with ' +
+      'it: src/generators/feature-matrix.ts now emits schemas/rtm-verdict.schema.json beside the ' +
+      'gate (CANON-11), so a governed project receives the rule AND the schema it validates ' +
+      'against. An absent schema with `Verified` rows present is an ERROR on both tracks, never a ' +
+      'silent skip — a rule that quietly stops applying is what this gate exists to prevent. ' +
       'Wired into scripts/check-all.mjs L1. Generated for target projects at L2+ by ' +
       'src/generators/feature-matrix.ts (CANON-23).',
   },
@@ -2831,7 +2833,6 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-147',
     tier: 'governance',
-    selfOnly: true,
     alwaysActive: true,
     title: 'A cited source is quotable, and the quotation checks out',
     description:
@@ -2849,15 +2850,20 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'reachability (tier 3).',
     enforcement:
       "scripts/check-sources.mjs — wired on the SELF track as 'sources tier 1 (INV-147)' via " +
-      'runCheck in scripts/check-all.mjs. Validates docs/internal/PRODUCT/SOURCES.md against ' +
+      'runCheck in scripts/check-all.mjs, and on TRACK B via the sources row in ' +
+      'src/templates/scripts/gate-registry.yml.ejs, from src/templates/scripts/check-sources.mjs.ejs ' +
+      'emitted by src/generators/check-all.ts. Validates the SOURCES registry against ' +
       'schemas/source-record.schema.json, then proves each excerpt hashes to its recorded ' +
       'content_hash and contains every quoted_text literally. A missing SOURCES.md SKIPs out loud ' +
       '— a project need not cite anything, but a skip must never be mistakable for a pass. ' +
-      'Self-only for now, declared rather than left to be found: the Track-B emission needs the ' +
-      'schema shipped alongside the gate (a generator change, CANON-11), exactly as INV-112 axis 2 ' +
-      'does, and the SRC row stays `staged` in the ID registry until its CLI verb (arbiter ' +
-      'sources) and its SOTA-required hook land with tiers 2 and 3 — neither exists yet, so neither ' +
-      'is cited here as enforcement. Verified by ' +
+      'The schema travels WITH the gate (schemas/source-record.schema.json is emitted beside it), ' +
+      'which is what unblocked the port: shipping the rule without its contract would have handed a ' +
+      'governed project an error the moment it recorded a source. The one divergence between the ' +
+      'two copies is the registry path — docs/SOURCES.md in a target, ' +
+      'docs/internal/PRODUCT/SOURCES.md here — pinned in .dogfood-divergences.json. The SRC row ' +
+      'stays `staged` in the ID registry until its CLI verb (arbiter sources) and its SOTA-required ' +
+      'hook land with tiers 2 and 3 — neither exists yet, so neither is cited here as enforcement. ' +
+      'Verified by ' +
       "__tests__/scripts/check-sources.test.ts (12 cases) and tamper-proven on arbiter's own two " +
       'recorded sources in both directions: editing an excerpt so the quote still appears but the ' +
       'hash drifts fails, and claiming a quote the source never made fails. exit 0=PASS or SKIP, ' +

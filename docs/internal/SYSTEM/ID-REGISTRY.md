@@ -258,7 +258,7 @@ and INV-31.
       "status": "staged",
       "expires": "2026-12-15",
       "graphNode": "SOURCE",
-      "note": "Wave 5. The gate is deterministic first: a quoted span must be a literal substring of the committed excerpt whose hash matches, before any judgement about relevance is asked of a model."
+      "note": "Wave 5. The gate is deterministic first: a quoted span must be a literal substring of the committed excerpt whose hash matches, before any judgement about relevance is asked of a model. Wave 7 made `track: both` real for the gate half: src/templates/scripts/check-sources.mjs.ejs ships with schemas/source-record.schema.json beside it and a row in the emitted gate registry, reading docs/SOURCES.md where arbiter reads its own internal path. The row stays `staged` because the tool and hook columns are still promises — `arbiter sources` and guard-sota-required.mjs land with tiers 2 and 3, and the dated expiry is what keeps that from becoming permanent."
     },
     {
       "prefix": "UC",

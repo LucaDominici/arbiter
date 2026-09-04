@@ -310,10 +310,6 @@
       "reason": "Validates src/compatibility/skills-matrix.json shape and integration status enum. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
     },
     {
-      "path": "scripts/check-sources.mjs",
-      "reason": "INV-147: tier 1 of the SOTA source chain — every quotation must be a literal substring of a committed excerpt whose sha256 matches what was recorded. Self-only PROVISIONALLY, not by construction: the rule is entirely generic (any governed project could carry a SOURCES.md and the gate SKIPs out loud when it does not), but the emitted gate needs schemas/source-record.schema.json shipped alongside it, which is a generator change (CANON-11) plus a new template. Porting the rule without its schema would hand a governed project an error the moment it recorded a source — worse than not porting, and the same reason INV-112 axis 2 is self-only. The SRC row in docs/internal/SYSTEM/ID-REGISTRY.md stays `staged` with a dated expiry of 2026-12-15 until its source-management CLI verb and its SOTA-required hook land with tiers 2 and 3, so this declination is an obligation with a deadline the registry already enforces."
-    },
-    {
       "path": "scripts/check-spdx-headers.mjs",
       "reason": "Verifies every `src/**/*.ts` file starts with `SPDX-License-Identifier: Apache-2.0`. CONFIRMED self-only: hardcoded to arbiter's own license (Apache-2.0) and its own generator source tree (`src/`); arbiter deliberately does not select or emit a license for target projects (no `LICENSE` template exists — see `src/templates/`), so there is no default license identifier a generic twin could check against without a product decision arbiter has not made."
     },

@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "source-record.schema.json",
+  "title": "SOTA source registry",
+  "description": "Contract for the SOURCES_START/END block in docs/SOURCES.md. A source is admitted as evidence only when its quotations can be checked against a committed excerpt — a URL in a document proves nothing, because the page can change or can never have said it. Enforced by scripts/check-sources.mjs (INV-147, #2480).",
+  "type": "object",
+  "required": ["sources"],
+  "additionalProperties": false,
+  "properties": {
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/source" }
+    }
+  },
+  "definitions": {
+    "source": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "url",
+        "kind",
+        "retrieved_at",
+        "excerpt_path",
+        "content_hash",
+        "citations",
+        "selected_by_user",
+        "application_status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^SRC-[0-9]{3}$",
+          "description": "SRC-NNN, three digits. The scheme is registered in arbiter's docs/internal/SYSTEM/ID-REGISTRY.md; a governed project inherits the shape, not the registry."
+        },
+        "title": { "type": "string", "minLength": 4 },
+        "url": {
+          "type": "string",
+          "minLength": 8,
+          "description": "Recorded provenance, never dereferenced by the tier-1 gate. A gate that fails when a website is down fails for a reason unrelated to the claim it guards."
+        },
+        "kind": { "enum": ["paper", "standard", "spec", "docs", "tool", "book"] },
+        "retrieved_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "When the excerpt was taken. A source has an age, and the web moves under citations."
+        },
+        "excerpt_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Committed, citation-length excerpt. Short by design: enough to check the quotations this project makes, never a reproduction of the source."
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "sha256 of the excerpt file. Without it, a substring check would still pass on an excerpt edited after the fact — the evidence could drift away from what was actually read."
+        },
+        "citations": {
+          "type": "array",
+          "minItems": 1,
+          "description": "A source nobody quotes is a bookmark, not evidence. Each quoted_text must appear verbatim in the excerpt.",
+          "items": {
+            "type": "object",
+            "required": ["quoted_text"],
+            "additionalProperties": false,
+            "properties": {
+              "quoted_text": { "type": "string", "minLength": 8 },
+              "note": { "type": "string" }
+            }
+          }
+        },
+        "selected_by_user": {
+          "type": "boolean",
+          "description": "Whether a human chose this source from a shortlist. An agent-selected source is a candidate; adoption is a human act, and the field records which happened rather than blurring the two."
+        },
+        "informs": {
+          "type": "array",
+          "description": "The ADR / INV ids this source bears on. Empty means cited but not yet applied to any decision — visible rather than implied.",
+          "items": { "type": "string" }
+        },
+        "application_status": {
+          "enum": ["candidate", "selected", "cited", "applied-certified"],
+          "description": "The ladder. `applied-certified` is the only rung claiming the source demonstrably shaped the architecture, and tier 3 (graph reachability) is what will admit it — tier 1 records the claim but does not adjudicate it."
+        }
+      }
+    }
+  }
+}
