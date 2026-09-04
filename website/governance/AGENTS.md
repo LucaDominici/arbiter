@@ -600,6 +600,7 @@ Canonical source: `docs/internal/SYSTEM/CANON.md`.
 - **CANON-21:** Aggregate, don't proliferate
 - **CANON-22:** Evidence-based quality: validated metrics gate, contested heuristics advise
 - **CANON-23:** RTM-required-by-level: every governed project ships a gated FEATURE_MATRIX
+- **CANON-24:** Name the change that turns a gate red, and prove it by inverting it
 
 ---
 

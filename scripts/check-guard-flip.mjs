@@ -161,12 +161,8 @@ function absenceSurface() {
   return { family, deferred, owing, problems }
 }
 
-function main() {
-  const { family, deferred, owing, problems } = absenceSurface()
-  // Absence-family members are appended to the roster under their own check-all name; those with a
-  // banked deferral row are held out (they are accounted for, not proven).
-  const roster = [...BASE_ROSTER, ...owing]
-
+/** Flip every guard in `roster`, partitioning it into proven / vacuous / uncovered. */
+function runRoster(roster) {
   const uncovered = []
   const vacuous = []
   let proven = 0
@@ -180,6 +176,15 @@ function main() {
     if (failures.length > 0) vacuous.push({ name: guard.name, failures })
     else proven++
   }
+  return { proven, vacuous, uncovered }
+}
+
+function main() {
+  const { family, deferred, owing, problems } = absenceSurface()
+  // Absence-family members are appended to the roster under their own check-all name; those with a
+  // banked deferral row are held out (they are accounted for, not proven).
+  const roster = [...BASE_ROSTER, ...owing]
+  const { proven, vacuous, uncovered } = runRoster(roster)
 
   process.stdout.write(
     `check-guard-flip: proven=${proven} vacuous=${vacuous.length} uncovered=${uncovered.length} ` +

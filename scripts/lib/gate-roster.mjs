@@ -107,97 +107,130 @@ export function loadInversionRegistry(root) {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const MIN_REASON_CHARS = 30
 
+/** Row label for diagnostics — the gate name when present, a placeholder otherwise. */
+function rowLabel(row) {
+  return typeof row?.gate === 'string' && row.gate !== '' ? row.gate : '<row without a gate>'
+}
+
+/** Does the row still describe a gate the live derivation agrees with? */
+function identityProblem(row, label, byName) {
+  const gate = byName.get(row.gate)
+  if (!gate) {
+    return (
+      `${label}: not in the absence-asserting family derived from check-all.mjs — a row for a ` +
+      `gate that is not wired (or was renamed) exempts nothing and must be removed`
+    )
+  }
+  if (row.script !== gate.script) {
+    return `${label}: row declares script ${String(row.script)} but check-all.mjs wires ${gate.script}`
+  }
+  if (row.category !== gate.category) {
+    return `${label}: row declares category ${String(row.category)} but the gate derives as ${gate.category}`
+  }
+  return null
+}
+
+/** A reasonless (or near-reasonless) row is a blanket exemption. */
+function reasonProblem(row, label) {
+  if (typeof row.reason === 'string' && row.reason.trim().length >= MIN_REASON_CHARS) return null
+  return (
+    `${label}: needs a \`reason\` of at least ${MIN_REASON_CHARS} characters naming why no ` +
+    `inversion fixture exists yet — a reasonless row is a blanket exemption`
+  )
+}
+
+/** Provenance must be a real issue NUMBER, not free text that merely looks like a reference. */
+function issueProblem(row, label) {
+  if (Number.isInteger(row.issue) && row.issue > 0) return null
+  return `${label}: \`issue\` must be a positive integer (provenance for the deferral)`
+}
+
+/** The only currency the exemption actually spends: a date a clock can check anywhere. */
+function expiryProblem(row, label, now) {
+  if (typeof row.expires !== 'string' || !ISO_DATE.test(row.expires)) {
+    return `${label}: \`expires\` must be a YYYY-MM-DD date — a deferral without an end`
+  }
+  const due = new Date(`${row.expires}T00:00:00Z`)
+  if (Number.isNaN(due.getTime())) return `${label}: unparseable \`expires\` (${row.expires})`
+  if (due.getTime() < now.getTime()) {
+    return (
+      `${label}: deferral expired ${row.expires} — write the inversion fixture or re-decide; ` +
+      `audit-mode is a stage, not a destination`
+    )
+  }
+  return null
+}
+
 /** Problems with one ledger row, given the derived family indexed by gate name. */
 function rowProblems(row, byName, now) {
-  const problems = []
-  const label = typeof row?.gate === 'string' && row.gate !== '' ? row.gate : '<row without a gate>'
   if (row === null || typeof row !== 'object' || Array.isArray(row)) {
-    return [`${label}: ledger row is not an object`]
+    return ['ledger row is not an object']
   }
   if (typeof row.gate !== 'string' || row.gate === '') {
     return ['ledger row without a `gate` name']
   }
+  const label = rowLabel(row)
+  return [
+    identityProblem(row, label, byName),
+    reasonProblem(row, label),
+    issueProblem(row, label),
+    expiryProblem(row, label, now),
+  ].filter((p) => p !== null)
+}
 
-  const gate = byName.get(row.gate)
-  if (!gate) {
-    problems.push(
-      `${label}: not in the absence-asserting family derived from check-all.mjs — a row for a ` +
-        `gate that is not wired (or was renamed) exempts nothing and must be removed`,
-    )
-  } else if (row.script !== gate.script) {
-    problems.push(
-      `${label}: row declares script ${String(row.script)} but check-all.mjs wires ${gate.script}`,
-    )
-  } else if (row.category !== gate.category) {
-    problems.push(
-      `${label}: row declares category ${String(row.category)} but the gate derives as ${gate.category}`,
-    )
+/** Fail-closed shape check: an unauditable ledger is a problem, never an empty pass. */
+function shapeProblem(registry) {
+  if (registry === null || typeof registry !== 'object' || Array.isArray(registry)) {
+    return 'inversion-proof ledger is not an object'
   }
+  if (!Array.isArray(registry.deferred)) return 'inversion-proof ledger has no `deferred` array'
+  if (!Number.isInteger(registry.ceiling) || registry.ceiling < 0) {
+    return 'inversion-proof ledger has no non-negative integer `ceiling`'
+  }
+  return null
+}
 
-  if (typeof row.reason !== 'string' || row.reason.trim().length < MIN_REASON_CHARS) {
-    problems.push(
-      `${label}: needs a \`reason\` of at least ${MIN_REASON_CHARS} characters naming why no ` +
-        `inversion fixture exists yet — a reasonless row is a blanket exemption`,
+/**
+ * The ratchet, binding in BOTH directions: above the ceiling is a regression, below it is an
+ * unbanked improvement whose slack could be silently re-filled later.
+ */
+function cardinalityProblem(registry) {
+  const n = registry.deferred.length
+  if (n > registry.ceiling) {
+    return (
+      `deferral ledger holds ${n} rows over a ceiling of ${registry.ceiling} — the ratchet is ` +
+      `non-increasing: prove the gate by inversion instead of adding a row`
     )
   }
-  if (!Number.isInteger(row.issue) || row.issue <= 0) {
-    problems.push(`${label}: \`issue\` must be a positive integer (provenance for the deferral)`)
+  if (n < registry.ceiling) {
+    return (
+      `deferral ledger holds ${n} rows under a ceiling of ${registry.ceiling} — unbanked ` +
+      `improvement: lower the ceiling to ${n} so the slack cannot be silently re-filled`
+    )
   }
-  if (typeof row.expires !== 'string' || !ISO_DATE.test(row.expires)) {
-    problems.push(`${label}: \`expires\` must be a YYYY-MM-DD date — a deferral without an end`)
-  } else {
-    const due = new Date(`${row.expires}T00:00:00Z`)
-    if (Number.isNaN(due.getTime())) {
-      problems.push(`${label}: unparseable \`expires\` (${row.expires})`)
-    } else if (due.getTime() < now.getTime()) {
-      problems.push(
-        `${label}: deferral expired ${row.expires} — write the inversion fixture or re-decide; ` +
-          `audit-mode is a stage, not a destination`,
-      )
-    }
-  }
-  return problems
+  return null
 }
 
 /**
  * Audit the CANON-24 deferral ledger against the derived family. Returns the list of problems
- * (empty ⇒ the ledger is sound). Fail-closed: a shape that cannot be audited is a problem, never
- * an empty pass.
+ * (empty ⇒ the ledger is sound).
  */
 export function auditInversionRegistry({ family, registry, now = new Date() }) {
-  if (registry === null || typeof registry !== 'object' || Array.isArray(registry)) {
-    return ['inversion-proof ledger is not an object']
-  }
-  if (!Array.isArray(registry.deferred)) {
-    return ['inversion-proof ledger has no `deferred` array']
-  }
-  if (!Number.isInteger(registry.ceiling) || registry.ceiling < 0) {
-    return ['inversion-proof ledger has no non-negative integer `ceiling`']
-  }
+  const shape = shapeProblem(registry)
+  if (shape !== null) return [shape]
 
   const problems = []
-  if (registry.deferred.length > registry.ceiling) {
-    problems.push(
-      `deferral ledger holds ${registry.deferred.length} rows over a ceiling of ${registry.ceiling} — ` +
-        `the ratchet is non-increasing: prove the gate by inversion instead of adding a row`,
-    )
-  } else if (registry.deferred.length < registry.ceiling) {
-    problems.push(
-      `deferral ledger holds ${registry.deferred.length} rows under a ceiling of ${registry.ceiling} — ` +
-        `unbanked improvement: lower the ceiling to ${registry.deferred.length} so the slack cannot ` +
-        `be silently re-filled`,
-    )
-  }
+  const cardinality = cardinalityProblem(registry)
+  if (cardinality !== null) problems.push(cardinality)
 
   const byName = new Map(family.map((f) => [f.name, f]))
   const seen = new Set()
   for (const row of registry.deferred) {
     problems.push(...rowProblems(row, byName, now))
     const key = row?.gate
-    if (typeof key === 'string') {
-      if (seen.has(key)) problems.push(`${key}: duplicate ledger row`)
-      seen.add(key)
-    }
+    if (typeof key !== 'string') continue
+    if (seen.has(key)) problems.push(`${key}: duplicate ledger row`)
+    seen.add(key)
   }
   return problems
 }
