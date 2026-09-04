@@ -300,7 +300,7 @@ setInterval(() => {}, 1000)
         stdio: 'ignore',
       },
     )
-    let died = false
+    let died: boolean | undefined
     let gatePid = 0
     try {
       expect(await waitFor(() => existsSync(pidFile))).toBe(true)
@@ -336,7 +336,7 @@ setInterval(() => {}, 1000)
         stdio: 'ignore',
       },
     )
-    let released = false
+    let released: boolean | undefined
     let gatePid = 0
     try {
       expect(await waitFor(() => existsSync(pidFile))).toBe(true)
