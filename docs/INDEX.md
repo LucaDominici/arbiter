@@ -230,7 +230,7 @@
 | [Hook Contracts — `.claude/hooks/*.mjs`](internal/SYSTEM/HOOK-CONTRACTS.md) | — | active | kind/method |
 | [arbiter Architecture](internal/architecture/ARCHITECTURE.md) | ARCHITECTURE | active | kind/spine |
 | [Release Playbook](internal/release-playbook.md) | — | active | kind/internal |
-| [Cloud handover — 2026-09-02 (runner still down; eighteen validated landings queued)](internal/runbooks/HANDOVER-CLOUD-2026-09-02.md) | — | active | kind/runbook |
+| [Cloud handover — 2026-09-02 (runner still down; twenty-three validated landings queued)](internal/runbooks/HANDOVER-CLOUD-2026-09-02.md) | — | active | kind/runbook |
 | [Runbook — Dependabot PR Triage](internal/runbooks/dependabot-handling.md) | — | active | kind/runbook |
 
 ## methodology

@@ -1,8 +1,8 @@
 ---
-title: 'Cloud handover — 2026-09-02 (runner still down; eighteen validated landings queued)'
-doc_version: '1.1.0'
+title: 'Cloud handover — 2026-09-02 (runner still down; twenty-three validated landings queued)'
+doc_version: '1.2.0'
 status: active
-last_review: '2026-09-03'
+last_review: '2026-09-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/runbook']
@@ -40,16 +40,23 @@ passing one.
 | 12  | #2477 | `task/#2449-deprecations-source-scan`    | row 9 | orphan `@deprecated` scan; 3 live deprecations dated   |
 | 13  | #2478 | `task/#2448-semver-breaking-log`         | row 9 | breaking-log cites 0.2.0, pinned to CHANGELOG headings |
 | 14  | #2481 | `task/#2450-fixture-inventory`           | row 9 | fixture-inventory table pinned to the compat MANIFEST  |
-| 15  | #2488 | `task/#2476-stacked-pr-ci`               | main  | stacked PRs get a real CI run (the fail-open below)    |
-| 16  | #2492 | `task/#2452-dryrun-preview-truth`        | main  | `init --dry-run` previews the plan the real run runs   |
-| 17  | #2494 | `task/#2445-tabletop-probe-truth`        | row16 | tabletop probes 4 and 6 match their exit criteria      |
-| 18  | #2483 | `docs/handover-cloud-2026-09-02`         | main  | this runbook (docs-only)                               |
+| 15  | #2505 | `task/#2467-orphan-ledger-detector`      | row 9 | orphan advisory-ledger entries detected, stale one cut |
+| 16  | #2495 | `task/#2453-update-noop-flags`           | row12 | `update`'s silent `--no-adopt-*` no-ops deprecated     |
+| 17  | #2488 | `task/#2476-stacked-pr-ci`               | main  | stacked PRs get a real CI run (the fail-open below)    |
+| 18  | #2492 | `task/#2452-dryrun-preview-truth`        | main  | `init --dry-run` previews the plan the real run runs   |
+| 19  | #2494 | `task/#2445-tabletop-probe-truth`        | row18 | tabletop probes 4 and 6 match their exit criteria      |
+| 20  | #2499 | `task/#2454-go-example-coverage`         | row19 | Go tabletop probe stops claiming absent example cover  |
+| 21  | #2497 | `task/#2468-adr-status-vocabulary`       | main  | the four `accepted` ADRs migrate to canonical `active` |
+| 22  | #2502 | `task/#2466-twin-diff-doc-truth`         | main  | TESTING.md's twin-diff step made true, and gate-kept   |
+| 23  | #2483 | `docs/handover-cloud-2026-09-02`         | main  | this runbook (docs-only)                               |
 
-Rows 11-14 are **stacked on row 9** and each is independent of the others (disjoint file sets), so
-row 9 merges first and GitHub then auto-retargets them to `main`. Rows 15, 16 and 18 are based on
-`main` and merge independently; row 17 is stacked on row 16 because both edit
-`TABLETOP-SCENARIOS.md`. Merge protocol unchanged: CI
-green per PR, merge in table order, `git fetch` between merges,
+Rows 11-15 are **stacked on row 9** and are mutually independent (disjoint file sets), so row 9
+merges first and GitHub then auto-retargets them to `main`. Row 16 is stacked on row 12 (both edit
+`docs/DEPRECATIONS.md`), row 19 on row 18 and row 20 on row 19 (all three reach
+`TABLETOP-SCENARIOS.md`). Rows 17, 18, 21, 22 and 23 are based on `main` and merge independently.
+Every stack exists because the two heads share a file, never for convenience — a stacked PR pays a
+real price (see #2476 below), so the ordering is load-bearing, not cosmetic. Merge protocol
+unchanged: CI green per PR, merge in table order, `git fetch` between merges,
 `node scripts/ship-kpi.mjs --since 2026-08-29` after each, ADEQUACY-MAP §2 refresh at M-A/M-B close.
 
 ## Findings that need attention before the queue does
@@ -118,6 +125,23 @@ deliberately left out of the minimal diff — filed as **#2486**.
   consumer crashes on the parse rather than on a status check; and `doc-set-skeletons` is the one
   generator `init --dry-run` still cannot preview — a measured 5-path gap held open by an
   asserted-live test exception rather than hidden.
+- **#2496 / #2498** — five ADRs still carry the non-canonical statuses `superseded` and `proposed`
+  (deliberately left out of the `accepted` → `active` migration, because `superseded` means
+  something none of the four canonical values does and should probably be admitted rather than
+  flattened); and no GA stack has `backend-web-db` example-drift coverage, because
+  `LIVING_EXAMPLES` is scoped to the `library` archetype **by design** — so materializing one Go
+  example would have closed a symptom and left the structure untouched.
+- **#2500 / #2501** — `check-doc-freshness.mjs` exits 1 on a pristine `HEAD` (8 docs stale by the
+  coupling rule) and is wired into **neither** track's roster, so the red has been invisible since
+  it was built; and `cross-model-review.test.ts` fails under CPU load because its assertion waits
+  out a real 5s timeout, making a hard gate non-deterministic on a busy runner.
+- **#2503 — every dispatched agent stalls waiting on a background gate run that cannot wake it.**
+  Measured from this run's own nudge messages: **11 distinct agents**, one of them four times,
+  worst single stall about two hours. The dispatch contract already tells agents to poll to
+  completion and each was given that instruction verbatim, so the affordance is wrong rather than
+  the instruction unread — backgrounding is the only way to run a 25-minute gate without tripping a
+  tool timeout, and a subagent has no wake mechanism at all. CLOSER-mode Rule 7 already names this
+  failure, which is the evidence that prose alone has not fixed it.
 
 ## What changed vs the 08-31 runbook
 
@@ -130,6 +154,23 @@ deliberately left out of the minimal diff — filed as **#2486**.
   table read "none currently active"), #2448 (a breaking-changes row citing a never-released
   1.0.0), #2450 (fixture inventory listing 1 of 2 MANIFEST entries).
 - New issues filed: #2476, #2479 (above), plus #2466 drained from a findings spool.
+
+## What changed vs v1.1.0 of this runbook
+
+- Five more landings joined the queue as rows 15, 16 and 20-22: #2505 (orphan advisory-ledger
+  detector), #2495 (`update`'s silent no-op flags), #2499 (the Go tabletop probe), #2497 (ADR status
+  vocabulary) and #2502 (the twin-diff doc step). The queue is 18 rows no longer — it is 23.
+- Two of those are worth reading for the judgement rather than the diff. #2499's agent found that
+  the coverage gap it was sent to close is **structural** — `LIVING_EXAMPLES` is library-only by
+  design — and documented the gap instead of papering over it with one example, promoting the real
+  question to #2498. #2502's agent found that the twin-diff doc step's true root cause was that
+  `self-validation.mjs` matched neither the `check-*` nor the `record-*` parity rule, so a manual
+  `diff` was the only thing holding the twins together; it tightened the gate rather than widening
+  a divergence pin.
+- Six further issues filed: #2496, #2498, #2500, #2501, #2503 (above), and the queue's own
+  ordering note now records why each stack exists.
+- **The runner pool is unchanged.** Re-verified 2026-09-04T01:47Z: `origin/main` is still
+  `ae40f0cf`, nothing has merged, and every run since remains `queued` or `pending`. Four days.
 
 ## Environment lessons this session paid for
 
@@ -163,15 +204,26 @@ deliberately left out of the minimal diff — filed as **#2486**.
    fixture-snapshot set. Audit every claim against a tool result before pushing — the gates caught
    the rest, but only because nothing was bypassed. One agent corrected _me_ on a misdiagnosis and
    was right; verify a correction as carefully as a claim.
+9. **A one-shot check-in is not a heartbeat.** A self-scheduled reminder that fires once and
+   disables itself leaves the run dead the moment it is answered without being re-armed. That cost
+   this session about nine and a half idle hours between 16:10Z and 01:47Z, with an agent queue
+   ready to dispatch and nothing dispatching it. Use a **recurring** routine as the keep-alive and
+   treat one-shots as extras; a run whose liveness depends on remembering to re-arm will eventually
+   forget.
+10. **A subagent cannot be woken by anything it starts.** A backgrounded gate run notifies the
+    orchestrator, never the agent that launched it, so an agent that ends its turn to "wait for the
+    monitor" waits forever. Measured 11 times this session (#2503). Instruct agents to poll in the
+    foreground, and re-instruct on the nudge — the second telling is often needed.
 
 ## Open backlog after the queue drains
 
 - **Needs the owner:** #2479 (consumer reliability, above). #2318 #2310 #2291 remain blocked on
   permission to the pinned private consumer repositories — reachable via `list_repos`/`add_repo`,
   but cloning them is denied by the session's permission classifier.
-- **M-A:** #2433, #2451; #2414 tracking. (#2445 shipped as row 17.)
-- **M-C:** #2479, #2384 #2301 #2150 #2405 #2427, plus #2455 #2458 #2460-#2463 #2466-#2468, and the
-  new #2485 #2486 #2487 #2489 #2493. (#2476 shipped as row 15.)
-- **M-B:** #2453 #2454 (brownfield tabletop findings), plus the new #2490 #2491. (#2452 shipped as
-  row 16.)
+- **M-A:** #2433, #2451; #2414 tracking. (#2445 shipped as row 19.)
+- **M-C:** #2479, then the drain queue #2384 #2301 #2150 #2405 #2427, plus #2455 #2458
+  #2460-#2463, and the new #2485 #2486 #2487 #2489 #2493 #2496 #2500 #2501 #2503. (#2419 is row 9,
+  #2467 row 15, #2476 row 17, #2466 row 22, #2468 row 21.)
+- **M-B:** the brownfield tabletop findings shipped as rows 16 and 20 (#2453, #2454); what remains
+  is #2490 #2491 #2498. (#2452 is row 18.)
 - #2397: the runner outage post-mortem plus the original nightly regression.
