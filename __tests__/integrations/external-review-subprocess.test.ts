@@ -86,4 +86,64 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
     )
     expect(readFileSync(join(fixture, 'codex-scope.txt'), 'utf-8')).toBe('scratch-only\n')
   })
+
+  // #2501 — the degrade-on-timeout path used to be exercised only incidentally, by
+  // racing a real host against a tight fixture timeoutMs (flaky under parallel load:
+  // https://github.com/LucaDominici/arbiter/issues/2501). This test asserts the same
+  // contract deterministically: the stub seat is made to sleep for far longer than a
+  // tiny configured timeoutMs, so the kill always fires well before the seat could
+  // ever finish, on any host — no race, no wall-clock dependence in either direction.
+  it('degrades deterministically when the seat exceeds an injected timeout (#2501)', () => {
+    const codex = join(fixture, 'bin', 'codex')
+    writeFileSync(
+      codex,
+      `#!/bin/sh
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
+done
+sleep 5
+printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[]}' > "$out"
+`,
+      'utf-8',
+    )
+    chmodSync(codex, 0o755)
+
+    const dispatchEvidenceDir = join(fixture, 'dispatch')
+    const result = invokeExternalReview({
+      repoRoot: process.cwd(),
+      taskId: '#2501',
+      prompt: 'Review the change.',
+      diff: 'diff --git a/a b/a',
+      cfg: {
+        ...DEFAULT_CROSS_MODEL_REVIEW,
+        enabled: true,
+        diffEgressConsent: true,
+        // Deliberately far shorter than the seat's `sleep 5` above — the assertion is
+        // "a genuinely slow seat degrades", never "the host answered inside N ms".
+        timeoutMs: 200,
+      },
+      access: {
+        provider: 'codex',
+        vendor: 'openai',
+        available: true,
+        authenticated: true,
+        version: '1.2.3',
+        error: null,
+      },
+      evidenceDir,
+      dispatchEvidenceDir,
+      tier: 'Standard',
+      phase: 'refactor',
+      env: reviewEnv,
+    })
+
+    expect(result.status).toBe('degraded')
+    expect(result.degradationReason).toBe('invocation-failed')
+    const dispatch = JSON.parse(
+      readFileSync(join(dispatchEvidenceDir, '_2501', 'dispatch.json'), 'utf-8'),
+    ) as { degraded: Array<{ reason: string; substitute: string }> }
+    expect(dispatch.degraded).toHaveLength(1)
+    expect(dispatch.degraded[0]).toMatchObject({ reason: 'timeout', substitute: 'anthropic' })
+  })
 })
