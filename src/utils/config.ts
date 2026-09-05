@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { ensureDir } from './fs.js'
 import { join } from 'node:path'
-import { writeFile } from './fs.js'
+import { writeFile, assertWritten } from './fs.js'
 import { acquireLock } from './file-lock.js'
 import { getLogger } from './logger.js'
 import { ConfigError } from './errors.js'
@@ -42,13 +42,29 @@ const SNAPSHOT_FILE = '.arbiter-generated.json'
  * cleanup, refuses symlinked lock paths, and raises actionable `E_LOCK_*` errors
  * that point at `arbiter doctor recover-lock`. `kit.lock` is a distinct inner
  * lock from `.arbiter/.lock`; `doctor` is taught about both (#1517).
+ *
+ * #2541: `arbiter.json` is never a generator-emitted target — no `src/generators/*.ts`
+ * writes it, and `arbiter update`'s own docs (docs/REFERENCE/file-stability.md) record
+ * that it is "never recorded as a manifest entry"; its user-edit protection is the
+ * load→mutate→save merge every caller (`configure`, `plugin`, `update`, `upgrade-level`,
+ * `init`) already performs at the JS-object level, not `writeFile`'s template-regeneration
+ * machinery. It is therefore written with `skipPreserveCheck`, exempting it from the
+ * `arbiter:preserve` marker (a config VALUE that happens to contain that literal
+ * substring must not permanently freeze the user's own config out from under `arbiter
+ * configure`/`update`). The returned `WriteResult` is asserted via `assertWritten` so a
+ * write that still did not land — for whatever reason — is a loud failure, never a
+ * silently-skipped success.
  */
 export async function saveConfig(dir: string, config: ArbiterConfig): Promise<void> {
   const lockDir = join(dir, '.arbiter')
   ensureDir(lockDir)
   const lock = await acquireLock(join(lockDir, 'kit.lock'))
   try {
-    writeFile(join(dir, CONFIG_FILE), JSON.stringify(config, null, 2) + '\n')
+    const path = join(dir, CONFIG_FILE)
+    const result = writeFile(path, JSON.stringify(config, null, 2) + '\n', {
+      skipPreserveCheck: true,
+    })
+    assertWritten(result, `arbiter config at ${path}`)
   } finally {
     await lock.release()
   }
@@ -62,10 +78,16 @@ export async function saveConfig(dir: string, config: ArbiterConfig): Promise<vo
  * #1617) across the whole read-modify-write — the same lock kit-install and the
  * other config writers hold, so update and kit-install are mutually excluded and
  * cannot lost-update each other (#1617). Callers MUST hold `.arbiter/.lock`.
+ *
+ * #2541: see `saveConfig` above for why `arbiter.json` is written with
+ * `skipPreserveCheck` and its `WriteResult` asserted. `writeSnapshot` (below) applies
+ * the same treatment to `.arbiter-generated.json`.
  */
 export function saveConfigAndSnapshot(dir: string, config: ArbiterConfig): void {
   const json = JSON.stringify(config, null, 2) + '\n'
-  writeFile(join(dir, CONFIG_FILE), json)
+  const path = join(dir, CONFIG_FILE)
+  const result = writeFile(path, json, { skipPreserveCheck: true })
+  assertWritten(result, `arbiter config at ${path}`)
   writeSnapshot(dir, config)
 }
 
@@ -73,12 +95,22 @@ export function saveConfigAndSnapshot(dir: string, config: ArbiterConfig): void 
  * Write only the snapshot envelope (`.arbiter-generated.json`) without
  * touching `arbiter.json`. Used by `arbiter doctor --repair-state` so
  * repair never clobbers the source-of-truth config (#619).
+ *
+ * #2541: `.arbiter-generated.json` is documented (docs/REFERENCE/file-stability.md) as
+ * a machine-written state file — "No" user-editable, migrated automatically by
+ * `arbiter update`'s schema migration registry, and (like `arbiter.json`) never a
+ * generator-emitted target and never recorded in the generated-file manifest. It is
+ * generation provenance, the same class as TDD evidence and the task-state document —
+ * so it is written with `skipPreserveCheck`, and the `WriteResult` is asserted via
+ * `assertWritten` so a withheld write (or any other reason the bytes did not land) is a
+ * loud failure rather than a silent no-op that leaves stale provenance on disk.
  */
 export function writeSnapshot(dir: string, config: ArbiterConfig): void {
   const snapPath = join(dir, SNAPSHOT_FILE)
   rotateBackup(snapPath)
   const envelope = wrapSnapshot(config)
-  writeFile(snapPath, canonicalJson(envelope) + '\n')
+  const result = writeFile(snapPath, canonicalJson(envelope) + '\n', { skipPreserveCheck: true })
+  assertWritten(result, `arbiter config snapshot at ${snapPath}`)
 }
 
 /**
