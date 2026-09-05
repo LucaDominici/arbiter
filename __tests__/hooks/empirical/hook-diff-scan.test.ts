@@ -93,11 +93,14 @@ const CASES: HookCase[] = [
     hookFileName: 'check-no-orphan-todo.mjs',
     relPath: 'src/file.ts',
     clean: 'export const a = 1\n',
-    // Built via concatenation so this test file's own source never spells a
-    // bare orphan-TODO comment contiguously — the repo's own orphan-TODO gate
-    // (scripts/check-no-orphan-todo.mjs) whole-file-scans __tests__/, and a
-    // literal one here would self-block (#2539).
-    markerLine: '//' + ' TODO: no task id\n',
+    // Built via concatenation so this test file's own source never spells the
+    // bare INV-21 marker contiguously. Two mechanisms read it: the repo's own
+    // orphan-marker gate (scripts/check-no-orphan-todo.mjs) whole-file-scans
+    // __tests__/ and a literal one here would self-block (#2539); and
+    // countTodos (scripts/debt-lib.mjs:355) counts every bare-marker line in a
+    // .ts file as deferred debt, so a fixture would inflate the ratchet. Same
+    // technique the checkers use for their own PATTERNS arrays (#2528).
+    markerLine: '//' + ' TO' + 'DO: no task id\n',
     markerNeedle: 'INV-21',
   },
   {
@@ -218,14 +221,17 @@ describe('gate --all walk stays whole-file (#2539)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-gate-whole-file-'))
     try {
       mkdirSync(join(dir, 'src'), { recursive: true })
-      writeFileSync(join(dir, 'src', 'file.ts'), '//' + ' TODO: no task id\nexport const a = 2\n')
+      writeFileSync(
+        join(dir, 'src', 'file.ts'),
+        '//' + ' TO' + 'DO: no task id\nexport const a = 2\n',
+      )
       const result = spawnSync(
         'node',
         [join(REPO_ROOT, 'scripts', 'check-no-orphan-todo.mjs'), join(dir, 'src')],
         { encoding: 'utf-8' },
       )
       expect(result.status).toBe(1)
-      expect(result.stdout).toContain('TODO')
+      expect(result.stdout).toContain('TO' + 'DO')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
