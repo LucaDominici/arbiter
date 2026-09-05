@@ -651,7 +651,7 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
 
   ensureDir(join(targetDir, '.arbiter'))
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
-  let drainWithheld: DrainSyncWithheld | null = null
+  let drainWithheld: DrainSyncWithheld | null
   try {
     await saveConfig(targetDir, result.config)
     drainWithheld = syncDrainMaxParallel(targetDir, result.config)
