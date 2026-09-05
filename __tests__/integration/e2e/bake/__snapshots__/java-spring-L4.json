@@ -578,7 +578,7 @@
     "scripts/gen-doc-index.mjs": "cdd9f1b56ba22503f12dddae14909b8dd85e4fe0d5ea4213a48317f7cb1a870a",
     "scripts/gen-gap.mjs": "362c8c1f558bd006606d8d3c6f12c9d98263089b6b383b6eb9e57722001afd45",
     "scripts/gen-llms-txt.mjs": "631f7b72e74509817cb555553172333959184db32aed21b1170c035a71da91ea",
-    "scripts/gen-wiki.mjs": "074884cd12687964c059efd1b36e2a419a5d3d68331c08cd207830cc22e58b29",
+    "scripts/gen-wiki.mjs": "3fa4820ec04a8a7be5d75d3666dbdbb1805efbf8a9aa5a8b16db6fcb3244b8fb",
     "scripts/gh-cleanup-expired-artifacts.mjs": "4ca6f4c99f6505d374592a4cea5cc663de574009510a6cdd9b77d672d694e83e",
     "scripts/gold-audit.mjs": "fe1f551916bf975795cbd65085938eb0f7121002005af01de8cf675549935281",
     "scripts/ingest-zap-report.mjs": "988f0921a1d39082fc9c666281918fa1a4a512cf8b2d5e9c5126269b47f71792",
