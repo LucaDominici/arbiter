@@ -760,12 +760,7 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
         covered: count(1, 'higher-is-better'),
         unenforceable: count(0, 'lower-is-better'),
       })
-      const r = run([
-        `--docs=${doc}`,
-        `--src=${src}`,
-        `--map=${droppedMap}`,
-        `--baseline=${base}`,
-      ])
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${droppedMap}`, `--baseline=${base}`])
       expect(r.status).toBe(1)
       expect(r.stdout).toContain('[RATCHET]')
       expect(r.stdout).toMatch(/uncovered|unenforceable/i)
@@ -824,6 +819,48 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
     }
   })
 
+  // #2520 proof 1 (real-world shape): the pre-#2520 committed baseline predates the
+  // integrityHash feature entirely (no field at all — not tampered, just OLDER than the
+  // fix) and recorded `covered: 22` from before INV-93's retirement. A plain read must
+  // still refuse it (untrusted is untrusted, regardless of WHY); but `--update-baseline`
+  // — the deliberate, reviewed action — self-heals it: re-signs fresh from the CURRENT
+  // corpus rather than refusing forever, exactly the same shape as seeding a missing file.
+  it('30g. --update-baseline SELF-HEALS a pre-#2520 baseline that has no integrityHash at all (re-signs, does not refuse)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, 'Nothing prohibited here.\n')
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const base = writeUntrustedBaseline(
+        dir,
+        { covered: count(22, 'higher-is-better'), unenforceable: count(0, 'lower-is-better') },
+        { integrityHash: null },
+      )
+      const before = Date.now()
+      const r = run([
+        `--docs=${doc}`,
+        `--src=${src}`,
+        `--map=${map}`,
+        `--baseline=${base}`,
+        '--update-baseline',
+      ])
+      expect(r.status).toBe(0)
+      const updated = JSON.parse(readFileSync(base, 'utf8'))
+      expect(updated.metrics.covered.value).toBe(0)
+      expect(updated.metrics.unenforceable.value).toBe(0)
+      expect(new Date(updated.capturedAt).getTime()).toBeGreaterThanOrEqual(before - 1000)
+      expect(updated.integrityHash).toBe(
+        computeBaselineIntegrityHash({
+          version: updated.version,
+          capturedAt: updated.capturedAt,
+          metrics: updated.metrics,
+        }),
+      )
+    } finally {
+      cleanup()
+    }
+  })
+
   it('30f. a baseline whose integrityHash does not match its own values is rejected fail-closed (exit 2) — the #2520 hand-edit shape', () => {
     const { dir, cleanup } = fixture()
     try {
@@ -835,7 +872,10 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
       const honestHash = computeBaselineIntegrityHash({
         version: 1,
         capturedAt: '2026-01-01T00:00:00.000Z',
-        metrics: { covered: count(22, 'higher-is-better'), unenforceable: count(0, 'lower-is-better') },
+        metrics: {
+          covered: count(22, 'higher-is-better'),
+          unenforceable: count(0, 'lower-is-better'),
+        },
       })
       const base = writeUntrustedBaseline(
         dir,
