@@ -21,19 +21,34 @@ const DEFAULT_CATALOG = `export const INVARIANT_CATALOG = [\n  { id: 'INV-59', t
 /** Build a repo skeleton (registry + invariant catalog) and run the gate over the given ADRs. */
 function runGate(
   adrs: Record<string, string>,
-  opts: { registry?: string; catalog?: string } = {},
+  opts: {
+    registry?: string
+    catalog?: string
+    /** Coverage-ratchet pin. Omit for a permissive one; null omits the file entirely. */
+    unclaimed?: number | null
+    args?: string[]
+  } = {},
 ): { status: number; stdout: string; stderr: string } {
   const dir = mkdtempSync(join(tmpdir(), 'adr-enf-'))
   try {
     mkdirSync(join(dir, 'docs', 'internal', 'ADR'), { recursive: true })
     mkdirSync(join(dir, 'standards'), { recursive: true })
     mkdirSync(join(dir, 'src', 'invariants'), { recursive: true })
+    // The coverage ratchet (#2480) reads a pinned count. Tests that do not care about it get a
+    // permissive pin so they keep asserting only the linkage contract they were written for.
+    if (opts.unclaimed !== null) {
+      mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
+      writeFileSync(
+        join(dir, 'scripts', 'data', 'adr-enforcement-baseline.json'),
+        JSON.stringify({ unclaimed: opts.unclaimed ?? 99 }),
+      )
+    }
     writeFileSync(join(dir, 'standards', 'gold-registry.yml'), opts.registry ?? DEFAULT_REGISTRY)
     writeFileSync(join(dir, 'src', 'invariants', 'catalog.ts'), opts.catalog ?? DEFAULT_CATALOG)
     for (const [name, body] of Object.entries(adrs)) {
       writeFileSync(join(dir, 'docs', 'internal', 'ADR', name), body)
     }
-    const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: dir })
+    const r = spawnSync('node', [SCRIPT, ...(opts.args ?? [])], { encoding: 'utf-8', cwd: dir })
     return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -166,5 +181,76 @@ describe('check-adr-enforcement gate (#1473)', () => {
     const r = runGate({ '018.md': body })
     // The broken FM declared no enforcement key — a body mention must not fabricate a FAIL.
     expect(r.status).toBe(0)
+  })
+
+  // #2480 — the coverage ratchet. The linkage contract above was OPT-IN: 115 of 118 numbered ADRs
+  // declared nothing, so the gate passed while almost no decision named what keeps it true. These
+  // cases pin the ratchet's real property — a fall is free, a rise is refused, and the refusal
+  // cannot be laundered through --update-baseline.
+  describe('coverage ratchet (#2480)', () => {
+    const bare = (id: string) =>
+      `---\ntitle: 'ADR-${id}'\nstatus: active\ncanonical_id: '${id}'\n---\n\n# ADR-${id}\n`
+    const claiming = (id: string, ref: string) =>
+      `---\ntitle: 'ADR-${id}'\nstatus: active\ncanonical_id: '${id}'\nenforces: ['${ref}']\n---\n\n# ADR-${id}\n`
+
+    it('PASSES when the unclaimed count equals the pin', () => {
+      const r = runGate({ '001-a.md': bare('001'), '002-b.md': bare('002') }, { unclaimed: 2 })
+      expect(r.status, r.stderr).toBe(0)
+      expect(r.stdout).toContain('2 ADR(s) declare none')
+    })
+
+    it('FAILS when a new ADR declares no enforcement', () => {
+      const r = runGate(
+        { '001-a.md': bare('001'), '002-b.md': bare('002'), '003-c.md': bare('003') },
+        { unclaimed: 2 },
+      )
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('baseline allows 2')
+      expect(r.stderr).toContain('003-c.md')
+    })
+
+    it('PASSES freely when the count FALLS — paying the debt down needs no ceremony', () => {
+      const r = runGate({ '001-a.md': claiming('001', 'INV-59') }, { unclaimed: 5 })
+      expect(r.status, r.stderr).toBe(0)
+      expect(r.stdout).toContain('0 ADR(s) declare none')
+    })
+
+    it('does not count templates or the generated README — they hold no decision', () => {
+      const r = runGate(
+        { 'ADR-000_template.md': bare('000'), 'README.md': bare('000'), '001-a.md': bare('001') },
+        { unclaimed: 1 },
+      )
+      expect(r.status, r.stderr).toBe(0)
+    })
+
+    it('REFUSES --update-baseline when the count rose — the rise cannot be laundered', () => {
+      const r = runGate(
+        { '001-a.md': bare('001'), '002-b.md': bare('002') },
+        {
+          unclaimed: 1,
+          args: ['--update-baseline'],
+        },
+      )
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('refusing --update-baseline')
+    })
+
+    it('accepts --update-baseline when the count fell', () => {
+      const r = runGate({ '001-a.md': bare('001') }, { unclaimed: 9, args: ['--update-baseline'] })
+      expect(r.status, r.stderr).toBe(0)
+      expect(r.stdout).toContain('baseline updated')
+    })
+
+    it('FAILS when the baseline file is absent — a missing ratchet is not a vacuous pass', () => {
+      const r = runGate({ '001-a.md': bare('001') }, { unclaimed: null })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('not found')
+    })
+
+    it('still FAILS a dangling ref before it ever reaches the ratchet', () => {
+      const r = runGate({ '001-a.md': claiming('001', 'INV-999') }, { unclaimed: 0 })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('no such invariant id')
+    })
   })
 })

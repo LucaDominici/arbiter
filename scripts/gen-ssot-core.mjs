@@ -128,6 +128,14 @@ export function selectSsotDocs(repoRoot) {
     if (fm.status !== 'active') continue
     const kind = firstKind(fm.tags)
     if (kind === 'adr') continue // ADRs owned by INV-107
+    // Runbooks owned by INV-148, and excluded here for the same reason ADRs are: a runbook is a
+    // procedure for one failure, not a source of truth about the system. It joined this set only
+    // because #2480 wave 8 gave it an RB-NN canonical_id, which exposed that `canonical_id` was
+    // doing double duty — "citable" and "SSOT core" are different properties and this is the first
+    // case where they diverge. Left unfixed the bound would erode by design: INV-148 ratchets the
+    // uncovered-operational debt DOWN, so success means many more runbooks, each silently enlarging
+    // the surface INV-108 exists to keep bounded.
+    if (kind === 'runbook') continue
     const canonicalId = fm.canonical_id || ''
     if (!BACKBONE_KINDS.has(kind) && canonicalId === '') continue
     records.push({

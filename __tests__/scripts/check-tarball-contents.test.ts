@@ -15,11 +15,13 @@
 //      signal in the release build AND at the publish boundary (mirrors the
 //      pack-size guard placement; `npm pack` is too heavy for the per-commit L1 gate).
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import {
   classifyTarball,
   findMissingRequired,
+  derivedEngineScripts,
   FORBIDDEN,
   REQUIRED,
 } from '../../scripts/check-tarball-contents.mjs'
@@ -126,7 +128,7 @@ describe('findMissingRequired — required runtime-asset presence (#1575, #1801)
     // src/commands/doc-set.ts and gold-audit.ts shell out to these at runtime
     // (packageRoot()/scripts/*.mjs) — omitted from files[] until #2348, so every
     // real consumer install threw MODULE_NOT_FOUND on `arbiter doc-set`/`gold-audit`.
-    const m = findMissingRequired(['dist/cli.js', 'dist/kit/catalog.json'])
+    const m = findMissingRequired(['dist/cli.js', 'dist/kit/catalog.json'], derivedEngineScripts())
     const labels = m.map((x) => x.label).join(' ')
     expect(labels).toMatch(/check-doc-set\.mjs/)
     expect(labels).toMatch(/gold-audit\.mjs/)
@@ -134,6 +136,52 @@ describe('findMissingRequired — required runtime-asset presence (#1575, #1801)
     expect(labels).toMatch(/check-doc-style\.mjs/)
     expect(labels).toMatch(/lib\/doc-set-resolve\.mjs/)
     expect(labels).toMatch(/lib\/gold-audit-lib\.mjs/)
+  })
+})
+
+// #2480: the #2348 fix was a hand-maintained list of literal paths, so it never ratcheted and a
+// FOURTH engine (check-arc42-slots.mjs) shipped unshipped two waves later. The set is derived now,
+// and these tests are what stop it silently reverting to a list.
+describe('derivedEngineScripts — the engine set is derived, not hand-listed (#2480)', () => {
+  it('finds every engine the CLI resolves against packageRoot(), including arc42', () => {
+    const engines = derivedEngineScripts()
+    expect(engines).toContain('scripts/check-doc-set.mjs')
+    expect(engines).toContain('scripts/check-doc-freshness.mjs')
+    expect(engines).toContain('scripts/gold-audit.mjs')
+    expect(engines).toContain('scripts/check-arc42-slots.mjs')
+  })
+
+  it('every derived engine is actually in package.json files[] — the omission that shipped twice', () => {
+    const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as { files: string[] }
+    for (const engine of derivedEngineScripts()) {
+      expect(pkg.files, `${engine} is resolved at runtime but not shipped`).toContain(engine)
+    }
+  })
+
+  it('a new route in engineFor() is required automatically, with no list to remember', () => {
+    // The whole point: adding an engine to the resolver makes it required without touching this
+    // gate. Proven against a synthetic resolver source rather than by editing the real one.
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-derive-'))
+    try {
+      mkdirSync(join(dir, 'src/commands'), { recursive: true })
+      for (const f of ['doc-set.ts', 'gold-audit.ts']) {
+        writeFileSync(
+          join(dir, 'src/commands', f),
+          `const s = resolve(packageRoot(), 'scripts/check-brand-new-engine.mjs')
+`,
+        )
+      }
+      expect(derivedEngineScripts(dir)).toContain('scripts/check-brand-new-engine.mjs')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('an unreadable resolver source is an ERROR, never an empty engine set', () => {
+    // Fail-closed: returning [] for a missing source would silently require nothing, which is the
+    // #2335 shape all over again.
+    const out = derivedEngineScripts(mkdtempSync(join(tmpdir(), 'arbiter-derive-empty-')))
+    expect((out as { error?: string }).error).toBeTruthy()
   })
 })
 

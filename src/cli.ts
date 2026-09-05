@@ -104,6 +104,26 @@ function printCliError(msg: string): void {
 }
 
 /**
+ * INV-144 / #2480 review: the arc42 engine hardcodes its manifest and ignores unknown argv, so
+ * forwarding --manifest/--doc-profile silently audited the DEFAULT and reported PASS against a
+ * file the operator had named. Merely not forwarding them is invisible — the operator still gets
+ * a verdict about the wrong file. Refuse instead.
+ */
+function refuseUnsupportedArc42Flags(opts: {
+  arc42: boolean
+  manifest?: string
+  docProfile?: string
+}): void {
+  if (!opts.arc42) return
+  if (opts.manifest === undefined && opts.docProfile === undefined) return
+  process.stderr.write(
+    'arbiter doc-set: --manifest/--doc-profile are not supported with --arc42 — the arc42 ' +
+      'engine reads standards/gold-doc-set.yml directly. Re-run without them.\n',
+  )
+  process.exit(2)
+}
+
+/**
  * T3 (gold-doc-tranches-t3-t5.md §1.2d): human report for `arbiter doc-set --plan/--apply` —
  * present · would-scaffold(+template id) · unbound · withheld. `--plan` writes nothing (dryRun);
  * the action label reflects the PROSPECTIVE action either way (writeFile's dryRun/real paths are
@@ -1257,6 +1277,17 @@ program
     'T4: run the per-doc freshness audit (scripts/check-doc-freshness.mjs) instead of presence',
     false,
   )
+  .option(
+    '--arc42',
+    'INV-144: run the arc42 slot-completeness audit (scripts/check-arc42-slots.mjs) instead of ' +
+      "presence — every slot the tier's arc42 skeleton provides must be present and filled",
+    false,
+  )
+  .option(
+    '--update-baseline',
+    '(with --arc42) re-record the hollow-slot ratchet; refused when a counter rose',
+    false,
+  )
   .action(
     (
       repo: string | undefined,
@@ -1270,8 +1301,11 @@ program
         plan: boolean
         apply: boolean
         freshness: boolean
+        arc42: boolean
+        updateBaseline: boolean
       },
     ) => {
+      refuseUnsupportedArc42Flags(opts)
       if (opts.plan || opts.apply) {
         const result = runDocSetPlanApply({
           ...(repo !== undefined ? { repo } : {}),
@@ -1291,6 +1325,8 @@ program
         generate: opts.generate,
         refreshStubs: opts.refreshStubs,
         freshness: opts.freshness,
+        arc42: opts.arc42,
+        updateBaseline: opts.updateBaseline,
         ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
         ...(opts.docProfile !== undefined ? { profile: opts.docProfile } : {}),
       })

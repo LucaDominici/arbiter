@@ -1,0 +1,5 @@
+{
+  "_doc": "Monotone ratchet for the RTM axis-2 rule in scripts/check-feature-matrix.mjs (INV-112, #2480): the number of `Verified` rows that carry no .arbiter/evidence/rtm/<REQ-NNN>.json verification envelope. A Verified row is a claim that the requirement was PROVEN by running something; the envelope is that proof. The count may FALL freely and may never rise — a new Verified row earns its envelope, it does not extend this number. Raising it means hand-editing this file in the same change that needs it, so the new number lands in the diff beside its justification.",
+  "_measured": "2026-09-04, 4 Verified rows at the moment the rule landed: REQ-026, REQ-028, REQ-041, REQ-053. REQ-028 was EARNED rather than grandfathered — its suite was executed and its transcript digest recorded — which is why this starts at 3 and not 4. The remaining three are grandfathered deliberately: no evidence is reconstructed after the fact for a verdict nobody recorded, the same forward-only posture the milestone migration takes. Each is a candidate to be earned the same way REQ-028 was.",
+  "verifiedWithoutEnvelope": 3
+}

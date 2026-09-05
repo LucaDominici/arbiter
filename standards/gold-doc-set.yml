@@ -235,6 +235,32 @@ checks:
     drivers: ['iso29148']
     accept_any: ['ROADMAP.md', 'docs/ROADMAP.md', 'docs/PRODUCT/ROADMAP.md']
     purpose: Forward-looking plan.
+  # FS-NN (#2480): the decision to build THIS, rather than something else or nothing. arbiter and
+  # forma both wrote one retroactively and neither was ever gated, so the artifact existed without
+  # a contract. Tiered like ROADMAP.md — optional for a solo project, where the feasibility case
+  # lives in the author's head and writing it down is ceremony; recommended once a second person
+  # must be convinced; required at enterprise, where "why this and not that" is auditable.
+  # freshness_class `decision` (as for docs/ADR): a feasibility study records an assessment made at
+  # a point in time. Going stale is not a defect — the decision it informed still stands, and
+  # re-dating it would falsify when the judgement was actually made.
+  # No `template:` — no feasibility skeleton exists in src/generators/doc-set.ts, and naming one
+  # that does not exist would be the promise this whole wave is about not making.
+  - path: docs/architecture/feasibility.md
+    tier: recommended
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    freshness_class: decision
+    applies: always
+    phase: inception
+    drivers: ['iso29148', 'iso12207']
+    accept_any:
+      [
+        'docs/architecture/feasibility.md',
+        'docs/architecture/FEASIBILITY.md',
+        'docs/FEASIBILITY.md',
+        'docs/feasibility.md',
+        'docs/design/feasibility.md',
+      ]
+    purpose: Feasibility study — problem/opportunity, alternatives considered, technical / economic / operational / schedule assessment (ISO 29148 business-mission analysis).
   - path: docs/GLOSSARY.md
     tier: recommended
     tiers: { solo: 'o', small: 'r', enterprise: 'R' }

@@ -1,0 +1,12 @@
+{
+  "feature_id": "REQ-028",
+  "verdict": "PROVEN",
+  "justification": "src/generators/feature-matrix.ts emits FEATURE_MATRIX.md, its gate and the rtm-verdict schema into a governed project, and __tests__/generators/feature-matrix.test.ts exercises that emission: 15 cases covering the sentinel block, the status vocabulary, the skipIfExists posture that keeps the matrix user-owned after first write, the gate and schema written alongside it, the emitted gate passing against the matrix the same generator just wrote, and \u2014 since #2480 wave 7 \u2014 the emitted gate NAMING the dependency it is missing rather than dying on MODULE_NOT_FOUND, and refusing a Verified row with no verification envelope. The suite was executed for this verdict rather than read, and re-executed when wave 7 changed the cited spans: a citation that moves invalidates the verdict it supported, which is what axis 1 reported here rather than something anyone remembered to check.",
+  "command": "npx vitest run __tests__/generators/feature-matrix.test.ts",
+  "transcript_digest": "e9591fd4b0bfd90037c7fe3d4c06f561f38bacec9a325861a31a3e8f95c88572",
+  "citations": [
+    "src/generators/feature-matrix.ts#L1-L30@1097d39051c5",
+    "__tests__/generators/feature-matrix.test.ts#L1-L25@34751421bb04"
+  ],
+  "recorded_at": "2026-09-04T19:45:00Z"
+}

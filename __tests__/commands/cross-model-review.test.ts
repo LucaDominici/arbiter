@@ -500,7 +500,26 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         diffEgressConsent: true,
         providers: ['codex'],
         slots: { codeReview: 1, redTeamReview: 0 },
-        timeoutMs: 5_000,
+        // #2501: this case proves the external seat is INVOKED from the real CLI boundary; it is
+        // not a test of the timeout. A 5s budget made it race a wall clock, so on a loaded machine
+        // the stub missed the deadline, the seat degraded, and `findings` came back empty — a red
+        // that says nothing about the wiring under test.
+        //
+        // 20s was the first correction, 90s the second, and BOTH were the wrong shape of fix. The
+        // defect is not that the number was too small — it is that this test had TWO clocks racing
+        // each other: an inner per-invocation budget and the outer spawnSync timeout below. Under
+        // load the inner one won, the stub was SIGTERMed, and the artifact came back
+        // `{fulfilled: 0, degraded: [{reason: "nonzero-exit", detail: "Codex exited with status
+        // -1"}]}` — status -1 being spawnSync's report of a signal kill, not a stub that exited
+        // badly. The same file passes 15/15 in 2s in isolation every time.
+        //
+        // So the inner clock is removed from contention rather than retuned: at 300s (which is
+        // simply the config default, not a magic number) it can never fire before the outer 120s,
+        // leaving exactly ONE timeout able to fail this case — the outer one, which is there to
+        // catch a genuine hang. A test whose verdict depends on which of two deadlines expires
+        // first is a test of the machine's load, and this case is a test of whether the external
+        // seat is REACHED from the CLI boundary.
+        timeoutMs: 300_000,
         onUnavailable: 'degrade',
       }
       writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)
@@ -580,8 +599,13 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             ...process.env,
             HOME: dir,
             PATH: `${bin}:${process.env.PATH ?? ''}`,
+            // #2501: the availability probe is a wall-clock spawn of `codex --version`, and its
+            // 5s default is what actually failed under load — not the invocation timeout raised
+            // above. This case proves the seat is REACHED from the CLI boundary; it is not a test
+            // of how fast a process starts.
+            ARBITER_EXTERNAL_PROBE_TIMEOUT_MS: '60000',
           },
-          timeout: 30_000,
+          timeout: 120_000,
         },
       )
 
@@ -592,8 +616,13 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           'utf8',
         ),
       ) as { fulfilled: Array<{ envelope: string }>; degraded: unknown[] }
+      // Name the degradation when there is one: `expected [] to have a length of 1` sends the
+      // next reader hunting through the invoker, and the answer is always in `degraded`.
+      expect({ fulfilled: artifact.fulfilled.length, degraded: artifact.degraded }).toEqual({
+        fulfilled: 1,
+        degraded: [],
+      })
       expect(artifact.fulfilled).toHaveLength(1)
-      expect(artifact.degraded).toEqual([])
       expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
         '"vendor": "openai"',
       )

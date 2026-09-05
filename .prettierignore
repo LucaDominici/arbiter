@@ -71,3 +71,8 @@ __tests__/templates/__snapshots__/high-fanout/
 # src/state/retired-renders.ts), so reformatting it would silently void the
 # proof this fixture exists to provide. Same reasoning as the approval snapshots.
 __tests__/fixtures/retired-renders/
+
+# Vendored copies of another repository's schemas (INV-143). These must stay BYTE-IDENTICAL to the
+# file their owner ships — scripts/check-forma-contract.mjs hashes them against schemas/CONTRACT.json,
+# so reformatting one silently breaks the pin. Caught exactly that way on 2026-09-02.
+schemas/vendor/

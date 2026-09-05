@@ -92,18 +92,19 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-121:** Stack conformity — the repo-root manifest mus | AGENTS.md:343                     | medium   |
 | - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:370                     | medium   |
 | - **INV-139:** Fixture and smoke output must never land in r | AGENTS.md:396                     | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:408                     | medium   |
-| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:412                     | medium   |
-| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:416                     | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:537                     | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:438                     | medium   |
+| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:442                     | medium   |
+| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:446                     | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:567                     | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must | docs/internal/SYSTEM/CANON.md:252 | medium   |
 | **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314 | medium   |
 | **Tier-2 (advisory only — do NOT hard-gate alone):**         | docs/internal/SYSTEM/CANON.md:326 | medium   |
 | - **DRY-as-dogma** — duplication _count_ gates, but "never r | docs/internal/SYSTEM/CANON.md:329 | medium   |
-| - Skip the gate before committing                            | .claude/CLAUDE.md:97              | medium   |
-| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:100             | medium   |
-| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:112             | medium   |
-| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:116             | medium   |
+| **Rule:** A high-stakes change is not closed on one pass of  | docs/internal/SYSTEM/CANON.md:356 | medium   |
+| - Skip the gate before committing                            | .claude/CLAUDE.md:98              | medium   |
+| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:101             | medium   |
+| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:113             | medium   |
+| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:117             | medium   |
 
 ## Known Debt
 

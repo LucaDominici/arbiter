@@ -818,3 +818,166 @@ Unparseable documents are skipped, non-JSON artifacts are out of scope, and NO-D
 **Enforcement:** `scripts/check-fixture-isolation.mjs` (L1, self) — wired in `scripts/check-all.mjs` and enrolled in the anti-fake-green aggregate roster (`scripts/lib/anti-fake-green-guards.mjs`, class `file-scan`) with a discrimination proof in `scripts/lib/guard-flip-registry.mjs`. Verified by `__tests__/scripts/check-fixture-isolation.test.ts` (red→green). Exit codes per INV-53: 0=PASS/NO-DATA, 1=contamination, 2=ERROR.
 
 ---
+
+### INV-140: Every identifier scheme is registered, collision-free, and its citations resolve
+
+An identifier scheme that lives only in the heads of the people using it drifts into two schemes wearing one prefix. That happened twice here: `MN` meant both a product milestone and an agent-orchestration methodology measure, and `E1`–`E7` meant both an anti-context-rot enforcer and a gold-registry enforcement dimension — so a bare citation was ambiguous and no mechanism could say so. Worse, `OD-NN` was cited in a hook, two empirical tests and the advisory ledger with **no file defining it**, which makes an invented decision id indistinguishable from a real one.
+
+`docs/internal/SYSTEM/ID-REGISTRY.md` declares every scheme in one machine-parsed block — prefix, anchored pattern, SSOT, gate, track, tool, hook, status. The gate proves no two schemes can match the same identifier (each pattern is expanded into a canonical sample and cross-matched against every other regex), that every declared SSOT resolves on disk, and that every `OD-NN` in the tree resolves to a row in `docs/internal/SYSTEM/OD-REGISTRY.md`. A `staged` row is a **dated** obligation: it names the wave that wires it and fails the gate once its `expires` passes — the dated-debt discipline of INV-31 applied to the ontology itself.
+
+**Enforcement:** `scripts/check-id-registry.mjs` (L1, self) — wired in `scripts/check-all.mjs`, validating against `schemas/id-registry.schema.json` through the shared validator in `scripts/lib/agent-return-validate.mjs` (no second validator, CANON-16). Verified by `__tests__/scripts/check-id-registry.test.ts`. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
+
+---
+
+### INV-141: No artifact type exists as documentation alone — every active scheme is wired
+
+The failure this closes is the one every governance framework dies of: a rule is written, nothing runs it, and the document reads like coverage in an audit. For each `active` row in the ID registry the gate proves four legs are real — the gate script is registered on the side its `track` names (`scripts/check-all.mjs` for self, the declarative Track-B roster `src/templates/scripts/gate-registry.yml.ejs` for target, so a correctly-declined gate is never mistaken for an unwired one), the `tool` verb resolves to a `.command()` in `src/cli.ts`, and the `hook` file exists, is registered in `.claude/settings.json`, and **covers the row's SSOT** — existence and registration are necessary and were never sufficient, and four rows passed this check while naming a hook whose dispatch table matched none of their instances (#2480 wave 8). An unregistered hook never fires; an uncovering one never fires either. A **fourth leg** since wave 8: a declared `graphNode` must be a NodeKind the graph actually has. Six rows asserted one while `src/graph/model.ts` had none of them — the same shape as the hook column, a statement of intent reading as a statement of fact. Most schemes have no graph node and that is fine; the rule is only that a _declared_ one is real.
+
+`staged` rows are exempt by design — a stage is a dated obligation enforced by INV-140, not a second copy of the same failure — and are counted instead, against a monotone ratchet over the unwired legs. There is deliberately no `--allow-increase`: the count may fall freely, and raising it means hand-editing `scripts/data/ontology-baseline.json` in the same PR as the row that needs it, where the number lands in the diff beside its justification.
+
+**Enforcement:** `scripts/check-ontology-wired.mjs` (L1, self) — wired in `scripts/check-all.mjs`, with the ratchet in `scripts/data/ontology-baseline.json`. Verified by `__tests__/scripts/check-ontology-wired.test.ts`. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
+
+---
+
+### INV-142: An edited ontology artifact is schema-valid at edit time, not at merge time
+
+A schema checked only in CI teaches the agent an hour late, after a commit and a push, when the cheapest moment to learn was the edit itself. One `PostToolUse` hook carries a table of registered instances — a path or directory prefix, the schema, and how to extract the document (the whole file as JSON or YAML, or a fenced JSON block between sentinels) — and validates whatever was just written, blocking with exit 2. The table is the mechanism and was also the gap: until wave 8 it held two entries while four ID-registry rows named this hook as their edit-time enforcement, so no milestone, epic, source record or use case was ever checked at the edit. INV-141 now resolves each row's SSOT through this table, so the claim cannot be made again without being true.
+
+One hook rather than one per artifact is the point: each wave that lands an artifact type adds a single line to the table and that type becomes edit-time enforced for free. The hook fails **open** on its own infrastructure — if the validator or the schema cannot be loaded it exits 0 — because a guard that blocks an unrelated edit when its own dependency moved is a worse failure than the one it prevents; the CI gate remains the backstop.
+
+**Enforcement:** `.claude/hooks/post-edit-artifact-schema.mjs` (`PostToolUse` → `Edit|Write`, self) — registered in `.claude/settings.json`. Exit 2 is the only blocking code under the hook protocol; exit 1 prints and the agent never sees it, which would make the guard decoration. Verified by `__tests__/hooks/post-edit-artifact-schema.test.ts`.
+
+---
+
+### INV-143: The arbiter <-> forma schema contract is pinned and gated on both sides
+
+arbiter owns the governance ontology; forma owns the stack-agnostic C4 model shape and renders what arbiter defines. Two repositories sharing schemas by good intentions drift the first time either ships a change alone, and the drift surfaces as a visualiser silently rendering a model it half-understands.
+
+`schemas/CONTRACT.json` names, for each shared schema, the owning repository, the path inside it, a sha256, and which repos vendor a pinned copy. Both repositories hold a byte-identical copy and each gates its own half: the owner re-hashes what it owns, the consumer re-hashes what it vendored. Editing a shared shape without re-pinning turns the owning repo red at once; a stale vendored copy turns the consuming repo red. When both checkouts sit side by side the gate also proves the two manifests are byte-identical and the sibling's live files still hash to the pin — and when they do not, that half **skips out loud** rather than passing in silence, because a cross-repo check that quietly does nothing is the exact failure the contract exists to prevent.
+
+**Enforcement:** `scripts/check-forma-contract.mjs` (L1, self) — wired in `scripts/check-all.mjs`; forma runs the mirror `scripts/check-arbiter-contract.mjs` in its own CI and `npm test`. Verified by `__tests__/scripts/check-forma-contract.test.ts`. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
+
+---
+
+### INV-144: The architecture document is a filled structure, not a surviving skeleton
+
+arc42 is twelve enumerable slots, and a project that scaffolds one and never fills it has a document that answers no question while satisfying every presence check. Presence gates cannot see this: the file exists, it is fresh, and every section heading is there. What is missing is the content.
+
+This invariant makes the structure addressable. `ARC-01`..`ARC-12` are parsed out of the architecture document, and every slot the arc42 skeleton for that project's tier column provides must be present in it — a section **deleted** from the document is a structural gap, not a simplification. The required set is **read** from the skeleton (`arc42-canvas` for the solo/small columns, `arc42-full` for enterprise, exactly as `src/generators/doc-set.ts` already decides) rather than restated in the gate, so the two can never hold different opinions about what a tier owes, and adding a section to a skeleton automatically makes it required of the projects that receive it. The converse is guarded by a second ratchet over the skeleton's **own** gaps against canonical arc42: without it, deleting a section from a skeleton would quietly lower the bar for every project downstream and the gate would report the weakened bar as a pass.
+
+A hollow slot — a body that is nothing but the skeleton's prompt comment, or exactly one placeholder token — is **counted, not forbidden**. The count may fall freely and may never rise, so a section may be left unfilled but a new unfilled one may not be added; `--update-baseline` refuses a rise, which is the load-bearing property. With no baseline file at all the current count is recorded rather than failed: a freshly generated arc42 is hollow by construction, and a gate that made `arbiter init` produce a red repo would only teach people to delete the gate.
+
+A stub is recognised **structurally**, not by keyword. The first design scanned for `TODO`/`TBD` markers; run over arbiter's own arc42 it produced three false positives, every one of them prose _about_ todo gates and a technical-debt count. Emptiness after stripping comments is the honest signal.
+
+An adversarial review of the first implementation refuted its own Track-B claim, and the corrections are the substance of this invariant. Four of them are worth stating because each was a way the gate could have looked green while enforcing nothing:
+
+- The engine was **not in `package.json` `files[]`**, so an installed arbiter resolved a path that did not exist and reported `MODULE_NOT_FOUND` as an arc42 _slot violation_. This had already happened once (#2335) and the guard written then was a hand-maintained list of literal paths, which is why it did not ratchet. `scripts/check-tarball-contents.mjs` now **derives** the required engines from the `scripts/*.mjs` literals in the files that call `packageRoot()`, so a new route to `engineFor()` cannot be added without shipping its script.
+- Skeletons resolved from `src/templates/`, which exists only in a dev checkout; the package ships `dist/`. Resolution now probes source first, shipped second — correct in both layouts.
+- The baseline was tolerated **in memory only**, so no governed project ever grew one and `allowed` was recomputed as "whatever it is today" on every run. The first clean run now writes it.
+- `skeletonGaps` was a single scalar measured on the enterprise column, leaving the Canvas skeleton — the one solo and small projects receive, and the one arbiter's own CI never resolves — entirely unguarded. It is keyed per column now.
+
+A counter that is present but not a number is an **ERROR**, not a bootstrap: `"stubs": "0"` is a two-character diff that reads as a formatting nit and would otherwise disable the ratchet permanently while `--json` kept reporting `baseline == stubs`, i.e. health.
+
+**Enforcement:** `scripts/check-arc42-slots.mjs`. Self: L1, `runCheck`, unconditional, wired in `scripts/check-all.mjs`; ratchet in `scripts/data/arc42-baseline.json`. Track B is deliberately weaker and says so: the `gate-registry.yml.ejs` row is L2, `runWarnCheck`, gated on `enableDebtGates`, because a freshly generated arc42 is hollow by construction. Verified by `__tests__/scripts/check-arc42-slots.test.ts` (43 cases), which reads the real skeletons and a package-shaped `dist`-only layout rather than fixtures alone — a fixture that grades itself is what let the nine-vs-ten `CANVAS_SLOTS` drift go unnoticed. Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR.
+
+### INV-145: Adversarial review closes only when nothing above low severity survives
+
+One pass of review finds what one reader happened to look for. A high-stakes change is therefore attacked by independent skeptics carrying a REFUTE mandate, and the loop **repeats** — each hop attacking the fixes the previous hop forced — until no finding above `low` is left unaddressed.
+
+This is the complement of the refutation-majority rule (E2 #1943, M13), not a duplicate of it. That rule stops a **phantom** finding being acted on; this one stops the loop **ending while something real is still open**. Both read the same skeptic envelopes, so the second axis needs no new artifact — only the obligation to keep hopping.
+
+Three properties are load-bearing, and each was chosen against a specific failure:
+
+- **Severity is the highest any skeptic assigned.** When two disagree, the loop clears the worse reading. Taking the kinder one would let a second opinion lower the bar.
+- **Below quorum or majority-REFUTED never blocks.** Fixing the false negative must not reintroduce the false positive the majority rule exists to prevent: one skeptic's false alarm cannot hold a wave hostage.
+- **The floor runs even when nothing was acted on.** A round that addressed nothing while the skeptics upheld a `high` is exactly what this catches — an early return there made it unreachable for its own subject, a bug found by its own tests rather than by review.
+
+A hop that cannot reach an independent reviewer (model unavailable, rate limit, the cross-model seat offline) may be self-probed, but the marker carries `degraded: true`, the gate reports DEGRADED on every run, and the round never counts as independent. A self-review filed as an independent one is the fake-green this catalog exists to prevent. The strongest skeptic remains a **different model** (`crossModelReview`); the same-model fan-out is a declared fallback, weaker because its blind spots are correlated with the author's — see ADR-119.
+
+**Enforcement:** `scripts/check-refutation-verdicts.mjs`, wired on both tracks as `refutation majority (E2 #1943)` — `runWarnCheck` in `scripts/check-all.mjs`, a row in `src/templates/scripts/gate-registry.yml.ejs`, and the engine itself emitted via `src/templates/scripts/check-refutation-verdicts.mjs.ejs` (kept byte-identical). Marker-gated. Verified by `__tests__/scripts/check-refutation-verdicts.test.ts` (15 cases, tamper-proven in both directions). Exit codes per INV-53: 0=PASS, 1=violation, 2=ERROR. CANON-24.
+
+---
+
+### INV-146: A milestone is done only when its exit criteria carry evidence
+
+A roadmap in prose cannot be wrong, because nothing reads it. Milestones are therefore a typed SSOT — `docs/internal/PRODUCT/MILESTONES.yml` — where each entry carries a GSN goal (the claim, plus the strategy by which its exit criteria are argued to establish that claim), exit criteria, dependencies and a Now/Next/Later horizon.
+
+Three properties are enforced that a document cannot hold, and each was chosen against a specific failure:
+
+- **The dependency graph is acyclic.** A plan that quietly requires itself is unschedulable, and no reader of a prose roadmap has ever caught one. The gate reports the cycle **as its path** (`MS-01 -> MS-02 -> MS-01`), because "a cycle exists" is a puzzle rather than a defect report.
+- **Granularity decays with distance.** `due` is required for `now`, optional for `next`, and **forbidden** for `later`. A date on a milestone nobody has scoped is false precision, so the schema refuses it rather than trusting a convention readers are expected to follow. This rule is enforceable only since #2509 taught the shared validator `if`/`then`/`not` — before that it was a schema keyword that never ran, which is the failure mode this whole programme exists to eliminate.
+- **`done` is fail-closed on evidence.** Every exit criterion of a `done` or `verified` milestone must cite a resolvable artifact, and `verified` requires those citations to actually resolve. This is the reason the gate exists: a roadmap whose `done` means "someone typed done" is not a weaker roadmap — it is a false claim with a schema around it.
+
+The migration is **forward-only** by owner decision. The 33 historical `## MN` headings stay in the prose archive rather than having exit-criteria evidence reconstructed after the fact to satisfy the gate; inventing that evidence is exactly the fake-green the rule is built to stop. Accepted cost: no plan history before the SSOT existed.
+
+The same SSOT carries the **epic index** (`EP-NN`, wave 8), read by the same gate on purpose: an epic that targets no milestone and a milestone claiming an epic that does not exist are one defect seen from two ends, so the join is checked in **both directions**. An issue is claimed once — as an epic or as a plain member, never both; a terminal epic status (`drained`, `abandoned`) carries the same fail-closed `evidence_ref` rule; and a milestone cannot be `done` while an epic targeting it is open. What the gate **cannot** do is compare a recorded status against GitHub, because it is offline by contract (INV-13) — and that limit is not hypothetical: all three epics first recorded here were already closed, two of them abandoned rather than delivered, while the file's own prose called them open. The `abandoned` rung of the ladder was not designed, it was found.
+
+A missing `MILESTONES.yml` **skips out loud** — a project need not have codified a roadmap, but a skip must never be mistakable for a pass, so it prints `[SKIP]` and surfaces as `verdict: "skip"` under `--json`.
+
+**Enforcement:** `scripts/check-milestones.mjs`, wired on the self track as `milestones (INV-146)` via `runCheck` in `scripts/check-all.mjs`. Self-only for now, declared rather than left to be found: the `MS` scheme is `staged` in the ID registry with a dated expiry and the Track-B emission lands with it — claiming both tracks before that exists is the error INV-144 was caught making. Verified by `__tests__/scripts/check-milestones.test.ts` (84 cases), tamper-proven in both directions on every rule: a cycle, a dangling `depends_on`, a duplicate id, a `later` carrying a `due`, `done` without evidence and `verified` citing an unresolvable ref each fail, and the same tree with the defect removed passes. Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
+
+---
+
+### INV-149: A use case names an actor, a goal, and features that exist
+
+A use-case matrix does not decay by going out of date. It decays by **rename**: a feature is renamed in the matrix, every use case pointing at the old id keeps reading exactly like coverage, and nothing notices. So the central rule here is not that use cases exist — it is that every `featureId` **resolves**.
+
+The schema carries the other half:
+
+- an **actor**. A use case with no actor is a feature description wearing a use case's name; the actor is what makes it a claim about someone's world rather than about the code.
+- a **goal**, in the actor's terms rather than the mechanism's.
+- `featureIds` with **`minItems: 1`**. A use case demanding no feature is a promise with nothing behind it, and it is precisely what an unmaintained matrix accumulates.
+
+The **scenario join** is checked in both directions. A tabletop scenario naming a use case that does not exist fails; and a use case claiming `status: exercised` that no scenario walks fails, because status is not a walk. The second direction is invisible from the scenario side, which is why the join is read from here.
+
+**This gate does its real work on the target track, and the asymmetry is structural rather than an omission.** arbiter's 62 feature-matrix rows are cross-cutting capability areas — architecture enforcement, static analysis, CI/CD wiring — so one of its use cases would name nearly all of them and the link would carry no information. Measured against a real product's matrix, a use case names **one or two** features, and that ratio is what makes the edge worth checking. arbiter's own copy therefore **skips out loud**, and the registry note that claimed this scheme unified "three near-misses" was corrected: two of the three do not exist here, and the third is gated in its own right as `TT` and joined to this one rather than absorbed.
+
+**Enforcement:** `scripts/check-use-cases.mjs`, wired on **both** tracks — self as `use cases (INV-149)` via `runCheck` in `scripts/check-all.mjs`, target via the `use-cases` row in the emitted gate registry — and emitted **with** `schemas/use-case.schema.json`, because a rule shipped without its contract dies on `MODULE_NOT_FOUND` the first time a project uses it (CANON-11; a missing schema is exit 2 here, never a silent skip). The three document paths are the only divergence between the copies, pinned in `.dogfood-divergences.json`. A missing SSOT **skips out loud**, visible as `verdict: "skip"` under `--json`. Verified by `__tests__/templates/track-b-evidence-gates.test.ts`, which **renders the gate into a project-shaped tree and runs it** — every failure path included, because the self copy skips and a gate whose rules are exercised nowhere in CI is a gate that has never run (#2335). Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
+
+---
+
+### INV-147: A cited source is quotable, and the quotation checks out
+
+A URL in a document proves nothing. The page can change under the citation, or can never have said what it is cited for, and in neither case does anything notice. That is how a bibliography becomes decoration: it looks like evidence and is not checkable.
+
+A source is therefore admitted only with a **committed, citation-length excerpt** and the sha256 of that excerpt. Every quotation the project makes must appear in it **literally**.
+
+Both halves are load-bearing, and neither is sufficient alone:
+
+- a **substring check alone** passes on an excerpt someone edited after the fact, so the evidence could drift away from what was actually read;
+- a **hash alone** proves the excerpt is unchanged while saying nothing about whether the quotation appears in it at all.
+
+Together they make "this source says X" falsifiable **without a network call**, which is what lets the rule run in a pre-commit hook on a machine with no credentials.
+
+Two things this rule deliberately refuses to do:
+
+- **It never dereferences the `url`.** That field is recorded provenance. A gate that fails when a website is down fails for a reason unrelated to the claim it guards; link-liveness is a separate, advisory, networked concern.
+- **It does not judge relevance.** Whether a source actually supports a decision is a judgement, not a decidable property. Tier 1 settles only what a machine can settle alone; tier 2 puts relevance to independent skeptics, and tier 3 requires a `SOURCE`→ADR→FILE path in the graph before a source may claim `applied-certified`.
+
+A missing `SOURCES.md` **skips out loud** — a project need not cite anything, but a skip must never be mistakable for a pass.
+
+**Enforcement:** `scripts/check-sources.mjs`, wired on the self track as `sources tier 1 (INV-147)` via `runCheck` in `scripts/check-all.mjs`. Self-only for now and declared as such: the Track-B emission needs `schemas/source-record.schema.json` shipped alongside the gate (CANON-11), and the `SRC` row stays `staged` in the ID registry until its source-management CLI verb and its SOTA-required hook land with tiers 2 and 3. Neither exists yet, so neither is named here as though it did — a documented command name is a claim the phantom-command scan (INV-111) will hold this file to. Verified by `__tests__/scripts/check-sources.test.ts` (12 cases) and tamper-proven on arbiter's own two recorded sources in both directions: editing an excerpt so the quote still appears but the hash drifts fails, and claiming a quote the source never made fails. Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
+
+---
+
+### INV-148: A runbook names the invariants it handles, and what it names is real
+
+A runbook is what a human does once enforcement has already fired and the thing is broken. It is the one governance artifact whose value is realised at the worst possible moment, which is precisely when nobody is going to notice that it points at an invariant that no longer exists.
+
+Two directions are checked, and they are **deliberately asymmetric**, because only one of them is honestly pass/fail today.
+
+**Hard.** Every doc whose frontmatter `tags` declare `kind/runbook`:
+
+- carries a `canonical_id` matching `^RB-[0-9]{2}$`, unique across the set. The id is reused from the frontmatter contract every doc already has rather than inventing a key (CANON-16), and a runbook nothing can cite is a runbook nothing can be traced to.
+- declares a non-empty `handles:` list. A runbook that handles nothing named is a document about a topic, not an operational response to a failure.
+- names only invariants that exist. An unresolvable ref is the runbook equivalent of a dangling `test_ref`: it reads as coverage and covers nothing.
+
+`handles` accepts **any** tier. Both runbooks that predate this gate handle non-operational invariants — RB-01 handles the two security invariants a Dependabot PR can violate, RB-02 the exit-code and parity-surface contracts of the gate it documents — and a rule that failed them would be a rule fitted to a theory rather than to the repository.
+
+**Ratcheted.** Operational-tier invariants that no runbook handles. This is a **debt counter**, and labelling it one is the point: there are 49 operational invariants and two runbooks, so shipping "every operational invariant needs a runbook" as a hard rule would be red on arrival and instantly baselined into meaninglessness — the green-because-baselined failure this document exists to prevent. As a ratchet the debt is visible, bounded, and cannot grow in silence. Of the 49, ten name no enforcement script at all; those are the honest first targets, since a human procedure is the only enforcement they will ever have.
+
+Discovery reads **frontmatter, never greps**. `docs/GOVERNANCE.md` and `docs/INDEX.md` both contain the literal string `kind/runbook` while merely listing tags — a grep would have made the gate's first finding its own false positive.
+
+**Enforcement:** `scripts/check-runbook-coverage.mjs`, wired on the self track as `runbook coverage (INV-148)` via `runCheck` in `scripts/check-all.mjs`, with the ratchet in `scripts/data/runbook-baseline.json`. Self-only for now and declared as such: the `RB` scheme is `staged` in the ID registry with a dated expiry and the Track-B emission lands with it — claiming both tracks before that exists is the error INV-144 was caught making. Unlike the ADR enforcement ratchet, `--update-baseline` **records** a rise rather than refusing it: the counter is over a catalog this gate does not own, and adding an operational invariant legitimately raises it (INV-08) — what stays refused is a _silent_ rise, since the new number lands in the diff either way. A missing catalog **skips out loud**, visible as `verdict: "skip"` under `--json`. Verified by `__tests__/scripts/check-runbook-coverage.test.ts` (41 cases), tamper-proven in both directions on every rule: an empty or off-pattern `canonical_id`, a duplicate `RB` id, an empty `handles`, a ref naming an invariant that does not exist, and a ratchet rise each fail, and the same tree with the defect removed passes. Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
+
+---

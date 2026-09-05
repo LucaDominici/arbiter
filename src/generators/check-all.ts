@@ -361,6 +361,35 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['schemas', 'tabletop-evidence.schema.json'],
     tpl: 'schemas/tabletop-evidence.schema.json.ejs',
   },
+  // #2480 (INV-147): SOTA source certification, tier 1 — every quoted span a project claims must
+  // be a literal substring of a committed excerpt whose sha256 matches what was recorded. The rule
+  // is generic and deterministic offline, so it ports whole; only the registry's path differs
+  // (docs/SOURCES.md here, docs/internal/PRODUCT/SOURCES.md in arbiter's own tree). Emitted with
+  // its schema, because a gate that errors the moment a project records a source is worse than no
+  // gate; wired at L1 in check-all.mjs.ejs and SKIPs out loud when docs/SOURCES.md is absent.
+  {
+    rel: ['scripts', 'check-sources.mjs'],
+    tpl: 'scripts/check-sources.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'source-record.schema.json'],
+    tpl: 'schemas/source-record.schema.json.ejs',
+  },
+  // #2480 (INV-149): the use-case SSOT — an actor, a goal, and features that exist. This gate does
+  // its real work HERE and not in arbiter, and the asymmetry is structural: arbiter's feature-matrix
+  // rows are cross-cutting capability areas, so one of its use cases would name nearly all of them
+  // and the link would carry no information; in a product a use case names one or two features, and
+  // that ratio is what makes the edge worth checking. Emitted WITH its schema for the reason the
+  // sources port learned the hard way — a rule shipped without its contract dies on MODULE_NOT_FOUND
+  // the moment a project uses it. Wired at L1; SKIPs out loud when docs/USE_CASES.md is absent.
+  {
+    rel: ['scripts', 'check-use-cases.mjs'],
+    tpl: 'scripts/check-use-cases.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'use-case.schema.json'],
+    tpl: 'schemas/use-case.schema.json.ejs',
+  },
   // #1456 (INV-133): TODO max-age enforcement gate. A TODO(#NNN) whose linked issue
   // was created more than MAX_AGE_DAYS ago FAILS the gate (age from issue created_at
   // only). Self-contained; wired at L2 in check-all.mjs.ejs. Graceful-SKIPs offline.
@@ -466,6 +495,17 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // check-doc-set.mjs above — delegates to `npx arbiter doc-set --freshness`. Emitted
   // unconditionally but wired OUTSIDE check-all.mjs L2 (monthly + release lane only, per the
   // solo-developer-gate-model doctrine) — see _monthly.yml.ejs / 05-release.yml.ejs.
+  // INV-144: arc42 slot-completeness thin runner, same shape/rationale as check-doc-set.mjs —
+  // delegates to `npx arbiter doc-set --arc42`. The skeletons the audit compares against stay in
+  // arbiter's own tree, so a governed project is held to the skeleton IT received without carrying
+  // a copy that could drift. Wired L2 warn in the registry: hollow sections are a real finding, but
+  // a freshly generated arc42 is hollow by construction and must not make `arbiter init` red.
+  // The registry row is L2 + warn + enableDebtGates — deliberately weaker than the self side's
+  // L1 + runCheck + unconditional, and declared as such in the INV-144 catalog entry.
+  {
+    rel: ['scripts', 'check-arc42-slots.mjs'],
+    tpl: 'scripts/check-arc42-slots.mjs.ejs',
+  },
   {
     rel: ['scripts', 'check-doc-freshness.mjs'],
     tpl: 'scripts/check-doc-freshness.mjs.ejs',

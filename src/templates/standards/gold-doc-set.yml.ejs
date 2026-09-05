@@ -255,6 +255,33 @@ checks:
     drivers: ['iso29148']
     accept_any: ['ROADMAP.md', 'docs/ROADMAP.md', 'docs/PRODUCT/ROADMAP.md']
     purpose: Forward-looking plan.
+  # FS-NN (#2480): the decision to build THIS, rather than something else or nothing. Tiered like
+  # ROADMAP.md — optional for a solo project, where the feasibility case lives in the author's head
+  # and writing it down is ceremony; recommended once a second person must be convinced; required at
+  # enterprise, where "why this and not that" is auditable.
+  # freshness_class `decision`: a feasibility study records an assessment made at a point in time.
+  # Going stale is not a defect — the decision it informed still stands, and re-dating it would
+  # falsify when the judgement was actually made.
+  # No `template:` — no feasibility skeleton exists in src/generators/doc-set.ts. This row is the
+  # Track-B twin of the same row in arbiter's own standards/gold-doc-set.yml (CANON-01): a
+  # feasibility study is a general requirement, not an arbiter-specific document, so imposing it on
+  # arbiter alone would be the asymmetry CANON-01 exists to surface.
+  - path: docs/architecture/feasibility.md
+    tier: recommended
+    tiers: { solo: 'o', small: 'r', enterprise: 'R' }
+    freshness_class: decision
+    applies: always
+    phase: inception
+    drivers: ['iso29148', 'iso12207']
+    accept_any:
+      [
+        'docs/architecture/feasibility.md',
+        'docs/architecture/FEASIBILITY.md',
+        'docs/FEASIBILITY.md',
+        'docs/feasibility.md',
+        'docs/design/feasibility.md',
+      ]
+    purpose: Feasibility study — problem/opportunity, alternatives considered, technical / economic / operational / schedule assessment (ISO 29148 business-mission analysis).
   - path: docs/GLOSSARY.md
     tier: recommended
     tiers: { solo: 'o', small: 'r', enterprise: 'R' }

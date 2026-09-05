@@ -82,6 +82,20 @@ const PATH_ALLOWLIST = new Set([
   // AGENTS.md narrates the T2 cut in the same sentence ("commands/conformance.ts
   // deleted"); website/governance/AGENTS.md is its byte-for-byte mirror.
   'website/governance/AGENTS.md:commands/conformance.ts',
+  // INV-143: the arbiter <-> forma schema contract is gated from BOTH sides, and the invariant
+  // has to name the other side's gate to describe itself. scripts/check-arbiter-contract.mjs
+  // lives in the forma repository by design — repointing it at an arbiter path would make the
+  // sentence false, and dropping the name would leave the reader unable to find the other half.
+  'website/governance/AGENTS.md:scripts/check-arbiter-contract.mjs',
+  'AGENTS.md:scripts/check-arbiter-contract.mjs',
+  // INV-147 (#2480): the SOTA gate reads docs/SOURCES.md in a GOVERNED PROJECT and
+  // docs/internal/PRODUCT/SOURCES.md in arbiter's own tree. The row has to name both to describe
+  // the one divergence between the two copies; repointing the target path at arbiter's would make
+  // the sentence false, and dropping it would leave a reader unable to find their own registry.
+  'website/governance/AGENTS.md:docs/SOURCES.md',
+  'AGENTS.md:docs/SOURCES.md',
+  'GLOBAL_INVARIANTS.md:scripts/check-arbiter-contract.mjs',
+  'docs/internal/ADR/118-lifecycle-ontology-wired-not-written.md:scripts/check-arbiter-contract.mjs',
   // A 1.0.0 breaking-changes row recording a rename between two modules that
   // both existed at the time and were both later removed.
   'docs/SEMVER.md:src/config/thresholds-l1-l2-l3.ts',

@@ -9,6 +9,11 @@
       "reason": "INV-12: all child_process use in src/ routes through src/utils/run-cli.ts (ADR-020), an arbiter-internal module boundary. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
     },
     {
+      "path": ".claude/hooks/post-edit-artifact-schema.mjs",
+      "reason": "INV-142: validates an edited ontology artifact against its registered schema at edit time rather than in CI. STAGED: the hook's REGISTERED table currently names arbiter's own instance paths (docs/internal/SYSTEM/ID-REGISTRY.md, .arbiter/evidence/agent-returns/). The Track-B twin ships with the target-side registry in the mutual-extension wave, when a governed project has instances for it to police.",
+      "expires": "2026-12-31"
+    },
+    {
       "path": ".claude/hooks/pre-edit-load-memory.mjs",
       "reason": "Loads `.claude/memory-impl.md` before editing matching files. CONFIRMED self-only: `.claude/memory-impl.md` is arbiter-repo-specific accumulated-gotcha memory for this codebase's own development; no template emits an equivalent memory file or loader hook for target projects."
     },
@@ -133,6 +138,10 @@
       "reason": "Fixture/smoke output must not contaminate the real evidence roots (`.arbiter/evidence`, `.evidence`). CONFIRMED self-only: this audits arbiter's own test-fixture corpus (`__tests__/fixtures/**`) and smoke-test output for leakage into arbiter's own dev evidence roots — a QA hygiene check on arbiter's own test suite, not a concern a generated target project has."
     },
     {
+      "path": "scripts/check-forma-contract.mjs",
+      "reason": "INV-143: pins the shared schema contract with the sibling forma repository (schemas/CONTRACT.json). CONFIRMED self-only: its subject is the arbiter<->forma boundary — which repo owns which schema shape and whether the vendored copies still match. A governed target owns neither side of that boundary; it consumes whatever shapes arbiter and forma have already agreed on, so an emitted twin would be a gate with no subject."
+    },
+    {
       "path": "scripts/check-generator-tests.mjs",
       "reason": "INV-49/CANON-05: every src/generators/*.ts has a matching test. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence)."
     },
@@ -162,6 +171,11 @@
       "expires": "2026-10-27"
     },
     {
+      "path": "scripts/check-id-registry.mjs",
+      "reason": "INV-140: validates docs/internal/SYSTEM/ID-REGISTRY.md — the registry of every identifier scheme — plus the owner-decision registry its citations resolve against. STAGED, not confirmed self-only: a governed project owns real schemes too (REQ, D, AC, PROJ), so the Track-B twin is legitimate and is scheduled with the mutual-extension wave that emits the registry into targets alongside src/generators/forma.ts. Until a target HAS a registry, an emitted gate would be a gate with no subject.",
+      "expires": "2026-12-31"
+    },
+    {
       "path": "scripts/check-id-stability.mjs",
       "reason": "No catalog invariant ID may vanish between origin/main and HEAD without status:\"retired\". Its subject is arbiter’s own governance SSOT (invariant catalog, CANON.md, AGENTS.md, ADR corpus, docs/internal, website/). Target projects receive generated governance documents; they do not own arbiter’s doctrine files — self-only by construction."
     },
@@ -188,6 +202,15 @@
     {
       "path": "scripts/check-methodology-coverage.mjs",
       "reason": "#2039: parity between configure.ts ALLOWED_PATHS and method.ts METHODOLOGY_CATALOG. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence). Undated deliberately: this mirrors its sibling scripts/check-settings-coverage.mjs, which reconciles the same configure.ts against settings.ts and is likewise permanent-by-design, not STAGED."
+    },
+    {
+      "path": "scripts/check-milestones.mjs",
+      "reason": "INV-146: validates the milestone SSOT (docs/internal/PRODUCT/MILESTONES.yml) against schemas/milestone.schema.json and proves it acyclic and fail-closed on `done`. Self-only PROVISIONALLY, not by construction: the MS identifier scheme is still `staged` in docs/internal/SYSTEM/ID-REGISTRY.md with a dated expiry of 2026-11-15, and the Track-B emission (a gate-registry.yml.ejs row plus the emitted schema) lands with that promotion. The declination is therefore an obligation with a deadline the ID registry already enforces, not a permanent divergence — and it is recorded here rather than claimed as both-track wiring, which is the error INV-144 was caught making."
+    },
+    {
+      "path": "scripts/check-runbook-coverage.mjs",
+      "reason": "INV-148: every doc tagged kind/runbook carries an RB-NN canonical_id and a non-empty `handles:` whose invariant ids resolve, plus a ratcheted debt counter over operational-tier invariants no runbook handles. Self-only PROVISIONALLY, not by construction: a governed project has runbooks and an invariant set of its own, so the gate has a real subject there — what is missing is the emission, and the RB identifier scheme is `staged` in docs/internal/SYSTEM/ID-REGISTRY.md with a dated expiry of 2027-01-31 that the Track-B twin lands against. Recorded here rather than claimed as both-track wiring, which is the error INV-144 was caught making. The row also carries a second correction found by building the gate: RB's declared ssot was docs/internal/runbooks, but only one of the two runbooks lives there.",
+      "expires": "2027-01-31"
     },
     {
       "path": "scripts/check-monthly-freshness.mjs",
@@ -228,6 +251,11 @@
       "path": "scripts/check-npm-ci-drift.mjs",
       "reason": "`npm ci` would succeed under the pinned `packageManager`. STILL PENDING: npm-based target projects get a `package-lock.json` but no gate verifies `npm ci` succeeds under their pinned npm the way this self check does for arbiter's own lockfile. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
       "expires": "2026-10-27"
+    },
+    {
+      "path": "scripts/check-ontology-wired.mjs",
+      "reason": "INV-141: the anti-prose meta-gate — every active scheme in the ID registry must be a wired behaviour (gate registered, CLI verb resolving, hook in settings) against a monotone ratchet. STAGED for the same reason as check-id-registry.mjs, and strictly downstream of it: it can only be emitted once targets carry the registry it enumerates.",
+      "expires": "2026-12-31"
     },
     {
       "path": "scripts/check-orchestration-integrity.mjs",

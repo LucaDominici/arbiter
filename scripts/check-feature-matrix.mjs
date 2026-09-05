@@ -21,6 +21,9 @@
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
+import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 
 const ROOT = process.cwd()
 
@@ -84,6 +87,111 @@ function splitRefs(cell) {
   return cell.split(',').map(normalizeRef).filter(Boolean)
 }
 
+/** Split a ref cell into RAW refs, anchors intact — the span check needs what normalizeRef drops. */
+function splitRawRefs(cell) {
+  if (!cell || !cell.trim()) return []
+  return cell
+    .split(',')
+    .map((r) => r.trim())
+    .filter(Boolean)
+}
+
+// ─── Span-pinned refs: OUTDATED detection (#2480 wave 4, RTM axis 1) ─────────
+//
+// A citation by line number cannot survive the file being edited, and until now nothing checked
+// it: normalizeRef strips `#L10-L20` before the existence test, so a span pointing past the end of
+// the file — or at lines that have since become something else — left the row reading Verified.
+// That is the "the requirement changed, the test did not" failure the RTM exists to catch.
+//
+// The grammar is `path#Lx-Ly` optionally followed by `@<12 hex>`, a sha256 prefix over the span's
+// exact text. Both rules are ADDITIVE: a ref with no anchor behaves exactly as it did, so adoption
+// is per-row and no existing row had to be rewritten to land this.
+const SPAN_RE = /^(?<path>[^#]+)#L(?<from>\d+)-L(?<to>\d+)(?:@(?<pin>[0-9a-f]{12}))?$/
+
+/** The pinned text of a span: lines from..to inclusive, joined with \n, no trailing newline. */
+export function spanText(content, from, to) {
+  return content
+    .split('\n')
+    .slice(from - 1, to)
+    .join('\n')
+}
+
+/** 12 hex chars of sha256 over the span text — short enough to read in a table cell, long enough
+ * that an accidental collision is not the explanation for a green row. */
+export function spanPin(content, from, to) {
+  return createHash('sha256')
+    .update(spanText(content, from, to))
+    .digest('hex')
+    .slice(0, 12)
+}
+
+/**
+ * Validate a raw ref's line span, if it carries one. Returns an error string or null.
+ * A ref with no `#Lx-Ly` anchor is not this check's business and returns null.
+ */
+export function checkRefSpan(rawRef, projectRoot) {
+  const m = SPAN_RE.exec(rawRef.trim())
+  if (!m || !m.groups) return null
+  const { path: relPath, pin } = m.groups
+  const from = Number(m.groups['from']),
+    to = Number(m.groups['to'])
+  if (from < 1 || to < from) return `invalid line span (from > to, or zero): ${rawRef}`
+  const abs = resolve(projectRoot, relPath)
+  if (!existsSync(abs)) return null // absence is checkRefExists's finding, not a second report
+  const content = readFileSync(abs, 'utf-8')
+  const lines = content.split('\n').length
+  if (to > lines) {
+    return `line span runs past end of file (${lines} line(s)): ${rawRef}`
+  }
+  if (!pin) return null
+  const actual = spanPin(content, from, to)
+  if (actual !== pin) {
+    return (
+      `OUTDATED — the cited span no longer hashes to its pin, so the citation no longer proves ` +
+      `what this row claims (pinned ${pin}, now ${actual}): ${rawRef}. ` +
+      `Re-read the span, then re-pin with \`node scripts/check-feature-matrix.mjs --pin ${relPath}#L${from}-L${to}\``
+    )
+  }
+  return null
+}
+
+// ─── --pin: produce a pinned ref, so a pin is computed and never hand-written ──
+//
+// Without a producer the pin syntax would be theatre: nobody hand-computes a sha256 prefix, so
+// nobody would adopt it and the OUTDATED rule would guard an empty set. `--pin path#Lx-Ly` prints
+// the ref to paste into the matrix cell.
+{
+  const pinIndex = args.indexOf('--pin')
+  if (pinIndex >= 0) {
+    const target = (args[pinIndex + 1] || '').trim()
+    const m = /^([^#]+)#L(\d+)-L(\d+)(?:@[0-9a-f]{12})?$/.exec(target)
+    if (!m) {
+      process.stderr.write(
+        `check-feature-matrix: --pin expects <path>#L<from>-L<to>, got "${target}"\n`,
+      )
+      process.exit(2)
+    }
+    const [, relPath, fromRaw, toRaw] = m
+    const from = Number(fromRaw),
+      to = Number(toRaw)
+    const abs = resolve(process.cwd(), relPath)
+    if (!existsSync(abs)) {
+      process.stderr.write(`check-feature-matrix: --pin cannot read ${relPath}\n`)
+      process.exit(2)
+    }
+    const content = readFileSync(abs, 'utf-8')
+    const lines = content.split('\n').length
+    if (from < 1 || to < from || to > lines) {
+      process.stderr.write(
+        `check-feature-matrix: --pin span L${from}-L${to} is outside ${relPath} (${lines} line(s))\n`,
+      )
+      process.exit(2)
+    }
+    process.stdout.write(`${relPath}#L${from}-L${to}@${spanPin(content, from, to)}\n`)
+    process.exit(0)
+  }
+}
+
 /** Check that a ref is valid: non-URL, non-glob, exists on disk. Returns error string or null. */
 function checkRefExists(ref, projectRoot) {
   if (/^https?:\/\//i.test(ref)) return `URL ref requires 'url:' prefix: ${ref}`
@@ -96,6 +204,136 @@ function checkRefExists(ref, projectRoot) {
   return null
 }
 
+// ─── RTM axis 2: a Verified row must carry a verification envelope (#2480) ───
+//
+// `Verified` sat at the top of the status ladder as a word someone typed. The ladder refuses to
+// skip a step and the refs must exist, but nothing ever checked that the requirement had been
+// PROVEN — by running something, with a transcript. Same fail-closed hole INV-146 closed for
+// milestone `done`: a status is not evidence.
+//
+// Citations reuse axis 1's pinned-span grammar, so a citation that drifts is reported OUTDATED by
+// the same mechanism rather than a second one.
+const RTM_EVIDENCE_DIR = ['.arbiter', 'evidence', 'rtm']
+const RTM_BASELINE_REL = ['scripts', 'data', 'rtm-verdict-baseline.json']
+
+/**
+ * Read the monotone ratchet. Both failure modes resolve to 0 — tolerate nothing — because the
+ * alternative, tolerating whatever happens to exist, is how a ratchet quietly stops ratcheting.
+ * But ABSENT and CORRUPT are different claims and only one of them is routine: a missing baseline
+ * is a project that has not needed one, while an unreadable baseline is a defect the operator
+ * should hear about rather than discover as an unexplained strictness.
+ */
+function rtmBaseline(projectRoot) {
+  const path = resolve(projectRoot, ...RTM_BASELINE_REL)
+  if (!existsSync(path)) return 0
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf-8'))
+    const n = raw?.verifiedWithoutEnvelope
+    if (typeof n === 'number' && Number.isInteger(n) && n >= 0) return n
+    process.stderr.write(
+      `check-feature-matrix: rtm baseline has no integer verifiedWithoutEnvelope — treating as 0, ` +
+        `which tolerates nothing\n`,
+    )
+    return 0
+  } catch (err) {
+    process.stderr.write(
+      `check-feature-matrix: rtm baseline is unreadable (${err.message}) — treating as 0, which ` +
+        `tolerates nothing\n`,
+    )
+    return 0
+  }
+}
+
+/**
+ * Validate one Verified row's envelope. Returns { failures, missing } — `missing` marks the row as
+ * counting against the grandfathering ratchet rather than failing outright, so the four rows that
+ * predate this rule are tolerated without inventing evidence for claims nobody recorded.
+ */
+export function checkRtmEnvelope(row, projectRoot, schema) {
+  const id = row.featureId
+  const path = resolve(projectRoot, ...RTM_EVIDENCE_DIR, `${id}.json`)
+  if (!existsSync(path)) return { failures: [], missing: true }
+  let doc
+  try {
+    doc = JSON.parse(readFileSync(path, 'utf-8'))
+  } catch (err) {
+    // Surfaced as well as returned: the returned string becomes the gate verdict, but the audit
+    // (INV-96) reads a swallowed catch as fail-open, and it is right to — a reader of this code
+    // should be able to see the error escape without tracing the caller's reporting.
+    process.stderr.write(`check-feature-matrix: ${id} envelope parse failed — ${err.message}\n`)
+    return {
+      failures: [`${id}: verification envelope is not valid JSON — ${err.message}`],
+      missing: false,
+    }
+  }
+  return {
+    failures: [
+      ...validateSchema(doc, schema, schema, `${id} envelope`).map(
+        (v) => `${id}: verification envelope — ${v}`,
+      ),
+      ...envelopeIdentityFailures(doc, id),
+      ...envelopeCitationFailures(doc, id, projectRoot),
+    ],
+    missing: false,
+  }
+}
+
+/** The envelope must be ABOUT this row, and must record the one verdict that admits `Verified`. */
+function envelopeIdentityFailures(doc, id) {
+  const failures = []
+  if (doc?.feature_id && doc.feature_id !== id) {
+    failures.push(
+      `${id}: verification envelope declares feature_id "${doc.feature_id}" — evidence copied ` +
+        `from another requirement proves that other requirement, not this one`,
+    )
+  }
+  if (doc?.verdict && doc.verdict !== 'PROVEN') {
+    failures.push(
+      `${id}: status Verified requires verdict PROVEN, envelope records "${doc.verdict}"`,
+    )
+  }
+  return failures
+}
+
+/** Citations ride axis 1's pinned-span grammar, so a drifted citation is OUTDATED, not a new rule. */
+function envelopeCitationFailures(doc, id, projectRoot) {
+  const failures = []
+  for (const citation of Array.isArray(doc?.citations) ? doc.citations : []) {
+    const err = checkRefSpan(String(citation), projectRoot)
+    if (err) failures.push(`${id}: verification envelope citation — ${err}`)
+  }
+  return failures
+}
+
+/**
+ * Apply the rule across the matrix and adjudicate the ratchet. A fall is free; a rise fails and
+ * names both numbers, because the whole point of a monotone counter is that growth has to be
+ * deliberate and visible in the diff.
+ */
+export function checkRtmEnvelopes(rows, projectRoot, schema) {
+  const failures = []
+  const uncovered = []
+  for (const row of rows) {
+    if (row.status !== 'Verified') continue
+    const result = checkRtmEnvelope(row, projectRoot, schema)
+    failures.push(...result.failures)
+    if (result.missing) uncovered.push(row.featureId)
+  }
+  const baseline = rtmBaseline(projectRoot)
+  if (uncovered.length > baseline) {
+    // Name the rows. "N rows lack evidence" tells a reader there is work; naming them tells the
+    // reader WHERE, which is the difference between a defect report and a statistic.
+    failures.push(
+      `RTM verdict ratchet: ${uncovered.length} Verified row(s) carry no verification envelope ` +
+        `(${uncovered.join(', ')}), baseline ${baseline}. A Verified row needs ` +
+        `.arbiter/evidence/rtm/<REQ-NNN>.json — status is not evidence. Falls are free; a rise ` +
+        `must be hand-edited into scripts/data/rtm-verdict-baseline.json in the same change that ` +
+        `earns it.`,
+    )
+  }
+  return failures
+}
+
 function checkAllRefs(row, projectRoot, failures, id) {
   for (const [label, value] of [
     ['code_ref', row.codeRef],
@@ -104,6 +342,10 @@ function checkAllRefs(row, projectRoot, failures, id) {
   ]) {
     for (const ref of splitRefs(value)) {
       const err = checkRefExists(ref, projectRoot)
+      if (err) failures.push(`${id}: ${label} — ${err}`)
+    }
+    for (const raw of splitRawRefs(value)) {
+      const err = checkRefSpan(raw, projectRoot)
       if (err) failures.push(`${id}: ${label} — ${err}`)
     }
   }
@@ -624,6 +866,27 @@ if (partialNoIssue.length > 0) {
 // 7. tests_ref glob ban (D4, #2163): infalsifiable glob coverage on Done/Verified rows
 const globBaseline = loadGlobBaseline(GLOB_BASELINE_PATH)
 checkTestRefGlobBan(rows, globBaseline, failures)
+
+// 8. RTM axis 2 (#2480): a Verified row must carry a PROVEN verification envelope. The schema
+// lives beside the gate in arbiter; a governed project receives its own copy. Absent schema is an
+// ERROR, never a silent skip — a rule that quietly stops applying is the failure this gate exists
+// to prevent.
+{
+  const schemaPath = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'schemas',
+    'rtm-verdict.schema.json',
+  )
+  if (existsSync(schemaPath)) {
+    failures.push(...checkRtmEnvelopes(rows, ROOT, loadSchema(schemaPath)))
+  } else if (rows.some((row) => row.status === 'Verified')) {
+    failures.push(
+      'RTM axis 2: schemas/rtm-verdict.schema.json is missing, so no Verified row can be ' +
+        'adjudicated. Restore it rather than letting the rule lapse silently.',
+    )
+  }
+}
 
 // ─── Report ──────────────────────────────────────────────────────────────────
 failures.sort() // D5: deterministic output regardless of row order

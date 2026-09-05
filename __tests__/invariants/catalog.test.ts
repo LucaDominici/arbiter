@@ -20,10 +20,10 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 137
+const EXPECTED_TOTAL_ENTRIES = 147
 const EXPECTED_TIER4_OPERATIONAL = 49
-const EXPECTED_TIER5_GOVERNANCE = 52
-const EXPECTED_SELFONLY = 31
+const EXPECTED_TIER5_GOVERNANCE = 62
+const EXPECTED_SELFONLY = 37
 
 // ---------------------------------------------------------------------------
 // INVARIANT_CATALOG structure
@@ -60,6 +60,12 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, operational/Tier-4, all-languages)
     // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
+    // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
+    // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
+    // all selfOnly governance/Tier-5)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness — governance/Tier-5, and the
+    // FIRST of this programme's invariants that is NOT selfOnly: a governed project's own arc42 is
+    // exactly the document it governs, so it is emitted on Track B and counted in every filtered set.)
     expect(INVARIANT_CATALOG).toHaveLength(EXPECTED_TOTAL_ENTRIES)
   })
 
@@ -84,9 +90,15 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor)
     // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
+    // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
+    // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
+    // all selfOnly governance/Tier-5)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness — governance/Tier-5, and the
+    // FIRST of this programme's invariants that is NOT selfOnly: a governed project's own arc42 is
+    // exactly the document it governs, so it is emitted on Track B and counted in every filtered set.)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(137)
+    expect(unique.size).toBe(EXPECTED_TOTAL_ENTRIES)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -206,6 +218,12 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance, all-languages)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
+    // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
+    // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
+    // all selfOnly governance/Tier-5)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness — governance/Tier-5, and the
+    // FIRST of this programme's invariants that is NOT selfOnly: a governed project's own arc42 is
+    // exactly the document it governs, so it is emitted on Track B and counted in every filtered set.)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
     expect(tier5).toHaveLength(EXPECTED_TIER5_GOVERNANCE)
   })
@@ -507,7 +525,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-33')
   })
 
-  it('returns 69 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 + INV-109 + INV-112 included)', () => {
+  it('returns 70 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 + INV-109 + INV-112 included)', () => {
     // Updated in #1127: +4 (INV-102/103/104/105 — typescript, L2, operational tier)
     // Updated CANON-22: +1 (INV-109 duplication gate, typescript L2 operational)
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
@@ -531,7 +549,10 @@ describe('getFilteredInvariants', () => {
     // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all-languages, operational)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all-languages, operational)
-    expect(result).toHaveLength(89)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
+    // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
+    expect(result).toHaveLength(93)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -545,7 +566,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-40')
   })
 
-  it('returns fewer than 59 for unknown language (language-specific excluded)', () => {
+  it('returns fewer than 81 for unknown language (language-specific excluded)', () => {
     // +1 from INV-112 (no language restriction) — threshold updated from 57→58
     // +1 from INV-115 (no language restriction, governance L1+) — threshold 58→59
     // +2 from INV-118 (L1+, all languages) + INV-119 (L2+, all languages) — threshold 59→61 → < 64
@@ -565,7 +586,10 @@ describe('getFilteredInvariants', () => {
       invariantTiers: ALL_TIERS,
     })
     // +1 from INV-137 (L1+, all languages, smoke-journey floor) — threshold < 76 → < 77
-    expect(result.length).toBeLessThan(77)
+    // +1 from INV-144 (L1+, all languages, arc42 slot completeness) — → < 78
+    // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks) — → < 81
+    expect(result.length).toBeLessThan(81)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -624,7 +648,7 @@ describe('getFilteredInvariants', () => {
     }
   })
 
-  it('Java + L2 + all tiers returns 64 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
+  it('Java + L2 + all tiers returns 65 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages)
     // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
@@ -646,7 +670,10 @@ describe('getFilteredInvariants', () => {
     // Updated #1570: -1 (INV-56 retired tombstone now filtered from generated output)
     // Updated #1817: +1 (INV-136 tier-assignment rule, L1+, all languages, operational)
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all languages, operational)
-    expect(result).toHaveLength(84)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
+    // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
+    expect(result).toHaveLength(88)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -658,7 +685,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-28')
   })
 
-  it('Java + L3 + all tiers returns 65 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
+  it('Java + L3 + all tiers returns 66 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages, governance tier)
     // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
@@ -680,7 +707,10 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(85)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
+    // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
+    expect(result).toHaveLength(89)
   })
 
   it('essential preset at L1 returns minimal set', () => {
@@ -766,6 +796,9 @@ describe('getFilteredInvariants', () => {
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, selfOnly)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
+    // Updated ontology-wave-1: +4 (INV-140 id registry, INV-141 ontology-wired meta-gate,
+    // INV-142 edit-time artifact schema hook, INV-143 arbiter<->forma schema contract —
+    // all selfOnly governance/Tier-5)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
     expect(selfOnly).toHaveLength(EXPECTED_SELFONLY)
     const ids = selfOnly.map((inv) => inv.id)

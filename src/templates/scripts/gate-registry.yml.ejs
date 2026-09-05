@@ -139,6 +139,8 @@ gates:
   - { id: oracle-discrimination, name: 'oracle discrimination (anti-fake-green)', level: L1, kind: check, emitIf: "archetype === 'frontend-spa' || archetype === 'backend-web-db'", cmd: ['node', ['scripts/check-oracle-discrimination.mjs']] }
 
   - { id: tabletop-evidence, name: 'tabletop evidence (#2429)', level: L1, kind: check, cmd: ['node', ['scripts/check-tabletop-evidence.mjs']] }
+  - { id: sources, name: 'source certification (INV-147)', level: L1, kind: check, cmd: ['node', ['scripts/check-sources.mjs']] }
+  - { id: use-cases, name: 'use cases (INV-149)', level: L1, kind: check, cmd: ['node', ['scripts/check-use-cases.mjs']] }
 
   # ── L2 ─────────────────────────────────────────────────────────────────────
   - { id: gitleaks, name: gitleaks, level: L2, kind: check, emitIf: "enableSecurityScanning", soft: true, cmd: ['gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1']] }
@@ -233,6 +235,10 @@ gates:
   - { id: gap-register, name: 'gap register', level: L2, kind: check, emitIf: "governanceLevel !== 'L1' && enableDebtGates", cmd: ['node', ['scripts/gen-gap.mjs', '--check']] }
   - { id: conformance, name: conformance, level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/conformance.mjs', 'conformance')", cmd: ['node', ['scripts/conformance.mjs', '--check']] }
   - { id: gold-audit, name: gold-audit, level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')", cmd: ['node', ['scripts/gold-audit.mjs', '--check']] }
+  # No emitIf (INV-144): the runner is emitted unconditionally, so a generation-time condition here
+  # would ship a script nothing references — a dead emission, which #1331's coherence gate rejects.
+  # The runtime gateFilePresent guard plus level L2 + kind warn is what keeps it non-disruptive.
+  - { id: arc42-slots, name: 'arc42 slots (INV-144)', level: L2, kind: warn, condition: "gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')", cmd: ['node', ['scripts/check-arc42-slots.mjs']] }
   - { id: doc-set, name: 'doc-set', level: L2, kind: warn, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')", cmd: ['node', ['scripts/check-doc-set.mjs', '--check']] }
   - { id: decision-registry, name: 'decision registry', level: L2, kind: check, emitIf: "enableDebtGates", condition: "gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')", cmd: ['node', ['scripts/check-decision-registry.mjs']] }
   - { id: reuse-registry, name: 'reuse registry', level: L2, kind: check, emitIf: "enableDebtGates && typeof includeExtendedInvariants !== 'undefined' && includeExtendedInvariants", condition: "gateFilePresent('scripts/check-reuse-registry.mjs', 'reuse registry')", cmd: ['node', ['scripts/check-reuse-registry.mjs']] }

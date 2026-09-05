@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2480",
+  "test_path": "__tests__/scripts/check-milestones.test.ts",
+  "test_commit_sha": "4bdd402a72de1a41c658d0e797b70c36fd0a15b6",
+  "test_blob_sha": "ae4d6b14fcb2abb3ce3dceed50e6b478ff6080a8",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/check-milestones.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  04:46:59\n   Duration  367ms (transform 105ms, setup 26ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-milestones.test.ts [ __tests__/scripts/check-milestones.test.ts ]\nError: Cannot find module '../../scripts/check-milestones.mjs' imported from __tests__/scripts/check-milestones.test.ts\n ❯ __tests__/scripts/check-milestones.test.ts:36:1\n     34| import { join } from 'node:path'\n     35| import { spawnSync } from 'node:child_process'\n     36| import {\n       | ^\n     37|   findDuplicateIds,\n     38|   findDanglingDeps,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-milestones.test.ts",
+  "recorded_at": "2026-09-04T04:47:00.244Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-milestones.test.ts"
+  ]
+}

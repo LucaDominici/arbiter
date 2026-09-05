@@ -40,5 +40,16 @@ export function generateFeatureMatrix(
     { skipIfExists: true, dryRun: opts.dryRun },
   )
 
-  return { files: [result, gate] }
+  // #2480: RTM axis 2 needs the contract it validates against. Emitting the gate without the
+  // schema would hand a governed project an ERROR the moment it marked a row `Verified` — worse
+  // than not porting the rule at all, which is why the axis stayed self-only until this wave.
+  // Never skipIfExists: the schema is arbiter's contract, not the project's document, and a stale
+  // copy would silently admit envelopes the current rule refuses.
+  const schema = writeFile(
+    resolvedPath(base, 'schemas', 'rtm-verdict.schema.json'),
+    renderTemplate('schemas/rtm-verdict.schema.json.ejs', data),
+    { dryRun: opts.dryRun },
+  )
+
+  return { files: [result, gate, schema] }
 }

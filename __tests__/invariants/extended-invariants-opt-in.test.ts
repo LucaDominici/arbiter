@@ -18,7 +18,7 @@ const EXTENDED_IDS = [
 ]
 
 describe('extended opt-in invariants', () => {
-  it('catalog has exactly 137 entries after adding extended set, INV-82, INV-94, INV-96, INV-95/97/98/99, INV-100, INV-101, INV-102/103/104/105, INV-107, INV-108, INV-109, INV-112, and INV-139', () => {
+  it('catalog has exactly 147 entries after adding extended set, INV-82, INV-94, INV-96, INV-95/97/98/99, INV-100, INV-101, INV-102/103/104/105, INV-107, INV-108, INV-109, INV-112, INV-139, INV-147, INV-147, INV-148 and INV-149', () => {
     // Updated in #1099: +1 (INV-107 ADR SSOT integrity)
     // Updated in #1100: +1 (INV-108 SSOT core set exhaustiveness)
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet)
@@ -44,10 +44,12 @@ describe('extended opt-in invariants', () => {
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, operational/Tier-4, selfOnly)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
     // Updated #1817: +1 (INV-136 tier-assignment rule, operational)
-    // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, operational)
+    // Updated #2080: +1 (INV-141 smoke-journey acceptance floor, operational)
     // Updated ADR-110: +1 (INV-138 acceptance-criteria anchor, selfOnly governance)
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
-    expect(INVARIANT_CATALOG).toHaveLength(137)
+    // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, governance/Tier-5, Track B)
+    // Updated #2480 (INV-147 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
+    expect(INVARIANT_CATALOG).toHaveLength(147)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {
