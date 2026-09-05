@@ -3,7 +3,7 @@
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
 import { extname } from 'node:path'
-import { findInlineSuppression, resolveToolInputPath } from './lib.mjs'
+import { addedLinesVsHEAD, findInlineSuppression, resolveToolInputPath } from './lib.mjs'
 // Reuse the gate's reference matcher/extension-allowlist (#1796/#1799/#1778): a bare
 // \bTODO\b regex with no comment-context guard false-positives on TODO-as-data/prose
 // (catalog.ts description strings, docs prose) and on non-source files (.md).
@@ -27,9 +27,18 @@ try {
   process.exit(2)
 }
 
+// #2539: scan only the lines THIS edit added, not the whole file — a
+// pre-existing orphan-TODO-shaped line on an untouched line (this checker's
+// own doc comments illustrating the pattern, or its own regex definition)
+// must not block an unrelated edit elsewhere in the same file. Untracked
+// files and git errors fail OPEN to the whole-file scan (never skip).
+const { tracked, added } = addedLinesVsHEAD(file)
+const scanLines = tracked
+  ? added.map(({ line, content: text }) => [line - 1, text])
+  : content.split('\n').map((text, index) => [index, text])
+
 // Find TODOs without task IDs like TODO(#123), in comment context only.
-const lines = content.split('\n')
-const offending = lines.flatMap((line, i) => {
+const offending = scanLines.flatMap(([i, line]) => {
   if (!ORPHAN_TODO.test(line)) return []
   if (findInlineSuppression(content, i, 'INV-21')) return []
   return [`${i + 1}: ${line.trim()}`]

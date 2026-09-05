@@ -276,6 +276,57 @@ export function resolveToolInputCommand(rawStdin) {
   return typeof fromEnv === 'string' ? fromEnv : ''
 }
 
+/**
+ * Added lines of a file vs HEAD, for diff-scoped PostToolUse scans (#609, #2539).
+ *
+ * PostToolUse Edit|Write hooks used to scan the WHOLE edited file, so a
+ * pre-existing forbidden pattern on an UNCHANGED line (e.g. an HTML form-field
+ * hint attribute, matched case-insensitively by the marker regex) blocked any
+ * unrelated edit in the same file — a false positive on every touch. Scoping
+ * the scan to the lines the edit actually added fixes it without weakening
+ * detection of NEW offenses.
+ *
+ * `git ls-files --error-unmatch <file>` distinguishes untracked (new) files —
+ * which `git diff HEAD` would show nothing for — from tracked-but-unchanged
+ * (which legitimately has no added lines). Untracked files return
+ * `{ tracked: false, added: null }` so the caller falls back to a whole-file
+ * scan (every line is new). Tracked files return the added-line contents with
+ * their 1-based line number in the new file, parsed from the `@@ +c,d @@`
+ * hunk headers. The gate's `--all` walk is NOT affected — it stays whole-file
+ * (that is the anti-drift gate; this helper is the PostToolUse path only).
+ *
+ * Runs git in `process.cwd()` (the worktree the hook fires in). Fail-open:
+ * any git error degrades to `tracked: false` so the caller scans the whole
+ * file rather than silently skipping an offense.
+ *
+ * @param {string} file Absolute or cwd-relative path.
+ * @returns {{tracked: boolean, added: Array<{line: number, content: string}>|null}}
+ */
+export function addedLinesVsHEAD(file) {
+  const tracked = spawnSync('git', ['ls-files', '--error-unmatch', file], { encoding: 'utf-8' })
+  if (tracked.status !== 0) return { tracked: false, added: null }
+  const diff = spawnSync('git', ['diff', 'HEAD', '--', file], { encoding: 'utf-8' })
+  if (diff.status !== 0) return { tracked: false, added: null }
+  const added = []
+  let newLine = 0
+  for (const line of diff.stdout.split('\n')) {
+    const hunk = /^@@\s+-\d+(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/.exec(line)
+    if (hunk) {
+      newLine = parseInt(hunk[1], 10)
+      continue
+    }
+    if (line.startsWith('+++') || line.startsWith('---')) continue
+    if (line.startsWith('+')) {
+      added.push({ line: newLine, content: line.slice(1) })
+      newLine++
+    } else if (line.startsWith(' ')) {
+      newLine++
+    }
+    // '-' lines and '\ No newline...' do not advance the new-file line counter.
+  }
+  return { tracked: true, added }
+}
+
 /** Returns the git repository root, falling back to process.cwd(). */
 export function getRepoRoot() {
   const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {

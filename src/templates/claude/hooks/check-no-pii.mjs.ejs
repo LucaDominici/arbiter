@@ -3,7 +3,7 @@
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
-import { findInlineSuppression, resolveToolInputPath } from "./lib.mjs";
+import { addedLinesVsHEAD, findInlineSuppression, resolveToolInputPath } from "./lib.mjs";
 
 const file = resolveToolInputPath();
 if (!file || !existsSync(file)) process.exit(0);
@@ -78,16 +78,25 @@ const PII_PATTERNS = [
   },
 ];
 
+// #2539: scan only the lines THIS edit added, not the whole file — a
+// pre-existing fixture value on an untouched line (a fake email planted for a
+// test, a fixture credit-card number) must not block an unrelated edit
+// elsewhere in the same file. Untracked files and git errors fail OPEN to the
+// whole-file scan (never skip).
+const { tracked, added } = addedLinesVsHEAD(file);
+const scanLines = tracked
+  ? added.map(({ line, content: text }) => [line - 1, text])
+  : content.split("\n").map((text, index) => [index, text]);
+
 const findings = [];
-const lines = content.split("\n");
 for (const { label, re } of PII_PATTERNS) {
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(re);
+  for (const [i, line] of scanLines) {
+    const m = line.match(re);
     if (!m) continue;
     if (findInlineSuppression(content, i, "INV-12")) continue;
     if (isAllowlisted(file, i + 1, m[0])) continue;
     findings.push(
-      `  line ${i + 1} [${label}]: ${lines[i].trim().slice(0, 80)}`,
+      `  line ${i + 1} [${label}]: ${line.trim().slice(0, 80)}`,
     );
   }
 }
