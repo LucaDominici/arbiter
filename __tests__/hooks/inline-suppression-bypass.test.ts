@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 
 const REPO_ROOT = resolve(process.cwd())
 const HOOKS_DIR = join(REPO_ROOT, '.claude/hooks')
@@ -188,24 +189,130 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
   })
 
   // ── check-no-placeholders.mjs ───────────────────────────────────────────────
+  // #2528: the shouted-only markers below are built by concatenation so this
+  // test file's own source never contains one as a contiguous string —
+  // otherwise editing this very file would trip the hook it exercises.
   describe('check-no-placeholders.mjs', () => {
-    it('ALLOWS: [PLACEHOLDER] mentioned in prose in a .md file (extension allowlist, #1778)', () => {
+    it('ALLOWS: a shouted marker mentioned in prose in a .md file (extension allowlist, #1778)', () => {
       const { dir, cleanup } = makeTmpDir()
       try {
+        const marker = 'PLACE' + 'HOLDER'
         const f = join(dir, 'MILESTONES.md')
-        writeFileSync(f, 'This check flags the literal word [PLACEHOLDER] left in source.\n')
+        writeFileSync(f, `This check flags the literal word [${marker}] left in source.\n`)
         expect(runHook('check-no-placeholders.mjs', f, dir).status).toBe(0)
       } finally {
         cleanup()
       }
     })
 
-    it('BLOCKS: real PLACEHOLDER left in a .ts source file (adversarial: extension filter must not weaken enforcement)', () => {
+    it('BLOCKS: a real shouted marker left in a .ts source file (adversarial: extension filter must not weaken enforcement)', () => {
       const { dir, cleanup } = makeTmpDir()
       try {
+        const marker = 'PLACE' + 'HOLDER'
         const f = join(dir, 'test.ts')
-        writeFileSync(f, 'const x = PLACEHOLDER;\n')
+        writeFileSync(f, `const x = ${marker};\n`)
         expect(runHook('check-no-placeholders.mjs', f, dir).status).toBe(2)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('ALLOWS: the ordinary lowercase English noun in a .ts source file (#2528)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        const word = 'place' + 'holder'
+        const f = join(dir, 'test.ts')
+        writeFileSync(f, `// this is a ${word} for the real value\n`)
+        expect(runHook('check-no-placeholders.mjs', f, dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('ALLOWS: a test name containing the ordinary lowercase noun (#2528)', () => {
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        const word = 'place' + 'holder'
+        const f = join(dir, 'test.ts')
+        writeFileSync(f, `it('interpolates single {var} ${word}', () => {})\n`)
+        expect(runHook('check-no-placeholders.mjs', f, dir).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('BLOCKS: a real shouted CHANGE-ME marker, ALLOWS its lowercase form (#2528)', () => {
+      const { dir: badDir, cleanup: cleanBad } = makeTmpDir()
+      const { dir: okDir, cleanup: cleanOk } = makeTmpDir()
+      try {
+        const marker = 'CHANGE' + 'ME'
+        const word = 'change' + 'me'
+        const bad = join(badDir, 'test.ts')
+        writeFileSync(bad, `const token = "${marker}";\n`)
+        expect(runHook('check-no-placeholders.mjs', bad, badDir).status).toBe(2)
+
+        const ok = join(okDir, 'test.ts')
+        writeFileSync(ok, `const token = "${word}";\n`)
+        expect(runHook('check-no-placeholders.mjs', ok, okDir).status).toBe(0)
+      } finally {
+        cleanBad()
+        cleanOk()
+      }
+    })
+
+    it('BLOCKS: a real shouted REPLACE-ME marker, ALLOWS its lowercase form (#2528)', () => {
+      const { dir: badDir, cleanup: cleanBad } = makeTmpDir()
+      const { dir: okDir, cleanup: cleanOk } = makeTmpDir()
+      try {
+        const marker = 'REPLACE' + 'ME'
+        const word = 'replace' + 'me'
+        const bad = join(badDir, 'test.ts')
+        writeFileSync(bad, `const secret = "${marker}";\n`)
+        expect(runHook('check-no-placeholders.mjs', bad, badDir).status).toBe(2)
+
+        const ok = join(okDir, 'test.ts')
+        writeFileSync(ok, `const secret = "${word}";\n`)
+        expect(runHook('check-no-placeholders.mjs', ok, okDir).status).toBe(0)
+      } finally {
+        cleanBad()
+        cleanOk()
+      }
+    })
+
+    // The OTHER checker patterns (unfinished-code markers, disabled-test
+    // syntax) are a separate, pre-existing self-reference in these two files
+    // — out of scope for #2528 (see the note filed alongside this task) — so
+    // these assert absence of the shouted-marker labels specifically, not a
+    // blanket clean exit.
+    it('finds no shouted-marker violation against its own source file — no self-block (#2528)', () => {
+      const selfSource = readFileSync(join(HOOKS_DIR, 'check-no-placeholders.mjs'), 'utf-8')
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        const f = join(dir, 'check-no-placeholders.mjs')
+        writeFileSync(f, selfSource)
+        const result = runHook('check-no-placeholders.mjs', f, dir)
+        expect(result.stderr).not.toContain('PLACE' + 'HOLDER')
+        expect(result.stderr).not.toContain('CHANGE' + 'ME')
+        expect(result.stderr).not.toContain('REPLACE' + 'ME')
+      } finally {
+        cleanup()
+      }
+    })
+
+    it('finds no shouted-marker violation against the scanner test file — no self-block (#2528)', () => {
+      const scannerTestPath = resolve(
+        REPO_ROOT,
+        '__tests__/scripts/check-no-placeholders.test.ts',
+      )
+      const selfTest = readFileSync(scannerTestPath, 'utf-8')
+      const { dir, cleanup } = makeTmpDir()
+      try {
+        const f = join(dir, 'check-no-placeholders.test.ts')
+        writeFileSync(f, selfTest)
+        const result = runHook('check-no-placeholders.mjs', f, dir)
+        expect(result.stderr).not.toContain('PLACE' + 'HOLDER')
+        expect(result.stderr).not.toContain('CHANGE' + 'ME')
+        expect(result.stderr).not.toContain('REPLACE' + 'ME')
       } finally {
         cleanup()
       }
