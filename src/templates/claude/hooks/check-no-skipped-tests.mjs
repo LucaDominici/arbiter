@@ -42,7 +42,9 @@ const ext = file.slice(file.lastIndexOf('.'))
 
 /** @param {RegExp} re @param {string} label */
 function findOffending(re, label) {
-  return scanLines.flatMap(([i, line]) => (re.test(line) ? [`${i + 1}: [${label}] ${line.trim()}`] : []))
+  return scanLines.flatMap(([i, line]) =>
+    re.test(line) ? [`${i + 1}: [${label}] ${line.trim()}`] : [],
+  )
 }
 
 const offending = []

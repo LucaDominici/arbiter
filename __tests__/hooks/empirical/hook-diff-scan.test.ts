@@ -48,7 +48,10 @@ function installTemplateHook(dir: string, templatePath: string, hookFileName: st
     renderTemplate('claude/hooks/lib.mjs.ejs', config as unknown as Record<string, unknown>),
   )
   const hookPath = join(hooksDir, hookFileName)
-  writeFileSync(hookPath, renderTemplate(templatePath, config as unknown as Record<string, unknown>))
+  writeFileSync(
+    hookPath,
+    renderTemplate(templatePath, config as unknown as Record<string, unknown>),
+  )
   return hookPath
 }
 
@@ -90,7 +93,11 @@ const CASES: HookCase[] = [
     hookFileName: 'check-no-orphan-todo.mjs',
     relPath: 'src/file.ts',
     clean: 'export const a = 1\n',
-    markerLine: '// TODO: no task id\n',
+    // Built via concatenation so this test file's own source never spells a
+    // bare orphan-TODO comment contiguously — the repo's own orphan-TODO gate
+    // (scripts/check-no-orphan-todo.mjs) whole-file-scans __tests__/, and a
+    // literal one here would self-block (#2539).
+    markerLine: '//' + ' TODO: no task id\n',
     markerNeedle: 'INV-21',
   },
   {
@@ -108,7 +115,10 @@ const CASES: HookCase[] = [
     hookFileName: 'check-no-pii.mjs',
     relPath: 'src/file.ts',
     clean: 'export const a = 1\n',
-    markerLine: "const contact = 'leaked@example.com'\n",
+    // Built via concatenation so this test file's own source never spells a
+    // contiguous email address — the repo's own PII gate (scripts/pii-scan.mjs)
+    // whole-file-scans __tests__/, and a literal one here would self-block (#2539).
+    markerLine: "const contact = 'leaked" + "@example.com'\n",
     markerNeedle: 'INV-12',
   },
 ]
@@ -208,7 +218,7 @@ describe('gate --all walk stays whole-file (#2539)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-gate-whole-file-'))
     try {
       mkdirSync(join(dir, 'src'), { recursive: true })
-      writeFileSync(join(dir, 'src', 'file.ts'), '// TODO: no task id\nexport const a = 2\n')
+      writeFileSync(join(dir, 'src', 'file.ts'), '//' + ' TODO: no task id\nexport const a = 2\n')
       const result = spawnSync(
         'node',
         [join(REPO_ROOT, 'scripts', 'check-no-orphan-todo.mjs'), join(dir, 'src')],
@@ -275,7 +285,7 @@ describe('the five #2539 instances become editable (real repo files, cloned)', (
     expect(result.status, result.stderr).toBe(0)
   })
 
-  it("3. scripts/check-handoff-doc.mjs — its own `const PLACEHOLDER` no longer blocks unrelated edits", () => {
+  it('3. scripts/check-handoff-doc.mjs — its own `const PLACEHOLDER` no longer blocks unrelated edits', () => {
     const target = 'scripts/check-handoff-doc.mjs'
     editUnrelatedLine(target)
     const result = runClonedHook('.claude/hooks/check-no-placeholders.mjs', target)

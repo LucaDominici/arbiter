@@ -27,7 +27,7 @@
   {
     "path": "hooks/check-no-pii.mjs",
     "reason": "Arbiter self-dogfood: uses findInlineSuppression() from lib.mjs for INV-12 inline suppression support. Target template does not have this dependency yet.",
-    "diffHash": "2b226ddf77f1ccce3f829db73c84eb580c365f78322d0140e42932a96e0bc0ff"
+    "diffHash": "fd9e85123860517ecacbe0592f616ac3afebedef634a6a494c2b9adf9a6a10cc"
   },
   {
     "path": "hooks/guard-task-completion.mjs",
@@ -72,7 +72,7 @@
   {
     "path": "hooks/check-no-orphan-todo.mjs",
     "reason": "Arbiter self-dogfood: materialized hook adds repo-root scoping and inline-suppression support via findInlineSuppression() from lib.mjs (INV-21 directive). The shipped template omits the lib.mjs dependency, so the suppression branch cannot be back-ported without shipping arbiter-internal lib.mjs changes. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)",
-    "diffHash": "7a9f22b53f30774d815130788c26614de3d838e9b895e6a77a47c3f5d0fa8dc5"
+    "diffHash": "6d20f94cd9508ef59452cc2b22ec4cae1dbfaf32a7cf315d083eb250ba6359ac"
   },
   {
     "path": "hooks/enforce-read-only.mjs",

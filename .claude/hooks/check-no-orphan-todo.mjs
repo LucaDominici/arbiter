@@ -29,9 +29,9 @@ try {
 
 // #2539: scan only the lines THIS edit added, not the whole file — a
 // pre-existing orphan-TODO-shaped line on an untouched line (this checker's
-// own doc comments illustrating the pattern, or its own regex definition)
-// must not block an unrelated edit elsewhere in the same file. Untracked
-// files and git errors fail OPEN to the whole-file scan (never skip).
+// own doc comment illustrating the pattern, or its own regex definition) must
+// not block an unrelated edit elsewhere in the same file. Untracked files and
+// git errors fail OPEN to the whole-file scan (never skip).
 const { tracked, added } = addedLinesVsHEAD(file)
 const scanLines = tracked
   ? added.map(({ line, content: text }) => [line - 1, text])
