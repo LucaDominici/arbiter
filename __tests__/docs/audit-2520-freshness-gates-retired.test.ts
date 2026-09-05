@@ -16,7 +16,10 @@ import { describe, expect, it } from 'vitest'
 
 const read = (p: string): string => readFileSync(resolve(p), 'utf8')
 
-const DELETED_SCRIPTS = ['scripts/check-nightly-freshness.mjs', 'scripts/check-monthly-freshness.mjs']
+const DELETED_SCRIPTS = [
+  'scripts/check-nightly-freshness.mjs',
+  'scripts/check-monthly-freshness.mjs',
+]
 const DELETED_BASENAMES = ['check-nightly-freshness.mjs', 'check-monthly-freshness.mjs']
 
 describe('#2520 — nightly/monthly stamp-file freshness gates deleted (INV-93 retired, INV-82 repointed)', () => {
@@ -108,9 +111,10 @@ describe('#2520 — nightly/monthly stamp-file freshness gates deleted (INV-93 r
     for (const entry of Object.values(map)) {
       if (entry && typeof entry === 'object' && typeof entry.enforcer === 'string') {
         for (const basename of DELETED_BASENAMES) {
-          expect(entry.enforcer, 'constraint-map.json entry must not enforce via a deleted script').not.toBe(
-            basename,
-          )
+          expect(
+            entry.enforcer,
+            'constraint-map.json entry must not enforce via a deleted script',
+          ).not.toBe(basename)
         }
       }
     }
