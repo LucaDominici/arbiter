@@ -41,11 +41,17 @@
 // them runbooks that handle nothing — the gate's first finding would have been its own false
 // positive.
 //
-// Usage: node scripts/check-runbook-coverage.mjs [--dir <repo>] [--json] [--update-baseline]
+// --emit writes the machine projection forma's operations lens consumes (schema
+// arbiter-runbooks-v1): the coverage algebra as measured, not as claimed. Written only after the
+// hard rules pass, so a runbook naming an invariant that does not exist cannot produce one.
+//
+// Usage: node scripts/check-runbook-coverage.mjs [--dir <repo>] [--json] [--emit <path>]
+//                                                [--update-baseline]
 // Exit: 0 pass or skip, 1 violation, 2 error (INV-53).
 //
 // Exports for unit tests: parseFrontmatter, isRunbook, parseHandles, collectRunbooks,
-//                         runbookViolations, operationalInvariants, uncoveredOperational
+//                         runbookViolations, operationalInvariants, uncoveredOperational,
+//                         runbookProjection
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -172,6 +178,37 @@ export function runbookViolations(runbooks, knownInvariants) {
   return out
 }
 
+/**
+ * The machine projection a viewer consumes: both halves of the coverage algebra, measured.
+ *
+ * `uncovered` is the list, not merely its length, because an operations view whose only signal is
+ * "49" cannot tell an operator WHICH failure they have no procedure for — and that list is the
+ * whole point of the ratchet existing.
+ * @param {Array<{file: string, id: string, handles: string[]}>} runbooks
+ * @param {string[]} operational
+ * @param {string[]} uncovered
+ */
+export function runbookProjection(runbooks, operational, uncovered) {
+  return {
+    schema: 'arbiter-runbooks-v1',
+    runbooks: [...runbooks]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((rb) => ({ id: rb.id, file: rb.file, handles: [...rb.handles].sort() })),
+    coverage: {
+      operationalTotal: operational.length,
+      uncovered: [...uncovered].sort(),
+    },
+  }
+}
+
+/** Write the projection. Called only after the hard rules pass. */
+function emitProjection(emit, runbooks, operational, uncovered, json) {
+  mkdirSync(dirname(emit), { recursive: true })
+  const doc = runbookProjection(runbooks, operational, uncovered)
+  writeFileSync(emit, `${JSON.stringify(doc, null, 2)}\n`, 'utf-8')
+  if (!json) process.stdout.write(`check-runbook-coverage: projection written to ${emit}\n`)
+}
+
 /** The ratchet file, or an exit code describing why it could not be read. */
 function loadBaseline(path) {
   if (!existsSync(path)) {
@@ -189,9 +226,11 @@ function loadBaseline(path) {
 /** @param {string[]} argv */
 function parseArgs(argv) {
   const i = argv.indexOf('--dir')
+  const e = argv.indexOf('--emit')
   return {
     root: i >= 0 && argv[i + 1] ? resolve(argv[i + 1]) : process.cwd(),
     json: argv.includes('--json'),
+    emit: e >= 0 && argv[e + 1] ? resolve(argv[e + 1]) : null,
     update: argv.includes('--update-baseline'),
   }
 }
@@ -210,7 +249,7 @@ function report(json, verdict, message, violations) {
 }
 
 function main(argv) {
-  const { root, json, update } = parseArgs(argv)
+  const { root, json, emit, update } = parseArgs(argv)
 
   const catalogPath = join(root, CATALOG_REL)
   if (!existsSync(catalogPath)) {
@@ -264,6 +303,7 @@ function main(argv) {
     report(json, 'fail', 'violations', violations)
     return 1
   }
+  if (emit) emitProjection(emit, runbooks, operational, uncovered, json)
   report(
     json,
     'pass',

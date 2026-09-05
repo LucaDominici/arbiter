@@ -372,7 +372,7 @@
     "scripts/check-todo-max-age.mjs": "925a903f83c0966ae42899a95211e5c573d3f3ee4e3aa9a3f1579a37ae38dac1",
     "scripts/check-touched-vs-manifest.mjs": "e92e288c27320903b046e4d6fb69b15dea0e0c169b249db7b2ad4befb12aa1ca",
     "scripts/check-unwired-guards.mjs": "10ee98d50e77e9cb297aaf31d71215013250de4f406a4e4798f87ba9e8c28b85",
-    "scripts/check-use-cases.mjs": "e682552a1e255bba79530fc99f08e6eb54889c3044ce1515b23b7136e478f30b",
+    "scripts/check-use-cases.mjs": "dc2c7f9d56d76cb9da8f15318699ffefca0b2a0f124d01c4c71cfac78eb60235",
     "scripts/check-validator-helptext.mjs": "1dc17383a3c57b72f5708f68db5626ab8de3d15deb50a6cbd2d576bdb3eb0c23",
     "scripts/check-workflow-docs-sync.mjs": "97056298c67d8adf6b3d326f3102287efd0c310f0922ef17bb23e967d4168c98",
     "scripts/check-workflow-job-naming.mjs": "cf15fc1c33618ca9d4ec3fd8a668a068d6f81fcaadca3fd2f55d024f6a852fbc",

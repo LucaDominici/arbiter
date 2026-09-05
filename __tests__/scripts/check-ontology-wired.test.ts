@@ -255,3 +255,53 @@ describe('hook coverage (#2480 wave 8)', () => {
     expect(run(dir).status).toBe(0)
   })
 })
+
+/**
+ * #2480 wave 8, leg 4: a declared `graphNode` must be a NodeKind the graph actually has.
+ *
+ * Six rows asserted one while src/graph/model.ts had none of them — the same shape as the hook
+ * column before this gate learned to check coverage: a statement of intent that reads as a
+ * statement of fact. Most schemes legitimately have no graph node, so the rule is only that a
+ * DECLARED one is real.
+ */
+describe('graphNode leg (#2480 wave 8)', () => {
+  const MODEL_REL = 'src/graph/model.ts'
+
+  function withModel(graphNode: string | undefined, union: string): string {
+    const row = graphNode === undefined ? { ...active } : { ...active, graphNode }
+    const dir = fixture([row], { staged: 0, naGate: 0, naTool: 0, naHook: 9 })
+    mkdirSync(join(dir, 'src', 'graph'), { recursive: true })
+    writeFileSync(join(dir, MODEL_REL), `export type NodeKind = ${union}\n`)
+    return dir
+  }
+
+  it('passes when the declared kind is in the union', () => {
+    const r = run(withModel('MILESTONE', "'INV' | 'MILESTONE'"))
+    expect(r.status, r.stderr).toBe(0)
+  })
+
+  it('fails, naming the kind and the file, when it is not', () => {
+    const r = run(withModel('USECASE', "'INV' | 'ADR'"))
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/graphNode "USECASE" is not a NodeKind in src\/graph\/model\.ts/)
+  })
+
+  it('says nothing about a row that declares no graph node — most schemes have none', () => {
+    expect(run(withModel(undefined, "'INV'")).status).toBe(0)
+  })
+
+  it('does not match a kind that merely appears as a substring of another', () => {
+    const r = run(withModel('USE', "'USECASE'"))
+    expect(r.status, 'USE must not be satisfied by USECASE').toBe(1)
+  })
+
+  it('fails OPEN when the model file is absent — the gate reports on the registry, not on itself', () => {
+    const dir = fixture([{ ...active, graphNode: 'USECASE' }], {
+      staged: 0,
+      naGate: 0,
+      naTool: 0,
+      naHook: 9,
+    })
+    expect(run(dir).status).toBe(0)
+  })
+})

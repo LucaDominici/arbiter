@@ -38,6 +38,7 @@ import {
   runbookViolations,
   operationalInvariants,
   uncoveredOperational,
+  runbookProjection,
 } from '../../scripts/check-runbook-coverage.mjs'
 
 const REPO_ROOT = join(__dirname, '..', '..')
@@ -346,5 +347,37 @@ describe('collectRunbooks over a real tree', () => {
 
   it('returns nothing when there is no docs/ directory at all', () => {
     expect(collectRunbooks(dir)).toEqual([])
+  })
+})
+
+/**
+ * The projection forma's operations lens consumes (#2480 wave 8). It carries the coverage algebra
+ * as MEASURED, and it carries the uncovered LIST rather than only its length — an operations view
+ * whose only signal is "49" cannot tell an operator which failure they have no procedure for, and
+ * that list is the whole reason the ratchet exists.
+ */
+describe('runbookProjection', () => {
+  const rbs = [
+    { file: 'docs/b.md', id: 'RB-02', handles: ['INV-17', 'INV-16'] },
+    { file: 'docs/a.md', id: 'RB-01', handles: ['INV-74'] },
+  ]
+
+  it('sorts runbooks by id and their handles, so a diff of two runs is meaningful', () => {
+    const p = runbookProjection(rbs, ['INV-16', 'INV-17'], [])
+    expect(p.runbooks.map((r) => r.id)).toEqual(['RB-01', 'RB-02'])
+    expect(p.runbooks[1].handles).toEqual(['INV-16', 'INV-17'])
+  })
+
+  it('carries the uncovered LIST, not merely a count', () => {
+    const p = runbookProjection(rbs, ['INV-16', 'INV-17', 'INV-18'], ['INV-18', 'INV-16'])
+    expect(p.coverage).toEqual({ operationalTotal: 3, uncovered: ['INV-16', 'INV-18'] })
+  })
+
+  it('declares its schema version, which is what a consumer checks before trusting the shape', () => {
+    expect(runbookProjection([], [], []).schema).toBe('arbiter-runbooks-v1')
+  })
+
+  it('emits an empty coverage list rather than omitting it when nothing is uncovered', () => {
+    expect(runbookProjection(rbs, ['INV-16'], []).coverage.uncovered).toEqual([])
   })
 })

@@ -42,6 +42,9 @@ import { extractJsonBlock } from './check-id-registry.mjs'
 /** The one hook with a per-artifact dispatch table, and therefore the one whose coverage is checkable. */
 const ARTIFACT_SCHEMA_HOOK = 'post-edit-artifact-schema.mjs'
 
+/** The closed NodeKind union a declared `graphNode` must appear in. */
+const GRAPH_MODEL_REL = 'src/graph/model.ts'
+
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const REGISTRY_REL = join('docs', 'internal', 'SYSTEM', 'ID-REGISTRY.md')
 const SELF_GATE_ROSTER = join('scripts', 'check-all.mjs')
@@ -186,6 +189,30 @@ async function hookCoverageViolations(s, where, root) {
   ]
 }
 
+/**
+ * Leg 4: a declared `graphNode` must be a NodeKind the graph actually has.
+ *
+ * The column reads "the NodeKind that carries instances of this scheme". Six rows asserted one and
+ * src/graph/model.ts had none of them — the same shape as the hook column before wave 8 taught this
+ * gate to check coverage: a leg that is a statement of intent while reading as a statement of fact.
+ * A scheme may legitimately have no graph node (most do not), so the check is only that a DECLARED
+ * one is real.
+ *
+ * Fails OPEN if the model cannot be read: this gate reports on the registry, not on its own ability
+ * to parse TypeScript.
+ */
+function graphNodeViolations(s, where, root) {
+  if (!s.graphNode) return []
+  const model = readIfPresent(join(root, GRAPH_MODEL_REL))
+  if (model === null) return []
+  // The closed set is a string-literal union; a kind that is not in it cannot be constructed.
+  if (new RegExp(`'${s.graphNode}'`).test(model)) return []
+  return [
+    `${where}: graphNode "${s.graphNode}" is not a NodeKind in ${GRAPH_MODEL_REL} — ` +
+      'the column claims the graph carries instances of this scheme and it does not',
+  ]
+}
+
 /** Leg 3: the hook exists AND is registered — an unregistered hook never fires. */
 function hookViolations(s, where, wants, root, surfaces) {
   if (s.hook === 'n/a') return []
@@ -254,6 +281,7 @@ async function wiringViolations(schemes, root, surfaces) {
       ...toolViolations(s, where, surfaces.cli),
       ...hookViolations(s, where, wants, root, surfaces),
       ...(await hookCoverageViolations(s, where, root)),
+      ...graphNodeViolations(s, where, root),
     )
   }
   return out

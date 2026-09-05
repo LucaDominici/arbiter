@@ -2662,7 +2662,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'blind spot: existence and registration are necessary and never sufficient, and four rows ' +
       'passed this check while naming a hook whose dispatch table matched none of their instances, ' +
       'so the edit-time enforcement they advertised could not have fired. An unregistered hook ' +
-      'never fires; an uncovering one never fires either. `staged` rows are exempt by design — a stage is a dated ' +
+      'never fires; an uncovering one never fires either.' +
+      ' A fourth leg since wave 8: a declared `graphNode` must be a NodeKind the graph actually' +
+      ' has — six rows asserted one while src/graph/model.ts had none of them, the same statement' +
+      ' of intent reading as a statement of fact. `staged` rows are exempt by design — a stage is a dated ' +
       'obligation enforced by INV-140, not a second copy of the same failure — and are COUNTED ' +
       'instead, against a monotone ratchet over the unwired legs. There is deliberately no ' +
       '--allow-increase: the count may fall freely, and raising it means hand-editing ' +
@@ -2925,8 +2928,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '__tests__/scripts/check-runbook-coverage.test.ts, tamper-proven in both directions on every ' +
       'rule: an empty or off-pattern canonical_id, a duplicate RB id, an empty handles list, a ' +
       'handles ref naming an invariant that does not exist, and a ratchet rise each fail, and the ' +
-      'same tree with the defect removed passes. exit 0=PASS or SKIP, 1=violation, 2=ERROR per ' +
-      'INV-53.',
+      'same tree with the defect removed passes. `--emit <path>` writes the projection a viewer ' +
+      'consumes (schema arbiter-runbooks-v1), carrying the uncovered LIST rather than only its ' +
+      'length — an operations view whose only signal is a number cannot tell an operator which ' +
+      'failure they have no procedure for. exit 0=PASS or SKIP, 1=violation, 2=ERROR per INV-53.',
   },
 
   {
@@ -2961,7 +2966,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'in .dogfood-divergences.json. A missing SSOT SKIPs out loud and surfaces as verdict "skip" ' +
       'under --json. Verified by __tests__/templates/track-b-evidence-gates.test.ts, which RENDERS ' +
       'the gate into a project-shaped tree and RUNS it — every failure path included, because a ' +
-      'gate whose rules are exercised nowhere in CI is a gate that has never run (#2335). exit ' +
-      '0=PASS or SKIP, 1=violation, 2=ERROR per INV-53.',
+      'gate whose rules are exercised nowhere in CI is a gate that has never run (#2335). ' +
+      '`--emit <path>` writes the projection a viewer consumes (schema arbiter-use-cases-v1), ' +
+      'written only AFTER every rule passes so an invalid set cannot produce one, and carrying ' +
+      '`exercisedBy` DERIVED from the scenarios rather than copied from the declared status — the ' +
+      'two can disagree and only one of them is checkable. exit 0=PASS or SKIP, 1=violation, ' +
+      '2=ERROR per INV-53.',
   },
 ]

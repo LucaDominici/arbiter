@@ -42,13 +42,18 @@
 // governed project, and the emitted twin is proven to RUN there by a test rather than proven to
 // render (#2335).
 //
-// Usage: node scripts/check-use-cases.mjs [--dir <repo>] [--json]
+// --emit writes the machine projection forma consumes (schema arbiter-use-cases-v1), written ONLY
+// after every rule has passed — so an invalid set cannot produce a projection, the property the
+// milestone gate established and the reason the emit lives in the gate rather than in a generator.
+//
+// Usage: node scripts/check-use-cases.mjs [--dir <repo>] [--json] [--emit <path>]
 // Exit: 0 pass or skip, 1 violation, 2 error (INV-53).
 //
 // Exports for unit tests: extractBlock, findDuplicateIds, findDanglingFeatures, parseMatrixIds,
-//                         parseScenarioExercises, findJoinViolations, collectViolations
+//                         parseScenarioExercises, findJoinViolations, collectViolations,
+//                         useCaseProjection
 
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isMainModule } from './lib/run-helpers.mjs'
@@ -201,17 +206,83 @@ export function annotateSchemaViolations(violations, useCases) {
   )
 }
 
+/**
+ * The machine projection a viewer consumes. Only what a traceability view needs: who wants what,
+ * which features it rests on, and whether a scenario has actually walked it.
+ *
+ * `exercisedBy` is DERIVED here rather than copied from the declared `status`, because the two can
+ * disagree and only one of them is checkable — the gate has just proven which scenarios name this
+ * use case, so the projection carries the measurement, not the claim.
+ * @param {Array<Record<string, unknown>>} useCases
+ * @param {Map<string, string[]>} exercises
+ */
+export function useCaseProjection(useCases, exercises) {
+  return {
+    schema: 'arbiter-use-cases-v1',
+    useCases: [...useCases]
+      .sort((a, b) => String(a['id']).localeCompare(String(b['id'])))
+      .map((uc) => {
+        const id = String(uc['id'])
+        /** @type {Record<string, unknown>} */
+        const row = {
+          id,
+          actor: uc['actor'],
+          goal: uc['goal'],
+          featureIds: [...(Array.isArray(uc['featureIds']) ? uc['featureIds'] : [])].sort(),
+          exercisedBy: (exercises.get(id) ?? []).slice().sort(),
+        }
+        // Omitted when absent rather than defaulted, so "no journey declared" stays distinguishable
+        // from "declared as belonging to none".
+        if (Array.isArray(uc['journeyIds'])) row['journeyIds'] = [...uc['journeyIds']].sort()
+        if (typeof uc['prdRef'] === 'string') row['prdRef'] = uc['prdRef']
+        if (typeof uc['status'] === 'string') row['status'] = uc['status']
+        return row
+      }),
+  }
+}
+
+/**
+ * Load the schema and validate. A schema that will not load is exit 2, not 1 (INV-53): the gate
+ * could not tell, which is a different claim from "a use case is wrong" and must not be filed as
+ * one — the emitted twin ships its schema alongside it precisely so this cannot happen silently.
+ * @returns {{ code: number } | { doc: Record<string, unknown> }}
+ */
+function validateDocument(document, json) {
+  let schema
+  try {
+    schema = loadSchema(resolve(scriptDir, '..', SCHEMA_REL))
+  } catch (err) {
+    process.stderr.write(`check-use-cases: cannot load ${SCHEMA_REL} — ${err.message}\n`)
+    return { code: 2 }
+  }
+  const violations = validateSchema(document, schema, schema, 'useCases')
+  if (violations.length === 0) return { doc: document }
+  const list = Array.isArray(document?.useCases) ? document.useCases : []
+  report(json, 'fail', 'schema violations', annotateSchemaViolations(violations, list))
+  return { code: 1 }
+}
+
+/** Write the projection. Called only after every rule has passed. */
+function emitProjection(emit, useCases, exercises, json) {
+  mkdirSync(dirname(emit), { recursive: true })
+  const doc = useCaseProjection(useCases, exercises)
+  writeFileSync(emit, `${JSON.stringify(doc, null, 2)}\n`, 'utf-8')
+  if (!json) process.stdout.write(`check-use-cases: projection written to ${emit}\n`)
+}
+
 /** @param {string[]} argv */
 function parseArgs(argv) {
   const i = argv.indexOf('--dir')
+  const e = argv.indexOf('--emit')
   return {
     root: i >= 0 && argv[i + 1] ? resolve(argv[i + 1]) : process.cwd(),
     json: argv.includes('--json'),
+    emit: e >= 0 && argv[e + 1] ? resolve(argv[e + 1]) : null,
   }
 }
 
 function main(argv) {
-  const { root, json } = parseArgs(argv)
+  const { root, json, emit } = parseArgs(argv)
   const ssot = join(root, SSOT_REL)
   if (!existsSync(ssot)) {
     report(json, 'skip', `${SSOT_REL} absent — no use cases codified in this project`, [])
@@ -224,21 +295,9 @@ function main(argv) {
     return 1
   }
 
-  let schema
-  try {
-    schema = loadSchema(resolve(scriptDir, '..', SCHEMA_REL))
-  } catch (err) {
-    process.stderr.write(`check-use-cases: cannot load ${SCHEMA_REL} — ${err.message}\n`)
-    return 2
-  }
-
-  const doc = extracted.document
-  const schemaViolations = validateSchema(doc, schema, schema, 'useCases')
-  if (schemaViolations.length > 0) {
-    const list = Array.isArray(doc?.useCases) ? doc.useCases : []
-    report(json, 'fail', 'schema violations', annotateSchemaViolations(schemaViolations, list))
-    return 1
-  }
+  const validated = validateDocument(extracted.document, json)
+  if (validated.code !== undefined) return validated.code
+  const doc = validated.doc
 
   const useCases = doc.useCases
   const matrixPath = join(root, MATRIX_REL)
@@ -262,6 +321,7 @@ function main(argv) {
     report(json, 'fail', 'structural violations', violations)
     return 1
   }
+  if (emit) emitProjection(emit, useCases, exercises, json)
   const walked = useCases.filter((uc) => exercises.has(String(uc['id']))).length
   report(
     json,
