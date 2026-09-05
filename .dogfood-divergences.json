@@ -446,5 +446,12 @@
     "dest": "scripts",
     "reason": "#2480 wave 8 (INV-149): THREE lines differ — SSOT_REL, MATRIX_REL and SCENARIOS_REL, all the same flat-docs/ convention the sources gate already documents (docs/USE_CASES.md, docs/FEATURE_MATRIX.md, docs/TABLETOP-SCENARIOS.md in a target; the docs/internal/ equivalents in arbiter). Plus the header: the self copy carries the paragraph explaining WHY it skips on arbiter's track, which is a statement about arbiter and would be false in a governed project, where this gate does its actual work. Nothing else is scoped down; every rule ports whole.",
     "diffHash": "b4a6c2fe5636bf648084530762fbf1789d61a02abf73218e31a82ea05f045431"
+  },
+  {
+    "path": "check-milestones.mjs",
+    "dest": "scripts",
+    "reason": "#2480 wave 8f: THREE divergences, all forced rather than chosen. (1) The emitted twin reads a fenced JSON block in docs/MILESTONES.md; the self copy parses YAML. `yaml` is arbiter's dependency, NO emitted script imports it, and a Go or Python project receives 77 .mjs gates and no package.json in which to declare one — shipping `import YAML` here would be a gate that dies on MODULE_NOT_FOUND the first time a project writes a milestone. The sentinel block is the convention docs/SOURCES.md and docs/USE_CASES.md already use on this track, for this same reason. (2) The path is flat under docs/, as every emitted document is. (3) An INV-NN evidence_ref resolves against AGENTS.md, where a governed project keeps its invariants, instead of the TypeScript catalog, which is arbiter's own; the match is bounded on the trailing digit so INV-10 is not satisfied by INV-100. Every RULE — schema validity, unique ids, acyclic DAG reported as the cycle path, Now/Next/Later decay, fail-closed `done`, resolvable evidence on `verified`, and the epic join both ways — is identical. Because the readers differ, the emitted copy is proven by EXECUTION in __tests__/templates/track-b-evidence-gates.test.ts, not by rendering. The self copy does not carry `extractBlock`, and the drop is the point: it is the JSON-block reader the emitted twin needs and the YAML-parsing self copy does not. Named here rather than restored as dead code.",
+    "allowedDroppedExports": ["extractBlock"],
+    "diffHash": "590ef41661c2bf905bde6ac868e0338399417b3c7f23dc3824ae6be0a3175f3e"
   }
 ]

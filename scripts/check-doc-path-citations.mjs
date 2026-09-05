@@ -94,6 +94,17 @@ const PATH_ALLOWLIST = new Set([
   // the sentence false, and dropping it would leave a reader unable to find their own registry.
   'website/governance/AGENTS.md:docs/SOURCES.md',
   'AGENTS.md:docs/SOURCES.md',
+  // INV-149 and INV-146 (#2480 wave 8), same shape and same reason: each gate names the path its
+  // EMITTED twin reads in a governed project, which is a phantom in arbiter's own tree by
+  // construction — arbiter keeps its equivalents under docs/internal/. The row has to name the
+  // target path to describe the divergence; repointing it at arbiter's would make the sentence
+  // false, and dropping it would leave a reader unable to find their own document.
+  'website/governance/AGENTS.md:docs/USE_CASES.md',
+  'AGENTS.md:docs/USE_CASES.md',
+  'website/governance/AGENTS.md:docs/MILESTONES.md',
+  'AGENTS.md:docs/MILESTONES.md',
+  'GLOBAL_INVARIANTS.md:docs/USE_CASES.md',
+  'GLOBAL_INVARIANTS.md:docs/MILESTONES.md',
   'GLOBAL_INVARIANTS.md:scripts/check-arbiter-contract.mjs',
   'docs/internal/ADR/118-lifecycle-ontology-wired-not-written.md:scripts/check-arbiter-contract.mjs',
   // A 1.0.0 breaking-changes row recording a rename between two modules that

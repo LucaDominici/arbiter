@@ -2807,7 +2807,6 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-146',
     tier: 'governance',
-    selfOnly: true,
     alwaysActive: true,
     title: 'A milestone is done only when its exit criteria carry evidence',
     description:
@@ -2834,11 +2833,20 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'contract (INV-13) — and that gap is not hypothetical: all three epics first recorded here ' +
       'were already closed, two abandoned rather than delivered, while the file called them open.',
     enforcement:
-      'scripts/check-milestones.mjs — wired on the SELF track as ' +
-      "'milestones (INV-146)' via runCheck in scripts/check-all.mjs. Self-only for now: the MS " +
-      'scheme is `staged` in docs/internal/SYSTEM/ID-REGISTRY.md with a dated expiry, and the ' +
-      'Track-B emission (a gate-registry.yml.ejs row plus the emitted schema) lands with it — ' +
-      'claiming both tracks before that exists is the error INV-144 was caught making. A missing ' +
+      "scripts/check-milestones.mjs — wired on BOTH tracks: self as 'milestones (INV-146)' via " +
+      'runCheck in scripts/check-all.mjs, target via the milestones row in ' +
+      'src/templates/scripts/gate-registry.yml.ejs, emitted WITH schemas/milestone.schema.json ' +
+      '(CANON-11). The emitted twin reads a fenced JSON block in docs/MILESTONES.md rather than ' +
+      "YAML, and that is forced rather than chosen: `yaml` is arbiter's dependency, no emitted " +
+      'script imports it, and a Go or Python project receives 77 .mjs gates and NO package.json in ' +
+      'which to declare one — the same constraint that already shaped docs/SOURCES.md and ' +
+      'docs/USE_CASES.md. Every RULE is identical; the reader, the path, and the INV namespace ' +
+      '(AGENTS.md on the target, the TypeScript catalog here) are the three divergences, pinned in ' +
+      '.dogfood-divergences.json. Because the two copies differ in their READER, the emitted one is ' +
+      'proven by EXECUTION rather than by rendering: ' +
+      '__tests__/templates/track-b-evidence-gates.test.ts renders it into a project-shaped tree and ' +
+      'runs it, cycle, decay, fail-closed `done`, the epic join and both malformed-block paths ' +
+      'included (#2335). A missing ' +
       'MILESTONES.yml SKIPs out loud rather than passing silently, so a project without a codified ' +
       'roadmap is distinguishable from one whose gate never ran. `--emit <path>` writes the machine ' +
       'projection forma consumes (schema arbiter-milestones-v1, carrying the epic index) — written ' +

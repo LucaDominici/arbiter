@@ -16,7 +16,15 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  unlinkSync,
+  readFileSync,
+  existsSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -440,5 +448,197 @@ describe('the emitted use-case gate runs where it is emitted (#2480 wave 8)', ()
     writeUseCases(UC)
     const r = runUc()
     expect(r.status, 'a missing schema is exit 2 — the gate could not tell, INV-53').toBe(2)
+  })
+})
+
+/**
+ * MS-NN / EP-NN (#2480 wave 8), same harness and the same reason — with one extra edge the other
+ * ports did not have: this gate's SELF copy parses YAML, and the emitted twin cannot. `yaml` is
+ * arbiter's dependency, no emitted script imports it, and a Go or Python project receives 77 .mjs
+ * gates and NO package.json in which to declare one. So the emitted twin reads a fenced JSON block
+ * between sentinels, the convention docs/SOURCES.md and docs/USE_CASES.md already use here.
+ *
+ * That makes "renders correctly" worth even less than usual: the two copies now differ in their
+ * READER, so only executing the emitted one proves the rules survived the swap.
+ */
+describe('the emitted milestone gate runs where it is emitted (#2480 wave 8)', () => {
+  let dir: string
+
+  const emitMilestones = (): void => {
+    const data = makeConfig(dir, { governanceLevel: 'L2' }) as unknown as Record<string, unknown>
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    mkdirSync(join(dir, 'schemas'), { recursive: true })
+    mkdirSync(join(dir, 'docs'), { recursive: true })
+    for (const [rel, tpl] of [
+      ['scripts/check-milestones.mjs', 'scripts/check-milestones.mjs.ejs'],
+      ['schemas/milestone.schema.json', 'schemas/milestone.schema.json.ejs'],
+      ['scripts/lib/agent-return-validate.mjs', 'scripts/lib/agent-return-validate.mjs.ejs'],
+    ] as const) {
+      const rendered = renderTemplate(tpl, data)
+      expect(rendered, `${rel} still carries an unrendered EJS tag`).not.toContain('<%')
+      writeFileSync(join(dir, rel), rendered)
+    }
+  }
+
+  const runMs = (...args: string[]): Run => {
+    const r = spawnSync('node', [join(dir, 'scripts', 'check-milestones.mjs'), ...args], {
+      encoding: 'utf-8',
+      cwd: dir,
+    })
+    return { status: r.status ?? -1, out: (r.stdout ?? '') + (r.stderr ?? '') }
+  }
+
+  const writePlan = (doc: Record<string, unknown>): void => {
+    writeFileSync(
+      join(dir, 'docs', 'MILESTONES.md'),
+      [
+        '# Milestones',
+        '',
+        '<!-- MILESTONES_START -->',
+        '```json',
+        JSON.stringify(doc, null, 2),
+        '```',
+        '<!-- MILESTONES_END -->',
+        '',
+      ].join('\n'),
+    )
+  }
+
+  const ms = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    id: 'MS-01',
+    title: 'A sufficiently long title',
+    goal: { claim: 'a claim long enough to pass', strategy: 'a strategy long enough' },
+    exit_criteria: [{ id: 'EC-01', description: 'something checkable' }],
+    horizon: 'next',
+    status: 'planned',
+    ...over,
+  })
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-ms-trackb-'))
+    emitMilestones()
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('SKIPs out loud, and never says PASS, when the project codified no roadmap', () => {
+    const r = runMs()
+    expect(r.status, r.out).toBe(0)
+    expect(r.out).toContain('[SKIP]')
+    expect(r.out).not.toMatch(/PASS/)
+  })
+
+  it('passes on a well-formed plan — the reader swap did not break the rules', () => {
+    writePlan({ milestones: [ms()] })
+    const r = runMs()
+    expect(r.status, r.out).toBe(0)
+    expect(r.out).toMatch(/1 milestone\(s\)/)
+  })
+
+  it('FAILS on a dependency cycle, reported AS THE PATH', () => {
+    writePlan({
+      milestones: [ms({ depends_on: ['MS-02'] }), ms({ id: 'MS-02', depends_on: ['MS-01'] })],
+    })
+    const r = runMs()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/dependency cycle: MS-0[12] -> MS-0[12] -> MS-0[12]/)
+  })
+
+  it('FAILS the granularity decay: a `later` milestone may not carry a due date', () => {
+    writePlan({ milestones: [ms({ horizon: 'later', due: '2027-01-01' })] })
+    expect(runMs().status).toBe(1)
+  })
+
+  it('FAILS fail-closed on `done` without exit-criteria evidence', () => {
+    writePlan({ milestones: [ms({ status: 'done' })] })
+    const r = runMs()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/status is not evidence/)
+  })
+
+  it('FAILS a one-sided epic join', () => {
+    writePlan({
+      milestones: [ms()],
+      epics: [{ id: 'EP-01', title: 'An epic title', issue: 1, targets: 'MS-01', status: 'open' }],
+    })
+    const r = runMs()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/one-sided/)
+  })
+
+  it('resolves an INV evidence_ref against AGENTS.md, which is where a project keeps them', () => {
+    writeFileSync(join(dir, 'AGENTS.md'), '# Agents\n\n- **INV-01:** something\n')
+    writePlan({
+      milestones: [
+        ms({
+          status: 'verified',
+          exit_criteria: [
+            { id: 'EC-01', description: 'something checkable', evidence_ref: 'INV-01' },
+          ],
+        }),
+      ],
+    })
+    const r = runMs()
+    expect(r.status, `a resolvable INV ref must pass — got: ${r.out}`).toBe(0)
+  })
+
+  it('FAILS an INV evidence_ref the project does not carry, and is not fooled by a longer id', () => {
+    writeFileSync(join(dir, 'AGENTS.md'), '# Agents\n\n- **INV-100:** something\n')
+    writePlan({
+      milestones: [
+        ms({
+          status: 'verified',
+          exit_criteria: [
+            { id: 'EC-01', description: 'something checkable', evidence_ref: 'INV-10' },
+          ],
+        }),
+      ],
+    })
+    const r = runMs()
+    expect(r.status, 'INV-10 must not be satisfied by INV-100').toBe(1)
+    expect(r.out).toMatch(/does not resolve/)
+  })
+
+  // Exit 2, at PARITY with the self copy, which files unreadable YAML the same way. The two
+  // copies must agree on their exit contract or "twin" means nothing. Worth noting: the emitted
+  // use-case gate files an unreadable SSOT as 1 instead, which is a real inconsistency between two
+  // gates written days apart — filed rather than fixed here, because changing a shipped gate's
+  // exit code inside an emission commit is an unrelated behaviour change.
+  it('reports a malformed sentinel block as an ERROR, never as an empty plan', () => {
+    writeFileSync(join(dir, 'docs', 'MILESTONES.md'), '# Milestones\n\nno sentinels\n')
+    const r = runMs()
+    expect(r.status).toBe(2)
+    expect(r.out).toMatch(/sentinel block/)
+  })
+
+  it('reports malformed JSON inside the fence — broken and empty must not share a verdict', () => {
+    writeFileSync(
+      join(dir, 'docs', 'MILESTONES.md'),
+      '# Milestones\n\n<!-- MILESTONES_START -->\n```json\n{not json\n```\n<!-- MILESTONES_END -->\n',
+    )
+    const r = runMs()
+    expect(r.status).toBe(2)
+    expect(r.out).toMatch(/not valid JSON/)
+  })
+
+  it('--emit writes the projection only after every rule passes', () => {
+    writePlan({ milestones: [ms()] })
+    expect(runMs('--emit', join(dir, 'out.json')).status).toBe(0)
+    const proj = JSON.parse(readFileSync(join(dir, 'out.json'), 'utf-8'))
+    expect(proj.schema).toBe('arbiter-milestones-v1')
+    expect(proj.milestones).toHaveLength(1)
+  })
+
+  it('--emit writes NOTHING when a rule fails — an invalid plan cannot produce a projection', () => {
+    writePlan({ milestones: [ms({ status: 'done' })] })
+    expect(runMs('--emit', join(dir, 'out.json')).status).toBe(1)
+    expect(existsSync(join(dir, 'out.json'))).toBe(false)
+  })
+
+  it('exits 2, not 1, when its schema is missing — the gate could not tell (INV-53)', () => {
+    unlinkSync(join(dir, 'schemas', 'milestone.schema.json'))
+    writePlan({ milestones: [ms()] })
+    expect(runMs().status).toBe(2)
   })
 })

@@ -390,6 +390,19 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['schemas', 'use-case.schema.json'],
     tpl: 'schemas/use-case.schema.json.ejs',
   },
+  // #2480 (INV-146): the milestone SSOT — a typed plan, acyclic, fail-closed on `done`, with the
+  // epic join checked both ways. Emitted WITH its schema (CANON-11). The emitted twin reads a
+  // fenced JSON block in docs/MILESTONES.md rather than YAML, because `yaml` is arbiter's
+  // dependency and a governed project has nowhere to declare one — a Go project receives 77 .mjs
+  // gates and no package.json. Wired at L1; SKIPs out loud when docs/MILESTONES.md is absent.
+  {
+    rel: ['scripts', 'check-milestones.mjs'],
+    tpl: 'scripts/check-milestones.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'milestone.schema.json'],
+    tpl: 'schemas/milestone.schema.json.ejs',
+  },
   // #1456 (INV-133): TODO max-age enforcement gate. A TODO(#NNN) whose linked issue
   // was created more than MAX_AGE_DAYS ago FAILS the gate (age from issue created_at
   // only). Self-contained; wired at L2 in check-all.mjs.ejs. Graceful-SKIPs offline.
