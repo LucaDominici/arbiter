@@ -49,7 +49,12 @@ import { fileURLToPath } from 'node:url'
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const SCHEMA_PATH = resolve(scriptDir, '..', 'schemas', 'tabletop-evidence.schema.json')
 const EVIDENCE_REL = join('.arbiter', 'evidence', 'tabletop')
-const SCENARIOS_REL = join('docs', 'internal', 'METHOD', 'TABLETOP-SCENARIOS.md')
+// Flat under docs/, not arbiter's docs/internal/METHOD/ — a governed project keeps its documents
+// flat, as the emitted sources and feature-matrix gates already do. Shipped with arbiter's own path
+// in #2480 wave 8, which meant the definitions pass and the join looked for a catalogue no governed
+// project has and skipped out loud forever: honest, and useless. Divergence pinned in
+// .dogfood-divergences.json.
+const SCENARIOS_REL = join('docs', 'TABLETOP-SCENARIOS.md')
 
 /** The seven fields every scenario block carries, beyond its heading. */
 const SCENARIO_FIELDS = [

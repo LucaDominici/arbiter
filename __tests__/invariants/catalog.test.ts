@@ -20,9 +20,9 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 146
+const EXPECTED_TOTAL_ENTRIES = 147
 const EXPECTED_TIER4_OPERATIONAL = 49
-const EXPECTED_TIER5_GOVERNANCE = 61
+const EXPECTED_TIER5_GOVERNANCE = 62
 const EXPECTED_SELFONLY = 37
 
 // ---------------------------------------------------------------------------
@@ -551,7 +551,8 @@ describe('getFilteredInvariants', () => {
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all-languages, operational)
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(result).toHaveLength(92)
+    // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
+    expect(result).toHaveLength(93)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -565,7 +566,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-40')
   })
 
-  it('returns fewer than 60 for unknown language (language-specific excluded)', () => {
+  it('returns fewer than 81 for unknown language (language-specific excluded)', () => {
     // +1 from INV-112 (no language restriction) — threshold updated from 57→58
     // +1 from INV-115 (no language restriction, governance L1+) — threshold 58→59
     // +2 from INV-118 (L1+, all languages) + INV-119 (L2+, all languages) — threshold 59→61 → < 64
@@ -587,7 +588,8 @@ describe('getFilteredInvariants', () => {
     // +1 from INV-137 (L1+, all languages, smoke-journey floor) — threshold < 76 → < 77
     // +1 from INV-144 (L1+, all languages, arc42 slot completeness) — → < 78
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(result.length).toBeLessThan(80)
+    // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks) — → < 81
+    expect(result.length).toBeLessThan(81)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -670,7 +672,8 @@ describe('getFilteredInvariants', () => {
     // Updated #2080: +1 (INV-137 smoke-journey acceptance floor, L1+, all languages, operational)
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(result).toHaveLength(87)
+    // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
+    expect(result).toHaveLength(88)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -706,7 +709,8 @@ describe('getFilteredInvariants', () => {
     })
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, L1+, all-languages, Track B)
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(result).toHaveLength(88)
+    // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
+    expect(result).toHaveLength(89)
   })
 
   it('essential preset at L1 returns minimal set', () => {

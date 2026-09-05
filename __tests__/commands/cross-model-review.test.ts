@@ -505,14 +505,21 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         // the stub missed the deadline, the seat degraded, and `findings` came back empty — a red
         // that says nothing about the wiring under test.
         //
-        // 20s was the first correction and was still not enough: under the L2 `coverage` run —
-        // v8 instrumentation over 1051 test files on a 4-core box — the stub was SIGTERMed and the
-        // artifact came back `{fulfilled: 0, degraded: [{reason: "nonzero-exit", detail: "Codex
-        // exited with status -1"}]}`, status -1 being spawnSync's report of a signal kill. The same
-        // file passes 15/15 in 2s in isolation, which is the signature of a wall-clock race rather
-        // than a defect. Raised to sit just inside the outer 120s spawn timeout below: a genuine
-        // hang is still caught there, and spawn latency stops deciding the verdict.
-        timeoutMs: 90_000,
+        // 20s was the first correction, 90s the second, and BOTH were the wrong shape of fix. The
+        // defect is not that the number was too small — it is that this test had TWO clocks racing
+        // each other: an inner per-invocation budget and the outer spawnSync timeout below. Under
+        // load the inner one won, the stub was SIGTERMed, and the artifact came back
+        // `{fulfilled: 0, degraded: [{reason: "nonzero-exit", detail: "Codex exited with status
+        // -1"}]}` — status -1 being spawnSync's report of a signal kill, not a stub that exited
+        // badly. The same file passes 15/15 in 2s in isolation every time.
+        //
+        // So the inner clock is removed from contention rather than retuned: at 300s (which is
+        // simply the config default, not a magic number) it can never fire before the outer 120s,
+        // leaving exactly ONE timeout able to fail this case — the outer one, which is there to
+        // catch a genuine hang. A test whose verdict depends on which of two deadlines expires
+        // first is a test of the machine's load, and this case is a test of whether the external
+        // seat is REACHED from the CLI boundary.
+        timeoutMs: 300_000,
         onUnavailable: 'degrade',
       }
       writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)

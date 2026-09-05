@@ -2928,4 +2928,40 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'same tree with the defect removed passes. exit 0=PASS or SKIP, 1=violation, 2=ERROR per ' +
       'INV-53.',
   },
+
+  {
+    id: 'INV-149',
+    tier: 'governance',
+    alwaysActive: true,
+    title: 'A use case names an actor, a goal, and features that exist',
+    description:
+      'A use-case matrix decays by RENAME. A feature is renamed in the matrix, every use case ' +
+      'pointing at the old id keeps reading exactly like coverage, and nothing notices — which is ' +
+      'why the central rule here is not that use cases exist but that every featureId RESOLVES. ' +
+      'The schema carries the other half: an actor (a use case with none is a feature description ' +
+      "wearing a use case's name), a goal in the actor's terms, and `featureIds` minItems 1, " +
+      'because a use case demanding no feature is a promise with nothing behind it. The scenario ' +
+      'JOIN is checked in both directions: a tabletop scenario naming a use case that does not ' +
+      'exist fails, and a use case claiming status `exercised` that no scenario walks fails — ' +
+      'status is not a walk. This gate does its real work on the TARGET track, and the asymmetry ' +
+      "is structural rather than an omission: arbiter's own feature-matrix rows are cross-cutting " +
+      'capability areas, so one of its use cases would name nearly all 62 of them and the link ' +
+      'would carry no information. Measured against a real product matrix a use case names ONE or ' +
+      'TWO features, and that ratio is what makes the edge worth checking. So the self copy SKIPs ' +
+      'out loud and the emitted twin is proven to RUN rather than proven to render.',
+    enforcement:
+      "scripts/check-use-cases.mjs — wired on BOTH tracks: self as 'use cases (INV-149)' via " +
+      'runCheck in scripts/check-all.mjs, target via the use-cases row in ' +
+      'src/templates/scripts/gate-registry.yml.ejs. Emitted WITH schemas/use-case.schema.json ' +
+      '(CANON-11) — the lesson the sources port learned the hard way: a rule shipped without its ' +
+      'contract dies on MODULE_NOT_FOUND the moment a project uses it, and a missing schema is ' +
+      'exit 2 here rather than a silent skip. The three document paths are the only divergence ' +
+      'between the copies (docs/USE_CASES.md, docs/FEATURE_MATRIX.md and ' +
+      'docs/TABLETOP-SCENARIOS.md in a target; the docs/internal/ equivalents in arbiter), pinned ' +
+      'in .dogfood-divergences.json. A missing SSOT SKIPs out loud and surfaces as verdict "skip" ' +
+      'under --json. Verified by __tests__/templates/track-b-evidence-gates.test.ts, which RENDERS ' +
+      'the gate into a project-shaped tree and RUNS it — every failure path included, because a ' +
+      'gate whose rules are exercised nowhere in CI is a gate that has never run (#2335). exit ' +
+      '0=PASS or SKIP, 1=violation, 2=ERROR per INV-53.',
+  },
 ]

@@ -264,15 +264,14 @@ and INV-31.
       "prefix": "UC",
       "pattern": "^UC-[0-9]{2}$",
       "meaning": "A structured use case with an actor, a goal and the tests that prove it.",
-      "ssot": "docs/internal/PRODUCT/USE_CASES.md",
+      "ssot": "schemas/use-case.schema.json",
       "gate": "scripts/check-use-cases.mjs",
       "track": "both",
-      "tool": "arbiter graph build",
-      "hook": ".claude/hooks/post-edit-artifact-schema.mjs",
-      "status": "staged",
-      "expires": "2027-01-31",
+      "tool": "n/a",
+      "hook": "n/a",
+      "status": "active",
       "graphNode": "USECASE",
-      "note": "Wave 8. Unifies three mutually unlinked near-misses: the prose use-case matrix, the tabletop scenario catalogue and the single Gherkin feature."
+      "note": "Wave 8 (INV-149). The `ssot` names the SCHEMA rather than an instance file, on the PROJ row's precedent: instances live in a governed project (docs/USE_CASES.md), so no path in arbiter's tree holds them, and the column names the contract that defines them instead. The note this row carried was written from a survey and two thirds of it was wrong: arbiter has no prose use-case matrix and its only Gherkin features are stack fixtures, so there were never three near-misses to unify here — the third, the tabletop catalogue, is now gated in its own right as TT and is JOINED to this scheme rather than absorbed by it. What the gate actually does is resolve every featureId into the feature matrix, because a use-case matrix decays by rename and a dangling featureId reads exactly like coverage. The work happens on the TARGET track and the asymmetry is structural: arbiter's 62 matrix rows are cross-cutting capability areas, so one of its use cases would name nearly all of them and the link would carry no information; a product's use case names one or two features, and that ratio is what makes the edge worth checking. The self copy therefore SKIPs out loud, and the emitted twin is proven to RUN in a project-shaped tree rather than proven to render. `tool: n/a` because no CLI verb reads use cases — `arbiter graph build` was claimed here before the USECASE node existed, and naming a surface that does not read this artifact is the phantom-command class of claim this registry refuses. `hook: n/a` because post-edit-artifact-schema.mjs validates a document against a JSON Schema and its dispatch table does not cover this path on either track; wave 8 taught the meta-gate to check that, so the claim cannot be made without being true."
     },
     {
       "prefix": "TT",

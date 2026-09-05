@@ -99,7 +99,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 54 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 56 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -145,7 +145,7 @@ describe('generateCheckAll', () => {
     )
     // 51 -> 52 (INV-144): scripts/check-arc42-slots.mjs, the arc42 slot-completeness thin runner,
     // joins check-doc-set.mjs and check-doc-freshness.mjs in the unconditionally-emitted set.
-    expect(result.files).toHaveLength(54)
+    expect(result.files).toHaveLength(56)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-evidence.mjs'))).toBe(true)
     // #2399 — the review/dispatch evidence binding shared by the review gates and the Stop hook.
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/evidence-binding.mjs'))).toBe(true)

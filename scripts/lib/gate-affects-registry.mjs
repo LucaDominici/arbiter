@@ -158,6 +158,9 @@ export const GATE_AFFECTS_REGISTRY = [
   // ALWAYS, like its ontology siblings: the gate reads every doc's frontmatter and the whole
   // invariant catalog, so no narrow path bucket contains its inputs.
   { name: 'runbook coverage (INV-148)', affects: ALWAYS },
+  // ALWAYS: reads the use-case SSOT, the feature matrix and the scenario catalogue together —
+  // three documents in three trees, so no narrow path bucket holds its inputs.
+  { name: 'use cases (INV-149)', affects: ALWAYS },
   // ALWAYS: the gate reads SOURCES.md, its schema and every committed excerpt — no changed-path
   // predicate covers that set without letting an edit to one of them skip the gate that guards it.
   { name: 'sources tier 1 (INV-147)', affects: ALWAYS },

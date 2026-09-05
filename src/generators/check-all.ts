@@ -375,6 +375,21 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['schemas', 'source-record.schema.json'],
     tpl: 'schemas/source-record.schema.json.ejs',
   },
+  // #2480 (INV-149): the use-case SSOT — an actor, a goal, and features that exist. This gate does
+  // its real work HERE and not in arbiter, and the asymmetry is structural: arbiter's feature-matrix
+  // rows are cross-cutting capability areas, so one of its use cases would name nearly all of them
+  // and the link would carry no information; in a product a use case names one or two features, and
+  // that ratio is what makes the edge worth checking. Emitted WITH its schema for the reason the
+  // sources port learned the hard way — a rule shipped without its contract dies on MODULE_NOT_FOUND
+  // the moment a project uses it. Wired at L1; SKIPs out loud when docs/USE_CASES.md is absent.
+  {
+    rel: ['scripts', 'check-use-cases.mjs'],
+    tpl: 'scripts/check-use-cases.mjs.ejs',
+  },
+  {
+    rel: ['schemas', 'use-case.schema.json'],
+    tpl: 'schemas/use-case.schema.json.ejs',
+  },
   // #1456 (INV-133): TODO max-age enforcement gate. A TODO(#NNN) whose linked issue
   // was created more than MAX_AGE_DAYS ago FAILS the gate (age from issue created_at
   // only). Self-contained; wired at L2 in check-all.mjs.ejs. Graceful-SKIPs offline.

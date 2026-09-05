@@ -140,6 +140,7 @@ gates:
 
   - { id: tabletop-evidence, name: 'tabletop evidence (#2429)', level: L1, kind: check, cmd: ['node', ['scripts/check-tabletop-evidence.mjs']] }
   - { id: sources, name: 'source certification (INV-147)', level: L1, kind: check, cmd: ['node', ['scripts/check-sources.mjs']] }
+  - { id: use-cases, name: 'use cases (INV-149)', level: L1, kind: check, cmd: ['node', ['scripts/check-use-cases.mjs']] }
 
   # ── L2 ─────────────────────────────────────────────────────────────────────
   - { id: gitleaks, name: gitleaks, level: L2, kind: check, emitIf: "enableSecurityScanning", soft: true, cmd: ['gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1']] }

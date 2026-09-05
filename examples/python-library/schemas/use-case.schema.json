@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "use-case.schema.json",
+  "title": "Use-case set",
+  "description": "Contract for docs/USE_CASES.md, the use-case SSOT. A use case is what an ACTOR wants to accomplish, and the features that accomplishing it requires. Enforced by scripts/check-use-cases.mjs (UC-NN, #2480 wave 8). Shape taken from a real product's matrix rather than invented: the fields are those a shipped use-case matrix already carried, which is also what forma's traceability lens renders.",
+  "type": "object",
+  "required": ["useCases"],
+  "additionalProperties": false,
+  "properties": {
+    "useCases": {
+      "type": "array",
+      "description": "Every use case the product claims. An empty list is legitimate and distinct from an absent file: the first means nothing is claimed, the second means nothing is codified.",
+      "items": { "$ref": "#/definitions/useCase" }
+    }
+  },
+  "definitions": {
+    "useCase": {
+      "type": "object",
+      "required": ["id", "actor", "goal", "featureIds"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^UC-[0-9]{2,3}$",
+          "description": "Registered in the ID registry."
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 2,
+          "description": "WHO wants this. A use case with no actor is a feature description wearing a use case's name — the actor is what makes it a claim about someone's world rather than about the code."
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 8,
+          "description": "What the actor accomplishes, in their terms. Not the mechanism."
+        },
+        "featureIds": {
+          "type": "array",
+          "minItems": 1,
+          "description": "The features this use case requires, which the gate resolves against the feature matrix. `minItems: 1` is the load-bearing constraint: a use case demanding no feature is a promise with nothing behind it, and it is precisely what an unmaintained matrix accumulates.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "journeyIds": {
+          "type": "array",
+          "description": "Optional journeys this use case belongs to. Not resolved — journeys are a product-side vocabulary this contract does not own, and validating a reference into a namespace it cannot see would be a false red.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "prdRef": {
+          "type": "string",
+          "description": "Optional upward anchor to the requirement's origin, e.g. `PRD §3`. Format-only, never dereferenced — the same treatment FEATURE_MATRIX's source_ref gives a non-canonical anchor, and for the same reason: a gate that reaches outside its own tree fails when the network does, not when the document is wrong."
+        },
+        "status": {
+          "enum": ["proposed", "drafted", "linked", "exercised"],
+          "description": "The ladder. `linked` means every featureId resolves; `exercised` additionally means a tabletop scenario walks it. Both are gate-checked, so neither can be claimed by typing it."
+        }
+      }
+    }
+  }
+}

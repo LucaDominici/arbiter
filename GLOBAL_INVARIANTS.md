@@ -918,6 +918,24 @@ A missing `MILESTONES.yml` **skips out loud** — a project need not have codifi
 
 ---
 
+### INV-149: A use case names an actor, a goal, and features that exist
+
+A use-case matrix does not decay by going out of date. It decays by **rename**: a feature is renamed in the matrix, every use case pointing at the old id keeps reading exactly like coverage, and nothing notices. So the central rule here is not that use cases exist — it is that every `featureId` **resolves**.
+
+The schema carries the other half:
+
+- an **actor**. A use case with no actor is a feature description wearing a use case's name; the actor is what makes it a claim about someone's world rather than about the code.
+- a **goal**, in the actor's terms rather than the mechanism's.
+- `featureIds` with **`minItems: 1`**. A use case demanding no feature is a promise with nothing behind it, and it is precisely what an unmaintained matrix accumulates.
+
+The **scenario join** is checked in both directions. A tabletop scenario naming a use case that does not exist fails; and a use case claiming `status: exercised` that no scenario walks fails, because status is not a walk. The second direction is invisible from the scenario side, which is why the join is read from here.
+
+**This gate does its real work on the target track, and the asymmetry is structural rather than an omission.** arbiter's 62 feature-matrix rows are cross-cutting capability areas — architecture enforcement, static analysis, CI/CD wiring — so one of its use cases would name nearly all of them and the link would carry no information. Measured against a real product's matrix, a use case names **one or two** features, and that ratio is what makes the edge worth checking. arbiter's own copy therefore **skips out loud**, and the registry note that claimed this scheme unified "three near-misses" was corrected: two of the three do not exist here, and the third is gated in its own right as `TT` and joined to this one rather than absorbed.
+
+**Enforcement:** `scripts/check-use-cases.mjs`, wired on **both** tracks — self as `use cases (INV-149)` via `runCheck` in `scripts/check-all.mjs`, target via the `use-cases` row in the emitted gate registry — and emitted **with** `schemas/use-case.schema.json`, because a rule shipped without its contract dies on `MODULE_NOT_FOUND` the first time a project uses it (CANON-11; a missing schema is exit 2 here, never a silent skip). The three document paths are the only divergence between the copies, pinned in `.dogfood-divergences.json`. A missing SSOT **skips out loud**, visible as `verdict: "skip"` under `--json`. Verified by `__tests__/templates/track-b-evidence-gates.test.ts`, which **renders the gate into a project-shaped tree and runs it** — every failure path included, because the self copy skips and a gate whose rules are exercised nowhere in CI is a gate that has never run (#2335). Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
+
+---
+
 ### INV-147: A cited source is quotable, and the quotation checks out
 
 A URL in a document proves nothing. The page can change under the citation, or can never have said what it is cited for, and in neither case does anything notice. That is how a bibliography becomes decoration: it looks like evidence and is not checkable.

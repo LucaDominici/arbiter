@@ -118,6 +118,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-144:** The architecture document is a filled structure, not a surviving skeleton
 - **INV-145:** Adversarial review closes only when nothing above low severity survives
 - **INV-147:** A cited source is quotable, and the quotation checks out
+- **INV-149:** A use case names an actor, a goal, and features that exist
 
 ---
 

@@ -49,6 +49,9 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
       ['scripts/lib/agent-return-validate.mjs', 'scripts/lib/agent-return-validate.mjs.ejs'],
       ['schemas/source-record.schema.json', 'schemas/source-record.schema.json.ejs'],
       ['schemas/rtm-verdict.schema.json', 'schemas/rtm-verdict.schema.json.ejs'],
+      ['scripts/check-use-cases.mjs', 'scripts/check-use-cases.mjs.ejs'],
+      ['schemas/use-case.schema.json', 'schemas/use-case.schema.json.ejs'],
+      ['scripts/lib/run-helpers.mjs', 'scripts/lib/run-helpers.mjs.ejs'],
     ] as const) {
       const rendered = renderTemplate(tpl, data)
       // A leftover EJS tag would mean the gate ships a syntax error, which no runtime assertion
@@ -251,5 +254,191 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
       const r = run('check-feature-matrix.mjs')
       expect(r.out).not.toMatch(/RTM verdict ratchet/)
     })
+  })
+})
+
+/**
+ * UC-NN (#2480 wave 8), same harness and same reason. This gate is Track-B-shaped by construction:
+ * arbiter's feature-matrix rows are cross-cutting capability areas, so one of its use cases would
+ * name nearly all of them and the link would carry no information. It therefore SKIPs on arbiter's
+ * own track, which means the ONLY place its rules are ever exercised is a governed project — and a
+ * rule exercised nowhere in CI is a rule that has never run. So it is rendered into a
+ * project-shaped tree and executed here, failure paths included.
+ */
+describe('the emitted use-case gate runs where it is emitted (#2480 wave 8)', () => {
+  let dir: string
+
+  const emitUseCases = (): void => {
+    const data = makeConfig(dir, { governanceLevel: 'L2' }) as unknown as Record<string, unknown>
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    mkdirSync(join(dir, 'schemas'), { recursive: true })
+    mkdirSync(join(dir, 'docs'), { recursive: true })
+    for (const [rel, tpl] of [
+      ['scripts/check-use-cases.mjs', 'scripts/check-use-cases.mjs.ejs'],
+      ['schemas/use-case.schema.json', 'schemas/use-case.schema.json.ejs'],
+      ['scripts/lib/run-helpers.mjs', 'scripts/lib/run-helpers.mjs.ejs'],
+      ['scripts/lib/agent-return-validate.mjs', 'scripts/lib/agent-return-validate.mjs.ejs'],
+    ] as const) {
+      const rendered = renderTemplate(tpl, data)
+      expect(rendered, `${rel} still carries an unrendered EJS tag`).not.toContain('<%')
+      writeFileSync(join(dir, rel), rendered)
+    }
+  }
+
+  const runUc = (): Run => {
+    const r = spawnSync('node', [join(dir, 'scripts', 'check-use-cases.mjs')], {
+      encoding: 'utf-8',
+      cwd: dir,
+    })
+    return { status: r.status ?? -1, out: (r.stdout ?? '') + (r.stderr ?? '') }
+  }
+
+  const writeUseCases = (...useCases: Array<Record<string, unknown>>): void => {
+    writeFileSync(
+      join(dir, 'docs', 'USE_CASES.md'),
+      [
+        '# Use cases',
+        '',
+        '<!-- USE_CASES_START -->',
+        '```json',
+        JSON.stringify({ useCases }, null, 2),
+        '```',
+        '<!-- USE_CASES_END -->',
+        '',
+      ].join('\n'),
+    )
+  }
+
+  const writeFeatureMatrix = (...featureIds: string[]): void => {
+    writeFileSync(
+      join(dir, 'docs', 'FEATURE_MATRIX.md'),
+      [
+        '# FEATURE_MATRIX',
+        '',
+        '| feature_id | capability |',
+        '| --- | --- |',
+        ...featureIds.map((f) => `| ${f} | a capability |`),
+        '',
+      ].join('\n'),
+    )
+  }
+
+  const writeScenario = (exercises: string): void => {
+    writeFileSync(
+      join(dir, 'docs', 'TABLETOP-SCENARIOS.md'),
+      ['# Scenarios', '', '## 1. A journey', '', `- **Exercises:** \`${exercises}\``, ''].join(
+        '\n',
+      ),
+    )
+  }
+
+  const UC = {
+    id: 'UC-01',
+    actor: 'Traveler',
+    goal: 'Search and filter trips by name and date',
+    featureIds: ['F-TRIP-SEARCH'],
+  }
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-uc-trackb-'))
+    emitUseCases()
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('SKIPs out loud, and never says PASS, when the project has no use cases', () => {
+    const r = runUc()
+    expect(r.status, r.out).toBe(0)
+    expect(r.out).toContain('[SKIP]')
+    expect(r.out).not.toMatch(/PASS/)
+  })
+
+  it('passes on a well-formed set whose features resolve', () => {
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    writeUseCases(UC)
+    const r = runUc()
+    expect(r.status, r.out).toBe(0)
+    expect(r.out).toMatch(/1 use case\(s\)/)
+  })
+
+  it('FAILS on a featureId the matrix does not declare — the rule the gate exists for', () => {
+    writeFeatureMatrix('F-SOMETHING-ELSE')
+    writeUseCases(UC)
+    const r = runUc()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/featureId "F-TRIP-SEARCH" is not a row/)
+  })
+
+  it('FAILS the schema when featureIds is empty — a promise with nothing behind it', () => {
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    writeUseCases({ ...UC, featureIds: [] })
+    const r = runUc()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/use case UC-01/)
+  })
+
+  it('FAILS the schema when the actor is missing', () => {
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    const noActor = Object.fromEntries(Object.entries(UC).filter(([k]) => k !== 'actor'))
+    writeUseCases(noActor)
+    const r = runUc()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/actor/)
+  })
+
+  it('FAILS on a duplicate id', () => {
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    writeUseCases(UC, UC)
+    expect(runUc().out).toMatch(/duplicate use-case id "UC-01"/)
+  })
+
+  it('FAILS when use cases exist but the feature matrix does not — every ref is unresolvable', () => {
+    writeUseCases(UC)
+    const r = runUc()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/is absent — every featureId is unresolvable/)
+  })
+
+  it('FAILS on a scenario exercising a use case that does not exist', () => {
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    writeUseCases(UC)
+    writeScenario('UC-99')
+    const r = runUc()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/exercises "UC-99", which is not a declared use case/)
+  })
+
+  it('FAILS on status "exercised" that no scenario walks — status is not a walk', () => {
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    writeUseCases({ ...UC, status: 'exercised' })
+    const r = runUc()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/claims status "exercised" but no tabletop scenario names it/)
+  })
+
+  it('passes "exercised" once a scenario actually names it, and counts the walk', () => {
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    writeUseCases({ ...UC, status: 'exercised' })
+    writeScenario('UC-01')
+    const r = runUc()
+    expect(r.status, r.out).toBe(0)
+    expect(r.out).toMatch(/1 exercised by a scenario/)
+  })
+
+  it('FAILS on a malformed block rather than skipping past it', () => {
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    writeFileSync(join(dir, 'docs', 'USE_CASES.md'), '# Use cases\n\nno sentinels here\n')
+    const r = runUc()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/sentinel pair/)
+  })
+
+  it('reads its schema from the project tree, so the emitted pair is self-sufficient', () => {
+    unlinkSync(join(dir, 'schemas', 'use-case.schema.json'))
+    writeFeatureMatrix('F-TRIP-SEARCH')
+    writeUseCases(UC)
+    const r = runUc()
+    expect(r.status, 'a missing schema is exit 2 — the gate could not tell, INV-53').toBe(2)
   })
 })

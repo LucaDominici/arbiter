@@ -230,6 +230,7 @@ const CI_COVERAGE = new Map([
   ['arc42 slots (INV-144)', 'gate-full'],
   ['milestones (INV-146)', 'gate-full'],
   ['runbook coverage (INV-148)', 'gate-full'],
+  ['use cases (INV-149)', 'gate-full'],
   ['sources tier 1 (INV-147)', 'gate-full'],
   ['forma schema contract (INV-143)', 'gate-full'],
   ['constraint scan (INV-115)', 'gate-full'],
