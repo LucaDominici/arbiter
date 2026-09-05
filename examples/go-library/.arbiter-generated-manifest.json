@@ -110,7 +110,7 @@
     "scripts/check-ci-tiers.mjs": "296a5540fef6b900a91f571ca23e12fefe438ef3fe32d2f7410109f1514dd799",
     "scripts/check-claude-md-lint.mjs": "052431a9c74b7e44f91056ae649ae107c3183c01dc2a86affdff48cabd8527f6",
     "scripts/check-collab-mode-wired.mjs": "998ef0a8d0c506846c1002c906b786e375a71301748071c54f65c9e0a44284d0",
-    "scripts/check-constraint-scan.mjs": "1a76947b84d41b7064bd824bc7d2362aa49adb87af0a6bbe8831c12f741121f8",
+    "scripts/check-constraint-scan.mjs": "e25d8c35c4a22cea2b493503a930fefad078bc3aad3fe14af895bed2bcf171a6",
     "scripts/check-continue-on-error.mjs": "9449a69ae77dabde2653dfc92ce06d92988b8e6c0a90858b82e96d1b9cb4103d",
     "scripts/check-cross-model-review.mjs": "a4ec2aa9439abf7da9fdf9458111369f3e72a2be41b70c83cd0cf6e87db1b621",
     "scripts/check-decision-registry.mjs": "ff5889f0a1b327a546ae09c127f3a2c8af83500c93f512fd4177e67be3289866",
