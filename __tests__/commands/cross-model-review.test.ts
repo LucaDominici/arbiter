@@ -500,7 +500,14 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         diffEgressConsent: true,
         providers: ['codex'],
         slots: { codeReview: 1, redTeamReview: 0 },
-        timeoutMs: 5_000,
+        // Matches DEFAULT_CROSS_MODEL_REVIEW.timeoutMs (src/config/schema.ts) and the
+        // `cfg` fixture above — NOT an arbitrary widening. This is a happy-path wiring
+        // test: the stub seat resolves in well under a second. A short, test-picked
+        // ceiling here raced host scheduling under parallel load instead of asserting
+        // the dispatch contract (#2501) — a slow host must produce a slow test, never
+        // a red one. Degrade-on-timeout has its own deterministic, injected-delay
+        // coverage in external-review-subprocess.test.ts.
+        timeoutMs: 300_000,
         onUnavailable: 'degrade',
       }
       writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)
@@ -581,7 +588,11 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             HOME: dir,
             PATH: `${bin}:${process.env.PATH ?? ''}`,
           },
-          timeout: 30_000,
+          // Backstop against a genuine hang, not part of the assertion under test —
+          // matches the `ship` E2E convention used elsewhere (ship-tier.test.ts) rather
+          // than the tighter 30s that shared an order of magnitude with the old 5s
+          // crossModelReview.timeoutMs and could itself be raced under contention (#2501).
+          timeout: 60_000,
         },
       )
 
@@ -642,7 +653,11 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             PATH: bin + ':' + (process.env.PATH ?? ''),
           },
           stdio: 'ignore',
-          timeout: 30_000,
+          // Backstop against a genuine hang, not part of the assertion under test —
+          // matches the `ship` E2E convention used elsewhere (ship-tier.test.ts) rather
+          // than the tighter 30s that shared an order of magnitude with the old 5s
+          // crossModelReview.timeoutMs and could itself be raced under contention (#2501).
+          timeout: 60_000,
         },
       )
       expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0)
