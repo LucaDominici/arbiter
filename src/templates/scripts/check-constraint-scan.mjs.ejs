@@ -305,7 +305,8 @@ function readBaselineBounds(path) {
   let base
   try {
     base = JSON.parse(readFileSync(path, 'utf8'))
-  } catch {
+  } catch (err) {
+    process.stderr.write(`[constraint-scan] invalid baseline JSON at ${path}: ${err.message}\n`)
     return { trusted: false }
   }
   if (!verifyBaselineIntegrity(base)) return { trusted: false }
