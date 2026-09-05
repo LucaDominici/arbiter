@@ -1476,18 +1476,34 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
+    // Retired (#2520) per ID-STABILITY: the ID is preserved as a tombstone (never
+    // deleted/reused). The stamp-file gate had no writer anywhere in the repo — nothing
+    // ever produced its nightly stamp artifact — and exited 0 vacuously whenever the
+    // artifact was absent, BY DESIGN, per this entry's own prior description. Absent
+    // writer + vacuous-on-absent means it was structurally incapable of ever failing.
+    // 09-heartbeat.yml's assert-nightly-freshness job already enforces the real property
+    // via the GitHub Actions API, and does so strictly better: it also fails when the
+    // nightly workflow has never run at all, the exact case the stamp gate reported as a
+    // pass. Deleted along with its gate script and check-all.mjs wiring. No replacement
+    // invariant — the heartbeat job is the enforcement, not a successor gate.
     id: 'INV-93',
     tier: 'operational',
     selfOnly: true,
     alwaysActive: false,
     title: 'Nightly freshness gate',
     description:
-      'The nightly CI stamp artifact (.arbiter/nightly/last-run.json) must not be older than 26 hours ' +
-      'when present. Exit 0 when no artifact exists (vacuous pass — nightly not yet configured or ' +
-      'arbiter-self is in baseline mode). Exit 1 when the artifact timestamp indicates the nightly ' +
-      'workflow has not run within the freshness window. Pairs with 09-heartbeat.yml (runtime GH API check) ' +
-      'and INV-75 (heartbeat watchdog).',
-    enforcement: 'scripts/check-nightly-freshness.mjs',
+      'RETIRED (#2520): the local stamp-file gate had no writer for its artifact and passed ' +
+      'vacuously whenever that artifact was absent, by design — structurally incapable of ever ' +
+      'failing. 09-heartbeat.yml already enforces the real freshness property via the GitHub ' +
+      'Actions API, and strictly better: it also fails when the nightly workflow never ran at ' +
+      'all. No replacement invariant.',
+    status: 'retired',
+    retiredReason:
+      'The stamp-file gate had no writer for its artifact anywhere in the repo and exited 0 ' +
+      'vacuously whenever it was absent, by design (the entry itself documented this as ' +
+      'intentional) — structurally incapable of ever failing. 09-heartbeat.yml already enforces ' +
+      'the real freshness property via the Actions API and, unlike the stamp gate, fails when the ' +
+      'workflow has never run. Deleted in #2520; no replacement invariant.',
   },
 
   {
@@ -1533,10 +1549,9 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'The 08-monthly.yml workflow (T5b) must exist and the 09-heartbeat.yml cron must assert ' +
       'that it completed within the last 32 days. A monthly run older than 32 days is treated as ' +
       'a silent CI failure and triggers an auto-filed GitHub issue. ' +
-      'Pairs with INV-75 (heartbeat watchdog, which sets the ≤35d outer bound) and ' +
-      'check-monthly-freshness.mjs (stamp validator).',
+      'Pairs with INV-75 (heartbeat watchdog, which sets the ≤35d outer bound).',
     alwaysActive: false,
-    enforcement: 'scripts/check-monthly-freshness.mjs',
+    enforcement: 'generated: 09-heartbeat.yml (assert-monthly-freshness job)',
   },
 
   {

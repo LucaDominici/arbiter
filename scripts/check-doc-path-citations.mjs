@@ -164,6 +164,14 @@ const PATH_ALLOWLIST = new Set([
   'docs/internal/SYSTEM/GAP.md:docs/GOVERNANCE/E2E_CONSTITUTION.md',
   'docs/internal/SYSTEM/GAP.md:docs/METHOD/BACKEND_CONTEXT.md',
   'docs/internal/SYSTEM/GAP.md:docs/METHOD/FRONTEND_CONTEXT.md',
+  // These two GAP.md rows recorded VERO (the path existed and was verified) at the
+  // 2026-07-18 audit date. #2520 later retired both scripts as structurally vacuous
+  // (no writer ever produced their stamp artifact; each exited 0 whenever it was
+  // absent, by design). GAP.md is a frozen, SHA-pinned point-in-time record — rewriting
+  // its verified findings after the fact would make the audit lie about what it found,
+  // so the citation is allowlisted rather than the historical text edited.
+  'docs/internal/SYSTEM/GAP.md:scripts/check-nightly-freshness.mjs',
+  'docs/internal/SYSTEM/GAP.md:scripts/check-monthly-freshness.mjs',
 ])
 
 // Path-shaped citations under these roots are runtime-generated artifacts, not

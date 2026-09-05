@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "capturedAt": "2026-09-04T02:07:03.468Z",
+  "capturedAt": "2026-09-05T00:00:00.000Z",
   "metrics": {
     "covered": {
-      "value": 22,
+      "value": 21,
       "unit": "count",
       "direction": "higher-is-better"
     },
