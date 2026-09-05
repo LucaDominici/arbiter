@@ -1544,12 +1544,13 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-82',
     tier: 'operational',
-    title: 'Monthly (T5b) workflow present + heartbeat asserts ≤32d freshness',
+    title: 'Monthly (T5b) workflow present + heartbeat asserts its freshness',
     description:
       'The 08-monthly.yml workflow (T5b) must exist and the 09-heartbeat.yml cron must assert ' +
-      'that it completed within the last 32 days. A monthly run older than 32 days is treated as ' +
-      'a silent CI failure and triggers an auto-filed GitHub issue. ' +
-      'Pairs with INV-75 (heartbeat watchdog, which sets the ≤35d outer bound).',
+      'that it completed recently. A monthly run older than the bound is treated as a silent CI ' +
+      'failure and triggers an auto-filed GitHub issue. ' +
+      'The numeric bound itself is owned by INV-75 (heartbeat watchdog) — see there, not here, ' +
+      'for the day count, so the two invariants cannot state disagreeing numbers.',
     alwaysActive: false,
     enforcement: 'generated: 09-heartbeat.yml (assert-monthly-freshness job)',
   },
