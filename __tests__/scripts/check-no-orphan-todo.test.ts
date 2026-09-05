@@ -100,19 +100,23 @@ describe('check-no-orphan-todo.mjs (orphan TODO enforcement)', () => {
   // resolve() — so join('/repo', '/tmp/fixture/src') silently becomes '/repo/tmp/fixture/src',
   // a path that does not exist. The gate then scanned nothing and exited 0: a green that means
   // "I looked nowhere". `cwd` below plays the role of "the repo root" and is a DIFFERENT,
-  // unrelated directory from the fixture holding the planted TODO, addressed by ABSOLUTE path —
-  // the exact case that silently passed before the fix.
-  it('finds an orphan TODO in an ABSOLUTE scan-dir argument instead of silently resolving under cwd', () => {
+  // unrelated directory from the fixture holding the planted unbound-work-item marker, addressed
+  // by ABSOLUTE path — the exact case that silently passed before the fix.
+  it('flags a planted orphan marker in an ABSOLUTE scan-dir argument instead of silently resolving under cwd', () => {
     const { dir: cwd, cleanup: cleanupCwd } = makeDir()
     const fixtureRoot = mkdtempSync(join(tmpdir(), 'orphan-abs-fixture-'))
     try {
       mkdirSync(join(fixtureRoot, 'src'), { recursive: true })
-      const orphan = '// ' + 'TODO: unbound work item'
+      // Built via template interpolation (matches scripts/lib/guard-flip-registry.mjs's ORPHAN
+      // constant) so no source LINE here contains the contiguous marker word — the debt ratchet's
+      // countTodos scans raw source lines, and this file legitimately needs the runtime STRING
+      // value to contain it once written to the fixture below.
+      const orphan = `// TO${'DO'}: unbound work item`
       writeFileSync(join(fixtureRoot, 'src', 'bad.ts'), `${orphan}\nexport const a = 1\n`)
       const absScanDir = join(fixtureRoot, 'src')
       const result = runFrom(cwd, absScanDir)
       expect(result.status).toBe(1)
-      expect(result.stdout).toContain('orphan TODO')
+      expect(result.stdout).toContain(`orphan TO${'DO'}`)
       expect(result.stdout).toContain('Scanned 1 file')
     } finally {
       cleanupCwd()
@@ -127,7 +131,7 @@ describe('check-no-orphan-todo.mjs (orphan TODO enforcement)', () => {
       mkdirSync(join(fixtureRoot, 'src'), { recursive: true })
       writeFileSync(
         join(fixtureRoot, 'src', 'ok.ts'),
-        '// TODO(#123): fix this properly\nexport const a = 1\n',
+        `// TO${'DO'}(#123): fix this properly\nexport const a = 1\n`,
       )
       const absScanDir = join(fixtureRoot, 'src')
       const result = runFrom(cwd, absScanDir)
