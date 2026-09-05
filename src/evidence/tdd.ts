@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { writeFile } from '../utils/fs.js'
+import { writeFile, assertWritten } from '../utils/fs.js'
 
 export const TddEvidenceV1 = z.object({
   $schemaVersion: z.literal(1),
@@ -116,6 +116,14 @@ export interface WriteTddEvidenceOptions {
  * atomically (temp-file + rename, via the shared `writeFile` — same primitive
  * `task-state.ts` uses for its status document) so a crash mid-write leaves prior
  * evidence untouched.
+ *
+ * #2533: TDD evidence is internal tooling state, never a generator-emitted target a
+ * downstream repo would hand-customise — so it is written with `skipPreserveCheck`,
+ * exempting it from `writeFile`'s `arbiter:preserve` marker (a captured
+ * `test_run_log` legitimately quoting that literal, e.g. from AGENTS.md, must not
+ * freeze the file). The returned `WriteResult` is then asserted via `assertWritten`
+ * so a write that still did not land — for whatever reason — is a loud failure
+ * (`record-red` surfaces it as FAIL), never a silently-skipped `OK`.
  */
 export function writeTddEvidence({ repoDir, evidence }: WriteTddEvidenceOptions): string {
   const parsed = TddEvidenceV1.parse(evidence)
@@ -128,6 +136,7 @@ export function writeTddEvidence({ repoDir, evidence }: WriteTddEvidenceOptions)
       )
     }
   }
-  writeFile(p, JSON.stringify(parsed, null, 2) + '\n')
+  const result = writeFile(p, JSON.stringify(parsed, null, 2) + '\n', { skipPreserveCheck: true })
+  assertWritten(result, `TDD evidence for ${parsed.task_id}`)
   return p
 }

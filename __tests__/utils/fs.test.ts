@@ -22,6 +22,7 @@ import {
   mkdtempTranslated,
   createExclusiveTranslated,
   copyTreeTranslated,
+  assertWritten,
 } from '../../src/utils/fs.js'
 import { ArbiterError } from '../../src/utils/errors.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
@@ -192,6 +193,68 @@ describe('writeFile — preserve marker withholds overwrite (#1980)', () => {
     const result = writeFile(path, 'new content')
     expect(result.action).toBe('replaced')
     expect(readFileSync(path, 'utf-8')).toBe('new content')
+  })
+
+  // #2533: evidence/log/data writers (task-record-red's TDD evidence, tech-debt.json,
+  // the unified task-status document) are never subject to the preserve marker — they
+  // are internal tooling state, not a generator-emitted target a downstream repo would
+  // hand-customise and mark. A captured test_run_log that happens to quote AGENTS.md's
+  // own `<!-- arbiter:preserve -->` comment must never freeze the evidence file.
+  it('bypasses the withholding entirely when skipPreserveCheck=true, even though the marker is present', () => {
+    const path = join(dir, 'evidence-like.json')
+    const stub = JSON.stringify({ test_run_log: 'quotes <!-- arbiter:preserve --> verbatim' })
+    writeFileSync(path, stub)
+    const result = writeFile(path, JSON.stringify({ test_run_log: 'second run' }), {
+      skipPreserveCheck: true,
+    })
+    expect(result.action).toBe('replaced')
+    expect(result.withheld).toBeUndefined()
+    expect(readFileSync(path, 'utf-8')).toBe(JSON.stringify({ test_run_log: 'second run' }))
+  })
+
+  it('skipPreserveCheck does not affect a normal generator target — the marker still withholds by default', () => {
+    const path = join(dir, 'GLOBAL_INVARIANTS_2.md')
+    const stub = '<!-- arbiter:preserve -->\nkeep me\n'
+    writeFileSync(path, stub)
+    const result = writeFile(path, 'new content')
+    expect(result.action).toBe('skipped')
+    expect(result.withheld).toBe(true)
+  })
+})
+
+describe('assertWritten() (#2533 — a withheld write must never be reported as success)', () => {
+  it('throws when the write was withheld and not adopted (content did NOT land)', () => {
+    expect(() =>
+      assertWritten(
+        { path: '/repo/.arbiter/evidence/tdd/#1.json', action: 'skipped', withheld: true },
+        'TDD evidence for #1',
+      ),
+    ).toThrow(/withheld/i)
+  })
+
+  it('names the path and the caller-supplied description in the thrown message', () => {
+    expect(() =>
+      assertWritten(
+        { path: '/repo/x.json', action: 'skipped', withheld: true },
+        'tech-debt evidence',
+      ),
+    ).toThrow(/\/repo\/x\.json/)
+    expect(() =>
+      assertWritten(
+        { path: '/repo/x.json', action: 'skipped', withheld: true },
+        'tech-debt evidence',
+      ),
+    ).toThrow(/tech-debt evidence/)
+  })
+
+  it('does not throw for a benign identical-content skip (withheld unset)', () => {
+    expect(() => assertWritten({ path: '/x', action: 'skipped' }, 'evidence')).not.toThrow()
+  })
+
+  it('does not throw when withheld but force-adopted — the content DID land', () => {
+    expect(() =>
+      assertWritten({ path: '/x', action: 'replaced', withheld: true, adopted: true }, 'evidence'),
+    ).not.toThrow()
   })
 })
 
