@@ -71,8 +71,6 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'anti-drift: pr size gate', affects: WORKFLOWS },
   { name: 'workflow cache strategy (§17.5 rec 3)', affects: WORKFLOWS },
   { name: 'build-cache strategy (C3)', affects: WORKFLOWS },
-  { name: 'nightly freshness (INV-93)', affects: WORKFLOWS },
-  { name: 'monthly freshness (INV-82)', affects: WORKFLOWS },
   { name: 'deploy cosign supply-chain (INV-95/97/98)', affects: WORKFLOWS },
   { name: 'collab mode wired (INV-100)', affects: WORKFLOWS },
   { name: 'merge method ff-only (INV-101)', affects: WORKFLOWS },

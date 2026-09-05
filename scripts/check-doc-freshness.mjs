@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: T4 (gold-doc-tranches-t3-t5.md §2, gold-doc-capability H4) — per-doc freshness gate.
-// CATALOG: check-doc-style.mjs validates last_review's ISO *format*; check-monthly-freshness.mjs
-// CATALOG: asserts the monthly CI stamp itself is recent (lane liveness, a different axis). This
-// CATALOG: gate is the ONE that asks "is the doc actually current?" — it never existed before.
+// CATALOG: check-doc-style.mjs validates last_review's ISO *format*; 09-heartbeat.yml's
+// CATALOG: assert-monthly-freshness job asserts the monthly CI LANE itself is recent (liveness, a
+// CATALOG: different axis — the stamp-file predecessor of that job was retired in #2520 as
+// CATALOG: vacuous). This gate is the ONE that asks "is the doc actually current?" — it never
+// CATALOG: existed before.
 //
 // arbiter — gold doc-set freshness audit. Deterministic, binary, fail-closed. Grades every
 // applicable required check's PRESENT file(s) (mandatory + recommended — the same requirement

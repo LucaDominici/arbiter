@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, chmodSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { computeBaselineIntegrityHash } from '../../scripts/check-constraint-scan.mjs'
 
 const SCRIPT = resolve('scripts/check-constraint-scan.mjs')
 const REPO = resolve('.')
@@ -496,9 +497,37 @@ function writeRawMap(dir: string, map: unknown): string {
   return p
 }
 
-function writeBaseline(dir: string, metrics: Record<string, unknown>): string {
+// A baseline the tool would actually write: {version, capturedAt, metrics} plus the
+// integrityHash the tool stamps over exactly that payload (#2520). Tests that need a
+// baseline the gate TRUSTS must go through this helper, not a hand-built object — that is
+// precisely the distinction the integrity check now exists to enforce.
+function writeBaseline(
+  dir: string,
+  metrics: Record<string, unknown>,
+  capturedAt = '2026-01-01T00:00:00.000Z',
+): string {
   const p = join(dir, 'baseline.json')
-  writeFileSync(p, JSON.stringify({ version: 1, capturedAt: '2026-01-01T00:00:00Z', metrics }))
+  const payload = { version: 1, capturedAt, metrics }
+  const integrityHash = computeBaselineIntegrityHash(payload)
+  writeFileSync(p, JSON.stringify({ ...payload, integrityHash }))
+  return p
+}
+
+// A baseline that looks plausible but was never produced by the tool — no hash at all, or
+// one that does not match its own recorded values (the #2520 incident shape: `covered`
+// hand-set to a smaller number, `capturedAt` invented).
+function writeUntrustedBaseline(
+  dir: string,
+  metrics: Record<string, unknown>,
+  overrides: { capturedAt?: string; integrityHash?: string | null } = {},
+): string {
+  const p = join(dir, 'baseline.json')
+  const capturedAt = overrides.capturedAt ?? '2026-01-01T00:00:00.000Z'
+  const body: Record<string, unknown> = { version: 1, capturedAt, metrics }
+  if (overrides.integrityHash !== null) {
+    body.integrityHash = overrides.integrityHash ?? 'not-a-real-hash'
+  }
+  writeFileSync(p, JSON.stringify(body))
   return p
 }
 
@@ -652,25 +681,210 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
     }
   })
 
-  it('30. the ratchet FAILS when the covered count falls below the baseline', () => {
+  // #2520: `covered` fell in production ONLY because a prohibition (INV-93's AGENTS.md row)
+  // was legitimately retired along with its map entry — the denominator shrank with it, so
+  // nothing lost enforcement. A `covered` count alone cannot tell that apart from a real
+  // regression, so it is no longer, by itself, a ratchet failure — only a RISE in the
+  // uncovered (accepted+unenforceable... in practice here, unenforceable) backlog is. This
+  // replaces the old (incorrect) "covered falling is always a regression" contract.
+  it('30. covered falling ALONE (no rise in uncovered) is not a regression — a retired prohibition, not a coverage loss', () => {
     const { dir, cleanup } = fixture()
     try {
-      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      // Baseline recorded 5 covered when the corpus had 5 mapped prohibitions; the corpus
+      // now has none at all (the doc + its map entry were both deleted together).
+      const doc = writeDoc(dir, 'Nothing prohibited here.\n')
       const src = writeSrc(dir, {})
-      const map = writeRawMap(dir, {
-        [`prose:- ${PROSE}`]: {
-          kind: 'accepted',
-          rationale:
-            'Judgment-level rule with no mechanical enforcer; reviewed by a human at PR time.',
-        },
-      })
+      const map = writeMap(dir, {})
       const base = writeBaseline(dir, {
         covered: count(5, 'higher-is-better'),
         unenforceable: count(0, 'lower-is-better'),
       })
       const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${base}`])
+      expect(r.status).toBe(0)
+      expect(r.stdout).not.toContain('[RATCHET]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('30b. --update-baseline SUCCEEDS after a legitimate retirement and writes a real, tool-stamped timestamp + hash', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, 'Nothing prohibited here.\n')
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const base = writeBaseline(dir, {
+        covered: count(5, 'higher-is-better'),
+        unenforceable: count(0, 'lower-is-better'),
+      })
+      const before = Date.now()
+      const r = run([
+        `--docs=${doc}`,
+        `--src=${src}`,
+        `--map=${map}`,
+        `--baseline=${base}`,
+        '--update-baseline',
+      ])
+      expect(r.status).toBe(0)
+      const updated = JSON.parse(readFileSync(base, 'utf8'))
+      expect(updated.metrics.covered.value).toBe(0)
+      expect(updated.metrics.unenforceable.value).toBe(0)
+      // A real, tool-written timestamp — not the fixture's fixed '2026-01-01' and not
+      // hand-invented — bracketed by the instant this test actually ran the tool.
+      expect(new Date(updated.capturedAt).getTime()).toBeGreaterThanOrEqual(before - 1000)
+      expect(new Date(updated.capturedAt).getTime()).toBeLessThanOrEqual(Date.now() + 1000)
+      expect(updated.integrityHash).toBe(
+        computeBaselineIntegrityHash({
+          version: updated.version,
+          capturedAt: updated.capturedAt,
+          metrics: updated.metrics,
+        }),
+      )
+    } finally {
+      cleanup()
+    }
+  })
+
+  // #2520 proof 2: a genuine regression — the enforcement mapping for an existing prohibition
+  // is silently dropped (the doc corpus, i.e. the total, is UNCHANGED) — must still be caught.
+  // The prohibition that was COVERED at baseline time now has no map entry, no token, and no
+  // rationale, so it falls straight into UNENFORCEABLE: the uncovered count rises, and the
+  // ratchet refuses, exactly as it does today for a direct unenforceable rise.
+  it('30c. the ratchet still FAILS when an enforcer mapping is dropped and the total is unchanged (genuine regression)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const droppedMap = writeMap(dir, {}) // the prose→hook mapping that used to cover this line is gone
+      const base = writeBaseline(dir, {
+        covered: count(1, 'higher-is-better'),
+        unenforceable: count(0, 'lower-is-better'),
+      })
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${droppedMap}`, `--baseline=${base}`])
       expect(r.status).toBe(1)
       expect(r.stdout).toContain('[RATCHET]')
+      expect(r.stdout).toMatch(/uncovered|unenforceable/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('30d. --update-baseline still REFUSES the same dropped-mapping regression (file left untouched)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const droppedMap = writeMap(dir, {})
+      const base = writeBaseline(dir, {
+        covered: count(1, 'higher-is-better'),
+        unenforceable: count(0, 'lower-is-better'),
+      })
+      const before = readFileSync(base, 'utf8')
+      const r = run([
+        `--docs=${doc}`,
+        `--src=${src}`,
+        `--map=${droppedMap}`,
+        `--baseline=${base}`,
+        '--update-baseline',
+      ])
+      expect(r.status).toBe(1)
+      expect(readFileSync(base, 'utf8')).toBe(before)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // #2520: a baseline the tool did not produce is untrustworthy on its face — the exact
+  // shape a hand-set `covered` regression (laundered past review) would take. Both a
+  // missing hash and a hash that does not match the recorded values must fail closed, with
+  // exit 2 (an unreadable floor is an ERROR, per INV-53 — never a silent PASS or a mere
+  // FAIL(1) that could be mistaken for an ordinary regression).
+  it('30e. a baseline with NO integrityHash is rejected fail-closed (exit 2), not silently trusted', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, 'Nothing prohibited here.\n')
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const base = writeUntrustedBaseline(
+        dir,
+        { covered: count(0, 'higher-is-better'), unenforceable: count(0, 'lower-is-better') },
+        { integrityHash: null },
+      )
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${base}`])
+      expect(r.status).toBe(2)
+      expect(r.stdout + r.stderr).toMatch(/integrity/i)
+      expect(r.stdout + r.stderr).toMatch(/--update-baseline/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // #2520 proof 1 (real-world shape): the pre-#2520 committed baseline predates the
+  // integrityHash feature entirely (no field at all — not tampered, just OLDER than the
+  // fix) and recorded `covered: 22` from before INV-93's retirement. A plain read must
+  // still refuse it (untrusted is untrusted, regardless of WHY); but `--update-baseline`
+  // — the deliberate, reviewed action — self-heals it: re-signs fresh from the CURRENT
+  // corpus rather than refusing forever, exactly the same shape as seeding a missing file.
+  it('30g. --update-baseline SELF-HEALS a pre-#2520 baseline that has no integrityHash at all (re-signs, does not refuse)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, 'Nothing prohibited here.\n')
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const base = writeUntrustedBaseline(
+        dir,
+        { covered: count(22, 'higher-is-better'), unenforceable: count(0, 'lower-is-better') },
+        { integrityHash: null },
+      )
+      const before = Date.now()
+      const r = run([
+        `--docs=${doc}`,
+        `--src=${src}`,
+        `--map=${map}`,
+        `--baseline=${base}`,
+        '--update-baseline',
+      ])
+      expect(r.status).toBe(0)
+      const updated = JSON.parse(readFileSync(base, 'utf8'))
+      expect(updated.metrics.covered.value).toBe(0)
+      expect(updated.metrics.unenforceable.value).toBe(0)
+      expect(new Date(updated.capturedAt).getTime()).toBeGreaterThanOrEqual(before - 1000)
+      expect(updated.integrityHash).toBe(
+        computeBaselineIntegrityHash({
+          version: updated.version,
+          capturedAt: updated.capturedAt,
+          metrics: updated.metrics,
+        }),
+      )
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('30f. a baseline whose integrityHash does not match its own values is rejected fail-closed (exit 2) — the #2520 hand-edit shape', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, 'Nothing prohibited here.\n')
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      // Hash computed for covered=22, but the recorded value was hand-edited down to 21
+      // afterward WITHOUT recomputing the hash — exactly the #2520 incident shape.
+      const honestHash = computeBaselineIntegrityHash({
+        version: 1,
+        capturedAt: '2026-01-01T00:00:00.000Z',
+        metrics: {
+          covered: count(22, 'higher-is-better'),
+          unenforceable: count(0, 'lower-is-better'),
+        },
+      })
+      const base = writeUntrustedBaseline(
+        dir,
+        { covered: count(21, 'higher-is-better'), unenforceable: count(0, 'lower-is-better') },
+        { integrityHash: honestHash },
+      )
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${base}`])
+      expect(r.status).toBe(2)
+      expect(r.stdout + r.stderr).toMatch(/integrity/i)
     } finally {
       cleanup()
     }

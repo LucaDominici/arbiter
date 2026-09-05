@@ -436,8 +436,6 @@ const CI_COVERAGE = new Map([
   ['anti-drift: tier coverage', 'gate-full'],
   ['anti-drift: unwired guards (#2159)', 'gate-full'],
   ['anti-drift: docker action runner safety (#1756)', 'gate-full'],
-  ['nightly freshness (INV-93)', 'gate-full'],
-  ['monthly freshness (INV-82)', 'gate-full'],
   ['deploy cosign supply-chain (INV-95/97/98)', 'gate-full'],
   ['no passWithNoTests (INV-25)', 'gate-full'],
   ['collab mode wired (INV-100)', 'gate-full'],

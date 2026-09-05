@@ -15,7 +15,7 @@
     },
     {
       "script": "check-doc-freshness.mjs",
-      "rationale": "T4 (gold-doc-tranches-t3-t5.md \u00a72.3) \u2014 per-doc freshness is deliberately NOT in check-all.mjs's L2 pre-push gate: the solo-dev gate-model doctrine (docs/design/solo-developer-gate-model.md) keeps the paved-road pre-push fast and reserves freshness for the async monthly lane (wired directly into the monthly workflow, HARD) plus one release-blocking step. check-monthly-freshness.mjs (a different axis \u2014 monthly LANE liveness, not doc content) stays the only freshness-shaped gate check-all.mjs itself runs."
+      "rationale": "T4 (gold-doc-tranches-t3-t5.md \u00a72.3) \u2014 per-doc freshness is deliberately NOT in check-all.mjs's L2 pre-push gate: the solo-dev gate-model doctrine (docs/design/solo-developer-gate-model.md) keeps the paved-road pre-push fast and reserves freshness for the async monthly lane (wired directly into the monthly workflow, HARD) plus one release-blocking step. check-monthly-freshness.mjs and check-nightly-freshness.mjs \u2014 the other freshness-shaped scripts that once ran here \u2014 were retired in #2520 as structurally vacuous (no writer anywhere in the repo ever produced their stamp artifacts); monthly LANE liveness is now enforced solely by 09-heartbeat.yml's assert-monthly-freshness job, not by any check-all.mjs step, so no freshness-shaped check runs in check-all.mjs at all."
     },
     {
       "script": "check-touched-vs-manifest.mjs",

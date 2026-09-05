@@ -395,8 +395,6 @@ if (isMain) {
   runCheck('anti-drift: unwired guards (#2159)', 'node', ['scripts/check-unwired-guards.mjs'])
   runCheck('anti-drift: validator helptext', 'node', ['scripts/check-validator-helptext.mjs'])
   runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'])
-  runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])
-  runCheck('monthly freshness (INV-82)', 'node', ['scripts/check-monthly-freshness.mjs'])
   runCheck('deploy cosign supply-chain (INV-95/97/98)', 'node', [
     'scripts/check-workflow-cosign.mjs',
   ])

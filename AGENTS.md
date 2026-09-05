@@ -258,12 +258,6 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - Bot-authored PRs require the `approved-by-human` label before merge
   - _Enforcement:_ generated `_ai-draft-check.yml` workflow + `_label-on-approve.yml` workflow
 
-## Nightly Freshness Gate (INV-93)
-
-- **INV-93:** Nightly freshness gate
-  - _Enforcement:_ `scripts/check-nightly-freshness.mjs`
-  - The nightly CI stamp artifact (`.arbiter/nightly/last-run.json`) must not be older than 26 hours when present. Exit 0 vacuously when no artifact exists.
-
 ## Script Catalog Cohesion (INV-94)
 
 - **INV-94:** Script catalog cohesion — every new gate script must carry a CATALOG marker block

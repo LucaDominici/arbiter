@@ -181,14 +181,6 @@
       "reason": "#2039: parity between configure.ts ALLOWED_PATHS and method.ts METHODOLOGY_CATALOG. Its subject is arbiter’s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject — self-only by construction (CANON-01 motivated divergence). Undated deliberately: this mirrors its sibling scripts/check-settings-coverage.mjs, which reconciles the same configure.ts against settings.ts and is likewise permanent-by-design, not STAGED."
     },
     {
-      "path": "scripts/check-monthly-freshness.mjs",
-      "reason": "INV-82: the monthly CI stamp artifact (.arbiter/monthly/last-run.json) is within the 32-day window. Self-only by construction: the LIVENESS signal a governed target gets is the emitted `src/templates/github/workflows/09-heartbeat.yml.ejs` job `assert-monthly-freshness`, which asks the GitHub Actions API directly (`gh run list --workflow=08-monthly.yml`) and opens/closes a `heartbeat-monthly-missed` issue — an authoritative reading of whether 08-monthly.yml actually ran, needing no artifact on disk. This script instead reads a LOCAL stamp file that no arbiter template and no workflow writes (grep for `monthly/last-run.json` across the repo returns only this script's own help text), so an emitted twin would be a permanently vacuous gate in every target while the real check already ships in the heartbeat workflow."
-    },
-    {
-      "path": "scripts/check-nightly-freshness.mjs",
-      "reason": "INV-93: the nightly CI stamp artifact (.arbiter/nightly/last-run.json) is within the 26-hour window. Self-only by construction for the same reason its monthly sibling is, but against a different emitted job and threshold: `09-heartbeat.yml.ejs`'s `assert-nightly-freshness` enforces the SAME 26h bound (template line 49, `if [ \"$AGE_HOURS\" -gt 26 ]`) over `gh run list --workflow=06-nightly.yml`, so the emitted mechanism is a strict superset of this one — it also catches a nightly that never ran at all, which a missing stamp file reads as a vacuous PASS here. The stamp path itself is written by nothing in the repo or the template corpus."
-    },
-    {
       "path": "scripts/check-no-direct-fs.mjs",
       "reason": "Keeps src/utils/fs.ts the sole write facade across arbiter's own src/ (CANON-17, #1991). Replaces check-no-direct-fs-in-generators.mjs, whose entry it inherits and widens. Still self-only by construction: the gate's subject is a SPECIFIC module in THIS repo — src/utils/fs.ts and its translated primitives. A governed target has no such facade, so an emitted twin would name a file that does not exist there; the equivalent consumer-side rule is the emitted errno-translation lint, not this path-bound gate."
     },
