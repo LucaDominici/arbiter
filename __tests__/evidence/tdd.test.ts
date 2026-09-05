@@ -302,6 +302,58 @@ describe('writeTddEvidence() (#2064)', () => {
     ).toThrow()
     expect(loadTddEvidence('not-a-task-id', dir).ok).toBe(false)
   })
+
+  // #2533: `writeFile` refuses to overwrite any file whose bytes contain the literal
+  // `arbiter:preserve` (src/utils/fs.ts #1980), anywhere in the body. A captured
+  // `test_run_log` that happens to quote AGENTS.md's own `<!-- arbiter:preserve -->`
+  // comment (ordinary content in a governance repo) must not permanently freeze the
+  // evidence file while `record-red` keeps reporting OK.
+  it('rewrites an evidence file whose on-disk content carries the arbiter:preserve marker (#2533)', () => {
+    const dir = tmpRepo()
+    const evDir = join(dir, '.arbiter', 'evidence', 'tdd')
+    mkdirSync(evDir, { recursive: true })
+    const p = tddEvidencePath('#551', dir)
+    const priorWithMarker = evidence({
+      test_run_log: 'FAIL x\nquoted from AGENTS.md: <!-- arbiter:preserve -->\nsome governance text',
+      observed_failure: 'first run',
+    })
+    writeFileSync(p, JSON.stringify(priorWithMarker, null, 2) + '\n', 'utf-8')
+
+    // A subsequent record-red must still be able to rewrite the evidence file — the
+    // marker in the OLD content must never freeze it.
+    writeTddEvidence({ repoDir: dir, evidence: evidence({ observed_failure: 'second run' }) })
+    const result = loadTddEvidence('#551', dir)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.data.observed_failure).toBe('second run')
+  })
+
+  it('rewrites an evidence file even when the NEW test_run_log itself quotes the marker (#2533)', () => {
+    const dir = tmpRepo()
+    writeTddEvidence({ repoDir: dir, evidence: evidence({ observed_failure: 'first run' }) })
+    writeTddEvidence({
+      repoDir: dir,
+      evidence: evidence({
+        observed_failure: 'second run',
+        test_run_log: 'diff shows AGENTS.md content: <!-- arbiter:preserve -->',
+      }),
+    })
+    const result = loadTddEvidence('#551', dir)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.data.observed_failure).toBe('second run')
+      expect(result.data.test_run_log).toContain('arbiter:preserve')
+    }
+  })
+
+  it('is a no-op (does not throw) re-recording byte-identical evidence (benign skip)', () => {
+    const dir = tmpRepo()
+    const same = evidence({ observed_failure: 'stable run' })
+    writeTddEvidence({ repoDir: dir, evidence: same })
+    expect(() => writeTddEvidence({ repoDir: dir, evidence: same })).not.toThrow()
+    const result = loadTddEvidence('#551', dir)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.data.observed_failure).toBe('stable run')
+  })
 })
 
 describe('tddEvidencePath()', () => {
