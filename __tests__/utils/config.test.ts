@@ -410,11 +410,7 @@ describe('saveConfig/saveConfigAndSnapshot/writeSnapshot — preserve-marker exe
   })
 
   it('saveConfigAndSnapshot overwrites both files even when marked arbiter:preserve', () => {
-    writeFileSync(
-      join(dir, 'arbiter.json'),
-      JSON.stringify({ note: 'arbiter:preserve' }),
-      'utf-8',
-    )
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ note: 'arbiter:preserve' }), 'utf-8')
     writeFileSync(
       join(dir, '.arbiter-generated.json'),
       JSON.stringify({ note: 'arbiter:preserve' }),
