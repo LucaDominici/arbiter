@@ -20,6 +20,7 @@ import {
   rmTranslated,
   writeFile,
   readFileTranslated,
+  assertWritten,
 } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 
@@ -300,6 +301,11 @@ export function readTaskId(root: string): string | undefined {
  * Read-modify-write the unified document, merging `patch` over ALL prior fields. Nested
  * `cursor`/`timestamps` are shallow-merged so a partial patch never clobbers untouched keys.
  * When `patch.phase` is set, its transition timestamp is stamped. Atomic (temp-file + rename).
+ *
+ * #2533: this is internal task-engine state, never a generator-emitted target — written
+ * with `skipPreserveCheck` (immune to `writeFile`'s `arbiter:preserve` marker) and its
+ * `WriteResult` asserted via `assertWritten`, so a write that did not land is a loud
+ * failure rather than every subsequent phase transition silently not persisting.
  */
 export function writeUnifiedState(root: string, patch: TaskStatePatch): UnifiedTaskState {
   const prev = readUnifiedState(root) ?? defaultState()
@@ -327,7 +333,10 @@ export function writeUnifiedState(root: string, patch: TaskStatePatch): UnifiedT
     }
   }
   if (!merged.runId) merged.runId = `${process.pid}-${Date.now()}`
-  writeFile(statusPath(root), JSON.stringify(merged, null, 2) + '\n')
+  const result = writeFile(statusPath(root), JSON.stringify(merged, null, 2) + '\n', {
+    skipPreserveCheck: true,
+  })
+  assertWritten(result, `task-state document at ${statusPath(root)}`)
   return merged
 }
 
@@ -432,7 +441,14 @@ export function seedFromLegacy(root: string): UnifiedTaskState | null {
     cursor: emptyCursor(),
   })
 
-  writeFile(statusPath(root), JSON.stringify(seeded, null, 2) + '\n')
+  // #2533: the legacy dotfiles below are deleted ONLY after this write — asserting
+  // it actually landed (skipPreserveCheck: internal state, never a generator
+  // target) is what makes that migration crash-safe rather than a silent data
+  // loss (legacy removed while the unified doc it was meant to replace never wrote).
+  const result = writeFile(statusPath(root), JSON.stringify(seeded, null, 2) + '\n', {
+    skipPreserveCheck: true,
+  })
+  assertWritten(result, `task-state document at ${statusPath(root)}`)
   for (const f of LEGACY_DOTFILES) rmTranslated(join(claudeDir, f), { force: true })
   // Only delete the per-id rich dir when it parsed cleanly — a corrupt rich file is preserved.
   if (idRaw && !richCorrupt) {

@@ -314,7 +314,8 @@ describe('writeTddEvidence() (#2064)', () => {
     mkdirSync(evDir, { recursive: true })
     const p = tddEvidencePath('#551', dir)
     const priorWithMarker = evidence({
-      test_run_log: 'FAIL x\nquoted from AGENTS.md: <!-- arbiter:preserve -->\nsome governance text',
+      test_run_log:
+        'FAIL x\nquoted from AGENTS.md: <!-- arbiter:preserve -->\nsome governance text',
       observed_failure: 'first run',
     })
     writeFileSync(p, JSON.stringify(priorWithMarker, null, 2) + '\n', 'utf-8')

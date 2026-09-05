@@ -225,16 +225,25 @@ describe('writeFile — preserve marker withholds overwrite (#1980)', () => {
 describe('assertWritten() (#2533 — a withheld write must never be reported as success)', () => {
   it('throws when the write was withheld and not adopted (content did NOT land)', () => {
     expect(() =>
-      assertWritten({ path: '/repo/.arbiter/evidence/tdd/#1.json', action: 'skipped', withheld: true }, 'TDD evidence for #1'),
+      assertWritten(
+        { path: '/repo/.arbiter/evidence/tdd/#1.json', action: 'skipped', withheld: true },
+        'TDD evidence for #1',
+      ),
     ).toThrow(/withheld/i)
   })
 
   it('names the path and the caller-supplied description in the thrown message', () => {
     expect(() =>
-      assertWritten({ path: '/repo/x.json', action: 'skipped', withheld: true }, 'tech-debt evidence'),
+      assertWritten(
+        { path: '/repo/x.json', action: 'skipped', withheld: true },
+        'tech-debt evidence',
+      ),
     ).toThrow(/\/repo\/x\.json/)
     expect(() =>
-      assertWritten({ path: '/repo/x.json', action: 'skipped', withheld: true }, 'tech-debt evidence'),
+      assertWritten(
+        { path: '/repo/x.json', action: 'skipped', withheld: true },
+        'tech-debt evidence',
+      ),
     ).toThrow(/tech-debt evidence/)
   })
 

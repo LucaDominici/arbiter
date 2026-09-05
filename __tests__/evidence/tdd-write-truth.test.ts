@@ -44,9 +44,7 @@ describe('writeTddEvidence() — write-truth contract (#2533)', () => {
       withheld: true,
     }
     mockWriteFile.mockReturnValue(withheldResult)
-    expect(() => writeTddEvidence({ repoDir: '/fake-repo', evidence: VALID })).toThrow(
-      /withheld/i,
-    )
+    expect(() => writeTddEvidence({ repoDir: '/fake-repo', evidence: VALID })).toThrow(/withheld/i)
   })
 
   it('does not throw when the write is a benign identical-content skip (withheld unset)', () => {
