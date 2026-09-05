@@ -24,9 +24,7 @@ const read = (p: string): string => readFileSync(resolve(p), 'utf8')
 function extractEnforcedMonthlyFreshnessDays(workflow: string): number {
   const marker = 'assert-monthly-freshness:'
   const jobIdx = workflow.indexOf(marker)
-  expect(jobIdx, 'assert-monthly-freshness job must exist in 09-heartbeat.yml').toBeGreaterThan(
-    -1,
-  )
+  expect(jobIdx, 'assert-monthly-freshness job must exist in 09-heartbeat.yml').toBeGreaterThan(-1)
 
   // Bound the job block at the next top-level (2-space-indented) job header, if any.
   const rest = workflow.slice(jobIdx + marker.length)

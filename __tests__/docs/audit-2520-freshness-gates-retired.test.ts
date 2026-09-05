@@ -59,7 +59,7 @@ describe('#2520 — nightly/monthly stamp-file freshness gates deleted (INV-93 r
     expect(agents).not.toMatch(/\*\*INV-93:\*\*/)
   })
 
-  it('INV-82 keeps its title and content but repoints enforcement at the heartbeat job, not the deleted stamp script', () => {
+  it('INV-82 keeps its workflow-presence content and repoints enforcement at the heartbeat job, not the deleted stamp script', () => {
     const catalog = read('src/invariants/catalog.ts')
     const idx = catalog.indexOf("id: 'INV-82'")
     expect(idx).toBeGreaterThan(-1)
@@ -70,9 +70,14 @@ describe('#2520 — nightly/monthly stamp-file freshness gates deleted (INV-93 r
     expect(entry).toMatch(/assert-monthly-freshness/)
     expect(entry).not.toContain('status: ')
 
+    // #2534: INV-82's own ≤32d claim disagreed with the 35-day bound the heartbeat
+    // job actually enforces (INV-75's ≤35d). The number is now owned solely by
+    // INV-75; INV-82 keeps only the workflow-exists clause and defers to it.
+    expect(entry).not.toMatch(/\d+\s*d(?:ays?)?\b/i)
+
     const agents = read('AGENTS.md')
     expect(agents).toContain(
-      '**INV-82:** Monthly (T5b) workflow present + heartbeat asserts ≤32d freshness',
+      '**INV-82:** Monthly (T5b) workflow present + heartbeat asserts its freshness',
     )
   })
 
