@@ -14,7 +14,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
+import { resolveLandingContract, validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
 
 const HARD_FAIL = new Set([
   'FAILURE',
@@ -237,7 +237,15 @@ function fetchPr(ownerRepo, prNumber) {
   ])
 }
 
-function assertSoloPrFf() {
+/**
+ * #2150 — mode-aware fail-closed gate, evaluated BEFORE the first `gh` invocation.
+ *
+ * The watcher no longer decides the mode itself: it asks the single landing contract
+ * in scripts/lib/exact-sha-policy.mjs. An unknown, absent or malformed mode, and both
+ * declared-but-unsupported arcs, refuse here — nothing about the repository is read
+ * on an arc that cannot land the exact gated SHA.
+ */
+function assertLandingSupported() {
   let config
   try {
     config = JSON.parse(readFileSync('arbiter.json', 'utf8'))
@@ -245,8 +253,9 @@ function assertSoloPrFf() {
     process.stderr.write(`pr-merge-watch: cannot read arbiter.json: ${error.message}\n`)
     process.exit(2)
   }
-  if (config.collaborationMode !== 'trunk-solo' || config.solo?.mergeMode !== 'pr-ff') {
-    process.stderr.write('pr-merge-watch: exact-SHA promotion requires trunk-solo + pr-ff\n')
+  const decision = resolveLandingContract(config)
+  if (!decision.supported) {
+    process.stderr.write(`pr-merge-watch: exact-SHA landing refused — ${decision.reason}\n`)
     process.exit(1)
   }
 }
@@ -393,7 +402,7 @@ async function main() {
     )
     process.exit(2)
   }
-  assertSoloPrFf()
+  assertLandingSupported()
 
   const deadline = Date.now() + timeoutMin * 60_000
   for (;;) {
