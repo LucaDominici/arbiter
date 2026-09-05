@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { resolve, join } from 'node:path'
+import { resolve, join, relative } from 'node:path'
 import { existsSync } from 'node:fs'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import {
@@ -539,10 +539,41 @@ function applySet(config: ArbiterConfigV2, path: string, value: unknown): Arbite
   )
 }
 
-/** Keep the materialized /drain default live for existing projects (#2344). */
-function syncDrainMaxParallel(targetDir: string, config: ArbiterConfigV2): void {
+/**
+ * #2546: the withheld half of a drain.md sync — `drainPath` (for naming the
+ * file in the report) and `cap` (the value the user must now set by hand).
+ * Returned ONLY when `writeFile` actually withheld the write; an ordinary
+ * sync (or a no-op — content already matched) returns `null` and callers
+ * stay silent, which is the CANON-24 inversion this type exists to protect.
+ */
+interface DrainSyncWithheld {
+  drainPath: string
+  cap: number
+}
+
+/**
+ * Keep the materialized /drain default live for existing projects (#2344).
+ *
+ * #2546: `writeFile`'s `WriteResult` is inspected rather than discarded. At
+ * this call site `withheld: true` can only ever mean the on-disk drain.md
+ * carries the `arbiter:preserve` marker (see `src/utils/fs.ts` —
+ * `resolveSessionSkip`'s withheld branch requires an active generation
+ * session, and `configure` never opens one; this call also passes no
+ * `session`/`skipIfExists`/`backup`). A preserve mark here is a legitimate
+ * user action, not a failure: `drain.md` is a generator-emitted file a
+ * downstream repo may deliberately hand-customise and freeze. So this does
+ * NOT call `assertWritten` and does NOT throw — `syncDrainMaxParallel` is
+ * called after `saveConfig` inside the same lock, and throwing would leave
+ * `arbiter.json` persisted but the command reporting failure. Instead the
+ * withheld outcome is returned for the caller to report as a warning while
+ * `configure` still exits 0.
+ */
+function syncDrainMaxParallel(
+  targetDir: string,
+  config: ArbiterConfigV2,
+): DrainSyncWithheld | null {
   const drainPath = join(targetDir, '.claude', 'commands', 'drain.md')
-  if (!existsSync(drainPath)) return
+  if (!existsSync(drainPath)) return null
   const cap = resolveMaxParallelWorktrees({
     automation: config.automation,
     collaborationMode: config.collaborationMode,
@@ -553,7 +584,9 @@ function syncDrainMaxParallel(targetDir: string, config: ArbiterConfigV2): void 
     /^(\| `--max-parallel N` \|) [^|\r\n]+(\| Max worktree agents;.*)$/m,
     `$1 ${cap}       $2`,
   )
-  if (after !== before) writeFile(drainPath, after)
+  if (after === before) return null
+  const result = writeFile(drainPath, after)
+  return result.withheld ? { drainPath, cap } : null
 }
 
 export async function runConfigure(options: ConfigureOptions): Promise<void> {
@@ -618,16 +651,31 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
 
   ensureDir(join(targetDir, '.arbiter'))
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
+  let drainWithheld: DrainSyncWithheld | null = null
   try {
     await saveConfig(targetDir, result.config)
-    syncDrainMaxParallel(targetDir, result.config)
+    drainWithheld = syncDrainMaxParallel(targetDir, result.config)
   } finally {
     await lock.release()
   }
 
+  const drainWarning = drainWithheld
+    ? t('cli.configure.drain_sync_withheld', {
+        path: relative(targetDir, drainWithheld.drainPath),
+        cap: drainWithheld.cap,
+      })
+    : null
+
   if (options.json) {
-    jsonOutput('configure', 'ok', { updated: options.sets })
+    jsonOutput(
+      'configure',
+      'ok',
+      { updated: options.sets },
+      undefined,
+      drainWarning ? { warnings: [drainWarning] } : undefined,
+    )
     return
   }
   process.stdout.write(`${t('cli.configure.updated', { keys: options.sets.join(', ') })}\n`)
+  if (drainWarning) process.stderr.write(`${drainWarning}\n`)
 }
