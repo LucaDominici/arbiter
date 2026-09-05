@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import {
   saveConfig,
   saveConfigAndSnapshot,
+  writeSnapshot,
   loadConfig,
   loadSnapshot,
 } from '../../src/utils/config.js'
@@ -378,6 +379,63 @@ describe('arbiter config — automation block (#1291, ADR-093 §4)', () => {
 // subsequent saveConfig failed forever with a raw EEXIST that doctor could not
 // repair. saveConfig now uses the robust `acquireLock` (file-lock.ts), which
 // performs stale-takeover, so an orphaned kit.lock no longer bricks config writes.
+// #2541: arbiter.json and .arbiter-generated.json are never generator-emitted
+// (no `src/generators/*.ts` targets either — see docs/REFERENCE/file-stability.md,
+// which documents arbiter.json's own load→mutate→save merge as the user-edit
+// protection, and .arbiter-generated.json as machine-written provenance). Both
+// are therefore exempt from `writeFile`'s `arbiter:preserve` marker — a real,
+// end-to-end proof (no mocks) that a preserve-marked arbiter.json/snapshot is
+// still overwritten rather than silently frozen.
+describe('saveConfig/saveConfigAndSnapshot/writeSnapshot — preserve-marker exemption (#2541)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-config-preserve-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('saveConfig overwrites arbiter.json even when its on-disk content quotes arbiter:preserve', async () => {
+    const path = join(dir, 'arbiter.json')
+    writeFileSync(
+      path,
+      JSON.stringify({ note: 'quoted from AGENTS.md: <!-- arbiter:preserve -->' }),
+      'utf-8',
+    )
+    await saveConfig(dir, { ...defaultConfig(), permitGitHub: true })
+    const loaded = loadConfig(dir)
+    expect(loaded?.permitGitHub).toBe(true)
+  })
+
+  it('saveConfigAndSnapshot overwrites both files even when marked arbiter:preserve', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ note: 'arbiter:preserve' }),
+      'utf-8',
+    )
+    writeFileSync(
+      join(dir, '.arbiter-generated.json'),
+      JSON.stringify({ note: 'arbiter:preserve' }),
+      'utf-8',
+    )
+    saveConfigAndSnapshot(dir, { ...defaultConfig(), permitGitHub: true })
+    expect(loadConfig(dir)?.permitGitHub).toBe(true)
+    expect(loadSnapshot(dir)?.permitGitHub).toBe(true)
+  })
+
+  it('writeSnapshot overwrites .arbiter-generated.json even when marked arbiter:preserve', () => {
+    writeFileSync(
+      join(dir, '.arbiter-generated.json'),
+      JSON.stringify({ note: 'arbiter:preserve' }),
+      'utf-8',
+    )
+    writeSnapshot(dir, { ...defaultConfig(), permitGitHub: true })
+    expect(loadSnapshot(dir)?.permitGitHub).toBe(true)
+  })
+})
+
 describe('saveConfig kit.lock is crash-safe (#1517)', () => {
   let dir: string
 
