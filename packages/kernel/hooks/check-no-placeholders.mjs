@@ -1,14 +1,11 @@
 #!/usr/bin/env node
-// Claude hook: blocks placeholder patterns in files being written/edited.
+// Arbiter hook: block unfinished-code patterns in edited source files
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import { resolveToolInputPath } from './lib.mjs'
 
-// Only scan source-file extensions (allowlist, not blocklist) — prose files like
-// .md are out of scope so mentioning a shouted marker in docs prose never trips
-// this hook (#1778).
-const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
+const EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs', '.js', '.jsx'])
 
 // #2528: the three shouted-only markers below are built by concatenation so this
 // checker's own source never contains one as a contiguous string — a literal
@@ -27,42 +24,35 @@ const PATTERNS = [
   { re: /\bWIP\b/, label: 'WIP' },
   marker(`CHANGE${'ME'}`),
   marker(`REPLACE${'ME'}`),
-  {
-    re: /\b(it|describe|test)\.skip\s*\(/,
-    label: 'it.skip/describe.skip/test.skip',
-  },
-  { re: /\b(xit|xdescribe|xtest)\s*\(/, label: 'xit/xdescribe/xtest' },
+  { re: /\b(it|describe|test)\.skip\s*\(/, label: 'disabled-test method' },
+  { re: /\b(xit|xdescribe|xtest)\s*\(/, label: 'disabled-test alias' },
 ]
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
-
-if (!EXTENSIONS.has(extname(file))) process.exit(0)
+if (!EXTENSIONS.has(extname(file).toLowerCase())) process.exit(0)
 
 let content
 try {
   content = readFileSync(file, 'utf-8')
 } catch {
-  process.exit(0)
+  process.stderr.write('[arbiter] ERROR: cannot read applicable source file\n')
+  process.exit(2)
 }
 
-const lines = content.split('\n')
 const found = []
-
-for (let i = 0; i < lines.length; i++) {
-  const line = lines[i]
+for (const [index, line] of content.split('\n').entries()) {
   for (const { re, label } of PATTERNS) {
     if (re.test(line)) {
-      found.push(`  line ${i + 1}: [${label}]  ${line.trim()}`)
+      found.push(`  line ${index + 1}: [${label}]  ${line.trim()}`)
       break
     }
   }
 }
 
 if (found.length > 0) {
-  console.error(`Placeholder patterns found in ${file}:`)
-  for (const msg of found) console.error(msg)
-  console.error('\nRemove placeholder/WIP/disabled-test patterns before saving.')
-  // Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631).
+  process.stderr.write(`Unfinished-code patterns found in ${file}:\n`)
+  for (const message of found) process.stderr.write(`${message}\n`)
+  process.stderr.write('\nRemove unfinished or disabled-test patterns before saving.\n')
   process.exit(2)
 }

@@ -88,17 +88,21 @@ const RENDERED = [
   ['claude/hooks/lib.mjs.ejs', 'lib.mjs'],
   ['claude/hooks/stop-evidence-guard.mjs.ejs', 'stop-evidence-guard.mjs'],
   ['claude/hooks/guard-done-evidence.mjs.ejs', 'guard-done-evidence.mjs'],
+  ['claude/hooks/check-no-orphan-todo.mjs.ejs', 'check-no-orphan-todo.mjs'],
+  ['claude/hooks/check-no-placeholders.mjs.ejs', 'check-no-placeholders.mjs'],
 ]
 
 // Already-standalone (non-templated) safety hooks — copied verbatim, byte-
 // identical to what arbiter emits (no divergence possible by construction).
+// check-no-orphan-todo.mjs and check-no-placeholders.mjs used to live here too,
+// but both became EJS-templated (they read `sourceExtensions`) and moved up to
+// RENDERED (#2538) — copying their .ejs source verbatim would have shipped raw
+// `<% %>` template syntax as an unrunnable hook.
 const COPIED = [
   'stop-dangerous.mjs',
   'enforce-read-only.mjs',
   'enforce-gate-before-pr.mjs',
   'pre-edit-ssot-guard.mjs',
-  'check-no-orphan-todo.mjs',
-  'check-no-placeholders.mjs',
 ]
 
 function main() {
