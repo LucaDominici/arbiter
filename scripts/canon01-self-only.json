@@ -208,6 +208,11 @@
       "reason": "INV-146: validates the milestone SSOT (docs/internal/PRODUCT/MILESTONES.yml) against schemas/milestone.schema.json and proves it acyclic and fail-closed on `done`. Self-only PROVISIONALLY, not by construction: the MS identifier scheme is still `staged` in docs/internal/SYSTEM/ID-REGISTRY.md with a dated expiry of 2026-11-15, and the Track-B emission (a gate-registry.yml.ejs row plus the emitted schema) lands with that promotion. The declination is therefore an obligation with a deadline the ID registry already enforces, not a permanent divergence — and it is recorded here rather than claimed as both-track wiring, which is the error INV-144 was caught making."
     },
     {
+      "path": "scripts/check-runbook-coverage.mjs",
+      "reason": "INV-148: every doc tagged kind/runbook carries an RB-NN canonical_id and a non-empty `handles:` whose invariant ids resolve, plus a ratcheted debt counter over operational-tier invariants no runbook handles. Self-only PROVISIONALLY, not by construction: a governed project has runbooks and an invariant set of its own, so the gate has a real subject there — what is missing is the emission, and the RB identifier scheme is `staged` in docs/internal/SYSTEM/ID-REGISTRY.md with a dated expiry of 2027-01-31 that the Track-B twin lands against. Recorded here rather than claimed as both-track wiring, which is the error INV-144 was caught making. The row also carries a second correction found by building the gate: RB's declared ssot was docs/internal/runbooks, but only one of the two runbooks lives there.",
+      "expires": "2027-01-31"
+    },
+    {
       "path": "scripts/check-monthly-freshness.mjs",
       "reason": "INV-82: monthly CI stamp within the freshness window. STILL PENDING: targets receive monthly CI (`src/templates/github/workflows/08-monthly.yml.ejs`, `_monthly.yml.ejs`) but no gate verifies the monthly stamp artifact stays fresh for them. Tracked by https://github.com/LucaDominici/arbiter/issues/2405.",
       "expires": "2026-10-27"

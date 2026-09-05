@@ -4,7 +4,10 @@ doc_version: '1.0.0'
 status: active
 last_review: '2026-05-20'
 owner: ''
-canonical_id: ''
+canonical_id: 'RB-01'
+# handles: the invariants this runbook is the operational response to (RB-NN, #2480 wave 8).
+# The two invariants a Dependabot PR can violate: the human-approval label (INV-74) and the pinned-action contract (INV-76). This runbook is what an operator does when one of them fires.
+handles: [INV-74, INV-76]
 tags: ['audience/dev', 'audience/ops', 'kind/runbook']
 related: []
 ---

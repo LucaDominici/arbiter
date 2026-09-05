@@ -291,15 +291,15 @@ and INV-31.
       "prefix": "RB",
       "pattern": "^RB-[0-9]{2}$",
       "meaning": "A runbook that handles the violation of a named operational invariant.",
-      "ssot": "docs/internal/runbooks",
+      "ssot": "docs",
       "gate": "scripts/check-runbook-coverage.mjs",
-      "track": "both",
+      "track": "self",
       "tool": "arbiter doc-set",
       "hook": "n/a",
       "status": "staged",
       "expires": "2027-01-31",
       "graphNode": "RUNBOOK",
-      "note": "Wave 8. Coverage is the same algebra as requirement-to-test: an operational invariant with no runbook and a runbook handling no invariant are both defects."
+      "note": "Wave 8 built the gate (INV-148). Two corrections this row needed, both found by building it rather than by re-reading it: the ssot was `docs/internal/runbooks`, but only one of the two runbooks lives there — CODEX_PARITY_RUNBOOK.md sits under docs/internal/METHOD — so the SSOT is the doc tree and membership is declared by the `kind/runbook` tag, not by a directory; and the track was `both`, which was aspiration, since no Track-B template exists. Coverage is the same algebra as requirement-to-test but the two halves are NOT symmetric in strength: a runbook handling no invariant, or naming one that does not exist, is a hard failure, while operational invariants with no runbook are a ratcheted debt counter (49 of 49 today) — a hard rule there would be red on arrival and baselined into meaninglessness. Stays staged until the Track-B emission lands."
     },
     {
       "prefix": "FS",

@@ -2886,4 +2886,46 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'hash drifts fails, and claiming a quote the source never made fails. exit 0=PASS or SKIP, ' +
       '1=violation, 2=ERROR per INV-53.',
   },
+
+  {
+    id: 'INV-148',
+    tier: 'governance',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'A runbook names the invariants it handles, and what it names is real',
+    description:
+      'A runbook is what a human does once enforcement has already fired and the thing is broken, ' +
+      'so it is the one governance artifact whose value is realised at the worst possible moment. ' +
+      'Two directions are checked, and they are DELIBERATELY ASYMMETRIC because only one of them ' +
+      'is honestly pass/fail today. Hard: every doc whose frontmatter tags declare kind/runbook ' +
+      'carries an RB-NN canonical_id, unique across the set, and a non-empty `handles:` list whose ' +
+      'every INV id resolves in the catalog — an unresolvable reference is the runbook equivalent ' +
+      'of a dangling test_ref, reading as coverage while covering nothing, and a runbook that ' +
+      'handles nothing named is a document about a topic rather than a response to a failure. ' +
+      'Ratcheted: operational-tier invariants that no runbook handles. That second direction is a ' +
+      'DEBT COUNTER and is labelled one, because there are 49 operational invariants and two ' +
+      'runbooks: shipping "every operational invariant needs a runbook" as a rule would be red on ' +
+      'arrival and instantly baselined into meaninglessness, which is the green-because-baselined ' +
+      'failure this catalog exists to prevent. As a ratchet the debt is visible, bounded, and ' +
+      'cannot grow in silence. Discovery reads FRONTMATTER, never greps: docs/GOVERNANCE.md and ' +
+      'docs/INDEX.md both contain the literal string kind/runbook while merely listing tags, so a ' +
+      "grep would have made the gate's first finding its own false positive.",
+    enforcement:
+      "scripts/check-runbook-coverage.mjs — wired on the SELF track as 'runbook coverage " +
+      "(INV-148)' via runCheck in scripts/check-all.mjs, with the ratchet in " +
+      'scripts/data/runbook-baseline.json. Self-only, and the asymmetry is declared rather than ' +
+      'left to be found: the RB scheme is `staged` in docs/internal/SYSTEM/ID-REGISTRY.md with a ' +
+      'dated expiry, and the Track-B emission lands with it — claiming both tracks before that ' +
+      'exists is the error INV-144 was caught making. A missing catalog SKIPs out loud, visible as ' +
+      'verdict "skip" under --json, so a tree with no invariants is distinguishable from a gate ' +
+      'that never ran. Unlike the ADR ratchet, --update-baseline RECORDS a rise rather than ' +
+      'refusing it: the counter is over a catalog this gate does not own, and adding an ' +
+      'operational invariant legitimately raises it — what stays refused is a SILENT rise, since ' +
+      'the new number lands in the diff either way. Verified by ' +
+      '__tests__/scripts/check-runbook-coverage.test.ts, tamper-proven in both directions on every ' +
+      'rule: an empty or off-pattern canonical_id, a duplicate RB id, an empty handles list, a ' +
+      'handles ref naming an invariant that does not exist, and a ratchet rise each fail, and the ' +
+      'same tree with the defect removed passes. exit 0=PASS or SKIP, 1=violation, 2=ERROR per ' +
+      'INV-53.',
+  },
 ]

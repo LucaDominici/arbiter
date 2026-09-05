@@ -210,7 +210,7 @@
 | [Real-Project Testing](internal/DEVELOPMENT/REAL-PROJECT-TESTING.md) | — | active | kind/method |
 | [Adjudication with Audit — arbiter](internal/METHOD/ADJUDICATION.md) | ADJUDICATION | active | kind/method |
 | [Canonical Paths — arbiter](internal/METHOD/CANONICAL_PATHS.md) | — | active | kind/ssot |
-| [Codex Parity Runbook — arbiter](internal/METHOD/CODEX_PARITY_RUNBOOK.md) | — | active | kind/runbook |
+| [Codex Parity Runbook — arbiter](internal/METHOD/CODEX_PARITY_RUNBOOK.md) | RB-02 | active | kind/runbook |
 | [Engineering Defaults — arbiter](internal/METHOD/ENGINEERING_DEFAULTS.md) | — | active | kind/method |
 | [Evidence Retention Policy — arbiter](internal/METHOD/EVIDENCE_RETENTION.md) | — | active | kind/method |
 | [arbiter Patterns Catalog](internal/METHOD/PATTERNS_CATALOG.md) | PATTERNS_CATALOG | active | kind/method |
@@ -235,7 +235,7 @@
 | [Owner Decision Registry — the calls only the owner can make](internal/SYSTEM/OD-REGISTRY.md) | od-registry | active | kind/reference |
 | [arbiter Architecture](internal/architecture/ARCHITECTURE.md) | ARCHITECTURE | active | kind/spine |
 | [Release Playbook](internal/release-playbook.md) | — | active | kind/internal |
-| [Runbook — Dependabot PR Triage](internal/runbooks/dependabot-handling.md) | — | active | kind/runbook |
+| [Runbook — Dependabot PR Triage](internal/runbooks/dependabot-handling.md) | RB-01 | active | kind/runbook |
 
 ## methodology
 

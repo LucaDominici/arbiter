@@ -941,3 +941,25 @@ A missing `SOURCES.md` **skips out loud** — a project need not cite anything, 
 **Enforcement:** `scripts/check-sources.mjs`, wired on the self track as `sources tier 1 (INV-147)` via `runCheck` in `scripts/check-all.mjs`. Self-only for now and declared as such: the Track-B emission needs `schemas/source-record.schema.json` shipped alongside the gate (CANON-11), and the `SRC` row stays `staged` in the ID registry until its source-management CLI verb and its SOTA-required hook land with tiers 2 and 3. Neither exists yet, so neither is named here as though it did — a documented command name is a claim the phantom-command scan (INV-111) will hold this file to. Verified by `__tests__/scripts/check-sources.test.ts` (12 cases) and tamper-proven on arbiter's own two recorded sources in both directions: editing an excerpt so the quote still appears but the hash drifts fails, and claiming a quote the source never made fails. Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
 
 ---
+
+### INV-148: A runbook names the invariants it handles, and what it names is real
+
+A runbook is what a human does once enforcement has already fired and the thing is broken. It is the one governance artifact whose value is realised at the worst possible moment, which is precisely when nobody is going to notice that it points at an invariant that no longer exists.
+
+Two directions are checked, and they are **deliberately asymmetric**, because only one of them is honestly pass/fail today.
+
+**Hard.** Every doc whose frontmatter `tags` declare `kind/runbook`:
+
+- carries a `canonical_id` matching `^RB-[0-9]{2}$`, unique across the set. The id is reused from the frontmatter contract every doc already has rather than inventing a key (CANON-16), and a runbook nothing can cite is a runbook nothing can be traced to.
+- declares a non-empty `handles:` list. A runbook that handles nothing named is a document about a topic, not an operational response to a failure.
+- names only invariants that exist. An unresolvable ref is the runbook equivalent of a dangling `test_ref`: it reads as coverage and covers nothing.
+
+`handles` accepts **any** tier. Both runbooks that predate this gate handle non-operational invariants — RB-01 handles the two security invariants a Dependabot PR can violate, RB-02 the exit-code and parity-surface contracts of the gate it documents — and a rule that failed them would be a rule fitted to a theory rather than to the repository.
+
+**Ratcheted.** Operational-tier invariants that no runbook handles. This is a **debt counter**, and labelling it one is the point: there are 49 operational invariants and two runbooks, so shipping "every operational invariant needs a runbook" as a hard rule would be red on arrival and instantly baselined into meaninglessness — the green-because-baselined failure this document exists to prevent. As a ratchet the debt is visible, bounded, and cannot grow in silence. Of the 49, ten name no enforcement script at all; those are the honest first targets, since a human procedure is the only enforcement they will ever have.
+
+Discovery reads **frontmatter, never greps**. `docs/GOVERNANCE.md` and `docs/INDEX.md` both contain the literal string `kind/runbook` while merely listing tags — a grep would have made the gate's first finding its own false positive.
+
+**Enforcement:** `scripts/check-runbook-coverage.mjs`, wired on the self track as `runbook coverage (INV-148)` via `runCheck` in `scripts/check-all.mjs`, with the ratchet in `scripts/data/runbook-baseline.json`. Self-only for now and declared as such: the `RB` scheme is `staged` in the ID registry with a dated expiry and the Track-B emission lands with it — claiming both tracks before that exists is the error INV-144 was caught making. Unlike the ADR enforcement ratchet, `--update-baseline` **records** a rise rather than refusing it: the counter is over a catalog this gate does not own, and adding an operational invariant legitimately raises it (INV-08) — what stays refused is a _silent_ rise, since the new number lands in the diff either way. A missing catalog **skips out loud**, visible as `verdict: "skip"` under `--json`. Verified by `__tests__/scripts/check-runbook-coverage.test.ts` (41 cases), tamper-proven in both directions on every rule: an empty or off-pattern `canonical_id`, a duplicate `RB` id, an empty `handles`, a ref naming an invariant that does not exist, and a ratchet rise each fail, and the same tree with the defect removed passes. Exit codes per INV-53: 0=PASS or SKIP, 1=violation, 2=ERROR.
+
+---

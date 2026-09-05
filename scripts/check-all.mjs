@@ -234,6 +234,7 @@ if (isMain) {
   // INV-146: the milestone SSOT is well-formed, acyclic, and fail-closed on `done`. SKIPs out
   // loud when no MILESTONES.yml exists — a project need not have codified a roadmap.
   runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs'])
+  runCheck('runbook coverage (INV-148)', 'node', ['scripts/check-runbook-coverage.mjs'])
   // INV-147: tier 1 of the source chain — every quotation is a literal substring of a committed
   // excerpt whose hash matches. Deterministic and offline; SKIPs out loud when a project cites
   // nothing. Relevance (tier 2) and graph reachability (tier 3) are judgements this gate refuses
