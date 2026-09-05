@@ -2,7 +2,7 @@
 name: product-acceptance
 description: Use when a product is approaching completion and needs testing as a finished thing rather than as code — chartered sessions that drive the real product, find promises it does not keep, and produce evidence matrices plus remediation issues. Also use to decide WHICH sessions to run now and which to defer until after a planned rework. Complements code review and gates; never replaces them.
 title: 'Product acceptance (chartered session testing)'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
 last_review: '2026-09-05'
 owner: ''
@@ -55,6 +55,33 @@ Run the durable sessions before a rework; run the perishable ones **once, as a b
 — capture the state, do not open a fix list — so that afterwards you diff instead of
 re-deriving.
 
+**Order by the finding's lifetime, never by the technique that found it.** These are two
+axes, and fusing them is the mistake this table invites. A rendering pass produces
+perishable findings *and* durable ones: panels present in the DOM but starved to zero
+height inside a viewport-locked shell; every list item in every embedded document
+rendering blank because of one wrong capture group. Both survive any restyle. Both had
+already passed adversarial code review and a battery of structural predicates, because
+they are invisible in source by construction.
+
+So the perishable-baseline rule applies to the **polish sweep** — contrast, spacing,
+wording — not to the first pass that renders the thing at all. The photograph you diff
+against is the *last* rendering pass before the rework, not the only one.
+
+### Detectability
+
+Before deferring a technique, ask: **is there any other technique that reaches this class
+of finding at all?** If the answer is no, the perishability of the *other* findings that
+technique also produces is not a reason to defer it.
+
+Two measured cases, from different products. A keyboard-driving session found focus landing
+on `<body>` when a modal closed — invisible with a mouse, a dead end from the keyboard, and
+missed by the automated accessibility scan running beside it. A screenshot matrix found the
+zero-height panel above; every DOM assertion stayed green, because `scrollHeight ===
+clientHeight`. Neither is reachable by reading code. Neither dies with a restyle.
+
+A technique with no substitute earns an early, cheap run for its durable half, whatever
+else it also produces.
+
 ### Cost asymmetry
 
 - **Wiring gaps** (a promised capability connected to nothing) are cheapest early. Near
@@ -76,6 +103,12 @@ A session whose prerequisite is missing produces noise: driving sessions need a
 **runnable product** (§3), scale sessions need **realistic volumes**, wording sessions
 need **settled wording**, journey sessions need **datasets that represent real users,
 including the awkward ones**.
+
+A missing prerequisite does not always degrade loudly, and the quiet failure is the
+dangerous one. A check that cannot see the data it is meant to reconcile does not report
+uncertainty — it reports a **confident green over a false claim**, and nothing signals that
+the question went unasked. So when a prerequisite is absent, the session says so in its
+sheet; a pass it could not actually perform is `NOT COVERED`, never `OK`.
 
 ---
 
@@ -116,8 +149,17 @@ before believing it. The questions that decide it:
    hardcoded origin, or a config file it refuses to start without, is the usual last
    obstacle — solve it in the harness, not by editing the product.
 
-Build the harness as **tooling in its own directory**, with its own server and test
-configuration, never by editing the product's build files. Make every port and path
+Then test the opposite claim, because "we must build a harness" is just as often wrong.
+Survey what exists first. A product with an integration or end-to-end suite usually already
+has most of the parts — fixture projects, a runner that stages a throwaway copy and
+executes the real commands, captured output. What is missing is typically not machinery but
+a **mode**: an existing suite asserts against committed snapshots, so any deviation is a
+failure, while a chartered session needs the inverse — run, capture stdout, exit code and
+files written, report, assert nothing. That is a thin adapter over what you have, not a
+second harness, and most codebases have a reuse rule that requires the survey anyway.
+
+Build what is genuinely missing as **tooling in its own directory**, with its own server and
+test configuration, never by editing the product's build files. Make every port and path
 configurable by environment variable *before* launching parallel sessions; discovering a
 collision afterwards costs a whole round.
 
