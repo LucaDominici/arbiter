@@ -231,7 +231,7 @@
     ".claude/hooks/check-circular-deps.mjs": "81c71bf18a7093680ce24e7eba16ee11a2b33de0715eb8c249391b7d96b70388",
     ".claude/hooks/check-no-any.mjs": "6895c54d658d4a8bcc4a66769d9e0922786ef86dc7386775e96f4b8a28881724",
     ".claude/hooks/check-no-orphan-todo.mjs": "df13499ab7bb9c8a50d4616d4bb52a8e558bb9b1ef7f71bfbda5e0dd24cbd122",
-    ".claude/hooks/check-no-placeholders.mjs": "9577c2526d708b6171225b00dfc43530ecd5b1ea35f519e5163522dc230b9089",
+    ".claude/hooks/check-no-placeholders.mjs": "05163bd316d8df850882c280af7ec740a8971b4e8d1ae7b9c1efa143dd3f6b8b",
     ".claude/hooks/check-no-skipped-tests.mjs": "25f10180080c9536af50fba56f29b50a326fe5223410a7d8ddaa7cb60dcc8e91",
     ".claude/hooks/check-no-unused-exports.mjs": "4060733976e2c7b1ce1c8adbe6db431d9b3ec7bbbaab59a2371ca7a021e161bc",
     ".claude/hooks/enforce-gate-before-pr.mjs": "9dc6d949420ab6cfd99572cc30fe17aa7c71bd7b0632421b55a3d0807a2dea67",
