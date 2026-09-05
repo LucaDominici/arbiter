@@ -241,7 +241,7 @@
     ".claude/hooks/check-no-orphan-todo.mjs": "d4584ced373ef2f77914ba62aa6881c94cc572bc6798dd7ed6379f67de3bdb33",
     ".claude/hooks/check-no-placeholders.mjs": "a2e78323d14516b4a4d1aef8bc275ecbcb5ded5117083f6f6f1f8e0f891156ee",
     ".claude/hooks/check-no-raw-types.mjs": "2c188b7ac763498383728dd0ae2b01fa9b8938bd9a4ac737247d1638088c8518",
-    ".claude/hooks/check-no-skipped-tests.mjs": "cf32d1a1772df18c39ec3a5d06b3ac6fb47864aecb88559fb18e4e2899ff598a",
+    ".claude/hooks/check-no-skipped-tests.mjs": "b96b8d8770a981bd76f2710ea81825393774e4be22548b3617a2f9f2079605f6",
     ".claude/hooks/enforce-gate-before-pr.mjs": "9dc6d949420ab6cfd99572cc30fe17aa7c71bd7b0632421b55a3d0807a2dea67",
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/hooks.mjs": "190e1ca21dc1b5f36046d97ae43d9c654b8bdb828290d8af8615cb51959bc6e2",

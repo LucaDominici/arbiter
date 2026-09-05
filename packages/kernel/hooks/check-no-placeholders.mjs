@@ -45,9 +45,9 @@ try {
 // #2539: scan only the lines THIS edit added, not the whole file — a
 // pre-existing marker on an untouched line (the checker's own PATTERNS array,
 // a deliberately-planted test fixture, a coincidentally-matching identifier
-// like a checker's own uppercase constant name) must not block an unrelated edit to the same
-// file. Untracked files and git errors fail OPEN to the whole-file scan (never
-// skip) — see addedLinesVsHEAD's doc comment.
+// like a checker's own uppercase constant name) must not block an unrelated
+// edit to the same file. Untracked files and git errors fail OPEN to the
+// whole-file scan (never skip) — see addedLinesVsHEAD's doc comment.
 const { tracked, added } = addedLinesVsHEAD(file)
 const scanLines = tracked
   ? added.map(({ line, content: text }) => [line - 1, text])
