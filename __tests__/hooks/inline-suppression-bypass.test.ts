@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { fileURLToPath } from 'node:url'
 
 const REPO_ROOT = resolve(process.cwd())
 const HOOKS_DIR = join(REPO_ROOT, '.claude/hooks')
@@ -300,10 +299,7 @@ describe('inline-suppression bypass sentinel (INV-36)', () => {
     })
 
     it('finds no shouted-marker violation against the scanner test file — no self-block (#2528)', () => {
-      const scannerTestPath = resolve(
-        REPO_ROOT,
-        '__tests__/scripts/check-no-placeholders.test.ts',
-      )
+      const scannerTestPath = resolve(REPO_ROOT, '__tests__/scripts/check-no-placeholders.test.ts')
       const selfTest = readFileSync(scannerTestPath, 'utf-8')
       const { dir, cleanup } = makeTmpDir()
       try {
