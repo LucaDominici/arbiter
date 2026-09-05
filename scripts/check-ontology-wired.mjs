@@ -34,10 +34,13 @@
 //
 // Exports for unit tests: verbTokens, gateWiredIn, countUnwired
 
-import { readFileSync, existsSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { readFileSync, existsSync, writeFileSync, statSync } from 'node:fs'
+import { basename, dirname, join, resolve, sep } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { extractJsonBlock } from './check-id-registry.mjs'
+
+/** The one hook with a per-artifact dispatch table, and therefore the one whose coverage is checkable. */
+const ARTIFACT_SCHEMA_HOOK = 'post-edit-artifact-schema.mjs'
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const REGISTRY_REL = join('docs', 'internal', 'SYSTEM', 'ID-REGISTRY.md')
@@ -144,6 +147,45 @@ function toolViolations(s, where, cli) {
     .map((token) => `${where}: tool "${s.tool}" names verb "${token}", absent from ${CLI_REL}`)
 }
 
+/**
+ * Leg 3b: the named hook must actually GOVERN this row's SSOT.
+ *
+ * Until #2480 wave 8 the hook leg asked only that the file exist and be registered, and four rows
+ * passed it while naming a hook whose own table matched none of their instances — an edit-time
+ * claim that could never fire. Existence and registration are necessary and were never sufficient:
+ * the question a reader of this registry is really asking is "will something stop me at the edit",
+ * and only the hook's own dispatch table answers it.
+ *
+ * Applies to the ONE hook that dispatches by path, `post-edit-artifact-schema.mjs`, and only when
+ * the SSOT is a path. Any other hook is a phase or event guard with no per-artifact table to
+ * consult, and demanding one would be inventing a contract to satisfy a check.
+ *
+ * Fails OPEN if the table cannot be read: a meta-gate that goes red because it could not import a
+ * hook is reporting on itself, not on the registry.
+ */
+async function hookCoverageViolations(s, where, root) {
+  if (s.hook === 'n/a' || basename(s.hook) !== ARTIFACT_SCHEMA_HOOK) return []
+  if (!s.ssot || s.ssot === 'github' || !existsSync(join(root, s.ssot))) return []
+  let selectEntry
+  try {
+    ;({ selectEntry } = await import(pathToFileURL(join(root, s.hook)).href))
+    // FAIL-OPEN-INTENT: a meta-gate that goes red because it could not import a hook is reporting on itself, not on the registry; leg 3 has already proven the file exists and is registered.
+  } catch {
+    return []
+  }
+  if (typeof selectEntry !== 'function') return []
+  // A directory SSOT is registered with a trailing slash in the hook's table.
+  const rel = s.ssot.split(sep).join('/')
+  const candidates = statSync(join(root, s.ssot)).isDirectory()
+    ? [`${rel}/`, `${rel}/x.json`]
+    : [rel]
+  if (candidates.some((c) => selectEntry(c) !== undefined)) return []
+  return [
+    `${where}: hook ${basename(s.hook)} does not cover ${s.ssot} — its REGISTERED table matches ` +
+      `nothing at that path, so the hook this row claims would never fire on an instance`,
+  ]
+}
+
 /** Leg 3: the hook exists AND is registered — an unregistered hook never fires. */
 function hookViolations(s, where, wants, root, surfaces) {
   if (s.hook === 'n/a') return []
@@ -198,7 +240,7 @@ function writeBaseline(baselinePath, baseline, counts) {
 }
 
 /** Every ACTIVE row's three legs. Staged rows are INV-140's business, not this gate's. */
-function wiringViolations(schemes, root, surfaces) {
+async function wiringViolations(schemes, root, surfaces) {
   const out = []
   for (const s of schemes) {
     if (s.status !== 'active') continue
@@ -211,6 +253,7 @@ function wiringViolations(schemes, root, surfaces) {
       ...gateViolations(s, where, wants, surfaces),
       ...toolViolations(s, where, surfaces.cli),
       ...hookViolations(s, where, wants, root, surfaces),
+      ...(await hookCoverageViolations(s, where, root)),
     )
   }
   return out
@@ -231,7 +274,7 @@ function loadBaseline(baselinePath) {
   }
 }
 
-function main() {
+async function main() {
   const argv = process.argv.slice(2)
   const dirIdx = argv.indexOf('--dir')
   const root = dirIdx === -1 ? resolve(scriptDir, '..') : resolve(argv[dirIdx + 1])
@@ -241,7 +284,7 @@ function main() {
   const { schemes } = loaded
   const surfaces = loadSurfaces(root)
 
-  const violations = wiringViolations(schemes, root, surfaces)
+  const violations = await wiringViolations(schemes, root, surfaces)
 
   const counts = countUnwired(schemes)
   const baselinePath = join(root, BASELINE_REL)
@@ -267,9 +310,11 @@ function main() {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   try {
-    process.exit(main())
+    process.exit(await main())
   } catch (err) {
+    // Exit 2, not 1 (INV-53): 1 means the registry is unwired, 2 means this gate could not tell.
+    // Same defect the tabletop and arc42 gates carried; fixed at the root, not per-site.
     process.stderr.write(`check-ontology-wired: ERROR — unexpected: ${err.message}\n`)
-    process.exit(1)
+    process.exit(2)
   }
 }

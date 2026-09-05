@@ -354,7 +354,7 @@
     "scripts/check-suppression-expiry.mjs": "cb179ae49bd3c743c98b9c1266d580c70a9bbd8720d895e970df97c091256c8d",
     "scripts/check-suppression-rationale.mjs": "d578f57b12408abccbf3b4e501d5e5a17a914de0219f8c2df67ef47904307d24",
     "scripts/check-suppressions.mjs": "5ca1f17a9d03e964762e8a6c4ee7956208aa3257014fa8a2356704999bcf3b01",
-    "scripts/check-tabletop-evidence.mjs": "736cab034c09b49b54670905f144210cbf2c4993743d1b8a3cfa95f3a0962086",
+    "scripts/check-tabletop-evidence.mjs": "6c8cdab4399705ed364fe1a86564146d36a51a50b92882cf7e08236d14ee18dc",
     "scripts/check-tdd-evidence.mjs": "19ef95100d382bf507b89ceb0660f0f173651747a2f451ae6fb9cb4bb2740c7c",
     "scripts/check-test-naming.mjs": "782bb765ab152b4cfb0a1f055f093c4249749f0e6ff215c7cdd5dfac11aff638",
     "scripts/check-test-pyramid.mjs": "132eb6a858324b67e84a8729eb65175f8fbcaadfa35656ea0b96b218a9f733ec",

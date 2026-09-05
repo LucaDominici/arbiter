@@ -4,7 +4,15 @@
 // one. These tests observe it the honest way instead: the pure decision logic directly, and the
 // script itself against a scratch copy of the repo where nothing real is at risk.
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
@@ -12,6 +20,7 @@ import {
   REGISTERED,
   selectEntry,
   extractDocument,
+  parseYamlPayload,
 } from '../../.claude/hooks/post-edit-artifact-schema.mjs'
 
 const ROOT = resolve(import.meta.dirname, '../..')
@@ -125,8 +134,52 @@ describe('post-edit-artifact-schema hook (INV-142)', () => {
     it('registers every instance with a schema and an extract mode', () => {
       for (const e of REGISTERED) {
         expect(e.schema).toMatch(/^schemas\/.*\.schema\.json$/)
-        expect(e.extract === 'json' || e.extract.startsWith('sentinel:')).toBe(true)
+        expect(['json', 'yaml'].includes(e.extract) || e.extract.startsWith('sentinel:')).toBe(true)
       }
+    })
+
+    it('registers a schema file that actually exists — a table row pointing at nothing is a hook that fails open forever', () => {
+      for (const e of REGISTERED) {
+        expect(existsSync(resolve(e.schema)), `${e.path} -> ${e.schema}`).toBe(true)
+      }
+    })
+  })
+
+  /**
+   * #2480 wave 8. The `yaml` mode exists so MILESTONES.yml — the richest schema in the tree, and
+   * the SSOT two registry rows point at — is validated at the edit rather than an hour later.
+   * Before this wave the hook's table covered neither it nor any other ontology instance beyond
+   * the ID registry, while four registry rows named the hook as their edit-time enforcement.
+   */
+  describe('the yaml extract mode', () => {
+    it('defers the parse rather than doing it in the pure function', () => {
+      const out = extractDocument({ extract: 'yaml' }, 'a: 1\n')
+      expect(out.ok).toBe(true)
+      expect(out.document).toBeUndefined()
+      expect(out.yaml).toBe('a: 1\n')
+    })
+
+    it('parses valid YAML into a document', async () => {
+      await expect(parseYamlPayload('milestones:\n  - id: MS-01\n')).resolves.toEqual({
+        ok: true,
+        document: { milestones: [{ id: 'MS-01' }] },
+      })
+    })
+
+    it('reports malformed YAML rather than throwing', async () => {
+      const out = await parseYamlPayload('a:\n- b\n  c: [\n')
+      expect(out?.ok).toBe(false)
+      expect(out && 'error' in out && out.error).toMatch(/not valid YAML/)
+    })
+
+    it('covers the milestone SSOT, which is what two registry rows claim', () => {
+      const entry = selectEntry('docs/internal/PRODUCT/MILESTONES.yml')
+      expect(entry?.schema).toBe('schemas/milestone.schema.json')
+      expect(entry?.extract).toBe('yaml')
+    })
+
+    it('does NOT claim the tabletop catalogue — it is prose, and there is no document to validate', () => {
+      expect(selectEntry('docs/internal/METHOD/TABLETOP-SCENARIOS.md')).toBeUndefined()
     })
   })
 })

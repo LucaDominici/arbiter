@@ -146,3 +146,112 @@ describe('check-ontology-wired.mjs (INV-141)', () => {
     })
   })
 })
+
+/**
+ * #2480 wave 8 — leg 3b: a named hook must actually GOVERN the row's SSOT.
+ *
+ * The gate asked only that the hook file exist and be registered, and four rows passed while
+ * naming a hook whose own dispatch table matched none of their instances. Existence and
+ * registration were necessary and never sufficient: the claim a reader takes from the `hook`
+ * column is "something will stop me at the edit", and only the hook's table can honour it.
+ */
+describe('hook coverage (#2480 wave 8)', () => {
+  const HOOK_REL = '.claude/hooks/post-edit-artifact-schema.mjs'
+
+  /** A fixture whose hook is the real one by name, with a controllable REGISTERED table. */
+  function withArtifactHook(covers: string[], ssot = 'docs/internal/PRODUCT/THING.yml'): string {
+    const dir = fixture(
+      [{ ...active, ssot, hook: HOOK_REL }],
+      { staged: 0, naGate: 0, naTool: 0, naHook: 9 },
+      { registerHook: true },
+    )
+    mkdirSync(join(dir, 'docs/internal/PRODUCT'), { recursive: true })
+    writeFileSync(join(dir, ssot), 'thing: 1\n')
+    writeFileSync(
+      join(dir, HOOK_REL),
+      `export const REGISTERED = ${JSON.stringify(covers.map((p) => ({ path: p, schema: 'schemas/x.schema.json', extract: 'yaml' })))}
+` +
+        'export function selectEntry(rel, registered = REGISTERED) {\n' +
+        '  return registered.find((e) => (e.path.endsWith("/") ? rel.startsWith(e.path) : rel === e.path))\n' +
+        '}\n',
+    )
+    writeFileSync(
+      join(dir, '.claude/settings.json'),
+      '{"hooks":{"PostToolUse":"post-edit-artifact-schema.mjs"}}',
+    )
+    return dir
+  }
+
+  it('passes when the hook table covers the row SSOT', () => {
+    const r = run(withArtifactHook(['docs/internal/PRODUCT/THING.yml']))
+    expect(r.status, r.stderr).toBe(0)
+  })
+
+  it('fails, naming the SSOT, when the table covers nothing at that path', () => {
+    const r = run(withArtifactHook(['docs/internal/SYSTEM/OTHER.md']))
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/does not cover docs\/internal\/PRODUCT\/THING\.yml/)
+    expect(r.stderr).toMatch(/would never fire on an instance/)
+  })
+
+  it('accepts a directory SSOT registered with a trailing slash', () => {
+    const dir = fixture([{ ...active, ssot: 'docs/internal/PRODUCT', hook: HOOK_REL }], {
+      staged: 0,
+      naGate: 0,
+      naTool: 0,
+      naHook: 9,
+    })
+    mkdirSync(join(dir, 'docs/internal/PRODUCT'), { recursive: true })
+    writeFileSync(
+      join(dir, HOOK_REL),
+      'export const REGISTERED = [{ path: "docs/internal/PRODUCT/", schema: "schemas/x.schema.json", extract: "json" }]\n' +
+        'export function selectEntry(rel, registered = REGISTERED) {\n' +
+        '  return registered.find((e) => (e.path.endsWith("/") ? rel.startsWith(e.path) : rel === e.path))\n' +
+        '}\n',
+    )
+    writeFileSync(
+      join(dir, '.claude/settings.json'),
+      '{"hooks":{"PostToolUse":"post-edit-artifact-schema.mjs"}}',
+    )
+    expect(run(dir).status).toBe(0)
+  })
+
+  it('says nothing about a row whose hook is n/a — a withdrawn claim is not a broken one', () => {
+    const dir = fixture([{ ...active, hook: 'n/a' }], {
+      staged: 0,
+      naGate: 0,
+      naTool: 0,
+      naHook: 9,
+    })
+    expect(run(dir).status).toBe(0)
+  })
+
+  it('does not demand a table of a hook that has none — only the dispatching hook is checkable', () => {
+    const r = run(fixture([{ ...active, ssot: 'docs/internal/SYSTEM/ID-REGISTRY.md' }]))
+    expect(r.status, r.stderr).toBe(0)
+  })
+
+  it('fails OPEN when the hook cannot be imported — a meta-gate must not go red about itself', () => {
+    const dir = withArtifactHook(['docs/internal/PRODUCT/THING.yml'])
+    writeFileSync(join(dir, HOOK_REL), 'this is not valid javascript ===\n')
+    expect(run(dir).status).toBe(0)
+  })
+
+  it('skips a row whose SSOT is not a path in this tree', () => {
+    const dir = fixture([{ ...active, ssot: 'github', hook: HOOK_REL }], {
+      staged: 0,
+      naGate: 0,
+      naTool: 0,
+      naHook: 9,
+    })
+    writeFileSync(
+      join(dir, HOOK_REL),
+      'export const REGISTERED = []\nexport function selectEntry() {}\n',
+    )
+    writeFileSync(
+      join(dir, '.claude/settings.json'),
+      '{"hooks":{"PostToolUse":"post-edit-artifact-schema.mjs"}}',
+    )
+    expect(run(dir).status).toBe(0)
+  })
+})

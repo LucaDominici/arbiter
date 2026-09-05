@@ -2657,8 +2657,12 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'the side its `track` names (scripts/check-all.mjs for self, the declarative Track-B roster ' +
       'src/templates/scripts/gate-registry.yml.ejs for target, so a correctly-declined gate is ' +
       'never mistaken for an unwired one), the `tool` verb resolves to a .command() in ' +
-      'src/cli.ts, and the `hook` file exists AND is registered in .claude/settings.json, because ' +
-      'an unregistered hook never fires. `staged` rows are exempt by design — a stage is a dated ' +
+      'src/cli.ts, and the `hook` file exists, is registered in .claude/settings.json, and — since ' +
+      "wave 8 of #2480 — actually COVERS the row's SSOT. That last clause was the gate's own " +
+      'blind spot: existence and registration are necessary and never sufficient, and four rows ' +
+      'passed this check while naming a hook whose dispatch table matched none of their instances, ' +
+      'so the edit-time enforcement they advertised could not have fired. An unregistered hook ' +
+      'never fires; an uncovering one never fires either. `staged` rows are exempt by design — a stage is a dated ' +
       'obligation enforced by INV-140, not a second copy of the same failure — and are COUNTED ' +
       'instead, against a monotone ratchet over the unwired legs. There is deliberately no ' +
       '--allow-increase: the count may fall freely, and raising it means hand-editing ' +
@@ -2680,8 +2684,12 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'A schema checked only in CI teaches the agent an hour late, after a commit and a push, ' +
       'when the cheapest moment to learn was the edit itself. One PostToolUse hook carries a ' +
       'table of registered instances (path or directory prefix, schema, and how to extract the ' +
-      'document — the whole file, or a ```json fence between sentinels) and validates whatever ' +
-      'was just written against its registered schema, blocking with exit 2. One hook rather ' +
+      'document — the whole file as JSON or YAML, or a ```json fence between sentinels) and ' +
+      'validates whatever was just written against its registered schema, blocking with exit 2. ' +
+      'The table is the mechanism AND was the gap: until wave 8 of #2480 it held two entries while ' +
+      'four ID-registry rows named this hook as their edit-time enforcement, so no milestone, epic, ' +
+      "source record or use case was ever checked at the edit. INV-141 now resolves each row's " +
+      'SSOT through this table, so that claim cannot be made again without being true. One hook rather ' +
       'than one per artifact is the point: each wave that lands an artifact type adds a single ' +
       'line to the table and the type becomes edit-time enforced for free. The hook fails OPEN ' +
       'on its own infrastructure — if the validator or schema cannot be loaded it exits 0 — ' +
@@ -2813,7 +2821,15 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'weaker roadmap, it is a false claim with a schema around it. The migration is FORWARD-ONLY ' +
       'by owner decision — historical milestones stay in the prose archive rather than having ' +
       'exit-criteria evidence reconstructed after the fact to satisfy the gate, which would be ' +
-      'exactly the fake-green this catalog exists to prevent.',
+      'exactly the fake-green this catalog exists to prevent. The same SSOT carries the EPIC index ' +
+      '(EP-NN, wave 8), read by the same gate on purpose: an epic that targets no milestone and a ' +
+      'milestone claiming an epic that does not exist are one defect seen from two ends, and the ' +
+      'join is checked in BOTH directions. An issue may be claimed once, as an epic or as a plain ' +
+      'member, never both; a terminal epic status carries the same fail-closed evidence_ref rule ' +
+      'the milestone statuses do; and a milestone cannot be `done` while an epic targeting it is ' +
+      'open. What the gate CANNOT do is compare a status against GitHub — it is offline by ' +
+      'contract (INV-13) — and that gap is not hypothetical: all three epics first recorded here ' +
+      'were already closed, two abandoned rather than delivered, while the file called them open.',
     enforcement:
       'scripts/check-milestones.mjs — wired on the SELF track as ' +
       "'milestones (INV-146)' via runCheck in scripts/check-all.mjs. Self-only for now: the MS " +
@@ -2822,10 +2838,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'claiming both tracks before that exists is the error INV-144 was caught making. A missing ' +
       'MILESTONES.yml SKIPs out loud rather than passing silently, so a project without a codified ' +
       'roadmap is distinguishable from one whose gate never ran. `--emit <path>` writes the machine ' +
-      'projection forma consumes (schema arbiter-milestones-v1) — written only AFTER every rule ' +
+      'projection forma consumes (schema arbiter-milestones-v1, carrying the epic index) — written ' +
+      'only AFTER every rule ' +
       'passes, so an invalid plan cannot produce a projection, and omitting estimate_days rather ' +
       'than defaulting it so a consumer can tell "no estimate" from "zero". Verified by ' +
-      '__tests__/scripts/check-milestones.test.ts (42 cases), tamper-proven in both directions on ' +
+      '__tests__/scripts/check-milestones.test.ts (84 cases), tamper-proven in both directions on ' +
       'every rule: a cycle, a dangling depends_on, a duplicate id, a `later` carrying a due date, ' +
       '`done` without evidence and `verified` citing an unresolvable ref each fail, and the same ' +
       'tree with the defect removed passes. exit 0=PASS or SKIP, 1=violation, 2=ERROR per INV-53.',

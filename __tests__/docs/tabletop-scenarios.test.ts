@@ -8,25 +8,6 @@ import { existsSync, readFileSync } from 'node:fs'
 
 const CATALOGUE = 'docs/internal/METHOD/TABLETOP-SCENARIOS.md'
 
-const EXPECTED_SLUGS = [
-  'greenfield-init-ts',
-  'brownfield-update-go',
-  'ship-one-xs-issue',
-  'drain-wave-of-four',
-  'pr-red-and-recover',
-  'consumer-upgrade-delta',
-]
-
-const REQUIRED_FIELDS = [
-  '**Slug:**',
-  '**Persona:**',
-  '**Starting state:**',
-  '**Goal:**',
-  '**Docs the user would read:**',
-  '**Executable probes:**',
-  '**Exit criterion:**',
-]
-
 function catalogue(): string {
   return readFileSync(CATALOGUE, 'utf-8')
 }
@@ -49,20 +30,12 @@ describe('tabletop scenario catalogue (#2429)', () => {
     }
   })
 
-  it('declares exactly the six seeded scenarios', () => {
-    const blocks = scenarioBlocks(catalogue())
-    expect(blocks).toHaveLength(6)
-    const slugs = blocks.map((b) => /\*\*Slug:\*\*\s*`([^`]+)`/.exec(b)?.[1])
-    expect(slugs).toEqual(EXPECTED_SLUGS)
-  })
-
-  it('gives every scenario all seven catalogue fields', () => {
-    for (const block of scenarioBlocks(catalogue())) {
-      const heading = block.split('\n')[0]
-      const missing = REQUIRED_FIELDS.filter((f) => !block.includes(f))
-      expect(missing, `${heading} is missing ${missing.join(', ')}`).toEqual([])
-    }
-  })
+  // Field presence, id/slug shape and uniqueness, and the join to every evidence file are the
+  // GATE's job as of #2480 wave 8 — scripts/check-tabletop-evidence.mjs reads this catalogue
+  // directly. They used to live here as a hand-maintained EXPECTED_SLUGS list plus a field-name
+  // array, which meant adding a scenario required editing a test constant, and which no governed
+  // project ever received. What stays here is what the gate does not do: prove the cited paths
+  // resolve in THIS repository, and prove the catalogue is indexed.
 
   it('cites only arbiter-local doc paths that actually exist', () => {
     let cited = 0

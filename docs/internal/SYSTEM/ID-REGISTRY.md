@@ -282,11 +282,10 @@ and INV-31.
       "gate": "scripts/check-tabletop-evidence.mjs",
       "track": "both",
       "tool": "n/a",
-      "hook": ".claude/hooks/post-edit-artifact-schema.mjs",
-      "status": "staged",
-      "expires": "2027-01-31",
+      "hook": "n/a",
+      "status": "active",
       "graphNode": "SCENARIO",
-      "note": "Wave 8. The evidence half is already schema'd and gated; the scenario definitions are not, so an exercise can be walked against a scenario nothing validates."
+      "note": "Wave 8 wired the definitions half: the gate reads docs/internal/METHOD/TABLETOP-SCENARIOS.md directly for field presence, TT id and slug uniqueness, and — the rule that could not exist while the definitions were prose — the JOIN, so an evidence file naming a scenario nothing declares fails. The id and the slug coexist on the ADR precedent: the id is the stable citation key, the slug is what the evidence filename <slug>-<date>.md is built from. `tool: n/a` because no CLI verb reads scenarios; the gate and the /tabletop skill are the only consumers, and inventing a verb to fill this column would be the ceremony this registry exists to refuse. `hook: n/a` because post-edit-artifact-schema.mjs validates a JSON or YAML document against a JSON Schema and this catalogue is prose with a bespoke parser — there is no document to hand it. This row claimed that hook until wave 8, when the meta-gate learned to check whether a named hook COVERS the row's SSOT and found that it never could."
     },
     {
       "prefix": "RB",
@@ -327,7 +326,7 @@ and INV-31.
       "status": "staged",
       "expires": "2027-01-31",
       "graphNode": "EPIC",
-      "note": "Wave 8. Shares the milestone SSOT and gate deliberately: an epic that targets no milestone is the defect the join exists to surface."
+      "note": "Wave 8. Shares the milestone SSOT and gate deliberately: an epic that targets no milestone is the defect the join exists to surface, and the gate checks it in BOTH directions. `status` is a claim the gate cannot verify against GitHub — it is offline by contract (INV-13) — so a terminal status is held to the same fail-closed evidence_ref rule the milestone statuses carry. The ladder gained an `abandoned` rung from the data: all three epics recorded here were already closed, two of them not-planned, while the SSOT prose called them open. STILL STAGED, and precisely because the meta-gate says so: the contract, the gate rules and the edit-time hook coverage are all live on arbiter's own track, but check-milestones.mjs has no Track-B template, so a governed project runs none of it. That debt is MS-NN's and EP-NN's jointly — one emission clears both rows — and neither may go active before it lands."
     }
   ]
 }

@@ -11,6 +11,11 @@
       "type": "array",
       "description": "Live and upcoming milestones only. The migration is forward-only: closed pre-MS work stays in MILESTONES.md, which is an archive. Exit-criteria evidence is never reconstructed after the fact to satisfy the gate.",
       "items": { "$ref": "#/definitions/milestone" }
+    },
+    "epics": {
+      "type": "array",
+      "description": "The epic index. An epic lives as a GitHub issue; this is the committed side of it, because the gate is offline by contract (INV-13) and cannot ask GitHub what it says. Sharing the milestone SSOT is deliberate: an epic that targets no milestone, and a milestone claiming an epic that does not exist, are the same defect seen from two sides, and only a reader holding both can see either.",
+      "items": { "$ref": "#/definitions/epic" }
     }
   },
   "definitions": {
@@ -110,6 +115,38 @@
           "then": { "not": { "required": ["due"] } }
         }
       ]
+    },
+    "epic": {
+      "type": "object",
+      "description": "A decomposable unit of work targeting exactly one milestone.",
+      "required": ["id", "title", "issue", "targets", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^EP-[0-9]{2}$",
+          "description": "Registered in docs/internal/SYSTEM/ID-REGISTRY.md."
+        },
+        "title": { "type": "string", "minLength": 8 },
+        "issue": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The GitHub issue this epic IS. One issue may back at most one epic, and may not also appear in a milestone's members.issues — the same work claimed twice is a claim the join cannot reconcile."
+        },
+        "targets": {
+          "type": "string",
+          "pattern": "^MS-[0-9]{2}$",
+          "description": "Exactly one milestone. The targeted milestone must list this epic in members.epics; the gate checks both directions, because a one-sided link is how an epic silently detaches from the plan."
+        },
+        "status": {
+          "enum": ["open", "decomposed", "drained", "abandoned"],
+          "description": "`abandoned` is not a euphemism for `drained` and the ladder does not treat it as one: work can stop because it shipped or because it was dropped, and a roadmap that cannot say which has lost the only distinction that matters when reading it later. Both are terminal and both demand an evidence_ref. This rung exists because the first three epics recorded here were all closed — one completed, two not-planned — while the file called them open (#2480, wave 8)."
+        },
+        "evidence_ref": {
+          "type": "string",
+          "description": "Required by the gate for a terminal status (`drained`, `abandoned`) — the same fail-closed discipline a milestone's exit criteria carry, for the same reason: status is a claim, not evidence. A `github:` ref is accepted unresolved because this gate never reaches the network."
+        }
+      }
     }
   }
 }

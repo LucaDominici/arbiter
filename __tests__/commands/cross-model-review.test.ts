@@ -503,9 +503,16 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         // #2501: this case proves the external seat is INVOKED from the real CLI boundary; it is
         // not a test of the timeout. A 5s budget made it race a wall clock, so on a loaded machine
         // the stub missed the deadline, the seat degraded, and `findings` came back empty — a red
-        // that says nothing about the wiring under test. Generous headroom, still inside the outer
-        // spawn timeout below so a genuine hang is still caught rather than waited on forever.
-        timeoutMs: 20_000,
+        // that says nothing about the wiring under test.
+        //
+        // 20s was the first correction and was still not enough: under the L2 `coverage` run —
+        // v8 instrumentation over 1051 test files on a 4-core box — the stub was SIGTERMed and the
+        // artifact came back `{fulfilled: 0, degraded: [{reason: "nonzero-exit", detail: "Codex
+        // exited with status -1"}]}`, status -1 being spawnSync's report of a signal kill. The same
+        // file passes 15/15 in 2s in isolation, which is the signature of a wall-clock race rather
+        // than a defect. Raised to sit just inside the outer 120s spawn timeout below: a genuine
+        // hang is still caught there, and spawn latency stops deciding the verdict.
+        timeoutMs: 90_000,
         onUnavailable: 'degrade',
       }
       writeFileSync(join(dir, 'arbiter.json'), `${JSON.stringify(sourceConfig, null, 2)}\n`)

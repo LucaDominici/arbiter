@@ -42,6 +42,12 @@ import {
   evidenceResolves,
   collectViolations,
   annotateSchemaViolations,
+  milestoneProjection,
+  findDuplicateEpicIds,
+  findEpicJoinViolations,
+  findDoubleClaimedIssues,
+  findTerminalEpicsWithoutEvidence,
+  findDoneWithOpenEpics,
 } from '../../scripts/check-milestones.mjs'
 
 const REPO_ROOT = join(__dirname, '..', '..')
@@ -553,5 +559,294 @@ describe('--emit (#2480 wave 6)', () => {
     const out = join(dir, 'milestones.json')
     expect(emit(out).status).toBe(1)
     expect(existsSync(out)).toBe(false)
+  })
+})
+
+/**
+ * EP-NN (#2480 wave 8). Epics share the milestone SSOT and this gate deliberately: an epic that
+ * targets no milestone, and a milestone claiming an epic that does not exist, are one defect seen
+ * from two ends — and neither end can see it alone.
+ *
+ * The `abandoned` rung is tested as a first-class terminal status, not as an afterthought, because
+ * it is the one the real data needed: all three epics recorded in this wave were already closed,
+ * two of them not-planned, while the SSOT prose called them open.
+ */
+function epic(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'EP-01',
+    title: 'An epic title',
+    issue: 1,
+    targets: 'MS-01',
+    status: 'open',
+    ...over,
+  }
+}
+/** A milestone that lists the given epics back — the well-formed side of the join. */
+function hosting(ids: string[], over: Record<string, unknown> = {}): Record<string, unknown> {
+  return milestone({ members: { epics: ids }, ...over })
+}
+
+describe('findDuplicateEpicIds', () => {
+  it('reports two epics sharing an id, independently of the issue rule', () => {
+    expect(findDuplicateEpicIds([epic(), epic({ issue: 2 })])).toEqual([
+      'duplicate epic id "EP-01"',
+    ])
+  })
+
+  it('reports both defects when two epics are outright identical', () => {
+    expect(findDuplicateEpicIds([epic(), epic()])).toEqual([
+      'duplicate epic id "EP-01"',
+      'epics EP-01 and EP-01 both claim issue #1',
+    ])
+  })
+
+  it('reports two epics claiming the same issue, naming both', () => {
+    const found = findDuplicateEpicIds([epic({ issue: 5 }), epic({ id: 'EP-02', issue: 5 })])
+    expect(found).toEqual(['epics EP-01 and EP-02 both claim issue #5'])
+  })
+
+  it('is silent on distinct ids and distinct issues', () => {
+    expect(findDuplicateEpicIds([epic(), epic({ id: 'EP-02', issue: 2 })])).toEqual([])
+  })
+})
+
+describe('findEpicJoinViolations — both directions', () => {
+  it('reports a members.epics entry naming an epic that is not declared', () => {
+    const found = findEpicJoinViolations([hosting(['EP-99'])], [])
+    expect(found).toEqual([
+      'milestone MS-01: members.epics names "EP-99", which is not declared in this file',
+    ])
+  })
+
+  it('reports an epic whose milestone does not list it back', () => {
+    const found = findEpicJoinViolations([milestone()], [epic()])
+    expect(found).toEqual([
+      'epic EP-01 targets MS-01, but MS-01 does not list EP-01 in members.epics — the link is one-sided',
+    ])
+  })
+
+  it('reports an epic targeting a milestone that does not exist, and does not also call it one-sided', () => {
+    const found = findEpicJoinViolations([milestone()], [epic({ targets: 'MS-77' })])
+    expect(found).toEqual(['epic EP-01: targets "MS-77", which does not exist'])
+  })
+
+  it('is silent when both directions agree', () => {
+    expect(findEpicJoinViolations([hosting(['EP-01'])], [epic()])).toEqual([])
+  })
+
+  it('is silent on a milestone with no members block at all', () => {
+    expect(findEpicJoinViolations([milestone()], [])).toEqual([])
+  })
+})
+
+describe('findDoubleClaimedIssues', () => {
+  it('reports an issue carried both as an epic and as a plain member', () => {
+    const found = findDoubleClaimedIssues(
+      [hosting(['EP-01'], { members: { epics: ['EP-01'], issues: [7] } })],
+      [epic({ issue: 7 })],
+    )
+    expect(found).toEqual([
+      'milestone MS-01: members.issues carries #7, which is already epic EP-01 — an issue is claimed once',
+    ])
+  })
+
+  it('is silent when the plain issues are not epics', () => {
+    const m = milestone({ members: { epics: ['EP-01'], issues: [8, 9] } })
+    expect(findDoubleClaimedIssues([m], [epic({ issue: 7 })])).toEqual([])
+  })
+})
+
+describe('findTerminalEpicsWithoutEvidence — fail-closed on both terminal rungs', () => {
+  it.each(['drained', 'abandoned'])('reports a "%s" epic with no evidence_ref', (status) => {
+    const found = findTerminalEpicsWithoutEvidence([epic({ status })])
+    expect(found).toEqual([
+      `epic EP-01 is "${status}" but carries no evidence_ref — status is not evidence`,
+    ])
+  })
+
+  it('rejects an evidence_ref that is present but blank — whitespace is not a record', () => {
+    expect(
+      findTerminalEpicsWithoutEvidence([epic({ status: 'drained', evidence_ref: '   ' })]),
+    ).toHaveLength(1)
+  })
+
+  it('accepts a github: ref unresolved, because the gate never reaches the network', () => {
+    const e = epic({ status: 'abandoned', evidence_ref: 'github:LucaDominici/arbiter#1491' })
+    expect(findTerminalEpicsWithoutEvidence([e])).toEqual([])
+  })
+
+  it('demands nothing of a non-terminal epic', () => {
+    expect(findTerminalEpicsWithoutEvidence([epic({ status: 'decomposed' })])).toEqual([])
+  })
+})
+
+describe('findDoneWithOpenEpics — a milestone is not finished while its work is open', () => {
+  it.each(['done', 'verified'])('reports an open epic under a "%s" milestone', (status) => {
+    const found = findDoneWithOpenEpics([hosting(['EP-01'], { status })], [epic()])
+    expect(found).toEqual([`milestone MS-01 is "${status}" but epic EP-01 targeting it is "open"`])
+  })
+
+  it('reports a "decomposed" epic too — decomposed is not terminal', () => {
+    expect(
+      findDoneWithOpenEpics(
+        [hosting(['EP-01'], { status: 'done' })],
+        [epic({ status: 'decomposed' })],
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('is silent when every targeting epic is terminal', () => {
+    const epics = [
+      epic({ status: 'drained' }),
+      epic({ id: 'EP-02', issue: 2, status: 'abandoned' }),
+    ]
+    expect(findDoneWithOpenEpics([hosting(['EP-01', 'EP-02'], { status: 'done' })], epics)).toEqual(
+      [],
+    )
+  })
+
+  it('is silent while the milestone is still planned — an open epic is the normal case', () => {
+    expect(findDoneWithOpenEpics([hosting(['EP-01'])], [epic()])).toEqual([])
+  })
+
+  it('ignores an epic targeting a different milestone', () => {
+    const ms = [hosting(['EP-01'], { status: 'done' }), milestone({ id: 'MS-02' })]
+    const epics = [
+      epic({ status: 'drained', evidence_ref: 'github:x#1' }),
+      epic({ id: 'EP-02', issue: 2, targets: 'MS-02' }),
+    ]
+    expect(findDoneWithOpenEpics(ms, epics)).toEqual([])
+  })
+})
+
+describe('collectViolations with an epic index', () => {
+  it('defaults to no epics, so every pre-wave-8 caller keeps its meaning', () => {
+    expect(collectViolations([milestone()], REPO_ROOT)).toEqual([])
+  })
+
+  it('is silent on a well-formed milestone-and-epic set', () => {
+    const epics = [epic({ status: 'drained', evidence_ref: 'github:x#1' })]
+    expect(collectViolations([hosting(['EP-01'])], REPO_ROOT, epics)).toEqual([])
+  })
+
+  it('reports epic defects alongside milestone defects rather than short-circuiting', () => {
+    const found = collectViolations(
+      [milestone({ id: 'MS-01' }), milestone({ id: 'MS-01' })],
+      REPO_ROOT,
+      [epic(), epic()],
+    )
+    expect(found).toContain('duplicate milestone id "MS-01"')
+    expect(found).toContain('duplicate epic id "EP-01"')
+  })
+})
+
+describe('annotateSchemaViolations names epics as well as milestones', () => {
+  it('rewrites milestones.epics[1] as the epic id', () => {
+    const found = annotateSchemaViolations(
+      ['milestones.epics[1].status: value "cancelled" not in enum'],
+      [],
+      [epic(), epic({ id: 'EP-02' })],
+    )
+    expect(found[0]).toMatch(/^epic EP-02\.status:/)
+  })
+
+  it('falls back to the index when the epic at that position has no id', () => {
+    expect(
+      annotateSchemaViolations(['milestones.epics[3]: missing required property "id"'], [], [])[0],
+    ).toMatch(/^epic #3:/)
+  })
+})
+
+describe('milestoneProjection carries the epic index', () => {
+  it('emits epics sorted by id, with only the scheduler-relevant fields', () => {
+    const p = milestoneProjection([hosting(['EP-01'])], [epic({ id: 'EP-02', issue: 2 }), epic()])
+    expect(p.epics.map((e) => e['id'])).toEqual(['EP-01', 'EP-02'])
+    expect(Object.keys(p.epics[0] as object).sort()).toEqual([
+      'id',
+      'issue',
+      'status',
+      'targets',
+      'title',
+    ])
+  })
+
+  it('emits an EMPTY array rather than omitting the key — "too old to emit" must not read as "has none"', () => {
+    expect(milestoneProjection([milestone()]).epics).toEqual([])
+  })
+
+  it('does not leak evidence_ref into the projection — that is governance, not schedule', () => {
+    const p = milestoneProjection(
+      [hosting(['EP-01'])],
+      [epic({ status: 'drained', evidence_ref: 'github:x#1' })],
+    )
+    expect(p.epics[0]).not.toHaveProperty('evidence_ref')
+  })
+})
+
+describe('the epic index as invoked — end to end', () => {
+  let dir: string
+  const write = (yaml: string): void => {
+    mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
+    writeFileSync(join(dir, 'docs', 'internal', 'PRODUCT', 'MILESTONES.yml'), yaml)
+  }
+  const run = (): { status: number; stdout: string; stderr: string } => {
+    const r = spawnSync('node', [GATE, '--dir', dir], { encoding: 'utf-8' })
+    return { status: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+  }
+  const doc = (epicsBlock: string, members = '    members:\n      epics: [EP-01]\n'): string =>
+    `milestones:
+  - id: MS-01
+    title: A sufficiently long title
+    goal:
+      claim: a claim long enough to pass
+      strategy: a strategy long enough to pass
+    exit_criteria:
+      - id: EC-01
+        description: something checkable
+${members}    horizon: next
+    status: planned
+${epicsBlock}`
+
+  const GOOD_EPIC = `epics:
+  - id: EP-01
+    title: An epic title
+    issue: 1
+    targets: MS-01
+    status: open
+`
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-epics-'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('passes on a well-formed set and says how many epics it read', () => {
+    write(doc(GOOD_EPIC))
+    const r = run()
+    expect(r.status).toBe(0)
+    expect(r.stdout).toMatch(/1 epic\(s\)/)
+  })
+
+  it('exits 1 naming the epic when the status is off-enum', () => {
+    write(doc(GOOD_EPIC.replace('status: open', 'status: cancelled')))
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/epic EP-01\.status/)
+  })
+
+  it('exits 1 when the join is one-sided', () => {
+    write(doc(GOOD_EPIC, '    members:\n      issues: [42]\n'))
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/one-sided/)
+  })
+
+  it('passes on a file with no epics key at all — the index is optional', () => {
+    write(doc('', '    members:\n      issues: [42]\n'))
+    const r = run()
+    expect(r.status).toBe(0)
+    expect(r.stdout).toMatch(/0 epic\(s\)/)
   })
 })
