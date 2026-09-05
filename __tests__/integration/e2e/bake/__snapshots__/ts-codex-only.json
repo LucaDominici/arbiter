@@ -168,7 +168,7 @@
     ".agents/rules/60-incidental-capture.md": "5c6937eb1a6ca9f14cebe11641198a570b220c434176c1aec8aacbcccf1f9032",
     ".agents/rules/90-exec-protocol.md": "09d5c62741e1c193756a13b078ceb6e0eb40d3db6ddc14dc5ce28241a3c77819",
     ".claude/hooks/check-no-orphan-todo.mjs": "df13499ab7bb9c8a50d4616d4bb52a8e558bb9b1ef7f71bfbda5e0dd24cbd122",
-    ".claude/hooks/check-no-placeholders.mjs": "9577c2526d708b6171225b00dfc43530ecd5b1ea35f519e5163522dc230b9089",
+    ".claude/hooks/check-no-placeholders.mjs": "05163bd316d8df850882c280af7ec740a8971b4e8d1ae7b9c1efa143dd3f6b8b",
     ".claude/hooks/check-no-skipped-tests.mjs": "25f10180080c9536af50fba56f29b50a326fe5223410a7d8ddaa7cb60dcc8e91",
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/lib.mjs": "a5635a8243b5609fc05bd5c784ce2ea2e88b8bb5f08991618147ef490279ed30",

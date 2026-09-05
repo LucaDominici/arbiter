@@ -245,7 +245,7 @@
     ".claude/commands/wt-prune.md": "af0494d0962cffecf3726015a1f29832e086d5c33262afbb3383e5b2a94430ea",
     ".claude/hooks/check-no-mockmvc.mjs": "187510e215234f47ce98e8bf89792175eadec81a555314c87e4fc7bd8b3baece",
     ".claude/hooks/check-no-orphan-todo.mjs": "8f88617d9b257a1e0608e30d6c301524a172206e11084f390514348b055fae1b",
-    ".claude/hooks/check-no-placeholders.mjs": "39bfba746e85370eae17c8223ef39ce5ac6d42142aaa02cd8f36caf64365d0db",
+    ".claude/hooks/check-no-placeholders.mjs": "935fc95d37f9a4466ec066eace8fa731a22d0ee29d1dd19741449a5ce7e11199",
     ".claude/hooks/check-no-raw-types.mjs": "2c188b7ac763498383728dd0ae2b01fa9b8938bd9a4ac737247d1638088c8518",
     ".claude/hooks/check-no-skipped-tests.mjs": "25f10180080c9536af50fba56f29b50a326fe5223410a7d8ddaa7cb60dcc8e91",
     ".claude/hooks/enforce-gate-before-pr.mjs": "9dc6d949420ab6cfd99572cc30fe17aa7c71bd7b0632421b55a3d0807a2dea67",
