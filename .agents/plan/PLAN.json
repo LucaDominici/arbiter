@@ -3,6 +3,7 @@
   "scope": {
     "track": "A",
     "paths": [
+      ".arbiter/evidence/ac-fit/2576.json",
       ".claude/plans/2576.md",
       ".dogfood-divergences.json",
       "scripts/check-arc42-slots.mjs",
@@ -13,6 +14,10 @@
     ]
   },
   "files": [
+    {
+      "path": ".arbiter/evidence/ac-fit/2576.json",
+      "operation": "create"
+    },
     {
       "path": ".claude/plans/2576.md",
       "operation": "create"
