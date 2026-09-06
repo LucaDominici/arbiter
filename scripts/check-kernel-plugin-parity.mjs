@@ -57,6 +57,41 @@ function parseArgs(argv) {
 }
 
 /**
+ * Render the generator into `freshDir` via `--out=` (a child process — see the file
+ * header on why this is never an in-process import). Returns `{ ok: true }` or
+ * `{ ok: false, message }`; never throws on a non-zero generator exit (that is an
+ * ERROR result for the caller to report, not an exception to propagate).
+ */
+function renderFresh(freshDir) {
+  const gen = spawnSync(process.execPath, [GENERATOR, `--out=${freshDir}`], {
+    cwd: ROOT,
+    encoding: 'utf-8',
+  })
+  if (gen.status === 0) return { ok: true }
+  return {
+    ok: false,
+    message:
+      `[kernel-plugin-parity] ERROR — build-kernel-plugin.mjs exited ${gen.status ?? 'null'}; ` +
+      `run \`node scripts/build-kernel-plugin.mjs\` directly to see why:\n` +
+      `${gen.stdout ?? ''}${gen.stderr ?? ''}\n`,
+  }
+}
+
+/** Prints the FAIL banner + every removed/added/changed file, one line each. */
+function reportDrift(removed, added, changed) {
+  process.stderr.write(
+    '[kernel-plugin-parity] FAIL — packages/kernel/hooks/ has drifted from build-kernel-plugin.mjs:\n',
+  )
+  for (const f of removed)
+    process.stderr.write(`  - extra (committed, no longer generated): ${f}\n`)
+  for (const f of added) process.stderr.write(`  - missing (generated, not committed): ${f}\n`)
+  for (const f of changed) process.stderr.write(`  - changed: ${f}\n`)
+  process.stderr.write(
+    '\n  Run `npm run kernel-plugin:build` and review + commit the diff (#2548).\n',
+  )
+}
+
+/**
  * Run the parity check. Returns the INV-53 exit code (0/1/2); never calls
  * process.exit itself so it stays unit-testable. Exported for tests.
  */
@@ -75,16 +110,9 @@ export function checkKernelPluginParity(argv = process.argv.slice(2)) {
 
   const freshDir = mkdtempSync(join(tmpdir(), 'kernel-plugin-parity-'))
   try {
-    const gen = spawnSync(process.execPath, [GENERATOR, `--out=${freshDir}`], {
-      cwd: ROOT,
-      encoding: 'utf-8',
-    })
-    if (gen.status !== 0) {
-      process.stderr.write(
-        `[kernel-plugin-parity] ERROR — build-kernel-plugin.mjs exited ${gen.status ?? 'null'}; ` +
-          `run \`node scripts/build-kernel-plugin.mjs\` directly to see why:\n` +
-          `${gen.stdout ?? ''}${gen.stderr ?? ''}\n`,
-      )
+    const rendered = renderFresh(freshDir)
+    if (!rendered.ok) {
+      process.stderr.write(rendered.message)
       return 2
     }
 
@@ -96,22 +124,25 @@ export function checkKernelPluginParity(argv = process.argv.slice(2)) {
       return 0
     }
 
-    process.stderr.write(
-      '[kernel-plugin-parity] FAIL — packages/kernel/hooks/ has drifted from build-kernel-plugin.mjs:\n',
-    )
-    for (const f of removed)
-      process.stderr.write(`  - extra (committed, no longer generated): ${f}\n`)
-    for (const f of added) process.stderr.write(`  - missing (generated, not committed): ${f}\n`)
-    for (const f of changed) process.stderr.write(`  - changed: ${f}\n`)
-    process.stderr.write(
-      '\n  Run `npm run kernel-plugin:build` and review + commit the diff (#2548).\n',
-    )
+    reportDrift(removed, added, changed)
     return 1
   } finally {
     rmSync(freshDir, { recursive: true, force: true })
   }
 }
 
+// INV-96 (fail-closed): an uncaught exception here (a bad mkdtemp, an unreadable file
+// diffDirs did not expect, checkDistFresh's own read throwing) must never fall through
+// to Node's default uncaught-exception exit — this is caught explicitly and mapped to
+// exit 2 (ERROR), NEVER 0. A parity gate that swallows its own crash into a PASS is
+// exactly the vacuous-gate class CANON-24 exists to rule out (#2548).
 if (isMainModule(import.meta.url)) {
-  process.exit(checkKernelPluginParity())
+  try {
+    process.exit(checkKernelPluginParity())
+  } catch (err) {
+    process.stderr.write(
+      `[kernel-plugin-parity] FATAL — ${err instanceof Error ? (err.stack ?? err.message) : String(err)}\n`,
+    )
+    process.exit(2)
+  }
 }

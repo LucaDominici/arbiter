@@ -118,6 +118,11 @@ const SKIP_FILES = new Set([
   // the emitted templates); no entry point — consumers (gen-llms-txt.mjs,
   // __tests__/scripts/self-only-surfaces.test.ts) own the exit contract.
   'scripts/lib/self-only-surfaces.mjs',
+  // #2548 pure byte-level directory-diff helper (removed/added/changed by relative path
+  // + content); no entry point, no I/O beyond reads. Consumers
+  // (check-kernel-plugin-parity.mjs, regenerate-examples.mjs) own the exit contract and
+  // both fail closed (their own top-level try/catch, never exit 0 on an unexpected throw).
+  'scripts/lib/dir-diff.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/
