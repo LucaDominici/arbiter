@@ -92,8 +92,8 @@ Writing into the live repo is a write-then-delete primitive aimed at the working
 transcript, git history, or a dispatch payload that a file/env fixture cannot supply, and each
 carries that reason in its manifest `rationale`. Two of those twenty are declared-only for a
 sharper reason worth naming: `pre-edit-ssot-guard` would **consume the developer's one-shot
-`.arbiter/ssot-bypass` token** if driven past its pattern match (a read-only gate check must never
-eat user state), and `enforce-gate-before-pr`'s verdict depends on the live `.arbiter/gate-pass.json`
+`.arbiter/ssot-bypass` token** if driven past its pattern match with the probe's own path named in it
+(a read-only gate check must never eat user state), and `enforce-gate-before-pr`'s verdict depends on the live `.arbiter/gate-pass.json`
 that `scripts/check-all.mjs` itself writes — probing it would make the gate go red because the previous gate
 went green. Both need an isolated repo root; tracked as a follow-up. A green self run means: every declared-HARD hook that _can_ be driven
 by a fixture does block, and every hook on disk has a declared hardness. It does **not** mean every
@@ -319,7 +319,8 @@ hardcoded array to a runtime read of `arbiter.json` `governance.ssotGuardPattern
 the shipped template's `DEFAULT_SSOT_PATTERNS`), so the template and the materialized copy are now
 byte-identical code — arbiter's own `docs/internal/...` paths live in `arbiter.json`, not in the
 hook source. Its `.dogfood-divergences.json` entry was removed accordingly. The same commit added a
-one-shot file bypass at `.arbiter/ssot-bypass` (single-line reason, consumed on the next
-guarded-file attempt regardless of outcome) alongside the existing `ARBITER_SSOT_BYPASS=1` env var —
+one-shot file bypass at `.arbiter/ssot-bypass` (since #2493: line 1 is the single path the marker
+authorizes, lines 2+ the reason; consumed by an attempt on that path, left in place by an attempt on
+any other) alongside the existing `ARBITER_SSOT_BYPASS=1` env var —
 both now log a `BYPASS` event to `.arbiter/evidence/bypass-log.jsonl`, parity with
 `pre-edit-plan-anchor`'s `ARBITER_PLAN_BYPASS` accounting (#1949).
