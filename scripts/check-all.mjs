@@ -99,7 +99,7 @@ if (isMain) {
   // gate there would break every non-git consumer for no safety gain — the
   // start/end binding below is what actually prevents the false green.
   const MUTEX_ROOT = GIT_CWD ?? process.cwd()
-  if (!process.env[GATE_MUTEX_HELD_ENV]) {
+  {
     let lockPath = null
     try {
       lockPath = gateLockPathFor(MUTEX_ROOT)
@@ -107,7 +107,16 @@ if (isMain) {
     } catch {
       lockPath = null
     }
-    if (lockPath !== null) {
+    // #2427: compare the held lock by EXACT PATH, never by mere presence. The
+    // env var exists to stop a process re-acquiring the flock it already owns
+    // (which would deadlock) — so only THIS repo's lock path may skip the relay.
+    // Any other non-empty value (a stale export from an earlier gate-exec, or
+    // another repo's lock when a gate-exec in repo A spawns work on repo B —
+    // gate-exec.ts publishes it unconditionally into the child env) would
+    // otherwise skip the mutex entirely and run the gate unserialised, silently.
+    // gate-mutex.mjs already compares by equality; these two must agree.
+    const alreadyHeld = lockPath !== null && process.env[GATE_MUTEX_HELD_ENV] === lockPath
+    if (lockPath !== null && !alreadyHeld) {
       const wrapper = resolve(dirname(fileURLToPath(import.meta.url)), 'lib/gate-mutex.mjs')
       const relayed = spawnSync(
         process.execPath,

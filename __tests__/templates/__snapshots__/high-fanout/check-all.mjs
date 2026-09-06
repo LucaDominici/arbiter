@@ -168,12 +168,19 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 // mutex to take at all. The start/end evidence binding below is what actually
 // prevents a false green there.
 const _mutexRoot = process.env.ARBITER_HOOK_GIT_CWD ?? process.cwd();
-if (!process.env[GATE_MUTEX_HELD_ENV]) {
+{
   let _lockPath = null;
   try {
     _lockPath = gateLockPathFor(_mutexRoot);
   } catch { _lockPath = null; }
-  if (_lockPath !== null) {
+  // #2427: compare the held lock by EXACT PATH, never by mere presence. Only
+  // THIS repo's lock path may skip the relay — the env var exists to stop a
+  // process re-acquiring the flock it already owns. Any other non-empty value
+  // (a stale export, or another repo's lock) would otherwise skip the mutex
+  // and run the gate unserialised, silently. gate-mutex.mjs compares by
+  // equality; these two must agree.
+  const _alreadyHeld = _lockPath !== null && process.env[GATE_MUTEX_HELD_ENV] === _lockPath;
+  if (_lockPath !== null && !_alreadyHeld) {
     const _wrapper = resolve(dirname(fileURLToPath(import.meta.url)), 'lib/gate-mutex.mjs');
     const _relayed = spawnSync(
       process.execPath,
