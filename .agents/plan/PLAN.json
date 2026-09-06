@@ -1,91 +1,346 @@
 {
-  "task_id": "#2354",
+  "task_id": "#2419",
   "scope": {
     "track": "A",
     "paths": [
-      "schemas/agent-return.schema.json",
-      "schemas",
-      "scripts/record-agent-return.mjs",
-      "src/templates",
-      "src/detectors/external-model.ts",
-      "src/config/schema.ts",
-      "src/config/env-registry.ts",
-      "src/config/env-overrides.ts",
-      "src/config/override-resolver.ts",
-      "src/commands/configure.ts",
-      "src/commands/doctor/health.ts",
-      "src/commands/method.ts",
-      "src/commands/settings.ts",
-      "src/commands/init/build-arbiter-config.ts",
-      "src/commands/init.ts",
-      "src/commands/init/resolve-config.ts",
-      "src/commands/ship-profile.ts",
-      "src/commands/task-ship.ts",
-      "src/commands/cross-model-review.ts",
-      "src/cli.ts",
-      "src/integrations/external-review.ts",
-      "src/wizard",
-      "src/generators",
-      ".agents/plan/PLAN.json",
-      ".arbiter/evidence/tdd",
+      ".arbiter/evidence/rtm/REQ-028.json",
+      ".arbiter/evidence/rtm/REQ-041.json",
+      ".arbiter/evidence/rtm/REQ-053.json",
+      ".arbiter/evidence/tdd/#2150.json",
+      ".arbiter/evidence/tdd/#2480.json",
+      ".arbiter/self-hooks-manifest.json",
       ".bloat-baseline.json",
-      ".claude/agent-dispatch-matrix.json",
-      ".claude/agent-dispatch-matrix.schema.json",
-      "scripts/check-cross-model-review.mjs",
+      ".changeset/landing-contract-refusal-cascade.md",
+      ".claude/CLAUDE.md",
+      ".claude/hooks/post-edit-artifact-schema.mjs",
+      ".claude/rules/30-canon-enforcement.md",
+      ".claude/settings.json",
+      ".claude/skills/refutation/SKILL.md",
+      ".codex/config.toml",
+      ".dogfood-divergences.json",
+      ".github/workflows/01-pr-fast.yml",
+      ".gitignore",
+      ".prettierignore",
+      "AGENTS.md",
+      "GLOBAL_INVARIANTS.md",
+      "__tests__/commands/cross-model-review.test.ts",
+      "__tests__/docs/tabletop-scenarios.test.ts",
+      "__tests__/docs/wiki-migrate-1244.test.ts",
+      "__tests__/generators/check-all.test.ts",
+      "__tests__/generators/feature-matrix.test.ts",
+      "__tests__/hooks/post-edit-artifact-schema.test.ts",
+      "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "__tests__/invariants/catalog.test.ts",
+      "__tests__/invariants/extended-invariants-opt-in.test.ts",
+      "__tests__/scripts/agent-return-validate.test.ts",
+      "__tests__/scripts/check-adr-enforcement.test.ts",
+      "__tests__/scripts/check-arc42-slots.test.ts",
+      "__tests__/scripts/check-feature-matrix.test.ts",
+      "__tests__/scripts/check-forma-contract.test.ts",
+      "__tests__/scripts/check-id-registry.test.ts",
+      "__tests__/scripts/check-merge-method.test.ts",
+      "__tests__/scripts/check-milestones.test.ts",
+      "__tests__/scripts/check-ontology-wired.test.ts",
+      "__tests__/scripts/check-refutation-verdicts.test.ts",
+      "__tests__/scripts/check-runbook-coverage.test.ts",
+      "__tests__/scripts/check-sources.test.ts",
+      "__tests__/scripts/check-tabletop-evidence.test.ts",
+      "__tests__/scripts/check-tarball-contents.test.ts",
+      "__tests__/scripts/check-use-cases.test.ts",
+      "__tests__/scripts/exact-sha-policy.test.ts",
+      "__tests__/scripts/pr-merge-watch-promotion.test.ts",
+      "__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml",
+      "__tests__/templates/__snapshots__/high-fanout/check-all.mjs",
+      "__tests__/templates/commands-claude.test.ts",
+      "__tests__/templates/doc-set-render.test.ts",
+      "__tests__/templates/track-b-evidence-gates.test.ts",
+      "docs/INDEX.md",
+      "docs/internal/ADR/052-fast-forward-merge-cosign-preservation.md",
+      "docs/internal/ADR/118-lifecycle-ontology-wired-not-written.md",
+      "docs/internal/ADR/119-adversarial-review-hops-until-low-only.md",
+      "docs/internal/ADR/README.md",
+      "docs/internal/METHOD/CODEX_PARITY_RUNBOOK.md",
+      "docs/internal/METHOD/SSOT_CORE_SET.md",
+      "docs/internal/METHOD/TABLETOP-SCENARIOS.md",
+      "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+      "docs/internal/PRODUCT/GAP.md",
+      "docs/internal/PRODUCT/MILESTONES.yml",
+      "docs/internal/PRODUCT/SOURCES.md",
+      "docs/internal/PRODUCT/STATUS.md",
+      "docs/internal/SYSTEM/CANON.md",
+      "docs/internal/SYSTEM/DECISIONS.md",
+      "docs/internal/SYSTEM/HOOK-CONTRACTS.md",
+      "docs/internal/SYSTEM/ID-REGISTRY.md",
+      "docs/internal/SYSTEM/OD-REGISTRY.md",
+      "docs/internal/runbooks/dependabot-handling.md",
+      "docs/sources/excerpts/SRC-001.txt",
+      "docs/sources/excerpts/SRC-002.txt",
+      "examples/go-library/.arbiter-generated-manifest.json",
+      "examples/go-library/.claude/commands/ship.md",
+      "examples/go-library/AGENTS.md",
+      "examples/go-library/docs/architecture/ARCHITECTURE.md",
+      "examples/go-library/schemas/milestone.schema.json",
+      "examples/go-library/schemas/source-record.schema.json",
+      "examples/go-library/schemas/use-case.schema.json",
+      "examples/go-library/scripts/check-all.mjs",
+      "examples/go-library/scripts/check-arc42-slots.mjs",
+      "examples/go-library/scripts/check-milestones.mjs",
+      "examples/go-library/scripts/check-sources.mjs",
+      "examples/go-library/scripts/check-tabletop-evidence.mjs",
+      "examples/go-library/scripts/check-use-cases.mjs",
+      "examples/go-library/scripts/lib/agent-return-validate.mjs",
+      "examples/go-library/scripts/lib/exact-sha-policy.mjs",
+      "examples/go-library/scripts/pr-merge-watch.mjs",
+      "examples/go-library/standards/gold-doc-set.yml",
+      "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/python-library/.claude/commands/ship.md",
+      "examples/python-library/AGENTS.md",
+      "examples/python-library/docs/architecture/ARCHITECTURE.md",
+      "examples/python-library/schemas/milestone.schema.json",
+      "examples/python-library/schemas/source-record.schema.json",
+      "examples/python-library/schemas/use-case.schema.json",
+      "examples/python-library/scripts/check-all.mjs",
+      "examples/python-library/scripts/check-arc42-slots.mjs",
+      "examples/python-library/scripts/check-milestones.mjs",
+      "examples/python-library/scripts/check-sources.mjs",
+      "examples/python-library/scripts/check-tabletop-evidence.mjs",
+      "examples/python-library/scripts/check-use-cases.mjs",
+      "examples/python-library/scripts/lib/agent-return-validate.mjs",
+      "examples/python-library/scripts/lib/exact-sha-policy.mjs",
+      "examples/python-library/scripts/pr-merge-watch.mjs",
+      "examples/python-library/standards/gold-doc-set.yml",
+      "examples/ts-library/.arbiter-generated-manifest.json",
+      "examples/ts-library/.claude/commands/ship.md",
+      "examples/ts-library/AGENTS.md",
+      "examples/ts-library/docs/architecture/ARCHITECTURE.md",
+      "examples/ts-library/schemas/milestone.schema.json",
+      "examples/ts-library/schemas/source-record.schema.json",
+      "examples/ts-library/schemas/use-case.schema.json",
+      "examples/ts-library/scripts/check-all.mjs",
+      "examples/ts-library/scripts/check-arc42-slots.mjs",
+      "examples/ts-library/scripts/check-milestones.mjs",
+      "examples/ts-library/scripts/check-sources.mjs",
+      "examples/ts-library/scripts/check-tabletop-evidence.mjs",
+      "examples/ts-library/scripts/check-use-cases.mjs",
+      "examples/ts-library/scripts/lib/agent-return-validate.mjs",
+      "examples/ts-library/scripts/lib/exact-sha-policy.mjs",
+      "examples/ts-library/scripts/pr-merge-watch.mjs",
+      "examples/ts-library/standards/gold-doc-set.yml",
+      "llms.txt",
+      "package.json",
+      "schemas/CONTRACT.json",
+      "schemas/id-registry.schema.json",
+      "schemas/milestone.schema.json",
+      "schemas/rtm-verdict.schema.json",
+      "schemas/source-record.schema.json",
+      "schemas/use-case.schema.json",
+      "schemas/vendor/c4-model.schema.json",
+      "scripts/apply-branch-protection.mjs",
+      "scripts/canon01-baseline.json",
+      "scripts/canon01-self-only.json",
+      "scripts/check-adr-enforcement.mjs",
       "scripts/check-all.mjs",
-      "scripts/check-agent-dispatch.mjs",
-      "scripts/data/advisory-ledger.json",
-      "scripts/lib/gate-affects-registry.mjs",
+      "scripts/check-arc42-slots.mjs",
+      "scripts/check-doc-path-citations.mjs",
+      "scripts/check-feature-matrix.mjs",
+      "scripts/check-forma-contract.mjs",
+      "scripts/check-id-registry.mjs",
+      "scripts/check-local-ci-parity.mjs",
+      "scripts/check-merge-method.mjs",
+      "scripts/check-milestones.mjs",
+      "scripts/check-ontology-wired.mjs",
+      "scripts/check-refutation-verdicts.mjs",
+      "scripts/check-runbook-coverage.mjs",
+      "scripts/check-sources.mjs",
+      "scripts/check-tabletop-evidence.mjs",
+      "scripts/check-tarball-contents.mjs",
+      "scripts/check-use-cases.mjs",
+      "scripts/data/adr-enforcement-baseline.json",
+      "scripts/data/arc42-baseline.json",
+      "scripts/data/ontology-baseline.json",
+      "scripts/data/rtm-verdict-baseline.json",
+      "scripts/data/runbook-baseline.json",
+      "scripts/gen-ssot-core.mjs",
       "scripts/lib/agent-return-validate.mjs",
-      ".claude/commands/ship.md",
-      ".claude/AGENT_REGISTRY.md",
-      "PRIVACY.md",
-      "website/reference/cli.md",
-      "docs/design/cross-model-review-config.md",
-      "docs/design",
-      "examples",
-      "__tests__"
+      "scripts/lib/exact-sha-policy.mjs",
+      "scripts/lib/gate-affects-registry.mjs",
+      "scripts/pr-merge-watch.mjs",
+      "src/cli.ts",
+      "src/commands/doc-set.ts",
+      "src/config/env-registry.ts",
+      "src/detectors/external-model.ts",
+      "src/generators/check-all.ts",
+      "src/generators/feature-matrix.ts",
+      "src/invariants/catalog.ts",
+      "src/templates/claude/commands/ship.md.ejs",
+      "src/templates/codex/config.toml.ejs",
+      "src/templates/contract-testing/api-snapshots/openapi-content-types-baseline.json.ejs",
+      "src/templates/contract-testing/api-snapshots/openapi-paths-baseline.json.ejs",
+      "src/templates/contract-testing/api-snapshots/openapi-response-status-baseline.json.ejs",
+      "src/templates/docs/skeletons/arc42-canvas.md.ejs",
+      "src/templates/docs/skeletons/arc42-full.md.ejs",
+      "src/templates/github/workflows/01-pr-fast.yml.ejs",
+      "src/templates/schemas/milestone.schema.json.ejs",
+      "src/templates/schemas/rtm-verdict.schema.json.ejs",
+      "src/templates/schemas/source-record.schema.json.ejs",
+      "src/templates/schemas/use-case.schema.json.ejs",
+      "src/templates/scripts/check-arc42-slots.mjs.ejs",
+      "src/templates/scripts/check-feature-matrix.mjs.ejs",
+      "src/templates/scripts/check-merge-method.mjs.ejs",
+      "src/templates/scripts/check-milestones.mjs.ejs",
+      "src/templates/scripts/check-refutation-verdicts.mjs.ejs",
+      "src/templates/scripts/check-sources.mjs.ejs",
+      "src/templates/scripts/check-tabletop-evidence.mjs.ejs",
+      "src/templates/scripts/check-use-cases.mjs.ejs",
+      "src/templates/scripts/gate-registry.yml.ejs",
+      "src/templates/scripts/lib/agent-return-validate.mjs.ejs",
+      "src/templates/scripts/lib/exact-sha-policy.mjs.ejs",
+      "src/templates/scripts/pr-merge-watch.mjs.ejs",
+      "src/templates/standards/gold-doc-set.yml.ejs",
+      "standards/gold-doc-set.yml",
+      "website/governance/AGENTS.md",
+      ".agents/plan/PLAN.json"
     ]
   },
   "files": [
-    { "path": ".agents/plan/PLAN.json", "operation": "modify" },
-    { "path": ".arbiter/agents-dispatched.json", "operation": "modify" },
-    { "path": ".arbiter/evidence/ac-fit/2354.json", "operation": "create" },
     {
-      "path": ".arbiter/evidence/agent-returns/_2354/Planck-the-2nd-0.json",
+      "path": ".arbiter/evidence/rtm/REQ-028.json",
       "operation": "create"
     },
-    { "path": ".arbiter/evidence/journey/_2354.json", "operation": "create" },
-    { "path": ".arbiter/evidence/plan-review/2354/latest.json", "operation": "create" },
-    { "path": ".arbiter/evidence/tdd/#2354.json", "operation": "create" },
-    { "path": ".arbiter/evidence/tdd/#2355.json", "operation": "create" },
-    { "path": ".arbiter/evidence/tdd/#2356.json", "operation": "create" },
-    { "path": ".arbiter/evidence/tdd/#2357.json", "operation": "create" },
-    { "path": ".arbiter/evidence/tdd/#2358.json", "operation": "create" },
-    { "path": ".claude/AGENT_REGISTRY.md", "operation": "modify" },
-    { "path": ".claude/agent-dispatch-matrix.json", "operation": "modify" },
-    { "path": ".claude/agent-dispatch-matrix.schema.json", "operation": "modify" },
-    { "path": ".claude/commands/ship.md", "operation": "modify" },
-    { "path": ".claude/skills/wave-drain/SKILL.md", "operation": "modify" },
-    { "path": ".template-tests-baseline.txt", "operation": "modify" },
-    { "path": "PRIVACY.md", "operation": "modify" },
-    { "path": "__tests__/commands/configure.test.ts", "operation": "modify" },
-    { "path": "__tests__/commands/cross-model-review.test.ts", "operation": "create" },
-    { "path": "__tests__/commands/doctor.test.ts", "operation": "modify" },
-    { "path": "__tests__/commands/ship-profile.test.ts", "operation": "modify" },
-    { "path": "__tests__/commands/ship-train.test.ts", "operation": "modify" },
-    { "path": "__tests__/commands/task-advance-chain-evidence.test.ts", "operation": "modify" },
-    { "path": "__tests__/commands/task-phase-migration.test.ts", "operation": "modify" },
-    { "path": "__tests__/commands/task-ship.test.ts", "operation": "modify" },
-    { "path": "__tests__/config/env-overrides.test.ts", "operation": "modify" },
-    { "path": "__tests__/config/schema.test.ts", "operation": "modify" },
-    { "path": "__tests__/detectors/external-model.test.ts", "operation": "create" },
-    { "path": "__tests__/generators/check-all.test.ts", "operation": "modify" },
+    {
+      "path": ".arbiter/evidence/rtm/REQ-041.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/rtm/REQ-053.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2150.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2480.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/self-hooks-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".bloat-baseline.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".changeset/landing-contract-refusal-cascade.md",
+      "operation": "create"
+    },
+    {
+      "path": ".claude/CLAUDE.md",
+      "operation": "modify"
+    },
+    {
+      "path": ".claude/hooks/post-edit-artifact-schema.mjs",
+      "operation": "create"
+    },
+    {
+      "path": ".claude/rules/30-canon-enforcement.md",
+      "operation": "modify"
+    },
+    {
+      "path": ".claude/settings.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".claude/skills/refutation/SKILL.md",
+      "operation": "modify"
+    },
+    {
+      "path": ".codex/config.toml",
+      "operation": "modify"
+    },
+    {
+      "path": ".dogfood-divergences.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".github/workflows/01-pr-fast.yml",
+      "operation": "modify"
+    },
+    {
+      "path": ".gitignore",
+      "operation": "modify"
+    },
+    {
+      "path": ".prettierignore",
+      "operation": "modify"
+    },
+    {
+      "path": "AGENTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "GLOBAL_INVARIANTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/commands/cross-model-review.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/docs/tabletop-scenarios.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/docs/wiki-migrate-1244.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/generators/check-all.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/generators/feature-matrix.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/hooks/post-edit-artifact-schema.test.ts",
+      "operation": "create"
+    },
     {
       "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
       "operation": "modify"
     },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json", "operation": "modify" },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "operation": "modify"
+    },
     {
       "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
       "operation": "modify"
@@ -138,8 +393,14 @@
       "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
       "operation": "modify"
     },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json", "operation": "modify" },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json", "operation": "modify" },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "operation": "modify"
+    },
     {
       "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
       "operation": "modify"
@@ -160,7 +421,10 @@
       "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
       "operation": "modify"
     },
-    { "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json", "operation": "modify" },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "operation": "modify"
+    },
     {
       "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
       "operation": "modify"
@@ -177,185 +441,700 @@
       "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
       "operation": "modify"
     },
-    { "path": "__tests__/integrations/external-review-subprocess.test.ts", "operation": "create" },
-    { "path": "__tests__/integrations/external-review.test.ts", "operation": "create" },
-    { "path": "__tests__/scripts/check-agent-dispatch.test.ts", "operation": "modify" },
-    { "path": "__tests__/scripts/check-agent-return.test.ts", "operation": "modify" },
-    { "path": "__tests__/scripts/check-all-args.test.ts", "operation": "modify" },
-    { "path": "__tests__/scripts/check-cross-model-review.test.ts", "operation": "create" },
-    { "path": "__tests__/scripts/check-review-completion.test.ts", "operation": "modify" },
-    { "path": "__tests__/scripts/debt-lib-buffer.test.ts", "operation": "modify" },
-    { "path": "__tests__/scripts/debt-report.test.ts", "operation": "modify" },
-    { "path": "__tests__/skills/wave-drain-v2-protocol.test.ts", "operation": "modify" },
+    {
+      "path": "__tests__/invariants/catalog.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/invariants/extended-invariants-opt-in.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/agent-return-validate.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/check-adr-enforcement.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-arc42-slots.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/check-feature-matrix.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-forma-contract.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/check-id-registry.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/check-merge-method.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-milestones.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/check-ontology-wired.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/check-refutation-verdicts.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-runbook-coverage.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/check-sources.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/check-tabletop-evidence.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-tarball-contents.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-use-cases.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/scripts/exact-sha-policy.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/pr-merge-watch-promotion.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml",
+      "operation": "modify"
+    },
     {
       "path": "__tests__/templates/__snapshots__/high-fanout/check-all.mjs",
       "operation": "modify"
     },
-    { "path": "__tests__/templates/check-all-render.test.ts", "operation": "modify" },
-    { "path": "__tests__/templates/commands-claude.test.ts", "operation": "modify" },
-    { "path": "__tests__/templates/cross-model-dispatch-render.test.ts", "operation": "create" },
-    { "path": "__tests__/templates/debt-report-render.test.ts", "operation": "modify" },
-    { "path": "__tests__/templates/ship-driver-render.test.ts", "operation": "modify" },
-    { "path": "__tests__/templates/task-tiers-template.test.ts", "operation": "modify" },
-    { "path": "__tests__/wizard/buildConfigFromAnswers.test.ts", "operation": "modify" },
-    { "path": "__tests__/wizard/prompts.test.ts", "operation": "modify" },
-    { "path": "docs/design/agent-return-provenance.md", "operation": "modify" },
-    { "path": "docs/design/cross-model-review-config.md", "operation": "modify" },
-    { "path": "docs/design/cross-model-review-slot.md", "operation": "modify" },
-    { "path": "docs/design/external-model-detection.md", "operation": "modify" },
-    { "path": "examples/go-library/.arbiter-generated-manifest.json", "operation": "modify" },
-    { "path": "examples/go-library/.claude/commands/ship.md", "operation": "modify" },
-    { "path": "examples/go-library/.claude/skills/wave-drain/SKILL.md", "operation": "modify" },
     {
-      "path": "examples/go-library/schemas/agent-return-external.schema.json",
+      "path": "__tests__/templates/commands-claude.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/doc-set-render.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/track-b-evidence-gates.test.ts",
       "operation": "create"
     },
-    { "path": "examples/go-library/schemas/agent-return.schema.json", "operation": "modify" },
     {
-      "path": "examples/go-library/schemas/cross-model-dispatch.schema.json",
+      "path": "docs/INDEX.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/ADR/052-fast-forward-merge-cosign-preservation.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/ADR/118-lifecycle-ontology-wired-not-written.md",
       "operation": "create"
     },
-    { "path": "examples/go-library/scripts/check-all.mjs", "operation": "modify" },
-    { "path": "examples/go-library/scripts/check-cross-model-review.mjs", "operation": "create" },
-    { "path": "examples/go-library/scripts/lib/agent-return-validate.mjs", "operation": "modify" },
-    { "path": "examples/go-library/scripts/optional-emissions.json", "operation": "modify" },
-    { "path": "examples/go-library/scripts/record-agent-return.mjs", "operation": "modify" },
-    { "path": "examples/python-library/.arbiter-generated-manifest.json", "operation": "modify" },
-    { "path": "examples/python-library/.claude/commands/ship.md", "operation": "modify" },
-    { "path": "examples/python-library/.claude/skills/wave-drain/SKILL.md", "operation": "modify" },
     {
-      "path": "examples/python-library/schemas/agent-return-external.schema.json",
+      "path": "docs/internal/ADR/119-adversarial-review-hops-until-low-only.md",
       "operation": "create"
     },
-    { "path": "examples/python-library/schemas/agent-return.schema.json", "operation": "modify" },
     {
-      "path": "examples/python-library/schemas/cross-model-dispatch.schema.json",
+      "path": "docs/internal/ADR/README.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/METHOD/CODEX_PARITY_RUNBOOK.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/METHOD/SSOT_CORE_SET.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/METHOD/TABLETOP-SCENARIOS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/PRODUCT/FEATURE_MATRIX.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/PRODUCT/GAP.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/PRODUCT/MILESTONES.yml",
       "operation": "create"
     },
-    { "path": "examples/python-library/scripts/check-all.mjs", "operation": "modify" },
     {
-      "path": "examples/python-library/scripts/check-cross-model-review.mjs",
+      "path": "docs/internal/PRODUCT/SOURCES.md",
+      "operation": "create"
+    },
+    {
+      "path": "docs/internal/PRODUCT/STATUS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/SYSTEM/CANON.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/SYSTEM/DECISIONS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/SYSTEM/HOOK-CONTRACTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/SYSTEM/ID-REGISTRY.md",
+      "operation": "create"
+    },
+    {
+      "path": "docs/internal/SYSTEM/OD-REGISTRY.md",
+      "operation": "create"
+    },
+    {
+      "path": "docs/internal/runbooks/dependabot-handling.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/sources/excerpts/SRC-001.txt",
+      "operation": "create"
+    },
+    {
+      "path": "docs/sources/excerpts/SRC-002.txt",
+      "operation": "create"
+    },
+    {
+      "path": "examples/go-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.claude/commands/ship.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/AGENTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/docs/architecture/ARCHITECTURE.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/schemas/milestone.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "examples/go-library/schemas/source-record.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "examples/go-library/schemas/use-case.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "examples/go-library/scripts/check-all.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/check-arc42-slots.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/go-library/scripts/check-milestones.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/go-library/scripts/check-sources.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/go-library/scripts/check-tabletop-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/check-use-cases.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/go-library/scripts/lib/agent-return-validate.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/lib/exact-sha-policy.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/pr-merge-watch.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/standards/gold-doc-set.yml",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.claude/commands/ship.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/AGENTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/docs/architecture/ARCHITECTURE.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/schemas/milestone.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/schemas/source-record.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/schemas/use-case.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/scripts/check-all.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/check-arc42-slots.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/scripts/check-milestones.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/scripts/check-sources.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/python-library/scripts/check-tabletop-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/check-use-cases.mjs",
       "operation": "create"
     },
     {
       "path": "examples/python-library/scripts/lib/agent-return-validate.mjs",
       "operation": "modify"
     },
-    { "path": "examples/python-library/scripts/optional-emissions.json", "operation": "modify" },
-    { "path": "examples/python-library/scripts/record-agent-return.mjs", "operation": "modify" },
-    { "path": "examples/ts-library/.arbiter-generated-manifest.json", "operation": "modify" },
-    { "path": "examples/ts-library/.claude/commands/ship.md", "operation": "modify" },
-    { "path": "examples/ts-library/.claude/skills/wave-drain/SKILL.md", "operation": "modify" },
     {
-      "path": "examples/ts-library/schemas/agent-return-external.schema.json",
+      "path": "examples/python-library/scripts/lib/exact-sha-policy.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/pr-merge-watch.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/standards/gold-doc-set.yml",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.claude/commands/ship.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/AGENTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/docs/architecture/ARCHITECTURE.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/schemas/milestone.schema.json",
       "operation": "create"
     },
-    { "path": "examples/ts-library/schemas/agent-return.schema.json", "operation": "modify" },
     {
-      "path": "examples/ts-library/schemas/cross-model-dispatch.schema.json",
+      "path": "examples/ts-library/schemas/source-record.schema.json",
       "operation": "create"
     },
-    { "path": "examples/ts-library/scripts/check-all.mjs", "operation": "modify" },
-    { "path": "examples/ts-library/scripts/check-cross-model-review.mjs", "operation": "create" },
-    { "path": "examples/ts-library/scripts/lib/agent-return-validate.mjs", "operation": "modify" },
-    { "path": "examples/ts-library/scripts/optional-emissions.json", "operation": "modify" },
-    { "path": "examples/ts-library/scripts/record-agent-return.mjs", "operation": "modify" },
-    { "path": "schemas/agent-return-external.schema.json", "operation": "create" },
-    { "path": "schemas/agent-return.schema.json", "operation": "modify" },
-    { "path": "schemas/cross-model-dispatch.schema.json", "operation": "create" },
-    { "path": "scripts/check-agent-dispatch.mjs", "operation": "modify" },
-    { "path": "scripts/check-all.mjs", "operation": "modify" },
-    { "path": "scripts/check-cross-model-review.mjs", "operation": "create" },
-    { "path": "scripts/check-review-completion.mjs", "operation": "modify" },
-    { "path": "scripts/data/advisory-ledger.json", "operation": "modify" },
-    { "path": "scripts/debt-baseline.json", "operation": "modify" },
-    { "path": "scripts/debt-lib.mjs", "operation": "modify" },
-    { "path": "scripts/debt-report.mjs", "operation": "modify" },
-    { "path": "scripts/lib/agent-return-validate.mjs", "operation": "modify" },
-    { "path": "scripts/lib/gate-affects-registry.mjs", "operation": "modify" },
-    { "path": "scripts/lib/parse-check-args.mjs", "operation": "modify" },
-    { "path": "scripts/optional-emissions.json", "operation": "modify" },
-    { "path": "scripts/record-agent-return.mjs", "operation": "modify" },
-    { "path": "src/cli.ts", "operation": "modify" },
-    { "path": "src/commands/configure.ts", "operation": "modify" },
-    { "path": "src/commands/cross-model-review.ts", "operation": "create" },
-    { "path": "src/commands/doctor/health.ts", "operation": "modify" },
-    { "path": "src/commands/init.ts", "operation": "modify" },
-    { "path": "src/commands/init/build-arbiter-config.ts", "operation": "modify" },
-    { "path": "src/commands/init/resolve-config.ts", "operation": "modify" },
-    { "path": "src/commands/method.ts", "operation": "modify" },
-    { "path": "src/commands/settings.ts", "operation": "modify" },
-    { "path": "src/commands/ship-profile.ts", "operation": "modify" },
-    { "path": "src/commands/ship-train.ts", "operation": "modify" },
-    { "path": "src/commands/task-ship.ts", "operation": "modify" },
-    { "path": "src/commands/task.ts", "operation": "modify" },
-    { "path": "src/config/env-overrides.ts", "operation": "modify" },
-    { "path": "src/config/env-registry.ts", "operation": "modify" },
-    { "path": "src/config/migrations/v1-to-v2.ts", "operation": "modify" },
-    { "path": "src/config/override-resolver.ts", "operation": "modify" },
-    { "path": "src/config/schema.ts", "operation": "modify" },
-    { "path": "src/detectors/external-model.ts", "operation": "create" },
-    { "path": "src/generators/check-all.ts", "operation": "modify" },
-    { "path": "src/integrations/external-review.ts", "operation": "create" },
-    { "path": "src/templates/claude/commands/ship.md.ejs", "operation": "modify" },
-    { "path": "src/templates/claude/skills/wave-drain/SKILL.md.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/check-all.mjs.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/check-cross-model-review.mjs.ejs", "operation": "create" },
-    { "path": "src/templates/scripts/check-review-completion.mjs.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/debt-lib.mjs.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/debt-report.mjs.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/gate-registry.yml.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/lib/agent-return-validate.mjs.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/optional-emissions.json.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/record-agent-return.mjs.ejs", "operation": "modify" },
     {
-      "path": "src/templates/scripts/schemas/agent-return-external.schema.json",
+      "path": "examples/ts-library/schemas/use-case.schema.json",
       "operation": "create"
     },
-    { "path": "src/templates/scripts/schemas/agent-return.schema.json.ejs", "operation": "modify" },
     {
-      "path": "src/templates/scripts/schemas/cross-model-dispatch.schema.json",
+      "path": "examples/ts-library/scripts/check-all.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-arc42-slots.mjs",
       "operation": "create"
     },
-    { "path": "src/utils/fs.ts", "operation": "modify" },
-    { "path": "src/wizard/prompts.ts", "operation": "modify" },
-    { "path": "src/wizard/types.ts", "operation": "modify" },
-    { "path": "website/reference/cli.md", "operation": "modify" }
+    {
+      "path": "examples/ts-library/scripts/check-milestones.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-sources.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-tabletop-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-use-cases.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "examples/ts-library/scripts/lib/agent-return-validate.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/lib/exact-sha-policy.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/pr-merge-watch.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/standards/gold-doc-set.yml",
+      "operation": "modify"
+    },
+    {
+      "path": "llms.txt",
+      "operation": "modify"
+    },
+    {
+      "path": "package.json",
+      "operation": "modify"
+    },
+    {
+      "path": "schemas/CONTRACT.json",
+      "operation": "create"
+    },
+    {
+      "path": "schemas/id-registry.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "schemas/milestone.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "schemas/rtm-verdict.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "schemas/source-record.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "schemas/use-case.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "schemas/vendor/c4-model.schema.json",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/apply-branch-protection.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/canon01-baseline.json",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/canon01-self-only.json",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-adr-enforcement.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-all.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-arc42-slots.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/check-doc-path-citations.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-feature-matrix.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-forma-contract.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/check-id-registry.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/check-local-ci-parity.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-merge-method.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-milestones.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/check-ontology-wired.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/check-refutation-verdicts.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-runbook-coverage.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/check-sources.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/check-tabletop-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-tarball-contents.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-use-cases.mjs",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/data/adr-enforcement-baseline.json",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/data/arc42-baseline.json",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/data/ontology-baseline.json",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/data/rtm-verdict-baseline.json",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/data/runbook-baseline.json",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/gen-ssot-core.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/lib/agent-return-validate.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/lib/exact-sha-policy.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/lib/gate-affects-registry.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/pr-merge-watch.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/cli.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/commands/doc-set.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/config/env-registry.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/detectors/external-model.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/generators/check-all.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/generators/feature-matrix.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/invariants/catalog.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/claude/commands/ship.md.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/codex/config.toml.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/contract-testing/api-snapshots/openapi-content-types-baseline.json.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/contract-testing/api-snapshots/openapi-paths-baseline.json.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/contract-testing/api-snapshots/openapi-response-status-baseline.json.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/docs/skeletons/arc42-canvas.md.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/docs/skeletons/arc42-full.md.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/github/workflows/01-pr-fast.yml.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/schemas/milestone.schema.json.ejs",
+      "operation": "create"
+    },
+    {
+      "path": "src/templates/schemas/rtm-verdict.schema.json.ejs",
+      "operation": "create"
+    },
+    {
+      "path": "src/templates/schemas/source-record.schema.json.ejs",
+      "operation": "create"
+    },
+    {
+      "path": "src/templates/schemas/use-case.schema.json.ejs",
+      "operation": "create"
+    },
+    {
+      "path": "src/templates/scripts/check-arc42-slots.mjs.ejs",
+      "operation": "create"
+    },
+    {
+      "path": "src/templates/scripts/check-feature-matrix.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-merge-method.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-milestones.mjs.ejs",
+      "operation": "create"
+    },
+    {
+      "path": "src/templates/scripts/check-refutation-verdicts.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-sources.mjs.ejs",
+      "operation": "create"
+    },
+    {
+      "path": "src/templates/scripts/check-tabletop-evidence.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-use-cases.mjs.ejs",
+      "operation": "create"
+    },
+    {
+      "path": "src/templates/scripts/gate-registry.yml.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/lib/agent-return-validate.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/lib/exact-sha-policy.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/pr-merge-watch.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/standards/gold-doc-set.yml.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "standards/gold-doc-set.yml",
+      "operation": "modify"
+    },
+    {
+      "path": "website/governance/AGENTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": ".agents/plan/PLAN.json",
+      "operation": "modify"
+    }
   ],
   "invariants": {
     "ui_language": "EN",
     "no_skips": true
   },
   "invariant_ids": [
-    "INV-01",
-    "INV-02",
-    "INV-03",
-    "INV-04",
     "INV-08",
-    "INV-11",
-    "INV-12",
-    "INV-16",
-    "INV-17",
-    "INV-18",
-    "INV-21",
     "INV-23",
     "INV-24",
     "INV-25",
-    "INV-26",
-    "INV-27",
     "INV-28",
     "INV-45",
-    "INV-48",
-    "INV-49",
-    "INV-50",
-    "INV-53",
-    "INV-59",
-    "INV-63",
-    "INV-90",
-    "INV-91",
-    "INV-114",
-    "INV-123",
-    "INV-138"
+    "INV-101",
+    "INV-143"
   ],
   "review_bridge": {
     "enabled": true,
