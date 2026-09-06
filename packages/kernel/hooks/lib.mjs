@@ -8,7 +8,8 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { join } from 'node:path'
+import { join, extname, dirname, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
@@ -80,6 +81,33 @@ export function scopeCommandToFile(command, file) {
   while (toks.length > 1 && REPO_TARGETS.has(toks[toks.length - 1])) toks.pop()
   toks.push(file)
   return toks
+}
+
+/**
+ * Path-eligibility for post-edit-dispatch.mjs's Go format/lint dispatch (#486).
+ * The hook is Go-only, so the `.go` extension is the real filter and there is no
+ * lane-scoping: the previous LANES=["frontend","backend","docs"] gate silently
+ * excluded cmd/ and internal/ — 99% of the repo's Go code — so gofmt/golangci-lint
+ * never ran there. Returns true when the edited file should reach the dispatch.
+ */
+export function reachesDispatch(filePath) {
+  if (!filePath) return false
+  const SKIP_PATTERNS = /\.(md|json|yaml|yml|txt|log|lock|toml|xml|html|css|svg|png|jpg|gif)$/i
+  const SKIP_DIRS = /\/(node_modules|build|dist|target|\.git|\.cache|__pycache__|\.venv)\//
+  if (SKIP_PATTERNS.test(filePath) || SKIP_DIRS.test(filePath)) return false
+  return extname(filePath).toLowerCase() === '.go'
+}
+
+/**
+ * Environment for the hook's `golangci-lint run` (#487). Isolates golangci's cache
+ * per worktree, mirroring check-all.mjs (#176, resolveGolangciCacheDir): the shared
+ * default cache (~/.cache/golangci-lint) references deleted sibling-worktree paths
+ * after a worktree is removed, leaking phantom-file findings across worktrees. The
+ * cache dir is inlined (not imported from scripts/lib) to keep this hook library
+ * dependency-free.
+ */
+export function lintEnv(root) {
+  return { ...process.env, GOLANGCI_LINT_CACHE: join(root, '.golangci-cache') }
 }
 
 /**
@@ -229,55 +257,73 @@ export function resolveToolInputPath(rawStdin) {
   return typeof fromEnv === 'string' ? fromEnv : ''
 }
 
-/**
- * Resolve the shell command a Bash tool is about to run / has just run.
- *
- * The command-hook counterpart of resolveToolInputPath. The Claude Code hook
- * protocol delivers the Bash payload as a JSON object on stdin
- * (`{ tool_name, tool_input: { command, ... } }`); the Codex adapter instead
- * sets the `CLAUDE_TOOL_INPUT_COMMAND` environment variable. A hook that reads
- * only the env var silently no-ops under the stdin-JSON protocol (it sees an
- * empty command and exits 0 without inspecting it). This resolver accepts BOTH:
- * it prefers the stdin-JSON `tool_input.command`, then falls back to the env var
- * (Codex path). Returns '' when neither is present.
- *
- * stdin (fd 0) is consumed at most once and only when it is a pipe/file; on a
- * TTY or when no payload is available it returns '' without blocking.
- *
- * @param {string} [rawStdin] Optional pre-read stdin payload (tests / callers
- *   that already buffered fd 0). When omitted, fd 0 is read directly.
- * @returns {string} The resolved command, or '' if none could be determined.
- */
-export function resolveToolInputCommand(rawStdin) {
-  let raw = rawStdin
-  if (typeof raw !== 'string') {
-    raw = ''
-    try {
-      // Reading fd 0 throws EAGAIN on an interactive TTY with no piped input;
-      // treat any read failure as "no stdin payload" and fall through to env.
-      raw = readFileSync(0, 'utf-8')
-    } catch {
-      raw = ''
-    }
-  }
-  const trimmed = raw.trim()
-  if (trimmed) {
-    try {
-      const payload = JSON.parse(trimmed)
-      const fromStdin = payload?.tool_input?.command
-      if (typeof fromStdin === 'string' && fromStdin.length > 0) {
-        return fromStdin
-      }
-    } catch {
-      // Not JSON (or not the expected shape) — fall through to the env fallback.
-    }
-  }
-  const fromEnv = process.env.CLAUDE_TOOL_INPUT_COMMAND
-  return typeof fromEnv === 'string' ? fromEnv : ''
+// Directory these hooks were loaded from, and the checkout root above it
+// (`<root>/.claude/hooks/lib.mjs`). This is the repo that OWNS the rules, which is
+// what membership has to be measured against — see isPathInThisRepo (#565).
+const HOOKS_DIR = dirname(fileURLToPath(import.meta.url))
+const HOOK_OWNER_ROOT = resolve(HOOKS_DIR, '..', '..')
+
+/** Absolute path of the shared .git dir every worktree of `dir`'s repo points at, or null. */
+function gitCommonDir(dir) {
+  const r = spawnSync('git', ['-C', dir, 'rev-parse', '--git-common-dir'], { encoding: 'utf-8' })
+  if (r.status !== 0 || !r.stdout.trim()) return null
+  // Relative inside a main working tree ('.git', '../../.git'), absolute inside a
+  // linked worktree — resolve against `dir` so both forms compare equal.
+  return resolve(dir, r.stdout.trim())
 }
 
 /**
- * Added lines of a file vs HEAD, for diff-scoped PostToolUse scans (#609, #2539).
+ * True when `file` belongs to the repo that owns these hooks (#565).
+ *
+ * A subagent inherits the SESSION's CLAUDE_PROJECT_DIR, not the one of the repo it is
+ * working in, so these Edit|Write hooks stay registered and fire on files belonging to
+ * a different repository — an agent editing a sibling repo's AGENTS.md was blocked by
+ * enforce-read-only here, which matches the substring and nothing else. This repo has no
+ * governance over a foreign repo; that repo's own hooks decide.
+ *
+ * Membership is git identity, NOT a path prefix: a repo's linked worktrees live
+ * outside the repo root (<repo>.worktrees/) and are legitimately covered, so
+ * `startsWith(repoRoot)` would silently un-govern all of them.
+ * `rev-parse --git-common-dir` is identical across the main checkout and every linked
+ * worktree and distinct for any other repo — the same idea #549 used for the Bash side.
+ *
+ * The anchor is HOOK_OWNER_ROOT rather than `process.cwd()`, which is where this differs
+ * from enforce-gate-before-pr.mjs: the reported session had its cwd inside the foreign
+ * repo, so a cwd-anchored identity would call that repo "home" and keep blocking.
+ *
+ * Fail-closed on uncertainty (INV-96): an unresolvable path, or an own-identity that git
+ * cannot report, keeps the guard armed. Not-foreign is the safe answer — a guard must not
+ * disarm itself on doubt.
+ *
+ * Takes the ALREADY-RESOLVED path: fd 0 is consumed at most once, so a second
+ * resolveToolInputPath() call inside here would read '' and wave everything through.
+ *
+ * @param {string} file Absolute or cwd-relative path from resolveToolInputPath().
+ * @returns {boolean}
+ */
+export function isPathInThisRepo(file) {
+  if (!file) return true
+  const abs = resolve(file)
+  // Ordinary edit inside the checkout these hooks came from: true by construction,
+  // and worth short-circuiting — the alternative is two git spawns on every edit.
+  if (abs === HOOK_OWNER_ROOT || abs.startsWith(HOOK_OWNER_ROOT + sep)) return true
+
+  const home = gitCommonDir(HOOKS_DIR)
+  if (!home) return true
+
+  // A Write can target a file — or a whole directory tree — that does not exist yet;
+  // `git -C` needs a real directory, so climb to the nearest existing ancestor.
+  let dir = dirname(abs)
+  while (!existsSync(dir)) {
+    const parent = dirname(dir)
+    if (parent === dir) return false
+    dir = parent
+  }
+  return gitCommonDir(dir) === home
+}
+
+/**
+ * Added lines of a file vs HEAD, for diff-scoped PostToolUse scans (#609).
  *
  * PostToolUse Edit|Write hooks used to scan the WHOLE edited file, so a
  * pre-existing forbidden pattern on an UNCHANGED line (e.g. an HTML form-field
@@ -327,6 +373,110 @@ export function addedLinesVsHEAD(file) {
   return { tracked: true, added }
 }
 
+/**
+ * Resolve the shell command a Bash tool is about to run / has just run.
+ *
+ * The command-hook counterpart of resolveToolInputPath. The Claude Code hook
+ * protocol delivers the Bash payload as a JSON object on stdin
+ * (`{ tool_name, tool_input: { command, ... } }`); the Codex adapter instead
+ * sets the `CLAUDE_TOOL_INPUT_COMMAND` environment variable. A hook that reads
+ * only the env var silently no-ops under the stdin-JSON protocol (it sees an
+ * empty command and exits 0 without inspecting it). This resolver accepts BOTH:
+ * it prefers the stdin-JSON `tool_input.command`, then falls back to the env var
+ * (Codex path). Returns '' when neither is present.
+ *
+ * stdin (fd 0) is consumed at most once and only when it is a pipe/file; on a
+ * TTY or when no payload is available it returns '' without blocking.
+ *
+ * @param {string} [rawStdin] Optional pre-read stdin payload (tests / callers
+ *   that already buffered fd 0). When omitted, fd 0 is read directly.
+ * @returns {string} The resolved command, or '' if none could be determined.
+ */
+export function resolveToolInputCommand(rawStdin) {
+  let raw = rawStdin
+  if (typeof raw !== 'string') {
+    raw = ''
+    try {
+      // Reading fd 0 throws EAGAIN on an interactive TTY with no piped input;
+      // treat any read failure as "no stdin payload" and fall through to env.
+      raw = readFileSync(0, 'utf-8')
+    } catch {
+      raw = ''
+    }
+  }
+  const trimmed = raw.trim()
+  if (trimmed) {
+    try {
+      const payload = JSON.parse(trimmed)
+      const fromStdin = payload?.tool_input?.command
+      if (typeof fromStdin === 'string' && fromStdin.length > 0) {
+        return fromStdin
+      }
+    } catch {
+      // Not JSON (or not the expected shape) — fall through to the env fallback.
+    }
+  }
+  const fromEnv = process.env.CLAUDE_TOOL_INPUT_COMMAND
+  return typeof fromEnv === 'string' ? fromEnv : ''
+}
+
+// Dangerous-command detection for stop-dangerous.mjs (#552). Kept here, beside
+// resolveToolInputCommand, so the guard stays dependency-free.
+const DANGEROUS_LITERALS = [
+  'rm -rf /',
+  'rm -rf ~',
+  'git reset --hard',
+  'DROP TABLE',
+  'DROP DATABASE',
+  'sudo rm',
+  '> /dev/sda',
+]
+
+/**
+ * True when `command` actually runs something destructive.
+ *
+ * The previous form was a bare substring scan with two failure modes in opposite
+ * directions: it blocked `--force-with-lease` (the safe variant, needed after every
+ * rebase) and it fired on a command merely *named* inside a quoted string or heredoc
+ * body — a guard that cannot tell doing from mentioning gets routed around by habit.
+ *
+ * @param {string} command
+ * @returns {boolean}
+ */
+/**
+ * Strips heredoc bodies and quoted-string spans so pattern matching sees only the
+ * executed/literal command shape, never text a quoted argument or heredoc payload
+ * merely *mentions* (#2403). Shared by isDangerousCommand below and by
+ * stop-dangerous.mjs's protected-Arbiter-state-write guard.
+ *
+ * @param {string} command
+ * @returns {string}
+ */
+export function stripQuotedAndHeredocs(command) {
+  return String(command ?? '')
+    .replace(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1[\s\S]*?^\s*\2\s*$/gm, ' ')
+    .replace(/'[^']*'/g, ' ')
+    .replace(/"[^"]*"/g, ' ')
+}
+
+export function isDangerousCommand(command) {
+  const raw = String(command ?? '')
+  // Literals stay on the raw text: a destructive argument is normally quoted
+  // (`psql -c "DROP TABLE users"`), so stripping quotes would disarm them.
+  if (DANGEROUS_LITERALS.some((p) => raw.includes(p))) return true
+
+  // The forced push is the opposite case — it is the one that kept firing on prose
+  // (an issue body describing this very guard), so it is matched on the text with
+  // heredoc bodies and quoted spans removed.
+  const executed = stripQuotedAndHeredocs(raw)
+
+  // --force-with-lease refuses to overwrite refs the local side has not seen, so it is
+  // the form a rebase is supposed to use; only the unguarded variants are blocked.
+  return /(?:^|[;&|]|\s)git\s+push\b(?![^;&|]*--force-with-lease)[^;&|]*(?:--force\b|\s-f\b)/.test(
+    executed,
+  )
+}
+
 /** Returns the git repository root, falling back to process.cwd(). */
 export function getRepoRoot() {
   const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
@@ -337,6 +487,28 @@ export function getRepoRoot() {
   }
   logWarn('getRepoRoot: git rev-parse failed, falling back to cwd')
   return process.cwd()
+}
+
+// E5 (#1947): shared write-intent-agent sidecar contract — pre-spawn-worktree-guard.mjs
+// registers entries, post-subagent-release.mjs (SubagentStop) removes them on cleanup.
+// Both files import from here rather than duplicating the path/TTL/prune logic.
+export const SIDECAR_PATH = join('.arbiter', 'agents-active.json')
+export const SIDECAR_TTL_MS = 2 * 60 * 60 * 1000 // 2h — mirrors `arbiter worktree prune --stale`
+
+/** Generic best-effort JSON read; missing/malformed file => null (caller decides fallback). */
+export function readJsonOrNull(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8'))
+    // FAIL-OPEN-INTENT: a caller reading optional bookkeeping/config JSON must not crash
+    // on a missing or malformed file — null lets it fall back to a safe default.
+  } catch {
+    return null
+  }
+}
+
+/** Drops sidecar entries older than SIDECAR_TTL_MS so a killed agent cannot wedge future spawns. */
+export function pruneStaleSidecarEntries(entries, now) {
+  return entries.filter((e) => now - Number(e.ts ?? 0) < SIDECAR_TTL_MS)
 }
 
 /**
@@ -364,5 +536,6 @@ export function readTaskState(root) {
     phase: pick(state.phase),
     plan: pick(state.plan),
     tier: pick(state.tier),
+    branch: pick(state.branch),
   }
 }
