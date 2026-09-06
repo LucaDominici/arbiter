@@ -18,6 +18,26 @@ export interface FixtureManifest {
   // (every pre-existing fixture) — only set when a cell must exercise a
   // non-default tool selection, e.g. a codex-only materialization.
   tools?: string
+  // #2543: explicit bake-level selector, read by fixture-bake.test.ts via
+  // resolveBakeLevel() below. Optional — absent means "bake at L1". Validated
+  // by scripts/check-matrix-fixtures.mjs (AC-4): when present it must be one
+  // of this fixture's own declared `levels`, so a fixture can never claim to
+  // bake at a level it does not support.
+  bakeLevel?: string
+}
+
+// #2543: the bake harness used to pick `manifest.levels[0] ?? 'L1'` — "use the
+// lowest declared level to keep bake fast". That made `levels` array ORDERING
+// load-bearing: 28 of 30 manifests were authored as an ascending SET of
+// supported levels (order carries no meaning), and only java-spring-L4 listed
+// descending — so only that one fixture's author knew position 0 selected the
+// bake level. java-spring-L3 declared the same four levels ascending and
+// therefore baked at L1 despite its name, a name/behaviour contradiction that
+// also left L3 with zero coverage of any kind (see the issue for the full
+// audit). `bakeLevel` replaces the accident with an explicit, legible choice:
+// default 'L1' when absent, NEVER derived from `levels[0]`.
+export function resolveBakeLevel(manifest: FixtureManifest): string {
+  return manifest.bakeLevel ?? 'L1'
 }
 
 const FIXTURES_ROOT = resolve('__tests__/fixtures/real-projects')
