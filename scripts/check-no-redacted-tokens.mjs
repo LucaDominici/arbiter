@@ -39,7 +39,16 @@ function scanForRedactedTokens(text, lexiconEntries) {
 }
 
 // Use git ls-files so we only scan committed files (excludes gitignored derived.json etc.)
-// ARBITER_HOOK_GIT_CWD is set by the pre-commit hook when running from a '#'-free temp dir.
+// ARBITER_HOOK_GIT_CWD is set by the pre-commit/pre-push hooks when running from a '#'-free
+// temp dir (rsync'd there because a path containing '#' — e.g. a `task/#NNN-*` worktree —
+// breaks vitest). Every file body MUST be resolved against this SAME root, never against ROOT
+// (the script's own location) — ROOT
+// stays reserved for the script's own on-disk assets (the lexicon above), which do not move
+// with the tree under scan. Reading via ROOT here previously scanned the LISTED tree's file
+// names against a DIFFERENT tree's content: silently wrong when both trees are copies of the
+// same repo (the two file sets mostly coincide, so nearly every read used to succeed against
+// the wrong version — a false pass with no warning, worse than the two-tree case throwing;
+// see #2514).
 const GIT_CWD = process.env['ARBITER_HOOK_GIT_CWD'] ?? ROOT
 const allFiles = execFileSync('git', ['ls-files'], { encoding: 'utf-8', cwd: GIT_CWD })
   .split('\n')
@@ -49,13 +58,18 @@ const allFiles = execFileSync('git', ['ls-files'], { encoding: 'utf-8', cwd: GIT
 let violations = 0
 
 for (const rel of allFiles) {
-  const abs = join(ROOT, rel)
+  const abs = join(GIT_CWD, rel)
   let text
   try {
     text = readFileSync(abs, 'utf-8')
   } catch (err) {
+    // Fail-closed, not a silent skip: a git-tracked file this secret scanner cannot read is
+    // treated as a violation, matching check-no-tracked-artifacts.mjs's stated policy for
+    // this same GIT_CWD-vs-ROOT axis ("a non-git CWD is an ERROR, never a silent PASS —
+    // NO-DATA≠PASS"). The prior "WARN" label was misleading: it already counted toward
+    // `violations` below, so it was never actually a non-blocking warning.
     process.stderr.write(
-      `check-no-redacted-tokens: WARN — could not read "${rel}": ${err.message}\n`,
+      `check-no-redacted-tokens: FAIL — could not read "${rel}", treated as a violation (fail-closed): ${err.message}\n`,
     )
     violations++
     continue

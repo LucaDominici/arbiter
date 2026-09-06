@@ -142,7 +142,9 @@ const CHECK_ALL = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
 // scripts/data/inversion-proof-registry.json and this line — a ratchet that cannot be widened by
 // a one-file diff. Lowering it is mandatory when a row is proven and removed (unbanked
 // improvement is a failure in this repo, AGENTS.md §template-tests baseline).
-const DEFERRED_CEILING = 16
+// #2514: "no redacted tokens" moved from this ledger to a real flip proof
+// (scripts/lib/guard-flip-registry.mjs) — 16 → 15.
+const DEFERRED_CEILING = 15
 
 // The rosters whose proofs may also cover a family gate by SCRIPT (check-no-passwithnotests is
 // wired both as the INV-25 gate and as the anti-fake-green `no-empty-suite` guard).
