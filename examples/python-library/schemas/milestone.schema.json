@@ -74,8 +74,14 @@
           "description": "What rolls up into this milestone. An epic that targets no milestone is the defect the shared gate exists to surface.",
           "additionalProperties": false,
           "properties": {
-            "epics": { "type": "array", "items": { "type": "string", "pattern": "^EP-[0-9]{2}$" } },
-            "issues": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+            "epics": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^EP-[0-9]{2}$" }
+            },
+            "issues": {
+              "type": "array",
+              "items": { "type": "integer", "minimum": 1 }
+            },
             "label": {
               "type": "string",
               "description": "GitHub label used to reconcile the projection."
@@ -104,14 +110,20 @@
       },
       "allOf": [
         {
-          "if": { "properties": { "horizon": { "const": "now" } }, "required": ["horizon"] },
+          "if": {
+            "properties": { "horizon": { "const": "now" } },
+            "required": ["horizon"]
+          },
           "then": {
             "required": ["due", "estimate_days"],
             "description": "A milestone claimed to be in flight has a date and a size, or it is not really `now`."
           }
         },
         {
-          "if": { "properties": { "horizon": { "const": "later" } }, "required": ["horizon"] },
+          "if": {
+            "properties": { "horizon": { "const": "later" } },
+            "required": ["horizon"]
+          },
           "then": { "not": { "required": ["due"] } }
         }
       ]

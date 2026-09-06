@@ -40,7 +40,9 @@
           "minLength": 8,
           "description": "Recorded provenance, never dereferenced by the tier-1 gate. A gate that fails when a website is down fails for a reason unrelated to the claim it guards."
         },
-        "kind": { "enum": ["paper", "standard", "spec", "docs", "tool", "book"] },
+        "kind": {
+          "enum": ["paper", "standard", "spec", "docs", "tool", "book"]
+        },
         "retrieved_at": {
           "type": "string",
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
