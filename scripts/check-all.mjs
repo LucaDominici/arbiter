@@ -438,6 +438,11 @@ if (isMain) {
   // consumer does — every script/command/hook an emitted playbook cites must resolve in the
   // tree that ships it, not in arbiter's. Runs right after the drift check, on the same corpus.
   runCheck('emitted markdown refs (#2415)', 'node', ['scripts/check-emitted-markdown-refs.mjs'])
+  // #2548: packages/kernel/hooks/ is build-kernel-plugin.mjs's OUTPUT — the generator
+  // itself takes ~1s (an EJS render + a prettier pass over 9 small files), so it belongs
+  // in L1 next to the other self-generation drift checks above (dogfood, examples drift),
+  // not deferred to L2/nightly where drift would sit unnoticed for longer.
+  runCheck('kernel plugin parity (#2548)', 'node', ['scripts/check-kernel-plugin-parity.mjs'])
 
   // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
   // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still

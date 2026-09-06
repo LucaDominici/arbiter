@@ -185,6 +185,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'canon-15 wired gate (#1923)', affects: ALWAYS },
   { name: 'examples drift (#2222)', affects: ALWAYS },
   { name: 'emitted markdown refs (#2415)', affects: ALWAYS },
+  { name: 'kernel plugin parity (#2548)', affects: ALWAYS },
   { name: 'coverage', affects: ALWAYS },
   { name: 'coverage ratchet (#1483)', affects: ALWAYS },
   { name: 'dead code', affects: ALWAYS },
