@@ -21,7 +21,12 @@
 // Idempotent: safe to run multiple times.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
-import { EXACT_SHA_BRANCH_SETTINGS, EXACT_SHA_REPO_SETTINGS } from './lib/exact-sha-policy.mjs'
+import { readFileSync } from 'node:fs'
+import {
+  EXACT_SHA_BRANCH_SETTINGS,
+  EXACT_SHA_REPO_SETTINGS,
+  resolveLandingContract,
+} from './lib/exact-sha-policy.mjs'
 
 // ─── Args ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +91,28 @@ const PROTECTION_PAYLOAD = {
 
 // INV-101: the canonical executable policy is shared with pr-merge-watch.
 const REPO_SETTINGS_PAYLOAD = EXACT_SHA_REPO_SETTINGS
+
+// ─── #2150: report the resolved landing arc ──────────────────────────────────
+//
+// Applying this tuple does NOT by itself buy exact-SHA landing: outside trunk-solo
+// nothing is authorised to advance main by CAS, so main still ends up at a tip that
+// was never the gated head. The applicator therefore reads the same contract the
+// watcher reads and says which arc the repo is actually on, instead of leaving an
+// operator in peer-review believing the applied tuple bought them more than it did.
+
+/** One line describing this repo's landing arc, or why it could not be resolved. */
+function landingArcLine() {
+  let config
+  try {
+    config = JSON.parse(readFileSync('arbiter.json', 'utf8'))
+  } catch (err) {
+    return `unresolved (${err.message}) — exact-SHA landing is NOT in effect`
+  }
+  const decision = resolveLandingContract(config)
+  return decision.supported
+    ? `${decision.mode} — ${decision.arc.landing}; main == gatedHeadSha`
+    : `NOT exact-SHA — ${decision.reason}`
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -180,6 +207,7 @@ if (DRY_RUN) {
     log(`PATCH body preview (repo merge settings):`)
     log(JSON.stringify(REPO_SETTINGS_PAYLOAD, null, 2))
     log('')
+    log(`Landing arc: ${landingArcLine()}`)
     log('Dry-run complete. Run without --dry-run to apply.')
   }
   process.exit(0)
@@ -211,6 +239,7 @@ try {
   log(`  Branch     : ${BRANCH}`)
   log(`  Checks     : ${REQUIRED_CONTEXTS.join(', ')}`)
   log(`  Merge      : exact-SHA CAS (squash=false, rebase=false, force=false)`)
+  log(`  Landing    : ${landingArcLine()}`)
   process.exit(0)
 } catch (err) {
   process.stderr.write(`[apply-branch-protection] FAIL (repo settings): ${err.message}\n`)
