@@ -243,7 +243,7 @@
     ".claude/hooks/post-subagent-release.mjs": "e8aeb30a66faa28f27652840741ea7fca54977c9c58c390053eb2bc595dde7da",
     ".claude/hooks/pre-compact.mjs": "ea7e9ed1fa8b767054add4917f3dc9622b9c0b5b8eed4f277e8438fda831e6a5",
     ".claude/hooks/pre-edit-plan-anchor.mjs": "81519f50ddb52f9b07382a9b32580d43f72526b69539d4092f11a5938e724e1a",
-    ".claude/hooks/pre-edit-ssot-guard.mjs": "2317c2075bea7c4f19d4164d89e79867fc65886ad29e6033c34349f4b027ae78",
+    ".claude/hooks/pre-edit-ssot-guard.mjs": "cd8578f9be2325d0b79742691fe88043a3e3beefa35d8451be99e8fa6a38f788",
     ".claude/hooks/pre-spawn-worktree-guard.mjs": "5d6bb06cf91d1888fdb58bfdac683471da9b3d4160ca690c5b0c5f9f1543b9f6",
     ".claude/hooks/stop-dangerous.mjs": "68c4eeb410fa1db2731c9bca59be4acfc2c62413795639e116edc82ff2b8aef4",
     ".claude/knowledge-map.json": "308367a3636fe1593713a0c60d946f4d767cd0ff7b8e2dd7f32e28da13fae2fa",
