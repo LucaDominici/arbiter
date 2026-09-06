@@ -146,7 +146,10 @@ function plantGate(dir: string, source: string): string {
   mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
   const p = join(dir, 'scripts', 'check-todo-max-age.mjs')
   writeFileSync(p, source)
-  writeFileSync(join(dir, 'scripts', 'lib', 'glob-walk.mjs'), render('scripts/lib/glob-walk.mjs.ejs'))
+  writeFileSync(
+    join(dir, 'scripts', 'lib', 'glob-walk.mjs'),
+    render('scripts/lib/glob-walk.mjs.ejs'),
+  )
   return p
 }
 
