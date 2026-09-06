@@ -80,12 +80,13 @@ export const SLOTS = [
     // `goals` and `purpose` are deliberately NOT standalone aliases: arc42's own subsection 1.2
     // is "Quality goals", and a `## 1.2 Quality goals` has its numbering stripped and would then
     // satisfy a slot, letting a filled subsection mask a hollow parent section.
-    names: /^(introduction|introduction and goals|about)$/,
+    names:
+      /^(introduction|introduction and goals|about|introduzione e obiettivi|requisiti e obiettivi)$/,
   },
   {
     id: 'ARC-02',
     title: 'Constraints',
-    names: /^((architecture|architectural|technical) )?constraints$/,
+    names: /^(((architecture|architectural|technical) )?constraints|vincoli( architetturali)?)$/,
   },
   {
     id: 'ARC-03',
@@ -93,44 +94,52 @@ export const SLOTS = [
     // arc42 v8 splits section 3 into "Business Context" and "Technical Context"; both are the
     // same slot. Bare `scope` is dropped — it is a common subsection heading inside section 1.
     names:
-      /^(context|context and scope|scope and context|system context|system scope|business context|technical context)$/,
+      /^(context|context and scope|scope and context|system context|system scope|business context|technical context|contesto e ambito)$/,
   },
-  { id: 'ARC-04', title: 'Solution Strategy', names: /^(solution strategy|strategy)$/ },
+  {
+    id: 'ARC-04',
+    title: 'Solution Strategy',
+    names: /^(solution strategy|strategy|strategia di soluzione)$/,
+  },
   {
     id: 'ARC-05',
     title: 'Building Block View',
-    names: /^(building blocks?|building blocks? view)$/,
+    names: /^(building blocks?|building blocks? view|vista a blocchi)$/,
   },
-  { id: 'ARC-06', title: 'Runtime View', names: /^(runtime|runtime view|runtime scenarios)$/ },
+  {
+    id: 'ARC-06',
+    title: 'Runtime View',
+    names: /^(runtime|runtime view|runtime scenarios|vista di runtime)$/,
+  },
   {
     id: 'ARC-07',
     title: 'Deployment View',
-    names: /^(deployment|deployment view|infrastructure)$/,
+    names: /^(deployment|deployment view|infrastructure|vista di dispiegamento)$/,
   },
   {
     id: 'ARC-08',
     title: 'Crosscutting Concepts',
-    names: /^(cross ?cutting( concepts)?)$/,
+    names: /^(cross ?cutting( concepts)?|concetti trasversali)$/,
   },
   {
     id: 'ARC-09',
     title: 'Architecture Decisions',
-    names: /^((architecture|architectural|design) )?decisions$/,
+    names: /^(((architecture|architectural|design) )?decisions|decisioni architetturali)$/,
   },
   {
     id: 'ARC-10',
     title: 'Quality Requirements',
     // `quality goals` dropped for the same reason as ARC-01's: it is arc42's subsection 1.2.
-    names: /^(quality|quality requirements|quality scenarios|quality tree)$/,
+    names: /^(quality|quality requirements|quality scenarios|quality tree|requisiti di qualità)$/,
   },
   {
     id: 'ARC-11',
     title: 'Risks and Technical Debt',
     // Plural `debts` is the official arc42 v8 EN title; a document copied verbatim from
     // arc42.org failed this gate until it was added.
-    names: /^(risks?|risks? and technical debts?|technical debts?)$/,
+    names: /^(risks?|risks? and technical debts?|technical debts?|rischi e debito tecnico)$/,
   },
-  { id: 'ARC-12', title: 'Glossary', names: /^(glossary|terminology)$/ },
+  { id: 'ARC-12', title: 'Glossary', names: /^(glossary|terminology|glossario)$/ },
 ]
 
 /** A body that is exactly one of these, and nothing else, is a placeholder rather than content. */
@@ -159,6 +168,8 @@ export function normalizeHeading(raw) {
 
 /** The slot id a heading fills, or null when the heading is an addition. */
 export function slotForHeading(raw) {
+  // A numbered subsection cannot replace its parent, even at the same Markdown level.
+  if (/^\s*(?:ARC-)?[Aa]?\d+\.\d/i.test(raw)) return null
   const norm = normalizeHeading(raw)
   const hit = SLOTS.find((s) => s.names.test(norm))
   return hit ? hit.id : null

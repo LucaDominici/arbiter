@@ -228,6 +228,33 @@ describe('isStub', () => {
 })
 
 describe('analyzeDocument', () => {
+  it('does not promote Italian subsections or example headings into missing slots (#2576)', () => {
+    const document = [
+      '## 1. Requisiti e obiettivi',
+      'The system records requests.',
+      '### 1.3 Obiettivi di qualità',
+      'Requests must retain their outcome.',
+      '## 10. Requisiti di qualità',
+      '<!-- Fill this section. -->',
+      '## Appendice — Vista di runtime',
+      'This is an additional section.',
+      '## Glossario aggiuntivo',
+      'Not the canonical glossary.',
+      '```md',
+      '## 7. Vista di dispiegamento',
+      'Example only.',
+      '```',
+      '<!--',
+      '## 8. Concetti trasversali',
+      'Comment only.',
+      '-->',
+    ].join('\n\n')
+    expect(analyzeDocument(document)).toEqual({
+      slots: ['ARC-01', 'ARC-10'],
+      stubs: ['ARC-10'],
+    })
+  })
+
   it('reports the slots present and which of them are hollow', () => {
     const a = analyzeDocument(
       docOf([
@@ -267,27 +294,82 @@ describe('the gate', () => {
   it('audits a populated Italian arc42 through the executable gate (#2576)', () => {
     const dir = fixture()
     write(dir, 'standards/doc-profile', 'tier_floor: enterprise\noverlays: []\nallow: []\n')
-    write(dir, 'docs/architecture/arc42.md', docOf([
-      ['1. Requisiti e obiettivi', 'The service records requests and their outcomes.'],
-      ['2. Vincoli', 'The service uses the existing relational database.'],
-      ['3. Contesto e ambito', 'The operator sends requests through the web client.'],
-      ['4. Strategia di soluzione', 'The application validates requests before persistence.'],
-      ['5. Vista a blocchi', 'The HTTP adapter calls the application service.'],
-      ['6. Vista di runtime', 'A request is validated, stored and acknowledged.'],
-      ['7. Vista di dispiegamento', 'The application runs in one container.'],
-      ['8. Concetti trasversali', 'All requests carry a correlation identifier.'],
-      ['9. Decisioni architetturali', 'Transactions protect the recorded outcome.'],
-      ['10. Requisiti di qualità', 'The readiness endpoint verifies database access.'],
-      ['11. Rischi e debito tecnico', 'An unavailable database prevents new requests.'],
-      ['12. Glossario', 'An outcome is the persisted result of a request.'],
-    ]))
+    write(
+      dir,
+      'docs/architecture/arc42.md',
+      docOf([
+        ['1. Requisiti e obiettivi', 'The service records requests and their outcomes.'],
+        ['2. Vincoli', 'The service uses the existing relational database.'],
+        ['3. Contesto e ambito', 'The operator sends requests through the web client.'],
+        ['4. Strategia di soluzione', 'The application validates requests before persistence.'],
+        ['5. Vista a blocchi', 'The HTTP adapter calls the application service.'],
+        ['6. Vista di runtime', 'A request is validated, stored and acknowledged.'],
+        ['7. Vista di dispiegamento', 'The application runs in one container.'],
+        ['8. Concetti trasversali', 'All requests carry a correlation identifier.'],
+        ['9. Decisioni architetturali', 'Transactions protect the recorded outcome.'],
+        ['10. Requisiti di qualità', 'The readiness endpoint verifies database access.'],
+        ['11. Rischi e debito tecnico', 'An unavailable database prevents new requests.'],
+        ['12. Glossario', 'An outcome is the persisted result of a request.'],
+      ]),
+    )
     const result = run(dir, '--json')
     expect(result.code, result.out).toBe(0)
     expect(JSON.parse(result.out)).toMatchObject({
-      filled: 12, required: 12, stubs: [], violations: [],
-      present: ['ARC-01', 'ARC-02', 'ARC-03', 'ARC-04', 'ARC-05', 'ARC-06',
-        'ARC-07', 'ARC-08', 'ARC-09', 'ARC-10', 'ARC-11', 'ARC-12'],
+      filled: 12,
+      required: 12,
+      stubs: [],
+      violations: [],
+      present: [
+        'ARC-01',
+        'ARC-02',
+        'ARC-03',
+        'ARC-04',
+        'ARC-05',
+        'ARC-06',
+        'ARC-07',
+        'ARC-08',
+        'ARC-09',
+        'ARC-10',
+        'ARC-11',
+        'ARC-12',
+      ],
     })
+
+    const populated = readFileSync(join(dir, 'docs/architecture/arc42.md'), 'utf-8')
+    const baseline = readFileSync(join(dir, 'scripts/data/arc42-baseline.json'), 'utf-8')
+    write(
+      dir,
+      'docs/architecture/arc42.md',
+      populated.replace('6. Vista di runtime', '6. Vista di runtime aggiuntiva'),
+    )
+    const missing = run(dir)
+    expect(missing.code).toBe(1)
+    expect(missing.out).toContain('slot ARC-06 (Runtime View) is absent')
+
+    write(
+      dir,
+      'docs/architecture/arc42.md',
+      populated.replace('6. Vista di runtime', '6.1 Vista di runtime'),
+    )
+    const subsection = run(dir)
+    expect(subsection.code).toBe(1)
+    expect(subsection.out).toContain('slot ARC-06 (Runtime View) is absent')
+
+    write(
+      dir,
+      'docs/architecture/arc42.md',
+      populated.replace(
+        'A request is validated, stored and acknowledged.',
+        '<!-- Describe the runtime. -->',
+      ),
+    )
+    const hollow = run(dir)
+    expect(hollow.code).toBe(1)
+    expect(hollow.out).toContain('1 hollow slot(s) (ARC-06)')
+    expect(run(dir, '--update-baseline').code).toBe(1)
+    expect(readFileSync(join(dir, 'scripts/data/arc42-baseline.json'), 'utf-8')).toBe(baseline)
+    write(dir, 'docs/architecture/arc42.md', populated)
+    expect(run(dir).code).toBe(0)
   })
 
   it('passes a document that fills every slot its skeleton provides', () => {
