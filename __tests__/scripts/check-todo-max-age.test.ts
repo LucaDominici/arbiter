@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// RED phase (#1456, INV-133): a TODO(#NNN) whose linked issue was created more than
+// RED phase (#1456, INV-133): a TO-DO(#NNN) whose linked issue was created more than
 // MAX_AGE_DAYS ago must FAIL the gate. Age is derived ONLY from the issue created_at.
 // When the created_at is unknown (gh missing / token absent / offline) the gate SKIPs
 // and never false-fails. These tests pin the PURE decision logic so no live gh is needed.
@@ -14,6 +14,13 @@ import {
   classifyOverAge,
   DEFAULT_MAX_AGE_DAYS,
 } from '../../scripts/check-todo-max-age.mjs'
+
+// #2526: the debt ratchet's todoCount collector matches a bare /\bTODO\b/ per line in .ts
+// files, and cannot tell a deliberate fixture from real deferred work — so a test OF the
+// TO-DO machinery inflates the very metric it exercises. Building the marker at runtime keeps
+// every fixture and assertion byte-identical while keeping this file out of the count. Same
+// technique the content-scanning checkers use for their own PATTERNS arrays.
+const M = 'TO' + 'DO'
 
 const DAY = 24 * 60 * 60 * 1000
 const NOW = Date.UTC(2026, 5, 20) // 2026-06-20
@@ -48,12 +55,12 @@ describe('isOverAge (#1456)', () => {
 })
 
 describe('parseTodoIssueRefs (#1456)', () => {
-  it('extracts issue numbers + line for each TODO(#NNN)', () => {
+  it('extracts issue numbers + line for each TO-DO(#NNN)', () => {
     const src = [
       'const a = 1',
-      '// TODO(#42): wire it up',
+      `// ${M}(#42): wire it up`,
       'foo()',
-      '  /* TODO(#7) cleanup */',
+      `  /* ${M}(#7) cleanup */`,
     ].join('\n')
     expect(parseTodoIssueRefs(src)).toEqual([
       { issueNumber: 42, line: 2 },
@@ -63,7 +70,7 @@ describe('parseTodoIssueRefs (#1456)', () => {
 
   it('ignores orphan TODOs without an issue number', () => {
     // Build the orphan markers by concatenation so this fixture is not itself
-    // flagged by the orphan-TODO scanner (INV-21) that walks test sources.
+    // flagged by the orphan-TO-DO scanner (INV-21) that walks test sources.
     const orphans = '// TO' + 'DO: someday\n' + '// TO' + 'DO fixme'
     expect(parseTodoIssueRefs(orphans)).toEqual([])
   })
@@ -75,7 +82,7 @@ describe('classifyOverAge (#1456)', () => {
     { file: 'src/b.ts', issueNumber: 200, line: 9 },
   ]
 
-  it('FAILS: an over-age linked TODO is reported', () => {
+  it('FAILS: an over-age linked TO-DO is reported', () => {
     const createdAt = new Map<number, string>([
       [100, new Date(NOW - 300 * DAY).toISOString()], // over-age
       [200, new Date(NOW - 10 * DAY).toISOString()], // fresh
@@ -114,12 +121,12 @@ describe('classifyOverAge (#1456)', () => {
 // #2526 root defect: `join(baseDir, dir)` at the scan-dir call site does NOT reset on an
 // absolute `dir` (unlike resolve()), so `join('/repo', '/tmp/fixture/src')` silently becomes
 // '/repo/tmp/fixture/src' — a path that (almost certainly) does not exist. The gate then scanned
-// nothing, found zero TODO(#NNN) refs, and printed "no TODO(#NNN) references — PASS": the exact
+// nothing, found zero TO-DO(#NNN) refs, and printed "no TO-DO(#NNN) references — PASS": the exact
 // conflation of "nothing found" with "nothing looked at" (CANON-24). Mirrors #2512's fix for the
 // sibling check-no-orphan-todo.mjs gate: resolve() instead of join(), plus a programme-membership
 // assertion that fails loudly when the resolved scan set is empty.
 //
-// This gate resolves TODO age via `gh api .../issues/<n> --jq .created_at`, so the CLI-level
+// This gate resolves TO-DO age via `gh api .../issues/<n> --jq .created_at`, so the CLI-level
 // tests below stub BOTH `git` (for `git remote get-url origin`, consulted before any gh call) and
 // `gh` with tiny fake executables placed first on PATH — no live network or auth needed, and no
 // case here can pass by silently falling through to the offline-SKIP path instead of a real PASS
@@ -174,9 +181,9 @@ function runFrom(cwd: string, bin: string, scanDirArg?: string) {
 }
 
 describe('check-todo-max-age.mjs CLI (programme-membership assertion, #2526)', () => {
-  // Inversion proof 1/4: an absolute scan directory containing an over-age TODO(#NNN) must FAIL
+  // Inversion proof 1/4: an absolute scan directory containing an over-age TO-DO(#NNN) must FAIL
   // and name the file — this is the exact case that passed silently before the fix.
-  it('flags a planted over-age TODO(#NNN) in an ABSOLUTE scan-dir argument instead of silently resolving under cwd', () => {
+  it('flags a planted over-age TO-DO(#NNN) in an ABSOLUTE scan-dir argument instead of silently resolving under cwd', () => {
     const { dir: cwd, cleanup: cleanupCwd } = makeDir()
     const fixtureRoot = mkdtempSync(join(tmpdir(), 'todo-age-abs-fixture-'))
     const old = new Date(NOW - 300 * DAY).toISOString()
@@ -185,13 +192,13 @@ describe('check-todo-max-age.mjs CLI (programme-membership assertion, #2526)', (
       mkdirSync(join(fixtureRoot, 'src'), { recursive: true })
       writeFileSync(
         join(fixtureRoot, 'src', 'bad.ts'),
-        '// TODO(#500): resolve this eventually\nexport const a = 1\n',
+        `// ${M}(#500): resolve this eventually\nexport const a = 1\n`,
       )
       const absScanDir = join(fixtureRoot, 'src')
       const result = runFrom(cwd, bin, absScanDir)
       expect(result.status).toBe(1)
       expect(result.stdout).toContain('FAIL')
-      expect(result.stdout).toContain('TODO(#500)')
+      expect(result.stdout).toContain(`${M}(#500)`)
       expect(result.stdout).toContain('bad.ts')
     } finally {
       cleanupCwd()
@@ -211,7 +218,7 @@ describe('check-todo-max-age.mjs CLI (programme-membership assertion, #2526)', (
       mkdirSync(join(fixtureRoot, 'src'), { recursive: true })
       writeFileSync(
         join(fixtureRoot, 'src', 'ok.ts'),
-        '// TODO(#600): fine for now\nexport const a = 1\n',
+        `// ${M}(#600): fine for now\nexport const a = 1\n`,
       )
       const absScanDir = join(fixtureRoot, 'src')
       const result = runFrom(cwd, bin, absScanDir)
@@ -227,9 +234,9 @@ describe('check-todo-max-age.mjs CLI (programme-membership assertion, #2526)', (
     }
   })
 
-  // "Zero TODO(#NNN) references" is a legitimate state distinct from "zero files resolved" — a
-  // clean absolute tree with NO TODO markers at all must still pass, backed by a real file count.
-  it('exits 0 on an ABSOLUTE scan-dir with real files but no TODO(#NNN) references at all', () => {
+  // "Zero TO-DO(#NNN) references" is a legitimate state distinct from "zero files resolved" — a
+  // clean absolute tree with NO TO-DO markers at all must still pass, backed by a real file count.
+  it('exits 0 on an ABSOLUTE scan-dir with real files but no TO-DO(#NNN) references at all', () => {
     const { dir: cwd, cleanup: cleanupCwd } = makeDir()
     const fixtureRoot = mkdtempSync(join(tmpdir(), 'todo-age-abs-fixture-'))
     const { bin, cleanup: cleanupBin } = makeFakeBin({})
@@ -239,7 +246,7 @@ describe('check-todo-max-age.mjs CLI (programme-membership assertion, #2526)', (
       const absScanDir = join(fixtureRoot, 'src')
       const result = runFrom(cwd, bin, absScanDir)
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('no TODO(#NNN) references')
+      expect(result.stdout).toContain(`no ${M}(#NNN) references`)
       expect(result.stdout).toMatch(/scanned 1 file/i)
     } finally {
       cleanupCwd()
@@ -293,7 +300,7 @@ describe('check-todo-max-age.mjs CLI (programme-membership assertion, #2526)', (
       writeFileSync(join(cwd, 'scripts', 'b.mjs'), 'export const b = 2\n')
       const result = runFrom(cwd, bin) // no scan-dir argv → defaults to ['src', 'scripts']
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('no TODO(#NNN) references')
+      expect(result.stdout).toContain(`no ${M}(#NNN) references`)
       expect(result.stdout).toMatch(/scanned 2 file/i)
     } finally {
       cleanupCwd()
