@@ -264,6 +264,32 @@ describe('skeletonGaps', () => {
 })
 
 describe('the gate', () => {
+  it('audits a populated Italian arc42 through the executable gate (#2576)', () => {
+    const dir = fixture()
+    write(dir, 'standards/doc-profile', 'tier_floor: enterprise\noverlays: []\nallow: []\n')
+    write(dir, 'docs/architecture/arc42.md', docOf([
+      ['1. Requisiti e obiettivi', 'The service records requests and their outcomes.'],
+      ['2. Vincoli', 'The service uses the existing relational database.'],
+      ['3. Contesto e ambito', 'The operator sends requests through the web client.'],
+      ['4. Strategia di soluzione', 'The application validates requests before persistence.'],
+      ['5. Vista a blocchi', 'The HTTP adapter calls the application service.'],
+      ['6. Vista di runtime', 'A request is validated, stored and acknowledged.'],
+      ['7. Vista di dispiegamento', 'The application runs in one container.'],
+      ['8. Concetti trasversali', 'All requests carry a correlation identifier.'],
+      ['9. Decisioni architetturali', 'Transactions protect the recorded outcome.'],
+      ['10. Requisiti di qualità', 'The readiness endpoint verifies database access.'],
+      ['11. Rischi e debito tecnico', 'An unavailable database prevents new requests.'],
+      ['12. Glossario', 'An outcome is the persisted result of a request.'],
+    ]))
+    const result = run(dir, '--json')
+    expect(result.code, result.out).toBe(0)
+    expect(JSON.parse(result.out)).toMatchObject({
+      filled: 12, required: 12, stubs: [], violations: [],
+      present: ['ARC-01', 'ARC-02', 'ARC-03', 'ARC-04', 'ARC-05', 'ARC-06',
+        'ARC-07', 'ARC-08', 'ARC-09', 'ARC-10', 'ARC-11', 'ARC-12'],
+    })
+  })
+
   it('passes a document that fills every slot its skeleton provides', () => {
     const r = run(fixture())
     expect(r.out).toContain('PASS')
