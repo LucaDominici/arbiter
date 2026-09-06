@@ -8,7 +8,8 @@ last_review: '2026-09-05'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal', 'kind/analysis', 'kind/process']
-related: ['tabletop', 'verification', 'refutation', 'visual-verification', 'gold-audit', 'codebase-audit']
+related:
+  ['tabletop', 'verification', 'refutation', 'visual-verification', 'gold-audit', 'codebase-audit']
 ---
 
 # Product acceptance (chartered session testing)
@@ -17,39 +18,39 @@ related: ['tabletop', 'verification', 'refutation', 'visual-verification', 'gold
 experiences using it — the two things code review structurally cannot see, because it
 reads what exists rather than what was expected.
 
-**Relation to the existing skills.** This skill is the *planner and the debriefer*, not a
+**Relation to the existing skills.** This skill is the _planner and the debriefer_, not a
 replacement for the walkers. The promises-versus-reality session **is** `tabletop`, run
 per scenario. Verifying a serious finding before acting on it **is** `verification`, and
 trying to kill it **is** `refutation`. Rendered-UI checks **are** `visual-verification`.
 What this skill adds: which sessions to run, in what order, at which moment in the
 product's life, and how their outputs become one reviewable body of evidence.
 
-**Execution shape:** session-based test management (Bach & Bach, 2000) — *charter*,
-*session*, *session sheet*, *debrief*. In an agent setting a session is one subagent lane,
+**Execution shape:** session-based test management (Bach & Bach, 2000) — _charter_,
+_session_, _session sheet_, _debrief_. In an agent setting a session is one subagent lane,
 the charter is its brief, the session sheet is a result matrix plus a findings file, and
 the debrief is the orchestrator judging what lands.
 
 ---
 
-## 1. Decide *when* before deciding *what*
+## 1. Decide _when_ before deciding _what_
 
 A session run at the wrong moment wastes the finding, not just the time. Four tests, in
 order.
 
 ### Shelf-life against the biggest pending change
 
-Ask: *will a change already on the roadmap invalidate this finding?* Durability differs
+Ask: _will a change already on the roadmap invalidate this finding?_ Durability differs
 sharply, and a planned rework is the usual invalidator:
 
-| Session | Survives a rework of the surface? | Why |
-|---|---|---|
-| Promises vs reality (`tabletop`) | Yes | Wiring, not presentation |
-| Journeys and flow | Mostly | Step order and dead ends outlive their skin |
-| Semantics: names, roles, ordering, structure | Yes | Structure, not appearance |
-| Contrast, focus visibility, spacing | No | Design decisions, by definition |
-| Rendered-surface defects (clipping, overflow, wrapping) | No | Dies with the rework that caused it |
-| Wording in context | No | Text moves; truncation changes |
-| Scale and data realism | Yes | Pagination, empty states, degradation are structural |
+| Session                                                 | Survives a rework of the surface? | Why                                                  |
+| ------------------------------------------------------- | --------------------------------- | ---------------------------------------------------- |
+| Promises vs reality (`tabletop`)                        | Yes                               | Wiring, not presentation                             |
+| Journeys and flow                                       | Mostly                            | Step order and dead ends outlive their skin          |
+| Semantics: names, roles, ordering, structure            | Yes                               | Structure, not appearance                            |
+| Contrast, focus visibility, spacing                     | No                                | Design decisions, by definition                      |
+| Rendered-surface defects (clipping, overflow, wrapping) | No                                | Dies with the rework that caused it                  |
+| Wording in context                                      | No                                | Text moves; truncation changes                       |
+| Scale and data realism                                  | Yes                               | Pagination, empty states, degradation are structural |
 
 Run the durable sessions before a rework; run the perishable ones **once, as a baseline**
 — capture the state, do not open a fix list — so that afterwards you diff instead of
@@ -57,7 +58,7 @@ re-deriving.
 
 **Order by the finding's lifetime, never by the technique that found it.** These are two
 axes, and fusing them is the mistake this table invites. A rendering pass produces
-perishable findings *and* durable ones: panels present in the DOM but starved to zero
+perishable findings _and_ durable ones: panels present in the DOM but starved to zero
 height inside a viewport-locked shell; every list item in every embedded document
 rendering blank because of one wrong capture group. Both survive any restyle. Both had
 already passed adversarial code review and a battery of structural predicates, because
@@ -65,12 +66,12 @@ they are invisible in source by construction.
 
 So the perishable-baseline rule applies to the **polish sweep** — contrast, spacing,
 wording — not to the first pass that renders the thing at all. The photograph you diff
-against is the *last* rendering pass before the rework, not the only one.
+against is the _last_ rendering pass before the rework, not the only one.
 
 ### Detectability
 
 Before deferring a technique, ask: **is there any other technique that reaches this class
-of finding at all?** If the answer is no, the perishability of the *other* findings that
+of finding at all?** If the answer is no, the perishability of the _other_ findings that
 technique also produces is not a reason to defer it.
 
 Two measured cases, from different products. A keyboard-driving session found focus landing
@@ -87,13 +88,13 @@ else it also produces.
 - **Wiring gaps** (a promised capability connected to nothing) are cheapest early. Near
   completion they stop being a fix and become a decision: connect it, or withdraw the
   promise. So run `tabletop` at every milestone, not at the end.
-- **Verification breadth** (does every promise have a passing check on *this* build) is
+- **Verification breadth** (does every promise have a passing check on _this_ build) is
   cheapest late, once the surface stops moving. Running it early just means running it
   twice.
 
 ### Yield decay
 
-Run one lens until its yield per session drops — and watch *new categories* per session,
+Run one lens until its yield per session drops — and watch _new categories_ per session,
 not raw counts. A lens producing only variants of what you already know is finished even
 while its numbers look healthy. Switching lens beats squeezing the current one.
 
@@ -118,16 +119,16 @@ One charter per session. Keep them file-disjoint so they run in parallel, and al
 most one session per round to write to the product** — the rest report. That single rule
 removes merge conflicts and simplifies the debrief.
 
-| Session | Charter | Instantiation for a CLI or API | Writes? |
-|---|---|---|---|
-| **Harness** | Make the product runnable with no external dependencies | Fixture projects + a sandbox working copy | Tooling only |
-| **Promises** | Walk N scenarios end to end; find what the docs claim and the code does not do | `tabletop`, one scenario per session | No |
-| **Journeys** | Drive the product as a person would; find dead ends, invisible next steps, unhelpful errors | Run the real commands in order; read the terminal as a newcomer would | No |
-| **Semantics** | Structure a machine or an assistive tool must understand | Exit codes, `--help` completeness, machine-readable output, error taxonomy | Mechanical fixes |
-| **Surface** | The rendered result across every context | Terminal width, colour off, non-TTY pipes, locale | Baseline only |
-| **Scale and data** | Realistic volumes, old data, empty state | A large repository, a fresh one, a corrupt one | No |
-| **Wording** | The text as delivered, per language and register | Help text, error strings, log lines | No |
-| **Consolidation** | Merge matrices, dedupe against open issues, open remediation issues | — | No |
+| Session            | Charter                                                                                     | Instantiation for a CLI or API                                             | Writes?          |
+| ------------------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------- |
+| **Harness**        | Make the product runnable with no external dependencies                                     | Fixture projects + a sandbox working copy                                  | Tooling only     |
+| **Promises**       | Walk N scenarios end to end; find what the docs claim and the code does not do              | `tabletop`, one scenario per session                                       | No               |
+| **Journeys**       | Drive the product as a person would; find dead ends, invisible next steps, unhelpful errors | Run the real commands in order; read the terminal as a newcomer would      | No               |
+| **Semantics**      | Structure a machine or an assistive tool must understand                                    | Exit codes, `--help` completeness, machine-readable output, error taxonomy | Mechanical fixes |
+| **Surface**        | The rendered result across every context                                                    | Terminal width, colour off, non-TTY pipes, locale                          | Baseline only    |
+| **Scale and data** | Realistic volumes, old data, empty state                                                    | A large repository, a fresh one, a corrupt one                             | No               |
+| **Wording**        | The text as delivered, per language and register                                            | Help text, error strings, log lines                                        | No               |
+| **Consolidation**  | Merge matrices, dedupe against open issues, open remediation issues                         | —                                                                          | No               |
 
 ---
 
@@ -160,7 +161,7 @@ second harness, and most codebases have a reuse rule that requires the survey an
 
 Build what is genuinely missing as **tooling in its own directory**, with its own server and
 test configuration, never by editing the product's build files. Make every port and path
-configurable by environment variable *before* launching parallel sessions; discovering a
+configurable by environment variable _before_ launching parallel sessions; discovering a
 collision afterwards costs a whole round.
 
 Ship at least three datasets: **rich and specific** (a real-looking instance of the
@@ -184,7 +185,7 @@ A brief missing any of these produces a session that drifts:
 - **Prerequisite check** — the session's first act is proving its environment works (run
   the existing smoke check) before writing anything of its own.
 - **Method** — how to measure, not only what to look at. Prefer programmatic assertions
-  (measured values, rule ids, status codes), then ask for the human judgement *as well*:
+  (measured values, rule ids, status codes), then ask for the human judgement _as well_:
   "this screen is confusing" is a real finding no assertion produces.
 - **Output contract** — matrix path, findings schema, where evidence goes, no binaries
   committed.
@@ -217,8 +218,8 @@ confidence (verified|unverified)
 
 **Session metadata (SBTM)**, reported in the debrief:
 
-- **Effort split** — share of the session spent on *finding* versus *investigating a
-  single finding* versus *environment setup*. Setup consistently above a third means the
+- **Effort split** — share of the session spent on _finding_ versus _investigating a
+  single finding_ versus _environment setup_. Setup consistently above a third means the
   harness is the problem, not the product; that is a fix to make once and recover every
   round afterwards.
 - **Charter versus opportunity** — how much of the session followed the brief, and how
@@ -241,7 +242,7 @@ The debrief is the orchestrator's work and where most value is added or lost.
    `refutation` when a claim is strong. A session reporting a security or privacy defect
    is a hypothesis until someone reads the code. This catches both false alarms and, more
    often, a correct finding the session then mis-scoped.
-2. **Split by decision-maker.** Anything that changes what the product *promises* is the
+2. **Split by decision-maker.** Anything that changes what the product _promises_ is the
    owner's call: it becomes an issue with options, never a silent patch. Anything plainly
    defective against an existing promise is fixed now.
 3. **Dedupe against open issues** before filing; carry `duplicate_of` in the findings.
@@ -263,7 +264,7 @@ The debrief is the orchestrator's work and where most value is added or lost.
 - **After the rework**: the perishable sessions again, as a diff against that baseline.
 - **Release candidate**: every session against the exact build being shipped, plus the
   promise-to-check mapping. Breadth matters more than depth at this one moment, and the
-  checks must have passed on *that* build, not an earlier one.
+  checks must have passed on _that_ build, not an earlier one.
 
 ---
 
