@@ -31,8 +31,11 @@ describe('generateRoot', () => {
     )
   })
 
-  it('generates CODEOWNERS when githubOwner is set', () => {
-    const result = generateRoot(makeConfig(dir, { githubOwner: 'test-owner' }))
+  // #2434: the GitHub predicate that used to gate the WHOLE `root` generator in the
+  // registry now sits on the one GitHub-bound file it writes, so a config asking for
+  // CODEOWNERS must state the permission it previously inherited from that gate.
+  it('generates CODEOWNERS when githubOwner is set and GitHub is permitted', () => {
+    const result = generateRoot(makeConfig(dir, { githubOwner: 'test-owner', useGitHub: true }))
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('CODEOWNERS'))).toBe(true)
     const content = readFileSync(join(dir, '.github', 'CODEOWNERS'), 'utf-8')
@@ -74,7 +77,9 @@ describe('generateRoot', () => {
   })
 
   it('emits CODEOWNERS with security paths at L2 (#204)', () => {
-    const result = generateRoot(makeConfig(dir, { githubOwner: 'owner', governanceLevel: 'L2' }))
+    const result = generateRoot(
+      makeConfig(dir, { githubOwner: 'owner', governanceLevel: 'L2', useGitHub: true }),
+    )
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('CODEOWNERS'))).toBe(true)
     const content = readFileSync(join(dir, '.github', 'CODEOWNERS'), 'utf-8')

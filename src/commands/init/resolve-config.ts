@@ -22,6 +22,7 @@ import { levelAtLeast } from '../../config/levels.js'
 import { presetToTiers, defaultPresetForLevel } from '../../invariants/filter.js'
 import { applyPreset } from '../../wizard/presets.js'
 import { defaultContractType } from '../../wizard/archetype-defaults.js'
+import { SUPPORTED_AI_TOOLS } from '../../wizard/types.js'
 import type {
   ProjectConfig,
   AiTool,
@@ -559,11 +560,13 @@ function detectedBasePackage(
 
 function parseTools(tools: string | undefined): AiTool[] {
   if (!tools) return ['claude', 'codex']
-  // Customer-facing supported tools only. The experimental tools (cursor,
-  // copilot, gemini, windsurf, aider) keep their generators but are NOT
-  // advertised or accepted here — see the AiTool support policy in
-  // wizard/types.ts. The E_INVALID_TOOL message lists this set verbatim.
-  const VALID = new Set(['claude', 'codex'])
+  // Customer-facing supported tools only — since #2367 (ADR-119) the only tools
+  // that exist: the five retired experimental generators (cursor, copilot,
+  // gemini, windsurf, aider) were deleted, so this set is no longer a narrower
+  // view of a wider union. See the AiTool support policy in wizard/types.ts
+  // (SUPPORTED_AI_TOOLS is the SSOT, #2417). The E_INVALID_TOOL message lists
+  // this set verbatim.
+  const VALID = new Set<string>(SUPPORTED_AI_TOOLS)
   const parsed = tools.split(',').map((s) => s.trim())
   const invalid = parsed.filter((s) => !VALID.has(s))
   if (invalid.length > 0) {

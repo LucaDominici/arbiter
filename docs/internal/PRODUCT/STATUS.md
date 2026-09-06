@@ -24,8 +24,8 @@ Arbiter installs a complete, standards-aligned AI governance stack into any proj
 
 | Status    | Count  |
 | --------- | ------ |
-| Verified  | 4      |
-| Done      | 4      |
+| Verified  | 3      |
+| Done      | 5      |
 | Partial   | 46     |
 | Missing   | 1      |
 | **Total** | **55** |

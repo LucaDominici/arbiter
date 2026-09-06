@@ -158,6 +158,20 @@ const mockRunCli = vi.mocked(runCli)
 const mockDetectLanguageWithSource = vi.mocked(detectLanguageWithSource)
 const mockDetectGithubAccess = vi.mocked(detectGithubAccess)
 
+/**
+ * #2434: a `--dry-run` DOES now enter the registry — that is how the preview
+ * learns the 271 paths a real run writes, instead of the 3 the migration plan
+ * knew about. What must still hold is that it never enters it in WRITE mode, so
+ * the guarantee these dry-run cells protect is asserted on the options, not on
+ * the call count. `runGeneratorsFromRegistry`'s third argument carries the mode.
+ */
+function expectRegistryNeverWrote(): void {
+  const writeCalls = mockRunGeneratorsFromRegistry.mock.calls.filter(
+    (call) => call[2]?.dryRun !== true,
+  )
+  expect(writeCalls).toEqual([])
+}
+
 describe('runInit', () => {
   let dir: string
   let exitSpy: ReturnType<typeof vi.spyOn>
@@ -402,7 +416,7 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expectRegistryNeverWrote()
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Dry run'))
   })
 
@@ -418,7 +432,7 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expectRegistryNeverWrote()
   })
 
   it('exits 1 when runProbes throws unexpectedly', async () => {
@@ -644,7 +658,7 @@ describe('runInit', () => {
       brownfield: false,
       noVerify: true,
     })
-    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expectRegistryNeverWrote()
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
@@ -843,7 +857,7 @@ describe('runGithubSetup', () => {
 })
 
 describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
-  it('accepts gemini as a valid tool', () => {
+  it('rejects gemini — retired in #2367 (ADR-119)', () => {
     const result = validateConfig({
       version: '0.2',
       tools: ['gemini'],
@@ -866,10 +880,10 @@ describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
         maxParams: 5,
       },
     })
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
   })
 
-  it('accepts windsurf as a valid tool', () => {
+  it('rejects windsurf — retired in #2367 (ADR-119)', () => {
     const result = validateConfig({
       version: '0.2',
       tools: ['windsurf'],
@@ -892,10 +906,10 @@ describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
         maxParams: 5,
       },
     })
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
   })
 
-  it('accepts aider as a valid tool', () => {
+  it('rejects aider — retired in #2367 (ADR-119)', () => {
     const result = validateConfig({
       version: '0.2',
       tools: ['aider'],
@@ -918,7 +932,7 @@ describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
         maxParams: 5,
       },
     })
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
   })
 })
 

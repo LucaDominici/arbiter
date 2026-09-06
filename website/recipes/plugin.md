@@ -13,20 +13,30 @@ related: []
 
 Plugins extend arbiter for a specific project without modifying arbiter itself. A plugin can emit template files, add verify-plan rules, or both.
 
-## Scaffold
+## Layout
 
-```bash
-arbiter plugin add my-plugin
-```
-
-This creates:
+`arbiter plugin add` does not scaffold a plugin project — it resolves, installs, and
+registers one that already exists. Hand-author the package first:
 
 ```
 my-plugin/
 ├── index.js        # ArbiterPlugin implementation
-├── package.json
+├── package.json    # keywords must include "arbiter-plugin"
 └── templates/      # EJS templates emitted by generate()
 ```
+
+Then register it:
+
+```bash
+arbiter plugin add ./my-plugin
+```
+
+`add` validates the plugin loads (via the same loader `arbiter update` uses) before
+writing it to `arbiter.json`'s `plugins` array — a plugin that fails to load never
+gets persisted. Passing an npm package name instead of a local path (e.g.
+`arbiter plugin add arbiter-plugin-spring-boot`) installs it as a devDependency
+first (`--no-install` skips that step). `arbiter plugin list` shows every
+configured plugin with its current load status.
 
 ## The ArbiterPlugin contract
 
@@ -83,6 +93,9 @@ module.exports = {
 | `memory`         | `ArbiterMemoryPlugin?` | Optional memory backend if configured      |
 
 ## Register in arbiter config
+
+`arbiter plugin add ./my-plugin` writes this for you (see Layout above). The result is
+the same as hand-editing `arbiter.json`:
 
 ```json
 {

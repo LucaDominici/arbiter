@@ -286,7 +286,11 @@ enforcement theater):
    `scripts/data/ceremony-thresholds.json` (default 12/month; per-env overrides; solo default 20) — data file, not `arbiter.json`, to avoid touching the required-config schema (T0/T2
    brick risk).
 2. **Advisory-permanent detector.** Regex-scan `scripts/check-all.mjs` for `runWarnCheck(`
-   call sites; each advisory name must have an entry in `scripts/data/advisory-ledger.json`:
+   call sites, and `scripts/lib/anti-fake-green-guards.mjs` for `class: 'gh-audit'` guards —
+   the second population of advisory gates, whose exit 1 fails nothing unless the
+   anti-fake-green aggregate is invoked `--enforce` (#2419 AC-3). Each source vacuous-passes
+   when its file is absent. Each advisory name must have an entry in
+   `scripts/data/advisory-ledger.json`:
    `{ "check": "...", "since": "YYYY-MM-DD", "promoteBy": "YYYY-MM-DD" }` or
    `{ ..., "permanent": true, "rationale": "..." }` (for genuinely informational surfaces,
    e.g. `conformance` `check-all.mjs:350`). Missing entry or `promoteBy` in the past → FAIL.

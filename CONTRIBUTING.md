@@ -86,8 +86,10 @@ Three contributor archetypes map to three concrete entry points.
 
 ### C. Adding plugins (per ADR-031)
 
-1. Scaffold a plugin with `arbiter plugin add <name>`.
-2. Implement the minimal contract exported from `@arbiter/cli/plugin`.
+1. Hand-author the plugin package (`index.js`/`package.json`, keywords must include
+   `arbiter-plugin`) implementing the minimal contract exported from `@arbiter/cli/plugin`.
+2. Register it with `arbiter plugin add <path-or-package>` — it installs (unless
+   `--no-install`), validates the plugin loads, and adds it to `arbiter.json`'s `plugins` array.
 3. See `examples/plugins/` and `examples/plugin-spring-boot/` for the current exemplar.
 
 ---

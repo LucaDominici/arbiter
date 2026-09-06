@@ -305,7 +305,13 @@ jobs:
               sudo apt-get update -qq && sudo apt-get install -y -qq psmisc
             fi
           fi
-      - run: npm run test:unit -- --reporter=junit --outputFile=test-results/junit.xml
+      # `--reporter=junit` ALONE replaces the console reporter, so a failing run
+      # names no test in the job log — the only record is the uploaded junit.xml,
+      # which is unreadable from a webhook or a log tail. Both reporters are
+      # passed so the log stays diagnosable and the artifact keeps its schema;
+      # `--outputFile.junit=` is the per-reporter form vitest requires once more
+      # than one reporter is active.
+      - run: npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
 
       - name: Upload test results
         id: upload-test-results

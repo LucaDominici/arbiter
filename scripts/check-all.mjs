@@ -223,6 +223,28 @@ if (isMain) {
   ])
   runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
   runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
+  // INV-140/141: the identifier ontology. The first gate proves the registry is well-formed
+  // (schema, no two schemes matching one id, resolvable SSOTs and OD citations); the second
+  // proves every active scheme is a wired behaviour — gate registered, verb in the CLI, hook in
+  // settings — against a ratchet that lets the unwired count fall but never quietly rise.
+  // Ordered, not merged: an unwired row means nothing until the registry itself parses.
+  runCheck('id registry (INV-140)', 'node', ['scripts/check-id-registry.mjs'])
+  runCheck('ontology wired (INV-141)', 'node', ['scripts/check-ontology-wired.mjs'])
+  runCheck('arc42 slots (INV-144)', 'node', ['scripts/check-arc42-slots.mjs'])
+  // INV-146: the milestone SSOT is well-formed, acyclic, and fail-closed on `done`. SKIPs out
+  // loud when no MILESTONES.yml exists — a project need not have codified a roadmap.
+  runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs'])
+  runCheck('runbook coverage (INV-148)', 'node', ['scripts/check-runbook-coverage.mjs'])
+  runCheck('use cases (INV-149)', 'node', ['scripts/check-use-cases.mjs'])
+  // INV-147: tier 1 of the source chain — every quotation is a literal substring of a committed
+  // excerpt whose hash matches. Deterministic and offline; SKIPs out loud when a project cites
+  // nothing. Relevance (tier 2) and graph reachability (tier 3) are judgements this gate refuses
+  // to fake.
+  runCheck('sources tier 1 (INV-147)', 'node', ['scripts/check-sources.mjs'])
+  // INV-143: the arbiter <-> forma schema contract. Owner-side pins always verified; the
+  // cross-checkout half runs only when a forma checkout sits beside this one, and SKIPS out
+  // loud otherwise — forma's own scripts/check-arbiter-contract.mjs gates the other half.
+  runCheck('forma schema contract (INV-143)', 'node', ['scripts/check-forma-contract.mjs'])
   // #1410: advisory — report check-*.mjs gates not reachable from check-all.mjs
   // (orphan gates). Report-only (exit 0); promotion to blocking is a tracked follow-up.
   runWarnCheck('orchestrator coverage (#1410)', 'node', ['scripts/check-orchestrator-coverage.mjs'])
@@ -252,6 +274,10 @@ if (isMain) {
   runCheck('adr index (INV-107)', 'node', ['scripts/check-adr-index.mjs'])
   runCheck('adr digest (INV-107)', 'node', ['scripts/gen-adr-readme.mjs', '--check'])
   runCheck('adr enforcement linkage (#1473)', 'node', ['scripts/check-adr-enforcement.mjs'])
+  // #2419 AC-2: promoted from runWarnCheck at L2. The police for advisory-forever gates was
+  // itself an advisory gate in the partition a commit never runs, so an expired promoteBy could
+  // not fail anything. Hard, and at L1 — an amnesty that lapses reds the very next commit.
+  runCheck('bypass ceremony (E4 #1949)', 'node', ['scripts/check-bypass-ceremony.mjs'])
   runCheck('cli ref parity (INV-111)', 'node', ['scripts/gen-cli-ref.mjs', '--check'])
   // F2 (#1838, item 4): extends INV-111 beyond the generated cli.md region —
   // hand-authored prose (PRIVACY.md, docs/, website/) can cite a phantom
@@ -483,13 +509,17 @@ if (isMain) {
     // to runCheck at gated-review). Vacuous-pass when no evidence — wired now so the path is real.
     runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
     runWarnCheck('cross-model review (#2358)', 'node', ['scripts/check-cross-model-review.mjs'])
-    runWarnCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
+    // #2435 AC-2: promoted from runWarnCheck. `refactor` promises a code-review dispatch and
+    // nothing could fail a build over it, so a ship reached `verification` with no review ever
+    // dispatched. The check vacuous-passes with no sidecar for this task/branch, so the
+    // promotion costs nothing where no review was owed and refuses where one was.
+    runCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
     runWarnCheck('refutation majority (E2 #1943)', 'node', [
       'scripts/check-refutation-verdicts.mjs',
     ])
     runWarnCheck('audit dry-pass (E3 #1943)', 'node', ['scripts/check-audit-dry-pass.mjs', '--all'])
     runWarnCheck('handoff lint (E6a #1943)', 'node', ['scripts/check-handoff-doc.mjs'])
-    runWarnCheck('bypass ceremony (E4 #1949)', 'node', ['scripts/check-bypass-ceremony.mjs'])
+    // bypass ceremony (E4 #1949) moved to the L1 partition as a hard check — see #2419 AC-2.
     // reuse survey (INV-70, #2079): advisory pending the start-warn→promote decision (#2044 item c).
     runWarnCheck('reuse survey (INV-70)', 'node', ['scripts/check-reuse-survey.mjs'])
     runCheck('commit-footer rationale (INV-119)', 'node', [

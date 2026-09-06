@@ -28,6 +28,12 @@ export default tseslint.config(
       // eslintrc format, NOT used by the flat-config gate itself. Un-ignored,
       // their bare `module.exports` CommonJS shape REDs `no-undef` on Day 1.
       '.eslintrc-*.cjs',
+      // #2434: same class — commitlint.config.js is a CommonJS `module.exports`
+      // config consumed by commitlint's own loader, never by this flat-config
+      // gate. It only reached greenfield projects once the `root` generator
+      // stopped being gated on GitHub permission; un-ignored it REDs `no-undef`
+      // on Day 1 exactly as the eslintrc compat files did.
+      'commitlint.config.js',
     ],
   },
   js.configs.recommended,

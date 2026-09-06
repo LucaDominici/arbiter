@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
@@ -39,6 +39,14 @@ describe('task advance --to red: handoff gate (#703, C1 #1206)', () => {
     dirs.push(d)
     mkdirSync(join(d, '.claude'), { recursive: true })
     writeUnifiedState(d, { taskId: '#703', phase: phase as never })
+    // #2435: leaving a red-team phase now requires the evidence ship.md promises that phase
+    // records. The handoff gate is about the model-switch crossing, so the fixture supplies it.
+    mkdirSync(join(d, '.arbiter', 'evidence', 'redteam'), { recursive: true })
+    writeFileSync(
+      join(d, '.arbiter', 'evidence', 'redteam', '#703.json'),
+      JSON.stringify({ findings: [] }),
+      'utf-8',
+    )
     return d
   }
 
@@ -139,6 +147,13 @@ describe('task advance: clear+resume banner in HandoffRequiredError (#1209)', ()
     dirs.push(d)
     mkdirSync(join(d, '.claude'), { recursive: true })
     writeUnifiedState(d, { taskId: '#703', phase: phase as never })
+    // #2435: see the sibling fixture above — the red-team evidence gate now precedes handoff.
+    mkdirSync(join(d, '.arbiter', 'evidence', 'redteam'), { recursive: true })
+    writeFileSync(
+      join(d, '.arbiter', 'evidence', 'redteam', '#703.json'),
+      JSON.stringify({ findings: [] }),
+      'utf-8',
+    )
     return d
   }
 

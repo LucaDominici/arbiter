@@ -64,7 +64,7 @@ npx @arbiter/cli configure --set thresholds.lineCoverage=90
 npx @arbiter/cli configure --set features.debtGates=true --set thresholds.cyclomaticComplexity=10
 
 # Change AI tools
-npx @arbiter/cli configure --set tools=claude,cursor
+npx @arbiter/cli configure --set tools=claude,codex
 ```
 
 ## Current Config

@@ -576,17 +576,16 @@ export const VALID_BRANCHING_STRATEGIES: ReadonlySet<string> = new Set([
 /**
  * Canonical AI-tool allow-list — the single source of truth for tool validation.
  * #1594: exported so the v1→v2 migration filter imports it instead of keeping a
- * stale hand-copy that silently strips newer tools (gemini/windsurf/aider).
+ * stale hand-copy that silently strips tools.
+ *
+ * #2367 (ADR-119): narrowed to the two tools arbiter actually emits for. The
+ * five retired experimental targets (cursor/copilot/gemini/windsurf/aider) are
+ * now unknown values — `sanitizeCoercibleFields` filters them out of an older
+ * `arbiter.json` and falls back to `['claude','codex']` (ADR-105 never-brick),
+ * so an existing config is coerced with a report line, never rejected outright.
+ * Must stay identical to `AiTool` and `SUPPORTED_AI_TOOLS` in wizard/types.ts.
  */
-export const AI_TOOLS: ReadonlySet<string> = new Set([
-  'claude',
-  'codex',
-  'cursor',
-  'copilot',
-  'gemini',
-  'windsurf',
-  'aider',
-])
+export const AI_TOOLS: ReadonlySet<string> = new Set(['claude', 'codex'])
 
 /**
  * #1589/#1579: known-value sets for the constrained-union optionals so

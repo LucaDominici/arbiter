@@ -16,6 +16,7 @@ import { jsonOutput } from '../utils/json-output.js'
 import { deriveAxisDefaults } from '../detectors/axis.js'
 import { ArbiterError } from '../utils/errors.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
+import { SUPPORTED_AI_TOOLS } from '../wizard/types.js'
 import type { Archetype } from '../wizard/types.js'
 import { t } from '../i18n/index.js'
 import { ensureDir, readFileTranslated, writeFile } from '../utils/fs.js'
@@ -123,7 +124,11 @@ export function assertOverridablePath(path: string): void {
   }
 }
 
-const VALID_TOOLS = new Set(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
+// #2417 (ADR-095): must agree with `init --tools` (parseTools) — the same
+// customer-facing set, from the same SSOT. configure previously accepted the
+// full experimental set here, contradicting ADR-095's "every other site
+// references it" mandate.
+const VALID_TOOLS = new Set<string>(SUPPORTED_AI_TOOLS)
 
 const VALID_ARCHETYPES = new Set([
   'backend-web-db',
@@ -335,7 +340,7 @@ export function parseValue(path: string, raw: string): unknown {
             tool: `"${tool}"`,
             valid: [...VALID_TOOLS].join(', '),
           },
-          { hint: 'Valid tools: claude, codex, cursor, copilot, gemini, windsurf, aider.' },
+          { hint: `Valid tools: ${[...VALID_TOOLS].join(', ')}.` },
         )
       }
     }

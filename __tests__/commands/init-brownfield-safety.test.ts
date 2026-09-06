@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -9,6 +17,8 @@ import {
   rollbackGeneration,
 } from '../../src/commands/init.js'
 import { UserFacingError } from '../../src/utils/errors.js'
+import type { ProjectConfig } from '../../src/wizard/types.js'
+import { makeConfig } from '../helpers.js'
 
 vi.mock('../../src/utils/run-cli.js', () => ({
   runCli: vi.fn(),
@@ -23,56 +33,60 @@ const mockRunCli = vi.mocked(runCli)
 // ── computeDryRunPreview ──────────────────────────────────────────────────────
 
 describe('computeDryRunPreview (#540)', () => {
-  function makeConfig(overrides: Record<string, unknown> = {}) {
-    return {
-      existing: {
-        agentsMd: false,
-        claudeDir: false,
-        agentsDir: false,
-        aiRulez: false,
-        settingsJson: false,
-        checkAllScript: false,
-        geminiDir: false,
-        windsurfRules: false,
-        aiderConf: false,
-      },
-      tools: ['claude'] as const,
-      useGitHub: false,
-      ...overrides,
-    }
+  // #2434: the preview no longer reads `config.existing` alone — it also runs the
+  // generator registry in dryRun mode against `config.targetDir`, which is how it
+  // learns the ~280 paths a real init writes instead of the 3 the migration plan
+  // knew about. So the fixture has to be REAL: a scratch dir that actually holds
+  // the files `existing` claims, rather than a partial object cast into shape. A
+  // config whose `existing` flags disagree with the disk would make the two halves
+  // of the preview contradict each other, which is a fixture defect, not a finding.
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-preview-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  function previewWith(
+    existing: Partial<ProjectConfig['existing']> = {},
+  ): ReturnType<typeof computeDryRunPreview> {
+    const base = makeConfig(dir)
+    return computeDryRunPreview(makeConfig(dir, { existing: { ...base.existing, ...existing } }))
   }
 
   it('greenfield: all files in created, none in modified or skipped', () => {
-    const preview = computeDryRunPreview(makeConfig() as Parameters<typeof computeDryRunPreview>[0])
+    const preview = previewWith()
     expect(preview.created.length).toBeGreaterThan(0)
     expect(preview.modified).toHaveLength(0)
     expect(preview.skipped).toHaveLength(0)
   })
 
   it('brownfield agentsMd: AGENTS.md appears in modified not created', () => {
-    const preview = computeDryRunPreview(
-      makeConfig({ existing: { ...makeConfig().existing, agentsMd: true } }) as Parameters<
-        typeof computeDryRunPreview
-      >[0],
-    )
+    writeFileSync(join(dir, 'AGENTS.md'), '# pre-existing governance\n')
+    const preview = previewWith({ agentsMd: true })
     expect(preview.modified.some((s) => s.includes('AGENTS.md'))).toBe(true)
     expect(preview.created.some((s) => s.includes('AGENTS.md'))).toBe(false)
   })
 
   it('brownfield claudeDir: hooks entry in skipped', () => {
-    const preview = computeDryRunPreview(
-      makeConfig({ existing: { ...makeConfig().existing, claudeDir: true } }) as Parameters<
-        typeof computeDryRunPreview
-      >[0],
-    )
+    mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
+    const preview = previewWith({ claudeDir: true })
     expect(preview.skipped.some((s) => s.includes('hooks'))).toBe(true)
   })
 
   it('preview object always has all three keys', () => {
-    const preview = computeDryRunPreview(makeConfig() as Parameters<typeof computeDryRunPreview>[0])
+    const preview = previewWith()
     expect(Array.isArray(preview.created)).toBe(true)
     expect(Array.isArray(preview.modified)).toBe(true)
     expect(Array.isArray(preview.skipped)).toBe(true)
+  })
+
+  it('writes nothing to the target dir', () => {
+    previewWith()
+    expect(readdirSync(dir)).toEqual([])
   })
 })
 

@@ -211,37 +211,29 @@ describe('buildMigrationPlan', () => {
     expect(plan.created.some((s) => s.toLowerCase().includes('github'))).toBe(true)
   })
 
-  it('puts .gemini/GEMINI.md in created when gemini selected and no existing .gemini dir', () => {
-    const plan = buildMigrationPlan(makeExisting(), ['gemini'], false)
-    expect(plan.created.some((s) => s.includes('.gemini'))).toBe(true)
+  // #2367 (ADR-119): the retired experimental tools are never emitted, so they
+  // never appear in a migration plan — even when the brownfield detector (which
+  // is deliberately KEPT) has spotted the pre-existing file.
+  it('never plans a retired tool file, even when its brownfield marker is present', () => {
+    const existing = makeExisting({ geminiDir: true, windsurfRules: true, aiderConf: true })
+    const plan = buildMigrationPlan(existing, ['claude', 'codex'], false)
+    const all = [...plan.created, ...plan.replaced, ...plan.merged, ...plan.preserved]
+    for (const marker of [
+      'GEMINI.md',
+      '.gemini',
+      'windsurf',
+      '.aider',
+      '.cursorrules',
+      'copilot',
+    ]) {
+      expect(all.some((s) => s.includes(marker))).toBe(false)
+    }
   })
 
-  it('puts .gemini/GEMINI.md in replaced when geminiDir=true', () => {
-    const existing = makeExisting({ geminiDir: true })
-    const plan = buildMigrationPlan(existing, ['gemini'], false)
-    expect(plan.replaced.some((s) => s.includes('GEMINI.md'))).toBe(true)
-  })
-
-  it('puts windsurf-instructions.md in created when windsurf selected and no existing file', () => {
-    const plan = buildMigrationPlan(makeExisting(), ['windsurf'], false)
-    expect(plan.created.some((s) => s.includes('windsurf'))).toBe(true)
-  })
-
-  it('puts windsurf-instructions.md in replaced when windsurfRules=true', () => {
-    const existing = makeExisting({ windsurfRules: true })
-    const plan = buildMigrationPlan(existing, ['windsurf'], false)
-    expect(plan.replaced.some((s) => s.includes('windsurf'))).toBe(true)
-  })
-
-  it('puts .aider.conf.yml in created when aider selected and no existing file', () => {
-    const plan = buildMigrationPlan(makeExisting(), ['aider'], false)
-    expect(plan.created.some((s) => s.includes('.aider'))).toBe(true)
-  })
-
-  it('puts .aider.conf.yml in replaced when aiderConf=true', () => {
-    const existing = makeExisting({ aiderConf: true })
-    const plan = buildMigrationPlan(existing, ['aider'], false)
-    expect(plan.replaced.some((s) => s.includes('.aider'))).toBe(true)
+  it('still plans the claude and codex trees', () => {
+    const plan = buildMigrationPlan(makeExisting(), ['claude', 'codex'], false)
+    expect(plan.created.some((s) => s.includes('.claude/'))).toBe(true)
+    expect(plan.created.some((s) => s.includes('.agents/'))).toBe(true)
   })
 })
 

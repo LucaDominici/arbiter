@@ -27,6 +27,7 @@ import type { DocSetSkeletonsResult } from './generators/doc-set.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
+import { runPluginAdd, runPluginList } from './commands/plugin.js'
 import {
   runDoctorRepairState,
   runDoctorHealth,
@@ -101,6 +102,26 @@ getRunId()
 
 function printCliError(msg: string): void {
   process.stderr.write(`  Error: ${msg}${formatRunIdFooter()}\n`)
+}
+
+/**
+ * INV-144 / #2480 review: the arc42 engine hardcodes its manifest and ignores unknown argv, so
+ * forwarding --manifest/--doc-profile silently audited the DEFAULT and reported PASS against a
+ * file the operator had named. Merely not forwarding them is invisible — the operator still gets
+ * a verdict about the wrong file. Refuse instead.
+ */
+function refuseUnsupportedArc42Flags(opts: {
+  arc42: boolean
+  manifest?: string
+  docProfile?: string
+}): void {
+  if (!opts.arc42) return
+  if (opts.manifest === undefined && opts.docProfile === undefined) return
+  process.stderr.write(
+    'arbiter doc-set: --manifest/--doc-profile are not supported with --arc42 — the arc42 ' +
+      'engine reads standards/gold-doc-set.yml directly. Re-run without them.\n',
+  )
+  process.exit(2)
 }
 
 /**
@@ -430,7 +451,8 @@ const packageVersion = readPackageVersion()
 program.name('arbiter').description('AI development governance framework').version(packageVersion)
 
 // #1770 (T5), superseded by T2 tier-3 (cathedral cut, 76→≤15 registrations):
-// 14-command public surface (11 original + gate-exec/review/explain promoted).
+// 16-command public surface (11 original + gate-exec/review/explain promoted +
+// plugin, #2416 — ADR-031's CLI subcommand finally shipped).
 // Remaining experimental commands are registered with
 // `{ hidden: true }` — fully functional, omitted from default --help. The built-in
 // help command is replaced by a hidden `help [command] [--all]` so `arbiter help --all`
@@ -734,6 +756,20 @@ program
     false,
   )
   .option(
+    '--only <globs>',
+    'Restrict this run to the managed files matching these globs (comma-separated, ' +
+      'repeatable), matched against manifest keys. Every other managed file is skipped ' +
+      'and keeps its manifest entry. .arbiterignore wins on conflict (#2353).',
+    (value: string, previous: string[]) => [
+      ...previous,
+      ...value
+        .split(',')
+        .map((g) => g.trim())
+        .filter((g) => g.length > 0),
+    ],
+    [] as string[],
+  )
+  .option(
     '--refresh-derived',
     'Force-refresh the codex-track derived file set (.agents/rules/*, .claude/hooks/* ' +
       'when codex-only, .codex/codex-adapter.mjs) even though these are skipIfExists by ' +
@@ -753,6 +789,7 @@ program
       adoptGovernance: boolean
       adoptPlan: boolean
       refreshDerived: boolean
+      only: string[]
     }) => {
       if (_channelFlag !== undefined) {
         const config = loadConfig(opts.dir ?? '.')
@@ -769,6 +806,7 @@ program
         adoptGovernance: opts.adoptGovernance,
         adoptPlan: opts.adoptPlan,
         refreshDerived: opts.refreshDerived,
+        only: opts.only,
       })
     },
   )
@@ -817,8 +855,9 @@ program
 // #2039: the FEATURE lens over `configure`'s FIELD surface. `method status` is pure read;
 // the bare `method` on a TTY opens the cluster lens, whose every write is delegated back to
 // `configure` (there is no second config engine). Same TTY/lazy-import split as `configure`.
-// hidden: the public surface is capped at 15 commands (T2 tier-3 cut, asserted by
-// __tests__/behavioral/help-surface.test.ts), and #2039's own design §0 says "no new public
+// hidden: the public surface was capped at 15 commands under T2 tier-3 (asserted by
+// __tests__/behavioral/help-surface.test.ts, now 16 after #2416 shipped the long-promised
+// `plugin` command — ADR-031), and #2039's own design §0 says "no new public
 // CLI commands". `settings` — the FIELD view over the same paths — is hidden for the same
 // reason, so the FEATURE view over them belongs in the same tier. `arbiter help --all` and
 // the generated CLI reference both still document it.
@@ -930,6 +969,41 @@ program
       process.exit(result.exitCode)
     },
   )
+
+// ── plugin (#2416) — ADR-031 designed `plugin add | remove | list` but only
+// `add`/`list` ship; see docs/internal/ADR/121-plugin-add-ship-minimal.md.
+const plugin = program
+  .command('plugin')
+  .description('Manage third-party arbiter plugins (arbiter.json `plugins[]`)')
+
+plugin
+  .command('add <package>')
+  .description('Resolve, install, validate, and register a plugin (local path or npm package)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--no-install', 'Skip the package-manager install step (local paths never install)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((pkg: string, opts: { dir?: string; install: boolean; json: boolean }) => {
+    runPluginAdd({ dir: opts.dir, pkg, install: opts.install, json: opts.json }).catch(
+      (err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        process.stderr.write(`  Error: ${msg}\n`)
+        process.exit(1)
+      },
+    )
+  })
+
+plugin
+  .command('list')
+  .description('List configured plugins with load status')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; json: boolean }) => {
+    runPluginList({ dir: opts.dir, json: opts.json }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    })
+  })
 
 const worktree = program
   .command('worktree')
@@ -1210,7 +1284,7 @@ review
 
 program
   // Hidden (like settings/upgrade-level, line ~662/1068): fully functional but omitted from the
-  // curated public 14-command --help surface (#1770 T5 / T2 tier-3). The generated governed-repo
+  // curated public 16-command --help surface (#1770 T5 / T2 tier-3 / #2416). The generated governed-repo
   // thin-runner invokes it directly (`npx arbiter doc-set`) — visibility in `--help` is not part
   // of H1's fix, only registration. Discoverable via `arbiter help --all`.
   .command('doc-set [repo]', { hidden: true })
@@ -1257,6 +1331,17 @@ program
     'T4: run the per-doc freshness audit (scripts/check-doc-freshness.mjs) instead of presence',
     false,
   )
+  .option(
+    '--arc42',
+    'INV-144: run the arc42 slot-completeness audit (scripts/check-arc42-slots.mjs) instead of ' +
+      "presence — every slot the tier's arc42 skeleton provides must be present and filled",
+    false,
+  )
+  .option(
+    '--update-baseline',
+    '(with --arc42) re-record the hollow-slot ratchet; refused when a counter rose',
+    false,
+  )
   .action(
     (
       repo: string | undefined,
@@ -1270,8 +1355,11 @@ program
         plan: boolean
         apply: boolean
         freshness: boolean
+        arc42: boolean
+        updateBaseline: boolean
       },
     ) => {
+      refuseUnsupportedArc42Flags(opts)
       if (opts.plan || opts.apply) {
         const result = runDocSetPlanApply({
           ...(repo !== undefined ? { repo } : {}),
@@ -1291,6 +1379,8 @@ program
         generate: opts.generate,
         refreshStubs: opts.refreshStubs,
         freshness: opts.freshness,
+        arc42: opts.arc42,
+        updateBaseline: opts.updateBaseline,
         ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
         ...(opts.docProfile !== undefined ? { profile: opts.docProfile } : {}),
       })

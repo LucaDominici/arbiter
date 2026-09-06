@@ -4,9 +4,11 @@
 // CATALOG: (enforcement theater): (a) bypass-rate ceiling — a gate bypassed more than N
 // CATALOG: times/month via .arbiter/evidence/bypass-log.jsonl is flagged for demotion or
 // CATALOG: deletion; (b) advisory-permanent — every runWarnCheck(...) call site in
-// CATALOG: scripts/check-all.mjs must have a scripts/data/advisory-ledger.json entry with a
-// CATALOG: future promoteBy or permanent:true + rationale (the dated-debt discipline of
-// CATALOG: suppressions expiry, INV-31, applied to the gate roster itself).
+// CATALOG: scripts/check-all.mjs AND every class:'gh-audit' guard in
+// CATALOG: scripts/lib/anti-fake-green-guards.mjs (whose exit 1 is advisory unless the
+// CATALOG: aggregate runs --enforce, #2419) must have a scripts/data/advisory-ledger.json
+// CATALOG: entry with a future promoteBy or permanent:true + rationale (the dated-debt
+// CATALOG: discipline of suppressions expiry, INV-31, applied to the gate roster itself).
 // CATALOG: Rejected fold-in into check-suppressions.mjs: that lints suppression *comments*
 // CATALOG: with a different required-field shape (owner/scope), not the gate roster; rejected
 // CATALOG: fold-in into check-audit-dry-pass.mjs: shares the JSONL-ledger shape but a wholly
@@ -33,6 +35,7 @@ const JSON_OUT = argv.includes('--json')
 const BYPASS_LOG_PATH = join(ROOT, '.arbiter', 'evidence', 'bypass-log.jsonl')
 const THRESHOLDS_PATH = join(ROOT, 'scripts', 'data', 'ceremony-thresholds.json')
 const CHECK_ALL_PATH = join(ROOT, 'scripts', 'check-all.mjs')
+const GUARD_ROSTER_PATH = join(ROOT, 'scripts', 'lib', 'anti-fake-green-guards.mjs')
 const LEDGER_PATH = join(ROOT, 'scripts', 'data', 'advisory-ledger.json')
 const ARBITER_CONFIG_PATH = join(ROOT, 'arbiter.json')
 
@@ -166,6 +169,28 @@ function extractWarnCheckSites(body) {
 }
 
 /**
+ * #2419 AC-3 — the SECOND population of advisory gates. `scripts/check-anti-fake-green.mjs` runs
+ * HARD, but a `class: 'gh-audit'` member's exit 1 is ADVISORY (only `--enforce` makes the aggregate
+ * fail on it), so those guards are advisory-forever in exactly the way runWarnCheck sites are —
+ * and invisible to a detector that reads only check-all call sites. Scanned from the roster SOURCE
+ * (the same regex approach as extractWarnCheckSites), never imported: this gate stays pure (INV-12)
+ * and a synthetic --root without a roster stays a vacuous pass.
+ * @param {string} body
+ * @returns {string[]}
+ */
+function extractGhAuditGuards(body) {
+  /** @type {string[]} */
+  const names = []
+  // Roster entries are flat object literals (no nesting), so `[^{}]*` bounds one entry exactly.
+  for (const m of body.matchAll(/\{[^{}]*\}/g)) {
+    if (!/class:\s*['"]gh-audit['"]/.test(m[0])) continue
+    const name = /name:\s*['"]([^'"]+)['"]/.exec(m[0])
+    if (name !== null) names.push(name[1])
+  }
+  return names
+}
+
+/**
  * Load the advisory ledger entries as a Map keyed by `check` name. A missing or malformed
  * ledger degrades to an empty map — fail-closed: every site is then reported "missing"
  * rather than silently skipped.
@@ -184,15 +209,16 @@ function loadLedgerByName() {
 }
 
 /**
- * Validate one runWarnCheck site's ledger entry. Returns a violation message, or null when
- * the entry satisfies the dated-debt discipline (future promoteBy, or permanent + rationale).
+ * Validate one advisory site's ledger entry. Returns a violation message, or null when the entry
+ * satisfies the dated-debt discipline (future promoteBy, or permanent + rationale). `source` names
+ * where the site was found so the failure points at the right file to edit (#2419).
  * @param {string} name
  * @param {Record<string, unknown> | undefined} entry
+ * @param {string} [source]
  * @returns {string | null}
  */
-function validateLedgerEntry(name, entry) {
-  if (!entry)
-    return `"${name}": runWarnCheck site has no scripts/data/advisory-ledger.json entry (missing)`
+function validateLedgerEntry(name, entry, source = 'runWarnCheck site') {
+  if (!entry) return `"${name}": ${source} has no scripts/data/advisory-ledger.json entry (missing)`
   if (entry.permanent === true) {
     const hasRationale = typeof entry.rationale === 'string' && entry.rationale.trim() !== ''
     return hasRationale ? null : `"${name}": permanent:true entry has no rationale`
@@ -209,17 +235,34 @@ function validateLedgerEntry(name, entry) {
 }
 
 /**
- * Detector (b): every runWarnCheck('name', ...) call site in check-all.mjs must have a
- * scripts/data/advisory-ledger.json entry with a future promoteBy or permanent:true +
- * rationale. Returns { sites, violations }.
+ * Detector (b): every ADVISORY gate must have a scripts/data/advisory-ledger.json entry with a
+ * future promoteBy or permanent:true + rationale. Two sources, one predicate:
+ *   - every runWarnCheck('name', ...) call site in check-all.mjs;
+ *   - every `class: 'gh-audit'` guard in scripts/lib/anti-fake-green-guards.mjs (#2419 AC-3).
+ * Each source vacuous-passes when its file is absent. Returns { sites, violations }.
  * @returns {{ sites: string[], violations: string[] }}
  */
 function checkAdvisoryPermanent() {
-  if (!existsSync(CHECK_ALL_PATH)) return { sites: [], violations: [] }
-  const sites = extractWarnCheckSites(readFileSync(CHECK_ALL_PATH, 'utf-8'))
+  /** @type {{ name: string, source: string }[]} */
+  const found = [
+    ...(existsSync(CHECK_ALL_PATH)
+      ? extractWarnCheckSites(readFileSync(CHECK_ALL_PATH, 'utf-8')).map((name) => ({
+          name,
+          source: 'runWarnCheck site',
+        }))
+      : []),
+    ...(existsSync(GUARD_ROSTER_PATH)
+      ? extractGhAuditGuards(readFileSync(GUARD_ROSTER_PATH, 'utf-8')).map((name) => ({
+          name,
+          source: "class:'gh-audit' guard in scripts/lib/anti-fake-green-guards.mjs",
+        }))
+      : []),
+  ]
+  const sites = found.map((f) => f.name)
+  if (found.length === 0) return { sites, violations: [] }
   const byName = loadLedgerByName()
-  const violations = sites
-    .map((name) => validateLedgerEntry(name, byName.get(name)))
+  const violations = found
+    .map(({ name, source }) => validateLedgerEntry(name, byName.get(name), source))
     .filter((v) => v !== null)
   return { sites, violations }
 }

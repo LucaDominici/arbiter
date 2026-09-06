@@ -64,6 +64,17 @@ Attempts are remembered per task in `.arbiter/ship/<task-id>/attempts.json`
 These are floor invariants at every autonomy level (ADR-093): the 2nd strike always
 escalates, and the engine always emits the reproduce-before-push step on the first red.
 
+**Reproduce-before-push presumes a local twin (#2435).** The step is only performable when
+the red CI job has something to run locally, so every job the required `ci-required` check
+depends on must resolve to a Makefile target of the same name, an explicit local command, or
+an explicit CI-only exemption. Those declarations live in exactly one place —
+`CI_ONLY_REQUIRED_JOBS` and `REQUIRED_JOB_LOCAL_TWIN` in `scripts/check-local-ci-parity.mjs`,
+each CI-only entry carrying the reason no local twin can exist — and
+`checkRequiredJobLocalTwins` fails the gate when a required job resolves to none of them. A
+job named there as CI-only (the GitHub dependency-review API, the hosted Sonar analysis, the
+PR-diff classifiers) is exempt from this floor: on its red, escalate rather than attempt a
+reproduction that does not exist.
+
 ## attempts.json schema (`ShipAttemptsV1`)
 
 ```json

@@ -11,6 +11,7 @@ import { existsSync } from 'node:fs'
 import { loadConfig } from '../utils/config.js'
 import { slugifyProjectName } from './init.js'
 import { buildAdoptPredicate } from './update.js'
+import { buildSelectionPredicate, loadIgnorePatterns } from '../config/arbiter-ignore.js'
 import { resolveProjectName } from '../config/resolve-project-name.js'
 import { resolveProjectConfig, gitHubPermitted } from '../config/resolve-project-config.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
@@ -159,7 +160,7 @@ export function checkGovernanceSections(
   return results
 }
 
-type DiffStatus = 'new' | 'changed' | 'unchanged' | 'withheld'
+type DiffStatus = 'new' | 'changed' | 'unchanged' | 'withheld' | 'ignored'
 
 interface DiffFile {
   key: string
@@ -210,8 +211,15 @@ function buildDiffFiles(results: WriteResult[], targetDir: string): DiffFile[] {
     // changed. `withheld && adopted` means "diverged and re-adopted" (see
     // WriteResult.adopted), and reporting that as a preserved fix told the
     // operator the opposite of what the next `update` does.
+    // #2353: an ignored file is neither withheld (nothing was preserved against
+    // the template) nor unchanged (it may not exist at all) — `update` will simply
+    // never touch it. Its own status, so the operator sees the opt-out at work.
     const status: DiffStatus =
-      r.withheld === true && r.adopted !== true ? 'withheld' : actionToStatus(r.action)
+      r.excluded === 'ignored'
+        ? 'ignored'
+        : r.withheld === true && r.adopted !== true
+          ? 'withheld'
+          : actionToStatus(r.action)
     return {
       key: rel,
       status,
@@ -228,6 +236,8 @@ function printFileLine(f: DiffFile): void {
     process.stdout.write(`${t('cli.diff.changed_file', { key: f.key })}\n`)
   } else if (f.status === 'withheld') {
     process.stdout.write(`${t('cli.diff.withheld_file', { key: f.key })}\n`)
+  } else if (f.status === 'ignored') {
+    process.stdout.write(`${t('cli.diff.ignored_file', { key: f.key })}\n`)
   } else {
     process.stdout.write(`${t('cli.diff.unchanged_file', { key: f.key })}\n`)
   }
@@ -356,6 +366,10 @@ export function runDiff(options: DiffOptions): void {
     prevHashes: prevManifest,
     onWithheld: () => {},
     adoptPredicate: buildAdoptPredicate({}),
+    // #2353: `diff` reads the SAME `.arbiterignore` `update` obeys — a preview that
+    // reported a file the next update will never touch would be a lie. `--only` has
+    // no analogue here: it scopes one WRITE run, and diff writes nothing.
+    selectPredicate: buildSelectionPredicate({ patterns: loadIgnorePatterns(targetDir), only: [] }),
   })
   let results: WriteResult[]
   try {
@@ -377,7 +391,11 @@ export function runDiff(options: DiffOptions): void {
   // run-update hint + exit code). A withheld fix is explicitly NOT written — it is
   // preserved — so it does not count here (and update→diff stays idempotent: F7).
   // Withheld drift is surfaced separately via the dedicated section + withheldCount.
-  const hasChanges = allFiles.some((f) => f.status !== 'unchanged' && f.status !== 'withheld')
+  // #2353: an ignored file is likewise not a pending write — counting it would pin
+  // diff's exit code at 1 for as long as the `.arbiterignore` entry stands.
+  const hasChanges = allFiles.some(
+    (f) => f.status !== 'unchanged' && f.status !== 'withheld' && f.status !== 'ignored',
+  )
 
   if (options.json) {
     // Pending writes OR withheld drift → `warning` (exit 1) so CI can flag both;

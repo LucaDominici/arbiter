@@ -21,8 +21,10 @@ export function generateRoot(
     strictnessTier: config.strictnessTier ?? 'practical',
   }
 
-  // CODEOWNERS — create if missing
-  if (config.githubOwner) {
+  // CODEOWNERS — create if missing. The ONLY GitHub-bound file this generator
+  // writes, so it carries the `permitGitHub` predicate that used to gate the whole
+  // generator (#2434). Everything below is plain repo hygiene and always ships.
+  if (config.githubOwner && (config.permitGitHub ?? config.useGitHub)) {
     results.push(
       writeFile(
         resolvedPath(base, '.github', 'CODEOWNERS'),

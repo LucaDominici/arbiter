@@ -186,6 +186,17 @@ export interface WriteResult {
    * template and must keep landing silently.
    */
   restored?: boolean
+  /**
+   * #2353: this path was NOT written because the run's selection policy declined
+   * it — `'ignored'` when the repo's `.arbiterignore` matched, `'deselected'` when
+   * it fell outside `update --only`. The action stays `'skipped'` (no write, no
+   * side-effect gate affected) and `withheld` stays unset: nothing was preserved
+   * against the template's wishes, the consumer simply does not accept this file.
+   *
+   * The caller keeps the manifest entry for an excluded key, so removing the
+   * pattern re-adopts the file on the next run.
+   */
+  excluded?: 'ignored' | 'deselected'
 }
 
 export type GeneratorRunOpts = { dryRun: boolean }
@@ -226,6 +237,15 @@ interface GenerationSession {
    */
   adoptPredicate?: (key: string, provenanceKnown: boolean) => boolean
   /**
+   * #2353: the consumer's per-file opt-out (`.arbiterignore` / `update --only`).
+   * Consulted BEFORE every other branch, so a declined file is never read,
+   * compared, adopted, restored or written. Domain-agnostic like `adoptPredicate`:
+   * the caller (`update`/`diff`) supplies the policy; `fs.ts` only obeys it.
+   * Absent ⇒ every file is emitted, which is the pre-#2353 behaviour, and `init`
+   * deliberately never passes one.
+   */
+  selectPredicate?: (key: string) => 'emit' | 'ignored' | 'deselected'
+  /**
    * T1: invoked AFTER a force-adopt actually lands on disk, with the prior
    * (user-modified) content and the newly-written (shipped) content. The
    * caller uses this to persist an explicit, reversible local-override record
@@ -254,6 +274,7 @@ export function beginGenerationSession(opts: {
   prevHashes: Record<string, string>
   onWithheld?: (key: string) => void
   adoptPredicate?: (key: string, provenanceKnown: boolean) => boolean
+  selectPredicate?: (key: string) => 'emit' | 'ignored' | 'deselected'
   onAdopt?: (key: string, priorContent: string, newContent: string) => void
 }): void {
   if (generationSession !== null) {
@@ -270,6 +291,7 @@ export function beginGenerationSession(opts: {
     newHashes: new Map(),
     ...(opts.onWithheld ? { onWithheld: opts.onWithheld } : {}),
     ...(opts.adoptPredicate ? { adoptPredicate: opts.adoptPredicate } : {}),
+    ...(opts.selectPredicate ? { selectPredicate: opts.selectPredicate } : {}),
     ...(opts.onAdopt ? { onAdopt: opts.onAdopt } : {}),
   }
 }
@@ -322,6 +344,33 @@ interface ResolvedWrite {
   adopted: boolean
   /** #2295: absent from disk, but a manifest baseline exists → re-emitted, not new. */
   restored?: boolean
+  /** #2353: declined by the run's selection policy (`.arbiterignore` / `--only`). */
+  excluded?: 'ignored' | 'deselected'
+}
+
+/**
+ * #2353: the consumer's opt-out, ahead of EVERY other branch of
+ * {@link resolveWriteAction} — including the absent-file/restore branch, which is
+ * exactly the one a consumer is declining when it deletes a generated file and
+ * lists it in `.arbiterignore`. Returns null when nothing declines this path.
+ *
+ * `baselineMatches` is false (the bytes did not land, so no new render hash may be
+ * recorded) and `withheld` is false (nothing was preserved against the template —
+ * the file was never a candidate this run).
+ */
+function resolveExclusion(session: GenerationSession, filePath: string): ResolvedWrite | null {
+  if (!session.selectPredicate) return null
+  const key = manifestKey(session.targetDir, filePath)
+  if (key === null) return null
+  const verdict = session.selectPredicate(key)
+  if (verdict === 'emit') return null
+  return {
+    action: 'skipped',
+    baselineMatches: false,
+    withheld: false,
+    adopted: false,
+    excluded: verdict,
+  }
 }
 
 /**
@@ -426,6 +475,13 @@ function resolveWriteAction(
   skipIfExists: boolean,
   backup: boolean,
 ): ResolvedWrite {
+  const session = generationSession
+  // #2353: the opt-out precedes everything, the preserve marker and the restore
+  // branch included — a declined path is not inspected at all.
+  if (session) {
+    const excluded = resolveExclusion(session, filePath)
+    if (excluded) return excluded
+  }
   if (!existsSync(filePath))
     return {
       action: 'created',
@@ -451,7 +507,6 @@ function resolveWriteAction(
   // skipIfExists/backup/adopt. A generation session (when active) still gets
   // the same withheld-reporting/visibility treatment as any other withheld fix.
   if (hasPreserveMarker(disk)) {
-    const session = generationSession
     if (session) {
       const key = manifestKey(session.targetDir, filePath)
       ;(session.onWithheld ?? defaultWithheldWarn)(key ?? filePath)
@@ -465,7 +520,6 @@ function resolveWriteAction(
   // the session ahead of the branch reuses the machinery already built for the
   // divergent case: withheld reporting, the plan section, `--adopt`, and the
   // reversible local-override record.
-  const session = generationSession
   if (session && disk !== null)
     return resolveSessionSkip(session, filePath, content, disk, { backup, skipIfExists })
   if (skipIfExists)
@@ -522,7 +576,7 @@ export function writeFile(
   opts: { skipIfExists?: boolean; backup?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
   const { skipIfExists = false, backup = false, dryRun = false } = opts
-  const { action, baselineMatches, withheld, adopted, restored } = resolveWriteAction(
+  const { action, baselineMatches, withheld, adopted, restored, excluded } = resolveWriteAction(
     filePath,
     content,
     skipIfExists,
@@ -546,6 +600,10 @@ export function writeFile(
   // is true for it, dryRun permitting), so a force-adopt re-baselines the manifest to
   // the newly-adopted content — the next update sees it as pristine again.
   if (!dryRun && baselineMatches) recordGeneratedHash(filePath, content)
+  // #2353: an excluded path is reported as its own outcome — never as a withheld
+  // fix (nothing was preserved) and never as a plain "unchanged" skip (the file may
+  // not even exist). The caller retains its manifest entry off this flag.
+  if (excluded !== undefined) return { path: filePath, action, excluded }
   if (withheld && adopted) return { path: filePath, action, withheld: true, adopted: true }
   // #2295: only ever set alongside `created` (the absent-file branch), so it never
   // collides with the withheld/adopted shapes above.

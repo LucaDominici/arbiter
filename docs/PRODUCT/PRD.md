@@ -95,13 +95,14 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 - `arbiter diff`: preview what would change without writing
 - `arbiter.json`: persisted config (skip wizard on subsequent runs)
 
-### Phase 4 — Extended Tool Support (shipped in v0.1)
+### Phase 4 — Extended Tool Support (shipped in v0.1, **retired in 0.6.0**)
 
-- Cursor support: `.cursorrules` generation
-- Copilot support: `copilot-instructions.md` generation
-- Gemini CLI support: `<project>/.gemini/GEMINI.md` generation
-- Windsurf support: `windsurf-instructions.md` generation
-- Aider support: `.aider.conf.yml` generation
+Cursor, Copilot, Gemini CLI, Windsurf and Aider config generation shipped here, was
+demoted to experimental by ADR-095, and was **retired** by ADR-119 (#2367) — the
+generators were never validated against the live tools and `--tools` rejected them, so
+they were deleted rather than carried indefinitely. `--tools` accepts `claude` and
+`codex` only.
+
 - ai-rulez detection: if `.ai-rulez/` exists, skip tool configs; generate only AGENTS.md + GitHub infra
 
 ### Phase 5 — Comprehensive Tests and Documentation (M5-M7)
@@ -160,7 +161,7 @@ Milestone status is reconciled in [`docs/internal/PRODUCT/MILESTONES.md`](../int
 Milestone status is reconciled in [`docs/internal/PRODUCT/MILESTONES.md`](../internal/PRODUCT/MILESTONES.md); all Phase 11 milestone issues are closed.
 
 - Configuration skill (`/arbiter configure`): post-init feature toggle, threshold override, arbiter.json v2 (M31)
-- Extended AI tool support: Gemini CLI, Windsurf, Aider generators + brownfield detection (M32)
+- Extended AI tool support: Gemini CLI, Windsurf, Aider generators + brownfield detection (M32) — the generators were retired in 0.6.0 (ADR-119); the brownfield **detection** is kept
 - Plugin API v1 (M32, shipped — see `docs/PLUGIN-API.md`): `ArbiterPlugin` interface; plugins are `npm install`-ed by the user and loaded automatically by `arbiter init`/`update` (no dedicated CLI subcommand); organizations ship framework generators without forking arbiter
 - CLI-first policy: consolidate `spawnSync` sites into `src/utils/run-cli.ts`, enforce as architectural invariant (M33)
 

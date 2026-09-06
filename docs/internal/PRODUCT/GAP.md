@@ -84,26 +84,27 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-44:** SpotBugs security-category bugs MUST NEVER be  | AGENTS.md:155                     | medium   |
 | - **INV-28:** SSOT documents must not contradict — run drift | AGENTS.md:166                     | medium   |
 | - **INV-48:** EJS template render-test coverage must not reg | AGENTS.md:177                     | medium   |
-| - **INV-85:** No kit source leakage — committed kit files mu | AGENTS.md:228                     | medium   |
-| - The nightly CI stamp artifact (`.arbiter/nightly/last-run. | AGENTS.md:264                     | medium   |
-| - Every gate, hook, check, and generator emitted by arbiter  | AGENTS.md:276                     | medium   |
-| - **INV-117:** arbiter self-repo must not track binary build | AGENTS.md:335                     | medium   |
-| - **INV-120:** Workflow needs-chain depth must not exceed th | AGENTS.md:341                     | medium   |
-| - **INV-121:** Stack conformity — the repo-root manifest mus | AGENTS.md:343                     | medium   |
-| - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:370                     | medium   |
-| - **INV-139:** Fixture and smoke output must never land in r | AGENTS.md:396                     | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:408                     | medium   |
-| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:412                     | medium   |
-| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:416                     | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:537                     | medium   |
+| - **INV-85:** No kit source leakage — committed kit files mu | AGENTS.md:229                     | medium   |
+| - The nightly CI stamp artifact (`.arbiter/nightly/last-run. | AGENTS.md:265                     | medium   |
+| - Every gate, hook, check, and generator emitted by arbiter  | AGENTS.md:277                     | medium   |
+| - **INV-117:** arbiter self-repo must not track binary build | AGENTS.md:336                     | medium   |
+| - **INV-120:** Workflow needs-chain depth must not exceed th | AGENTS.md:342                     | medium   |
+| - **INV-121:** Stack conformity — the repo-root manifest mus | AGENTS.md:344                     | medium   |
+| - **INV-130:** E2E flaky-test quarantine annotates but never | AGENTS.md:371                     | medium   |
+| - **INV-139:** Fixture and smoke output must never land in r | AGENTS.md:397                     | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend] | AGENTS.md:439                     | medium   |
+| - In FE projects, domain and store files MUST NOT import or  | AGENTS.md:443                     | medium   |
+| - In FE projects, state store files MUST NOT contain async f | AGENTS.md:447                     | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update` — Tighte | AGENTS.md:568                     | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must | docs/internal/SYSTEM/CANON.md:252 | medium   |
 | **Rule:** A code-quality rule may be promoted to a **HARD GA | docs/internal/SYSTEM/CANON.md:314 | medium   |
 | **Tier-2 (advisory only — do NOT hard-gate alone):**         | docs/internal/SYSTEM/CANON.md:326 | medium   |
 | - **DRY-as-dogma** — duplication _count_ gates, but "never r | docs/internal/SYSTEM/CANON.md:329 | medium   |
-| - Skip the gate before committing                            | .claude/CLAUDE.md:97              | medium   |
-| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:100             | medium   |
-| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:112             | medium   |
-| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:116             | medium   |
+| **Rule:** A high-stakes change is not closed on one pass of  | docs/internal/SYSTEM/CANON.md:356 | medium   |
+| - Skip the gate before committing                            | .claude/CLAUDE.md:98              | medium   |
+| - Leave orphan TODOs without task IDs                        | .claude/CLAUDE.md:101             | medium   |
+| A failure is never dismissed because "it was already broken" | .claude/CLAUDE.md:113             | medium   |
+| explanation of origin, never a reason to leave it broken. Wh | .claude/CLAUDE.md:117             | medium   |
 
 ## Known Debt
 
