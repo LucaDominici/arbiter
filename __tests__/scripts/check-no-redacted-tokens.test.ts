@@ -190,7 +190,7 @@ function makeGitCwdTree(files: Record<string, string>): { dir: string; cleanup: 
 }
 
 describe('ARBITER_HOOK_GIT_CWD wiring — reads resolve against the SAME tree used to list files (#2514)', () => {
-  it('fails on a redacted token committed in the ARBITER_HOOK_GIT_CWD tree, not a clean file the script\'s own root happens to have at that path', () => {
+  it("fails on a redacted token committed in the ARBITER_HOOK_GIT_CWD tree, not a clean file the script's own root happens to have at that path", () => {
     const h = makeHarness()
     try {
       // The script's own resolved root has a CLEAN file at this exact relative path. If the
@@ -216,7 +216,7 @@ describe('ARBITER_HOOK_GIT_CWD wiring — reads resolve against the SAME tree us
     }
   })
 
-  it('passes when the ARBITER_HOOK_GIT_CWD tree is clean, even though the same path is a violation under the script\'s own root', () => {
+  it("passes when the ARBITER_HOOK_GIT_CWD tree is clean, even though the same path is a violation under the script's own root", () => {
     const h = makeHarness()
     try {
       // The script's own resolved root has a VIOLATION at this path. A clean verdict here can
