@@ -268,7 +268,7 @@
     "scripts/check-test-naming.mjs": "0cd7fadf44c9060f46892cc752258995a64eed071df389dfe43db7cc8c42516b",
     "scripts/check-test-pyramid.mjs": "132eb6a858324b67e84a8729eb65175f8fbcaadfa35656ea0b96b218a9f733ec",
     "scripts/check-test-scope-tier.mjs": "593b9beaec9929ef2862b57c67987cd481efd660caa1b4b15cafab959ccefdef",
-    "scripts/check-todo-max-age.mjs": "925a903f83c0966ae42899a95211e5c573d3f3ee4e3aa9a3f1579a37ae38dac1",
+    "scripts/check-todo-max-age.mjs": "013ee9d24e4470219ec7a543b3cc9736c3e444c76c0e4575c2c95551e8219872",
     "scripts/check-touched-vs-manifest.mjs": "e92e288c27320903b046e4d6fb69b15dea0e0c169b249db7b2ad4befb12aa1ca",
     "scripts/check-unwired-guards.mjs": "4547503d3076d49c6eeaeab0f8f53d9847a3d5d4a3fe0629dd59bb74b6ebeb68",
     "scripts/check-validator-helptext.mjs": "dceed6280cc04665d77dc1feb9e9ec58176e8359be092cc06fc1cd0a078ccfc2",

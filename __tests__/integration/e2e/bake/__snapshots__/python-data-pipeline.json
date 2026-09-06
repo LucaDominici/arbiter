@@ -352,7 +352,7 @@
     "scripts/check-test-naming.mjs": "7cab821427fd012705b5c61d60f9dcaf10bcba39f5a119982476efc4a81f3eab",
     "scripts/check-test-pyramid.mjs": "132eb6a858324b67e84a8729eb65175f8fbcaadfa35656ea0b96b218a9f733ec",
     "scripts/check-test-scope-tier.mjs": "593b9beaec9929ef2862b57c67987cd481efd660caa1b4b15cafab959ccefdef",
-    "scripts/check-todo-max-age.mjs": "925a903f83c0966ae42899a95211e5c573d3f3ee4e3aa9a3f1579a37ae38dac1",
+    "scripts/check-todo-max-age.mjs": "013ee9d24e4470219ec7a543b3cc9736c3e444c76c0e4575c2c95551e8219872",
     "scripts/check-touched-vs-manifest.mjs": "e92e288c27320903b046e4d6fb69b15dea0e0c169b249db7b2ad4befb12aa1ca",
     "scripts/check-unwired-guards.mjs": "c22f99e393310140f1b47e139095e1d2171dc50c59204472563a9a80e3e06918",
     "scripts/check-validator-helptext.mjs": "5d07499cf0bf9a7bb884779fee7955639354207d5142c1cb27bb80a75c025cc9",
