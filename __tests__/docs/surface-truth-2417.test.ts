@@ -54,17 +54,31 @@ describe('website/reference/cli.md — hidden commands labelled hidden (#2417 AC
   })
 })
 
-describe('scripts/canon01-self-only.json — check-acceptance entry does not contradict itself (#2417)', () => {
+describe('scripts/canon01-self-only.json — no entry contradicts itself (#2417)', () => {
+  // #2417 caught ONE entry (check-acceptance.mjs) claiming in the same breath that no issue
+  // tracked its follow-up and that an issue tracked it. #2405 removed that entry outright by
+  // emitting the gate (ADR-110's follow-up is closed), so the original single-entry assertion
+  // has no subject left. The guard is kept and WIDENED to the whole registry rather than
+  // deleted: the contradiction class is a property of any reason text, not of one path.
   it('does not simultaneously claim "no issue tracks" the follow-up and cite one that does', () => {
-    const doc = JSON.parse(readFileSync(resolve('scripts/canon01-self-only.json'), 'utf-8'))
-    const entry = doc.selfOnly.find(
-      (e: { path: string }) => e.path === 'scripts/check-acceptance.mjs',
-    )
-    expect(entry).toBeDefined()
-    const reason: string = entry.reason
-    const claimsUntracked = /no (?:open )?issue (?:currently )?tracks/i.test(reason)
-    const citesTrackingIssue = /tracked by/i.test(reason)
-    expect(claimsUntracked && citesTrackingIssue).toBe(false)
+    const doc = JSON.parse(readFileSync(resolve('scripts/canon01-self-only.json'), 'utf-8')) as {
+      selfOnly: Array<{ path: string; reason: string }>
+    }
+    const contradictory = doc.selfOnly
+      .filter(
+        (e) =>
+          /no (?:open )?issue (?:currently )?tracks/i.test(e.reason) &&
+          /tracked by/i.test(e.reason),
+      )
+      .map((e) => e.path)
+    expect(contradictory).toEqual([])
+  })
+
+  it('no longer carries a check-acceptance.mjs entry — the ADR-110 gate is emitted (#2405)', () => {
+    const doc = JSON.parse(readFileSync(resolve('scripts/canon01-self-only.json'), 'utf-8')) as {
+      selfOnly: Array<{ path: string }>
+    }
+    expect(doc.selfOnly.map((e) => e.path)).not.toContain('scripts/check-acceptance.mjs')
   })
 })
 
