@@ -914,18 +914,25 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
   // The sibling hole: a baseline PRESENT but recording no floor. readBaselineBounds fell
   // back to 0 / +Infinity, so `regressed` could never be set and the gate passed in
   // SILENCE — no marker at all, the shape that reads as healthy in review.
-  it('31b. a baseline with no covered/unenforceable floor FAILS and names the missing metric', () => {
+  // The baseline here is VALIDLY SIGNED on purpose. An unsigned one is refused earlier, by
+  // #2520's integrity gate (exit 2, untrusted), so writing the file by hand would prove only
+  // that — never that the floorless refusal works. The case that matters is a baseline which
+  // passes the integrity check and still guards nothing.
+  //
+  // Scoped to `unenforceable`: #2520 retired the `covered` floor (`direction: 'informational'`,
+  // read by nothing), so a missing `covered` entry is no longer a disarm and demanding one
+  // would be demanding a floor the tool does not enforce. See #2593.
+  it('31b. a signed baseline with no unenforceable floor FAILS and names the missing metric', () => {
     const { dir, cleanup } = fixture()
     try {
       const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
       const src = writeSrc(dir, {})
       const map = writeMap(dir, {})
-      const empty = join(dir, 'empty-metrics.json')
-      writeFileSync(empty, JSON.stringify({ version: 1, metrics: {} }))
+      const empty = writeBaseline(dir, {})
       const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${empty}`])
       expect(r.status).toBe(1)
       expect(r.stdout).toContain('[RATCHET-MISSING]')
-      expect(r.stdout).toContain('covered')
+      expect(r.stdout).toContain('unenforceable')
     } finally {
       cleanup()
     }
