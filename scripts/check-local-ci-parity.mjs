@@ -58,7 +58,14 @@ function readWorkflowJobNames(root) {
   let wfFiles
   try {
     wfFiles = readdirSync(wfDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
-  } catch {
+  } catch (err) {
+    // #2418: an existing-but-unreadable workflow dir degraded to the SAME neutral null as
+    // "no workflows here", so the job-name parity comparison vanished without a word. The
+    // result is still neutral, but the reason is now in the output.
+    process.stderr.write(
+      `check-local-ci-parity: WARN — ${wfDir} exists but cannot be listed (${err?.message ?? err}); ` +
+        `workflow job-name parity is NOT being compared\n`,
+    )
     return null
   }
   if (wfFiles.length === 0) return null
@@ -266,14 +273,27 @@ function ciRequiredNeedsIn(lines) {
  * The job ids `ci-required` lists under `needs:`, across every workflow file.
  * Returns null (neutral — caller should skip) when no `ci-required` job is declared.
  */
+// Distinct from null on purpose (INV-96, #2418): null means "no `ci-required` job is
+// declared", which is a legitimate skip; this means "could not look". Collapsing the two
+// into null let an unreadable workflows directory report the same neutral result as a
+// repository that genuinely declares no required job — uncertainty must BLOCK, never SKIP.
+const NEEDS_UNREADABLE = Symbol('ci-required-needs-unreadable')
+
 function readCiRequiredNeeds(root) {
   const wfDir = join(root, '.github', 'workflows')
   if (!existsSync(wfDir)) return null
   let wfFiles
   try {
     wfFiles = readdirSync(wfDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
-  } catch {
-    return null
+  } catch (err) {
+    // ENOENT: the directory existed a moment ago and is gone now — same benign case the
+    // existsSync above covers. Anything else is a real IO failure and is surfaced, matching
+    // how this file already handles the identical readdirSync at the static-parity check.
+    if (err.code === 'ENOENT') return null
+    process.stderr.write(
+      `check-local-ci-parity: ERROR — cannot read .github/workflows: ${err.message}\n`,
+    )
+    return NEEDS_UNREADABLE
   }
   for (const wfFile of wfFiles) {
     const needs = ciRequiredNeedsIn(readFileSync(join(wfDir, wfFile), 'utf-8').split('\n'))
@@ -284,6 +304,7 @@ function readCiRequiredNeeds(root) {
 
 function checkRequiredJobLocalTwins(root) {
   const needs = readCiRequiredNeeds(root)
+  if (needs === NEEDS_UNREADABLE) return 2
   if (needs === null) {
     process.stdout.write(
       '[skip] ci-required twins: no `ci-required` job declared — skipping local-twin check\n',
@@ -673,7 +694,13 @@ const runsOut = spawnSync(
 let runs
 try {
   runs = JSON.parse(runsOut.stdout ?? '[]')
-} catch {
+} catch (err) {
+  // #2418: unparseable `gh run list` output used to collapse into an empty list, so a
+  // broken/unauthenticated gh looked exactly like "no CI run yet". Both still end in a
+  // neutral SKIP, but only one of them is a fact about the branch.
+  process.stderr.write(
+    `check-local-ci-parity: gh run list returned unparseable JSON (${err?.message ?? err})\n`,
+  )
   runs = []
 }
 if (runsOut.status !== 0 || !Array.isArray(runs) || runs.length === 0) {
@@ -704,12 +731,23 @@ if (localHeadOut.status === 0 && localHeadSha && ciHeadSha && ciHeadSha !== loca
 // Download artifact to a temp dir; clean up regardless of outcome
 const tmpDir = mkdtempSync(join(tmpdir(), 'arbiter-parity-'))
 
-function cleanupAndSkip(reason) {
+/**
+ * Best-effort removal of the downloaded-artifact tmpdir. #2418: this was open-coded three
+ * times with a bare swallowing catch; it is now one declared exception. A leaked directory
+ * under $TMPDIR is housekeeping — failing the gate on it would report a local↔CI
+ * disagreement that does not exist.
+ */
+function removeTmpDir() {
   try {
     rmSync(tmpDir, { recursive: true, force: true })
+    // FAIL-OPEN-INTENT: tmpdir cleanup is housekeeping, never a parity verdict (#2418).
   } catch {
-    // ignore cleanup errors
+    // the OS reaps $TMPDIR
   }
+}
+
+function cleanupAndSkip(reason) {
+  removeTmpDir()
   skip(reason)
 }
 
@@ -732,20 +770,12 @@ let ciResult
 try {
   ciResult = JSON.parse(readFileSync(ciResultPath, 'utf-8'))
 } catch (err) {
-  try {
-    rmSync(tmpDir, { recursive: true, force: true })
-  } catch {
-    // ignore
-  }
+  removeTmpDir()
   process.stderr.write(`check-local-ci-parity: cannot parse CI gate result: ${err.message}\n`)
   process.exit(2)
 }
 
-try {
-  rmSync(tmpDir, { recursive: true, force: true })
-} catch {
-  // ignore cleanup errors
-}
+removeTmpDir()
 
 // ─── Compare parity hashes ─────────────────────────────────────────────────────
 if (!localResult.parityContentHash || !ciResult.parityContentHash) {
