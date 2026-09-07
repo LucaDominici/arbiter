@@ -82,6 +82,53 @@ node scripts/check-all.mjs L2 --gate "be-lint"  # re-run one check by its displa
 
 Neither flag ever writes gate-evidence/result JSON — a dry-run or single-check rerun must not be able to fake a green gate for a fail-closed consumer (e.g. a Stop hook or the pre-push evidence check). Use them to iterate; the merge-blocking evidence still comes from one full, flag-free run.
 
+## The per-repo gate mutex (#2427)
+
+Only one gate may run in a repository at a time. `scripts/check-all.mjs` re-execs itself under
+the mutex, and the generated `.githooks/pre-push` launches the gate through it, so the lock is
+held for the whole run rather than for a fragment of it.
+
+The incident it exists for: a `git push` was killed while its pre-push L2 was running. The
+orphaned gate kept going, the branch took another commit, and a second push started a SECOND L2
+in the same worktree. The two interfered — `docs:build` tripped over a half-deleted VitePress
+temp file and a subprocess-heavy unit test flaked under the doubled load — and the orphan
+finished green and stamped a marker for a tree it had never fully tested. **A green marker for
+an untested tree is the failure this prevents**, not merely the wasted CPU.
+
+The lock key is the sha256 of the resolved `git rev-parse --git-common-dir`, first 16 hex
+characters, under `$XDG_RUNTIME_DIR/arbiter`, acquired with `flock(1)`. Keying on the _common_
+dir means sibling worktrees of one repository share a lock, which is what makes the guarantee
+per-repository rather than per-directory.
+
+Two implementations exist by necessity, not by accident: `src/commands/gate-exec.ts` owns the
+contract, and `scripts/lib/gate-mutex.mjs` reproduces its key derivation for `.mjs` land — the
+pre-push hook and `check-all.mjs` must run in a consumer checkout that has no arbiter `dist/`
+at all, and `dist/` ships without `scripts/`. `__tests__/scripts/gate-mutex.test.ts` pins the
+two derivations byte-for-byte so they cannot drift.
+
+Signals behave the way a developer expects: the gate runs in the wrapper's own process group —
+no `setsid`, no `detached`, no background `&` — so Ctrl-C reaches the gate exactly as it reaches
+`git push`. A pid-targeted signal is forwarded down the descendant tree, and SIGKILL, which
+cannot be trapped, is covered by the independent orphan guard in `scripts/lib/run-helpers.mjs`
+armed through `ARBITER_GATE_PARENT_PID`.
+
+Lock ordering is unchanged (ADR-103 §4): the gate lock is a **leaf**, never taken while
+`.arbiter/.lock` is held. Total order is gate-lock ≺ worktree-lock ≺ wave-claim.
+
+## Gate evidence is bound to the tree it measured (#2427)
+
+A gate-pass marker is not a token that says "a gate passed once". It records the conditions it
+was produced under, and a consumer re-verifies them before trusting it. A marker is refused when:
+
+- `checkout_root` differs — **evidence does not travel between worktrees**;
+- `toolchain_fingerprint` differs — a lockfile or the installed toolchain changed since the run;
+- `tree_hash` differs — the working tree changed since the gate ran.
+
+Each refusal names which condition failed rather than reporting a generic invalidation, so the
+fix is obvious from the message. The point is that a marker cannot outlive the state it attests
+to: edit a file after a green gate and the marker stops being accepted, which is precisely what
+the killed-push incident above produced by accident.
+
 ## Generated gate guard artifacts
 
 The generated `check-all.mjs` classifies optional guard files using
