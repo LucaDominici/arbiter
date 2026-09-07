@@ -13,6 +13,12 @@ related: []
 _Arc42 Canvas — single-page architecture overview. Right-sized for a solo/small team: expand to
 the full arc42 (`arc42-full`) once the `>2 deployable units` trigger fires._
 
+## Introduction and Goals
+
+<!-- What this system is for and who it serves, then the top quality goals it is optimised for and
+     the stakeholders who care. This is arc42 section 1: a reader who knows nothing should be able
+     to stop here and still know why the system exists. -->
+
 ## Context
 
 <!-- Who/what this system talks to (users, other systems, external APIs). One diagram or list. -->

@@ -5,7 +5,7 @@
 // website/recipes/custom-invariant.md, examples/plugins/spring-boot/README.md) and
 // CONTRIBUTING.md instructing a command that didn't exist. This ships `add` and
 // `list` only — no scaffolder (`plugin init`), no `remove` (nothing in scope cites
-// it); see docs/internal/ADR/118-plugin-add-ship-minimal.md.
+// it); see docs/internal/ADR/121-plugin-add-ship-minimal.md.
 import { resolve, join } from 'node:path'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
@@ -151,7 +151,7 @@ async function loadStatus(name: string, targetDir: string): Promise<PluginStatus
     await loadPlugin(name, targetDir)
     return 'loaded'
     // `plugin list` is a report over every configured entry, so one unresolvable plugin must
-    // render as its own row rather than abort the listing of the ones that do load (ADR-118).
+    // render as its own row rather than abort the listing of the ones that do load (ADR-121).
     // FAIL-OPEN-INTENT: not swallowed — the returned `not found`/`error` status IS the surface.
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

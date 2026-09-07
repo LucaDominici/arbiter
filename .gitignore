@@ -42,6 +42,11 @@ coverage/
 # Tabletop evidence is committed so check-tabletop-evidence.mjs sees it in CI (#2429)
 !.arbiter/evidence/tabletop/
 !.arbiter/evidence/tabletop/*.md
+# RTM verification envelopes are committed so check-feature-matrix.mjs adjudicates a Verified row
+# in CI and on a fresh clone (#2480). Without this the envelope is local-only and the gate reports
+# every Verified row as unevidenced — the rule would fail exactly where it matters most.
+!.arbiter/evidence/rtm/
+!.arbiter/evidence/rtm/*.json
 # tech-debt.json files written by `arbiter task record-tech-debt` — whitelist so CI sees them
 !.arbiter/evidence/*/
 !.arbiter/evidence/*/tech-debt.json

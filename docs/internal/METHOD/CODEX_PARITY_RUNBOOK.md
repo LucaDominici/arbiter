@@ -4,7 +4,10 @@ doc_version: '1.1.0'
 status: active
 last_review: '2026-07-17'
 owner: ''
-canonical_id: ''
+canonical_id: 'RB-02'
+# handles: the invariants this runbook is the operational response to (RB-NN, #2480 wave 8).
+# The parity gate's own contract: exit codes (INV-53) and the codex-track surface (INV-59). This runbook is what an operator does when check-codex-parity.mjs goes red.
+handles: [INV-53, INV-59]
 tags: ['audience/dev', 'kind/runbook']
 related: []
 ---
