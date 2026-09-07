@@ -350,3 +350,17 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Promoted to:** INV-112 (RTM/FEATURE_MATRIX required at L2+)
 
 **Source issues:** feat-feature-matrix-rtm 2026-06-02
+
+## CANON-24 — Adversarial review hops until nothing above `low` survives
+
+**Rule:** A high-stakes change is not closed on one pass of review. Independent skeptics are dispatched with a REFUTE mandate, and the loop **repeats** — each hop attacking the fixes the previous hop forced — until no finding above `low` severity remains unaddressed. A hop that cannot reach an independent reviewer (model unavailable, rate limit, the cross-model seat offline) may be self-probed, but is recorded `degraded` and never counted as an independent round.
+
+**Why:** One pass finds what one reader happens to look for. Empirically, in #2480, the first pass of a gate that read as finished missed that its engine was absent from `package.json files[]` — a verbatim repeat of #2335, walking straight through the guard written to stop exactly it — and that its skeletons resolved from a path present only in a dev checkout, so every real consumer would have got a silent permanent SKIP. The second pass, attacking the fixes, found that a document wrapped entirely in an HTML comment scored 12/12: a file rendering as a single heading, judged perfect. Neither was visible to the 29 tests shipped alongside. The loop is what converts "I reviewed it" into "it survived being attacked until only nits remained".
+
+Stopping at one hop is the same error class as accepting a finding from one agent (CANON-21 / M13) — that rule fixes the false POSITIVE (acting on a phantom); this one fixes the false NEGATIVE (stopping while something real is open). They are two halves of one mechanism and share its evidence.
+
+**Enforcement:** `scripts/check-refutation-verdicts.mjs` (advisory `runWarnCheck` at L2+ on both tracks — `scripts/check-all.mjs` and `src/templates/scripts/gate-registry.yml.ejs`). Marker-gated, as the majority axis is: with `.arbiter/evidence/agent-returns/<task>/refutation-required.json` present, every finding the skeptics majority-UPHELD at `critical`/`high`/`med` must appear in the marker's acted-on `findings`. Severity is taken as the highest any skeptic assigned. A finding below quorum or majority-REFUTED never blocks — a single false alarm must not hold a wave hostage. `degraded: true` on the marker is reported on every run and never suppressed. Verified by `__tests__/scripts/check-refutation-verdicts.test.ts`.
+
+**Promoted to:** INV-145 (adversarial review closes only at low-only findings)
+
+**Source issues:** #2480 2026-09-03 (owner rule, stated after two rounds destroyed two successive versions of one gate)
