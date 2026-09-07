@@ -278,26 +278,20 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
   })
   // #2405 — the twelve STAGED entries carried a generic reason text that cited a closed
   // issue scoped to a DIFFERENT registry. Re-dating them is the failure mode this issue
-  // exists to end, so the contract is pinned here, against the COMMITTED registry:
-  // a self-only entry is permanent-by-construction or it does not exist.
+  // exists to end, so the contract is pinned here, against the COMMITTED registry.
+  //
+  // The pin is deliberately NOT "no entry anywhere carries `expires`". That reading
+  // contradicts the gate these tests cover: check-canon01-declination.mjs accepts a
+  // live-dated entry (selfOnlyEntryProblem returns null unless the date is unparseable
+  // or already past) and its own ratchet-refusal message instructs the operator to
+  // "Add an `expires`-dated entry with a reason and raise the baseline by hand in the
+  // same PR". A test that banned what the gate prescribes would not be a stronger
+  // contract, only an inconsistent one. What #2405 actually ended is the generic,
+  // deferring REASON TEXT — pinned below, repo-wide, and unchanged.
   describe('committed self-only registry contract (#2405)', () => {
     const REGISTRY = JSON.parse(
       readFileSync(resolve('scripts/canon01-self-only.json'), 'utf-8'),
     ) as { selfOnly: Array<{ path: string; reason: string; expires?: string }> }
-
-    it('carries no STAGED (expires-dated) entry — audit-later is not a resolution', () => {
-      const staged = REGISTRY.selfOnly.filter((e) => e.expires != null).map((e) => e.path)
-      expect(staged).toEqual([])
-    })
-
-    it('carries no reason that defers, or cites the audit issue as still pending', () => {
-      const deferring = REGISTRY.selfOnly
-        .filter((e) =>
-          /STILL PENDING|Audit under #|plausibly should also receive|issues\/2405/i.test(e.reason),
-        )
-        .map((e) => e.path)
-      expect(deferring).toEqual([])
-    })
 
     // The twelve entries #2405 audited. A resolved entry must CITE evidence, not assert a
     // verdict: the twelve pre-resolution reasons ran 272-464 chars and two named no artifact
@@ -317,6 +311,39 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
       'scripts/check-workflow-parallelism.mjs',
     ]
     const audited = () => REGISTRY.selfOnly.filter((e) => AUDITED_2405.includes(e.path))
+
+    // Absolute, for the set #2405 owns: none of the twelve may be STAGED again, ever.
+    // Re-dating one of them is precisely the failure mode this issue exists to end.
+    it('leaves no STAGED (expires-dated) entry among the twelve #2405 audited', () => {
+      const staged = audited()
+        .filter((e) => e.expires != null)
+        .map((e) => e.path)
+      expect(staged).toEqual([])
+    })
+
+    // Repo-wide, for every other entry: staging is legal but never open-ended. A date
+    // must parse and still be in the future, and the reason must carry the specific
+    // blocker — the twelve pre-resolution reasons ran 272-464 chars of boilerplate, so
+    // 300 is the floor that a generic one-liner cannot clear.
+    it('gives every STAGED entry a live date and a specific blocker', () => {
+      const bad = REGISTRY.selfOnly
+        .filter((e) => e.expires != null)
+        .filter((e) => {
+          const due = Date.parse(`${e.expires}T00:00:00Z`)
+          return Number.isNaN(due) || due < Date.now() || e.reason.length < 300
+        })
+        .map((e) => e.path)
+      expect(bad).toEqual([])
+    })
+
+    it('carries no reason that defers, or cites the audit issue as still pending', () => {
+      const deferring = REGISTRY.selfOnly
+        .filter((e) =>
+          /STILL PENDING|Audit under #|plausibly should also receive|issues\/2405/i.test(e.reason),
+        )
+        .map((e) => e.path)
+      expect(deferring).toEqual([])
+    })
 
     it('gives every audited entry a rationale that cites concrete artifacts', () => {
       const ARTIFACT = /[\w./-]+\.(?:ejs|mjs|yml|json|ts)\b/g
@@ -350,12 +377,18 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
       expect(REGISTRY.selfOnly.map((e) => e.path)).not.toContain('scripts/check-acceptance.mjs')
     })
 
-    it('pins the ratchet baseline to the registry it measures, and it fell', () => {
+    // The baseline must measure the registry it ratchets against — a baseline that has
+    // drifted off the file it counts disarms the ratchet silently. The second assertion
+    // is #2405's own measurable result: check-acceptance.mjs was audited OUT (ADR-110),
+    // so the twelve are eleven. A whole-registry ceiling is deliberately not asserted
+    // here: the registry is shared with main, and the monotone bound on it is the gate's
+    // ratchet (canon01-baseline.json), not a literal in this file.
+    it('pins the ratchet baseline to the registry it measures, and the audited set fell', () => {
       const baseline = JSON.parse(
         readFileSync(resolve('scripts/canon01-baseline.json'), 'utf-8'),
       ) as { selfOnly: number }
       expect(baseline.selfOnly).toBe(REGISTRY.selfOnly.length)
-      expect(baseline.selfOnly).toBeLessThan(85)
+      expect(audited().length).toBe(AUDITED_2405.length - 1)
     })
   })
 

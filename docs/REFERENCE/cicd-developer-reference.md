@@ -129,6 +129,40 @@ fix is obvious from the message. The point is that a marker cannot outlive the s
 to: edit a file after a green gate and the marker stops being accepted, which is precisely what
 the killed-push incident above produced by accident.
 
+## The acceptance-criteria anchor gate (INV-138, #2405)
+
+Governed projects now receive `scripts/check-acceptance.mjs`, wired into the emitted gate
+registry as `acceptance anchor (INV-138)` — **L2, advisory (`warn`)**.
+
+Where the rest of the gate certifies _mechanics_, this one anchors _intent_. During the
+implementation phases the active task's plan must freeze the issue's acceptance criteria as
+explicit `AC-N` ids plus non-goals; at verification and close a reviewer-written fit artifact
+(`.arbiter/evidence/ac-fit/<task>.json`) must exist with every criterion `PASS` and a cited
+evidence line. That is the mechanical form of **"an unproven criterion is a REJECT"** — green
+tests say the code does what it does, not that it does what was asked.
+
+**It is inert unless you turn it on.** Three layers of default-off, deliberately:
+
+- gated on `features.acceptanceAnchor` in `arbiter.json`, with `ARBITER_ACCEPTANCE_ANCHOR=1/0`
+  as an env override;
+- `warn` rather than `check`, so even enabled it advises rather than blocks;
+- **vacuous exit 0 with no active task**, which is what keeps `main`, CI on merged trees and
+  fresh clones green.
+
+Exit codes follow INV-53: `0` PASS or SKIP, `1` FAIL (anchor or fit missing/invalid), `2` ERROR.
+
+Two direct invocations exist beyond gate mode: `--plan <path>` validates a plan on its own
+(used by wave integrate) and `--ac-fit <path>` validates one fit artifact. The wave loop's
+own readiness use of INV-138 is described in `wave-drain.md`; this section covers the gate
+that consumers receive.
+
+It is a separate script rather than a fold into a neighbour, and the reasons are recorded in
+the script's own CATALOG lines: `check-phase-doc-consistency.mjs` validates the _shape_ of
+`.claude/.task/status.json`, while this validates the _content contract_ between the anchored
+plan, the issue's criteria and the reviewer's fit evidence — a different SSOT axis with its own
+feature-flag lifecycle; and `check-evidence-bundle.mjs` validates per-task artifact bundles
+under `.evidence/` against their own schema, which knows nothing about plan parsing.
+
 ## Generated gate guard artifacts
 
 The generated `check-all.mjs` classifies optional guard files using
