@@ -15,12 +15,6 @@
       "rationale": "#2358 dispatch artifact and vendor-provenance audit. Advisory while cross-model review remains opt-in and local evidence accumulates; promote only after enabled-run coverage is routine."
     },
     {
-      "check": "review completion (#2177)",
-      "since": "2026-08-02",
-      "promoteBy": "2026-10-14",
-      "rationale": "Task-scoped per-reviewer reconciliation for the additive dispatch-sidecar agents[] contract. Advisory while /ship producer paths bake in; promote to runCheck at gated-review after one-retry completion evidence is routine."
-    },
-    {
       "check": "refutation majority (E2 #1943)",
       "since": "2026-07-14",
       "promoteBy": "2026-10-14",
