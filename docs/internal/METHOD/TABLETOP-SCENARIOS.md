@@ -19,17 +19,23 @@ compares each step against what the docs promise, and writes
 
 **Location:** `docs/internal/METHOD/TABLETOP-SCENARIOS.md`
 
-Every scenario carries the same seven fields. `Docs the user would read` cites
-arbiter-repository paths only — a consumer-side artifact (a generated gate script, an emitted
-workflow) is named in the probes, not cited as a path here.
+Every scenario carries the same eight fields. The **Id** (`TT-NN`) is the stable citation key —
+what a use case or a runbook points at — and the **Slug** is the human-readable key the evidence
+filename `<slug>-<date>.md` is built from; they coexist for the same reason an ADR has both a
+number and a filename slug. `Docs the user would read` cites arbiter-repository paths only — a
+consumer-side artifact (a generated gate script, an emitted workflow) is named in the probes, not
+cited as a path here.
 
-Adding a scenario: append a `## N. <title>` block with all seven fields and a new slug, and
-extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
+Adding a scenario: append a `## N. <title>` block with all eight fields, the next free `TT-NN`
+and a new slug. Nothing else needs editing — `scripts/check-tabletop-evidence.mjs` reads this file
+directly, so the structure, the id and slug uniqueness, and the join to every evidence file under
+`.arbiter/evidence/tabletop/` are all checked from here rather than restated in a test constant.
 
 ---
 
 ## 1. Greenfield `arbiter init` on a TypeScript library
 
+- **Id:** `TT-01`
 - **Slug:** `greenfield-init-ts`
 - **Persona:** A TypeScript library author who has never run arbiter, installing it into an
   empty repository on a Friday afternoon.
@@ -46,6 +52,7 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
 
 ## 2. Brownfield `arbiter update` on a Go service
 
+- **Id:** `TT-02`
 - **Slug:** `brownfield-update-go`
 - **Persona:** A platform engineer adopting arbiter into a three-year-old Go service that
   already has its own Makefile, linter config and GitHub Actions.
@@ -63,6 +70,7 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
 
 ## 3. `/ship` one XS issue to a merged PR
 
+- **Id:** `TT-03`
 - **Slug:** `ship-one-xs-issue`
 - **Persona:** A solo maintainer with one small, well-specified issue and thirty minutes.
 - **Starting state:** A clean checkout on `main`, an open XS issue, no active task state.
@@ -78,6 +86,7 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
 
 ## 4. `/drain` a four-issue wave as one train
 
+- **Id:** `TT-04`
 - **Slug:** `drain-wave-of-four`
 - **Persona:** A maintainer with a backlog of four independent small issues who wants one
   reviewed PR instead of four.
@@ -94,6 +103,7 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
 
 ## 5. The PR goes red in CI and the agent recovers
 
+- **Id:** `TT-05`
 - **Slug:** `pr-red-and-recover`
 - **Persona:** An agent whose PR was green locally and is now red on a job it has never read.
 - **Starting state:** An open PR with one failing required check and no local reproduction.
@@ -109,6 +119,7 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
 
 ## 6. A consumer upgrades arbiter and reviews the delta
 
+- **Id:** `TT-06`
 - **Slug:** `consumer-upgrade-delta`
 - **Persona:** A team lead on a governed project bumping arbiter a minor version, who must
   explain the diff to two reviewers before merging it.

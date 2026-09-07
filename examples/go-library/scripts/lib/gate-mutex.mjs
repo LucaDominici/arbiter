@@ -215,7 +215,22 @@ function gateChildEnv(env, lockPath) {
  */
 function effectiveMode(env) {
   const requested = env.ARBITER_GATE_MUTEX_MODE ?? 'wait'
-  if (requested === 'off' || flockAvailable(env)) return requested
+  if (requested === 'off') {
+    // #2427: an operator-requested `off` is as unserialised as a missing
+    // flock(1), so it is announced the same way. Without this the two
+    // degradations are asymmetric — the platform one loud, the requested one
+    // silent — and `.arbiter/gate-pass.json` is stamped identically either way,
+    // making the transcript of an unserialised gate indistinguishable from a
+    // serialised one. The doc above says running unserialised is a fact the
+    // operator must be able to see; this makes that true on both paths.
+    process.stderr.write(
+      'gate-mutex: ARBITER_GATE_MUTEX_MODE=off — the gate is running UNSERIALISED ' +
+        'by request. Two gates in this repo can now interfere; unset the variable ' +
+        'to restore serialisation.\n',
+    )
+    return 'off'
+  }
+  if (flockAvailable(env)) return requested
   process.stderr.write(
     'gate-mutex: flock(1) is not available on this platform — the gate is running ' +
       'UNSERIALISED. Two gates in this repo can now interfere; run them one at a time, ' +

@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-30'
+last_review: '2026-09-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 120)
+1. Create `NNN-short-title.md` in this directory (next free number after 122)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -79,7 +79,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 049 | [Java Static Analysis: Baseline Audit and Wiring Fixes](049-java-static-analysis-baseline.md)                                                                         | Accepted   | 2026-05-20 |  |
 | 050 | [Pipeline Complexity Tiers — Archetype-Default + Governance Floor](050-pipeline-complexity-tiers.md)                                                                  | Accepted   | 2026-05-23 |  |
 | 051 | [Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy](051-collaboration-mode-workflow-axis.md)                                                            | Accepted   | 2026-05-28 |  |
-| 052 | [Exact-SHA Landing and Cosign Preservation](052-fast-forward-merge-cosign-preservation.md)                                                                            | Accepted   | 2026-07-27 |  |
+| 052 | [Exact-SHA Landing and Cosign Preservation](052-fast-forward-merge-cosign-preservation.md)                                                                            | Accepted   | 2026-09-04 |  |
 | 053 | [CI Gap Closures, Per-Tier Nightly, Opt-In Selective Gates, and Local Provenance Log](053-ci-gap-closures-and-check-ladder.md)                                        | Accepted   | 2026-05-28 |  |
 | 054 | [Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](054-phase-3-5-handoff-modeled-as-status-json-fields.md)                                          | Accepted   | 2026-05-31 | Model the handoff via status.json fields (handoffStrategy, |
 | 055 | [SpotBugs security hard-block baseline script (#212)](055-spotbugs-security-hard-block-baseline-script.md)                                                            | Accepted   | 2026-05-31 | Add scripts/verify-spotbugs.mjs.ejs template — a Node.js script emitted to Java target projects. It enforce... |
@@ -145,6 +145,8 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 115 | [Bounded Sealed Trains — When a Batch Stops Taking Issues](115-bounded-sealed-trains.md)                                                                              | Accepted   | 2026-08-22 |  |
 | 116 | [Evidence Binds to Source Content; the Train Is the Ceremony Unit; a PR Is Owned Until Merged](116-evidence-content-binding-train-ceremony-pr-ownership.md)           | Accepted   | 2026-08-29 |  |
 | 117 | [Companion Skill Provenance — Detected, Never Bundled](117-companion-skill-provenance.md)                                                                             | Accepted   | 2026-08-29 |  |
-| 118 | [`arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](118-plugin-add-ship-minimal.md)                                                               | Accepted   | 2026-08-30 |  |
-| 119 | [Experimental tool generators — promotion criteria, and retire all five](119-experimental-tool-generators-retired.md)                                                 | Accepted   | 2026-08-30 |  |
+| 118 | [The lifecycle ontology is wired, not written](118-lifecycle-ontology-wired-not-written.md)                                                                           | Accepted   | 2026-09-02 |  |
+| 119 | [Adversarial review hops until nothing above low survives](119-adversarial-review-hops-until-low-only.md)                                                             | Accepted   | 2026-09-03 |  |
 | 120 | [Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](120-ignore-stryker-tmp-scratch-sandbox.md)                                                | Accepted   | 2026-08-30 | Add .stryker-tmp/ to both .gitignore and .prettierignore, matching the |
+| 121 | [`arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](121-plugin-add-ship-minimal.md)                                                               | Accepted   | 2026-08-30 |  |
+| 122 | [Experimental tool generators — promotion criteria, and retire all five](122-experimental-tool-generators-retired.md)                                                 | Accepted   | 2026-08-30 |  |

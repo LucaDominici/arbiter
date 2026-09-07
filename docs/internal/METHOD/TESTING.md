@@ -137,8 +137,11 @@ test that passes with the fix removed is not your oracle.
 family live from `scripts/check-all.mjs` — `check-no-*`, ratchets, and parity checks, the shape where
 "found nothing" and "looked at nothing" are the same exit code — and fails when a member accepts its
 bad fixture, rejects its clean one, or has no proof at all. The audit residue lives in
-`scripts/data/inversion-proof-registry.json` and is BANKED at a fixed cardinality, so appending a row
-is not a way in for a new gate.
+`scripts/data/inversion-proof-registry.json` and is BANKED at a fixed cardinality — the pin
+(`MAX_DEFERRED`) lives in `scripts/lib/gate-roster.mjs`, not in the ledger, so appending a row is not
+a way in for a new gate: the data file cannot raise its own ceiling. Widening it is a source edit,
+reviewed as one. The derivation carries a floor too (`MIN_ABSENCE_FAMILY`): a `check-all.mjs` the
+parser can no longer read is an ERROR, not a short programme that quietly proves less.
 
 **Four traps, all measured:**
 

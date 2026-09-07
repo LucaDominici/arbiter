@@ -1,0 +1,1 @@
+arc42 answers two questions in a pragmatic way: what should you document and communicate about your architecture, and how. Twelve sections, each with a clear purpose, tailorable to your specific needs. Open source and free, also for commercial use. Proven in practice since 2005, used by teams worldwide. Every tile links stra

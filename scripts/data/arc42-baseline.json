@@ -1,0 +1,24 @@
+{
+  "_doc": "Monotone ratchet for scripts/check-arc42-slots.mjs. `stubs` is the number of arc42 slots in this repo's architecture document whose body is nothing but the skeleton's prompt comment. `skeletonGaps` is PER COLUMN: for each tier column, how many of the canonical ARC-01..ARC-12 the skeleton that column receives does not provide at all. Both may fall freely; a rise fails the gate. There is no --allow-increase, and --update-baseline REFUSES a rise — raising a number means hand-editing this file in the same PR as the section that needs it, so the new number lands in the diff beside its justification. A counter that is present but not a number (or a scalar `skeletonGaps`) is an ERROR, not a bootstrap: `\"stubs\": \"0\"` is a two-character diff that would otherwise disable the ratchet silently while --json kept reporting health.",
+  "_measured": "2026-09-03, after adversarial review. skeletonGaps was a single scalar pinned at 0, measured on the enterprise column alone — so the Canvas skeleton (which solo and small receive) was never evaluated by any gate, leaving ratchet #2 inert for exactly the skeleton it exists to protect, and a solo/small repo carrying this baseline would have been told a slot was dropped that never was. Now keyed by column: enterprise 0 (arc42-full provides all twelve after this wave added Introduction and Goals), solo/small 2 (arc42-canvas deliberately drops Crosscutting Concepts and Glossary — that is what 'canvas' means).",
+  "required": [
+    "ARC-01",
+    "ARC-02",
+    "ARC-03",
+    "ARC-04",
+    "ARC-05",
+    "ARC-06",
+    "ARC-07",
+    "ARC-08",
+    "ARC-09",
+    "ARC-10",
+    "ARC-11",
+    "ARC-12"
+  ],
+  "stubs": 0,
+  "skeletonGaps": {
+    "solo": 2,
+    "small": 2,
+    "enterprise": 0
+  }
+}
