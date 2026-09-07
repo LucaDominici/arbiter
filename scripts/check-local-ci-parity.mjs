@@ -273,14 +273,27 @@ function ciRequiredNeedsIn(lines) {
  * The job ids `ci-required` lists under `needs:`, across every workflow file.
  * Returns null (neutral — caller should skip) when no `ci-required` job is declared.
  */
+// Distinct from null on purpose (INV-96, #2418): null means "no `ci-required` job is
+// declared", which is a legitimate skip; this means "could not look". Collapsing the two
+// into null let an unreadable workflows directory report the same neutral result as a
+// repository that genuinely declares no required job — uncertainty must BLOCK, never SKIP.
+const NEEDS_UNREADABLE = Symbol('ci-required-needs-unreadable')
+
 function readCiRequiredNeeds(root) {
   const wfDir = join(root, '.github', 'workflows')
   if (!existsSync(wfDir)) return null
   let wfFiles
   try {
     wfFiles = readdirSync(wfDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
-  } catch {
-    return null
+  } catch (err) {
+    // ENOENT: the directory existed a moment ago and is gone now — same benign case the
+    // existsSync above covers. Anything else is a real IO failure and is surfaced, matching
+    // how this file already handles the identical readdirSync at the static-parity check.
+    if (err.code === 'ENOENT') return null
+    process.stderr.write(
+      `check-local-ci-parity: ERROR — cannot read .github/workflows: ${err.message}\n`,
+    )
+    return NEEDS_UNREADABLE
   }
   for (const wfFile of wfFiles) {
     const needs = ciRequiredNeedsIn(readFileSync(join(wfDir, wfFile), 'utf-8').split('\n'))
@@ -291,6 +304,7 @@ function readCiRequiredNeeds(root) {
 
 function checkRequiredJobLocalTwins(root) {
   const needs = readCiRequiredNeeds(root)
+  if (needs === NEEDS_UNREADABLE) return 2
   if (needs === null) {
     process.stdout.write(
       '[skip] ci-required twins: no `ci-required` job declared — skipping local-twin check\n',
