@@ -4,7 +4,6 @@
 // re-declare the archetype map here.
 const _bucket = serviceBucket;
 const _isService = isService;
-const _bs = (typeof branchingStrategy !== 'undefined' ? branchingStrategy : 'github-flow');
 %># Reference: docs/REFERENCE/workflow-pr-fast.md
 name: PR Extended (T2)
 
@@ -12,18 +11,30 @@ permissions:
   contents: read
 
 on:
+  # #2476 — deliberately NO `branches:` filter and NO `paths-ignore:` on this
+  # trigger. Both suppress RUN CREATION, and a suppressed run is worse than a red
+  # check: the pull request displays no failing checks because it has no checks.
+  #
+  # `branches:` filters the BASE branch on a pull_request event, so `[main]` meant a
+  # pull request stacked on a task or train branch got no extended run at all — and
+  # branch protection could not catch it, being configured on the base branch that a
+  # task/train branch does not have.
+  #
+  # `paths-ignore` (formerly docs/**, *.md, .gitignore, .editorconfig) is removed by
+  # the same reasoning, decided rather than inherited: (a) it is the identical
+  # no-run shape, so a docs-only stacked pull request would still show an ABSENT
+  # `Extended Required` rather than a reported one; (b) it was already not doing its
+  # job — adding a doc regenerates the repo-root `llms.txt`, which matches neither
+  # `docs/**` nor `*.md`, so the extended tier ran on most docs pull requests
+  # anyway; the exemption was nominal; (c) removing it costs nearly nothing, because
+  # `check-trigger` below — label / ready_for_review / sensitive path / LOC
+  # threshold — remains the real economic gate: a trivial docs change still resolves
+  # to should_run=false, every heavy job skips, and `extended-required` reports a
+  # VISIBLE green instead of being absent. The trade accepted: a docs-only change at
+  # or over the LOC threshold now runs the extended tier, which for a change that
+  # large is the right answer. Enforced by scripts/check-workflow-test-integrity.mjs.
   pull_request:
-<% if (_bs === 'github-flow-with-develop') { %>
-    branches: [main, develop]
-<% } else { %>
-    branches: [main]
-<% } %>
     types: [opened, synchronize, reopened, ready_for_review, labeled]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '.gitignore'
-      - '.editorconfig'
 
 concurrency:
   group: pr-extended-${{ github.head_ref || github.ref_name }}

@@ -543,14 +543,19 @@
       "rationale": "Historical (ADR-117: Companion Skill Provenance — Detected, Never Bundled) — predates the mandatory `enforces:` contract (#2419). Amnesty is dated, not permanent: by 2026-11-28 this ADR either declares the gold-check/INV ids that enforce it, is re-dated with a fresh rationale, or moves to a non-active status."
     },
     {
-      "adr": "118-plugin-add-ship-minimal.md",
+      "adr": "121-plugin-add-ship-minimal.md",
       "expires": "2026-11-28",
-      "rationale": "Historical (ADR-118: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder) — predates the mandatory `enforces:` contract (#2419). Amnesty is dated, not permanent: by 2026-11-28 this ADR either declares the gold-check/INV ids that enforce it, is re-dated with a fresh rationale, or moves to a non-active status."
+      "rationale": "Historical (ADR-121: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder), imported from historical branch commit 1ccecefceb6cb184362c99dbe597f155acef77f1 during the lifecycle merge — predates the mandatory `enforces:` contract (#2419). Amnesty is dated, not permanent: by 2026-11-28 this ADR either declares the gold-check/INV ids that enforce it, is re-dated with a fresh rationale, or moves to a non-active status."
     },
     {
-      "adr": "119-experimental-tool-generators-retired.md",
+      "adr": "122-experimental-tool-generators-retired.md",
       "expires": "2026-11-28",
-      "rationale": "Historical (ADR-119: Experimental tool generators — promotion criteria, and retire all five) — predates the mandatory `enforces:` contract (#2419). Amnesty is dated, not permanent: by 2026-11-28 this ADR either declares the gold-check/INV ids that enforce it, is re-dated with a fresh rationale, or moves to a non-active status."
+      "rationale": "Historical (ADR-122: Experimental tool generators — promotion criteria, and retire all five), imported from historical branch commit bf935d6c3d7e3ad8eadd348b2a3f4d7ce7aac9c1 during the lifecycle merge — predates the mandatory `enforces:` contract (#2419). Amnesty is dated, not permanent: by 2026-11-28 this ADR either declares the gold-check/INV ids that enforce it, is re-dated with a fresh rationale, or moves to a non-active status."
+    },
+    {
+      "adr": "118-lifecycle-ontology-wired-not-written.md",
+      "expires": "2026-11-28",
+      "rationale": "Historical import from main's lifecycle ontology work on 2026-09-02, preserved as a dated exception while the strict ADR enforcement contract is integrated; this ADR remains unlinked and is not Gold."
     },
     {
       "adr": "120-ignore-stryker-tmp-scratch-sandbox.md",

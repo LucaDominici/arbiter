@@ -45,6 +45,85 @@ via `--update-baseline`); a `Verified` row is never baseline-exemptible.
 
 ---
 
+## Span-pinned refs (#2480)
+
+A `code_ref` / `test_ref` / `doc_ref` may name a **line span** and, optionally, pin it:
+
+```
+src/generators/doc-set.ts#L120-L164
+src/generators/doc-set.ts#L120-L164@50fe5b01c51d
+```
+
+Ref **existence** and ref **accuracy** are different claims, and until now only the first was
+checked: `#L120-L164` was stripped before the file test, so a span could point past the end of the
+file — or at lines that had since become something else entirely — while the row still read
+`Verified`. That is the "the requirement changed, the test did not" failure a traceability matrix
+exists to catch, and a whole-file ref cannot express it.
+
+Two rules, both **additive** — a ref with no anchor behaves exactly as it always has, so adoption
+is per-row and deliberate rather than a mass rewrite:
+
+1. A line span must **exist**. A range past the end of the file, a reversed range, or a zero line
+   number is a defect.
+2. A pinned span must still **hash to its pin**. The pin is the first 12 hex characters of the
+   sha256 of the span's exact text. A mismatch is reported as `OUTDATED` and names both the old and
+   the current hash.
+
+Rule 2 is what survives a refactor: the pin catches the span moving *even when its content is
+unchanged*, because the citation then points at different lines than the ones that were reviewed.
+
+Produce a pin — never hand-compute one:
+
+```bash
+node scripts/check-feature-matrix.mjs --pin 'src/generators/doc-set.ts#L120-L164'
+# → src/generators/doc-set.ts#L120-L164@50fe5b01c51d
+```
+
+A syntax nobody can compute by hand is a syntax nobody adopts, so the producer ships with the rule.
+
+---
+
+## `Verified` requires a verification envelope (#2480)
+
+`Verified` sits at the top of the status ladder, and until now it was a word someone typed. The
+ladder already refuses to skip a step and every ref has to exist — but nothing checked that the
+requirement had ever actually been **proven**, by running something, with a transcript. That is the
+same fail-closed hole INV-146 closed for milestone `done`: **a status is not evidence.**
+
+A `Verified` row therefore requires `.arbiter/evidence/rtm/<REQ-NNN>.json`, conforming to
+`schemas/rtm-verdict.schema.json`:
+
+| Field | Why it is required |
+| --- | --- |
+| `verdict` | One of `PROVEN`/`FAILING`/`STALE`/`UNRESOLVED`/`UNCOVERED`. Only `PROVEN` admits `Verified`; the other four are recordable states, not failures to hide — a requirement known to be `FAILING` is better governance than one silently parked at `Partial`. |
+| `justification` | Why the cited evidence establishes the claim. A verdict with no argument is an opinion with a schema around it. |
+| `command` | What was actually executed. `PROVEN` means something was **run**, not that someone read the code and was satisfied. |
+| `transcript_digest` | sha256 of that command's output. Not re-verifiable offline by design: its job is to make the claim specific and attributable, not to re-run CI inside a lint gate. |
+| `citations` | Where the proof lives, in the **pinned-span grammar above** — so a citation that drifts is reported `OUTDATED` by the same mechanism, not a second one. |
+
+The envelope must also declare the `feature_id` of the row it stands under: evidence copied from
+another requirement proves that other requirement.
+
+### The ratchet, and what is not being claimed
+
+Four rows were already `Verified` when this rule landed. One — **REQ-028**, the matrix requirement
+itself — was **earned**: its suite was executed and the real transcript digest recorded. The other
+three are grandfathered by a monotone ratchet in `scripts/data/rtm-verdict-baseline.json`, which
+starts at **3**, may fall freely, and may never rise.
+
+No evidence is reconstructed after the fact for a verdict nobody recorded — the same forward-only
+posture the milestone migration takes, and for the same reason: inventing evidence to satisfy a
+fail-closed gate is precisely the fake-green the gate exists to prevent. Each grandfathered row is
+a candidate to be earned the way REQ-028 was.
+
+**Self track only, for a concrete reason.** The Track-B gate would need
+`schemas/rtm-verdict.schema.json` emitted alongside it, which is a generator change (CANON-11) and
+a new template. Porting the rule without the schema would hand every governed project an error the
+moment it marked a row `Verified` — worse than not porting. The span-pinning rule above ports
+because it needs no new file; this one waits for its schema emission.
+
+---
+
 ## Verification tier
 
 `verification_tier` (optional, 12th column, #2242): the KIND of proof a requirement
@@ -132,7 +211,7 @@ posture already established for `source_ref`.
 | REQ-023 | Python stack support |  | L2 | Partial | src/generators/playwright-python.ts | __tests__/integration/e2e/bake/fixture-bake.test.ts,__tests__/generators/playwright-python.test.ts |  | #2245 | L3+ loud per matrix; core generators beta |  | SCAFFOLD |
 | REQ-024 | Go stack support |  | L2 | Partial | src/generators/go-boundaries.ts | __tests__/integration/e2e/bake/fixture-bake.test.ts,__tests__/generators/go-boundaries.test.ts |  | #2245 | L3+ loud; go-boundaries + go test wired |  | SCAFFOLD |
 | REQ-025 | Rust stack support |  | L2 | Partial | src/generators/rust-boundaries.ts | __tests__/integration/e2e/bake/fixture-bake.test.ts,__tests__/generators/rust-boundaries.test.ts |  | #2245 | L3+ loud; cargo test + clippy wired |  | SCAFFOLD |
-| REQ-026 | Kotlin stack support |  | L2 | Verified | src/generators/quality.ts, src/generators/modulith.ts, src/generators/debt-gates.ts, src/generators/coverage.ts, src/generators/archunit.ts | __tests__/generators/kotlin-beta.test.ts | docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md | #1177 | #1177: Real kotlin generation — detekt (config/detekt/detekt.yml), kover (kover.gradle, 0.9.x API), sonar kotlin branch (src/main/kotlin + build/reports/kover/report.xml), ArchUnit extended to kotlin. Content-asserting tests (not smoke) at the generator-unit layer. INV-32 fixture at __tests__/fixtures/real-projects/kotlin-backend-web-db-gradle/ is `tier: snapshot` (manifest validation only — no `arbiter init`, no generated-gate exec; #1840 F4 tranche-2 decision, 2026-07-09: declassified to snapshot-only pre-publish, excluded from the Generator Matrix workflow). Matrix cells stay beta (not promoted to proven). Re-promotion blocker #1803 (3/8 workflow dims — fuzz/license_scan/sbom — relied on unverified JVM-shared EJS branches) CLOSED — all 3 dims now share the java/JVM branch with an explicit kotlin arm + render tests (fuzz landed first; license_scan + sbom landed together). Remaining follow-up: #1194 (kotlin gate wiring in check-all.mjs.ejs). |  | GATE |
+| REQ-026 | Kotlin stack support |  | L2 | Done | src/generators/quality.ts, src/generators/modulith.ts, src/generators/debt-gates.ts, src/generators/coverage.ts, src/generators/archunit.ts | __tests__/generators/kotlin-beta.test.ts | docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md | #1177 | #1177: Real kotlin generation — detekt (config/detekt/detekt.yml), kover (kover.gradle, 0.9.x API), sonar kotlin branch (src/main/kotlin + build/reports/kover/report.xml), ArchUnit extended to kotlin. Content-asserting tests (not smoke) at the generator-unit layer. INV-32 fixture at __tests__/fixtures/real-projects/kotlin-backend-web-db-gradle/ is `tier: snapshot` (manifest validation only — no `arbiter init`, no generated-gate exec; #1840 F4 tranche-2 decision, 2026-07-09: declassified to snapshot-only pre-publish, excluded from the Generator Matrix workflow). Matrix cells stay beta (not promoted to proven). Re-promotion blocker #1803 (3/8 workflow dims — fuzz/license_scan/sbom — relied on unverified JVM-shared EJS branches) CLOSED — all 3 dims now share the java/JVM branch with an explicit kotlin arm + render tests (fuzz landed first; license_scan + sbom landed together). Remaining follow-up: #1194 (kotlin gate wiring in check-all.mjs.ejs). | DEMOTED Verified -> Done (#2480 wave 8): the axis-2 rule asks a `Verified` row for a verification envelope, and writing one here would have contradicted this row's own note. `Verified` means a full evidence chain, GATE-CHECKED — and for Kotlin no generated gate is ever executed: the INV-32 fixture is `tier: snapshot` (manifest validation only, no `arbiter init`, no generated-gate exec), the matrix cells stay `beta` by explicit decision, and #1194 (kotlin gate wiring in check-all.mjs.ejs) is still open. What IS proven is emission: __tests__/generators/kotlin-beta.test.ts asserts detekt.yml, kover.gradle, the sonar kotlin branch, modulith scaffolding and ArchUnit files with real content — 6 cases, executed, green. That is exactly `Done`: code, test and doc all present and resolvable. Re-promotion to `Verified` is earnable the moment a Kotlin project's generated gate is executed end to end, which is what #1194 unblocks. |  | GATE |
 | REQ-027 | Anti-drift validator suite |  | L2 | Partial | src/generators/anti-drift-validators.ts | __tests__/generators/anti-drift-validators.test.ts |  | #1152 | #1152: dropped check-pii-scan (dup of native pii-scan) + check-tier-coverage (arbiter-self meta-gate); validator count is SSOT at __tests__/generators/anti-drift-validators.test.ts (do not hand-copy — the count has moved before, see the file's own inline #14xx/#2159 changelog); all emitted validators are wired into the generated target check-all under correct conditionals (matrix-verified TS/py/java); emission↔wiring locked by test |  | GATE |
 | REQ-028 | Feature/RTM matrix (this document) |  | L2 | Verified | src/generators/feature-matrix.ts | __tests__/generators/feature-matrix.test.ts | docs/internal/PRODUCT/FEATURE_MATRIX.md | #1159 | Track A + Track B generator; gate wired at L1. Originating PR #1159 (INV-112, CANON-23); stale #1112 ref in prior note was an unrelated docs fix. |  | GATE |
 | REQ-029 | AGENTS.md / GLOBAL_INVARIANTS parity gates |  | L1 | Partial | scripts/check-catalog-agents-parity.mjs |  |  | #1158 | Bidirectional parity; CANON-01..22 absent from AGENTS.md — see #1158 |  | GATE |
@@ -171,8 +250,8 @@ posture already established for `source_ref`.
 
 | Status | Count |
 |---|---|
-| Verified | 4 |
-| Done | 4 |
+| Verified | 3 |
+| Done | 5 |
 | Partial | 46 |
 | Missing | 1 |
 | **Total** | **55** |

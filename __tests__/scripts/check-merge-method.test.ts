@@ -10,9 +10,14 @@ import { tmpdir } from 'node:os'
 const SCRIPT = resolve('scripts/check-merge-method.mjs')
 const REAL_POLICY = readFileSync(resolve('scripts/lib/exact-sha-policy.mjs'), 'utf8')
 const VALID_WATCHER = `
-import { validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
+import { resolveLandingContract, validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
 const mutation = 'updateRefs'
 const updates = [{ beforeOid: 'a', afterOid: 'b', force: false }]
+function assertLandingSupported() {
+  const decision = resolveLandingContract(JSON.parse('{}'))
+  if (!decision.supported) process.exit(2)
+}
+assertLandingSupported()
 `
 const VALID_APPLICATOR = `import { EXACT_SHA_REPO_SETTINGS } from './lib/exact-sha-policy.mjs'`
 
