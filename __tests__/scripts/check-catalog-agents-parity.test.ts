@@ -46,6 +46,15 @@ function makeAgents(entries: string[] | Array<{ id: string; title: string }>): s
   return `## Invariants\n\n${lines.join('\n')}`
 }
 
+// #2513: a "collapsed" entry has id and title on the SAME source line — exactly
+// what a routine prettier pass produces for a short object literal. This is the
+// shape the parity check must not go blind on.
+function makeCollapsedCatalog(entries: Array<{ id: string; title: string }>): string {
+  return entries
+    .map((e) => `  { id: '${e.id}', tier: 'governance', title: '${e.title}' },`)
+    .join('\n')
+}
+
 describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
   it('exits 0 when all catalog IDs appear in AGENTS.md', () => {
     const { dir, cleanup } = makeTemp()
@@ -364,6 +373,137 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
       writeFileSync(
         agents,
         makeAgents([{ id: 'INV-01', title: 'Default title for INV-01' }, 'INV-56']),
+      )
+      expect(run(catalog, agents).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // #2513: a catalog entry whose `id` and `title` sit on the SAME source line
+  // (exactly what prettier produces when it collapses a short object literal)
+  // must not go invisible to the parser. Before the fix, the line-scanner
+  // recorded currentId and `continue`d to the NEXT line looking for a title
+  // that was already consumed — so the entry never made it into
+  // catalogEntries at all, and both the forward AND reverse checks went blind
+  // to it.
+
+  it('exits non-zero when a collapsed (same-line id+title) entry is missing from AGENTS.md [#2513 silent hole]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      writeFileSync(
+        catalog,
+        `${makeCatalog(['INV-01'])}\n${makeCollapsedCatalog([{ id: 'INV-02', title: 'second rule' }])}`,
+      )
+      // AGENTS.md omits INV-02 entirely — the collapsed entry must still be
+      // caught as MISSING, not silently dropped from catalogEntries.
+      writeFileSync(agents, makeAgents(['INV-01']))
+      const result = run(catalog, agents)
+      expect(result.status).not.toBe(0)
+      expect(result.stdout).toContain('INV-02')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits non-zero when a collapsed entry is present in AGENTS.md with the WRONG title [#2513]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      writeFileSync(
+        catalog,
+        `${makeCatalog(['INV-01'])}\n${makeCollapsedCatalog([{ id: 'INV-02', title: 'second rule' }])}`,
+      )
+      writeFileSync(
+        agents,
+        makeAgents([
+          { id: 'INV-01', title: 'Default title for INV-01' },
+          { id: 'INV-02', title: 'a completely different title' },
+        ]),
+      )
+      const result = run(catalog, agents)
+      expect(result.status).not.toBe(0)
+      expect(result.stdout).toContain('TITLE MISMATCH: INV-02')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when a collapsed entry is present in AGENTS.md with the correct title [#2513 no false positive]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      writeFileSync(
+        catalog,
+        `${makeCatalog(['INV-01'])}\n${makeCollapsedCatalog([{ id: 'INV-02', title: 'second rule' }])}`,
+      )
+      writeFileSync(
+        agents,
+        makeAgents([
+          { id: 'INV-01', title: 'Default title for INV-01' },
+          { id: 'INV-02', title: 'second rule' },
+        ]),
+      )
+      expect(run(catalog, agents).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits non-zero and names the unaccounted id when the catalog holds an id the parser cannot extract a title for [#2513 vacuity guard]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      // INV-77's title uses a template-literal string (backticks) — a form
+      // neither the same-line nor multi-line title regex recognizes, and
+      // which also never triggers the `title:\s*$` lookahead (since content
+      // follows "title:" on the same line). The id IS present in the source,
+      // but the entry silently never lands in catalogEntries — and AGENTS.md
+      // deliberately omits INV-77 too, so the pre-fix reverse-orphan check
+      // has nothing to accidentally catch this on: only an explicit
+      // programme-membership check (comparing catalogEntries against every
+      // `id: 'INV-NN'` occurrence in the source) can catch this. Without it,
+      // the gate would report a confident OK on a short-counted set.
+      writeFileSync(
+        catalog,
+        `${makeCatalog(['INV-01'])}\n  { id: 'INV-77', tier: 'governance', title: \`Backtick title\` },`,
+      )
+      writeFileSync(agents, makeAgents(['INV-01']))
+      const result = run(catalog, agents)
+      expect(result.status).not.toBe(0)
+      expect(result.stdout + result.stderr).toContain('INV-77')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 with mixed multi-line and collapsed formatting all consistent with AGENTS.md [#2513]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      writeFileSync(
+        catalog,
+        [
+          makeCatalog([{ id: 'INV-01', title: 'Exact title' }]),
+          makeCollapsedCatalog([{ id: 'INV-02', title: 'second rule' }]),
+          `  {\n    id: 'INV-03',\n    tier: 'governance',\n    title:\n      'Multi-line title',\n  }`,
+          makeCollapsedCatalog([{ id: 'INV-04', title: 'fourth rule' }]),
+        ].join('\n'),
+      )
+      writeFileSync(
+        agents,
+        makeAgents([
+          { id: 'INV-01', title: 'Exact title' },
+          { id: 'INV-02', title: 'second rule' },
+          { id: 'INV-03', title: 'Multi-line title' },
+          { id: 'INV-04', title: 'fourth rule' },
+        ]),
       )
       expect(run(catalog, agents).status).toBe(0)
     } finally {
