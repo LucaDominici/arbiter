@@ -54,6 +54,16 @@ function writeTddEvidence(dir: string, taskId: string): void {
 }
 
 /**
+ * #2435 — the artifact the `red-team-review` row of `.claude/commands/ship.md` promises.
+ * Leaving that phase now asserts it, so a fixture that drives the whole lifecycle records it.
+ */
+function writeRedTeamEvidence(dir: string, taskId: string): void {
+  const evDir = join(dir, '.arbiter', 'evidence', 'redteam')
+  mkdirSync(evDir, { recursive: true })
+  writeFileSync(join(evDir, `${taskId}.json`), JSON.stringify({ findings: [] }), 'utf-8')
+}
+
+/**
  * #2328: the marker gate verifies tree, checkout, toolchain, level and age
  * against a REAL checkout, so the fixture becomes a real repo and the marker is
  * stamped by the writer rather than hand-written.
@@ -318,6 +328,7 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     initGitRepo(dir)
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeTddEvidence(dir, '#1206')
+    writeRedTeamEvidence(dir, '#1206')
     // The verification/close/complete phase gates require a real-shape marker correlated to
     // this fixture's mocked branch and HEAD, just as a successful check-all run would write.
     writeGatePassMarker(dir, '#1206')

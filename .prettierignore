@@ -72,7 +72,10 @@ __tests__/templates/__snapshots__/high-fanout/
 # proof this fixture exists to provide. Same reasoning as the approval snapshots.
 __tests__/fixtures/retired-renders/
 
-# #2436: Stryker mutation-testing scratch sandbox — untracked, regenerable, and
-# never guaranteed to hold formatted content. An interrupted run left one behind
-# with no ignore entry, and `prettier --check .` walked straight into it.
+# Vendored copies of another repository's schemas (INV-143). These must stay BYTE-IDENTICAL to the
+# file their owner ships — scripts/check-forma-contract.mjs hashes them against schemas/CONTRACT.json,
+# so reformatting one silently breaks the pin. Caught exactly that way on 2026-09-02.
+schemas/vendor/
+
+# #2436: Stryker mutation-testing scratch sandbox is untracked and regenerable.
 .stryker-tmp/

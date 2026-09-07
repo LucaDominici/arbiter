@@ -8,7 +8,7 @@ import { presetToTiers, defaultPresetForLevel } from '../src/invariants/filter.j
 import { acquireLock } from '../src/utils/file-lock.js'
 import { renderTemplate } from '../src/utils/render.js'
 import { loadGateRegistry } from '../src/generators/check-all.js'
-import { buildGateEvidence } from '../scripts/lib/gate-evidence.mjs'
+import { buildGateEvidence, captureGateStart } from '../scripts/lib/gate-evidence.mjs'
 export { DEFAULT_THRESHOLDS } from '../src/config/schema.js'
 
 function sleep(ms: number): Promise<void> {
@@ -261,13 +261,20 @@ export function materializeGateEvidenceLib(dir: string): void {
   const libDir = join(dir, 'scripts', 'lib')
   mkdirSync(libDir, { recursive: true })
   const cfg = makeConfig(dir, { language: 'typescript' })
-  for (const name of ['gate-evidence.mjs', 'run-helpers.mjs', 'evidence-binding.mjs']) {
+  // #2427 added gate-mutex.mjs: `.githooks/pre-push` now launches the gate
+  // THROUGH it, so a fixture without it no longer runs the hook's gate at all.
+  for (const name of [
+    'gate-evidence.mjs',
+    'gate-mutex.mjs',
+    'run-helpers.mjs',
+    'evidence-binding.mjs',
+  ]) {
     writeFileSync(join(libDir, name), renderTemplate(`scripts/lib/${name}.ejs`, cfg))
   }
 }
 
 /**
- * #2328 — stamp a REAL schema-v2 gate-pass marker for `dir` through the writer
+ * #2328 — stamp a REAL schema-v3 gate-pass marker for `dir` through the writer
  * path, optionally planting `overrides` on top. Fixtures must never hand-write
  * the marker: a hand-maintained literal is how one of them ends up with an
  * empty field nobody notices.
@@ -281,10 +288,15 @@ export function writeGatePassEvidence(
     overrides?: Record<string, unknown>
   } = {},
 ): Record<string, unknown> {
+  // #2427: the writer now REQUIRES the identity captured at gate start. The
+  // fixture captures it immediately before building, which is the honest
+  // stand-in for a gate whose tree did not move while it ran.
+  const root = opts.stampedIn ?? dir
   const built = buildGateEvidence({
-    root: opts.stampedIn ?? dir,
+    root,
     level: opts.level ?? 'L2',
     taskId: opts.taskId ?? 'unknown',
+    start: captureGateStart(root),
   }) as Record<string, unknown> | null
   if (built === null) throw new Error(`writeGatePassEvidence: no git checkout at ${dir}`)
   const marker = { ...built, ...(opts.overrides ?? {}) }

@@ -24,6 +24,7 @@ import { verifyGatePassMarker } from '../../src/evidence/gate-binding.js'
 import {
   GATE_EVIDENCE_STRING_FIELDS,
   buildGateEvidence,
+  captureGateStart,
   verifyGateEvidence,
 } from '../../scripts/lib/gate-evidence.mjs'
 
@@ -63,7 +64,12 @@ function makeRepo(): string {
 }
 
 function markerFor(root: string, overrides: Marker = {}): Marker {
-  const built = buildGateEvidence({ root, level: 'L2', taskId: '#2328' })
+  const built = buildGateEvidence({
+    root,
+    level: 'L2',
+    taskId: '#2328',
+    start: captureGateStart(root),
+  })
   expect(built).not.toBeNull()
   return { ...(built as Marker), ...overrides }
 }
@@ -107,7 +113,12 @@ describe('#2328 engine verifier — negative control', () => {
 
   it('ACCEPTS evidence recorded ABOVE the required level', () => {
     const dir = makeRepo()
-    const marker = buildGateEvidence({ root: dir, level: 'L3', taskId: '#2328' })
+    const marker = buildGateEvidence({
+      root: dir,
+      level: 'L3',
+      taskId: '#2328',
+      start: captureGateStart(dir),
+    })
     expect(verdictOf(marker, { root: dir, minLevel: 'L2' })).toEqual({ ok: true })
   })
 
