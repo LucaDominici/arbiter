@@ -165,8 +165,8 @@
   {
     "path": "check-constraint-scan.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). The load-bearing difference is one constant: ENFORCE_DEFAULT is true in self and false in the template. That is the documented start-warn-promote-later rollout (#1214) — arbiter hard-fails on an un-covered derivable prohibition with a live hit, while a freshly generated project warns until it has curated constraint-map.json. Self also reads docs/internal/SYSTEM/CANON.md (the #1770 layout) vs the template's docs/SYSTEM/CANON.md, and carries the INV-94 CATALOG block plus section banners. The extraction grammar, the token-shape filter and the INV-96 fail-closed handling of a missing/malformed map are identical. PERMANENT: self-stricter-than-emitted is the deliberate rollout posture, not lag.",
-    "diffHash": "d5c2ff456e0b8b123e8913db754b02f2741f1adcc33fd5c9abd7d72db69a970c"
+    "reason": "Read line-by-line (#2275). Two load-bearing constants, both self-stricter: (1) ENFORCE_DEFAULT is true in self and false in the template — the documented start-warn-promote-later rollout (#1214): arbiter hard-fails on an un-covered derivable prohibition with a live hit, while a freshly generated project warns until it has curated constraint-map.json. (2) RATCHET_REQUIRED is true in self and false in the template (#2384): self refuses to pass when the coverage baseline is missing or records no covered/unenforceable floor — deleting the baseline must not be a way to pass — while the emitted twin tolerates it because `arbiter init` ships no baseline and the first run is the one that seeds it. Self also reads docs/internal/SYSTEM/CANON.md (the #1770 layout) vs the template's docs/SYSTEM/CANON.md, and carries the INV-94 CATALOG block plus section banners. The extraction grammar, the token-shape filter and the INV-96 fail-closed handling of a missing/malformed map are identical. PERMANENT: self-stricter-than-emitted is the deliberate rollout posture, not lag.",
+    "diffHash": "866498147374f67f2cfb47ab864d6efcaef9b4deb0dbfc37116a93a77a470525"
   },
   {
     "path": "check-consumer-audit.mjs",

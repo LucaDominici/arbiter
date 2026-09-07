@@ -54,7 +54,21 @@ describe('check-constraint-scan.mjs.ejs render (INV-115)', () => {
     }
   })
 
-  it('classification logic matches the self gate token-for-token (modulo comments + ENFORCE_DEFAULT + CANON path)', () => {
+  // #2384: a missing or floor-less baseline must not pass. Self REQUIRES the baseline
+  // because it is a committed artefact there — its absence is a fault, not a first run.
+  // The emitted twin must NOT, because `arbiter init` ships no baseline and the very first
+  // run is the one that seeds it; requiring it would fail every freshly generated project.
+  it('target does not require a baseline (RATCHET_REQUIRED = false) — init ships none', () => {
+    const out = renderTemplate(TEMPLATE, cfg())
+    expect(out).toContain('const RATCHET_REQUIRED = false')
+  })
+
+  it('the self repo gate is the opposite default (RATCHET_REQUIRED = true)', () => {
+    const selfSrc = readFileSync(resolve('scripts/check-constraint-scan.mjs'), 'utf8')
+    expect(selfSrc).toContain('const RATCHET_REQUIRED = true')
+  })
+
+  it('classification logic matches the self gate token-for-token (modulo comments + the two defaults + CANON path)', () => {
     // Strongest parity guard: strip comments and the two differing defaults, then collapse
     // whitespace and compare the executable token-stream. Whitespace-tolerant because Prettier
     // formats the self .mjs but not the .ejs twin; still catches any logic/identifier drift
@@ -66,6 +80,9 @@ describe('check-constraint-scan.mjs.ejs render (INV-115)', () => {
         .split('\n')
         .map((l) => l.replace(/\s*\/\/.*$/, '')) // strip full-line AND trailing comments
         .map((l) => l.replace(/const ENFORCE_DEFAULT = (true|false)/, 'const ENFORCE_DEFAULT = X'))
+        .map((l) =>
+          l.replace(/const RATCHET_REQUIRED = (true|false)/, 'const RATCHET_REQUIRED = X'),
+        )
         .map((l) => l.replace(/docs\/internal\/SYSTEM\/CANON\.md/g, 'docs/SYSTEM/CANON.md'))
         .join('\n')
         .replace(/\s+/g, '') // strip ALL whitespace → Prettier line-wrapping insensitive
