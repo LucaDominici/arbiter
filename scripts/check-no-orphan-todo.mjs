@@ -10,7 +10,7 @@
 // This gate's own SKIP_DIRS is re-applied as a path-segment filter so `templates/` stays pruned —
 // walkRepo's SKIP_DIRS already covers node_modules/.git/dist (plus build/coverage/.coverage).
 import { readFileSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { walkRepo } from './lib/glob-walk.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
 
@@ -52,15 +52,41 @@ export function main(exitFn = process.exit) {
   const scanDirs = process.argv.slice(2).length > 0 ? process.argv.slice(2) : ['src', '__tests__']
   const baseDir = process.cwd()
   let violations = 0
+  let filesScanned = 0
 
   for (const dir of scanDirs) {
-    for (const file of collectSourceFiles(join(baseDir, dir))) {
+    // #2512: resolve(), not join(), against baseDir. join('/repo', dir) does NOT reset on an
+    // absolute `dir` — join('/repo', '/tmp/fixture/src') silently becomes
+    // '/repo/tmp/fixture/src', a path that (almost certainly) does not exist, so the gate scanned
+    // nothing and exited 0: a green that means "I looked nowhere", not "there is nothing to
+    // find". resolve() has POSIX/Node's documented right-to-left semantics: an absolute segment
+    // discards everything to its left, so an absolute `dir` is used as-is and a relative one is
+    // still joined under baseDir exactly as before.
+    const resolvedDir = resolve(baseDir, dir)
+    const files = collectSourceFiles(resolvedDir)
+    filesScanned += files.length
+    for (const file of files) {
       const rel = relative(baseDir, file)
       for (const hit of findOrphanTodos(readFileSync(file, 'utf-8'))) {
         process.stdout.write(`  ${rel}:${hit.line}  ${hit.text}\n`)
         violations++
       }
     }
+  }
+
+  // Programme-membership assertion (CANON-24): "nothing found" and "nothing looked at" must
+  // never produce the same green. A resolved scan set of zero files — an empty directory, a
+  // typo'd path, or (pre-fix) an absolute argument silently mis-resolved under baseDir — means
+  // the gate proved nothing, so it fails loudly instead of reporting a false "no violations".
+  process.stdout.write(
+    `  Scanned ${filesScanned} file(s) across ${scanDirs.length} dir(s): ${scanDirs.join(', ')}\n`,
+  )
+  if (filesScanned === 0) {
+    process.stdout.write(
+      `\n  ABORT: resolved scan set is empty — 0 files found under ${scanDirs.join(', ')}. ` +
+        `A gate that finds nothing must first prove it looked somewhere (CANON-24).\n\n`,
+    )
+    return exitFn(1)
   }
 
   if (violations > 0) {

@@ -68,6 +68,38 @@ into the gate via the `check-anti-fake-green.mjs` aggregate (class `gh-audit` = 
   `src/commands/doctor.ts` (`runDoctorProveGates`), tests in
   `__tests__/conformance/gate-proofs.test.ts` + `__tests__/commands/doctor-prove-gates.test.ts`.
 
+## Empty-scan refusal (#2512)
+
+N4 above asks whether a gate _can_ reach a failing verdict. This asks a prior question: was the
+gate given anything to look at? A file-scanning gate that resolves its scan root to an empty set
+prints its clean message and exits `0` — indistinguishable, in a CI log, from a real scan that
+found no violations. "Found nothing" and "looked nowhere" must never produce the same green.
+
+The concrete defect (#2512) was a path bug, not a missing counter. `check-no-orphan-todo.mjs`
+composed its scan root with `join(baseDir, dir)`, and `join` does **not** reset on an absolute
+segment: `join('/repo', '/tmp/fixture/src')` yields `'/repo/tmp/fixture/src'`, a path that almost
+certainly does not exist. Any absolute scan directory was therefore silently rewritten to
+nothing, and the gate passed having opened no file at all. The fix is `resolve(baseDir, dir)`,
+whose right-to-left semantics discard everything left of an absolute segment while still joining
+a relative one under `baseDir` exactly as before.
+
+The refusal is the guard that makes such a bug loud rather than invisible:
+
+- Every scan reports `Scanned N file(s) across M dir(s): <dirs>` — so the count is in the log
+  whether or not the run fails, and a collapse to zero is visible on the passing path too.
+- A resolved scan set of **zero files** aborts instead of reporting "no violations". An empty
+  directory, a typo'd path, or a mis-resolved absolute argument all fail loudly.
+
+A scan that reads real files and finds no violations is unaffected — it is a genuine `0` and
+stays one. The distinction is _files scanned_, not _violations found_.
+
+> **Open: the exit code for this condition is not yet uniform (#2593).** `check-no-orphan-todo.mjs`
+> exits `1`; `check-perm-test-guards.mjs` exits `2` for the same condition, following its own
+> header rather than the INV-53 table below. Both fail the gate, so the behaviour is right in
+> each; only the diagnostic classification differs. #2593 decides one rule for the family —
+> including whether a _mis-invocation_ (a path that does not exist) and an _empty-but-valid scan
+> root_ should share a code at all — and converts every member in one change.
+
 ## `arbiter doctor` diagnostics for target repos (#2162)
 
 The guards above catch arbiter faking green on **its own** gate. `arbiter doctor tool-pins` and
