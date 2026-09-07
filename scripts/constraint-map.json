@@ -36,10 +36,6 @@
     "kind": "gate",
     "enforcer": "check-no-redacted-tokens.mjs"
   },
-  "prose:- The nightly CI stamp artifact (`.arbiter/nightly/last-run.json`) must not be older than 26 hours when present. Exit 0 vacuously when no artifact exists.": {
-    "kind": "gate",
-    "enforcer": "check-nightly-freshness.mjs"
-  },
   "prose:- Every gate, hook, check, and generator emitted by arbiter must default to BLOCK on uncertainty, never SKIP. Audits scripts/, .githooks/, and .claude/hooks/ for fail-open anti-patterns. New scripts outside the baseline must pass all checks.": {
     "kind": "gate",
     "enforcer": "check-fail-closed-audit.mjs"

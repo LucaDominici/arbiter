@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "capturedAt": "2026-09-07T14:54:45.875Z",
+  "capturedAt": "2026-09-07T21:12:12.255Z",
   "metrics": {
     "covered": {
-      "value": 24,
+      "value": 23,
       "unit": "count",
-      "direction": "higher-is-better"
+      "direction": "informational"
     },
     "accepted": {
       "value": 13,
@@ -17,5 +17,6 @@
       "unit": "count",
       "direction": "lower-is-better"
     }
-  }
+  },
+  "integrityHash": "dbbc74b36a91f81a65ff3d632da6f00053e83673a104a6f903eb9c969ad21f63"
 }

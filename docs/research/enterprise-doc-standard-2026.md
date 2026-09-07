@@ -7,7 +7,7 @@ owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference', 'doc-standard', 'gold-doc']
 related:
-  ['standards/gold-doc-set.yml', 'scripts/check-doc-set.mjs', 'scripts/check-monthly-freshness.mjs']
+  ['standards/gold-doc-set.yml', 'scripts/check-doc-set.mjs', '.github/workflows/09-heartbeat.yml']
 ---
 
 # Enterprise Software Documentation Standard (2026)
@@ -318,7 +318,7 @@ Deterministic, AI-free verdict. Each catalog row compiles to a `gold-doc-set.yml
   freshness gate reads. Never overwrites a real doc.
 - **Verdict is computed by code, never by an AI** — the Beyoncé requirement.
 
-### 4.2 Non-staleness gate (engine: `scripts/check-monthly-freshness.mjs` / `check-nightly-freshness.mjs`)
+### 4.2 Non-staleness gate (engine: `09-heartbeat.yml`'s `assert-monthly-freshness` / `assert-nightly-freshness` jobs — the stamp-file scripts of the same name were retired in #2520 as structurally vacuous: no writer ever produced their artifact, so they passed by design whenever it was absent)
 
 Presence alone is satisfiable by a stub that then rots. The freshness gate reads the
 `last_review` (and `doc_version` / `status`) frontmatter this very document carries, and
@@ -352,7 +352,7 @@ gold-doc-set.yml (this catalog, tier-parameterized)
         │
    ┌────┴─────────────────────────────────────────────┐
    ▼                                                   ▼
-check-doc-set.mjs                          check-monthly-freshness.mjs
+check-doc-set.mjs                          09-heartbeat.yml (assert-monthly-freshness)
  (presence + overlay triggers)              (last_review age + change-coupling)
    │  missing required → --generate stub        │  stale required → flag / block-at-release
    ▼                                            ▼

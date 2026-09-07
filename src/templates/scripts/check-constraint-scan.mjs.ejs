@@ -9,6 +9,8 @@
 //        [--enforce[=true|false]] [--baseline=path] [--update-baseline] [--help]
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { resolve, join } from 'node:path'
+import { createHash } from 'node:crypto'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 // Generated default: WARN on un-covered derivable prohibitions (start-warn-promote-later).
 // Curate `constraint-map.json`, then run with --enforce=true to hard-fail in CI.
@@ -252,53 +254,93 @@ function enforcerExists(enforcer, kind, root) {
   }
 }
 
-// ─── Coverage ratchet (AC-3, #2384) ──────────────────────────────────────────
-// One-way, same contract as scripts/capture-debt-baseline.mjs --update: covered may only
-// rise, unenforceable may only fall, and --update-baseline REFUSES to write a regression
-// (an "update" that silently accepts a rise is not a ratchet). `accepted` is recorded for
-// visibility but not ratcheted — a new acceptance earns its rationale in a reviewed diff.
+// ─── Coverage ratchet (AC-3, #2384; retirement-safe + tamper-closed, #2520) ──────────────
+// #2520 root cause: `covered` was ratcheted as an absolute "may only rise" floor, but the
+// denominator (how many prohibitions even exist) is not fixed — a prohibition can be
+// LEGITIMATELY RETIRED (removed from the docs and its map entry together), which shrinks
+// `covered` without anything losing enforcement. The old floor could not tell that apart
+// from a real regression, so retiring a covered prohibition made the ratchet unsatisfiable
+// by any honest means (hand-edit the baseline, leave the gate permanently red, or never
+// retire a prohibition again).
+//
+// Fix: `covered` is recorded for visibility only (like `accepted` already was) and is no
+// longer itself a ratchet floor. The ONLY regression signal is `unenforceable` (the
+// uncovered/untriaged backlog) rising — unchanged from before, lower-is-better. This
+// correctly distinguishes the two cases a bare `covered` count could not:
+//   - retire a COVERED prohibition (removed from docs + map together): `unenforceable` is
+//     untouched, so nothing is flagged — exactly the legitimate case.
+//   - drop or break a prohibition's MAPPING while the prohibition itself still stands (the
+//     doc corpus is unchanged): the prohibition falls out of `covered` and into
+//     `unenforceable`, `unenforceable` rises, and the ratchet still refuses — exactly the
+//     regression case, caught the same way a direct rise always was.
+// `--update-baseline` still REFUSES to write when `unenforceable` rose.
+//
+// Tamper-closed (#2520): a hand-edited baseline is, on its face, indistinguishable from a
+// real one. Every WRITE stamps an `integrityHash` — a sha256 digest over the exact
+// `{version, capturedAt, metrics}` payload — and every READ verifies it. A baseline missing
+// the hash, or carrying one that does not match its own recorded values, was not produced
+// by this tool and is untrusted: fail-closed at exit 2, never merely exit 1.
+export function computeBaselineIntegrityHash(payload) {
+  return createHash('sha256')
+    .update(JSON.stringify({ version: payload.version, capturedAt: payload.capturedAt, metrics: payload.metrics }))
+    .digest('hex')
+}
+
 function metricValue(metrics, key, fallback) {
   const raw = metrics && typeof metrics === 'object' ? metrics[key] : undefined
   const value = raw && typeof raw === 'object' ? raw.value : undefined
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
-// Reads the committed baseline's ratchet floors. An unreadable or malformed baseline is
-// fail-closed (exit 2) — a ratchet that cannot read its floor must not silently pass.
+// A baseline the tool did not write is untrusted, full stop — a missing hash and a
+// mismatched hash are the same failure (not-tool-authored), reported identically.
+function verifyBaselineIntegrity(base) {
+  if (base == null || typeof base !== 'object' || Array.isArray(base)) return false
+  const { integrityHash } = base
+  if (typeof integrityHash !== 'string' || integrityHash === '') return false
+  return integrityHash === computeBaselineIntegrityHash(base)
+}
+
+// #2384: a well-formed, correctly-signed baseline recording no floor for the metric the ratchet
+// enforces used to fall back to the permissive +Infinity, so `{"version":1,"metrics":{}}` was a
+// silent full disarm that still passed the integrity check. A floor that is not recorded is not
+// a floor. Generated projects leave RATCHET_REQUIRED false until they seed a baseline, so this
+// refusal is inert for them and the RATCHET-UNSET path stays their behaviour.
 //
-// A well-formed baseline MISSING a metric falls back to the permissive floor (0 / +Infinity).
-// Under RATCHET_REQUIRED that fallback is refused instead, because a floor that is not recorded
-// is not a floor: `{"version":1,"metrics":{}}` would otherwise disarm the ratchet with no output
-// at all. Generated projects leave RATCHET_REQUIRED false until they seed a baseline.
-function readBaselineMetrics(path) {
+// Scoped to `unenforceable` alone, deliberately: #2520 retired the `covered` floor (written as
+// `direction: 'informational'` and read by nothing), because a covered-count floor breaks every
+// time a rule is legitimately retired. Demanding a floor the tool no longer enforces would be
+// demanding a fiction — the invariant kept here is that the ENFORCED floor must be present.
+function refuseFloorlessBaseline(path, baseUnenf) {
+  if (!RATCHET_REQUIRED) return
+  if (baseUnenf !== null) return
+  process.stdout.write(
+    `[RATCHET-MISSING] ${path} records no unenforceable floor — a baseline without metrics ` +
+      `disarms the ratchet silently; re-seed it with --update-baseline\n`,
+  )
+  process.exit(1)
+}
+
+// Reads the committed baseline's ratchet floor. `trusted: false` (unreadable, malformed, or
+// missing/mismatched integrityHash) is the caller's decision to act on: a plain read (no
+// --update-baseline) must fail closed at exit 2 — a ratchet that cannot verify its floor
+// must never silently pass. `--update-baseline` instead treats it as no verifiable floor at
+// all and self-heals by re-signing fresh (same as the file-absent seed path) — that is
+// exactly the deliberate, reviewed action meant to fix it, mirroring how a missing baseline
+// is seeded rather than refused.
+function readBaselineBounds(path) {
   let base
   try {
     base = JSON.parse(readFileSync(path, 'utf8'))
   } catch (err) {
     process.stderr.write(`[constraint-scan] invalid baseline JSON at ${path}: ${err.message}\n`)
-    process.exit(2)
+    return { trusted: false }
   }
-  return base && typeof base === 'object' && !Array.isArray(base) ? base.metrics : undefined
-}
-
-function refuseFloorlessBaseline(path, baseCovered, baseUnenf) {
-  if (!RATCHET_REQUIRED) return
-  if (baseCovered !== null && baseUnenf !== null) return
-  process.stdout.write(
-    `[RATCHET-MISSING] ${path} records no ${baseCovered === null ? 'covered' : 'unenforceable'} ` +
-      `floor — a baseline without metrics disarms the ratchet silently; re-seed it with ` +
-      `--update-baseline\n`,
-  )
-  process.exit(1)
-}
-
-function readBaselineBounds(path) {
-  const metrics = readBaselineMetrics(path)
-  const baseCovered = metricValue(metrics, 'covered', null)
-  const baseUnenf = metricValue(metrics, 'unenforceable', null)
-  refuseFloorlessBaseline(path, baseCovered, baseUnenf)
+  if (!verifyBaselineIntegrity(base)) return { trusted: false }
+  const baseUnenf = metricValue(base.metrics, 'unenforceable', null)
+  refuseFloorlessBaseline(path, baseUnenf)
   return {
-    baseCovered: baseCovered ?? 0,
+    trusted: true,
     baseUnenf: baseUnenf ?? Number.POSITIVE_INFINITY,
   }
 }
@@ -306,19 +348,25 @@ function readBaselineBounds(path) {
 function ratchetOk(args, root, covered, accepted, unenforceable) {
   if (!args.ratchetScoped) return true
   const path = resolve(root, args.baseline)
-  const next = {
+  const payload = {
     version: 1,
     capturedAt: new Date().toISOString(),
     metrics: {
-      covered: { value: covered, unit: 'count', direction: 'higher-is-better' },
+      covered: { value: covered, unit: 'count', direction: 'informational' },
       accepted: { value: accepted, unit: 'count', direction: 'informational' },
       unenforceable: { value: unenforceable, unit: 'count', direction: 'lower-is-better' },
     },
   }
+  const write = (p) => {
+    const integrityHash = computeBaselineIntegrityHash(p)
+    writeFileSync(path, `${JSON.stringify({ ...p, integrityHash }, null, 2)}\n`)
+  }
   if (!existsSync(path)) {
     if (args.updateBaseline) {
-      writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`)
-      process.stdout.write(`[RATCHET-UPDATED] ${args.baseline} seeded at ${covered}/${unenforceable}\n`)
+      write(payload)
+      process.stdout.write(
+        `[RATCHET-UPDATED] ${args.baseline} seeded at ${covered} covered / ${unenforceable} uncovered\n`,
+      )
       return true
     }
     if (RATCHET_REQUIRED) {
@@ -333,15 +381,28 @@ function ratchetOk(args, root, covered, accepted, unenforceable) {
     )
     return true
   }
-  const { baseCovered, baseUnenf } = readBaselineBounds(path)
-  let regressed = false
-  if (covered < baseCovered) {
-    process.stdout.write(`[RATCHET] covered fell ${baseCovered} -> ${covered} (${args.baseline})\n`)
-    regressed = true
+  const bounds = readBaselineBounds(path)
+  if (!bounds.trusted) {
+    if (args.updateBaseline) {
+      write(payload)
+      process.stdout.write(
+        `[RATCHET-UPDATED] ${args.baseline} was not produced by this tool (missing/mismatched ` +
+          `integrityHash) — re-signed fresh at ${covered} covered / ${unenforceable} uncovered\n`,
+      )
+      return true
+    }
+    process.stderr.write(
+      `[constraint-scan] baseline at ${path} has a missing or mismatched integrityHash — it ` +
+        `was not produced by this tool, so its recorded values cannot be trusted. Regenerate ` +
+        `it with:\n  node scripts/check-constraint-scan.mjs --update-baseline\n`,
+    )
+    process.exit(2)
   }
+  const { baseUnenf } = bounds
+  let regressed = false
   if (unenforceable > baseUnenf) {
     process.stdout.write(
-      `[RATCHET] unenforceable rose ${baseUnenf} -> ${unenforceable} (${args.baseline})\n`,
+      `[RATCHET] uncovered (unenforceable) rose ${baseUnenf} -> ${unenforceable} (${args.baseline})\n`,
     )
     regressed = true
   }
@@ -352,12 +413,11 @@ function ratchetOk(args, root, covered, accepted, unenforceable) {
       )
       return false
     }
-    next.metrics.covered.value = Math.max(covered, baseCovered)
-    next.metrics.unenforceable.value = Math.min(unenforceable, baseUnenf)
-    writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`)
+    payload.metrics.unenforceable.value = Math.min(unenforceable, baseUnenf)
+    write(payload)
     process.stdout.write(
-      `[RATCHET-UPDATED] ${args.baseline}: ${next.metrics.covered.value} covered, ` +
-        `${next.metrics.unenforceable.value} unenforceable\n`,
+      `[RATCHET-UPDATED] ${args.baseline}: ${payload.metrics.covered.value} covered, ` +
+        `${payload.metrics.unenforceable.value} uncovered\n`,
     )
     return true
   }
@@ -581,9 +641,11 @@ function main() {
   process.exit(0)
 }
 
-try {
-  main()
-} catch (err) {
-  process.stderr.write(`[check-constraint-scan] unexpected error: ${err instanceof Error ? err.stack : String(err)}\n`)
-  process.exit(1)
+if (isMainModule(import.meta.url)) {
+  try {
+    main()
+  } catch (err) {
+    process.stderr.write(`[check-constraint-scan] unexpected error: ${err instanceof Error ? err.stack : String(err)}\n`)
+    process.exit(1)
+  }
 }

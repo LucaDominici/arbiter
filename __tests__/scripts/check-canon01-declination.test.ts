@@ -383,12 +383,27 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
     // so the twelve are eleven. A whole-registry ceiling is deliberately not asserted
     // here: the registry is shared with main, and the monotone bound on it is the gate's
     // ratchet (canon01-baseline.json), not a literal in this file.
+    // Entries that have LEFT the audited twelve, each for a named reason. Counting was the
+    // wrong shape: `AUDITED_2405.length - 1` silently encoded "#2405 removed exactly one",
+    // so the next legitimate retirement broke it with no clue why. Naming them means a
+    // future removal must state its reason here, and an entry that quietly reappears in the
+    // self-only registry fails too.
+    const AUDITED_REMOVED: Record<string, string> = {
+      'scripts/check-acceptance.mjs': 'emitted as a template twin — ADR-110, closed by #2405',
+      'scripts/check-monthly-freshness.mjs': 'gate deleted as structurally vacuous — #2520',
+      'scripts/check-nightly-freshness.mjs': 'gate deleted as structurally vacuous — #2520',
+    }
+
     it('pins the ratchet baseline to the registry it measures, and the audited set fell', () => {
       const baseline = JSON.parse(
         readFileSync(resolve('scripts/canon01-baseline.json'), 'utf-8'),
       ) as { selfOnly: number }
       expect(baseline.selfOnly).toBe(REGISTRY.selfOnly.length)
-      expect(audited().length).toBe(AUDITED_2405.length - 1)
+
+      const paths = new Set(REGISTRY.selfOnly.map((e) => e.path))
+      const stillListed = Object.keys(AUDITED_REMOVED).filter((p) => paths.has(p))
+      expect(stillListed).toEqual([])
+      expect(audited().length).toBe(AUDITED_2405.length - Object.keys(AUDITED_REMOVED).length)
     })
   })
 
