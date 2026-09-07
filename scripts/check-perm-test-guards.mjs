@@ -18,7 +18,12 @@
 // Exit codes per INV-53:
 // Exits 0: every chmod-to-unreadable test site has a root guard within range.
 // Exits 1: an unguarded site exists (would pass locally, fail as root in CI).
-// Exits 2: the check cannot run (--dir given without a value, or naming a missing path).
+// Exits 2: the check cannot run — --dir given without a value, naming a missing path, or
+// CATALOG: naming a path that is not a directory; or a scan root holding no test files at
+// CATALOG: all. The last one is the #2512/#2526 vacuity: reporting OK for a tree the gate
+// CATALOG: never opened a file in is a pass nobody earned. A scan that DOES read files and
+// CATALOG: finds no permission sites is a real 0 — the distinction is files-scanned, not
+// CATALOG: violations-found.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -55,6 +60,16 @@ function resolveScanRoot(argv) {
     process.stderr.write(`check-perm-test-guards: ERROR — --dir path does not exist: ${value}\n`)
     return null
   }
+  // A path that exists but is not a directory reaches walk(), whose readdirSync throws
+  // ENOTDIR; the catch-all would report that as exit 1 — the code reserved for "an
+  // unguarded site exists" — so a misinvocation would read as a violation of a tree that
+  // was never scanned. Caught here so it stays a 2.
+  if (!statSync(root).isDirectory()) {
+    process.stderr.write(
+      `check-perm-test-guards: ERROR — --dir path is not a directory: ${value}\n`,
+    )
+    return null
+  }
   return root
 }
 
@@ -62,8 +77,19 @@ function main() {
   const scanRoot = resolveScanRoot(process.argv.slice(2))
   if (scanRoot === null) process.exit(2)
 
+  const files = walk(scanRoot, [])
+  // #2512/#2526 vacuity: a scan root that yields zero test files means the gate opened
+  // nothing and would still print OK. Refuse instead — a pass must be earned by a scan.
+  if (files.length === 0) {
+    process.stderr.write(
+      `check-perm-test-guards: ERROR — no test files under ${scanRoot}; the scan resolved ` +
+        `nowhere and an OK on an unread tree is not a pass\n`,
+    )
+    process.exit(2)
+  }
+
   const violations = []
-  for (const file of walk(scanRoot, [])) {
+  for (const file of files) {
     const lines = readFileSync(file, 'utf-8').split('\n')
     for (let i = 0; i < lines.length; i++) {
       if (!UNREADABLE_CHMOD_RE.test(lines[i])) continue

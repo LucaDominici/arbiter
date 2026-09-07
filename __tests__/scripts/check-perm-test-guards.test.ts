@@ -51,9 +51,14 @@ describe('check-perm-test-guards.mjs — A (clean)', () => {
     })
   })
 
+  // The fixture carries a real test file alongside the helper so the scan actually reads
+  // something: with the helper alone the root holds zero test files, which the gate now
+  // refuses as a scan that resolved nowhere (exit 2). Keeping both separates the two
+  // claims — the walk EXCLUDES helper.ts, and it still had a tree to walk.
   it('ignores non-test files even when they hold an unguarded chmod site', () => {
     withFixtureDir((dir) => {
       writeFileSync(join(dir, 'helper.ts'), `export function lock() {\n  ${CHMOD_CALL}\n}\n`)
+      writeFileSync(join(dir, 'real.test.ts'), 'it("adds", () => { expect(1 + 1).toBe(2) })\n')
       expect(run(['--dir', dir]).status).toBe(0)
     })
   })
@@ -124,5 +129,32 @@ describe('check-perm-test-guards.mjs — C (error)', () => {
   it('exits 2 when --dir is supplied without a value', () => {
     const r = run(['--dir'])
     expect(r.status).toBe(2)
+  })
+
+  // #2420: `--dir` naming a path that EXISTS but is not a directory reaches walk(), whose
+  // readdirSync throws ENOTDIR. The catch-all turns that into exit 1 — the code reserved
+  // for "an unguarded site exists" — so a misinvocation is reported as a violation of a
+  // tree that was never read. Under INV-53 that is a 2.
+  it('exits 2 when --dir names a file rather than a directory (INV-53: cannot run)', () => {
+    withFixtureDir((dir) => {
+      const file = join(dir, 'not-a-dir.txt')
+      writeFileSync(file, 'plain text\n')
+      const r = run(['--dir', file])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toContain('not-a-dir.txt')
+    })
+  })
+
+  // #2420: a scan root that yields ZERO scannable files is the "resolved its scan dir
+  // nowhere" vacuity (#2512, #2526) — the gate reports OK for a tree it never opened a
+  // single file in. Distinct from the A-block case of a dir holding a test file with no
+  // permission sites, which is a real scan that legitimately finds nothing.
+  it('exits 2 when the scan root holds no test files at all (scanned nothing)', () => {
+    withFixtureDir((dir) => {
+      writeFileSync(join(dir, 'README.md'), 'not a test file\n')
+      const r = run(['--dir', dir])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toContain('no test files')
+    })
   })
 })
