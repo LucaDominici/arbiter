@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-08-30'
+last_review: '2026-09-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -70,7 +70,7 @@ related: []
 | 049 | [Java Static Analysis: Baseline Audit and Wiring Fixes](../ADR/049-java-static-analysis-baseline.md) | Accepted | 2026-05-20 |
 | 050 | [Pipeline Complexity Tiers — Archetype-Default + Governance Floor](../ADR/050-pipeline-complexity-tiers.md) | Accepted | 2026-05-23 |
 | 051 | [Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy](../ADR/051-collaboration-mode-workflow-axis.md) | Accepted | 2026-05-28 |
-| 052 | [Exact-SHA Landing and Cosign Preservation](../ADR/052-fast-forward-merge-cosign-preservation.md) | Accepted | 2026-07-27 |
+| 052 | [Exact-SHA Landing and Cosign Preservation](../ADR/052-fast-forward-merge-cosign-preservation.md) | Accepted | 2026-09-04 |
 | 053 | [CI Gap Closures, Per-Tier Nightly, Opt-In Selective Gates, and Local Provenance Log](../ADR/053-ci-gap-closures-and-check-ladder.md) | Accepted | 2026-05-28 |
 | 054 | [Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](../ADR/054-phase-3-5-handoff-modeled-as-status-json-fields.md) | Accepted | 2026-05-31 |
 | 055 | [SpotBugs security hard-block baseline script (#212)](../ADR/055-spotbugs-security-hard-block-baseline-script.md) | Accepted | 2026-05-31 |
@@ -136,4 +136,8 @@ related: []
 | 115 | [Bounded Sealed Trains — When a Batch Stops Taking Issues](../ADR/115-bounded-sealed-trains.md) | Accepted | 2026-08-22 |
 | 116 | [Evidence Binds to Source Content; the Train Is the Ceremony Unit; a PR Is Owned Until Merged](../ADR/116-evidence-content-binding-train-ceremony-pr-ownership.md) | Accepted | 2026-08-29 |
 | 117 | [Companion Skill Provenance — Detected, Never Bundled](../ADR/117-companion-skill-provenance.md) | Accepted | 2026-08-29 |
-| 118 | [`arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](../ADR/118-plugin-add-ship-minimal.md) | Accepted | 2026-08-30 |
+| 118 | [The lifecycle ontology is wired, not written](../ADR/118-lifecycle-ontology-wired-not-written.md) | Accepted | 2026-09-02 |
+| 119 | [Adversarial review hops until nothing above low survives](../ADR/119-adversarial-review-hops-until-low-only.md) | Accepted | 2026-09-03 |
+| 120 | [Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](../ADR/120-ignore-stryker-tmp-scratch-sandbox.md) | Accepted | 2026-08-30 |
+| 121 | [`arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](../ADR/121-plugin-add-ship-minimal.md) | Accepted | 2026-08-30 |
+| 122 | [Experimental tool generators — promotion criteria, and retire all five](../ADR/122-experimental-tool-generators-retired.md) | Accepted | 2026-08-30 |

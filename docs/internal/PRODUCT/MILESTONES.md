@@ -139,7 +139,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 - `__tests__/generators/` — Each of 8 generators tested with `ProjectConfig` fixtures
 - `__tests__/templates/` — EJS conditional branches per language via `renderTemplate()`
 - `__tests__/governance/` — L1/L2/L3 output differences (coverage thresholds, invariants)
-- `__tests__/tools/` — Claude/Codex/Cursor/Copilot content correctness
+- `__tests__/tools/` — Claude/Codex content correctness (the Cursor/Copilot suites were retired with their generators in 0.6.0, ADR-119)
 
 **Exit criteria:** All 8 generators tested. Template conditional branches for all 5 languages tested. L1/L2/L3 differences validated. ~80 → ~145 tests. CI green.
 
@@ -258,7 +258,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 - `src/detectors/language-hooks.ts` — Go hooks (error handling), Python hooks (type hints)
 - `src/templates/claude/settings.json.ejs` — Go and Python tool permissions
 - `src/templates/github/dependabot.yml.ejs` — `gomod` and `pip` ecosystems
-- `src/templates/copilot/copilot-instructions.md.ejs` — Remove TS-specific lines for non-TS stacks
+- the Copilot instructions template — Remove TS-specific lines for non-TS stacks (template retired in 0.6.0, ADR-119)
 - Java Maven support in ci.yml.ejs and check-all.mjs.ejs (detect Maven vs Gradle)
 - Updated cross-product tests that REQUIRE Go/Python content (not accept empty)
 
@@ -881,9 +881,9 @@ Gate (dual-sided, CANON-01/14):
 
 **Deliverables:**
 
-- Gemini CLI: `.gemini/GEMINI.md` + settings
-- Windsurf: `windsurf-instructions.md`
-- Aider: `.aider.conf.yml`
+- Gemini CLI: `.gemini/GEMINI.md` + settings — **retired in 0.6.0** (#2367 / ADR-119)
+- Windsurf: `windsurf-instructions.md` — **retired in 0.6.0** (#2367 / ADR-119)
+- Aider: `.aider.conf.yml` — **retired in 0.6.0** (#2367 / ADR-119)
 - Plugin API v1: interface for custom generators
 
 **Dependencies:** M31.

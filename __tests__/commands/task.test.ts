@@ -6,7 +6,7 @@ vi.mock('../../src/capabilities/host-probe.js', () => ({
     transcriptPath: null,
   }),
 }))
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
@@ -16,8 +16,20 @@ import type { TaskPhase } from '../../src/commands/task-state.js'
 describe('runTaskAdvance', () => {
   let dir: string
 
-  const seed = (phase: TaskPhase) => writeUnifiedState(dir, { phase })
+  // #2435: `preflight` promises seeded task state and every later evidence gate keys on the
+  // id, so the fixture carries one — an id-less document is now refused at the plan edge.
+  const seed = (phase: TaskPhase) => writeUnifiedState(dir, { phase, taskId: '#1' })
   const phaseOf = () => readUnifiedState(dir)?.phase
+
+  /** #2435: the artifact `red-team-review` promises (ship.md §Red-team review). */
+  const recordRedTeam = (taskId = '#1') => {
+    mkdirSync(join(dir, '.arbiter', 'evidence', 'redteam'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`),
+      JSON.stringify({ findings: [] }),
+      'utf-8',
+    )
+  }
 
   beforeEach(() => {
     dir = createTestProject()
@@ -37,6 +49,7 @@ describe('runTaskAdvance', () => {
   it('happy path: plan → red-team-review → red advances phase', () => {
     seed('plan')
     runTaskAdvance({ to: 'red-team-review', dir })
+    recordRedTeam()
     runTaskAdvance({ to: 'red', dir, skipPlanReview: true })
     expect(phaseOf()).toBe('red')
   })

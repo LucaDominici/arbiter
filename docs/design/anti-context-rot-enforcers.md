@@ -286,12 +286,32 @@ enforcement theater):
    `scripts/data/ceremony-thresholds.json` (default 12/month; per-env overrides; solo default 20) — data file, not `arbiter.json`, to avoid touching the required-config schema (T0/T2
    brick risk).
 2. **Advisory-permanent detector.** Regex-scan `scripts/check-all.mjs` for `runWarnCheck(`
-   call sites; each advisory name must have an entry in `scripts/data/advisory-ledger.json`:
+   call sites, and `scripts/lib/anti-fake-green-guards.mjs` for `class: 'gh-audit'` guards —
+   the second population of advisory gates, whose exit 1 fails nothing unless the
+   anti-fake-green aggregate is invoked `--enforce` (#2419 AC-3). Each source vacuous-passes
+   when its file is absent. Each advisory name must have an entry in
+   `scripts/data/advisory-ledger.json`:
    `{ "check": "...", "since": "YYYY-MM-DD", "promoteBy": "YYYY-MM-DD" }` or
    `{ ..., "permanent": true, "rationale": "..." }` (for genuinely informational surfaces,
    e.g. `conformance` `check-all.mjs:350`). Missing entry or `promoteBy` in the past → FAIL.
    This is the same dated-debt discipline as suppressions expiry (INV-31) applied to the
    gate roster itself.
+
+3. **Orphan-entry detector (#2467).** The reverse of (2): every ledger entry must still name a
+   live advisory site. Detector (2) walks sites → entries and so cannot see a row whose check
+   was PROMOTED to a hard `runCheck` — the row then exempts nothing while still reading as
+   governance, which is the failure this detector exists to catch. It walks entries → sites and
+   FAILs when a row names a check that `check-all.mjs` now runs hard, or that resolves to no
+   advisory site at all. The referent set is derived from the same two sources as (2), never
+   hand-listed, so a derivation that returns empty marks every row _orphaned_ (loud) rather than
+   _live_ (silent).
+
+   Exit codes: a row that is orphaned, reasonless, undated or expired → **1**. A ledger that is
+   unreadable, not valid JSON, not a JSON object, or whose `entries` is not an array → also
+   **1**, reported as the ledger itself being broken: a ledger-derived detector must not proceed
+   on trust. **2** stays reserved for an IO failure outside the audited files. An absent ledger
+   is a legitimate empty state (no rows to orphan) and detector (2) independently reports every
+   live site as missing, so it cannot pass silently.
 
 **Doctor surface.** The script supports `--json`; `src/commands/doctor/health.ts`
 (`runDoctorHealth`) gains one `HealthCheck` row "bypass budget" that shells the script and

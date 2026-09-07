@@ -204,7 +204,8 @@ describe('runDiff', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('.agents/CODEX.md'))
   })
 
-  it('includes .cursorrules check when cursor tool is enabled', async () => {
+  // #2367 (ADR-119): the retired experimental tools have no emission to diff.
+  it('reports no retired-tool file when a stale config still names one', async () => {
     mockLoadConfig.mockReturnValue(
       makeStoredConfig({
         tools: ['cursor'],
@@ -213,7 +214,7 @@ describe('runDiff', () => {
     )
     const { runDiff } = await import('../../src/commands/diff.js')
     runDiff({ dir })
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('.cursorrules'))
+    expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining('.cursorrules'))
   })
 
   it('includes GLOBAL_INVARIANTS.md check when optional tiers present', async () => {

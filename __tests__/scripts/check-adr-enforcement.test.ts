@@ -21,19 +21,37 @@ const DEFAULT_CATALOG = `export const INVARIANT_CATALOG = [\n  { id: 'INV-59', t
 /** Build a repo skeleton (registry + invariant catalog) and run the gate over the given ADRs. */
 function runGate(
   adrs: Record<string, string>,
-  opts: { registry?: string; catalog?: string } = {},
+  opts: {
+    registry?: string
+    catalog?: string
+    /** Coverage-ratchet pin. Omit for a permissive one; null omits the file entirely. */
+    unclaimed?: number | null
+    allowlist?: string
+    args?: string[]
+  } = {},
 ): { status: number; stdout: string; stderr: string } {
   const dir = mkdtempSync(join(tmpdir(), 'adr-enf-'))
   try {
     mkdirSync(join(dir, 'docs', 'internal', 'ADR'), { recursive: true })
     mkdirSync(join(dir, 'standards'), { recursive: true })
     mkdirSync(join(dir, 'src', 'invariants'), { recursive: true })
+    // The coverage ratchet (#2480) reads a pinned count. Tests that do not care about it get a
+    // permissive pin so they keep asserting only the linkage contract they were written for.
+    if (opts.unclaimed !== null) {
+      mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
+      writeFileSync(
+        join(dir, 'scripts', 'data', 'adr-enforcement-baseline.json'),
+        JSON.stringify({ unclaimed: opts.unclaimed ?? 99 }),
+      )
+    }
+    if (opts.allowlist !== undefined)
+      writeFileSync(join(dir, 'scripts', 'data', 'adr-enforces-allowlist.json'), opts.allowlist)
     writeFileSync(join(dir, 'standards', 'gold-registry.yml'), opts.registry ?? DEFAULT_REGISTRY)
     writeFileSync(join(dir, 'src', 'invariants', 'catalog.ts'), opts.catalog ?? DEFAULT_CATALOG)
     for (const [name, body] of Object.entries(adrs)) {
       writeFileSync(join(dir, 'docs', 'internal', 'ADR', name), body)
     }
-    const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: dir })
+    const r = spawnSync('node', [SCRIPT, ...(opts.args ?? [])], { encoding: 'utf-8', cwd: dir })
     return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -43,6 +61,21 @@ function runGate(
 function adr(id: string, enforces: string[] | null): string {
   const fm = enforces === null ? '' : `enforces: [${enforces.join(', ')}]\n`
   return `---\ntitle: 'ADR-${id}: test'\nstatus: active\ncanonical_id: '${id}'\n${fm}---\n\n# ADR-${id}\n`
+}
+
+function numberedAdr(num: string, status: string, enforces: string[] | null, slug = 'decision') {
+  const fm = enforces === null ? '' : `enforces: [${enforces.join(', ')}]\n`
+  return {
+    name: `${num}-${slug}.md`,
+    body: `---\ntitle: 'ADR-${num}: t'\nstatus: ${status}\ncanonical_id: '${num}'\n${fm}---\n\n# ADR-${num}\n`,
+  }
+}
+
+function allowlist(entries: [string, string, string][]) {
+  return JSON.stringify({
+    schema: 'arbiter-adr-enforces-allowlist-v1',
+    entries: entries.map(([adr, expires, rationale]) => ({ adr, expires, rationale })),
+  })
 }
 
 describe('check-adr-enforcement gate (#1473)', () => {
@@ -166,5 +199,125 @@ describe('check-adr-enforcement gate (#1473)', () => {
     const r = runGate({ '018.md': body })
     // The broken FM declared no enforcement key — a body mention must not fabricate a FAIL.
     expect(r.status).toBe(0)
+  })
+
+  describe('mandatory enforces (#2419 AC-1)', () => {
+    const future = '2099-01-01'
+    it('fails active and accepted numbered ADRs without a claim', () => {
+      const a = numberedAdr('021', 'active', null)
+      const b = numberedAdr('022', 'accepted', null)
+      const r = runGate({ [a.name]: a.body, [b.name]: b.body })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/021-decision|022-decision/)
+    })
+    it('treats an empty enforces list as missing', () => {
+      const a = numberedAdr('023', 'active', [])
+      expect(runGate({ [a.name]: a.body }).status).toBe(1)
+    })
+    it('accepts a resolving claim and ignores non-mandatory statuses', () => {
+      const a = numberedAdr('024', 'active', ['INV-59'])
+      const b = numberedAdr('025', 'draft', null)
+      expect(runGate({ [a.name]: a.body, [b.name]: b.body }).status).toBe(0)
+    })
+    it('accepts a dated allowlist entry with rationale', () => {
+      const a = numberedAdr('026', 'active', null)
+      expect(
+        runGate({ [a.name]: a.body }, { allowlist: allowlist([[a.name, future, 'historical']]) }),
+      ).toHaveProperty('status', 0)
+    })
+    it('rejects expired, undated, and rationale-free allowlist entries', () => {
+      const a = numberedAdr('027', 'active', null)
+      for (const row of [
+        [a.name, '2000-01-01', 'historical'],
+        [a.name, 'someday', 'historical'],
+        [a.name, future, '  '],
+      ] as [string, string, string][]) {
+        expect(runGate({ [a.name]: a.body }, { allowlist: allowlist([row]) }).status).toBe(1)
+      }
+    })
+    it('rejects stale allowlist entries and unreadable frontmatter', () => {
+      const a = numberedAdr('028', 'active', ['INV-59'])
+      expect(
+        runGate({ [a.name]: a.body }, { allowlist: allowlist([[a.name, future, 'old']]) }).status,
+      ).toBe(1)
+      expect(runGate({ '029-broken.md': `---\ntitle: 'x\nfoo: [bad\n---\n` }).status).toBe(1)
+    })
+    it('keeps the count ratchet from bypassing strict mandatory checks', () => {
+      const a = numberedAdr('030', 'active', null)
+      const r = runGate({ [a.name]: a.body }, { unclaimed: 99, args: ['--update-baseline'] })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/mandatory|allowlist|enforces/i)
+    })
+  })
+
+  // #2480 — the coverage ratchet. The linkage contract above was OPT-IN: 115 of 118 numbered ADRs
+  // declared nothing, so the gate passed while almost no decision named what keeps it true. These
+  // cases pin the ratchet's real property — a fall is free, a rise is refused, and the refusal
+  // cannot be laundered through --update-baseline.
+  describe('coverage ratchet (#2480)', () => {
+    const bare = (id: string) =>
+      `---\ntitle: 'ADR-${id}'\nstatus: draft\ncanonical_id: '${id}'\n---\n\n# ADR-${id}\n`
+    const claiming = (id: string, ref: string) =>
+      `---\ntitle: 'ADR-${id}'\nstatus: active\ncanonical_id: '${id}'\nenforces: ['${ref}']\n---\n\n# ADR-${id}\n`
+
+    it('PASSES when the unclaimed count equals the pin', () => {
+      const r = runGate({ '001-a.md': bare('001'), '002-b.md': bare('002') }, { unclaimed: 2 })
+      expect(r.status, r.stderr).toBe(0)
+      expect(r.stdout).toContain('2 ADR(s) declare none')
+    })
+
+    it('FAILS when a new ADR declares no enforcement', () => {
+      const r = runGate(
+        { '001-a.md': bare('001'), '002-b.md': bare('002'), '003-c.md': bare('003') },
+        { unclaimed: 2 },
+      )
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('baseline allows 2')
+      expect(r.stderr).toContain('003-c.md')
+    })
+
+    it('PASSES freely when the count FALLS — paying the debt down needs no ceremony', () => {
+      const r = runGate({ '001-a.md': claiming('001', 'INV-59') }, { unclaimed: 5 })
+      expect(r.status, r.stderr).toBe(0)
+      expect(r.stdout).toContain('0 ADR(s) declare none')
+    })
+
+    it('does not count templates or the generated README — they hold no decision', () => {
+      const r = runGate(
+        { 'ADR-000_template.md': bare('000'), 'README.md': bare('000'), '001-a.md': bare('001') },
+        { unclaimed: 1 },
+      )
+      expect(r.status, r.stderr).toBe(0)
+    })
+
+    it('REFUSES --update-baseline when the count rose — the rise cannot be laundered', () => {
+      const r = runGate(
+        { '001-a.md': bare('001'), '002-b.md': bare('002') },
+        {
+          unclaimed: 1,
+          args: ['--update-baseline'],
+        },
+      )
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('refusing --update-baseline')
+    })
+
+    it('accepts --update-baseline when the count fell', () => {
+      const r = runGate({ '001-a.md': bare('001') }, { unclaimed: 9, args: ['--update-baseline'] })
+      expect(r.status, r.stderr).toBe(0)
+      expect(r.stdout).toContain('baseline updated')
+    })
+
+    it('FAILS when the baseline file is absent — a missing ratchet is not a vacuous pass', () => {
+      const r = runGate({ '001-a.md': bare('001') }, { unclaimed: null })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('not found')
+    })
+
+    it('still FAILS a dangling ref before it ever reaches the ratchet', () => {
+      const r = runGate({ '001-a.md': claiming('001', 'INV-999') }, { unclaimed: 0 })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('no such invariant id')
+    })
   })
 })

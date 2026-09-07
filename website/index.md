@@ -18,11 +18,12 @@ features:
     details: >
       `npx @arbiter/cli init` detects your stack and generates everything —
       no configuration files to manually author.
-  - title: Multi-tool
+  - title: Tool-agnostic enforcement
     details: >
-      Claude Code and Codex out of the box. Cursor, Copilot, Windsurf, Aider,
-      and Gemini CLI have experimental generators but are not yet selectable via
-      `--tools`. All supported tools read the same canonical `AGENTS.md`.
+      Claude Code and Codex out of the box — and only those two, deliberately
+      (ADR-095, ADR-119). Both read the same canonical `AGENTS.md`, and the gate
+      itself runs as a git hook and in CI regardless of which tool, or human,
+      wrote the code.
   - title: Zero telemetry
     details: >
       Arbiter collects nothing and phones home to nobody.

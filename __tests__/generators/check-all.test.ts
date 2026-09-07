@@ -99,7 +99,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 51 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 58 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -143,8 +143,16 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(51)
+    // 58 -> 59 on the merge with main: main's unconditional set (which had grown to 58,
+    // most recently by scripts/check-arc42-slots.mjs for INV-144) plus this branch's
+    // scripts/lib/gate-mutex.mjs. Both sides of the conflict were stale — 52 and 58 —
+    // so the count was MEASURED from the generator after the merge, not reconciled by hand.
+    expect(result.files).toHaveLength(59)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-evidence.mjs'))).toBe(true)
+    // #2427 — the per-repo gate mutex: check-all re-execs itself under it and the
+    // pre-push hook launches the gate through it, so a consumer missing it would
+    // run two gates in one repo and leave an orphan behind a killed push.
+    expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-mutex.mjs'))).toBe(true)
     // #2399 — the review/dispatch evidence binding shared by the review gates and the Stop hook.
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/evidence-binding.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/issue-readiness.mjs'))).toBe(true)
@@ -400,9 +408,13 @@ describe('generateCheckAll', () => {
       expect(content).toContain("await import('./lib/gate-evidence.mjs')")
       const markerIdx = content.indexOf("'.arbiter/gate-pass.json'")
       expect(markerIdx).toBeGreaterThan(-1)
+      // #2427: the marker binds the identity captured at gate START, not only at
+      // stamp time — `start:` is the axis that makes an orphan's marker impossible.
       expect(content).toContain(
-        'buildGateEvidence({ root: process.cwd(), level, taskId: _taskId })',
+        'buildGateEvidence({ root: process.cwd(), level, taskId: _taskId, start: _gateStart })',
       )
+      expect(content).toContain("await import('./lib/gate-evidence.mjs')")
+      expect(content).toContain('captureGateStart(_mutexRoot)')
     })
 
     it('the co-emitted lib stamps head_sha/branch/task_id plus the identity axes', () => {

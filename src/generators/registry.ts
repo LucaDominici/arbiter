@@ -12,8 +12,6 @@ import { generateCheckAll } from './check-all.js'
 import { generateAntiProforma } from './anti-proforma.js'
 import { generateCommitFooter } from './commit-footer.js'
 import { generateStackConformity } from './check-stack-conformity.js'
-import { generateCursor } from './cursor.js'
-import { generateCopilot } from './copilot.js'
 import { generateCoverage } from './coverage.js'
 import { generateDuplication } from './duplication.js'
 import { generateDebtGates } from './debt-gates.js'
@@ -35,9 +33,6 @@ import { generateIntegrationTesting } from './integration-testing.js'
 import { generateContractTesting } from './contract-testing.js'
 import { generateGlobalInvariants } from './global-invariants.js'
 import { generateSkills } from './skills.js'
-import { generateGemini } from './gemini.js'
-import { generateWindsurf } from './windsurf.js'
-import { generateAider } from './aider.js'
 import { generateAgentsClaude } from './agents-claude.js'
 import { generateSsot } from './ssot.js'
 import { generateAntiDriftValidators } from './anti-drift-validators.js'
@@ -144,31 +139,6 @@ function buildAiToolSpecs(
       key: 'codex',
       enabled: noAiRulez && config.tools.includes('codex'),
       run: (opts) => generateCodex(config, opts).files,
-    },
-    {
-      key: 'cursor',
-      enabled: noAiRulez && config.tools.includes('cursor'),
-      run: (opts) => generateCursor(config, opts).files,
-    },
-    {
-      key: 'copilot',
-      enabled: noAiRulez && config.tools.includes('copilot'),
-      run: (opts) => generateCopilot(config, opts).files,
-    },
-    {
-      key: 'gemini',
-      enabled: noAiRulez && config.tools.includes('gemini'),
-      run: (opts) => generateGemini(config, opts).files,
-    },
-    {
-      key: 'windsurf',
-      enabled: noAiRulez && config.tools.includes('windsurf'),
-      run: (opts) => generateWindsurf(config, opts).files,
-    },
-    {
-      key: 'aider',
-      enabled: noAiRulez && config.tools.includes('aider'),
-      run: (opts) => generateAider(config, opts).files,
     },
     {
       key: 'skills',

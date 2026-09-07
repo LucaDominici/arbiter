@@ -857,7 +857,7 @@ describe('runGithubSetup', () => {
 })
 
 describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
-  it('accepts gemini as a valid tool', () => {
+  it('rejects gemini — retired in #2367 (ADR-119)', () => {
     const result = validateConfig({
       version: '0.2',
       tools: ['gemini'],
@@ -880,10 +880,10 @@ describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
         maxParams: 5,
       },
     })
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
   })
 
-  it('accepts windsurf as a valid tool', () => {
+  it('rejects windsurf — retired in #2367 (ADR-119)', () => {
     const result = validateConfig({
       version: '0.2',
       tools: ['windsurf'],
@@ -906,10 +906,10 @@ describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
         maxParams: 5,
       },
     })
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
   })
 
-  it('accepts aider as a valid tool', () => {
+  it('rejects aider — retired in #2367 (ADR-119)', () => {
     const result = validateConfig({
       version: '0.2',
       tools: ['aider'],
@@ -932,7 +932,7 @@ describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
         maxParams: 5,
       },
     })
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
   })
 })
 
