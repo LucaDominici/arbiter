@@ -631,6 +631,7 @@ Canonical source: `docs/internal/SYSTEM/CANON.md`.
 - **CANON-22:** Evidence-based quality: validated metrics gate, contested heuristics advise
 - **CANON-23:** RTM-required-by-level: every governed project ships a gated FEATURE_MATRIX
 - **CANON-24:** Adversarial review hops until nothing above `low` survives
+- **CANON-25:** Name the change that turns a gate red, and prove it by inverting it
 
 ---
 

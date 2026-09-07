@@ -73,6 +73,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { enumerateGateMechanisms } from './lib/gate-roster.mjs'
 
 const LABEL = '[check-canon01-declination]'
 
@@ -118,25 +119,6 @@ export function enumerateHooks(settingsSrc) {
     if (!hooks.includes(path)) hooks.push(path)
   }
   return hooks
-}
-
-/**
- * Every mechanism invoked by check-all.mjs. Returns { name, path } where `path` is the
- * scripts/ argument, or null for an off-the-shelf binary invocation (external tool).
- */
-export function enumerateGateMechanisms(gateSrc) {
-  const re =
-    /run(?:Check|WarnCheck|ToolCheck)\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*'([^']*)'\s*,\s*\[([^\]]*)\]/gs
-  const mechanisms = []
-  for (const m of gateSrc.matchAll(re)) {
-    const args = m[3].split(',').map((s) => s.trim().replace(/^'/, '').replace(/'$/, ''))
-    mechanisms.push({
-      name: m[1],
-      tool: m[2],
-      path: args.find((a) => a.startsWith('scripts/')) ?? null,
-    })
-  }
-  return mechanisms
 }
 
 /** Basenames emitted by the template corpus, plus the subset under claude/hooks/. */
