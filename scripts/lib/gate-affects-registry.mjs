@@ -141,6 +141,30 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'third-party licenses', affects: ALWAYS },
   { name: 'global-invariants parity', affects: ALWAYS },
   { name: 'enforcement wired', affects: ALWAYS },
+  // ALWAYS, and not out of caution: the id-registry gate scans the WHOLE tree for OD-NN
+  // citations, so any edited file can change its verdict. The ontology meta-gate reads the
+  // registry, check-all.mjs, src/cli.ts, .claude/settings.json and the Track-B gate roster;
+  // the contract gate reads schemas/ plus a sibling checkout. None is narrowable to a path set.
+  { name: 'id registry (INV-140)', affects: ALWAYS },
+  { name: 'ontology wired (INV-141)', affects: ALWAYS },
+  // ALWAYS, like its two ontology siblings: the gate reads the arc42 skeletons, the doc-set
+  // manifest, the tier profile and the architecture document itself, so no single changed-path
+  // predicate covers it — a narrower rule would let a skeleton edit skip the gate that guards it.
+  { name: 'arc42 slots (INV-144)', affects: ALWAYS },
+  // ALWAYS: the gate reads MILESTONES.yml, its schema and the INV catalog (to resolve an
+  // INV-NN evidence_ref), so no changed-path predicate covers it without letting an edit to one
+  // of those skip the gate that guards it.
+  { name: 'milestones (INV-146)', affects: ALWAYS },
+  // ALWAYS, like its ontology siblings: the gate reads every doc's frontmatter and the whole
+  // invariant catalog, so no narrow path bucket contains its inputs.
+  { name: 'runbook coverage (INV-148)', affects: ALWAYS },
+  // ALWAYS: reads the use-case SSOT, the feature matrix and the scenario catalogue together —
+  // three documents in three trees, so no narrow path bucket holds its inputs.
+  { name: 'use cases (INV-149)', affects: ALWAYS },
+  // ALWAYS: the gate reads SOURCES.md, its schema and every committed excerpt — no changed-path
+  // predicate covers that set without letting an edit to one of them skip the gate that guards it.
+  { name: 'sources tier 1 (INV-147)', affects: ALWAYS },
+  { name: 'forma schema contract (INV-143)', affects: ALWAYS },
   { name: 'orchestrator coverage (#1410)', affects: ALWAYS },
   { name: 'constraint scan (INV-115)', affects: ALWAYS },
   { name: 'agent-dispatch matrix (#1267)', affects: ALWAYS },

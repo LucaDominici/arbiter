@@ -15,6 +15,18 @@ import { resolve, join } from 'node:path'
 // The emitted target template renders this `false` (start-warn-promote-later, per #1214).
 const ENFORCE_DEFAULT = true
 
+// Is a readable baseline REQUIRED for the ratchet to be considered armed? True here, false in the
+// emitted twin — a generated project ships no baseline file, so demanding one would hard-fail
+// every consumer's first gate run (see the RATCHET-UNSET path below, which stays their behaviour).
+//
+// Review finding on this PR: without this, the ratchet had two ways to disarm itself and one was
+// silent. Measured on this head — baseline deleted: exit 0 with `[RATCHET-UNSET]`, at least loud;
+// baseline `{"version":1,"metrics":{}}`: exit 0 with NO ratchet output at all, because metricValue
+// fell back to 0 / +Infinity so `regressed` could never be set. A file that reads as healthy in
+// review, guarding nothing. The sibling ratchet in this repo takes the strict default already —
+// check-fail-closed-audit.mjs treats a missing baseline as the empty, strictest allowlist.
+const RATCHET_REQUIRED = true
+
 // AC-3 ratchet (#2384): the covered/unenforceable ratio is pinned in a committed
 // baseline so triage cannot silently drift back. Same one-way shape as
 // scripts/debt-baseline.json — --update-baseline only ever tightens.
@@ -289,9 +301,13 @@ function metricValue(metrics, key, fallback) {
 }
 
 // Reads the committed baseline's ratchet floors. An unreadable or malformed baseline is
-// fail-closed (exit 2) — a ratchet that cannot read its floor must not silently pass. A
-// well-formed baseline missing a metric falls back to the permissive floor for that metric.
-function readBaselineBounds(path) {
+// fail-closed (exit 2) — a ratchet that cannot read its floor must not silently pass.
+//
+// A well-formed baseline MISSING a metric used to fall back to the permissive floor (0 /
+// +Infinity), which made `{"version":1,"metrics":{}}` a silent full disarm. Under
+// RATCHET_REQUIRED the fallback is refused instead: a floor that is not recorded is not a floor,
+// and saying so is the whole point of the ratchet.
+function readBaselineMetrics(path) {
   let base
   try {
     base = JSON.parse(readFileSync(path, 'utf8'))
@@ -299,11 +315,28 @@ function readBaselineBounds(path) {
     process.stderr.write(`[constraint-scan] invalid baseline JSON at ${path}: ${err.message}\n`)
     process.exit(2)
   }
-  const metrics =
-    base && typeof base === 'object' && !Array.isArray(base) ? base.metrics : undefined
+  return base && typeof base === 'object' && !Array.isArray(base) ? base.metrics : undefined
+}
+
+function refuseFloorlessBaseline(path, baseCovered, baseUnenf) {
+  if (!RATCHET_REQUIRED) return
+  if (baseCovered !== null && baseUnenf !== null) return
+  process.stdout.write(
+    `[RATCHET-MISSING] ${path} records no ${baseCovered === null ? 'covered' : 'unenforceable'} ` +
+      `floor — a baseline without metrics disarms the ratchet silently; re-seed it with ` +
+      `--update-baseline\n`,
+  )
+  process.exit(1)
+}
+
+function readBaselineBounds(path) {
+  const metrics = readBaselineMetrics(path)
+  const baseCovered = metricValue(metrics, 'covered', null)
+  const baseUnenf = metricValue(metrics, 'unenforceable', null)
+  refuseFloorlessBaseline(path, baseCovered, baseUnenf)
   return {
-    baseCovered: metricValue(metrics, 'covered', 0),
-    baseUnenf: metricValue(metrics, 'unenforceable', Number.POSITIVE_INFINITY),
+    baseCovered: baseCovered ?? 0,
+    baseUnenf: baseUnenf ?? Number.POSITIVE_INFINITY,
   }
 }
 
@@ -326,6 +359,13 @@ function ratchetOk(args, root, covered, accepted, unenforceable) {
         `[RATCHET-UPDATED] ${args.baseline} seeded at ${covered}/${unenforceable}\n`,
       )
       return true
+    }
+    if (RATCHET_REQUIRED) {
+      process.stdout.write(
+        `[RATCHET-MISSING] no baseline at ${args.baseline} — the ratchet is unarmed; seed it with ` +
+          `--update-baseline (deleting the baseline must not be a way to pass)\n`,
+      )
+      return false
     }
     process.stdout.write(
       `[RATCHET-UNSET] no baseline at ${args.baseline} — coverage is not ratcheted yet\n`,

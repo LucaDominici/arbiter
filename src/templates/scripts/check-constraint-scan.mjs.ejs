@@ -14,6 +14,13 @@ import { resolve, join } from 'node:path'
 // Curate `constraint-map.json`, then run with --enforce=true to hard-fail in CI.
 const ENFORCE_DEFAULT = false
 
+// Is a readable baseline REQUIRED for the ratchet to be considered armed? FALSE here and true in
+// arbiter's own copy, deliberately: `arbiter init` emits no coverage baseline, so requiring one
+// would hard-fail a generated project's very first gate run on a file it was never given. A
+// consumer arms the ratchet when ready, with `--update-baseline`; until then the RATCHET-UNSET
+// notice below says plainly that coverage is not yet pinned.
+const RATCHET_REQUIRED = false
+
 // AC-3 ratchet (#2384): the covered/unenforceable ratio is pinned in a committed
 // baseline so triage cannot silently drift back. Same one-way shape as
 // scripts/debt-baseline.json — --update-baseline only ever tightens.
@@ -257,9 +264,13 @@ function metricValue(metrics, key, fallback) {
 }
 
 // Reads the committed baseline's ratchet floors. An unreadable or malformed baseline is
-// fail-closed (exit 2) — a ratchet that cannot read its floor must not silently pass. A
-// well-formed baseline missing a metric falls back to the permissive floor for that metric.
-function readBaselineBounds(path) {
+// fail-closed (exit 2) — a ratchet that cannot read its floor must not silently pass.
+//
+// A well-formed baseline MISSING a metric falls back to the permissive floor (0 / +Infinity).
+// Under RATCHET_REQUIRED that fallback is refused instead, because a floor that is not recorded
+// is not a floor: `{"version":1,"metrics":{}}` would otherwise disarm the ratchet with no output
+// at all. Generated projects leave RATCHET_REQUIRED false until they seed a baseline.
+function readBaselineMetrics(path) {
   let base
   try {
     base = JSON.parse(readFileSync(path, 'utf8'))
@@ -267,11 +278,28 @@ function readBaselineBounds(path) {
     process.stderr.write(`[constraint-scan] invalid baseline JSON at ${path}: ${err.message}\n`)
     process.exit(2)
   }
-  const metrics =
-    base && typeof base === 'object' && !Array.isArray(base) ? base.metrics : undefined
+  return base && typeof base === 'object' && !Array.isArray(base) ? base.metrics : undefined
+}
+
+function refuseFloorlessBaseline(path, baseCovered, baseUnenf) {
+  if (!RATCHET_REQUIRED) return
+  if (baseCovered !== null && baseUnenf !== null) return
+  process.stdout.write(
+    `[RATCHET-MISSING] ${path} records no ${baseCovered === null ? 'covered' : 'unenforceable'} ` +
+      `floor — a baseline without metrics disarms the ratchet silently; re-seed it with ` +
+      `--update-baseline\n`,
+  )
+  process.exit(1)
+}
+
+function readBaselineBounds(path) {
+  const metrics = readBaselineMetrics(path)
+  const baseCovered = metricValue(metrics, 'covered', null)
+  const baseUnenf = metricValue(metrics, 'unenforceable', null)
+  refuseFloorlessBaseline(path, baseCovered, baseUnenf)
   return {
-    baseCovered: metricValue(metrics, 'covered', 0),
-    baseUnenf: metricValue(metrics, 'unenforceable', Number.POSITIVE_INFINITY),
+    baseCovered: baseCovered ?? 0,
+    baseUnenf: baseUnenf ?? Number.POSITIVE_INFINITY,
   }
 }
 
@@ -292,6 +320,13 @@ function ratchetOk(args, root, covered, accepted, unenforceable) {
       writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`)
       process.stdout.write(`[RATCHET-UPDATED] ${args.baseline} seeded at ${covered}/${unenforceable}\n`)
       return true
+    }
+    if (RATCHET_REQUIRED) {
+      process.stdout.write(
+        `[RATCHET-MISSING] no baseline at ${args.baseline} — the ratchet is unarmed; seed it with ` +
+          `--update-baseline (deleting the baseline must not be a way to pass)\n`,
+      )
+      return false
     }
     process.stdout.write(
       `[RATCHET-UNSET] no baseline at ${args.baseline} — coverage is not ratcheted yet\n`,

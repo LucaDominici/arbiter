@@ -86,7 +86,19 @@ function parseDirective(argsStr) {
 }
 
 function scanFile(filePath, counters) {
-  const content = readFileSync(filePath, 'utf-8')
+  // #2418: this read used to run bare — a file the scan could not open crashed the gate
+  // with a raw stack under node's generic exit code. An unscannable file is an invocation
+  // fault (INV-53 exit 2): the suppression census over the remaining files would be
+  // incomplete, and an incomplete census must never report a clean one.
+  let content
+  try {
+    content = readFileSync(filePath, 'utf-8')
+  } catch (err) {
+    process.stderr.write(
+      `[ERROR] cannot scan ${filePath} for inline suppressions: ${err?.message ?? err}\n`,
+    )
+    process.exit(2)
+  }
   const lines = content.split('\n')
   for (let i = 0; i < lines.length; i++) {
     DIRECTIVE_RE.lastIndex = 0
