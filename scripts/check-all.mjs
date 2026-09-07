@@ -99,7 +99,7 @@ if (isMain) {
   // gate there would break every non-git consumer for no safety gain — the
   // start/end binding below is what actually prevents the false green.
   const MUTEX_ROOT = GIT_CWD ?? process.cwd()
-  if (!process.env[GATE_MUTEX_HELD_ENV]) {
+  {
     let lockPath = null
     try {
       lockPath = gateLockPathFor(MUTEX_ROOT)
@@ -107,7 +107,16 @@ if (isMain) {
     } catch {
       lockPath = null
     }
-    if (lockPath !== null) {
+    // #2427: compare the held lock by EXACT PATH, never by mere presence. The
+    // env var exists to stop a process re-acquiring the flock it already owns
+    // (which would deadlock) — so only THIS repo's lock path may skip the relay.
+    // Any other non-empty value (a stale export from an earlier gate-exec, or
+    // another repo's lock when a gate-exec in repo A spawns work on repo B —
+    // gate-exec.ts publishes it unconditionally into the child env) would
+    // otherwise skip the mutex entirely and run the gate unserialised, silently.
+    // gate-mutex.mjs already compares by equality; these two must agree.
+    const alreadyHeld = lockPath !== null && process.env[GATE_MUTEX_HELD_ENV] === lockPath
+    if (lockPath !== null && !alreadyHeld) {
       const wrapper = resolve(dirname(fileURLToPath(import.meta.url)), 'lib/gate-mutex.mjs')
       const relayed = spawnSync(
         process.execPath,
@@ -284,6 +293,28 @@ if (isMain) {
   ])
   runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
   runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
+  // INV-140/141: the identifier ontology. The first gate proves the registry is well-formed
+  // (schema, no two schemes matching one id, resolvable SSOTs and OD citations); the second
+  // proves every active scheme is a wired behaviour — gate registered, verb in the CLI, hook in
+  // settings — against a ratchet that lets the unwired count fall but never quietly rise.
+  // Ordered, not merged: an unwired row means nothing until the registry itself parses.
+  runCheck('id registry (INV-140)', 'node', ['scripts/check-id-registry.mjs'])
+  runCheck('ontology wired (INV-141)', 'node', ['scripts/check-ontology-wired.mjs'])
+  runCheck('arc42 slots (INV-144)', 'node', ['scripts/check-arc42-slots.mjs'])
+  // INV-146: the milestone SSOT is well-formed, acyclic, and fail-closed on `done`. SKIPs out
+  // loud when no MILESTONES.yml exists — a project need not have codified a roadmap.
+  runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs'])
+  runCheck('runbook coverage (INV-148)', 'node', ['scripts/check-runbook-coverage.mjs'])
+  runCheck('use cases (INV-149)', 'node', ['scripts/check-use-cases.mjs'])
+  // INV-147: tier 1 of the source chain — every quotation is a literal substring of a committed
+  // excerpt whose hash matches. Deterministic and offline; SKIPs out loud when a project cites
+  // nothing. Relevance (tier 2) and graph reachability (tier 3) are judgements this gate refuses
+  // to fake.
+  runCheck('sources tier 1 (INV-147)', 'node', ['scripts/check-sources.mjs'])
+  // INV-143: the arbiter <-> forma schema contract. Owner-side pins always verified; the
+  // cross-checkout half runs only when a forma checkout sits beside this one, and SKIPS out
+  // loud otherwise — forma's own scripts/check-arbiter-contract.mjs gates the other half.
+  runCheck('forma schema contract (INV-143)', 'node', ['scripts/check-forma-contract.mjs'])
   // #1410: advisory — report check-*.mjs gates not reachable from check-all.mjs
   // (orphan gates). Report-only (exit 0); promotion to blocking is a tracked follow-up.
   runWarnCheck('orchestrator coverage (#1410)', 'node', ['scripts/check-orchestrator-coverage.mjs'])

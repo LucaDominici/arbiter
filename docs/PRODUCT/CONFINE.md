@@ -156,6 +156,21 @@ verifica:
   ogni `ADVISORY`;
 - contratto universale 0=PASS, 1=FAIL e 2=ERROR.
 
+Ogni riga non `PASS` viene stampata su stdout prima del verdetto, con consumer, check e il
+`detail` gia' redatto alla fonte (#2479):
+
+```
+[consumer-reliability]   go (go) originFree: ERROR — prepared repository retains remote or credential config
+[consumer-reliability] ERROR — 3 pinned consumers verified
+```
+
+Prima il log portava solo la riga di verdetto e il dettaglio viveva unicamente dentro
+`summary.json` nell'artifact caricato: leggere un run rosso richiedeva scaricare uno zip. E'
+quell'attrito che ha lasciato passare inosservata una serie rossa di piu' giorni su `main` dal
+2026-08-28. Una barra il cui fallimento e' leggibile solo dopo un download e' una barra che
+nessuno legge. Il dettaglio stampato e' esattamente quello gia' registrato — non viene
+riderivato nulla, quindi la stampa non puo' allargare cio' che l'artifact contiene gia'.
+
 Il workflow non gira sulle pull request: i test secret-free restano nella CI ordinaria, mentre
 le credenziali cross-repository non vengono mai esposte a codice non ancora integrato.
 
