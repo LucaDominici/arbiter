@@ -630,6 +630,35 @@ non-idempotent.
 
 ---
 
+## The preserve marker does not apply to arbiter's own state (#2533)
+
+`PRESERVE_MARKER` (`arbiter:preserve`) makes a file un-overwritable, ahead of `skipIfExists`,
+backup and adopt. That is right for a **generated target file** a downstream repo has
+hand-customised. It is wrong for arbiter's own internal state — TDD evidence, `tech-debt.json`,
+the unified task-status document — because those files are written by tooling and routinely
+**quote captured output**. A log that happens to contain the literal string `arbiter:preserve`
+would freeze the file permanently, and nothing downstream would look customised because
+nothing was.
+
+The failure was worse than a stuck file: the write was withheld and the caller still reported
+success. Recording evidence that was never written is the exact shape of a green that means
+nothing.
+
+Two halves, and both are load-bearing:
+
+- **`skipPreserveCheck`** — internal-state writers opt out of the marker check. It is folded
+  into `hasPreserveMarker(disk, skip)` rather than added as a second condition at each call
+  site, so the branch counts against that small predicate's complexity budget instead of
+  `resolveWriteAction`'s (CANON-22).
+- **`assertWritten(result, description)`** — those same callers must now prove the write
+  landed. A `withheld` result that was not `adopted` throws rather than returning, so a
+  withheld write can no longer be reported as a success by omission.
+
+The escape hatch alone would have been the tempting half-fix: it unfreezes the file and the
+symptom disappears. Without `assertWritten`, any _other_ reason a write is withheld would go
+on being silently swallowed, which is the bug the title names — a write that did not happen
+must never be reported as success.
+
 ## CI Gate
 
 Adding or removing a field in a `stable` file's generated schema without a corresponding MAJOR semver bump fails the gate. See [docs/SEMVER.md](../SEMVER.md).
