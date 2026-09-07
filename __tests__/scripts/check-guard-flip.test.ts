@@ -131,7 +131,7 @@ describe('check-guard-flip — the harness itself discriminates', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-// CANON-24 / #2301 — inversion-proof completeness over the absence-asserting gate family.
+// CANON-25 / #2301 — inversion-proof completeness over the absence-asserting gate family.
 // The class this guards: a gate that has stopped checking anything still reports green, so the
 // symptom of the defect IS the green. The mechanism: every gate in check-all.mjs that asserts the
 // ABSENCE of something (check-no-*, ratchets, parity) must either carry a flip proof here or be a
@@ -151,7 +151,7 @@ const DEFERRED_CEILING = MAX_DEFERRED
 // wired both as the INV-25 gate and as the anti-fake-green `no-empty-suite` guard).
 const BASE_ROSTER = [...GUARDS, ...CONTEXT_ROT_GATES]
 
-describe('CANON-24 — the absence-asserting gate family is derived, not hand-listed (#2301)', () => {
+describe('CANON-25 — the absence-asserting gate family is derived, not hand-listed (#2301)', () => {
   it('derives every check-no-*, ratchet and parity gate wired in check-all.mjs', () => {
     const family = deriveAbsenceFamily(CHECK_ALL)
     expect(family.length).toBeGreaterThanOrEqual(MIN_ABSENCE_FAMILY)
@@ -191,7 +191,7 @@ describe('CANON-24 — the absence-asserting gate family is derived, not hand-li
   })
 })
 
-describe('CANON-24 — the ledger auditor discriminates (#2301)', () => {
+describe('CANON-25 — the ledger auditor discriminates (#2301)', () => {
   const family = [
     { name: 'no work refs', script: 'scripts/check-no-work-refs.mjs', category: 'no' },
     { name: 'bloat ratchet', script: 'scripts/check-bloat-ratchet.mjs', category: 'ratchet' },
@@ -274,7 +274,7 @@ describe('CANON-24 — the ledger auditor discriminates (#2301)', () => {
   })
 })
 
-describe('CANON-24 — the harness itself goes red when its own enforcement is inverted (#2301)', () => {
+describe('CANON-25 — the harness itself goes red when its own enforcement is inverted (#2301)', () => {
   // A synthetic check-all.mjs declaring an absence-asserting gate that exists in NEITHER the
   // flip registry nor the ledger. This is the exact change that must turn the harness red — if
   // the completeness check were deleted, this case would pass and the harness would be ceremony.
@@ -347,7 +347,7 @@ describe('CANON-24 — the harness itself goes red when its own enforcement is i
   })
 })
 
-describe('CANON-24 — each newly-registered absence-gate flip proof discriminates (#2301)', () => {
+describe('CANON-25 — each newly-registered absence-gate flip proof discriminates (#2301)', () => {
   it('every family gate with a proof rejects its planted bad fixture and accepts the clean one', () => {
     const family = deriveAbsenceFamily(CHECK_ALL)
     let proven = 0
@@ -366,7 +366,7 @@ describe('CANON-24 — each newly-registered absence-gate flip proof discriminat
 // The two pins that stop this mechanism going quietly blind (#2301 review). Both were found by
 // adversarial review of the first cut: the family floor did not exist despite a comment claiming
 // it did, and the ledger's ceiling was compared only against a field of the ledger itself.
-describe('CANON-24 — the harness fails closed when its own programme collapses (#2301)', () => {
+describe('CANON-25 — the harness fails closed when its own programme collapses (#2301)', () => {
   it('a gate source the parser can no longer see is an ERROR, not a short green programme', () => {
     withTmp((dir) => {
       // Readable, valid JS, zero runCheck() calls — the shape a table-driven or aliased refactor

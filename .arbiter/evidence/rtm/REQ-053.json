@@ -1,0 +1,12 @@
+{
+  "feature_id": "REQ-053",
+  "verdict": "PROVEN",
+  "justification": "REQ-053 claims /ship is a SINGLE NARRATIVE rather than a set of loosely related steps, and __tests__/templates/commands-claude.test.ts asserts that claim against the emitted command itself in 44 cases. The ones that carry the claim: the top banner names /ship as the orchestration entrypoint and the command is framed as that rather than as one option among several; the preflight initialises the unified task document through `arbiter task init/advance` explicitly, so the phases share one state document instead of each keeping its own; the red-team section names its evidence path and forward-links its findings with an auditor hint; the refactor section writes ONE authoritative agents-dispatched.json sidecar carrying branch and sha, and records acceptance criteria as PASS/FAIL/NOT-TESTED. Those are the seams where a multi-phase command stops being one narrative, and each is asserted on the rendered output rather than on the template source. Two render paths are covered (both decompositionBackend arms) with an explicit no-EJS-leak assertion on each, so the narrative is proven in what a project receives, not in what the template says. Executed for this verdict: 44 passed, transcript digested below.",
+  "command": "npx vitest run __tests__/templates/commands-claude.test.ts",
+  "transcript_digest": "3f0c91bd1d02524ac09d9e638d0cc4c9185f16499f7eeeeeedba1909eba67606",
+  "citations": [
+    "src/commands/task-ship.ts#L1-L30@5a51d7b7aab4",
+    "__tests__/templates/commands-claude.test.ts#L1-L25@53c630bc01c9"
+  ],
+  "recorded_at": "2026-09-06T11:44:47Z"
+}

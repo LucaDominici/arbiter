@@ -80,7 +80,7 @@ const SKIP_FILES = new Set([
   'scripts/lib/secret-presence-core.mjs', // #1497 pure scan semantics; consumers own the exit contract
   'scripts/lib/anti-fake-green-guards.mjs', // #1497 pure guard roster data; no entry point
   'scripts/lib/guard-flip-registry.mjs', // #1497 pure flip-proof registry; no entry point
-  // CANON-24 #2301: pure gate-roster parser + inversion-ledger semantics; consumers
+  // CANON-25 #2301: pure gate-roster parser + inversion-ledger semantics; consumers
   // (check-canon01-declination.mjs, check-guard-flip.mjs) own the exit contract and both
   // fail closed on an unreadable gate source or ledger.
   'scripts/lib/gate-roster.mjs',

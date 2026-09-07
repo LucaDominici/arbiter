@@ -14,7 +14,7 @@
 // CATALOG:   fixtures — a different axis (per-guard discrimination proof vs verdict aggregation).
 //   Folding the synthetic-fixture machinery into the aggregate would couple every CI run to
 //   tmpdir fixture I/O and conflate "is the repo clean" with "does the guard work".
-// CATALOG: CANON-24 / #2301 widens the completeness surface beyond the anti-fake-green roster to
+// CATALOG: CANON-25 / #2301 widens the completeness surface beyond the anti-fake-green roster to
 // CATALOG:   the ABSENCE-ASSERTING gate family derived from scripts/check-all.mjs (check-no-*,
 // CATALOG:   ratchets, parity). Those are the gates where "nothing found" and "nothing looked at"
 // CATALOG:   produce the same green, so a blind one is invisible by construction. Each family
@@ -62,7 +62,7 @@ if (args.includes('--help') || args.includes('-h')) {
       '  Proves every anti-fake-green guard discriminates: each must REJECT a planted bad fixture\n' +
       '  (exit 1) and ACCEPT a clean one (exit 0). A guard in the roster with no flip-proof here is\n' +
       '  presumed vacuous and FAILS — so a newly-added always-green guard cannot slip into CI.\n' +
-      '  The roster also covers the CANON-24 absence-asserting family (check-no-*, ratchets,\n' +
+      '  The roster also covers the CANON-25 absence-asserting family (check-no-*, ratchets,\n' +
       '  parity) derived from check-all.mjs; each member needs a proof or a banked deferral row.\n' +
       '\n' +
       'Options:\n' +
@@ -149,7 +149,7 @@ function numericFlag(name, fallback) {
 }
 
 /**
- * The CANON-24 half: derive the absence-asserting family from check-all.mjs, audit the deferral
+ * The CANON-25 half: derive the absence-asserting family from check-all.mjs, audit the deferral
  * ledger against it, and return the family members that still owe a flip proof. Fail-closed — an
  * unreadable gate source or ledger is an ERROR, and so is a derived family that has collapsed
  * below its floor (a short programme proves proportionally less; a zero-length one proves nothing
@@ -242,7 +242,7 @@ function main() {
     process.stderr.write(
       `    UNCOVERED: ${u} — no flip-proof in scripts/lib/guard-flip-registry.mjs; a guard with no\n` +
         `      discrimination proof is presumed vacuous. Register a planted bad+clean fixture for it,\n` +
-        `      or (CANON-24 absence family only) bank a row in ${INVERSION_REGISTRY_PATH}.\n`,
+        `      or (CANON-25 absence family only) bank a row in ${INVERSION_REGISTRY_PATH}.\n`,
     )
   for (const v of vacuous)
     for (const f of v.failures) process.stderr.write(`    VACUOUS: ${v.name} — ${f}\n`)

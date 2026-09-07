@@ -326,7 +326,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Tier-2 (advisory only — do NOT hard-gate alone):**
 
 - **SOLID principles** — useful design vocabulary; little controlled evidence that mechanical conformance reduces defects.
-- **DRY-as-dogma** — duplication _count_ gates, but blanket "repeat nothing" dogma over-abstracts; only inconsistent/significant clones are Tier-1.
+- **DRY-as-dogma** — duplication _count_ gates, but "never repeat anything" over-abstracts; only inconsistent/significant clones are Tier-1.
 - **Cognitive complexity (Campbell / SonarSource 2018)** — plausible and popular but not independently replicated to McCabe's standard; advisory until validated.
 
 **Why:** Quality enforcement that fails the build on contested heuristics breeds gate-fatigue and bypasses, eroding trust in the gates that _are_ validated. Anchoring hard gates to replicated evidence keeps the gate set defensible and the signal high. Conversely, leaving a validated concern (duplication, complexity, debt) to advice alone is how anti-bloat rots — the owner's primary failure mode. This rule draws the line and forces each new gate to declare its tier.
@@ -353,7 +353,23 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ---
 
-## CANON-24 — Name the change that turns a gate red, and prove it by inverting it
+## CANON-24 — Adversarial review hops until nothing above `low` survives
+
+**Rule:** A high-stakes change is not closed on one pass of review. Independent skeptics are dispatched with a REFUTE mandate, and the loop **repeats** — each hop attacking the fixes the previous hop forced — until no finding above `low` severity remains unaddressed. A hop that cannot reach an independent reviewer (model unavailable, rate limit, the cross-model seat offline) may be self-probed, but is recorded `degraded` and never counted as an independent round.
+
+**Why:** One pass finds what one reader happens to look for. Empirically, in #2480, the first pass of a gate that read as finished missed that its engine was absent from `package.json files[]` — a verbatim repeat of #2335, walking straight through the guard written to stop exactly it — and that its skeletons resolved from a path present only in a dev checkout, so every real consumer would have got a silent permanent SKIP. The second pass, attacking the fixes, found that a document wrapped entirely in an HTML comment scored 12/12: a file rendering as a single heading, judged perfect. Neither was visible to the 29 tests shipped alongside. The loop is what converts "I reviewed it" into "it survived being attacked until only nits remained".
+
+Stopping at one hop is the same error class as accepting a finding from one agent (CANON-21 / M13) — that rule fixes the false POSITIVE (acting on a phantom); this one fixes the false NEGATIVE (stopping while something real is open). They are two halves of one mechanism and share its evidence.
+
+**Enforcement:** `scripts/check-refutation-verdicts.mjs` (advisory `runWarnCheck` at L2+ on both tracks — `scripts/check-all.mjs` and `src/templates/scripts/gate-registry.yml.ejs`). Marker-gated, as the majority axis is: with `.arbiter/evidence/agent-returns/<task>/refutation-required.json` present, every finding the skeptics majority-UPHELD at `critical`/`high`/`med` must appear in the marker's acted-on `findings`. Severity is taken as the highest any skeptic assigned. A finding below quorum or majority-REFUTED never blocks — a single false alarm must not hold a wave hostage. `degraded: true` on the marker is reported on every run and never suppressed. Verified by `__tests__/scripts/check-refutation-verdicts.test.ts`.
+
+**Promoted to:** INV-145 (adversarial review closes only at low-only findings)
+
+**Source issues:** #2480 2026-09-03 (owner rule, stated after two rounds destroyed two successive versions of one gate)
+
+---
+
+## CANON-25 — Name the change that turns a gate red, and prove it by inverting it
 
 **Rule:** Every gate that is introduced or modified MUST name the concrete change that has to turn it RED, and MUST prove it by inverting that change — a planted BAD case the gate rejects and a CLEAN case it accepts. If the change cannot be named, the criterion is vacuous and the gate does not land. A test that still passes with the fix removed is not the oracle. For the ABSENCE-asserting family (`check-no-*`, ratchets, parity), the proof is machine-required: a member of that family with neither a flip proof nor a banked deferral row fails the build.
 

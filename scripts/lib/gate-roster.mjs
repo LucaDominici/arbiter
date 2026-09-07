@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
-// arbiter — gate-roster SSOT + CANON-24 inversion-proof ledger semantics (#2301).
+// arbiter — gate-roster SSOT + CANON-25 inversion-proof ledger semantics (#2301).
 //
 // Two things live here, both pure (no entry point, no process.exit — see
 // check-fail-closed-audit SKIP_FILES):
 //
 //   1. enumerateGateMechanisms(gateSrc) — the one parser for "what does scripts/check-all.mjs
 //      actually run". EXTRACTED from check-canon01-declination.mjs (#1922), which still owns the
-//      CANON-01 mapping but no longer owns the regex: a second consumer (the CANON-24 flip
+//      CANON-01 mapping but no longer owns the regex: a second consumer (the CANON-25 flip
 //      harness) needs the same roster, and check-canon01-declination.mjs runs main() at import
 //      time, so it cannot be imported for its exports. One parser, two consumers.
 //
-//   2. The CANON-24 absence-asserting family and its deferral ledger. CANON-24: for every new or
+//   2. The CANON-25 absence-asserting family and its deferral ledger. CANON-25: for every new or
 //      modified gate, name the concrete change that must turn it red and prove it by inverting
 //      that change. The family scoped FIRST (issue #2301 AC-3) is the shape this defect class
 //      hides in — gates that assert the ABSENCE of something, where "nothing found" and "nothing
@@ -32,7 +32,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-/** Repo-relative path of the CANON-24 deferral ledger. */
+/** Repo-relative path of the CANON-25 deferral ledger. */
 export const INVERSION_REGISTRY_PATH = 'scripts/data/inversion-proof-registry.json'
 
 /**
@@ -41,7 +41,7 @@ export const INVERSION_REGISTRY_PATH = 'scripts/data/inversion-proof-registry.js
  * UNREADABLE gate source: a check-all.mjs that reads fine and no longer PARSES yielded family=[],
  * owing=[] and exit 0. Measured with a readable file carrying no runCheck() call and a drained
  * ledger, the harness printed `absence-family=0 … ledger-problems=0` and exited 0 — the exact
- * blindness CANON-24 exists to catch, inside CANON-24's own enforcer.
+ * blindness CANON-25 exists to catch, inside CANON-25's own enforcer.
  *
  * This is a FLOOR, not a target: wiring more absence gates raises the real count and never trips
  * it. Only a DROP fails, which is the failure mode. Lowering the pin after a deliberate gate
@@ -53,7 +53,7 @@ export const MIN_ABSENCE_FAMILY = 25
  * The ledger's cardinality pin, held HERE rather than inside the ledger it governs (#2301 review).
  * cardinalityProblem() compared registry.deferred.length against registry.ceiling — two fields of
  * the SAME file — so appending a row and incrementing the ceiling in one edit passed the audit
- * completely, while CANON-24 claimed a new family gate "cannot be waved through by appending a
+ * completely, while CANON-25 claimed a new family gate "cannot be waved through by appending a
  * row". Anchoring the ceiling in source makes that claim true of the data file: the ledger can no
  * longer authorise its own growth. Growing it is a source edit, reviewed as one.
  */
@@ -250,7 +250,7 @@ function cardinalityProblem(registry, pinnedCeiling) {
 }
 
 /**
- * Audit the CANON-24 deferral ledger against the derived family. Returns the list of problems
+ * Audit the CANON-25 deferral ledger against the derived family. Returns the list of problems
  * (empty ⇒ the ledger is sound).
  */
 export function auditInversionRegistry({

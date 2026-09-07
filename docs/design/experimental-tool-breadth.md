@@ -14,7 +14,7 @@ related: ['src/wizard/types.ts', 'src/generators/registry.ts']
 > **DECIDED (2026-08-30, #2367).** All five were **retired** — generators, templates and
 > tests deleted, `AiTool` narrowed to `claude | codex`. The promotion criteria that were
 > missing are now written down. See
-> [ADR-119](../internal/ADR/119-experimental-tool-generators-retired.md) for the recorded
+> [ADR-122](../internal/ADR/122-experimental-tool-generators-retired.md) for the recorded
 > decision per tool and the rationale; the rest of this document is the design record that
 > produced it.
 
