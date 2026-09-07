@@ -379,21 +379,30 @@ function checkOrphanEntries(ledger) {
   return violations
 }
 
+/**
+ * Report a malformed bypass log and return the FAIL code. Extracted from main() because adding
+ * detector (c) pushed main() to cyclomatic 11 against a ceiling of 10 — CANON-22 says decompose
+ * the function rather than suppress the ratchet or widen the ceiling. Behaviour is unchanged:
+ * same three writes, same ordering, same exit code.
+ * @param {string[]} malformed
+ * @returns {number}
+ */
+function reportMalformedLog(malformed) {
+  for (const m of malformed)
+    process.stdout.write(`[check-bypass-ceremony] FAIL: bypass-log — ${m}\n`)
+  if (JSON_OUT) {
+    process.stdout.write(JSON.stringify({ channels: [], ledgerViolations: [], malformed }) + '\n')
+  } else {
+    process.stdout.write(
+      `[check-bypass-ceremony] FAIL: ${malformed.length} malformed bypass-log line(s)\n`,
+    )
+  }
+  return 1
+}
+
 function main() {
   const { records, malformed } = parseBypassLog()
-  if (malformed.length > 0) {
-    for (const m of malformed)
-      process.stdout.write(`[check-bypass-ceremony] FAIL: bypass-log — ${m}\n`)
-    if (!JSON_OUT) {
-      process.stdout.write(
-        `[check-bypass-ceremony] FAIL: ${malformed.length} malformed bypass-log line(s)\n`,
-      )
-    }
-    if (JSON_OUT) {
-      process.stdout.write(JSON.stringify({ channels: [], ledgerViolations: [], malformed }) + '\n')
-    }
-    return 1
-  }
+  if (malformed.length > 0) return reportMalformedLog(malformed)
 
   const thresholds = loadThresholds()
   const { channels, violations: rateViolations } = checkBypassRate(records, thresholds)
