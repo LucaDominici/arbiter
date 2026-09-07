@@ -695,14 +695,23 @@ if (isMain) {
       const root = GIT_CWD ?? process.cwd()
       // #1441: stamp the task id so the fail-closed Stop hook can reject a prior
       // task's gate-pass on the same branch (anti-replay, beyond branch+sha).
+      // #2418: an ABSENT status file is a resolved fact — there is no task, so
+      // 'unknown' is honest. A PRESENT but unreadable/unparseable one is an
+      // UNRESOLVED fact: swallowing it stamped the marker with a fabricated
+      // 'unknown' id, which the anti-replay check then cannot distinguish from a
+      // genuinely task-less run. Surface it and write NO marker instead.
       const taskId = (() => {
+        const statusPath = resolve(root, '.claude/.task/status.json')
+        if (!existsSync(statusPath)) return 'unknown'
         try {
-          const statusPath = resolve(root, '.claude/.task/status.json')
-          if (!existsSync(statusPath)) return 'unknown'
           const s = JSON.parse(readFileSync(statusPath, 'utf-8'))
           return typeof s.taskId === 'string' && s.taskId.length > 0 ? s.taskId : 'unknown'
-        } catch {
-          return 'unknown'
+        } catch (err) {
+          process.stderr.write(
+            `check-all: warning: gate marker NOT written — ${statusPath} exists but could not ` +
+              `be read as task state (${err.message}), so the marker cannot name the task it binds\n`,
+          )
+          return null
         }
       })()
       // #2328: the marker binds tree content, checkout identity, toolchain
@@ -717,13 +726,19 @@ if (isMain) {
       // buildGateEvidence returns null when it is missing, incomplete, or no
       // longer matches the tree — a green gate with no marker is honest, a
       // marker for a tree the gate did not measure end to end is not.
-      const evidence = buildGateEvidence({ root, level, taskId, start: gateStart })
+      const evidence =
+        taskId === null ? null : buildGateEvidence({ root, level, taskId, start: gateStart })
       if (evidence === null) {
-        process.stderr.write(
-          'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
-            'could not be resolved, or the commit/tree moved while the gate was running, ' +
-            'so nothing can bind this gate result to this tree (#2427)\n',
-        )
+        // #2418: taskId === null happens ONLY on the unreadable-status.json path above,
+        // which already wrote a warning naming that file and the parse error. Emitting
+        // this vaguer one on top of it would bury the specific reason under a generic one.
+        if (taskId !== null) {
+          process.stderr.write(
+            'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
+              'could not be resolved, or the commit/tree moved while the gate was running, ' +
+              'so nothing can bind this gate result to this tree (#2427)\n',
+          )
+        }
       } else {
         const markerPath = resolve(root, '.arbiter/gate-pass.json')
         mkdirSync(dirname(markerPath), { recursive: true })
