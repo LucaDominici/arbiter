@@ -10,10 +10,24 @@ on:
     branches: [main]
 
   workflow_dispatch:
+  # #2476 — deliberately NO `branches:` filter on this trigger. On a pull_request
+  # event `branches:` filters the BASE branch, not the head, so the former
+  # `branches: [main]` created NO WORKFLOW RUN AT ALL for a pull request stacked on
+  # a task or train branch: it displayed no failing checks because it had no checks,
+  # and any "no failing checks ⇒ mergeable" read was satisfied by a pull request
+  # that was never tested. Branch protection is no backstop — protection is
+  # configured on the BASE branch and a task/train branch carries none. Run creation
+  # is therefore unconditional in the base branch; per-branch economy stays INSIDE
+  # the workflow, in the job-level `if:` guards below, where a skipped job still
+  # reports a result the `ci-required` aggregator reads. The `push:` trigger above
+  # keeps its branch list: that lane is the post-merge catch-net for long-lived
+  # branches, and widening it would multiply runner cost on every task-branch push
+  # for coverage this pull_request trigger already provides. The concurrency group
+  # below is intentionally unchanged — a same-head/different-base collision yields a
+  # CANCELLED run, which is visible and never reads as green, so it is not the
+  # no-run fail-open this fixes. Enforced by scripts/check-workflow-test-integrity.mjs.
   pull_request:
     types: [opened, synchronize, reopened, labeled, ready_for_review, unlabeled]
-
-    branches: [main]
 
 # Cancel in-progress runs on the same ref; main always completes (#357).
 concurrency:
