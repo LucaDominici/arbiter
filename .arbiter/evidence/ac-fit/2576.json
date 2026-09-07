@@ -1,0 +1,114 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2576",
+  "reviewer": "/root/portfolio_gold_plan",
+  "reviewedAt": "2026-09-06T23:33:38Z",
+  "anchor": ".claude/plans/2576.md",
+  "reviewVerdict": "APPROVE",
+  "reviewedState": {
+    "baseSha": "2cbb4637f0a8deeb21f483f954f0e75972b8d1c6",
+    "headSha": "bae6270dd0d4fd68e8f7fd79d464f6842f9c60da",
+    "priorReviewHeadSha": "9103a2569e8ee71b18e069f0356527e780065c3a",
+    "workingTreeDiffReviewed": false,
+    "engineGitBlob": "4424404cebdc63e23359e1343f53e34fdeac3d00",
+    "testGitBlob": "78d2936c77abe676cd80e5ad069d95ae7a1e6313",
+    "engineRunnerDiffHash": "ef4967e081df4f73292272ef30fac5590efc7cc520f065ab1320f6859b124422"
+  },
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/check-arc42-slots.mjs", "line": 75 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 294 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 587 }
+      ],
+      "rationale": "The shared SLOTS table adds explicit anchored Italian aliases for all twelve slots without replacing its English aliases. The executable regression asserts twelve required, twelve filled, the complete literal ARC-01..ARC-12 list and no violations. Reviewer-run lightweight assertions independently preserved all twelve canonical English titles and eight valid English/Italian runtime-heading forms. Numerically hierarchical headings are intentionally rejected as invalid parent evidence."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 144 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 231 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 294 }
+      ],
+      "rationale": "The new tests exercise the existing analyzeDocument interface and spawn the actual checker through the existing run fixture. Italian headings and substantive bodies are literal generic test data. The Arbiter regression imports no private sibling checkout and copies no private consumer content."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/check-arc42-slots.mjs", "line": 170 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 231 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 339 }
+      ],
+      "rationale": "The executable Italian fixture passes populated, fails after a required heading becomes a suffix decoy, fails when section 6 is replaced by subsection 6.1, fails when its body becomes only a comment, and passes after restoration. Analysis tests exclude prefix/suffix decoys, fenced examples and HTML-comment headings. The reviewer found the initial 6.1 false positive, reproduced it, then independently confirmed its fix with eleven rejected subsection/decoy forms and two complete documents whose substituted English/Italian runtime subsections now leave exactly eleven slots."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 369 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 408 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 477 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 614 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 693 }
+      ],
+      "rationale": "The implementation diff changes only heading aliases and the parent-heading guard, not baseline loading/writing, missing-input/error handling, tier resolution or either ratchet. Existing regressions cover missing inputs, malformed counters, absent columns, skeleton deletion and first-run measured seeding. The Italian mutation additionally requires --update-baseline to reject a raised hollow count and preserves the baseline bytes exactly. No production baseline or skeleton changed; the sole divergence-hash update was independently recomputed with the real dogfood functions and matched."
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "package.json", "line": 32 },
+        { "file": "src/templates/scripts/check-arc42-slots.mjs.ejs", "line": 25 },
+        { "file": "src/commands/doc-set.ts", "line": 143 },
+        { "file": "src/commands/doc-set.ts", "line": 205 },
+        { "file": "__tests__/scripts/check-arc42-slots.test.ts", "line": 541 },
+        { "file": "scripts/check-tarball-contents.mjs", "line": 80 },
+        { "file": "/tmp/arbiter-2576-package-smoke.mjs", "line": 33 },
+        { "file": "/tmp/arbiter-2576-package-smoke.log", "line": 18 }
+      ],
+      "rationale": "Closed by the actual package smoke, not by treating the earlier skeletonSlots test as full package execution. Root packed implementation bae6270d, freshly installed that tarball and its twelve dependencies with install scripts disabled, confirmed src absent, and copied the unparameterized emitted wrapper from the installed dist/templates. That wrapper invoked the real CLI and shared packaged engine on a generic Italian document: nominal exit 0 with twelve of twelve filled, subsection-6.1 mutation exit 1 naming ARC-06, unchanged baseline hash, then restored exit 0. The reviewer read the complete smoke program/log, independently matched the tarball digest and installed engine bytes against git show of the exact implementation commit, verified wrapper equality and local bin realpath, and reran the wrapper nominally: exit 0, twelve of twelve, no stubs/violations, dist/templates skeleton and unchanged baseline. No consumer document was rewritten. This verifies this fresh installed-package chain, not a deployed consumer installation. The missing-local-package ambient npx provenance defect remains separately open as #2578 and is not fixed by #2576."
+    }
+  ],
+  "reviewNotes": {
+    "contextFresh": false,
+    "scope": "Reviewer-written acceptance fit for committed implementation bae6270dd0d4fd68e8f7fd79d464f6842f9c60da. All five criteria pass after the installed-package smoke. This is not release, landing or deployed-consumer qualification.",
+    "resolvedFinding": {
+      "severity": "blocker",
+      "status": "resolved",
+      "description": "A 6.1 Vista di runtime heading previously supplied the missing parent ARC-06. slotForHeading now rejects hierarchical numbering before normalization; the executable regression preserves the failure case."
+    },
+    "verification": [
+      "Root reported the targeted arc42 suite green with 65 tests; the reviewer inspected its assertions and did not independently rerun the full suite during the concurrent gate.",
+      "Reviewer independently executed 33 lightweight assertions: eight valid heading forms, eleven rejected subsection/decoy forms, twelve canonical English titles, and two document-level missing-parent variants; all passed.",
+      "Reviewer independently verified the committed RED test blob eabdf976680a2e0c1814b2caf7a372283a5cd0d1 at commit 9103a256 against the recorded TDD artifact.",
+      "Reviewer inspected the real pack/install/wrapper smoke and independently repeated its restored nominal execution without modifying the fixture, confirming twelve of twelve slots and unchanged baseline bytes.",
+      "Final L1/L2 and exact-head landing evidence remain the implementation owner's responsibility. The preliminary failed L2 is not qualification."
+    ],
+    "packageSmoke": {
+      "implementationSha": "bae6270dd0d4fd68e8f7fd79d464f6842f9c60da",
+      "temporaryFixture": "/tmp/arbiter-2576-installed-BhHdN8",
+      "scriptSha256": "a19eb8c622bcd912962ed1c8a13c788ad8a46ec1922d2a9b82c7bd5419b8e707",
+      "logSha256": "33665232d2512fef497e996c6c46055f428364bde96347c0c06d11506b4a7e0c",
+      "tarballSha256": "a236134f1379ffde230330c49e02c69d66344ece8960e101c9c712b6528a2b28",
+      "engineSha256": "5252bebd6b33eacf6f6f4f588d517c015c4469e77858b7ef90117e8532634b2b",
+      "baselineSha256": "6fa4a63885e6a6170c7144d57ccbaa15caea21b89b60d2d005649c6a534c5089",
+      "installedSourceDirectoryAbsent": true,
+      "wrapperMatchesInstalledDistTemplate": true,
+      "localBinResolvesToInstalledCli": true,
+      "nominalExit": 0,
+      "filled": 12,
+      "required": 12,
+      "requiredFrom": "dist/templates/docs/skeletons/arc42-full.md.ejs",
+      "subsectionMutationExit": 1,
+      "baselineUnchangedAfterMutation": true,
+      "restoredExit": 0,
+      "reviewerRepeatedNominalExit": 0,
+      "reviewerRepeatedMutation": false,
+      "retentionNote": "The smoke script, log, tarball and installed fixture are temporary local artifacts. Their digests and observed outcomes are retained here; this record does not imply durable publication or deployment."
+    }
+  }
+}

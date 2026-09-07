@@ -14,6 +14,14 @@
 //   * no toolchain identity — a changed lockfile or a reinstalled node_modules
 //                            leaves the marker valid.
 //
+// #2427 added the fourth: no RUN identity. Every axis above is sampled when the
+// marker is STAMPED, so a gate that ran for twenty minutes against one tree and
+// finished after the branch moved stamped the NEW head_sha and the NEW tree hash
+// — a marker binding a tree it never tested. Schema v3 therefore records the
+// identity captured at gate START alongside the one measured at gate END, the
+// writer refuses to emit a marker when they disagree (or when either end is
+// unresolvable), and the verifier reads a disagreement as unverifiable.
+//
 // Every axis fails CLOSED, and — the load-bearing rule — a MISSING or EMPTY
 // field is never read as "unconstrained": the required fields are checked for
 // presence before anything is compared, so a marker written under an older
@@ -35,7 +43,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { isMainModule } from './run-helpers.mjs'
 
-export const GATE_EVIDENCE_SCHEMA = 'arbiter-gate-pass-v2'
+export const GATE_EVIDENCE_SCHEMA = 'arbiter-gate-pass-v3'
 export const GATE_EVIDENCE_DEFAULT_TTL_MIN = 240
 export const GATE_EVIDENCE_LEVEL_RANK = Object.freeze({ L0: 0, L1: 1, L2: 2, L3: 3 })
 
@@ -51,6 +59,12 @@ export const GATE_EVIDENCE_STRING_FIELDS = Object.freeze([
   'tree_hash',
   'checkout_root',
   'toolchain_fingerprint',
+  // #2427 — identity as it stood when the gate STARTED. Present-and-non-blank is
+  // checked before anything is compared, so a v2 marker (which has no start at
+  // all) is a rejection rather than a marker whose start axis silently vanishes.
+  'gate_started_at',
+  'start_head_sha',
+  'start_tree_hash',
 ])
 
 // Repo-resident toolchain identity, hashed by CONTENT — never by `--version`
@@ -233,10 +247,37 @@ function orPositive(value, fallback) {
 }
 
 /**
- * Build a schema-v2 marker for `root`. Returns null when any identity fact is
- * unresolvable — a marker that cannot prove what it describes is never written.
+ * #2427 — the identity of the tree a gate is ABOUT to measure, captured before
+ * its first check runs.
+ *
+ * `buildGateEvidence` used to sample head_sha and tree_hash at STAMP time only,
+ * which is why an orphaned gate could run for twenty minutes against one tree,
+ * see the branch move underneath it, and then stamp a green marker naming the
+ * tree it had never tested. Whatever a gate measures, it must have started
+ * measuring it.
+ *
+ * Returns null when either fact is unresolvable — never a partial start, because
+ * a half-known start is indistinguishable downstream from no start at all.
  */
-export function buildGateEvidence({ root, level, taskId, ttlMinutes } = {}) {
+export function captureGateStart(root) {
+  const headSha = gitLine(root, ['rev-parse', 'HEAD'])
+  const treeHash = computeTreeHash(root)
+  if (headSha === null || treeHash === null) return null
+  return { head_sha: headSha, tree_hash: treeHash, started_at: new Date().toISOString() }
+}
+
+/**
+ * Build a schema-v3 marker for `root`. Returns null when any identity fact is
+ * unresolvable — a marker that cannot prove what it describes is never written.
+ *
+ * `start` is the REQUIRED output of `captureGateStart(root)` taken before the
+ * first check ran. The marker is refused outright when it is absent, incomplete,
+ * or disagrees with the identity re-measured here at the end. Fail-closed in
+ * every direction: a gate that cannot prove it measured ONE tree from start to
+ * finish stamps nothing, and a green gate with no marker is honest where a
+ * marker for an unknown tree is not.
+ */
+export function buildGateEvidence({ root, level, taskId, ttlMinutes, start } = {}) {
   const facts = {
     checkoutRoot: computeCheckoutRoot(root),
     headSha: gitLine(root, ['rev-parse', 'HEAD']),
@@ -245,10 +286,19 @@ export function buildGateEvidence({ root, level, taskId, ttlMinutes } = {}) {
   }
   if (Object.values(facts).some((fact) => fact === null)) return null
 
+  // The whole point of #2427: end identity must equal start identity.
+  if (typeof start !== 'object' || start === null) return null
+  const startedAt = start.started_at
+  if (typeof startedAt !== 'string' || startedAt.trim() === '') return null
+  if (start.head_sha !== facts.headSha || start.tree_hash !== facts.treeHash) return null
+
   return {
     schema: GATE_EVIDENCE_SCHEMA,
     head_sha: facts.headSha,
     branch: facts.branch,
+    gate_started_at: startedAt,
+    start_head_sha: start.head_sha,
+    start_tree_hash: start.tree_hash,
     task_id: orFallback(taskId, 'unknown'),
     timestamp: new Date().toISOString(),
     level: orFallback(level, 'unknown'),
@@ -344,6 +394,32 @@ function commitProblem(root, marker, taskId) {
   return null
 }
 
+/**
+ * #2427 — the axis that catches a gate which did not measure one tree.
+ *
+ * A marker whose start and end identities disagree describes a run that saw the
+ * tree change underneath it; nothing it reports can be attributed to either
+ * tree, so it is UNVERIFIABLE rather than merely stale. The writer already
+ * refuses to emit one, so this is the second line of defence: it also rejects a
+ * marker that was hand-edited or produced by a writer that skipped the refusal.
+ */
+function startEndProblem(marker) {
+  if (marker.start_head_sha !== marker.head_sha) {
+    return (
+      'gate-pass marker is unverifiable: the gate started on commit ' +
+      `"${marker.start_head_sha}" and finished on "${marker.head_sha}" — it did not ` +
+      'measure one tree from start to finish'
+    )
+  }
+  if (marker.start_tree_hash !== marker.tree_hash) {
+    return (
+      'gate-pass marker is unverifiable: the working tree changed while the gate ran ' +
+      `(started at tree "${marker.start_tree_hash}", finished at "${marker.tree_hash}")`
+    )
+  }
+  return null
+}
+
 /** The three axes #2328 added: checkout, toolchain and working-tree content. */
 function identityProblem(root, marker) {
   if (marker.node_version !== process.version) {
@@ -400,6 +476,10 @@ export function verifyGateEvidence(marker, opts = {}) {
       ),
     () => commitProblem(root, marker, opts.taskId),
     () => identityProblem(root, marker),
+    // LAST on purpose: commit/identity answer "does this marker describe THIS
+    // tree", start↔end answers "did one gate measure ONE tree". A marker that
+    // fails both deserves the first, more specific, diagnosis.
+    () => startEndProblem(marker),
   ]
 
   for (const check of checks) {
