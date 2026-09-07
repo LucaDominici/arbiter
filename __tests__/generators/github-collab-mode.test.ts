@@ -311,13 +311,22 @@ describe('generateGithub — develop branch gating (Phase B, ADR-051)', () => {
     expect(content).not.toContain('develop')
   })
 
-  it('github-flow-with-develop: 02-pr-extended.yml contains develop trigger', () => {
+  // #2476: 02-pr-extended.yml no longer enumerates its base branches at all — the
+  // `branches:` filter is gone, because on a pull_request event it filters the BASE
+  // branch and any enumeration is an allowlist by omission (a stacked task/train base
+  // matched nothing, so no run was created and the PR showed no checks). The ADR-051
+  // Phase B intent — a develop-based pull request runs extended CI — is now satisfied
+  // by construction rather than by naming `develop`, and it holds under EVERY
+  // branching strategy. Assert the property, not the literal it used to be spelled with.
+  it('github-flow-with-develop: 02-pr-extended.yml does not exclude a develop base', () => {
     const config = makeConfig(dir, {
       branchingStrategy: 'github-flow-with-develop',
     })
     generateGithub(config)
     const content = readFileSync(join(dir, '.github', 'workflows', '02-pr-extended.yml'), 'utf-8')
-    expect(content).toContain('develop')
+    const onBlock = content.split('\non:')[1]?.split('\nconcurrency:')[0] ?? ''
+    expect(onBlock).toContain('pull_request:')
+    expect(onBlock).not.toMatch(/^\s{4}branches(-ignore)?:/m)
   })
 
   it('trunk-direct: 02-pr-extended.yml does NOT contain develop trigger', () => {
