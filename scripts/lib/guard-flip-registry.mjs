@@ -160,7 +160,7 @@ const plantAssertionDeltaRepo = (d, keepBoth) => {
   git(repo, 'commit', '-q', '-m', 'test: refactor')
 }
 
-// ── CANON-24 absence-family fixtures (#2301) ──────────────────────────────────────────────────
+// ── CANON-25 absence-family fixtures (#2301) ──────────────────────────────────────────────────
 // The forbidden tokens below are ASSEMBLED at runtime, never written literally: this file is a
 // tracked .mjs and every one of these gates scans tracked .mjs files, so a literal fixture token
 // would make the repo fail its own gate.
@@ -385,7 +385,7 @@ export const FLIP_REGISTRY = {
     // HEAD keeps both base assertions and adds a third — net-positive, legitimate.
     plantClean: (d) => plantAssertionDeltaRepo(d, true),
   },
-  // ── CANON-24 absence-asserting family (#2301): keyed by their scripts/check-all.mjs check name.
+  // ── CANON-25 absence-asserting family (#2301): keyed by their scripts/check-all.mjs check name.
   // Each names the concrete change that must turn the gate red, and proves it by inverting it.
   // (`no passWithNoTests (INV-25)` needs no entry — the same script is proven above as
   //  `no-empty-suite`, and the roster resolves a proof by script as well as by name.)

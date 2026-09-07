@@ -380,11 +380,12 @@ Measured on a pinned, origin-free clone of the java consumer: 254 files restored
 which #2295 found only two matching an emitted name (measured there at 92 emitted checks, on the arbiter
 version current at the time). That parallel, uninvoked gate spine is the concrete harm the silence hid.
 
-**Known gap — `update --adopt-plan` does not preview restorations.** `partitionPlanResults` buckets on
-`replaced`/`backed-up-and-replaced` and on `withheld`; a restoration is `created`, so it lands in neither and
-the read-only preview stays silent about files the real run will put back. Same class as the two write
-channels #2120 surfaced and the deletions #2221 added as `wouldRetire` — registered here rather than fixed
-in #2295, whose scope is the run itself — tracked as #2305.
+**`update --adopt-plan` previews restorations too (#2305).** `partitionPlanResults` buckets a re-emission
+(`action: 'created'`, `restored: true`) into its own `restore` bucket — distinct from `replaced`/
+`backed-up-and-replaced` (`regenerate`) and from `withheld` — so a file the real run would put back is named
+under "would restore N file(s)" before anything is written. `update --json` carries the same set as
+`data.wouldRestore`. Same class as the two write channels #2120 surfaced and the deletions #2221 added as
+`wouldRetire`: a write channel the run declares must never be a preview channel the plan stays silent about.
 
 ### Protected classes — three classes, and only one adopts by default
 
@@ -628,6 +629,35 @@ otherwise desync the baseline and surface the file as a false-positive withheld 
 non-idempotent.
 
 ---
+
+## The preserve marker does not apply to arbiter's own state (#2533)
+
+`PRESERVE_MARKER` (`arbiter:preserve`) makes a file un-overwritable, ahead of `skipIfExists`,
+backup and adopt. That is right for a **generated target file** a downstream repo has
+hand-customised. It is wrong for arbiter's own internal state — TDD evidence, `tech-debt.json`,
+the unified task-status document — because those files are written by tooling and routinely
+**quote captured output**. A log that happens to contain the literal string `arbiter:preserve`
+would freeze the file permanently, and nothing downstream would look customised because
+nothing was.
+
+The failure was worse than a stuck file: the write was withheld and the caller still reported
+success. Recording evidence that was never written is the exact shape of a green that means
+nothing.
+
+Two halves, and both are load-bearing:
+
+- **`skipPreserveCheck`** — internal-state writers opt out of the marker check. It is folded
+  into `hasPreserveMarker(disk, skip)` rather than added as a second condition at each call
+  site, so the branch counts against that small predicate's complexity budget instead of
+  `resolveWriteAction`'s (CANON-22).
+- **`assertWritten(result, description)`** — those same callers must now prove the write
+  landed. A `withheld` result that was not `adopted` throws rather than returning, so a
+  withheld write can no longer be reported as a success by omission.
+
+The escape hatch alone would have been the tempting half-fix: it unfreezes the file and the
+symptom disappears. Without `assertWritten`, any _other_ reason a write is withheld would go
+on being silently swallowed, which is the bug the title names — a write that did not happen
+must never be reported as success.
 
 ## CI Gate
 
