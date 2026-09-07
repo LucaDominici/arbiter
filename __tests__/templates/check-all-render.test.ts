@@ -1082,7 +1082,17 @@ describe('check-all.mjs.ejs — L3/L4 executable local lanes (#2041, resolves #1
             // #2104: the gate resolves a tmpfs TMPDIR before any spawn. Stubbed to null so
             // this probe stays hermetic (no TMPDIR mutation) and host-independent.
             'export const resolveTmpfsTmpdir = () => null;\n' +
-            'export const gateFileState = () => "never-emitted";\n',
+            'export const gateFileState = () => "never-emitted";\n' +
+            // #2427: the gate arms the orphan guard immediately after arg-parsing.
+            'export const setOrphanGuard = () => {};\n',
+        )
+        // #2427: and imports the per-repo mutex helper. This probe runs in a bare
+        // temp dir with no git repo — the no-mutex-to-take path — so the stub
+        // throws exactly as the real derivation would.
+        writeFileSync(
+          join(scriptsDir, 'lib', 'gate-mutex.mjs'),
+          'export const GATE_MUTEX_HELD_ENV = "ARBITER_GATE_MUTEX_HELD";\n' +
+            'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
         )
         const r = spawnSync('node', [join(scriptsDir, 'check-all.mjs'), ...args], {
           encoding: 'utf-8',
