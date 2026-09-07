@@ -119,6 +119,32 @@ is: NEW mutes are never grandfathered implicitly).
 ERROR (the guard itself malfunctioned). **NO-DATA is `0`, never `2`** — a missing `gh` is an
 environment condition, not a broken guard.
 
+## Programme membership: a parser that lost rows (#2513)
+
+`check-catalog-agents-parity.mjs` compares the invariant catalog against `AGENTS.md` in both
+directions. Both directions are only as good as the set the line-scanner managed to extract —
+and the scanner recognised `title:` only on the line _after_ `id:`. A prettier pass that
+collapses a short object literal onto one line therefore dropped that entry silently, and the
+forward and reverse comparisons then ran over an undercounted set and reported a confident
+`OK`. Nothing was wrong with the comparison; it was simply asked about fewer rows than exist.
+
+Two changes, and the second is the one that matters:
+
+- The scanner gained a same-line path, so a collapsed `{ id: 'INV-NN', title: '…' }` is read
+  rather than deferred to a line that holds something else.
+- A **programme-membership guard** now asserts that every `id: 'INV-NN'` occurrence in the
+  catalog source is accounted for — present in the parsed map, or deliberately dropped as a
+  retired tombstone. Anything else means the scanner failed on a format it did not recognise,
+  and the gate exits `2` naming the unaccounted ids instead of comparing a partial set.
+
+The guard reuses the `marks` scan already computed for retired-status spans rather than adding
+a second scanner, so the check cannot drift away from the thing it audits.
+
+This is an ERROR (`2`) rather than a violation (`1`) under the contract above, and deliberately
+so: the parser malfunctioned. It is a different condition from an _empty scan set_ — there the
+gate worked correctly and was simply pointed at nothing. #2593 is deciding whether the family
+should express those two conditions with one code or two.
+
 ## Rollout
 
 The **gh-audit** guards (#9, #10) are report-only (advisory, exit 0) by default and promote to
