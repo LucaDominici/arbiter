@@ -93,10 +93,22 @@ must be resolved before treating this recovery recipe as implementation-ready.
 Coordinator resolution of AR-2594-01/02, 2026-09-08: preserve def265e7 and its
 invalid receipt via an immutable recovery ref before changing HEAD. In this same
 integration worktree use a new task-form recovery branch from frozen ff7d5770,
-carry this plan/manifest forward, and use the native backward transition
-(`task advance --reverse`) out of refactor to the planning/red-team phase.
-Obtain fresh plan-review PASS and the S-tier two-agent red-team evidence before
-entering red. Commit only the missing-compiler test with an issue-linked subject
+ carry this plan/manifest forward, and use the native backward transition
+ (`node dist/cli.js task advance --to plan --reverse`) out of refactor. Run the
+ fresh plan-review, then enter `red-team-review` with
+ `node dist/cli.js task advance --to red-team-review`; only fresh red-team
+ evidence permits `node dist/cli.js task advance --to red`.
+
+ Impact record, 2026-09-08: no fresh `graphify-out/graph.json` exists, so the
+ native ripgrep fallback was used (`impact-1788827892.log`).
+ `scripts/prepare-lifecycle.mjs` has direct package lifecycle and focused-test
+ dependents, exceeding the S leaf ceiling. The recovery is therefore
+ **Standard**, not S: obtain a fresh plan-review and three independent
+ red-team results against this amended digest before entering red. The plan and
+ manifest runtime artifacts are themselves consumed by parity/gate paths and
+ are retained only as native contract artifacts, not implementation scope.
+
+ Commit only the missing-compiler test with an issue-linked subject
 and explicit AC mapping; run `task record-red` without force. Apply exactly the
 preserved production hunk for GREEN, run composed L1 before its commit, and
 verify RED replay. The new GREEN SHA must receive the Bun/AC proof and native
