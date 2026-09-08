@@ -248,7 +248,24 @@ describe('the five #2539 instances become editable (real repo files, cloned)', (
 
   beforeAll(() => {
     cloneDir = mkdtempSync(join(tmpdir(), 'arbiter-hook-diff-scan-clone-'))
-    execFileSync('git', ['clone', '--local', '-q', REPO_ROOT, cloneDir], { stdio: 'ignore' })
+    // `--shared` rather than a plain `--local` clone: it points the clone's object store
+    // at the source through alternates instead of duplicating it, so this setup copies no
+    // objects. The full clone it replaces was heavy enough to fail intermittently under
+    // load — reproduced here failing while a second gate ran concurrently, and seen on CI
+    // where the runner is a 4-slot pool with several jobs cloning into one TMPDIR. The
+    // clone is a throwaway that lives only for this describe, so borrowing the source's
+    // object store is safe. stderr is captured rather than discarded: a bare
+    // "Command failed: git clone" names no cause, which is what made the CI failure
+    // undiagnosable from the log.
+    const cloned = spawnSync('git', ['clone', '--shared', '-q', REPO_ROOT, cloneDir], {
+      encoding: 'utf-8',
+    })
+    if (cloned.status !== 0) {
+      throw new Error(
+        `git clone --shared ${REPO_ROOT} -> ${cloneDir} exited ${cloned.status}: ` +
+          `${cloned.stderr?.trim() || '(no stderr)'}`,
+      )
+    }
     execFileSync('git', ['config', 'user.email', 'test@example.com'], {
       cwd: cloneDir,
       stdio: 'ignore',
