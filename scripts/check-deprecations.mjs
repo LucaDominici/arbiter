@@ -85,7 +85,13 @@ for (const symbol of activeRows) {
   try {
     execFileSync(
       'grep',
-      ['-r', '--include=*.ts', '--include=*.mjs', '-l', leafOf(symbol), 'src/'],
+      // #2453: `--` before the pattern is required, not cosmetic — a CLI flag
+      // symbol (e.g. "--no-adopt-gate-spine") IS a leading-dash string, and
+      // grep parses anything before `--` as options. Without this separator
+      // every dash-prefixed flag "not found" — a false violation, not a real
+      // one, that would have silently blocked the CLI Flag Lifecycle feature
+      // this script exists to enforce.
+      ['-r', '--include=*.ts', '--include=*.mjs', '-l', '--', leafOf(symbol), 'src/'],
       {
         encoding: 'utf-8',
         cwd: ROOT,
