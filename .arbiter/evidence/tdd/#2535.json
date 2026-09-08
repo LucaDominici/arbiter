@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2535",
+  "test_path": "__tests__/skills/product-acceptance.test.ts",
+  "test_commit_sha": "0490a7c5758e36a0ac38bdf5243e7854556b6dd7",
+  "test_blob_sha": "cdfed827a2bb7d4a0d9897a157771a55f24762fc",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/skills/product-acceptance.test.ts (2 tests | 2 failed) 5ms\n     × is discoverable at its canonical path with native frontmatter and live related-skill references (AC-2535.1/2) 3ms\n     × keeps the session-sheet output contract honest about covered and uncovered work (AC-2535.3) 0ms\n\n Test Files  1 failed (1)\n      Tests  2 failed (2)\n   Start at  20:46:56\n   Duration  102ms (transform 6ms, setup 6ms, import 6ms, tests 5ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/skills/product-acceptance.test.ts > product-acceptance SKILL.md (#2535) > is discoverable at its canonical path with native frontmatter and live related-skill references (AC-2535.1/2)\nAssertionError: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/skills/product-acceptance.test.ts:19:35\n     17| describe('product-acceptance SKILL.md (#2535)', () => {\n     18|   it('is discoverable at its canonical path with native frontmatter an…\n     19|     expect(existsSync(skillPath)).toBe(true)\n       |                                   ^\n     20|     if (!existsSync(skillPath)) return\n     21|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/skills/product-acceptance.test.ts > product-acceptance SKILL.md (#2535) > keeps the session-sheet output contract honest about covered and uncovered work (AC-2535.3)\nAssertionError: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/skills/product-acceptance.test.ts:44:35\n     42|\n     43|   it('keeps the session-sheet output contract honest about covered and…\n     44|     expect(existsSync(skillPath)).toBe(true)\n       |                                   ^\n     45|     if (!existsSync(skillPath)) return\n     46|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/skills/product-acceptance.test.ts",
+  "recorded_at": "2026-09-08T18:46:56.513Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/skills/product-acceptance.test.ts"
+  ]
+}
