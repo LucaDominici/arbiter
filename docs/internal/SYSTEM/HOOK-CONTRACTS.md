@@ -381,3 +381,45 @@ Three properties bound it, and each is load-bearing:
 
 This narrows _when_ a hook fires, never _what_ it detects: every pattern, allowlist and
 suppression is unchanged. A marker on a line the edit actually wrote still blocks it.
+
+## The probe owes the hook a real edit (#2604)
+
+Narrowing those four hooks to the added lines changed what a _probe_ of them has to look
+like, and `scripts/probe-hooks.mjs` did not follow.
+
+The probe walks four states — `BARE`, `PRIMED`, `CLOSE`, `VERIFICATION` — writing each
+hook's fixture into `.arb-probe-tmp/` and asserting the hook blocks. At every state
+boundary `establishState` **commits** the working tree (the #2227 dirty-tree guard, which
+commits rather than stashes so an `arbiter update`'s output still reaches the probe).
+`.arb-probe-tmp/` is gitignored nowhere, self or emitted, so the boundary put the previous
+pass's fixtures into `HEAD` — and the next pass rewrote the same bytes. `git diff HEAD` was
+empty, the edit added nothing, and the hook correctly exited 0. The probe read that as a
+dead hook.
+
+It surfaced on exactly one hook, and for an unremarkable reason: `probe.test.ts` is written
+by `check-no-skipped-tests`'s contract alone, so its committed copy was byte-identical to
+the next write. The shared fixture paths — `probe.ts` above all — are written by more than
+one contract with different bodies, so each later write was a genuine diff and hid the
+defect. That is luck, not design: any diff-scanning hook whose fixture path is unique to it
+inherits it, and so would any added later.
+
+The boundary now **empties** the scratch fixtures before the checkpoint commit. `HEAD` then
+holds an empty version of every fixture path, so each subsequent write is a real addition:
+
+| state                             | fixture vs `HEAD`                          | branch under probe        |
+| --------------------------------- | ------------------------------------------ | ------------------------- |
+| `BARE`                            | untracked — no scratch files committed yet | fail-OPEN whole-file scan |
+| `PRIMED`, `CLOSE`, `VERIFICATION` | empty in `HEAD`, violating in the tree     | added-lines scan          |
+
+Both must block, so the fail-open branch and the added-lines branch each carry a probe.
+Gitignoring `.arb-probe-tmp/` would have silenced the row just as effectively and was
+rejected for that reason: it leaves every fixture untracked forever, so the probe would
+only ever exercise fail-open and could never catch a genuinely dead diff-scan — a quieter
+bar, not a truer one.
+
+The cost of the delay is worth recording. The row was real from the moment #2539 landed,
+and it stayed invisible through five merges because the Consumer Reliability Bar was
+already red on an older, unrelated failure (`gateSurface`, seven unaccounted emitted
+checks — #2291, #2310, #2578). A bar that is already red cannot report a new failure: the
+colour does not change. #2479 made the individual rows legible for exactly this reason;
+this is the first regression that legibility caught.
