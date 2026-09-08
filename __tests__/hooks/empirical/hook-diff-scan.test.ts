@@ -271,7 +271,13 @@ describe('the five #2539 instances become editable (real repo files, cloned)', (
       stdio: 'ignore',
     })
     execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: cloneDir, stdio: 'ignore' })
-  })
+    // 120s, not vitest's default 10s hookTimeout. This hook clones a repository; on a
+    // loaded runner (4-slot pool, several jobs cloning at once) that legitimately exceeds
+    // ten seconds. The default killed the hook mid-clone, and the killed git surfaced as a
+    // bare "Command failed: git clone" with no stderr — which is what made four PRs red
+    // with an unreadable cause. This is the setup's I/O budget, not a threshold on
+    // anything the suite asserts: every expectation below is unchanged.
+  }, 120_000)
 
   afterAll(() => {
     rmSync(cloneDir, { recursive: true, force: true })
