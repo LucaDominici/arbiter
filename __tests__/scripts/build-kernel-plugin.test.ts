@@ -8,13 +8,13 @@
 // scan that would also catch the wrong fix (copying the .ejs source verbatim).
 import { describe, it, expect, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { cpSync, rmSync, existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
+import { rmSync, existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const repoRoot = resolve(__dirname, '..', '..')
 const scriptPath = join(repoRoot, 'scripts', 'build-kernel-plugin.mjs')
-const outDir = join(repoRoot, 'packages', 'kernel', 'hooks')
+const committedOutDir = join(repoRoot, 'packages', 'kernel', 'hooks')
 
 // Every file the script claims (in its own RENDERED/COPIED/hooks.json output)
 // to produce under packages/kernel/hooks/. Hardcoded deliberately: this is the
@@ -33,28 +33,25 @@ const EXPECTED_OUTPUT_FILES = [
   'hooks.json',
 ]
 
-let backupDir: string | undefined
+let scratchDir: string | undefined
+let outDir: string
 
 afterEach(() => {
-  // Restore whatever was at packages/kernel/hooks/ before this test ran,
-  // regardless of pass/fail — the suite must never leave the real tree in a
-  // half-regenerated state.
-  if (backupDir) {
-    rmSync(outDir, { recursive: true, force: true })
-    cpSync(backupDir, outDir, { recursive: true })
-    rmSync(backupDir, { recursive: true, force: true })
-    backupDir = undefined
+  if (scratchDir) {
+    rmSync(scratchDir, { recursive: true, force: true })
+    scratchDir = undefined
   }
 })
 
 function runFromCleanState(): { status: number; stdout: string; stderr: string } {
-  backupDir = mkdtempSync(join(tmpdir(), 'kernel-hooks-backup-'))
-  cpSync(outDir, backupDir, { recursive: true })
-  // "clean state": the generator must build everything itself, not merely
-  // leave pre-existing files untouched.
-  rmSync(outDir, { recursive: true, force: true })
-
-  const result = spawnSync('node', [scriptPath], { cwd: repoRoot, encoding: 'utf-8' })
+  scratchDir = mkdtempSync(join(tmpdir(), 'kernel-hooks-build-'))
+  // A genuinely absent output directory, without deleting the shared checkout
+  // while the hardness/parity suites observe it in another Vitest worker.
+  outDir = join(scratchDir, 'hooks')
+  const result = spawnSync('node', [scriptPath, `--out=${outDir}`], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+  })
   return { status: result.status ?? 1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
 }
 
@@ -96,10 +93,10 @@ describe('build-kernel-plugin.mjs', () => {
   const FILES_FIXED_BY_2538 = ['check-no-orphan-todo.mjs', 'check-no-placeholders.mjs']
 
   it('regenerates the #2538-fixed hooks byte-identical to what is now committed', () => {
-    // Captured BEFORE the clean-state run deletes the tree.
+    // Compare the real committed surface with the independent clean-state output.
     const before = new Map<string, string>()
     for (const name of FILES_FIXED_BY_2538) {
-      before.set(name, readFileSync(join(outDir, name), 'utf-8'))
+      before.set(name, readFileSync(join(committedOutDir, name), 'utf-8'))
     }
 
     const result = runFromCleanState()

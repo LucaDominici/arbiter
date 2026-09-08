@@ -342,8 +342,12 @@ Run only what covers the files you actually touched:
 - a formatter `--check` on just the edited files.
 
 Resolve everything in one work session, then let the `verification` phase run the full gate
-once. This is a **speed** optimization, not a gate skip — the full gate still runs before
-commit (L1) and before push (L2).
+once. This is a **speed** optimization, not a gate skip. In a normal checkout the hooks run
+the boundary checks before commit (L1) and before push (L2); the pre-commit hook intentionally
+skips L1 in Git worktrees because their shared `node_modules` makes the license probe invalid
+(#1695). That worktree skip is not an L1 PASS: run `node scripts/check-all.mjs L1` independently
+in the worktree before committing and retain its receipt; the canonical integration checkout/CI
+must repeat L1, and the push boundary must run L2.
 
 Optional, at `verification` and before release-class changes: run `/tabletop <scenario>` to
 walk one user journey end to end and record where the docs and the behaviour disagree

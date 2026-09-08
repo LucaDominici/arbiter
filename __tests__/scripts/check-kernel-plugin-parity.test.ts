@@ -55,24 +55,26 @@ afterEach(() => {
 })
 
 /**
- * A private, disposable copy of packages/kernel/hooks/ AS COMMITTED AT HEAD — read from
+ * A private, disposable copy of packages/kernel/hooks/ from the staged candidate — read from
  * git's object database via `git show`, never from the live working-tree path. vitest
  * runs test files concurrently by default, and __tests__/scripts/build-kernel-plugin
  * .test.ts freely deletes/regenerates/restores that exact real directory as part of its
  * own normal operation; a plain `cpSync` from the live path raced it directly (observed:
- * ENOENT mid-mutation). HEAD's committed content never changes mid-run, so this is immune.
+ * ENOENT mid-mutation). Freeze the index as an immutable tree: HEAD can still contain the
+ * old generated hooks during pre-commit checks of a staged generator update or merge.
  */
 function snapshot(): string {
+  const tree = execFileSync('git', ['-C', repoRoot, 'write-tree'], { encoding: 'utf-8' }).trim()
   snapshotDir = mkdtempSync(join(tmpdir(), 'kernel-hooks-parity-snapshot-'))
   const names = execFileSync(
     'git',
-    ['-C', repoRoot, 'ls-tree', '-r', '--name-only', 'HEAD', '--', COMMITTED_REL],
+    ['-C', repoRoot, 'ls-tree', '-r', '--name-only', tree, '--', COMMITTED_REL],
     { encoding: 'utf-8' },
   )
     .split('\n')
     .filter(Boolean)
   for (const path of names) {
-    const content = execFileSync('git', ['-C', repoRoot, 'show', `HEAD:${path}`])
+    const content = execFileSync('git', ['-C', repoRoot, 'show', `${tree}:${path}`])
     const dest = join(snapshotDir, path.slice(COMMITTED_REL.length + 1))
     mkdirSync(dirname(dest), { recursive: true })
     writeFileSync(dest, content)

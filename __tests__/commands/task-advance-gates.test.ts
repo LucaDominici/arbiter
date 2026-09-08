@@ -7,9 +7,9 @@
 // The static ship.md-derived check lives in `__tests__/docs/ship-phase-gates-2435.test.ts`;
 // this file proves the new entries actually refuse.
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 vi.mock('../../src/capabilities/host-probe.js', () => ({
   detectHostCapabilities: vi.fn().mockReturnValue({ modelSwitch: false, transcriptPath: null }),
@@ -47,6 +47,22 @@ function recordRedTeam(dir: string, taskId = '#2435'): void {
   const evDir = join(dir, '.arbiter', 'evidence', 'redteam')
   mkdirSync(evDir, { recursive: true })
   writeFileSync(join(evDir, `${taskId}.json`), JSON.stringify({ findings: [] }), 'utf-8')
+}
+
+function installAcceptanceChecker(dir: string): void {
+  mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+  copyFileSync(
+    resolve(__dirname, '../../scripts/check-acceptance.mjs'),
+    join(dir, 'scripts/check-acceptance.mjs'),
+  )
+  copyFileSync(
+    resolve(__dirname, '../../scripts/lib/acceptance-criteria.mjs'),
+    join(dir, 'scripts/lib/acceptance-criteria.mjs'),
+  )
+  copyFileSync(
+    resolve(__dirname, '../../scripts/lib/run-helpers.mjs'),
+    join(dir, 'scripts/lib/run-helpers.mjs'),
+  )
 }
 
 afterEach(() => {
@@ -118,6 +134,64 @@ describe('leaving red-team-review — the tier-N dispatch promise is asserted (A
     seed(dir, 'plan')
     runTaskAdvance({ to: 'red-team-review', dir })
     expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
+  })
+})
+
+describe('red admission — the existing Markdown acceptance anchor runs before mutation (#2587)', () => {
+  function acceptanceRepo(plan: string, enabled = true, checker = true): string {
+    const dir = tmpRepo()
+    seed(dir, 'red-team-review', '#2587')
+    recordRedTeam(dir, '#2587')
+    if (checker) installAcceptanceChecker(dir)
+    writeFileSync(join(dir, 'plan.md'), plan, 'utf-8')
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ features: { acceptanceAnchor: enabled } }),
+      'utf-8',
+    )
+    writeUnifiedState(dir, { plan: 'plan.md' })
+    return dir
+  }
+
+  it('rejects an invalid anchor and leaves the phase unchanged', () => {
+    const dir = acceptanceRepo('# Plan\nno anchor')
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(
+      /acceptance-anchor|Acceptance Criteria/i,
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
+  })
+
+  it('advances with a valid anchor', () => {
+    const dir = acceptanceRepo(
+      '## Acceptance Criteria\n- [ ] AC-2587.1: behavior\n## Non-Goals\n- x',
+    )
+    runTaskAdvance({ to: 'red', dir })
+    expect(readUnifiedState(dir)?.phase).toBe('red')
+  })
+
+  it('preserves the optional profile inert when disabled', () => {
+    const dir = acceptanceRepo('# Plan\nno anchor', false)
+    runTaskAdvance({ to: 'red', dir })
+    expect(readUnifiedState(dir)?.phase).toBe('red')
+  })
+
+  it('fails closed when the enabled profile has no checker', () => {
+    const dir = acceptanceRepo(
+      '## Acceptance Criteria\n- [ ] AC-2587.1: behavior\n## Non-Goals\n- x',
+      true,
+      false,
+    )
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/profile is enabled|missing/i)
+    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
+  })
+
+  it('passes a valid plan reference with a fragment', () => {
+    const dir = acceptanceRepo(
+      '## Acceptance Criteria\n- [ ] AC-2587.1: behavior\n## Non-Goals\n- x',
+    )
+    writeUnifiedState(dir, { plan: 'plan.md#acceptance' })
+    runTaskAdvance({ to: 'red', dir })
+    expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 })
 

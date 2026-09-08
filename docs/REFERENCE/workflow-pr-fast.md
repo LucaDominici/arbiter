@@ -108,7 +108,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm # MUST: always cache package manager artifacts
+          cache: npm # Ephemeral GitHub-hosted runners; persistent slots use their local cache.
       - run: npm ci --prefer-offline
       - run: npm run lint
       - run: npm run typecheck
@@ -173,13 +173,13 @@ jobs:
 
 ## Anti-patterns
 
-| Anti-pattern                                                      | Impact                                                 | Fix                                          |
-| ----------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------- |
-| `needs: [lint, unit-tests, security, gate, docs]` on a single job | Sequential chain depth ≥ 4; critical path = sum of all | Split into stage 1 + stage 2 fan-out         |
-| No `cache: npm` on `setup-node`                                   | Every job re-downloads 200–400 MB                      | Add `cache: npm` or `cache: pnpm`            |
-| Separate `lint` and `typecheck` jobs with no shared artifact      | Setup overhead × 2, no benefit                         | Combine in one job (same toolchain)          |
-| Coverage gate in Stage 1 before unit tests finish                 | Gate runs against stale/absent coverage report         | Move gate to Stage 2 (`needs: [unit-tests]`) |
-| `if: always()` on every gate step                                 | Masks failures; gate passes even if lint fails         | Use `needs:` convergence, not `if: always()` |
+| Anti-pattern                                                      | Impact                                                 | Fix                                                                                  |
+| ----------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `needs: [lint, unit-tests, security, gate, docs]` on a single job | Sequential chain depth ≥ 4; critical path = sum of all | Split into stage 1 + stage 2 fan-out                                                 |
+| Remote npm cache restored on every persistent self-hosted job     | Repeated multi-GB transfer/extraction before the check | Disable automatic caching; keep remote npm cache for ephemeral GitHub-hosted runners |
+| Separate `lint` and `typecheck` jobs with no shared artifact      | Setup overhead × 2, no benefit                         | Combine in one job (same toolchain)                                                  |
+| Coverage gate in Stage 1 before unit tests finish                 | Gate runs against stale/absent coverage report         | Move gate to Stage 2 (`needs: [unit-tests]`)                                         |
+| `if: always()` on every gate step                                 | Masks failures; gate passes even if lint fails         | Use `needs:` convergence, not `if: always()`                                         |
 
 ---
 

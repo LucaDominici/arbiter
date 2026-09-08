@@ -15,7 +15,11 @@ afterEach(() => {
 
 function installAcceptanceChecker(root: string): void {
   mkdirSync(join(root, 'scripts', 'lib'), { recursive: true })
-  for (const file of ['check-acceptance.mjs', 'lib/acceptance-criteria.mjs', 'lib/run-helpers.mjs']) {
+  for (const file of [
+    'check-acceptance.mjs',
+    'lib/acceptance-criteria.mjs',
+    'lib/run-helpers.mjs',
+  ]) {
     copyFileSync(resolve(__dirname, '../../scripts', file), join(root, 'scripts', file))
   }
 }

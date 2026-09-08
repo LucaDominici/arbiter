@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2501",
+  "test_path": "__tests__/commands/cross-model-review.test.ts",
+  "test_commit_sha": "ae40f0cf5f8bc78dac1fa8833a7db1e0708879cf",
+  "test_blob_sha": "ded6a74a4f744eae4919da28f147796bacabdbd9",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/commands/cross-model-review.test.ts (15 tests | 1 failed) 5401ms\n     × invokes the external seat from the real CLI refactor boundary 5333ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 14 passed (15)\n   Start at  03:06:54\n   Duration  5.99s (transform 333ms, setup 22ms, import 369ms, tests 5.40s, environment 0ms)\n\n\nstderr | __tests__/commands/cross-model-review.test.ts > arbiter ship cross-model wiring (#2357) > invokes the external seat from the real CLI refactor boundary\n\n\n\n\n\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/commands/cross-model-review.test.ts > arbiter ship cross-model wiring (#2357) > invokes the external seat from the real CLI refactor boundary\nAssertionError: expected [] to have a length of 1 but got +0\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/commands/cross-model-review.test.ts:596:34\n    594|         ),\n    595|       ) as { fulfilled: Array<{ envelope: string }>; degraded: unknown…\n    596|       expect(artifact.fulfilled).toHaveLength(1)\n       |                                  ^\n    597|       expect(artifact.degraded).toEqual([])\n    598|       expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), …\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/commands/cross-model-review.test.ts",
+  "recorded_at": "2026-09-05T03:07:00.061Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/cross-model-review.test.ts"
+  ]
+}

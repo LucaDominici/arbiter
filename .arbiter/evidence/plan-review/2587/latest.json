@@ -1,0 +1,56 @@
+{
+  "verdict": "PASS",
+  "reviewer": "/root/phase_admission_final_review",
+  "reviewedAt": "2026-09-08T16:13:33Z",
+  "branch": "task/2587-phase-admission",
+  "sha": "80773ea565c230aa43898efa4a9c6f301256ca2b",
+  "sourceSHA": "80773ea565c230aa43898efa4a9c6f301256ca2b",
+  "planDigest": "54f2032fe0752efbeddc8a9f8800da66f260c2d601b3177d824589e781afd352",
+  "planMetadataDigest": "60bbfcb5368d842ab8496ff4d6110ddaae5fadc8502eacdf2ff2c06a2ebb7fb0",
+  "reviewedState": {
+    "baseSha": "1cc15d87a02c30fa71a75c0fc76c4fa110ed6ac6",
+    "headSha": "80773ea565c230aa43898efa4a9c6f301256ca2b",
+    "workingTreeDiffReviewed": true,
+    "deltaOnlyReview": true,
+    "implementationDiffSha256": "f2155447625dfe13d4c8e7d5f8e8844551313007183a3c5dd060a4762074381f",
+    "taskDiffSha256": "823499504829d596672591a097c4828180d970ca314b696aea01dfe671f80061",
+    "gitChecksDiffSha256": "546f911855e3276321e2b51048cc59504c869b190eb24102047d6527103c6b08",
+    "testDiffSha256": "5614e5eb594da6e8d3a18ba62805c1194dc974f7349189fe1b1790204c006071",
+    "recoveryDocumentationDiffSha256": "a7cac0d8b91675933b037c1183875639954bff78e6796f8fd541af2619545001",
+    "shipDerivedDiffSha256": "61f51c0ff2e89fb756f3aeb9dae277f5e6ce84798caa03c2cbbb395938191a90",
+    "deltaDiffSha256": "0bbcb7350401ad0e0a4cff0482399b5c2b7f90ca9be6df7ecd4c42410abc8248"
+  },
+  "checks": {
+    "scope": "PASS: all modified implementation, focused-test, recovery-document, template, example, and manifest paths are declared by .agents/plan/PLAN.json; no candidate/main/shared/remote path is touched.",
+    "redAdmission": "PASS: src/commands/task.ts calls the existing scripts/check-acceptance.mjs --plan command before every red state write; enabled missing checker and checker failure reject admission, while disabled/absent profile remains inert.",
+    "verificationProvenance": "PASS: native TDD validation remains primary plus chain at verification; src/evidence/git-checks.ts requires HEAD presence, a clean receipt path, a resolvable origin/main merge-base, and a post-base touch, all fail closed.",
+    "phaseBoundary": "PASS: the whole-chain check remains in verification and the green entry retains only primary TDD validation.",
+    "recoveryDocumentation": "PASS: docs/REFERENCE/task-recovery.md states the red/verification entry prerequisites and corrects the old verification-marker claim without expanding the phase policy.",
+    "shipTruthfulness": "PASS: the source EJS, self command, three rendered examples, and their manifests carry the same worktree/L1 wording and refreshed hashes.",
+    "focusedVerification": "PASS: 2026-09-08T15:43:44Z npx vitest run six declared selectors: 6 files / 66 tests passed; ARBITER_ACCEPTANCE_ANCHOR=1 node scripts/check-acceptance.mjs --plan .claude/plans/task-2587.md exited 0."
+  },
+  "deltaReview": {
+    "verdict": "PASS",
+    "scope": "Only the task-ship mock export, Prettier-only committed RED-test layout, PLAN scope declaration, and 26 bake snapshots were reviewed. Pending origin/main integration is explicitly out of this delta review.",
+    "priorPlanDigest": "cbcccf22c9efc1d10b7530b1374f0bb804a7c4f2662a8e754b8b1c0aa678f99f",
+    "priorPlanMetadataDigest": "d48f60ad7e836d9cafe3e4171507de2c16212d0216e622c77ca5669db95df551",
+    "taskShipMockDiffSha256": "8c0913db0b9052758e3444e8dc7d219b0eda3780044f1c21cf5b0882d6c7181b",
+    "prettierRedTestDiffSha256": "3c0195b65a0eddf9181e4b364c5e41f14431aa326cdc0140275a1431d3bf9f4f",
+    "bakeSnapshotDiffSha256": "2d8c1960b5e8540f42eccf23957d9d35c6a4d1e6d608f9087c16c0f71cb95ede",
+    "snapshotCheck": "PASS: 26/26 changed JSON snapshots differ only at contentHashes['.claude/commands/ship.md'], each a 64-character lowercase SHA-256 digest.",
+    "mockCheck": "PASS: the added tddEvidenceProducedOnBranch mock mirrors the existing git-checks exports and changes no test assertion or production behavior.",
+    "formatCheck": "PASS: the committed RED test changes only Prettier line wrapping.",
+    "releaseNote": "PASS: .changeset/phase-admission-2587.md is a scoped @arbiter/cli patch note that accurately describes the existing five-AC behavior without altering product code, tests, or criteria."
+  },
+  "isolationDelta": {
+    "verdict": "PASS",
+    "scope": "Only __tests__/scripts/build-kernel-plugin.test.ts and its PLAN declarations were reviewed; no generator or production file changed.",
+    "testDiffSha256": "0f7f22718f980d06af0e9da7711ebf4944db8aca743902702143c4fcd8c0b083",
+    "planAndTestDiffSha256": "4fc78dec3b7fca642a5962bb584d009c4c8f7ae08fbcd36f7abb682fc0882e5a",
+    "raceEvidence": "PASS: /tmp/arbiter-race-hardness.out records the pre-fix hardness snapshot failure while shared packages/kernel/hooks files disappeared during the concurrent build test.",
+    "contractCheck": "PASS: the test now supplies an existing builder --out=<mkdtemp>/hooks path whose output directory is initially absent; buildKernelPlugin remains responsible for mkdirSync. Every expected filename, no-EJS-delimiter assertion, and the two fixed-hook byte parity assertions against packages/kernel/hooks remain intact.",
+    "nonWeakening": "PASS: removing shared backup/delete/restore eliminates only the test's destructive setup, not the generator's clean-output contract or committed-surface comparison."
+  },
+  "findings": [],
+  "limits": "The original production admission review remains the basis for the five AC verdicts. This delta review covers only the release-note and test-isolation scope additions and does not claim review of the pending origin/main integration, L1/L2, integration, push, PR, or resolution of #2587's original self-repair deadlock."
+}

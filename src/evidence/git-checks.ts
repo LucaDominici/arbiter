@@ -51,6 +51,37 @@ export function pathExistsInCommit(sha: string, path: string, dir?: string): boo
   }
 }
 
+/**
+ * True only when a TDD receipt is present in HEAD and a commit since origin/main touched it.
+ * A receipt that is merely present in the working tree (or inherited from main) is not branch
+ * provenance. verify-tdd still owns the evidence schema and RED re-execution checks.
+ */
+export function tddEvidenceProducedOnBranch(taskId: string, dir?: string): boolean {
+  const path = `.arbiter/evidence/tdd/${taskId}.json`
+  if (!pathExistsInCommit('HEAD', path, dir)) return false
+
+  try {
+    const status = runCli('git', ['status', '--porcelain', '--untracked-files=all', '--', path], {
+      cwd: gitCwd(dir),
+      timeoutMs: 5000,
+    }).stdout.trim()
+    if (status.length > 0) return false
+    const base = runCli('git', ['merge-base', 'origin/main', 'HEAD'], {
+      cwd: gitCwd(dir),
+      timeoutMs: 5000,
+    }).stdout.trim()
+    if (base.length === 0) return false
+    const touched = runCli('git', ['log', '--format=%H', `${base}..HEAD`, '--', path], {
+      cwd: gitCwd(dir),
+      timeoutMs: 5000,
+    }).stdout.trim()
+    return touched.length > 0
+  } catch {
+    // An unresolvable merge-base or git query is unverifiable provenance, never a pass.
+    return false
+  }
+}
+
 /** Trimmed stdout of a `git` query, or 'unknown' outside a git work tree (#1212). */
 function gitValue(args: readonly string[], dir?: string): string {
   try {
