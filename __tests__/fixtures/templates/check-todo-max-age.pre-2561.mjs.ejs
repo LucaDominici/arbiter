@@ -15,7 +15,7 @@
 //   1  FAIL — one or more linked issues are older than MAX_AGE_DAYS
 //   2  ERROR — invocation error
 import { readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { join, relative } from 'node:path';
 import { walkRepo } from './lib/glob-walk.mjs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -83,27 +83,19 @@ function fetchCreatedAt(ownerRepo, issueNumber) {
   return r.stdout.trim();
 }
 
-/**
- * Walk `dir` for TODO(#NNN) refs, appending hits to `acc`. Returns the number of source files
- * actually opened — the caller sums this across scanDirs to tell "found nothing" apart from
- * "looked at nothing" (CANON-24; #2561).
- */
 function scan(dir, baseDir, acc) {
   // Cycle-safe walk via the shared helper (#1521): walkRepo prunes vendor trees and never recurses
   // into a symlinked directory. Re-apply this script's own SKIP_DIRS as a path-segment filter so the
   // visited set is identical, minus the symlink-cycle bug.
-  let filesScanned = 0;
   for (const rel of walkRepo(dir)) {
     if (rel.split('/').some((seg) => SKIP_DIRS.has(seg))) continue;
     const full = join(dir, rel);
     if (!EXTENSIONS.has(full.slice(full.lastIndexOf('.')))) continue;
-    filesScanned++;
     const content = readFileSync(full, 'utf-8');
     for (const ref of parseTodoIssueRefs(content)) {
       acc.push({ file: relative(baseDir, full), issueNumber: ref.issueNumber, line: ref.line });
     }
   }
-  return filesScanned;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -114,37 +106,7 @@ export function main(exitFn = process.exit) {
   const scanDirs = process.argv.slice(2).length > 0 ? process.argv.slice(2) : ['src', 'lib', 'app'];
 
   const refs = [];
-  let filesScanned = 0;
-  for (const dir of scanDirs) {
-    // #2561 (mirrors arbiter's own #2526 fix for this same gate): resolve(), not join(), against
-    // baseDir. join('/repo', dir) does NOT reset on an absolute `dir` — join('/repo',
-    // '/tmp/fixture/src') silently becomes '/repo/tmp/fixture/src', a path that (almost certainly)
-    // does not exist, so the gate scanned nothing and exited 0: a green that means "I looked
-    // nowhere", not "there is nothing to find". resolve() has POSIX/Node's documented right-to-left
-    // semantics: an absolute segment discards everything to its left, so an absolute `dir` is used
-    // as-is and a relative one is still joined under baseDir exactly as before.
-    filesScanned += scan(resolve(baseDir, dir), baseDir, refs);
-  }
-
-  process.stdout.write(
-    `check-todo-max-age: scanned ${filesScanned} file(s) across ${scanDirs.length} dir(s): ${scanDirs.join(', ')}\n`,
-  );
-
-  // Programme-membership assertion (CANON-24): "nothing found" and "nothing looked at" must
-  // never produce the same green. A resolved scan set of zero files — an empty directory, a
-  // typo'd path, or (pre-fix) an absolute argument silently mis-resolved under baseDir — means
-  // the gate proved nothing, so it fails loudly instead of falling through to the vacuous
-  // "no TODO(#NNN) references — PASS" this defect used to produce. This is distinct from the
-  // case right below: a NON-ZERO scan set with zero refs in it is a legitimate clean state for
-  // this gate (a project can simply have no TODO(#NNN) markers yet), so only an empty FILE SET
-  // aborts — an empty REF set does not.
-  if (filesScanned === 0) {
-    process.stdout.write(
-      `\ncheck-todo-max-age: ABORT — resolved scan set is empty — 0 files found under ${scanDirs.join(', ')}. ` +
-        `A gate that finds nothing must first prove it looked somewhere (CANON-24).\n\n`,
-    );
-    return exitFn(1);
-  }
+  for (const dir of scanDirs) scan(join(baseDir, dir), baseDir, refs);
 
   if (refs.length === 0) {
     process.stdout.write('check-todo-max-age: no TODO(#NNN) references — PASS\n');
