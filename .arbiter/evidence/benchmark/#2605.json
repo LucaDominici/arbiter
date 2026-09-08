@@ -1,0 +1,137 @@
+{
+  "schema": "arbiter-throughput-experiment-v1",
+  "taskId": "#2605",
+  "recordedAt": "2026-09-08T17:44:03Z",
+  "owner": "/root",
+  "sampleSize": {
+    "control": 1,
+    "treatment": 1
+  },
+  "scope": "One paired native self L2 qualification, not portfolio-wide lead time",
+  "protocol": {
+    "entrypoint": "node scripts/check-all.mjs L2 --json <receipt-path>",
+    "normalizedEntryPoint": "node scripts/check-all.mjs gate --level L2 --json <receipt-path>",
+    "aliasAuthority": "scripts/check-all.mjs:6 and scripts/lib/parse-check-args.mjs",
+    "selection": "Unfiltered native full gate; no environment skip or threshold change; existing CI unchanged",
+    "cacheState": "Existing warm installed dependencies/build on the same shared host; OS/Vitest caches and concurrent CI load not reset or controlled"
+  },
+  "environment": {
+    "node": "v22.21.1",
+    "npm": "11.16.0",
+    "os": "Linux 7.0.0-30-generic x86_64 GNU/Linux",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-13700K",
+    "logicalCpuCount": 24,
+    "note": "Node recorded by both native receipts; remaining host/toolchain observed after B, no toolchain changes in this experiment"
+  },
+  "control": {
+    "commit": "aa42406c3f66a99ac9f7cb1c7d68849c1283f1b7",
+    "tree": "96706570860a9f5353501fc1179d17f9287193aa",
+    "pass": true,
+    "gateEntries": 174,
+    "gateDurationSumMs": 290580,
+    "unitMs": 69831,
+    "coverageMs": 79429,
+    "ratchetMs": 15,
+    "logInterval": {
+      "start": "2026-09-08T16:19:30.466Z",
+      "end": "2026-09-08T16:24:21.502Z",
+      "elapsedMs": 291035.9050292969
+    },
+    "receipts": [
+      {
+        "file": "phase-admission-l2-control.json",
+        "sha256": "ae978129521cea8827f977fca93048f2f41c38bb13efa7a072a5c94f4fc9ec06"
+      },
+      {
+        "file": "phase-admission-l2-control.log",
+        "sha256": "a1b2d7903953df319d99e1bfb88d0f2c91cbb879b24048f193da1a9ae96a21ab"
+      }
+    ]
+  },
+  "treatment": {
+    "commit": "d25c1766d51ae6d9daf123576420902fb40d7bec",
+    "tree": "40616e597ec97b06969de9f670b2fcfdb3bdeee1",
+    "controlIsAncestor": true,
+    "cleanBeforeAndAfter": true,
+    "pass": true,
+    "gateEntries": 173,
+    "gateDurationSumMs": 244640,
+    "unitMs": null,
+    "coverageMs": 88609,
+    "ratchetMs": 23,
+    "logInterval": {
+      "start": "2026-09-08T17:37:15.089Z",
+      "end": "2026-09-08T17:41:20.194Z",
+      "elapsedMs": 245104.53271484375
+    },
+    "receipts": [
+      {
+        "file": "2605-l2-treatment.json",
+        "sha256": "de288c4be807bf15f1d28e1279ac4502c6f7b70b8edd0b23c9b7440f9f2ffb46"
+      },
+      {
+        "file": "2605-l2-treatment.log",
+        "sha256": "766ca065b495e39981e1d71e97de9237919c2cdd93389350e00ff17f69f43176"
+      }
+    ]
+  },
+  "comparison": {
+    "removedGateNames": [
+      "unit tests"
+    ],
+    "addedGateNames": [],
+    "unchangedNativeSkipNames": [
+      "use cases (INV-149)",
+      "anti-drift: drift manifest",
+      "anti-drift: pr size gate",
+      "domain-api surface (INV-125)",
+      "api e2e (INV-126)",
+      "render smoke presence (INV-127)",
+      "local-ci parity"
+    ],
+    "gateDurationReductionMs": 45940,
+    "gateDurationReductionPercent": 15.81,
+    "observedGateThroughputRatio": 1.1878,
+    "removedControlUnitWorkMs": 69831,
+    "otherGateNetIncreaseMs": 23891,
+    "coverage": "Both PASS; required coverage and strict ratchet executed. Same 296 instrumented source files and 13030 total lines. Coverage lines A96.23%, B96.31%; no threshold change.",
+    "testSelection": {
+      "a": 1079,
+      "b": 1079,
+      "removed": [],
+      "added": [],
+      "command": "npx vitest list --filesOnly",
+      "evidenceKind": "Static selected test files, NOT executed test count",
+      "receipts": [
+        {
+          "file": "2605-control-selection.txt",
+          "sha256": "83663c3b17e2fada508399f6e825bbba100811fce1dc13fe1f3472c91021343e"
+        },
+        {
+          "file": "2605-treatment-selection.txt",
+          "sha256": "7c50d1c7bd3d90cfc77e586778d0f47611f6f282d238e4981e898cb528ee556d"
+        }
+      ]
+    }
+  },
+  "coverageSummaries": [
+    {
+      "file": "2605-control-coverage-summary.json",
+      "sha256": "51bfc9642b29c43b98e4c0a649f95bbacbbdd75566786f50f23c7d303ab33ed6"
+    },
+    {
+      "file": "2605-treatment-coverage-summary.json",
+      "sha256": "481b454b86c3d50c39184d68354e58169dbc7514430c337a6ed6042e2125a3a1",
+      "originalMtime": "2026-09-08T17:39:41.161Z"
+    }
+  ],
+  "limitations": [
+    "n=1 ordered pair on a shared non-idle host: not causal calibration, no confidence interval or sustained throughput guarantee.",
+    "Full-gate durations are sums of native step durations. Log file birth-to-final-write intervals are only an outer elapsed-time proxy, not independently instrumented wall time.",
+    "The passing native runner captures child output; no executed-test-count claim is derived from a static 1079-file selection list.",
+    "A and B reuse normal local caches without a reset; background runner load may differ.",
+    "A future final evidence-only HEAD requires fresh native exact-commit L2 qualification; that is not a second independent performance sample.",
+    "Seven pre-existing native not-applicable skips are identical in both runs; required coverage is not one of them.",
+    "Native raw receipts, logs and selection inventories are retained in the portfolio relay-live-20260908 evidence directory and addressed here by filename/hash."
+  ]
+}

@@ -2,15 +2,15 @@
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2605",
   "reviewer": "/root",
-  "reviewedAt": "2026-09-08T17:31:00Z",
+  "reviewedAt": "2026-09-08T17:44:03Z",
   "anchor": ".claude/plans/task-2605-l2-single-corpus.md",
   "anchorSha256": "5ba95d5a83b91bffc4fbde40051494c8830c1b650129ce1a4a238cefe4759ace",
   "planMetadataSha256": "ea0c699149653835131449487b6e94ee4a044b44bd96bb6aa2cd27a7aa56f1f3",
-  "sourceSHA": "4dec05012340dd92c31589300caa6a4187a84940",
+  "sourceSHA": "d25c1766d51ae6d9daf123576420902fb40d7bec",
   "baseSHA": "aa42406c3f66a99ac9f7cb1c7d68849c1283f1b7",
   "implementationWorkingDiffSha256": "a552f5725f821812e3b7486553ffb5994db0cf7f04172613e626e9f9cc1867ff",
   "committedRedTestSHA": "f344d5175fa9a6ac7a40deddcea95ff183466b1c",
-  "reviewScope": "Root independently reviewed the complete self-gate delta plus Terra's strict line-data repair and scoped native wiki/divergence refresh. Genuine prior RED commits remain ancestors; benchmark B remains pending.",
+  "reviewScope": "Root independently reviewed the code and final native paired L2 receipts; implementation tree d25c1766 is clean and descends from control aa42406c. AC-4 records one bounded observation with explicit limitations.",
   "focusedVerification": {
     "command": "npx vitest run __tests__/scripts/check-all-l1.test.ts __tests__/scripts/run-helpers.test.ts __tests__/scripts/check-coverage-ratchet.test.ts __tests__/scripts/check-self-dogfood.test.ts __tests__/scripts/check-self-dogfood-external.test.ts",
     "result": "PASS: 5 files, 133 tests, 16.75 seconds",
@@ -120,9 +120,15 @@
     },
     {
       "id": "AC-4",
-      "verdict": "NOT-TESTED",
-      "note": "No matched candidate L2 throughput benchmark has been executed or independently reviewed. The plan's root-owned benchmark protocol remains required; this code-fit review makes no speed, before/after, or acceptance claim."
+      "verdict": "PASS",
+      "note": "Native full L2 PASS A174/B173 entries; only duplicate unit gate removed, same seven pre-existing N/A skips. Sum290580→244640ms (-15.81%), n=1 paired candidate, full required coverage PASS and same1079 static test files. Evidence records identities, commands, host, hashes and confounders; not portfolio-wide speedup.",
+      "evidence": [
+        {
+          "file": ".arbiter/evidence/benchmark/#2605.json",
+          "line": 1
+        }
+      ]
     }
   ],
-  "limitations": "AC-4 needs the root-owned matched candidate benchmark and remains NOT-TESTED. This artifact must not be treated as an all-PASS acceptance result. The TDD receipt and implementation are presently working-tree artifacts and must be preserved/staged by the integration owner."
+  "limitations": "One shared-host paired observation only; no sustained or portfolio-wide speed claim. Source d25c1766 is L1/L2-qualified; new metadata HEAD needs fresh native L2 before push."
 }
