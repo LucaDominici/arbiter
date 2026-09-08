@@ -192,5 +192,25 @@ describe('github-issue-helper', () => {
       appendTechDebtIssue(ev, 1234)
       expect(existsSync(join(ev, 'tech-debt.json'))).toBe(true)
     })
+
+    // #2533: this data artifact is written by tooling (never a generator-emitted,
+    // user-customisable target), so it must never be subject to `writeFile`'s
+    // `arbiter:preserve` withholding (src/utils/fs.ts #1980) — a stale entry
+    // whose content happens to quote the marker must not freeze the spool.
+    it('rewrites tech-debt.json even when its on-disk content quotes the arbiter:preserve marker (#2533)', () => {
+      const dir = tmp()
+      const ev = join(dir, '.arbiter', 'evidence', '_2533')
+      mkdirSync(ev, { recursive: true })
+      writeFileSync(
+        join(ev, 'tech-debt.json'),
+        JSON.stringify({ issues: [1], note: 'quotes <!-- arbiter:preserve -->' }),
+        'utf-8',
+      )
+      expect(() => appendTechDebtIssue(ev, 2)).not.toThrow()
+      const td = JSON.parse(readFileSync(join(ev, 'tech-debt.json'), 'utf-8')) as {
+        issues: number[]
+      }
+      expect(td.issues).toEqual([1, 2])
+    })
   })
 })

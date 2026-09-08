@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { runGenerators } from '../../src/commands/init.js'
@@ -131,9 +132,21 @@ describe('matrix: TypeScript project', () => {
   it('generates check-no-placeholders.mjs static hook (#151)', () => {
     const config = tsConfig()
     runGenerators(config)
-    expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-placeholders.mjs'))).toBe(true)
-    const hook = readFileSync(join(dir, '.claude', 'hooks', 'check-no-placeholders.mjs'), 'utf-8')
-    expect(hook).toContain('PLACEHOLDER')
+    const hookPath = join(dir, '.claude', 'hooks', 'check-no-placeholders.mjs')
+    expect(existsSync(hookPath)).toBe(true)
+    // #2528: the marker literal is built by concatenation in source (so the
+    // checker cannot self-block), so this proves the emitted hook by BEHAVIOR
+    // — it still blocks a genuine shouted marker — rather than by string
+    // containment of the marker itself.
+    const marker = 'PLACE' + 'HOLDER'
+    const probe = join(dir, 'probe.ts')
+    writeFileSync(probe, `const x = ${marker};\n`)
+    const result = spawnSync('node', [hookPath], {
+      cwd: dir,
+      env: { ...process.env, CLAUDE_TOOL_INPUT_PATH: probe },
+      encoding: 'utf-8',
+    })
+    expect(result.status).toBe(2)
   })
 
   it('dispatcher config table includes check-no-placeholders.mjs hook entry (#151, #248)', () => {

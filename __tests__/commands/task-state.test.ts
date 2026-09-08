@@ -148,6 +148,23 @@ describe('unified task-state document (#1206)', () => {
       expect(next.plan).toBe('.claude/plans/2135.md')
       expect(next.branch).toBe('task/#2135-release-bar')
     })
+
+    // #2533: status.json is internal task-engine state written by tooling, never a
+    // generator-emitted target a downstream repo would hand-customise — it must
+    // never be subject to `writeFile`'s `arbiter:preserve` withholding (src/utils/
+    // fs.ts #1980), or every `task advance`/`record-red` after a marker-quoting
+    // write would silently stop persisting while still reporting success.
+    it('rewrites status.json even when its on-disk content quotes the arbiter:preserve marker (#2533)', () => {
+      mkdirSync(taskStateDir(dir), { recursive: true })
+      writeFileSync(
+        statusPath(dir),
+        JSON.stringify({ taskId: '#1', note: 'quotes <!-- arbiter:preserve -->' }),
+        'utf-8',
+      )
+      writeUnifiedState(dir, { taskId: '#1', phase: 'plan' })
+      const s = JSON.parse(readFileSync(statusPath(dir), 'utf-8'))
+      expect(s.phase).toBe('plan')
+    })
   })
 
   describe('readTaskId / appendLog', () => {

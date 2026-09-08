@@ -8,7 +8,11 @@
       ".agents/plan/2594-bun-prepare.md",
       "docs/QUICKSTART.md",
       ".arbiter/evidence/tdd/#2594.json",
-      ".agents/plan/PLAN.json"
+      ".agents/plan/PLAN.json",
+      ".arbiter/evidence/ac-fit/2594.json",
+      ".arbiter/evidence/_2594/tech-debt.json",
+      "scripts/data/codex-self-parity-runtime-artifacts.json",
+      "docs/internal/PRODUCT/GAP.md"
     ]
   },
   "files": [
@@ -34,6 +38,22 @@
     },
     {
       "path": ".agents/plan/PLAN.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/ac-fit/2594.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/_2594/tech-debt.json",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/data/codex-self-parity-runtime-artifacts.json",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/PRODUCT/GAP.md",
       "operation": "modify"
     }
   ],

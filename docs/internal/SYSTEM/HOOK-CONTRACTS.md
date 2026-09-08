@@ -261,6 +261,31 @@ Hooks wired in `.claude/settings.json`.
 
 ---
 
+## Marker matching is case-SENSITIVE, and self-referential by construction (#2528)
+
+`check-no-placeholders` scans for abandoned-work markers. Three of them —
+`PLACEHOLDER`, `CHANGEME`, `REPLACEME` — used to carry the case-insensitive flag, so the
+scanner matched the ordinary English words as well as the shouted markers. A sentence
+containing the noun "placeholder" was reported as unfinished work, which trains readers to
+ignore the gate: a check that fires on correct prose is a check people learn to skip.
+
+Two properties now hold, and the second is easy to lose in a later edit:
+
+- **Only the all-caps form is a violation.** `marker()` builds each pattern without the `i`
+  flag, matching the treatment `FIXME`, `XXX`, `HACK` and `WIP` always had. The emitted
+  `label` is unchanged because it is the same correctly-cased word passed in.
+- **The scanner's own source contains no marker as a contiguous string.** Each is assembled
+  by concatenation (`PLACE` + `HOLDER`). Written literally, the file would match itself, and
+  the hook would block edits to the scanner and to its own test — a gate that cannot be
+  maintained without disabling it. This is the same technique the repo already uses for test
+  fixtures that must _represent_ a marker without _being_ one (see
+  `scripts/lib/guard-flip-registry.mjs`).
+
+Consequence for tests: asserting that a generated hook's source contains the literal string
+`PLACEHOLDER` no longer works, by design. Assert the behaviour instead — that the generated
+hook blocks a file containing a genuine shouted marker. `__tests__/matrix/typescript.test.ts`
+was converted for exactly this reason.
+
 ## Utility Modules
 
 Shared helpers imported by hooks. Not registered as hooks themselves.
