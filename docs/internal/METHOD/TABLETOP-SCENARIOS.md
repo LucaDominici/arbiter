@@ -97,9 +97,23 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
   `docs/REFERENCE/wave-primitives.md`, `.claude/rules/50-batch-execution.md`
 - **Executable probes:** `node dist/cli.js worktree --help`; `node dist/cli.js worktree list`;
   read the wave-drain skill against the batch-execution carve-out conditions; run
-  `node scripts/check-agent-dispatch.mjs`.
-- **Exit criterion:** The disjoint-file-set precondition, the worktree isolation rule and the
-  single-wave-PR promise each have a mechanism behind them, not only prose.
+  `__tests__/scripts/check-touched-vs-manifest.test.ts` and read
+  `scripts/check-touched-vs-manifest.mjs` — the harvest-time gate that a group's touched
+  files (`git diff --name-only` against the wave's base) stay inside that group's declared
+  `Files:` manifest row.
+- **Exit criterion:** The disjoint-file-set precondition has a mechanism behind it:
+  `check-touched-vs-manifest.mjs`, run per group at wave-drain harvest — though it proves
+  one group's write-set compliance (touched ⊆ manifest), not pairwise cross-group
+  disjointness, which stays a plan-time declaration checked by review, not computed. The
+  worktree isolation rule and the single-wave-PR promise have no standalone probe script;
+  verify them by inspection instead: confirm `git worktree add -b` — not application code —
+  is what makes branch creation atomic (ADR-103 §D1), and confirm the wave-drain skill's
+  harvest step merges every group into one PR rather than one per issue.
+
+  > `check-agent-dispatch.mjs` — cited here in an earlier revision — verifies the
+  > review-dispatch matrix (tier→vertical floor, model-diversity and refutation-skeptic
+  > counts), a different axis from this criterion; a green run from it says nothing about
+  > disjointness, isolation, or PR shape (#2445).
 
 ## 5. The PR goes red in CI and the agent recovers
 
@@ -128,8 +142,16 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
 - **Docs the user would read:** `docs/SEMVER.md`, `docs/DEPRECATIONS.md`, `CHANGELOG.md`,
   `docs/REFERENCE/backward-compat-harness.md`
 - **Executable probes:** `node dist/cli.js diff` (and `diff --withheld`) on a materialized
-  example under `examples/`; `node dist/cli.js update --adopt-plan` on the same tree;
-  `node scripts/check-api-snapshot.mjs`; read `CHANGELOG.md` against the deprecation window
-  the semver policy promises.
+  example under `examples/`; `node dist/cli.js update --adopt-plan` on the same tree; run
+  `node scripts/check-deprecations.mjs` — it parses `docs/DEPRECATIONS.md`'s active-window
+  rows and the `CLI_DEPRECATED_FLAGS` registry, failing if a deprecated symbol is missing
+  its removal-window gap; read `CHANGELOG.md` against the deprecation window the semver
+  policy promises.
 - **Exit criterion:** Every deprecation listed carries a version and a removal window, and
   the preview's skip set matches what the semver policy says an upgrade preserves.
+
+  > `check-api-snapshot.mjs` — cited here in an earlier revision — verifies arbiter's own
+  > internal TS export surface (`plugin.ts`, `invariants/`, `compatibility/`) hasn't
+  > drifted unacknowledged; that is a real gate, but on a different axis from this
+  > criterion — it says nothing about a listed deprecation's version/removal window or
+  > about the upgrade preview's skip set (#2445).
