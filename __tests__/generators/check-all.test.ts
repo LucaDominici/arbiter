@@ -99,7 +99,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 53 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 60 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -146,7 +146,11 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(53)
+    // 59 -> 60 on the merge with main. Both sides of the conflict were stale — 53 here,
+    // 59 on main — because each had grown the unconditional set independently. The count
+    // is MEASURED from the generator after every merge, never reconciled by hand: a number
+    // picked from one side stays green on that side and silently asserts the wrong surface.
+    expect(result.files).toHaveLength(60)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-evidence.mjs'))).toBe(true)
     // #2427 — the per-repo gate mutex: check-all re-execs itself under it and the
     // pre-push hook launches the gate through it, so a consumer missing it would

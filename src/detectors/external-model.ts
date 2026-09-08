@@ -52,6 +52,20 @@ function hasCodexAuth(options: ExternalModelDetectionOptions): boolean {
   return existsSync(join(options.homeDir ?? homedir(), '.codex', 'auth.json'))
 }
 
+/**
+ * Budget for the `--version` availability probe. Five seconds is ample on an idle machine and is
+ * kept as the default, but this is a WALL-CLOCK probe against a spawned process: on a loaded CI
+ * box, spawn latency alone can exceed it, and the provider is then reported unavailable for a
+ * reason that has nothing to do with the provider (#2501). The seat silently degrades and the
+ * caller sees an empty result, which is indistinguishable from "codex is not installed".
+ * Tunable so a slow environment can raise it without patching the default for everyone.
+ */
+function probeTimeoutMs(options: ExternalModelDetectionOptions): number {
+  const raw = (options.env ?? process.env)['ARBITER_EXTERNAL_PROBE_TIMEOUT_MS']
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5_000
+}
+
 function detectExternalModel(
   provider: ExternalModelProvider,
   options: ExternalModelDetectionOptions = {},
@@ -61,7 +75,10 @@ function detectExternalModel(
 
   const spec = PROVIDER_SPECS[provider]
   try {
-    const result = runCli(spec.command, [...spec.versionArgs], { timeoutMs: 5_000, retries: 0 })
+    const result = runCli(spec.command, [...spec.versionArgs], {
+      timeoutMs: probeTimeoutMs(options),
+      retries: 0,
+    })
     const authenticated = hasCodexAuth(options)
     const access: ExternalModelAccess = {
       provider,
