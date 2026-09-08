@@ -51,6 +51,16 @@ function writeEmptyInstrumentationSummary(path: string): void {
   )
 }
 
+function writeZeroNumericSummary(path: string): void {
+  const metric = { total: 0, covered: 0, skipped: 0, pct: 100 }
+  writeFileSync(
+    path,
+    JSON.stringify({
+      total: { lines: metric, branches: metric, functions: metric, statements: metric },
+    }),
+  )
+}
+
 const BASE = { lines: 89.4, branches: 78.1, functions: 93.4, statements: 87.8 }
 
 describe('check-coverage-ratchet', () => {
@@ -158,6 +168,38 @@ describe('check-coverage-ratchet', () => {
         const r = run(t.summary, t.baseline, [], { CI: undefined, GITHUB_ACTIONS: undefined })
         expect(r.status).toBe(0)
         expect(r.stdout + r.stderr).toMatch(/#1731/)
+      } finally {
+        t.cleanup()
+      }
+    })
+
+    it('required-data mode fails closed outside CI instead of qualifying empty coverage (#2605)', () => {
+      const t = makeTemp()
+      try {
+        writeFileSync(t.baseline, JSON.stringify(BASE))
+        writeEmptyInstrumentationSummary(t.summary)
+        const r = run(t.summary, t.baseline, ['--require-data'], {
+          CI: undefined,
+          GITHUB_ACTIONS: undefined,
+        })
+        expect(r.status).toBe(2)
+        expect(r.stderr + r.stdout).toMatch(/failing closed|empty coverage|required-data/i)
+      } finally {
+        t.cleanup()
+      }
+    })
+
+    it('required-data mode rejects zero totals even when percentages are numeric (#2605)', () => {
+      const t = makeTemp()
+      try {
+        writeFileSync(t.baseline, JSON.stringify(BASE))
+        writeZeroNumericSummary(t.summary)
+        const r = run(t.summary, t.baseline, ['--require-data'], {
+          CI: undefined,
+          GITHUB_ACTIONS: undefined,
+        })
+        expect(r.status).toBe(2)
+        expect(r.stderr + r.stdout).toMatch(/0 files|empty coverage|required-data/i)
       } finally {
         t.cleanup()
       }

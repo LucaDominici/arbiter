@@ -33,6 +33,9 @@ describe('check-all.mjs L1 wiring', () => {
     expect(coverageGuardIdx).toBeGreaterThan(-1)
     expect(coverageGuardIdx).toBeLessThan(coverageIdx)
     expect(content.slice(coverageIdx, coverageIdx + 240)).toContain('failOnSkip: true')
+    const ratchetIdx = content.indexOf("runCheck('coverage ratchet (#1483)'")
+    expect(ratchetIdx).toBeGreaterThan(coverageIdx)
+    expect(content.slice(ratchetIdx, ratchetIdx + 180)).toContain("'--require-data'")
   })
 
   it('invokes check-matrix-fixtures.mjs in L1 block (#179)', () => {
