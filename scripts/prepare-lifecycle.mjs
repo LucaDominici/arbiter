@@ -34,6 +34,9 @@ const installedAsDependency =
 
 try {
   if (installedAsDependency && !existsSync(resolve(ROOT, 'dist', 'cli.js'))) {
+    if (!existsSync(resolve(ROOT, 'node_modules', '.bin', 'tsc'))) {
+      execFileSync('npm', ['ci', '--include=dev', '--ignore-scripts'], { cwd: ROOT, stdio: 'inherit' })
+    }
     execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit' })
   }
 } catch (err) {
