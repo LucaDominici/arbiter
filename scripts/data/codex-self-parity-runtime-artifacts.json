@@ -1,3 +1,6 @@
 {
-  "runtimeArtifacts": [".agents/plan/PLAN.json"]
+  "runtimeArtifacts": [
+    ".agents/plan/PLAN.json",
+    ".agents/plan/2594-bun-prepare.md"
+  ]
 }
