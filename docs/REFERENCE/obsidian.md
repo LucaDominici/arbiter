@@ -130,3 +130,15 @@ The distinction matters because the failure would be silent in the direction tha
 too-eager prune deletes real pages and the next full run quietly rewrites them, so the damage
 only shows up as churn — or, in `--changed` mode on a large vault, as pages that vanish and
 return depending on which docs were edited.
+
+#### The emitted generator carries the same prune (#2530)
+
+Everything above describes `scripts/gen-wiki.mjs`, which arbiter runs on itself. The copy
+emitted into every governed project from `src/templates/scripts/gen-wiki.mjs.ejs` mirrored the
+old write-only build loop and had the same orphan problem — and it mattered more there, since a
+governed project's developer hits the resulting `check-wiki-lint` failure on a file they never
+wrote and cannot find in git.
+
+The template now implements the same mechanism rather than a parallel one, so the two can be
+diffed against each other and the two properties above — ownership-based deletion, and
+comparison against the full source set in every mode — hold identically in a governed project.

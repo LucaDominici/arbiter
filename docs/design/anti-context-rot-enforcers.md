@@ -30,6 +30,10 @@ landed on main and are **not** re-designed here:
 
 - **Kernel as standalone plugin (M11/J1)** — `packages/kernel/` exists with README +
   `scripts/build-kernel-plugin.mjs`. Remaining work is playbook §T1 polish, not net-new design.
+  **Correction (#2538):** "exists" overstated it. The build script aborted with a FATAL
+  ENOENT on every run, so `packages/kernel/hooks/` — the path that actually ships a governed
+  project's hooks — could not be regenerated at all and was being hand-maintained without
+  anyone noticing. See below.
 - **Bypass env out of agent reach (M15, half of the T1 target)** — the bypass env vars are
   already permission-denied in both the self settings (`.claude/settings.json:205-221`,
   `Bash(*ARBITER_GATE_BYPASS*)` etc., plus `Edit(.arbiter/evidence/**)`,
@@ -558,3 +562,44 @@ rows. The standard applies to its own enforcement.
   field by design (Sentinel), and that is the feature, not a limitation.
 - Repointing `arbiter mark` skill references (M3-PARTIAL): a docs task tracked by playbook
   §T2.B, not an enforcer.
+
+## The kernel plugin build, and the two lists it splits hooks across (#2538)
+
+`scripts/build-kernel-plugin.mjs` assembles `packages/kernel/hooks/` from two lists, and the
+distinction between them is the whole correctness condition:
+
+- **`RENDERED`** — hooks whose source is an EJS template (`*.mjs.ejs`), rendered through
+  `renderTemplate` before being written.
+- **`COPIED`** — hooks that are already standalone `.mjs`, copied verbatim so they are
+  byte-identical to what arbiter emits, with no divergence possible by construction.
+
+`check-no-orphan-todo.mjs` and `check-no-placeholders.mjs` became templated when they gained
+a `sourceExtensions` parameter, but were left in `COPIED`. The script therefore tried to copy
+a `.mjs` path whose file no longer existed — only `.mjs.ejs` did — and died:
+
+```
+$ node scripts/build-kernel-plugin.mjs
+build-kernel-plugin: FATAL — ENOENT: no such file or directory, copyfile
+  '…/src/templates/claude/hooks/check-no-orphan-todo.mjs' -> '…/packages/kernel/hooks/…'
+exit 1
+```
+
+Moving both entries to `RENDERED` fixes it:
+
+```
+build-kernel-plugin: 5 rendered + 4 copied -> packages/kernel/hooks/
+build-kernel-plugin: OK — no leftover EJS delimiters
+exit 0
+```
+
+Two properties are worth stating because they are what makes the split safe. A `COPIED` entry
+that has silently become templated fails **loudly** at ENOENT rather than shipping something
+wrong — the failure mode above was noisy, not silent; what was silent was that nobody ran it.
+And the reverse mistake — copying an `.ejs` file verbatim — would ship raw `<% %>` syntax as
+an unrunnable hook, which is why the script's final step asserts no leftover EJS delimiters
+survive in the output.
+
+The staleness this let accumulate is real and is **not** repaired here: six kernel hooks are
+hundreds of lines behind their templates. Regenerating them, and adding the parity gate that
+would have caught the drift in the first place, is #2548 — a fix that lands separately rather
+than being folded into this diff.
