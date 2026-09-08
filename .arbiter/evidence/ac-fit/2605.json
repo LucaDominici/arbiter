@@ -2,15 +2,15 @@
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2605",
   "reviewer": "/root",
-  "reviewedAt": "2026-09-08T17:44:03Z",
+  "reviewedAt": "2026-09-08T18:24:30Z",
   "anchor": ".claude/plans/task-2605-l2-single-corpus.md",
-  "anchorSha256": "5ba95d5a83b91bffc4fbde40051494c8830c1b650129ce1a4a238cefe4759ace",
-  "planMetadataSha256": "ea0c699149653835131449487b6e94ee4a044b44bd96bb6aa2cd27a7aa56f1f3",
-  "sourceSHA": "d25c1766d51ae6d9daf123576420902fb40d7bec",
+  "anchorSha256": "353e53eb6a83a15935767cf217a572e3629b79adafce11d0afc9c7423dbd432b",
+  "planMetadataSha256": "9b249325431348899e59f0c4f5b86feb9d75c37ac71b261efda84045eb9c182c",
+  "sourceSHA": "8b538c25e166d7d0c18f3856e72e3f5991e49362",
   "baseSHA": "aa42406c3f66a99ac9f7cb1c7d68849c1283f1b7",
-  "implementationWorkingDiffSha256": "a552f5725f821812e3b7486553ffb5994db0cf7f04172613e626e9f9cc1867ff",
+  "implementationWorkingDiffSha256": "8c33e76b0198239efd444b82499ebaf9f80e64d4d7986ecbafcd3cfc9e060382",
   "committedRedTestSHA": "f344d5175fa9a6ac7a40deddcea95ff183466b1c",
-  "reviewScope": "Root independently reviewed the code and final native paired L2 receipts; implementation tree d25c1766 is clean and descends from control aa42406c. AC-4 records one bounded observation with explicit limitations.",
+  "reviewScope": "Root code-fit review of ancestry-preserving5existingPR+2605batch. Original4#2605ACs retain their genuine source proofs; independent original-source methods not re-labelled as batchtest execution.",
   "focusedVerification": {
     "command": "npx vitest run __tests__/scripts/check-all-l1.test.ts __tests__/scripts/run-helpers.test.ts __tests__/scripts/check-coverage-ratchet.test.ts __tests__/scripts/check-self-dogfood.test.ts __tests__/scripts/check-self-dogfood-external.test.ts",
     "result": "PASS: 5 files, 133 tests, 16.75 seconds",
@@ -130,5 +130,25 @@
       ]
     }
   ],
-  "limitations": "One shared-host paired observation only; no sustained or portfolio-wide speed claim. Source d25c1766 is L1/L2-qualified; new metadata HEAD needs fresh native L2 before push."
+  "limitations": "Historical133focusedandA/Bproofsremainattributabletotheirsource, notrefreshedbysummary. NewcombinedL1/L2/CIrequired. Originalsourceverifierreceiptsretained; no blanketGoldorreleaseclaim.",
+  "batchSourceReview": {
+    "sourcePRs": [
+      2492,
+      2495,
+      2502,
+      2607,
+      2471
+    ],
+    "head": "8b538c25e166d7d0c18f3856e72e3f5991e49362",
+    "codeFit": "PASS",
+    "remainingBlockingFindings": [],
+    "scopePaths": 83,
+    "sourceHeadsPreserved": true,
+    "actualChecks": "Root examined code/testdiffs, mergesourceparents and coherentzod4.5.4+requirednestedTypeScript5.9.3 entry. Author reported actual focused tests71/24/24/21 plus110zodtests; these are not a fullbatchrun.",
+    "recoveryReview": "Root inspected all preview callers and minimal test/license delta. Author recovery: 26 tests PASS plus native license check; original failed L1 retained.",
+    "fullL1": "FAILED first attempt, 153490ms; repaired candidate awaits rerun",
+    "exactHeadL2": "NOT-TESTED",
+    "ci": "NOT-TESTED",
+    "merge": "NOT-TESTED"
+  }
 }

@@ -1,17 +1,17 @@
 {
   "verdict": "PASS",
   "reviewer": "/root",
-  "reviewedAt": "2026-09-08T17:31:00Z",
-  "branch": "task/2605-l2-single-corpus",
+  "reviewedAt": "2026-09-08T18:24:30Z",
+  "branch": "task/#2492-2495-2502-integration",
   "sha": "aa42406c3f66a99ac9f7cb1c7d68849c1283f1b7",
-  "sourceSHA": "4dec05012340dd92c31589300caa6a4187a84940",
-  "planDigest": "5ba95d5a83b91bffc4fbde40051494c8830c1b650129ce1a4a238cefe4759ace",
-  "planMetadataDigest": "ea0c699149653835131449487b6e94ee4a044b44bd96bb6aa2cd27a7aa56f1f3",
+  "sourceSHA": "8b538c25e166d7d0c18f3856e72e3f5991e49362",
+  "planDigest": "353e53eb6a83a15935767cf217a572e3629b79adafce11d0afc9c7423dbd432b",
+  "planMetadataDigest": "9b249325431348899e59f0c4f5b86feb9d75c37ac71b261efda84045eb9c182c",
   "checks": {
-    "scope": "PASS: the bounded ratchet option and its focused tests are now explicitly in scope with self check-all/helper work; consumer templates, workflow jobs, selection, thresholds, dependencies, and release scope remain excluded.",
-    "dispatch": "PASS: the intended L1 full-unit versus L2/L3 coverage-only split is explicit. Self L2 requires ratchet data while a direct no-flag ratchet invocation retains its documented local WARN compatibility.",
-    "truthfulness": "PASS: the plan identifies the historical 80.357 s + 103.411 s timing as a hypothesis rather than an observed end-to-end gain.",
-    "measurement": "PASS: AC-4 is explicit and requires a root-owned matched baseline/candidate L2 benchmark before acceptance, recording both source SHAs, exact commands, Node/npm/OS/CPU, cache state, sample count, individual/aggregate elapsed times, limitations, removed unit work, and complete-gate throughput. The benchmark is the sole stated exception to the worker no-full-gate scope."
+    "scope": "PASS: exact 83-path manifest, source-head ancestry preserved. Added old preview callers and generated zod license version; no implementation expansion.",
+    "dispatch": "PASS: one combined native L1/L2 and exact-SHA CI/landing; no per-source refresh train. Existing source review-count ceremony WAIVED by owner, not fabricated independent PASS.",
+    "truthfulness": "First batch L1 FAILED in 153490ms: old async test callers and stale generated license. Focused recovery is not a full qualification. L2/CI/merge remain NOT-TESTED.",
+    "measurement": "PASS: historicaln1pair retainscurrent-refconfounder/finaldocsfailure; no repeatbenchmarkorportfolio-wide claim."
   },
   "findings": [],
   "resolvedFindings": [
@@ -30,7 +30,7 @@
     "reviewer": "phase_admission_final_review_r2",
     "disposition": "Preserved as an unauthenticated bridge artifact. It is not this review, does not carry this reviewer's identity, and does not address AC-4 measurement; it cannot admit implementation."
   },
-  "measurementStatus": "NOT-TESTED: no candidate benchmark exists yet. This plan PASS admits the bounded implementation only; it does not establish a speed result or AC-4 acceptance.",
-  "deltaReview": "PASS: root independently reviewed Terra's bounded implementation and plan amendment, then reran 5 focused suites: 133 tests PASS in 16.75s. Positive finite line totals are required in strict mode; zero branch/function counts remain valid. Native incremental wiki refresh and only the existing run-helpers self-only divergence pin are in scope. Earlier reviewer artifact is preserved externally, not used as self-review.",
-  "limits": "Actual plan/code-delta review only. Native L1/L2 and matched benchmark B remain pending; AC4 is NOT-TESTED."
+  "measurementStatus": "Historical sourceA/B recorded; this combined candidate NOT-TESTED byfullgates.",
+  "deltaReview": "Root inspected the actual recovery diff and enumerated every compute/display preview caller with rg. All callers now await; the old test retains migration-consent assertions at buildMigrationPlan and separately checks literal preview buckets. License diff is only zod 4.4.3 to 4.5.4. Author ran 26 old/new/brownfield tests and license check successfully. Prior full functional review remains historical.",
+  "limits": "Real root review, not three independent fresh source plan reviews; owner maintenance waiver is explicit. No admission/CI/merge PASS claimed."
 }
