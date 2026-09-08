@@ -379,7 +379,7 @@ describe('probe-hooks liveness contract (#2135)', () => {
       "import { spawnSync } from 'node:child_process'",
       "import { readFileSync } from 'node:fs'",
       "let raw = ''",
-      "try {",
+      'try {',
       "  raw = readFileSync(0, 'utf-8')",
       '} catch {',
       "  raw = ''",
