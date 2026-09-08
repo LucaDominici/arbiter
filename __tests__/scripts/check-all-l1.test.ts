@@ -20,6 +20,21 @@ function integrationSuiteArgv(): string[] {
 }
 
 describe('check-all.mjs L1 wiring', () => {
+  it('keeps the complete unit corpus in L1 while L2/L3 use coverage as the single corpus run (#2605)', () => {
+    const unitIdx = content.indexOf("runCheck('unit tests'")
+    const coverageIdx = content.indexOf("runCheck('coverage'")
+    const unitGuardIdx = content.lastIndexOf('if (subcommand === \'check\')', unitIdx)
+    const coverageGuardIdx = content.lastIndexOf('if (subcommand !== \'check\')', coverageIdx)
+
+    expect(unitIdx).toBeGreaterThan(-1)
+    expect(unitGuardIdx).toBeGreaterThan(-1)
+    expect(unitGuardIdx).toBeLessThan(unitIdx)
+    expect(coverageIdx).toBeGreaterThan(-1)
+    expect(coverageGuardIdx).toBeGreaterThan(-1)
+    expect(coverageGuardIdx).toBeLessThan(coverageIdx)
+    expect(content.slice(coverageIdx, coverageIdx + 240)).toContain('failOnSkip: true')
+  })
+
   it('invokes check-matrix-fixtures.mjs in L1 block (#179)', () => {
     const gateBlockIdx = content.indexOf('// ─── gate: T1+T2 extended checks')
     const matrixIdx = content.indexOf('check-matrix-fixtures.mjs')
