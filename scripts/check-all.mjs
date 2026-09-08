@@ -480,7 +480,9 @@ if (isMain) {
   // inside the L1 partition (captured by l1EndIdx below) → hash- and set-invariant.
   // The shared helper scales the measured 24-core timeout budget to the local
   // core count (#2370); all suite-shaped steps use the same portability rule.
-  runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
+  if (subcommand === 'check') {
+    runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
+  }
   runCheck(
     'greenfield smoke',
     'npx',
@@ -504,11 +506,17 @@ if (isMain) {
   // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
   if (subcommand !== 'check') {
     const coverageRunStartedAt = Date.now()
-    runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
+    runCheck('coverage', 'npm', ['test', '--', '--coverage'], {
+      ...(vitestEnv ? { env: vitestEnv } : {}),
+      failOnSkip: true,
+    })
     // Coverage no-regression ratchet (#1483): runs right after coverage, reading the
     // coverage/coverage-summary.json the run above emits (json-summary reporter). Fails if any
     // of lines/branches/functions/statements drops below the .coverage-baseline.json floor.
-    runCheck('coverage ratchet (#1483)', 'node', ['scripts/check-coverage-ratchet.mjs'])
+    runCheck('coverage ratchet (#1483)', 'node', [
+      'scripts/check-coverage-ratchet.mjs',
+      '--require-data',
+    ])
     // When running from rsync'd temp dir on behalf of a '#'-path worktree,
     // VitePress cannot resolve workspace paths; degrade to warn (CI validates).
     const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck

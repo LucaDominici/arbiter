@@ -23,8 +23,8 @@ describe('check-all.mjs L1 wiring', () => {
   it('keeps the complete unit corpus in L1 while L2/L3 use coverage as the single corpus run (#2605)', () => {
     const unitIdx = content.indexOf("runCheck('unit tests'")
     const coverageIdx = content.indexOf("runCheck('coverage'")
-    const unitGuardIdx = content.lastIndexOf('if (subcommand === \'check\')', unitIdx)
-    const coverageGuardIdx = content.lastIndexOf('if (subcommand !== \'check\')', coverageIdx)
+    const unitGuardIdx = content.lastIndexOf("if (subcommand === 'check')", unitIdx)
+    const coverageGuardIdx = content.lastIndexOf("if (subcommand !== 'check')", coverageIdx)
 
     expect(unitIdx).toBeGreaterThan(-1)
     expect(unitGuardIdx).toBeGreaterThan(-1)

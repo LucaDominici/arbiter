@@ -1,123 +1,47 @@
 {
-  "task_id": "#2587",
+  "task_id": "#2605",
   "scope": {
     "track": "A",
-    "boundaries": [
-      "Reuse scripts/check-acceptance.mjs --plan at red admission only.",
-      "Require native TDD receipt provenance at verification for primary and chain.",
-      "Do not alter consumer flags, full gates, candidate #2598/#2603, or remote refs."
-    ],
     "paths": [
-      "src/commands/task.ts",
-      "src/evidence/git-checks.ts",
-      "docs/REFERENCE/task-recovery.md",
-      ".changeset/phase-admission-2587.md",
-      "scripts/check-acceptance.mjs",
-      "__tests__/commands/task-advance-gates.test.ts",
-      "__tests__/commands/task-advance-chain-evidence.test.ts",
-      "__tests__/commands/task-phase-migration.test.ts",
-      "__tests__/commands/task-ship.test.ts",
-      "__tests__/scripts/build-kernel-plugin.test.ts",
-      "__tests__/integration/e2e/bake/__snapshots__/*.json",
-      "__tests__/evidence/git-checks.test.ts",
-      "__tests__/evidence/git-checks-reachability.test.ts",
-      "__tests__/commands/task-admission-red-2587.test.ts",
       ".agents/plan/PLAN.json",
-      ".arbiter/evidence/tdd/#2587.json",
-      ".claude/commands/ship.md",
-      "src/templates/claude/commands/ship.md.ejs",
-      "examples/*/.claude/commands/ship.md",
-      "examples/*/.arbiter-generated-manifest.json"
+      ".claude/plans/task-2605-l2-single-corpus.md",
+      ".arbiter/evidence/plan-review/2605/latest.json",
+      ".arbiter/evidence/redteam/#2605.json",
+      ".arbiter/evidence/tdd/#2605.json",
+      ".arbiter/evidence/benchmark/#2605.json",
+      ".arbiter/evidence/ac-fit/2605.json",
+      ".dogfood-divergences.json",
+      "wiki/reference-task-recovery.md",
+      "scripts/check-all.mjs",
+      "scripts/lib/run-helpers.mjs",
+      "scripts/check-coverage-ratchet.mjs",
+      "__tests__/scripts/check-all-l1.test.ts",
+      "__tests__/scripts/run-helpers.test.ts",
+      "__tests__/scripts/check-coverage-ratchet.test.ts"
     ]
   },
   "files": [
-    {
-      "path": "__tests__/scripts/build-kernel-plugin.test.ts",
-      "operation": "modify",
-      "changes": { "modifies_tests": true, "existing_temporary_output_only": true }
-    },
-    { "path": ".changeset/phase-admission-2587.md", "operation": "create" },
-    { "path": "docs/REFERENCE/task-recovery.md", "operation": "modify" },
-    { "path": "src/commands/task.ts", "operation": "modify", "changes": { "adds_tests": true } },
-    {
-      "path": "src/evidence/git-checks.ts",
-      "operation": "modify",
-      "changes": { "adds_tests": true }
-    },
-    {
-      "path": "__tests__/commands/task-advance-gates.test.ts",
-      "operation": "modify",
-      "changes": { "modifies_tests": true }
-    },
-    {
-      "path": "__tests__/commands/task-advance-chain-evidence.test.ts",
-      "operation": "modify",
-      "changes": { "modifies_tests": true }
-    },
-    {
-      "path": "__tests__/commands/task-phase-migration.test.ts",
-      "operation": "modify",
-      "changes": { "modifies_tests": true }
-    },
-    {
-      "path": "__tests__/commands/task-ship.test.ts",
-      "operation": "modify",
-      "changes": { "modifies_tests": true, "existing_mock_export_only": true }
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/*.json",
-      "operation": "modify",
-      "changes": { "derived_only": true, "ship_template_hash_only": true }
-    },
-    {
-      "path": "__tests__/evidence/git-checks.test.ts",
-      "operation": "modify",
-      "changes": { "modifies_tests": true }
-    },
-    {
-      "path": "__tests__/evidence/git-checks-reachability.test.ts",
-      "operation": "modify",
-      "changes": { "modifies_tests": true }
-    },
-    {
-      "path": "__tests__/commands/task-admission-red-2587.test.ts",
-      "operation": "create",
-      "changes": { "committed_red_test": true }
-    },
-    {
-      "path": ".agents/plan/PLAN.json",
-      "operation": "modify",
-      "changes": { "native_workflow_metadata": true }
-    },
-    {
-      "path": ".arbiter/evidence/tdd/#2587.json",
-      "operation": "create",
-      "changes": { "native_red_receipt": true }
-    },
-    { "path": ".claude/commands/ship.md", "operation": "modify" },
-    { "path": "src/templates/claude/commands/ship.md.ejs", "operation": "modify" },
-    {
-      "path": "examples/*/.claude/commands/ship.md",
-      "operation": "modify",
-      "changes": { "derived_only": true }
-    },
-    {
-      "path": "examples/*/.arbiter-generated-manifest.json",
-      "operation": "modify",
-      "changes": { "derived_only": true }
-    }
+    { "path": ".agents/plan/PLAN.json", "operation": "modify" },
+    { "path": ".claude/plans/task-2605-l2-single-corpus.md", "operation": "create" },
+    { "path": ".arbiter/evidence/plan-review/2605/latest.json", "operation": "create" },
+    { "path": ".arbiter/evidence/redteam/#2605.json", "operation": "create" },
+    { "path": ".arbiter/evidence/tdd/#2605.json", "operation": "create" },
+    { "path": ".arbiter/evidence/benchmark/#2605.json", "operation": "create" },
+    { "path": ".arbiter/evidence/ac-fit/2605.json", "operation": "create" },
+    { "path": ".dogfood-divergences.json", "operation": "modify" },
+    { "path": "wiki/reference-task-recovery.md", "operation": "modify" },
+    { "path": "scripts/check-all.mjs", "operation": "modify" },
+    { "path": "scripts/lib/run-helpers.mjs", "operation": "modify" },
+    { "path": "scripts/check-coverage-ratchet.mjs", "operation": "modify" },
+    { "path": "__tests__/scripts/check-all-l1.test.ts", "operation": "modify" },
+    { "path": "__tests__/scripts/run-helpers.test.ts", "operation": "modify" },
+    { "path": "__tests__/scripts/check-coverage-ratchet.test.ts", "operation": "modify" }
   ],
-  "invariants": { "no_skips": true },
-  "invariant_ids": ["INV-12", "INV-24", "INV-138"],
-  "notes": [
-    "Issue #2587 is the existing active-plan-anchor deadlock record; this is a bounded phase-admission follow-up.",
-    "This does not fix #2587's original Context Block self-repair deadlock; it is only a preventive admission slice (Refs #2587).",
-    "The Markdown plan .claude/plans/task-2587.md is the human contract and is checked with check-acceptance --plan.",
-    "The chain TDD check remains at verification, never green, to avoid the documented multi-issue deadlock.",
-    "Native review binds the active Markdown plan digest; PLAN.json shape review is a separate contract.",
-    "Exact self-scope is this isolated #2587 worktree only; no candidate/main/shared/remote writes.",
-    "The RED test and TDD receipt are committed workflow evidence; emitted /ship examples/manifests/bake hashes are derived-only and only for this template.",
-    "Unrelated API/consumer snapshot repair is explicitly out of scope; do not widen regeneration beyond the changed /ship emission."
-  ],
-  "review_bridge": { "enabled": true, "reviewer": "bridge-reviewer", "fail_on_warn": true }
+  "invariants": { "ui_language": "EN", "no_skips": true },
+  "invariant_ids": ["INV-22", "INV-24", "INV-25", "INV-26", "INV-27", "INV-53", "INV-59"],
+  "review_bridge": {
+    "enabled": true,
+    "reviewer": "root",
+    "fail_on_warn": true
+  }
 }
