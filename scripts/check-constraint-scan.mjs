@@ -17,6 +17,18 @@ import { isMainModule } from './lib/run-helpers.mjs'
 // The emitted target template renders this `false` (start-warn-promote-later, per #1214).
 const ENFORCE_DEFAULT = true
 
+// Is a readable baseline REQUIRED for the ratchet to be considered armed? True here, false in the
+// emitted twin — a generated project ships no baseline file, so demanding one would hard-fail
+// every consumer's first gate run (see the RATCHET-UNSET path below, which stays their behaviour).
+//
+// Review finding on #2384: without this, the ratchet had two ways to disarm itself and one was
+// silent. Measured — baseline deleted: exit 0 with `[RATCHET-UNSET]`, at least loud; baseline
+// `{"version":1,"metrics":{}}`: exit 0 with NO ratchet output at all, because metricValue fell
+// back to +Infinity so `regressed` could never be set. A file that reads as healthy in review,
+// guarding nothing. The sibling ratchet takes the strict default already —
+// check-fail-closed-audit.mjs treats a missing baseline as the empty, strictest allowlist.
+const RATCHET_REQUIRED = true
+
 // AC-3 ratchet (#2384; retirement-safe + tamper-closed, #2520): the uncovered
 // (unenforceable) backlog is pinned in a committed, tool-signed baseline so triage
 // cannot silently drift back — see the "Coverage ratchet" doctrine comment below for
@@ -340,6 +352,26 @@ function verifyBaselineIntegrity(base) {
   return integrityHash === computeBaselineIntegrityHash(base)
 }
 
+// #2384: a well-formed, correctly-signed baseline that records no floor for the metric the
+// ratchet actually enforces used to fall back to the permissive +Infinity, so
+// `{"version":1,"metrics":{}}` was a silent full disarm that still passed the integrity check.
+// A floor that is not recorded is not a floor.
+//
+// Scoped to `unenforceable` alone, deliberately: #2520 retired the `covered` floor (it is
+// written as `direction: 'informational'` and read by nothing), because a covered-count floor
+// breaks every time a rule is legitimately retired. Demanding a floor the tool no longer
+// enforces would be demanding a fiction — the invariant kept here is the real one, that the
+// ENFORCED floor must be present.
+function refuseFloorlessBaseline(path, baseUnenf) {
+  if (!RATCHET_REQUIRED) return
+  if (baseUnenf !== null) return
+  process.stdout.write(
+    `[RATCHET-MISSING] ${path} records no unenforceable floor — a baseline without metrics ` +
+      `disarms the ratchet silently; re-seed it with --update-baseline\n`,
+  )
+  process.exit(1)
+}
+
 // Reads the committed baseline's ratchet floor. `trusted: false` (unreadable, malformed, or
 // missing/mismatched integrityHash) is the caller's decision to act on: a plain read (no
 // --update-baseline) must fail closed at exit 2 — a ratchet that cannot verify its floor
@@ -356,9 +388,11 @@ function readBaselineBounds(path) {
     return { trusted: false }
   }
   if (!verifyBaselineIntegrity(base)) return { trusted: false }
+  const baseUnenf = metricValue(base.metrics, 'unenforceable', null)
+  refuseFloorlessBaseline(path, baseUnenf)
   return {
     trusted: true,
-    baseUnenf: metricValue(base.metrics, 'unenforceable', Number.POSITIVE_INFINITY),
+    baseUnenf: baseUnenf ?? Number.POSITIVE_INFINITY,
   }
 }
 
@@ -385,6 +419,13 @@ function ratchetOk(args, root, covered, accepted, unenforceable) {
         `[RATCHET-UPDATED] ${args.baseline} seeded at ${covered} covered / ${unenforceable} uncovered\n`,
       )
       return true
+    }
+    if (RATCHET_REQUIRED) {
+      process.stdout.write(
+        `[RATCHET-MISSING] no baseline at ${args.baseline} — the ratchet is unarmed; seed it with ` +
+          `--update-baseline (deleting the baseline must not be a way to pass)\n`,
+      )
+      return false
     }
     process.stdout.write(
       `[RATCHET-UNSET] no baseline at ${args.baseline} — coverage is not ratcheted yet\n`,

@@ -1,15 +1,15 @@
 ---
-title: 'ADR-118: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder'
+title: 'ADR-121: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-08-30'
 owner: ''
-canonical_id: '118'
+canonical_id: '121'
 tags: ['audience/dev', 'kind/adr']
 related: ['docs/internal/ADR/031-plugin-api-v1.md']
 ---
 
-# ADR-118: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder
+# ADR-121: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder
 
 **Project:** arbiter
 **Date:** 2026-08-30

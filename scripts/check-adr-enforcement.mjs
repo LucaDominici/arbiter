@@ -26,35 +26,51 @@
 // CATALOG: rejected fold-in into scripts/lib/gold-audit-lib.mjs because that is the pure scored-
 // CATALOG:   payload evaluator; an ADR-frontmatter traceability gate is presentation/governance.
 
-import { readdirSync, readFileSync, existsSync } from 'node:fs'
+import { readdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
 const CWD = process.cwd()
+const BASELINE_REL = 'scripts/data/adr-enforcement-baseline.json'
+
+/**
+ * Registry filenames under standards/. #2418: an unreadable registry DIRECTORY used to
+ * yield an EMPTY id set, so every `enforces:` ref was judged against nothing. Unreadable
+ * input is a hard failure — the top-level handler turns the throw into exit 1.
+ */
+function goldRegistryFiles(dir) {
+  try {
+    return readdirSync(dir).filter((f) => /^gold-registry(\.[a-z0-9]+)?\.yml$/.test(f))
+  } catch (err) {
+    throw new Error(`standards/ exists but cannot be listed: ${err?.message ?? err}`)
+  }
+}
+
+/**
+ * Check ids declared by one registry file. #2418: a malformed registry used to `continue`,
+ * contributing no ids — a ref into it was then reported as dangling (right verdict, wrong
+ * reason) or the whole registry vanished silently. Name the real fault instead.
+ */
+function registryCheckIds(dir, file) {
+  let doc
+  try {
+    doc = parseYaml(readFileSync(join(dir, file), 'utf-8'))
+  } catch (err) {
+    throw new Error(`standards/${file} is malformed and cannot be read: ${err?.message ?? err}`)
+  }
+  const checks = doc && Array.isArray(doc.checks) ? doc.checks : []
+  return checks
+    .filter((c) => c && typeof c === 'object' && typeof c.id === 'string')
+    .map((c) => c.id)
+}
 
 /** All gold-check ids declared by any standards/gold-registry(.stack).yml (any prefix — GA/GO/TS/…). */
 function goldCheckIds() {
   const ids = new Set()
   const dir = resolve(CWD, 'standards')
   if (!existsSync(dir)) return ids
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return ids
-  }
-  for (const f of entries) {
-    if (!/^gold-registry(\.[a-z0-9]+)?\.yml$/.test(f)) continue
-    let doc
-    try {
-      doc = parseYaml(readFileSync(join(dir, f), 'utf-8'))
-    } catch {
-      continue // a malformed registry contributes no ids — refs resolve only against real ids
-    }
-    const checks = doc && Array.isArray(doc.checks) ? doc.checks : []
-    for (const c of checks) {
-      if (c && typeof c === 'object' && typeof c.id === 'string') ids.add(c.id)
-    }
+  for (const file of goldRegistryFiles(dir)) {
+    for (const id of registryCheckIds(dir, file)) ids.add(id)
   }
   return ids
 }
@@ -124,8 +140,10 @@ function invariantIds() {
   let text
   try {
     text = readFileSync(p, 'utf-8')
-  } catch {
-    return ids
+  } catch (err) {
+    // #2418: an unreadable catalog used to yield an empty invariant set, silently turning
+    // every `enforces: INV-nn` ref into a dangling ref (or none). Fail on the real fault.
+    throw new Error(`src/invariants/catalog.ts exists but cannot be read: ${err?.message ?? err}`)
   }
   // Strip comments (string-aware) first, so an INV id that exists ONLY in a `/* … */` or `// …`
   // comment (e.g. a removed/reserved entry) is NOT treated as a real invariant (anti-fake-green).
@@ -206,119 +224,44 @@ function loadAllowlist() {
 }
 
 /**
- * Is the entry still describing REALITY? These three rules are what let the allowlist shrink: an
- * entry whose ADR is gone, whose status no longer owes an `enforces:`, or which has since declared
- * one, FAILS as prunable instead of lingering as permanent amnesty.
- * @param {string} adr
- * @param {{ status: string | null, mandatory: boolean, declares: boolean } | undefined} state
- * @returns {string | null}
- */
-function staleEntryViolation(adr, state) {
-  if (state === undefined) return `${adr}: stale allowlist entry — no such ADR file (prune it)`
-  if (!state.mandatory)
-    return `${adr}: stale allowlist entry — status "${state.status}" owes no enforces (prune it)`
-  if (state.declares)
-    return `${adr}: stale allowlist entry — the ADR now declares enforces (prune it)`
-  return null
-}
-
-/**
- * Is the amnesty itself well-formed and still LIVE? The dated-debt discipline of suppressions
- * expiry (INV-31): a real justification plus a future date, or it is permanent amnesty wearing one.
- * @param {string} adr
- * @param {Record<string, unknown>} entry
- * @param {number} now
- * @returns {string | null}
- */
-function amnestyViolation(adr, entry, now) {
-  const rationale = typeof entry.rationale === 'string' ? entry.rationale.trim() : ''
-  if (rationale === '') return `${adr}: allowlist entry has no rationale`
-  const expires = typeof entry.expires === 'string' ? entry.expires : ''
-  const at = Date.parse(expires)
-  if (expires === '' || Number.isNaN(at))
-    return `${adr}: allowlist entry has no valid \`expires\` date`
-  if (at < now)
-    return `${adr}: allowlist amnesty expired ${expires} — declare enforces or re-date it`
-  return null
-}
-
-/**
- * Validate one allowlist entry against the scanned ADR state, along the two axes above: it must
- * still describe reality, AND its amnesty must still be live.
+ * Validate one allowlist entry against the scanned ADR state. Returns the covered ADR filename, or
+ * a violation message when the entry is stale (no such ADR / status owes nothing / the ADR now
+ * declares `enforces:`), undated, expired, or unjustified. The stale rules are what keep the list
+ * shrinking instead of accumulating permanent amnesty.
  * @returns {{ adr: string, violation: string | null }}
  */
 function validateAllowlistEntry(entry, adrState, now) {
   const adr = typeof entry?.adr === 'string' ? entry.adr.trim() : ''
   if (adr === '') return { adr, violation: 'allowlist entry has no `adr` filename' }
-  const stale = staleEntryViolation(adr, adrState.get(adr))
-  return { adr, violation: stale ?? amnestyViolation(adr, entry, now) }
+  const state = adrState.get(adr)
+  if (state === undefined)
+    return { adr, violation: `${adr}: stale allowlist entry — no such ADR file (prune it)` }
+  return validateAllowlistState(adr, entry, state, now)
 }
 
-/** The state recorded for a numbered ADR whose status could not be read at all (fail-closed). */
-function unverifiableState() {
-  return { status: null, mandatory: true, declares: false, unverifiable: true }
-}
-
-/**
- * Read one ADR file. `null` when unreadable — the caller records a numbered ADR as unverifiable,
- * which main() reports as a FAIL, so an unreadable ADR is never a silent skip.
- * @returns {string | null}
- */
-function readAdr(adrDir, f) {
-  try {
-    return readFileSync(join(adrDir, f), 'utf-8')
-    // FAIL-OPEN-INTENT: null is recorded as `unverifiable` by the caller and reported as a FAIL — fail-closed.
-  } catch {
-    return null
-  }
-}
-
-/**
- * Classify ONE ADR's frontmatter: the state a numbered ADR contributes to the mandatory-enforces
- * audit, the `enforces:` refs it declares, and whether a claim is hidden behind broken YAML.
- * Unparseable frontmatter leaves the STATUS unreadable too, so a numbered ADR is recorded
- * unverifiable rather than skipped (#2419, INV-96).
- * @returns {{ state: object | null, list: string[], fmClaimsEnforces: boolean }}
- */
-function adrRecord(raw, numbered) {
-  const fm = extractFrontmatter(raw)
-  if (!fm.ok) {
+function validateAllowlistState(adr, entry, state, now) {
+  if (!state.mandatory)
     return {
-      state: numbered ? unverifiableState() : null,
-      list: [],
-      fmClaimsEnforces: fm.hasFrontmatter && declaresEnforces(fm.region),
+      adr,
+      violation: `${adr}: stale allowlist entry — status "${state.status}" owes no enforces (prune it)`,
     }
-  }
-  const list = enforcesList(fm.data.enforces)
-  if (!numbered) return { state: null, list, fmClaimsEnforces: false }
-  const status = typeof fm.data.status === 'string' ? fm.data.status.trim().toLowerCase() : ''
-  return {
-    state: {
-      status,
-      mandatory: MANDATORY_STATUSES.has(status),
-      declares: list.length > 0,
-      unverifiable: false,
-    },
-    list,
-    fmClaimsEnforces: false,
-  }
-}
-
-/**
- * Resolve one ADR's declared refs. INV-* ⇒ invariant; every other ref ⇒ a gold-check id (any
- * registry prefix: GA/GO/TS/…). Returns the refs that resolve to nothing.
- * @returns {{ adr: string, target: string, reason: string }[]}
- */
-function dangleRefs(adr, list, golds, invs) {
-  const out = []
-  for (const target of list) {
-    if (/^INV-\d+$/.test(target)) {
-      if (!invs.has(target)) out.push({ adr, target, reason: 'no such invariant id' })
-    } else if (!golds.has(target)) {
-      out.push({ adr, target, reason: 'no such gold-check id' })
+  if (state.declares)
+    return {
+      adr,
+      violation: `${adr}: stale allowlist entry — the ADR now declares enforces (prune it)`,
     }
-  }
-  return out
+  const rationale = typeof entry.rationale === 'string' ? entry.rationale.trim() : ''
+  if (rationale === '') return { adr, violation: `${adr}: allowlist entry has no rationale` }
+  const expires = typeof entry.expires === 'string' ? entry.expires : ''
+  const at = Date.parse(expires)
+  if (expires === '' || Number.isNaN(at))
+    return { adr, violation: `${adr}: allowlist entry has no valid \`expires\` date` }
+  if (at < now)
+    return {
+      adr,
+      violation: `${adr}: allowlist amnesty expired ${expires} — declare enforces or re-date it`,
+    }
+  return { adr, violation: null }
 }
 
 /**
@@ -339,25 +282,63 @@ function scanAdrs(adrDir, golds, invs) {
   }
   for (const f of files) {
     if (!f.endsWith('.md')) continue
-    const numbered = NUMBERED_ADR_RE.test(f)
-    const raw = readAdr(adrDir, f)
-    if (raw === null) {
-      if (numbered) adrState.set(f, unverifiableState())
-      continue
-    }
-    const { state, list, fmClaimsEnforces } = adrRecord(raw, numbered)
-    if (fmClaimsEnforces) {
-      dangling.push({
-        adr: f,
-        target: '(frontmatter)',
-        reason: 'declares enforces but frontmatter is unparseable',
-      })
-    }
-    if (state !== null) adrState.set(f, state)
-    totalRefs += list.length
-    dangling.push(...dangleRefs(f, list, golds, invs))
+    const result = scanAdrFile(f, adrDir, golds, invs, adrState)
+    totalRefs += result.totalRefs
+    dangling.push(...result.dangling)
   }
   return { dangling, totalRefs, adrState }
+}
+
+function scanAdrFile(file, adrDir, golds, invs, adrState) {
+  const numbered = NUMBERED_ADR_RE.test(file)
+  let raw
+  try {
+    raw = readFileSync(join(adrDir, file), 'utf-8')
+  } catch {
+    if (numbered)
+      adrState.set(file, { status: null, mandatory: true, declares: false, unverifiable: true })
+    return { dangling: [], totalRefs: 0 }
+  }
+  const fm = extractFrontmatter(raw)
+  if (!fm.ok) return scanBrokenAdr(file, numbered, fm, adrState)
+  const list = enforcesList(fm.data.enforces)
+  if (numbered) {
+    const status = typeof fm.data.status === 'string' ? fm.data.status.trim().toLowerCase() : ''
+    adrState.set(file, {
+      status,
+      mandatory: MANDATORY_STATUSES.has(status),
+      declares: list.length > 0,
+      unverifiable: false,
+    })
+  }
+  return { dangling: resolveEnforces(file, list, golds, invs), totalRefs: list.length }
+}
+
+function scanBrokenAdr(file, numbered, fm, adrState) {
+  const dangling =
+    fm.hasFrontmatter && declaresEnforces(fm.region)
+      ? [
+          {
+            adr: file,
+            target: '(frontmatter)',
+            reason: 'declares enforces but frontmatter is unparseable',
+          },
+        ]
+      : []
+  if (numbered)
+    adrState.set(file, { status: null, mandatory: true, declares: false, unverifiable: true })
+  return { dangling, totalRefs: 0 }
+}
+
+function resolveEnforces(file, list, golds, invs) {
+  const dangling = []
+  for (const target of list) {
+    if (/^INV-\d+$/.test(target)) {
+      if (!invs.has(target)) dangling.push({ adr: file, target, reason: 'no such invariant id' })
+    } else if (!golds.has(target))
+      dangling.push({ adr: file, target, reason: 'no such gold-check id' })
+  }
+  return dangling
 }
 
 /**
@@ -410,11 +391,58 @@ function main() {
     for (const v of violations) process.stderr.write(`    ${v}\n`)
   }
   if (dangling.length > 0 || violations.length > 0) return 1
+  const unclaimed = [...adrState.values()].filter((st) => !st.declares).length
+  const ratchet = checkRatchet(unclaimed, process.argv.includes('--update-baseline'), adrState)
+  if (ratchet.code !== 0) return ratchet.code
   process.stdout.write(
     `check-adr-enforcement: OK — ${totalRefs} enforces ref(s) all resolve; ` +
-      `${adrState.size} numbered ADR(s) checked, ${covered} under dated allowlist\n`,
+      `${adrState.size} numbered ADR(s) checked, ${covered} under dated allowlist; ` +
+      `${unclaimed} ADR(s) declare none (baseline ${ratchet.allowed})\n`,
   )
   return 0
+}
+
+/** Count-only historical debt ratchet (#2480), evaluated only after strict AC-1 succeeds. */
+function checkRatchet(unclaimed, updateBaseline, adrState) {
+  const path = resolve(CWD, BASELINE_REL)
+  if (!existsSync(path)) {
+    process.stderr.write(`check-adr-enforcement: ERROR — ${BASELINE_REL} not found\n`)
+    return { code: 1 }
+  }
+  let baseline
+  try {
+    baseline = JSON.parse(readFileSync(path, 'utf-8'))
+  } catch (err) {
+    process.stderr.write(`check-adr-enforcement: ERROR — ${BASELINE_REL}: ${err?.message ?? err}\n`)
+    return { code: 1 }
+  }
+  const allowed = baseline.unclaimed
+  if (typeof allowed !== 'number') {
+    process.stderr.write(
+      `check-adr-enforcement: ERROR — ${BASELINE_REL} has no numeric "unclaimed"\n`,
+    )
+    return { code: 1 }
+  }
+  if (unclaimed > allowed && !updateBaseline) {
+    process.stderr.write(
+      `check-adr-enforcement: FAIL — ${unclaimed} unclaimed ADRs, baseline allows ${allowed}\n`,
+    )
+    for (const [file] of [...adrState].filter(([, st]) => !st.declares).slice(-5))
+      process.stderr.write(`    ${file}\n`)
+    return { code: 1 }
+  }
+  if (updateBaseline) {
+    if (unclaimed > allowed) {
+      process.stderr.write(
+        `check-adr-enforcement: refusing --update-baseline — unclaimed rose ${allowed} → ${unclaimed}\n`,
+      )
+      return { code: 1 }
+    }
+    writeFileSync(path, `${JSON.stringify({ ...baseline, unclaimed }, null, 2)}\n`)
+    process.stdout.write(`check-adr-enforcement: baseline updated — unclaimed ${unclaimed}\n`)
+    return { code: 0, allowed: unclaimed }
+  }
+  return { code: 0, allowed }
 }
 
 try {

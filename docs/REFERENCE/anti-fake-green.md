@@ -68,6 +68,111 @@ into the gate via the `check-anti-fake-green.mjs` aggregate (class `gh-audit` = 
   `src/commands/doctor.ts` (`runDoctorProveGates`), tests in
   `__tests__/conformance/gate-proofs.test.ts` + `__tests__/commands/doctor-prove-gates.test.ts`.
 
+## Empty-scan refusal (#2512)
+
+N4 above asks whether a gate _can_ reach a failing verdict. This asks a prior question: was the
+gate given anything to look at? A file-scanning gate that resolves its scan root to an empty set
+prints its clean message and exits `0` — indistinguishable, in a CI log, from a real scan that
+found no violations. "Found nothing" and "looked nowhere" must never produce the same green.
+
+The concrete defect (#2512) was a path bug, not a missing counter. `check-no-orphan-todo.mjs`
+composed its scan root with `join(baseDir, dir)`, and `join` does **not** reset on an absolute
+segment: `join('/repo', '/tmp/fixture/src')` yields `'/repo/tmp/fixture/src'`, a path that almost
+certainly does not exist. Any absolute scan directory was therefore silently rewritten to
+nothing, and the gate passed having opened no file at all. The fix is `resolve(baseDir, dir)`,
+whose right-to-left semantics discard everything left of an absolute segment while still joining
+a relative one under `baseDir` exactly as before.
+
+The refusal is the guard that makes such a bug loud rather than invisible:
+
+- Every scan reports `Scanned N file(s) across M dir(s): <dirs>` — so the count is in the log
+  whether or not the run fails, and a collapse to zero is visible on the passing path too.
+- A resolved scan set of **zero files** aborts instead of reporting "no violations". An empty
+  directory, a typo'd path, or a mis-resolved absolute argument all fail loudly.
+
+A scan that reads real files and finds no violations is unaffected — it is a genuine `0` and
+stays one. The distinction is _files scanned_, not _violations found_.
+
+> **Open: the exit code for this condition is not yet uniform (#2593).** `check-no-orphan-todo.mjs`
+> exits `1`; `check-perm-test-guards.mjs` exits `2` for the same condition, following its own
+> header rather than the INV-53 table below. Both fail the gate, so the behaviour is right in
+> each; only the diagnostic classification differs. #2593 decides one rule for the family —
+> including whether a _mis-invocation_ (a path that does not exist) and an _empty-but-valid scan
+> root_ should share a code at all — and converts every member in one change.
+
+### The same bug in the sibling gate (#2526)
+
+`check-todo-max-age.mjs` composed its scan root with `join(baseDir, dir)` exactly as
+`check-no-orphan-todo.mjs` did, and failed exactly the same way: an absolute scan directory was
+silently rewritten under `baseDir`, the walk found nothing, and the gate exited `0`. Same fix —
+`resolve()`, whose right-to-left semantics discard everything left of an absolute segment while
+still joining a relative one under `baseDir`.
+
+Worth noticing as a _class_ rather than two incidents. Both gates parse `TODO(#NNN)` refs, both
+take scan directories as arguments, and the two were written from the same shape — so the defect
+was copied along with the design. When one member of such a family is fixed, the others are worth
+grepping for the same construct before the next one is discovered the hard way.
+
+The refusal half is what makes it stay fixed here: `scan()` now returns the number of source files
+it actually opened, `main` sums that across every scan directory, and a total of zero aborts
+instead of reporting a clean run. The count is printed on the passing path too, so a collapse
+toward zero is visible in the log before it ever reaches zero.
+
+### The emitted twin, and an anchor that proves the test would have caught it (#2561)
+
+Governed projects run their own copy of this gate, rendered from
+`src/templates/scripts/check-todo-max-age.mjs.ejs`, and it carried the same `join` defect — so
+until now the vacuous-green failure shipped downstream too. The template takes the same
+`resolve()` fix and the same files-scanned refusal, keeping the emitted script and arbiter's own
+one design rather than two.
+
+The part worth copying elsewhere is how the port is proved. A frozen copy of the **pre-fix**
+template is checked in as `__tests__/fixtures/templates/check-todo-max-age.pre-2561.mjs.ejs`, and
+the render test renders that fixture and runs the resulting gate against the same scenario. Two
+sanity assertions first confirm the anchor really is the un-fixed shape:
+
+```ts
+expect(preFixSource).not.toContain('resolve(baseDir, dir)')
+expect(preFixSource).not.toContain('ABORT')
+```
+
+A test that only exercises the fixed template proves the fix works; it does not prove the test
+would have _failed_ before it. Keeping the old template as a fixture supplies the red half of the
+red-green pair permanently, so a future refactor that silently reintroduces the `join` shape has
+something standing that goes red — rather than a green suite that merely stopped asking.
+
+## Scanning the tree you listed (#2514)
+
+Empty-scan refusal above asks whether a gate was given anything to look at. This asks the next
+question: was it given the **same** thing it listed?
+
+`check-no-redacted-tokens.mjs` enumerates candidates with `git ls-files` run in `GIT_CWD` — which
+the pre-commit and pre-push hooks set to a `#`-free temp copy of the tree, because a path
+containing `#` (a `task/#NNN-*` worktree) breaks vitest. It then read each file body from
+`join(ROOT, rel)` — `ROOT` being the script's own location, a _different_ tree.
+
+That is worse than it first looks, and worse than an outright error. When the two trees are
+copies of the same repo their file sets mostly coincide, so nearly every read **succeeds** —
+against the wrong version. The gate reports a clean scan of a tree it never opened. A two-tree
+setup that simply threw would at least be loud; this was a false pass with no warning at all.
+
+The rule the fix installs: **every file body is resolved against the same root that listed it.**
+`ROOT` stays reserved for the script's own on-disk assets — here the token lexicon — which do not
+move with the tree under scan. The two roots are not interchangeable and the distinction is now
+stated where the constant is defined.
+
+The unreadable-file branch changed with it. It previously printed `WARN` while already counting
+toward `violations`, so the label described a non-blocking warning that did not exist. It now
+says `FAIL — treated as a violation (fail-closed)`, matching the policy
+`check-no-tracked-artifacts.mjs` states on this same axis: a non-git CWD is an error, never a
+silent pass — **NO-DATA ≠ PASS**.
+
+This also moves "no redacted tokens" out of the deferral ledger in
+`scripts/data/inversion-proof-registry.json` and into a real flip proof, so the deferred ceiling
+falls 16 → 15. Lowering it is mandatory, not optional: an improvement left unbanked is a failure
+in this repo, and the ceiling is pinned once in `scripts/lib/gate-roster.mjs` (`MAX_DEFERRED`) so
+it cannot drift from the ledger it bounds.
+
 ## `arbiter doctor` diagnostics for target repos (#2162)
 
 The guards above catch arbiter faking green on **its own** gate. `arbiter doctor tool-pins` and
@@ -118,6 +223,32 @@ is: NEW mutes are never grandfathered implicitly).
 `0` = PASS / advisory · `1` = FAIL (`--enforce` + violations, or a hard/broken child) · `2` =
 ERROR (the guard itself malfunctioned). **NO-DATA is `0`, never `2`** — a missing `gh` is an
 environment condition, not a broken guard.
+
+## Programme membership: a parser that lost rows (#2513)
+
+`check-catalog-agents-parity.mjs` compares the invariant catalog against `AGENTS.md` in both
+directions. Both directions are only as good as the set the line-scanner managed to extract —
+and the scanner recognised `title:` only on the line _after_ `id:`. A prettier pass that
+collapses a short object literal onto one line therefore dropped that entry silently, and the
+forward and reverse comparisons then ran over an undercounted set and reported a confident
+`OK`. Nothing was wrong with the comparison; it was simply asked about fewer rows than exist.
+
+Two changes, and the second is the one that matters:
+
+- The scanner gained a same-line path, so a collapsed `{ id: 'INV-NN', title: '…' }` is read
+  rather than deferred to a line that holds something else.
+- A **programme-membership guard** now asserts that every `id: 'INV-NN'` occurrence in the
+  catalog source is accounted for — present in the parsed map, or deliberately dropped as a
+  retired tombstone. Anything else means the scanner failed on a format it did not recognise,
+  and the gate exits `2` naming the unaccounted ids instead of comparing a partial set.
+
+The guard reuses the `marks` scan already computed for retired-status spans rather than adding
+a second scanner, so the check cannot drift away from the thing it audits.
+
+This is an ERROR (`2`) rather than a violation (`1`) under the contract above, and deliberately
+so: the parser malfunctioned. It is a different condition from an _empty scan set_ — there the
+gate worked correctly and was simply pointed at nothing. #2593 is deciding whether the family
+should express those two conditions with one code or two.
 
 ## Rollout
 

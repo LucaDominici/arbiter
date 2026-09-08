@@ -227,38 +227,64 @@ per-session PreToolUse hook contract, or moving the PR-create guard into the git
 
 Hooks wired in `.claude/settings.json`.
 
-| Hook                           | Event              | Trigger      | I/O                          | Shared Paths                                                                                | Concurrency Class                                                                                |
-| ------------------------------ | ------------------ | ------------ | ---------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `stop-dangerous.mjs`           | PreToolUse         | Bash         | read                         | —                                                                                           | SAFE                                                                                             |
-| `enforce-read-only.mjs`        | PreToolUse         | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                             |
-| `pre-edit-load-memory.mjs`     | PreToolUse         | Edit\|Write  | read, stdout-inject          | `.claude/memory-impl.md`                                                                    | SAFE                                                                                             |
-| `pre-edit-ssot-guard.mjs`      | PreToolUse         | Edit\|Write  | read, stdout-inject          | —                                                                                           | SAFE                                                                                             |
-| `pre-edit-plan-anchor.mjs`     | PreToolUse         | Edit\|Write  | read, stdout-inject          | `.claude/.task-*`, `.claude/plans/`                                                         | SAFE                                                                                             |
-| `post-commit-check.mjs`        | PostToolUse        | Bash         | read (git log)               | —                                                                                           | SAFE                                                                                             |
-| `wiki-on-commit.mjs`           | PostToolUse        | Bash         | run (gen-wiki.mjs)           | Incremental wiki regen for changed docs                                                     | SAFE                                                                                             |
-| `check-no-direct-spawn.mjs`    | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                             |
-| `check-no-orphan-todo.mjs`     | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                             |
-| `check-no-placeholders.mjs`    | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                             |
-| `check-no-pii.mjs`             | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                             |
-| `check-no-unused-exports.mjs`  | PostToolUse        | Edit\|Write  | read (knip)                  | —                                                                                           | SAFE                                                                                             |
-| `check-no-any.mjs`             | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                             |
-| `check-circular-deps.mjs`      | PostToolUse        | Edit\|Write  | read (madge)                 | —                                                                                           | SAFE                                                                                             |
-| `post-edit-dispatch.mjs`       | PostToolUse        | Edit\|Write  | read, append-write           | `.claude/hooks/logs/hook-events.log`                                                        | SAFE                                                                                             |
-| `post-brainstorm-stop.mjs`     | UserPromptSubmit   | \*           | read, delete                 | `.arbiter/brainstorm-active`                                                                | SAFE                                                                                             |
-| `skill-forced-eval.mjs`        | UserPromptSubmit   | \*           | read, stderr-block           | `.claude/.task/status.json`, transcript                                                     | SAFE (#2383; exit 2 after edit without successful Skill(tdd))                                    |
-| `guard-task-completion.mjs`    | UserPromptSubmit   | \*           | read                         | `.claude/.task-*`                                                                           | SAFE                                                                                             |
-| `guard-done-evidence.mjs`      | UserPromptSubmit   | \*           | read                         | `.claude/.task/status.json`, `arbiter.json`, `.claude/.last-done-evidence.json`, pinned src | SAFE (#1872, flag-gated)                                                                         |
-| `stop-evidence-guard.mjs`      | Stop               | \*           | read (transcript, git)       | `.arbiter/evidence/*`, `.claude/.task/`                                                     | SAFE                                                                                             |
-| `closer-mode-guard.mjs`        | PreToolUse         | Bash         | read (task state, git)       | `.claude/.task/`                                                                            | SAFE                                                                                             |
-| `debug-state-on-failure.mjs`   | PostToolUseFailure | Bash         | create-or-append-write       | `.evidence/<task>/DEBUG_STATE.md`                                                           | SAFE                                                                                             |
-| `exitplanmode-banner.mjs`      | PostToolUse        | ExitPlanMode | read, stdout-inject          | `.claude/.task/status.json`                                                                 | SAFE                                                                                             |
-| `pre-compact.mjs`              | PreCompact         | \*           | read, stdout-inject          | `.claude/.task-*`                                                                           | SAFE                                                                                             |
-| `pre-spawn-worktree-guard.mjs` | PreToolUse         | Task\|Agent  | read, create-or-append-write | `.arbiter/agents-active.json`, `.claude/agents/agent-write-classes.json`                    | SAFE                                                                                             |
-| `post-subagent-release.mjs`    | SubagentStop       | \*           | read, overwrite-write        | `.arbiter/agents-active.json`                                                               | SAFE (#2403; cleanup companion to pre-spawn-worktree-guard.mjs; always exits 0)                  |
-| `enforce-gate-before-pr.mjs`   | PreToolUse         | Bash         | read (gate marker, git)      | `.arbiter/gate/`                                                                            | SAFE                                                                                             |
-| `stop-finding-loss.mjs`        | Stop               | \*           | read (transcript)            | `.arbiter/findings/*`, `.arbiter/evidence/agent-returns/*`                                  | SAFE (E6b #1948; advisory, hard via ARBITER_FINDING_LOSS_HARD=1; activated per OD-14 2026-07-17) |
+| Hook                            | Event              | Trigger      | I/O                          | Shared Paths                                                                                | Concurrency Class                                                                                 |
+| ------------------------------- | ------------------ | ------------ | ---------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `stop-dangerous.mjs`            | PreToolUse         | Bash         | read                         | —                                                                                           | SAFE                                                                                              |
+| `enforce-read-only.mjs`         | PreToolUse         | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                              |
+| `pre-edit-load-memory.mjs`      | PreToolUse         | Edit\|Write  | read, stdout-inject          | `.claude/memory-impl.md`                                                                    | SAFE                                                                                              |
+| `pre-edit-ssot-guard.mjs`       | PreToolUse         | Edit\|Write  | read, stdout-inject          | —                                                                                           | SAFE                                                                                              |
+| `pre-edit-plan-anchor.mjs`      | PreToolUse         | Edit\|Write  | read, stdout-inject          | `.claude/.task-*`, `.claude/plans/`                                                         | SAFE                                                                                              |
+| `post-commit-check.mjs`         | PostToolUse        | Bash         | read (git log)               | —                                                                                           | SAFE                                                                                              |
+| `wiki-on-commit.mjs`            | PostToolUse        | Bash         | run (gen-wiki.mjs)           | Incremental wiki regen for changed docs                                                     | SAFE                                                                                              |
+| `check-no-direct-spawn.mjs`     | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                              |
+| `check-no-orphan-todo.mjs`      | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                              |
+| `check-no-placeholders.mjs`     | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                              |
+| `check-no-pii.mjs`              | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                              |
+| `check-no-unused-exports.mjs`   | PostToolUse        | Edit\|Write  | read (knip)                  | —                                                                                           | SAFE                                                                                              |
+| `check-no-any.mjs`              | PostToolUse        | Edit\|Write  | read                         | —                                                                                           | SAFE                                                                                              |
+| `post-edit-artifact-schema.mjs` | PostToolUse        | Edit\|Write  | read                         | `docs/internal/SYSTEM/ID-REGISTRY.md`, `.arbiter/evidence/agent-returns/`                   | SAFE (INV-142; exit 2 on a schema violation, fails OPEN if its validator or schema is unloadable) |
+| `check-circular-deps.mjs`       | PostToolUse        | Edit\|Write  | read (madge)                 | —                                                                                           | SAFE                                                                                              |
+| `post-edit-dispatch.mjs`        | PostToolUse        | Edit\|Write  | read, append-write           | `.claude/hooks/logs/hook-events.log`                                                        | SAFE                                                                                              |
+| `post-brainstorm-stop.mjs`      | UserPromptSubmit   | \*           | read, delete                 | `.arbiter/brainstorm-active`                                                                | SAFE                                                                                              |
+| `skill-forced-eval.mjs`         | UserPromptSubmit   | \*           | read, stderr-block           | `.claude/.task/status.json`, transcript                                                     | SAFE (#2383; exit 2 after edit without successful Skill(tdd))                                     |
+| `guard-task-completion.mjs`     | UserPromptSubmit   | \*           | read                         | `.claude/.task-*`                                                                           | SAFE                                                                                              |
+| `guard-done-evidence.mjs`       | UserPromptSubmit   | \*           | read                         | `.claude/.task/status.json`, `arbiter.json`, `.claude/.last-done-evidence.json`, pinned src | SAFE (#1872, flag-gated)                                                                          |
+| `stop-evidence-guard.mjs`       | Stop               | \*           | read (transcript, git)       | `.arbiter/evidence/*`, `.claude/.task/`                                                     | SAFE                                                                                              |
+| `closer-mode-guard.mjs`         | PreToolUse         | Bash         | read (task state, git)       | `.claude/.task/`                                                                            | SAFE                                                                                              |
+| `debug-state-on-failure.mjs`    | PostToolUseFailure | Bash         | create-or-append-write       | `.evidence/<task>/DEBUG_STATE.md`                                                           | SAFE                                                                                              |
+| `exitplanmode-banner.mjs`       | PostToolUse        | ExitPlanMode | read, stdout-inject          | `.claude/.task/status.json`                                                                 | SAFE                                                                                              |
+| `pre-compact.mjs`               | PreCompact         | \*           | read, stdout-inject          | `.claude/.task-*`                                                                           | SAFE                                                                                              |
+| `pre-spawn-worktree-guard.mjs`  | PreToolUse         | Task\|Agent  | read, create-or-append-write | `.arbiter/agents-active.json`, `.claude/agents/agent-write-classes.json`                    | SAFE                                                                                              |
+| `post-subagent-release.mjs`     | SubagentStop       | \*           | read, overwrite-write        | `.arbiter/agents-active.json`                                                               | SAFE (#2403; cleanup companion to pre-spawn-worktree-guard.mjs; always exits 0)                   |
+| `enforce-gate-before-pr.mjs`    | PreToolUse         | Bash         | read (gate marker, git)      | `.arbiter/gate/`                                                                            | SAFE                                                                                              |
+| `stop-finding-loss.mjs`         | Stop               | \*           | read (transcript)            | `.arbiter/findings/*`, `.arbiter/evidence/agent-returns/*`                                  | SAFE (E6b #1948; advisory, hard via ARBITER_FINDING_LOSS_HARD=1; activated per OD-14 2026-07-17)  |
 
 ---
+
+## Marker matching is case-SENSITIVE, and self-referential by construction (#2528)
+
+`check-no-placeholders` scans for abandoned-work markers. Three of them —
+`PLACEHOLDER`, `CHANGEME`, `REPLACEME` — used to carry the case-insensitive flag, so the
+scanner matched the ordinary English words as well as the shouted markers. A sentence
+containing the noun "placeholder" was reported as unfinished work, which trains readers to
+ignore the gate: a check that fires on correct prose is a check people learn to skip.
+
+Two properties now hold, and the second is easy to lose in a later edit:
+
+- **Only the all-caps form is a violation.** `marker()` builds each pattern without the `i`
+  flag, matching the treatment `FIXME`, `XXX`, `HACK` and `WIP` always had. The emitted
+  `label` is unchanged because it is the same correctly-cased word passed in.
+- **The scanner's own source contains no marker as a contiguous string.** Each is assembled
+  by concatenation (`PLACE` + `HOLDER`). Written literally, the file would match itself, and
+  the hook would block edits to the scanner and to its own test — a gate that cannot be
+  maintained without disabling it. This is the same technique the repo already uses for test
+  fixtures that must _represent_ a marker without _being_ one (see
+  `scripts/lib/guard-flip-registry.mjs`).
+
+Consequence for tests: asserting that a generated hook's source contains the literal string
+`PLACEHOLDER` no longer works, by design. Assert the behaviour instead — that the generated
+hook blocks a file containing a genuine shouted marker. `__tests__/matrix/typescript.test.ts`
+was converted for exactly this reason.
 
 ## Utility Modules
 
@@ -324,3 +350,34 @@ authorizes, lines 2+ the reason; consumed by an attempt on that path, left in pl
 any other) alongside the existing `ARBITER_SSOT_BYPASS=1` env var —
 both now log a `BYPASS` event to `.arbiter/evidence/bypass-log.jsonl`, parity with
 `pre-edit-plan-anchor`'s `ARBITER_PLAN_BYPASS` accounting (#1949).
+
+## Content-scanning hooks scan the edit, not the file (#2539)
+
+`check-no-pii`, `check-no-placeholders`, `check-no-orphan-todo` and
+`check-no-skipped-tests` are PostToolUse hooks that look for a pattern in the file an
+edit touched. Each one scanned the **whole file**, so a match anywhere blocked the edit —
+including on lines the edit never went near. That makes a file with one legitimate
+pre-existing match (a fixture email planted for a PII test, an `it.skip` in a test about
+skipped tests, the checker's own pattern definition) permanently un-editable for reasons
+unrelated to the change being made. It is the same defect `check-no-placeholders` hit from
+the other direction in #2528, where an ordinary English word matched a marker.
+
+The hooks now scan only the lines the edit **added**, via `addedLinesVsHEAD(file)` in
+`lib.mjs`. It runs `git diff HEAD -- <file>`, walks the hunk headers, and returns each
+added line with its line number in the new file — so reported line numbers stay correct
+and inline suppressions still resolve against the real file content.
+
+Three properties bound it, and each is load-bearing:
+
+- **Fail OPEN to the whole-file scan, never skip.** If `git ls-files --error-unmatch`
+  says the file is untracked, or either git call errors, `addedLinesVsHEAD` returns
+  `{ tracked: false, added: null }` and the caller falls back to scanning every line. A
+  hook that cannot determine the diff scans more, not less — the failure mode is a false
+  positive, never a missed marker.
+- **Added lines only.** Removed lines do not advance the new-file line counter, so a
+  deletion never shifts the numbers reported for the lines that remain.
+- **A new file is entirely "added".** An untracked file has no `HEAD` version, so it
+  takes the whole-file path — a brand-new file cannot smuggle a marker in.
+
+This narrows _when_ a hook fires, never _what_ it detects: every pattern, allowlist and
+suppression is unchanged. A marker on a line the edit actually wrote still blocks it.

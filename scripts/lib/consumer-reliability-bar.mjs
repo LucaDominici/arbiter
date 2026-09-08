@@ -327,3 +327,25 @@ function hasRecoverableUpdateMetadata(payload) {
 function hasRecoverableWarnings(payload) {
   return Array.isArray(payload?.warnings) && payload.warnings.length > 0
 }
+
+// #2479: every check already records a `detail`, redacted at the point it is created
+// (safeDiagnostic → redactSecrets + root masking). Those details used to reach only
+// summary.json inside the uploaded artifact, so the CI log said no more than
+// `FAIL — 3 pinned consumers verified` and diagnosing a red run meant downloading a zip.
+// That friction is why a multi-day red streak on main went unread: a bar whose failure is
+// legible only after a download is a bar nobody reads. This renders the SAME recorded
+// details for the log, passed through verbatim — nothing is re-derived here, so printing
+// can never widen what the artifact already contains.
+export function formatFailureLines(consumers) {
+  const lines = []
+  for (const consumer of consumers ?? []) {
+    for (const [name, check] of Object.entries(consumer?.checks ?? {})) {
+      if (!check || check.status === 'PASS') continue
+      lines.push(
+        `[consumer-reliability]   ${consumer.id} (${consumer.language}) ` +
+          `${name}: ${check.status} — ${check.detail}`,
+      )
+    }
+  }
+  return lines
+}
