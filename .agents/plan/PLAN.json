@@ -6,13 +6,15 @@
       "root package.json direct dependency declarations",
       "Node lockfile exclusion with non-Node go.mod/go.sum preservation",
       "emitted INV-121 checker",
-      "hand-authored AGENTS.md and README INV-121 consumer contract"
+      "hand-authored AGENTS.md and README INV-121 consumer contract",
+      "generated website/governance/AGENTS.md mirror"
     ],
     "paths": [
       ".agents/plan/PLAN.json",
       ".claude/plans/task-2598-optional-peer-conformity.md",
       "AGENTS.md",
       "README.md",
+      "website/governance/AGENTS.md",
       "src/templates/scripts/check-stack-conformity.mjs.ejs",
       "__tests__/generators/check-stack-conformity.test.ts",
       "__tests__/integration/e2e/bake/__snapshots__/*.json",
@@ -29,6 +31,7 @@
     { "path": ".claude/plans/task-2598-optional-peer-conformity.md", "operation": "create" },
     { "path": "AGENTS.md", "operation": "modify" },
     { "path": "README.md", "operation": "modify" },
+    { "path": "website/governance/AGENTS.md", "operation": "modify" },
     { "path": "src/templates/scripts/check-stack-conformity.mjs.ejs", "operation": "modify" },
     {
       "path": "__tests__/generators/check-stack-conformity.test.ts",
@@ -50,6 +53,7 @@
     "The emitted runtime suite covers optional peers, script/description literals, go.mod/go.sum, and malformed package input.",
     "Bake snapshots, the ts/python/go library example checkers, and their corresponding generated-manifest checker hashes are mechanically derived output.",
     "AGENTS.md and README record the consumer-visible INV-121 proof sources without changing acceptance criteria.",
+    "website/governance/AGENTS.md is the exact official generated mirror of AGENTS.md.",
     "No source implementation starts until independent plan/red-team review has passed."
   ],
   "review_bridge": { "enabled": true, "reviewer": "bridge-reviewer", "fail_on_warn": false }
