@@ -62,11 +62,9 @@ beforeAll(() => {
   extractedDir = join(packDir, 'extracted')
   mkdirSync(extractedDir)
   execFileSync('tar', ['-xzf', tarball, '-C', extractedDir])
-  const manifestJson = execFileSync(
-    'tar',
-    ['-xOzf', tarball, 'package/package.json'],
-    { encoding: 'utf-8' },
-  )
+  const manifestJson = execFileSync('tar', ['-xOzf', tarball, 'package/package.json'], {
+    encoding: 'utf-8',
+  })
   packedManifest = JSON.parse(manifestJson) as PackedManifest
 }, 60_000)
 
@@ -86,7 +84,9 @@ describe('published package hygiene', () => {
       leading_spdx: { count: number; pathsSha256: string }
     }
   const pathsDigest = (paths: string[]) =>
-    createHash('sha256').update([...paths].sort().join('\n')).digest('hex')
+    createHash('sha256')
+      .update([...paths].sort().join('\n'))
+      .digest('hex')
 
   it('keeps the actual retained package under the unchanged strict budget (#2597 AC-1)', () => {
     const contract = fixture()
@@ -94,7 +94,10 @@ describe('published package hygiene', () => {
     expect(packSummary.unpackedSize).toBeLessThan(contract.pack.unpackedSize)
     expect(packSummary.entryCount).toBe(contract.pack.entryCount)
     expect(pathsDigest(packedFiles)).toBe(contract.pack.rosterSha256)
-    expect(classifyPackSize(packSummary.unpackedSize, 'strict')).toEqual({ level: 'ok', exitCode: 0 })
+    expect(classifyPackSize(packSummary.unpackedSize, 'strict')).toEqual({
+      level: 'ok',
+      exitCode: 0,
+    })
   })
 
   it('keeps the frozen package surface and generated assets in the actual tarball (#2597 AC-2)', () => {
@@ -108,7 +111,9 @@ describe('published package hygiene', () => {
     const declarations = packedFiles.filter((path) => path.endsWith('.d.ts'))
     const templates = packedFiles.filter((path) => path.startsWith('dist/templates/'))
     const spdx = packedFiles.filter((path) =>
-      readFileSync(join(extractedDir, 'package', path), 'utf-8').startsWith('// SPDX-License-Identifier:'),
+      readFileSync(join(extractedDir, 'package', path), 'utf-8').startsWith(
+        '// SPDX-License-Identifier:',
+      ),
     )
     expect([declarations.length, pathsDigest(declarations)]).toEqual([
       contract.declarations.count,
@@ -123,9 +128,9 @@ describe('published package hygiene', () => {
       contract.leading_spdx.pathsSha256,
     ])
     expect(readFileSync(join(extractedDir, 'package', 'dist', 'cli.js'), 'utf-8')).toMatch(/^#!/)
-    expect(execFileSync('tar', ['-tvzf', tarball, 'package/dist/cli.js'], { encoding: 'utf-8' })).toMatch(
-      /^-rwx/,
-    )
+    expect(
+      execFileSync('tar', ['-tvzf', tarball, 'package/dist/cli.js'], { encoding: 'utf-8' }),
+    ).toMatch(/^-rwx/)
   })
 
   it('admits npm 11 while preserving the Node engine contract (AC-2128.1, AC-2128.2, AC-2128.3)', () => {

@@ -28,7 +28,15 @@
 // npm installs + a full generated-project L1 gate run is not cheap.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -239,7 +247,11 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
         JSON.stringify({ findings: [] }),
         'utf-8',
       )
-      const advance = runInstalledArbiter(projectDir, ['task', 'advance', '--to', 'red'], noHandoffEnv)
+      const advance = runInstalledArbiter(
+        projectDir,
+        ['task', 'advance', '--to', 'red'],
+        noHandoffEnv,
+      )
       expect(advance.status, `advance --to red failed:\n${advance.output}`).toBe(0)
 
       const testRelPath = 'src/e2e-red.test.ts'
@@ -342,7 +354,8 @@ function assertFrozenContract(tarball: string): void {
   const extracted = mkdtempSync(join(tmpdir(), 'arbiter-pkg-contract-'))
   execFileSync('tar', ['-xzf', tarball, '-C', extracted])
   const packageDir = join(extracted, 'package')
-  const pathsDigest = (items: string[]) => createHash('sha256').update(items.sort().join('\n')).digest('hex')
+  const pathsDigest = (items: string[]) =>
+    createHash('sha256').update(items.sort().join('\n')).digest('hex')
   const unpackedSize = paths.reduce((sum, path) => sum + statSync(join(packageDir, path)).size, 0)
   const declarations = paths.filter((path) => path.endsWith('.d.ts'))
   const templates = paths.filter((path) => path.startsWith('dist/templates/'))

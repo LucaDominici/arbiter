@@ -90,4 +90,6 @@ for (const rel of KIT_JSON) {
   writeFileSync(path, JSON.stringify(value) + '\n')
 }
 
-process.stderr.write(`build-dist: compacted ${jsFiles.length} emitted JS files and ${KIT_JSON.length} kit JSON files\n`)
+process.stderr.write(
+  `build-dist: compacted ${jsFiles.length} emitted JS files and ${KIT_JSON.length} kit JSON files\n`,
+)
