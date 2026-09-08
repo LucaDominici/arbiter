@@ -1,0 +1,90 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2587",
+  "reviewer": "/root/phase_admission_final_review",
+  "reviewedAt": "2026-09-08T16:13:33Z",
+  "anchor": ".claude/plans/task-2587.md",
+  "anchorSha256": "54f2032fe0752efbeddc8a9f8800da66f260c2d601b3177d824589e781afd352",
+  "sourceSHA": "80773ea565c230aa43898efa4a9c6f301256ca2b",
+  "reviewedState": {
+    "baseSha": "1cc15d87a02c30fa71a75c0fc76c4fa110ed6ac6",
+    "headSha": "80773ea565c230aa43898efa4a9c6f301256ca2b",
+    "workingTreeDiffReviewed": true,
+    "deltaOnlyReview": true,
+    "implementationDiffSha256": "f2155447625dfe13d4c8e7d5f8e8844551313007183a3c5dd060a4762074381f",
+    "recoveryDocumentationDiffSha256": "a7cac0d8b91675933b037c1183875639954bff78e6796f8fd541af2619545001",
+    "committedRedTestSha": "e56d6eb7f714602bf4e30e61a18c9ba85b55e981",
+    "committedTddReceiptSha256": "2db6634a23267336f0dc2a40ec350feac20d64488d8110cc1fe61b2eb9eb952c",
+    "deltaDiffSha256": "0bbcb7350401ad0e0a4cff0482399b5c2b7f90ca9be6df7ecd4c42410abc8248"
+  },
+  "criteria": [
+    {
+      "id": "AC-2587.1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/task.ts", "line": 667 },
+        { "file": "src/commands/task.ts", "line": 713 },
+        { "file": "__tests__/commands/task-admission-red-2587.test.ts", "line": 23 },
+        { "file": "__tests__/commands/task-advance-gates.test.ts", "line": 156 }
+      ],
+      "rationale": "The red entry calls the existing checker before the sole writeUnifiedState call. Invalid anchors, missing plans, and a missing checker for an enabled profile throw before phase mutation."
+    },
+    {
+      "id": "AC-2587.2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/task.ts", "line": 714 },
+        { "file": "src/commands/task.ts", "line": 735 },
+        { "file": "__tests__/commands/task-advance-gates.test.ts", "line": 164 },
+        { "file": "__tests__/commands/task-advance-gates.test.ts", "line": 172 }
+      ],
+      "rationale": "The optional flag uses the checker's documented environment/file semantics; a valid anchored plan advances and disabled or absent configuration is inert."
+    },
+    {
+      "id": "AC-2587.3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/task.ts", "line": 685 },
+        { "file": "src/commands/task.ts", "line": 840 },
+        { "file": "src/evidence/git-checks.ts", "line": 59 },
+        { "file": "__tests__/evidence/git-checks-reachability.test.ts", "line": 46 },
+        { "file": "docs/REFERENCE/task-recovery.md", "line": 217 }
+      ],
+      "rationale": "Verification validates chain receipts natively and validates the primary before requiring each receipt to be in HEAD, clean, post-origin/main merge-base, and touched by the branch. The temporary-repository regression and recovery reference cover inherited, fresh, dirty, and missing-origin cases."
+    },
+    {
+      "id": "AC-2587.4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/task.ts", "line": 675 },
+        { "file": "src/commands/task.ts", "line": 685 },
+        { "file": "src/commands/task.ts", "line": 813 },
+        { "file": "__tests__/commands/task-advance-chain-evidence.test.ts", "line": 98 },
+        { "file": "__tests__/commands/task-advance-chain-evidence.test.ts", "line": 112 }
+      ],
+      "rationale": "The chain sweep stays at verification, green checks only primary evidence, and the aggregated failure messages retain every affected id."
+    },
+    {
+      "id": "AC-2587.5",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": ".claude/commands/ship.md", "line": 340 },
+        { "file": "src/templates/claude/commands/ship.md.ejs", "line": 342 },
+        { "file": "examples/go-library/.claude/commands/ship.md", "line": 262 },
+        { "file": "examples/python-library/.claude/commands/ship.md", "line": 262 },
+        { "file": "examples/ts-library/.claude/commands/ship.md", "line": 262 },
+        { "file": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json", "line": 230 }
+      ],
+      "rationale": "The wording accurately says a worktree pre-commit skip is not L1 PASS and requires an independent L1 receipt. The declared bake refresh has 26/26 JSON snapshots changing only the ship content-hash key."
+    }
+  ],
+  "reviewNotes": {
+    "verification": [
+      "Focused Vitest command passed: 6 files, 66 tests (reviewer-run once).",
+      "ARBITER_ACCEPTANCE_ANCHOR=1 node scripts/check-acceptance.mjs --plan .claude/plans/task-2587.md passed.",
+      "Current committed #2587 TDD receipt is in HEAD, clean at its path, and has a post-merge-base touch (commit 6a3eb926b25813b0a095b958ba0d09d691e870bf)."
+    ],
+    "deltaReview": "PASS: plan now also declares the isolated build-kernel-plugin fixture. Its --out=<mkdtemp>/hooks path is absent before the existing builder creates it; expected filenames, no-EJS checks, and committed byte parity remain. No product code or AC changed; pending origin/main integration was not reviewed.",
+    "limits": "No broad L1/L2, integration, landing, pending-origin/main-review, or original-deadlock claim is made."
+  }
+}

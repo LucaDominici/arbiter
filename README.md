@@ -1,8 +1,8 @@
 ---
 title: 'Arbiter — AI governance that installs itself.'
-doc_version: '1.0.1'
+doc_version: '1.0.2'
 status: active
-last_review: '2026-09-07'
+last_review: '2026-09-08'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/spine']
@@ -59,6 +59,10 @@ supported AI tool reads), thin per-tool pointer files, hooks, gates, and a
 matching CI workflow — all ordinary, version-controlled files. Re-running
 `arbiter init` — or `arbiter update` / `arbiter diff` to preview what would
 change — refreshes what arbiter manages and leaves your customizations alone.
+For a declared `language` and `databaseEngine`, the emitted stack-conformity
+gate reads only root evidence: Node dependency keys from `package.json`, or
+Go module imports from `go.mod`/`go.sum` with module-segment boundaries; a
+lockfile occurrence alone never proves a database driver.
 
 ### Task lifecycle with teeth
 

@@ -369,6 +369,51 @@ describe('probe-hooks liveness contract (#2135)', () => {
     },
   )
 
+  // #2604: a hook that scans only the lines an edit ADDED (every content hook
+  // since #2539) sees nothing when the probe rewrites a fixture whose bytes are
+  // already in HEAD. `establishState`'s checkpoint commit puts the BARE pass's
+  // fixtures into HEAD, so the PRIMED rewrite was a no-op edit and the live hook
+  // was classified INERT. The probe owes each pass a REAL edit.
+  it('hands a diff-scanning hook a real edit in every applicable state (#2604)', () => {
+    const diffScanningHook = [
+      "import { spawnSync } from 'node:child_process'",
+      "import { readFileSync } from 'node:fs'",
+      "let raw = ''",
+      'try {',
+      "  raw = readFileSync(0, 'utf-8')",
+      '} catch {',
+      "  raw = ''",
+      '}',
+      "const file = JSON.parse(raw || '{}')?.tool_input?.file_path",
+      'if (!file) process.exit(0)',
+      "const tracked = spawnSync('git', ['ls-files', '--error-unmatch', file], {",
+      "  encoding: 'utf-8',",
+      '})',
+      '// Untracked or unreadable by git: fail OPEN, exactly like addedLinesVsHEAD.',
+      'if (tracked.status !== 0) process.exit(2)',
+      "const diff = spawnSync('git', ['diff', 'HEAD', '--', file], { encoding: 'utf-8' })",
+      "const added = (diff.stdout || '')",
+      "  .split('\\n')",
+      "  .some((line) => line.startsWith('+') && !line.startsWith('+++'))",
+      'process.exit(added ? 2 : 0)',
+      '',
+    ].join('\n')
+    const dir = fixture('check-no-skipped-tests.mjs', diffScanningHook)
+    try {
+      const result = run(dir)
+      const rows = JSON.parse(result.stdout).rows as { state: string; verdict: string }[]
+      expect(rows).toEqual([
+        expect.objectContaining({ state: 'BARE', verdict: 'BLOCKS' }),
+        expect.objectContaining({ state: 'PRIMED', verdict: 'BLOCKS' }),
+        expect.objectContaining({ state: 'CLOSE', verdict: 'NOT-APPLICABLE' }),
+        expect.objectContaining({ state: 'VERIFICATION', verdict: 'NOT-APPLICABLE' }),
+      ])
+      expect(result.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('uses exit 2 for malformed invocation', () => {
     const result = spawnSync('node', [SCRIPT], { encoding: 'utf-8' })
     expect(result.status).toBe(2)

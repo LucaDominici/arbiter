@@ -6,6 +6,7 @@ import {
   currentBranch,
   headSha,
   gitCwd,
+  tddEvidenceProducedOnBranch,
 } from '../../src/evidence/git-checks.js'
 
 vi.mock('../../src/utils/run-cli.js', () => ({
@@ -60,6 +61,66 @@ describe('pathExistsInCommit()', () => {
       throw new Error('git error')
     })
     expect(pathExistsInCommit('a'.repeat(40), 'src/foo.ts')).toBe(false)
+  })
+})
+
+describe('tddEvidenceProducedOnBranch() (#2587)', () => {
+  it('requires a receipt in HEAD and a branch commit touching it', () => {
+    mockedRunCli
+      .mockReturnValueOnce({
+        stdout: '.arbiter/evidence/tdd/#42.json',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 5,
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+      .mockReturnValueOnce({
+        stdout: `${'b'.repeat(40)}\n`,
+        stderr: '',
+        exitCode: 0,
+        durationMs: 5,
+      })
+      .mockReturnValueOnce({
+        stdout: `${'c'.repeat(40)}\n`,
+        stderr: '',
+        exitCode: 0,
+        durationMs: 5,
+      })
+    expect(tddEvidenceProducedOnBranch('#42', '/repo')).toBe(true)
+    expect(mockedRunCli).toHaveBeenLastCalledWith(
+      'git',
+      ['log', '--format=%H', `${'b'.repeat(40)}..HEAD`, '--', '.arbiter/evidence/tdd/#42.json'],
+      { cwd: '/repo', timeoutMs: 5000 },
+    )
+  })
+
+  it('rejects an inherited receipt with no post-merge-base touch', () => {
+    mockedRunCli
+      .mockReturnValueOnce({
+        stdout: '.arbiter/evidence/tdd/#42.json',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 5,
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+      .mockReturnValueOnce({
+        stdout: `${'b'.repeat(40)}\n`,
+        stderr: '',
+        exitCode: 0,
+        durationMs: 5,
+      })
+      .mockReturnValueOnce({ stdout: '\n', stderr: '', exitCode: 0, durationMs: 5 })
+    expect(tddEvidenceProducedOnBranch('#42', '/repo')).toBe(false)
+  })
+
+  it('rejects an uncommitted receipt absent from HEAD', () => {
+    mockedRunCli.mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+    expect(tddEvidenceProducedOnBranch('#42', '/repo')).toBe(false)
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'git',
+      ['ls-tree', '--name-only', 'HEAD', '.arbiter/evidence/tdd/#42.json'],
+      { cwd: '/repo', timeoutMs: 5000 },
+    )
   })
 })
 

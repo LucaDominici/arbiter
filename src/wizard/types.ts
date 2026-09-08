@@ -63,7 +63,8 @@ export interface WizardAnswers {
   branchingStrategy?: BranchingStrategy
   /**
    * #470: solo-dev mode — skip PR CI, merge directly after local L2 gate passes. Default false.
-   * @deprecated Use collaborationMode: 'trunk-solo' instead. Kept as alias for one minor version.
+   * @deprecated Use collaborationMode: 'trunk-solo' instead. Deprecated in 0.2.0, removed in
+   * 1.0.0 — see the Active table in docs/DEPRECATIONS.md.
    */
   soloDevMode?: boolean
   /** #1005: container registry / cloud deploy target. Absent = 'none'. */
@@ -376,7 +377,8 @@ export interface ProjectConfig {
   }
   /**
    * Whether to enable solo-dev mode: skip PR CI ceremony, nightly drift shadow. Default false.
-   * @deprecated Use collaborationMode: 'trunk-solo' instead. Kept as alias for one minor version.
+   * @deprecated Use collaborationMode: 'trunk-solo' instead. Deprecated in 0.2.0, removed in
+   * 1.0.0 — see the Active table in docs/DEPRECATIONS.md.
    */
   enableSoloDevMode?: boolean
   /** Whether to generate the MCP fallback determinism rule (45-mcp-fallback.md). Default false (opt-in). */
@@ -458,7 +460,8 @@ export interface ProjectConfig {
   liveSsot?: LiveSsotConfig
   /**
    * CI tier emission mode.
-   * @deprecated Use pipelineStyle instead. Kept for one minor version as a fallback alias.
+   * @deprecated Use pipelineStyle instead. Deprecated in 0.2.0, removed in 1.0.0 —
+   * see the Active table in docs/DEPRECATIONS.md.
    * 'baseline' = emit the 4-workflow baseline set (01/02/03/09) for self-CI migration.
    * 'full'     = emit all 8 standard CI tier workflows (default for target projects).
    */

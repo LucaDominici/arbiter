@@ -31,6 +31,7 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
     healed: false,
   })),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
+  tddEvidenceProducedOnBranch: vi.fn().mockReturnValue(true),
   currentBranch: vi.fn().mockReturnValue('task/1206-gate-marker'),
   headSha: vi.fn().mockReturnValue('b'.repeat(40)),
 }))

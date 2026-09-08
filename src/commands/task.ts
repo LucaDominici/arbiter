@@ -25,7 +25,11 @@ import { evaluateSeedSize, resolveTrainLimits } from './ship-train.js'
 import { UserFacingError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
-import { pathExistsInCommit, resolveEvidenceCommit } from '../evidence/git-checks.js'
+import {
+  pathExistsInCommit,
+  resolveEvidenceCommit,
+  tddEvidenceProducedOnBranch,
+} from '../evidence/git-checks.js'
 import { detectHostCapabilities } from '../capabilities/host-probe.js'
 import { verifyGatePassMarker } from '../evidence/gate-binding.js'
 
@@ -661,6 +665,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
       checkRedTeamEvidenceGate(dir, current, PLANNING_PHASES)
     },
     red: () => {
+      checkAcceptancePlanGate(dir)
       checkPlanReviewGate(dir, claudeDir, opts)
       checkRedTeamEvidenceGate(dir, current, PLANNING_PHASES)
       if (PLANNING_PHASES.has(current)) {
@@ -679,6 +684,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     },
     verification: () => {
       checkChainTddEvidenceGate(dir)
+      checkTddEvidenceProvenanceGate(dir)
     },
     close: () => {
       checkGatePassMarkerGate(dir, 'L1')
@@ -697,6 +703,51 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
   // mutate the phase — see checkHandoffGate (C1, #1206).
   writeUnifiedState(dir, { phase: to })
   appendLog(dir, `${current} → ${to}`)
+}
+
+/**
+ * Admission guard for the existing Markdown acceptance contract (INV-138).
+ * The emitted checker owns feature/profile semantics; this native phase gate only supplies the
+ * anchored plan and runs before any other red-entry work or the authoritative state write.
+ */
+function checkAcceptancePlanGate(dir: string): void {
+  if (!acceptanceProfileEnabled(dir)) return
+  const script = join(dir, 'scripts', 'check-acceptance.mjs')
+  if (!existsSync(script)) {
+    throw new Error(
+      `acceptance-anchor gate: profile is enabled but ${script} is missing. ` +
+        'Restore the emitted checker before entering red.',
+    )
+  }
+
+  const plan = readUnifiedState(dir)?.plan.trim() ?? ''
+  try {
+    runCli('node', [script, '--plan', plan], { cwd: dir, timeoutMs: 5000 })
+  } catch (err) {
+    throw new Error(
+      `acceptance-anchor gate: ${err instanceof Error ? err.message : String(err)}. ` +
+        'The red phase was not entered; restore the emitted checker or repair the anchored Markdown plan.',
+      { cause: err },
+    )
+  }
+}
+
+/** Match the emitted checker's lightweight profile resolution before deciding whether a missing checker is optional. */
+function acceptanceProfileEnabled(dir: string): boolean {
+  const override = process.env.ARBITER_ACCEPTANCE_ANCHOR
+  // Keep parity with scripts/check-acceptance.mjs: only its documented 1/true/0/false
+  // spellings override the file; other values fall through to arbiter.json.
+  if (override === '1' || override === 'true' || override === '0' || override === 'false') {
+    return getBoolFlag('ARBITER_ACCEPTANCE_ANCHOR')
+  }
+  try {
+    const config = JSON.parse(readFileTranslated(join(dir, 'arbiter.json'), 'utf-8')) as {
+      features?: { acceptanceAnchor?: boolean }
+    }
+    return config.features?.acceptanceAnchor === true
+  } catch {
+    return false
+  }
 }
 
 function checkTddEvidenceGate(dir: string, claudeDir: string): void {
@@ -778,6 +829,38 @@ function checkChainTddEvidenceGate(dir: string): void {
         `Every issue batched onto this branch must have failed a test before it was implemented.`,
     )
   }
+}
+
+/**
+ * Require committed, branch-produced receipts before verification. Content validation remains in
+ * assertTddEvidenceFor; this second axis prevents an untracked/staged or main-inherited receipt
+ * from satisfying the phase contract. The primary is included because recovery can enter
+ * verification without re-running the green entry gate.
+ */
+function checkTddEvidenceProvenanceGate(dir: string): void {
+  const state = readUnifiedState(dir)
+  const primary = state?.taskId ?? 'unknown'
+  const ids = [primary, ...(state?.chainIds ?? [])]
+  const failures: string[] = []
+  try {
+    // The chain sweep above covers every chained id; repeat the primary here so recovery cannot
+    // enter verification with a committed-but-invalid primary receipt.
+    assertTddEvidenceFor(primary, dir)
+  } catch (err) {
+    failures.push(`  ${primary}: ${(err as Error).message}`)
+  }
+  for (const id of ids) {
+    if (!tddEvidenceProducedOnBranch(id, dir)) {
+      failures.push(`  ${id}: receipt is not committed on this branch`)
+    }
+  }
+  if (failures.length === 0) return
+  throw new Error(
+    `TDD evidence provenance gate: ${failures.length} failure(s) before verification:\n` +
+      `${failures.join('\n')}\n` +
+      'Receipts must be committed and produced on this branch after origin/main. ' +
+      'Commit the real RED evidence before entering verification.',
+  )
 }
 
 /** Validate the RED evidence for ONE issue id. Shared by the primary and chain gates. */

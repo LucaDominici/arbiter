@@ -92,8 +92,8 @@ Writing into the live repo is a write-then-delete primitive aimed at the working
 transcript, git history, or a dispatch payload that a file/env fixture cannot supply, and each
 carries that reason in its manifest `rationale`. Two of those twenty are declared-only for a
 sharper reason worth naming: `pre-edit-ssot-guard` would **consume the developer's one-shot
-`.arbiter/ssot-bypass` token** if driven past its pattern match (a read-only gate check must never
-eat user state), and `enforce-gate-before-pr`'s verdict depends on the live `.arbiter/gate-pass.json`
+`.arbiter/ssot-bypass` token** if driven past its pattern match with the probe's own path named in it
+(a read-only gate check must never eat user state), and `enforce-gate-before-pr`'s verdict depends on the live `.arbiter/gate-pass.json`
 that `scripts/check-all.mjs` itself writes — probing it would make the gate go red because the previous gate
 went green. Both need an isolated repo root; tracked as a follow-up. A green self run means: every declared-HARD hook that _can_ be driven
 by a fixture does block, and every hook on disk has a declared hardness. It does **not** mean every
@@ -345,8 +345,9 @@ hardcoded array to a runtime read of `arbiter.json` `governance.ssotGuardPattern
 the shipped template's `DEFAULT_SSOT_PATTERNS`), so the template and the materialized copy are now
 byte-identical code — arbiter's own `docs/internal/...` paths live in `arbiter.json`, not in the
 hook source. Its `.dogfood-divergences.json` entry was removed accordingly. The same commit added a
-one-shot file bypass at `.arbiter/ssot-bypass` (single-line reason, consumed on the next
-guarded-file attempt regardless of outcome) alongside the existing `ARBITER_SSOT_BYPASS=1` env var —
+one-shot file bypass at `.arbiter/ssot-bypass` (since #2493: line 1 is the single path the marker
+authorizes, lines 2+ the reason; consumed by an attempt on that path, left in place by an attempt on
+any other) alongside the existing `ARBITER_SSOT_BYPASS=1` env var —
 both now log a `BYPASS` event to `.arbiter/evidence/bypass-log.jsonl`, parity with
 `pre-edit-plan-anchor`'s `ARBITER_PLAN_BYPASS` accounting (#1949).
 
@@ -380,3 +381,45 @@ Three properties bound it, and each is load-bearing:
 
 This narrows _when_ a hook fires, never _what_ it detects: every pattern, allowlist and
 suppression is unchanged. A marker on a line the edit actually wrote still blocks it.
+
+## The probe owes the hook a real edit (#2604)
+
+Narrowing those four hooks to the added lines changed what a _probe_ of them has to look
+like, and `scripts/probe-hooks.mjs` did not follow.
+
+The probe walks four states — `BARE`, `PRIMED`, `CLOSE`, `VERIFICATION` — writing each
+hook's fixture into `.arb-probe-tmp/` and asserting the hook blocks. At every state
+boundary `establishState` **commits** the working tree (the #2227 dirty-tree guard, which
+commits rather than stashes so an `arbiter update`'s output still reaches the probe).
+`.arb-probe-tmp/` is gitignored nowhere, self or emitted, so the boundary put the previous
+pass's fixtures into `HEAD` — and the next pass rewrote the same bytes. `git diff HEAD` was
+empty, the edit added nothing, and the hook correctly exited 0. The probe read that as a
+dead hook.
+
+It surfaced on exactly one hook, and for an unremarkable reason: `probe.test.ts` is written
+by `check-no-skipped-tests`'s contract alone, so its committed copy was byte-identical to
+the next write. The shared fixture paths — `probe.ts` above all — are written by more than
+one contract with different bodies, so each later write was a genuine diff and hid the
+defect. That is luck, not design: any diff-scanning hook whose fixture path is unique to it
+inherits it, and so would any added later.
+
+The boundary now **empties** the scratch fixtures before the checkpoint commit. `HEAD` then
+holds an empty version of every fixture path, so each subsequent write is a real addition:
+
+| state                             | fixture vs `HEAD`                          | branch under probe        |
+| --------------------------------- | ------------------------------------------ | ------------------------- |
+| `BARE`                            | untracked — no scratch files committed yet | fail-OPEN whole-file scan |
+| `PRIMED`, `CLOSE`, `VERIFICATION` | empty in `HEAD`, violating in the tree     | added-lines scan          |
+
+Both must block, so the fail-open branch and the added-lines branch each carry a probe.
+Gitignoring `.arb-probe-tmp/` would have silenced the row just as effectively and was
+rejected for that reason: it leaves every fixture untracked forever, so the probe would
+only ever exercise fail-open and could never catch a genuinely dead diff-scan — a quieter
+bar, not a truer one.
+
+The cost of the delay is worth recording. The row was real from the moment #2539 landed,
+and it stayed invisible through five merges because the Consumer Reliability Bar was
+already red on an older, unrelated failure (`gateSurface`, seven unaccounted emitted
+checks — #2291, #2310, #2578). A bar that is already red cannot report a new failure: the
+colour does not change. #2479 made the individual rows legible for exactly this reason;
+this is the first regression that legibility caught.

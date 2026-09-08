@@ -94,7 +94,7 @@
     "path": "01-pr-fast.yml",
     "dest": ".github/workflows",
     "reason": "The template collapses 01-pr-fast.yml.ejs's entire PR pipeline (gate, unit tests, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, debt-gates, ci-required, post-merge-gate — contract/integration/behavioral tests moved to 02-pr-extended.yml.ejs at #1875) to a one-line solo-dev-gate stub whenever `locals.enableSoloDevMode` is true — and arbiter.json sets features.soloDevMode: true. Self deliberately keeps running the full peer-review-shaped pipeline regardless (arbiter dogfoods harder than its own declared collaborationMode: trunk-solo — same pattern documented in check-ci-tiers.mjs.ejs's cadence-parity comment). Tracked under #1900. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "ba28fab1765931d1fc95297e617121522abccdadafbd7bbf8e1b6c5232eb88e4"
+    "diffHash": "cda10449b6bf3c14708cfd11389a6a633731c95cf828b6445d658482b002d8cf"
   },
   {
     "path": "02-pr-extended.yml",
@@ -389,8 +389,8 @@
   {
     "path": "check-todo-max-age.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). Self is narrower on purpose and every narrowing is arbiter-specific: EXTENSIONS is {.ts,.tsx,.mjs,.js} against the template's nine-language set, SKIP_DIRS adds 'templates' (a TODO inside an .ejs is the TARGET's future TODO, not arbiter's), and the default scan roots are ['src','scripts'] vs the template's ['src','lib','app']. Self also carries the INV-94 CATALOG block with both rejected fold-ins (check-no-orphan-todo.mjs — static text scan, no network; check-suppressions.mjs — inline expiry dates, not linked-issue age). The gh created_at resolution and the graceful-offline-SKIP contract are identical. PERMANENT: the 'templates' prune and the TypeScript-only extension set describe arbiter's own tree.",
-    "diffHash": "0a3d14a3dcb23d866adba256d38aeeb977f332efa0f5e606206336b8f1dd9983"
+    "reason": "Read line-by-line (#2275). Self is narrower on purpose and every narrowing is arbiter-specific: EXTENSIONS is {.ts,.tsx,.mjs,.js} against the template's nine-language set, SKIP_DIRS adds 'templates' (a TODO inside an .ejs is the TARGET's future TODO, not arbiter's), and the default scan roots are ['src','scripts'] vs the template's ['src','lib','app']. Self also carries the INV-94 CATALOG block with both rejected fold-ins (check-no-orphan-todo.mjs — static text scan, no network; check-suppressions.mjs — inline expiry dates, not linked-issue age). The gh created_at resolution and the graceful-offline-SKIP contract are identical. #2526 gave self resolve(baseDir, dir) instead of join() plus the CANON-24 programme-membership assertion (scanned-file-count line + ABORT on a zero-file scan set), mirroring #2512's fix for the sibling check-no-orphan-todo.mjs gate; #2561 ported both halves of that fix into the template itself, so this divergence is now purely nominal on that axis (self and template both resolve() and both abort on zero files scanned — only the cross-reference comment differs, #2526 vs #2561). PERMANENT: the 'templates' prune, the TypeScript-only extension set, and the narrower default scan roots describe arbiter's own tree.",
+    "diffHash": "108ce075efa15a20fb73fa6d896fe7ba5a86d44e1ce440e1405fb03f7716f0d5"
   },
   {
     "path": "check-validator-helptext.mjs",

@@ -7,6 +7,11 @@ import { dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { classifyAdvisoryHookResult, classifyHookResult } from './lib/consumer-reliability-bar.mjs'
 
+// #2604: the directory every file-writing fixture is materialised into. It is
+// gitignored nowhere — not here, not in the emitted `.gitignore` — so whatever it
+// holds at a state boundary is what `establishState`'s checkpoint commits.
+const PROBE_SCRATCH = '.arb-probe-tmp'
+
 // #2292: every ADVISORY hook carries a PAYLOAD CONTRACT, resolved through the same
 // `payloadFor` machinery the HARD hooks use. Probing advisories with `{}` asserted only
 // "it did not block on an empty payload" — which an advisory hook that crashes on the
@@ -245,7 +250,7 @@ function parseArgs(args) {
 function probeRepository(root, language) {
   const hooksDir = join(root, '.claude', 'hooks')
   const owned = ownedHooks(root)
-  const temporary = join(root, '.arb-probe-tmp')
+  const temporary = join(root, PROBE_SCRATCH)
   rmSync(temporary, { recursive: true, force: true })
   mkdirSync(temporary, { recursive: true })
   const rows = []
@@ -311,7 +316,36 @@ function ownedHooks(root) {
     .sort()
 }
 
+/**
+ * #2604: empty the probe's own fixtures before the checkpoint commits them.
+ *
+ * The checkpoint below (the #2227 dirty-tree guard) is what puts a fixture into
+ * HEAD. A later state pass then rewrites the SAME bytes, so `git diff HEAD` is
+ * empty — and a hook that scans only the lines an edit added (every content hook
+ * since #2539) correctly finds nothing and exits 0. The probe read that as a dead
+ * hook and reported INERT for a live one.
+ *
+ * Committing the fixtures EMPTY keeps #2227's intent intact — the checkpoint still
+ * commits rather than stashes, so an `arbiter update`'s output outside this scratch
+ * directory still reaches the probe — while making every subsequent fixture write a
+ * genuine addition. The first (BARE) pass finds no scratch files yet, so it probes
+ * the untracked fail-OPEN branch; PRIMED, CLOSE and VERIFICATION probe the
+ * added-lines branch. Both must block.
+ *
+ * Every file under the scratch directory is rewritten by the probe that needs it
+ * (`filePayload`, `specialPayload`, `prepareSpecialState`), so blanking loses nothing.
+ */
+function blankScratchFixtures(root) {
+  const scratch = join(root, PROBE_SCRATCH)
+  if (!existsSync(scratch)) return
+  for (const entry of readdirSync(scratch, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue
+    writeFileSync(join(entry.parentPath ?? entry.path, entry.name), '')
+  }
+}
+
 function establishState(root, state) {
+  blankScratchFixtures(root)
   if (gitPorcelain(root) !== '') {
     // #2227 dirty-tree guard: COMMIT the working tree instead of stashing it.
     // Stashing hides the changes (e.g. an `arbiter update` that just wrote the

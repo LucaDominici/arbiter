@@ -1,7 +1,7 @@
 ---
 title: 'ADR-097: Context-rot-management skill (CLI-first 3-layer redundancy)'
 doc_version: '1.0.0'
-status: accepted
+status: active
 last_review: '2026-06-19'
 owner: ''
 canonical_id: '097'

@@ -178,12 +178,12 @@
 | [ADR-092: jscpd v5 Migration — Fail-Closed Duplication Gate](internal/ADR/092-jscpd-v5-fail-closed-duplication-gate.md) | 092 | active | kind/adr |
 | [ADR-093: Dual-Side the /ship Orchestrator](internal/ADR/093-dual-side-ship-orchestrator.md) | 093 | proposed | kind/adr |
 | [ADR-094: Project Profile Resolver — one catalog + one precedence layer](internal/ADR/094-project-profile-resolver.md) | 094 | proposed | kind/adr |
-| [ADR-095: Supported AI tools — claude + codex; rest experimental](internal/ADR/095-supported-ai-tools-claude-codex.md) | 095 | accepted | kind/adr |
-| [ADR-096: Probe — always-on incidental-discovery loop](internal/ADR/096-probe-incidental-discovery-loop.md) | 096 | accepted | kind/adr |
-| [ADR-097: Context-rot-management skill (CLI-first 3-layer redundancy)](internal/ADR/097-context-rot-management-skill.md) | 097 | accepted | kind/adr |
+| [ADR-095: Supported AI tools — claude + codex; rest experimental](internal/ADR/095-supported-ai-tools-claude-codex.md) | 095 | active | kind/adr |
+| [ADR-096: Probe — always-on incidental-discovery loop](internal/ADR/096-probe-incidental-discovery-loop.md) | 096 | active | kind/adr |
+| [ADR-097: Context-rot-management skill (CLI-first 3-layer redundancy)](internal/ADR/097-context-rot-management-skill.md) | 097 | active | kind/adr |
 | [ADR-098: Progressive-adoption tiers (bootstrap on-ramp)](internal/ADR/098-progressive-adoption-tiers.md) | 098 | active | kind/adr |
 | [ADR-099: Native zero-dependency xlsx writer (drop exceljs)](internal/ADR/099-native-xlsx-writer.md) | 099 | active | kind/adr |
-| [Companion-plugin awareness in /ship](internal/ADR/100-companion-plugin-awareness.md) | 100 | accepted | kind/adr |
+| [Companion-plugin awareness in /ship](internal/ADR/100-companion-plugin-awareness.md) | 100 | active | kind/adr |
 | [ADR-101: runnerProfile cadence axis (solo/fleet)](internal/ADR/101-runner-profile-cadence-axis.md) | 101 | active | kind/adr |
 | [ADR-102: gate the workflow-template-emitted dims at L3](internal/ADR/102-l3-workflow-dim-gating.md) | 102 | active | kind/adr |
 | [ADR-103: Worktree-Isolated Parallel Execution Carve-out](internal/ADR/103-worktree-parallel-carveout.md) | 103 | active | kind/adr |

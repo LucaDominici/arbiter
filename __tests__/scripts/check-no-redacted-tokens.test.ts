@@ -160,3 +160,102 @@ describe('check-no-redacted-tokens.mjs (INV-85 forbidden-token gate)', () => {
     }
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #2514 — ARBITER_HOOK_GIT_CWD is honoured when LISTING files (git ls-files, cwd: GIT_CWD) but
+// each file BODY is read as join(ROOT, rel) against the script's own repo root. Point the
+// override at a different tree and the gate scans that tree's FILE LIST against THIS tree's
+// CONTENTS. A fixture tree of the same repo shape (the one case the variable exists for —
+// the '#'-worktree rsync path) has a file at the same relative path, so the mismatched read
+// SUCCEEDS and silently returns the wrong tree's content: a false pass with no warning, worse
+// than the alternative (a missing path throwing and getting caught). "root" below is a THIRD
+// tree, standing in for the script's own resolved repo root (ROOT) — deliberately never the
+// tree named by ARBITER_HOOK_GIT_CWD, so a passing assertion here can only mean the scanner
+// actually read the GIT_CWD tree it just listed.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+function makeGitCwdTree(files: Record<string, string>): { dir: string; cleanup: () => void } {
+  const dir = mkdtempSync(join(tmpdir(), 'redacted-gitcwd-'))
+  for (const [rel, body] of Object.entries(files)) {
+    const abs = join(dir, rel)
+    mkdirSync(join(abs, '..'), { recursive: true })
+    writeFileSync(abs, body)
+  }
+  const git = (args: string[]) => spawnSync('git', ['-C', dir, ...args], { encoding: 'utf-8' })
+  git(['init', '-q'])
+  git(['config', 'user.email', 'test@example.com'])
+  git(['config', 'user.name', 'test'])
+  git(['add', '-A'])
+  git(['commit', '-q', '-m', 'fixture'])
+  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
+}
+
+describe('ARBITER_HOOK_GIT_CWD wiring — reads resolve against the SAME tree used to list files (#2514)', () => {
+  it("fails on a redacted token committed in the ARBITER_HOOK_GIT_CWD tree, not a clean file the script's own root happens to have at that path", () => {
+    const h = makeHarness()
+    try {
+      // The script's own resolved root has a CLEAN file at this exact relative path. If the
+      // fix regresses to reading root instead of the tree it listed, this clean copy masks
+      // the violation staged below and the gate wrongly passes.
+      stage(h.root, 'src/kit/probe.ts', 'export const ok = 1\n')
+      const staging = makeGitCwdTree({
+        'src/kit/probe.ts': 'export const svc = "planning-service"\n',
+      })
+      try {
+        const r = spawnSync('node', [h.script], {
+          encoding: 'utf-8',
+          env: { ...process.env, ARBITER_HOOK_GIT_CWD: staging.dir },
+        })
+        expect(r.status).toBe(1)
+        expect(r.stderr).toContain('planning-service')
+        expect(r.stderr).toContain('src/kit/probe.ts')
+      } finally {
+        staging.cleanup()
+      }
+    } finally {
+      h.cleanup()
+    }
+  })
+
+  it("passes when the ARBITER_HOOK_GIT_CWD tree is clean, even though the same path is a violation under the script's own root", () => {
+    const h = makeHarness()
+    try {
+      // The script's own resolved root has a VIOLATION at this path. A clean verdict here can
+      // only be honest if the gate genuinely read the GIT_CWD tree rather than falling back to
+      // (or fail-opening past) its own root's content.
+      stage(h.root, 'src/kit/probe.ts', 'export const svc = "planning-service"\n')
+      const staging = makeGitCwdTree({ 'src/kit/probe.ts': 'export const ok = 1\n' })
+      try {
+        const r = spawnSync('node', [h.script], {
+          encoding: 'utf-8',
+          env: { ...process.env, ARBITER_HOOK_GIT_CWD: staging.dir },
+        })
+        expect(r.status).toBe(0)
+        expect(r.stdout).toContain('OK')
+      } finally {
+        staging.cleanup()
+      }
+    } finally {
+      h.cleanup()
+    }
+  })
+
+  it('fails closed — not a silent skip — when a git-tracked file cannot be read from the resolved tree', () => {
+    const staging = makeGitCwdTree({ 'src/kit/gone.ts': 'export const ok = 1\n' })
+    try {
+      // Still tracked (git ls-files lists it from the index) but removed from disk: a scanner
+      // that swallows this into a silent skip is exactly the fail-open gap CANON-22 flags in
+      // code being touched by this fix — a file this security scanner cannot read must count
+      // against it, not pass it through unexamined.
+      rmSync(join(staging.dir, 'src', 'kit', 'gone.ts'))
+      const r = spawnSync('node', [REAL_SCRIPT], {
+        encoding: 'utf-8',
+        env: { ...process.env, ARBITER_HOOK_GIT_CWD: staging.dir },
+      })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('src/kit/gone.ts')
+      expect(r.stderr).not.toContain('WARN')
+    } finally {
+      staging.cleanup()
+    }
+  })
+})

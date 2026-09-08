@@ -1,7 +1,1 @@
-{
-  "count": 2,
-  "agents": ["Terra", "Sol"],
-  "taskId": "#2354",
-  "branch": "task/#2354-cross-model-review",
-  "sha": "49cf93f24e4976ba6d56b0e53ccbb0acd789fd58"
-}
+{"count":2,"agents":["review-1430-arb-code-standards-head","haben_finish_1408"],"branch":"task/#2598-optional-peer-conformity","sha":"8dbc7b44033a9a33fd016445e4d86790c6cc75f3","taskId":"#2598"}
