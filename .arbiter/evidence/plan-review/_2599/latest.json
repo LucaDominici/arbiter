@@ -1,10 +1,10 @@
 {
   "verdict": "PASS",
-  "reviewer": "/root/amend_2599_a",
+  "reviewer": "/root/code_2599_standards",
   "branch": "task/#2599-diff-prefix-safety",
-  "sha": "2d23d37a631ecc4009650b28bec30a927a3ec5b8",
-  "planDigest": "8aaec658ed36f4b0f77e135520ecd56caa5e94cf87ad61c849443962eb496ac6",
-  "timestamp": "2026-09-08T10:08:37Z",
+  "sha": "626b9fa71038f2dfab9a638fbeebca232959f02e",
+  "planDigest": "4c057ec0520273a99dc9cd96fd792ee119260774fc91d110be8201064dc2538f",
+  "timestamp": "2026-09-08T12:26:59+02:00",
   "findings": [],
-  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788861153/amend-a.json"
+  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788862630/plan-format-amendment-reviews.md"
 }
