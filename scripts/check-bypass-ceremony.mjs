@@ -227,11 +227,23 @@ function loadLedger() {
   let parsed
   try {
     parsed = JSON.parse(readFileSync(LEDGER_PATH, 'utf-8'))
+    // FAIL-OPEN-INTENT: the parse failure is RETURNED as `error`, which main() renders as a FAIL —
+    // the ledger reports itself broken rather than degrading to "no entries, nothing to check".
   } catch (err) {
     return {
       entries: [],
       byName: new Map(),
       error: `advisory-ledger.json is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+  // `JSON.parse('null')` returns null, and reading `.entries` off it throws a TypeError OUTSIDE
+  // the try above — which reached the top-level handler and exited 2. The header reserves 2 for
+  // an IO failure outside the audited files; malformed ledger CONTENT is a 1. Caught by review.
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return {
+      entries: [],
+      byName: new Map(),
+      error: `advisory-ledger.json must be a JSON object, got ${parsed === null ? 'null' : Array.isArray(parsed) ? 'an array' : typeof parsed}`,
     }
   }
   const entriesRaw = /** @type {{ entries?: unknown }} */ (parsed).entries
@@ -254,7 +266,6 @@ function loadLedger() {
  * @returns {Map<string, Record<string, unknown>>}
  */
 function loadLedgerByName() {
-  // FAIL-OPEN-INTENT: malformed ledger degrades to an empty Map — every site then reports missing, fail-closed.
   return loadLedger().byName
 }
 
@@ -368,21 +379,30 @@ function checkOrphanEntries(ledger) {
   return violations
 }
 
+/**
+ * Report a malformed bypass log and return the FAIL code. Extracted from main() because adding
+ * detector (c) pushed main() to cyclomatic 11 against a ceiling of 10 — CANON-22 says decompose
+ * the function rather than suppress the ratchet or widen the ceiling. Behaviour is unchanged:
+ * same three writes, same ordering, same exit code.
+ * @param {string[]} malformed
+ * @returns {number}
+ */
+function reportMalformedLog(malformed) {
+  for (const m of malformed)
+    process.stdout.write(`[check-bypass-ceremony] FAIL: bypass-log — ${m}\n`)
+  if (JSON_OUT) {
+    process.stdout.write(JSON.stringify({ channels: [], ledgerViolations: [], malformed }) + '\n')
+  } else {
+    process.stdout.write(
+      `[check-bypass-ceremony] FAIL: ${malformed.length} malformed bypass-log line(s)\n`,
+    )
+  }
+  return 1
+}
+
 function main() {
   const { records, malformed } = parseBypassLog()
-  if (malformed.length > 0) {
-    for (const m of malformed)
-      process.stdout.write(`[check-bypass-ceremony] FAIL: bypass-log — ${m}\n`)
-    if (!JSON_OUT) {
-      process.stdout.write(
-        `[check-bypass-ceremony] FAIL: ${malformed.length} malformed bypass-log line(s)\n`,
-      )
-    }
-    if (JSON_OUT) {
-      process.stdout.write(JSON.stringify({ channels: [], ledgerViolations: [], malformed }) + '\n')
-    }
-    return 1
-  }
+  if (malformed.length > 0) return reportMalformedLog(malformed)
 
   const thresholds = loadThresholds()
   const { channels, violations: rateViolations } = checkBypassRate(records, thresholds)

@@ -15,11 +15,26 @@ function git(...args) {
   return { ok: result.status === 0, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
 }
 
+// #2418: every branch below used to exit 0 SILENTLY on any git failure, so "this checkout
+// has no baseline" and "git is broken / the repo is unreadable" produced the same green.
+// An absent baseline ref is a resolved fact and is ANNOUNCED; a git invocation that fails
+// for any other reason is an error (INV-53 exit 2), never a pass.
+const baselineRef = git('rev-parse', '--verify', '--quiet', 'origin/main')
+if (!baselineRef.ok) {
+  process.stderr.write(
+    '[check-id-stability] SKIP — origin/main is not present in this checkout, so there is ' +
+      'no baseline catalog to compare against\n',
+  )
+  process.exit(0)
+}
+
 // Check if catalog.ts changed vs origin/main
 const diffResult = git('diff', 'origin/main', '--name-only')
 if (!diffResult.ok) {
-  // Not a git repo or no origin — skip
-  process.exit(0)
+  process.stderr.write(
+    `[check-id-stability] ERROR — cannot diff against origin/main: ${diffResult.stderr.trim()}\n`,
+  )
+  process.exit(2)
 }
 
 const changedFiles = diffResult.stdout.split('\n')
@@ -65,16 +80,33 @@ function extractIds(src) {
 // Get origin/main version of catalog.ts
 const originResult = git('show', 'origin/main:src/invariants/catalog.ts')
 if (!originResult.ok) {
-  // origin/main doesn't have the catalog — new file, nothing to check
+  // The catalog does not exist on origin/main — it is a new file, so no ID can have been
+  // removed. Announced rather than silent (#2418).
+  process.stderr.write(
+    '[check-id-stability] SKIP — src/invariants/catalog.ts does not exist on origin/main ' +
+      '(new file), so no ID can have been dropped\n',
+  )
   process.exit(0)
 }
 const originSrc = originResult.stdout
 
 // Get HEAD version (fall back to working tree if no commit yet)
 const headResult = git('show', 'HEAD:src/invariants/catalog.ts')
-const headSrc = headResult.ok
-  ? headResult.stdout
-  : readFileSync(resolve(root, 'src/invariants/catalog.ts'), 'utf-8')
+let headSrc = headResult.stdout
+if (!headResult.ok) {
+  try {
+    headSrc = readFileSync(resolve(root, 'src/invariants/catalog.ts'), 'utf-8')
+  } catch (err) {
+    // #2418: this read used to run bare. The catalog exists on origin/main but is
+    // unreadable here — that is an error, and treating it as an empty HEAD would report
+    // EVERY invariant as removed.
+    process.stderr.write(
+      `[check-id-stability] ERROR — catalog.ts is on origin/main but unreadable in the ` +
+        `working tree: ${err?.message ?? err}\n`,
+    )
+    process.exit(2)
+  }
+}
 
 const originIds = extractIds(originSrc)
 const headIds = extractIds(headSrc)

@@ -1,0 +1,12 @@
+{
+  "feature_id": "REQ-041",
+  "verdict": "PROVEN",
+  "justification": "src/wizard/prompts.ts is the interactive wizard, and __tests__/wizard/prompts.test.ts exercises it in 66 cases across the two decisions the wizard actually has to get right. First, DETECTION: greenfield versus brownfield from what is on disk — AGENTS.md, .claude/, .agents/ — including the case that only settingsJson or checkAllScript is set, which stays greenfield. Second, DISPOSITION: for each governance file, whether the wizard reports it as created, replaced, merged or preserved, per tool selected (claude, codex, gemini) and per directory already present. That second half is what makes the wizard safe to run on a repository someone already owns: a wizard that silently replaces where it should merge is the failure this suite is written against, and every arm of that matrix is asserted rather than sampled. The suite was EXECUTED for this verdict, not read — 66 passed, transcript digested below. Scope stated honestly: this proves the wizard's decision logic, not an end-to-end `arbiter init` against a live repository; the packaged-artifact e2e covers that separately.",
+  "command": "npx vitest run __tests__/wizard/prompts.test.ts",
+  "transcript_digest": "9a38d0afdeab64c9b2d9f2239af0004f5b8a1847e7ddc66eee366133011d8a19",
+  "citations": [
+    "src/wizard/prompts.ts#L1-L30@c987bbf9dbbc",
+    "__tests__/wizard/prompts.test.ts#L1-L25@afcdcfa94dff"
+  ],
+  "recorded_at": "2026-09-06T11:44:47Z"
+}

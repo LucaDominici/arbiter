@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
-// arbiter — gate-roster SSOT + CANON-24 inversion-proof ledger semantics (#2301).
+// arbiter — gate-roster SSOT + CANON-25 inversion-proof ledger semantics (#2301).
 //
 // Two things live here, both pure (no entry point, no process.exit — see
 // check-fail-closed-audit SKIP_FILES):
 //
 //   1. enumerateGateMechanisms(gateSrc) — the one parser for "what does scripts/check-all.mjs
 //      actually run". EXTRACTED from check-canon01-declination.mjs (#1922), which still owns the
-//      CANON-01 mapping but no longer owns the regex: a second consumer (the CANON-24 flip
+//      CANON-01 mapping but no longer owns the regex: a second consumer (the CANON-25 flip
 //      harness) needs the same roster, and check-canon01-declination.mjs runs main() at import
 //      time, so it cannot be imported for its exports. One parser, two consumers.
 //
-//   2. The CANON-24 absence-asserting family and its deferral ledger. CANON-24: for every new or
+//   2. The CANON-25 absence-asserting family and its deferral ledger. CANON-25: for every new or
 //      modified gate, name the concrete change that must turn it red and prove it by inverting
 //      that change. The family scoped FIRST (issue #2301 AC-3) is the shape this defect class
 //      hides in — gates that assert the ABSENCE of something, where "nothing found" and "nothing
@@ -20,8 +20,9 @@
 //        - `parity`  name/basename ~ parity       (nothing diverged)
 //      Every family member must carry a flip proof (scripts/lib/guard-flip-registry.mjs) or a row
 //      in scripts/data/inversion-proof-registry.json. The ledger is BANKED — its length must equal
-//      its declared ceiling — so a NEW family gate cannot be waved through by appending a row:
-//      the only way in is a proof that it goes red when its condition is inverted.
+//      its declared ceiling AND that ceiling must equal MAX_DEFERRED below — so a NEW family gate
+//      cannot be waved through by appending a row: the data file cannot authorise its own growth,
+//      and the only cheap way in is a proof that the gate goes red when its condition is inverted.
 //
 // Deliberately NOT verified against the GitHub API: a `gh`-backed liveness check is unrunnable
 // offline and in CI jobs without a token, and a check that silently no-ops in some environments is
@@ -31,8 +32,32 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-/** Repo-relative path of the CANON-24 deferral ledger. */
+/** Repo-relative path of the CANON-25 deferral ledger. */
 export const INVERSION_REGISTRY_PATH = 'scripts/data/inversion-proof-registry.json'
+
+/**
+ * Floor on the derived absence family (#2301 review). The first cut promised, in a comment, to be
+ * "fail-closed — never an empty family that would silently prove nothing", but guarded only an
+ * UNREADABLE gate source: a check-all.mjs that reads fine and no longer PARSES yielded family=[],
+ * owing=[] and exit 0. Measured with a readable file carrying no runCheck() call and a drained
+ * ledger, the harness printed `absence-family=0 … ledger-problems=0` and exited 0 — the exact
+ * blindness CANON-25 exists to catch, inside CANON-25's own enforcer.
+ *
+ * This is a FLOOR, not a target: wiring more absence gates raises the real count and never trips
+ * it. Only a DROP fails, which is the failure mode. Lowering the pin after a deliberate gate
+ * removal is then a source edit review can see, not a silent green.
+ */
+export const MIN_ABSENCE_FAMILY = 25
+
+/**
+ * The ledger's cardinality pin, held HERE rather than inside the ledger it governs (#2301 review).
+ * cardinalityProblem() compared registry.deferred.length against registry.ceiling — two fields of
+ * the SAME file — so appending a row and incrementing the ceiling in one edit passed the audit
+ * completely, while CANON-25 claimed a new family gate "cannot be waved through by appending a
+ * row". Anchoring the ceiling in source makes that claim true of the data file: the ledger can no
+ * longer authorise its own growth. Growing it is a source edit, reviewed as one.
+ */
+export const MAX_DEFERRED = 16
 
 /**
  * Every mechanism invoked by check-all.mjs, in declaration order. Returns { name, tool, path }
@@ -193,9 +218,22 @@ function shapeProblem(registry) {
 /**
  * The ratchet, binding in BOTH directions: above the ceiling is a regression, below it is an
  * unbanked improvement whose slack could be silently re-filled later.
+ *
+ * `pinnedCeiling` is the ceiling the CALLER holds — MAX_DEFERRED for the real ledger. Checking it
+ * first is what stops the ledger authorising its own growth (#2301 review): without it, the only
+ * comparison was deferred.length vs registry.ceiling, both fields of the same file, so one edit
+ * incrementing both passed. A `--registry` fixture passes its own declared ceiling here, which
+ * restores the fixture-local semantics the harness's self-tests need.
  */
-function cardinalityProblem(registry) {
+function cardinalityProblem(registry, pinnedCeiling) {
   const n = registry.deferred.length
+  if (registry.ceiling !== pinnedCeiling) {
+    return (
+      `deferral ledger declares a ceiling of ${registry.ceiling} but the pin in gate-roster.mjs ` +
+      `is ${pinnedCeiling} — the ledger cannot authorise its own growth: move MAX_DEFERRED, in ` +
+      `source, where review sees it`
+    )
+  }
   if (n > registry.ceiling) {
     return (
       `deferral ledger holds ${n} rows over a ceiling of ${registry.ceiling} — the ratchet is ` +
@@ -212,15 +250,20 @@ function cardinalityProblem(registry) {
 }
 
 /**
- * Audit the CANON-24 deferral ledger against the derived family. Returns the list of problems
+ * Audit the CANON-25 deferral ledger against the derived family. Returns the list of problems
  * (empty ⇒ the ledger is sound).
  */
-export function auditInversionRegistry({ family, registry, now = new Date() }) {
+export function auditInversionRegistry({
+  family,
+  registry,
+  now = new Date(),
+  pinnedCeiling = MAX_DEFERRED,
+}) {
   const shape = shapeProblem(registry)
   if (shape !== null) return [shape]
 
   const problems = []
-  const cardinality = cardinalityProblem(registry)
+  const cardinality = cardinalityProblem(registry, pinnedCeiling)
   if (cardinality !== null) problems.push(cardinality)
 
   const byName = new Map(family.map((f) => [f.name, f]))
