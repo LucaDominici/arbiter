@@ -71,3 +71,50 @@ describe('scripts/check-doc-freshness.mjs.ejs render (T4)', () => {
     }
   })
 })
+
+// INV-144: scripts/check-arc42-slots.mjs.ejs — the arc42 slot-completeness thin runner, the third
+// member of this family (check-template-tests.mjs ratchet). It lives beside its two siblings
+// deliberately: the shape they share IS the contract, and a divergence should be visible in one file.
+describe('scripts/check-arc42-slots.mjs.ejs render (INV-144)', () => {
+  it('renders without error and delegates to `arbiter doc-set --arc42`', () => {
+    const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
+    const content = renderTemplate('scripts/check-arc42-slots.mjs.ejs', config)
+    expect(content.trim().length).toBeGreaterThan(0)
+    expect(content).toContain('arbiter')
+    expect(content).toContain('doc-set')
+    expect(content).toContain('--arc42')
+    expect(content).toContain('--no-install')
+  })
+
+  it('never inlines the engine — the runner must stay thin', () => {
+    // The whole point of the split: the skeletons the audit compares against live in arbiter, so a
+    // governed project reaches the engine rather than carrying a copy that could drift from the
+    // skeleton it was generated from. A runner that grew a parser would silently undo that.
+    const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
+    const content = renderTemplate('scripts/check-arc42-slots.mjs.ejs', config)
+    expect(content).not.toContain('ARC-01')
+    expect(content).not.toContain("from 'yaml'")
+    expect(content.split('\n').length).toBeLessThan(60)
+  })
+
+  it('rendered output starts with shebang and carries the SPDX header', () => {
+    const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
+    const content = renderTemplate('scripts/check-arc42-slots.mjs.ejs', config)
+    expect(content.split('\n')[0]).toBe('#!/usr/bin/env node')
+    expect(content).toContain('SPDX-License-Identifier: Apache-2.0')
+  })
+
+  it('rendered output passes node --check (syntax-valid JS)', () => {
+    const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
+    const content = renderTemplate('scripts/check-arc42-slots.mjs.ejs', config)
+    const dir = mkdtempSync(join(tmpdir(), 'arc42-slots-render-check-'))
+    try {
+      const scriptPath = join(dir, 'check-arc42-slots-render-check.mjs')
+      writeFileSync(scriptPath, content)
+      const r = spawnSync('node', ['--check', scriptPath], { encoding: 'utf-8' })
+      expect(r.status, `node --check failed:\n${r.stderr}`).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})

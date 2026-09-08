@@ -337,6 +337,25 @@ describe('claude commands: ship.md — merge step branching', () => {
     expect(content).toContain('scripts/pr-merge-watch.mjs')
     expect(content).not.toContain('gh pr merge')
   })
+
+  // #2150 AC-4 (the half that survives here): the non-solo arc keeps its GitHub PR
+  // merge — without a trusted updater it is the only landing path a consumer has —
+  // but it now DECLARES that it does not land the exact gated SHA, instead of
+  // letting the reader assume the trunk-solo guarantee carries over.
+  it.each([['peer-review'], ['gated-review']])(
+    '%s arc declares openly that main != gatedHeadSha and names the deferred issue',
+    (mode) => {
+      const content = renderShip('typescript', 'L2', mode, 'pr-ff')
+      expect(content).toContain('main != gatedHeadSha')
+      expect(content).toContain('#2289')
+      expect(content).not.toContain('--admin')
+    },
+  )
+
+  it('trunk-solo does NOT carry the non-solo disclaimer', () => {
+    const content = renderShip('typescript', 'L2', 'trunk-solo', 'pr-ff')
+    expect(content).not.toContain('main != gatedHeadSha')
+  })
 })
 
 // ---------------------------------------------------------------------------

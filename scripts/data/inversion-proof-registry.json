@@ -1,15 +1,18 @@
 {
   "$comment": [
-    "CANON-24 inversion-proof deferral ledger (#2301). Output of the one-off audit that asked, of",
+    "CANON-25 inversion-proof deferral ledger (#2301). Output of the one-off audit that asked, of",
     "every ABSENCE-asserting gate wired in scripts/check-all.mjs (check-no-*, ratchets, parity):",
     "'which concrete change makes this red?' A gate with an answer carries a flip proof in",
     "scripts/lib/guard-flip-registry.mjs. A gate whose answer could not be reduced to a planted",
     "bad/clean fixture in this pass is a ROW HERE — never an omission.",
     "",
     "BANKED, not merely capped: scripts/check-guard-flip.mjs fails when deferred.length != ceiling,",
-    "in BOTH directions. Growing the ledger means editing this file AND the DEFERRED_CEILING literal",
-    "in __tests__/scripts/check-guard-flip.test.ts; shrinking it means lowering the ceiling in the",
-    "same commit, so a proven row cannot leave slack for a later silent re-fill.",
+    "in BOTH directions, AND when `ceiling` differs from the MAX_DEFERRED pin in",
+    "scripts/lib/gate-roster.mjs. The pin is deliberately NOT in this file (#2301 review): while",
+    "the only comparison was length-vs-ceiling, appending a row and raising the ceiling in one edit",
+    "to this file passed the audit outright, which is the opposite of what CANON-25 claimed.",
+    "Growing the ledger now means moving MAX_DEFERRED in source; shrinking it means lowering both",
+    "in the same commit, so a proven row cannot leave slack for a later silent re-fill.",
     "",
     "Every field is machine-verified offline by auditInversionRegistry (scripts/lib/gate-roster.mjs):",
     "`gate` must be in the family derived live from check-all.mjs (a stale or fabricated row fails),",
@@ -57,9 +60,9 @@
       "gate": "safety adopt ratchet (#2291)",
       "script": "scripts/check-safety-adopt-ratchet.mjs",
       "category": "ratchet",
-      "reason": "Named in #2301 as structurally dead: it iterates manifest.withheldSafety, absent on all three measured pins, so it prints OK and exits 0 by construction. --manifest makes it fixture-injectable, but the fix and its proof belong to #2291, not to the mechanism issue.",
+      "reason": "Named in #2301 as structurally dead: it iterates manifest.withheldSafety, absent on all three measured pins, so it prints OK and exits 0 by construction. --manifest makes it fixture-injectable, but the fix and its proof belong to #2291, not to the mechanism issue. Expiry deliberately the shortest in this ledger (#2301 review): every other row means 'not yet proven', this one means 'PROVEN vacuous, fix owned elsewhere' — granting the one gate the audit confirmed checks nothing the same 18-month exemption as the unknowns inverts what CANON-25 is for.",
       "issue": 2291,
-      "expires": "2027-02-28"
+      "expires": "2026-10-31"
     },
     {
       "gate": "action pin parity",
