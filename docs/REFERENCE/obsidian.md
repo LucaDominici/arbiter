@@ -107,31 +107,38 @@ the default `wiki` is passed straight through as `--wiki-dir` to both scripts �
 requires both scripts to support that flag (as of #1979, `check-wiki-lint.mjs` already
 did; `gen-wiki.mjs` was given parity as part of this same change, see ADR-107 §Design-risk-#3).
 
-## Orphan-page pruning in the emitted generator (#2530)
+### Orphan-page pruning (#2482)
 
-`wiki/` is gitignored, so a page whose source doc is gone — deleted, renamed, or simply
-absent after a branch switch — survives every regeneration. `check-wiki-lint.mjs` then
-fails its citation check on a file the developer never wrote and cannot find in git.
+`gen-wiki.mjs` used to only ever write. `wiki/` is gitignored, so a page whose source doc was
+deleted or renamed survived every regeneration forever, and later failed `check-wiki-lint.mjs`'s
+citation check against a doc that no longer exists. The generator now deletes those pages and
+reports the count: `N page(s) written to wiki/ (M source docs), P page(s) pruned`.
 
-`gen-wiki.mjs` therefore deletes orphaned pages at the end of a build. Both arbiter's own
-script and the copy emitted into every governed project from
-`src/templates/scripts/gen-wiki.mjs.ejs` implement the same mechanism, so the behaviour a
-governed project sees matches the one documented here.
+Two properties make the deletion safe, and both are load-bearing:
 
-Two properties bound what it may delete:
+- **Ownership, not a `wiki/` sweep.** A page is removed only if it carries the `generated: true`
+  and `source: '<path>'` frontmatter that `generatePage()` itself wrote — the same fields
+  `check-wiki-lint.mjs` already parses. A hand-written note in the vault has no such
+  frontmatter and is never touched, and a generated page missing its `source` is skipped rather
+  than guessed at. `INDEX.md` is excluded outright.
+- **Pruned against the full source set, never the changed subset.** In `--changed` mode only
+  stale sources are rewritten, but every other current source is still perfectly valid.
+  Comparing against `changedSources` would therefore delete the pages this run simply did not
+  happen to touch. The check is against `sources`, the complete list, in every mode.
 
-- **Ownership, not a `wiki/` sweep.** A page is removed only when it carries the
-  `generated: true` + `source: '<path>'` frontmatter that `generatePage()` writes itself.
-  A hand-written file has no such frontmatter and is never touched; `INDEX.md` is excluded
-  explicitly.
-- **Compared against the full source set, never the changed subset.** Under `--changed`
-  the run rewrites only the stale pages, but every other current source is still valid.
-  Pruning against the changed subset would delete every page the run merely did not
-  rewrite — on a corpus where an incremental run rewrites zero pages, that empties the
-  vault. The check is against the full `sources` list for this reason.
+The distinction matters because the failure would be silent in the direction that hurts: a
+too-eager prune deletes real pages and the next full run quietly rewrites them, so the damage
+only shows up as churn — or, in `--changed` mode on a large vault, as pages that vanish and
+return depending on which docs were edited.
 
-The build reports both counts, so a prune is never silent:
+#### The emitted generator carries the same prune (#2530)
 
-```
-gen-wiki: 0 page(s) written to wiki/, 1 page(s) pruned
-```
+Everything above describes `scripts/gen-wiki.mjs`, which arbiter runs on itself. The copy
+emitted into every governed project from `src/templates/scripts/gen-wiki.mjs.ejs` mirrored the
+old write-only build loop and had the same orphan problem — and it mattered more there, since a
+governed project's developer hits the resulting `check-wiki-lint` failure on a file they never
+wrote and cannot find in git.
+
+The template now implements the same mechanism rather than a parallel one, so the two can be
+diffed against each other and the two properties above — ownership-based deletion, and
+comparison against the full source set in every mode — hold identically in a governed project.
