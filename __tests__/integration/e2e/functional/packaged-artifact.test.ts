@@ -221,7 +221,7 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
       // subprocess, not an interactive Claude Code session.
       const noHandoffEnv = { ...process.env }
       delete noHandoffEnv.CLAUDECODE
-      for (const phase of ['plan', 'red-team-review', 'red']) {
+      for (const phase of ['plan', 'red-team-review']) {
         const advance = runInstalledArbiter(
           projectDir,
           ['task', 'advance', '--to', phase],
@@ -229,6 +229,14 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
         )
         expect(advance.status, `advance --to ${phase} failed:\n${advance.output}`).toBe(0)
       }
+      mkdirSync(join(projectDir, '.arbiter', 'evidence', 'redteam'), { recursive: true })
+      writeFileSync(
+        join(projectDir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`),
+        JSON.stringify({ findings: [] }),
+        'utf-8',
+      )
+      const advance = runInstalledArbiter(projectDir, ['task', 'advance', '--to', 'red'], noHandoffEnv)
+      expect(advance.status, `advance --to red failed:\n${advance.output}`).toBe(0)
 
       const testRelPath = 'src/e2e-red.test.ts'
       writeFileSync(
