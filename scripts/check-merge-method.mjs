@@ -22,6 +22,13 @@ const WATCHER_REQUIRED = {
   afterOid: /\bafterOid\b/,
   non_force: /force\s*:\s*false/,
   live_policy: /\bvalidateLiveExactShaPolicy\b/,
+  // #2150: assert the landing contract is USED, not merely imported. A bare
+  // /\bresolveLandingContract\b/ is satisfied by the import line alone, so it
+  // cannot see a consumer deleting the enforcement call — the one failure this
+  // entry exists to catch. Proven by inversion: with the assertLandingSupported()
+  // statement removed, the name-only pattern still matches and these two do not.
+  landing_contract: /resolveLandingContract\s*\(/,
+  landing_guard_invoked: /^\s*assertLandingSupported\(\)/m,
 }
 const WATCHER_FORBIDDEN = {
   gh_pr_merge: /['"]pr['"]\s*,\s*['"]merge['"]|gh\s+pr\s+merge/,
