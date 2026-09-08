@@ -495,6 +495,23 @@ asserts that `nightly-required`'s `needs:` list and its `RESULTS=(...)` array na
 in the same order, in `.github/workflows/_nightly.yml` **and** in the CANON-18 template twin
 `src/templates/github/workflows/_nightly.yml.ejs` (#2420, closing the gap left open by #1042).
 
+### The monthly bound has one owner (#2534)
+
+INV-75 sets all three watchdog bounds — T4 nightly ≤26 h, T5 weekly ≤8 d, T5b monthly
+≤35 d — and `09-heartbeat.yml` is what asserts them. INV-82 used to restate the monthly
+one as **≤32 days**, so the catalogue carried two different numbers for a single bound
+and neither entry pointed at the other.
+
+Nothing enforced the 32. The gate that would have — `check-monthly-freshness.mjs` — was
+removed as structurally vacuous (#2520), and the assertion that actually runs is the
+heartbeat's, at 35. A reader who trusted INV-82 would have expected a monthly run to be
+flagged three days before anything flags it.
+
+INV-82 therefore no longer names a day count. It states that the heartbeat asserts the
+monthly workflow's freshness and defers the number to INV-75, which owns it. This is a
+single-source-of-truth fix, not a relaxation: the enforced bound is unchanged at 35 days,
+and the two invariants can no longer drift into stating disagreeing numbers.
+
 ---
 
 ## Skip-With-Reason Policy
