@@ -474,6 +474,7 @@ function resolveWriteAction(
   content: string,
   skipIfExists: boolean,
   backup: boolean,
+  skipPreserveCheck: boolean,
 ): ResolvedWrite {
   const session = generationSession
   // #2353: the opt-out precedes everything, the preserve marker and the restore
@@ -503,10 +504,16 @@ function resolveWriteAction(
   if (disk !== null && disk === content)
     return { action: 'skipped', baselineMatches: true, withheld: false, adopted: false }
 
-  // #1980: a preserve-marked file is NEVER overwritten — fail-safe, ahead of
+  // #1980/#2533: a preserve-marked file is NEVER overwritten — fail-safe, ahead of
   // skipIfExists/backup/adopt. A generation session (when active) still gets
   // the same withheld-reporting/visibility treatment as any other withheld fix.
-  if (hasPreserveMarker(disk)) {
+  // `skipPreserveCheck` is the one escape hatch (#2533): evidence/log/data writers
+  // (TDD evidence, tech-debt.json, the unified task-status document) are internal
+  // tooling state, never a generator-emitted target a downstream repo would
+  // hand-customise and mark — so a captured log that happens to quote the marker
+  // must not freeze them. See `assertWritten` below for the other half of the
+  // fix: those same callers must never treat a withheld write as success.
+  if (hasPreserveMarker(disk, skipPreserveCheck)) {
     if (session) {
       const key = manifestKey(session.targetDir, filePath)
       ;(session.onWithheld ?? defaultWithheldWarn)(key ?? filePath)
@@ -544,8 +551,14 @@ function resolveWriteAction(
  */
 export const PRESERVE_MARKER = 'arbiter:preserve'
 
-function hasPreserveMarker(disk: string | null): boolean {
-  return disk !== null && disk.includes(PRESERVE_MARKER)
+/**
+ * #2533: `skip` is the caller's `skipPreserveCheck` opt-out — folded in here
+ * (rather than a second condition at each call site) so the branch counts
+ * against this small, dedicated predicate's complexity budget instead of
+ * `resolveWriteAction`'s (CANON-22).
+ */
+function hasPreserveMarker(disk: string | null, skip: boolean): boolean {
+  return !skip && disk !== null && disk.includes(PRESERVE_MARKER)
 }
 
 function defaultWithheldWarn(key: string): void {
@@ -569,18 +582,52 @@ function defaultWithheldWarn(key: string): void {
  * filesystem mutation. The render hash is recorded into the active generation
  * session AFTER a successful side effect, for every action.
  * On ENOSPC the temp file is cleaned up and a UserFacingError is thrown.
+ * `skipPreserveCheck` (#2533) opts a caller OUT of the `arbiter:preserve` marker
+ * check (see {@link PRESERVE_MARKER}) — for internal tooling state (evidence, logs,
+ * data artifacts) that is never a generator-emitted, user-customisable target.
+ * Defaults to `false`: every existing caller keeps today's protective behaviour.
  */
+export interface WriteFileOpts {
+  skipIfExists?: boolean
+  backup?: boolean
+  dryRun?: boolean
+  skipPreserveCheck?: boolean
+}
+
+interface NormalizedWriteFileOpts {
+  skipIfExists: boolean
+  backup: boolean
+  dryRun: boolean
+  skipPreserveCheck: boolean
+}
+
+/**
+ * Default-fill `writeFile`'s options. Extracted so the four `?? false` decision
+ * points count against THIS function's complexity budget rather than
+ * `writeFile`'s own (CANON-22) — a plain destructuring default for each field
+ * would otherwise push `writeFile` over the lint ceiling.
+ */
+function normalizeWriteFileOpts(opts: WriteFileOpts): NormalizedWriteFileOpts {
+  return {
+    skipIfExists: opts.skipIfExists ?? false,
+    backup: opts.backup ?? false,
+    dryRun: opts.dryRun ?? false,
+    skipPreserveCheck: opts.skipPreserveCheck ?? false,
+  }
+}
+
 export function writeFile(
   filePath: string,
   content: string,
-  opts: { skipIfExists?: boolean; backup?: boolean; dryRun?: boolean } = {},
+  opts: WriteFileOpts = {},
 ): WriteResult {
-  const { skipIfExists = false, backup = false, dryRun = false } = opts
+  const { skipIfExists, backup, dryRun, skipPreserveCheck } = normalizeWriteFileOpts(opts)
   const { action, baselineMatches, withheld, adopted, restored, excluded } = resolveWriteAction(
     filePath,
     content,
     skipIfExists,
     backup,
+    skipPreserveCheck,
   )
 
   // Side effects (may throw → recordGeneratedHash below is never reached, so no
@@ -611,6 +658,29 @@ export function writeFile(
   // Only attach the flag when true so non-withheld results keep their stable
   // `{ path, action }` shape (snapshot/JSON parity for the common case).
   return withheld ? { path: filePath, action, withheld: true } : { path: filePath, action }
+}
+
+/**
+ * #2533: the write-truth half of the fix. A caller writing evidence, logs, or other
+ * tooling-authored data artifacts (as opposed to a generator target, where `withheld`
+ * is a normal, REPORTED outcome — see `arbiter diff --withheld`) must never treat a
+ * `WriteResult` with `withheld: true` as success: it means the content it intended to
+ * write did NOT land on disk. `adopted: true` is the one exception — a force-adopt DID
+ * write the shipped content over the user-modified one, so `withheld` there records
+ * "it WAS diverged" rather than "this write failed" (see {@link ResolvedWrite.adopted}).
+ *
+ * `description` names the artifact in the thrown message (e.g. `TDD evidence for #551`)
+ * so the failure is actionable without inspecting the call site.
+ */
+export function assertWritten(result: WriteResult, description: string): void {
+  if (result.withheld === true && result.adopted !== true) {
+    throw new Error(
+      `refusing to report success: ${description} was not written to ${result.path} — ` +
+        `the write was withheld (the existing on-disk content could not be safely ` +
+        `overwritten, e.g. it carries the \`${PRESERVE_MARKER}\` marker). Delete the ` +
+        `stale file, or its marker, and retry.`,
+    )
+  }
 }
 
 /**
