@@ -3,7 +3,7 @@
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
 import { extname } from 'node:path'
-import { resolveToolInputPath } from './lib.mjs'
+import { addedLinesVsHEAD, resolveToolInputPath } from './lib.mjs'
 
 // Match comment-context TODO but not TODO(#NNN).
 const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
@@ -21,9 +21,19 @@ try {
   process.exit(2)
 }
 
-const offending = content
-  .split('\n')
-  .flatMap((line, i) => (ORPHAN_TODO.test(line) ? [`${i + 1}: ${line.trim()}`] : []))
+// #2539: scan only the lines THIS edit added, not the whole file — a
+// pre-existing orphan-TODO-shaped line on an untouched line (this checker's
+// own doc comment illustrating the pattern, or its own regex definition) must
+// not block an unrelated edit elsewhere in the same file. Untracked files and
+// git errors fail OPEN to the whole-file scan (never skip).
+const { tracked, added } = addedLinesVsHEAD(file)
+const scanLines = tracked
+  ? added.map(({ line, content: text }) => [line - 1, text])
+  : content.split('\n').map((text, index) => [index, text])
+
+const offending = scanLines
+  .filter(([, line]) => ORPHAN_TODO.test(line))
+  .map(([i, line]) => `${i + 1}: ${line.trim()}`)
 
 if (offending.length > 0) {
   process.stderr.write(

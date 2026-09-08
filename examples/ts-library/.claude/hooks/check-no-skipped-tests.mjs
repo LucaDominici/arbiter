@@ -2,7 +2,7 @@
 // Arbiter hook: block skipped/disabled tests (NI-11)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
-import { resolveToolInputPath } from './lib.mjs'
+import { addedLinesVsHEAD, resolveToolInputPath } from './lib.mjs'
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
@@ -28,17 +28,28 @@ try {
   process.exit(0)
 }
 
-const lines = content.split('\n')
+// #2539: scan only the lines THIS edit added, not the whole file — a
+// pre-existing skip-shaped line on an untouched line (this checker's own
+// doc comment naming the aliases it looks for, or a fixture that deliberately
+// plants one as test data) must not block an unrelated edit elsewhere in the
+// same file. Untracked files and git errors fail OPEN to the whole-file scan
+// (never skip) — see addedLinesVsHEAD's doc comment.
+const { tracked, added } = addedLinesVsHEAD(file)
+const scanLines = tracked
+  ? added.map(({ line, content: text }) => [line - 1, text])
+  : content.split('\n').map((text, index) => [index, text])
 const ext = file.slice(file.lastIndexOf('.'))
 
 /** @param {RegExp} re @param {string} label */
 function findOffending(re, label) {
-  return lines.flatMap((line, i) => (re.test(line) ? [`${i + 1}: [${label}] ${line.trim()}`] : []))
+  return scanLines.flatMap(([i, line]) =>
+    re.test(line) ? [`${i + 1}: [${label}] ${line.trim()}`] : [],
+  )
 }
 
 const offending = []
 
-// JS / TS — .skip(), xit(), xtest(), xdescribe()
+// JS / TS — skip/only calls, plus the x-prefixed aliases (xit, xtest, xdescribe)
 if (['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'].includes(ext)) {
   offending.push(...findOffending(/\.(skip|only)\s*\(/, '.skip/.only'))
   offending.push(...findOffending(/\b(xit|xtest|xdescribe)\s*\(/, 'xit/xtest/xdescribe'))

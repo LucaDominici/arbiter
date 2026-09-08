@@ -349,3 +349,34 @@ one-shot file bypass at `.arbiter/ssot-bypass` (single-line reason, consumed on 
 guarded-file attempt regardless of outcome) alongside the existing `ARBITER_SSOT_BYPASS=1` env var —
 both now log a `BYPASS` event to `.arbiter/evidence/bypass-log.jsonl`, parity with
 `pre-edit-plan-anchor`'s `ARBITER_PLAN_BYPASS` accounting (#1949).
+
+## Content-scanning hooks scan the edit, not the file (#2539)
+
+`check-no-pii`, `check-no-placeholders`, `check-no-orphan-todo` and
+`check-no-skipped-tests` are PostToolUse hooks that look for a pattern in the file an
+edit touched. Each one scanned the **whole file**, so a match anywhere blocked the edit —
+including on lines the edit never went near. That makes a file with one legitimate
+pre-existing match (a fixture email planted for a PII test, an `it.skip` in a test about
+skipped tests, the checker's own pattern definition) permanently un-editable for reasons
+unrelated to the change being made. It is the same defect `check-no-placeholders` hit from
+the other direction in #2528, where an ordinary English word matched a marker.
+
+The hooks now scan only the lines the edit **added**, via `addedLinesVsHEAD(file)` in
+`lib.mjs`. It runs `git diff HEAD -- <file>`, walks the hunk headers, and returns each
+added line with its line number in the new file — so reported line numbers stay correct
+and inline suppressions still resolve against the real file content.
+
+Three properties bound it, and each is load-bearing:
+
+- **Fail OPEN to the whole-file scan, never skip.** If `git ls-files --error-unmatch`
+  says the file is untracked, or either git call errors, `addedLinesVsHEAD` returns
+  `{ tracked: false, added: null }` and the caller falls back to scanning every line. A
+  hook that cannot determine the diff scans more, not less — the failure mode is a false
+  positive, never a missed marker.
+- **Added lines only.** Removed lines do not advance the new-file line counter, so a
+  deletion never shifts the numbers reported for the lines that remain.
+- **A new file is entirely "added".** An untracked file has no `HEAD` version, so it
+  takes the whole-file path — a brand-new file cannot smuggle a marker in.
+
+This narrows _when_ a hook fires, never _what_ it detects: every pattern, allowlist and
+suppression is unchanged. A marker on a line the edit actually wrote still blocks it.
