@@ -1,0 +1,27 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "package-contract-review",
+  "role": "reviewer",
+  "taskId": "#2597",
+  "branch": "task/#2597-pack-size-preflight",
+  "sha": "929d1eb78c49302e9d0665ffd946ee8bf4fc616b",
+  "ts": "2026-09-08T08:49:25.782Z",
+  "verdict": "PASS",
+  "confidence": 0.98,
+  "findings": [],
+  "evidenceRefs": [
+    ".claude/plans/2597-strict-pack-size.md",
+    "package.json:33-86",
+    "scripts/build-dist.mjs:21-95",
+    "__tests__/fixtures/pack-contract-2597.json:1-68",
+    "__tests__/scripts/publish-hygiene.test.ts:61-143",
+    "__tests__/integration/e2e/functional/packaged-artifact.test.ts:323-394",
+    "scripts/check-pack-size.mjs:35-60",
+    "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/artifact/npm-pack.json"
+  ],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}
