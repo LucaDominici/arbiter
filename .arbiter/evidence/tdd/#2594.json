@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2594",
+  "test_path": "__tests__/scripts/prepare-lifecycle.test.ts",
+  "test_commit_sha": "fb7aa5c575ef6fd6c3661fe04259e14d8d95ad5e",
+  "test_blob_sha": "496a0d343a659790b1bdff021203dc2c26863c8d",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/prepare-lifecycle.test.ts (7 tests | 1 failed) 128ms\n     × bootstraps declared dev tooling before building when the compiler is missing (AC-2, AC-3) 23ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 6 passed (7)\n   Start at  03:21:24\n   Duration  234ms (transform 11ms, setup 6ms, import 12ms, tests 128ms, environment 0ms)\n\n\nstderr | __tests__/scripts/prepare-lifecycle.test.ts > scripts/prepare-lifecycle.mjs (#9001) > bootstraps declared dev tooling before building when the compiler is missing (AC-2, AC-3)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/prepare-lifecycle.test.ts > scripts/prepare-lifecycle.mjs (#9001) > bootstraps declared dev tooling before building when the compiler is missing (AC-2, AC-3)\nAssertionError: expected [ 'run build' ] to deeply equal [ …(2) ]\n\n- Expected\n+ Received\n\n  [\n-   \"ci --include=dev --ignore-scripts\",\n    \"run build\",\n  ]\n\n ❯ __tests__/scripts/prepare-lifecycle.test.ts:126:19\n    124|       .split('\\n')\n    125|\n    126|     expect(calls).toEqual(['ci --include=dev --ignore-scripts', 'run b…\n       |                   ^\n    127|     expect(existsSync(resolve(packageRoot, 'dist', 'cli.js'))).toBe(tr…\n    128|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/prepare-lifecycle.test.ts",
+  "recorded_at": "2026-09-08T01:21:25.013Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/prepare-lifecycle.test.ts"
+  ]
+}

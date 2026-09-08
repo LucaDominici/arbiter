@@ -32,7 +32,7 @@ added to the issue this cycle; its four criterion texts are unchanged.
 
 ## Non-Goals
 
-- Touch only `scripts/prepare-lifecycle.mjs`, its focused test and necessary native plan/evidence metadata.
+- Touch only `scripts/prepare-lifecycle.mjs`, its focused test, the installation note in `docs/QUICKSTART.md` required by the native docs gate, and necessary native plan/evidence metadata.
 - No runtime dependency, broader trust, installer framework, forced consumer manager, `file:`/`link:` coordinate, publication claim, or change to #2578's frozen 81-path manifest.
 - Git loopback is a scoped pre-push behavioral test, not proof of a publicly resolvable coordinate.
 
@@ -93,20 +93,20 @@ must be resolved before treating this recovery recipe as implementation-ready.
 Coordinator resolution of AR-2594-01/02, 2026-09-08: preserve def265e7 and its
 invalid receipt via an immutable recovery ref before changing HEAD. In this same
 integration worktree use a new task-form recovery branch from frozen ff7d5770,
- carry this plan/manifest forward, and use the native backward transition
- (`node dist/cli.js task advance --to plan --reverse`) out of refactor. Run the
- fresh plan-review, then enter `red-team-review` with
- `node dist/cli.js task advance --to red-team-review`; only fresh red-team
- evidence permits `node dist/cli.js task advance --to red`.
+carry this plan/manifest forward, and use the native backward transition
+(`node dist/cli.js task advance --to plan --reverse`) out of refactor. Run the
+fresh plan-review, then enter `red-team-review` with
+`node dist/cli.js task advance --to red-team-review`; only fresh red-team
+evidence permits `node dist/cli.js task advance --to red`.
 
- Impact record, 2026-09-08: no fresh `graphify-out/graph.json` exists, so the
- native ripgrep fallback was used (`impact-1788827892.log`).
- `scripts/prepare-lifecycle.mjs` has direct package lifecycle and focused-test
- dependents, exceeding the S leaf ceiling. The recovery is therefore
- **Standard**, not S: obtain a fresh plan-review and three independent
- red-team results against this amended digest before entering red. The plan and
- manifest runtime artifacts are themselves consumed by parity/gate paths and
- are retained only as native contract artifacts, not implementation scope.
+Impact record, 2026-09-08: no fresh `graphify-out/graph.json` exists, so the
+native ripgrep fallback was used (`impact-1788827892.log`).
+`scripts/prepare-lifecycle.mjs` has direct package lifecycle and focused-test
+dependents, exceeding the S leaf ceiling. The recovery is therefore
+**Standard**, not S: obtain a fresh plan-review and three independent
+red-team results against this amended digest before entering red. The plan and
+manifest runtime artifacts are themselves consumed by parity/gate paths and
+are retained only as native contract artifacts, not implementation scope.
 
 The authoritative task state is `.claude/.task/status.json`: it was rebound to
 `task/#2594-bun-git-prepare-recovery` and transitioned from `refactor` to
@@ -121,7 +121,7 @@ base SHA, plan SHA/digest, timestamp, reviewers and findings. The coordinator
 validates every binding before advancing. This bundle proves the plan/base only;
 the later GREEN SHA needs its own TDD, AC-fit, review and gate receipts.
 
- Commit only the missing-compiler test with an issue-linked subject
+Commit only the missing-compiler test with an issue-linked subject
 and explicit AC mapping; run `task record-red` without force. Apply exactly the
 preserved production hunk for GREEN, run composed L1 before its commit, and
 verify RED replay. The new GREEN SHA must receive the Bun/AC proof and native

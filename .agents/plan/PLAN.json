@@ -6,11 +6,16 @@
       "scripts/prepare-lifecycle.mjs",
       "__tests__/scripts/prepare-lifecycle.test.ts",
       ".agents/plan/2594-bun-prepare.md",
+      "docs/QUICKSTART.md",
       ".arbiter/evidence/tdd/#2594.json",
       ".agents/plan/PLAN.json"
     ]
   },
   "files": [
+    {
+      "path": "docs/QUICKSTART.md",
+      "operation": "modify"
+    },
     {
       "path": ".arbiter/evidence/tdd/#2594.json",
       "operation": "create"
