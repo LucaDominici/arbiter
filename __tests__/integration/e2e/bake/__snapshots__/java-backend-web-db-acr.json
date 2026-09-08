@@ -377,7 +377,7 @@
     "scripts/check-smoke-journeys.mjs": "a6b45f3c4a9a370b1439730b0ddd5f94973d45e9c6548a4e9832e53bc8f163d3",
     "scripts/check-sources.mjs": "26b2462f0628fa5ff1547a78dd4591669eb46a60fc51c741a357273282058f5f",
     "scripts/check-ssot-core.mjs": "e14ac81007a5744f2b08c307b4334b3480edc1e3212ee22d623eae739a33fafd",
-    "scripts/check-stack-conformity.mjs": "192356884ffe545af5ce215866c96bd870900064cdf912ed1ea9e568358cc087",
+    "scripts/check-stack-conformity.mjs": "4a1e7f5a4dac4b20a42cc2c4af456cce7c6e37b42883822dd786c1f77c16f566",
     "scripts/check-suppression-expiry.mjs": "f85a43da99ccd9735741767e225c7dff78d33f49f06d37a25a790109b304f26e",
     "scripts/check-suppression-rationale.mjs": "f1870e9ecb644f9986bc966cee2a51172bca7331a49b86cbaefb52ab34de305a",
     "scripts/check-suppressions.mjs": "c48bd6e9912ce491f04418b378faf6d8506e65e50272efc78d29cd004015a41a",

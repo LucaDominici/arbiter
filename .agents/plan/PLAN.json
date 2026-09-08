@@ -1,70 +1,50 @@
 {
-  "task_id": "#2594",
+  "task_id": "#2598",
   "scope": {
     "track": "A",
+    "boundaries": [
+      "root package.json direct dependency declarations",
+      "Node lockfile exclusion with non-Node go.mod/go.sum preservation",
+      "emitted INV-121 checker"
+    ],
     "paths": [
-      "scripts/prepare-lifecycle.mjs",
-      "__tests__/scripts/prepare-lifecycle.test.ts",
-      ".agents/plan/2594-bun-prepare.md",
-      "docs/QUICKSTART.md",
-      ".arbiter/evidence/tdd/#2594.json",
       ".agents/plan/PLAN.json",
-      ".arbiter/evidence/ac-fit/2594.json",
-      ".arbiter/evidence/_2594/tech-debt.json",
-      "scripts/data/codex-self-parity-runtime-artifacts.json",
-      "docs/internal/PRODUCT/GAP.md"
+      ".claude/plans/task-2598-optional-peer-conformity.md",
+      "src/templates/scripts/check-stack-conformity.mjs.ejs",
+      "__tests__/generators/check-stack-conformity.test.ts",
+      "__tests__/integration/e2e/bake/__snapshots__/*.json",
+      "examples/ts-library/scripts/check-stack-conformity.mjs",
+      "examples/python-library/scripts/check-stack-conformity.mjs",
+      "examples/go-library/scripts/check-stack-conformity.mjs",
+      "examples/ts-library/.arbiter-generated-manifest.json",
+      "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/go-library/.arbiter-generated-manifest.json"
     ]
   },
   "files": [
+    { "path": ".agents/plan/PLAN.json", "operation": "modify" },
+    { "path": ".claude/plans/task-2598-optional-peer-conformity.md", "operation": "create" },
+    { "path": "src/templates/scripts/check-stack-conformity.mjs.ejs", "operation": "modify" },
     {
-      "path": "docs/QUICKSTART.md",
-      "operation": "modify"
+      "path": "__tests__/generators/check-stack-conformity.test.ts",
+      "operation": "modify",
+      "changes": { "modifies_tests": true }
     },
-    {
-      "path": ".arbiter/evidence/tdd/#2594.json",
-      "operation": "create"
-    },
-    {
-      "path": "scripts/prepare-lifecycle.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/scripts/prepare-lifecycle.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": ".agents/plan/2594-bun-prepare.md",
-      "operation": "create"
-    },
-    {
-      "path": ".agents/plan/PLAN.json",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/ac-fit/2594.json",
-      "operation": "create"
-    },
-    {
-      "path": ".arbiter/evidence/_2594/tech-debt.json",
-      "operation": "create"
-    },
-    {
-      "path": "scripts/data/codex-self-parity-runtime-artifacts.json",
-      "operation": "modify"
-    },
-    {
-      "path": "docs/internal/PRODUCT/GAP.md",
-      "operation": "modify"
-    }
+    { "path": "__tests__/integration/e2e/bake/__snapshots__/*.json", "operation": "modify" },
+    { "path": "examples/ts-library/scripts/check-stack-conformity.mjs", "operation": "modify" },
+    { "path": "examples/python-library/scripts/check-stack-conformity.mjs", "operation": "modify" },
+    { "path": "examples/go-library/scripts/check-stack-conformity.mjs", "operation": "modify" },
+    { "path": "examples/ts-library/.arbiter-generated-manifest.json", "operation": "modify" },
+    { "path": "examples/python-library/.arbiter-generated-manifest.json", "operation": "modify" },
+    { "path": "examples/go-library/.arbiter-generated-manifest.json", "operation": "modify" }
   ],
-  "invariants": {
-    "ui_language": "EN",
-    "no_skips": true
-  },
-  "invariant_ids": ["INV-08", "INV-23", "INV-24", "INV-25", "INV-26", "INV-27", "INV-53"],
-  "review_bridge": {
-    "enabled": true,
-    "reviewer": "bridge-reviewer",
-    "fail_on_warn": true
-  }
+  "invariants": { "ui_language": "EN", "no_skips": true },
+  "invariant_ids": ["INV-04", "INV-24", "INV-25", "INV-26", "INV-27", "INV-53", "INV-121"],
+  "notes": [
+    "AC-1 through AC-3 are frozen verbatim in .claude/plans/task-2598-optional-peer-conformity.md.",
+    "The emitted runtime suite covers optional peers, script/description literals, go.mod/go.sum, and malformed package input.",
+    "Bake snapshots, the ts/python/go library example checkers, and their corresponding generated-manifest checker hashes are mechanically derived output.",
+    "No source implementation starts until independent plan/red-team review has passed."
+  ],
+  "review_bridge": { "enabled": true, "reviewer": "bridge-reviewer", "fail_on_warn": false }
 }
