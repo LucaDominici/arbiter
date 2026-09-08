@@ -1,0 +1,86 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2599",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 344
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 245
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 266
+        }
+      ],
+      "reason": "The hunk-state guard excludes only pre-hunk metadata; the direct self/template/kernel test asserts prefix/header-like content and exact multi-hunk/no-newline line numbers."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 137
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 166
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 179
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 191
+        }
+      ],
+      "reason": "Parameterized template/self real-hook cases retain untouched-existing, ordinary-new-violation, and prefix-collision behavior across PII, placeholders, orphan TODOs, and skipped tests."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/claude/hooks/lib.mjs.ejs",
+          "line": 337
+        },
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 330
+        },
+        {
+          "file": "packages/kernel/hooks/lib.mjs",
+          "line": 351
+        },
+        {
+          "file": "__tests__/scripts/build-kernel-plugin.test.ts",
+          "line": 119
+        }
+      ],
+      "reason": "The one helper change is present in template, shipped self, and generated kernel copies; the isolated generator test byte-compares committed kernel output."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "NOT-TESTED",
+      "evidence": [
+        {
+          "file": ".claude/plans/2599-diff-prefix-safety.md",
+          "line": 28
+        },
+        {
+          "file": "scripts/check-acceptance.mjs",
+          "line": 225
+        }
+      ],
+      "reason": "The amended head has RED/approval and focused-regression evidence, but lacks exact-head L1/L2, real CI, pr-ff/CAS landing, and #2597 requalification evidence. The native gate requires an all-PASS ac-fit at late phases, so this cannot be waived."
+    }
+  ]
+}
