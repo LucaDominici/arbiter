@@ -85,6 +85,10 @@ function npmInstall(dir: string, extraArg?: string): DepResult {
   throw new Error(`npm install failed (not offline):\n${out.slice(-2000)}`)
 }
 
+function suppliedArtifact(): boolean {
+  return process.env.ARBITER_PACKED_TARBALL !== undefined
+}
+
 function runGate(dir: string, level: 'L1' | 'L2'): { status: number; output: string } {
   const scriptPath = join(dir, 'scripts', 'check-all.mjs')
   if (!existsSync(scriptPath)) {
@@ -142,6 +146,9 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
 
       const install = npmInstall(projectDir, pack.tarball)
       if ('skip' in install) {
+        if (suppliedArtifact()) {
+          throw new Error(`supplied ARBITER_PACKED_TARBALL could not be installed: ${install.skip}`)
+        }
         expect(install.skip, 'npm install unavailable — skipping outsider simulation').toBeTruthy()
         return
       }
@@ -171,6 +178,11 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
       // virgin-init-matrix.test.ts's install-after-init ordering for TS cells).
       const postInitInstall = npmInstall(projectDir)
       if ('skip' in postInitInstall) {
+        if (suppliedArtifact()) {
+          throw new Error(
+            `supplied ARBITER_PACKED_TARBALL post-init install could not be completed: ${postInitInstall.skip}`,
+          )
+        }
         expect(
           postInitInstall.skip,
           'npm install (post-init) unavailable — skipping outsider simulation',

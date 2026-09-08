@@ -4,6 +4,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } fro
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { classifyPackSize } from '../../scripts/check-pack-size.mjs'
 
 interface PackedManifest {
   engines?: Record<string, string>
@@ -14,9 +15,16 @@ interface PackedManifest {
   files?: unknown
 }
 
+interface PackSummary {
+  filename: string
+  unpackedSize: number
+  entryCount: number
+}
+
 const packDir = mkdtempSync(join(tmpdir(), 'arbiter-publish-hygiene-'))
 const workspaceDir = join(packDir, 'workspace')
 let packedManifest: PackedManifest
+let packSummary: PackSummary
 
 beforeAll(() => {
   mkdirSync(workspaceDir)
@@ -40,9 +48,10 @@ beforeAll(() => {
     cwd: workspaceDir,
     encoding: 'utf-8',
   })
-  const packed = JSON.parse(raw) as Array<{ filename: string }>
+  const packed = JSON.parse(raw) as Array<PackSummary>
   const filename = packed[0]?.filename
   if (!filename) throw new Error('npm pack did not report a tarball filename')
+  packSummary = packed[0]
   const manifestJson = execFileSync(
     'tar',
     ['-xOzf', join(packDir, basename(filename)), 'package/package.json'],
@@ -56,6 +65,16 @@ afterAll(() => {
 })
 
 describe('published package hygiene', () => {
+  it('keeps the actual retained package under the unchanged strict budget (#2597 AC-1)', () => {
+    const fixture = JSON.parse(
+      readFileSync(resolve('__tests__/fixtures/pack-contract-2597.json'), 'utf-8'),
+    ) as { pack: { unpackedSize: number; entryCount: number } }
+
+    expect(packSummary.unpackedSize).toBe(fixture.pack.unpackedSize)
+    expect(packSummary.entryCount).toBe(fixture.pack.entryCount)
+    expect(classifyPackSize(packSummary.unpackedSize, 'strict')).toEqual({ level: 'ok', exitCode: 0 })
+  })
+
   it('admits npm 11 while preserving the Node engine contract (AC-2128.1, AC-2128.2, AC-2128.3)', () => {
     const source = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as PackedManifest
 

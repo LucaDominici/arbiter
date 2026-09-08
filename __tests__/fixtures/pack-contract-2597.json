@@ -1,0 +1,68 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2597",
+  "source_sha": "d7237801a56d432dd25564a543dc25aaabb1071f",
+  "artifact_sha256": "e745914d47810210ceb21d330dc05340ab516c7c8643e69125cab32726ccf198",
+  "pack": {
+    "unpackedSize": 5965013,
+    "entryCount": 1300,
+    "rosterSha256": "d29436861cec640a79bf569a36e2523fc24142b647e533eda0f353b1b4a6acfc"
+  },
+  "manifest": {
+    "bin": { "arbiter": "./dist/cli.js" },
+    "exports": {
+      ".": { "types": "./dist/cli.d.ts", "import": "./dist/cli.js" },
+      "./plugin": { "types": "./dist/types/plugin.d.ts", "import": "./dist/types/plugin.js" },
+      "./invariants": {
+        "types": "./dist/invariants/index.d.ts",
+        "import": "./dist/invariants/index.js"
+      },
+      "./compatibility": {
+        "types": "./dist/compatibility/index.d.ts",
+        "import": "./dist/compatibility/index.js"
+      }
+    },
+    "main": "./dist/cli.js",
+    "engines": { "node": ">=22.0.0", "npm": ">=10.0.0" },
+    "files": [
+      "dist",
+      "scripts/check-doc-set.mjs",
+      "scripts/gold-audit.mjs",
+      "scripts/check-doc-freshness.mjs",
+      "scripts/check-arc42-slots.mjs",
+      "scripts/check-doc-style.mjs",
+      "scripts/lib",
+      "README.md",
+      "LICENSE",
+      "NOTICE",
+      "CHANGELOG.md",
+      "PRIVACY.md",
+      "THIRD_PARTY_LICENSES.md"
+    ]
+  },
+  "required_engine_paths": [
+    "scripts/check-arc42-slots.mjs",
+    "scripts/check-doc-freshness.mjs",
+    "scripts/check-doc-set.mjs",
+    "scripts/gold-audit.mjs"
+  ],
+  "generated_profile_paths": [
+    "dist/compatibility/cross-language-matrix.json",
+    "dist/compatibility/matrix.json",
+    "dist/compatibility/skills-matrix.json",
+    "dist/compatibility/tooling-proposals.json",
+    "dist/generators/skill-names.json"
+  ],
+  "declarations": {
+    "count": 299,
+    "pathsSha256": "5c5da72bad1f9cede9a5e7249484721e7ac634d1f68f904f126a9d9f693307e2"
+  },
+  "templates": {
+    "count": 644,
+    "pathsSha256": "9edb035858e29656aa24d433866dffbbd8d064955c6f51a62bd1bd95983f3c45"
+  },
+  "leading_spdx": {
+    "count": 302,
+    "pathsSha256": "600cfef932fb14206f8d5825dbef818e0d1880965545d72498c304c738e092b9"
+  }
+}
