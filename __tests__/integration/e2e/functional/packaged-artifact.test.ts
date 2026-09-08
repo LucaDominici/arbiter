@@ -206,6 +206,10 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
         `generated project's own L1 gate failed:\n${gate.output.slice(-3000)}`,
       ).toBe(0)
 
+      const docSet = runInstalledArbiter(projectDir, ['doc-set', '.', '--check'])
+      expect(docSet.status, `installed doc-set failed:\n${docSet.output.slice(-3000)}`).toBe(0)
+      expect(docSet.output).toContain('check-doc-set [tier:')
+
       // ── Task round-trip, through the installed bin: init → plan →
       // red-team-review → red → record-red → green ──
       const taskId = '#9001'
@@ -278,17 +282,20 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
 
 type ExportTarget = { types?: string; import?: string }
 
-function declaredExports(): Array<{ subpath: string; target: ExportTarget }> {
-  const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as {
-    name: string
-    exports: Record<string, ExportTarget>
-  }
+type PublishedManifest = { name: string; exports: Record<string, ExportTarget> }
+
+function packedManifest(tarball: string): PublishedManifest {
+  return JSON.parse(
+    execFileSync('tar', ['-xOzf', tarball, 'package/package.json'], { encoding: 'utf-8' }),
+  ) as PublishedManifest
+}
+
+function declaredExports(pkg: PublishedManifest): Array<{ subpath: string; target: ExportTarget }> {
   return Object.entries(pkg.exports).map(([subpath, target]) => ({ subpath, target }))
 }
 
-function packageName(): string {
-  return (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { name: string })
-    .name
+function packageName(pkg: PublishedManifest): string {
+  return pkg.name
 }
 
 function sha256(file: string): string {
@@ -392,12 +399,16 @@ describe.skipIf(!L2)('published package — signed bytes and declared surface (#
       )
       const install = npmInstall(consumer, pack.tarball)
       if ('skip' in install) {
+        if (suppliedArtifact()) {
+          throw new Error(`supplied ARBITER_PACKED_TARBALL could not be installed: ${install.skip}`)
+        }
         expect(install.skip).toBeTruthy()
         return
       }
 
-      const name = packageName()
-      const subpaths = declaredExports()
+      const manifest = packedManifest(pack.tarball)
+      const name = packageName(manifest)
+      const subpaths = declaredExports(manifest)
       expect(subpaths.length, 'package.json declares no exports').toBeGreaterThan(0)
 
       for (const { subpath, target } of subpaths) {

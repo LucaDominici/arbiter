@@ -3,10 +3,11 @@
   "task_id": "#2597",
   "source_sha": "d7237801a56d432dd25564a543dc25aaabb1071f",
   "artifact_sha256": "e745914d47810210ceb21d330dc05340ab516c7c8643e69125cab32726ccf198",
+  "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
     "unpackedSize": 5965013,
     "entryCount": 1300,
-    "rosterSha256": "d29436861cec640a79bf569a36e2523fc24142b647e533eda0f353b1b4a6acfc"
+    "rosterSha256": "e694d4b2a26c5ad3dfcf504661c4976f9fd1d4ccbc076f4770e1abc9aca62a00"
   },
   "manifest": {
     "bin": { "arbiter": "./dist/cli.js" },
@@ -22,7 +23,6 @@
         "import": "./dist/compatibility/index.js"
       }
     },
-    "main": "./dist/cli.js",
     "engines": { "node": ">=22.0.0", "npm": ">=10.0.0" },
     "files": [
       "dist",
@@ -55,14 +55,14 @@
   ],
   "declarations": {
     "count": 299,
-    "pathsSha256": "5c5da72bad1f9cede9a5e7249484721e7ac634d1f68f904f126a9d9f693307e2"
+    "pathsSha256": "10c85d22ff0720d86ebe384cb8a7b23867993378aeacdd568d59997995e2bc60"
   },
   "templates": {
     "count": 644,
-    "pathsSha256": "9edb035858e29656aa24d433866dffbbd8d064955c6f51a62bd1bd95983f3c45"
+    "pathsSha256": "91d8ad26161b56a8d908ce00cc04dc391136f7ebfff411226c73ab3ba41f8fca"
   },
   "leading_spdx": {
-    "count": 302,
-    "pathsSha256": "600cfef932fb14206f8d5825dbef818e0d1880965545d72498c304c738e092b9"
+    "count": 303,
+    "pathsSha256": "96cf8f915bf79cf8abd50f916af14453ca621fdc3cec662b01b542275f337d42"
   }
 }
