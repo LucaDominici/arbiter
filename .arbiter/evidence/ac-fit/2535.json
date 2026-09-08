@@ -1,0 +1,49 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2535",
+  "reviewer": "/root",
+  "reviewedAt": "2026-09-08T18:53:18Z",
+  "anchor": ".claude/plans/task-2535-product-acceptance.md",
+  "anchorSha256": "efd2e51839bd80e204dc1d9b3ae0a283f70c025d05403303279282317792b872",
+  "planMetadataSha256": "7c0f2ad0907405f6f1883d8c9ae3bdbcfa24e14f25b76712938f112115afea65",
+  "sourceSHA": "b9002004aadda6325ac61c50af18946e5ab0cd45",
+  "baseSHA": "f8c0a65ef71e7bc2adb9e5dcbab71fedb215eb09",
+  "reviewScope": "Actual root review recorded externally at portfolio/evidence/relay-live-20260908/arbiter-2535-root-review.md. This artifact records that review's AC mapping, not a new independent review.",
+  "focusedVerification": {
+    "command": "npx vitest run __tests__/skills/product-acceptance.test.ts && node scripts/check-tdd-evidence.mjs",
+    "result": "PASS: 1 file, 2 tests; native verifier explicitly verified #2535 evidence",
+    "runAt": "2026-09-08T18:49:05Z"
+  },
+  "criteria": [
+    {
+      "id": "AC-2535.1",
+      "verdict": "PASS",
+      "note": "The skill exists at its canonical path and exposes the native frontmatter contract; the RED baseline failed specifically because this path was absent.",
+      "evidence": [
+        { "file": ".claude/skills/product-acceptance/SKILL.md", "line": 1 },
+        { "file": "__tests__/skills/product-acceptance.test.ts", "line": 18 },
+        { "file": ".arbiter/evidence/tdd/#2535.json", "line": 1 }
+      ]
+    },
+    {
+      "id": "AC-2535.2",
+      "verdict": "PASS",
+      "note": "The skill names tabletop, verification, refutation, and visual-verification as delegated walkers; the test also confirms each related canonical skill exists.",
+      "evidence": [
+        { "file": ".claude/skills/product-acceptance/SKILL.md", "line": 21 },
+        { "file": "__tests__/skills/product-acceptance.test.ts", "line": 37 }
+      ]
+    },
+    {
+      "id": "AC-2535.3",
+      "verdict": "PASS",
+      "note": "The session sheet declares result-matrix/findings output, NOT COVERED honesty, and the required SBTM effort, opportunity, and obstacle fields. The regression pins those markers without interpreting the typed FIELDLIST as JSON.",
+      "evidence": [
+        { "file": ".claude/skills/product-acceptance/SKILL.md", "line": 204 },
+        { "file": ".claude/skills/product-acceptance/SKILL.md", "line": 221 },
+        { "file": "__tests__/skills/product-acceptance.test.ts", "line": 43 }
+      ]
+    }
+  ],
+  "limitations": "Focused structural regression and actual root review only. No claim that the skill proves runtime agent behavior, product release readiness, full L1/L2, CI, landing, or merge."
+}

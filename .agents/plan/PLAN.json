@@ -4,6 +4,15 @@
     "track": "A",
     "paths": [
       ".agents/plan/PLAN.json",
+      ".arbiter/evidence/ac-fit/2535.json",
+      ".arbiter/evidence/plan-review/2535/latest.json",
+      ".arbiter/evidence/tdd/#2535.json",
+      ".claude/plans/task-2535-product-acceptance.md",
+      ".claude/skills/product-acceptance/SKILL.md",
+      "__tests__/skills/product-acceptance.test.ts",
+      "__tests__/scripts/eslint-scripts-coverage.test.ts",
+      "__tests__/scripts/self-only-surfaces.test.ts",
+      "scripts/data/self-only-surfaces.json",
       ".arbiter/evidence/ac-fit/2605.json",
       ".arbiter/evidence/benchmark/#2605.json",
       ".arbiter/evidence/plan-review/2605/latest.json",
@@ -90,7 +99,16 @@
   },
   "files": [
     { "path": ".agents/plan/PLAN.json", "operation": "modify" },
-    { "path": ".claude/plans/task-2605-l2-single-corpus.md", "operation": "modify" }
+    { "path": ".claude/plans/task-2605-l2-single-corpus.md", "operation": "modify" },
+    { "path": "__tests__/scripts/eslint-scripts-coverage.test.ts", "operation": "modify" },
+    { "path": "__tests__/scripts/self-only-surfaces.test.ts", "operation": "modify" },
+    { "path": "scripts/data/self-only-surfaces.json", "operation": "modify" },
+    { "path": ".arbiter/evidence/ac-fit/2535.json", "operation": "create" },
+    { "path": ".arbiter/evidence/plan-review/2535/latest.json", "operation": "create" },
+    { "path": ".claude/plans/task-2535-product-acceptance.md", "operation": "create" },
+    { "path": ".arbiter/evidence/tdd/#2535.json", "operation": "create" },
+    { "path": ".claude/skills/product-acceptance/SKILL.md", "operation": "create" },
+    { "path": "__tests__/skills/product-acceptance.test.ts", "operation": "create" }
   ],
   "invariants": { "ui_language": "EN", "no_skips": true },
   "invariant_ids": ["INV-22", "INV-24", "INV-25", "INV-26", "INV-27", "INV-53", "INV-59"],

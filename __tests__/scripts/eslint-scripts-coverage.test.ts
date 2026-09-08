@@ -7,11 +7,13 @@
 import { describe, it, expect } from 'vitest'
 import { ESLint } from 'eslint'
 import { join } from 'node:path'
+import config from '../../eslint.config.js'
 
 const repoRoot = join(__dirname, '..', '..')
 
 async function lintAsScript(code: string): Promise<{ ruleId: string | null; message: string }[]> {
-  const eslint = new ESLint({ cwd: repoRoot })
+  // Keep rule imports in Vitest's module graph; native config loading duplicates V8 coverage.
+  const eslint = new ESLint({ cwd: repoRoot, overrideConfigFile: true, overrideConfig: config })
   // A path under scripts/ so the dedicated flat-config block matches. The file
   // need not exist on disk — lintText evaluates the text against the config that
   // governs that path.

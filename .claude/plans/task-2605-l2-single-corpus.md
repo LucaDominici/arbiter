@@ -43,7 +43,7 @@ No cache or invented execution proof is allowed.
 
 ## Scope
 
-The exact 83-path write set is the `scope.paths` array in `.agents/plan/PLAN.json`.
+The exact write set is the `scope.paths` array in `.agents/plan/PLAN.json`.
 It is deliberately an integration manifest, not a claim that all paths belong to #2605.
 The functional groups and preserved source identities are:
 
@@ -110,6 +110,25 @@ L2 source assertion that the strict option is wired. The approved self-only `fai
 delta is re-pinned through the native dogfood command; it does not change the emitted helper.
 
 ## Batch verification status
+
+Maintenance continuation, 2026-09-08: the owner-directed resumed packet adds
+unchanged PR #2535 source `5538b118da074bd5a00ae7440bb41002db1d59fb`, its
+genuine regression-retrofit RED/evidence and prepared native plan/review records,
+via `b9002004aadda6325ac61c50af18946e5ab0cd45`. Its three criteria and non-goals
+remain in `task-2535-product-acceptance.md`; the explicit batch instruction
+supersedes that source worker's prohibition on pre-#2608 integration.
+The only additional test repair loads the real ESLint configuration through the
+same Vitest module graph: the old mixed loaders reproduced 66 passing assertions
+but failed coverage; the corrected isolated complete corpus passed 17,541 tests
+and coverage/ratchets. No configuration rules, selectors, thresholds or assertions
+are removed. Previous reviews retain their original subjects and timestamps;
+existing-PR procedural ceremony is WAIVED by the owner, not newly reviewed PASS.
+The expanded candidate still needs native L1, committed TDD, exact L2 and current
+CI before landing. Historical or isolated diagnostic proof is not its acceptance.
+The new self-only skill also requires regeneration of
+`scripts/data/self-only-surfaces.json` using `deriveSelfOnlySurfaces`, and the
+matching exact skill-list expectation in its existing test. These are the derived
+closure of PR #2535, not an emitted skill/template or expanded product behavior.
 
 The imported source state is green only at its recorded focused selectors. Before any
 push, PR, merge, or acceptance claim, root must independently review this amended plan and
