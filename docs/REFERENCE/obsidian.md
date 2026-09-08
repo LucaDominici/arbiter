@@ -106,3 +106,32 @@ with the `arbiter update` hint — there is nothing to sync until the corpus exi
 the default `wiki` is passed straight through as `--wiki-dir` to both scripts — this
 requires both scripts to support that flag (as of #1979, `check-wiki-lint.mjs` already
 did; `gen-wiki.mjs` was given parity as part of this same change, see ADR-107 §Design-risk-#3).
+
+## Orphan-page pruning in the emitted generator (#2530)
+
+`wiki/` is gitignored, so a page whose source doc is gone — deleted, renamed, or simply
+absent after a branch switch — survives every regeneration. `check-wiki-lint.mjs` then
+fails its citation check on a file the developer never wrote and cannot find in git.
+
+`gen-wiki.mjs` therefore deletes orphaned pages at the end of a build. Both arbiter's own
+script and the copy emitted into every governed project from
+`src/templates/scripts/gen-wiki.mjs.ejs` implement the same mechanism, so the behaviour a
+governed project sees matches the one documented here.
+
+Two properties bound what it may delete:
+
+- **Ownership, not a `wiki/` sweep.** A page is removed only when it carries the
+  `generated: true` + `source: '<path>'` frontmatter that `generatePage()` writes itself.
+  A hand-written file has no such frontmatter and is never touched; `INDEX.md` is excluded
+  explicitly.
+- **Compared against the full source set, never the changed subset.** Under `--changed`
+  the run rewrites only the stale pages, but every other current source is still valid.
+  Pruning against the changed subset would delete every page the run merely did not
+  rewrite — on a corpus where an incremental run rewrites zero pages, that empties the
+  vault. The check is against the full `sources` list for this reason.
+
+The build reports both counts, so a prune is never silent:
+
+```
+gen-wiki: 0 page(s) written to wiki/, 1 page(s) pruned
+```

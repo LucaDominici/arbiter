@@ -552,12 +552,20 @@ function summarizeDiff(
  *   - `withheld` — diverged and preserved because no adopt policy matched (the
  *     same set `arbiter diff` surfaces; kept as its own bucket so a file that
  *     moves between the two channels never drops out of the plan entirely).
+ *   - `restore` (#2305) — a fourth write channel #2295 added AFTER this split:
+ *     `action: 'created'` + `restored: true`, a manifest-baselined path the
+ *     consumer deleted that the run re-emits and declares. It fell into
+ *     neither bucket above (not a rewrite of an existing file, not withheld),
+ *     so it stayed invisible in `--adopt-plan` while the real run restored it
+ *     loudly — the same "declared on the write side, silent on the preview
+ *     side" defect as #2120 and #2221 (`wouldRetire`).
  * `skipped` is deliberately not a bucket: it is every unchanged file, and a
  * preview nobody reads protects nobody.
  */
 function partitionPlanResults(results: WriteResult[]): {
   regenerate: WriteResult[]
   withheld: WriteResult[]
+  restore: WriteResult[]
 } {
   return {
     regenerate: results.filter(
@@ -565,6 +573,7 @@ function partitionPlanResults(results: WriteResult[]): {
         (r.action === 'replaced' || r.action === 'backed-up-and-replaced') && r.withheld !== true,
     ),
     withheld: results.filter((r) => r.withheld === true && r.adopted !== true),
+    restore: results.filter((r) => r.restored === true),
   }
 }
 
@@ -575,7 +584,7 @@ function printAdoptPlan(
   targetDir: string,
   json: boolean | undefined,
 ): void {
-  const { regenerate, withheld } = partitionPlanResults(results)
+  const { regenerate, withheld, restore } = partitionPlanResults(results)
   const rel = (r: WriteResult): string => manifestKey(targetDir, r.path) ?? r.path
   if (json) {
     jsonOutput('update', 'ok', {
@@ -585,6 +594,7 @@ function printAdoptPlan(
       })),
       wouldRegenerate: regenerate.map(rel),
       withheld: withheld.map(rel),
+      wouldRestore: restore.map(rel),
       wouldRetire: retirement.retire,
       orphans: retirement.orphans,
       stale: retirement.stale,
@@ -623,6 +633,13 @@ function printAdoptPlan(
       `\n  would withhold ${withheld.length} file(s) (locally diverged, no adopt policy matches):\n`,
     )
     for (const r of withheld) process.stdout.write(`    - ${rel(r)}\n`)
+  }
+  if (restore.length > 0) {
+    process.stdout.write(
+      `\n  would restore ${restore.length} file(s) (arbiter-owned, DELETED from disk since arbiter ` +
+        `wrote them — the run re-emits them):\n`,
+    )
+    for (const r of restore) process.stdout.write(`    - ${rel(r)}\n`)
   }
   process.stdout.write('  Re-run without --adopt-plan to apply. Nothing was written.\n')
 }
