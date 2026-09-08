@@ -1,8 +1,8 @@
 ---
 title: 'Task Recovery Reference'
-doc_version: '2.1.0'
+doc_version: '2.1.1'
 status: active
-last_review: '2026-06-09'
+last_review: '2026-09-08'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -214,7 +214,14 @@ is registered for SIGTERM/SIGINT cleanup (#613). Shell consumers read fields via
 `arbiter task get --field <phase|taskId|tier|plan|tddPhase|lastAction|nextAction>` and seed state via
 `arbiter task init --id #NNN --tier <tier> --plan <path>`.
 
-The verification, close, and complete transitions validate `.arbiter/gate-pass.json` before writing
-the phase. The marker must be valid for the current HEAD and branch and have
+Entering red validates the anchored Markdown plan when the acceptance-anchor profile is enabled.
+A missing checker or invalid anchor prevents the transition without changing the phase.
+Entering verification validates primary and chained TDD evidence: each receipt must be committed
+in HEAD, unchanged in the index/worktree, and produced after the merge-base with origin/main.
+Missing origin/main is unverifiable provenance and prevents verification. Commit genuine RED
+receipts before advancing; whole-chain provenance is not required at green.
+
+The close and complete transitions validate `.arbiter/gate-pass.json` before writing
+the phase (L1 and L2 respectively). The marker must be valid for the current HEAD and branch and have
 `tree_was_clean_at_run_time: true`; missing, corrupt, stale, or dirty-tree markers fail closed.
 `ARBITER_SKIP_GATE_MARKER=1` is a local emergency bypass and is refused when `CI=true`.
