@@ -100,6 +100,38 @@ stays one. The distinction is _files scanned_, not _violations found_.
 > including whether a _mis-invocation_ (a path that does not exist) and an _empty-but-valid scan
 > root_ should share a code at all — and converts every member in one change.
 
+## Scanning the tree you listed (#2514)
+
+Empty-scan refusal above asks whether a gate was given anything to look at. This asks the next
+question: was it given the **same** thing it listed?
+
+`check-no-redacted-tokens.mjs` enumerates candidates with `git ls-files` run in `GIT_CWD` — which
+the pre-commit and pre-push hooks set to a `#`-free temp copy of the tree, because a path
+containing `#` (a `task/#NNN-*` worktree) breaks vitest. It then read each file body from
+`join(ROOT, rel)` — `ROOT` being the script's own location, a _different_ tree.
+
+That is worse than it first looks, and worse than an outright error. When the two trees are
+copies of the same repo their file sets mostly coincide, so nearly every read **succeeds** —
+against the wrong version. The gate reports a clean scan of a tree it never opened. A two-tree
+setup that simply threw would at least be loud; this was a false pass with no warning at all.
+
+The rule the fix installs: **every file body is resolved against the same root that listed it.**
+`ROOT` stays reserved for the script's own on-disk assets — here the token lexicon — which do not
+move with the tree under scan. The two roots are not interchangeable and the distinction is now
+stated where the constant is defined.
+
+The unreadable-file branch changed with it. It previously printed `WARN` while already counting
+toward `violations`, so the label described a non-blocking warning that did not exist. It now
+says `FAIL — treated as a violation (fail-closed)`, matching the policy
+`check-no-tracked-artifacts.mjs` states on this same axis: a non-git CWD is an error, never a
+silent pass — **NO-DATA ≠ PASS**.
+
+This also moves "no redacted tokens" out of the deferral ledger in
+`scripts/data/inversion-proof-registry.json` and into a real flip proof, so the deferred ceiling
+falls 16 → 15. Lowering it is mandatory, not optional: an improvement left unbanked is a failure
+in this repo, and the ceiling is pinned once in `scripts/lib/gate-roster.mjs` (`MAX_DEFERRED`) so
+it cannot drift from the ledger it bounds.
+
 ## `arbiter doctor` diagnostics for target repos (#2162)
 
 The guards above catch arbiter faking green on **its own** gate. `arbiter doctor tool-pins` and

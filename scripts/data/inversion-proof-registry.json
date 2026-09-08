@@ -22,16 +22,8 @@
     "check was rejected deliberately — it cannot run offline or in a tokenless job, and a check that",
     "silently no-ops in some environments is the corollary #2301 itself names."
   ],
-  "ceiling": 16,
+  "ceiling": 15,
   "deferred": [
-    {
-      "gate": "no redacted tokens",
-      "script": "scripts/check-no-redacted-tokens.mjs",
-      "category": "no",
-      "reason": "git ls-files is redirectable via ARBITER_HOOK_GIT_CWD, but each file body is read as join(ROOT, rel) against the script's own repo root, so a fixture repo's files are never opened. No injection point without changing the gate.",
-      "issue": 2301,
-      "expires": "2026-12-31"
-    },
     {
       "gate": "bloat ratchet",
       "script": "scripts/check-bloat-ratchet.mjs",
