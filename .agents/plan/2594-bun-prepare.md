@@ -108,6 +108,18 @@ integration worktree use a new task-form recovery branch from frozen ff7d5770,
  manifest runtime artifacts are themselves consumed by parity/gate paths and
  are retained only as native contract artifacts, not implementation scope.
 
+The authoritative task state is `.claude/.task/status.json`: it was rebound to
+`task/#2594-bun-git-prepare-recovery` and transitioned from `refactor` to
+`plan` using the explicit reverse command above on 2026-09-08. Activate the
+existing opt-in native plan gate with `.arbiter/plan-review.enabled`; before
+moving to `red-team-review`, a fresh independent PASS must be recorded at
+`.arbiter/evidence/plan-review/2594/latest.json` with this plan's exact digest.
+For Standard red-team, record three independently stamped raw returns and
+compile `.arbiter/evidence/redteam/#2594.json` with task, recovery branch,
+base SHA, plan SHA/digest, timestamp, reviewers and findings. The coordinator
+validates every binding before advancing. This bundle proves the plan/base only;
+the later GREEN SHA needs its own TDD, AC-fit, review and gate receipts.
+
  Commit only the missing-compiler test with an issue-linked subject
 and explicit AC mapping; run `task record-red` without force. Apply exactly the
 preserved production hunk for GREEN, run composed L1 before its commit, and
