@@ -76,12 +76,13 @@ try {
   const hasPkg = existsSync(pkgPath)
   const hasGoMod = existsSync(goModPath)
 
-  let pkgText = ''
+  const nodeDependencies = new Set()
   if (hasPkg) {
-    try {
-      pkgText = readFileSync(pkgPath, 'utf8')
-    } catch {
-      pkgText = ''
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+    for (const section of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
+      if (pkg[section] && typeof pkg[section] === 'object' && !Array.isArray(pkg[section])) {
+        for (const name of Object.keys(pkg[section])) nodeDependencies.add(name)
+      }
     }
   }
   let goModText = ''
@@ -92,11 +93,13 @@ try {
       goModText = ''
     }
   }
-  // Root *.lock files (package-lock.json, go.sum, poetry.lock, Cargo.lock, ...).
+  // Root non-Node lock files (go.sum, poetry.lock, Cargo.lock, ...). Node lockfiles
+  // record transitive and optional peers, so only root package.json keys prove Node drivers.
   let lockText = ''
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (!entry.isFile()) continue
-    if (entry.name.endsWith('.lock') || entry.name === 'package-lock.json' || entry.name === 'go.sum') {
+    if (entry.name === 'package-lock.json' || entry.name === 'yarn.lock' || entry.name === 'bun.lock') continue
+    if (entry.name.endsWith('.lock') || entry.name === 'go.sum') {
       try {
         lockText += readFileSync(join(root, entry.name), 'utf8')
       } catch {
@@ -104,7 +107,7 @@ try {
       }
     }
   }
-  const manifestText = `${pkgText}\n${goModText}\n${lockText}`
+  const nonNodeManifestText = `${goModText}\n${lockText}`
 
   // ─── Language conformity ──────────────────────────────────────────────────
   // go declared but the root is a Node/TS project (package.json, no go.mod).
@@ -133,7 +136,13 @@ try {
         if (declaredDrivers.has(driver)) continue
         // Word-ish boundary match: driver token quoted/pathed in a manifest.
         const re = new RegExp(`(^|[^\\w/.-])${driver.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}([^\\w/.-]|$)`, 'm')
-        if (re.test(manifestText)) {
+        // Slash-bearing Go module paths are embedded in a larger module path
+        // (for example github.com/lib/pq); match whole path segments, not substrings.
+        const slashDriverRe = new RegExp(`(^|[^\\w.-])${driver.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}($|[^\\w.-])`, 'm')
+        const nonNodeDriverMatch = driver.includes('/')
+          ? slashDriverRe.test(nonNodeManifestText)
+          : re.test(nonNodeManifestText)
+        if (nodeDependencies.has(driver) || nonNodeDriverMatch) {
           fail(
             `declared databaseEngine="${engine}" but the repo-root manifest references the ` +
               `"${driver}" driver (implies "${otherEngine}"). Database axis contradicted.`,

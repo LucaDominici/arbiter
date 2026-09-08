@@ -1,59 +1,401 @@
 {
-  "task_id": "#2594",
+  "task_id": "#2598",
   "scope": {
     "track": "A",
     "paths": [
-      "scripts/prepare-lifecycle.mjs",
-      "__tests__/scripts/prepare-lifecycle.test.ts",
-      ".agents/plan/2594-bun-prepare.md",
-      "docs/QUICKSTART.md",
-      ".arbiter/evidence/tdd/#2594.json",
+      ".dogfood-divergences.json",
       ".agents/plan/PLAN.json",
-      ".arbiter/evidence/ac-fit/2594.json",
-      ".arbiter/evidence/_2594/tech-debt.json",
-      "scripts/data/codex-self-parity-runtime-artifacts.json",
-      "docs/internal/PRODUCT/GAP.md"
+      ".arbiter/agents-dispatched.json",
+      ".arbiter/evidence/tdd/#2447.json",
+      ".arbiter/evidence/tdd/#2448.json",
+      ".arbiter/evidence/tdd/#2449.json",
+      ".arbiter/evidence/tdd/#2450.json",
+      ".arbiter/evidence/tdd/#2468.json",
+      ".arbiter/evidence/tdd/#2501.json",
+      ".arbiter/evidence/tdd/#2598.json",
+      ".arbiter/plan-2501.md",
+      ".github/actions/setup-node-pnpm/action.yml",
+      ".github/workflows/01-pr-fast.yml",
+      "AGENTS.md",
+      "README.md",
+      "__tests__/commands/cross-model-review.test.ts",
+      "__tests__/docs/backward-compat-fixture-inventory-2450.test.ts",
+      "__tests__/docs/file-stability-truth-2447.test.ts",
+      "__tests__/docs/semver-breaking-log-2448.test.ts",
+      "__tests__/generators/check-stack-conformity.test.ts",
+      "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "__tests__/integrations/external-review-subprocess.test.ts",
+      "__tests__/scripts/adr-status-vocabulary.test.ts",
+      "__tests__/scripts/check-deprecations.test.ts",
+      "__tests__/templates/01-pr-fast-render.test.ts",
+      "__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml",
+      "__tests__/templates/setup-node-pnpm-render.test.ts",
+      "docs/DEPRECATIONS.md",
+      "docs/INDEX.md",
+      "docs/REFERENCE/backward-compat-harness.md",
+      "docs/REFERENCE/file-stability.md",
+      "docs/REFERENCE/workflow-pr-fast.md",
+      "docs/SEMVER.md",
+      "docs/internal/ADR/095-supported-ai-tools-claude-codex.md",
+      "docs/internal/ADR/096-probe-incidental-discovery-loop.md",
+      "docs/internal/ADR/097-context-rot-management-skill.md",
+      "docs/internal/ADR/100-companion-plugin-awareness.md",
+      "docs/internal/ADR/README.md",
+      "docs/internal/SYSTEM/DECISIONS.md",
+      "examples/*/.github/actions/setup-node-pnpm/action.yml",
+      "examples/go-library/.arbiter-generated-manifest.json",
+      "examples/go-library/scripts/check-stack-conformity.mjs",
+      "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/python-library/scripts/check-stack-conformity.mjs",
+      "examples/ts-library/.arbiter-generated-manifest.json",
+      "examples/ts-library/scripts/check-stack-conformity.mjs",
+      "scripts/check-deprecations.mjs",
+      "src/generators/safety-class.ts",
+      "src/templates/github/actions/setup-node-pnpm/action.yml.ejs",
+      "src/templates/github/workflows/01-pr-fast.yml.ejs",
+      "src/templates/scripts/check-stack-conformity.mjs.ejs",
+      "src/wizard/types.ts",
+      "website/governance/AGENTS.md"
     ]
   },
   "files": [
-    {
-      "path": "docs/QUICKSTART.md",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/tdd/#2594.json",
-      "operation": "create"
-    },
-    {
-      "path": "scripts/prepare-lifecycle.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/scripts/prepare-lifecycle.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": ".agents/plan/2594-bun-prepare.md",
-      "operation": "create"
-    },
+    { "path": ".dogfood-divergences.json", "operation": "modify" },
     {
       "path": ".agents/plan/PLAN.json",
       "operation": "modify"
     },
     {
-      "path": ".arbiter/evidence/ac-fit/2594.json",
-      "operation": "create"
-    },
-    {
-      "path": ".arbiter/evidence/_2594/tech-debt.json",
-      "operation": "create"
-    },
-    {
-      "path": "scripts/data/codex-self-parity-runtime-artifacts.json",
+      "path": ".arbiter/agents-dispatched.json",
       "operation": "modify"
     },
     {
-      "path": "docs/internal/PRODUCT/GAP.md",
+      "path": ".arbiter/evidence/tdd/#2447.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2448.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2449.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2450.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2468.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2501.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2598.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/plan-2501.md",
+      "operation": "modify"
+    },
+    {
+      "path": ".github/actions/setup-node-pnpm/action.yml",
+      "operation": "modify"
+    },
+    {
+      "path": ".github/workflows/01-pr-fast.yml",
+      "operation": "modify"
+    },
+    {
+      "path": "AGENTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "README.md",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/commands/cross-model-review.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/docs/backward-compat-fixture-inventory-2450.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/docs/file-stability-truth-2447.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/docs/semver-breaking-log-2448.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/generators/check-stack-conformity.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integrations/external-review-subprocess.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/adr-status-vocabulary.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-deprecations.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/01-pr-fast-render.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/setup-node-pnpm-render.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/DEPRECATIONS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/INDEX.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/REFERENCE/backward-compat-harness.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/REFERENCE/file-stability.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/REFERENCE/workflow-pr-fast.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/SEMVER.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/ADR/095-supported-ai-tools-claude-codex.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/ADR/096-probe-incidental-discovery-loop.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/ADR/097-context-rot-management-skill.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/ADR/100-companion-plugin-awareness.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/ADR/README.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/SYSTEM/DECISIONS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/*/.github/actions/setup-node-pnpm/action.yml",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/check-stack-conformity.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/check-stack-conformity.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-stack-conformity.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-deprecations.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/generators/safety-class.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/github/actions/setup-node-pnpm/action.yml.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/github/workflows/01-pr-fast.yml.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-stack-conformity.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/wizard/types.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "website/governance/AGENTS.md",
       "operation": "modify"
     }
   ],
@@ -61,10 +403,26 @@
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": ["INV-08", "INV-23", "INV-24", "INV-25", "INV-26", "INV-27", "INV-53"],
+  "invariant_ids": [
+    "INV-24",
+    "INV-25",
+    "INV-26",
+    "INV-27",
+    "INV-45",
+    "INV-53",
+    "INV-58",
+    "INV-101"
+  ],
+  "notes": [
+    "Owner-directed integration of existing PRs2601,2477,2475,2478,2481,2497,2525 from frozen main9792adb4541093bbb32709c80581bf86773a4dfd; preserve all source ancestry and tests.",
+    "Owner2026-09-08 explicitly waived procedural review/draft/needs-human barriers for these existing PRs; this is an owner waiver, not independent review evidence. Real tests, gate thresholds and exact-SHA/CAS remain required.",
+    "Fix measured runner setup overhead: bare Node-only jobs disable automatic npm caching; composite retains remote npm caching for ephemeral GitHub-hosted runners and uses the existing persistent npm cache on self-hosted runners. Exact-key node_modules caching and npm ci unchanged.",
+    "New CI-cache assertions first failed2/61 on2026-09-08 15:24:32CEST, before template changes. This is empirical RED, not a new committed native TDD receipt. Existing per-issue TDD receipts retain their real ancestry.",
+    "Resolve2525 conflicts by preserving main's newer budget/stdin-drain fixes and adding the independent deterministic timeout classification assertion. Regenerate derived artifacts once after combining source."
+  ],
   "review_bridge": {
-    "enabled": true,
-    "reviewer": "bridge-reviewer",
-    "fail_on_warn": true
+    "enabled": false,
+    "reviewer": "owner-existing-pr-waiver",
+    "fail_on_warn": false
   }
 }

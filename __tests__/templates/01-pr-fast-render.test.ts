@@ -69,6 +69,11 @@ describe('01-pr-fast.yml.ejs — structural invariants (CANON-18, #1131)', () =>
     // installing deps — they intentionally stay on inline bare setup-node.
     const rendered = render({ language: 'typescript', governanceLevel: 'L3' })
     expect(rendered).toContain('actions/setup-node@')
+    for (const job of ['security-early-fail', 'classify-changes']) {
+      const block = rendered.split(`  ${job}:`)[1]?.split(/\n {2}[a-z][a-z-]+:/)[0] ?? ''
+      expect(block).toContain('package-manager-cache: false')
+      expect(block).not.toContain('cache: npm')
+    }
   })
 
   it.each(['java', 'go', 'python', 'rust'] as const)(

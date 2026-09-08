@@ -194,4 +194,30 @@ printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[
     },
     externalSeatHarnessTimeoutMs(),
   )
+
+  it('degrades deterministically when the seat exceeds an injected timeout (#2501)', () => {
+    const codex = join(fixture, 'bin', 'codex')
+    writeFileSync(codex, '#!/bin/sh\ncat > /dev/null\nexec sleep 5\n', 'utf-8')
+    chmodSync(codex, 0o755)
+    const dispatchEvidenceDir = join(fixture, 'dispatch')
+    const result = invokeExternalReview({
+      ...reviewRequest({
+        taskId: '#2501',
+        timeoutMs: 200,
+        evidenceDir,
+        dispatchEvidenceDir,
+        env: reviewEnv,
+      }),
+      tier: 'Standard',
+      phase: 'refactor',
+    })
+
+    expect(result.status).toBe('degraded')
+    expect(result.degradationReason).toBe('invocation-failed')
+    const dispatch = JSON.parse(
+      readFileSync(join(dispatchEvidenceDir, '_2501', 'dispatch.json'), 'utf-8'),
+    ) as { degraded: Array<{ reason: string; substitute: string }> }
+    expect(dispatch.degraded).toHaveLength(1)
+    expect(dispatch.degraded[0]).toMatchObject({ reason: 'timeout', substitute: 'anthropic' })
+  })
 })

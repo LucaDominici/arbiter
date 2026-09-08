@@ -3,7 +3,8 @@
 # already-generated repos on their next `arbiter update` (#1131).
 name: Setup Node.js + npm ci
 description: >-
-  Sets up Node.js from .nvmrc with the npm cache, then runs `npm ci`.
+  Sets up Node.js from .nvmrc, then runs `npm ci`. Remote npm caching is enabled
+  only on ephemeral GitHub-hosted runners; self-hosted slots retain their local cache.
   Set the `install` input to 'false' for setup-only jobs.
 
 inputs:
@@ -24,7 +25,8 @@ runs:
       with:
 <% if (language === 'typescript') { -%>
         node-version-file: ${{ inputs.node-version-file }}
-        cache: npm
+        package-manager-cache: false
+        cache: ${{ runner.environment == 'github-hosted' && 'npm' || '' }}
 <% } else { -%>
         node-version-file: ${{ inputs.node-version-file }}
         package-manager-cache: false
