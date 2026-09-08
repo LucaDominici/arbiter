@@ -42,6 +42,7 @@ describe('deriveSelfOnlySurfaces()', () => {
     expect(derived.hooks).toEqual([
       '.claude/hooks/check-no-any.mjs',
       '.claude/hooks/check-no-direct-spawn.mjs',
+      '.claude/hooks/post-edit-artifact-schema.mjs',
       '.claude/hooks/pre-edit-load-memory.mjs',
     ])
   })

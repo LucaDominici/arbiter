@@ -326,7 +326,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Tier-2 (advisory only — do NOT hard-gate alone):**
 
 - **SOLID principles** — useful design vocabulary; little controlled evidence that mechanical conformance reduces defects.
-- **DRY-as-dogma** — duplication _count_ gates, but blanket "repeat nothing" dogma over-abstracts; only inconsistent/significant clones are Tier-1.
+- **DRY-as-dogma** — duplication _count_ gates, but "never repeat anything" over-abstracts; only inconsistent/significant clones are Tier-1.
 - **Cognitive complexity (Campbell / SonarSource 2018)** — plausible and popular but not independently replicated to McCabe's standard; advisory until validated.
 
 **Why:** Quality enforcement that fails the build on contested heuristics breeds gate-fatigue and bypasses, eroding trust in the gates that _are_ validated. Anchoring hard gates to replicated evidence keeps the gate set defensible and the signal high. Conversely, leaving a validated concern (duplication, complexity, debt) to advice alone is how anti-bloat rots — the owner's primary failure mode. This rule draws the line and forces each new gate to declare its tier.
@@ -353,7 +353,23 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ---
 
-## CANON-24 — Name the change that turns a gate red, and prove it by inverting it
+## CANON-24 — Adversarial review hops until nothing above `low` survives
+
+**Rule:** A high-stakes change is not closed on one pass of review. Independent skeptics are dispatched with a REFUTE mandate, and the loop **repeats** — each hop attacking the fixes the previous hop forced — until no finding above `low` severity remains unaddressed. A hop that cannot reach an independent reviewer (model unavailable, rate limit, the cross-model seat offline) may be self-probed, but is recorded `degraded` and never counted as an independent round.
+
+**Why:** One pass finds what one reader happens to look for. Empirically, in #2480, the first pass of a gate that read as finished missed that its engine was absent from `package.json files[]` — a verbatim repeat of #2335, walking straight through the guard written to stop exactly it — and that its skeletons resolved from a path present only in a dev checkout, so every real consumer would have got a silent permanent SKIP. The second pass, attacking the fixes, found that a document wrapped entirely in an HTML comment scored 12/12: a file rendering as a single heading, judged perfect. Neither was visible to the 29 tests shipped alongside. The loop is what converts "I reviewed it" into "it survived being attacked until only nits remained".
+
+Stopping at one hop is the same error class as accepting a finding from one agent (CANON-21 / M13) — that rule fixes the false POSITIVE (acting on a phantom); this one fixes the false NEGATIVE (stopping while something real is open). They are two halves of one mechanism and share its evidence.
+
+**Enforcement:** `scripts/check-refutation-verdicts.mjs` (advisory `runWarnCheck` at L2+ on both tracks — `scripts/check-all.mjs` and `src/templates/scripts/gate-registry.yml.ejs`). Marker-gated, as the majority axis is: with `.arbiter/evidence/agent-returns/<task>/refutation-required.json` present, every finding the skeptics majority-UPHELD at `critical`/`high`/`med` must appear in the marker's acted-on `findings`. Severity is taken as the highest any skeptic assigned. A finding below quorum or majority-REFUTED never blocks — a single false alarm must not hold a wave hostage. `degraded: true` on the marker is reported on every run and never suppressed. Verified by `__tests__/scripts/check-refutation-verdicts.test.ts`.
+
+**Promoted to:** INV-145 (adversarial review closes only at low-only findings)
+
+**Source issues:** #2480 2026-09-03 (owner rule, stated after two rounds destroyed two successive versions of one gate)
+
+---
+
+## CANON-25 — Name the change that turns a gate red, and prove it by inverting it
 
 **Rule:** Every gate that is introduced or modified MUST name the concrete change that has to turn it RED, and MUST prove it by inverting that change — a planted BAD case the gate rejects and a CLEAN case it accepts. If the change cannot be named, the criterion is vacuous and the gate does not land. A test that still passes with the fix removed is not the oracle. For the ABSENCE-asserting family (`check-no-*`, ratchets, parity), the proof is machine-required: a member of that family with neither a flip proof nor a banked deferral row fails the build.
 
@@ -364,6 +380,6 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 3. **The environment can silently disable a test.** The runner is root and `skipIf(!TOOL)` can switch off a whole file. Bind in EVERY environment — provoke `EISDIR` rather than a permission bit, and gate only the part that genuinely needs the binary.
 4. **An upstream failure masks downstream ones.** Expect each fix to unblock the next red.
 
-**Enforcement:** `scripts/check-guard-flip.mjs` + `__tests__/scripts/check-guard-flip.test.ts` (L2, via the unit-test step). The harness derives the absence-asserting family live from `scripts/check-all.mjs` (`scripts/lib/gate-roster.mjs`), runs each member against its planted bad/clean fixture in `scripts/lib/guard-flip-registry.mjs`, and fails on a member that accepts the bad fixture (VACUOUS), rejects the clean one (over-eager), or has no proof at all (UNCOVERED). The one-off audit's unproven residue lives in `scripts/data/inversion-proof-registry.json`, BANKED: the harness fails when the ledger's length differs from its declared ceiling in either direction, so a new family gate cannot be waved through by appending a row, and a proven row cannot leave re-fillable slack. Each ledger row is machine-verified offline — the gate it names must still be in the derived family, its script and category must agree with that derivation, its reason must be substantive, and its `expires` date must not have passed. A GitHub-API liveness check on the cited issue was rejected deliberately: it cannot run offline or in a tokenless job, and a check that silently no-ops in some environments is corollary 3 above.
+**Enforcement:** `scripts/check-guard-flip.mjs` + `__tests__/scripts/check-guard-flip.test.ts`, reached through the `unit tests` step — which sits before `l1EndIdx` in `scripts/check-all.mjs`, so this binds at **L1, on every commit**, not only at L2. The harness derives the absence-asserting family live from `scripts/check-all.mjs` (`scripts/lib/gate-roster.mjs`), runs each member against its planted bad/clean fixture in `scripts/lib/guard-flip-registry.mjs`, and fails on a member that accepts the bad fixture (VACUOUS), rejects the clean one (over-eager), or has no proof at all (UNCOVERED). The derivation itself carries a floor (`MIN_ABSENCE_FAMILY`): a `check-all.mjs` the parser can no longer read is an ERROR, never a silently short programme that proves proportionally less — corollary 2 applied to this gate's own oracle. The one-off audit's unproven residue lives in `scripts/data/inversion-proof-registry.json`, BANKED: the ledger's length must equal its declared ceiling **and that ceiling must equal the `MAX_DEFERRED` pin in `scripts/lib/gate-roster.mjs`**. Holding the pin in source rather than in the ledger is what makes the next sentence true — a new family gate cannot be waved through by appending a row, because the data file cannot authorise its own growth; widening it is a source edit review sees. A proven row cannot leave re-fillable slack either: below the ceiling fails too. Each ledger row is machine-verified offline — the gate it names must still be in the derived family, its script and category must agree with that derivation, its reason must be substantive, and its `expires` date must not have passed. A GitHub-API liveness check on the cited issue was rejected deliberately: it cannot run offline or in a tokenless job, and a check that silently no-ops in some environments is corollary 3 above.
 
 **Source issues:** #2301 (mechanism); instances #2288, #2290, #2294, #2298, #2291

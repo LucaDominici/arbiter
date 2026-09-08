@@ -91,6 +91,16 @@ export interface DocSetOptions {
    * simply never forwarded when this is set.
    */
   freshness?: boolean
+  /**
+   * INV-144: route to the arc42 slot-completeness engine (scripts/check-arc42-slots.mjs) instead
+   * of the presence engine. Same rationale as `freshness` — a flag on this already-ledgered
+   * command rather than a second top-level verb (CANON-16). The engine reads its arc42 skeletons
+   * from arbiter's own tree and the audited document from `repo`, so a governed project is held to
+   * the skeleton it was generated from without carrying a copy of it.
+   */
+  arc42?: boolean
+  /** INV-144 (with `arc42`): re-record the ratchet counters. Refused when a counter rose. */
+  updateBaseline?: boolean
 }
 
 export interface DocSetResult {
@@ -109,15 +119,30 @@ function packageRoot(): string {
 function buildEngineArgs(opts: DocSetOptions): string[] {
   const args: string[] = []
   if (opts.json) args.push('--json')
+  // --manifest/--profile are pushed AFTER the arc42 early return, not before it: the arc42 engine
+  // knows only --dir/--skeleton-root/--update-baseline/--json, so forwarding them there meant
+  // `--arc42 --manifest custom.yml` silently audited the DEFAULT manifest and reported PASS
+  // against a file the operator had named and never got.
+  if (opts.arc42) return opts.updateBaseline ? [...args, '--update-baseline'] : args
   if (opts.manifest) args.push('--manifest', opts.manifest)
   if (opts.profile) args.push('--profile', opts.profile)
-  // The freshness engine has no --strict/--generate/--refresh-stubs concept (binary verdict,
-  // no scaffolding) — never forward them even if a caller set both `freshness` and one of these.
+  // The freshness engine has no --strict/--generate/--refresh-stubs concept (binary verdict, no
+  // scaffolding) — never forward them even if a caller set both `freshness` and one of these.
   if (opts.freshness) return args
   if (opts.strict) args.push('--strict')
   if (opts.generate) args.push('--generate')
   if (opts.refreshStubs) args.push('--refresh-stubs')
   return args
+}
+
+/**
+ * Which engine answers this invocation. One row per route rather than nested ternaries, so adding
+ * a fourth route later is a line, not a re-read of the whole expression.
+ */
+function engineFor(opts: DocSetOptions): string {
+  if (opts.arc42) return 'scripts/check-arc42-slots.mjs'
+  if (opts.freshness) return 'scripts/check-doc-freshness.mjs'
+  return 'scripts/check-doc-set.mjs'
 }
 
 /** Result of the raw engine invocation, before JSON parsing. */
@@ -176,10 +201,7 @@ function parsePayload(stdout: string, jsonRequested: boolean): DocSetPayload | n
  */
 export function runDocSet(opts: DocSetOptions = {}): DocSetResult {
   const repo = opts.repo ? resolve(opts.repo) : process.cwd()
-  const script = resolve(
-    packageRoot(),
-    opts.freshness ? 'scripts/check-doc-freshness.mjs' : 'scripts/check-doc-set.mjs',
-  )
+  const script = resolve(packageRoot(), engineFor(opts))
 
   const { stdout, stderr, exitCode } = runEngine(script, buildEngineArgs(opts), repo)
 
