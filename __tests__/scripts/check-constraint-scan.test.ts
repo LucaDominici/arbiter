@@ -890,7 +890,12 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
     }
   })
 
-  it('31. an absent baseline does not fail the gate — it reports RATCHET-UNSET', () => {
+  // An absent baseline used to exit 0 with [RATCHET-UNSET], which made deleting the file a
+  // way to pass: the gate still printed OK while guarding nothing. In self, where the
+  // baseline is a committed artefact, its absence is a fault and not a first run — the
+  // emitted twin keeps the permissive branch via RATCHET_REQUIRED=false because
+  // `arbiter init` ships no baseline and the first run is the one that seeds it.
+  it('31. an absent baseline FAILS the gate — deleting it must not be a way to pass', () => {
     const { dir, cleanup } = fixture()
     try {
       const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
@@ -898,8 +903,36 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
       const map = writeMap(dir, {})
       const missing = join(dir, 'no-such-baseline.json')
       const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${missing}`])
-      expect(r.status).toBe(0)
-      expect(r.stdout).toContain('[RATCHET-UNSET]')
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[RATCHET-MISSING]')
+      expect(r.stdout).not.toContain('[RATCHET-UNSET]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // The sibling hole: a baseline PRESENT but recording no floor. readBaselineBounds fell
+  // back to 0 / +Infinity, so `regressed` could never be set and the gate passed in
+  // SILENCE — no marker at all, the shape that reads as healthy in review.
+  // The baseline here is VALIDLY SIGNED on purpose. An unsigned one is refused earlier, by
+  // #2520's integrity gate (exit 2, untrusted), so writing the file by hand would prove only
+  // that — never that the floorless refusal works. The case that matters is a baseline which
+  // passes the integrity check and still guards nothing.
+  //
+  // Scoped to `unenforceable`: #2520 retired the `covered` floor (`direction: 'informational'`,
+  // read by nothing), so a missing `covered` entry is no longer a disarm and demanding one
+  // would be demanding a floor the tool does not enforce. See #2593.
+  it('31b. a signed baseline with no unenforceable floor FAILS and names the missing metric', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `**Never:**\n\n- ${PROSE}\n`)
+      const src = writeSrc(dir, {})
+      const map = writeMap(dir, {})
+      const empty = writeBaseline(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`, `--baseline=${empty}`])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('[RATCHET-MISSING]')
+      expect(r.stdout).toContain('unenforceable')
     } finally {
       cleanup()
     }

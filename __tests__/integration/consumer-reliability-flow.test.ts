@@ -102,6 +102,17 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
       kind: 'error',
       checks: { pinnedHead: { status: 'ERROR' }, update: { detail: 'not evaluated' } },
     })
+    // #2479: the same recorded details must reach STDOUT, not only the report files, so a
+    // red run is diagnosable from the CI log alone. Before this the log carried nothing but
+    // the one-line verdict, and reading a failure meant downloading the uploaded artifact —
+    // the friction that let a multi-day red streak on main go unread.
+    expect(result.stdout).toContain('originFree: ERROR')
+    expect(result.stdout).toContain('pinnedHead: ERROR')
+    expect(result.stdout).toContain('go (')
+    expect(result.stdout).toContain('typescript (')
+    // The verdict still lands last, so the log reads detail-then-conclusion.
+    expect(result.stdout.trimEnd().split('\n').at(-1)).toContain('[consumer-reliability] ERROR')
+
     const updated = readFileSync(fixture.updateMarker, 'utf-8').trim().split('\n')
     expect(updated.some((line) => line === goRepo || line === typescriptRepo)).toBe(false)
     expect(updated).toContain(join(workspace, 'java'))
