@@ -132,6 +132,7 @@
     "A and B reuse normal local caches without a reset; background runner load may differ.",
     "A future final evidence-only HEAD requires fresh native exact-commit L2 qualification; that is not a second independent performance sample.",
     "Seven pre-existing native not-applicable skips are identical in both runs; required coverage is not one of them.",
-    "Native raw receipts, logs and selection inventories are retained in the portfolio relay-live-20260908 evidence directory and addressed here by filename/hash."
+    "Native raw receipts, logs and selection inventories are retained in the portfolio relay-live-20260908 evidence directory and addressed here by filename/hash.",
+    "Subsequent exact-HEAD qualification69e4cbd2 failed only docs after shared origin/main advanced06890909→aa42406c at17:39:26Z. A and early B docs checks used the earlier tracking ref, despite both code identities including aa. Prior timing remains an observed pair, not proof of admission against live main; documentation and one final integrated qualification are required."
   ]
 }
