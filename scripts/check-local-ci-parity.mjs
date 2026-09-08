@@ -499,6 +499,7 @@ const CI_COVERAGE = new Map([
   ['canon-15 wired gate (#1923)', 'gate-full'],
   ['examples drift (#2222)', 'gate-full'],
   ['emitted markdown refs (#2415)', 'gate-full'],
+  ['kernel plugin parity (#2548)', 'gate-full'],
   ['emission coherence (INV-123)', 'gate-full'],
   ['STRIDE/RACI traceability', 'gate-full'],
   // #2435 AC-2: promoted warn → check, so the parity extractor now sees it. Runs inside

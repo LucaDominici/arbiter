@@ -7,28 +7,39 @@
 // config (no project-specific data leaks in); copies the already-standalone
 // (non-templated) safety hooks verbatim.
 //
-// Fail-closed (INV-96): all imperative work runs inside main(), wrapped in a
-// top-level try/catch that exits non-zero on ANY error — a render throw, a
-// missing source hook, or a non-zero prettier reformat all abort the build
-// instead of leaving a partial/unformatted plugin behind.
+// Fail-closed (INV-96): all imperative work runs inside buildKernelPlugin(),
+// wrapped (at the CLI entrypoint below) in a top-level try/catch that exits
+// non-zero on ANY error — a render throw, a missing source hook, or a non-zero
+// prettier reformat all abort the build instead of leaving a partial/unformatted
+// plugin behind.
 //
-// Usage: node scripts/build-kernel-plugin.mjs  (run after `npm run build`)
+// Usage: node scripts/build-kernel-plugin.mjs [--out=<dir>]  (run after `npm run build`)
+//   --out=<dir>  render into <dir> instead of packages/kernel/hooks/ (#2548 —
+//                lets scripts/check-kernel-plugin-parity.mjs, and the CANON-24
+//                flip-proof in scripts/lib/guard-flip-registry.mjs, render through
+//                this EXACT path into a throwaway directory rather than
+//                reimplementing rendering a second time).
+//
+// buildKernelPlugin() is exported (#2548) for the same reason: one real render
+// path, never a second independently-maintained one that could itself drift
+// from what actually ships (the #1877/#1894 two-renderers-of-one-output class).
 import { mkdirSync, writeFileSync, readFileSync, copyFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { renderTemplate } from '../dist/utils/render.js'
 import { resolveCollaborationAxes } from '../dist/config/collaboration-mode-defaults.js'
 import { DEFAULT_TASK_TIERS } from '../dist/config/schema.js'
+import { isMainModule } from './lib/run-helpers.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
-const outDir = join(root, 'packages', 'kernel', 'hooks')
+const DEFAULT_OUT_DIR = join(root, 'packages', 'kernel', 'hooks')
 
 // Neutral representative config — deliberately generic (no company/product
 // name, per the playbook's no-company-reference rule §0.4). Only the fields
-// the four rendered templates actually read need real values; everything
-// else uses a safe placeholder.
+// the four rendered templates actually read need real values; every other
+// field below is a generic stand-in.
 const config = {
   targetDir: '/tmp/kernel-plugin-render',
   projectName: 'my-project',
@@ -84,7 +95,7 @@ function buildRenderContext(cfg) {
 // plugin instead wires each hook DIRECTLY per event in hooks/hooks.json —
 // exactly the direct-wiring style arbiter's own dogfooded `.claude/settings.json`
 // already uses (see .claude/settings.json at the repo root).
-const RENDERED = [
+export const RENDERED = [
   ['claude/hooks/lib.mjs.ejs', 'lib.mjs'],
   ['claude/hooks/stop-evidence-guard.mjs.ejs', 'stop-evidence-guard.mjs'],
   ['claude/hooks/guard-done-evidence.mjs.ejs', 'guard-done-evidence.mjs'],
@@ -98,14 +109,20 @@ const RENDERED = [
 // but both became EJS-templated (they read `sourceExtensions`) and moved up to
 // RENDERED (#2538) — copying their .ejs source verbatim would have shipped raw
 // `<% %>` template syntax as an unrunnable hook.
-const COPIED = [
+export const COPIED = [
   'stop-dangerous.mjs',
   'enforce-read-only.mjs',
   'enforce-gate-before-pr.mjs',
   'pre-edit-ssot-guard.mjs',
 ]
 
-function main() {
+/**
+ * Render + copy the kernel-plugin hook corpus into `outDir` (default:
+ * packages/kernel/hooks/, the tree committed in this repo). Throws on any
+ * failure (render error, missing source hook, non-zero prettier) — callers
+ * decide how to translate that to an exit code.
+ */
+export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
   mkdirSync(outDir, { recursive: true })
 
   const data = buildRenderContext(config)
@@ -171,17 +188,43 @@ function main() {
   // style; the repo's format gate scans packages/ too) so the build stays
   // reproducible without a manual `prettier --write` step afterward. Fail-closed:
   // a non-zero prettier aborts the build rather than leaving an unformatted plugin.
-  const fmt = spawnSync('npx', ['prettier', '--write', outDir], { cwd: root, stdio: 'inherit' })
+  //
+  // `--config` is EXPLICIT (#2548), not left to prettier's own upward directory
+  // search: prettier resolves config by walking up from the FORMATTED FILE's own
+  // path, so an `outDir` outside this repo (scripts/check-kernel-plugin-parity.mjs
+  // renders into an mkdtemp()'d dir, deliberately never under the repo) would
+  // silently fall back to prettier's stock defaults (double quotes, semicolons) —
+  // a real reformat, not a no-op, that would make every parity comparison report
+  // spurious drift on quote/semicolon style alone. Pinning the repo's own
+  // .prettierrc.json keeps rendering identical regardless of where outDir lives.
+  const fmt = spawnSync(
+    'npx',
+    ['prettier', '--write', '--config', join(root, '.prettierrc.json'), outDir],
+    { cwd: root, stdio: 'inherit' },
+  )
   if (fmt.status !== 0) {
     throw new Error(`prettier --write on ${outDir} exited ${fmt.status ?? 'null (spawn failed)'}`)
   }
 }
 
-try {
-  main()
-} catch (err) {
-  process.stderr.write(
-    `build-kernel-plugin: FATAL — ${err instanceof Error ? err.message : String(err)}\n`,
-  )
-  process.exit(1)
+/** `--out=<dir>` (relative to cwd, or absolute) → that dir; otherwise DEFAULT_OUT_DIR. */
+function parseOutDir(argv) {
+  const hit = argv.find((a) => a.startsWith('--out='))
+  return hit ? resolve(hit.slice('--out='.length)) : DEFAULT_OUT_DIR
+}
+
+// Guarded (#2548): scripts/check-kernel-plugin-parity.mjs and the guard-flip fixture in
+// scripts/lib/guard-flip-registry.mjs both invoke this file as a CHILD PROCESS (never
+// import it), specifically so that merely IMPORTING buildKernelPlugin cannot ever run it
+// against the real packages/kernel/hooks/ — a parity check that writes into the tree it
+// is checking is not a check. The guard is still correct defense-in-depth either way.
+if (isMainModule(import.meta.url)) {
+  try {
+    buildKernelPlugin(parseOutDir(process.argv.slice(2)))
+  } catch (err) {
+    process.stderr.write(
+      `build-kernel-plugin: FATAL — ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(1)
+  }
 }

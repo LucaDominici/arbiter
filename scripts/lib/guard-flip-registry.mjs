@@ -17,6 +17,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { classifyReview, classifyOwnership } from './anti-fake-green-core.mjs'
 
 const write = (dir, rel, body) => {
@@ -118,6 +119,19 @@ const git = (dir, ...args) =>
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf-8',
   })
+
+/**
+ * Renders the REAL scripts/build-kernel-plugin.mjs (via its `--out=` flag, #2548) into
+ * `dir`, as a child process — never imported, so this pure registry module never takes a
+ * hard dependency on dist/ being built. Used for the 'kernel plugin parity (#2548)' fixture
+ * below: `plantClean` renders and stops; `plantBad` renders and then corrupts one file, so
+ * the gate must catch real content drift rather than merely a directory's existence.
+ */
+const KERNEL_PLUGIN_GENERATOR = fileURLToPath(
+  new URL('../build-kernel-plugin.mjs', import.meta.url),
+)
+const renderKernelPluginInto = (dir) =>
+  execFileSync('node', [KERNEL_PLUGIN_GENERATOR, `--out=${dir}`], { stdio: 'ignore' })
 
 /**
  * Plant an E7 fixture: a real git repo whose `base` branch declares src/a.ts and whose
@@ -464,5 +478,18 @@ export const FLIP_REGISTRY = {
     // a catalog invariant with no matching row in AGENTS.md — the parity break
     plantBad: (d) => plantCatalogParity(d, false),
     plantClean: (d) => plantCatalogParity(d, true),
+  },
+  'kernel plugin parity (#2548)': {
+    kind: 'file-scan',
+    inject: 'dir',
+    // Renders the REAL generator into the fixture dir so `dir` always reflects whatever
+    // build-kernel-plugin.mjs emits TODAY — never a second, independently-maintained
+    // fixture that could itself drift from the real output. plantBad then corrupts one
+    // file: the gate must catch real content drift, not merely a directory's existence.
+    plantClean: (d) => renderKernelPluginInto(d),
+    plantBad: (d) => {
+      renderKernelPluginInto(d)
+      writeFileSync(join(d, 'stop-dangerous.mjs'), '// #2548 guard-flip: corrupted on purpose\n')
+    },
   },
 }
