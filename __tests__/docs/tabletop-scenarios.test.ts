@@ -4,7 +4,8 @@
 // tabletop agent chasing phantoms, which is the exact failure class a tabletop exists to
 // find. So every cited arbiter-local path is stat'd here.
 import { describe, it, expect } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 
 const CATALOGUE = 'docs/internal/METHOD/TABLETOP-SCENARIOS.md'
 
@@ -55,6 +56,28 @@ function citedProbePaths(block: string): string[] {
   const text = executableProbesText(block) ?? ''
   const spans = [...text.matchAll(/`([^`]+)`/g)].map((m) => m[1])
   return spans.filter((s) => /^(scripts|src|docs|\.claude|__tests__|examples)\//.test(s))
+}
+
+/**
+ * `{name, language, archetype}` for every `examples/<name>/` that is a materialized
+ * (arbiter.json-bearing) generated example — read live from disk, never hardcoded, so
+ * this stays true as `examples/` grows or shrinks (#2454).
+ */
+function materializedExamples(): Array<{ name: string; language: string; archetype: string }> {
+  const root = 'examples'
+  const out: Array<{ name: string; language: string; archetype: string }> = []
+  for (const name of readdirSync(root)) {
+    const cfgPath = join(root, name, 'arbiter.json')
+    if (!existsSync(cfgPath)) continue
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8')) as {
+      language?: string
+      archetype?: string
+    }
+    if (cfg.language && cfg.archetype) {
+      out.push({ name, language: cfg.language, archetype: cfg.archetype })
+    }
+  }
+  return out
 }
 
 describe('tabletop scenario catalogue (#2429)', () => {
@@ -156,5 +179,49 @@ describe('tabletop scenario catalogue (#2429)', () => {
     // set matches semver-preserved files.
     expect(probes).not.toContain('check-api-snapshot.mjs')
     expect(probes).toContain('check-deprecations.mjs')
+  })
+
+  // #2454 — a probe that diffs against "the materialized <Language> example" is only
+  // honest when a materialized example for that language actually exists AND, for a
+  // scenario shaped around a *service* persona, that example is not silently a `library`
+  // archetype standing in for it. Asserts the RELATIONSHIP (claimed diff target ⇄ what is
+  // actually materialized), read live from `examples/*/arbiter.json` — never today's
+  // example names or count — so a future probe naming a target that doesn't exist (the
+  // exact defect #2454 fixed) goes red here again, for any language or archetype.
+  it('a "service" scenario\'s "materialized <Language> example" diff either matches a non-library archetype or states the gap explicitly (#2454)', () => {
+    const examples = materializedExamples()
+    expect(
+      examples.length,
+      'no materialized examples found under examples/ at all',
+    ).toBeGreaterThan(0)
+
+    for (const block of scenarioBlocks(catalogue())) {
+      const heading = block.split('\n')[0]
+      // Scope: only scenarios whose own persona/starting-state is explicitly about a
+      // "service" (the shape that implies backend-web-db, not library).
+      if (!/\bservice\b/i.test(block)) continue
+
+      const probes = executableProbesText(block) ?? ''
+      const claim = /materialized (\w+) example/i.exec(probes)
+      if (!claim) continue
+
+      const language = claim[1].toLowerCase()
+      const forLanguage = examples.filter((e) => e.language === language)
+      expect(
+        forLanguage.length,
+        `${heading}: probe diffs against "the materialized ${claim[1]} example" but no ` +
+          `${language} example is materialized under examples/`,
+      ).toBeGreaterThan(0)
+
+      const onlyLibrary = forLanguage.every((e) => e.archetype === 'library')
+      if (onlyLibrary) {
+        expect(
+          block,
+          `${heading}: persona is about a "service" but every materialized ${language} ` +
+            `example is archetype "library" — the archetype mismatch (no example-drift ` +
+            `coverage for the service-shaped archetype) must be stated as an explicit gap`,
+        ).toMatch(/coverage gap|no .*example-drift coverage/i)
+      }
+    }
   })
 })

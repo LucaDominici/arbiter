@@ -59,8 +59,15 @@ extend `EXPECTED_SLUGS` in `__tests__/docs/tabletop-scenarios.test.ts`.
   against a copy of a fixture under `__tests__/fixtures/real-projects/`, then — once the kit
   is installed — `node dist/cli.js diff` (the read-only preview of what `update` would write)
   and `node dist/cli.js update --adopt-plan` (the preview of what adoption would overwrite);
-  render the Go gate registry and diff it against the materialized Go example; read the
-  brownfield-detection code path.
+  render the Go gate registry and diff it against the materialized Go example under
+  `examples/go-library/` — archetype `library`, not the `backend-web-db`-shaped service
+  this persona actually runs. **Known coverage gap (tracked, #2454):** this probe only
+  proves gate-registry rendering matches for `library`; `backend-web-db`-specific Go gate
+  code has no example-drift coverage (`examples:regenerate`'s `LIVING_EXAMPLES` is a
+  closed list scoped to `library` by design — see `examples/README.md`), though the
+  Generator Matrix's Go DEEP cell does prove the generated L1 gate runs green for
+  `backend-web-db` via the `go-backend-web-gcr` fixture. Read the brownfield-detection
+  code path.
 - **Exit criterion:** The preview names every write and every skip-if-exists — `init
 --dry-run` is driven by the same generator plan the real run executes (#2452) — and no
   documented skip promise is contradicted by the plan.
