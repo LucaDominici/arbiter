@@ -659,6 +659,37 @@ symptom disappears. Without `assertWritten`, any _other_ reason a write is withh
 on being silently swallowed, which is the bug the title names — a write that did not happen
 must never be reported as success.
 
+### The same treatment for the two config files (#2541)
+
+`saveConfig`, `saveConfigAndSnapshot` and `writeSnapshot` write `arbiter.json` and
+`.arbiter-generated.json` through the same `writeFile`, and carried the same two defects:
+a config **value** containing the literal substring `arbiter:preserve` would freeze the
+file permanently, and the returned `WriteResult` was discarded, so a withheld write
+reported success. Both now pass `skipPreserveCheck` and assert via `assertWritten`.
+
+`.arbiter-generated.json` is the straightforward case — the table above records it as
+machine-written, not user-editable, migrated by `arbiter update`'s schema registry. It is
+generation provenance, the same class as TDD evidence.
+
+`arbiter.json` needs the argument spelled out, because the table above records it as
+**user-editable — the primary user configuration file**, and exempting a user-editable
+file from the preserve marker looks backwards. It is not, because the marker was never
+what protects it:
+
+- No `src/generators/*.ts` emits `arbiter.json`. It is not a generated target, and
+  `update` persists the manifest _before_ writing it, so it is never a manifest entry
+  either (see above). The marker's whole job — stop a template from overwriting a
+  hand-customised emission — has no subject here.
+- What actually protects user edits is the load → mutate → save merge that every caller
+  (`configure`, `plugin`, `update`, `upgrade-level`, `init`) performs at the JS-object
+  level. Fields the user set are read back and re-serialised; they are not overwritten
+  because they are never regenerated.
+
+Leaving the marker check in place would therefore have protected nothing and cost
+something real: a project whose config legitimately contains that string — a glob, a
+gate name, a template path — would find `arbiter configure` and `arbiter update` silently
+unable to write its own config, permanently, with no marker anyone deliberately placed.
+
 ## CI Gate
 
 Adding or removing a field in a `stable` file's generated schema without a corresponding MAJOR semver bump fails the gate. See [docs/SEMVER.md](../SEMVER.md).
