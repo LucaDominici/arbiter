@@ -137,8 +137,11 @@ test that passes with the fix removed is not your oracle.
 family live from `scripts/check-all.mjs` — `check-no-*`, ratchets, and parity checks, the shape where
 "found nothing" and "looked at nothing" are the same exit code — and fails when a member accepts its
 bad fixture, rejects its clean one, or has no proof at all. The audit residue lives in
-`scripts/data/inversion-proof-registry.json` and is BANKED at a fixed cardinality, so appending a row
-is not a way in for a new gate.
+`scripts/data/inversion-proof-registry.json` and is BANKED at a fixed cardinality — the pin
+(`MAX_DEFERRED`) lives in `scripts/lib/gate-roster.mjs`, not in the ledger, so appending a row is not
+a way in for a new gate: the data file cannot raise its own ceiling. Widening it is a source edit,
+reviewed as one. The derivation carries a floor too (`MIN_ABSENCE_FAMILY`): a `check-all.mjs` the
+parser can no longer read is an ERROR, not a short programme that quietly proves less.
 
 **Four traps, all measured:**
 
@@ -312,8 +315,10 @@ Every enforcement script in Arbiter must:
 2. Exit `1` when it detects a violation (FAIL)
 3. Exit `2` when it cannot run (bad args, missing environment, invalid invocation)
 
-The A/B/C drill proves each gate honors this contract by exercising all three paths
-against controlled fixtures.
+The contract binds every enforcement script. The A/B/C drill proves it only for the gates
+**registered** in the `GATES` array of `scripts/self-validation.mjs`, by exercising all
+three paths against controlled fixtures. See §Staged Rollout for the registered count —
+an unregistered gate is bound by the contract but is not proven by the drill.
 
 ## The Three Phases
 
@@ -399,15 +404,22 @@ diff src/templates/scripts/self-validation.mjs.ejs scripts/self-validation.mjs
 
 ## Staged Rollout
 
-Initial coverage (shipped with INV-53, issue #258):
+**Registered coverage: 2 gates** — the drill's real reach, not a target. Shipped with
+INV-53 (issue #258) and unchanged since:
 
 - `exit-code-contract` — checks the contract lint itself
 - `pipe/tee-hazard` — advisory check, always exits 0
 
-Future gates (separate issues):
+Every other `scripts/check-*.mjs` enforcement script is bound by the exit contract above
+and is enforced by `scripts/check-exit-code-contract.mjs` (a static scan for exit codes
+outside `0/1/2/78`), but its runtime PASS/FAIL/ERROR behaviour is **not** proven by the
+drill. Registering a gate requires that gate to accept a fixture scan-root override plus
+a per-gate A/B/C fixture design, so coverage grows one gate at a time, per issue.
 
-- `orphan-todo`, `no-placeholders`, `bloat-ratchet`, `hardness-inventory`, etc.
-- Full 18-gate coverage tracked in a follow-up issue.
+The count above is not prose: `__tests__/docs/self-validation-drill-count-2420.test.ts`
+pins it to `GATES.length` in `scripts/self-validation.mjs` and in its template twin
+`src/templates/scripts/self-validation.mjs.ejs`. Adding a gate to the drill without
+updating this number fails L1, and so does the reverse (#2420).
 
 ---
 
@@ -476,8 +488,29 @@ independently (fast-fail isolation, better failure attribution).
 The job is wired in **both** the `nightly-required` job's `needs:` AND its
 `RESULTS=(...)` shell array in `_nightly.yml`. Adding a job to `needs:` alone is **not** sufficient
 to make it a blocking hard-failure — the `RESULTS` array must also include
-`"${{ needs.bake-e2e-native.result }}"`. This is enforced by this documentation; there is no
-automated check for RESULTS completeness (pre-existing gap, out of scope for #1042).
+`"${{ needs.bake-e2e-native.result }}"`.
+
+This is no longer documentation-only: `__tests__/github/nightly-results-completeness-2420.test.ts`
+asserts that `nightly-required`'s `needs:` list and its `RESULTS=(...)` array name the same jobs
+in the same order, in `.github/workflows/_nightly.yml` **and** in the CANON-18 template twin
+`src/templates/github/workflows/_nightly.yml.ejs` (#2420, closing the gap left open by #1042).
+
+### The monthly bound has one owner (#2534)
+
+INV-75 sets all three watchdog bounds — T4 nightly ≤26 h, T5 weekly ≤8 d, T5b monthly
+≤35 d — and `09-heartbeat.yml` is what asserts them. INV-82 used to restate the monthly
+one as **≤32 days**, so the catalogue carried two different numbers for a single bound
+and neither entry pointed at the other.
+
+Nothing enforced the 32. The gate that would have — `check-monthly-freshness.mjs` — was
+removed as structurally vacuous (#2520), and the assertion that actually runs is the
+heartbeat's, at 35. A reader who trusted INV-82 would have expected a monthly run to be
+flagged three days before anything flags it.
+
+INV-82 therefore no longer names a day count. It states that the heartbeat asserts the
+monthly workflow's freshness and defers the number to INV-75, which owns it. This is a
+single-source-of-truth fix, not a relaxation: the enforced bound is unchanged at 35 days,
+and the two invariants can no longer drift into stating disagreeing numbers.
 
 ---
 

@@ -1,10 +1,10 @@
 ---
-title: 'ADR-119: Experimental tool generators — promotion criteria, and retire all five'
+title: 'ADR-122: Experimental tool generators — promotion criteria, and retire all five'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-08-30'
 owner: ''
-canonical_id: '119'
+canonical_id: '122'
 tags: ['audience/dev', 'kind/adr']
 related:
   [
@@ -13,7 +13,7 @@ related:
   ]
 ---
 
-# ADR-119: Experimental tool generators — promotion criteria, and retire all five
+# ADR-122: Experimental tool generators — promotion criteria, and retire all five
 
 **Project:** arbiter
 **Date:** 2026-08-30

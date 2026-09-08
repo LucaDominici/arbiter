@@ -112,7 +112,7 @@ The interactive wizard is state-reactive — it behaves differently based on wha
 | `claude` | `.claude/CLAUDE.md`, `.claude/settings.json`, hooks, rules, commands |
 | `codex`  | `.agents/CODEX.md`, `.agents/rules/`, `.agents/plan/`                |
 
-Both supported tools: `--tools claude,codex`. These two are the whole list — see [ADR-095](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/095-supported-ai-tools-claude-codex.md) for why the surface is narrow and [ADR-119](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/119-experimental-tool-generators-retired.md) for the retirement of the five formerly-experimental generators. Any other value fails with `E_INVALID_TOOL`.
+Both supported tools: `--tools claude,codex`. These two are the whole list — see [ADR-095](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/095-supported-ai-tools-claude-codex.md) for why the surface is narrow and [ADR-122](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/122-experimental-tool-generators-retired.md) for the retirement of the five formerly-experimental generators. Any other value fails with `E_INVALID_TOOL`.
 
 ---
 

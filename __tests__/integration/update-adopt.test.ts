@@ -8,7 +8,15 @@
 // local-override record; (3) `--no-adopt-safety` is the only way to keep it
 // frozen, and doing so is what makes the ratchet fail — never a silent skip.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
@@ -468,5 +476,92 @@ describe('#2120: --adopt-plan previews the regeneration channel, not only the ad
     expect(section).toContain(ALWAYS_REWRITE)
     // Plan mode stays read-only.
     expect(readFileSync(join(dir, ALWAYS_REWRITE), 'utf-8')).toBe(local)
+  })
+})
+
+// #2305: #2295 made `update` re-emit (and declare) a file the consumer had
+// DELETED after arbiter originally wrote it (manifest baseline present, disk
+// absent) — `action: 'created'`, `restored: true`. `--adopt-plan` is the
+// read-only preview of everything a real run would write, but
+// `partitionPlanResults` only ever recognized `regenerate` and `withheld`, so
+// a re-emission fell into neither bucket and stayed invisible in the preview
+// while the real run restored it loudly. This suite proves the third bucket,
+// `restore` (JSON: `wouldRestore`), both makes the re-emission visible (AC-1,
+// AC-2) and stays free of files that do not belong there (AC-3).
+describe('#2305: --adopt-plan previews the restoration channel (`restore` bucket)', () => {
+  let dir: string
+  /** Always-emitted, arbiter-owned file every consumer receives (manifest baseline present). */
+  const EMITTED = 'scripts/check-all.mjs'
+
+  function captureStdout(): { text: () => string; restore: () => void } {
+    let buf = ''
+    const spy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((chunk: string | Uint8Array): boolean => {
+        buf += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf-8')
+        return true
+      })
+    return { text: (): string => buf, restore: (): void => spy.mockRestore() }
+  }
+
+  beforeEach(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'arb-2305-restore-plan-'))
+    initGit(dir)
+    await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('AC-1/AC-2: a consumer-deleted, manifest-baselined file is named under "would restore"', async () => {
+    expect(loadGeneratedManifest(dir)[EMITTED]).toBeDefined()
+    unlinkSync(join(dir, EMITTED))
+
+    const out = captureStdout()
+    try {
+      await runUpdate({ dir, github: false, adoptPlan: true })
+    } finally {
+      out.restore()
+    }
+
+    expect(out.text()).toContain('would restore')
+    const section = out.text().slice(out.text().indexOf('would restore'))
+    expect(section).toContain(EMITTED)
+    // Still read-only: the plan must not have written anything back.
+    expect(existsSync(join(dir, EMITTED))).toBe(false)
+  })
+
+  it('AC-2: --json exposes the same path under `wouldRestore`', async () => {
+    unlinkSync(join(dir, EMITTED))
+
+    const out = captureStdout()
+    try {
+      await runUpdate({ dir, github: false, adoptPlan: true, json: true })
+    } finally {
+      out.restore()
+    }
+
+    const payload = JSON.parse(out.text()) as {
+      data: { wouldRestore?: string[]; wouldRegenerate?: string[]; withheld?: string[] }
+    }
+    expect(payload.data.wouldRestore ?? []).toContain(EMITTED)
+    // AC-3: a restoration is its own channel — it must not also double-count
+    // into the regenerate or withheld buckets.
+    expect(payload.data.wouldRegenerate ?? []).not.toContain(EMITTED)
+    expect(payload.data.withheld ?? []).not.toContain(EMITTED)
+  })
+
+  it('AC-3: an ordinary present-and-unmodified file never leaks into `wouldRestore`', async () => {
+    // EMITTED is still on disk here (nothing deleted) — a no-op update should
+    // report zero restorations, and specifically not name EMITTED under it.
+    const out = captureStdout()
+    try {
+      await runUpdate({ dir, github: false, adoptPlan: true, json: true })
+    } finally {
+      out.restore()
+    }
+
+    const payload = JSON.parse(out.text()) as { data: { wouldRestore?: string[] } }
+    expect(payload.data.wouldRestore ?? []).toEqual([])
   })
 })
