@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "rtm-verdict.schema.json",
+  "title": "RTM verification verdict",
+  "description": "Contract for .arbiter/evidence/rtm/<REQ-NNN>.json — the evidence a FEATURE_MATRIX row must carry before it may claim `Verified`. Enforced by scripts/check-feature-matrix.mjs (INV-112, #2480). `Verified` was previously a word someone typed; this makes it a claim with a transcript behind it, the same fail-closed posture INV-146 applies to milestone `done`.",
+  "type": "object",
+  "required": [
+    "feature_id",
+    "verdict",
+    "justification",
+    "command",
+    "transcript_digest",
+    "recorded_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "feature_id": {
+      "type": "string",
+      "pattern": "^REQ-[0-9]{3}$",
+      "description": "Must equal the row this envelope stands under. A mismatch means the evidence was copied from another requirement, which is how a green row ends up proving something else."
+    },
+    "verdict": {
+      "enum": ["PROVEN", "FAILING", "STALE", "UNRESOLVED", "UNCOVERED"],
+      "description": "The vocabulary forma's traceability lens already renders. Only PROVEN admits a `Verified` row; the other four are recordable states, not failures to hide — a requirement known to be FAILING is better governance than one silently left at Partial."
+    },
+    "justification": {
+      "type": "string",
+      "minLength": 24,
+      "description": "Why the cited evidence establishes the claim. A verdict with no argument is an opinion with a schema around it, so the length floor is deliberate: it is not satisfied by 'works'."
+    },
+    "command": {
+      "type": "string",
+      "minLength": 3,
+      "description": "The command actually executed to produce the transcript. PROVEN means something was RUN, not that someone read the code and was satisfied."
+    },
+    "transcript_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "sha256 of the executed command's output. The digest is not re-verifiable offline by design — its job is to make the claim falsifiable and attributable, not to re-run CI inside a lint gate."
+    },
+    "citations": {
+      "type": "array",
+      "description": "Where the proof lives, in axis 1's pinned-span grammar (`path#Lx-Ly@<12 hex>`) so a citation that drifts is reported OUTDATED by the same mechanism rather than a second one.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the verdict was taken. A verdict has an age, and an old PROVEN over code that has since moved is what the citation pins exist to expose."
+    }
+  }
+}

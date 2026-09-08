@@ -14,7 +14,15 @@
 // jobs that don't need dist at all.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -36,7 +44,11 @@ afterEach(() => {
  * that just logs its argv instead of actually building, then runs the script with
  * cwd = packageRoot and a deterministic, unrelated `npm_config_cache`. Returns the
  * stub's call log (empty string if never invoked). */
-function runPrepareLifecycle(packageRoot: string, npmConfigCache?: string): string {
+function runPrepareLifecycle(
+  packageRoot: string,
+  npmConfigCache?: string,
+  npmStub = '#!/bin/sh\necho "$@" >> "npm-calls.log"\nexit 0\n',
+): string {
   mkdirSync(resolve(packageRoot, 'scripts'), { recursive: true })
   writeFileSync(resolve(packageRoot, 'scripts', 'prepare-lifecycle.mjs'), SCRIPT_SRC)
 
@@ -44,7 +56,7 @@ function runPrepareLifecycle(packageRoot: string, npmConfigCache?: string): stri
   mkdirSync(binDir, { recursive: true })
   const logPath = resolve(workDir, 'npm-calls.log')
   const stubNpm = resolve(binDir, 'npm')
-  writeFileSync(stubNpm, `#!/bin/sh\necho "$@" >> "${logPath}"\nexit 0\n`)
+  writeFileSync(stubNpm, npmStub.replaceAll('npm-calls.log', logPath))
   chmodSync(stubNpm, 0o755)
 
   execFileSync('node', [resolve(packageRoot, 'scripts', 'prepare-lifecycle.mjs')], {
@@ -74,11 +86,45 @@ describe('scripts/prepare-lifecycle.mjs (#9001)', () => {
 
   it('builds when installed as a git dependency (nested under node_modules, no dist)', () => {
     const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@arbiter', 'cli')
-    mkdirSync(packageRoot, { recursive: true })
+    mkdirSync(resolve(packageRoot, 'node_modules', '.bin'), { recursive: true })
+    writeFileSync(resolve(packageRoot, 'node_modules', '.bin', 'tsc'), '')
 
     const log = runPrepareLifecycle(packageRoot)
 
     expect(log.trim()).toBe('run build')
+  })
+
+  it('bootstraps declared dev tooling before building when the compiler is missing (AC-2, AC-3)', () => {
+    const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@arbiter', 'cli')
+    mkdirSync(packageRoot, { recursive: true })
+    writeFileSync(
+      resolve(packageRoot, 'package.json'),
+      JSON.stringify({ devDependencies: { typescript: '^6.0.3' } }),
+    )
+
+    expect(existsSync(resolve(packageRoot, 'node_modules', '.bin', 'tsc'))).toBe(false)
+
+    const calls = runPrepareLifecycle(
+      packageRoot,
+      undefined,
+      `#!/bin/sh
+echo "$@" >> "npm-calls.log"
+if [ "$1" = "ci" ]; then
+  mkdir -p "$PWD/node_modules/.bin"
+  touch "$PWD/node_modules/.bin/tsc"
+fi
+if [ "$1" = "run" ] && [ "$2" = "build" ] && [ -f "$PWD/node_modules/.bin/tsc" ]; then
+  mkdir -p "$PWD/dist"
+  touch "$PWD/dist/cli.js"
+fi
+exit 0
+`,
+    )
+      .trim()
+      .split('\n')
+
+    expect(calls).toEqual(['ci --include=dev --ignore-scripts', 'run build'])
+    expect(existsSync(resolve(packageRoot, 'dist', 'cli.js'))).toBe(true)
   })
 
   it('does NOT build for a plain contributor install (not under node_modules)', () => {
@@ -103,7 +149,8 @@ describe('scripts/prepare-lifecycle.mjs (#9001)', () => {
   it("builds when running inside npm's cache dir (git dependency clone, no dist)", () => {
     const npmCache = resolve(workDir, 'npm-cache')
     const packageRoot = resolve(npmCache, '_cacache', 'tmp', 'git-cloneXXXXXX')
-    mkdirSync(packageRoot, { recursive: true })
+    mkdirSync(resolve(packageRoot, 'node_modules', '.bin'), { recursive: true })
+    writeFileSync(resolve(packageRoot, 'node_modules', '.bin', 'tsc'), '')
 
     const log = runPrepareLifecycle(packageRoot, npmCache)
 

@@ -35,9 +35,222 @@ function resolveRef(ref, rootSchema) {
 }
 
 /**
- * Minimal JSON Schema v7 validator (same subset as check-evidence-bundle.mjs):
- * type, required, additionalProperties, properties, enum, const, pattern, minLength,
- * minimum, maximum, format (date-time), items, $ref, $defs.
+ * Keywords this validator actually enforces. Anything outside this set is reported as an
+ * error rather than skipped (#2509) — a subset validator that silently ignores what it does
+ * not implement lets a schema declare a constraint that never runs, which is how
+ * id-registry (minItems), cross-model-dispatch (maxItems) and the vendored c4-model
+ * (anyOf, minItems) all shipped with dead rules.
+ */
+const ENFORCED_KEYWORDS = new Set([
+  '$ref',
+  'type',
+  'const',
+  'enum',
+  'minLength',
+  'maxLength',
+  'pattern',
+  'format',
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+  'required',
+  'additionalProperties',
+  'properties',
+  'items',
+  'minItems',
+  'maxItems',
+  'uniqueItems',
+  'allOf',
+  'anyOf',
+  'oneOf',
+  'not',
+  'if',
+  'then',
+  'else',
+])
+
+/** Metadata that constrains nothing, so carries no enforcement obligation. */
+const ANNOTATION_KEYWORDS = new Set([
+  '$schema',
+  '$id',
+  '$comment',
+  'title',
+  'description',
+  'examples',
+  'default',
+  'definitions',
+  '$defs',
+  'deprecated',
+  'readOnly',
+  'writeOnly',
+])
+
+/**
+ * Keywords present on this node that the validator cannot honour. `additionalProperties`
+ * is special-cased: the `false` form is enforced, the schema form is not.
+ * @param {Record<string, unknown>} schemaNode
+ * @returns {string[]}
+ */
+function unsupportedKeywords(schemaNode) {
+  const unsupported = []
+  for (const key of Object.keys(schemaNode)) {
+    if (ANNOTATION_KEYWORDS.has(key)) continue
+    if (!ENFORCED_KEYWORDS.has(key)) {
+      unsupported.push(key)
+      continue
+    }
+    if (
+      key === 'additionalProperties' &&
+      typeof schemaNode[key] === 'object' &&
+      schemaNode[key] !== null
+    ) {
+      unsupported.push('additionalProperties (schema form)')
+    }
+  }
+  return unsupported
+}
+
+/**
+ * allOf / anyOf / oneOf / not / if-then-else. Branch failures are summarised rather than
+ * forwarded verbatim: an anyOf that fails every branch should read as one rejection, not
+ * as the union of every branch's complaints.
+ * @param {unknown} value
+ * @param {Record<string, unknown>} schemaNode
+ * @param {Record<string, unknown>} rootSchema
+ * @param {string} path
+ * @returns {string[]}
+ */
+function validateCombinators(value, schemaNode, rootSchema, path) {
+  const ctx = { value, schemaNode, rootSchema, path }
+  return [
+    ...validateAllOf(ctx),
+    ...validateAnyOf(ctx),
+    ...validateOneOf(ctx),
+    ...validateNot(ctx),
+    ...validateConditional(ctx),
+  ]
+}
+
+/**
+ * @typedef {{ value: unknown, schemaNode: Record<string, unknown>,
+ *             rootSchema: Record<string, unknown>, path: string }} CombinatorCtx
+ */
+
+/** Branch list under `key`, normalised to an array. @param {CombinatorCtx} ctx @param {string} key */
+function branchesOf(ctx, key) {
+  return /** @type {Record<string, unknown>[]} */ (
+    Array.isArray(ctx.schemaNode[key]) ? ctx.schemaNode[key] : []
+  )
+}
+
+/** Does `value` satisfy one branch? @param {CombinatorCtx} ctx @param {Record<string, unknown>} sub */
+function branchMatches(ctx, sub) {
+  return validateSchema(ctx.value, sub, ctx.rootSchema, ctx.path).length === 0
+}
+
+/** @param {CombinatorCtx} ctx @returns {string[]} */
+function validateAllOf(ctx) {
+  const errors = []
+  for (const sub of branchesOf(ctx, 'allOf')) {
+    errors.push(...validateSchema(ctx.value, sub, ctx.rootSchema, ctx.path))
+  }
+  return errors
+}
+
+/** @param {CombinatorCtx} ctx @returns {string[]} */
+function validateAnyOf(ctx) {
+  if (!('anyOf' in ctx.schemaNode)) return []
+  const branches = branchesOf(ctx, 'anyOf')
+  if (branches.some((sub) => branchMatches(ctx, sub))) return []
+  return [`${ctx.path}: value matches none of the ${branches.length} anyOf branches`]
+}
+
+/** @param {CombinatorCtx} ctx @returns {string[]} */
+function validateOneOf(ctx) {
+  if (!('oneOf' in ctx.schemaNode)) return []
+  const hits = branchesOf(ctx, 'oneOf').filter((sub) => branchMatches(ctx, sub)).length
+  if (hits === 1) return []
+  return [`${ctx.path}: value matches ${hits} oneOf branches, expected exactly 1`]
+}
+
+/** @param {CombinatorCtx} ctx @returns {string[]} */
+function validateNot(ctx) {
+  const sub = ctx.schemaNode['not']
+  if (typeof sub !== 'object' || sub === null) return []
+  if (!branchMatches(ctx, /** @type {Record<string, unknown>} */ (sub))) return []
+  return [`${ctx.path}: value must NOT match the "not" schema, but does`]
+}
+
+/** @param {CombinatorCtx} ctx @returns {string[]} */
+function validateConditional(ctx) {
+  const condition = ctx.schemaNode['if']
+  if (typeof condition !== 'object' || condition === null) return []
+  const taken = branchMatches(ctx, /** @type {Record<string, unknown>} */ (condition))
+    ? ctx.schemaNode['then']
+    : ctx.schemaNode['else']
+  if (typeof taken !== 'object' || taken === null) return []
+  return validateSchema(
+    ctx.value,
+    /** @type {Record<string, unknown>} */ (taken),
+    ctx.rootSchema,
+    ctx.path,
+  )
+}
+
+/**
+ * Array cardinality and uniqueness. Uniqueness compares by serialised form, which is
+ * adequate for the schemas in this repo (scalars and flat records).
+ * @param {unknown[]} value
+ * @param {Record<string, unknown>} schemaNode
+ * @param {string} path
+ * @returns {string[]}
+ */
+function validateArrayConstraints(value, schemaNode, path) {
+  const errors = []
+  const min = schemaNode['minItems']
+  const max = schemaNode['maxItems']
+  if (typeof min === 'number' && value.length < min) {
+    errors.push(`${path}: array length ${value.length} < minItems ${min}`)
+  }
+  if (typeof max === 'number' && value.length > max) {
+    errors.push(`${path}: array length ${value.length} > maxItems ${max}`)
+  }
+  if (schemaNode['uniqueItems'] === true) {
+    const seen = new Set(value.map((v) => JSON.stringify(v)))
+    if (seen.size !== value.length) errors.push(`${path}: array items are not unique`)
+  }
+  return errors
+}
+
+/**
+ * Exclusive numeric bounds (draft-07 numeric form). The inclusive pair is handled inline.
+ * @param {number} value
+ * @param {Record<string, unknown>} schemaNode
+ * @param {string} path
+ * @returns {string[]}
+ */
+function validateExclusiveBounds(value, schemaNode, path) {
+  const errors = []
+  const exMin = schemaNode['exclusiveMinimum']
+  const exMax = schemaNode['exclusiveMaximum']
+  if (typeof exMin === 'number' && value <= exMin) {
+    errors.push(`${path}: value ${value} <= exclusiveMinimum ${exMin}`)
+  }
+  if (typeof exMax === 'number' && value >= exMax) {
+    errors.push(`${path}: value ${value} >= exclusiveMaximum ${exMax}`)
+  }
+  return errors
+}
+
+/**
+ * JSON Schema draft-07 validator over the keyword set in `ENFORCED_KEYWORDS`:
+ * type, required, additionalProperties (false form), properties, enum, const, pattern,
+ * minLength, maxLength, minimum, maximum, exclusiveMinimum, exclusiveMaximum,
+ * format (date-time), items, minItems, maxItems, uniqueItems, allOf, anyOf, oneOf, not,
+ * if/then/else, $ref (into `definitions` or `$defs`).
+ *
+ * Any keyword outside that set is REPORTED, not skipped (#2509) — see `unsupportedKeywords`.
  * @param {unknown} value
  * @param {Record<string, unknown>} schemaNode
  * @param {Record<string, unknown>} rootSchema
@@ -47,6 +260,10 @@ function resolveRef(ref, rootSchema) {
 export function validateSchema(value, schemaNode, rootSchema, path) {
   /** @type {string[]} */
   const errors = []
+  for (const kw of unsupportedKeywords(schemaNode)) {
+    errors.push(`${path}: schema uses "${kw}", which this validator does not support (#2509)`)
+  }
+  errors.push(...validateCombinators(value, schemaNode, rootSchema, path))
   if ('$ref' in schemaNode) {
     const resolved = resolveRef(/** @type {string} */ (schemaNode['$ref']), rootSchema)
     return validateSchema(value, resolved, rootSchema, path)
@@ -82,6 +299,11 @@ export function validateSchema(value, schemaNode, rootSchema, path) {
         errors.push(`${path}: string length ${value.length} < minLength ${schemaNode['minLength']}`)
       }
     }
+    if ('maxLength' in schemaNode && typeof schemaNode['maxLength'] === 'number') {
+      if (value.length > schemaNode['maxLength']) {
+        errors.push(`${path}: string length ${value.length} > maxLength ${schemaNode['maxLength']}`)
+      }
+    }
     if ('pattern' in schemaNode && typeof schemaNode['pattern'] === 'string') {
       if (!new RegExp(schemaNode['pattern']).test(value)) {
         errors.push(`${path}: value "${value}" does not match pattern "${schemaNode['pattern']}"`)
@@ -107,6 +329,7 @@ export function validateSchema(value, schemaNode, rootSchema, path) {
     ) {
       errors.push(`${path}: value ${value} > maximum ${schemaNode['maximum']}`)
     }
+    errors.push(...validateExclusiveBounds(value, schemaNode, path))
   }
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
     const obj = /** @type {Record<string, unknown>} */ (value)
@@ -140,6 +363,7 @@ export function validateSchema(value, schemaNode, rootSchema, path) {
     }
   }
   if (Array.isArray(value)) {
+    errors.push(...validateArrayConstraints(value, schemaNode, path))
     if (
       'items' in schemaNode &&
       typeof schemaNode['items'] === 'object' &&

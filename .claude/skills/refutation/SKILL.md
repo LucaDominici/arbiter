@@ -53,9 +53,24 @@ Single-reviewer verdicts inherit the reviewer's blind spots and a "reviewing to 
 
 `UPHELD > N/2` ⇒ the finding survives and may be acted on. Otherwise it is **demoted to `info` and logged** — never silently dropped (M14 discipline: a refuted finding is still a recorded finding, just not an actionable one).
 
+## The loop: hop until nothing above `low` survives (INV-145, CANON-24)
+
+One pass is not the protocol. After the skeptics report and their findings are **fixed**, dispatch a **fresh** round against the fixed tree — the new hop attacks the fixes, not the original claims — and repeat until no finding above `low` remains unaddressed. Empirically (#2480) the second hop destroyed the first hop's fixes twice: a gate that passed round 1 was still scoring a fully commented-out document 12/12.
+
+Each hop is independent by construction: new agents, disjoint scopes, prompts naming the ARTIFACT and never the previous round's reasoning. Reusing a skeptic, or handing one the last round's rationale, converts refutation into confirmation.
+
+**Prefer the cross-model seat.** When `crossModelReview` is configured (`arbiter.json`, provider e.g. `codex`), the hop runs there: a different model is a materially stronger skeptic than the same model in a different costume, because the blind spots are not correlated. The same-model fan-out below is a **fallback**, and it is weaker in exactly that way.
+
+**A hop that cannot run is recorded, not skipped.** Model unavailable, rate limit, cross-model seat offline: self-probe the round's questions and write `"degraded": true` on the marker. The gate accepts it and says DEGRADED on every run. Never file a self-probe as an independent round.
+
 ## Gate
 
-`scripts/check-refutation-verdicts.mjs` (advisory `runWarnCheck` at L2+, promoted to `runCheck` at gated-review): marker present ⇒ every finding in `findings` must have ≥ N skeptic verdicts and a strict UPHELD majority. No marker ⇒ the gate passes vacuously — which is exactly why step 5 makes writing the marker (empty `findings` included) the orchestrator's unconditional duty at dispatch: the gate can only adjudicate what was declared, and `/ship` and `/drain` both name this step in their review phases.
+`scripts/check-refutation-verdicts.mjs` (advisory `runWarnCheck` at L2+, promoted to `runCheck` at gated-review) adjudicates **two axes over the same envelopes**:
+
+1. **Majority** — every finding in `findings` must have ≥ N skeptic verdicts and a strict UPHELD majority. Stops a phantom being acted on.
+2. **Severity floor (INV-145)** — every finding the skeptics majority-UPHELD at `critical`/`high`/`med` must appear in `findings`. Stops the loop ending while something real is open. Severity is the **highest** any skeptic assigned. Below quorum or majority-REFUTED never blocks: one false alarm must not hold a wave hostage.
+
+Marker present ⇒ both axes run, including when `findings` is empty — a round that addressed nothing while a high finding stood is precisely what the floor catches. No marker ⇒ the gate passes vacuously — which is exactly why step 5 makes writing the marker (empty `findings` included) the orchestrator's unconditional duty at dispatch: the gate can only adjudicate what was declared, and `/ship` and `/drain` both name this step in their review phases.
 
 When a mechanical matcher — rather than this gate's structural check — has to decide whether LLM-authored text matches a ground-truth item, the sampled-audit-then-judge protocol in `docs/internal/METHOD/ADJUDICATION.md` applies.
 

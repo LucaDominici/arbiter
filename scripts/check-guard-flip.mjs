@@ -14,13 +14,18 @@
 // CATALOG:   fixtures — a different axis (per-guard discrimination proof vs verdict aggregation).
 //   Folding the synthetic-fixture machinery into the aggregate would couple every CI run to
 //   tmpdir fixture I/O and conflate "is the repo clean" with "does the guard work".
-// CATALOG: CANON-24 / #2301 widens the completeness surface beyond the anti-fake-green roster to
+// CATALOG: CANON-25 / #2301 widens the completeness surface beyond the anti-fake-green roster to
 // CATALOG:   the ABSENCE-ASSERTING gate family derived from scripts/check-all.mjs (check-no-*,
 // CATALOG:   ratchets, parity). Those are the gates where "nothing found" and "nothing looked at"
 // CATALOG:   produce the same green, so a blind one is invisible by construction. Each family
 // CATALOG:   member must carry a flip proof here or a BANKED row in the deferral ledger
 // CATALOG:   (scripts/data/inversion-proof-registry.json) — banked meaning ledger length ==
-// CATALOG:   declared ceiling, so a NEW family gate cannot be waved through by appending a row.
+// CATALOG:   declared ceiling AND that ceiling == the MAX_DEFERRED pin in gate-roster.mjs, so a
+// CATALOG:   NEW family gate cannot be waved through by appending a row: the ledger cannot
+// CATALOG:   authorise its own growth (#2301 review — the first cut compared two fields of the
+// CATALOG:   same file, which one edit satisfied). The derived family also carries a FLOOR
+// CATALOG:   (MIN_ABSENCE_FAMILY): a parser that stops seeing the gates is an ERROR, not a
+// CATALOG:   silently short programme.
 // Exit codes per INV-53: 0=PASS (all guards discriminate + complete), 1=FAIL (a vacuous or
 //   uncovered guard, or an unsound deferral ledger), 2=ERROR (self).
 // Usage: node scripts/check-guard-flip.mjs [--gate=path] [--registry=path] [--now=YYYY-MM-DD] [--help]
@@ -37,6 +42,8 @@ import {
   auditInversionRegistry,
   flipProofFor,
   INVERSION_REGISTRY_PATH,
+  MIN_ABSENCE_FAMILY,
+  MAX_DEFERRED,
 } from './lib/gate-roster.mjs'
 
 // Completeness surface = the aggregate roster PLUS the anti-context-rot gate roster
@@ -55,14 +62,17 @@ if (args.includes('--help') || args.includes('-h')) {
       '  Proves every anti-fake-green guard discriminates: each must REJECT a planted bad fixture\n' +
       '  (exit 1) and ACCEPT a clean one (exit 0). A guard in the roster with no flip-proof here is\n' +
       '  presumed vacuous and FAILS — so a newly-added always-green guard cannot slip into CI.\n' +
-      '  The roster also covers the CANON-24 absence-asserting family (check-no-*, ratchets,\n' +
+      '  The roster also covers the CANON-25 absence-asserting family (check-no-*, ratchets,\n' +
       '  parity) derived from check-all.mjs; each member needs a proof or a banked deferral row.\n' +
       '\n' +
       'Options:\n' +
-      '  --gate=<path>      check-all.mjs to derive the absence family from\n' +
-      '  --registry=<path>  deferral ledger (default scripts/data/inversion-proof-registry.json)\n' +
-      '  --now=YYYY-MM-DD   clock used for deferral expiry\n' +
-      '  --help, -h         show this help and exit\n',
+      '  --gate=<path>       check-all.mjs to derive the absence family from\n' +
+      '  --registry=<path>   deferral ledger (default scripts/data/inversion-proof-registry.json)\n' +
+      '  --now=YYYY-MM-DD    clock used for deferral expiry\n' +
+      '  --min-family=<n>    floor on the derived family (default: the MIN_ABSENCE_FAMILY pin);\n' +
+      '                      a --gate fixture declares its own, the real gate source may not\n' +
+      '  --max-deferred=<n>  ceiling the ledger must declare (default: the MAX_DEFERRED pin)\n' +
+      '  --help, -h          show this help and exit\n',
   )
   process.exit(0)
 }
@@ -125,17 +135,43 @@ export function flipGuard(guard, entry) {
   return entry.kind === 'core' ? flipCore(guard, entry) : flipFileScan(guard, entry)
 }
 
+/** A numeric CLI pin, or ERROR. A pin that silently defaults on a typo is a pin that is not there. */
+function numericFlag(name, fallback) {
+  const raw = flag(name)
+  if (raw === undefined) return fallback
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 0) {
+    throw Object.assign(new Error(`--${name}=${raw} is not a non-negative integer`), {
+      exitCode: 2,
+    })
+  }
+  return n
+}
+
 /**
- * The CANON-24 half: derive the absence-asserting family from check-all.mjs, audit the deferral
+ * The CANON-25 half: derive the absence-asserting family from check-all.mjs, audit the deferral
  * ledger against it, and return the family members that still owe a flip proof. Fail-closed — an
- * unreadable gate source or ledger is an ERROR, never an empty family that would silently prove
- * nothing (a zero-length programme is exactly the blindness this gate exists to catch, #2301
- * corollary 2: assert programme membership BEFORE content).
+ * unreadable gate source or ledger is an ERROR, and so is a derived family that has collapsed
+ * below its floor (a short programme proves proportionally less; a zero-length one proves nothing
+ * at all, which is exactly the blindness this gate exists to catch — #2301 corollary 2: assert
+ * programme membership BEFORE content).
+ *
+ * The floor and the ledger's ceiling are pins in gate-roster.mjs, overridable per-invocation only
+ * so a `--gate`/`--registry` FIXTURE can declare its own tiny contract. The real gate source and
+ * the real ledger get the pinned values, which is the invocation vitest and CI actually run.
  */
 function absenceSurface() {
   const gatePath = resolve(flag('gate', 'scripts/check-all.mjs'))
   const registryPath = resolve(flag('registry', INVERSION_REGISTRY_PATH))
+  const minFamily = numericFlag('min-family', MIN_ABSENCE_FAMILY)
+  const pinnedCeiling = numericFlag('max-deferred', MAX_DEFERRED)
   const now = flag('now') ? new Date(`${flag('now')}T00:00:00Z`) : new Date()
+  // An Invalid Date makes every `due < now` comparison false, so NO row could ever expire and the
+  // whole ledger would silently pass — a malformed input yielding green, in the gate whose thesis
+  // is that those are the enemy (#2301 review).
+  if (Number.isNaN(now.getTime())) {
+    throw Object.assign(new Error(`--now=${flag('now')} is not a YYYY-MM-DD date`), { exitCode: 2 })
+  }
 
   let gateSrc
   try {
@@ -155,7 +191,18 @@ function absenceSurface() {
   }
 
   const family = deriveAbsenceFamily(gateSrc)
-  const problems = auditInversionRegistry({ family, registry, now })
+  if (family.length < minFamily) {
+    throw Object.assign(
+      new Error(
+        `derived only ${family.length} absence-asserting gates from ${gatePath} (floor ` +
+          `${minFamily}) — the parser has gone blind, or gates were removed. A short programme ` +
+          `proves proportionally less and a zero-length one proves nothing; fix the derivation, ` +
+          `or lower MIN_ABSENCE_FAMILY in scripts/lib/gate-roster.mjs where review can see it.`,
+      ),
+      { exitCode: 2 },
+    )
+  }
+  const problems = auditInversionRegistry({ family, registry, now, pinnedCeiling })
   const deferred = new Set(registry.deferred.map((d) => d?.gate))
   const owing = family.filter((f) => !deferred.has(f.name))
   return { family, deferred, owing, problems }
@@ -195,7 +242,7 @@ function main() {
     process.stderr.write(
       `    UNCOVERED: ${u} — no flip-proof in scripts/lib/guard-flip-registry.mjs; a guard with no\n` +
         `      discrimination proof is presumed vacuous. Register a planted bad+clean fixture for it,\n` +
-        `      or (CANON-24 absence family only) bank a row in ${INVERSION_REGISTRY_PATH}.\n`,
+        `      or (CANON-25 absence family only) bank a row in ${INVERSION_REGISTRY_PATH}.\n`,
     )
   for (const v of vacuous)
     for (const f of v.failures) process.stderr.write(`    VACUOUS: ${v.name} — ${f}\n`)

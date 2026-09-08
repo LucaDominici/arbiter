@@ -19,6 +19,7 @@ import {
   classifyUpdateResult,
   commandOutcomeKind,
   extractCheckNames,
+  formatFailureLines,
   parseGateSurfaceOutput,
   redactSecrets,
   resultExitCode,
@@ -63,6 +64,9 @@ try {
     })),
   }
   writeAtomic(join(options.reportDir, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
+  // Print the failing rows BEFORE the verdict so the log reads detail-then-conclusion,
+  // and so a red run is diagnosable without downloading the artifact (#2479).
+  for (const line of formatFailureLines(summary.consumers)) process.stdout.write(`${line}\n`)
   process.stdout.write(
     `[consumer-reliability] ${summary.result} — ${results.length} pinned consumers verified\n`,
   )

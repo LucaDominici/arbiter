@@ -1,0 +1,41 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2594",
+  "candidate": "0b929a48fa12787bf57f77a4e1c5cb6589704f3c",
+  "base": "05caa4a709ee5276de1b65c7b5bccca67a1ca2e7",
+  "reviewer": "review-6860-b",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2594/cycle-1788836860/canary/run-exact.log", "line": 7 },
+        { "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2594/cycle-1788836860/canary/run-exact.log", "line": 17 }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "scripts/prepare-lifecycle.mjs", "line": 38 },
+        { "file": "__tests__/scripts/prepare-lifecycle.test.ts", "line": 130 }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "__tests__/scripts/prepare-lifecycle.test.ts", "line": 97 },
+        { "file": "__tests__/scripts/prepare-lifecycle.test.ts", "line": 149 }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2594/cycle-1788836860/canary/run-exact.log", "line": 2 },
+        { "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2594/cycle-1788836860/canary/run-exact.log", "line": 19 }
+      ]
+    }
+  ]
+}
