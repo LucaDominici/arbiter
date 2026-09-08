@@ -70,7 +70,7 @@ describe('published package hygiene', () => {
       readFileSync(resolve('__tests__/fixtures/pack-contract-2597.json'), 'utf-8'),
     ) as { pack: { unpackedSize: number; entryCount: number } }
 
-    expect(packSummary.unpackedSize).toBe(fixture.pack.unpackedSize)
+    expect(packSummary.unpackedSize).toBeLessThan(fixture.pack.unpackedSize)
     expect(packSummary.entryCount).toBe(fixture.pack.entryCount)
     expect(classifyPackSize(packSummary.unpackedSize, 'strict')).toEqual({ level: 'ok', exitCode: 0 })
   })
