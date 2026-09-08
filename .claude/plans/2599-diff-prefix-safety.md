@@ -28,8 +28,7 @@ Standard shared security helper. Owner GO delegates native admission, not review
 - [ ] AC-4: Preserve genuine RED before GREEN, obtain native plan/code/refutation approval and targeted regressions, then exact-head L1/L2, real CI and pr-ff/CAS landing. Rejoin #2597 and requalify its exact artifact/consumer after the prerequisite is fixed.
 
 ## Non-Goals
-No new parser framework, dependency, scheduler, per-caller patch, gate relaxation,
-or changes to #2578. #2597 remains a separate blocked train at review round2.
+- No new parser framework, dependency, scheduler, per-caller patch, gate relaxation, or changes to #2578. #2597 remains a separate blocked train at review round2.
 ## Approach & decomposition
 One TDD unit. Before any implementation, native independent plan approval and
 Standard three-seat red-team. In addedLinesVsHEAD, ignore records before the first
