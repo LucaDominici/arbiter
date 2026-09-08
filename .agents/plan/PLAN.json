@@ -53,6 +53,7 @@
       "__tests__/integrations/external-review-subprocess.test.ts",
       "__tests__/scripts/adr-status-vocabulary.test.ts",
       "__tests__/scripts/check-deprecations.test.ts",
+      "__tests__/scripts/check-kernel-plugin-parity.test.ts",
       "__tests__/templates/01-pr-fast-render.test.ts",
       "__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml",
       "__tests__/templates/setup-node-pnpm-render.test.ts",
@@ -85,6 +86,7 @@
     ]
   },
   "files": [
+    { "path": "__tests__/scripts/check-kernel-plugin-parity.test.ts", "operation": "modify" },
     { "path": ".dogfood-divergences.json", "operation": "modify" },
     {
       "path": ".agents/plan/PLAN.json",

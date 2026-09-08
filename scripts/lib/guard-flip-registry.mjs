@@ -460,6 +460,17 @@ export const FLIP_REGISTRY = {
     plantBad: (d) => gitFixture(d, { 'data.sqlite': 'SQLite format 3\u0000' }),
     plantClean: (d) => gitFixture(d, { 'README.md': '# fixture\n' }),
   },
+  'no redacted tokens': {
+    kind: 'file-scan',
+    // #2514: file bodies now resolve against ARBITER_HOOK_GIT_CWD (the same root git ls-files
+    // is listed from) instead of the script's own repo root — this is what makes the gate
+    // fixture-injectable at all; before the fix every read landed on this live repo's own
+    // src/kit/ tree regardless of the fixture, so no planted bad case could ever be seen.
+    env: (d) => ({ ARBITER_HOOK_GIT_CWD: d }),
+    // a kit-authored file carrying a forbidden lexicon token
+    plantBad: (d) => gitFixture(d, { 'src/kit/a.ts': 'export const svc = "planning-service"\n' }),
+    plantClean: (d) => gitFixture(d, { 'src/kit/a.ts': 'export const ok = 1\n' }),
+  },
   'canon enforcement parity (B1)': {
     kind: 'file-scan',
     argv: (d) => [

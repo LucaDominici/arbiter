@@ -21,8 +21,9 @@ const LIB_TEMPLATE = 'claude/hooks/lib.mjs.ejs'
 const BYPASS_LOG_PATH = (dir: string) => join(dir, '.arbiter', 'evidence', 'bypass-log.jsonl')
 const BYPASS_FILE_PATH = (dir: string) => join(dir, '.arbiter', 'ssot-bypass')
 
-function setup(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'arbiter-ssot-guard-'))
+function setup(target?: string): string {
+  const dir = target ?? mkdtempSync(join(tmpdir(), 'arbiter-ssot-guard-'))
+  mkdirSync(dir, { recursive: true })
   execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: dir, stdio: 'ignore' })
@@ -82,6 +83,36 @@ afterEach(() => {
   }
 })
 
+/**
+ * #2493: a repo plus a linked worktree at the SANCTIONED sibling location
+ * `<repoParent>/<repoName>.worktrees/<slug>` (src/worktree/paths.ts
+ * resolveWorktreeBase). `relative(mainRoot, <file in that worktree>)` starts with
+ * `..`, which is precisely the shape the pre-fix hook waved through.
+ */
+function setupWithSiblingWorktree(): { repo: string; worktree: string } {
+  const base = track(mkdtempSync(join(tmpdir(), 'arbiter-ssot-wt-')))
+  const repo = join(base, 'proj')
+  setup(repo)
+  const worktree = join(base, 'proj.worktrees', '2493')
+  execFileSync('git', ['worktree', 'add', '-b', 'task/2493', worktree], {
+    cwd: repo,
+    stdio: 'ignore',
+  })
+  return { repo, worktree }
+}
+
+/** Run the MAIN checkout's hook with the process anchored there, on an arbitrary path. */
+function runHookFrom(cwd: string, hookRepo: string, filePath: string) {
+  const baseEnv = { ...process.env }
+  delete baseEnv['ARBITER_SSOT_BYPASS']
+  return spawnSync('node', [join(hookRepo, '.claude', 'hooks', 'pre-edit-ssot-guard.mjs')], {
+    cwd,
+    encoding: 'utf-8',
+    input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: filePath } }),
+    env: baseEnv,
+  })
+}
+
 describe('pre-edit-ssot-guard', () => {
   describe('default (no arbiter.json) guarded-path behavior', () => {
     it('exits 2 when editing AGENTS.md', () => {
@@ -138,7 +169,7 @@ describe('pre-edit-ssot-guard', () => {
   describe('one-shot file bypass at .arbiter/ssot-bypass (#2045)', () => {
     it('allows a guarded edit once, consumes the file, and logs BYPASS with the reason', () => {
       const dir = track(setup())
-      writeBypassFile(dir, 'ADR-999 emergency correction')
+      writeBypassFile(dir, 'AGENTS.md\nADR-999 emergency correction')
 
       const first = runHook(dir, 'AGENTS.md')
       expect(first.status).toBe(0)
@@ -170,7 +201,7 @@ describe('pre-edit-ssot-guard', () => {
 
     it('is not consumed by an edit to a non-guarded file', () => {
       const dir = track(setup())
-      writeBypassFile(dir, 'reason')
+      writeBypassFile(dir, 'AGENTS.md\nreason')
 
       const nonGuarded = runHook(dir, 'src/index.ts')
       expect(nonGuarded.status).toBe(0)
@@ -215,6 +246,64 @@ describe('pre-edit-ssot-guard', () => {
     it('falls back to the built-in defaults when arbiter.json is missing entirely', () => {
       const dir = track(setup())
       expect(runHook(dir, 'AGENTS.md').status).toBe(2)
+    })
+  })
+
+  describe('#2493 path-scoped one-shot bypass (AC-1)', () => {
+    it('does NOT authorize an edit to a path other than the one the marker names', () => {
+      const dir = track(setup())
+      writeBypassFile(dir, 'docs/ADR/X.md\nADR-999 emergency correction')
+
+      const other = runHook(dir, 'docs/ADR/Y.md')
+      expect(other.status).toBe(2)
+      expect(readBypassLog(dir)).toHaveLength(0)
+      // The marker is one-shot for ITS target, so a mismatched attempt must not spend it.
+      expect(existsSync(BYPASS_FILE_PATH(dir))).toBe(true)
+    })
+
+    it('authorizes exactly the path it names, then is consumed', () => {
+      const dir = track(setup())
+      writeBypassFile(dir, 'docs/ADR/X.md\nADR-999 emergency correction')
+
+      const target = runHook(dir, 'docs/ADR/X.md')
+      expect(target.status).toBe(0)
+      expect(existsSync(BYPASS_FILE_PATH(dir))).toBe(false)
+      expect(readBypassLog(dir)[0]).toMatchObject({
+        target: 'docs/ADR/X.md',
+        reason: 'ADR-999 emergency correction',
+        bypassed: true,
+      })
+    })
+
+    it('treats an unscoped (single-line) marker as authorizing nothing', () => {
+      const dir = track(setup())
+      writeBypassFile(dir, 'just a reason with no target path')
+
+      expect(runHook(dir, 'AGENTS.md').status).toBe(2)
+      expect(readBypassLog(dir)).toHaveLength(0)
+    })
+  })
+
+  describe("#2493 anchor is the edited file's own worktree (AC-2)", () => {
+    it('still guards AGENTS.md inside a sanctioned sibling worktree', () => {
+      const { repo, worktree } = setupWithSiblingWorktree()
+      // Hook process anchored at the MAIN checkout — the reported #2493 shape.
+      const result = runHookFrom(repo, repo, join(worktree, 'AGENTS.md'))
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('SSOT GUARD')
+    })
+
+    it('reads the one-shot marker from the worktree, not from the main checkout', () => {
+      const { repo, worktree } = setupWithSiblingWorktree()
+      // A marker in the MAIN checkout must not authorize an edit inside the worktree.
+      writeBypassFile(repo, 'AGENTS.md\nmain-checkout marker')
+      expect(runHookFrom(repo, repo, join(worktree, 'AGENTS.md')).status).toBe(2)
+      expect(existsSync(BYPASS_FILE_PATH(repo))).toBe(true)
+
+      // The worktree's own marker, naming the worktree path, does authorize it.
+      writeBypassFile(worktree, 'AGENTS.md\nworktree marker')
+      expect(runHookFrom(repo, repo, join(worktree, 'AGENTS.md')).status).toBe(0)
+      expect(existsSync(BYPASS_FILE_PATH(worktree))).toBe(false)
     })
   })
 
