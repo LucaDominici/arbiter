@@ -28,12 +28,13 @@
 // npm installs + a full generated-project L1 gate run is not cheap.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { hasBinary, isOfflineFailure, stageFixture } from '../helpers.js'
+import { classifyPackSize } from '../../../../scripts/check-pack-size.mjs'
 
 const L2 = process.env.VITEST_L2 === '1'
 const REPO_ROOT = process.cwd()
@@ -327,6 +328,9 @@ function assertFrozenContract(tarball: string): void {
     manifest: { bin?: unknown; exports?: unknown; engines?: unknown; files?: unknown }
     required_engine_paths: string[]
     generated_profile_paths: string[]
+    declarations: { count: number; pathsSha256: string }
+    templates: { count: number; pathsSha256: string }
+    leading_spdx: { count: number; pathsSha256: string }
   }
   const paths = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf-8' })
     .trim()
@@ -335,9 +339,20 @@ function assertFrozenContract(tarball: string): void {
     .sort()
   const digest = createHash('sha256').update(paths.join('\n')).digest('hex')
   const manifest = packedManifest(tarball)
+  const extracted = mkdtempSync(join(tmpdir(), 'arbiter-pkg-contract-'))
+  execFileSync('tar', ['-xzf', tarball, '-C', extracted])
+  const packageDir = join(extracted, 'package')
+  const pathsDigest = (items: string[]) => createHash('sha256').update(items.sort().join('\n')).digest('hex')
+  const unpackedSize = paths.reduce((sum, path) => sum + statSync(join(packageDir, path)).size, 0)
+  const declarations = paths.filter((path) => path.endsWith('.d.ts'))
+  const templates = paths.filter((path) => path.startsWith('dist/templates/'))
+  const spdx = paths.filter((path) =>
+    readFileSync(join(packageDir, path), 'utf-8').startsWith('// SPDX-License-Identifier:'),
+  )
 
   expect(paths).toHaveLength(contract.pack.entryCount)
   expect(digest).toBe(contract.pack.rosterSha256)
+  expect(classifyPackSize(unpackedSize, 'strict')).toEqual({ level: 'ok', exitCode: 0 })
   expect(manifest.bin).toEqual(contract.manifest.bin)
   expect(manifest.exports).toEqual(contract.manifest.exports)
   expect(manifest.engines).toEqual(contract.manifest.engines)
@@ -345,6 +360,22 @@ function assertFrozenContract(tarball: string): void {
   for (const path of [...contract.required_engine_paths, ...contract.generated_profile_paths]) {
     expect(paths).toContain(path)
   }
+  expect([declarations.length, pathsDigest(declarations)]).toEqual([
+    contract.declarations.count,
+    contract.declarations.pathsSha256,
+  ])
+  expect([templates.length, pathsDigest(templates)]).toEqual([
+    contract.templates.count,
+    contract.templates.pathsSha256,
+  ])
+  expect([spdx.length, pathsDigest(spdx)]).toEqual([
+    contract.leading_spdx.count,
+    contract.leading_spdx.pathsSha256,
+  ])
+  const cli = join(packageDir, 'dist', 'cli.js')
+  expect(readFileSync(cli, 'utf-8')).toMatch(/^#!/)
+  expect(statSync(cli).mode & 0o111).not.toBe(0)
+  rmSync(extracted, { recursive: true, force: true })
 }
 
 describe.skipIf(!L2)('published package — signed bytes and declared surface (#2138/#2139)', () => {
