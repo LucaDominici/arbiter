@@ -1,70 +1,43 @@
 {
-  "task_id": "#2594",
+  "task_id": "#2587",
   "scope": {
     "track": "A",
+    "boundaries": [
+      "Reuse scripts/check-acceptance.mjs --plan at red admission only.",
+      "Require native TDD receipt provenance at verification for primary and chain.",
+      "Do not alter consumer flags, full gates, candidate #2598/#2603, or remote refs."
+    ],
     "paths": [
-      "scripts/prepare-lifecycle.mjs",
-      "__tests__/scripts/prepare-lifecycle.test.ts",
-      ".agents/plan/2594-bun-prepare.md",
-      "docs/QUICKSTART.md",
-      ".arbiter/evidence/tdd/#2594.json",
-      ".agents/plan/PLAN.json",
-      ".arbiter/evidence/ac-fit/2594.json",
-      ".arbiter/evidence/_2594/tech-debt.json",
-      "scripts/data/codex-self-parity-runtime-artifacts.json",
-      "docs/internal/PRODUCT/GAP.md"
+      "src/commands/task.ts",
+      "src/evidence/git-checks.ts",
+      "scripts/check-acceptance.mjs",
+      "__tests__/commands/task-advance-gates.test.ts",
+      "__tests__/commands/task-advance-chain-evidence.test.ts",
+      "__tests__/commands/task-phase-migration.test.ts",
+      "__tests__/evidence/git-checks.test.ts",
+      "__tests__/evidence/git-checks-reachability.test.ts",
+      ".claude/commands/ship.md",
+      "src/templates/claude/commands/ship.md.ejs"
     ]
   },
   "files": [
-    {
-      "path": "docs/QUICKSTART.md",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/tdd/#2594.json",
-      "operation": "create"
-    },
-    {
-      "path": "scripts/prepare-lifecycle.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/scripts/prepare-lifecycle.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": ".agents/plan/2594-bun-prepare.md",
-      "operation": "create"
-    },
-    {
-      "path": ".agents/plan/PLAN.json",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/ac-fit/2594.json",
-      "operation": "create"
-    },
-    {
-      "path": ".arbiter/evidence/_2594/tech-debt.json",
-      "operation": "create"
-    },
-    {
-      "path": "scripts/data/codex-self-parity-runtime-artifacts.json",
-      "operation": "modify"
-    },
-    {
-      "path": "docs/internal/PRODUCT/GAP.md",
-      "operation": "modify"
-    }
+    { "path": "src/commands/task.ts", "operation": "modify", "changes": { "adds_tests": true } },
+    { "path": "src/evidence/git-checks.ts", "operation": "modify", "changes": { "adds_tests": true } },
+    { "path": "__tests__/commands/task-advance-gates.test.ts", "operation": "modify", "changes": { "modifies_tests": true } },
+    { "path": "__tests__/commands/task-advance-chain-evidence.test.ts", "operation": "modify", "changes": { "modifies_tests": true } },
+    { "path": "__tests__/commands/task-phase-migration.test.ts", "operation": "modify", "changes": { "modifies_tests": true } },
+    { "path": "__tests__/evidence/git-checks.test.ts", "operation": "modify", "changes": { "modifies_tests": true } },
+    { "path": "__tests__/evidence/git-checks-reachability.test.ts", "operation": "modify", "changes": { "modifies_tests": true } },
+    { "path": ".claude/commands/ship.md", "operation": "modify" },
+    { "path": "src/templates/claude/commands/ship.md.ejs", "operation": "modify" }
   ],
-  "invariants": {
-    "ui_language": "EN",
-    "no_skips": true
-  },
-  "invariant_ids": ["INV-08", "INV-23", "INV-24", "INV-25", "INV-26", "INV-27", "INV-53"],
-  "review_bridge": {
-    "enabled": true,
-    "reviewer": "bridge-reviewer",
-    "fail_on_warn": true
-  }
+  "invariants": { "no_skips": true },
+  "invariant_ids": ["INV-12", "INV-24", "INV-138"],
+  "notes": [
+    "Issue #2587 is the existing active-plan-anchor deadlock record; this is a bounded phase-admission follow-up.",
+    "The Markdown plan .claude/plans/task-2587.md is the human contract and is checked with check-acceptance --plan.",
+    "The chain TDD check remains at verification, never green, to avoid the documented multi-issue deadlock.",
+    "Native plan review must record an independent PASS for this PLAN.json digest before implementation admission."
+  ],
+  "review_bridge": { "enabled": true, "reviewer": "bridge-reviewer", "fail_on_warn": true }
 }
