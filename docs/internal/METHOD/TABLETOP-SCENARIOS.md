@@ -62,11 +62,27 @@ directly, so the structure, the id and slug uniqueness, and the join to every ev
   which files were changed and which were skipped.
 - **Docs the user would read:** `docs/QUICKSTART.md`,
   `docs/internal/DEVELOPMENT/CONFORMANCE.md`, `docs/DEPRECATIONS.md`
-- **Executable probes:** `node dist/cli.js update --help`; a dry-run update against a fixture
-  under `__tests__/fixtures/real-projects/`; render the Go gate registry and diff it against
-  the materialized Go example; read the brownfield-detection code path.
-- **Exit criterion:** The dry-run names every write and every skip-if-exists, and no
+- **Executable probes:** `node dist/cli.js update --help`; `node dist/cli.js init --dry-run`
+  against a copy of a fixture under `__tests__/fixtures/real-projects/`, then — once the kit
+  is installed — `node dist/cli.js diff` (the read-only preview of what `update` would write)
+  and `node dist/cli.js update --adopt-plan` (the preview of what adoption would overwrite);
+  render the Go gate registry and diff it against the materialized Go example under
+  `examples/go-library/` — archetype `library`, not the `backend-web-db`-shaped service
+  this persona actually runs. **Known coverage gap (tracked, #2454):** this probe only
+  proves gate-registry rendering matches for `library`; `backend-web-db`-specific Go gate
+  code has no example-drift coverage (`examples:regenerate`'s `LIVING_EXAMPLES` is a
+  closed list scoped to `library` by design — see `examples/README.md`), though the
+  Generator Matrix's Go DEEP cell does prove the generated L1 gate runs green for
+  `backend-web-db` via the `go-backend-web-gcr` fixture. Read the brownfield-detection
+  code path.
+- **Exit criterion:** The preview names every write and every skip-if-exists — `init
+--dry-run` is driven by the same generator plan the real run executes (#2452) — and no
   documented skip promise is contradicted by the plan.
+
+> There is no `update --dry-run`. The whole-run preview of `update` is `arbiter diff`
+> ("`update` with the writes elided"); `update --adopt-plan` previews the narrower
+> question of which withheld files adoption would overwrite. Naming a third spelling
+> would only add a surface that can drift.
 
 ## 3. `/ship` one XS issue to a merged PR
 
@@ -97,9 +113,23 @@ directly, so the structure, the id and slug uniqueness, and the join to every ev
   `docs/REFERENCE/wave-primitives.md`, `.claude/rules/50-batch-execution.md`
 - **Executable probes:** `node dist/cli.js worktree --help`; `node dist/cli.js worktree list`;
   read the wave-drain skill against the batch-execution carve-out conditions; run
-  `node scripts/check-agent-dispatch.mjs`.
-- **Exit criterion:** The disjoint-file-set precondition, the worktree isolation rule and the
-  single-wave-PR promise each have a mechanism behind them, not only prose.
+  `__tests__/scripts/check-touched-vs-manifest.test.ts` and read
+  `scripts/check-touched-vs-manifest.mjs` — the harvest-time gate that a group's touched
+  files (`git diff --name-only` against the wave's base) stay inside that group's declared
+  `Files:` manifest row.
+- **Exit criterion:** The disjoint-file-set precondition has a mechanism behind it:
+  `check-touched-vs-manifest.mjs`, run per group at wave-drain harvest — though it proves
+  one group's write-set compliance (touched ⊆ manifest), not pairwise cross-group
+  disjointness, which stays a plan-time declaration checked by review, not computed. The
+  worktree isolation rule and the single-wave-PR promise have no standalone probe script;
+  verify them by inspection instead: confirm `git worktree add -b` — not application code —
+  is what makes branch creation atomic (ADR-103 §D1), and confirm the wave-drain skill's
+  harvest step merges every group into one PR rather than one per issue.
+
+  > `check-agent-dispatch.mjs` — cited here in an earlier revision — verifies the
+  > review-dispatch matrix (tier→vertical floor, model-diversity and refutation-skeptic
+  > counts), a different axis from this criterion; a green run from it says nothing about
+  > disjointness, isolation, or PR shape (#2445).
 
 ## 5. The PR goes red in CI and the agent recovers
 
@@ -129,8 +159,17 @@ directly, so the structure, the id and slug uniqueness, and the join to every ev
   deprecations are now due.
 - **Docs the user would read:** `docs/SEMVER.md`, `docs/DEPRECATIONS.md`, `CHANGELOG.md`,
   `docs/REFERENCE/backward-compat-harness.md`
-- **Executable probes:** a dry-run update on a materialized example under `examples/`;
-  `node scripts/check-api-snapshot.mjs`; read `CHANGELOG.md` against the deprecation window
-  the semver policy promises.
+- **Executable probes:** `node dist/cli.js diff` (and `diff --withheld`) on a materialized
+  example under `examples/`; `node dist/cli.js update --adopt-plan` on the same tree; run
+  `node scripts/check-deprecations.mjs` — it parses `docs/DEPRECATIONS.md`'s active-window
+  rows and the `CLI_DEPRECATED_FLAGS` registry, failing if a deprecated symbol is missing
+  its removal-window gap; read `CHANGELOG.md` against the deprecation window the semver
+  policy promises.
 - **Exit criterion:** Every deprecation listed carries a version and a removal window, and
-  the dry-run's skip set matches what the semver policy says an upgrade preserves.
+  the preview's skip set matches what the semver policy says an upgrade preserves.
+
+  > `check-api-snapshot.mjs` — cited here in an earlier revision — verifies arbiter's own
+  > internal TS export surface (`plugin.ts`, `invariants/`, `compatibility/`) hasn't
+  > drifted unacknowledged; that is a real gate, but on a different axis from this
+  > criterion — it says nothing about a listed deprecation's version/removal window or
+  > about the upgrade preview's skip set (#2445).
