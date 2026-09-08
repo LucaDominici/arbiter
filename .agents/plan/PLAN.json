@@ -16,8 +16,13 @@
       "__tests__/commands/task-phase-migration.test.ts",
       "__tests__/evidence/git-checks.test.ts",
       "__tests__/evidence/git-checks-reachability.test.ts",
+      "__tests__/commands/task-admission-red-2587.test.ts",
+      ".agents/plan/PLAN.json",
+      ".arbiter/evidence/tdd/#2587.json",
       ".claude/commands/ship.md",
-      "src/templates/claude/commands/ship.md.ejs"
+      "src/templates/claude/commands/ship.md.ejs",
+      "examples/*/.claude/commands/ship.md",
+      "examples/*/.arbiter-generated-manifest.json"
     ]
   },
   "files": [
@@ -28,8 +33,13 @@
     { "path": "__tests__/commands/task-phase-migration.test.ts", "operation": "modify", "changes": { "modifies_tests": true } },
     { "path": "__tests__/evidence/git-checks.test.ts", "operation": "modify", "changes": { "modifies_tests": true } },
     { "path": "__tests__/evidence/git-checks-reachability.test.ts", "operation": "modify", "changes": { "modifies_tests": true } },
+    { "path": "__tests__/commands/task-admission-red-2587.test.ts", "operation": "create", "changes": { "committed_red_test": true } },
+    { "path": ".agents/plan/PLAN.json", "operation": "modify", "changes": { "native_workflow_metadata": true } },
+    { "path": ".arbiter/evidence/tdd/#2587.json", "operation": "create", "changes": { "native_red_receipt": true } },
     { "path": ".claude/commands/ship.md", "operation": "modify" },
-    { "path": "src/templates/claude/commands/ship.md.ejs", "operation": "modify" }
+    { "path": "src/templates/claude/commands/ship.md.ejs", "operation": "modify" },
+    { "path": "examples/*/.claude/commands/ship.md", "operation": "modify", "changes": { "derived_only": true } },
+    { "path": "examples/*/.arbiter-generated-manifest.json", "operation": "modify", "changes": { "derived_only": true } }
   ],
   "invariants": { "no_skips": true },
   "invariant_ids": ["INV-12", "INV-24", "INV-138"],
@@ -38,7 +48,10 @@
     "This does not fix #2587's original Context Block self-repair deadlock; it is only a preventive admission slice (Refs #2587).",
     "The Markdown plan .claude/plans/task-2587.md is the human contract and is checked with check-acceptance --plan.",
     "The chain TDD check remains at verification, never green, to avoid the documented multi-issue deadlock.",
-    "Native plan review must record an independent PASS for this PLAN.json digest before implementation admission."
+    "Native plan review must record an independent PASS for this PLAN.json digest before implementation admission.",
+    "Exact self-scope is this isolated #2587 worktree only; no candidate/main/shared/remote writes.",
+    "The RED test and TDD receipt are committed workflow evidence; emitted /ship examples/manifests/bake hashes are derived-only and only for this template.",
+    "Unrelated API/consumer snapshot repair is explicitly out of scope; do not widen regeneration beyond the changed /ship emission."
   ],
   "review_bridge": { "enabled": true, "reviewer": "bridge-reviewer", "fail_on_warn": true }
 }
