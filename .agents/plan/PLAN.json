@@ -35,6 +35,7 @@
   "invariant_ids": ["INV-12", "INV-24", "INV-138"],
   "notes": [
     "Issue #2587 is the existing active-plan-anchor deadlock record; this is a bounded phase-admission follow-up.",
+    "This does not fix #2587's original Context Block self-repair deadlock; it is only a preventive admission slice (Refs #2587).",
     "The Markdown plan .claude/plans/task-2587.md is the human contract and is checked with check-acceptance --plan.",
     "The chain TDD check remains at verification, never green, to avoid the documented multi-issue deadlock.",
     "Native plan review must record an independent PASS for this PLAN.json digest before implementation admission."
