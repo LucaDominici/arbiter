@@ -1,46 +1,31 @@
 {
-  "task_id": "#2576",
+  "task_id": "#2594",
   "scope": {
     "track": "A",
     "paths": [
-      ".arbiter/evidence/ac-fit/2576.json",
-      ".claude/plans/2576.md",
-      ".dogfood-divergences.json",
-      "scripts/check-arc42-slots.mjs",
-      "__tests__/scripts/check-arc42-slots.test.ts",
-      "README.md",
-      ".arbiter/evidence/tdd/#2576.json",
+      "scripts/prepare-lifecycle.mjs",
+      "__tests__/scripts/prepare-lifecycle.test.ts",
+      ".agents/plan/2594-bun-prepare.md",
+      ".arbiter/evidence/tdd/#2594.json",
       ".agents/plan/PLAN.json"
     ]
   },
   "files": [
     {
-      "path": ".arbiter/evidence/ac-fit/2576.json",
+      "path": ".arbiter/evidence/tdd/#2594.json",
       "operation": "create"
     },
     {
-      "path": ".claude/plans/2576.md",
+      "path": "scripts/prepare-lifecycle.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/prepare-lifecycle.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": ".agents/plan/2594-bun-prepare.md",
       "operation": "create"
-    },
-    {
-      "path": ".dogfood-divergences.json",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/tdd/#2576.json",
-      "operation": "create"
-    },
-    {
-      "path": "scripts/check-arc42-slots.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/scripts/check-arc42-slots.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "README.md",
-      "operation": "modify"
     },
     {
       "path": ".agents/plan/PLAN.json",
@@ -51,7 +36,7 @@
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": ["INV-08", "INV-23", "INV-24", "INV-25", "INV-53", "INV-144"],
+  "invariant_ids": ["INV-08", "INV-23", "INV-24", "INV-25", "INV-26", "INV-27", "INV-53"],
   "review_bridge": {
     "enabled": true,
     "reviewer": "bridge-reviewer",
