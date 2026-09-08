@@ -690,6 +690,38 @@ something real: a project whose config legitimately contains that string — a g
 gate name, a template path — would find `arbiter configure` and `arbiter update` silently
 unable to write its own config, permanently, with no marker anyone deliberately placed.
 
+### And the third case: a preserve that is genuinely the user's (#2546)
+
+The two sections above both concern files arbiter owns, where a preserve marker can only
+be an accident. `syncDrainMaxParallel` in `src/commands/configure.ts` is the opposite case
+and needs the opposite handling.
+
+It rewrites `.claude/commands/drain.md` — a **generator-emitted, user-customisable** file —
+to keep the materialized `/drain` default in step with the configured worktree cap. It was
+discarding the `WriteResult` like the others, so a `withheld` write was silently swallowed
+and `configure` reported a sync that never happened.
+
+But the fix here is **not** `assertWritten`, and the reason is worth stating because the
+tempting move is to apply the same hammer:
+
+- At this call site `withheld: true` has exactly one possible cause — the on-disk `drain.md`
+  carries the `arbiter:preserve` marker. `resolveSessionSkip`'s withheld branch requires an
+  active generation session, and `configure` never opens one; the call passes no `session`,
+  `skipIfExists` or `backup` either. So a withheld write here means a user deliberately
+  froze the file. That is the marker **working**, not failing.
+- Throwing would also be wrong mechanically. `syncDrainMaxParallel` runs after `saveConfig`
+  inside the same lock, so a throw would leave `arbiter.json` already persisted while the
+  command reports failure — a worse state than the silent no-op it replaces.
+
+So the withheld outcome is **returned** rather than thrown: the caller reports a warning
+naming the file and the cap value the user must now set by hand, and `configure` still exits 0. An ordinary sync — and a no-op where the content already matched — returns `null` and the
+command stays silent.
+
+Three call sites, three different right answers: assert and throw for arbiter's own state
+(#2533), exempt and assert for the config files (#2541), and report without throwing where
+the preserve is the user's own (#2546). "Check the `WriteResult`" is the shared rule; what
+to do about a withheld one is a per-call-site judgement.
+
 ## CI Gate
 
 Adding or removing a field in a `stable` file's generated schema without a corresponding MAJOR semver bump fails the gate. See [docs/SEMVER.md](../SEMVER.md).
