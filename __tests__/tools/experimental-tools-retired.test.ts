@@ -130,7 +130,7 @@ describe('#2367 — user-facing surfaces reflect the decisions (AC-6)', () => {
 })
 
 describe('#2367 — the decisions are recorded durably', () => {
-  const ADR = 'docs/internal/ADR/119-experimental-tool-generators-retired.md'
+  const ADR = 'docs/internal/ADR/122-experimental-tool-generators-retired.md'
 
   it('an ADR records a decision for each of the five tools', () => {
     expect(existsSync(resolve(ADR))).toBe(true)

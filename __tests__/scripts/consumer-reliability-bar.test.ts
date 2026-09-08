@@ -13,6 +13,7 @@ import {
   redactSecrets,
   resultExitCode,
   summarizeProbeFailures,
+  formatFailureLines,
   summarizeRoutingFailures,
 } from '../../scripts/lib/consumer-reliability-bar.mjs'
 
@@ -413,5 +414,63 @@ describe('consumer reliability bar oracles (#2135)', () => {
       status: 'FAIL',
       warningCount: 0,
     })
+  })
+})
+
+// #2479: the bar has been red on every push to main since 2026-08-28, and the CI log
+// says only `[consumer-reliability] FAIL — 3 pinned consumers verified`. Every check
+// already carries a redacted `detail`, but it is written ONLY to the summary.json
+// artifact, so diagnosing a red run requires downloading a zip — which is exactly the
+// friction that let a multi-day red streak go unread. A bar nobody can read from the
+// log is a bar nobody reads.
+describe('failure reporting (#2479)', () => {
+  const consumer = (id: string, checks: Record<string, { status: string; detail: string }>) => ({
+    id,
+    language: 'go',
+    sha: 'abc123',
+    kind: 'fail',
+    checks,
+  })
+
+  it('names the consumer, the check and the recorded detail for a failing row', () => {
+    const lines = formatFailureLines([
+      consumer('consumer-go', {
+        originFree: { status: 'PASS', detail: 'no remotes remain' },
+        gateSpine: { status: 'FAIL', detail: 'check "security" disappeared from the spine' },
+      }),
+    ])
+    const text = lines.join('\n')
+    expect(text).toContain('consumer-go')
+    expect(text).toContain('gateSpine')
+    expect(text).toContain('check "security" disappeared from the spine')
+  })
+
+  it('stays silent when every check passes — a green run adds no noise', () => {
+    expect(
+      formatFailureLines([
+        consumer('consumer-go', { originFree: { status: 'PASS', detail: 'no remotes remain' } }),
+      ]),
+    ).toEqual([])
+  })
+
+  it('reports ERROR and WARN rows too, not only FAIL', () => {
+    const text = formatFailureLines([
+      consumer('consumer-java', {
+        update: { status: 'ERROR', detail: 'dry-run exited 2' },
+        hookLiveness: { status: 'WARN', detail: 'advisory probe skipped' },
+      }),
+    ]).join('\n')
+    expect(text).toContain('dry-run exited 2')
+    expect(text).toContain('advisory probe skipped')
+  })
+
+  // The details are redacted at the point they are recorded (safeDiagnostic → redactSecrets
+  // + root masking). The formatter must pass them through verbatim rather than re-deriving
+  // anything, so printing can never widen what the artifact already contains.
+  it('passes the recorded detail through verbatim', () => {
+    const detail = 'gate surface mismatch: [ARBITER_ROOT]/scripts/check-all.mjs'
+    expect(
+      formatFailureLines([consumer('c', { gateSurface: { status: 'FAIL', detail } })]).join('\n'),
+    ).toContain(detail)
   })
 })

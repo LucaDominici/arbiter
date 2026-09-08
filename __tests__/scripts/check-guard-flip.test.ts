@@ -19,6 +19,8 @@ import {
   auditInversionRegistry,
   loadInversionRegistry,
   flipProofFor,
+  MIN_ABSENCE_FAMILY,
+  MAX_DEFERRED,
 } from '../../scripts/lib/gate-roster.mjs'
 
 const HARNESS = resolve('scripts/check-guard-flip.mjs')
@@ -129,7 +131,7 @@ describe('check-guard-flip — the harness itself discriminates', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-// CANON-24 / #2301 — inversion-proof completeness over the absence-asserting gate family.
+// CANON-25 / #2301 — inversion-proof completeness over the absence-asserting gate family.
 // The class this guards: a gate that has stopped checking anything still reports green, so the
 // symptom of the defect IS the green. The mechanism: every gate in check-all.mjs that asserts the
 // ABSENCE of something (check-no-*, ratchets, parity) must either carry a flip proof here or be a
@@ -138,20 +140,21 @@ describe('check-guard-flip — the harness itself discriminates', () => {
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 const CHECK_ALL = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
 
-// The cardinality of the deferral ledger, pinned as a literal. Raising it requires editing BOTH
-// scripts/data/inversion-proof-registry.json and this line — a ratchet that cannot be widened by
-// a one-file diff. Lowering it is mandatory when a row is proven and removed (unbanked
-// improvement is a failure in this repo, AGENTS.md §template-tests baseline).
-const DEFERRED_CEILING = 16
+// The cardinality of the deferral ledger. The pin lives in scripts/lib/gate-roster.mjs
+// (MAX_DEFERRED) and the harness enforces it there, so this test asserts against the SAME pin
+// rather than a second literal that could drift from it (#2301 review). Lowering the pin is
+// mandatory when a row is proven and removed — unbanked improvement is a failure in this repo
+// (AGENTS.md §template-tests baseline).
+const DEFERRED_CEILING = MAX_DEFERRED
 
 // The rosters whose proofs may also cover a family gate by SCRIPT (check-no-passwithnotests is
 // wired both as the INV-25 gate and as the anti-fake-green `no-empty-suite` guard).
 const BASE_ROSTER = [...GUARDS, ...CONTEXT_ROT_GATES]
 
-describe('CANON-24 — the absence-asserting gate family is derived, not hand-listed (#2301)', () => {
+describe('CANON-25 — the absence-asserting gate family is derived, not hand-listed (#2301)', () => {
   it('derives every check-no-*, ratchet and parity gate wired in check-all.mjs', () => {
     const family = deriveAbsenceFamily(CHECK_ALL)
-    expect(family.length).toBeGreaterThanOrEqual(25)
+    expect(family.length).toBeGreaterThanOrEqual(MIN_ABSENCE_FAMILY)
     const byName = new Map(family.map((f: { name: string }) => [f.name, f]))
     // one representative of each category — a rename in check-all.mjs must surface here
     expect(byName.get('no work refs')?.category).toBe('no')
@@ -165,6 +168,8 @@ describe('CANON-24 — the absence-asserting gate family is derived, not hand-li
 
   it('every family gate is either flip-proven or a row in the deferral ledger', () => {
     const family = deriveAbsenceFamily(CHECK_ALL)
+    // An empty family satisfies the `orphans` assertion below by construction (#2301 review).
+    expect(family.length).toBeGreaterThanOrEqual(MIN_ABSENCE_FAMILY)
     const registry = loadInversionRegistry(resolve('.'))
     const deferred = new Set(registry.deferred.map((d: { gate: string }) => d.gate))
     const orphans = family
@@ -186,7 +191,7 @@ describe('CANON-24 — the absence-asserting gate family is derived, not hand-li
   })
 })
 
-describe('CANON-24 — the ledger auditor discriminates (#2301)', () => {
+describe('CANON-25 — the ledger auditor discriminates (#2301)', () => {
   const family = [
     { name: 'no work refs', script: 'scripts/check-no-work-refs.mjs', category: 'no' },
     { name: 'bloat ratchet', script: 'scripts/check-bloat-ratchet.mjs', category: 'ratchet' },
@@ -202,7 +207,16 @@ describe('CANON-24 — the ledger auditor discriminates (#2301)', () => {
     ...over,
   })
   const now = new Date('2026-09-04T00:00:00Z')
-  const audit = (registry: unknown) => auditInversionRegistry({ family, registry, now })
+  // Each fixture declares its own cardinality pin, exactly as a `--max-deferred` fixture does on
+  // the CLI: these cases exercise the ROW-level audit and the length-vs-ceiling ratchet on tiny
+  // synthetic ledgers. The SOURCE pin (MAX_DEFERRED) is what stops the real ledger authorising its
+  // own growth, and is covered separately against the real ledger below (#2301 review).
+  const fixtureCeiling = (registry: unknown): number | undefined =>
+    typeof registry === 'object' && registry !== null && 'ceiling' in registry
+      ? (registry as { ceiling?: number }).ceiling
+      : undefined
+  const audit = (registry: unknown) =>
+    auditInversionRegistry({ family, registry, now, pinnedCeiling: fixtureCeiling(registry) })
 
   it('accepts a well-formed ledger', () => {
     expect(audit({ ceiling: 1, deferred: [row()] })).toEqual([])
@@ -260,11 +274,15 @@ describe('CANON-24 — the ledger auditor discriminates (#2301)', () => {
   })
 })
 
-describe('CANON-24 — the harness itself goes red when its own enforcement is inverted (#2301)', () => {
+describe('CANON-25 — the harness itself goes red when its own enforcement is inverted (#2301)', () => {
   // A synthetic check-all.mjs declaring an absence-asserting gate that exists in NEITHER the
   // flip registry nor the ledger. This is the exact change that must turn the harness red — if
   // the completeness check were deleted, this case would pass and the harness would be ceremony.
   const FAKE_GATE = "runCheck('no fabricated thing', 'node', ['scripts/check-no-fabricated.mjs'])\n"
+  // Pins for a ONE-gate synthetic fixture: family floor 1, ledger ceiling declared per-case. The
+  // production pins (MIN_ABSENCE_FAMILY / MAX_DEFERRED) would reject these fixtures outright,
+  // which is the point — a fixture declares its own contract, the real gate source cannot.
+  const FIXTURE_PINS = ['--min-family=1', '--max-deferred=0']
 
   it('an unproven, unledgered absence gate makes the harness exit 1 (UNCOVERED)', () => {
     withTmp((dir) => {
@@ -272,9 +290,15 @@ describe('CANON-24 — the harness itself goes red when its own enforcement is i
       writeFileSync(gate, FAKE_GATE)
       const reg = join(dir, 'registry.json')
       writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
-      const r = spawnSync('node', [HARNESS, `--gate=${gate}`, `--registry=${reg}`], {
-        encoding: 'utf-8',
-      })
+      // A one-gate fixture declares its own pins. The REAL gate source and ledger may not — the
+      // two describe blocks below exercise the pinned defaults and prove they trip.
+      const r = spawnSync(
+        'node',
+        [HARNESS, `--gate=${gate}`, `--registry=${reg}`, ...FIXTURE_PINS],
+        {
+          encoding: 'utf-8',
+        },
+      )
       expect(r.status).toBe(1)
       expect(`${r.stdout}${r.stderr}`).toMatch(/no fabricated thing/)
     })
@@ -302,30 +326,117 @@ describe('CANON-24 — the harness itself goes red when its own enforcement is i
           ],
         }),
       )
-      const ok = spawnSync('node', [HARNESS, `--gate=${gate}`, `--registry=${covered}`], {
-        encoding: 'utf-8',
-      })
+      const ok = spawnSync(
+        'node',
+        [HARNESS, `--gate=${gate}`, `--registry=${covered}`, '--min-family=1', '--max-deferred=1'],
+        { encoding: 'utf-8' },
+      )
       expect(ok.status).toBe(0)
 
       // …and the ratchet still binds: the same row over a zero ceiling is red.
       const overflow = join(dir, 'overflow.json')
       const parsed = JSON.parse(readFileSync(covered, 'utf-8'))
       writeFileSync(overflow, JSON.stringify({ ...parsed, ceiling: 0 }))
-      const bad = spawnSync('node', [HARNESS, `--gate=${gate}`, `--registry=${overflow}`], {
-        encoding: 'utf-8',
-      })
+      const bad = spawnSync(
+        'node',
+        [HARNESS, `--gate=${gate}`, `--registry=${overflow}`, ...FIXTURE_PINS],
+        { encoding: 'utf-8' },
+      )
       expect(bad.status).toBe(1)
     })
   })
 })
 
-describe('CANON-24 — each newly-registered absence-gate flip proof discriminates (#2301)', () => {
+describe('CANON-25 — each newly-registered absence-gate flip proof discriminates (#2301)', () => {
   it('every family gate with a proof rejects its planted bad fixture and accepts the clean one', () => {
     const family = deriveAbsenceFamily(CHECK_ALL)
+    let proven = 0
     for (const gate of family) {
       const entry = flipProofFor(gate, FLIP_REGISTRY, BASE_ROSTER)
       if (!entry) continue
       expect(flipGuard(gate, entry), `${gate.name} does not discriminate`).toEqual([])
+      proven++
     }
+    // Without this the loop `continue`s over every gate and passes having asserted nothing —
+    // the zero-assertion shape TESTING.md tells everyone else not to write (#2301 review).
+    expect(proven, 'no family gate was actually flipped').toBeGreaterThanOrEqual(9)
+  })
+})
+
+// The two pins that stop this mechanism going quietly blind (#2301 review). Both were found by
+// adversarial review of the first cut: the family floor did not exist despite a comment claiming
+// it did, and the ledger's ceiling was compared only against a field of the ledger itself.
+describe('CANON-25 — the harness fails closed when its own programme collapses (#2301)', () => {
+  it('a gate source the parser can no longer see is an ERROR, not a short green programme', () => {
+    withTmp((dir) => {
+      // Readable, valid JS, zero runCheck() calls — the shape a table-driven or aliased refactor
+      // of check-all.mjs would produce. Before the floor this printed `absence-family=0` and
+      // exited 0, with a drained ledger offering no incidental backstop.
+      const blind = join(dir, 'check-all.mjs')
+      writeFileSync(blind, '// no runCheck() call the parser recognises\nconsole.log(1)\n')
+      const drained = join(dir, 'drained.json')
+      writeFileSync(drained, JSON.stringify({ ceiling: 0, deferred: [] }))
+
+      const r = spawnSync('node', [HARNESS, `--gate=${blind}`, `--registry=${drained}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status, 'a zero-length programme must be an ERROR (2), never a pass').toBe(2)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/derived only 0 absence-asserting gates/)
+
+      // Inversion: the SAME fixture passes once it declares the tiny contract it actually has,
+      // so the floor is what produced the failure above — not the fixture being malformed.
+      const declared = spawnSync(
+        'node',
+        [HARNESS, `--gate=${blind}`, `--registry=${drained}`, '--min-family=0', '--max-deferred=0'],
+        { encoding: 'utf-8' },
+      )
+      expect(declared.status).toBe(0)
+    })
+  })
+
+  it('the real gate source clears the floor with headroom', () => {
+    // A floor that the live derivation only just meets would be tripped by any ordinary edit.
+    expect(deriveAbsenceFamily(CHECK_ALL).length).toBeGreaterThanOrEqual(MIN_ABSENCE_FAMILY)
+  })
+
+  it('the ledger cannot authorise its own growth: the ceiling is pinned in source', () => {
+    // Append a row AND raise the ledger's own ceiling in the same edit — the one-file diff that
+    // passed the first cut completely. It must now fail against the MAX_DEFERRED pin.
+    const registry = loadInversionRegistry(resolve('.'))
+    const grown = {
+      ...registry,
+      ceiling: registry.ceiling + 1,
+      deferred: [
+        ...registry.deferred,
+        {
+          gate: 'no work refs',
+          script: 'scripts/check-no-work-refs.mjs',
+          category: 'no',
+          reason: 'synthetic row proving a self-authorised ledger growth is refused, not accepted',
+          issue: 2301,
+          expires: '2099-01-01',
+        },
+      ],
+    }
+    const family = deriveAbsenceFamily(CHECK_ALL)
+    const problems = auditInversionRegistry({ family, registry: grown })
+    expect(problems.join('\n')).toMatch(/cannot authorise its own growth/)
+
+    // Inversion: the same grown ledger IS accepted when the caller's pin moves with it, so the
+    // refusal above comes from the source pin and not from the extra row being malformed.
+    expect(
+      auditInversionRegistry({ family, registry: grown, pinnedCeiling: grown.ceiling }),
+    ).toEqual([])
+  })
+
+  it('the real ledger declares exactly the pinned ceiling', () => {
+    expect(loadInversionRegistry(resolve('.')).ceiling).toBe(MAX_DEFERRED)
+  })
+
+  it('a malformed --now is an ERROR, not a clock that silently expires nothing', () => {
+    // An Invalid Date makes every `due < now` false, so no deferral row could ever expire.
+    const r = spawnSync('node', [HARNESS, '--now=not-a-date'], { encoding: 'utf-8' })
+    expect(r.status).toBe(2)
+    expect(`${r.stdout}${r.stderr}`).toMatch(/--now=not-a-date is not a YYYY-MM-DD date/)
   })
 })

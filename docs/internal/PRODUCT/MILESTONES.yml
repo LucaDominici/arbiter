@@ -1,0 +1,132 @@
+# Milestone SSOT — schema: schemas/milestone.schema.json, gate: scripts/check-milestones.mjs
+#
+# Forward-only. This file carries live and upcoming milestones as MS-NN.
+# The 33 historical `## MN` headings in MILESTONES.md are an archive and are NOT
+# migrated: `done` is fail-closed on exit-criteria evidence, and reconstructing
+# that evidence after the fact to satisfy the gate is precisely the fake-green
+# this ontology exists to prevent. Cost accepted: no plan history before 2026-09-04.
+#
+# GitHub milestones are a PROJECTION of this file. Drift is reported as a finding
+# by the reconciliation pass, never silently resolved in either direction.
+
+milestones:
+  - id: MS-01
+    title: Lifecycle ontology wired — arbiter defines, forma renders
+    goal:
+      claim: >-
+        Every lifecycle artifact type arbiter governs ships as a wired behaviour —
+        schema, gate, hook, tool and catalog citation — rather than as a document
+        describing one, and forma derives its lenses from those machine outputs
+        instead of restating them.
+      strategy: >-
+        Enumerate the ontology in a machine-parsed ID registry, then close each row
+        with the four legs; a meta-gate walks the registry and fails on any row
+        missing a leg, so "no prose" is checked rather than promised.
+      context: >-
+        Programme #2480. Waves 1 and 2 landed; waves 3-8 remain (milestones/CPM,
+        RTM squared, SOTA sources, mutual extension, forma IA, use cases and runbooks).
+      assumptions:
+        - The self-hosted CI runner is offline, so every wave is verified locally through scripts/check-all.mjs.
+        - forma stays read-only for plan definitions (its I18); arbiter scaffolds and writes.
+    exit_criteria:
+      - id: EC-01
+        description: Every registered ID scheme resolves to a real schema, a wired gate, a resolving CLI verb and a hook or a reasoned n/a.
+        evidence_ref: scripts/check-ontology-wired.mjs
+      - id: EC-02
+        description: Identifier collisions are structurally impossible across all registered schemes.
+        evidence_ref: scripts/check-id-registry.mjs
+      - id: EC-03
+        description: A divergence between arbiter's owned schemas and forma's vendored copies turns both repositories red.
+        evidence_ref: scripts/check-forma-contract.mjs
+      - id: EC-04
+        description: Adversarial review of each wave closes only when nothing above `low` severity is unaddressed.
+        evidence_ref: scripts/check-refutation-verdicts.mjs
+      - id: EC-05
+        description: Milestones are codified with a derived critical path rather than described in prose.
+        evidence_ref: scripts/check-milestones.mjs
+    members:
+      issues: [2480, 2500, 2501, 2504, 2506, 2507]
+      label: programme/lifecycle-ontology
+    horizon: now
+    due: '2026-10-31'
+    estimate_days: 30
+    status: active
+
+  - id: MS-02
+    title: Anti-context-rot enforcers E1-E7
+    goal:
+      claim: >-
+        The seven anti-context-rot enforcers are each backed by a gate with a proven
+        red path, so a claim of enforcement cannot be satisfied by a check that has
+        never failed.
+      strategy: >-
+        Drive the open enforcer epic to drained, with each enforcer's red path
+        exercised and adjudicated rather than asserted.
+      context: >-
+        Epic EP-01 (#1943) is closed; the enforcers it tracked are wired through the
+        context-rot roster. What remains for this milestone is the red-path proof for
+        each one, which the epic did not itself deliver.
+    exit_criteria:
+      - id: EC-01
+        description: Every E1-E7 enforcer has a mandatory red-path flip proof adjudicated by the anti-fake-green gate.
+        evidence_ref: scripts/check-anti-fake-green.mjs
+    members:
+      epics: [EP-01]
+    depends_on: [MS-01]
+    horizon: next
+    status: planned
+
+  - id: MS-03
+    title: Public launch v0.1
+    goal:
+      claim: >-
+        arbiter is installable, documented and supportable by someone outside the
+        project, with no release-readiness defect outstanding.
+      strategy: >-
+        Drain the two open release epics, then re-audit against the published
+        artifact rather than against the development checkout.
+      context: >-
+        Both release epics, EP-02 (#1491) and EP-03 (#1770), were closed as not-planned
+        on 2026-07-26 — abandoned, not delivered — so this milestone currently rolls up
+        no live work and needs re-grounding by the owner. Deliberately coarse: a date
+        here would be false precision, which the schema refuses for a `later` milestone.
+    exit_criteria:
+      - id: EC-01
+        description: No blocking issue remains open against the public-launch wave, and the items its two abandoned epics left unchecked are each either landed or re-filed.
+        evidence_ref: 'github:LucaDominici/arbiter#1770'
+    members:
+      epics: [EP-02, EP-03]
+    depends_on: [MS-02]
+    horizon: later
+    status: planned
+
+# The epic index. An epic IS a GitHub issue; this is the committed side of it, because the gate is
+# offline by contract (INV-13) and cannot ask GitHub what the issue says. `status` is therefore a
+# CLAIM, and the gate holds it to the same fail-closed rule the milestone statuses carry: a terminal
+# status needs an evidence_ref. Whether a claim still matches GitHub is the reconciliation pass's
+# job, on the consumer side, from a committed issues snapshot.
+#
+# All three epics below were recorded in wave 8 as the first instances of the scheme, and all three
+# turned out to be closed while this file's prose called them open — two of them abandoned rather
+# than delivered. That is why the ladder has an `abandoned` rung: it was not designed, it was found.
+epics:
+  - id: EP-01
+    title: Anti-context-rot enforcers E1-E7
+    issue: 1943
+    targets: MS-02
+    status: drained
+    evidence_ref: 'github:LucaDominici/arbiter#1943'
+
+  - id: EP-02
+    title: Release-readiness remediation — pre-public-launch fix waves
+    issue: 1491
+    targets: MS-03
+    status: abandoned
+    evidence_ref: 'github:LucaDominici/arbiter#1491'
+
+  - id: EP-03
+    title: Release v0.1 — public-launch wave (audit 2026-07-04)
+    issue: 1770
+    targets: MS-03
+    status: abandoned
+    evidence_ref: 'github:LucaDominici/arbiter#1770'

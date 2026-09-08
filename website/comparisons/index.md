@@ -47,7 +47,7 @@ Most alternatives in this space are persona frameworks: they tell the AI _who to
 > `bridge-reviewer`/`codebase-scanner`/`context-checker`/`red-team` sub-agents), which is distinct
 > from — and not required by — the installer **core**. Arbiter does **not** ship agent _personas_.
 > Claude Code and Codex are the **only** tools arbiter targets: `--tools` accepts exactly those
-> two, and as of [ADR-119](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/119-experimental-tool-generators-retired.md)
+> two, and as of [ADR-122](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/ADR/122-experimental-tool-generators-retired.md)
 > nothing else exists in the tree — the previously "experimental" Cursor, Copilot, Windsurf, Aider
 > and Gemini CLI generators were retired rather than left unreachable, so the advertised set, the
 > emittable set and the type are the same set.
