@@ -1,0 +1,134 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2605",
+  "reviewer": "/root",
+  "reviewedAt": "2026-09-08T17:44:03Z",
+  "anchor": ".claude/plans/task-2605-l2-single-corpus.md",
+  "anchorSha256": "5ba95d5a83b91bffc4fbde40051494c8830c1b650129ce1a4a238cefe4759ace",
+  "planMetadataSha256": "ea0c699149653835131449487b6e94ee4a044b44bd96bb6aa2cd27a7aa56f1f3",
+  "sourceSHA": "d25c1766d51ae6d9daf123576420902fb40d7bec",
+  "baseSHA": "aa42406c3f66a99ac9f7cb1c7d68849c1283f1b7",
+  "implementationWorkingDiffSha256": "a552f5725f821812e3b7486553ffb5994db0cf7f04172613e626e9f9cc1867ff",
+  "committedRedTestSHA": "f344d5175fa9a6ac7a40deddcea95ff183466b1c",
+  "reviewScope": "Root independently reviewed the code and final native paired L2 receipts; implementation tree d25c1766 is clean and descends from control aa42406c. AC-4 records one bounded observation with explicit limitations.",
+  "focusedVerification": {
+    "command": "npx vitest run __tests__/scripts/check-all-l1.test.ts __tests__/scripts/run-helpers.test.ts __tests__/scripts/check-coverage-ratchet.test.ts __tests__/scripts/check-self-dogfood.test.ts __tests__/scripts/check-self-dogfood-external.test.ts",
+    "result": "PASS: 5 files, 133 tests, 16.75 seconds",
+    "runAt": "2026-09-08T17:29:50Z"
+  },
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "note": "The complete npm test command is now guarded to the check/L1 subcommand, while the existing coverage command remains in the non-check L2/L3 partition; the committed focused regression asserts both dispatch boundaries.",
+      "evidence": [
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 483
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 506
+        },
+        {
+          "file": "__tests__/scripts/check-all-l1.test.ts",
+          "line": 23
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "note": "Required coverage selective/self skips fail. Strict ratchet requires positive finite total.lines.total, rejects absent/malformed/nonpositive instrumentation, and permits genuine zero branch/function totals. Default local WARN and CI empty-signature failure remain unchanged.",
+      "evidence": [
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 509
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 516
+        },
+        {
+          "file": "scripts/lib/run-helpers.mjs",
+          "line": 269
+        },
+        {
+          "file": "scripts/lib/run-helpers.mjs",
+          "line": 309
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 516
+        },
+        {
+          "file": "scripts/check-coverage-ratchet.mjs",
+          "line": 119
+        },
+        {
+          "file": "__tests__/scripts/check-coverage-ratchet.test.ts",
+          "line": 176
+        },
+        {
+          "file": "__tests__/scripts/check-coverage-ratchet.test.ts",
+          "line": 192
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 155
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 167
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "note": "Root independently reran 133 focused tests, including executable required-data subprocesses and dogfood tamper checks. Original RED commits remain ancestors; four added RED cases were reproduced by Terra before its strict-line repair.",
+      "evidence": [
+        {
+          "file": ".arbiter/evidence/tdd/#2605.json",
+          "line": 1
+        },
+        {
+          "file": "__tests__/scripts/check-all-l1.test.ts",
+          "line": 23
+        },
+        {
+          "file": "__tests__/scripts/check-all-l1.test.ts",
+          "line": 36
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 155
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 167
+        },
+        {
+          "file": "__tests__/scripts/check-coverage-ratchet.test.ts",
+          "line": 176
+        },
+        {
+          "file": "__tests__/scripts/check-coverage-ratchet.test.ts",
+          "line": 224
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "note": "Native full L2 PASS A174/B173 entries; only duplicate unit gate removed, same seven pre-existing N/A skips. Sum290580→244640ms (-15.81%), n=1 paired candidate, full required coverage PASS and same1079 static test files. Evidence records identities, commands, host, hashes and confounders; not portfolio-wide speedup.",
+      "evidence": [
+        {
+          "file": ".arbiter/evidence/benchmark/#2605.json",
+          "line": 1
+        }
+      ]
+    }
+  ],
+  "limitations": "One shared-host paired observation only; no sustained or portfolio-wide speed claim. Source d25c1766 is L1/L2-qualified; new metadata HEAD needs fresh native L2 before push."
+}

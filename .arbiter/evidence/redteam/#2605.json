@@ -1,0 +1,25 @@
+{
+  "$schema": "RedTeamEvidenceV1",
+  "task_id": "#2605",
+  "tier": "Standard",
+  "agents": 1,
+  "angles": ["measurement-integrity", "fail-closed-gate-policy", "scope-regression"],
+  "ts": "2026-09-08T16:30:36Z",
+  "recordedBy": "/root/phase_admission_final_review — bounded independent plan red-team pass",
+  "findings": [
+    {
+      "id": "RT-2605-01",
+      "severity": "HIGH",
+      "summary": "RESOLVED: AC-4 now requires reproducible root-owned before/after throughput evidence; code-green cannot be reported as a proven speedup without the declared benchmark artifact.",
+      "auditorHint": "measurement-integrity",
+      "repro": "The prior plan allowed focused regressions to pass without matched timing. The revised plan declares mandatory root-owned matched baseline/candidate L2 evidence and its required provenance fields.",
+      "resolved": true,
+      "action": "verify-at-acceptance"
+    }
+  ],
+  "critical": 0,
+  "high": 0,
+  "medium": 0,
+  "suggestion": 0,
+  "limits": "One genuine reviewer pass only; no synthetic multi-agent count is claimed. The benchmark remains unexecuted."
+}

@@ -253,6 +253,20 @@ comment. It is **mutually exclusive** with the standard `github`/`ci-tier` gener
 - **Persistence**: stored as `features.fiveLaneCi` in `arbiter.json`, read back on every
   `arbiter update` / `arbiter diff`, so the opt-in survives regeneration.
 
+## Arbiter self-runner test execution (#2605)
+
+In Arbiter's own checkout, `node scripts/check-all.mjs L1` runs the complete
+`npm test` corpus. L2/L3 run that corpus once with `npm test -- --coverage`,
+without an additional non-coverage invocation. Coverage is mandatory: failed,
+skipped or non-executed coverage cannot qualify the gate, and the strict coverage
+ratchet requires positive, finite instrumented line counts. Test selection,
+coverage thresholds and separate CI unit/JUnit jobs are unchanged. This self-only
+optimization does not change emitted consumer runners.
+
+Local gates also read Git references: linked worktrees share `origin/main`.
+Resolve the live base before qualification and coordinate fetches with the gate
+owner; a clean worktree alone does not freeze that shared input.
+
 ## Worktree pre-commit skip (#1695)
 
 `.githooks/pre-commit` detects when it is running inside a git worktree (`[ -f ".git" ]` —

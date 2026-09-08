@@ -28,7 +28,7 @@
 // unmissable WARN locally so this documented sandbox defect doesn't block every local
 // gate run. Never silently passes — the local run stays highly visible as a WARN, and
 // CI remains the authoritative, unaffected gate.
-// Usage: node scripts/check-coverage-ratchet.mjs [--summary <path>] [--baseline <path>] [--update]
+// Usage: node scripts/check-coverage-ratchet.mjs [--summary <path>] [--baseline <path>] [--update] [--require-data]
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -52,6 +52,7 @@ if (args.includes('--help') || args.includes('-h')) {
       '  --summary <path>   coverage-summary.json (default: coverage/coverage-summary.json)',
       '  --baseline <path>  ratchet baseline (default: .coverage-baseline.json)',
       '  --update           ratchet the baseline up to max(current, baseline) per metric',
+      '  --require-data     require a positive, finite instrumented line count outside CI',
       '  --help, -h         show this help and exit',
       '',
       'Exit codes: 0=PASS/bootstrap (or #1731 local degrade), 1=FAIL (regression), 2=ERROR.',
@@ -69,6 +70,7 @@ function flagValue(name, fallback) {
 const SUMMARY = resolve(flagValue('--summary', 'coverage/coverage-summary.json'))
 const BASELINE = resolve(flagValue('--baseline', '.coverage-baseline.json'))
 const UPDATE = args.includes('--update')
+const REQUIRE_DATA = args.includes('--require-data')
 
 /**
  * #1731: detects the exact "v8 instrumented nothing" signature — every metric
@@ -79,6 +81,11 @@ const UPDATE = args.includes('--update')
  */
 function isEmptyInstrumentationSignature(total) {
   return METRICS.every((m) => total?.[m]?.pct === 'Unknown' && total?.[m]?.total === 0)
+}
+
+function hasRequiredLineData(total) {
+  const lineTotal = total?.lines?.total
+  return typeof lineTotal === 'number' && Number.isFinite(lineTotal) && lineTotal > 0
 }
 
 /** Read the four total percentages from an already-parsed v8 json-summary `total` object. */
@@ -111,15 +118,21 @@ function readCoverageTotal() {
 }
 
 function emptyInstrumentationExitCode(total) {
-  if (!isEmptyInstrumentationSignature(total)) return null
-  if (IS_CI()) {
+  if (REQUIRE_DATA && !hasRequiredLineData(total)) {
     process.stderr.write(
-      `  check-coverage-ratchet: ERROR coverage-summary.json shows 0 instrumented files ` +
-        `in CI (all metrics zeroed, pct 'Unknown'). This should never happen in CI — ` +
-        `failing closed. See #1731 for the known local-only sandbox variant of this shape.\n`,
+      `  check-coverage-ratchet: ERROR coverage-summary.json has no positive, finite ` +
+        `line total. Required-data coverage is failing closed (--require-data).\n`,
     )
     return 2
   }
+  if (IS_CI() && isEmptyInstrumentationSignature(total)) {
+    process.stderr.write(
+      '  check-coverage-ratchet: ERROR coverage-summary.json is the known empty ' +
+        'instrumentation signature; CI is failing closed.\n',
+    )
+    return 2
+  }
+  if (!isEmptyInstrumentationSignature(total)) return null
   process.stdout.write(
     `  check-coverage-ratchet: WARN — v8 coverage collected 0 files (known local-sandbox\n` +
       `  defect, tracked as #1731: some agent-worktree environments' @vitest/coverage-v8\n` +

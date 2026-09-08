@@ -266,9 +266,11 @@ function recordPass(name, elapsed) {
  * must return immediately without spawning. Split out of the runCheck trinity
  * to keep each runner's own complexity under the ratchet (#2094).
  */
-function skipIfSelected(name) {
+function skipIfSelected(name, opts = {}) {
   if (!skippedChecks.has(name)) return false
-  recordSkip(name, 0, 'selective gate: no affected files changed')
+  const reason = 'selective gate: no affected files changed'
+  if (opts.failOnSkip) recordFail(name, 0, `required check skipped: ${reason}`)
+  else recordSkip(name, 0, reason)
   return true
 }
 
@@ -295,7 +297,7 @@ function classifySpawnError(r, cmd, elapsed, opts) {
  * HARD gate step. Non-zero exit fails the gate (failed++).
  */
 export function runCheck(name, cmd, args, opts = {}) {
-  if (skipIfSelected(name)) return
+  if (skipIfSelected(name, opts)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
@@ -307,7 +309,8 @@ export function runCheck(name, cmd, args, opts = {}) {
   if (r.status === 0) {
     const selfSkip = detectSelfSkip(r.stdout)
     if (selfSkip) {
-      recordSkip(name, elapsed, selfSkip)
+      if (opts.failOnSkip) recordFail(name, elapsed, `required check skipped: ${selfSkip}`)
+      else recordSkip(name, elapsed, selfSkip)
       return
     }
     recordPass(name, elapsed)

@@ -151,6 +151,31 @@ describe('run-helpers — runCheck (HARD)', () => {
     const payload = JSON.parse(last)
     expect(payload.results[0]).toMatchObject({ name: 'nested-skip-note', status: 'PASS' })
   })
+
+  it('required self-skips fail closed instead of qualifying coverage (#2605)', () => {
+    const r = runHarness(`
+      import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      runCheck('coverage', process.execPath, ['-e', "console.log('[SKIP] no coverage data')"], { failOnSkip: true });
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+    expect(payload.failed).toBe(1)
+    expect(payload.results[0]).toMatchObject({ name: 'coverage', status: 'FAIL' })
+    expect(r.stdout).toContain('required check skipped')
+  })
+
+  it('selectively skipped required coverage fails closed (#2605)', () => {
+    const r = runHarness(`
+      import { runCheck, setSkippedChecks, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      setSkippedChecks(new Set(['coverage']));
+      runCheck('coverage', process.execPath, ['-e', 'process.exit(0)'], { failOnSkip: true });
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+    expect(payload.failed).toBe(1)
+    expect(payload.results[0]).toMatchObject({ name: 'coverage', status: 'FAIL' })
+    expect(r.stdout).toContain('required check skipped')
+  })
 })
 
 describe('run-helpers — runWarnCheck (informational)', () => {
