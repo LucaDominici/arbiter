@@ -112,8 +112,9 @@ The authoritative task state is `.claude/.task/status.json`: it was rebound to
 `task/#2594-bun-git-prepare-recovery` and transitioned from `refactor` to
 `plan` using the explicit reverse command above on 2026-09-08. Activate the
 existing opt-in native plan gate with `.arbiter/plan-review.enabled`; before
-moving to `red-team-review`, a fresh independent PASS must be recorded at
-`.arbiter/evidence/plan-review/2594/latest.json` with this plan's exact digest.
+moving to `red-team-review`, a fresh independent PASS must be recorded at the
+native sanitized-task path `.arbiter/evidence/plan-review/_2594/latest.json`
+with this plan's exact digest.
 For Standard red-team, record three independently stamped raw returns and
 compile `.arbiter/evidence/redteam/#2594.json` with task, recovery branch,
 base SHA, plan SHA/digest, timestamp, reviewers and findings. The coordinator
