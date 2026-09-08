@@ -29,6 +29,7 @@ let packedManifest: PackedManifest
 let packSummary: PackSummary
 let packedFiles: string[]
 let extractedDir: string
+let tarball: string
 
 beforeAll(() => {
   mkdirSync(workspaceDir)
@@ -57,7 +58,7 @@ beforeAll(() => {
   if (!filename) throw new Error('npm pack did not report a tarball filename')
   packSummary = packed[0]
   packedFiles = packSummary.files.map(({ path }) => path).sort()
-  const tarball = join(packDir, basename(filename))
+  tarball = join(packDir, basename(filename))
   extractedDir = join(packDir, 'extracted')
   mkdirSync(extractedDir)
   execFileSync('tar', ['-xzf', tarball, '-C', extractedDir])
@@ -121,6 +122,10 @@ describe('published package hygiene', () => {
       contract.leading_spdx.count,
       contract.leading_spdx.pathsSha256,
     ])
+    expect(readFileSync(join(extractedDir, 'package', 'dist', 'cli.js'), 'utf-8')).toMatch(/^#!/)
+    expect(execFileSync('tar', ['-tvzf', tarball, 'package/dist/cli.js'], { encoding: 'utf-8' })).toMatch(
+      /^-rwx/,
+    )
   })
 
   it('admits npm 11 while preserving the Node engine contract (AC-2128.1, AC-2128.2, AC-2128.3)', () => {

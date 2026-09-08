@@ -48,7 +48,10 @@ type PackResult = { skip: string } | { tarball: string }
 // artifact-identity bug this file exists to catch.
 function prepackedTarball(): string | null {
   const provided = process.env.ARBITER_PACKED_TARBALL
-  if (!provided) return null
+  if (provided === undefined) return null
+  if (provided.length === 0) {
+    throw new Error('ARBITER_PACKED_TARBALL is set but empty')
+  }
   if (!existsSync(provided)) {
     throw new Error(`ARBITER_PACKED_TARBALL is set but the file does not exist: ${provided}`)
   }
@@ -290,7 +293,13 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
 
 type ExportTarget = { types?: string; import?: string }
 
-type PublishedManifest = { name: string; exports: Record<string, ExportTarget> }
+type PublishedManifest = {
+  name: string
+  bin?: unknown
+  exports: Record<string, ExportTarget>
+  engines?: unknown
+  files?: unknown
+}
 
 function packedManifest(tarball: string): PublishedManifest {
   return JSON.parse(
@@ -308,6 +317,34 @@ function packageName(pkg: PublishedManifest): string {
 
 function sha256(file: string): string {
   return createHash('sha256').update(readFileSync(file)).digest('hex')
+}
+
+function assertFrozenContract(tarball: string): void {
+  const contract = JSON.parse(
+    readFileSync(join(REPO_ROOT, '__tests__/fixtures/pack-contract-2597.json'), 'utf-8'),
+  ) as {
+    pack: { entryCount: number; rosterSha256: string }
+    manifest: { bin?: unknown; exports?: unknown; engines?: unknown; files?: unknown }
+    required_engine_paths: string[]
+    generated_profile_paths: string[]
+  }
+  const paths = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf-8' })
+    .trim()
+    .split('\n')
+    .map((path) => path.replace(/^package\//, ''))
+    .sort()
+  const digest = createHash('sha256').update(paths.join('\n')).digest('hex')
+  const manifest = packedManifest(tarball)
+
+  expect(paths).toHaveLength(contract.pack.entryCount)
+  expect(digest).toBe(contract.pack.rosterSha256)
+  expect(manifest.bin).toEqual(contract.manifest.bin)
+  expect(manifest.exports).toEqual(contract.manifest.exports)
+  expect(manifest.engines).toEqual(contract.manifest.engines)
+  expect(manifest.files).toEqual(contract.manifest.files)
+  for (const path of [...contract.required_engine_paths, ...contract.generated_profile_paths]) {
+    expect(paths).toContain(path)
+  }
 }
 
 describe.skipIf(!L2)('published package — signed bytes and declared surface (#2138/#2139)', () => {
@@ -399,6 +436,7 @@ describe.skipIf(!L2)('published package — signed bytes and declared surface (#
         expect(pack.skip).toBeTruthy()
         return
       }
+      if (suppliedArtifact()) assertFrozenContract(pack.tarball)
       const consumer = join(workDir, 'consumer')
       mkdirSync(consumer, { recursive: true })
       writeFileSync(
