@@ -3,39 +3,43 @@
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
 import { extname } from 'node:path'
-import { resolveToolInputPath } from './lib.mjs'
+import { addedLinesVsHEAD, resolveToolInputPath } from './lib.mjs'
 
-// Match // TODO or /* TODO or * TODO (in comment context), but NOT TODO(#NNN).
-// A bare \bTODO\b regex with no comment-context guard false-positives on
-// TODO-as-data/prose (e.g. a description string documenting the TODO(#NNN) format).
+// Match comment-context TODO but not TODO(#NNN).
 const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
-// Only scan source-file extensions (allowlist, not blocklist) — prose files like
-// .md are out of scope so mentioning "TODO" in docs never trips this hook.
-const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
+const EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs', '.js', '.jsx'])
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
-
-if (!EXTENSIONS.has(extname(file))) process.exit(0)
+if (!EXTENSIONS.has(extname(file).toLowerCase())) process.exit(0)
 
 let content
 try {
   content = readFileSync(file, 'utf-8')
 } catch {
-  process.exit(0)
+  process.stderr.write('[arbiter] ERROR: cannot read applicable source file\n')
+  process.exit(2)
 }
 
-// Find TODOs without task IDs like TODO(#123), in comment context only.
-const offending = content
-  .split('\n')
-  .flatMap((line, i) => (ORPHAN_TODO.test(line) ? [`${i + 1}: ${line.trim()}`] : []))
+// #2539: scan only the lines THIS edit added, not the whole file — a
+// pre-existing orphan-TODO-shaped line on an untouched line (this checker's
+// own doc comment illustrating the pattern, or its own regex definition) must
+// not block an unrelated edit elsewhere in the same file. Untracked files and
+// git errors fail OPEN to the whole-file scan (never skip).
+const { tracked, added } = addedLinesVsHEAD(file)
+const scanLines = tracked
+  ? added.map(({ line, content: text }) => [line - 1, text])
+  : content.split('\n').map((text, index) => [index, text])
+
+const offending = scanLines
+  .filter(([, line]) => ORPHAN_TODO.test(line))
+  .map(([i, line]) => `${i + 1}: ${line.trim()}`)
 
 if (offending.length > 0) {
   process.stderr.write(
     `[arbiter] INV-21: Orphan TODO found in ${file} (must reference task ID like TODO(#123)):\n`,
   )
-  offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`))
+  offending.slice(0, 3).forEach((line) => process.stderr.write(`  ${line}\n`))
   process.stderr.write(`[arbiter] Run \`arbiter explain INV-21\` for details.\n`)
-  // Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631).
   process.exit(2)
 }

@@ -6,11 +6,17 @@
 // CATALOG: writes a marker (.arbiter/evidence/agent-returns/<task>/refutation-required.json), this
 // CATALOG: gate asserts every acted-on finding has >= N skeptic verdicts AND a strict UPHELD
 // CATALOG: majority — kills R4 (false structural alarms acted on) and R2 (rubber stamps).
+// CATALOG: SECOND AXIS (INV-145, CANON-24): the majority rule proves you did not act on a phantom;
+// CATALOG: the SEVERITY FLOOR proves you did not stop while a real one was still open. Any finding
+// CATALOG: the skeptics majority-UPHELD at critical/high/med must appear in the marker's acted-on
+// CATALOG: set. Both axes read the same envelopes, so the loop needs no new artifact — only the
+// CATALOG: obligation to keep hopping until nothing above `low` survives unaddressed.
 // CATALOG: Rejected fold-in into check-agent-return.mjs: that VALIDATES the envelope schema + M12
 // CATALOG: citations; this ADJUDICATES the refutation majority over a set of skeptic envelopes —
 // CATALOG: different axis (shape vs verdict semantics), different trigger (always vs marker-gated).
 //
-// Exit codes (INV-53): 0 PASS, 1 FAIL (insufficient skeptics / majority-refuted acted-on finding),
+// Exit codes (INV-53): 0 PASS, 1 FAIL (insufficient skeptics / majority-refuted acted-on finding /
+//   a majority-upheld finding above `low` left unaddressed),
 // 2 ERROR. Vacuous pass when no marker exists (nothing to adjudicate — scope condition itself
 // checked, not a skip).
 //
@@ -92,6 +98,56 @@ function loadSkepticEnvelopes(evidenceDir, taskDirName) {
   return out
 }
 
+/** Severities that may never be left open when the loop closes (INV-145). `low`/`info` may. */
+export const ABOVE_FLOOR = new Set(['critical', 'high', 'med'])
+
+/**
+ * Findings the skeptics reported at a severity above the floor, which a strict UPHELD majority
+ * confirmed, and which the marker does NOT list as acted on. Severity is taken as the HIGHEST any
+ * skeptic assigned: when two disagree, the loop must clear the worse reading, not the kinder one.
+ *
+ * @param {Record<string, unknown>[]} skeptics skeptic envelopes
+ * @param {string[]} actedOn ids from the marker
+ * @param {number} n required skeptic count
+ * @returns {{id: string, severity: string}[]} sorted, worst first
+ */
+export function unaddressedAboveFloor(skeptics, actedOn, n) {
+  const RANK = { critical: 3, high: 2, med: 1 }
+  const worst = new Map()
+  for (const env of skeptics) {
+    const found = Array.isArray(env['findings']) ? env['findings'] : []
+    for (const f of found) {
+      const ff = /** @type {Record<string, unknown>} */ (f)
+      const id = typeof ff['id'] === 'string' ? ff['id'] : null
+      const sev = typeof ff['severity'] === 'string' ? ff['severity'] : null
+      if (id === null || sev === null || !ABOVE_FLOOR.has(sev)) continue
+      const prev = worst.get(id)
+      if (prev === undefined || (RANK[sev] ?? 0) > (RANK[prev] ?? 0)) worst.set(id, sev)
+    }
+  }
+  const out = []
+  for (const [id, severity] of worst) {
+    if (actedOn.includes(id)) continue
+    let upheld = 0
+    let refuted = 0
+    for (const env of skeptics) {
+      const refs = Array.isArray(env['refutations']) ? env['refutations'] : []
+      for (const r of refs) {
+        const rr = /** @type {Record<string, unknown>} */ (r)
+        if (rr['target'] !== id) continue
+        if (rr['verdict'] === 'UPHELD') upheld++
+        else if (rr['verdict'] === 'REFUTED') refuted++
+      }
+    }
+    // Only a finding the skeptics actually confirmed blocks the loop. One below quorum, or
+    // majority-refuted, is not a real finding and must not hold the wave hostage.
+    if (upheld + refuted >= n && upheld > refuted) out.push({ id, severity })
+  }
+  return out.sort(
+    (a, b) => (RANK[b.severity] ?? 0) - (RANK[a.severity] ?? 0) || a.id.localeCompare(b.id),
+  )
+}
+
 function main() {
   let marker
   try {
@@ -116,12 +172,10 @@ function main() {
     )
     return 1
   }
-  if (findings.length === 0) {
-    process.stdout.write(
-      `[check-refutation-verdicts] OK — marker present but no findings require refutation\n`,
-    )
-    return 0
-  }
+  // NOTE: no early return on an empty acted-on set. The majority axis has nothing to adjudicate
+  // there, but the SEVERITY FLOOR has everything: a wave that addressed nothing while the
+  // skeptics upheld a high finding is exactly the case INV-145 exists to catch, and returning
+  // early here made the floor unreachable for it — found by its own tests.
   // task dir name = sanitized task id (the marker lives under <task>/)
   const markerDir = marker.path.split('/').slice(0, -1).pop() ?? ''
   const skeptics = loadSkepticEnvelopes(EVIDENCE_DIR, markerDir)
@@ -154,6 +208,28 @@ function main() {
       violations++
     }
   }
+  // INV-145 severity floor. The loop is not closed while a REAL finding above `low` is still
+  // open, so a majority-upheld finding at critical/high/med must be in the acted-on set. Without
+  // this the majority rule is one-sided: it stops you acting on a phantom, and says nothing about
+  // stopping early on something true.
+  const unaddressed = unaddressedAboveFloor(skeptics, findings, N)
+  for (const f of unaddressed) {
+    process.stdout.write(
+      `[check-refutation-verdicts] FAIL: finding "${f.id}" (${f.severity}) is majority-upheld but ` +
+        `not in the acted-on set — the adversarial loop closes only when nothing above \`low\` ` +
+        `survives. Fix it and hop again, or lower it with evidence.\n`,
+    )
+    violations++
+  }
+  if (marker.body['degraded'] === true) {
+    // Recorded, never silently equated with an independent round. A hop that could not reach an
+    // independent skeptic (model unavailable, rate limit) is accepted but must SAY it was degraded,
+    // so the evidence never claims an independence it did not have.
+    process.stdout.write(
+      `[check-refutation-verdicts] DEGRADED — marker declares no independent skeptic was available; ` +
+        `verdicts are self-probed and this round does not count as independent\n`,
+    )
+  }
   if (violations > 0) {
     process.stdout.write(
       `[check-refutation-verdicts] FAIL: ${violations} finding(s) failed refutation adjudication\n`,
@@ -161,7 +237,11 @@ function main() {
     return 1
   }
   process.stdout.write(
-    `[check-refutation-verdicts] OK — ${findings.length} finding(s) survived refutation (N=${N})\n`,
+    findings.length === 0
+      ? `[check-refutation-verdicts] OK — marker present, no finding acted on, and nothing above ` +
+          `\`low\` left unaddressed\n`
+      : `[check-refutation-verdicts] OK — ${findings.length} finding(s) survived refutation ` +
+          `(N=${N}), nothing above \`low\` left unaddressed\n`,
   )
   return 0
 }

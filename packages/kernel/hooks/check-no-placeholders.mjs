@@ -1,59 +1,71 @@
 #!/usr/bin/env node
-// Claude hook: blocks placeholder patterns in files being written/edited.
+// Arbiter hook: block unfinished-code patterns in edited source files
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
 import { extname } from 'node:path'
-import { resolveToolInputPath } from './lib.mjs'
+import { addedLinesVsHEAD, resolveToolInputPath } from './lib.mjs'
 
-// Only scan source-file extensions (allowlist, not blocklist) — prose files like
-// .md are out of scope so mentioning "[PLACEHOLDER]" in docs prose never trips this
-// hook (#1778).
-const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
+const EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs', '.js', '.jsx'])
+
+// #2528/#2539: every marker below is built by concatenation so this checker's
+// own source never contains one as a contiguous string — a literal occurrence
+// here would make this hook block edits to itself (and to its own test) even
+// with #2539's diff-scoped scan, since touching the PATTERNS array itself is
+// an ADDED line that legitimately spells the marker out in full. `marker()`
+// also drops the case-insensitive flag the word-family markers used to carry:
+// the plain word is ordinary English, only the all-caps form is a violation.
+// The emitted `label` still reads correctly, since it is the same
+// (correctly-cased) word passed in.
+const marker = (word) => ({ re: new RegExp(`\\b${word}\\b`), label: word })
 
 const PATTERNS = [
-  { re: /\bPLACEHOLDER\b/i, label: 'PLACEHOLDER' },
-  { re: /\bFIXME\b/, label: 'FIXME' },
-  { re: /\bXXX\b/, label: 'XXX' },
-  { re: /\bHACK\b/, label: 'HACK' },
-  { re: /\bWIP\b/, label: 'WIP' },
-  { re: /\bCHANGEME\b/i, label: 'CHANGEME' },
-  { re: /\bREPLACEME\b/i, label: 'REPLACEME' },
-  {
-    re: /\b(it|describe|test)\.skip\s*\(/,
-    label: 'it.skip/describe.skip/test.skip',
-  },
-  { re: /\b(xit|xdescribe|xtest)\s*\(/, label: 'xit/xdescribe/xtest' },
+  marker(`PLACE${'HOLDER'}`),
+  marker(`FIX${'ME'}`),
+  marker(`XX${'X'}`),
+  marker(`HA${'CK'}`),
+  marker(`WI${'P'}`),
+  marker(`CHANGE${'ME'}`),
+  marker(`REPLACE${'ME'}`),
+  { re: /\b(it|describe|test)\.skip\s*\(/, label: 'disabled-test method' },
+  { re: /\b(xit|xdescribe|xtest)\s*\(/, label: 'disabled-test alias' },
 ]
 
 const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
-
-if (!EXTENSIONS.has(extname(file))) process.exit(0)
+if (!EXTENSIONS.has(extname(file).toLowerCase())) process.exit(0)
 
 let content
 try {
   content = readFileSync(file, 'utf-8')
 } catch {
-  process.exit(0)
+  process.stderr.write('[arbiter] ERROR: cannot read applicable source file\n')
+  process.exit(2)
 }
 
-const lines = content.split('\n')
-const found = []
+// #2539: scan only the lines THIS edit added, not the whole file — a
+// pre-existing marker on an untouched line (the checker's own PATTERNS array,
+// a deliberately-planted test fixture, a coincidentally-matching identifier
+// like a checker's own uppercase constant name) must not block an unrelated
+// edit to the same file. Untracked files and git errors fail OPEN to the
+// whole-file scan (never skip) — see addedLinesVsHEAD's doc comment.
+const { tracked, added } = addedLinesVsHEAD(file)
+const scanLines = tracked
+  ? added.map(({ line, content: text }) => [line - 1, text])
+  : content.split('\n').map((text, index) => [index, text])
 
-for (let i = 0; i < lines.length; i++) {
-  const line = lines[i]
+const found = []
+for (const [index, line] of scanLines) {
   for (const { re, label } of PATTERNS) {
     if (re.test(line)) {
-      found.push(`  line ${i + 1}: [${label}]  ${line.trim()}`)
+      found.push(`  line ${index + 1}: [${label}]  ${line.trim()}`)
       break
     }
   }
 }
 
 if (found.length > 0) {
-  console.error(`Placeholder patterns found in ${file}:`)
-  for (const msg of found) console.error(msg)
-  console.error('\nRemove placeholder/WIP/disabled-test patterns before saving.')
-  // Exit 2 feeds the violation back to the agent for a PostToolUse guard (#1631).
+  process.stderr.write(`Unfinished-code patterns found in ${file}:\n`)
+  for (const message of found) process.stderr.write(`${message}\n`)
+  process.stderr.write('\nRemove unfinished or disabled-test patterns before saving.\n')
   process.exit(2)
 }

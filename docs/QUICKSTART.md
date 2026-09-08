@@ -38,6 +38,16 @@ AI tools you use (Claude Code, Codex) and which governance level to start at.
 When in doubt, start at **L2** — see [CONCEPTS.md](CONCEPTS.md#gate-blocked-task-lifecycle)
 for what each level gates.
 
+### Git-pinned installs with Bun
+
+When installing an immutable Arbiter Git revision with Bun, trust only
+`@arbiter/cli` so its prepare lifecycle can build the local CLI. If the package
+has neither `dist/cli.js` nor a local TypeScript compiler, prepare runs
+`npm ci --include=dev --ignore-scripts` against Arbiter's committed lockfile,
+then runs its build. This requires npm and registry access; bootstrap scripts
+are disabled to prevent recursion, while the explicit build remains enabled.
+Ordinary contributor installs still leave building to the contributor.
+
 ### What init detects before it writes
 
 `init` verifies the local toolchain **before creating or changing any file**. A failed

@@ -3,17 +3,29 @@
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
 import { extname } from 'node:path'
-import { resolveToolInputPath } from './lib.mjs'
+import { addedLinesVsHEAD, resolveToolInputPath } from './lib.mjs'
 
 const EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs', '.js', '.jsx'])
+
+// #2528/#2539: every marker below is built by concatenation so this checker's
+// own source never contains one as a contiguous string — a literal occurrence
+// here would make this hook block edits to itself (and to its own test) even
+// with #2539's diff-scoped scan, since touching the PATTERNS array itself is
+// an ADDED line that legitimately spells the marker out in full. `marker()`
+// also drops the case-insensitive flag the word-family markers used to carry:
+// the plain word is ordinary English, only the all-caps form is a violation.
+// The emitted `label` still reads correctly, since it is the same
+// (correctly-cased) word passed in.
+const marker = (word) => ({ re: new RegExp(`\\b${word}\\b`), label: word })
+
 const PATTERNS = [
-  { re: /\bPLACEHOLDER\b/i, label: 'PLACEHOLDER' },
-  { re: /\bFIXME\b/, label: 'FIXME' },
-  { re: /\bXXX\b/, label: 'XXX' },
-  { re: /\bHACK\b/, label: 'HACK' },
-  { re: /\bWIP\b/, label: 'WIP' },
-  { re: /\bCHANGEME\b/i, label: 'CHANGEME' },
-  { re: /\bREPLACEME\b/i, label: 'REPLACEME' },
+  marker(`PLACE${'HOLDER'}`),
+  marker(`FIX${'ME'}`),
+  marker(`XX${'X'}`),
+  marker(`HA${'CK'}`),
+  marker(`WI${'P'}`),
+  marker(`CHANGE${'ME'}`),
+  marker(`REPLACE${'ME'}`),
   { re: /\b(it|describe|test)\.skip\s*\(/, label: 'disabled-test method' },
   { re: /\b(xit|xdescribe|xtest)\s*\(/, label: 'disabled-test alias' },
 ]
@@ -30,8 +42,19 @@ try {
   process.exit(2)
 }
 
+// #2539: scan only the lines THIS edit added, not the whole file — a
+// pre-existing marker on an untouched line (the checker's own PATTERNS array,
+// a deliberately-planted test fixture, a coincidentally-matching identifier
+// like a checker's own uppercase constant name) must not block an unrelated
+// edit to the same file. Untracked files and git errors fail OPEN to the
+// whole-file scan (never skip) — see addedLinesVsHEAD's doc comment.
+const { tracked, added } = addedLinesVsHEAD(file)
+const scanLines = tracked
+  ? added.map(({ line, content: text }) => [line - 1, text])
+  : content.split('\n').map((text, index) => [index, text])
+
 const found = []
-for (const [index, line] of content.split('\n').entries()) {
+for (const [index, line] of scanLines) {
   for (const { re, label } of PATTERNS) {
     if (re.test(line)) {
       found.push(`  line ${index + 1}: [${label}]  ${line.trim()}`)

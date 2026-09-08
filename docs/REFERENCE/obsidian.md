@@ -106,3 +106,39 @@ with the `arbiter update` hint — there is nothing to sync until the corpus exi
 the default `wiki` is passed straight through as `--wiki-dir` to both scripts — this
 requires both scripts to support that flag (as of #1979, `check-wiki-lint.mjs` already
 did; `gen-wiki.mjs` was given parity as part of this same change, see ADR-107 §Design-risk-#3).
+
+### Orphan-page pruning (#2482)
+
+`gen-wiki.mjs` used to only ever write. `wiki/` is gitignored, so a page whose source doc was
+deleted or renamed survived every regeneration forever, and later failed `check-wiki-lint.mjs`'s
+citation check against a doc that no longer exists. The generator now deletes those pages and
+reports the count: `N page(s) written to wiki/ (M source docs), P page(s) pruned`.
+
+Two properties make the deletion safe, and both are load-bearing:
+
+- **Ownership, not a `wiki/` sweep.** A page is removed only if it carries the `generated: true`
+  and `source: '<path>'` frontmatter that `generatePage()` itself wrote — the same fields
+  `check-wiki-lint.mjs` already parses. A hand-written note in the vault has no such
+  frontmatter and is never touched, and a generated page missing its `source` is skipped rather
+  than guessed at. `INDEX.md` is excluded outright.
+- **Pruned against the full source set, never the changed subset.** In `--changed` mode only
+  stale sources are rewritten, but every other current source is still perfectly valid.
+  Comparing against `changedSources` would therefore delete the pages this run simply did not
+  happen to touch. The check is against `sources`, the complete list, in every mode.
+
+The distinction matters because the failure would be silent in the direction that hurts: a
+too-eager prune deletes real pages and the next full run quietly rewrites them, so the damage
+only shows up as churn — or, in `--changed` mode on a large vault, as pages that vanish and
+return depending on which docs were edited.
+
+#### The emitted generator carries the same prune (#2530)
+
+Everything above describes `scripts/gen-wiki.mjs`, which arbiter runs on itself. The copy
+emitted into every governed project from `src/templates/scripts/gen-wiki.mjs.ejs` mirrored the
+old write-only build loop and had the same orphan problem — and it mattered more there, since a
+governed project's developer hits the resulting `check-wiki-lint` failure on a file they never
+wrote and cannot find in git.
+
+The template now implements the same mechanism rather than a parallel one, so the two can be
+diffed against each other and the two properties above — ownership-based deletion, and
+comparison against the full source set in every mode — hold identically in a governed project.

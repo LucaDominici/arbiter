@@ -69,6 +69,8 @@ function runRenderedGate(
     ),
   )
   writeFileSync(join(scripts, 'lib', 'run-helpers.mjs'), render('scripts/lib/run-helpers.mjs.ejs'))
+  // #2427: the emitted gate imports the per-repo mutex helper.
+  writeFileSync(join(scripts, 'lib', 'gate-mutex.mjs'), render('scripts/lib/gate-mutex.mjs.ejs'))
   const bin = writeSuccessfulCommandStubs(dir)
   return spawnSync(process.execPath, [join(scripts, 'check-all.mjs'), ...args], {
     cwd: dir,

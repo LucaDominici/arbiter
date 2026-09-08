@@ -1,8 +1,8 @@
 ---
 title: 'Arbiter — AI governance that installs itself.'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-07-09'
+last_review: '2026-09-07'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/spine']
@@ -182,6 +182,12 @@ The public CLI surface is 16 commands: `init`, `update`, `diff`, `configure`,
 Experimental commands are hidden from default `--help` but stay fully
 functional — list them with `arbiter help --all`. See the
 [CLI Reference](website/reference/cli.md) for full option documentation.
+
+For a document declared with `template: arc42` in the documentation standard,
+`arbiter doc-set --arc42` checks section completeness against its tier's skeleton.
+The matcher accepts English and explicit Italian section titles; translated headings
+do not waive missing sections or the hollow-section ratchet. Other translations
+are not inferred automatically.
 
 ---
 

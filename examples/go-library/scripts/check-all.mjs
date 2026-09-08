@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 // Helper trinity (#351, CANON-01) — runCheck (HARD), runWarnCheck (info),
 // runToolCheck (CI-aware tool gate). pushResult/getResults/getFailed power the
 // inline ad-hoc gates that classify status outside of spawnSync.
@@ -19,9 +20,11 @@ import {
   getResults,
   getFailed,
   setMode,
+  setOrphanGuard,
   resolveTmpfsTmpdir,
   gateFileState,
 } from './lib/run-helpers.mjs';
+import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs';
 
 // ─── TMPDIR on tmpfs (dominant wall-clock lever for fsync-bound suites) ──────
 // Set BEFORE any child spawns so every one of them inherits it; see
@@ -142,13 +145,68 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 }
 // <<< ARG-PARSE-END (#1504)
 
+// ─── one gate per repo, and never an orphan (#2427) ─────────────────────────
+// Two gates in one checkout trample each other's temp files and starve each
+// other's test workers, and the orphan of a killed `git push` once ran to
+// completion and stamped a green marker for a tree it had never finished
+// testing. Both are fixed here.
+//
+// The mutex is the per-repo flock `arbiter gate-exec` takes, keyed off
+// ARBITER_HOOK_GIT_CWD when set — the pre-push '#'-in-path branch runs this file
+// from an rsync'd copy under /tmp, and keying off cwd there would mint a fresh
+// key per push, i.e. a null mutex. A synchronous gate cannot hold a kernel lock
+// across its own lifetime, so it re-execs itself once under the wrapper; the
+// wrapper publishes ARBITER_GATE_MUTEX_HELD so this branch runs exactly once.
+//
+// FAIL-OPEN-INTENT (narrow): a checkout git cannot answer for has no per-repo
+// mutex to take at all. The start/end evidence binding below is what actually
+// prevents a false green there.
+const _mutexRoot = process.env.ARBITER_HOOK_GIT_CWD ?? process.cwd();
+{
+  let _lockPath = null;
+  try {
+    _lockPath = gateLockPathFor(_mutexRoot);
+  } catch { _lockPath = null; }
+  // #2427: compare the held lock by EXACT PATH, never by mere presence. Only
+  // THIS repo's lock path may skip the relay — the env var exists to stop a
+  // process re-acquiring the flock it already owns. Any other non-empty value
+  // (a stale export, or another repo's lock) would otherwise skip the mutex
+  // and run the gate unserialised, silently. gate-mutex.mjs compares by
+  // equality; these two must agree.
+  const _alreadyHeld = _lockPath !== null && process.env[GATE_MUTEX_HELD_ENV] === _lockPath;
+  if (_lockPath !== null && !_alreadyHeld) {
+    const _wrapper = resolve(dirname(fileURLToPath(import.meta.url)), 'lib/gate-mutex.mjs');
+    const _relayed = spawnSync(
+      process.execPath,
+      [_wrapper, 'run', '--dir', _mutexRoot, '--', process.execPath, ...process.argv.slice(1)],
+      { stdio: 'inherit' },
+    );
+    process.exit(_relayed.status ?? 1);
+  }
+}
+
+// Between every two checks, confirm the process this gate was launched to serve
+// is still alive. SIGKILL cannot be trapped or forwarded, so this is the only
+// thing that stops a gate whose parent was killed by pid.
+setOrphanGuard();
+
+// #2427 AC-1: the identity of the tree this gate is about to measure, sampled
+// BEFORE the first check. buildGateEvidence re-measures at the end and refuses
+// to stamp anything if the two disagree.
+const _gateStart = await (async () => {
+  try {
+    const { captureGateStart } = await import('./lib/gate-evidence.mjs');
+    return captureGateStart(_mutexRoot);
+  } catch { return null; }
+})();
+
 // ─── Embedded gate registry (#2041, AC-2041.4) ────────────────────────────────
 // The declarative registry rendered from gate-registry.yml.ejs — consumed by
 // `--dry-run` (manifest), `--gate <id|name>` (single-check re-run), and the
 // emitted layering contract test (scripts/test-gate-layering.mjs). ORDER IS
 // MEANINGFUL: gates run in registry order within each level.
 
-const GATE_REGISTRY = [{"id":"pii-scan","name":"PII scan","level":"L1","kind":"check","cmd":["node","scripts/pii-scan.mjs"]},{"id":"secret-scan","name":"secret scan","level":"L1","kind":"check","cmd":["node","scripts/check-secret-scan.mjs"]},{"id":"go-vet","name":"vet","level":"L1","kind":"check","cmd":["go","vet","./..."],"language":"go"},{"id":"golangci-lint","name":"lint","level":"L1","kind":"check","cmd":["golangci-lint","run"],"language":"go"},{"id":"gofmt","name":"fmt (gofmt)","level":"L1","kind":"inline","language":"go"},{"id":"go-unit-tests","name":"unit tests","level":"L1","kind":"check","cmd":["go","test","./..."],"language":"go"},{"id":"no-tracked-artifacts","name":"no tracked artifacts (INV-129)","level":"L1","kind":"check","cmd":["node","scripts/check-no-tracked-artifacts.mjs"]},{"id":"image-pins","name":"image pins (#1442)","level":"L1","kind":"check","cmd":["node","scripts/check-image-pins.mjs"]},{"id":"e2e-quarantine","name":"e2e quarantine (INV-130)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-quarantine.mjs"]},{"id":"test-naming","name":"test naming","level":"L1","kind":"check","cmd":["node","scripts/check-test-naming.mjs"]},{"id":"min-test-execution","name":"min test execution (INV-25)","level":"L1","kind":"check","cmd":["node","scripts/check-min-test-execution.mjs"]},{"id":"exit-code-contract","name":"exit code contract","level":"L1","kind":"check","cmd":["node","scripts/check-exit-code-contract.mjs"]},{"id":"pipe-tee-hazard","name":"pipe/tee hazard","level":"L1","kind":"check","cmd":["node","scripts/check-pipe-tee-hazard.mjs"]},{"id":"self-validation-drill","name":"self-validation drill","level":"L1","kind":"check","cmd":["node","scripts/self-validation.mjs"],"emitIf":"typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false"},{"id":"config-drift","name":"config drift","level":"L1","kind":"check","cmd":["node","scripts/check-drift.mjs"]},{"id":"validator-helptext","name":"validator help text","level":"L1","kind":"check","cmd":["node","scripts/check-validator-helptext.mjs"]},{"id":"suppressions-expiry","name":"suppressions expiry","level":"L1","kind":"check","cmd":["node","scripts/check-suppressions.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-rationale","name":"suppression rationale","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-rationale.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-expiry-antidrift","name":"suppression expiry (anti-drift)","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-expiry.mjs"],"emitIf":"enableSuppressions"},{"id":"inline-suppressions","name":"inline suppressions","level":"L1","kind":"check","cmd":["node","scripts/check-inline-suppressions.mjs"]},{"id":"claude-md-lint","name":"claude-md lint","level":"L1","kind":"check","cmd":["node","scripts/check-claude-md-lint.mjs"]},{"id":"unwired-guards","name":"unwired guards","level":"L1","kind":"check","cmd":["node","scripts/check-unwired-guards.mjs"]},{"id":"workflow-runners-inline","name":"workflow runners","level":"L1","kind":"inline"},{"id":"ci-alignment","name":"ci alignment","level":"L1","kind":"inline"},{"id":"ssot-core-set","name":"ssot core set","level":"L1","kind":"check","cmd":["node","scripts/check-ssot-core.mjs"]},{"id":"doc-links","name":"doc links","level":"L1","kind":"check","cmd":["node","scripts/check-doc-links.mjs"]},{"id":"knowledge-map","name":"knowledge map","level":"L1","kind":"check","cmd":["node","scripts/check-knowledge-map.mjs"]},{"id":"canonical-paths","name":"canonical paths","level":"L1","kind":"check","cmd":["node","scripts/check-canonical-paths.mjs"]},{"id":"collab-mode-wired","name":"collab mode wired (INV-100)","level":"L1","kind":"check","cmd":["node","scripts/check-collab-mode-wired.mjs"]},{"id":"hook-routing","name":"hook routing (#2129)","level":"L1","kind":"check","cmd":["node","scripts/check-hook-routing.mjs"]},{"id":"safety-adopt-ratchet","name":"safety adopt ratchet","level":"L1","kind":"check","cmd":["node","scripts/check-safety-adopt-ratchet.mjs"]},{"id":"emission-parity","name":"emission parity (#2110)","level":"L1","kind":"check","cmd":["node","scripts/check-emission-parity.mjs"]},{"id":"constraint-scan","name":"constraint scan (INV-115)","level":"L1","kind":"check","cmd":["node","scripts/check-constraint-scan.mjs"]},{"id":"anti-proforma","name":"anti-proforma (INV-118)","level":"L1","kind":"check","cmd":["node","scripts/check-anti-proforma.mjs"]},{"id":"test-pyramid","name":"test pyramid (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-pyramid.mjs"]},{"id":"test-scope-tier","name":"test scope-tier (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-scope-tier.mjs"]},{"id":"api-e2e","name":"api e2e (INV-126)","level":"L1","kind":"check","cmd":["node","scripts/check-api-e2e.mjs"]},{"id":"render-smoke-presence","name":"render smoke presence (INV-127)","level":"L1","kind":"check","cmd":["node","scripts/check-render-smoke.mjs"]},{"id":"smoke-journeys","name":"smoke journeys (INV-137)","level":"L1","kind":"check","cmd":["node","scripts/check-smoke-journeys.mjs"]},{"id":"e2e-escalation","name":"e2e escalation ladder (#2043)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-escalation.mjs"]},{"id":"m16-handoff","name":"M16 handoff-contract marker (#2103)","level":"L1","kind":"check","cmd":["node","scripts/check-m16-handoff.mjs"]},{"id":"stack-conformity","name":"stack conformity (INV-121)","level":"L1","kind":"check","cmd":["node","scripts/check-stack-conformity.mjs"],"emitIf":"language"},{"id":"iso9001","name":"iso9001 QMS (RTM + doc-control + CAPA)","level":"L1","kind":"check","cmd":["node","scripts/check-iso9001.mjs"],"condition":"gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')"},{"id":"regulated-overlay","name":"regulated overlay (SoD + retention + signing + mutation)","level":"L1","kind":"check","cmd":["node","scripts/check-regulated-overlay.mjs"],"condition":"gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')"},{"id":"muted-test","name":"muted gate test (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-muted-test.mjs"]},{"id":"skip-critical-e2e","name":"skipped critical e2e (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-skip-critical-e2e.mjs"]},{"id":"stub-redirect-husk","name":"stub redirect husk (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-no-stub-redirects.mjs"]},{"id":"grace-window","name":"grace window (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-grace-window.mjs"]},{"id":"assertion-delta","name":"assertion delta (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-assertion-delta.mjs"]},{"id":"tabletop-evidence","name":"tabletop evidence (#2429)","level":"L1","kind":"check","cmd":["node","scripts/check-tabletop-evidence.mjs"]},{"id":"staticcheck","name":"staticcheck","level":"L2","kind":"check","cmd":["staticcheck","./..."],"emitIf":"language === 'go'","soft":true},{"id":"tdd-evidence","name":"tdd-evidence (INV-131)","level":"L2","kind":"check","cmd":["node","scripts/check-tdd-evidence.mjs"],"soft":true},{"id":"todo-max-age","name":"todo max-age (INV-133)","level":"L2","kind":"check","cmd":["node","scripts/check-todo-max-age.mjs"],"soft":true},{"id":"go-race","name":"race detector (full)","level":"L3","kind":"check","cmd":["go","test","-race","./..."],"language":"go"}];
+const GATE_REGISTRY = [{"id":"pii-scan","name":"PII scan","level":"L1","kind":"check","cmd":["node","scripts/pii-scan.mjs"]},{"id":"secret-scan","name":"secret scan","level":"L1","kind":"check","cmd":["node","scripts/check-secret-scan.mjs"]},{"id":"go-vet","name":"vet","level":"L1","kind":"check","cmd":["go","vet","./..."],"language":"go"},{"id":"golangci-lint","name":"lint","level":"L1","kind":"check","cmd":["golangci-lint","run"],"language":"go"},{"id":"gofmt","name":"fmt (gofmt)","level":"L1","kind":"inline","language":"go"},{"id":"go-unit-tests","name":"unit tests","level":"L1","kind":"check","cmd":["go","test","./..."],"language":"go"},{"id":"no-tracked-artifacts","name":"no tracked artifacts (INV-129)","level":"L1","kind":"check","cmd":["node","scripts/check-no-tracked-artifacts.mjs"]},{"id":"image-pins","name":"image pins (#1442)","level":"L1","kind":"check","cmd":["node","scripts/check-image-pins.mjs"]},{"id":"e2e-quarantine","name":"e2e quarantine (INV-130)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-quarantine.mjs"]},{"id":"test-naming","name":"test naming","level":"L1","kind":"check","cmd":["node","scripts/check-test-naming.mjs"]},{"id":"min-test-execution","name":"min test execution (INV-25)","level":"L1","kind":"check","cmd":["node","scripts/check-min-test-execution.mjs"]},{"id":"exit-code-contract","name":"exit code contract","level":"L1","kind":"check","cmd":["node","scripts/check-exit-code-contract.mjs"]},{"id":"pipe-tee-hazard","name":"pipe/tee hazard","level":"L1","kind":"check","cmd":["node","scripts/check-pipe-tee-hazard.mjs"]},{"id":"self-validation-drill","name":"self-validation drill","level":"L1","kind":"check","cmd":["node","scripts/self-validation.mjs"],"emitIf":"typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false"},{"id":"config-drift","name":"config drift","level":"L1","kind":"check","cmd":["node","scripts/check-drift.mjs"]},{"id":"validator-helptext","name":"validator help text","level":"L1","kind":"check","cmd":["node","scripts/check-validator-helptext.mjs"]},{"id":"suppressions-expiry","name":"suppressions expiry","level":"L1","kind":"check","cmd":["node","scripts/check-suppressions.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-rationale","name":"suppression rationale","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-rationale.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-expiry-antidrift","name":"suppression expiry (anti-drift)","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-expiry.mjs"],"emitIf":"enableSuppressions"},{"id":"inline-suppressions","name":"inline suppressions","level":"L1","kind":"check","cmd":["node","scripts/check-inline-suppressions.mjs"]},{"id":"claude-md-lint","name":"claude-md lint","level":"L1","kind":"check","cmd":["node","scripts/check-claude-md-lint.mjs"]},{"id":"unwired-guards","name":"unwired guards","level":"L1","kind":"check","cmd":["node","scripts/check-unwired-guards.mjs"]},{"id":"workflow-runners-inline","name":"workflow runners","level":"L1","kind":"inline"},{"id":"ci-alignment","name":"ci alignment","level":"L1","kind":"inline"},{"id":"ssot-core-set","name":"ssot core set","level":"L1","kind":"check","cmd":["node","scripts/check-ssot-core.mjs"]},{"id":"doc-links","name":"doc links","level":"L1","kind":"check","cmd":["node","scripts/check-doc-links.mjs"]},{"id":"knowledge-map","name":"knowledge map","level":"L1","kind":"check","cmd":["node","scripts/check-knowledge-map.mjs"]},{"id":"canonical-paths","name":"canonical paths","level":"L1","kind":"check","cmd":["node","scripts/check-canonical-paths.mjs"]},{"id":"collab-mode-wired","name":"collab mode wired (INV-100)","level":"L1","kind":"check","cmd":["node","scripts/check-collab-mode-wired.mjs"]},{"id":"hook-routing","name":"hook routing (#2129)","level":"L1","kind":"check","cmd":["node","scripts/check-hook-routing.mjs"]},{"id":"safety-adopt-ratchet","name":"safety adopt ratchet","level":"L1","kind":"check","cmd":["node","scripts/check-safety-adopt-ratchet.mjs"]},{"id":"emission-parity","name":"emission parity (#2110)","level":"L1","kind":"check","cmd":["node","scripts/check-emission-parity.mjs"]},{"id":"constraint-scan","name":"constraint scan (INV-115)","level":"L1","kind":"check","cmd":["node","scripts/check-constraint-scan.mjs"]},{"id":"anti-proforma","name":"anti-proforma (INV-118)","level":"L1","kind":"check","cmd":["node","scripts/check-anti-proforma.mjs"]},{"id":"test-pyramid","name":"test pyramid (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-pyramid.mjs"]},{"id":"test-scope-tier","name":"test scope-tier (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-scope-tier.mjs"]},{"id":"api-e2e","name":"api e2e (INV-126)","level":"L1","kind":"check","cmd":["node","scripts/check-api-e2e.mjs"]},{"id":"render-smoke-presence","name":"render smoke presence (INV-127)","level":"L1","kind":"check","cmd":["node","scripts/check-render-smoke.mjs"]},{"id":"smoke-journeys","name":"smoke journeys (INV-137)","level":"L1","kind":"check","cmd":["node","scripts/check-smoke-journeys.mjs"]},{"id":"e2e-escalation","name":"e2e escalation ladder (#2043)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-escalation.mjs"]},{"id":"m16-handoff","name":"M16 handoff-contract marker (#2103)","level":"L1","kind":"check","cmd":["node","scripts/check-m16-handoff.mjs"]},{"id":"stack-conformity","name":"stack conformity (INV-121)","level":"L1","kind":"check","cmd":["node","scripts/check-stack-conformity.mjs"],"emitIf":"language"},{"id":"iso9001","name":"iso9001 QMS (RTM + doc-control + CAPA)","level":"L1","kind":"check","cmd":["node","scripts/check-iso9001.mjs"],"condition":"gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')"},{"id":"regulated-overlay","name":"regulated overlay (SoD + retention + signing + mutation)","level":"L1","kind":"check","cmd":["node","scripts/check-regulated-overlay.mjs"],"condition":"gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')"},{"id":"muted-test","name":"muted gate test (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-muted-test.mjs"]},{"id":"skip-critical-e2e","name":"skipped critical e2e (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-skip-critical-e2e.mjs"]},{"id":"stub-redirect-husk","name":"stub redirect husk (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-no-stub-redirects.mjs"]},{"id":"grace-window","name":"grace window (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-grace-window.mjs"]},{"id":"assertion-delta","name":"assertion delta (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-assertion-delta.mjs"]},{"id":"tabletop-evidence","name":"tabletop evidence (#2429)","level":"L1","kind":"check","cmd":["node","scripts/check-tabletop-evidence.mjs"]},{"id":"sources","name":"source certification (INV-147)","level":"L1","kind":"check","cmd":["node","scripts/check-sources.mjs"]},{"id":"use-cases","name":"use cases (INV-149)","level":"L1","kind":"check","cmd":["node","scripts/check-use-cases.mjs"]},{"id":"milestones","name":"milestones (INV-146)","level":"L1","kind":"check","cmd":["node","scripts/check-milestones.mjs"]},{"id":"staticcheck","name":"staticcheck","level":"L2","kind":"check","cmd":["staticcheck","./..."],"emitIf":"language === 'go'","soft":true},{"id":"arc42-slots","name":"arc42 slots (INV-144)","level":"L2","kind":"warn","cmd":["node","scripts/check-arc42-slots.mjs"],"condition":"gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')"},{"id":"acceptance-anchor","name":"acceptance anchor (INV-138)","level":"L2","kind":"warn","cmd":["node","scripts/check-acceptance.mjs"],"condition":"gateFilePresent('scripts/check-acceptance.mjs', 'acceptance anchor (INV-138)')"},{"id":"tdd-evidence","name":"tdd-evidence (INV-131)","level":"L2","kind":"check","cmd":["node","scripts/check-tdd-evidence.mjs"],"soft":true},{"id":"todo-max-age","name":"todo max-age (INV-133)","level":"L2","kind":"check","cmd":["node","scripts/check-todo-max-age.mjs"],"soft":true},{"id":"go-race","name":"race detector (full)","level":"L3","kind":"check","cmd":["go","test","-race","./..."],"language":"go"}];
 
 // ─── #2078 (GATE-1 of #2041) — inspection modes, re-based on the registry.
 // `--dry-run` prints the registry manifest without executing (exit 0, zero
@@ -781,19 +839,19 @@ runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.
 
 
 
-if (gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')) { 
+if (gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')) {
 
 runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);
- } 
+}
 
 
 
 
 
-if (gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')) { 
+if (gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')) {
 
 runCheck('regulated overlay (SoD + retention + signing + mutation)', 'node', ['scripts/check-regulated-overlay.mjs']);
- } 
+}
 
 
 
@@ -850,6 +908,33 @@ runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.
 
 
 
+
+
+
+
+
+runCheck('source certification (INV-147)', 'node', ['scripts/check-sources.mjs']);
+
+
+
+
+
+
+
+
+runCheck('use cases (INV-149)', 'node', ['scripts/check-use-cases.mjs']);
+
+
+
+
+
+
+
+
+runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs']);
+
+
+
 }
 // ── L2 (full checks — pre-push) ──────────────────────────────────────────
 if (level !== 'L1') {
@@ -861,6 +946,24 @@ if (level !== 'L1') {
 
 runCheck('staticcheck', 'staticcheck', ['./...'], { soft: graceActive });
 
+
+
+
+
+
+if (gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')) {
+
+runWarnCheck('arc42 slots (INV-144)', 'node', ['scripts/check-arc42-slots.mjs']);
+}
+
+
+
+
+
+if (gateFilePresent('scripts/check-acceptance.mjs', 'acceptance anchor (INV-138)')) {
+
+runWarnCheck('acceptance anchor (INV-138)', 'node', ['scripts/check-acceptance.mjs']);
+}
 
 
 
@@ -966,11 +1069,16 @@ if (_failedCount === 0 && !_inspect) {
     // Loaded lazily so a project missing the verifier writes NO marker (fail
     // closed) instead of crashing an otherwise-green gate at import time.
     const { buildGateEvidence } = await import('./lib/gate-evidence.mjs');
-    const _evidence = buildGateEvidence({ root: process.cwd(), level, taskId: _taskId });
+    // #2427: `_gateStart` is the identity captured before the first check ran; a
+    // marker is refused outright when it is missing, incomplete, or no longer
+    // matches. A green gate with no marker is honest; a marker naming a tree the
+    // gate did not measure end to end is not.
+    const _evidence = buildGateEvidence({ root: process.cwd(), level, taskId: _taskId, start: _gateStart });
     if (_evidence === null) {
       process.stderr.write(
         'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
-          'could not be resolved, so nothing can bind this gate result to this tree\n',
+          'could not be resolved, or the commit/tree moved while the gate was running, ' +
+          'so nothing can bind this gate result to this tree (#2427)\n',
       );
     } else {
       const _markerPath = resolve(process.cwd(), '.arbiter/gate-pass.json');

@@ -28,23 +28,35 @@ const canonPath =
       ? resolve(root, 'docs/internal/SYSTEM/CANON.md')
       : null
 
-const catalogSrc = readFileSync(catalogPath, 'utf-8')
-const agentsSrc = readFileSync(agentsPath, 'utf-8')
-// CANON.md is optional — only loaded when explicitly requested or when using real repo files.
-let canonSrc = ''
-if (canonPath != null) {
+/**
+ * Read an input the gate cannot decide without. #2418: these reads used to run bare (an
+ * unreadable catalog crashed with a raw stack under node's generic exit code) or, for
+ * CANON.md, to fall back to an EMPTY string — which silently turned every CANON parity
+ * check into a vacuous pass. An unreadable input is an invocation fault: exit 2.
+ */
+function readOrDie(path, what) {
   try {
-    canonSrc = readFileSync(canonPath, 'utf-8')
-  } catch {
-    canonSrc = ''
+    return readFileSync(path, 'utf-8')
+  } catch (err) {
+    process.stderr.write(
+      `[check-catalog-agents-parity] ERROR: cannot read ${what} at ${path}: ${err?.message ?? err}\n`,
+    )
+    process.exit(2)
   }
 }
 
+const catalogSrc = readOrDie(catalogPath, 'the invariant catalog')
+const agentsSrc = readOrDie(agentsPath, 'AGENTS.md')
+// CANON.md is only resolved when explicitly requested or when running against real repo
+// files; when it IS resolved it must be readable — a vacuous CANON pass is a fake green.
+const canonSrc = canonPath != null ? readOrDie(canonPath, 'CANON.md') : ''
+
 // Extract {id, title} pairs from catalog.ts.
 // IDs are always single-quoted; titles may use single or double quotes, and may
-// span two lines. The single-line and multi-line paths both try single-quoted
-// first, then double-quoted, so a title containing the OTHER quote flavor
-// round-trips correctly (#486).
+// span two lines, OR sit on the SAME line as the id (e.g. after a prettier pass
+// collapses a short object literal — #2513). The same-line, single-line, and
+// multi-line paths all try single-quoted first, then double-quoted, so a title
+// containing the OTHER quote flavor round-trips correctly (#486).
 const catalogEntries = new Map()
 let currentId = null
 let titlePending = false
@@ -53,6 +65,17 @@ for (const line of catalogSrc.split('\n')) {
   if (idMatch) {
     currentId = idMatch[1]
     titlePending = false
+    // Tolerant same-line path (#2513): the title may already be on this same
+    // line as the id — don't blindly defer to the next line and lose it.
+    const sameLineTitle = line.match(/title:\s*'([^']+)'/) ?? line.match(/title:\s*"([^"]+)"/)
+    if (sameLineTitle) {
+      catalogEntries.set(currentId, sameLineTitle[1])
+      currentId = null
+      continue
+    }
+    if (/title:\s*$/.test(line.trimEnd())) {
+      titlePending = true
+    }
     continue
   }
   if (currentId) {
@@ -91,9 +114,9 @@ if (titlePending && currentId) {
 // Each catalog entry is an object literal starting with `id: 'INV-NN'`; we scan
 // from each id to the next to find its `status: 'retired'` marker.
 const retiredIds = new Set()
+const idRe = /id:\s*'(INV-\d+)'/g
+const marks = []
 {
-  const idRe = /id:\s*'(INV-\d+)'/g
-  const marks = []
   let mm
   while ((mm = idRe.exec(catalogSrc)) !== null) marks.push({ id: mm[1], at: mm.index })
   for (let i = 0; i < marks.length; i++) {
@@ -102,6 +125,28 @@ const retiredIds = new Set()
   }
 }
 for (const id of retiredIds) catalogEntries.delete(id)
+
+// Programme-membership guard (#2513): the line-scanner above must account for
+// EVERY `id: 'INV-NN'` occurrence in the catalog source (modulo retired
+// tombstones, deliberately dropped just above). `marks` is the same global
+// scan already used to find retired-status spans — reuse it rather than add a
+// second scanner. If an id was found here but never made it into
+// catalogEntries, the line-scanner silently failed to extract its title (an
+// unrecognized format), and the forward/reverse checks below would be
+// verifying an undercounted set while reporting a confident OK. That is a
+// proven-nothing gate, not a passing one — hard-fail and name the ids.
+const allCatalogIds = new Set(marks.map((m) => m.id))
+const unaccountedIds = [...allCatalogIds].filter(
+  (id) => !catalogEntries.has(id) && !retiredIds.has(id),
+)
+if (unaccountedIds.length > 0) {
+  console.error(
+    `[check-catalog-agents-parity] ERROR: catalog source has ${allCatalogIds.size} id(s) but ` +
+      `only parsed ${catalogEntries.size + retiredIds.size} — could not parse title for: ` +
+      `${unaccountedIds.join(', ')}`,
+  )
+  process.exit(2)
+}
 
 // Extract {id, title} pairs from AGENTS.md: format is **INV-NN:** title
 const agentsInvEntries = new Map()
@@ -219,8 +264,20 @@ const BUILTIN_AGENT_TYPES = new Set([
 ])
 if (catalogArg == null && agentsArg == null) {
   const writeClassesPath = resolve(root, '.claude/agents/agent-write-classes.json')
-  try {
-    const classes = JSON.parse(readFileSync(writeClassesPath, 'utf-8')).classes ?? {}
+  // #2418: the whole block used to sit in a swallowing catch, so a MALFORMED
+  // agent-write-classes.json was indistinguishable from an absent one and the orphan
+  // scan silently vanished. Absence stays optional (E5 implement-but-not-activated);
+  // a file that exists but cannot be parsed is a hard fault.
+  if (existsSync(writeClassesPath)) {
+    let classes
+    try {
+      classes = JSON.parse(readFileSync(writeClassesPath, 'utf-8')).classes ?? {}
+    } catch (err) {
+      process.stderr.write(
+        `[check-catalog-agents-parity] ERROR: ${writeClassesPath} exists but is unreadable/malformed: ${err?.message ?? err}\n`,
+      )
+      process.exit(2)
+    }
     for (const name of Object.keys(classes)) {
       if (name.includes(':') || BUILTIN_AGENT_TYPES.has(name)) continue
       if (!existsSync(resolve(root, `.claude/agents/${name}.md`))) {
@@ -230,8 +287,6 @@ if (catalogArg == null && agentsArg == null) {
         violations++
       }
     }
-  } catch {
-    // agent-write-classes.json is optional (E5 implement-but-not-activated) — absence is not a violation.
   }
 }
 

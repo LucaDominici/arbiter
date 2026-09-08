@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2534",
+  "test_path": "__tests__/invariants/inv-82-monthly-freshness-bound.test.ts",
+  "test_commit_sha": "3ec0684a58cf055cb5860a35cf7336d44f02d367",
+  "test_blob_sha": "6290dd271f6d95b1ed920a24b9fef41d789f78f5",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/invariants/inv-82-monthly-freshness-bound.test.ts (3 tests | 2 failed) 14ms\n     × no invariant catalog entry states a monthly-freshness day-bound that disagrees with the enforced job 8ms\n     × AGENTS.md states no monthly-freshness day-bound that disagrees with the enforced job 2ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 1 passed (3)\n   Start at  16:46:01\n   Duration  549ms (transform 293ms, setup 29ms, import 285ms, tests 14ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/invariants/inv-82-monthly-freshness-bound.test.ts > #2534 — monthly-freshness bound: no invariant may disagree with the enforced job > no invariant catalog entry states a monthly-freshness day-bound that disagrees with the enforced job\nAssertionError: every stated monthly-freshness bound must equal the enforced 35-day threshold in 09-heartbeat.yml (assert-monthly-freshness job): expected [ { id: 'INV-82', …(2) }, …(1) ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   {\n+     \"field\": \"title\",\n+     \"found\": 32,\n+     \"id\": \"INV-82\",\n+   },\n+   {\n+     \"field\": \"description\",\n+     \"found\": 32,\n+     \"id\": \"INV-82\",\n+   },\n+ ]\n\n ❯ __tests__/invariants/inv-82-monthly-freshness-bound.test.ts:97:7\n     95|       `every stated monthly-freshness bound must equal the enforced ${…\n     96|         'threshold in 09-heartbeat.yml (assert-monthly-freshness job)',\n     97|     ).toEqual([])\n       |       ^\n     98|   })\n     99|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/invariants/inv-82-monthly-freshness-bound.test.ts > #2534 — monthly-freshness bound: no invariant may disagree with the enforced job > AGENTS.md states no monthly-freshness day-bound that disagrees with the enforced job\nAssertionError: AGENTS.md must not state a monthly-freshness bound other than the enforced 35 days: expected [ 32 ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   32,\n+ ]\n\n ❯ __tests__/invariants/inv-82-monthly-freshness-bound.test.ts:109:7\n    107|       disagreeing,\n    108|       `AGENTS.md must not state a monthly-freshness bound other than t…\n    109|     ).toEqual([])\n       |       ^\n    110|   })\n    111| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/invariants/inv-82-monthly-freshness-bound.test.ts",
+  "recorded_at": "2026-09-05T16:46:01.871Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/invariants/inv-82-monthly-freshness-bound.test.ts"
+  ]
+}

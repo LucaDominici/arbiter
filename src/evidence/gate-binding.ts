@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // #2328 — engine-side verification of the gate-pass marker.
+// #2427 — extended with the start/end run-identity axis (schema v3): a marker
+// whose gate started on one tree and finished on another is unverifiable, not
+// merely stale.
 //
 // `arbiter task advance` must NOT delegate its verdict to a script that lives
 // inside the tree it is gating: anyone who can edit `scripts/lib/gate-evidence.mjs`
@@ -19,7 +22,7 @@ import { mkdtempTranslated, rmTranslated } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
 
 export const GATE_PASS_POLICY = {
-  schema: 'arbiter-gate-pass-v2',
+  schema: 'arbiter-gate-pass-v3',
   defaultTtlMinutes: 240,
   /** Clock skew tolerated before a marker counts as stamped in the future. */
   futureSkewMinutes: 2,
@@ -36,6 +39,12 @@ export const GATE_PASS_POLICY = {
     'tree_hash',
     'checkout_root',
     'toolchain_fingerprint',
+    // #2427 — identity as it stood when the gate STARTED. Presence is checked
+    // before any comparison, so a v2 marker is rejected rather than silently
+    // losing the axis.
+    'gate_started_at',
+    'start_head_sha',
+    'start_tree_hash',
   ] as readonly string[],
   /** Repo-resident toolchain identity, hashed by content — never by `--version`. */
   /** Fixed cross-language superset — see scripts/lib/gate-evidence.mjs. */
@@ -259,6 +268,28 @@ function commitProblem(
   return null
 }
 
+/**
+ * #2427 — a gate that did not measure ONE tree from start to finish proves
+ * nothing about either tree. The writer (scripts/lib/gate-evidence.mjs) refuses
+ * to emit such a marker; this is the engine's independent second line.
+ */
+function startEndProblem(fields: Record<string, unknown>): string | null {
+  if (fields.start_head_sha !== fields.head_sha) {
+    return (
+      'gate-pass marker is unverifiable: the gate started on commit ' +
+      `"${String(fields.start_head_sha)}" and finished on "${String(fields.head_sha)}" — it did not ` +
+      'measure one tree from start to finish'
+    )
+  }
+  if (fields.start_tree_hash !== fields.tree_hash) {
+    return (
+      'gate-pass marker is unverifiable: the working tree changed while the gate ran ' +
+      `(started at tree "${String(fields.start_tree_hash)}", finished at "${String(fields.tree_hash)}")`
+    )
+  }
+  return null
+}
+
 /** The three axes #2328 added: checkout, toolchain and working-tree content. */
 function identityProblem(root: string, fields: Record<string, unknown>): string | null {
   if (fields.node_version !== process.version) {
@@ -317,6 +348,10 @@ export function verifyGatePassMarker(
       ),
     () => commitProblem(root, fields, opts.taskId),
     () => identityProblem(root, fields),
+    // LAST on purpose: commit/identity answer "does this marker describe THIS
+    // tree", start↔end answers "did one gate measure ONE tree". A marker that
+    // fails both deserves the first, more specific, diagnosis.
+    () => startEndProblem(fields),
   ]
 
   for (const check of checks) {

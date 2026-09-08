@@ -68,6 +68,38 @@ into the gate via the `check-anti-fake-green.mjs` aggregate (class `gh-audit` = 
   `src/commands/doctor.ts` (`runDoctorProveGates`), tests in
   `__tests__/conformance/gate-proofs.test.ts` + `__tests__/commands/doctor-prove-gates.test.ts`.
 
+## Empty-scan refusal (#2512)
+
+N4 above asks whether a gate _can_ reach a failing verdict. This asks a prior question: was the
+gate given anything to look at? A file-scanning gate that resolves its scan root to an empty set
+prints its clean message and exits `0` — indistinguishable, in a CI log, from a real scan that
+found no violations. "Found nothing" and "looked nowhere" must never produce the same green.
+
+The concrete defect (#2512) was a path bug, not a missing counter. `check-no-orphan-todo.mjs`
+composed its scan root with `join(baseDir, dir)`, and `join` does **not** reset on an absolute
+segment: `join('/repo', '/tmp/fixture/src')` yields `'/repo/tmp/fixture/src'`, a path that almost
+certainly does not exist. Any absolute scan directory was therefore silently rewritten to
+nothing, and the gate passed having opened no file at all. The fix is `resolve(baseDir, dir)`,
+whose right-to-left semantics discard everything left of an absolute segment while still joining
+a relative one under `baseDir` exactly as before.
+
+The refusal is the guard that makes such a bug loud rather than invisible:
+
+- Every scan reports `Scanned N file(s) across M dir(s): <dirs>` — so the count is in the log
+  whether or not the run fails, and a collapse to zero is visible on the passing path too.
+- A resolved scan set of **zero files** aborts instead of reporting "no violations". An empty
+  directory, a typo'd path, or a mis-resolved absolute argument all fail loudly.
+
+A scan that reads real files and finds no violations is unaffected — it is a genuine `0` and
+stays one. The distinction is _files scanned_, not _violations found_.
+
+> **Open: the exit code for this condition is not yet uniform (#2593).** `check-no-orphan-todo.mjs`
+> exits `1`; `check-perm-test-guards.mjs` exits `2` for the same condition, following its own
+> header rather than the INV-53 table below. Both fail the gate, so the behaviour is right in
+> each; only the diagnostic classification differs. #2593 decides one rule for the family —
+> including whether a _mis-invocation_ (a path that does not exist) and an _empty-but-valid scan
+> root_ should share a code at all — and converts every member in one change.
+
 ## `arbiter doctor` diagnostics for target repos (#2162)
 
 The guards above catch arbiter faking green on **its own** gate. `arbiter doctor tool-pins` and
@@ -118,6 +150,32 @@ is: NEW mutes are never grandfathered implicitly).
 `0` = PASS / advisory · `1` = FAIL (`--enforce` + violations, or a hard/broken child) · `2` =
 ERROR (the guard itself malfunctioned). **NO-DATA is `0`, never `2`** — a missing `gh` is an
 environment condition, not a broken guard.
+
+## Programme membership: a parser that lost rows (#2513)
+
+`check-catalog-agents-parity.mjs` compares the invariant catalog against `AGENTS.md` in both
+directions. Both directions are only as good as the set the line-scanner managed to extract —
+and the scanner recognised `title:` only on the line _after_ `id:`. A prettier pass that
+collapses a short object literal onto one line therefore dropped that entry silently, and the
+forward and reverse comparisons then ran over an undercounted set and reported a confident
+`OK`. Nothing was wrong with the comparison; it was simply asked about fewer rows than exist.
+
+Two changes, and the second is the one that matters:
+
+- The scanner gained a same-line path, so a collapsed `{ id: 'INV-NN', title: '…' }` is read
+  rather than deferred to a line that holds something else.
+- A **programme-membership guard** now asserts that every `id: 'INV-NN'` occurrence in the
+  catalog source is accounted for — present in the parsed map, or deliberately dropped as a
+  retired tombstone. Anything else means the scanner failed on a format it did not recognise,
+  and the gate exits `2` naming the unaccounted ids instead of comparing a partial set.
+
+The guard reuses the `marks` scan already computed for retired-status spans rather than adding
+a second scanner, so the check cannot drift away from the thing it audits.
+
+This is an ERROR (`2`) rather than a violation (`1`) under the contract above, and deliberately
+so: the parser malfunctioned. It is a different condition from an _empty scan set_ — there the
+gate worked correctly and was simply pointed at nothing. #2593 is deciding whether the family
+should express those two conditions with one code or two.
 
 ## Rollout
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -276,6 +276,137 @@ describe('check-canon01-declination.mjs (#1922 — CANON-01 dual-sided declinati
       cleanup()
     }
   })
+  // #2405 — the twelve STAGED entries carried a generic reason text that cited a closed
+  // issue scoped to a DIFFERENT registry. Re-dating them is the failure mode this issue
+  // exists to end, so the contract is pinned here, against the COMMITTED registry.
+  //
+  // The pin is deliberately NOT "no entry anywhere carries `expires`". That reading
+  // contradicts the gate these tests cover: check-canon01-declination.mjs accepts a
+  // live-dated entry (selfOnlyEntryProblem returns null unless the date is unparseable
+  // or already past) and its own ratchet-refusal message instructs the operator to
+  // "Add an `expires`-dated entry with a reason and raise the baseline by hand in the
+  // same PR". A test that banned what the gate prescribes would not be a stronger
+  // contract, only an inconsistent one. What #2405 actually ended is the generic,
+  // deferring REASON TEXT — pinned below, repo-wide, and unchanged.
+  describe('committed self-only registry contract (#2405)', () => {
+    const REGISTRY = JSON.parse(
+      readFileSync(resolve('scripts/canon01-self-only.json'), 'utf-8'),
+    ) as { selfOnly: Array<{ path: string; reason: string; expires?: string }> }
+
+    // The twelve entries #2405 audited. A resolved entry must CITE evidence, not assert a
+    // verdict: the twelve pre-resolution reasons ran 272-464 chars and two named no artifact
+    // at all, so the bar is length AND >=2 distinct concrete artifact references.
+    const AUDITED_2405 = [
+      'scripts/check-acceptance.mjs',
+      'scripts/check-doc-path-citations.mjs',
+      'scripts/check-doc-style.mjs',
+      'scripts/check-evidence-bundle.mjs',
+      'scripts/check-hook-doc-parity.mjs',
+      'scripts/check-monthly-freshness.mjs',
+      'scripts/check-nightly-freshness.mjs',
+      'scripts/check-node-version-ssot.mjs',
+      'scripts/check-npm-ci-drift.mjs',
+      'scripts/check-reuse-survey.mjs',
+      'scripts/check-workflow-hardening.mjs',
+      'scripts/check-workflow-parallelism.mjs',
+    ]
+    const audited = () => REGISTRY.selfOnly.filter((e) => AUDITED_2405.includes(e.path))
+
+    // Absolute, for the set #2405 owns: none of the twelve may be STAGED again, ever.
+    // Re-dating one of them is precisely the failure mode this issue exists to end.
+    it('leaves no STAGED (expires-dated) entry among the twelve #2405 audited', () => {
+      const staged = audited()
+        .filter((e) => e.expires != null)
+        .map((e) => e.path)
+      expect(staged).toEqual([])
+    })
+
+    // Repo-wide, for every other entry: staging is legal but never open-ended. A date
+    // must parse and still be in the future, and the reason must carry the specific
+    // blocker — the twelve pre-resolution reasons ran 272-464 chars of boilerplate, so
+    // 300 is the floor that a generic one-liner cannot clear.
+    it('gives every STAGED entry a live date and a specific blocker', () => {
+      const bad = REGISTRY.selfOnly
+        .filter((e) => e.expires != null)
+        .filter((e) => {
+          const due = Date.parse(`${e.expires}T00:00:00Z`)
+          return Number.isNaN(due) || due < Date.now() || e.reason.length < 300
+        })
+        .map((e) => e.path)
+      expect(bad).toEqual([])
+    })
+
+    it('carries no reason that defers, or cites the audit issue as still pending', () => {
+      const deferring = REGISTRY.selfOnly
+        .filter((e) =>
+          /STILL PENDING|Audit under #|plausibly should also receive|issues\/2405/i.test(e.reason),
+        )
+        .map((e) => e.path)
+      expect(deferring).toEqual([])
+    })
+
+    it('gives every audited entry a rationale that cites concrete artifacts', () => {
+      const ARTIFACT = /[\w./-]+\.(?:ejs|mjs|yml|json|ts)\b/g
+      const thin = audited()
+        .filter((e) => e.reason.length < 600 || new Set(e.reason.match(ARTIFACT) ?? []).size < 2)
+        .map((e) => e.path)
+      expect(thin).toEqual([])
+    })
+
+    // A rationale that reads identically for two different checks is not a rationale, so the
+    // contract is sentence-level, not whole-string: no substantial sentence (>=60 chars) may
+    // be shared by two of the audited entries. Pre-#2405 all twelve shared the boilerplate
+    // "Tracked by https://github.com/LucaDominici/arbiter/issues/2405." sentence. Scoped to
+    // the audited set: the older permanent FAMILIES (the governance-doc gates, the published-
+    // CLI-artifact gates) deliberately share one by-construction clause, and re-litigating
+    // those is outside this issue.
+    it('gives no two audited entries the same rationale sentence', () => {
+      const bySentence = new Map<string, string[]>()
+      for (const e of audited()) {
+        for (const raw of e.reason.split(/(?<=\.)\s+/)) {
+          const sentence = raw.trim()
+          if (sentence.length < 60) continue
+          bySentence.set(sentence, [...(bySentence.get(sentence) ?? []), e.path])
+        }
+      }
+      const shared = [...bySentence.entries()].filter(([, paths]) => paths.length > 1)
+      expect(shared.map(([sentence, paths]) => `${paths.join(' + ')}: ${sentence}`)).toEqual([])
+    })
+
+    it('no longer claims check-acceptance.mjs is self-only — it is emitted (ADR-110)', () => {
+      expect(REGISTRY.selfOnly.map((e) => e.path)).not.toContain('scripts/check-acceptance.mjs')
+    })
+
+    // The baseline must measure the registry it ratchets against — a baseline that has
+    // drifted off the file it counts disarms the ratchet silently. The second assertion
+    // is #2405's own measurable result: check-acceptance.mjs was audited OUT (ADR-110),
+    // so the twelve are eleven. A whole-registry ceiling is deliberately not asserted
+    // here: the registry is shared with main, and the monotone bound on it is the gate's
+    // ratchet (canon01-baseline.json), not a literal in this file.
+    // Entries that have LEFT the audited twelve, each for a named reason. Counting was the
+    // wrong shape: `AUDITED_2405.length - 1` silently encoded "#2405 removed exactly one",
+    // so the next legitimate retirement broke it with no clue why. Naming them means a
+    // future removal must state its reason here, and an entry that quietly reappears in the
+    // self-only registry fails too.
+    const AUDITED_REMOVED: Record<string, string> = {
+      'scripts/check-acceptance.mjs': 'emitted as a template twin — ADR-110, closed by #2405',
+      'scripts/check-monthly-freshness.mjs': 'gate deleted as structurally vacuous — #2520',
+      'scripts/check-nightly-freshness.mjs': 'gate deleted as structurally vacuous — #2520',
+    }
+
+    it('pins the ratchet baseline to the registry it measures, and the audited set fell', () => {
+      const baseline = JSON.parse(
+        readFileSync(resolve('scripts/canon01-baseline.json'), 'utf-8'),
+      ) as { selfOnly: number }
+      expect(baseline.selfOnly).toBe(REGISTRY.selfOnly.length)
+
+      const paths = new Set(REGISTRY.selfOnly.map((e) => e.path))
+      const stillListed = Object.keys(AUDITED_REMOVED).filter((p) => paths.has(p))
+      expect(stillListed).toEqual([])
+      expect(audited().length).toBe(AUDITED_2405.length - Object.keys(AUDITED_REMOVED).length)
+    })
+  })
+
   // #2404 — every case above builds a SYNTHETIC repo, so none of them ever reads the
   // committed registry. A `expires` date that rolls past is therefore invisible to the
   // whole suite until the gate turns red in CI. This case runs the real gate against the

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "capturedAt": "2026-09-07T21:12:12.255Z",
+  "metrics": {
+    "covered": {
+      "value": 23,
+      "unit": "count",
+      "direction": "informational"
+    },
+    "accepted": {
+      "value": 13,
+      "unit": "count",
+      "direction": "informational"
+    },
+    "unenforceable": {
+      "value": 0,
+      "unit": "count",
+      "direction": "lower-is-better"
+    }
+  },
+  "integrityHash": "dbbc74b36a91f81a65ff3d632da6f00053e83673a104a6f903eb9c969ad21f63"
+}

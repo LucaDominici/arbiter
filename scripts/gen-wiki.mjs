@@ -13,7 +13,7 @@
 //   node scripts/gen-wiki.mjs query <terms> # keyword search over wiki pages
 //   node scripts/gen-wiki.mjs --wiki-dir <dir> # write/check a non-default vault dir (#1979)
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, rmSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -294,8 +294,37 @@ ${seeAlso ? `## See Also\n\n${seeAlso}\n` : ''}`.trimEnd() + '\n'
   // Write log (gitignored — contains timestamp)
   writeFileSync(join(WIKI_DIR, '.wiki-log.json'), JSON.stringify(log, null, 2) + '\n', 'utf-8')
 
+  // ── Prune orphaned generator-owned pages (#2482) ────────────────────────────
+  // wiki/ is gitignored, so a page whose source doc is gone (deleted, renamed,
+  // or simply absent after a branch switch) would otherwise survive every
+  // regeneration forever and later fail check-wiki-lint.mjs's citation check.
+  //
+  // Ownership, not a wiki/ sweep: only delete a page that generatePage() wrote
+  // itself — identified by its own `generated: true` + `source: '<path>'`
+  // frontmatter (the same fields check-wiki-lint.mjs already parses) — and
+  // only when that source is no longer in the CURRENT FULL source set. A
+  // hand-written file with no such frontmatter is never touched.
+  //
+  // Deliberately checked against `sources` (the full list), never against
+  // `changedSources`: in --changed mode only the stale subset gets rewritten,
+  // but every other current source is still valid and must not be pruned
+  // just because this run didn't happen to touch it.
+  const currentSources = new Set(sources)
+  let pruned = 0
+  for (const file of readdirSync(WIKI_DIR)) {
+    if (!file.endsWith('.md') || file === 'INDEX.md') continue
+    const absPage = join(WIKI_DIR, file)
+    const pageFm = parseFrontmatter(readFileSync(absPage, 'utf-8'))
+    if (pageFm['generated'] !== 'true') continue // not generator-owned
+    const pageSource = pageFm['source']
+    if (!pageSource || currentSources.has(pageSource)) continue // owned but still current
+    rmSync(absPage)
+    pruned++
+  }
+
   process.stdout.write(
-    `  gen-wiki: ${generated} page(s) written to wiki/ (${sources.length} source docs)\n`,
+    `  gen-wiki: ${generated} page(s) written to wiki/ (${sources.length} source docs), ` +
+      `${pruned} page(s) pruned\n`,
   )
   process.exit(0)
 } catch (err) {

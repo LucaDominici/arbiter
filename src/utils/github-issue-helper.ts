@@ -12,7 +12,7 @@
 // `['tech-debt','follow-up']`; `findings promote` passes `['finding','tech-debt', priority/Pn]`.
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFile, readFileTranslated } from './fs.js'
+import { writeFile, readFileTranslated, assertWritten } from './fs.js'
 import { runCli, CliError } from './run-cli.js'
 
 export interface CreateGhIssueInput {
@@ -77,6 +77,11 @@ export function createGhIssue(dir: string, input: CreateGhIssueInput): CreateGhI
  *
  * Contract: SINGLE-WRITER. Concurrent invocation may lose entries — callers must serialize.
  * A corrupt existing file resets to `[]` (we never throw on a malformed spool).
+ *
+ * #2533: this is a data artifact written by tooling, never a generator-emitted target —
+ * written with `skipPreserveCheck` so it is never subject to `writeFile`'s
+ * `arbiter:preserve` marker, and the `WriteResult` is asserted via `assertWritten` so a
+ * write that did not land is a loud failure, never silent.
  */
 export function appendTechDebtIssue(evidenceDir: string, issueNumber: number): void {
   const tdPath = join(evidenceDir, 'tech-debt.json')
@@ -104,5 +109,8 @@ export function appendTechDebtIssue(evidenceDir: string, issueNumber: number): v
     }
   }
   issues.push(issueNumber)
-  writeFile(tdPath, JSON.stringify({ issues }, null, 2) + '\n')
+  const result = writeFile(tdPath, JSON.stringify({ issues }, null, 2) + '\n', {
+    skipPreserveCheck: true,
+  })
+  assertWritten(result, `tech-debt evidence at ${tdPath}`)
 }

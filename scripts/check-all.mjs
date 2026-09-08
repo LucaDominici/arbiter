@@ -27,8 +27,9 @@
 // runWarnCheck (informational), runToolCheck (CI-aware tool gate).
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { minimatch } from 'minimatch'
 import {
   runCheck,
@@ -37,8 +38,10 @@ import {
   getResults,
   getFailed,
   setSkippedChecks,
+  setOrphanGuard,
   isMainModule,
 } from './lib/run-helpers.mjs'
+import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs'
 import { effectiveGateLevel, parseCheckArgs } from './lib/parse-check-args.mjs'
 import { GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST } from './lib/gate-affects-registry.mjs'
 
@@ -78,6 +81,73 @@ if (isMain) {
   // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
   // git-dependent checks (commitlint, docs) must run from the original repo path.
   const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD
+
+  // ─── #2427: one gate per repo, and never an orphan ──────────────────────────
+  // Two L2 runs in one worktree interfered (a half-deleted vitepress temp file
+  // broke docs:build; a subprocess-heavy unit test flaked under the doubled
+  // load), and the orphan of a killed `git push` went on to stamp a green marker.
+  //
+  // The mutex is the SAME per-repo flock `arbiter gate-exec` takes — keyed off
+  // GIT_CWD when present, because the pre-push '#'-in-path branch runs this file
+  // from an rsync'd copy under /tmp and keying off cwd there would derive a fresh
+  // key per run, i.e. a null mutex. Re-exec (rather than acquire-in-place) is how
+  // a synchronous gate can hold a kernel lock for its whole life; the wrapper
+  // publishes ARBITER_GATE_MUTEX_HELD so this branch runs exactly once.
+  //
+  // Fail-open by design ONLY where there is no repo to key on: a checkout git
+  // cannot answer for has no per-repo mutex to take, and refusing to run the
+  // gate there would break every non-git consumer for no safety gain — the
+  // start/end binding below is what actually prevents the false green.
+  const MUTEX_ROOT = GIT_CWD ?? process.cwd()
+  {
+    let lockPath = null
+    try {
+      lockPath = gateLockPathFor(MUTEX_ROOT)
+      // FAIL-OPEN-INTENT: no resolvable repo ⇒ no per-repo mutex exists to take.
+    } catch {
+      lockPath = null
+    }
+    // #2427: compare the held lock by EXACT PATH, never by mere presence. The
+    // env var exists to stop a process re-acquiring the flock it already owns
+    // (which would deadlock) — so only THIS repo's lock path may skip the relay.
+    // Any other non-empty value (a stale export from an earlier gate-exec, or
+    // another repo's lock when a gate-exec in repo A spawns work on repo B —
+    // gate-exec.ts publishes it unconditionally into the child env) would
+    // otherwise skip the mutex entirely and run the gate unserialised, silently.
+    // gate-mutex.mjs already compares by equality; these two must agree.
+    const alreadyHeld = lockPath !== null && process.env[GATE_MUTEX_HELD_ENV] === lockPath
+    if (lockPath !== null && !alreadyHeld) {
+      const wrapper = resolve(dirname(fileURLToPath(import.meta.url)), 'lib/gate-mutex.mjs')
+      const relayed = spawnSync(
+        process.execPath,
+        [wrapper, 'run', '--dir', MUTEX_ROOT, '--', process.execPath, ...process.argv.slice(1)],
+        { stdio: 'inherit' },
+      )
+      process.exit(relayed.status ?? 1)
+    }
+  }
+
+  // Armed for the whole run: between every two checks the gate confirms the
+  // process it was launched to serve is still alive, so a SIGKILL'd parent — the
+  // one signal nothing can forward — cannot leave a gate measuring a tree nobody
+  // is waiting on, let alone stamping evidence for it.
+  setOrphanGuard()
+
+  // #2427 AC-1: the identity of the tree this gate is about to measure, sampled
+  // BEFORE the first check. `buildGateEvidence` re-measures at the end and
+  // refuses to stamp anything if the two disagree — which is exactly what the
+  // orphan of a killed push produced: twenty minutes of checks against one tree,
+  // a marker naming another. Loaded lazily and tolerantly: a checkout without
+  // the verifier simply stamps no marker (fail closed), it does not lose the run.
+  const gateStart = await (async () => {
+    try {
+      const { captureGateStart } = await import('./lib/gate-evidence.mjs')
+      return captureGateStart(GIT_CWD ?? process.cwd())
+      // FAIL-OPEN-INTENT: null is the REJECTING value — no start means no marker.
+    } catch {
+      return null
+    }
+  })()
 
   // Worktree paths containing '#' break Vite's URL parsing. Create a symlink
   // without '#' and pass VITEST_ROOT so vitest resolves the root from the symlink.
@@ -223,6 +293,28 @@ if (isMain) {
   ])
   runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
   runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
+  // INV-140/141: the identifier ontology. The first gate proves the registry is well-formed
+  // (schema, no two schemes matching one id, resolvable SSOTs and OD citations); the second
+  // proves every active scheme is a wired behaviour — gate registered, verb in the CLI, hook in
+  // settings — against a ratchet that lets the unwired count fall but never quietly rise.
+  // Ordered, not merged: an unwired row means nothing until the registry itself parses.
+  runCheck('id registry (INV-140)', 'node', ['scripts/check-id-registry.mjs'])
+  runCheck('ontology wired (INV-141)', 'node', ['scripts/check-ontology-wired.mjs'])
+  runCheck('arc42 slots (INV-144)', 'node', ['scripts/check-arc42-slots.mjs'])
+  // INV-146: the milestone SSOT is well-formed, acyclic, and fail-closed on `done`. SKIPs out
+  // loud when no MILESTONES.yml exists — a project need not have codified a roadmap.
+  runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs'])
+  runCheck('runbook coverage (INV-148)', 'node', ['scripts/check-runbook-coverage.mjs'])
+  runCheck('use cases (INV-149)', 'node', ['scripts/check-use-cases.mjs'])
+  // INV-147: tier 1 of the source chain — every quotation is a literal substring of a committed
+  // excerpt whose hash matches. Deterministic and offline; SKIPs out loud when a project cites
+  // nothing. Relevance (tier 2) and graph reachability (tier 3) are judgements this gate refuses
+  // to fake.
+  runCheck('sources tier 1 (INV-147)', 'node', ['scripts/check-sources.mjs'])
+  // INV-143: the arbiter <-> forma schema contract. Owner-side pins always verified; the
+  // cross-checkout half runs only when a forma checkout sits beside this one, and SKIPS out
+  // loud otherwise — forma's own scripts/check-arbiter-contract.mjs gates the other half.
+  runCheck('forma schema contract (INV-143)', 'node', ['scripts/check-forma-contract.mjs'])
   // #1410: advisory — report check-*.mjs gates not reachable from check-all.mjs
   // (orphan gates). Report-only (exit 0); promotion to blocking is a tracked follow-up.
   runWarnCheck('orchestrator coverage (#1410)', 'node', ['scripts/check-orchestrator-coverage.mjs'])
@@ -334,8 +426,6 @@ if (isMain) {
   runCheck('anti-drift: unwired guards (#2159)', 'node', ['scripts/check-unwired-guards.mjs'])
   runCheck('anti-drift: validator helptext', 'node', ['scripts/check-validator-helptext.mjs'])
   runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'])
-  runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])
-  runCheck('monthly freshness (INV-82)', 'node', ['scripts/check-monthly-freshness.mjs'])
   runCheck('deploy cosign supply-chain (INV-95/97/98)', 'node', [
     'scripts/check-workflow-cosign.mjs',
   ])
@@ -379,6 +469,11 @@ if (isMain) {
   // consumer does — every script/command/hook an emitted playbook cites must resolve in the
   // tree that ships it, not in arbiter's. Runs right after the drift check, on the same corpus.
   runCheck('emitted markdown refs (#2415)', 'node', ['scripts/check-emitted-markdown-refs.mjs'])
+  // #2548: packages/kernel/hooks/ is build-kernel-plugin.mjs's OUTPUT — the generator
+  // itself takes ~1s (an EJS render + a prettier pass over 9 small files), so it belongs
+  // in L1 next to the other self-generation drift checks above (dogfood, examples drift),
+  // not deferred to L2/nightly where drift would sit unnoticed for longer.
+  runCheck('kernel plugin parity (#2548)', 'node', ['scripts/check-kernel-plugin-parity.mjs'])
 
   // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
   // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still
@@ -603,14 +698,23 @@ if (isMain) {
       const root = GIT_CWD ?? process.cwd()
       // #1441: stamp the task id so the fail-closed Stop hook can reject a prior
       // task's gate-pass on the same branch (anti-replay, beyond branch+sha).
+      // #2418: an ABSENT status file is a resolved fact — there is no task, so
+      // 'unknown' is honest. A PRESENT but unreadable/unparseable one is an
+      // UNRESOLVED fact: swallowing it stamped the marker with a fabricated
+      // 'unknown' id, which the anti-replay check then cannot distinguish from a
+      // genuinely task-less run. Surface it and write NO marker instead.
       const taskId = (() => {
+        const statusPath = resolve(root, '.claude/.task/status.json')
+        if (!existsSync(statusPath)) return 'unknown'
         try {
-          const statusPath = resolve(root, '.claude/.task/status.json')
-          if (!existsSync(statusPath)) return 'unknown'
           const s = JSON.parse(readFileSync(statusPath, 'utf-8'))
           return typeof s.taskId === 'string' && s.taskId.length > 0 ? s.taskId : 'unknown'
-        } catch {
-          return 'unknown'
+        } catch (err) {
+          process.stderr.write(
+            `check-all: warning: gate marker NOT written — ${statusPath} exists but could not ` +
+              `be read as task state (${err.message}), so the marker cannot name the task it binds\n`,
+          )
+          return null
         }
       })()
       // #2328: the marker binds tree content, checkout identity, toolchain
@@ -621,12 +725,23 @@ if (isMain) {
       // Loaded lazily so a checkout missing the verifier writes NO marker (fail
       // closed) instead of crashing an otherwise-green gate at import time.
       const { buildGateEvidence } = await import('./lib/gate-evidence.mjs')
-      const evidence = buildGateEvidence({ root, level, taskId })
+      // #2427: `gateStart` is the identity captured before the first check ran.
+      // buildGateEvidence returns null when it is missing, incomplete, or no
+      // longer matches the tree — a green gate with no marker is honest, a
+      // marker for a tree the gate did not measure end to end is not.
+      const evidence =
+        taskId === null ? null : buildGateEvidence({ root, level, taskId, start: gateStart })
       if (evidence === null) {
-        process.stderr.write(
-          'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
-            'could not be resolved, so nothing can bind this gate result to this tree\n',
-        )
+        // #2418: taskId === null happens ONLY on the unreadable-status.json path above,
+        // which already wrote a warning naming that file and the parse error. Emitting
+        // this vaguer one on top of it would bury the specific reason under a generic one.
+        if (taskId !== null) {
+          process.stderr.write(
+            'check-all: warning: gate marker NOT written — HEAD, checkout root or tree hash ' +
+              'could not be resolved, or the commit/tree moved while the gate was running, ' +
+              'so nothing can bind this gate result to this tree (#2427)\n',
+          )
+        }
       } else {
         const markerPath = resolve(root, '.arbiter/gate-pass.json')
         mkdirSync(dirname(markerPath), { recursive: true })
