@@ -118,6 +118,29 @@ it actually opened, `main` sums that across every scan directory, and a total of
 instead of reporting a clean run. The count is printed on the passing path too, so a collapse
 toward zero is visible in the log before it ever reaches zero.
 
+### The emitted twin, and an anchor that proves the test would have caught it (#2561)
+
+Governed projects run their own copy of this gate, rendered from
+`src/templates/scripts/check-todo-max-age.mjs.ejs`, and it carried the same `join` defect — so
+until now the vacuous-green failure shipped downstream too. The template takes the same
+`resolve()` fix and the same files-scanned refusal, keeping the emitted script and arbiter's own
+one design rather than two.
+
+The part worth copying elsewhere is how the port is proved. A frozen copy of the **pre-fix**
+template is checked in as `__tests__/fixtures/templates/check-todo-max-age.pre-2561.mjs.ejs`, and
+the render test renders that fixture and runs the resulting gate against the same scenario. Two
+sanity assertions first confirm the anchor really is the un-fixed shape:
+
+```ts
+expect(preFixSource).not.toContain('resolve(baseDir, dir)')
+expect(preFixSource).not.toContain('ABORT')
+```
+
+A test that only exercises the fixed template proves the fix works; it does not prove the test
+would have _failed_ before it. Keeping the old template as a fixture supplies the red half of the
+red-green pair permanently, so a future refactor that silently reintroduces the `join` shape has
+something standing that goes red — rather than a green suite that merely stopped asking.
+
 ## Scanning the tree you listed (#2514)
 
 Empty-scan refusal above asks whether a gate was given anything to look at. This asks the next
