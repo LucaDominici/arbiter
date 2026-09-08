@@ -17,6 +17,13 @@ files:
   - .agents/plan/PLAN.json
   - .arbiter/evidence/tdd/#2599.json
   - .arbiter/evidence/ac-fit/2599.json
+  - docs/internal/SYSTEM/HOOK-CONTRACTS.md
+  - examples/ts-library/.arbiter-generated-manifest.json
+  - examples/ts-library/.claude/hooks/lib.mjs
+  - examples/python-library/.arbiter-generated-manifest.json
+  - examples/python-library/.claude/hooks/lib.mjs
+  - examples/go-library/.arbiter-generated-manifest.json
+  - examples/go-library/.claude/hooks/lib.mjs
 ---
 # #2599 shared diff prefix safety
 Author Astra root; frozen base 2d23d37a631ecc4009650b28bec30a927a3ec5b8.
@@ -25,10 +32,18 @@ Standard shared security helper. Owner GO delegates native admission, not review
 - [ ] AC-1: The shared addedLinesVsHEAD helper retains added content beginning ++, including +++ with spaces or header-like text inside a hunk, while excluding real pre-hunk file headers. Correct new-file line numbering survives insertions, deletions, multiple hunks and no-newline markers.
 - [ ] AC-2: Real tracked-file PostToolUse PII/placeholder/orphan-marker hook regressions detect newly added prefix-collision violations; ordinary violations still fail and untouched pre-existing fixture content remains ignored. No hook is skipped, disabled or weakened.
 - [ ] AC-3: Fix the shared canonical helper and its shipped/template/kernel consumers through native generation, with parity/regeneration checks; no duplicate per-caller patch or threshold relaxation.
-- [ ] AC-4: Preserve genuine RED before GREEN, obtain native plan/code/refutation approval and targeted regressions, then exact-head L1/L2, real CI and pr-ff/CAS landing. Rejoin #2597 and requalify its exact artifact/consumer after the prerequisite is fixed.
+- [ ] AC-4: Preserve genuine RED before GREEN, obtain native plan/code/refutation approval and passing targeted regressions before entering exact-head verification.
+
+## Required delivery postconditions — issue remains open until all are proven
+Exact-head L1/L2, real green CI and pr-ff/CAS landing remain mandatory, with no
+waiver or substitution. Rejoin #2597 and requalify its exact artifact/consumer
+after this prerequisite lands. Do not put `Closes #2599` in the prerequisite PR:
+close this issue only after that post-merge evidence is green, under wave-drain's
+iff-closure contract. An AC-fit PASS permits verification, not delivery acceptance.
 
 ## Non-Goals
-- No new parser framework, dependency, scheduler, per-caller patch, gate relaxation, or changes to #2578. #2597 remains a separate blocked train at review round2.
+- No new diff framework, dependencies, new scheduler or broader hook rewrite. Do not change #2578 scope or package-size thresholds. Do not treat full-file scanning at landing as a replacement for edit-time detection.
+- Additionally, no per-caller patch or gate relaxation. #2597 remains a separate blocked train at review round2.
 ## Approach & decomposition
 One TDD unit. Before any implementation, native independent plan approval and
 Standard three-seat red-team. In addedLinesVsHEAD, ignore records before the first
@@ -37,6 +52,16 @@ set by a valid hunk header; retain the existing new-line counter and git fallbac
 Apply to template and self twin; regenerate kernel via build-kernel-plugin.
 Any additional generated snapshot/example files required by native parity must be
 identified and admitted by bounded manifest amendment before generation, not hand-edited.
+Bounded 2026-09-08 amendment: update the existing hook contract's diff-scanning
+section and regenerate the three living examples with `npm run examples:regenerate`.
+The only admitted derived changes are each example's hook lib and generated manifest.
+Abort if any porcelain status (including ignored/untracked files) appears below
+the three example roots. First run `npm run examples:regenerate -- --check` and
+retain its exact changed/added/removed set; write only if that set is exactly the
+six admitted outputs, otherwise amend scope before generation. This checks clean
+committed content preservation as well as dirty/untracked content safety.
+Correct only the parity comment in `__tests__/scripts/build-kernel-plugin.test.ts`
+to include #2599; no test logic or `scripts/build-kernel-plugin.mjs` change.
 ## Threat model & abuse cases
 An added source line starting ++ is encoded as +++ and bypasses all shared callers.
 PII, placeholder, orphan marker and skipped-test hooks consume this helper; preserving
@@ -77,3 +102,11 @@ do not rewrite frozen base solely for unrelated main advance; final integration 
 ## Revision
 Draft reviewed by author once: explicit inHunk state avoids overloading line0;
 multiple-hunk and no-newline controls added before independent review.
+Original AC-4: Preserve genuine RED before GREEN, obtain native plan/code/refutation approval and targeted regressions, then exact-head L1/L2, real CI and pr-ff/CAS landing. Rejoin #2597 and requalify its exact artifact/consumer after the prerequisite is fixed.
+2026-09-08 AC4-EVIDENCE-GAP amendment: original AC-4 combined pre-verification
+proof with future landing/rejoin proof, making truthful native verification admission
+circular. Three independent skeptics upheld that gap on 286fd9ab. Its original
+delivery requirements are retained above as mandatory postconditions; original
+wording is preserved in this Revision section. The issue stays OPEN until all are
+met. Update the live issue, verify exact anchor/postconditions equality, then obtain
+fresh independent approval of these bytes before implementation.

@@ -114,6 +114,7 @@ describe('build-kernel-plugin.mjs', () => {
   // packages/kernel/hooks/ could be regenerated) — a materially larger, separate
   // body of work spanning many issues (#565, #1441, #1872, #1990, #2022, #2399,
   // #2403), captured via `arbiter note` rather than folded into this fix.
+  // #2599 also binds the shared lib.mjs diff-parser repair to committed bytes.
   const FILES_FIXED_BY_2538 = ['check-no-orphan-todo.mjs', 'check-no-placeholders.mjs', 'lib.mjs']
 
   it('regenerates the #2538-fixed hooks byte-identical to what is now committed', () => {

@@ -2,18 +2,19 @@
   "task_id": "#2599",
   "tier": "Standard",
   "verdict": "PASS",
-  "source_sha": "626b9fa71038f2dfab9a638fbeebca232959f02e",
-  "plan_sha256": "4c057ec0520273a99dc9cd96fd792ee119260774fc91d110be8201064dc2538f",
-  "reviewed_at": "2026-09-08T12:27:45+02:00",
+  "source_sha": "286fd9ab1306d078f425cd670e7c19c2d0113c50",
+  "plan_sha256": "5ce26d6f8c142d00a05b2eb39ff1984daf5c8f03d4c929378820e425eaf5e161",
+  "reviewed_at": "2026-09-08T13:00:17+02:00",
   "reviewers": [
-    "/root/code_2599_standards",
-    "/root/code_2599_spec",
-    "/root/code_2599_safety"
+    "/root/amendment_2599_contract",
+    "/root/amendment_2599_spec",
+    "/root/amendment_2599_safety"
   ],
   "findings": [],
   "resolvedFindings": [
     "RT-2599-B-01",
-    "RT-2599-C-01"
+    "RT-2599-C-01",
+    "AC4-EVIDENCE-GAP"
   ],
-  "bundle": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788862630/plan-format-amendment-reviews.md"
+  "bundle": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788864248/amendment-approved.md"
 }

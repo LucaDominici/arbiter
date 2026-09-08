@@ -11,7 +11,14 @@
       ".agents/plan/PLAN.json",
       ".arbiter/evidence/tdd/#2599.json",
       ".arbiter/evidence/ac-fit/2599.json",
-      "__tests__/scripts/build-kernel-plugin.test.ts"
+      "__tests__/scripts/build-kernel-plugin.test.ts",
+      "docs/internal/SYSTEM/HOOK-CONTRACTS.md",
+      "examples/ts-library/.arbiter-generated-manifest.json",
+      "examples/ts-library/.claude/hooks/lib.mjs",
+      "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/python-library/.claude/hooks/lib.mjs",
+      "examples/go-library/.arbiter-generated-manifest.json",
+      "examples/go-library/.claude/hooks/lib.mjs"
     ]
   },
   "files": [
@@ -50,6 +57,34 @@
     {
       "path": "__tests__/scripts/build-kernel-plugin.test.ts",
       "operation": "modify"
+    },
+    {
+      "path": "docs/internal/SYSTEM/HOOK-CONTRACTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.claude/hooks/lib.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.claude/hooks/lib.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.claude/hooks/lib.mjs",
+      "operation": "modify"
     }
   ],
   "invariants": {
@@ -64,7 +99,9 @@
     "INV-26",
     "INV-27",
     "INV-53",
-    "INV-138"
+    "INV-138",
+    "INV-28",
+    "INV-45"
   ],
   "review_bridge": {
     "enabled": true,
