@@ -1,0 +1,45 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "/root/skeptic_2599_b",
+  "role": "skeptic",
+  "taskId": "#2599",
+  "branch": "task/#2599-diff-prefix-safety",
+  "sha": "2d23d37a631ecc4009650b28bec30a927a3ec5b8",
+  "ts": "2026-09-08T10:07:31.610Z",
+  "verdict": "FAIL",
+  "confidence": 0.95,
+  "findings": [
+    {
+      "id": "RT-2599-C-01",
+      "severity": "high",
+      "kind": "structural",
+      "claim": "Kernel lib.mjs is rendered but existing byte parity covers only two #2538 hooks; planned checks lack durable kernel helper parity.",
+      "citations": [
+        {
+          "file": "__tests__/scripts/build-kernel-plugin.test.ts",
+          "line": 96
+        },
+        {
+          "file": "scripts/build-kernel-plugin.mjs",
+          "line": 87
+        }
+      ]
+    }
+  ],
+  "refutations": [
+    {
+      "target": "RT-2599-C-01",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": "__tests__/scripts/build-kernel-plugin.test.ts",
+          "line": 96
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}

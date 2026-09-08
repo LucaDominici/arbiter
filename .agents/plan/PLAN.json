@@ -1,59 +1,54 @@
 {
-  "task_id": "#2594",
+  "task_id": "#2599",
   "scope": {
     "track": "A",
     "paths": [
-      "scripts/prepare-lifecycle.mjs",
-      "__tests__/scripts/prepare-lifecycle.test.ts",
-      ".agents/plan/2594-bun-prepare.md",
-      "docs/QUICKSTART.md",
-      ".arbiter/evidence/tdd/#2594.json",
+      "src/templates/claude/hooks/lib.mjs.ejs",
+      ".claude/hooks/lib.mjs",
+      "packages/kernel/hooks/lib.mjs",
+      "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+      "__tests__/templates/hooks-lib-render.test.ts",
       ".agents/plan/PLAN.json",
-      ".arbiter/evidence/ac-fit/2594.json",
-      ".arbiter/evidence/_2594/tech-debt.json",
-      "scripts/data/codex-self-parity-runtime-artifacts.json",
-      "docs/internal/PRODUCT/GAP.md"
+      ".arbiter/evidence/tdd/#2599.json",
+      ".arbiter/evidence/ac-fit/2599.json",
+      "__tests__/scripts/build-kernel-plugin.test.ts"
     ]
   },
   "files": [
     {
-      "path": "docs/QUICKSTART.md",
+      "path": "src/templates/claude/hooks/lib.mjs.ejs",
       "operation": "modify"
     },
     {
-      "path": ".arbiter/evidence/tdd/#2594.json",
-      "operation": "create"
-    },
-    {
-      "path": "scripts/prepare-lifecycle.mjs",
+      "path": ".claude/hooks/lib.mjs",
       "operation": "modify"
     },
     {
-      "path": "__tests__/scripts/prepare-lifecycle.test.ts",
+      "path": "packages/kernel/hooks/lib.mjs",
       "operation": "modify"
     },
     {
-      "path": ".agents/plan/2594-bun-prepare.md",
-      "operation": "create"
+      "path": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/hooks-lib-render.test.ts",
+      "operation": "modify"
     },
     {
       "path": ".agents/plan/PLAN.json",
       "operation": "modify"
     },
     {
-      "path": ".arbiter/evidence/ac-fit/2594.json",
+      "path": ".arbiter/evidence/tdd/#2599.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/_2594/tech-debt.json",
+      "path": ".arbiter/evidence/ac-fit/2599.json",
       "operation": "create"
     },
     {
-      "path": "scripts/data/codex-self-parity-runtime-artifacts.json",
-      "operation": "modify"
-    },
-    {
-      "path": "docs/internal/PRODUCT/GAP.md",
+      "path": "__tests__/scripts/build-kernel-plugin.test.ts",
       "operation": "modify"
     }
   ],
@@ -61,7 +56,16 @@
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": ["INV-08", "INV-23", "INV-24", "INV-25", "INV-26", "INV-27", "INV-53"],
+  "invariant_ids": [
+    "INV-08",
+    "INV-23",
+    "INV-24",
+    "INV-25",
+    "INV-26",
+    "INV-27",
+    "INV-53",
+    "INV-138"
+  ],
   "review_bridge": {
     "enabled": true,
     "reviewer": "bridge-reviewer",

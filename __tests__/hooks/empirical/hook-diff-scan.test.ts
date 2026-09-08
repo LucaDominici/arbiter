@@ -36,6 +36,14 @@ function commitAll(dir: string, message = 'init'): void {
 function installTemplateHook(dir: string, templatePath: string, hookFileName: string): string {
   const hooksDir = join(dir, '.claude', 'hooks')
   mkdirSync(hooksDir, { recursive: true })
+  mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+  for (const script of ['check-no-orphan-todo.mjs', 'lib/glob-walk.mjs', 'lib/run-helpers.mjs']) {
+    writeFileSync(join(dir, 'scripts', script), readFileSync(join(REPO_ROOT, 'scripts', script)))
+  }
+  writeFileSync(
+    join(dir, 'scripts', 'lib', 'suppressions-shared.mjs'),
+    readFileSync(join(REPO_ROOT, 'scripts', 'lib', 'suppressions-shared.mjs')),
+  )
   const config = makeConfig(dir, {
     language: 'typescript',
     projectName: 'hook-diff-scan-test',
