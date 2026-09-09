@@ -19,7 +19,7 @@
           "line": 266
         }
       ],
-      "reason": "The hunk-state guard excludes only pre-hunk metadata; the direct self/template/kernel test asserts prefix/header-like content and exact multi-hunk/no-newline line numbers."
+      "reason": "Retained: amendment does not change the shared helper or its direct prefix-collision and line-number regressions."
     },
     {
       "id": "AC-2",
@@ -42,7 +42,7 @@
           "line": 191
         }
       ],
-      "reason": "Parameterized template/self real-hook cases retain untouched-existing, ordinary-new-violation, and prefix-collision behavior across PII, placeholders, orphan TODOs, and skipped tests."
+      "reason": "Retained: amendment leaves the real-hook controls and PII, placeholder, orphan-marker and skipped-test prefix regressions byte-identical."
     },
     {
       "id": "AC-3",
@@ -53,19 +53,23 @@
           "line": 337
         },
         {
-          "file": ".claude/hooks/lib.mjs",
-          "line": 330
-        },
-        {
           "file": "packages/kernel/hooks/lib.mjs",
           "line": 351
         },
         {
           "file": "__tests__/scripts/build-kernel-plugin.test.ts",
           "line": 119
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+          "line": 367
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+          "line": 544
         }
       ],
-      "reason": "Template/self/generated kernel helper parity retained; native --out fixture compares merged input bytes and asserts shared output unchanged. Protection equivalent by content to non-ancestral 5bb7f8ed."
+      "reason": "Retained source/template/kernel parity. Independent amendment audit found exactly 27 snapshots and 29 permitted content-hash changes, with no identity, level, file-list, key-set or unrelated hash drift; native bake 29/29 and kernel 3/3 receipts exited 0."
     },
     {
       "id": "AC-4",
@@ -78,9 +82,17 @@
         {
           "file": ".arbiter/evidence/plan-review/_2599/latest.json",
           "line": 6
+        },
+        {
+          "file": ".arbiter/evidence/agent-returns/_2599/independent-review-3.json",
+          "line": 5
+        },
+        {
+          "file": "__tests__/scripts/build-kernel-plugin.test.ts",
+          "line": 99
         }
       ],
-      "reason": "Pre-verification prerequisites PASS: original hook RED retained in history and immutable original-tdd-2599.json; additional genuine RED e12d2ebd recorded natively. Selection amendment plan6da933b8 admitted by three independent seats; fresh Sol selection_code_review PASS0.99 on frozen scriptsf92e7730 and tests70c408c4, 49 focused tests and exact dependencies/build/generated/plan/TDD/commitlint exits0. Actual wiki retained from prior cycle. New native L1/L2/CI/landing remain required; this is not final gate acceptance."
+      "reason": "Historical RED, plan/red-team/refutation evidence and targeted runtime evidence remain unchanged. Frozen plan digest independently matches e4cfe014422e23600d458a9419a937d53f83ae4be3896bdd2d8dbd6c1e3466ea; exact-SHA independent review and review-completion both PASS. Required preflight, dependency verification and L1 exited 0."
     }
   ]
 }
