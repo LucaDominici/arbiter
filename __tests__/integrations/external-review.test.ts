@@ -66,6 +66,32 @@ const payload: ExternalReviewPayload = {
   refutations: [],
 }
 
+/**
+ * OpenAI strict structured outputs require every declared object property to
+ * be listed in `required`; absence belongs in the value domain (for example,
+ * an empty citations array), not in an optional property.
+ */
+function strictSchemaMissingRequiredProperties(schema: unknown, path = '$'): string[] {
+  if (typeof schema !== 'object' || schema === null) return []
+  const node = schema as Record<string, unknown>
+  const missing: string[] = []
+  const properties = node['properties']
+  const required = node['required']
+  if (typeof properties === 'object' && properties !== null && !Array.isArray(properties)) {
+    const requiredNames = new Set(Array.isArray(required) ? required.filter((name): name is string => typeof name === 'string') : [])
+    for (const name of Object.keys(properties)) {
+      if (!requiredNames.has(name)) missing.push(`${path}: ${name}`)
+    }
+  }
+  const definitions = node['$defs']
+  if (typeof definitions === 'object' && definitions !== null && !Array.isArray(definitions)) {
+    for (const [name, definition] of Object.entries(definitions)) {
+      missing.push(...strictSchemaMissingRequiredProperties(definition, `${path}.$defs.${name}`))
+    }
+  }
+  return missing
+}
+
 describe('planCrossModelSlots (#2357)', () => {
   it('preserves the panel size for every tier and access state (AC-1/AC-2)', () => {
     for (const tier of ['XS', 'S', 'Standard'] as const) {
@@ -393,9 +419,15 @@ describe('invokeExternalReview (#2357)', () => {
   })
 
   it('uses a scratch-only read-only Codex profile and persists only through the recorder (AC-3/AC-4/AC-7)', () => {
+    let stagedSchema: string | undefined
     mockedRunCli.mockImplementation((cmd) => {
-      if (cmd === 'codex')
+      if (cmd === 'codex') {
+        const args = mockedRunCli.mock.calls.at(-1)?.[1] ?? []
+        const schemaPath = args[args.indexOf('--output-schema') + 1]
+        expect(schemaPath).toEqual(expect.any(String))
+        stagedSchema = readFileSync(schemaPath as string, 'utf8')
         return { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
+      }
       return {
         stdout: '[record-agent-return] OK — wrote .arbiter/evidence/agent-returns/_2357/codex.json',
         stderr: '',
@@ -456,6 +488,29 @@ describe('invokeExternalReview (#2357)', () => {
     expect(mockedRunCli.mock.calls[0]?.[2]).toMatchObject({ cwd: sandboxRoot })
     expect(codexArgs).not.toContain('Review this change.')
     expect(codexArgs).not.toContain('diff --git a/file b/file')
+    // Capture happens inside the mock before invokeExternalReview removes its scratch
+    // directory. Assertions stay outside the invocation so a caught invocation error
+    // cannot turn a missing schema assertion into a false green.
+    expect(stagedSchema).toBeDefined()
+    expect(stagedSchema).toBe(
+      readFileSync(join(repoRoot, 'schemas', 'agent-return-external.schema.json'), 'utf8'),
+    )
+    expect(stagedSchema).toBe(
+      readFileSync(
+        join(repoRoot, 'src', 'templates', 'scripts', 'schemas', 'agent-return-external.schema.json'),
+        'utf8',
+      ),
+    )
+    expect(strictSchemaMissingRequiredProperties(JSON.parse(stagedSchema as string))).toEqual([])
+    const missingCitations = JSON.parse(stagedSchema as string) as {
+      $defs: { Refutation: { required: string[] } }
+    }
+    missingCitations.$defs.Refutation.required = missingCitations.$defs.Refutation.required.filter(
+      (field) => field !== 'citations',
+    )
+    expect(strictSchemaMissingRequiredProperties(missingCitations)).toEqual([
+      '$.$defs.Refutation: citations',
+    ])
     expect(mockedRunCli).toHaveBeenNthCalledWith(
       2,
       'node',
