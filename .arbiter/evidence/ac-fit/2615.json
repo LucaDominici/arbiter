@@ -1,7 +1,7 @@
 {
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2615",
-  "sha": "59ebd6d89fbab2b109bda355eb78a0a38e014cb8",
+  "sha": "52d9201dcb19964fb79eda9e2690827c29e61394",
   "criteria": [
     {
       "id": "AC-1",
@@ -54,7 +54,7 @@
           "line": 65
         }
       ],
-      "notes": "Self and emitted producers retain the matching L3 contract; the ladder remains L0–L3."
+      "notes": "Self and emitted producers retain the matching L3 contract; the ladder remains L0\u2013L3."
     },
     {
       "id": "AC-4",
@@ -76,31 +76,31 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "scripts/done-evidence.mjs",
-          "line": 54
+          "file": "src/commands/pr-merged.ts",
+          "line": 116
         },
         {
-          "file": "scripts/done-evidence.mjs",
-          "line": 55
+          "file": "src/commands/pr-merged.ts",
+          "line": 147
         },
         {
-          "file": "src/templates/scripts/done-evidence.mjs.ejs",
-          "line": 52
+          "file": "src/commands/task.ts",
+          "line": 483
         },
         {
-          "file": "src/templates/scripts/done-evidence.mjs.ejs",
-          "line": 53
+          "file": "src/commands/task.ts",
+          "line": 536
         },
         {
-          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
-          "line": 67
+          "file": "__tests__/commands/pr-merged.test.ts",
+          "line": 358
         },
         {
-          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
-          "line": 84
+          "file": "__tests__/commands/pr-merged.test.ts",
+          "line": 459
         }
       ],
-      "notes": "On unreadable task identity both producers remove the shared marker before exit 1. The new PASS→corrupt-status→restore regression verifies both project and independent-engine receipt verifiers reject the old PASS."
+      "notes": "Qualified completion binds head and merge SHA, merge timestamp, and complete pre-merge CI; unknown dates, pending/failed/late pre-merge work, incomplete pages and wrong SHAs refuse, while suites created after merge are ignored."
     },
     {
       "id": "AC-6",
@@ -115,7 +115,7 @@
           "line": 499
         }
       ],
-      "notes": "Unchanged v2 receipt validation remains bound to exact marker bytes and identity."
+      "notes": "Unchanged v2 receipt validation remains bound to exact marker bytes and identity; legacy receipts do not provide acceptance fallback."
     },
     {
       "id": "AC-7",
