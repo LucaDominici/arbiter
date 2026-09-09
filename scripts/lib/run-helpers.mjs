@@ -28,6 +28,7 @@
 // cannot pull from src/. Direct spawnSync use is the documented exception
 // to INV-12 for the gate runner itself (see scripts/check-all.mjs header).
 import { spawnSync } from 'node:child_process'
+import { accessSync, constants, statSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -205,6 +206,32 @@ function spawn(name, cmd, args, opts) {
   return { r, elapsed: Date.now() - start }
 }
 
+/** Run the consumer's installed Arbiter CLI; never resolve an ambient command. */
+export function runLocalArbiter(args, opts = {}) {
+  const cli = resolvePath(opts.cwd ?? process.cwd(), 'node_modules/@arbiter/cli/dist/cli.js')
+  try {
+    const stat = statSync(cli)
+    if (!stat.isFile() || (stat.mode & 0o444) === 0) throw new Error('not a readable file')
+    accessSync(cli, constants.R_OK)
+  } catch (err) {
+    process.stderr.write(`[arbiter] local CLI unavailable: ${cli} (${err.message})\n`)
+    return 2
+  }
+  const result = spawnSync(process.execPath, [cli, ...args], {
+    cwd: opts.cwd,
+    encoding: 'utf-8',
+    shell: false,
+    stdio: 'inherit',
+  })
+  if (result.error || result.status === null) {
+    process.stderr.write(
+      `[arbiter] local CLI failed to launch: ${result.error?.message ?? 'no exit status'}\n`,
+    )
+    return 2
+  }
+  return result.status
+}
+
 // #2032: the dump of a failed check is truncated by whatever reads it (GitHub caps a
 // step's log), and what gets dropped is the END — where a test runner prints the actual
 // failure. Across four episodes of #2027 the vitest error line was unrecoverable from CI
@@ -338,6 +365,11 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
     return
   }
   if (r.status === 0) {
+    const selfSkip = detectSelfSkip(r.stdout)
+    if (selfSkip) {
+      recordSkip(name, elapsed, selfSkip)
+      return
+    }
     recordPass(name, elapsed)
     return
   }

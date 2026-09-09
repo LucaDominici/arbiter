@@ -37,8 +37,8 @@
 // scripts/*.mjs), so a phantom citation here breaks the emission boundary itself,
 // not just one repo's prose. Two matchers cover it: the existing backtick-prose
 // COMMAND_MENTION_RE (unchanged — .md.ejs bodies read like ordinary markdown) and
-// the new SPAWN_ARRAY_RE below (the `spawnSync('npx', ['--no-install', 'arbiter',
-// 'doc-set', ...])` shape thin-runner .mjs.ejs templates use).
+// the new SPAWN_ARRAY_RE below (the former `spawnSync('npx', ['--no-install', 'arbiter',
+// 'doc-set', ...])` and current `runLocalArbiter(['doc-set', ...])` thin-runner shapes).
 //
 // T5b″ (design §2.3, #1944): standards/cli-emitted-surface.yml is the append-only
 // memory of which commands ship inside emitted artifacts (deleting a command a
@@ -207,19 +207,19 @@ export function extractCitedSubcommands(markdown) {
   return pairs
 }
 
-// Matches the two adjacent string-literal array elements of a commander-CLI
-// spawn call — `spawnSync('npx', ['--no-install', 'arbiter', 'doc-set', ...])`
-// — the shape every thin-runner .mjs.ejs template in src/templates/scripts/
-// uses to shell out to this CLI (design §2.2, T5b′, #1944). This is the
+// Matches the first command string in both legacy commander-CLI spawn arrays
+// and current local-runner arrays: `spawnSync(..., ['arbiter', 'doc-set', ...])`
+// or `runLocalArbiter(['doc-set', ...])`. This is the
 // emission-boundary counterpart to COMMAND_MENTION_RE's backtick-prose match:
 // a template stranding a citation here breaks every governed repo's emitted
 // runner, not just a doc's prose promise. No stopword filtering needed — an
-// array-literal token immediately after `'arbiter',` is never styled prose.
+// array-literal token is never styled prose.
 // AC-2231.5 (#2231): an optional third element captures a subcommand token —
 // `['--no-install', 'arbiter', 'task', 'record-red', ...]`. Flag/arg elements
 // (`'--freshness'`, `...args`) never match the [a-z] lead, so the optional
 // group stays empty for today's thin-runner shapes.
-const SPAWN_ARRAY_RE = /'arbiter',\s*'([a-z][a-z0-9-]*)'(?:,\s*'([a-z][a-z0-9-]*)')?/g
+const SPAWN_ARRAY_RE =
+  /(?:'arbiter',\s*|runLocalArbiter\(\s*\[\s*)'([a-z][a-z0-9-]*)'(?:,\s*'([a-z][a-z0-9-]*)')?/g
 
 export function extractSpawnedCommands(source) {
   return new Set([...source.matchAll(SPAWN_ARRAY_RE)].map((m) => m[1]))

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // H1 (gold-doc-capability, Tranche 0) — `arbiter doc-set` is a THIN wrapper over the SSOT engine
 // (scripts/check-doc-set.mjs). Before this file (and src/commands/doc-set.ts) existed, the
-// generated governed-repo thin-runner (scripts/check-doc-set.mjs.ejs) shelled `npx arbiter doc-set`
+// generated governed-repo thin-runner (scripts/check-doc-set.mjs.ejs) invokes local `arbiter doc-set`
 // and failed with `error: unknown command 'doc-set'` — the governed presence gate never worked.
 // Parity test: the command's payload MUST equal `node scripts/check-doc-set.mjs --json` for the
 // same manifest + repo — there is exactly one engine, never a second one.

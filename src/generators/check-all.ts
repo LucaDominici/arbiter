@@ -508,7 +508,7 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // The wiring is independent of emission: check-all.mjs.ejs gates each as an advisory
   // `runWarnCheck` on `existsSync(scripts/<file>)`, so the gate stays fully intact.
   // #1428 (INV-135): doc-set + anti-fake-green thin runners. Each delegates to
-  // `npx arbiter <cmd>` (the engine + `yaml` dep stay in arbiter's env), so a consumer
+  // root-local Arbiter CLI (the engine + `yaml` dep stays in its package), so a consumer
   // needs NO local `yaml` dep. Emitted unconditionally and wired ADVISORY (runWarnCheck)
   // in check-all.mjs L2 so a fresh consumer passes with no day-1 redness (gh absent =
   // fail-OPEN; doc-set advisory unless --strict).
@@ -517,11 +517,11 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     tpl: 'scripts/check-doc-set.mjs.ejs',
   },
   // T4 (gold-doc-tranches-t3-t5.md §2.3): freshness thin runner, same shape/rationale as
-  // check-doc-set.mjs above — delegates to `npx arbiter doc-set --freshness`. Emitted
+  // check-doc-set.mjs above — delegates to local `arbiter doc-set --freshness`. Emitted
   // unconditionally but wired OUTSIDE check-all.mjs L2 (monthly + release lane only, per the
   // solo-developer-gate-model doctrine) — see _monthly.yml.ejs / 05-release.yml.ejs.
   // INV-144: arc42 slot-completeness thin runner, same shape/rationale as check-doc-set.mjs —
-  // delegates to `npx arbiter doc-set --arc42`. The skeletons the audit compares against stay in
+  // delegates to local `arbiter doc-set --arc42`. The skeletons the audit compares against stay in
   // arbiter's own tree, so a governed project is held to the skeleton IT received without carrying
   // a copy that could drift. Wired L2 warn in the registry: hollow sections are a real finding, but
   // a freshly generated arc42 is hollow by construction and must not make `arbiter init` red.

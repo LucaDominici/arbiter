@@ -80,7 +80,7 @@ describe('arbiter CLI — top-level surface', () => {
 
   // H1 (gold-doc-capability, Tranche 0) regression guard: `doc-set` was previously unregistered
   // (`error: unknown command 'doc-set'`), which meant the governed thin-runner
-  // (scripts/check-doc-set.mjs.ejs → `npx arbiter doc-set`) could never resolve. This asserts the
+  // (scripts/check-doc-set.mjs.ejs → local `arbiter doc-set`) could never resolve. This asserts the
   // command is actually wired into Commander, not just exported as a TS function.
   it('doc-set --help exits 0 and mentions --strict + --doc-profile', () => {
     const { status, stdout } = spawn(['doc-set', '--help'])
@@ -91,7 +91,7 @@ describe('arbiter CLI — top-level surface', () => {
 
   // Cross-repo compat regression: the emitted governed-repo thin-runner
   // (src/templates/scripts/check-doc-set.mjs.ejs) passes CLI argv straight through to
-  // `npx arbiter doc-set ...args`, and its own usage comment documents `--check` as a
+  // the local installed `arbiter doc-set ...args`, and its own usage comment documents `--check` as a
   // backward-compat alias for the no-flag advisory default. Commander never registered the
   // option, so every emitted runner invoking `--check` (e.g. a governed repo's generated
   // scripts/check-doc-set.mjs calling `node scripts/check-doc-set.mjs --check`) hit

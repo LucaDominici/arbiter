@@ -195,19 +195,19 @@
     "path": "check-doc-set.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). These are two different programs sharing a name, by design. The template is a 28-line thin wrapper that shells out to `npx --no-install arbiter doc-set`, so a generated project needs no local `yaml` dependency and no engine copy — the audit runs inside arbiter's own environment against the target repo. Self IS that engine: manifest parsing (standards/gold-doc-set.yml), overlay and tier resolution via scripts/lib/doc-set-resolve.mjs, accept_any and glob matching, --generate/--refresh-stubs scaffolding with its write-safety guards (scaffold only when MISSING; refresh only a byte-equal stub), and the structured JSON report consumed by src/generators/doc-set.ts. PERMANENT: the wrapper/engine split is the shipped architecture; collapsing it would force the yaml dependency and the whole engine into every target.",
-    "diffHash": "24985c59acc20dd11d3de5ab8d17b54314cc00805e21ecdc4c70320eb0a642bf"
+    "diffHash": "78a5cbcd862d06bb7005b56ccf61fa9a26440934b9061df3f663331191792ab7"
   },
   {
     "path": "check-doc-freshness.mjs",
     "dest": "scripts",
     "reason": "T4 (gold-doc-tranches-t3-t5.md, design doc §2.3), by design (not drift), R-02 dogfood-parity rollout (#1900): self runs the REAL engine (frontmatter parsing, per-class bars, git change-coupling — scripts/check-doc-freshness.mjs) while the shipped template counterpart is a THIN runner that only shells `npx --no-install arbiter doc-set --freshness`, mirroring the pre-existing check-doc-set.mjs / check-doc-set.mjs.ejs split (the row directly above this one) so governed repos never take the `yaml` dependency. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "e723ad78573101ca80c83fc3f59f30746f7134faf4855094f69c13101fedf797"
+    "diffHash": "9fe0292fd10be7aa17211975790add10a578cf1d58d2c52e2a8113abd14c5ee4"
   },
   {
     "path": "check-arc42-slots.mjs",
     "dest": "scripts",
     "reason": "INV-144, by design (not drift): the third member of the engine/thin-runner family whose first two rows sit directly above (check-doc-set.mjs, check-doc-freshness.mjs). Self IS the engine — arc42 heading parsing into ARC-01..ARC-12, hollow-slot detection, the required set read from the arc42 skeletons, the tier column resolved through scripts/lib/doc-set-resolve.mjs (and so the `yaml` dependency), and the two ratchets over scripts/data/arc42-baseline.json. The shipped template is a thin runner that only shells `npx --no-install arbiter doc-set --arc42`. The split is load-bearing beyond the usual dependency argument: the arc42 SKELETONS the audit compares against live in arbiter, so a governed project reaches the engine where they are rather than carrying a copy that could drift from the skeleton it was generated from. Two things had to be true for that to work and neither was, until #2480's adversarial review: the engine must be in package.json files[] (now enforced by the DERIVED engine set in check-tarball-contents.mjs, because the hand-maintained list from #2335 did not ratchet), and the skeleton path must resolve in the SHIPPED layout, dist/templates, not only in a dev checkout's src/templates. This entry pins the two texts against each other and nothing more — it cannot and does not attest that the delegation reaches a working engine; the tarball gate and the package-shaped test in __tests__/scripts/check-arc42-slots.test.ts do that. PERMANENT: collapsing the split would force both the yaml dependency and a duplicate of the skeletons into every target.",
-    "diffHash": "ef4967e081df4f73292272ef30fac5590efc7cc520f065ab1320f6859b124422"
+    "diffHash": "2563c1cb0f9bbbc2daff695a3b69f2ffe3c2146f1b33bd87c6ce6e6a2a279da7"
   },
   {
     "path": "check-docs.mjs",
@@ -432,7 +432,7 @@
     "path": "run-helpers.mjs",
     "dest": "scripts/lib",
     "reason": "Arbiter self-dogfood: the SELF helper trinity documents/serves arbiter's own 100+-check orchestrator (self-specific header prose and call-site notes); the SHIPPED twin's header addresses the generated starter gate. Semantics (runCheck/runWarnCheck/runToolCheck exit-code contract) are equivalent; divergence is documentation/context wording. #2104 additionally adds `resolveTmpfsTmpdir` (TMPDIR on tmpfs) to the SHIPPED twin only: the 210s->33.7s measurement behind it is a Go/SQLite fsync-bound workload, arbiter's own gate is Node/TS and the lever is unmeasured there — and an exported-but-unwired helper would trip the unused-export guard. #2197 adds emitted-guard manifest classification only to the SHIPPED helper because arbiter's self gate calls its two committed guards unconditionally. Reconciliation tracked as follow-up, not silent drift. #2032 adds the failed-check dump TAIL (DUMP_TAIL_LINES/tail()) to BOTH twins with equivalent semantics; the divergence remains the same self-vs-shipped prose and semicolon style. Re-pinned 2026-08-03 (#2010): isMainModule() was added identically to BOTH sides; the residual delta is the node:path import line (self needs only resolve, the template also needs join). #2327: the shipped-twin-only helpers named above (#2104 resolveTmpfsTmpdir, #2197 gateFileState/setMode) are declared in allowedDroppedExports — a reviewed drop tracked as a reconciliation follow-up, not the #2324 absorb-a-regression class. #2605 adds self-only `failOnSkip` so required coverage cannot qualify as SKIP; the emitted starter retains its optional/selective semantics and intentionally receives no template change.",
-    "diffHash": "21b703caa43c0669ebc933a6322c99e86a4ea2993c0e046acfab737b7b7e3acc",
+    "diffHash": "f3b088535022aa4e31ba8eb3e4f762da81479ccedb3966abb8048c11b388b5c5",
     "allowedDroppedExports": ["gateFileState", "resolveTmpfsTmpdir", "setMode"]
   },
   {

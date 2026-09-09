@@ -4,7 +4,7 @@
 // CANON-11: brownfield / skipIfExists test for the file-emitting generator.
 //
 // #1419: downstream gold-audit thin runner + consumer-DATA registries. The thin
-// runner delegates to `npx arbiter gold-audit --check` (mirrors the W1 INV-128
+// runner delegates to the local `arbiter gold-audit --check` CLI (mirrors the W1 INV-128
 // conformance.mjs.ejs precedent); the standards/* files are genuine per-project
 // data so `arbiter init`/`update` install them.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -64,13 +64,13 @@ describe('generateGoldKit (#1419, CANON-05)', () => {
     }
   })
 
-  it('emitted thin runner delegates to `arbiter gold-audit` via npx', () => {
+  it('emitted thin runner delegates to the local `arbiter gold-audit` CLI', () => {
     const config = makeConfig(dir)
     generateGoldKit(config)
     const content = readFileSync(join(dir, 'scripts', 'gold-audit.mjs'), 'utf-8')
     expect(content).toContain('arbiter')
     expect(content).toContain('gold-audit')
-    expect(content).toContain('npx')
+    expect(content).toContain('runLocalArbiter')
   })
 
   it('emitted thin runner contains SPDX header', () => {

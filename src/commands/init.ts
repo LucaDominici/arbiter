@@ -157,6 +157,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       language: detection.language,
       framework: detection.framework,
       buildCmds: detection.buildCmds,
+      packageManager: detection.packageManager.name,
       gitInfo: detection.gitInfo,
       existing: detection.existing,
       githubAccess: detection.githubAccess,
@@ -183,7 +184,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       initOptions: options,
       log,
       brownfieldDetected: isBrownfield(detection.existing),
-      ...(detection.packageManager ? { packageManager: detection.packageManager.name } : {}),
+      packageManager: detection.packageManager.name,
     })
   } finally {
     await lock.release()

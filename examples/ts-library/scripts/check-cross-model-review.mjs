@@ -206,7 +206,7 @@ function isValidReviewerPanel(agents, count, collaborationMode) {
 
 if (!containedExists(root, 'arbiter.json', 'configuration')) {
   if (requireFulfilled) fail('cross-model review is not enabled')
-  process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
+  process.stdout.write('[SKIP] [check-cross-model-review] skipped: crossModelReview not enabled\n')
   process.exit(0)
 }
 
@@ -217,7 +217,7 @@ const configuredCrossModel = config.crossModelReview
 let crossModel
 if (configuredCrossModel === undefined) {
   if (envOverride !== true) {
-    process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
+    process.stdout.write('[SKIP] [check-cross-model-review] skipped: crossModelReview not enabled\n')
     process.exit(0)
   }
   crossModel = { enabled: true, onUnavailable: 'degrade' }
@@ -235,11 +235,11 @@ if (enabled !== true) {
     fail('crossModelReview.enabled must be boolean')
   }
   if (requireDegraded) {
-    process.stdout.write('[check-cross-model-review] skipped: crossModelReview not enabled\n')
+    process.stdout.write('[SKIP] [check-cross-model-review] skipped: crossModelReview not enabled\n')
     process.exit(0)
   }
   const reason = envOverride === false ? 'disabled-by-env' : 'not enabled'
-  process.stdout.write(`[check-cross-model-review] skipped: crossModelReview ${reason}\n`)
+  process.stdout.write(`[SKIP] [check-cross-model-review] skipped: crossModelReview ${reason}\n`)
   process.exit(0)
 }
 

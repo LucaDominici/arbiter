@@ -19,13 +19,13 @@ import { makeConfig } from '../helpers.js'
 const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
 
 describe('scripts/gold-audit.mjs.ejs render (CANON-04, #1419)', () => {
-  it('renders a thin runner that delegates to arbiter gold-audit via npx', () => {
+  it('renders a thin runner that delegates to the local arbiter gold-audit CLI', () => {
     const content = renderTemplate('scripts/gold-audit.mjs.ejs', config)
     expect(content.split('\n')[0]).toBe('#!/usr/bin/env node')
     expect(content).toContain('SPDX-License-Identifier: Apache-2.0')
     expect(content).toContain('arbiter')
     expect(content).toContain('gold-audit')
-    expect(content).toContain('npx')
+    expect(content).toContain('runLocalArbiter')
   })
 })
 

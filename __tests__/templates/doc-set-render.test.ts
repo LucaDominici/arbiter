@@ -16,7 +16,7 @@ describe('scripts/check-doc-set.mjs.ejs render (CANON-04, #1428)', () => {
     expect(content.trim().length).toBeGreaterThan(0)
     expect(content).toContain('arbiter')
     expect(content).toContain('doc-set')
-    expect(content).toContain('--no-install')
+    expect(content).toContain('runLocalArbiter')
   })
 
   it('rendered output starts with shebang', () => {
@@ -42,7 +42,7 @@ describe('scripts/check-doc-freshness.mjs.ejs render (T4)', () => {
     expect(content).toContain('arbiter')
     expect(content).toContain('doc-set')
     expect(content).toContain('--freshness')
-    expect(content).toContain('--no-install')
+    expect(content).toContain('runLocalArbiter')
   })
 
   it('rendered output starts with shebang', () => {
@@ -83,7 +83,7 @@ describe('scripts/check-arc42-slots.mjs.ejs render (INV-144)', () => {
     expect(content).toContain('arbiter')
     expect(content).toContain('doc-set')
     expect(content).toContain('--arc42')
-    expect(content).toContain('--no-install')
+    expect(content).toContain('runLocalArbiter')
   })
 
   it('never inlines the engine — the runner must stay thin', () => {

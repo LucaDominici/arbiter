@@ -6,7 +6,7 @@
     },
     {
       "path": "scripts/gold-audit.mjs",
-      "rationale": "Dual-nature (#1419): in the arbiter self-repo this IS the 18KB gold-audit ENGINE (scripts/gold-audit.mjs); in target projects arbiter init/update emits a THIN RUNNER at the same path that delegates to `npx arbiter gold-audit --check` (no engine copy, no `yaml` dep). Both respond to --check, so the check-all.mjs advisory (existsSync-guarded, plain --check, never --require-baseline downstream) is byte-identical for self and targets. Declared optional so the emission-coherence lint treats the guarded reference as intentional."
+      "rationale": "Dual-nature (#1419): in the arbiter self-repo this IS the 18KB gold-audit ENGINE (scripts/gold-audit.mjs); in target projects arbiter init/update emits a THIN RUNNER at the same path that delegates to the root-local Arbiter CLI (no engine copy, no `yaml` dep). Both respond to --check, so the check-all.mjs advisory (existsSync-guarded, plain --check, never --require-baseline downstream) is byte-identical for self and targets. Declared optional so the emission-coherence lint treats the guarded reference as intentional."
     },
     {
       "path": "scripts/check-cross-model-review.mjs",

@@ -115,7 +115,7 @@
       "prompt_level": "Select governance level:",
       "prompt_language": "Select primary language:",
       "prompt_archetype": "Select project archetype:",
-      "install_first_hint": "\n  Next: run `{installCommand}` first — init added the gate toolchain to devDependencies but did not install it.",
+      "local_arbiter_setup": "\n  Install the root-local Arbiter CLI with a caller-selected immutable package spec (exact release or full Git ref):\n    {setupCommand}",
       "verify_hint": "\n  Run: node scripts/check-all.mjs L1  to verify\n",
       "existing_agents_md": "  \u251c\u2500\u2500 Existing AGENTS.md detected \u2014 will back up",
       "existing_claude_dir": "  \u251c\u2500\u2500 Existing .claude/ detected \u2014 will merge",

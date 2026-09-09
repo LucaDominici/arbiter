@@ -14,6 +14,7 @@ import { detectGithubAccess } from '../../detectors/github.js'
 import { detectExternalModel } from '../../detectors/external-model.js'
 import { getLanguageHooks } from '../../detectors/language-hooks.js'
 import { detectPackageManager } from '../../detectors/package-manager.js'
+import type { PackageManager } from '../../detectors/package-manager.js'
 import { detectLanes } from '../../detectors/lanes.js'
 import { runWizard } from '../../wizard/prompts.js'
 import { DEFAULT_THRESHOLDS } from '../../config/schema.js'
@@ -85,6 +86,7 @@ function buildNonInteractiveConfig(args: {
   language: Language
   framework: string | null
   buildCmds: ReturnType<typeof detectBuildCommands>
+  packageManager: PackageManager
   gitInfo: ReturnType<typeof detectGitInfo>
   existing: ReturnType<typeof detectExisting>
   githubAccess: ReturnType<typeof detectGithubAccess>
@@ -98,6 +100,7 @@ function buildNonInteractiveConfig(args: {
     language,
     framework,
     buildCmds,
+    packageManager,
     gitInfo,
     existing,
     githubAccess,
@@ -111,6 +114,7 @@ function buildNonInteractiveConfig(args: {
     language: recipe?.language ?? language,
     framework: recipe && 'framework' in recipe ? (recipe.framework ?? null) : framework,
     buildCmds,
+    packageManager,
     gitInfo,
     existing,
     tools,
@@ -139,7 +143,7 @@ export interface InitProjectDetection {
   languageSource: string | null
   framework: string | null
   buildCmds: ReturnType<typeof detectBuildCommands>
-  packageManager: ReturnType<typeof detectPackageManager> | null
+  packageManager: ReturnType<typeof detectPackageManager>
   gitInfo: ReturnType<typeof detectGitInfo>
   existing: ReturnType<typeof detectExisting>
   githubAccess: ReturnType<typeof detectGithubAccess>
@@ -161,7 +165,7 @@ export function detectProjectForInit(
   const languageSource = languageDetection?.source ?? null
   const framework = detectFramework(targetDir, language)
   const buildCmds = detectBuildCommands(targetDir, language)
-  const packageManager = buildCmds.packageManager ? detectPackageManager(targetDir) : null
+  const packageManager = detectPackageManager(targetDir)
   const gitInfo = detectGitInfo(targetDir)
   const existing = detectExisting(targetDir)
   const githubAccess = detectGithubAccess()
@@ -172,11 +176,9 @@ export function detectProjectForInit(
     `  ├── Language: ${language}${formatLangHint(languageLocked, languageSource)}${framework ? ` / ${framework}` : ''}`,
   )
   log(`  ├── Build: ${buildCmds.buildTool}`)
-  if (packageManager) {
-    log(
-      `  ├── Package manager: ${packageManager.name} (${formatPackageManagerSource(packageManager)})${packageManager.isWorkspace ? ' — workspace' : ''}`,
-    )
-  }
+  log(
+    `  ├── Package manager: ${packageManager.name} (${formatPackageManagerSource(packageManager)})${packageManager.isWorkspace ? ' — workspace' : ''}`,
+  )
   log(
     `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
   )
@@ -237,6 +239,7 @@ export async function resolveConfig(args: {
   language: Language
   framework: string | null
   buildCmds: ReturnType<typeof detectBuildCommands>
+  packageManager: PackageManager
   gitInfo: ReturnType<typeof detectGitInfo>
   existing: ReturnType<typeof detectExisting>
   githubAccess: ReturnType<typeof detectGithubAccess>
@@ -253,6 +256,7 @@ export async function resolveConfig(args: {
     language,
     framework,
     buildCmds,
+    packageManager,
     gitInfo,
     existing,
     githubAccess,
@@ -274,6 +278,7 @@ export async function resolveConfig(args: {
       language,
       framework,
       buildCmds,
+      packageManager,
       gitInfo,
       existing,
       githubAccess,
@@ -285,7 +290,7 @@ export async function resolveConfig(args: {
     projectName,
     language,
     framework,
-    buildCmds,
+    buildCmds: { ...buildCmds, packageManager },
     gitInfo,
     existing,
     githubAccess,
@@ -304,6 +309,7 @@ export async function resolveConfig(args: {
   if (wizardResult.basePackage === undefined) {
     Object.assign(wizardResult, detectedBasePackage(language, targetDir))
   }
+  wizardResult.packageManager = packageManager
   return wizardResult
 }
 
@@ -313,6 +319,7 @@ function buildDefaultConfig(opts: {
   language: Language
   framework: string | null
   buildCmds: ReturnType<typeof detectBuildCommands>
+  packageManager: PackageManager
   gitInfo: ReturnType<typeof detectGitInfo>
   existing: ReturnType<typeof detectExisting>
   tools: AiTool[]
@@ -342,7 +349,7 @@ function buildDefaultConfig(opts: {
     hasDatabase,
     hasPublicApi,
     buildTool: opts.buildCmds.buildTool,
-    packageManager: opts.buildCmds.packageManager ?? 'npm',
+    packageManager: opts.packageManager,
     buildCommand: opts.buildCmds.buildCommand,
     testCommand: opts.buildCmds.testCommand,
     lintCommand: opts.buildCmds.lintCommand,

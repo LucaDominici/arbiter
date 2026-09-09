@@ -8,7 +8,7 @@
 // thin engine runner), separate lifecycle from the conformance scorecard. Models the thin-runner +
 // skipIfExists pattern on conformance.ts (W1 #1398, INV-128).
 //
-// Red-team scope (BLOCKING): emit a THIN runner that delegates to `npx arbiter gold-audit --check`
+// Red-team scope (BLOCKING): emit a THIN runner that delegates to local `arbiter gold-audit --check`
 // — NOT the 18KB engine or gold-audit-lib (CANON-16 dup; also avoids the npm `yaml` dep). Template
 // ONLY genuine consumer DATA (standards/*). NO baseline seed, NEVER --require-baseline downstream.
 import { writeFile, resolvedPath } from '../utils/fs.js'
@@ -37,7 +37,7 @@ const STANDARDS: ReadonlyArray<{ rel: string; tpl: string }> = [
 
 /**
  * #1419: emit the downstream gold-audit kit for governed target projects:
- *   scripts/gold-audit.mjs       — thin runner → `npx arbiter gold-audit --check`
+ *   scripts/gold-audit.mjs       — thin runner → local `arbiter gold-audit --check`
  *   standards/gold-registry.yml  — project-level registry (consumer DATA)
  *   standards/gold-registry.<stack>.yml — per-stack report-metric registry (TS / Java / Kotlin)
  *   standards/thresholds.yml     — per-brownfield-class threshold SSOT

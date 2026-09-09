@@ -90,15 +90,14 @@ export async function generateAndFinalize(args: GenerateAndFinalizeOptions): Pro
 
     maybeCaptureBaseline(config, targetDir, initOptions.brownfield, packageManager)
     activateGitHooks(targetDir, log)
-    printInstallHint(config, targetDir, packageManager, initOptions.json)
+    const setup = printInstallHint(config, targetDir, packageManager, initOptions.json)
     emitInitOutput(
       initOptions.json,
       generatorErrors.map((error) => `${error.key}: ${error.message}`),
       brownfieldWarning === undefined
         ? backendResult.warnings
         : [...backendResult.warnings, brownfieldWarning],
-      created,
-      skipped,
+      { created, skipped, setup },
     )
   } catch (err) {
     process.stderr.write('\n  Generation failed — attempting rollback...\n')
@@ -166,15 +165,19 @@ function emitInitOutput(
   json: boolean | undefined,
   errorLines: string[],
   warnings: string[],
-  created: number,
-  skipped: number,
+  result: {
+    created: number
+    skipped: number
+    setup: { command: string; requiresUserValue: true } | undefined
+  },
 ): void {
+  const { created, skipped, setup } = result
   if (json) {
     const status = errorLines.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'ok'
     jsonOutput(
       'init',
       status,
-      { created, skipped },
+      { created, skipped, ...(setup === undefined ? {} : { nextSteps: [setup] }) },
       errorLines.length > 0 ? errorLines : undefined,
       warnings.length > 0 ? { warnings } : undefined,
     )
@@ -218,12 +221,24 @@ function printInstallHint(
   targetDir: string,
   packageManager: 'npm' | 'pnpm' | 'yarn' | 'bun' | undefined,
   json: boolean | undefined,
-): void {
-  if (json === true) return
-  if (!existsSync(join(targetDir, 'package.json'))) return
-  if (existsSync(join(targetDir, 'node_modules'))) return
-  const installCommand = `${packageManager ?? config.packageManager ?? 'npm'} install`
-  process.stdout.write(`${t('cli.init.install_first_hint', { installCommand })}\n`)
+): { command: string; requiresUserValue: true } | undefined {
+  if (existsSync(join(targetDir, 'node_modules', '@arbiter', 'cli', 'dist', 'cli.js'))) {
+    return undefined
+  }
+  const callerSpec = '$arbiter_spec'
+  const manager = packageManager ?? config.packageManager ?? 'npm'
+  const command =
+    manager === 'pnpm'
+      ? `pnpm add --save-dev --save-exact "${callerSpec}"`
+      : manager === 'yarn'
+        ? `yarn add --dev --exact "${callerSpec}"`
+        : manager === 'bun'
+          ? `COREPACK_ENABLE_PROJECT_SPEC=0 bun add --dev --exact --trust "${callerSpec}"`
+          : `npm install --save-dev --save-exact "${callerSpec}"`
+  const setup = { command, requiresUserValue: true as const }
+  if (json !== true)
+    process.stdout.write(`${t('cli.init.local_arbiter_setup', { setupCommand: command })}\n`)
+  return setup
 }
 
 function activateGitHooks(targetDir: string, log: (message: string) => void): void {

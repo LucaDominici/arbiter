@@ -59,6 +59,30 @@ For TypeScript projects, init also resolves the package manager from `package.js
 `yarn.lock`, `package-lock.json`), falling back to npm. Generated build, test, lint, and
 format gate commands invoke that detected manager rather than assuming `npm`.
 
+### Before running generated document runners
+
+The generated document, freshness, arc42, and gold-audit runners use the root-local
+`@arbiter/cli`; init never installs it. Choose an immutable package spec outside init, then
+use the project’s existing manager and lockfile:
+
+```bash
+arbiter_spec='@arbiter/cli@<EXACT_VERSION>'
+# Or: arbiter_spec='github:LucaDominici/arbiter#<FULL_40_HEX_SHA>'
+
+npm install --save-dev --save-exact "$arbiter_spec"
+# pnpm: pnpm add --save-dev --save-exact "$arbiter_spec"
+# yarn: yarn add --dev --exact "$arbiter_spec"
+# bun (POSIX shells): COREPACK_ENABLE_PROJECT_SPEC=0 bun add --dev --exact --trust "$arbiter_spec"
+```
+
+The Bun command scopes the Corepack override to that one install and trusts only
+`@arbiter/cli`, so its Git dependency prepare step can build the local checker.
+Use it in a POSIX shell (for example sh, bash, or zsh); Windows shell syntax is
+not covered by this command.
+
+For Go, Python, and JVM projects this stays root-local governance tooling; it does not
+migrate application dependencies or native commands.
+
 Framework detection reads root-level dependency signals. React, Vue, Angular, Svelte, Solid,
 Preact, Vite, and Tauri map to the `frontend-spa` archetype; Next, Astro, Nuxt, SvelteKit,
 Express, and Fastify map to `backend-web-db`. The archetype in turn selects the applicable

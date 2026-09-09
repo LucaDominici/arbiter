@@ -243,14 +243,17 @@ describe('runInit', () => {
     ['TypeScript', 'typescript', 'npm', 'npm install --save-dev --save-exact'],
     ['Go', 'go', 'pnpm', 'pnpm add --save-dev --save-exact'],
     ['Python', 'python', 'yarn', 'yarn add --dev --exact'],
-    ['JVM', 'java', 'bun', 'bun add --dev --exact'],
-  ] as const)('surfaces local tooling setup without installing it: %s', async (_, language, manager, command) => {
-    if (language !== 'typescript') rmSync(`${dir}/package.json`)
-    const stdout = await setupOutput(language, manager)
-    expect(stdout).toContain(command)
-    expect(stdout).toContain('$arbiter_spec')
-    expect(mockRunCli).not.toHaveBeenCalledWith(manager, expect.any(Array), expect.any(Object))
-  })
+    ['JVM', 'java', 'bun', 'COREPACK_ENABLE_PROJECT_SPEC=0 bun add --dev --exact --trust'],
+  ] as const)(
+    'surfaces local tooling setup without installing it: %s',
+    async (_, language, manager, command) => {
+      if (language !== 'typescript') rmSync(`${dir}/package.json`)
+      const stdout = await setupOutput(language, manager)
+      expect(stdout).toContain(command)
+      expect(stdout).toContain('$arbiter_spec')
+      expect(mockRunCli).not.toHaveBeenCalledWith(manager, expect.any(Array), expect.any(Object))
+    },
+  )
 
   it('keeps local setup machine-readable and caller-specified', async () => {
     const payload = JSON.parse(await setupOutput('typescript', 'pnpm', true))
@@ -258,6 +261,17 @@ describe('runInit', () => {
       { command: 'pnpm add --save-dev --save-exact "$arbiter_spec"', requiresUserValue: true },
     ])
     expect(JSON.stringify(payload)).not.toContain('0.5.0')
+  })
+
+  it('surfaces the POSIX-scoped Bun trust prerequisite without installing it', async () => {
+    const payload = JSON.parse(await setupOutput('java', 'bun', true))
+    expect(payload.data.nextSteps).toEqual([
+      {
+        command: 'COREPACK_ENABLE_PROJECT_SPEC=0 bun add --dev --exact --trust "$arbiter_spec"',
+        requiresUserValue: true,
+      },
+    ])
+    expect(mockRunCli).not.toHaveBeenCalledWith('bun', expect.any(Array), expect.any(Object))
   })
 
   it('runs generators via --yes flag without wizard', async () => {

@@ -103,7 +103,7 @@ describe('runGoldAudit (#1414 thin wrapper)', () => {
 
 // ─── #1419: --check no-regress mode (downstream thin-runner enabler) ─────────────
 // The downstream thin runner (scripts/gold-audit.mjs) delegates to
-// `npx arbiter gold-audit --check`. The command must therefore support --check:
+// local `arbiter gold-audit --check`. The command must therefore support --check:
 // it delegates to the engine's no-regress path (bootstrap missing baseline → exit 0).
 describe('runGoldAudit --check (#1419 downstream enabler)', () => {
   it('--check bootstraps a missing baseline and exits 0 (no day-1 redness)', () => {
