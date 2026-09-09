@@ -367,6 +367,13 @@ The hooks now scan only the lines the edit **added**, via `addedLinesVsHEAD(file
 added line with its line number in the new file — so reported line numbers stay correct
 and inline suppressions still resolve against the real file content.
 
+File headers are ignored only before the first hunk (`@@`). Inside a hunk, a
+`+++` diff record is an added source line beginning `++`, not a file header;
+even literal source `++ b/file.ts` must remain visible to every shared caller
+(#2599). Deletions and no-newline markers do not advance the new-file counter.
+Real Git fixtures exercise these prefix collisions, multiple hunks, ordinary
+violations and untouched pre-existing content against the shared helper and hooks.
+
 Three properties bound it, and each is load-bearing:
 
 - **Fail OPEN to the whole-file scan, never skip.** If `git ls-files --error-unmatch`

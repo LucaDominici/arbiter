@@ -1,0 +1,66 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "independent-skeptic-wiki-proof-two",
+  "role": "skeptic",
+  "taskId": "#2599",
+  "branch": "task/#2599-diff-prefix-safety",
+  "sha": "0c90670d6683f9a3209463c3d14b04494c142e08",
+  "ts": "2026-09-08T11:43:44.710Z",
+  "verdict": "WARN",
+  "confidence": 0.9,
+  "findings": [
+    {
+      "id": "WIKI-PREVIEW-PROVENANCE-CONFIRM",
+      "severity": "high",
+      "kind": "structural",
+      "claim": "Original preview.log:1-8 contains no gen-wiki generator-summary line and no full-directory-diff command, only --check results; the '1 page written, 0 pruned' figure is unsupported by that artifact.",
+      "citations": [
+        {
+          "file": ".arbiter/evidence/wiki-preview/2599/preview.log",
+          "line": 1
+        },
+        {
+          "file": "scripts/gen-wiki.mjs",
+          "line": 325
+        }
+      ]
+    },
+    {
+      "id": "WIKI-PREVIEW-COMPLETE-RESOLVES",
+      "severity": "low",
+      "kind": "process",
+      "claim": "preview-complete.log supplies the missing generator summary and full-directory diff, and shows a clean post-fix --check; no finding above low remains open in this fresh diagnostic.",
+      "citations": [
+        {
+          "file": ".arbiter/evidence/wiki-preview/2599/preview-complete.log",
+          "line": 12
+        },
+        {
+          "file": ".arbiter/evidence/wiki-preview/2599/preview-complete.log",
+          "line": 23
+        }
+      ]
+    }
+  ],
+  "refutations": [
+    {
+      "target": "WIKI-PREVIEW-PROVENANCE",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": ".arbiter/evidence/wiki-preview/2599/preview.log",
+          "line": 1
+        },
+        {
+          "file": "scripts/gen-wiki.mjs",
+          "line": 325
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "vendor": "anthropic",
+    "dispatch": "external-cli",
+    "cli": "claude"
+  }
+}

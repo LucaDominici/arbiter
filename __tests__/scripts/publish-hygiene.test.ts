@@ -1,9 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
-import { execFileSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import {
+  chmodSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { classifyPackSize } from '../../scripts/check-pack-size.mjs'
 
 interface PackedManifest {
   engines?: Record<string, string>
@@ -14,9 +26,20 @@ interface PackedManifest {
   files?: unknown
 }
 
+interface PackSummary {
+  filename: string
+  unpackedSize: number
+  entryCount: number
+  files: Array<{ path: string }>
+}
+
 const packDir = mkdtempSync(join(tmpdir(), 'arbiter-publish-hygiene-'))
 const workspaceDir = join(packDir, 'workspace')
 let packedManifest: PackedManifest
+let packSummary: PackSummary
+let packedFiles: string[]
+let extractedDir: string
+let tarball: string
 
 beforeAll(() => {
   mkdirSync(workspaceDir)
@@ -40,14 +63,18 @@ beforeAll(() => {
     cwd: workspaceDir,
     encoding: 'utf-8',
   })
-  const packed = JSON.parse(raw) as Array<{ filename: string }>
+  const packed = JSON.parse(raw) as Array<PackSummary>
   const filename = packed[0]?.filename
   if (!filename) throw new Error('npm pack did not report a tarball filename')
-  const manifestJson = execFileSync(
-    'tar',
-    ['-xOzf', join(packDir, basename(filename)), 'package/package.json'],
-    { encoding: 'utf-8' },
-  )
+  packSummary = packed[0]
+  packedFiles = packSummary.files.map(({ path }) => path).sort()
+  tarball = join(packDir, basename(filename))
+  extractedDir = join(packDir, 'extracted')
+  mkdirSync(extractedDir)
+  execFileSync('tar', ['-xzf', tarball, '-C', extractedDir])
+  const manifestJson = execFileSync('tar', ['-xOzf', tarball, 'package/package.json'], {
+    encoding: 'utf-8',
+  })
   packedManifest = JSON.parse(manifestJson) as PackedManifest
 }, 60_000)
 
@@ -56,6 +83,122 @@ afterAll(() => {
 })
 
 describe('published package hygiene', () => {
+  it('preserves executable semantics and untouched assets through the real builder (#2597 AC-2)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-build-semantics-'))
+    try {
+      for (const dir of ['scripts', 'dist/kit', 'dist/templates']) {
+        mkdirSync(join(root, dir), { recursive: true })
+      }
+      cpSync(resolve('scripts/build-dist.mjs'), join(root, 'scripts/build-dist.mjs'))
+      symlinkSync(resolve('node_modules'), join(root, 'node_modules'), 'dir')
+      writeFileSync(join(root, 'package.json'), '{"type":"module"}\n')
+      const header = '#!/usr/bin/env node\n// SPDX-License-Identifier: Apache-2.0\n'
+      const probe = join(root, 'dist/probe.js')
+      writeFileSync(
+        probe,
+        header +
+          `
+let side = 0;
+const values = { [++side]: 21 };
+export function namedFn(enabled) { return enabled ? values[side] * 2 : 0; }
+export class NamedClass {}
+export const inferred = function () { return 'à🚀'; };
+console.log(JSON.stringify([namedFn.name, NamedClass.name, inferred.name, namedFn(true), side, inferred()]));
+`,
+      )
+      chmodSync(probe, 0o755)
+      const declaration =
+        '/** @deprecated retained public documentation */\nexport declare class NamedClass {}\n'
+      const template = '// user template stays readable\nconst value = true;\n'
+      writeFileSync(join(root, 'dist/probe.d.ts'), declaration)
+      writeFileSync(join(root, 'dist/templates/untouched.js'), template)
+      const kitFiles = ['catalog.json', 'derived.json', 'canonical-mapping.json']
+      const data = { text: 'à\n  preserved', enabled: true, count: 3 }
+      for (const file of kitFiles) {
+        writeFileSync(join(root, 'dist/kit', file), JSON.stringify(data, null, 2))
+      }
+      execFileSync('node', [join(root, 'scripts/build-dist.mjs')], { cwd: root })
+      const actual = JSON.parse(execFileSync('node', [probe], { encoding: 'utf8' }))
+      expect(actual).toEqual(['namedFn', 'NamedClass', 'inferred', 42, 1, 'à🚀'])
+      expect(readFileSync(probe, 'utf8').startsWith(header)).toBe(true)
+      expect(statSync(probe).mode & 0o111).toBe(0o111)
+      expect(readFileSync(join(root, 'dist/probe.d.ts'), 'utf8')).toBe(declaration)
+      expect(readFileSync(join(root, 'dist/templates/untouched.js'), 'utf8')).toBe(template)
+      for (const file of kitFiles) {
+        expect(JSON.parse(readFileSync(join(root, 'dist/kit', file), 'utf8'))).toEqual(data)
+      }
+      writeFileSync(join(root, 'dist/kit/catalog.json'), '{ invalid')
+      const invalid = spawnSync('node', [join(root, 'scripts/build-dist.mjs')], {
+        cwd: root,
+        encoding: 'utf8',
+      })
+      expect(invalid.status).toBe(1)
+      expect(invalid.stderr).toContain('cannot parse dist/kit/catalog.json')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  const fixture = () =>
+    JSON.parse(readFileSync(resolve('__tests__/fixtures/pack-contract-2597.json'), 'utf-8')) as {
+      pack: { unpackedSize: number; entryCount: number; rosterSha256: string }
+      manifest: PackedManifest
+      required_engine_paths: string[]
+      generated_profile_paths: string[]
+      declarations: { count: number; pathsSha256: string }
+      templates: { count: number; pathsSha256: string }
+      leading_spdx: { count: number; pathsSha256: string }
+    }
+  const pathsDigest = (paths: string[]) =>
+    createHash('sha256')
+      .update([...paths].sort().join('\n'))
+      .digest('hex')
+
+  it('keeps the actual retained package under the unchanged strict budget (#2597 AC-1)', () => {
+    const contract = fixture()
+
+    expect(packSummary.unpackedSize).toBeLessThan(contract.pack.unpackedSize)
+    expect(packSummary.entryCount).toBe(contract.pack.entryCount)
+    expect(pathsDigest(packedFiles)).toBe(contract.pack.rosterSha256)
+    expect(classifyPackSize(packSummary.unpackedSize, 'strict')).toEqual({
+      level: 'ok',
+      exitCode: 0,
+    })
+  })
+
+  it('keeps the frozen package surface and generated assets in the actual tarball (#2597 AC-2)', () => {
+    const contract = fixture()
+    for (const field of ['bin', 'exports', 'engines', 'files'] as const) {
+      expect(packedManifest[field]).toEqual(contract.manifest[field])
+    }
+    for (const path of [...contract.required_engine_paths, ...contract.generated_profile_paths]) {
+      expect(packedFiles).toContain(path)
+    }
+    const declarations = packedFiles.filter((path) => path.endsWith('.d.ts'))
+    const templates = packedFiles.filter((path) => path.startsWith('dist/templates/'))
+    const spdx = packedFiles.filter((path) =>
+      readFileSync(join(extractedDir, 'package', path), 'utf-8').startsWith(
+        '// SPDX-License-Identifier:',
+      ),
+    )
+    expect([declarations.length, pathsDigest(declarations)]).toEqual([
+      contract.declarations.count,
+      contract.declarations.pathsSha256,
+    ])
+    expect([templates.length, pathsDigest(templates)]).toEqual([
+      contract.templates.count,
+      contract.templates.pathsSha256,
+    ])
+    expect([spdx.length, pathsDigest(spdx)]).toEqual([
+      contract.leading_spdx.count,
+      contract.leading_spdx.pathsSha256,
+    ])
+    expect(readFileSync(join(extractedDir, 'package', 'dist', 'cli.js'), 'utf-8')).toMatch(/^#!/)
+    expect(
+      execFileSync('tar', ['-tvzf', tarball, 'package/dist/cli.js'], { encoding: 'utf-8' }),
+    ).toMatch(/^-rwx/)
+  })
+
   it('admits npm 11 while preserving the Node engine contract (AC-2128.1, AC-2128.2, AC-2128.3)', () => {
     const source = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as PackedManifest
 

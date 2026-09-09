@@ -149,6 +149,17 @@ function writeCorrelatedEvidence(
       },
     })
   }
+  const doneDir = join(dir, '.arbiter', 'evidence', 'done')
+  mkdirSync(doneDir, { recursive: true })
+  writeFileSync(
+    join(doneDir, SANITIZED_ID + '.json'),
+    JSON.stringify({
+      version: 2,
+      task_id: TASK_ID,
+      state: 'passed',
+      recorded_at: new Date().toISOString(),
+    }),
+  )
 }
 
 function runHook(
@@ -176,6 +187,17 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
     }
   })
 
+  it('AC-5 blocks malformed harness config on a completion claim', () => {
+    const { dir, hookPath, branch, sha } = setup()
+    try {
+      writeFileSync(join(dir, 'arbiter.json'), '{')
+      writeCorrelatedEvidence(dir, branch, sha)
+      expect(runHook(hookPath, dir, { transcript_path: claimTranscript(dir) }).status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('exits 0 when all three evidence artifacts are valid and correlated', () => {
     const { dir, hookPath, branch, sha } = setup()
     try {
@@ -184,6 +206,26 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
       const r = runHook(hookPath, dir, { transcript_path: t })
       expect(r.status).toBe(0)
       expect(r.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-5: exits 2 when a failed v2 receipt follows valid correlated evidence', () => {
+    const { dir, hookPath, branch, sha } = setup()
+    try {
+      writeFileSync(
+        join(dir, 'arbiter.json'),
+        JSON.stringify({ features: { evidenceHarness: true } }),
+      )
+      writeCorrelatedEvidence(dir, branch, sha)
+      writeFileSync(
+        join(dir, '.arbiter', 'evidence', 'done', SANITIZED_ID + '.json'),
+        JSON.stringify({ version: 2, task_id: TASK_ID, state: 'failed' }),
+      )
+      const r = runHook(hookPath, dir, { transcript_path: claimTranscript(dir) })
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/receipt.*not.*PASS|receipt.*failed|failed.*receipt/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

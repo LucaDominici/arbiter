@@ -1,0 +1,98 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2599",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 344
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 245
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 266
+        }
+      ],
+      "reason": "Retained: amendment does not change the shared helper or its direct prefix-collision and line-number regressions."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 137
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 166
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 179
+        },
+        {
+          "file": "__tests__/hooks/empirical/hook-diff-scan.test.ts",
+          "line": 191
+        }
+      ],
+      "reason": "Retained: amendment leaves the real-hook controls and PII, placeholder, orphan-marker and skipped-test prefix regressions byte-identical."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/claude/hooks/lib.mjs.ejs",
+          "line": 337
+        },
+        {
+          "file": "packages/kernel/hooks/lib.mjs",
+          "line": 351
+        },
+        {
+          "file": "__tests__/scripts/build-kernel-plugin.test.ts",
+          "line": 119
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+          "line": 367
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+          "line": 544
+        }
+      ],
+      "reason": "Retained source/template/kernel parity. Independent amendment audit found exactly 27 snapshots and 29 permitted content-hash changes, with no identity, level, file-list, key-set or unrelated hash drift; native bake 29/29 and kernel 3/3 receipts exited 0."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".arbiter/evidence/tdd/#2599.json",
+          "line": 4
+        },
+        {
+          "file": ".arbiter/evidence/plan-review/_2599/latest.json",
+          "line": 6
+        },
+        {
+          "file": ".arbiter/evidence/agent-returns/_2599/independent-review-3.json",
+          "line": 5
+        },
+        {
+          "file": "__tests__/scripts/build-kernel-plugin.test.ts",
+          "line": 99
+        }
+      ],
+      "reason": "Historical RED, plan/red-team/refutation evidence and targeted runtime evidence remain unchanged. Frozen plan digest independently matches e4cfe014422e23600d458a9419a937d53f83ae4be3896bdd2d8dbd6c1e3466ea; exact-SHA independent review and review-completion both PASS. Required preflight, dependency verification and L1 exited 0."
+    }
+  ]
+}

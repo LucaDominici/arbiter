@@ -17,8 +17,9 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { mkdtempTranslated, rmTranslated } from '../utils/fs.js'
+import { join, isAbsolute, relative, resolve } from 'node:path'
+import { sanitizeTaskId } from '../utils/task-id.js'
+import { mkdtempTranslated, rmTranslated, readFileTranslated } from '../utils/fs.js'
 import { runCli } from '../utils/run-cli.js'
 
 export const GATE_PASS_POLICY = {
@@ -204,8 +205,8 @@ function levelProblem(fields: Record<string, unknown>, minLevel: string): string
   const level = String(fields.level)
   const rank = GATE_PASS_POLICY.levelRank[level]
   const required = GATE_PASS_POLICY.levelRank[minLevel]
-  if (rank === undefined) return `gate-pass marker level "${level}" is not a known gate level`
-  if (required === undefined) {
+  if (typeof rank !== 'number') return `gate-pass marker level "${level}" is not a known gate level`
+  if (typeof required !== 'number') {
     return `required gate level "${minLevel}" is not a known gate level`
   }
   if (rank < required) {
@@ -359,4 +360,91 @@ export function verifyGatePassMarker(
     if (reason !== null) return { ok: false, reason }
   }
   return { ok: true }
+}
+
+interface DoneReceiptOptions extends GatePassVerifyOptions {
+  taskId: string
+  archetype?: string
+}
+
+function objectFields(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('done evidence must contain JSON objects')
+  }
+  return value as Record<string, unknown>
+}
+
+function verifyPinnedFiles(value: unknown, root: string): void {
+  if (!Array.isArray(value) || value.length === 0) throw new Error('pinned_files is empty')
+  for (const entry of value) {
+    const fields = objectFields(entry)
+    if (typeof fields.path !== 'string' || typeof fields.sha256 !== 'string') {
+      throw new Error('malformed pinned file')
+    }
+    const path = resolve(root, fields.path)
+    const rel = relative(root, path)
+    if (isAbsolute(fields.path) || rel === '..' || rel.startsWith('../')) {
+      throw new Error('pinned file must remain inside the checkout')
+    }
+    if (createHash('sha256').update(readFileTranslated(path)).digest('hex') !== fields.sha256) {
+      throw new Error(`pinned file SHA mismatch: ${fields.path}`)
+    }
+  }
+}
+
+function verifyRuntimeReceipt(value: unknown, archetype: string | undefined): void {
+  const rc = objectFields(value)
+  const suites =
+    archetype === 'backend-web-db'
+      ? ['live-api-e2e']
+      : archetype === 'frontend-spa'
+        ? ['render-smoke', 'visual-regression']
+        : []
+  if (typeof rc.required !== 'boolean') throw new Error('runtime required must be boolean')
+  if (suites.length > 0 && (!rc.required || !suites.includes(String(rc.suite)))) {
+    throw new Error(`required runtime evidence missing for ${archetype}`)
+  }
+  if (rc.required ? rc.passed !== true : rc.passed !== null) {
+    throw new Error('runtime evidence has not passed or is malformed')
+  }
+}
+
+/** Independent engine acceptance: no call into project-editable scripts. */
+export function verifyDoneEvidenceReceipt(opts: DoneReceiptOptions): GatePassVerifyResult {
+  try {
+    const path = join(opts.root, '.arbiter/evidence/done', `${sanitizeTaskId(opts.taskId)}.json`)
+    const receipt = objectFields(JSON.parse(readFileSync(path, 'utf8')))
+    if (receipt.version !== 2 || receipt.task_id !== opts.taskId || receipt.state !== 'passed') {
+      throw new Error('v2 done receipt must be passed for the current task')
+    }
+    if (
+      receipt.all_green !== true ||
+      receipt.no_overclaim !== true ||
+      receipt.gate_level !== 'L3'
+    ) {
+      throw new Error('done receipt is not a green L3 qualification')
+    }
+    const bytes = readFileSync(join(opts.root, '.arbiter/gate-pass.json'))
+    if (createHash('sha256').update(bytes).digest('hex') !== receipt.gate_marker_sha256) {
+      throw new Error('done receipt gate marker digest mismatch')
+    }
+    const marker = objectFields(JSON.parse(bytes.toString('utf8')))
+    for (const field of [
+      'head_sha',
+      'tree_hash',
+      'checkout_root',
+      'toolchain_fingerprint',
+      'node_version',
+    ]) {
+      if (receipt[field] !== marker[field]) throw new Error(`done receipt ${field} mismatch`)
+    }
+    verifyPinnedFiles(receipt.pinned_files, opts.root)
+    verifyRuntimeReceipt(receipt.reality_contact, opts.archetype)
+    return verifyGatePassMarker(marker, { ...opts, minLevel: 'L3' })
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `done receipt invalid: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
 }

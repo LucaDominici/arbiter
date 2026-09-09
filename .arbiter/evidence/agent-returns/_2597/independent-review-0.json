@@ -1,0 +1,20 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "independent-review",
+  "role": "reviewer",
+  "taskId": "#2597",
+  "branch": "task/#2597-pack-size-preflight",
+  "sha": "929d1eb78c49302e9d0665ffd946ee8bf4fc616b",
+  "ts": "2026-09-08T08:41:58.472Z",
+  "verdict": "PASS",
+  "confidence": 0.98,
+  "findings": [],
+  "evidenceRefs": [
+    ".arbiter/evidence/tdd/#2597.json"
+  ],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}

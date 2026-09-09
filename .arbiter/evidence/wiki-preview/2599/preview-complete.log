@@ -1,0 +1,26 @@
++zsh:2> date -Is
+2026-09-08T13:37:41+02:00
++zsh:3> git rev-parse HEAD
+97c3966ddf38c6d89d3deb1fa603a07765b7969b
++zsh:4> sha256sum .claude/plans/2599-diff-prefix-safety.md .agents/plan/PLAN.json
+de9faf644637342826db6ffd3a68e6bed9648298f4103cfc0262efccbbe0ae60  .claude/plans/2599-diff-prefix-safety.md
+3a8c483f46b5bdcc06ea4385c7a34789a4ea74315cc447b03d2b5f8254023526  .agents/plan/PLAN.json
++zsh:5> wiki_probe=+zsh:5> mktemp -d /tmp/arbiter-2599-wiki-proof-XXXXXX
++zsh:5> wiki_probe=/tmp/arbiter-2599-wiki-proof-1lIGqB 
++zsh:6> cp -a wiki/. /tmp/arbiter-2599-wiki-proof-1lIGqB/
++zsh:7> node scripts/gen-wiki.mjs --changed --wiki-dir /tmp/arbiter-2599-wiki-proof-1lIGqB
+  gen-wiki: 1 page(s) written to wiki/ (123 source docs), 0 page(s) pruned
++zsh:8> gen_status=0 
++zsh:9> printf 'generator_exit=%s\n' 0
+generator_exit=0
++zsh:10> diff -qr wiki/ /tmp/arbiter-2599-wiki-proof-1lIGqB/
+Files wiki/.wiki-log.json and /tmp/arbiter-2599-wiki-proof-1lIGqB/.wiki-log.json differ
+Files wiki/internal-system-hook-contracts.md and /tmp/arbiter-2599-wiki-proof-1lIGqB/internal-system-hook-contracts.md differ
++zsh:11> diff_status=1 
++zsh:12> printf 'full_directory_diff_exit=%s\n' 1
+full_directory_diff_exit=1
++zsh:13> node scripts/gen-wiki.mjs --check --wiki-dir /tmp/arbiter-2599-wiki-proof-1lIGqB
+  gen-wiki: wiki/ is up to date (124 pages)
++zsh:14> check_status=0 
++zsh:15> printf 'preview_check_exit=%s\n' 0
+preview_check_exit=0

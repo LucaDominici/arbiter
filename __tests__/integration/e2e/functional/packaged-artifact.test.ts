@@ -28,12 +28,21 @@
 // npm installs + a full generated-project L1 gate run is not cheap.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { hasBinary, isOfflineFailure, stageFixture } from '../helpers.js'
+import { classifyPackSize } from '../../../../scripts/check-pack-size.mjs'
 
 const L2 = process.env.VITEST_L2 === '1'
 const REPO_ROOT = process.cwd()
@@ -48,7 +57,10 @@ type PackResult = { skip: string } | { tarball: string }
 // artifact-identity bug this file exists to catch.
 function prepackedTarball(): string | null {
   const provided = process.env.ARBITER_PACKED_TARBALL
-  if (!provided) return null
+  if (provided === undefined) return null
+  if (provided.length === 0) {
+    throw new Error('ARBITER_PACKED_TARBALL is set but empty')
+  }
   if (!existsSync(provided)) {
     throw new Error(`ARBITER_PACKED_TARBALL is set but the file does not exist: ${provided}`)
   }
@@ -83,6 +95,10 @@ function npmInstall(dir: string, extraArg?: string): DepResult {
   const out = (r.stdout ?? '') + (r.stderr ?? '')
   if (isOfflineFailure(out)) return { skip: 'npm install unavailable (offline)' }
   throw new Error(`npm install failed (not offline):\n${out.slice(-2000)}`)
+}
+
+function suppliedArtifact(): boolean {
+  return process.env.ARBITER_PACKED_TARBALL !== undefined
 }
 
 function runGate(dir: string, level: 'L1' | 'L2'): { status: number; output: string } {
@@ -142,6 +158,9 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
 
       const install = npmInstall(projectDir, pack.tarball)
       if ('skip' in install) {
+        if (suppliedArtifact()) {
+          throw new Error(`supplied ARBITER_PACKED_TARBALL could not be installed: ${install.skip}`)
+        }
         expect(install.skip, 'npm install unavailable — skipping outsider simulation').toBeTruthy()
         return
       }
@@ -171,6 +190,11 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
       // virgin-init-matrix.test.ts's install-after-init ordering for TS cells).
       const postInitInstall = npmInstall(projectDir)
       if ('skip' in postInitInstall) {
+        if (suppliedArtifact()) {
+          throw new Error(
+            `supplied ARBITER_PACKED_TARBALL post-init install could not be completed: ${postInitInstall.skip}`,
+          )
+        }
         expect(
           postInitInstall.skip,
           'npm install (post-init) unavailable — skipping outsider simulation',
@@ -194,6 +218,10 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
         `generated project's own L1 gate failed:\n${gate.output.slice(-3000)}`,
       ).toBe(0)
 
+      const docSet = runInstalledArbiter(projectDir, ['doc-set', '.', '--check'])
+      expect(docSet.status, `installed doc-set failed:\n${docSet.output.slice(-3000)}`).toBe(0)
+      expect(docSet.output).toContain('check-doc-set [tier:')
+
       // ── Task round-trip, through the installed bin: init → plan →
       // red-team-review → red → record-red → green ──
       const taskId = '#9001'
@@ -205,7 +233,7 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
       // subprocess, not an interactive Claude Code session.
       const noHandoffEnv = { ...process.env }
       delete noHandoffEnv.CLAUDECODE
-      for (const phase of ['plan', 'red-team-review', 'red']) {
+      for (const phase of ['plan', 'red-team-review']) {
         const advance = runInstalledArbiter(
           projectDir,
           ['task', 'advance', '--to', phase],
@@ -213,6 +241,18 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
         )
         expect(advance.status, `advance --to ${phase} failed:\n${advance.output}`).toBe(0)
       }
+      mkdirSync(join(projectDir, '.arbiter', 'evidence', 'redteam'), { recursive: true })
+      writeFileSync(
+        join(projectDir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`),
+        JSON.stringify({ findings: [] }),
+        'utf-8',
+      )
+      const advance = runInstalledArbiter(
+        projectDir,
+        ['task', 'advance', '--to', 'red'],
+        noHandoffEnv,
+      )
+      expect(advance.status, `advance --to red failed:\n${advance.output}`).toBe(0)
 
       const testRelPath = 'src/e2e-red.test.ts'
       writeFileSync(
@@ -266,21 +306,89 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
 
 type ExportTarget = { types?: string; import?: string }
 
-function declaredExports(): Array<{ subpath: string; target: ExportTarget }> {
-  const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as {
-    name: string
-    exports: Record<string, ExportTarget>
-  }
+type PublishedManifest = {
+  name: string
+  bin?: unknown
+  exports: Record<string, ExportTarget>
+  engines?: unknown
+  files?: unknown
+}
+
+function packedManifest(tarball: string): PublishedManifest {
+  return JSON.parse(
+    execFileSync('tar', ['-xOzf', tarball, 'package/package.json'], { encoding: 'utf-8' }),
+  ) as PublishedManifest
+}
+
+function declaredExports(pkg: PublishedManifest): Array<{ subpath: string; target: ExportTarget }> {
   return Object.entries(pkg.exports).map(([subpath, target]) => ({ subpath, target }))
 }
 
-function packageName(): string {
-  return (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { name: string })
-    .name
+function packageName(pkg: PublishedManifest): string {
+  return pkg.name
 }
 
 function sha256(file: string): string {
   return createHash('sha256').update(readFileSync(file)).digest('hex')
+}
+
+function assertFrozenContract(tarball: string): void {
+  const contract = JSON.parse(
+    readFileSync(join(REPO_ROOT, '__tests__/fixtures/pack-contract-2597.json'), 'utf-8'),
+  ) as {
+    pack: { entryCount: number; rosterSha256: string }
+    manifest: { bin?: unknown; exports?: unknown; engines?: unknown; files?: unknown }
+    required_engine_paths: string[]
+    generated_profile_paths: string[]
+    declarations: { count: number; pathsSha256: string }
+    templates: { count: number; pathsSha256: string }
+    leading_spdx: { count: number; pathsSha256: string }
+  }
+  const paths = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf-8' })
+    .trim()
+    .split('\n')
+    .map((path) => path.replace(/^package\//, ''))
+    .sort()
+  const digest = createHash('sha256').update(paths.join('\n')).digest('hex')
+  const manifest = packedManifest(tarball)
+  const extracted = mkdtempSync(join(tmpdir(), 'arbiter-pkg-contract-'))
+  execFileSync('tar', ['-xzf', tarball, '-C', extracted])
+  const packageDir = join(extracted, 'package')
+  const pathsDigest = (items: string[]) =>
+    createHash('sha256').update(items.sort().join('\n')).digest('hex')
+  const unpackedSize = paths.reduce((sum, path) => sum + statSync(join(packageDir, path)).size, 0)
+  const declarations = paths.filter((path) => path.endsWith('.d.ts'))
+  const templates = paths.filter((path) => path.startsWith('dist/templates/'))
+  const spdx = paths.filter((path) =>
+    readFileSync(join(packageDir, path), 'utf-8').startsWith('// SPDX-License-Identifier:'),
+  )
+
+  expect(paths).toHaveLength(contract.pack.entryCount)
+  expect(digest).toBe(contract.pack.rosterSha256)
+  expect(classifyPackSize(unpackedSize, 'strict')).toEqual({ level: 'ok', exitCode: 0 })
+  expect(manifest.bin).toEqual(contract.manifest.bin)
+  expect(manifest.exports).toEqual(contract.manifest.exports)
+  expect(manifest.engines).toEqual(contract.manifest.engines)
+  expect(manifest.files).toEqual(contract.manifest.files)
+  for (const path of [...contract.required_engine_paths, ...contract.generated_profile_paths]) {
+    expect(paths).toContain(path)
+  }
+  expect([declarations.length, pathsDigest(declarations)]).toEqual([
+    contract.declarations.count,
+    contract.declarations.pathsSha256,
+  ])
+  expect([templates.length, pathsDigest(templates)]).toEqual([
+    contract.templates.count,
+    contract.templates.pathsSha256,
+  ])
+  expect([spdx.length, pathsDigest(spdx)]).toEqual([
+    contract.leading_spdx.count,
+    contract.leading_spdx.pathsSha256,
+  ])
+  const cli = join(packageDir, 'dist', 'cli.js')
+  expect(readFileSync(cli, 'utf-8')).toMatch(/^#!/)
+  expect(statSync(cli).mode & 0o111).not.toBe(0)
+  rmSync(extracted, { recursive: true, force: true })
 }
 
 describe.skipIf(!L2)('published package — signed bytes and declared surface (#2138/#2139)', () => {
@@ -372,6 +480,7 @@ describe.skipIf(!L2)('published package — signed bytes and declared surface (#
         expect(pack.skip).toBeTruthy()
         return
       }
+      if (suppliedArtifact()) assertFrozenContract(pack.tarball)
       const consumer = join(workDir, 'consumer')
       mkdirSync(consumer, { recursive: true })
       writeFileSync(
@@ -380,12 +489,16 @@ describe.skipIf(!L2)('published package — signed bytes and declared surface (#
       )
       const install = npmInstall(consumer, pack.tarball)
       if ('skip' in install) {
+        if (suppliedArtifact()) {
+          throw new Error(`supplied ARBITER_PACKED_TARBALL could not be installed: ${install.skip}`)
+        }
         expect(install.skip).toBeTruthy()
         return
       }
 
-      const name = packageName()
-      const subpaths = declaredExports()
+      const manifest = packedManifest(pack.tarball)
+      const name = packageName(manifest)
+      const subpaths = declaredExports(manifest)
       expect(subpaths.length, 'package.json declares no exports').toBeGreaterThan(0)
 
       for (const { subpath, target } of subpaths) {

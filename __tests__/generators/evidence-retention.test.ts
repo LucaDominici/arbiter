@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { join } from 'node:path'
-import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
+import {
+  createTestProject,
+  initGit,
+  cleanupTestProject,
+  makeConfig,
+  materializeGateEvidenceLib,
+} from '../helpers.js'
 import { generateEvidenceRetention } from '../../src/generators/evidence-retention.js'
 
 // ─── Generator tests ─────────────────────────────────────────────────────────
@@ -498,7 +504,10 @@ describe('generateEvidenceRetention — done-evidence reality_contact/no_overcla
 
   /** Stub gate (scripts/check-all.mjs) that exits 0 — fakes a green L4 gate. */
   function stubGreenGate(d: string) {
-    writeFileSync(join(d, 'scripts', 'check-all.mjs'), '#!/usr/bin/env node\nprocess.exit(0)\n')
+    writeFileSync(
+      join(d, 'scripts', 'check-all.mjs'),
+      "#!/usr/bin/env node\nimport { mkdirSync, writeFileSync } from 'node:fs'; import { buildGateEvidence, captureGateStart } from './lib/gate-evidence.mjs'; const marker = buildGateEvidence({ root: process.cwd(), level: 'L3', taskId: 'unknown', start: captureGateStart(process.cwd()) }); if (marker === null) process.exit(1); mkdirSync('.arbiter', { recursive: true }); writeFileSync('.arbiter/gate-pass.json', JSON.stringify(marker, null, 2) + '\\n');\n",
+    )
   }
 
   /** Write a reality-contact stub script at repo root; returns the command string. */
@@ -531,6 +540,9 @@ describe('generateEvidenceRetention — done-evidence reality_contact/no_overcla
   }
 
   function runDoneEvidence(d: string): ReturnType<typeof spawnSync> {
+    execFileSync('git', ['add', '-A'], { cwd: d, stdio: 'ignore' })
+    execFileSync('git', ['commit', '-qm', 'fixture', '--no-gpg-sign'], { cwd: d, stdio: 'ignore' })
+    materializeGateEvidenceLib(d)
     return spawnSync('node', ['scripts/done-evidence.mjs'], { cwd: d, encoding: 'utf-8' })
   }
 
@@ -543,7 +555,9 @@ describe('generateEvidenceRetention — done-evidence reality_contact/no_overcla
     setRcCommand(dir, cmd, true)
     const res = runDoneEvidence(dir)
     expect(res.status, `stdout=${res.stdout}\nstderr=${res.stderr}`).toBe(0)
-    const ev = JSON.parse(readFileSync(join(dir, '.claude', '.last-done-evidence.json'), 'utf-8'))
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'done', 'unknown.json'), 'utf-8'),
+    )
     expect(ev.reality_contact).toBeDefined()
     expect(ev.reality_contact.passed).toBe(true)
     expect(ev.reality_contact.suite).toBe('live-api-e2e')
@@ -573,7 +587,9 @@ describe('generateEvidenceRetention — done-evidence reality_contact/no_overcla
     setRcCommand(dir, cmd, false)
     const res = runDoneEvidence(dir)
     expect(res.status, `stdout=${res.stdout}\nstderr=${res.stderr}`).toBe(0)
-    const ev = JSON.parse(readFileSync(join(dir, '.claude', '.last-done-evidence.json'), 'utf-8'))
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'done', 'unknown.json'), 'utf-8'),
+    )
     expect(ev.reality_contact).toBeDefined()
     expect(ev.reality_contact.passed).toBe(null)
     expect(ev.reality_contact.required).toBe(false)

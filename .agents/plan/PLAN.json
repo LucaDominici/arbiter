@@ -1,59 +1,409 @@
 {
-  "task_id": "#2486",
+  "task_id": "#2615",
   "scope": {
     "track": "A",
     "paths": [
       ".agents/plan/PLAN.json",
-      ".claude/plans/task-2486-pr-base-concurrency.md",
-      ".github/workflows/01-pr-fast.yml",
-      ".github/workflows/02-pr-extended.yml",
-      "src/templates/github/workflows/01-pr-fast.yml.ejs",
-      "src/templates/github/workflows/02-pr-extended.yml.ejs",
-      "__tests__/templates/ci-render.test.ts",
-      "__tests__/templates/02-pr-extended-render.test.ts",
-      "__tests__/templates/pr-tier-base-branch-filter.test.ts",
-      "__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml",
-      "docs/REFERENCE/ci-tier-workflows.md",
-      ".arbiter/evidence/tdd/#2486.json",
-      ".arbiter/evidence/plan-review/_2486/latest.json",
-      ".arbiter/evidence/redteam/#2486.json",
-      ".arbiter/evidence/ac-fit/2486.json"
+      ".claude/plans/task-2615-gate-level-parity.md",
+      ".arbiter/evidence/plan-review/_2615/latest.json",
+      ".arbiter/evidence/redteam/#2615.json",
+      ".arbiter/evidence/ac-fit/2615.json",
+      ".arbiter/evidence/tdd/#2615.json",
+      "scripts/done-evidence.mjs",
+      "src/templates/scripts/done-evidence.mjs.ejs",
+      "__tests__/evidence/done-evidence-gate-level.test.ts",
+      "__tests__/evidence/gate-binding-engine.test.ts",
+      "docs/internal/METHOD/EVIDENCE_RETENTION.md",
+      "scripts/lib/gate-evidence.mjs",
+      "src/templates/scripts/lib/gate-evidence.mjs.ejs",
+      "src/evidence/gate-binding.ts",
+      "src/commands/task.ts",
+      "src/commands/pr-merged.ts",
+      ".claude/hooks/guard-done-evidence.mjs",
+      "src/templates/claude/hooks/guard-done-evidence.mjs.ejs",
+      ".claude/hooks/stop-evidence-guard.mjs",
+      "src/templates/claude/hooks/stop-evidence-guard.mjs.ejs",
+      "scripts/check-all.mjs",
+      "src/invariants/catalog.ts",
+      "GLOBAL_INVARIANTS.md",
+      ".claude/commands/ship.md",
+      "src/templates/claude/commands/ship.md.ejs",
+      "__tests__/evidence/done-evidence-sequence.test.ts",
+      "__tests__/hooks/empirical/done-evidence-guard.test.ts",
+      "__tests__/commands/pr-merged.test.ts",
+      "__tests__/scripts/check-all-l1.test.ts",
+      "__tests__/generators/evidence-retention.test.ts",
+      "__tests__/hooks/empirical/stop-evidence-guard.test.ts",
+      "__tests__/hooks/empirical/stop-evidence-journey.test.ts",
+      "__tests__/commands/task-ship.test.ts",
+      "__tests__/commands/task-phase-migration.test.ts",
+      "__tests__/lib/sanitize-task-id-parity.test.ts",
+      "src/generators/evidence-retention.ts",
+      "packages/kernel/hooks/guard-done-evidence.mjs",
+      "packages/kernel/hooks/stop-evidence-guard.mjs",
+      "examples/go-library/.arbiter-generated-manifest.json",
+      "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/ts-library/.arbiter-generated-manifest.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "examples/go-library/.claude/commands/ship.md",
+      "examples/go-library/scripts/lib/gate-evidence.mjs",
+      "examples/python-library/.claude/commands/ship.md",
+      "examples/python-library/scripts/lib/gate-evidence.mjs",
+      "examples/ts-library/.claude/commands/ship.md",
+      "examples/ts-library/scripts/lib/gate-evidence.mjs"
     ]
   },
   "files": [
-    { "path": ".agents/plan/PLAN.json", "operation": "modify" },
-    { "path": "docs/REFERENCE/ci-tier-workflows.md", "operation": "modify" },
-    { "path": ".claude/plans/task-2486-pr-base-concurrency.md", "operation": "modify" },
-    { "path": ".github/workflows/01-pr-fast.yml", "operation": "modify" },
-    { "path": ".github/workflows/02-pr-extended.yml", "operation": "modify" },
-    { "path": "src/templates/github/workflows/01-pr-fast.yml.ejs", "operation": "modify" },
-    { "path": "src/templates/github/workflows/02-pr-extended.yml.ejs", "operation": "modify" },
-    { "path": "__tests__/templates/ci-render.test.ts", "operation": "modify" },
-    { "path": "__tests__/templates/02-pr-extended-render.test.ts", "operation": "modify" },
-    { "path": "__tests__/templates/pr-tier-base-branch-filter.test.ts", "operation": "modify" },
     {
-      "path": "__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml",
+      "path": ".agents/plan/PLAN.json",
       "operation": "modify"
     },
-    { "path": ".arbiter/evidence/tdd/#2486.json", "operation": "create" },
-    { "path": ".arbiter/evidence/plan-review/_2486/latest.json", "operation": "create" },
-    { "path": ".arbiter/evidence/redteam/#2486.json", "operation": "create" },
-    { "path": ".arbiter/evidence/ac-fit/2486.json", "operation": "create" }
+    {
+      "path": ".claude/plans/task-2615-gate-level-parity.md",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/plan-review/_2615/latest.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/redteam/#2615.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/ac-fit/2615.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2615.json",
+      "operation": "create"
+    },
+    {
+      "path": "scripts/done-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/done-evidence.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/evidence/done-evidence-gate-level.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/evidence/gate-binding-engine.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/internal/METHOD/EVIDENCE_RETENTION.md",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/lib/gate-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/lib/gate-evidence.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/evidence/gate-binding.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/commands/task.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/commands/pr-merged.ts",
+      "operation": "modify"
+    },
+    {
+      "path": ".claude/hooks/guard-done-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/claude/hooks/guard-done-evidence.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": ".claude/hooks/stop-evidence-guard.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/claude/hooks/stop-evidence-guard.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-all.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/invariants/catalog.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "GLOBAL_INVARIANTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": ".claude/commands/ship.md",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/claude/commands/ship.md.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/evidence/done-evidence-sequence.test.ts",
+      "operation": "create"
+    },
+    {
+      "path": "__tests__/hooks/empirical/done-evidence-guard.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/commands/pr-merged.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-all-l1.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/generators/evidence-retention.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/hooks/empirical/stop-evidence-guard.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/hooks/empirical/stop-evidence-journey.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/commands/task-ship.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/commands/task-phase-migration.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/lib/sanitize-task-id-parity.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/generators/evidence-retention.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "packages/kernel/hooks/guard-done-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "packages/kernel/hooks/stop-evidence-guard.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.claude/commands/ship.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/lib/gate-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.claude/commands/ship.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/lib/gate-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.claude/commands/ship.md",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/lib/gate-evidence.mjs",
+      "operation": "modify"
+    }
   ],
-  "invariants": { "ui_language": "EN", "no_skips": true },
+  "invariants": {
+    "ui_language": "EN",
+    "no_skips": true
+  },
   "invariant_ids": [
-    "INV-22",
     "INV-24",
     "INV-25",
     "INV-26",
     "INV-27",
-    "INV-45",
-    "INV-48",
+    "INV-33",
     "INV-53",
     "INV-59",
-    "INV-76",
-    "INV-77",
-    "INV-138"
+    "INV-138",
+    "INV-38",
+    "INV-45",
+    "INV-114",
+    "INV-28",
+    "INV-96",
+    "INV-110",
+    "INV-145"
   ],
-  "review_bridge": { "enabled": true, "reviewer": "root", "fail_on_warn": true }
+  "notes": [
+    "User-authorized scope amendment: final L3 reuse, v2 fail-closed done receipt, independent native completion, exact merge references and same-run smoke deduplication. Prior implementation and native RED remain intact. #2620 and Coach are separate."
+  ],
+  "review_bridge": {
+    "enabled": true,
+    "reviewer": "root",
+    "fail_on_warn": true
+  }
 }

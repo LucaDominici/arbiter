@@ -499,7 +499,7 @@ generateGithooks emits executable .githooks/{pre-commit,pre-push,commit-msg} for
 
 ### INV-38: Phase-tracked lifecycle enforcement
 
-Task lifecycle phase transitions are validated mechanically: completion guard exits 2 on premature claim (returns stderr to Claude as error context), pre-commit blocks commits during preflight/plan phases, and arbiter task advance validates forward-only transitions with audit log. Evidence guard (guard-done-evidence.mjs.ejs) additionally blocks done claims until SHA-pinned evidence (.claude/.last-done-evidence.json) is present, all_green, and SHAs match current tree. Evidence is captured by running node scripts/done-evidence.mjs (runs L2 gate + pins source SHAs).
+Task lifecycle phase transitions are validated mechanically: completion guard exits 2 on premature claim (returns stderr to Claude as error context), pre-commit blocks commits during preflight/plan phases, and arbiter task advance validates forward-only transitions with audit log. When evidenceHarness is active, the completion guards and task engine require a passed v2 receipt at .arbiter/evidence/done/<sanitized-task>.json, bound to the current task, exact L3 marker bytes and candidate identity, with matching source SHAs and required runtime proof. node scripts/done-evidence.mjs reuses a natively verified current L3 marker or runs one L3 gate, then captures the receipt. Legacy evidence is retained only as history.
 
 **Enforcement:** src/templates/claude/hooks/guard-task-completion.mjs.ejs (exit 2) + src/templates/claude/hooks/guard-done-evidence.mjs.ejs (exit 2, SHA-pin validation) + src/templates/scripts/done-evidence.mjs.ejs (evidence capture CLI) + src/templates/githooks/pre-commit.ejs (phase guard) + src/commands/task.ts (advance validator)
 

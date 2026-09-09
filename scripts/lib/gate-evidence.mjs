@@ -339,10 +339,11 @@ function shapeProblem(marker) {
 function levelProblem(marker, minLevel) {
   const rank = GATE_EVIDENCE_LEVEL_RANK[marker.level]
   const required = GATE_EVIDENCE_LEVEL_RANK[minLevel]
-  if (rank === undefined) {
+  if (typeof rank !== 'number') {
     return `gate-pass marker level "${marker.level}" is not a known gate level`
   }
-  if (required === undefined) return `required gate level "${minLevel}" is not a known gate level`
+  if (typeof required !== 'number')
+    return `required gate level "${minLevel}" is not a known gate level`
   if (rank < required) {
     return `gate-pass marker level "${marker.level}" is below the required "${minLevel}"`
   }
@@ -501,6 +502,124 @@ export function verifyGateEvidenceFile(markerPath, opts = {}) {
     return { ok: false, reason: `gate-pass marker unreadable at ${markerPath}: ${err.message}` }
   }
   return verifyGateEvidence(parsed, opts)
+}
+
+export function sanitizeTaskId(raw) {
+  const cleaned = String(raw)
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 64)
+  return cleaned.length > 0 ? cleaned : 'unknown'
+}
+
+function runtimeProblem(receipt, archetype) {
+  const rc = receipt.reality_contact
+  if (
+    rc === null ||
+    typeof rc !== 'object' ||
+    Array.isArray(rc) ||
+    typeof rc.required !== 'boolean'
+  ) {
+    return 'done receipt reality_contact is missing or malformed'
+  }
+  if (rc.required === true && rc.passed !== true)
+    return 'done receipt required reality contact did not pass'
+  if (rc.required === false && rc.passed !== null)
+    return 'done receipt optional reality contact must be null'
+  if (
+    archetype === 'backend-web-db' &&
+    (rc.required !== true || rc.passed !== true || rc.suite !== 'live-api-e2e')
+  ) {
+    return 'done receipt must record a passing live-api-e2e reality contact for backend-web-db'
+  }
+  if (
+    archetype === 'frontend-spa' &&
+    (rc.required !== true ||
+      rc.passed !== true ||
+      !['render-smoke', 'visual-regression'].includes(rc.suite))
+  ) {
+    return 'done receipt must record a passing render-smoke or visual-regression reality contact for frontend-spa'
+  }
+  return null
+}
+
+export function verifyDoneEvidenceReceipt({
+  root = process.cwd(),
+  taskId,
+  maxAgeMin,
+  archetype,
+} = {}) {
+  const receiptPath = join(root, '.arbiter', 'evidence', 'done', `${sanitizeTaskId(taskId)}.json`)
+  let receipt
+  try {
+    receipt = JSON.parse(readFileSync(receiptPath, 'utf-8'))
+  } catch (err) {
+    return { ok: false, reason: `done receipt unreadable at ${receiptPath}: ${err.message}` }
+  }
+  if (receipt?.version !== 2 || receipt.task_id !== taskId || receipt.state !== 'passed') {
+    return { ok: false, reason: 'done receipt is not a current v2 PASS for this task' }
+  }
+  if (receipt.all_green !== true || receipt.no_overclaim !== true || receipt.gate_level !== 'L3') {
+    return {
+      ok: false,
+      reason: 'done receipt does not prove an all-green L3 capture without overclaim',
+    }
+  }
+  const markerPath = join(root, '.arbiter', 'gate-pass.json')
+  let markerBytes
+  let marker
+  try {
+    markerBytes = readFileSync(markerPath)
+    marker = JSON.parse(markerBytes)
+  } catch (err) {
+    return { ok: false, reason: `gate-pass marker unreadable at ${markerPath}: ${err.message}` }
+  }
+  if (receipt.gate_marker_sha256 !== createHash('sha256').update(markerBytes).digest('hex')) {
+    return {
+      ok: false,
+      reason: 'done receipt gate_marker_sha256 does not match the exact marker bytes',
+    }
+  }
+  for (const field of [
+    'head_sha',
+    'tree_hash',
+    'checkout_root',
+    'toolchain_fingerprint',
+    'node_version',
+  ]) {
+    if (receipt[field] !== marker[field])
+      return { ok: false, reason: `done receipt ${field} does not match gate-pass marker` }
+  }
+  const markerVerdict = verifyGateEvidence(marker, { root, minLevel: 'L3', maxAgeMin, taskId })
+  if (!markerVerdict.ok) return markerVerdict
+  if (!Array.isArray(receipt.pinned_files) || receipt.pinned_files.length === 0) {
+    return { ok: false, reason: 'done receipt pinned_files is missing or empty' }
+  }
+  for (const entry of receipt.pinned_files) {
+    if (
+      !entry ||
+      typeof entry.path !== 'string' ||
+      typeof entry.sha256 !== 'string' ||
+      entry.path.startsWith('/') ||
+      entry.path.split('/').includes('..')
+    ) {
+      return { ok: false, reason: 'done receipt has a malformed pinned file entry' }
+    }
+    try {
+      const actual = createHash('sha256')
+        .update(readFileSync(join(root, entry.path)))
+        .digest('hex')
+      if (actual !== entry.sha256)
+        return { ok: false, reason: `done receipt pinned file drift: ${entry.path}` }
+    } catch (err) {
+      return {
+        ok: false,
+        reason: `done receipt pinned file unreadable: ${entry.path} (${err.message})`,
+      }
+    }
+  }
+  const runtime = runtimeProblem(receipt, archetype)
+  if (runtime !== null) return { ok: false, reason: runtime }
+  return { ok: true }
 }
 
 // ── CLI: `node scripts/lib/gate-evidence.mjs verify [flags]` ────────────────

@@ -31,7 +31,8 @@ import {
   tddEvidenceProducedOnBranch,
 } from '../evidence/git-checks.js'
 import { detectHostCapabilities } from '../capabilities/host-probe.js'
-import { verifyGatePassMarker } from '../evidence/gate-binding.js'
+import { loadConfig } from '../utils/config.js'
+import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../evidence/gate-binding.js'
 
 export class HandoffRequiredError extends Error {
   constructor(message: string) {
@@ -490,7 +491,7 @@ function readBranchPrs(branch: string, dir: string): PrSnapshot[] {
       '--state',
       'all',
       '--json',
-      'number,state,mergeStateStatus,statusCheckRollup',
+      'number,state,mergeStateStatus,statusCheckRollup,headRefOid,mergeCommit',
     ],
     { cwd: dir, timeoutMs: 30_000 },
   ).stdout
@@ -563,12 +564,31 @@ function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
   return false
 }
 
-function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions): void {
+function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?: string): void {
   if (prGateSkipped(dir, opts)) return
   const branch = prGateBranch(dir)
-  const verdict = evaluateMerged(prGateSnapshots(dir, branch, opts), branch, opts.pr)
+  const verdict = evaluateMerged(prGateSnapshots(dir, branch, opts), branch, opts.pr, candidateSha)
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
   appendLog(dir, `complete ← PR #${verdict.number} MERGED`)
+}
+
+function checkCompletionEvidence(dir: string): string | undefined {
+  // loadConfig throws for malformed/unreadable config; absence alone is optional.
+  const config = loadConfig(dir)
+  if (config?.features.evidenceHarness !== true) {
+    checkGatePassMarkerGate(dir)
+    return undefined
+  }
+  const taskId = readTaskId(dir)
+  if (!taskId) throw new Error('done receipt requires the current task id')
+  const verdict = verifyDoneEvidenceReceipt({
+    root: dir,
+    taskId,
+    archetype: config.archetype ?? 'library',
+    maxAgeMin: getNumberFlag('ARBITER_EVIDENCE_MAX_AGE_MIN'),
+  })
+  if (!verdict.ok) throw new Error(verdict.reason)
+  return runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 15_000 }).stdout.trim()
 }
 
 function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
@@ -692,8 +712,8 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     complete: () => {
       // Marker first: it is the cheap local check, and the pre-existing gate-level contract must
       // keep failing before the network-touching PR verification runs.
-      checkGatePassMarkerGate(dir)
-      checkPrMergedGate(dir, opts)
+      const candidateSha = checkCompletionEvidence(dir)
+      checkPrMergedGate(dir, opts, candidateSha)
     },
   }
   phaseGates[to]?.()

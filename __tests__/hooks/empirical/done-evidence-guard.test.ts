@@ -1,10 +1,15 @@
 import { spawnSync, execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig, writeTaskStateFile } from '../../helpers.js'
+import {
+  makeConfig,
+  materializeGateEvidenceLib,
+  writeGatePassEvidence,
+  writeTaskStateFile,
+} from '../../helpers.js'
 import type { Archetype } from '../../../src/wizard/types.js'
 
 interface RealityContactBlock {
@@ -53,12 +58,18 @@ function setup(archetype: Archetype = 'library') {
   )
 
   writeTaskStateFile(dir, { phase: 'verification', tier: 'Standard', taskId: '#407' })
+  writeDoneReceipt(dir, 'passed')
 
   // Create a representative pinned file
   const srcDir = join(dir, 'src')
   mkdirSync(srcDir, { recursive: true })
   const pinnedContent = 'export const answer = 42;\n'
   writeFileSync(join(srcDir, 'main.ts'), pinnedContent)
+  materializeGateEvidenceLib(dir)
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir })
+  execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir })
+  execFileSync('git', ['add', '-A'], { cwd: dir })
+  execFileSync('git', ['commit', '-qm', 'fixture', '--no-gpg-sign'], { cwd: dir })
 
   return { dir, hookPath, pinnedContent }
 }
@@ -97,6 +108,27 @@ function writeEvidence(
   }
 
   writeFileSync(join(dir, '.claude', '.last-done-evidence.json'), JSON.stringify(evidence, null, 2))
+  const marker = writeGatePassEvidence(dir, { taskId: '#407', level: 'L3' })
+  const markerBytes = readFileSync(join(dir, '.arbiter', 'gate-pass.json'))
+  const receipt = {
+    ...evidence,
+    version: 2,
+    state: 'passed',
+    all_green,
+    gate_level: 'L3',
+    no_overclaim: true,
+    recorded_at: new Date().toISOString(),
+    gate_marker_sha256: sha256(markerBytes.toString('utf8')),
+    head_sha: String(marker.head_sha),
+    tree_hash: String(marker.tree_hash),
+    checkout_root: String(marker.checkout_root),
+    toolchain_fingerprint: String(marker.toolchain_fingerprint),
+    node_version: String(marker.node_version),
+    reality_contact: evidence.reality_contact ?? { required: false, passed: null },
+  }
+  const receiptDir = join(dir, '.arbiter', 'evidence', 'done')
+  mkdirSync(receiptDir, { recursive: true })
+  writeFileSync(join(receiptDir, '_407.json'), JSON.stringify(receipt, null, 2))
 }
 
 function runHook(
@@ -125,6 +157,15 @@ function writeArbiterConfig(dir: string, evidenceHarness: boolean) {
   )
 }
 
+function writeDoneReceipt(dir: string, state: 'passed' | 'failed') {
+  const receiptDir = join(dir, '.arbiter', 'evidence', 'done')
+  mkdirSync(receiptDir, { recursive: true })
+  writeFileSync(
+    join(receiptDir, '_407.json'),
+    JSON.stringify({ version: 2, task_id: '#407', state, recorded_at: new Date().toISOString() }),
+  )
+}
+
 describe('guard-done-evidence — empirical spawn', () => {
   it('exits 2 on done claim when evidence file is missing', () => {
     const { dir, hookPath } = setup()
@@ -132,7 +173,7 @@ describe('guard-done-evidence — empirical spawn', () => {
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
       expect(result.status).toBe(2)
       expect(result.stderr).toMatch(/DONE EVIDENCE/i)
-      expect(result.stderr).toMatch(/missing|not found/i)
+      expect(result.stderr).toMatch(/all-green L3|missing|not found/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -145,7 +186,7 @@ describe('guard-done-evidence — empirical spawn', () => {
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
       expect(result.status).toBe(2)
       expect(result.stderr).toMatch(/DONE EVIDENCE/i)
-      expect(result.stderr).toMatch(/all_green.*false|gate.*fail/i)
+      expect(result.stderr).toMatch(/all-green L3|gate.*fail/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -162,7 +203,7 @@ describe('guard-done-evidence — empirical spawn', () => {
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
       expect(result.status).toBe(2)
       expect(result.stderr).toMatch(/DONE EVIDENCE/i)
-      expect(result.stderr).toMatch(/sha.*mismatch|drift|modified/i)
+      expect(result.stderr).toMatch(/tree_hash mismatch|sha.*mismatch|drift|modified/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -190,6 +231,19 @@ describe('guard-done-evidence — empirical spawn', () => {
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
       expect(result.status).toBe(0)
       expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('AC-5: exits 2 when a failed v2 receipt follows otherwise-valid legacy evidence', () => {
+    const { dir, hookPath, pinnedContent } = setup()
+    try {
+      writeEvidence(dir, { all_green: true, pinnedContent })
+      writeDoneReceipt(dir, 'failed')
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/receipt.*not.*PASS|receipt.*failed|failed.*receipt/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -291,7 +345,7 @@ describe('guard-done-evidence — reality-contact (backend-web-db)', () => {
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
       expect(result.status).toBe(2)
       expect(result.stderr).toMatch(/DONE EVIDENCE/i)
-      expect(result.stderr).toMatch(/passed.*false|false.*passed/i)
+      expect(result.stderr).toMatch(/did not pass|passed.*false|false.*passed/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -377,7 +431,7 @@ describe('guard-done-evidence — reality-contact (frontend-spa)', () => {
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
       expect(result.status).toBe(2)
       expect(result.stderr).toMatch(/DONE EVIDENCE/i)
-      expect(result.stderr).toMatch(/passed.*false|false.*passed/i)
+      expect(result.stderr).toMatch(/did not pass|passed.*false|false.*passed/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

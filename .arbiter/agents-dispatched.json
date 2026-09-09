@@ -1,9 +1,7 @@
 {
-  "count": 1,
-  "agents": [
-    "docs2486-review"
-  ],
-  "branch": "task/#2486-pr-base-concurrency",
-  "sha": "440d87c093b99049b4bb3771b2b2a97c772c2f49",
-  "taskId": "#2486"
+  "count": 3,
+  "agents": ["independent-review", "silent-failures-review", "package-contract-review"],
+  "taskId": "#2597",
+  "branch": "task/#2597-pack-size-preflight",
+  "sha": "b6acf484ad4aa9922914a0d9e1c549a442aed811"
 }

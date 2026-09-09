@@ -15,12 +15,13 @@
  * copy whose *logic* drifted — an axis dropped from one verifier keeps every
  * constant identical. That gap is what this file closes.
  */
+import { createHash } from 'node:crypto'
 import { describe, it, expect, afterEach } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { verifyGatePassMarker } from '../../src/evidence/gate-binding.js'
+import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../../src/evidence/gate-binding.js'
 import {
   GATE_EVIDENCE_STRING_FIELDS,
   buildGateEvidence,
@@ -204,6 +205,15 @@ describe('#2328 engine verifier — level', () => {
     expect(verdict.ok).toBe(false)
     expect(String(verdict.reason)).toMatch(/below the required/i)
   })
+
+  it.each(['constructor', 'toString', '__proto__'])(
+    'AC-3 rejects inherited rank key %s on either axis',
+    (level) => {
+      const root = makeRepo()
+      expect(verdictOf(markerFor(root, { level }), { root, minLevel: 'L2' }).ok).toBe(false)
+      expect(verdictOf(markerFor(root), { root, minLevel: level }).ok).toBe(false)
+    },
+  )
 
   it('rejects an unknown marker level rather than treating it as sufficient', () => {
     const dir = makeRepo()
@@ -470,4 +480,91 @@ describe('#2615 done-evidence gate level — runtime acceptance', () => {
     expect(verdict.ok).toBe(false)
     expect(verdict.reason).toMatch(/not a known gate level/)
   })
+})
+
+describe('#2615 v2 completion receipt', () => {
+  function receiptFixture() {
+    const root = makeRepo()
+    const marker = markerFor(root, { level: 'L3' })
+    const bytes = JSON.stringify(marker)
+    mkdirSync(join(root, '.arbiter/evidence/done'), { recursive: true })
+    writeFileSync(join(root, '.arbiter/gate-pass.json'), bytes)
+    const receipt = {
+      version: 2,
+      task_id: '#2328',
+      state: 'passed',
+      recorded_at: new Date().toISOString(),
+      all_green: true,
+      no_overclaim: true,
+      gate_level: 'L3',
+      gate_marker_sha256: createHash('sha256').update(bytes).digest('hex'),
+      ...Object.fromEntries(
+        ['head_sha', 'tree_hash', 'checkout_root', 'toolchain_fingerprint', 'node_version'].map(
+          (k) => [k, marker[k]],
+        ),
+      ),
+      pinned_files: [
+        { path: 'src.txt', sha256: createHash('sha256').update('hello\n').digest('hex') },
+      ],
+      reality_contact: { archetype: 'library', required: false, passed: null },
+    }
+    const save = () =>
+      writeFileSync(join(root, '.arbiter/evidence/done/_2328.json'), JSON.stringify(receipt))
+    save()
+    return {
+      root,
+      receipt,
+      save,
+      verify: () => verifyDoneEvidenceReceipt({ root, taskId: '#2328', archetype: 'library' }),
+    }
+  }
+
+  it('AC-6 accepts a v2 receipt without changing marker identity', () => {
+    expect(receiptFixture().verify()).toEqual({ ok: true })
+  })
+
+  it.each(['pending', 'failed'])('AC-5 rejects %s after an earlier PASS', (state) => {
+    const f = receiptFixture()
+    f.receipt.state = state
+    f.save()
+    expect(f.verify().ok).toBe(false)
+  })
+
+  it('AC-6 rejects legacy, wrong task, marker substitution and pinned-file drift', () => {
+    const f = receiptFixture()
+    f.receipt.version = 1
+    f.save()
+    expect(f.verify().ok).toBe(false)
+    f.receipt.version = 2
+    f.receipt.task_id = '#other'
+    f.save()
+    expect(f.verify().ok).toBe(false)
+    f.receipt.task_id = '#2328'
+    f.save()
+    const markerPath = join(f.root, '.arbiter/gate-pass.json')
+    const marker = readFileSync(markerPath, 'utf8')
+    writeFileSync(markerPath, marker + '\n')
+    expect(f.verify().ok).toBe(false)
+    writeFileSync(markerPath, marker)
+    writeFileSync(join(f.root, 'src.txt'), 'changed')
+    expect(f.verify().ok).toBe(false)
+  })
+
+  it('AC-5 refuses corrupt and unreadable receipts', () => {
+    const f = receiptFixture()
+    const path = join(f.root, '.arbiter/evidence/done/_2328.json')
+    writeFileSync(path, '{')
+    expect(f.verify().ok).toBe(false)
+    rmSync(path)
+    mkdirSync(path)
+    expect(f.verify().ok).toBe(false)
+  })
+
+  it.each(['backend-web-db', 'frontend-spa'])(
+    'AC-5 cannot disable required runtime for %s',
+    (archetype) => {
+      const f = receiptFixture()
+      expect(verifyDoneEvidenceReceipt({ root: f.root, taskId: '#2328', archetype }).ok).toBe(false)
+    },
+  )
 })

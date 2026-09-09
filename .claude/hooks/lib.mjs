@@ -334,13 +334,15 @@ export function addedLinesVsHEAD(file) {
   if (diff.status !== 0) return { tracked: false, added: null }
   const added = []
   let newLine = 0
+  let inHunk = false
   for (const line of diff.stdout.split('\n')) {
     const hunk = /^@@\s+-\d+(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/.exec(line)
     if (hunk) {
+      inHunk = true
       newLine = parseInt(hunk[1], 10)
       continue
     }
-    if (line.startsWith('+++') || line.startsWith('---')) continue
+    if (!inHunk) continue
     if (line.startsWith('+')) {
       added.push({ line: newLine, content: line.slice(1) })
       newLine++

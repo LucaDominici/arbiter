@@ -1,0 +1,16 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "role": "reviewer",
+  "taskId": "#2599",
+  "branch": "task/#2599-diff-prefix-safety",
+  "sha": "94f944000ba5e0fa51a7256af9ac2957baf12f4c",
+  "verdict": "WARN",
+  "agent": "/root/code_2599_standards",
+  "ts": "2026-09-08T10:33:58.816Z",
+  "confidence": 0.98,
+  "findings": [],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}

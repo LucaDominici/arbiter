@@ -797,8 +797,13 @@ gh pr merge --merge
 ## Complete
 
 <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>
-Capture the done-evidence (runs the gate + pins source SHAs — releases the
-`guard-done-evidence` hook):
+Capture done-evidence on the final committed candidate **before push**. It reuses
+only a natively verified current L3 marker, otherwise runs one L3, then records
+pinned files and required runtime proof. The native push verifier may reuse this
+L3 at its L2 boundary. After merge, validate the unchanged receipt and exact refs;
+do not repeat capture merely because the phase advanced.
+
+Capture command (also releases the `guard-done-evidence` hook):
 
 ```bash
 node scripts/done-evidence.mjs
@@ -821,7 +826,9 @@ it reads the branch's PR (`gh pr list --head <branch> --state all`) and refuses 
 MERGED, naming the PR, its state and every check whose conclusion is FAILURE / TIMED_OUT /
 CANCELLED. A repo that lands by direct push passes `--no-pr` (logged as
 `complete ← no-pr (direct landing)`); `--pr <n>` names the PR when the branch carries more than
-one. An unreadable `gh` refuses too — an unverifiable landing is not a landing.
+one. With evidenceHarness active, the independent engine additionally requires the
+passed v2 receipt and PR head/merge refs matching the qualified candidate, with
+concluded successful CI. An unreadable `gh` refuses too — an unverifiable landing is not a landing.
 
 ```bash
 arbiter task advance --to complete

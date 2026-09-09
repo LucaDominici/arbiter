@@ -21,7 +21,10 @@ export interface PrSnapshot {
   number: number
   state: string
   mergeStateStatus?: string
-  statusCheckRollup?: readonly { name?: string; context?: string; conclusion?: string }[] | null
+  headRefOid?: string
+  mergeCommit?: { oid: string } | null
+  statusCheckRollup?:
+    readonly { name?: string; context?: string; conclusion?: string; state?: string }[] | null
 }
 
 export type MergedVerdict = { merged: true; number: number } | { merged: false; detail: string }
@@ -66,7 +69,37 @@ export function evaluateMerged(
   prs: readonly PrSnapshot[],
   branch: string,
   explicitPr?: number,
+  candidateSha?: string,
 ): MergedVerdict {
+  if (candidateSha !== undefined) {
+    const candidate = prs.find(
+      (pr) =>
+        pr.state === 'MERGED' &&
+        pr.headRefOid === candidateSha &&
+        (explicitPr === undefined || pr.number === explicitPr),
+    )
+    if (!candidate || candidate.mergeCommit?.oid !== candidateSha) {
+      return {
+        merged: false,
+        detail: 'Merged PR head/merge refs do not match the qualified candidate SHA.',
+      }
+    }
+    const checks = candidate.statusCheckRollup ?? []
+    if (
+      checks.length === 0 ||
+      checks.some(
+        (check) =>
+          !['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(check.conclusion ?? check.state ?? ''),
+      ) ||
+      !checks.some((check) => (check.conclusion ?? check.state) === 'SUCCESS')
+    ) {
+      return {
+        merged: false,
+        detail: 'Candidate CI is missing, pending or not successful.',
+      }
+    }
+    return { merged: true, number: candidate.number }
+  }
   if (explicitPr !== undefined) {
     const named = prs.find((pr) => pr.number === explicitPr)
     if (named === undefined) {

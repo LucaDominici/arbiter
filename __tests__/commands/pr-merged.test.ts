@@ -218,6 +218,17 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     ).toThrow(/not authenticated/)
   })
 
+  it('AC-5 harness completion refuses a missing v2 receipt before reading PRs', () => {
+    const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
+    config.features.evidenceHarness = true
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
+    stampMarker()
+    expect(() =>
+      runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] }),
+    ).toThrow(/done receipt/)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
   it('AC-2402.1: a merged PR completes, and the log records which PR it was', () => {
     runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] })
     expect(readUnifiedState(dir)?.phase).toBe('complete')
@@ -264,5 +275,63 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
       },
     })
     expect(readUnifiedState(dir)?.phase).toBe('complete')
+  })
+})
+
+describe('#2615 candidate landing identity', () => {
+  const sha = 'a'.repeat(40)
+  const landed = (): PrSnapshot =>
+    pr({
+      state: 'MERGED',
+      headRefOid: sha,
+      mergeCommit: { oid: sha },
+      statusCheckRollup: [{ name: 'CI', conclusion: 'SUCCESS' }],
+    })
+  it('AC-5 accepts only the qualified candidate with finished green CI', () => {
+    expect(evaluateMerged([landed()], BRANCH, undefined, sha).merged).toBe(true)
+    expect(
+      evaluateMerged(
+        [
+          {
+            ...landed(),
+            statusCheckRollup: [{ conclusion: 'SUCCESS' }, { conclusion: 'SKIPPED' }],
+          },
+        ],
+        BRANCH,
+        undefined,
+        sha,
+      ).merged,
+    ).toBe(true)
+    expect(evaluateMerged([pr({ state: 'MERGED' })], BRANCH, undefined, sha).merged).toBe(false)
+    expect(
+      evaluateMerged([{ ...landed(), headRefOid: 'b'.repeat(40) }], BRANCH, undefined, sha).merged,
+    ).toBe(false)
+    expect(
+      evaluateMerged(
+        [{ ...landed(), mergeCommit: { oid: 'b'.repeat(40) } }],
+        BRANCH,
+        undefined,
+        sha,
+      ).merged,
+    ).toBe(false)
+    expect(
+      evaluateMerged(
+        [{ ...landed(), statusCheckRollup: [{ conclusion: 'FAILURE' }] }],
+        BRANCH,
+        undefined,
+        sha,
+      ).merged,
+    ).toBe(false)
+    expect(
+      evaluateMerged(
+        [{ ...landed(), statusCheckRollup: [{ conclusion: '' }] }],
+        BRANCH,
+        undefined,
+        sha,
+      ).merged,
+    ).toBe(false)
+    expect(
+      evaluateMerged([{ ...landed(), statusCheckRollup: [] }], BRANCH, undefined, sha).merged,
+    ).toBe(false)
   })
 })

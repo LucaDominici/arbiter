@@ -355,7 +355,9 @@ it reads the branch's PR (`gh pr list --head <branch> --state all`) and refuses 
 MERGED, naming the PR, its state and every check whose conclusion is FAILURE / TIMED_OUT /
 CANCELLED. A repo that lands by direct push passes `--no-pr` (logged as
 `complete ← no-pr (direct landing)`); `--pr <n>` names the PR when the branch carries more than
-one. An unreadable `gh` refuses too — an unverifiable landing is not a landing.
+one. With evidenceHarness active, the independent engine additionally requires the
+passed v2 receipt and PR head/merge refs matching the qualified candidate, with
+concluded successful CI. An unreadable `gh` refuses too — an unverifiable landing is not a landing.
 
 ```bash
 arbiter task advance --to complete

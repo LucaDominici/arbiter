@@ -72,6 +72,15 @@ export function computeSkipped(changedFiles, registry, blacklist) {
   return skipped
 }
 
+// Only an actual PASS in this process permits dropping the repeated smoke file.
+export function integrationSuiteArgs(results) {
+  const args = ['vitest', 'run', '--config', 'vitest.integration.config.ts', '--silent']
+  if (results.some((result) => result.name === 'greenfield smoke' && result.status === 'PASS')) {
+    args.push('--exclude', '__tests__/integration/init-greenfield-smoke.test.ts')
+  }
+  return args
+}
+
 if (isMain) {
   const parsedArgs = parseCheckArgs(process.argv.slice(2))
   const { subcommand, jsonPath: _parsedJsonPath } = parsedArgs
@@ -608,11 +617,11 @@ if (isMain) {
     ])
     runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
     runCheck('script cohesion (INV-94)', 'node', ['scripts/check-script-cohesion.mjs'])
-    // INV-25 (#1039): full integration suite in L2 gate — 19 files, not just smoke
+    // INV-25: retain the full corpus; reuse only the smoke PASS from this run.
     runCheck(
       'integration suite (INV-25)',
       'npx',
-      ['vitest', 'run', '--config', 'vitest.integration.config.ts', '--silent'],
+      integrationSuiteArgs(getResults()),
       vitestEnv ? { env: vitestEnv } : {},
     )
     // INV-25 (#1040): BDD layer

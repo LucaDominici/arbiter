@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { matchesGlob, resolve } from 'node:path'
 import integrationConfig from '../../vitest.integration.config'
+import { integrationSuiteArgs } from '../../scripts/check-all.mjs'
 
 const SCRIPT = resolve('scripts/check-all.mjs')
 const content = readFileSync(SCRIPT, 'utf-8')
@@ -10,13 +11,6 @@ const BAKE_SUITE = '__tests__/integration/e2e/bake/fixture-bake.test.ts'
 function integrationIncludePatterns(): string[] {
   const test = (integrationConfig as { test?: { include?: string[] } }).test
   return test?.include ?? []
-}
-
-function integrationSuiteArgv(): string[] {
-  const step = content.match(/'integration suite \(INV-25\)'\s*,\s*'npx'\s*,\s*(\[[\s\S]*?\])/)
-  expect(step, 'integration suite (INV-25) must have a static argv array').not.toBeNull()
-
-  return [...step![1].matchAll(/['"]([^'"]+)['"]/g)].map(([, argument]) => argument!)
 }
 
 describe('check-all.mjs L1 wiring', () => {
@@ -55,9 +49,9 @@ describe('check-all.mjs L1 wiring', () => {
   it('runs the self L2 integration suite with bounded Vitest output', () => {
     const idx = content.indexOf("'integration suite (INV-25)'")
     expect(idx).toBeGreaterThan(-1)
-    const surrounding = content.slice(idx, idx + 220)
-    expect(surrounding).toContain("'vitest.integration.config.ts'")
-    expect(surrounding).toContain("'--silent'")
+    const surrounding = JSON.stringify(integrationSuiteArgs([]))
+    expect(surrounding).toContain('vitest.integration.config.ts')
+    expect(surrounding).toContain('--silent')
   })
 
   it("the bake suite is collected by the gate's integration config", () => {
@@ -66,12 +60,29 @@ describe('check-all.mjs L1 wiring', () => {
     expect(includePatterns.some((pattern) => matchesGlob(BAKE_SUITE, pattern))).toBe(true)
   })
 
-  it('the L2 integration step runs the suite unfiltered', () => {
-    const pathArguments = integrationSuiteArgv().filter((argument) =>
-      argument.startsWith('__tests__/'),
-    )
+  it('excludes only the smoke suite after its PASS in this run', () => {
+    const args = integrationSuiteArgs([{ name: 'greenfield smoke', status: 'PASS' }])
+    expect(args).toEqual([
+      'vitest',
+      'run',
+      '--config',
+      'vitest.integration.config.ts',
+      '--silent',
+      '--exclude',
+      '__tests__/integration/init-greenfield-smoke.test.ts',
+    ])
+    expect(content).toContain('integrationSuiteArgs(getResults())')
+  })
 
-    expect(pathArguments).toEqual([])
+  it.each(['FAIL', 'SKIP', 'WARN', 'TIMEOUT'])('keeps smoke after %s', (status) => {
+    expect(integrationSuiteArgs([{ name: 'greenfield smoke', status }])).not.toContain('--exclude')
+  })
+
+  it('keeps smoke when there is no same-run result or another check passed', () => {
+    expect(integrationSuiteArgs([])).not.toContain('--exclude')
+    expect(integrationSuiteArgs([{ name: 'unit tests', status: 'PASS' }])).not.toContain(
+      '--exclude',
+    )
   })
 
   it('check-all.mjs records why the bake golden masters are L2-only, not L1', () => {

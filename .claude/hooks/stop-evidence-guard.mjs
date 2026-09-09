@@ -104,6 +104,30 @@ function main() {
     return git(['merge-base', '--is-ancestor', sha, 'HEAD']).status === 0
   }
 
+  let config = {}
+  try {
+    config = JSON.parse(readFileSync(join(root, 'arbiter.json'), 'utf8'))
+    if (!config || typeof config !== 'object' || Array.isArray(config))
+      fail('harness config must be an object')
+  } catch (err) {
+    if (err.code !== 'ENOENT') fail(`harness config unreadable or malformed: ${err.message}`)
+  }
+  const harnessOverride = process.env.ARBITER_EVIDENCE_HARNESS
+  const harnessEnabled =
+    harnessOverride === '1' ||
+    harnessOverride === 'true' ||
+    (!['0', 'false'].includes(harnessOverride) && config.features?.evidenceHarness === true)
+  if (harnessEnabled) {
+    if (typeof gateEvidence?.verifyDoneEvidenceReceipt !== 'function')
+      fail('done receipt verifier unavailable')
+    const doneVerdict = gateEvidence.verifyDoneEvidenceReceipt({
+      root,
+      taskId,
+      archetype: 'library',
+    })
+    if (!doneVerdict.ok) fail(doneVerdict.reason)
+  }
+
   // 1. plan-review — verdict PASS, on this branch, sha is an ancestor of HEAD.
   // Deliberately ancestor-only: a plan is reviewed BEFORE the implementation commits, so
   // source necessarily changes afterwards. The #2399 source-unchanged binding applies to

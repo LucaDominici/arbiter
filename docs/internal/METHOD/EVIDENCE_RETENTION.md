@@ -2,7 +2,7 @@
 title: 'Evidence Retention Policy — arbiter'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-29'
+last_review: '2026-09-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/method']
@@ -24,14 +24,13 @@ the flag flip the single owner-flippable activation switch — the artifacts (ho
 script, wiring) travel with it, so flipping the flag alone turns enforcement on.
 
 Env override `ARBITER_EVIDENCE_HARNESS` (`1`/`true` on, `0`/`false` off) takes
-precedence over `arbiter.json` for testing/CI. Fail-open (inert) when `arbiter.json`
-is absent or unreadable — a missing flag never hard-blocks completion claims.
+precedence over `arbiter.json` for testing/CI. An absent `arbiter.json` leaves the optional harness inert. Malformed or unreadable configuration blocks completion; it cannot disable enforcement.
 
 ## Scripts
 
-| Script                      | Purpose                                                                                                                 | When to run                                                                  |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `scripts/done-evidence.mjs` | Run the L4 gate, then capture SHA-256 of load-bearing source files + gate state into `.claude/.last-done-evidence.json` | Before claiming a task done — the `guard-done-evidence` hook reads this file |
+| Script                      | Purpose                                                                                                                    | When to run                                                                  |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `scripts/done-evidence.mjs` | Reuse a valid current L3 marker or run one L3, then capture a v2 receipt in `.arbiter/evidence/done/<sanitized-task>.json` | Before claiming a task done — the `guard-done-evidence` hook reads this file |
 
 ## Hook
 
@@ -41,16 +40,28 @@ is absent or unreadable — a missing flag never hard-blocks completion claims.
 - task phase is `verification`, and
 - the prompt contains a completion claim (`task complete`, `pr merged`, …).
 
-It then validates `.claude/.last-done-evidence.json`: `all_green === true`,
-`pinned_files` non-empty, and every pinned SHA matches the file on disk. Any drift
-since evidence was captured hard-blocks the completion claim (exit 2).
+The prompt and Stop guards validate the same receipt contract as the independent
+engine used by `arbiter task advance --to complete`: current task, passed state,
+exact marker digest, candidate identity, readable matching pinned files and
+required runtime proof. Backend live API and frontend render/visual requirements
+cannot be disabled with `required:false`. Missing, corrupt, pending, failed or
+stale evidence blocks completion.
 
-## Location
+## Location and capture order
 
-The evidence snapshot is `.claude/.last-done-evidence.json` (last capture only —
-single-file, gitignored). Rotation to a run-history directory is a future
-enhancement (templates `evidence-rotate.mjs.ejs` / `evidence-prune.mjs.ejs` exist
-for target projects that opt in); arbiter dogfoods the single-snapshot path.
+The current receipt is `.arbiter/evidence/done/<sanitized-task>.json`. Sanitization
+uses the native task-id whitelist and length limit; the original task id must also
+match. Capture atomically writes `pending` before configuration or gates, records
+`failed` on an unsuccessful attempt, and publishes `passed` only after verification.
+
+The exact legacy `.claude/.last-done-evidence.json` is moved into retained history
+under `.arbiter/evidence/done/legacy/` before qualification and never accepted as a
+fallback. Receipt writes stay outside source identity; other `.claude` content
+remains part of the qualified tree.
+
+Run capture on the final committed candidate before push. A valid L3 marker also
+satisfies the native L2 push boundary. After landing, verify receipt and exact PR
+head/merge refs plus concluded CI without repeating unchanged suites.
 
 ## Governance
 
