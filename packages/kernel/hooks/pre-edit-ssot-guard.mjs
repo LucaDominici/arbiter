@@ -7,9 +7,23 @@
 //   1. ARBITER_SSOT_BYPASS=1 (session-scoped — see CONTRIBUTING.md). Logged on every
 //      hook invocation while set, parity with pre-edit-plan-anchor's ARBITER_PLAN_BYPASS
 //      accounting (#1949) — no longer a silent exit.
-//   2. One-shot file at .arbiter/ssot-bypass: write a single-line reason and retry the
-//      edit. Consumed (deleted) on the NEXT guarded-file attempt regardless of outcome;
-//      logged as a BYPASS event only when the reason is non-empty.
+//   2. One-shot file at .arbiter/ssot-bypass, PATH-SCOPED since #2493: line 1 is the
+//      path the bypass authorizes (repo-relative or absolute), lines 2+ are the reason.
+//      It is honoured ONLY for that exact path and consumed only by an attempt on it, so
+//      a marker written to authorize X can no longer be spent authorizing an edit to Y.
+//      A marker naming no target authorizes nothing (and is consumed, so it cannot
+//      linger looking live).
+//
+// Anchoring (#2493): every repo-relative decision below — `rel`, the arbiter.json
+// pattern read, the marker location, the file-bypass evidence log — is anchored at the
+// worktree the EDITED FILE lives in (`git -C <the file's dir> rev-parse --show-toplevel`),
+// not at the hook process's cwd. Anchoring at the process cwd silently un-guarded every
+// sanctioned worktree: `arbiter worktree open` places those at
+// `<repoParent>/<repoName>.worktrees/<slug>` (src/worktree/paths.ts), a SIBLING of the
+// main root, so `relative(mainRoot, fileInWorktree)` began with '..' and the guard
+// exited 0 before matching a single pattern. Repo MEMBERSHIP is NOT re-derived here —
+// isPathInThisRepo() owns it (git identity, not a path prefix; see lib.mjs); this anchor
+// only decides WHICH worktree's state to read.
 //
 // Guarded paths: DEFAULT_SSOT_PATTERNS below, extended with arbiter.json
 // `governance.ssotGuardPatterns` (array of repo-relative substrings) when present.
@@ -17,7 +31,7 @@
 import { spawnSync } from 'node:child_process'
 import { resolve, relative, join, dirname } from 'node:path'
 import { readFileSync, existsSync, rmSync, mkdirSync, appendFileSync } from 'node:fs'
-import { resolveToolInputPath } from './lib.mjs'
+import { resolveToolInputPath, isPathInThisRepo } from './lib.mjs'
 
 const DEFAULT_SSOT_PATTERNS = [
   'AGENTS.md',
@@ -53,15 +67,40 @@ function logBypass(repoRoot, record) {
   }
 }
 
-// Anchor to repo root so external paths with matching names are not blocked.
-const gitResult = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+/** Nearest existing ancestor directory of `abs` — a Write may target a not-yet-created tree. */
+function nearestExistingDir(abs) {
+  let dir = dirname(abs)
+  for (;;) {
+    if (existsSync(dir)) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return null
+    dir = parent
+  }
+}
+
+/** Worktree root that owns `abs` (#2493), or null when git cannot name one. */
+function worktreeRootFor(abs) {
+  const dir = nearestExistingDir(abs)
+  if (dir === null) return null
+  const r = spawnSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], { encoding: 'utf-8' })
+  if (r.status !== 0) return null
+  return r.stdout.trim() || null
+}
+
+// The hook PROCESS's own checkout. Used only for the session-scoped env-var bypass
+// accounting below, which fires before repo membership is known — anchoring that log at
+// the edited file instead would write evidence into whatever foreign repo it belongs to.
+// Falls back to CWD when git is unavailable (e.g. an rsync temp dir).
+const selfResult = spawnSync('git', ['rev-parse', '--show-toplevel'], {
   encoding: 'utf-8',
 })
-// Fall back to CWD when git is unavailable (e.g. rsync temp dir); still anchors correctly.
-const repoRoot = gitResult.stdout.trim() || process.cwd()
+const selfRoot = selfResult.stdout.trim() || process.cwd()
+
+// fd 0 is consumable once, so this must be read before any branch that exits.
+const file = resolveToolInputPath()
 
 if (process.env.ARBITER_SSOT_BYPASS === '1') {
-  logBypass(repoRoot, {
+  logBypass(selfRoot, {
     env: 'ARBITER_SSOT_BYPASS',
     value: '1',
     bypassed: true,
@@ -70,12 +109,24 @@ if (process.env.ARBITER_SSOT_BYPASS === '1') {
   process.exit(0)
 }
 
-const file = resolveToolInputPath()
-const absFile = resolve(file)
-const rel = relative(repoRoot, absFile)
+// #565: another repo's governance documents are not this repo's SSOT. The `rel` anchor
+// below is cwd-derived, so with the session cwd inside that repo its own AGENTS.md would
+// otherwise match — which is how a sibling repo's edit got blocked from here.
+if (!isPathInThisRepo(file)) process.exit(0)
 
-// If file is outside the repo, allow it.
-if (rel.startsWith('..')) process.exit(0)
+const absFile = resolve(file)
+// #2493: anchor at the EDITED FILE's worktree, not this process's cwd. Fail-closed
+// (INV-96) when git cannot name one: fall back to this process's root rather than
+// skipping the guard.
+const repoRoot = worktreeRootFor(absFile) ?? selfRoot
+const relRaw = relative(repoRoot, absFile)
+
+// Membership was already settled above by isPathInThisRepo (git identity). A '..' here
+// therefore means the ANCHOR is wrong, not that the file is foreign — and the pre-#2493
+// code exited 0 on exactly this condition, which is what left every sibling worktree
+// unguarded. Match on the absolute path instead so a mis-anchored in-repo file stays
+// guarded; foreign paths never reach this line.
+const rel = relRaw.startsWith('..') ? absFile : relRaw
 
 // Config-driven guarded-path list (#2045): read arbiter.json at runtime rather than
 // baking the pattern list into this file, so adding a guarded path never requires
@@ -102,26 +153,39 @@ const SSOT_PATTERNS = loadSsotPatterns(repoRoot)
 const matched = SSOT_PATTERNS.some((pattern) => rel.includes(pattern))
 if (!matched) process.exit(0)
 
-// One-shot file bypass (#2045). Consumed (deleted) on this guarded-file attempt
-// regardless of outcome.
+// One-shot file bypass (#2045), PATH-SCOPED since #2493: line 1 names the single path
+// the marker authorizes, lines 2+ carry the reason. Anchored at the edited file's own
+// worktree, so a marker written in one worktree cannot authorize an edit in another.
 const BYPASS_FILE = join(repoRoot, '.arbiter', 'ssot-bypass')
 if (existsSync(BYPASS_FILE)) {
-  let reason = ''
+  let raw = ''
   try {
-    reason = readFileSync(BYPASS_FILE, 'utf-8').trim()
-    // FAIL-OPEN-INTENT: an unreadable bypass file is treated as an empty reason (falls through to blocked below), never throws past the guard decision.
+    raw = readFileSync(BYPASS_FILE, 'utf-8')
+    // FAIL-OPEN-INTENT: an unreadable bypass file is treated as an empty marker (falls through to blocked below), never throws past the guard decision.
   } catch {
-    reason = ''
+    raw = ''
   }
-  try {
-    rmSync(BYPASS_FILE, { force: true })
-    // FAIL-OPEN-INTENT: a deletion failure must not block the bypass/deny decision below — best-effort one-shot consumption.
-  } catch {
-    /* best-effort deletion; the bypass/deny decision below proceeds regardless */
+  const lines = raw.split('\n')
+  const target = (lines[0] ?? '').trim()
+  const reason = lines.slice(1).join('\n').trim()
+  // An UNSCOPED marker (no target line) authorizes nothing — that shape is exactly the
+  // #2493 defect, where a marker meant for X was silently spent on Y. It is still
+  // consumed so a malformed file cannot sit around looking like a live authorization.
+  const authorizes = target.length > 0 && resolve(repoRoot, target) === absFile
+  if (target.length === 0 || authorizes) {
+    try {
+      rmSync(BYPASS_FILE, { force: true })
+      // FAIL-OPEN-INTENT: a deletion failure must not block the bypass/deny decision below — best-effort one-shot consumption.
+    } catch {
+      /* best-effort deletion; the bypass/deny decision below proceeds regardless */
+    }
   }
-  if (reason.length > 0) {
+  // A marker for a DIFFERENT path is left in place: it is one-shot for ITS target, and
+  // an unrelated attempt must not be able to destroy a pending authorization either.
+  if (authorizes && reason.length > 0) {
     logBypass(repoRoot, {
       file: rel,
+      target,
       reason,
       bypassed: true,
       gate: 'pre-edit-ssot-guard',
@@ -134,6 +198,7 @@ if (existsSync(BYPASS_FILE)) {
 process.stderr.write(
   `[arbiter] SSOT GUARD: ${file} is a high-authority governance document.\n` +
     `Editing requires explicit ADR or amendment. Set ARBITER_SSOT_BYPASS=1 for a session-scoped\n` +
-    `bypass, or write a one-line reason to .arbiter/ssot-bypass for a one-shot bypass on retry.\n`,
+    `bypass, or write "<path>\\n<reason>" (path on line 1, reason on line 2) to\n` +
+    `${join(relative(process.cwd(), repoRoot) || '.', '.arbiter', 'ssot-bypass')} for a one-shot bypass of THAT path on retry.\n`,
 )
 process.exit(2)

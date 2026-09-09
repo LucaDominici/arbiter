@@ -48,10 +48,14 @@ describe('setup-node-pnpm/action.yml.ejs — structural invariants (CANON-18, #1
     expect(rendered).toContain('shell: bash')
   })
 
-  it('still sets up node from .nvmrc with npm cache', () => {
+  it('uses remote npm caching only on ephemeral GitHub-hosted runners', () => {
     const rendered = renderAction()
     expect(rendered).toContain('node-version-file')
-    expect(rendered).toContain('cache: npm')
+    for (const action of [rendered, SELF_ACTION]) {
+      expect(action).toContain('package-manager-cache: false')
+      expect(action).toContain("cache: ${{ runner.environment == 'github-hosted' && 'npm' || '' }}")
+      expect(action).not.toContain('cache: npm')
+    }
   })
 })
 

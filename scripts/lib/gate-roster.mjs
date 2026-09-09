@@ -57,7 +57,10 @@ export const MIN_ABSENCE_FAMILY = 25
  * row". Anchoring the ceiling in source makes that claim true of the data file: the ledger can no
  * longer authorise its own growth. Growing it is a source edit, reviewed as one.
  */
-export const MAX_DEFERRED = 16
+// #2514 lowered this 16 -> 15: the "no redacted tokens" row moved out of the deferral
+// ledger to a real flip proof, so the ceiling must fall with it. Unbanked improvement is
+// a failure in this repo (AGENTS.md §template-tests baseline).
+export const MAX_DEFERRED = 15
 
 /**
  * Every mechanism invoked by check-all.mjs, in declaration order. Returns { name, tool, path }

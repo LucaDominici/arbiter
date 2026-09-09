@@ -1,0 +1,54 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "skeptic-wiki-proof-three",
+  "role": "skeptic",
+  "taskId": "#2599",
+  "branch": "task/#2599-diff-prefix-safety",
+  "sha": "0c90670d6683f9a3209463c3d14b04494c142e08",
+  "ts": "2026-09-08T11:43:44.856Z",
+  "verdict": "WARN",
+  "confidence": 0.9,
+  "findings": [
+    {
+      "id": "WIKI-PREVIEW-COMPLETE-NOT-APPLIED",
+      "severity": "med",
+      "kind": "structural",
+      "claim": "preview-complete.log regenerates the fix only inside an isolated temp copy; the tracked wiki/internal-system-hook-contracts.md is not shown regenerated and diff -qr wiki/ <tmp>/ still exits 1, so the real wiki/ tree remains unproven-fixed by this artifact.",
+      "citations": [
+        {
+          "file": ".arbiter/evidence/wiki-preview/2599/preview-complete.log",
+          "line": 16
+        },
+        {
+          "file": ".arbiter/evidence/wiki-preview/2599/preview-complete.log",
+          "line": 20
+        }
+      ]
+    }
+  ],
+  "refutations": [
+    {
+      "target": "WIKI-PREVIEW-PROVENANCE",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": ".arbiter/evidence/wiki-preview/2599/preview.log",
+          "line": 1
+        },
+        {
+          "file": ".arbiter/evidence/wiki-preview/2599/preview.log",
+          "line": 8
+        },
+        {
+          "file": "scripts/gen-wiki.mjs",
+          "line": 325
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "vendor": "anthropic",
+    "dispatch": "external-cli",
+    "cli": "claude"
+  }
+}

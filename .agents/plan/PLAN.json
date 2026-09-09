@@ -34,7 +34,7 @@
     },
     {
       "path": "__tests__/fixtures/pack-contract-2597.json",
-      "operation": "create"
+      "operation": "modify"
     },
     {
       "path": "__tests__/integration/e2e/functional/packaged-artifact.test.ts",

@@ -373,9 +373,11 @@ function checkAgentEnvelope(agent, sidecar, task, files, valid) {
     .filter(({ envelope, file }) => envelope['agent'] === agent && isAgentEnvelopeFile(file, agent))
     .map(({ envelope }) => envelope)
   const taskMatch = matching.filter((envelope) => envelope['taskId'] === task)
-  const branchMatch = taskMatch.find(
+  const branchMatches = taskMatch.filter(
     (envelope) => envelope['branch'] === sidecar.branch && envelope['role'] === 'reviewer',
   )
+  const branchMatch =
+    branchMatches.find((envelope) => envelope['sha'] === sidecar.sha) ?? branchMatches[0]
   if (branchMatch) {
     if (branchMatch['sha'] === sidecar.sha) return null
     return `${agent}: provenance mismatch — expected sha ${sidecar.sha}, observed ${branchMatch['sha']}`

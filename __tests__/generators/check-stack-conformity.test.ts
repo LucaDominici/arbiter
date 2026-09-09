@@ -162,6 +162,116 @@ describe('emitted check-stack-conformity.mjs — runtime conformity (#1312)', ()
     }
   })
 
+  it('AC-1: optional nested pg peer in package-lock.json does not contradict sqlite', () => {
+    const { dir: d, cleanup } = stage({
+      'arbiter.json': JSON.stringify({ language: 'typescript', databaseEngine: 'sqlite' }),
+      'package.json': JSON.stringify({ dependencies: { 'drizzle-orm': '^0.44' } }),
+      'package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': { dependencies: { 'drizzle-orm': '^0.44' } },
+          'node_modules/drizzle-orm': {
+            peerDependencies: { pg: '>=8' },
+            peerDependenciesMeta: { pg: { optional: true } },
+          },
+        },
+      }),
+    })
+    try {
+      expect(run(d).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-1: pg mentioned only in a package script or description does not contradict sqlite', () => {
+    const { dir: d, cleanup } = stage({
+      'arbiter.json': JSON.stringify({ language: 'typescript', databaseEngine: 'sqlite' }),
+      'package.json': JSON.stringify({
+        description: 'document pg migration compatibility',
+        scripts: { check: 'echo pg' },
+        dependencies: { 'drizzle-orm': '^0.44' },
+      }),
+    })
+    try {
+      expect(run(d).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-1: pg mentioned only in yarn.lock does not contradict sqlite', () => {
+    const { dir: d, cleanup } = stage({
+      'arbiter.json': JSON.stringify({ language: 'typescript', databaseEngine: 'sqlite' }),
+      'package.json': JSON.stringify({ dependencies: { 'drizzle-orm': '^0.44' } }),
+      'yarn.lock': 'pg@^8.0.0:\n  version "8.0.0"\n',
+    })
+    try {
+      expect(run(d).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-1: pg mentioned only in bun.lock does not contradict sqlite', () => {
+    const { dir: d, cleanup } = stage({
+      'arbiter.json': JSON.stringify({ language: 'typescript', databaseEngine: 'sqlite' }),
+      'package.json': JSON.stringify({ dependencies: { 'drizzle-orm': '^0.44' } }),
+      'bun.lock': 'pg@^8.0.0:\n  version "8.0.0"\n',
+    })
+    try {
+      expect(run(d).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it.each([
+    ['go.mod', 'module example.com/x\n\nrequire github.com/lib/pq v1.10.9\n'],
+    ['go.sum', 'github.com/lib/pq v1.10.9 h1:placeholder\n'],
+  ])('unit 3: declared sqlite + lib/pq in root %s ⇒ exit 1', (path, content) => {
+    const { dir: d, cleanup } = stage({
+      'arbiter.json': JSON.stringify({ language: 'go', databaseEngine: 'sqlite' }),
+      [path]: content,
+    })
+    try {
+      const r = run(d)
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('lib/pq')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it.each(['github.com/notlib/pq v1.10.9\n', 'github.com/lib/pq-extra v1.10.9\n'])(
+    'unit 3: declared sqlite + non-driver %s in root go.mod ⇒ exit 0',
+    (content) => {
+      const { dir: d, cleanup } = stage({
+        'arbiter.json': JSON.stringify({ language: 'go', databaseEngine: 'sqlite' }),
+        'go.mod': `module example.com/x\n\nrequire ${content}`,
+      })
+      try {
+        expect(run(d).status).toBe(0)
+      } finally {
+        cleanup()
+      }
+    },
+  )
+
+  it('unit 3: malformed root package.json ⇒ exit 2 with ERROR', () => {
+    const { dir: d, cleanup } = stage({
+      'arbiter.json': JSON.stringify({ language: 'typescript', databaseEngine: 'sqlite' }),
+      'package.json': '{ malformed',
+    })
+    try {
+      const r = run(d)
+      expect(r.status).toBe(2)
+      expect(r.stderr).toContain('ERROR')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('unit 3: declared sqlite + matching sqlite driver ⇒ exit 0', () => {
     const { dir: d, cleanup } = stage({
       'arbiter.json': JSON.stringify({ language: 'typescript', databaseEngine: 'sqlite' }),

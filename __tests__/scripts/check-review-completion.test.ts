@@ -220,6 +220,45 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/sha/i)
   })
 
+  it.each([false, true])('finds the exact return with stale-first=%s (AC-4)', (staleFirst) => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope(
+      'alpha-0',
+      envelope('alpha', { sha: staleFirst ? 'deadbeef' : '0123456789abcdef' }),
+    )
+    writeEnvelope(
+      'alpha-1',
+      envelope('alpha', { sha: staleFirst ? '0123456789abcdef' : 'deadbeef' }),
+    )
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it.each([
+    { taskId: '#9999' },
+    { role: 'scanner' },
+    { sha: 'feedbeef' },
+    { confidence: 2 },
+    { agent: 'beta' },
+  ])('rejects invalid current identity beside stale history %j (AC-4)', (invalid) => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope('alpha-0', envelope('alpha', { sha: 'deadbeef' }))
+    writeEnvelope('alpha-1', envelope('alpha', invalid))
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(1)
+  })
+
+  it.each(['WARN', 'FAIL'])(
+    'preserves soft completion for an exact %s return (AC-4)',
+    (verdict) => {
+      writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+      writeEnvelope('alpha-0', envelope('alpha', { sha: 'deadbeef' }))
+      writeEnvelope('alpha-1', envelope('alpha', { verdict }))
+
+      expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+    },
+  )
+
   it('uses the legacy count fallback when two reviewer envelopes were returned', () => {
     writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef' })
     writeEnvelope('alpha', envelope('alpha'))

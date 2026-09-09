@@ -18,6 +18,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { runInNewContext } from 'node:vm'
 import { parse as parseYaml } from 'yaml'
 import { renderTemplate } from '../../src/utils/render.js'
 
@@ -31,6 +32,64 @@ const TIER_WORKFLOWS = [
 ] as const
 
 const BRANCHING_STRATEGIES = ['github-flow', 'github-flow-with-develop'] as const
+
+describe('#2486 — PR concurrency distinguishes head and base', () => {
+  // Evaluate only the expressions extracted from these repository-owned workflows.
+  // Their boolean/string subset shares JS semantics; workflow syntax is checked by actionlint.
+  function group(workflow: string, head: string, base: string, ref = 'main'): string {
+    const doc = parseYaml(workflow) as { concurrency: { group: string } }
+    return doc.concurrency.group.replace(/\$\{\{(.*?)\}\}/g, (_match, expression: string) =>
+      String(
+        runInNewContext(expression, {
+          github: { head_ref: head, base_ref: base, ref_name: ref },
+          format: (pattern: string, value: string) => pattern.replace('{0}', value),
+        }),
+      ),
+    )
+  }
+
+  function assertIdentity(workflow: string, out: string) {
+    const prefix = out === '01-pr-fast.yml' ? 'pr-fast' : 'pr-extended'
+    expect(group(workflow, 'task/fix', 'main')).toBe(`${prefix}-task/fix-main`)
+    expect(group(workflow, 'task/fix', 'train/batch')).toBe(`${prefix}-task/fix-train/batch`)
+    expect(group(workflow, 'task/fix', 'main', '17/merge')).toBe(
+      group(workflow, 'task/fix', 'main', '18/merge'),
+    )
+    expect(group(workflow, '', '', 'main')).toBe(`${prefix}-main`)
+    expect(group(workflow, '', '', 'develop')).toBe(`${prefix}-develop`)
+  }
+
+  it.each(TIER_WORKFLOWS)('committed %s preserves event identity', (out) => {
+    assertIdentity(readFileSync(`.github/workflows/${out}`, 'utf-8'), out)
+  })
+
+  const cases = TIER_WORKFLOWS.flatMap(([out, tpl]) =>
+    BRANCHING_STRATEGIES.flatMap((branchingStrategy) =>
+      [
+        ['typescript', 'npm'],
+        ['java', 'gradle'],
+        ['go', 'go'],
+        ['python', 'pip'],
+        ['rust', 'cargo'],
+      ].flatMap(([language, buildTool]) =>
+        ['L1', 'L2', 'L3', 'L4'].map((governanceLevel) => ({
+          out,
+          tpl,
+          branchingStrategy,
+          language,
+          buildTool,
+          governanceLevel,
+        })),
+      ),
+    ),
+  )
+  it.each(cases)(
+    '$out $branchingStrategy $language $governanceLevel',
+    ({ out, tpl, ...config }) => {
+      assertIdentity(renderTemplate(tpl, { ...CI_CTX, ...config }), out)
+    },
+  )
+})
 
 /** The `on:` mapping of a workflow doc, tolerating a YAML 1.1 loader folding `on` → true. */
 function triggers(doc: Record<string, unknown>): Record<string, unknown> {

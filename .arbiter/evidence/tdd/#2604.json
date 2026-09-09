@@ -1,0 +1,18 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2604",
+  "test_path": "__tests__/scripts/probe-hooks.test.ts",
+  "test_commit_sha": "af3aad50165555cd08921ed8cb8f167b40f6d136",
+  "test_blob_sha": "47daed6b95704ed8c12ec570ae41ae237d2a6d52",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/probe-hooks.test.ts (21 tests | 1 failed | 20 skipped) 1136ms\n     × hands a diff-scanning hook a real edit in every applicable state (#2604) 1133ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 20 skipped (21)\n   Start at  14:47:59\n   Duration  1.92s (transform 188ms, setup 25ms, import 205ms, tests 1.14s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/probe-hooks.test.ts > probe-hooks liveness contract (#2135) > hands a diff-scanning hook a real edit in every applicable state (#2604)\nAssertionError: expected [ { …(7) }, { …(7) }, { …(6) }, …(1) ] to deeply equal [ ObjectContaining{…}, …(3) ]\n\n- Expected\n+ Received\n\n@@ -7,12 +7,17 @@\n      \"rationale\": \"\",\n      \"state\": \"BARE\",\n      \"verdict\": \"BLOCKS\",\n    },\n    {\n+     \"diagnostic\": \"exit=0,signal=null\",\n+     \"exitCode\": 0,\n+     \"hook\": \"check-no-skipped-tests.mjs\",\n+     \"mode\": \"HARD\",\n+     \"rationale\": \"\",\n      \"state\": \"PRIMED\",\n-     \"verdict\": \"BLOCKS\",\n+     \"verdict\": \"INERT\",\n    },\n    {\n      \"exitCode\": null,\n      \"hook\": \"check-no-skipped-tests.mjs\",\n      \"mode\": \"HARD\",\n\n ❯ __tests__/scripts/probe-hooks.test.ts:405:20\n    403|       const result = run(dir)\n    404|       const rows = JSON.parse(result.stdout).rows as { state: string; …\n    405|       expect(rows).toEqual([\n       |                    ^\n    406|         expect.objectContaining({ state: 'BARE', verdict: 'BLOCKS' }),\n    407|         expect.objectContaining({ state: 'PRIMED', verdict: 'BLOCKS' }…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/probe-hooks.test.ts",
+  "recorded_at": "2026-09-08T14:48:01.816Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/probe-hooks.test.ts",
+    "-t",
+    "2604"
+  ]
+}

@@ -16,6 +16,7 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
     healed: false,
   })),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
+  tddEvidenceProducedOnBranch: vi.fn().mockReturnValue(true),
   currentBranch: vi.fn().mockReturnValue('task/549-phase-marker'),
   headSha: vi.fn().mockReturnValue('b'.repeat(40)),
 }))
@@ -144,6 +145,9 @@ describe('legacy → unified migration (#1206, #549)', () => {
 
   it('refactor → verification enters the phase before its gate marker exists', () => {
     seedLegacy('refactor')
+    // Verification now requires committed TDD provenance; this test is about the marker
+    // belonging to the later verification → close transition.
+    writeEvidence(dir)
     expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
     expect(phaseOf()).toBe('verification')
   })

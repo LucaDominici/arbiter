@@ -1,7 +1,7 @@
 ---
 title: 'ADR-096: Probe — always-on incidental-discovery loop'
 doc_version: '1.0.0'
-status: accepted
+status: active
 last_review: '2026-06-15'
 owner: ''
 canonical_id: '096'

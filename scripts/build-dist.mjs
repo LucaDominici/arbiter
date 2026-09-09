@@ -71,7 +71,8 @@ for (const path of jsFiles) {
     loader: 'js',
     minifyWhitespace: true,
     minifyIdentifiers: false,
-    minifySyntax: false,
+    minifySyntax: true,
+    treeShaking: false,
     legalComments: 'inline',
     sourcefile: relative(ROOT, path),
   })

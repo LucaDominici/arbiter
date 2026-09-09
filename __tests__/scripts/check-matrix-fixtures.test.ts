@@ -283,4 +283,69 @@ describe('check-matrix-fixtures.mjs', () => {
       cleanup()
     }
   })
+
+  // ─── #2543 AC-4: `bakeLevel` must not claim a level the fixture doesn't declare ──
+
+  it("exits 1 when bakeLevel is not present in the fixture's own levels array", () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const matrix = makeMatrix(['java'], 'proven')
+      const matrixFile = join(dir, 'matrix.json')
+      writeFileSync(matrixFile, JSON.stringify(matrix))
+      const fixturesDir = join(dir, 'fixtures')
+      addFixture(fixturesDir, 'java-spring-bad', {
+        language: 'java',
+        archetype: 'backend-web-db',
+        levels: ['L1', 'L2'],
+        tier: 'bake',
+        bakeLevel: 'L3',
+      })
+      const result = run(fixturesDir, matrixFile)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('bakeLevel')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('accepts a bakeLevel present in the levels array', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const matrix = makeMatrix(['java'], 'proven')
+      const matrixFile = join(dir, 'matrix.json')
+      writeFileSync(matrixFile, JSON.stringify(matrix))
+      const fixturesDir = join(dir, 'fixtures')
+      addFixture(fixturesDir, 'java-spring-good', {
+        language: 'java',
+        archetype: 'backend-web-db',
+        levels: ['L1', 'L2', 'L3'],
+        tier: 'bake',
+        bakeLevel: 'L3',
+      })
+      const result = run(fixturesDir, matrixFile)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when bakeLevel is absent (optional field)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const matrix = makeMatrix(['java'], 'proven')
+      const matrixFile = join(dir, 'matrix.json')
+      writeFileSync(matrixFile, JSON.stringify(matrix))
+      const fixturesDir = join(dir, 'fixtures')
+      addFixture(fixturesDir, 'java-spring-nolevel', {
+        language: 'java',
+        archetype: 'backend-web-db',
+        levels: ['L1', 'L2', 'L3'],
+        tier: 'bake',
+      })
+      const result = run(fixturesDir, matrixFile)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
 })

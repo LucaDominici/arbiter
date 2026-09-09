@@ -1,0 +1,8 @@
+2026-09-08T13:28:16+02:00
+97c3966ddf38c6d89d3deb1fa603a07765b7969b
+Files wiki/.wiki-log.json and /tmp/arbiter-2599-wiki-jAeEmG/.wiki-log.json differ
+Files wiki/internal-system-hook-contracts.md and /tmp/arbiter-2599-wiki-jAeEmG/internal-system-hook-contracts.md differ
+diff_exit=1
+  gen-wiki --check: wiki/internal-system-hook-contracts.md is stale (source: docs/internal/SYSTEM/HOOK-CONTRACTS.md)
+  Run: node scripts/gen-wiki.mjs
+check_exit=1

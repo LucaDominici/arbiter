@@ -1,0 +1,29 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "role": "reviewer",
+  "taskId": "#2486",
+  "branch": "task/#2486-pr-base-concurrency",
+  "sha": "58d445fadc2f55b50cf1734d44ed92ba79bad79d",
+  "agent": "security-review",
+  "ts": "2026-09-09T02:19:44.652Z",
+  "verdict": "FAIL",
+  "confidence": 0.96,
+  "findings": [
+    {
+      "id": "SEC-2486-VM-EVAL",
+      "severity": "high",
+      "kind": "structural",
+      "claim": "The new test dynamically executes mutable workflow text with Node's non-security vm sandbox, allowing a crafted group expression to access the host process during CI.",
+      "citations": [
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 43
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}

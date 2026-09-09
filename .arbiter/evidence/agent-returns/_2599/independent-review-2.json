@@ -1,0 +1,16 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "independent-review",
+  "role": "reviewer",
+  "taskId": "#2599",
+  "verdict": "PASS",
+  "confidence": 0.99,
+  "findings": [],
+  "branch": "task/#2599-diff-prefix-safety",
+  "sha": "f2e34f9017c6497caad974327929c9723d07d346",
+  "ts": "2026-09-09T10:54:50.133Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}

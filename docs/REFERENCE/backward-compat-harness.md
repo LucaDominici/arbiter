@@ -55,8 +55,20 @@ The `snapshot-compat-fixture.mjs` script enforces this by running `arbiter init`
 
 ## Current fixture inventory
 
-| Version | Archetype | Language   | Path          |
-| ------- | --------- | ---------- | ------------- |
-| 0.1.0   | ts-cli    | typescript | v0.1.0-ts-cli |
+| Version | Archetype | Language   | Path            |
+| ------- | --------- | ---------- | --------------- |
+| 0.1.0   | ts-cli    | typescript | v0.1.0-ts-cli   |
+| 0.3.0   | ts-cli    | typescript | v0.3.0-baseline |
 
-Update this table when adding new fixtures (or rely on `MANIFEST.json` as the machine-readable source of truth).
+Update this table when adding new fixtures (or rely on `MANIFEST.json` as the machine-readable source of truth). `__tests__/docs/backward-compat-fixture-inventory-2450.test.ts` (#2450) pins the two in sync: it fails if a `MANIFEST.json` entry has no matching row, or a row has no matching entry.
+
+### Fixture directories NOT part of this harness
+
+`__tests__/fixtures/compat/` also holds two directories that are **not** listed above and **not** in `MANIFEST.json` on purpose — they belong to the config-schema test suite, not the backward-compat migration harness:
+
+| Path                 | Used by                           | Why it is excluded here                                                                                                                                                                                        |
+| -------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v0.2.0-channel`     | `__tests__/config/schema.test.ts` | Hand-crafted to exercise `channel: "beta"` acceptance — not a real `arbiter init` snapshot (see "NEVER fake-pin historical data" above).                                                                       |
+| `v0.2.0-bad-channel` | `__tests__/config/schema.test.ts` | Deliberately **invalid** (`channel: "preview"`) to test schema rejection. Adding it to `MANIFEST.json` would break `backward-compat.test.ts`, which asserts every manifest entry loads without a schema error. |
+
+If either of these were ever repurposed as a real historical snapshot, it would need to be re-captured via `snapshot-compat-fixture.mjs` per the rule above, not merely registered.

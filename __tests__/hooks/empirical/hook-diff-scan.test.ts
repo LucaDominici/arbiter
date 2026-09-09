@@ -36,6 +36,14 @@ function commitAll(dir: string, message = 'init'): void {
 function installTemplateHook(dir: string, templatePath: string, hookFileName: string): string {
   const hooksDir = join(dir, '.claude', 'hooks')
   mkdirSync(hooksDir, { recursive: true })
+  mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+  for (const script of ['check-no-orphan-todo.mjs', 'lib/glob-walk.mjs', 'lib/run-helpers.mjs']) {
+    writeFileSync(join(dir, 'scripts', script), readFileSync(join(REPO_ROOT, 'scripts', script)))
+  }
+  writeFileSync(
+    join(dir, 'scripts', 'lib', 'suppressions-shared.mjs'),
+    readFileSync(join(REPO_ROOT, 'scripts', 'lib', 'suppressions-shared.mjs')),
+  )
   const config = makeConfig(dir, {
     language: 'typescript',
     projectName: 'hook-diff-scan-test',
@@ -126,9 +134,11 @@ const CASES: HookCase[] = [
   },
 ]
 
-describe.each(CASES)(
-  '$name — diff-scoped PostToolUse scan (#2539)',
-  ({ templatePath, hookFileName, relPath, clean, markerLine, markerNeedle }) => {
+describe.each(
+  CASES.flatMap((item) => ['template', 'self'].map((variant) => ({ ...item, variant }))),
+)(
+  '$name ($variant) — diff-scoped PostToolUse scan (#2539)',
+  ({ templatePath, hookFileName, relPath, clean, markerLine, markerNeedle, variant }) => {
     let dir: string
     let hookPath: string
     let filePath: string
@@ -137,6 +147,14 @@ describe.each(CASES)(
       dir = mkdtempSync(join(tmpdir(), 'arbiter-hook-diff-scan-'))
       gitInit(dir)
       hookPath = installTemplateHook(dir, templatePath, hookFileName)
+      if (variant === 'self') {
+        for (const name of ['lib.mjs', hookFileName]) {
+          writeFileSync(
+            join(dir, '.claude', 'hooks', name),
+            readFileSync(join(REPO_ROOT, '.claude', 'hooks', name)),
+          )
+        }
+      }
       filePath = join(dir, relPath)
       mkdirSync(join(dir, 'src'), { recursive: true })
     }
@@ -170,6 +188,16 @@ describe.each(CASES)(
       expect(result.stderr).toContain(markerNeedle)
     })
 
+    it('blocks added prefix-collision markers (#2599)', () => {
+      setup()
+      writeFileSync(filePath, clean)
+      commitAll(dir)
+      writeFileSync(filePath, `${clean}++counter; ${markerLine}`)
+      const result = runHook(hookPath, dir, filePath)
+      expect(result.status, result.stderr).toBe(2)
+      expect(result.stderr).toContain(markerNeedle)
+    })
+
     it('scans the whole file when the file is untracked (fail-open, #609 precedent)', () => {
       setup()
       // Never added/committed — addedLinesVsHEAD must degrade to whole-file.
@@ -197,6 +225,58 @@ describe.each(CASES)(
     })
   },
 )
+
+describe.each(['self', 'template', 'kernel'])('addedLinesVsHEAD %s (#2599)', (variant) => {
+  it('retains header-like additions and exact counters across hunks and no-newline markers', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-diff-prefix-'))
+    try {
+      gitInit(dir)
+      installTemplateHook(dir, CASES[0].templatePath, CASES[0].hookFileName)
+      const helper = join(dir, '.claude', 'hooks', 'lib.mjs')
+      if (variant !== 'template') {
+        const source =
+          variant === 'self' ? '.claude/hooks/lib.mjs' : 'packages/kernel/hooks/lib.mjs'
+        writeFileSync(helper, readFileSync(join(REPO_ROOT, source)))
+      }
+      const file = join(dir, 'file.ts')
+      const original = Array.from({ length: 20 }, (_, i) => `line ${i}`)
+      writeFileSync(file, original.join('\n') + '\n')
+      commitAll(dir)
+      const changed = [
+        '++counter',
+        '++ b/file.ts',
+        ...original.slice(2, 12),
+        '+++ header-like',
+        ...original.slice(13),
+        '++last',
+      ]
+      writeFileSync(file, changed.join('\n'))
+      const diff = execFileSync('git', ['diff', 'HEAD', '--', file], { cwd: dir, encoding: 'utf8' })
+      expect(diff.match(/^@@/gm)?.length).toBeGreaterThan(1)
+      expect(diff).toContain('\\ No newline at end of file')
+      const result = execFileSync(
+        'node',
+        [
+          '--input-type=module',
+          '-e',
+          `import { addedLinesVsHEAD } from ${JSON.stringify(helper)}; process.stdout.write(JSON.stringify(addedLinesVsHEAD(${JSON.stringify(file)})))`,
+        ],
+        { cwd: dir, encoding: 'utf8' },
+      )
+      expect(JSON.parse(result)).toEqual({
+        tracked: true,
+        added: [
+          { line: 1, content: '++counter' },
+          { line: 2, content: '++ b/file.ts' },
+          { line: 13, content: '+++ header-like' },
+          { line: 21, content: '++last' },
+        ],
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('gate --all walk stays whole-file (#2539)', () => {
   it('scripts/check-no-placeholders.mjs still flags pre-existing content untouched by the edit', () => {

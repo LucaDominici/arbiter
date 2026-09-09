@@ -16,6 +16,7 @@ import {
   listFixtures,
   listProjectFiles,
   loadFixtureManifest,
+  resolveBakeLevel,
   stageFixture,
 } from '../helpers.js'
 
@@ -127,8 +128,10 @@ const fixtures = listFixtures('bake', 'functional').sort()
 
 describe.each(fixtures)('bake — %s', (fixture) => {
   const manifest = loadFixtureManifest(fixture)
-  // Use the lowest declared level to keep bake fast; functional harness exercises L2+.
-  const level = manifest.levels[0] ?? 'L1'
+  // #2543: explicit `bakeLevel` field, defaulting to 'L1' — NEVER `levels[0]`
+  // (that made array ORDERING silently select the bake level; see
+  // resolveBakeLevel's doc comment in helpers.ts for the full history).
+  const level = resolveBakeLevel(manifest)
   let dir: string
   // #1937 — HOST-PORTABLE GENERATION: `arbiter init` derives claudeHome from
   // process.env.HOME (init.ts) and renders any detected `~/.claude` skills into

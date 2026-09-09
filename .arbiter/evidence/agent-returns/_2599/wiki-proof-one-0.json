@@ -1,0 +1,62 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "wiki-proof-one",
+  "role": "skeptic",
+  "taskId": "#2599",
+  "branch": "task/#2599-diff-prefix-safety",
+  "sha": "0c90670d6683f9a3209463c3d14b04494c142e08",
+  "ts": "2026-09-08T11:44:14.471Z",
+  "verdict": "WARN",
+  "confidence": 0.8,
+  "findings": [
+    {
+      "id": "WIKI-PREVIEW-PROVENANCE",
+      "severity": "high",
+      "kind": "structural",
+      "claim": "Original preview.log (8 lines, full file) contains no successful generator summary line and no echoed diff command; it shows only two 'Files ... differ' fragments and check_exit=1 (stale), so the '1 page written, 0 pruned; no unexpected path' assertion is not demonstrated by that artifact.",
+      "citations": [
+        {
+          "file": "scripts/gen-wiki.mjs",
+          "line": 326
+        }
+      ]
+    },
+    {
+      "id": "WIKI-PREVIEW-HARDCODED-LABEL",
+      "severity": "med",
+      "kind": "structural",
+      "claim": "gen-wiki.mjs hardcodes the literal string 'wiki/' in its written/pruned and up-to-date log lines instead of the resolved WIKI_DIR, so when invoked with --wiki-dir pointing at a temp probe dir the printed summary reads as if the real wiki/ was written/current when only the temp copy was touched.",
+      "citations": [
+        {
+          "file": "scripts/gen-wiki.mjs",
+          "line": 326
+        },
+        {
+          "file": "scripts/gen-wiki.mjs",
+          "line": 209
+        }
+      ]
+    }
+  ],
+  "refutations": [
+    {
+      "target": "WIKI-PREVIEW-PROVENANCE",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": "scripts/gen-wiki.mjs",
+          "line": 326
+        }
+      ]
+    }
+  ],
+  "evidenceRefs": [
+    "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788866743/preview.log",
+    "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788866743/preview-complete.log"
+  ],
+  "provenance": {
+    "vendor": "anthropic",
+    "dispatch": "external-cli",
+    "cli": "claude"
+  }
+}

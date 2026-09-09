@@ -15,6 +15,7 @@ import { buildRegistry, runGeneratorsFromRegistry } from '../../src/generators/r
 import type { GeneratorSpec } from '../../src/generators/registry.js'
 import { computeDryRunPreview } from '../../src/commands/init.js'
 import { displayDryRunPreview } from '../../src/commands/init/generate.js'
+import { buildMigrationPlan } from '../../src/wizard/prompts.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
 import { makeConfig } from '../helpers.js'
 
@@ -112,7 +113,7 @@ describe('#2434 D — --dry-run names every file the real run writes', () => {
     'docs/technical-debt.md',
   ]
 
-  it('names every path a real registry run writes, bar the run-time-resolved doc set', () => {
+  it('names every path a real registry run writes, bar the run-time-resolved doc set', async () => {
     const written = runGeneratorsFromRegistry(buildRegistry(makeConfig(realDir)), [], {
       dryRun: false,
     })
@@ -120,7 +121,7 @@ describe('#2434 D — --dry-run names every file the real run writes', () => {
       .map((r) => rel(realDir, r.path))
     expect(written.length).toBeGreaterThan(100)
 
-    const preview = computeDryRunPreview(makeConfig(previewDir))
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
     const previewed = new Set([...preview.created, ...preview.modified])
     const unlisted = written.filter((p) => !previewed.has(p))
     expect(unlisted.sort()).toEqual(DEFERRED_TO_RUNTIME)
@@ -128,7 +129,7 @@ describe('#2434 D — --dry-run names every file the real run writes', () => {
     expect(previewed.size).toBeGreaterThan(written.length - 10)
   })
 
-  it('says out loud that the doc set is resolved at run time', () => {
+  it('says out loud that the doc set is resolved at run time', async () => {
     const lines: string[] = []
     const write = process.stdout.write.bind(process.stdout)
     process.stdout.write = ((chunk: string) => {
@@ -136,25 +137,36 @@ describe('#2434 D — --dry-run names every file the real run writes', () => {
       return true
     }) as typeof process.stdout.write
     try {
-      displayDryRunPreview(makeConfig(previewDir))
+      await displayDryRunPreview(makeConfig(previewDir))
     } finally {
       process.stdout.write = write
     }
     expect(lines.join('')).toContain('standards/gold-doc-set.yml')
   })
 
-  it('keeps the #540 brownfield consent narrative from the migration plan', () => {
-    const preview = computeDryRunPreview(
+  it('keeps the #540 brownfield consent narrative from the migration plan', async () => {
+    const existing = { ...makeConfig(previewDir).existing, claudeDir: true, settingsJson: true }
+    const migration = buildMigrationPlan(existing, ['claude'], false)
+    expect(migration.merged).toContain('.claude/settings.json (deep-merged)')
+    expect(migration.preserved).toContain('.claude/hooks/ (existing hooks preserved)')
+
+    mkdirSync(join(previewDir, '.claude', 'hooks'), { recursive: true })
+    writeFileSync(join(previewDir, '.claude', 'settings.json'), '{}\n')
+    writeFileSync(join(previewDir, '.claude', 'hooks', 'local.mjs'), '// local hook\n')
+    const preview = await computeDryRunPreview(
       makeConfig(previewDir, {
-        existing: { ...makeConfig(previewDir).existing, claudeDir: true, settingsJson: true },
+        existing,
       }),
     )
-    expect(preview.modified.some((s) => s.includes('deep-merged'))).toBe(true)
-    expect(preview.skipped.some((s) => s.includes('hooks'))).toBe(true)
+    expect(preview.modified).toContain('.claude/settings.json')
+    expect(preview.skipped).not.toContain('.claude/hooks/local.mjs')
+    expect([...preview.created, ...preview.modified, ...preview.skipped]).not.toContain(
+      '.claude/settings.json (deep-merged)',
+    )
   })
 
-  it('writes nothing to disk', () => {
-    computeDryRunPreview(makeConfig(previewDir))
+  it('writes nothing to disk', async () => {
+    await computeDryRunPreview(makeConfig(previewDir))
     expect(readdirSync(previewDir).sort()).toEqual(['package.json', 'src'])
   })
 })

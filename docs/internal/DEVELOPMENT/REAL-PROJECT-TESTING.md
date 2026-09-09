@@ -62,6 +62,39 @@ Treat these as part of the nightly contract, not incidental workflow glue. If a 
 
 ---
 
+## Level Coverage Boundary (#2543)
+
+The bake tier deliberately covers **L1 emission only, plus one pinned L4 fixture** —
+this was always the honest trade ("use the lowest declared level to keep bake fast"),
+but until #2543 it was implied rather than stated, and one fixture's array ordering
+accidentally undermined it. `java-spring-L3` declared `levels: ["L1","L2","L3","L4"]`
+— an ascending SET, the same shape 27 of the other 29 manifests use — and the OLD
+selection mechanism (`manifest.levels[0]`) baked it at L1 despite its name. Its
+sibling `java-spring-L4` happened to declare the same four levels in descending
+order, so `levels[0]` picked `L4` there by coincidence, not by design. Fixed by
+giving every fixture an explicit `bakeLevel` (see the manifest schema below) instead
+of deriving a level from array position.
+
+The corrected, current coverage map, read literally — do not re-derive this table,
+that is how the gap survived the first time:
+
+| Level  | Bake (snapshot-pinned)                                  | Functional (behavioural)                                                   |
+| ------ | ------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **L1** | 28 of 30 fixtures                                       | yes — 3 blocks in `fixture-functional.test.ts`                             |
+| **L2** | none                                                    | yes — 1 block, hardcoded `level: 'L2'` at `fixture-functional.test.ts:235` |
+| **L3** | 1 fixture (`java-spring-L3`, `bakeLevel: "L3"` — #2543) | none                                                                       |
+| **L4** | 1 fixture (`java-spring-L4`, `bakeLevel: "L4"`)         | none                                                                       |
+
+Reading this table correctly matters more than it looks: L2 is **not** an
+observation gap — it is exercised behaviourally by the functional harness, just
+never pinned by a snapshot. Adding an L2 bake fixture on the reasoning "L2 is
+unobserved" is therefore wrong; if one is ever added, it buys _pinning_, not first
+coverage, and the PR that adds it must name the regression class a snapshot catches
+that the functional block does not. L3 was the one level with **zero** coverage of
+any kind — the gap `java-spring-L3` promoting to `bakeLevel: "L3"` closes.
+
+---
+
 ## Fixture Structure
 
 Every fixture lives under `__tests__/fixtures/real-projects/<name>/` and must contain:
@@ -81,13 +114,23 @@ Every fixture lives under `__tests__/fixtures/real-projects/<name>/` and must co
   "language":   "typescript" | "java" | "rust" | "go" | "python",
   "archetype":  "library" | "backend-web-db" | "frontend-spa" | …,
   "buildTool":  "gradle" | "maven" | null,
-  "levels":     ["L1"] | ["L1", "L2"],   // levels to exercise
+  "levels":     ["L1"] | ["L1", "L2"],   // levels this fixture SUPPORTS (a set — order is not meaningful)
   "tier":       "snapshot" | "bake" | "functional",
+  "bakeLevel":  "L1" | "L2" | "L3" | "L4",  // optional — the level the `bake` tier actually inits at
   "note":       "optional human note"
 }
 ```
 
 Four fields are required: `language`, `archetype`, `levels`, and `tier`. `buildTool` is optional — include it when applicable (e.g., `"gradle"` for Java), omit or set to `null` otherwise. `note` is optional.
+
+`bakeLevel` is optional and applies only to `tier: "bake"` fixtures (`fixture-bake.test.ts`
+reads it via `resolveBakeLevel()` in `helpers.ts`). **It defaults to `"L1"` when absent —
+never to `levels[0]`.** `levels` is a SET of governance levels the fixture supports;
+treating its first element as "the level to bake at" was the #2543 defect — array
+ordering silently decided behaviour that a reader had no way to see. When `bakeLevel`
+is present, `scripts/check-matrix-fixtures.mjs` rejects it (gate failure) if it is not
+one of that same fixture's own `levels` — a fixture cannot claim to bake at a level it
+does not declare support for.
 
 #### `tier` — bake-and-run harness layer (#1041)
 

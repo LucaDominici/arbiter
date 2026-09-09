@@ -1,0 +1,32 @@
+{
+  "verdict": "PASS",
+  "findings": [],
+  "planDigest": "762f38cdf6b45b5bb4b38d32005aa05204a3c1466c53aad861ba8b9df4a750fc",
+  "manifestDigest": "d2b00573bd9a01ae7ef326729e638995ba01ccd53f105cffe1e5afa61f4b031b",
+  "source_sha": "7913c54384fdfd2de1f0983a6a83f2e738acf891",
+  "taskId": "#2486",
+  "recordedAt": "2026-09-09T03:07:50Z",
+  "reviewers": [
+    {
+      "verdict": "PASS",
+      "findings": [],
+      "planDigest": "762f38cdf6b45b5bb4b38d32005aa05204a3c1466c53aad861ba8b9df4a750fc",
+      "manifestDigest": "d2b00573bd9a01ae7ef326729e638995ba01ccd53f105cffe1e5afa61f4b031b",
+      "source_sha": "7913c54384fdfd2de1f0983a6a83f2e738acf891",
+      "reviewer": "/root/docs2486_plan_contract",
+      "completed_at": "2026-09-09T03:07:38Z",
+      "scope": "Bounded documentation-repair amendment only; manifest, admission, test coverage, and applicable Standard verticals remain coherent. Historical baseline is now explicitly distinguished from the repair candidate."
+    },
+    {
+      "verdict": "PASS",
+      "findings": [],
+      "planDigest": "762f38cdf6b45b5bb4b38d32005aa05204a3c1466c53aad861ba8b9df4a750fc",
+      "manifestDigest": "d2b00573bd9a01ae7ef326729e638995ba01ccd53f105cffe1e5afa61f4b031b",
+      "source_sha": "7913c54384fdfd2de1f0983a6a83f2e738acf891",
+      "reviewer": "/root/docs2486_plan_semantics",
+      "completed_at": "2026-09-09T03:07:43Z",
+      "basis": "Label-only provenance correction: historical baseline is explicitly 8bda0342; documentation-repair candidate is explicitly 7913c543. No scope, AC, security, cancellation, push-identity, or implementation semantics changed."
+    }
+  ],
+  "decision": "Two actual independent bounded amendment reviewers PASS. Original plan R1 FAIL/R2 PASS and amendment first WARN preserved in Git history and cycle evidence. Documentation admission only; no new implementation/gate/TDD/redteam PASS inferred."
+}

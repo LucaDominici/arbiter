@@ -1,7 +1,7 @@
 ---
 title: 'ADR-095: Supported AI tools — claude + codex; rest experimental'
 doc_version: '1.0.0'
-status: accepted
+status: active
 last_review: '2026-06-13'
 owner: ''
 canonical_id: '095'

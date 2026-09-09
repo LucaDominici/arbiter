@@ -1,0 +1,16 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "independent-review",
+  "role": "reviewer",
+  "taskId": "#2486",
+  "branch": "task/#2486-pr-base-concurrency",
+  "sha": "58d445fadc2f55b50cf1734d44ed92ba79bad79d",
+  "ts": "2026-09-09T02:18:25.712Z",
+  "verdict": "WARN",
+  "confidence": 0.9,
+  "findings": [],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}
