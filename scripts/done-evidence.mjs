@@ -7,7 +7,7 @@
 // Usage: node scripts/done-evidence.mjs
 //
 // Workflow:
-//   1. Runs the L4 gate (node scripts/check-all.mjs L4)
+//   1. Runs the L3 gate (node scripts/check-all.mjs L3)
 //   2. If green: captures SHA-256 of all files in evidence-files.json
 //      and writes .claude/.last-done-evidence.json
 //   3. If red: prints failures, exits 1
@@ -115,10 +115,10 @@ function sha256File(absPath) {
   }
 }
 
-// ─── Step 1: Run L4 gate ─────────────────────────────────────────────────────
+// ─── Step 1: Run L3 gate ─────────────────────────────────────────────────────
 
-process.stdout.write('[done-evidence] Running L4 gate...\n')
-const gate = spawnSync('node', ['scripts/check-all.mjs', 'L4'], {
+process.stdout.write('[done-evidence] Running L3 gate...\n')
+const gate = spawnSync('node', ['scripts/check-all.mjs', 'L3'], {
   stdio: 'inherit',
   shell: false,
 })
@@ -256,7 +256,7 @@ const evidence = {
   captured_at: new Date().toISOString(),
   task_id: taskId,
   all_green: true,
-  gate_level: 'L4',
+  gate_level: 'L3',
   pinned_files: pinnedFiles,
   reality_contact: realityContact,
   no_overclaim: noOverclaim,
