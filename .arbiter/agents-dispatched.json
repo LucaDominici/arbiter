@@ -1,11 +1,11 @@
 {
   "count": 3,
   "agents": [
-    "independent-review",
-    "codex-reviewer",
-    "security-review"
+    "confirm2486-standards",
+    "confirm2486-spec",
+    "confirm2486-security"
   ],
   "branch": "task/#2486-pr-base-concurrency",
-  "sha": "58d445fadc2f55b50cf1734d44ed92ba79bad79d",
+  "sha": "1a8188a4f2320a0204bb71bb82bc634ed3c4a4a7",
   "taskId": "#2486"
 }
