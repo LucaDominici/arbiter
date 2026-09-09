@@ -1,0 +1,17 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "taskId": "#2624",
+  "branch": "task/#2624-release-pipeline",
+  "sha": "36de7d8ae9d7e6709a7dd828e3bad3ef8657b474",
+  "ts": "2026-09-09T22:42:59.694Z",
+  "verdict": "PASS",
+  "confidence": 0.98,
+  "findings": [],
+  "agent": "2624-telemetry-compact-source-review",
+  "role": "reviewer",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}

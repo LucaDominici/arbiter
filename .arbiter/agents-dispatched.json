@@ -1,9 +1,10 @@
 {
   "count": 1,
   "agents": [
-    "2624-combined-code-review"
+    "2624-telemetry-compact-source-review"
   ],
   "branch": "task/#2624-release-pipeline",
-  "sha": "20013aa2cf9196782c3dba7b87d0e2ffde4603f6",
-  "taskId": "#2624"
+  "sha": "36de7d8ae9d7e6709a7dd828e3bad3ef8657b474",
+  "taskId": "#2624",
+  "ts": "2026-09-09T22:42:59.742800+00:00"
 }

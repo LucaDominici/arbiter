@@ -1,43 +1,41 @@
 {
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2624",
-  "sha": "20013aa2cf9196782c3dba7b87d0e2ffde4603f6",
+  "branch": "task/#2624-release-pipeline",
+  "sha": "36de7d8ae9d7e6709a7dd828e3bad3ef8657b474",
+  "plan_sha256": "041f0065976d54fb15fd6850cb30ddc40d933a596faea1c9982dce78d8a1cb37",
   "criteria": [
     {
       "id": "AC-1",
       "verdict": "PASS",
       "evidence": [
         {
-          "file": ".github/workflows/05-release.yml",
-          "line": 309
-        },
-        {
-          "file": ".github/workflows/05-release.yml",
-          "line": 315
-        },
-        {
-          "file": ".github/workflows/05-release.yml",
-          "line": 319
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 690
         },
         {
           "file": "src/templates/github/workflows/05-release.yml.ejs",
-          "line": 690
+          "line": 698
+        },
+        {
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 700
+        },
+        {
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 705
+        },
+        {
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 713
         }
       ],
-      "notes": "Independent integrated-candidate review: six workflow/template/test/plan/document hashes retain accepted bytes; release divergence row retains accepted content and all other rows are exactly the qualified #2578 base. Retained PASS from independently accepted frozen implementation, whose workflow/template/test/config hashes are still exact. Documentary delta does not change this criterion. Previously accepted AC1 paths are unchanged by this delta: publisher checkout uses the tag, downloads and re-verifies the retained artifact, uses hosted Node from .nvmrc with npm 11.16.0, and publishes that artifact without rebuilding it."
+      "notes": "Retained source proof: refreshed freeze says workflow/tests remain exact accepted 20013aa bytes; compressed PRIVACY.md cannot change checkout, signed-artifact verification, .nvmrc/npm 11.16.0, or no-rebuild publication."
     },
     {
       "id": "AC-2",
       "verdict": "PASS",
       "evidence": [
-        {
-          "file": ".github/workflows/05-release.yml",
-          "line": 325
-        },
-        {
-          "file": ".github/workflows/05-release.yml",
-          "line": 330
-        },
         {
           "file": "src/templates/github/workflows/05-release.yml.ejs",
           "line": 706
@@ -52,33 +50,45 @@
         },
         {
           "file": "__tests__/templates/05-release-render.test.ts",
-          "line": 873
+          "line": 884
         }
       ],
-      "notes": "Independent integrated-candidate review: six workflow/template/test/plan/document hashes retain accepted bytes; release divergence row retains accepted content and all other rows are exactly the qualified #2578 base. Retained PASS from independently accepted frozen implementation, whose workflow/template/test/config hashes are still exact. Documentary delta does not change this criterion. The publisher now parses the fixed package/package.json member from the already hash-verified retained tarball and compares its nonempty string version exactly with RELEASE_TAG. The executable native/rendered test packs matching, mismatching, missing, numeric, and malformed archive metadata; each prepack-mutation case leaves the checkout guard at 0 and makes the publisher guard 1. The retained genuine RED has two failures and the repaired focused run has 179 passing tests."
+      "notes": "Retained source proof: archive-version check precedes upload; focused regression covers dependency/mismatch. Freeze records no workflow/test/plan change."
     },
     {
       "id": "AC-3",
       "verdict": "PASS",
       "evidence": [
         {
-          "file": ".github/workflows/05-release.yml",
-          "line": 302
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 35
         },
         {
-          "file": ".github/workflows/05-release.yml",
-          "line": 305
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 37
         },
         {
-          "file": "__tests__/templates/05-release-render.test.ts",
-          "line": 902
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 51
         },
         {
-          "file": "__tests__/templates/05-release-render.test.ts",
-          "line": 918
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 56
+        },
+        {
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 75
+        },
+        {
+          "file": "suppressions/telemetry-allowlist.json",
+          "line": 78
+        },
+        {
+          "file": "PRIVACY.md",
+          "line": 81
         }
       ],
-      "notes": "Independent integrated-candidate review: six workflow/template/test/plan/document hashes retain accepted bytes; release divergence row retains accepted content and all other rows are exactly the qualified #2578 base. Retained PASS from independently accepted frozen implementation, whose workflow/template/test/config hashes are still exact. Documentary delta does not change this criterion. Previously accepted manual-smoke isolation and token-boundary behavior is unchanged. Productive publisher paths require a push tag, and the rendered/materialized regression retains manual branch/tag isolation and no-token-outside-publisher-or-smoke checks."
+      "notes": "Actual compact delta: exact release-template/fetch( allowlist remains; compact privacy disclosure retains manual workflow_dispatch, fixed registry identity/scope GETs, token-auth-only, redirect prohibition, 15s bound, no token logging/upload/build/sign/publish, and no publication/OIDC inference."
     },
     {
       "id": "AC-4",
@@ -86,34 +96,33 @@
       "evidence": [
         {
           "file": "__tests__/templates/05-release-render.test.ts",
-          "line": 851
+          "line": 906
         },
         {
-          "file": "docs/internal/release-playbook.md",
-          "line": 7
+          "file": "__tests__/templates/05-release-render.test.ts",
+          "line": 927
         },
         {
-          "file": "docs/internal/release-playbook.md",
-          "line": 76
-        },
-        {
-          "file": "docs/internal/release-playbook.md",
+          "file": "suppressions/telemetry-allowlist.json",
           "line": 78
         },
         {
-          "file": ".claude/plans/task-2624-release-pipeline.md",
-          "line": 9
-        },
-        {
-          "file": ".claude/plans/task-2624-release-pipeline.md",
-          "line": 40
-        },
-        {
-          "file": ".dogfood-divergences.json",
-          "line": 106
+          "file": "PRIVACY.md",
+          "line": 79
         }
       ],
-      "notes": "Independent integrated-candidate review: six workflow/template/test/plan/document hashes retain accepted bytes; release divergence row retains accepted content and all other rows are exactly the qualified #2578 base. Fresh documentary-delta PASS: restore the original empty canonical_id without changing core-set policy/budget; describe the manifest inside the retained tarball without falsely citing a repo path; fix the plan relative link. Native SSOT gate PASS with 34 selected documents, native related-path functions resolve both document links, scoped path-citation gate PASS for both files. Plan body including AC1\u20134/non-goals/test strategy is byte-identical. Prior independent implementation/179-test evidence is retained by exact five-file hashes, not rerun. No L1, CI, live authentication, OIDC, publication or consumer acceptance claim."
+      "notes": "Retained workflow regression remains unchanged; current exact two-file delta only synchronizes scanner allowlist and compact active privacy wording."
     }
-  ]
+  ],
+  "limits": "Final compact readback against freeze e8. Prior AC-fit copied verbatim to a preserved historical artifact before this update. No live npm authentication, OIDC, publication, source commit, or gate claim.",
+  "reviewedUncommittedAtSha": "e8c1f75a885c08e738b5151112cb90d8708498c2",
+  "binding": {
+    "committedBytesMatchFrozenReview": true,
+    "metadataOnlyRewordFrom": "283b541bdc270ba927594ac0dc424826256a25db",
+    "exactSourceTrees": {
+      "283b541bdc270ba927594ac0dc424826256a25db": "28d67e93fc0983c410a8819a4cd877b971f2765d",
+      "36de7d8ae9d7e6709a7dd828e3bad3ef8657b474": "28d67e93fc0983c410a8819a4cd877b971f2765d"
+    },
+    "audit": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2624-telemetry-compact-readback-audit.json"
+  }
 }
