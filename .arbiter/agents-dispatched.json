@@ -1,1 +1,11 @@
-{"count":2,"agents":["review-1430-arb-code-standards-head","haben_finish_1408"],"branch":"task/#2598-optional-peer-conformity","sha":"8dbc7b44033a9a33fd016445e4d86790c6cc75f3","taskId":"#2598"}
+{
+  "count": 3,
+  "agents": [
+    "independent-review",
+    "codex-reviewer",
+    "security-review"
+  ],
+  "branch": "task/#2486-pr-base-concurrency",
+  "sha": "58d445fadc2f55b50cf1734d44ed92ba79bad79d",
+  "taskId": "#2486"
+}

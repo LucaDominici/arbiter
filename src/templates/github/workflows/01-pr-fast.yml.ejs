@@ -24,16 +24,15 @@ on:
   # reports a result the `ci-required` aggregator reads. The `push:` trigger above
   # keeps its branch list: that lane is the post-merge catch-net for long-lived
   # branches, and widening it would multiply runner cost on every task-branch push
-  # for coverage this pull_request trigger already provides. The concurrency group
-  # below is intentionally unchanged — a same-head/different-base collision yields a
-  # CANCELLED run, which is visible and never reads as green, so it is not the
-  # no-run fail-open this fixes. Enforced by scripts/check-workflow-test-integrity.mjs.
+  # for coverage this pull_request trigger already provides. #2486 separately keys
+  # PR concurrency by head AND base while preserving the push key. Base-trigger
+  # coverage is enforced by scripts/check-workflow-test-integrity.mjs.
   pull_request:
     types: [opened, synchronize, reopened, labeled, ready_for_review, unlabeled]
 
 # Cancel in-progress runs on the same ref; main always completes (#357).
 concurrency:
-  group: pr-fast-${{ github.head_ref || github.ref_name }}
+  group: pr-fast-${{ github.head_ref || github.ref_name }}${{ github.base_ref && format('-{0}', github.base_ref) || '' }}
 <% if (_bs === 'github-flow-with-develop') { %>
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 <% } else { %>

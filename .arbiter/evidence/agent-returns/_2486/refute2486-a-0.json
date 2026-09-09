@@ -1,0 +1,61 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "role": "skeptic",
+  "taskId": "#2486",
+  "branch": "task/#2486-pr-base-concurrency",
+  "sha": "58d445fadc2f55b50cf1734d44ed92ba79bad79d",
+  "agent": "refute2486-a",
+  "ts": "2026-09-09T02:22:55.850Z",
+  "verdict": "FAIL",
+  "confidence": 0.99,
+  "findings": [
+    {
+      "id": "SEC-2486-VM-EVAL",
+      "severity": "high",
+      "kind": "structural",
+      "claim": "The test executes expressions extracted from mutable checked-out workflow text via Node vm; the default context permits escape to the host process during CI.",
+      "citations": [
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 41
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 43
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 63
+        },
+        {
+          "file": ".github/workflows/01-pr-fast.yml",
+          "line": 316
+        }
+      ]
+    }
+  ],
+  "refutations": [
+    {
+      "target": "SEC-2486-VM-EVAL",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 41
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 43
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 63
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}

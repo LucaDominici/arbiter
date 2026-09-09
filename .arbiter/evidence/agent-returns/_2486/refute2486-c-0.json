@@ -1,0 +1,44 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "role": "skeptic",
+  "taskId": "#2486",
+  "branch": "task/#2486-pr-base-concurrency",
+  "sha": "58d445fadc2f55b50cf1734d44ed92ba79bad79d",
+  "agent": "refute2486-c",
+  "ts": "2026-09-09T02:22:56.015Z",
+  "verdict": "PASS",
+  "confidence": 0.95,
+  "findings": [],
+  "refutations": [
+    {
+      "target": "SEC-2486-VM-EVAL",
+      "verdict": "REFUTED",
+      "citations": [
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 37
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 43
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 63
+        },
+        {
+          "file": ".github/workflows/01-pr-fast.yml",
+          "line": 33
+        },
+        {
+          "file": ".github/workflows/02-pr-extended.yml",
+          "line": 34
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}
