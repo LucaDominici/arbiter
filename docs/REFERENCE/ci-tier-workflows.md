@@ -39,6 +39,14 @@ readable workflow label instead of the raw `.github/workflows/_*.yml` path.
 
 ## Workflow inventory (by cadence bucket)
 
+The fast and extended PR workflows include both the head and base branch in their
+concurrency group (`pr-fast-<head>-<base>` and `pr-extended-<head>-<base>`).
+PRs sharing a head but targeting different bases therefore use different groups;
+updates to the same PR keep the same group and the existing cancellation policy.
+For fast push events, the group remains exactly `pr-fast-<ref_name>` because
+`github.base_ref` is empty. The materialized workflows and their EJS templates
+use the same conditional base suffix.
+
 ### ALWAYS — every PR / push (fast feedback)
 
 | File                      | Emitted when                                     | Purpose                                                            |

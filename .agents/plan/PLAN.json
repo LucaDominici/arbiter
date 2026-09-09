@@ -13,6 +13,7 @@
       "__tests__/templates/02-pr-extended-render.test.ts",
       "__tests__/templates/pr-tier-base-branch-filter.test.ts",
       "__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml",
+      "docs/REFERENCE/ci-tier-workflows.md",
       ".arbiter/evidence/tdd/#2486.json",
       ".arbiter/evidence/plan-review/_2486/latest.json",
       ".arbiter/evidence/redteam/#2486.json",
@@ -21,6 +22,7 @@
   },
   "files": [
     { "path": ".agents/plan/PLAN.json", "operation": "modify" },
+    { "path": "docs/REFERENCE/ci-tier-workflows.md", "operation": "modify" },
     { "path": ".claude/plans/task-2486-pr-base-concurrency.md", "operation": "modify" },
     { "path": ".github/workflows/01-pr-fast.yml", "operation": "modify" },
     { "path": ".github/workflows/02-pr-extended.yml", "operation": "modify" },

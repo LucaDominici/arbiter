@@ -31,8 +31,9 @@ context:
 
 ## Context and provenance
 
-The unchanged candidate is `8bda0342e9e71760fe5a36ba1f97ed80f4837aa6` in the isolated
-worktree. After #2476 removed pull-request base filters, two open PRs with one shared
+The historical pre-implementation baseline is `8bda0342e9e71760fe5a36ba1f97ed80f4837aa6`.
+The documentation-repair candidate is `7913c54384fdfd2de1f0983a6a83f2e738acf891` in the
+same isolated worktree. After #2476 removed pull-request base filters, two open PRs with one shared
 head and different bases can now run concurrently but share `pr-fast-<head>` and
 `pr-extended-<head>`, causing one run to cancel the other. The baseline reproduction is
 retained at `/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2486/cycle-1788915508/baseline-collision.md`.
@@ -57,11 +58,19 @@ that consume them. No new source file is needed.
 | `__tests__/templates/02-pr-extended-render.test.ts` | modify | existing T2 render assertions and group semantics |
 | `__tests__/templates/pr-tier-base-branch-filter.test.ts` | modify | committed-vs-emitted self/parity and executable context cases |
 | `__tests__/templates/__snapshots__/high-fanout/01-pr-fast.yml` | modify | derived approval snapshot of emitted T1 output |
+| `docs/REFERENCE/ci-tier-workflows.md` | modify | document PR head/base identity and unchanged fast push identity |
 
 The native task manifest must include this exact write set plus native plan/evidence
 artifacts. The four workflow files are the only product/template surfaces. Existing
 parity, syntax, actionlint, and workflow-integrity suites are read-only consumers and
 must be run, not broadened.
+
+Qualification repair (2026-09-09): L2 at `7913c54384fdfd2de1f0983a6a83f2e738acf891`
+failed only the native docs-change gate. Add one paragraph to the existing CI tier
+reference explaining the implemented head/base PR groups, unchanged cancellation
+policy, and exact fast push fallback. No behavior or AC changes; preserve the original
+RED and failed L2 receipt. Check docs, formatting, links and the unchanged AC anchor
+before renewed L1/L2 and source-bound delta review. No generated documentation changes.
 
 Read-set and bounded impact: inspect `src/utils/render.ts`, the CI render context helper,
 the existing `pr-tier-base-branch-filter.test.ts`, `ci-tier-render-parity.test.ts`,
