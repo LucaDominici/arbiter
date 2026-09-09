@@ -39,3 +39,13 @@ paths = [
 # Paths that gitleaks scans are controlled via .gitleaksignore
 # Individual fingerprint suppressions go in suppressions/.gitleaksignore
 # (managed by arbiter suppression system with expiry enforcement)
+
+# #2599: exact public wiki digests, not credentials. No positional suppression.
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "#2599 immutable wiki run: three verified public SHA256 values only"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^\.arbiter/evidence/wiki-preview/2599/actual-run-20260909\.json$''']
+regexes = ['''^(d95b1656e215e69da19f4c3760d747d559ca2c4f65687da6c5054a387ebeb37d|a2f0ffce1b1f2b0a458a5c5f831a27a6103bcc7fc414c1122dafafa327a9411f|97561b7179fe223418dfda4ba8cfcabff60f724fc1929190b7574a7d7e2c3fa8)$''']

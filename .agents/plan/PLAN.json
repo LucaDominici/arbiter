@@ -3,6 +3,7 @@
   "scope": {
     "track": "A",
     "paths": [
+      ".gitleaks.toml",
       "src/templates/claude/hooks/lib.mjs.ejs",
       ".claude/hooks/lib.mjs",
       "packages/kernel/hooks/lib.mjs",
@@ -18,10 +19,20 @@
       "examples/python-library/.arbiter-generated-manifest.json",
       "examples/python-library/.claude/hooks/lib.mjs",
       "examples/go-library/.arbiter-generated-manifest.json",
-      "examples/go-library/.claude/hooks/lib.mjs"
+      "examples/go-library/.claude/hooks/lib.mjs",
+      "wiki/internal-system-hook-contracts.md",
+      "wiki/INDEX.md",
+      "wiki/.wiki-log.json",
+      ".arbiter/evidence/wiki-preview/2599/preview.log",
+      ".arbiter/evidence/wiki-preview/2599/preview-complete.log",
+      ".arbiter/evidence/wiki-preview/2599/actual-run-20260909.json"
     ]
   },
   "files": [
+    {
+      "path": ".gitleaks.toml",
+      "operation": "modify"
+    },
     {
       "path": "src/templates/claude/hooks/lib.mjs.ejs",
       "operation": "modify"
@@ -85,6 +96,30 @@
     {
       "path": "examples/go-library/.claude/hooks/lib.mjs",
       "operation": "modify"
+    },
+    {
+      "path": "wiki/internal-system-hook-contracts.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/INDEX.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/.wiki-log.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/wiki-preview/2599/preview.log",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/wiki-preview/2599/preview-complete.log",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/wiki-preview/2599/actual-run-20260909.json",
+      "operation": "create"
     }
   ],
   "invariants": {

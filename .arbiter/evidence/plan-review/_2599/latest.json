@@ -1,10 +1,11 @@
 {
   "verdict": "PASS",
-  "reviewer": "/root/amendment_2599_contract",
+  "reviewer": "/root/receipt_amendment_review",
   "branch": "task/#2599-diff-prefix-safety",
-  "sha": "286fd9ab1306d078f425cd670e7c19c2d0113c50",
-  "planDigest": "5ce26d6f8c142d00a05b2eb39ff1984daf5c8f03d4c929378820e425eaf5e161",
-  "timestamp": "2026-09-08T13:00:17+02:00",
+  "sha": "fa78dff9158829306fa0de79dcbc05a7da8c8677",
+  "planDigest": "fd94d268cb9173a5ea7099023beae3aa115cff6de2257e89405ddc9d4dd204df",
+  "timestamp": "2026-09-09T09:51:13Z",
   "findings": [],
-  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788864248/amendment-approved.md"
+  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788946697/review-r2.md",
+  "scope": "Scanner-classification plan/config delta only; INV-31 compatible public values, no positional suppression. Prior wiki plan PASS and actual run retain original binding in resume evidence. First scanner-plan FAIL preserved in cycle review-r1.md. Not L1/L2 or delivery acceptance."
 }

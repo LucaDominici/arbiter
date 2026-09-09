@@ -69,18 +69,18 @@
     },
     {
       "id": "AC-4",
-      "verdict": "NOT-TESTED",
+      "verdict": "PASS",
       "evidence": [
         {
-          "file": ".claude/plans/2599-diff-prefix-safety.md",
-          "line": 28
+          "file": ".arbiter/evidence/tdd/#2599.json",
+          "line": 4
         },
         {
-          "file": "scripts/check-acceptance.mjs",
-          "line": 225
+          "file": ".arbiter/evidence/plan-review/_2599/latest.json",
+          "line": 6
         }
       ],
-      "reason": "The amended head has RED/approval and focused-regression evidence, but lacks exact-head L1/L2, real CI, pr-ff/CAS landing, and #2597 requalification evidence. The native gate requires an all-PASS ac-fit at late phases, so this cannot be waived."
+      "reason": "Independent verifier /root/receipt_amendment_review confirmed preserved genuine RED, native refutation over eight findings with three skeptics, prior source-code PASS at fa78dff9 and targeted GREEN 59/59 remain applicable: no runtime source delta. Current scanner-amended plan review PASS binds fd94d268cb9173a5ea7099023beae3aa115cff6de2257e89405ddc9d4dd204df, with independently approved exact applied config delta. Prior plan 3fb0b2cc is historical wiki-execution binding only; its original receipt remains unchanged. Reviewer requested this evidence-accuracy rebind before formal AC4 PASS. CI, L1/L2, landing and #2597 requalification remain mandatory postconditions, not claimed complete. Prior NOT-TESTED and failed reviews are preserved in portfolio evidence."
     }
   ]
 }

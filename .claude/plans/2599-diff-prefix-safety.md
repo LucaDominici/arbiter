@@ -7,7 +7,21 @@ owner: 'Luca Dominici'
 canonical_id: ''
 tags: ['audience/agent', 'kind/plan']
 related: ['#2599', '#2597']
+context:
+  issue: '#2599'
+  type: fix
+  pipeline: 'plan repair → independent review → generation → gate → PR'
+  branch_convention: 'task/#2599-diff-prefix-safety'
+  base_branch: main
+  key_constraints:
+    - 'Preserve real TDD, native review, exact-candidate gates and delivery postconditions.'
+    - 'Wiki generation may change only the three admitted wiki files; preserve the verified preimage. The separate scanner amendment admits only .gitleaks.toml.'
+  red_team_warnings:
+    - 'Receipt publication failure must restore the original vault; nonzero exit invalidates any apparent PASS.'
+    - 'Cooperative ownership is not operating-system exclusion; interrupted runs require recovery.'
+  estimate: 'S (2h remaining qualification estimate; integration conflicts may extend it)'
 files:
+  - .gitleaks.toml
   - src/templates/claude/hooks/lib.mjs.ejs
   - .claude/hooks/lib.mjs
   - packages/kernel/hooks/lib.mjs
@@ -24,6 +38,12 @@ files:
   - examples/python-library/.claude/hooks/lib.mjs
   - examples/go-library/.arbiter-generated-manifest.json
   - examples/go-library/.claude/hooks/lib.mjs
+  - wiki/internal-system-hook-contracts.md
+  - wiki/INDEX.md
+  - wiki/.wiki-log.json
+  - .arbiter/evidence/wiki-preview/2599/preview.log
+  - .arbiter/evidence/wiki-preview/2599/preview-complete.log
+  - .arbiter/evidence/wiki-preview/2599/actual-run-20260909.json
 ---
 # #2599 shared diff prefix safety
 Author Astra root; frozen base 2d23d37a631ecc4009650b28bec30a927a3ec5b8.
@@ -62,6 +82,146 @@ six admitted outputs, otherwise amend scope before generation. This checks clean
 committed content preservation as well as dirty/untracked content safety.
 Correct only the parity comment in `__tests__/scripts/build-kernel-plugin.test.ts`
 to include #2599; no test logic or `scripts/build-kernel-plugin.mjs` change.
+Wiki follow-up: the native L1 on 97c3966ddf38c6d89d3deb1fa603a07765b7969b isolates only the generated Hook Contracts
+page's stale source hash. Run `node scripts/gen-wiki.mjs --check`; then seed an
+owned temporary copy from the verified complete preimage, including .wiki-log.json,
+and compare every copied path/hash before previewing (never use an empty directory).
+Run `--changed --wiki-dir <owned temporary copy>` and require only the admitted page,
+INDEX and runtime log writes, with zero pruned pages. Preserve the original wiki
+bytes and stop on any additional changed/removed path. Run the same native
+`--changed` against this worktree after approval, then check-wiki-lint and --check.
+Wiki outputs remain gitignored as the native contract intends: commit plan/evidence,
+not the ignored generated vault. This wiki-only amendment makes no ADDITIONAL
+generator, source document, AC or gate change: the earlier committed
+HOOK-CONTRACTS.md edit remains admitted in the cumulative train manifest.
+The two native preview logs already committed under `.arbiter/evidence/wiki-preview/2599/`
+are explicitly part of this evidence scope; their original bytes and timestamps stay
+unchanged. `modify` denotes the existing wiki files, not a promise to track them.
+All manifest operations describe the cumulative train against frozen base
+`2d23d37a631ecc4009650b28bec30a927a3ec5b8`, not a request to recreate already
+committed evidence at current HEAD. Preserve the preimage archive
+`/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788868307/wiki-before.tar`
+with SHA-256 `90508b5e1520c87ec5d0bfc47045d856c8c9a937bb0b74398102599cc2138172`.
+The generator is not transactional: unexpected changes/removals or nonzero prune
+count are detected after execution. Restore affected original files from that
+verified preimage and stop continuation on any such result; do not call this a
+stop-before-write guarantee. New unexpected files stay preserved for diagnosis.
+Owner re-admission on 2026-09-09 01:14 CEST, recorded in issue comment5593165614,
+authorizes PLAN REPAIR ONLY. Original FAIL reviews and three new HIGH claims stay
+preserved; three independent skeptics upheld each claim in cycle1788909567.
+Fresh owner delegation on 2026-09-09 is recorded in issue comment5598973787:
+ordinary GitHub decisions and completion are authorized after plan repair. This
+supersedes the owner stop, not any independent technical finding or native gate.
+
+Concrete bounded writer reservation: the interactive root owns supervisor.lock; the
+service is inactive and its last attempt terminated on provider quota. Root reserves this
+exact worktree exclusively to Astra by Luca's owner assignment and the SAME
+delivery register until explicit terminal release. Native `arbiter mark` records
+that decision in the task cursor; it neither grants nor enforces a reservation.
+This is the owner-enforced
+single-writer contract (AGENTS worktree isolation and rule50), NOT a claim that
+agents-active.json is a lock or that gate-exec excludes arbitrary commands.
+Before starting, verify the terminal prior handoff, native sidecars, /proc ancestry,
+all child jobs and exact cwd; PID2438633 is dead, but that fact alone is insufficient.
+The interactive root is this tree's sole writer. All review agents are
+read-only and must JOIN before mutation; no implementation delegate receives this
+worktree. Parent launches ONE foreground gate-exec payload for preimage comparison,
+generation, validation and any restoration, and dispatches NO other write/commit
+command in this worktree until that payload and all descendants terminate.
+All later authorized commands, including commits and their hooks, are sequenced
+AFTER its terminal receipt; a newly observed competing writer cancels admission.
+The mutex is cooperative and does not block an unwrapped third-party hook.
+If this single-owner reservation cannot be maintained, STOP: do not regenerate
+the shared vault or pretend a process snapshot provides lifetime OS exclusion.
+No new lock service or hook-policy weakening is introduced.
+
+Verify the archive digest above and extract it into an owned temporary directory.
+Enumerate regular files and their sha256 under both vaults; reject symlinks,
+unexpected file types and any preimage/current path or byte mismatch BEFORE writes.
+Retain that exact preimage unchanged. Run native --changed and both native checks
+only under the reservation. Allowed modified set remains the three wiki paths;
+zero new/deleted/pruned paths is required for success.
+On ANY failed generator or postcheck, nonzero exit, signal, timeout, unexpected
+delta, or exception, restore EVERY changed/deleted pre-existing regular file from
+the verified pre-run image, including admitted paths. Preserve all newly created
+paths for diagnosis, then verify every original name and byte has been restored.
+Never claim this is a transactional generator or silently continue after failure.
+SIGINT/SIGTERM cleanup inside the payload is best-effort only: gate-exec tears down
+its process group and can kill that cleanup. ANY interrupted run with a PENDING
+receipt (including SIGINT/SIGTERM, SIGKILL/OOM or missing terminal result) therefore
+requires the coordinator, after verifying all children terminal, to restore and
+verify the durable preimage BEFORE any further write, gate or commit. No signal
+is claimed to guarantee inline cleanup. Failure to restore is a hard stop.
+
+The one NEW durable destination is
+`.arbiter/evidence/wiki-preview/2599/actual-run-20260909.json`, operation create.
+It contains original command/start/end/exit/signal, exact source SHA and plan/
+manifest digest, reservation identity and lifetime, archive digest, pre/post
+manifests, allowed-delta comparison, recovery results and executable recipe path.
+Persist the pending intent before generation and terminal result before release.
+Write each complete receipt to an exclusive same-directory temporary file, fsync
+it, rename atomically, then fsync its directory. A stop before terminal rename
+must leave the original PENDING receipt and backup locator intact; a stop after
+rename leaves a complete terminal receipt. Never truncate the existing receipt.
+Receipt acceptance requires BOTH the original payload exit 0 and terminal PASS.
+If terminal publication throws, restore the verified preimage and exit nonzero.
+Even a PASS-looking file after rename is invalid if directory fsync or the payload
+fails; preserve that file and require coordinator recovery before continuation.
+once terminal, do not rewrite it for another candidate or run. The historical
+preview logs remain immutable and cannot substitute for this receipt.
+Before the actual run, exercise the same restoration recipe on owned copies for
+admitted-only partial writes followed by exit1 and SIGTERM, deleted originals and
+a retained unexpected new file. Checks must distinguish failure from success.
+This is a bounded operational recipe using native generation and fs copy, not a
+new product module, scheduler or replacement gate.
+The executable recipe is the cycle evidence artifact
+`/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/resume-20260909/wiki-run.mjs`
+(SHA256 5ef8886cced822333f91f059691a6eab31353c34ee2076713cf45b9d607d26de).
+The original cycle1788909567 recipe remains immutable. The current copy additionally
+tests terminal publication failure before rename and at directory fsync after
+rename through the same finish function used by the real run. Both reject the
+publication and restore original bytes. RED and GREEN logs are retained beside it.
+Its `--test` mode already executed exit1, childSIGTERM, and deleted-original plus
+retained-new-path cases; all three restore original bytes. That proves only the
+isolated recipe, not supervisor-signal cleanup or a real-vault run. A PENDING
+receipt is deliberately fail-closed and carries the preserved backup path for
+recovery after the whole supervisor group has died.
+The 23:38:11Z isolated regression also injected a stop before receipt rename:
+PENDING and its backup locator remained readable; terminal replacement was readable.
+This is a synchronous injected failure, not a process-group signal or power-loss test.
+Those corrections were admitted at 2026-09-09T09:28:57Z; the actual wiki payload
+completed at 09:29:39Z. Original failed reviews remain preserved. The receipt
+retains its original plan/recipe binding and must not be regenerated for this amendment.
+At commit, explicitly `git add -f -- .arbiter/evidence/wiki-preview/2599/actual-run-20260909.json`
+after verifying terminal status, source/plan binding and original exits; confirm
+`git ls-files --error-unmatch` and the committed blob before L2. No ignore rule
+is changed and no historical preview is force-refreshed or reused as this receipt.
+## Bounded scanner-classification amendment — 2026-09-09
+The ordinary commit stopped on nine generic-api-key findings in the immutable
+actual-run receipt. Each equals one of three independently recomputed public wiki
+SHA256 digests. Preserve the receipt bytes and every original command result.
+The first proposal (nine positional fingerprints) was independently rejected:
+a new secret at an ignored coordinate could be hidden. Uphold that finding;
+do not install a fingerprint suppression or a whole-file exclusion.
+
+Admit only `.gitleaks.toml`, using Gitleaks' inherited `generic-api-key` rule and
+a rule-specific allowlist whose AND condition requires BOTH the exact anchored
+receipt path AND a secret equal to one of those three anchored public digests.
+All other rules and all other values/paths remain scanned. This follows existing
+native public-content-hash false-positive classification, not a temporary secret
+waiver; no actual credential is suppressed. Independent review must explicitly
+resolve compatibility with INV-31 before applying the configuration. If that
+policy does not admit exact public-value classification, stop; do not invent expiry.
+
+Frozen proposed config and runnable regression are retained in portfolio evidence
+`arbiter-2599/cycle-1788946697/content-config-amendment.txt` and
+`content-regression.mjs`. The native scanner fixture executes original RED,
+content-bound staged GREEN, replacement by a new secret AT THE SAME coordinate
+RED, the same public hash at another path RED, restored staged GREEN and history
+GREEN. All 17 commands terminated with expected exits. Run the real staged scan
+before any fresh L1. No dependencies, source generator, emitted consumer or receipt
+change is admitted. Fresh plan/code/AC binding, L1 and final integrated L2/CI/CAS
+remain mandatory; old wiki execution is historical evidence, not this plan's run.
 ## Threat model & abuse cases
 An added source line starting ++ is encoded as +++ and bypasses all shared callers.
 PII, placeholder, orphan marker and skipped-test hooks consume this helper; preserving

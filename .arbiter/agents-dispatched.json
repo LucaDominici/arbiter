@@ -1,7 +1,7 @@
 {
-  "count": 3,
-  "agents": ["/root/code_2599_standards", "/root/code_2599_spec", "/root/code_2599_safety"],
+  "count": 1,
+  "agents": ["independent-review"],
   "taskId": "#2599",
   "branch": "task/#2599-diff-prefix-safety",
-  "sha": "94f944000ba5e0fa51a7256af9ac2957baf12f4c"
+  "sha": "fa78dff9158829306fa0de79dcbc05a7da8c8677"
 }
