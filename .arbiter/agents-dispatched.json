@@ -1,10 +1,10 @@
 {
   "count": 1,
   "agents": [
-    "2624-telemetry-compact-source-review"
+    "astra-2500-final-source-review"
   ],
-  "branch": "task/#2624-release-pipeline",
-  "sha": "36de7d8ae9d7e6709a7dd828e3bad3ef8657b474",
-  "taskId": "#2624",
-  "ts": "2026-09-09T22:42:59.742800+00:00"
+  "branch": "task/#2500-release-freshness",
+  "sha": "23acb652c27d5edde95611ad0297e81af5524ba7",
+  "taskId": "#2500",
+  "ts": "2026-09-09T23:32:12.547676+00:00"
 }

@@ -1,0 +1,18 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "astra-2500-final-source-review",
+  "role": "reviewer",
+  "taskId": "#2500",
+  "branch": "task/#2500-release-freshness",
+  "sha": "23acb652c27d5edde95611ad0297e81af5524ba7",
+  "ts": "2026-09-09T23:32:12.520Z",
+  "verdict": "PASS",
+  "confidence": 0.96,
+  "findings": [],
+  "refutations": [],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}

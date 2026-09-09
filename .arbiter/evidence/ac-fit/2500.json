@@ -1,0 +1,165 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2500",
+  "branch": "task/#2500-release-freshness",
+  "sha": "23acb652c27d5edde95611ad0297e81af5524ba7",
+  "plan_sha256": "27fdb533d3f3a3496d606f4f4d9f5e3e5fa96997bffb60f8ee5eca12cc270cd0",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-issue-before.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-issue-after.json",
+          "line": 1
+        },
+        {
+          "file": "docs/design/gold-doc-tranches-t3-t5.md",
+          "line": 244
+        }
+      ],
+      "notes": "Independently read live GitHub issue #2500: current title and body define release/monthly-only freshness and replace the superseded local-L2/registry request. Original issue JSON retains the original request, body, number and URL. This is an actual external issue update, not a promised update."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "docs/internal/architecture/ARCHITECTURE.md",
+          "line": 61
+        },
+        {
+          "file": "website/comparisons/bmad.md",
+          "line": 70
+        },
+        {
+          "file": "website/comparisons/claude-flow.md",
+          "line": 74
+        },
+        {
+          "file": "website/comparisons/gsd2.md",
+          "line": 70
+        },
+        {
+          "file": "website/comparisons/index.md",
+          "line": 28
+        },
+        {
+          "file": "website/comparisons/spec-kit.md",
+          "line": 67
+        },
+        {
+          "file": "website/comparisons/superclaude.md",
+          "line": 74
+        },
+        {
+          "file": "docs/design/gold-doc-capability.md",
+          "line": 27
+        },
+        {
+          "file": "docs/design/gold-doc-tranches-t3-t5.md",
+          "line": 244
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-doc-repair-author-audit-final.json",
+          "line": 1
+        }
+      ],
+      "notes": "Reviewed all nine current document diffs against merged f213 baseline. Eight contain substantive supported-tool, optional orchestration, durable Verified evidence, or shipped-generator/freshness corrections. The tranches document changes only last_review after the retained source-cited review of its unchanged release/monthly contract and historical RED sections. All nine actual frozen hashes match; current SuperClaude footnote is independently assessed, not falsely equated to the earlier author-audit hash."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/wizard/types.ts",
+          "line": 117
+        },
+        {
+          "file": "src/wizard/types.ts",
+          "line": 143
+        },
+        {
+          "file": "src/commands/init/resolve-config.ts",
+          "line": 568
+        },
+        {
+          "file": ".claude/commands/ship.md",
+          "line": 26
+        },
+        {
+          "file": ".claude/commands/ship.md",
+          "line": 143
+        },
+        {
+          "file": "website/comparisons/index.md",
+          "line": 28
+        },
+        {
+          "file": "website/comparisons/superclaude.md",
+          "line": 51
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-integrated-green.json",
+          "line": 1
+        }
+      ],
+      "notes": "The current type and parser expose only Claude Code/Codex. Comparison tables and footnotes distinguish installer core from optional /ship and /drain orchestration and opted-in read-only external review. The documented enabled/consent boundary remains consistent with /ship. Existing comparison regression passed four of four on these restored integrated bytes; prior native committed RED is retained separately."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-integrated-final-acfit-audit.json",
+          "line": 1
+        },
+        {
+          "file": ".agents/plan/PLAN.json",
+          "line": 1
+        }
+      ],
+      "notes": "Independent git diff --name-only f213..23ac contains only the nine owned documents, existing comparison test, plan manifest and native TDD evidence. No local check-all, emitted registry, release workflow, versioning or changeset path is modified. This scope statement is relative to the already integrated baseline; upstream #2578/#2624 changes are not attributed to #2500."
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-integrated-source-checkpoint.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-integrated-wiki.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-integrated-wiki-lint.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-integrated-freshness.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-source-review-freeze.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-source-L1-staged.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2500-source-commit.json",
+          "line": 1
+        }
+      ],
+      "notes": "After source restoration on merged #2578+#2624 baseline f213, actual gen-wiki exited 0 (123 source pages), wiki lint exited 0 (124 pages), and focused freshness exited 0 (161/161). Restored document hashes equal final freeze and committed tree e9df951, so the probe and generation apply to final integrated documentation bytes. Full source L1 then passed in 119834 ms and source commit exited 0; these are completed, not prospective. Earlier focused preparation is not relabeled as a full gate before dependencies landed."
+    }
+  ],
+  "limits": "Independent all-five-AC fit on committed 23acb652 and frozen integrated source bytes. Source L1 and source commit are completed. This does not claim final task closure, subsequent CI/L3/merge, live publication, or final M1 adoption."
+}
