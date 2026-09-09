@@ -226,6 +226,7 @@ describe('check-cross-model-review (#2358)', () => {
   it('explicitly skips when cross-model review is disabled', () => {
     const result = run()
     expect(result.status).toBe(0)
+    expect(result.stdout).toContain('[SKIP]')
     expect(`${result.stdout}${result.stderr}`).toMatch(/skipped: crossModelReview not enabled/i)
   })
 
