@@ -1,1 +1,1 @@
-{"count":3,"agents":["security","review-integrity","review_2615_logic"],"branch":"task/#2615-gate-level-parity","sha":"955f28a5c46e938cc79753de686e166a7cdf2d6c","taskId":"#2615"}
+{"count":3,"agents":["security-r2","integrity-r2","logic-r2"],"branch":"task/#2615-gate-level-parity","sha":"200b343c72ffc12e69ceaf739117d1558d6e639e","taskId":"#2615"}
