@@ -220,6 +220,20 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/sha/i)
   })
 
+  it.each([false, true])('finds the exact return with stale-first=%s (AC-4)', (staleFirst) => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope(
+      'alpha-0',
+      envelope('alpha', { sha: staleFirst ? 'deadbeef' : '0123456789abcdef' }),
+    )
+    writeEnvelope(
+      'alpha-1',
+      envelope('alpha', { sha: staleFirst ? '0123456789abcdef' : 'deadbeef' }),
+    )
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
   it('uses the legacy count fallback when two reviewer envelopes were returned', () => {
     writeSidecar({ count: 2, branch: BRANCH, sha: '0123456789abcdef' })
     writeEnvelope('alpha', envelope('alpha'))
