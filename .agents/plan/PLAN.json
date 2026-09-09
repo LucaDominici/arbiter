@@ -25,7 +25,20 @@
       "wiki/.wiki-log.json",
       ".arbiter/evidence/wiki-preview/2599/preview.log",
       ".arbiter/evidence/wiki-preview/2599/preview-complete.log",
-      ".arbiter/evidence/wiki-preview/2599/actual-run-20260909.json"
+      ".arbiter/evidence/wiki-preview/2599/actual-run-20260909.json",
+      "wiki/deprecations.md",
+      "wiki/quickstart.md",
+      "wiki/reference-anti-fake-green.md",
+      "wiki/reference-backward-compat-harness.md",
+      "wiki/reference-ci-tier-workflows.md",
+      "wiki/reference-file-stability.md",
+      "wiki/reference-task-recovery.md",
+      "wiki/reference-workflow-pr-fast.md",
+      "wiki/semver.md",
+      "wiki/design-anti-context-rot-enforcers.md",
+      "wiki/internal-development-real-project-testing.md",
+      "wiki/internal-method-tabletop-scenarios.md",
+      "wiki/internal-system-decisions.md"
     ]
   },
   "files": [
@@ -120,6 +133,58 @@
     {
       "path": ".arbiter/evidence/wiki-preview/2599/actual-run-20260909.json",
       "operation": "create"
+    },
+    {
+      "path": "wiki/deprecations.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/quickstart.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/reference-anti-fake-green.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/reference-backward-compat-harness.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/reference-ci-tier-workflows.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/reference-file-stability.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/reference-task-recovery.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/reference-workflow-pr-fast.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/semver.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/design-anti-context-rot-enforcers.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/internal-development-real-project-testing.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/internal-method-tabletop-scenarios.md",
+      "operation": "modify"
+    },
+    {
+      "path": "wiki/internal-system-decisions.md",
+      "operation": "modify"
     }
   ],
   "invariants": {

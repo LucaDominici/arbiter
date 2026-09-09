@@ -18,6 +18,8 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
 import { runTaskAdvance } from '../../src/commands/task.js'
+import { readUnifiedState } from '../../src/commands/task-state.js'
+import { tddEvidenceProducedOnBranch } from '../../src/evidence/git-checks.js'
 
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
@@ -26,6 +28,7 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
     healed: false,
   })),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
+  tddEvidenceProducedOnBranch: vi.fn().mockReturnValue(true),
 }))
 
 const evidenceFor = (id: string): Record<string, unknown> => ({
@@ -140,5 +143,16 @@ describe('task advance: per-issue TDD evidence across a chain (#2331)', () => {
     writeEvidence(dir, '#100')
     // Verification runs the gate; the marker is required when leaving verification for close.
     expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
+  })
+
+  it('rejects an uncommitted or main-inherited receipt before changing phase (#2587)', () => {
+    const dir = tmpRepo('refactor', ['#101'])
+    writeEvidence(dir, '#100')
+    writeEvidence(dir, '#101')
+    // A false result represents either uncommitted or inherited data. Real merge-base/path
+    // behavior is covered by the git-checks unit tests.
+    vi.mocked(tddEvidenceProducedOnBranch).mockReturnValue(false)
+    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/#100|#101|provenance/i)
+    expect(readUnifiedState(dir)?.phase).toBe('refactor')
   })
 })

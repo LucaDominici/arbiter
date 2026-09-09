@@ -1,0 +1,8 @@
+{
+  "task": "#2486",
+  "threshold": "high",
+  "skeptics": 3,
+  "findings": [],
+  "round": "code-1",
+  "evaluated": [{"id":"SEC-2486-VM-EVAL","upheld":1,"refuted":2,"decision":"not acted on; majority refuted actual privilege-boundary claim; original FAIL preserved"}]
+}

@@ -37,21 +37,17 @@
 //   node scripts/regenerate-examples.mjs --check --stack=go  # limit to one stack (CI matrix cell)
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-} from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { checkDistFresh } from './lib/dist-staleness.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
+// #2548: shared with check-kernel-plugin-parity.mjs, which needs the identical
+// committed-vs-fresh byte-diff semantics — extracted rather than duplicated.
+// Re-exported so existing importers (this file's own test suite) are unaffected.
+import { diffDirs } from './lib/dir-diff.mjs'
+export { diffDirs }
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const DIST_CLI = join(ROOT, 'dist', 'cli.js')
@@ -91,42 +87,6 @@ export function parseArgs(argv) {
   const stackArg = argv.find((a) => a.startsWith('--stack='))
   const stack = stackArg ? stackArg.slice('--stack='.length) : null
   return { check, stack }
-}
-
-function listFiles(dir) {
-  const out = []
-  const stack = [dir]
-  while (stack.length > 0) {
-    const current = stack.pop()
-    for (const entry of readdirSync(current)) {
-      if (entry === '.git') continue
-      const full = join(current, entry)
-      const st = statSync(full)
-      if (st.isDirectory()) {
-        stack.push(full)
-      } else {
-        out.push(relative(dir, full))
-      }
-    }
-  }
-  return out.sort()
-}
-
-/** Pure diff between two staged directory trees. Exported for unit testing. */
-export function diffDirs(committedDir, freshDir) {
-  const committed = new Set(existsSync(committedDir) ? listFiles(committedDir) : [])
-  const fresh = new Set(listFiles(freshDir))
-  const removed = [...committed].filter((f) => !fresh.has(f)).sort()
-  const added = [...fresh].filter((f) => !committed.has(f)).sort()
-  const changed = [...fresh]
-    .filter((f) => committed.has(f))
-    .filter((f) => {
-      const a = readFileSync(join(committedDir, f))
-      const b = readFileSync(join(freshDir, f))
-      return !a.equals(b)
-    })
-    .sort()
-  return { removed, added, changed }
 }
 
 function runGit(args, cwd) {

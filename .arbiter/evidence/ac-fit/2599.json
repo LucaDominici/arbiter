@@ -65,7 +65,7 @@
           "line": 119
         }
       ],
-      "reason": "The one helper change is present in template, shipped self, and generated kernel copies; the isolated generator test byte-compares committed kernel output."
+      "reason": "Template/self/generated kernel helper parity retained; native --out fixture compares merged input bytes and asserts shared output unchanged. Protection equivalent by content to non-ancestral 5bb7f8ed."
     },
     {
       "id": "AC-4",
@@ -80,7 +80,7 @@
           "line": 6
         }
       ],
-      "reason": "Independent verifier /root/receipt_amendment_review confirmed preserved genuine RED, native refutation over eight findings with three skeptics, prior source-code PASS at fa78dff9 and targeted GREEN 59/59 remain applicable: no runtime source delta. Current scanner-amended plan review PASS binds fd94d268cb9173a5ea7099023beae3aa115cff6de2257e89405ddc9d4dd204df, with independently approved exact applied config delta. Prior plan 3fb0b2cc is historical wiki-execution binding only; its original receipt remains unchanged. Reviewer requested this evidence-accuracy rebind before formal AC4 PASS. CI, L1/L2, landing and #2597 requalification remain mandatory postconditions, not claimed complete. Prior NOT-TESTED and failed reviews are preserved in portfolio evidence."
+      "reason": "Independent receipt_amendment_review r2 PASS for pre-verification prerequisites: genuine TDD/refutation retained, 62 focused tests and build/prettier passed before original chain failed on wrong license-script path. Correct gen-third-party-licenses.mjs --check separately exited0 at10:11:08.829Z. Plan digest7e320f0cd9097153b2e7cf86ea77861477459e7a73d7e4745e49c966421d57e7 admitted with accurate non-ancestral fixture provenance. Actual wiki and L1/L2/CI/landing remain required; original receipt cbb0588d unchanged, historical failures retained."
     }
   ]
 }

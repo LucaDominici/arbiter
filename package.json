@@ -95,6 +95,8 @@
     "gold:report": "node scripts/gold-report.mjs",
     "examples:regenerate": "node scripts/regenerate-examples.mjs",
     "examples:check": "node scripts/regenerate-examples.mjs --check",
+    "kernel-plugin:build": "node scripts/build-kernel-plugin.mjs",
+    "kernel-plugin:check": "node scripts/check-kernel-plugin-parity.mjs",
     "consumer:prepare": "node scripts/prepare-consumer-reliability.mjs",
     "consumer:reliability": "node scripts/consumer-reliability-bar.mjs",
     "test:consumer-reliability": "node scripts/run-consumer-reliability.mjs",
@@ -106,7 +108,7 @@
     "ejs": "6.0.1",
     "prettier": "3.9.6",
     "yaml": "2.9.0",
-    "zod": "4.4.3"
+    "zod": "4.5.4"
   },
   "overrides": {
     "madge": {

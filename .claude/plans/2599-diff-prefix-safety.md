@@ -15,7 +15,7 @@ context:
   base_branch: main
   key_constraints:
     - 'Preserve real TDD, native review, exact-candidate gates and delivery postconditions.'
-    - 'Wiki generation may change only the three admitted wiki files; preserve the verified preimage. The separate scanner amendment admits only .gitleaks.toml.'
+    - 'Historical wiki run changed only three admitted files. Integration refresh permits only the sixteen paths listed below; preserve each verified preimage and the original receipt. Scanner amendment admits only .gitleaks.toml.'
   red_team_warnings:
     - 'Receipt publication failure must restore the original vault; nonzero exit invalidates any apparent PASS.'
     - 'Cooperative ownership is not operating-system exclusion; interrupted runs require recovery.'
@@ -41,6 +41,19 @@ files:
   - wiki/internal-system-hook-contracts.md
   - wiki/INDEX.md
   - wiki/.wiki-log.json
+  - wiki/deprecations.md
+  - wiki/quickstart.md
+  - wiki/reference-anti-fake-green.md
+  - wiki/reference-backward-compat-harness.md
+  - wiki/reference-ci-tier-workflows.md
+  - wiki/reference-file-stability.md
+  - wiki/reference-task-recovery.md
+  - wiki/reference-workflow-pr-fast.md
+  - wiki/semver.md
+  - wiki/design-anti-context-rot-enforcers.md
+  - wiki/internal-development-real-project-testing.md
+  - wiki/internal-method-tabletop-scenarios.md
+  - wiki/internal-system-decisions.md
   - .arbiter/evidence/wiki-preview/2599/preview.log
   - .arbiter/evidence/wiki-preview/2599/preview-complete.log
   - .arbiter/evidence/wiki-preview/2599/actual-run-20260909.json
@@ -249,11 +262,36 @@ code review and AC-fit, committed evidence, exact-head L1/L2 and green CI before
 pr-ff/CAS landing. Rejoin #2597 afterward; its artifact/consumer require current binding.
 No FEATURE_MATRIX row names #2599; infrastructure regression, no product row promotion.
 ## Risks
+Integration-only wiki refresh: native gen-wiki --check on the merged main input
+identified fourteen stale pages at10:07:45Z, corresponding to merged source docs.
+The thirteen additional pages in the manifest plus existing Hook Contracts, INDEX
+and .wiki-log.json are the only sixteen writable paths. No additions/deletions or
+pruning admitted. This is not a rerun or rewrite of actual-run-20260909.json:
+its cbb0588d digest and original source/plan/time stay immutable.
+Reuse the proven transactional recipe in portfolio cycle1788948146/
+wiki-integration.mjs, changing only the explicit allowed-path set, captured current
+preimage archive/digest, external receipt destination and source+staged-tree identity.
+Archive SHA25602b167826ce019ae3e70e26cbc3f6fd72adf1d39a1048f01fcf602cecb38f8b1.
+Run its isolated --test and obtain independent delta approval before actual vault
+generation under gate-exec. Same rollback/publication failure controls remain.
+Retain the new original terminal receipt externally as integration work evidence;
+do not introduce more content-hash suppressions or relabel historical wiki proof.
+Integration reconciliation 2026-09-09: main3d729d73 already supplies the native
+builder `--out` option and an isolated-output regression. Use that native path,
+preserving the unchanged-shared-output assertion from existing5bb7f8ed and the
+#2599 lib.mjs parity assertion. Do not reintroduce the older copied-script fixture
+or compare a staged merged output with historical pre-merge HEAD bytes. Capture
+the qualified input output bytes before the isolated builder runs, as main's
+accepted test does; the producer writes only its owned temporary `--out` path.
+This reconciles both existing intents without new production behavior. Commit
+5bb7f8ed is NOT ancestral to either parent: preserve its already-represented
+test protection by content, not by claiming that SHA is in this history. Main's
+native --out implementation supersedes the older copied-script fixture approach.
 RT-2599-C-01 repair: admit the existing build-kernel-plugin test and add lib.mjs
 to its byte-parity list. Run that test alone (no concurrent producer-reader gate).
 Capture the unchanged generator's output and require kernel lib.mjs byte parity.
-Before full L2, integrate the already committed #2597 builder-isolation repair
-5bb7f8ed9927e4722c6e14e2e49532ceb9652958 through the native integration contract;
+Before full L2, retain the #2597 builder-isolation protection represented in
+5bb7f8ed9927e4722c6e14e2e49532ceb9652958 using the merged native --out test above;
 do not run the known shared-output collision again. Direct helper regressions
 also exercise the retained kernel helper, not just self and rendered template.
 Template/render drift and under-testing hunk counters: exercise real git output on

@@ -114,6 +114,19 @@ for (const fixture of fixtureDirs) {
     violations++
     fixtureValid = false
   }
+  // #2543 AC-4: `bakeLevel` (the explicit bake-level selector read by
+  // fixture-bake.test.ts) is optional, but when present it must be one of
+  // this fixture's own declared `levels` — a fixture must never claim to
+  // bake at a level it does not support.
+  if (fixtureValid && manifest.bakeLevel !== undefined) {
+    if (!Array.isArray(manifest.levels) || !manifest.levels.includes(manifest.bakeLevel)) {
+      process.stdout.write(
+        `  ${fixture}/manifest.json: bakeLevel '${manifest.bakeLevel}' is not present in levels ${JSON.stringify(manifest.levels)}\n`,
+      )
+      violations++
+      fixtureValid = false
+    }
+  }
   if (fixtureValid && manifest.language) {
     fixtureLanguages.add(manifest.language)
   }

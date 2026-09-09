@@ -1,0 +1,22 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "adversarial-verifier",
+  "role": "verifier",
+  "taskId": "#2486",
+  "branch": "task/#2486-pr-base-concurrency",
+  "sha": "58d445fadc2f55b50cf1734d44ed92ba79bad79d",
+  "ts": "2026-09-09T02:29:56.108Z",
+  "verdict": "PASS",
+  "confidence": 0.94,
+  "findings": [],
+  "evidenceRefs": [
+    ".claude/plans/task-2486-pr-base-concurrency.md:76",
+    ".github/workflows/01-pr-fast.yml:33",
+    ".github/workflows/02-pr-extended.yml:34",
+    "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2486/cycle-1788919996/focused-exact-lock.json"
+  ],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}

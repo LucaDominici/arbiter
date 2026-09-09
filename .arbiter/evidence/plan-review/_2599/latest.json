@@ -2,10 +2,10 @@
   "verdict": "PASS",
   "reviewer": "/root/receipt_amendment_review",
   "branch": "task/#2599-diff-prefix-safety",
-  "sha": "fa78dff9158829306fa0de79dcbc05a7da8c8677",
-  "planDigest": "fd94d268cb9173a5ea7099023beae3aa115cff6de2257e89405ddc9d4dd204df",
-  "timestamp": "2026-09-09T09:51:13Z",
+  "sha": "af7a15a0b810e20ed5febce1d40fbdc6709f113c",
+  "planDigest": "7e320f0cd9097153b2e7cf86ea77861477459e7a73d7e4745e49c966421d57e7",
+  "timestamp": "2026-09-09T10:16:00Z",
   "findings": [],
-  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788946697/review-r2.md",
-  "scope": "Scanner-classification plan/config delta only; INV-31 compatible public values, no positional suppression. Prior wiki plan PASS and actual run retain original binding in resume evidence. First scanner-plan FAIL preserved in cycle review-r1.md. Not L1/L2 or delivery acceptance."
+  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788948146/integration-review-r2.md",
+  "scope": "Independent integration-plan admission only: corrected non-ancestral fixture provenance and transactional wiki refresh scope. Original r1 FAIL retained. Code/recipe scoped PASS in r1. Actual wiki/L1/L2/CI/landing pending."
 }

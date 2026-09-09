@@ -433,7 +433,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-## zod@4.4.3
+## zod@4.5.4
 
 - License: MIT
 - Homepage: https://zod.dev

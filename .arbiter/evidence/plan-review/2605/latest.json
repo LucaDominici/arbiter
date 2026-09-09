@@ -1,0 +1,36 @@
+{
+  "verdict": "PASS",
+  "reviewer": "/root",
+  "reviewedAt": "2026-09-08T18:24:30Z",
+  "branch": "task/#2492-2495-2502-integration",
+  "sha": "aa42406c3f66a99ac9f7cb1c7d68849c1283f1b7",
+  "sourceSHA": "8b538c25e166d7d0c18f3856e72e3f5991e49362",
+  "planDigest": "353e53eb6a83a15935767cf217a572e3629b79adafce11d0afc9c7423dbd432b",
+  "planMetadataDigest": "9b249325431348899e59f0c4f5b86feb9d75c37ac71b261efda84045eb9c182c",
+  "checks": {
+    "scope": "PASS: exact 83-path manifest, source-head ancestry preserved. Added old preview callers and generated zod license version; no implementation expansion.",
+    "dispatch": "PASS: one combined native L1/L2 and exact-SHA CI/landing; no per-source refresh train. Existing source review-count ceremony WAIVED by owner, not fabricated independent PASS.",
+    "truthfulness": "First batch L1 FAILED in 153490ms: old async test callers and stale generated license. Focused recovery is not a full qualification. L2/CI/merge remain NOT-TESTED.",
+    "measurement": "PASS: historicaln1pair retainscurrent-refconfounder/finaldocsfailure; no repeatbenchmarkorportfolio-wide claim."
+  },
+  "findings": [],
+  "resolvedFindings": [
+    {
+      "id": "PR-2605-01",
+      "severity": "BLOCKER",
+      "path": ".claude/plans/task-2605-l2-single-corpus.md",
+      "line": 36,
+      "summary": "AC-4 measurement is optional/underspecified, so the plan cannot prove the requested throughput improvement.",
+      "minimalCorrection": "Resolved in the revised Non-goals and Test and verification sections: root-owned matched benchmark evidence is mandatory before acceptance and its protocol/artifact is declared."
+    }
+  ],
+  "claimedBridgeReview": {
+    "path": ".arbiter/plan/runs/bridge-20260908-162053-08c2/REVIEW.json",
+    "status": "APPROVED",
+    "reviewer": "phase_admission_final_review_r2",
+    "disposition": "Preserved as an unauthenticated bridge artifact. It is not this review, does not carry this reviewer's identity, and does not address AC-4 measurement; it cannot admit implementation."
+  },
+  "measurementStatus": "Historical sourceA/B recorded; this combined candidate NOT-TESTED byfullgates.",
+  "deltaReview": "Root inspected the actual recovery diff and enumerated every compute/display preview caller with rg. All callers now await; the old test retains migration-consent assertions at buildMigrationPlan and separately checks literal preview buckets. License diff is only zod 4.4.3 to 4.5.4. Author ran 26 old/new/brownfield tests and license check successfully. Prior full functional review remains historical.",
+  "limits": "Real root review, not three independent fresh source plan reviews; owner maintenance waiver is explicit. No admission/CI/merge PASS claimed."
+}

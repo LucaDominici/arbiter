@@ -25,6 +25,7 @@ describe('deriveSelfOnlySurfaces()', () => {
     const derived = deriveSelfOnlySurfaces(ROOT)
     expect(derived.skills).toEqual([
       'context-rot-management',
+      'product-acceptance',
       'refutation',
       'senior-survey',
       'ssot-navigation',

@@ -677,7 +677,11 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             PATH: bin + ':' + (process.env.PATH ?? ''),
           },
           stdio: 'ignore',
-          timeout: 30_000,
+          // Backstop against a genuine hang, not part of the assertion under test —
+          // matches the `ship` E2E convention used elsewhere (ship-tier.test.ts) rather
+          // than the tighter 30s that shared an order of magnitude with the old 5s
+          // crossModelReview.timeoutMs and could itself be raced under contention (#2501).
+          timeout: 60_000,
         },
       )
       expect(second.status, `${second.stdout}\n${second.stderr}`).toBe(0)

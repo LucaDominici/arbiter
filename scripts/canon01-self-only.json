@@ -351,6 +351,10 @@
     {
       "path": "scripts/sync-action-pins.mjs",
       "reason": "Syncs GitHub Action pins between .github/workflows/*.yml and their EJS source templates. Its subject is arbiter\u2019s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject \u2014 self-only by construction (CANON-01 motivated divergence)."
+    },
+    {
+      "path": "scripts/check-kernel-plugin-parity.mjs",
+      "reason": "Verifies packages/kernel/hooks/ \u2014 arbiter\u2019s own distributable Claude Code plugin bundle (packages/kernel/README.md) \u2014 matches build-kernel-plugin.mjs\u2019s current output (#2548). Its subject is arbiter\u2019s own plugin-packaging artifact, not something `arbiter init` emits into a governed target project: a target repo has no packages/kernel/hooks/ of its own, so an emitted `.ejs` twin of this check would be a gate with no subject \u2014 self-only by construction (CANON-01 motivated divergence)."
     }
   ]
 }

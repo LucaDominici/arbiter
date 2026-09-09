@@ -1,8 +1,8 @@
 ---
 title: 'arbiter — AGENTS.md'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-09-08'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/governance']
@@ -337,7 +337,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-120:** Workflow needs-chain depth must not exceed the configured limit (parallelism regression gate)
   - _Enforcement:_ `scripts/check-workflow-parallelism.mjs` (L1, selfOnly; scans .github/workflows/\*.yml DAG; default ≤3 edges; per-file overrides: 01-pr-fast ≤3, 05-release ≤4, nightly/weekly/monthly ≤5; aggregator sinks with `if: always()` excluded; configurable via ARBITER_MAX_NEEDS_CHAIN env; exit 0=PASS, 1=FAIL, 2=ERROR per INV-53; #1231).
 - **INV-121:** Stack conformity — the repo-root manifest must not contradict declared axes
-  - _Enforcement:_ `<project>/scripts/check-stack-conformity.mjs` (L1, generated for targets when a language is declared; fails when the repo-ROOT manifest contradicts the declared language/databaseEngine — e.g. language="go" with a root package.json and no go.mod, or databaseEngine="sqlite" with a postgres driver. Self-safety is RUNTIME-resident: re-reads the target arbiter.json, absent language ⇒ exit 0, absent/none databaseEngine ⇒ DB conformity skipped. Root-scope only, never recurses. exit 0=PASS/SKIP, 1=FAIL, 2=ERROR per INV-53; #1312).
+  - _Enforcement:_ `<project>/scripts/check-stack-conformity.mjs` (L1, generated for targets when a language is declared; fails when the repo-ROOT manifest contradicts the declared language/databaseEngine — e.g. language="go" with a root package.json and no go.mod, or databaseEngine="sqlite" with a postgres driver. Node database proof reads only root `package.json` dependency keys, never lockfile text; Go proof reads root `go.mod`/`go.sum` imports with module-segment boundaries. Self-safety is RUNTIME-resident: re-reads the target arbiter.json, absent language ⇒ exit 0, absent/none databaseEngine ⇒ DB conformity skipped. Root-scope only, never recurses. exit 0=PASS/SKIP, 1=FAIL, 2=ERROR per INV-53; #1312).
 
 - **INV-122:** Update propagates template fixes to pristine generated files; user-modified files are preserved
   - _Enforcement:_ Integration + unit tests (`__tests__/integration/update-propagates-fixes.test.ts`, plus `fs-generation-session` and `generated-manifest` units). Runtime-resident in the arbiter CLI engine (init/update/diff): a committed per-file content-hash manifest (`.arbiter-generated-manifest.json`, repo root) lets `update` rewrite a pristine (disk hash == recorded render) `skipIfExists` file to propagate a template fix, while a user-modified file is preserved with a withheld-fix warning, and `diff` reports the pristine-stale file as changed (never a lying "unchanged"). Corrupt manifest fails closed (exit 2); missing is a legitimate first run. Inherited by the fleet via the CLI — not a render-time gate (#1328).

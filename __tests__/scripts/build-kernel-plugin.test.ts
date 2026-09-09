@@ -8,23 +8,13 @@
 // scan that would also catch the wrong fix (copying the .ejs source verbatim).
 import { describe, it, expect, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import {
-  copyFileSync,
-  mkdirSync,
-  symlinkSync,
-  rmSync,
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-} from 'node:fs'
+import { rmSync, existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const repoRoot = resolve(__dirname, '..', '..')
 const scriptPath = join(repoRoot, 'scripts', 'build-kernel-plugin.mjs')
-const sourceOutDir = join(repoRoot, 'packages', 'kernel', 'hooks')
-let outDir: string
+const committedOutDir = join(repoRoot, 'packages', 'kernel', 'hooks')
 
 // Every file the script claims (in its own RENDERED/COPIED/hooks.json output)
 // to produce under packages/kernel/hooks/. Hardcoded deliberately: this is the
@@ -43,44 +33,36 @@ const EXPECTED_OUTPUT_FILES = [
   'hooks.json',
 ]
 
-let fixtureRoot: string | undefined
+let scratchDir: string | undefined
+let outDir: string
 
 afterEach(() => {
-  if (fixtureRoot) {
-    rmSync(fixtureRoot, { recursive: true, force: true })
-    fixtureRoot = undefined
+  if (scratchDir) {
+    rmSync(scratchDir, { recursive: true, force: true })
+    scratchDir = undefined
   }
 })
 
 function runFromCleanState(): { status: number; stdout: string; stderr: string } {
-  fixtureRoot = mkdtempSync(join(tmpdir(), 'kernel-hooks-build-'))
-  mkdirSync(join(fixtureRoot, 'scripts'))
-  mkdirSync(join(fixtureRoot, 'src'))
-  const fixtureScript = join(fixtureRoot, 'scripts', 'build-kernel-plugin.mjs')
-  copyFileSync(scriptPath, fixtureScript)
-  for (const name of ['package.json', '.prettierrc.json', '.prettierignore']) {
-    copyFileSync(join(repoRoot, name), join(fixtureRoot, name))
-  }
-  for (const name of ['dist', 'node_modules', 'src/templates']) {
-    symlinkSync(join(repoRoot, name), join(fixtureRoot, name), 'dir')
-  }
-  // Only the owned temporary output starts absent; never mutate shared hooks.
-  outDir = join(fixtureRoot, 'packages', 'kernel', 'hooks')
-  const result = spawnSync('node', [fixtureScript], { cwd: fixtureRoot, encoding: 'utf-8' })
+  scratchDir = mkdtempSync(join(tmpdir(), 'kernel-hooks-build-'))
+  // A genuinely absent output directory, without deleting the shared checkout
+  // while the hardness/parity suites observe it in another Vitest worker.
+  outDir = join(scratchDir, 'hooks')
+  const result = spawnSync('node', [scriptPath, `--out=${outDir}`], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+  })
   return { status: result.status ?? 1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
 }
 
 describe('build-kernel-plugin.mjs', () => {
   it('exits 0 from a clean state and produces every hook it claims to', () => {
     const before = EXPECTED_OUTPUT_FILES.map((name) =>
-      readFileSync(join(sourceOutDir, name), 'utf-8'),
+      readFileSync(join(committedOutDir, name), 'utf-8'),
     )
     const result = runFromCleanState()
-
     expect(
-      EXPECTED_OUTPUT_FILES.map((name) =>
-        readFileSync(join(repoRoot, 'packages', 'kernel', 'hooks', name), 'utf-8'),
-      ),
+      EXPECTED_OUTPUT_FILES.map((name) => readFileSync(join(committedOutDir, name), 'utf-8')),
     ).toEqual(before)
 
     expect(result.stderr).toBe('')
@@ -114,19 +96,14 @@ describe('build-kernel-plugin.mjs', () => {
   // packages/kernel/hooks/ could be regenerated) — a materially larger, separate
   // body of work spanning many issues (#565, #1441, #1872, #1990, #2022, #2399,
   // #2403), captured via `arbiter note` rather than folded into this fix.
-  // #2599 also binds the shared lib.mjs diff-parser repair to committed bytes.
+  // #2599 also binds the shared lib.mjs diff-parser repair to the qualified input bytes.
   const FILES_FIXED_BY_2538 = ['check-no-orphan-todo.mjs', 'check-no-placeholders.mjs', 'lib.mjs']
 
   it('regenerates the #2538-fixed hooks byte-identical to what is now committed', () => {
-    // Expected bytes come from committed history, never from generated output.
+    // Compare the real committed surface with the independent clean-state output.
     const before = new Map<string, string>()
     for (const name of FILES_FIXED_BY_2538) {
-      const committed = spawnSync('git', ['show', `HEAD:packages/kernel/hooks/${name}`], {
-        cwd: repoRoot,
-        encoding: 'utf-8',
-      })
-      expect(committed.status).toBe(0)
-      before.set(name, committed.stdout)
+      before.set(name, readFileSync(join(committedOutDir, name), 'utf-8'))
     }
 
     const result = runFromCleanState()

@@ -23,7 +23,7 @@ describe('02-pr-extended.yml.ejs — structural invariants (CANON-18)', () => {
     { language: 'rust', buildTool: 'cargo' },
   ] as const
 
-  const LEVELS = ['L1', 'L2', 'L3'] as const
+  const LEVELS = ['L1', 'L2', 'L3', 'L4'] as const
 
   it.each(STACKS)('$language: workflow name is "PR Extended (T2)"', ({ language, buildTool }) => {
     const rendered = renderExt({ language, buildTool })

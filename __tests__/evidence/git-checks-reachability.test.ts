@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { afterEach, describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { shaExistsOnBranch, resolveEvidenceCommit } from '../../src/evidence/git-checks.js'
+import {
+  shaExistsOnBranch,
+  resolveEvidenceCommit,
+  tddEvidenceProducedOnBranch,
+} from '../../src/evidence/git-checks.js'
 
 const roots: string[] = []
 afterEach(() => {
@@ -36,6 +40,44 @@ describe('shaExistsOnBranch reachability (#2173)', () => {
 
     expect(shaExistsOnBranch(orphanedSha, root)).toBe(false)
     expect(shaExistsOnBranch(reachableSha, root)).toBe(true)
+  })
+})
+
+describe('tddEvidenceProducedOnBranch provenance (#2587)', () => {
+  it('distinguishes inherited, fresh, dirty, and unverifiable receipts in a real repo', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-tdd-provenance-'))
+    roots.push(root)
+    git(root, ['init', '--initial-branch=main'])
+    git(root, ['config', 'user.name', 'Arbiter Test'])
+    git(root, ['config', 'user.email', ['arbiter-test', 'example.invalid'].join('@')])
+    mkdirSync(join(root, '.arbiter', 'evidence', 'tdd'), { recursive: true })
+    writeFileSync(join(root, '.arbiter', 'evidence', 'tdd', '#42.json'), '{"task_id":"#42"}\n')
+    git(root, ['add', '.'])
+    git(root, ['commit', '-m', 'base receipt'])
+    git(root, ['update-ref', 'refs/remotes/origin/main', 'HEAD'])
+    git(root, ['checkout', '-b', 'task/42'])
+
+    // Present in HEAD, but inherited from the merge-base: not fresh provenance.
+    expect(tddEvidenceProducedOnBranch('#42', root)).toBe(false)
+
+    writeFileSync(
+      join(root, '.arbiter', 'evidence', 'tdd', '#42.json'),
+      '{"task_id":"#42","fresh":true}\n',
+    )
+    git(root, ['add', '.arbiter/evidence/tdd/#42.json'])
+    git(root, ['commit', '-m', 'record fresh receipt'])
+    expect(tddEvidenceProducedOnBranch('#42', root)).toBe(true)
+
+    writeFileSync(
+      join(root, '.arbiter', 'evidence', 'tdd', '#42.json'),
+      '{"task_id":"#42","dirty":true}\n',
+    )
+    git(root, ['add', '.arbiter/evidence/tdd/#42.json'])
+    expect(tddEvidenceProducedOnBranch('#42', root)).toBe(false)
+    git(root, ['reset', '--hard', 'HEAD'])
+
+    git(root, ['update-ref', '-d', 'refs/remotes/origin/main'])
+    expect(tddEvidenceProducedOnBranch('#42', root)).toBe(false)
   })
 })
 

@@ -151,6 +151,7 @@
       "no_changes": "No changes made.",
       "reset_confirm": "Reset all configuration to defaults?",
       "usage_hint": "  Usage: arbiter configure --set <path>=<value>\n  Interactive mode requires a TTY. Non-interactive usage requires --set.",
+      "drain_sync_withheld": "warning: {path} carries the `arbiter:preserve` marker, so its --max-parallel default was not updated. Set it to {cap} by hand to keep it in sync.",
       "interactive": {
         "intro": "arbiter configure \u2014 interactive mode",
         "save_confirm": "Save these changes?",

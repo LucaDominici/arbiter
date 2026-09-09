@@ -603,3 +603,22 @@ The staleness this let accumulate is real and is **not** repaired here: six kern
 hundreds of lines behind their templates. Regenerating them, and adding the parity gate that
 would have caught the drift in the first place, is #2548 — a fix that lands separately rather
 than being folded into this diff.
+
+### The drift is repaired, and a gate now holds it shut (#2548)
+
+The six hooks above are regenerated: `lib.mjs` (+255 lines), `enforce-gate-before-pr.mjs`
+(+110), `stop-evidence-guard.mjs` (+81), `stop-dangerous.mjs` (+58), `guard-done-evidence.mjs`
+(+41) and `pre-edit-ssot-guard.mjs` (+8). Their committed bytes now match
+`build-kernel-plugin.mjs`'s output exactly.
+
+Regenerating alone would only reset the clock — nothing stopped the same gap reopening the
+moment someone edited a template without re-running the build. `check-kernel-plugin-parity.mjs`
+closes that: it re-runs the generator and byte-compares its output against the committed
+`packages/kernel/hooks/`, failing on any difference. A template edit that is not accompanied by
+a regeneration is now a red gate rather than silent drift.
+
+The gate is **self-only**, declared in `scripts/canon01-self-only.json` with its reason: its
+subject is arbiter's own distributable plugin bundle, and a governed target project ships no
+kernel plugin of its own, so an emitted twin would be a gate with no subject (CANON-01). That
+declaration is what moves the CANON-01 `selfOnly` count from 87 to 88 — a deliberate,
+registered increment, not baseline drift.

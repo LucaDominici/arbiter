@@ -1,0 +1,50 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2486",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".github/workflows/01-pr-fast.yml",
+          "line": 33
+        },
+        {
+          "file": "src/templates/github/workflows/01-pr-fast.yml.ejs",
+          "line": 35
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 53
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 66
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".github/workflows/02-pr-extended.yml",
+          "line": 34
+        },
+        {
+          "file": "src/templates/github/workflows/02-pr-extended.yml.ejs",
+          "line": 40
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 29
+        },
+        {
+          "file": "__tests__/templates/pr-tier-base-branch-filter.test.ts",
+          "line": 66
+        }
+      ]
+    }
+  ]
+}

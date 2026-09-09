@@ -74,6 +74,42 @@ describe('check-deprecations.mjs (deprecation window enforcement)', () => {
     }
   })
 
+  // #2453: a CLI-flag symbol IS a leading-dash string ("--no-adopt-gate-spine").
+  // The grep call that verifies a symbol is still present in src/ must not
+  // treat the pattern as a grep option — that would report every active,
+  // correctly-wired CLI flag deprecation as "removed" and block the gate.
+  it('exits 0 for a dash-prefixed CLI flag symbol present in src/ (grep pattern, not option)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'docs'))
+      mkdirSync(join(dir, 'src'))
+      writeFileSync(
+        join(dir, 'docs', 'DEPRECATIONS.md'),
+        [
+          '# Active Deprecations',
+          '',
+          '| Symbol / Flag / Behavior | Deprecated In | Remove In | Replacement | Status |',
+          '| --- | --- | --- | --- | --- |',
+          '| `--no-adopt-gate-spine` | 0.5.0 | 0.8.0 | (none) | in-window |',
+          '',
+          '# Removed Deprecations',
+          '',
+          'None yet.',
+        ].join('\n'),
+      )
+      writeFileSync(
+        join(dir, 'src', 'cli.ts'),
+        "program.option('--no-adopt-gate-spine', 'deprecated')",
+      )
+      const result = run(dir)
+      expect(result.stderr).not.toContain('not found in src/')
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('OK')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('exits 1 when an active deprecated symbol is missing from src/', () => {
     const { dir, cleanup } = makeTemp()
     try {
@@ -290,5 +326,149 @@ describe('check-deprecations.mjs (deprecation window enforcement)', () => {
     } finally {
       cleanup()
     }
+  })
+})
+
+describe('check-deprecations.mjs (source @deprecated tag scan, #2449)', () => {
+  it('exits 1 when a src/ symbol is tagged @deprecated but has no Active-table row', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'docs'))
+      mkdirSync(join(dir, 'src', 'wizard'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'DEPRECATIONS.md'),
+        '# Active Deprecations\n\n_(none currently active)_\n',
+      )
+      writeFileSync(
+        join(dir, 'src', 'wizard', 'types.ts'),
+        [
+          'export interface Answers {',
+          '  /**',
+          '   * Legacy flag.',
+          '   * @deprecated Use newMode instead.',
+          '   */',
+          '  ghostField?: boolean',
+          '}',
+        ].join('\n'),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('ghostField')
+      expect(result.stderr).toContain('no row')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when every @deprecated src/ symbol has an Active-table row', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'docs'))
+      mkdirSync(join(dir, 'src', 'wizard'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'DEPRECATIONS.md'),
+        [
+          '# Active Deprecations',
+          '',
+          '| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement | Status | Stage |',
+          '| --- | --- | --- | --- | --- | --- |',
+          '| ghostField | 0.2.0 | 1.0.0 | newMode | in-window | warn |',
+        ].join('\n'),
+      )
+      writeFileSync(
+        join(dir, 'src', 'wizard', 'types.ts'),
+        [
+          'export interface Answers {',
+          '  /**',
+          '   * @deprecated Use newMode instead.',
+          '   */',
+          '  ghostField?: boolean',
+          '}',
+        ].join('\n'),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('1 source @deprecated tag')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('accepts a dotted/qualified Active-table symbol for a bare source identifier', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'docs'))
+      mkdirSync(join(dir, 'src'))
+      writeFileSync(
+        join(dir, 'docs', 'DEPRECATIONS.md'),
+        [
+          '# Active Deprecations',
+          '',
+          '| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement | Status | Stage |',
+          '| --- | --- | --- | --- | --- | --- |',
+          '| `features.soloDevMode` | 0.2.0 | 1.0.0 | collaborationMode | in-window | warn |',
+        ].join('\n'),
+      )
+      writeFileSync(
+        join(dir, 'src', 'types.ts'),
+        [
+          'export interface Answers {',
+          '  /** @deprecated Use collaborationMode instead. */',
+          '  soloDevMode?: boolean',
+          '}',
+        ].join('\n'),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('detects a single-line /** @deprecated */ tag as well as a block tag', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'docs'))
+      mkdirSync(join(dir, 'src'))
+      writeFileSync(
+        join(dir, 'docs', 'DEPRECATIONS.md'),
+        '# Active Deprecations\n\n_(none currently active)_\n',
+      )
+      writeFileSync(
+        join(dir, 'src', 'api.ts'),
+        ['/** @deprecated Use freshHelper. */', 'export function staleHelper() {}'].join('\n'),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('staleHelper')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('skips the source scan under ALLOW_REMOVE_DEPRECATED=1', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'docs'))
+      mkdirSync(join(dir, 'src'))
+      writeFileSync(
+        join(dir, 'docs', 'DEPRECATIONS.md'),
+        '# Active Deprecations\n\n_(none currently active)_\n',
+      )
+      writeFileSync(
+        join(dir, 'src', 'api.ts'),
+        ['/** @deprecated no row anywhere. */', 'export function orphan() {}'].join('\n'),
+      )
+      const result = run(dir, { ALLOW_REMOVE_DEPRECATED: '1' })
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('this repo: every @deprecated symbol in src/ is documented (AC-1 + AC-2)', () => {
+    const result = run(resolve('.'))
+    expect(result.stderr).not.toContain('no row')
+    expect(result.status).toBe(0)
   })
 })

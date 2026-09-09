@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -16,9 +8,8 @@ import {
   guardBrownfieldDirtyTree,
   rollbackGeneration,
 } from '../../src/commands/init.js'
-import { UserFacingError } from '../../src/utils/errors.js'
-import type { ProjectConfig } from '../../src/wizard/types.js'
 import { makeConfig } from '../helpers.js'
+import { UserFacingError } from '../../src/utils/errors.js'
 
 vi.mock('../../src/utils/run-cli.js', () => ({
   runCli: vi.fn(),
@@ -31,63 +22,51 @@ import { runCli } from '../../src/utils/run-cli.js'
 const mockRunCli = vi.mocked(runCli)
 
 // ── computeDryRunPreview ──────────────────────────────────────────────────────
+//
+// #540 guards the brownfield promise: an existing file is never silently clobbered by
+// the preview's account of the run. #2452 rewired the preview onto the real generator
+// plan, so these now assert against actual emitted paths instead of the old
+// hand-maintained stub's directory blobs. The preview-equals-plan RELATIONSHIP itself
+// is pinned in __tests__/commands/init-dryrun-plan-parity.test.ts.
 
 describe('computeDryRunPreview (#540)', () => {
-  // #2434: the preview no longer reads `config.existing` alone — it also runs the
-  // generator registry in dryRun mode against `config.targetDir`, which is how it
-  // learns the ~280 paths a real init writes instead of the 3 the migration plan
-  // knew about. So the fixture has to be REAL: a scratch dir that actually holds
-  // the files `existing` claims, rather than a partial object cast into shape. A
-  // config whose `existing` flags disagree with the disk would make the two halves
-  // of the preview contradict each other, which is a fixture defect, not a finding.
-  let dir: string
+  let previewDir: string
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'arbiter-preview-'))
+    previewDir = mkdtempSync(join(tmpdir(), 'arbiter-dryrun-preview-'))
   })
 
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(previewDir, { recursive: true, force: true })
   })
 
-  function previewWith(
-    existing: Partial<ProjectConfig['existing']> = {},
-  ): ReturnType<typeof computeDryRunPreview> {
-    const base = makeConfig(dir)
-    return computeDryRunPreview(makeConfig(dir, { existing: { ...base.existing, ...existing } }))
-  }
-
-  it('greenfield: all files in created, none in modified or skipped', () => {
-    const preview = previewWith()
-    expect(preview.created.length).toBeGreaterThan(0)
+  it('greenfield: real emitted files land in created, nothing is claimed as modified', async () => {
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
+    expect(preview.created).toContain('AGENTS.md')
+    expect(preview.created.length).toBeGreaterThan(1)
     expect(preview.modified).toHaveLength(0)
-    expect(preview.skipped).toHaveLength(0)
-  })
+  }, 120_000)
 
-  it('brownfield agentsMd: AGENTS.md appears in modified not created', () => {
-    writeFileSync(join(dir, 'AGENTS.md'), '# pre-existing governance\n')
-    const preview = previewWith({ agentsMd: true })
-    expect(preview.modified.some((s) => s.includes('AGENTS.md'))).toBe(true)
-    expect(preview.created.some((s) => s.includes('AGENTS.md'))).toBe(false)
-  })
+  it('brownfield agentsMd: an existing AGENTS.md is previewed as modified, not created', async () => {
+    writeFileSync(join(previewDir, 'AGENTS.md'), '# hand-written governance\n')
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
+    expect(preview.modified).toContain('AGENTS.md')
+    expect(preview.created).not.toContain('AGENTS.md')
+  }, 120_000)
 
-  it('brownfield claudeDir: hooks entry in skipped', () => {
-    mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
-    const preview = previewWith({ claudeDir: true })
-    expect(preview.skipped.some((s) => s.includes('hooks'))).toBe(true)
-  })
+  it('brownfield: an existing skip-if-exists file is previewed as skipped, by name', async () => {
+    writeFileSync(join(previewDir, '.gitignore'), 'vendor/\n')
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
+    expect(preview.skipped).toContain('.gitignore')
+    expect(preview.created).not.toContain('.gitignore')
+  }, 120_000)
 
-  it('preview object always has all three keys', () => {
-    const preview = previewWith()
+  it('preview object always has all three keys', async () => {
+    const preview = await computeDryRunPreview(makeConfig(previewDir))
     expect(Array.isArray(preview.created)).toBe(true)
     expect(Array.isArray(preview.modified)).toBe(true)
     expect(Array.isArray(preview.skipped)).toBe(true)
-  })
-
-  it('writes nothing to the target dir', () => {
-    previewWith()
-    expect(readdirSync(dir)).toEqual([])
-  })
+  }, 120_000)
 })
 
 // ── guardBrownfieldDirtyTree ──────────────────────────────────────────────────

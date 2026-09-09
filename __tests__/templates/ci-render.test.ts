@@ -141,7 +141,7 @@ describe('01-pr-fast.yml.ejs — T1 structural features (CANON-18)', () => {
     { language: 'rust', buildTool: 'cargo' },
   ] as const
 
-  const LEVELS = ['L1', 'L2', 'L3'] as const
+  const LEVELS = ['L1', 'L2', 'L3', 'L4'] as const
 
   it.each(STACKS)('$language: workflow name is "PR Fast (T1)"', ({ language, buildTool }) => {
     const data = makeConfig('/tmp/test', { language, buildTool }) as unknown as Record<

@@ -37,7 +37,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, labeled]
 
 concurrency:
-  group: pr-extended-${{ github.head_ref || github.ref_name }}
+  group: pr-extended-${{ github.head_ref || github.ref_name }}${{ github.base_ref && format('-{0}', github.base_ref) || '' }}
   cancel-in-progress: true
 
 jobs:
