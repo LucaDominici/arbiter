@@ -103,20 +103,40 @@ const TS_GATE_DEVDEPS: Record<string, string> = {
   '@eslint/js': '^9.13.0',
   'typescript-eslint': '^8.10.0',
   vitest: '^3.0.0',
-  '@vitest/coverage-v8': '^3.0.0',
+}
+
+const VITEST_COVERAGE = '@vitest/coverage-v8'
+const DEFAULT_VITEST_COVERAGE_SELECTOR = '^3.0.0'
+
+// Vitest coverage peers must resolve with the same Vitest release. Brownfield
+// projects may pin a numeric release or a normal caret/tilde selector; preserve
+// that selector for the missing companion. Other specifier forms (aliases,
+// workspaces, tags, Git/file locators, compound ranges) remain on the established
+// generic path rather than being copied into a different package declaration.
+const ORDINARY_VITEST_SELECTOR = /^(?:\^|~)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/
+
+function coverageSelectorFor(vitestSelector: string | undefined): string {
+  return vitestSelector !== undefined && ORDINARY_VITEST_SELECTOR.test(vitestSelector)
+    ? vitestSelector
+    : DEFAULT_VITEST_COVERAGE_SELECTOR
 }
 
 function injectTsGateToolchain(targetDir: string, dryRun: boolean): void {
   mutatePackageJson(targetDir, dryRun, (pkg) => {
     const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
+    const dependencies = pkg.dependencies as Record<string, string> | undefined
     let changed = false
     for (const [name, version] of Object.entries(TS_GATE_DEVDEPS)) {
       // Respect a version the user already pinned — only fill in what is absent so a
       // brownfield project's existing toolchain versions are never overwritten.
-      if (!devDeps[name] && !(pkg.dependencies as Record<string, string> | undefined)?.[name]) {
+      if (!devDeps[name] && !dependencies?.[name]) {
         devDeps[name] = version
         changed = true
       }
+    }
+    if (!devDeps[VITEST_COVERAGE] && !dependencies?.[VITEST_COVERAGE]) {
+      devDeps[VITEST_COVERAGE] = coverageSelectorFor(devDeps.vitest ?? dependencies?.vitest)
+      changed = true
     }
     if (changed) pkg.devDependencies = devDeps
     return changed

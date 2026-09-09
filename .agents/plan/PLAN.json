@@ -6,6 +6,7 @@
       "src/commands/init/generate.ts",
       "src/commands/init/resolve-config.ts",
       "src/i18n/en.json",
+      "src/generators/debt-gates.ts",
       "src/generators/check-all.ts",
       "src/generators/gold-kit.ts",
       "src/templates/scripts",
@@ -15,6 +16,7 @@
       "scripts/optional-emissions.json",
       "docs/QUICKSTART.md",
       ".dogfood-divergences.json",
+      "__tests__/generators/debt-gates.test.ts",
       "__tests__",
       "examples/go-library",
       "examples/python-library",
@@ -44,6 +46,10 @@
     },
     {
       "path": "src/i18n/en.json",
+      "operation": "modify"
+    },
+    {
+      "path": "src/generators/debt-gates.ts",
       "operation": "modify"
     },
     {
@@ -112,6 +118,10 @@
     },
     {
       "path": "__tests__/behavioral/cli-smoke.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/generators/debt-gates.test.ts",
       "operation": "modify"
     },
     {
