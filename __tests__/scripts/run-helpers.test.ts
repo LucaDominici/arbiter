@@ -179,6 +179,27 @@ describe('run-helpers — runCheck (HARD)', () => {
 })
 
 describe('run-helpers — runWarnCheck (informational)', () => {
+  it('exit 0 + line-leading `[SKIP]` records SKIP, not PASS', () => {
+    const r = runHarness(`
+      import { runWarnCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      runWarnCheck('warn-skip', process.execPath, ['-e', "console.log('[SKIP] disabled')"]);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+    expect(payload.failed).toBe(0)
+    expect(payload.results[0]).toMatchObject({ name: 'warn-skip', status: 'SKIP' })
+  })
+
+  it.each([1, 2])('a non-zero skip-looking result remains WARN (%i)', (exitCode) => {
+    const r = runHarness(`
+      import { runWarnCheck, getResults } from ${JSON.stringify(HELPERS)};
+      runWarnCheck('warn-skip', process.execPath, ['-e', "console.log('[SKIP] disabled'); process.exit(${exitCode})"]);
+      console.log(JSON.stringify(getResults()));
+    `)
+    const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+    expect(payload[0]).toMatchObject({ name: 'warn-skip', status: 'WARN' })
+  })
+
   it('failing warn check records WARN and does NOT increment failed', () => {
     const r = runHarness(`
       import { runWarnCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
