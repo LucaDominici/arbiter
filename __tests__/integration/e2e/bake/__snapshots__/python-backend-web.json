@@ -320,7 +320,7 @@
     "requirements-dev.txt": "f20c91e746f413cc8e39a1b33c74058fbce2b009655e5a2098728696a61dc185",
     "ruff.toml": "a577f794d121043e7137cab4ec49ef36f73828b028702a66d7895efb8b64fe15",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
-    "schemas/agent-return-external.schema.json": "ca47fc94043e1c5daa6a4e1f58a7ad0e925c1e302e0ad57bd52e9c8dbe66f458",
+    "schemas/agent-return-external.schema.json": "77c14e440214bb04e6dc1521cd7aa23ef78c1463bb832bdf3041c9d43dbdf911",
     "schemas/agent-return.schema.json": "e98900a8585d3ec9eed81f008286039f419472fe317f4976f0a3aeebe9cdcba1",
     "schemas/cross-model-dispatch.schema.json": "7f93fe1787c0544c6d5c389a8933333182001f003c3a23a8cdb871ac215e2c0f",
     "schemas/milestone.schema.json": "9d33462ad6c8ca3d79fc69a0fa7933080ba1c6745085679d73c204abd7d09d6c",

@@ -57,7 +57,7 @@
     "Refutation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["target", "verdict"],
+      "required": ["target", "verdict", "citations"],
       "properties": {
         "target": { "type": "string" },
         "verdict": {

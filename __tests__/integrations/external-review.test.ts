@@ -78,7 +78,11 @@ function strictSchemaMissingRequiredProperties(schema: unknown, path = '$'): str
   const properties = node['properties']
   const required = node['required']
   if (typeof properties === 'object' && properties !== null && !Array.isArray(properties)) {
-    const requiredNames = new Set(Array.isArray(required) ? required.filter((name): name is string => typeof name === 'string') : [])
+    const requiredNames = new Set(
+      Array.isArray(required)
+        ? required.filter((name): name is string => typeof name === 'string')
+        : [],
+    )
     for (const name of Object.keys(properties)) {
       if (!requiredNames.has(name)) missing.push(`${path}: ${name}`)
     }
@@ -497,7 +501,14 @@ describe('invokeExternalReview (#2357)', () => {
     )
     expect(stagedSchema).toBe(
       readFileSync(
-        join(repoRoot, 'src', 'templates', 'scripts', 'schemas', 'agent-return-external.schema.json'),
+        join(
+          repoRoot,
+          'src',
+          'templates',
+          'scripts',
+          'schemas',
+          'agent-return-external.schema.json',
+        ),
         'utf8',
       ),
     )

@@ -1,0 +1,55 @@
+{
+  "taskId": "#2627",
+  "verdict": "PASS",
+  "planDigest": "17528439a04b9e57b3c25988b8ba09f18bbe3f3943e4df9098f59d80d15013c5",
+  "manifestDigest": "82c68c6a8f56faaaa6778c9847f7747a20cce37bb003cf38c3f87319bd490c2a",
+  "recordedAt": "2026-09-09T23:33:00.689584+00:00",
+  "reviewers": [
+    {
+      "reviewer": "root-2627-plan-review",
+      "role": "reviewer",
+      "verdict": "PASS",
+      "source": "root-final.json"
+    },
+    {
+      "reviewer": "astra-final",
+      "role": "reviewer",
+      "verdict": "PASS",
+      "source": "astra-final.json"
+    },
+    {
+      "reviewer": "haben789-author-2627-projection-reviewer",
+      "role": "reviewer",
+      "verdict": "PASS",
+      "source": "projection-amendment.json",
+      "scope": "exact three deterministic living example schema projections"
+    }
+  ],
+  "findings": [],
+  "amendment": {
+    "kind": "narrow-deterministic-projection-amendment",
+    "historicalAdmission": {
+      "planDigest": "292e431d7ca4f879a3e3b2d0f7095bc93a4c070ef191f7717335db115cfb58cd",
+      "manifestDigest": "ab18d8c6423f217b08b11b46b977001dc6abe08f55a84e275ca6a60a81220fb1",
+      "latest": "latest.pre-projection-amendment.json",
+      "reviewsRemainHistorical": true
+    },
+    "addedPaths": [
+      "examples/go-library/schemas/agent-return-external.schema.json",
+      "examples/python-library/schemas/agent-return-external.schema.json",
+      "examples/ts-library/schemas/agent-return-external.schema.json"
+    ],
+    "evidence": [
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-external-schema-strict-projection-amendment-freeze.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-projection-delta-review.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-projection-delta-review-audit.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-projection-root-readback.json"
+    ],
+    "rootAuthorization": "Parent approved the exact mechanical amendment after independent mapping/parity PASS."
+  },
+  "limits": [
+    "This rebind covers only the added deterministic projections.",
+    "Original plan and red-team reviews remain bound to their prior digests and are preserved as historical records.",
+    "No new acceptance criterion, non-goal, tier, behavior, or provider fulfillment is claimed."
+  ]
+}
