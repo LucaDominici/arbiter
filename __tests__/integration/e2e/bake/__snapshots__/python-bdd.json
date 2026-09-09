@@ -393,7 +393,7 @@
     "scripts/lib/glob-walk.mjs": "a71a14af1cb1d8b4068f8aede857299f884740327799d4290ba6fb3e15126638",
     "scripts/lib/run-helpers.mjs": "f9d41981db800de859c20fd5aab854a58adad853a68ca692572fd285332c8022",
     "scripts/lib/waiter-count.mjs": "911b32639645e060fab9a1d8987859499983436e2af80ded534dd8f5fe79283f",
-    "scripts/optional-emissions.json": "33aa138f201347d65bd669650911a3907bc146da3f4547760a397f52beacf0c7",
+    "scripts/optional-emissions.json": "6a572cbe691398761338443924b5b0c478401b9c6f87521d3e99b47a61674501",
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",
     "scripts/pii-scan.mjs": "52b603519a42f0106ff0ecac7274ed2ceb3757da4b161e4e18cf77dbac5addff",
     "scripts/pr-merge-watch.mjs": "2d9ace9446f1f5728cb46f962678bea0613c2cbe42397bb2328d9f6f5512cf13",

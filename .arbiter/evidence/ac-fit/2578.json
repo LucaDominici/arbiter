@@ -1,15 +1,24 @@
 {
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2578",
-  "sha": "cef0040b334921107f6bc182ef024ae6b6fc3879",
+  "sha": "8f7ba31a9a4bab012a71429dfe83b8da50661408",
   "criteria": [
     {
       "id": "AC-1",
       "verdict": "PASS",
       "evidence": [
-        { "file": "scripts/lib/run-helpers.mjs", "line": 183 },
-        { "file": "src/templates/scripts/check-doc-set.mjs.ejs", "line": 14 },
-        { "file": "src/templates/scripts/gold-audit.mjs.ejs", "line": 15 }
+        {
+          "file": "scripts/lib/run-helpers.mjs",
+          "line": 183
+        },
+        {
+          "file": "src/templates/scripts/check-doc-set.mjs.ejs",
+          "line": 14
+        },
+        {
+          "file": "src/templates/scripts/gold-audit.mjs.ejs",
+          "line": 15
+        }
       ],
       "notes": "The shared emitted runner accepts only the fixed project-local CLI, rejects an unavailable or unusable file with 2, and runs it through process.execPath with shell:false. The final bound matrix records all four wrappers on all four stacks: real source 0 and missing-local 2."
     },
@@ -17,10 +26,22 @@
       "id": "AC-2",
       "verdict": "PASS",
       "evidence": [
-        { "file": "__tests__/scripts/local-consumer-runners.test.ts", "line": 52 },
-        { "file": "__tests__/scripts/local-consumer-runners.test.ts", "line": 68 },
-        { "file": "__tests__/scripts/local-consumer-runners.test.ts", "line": 87 },
-        { "file": "__tests__/scripts/local-consumer-runners.test.ts", "line": 92 }
+        {
+          "file": "__tests__/scripts/local-consumer-runners.test.ts",
+          "line": 52
+        },
+        {
+          "file": "__tests__/scripts/local-consumer-runners.test.ts",
+          "line": 68
+        },
+        {
+          "file": "__tests__/scripts/local-consumer-runners.test.ts",
+          "line": 87
+        },
+        {
+          "file": "__tests__/scripts/local-consumer-runners.test.ts",
+          "line": 92
+        }
       ],
       "notes": "Real subprocess coverage exercises four rendered runners for argv forwarding, usable local CLI, fake-success ambient arbiter/npx refusal, child 1/2 forwarding, directory/dangling/unreadable paths, and null-status signal handling. The final 52-row artifact matrix has exact expected outcomes; its forced policy-1 rows are correctly limited to forwarding-boundary doubles."
     },
@@ -28,10 +49,22 @@
       "id": "AC-3",
       "verdict": "PASS",
       "evidence": [
-        { "file": "scripts/lib/run-helpers.mjs", "line": 331 },
-        { "file": "__tests__/scripts/run-helpers.test.ts", "line": 186 },
-        { "file": "__tests__/scripts/run-helpers.test.ts", "line": 203 },
-        { "file": "__tests__/scripts/run-helpers.test.ts", "line": 214 }
+        {
+          "file": "scripts/lib/run-helpers.mjs",
+          "line": 331
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 186
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 203
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 214
+        }
       ],
       "notes": "runWarnCheck records a line-leading exit-0 [SKIP] as SKIP. Both self and rendered helpers are covered, while skip-looking nonzero output remains WARN."
     },
@@ -39,24 +72,55 @@
       "id": "AC-4",
       "verdict": "PASS",
       "evidence": [
-        { "file": "src/templates/scripts/check-doc-freshness.mjs.ejs", "line": 13 },
-        { "file": "src/templates/scripts/check-arc42-slots.mjs.ejs", "line": 21 },
-        { "file": "examples/ts-library/scripts/check-doc-set.mjs", "line": 14 },
-        { "file": "docs/QUICKSTART.md", "line": 64 }
+        {
+          "file": "src/templates/scripts/check-doc-freshness.mjs.ejs",
+          "line": 13
+        },
+        {
+          "file": "src/templates/scripts/check-arc42-slots.mjs.ejs",
+          "line": 21
+        },
+        {
+          "file": "examples/ts-library/scripts/check-doc-set.mjs",
+          "line": 14
+        },
+        {
+          "file": "docs/QUICKSTART.md",
+          "line": 64
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+          "line": 195
+        }
       ],
-      "notes": "The four template runners, checked-in generated examples, and current setup guidance share the project-local contract. The retained focused render/behavioral receipt records 203 passing tests; the cef delta does not alter these producer or consumer paths."
+      "notes": "The four template runners, checked-in generated examples, and current setup guidance share the project-local contract. The retained focused render/behavioral receipt records 203 passing tests; the cef delta does not alter these producer or consumer paths. Projection delta on 8f7ba31: all 27 bake snapshots change only optional-emissions hash 33aa138f to 6a572cbe; integration regeneration passed 409 tests, 48 existing skips. Independent full diff audit 431c1767 confirms no runtime/artifact input changed."
     },
     {
       "id": "AC-5",
       "verdict": "PASS",
       "evidence": [
-        { "file": "src/generators/debt-gates.ts", "line": 108 },
-        { "file": "src/generators/debt-gates.ts", "line": 124 },
-        { "file": "__tests__/generators/debt-gates.test.ts", "line": 124 },
-        { "file": "__tests__/generators/debt-gates.test.ts", "line": 149 },
-        { "file": "src/commands/init/generate.ts", "line": 219 }
+        {
+          "file": "src/generators/debt-gates.ts",
+          "line": 108
+        },
+        {
+          "file": "src/generators/debt-gates.ts",
+          "line": 124
+        },
+        {
+          "file": "__tests__/generators/debt-gates.test.ts",
+          "line": 124
+        },
+        {
+          "file": "__tests__/generators/debt-gates.test.ts",
+          "line": 149
+        },
+        {
+          "file": "src/commands/init/generate.ts",
+          "line": 219
+        }
       ],
-      "notes": "The final repair pairs a missing coverage companion with an existing ordinary exact/caret/tilde Vitest selector, preserves an existing companion, and retains the generic path for unsupported specifiers. The 60-test source receipt passes. Strict-pack artifact 30d7a3180caf4429d0caa9c744344203a11dbf105e32dfda1fdea9a1b51d5cd0 (1301 entries) binds four actual init→emitted-manager-setup→wrapper runs to this SHA; the TypeScript 3.2.4 npm setup now exits 0 without force, legacy-peer-deps, or lock editing. Preservation receipt covers manager/lock/native files and the allowed TypeScript additions. The immutable checker hash e870905e is distinct from this generator; that is accepted only for this AC5 compatibility proof, not final same-source M1 adoption."
+      "notes": "The final repair pairs a missing coverage companion with an existing ordinary exact/caret/tilde Vitest selector, preserves an existing companion, and retains the generic path for unsupported specifiers. The 60-test source receipt passes. Strict-pack artifact 30d7a3180caf4429d0caa9c744344203a11dbf105e32dfda1fdea9a1b51d5cd0 (1301 entries) binds four actual init\u2192emitted-manager-setup\u2192wrapper runs to this SHA; the TypeScript 3.2.4 npm setup now exits 0 without force, legacy-peer-deps, or lock editing. Preservation receipt covers manager/lock/native files and the allowed TypeScript additions. The immutable checker hash e870905e is distinct from this generator; that is accepted only for this AC5 compatibility proof, not final same-source M1 adoption."
     }
   ]
 }
