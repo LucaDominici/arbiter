@@ -1,11 +1,11 @@
 {
   "verdict": "PASS",
-  "reviewer": "/root/selection_skeptic2",
+  "reviewer": "/root/release_metadata_review",
   "branch": "task/#2599-diff-prefix-safety",
-  "sha": "240e08b6c56a309eacb5d16ecd7186b1e306235e",
-  "planDigest": "6da933b85fcffaa159b096e1afdc6790ef6f9cb99103307dfd1916ef3ef92b7f",
-  "timestamp": "2026-09-09T10:39:00Z",
+  "sha": "33bcd957cacd56110070d86a163cfeef0b25a7ca",
+  "planDigest": "e4cfe014422e23600d458a9419a937d53f83ae4be3896bdd2d8dbd6c1e3466ea",
+  "timestamp": "2026-09-09T11:16:25Z",
   "findings": [],
-  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788949881/plan-review-seat2.md",
-  "scope": "Native selection amendment only, including original RED bytes preserved in history/copy before native current receipt replacement. Independent Sol formal PASS. Prior plan/refutation/code findings retained; current Standard redteam three independent seats PASS, report cycle-1788949881/redteam.md, no implementation/adoption claimed."
+  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788951441/collected-amendment-review.md",
+  "scope": "Bounded metadata and generated snapshot amendment; LOW retention caution satisfied only after original finding archive+parity proof. Prior source/redteam findings retained; no whole-candidate acceptance."
 }

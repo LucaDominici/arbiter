@@ -21,6 +21,34 @@ context:
     - 'Cooperative ownership is not operating-system exclusion; interrupted runs require recovery.'
   estimate: 'S (2h remaining qualification estimate; integration conflicts may extend it)'
 files:
+  - __tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json
+  - __tests__/integration/e2e/bake/__snapshots__/go-bdd.json
+  - __tests__/integration/e2e/bake/__snapshots__/go-library.json
+  - __tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json
+  - __tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json
+  - __tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json
+  - __tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json
+  - __tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json
+  - __tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json
+  - __tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json
+  - __tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json
+  - __tests__/integration/e2e/bake/__snapshots__/python-backend-web.json
+  - __tests__/integration/e2e/bake/__snapshots__/python-bdd.json
+  - __tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json
+  - __tests__/integration/e2e/bake/__snapshots__/python-library.json
+  - __tests__/integration/e2e/bake/__snapshots__/rust-bdd.json
+  - __tests__/integration/e2e/bake/__snapshots__/rust-cli.json
+  - __tests__/integration/e2e/bake/__snapshots__/rust-embedded.json
+  - __tests__/integration/e2e/bake/__snapshots__/rust-library.json
+  - __tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json
+  - __tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json
+  - __tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json
+  - __tests__/integration/e2e/bake/__snapshots__/ts-bdd.json
+  - __tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json
+  - __tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json
+  - __tests__/integration/e2e/bake/__snapshots__/ts-library.json
+  - __tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json
+  - .changeset/diff-prefix-review-2599.md
   - scripts/check-review-completion.mjs
   - src/templates/scripts/check-review-completion.mjs.ejs
   - __tests__/scripts/check-review-completion.test.ts
@@ -81,6 +109,21 @@ iff-closure contract. An AC-fit PASS permits verification, not delivery acceptan
 - No new diff framework, dependencies, new scheduler or broader hook rewrite. Do not change #2578 scope or package-size thresholds. Do not treat full-file scanning at landing as a replacement for edit-time detection.
 - Additionally, no per-caller patch or gate relaxation. #2597 remains a separate blocked train at review round2.
 ## Approach & decomposition
+Bounded L2 repair amendment 2026-09-09: regenerate only the 27 bake snapshots
+listed in this manifest using BAKE_UPDATE_SNAPSHOTS=1 and the native fixture-bake
+integration test. Audit the diff: only contentHashes for .claude/hooks/lib.mjs and
+scripts/check-review-completion.mjs may change; fixture identity, levels, generated
+file lists and all other hashes must remain identical. Stop for any other drift.
+Rerun the same test without the update flag before qualification. No hand-edited
+hashes or debt baseline changes. Add .changeset/diff-prefix-review-2599.md with an
+@arbiter/cli patch entry describing the two already-reviewed behavior fixes, as
+required by .changeset/README.md. AC, source behavior and postconditions remain
+unchanged. Preserve the original debt finding; its requested #2599 parity comment
+is already present in HEAD33bcd957, so verify that exact content and native parity
+test before manual resolved-finding archival under wave-drain Phase0.5. Retain the
+original finding bytes, original SHA/time and resolution evidence; no source rename
+or new test logic is needed. Review this manifest amendment before generation.
+
 Bounded integration prerequisite amendment 2026-09-09: the native CLI
 check-review-completion must find a schema-valid reviewer envelope matching the
 dispatched agent, task, branch AND exact SHA before diagnosing a stale historical

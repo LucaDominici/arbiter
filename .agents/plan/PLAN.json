@@ -41,7 +41,35 @@
       "wiki/internal-system-decisions.md",
       "scripts/check-review-completion.mjs",
       "src/templates/scripts/check-review-completion.mjs.ejs",
-      "__tests__/scripts/check-review-completion.test.ts"
+      "__tests__/scripts/check-review-completion.test.ts",
+      "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      ".changeset/diff-prefix-review-2599.md"
     ]
   },
   "files": [
@@ -200,6 +228,118 @@
     {
       "path": "__tests__/scripts/check-review-completion.test.ts",
       "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".changeset/diff-prefix-review-2599.md",
+      "operation": "create"
     }
   ],
   "invariants": {
