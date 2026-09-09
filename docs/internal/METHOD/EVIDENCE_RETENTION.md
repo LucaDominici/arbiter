@@ -1,6 +1,6 @@
 ---
 title: 'Evidence Retention Policy — arbiter'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
 last_review: '2026-09-09'
 owner: ''
@@ -62,6 +62,16 @@ remains part of the qualified tree.
 Run capture on the final committed candidate before push. A valid L3 marker also
 satisfies the native L2 push boundary. After landing, verify receipt and exact PR
 head/merge refs plus concluded CI without repeating unchanged suites.
+
+CI qualification is bound to the PR's immutable merge time. Every check suite
+created at or before that time must have finished successfully (or with an
+accepted SKIP/NEUTRAL outcome) before merge, with at least one SUCCESS. A job
+queued before merge remains in scope even if it starts later. The engine reads
+all pages of exact-commit check metadata and rejects missing timestamps or
+incomplete pages. Suites created after merge belong to subsequent workflows;
+they do not invalidate the earlier landing. A later external status-context
+update cannot establish its earlier state and is rejected. Separate release
+requirements, including the Consumer Reliability Bar, remain mandatory.
 
 Pin directories and files must remain within the physical checkout without
 traversing symlinks. Invalid configuration is rejected before a gate runs.
