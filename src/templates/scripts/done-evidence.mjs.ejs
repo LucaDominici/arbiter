@@ -21,6 +21,7 @@ import {
   writeFileSync,
   mkdirSync,
   renameSync,
+  rmSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, extname, relative, resolve, isAbsolute } from 'node:path';
@@ -48,6 +49,8 @@ if (existsSync(STATUS_PATH)) {
   try {
     taskId = JSON.parse(readFileSync(STATUS_PATH, 'utf-8')).taskId || 'unknown';
   } catch (err) {
+    // Unknown task identity: revoke the shared marker so no old receipt can revive.
+    rmSync('.arbiter/gate-pass.json', { force: true });
     process.stderr.write(`[done-evidence] ERROR: could not read task identity — ${err.message}\n`);
     process.exit(1);
   }

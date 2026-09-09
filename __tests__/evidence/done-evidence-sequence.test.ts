@@ -65,9 +65,13 @@ function setup({
 describe('#2615 done-evidence capture sequence', () => {
   it.each([false, true])(
     'AC-5: rejects corrupt task identity before any gate for %s producer',
-    (rendered) => {
+    async (rendered) => {
       const dir = setup({ rendered })
       try {
+        writeGatePassEvidence(dir, { taskId: '#2615', level: 'L3' })
+        const statusPath = join(dir, '.claude', '.task', 'status.json')
+        const originalStatus = readFileSync(statusPath)
+        expect(spawnSync('node', ['scripts/done-evidence.mjs'], { cwd: dir }).status).toBe(0)
         writeFileSync(join(dir, '.claude', '.task', 'status.json'), '{ broken')
         const result = spawnSync('node', ['scripts/done-evidence.mjs'], {
           cwd: dir,
@@ -76,6 +80,11 @@ describe('#2615 done-evidence capture sequence', () => {
         expect(result.status).toBe(1)
         expect(result.stderr).toContain('could not read task identity')
         expect(existsSync(join(dir, 'gate-count'))).toBe(false)
+        writeFileSync(statusPath, originalStatus)
+        const { verifyDoneEvidenceReceipt } = await import('../../scripts/lib/gate-evidence.mjs')
+        expect(verifyDoneEvidenceReceipt({ root: dir, taskId: '#2615' }).ok).toBe(false)
+        const engine = await import('../../src/evidence/gate-binding.js')
+        expect(engine.verifyDoneEvidenceReceipt({ root: dir, taskId: '#2615' }).ok).toBe(false)
       } finally {
         rmSync(dir, { recursive: true, force: true })
       }
