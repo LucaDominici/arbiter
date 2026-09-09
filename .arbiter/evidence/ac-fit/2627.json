@@ -1,0 +1,142 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2627",
+  "branch": "task/#2627-external-schema-strict",
+  "sha": "2667c9dbe6fe86ae8619d2934a4c279a000744e3",
+  "plan_sha256": "17528439a04b9e57b3c25988b8ba09f18bbe3f3943e4df9098f59d80d15013c5",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/schemas/agent-return-external.schema.json",
+          "line": 57
+        },
+        {
+          "file": "src/templates/scripts/schemas/agent-return-external.schema.json",
+          "line": 60
+        },
+        {
+          "file": "src/templates/scripts/schemas/agent-return-external.schema.json",
+          "line": 67
+        },
+        {
+          "file": "schemas/agent-return-external.schema.json",
+          "line": 60
+        }
+      ],
+      "notes": "The committed canonical schema adds only citations to Refutation.required. Its target/verdict/citations properties, citations array and Citation reference/item definition remain unchanged. Canonical and tracked self bytes equal77c14e440214bb04e6dc1521cd7aa23ef78c1463bb832bdf3041c9d43dbdf911."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/integrations/external-review.test.ts",
+          "line": 74
+        },
+        {
+          "file": "__tests__/integrations/external-review.test.ts",
+          "line": 427
+        },
+        {
+          "file": "__tests__/integrations/external-review.test.ts",
+          "line": 495
+        },
+        {
+          "file": "__tests__/integrations/external-review.test.ts",
+          "line": 515
+        },
+        {
+          "file": "__tests__/integrations/external-review.test.ts",
+          "line": 519
+        },
+        {
+          "file": ".arbiter/evidence/tdd/#2627.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-external-review-focused-green-receipt.json",
+          "line": 1
+        }
+      ],
+      "notes": "Native committed RED ea163d0 contains the exact regular test blob in the receipt and is an ancestor of source2667. Its actual log fails specifically with $.$defs.Refutation: citations. Current focused44/44 GREEN exercises the actual --output-schema staged file, canonical/self parity and negative removal of only citations. Assertions execute outside the mocked provider invocation so caught child errors cannot hide a missing assertion. Mocked caller coverage is kept distinct from the separately real provider receipt."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/generators/check-all.ts",
+          "line": 615
+        },
+        {
+          "file": "examples/go-library/.arbiter-generated-manifest.json",
+          "line": 96
+        },
+        {
+          "file": "examples/go-library/schemas/agent-return-external.schema.json",
+          "line": 60
+        },
+        {
+          "file": "examples/python-library/schemas/agent-return-external.schema.json",
+          "line": 60
+        },
+        {
+          "file": "examples/ts-library/schemas/agent-return-external.schema.json",
+          "line": 60
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-final-acfit-projection-comparison.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-bake-regeneration-final-receipt.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-examples-check-receipt.json",
+          "line": 1
+        }
+      ],
+      "notes": "All27 bake snapshots and three example manifests differ solely by exact ca47fc\u219277c14e digest replacement; all three living examples match canonical/self bytes. Native examples:check exit0 has no drift. The author retained a fresh deterministic BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake execution on unchanged2667 (23:43:51\u201323:44:15Z),32 passed, producing no source/projection diff. This is the actual later retained run, not invented timing for the earlier reported run. The narrow projection amendment preserved original four ACs and historical2plan/3RT bindings."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/integrations/external-review.ts",
+          "line": 773
+        },
+        {
+          "file": "__tests__/integrations/external-review.test.ts",
+          "line": 515
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-bake-regeneration-final-receipt.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-provider-native-call-receipt.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-provider-dispatch.json",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-provider-native-call.log",
+          "line": 1
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-final-acfit-audit.json",
+          "line": 1
+        }
+      ],
+      "notes": "The unchanged native caller stages the generated repo schema for Codex. Focused44/44, bake32, actual L1 ALL PASSED120049ms and a fresh generated-consumer native provider invocation support compatibility. Native call exit0 produced a real external-cli Codex0.153.4 envelope PASS0.85; dispatch requested1/fulfilled1/degraded0 with onUnavailable=fail and consent enabled. The receipt names source2667 and generated schema77c14e, while recorder envelope/dispatch correctly bind the separate generated-consumer commit ddd7cfef2c8233c927f55127554eec070c062791. This proves actual provider dispatch compatibility, not final source delivery review, Haben adoption or M1 completion."
+    }
+  ],
+  "limits": "Final independent all-four-criterion code fit on source2667; actual L1 and actual provider receipt acknowledged. This does not certify subsequent CI/merge, final source delivery-review fulfillment, replacement of qualified consumer P/Q, Haben adoption or final M1 acceptance. Original d821 failure retained."
+}
