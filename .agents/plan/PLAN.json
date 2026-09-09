@@ -38,7 +38,10 @@
       "wiki/design-anti-context-rot-enforcers.md",
       "wiki/internal-development-real-project-testing.md",
       "wiki/internal-method-tabletop-scenarios.md",
-      "wiki/internal-system-decisions.md"
+      "wiki/internal-system-decisions.md",
+      "scripts/check-review-completion.mjs",
+      "src/templates/scripts/check-review-completion.mjs.ejs",
+      "__tests__/scripts/check-review-completion.test.ts"
     ]
   },
   "files": [
@@ -184,6 +187,18 @@
     },
     {
       "path": "wiki/internal-system-decisions.md",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-review-completion.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-review-completion.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-review-completion.test.ts",
       "operation": "modify"
     }
   ],

@@ -2,13 +2,13 @@
   "task_id": "#2599",
   "tier": "Standard",
   "verdict": "PASS",
-  "source_sha": "286fd9ab1306d078f425cd670e7c19c2d0113c50",
-  "plan_sha256": "5ce26d6f8c142d00a05b2eb39ff1984daf5c8f03d4c929378820e425eaf5e161",
-  "reviewed_at": "2026-09-08T13:00:17+02:00",
+  "source_sha": "240e08b6c56a309eacb5d16ecd7186b1e306235e",
+  "plan_sha256": "6da933b85fcffaa159b096e1afdc6790ef6f9cb99103307dfd1916ef3ef92b7f",
+  "reviewed_at": "2026-09-09T10:42:00Z",
   "reviewers": [
-    "/root/amendment_2599_contract",
-    "/root/amendment_2599_spec",
-    "/root/amendment_2599_safety"
+    "/root/receipt_amendment_review",
+    "/root/selection_skeptic2",
+    "/root/selection_skeptic3"
   ],
   "findings": [],
   "resolvedFindings": [
@@ -16,5 +16,25 @@
     "RT-2599-C-01",
     "AC4-EVIDENCE-GAP"
   ],
-  "bundle": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788864248/amendment-approved.md"
+  "bundle": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788949881/redteam.md",
+  "prior_review": {
+    "task_id": "#2599",
+    "tier": "Standard",
+    "verdict": "PASS",
+    "source_sha": "286fd9ab1306d078f425cd670e7c19c2d0113c50",
+    "plan_sha256": "5ce26d6f8c142d00a05b2eb39ff1984daf5c8f03d4c929378820e425eaf5e161",
+    "reviewed_at": "2026-09-08T13:00:17+02:00",
+    "reviewers": [
+      "/root/amendment_2599_contract",
+      "/root/amendment_2599_spec",
+      "/root/amendment_2599_safety"
+    ],
+    "findings": [],
+    "resolvedFindings": [
+      "RT-2599-B-01",
+      "RT-2599-C-01",
+      "AC4-EVIDENCE-GAP"
+    ],
+    "bundle": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788864248/amendment-approved.md"
+  }
 }

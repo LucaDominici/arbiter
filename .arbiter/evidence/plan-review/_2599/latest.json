@@ -1,11 +1,11 @@
 {
   "verdict": "PASS",
-  "reviewer": "/root/receipt_amendment_review",
+  "reviewer": "/root/selection_skeptic2",
   "branch": "task/#2599-diff-prefix-safety",
-  "sha": "af7a15a0b810e20ed5febce1d40fbdc6709f113c",
-  "planDigest": "7e320f0cd9097153b2e7cf86ea77861477459e7a73d7e4745e49c966421d57e7",
-  "timestamp": "2026-09-09T10:16:00Z",
+  "sha": "240e08b6c56a309eacb5d16ecd7186b1e306235e",
+  "planDigest": "6da933b85fcffaa159b096e1afdc6790ef6f9cb99103307dfd1916ef3ef92b7f",
+  "timestamp": "2026-09-09T10:39:00Z",
   "findings": [],
-  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788948146/integration-review-r2.md",
-  "scope": "Independent integration-plan admission only: corrected non-ancestral fixture provenance and transactional wiki refresh scope. Original r1 FAIL retained. Code/recipe scoped PASS in r1. Actual wiki/L1/L2/CI/landing pending."
+  "report": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2599/cycle-1788949881/plan-review-seat2.md",
+  "scope": "Native selection amendment only, including original RED bytes preserved in history/copy before native current receipt replacement. Independent Sol formal PASS. Prior plan/refutation/code findings retained; current Standard redteam three independent seats PASS, report cycle-1788949881/redteam.md, no implementation/adoption claimed."
 }

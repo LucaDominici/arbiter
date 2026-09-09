@@ -80,7 +80,7 @@
           "line": 6
         }
       ],
-      "reason": "Independent receipt_amendment_review r2 PASS for pre-verification prerequisites: genuine TDD/refutation retained, 62 focused tests and build/prettier passed before original chain failed on wrong license-script path. Correct gen-third-party-licenses.mjs --check separately exited0 at10:11:08.829Z. Plan digest7e320f0cd9097153b2e7cf86ea77861477459e7a73d7e4745e49c966421d57e7 admitted with accurate non-ancestral fixture provenance. Actual wiki and L1/L2/CI/landing remain required; original receipt cbb0588d unchanged, historical failures retained."
+      "reason": "Pre-verification prerequisites PASS: original hook RED retained in history and immutable original-tdd-2599.json; additional genuine RED e12d2ebd recorded natively. Selection amendment plan6da933b8 admitted by three independent seats; fresh Sol selection_code_review PASS0.99 on frozen scriptsf92e7730 and tests70c408c4, 49 focused tests and exact dependencies/build/generated/plan/TDD/commitlint exits0. Actual wiki retained from prior cycle. New native L1/L2/CI/landing remain required; this is not final gate acceptance."
     }
   ]
 }

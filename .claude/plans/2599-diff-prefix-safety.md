@@ -21,6 +21,9 @@ context:
     - 'Cooperative ownership is not operating-system exclusion; interrupted runs require recovery.'
   estimate: 'S (2h remaining qualification estimate; integration conflicts may extend it)'
 files:
+  - scripts/check-review-completion.mjs
+  - src/templates/scripts/check-review-completion.mjs.ejs
+  - __tests__/scripts/check-review-completion.test.ts
   - .gitleaks.toml
   - src/templates/claude/hooks/lib.mjs.ejs
   - .claude/hooks/lib.mjs
@@ -78,6 +81,33 @@ iff-closure contract. An AC-fit PASS permits verification, not delivery acceptan
 - No new diff framework, dependencies, new scheduler or broader hook rewrite. Do not change #2578 scope or package-size thresholds. Do not treat full-file scanning at landing as a replacement for edit-time detection.
 - Additionally, no per-caller patch or gate relaxation. #2597 remains a separate blocked train at review round2.
 ## Approach & decomposition
+Bounded integration prerequisite amendment 2026-09-09: the native CLI
+check-review-completion must find a schema-valid reviewer envelope matching the
+dispatched agent, task, branch AND exact SHA before diagnosing a stale historical
+return. Retain all historical envelopes, original findings and wrong-SHA failures.
+The named-agent branch currently selects the first branch/role match before SHA;
+the legacy-count branch already filters exact SHA. Reuse that same identity rule
+in self and EJS twin; do not change envelope validation, verdict soft-completion,
+legacy counts, filename containment, refutation, checkout binding or phase policy.
+This repairs AC-4's observed native prerequisite; AC1–4 remain unchanged.
+Test seam confirmed by owner task: existing public CLI runCheck fixture. Add one
+RED case with an earlier stale and later exact valid return, and verify the
+inverse order plus stale-only/wrong-task/wrong-role/malformed exact counterexamples
+with the existing suite. Preserve the original #2599 RED receipt byte-for-byte
+in its existing committed history and an external retained copy. The native
+record-red command may then replace the current task receipt with the additional
+regression after its own RED commit; cite both original and new identities in
+AC-fit rather than claiming either covers the other. Existing render test byte-compares
+the self and emitted twin. No new generation family, docs or dependencies.
+Threat: a historical or malformed envelope must never satisfy current identity;
+validate schema before matching, preserve nonzero on no exact valid match. A
+well-formed FAIL envelope remains completed work, not an acceptance PASS.
+Risk: passing this completion gate is not code acceptance; independent review,
+original command exits, L1/L2/CI and exact landing remain separately mandatory.
+Draft revised once: include EJS twin and malformed exact counterexample, not only
+self happy-path. Review this amendment before implementation. Native prior train
+review/refutation findings remain in history; do not manufacture new approvals.
+
 One TDD unit. Before any implementation, native independent plan approval and
 Standard three-seat red-team. In addedLinesVsHEAD, ignore records before the first
 hunk instead of ignoring every +++/--- prefix. Use an explicit inHunk boolean
