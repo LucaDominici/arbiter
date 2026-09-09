@@ -1,6 +1,9 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
+import { parse as parseYaml } from 'yaml'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -728,8 +731,12 @@ describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
     'utf-8',
   )
 
-  it('has no workflow_dispatch trigger (npm publish must not be reachable by hand)', () => {
-    expect(materialized).not.toContain('workflow_dispatch')
+  it('manual dispatch is isolated from publishing (AC-3)', () => {
+    const workflow = parseYaml(materialized) as ReleaseWorkflow
+    expect(workflow.on).toHaveProperty('workflow_dispatch')
+    expect(workflow.jobs['build-superset'].if).toBe(RELEASE_PUSH)
+    expect(workflow.jobs['publish-package'].if).toBe(RELEASE_PUSH)
+    expect(workflow.jobs['release-required'].if).toBe(`always() && ${RELEASE_PUSH}`)
   })
 
   it('has no release:published trigger — the tag push is the only entrypoint', () => {
@@ -766,4 +773,160 @@ describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
     const rendered = renderRelease({ ...TS_LIB, governanceLevel: 'L2' })
     expect(triggerBlockOf(materialized).trim()).toBe(triggerBlockOf(rendered).trim())
   })
+})
+
+type ReleaseStep = {
+  id?: string
+  run?: string
+  uses?: string
+  with?: Record<string, unknown>
+  env?: Record<string, string>
+}
+type ReleaseWorkflow = {
+  on: Record<string, unknown>
+  jobs: Record<
+    string,
+    {
+      if?: string
+      needs?: string | string[]
+      'runs-on'?: unknown
+      permissions?: Record<string, string>
+      secrets?: unknown
+      steps?: ReleaseStep[]
+    }
+  >
+}
+const RELEASE_PUSH = "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')"
+
+describe.each([
+  ['rendered', () => renderRelease(TS_LIB)],
+  ['materialized', () => readFileSync(resolve('.github/workflows/05-release.yml'), 'utf8')],
+] as const)('npm publication boundary — %s (#2624)', (_name, load) => {
+  it('uses hosted OIDC tooling and uploads only the verified artifact (AC-1)', () => {
+    const job = (parseYaml(load()) as ReleaseWorkflow).jobs['publish-package']
+    expect(job['runs-on']).toBe('ubuntu-latest')
+    expect(job.permissions?.['id-token']).toBe('write')
+    const steps = job.steps ?? []
+    expect(steps.find((s) => s.uses?.startsWith('actions/checkout@'))?.with?.ref).toBe(
+      '${{ github.ref }}',
+    )
+    const setup = steps.find((s) => s.uses?.startsWith('actions/setup-node@'))
+    expect(setup?.with).toMatchObject({
+      'node-version-file': '.nvmrc',
+      'package-manager-cache': false,
+    })
+    expect(setup?.with).not.toHaveProperty('cache')
+    const commands = steps.map((s) => s.run ?? '').join('\n')
+    expect(commands).toContain('npm install --global npm@11.16.0')
+    expect(commands).toContain('sha256sum -c sha256sums.txt')
+    expect(commands).toContain('npm publish --provenance --access public release-artifact.tgz')
+    expect(commands).not.toMatch(/npm (?:ci|pack|run build)\b/)
+  })
+
+  it('waits for freshness and refuses mismatched or shell-shaped tags before upload (AC-2)', () => {
+    const jobs = (parseYaml(load()) as ReleaseWorkflow).jobs
+    expect(jobs['publish-package'].needs).toContain('doc-freshness-gate')
+    const step = jobs['publish-package'].steps?.find((s) => s.id === 'release-version')
+    expect(step?.env?.RELEASE_TAG).toBe('${{ github.ref_name }}')
+    expect(step?.run).toBeTruthy()
+    expect(jobs['build-superset'].steps?.find((s) => s.id === 'release-version')?.run).toBe(
+      step?.run,
+    )
+    const dir = mkdtempSync(resolve(tmpdir(), 'arbiter-release-version-'))
+    try {
+      writeFileSync(resolve(dir, 'package.json'), JSON.stringify({ version: '1.2.3' }))
+      for (const [tag, expected] of [
+        ['v1.2.3', 0],
+        ['v1.2.4', 1],
+        ['$(touch injected)', 1],
+      ]) {
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', step?.run ?? 'exit 2'], {
+          cwd: dir,
+          env: { ...process.env, RELEASE_TAG: String(tag) },
+          encoding: 'utf8',
+          timeout: 5000,
+        })
+        expect(result.status).toBe(expected)
+      }
+      expect(existsSync(resolve(dir, 'injected'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('isolates manual dispatch at branches AND tags from every productive job (AC-3)', () => {
+    const workflow = parseYaml(load()) as ReleaseWorkflow
+    expect(workflow.on).toHaveProperty('workflow_dispatch')
+    const jobs = workflow.jobs
+    expect(jobs['npm-auth-smoke'].if).toBe("github.event_name == 'workflow_dispatch'")
+    expect(jobs['npm-auth-smoke'].needs).toBeUndefined()
+    expect(jobs['build-superset'].if).toBe(RELEASE_PUSH)
+    expect(jobs['publish-package'].if).toBe(RELEASE_PUSH)
+    expect(jobs['release-required'].if).toBe(`always() && ${RELEASE_PUSH}`)
+    function dependsOnBuild(id: string, path: string[] = []): boolean {
+      expect(path).not.toContain(id)
+      if (id === 'build-superset') return true
+      const needs = jobs[id]?.needs
+      return (Array.isArray(needs) ? needs : needs ? [needs] : []).some((parent) =>
+        dependsOnBuild(parent, [...path, id]),
+      )
+    }
+    for (const id of Object.keys(jobs).filter((id) => id !== 'npm-auth-smoke'))
+      expect(dependsOnBuild(id)).toBe(true)
+  })
+
+  it('keeps the token out of SLSA and every non-authentication step (AC-3, AC-4)', () => {
+    const jobs = (parseYaml(load()) as ReleaseWorkflow).jobs
+    expect(jobs['slsa-provenance'].secrets).toBeUndefined()
+    for (const [id, job] of Object.entries(jobs)) {
+      expect(job.secrets).not.toBe('inherit')
+      if (!['publish-package', 'npm-auth-smoke'].includes(id))
+        expect(JSON.stringify(job)).not.toContain('NPM_TOKEN')
+    }
+    expect(jobs['npm-auth-smoke'].permissions).toEqual({ contents: 'read' })
+    const authSteps = jobs['npm-auth-smoke'].steps ?? []
+    expect(authSteps.filter((s) => JSON.stringify(s.env ?? {}).includes('NPM_TOKEN'))).toHaveLength(
+      1,
+    )
+    expect(authSteps.filter((s) => s.run)).toHaveLength(1)
+    expect(authSteps.find((s) => s.run)?.run).not.toMatch(/npm (?:install|ci|publish)/)
+  })
+
+  it.each(['ok', 'missing', 'rejected', 'malformed', 'scope-denied', 'network'])(
+    'executes read-only smoke: %s, without leaking the secret or claiming publication (AC-3)',
+    (mode) => {
+      const jobs = (parseYaml(load()) as ReleaseWorkflow).jobs
+      const run = jobs['npm-auth-smoke']?.steps?.find((s) => s.id === 'npm-auth')?.run
+      expect(run).toBeTruthy()
+      const body = run?.match(/node --input-type=module <<'NODE'\n([\s\S]*?)\nNODE/)?.[1]
+      expect(body).toBeTruthy()
+      const prelude = `
+        import assert from 'node:assert/strict';
+        const mode = ${JSON.stringify(mode)};
+        globalThis.fetch = async (url, options) => {
+          assert.ok(['https://registry.npmjs.org/-/whoami', 'https://registry.npmjs.org/-/org/arbiter/user'].includes(url));
+          assert.equal(options.redirect, 'error');
+          assert.equal(options.headers.authorization, 'Bearer npm_secret_must_never_be_logged');
+          assert.equal(options.method ?? 'GET', 'GET');
+          assert.ok(options.signal instanceof AbortSignal);
+          if (mode === 'network') throw new Error('npm_secret_must_never_be_logged');
+          const identity = url.endsWith('/whoami');
+          return { ok: identity ? mode !== 'rejected' : mode !== 'scope-denied', status: identity ? (mode === 'rejected' ? 401 : 200) : (mode === 'scope-denied' ? 403 : 200),
+            json: async () => identity ? (mode === 'malformed' ? {username: null} : {username: 'smoke-user'}) : {'smoke-user': 'developer', 'another-user': 'owner'} };
+        };
+      `
+      const result = spawnSync(process.execPath, ['--input-type=module', '-e', prelude + body], {
+        env: {
+          ...process.env,
+          NPM_TOKEN: mode === 'missing' ? '' : 'npm_secret_must_never_be_logged',
+        },
+        encoding: 'utf8',
+        timeout: 5000,
+      })
+      expect(result.status).toBe(['ok', 'scope-denied'].includes(mode) ? 0 : 1)
+      expect(result.stdout + result.stderr).not.toContain('npm_secret_must_never_be_logged')
+      expect(result.stdout).not.toContain('another-user')
+      if (result.status === 0) expect(result.stdout).toContain('NOT_PROVEN')
+    },
+  )
 })
