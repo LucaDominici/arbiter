@@ -262,7 +262,8 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
                 state: 'MERGED',
                 headRefOid: sha,
                 mergeCommit: { oid: sha },
-                statusCheckRollup: [{ name: 'CI', conclusion: 'SUCCESS' }],
+                mergedAt: '2026-09-09T18:36:22Z',
+                statusCheckRollup: [{ name: 'CI', conclusion: 'SUCCESS', completedAt: '2026-09-09T18:36:05Z', checkSuite: { createdAt: '2026-09-09T18:26:48Z' } }],
               },
             ]
           },
@@ -332,7 +333,7 @@ describe('#2615 candidate landing identity', () => {
   const sha = 'a'.repeat(40)
   const mergedAt = '2026-09-09T18:36:22Z'
   const ci = (conclusion = 'SUCCESS') => ({
-    name: 'CI', conclusion,
+    name: 'CI', conclusion, checkSuite: { createdAt: '2026-09-09T18:26:48Z' },
     startedAt: '2026-09-09T18:35:55Z', completedAt: '2026-09-09T18:36:05Z',
   })
   const landed = (): PrSnapshot =>
@@ -391,7 +392,7 @@ describe('#2615 candidate landing identity', () => {
     ).toBe(false)
   })
   it('AC-5 preserves qualified landing when later main checks fail or remain pending', () => {
-    const later = { ...ci('FAILURE'), startedAt: '2026-09-09T18:36:26Z', completedAt: '2026-09-09T18:37:37Z' }
+    const later = { ...ci('FAILURE'), checkSuite: { createdAt: '2026-09-09T18:36:24Z' }, startedAt: '2026-09-09T18:36:26Z', completedAt: '2026-09-09T18:37:37Z' }
     for (const check of [later, { ...later, conclusion: '', completedAt: '0001-01-01T00:00:00Z' }]) {
       expect(evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), check] }], BRANCH, undefined, sha).merged).toBe(true)
     }
@@ -402,7 +403,7 @@ describe('#2615 candidate landing identity', () => {
     { mergedAt: undefined },
     { mergedAt: 'invalid' },
     ...[
-      { startedAt: undefined }, { startedAt: 'invalid' },
+      { checkSuite: undefined }, { checkSuite: { createdAt: 'invalid' } },
       { completedAt: undefined }, { completedAt: 'invalid' },
       { completedAt: '2026-09-09T18:37:37Z' },
       { conclusion: '', completedAt: '0001-01-01T00:00:00Z' },
@@ -411,9 +412,16 @@ describe('#2615 candidate landing identity', () => {
     expect(evaluateMerged([{ ...landed(), ...override }], BRANCH, undefined, sha).merged).toBe(false)
   })
 
+  it('AC-5 refuses a pre-merge suite whose queued check only starts after merge', () => {
+    const queued = { ...ci(), startedAt: '2026-09-09T18:37:00Z', completedAt: '2026-09-09T18:38:00Z' }
+    expect(evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), queued] }], BRANCH, undefined, sha).merged).toBe(false)
+  })
+
   it('AC-5 accepts a successful status context created before merge', () => {
     const status = { context: 'external CI', state: 'SUCCESS', createdAt: '2026-09-09T18:36:05Z' }
     expect(evaluateMerged([{ ...landed(), statusCheckRollup: [status] }], BRANCH, undefined, sha).merged).toBe(true)
+    const later = { ...status, createdAt: '2026-09-09T18:37:00Z' }
+    expect(evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), later] }], BRANCH, undefined, sha).merged).toBe(false)
   })
 
 })
