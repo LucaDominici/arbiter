@@ -1,7 +1,7 @@
 {
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2615",
-  "sha": "200b343c72ffc12e69ceaf739117d1558d6e639e",
+  "sha": "59ebd6d89fbab2b109bda355eb78a0a38e014cb8",
   "criteria": [
     {
       "id": "AC-1",
@@ -9,18 +9,18 @@
       "evidence": [
         {
           "file": "scripts/done-evidence.mjs",
-          "line": 276
+          "line": 280
         },
         {
           "file": "scripts/lib/gate-evidence.mjs",
           "line": 19
         },
         {
-          "file": "scripts/lib/gate-evidence.mjs",
-          "line": 545
+          "file": "__tests__/evidence/done-evidence-gate-level.test.ts",
+          "line": 57
         }
       ],
-      "notes": "Producer invokes L3; the unchanged L0–L3 ladder admits it, and receipt verification independently requires a valid L3 marker. Focused runtime acceptance passed."
+      "notes": "Unchanged producer invokes L3, which the unchanged ladder admits."
     },
     {
       "id": "AC-2",
@@ -28,64 +28,48 @@
       "evidence": [
         {
           "file": "scripts/done-evidence.mjs",
-          "line": 276
+          "line": 280
         },
         {
           "file": "__tests__/evidence/done-evidence-gate-level.test.ts",
           "line": 72
         }
       ],
-      "notes": "Invocation is scripts/check-all.mjs L3, whose parsed default remains the gate lane; no check subcommand substitution."
+      "notes": "The L3 positional invocation remains asserted to resolve to the gate lane."
     },
     {
       "id": "AC-3",
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "scripts/lib/gate-evidence.mjs",
-          "line": 19
-        },
-        {
-          "file": "src/evidence/gate-binding.ts",
-          "line": 30
+          "file": "src/templates/scripts/done-evidence.mjs.ejs",
+          "line": 215
         },
         {
           "file": "src/templates/scripts/done-evidence.mjs.ejs",
-          "line": 266
+          "line": 340
         },
         {
-          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
-          "line": 181
+          "file": "__tests__/evidence/done-evidence-gate-level.test.ts",
+          "line": 65
         }
       ],
-      "notes": "Both script and engine ladders remain L0–L3; rendered and self producers are exercised for absent, expired, and L2 markers, while L4 remains rejected."
+      "notes": "Self and emitted producers retain the matching L3 contract; the ladder remains L0–L3."
     },
     {
       "id": "AC-4",
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "scripts/done-evidence.mjs",
-          "line": 268
-        },
-        {
-          "file": "scripts/done-evidence.mjs",
-          "line": 294
-        },
-        {
-          "file": "scripts/lib/gate-evidence.mjs",
-          "line": 545
+          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
+          "line": 217
         },
         {
           "file": "__tests__/evidence/done-evidence-sequence.test.ts",
-          "line": 181
-        },
-        {
-          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
-          "line": 274
+          "line": 302
         }
       ],
-      "notes": "Valid L3 reuse is zero-gate; missing, expired, and L2 evidence run exactly one L3 for both self and rendered producers. Verifier checks identity, toolchain, tree, pinned-file, and symlink drift."
+      "notes": "Existing self/rendered regressions cover one L3 for absent/expired/L2 markers and zero gates for valid L3."
     },
     {
       "id": "AC-5",
@@ -93,49 +77,45 @@
       "evidence": [
         {
           "file": "scripts/done-evidence.mjs",
-          "line": 93
+          "line": 54
         },
         {
           "file": "scripts/done-evidence.mjs",
-          "line": 362
+          "line": 55
         },
         {
-          "file": "scripts/lib/gate-evidence.mjs",
-          "line": 508
+          "file": "src/templates/scripts/done-evidence.mjs.ejs",
+          "line": 52
         },
         {
-          "file": ".claude/hooks/guard-done-evidence.mjs",
-          "line": 78
+          "file": "src/templates/scripts/done-evidence.mjs.ejs",
+          "line": 53
         },
         {
-          "file": ".claude/hooks/stop-evidence-guard.mjs",
-          "line": 120
+          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
+          "line": 67
+        },
+        {
+          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
+          "line": 84
         }
       ],
-      "notes": "Every attempt first invalidates prior PASS. Runtime red, malformed/unreadable receipts and markers, failed states, and mismatched receipt/marker identity reject. Focused native closure and Stop probes passed."
+      "notes": "On unreadable task identity both producers remove the shared marker before exit 1. The new PASS→corrupt-status→restore regression verifies both project and independent-engine receipt verifiers reject the old PASS."
     },
     {
       "id": "AC-6",
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "scripts/done-evidence.mjs",
-          "line": 423
+          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
+          "line": 183
         },
         {
           "file": "scripts/lib/gate-evidence.mjs",
-          "line": 501
-        },
-        {
-          "file": "scripts/lib/gate-evidence.mjs",
-          "line": 529
-        },
-        {
-          "file": "scripts/lib/gate-evidence.mjs",
-          "line": 542
+          "line": 499
         }
       ],
-      "notes": "v2 receipt requires matching task, PASS state, exact marker-byte SHA-256, and all five marker identity axes. Legacy is moved aside by producer and cannot satisfy the v2 verifier."
+      "notes": "Unchanged v2 receipt validation remains bound to exact marker bytes and identity."
     },
     {
       "id": "AC-7",
@@ -143,22 +123,18 @@
       "evidence": [
         {
           "file": "scripts/check-all.mjs",
-          "line": 75
-        },
-        {
-          "file": "scripts/check-all.mjs",
-          "line": 496
-        },
-        {
-          "file": "scripts/check-all.mjs",
-          "line": 624
+          "line": 78
         },
         {
           "file": "__tests__/scripts/check-all-l1.test.ts",
           "line": 64
+        },
+        {
+          "file": "__tests__/scripts/check-all-l1.test.ts",
+          "line": 78
         }
       ],
-      "notes": "Only a same-process greenfield-smoke PASS excludes its exact file from the later integration suite; all negative statuses retain it. Capture pairs record three alternating baseline/patch samples, raw durations, counts, exits, median, and range without a throughput claim."
+      "notes": "Unchanged same-run greenfield-smoke exclusion remains constrained to an actual PASS."
     }
   ]
 }
