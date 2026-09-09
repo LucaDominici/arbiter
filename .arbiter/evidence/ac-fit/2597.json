@@ -2,111 +2,88 @@
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2597",
   "branch": "task/#2597-pack-size-preflight",
-  "candidate": "929d1eb78c49302e9d0665ffd946ee8bf4fc616b",
-  "base": "d7237801a56d432dd25564a543dc25aaabb1071f",
-  "reviewer": "/root/arbiter_native_ac",
-  "reviewedAt": "2026-09-08T08:46:26Z",
-  "verdict": "NOT-TESTED",
+  "candidate": "cbabf7502a431416ed46a44471a7829daa1d3f6a",
+  "base": "3e2323f7f929feda50fe77a630830763ac1095a5",
+  "reviewer": "/root/ac_fit_2597",
+  "reviewedAt": "2026-09-09T14:24:16Z",
+  "verdict": "PASS",
   "criteria": [
     {
       "id": "AC-1",
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/artifact/npm-pack.json",
-          "line": 7
-        },
-        {
-          "file": "scripts/check-pack-size.mjs",
-          "line": 52
-        },
-        {
-          "file": "scripts/check-pack-size.mjs",
-          "line": 40
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/artifact-content.json",
+          "line": 13
         }
       ],
-      "rationale": "The retained tarball's recorded npm-pack unpackedSize is 4,973,836, below the unchanged strict 4,980,736-byte threshold. Independent extraction/re-hash of the retained path matched SHA-256 75527637ed74ef80862eeb2284169295a4b59bf7afe65cced2e261c074d32a3c; applying the existing pure strict classifier returned { level: ok, exitCode: 0 }."
+      "rationale": "The retained artifact is bound to candidate cbabf7502a431416ed46a44471a7829daa1d3f6a and SHA-256 8b04e054b8364162001141dce39de2af0800cb030a9a2699d7928351a74d0bb7. Native strict classification recorded exitCode 0 for unpackedSize 4,964,780, below the unchanged 4,980,736-byte limit."
     },
     {
       "id": "AC-2",
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/artifact-tests.log",
-          "line": 6
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/artifact-content.json",
+          "line": 13
         },
         {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/artifact-tests.log",
-          "line": 7
-        },
-        {
-          "file": "__tests__/integration/e2e/functional/packaged-artifact.test.ts",
-          "line": 483
-        },
-        {
-          "file": "__tests__/integration/e2e/functional/packaged-artifact.test.ts",
-          "line": 476
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/artifact-named-tests.json",
+          "line": 19
         }
       ],
-      "rationale": "The retained supplied-artifact focused Vitest invocation completed one file/four tests PASS. Its declared-export test calls assertFrozenContract only when the supplied artifact is in use; that contract checks strict size, frozen manifest surface, required engines/generated profiles, declarations, templates, SPDX, hashbang and executable mode before the installed declared exports are resolved/imported."
+      "rationale": "The exact retained tarball passed native content, required-engine and published-script boundary checks with empty forbidden/missing/unexpected sets and 1,301 entries. The supplied-artifact run executed all four named packaged-artifact tests, including outsider installation and every declared export imported from the installed tarball; 4/4 passed."
     },
     {
       "id": "AC-3",
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/consumer-receipt.json",
-          "line": 3
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/consumer-commit.json",
+          "line": 12
         },
         {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/consumer-receipt.json",
-          "line": 8
-        },
-        {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/consumer-receipt.json",
-          "line": 9
-        },
-        {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/consumer-receipt.json",
-          "line": 10
-        },
-        {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/consumer-receipt.json",
-          "line": 11
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/consumer-verification.json",
+          "line": 12
         }
       ],
-      "rationale": "The current receipt binds full source SHA, retained artifact SHA-256, and consumer commit 6a0e26f79860b6a9ec9d6a77b1abadd763a54cd7. Independent inspection confirmed that commit is HEAD, its tracked artifact binding names this source/digest, the installed node_modules/.bin/arbiter positive command returned applicable=1/present=1, the mandatory-negative returned exit 1/missingMandatory=1, and the receipt records clean consumer status plus artifact rehash."
+      "rationale": "Clean consumer commit 2268f2dc411da3fd5dd0b944b9fe7ecb455eb1ed is bound to source cbabf7502a431416ed46a44471a7829daa1d3f6a and the exact retained digest. Its installed node_modules/.bin/arbiter document command returned positive exit 0 with applicable=1/present=1; the mandatory-negative control returned exit 1 with missingMandatory=1, and the artifact rehash remained exact."
     },
     {
       "id": "AC-4",
-      "verdict": "NOT-TESTED",
+      "verdict": "PASS",
       "evidence": [
         {
-          "file": ".arbiter/gate-pass.json",
-          "line": 3
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/evidence-l1.json",
+          "line": 18
         },
         {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/l2.log",
-          "line": 363
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/evidence-commit.json",
+          "line": 13
         },
         {
-          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788856490/l2.log",
-          "line": 338
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/candidate-binding.json",
+          "line": 12
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788961948/candidate-l2.json",
+          "line": 18
+        },
+        {
+          "file": "/home/luca/work/forma-rooms/portfolio/evidence/arbiter-2597/cycle-1788963681/ci-completed.json",
+          "line": 17
         },
         {
           "file": ".claude/plans/2597-strict-pack-size.md",
-          "line": 84
-        },
-        {
-          "file": ".claude/plans/2597-strict-pack-size.md",
-          "line": 159
+          "line": 177
         }
       ],
-      "rationale": "A current-head L2 completed PASS, but no current-head L1 certificate, completed CI conclusion, or required three-seat code-review panel is retained. PR headRefOid and CAS afterOid are future binding facts, not pre-PR prerequisites: CI must be green before PR fast-forward/CAS landing, not before opening a PR. AC-4 remains untested until its remaining pre-landing requirements are complete."
+      "rationale": "The bounded source/build/package content is unchanged from reviewed b6acf484; candidate binding proves cbabf750 differs only by committed review evidence and reconciles the completed independent panel. L1 passed immediately before that evidence-only commit, and exact-head L2 at cbabf750 reran the L1 tranche plus the full L2 gate to ALL PASSED. PR #2619 reports headRefOid cbabf7502a431416ed46a44471a7829daa1d3f6a with CI Required and Extended Required SUCCESS; conditional SKIPPED jobs are explicit and do not replace either required aggregate. The plan keeps broader publication/adoption prerequisites explicit."
     }
   ],
   "notes": [
-    "PAUSE: this receipt is not landing approval.",
-    "No source or producer evidence was modified by this reviewer."
+    "This all-PASS receipt assesses candidate cbabf7502a431416ed46a44471a7829daa1d3f6a only; it is not CAS or landing proof.",
+    "If this receipt is committed as a later evidence-only candidate, the completed source-content reviews remain valid, but the new HEAD must receive its own ordinary retained-artifact binding and actual L1/L2/CI/CAS qualification. No cbabf750 gate or CI result transfers as exact-head proof.",
+    "No source, tarball, gate, CI job, code-review panel, or consumer test was changed, rerun, repacked, or redispatched by this verifier."
   ]
 }
