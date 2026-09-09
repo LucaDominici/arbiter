@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { verifyGatePassMarker } from '../../src/evidence/gate-binding.js'
@@ -27,6 +27,7 @@ import {
   captureGateStart,
   verifyGateEvidence,
 } from '../../scripts/lib/gate-evidence.mjs'
+import { parseCheckArgs, effectiveGateLevel } from '../../scripts/lib/parse-check-args.mjs'
 
 const BRANCH = 'task/2328-engine'
 type Marker = Record<string, unknown>
@@ -43,6 +44,47 @@ afterEach(() => {
     const dir = dirs.pop()
     if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
   }
+})
+
+/**
+ * #2615 — the RUNTIME half. The sibling file
+ * (`done-evidence-gate-level.test.ts`) reads the producer's source and pins the
+ * level it hands `check-all.mjs`; a source scan cannot show that the resulting
+ * marker is *accepted*, and acceptance at runtime is the defect that was
+ * observed (`not a known gate level`, main 3d729d73, 2026-09-09T04:19:45Z).
+ *
+ * These two cases close that gap using this file's existing fixtures, and they
+ * run through `verdictOf`, so both verifier copies must agree on the outcome.
+ */
+describe('#2615 done-evidence gate level — runtime acceptance', () => {
+  /** The level the real producer causes to be written into the marker. */
+  function producerMarkerLevel(): string {
+    const source = readFileSync(join(__dirname, '..', '..', 'scripts/done-evidence.mjs'), 'utf-8')
+    const m = source.match(/spawnSync\(\s*'node',\s*\['scripts\/check-all\.mjs',\s*'([^']+)'\]/)
+    if (m === null) throw new Error('no check-all invocation found in scripts/done-evidence.mjs')
+    return effectiveGateLevel(parseCheckArgs([m[1]]))
+  }
+
+  it("ACCEPTS the marker done-evidence's own gate level produces", () => {
+    const dir = makeRepo()
+    const level = producerMarkerLevel()
+    expect(
+      verdictOf(markerFor(dir, { level }), { root: dir, minLevel: 'L2', maxAgeMin: 240 }),
+      `a marker at the level done-evidence runs (${level}) must satisfy the L2 minimum ` +
+        'every consumer defaults to — otherwise the rejection moved rather than went away',
+    ).toEqual({ ok: true })
+  })
+
+  it('REJECTS the governance level L4 it used to stamp, naming the ladder', () => {
+    const dir = makeRepo()
+    const verdict = verdictOf(markerFor(dir, { level: 'L4' }), {
+      root: dir,
+      minLevel: 'L2',
+      maxAgeMin: 240,
+    })
+    expect(verdict.ok).toBe(false)
+    expect(verdict.reason).toMatch(/not a known gate level/)
+  })
 })
 
 function git(dir: string, args: string[]): string {
