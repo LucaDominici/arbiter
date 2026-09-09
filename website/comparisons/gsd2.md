@@ -2,7 +2,7 @@
 title: 'arbiter vs GSD2'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-09-09'
 owner: ''
 canonical_id: ''
 tags: []
@@ -26,7 +26,7 @@ GSD2 is an **autonomous execution engine**. Its primary value is reducing the nu
 
 ## What arbiter does
 
-arbiter is a **governance installer**. It does not orchestrate tasks or drive execution. It sets up the static artifacts that constrain execution: AGENTS.md invariants, hook scripts, gate commands, and CI workflows. Once installed, arbiter's artifacts are enforced by the tools already running (Claude Code hooks, CI runners) — not by arbiter itself at runtime.
+arbiter's **core** is a **governance installer**. It sets up the static artifacts that constrain execution: AGENTS.md invariants, hook scripts, gate commands, and CI workflows. Once installed, those artifacts are enforced by the tools already running (Claude Code hooks, CI runners). The optional /ship and /drain layer can orchestrate work to a merged PR; it is not a runtime autonomous-execution engine.
 
 ---
 
@@ -40,13 +40,11 @@ arbiter is a **governance installer**. It does not orchestrate tasks or drive ex
 | Blocking hook scripts                                   | ✓       | —    |
 | CI workflow generation                                  | ✓       | —    |
 | Multi-tool configuration emission (Claude Code + Codex) | ✓       | n/r  |
-| Multi-model review / orchestration                      | —       | n/r  |
+| Optional orchestration / external review¹               | ✓       | n/r  |
 | Language-aware setup                                    | ✓       | —    |
 | Zero telemetry guarantee                                | ✓       | —    |
 
-> **¹** Via arbiter's _optional orchestration layer_ (`/ship`, `/drain`) — distinct from, and not
-> required by, the installer core. GSD2 is built around autonomous execution as its primary purpose;
-> for arbiter it is an add-on over the governance contract.
+> **¹** Via Arbiter's optional /ship and /drain layer; an opted-in crossModelReview.enabled configuration can add a read-only external review seat. This is distinct from the installer core and from a runtime fleet coordinator. GSD2 is built around autonomous execution as its primary purpose.
 > `n/r` means this arbiter-focused correction did not reassess GSD2's corresponding capability.
 
 ---
@@ -69,6 +67,8 @@ arbiter is a **governance installer**. It does not orchestrate tasks or drive ex
 
 GSD2 handles _what gets done and how tasks are orchestrated_; arbiter handles _what rules apply during execution_. arbiter's AGENTS.md serves as the governance contract that GSD2's execution agents must respect. Running GSD2 in a project governed by arbiter means every agent's output passes through the same hook and gate checks.
 
+**Review evidence (2026-09-09):** .claude/commands/ship.md defines /ship as the orchestration entrypoint, while this comparison retains the distinction between that optional layer and GSD2's autonomous-execution focus.
+
 ---
 
-_Last reviewed: 2026-08-26_
+_Last reviewed: 2026-09-09_

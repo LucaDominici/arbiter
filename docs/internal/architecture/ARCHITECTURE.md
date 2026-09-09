@@ -2,7 +2,7 @@
 title: 'arbiter Architecture'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-08'
+last_review: '2026-09-09'
 owner: ''
 canonical_id: 'ARCHITECTURE'
 tags: ['audience/dev', 'kind/spine']
@@ -57,6 +57,8 @@ A change qualifies as architectural (and needs an ADR under `../ADR/`) when it:
 ## Arbiter — Architecture Overview
 
 Arbiter generates a multi-layer governance stack for AI-assisted development. The architecture has one invariant: **a single canonical source of truth**, with all tool-specific configs as thin overlays.
+
+**Review evidence (2026-09-09):** src/wizard/types.ts defines the supported emission surface as Claude Code and Codex only; src/commands/init/resolve-config.ts validates --tools against that same set. Other tools mentioned below as native readers of AGENTS.md are not configuration-emission targets.
 
 ---
 

@@ -2,7 +2,7 @@
 title: 'arbiter vs spec-kit'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-09-09'
 owner: ''
 canonical_id: ''
 tags: []
@@ -62,10 +62,10 @@ arbiter is a **governance installer**. It governs the _execution_ phase: what th
 
 spec-kit and arbiter address different phases and can coexist. spec-kit governs what gets built; arbiter governs how it gets built. A team using spec-kit for requirements and arbiter for execution-phase governance gets coverage at both ends.
 
-Arbiter's FEATURE_MATRIX and `scripts/check-feature-matrix.mjs` provide governed requirements
-traceability, but arbiter does not yet create a durable specification artifact. It therefore does
-not claim spec-driven development.
+Arbiter's FEATURE_MATRIX and scripts/check-feature-matrix.mjs provide governed requirements traceability. A Verified feature-matrix claim requires a durable evidence envelope; this proves the traceability status rather than creating a user-authored design specification. Arbiter therefore does not claim spec-driven development.
+
+**Review evidence (2026-09-09):** scripts/check-feature-matrix.mjs and the RTM verdict schema enforce the evidence-backed Verified state.
 
 ---
 
-_Last reviewed: 2026-08-26_
+_Last reviewed: 2026-09-09_

@@ -2,7 +2,7 @@
 title: 'arbiter vs SuperClaude'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-09-09'
 owner: ''
 canonical_id: ''
 tags: []
@@ -28,7 +28,7 @@ SuperClaude is a **Claude Code UX enhancer**. Its primary value is productivity:
 
 arbiter is a **governance installer**. It generates the project-level artifacts that enforce quality standards: hook scripts that block violations at write time, gate commands that fail CI on coverage or lint regressions, and AGENTS.md that defines the invariants any AI tool must follow.
 
-arbiter works across tools. Its governance artifacts apply whether you are using Claude Code or Codex (the supported tools out of the box; Cursor and others are experimental).
+arbiter works across tools. Its governance artifacts apply whether you are using Claude Code or Codex (the supported configuration-emission targets).
 
 ---
 
@@ -43,12 +43,13 @@ arbiter works across tools. Its governance artifacts apply whether you are using
 | Blocking hook scripts                                   | ✓       | —           |
 | CI workflow generation                                  | ✓       | —           |
 | Multi-tool configuration emission (Claude Code + Codex) | ✓       | n/r         |
-| Multi-model review / orchestration                      | —       | n/r         |
+| Optional orchestration / external review¹               | ✓       | n/r         |
 | Language-aware setup                                    | ✓       | —           |
 | L1/L2/L3/L4 governance tiers                            | ✓       | —           |
 | Zero telemetry guarantee                                | ✓       | —           |
 
-`n/r` means this arbiter-focused correction did not reassess SuperClaude's corresponding capability.
+> **¹** Via Arbiter's optional /ship and /drain layer; an opted-in crossModelReview.enabled configuration can add a read-only external review seat. This is distinct from the installer core and does not make Arbiter a runtime fleet coordinator.
+> `n/r` means this arbiter-focused correction did not reassess SuperClaude's corresponding capability.
 
 ---
 
@@ -62,7 +63,7 @@ arbiter works across tools. Its governance artifacts apply whether you are using
 ## When to choose arbiter
 
 - You need governance rules that _cannot be bypassed_ — hooks that block violations regardless of how the AI is prompted
-- You need the same governance to work across Claude Code and Codex (with experimental support for Cursor and others)
+- You need the same governance to work across Claude Code and Codex
 - You want CI to fail on governance violations, not just rely on AI cooperation
 - You need a complete, language-specific project setup (AGENTS.md + hooks + CI + GitHub infrastructure) from one install
 
@@ -70,6 +71,8 @@ arbiter works across tools. Its governance artifacts apply whether you are using
 
 SuperClaude enhances the _Claude Code experience_; arbiter enforces the _project rules_. Both can be active simultaneously: SuperClaude's commands and personas operate on top of the hook infrastructure arbiter generates. A developer using SuperClaude personas in an arbiter-governed project gets better UX with the same mechanical enforcement.
 
+**Review evidence (2026-09-09):** src/wizard/types.ts limits the supported emission surface to Claude Code and Codex; ADR-122 records the retirement of former experimental generators.
+
 ---
 
-_Last reviewed: 2026-08-26_
+_Last reviewed: 2026-09-09_

@@ -1,96 +1,126 @@
 {
-  "task_id": "#2624",
+  "task_id": "#2500",
   "scope": {
-    "track": "A",
+    "track": "D",
     "paths": [
-      ".github/workflows/05-release.yml",
-      "src/templates/github/workflows/05-release.yml.ejs",
-      "__tests__/templates/05-release-render.test.ts",
-      ".dogfood-divergences.json",
-      "docs/internal/release-playbook.md",
-      "examples/go-library/.arbiter-generated-manifest.json",
-      "examples/python-library/.arbiter-generated-manifest.json",
-      "examples/ts-library/.arbiter-generated-manifest.json",
-      ".claude/plans/task-2624-release-pipeline.md",
+      "docs/internal/architecture/ARCHITECTURE.md",
+      "website/comparisons/bmad.md",
+      "website/comparisons/claude-flow.md",
+      "website/comparisons/gsd2.md",
+      "website/comparisons/index.md",
+      "website/comparisons/spec-kit.md",
+      "website/comparisons/superclaude.md",
+      "docs/design/gold-doc-capability.md",
+      "docs/design/gold-doc-tranches-t3-t5.md",
+      "__tests__/docs/comparison-claim-truth.test.ts",
+      ".arbiter/evidence/tdd/#2500.json",
       ".agents/plan/PLAN.json",
+      ".claude/plans/task-2500-release-freshness.md",
+      ".claude/.task/status.json",
+      ".arbiter/evidence/plan-review/_2500/latest.json",
+      ".arbiter/evidence/ac-fit/2500.json",
       ".arbiter/agents-dispatched.json",
-      ".arbiter/evidence/ac-fit/2624.json",
-      ".arbiter/evidence/tdd/#2624.json",
-      ".arbiter/evidence/agent-returns/_2624",
-      "suppressions/telemetry-allowlist.json",
-      "PRIVACY.md"
+      ".arbiter/gate-pass.json",
+      ".arbiter/evidence/agent-returns/_2500"
     ]
   },
   "files": [
     {
-      "path": ".github/workflows/05-release.yml",
+      "path": "docs/internal/architecture/ARCHITECTURE.md",
       "operation": "modify"
     },
     {
-      "path": "src/templates/github/workflows/05-release.yml.ejs",
+      "path": "website/comparisons/bmad.md",
       "operation": "modify"
     },
     {
-      "path": "__tests__/templates/05-release-render.test.ts",
+      "path": "website/comparisons/claude-flow.md",
       "operation": "modify"
     },
     {
-      "path": ".dogfood-divergences.json",
+      "path": "website/comparisons/gsd2.md",
       "operation": "modify"
     },
     {
-      "path": "docs/internal/release-playbook.md",
+      "path": "website/comparisons/index.md",
       "operation": "modify"
     },
     {
-      "path": "examples/go-library/.arbiter-generated-manifest.json",
+      "path": "website/comparisons/spec-kit.md",
       "operation": "modify"
     },
     {
-      "path": "examples/python-library/.arbiter-generated-manifest.json",
+      "path": "website/comparisons/superclaude.md",
       "operation": "modify"
     },
     {
-      "path": "examples/ts-library/.arbiter-generated-manifest.json",
+      "path": "docs/design/gold-doc-capability.md",
       "operation": "modify"
     },
     {
-      "path": ".claude/plans/task-2624-release-pipeline.md",
+      "path": "docs/design/gold-doc-tranches-t3-t5.md",
       "operation": "modify"
+    },
+    {
+      "path": "__tests__/docs/comparison-claim-truth.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2500.json",
+      "operation": "create"
     },
     {
       "path": ".agents/plan/PLAN.json",
       "operation": "modify"
     },
     {
+      "path": ".claude/plans/task-2500-release-freshness.md",
+      "operation": "create"
+    },
+    {
+      "path": ".claude/.task/status.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/plan-review/_2500/latest.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/ac-fit/2500.json",
+      "operation": "create"
+    },
+    {
       "path": ".arbiter/agents-dispatched.json",
       "operation": "modify"
     },
     {
-      "path": ".arbiter/evidence/ac-fit/2624.json",
+      "path": ".arbiter/gate-pass.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/tdd/#2624.json",
+      "path": ".arbiter/evidence/agent-returns/_2500",
       "operation": "create"
-    },
-    {
-      "path": "suppressions/telemetry-allowlist.json",
-      "operation": "modify"
-    },
-    {
-      "path": "PRIVACY.md",
-      "operation": "modify"
     }
   ],
   "invariants": {
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": ["INV-53", "INV-95", "INV-96", "INV-101", "INV-123", "INV-138"],
+  "invariant_ids": [
+    "INV-23",
+    "INV-24",
+    "INV-25",
+    "INV-27",
+    "INV-28",
+    "INV-53",
+    "INV-96",
+    "INV-114",
+    "INV-116",
+    "INV-138"
+  ],
   "review_bridge": {
     "enabled": true,
-    "reviewer": "bridge-reviewer",
+    "reviewer": "independent-review",
     "fail_on_warn": false
   }
 }

@@ -2,7 +2,7 @@
 title: 'Gold-Doc Capability — self, generator, enforcer'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-26'
+last_review: '2026-09-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -24,11 +24,11 @@ the _right-sized_ doc-set on every project it governs. It is written against the
 today (anchors are `file:line`), and it is honest about which of those pieces are real, which are
 advisory ceremony, and which are stubs.
 
-**Implementation status (reviewed 2026-08-09).** `src/generators/doc-set.ts` implements the real
+**Implementation status (reviewed 2026-09-09).** `src/generators/doc-set.ts` implements the real
 doc-body generator and formats its skeletons against the target configuration. `scripts/check-doc-
 freshness.mjs` is implemented with age and coupling checks. The historical tranche descriptions
 below record the design and its original red paths; they are not claims that those shipped surfaces
-are still absent.
+are still absent. The current review checked the shipped generator and the age/coupling freshness gate; the historical sections remain labeled as design/red-path rationale.
 
 **Normative base**
 

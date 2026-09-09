@@ -2,7 +2,7 @@
 title: 'arbiter vs BMAD'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-09-09'
 owner: ''
 canonical_id: ''
 tags: []
@@ -28,22 +28,22 @@ BMAD is a **workflow orchestration framework**. Its primary value is structured,
 
 arbiter is a **governance installer**. It generates the files and enforcement mechanisms that constrain what any AI tool may write — hook scripts that block invariant violations, gate commands that fail on coverage or lint errors, and AGENTS.md that documents the rules in a machine-readable format.
 
-arbiter does not define agent roles or workflow phases. It defines the _rules that apply regardless of which phase or role is active_.
+arbiter's core does not define agent roles. Its optional orchestration layer supplies workflow phases for a merged-PR route, while the governance rules apply regardless of which phase or role is active.
 
 ---
 
 ## Feature comparison
 
-| Capability                     | arbiter | BMAD |
-| ------------------------------ | ------- | ---- |
-| Agent persona definitions      | —       | ✓    |
-| Multi-agent workflow structure | —       | ✓    |
-| Governance file (AGENTS.md)    | ✓       | —    |
-| Blocking hook scripts          | ✓       | —    |
-| CI workflow generation         | ✓       | —    |
-| Language-aware setup           | ✓       | —    |
-| npx install in one step        | ✓       | —    |
-| Zero telemetry guarantee       | ✓       | —    |
+| Capability                      | arbiter | BMAD |
+| ------------------------------- | ------- | ---- |
+| Agent persona definitions       | —       | ✓    |
+| Multi-agent workflow structure¹ | ✓       | ✓    |
+| Governance file (AGENTS.md)     | ✓       | —    |
+| Blocking hook scripts           | ✓       | —    |
+| CI workflow generation          | ✓       | —    |
+| Language-aware setup            | ✓       | —    |
+| npx install in one step         | ✓       | —    |
+| Zero telemetry guarantee        | ✓       | —    |
 
 ---
 
@@ -59,12 +59,16 @@ arbiter does not define agent roles or workflow phases. It defines the _rules th
 - You need the AI tool to be _blocked_ from writing `any` types, `.unwrap()` calls, or orphan TODOs — not just asked not to
 - You want CI to fail hard on governance violations, not warn
 - You need a consistent, language-specific AGENTS.md with matching hooks deployed in under a minute
-- You are working with multiple AI tools (Claude Code and Codex out of the box; Cursor and others experimental) and need unified governance across all of them from one install
+- You are working with multiple AI tools (Claude Code and Codex as its supported configuration-emission targets) and need unified governance across all of them from one install
 
 ## Using both together
 
 BMAD governs _workflow_; arbiter governs _rules_. A project can use BMAD personas to orchestrate phases and arbiter to enforce the invariants those personas must respect. arbiter's AGENTS.md is designed to be the governance contract that any agent persona operates under.
 
+> **¹** Arbiter provides this through its optional /ship and /drain layer; it does not define agent personas.
+
+**Review evidence (2026-09-09):** src/wizard/types.ts and src/commands/init/resolve-config.ts define and validate the same two supported tools.
+
 ---
 
-_Last reviewed: 2026-08-26_
+_Last reviewed: 2026-09-09_
