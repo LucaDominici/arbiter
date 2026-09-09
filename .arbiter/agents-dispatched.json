@@ -1,1 +1,9 @@
-{"count": 1, "agents": ["2615-ci-final-review"], "branch": "task/#2615-gate-level-parity", "sha": "52d9201dcb19964fb79eda9e2690827c29e61394", "taskId": "#2615"}
+{
+  "count": 1,
+  "agents": [
+    "2615-ci-final-review"
+  ],
+  "branch": "task/#2615-gate-level-parity",
+  "sha": "2514225ba98b4678998b392dcee904ac7b2a45f8",
+  "taskId": "#2615"
+}

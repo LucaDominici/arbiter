@@ -1,7 +1,7 @@
 {
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2615",
-  "sha": "52d9201dcb19964fb79eda9e2690827c29e61394",
+  "sha": "2514225ba98b4678998b392dcee904ac7b2a45f8",
   "criteria": [
     {
       "id": "AC-1",
@@ -100,7 +100,7 @@
           "line": 459
         }
       ],
-      "notes": "Qualified completion binds head and merge SHA, merge timestamp, and complete pre-merge CI; unknown dates, pending/failed/late pre-merge work, incomplete pages and wrong SHAs refuse, while suites created after merge are ignored."
+      "notes": "Qualified completion binds head and merge SHA, merge timestamp, and complete pre-merge CI; unknown dates, pending/failed/late pre-merge work, incomplete pages and wrong SHAs refuse, while suites created after merge are ignored. The documentation delta confirms this same cutoff contract."
     },
     {
       "id": "AC-6",
