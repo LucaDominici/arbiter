@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 
 // Module-level mocks must be at top level (hoisted by vitest)
@@ -142,6 +142,7 @@ import { loadPlugin } from '../../src/utils/plugin-loader.js'
 import { loadConfig } from '../../src/utils/config.js'
 import { runCli } from '../../src/utils/run-cli.js'
 import { validateConfig } from '../../src/config/schema.js'
+import { generateAndFinalize } from '../../src/commands/init/generate.js'
 
 const mockRunWizard = vi.mocked(runWizard)
 const mockDetermineFlow = vi.mocked(determineFlow)
@@ -202,6 +203,61 @@ describe('runInit', () => {
     vi.restoreAllMocks()
     delete process.env['ARBITER_GITHUB']
     cleanupTestProject(dir)
+  })
+
+  async function setupOutput(
+    language: 'typescript' | 'go' | 'python' | 'java',
+    packageManager: 'npm' | 'pnpm' | 'yarn' | 'bun',
+    json = false,
+  ): Promise<string> {
+    let stdout = ''
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      stdout += String(chunk)
+      return true
+    })
+    try {
+      await generateAndFinalize({
+        config: makeConfig(dir, { language, packageManager }),
+        targetDir: dir,
+        initOptions: {
+          yes: true,
+          tools: 'claude',
+          level: 'L2',
+          dir,
+          dryRun: false,
+          brownfield: false,
+          noVerify: true,
+          json,
+        },
+        log: () => undefined,
+        brownfieldDetected: false,
+        packageManager,
+      })
+    } finally {
+      stdoutSpy.mockRestore()
+    }
+    return stdout
+  }
+
+  it.each([
+    ['TypeScript', 'typescript', 'npm', 'npm install --save-dev --save-exact'],
+    ['Go', 'go', 'pnpm', 'pnpm add --save-dev --save-exact'],
+    ['Python', 'python', 'yarn', 'yarn add --dev --exact'],
+    ['JVM', 'java', 'bun', 'bun add --dev --exact'],
+  ] as const)('surfaces local tooling setup without installing it: %s', async (_, language, manager, command) => {
+    if (language !== 'typescript') rmSync(`${dir}/package.json`)
+    const stdout = await setupOutput(language, manager)
+    expect(stdout).toContain(command)
+    expect(stdout).toContain('$arbiter_spec')
+    expect(mockRunCli).not.toHaveBeenCalledWith(manager, expect.any(Array), expect.any(Object))
+  })
+
+  it('keeps local setup machine-readable and caller-specified', async () => {
+    const payload = JSON.parse(await setupOutput('typescript', 'pnpm', true))
+    expect(payload.data.nextSteps).toEqual([
+      { command: 'pnpm add --save-dev --save-exact "$arbiter_spec"', requiresUserValue: true },
+    ])
+    expect(JSON.stringify(payload)).not.toContain('0.5.0')
   })
 
   it('runs generators via --yes flag without wizard', async () => {

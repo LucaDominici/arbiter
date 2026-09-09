@@ -21,14 +21,19 @@ afterEach(() => {
 function fixture(template: (typeof RUNNERS)[number][0], source = 'process.exit(0)') {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-local-runner-'))
   created.push(dir)
+  mkdirSync(join(dir, 'scripts/lib'), { recursive: true })
   mkdirSync(join(dir, 'node_modules/@arbiter/cli/dist'), { recursive: true })
-  writeFileSync(join(dir, 'runner.mjs'), renderTemplate(template, makeConfig(dir)))
+  writeFileSync(join(dir, 'scripts/runner.mjs'), renderTemplate(template, makeConfig(dir)))
+  writeFileSync(
+    join(dir, 'scripts/lib/run-helpers.mjs'),
+    renderTemplate('scripts/lib/run-helpers.mjs.ejs', makeConfig(dir)),
+  )
   writeFileSync(join(dir, 'node_modules/@arbiter/cli/dist/cli.js'), source)
   return dir
 }
 
 function run(dir: string) {
-  return spawnSync(process.execPath, [join(dir, 'runner.mjs'), '--json'], {
+  return spawnSync(process.execPath, [join(dir, 'scripts/runner.mjs'), '--json'], {
     cwd: dir,
     encoding: 'utf-8',
   })
