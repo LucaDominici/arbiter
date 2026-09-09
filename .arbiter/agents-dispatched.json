@@ -1,7 +1,7 @@
 {
   "count": 3,
-  "agents": ["/root/review_standards_2597", "/root/review_safety_2597", "/root/review_spec_2597"],
+  "agents": ["independent-review", "silent-failures-review", "package-contract-review"],
   "taskId": "#2597",
   "branch": "task/#2597-pack-size-preflight",
-  "sha": "2d805824f883e0c8c12e6a0324e5f3a0911eb6ad"
+  "sha": "b6acf484ad4aa9922914a0d9e1c549a442aed811"
 }
