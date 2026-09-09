@@ -1,0 +1,119 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2624",
+  "sha": "20013aa2cf9196782c3dba7b87d0e2ffde4603f6",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".github/workflows/05-release.yml",
+          "line": 309
+        },
+        {
+          "file": ".github/workflows/05-release.yml",
+          "line": 315
+        },
+        {
+          "file": ".github/workflows/05-release.yml",
+          "line": 319
+        },
+        {
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 690
+        }
+      ],
+      "notes": "Independent integrated-candidate review: six workflow/template/test/plan/document hashes retain accepted bytes; release divergence row retains accepted content and all other rows are exactly the qualified #2578 base. Retained PASS from independently accepted frozen implementation, whose workflow/template/test/config hashes are still exact. Documentary delta does not change this criterion. Previously accepted AC1 paths are unchanged by this delta: publisher checkout uses the tag, downloads and re-verifies the retained artifact, uses hosted Node from .nvmrc with npm 11.16.0, and publishes that artifact without rebuilding it."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".github/workflows/05-release.yml",
+          "line": 325
+        },
+        {
+          "file": ".github/workflows/05-release.yml",
+          "line": 330
+        },
+        {
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 706
+        },
+        {
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 711
+        },
+        {
+          "file": "__tests__/templates/05-release-render.test.ts",
+          "line": 826
+        },
+        {
+          "file": "__tests__/templates/05-release-render.test.ts",
+          "line": 873
+        }
+      ],
+      "notes": "Independent integrated-candidate review: six workflow/template/test/plan/document hashes retain accepted bytes; release divergence row retains accepted content and all other rows are exactly the qualified #2578 base. Retained PASS from independently accepted frozen implementation, whose workflow/template/test/config hashes are still exact. Documentary delta does not change this criterion. The publisher now parses the fixed package/package.json member from the already hash-verified retained tarball and compares its nonempty string version exactly with RELEASE_TAG. The executable native/rendered test packs matching, mismatching, missing, numeric, and malformed archive metadata; each prepack-mutation case leaves the checkout guard at 0 and makes the publisher guard 1. The retained genuine RED has two failures and the repaired focused run has 179 passing tests."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".github/workflows/05-release.yml",
+          "line": 302
+        },
+        {
+          "file": ".github/workflows/05-release.yml",
+          "line": 305
+        },
+        {
+          "file": "__tests__/templates/05-release-render.test.ts",
+          "line": 902
+        },
+        {
+          "file": "__tests__/templates/05-release-render.test.ts",
+          "line": 918
+        }
+      ],
+      "notes": "Independent integrated-candidate review: six workflow/template/test/plan/document hashes retain accepted bytes; release divergence row retains accepted content and all other rows are exactly the qualified #2578 base. Retained PASS from independently accepted frozen implementation, whose workflow/template/test/config hashes are still exact. Documentary delta does not change this criterion. Previously accepted manual-smoke isolation and token-boundary behavior is unchanged. Productive publisher paths require a push tag, and the rendered/materialized regression retains manual branch/tag isolation and no-token-outside-publisher-or-smoke checks."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/templates/05-release-render.test.ts",
+          "line": 851
+        },
+        {
+          "file": "docs/internal/release-playbook.md",
+          "line": 7
+        },
+        {
+          "file": "docs/internal/release-playbook.md",
+          "line": 76
+        },
+        {
+          "file": "docs/internal/release-playbook.md",
+          "line": 78
+        },
+        {
+          "file": ".claude/plans/task-2624-release-pipeline.md",
+          "line": 9
+        },
+        {
+          "file": ".claude/plans/task-2624-release-pipeline.md",
+          "line": 40
+        },
+        {
+          "file": ".dogfood-divergences.json",
+          "line": 106
+        }
+      ],
+      "notes": "Independent integrated-candidate review: six workflow/template/test/plan/document hashes retain accepted bytes; release divergence row retains accepted content and all other rows are exactly the qualified #2578 base. Fresh documentary-delta PASS: restore the original empty canonical_id without changing core-set policy/budget; describe the manifest inside the retained tarball without falsely citing a repo path; fix the plan relative link. Native SSOT gate PASS with 34 selected documents, native related-path functions resolve both document links, scoped path-citation gate PASS for both files. Plan body including AC1\u20134/non-goals/test strategy is byte-identical. Prior independent implementation/179-test evidence is retained by exact five-file hashes, not rerun. No L1, CI, live authentication, OIDC, publication or consumer acceptance claim."
+    }
+  ]
+}

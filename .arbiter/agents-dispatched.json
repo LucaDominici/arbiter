@@ -1,9 +1,9 @@
 {
   "count": 1,
   "agents": [
-    "2615-ci-final-review"
+    "2624-combined-code-review"
   ],
-  "branch": "task/#2615-gate-level-parity",
-  "sha": "2514225ba98b4678998b392dcee904ac7b2a45f8",
-  "taskId": "#2615"
+  "branch": "task/#2624-release-pipeline",
+  "sha": "20013aa2cf9196782c3dba7b87d0e2ffde4603f6",
+  "taskId": "#2624"
 }

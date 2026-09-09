@@ -1,0 +1,34 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "2624-code-review",
+  "role": "reviewer",
+  "taskId": "#2624",
+  "branch": "task/#2624-release-pipeline",
+  "sha": "663152c2e7b7dcc65188538887567cc8609b438c",
+  "ts": "2026-09-09T21:15:41.480Z",
+  "verdict": "FAIL",
+  "confidence": 0.98,
+  "findings": [
+    {
+      "id": "2624-published-tarball-version-unchecked",
+      "severity": "med",
+      "kind": "structural",
+      "claim": "Both release-version guards read checkout package.json, so npm prepack can change the retained tarball version and publish a different version from the release tag without either guard refusing, violating AC-2.",
+      "citations": [
+        {
+          "file": "src/templates/github/workflows/05-release.yml.ejs",
+          "line": 711
+        },
+        {
+          "file": "__tests__/templates/05-release-render.test.ts",
+          "line": 842
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}
