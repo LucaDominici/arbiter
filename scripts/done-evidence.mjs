@@ -49,8 +49,9 @@ let taskId = 'unknown'
 if (existsSync(STATUS_PATH)) {
   try {
     taskId = JSON.parse(readFileSync(STATUS_PATH, 'utf-8')).taskId || 'unknown'
-  } catch {
-    taskId = 'unknown'
+  } catch (err) {
+    process.stderr.write(`[done-evidence] ERROR: could not read task identity — ${err.message}\n`)
+    process.exit(1)
   }
 }
 

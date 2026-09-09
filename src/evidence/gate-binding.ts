@@ -377,21 +377,25 @@ function objectFields(value: unknown): Record<string, unknown> {
 function verifyPinnedFiles(value: unknown, root: string): void {
   if (!Array.isArray(value) || value.length === 0) throw new Error('pinned_files is empty')
   for (const entry of value) {
-    const fields = objectFields(entry)
-    if (typeof fields.path !== 'string' || typeof fields.sha256 !== 'string') {
-      throw new Error('malformed pinned file')
-    }
-    const path = resolve(root, fields.path)
-    const rel = relative(root, path)
-    if (isAbsolute(fields.path) || rel === '..' || rel.startsWith('../')) {
-      throw new Error('pinned file must remain inside the checkout')
-    }
-    if (realpathSync(path) !== resolve(realpathSync(root), fields.path)) {
-      throw new Error(`pinned file must not traverse symlinks: ${fields.path}`)
-    }
-    if (createHash('sha256').update(readFileTranslated(path)).digest('hex') !== fields.sha256) {
-      throw new Error(`pinned file SHA mismatch: ${fields.path}`)
-    }
+    verifyPinnedFile(entry, root)
+  }
+}
+
+function verifyPinnedFile(entry: unknown, root: string): void {
+  const fields = objectFields(entry)
+  if (typeof fields.path !== 'string' || typeof fields.sha256 !== 'string') {
+    throw new Error('malformed pinned file')
+  }
+  const path = resolve(root, fields.path)
+  const rel = relative(root, path)
+  if (isAbsolute(fields.path) || rel === '..' || rel.startsWith('../')) {
+    throw new Error('pinned file must remain inside the checkout')
+  }
+  if (realpathSync(path) !== resolve(realpathSync(root), fields.path)) {
+    throw new Error(`pinned file must not traverse symlinks: ${fields.path}`)
+  }
+  if (createHash('sha256').update(readFileTranslated(path)).digest('hex') !== fields.sha256) {
+    throw new Error(`pinned file SHA mismatch: ${fields.path}`)
   }
 }
 
@@ -412,21 +416,21 @@ function verifyRuntimeReceipt(value: unknown, archetype: string | undefined): vo
   }
 }
 
+function verifyReceiptHeader(receipt: Record<string, unknown>, taskId: string): void {
+  if (receipt.version !== 2 || receipt.task_id !== taskId || receipt.state !== 'passed') {
+    throw new Error('v2 done receipt must be passed for the current task')
+  }
+  if (receipt.all_green !== true || receipt.no_overclaim !== true || receipt.gate_level !== 'L3') {
+    throw new Error('done receipt is not a green L3 qualification')
+  }
+}
+
 /** Independent engine acceptance: no call into project-editable scripts. */
 export function verifyDoneEvidenceReceipt(opts: DoneReceiptOptions): GatePassVerifyResult {
   try {
     const path = join(opts.root, '.arbiter/evidence/done', `${sanitizeTaskId(opts.taskId)}.json`)
     const receipt = objectFields(JSON.parse(readFileSync(path, 'utf8')))
-    if (receipt.version !== 2 || receipt.task_id !== opts.taskId || receipt.state !== 'passed') {
-      throw new Error('v2 done receipt must be passed for the current task')
-    }
-    if (
-      receipt.all_green !== true ||
-      receipt.no_overclaim !== true ||
-      receipt.gate_level !== 'L3'
-    ) {
-      throw new Error('done receipt is not a green L3 qualification')
-    }
+    verifyReceiptHeader(receipt, opts.taskId)
     const bytes = readFileSync(join(opts.root, '.arbiter/gate-pass.json'))
     if (createHash('sha256').update(bytes).digest('hex') !== receipt.gate_marker_sha256) {
       throw new Error('done receipt gate marker digest mismatch')
@@ -444,6 +448,7 @@ export function verifyDoneEvidenceReceipt(opts: DoneReceiptOptions): GatePassVer
     verifyPinnedFiles(receipt.pinned_files, opts.root)
     verifyRuntimeReceipt(receipt.reality_contact, opts.archetype)
     return verifyGatePassMarker(marker, { ...opts, minLevel: 'L3' })
+    // FAIL-OPEN-INTENT: explicit failure returned; task completion rejects ok:false.
   } catch (err) {
     return {
       ok: false,

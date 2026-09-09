@@ -63,6 +63,25 @@ function setup({
 }
 
 describe('#2615 done-evidence capture sequence', () => {
+  it.each([false, true])(
+    'AC-5: rejects corrupt task identity before any gate for %s producer',
+    (rendered) => {
+      const dir = setup({ rendered })
+      try {
+        writeFileSync(join(dir, '.claude', '.task', 'status.json'), '{ broken')
+        const result = spawnSync('node', ['scripts/done-evidence.mjs'], {
+          cwd: dir,
+          encoding: 'utf8',
+        })
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain('could not read task identity')
+        expect(existsSync(join(dir, 'gate-count'))).toBe(false)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
+
   it('AC-5: invalid config invalidates a prior PASS before it can run a gate', () => {
     const dir = setup()
     try {

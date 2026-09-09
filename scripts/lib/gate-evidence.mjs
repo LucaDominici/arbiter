@@ -475,6 +475,10 @@ function runtimeProblem(receipt, archetype) {
     return 'done receipt required reality contact did not pass'
   if (rc.required === false && rc.passed !== null)
     return 'done receipt optional reality contact must be null'
+  return runtimeArchetypeProblem(rc, archetype)
+}
+
+function runtimeArchetypeProblem(rc, archetype) {
   if (
     archetype === 'backend-web-db' &&
     (rc.required !== true || rc.passed !== true || rc.suite !== 'live-api-e2e')
@@ -502,6 +506,7 @@ export function verifyDoneEvidenceReceipt({
   let receipt
   try {
     receipt = JSON.parse(readFileSync(receiptPath, 'utf-8'))
+    // FAIL-OPEN-INTENT: explicit failure returned; CLI and hooks reject ok:false.
   } catch (err) {
     return { ok: false, reason: `done receipt unreadable at ${receiptPath}: ${err.message}` }
   }
@@ -520,6 +525,7 @@ export function verifyDoneEvidenceReceipt({
   try {
     markerBytes = readFileSync(markerPath)
     marker = JSON.parse(markerBytes)
+    // FAIL-OPEN-INTENT: explicit failure returned; CLI and hooks reject ok:false.
   } catch (err) {
     return { ok: false, reason: `gate-pass marker unreadable at ${markerPath}: ${err.message}` }
   }
@@ -566,6 +572,7 @@ export function verifyDoneEvidenceReceipt({
         .digest('hex')
       if (actual !== entry.sha256)
         return { ok: false, reason: `done receipt pinned file drift: ${entry.path}` }
+      // FAIL-OPEN-INTENT: explicit failure returned; CLI and hooks reject ok:false.
     } catch (err) {
       return {
         ok: false,
