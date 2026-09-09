@@ -177,6 +177,11 @@ describe('extractSpawnedCommands', () => {
     expect(extractSpawnedCommands(src)).toEqual(new Set(['doc-set', 'gold-audit']))
   })
 
+  it('extracts a command token from a local-runner array', () => {
+    const src = "runLocalArbiter(['doc-set', '--freshness', ...args])"
+    expect(extractSpawnedCommands(src)).toEqual(new Set(['doc-set']))
+  })
+
   it('does not match bare prose without the array-literal shape', () => {
     expect(extractSpawnedCommands('Run arbiter init to get started.')).toEqual(new Set())
   })
@@ -263,6 +268,38 @@ describe('check-phantom-command-scan.mjs — synthetic phantom command fails clo
 // ─── T5b′: emitted-template spawn-array scan (#1944) ───────────────────────
 
 describe('check-phantom-command-scan.mjs — T5b′ template spawn-array scan', () => {
+  it('fails when a local runner cites an unregistered command', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'phantom-scan-local-runner-'))
+    try {
+      const cliPath = join(dir, 'cli.ts')
+      writeFileSync(
+        cliPath,
+        "import { Command } from 'commander'\nconst program = new Command()\n" +
+          "program.command('init').description('Init')\n",
+      )
+      const tmplDir = join(dir, 'templates', 'scripts')
+      mkdirSync(tmplDir, { recursive: true })
+      writeFileSync(
+        join(tmplDir, 'check-thing.mjs.ejs'),
+        "runLocalArbiter(['frobnicate', ...args])\n",
+      )
+      const r = spawnSync(
+        'node',
+        [
+          SCRIPT,
+          `--cli=${cliPath}`,
+          `--roots=${join(dir, 'templates')}`,
+          `--ledger=${join(dir, 'none.yml')}`,
+        ],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('frobnicate')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('fails when a .mjs.ejs thin-runner spawns an unregistered command', () => {
     const dir = mkdtempSync(join(tmpdir(), 'phantom-scan-spawn-'))
     try {
