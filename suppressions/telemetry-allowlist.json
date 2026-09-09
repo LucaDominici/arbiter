@@ -73,5 +73,10 @@
     "pattern": "fetch(",
     "file": "src/templates/resilience/RESILIENCE.md.ejs",
     "justification": "Generated resilience guide showing example TypeScript usage of the Fetch API inside a cockatiel resilience policy wrapper. The fetch() call is example code in advisory documentation emitted to target projects, not a network call from arbiter itself. Users adapt the example to their own URL."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "src/templates/github/workflows/05-release.yml.ejs",
+    "justification": "Generated npm-library release workflow: only explicit workflow_dispatch runs the read-only npm-auth-smoke job. Fixed HTTPS GETs to registry.npmjs.org/-/whoami and /-/org/arbiter/user check token identity and scope visibility; redirects are rejected and each request times out after 15 seconds. No telemetry, repository data upload or publication; the token is never logged and successful identity does not prove publication authorization."
   }
 ]

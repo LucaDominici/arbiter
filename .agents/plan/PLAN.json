@@ -16,7 +16,9 @@
       ".arbiter/agents-dispatched.json",
       ".arbiter/evidence/ac-fit/2624.json",
       ".arbiter/evidence/tdd/#2624.json",
-      ".arbiter/evidence/agent-returns/_2624"
+      ".arbiter/evidence/agent-returns/_2624",
+      "suppressions/telemetry-allowlist.json",
+      "PRIVACY.md"
     ]
   },
   "files": [
@@ -71,6 +73,14 @@
     {
       "path": ".arbiter/evidence/tdd/#2624.json",
       "operation": "create"
+    },
+    {
+      "path": "suppressions/telemetry-allowlist.json",
+      "operation": "modify"
+    },
+    {
+      "path": "PRIVACY.md",
+      "operation": "modify"
     }
   ],
   "invariants": {

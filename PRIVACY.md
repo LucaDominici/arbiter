@@ -1,8 +1,8 @@
 ---
 title: 'Privacy Policy'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-06-22'
+last_review: '2026-09-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/security']
@@ -76,7 +76,12 @@ Every pull request runs an automated scan of `dist/` and `src/templates/` for ne
 
 **Scanned patterns:** `fetch(`, `http.request(`, `https.request(`, `axios`, `segment.`, `amplitude.`, `mixpanel`, `posthog`, `sentry`, `bugsnag`
 
-The allowlist lists every permitted occurrence with a justification. Currently permitted patterns are generated test fixtures that call local mock servers in test scope only — never production endpoints.
+Each allowlist entry explains the file/pattern and its intended use.
+
+Manual npm-library `workflow_dispatch` smoke sends fixed registry.npmjs.org
+identity/scope GETs: token authentication, no redirects, 15s timeout. It never
+logs tokens, uploads repository data or builds/signs/publishes. Identity/scope
+visibility proves neither publication permission nor OIDC configuration.
 
 ---
 
@@ -103,4 +108,4 @@ If you discover unexpected network activity, please report it via [SECURITY.md](
 
 ---
 
-_Last reviewed: 2026-06-22_
+_Last reviewed: 2026-09-10_
