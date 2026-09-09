@@ -1,111 +1,35 @@
 {
-  "task_id": "#2578",
+  "task_id": "#2624",
   "scope": {
     "track": "A",
     "paths": [
-      "src/commands/init/generate.ts",
-      "src/commands/init/resolve-config.ts",
-      "src/i18n/en.json",
-      "src/generators/debt-gates.ts",
-      "src/generators/check-all.ts",
-      "src/generators/gold-kit.ts",
-      "src/templates/scripts",
-      "scripts/check-cross-model-review.mjs",
-      "scripts/check-phantom-command-scan.mjs",
-      "scripts/lib/run-helpers.mjs",
-      "scripts/optional-emissions.json",
-      "docs/QUICKSTART.md",
+      ".github/workflows/05-release.yml",
+      "src/templates/github/workflows/05-release.yml.ejs",
+      "__tests__/templates/05-release-render.test.ts",
       ".dogfood-divergences.json",
-      "__tests__/generators/debt-gates.test.ts",
-      "__tests__",
-      "examples/go-library",
-      "examples/python-library",
-      "examples/ts-library",
+      "docs/internal/release-playbook.md",
+      "examples/go-library/.arbiter-generated-manifest.json",
+      "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/ts-library/.arbiter-generated-manifest.json",
+      ".claude/plans/task-2624-release-pipeline.md",
       ".agents/plan/PLAN.json",
-      ".claude/plans/task-2578-m1-recovery.md",
       ".arbiter/agents-dispatched.json",
-      ".arbiter/evidence/ac-fit/2578.json",
-      "AGENTS.md",
-      "website/governance/AGENTS.md",
-      "docs/design/gold-doc-tranches-t3-t5.md",
-      "docs/design/gold-doc-self-tier-and-coherence.md",
-      "docs/REFERENCE/gold-audit.md",
-      "src/commands/doc-set.ts",
-      "src/commands/gold-audit.ts",
-      "src/cli.ts"
+      ".arbiter/evidence/ac-fit/2624.json",
+      ".arbiter/evidence/tdd/#2624.json",
+      ".arbiter/evidence/agent-returns/_2624"
     ]
   },
   "files": [
     {
-      "path": "src/commands/init/generate.ts",
+      "path": ".github/workflows/05-release.yml",
       "operation": "modify"
     },
     {
-      "path": "src/commands/init/resolve-config.ts",
+      "path": "src/templates/github/workflows/05-release.yml.ejs",
       "operation": "modify"
     },
     {
-      "path": "src/i18n/en.json",
-      "operation": "modify"
-    },
-    {
-      "path": "src/generators/debt-gates.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "src/generators/check-all.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "src/generators/gold-kit.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/check-arc42-slots.mjs.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/check-doc-set.mjs.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/check-doc-freshness.mjs.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/gold-audit.mjs.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/check-cross-model-review.mjs.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/lib/run-helpers.mjs.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/optional-emissions.json.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "scripts/check-cross-model-review.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "scripts/check-phantom-command-scan.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "scripts/lib/run-helpers.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "scripts/optional-emissions.json",
-      "operation": "modify"
-    },
-    {
-      "path": "docs/QUICKSTART.md",
+      "path": "__tests__/templates/05-release-render.test.ts",
       "operation": "modify"
     },
     {
@@ -113,83 +37,7 @@
       "operation": "modify"
     },
     {
-      "path": "__tests__/commands/init.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/behavioral/cli-smoke.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/generators/debt-gates.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/generators/gold-kit.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/functional/packaged-artifact.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/scripts/check-cross-model-review.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/scripts/check-phantom-command-scan.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/scripts/local-consumer-runners.test.ts",
-      "operation": "create"
-    },
-    {
-      "path": "__tests__/scripts/run-helpers.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/templates/doc-set-render.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/templates/gold-kit-render.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/templates/ship-driver-render.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/templates/cross-model-dispatch-render.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/check-arc42-slots.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/check-doc-set.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/check-doc-freshness.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/gold-audit.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/check-cross-model-review.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/lib/run-helpers.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/optional-emissions.json",
+      "path": "docs/internal/release-playbook.md",
       "operation": "modify"
     },
     {
@@ -197,63 +45,7 @@
       "operation": "modify"
     },
     {
-      "path": "examples/python-library/scripts/check-arc42-slots.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/scripts/check-doc-set.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/scripts/check-doc-freshness.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/scripts/gold-audit.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/scripts/check-cross-model-review.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/scripts/lib/run-helpers.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/scripts/optional-emissions.json",
-      "operation": "modify"
-    },
-    {
       "path": "examples/python-library/.arbiter-generated-manifest.json",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/check-arc42-slots.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/check-doc-set.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/check-doc-freshness.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/gold-audit.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/check-cross-model-review.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/lib/run-helpers.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/optional-emissions.json",
       "operation": "modify"
     },
     {
@@ -261,111 +53,7 @@
       "operation": "modify"
     },
     {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "path": ".claude/plans/task-2624-release-pipeline.md",
       "operation": "modify"
     },
     {
@@ -373,74 +61,23 @@
       "operation": "modify"
     },
     {
-      "path": ".claude/plans/task-2578-m1-recovery.md",
-      "operation": "create"
-    },
-    {
       "path": ".arbiter/agents-dispatched.json",
       "operation": "modify"
     },
     {
-      "path": ".arbiter/evidence/ac-fit/2578.json",
+      "path": ".arbiter/evidence/ac-fit/2624.json",
       "operation": "create"
     },
     {
-      "path": "AGENTS.md",
-      "operation": "modify"
-    },
-    {
-      "path": "website/governance/AGENTS.md",
-      "operation": "modify"
-    },
-    {
-      "path": "docs/design/gold-doc-tranches-t3-t5.md",
-      "operation": "modify"
-    },
-    {
-      "path": "docs/design/gold-doc-self-tier-and-coherence.md",
-      "operation": "modify"
-    },
-    {
-      "path": "docs/REFERENCE/gold-audit.md",
-      "operation": "modify"
-    },
-    {
-      "path": "src/commands/doc-set.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "src/commands/gold-audit.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "src/cli.ts",
-      "operation": "modify"
+      "path": ".arbiter/evidence/tdd/#2624.json",
+      "operation": "create"
     }
   ],
   "invariants": {
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": [
-    "INV-08",
-    "INV-11",
-    "INV-23",
-    "INV-24",
-    "INV-25",
-    "INV-26",
-    "INV-27",
-    "INV-28",
-    "INV-45",
-    "INV-53",
-    "INV-96",
-    "INV-101",
-    "INV-111",
-    "INV-114",
-    "INV-122",
-    "INV-123",
-    "INV-131",
-    "INV-138"
-  ],
+  "invariant_ids": ["INV-53", "INV-95", "INV-96", "INV-101", "INV-123", "INV-138"],
   "review_bridge": {
     "enabled": true,
     "reviewer": "bridge-reviewer",

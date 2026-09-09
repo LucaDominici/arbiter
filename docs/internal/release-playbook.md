@@ -1,188 +1,99 @@
 ---
 title: 'Release Playbook'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-05-20'
-owner: ''
+last_review: '2026-09-09'
+owner: 'Luca Dominici'
 canonical_id: ''
 tags: ['audience/dev', 'kind/internal']
-related: []
+related: ['../QUICKSTART.md']
 ---
 
 # Release Playbook
 
-> **IMPORTANT:** At least one full rehearsal MUST precede v0.1.0 public release.
-> Revise this document FROM the rehearsal experience — not from theory.
+Arbiter publishes through `.github/workflows/05-release.yml` on a pushed `v*` tag,
+excluding `v0.0.0-verify-*`. The npm job publishes to **latest** with provenance.
+Manual dispatch runs only a read-only authentication smoke, even when dispatched
+at a tag. It cannot build, sign or publish.
 
-## Pre-requisites
+## Qualify the release candidate
 
-| Check                                                              | Owner           | Done |
-| ------------------------------------------------------------------ | --------------- | ---- |
-| All Tier 1 (P0) issues closed                                      | Release manager | [ ]  |
-| All Tier 2 (P1) issues closed or deferred with justification       | Release manager | [ ]  |
-| L2 gate green locally                                              | Dev             | [ ]  |
-| Full CI green on `main`                                            | Dev             | [ ]  |
-| `CHANGELOG.md` updated                                             | Dev             | [ ]  |
-| Manual QA checklist signed off (`docs/internal/METHOD/TESTING.md`) | QA              | [ ]  |
+Changesets remains the version and changelog authority: use `npm run changeset`
+for a release entry and `npm run changeset:version` to apply the reviewed version
+change, channel tag and changelog synchronization. Land that change through the
+normal task, review, local gates and green CI. Do not add a second version bot.
 
----
+Before tagging, retain the exact merged source SHA, accepted package artifact,
+independent review and required consumer/install receipts. M1 additionally needs
+its four package-manager couplings and actual consumer adoptions; a local green
+gate or authentication smoke does not replace that acceptance. Resolve blocking
+document freshness findings by reviewing their content and source coupling.
 
-## Step 1 — Cut RC branch
+The release workflow builds and packs once, checks the package surface, hashes
+that tarball, and passes the same bytes through signing and attestations. The
+publisher waits for cosign, SLSA, native provenance, SBOM attestation and document
+freshness; mutation, secret history and Trivy are prerequisites of signing.
+A failure prevents publication. Keep the retained artifact and run URL together.
 
-```bash
-git checkout main && git pull
-git checkout -b release/vX.Y.Z-rc.N
-git push -u origin release/vX.Y.Z-rc.N
-```
+## Configure npm authentication
 
-| Owner | Sign-off | Date |
-| ----- | -------- | ---- |
-|       |          |      |
+The npm publisher uses a GitHub-hosted runner, Node from `.nvmrc`, and npm11.16.0.
+Only this artifact-only job upgrades npm; the build retains its `packageManager`
+pin. It downloads and verifies the signed tarball without rebuilding it.
 
----
+For an existing npm package, configure a trusted publisher in its npm settings:
+owner `LucaDominici`, repository `arbiter`, workflow filename `05-release.yml`.
+The workflow grants `id-token: write` only where provenance/publication needs it.
+No npm secret is inherited by the reusable SLSA workflow.
 
-## Step 2 — Full CI green
+npm prefers OIDC and may fall back to the repository `NPM_TOKEN` during initial
+or transition publication. The first publication still needs an authorized npm
+account/token when the package cannot yet have a trusted-publisher entry.
+A configured GitHub secret proves neither authentication nor package permission.
+Actual registry publication is the verification of the trusted publisher; see
+[npm trusted publishers](https://docs.npmjs.com/trusted-publishers/).
 
-Wait for all CI jobs to pass on the RC branch.
-
-```bash
-gh pr create --base main --head release/vX.Y.Z-rc.N --title "chore: release vX.Y.Z-rc.N"
-gh pr checks
-```
-
-| Owner | Sign-off | Date |
-| ----- | -------- | ---- |
-|       |          |      |
-
----
-
-## Step 3 — Tag RC
+## Run the requested read-only smoke
 
 ```bash
-git tag vX.Y.Z-rc.N
-git push origin vX.Y.Z-rc.N
+gh workflow run 05-release.yml --ref main
+gh run list --workflow 05-release.yml --event workflow_dispatch --limit 1
 ```
 
-| Owner | Sign-off | Date |
-| ----- | -------- | ---- |
-|       |          |      |
+Inspect that exact run with `gh run view`. Authentication must succeed; the log
+reports the authenticated username, scope visibility and only that user's role
+when visible. `publicationAuthorization: NOT_PROVEN` is intentional: neither
+whoami nor an organization role proves package publication permission or OIDC.
+Missing/rejected authentication fails the smoke without exposing the token.
 
----
+Every productive job, including the release aggregate, must be skipped. For a
+manual-at-tag negative check, use a unique `v0.0.0-verify-*` tag at the qualified
+commit: its push is excluded from release, and manual dispatch remains smoke-only.
+Retain the run URL and all job conclusions, including an invalid-token failure.
 
-## Step 4 — Publish to `alpha` tag
+## Publish and verify the installed bytes
 
-```bash
-npm publish --tag alpha --access public
-```
+Create the release tag only at the accepted merged SHA. Its name must exactly
+match `v` plus `package.json.version`. The build checks checkout metadata; the
+publisher reads the package manifest inside the retained tarball. Both refuse a
+mismatch, including a version changed
+by a prepack hook.
+Pushing that tag starts the automatic release. The workflow publishes the retained
+`release-artifact.tgz` using `npm publish --provenance --access public`, without
+an alpha promotion step or a second local publish command. A prerelease tag is
+also a `v*` trigger: do not use it as a publication-free rehearsal.
 
-Verify: `npm view @arbiter/cli dist-tags` shows `alpha: X.Y.Z-rc.N`.
+After the release run succeeds, inspect `npm view @arbiter/cli dist-tags dist`,
+install the exact published version in a fresh external directory, and execute
+the documented quickstart and required consumer checks. Bind those receipts to
+the version, registry integrity, release SHA and retained artifact. A successful
+upload alone does not establish a successful consumer installation.
 
-| Owner | Sign-off | Date |
-| ----- | -------- | ---- |
-|       |          |      |
+## Recovery
 
----
-
-## Step 5 — Smoke install × 3 environments
-
-For each environment below, run the smoke sequence:
-
-```bash
-npm install -g @arbiter/cli@alpha
-arbiter --version
-mkdir /tmp/smoke-project && cd /tmp/smoke-project
-arbiter init --yes
-cat AGENTS.md
-node scripts/check-all.mjs L1
-```
-
-| Environment               | Status | Tester | Date |
-| ------------------------- | ------ | ------ | ---- |
-| Ubuntu container (docker) |        |        |      |
-| macOS native              |        |        |      |
-| WSL2 (Windows)            |        |        |      |
-
----
-
-## Step 6 — Cold quickstart run
-
-Follow the published quickstart docs verbatim from a fresh shell with no env state:
-
-```bash
-npm install -g @arbiter/cli@alpha
-arbiter init
-# follow interactive prompts
-```
-
-Log any friction points. Fix blockers before promoting. Document non-blockers as follow-up issues.
-
-| Owner | Sign-off | Date |
-| ----- | -------- | ---- |
-|       |          |      |
-
----
-
-## Step 7 — Promote to `latest`
-
-```bash
-npm dist-tag add @arbiter/cli@X.Y.Z-rc.N latest
-```
-
-Verify: `npm install -g @arbiter/cli` installs the correct version.
-
-| Owner | Sign-off | Date |
-| ----- | -------- | ---- |
-|       |          |      |
-
----
-
-## Step 8 — Publish GitHub Release
-
-```bash
-gh release create vX.Y.Z --notes-file RELEASE_NOTES_X.Y.Z.md --latest
-```
-
-Release notes must include:
-
-- Summary of changes since last release
-- New deprecations (ref: `docs/DEPRECATIONS.md`)
-- Breaking changes with migration guidance
-- Upgrade instructions
-
-| Owner | Sign-off | Date |
-| ----- | -------- | ---- |
-|       |          |      |
-
----
-
-## Step 9 — Announce
-
-- [ ] GH Discussions Announcement posted
-- [ ] Discord `#announcements` posted
-
----
-
-## Rollback Procedure
-
-If a critical issue is found post-publish:
-
-```bash
-# Deprecate the bad version
-npm deprecate @arbiter/cli@X.Y.Z "Critical issue — use X.Y.(Z-1) instead"
-
-# Roll back latest tag to previous good version
-npm dist-tag add @arbiter/cli@X.Y.(Z-1) latest
-```
-
-Communicate via:
-
-- [ ] GH Discussions Announcements post (include fix ETA)
-- [ ] Discord `#announcements` post
-
----
-
-## Post-Release
-
-- [ ] Open follow-up issues for any friction found during rehearsal
-- [ ] Update this playbook from rehearsal learnings
-- [ ] Archive smoke-test logs in `docs/internal/smoke-logs/vX.Y.Z/`
+Do not retry publication with altered bytes under an already-published version.
+For a failed job, fix its cause and retain the failed run before qualifying a new
+candidate. If a published version is defective, deprecate that exact version,
+restore the `latest` dist-tag to the previous qualified version and ship a new
+version through the same pipeline. Record the affected version and recovery
+receipts; do not report a rollback until registry readback confirms it.

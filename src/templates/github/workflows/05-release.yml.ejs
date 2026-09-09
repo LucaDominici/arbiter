@@ -1,30 +1,23 @@
 <%
-// #1723: serviceBucket/isService/isCli/isBatch are injected by withServiceBucket
-// (src/utils/render.ts), the single canonical archetype->bucket resolver — do not
-// re-declare the archetype map here.
+// #1723: bucket flags come from withServiceBucket (src/utils/render.ts); do not duplicate the map.
 const _bucket = serviceBucket;
 const _isService = isService;
 const _isCli = isCli;
 const _isBatch = isBatch;
-// #1720 (gap 1): was literal `governanceLevel === 'L3'`, silently excluding L4 and
-// downgrading L4's release workflow to the weaker "L2 signed" SLSA provenance —
-// contradicts docs/SYSTEM/CI-TIER-MODEL.md:100-102 ("L4 = L3 + SLSA L3 provenance…").
+// #1720: isL3Plus includes L4; a literal L3 comparison downgraded its provenance.
 const _slsaL3 = isL3Plus;
 const _verifyOnSign = governanceLevel !== 'L1';
-// #2138: for an npm library the SIGNED artifact must BE the published tarball.
-// A zip of the build output is a different artifact from the one `npm publish`
-// uploads (prepack rebuilds it), so cosign/SLSA/SBOM would attest bytes nobody
-// installs. Pack once with `npm pack`, sign that .tgz, publish that same file.
+// #2138: sign and publish the same npm tarball; rebuilding would invalidate artifact provenance.
 const _npmLib = language === 'typescript' && !_isService && !_isCli && !_isBatch;
 const _artifact = _npmLib ? 'release-artifact.tgz' : 'release-artifact.zip';
 %>name: Release (T3)
 
-# E3: release machinery is PROD-only. The full sign / SBOM / SLSA / attest /
-# trivy-strict chain runs ONLY on a release tag push — never on a PR. (A prior
-# PR trigger leaked the entire heavy release build onto every PR to
-# main, since build-superset/mutation/secret-history/sbom carried no event guard.)
-# A PR-time guard (github.event_name) still defends the signing jobs as backstop.
+# E3: productive jobs run only on tag pushes; PR builds previously leaked through unguarded roots.
+# Manual npm authentication is separate and cannot reach the productive chain.
 on:
+<% if (_npmLib) { %>
+  workflow_dispatch:
+<% } -%>
   push:
     tags:
       - 'v*'
@@ -38,8 +31,60 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+<% if (_npmLib) { %>
+  npm-auth-smoke:
+    name: Read-only npm authentication smoke
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Check identity and scope visibility (publication remains unproven)
+        id: npm-auth
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token = process.env.NPM_TOKEN;
+          if (!token) { console.error('NPM_TOKEN is missing'); process.exit(1); }
+          const request = path => fetch('https://registry.npmjs.org' + path, {
+            headers: { authorization: 'Bearer ' + token },
+            redirect: 'error', signal: AbortSignal.timeout(15000)
+          });
+          try {
+            const identity = await request('/-/whoami');
+            if (!identity.ok) throw new Error('Authentication rejected');
+            const { username } = await identity.json();
+            if (typeof username !== 'string' || !username.trim() || username === token) throw new Error('Invalid identity');
+            let scopeHttp = null, ownRole = 'UNPROVEN';
+            try {
+              const scope = await request('/-/org/arbiter/user');
+              scopeHttp = scope.status;
+              if (scope.ok) {
+                const members = await scope.json();
+                const role = members?.[username];
+                if (['owner', 'admin', 'developer'].includes(role)) ownRole = role;
+              }
+            } catch { /* Identity is proven; unavailable scope access is not. */ }
+            console.log(JSON.stringify({ authentication: 'PASS', username, scopeHttp, ownRole, publicationAuthorization: 'NOT_PROVEN' }));
+          } catch {
+            console.error('npm authentication failed (missing, rejected, malformed or unavailable identity)');
+            process.exit(1);
+          }
+          NODE
+
+<% } %>
   build-superset:
     name: Build superset
+<% if (_npmLib) { %>
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+<% } %>
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_BUILD || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     outputs:
@@ -48,12 +93,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
+<% if (_npmLib) { %>
+      - name: Verify release tag matches package version
+        id: release-version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(node -e "const v=require('./package.json').version; if(typeof v!=='string'||!v) process.exit(1); process.stdout.write(v)")
+          test "$RELEASE_TAG" = "v$VERSION" || { echo "::error::Release tag does not match package.json"; exit 1; }
+<% } %>
       - run: npm run build
 <% if (_npmLib) { %>
       - name: Package artifact (#2138 — pack ONCE, this exact tarball is signed and published)
-        # `npm pack` produces the same bytes `npm publish` would upload. Everything
-        # downstream (hash → SLSA subject → cosign → SBOM attest → publish) carries
-        # THIS file, so the attestation covers what a consumer installs.
+        # #2138: all signatures and attestations follow this tarball through publication.
         run: |
           TARBALL=$(npm pack --silent --pack-destination .)
           mv "$TARBALL" <%= _artifact %>
@@ -61,12 +113,7 @@ jobs:
       - name: Package artifact
         run: zip -r <%= _artifact %> dist/
 <% } %>
-<%# #1803: kotlin shares this branch — `gradlew build`/`mvn package` compile
-    Kotlin sources identically to Java in the same reactor (confirmed during
-    the #1724 cross-language-matrix audit). The sbom job below `needs:
-    build-superset`, so kotlin coverage here is a prerequisite for its own
-    kotlin coverage to actually run (a build-superset that never emits
-    the release artifact would fail the hash step and skip sbom entirely). -%>
+<%# #1803/#1724: Gradle/Maven compile Kotlin in the Java reactor; SBOM needs that artifact. -%>
 <% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
@@ -136,24 +183,15 @@ jobs:
     needs: [build-superset]
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    # #1505 gold-align: mutation testing is BLOCKING at every governance level it is emitted at
-    # (the release workflow itself only emits for non-starter pipeline styles). A prior
-    # `continue-on-error: <level === L1>` left a fake-green window where, at L1, a red mutation
-    # run — or a vacuous empty run — silently passed. Mutation enforcement is now fail-closed:
-    # a surviving mutant fails the step (errexit/pipefail), and the fail-on-empty guard below
-    # turns a zero-mutant run into a real failure instead of a vacuous pass.
+    # #1505: mutation and fail-on-empty block at every emitted level, including L1.
     continue-on-error: false
     permissions:
       contents: read
       actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      # E4 (#1502): decouple release latency from mutation runtime. The release gate
-      # CONSUMES the latest nightly mutation-deep result (06-nightly.yml) instead of
-      # re-running the full mutation suite synchronously. If no nightly result exists
-      # within the freshness window (first release, stale schedule), it FALLS BACK to
-      # running mutation here — and the fallback is BLOCKING (continue-on-error: false) plus
-      # fail-on-empty (#1505), so a missing/vacuous mutation run fails the release.
+      # #1502: consume fresh nightly mutation evidence to avoid a synchronous rerun.
+      # Missing/stale evidence requires a blocking, nonempty fallback (#1505).
       - name: Consume latest nightly mutation-deep result
         id: nightly
         env:
@@ -215,10 +253,7 @@ jobs:
         if: steps.nightly.outputs.fresh != 'true'
         with:
           go-version-file: go.mod
-      # #1505: the go fallback previously pinned `continue-on-error: true` and appended an
-      # unconditional truthy short-circuit, swallowing every failure — mutation could never fail
-      # the release. The swallow is removed: a surviving mutant fails the step, and an empty run is
-      # caught by the fail-on-empty guard.
+      # #1505: never swallow Go mutation failures; the next guard also rejects empty runs.
       - name: go-mutesting (fallback — no fresh nightly)
         if: steps.nightly.outputs.fresh != 'true'
         run: |
@@ -246,11 +281,7 @@ jobs:
           cargo install cargo-mutants --locked
           cargo mutants --all-features 2>&1 | tee mutation-fallback.log
 <% } %>
-      # Fail-on-empty (#1505): a vacuous mutation run (zero mutants generated) must NOT pass the
-      # release gate — that is the cheapest place to fake mutation enforcement. We fail CLOSED: the
-      # gate passes only when the captured output carries a positive mutant-count token for the
-      # language's tool; a missing token (empty run, or a config that mutated nothing) fails loudly
-      # rather than passing silently. The OR-set is per-tool, but only one tool ran.
+      # #1505: require a positive tool-specific mutant count; empty or unrecognized output fails closed.
       - name: Fail when the mutation run produced no mutants (#1505)
         if: steps.nightly.outputs.fresh != 'true'
         run: |
@@ -273,14 +304,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
-      # gitleaks-action downloads to a HARDCODED /tmp/gitleaks.tmp. On a self-hosted
-      # runner /tmp survives between jobs, so a leftover from an interrupted download
-      # fails every later install after both internal retries ("Destination file path
-      # /tmp/gitleaks.tmp already exists" then "parameter 'file' is required") — the
-      # cause of #2100.
-      # ponytail: unconditional delete — one gitleaks job per workflow run, so nothing
-      # else is mid-download. If gitleaks ever runs in parallel jobs on one runner,
-      # switch to the curl -> $RUNNER_TEMP/bin install shape used in 01-pr-fast.
+      # #2100: stale /tmp/gitleaks.tmp on self-hosted runners breaks gitleaks-action retries.
+      # ponytail: delete assumes one download per runner; concurrent jobs need the
+      # curl -> $RUNNER_TEMP/bin installation used in 01-pr-fast.
       - name: Clear stale gitleaks download temp
         run: rm -f /tmp/gitleaks.tmp
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e  # v3.0.0
@@ -300,10 +326,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
       - name: Generate CycloneDX SBOM
         run: npm sbom --omit dev --package-lock-only --sbom-format cyclonedx > sbom.cdx.json
-<%# #1803: kotlin shares this branch — the cyclonedx Gradle/Maven plugin task
-    inspects the dependency graph, not source files, so it generates
-    identically for a Kotlin-sourced build (confirmed during the #1724
-    cross-language-matrix audit). -%>
+<%# #1803/#1724: CycloneDX reads the dependency graph equally for Java and Kotlin. -%>
 <% } else if (language === 'java' || language === 'kotlin') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
@@ -398,7 +421,6 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a  # v2.1.0
     with:
       base64-subjects: ${{ needs.build-superset.outputs.hashes }}
-    secrets: inherit
 
   attest-build-provenance:
     name: Attest build provenance
@@ -652,35 +674,44 @@ jobs:
 <% } else { %>
   publish-package:
     name: Publish package (lib)
-    needs: [cosign-sign, attest-build-provenance, slsa-provenance]
-    # #2138: publishing is reachable ONLY from a release tag. `github.event_name
-    # != 'pull_request'` was not a guard — any other event (a manual dispatch on
-    # an arbitrary branch) walked straight into the publish step.
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [cosign-sign, attest-build-provenance, slsa-provenance, sbom, doc-freshness-gate]
+    # #2138/#2624: tag-shaped refs alone also admit manual dispatch; require a push.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+<% if (_npmLib) { %>
+    runs-on: ubuntu-latest
+<% } else { %>
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+<% } %>
     timeout-minutes: 60
     permissions:
       contents: read
       id-token: write  # required by `npm publish --provenance` (OIDC)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.ref }}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: release-artifact
       - name: Verify the downloaded artifact is the one that was signed (#2138)
-        # Fail closed if the bytes differ from the ones hashed in build-superset,
-        # signed by cosign and carried as the SLSA subject.
+        # #2138: reject downloaded bytes that differ from the signed build artifact.
         run: sha256sum -c sha256sums.txt
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
-      - run: npm ci
+      - run: npm install --global npm@11.16.0
+      - name: Verify release tag matches package version
+        id: release-version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(tar -xOf <%= _artifact %> package/package.json | node -e "const v=JSON.parse(require('node:fs').readFileSync(0,'utf8')).version; if(typeof v!=='string'||!v) process.exit(1); process.stdout.write(v)")
+          test "$RELEASE_TAG" = "v$VERSION" || { echo "::error::Release tag does not match archive package.json"; exit 1; }
       - name: Publish to npm (with provenance)
-        # Publishes the SIGNED tarball itself. Packing here instead would rerun
-        # `prepack` and upload a rebuilt artifact the attestations do not cover.
+        # #2138: never repack here: prepack would change the attested bytes.
         run: npm publish --provenance --access public <%= _artifact %>
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -764,11 +795,19 @@ jobs:
 <% } else { %>
       - publish-package
 <% } %>
+<% if (_npmLib) { %>
+    if: always() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+<% } else { %>
     if: always()
+<% } %>
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - name: Release gate summary
+        id: release-results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
+          jq -e 'length > 0 and all(.[]; .result == "success")' <<< "$NEEDS_JSON" >/dev/null
           echo "Release checks completed."
           echo "Signing, provenance, and mutation verified."

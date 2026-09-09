@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
@@ -826,15 +826,36 @@ describe.each([
   it('waits for freshness and refuses mismatched or shell-shaped tags before upload (AC-2)', () => {
     const jobs = (parseYaml(load()) as ReleaseWorkflow).jobs
     expect(jobs['publish-package'].needs).toContain('doc-freshness-gate')
+    const prerequisites = new Set<string>()
+    function visit(id: string) {
+      const needs = jobs[id]?.needs
+      for (const parent of Array.isArray(needs) ? needs : needs ? [needs] : []) {
+        if (prerequisites.has(parent)) continue
+        prerequisites.add(parent)
+        visit(parent)
+      }
+    }
+    visit('publish-package')
+    for (const id of jobs['release-required'].needs ?? []) {
+      if (id !== 'publish-package') expect(prerequisites.has(id)).toBe(true)
+    }
     const step = jobs['publish-package'].steps?.find((s) => s.id === 'release-version')
     expect(step?.env?.RELEASE_TAG).toBe('${{ github.ref_name }}')
     expect(step?.run).toBeTruthy()
-    expect(jobs['build-superset'].steps?.find((s) => s.id === 'release-version')?.run).toBe(
-      step?.run,
-    )
+    const buildGuard = jobs['build-superset'].steps?.find((s) => s.id === 'release-version')
+    expect(buildGuard?.run).toBeTruthy()
     const dir = mkdtempSync(resolve(tmpdir(), 'arbiter-release-version-'))
     try {
       writeFileSync(resolve(dir, 'package.json'), JSON.stringify({ version: '1.2.3' }))
+      mkdirSync(resolve(dir, 'package'))
+      function packMetadata(body: string) {
+        writeFileSync(resolve(dir, 'package/package.json'), body)
+        expect(
+          spawnSync('tar', ['-czf', 'release-artifact.tgz', 'package/package.json'], { cwd: dir })
+            .status,
+        ).toBe(0)
+      }
+      packMetadata(JSON.stringify({ version: '1.2.3' }))
       for (const [tag, expected] of [
         ['v1.2.3', 0],
         ['v1.2.4', 1],
@@ -849,6 +870,34 @@ describe.each([
         expect(result.status).toBe(expected)
       }
       expect(existsSync(resolve(dir, 'injected'))).toBe(false)
+      // A prepack hook can change the archive's version while checkout metadata stays unchanged.
+      for (const metadata of ['{"version":"1.2.4"}', '{}', '{"version":123}', 'invalid JSON']) {
+        packMetadata(metadata)
+        const run = (command: string) =>
+          spawnSync('bash', ['-e', '-o', 'pipefail', '-c', command], {
+            cwd: dir,
+            env: { ...process.env, RELEASE_TAG: 'v1.2.3' },
+            encoding: 'utf8',
+            timeout: 5000,
+          })
+        expect(run(buildGuard?.run ?? 'exit 2').status).toBe(0)
+        expect(run(step?.run ?? 'exit 2').status).toBe(1)
+      }
+      const aggregate = jobs['release-required'].steps?.find((s) => s.id === 'release-results')
+      expect(aggregate?.env?.NEEDS_JSON).toBe('${{ toJSON(needs) }}')
+      for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
+        const summary = spawnSync(
+          'bash',
+          ['-e', '-o', 'pipefail', '-c', aggregate?.run ?? 'exit 2'],
+          {
+            cwd: dir,
+            encoding: 'utf8',
+            timeout: 5000,
+            env: { ...process.env, NEEDS_JSON: JSON.stringify({ signing: { result } }) },
+          },
+        )
+        expect(summary.status).toBe(result === 'success' ? 0 : 1)
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

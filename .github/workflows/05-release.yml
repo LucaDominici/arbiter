@@ -10,6 +10,7 @@ name: Release (T3)
 # main, since build-superset/mutation/secret-history/sbom carried no event guard.)
 # A PR-time guard (github.event_name) still defends the signing jobs as backstop.
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
@@ -23,8 +24,56 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  npm-auth-smoke:
+    name: Read-only npm authentication smoke
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Check identity and scope visibility (publication remains unproven)
+        id: npm-auth
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token = process.env.NPM_TOKEN;
+          if (!token) { console.error('NPM_TOKEN is missing'); process.exit(1); }
+          const request = path => fetch('https://registry.npmjs.org' + path, {
+            headers: { authorization: 'Bearer ' + token },
+            redirect: 'error', signal: AbortSignal.timeout(15000)
+          });
+          try {
+            const identity = await request('/-/whoami');
+            if (!identity.ok) throw new Error('Authentication rejected');
+            const { username } = await identity.json();
+            if (typeof username !== 'string' || !username.trim() || username === token) throw new Error('Invalid identity');
+            let scopeHttp = null, ownRole = 'UNPROVEN';
+            try {
+              const scope = await request('/-/org/arbiter/user');
+              scopeHttp = scope.status;
+              if (scope.ok) {
+                const members = await scope.json();
+                const role = members?.[username];
+                if (['owner', 'admin', 'developer'].includes(role)) ownRole = role;
+              }
+            } catch { /* Identity is proven; unavailable scope access is not. */ }
+            console.log(JSON.stringify({ authentication: 'PASS', username, scopeHttp, ownRole, publicationAuthorization: 'NOT_PROVEN' }));
+          } catch {
+            console.error('npm authentication failed (missing, rejected, malformed or unavailable identity)');
+            process.exit(1);
+          }
+          NODE
+
   build-superset:
     name: Build superset
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     outputs:
@@ -32,6 +81,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: ./.github/actions/setup-node-pnpm
+      - name: Verify release tag matches package version
+        id: release-version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(node -e "const v=require('./package.json').version; if(typeof v!=='string'||!v) process.exit(1); process.stdout.write(v)")
+          test "$RELEASE_TAG" = "v$VERSION" || { echo "::error::Release tag does not match package.json"; exit 1; }
       - run: npm run build
       - name: Pack-size guard (early signal; hard cap blocks, #1491/B6)
         # --ci: surfaces the 4.75–5.0 MB warn band loudly without failing the
@@ -218,7 +274,6 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a  # v2.1.0
     with:
       base64-subjects: ${{ needs.build-superset.outputs.hashes }}
-    secrets: inherit
 
   attest-build-provenance:
     name: Attest build provenance
@@ -240,18 +295,20 @@ jobs:
 
   publish-package:
     name: Publish package (lib)
-    needs: [cosign-sign, attest-build-provenance, slsa-provenance, sbom-attest]
+    needs: [cosign-sign, attest-build-provenance, slsa-provenance, sbom-attest, doc-freshness-gate]
     # #2138: publishing is reachable ONLY from a release tag. `github.event_name
     # != 'pull_request'` was not a guard — a manual dispatch on an arbitrary
     # branch walked straight into the publish step.
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
       contents: read
       id-token: write  # required by `npm publish --provenance` (OIDC)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.ref }}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: release-artifact
@@ -262,9 +319,16 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version-file: .nvmrc
-          cache: npm
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
-      - run: npm ci
+      - run: npm install --global npm@11.16.0
+      - name: Verify release tag matches package version
+        id: release-version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(tar -xOf release-artifact.tgz package/package.json | node -e "const v=JSON.parse(require('node:fs').readFileSync(0,'utf8')).version; if(typeof v!=='string'||!v) process.exit(1); process.stdout.write(v)")
+          test "$RELEASE_TAG" = "v$VERSION" || { echo "::error::Release tag does not match archive package.json"; exit 1; }
       - name: Publish to npm (with provenance)
         # Publishes the SIGNED tarball itself. Packing here instead would rerun
         # `prepack` and upload a rebuilt artifact the attestations do not cover.
@@ -298,11 +362,15 @@ jobs:
       - attest-build-provenance
       - publish-package
       - doc-freshness-gate
-    if: always()
+    if: always() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - name: Release gate summary
+        id: release-results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
+          jq -e 'length > 0 and all(.[]; .result == "success")' <<< "$NEEDS_JSON" >/dev/null
           echo "Release checks completed."
           echo "Supply-chain: Trivy CRITICAL block + cosign sign + SBOM attest verified."
