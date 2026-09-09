@@ -44,7 +44,7 @@ describe('#2360 comparison claim truth', () => {
       '—',
       '✓',
     ])
-    expect(comparison('spec-kit')).toContain('does not yet create a durable specification artifact')
+    expect(comparison('spec-kit')).toContain('requires a durable evidence envelope')
   })
 
   it('separates configuration emission from cross-model orchestration on every relevant table', () => {
@@ -59,9 +59,9 @@ describe('#2360 comparison claim truth', () => {
       'n/r',
       'n/r',
     ])
-    expect(row(comparison('index'), 'Multi-model review / orchestration')).toEqual([
-      'Multi-model review / orchestration',
-      '—',
+    expect(row(comparison('index'), 'Optional orchestration / external review¹')).toEqual([
+      'Optional orchestration / external review¹',
+      '✓',
       'n/r',
       'n/r',
       'n/r',
@@ -72,9 +72,9 @@ describe('#2360 comparison claim truth', () => {
       expect(
         row(comparison(name), 'Multi-tool configuration emission (Claude Code + Codex)'),
       ).toEqual(['Multi-tool configuration emission (Claude Code + Codex)', '✓', 'n/r'])
-      expect(row(comparison(name), 'Multi-model review / orchestration')).toEqual([
-        'Multi-model review / orchestration',
-        '—',
+      expect(row(comparison(name), 'Optional orchestration / external review¹')).toEqual([
+        'Optional orchestration / external review¹',
+        '✓',
         'n/r',
       ])
       expect(comparison(name)).not.toContain('Multi-tool support (Claude + Codex)')
@@ -84,8 +84,8 @@ describe('#2360 comparison claim truth', () => {
   it('dates each reviewed comparison page', () => {
     for (const name of ['index', 'spec-kit', 'bmad', 'gsd2', 'claude-flow', 'superclaude']) {
       const page = comparison(name)
-      expect(page).toContain("last_review: '2026-08-26'")
-      expect(page).toContain('_Last reviewed: 2026-08-26_')
+      expect(page).toContain("last_review: '2026-09-09'")
+      expect(page).toContain('_Last reviewed: 2026-09-09_')
     }
   })
 
