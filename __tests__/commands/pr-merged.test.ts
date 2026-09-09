@@ -7,7 +7,7 @@
  * refusal text an agent actually has to act on — the failing check names, not just "not merged".
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -228,6 +228,56 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     ).toThrow(/done receipt/)
     expect(readUnifiedState(dir)?.phase).toBe('close')
   })
+
+  it.each(['passed', 'pending', 'failed', 'runtime-red', 'corrupt', 'unreadable'])(
+    'AC-5 native completion consumes an actual capture then handles %s',
+    (state) => {
+      const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
+      config.features.evidenceHarness = true
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
+      mkdirSync(join(dir, 'src'))
+      writeFileSync(join(dir, 'src/main.ts'), 'export const value = 1\n')
+      writeGatePassEvidence(dir, { taskId: '#2402', level: 'L3' })
+      execFileSync('node', [join(process.cwd(), 'scripts/done-evidence.mjs')], { cwd: dir })
+      const path = join(dir, '.arbiter/evidence/done/_2402.json')
+      const receipt = JSON.parse(readFileSync(path, 'utf8'))
+      if (state === 'pending' || state === 'failed') receipt.state = state
+      if (state === 'runtime-red') receipt.reality_contact = { required: true, passed: false }
+      writeFileSync(path, state === 'corrupt' ? '{' : JSON.stringify(receipt))
+      if (state === 'unreadable') {
+        rmSync(path)
+        mkdirSync(path)
+      }
+      const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+      let remoteReads = 0
+      const complete = () =>
+        runTaskAdvance({
+          to: 'complete',
+          dir,
+          readPrs: () => {
+            remoteReads += 1
+            return [
+              {
+                number: 7,
+                state: 'MERGED',
+                headRefOid: sha,
+                mergeCommit: { oid: sha },
+                statusCheckRollup: [{ name: 'CI', conclusion: 'SUCCESS' }],
+              },
+            ]
+          },
+        })
+      if (state === 'passed') {
+        complete()
+        expect(readUnifiedState(dir)?.phase).toBe('complete')
+        expect(remoteReads).toBe(1)
+      } else {
+        expect(complete).toThrow(/done receipt/)
+        expect(readUnifiedState(dir)?.phase).toBe('close')
+        expect(remoteReads).toBe(0)
+      }
+    },
+  )
 
   it('AC-2402.1: a merged PR completes, and the log records which PR it was', () => {
     runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] })

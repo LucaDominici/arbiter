@@ -63,6 +63,12 @@ Run capture on the final committed candidate before push. A valid L3 marker also
 satisfies the native L2 push boundary. After landing, verify receipt and exact PR
 head/merge refs plus concluded CI without repeating unchanged suites.
 
+Pin directories and files must remain within the physical checkout without
+traversing symlinks. Invalid configuration is rejected before a gate runs.
+`reality_contact.command` accepts an argv array (required for arguments containing
+spaces) or the existing whitespace-separated string form; capture never uses a
+shell. Frontend defaults invoke the emitted render-smoke runner with an argv array.
+
 ## Governance
 
 The done-evidence harness is the completion backstop paired with

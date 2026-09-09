@@ -76,7 +76,9 @@
       "examples/python-library/.claude/commands/ship.md",
       "examples/python-library/scripts/lib/gate-evidence.mjs",
       "examples/ts-library/.claude/commands/ship.md",
-      "examples/ts-library/scripts/lib/gate-evidence.mjs"
+      "examples/ts-library/scripts/lib/gate-evidence.mjs",
+      "src/templates/evidence-files.json.ejs",
+      ".arbiter/agents-dispatched.json"
     ]
   },
   "files": [
@@ -374,6 +376,14 @@
     },
     {
       "path": "examples/ts-library/scripts/lib/gate-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/evidence-files.json.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/agents-dispatched.json",
       "operation": "modify"
     }
   ],

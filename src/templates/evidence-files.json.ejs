@@ -6,8 +6,8 @@
   "exclude_dirs": ["node_modules", "dist", "build", "coverage", ".git", "target", "vendor", "__pycache__", ".venv"],
   "reality_contact": {
     "archetype": "<%- archetype %>",
-    "required": <% if (archetype === 'backend-web-db') { %>true<% } else { %>false<% } %>,
-    "suite": "live-api-e2e",
-    "command": <% if (archetype === 'backend-web-db') { %>"./tests/api/run.sh"<% } else { %>""<% } %>
+    "required": <% if (archetype === 'backend-web-db' || archetype === 'frontend-spa') { %>true<% } else { %>false<% } %>,
+    "suite": "<% if (archetype === 'frontend-spa') { %>render-smoke<% } else { %>live-api-e2e<% } %>",
+    "command": <% if (archetype === 'backend-web-db') { %>"./tests/api/run.sh"<% } else if (archetype === 'frontend-spa') { %>["node", "scripts/lib/ephemeral-server.mjs", "--start", "npm run start:test", "--test", "npx playwright test tests/e2e/render-smoke.spec.ts", "--port", "4173"]<% } else { %>""<% } %>
   }
 }

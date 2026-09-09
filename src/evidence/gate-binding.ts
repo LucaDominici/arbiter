@@ -386,6 +386,9 @@ function verifyPinnedFiles(value: unknown, root: string): void {
     if (isAbsolute(fields.path) || rel === '..' || rel.startsWith('../')) {
       throw new Error('pinned file must remain inside the checkout')
     }
+    if (realpathSync(path) !== resolve(realpathSync(root), fields.path)) {
+      throw new Error(`pinned file must not traverse symlinks: ${fields.path}`)
+    }
     if (createHash('sha256').update(readFileTranslated(path)).digest('hex') !== fields.sha256) {
       throw new Error(`pinned file SHA mismatch: ${fields.path}`)
     }

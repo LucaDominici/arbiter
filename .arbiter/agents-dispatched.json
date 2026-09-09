@@ -1,7 +1,1 @@
-{
-  "count": 3,
-  "agents": ["independent-review", "silent-failures-review", "package-contract-review"],
-  "taskId": "#2597",
-  "branch": "task/#2597-pack-size-preflight",
-  "sha": "b6acf484ad4aa9922914a0d9e1c549a442aed811"
-}
+{"count":3,"agents":["security","review-integrity","review_2615_logic"],"branch":"task/#2615-gate-level-parity","sha":"955f28a5c46e938cc79753de686e166a7cdf2d6c","taskId":"#2615"}

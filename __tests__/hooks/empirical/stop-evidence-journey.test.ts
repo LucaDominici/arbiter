@@ -132,6 +132,53 @@ function runHook(hookPath: string, dir: string, transcriptPath: string) {
 }
 
 describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
+  it.each(['self', 'emitted'])(
+    'AC-5 %s Stop rejects failed receipt states after actual capture',
+    (producer) => {
+      const { dir, hookPath, branch } = setup(true)
+      try {
+        if (producer === 'self') {
+          writeFileSync(
+            hookPath,
+            readFileSync(join(process.cwd(), '.claude/hooks/stop-evidence-guard.mjs')),
+          )
+        }
+        writeFileSync(
+          join(dir, 'arbiter.json'),
+          JSON.stringify({ features: { evidenceHarness: true } }),
+        )
+        mkdirSync(join(dir, 'src'))
+        writeFileSync(join(dir, 'src/main.ts'), 'export const value = 1\n')
+        git(dir, ['add', '-A'])
+        git(dir, ['commit', '-qm', 'capture input', '--no-gpg-sign'])
+        const sha = git(dir, ['rev-parse', 'HEAD'])
+        writeBaselineEvidence(dir, branch, sha)
+        writeJourney(dir, branch, sha)
+        writeGatePassEvidence(dir, { taskId: TASK_ID, level: 'L3' })
+        execFileSync('node', [join(process.cwd(), 'scripts/done-evidence.mjs')], { cwd: dir })
+        const transcript = claimTranscript()
+        const path = join(dir, '.arbiter/evidence/done', SANITIZED_ID + '.json')
+        const passed = JSON.parse(readFileSync(path, 'utf8'))
+        const good = runHook(hookPath, dir, transcript)
+        expect(good.status, good.stderr).toBe(0)
+        for (const state of ['pending', 'failed', 'runtime-red', 'corrupt', 'unreadable']) {
+          const receipt = { ...passed }
+          if (state === 'pending' || state === 'failed') receipt.state = state
+          if (state === 'runtime-red') receipt.reality_contact = { required: true, passed: false }
+          writeFileSync(path, state === 'corrupt' ? '{' : JSON.stringify(receipt))
+          if (state === 'unreadable') {
+            rmSync(path)
+            mkdirSync(path)
+          }
+          const result = runHook(hookPath, dir, transcript)
+          expect(result.status, state + ': ' + result.stderr).toBe(2)
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
+
   it('materializes the harness journey block in the self hook (AC-2382.2)', () => {
     const raw = readFileSync(
       join(process.cwd(), '.claude', 'hooks', 'stop-evidence-guard.mjs'),

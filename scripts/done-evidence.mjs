@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // arbiter — done-evidence CLI (INV-38)
 // Captures SHA-256 of load-bearing source files + gate state into
-//   .claude/.last-done-evidence.json
+//   .arbiter/evidence/done/<sanitized-task>.json
 // Guards against "done" claims when source drifted after gate ran.
 //
 // Usage: node scripts/done-evidence.mjs
@@ -9,20 +9,21 @@
 // Workflow:
 //   1. Runs the L3 gate (node scripts/check-all.mjs L3)
 //   2. If green: captures SHA-256 of all files in evidence-files.json
-//      and writes .claude/.last-done-evidence.json
+//      and atomically publishes the v2 receipt
 //   3. If red: prints failures, exits 1
 import { spawnSync } from 'node:child_process'
 import {
   existsSync,
   readdirSync,
   statSync,
+  realpathSync,
   readFileSync,
   writeFileSync,
   mkdirSync,
   renameSync,
 } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { join, extname, relative } from 'node:path'
+import { join, extname, relative, resolve, isAbsolute } from 'node:path'
 import { verifyGateEvidenceFile } from './lib/gate-evidence.mjs'
 
 // Anchor all paths to the repo root so the script is CWD-independent
@@ -125,6 +126,91 @@ function loadConfig() {
   }
 }
 
+const PHYSICAL_ROOT = realpathSync(process.cwd())
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+function configError(message) {
+  fail(`[done-evidence] ERROR: invalid evidence-files.json — ${message}\n`)
+}
+function checkedRelativeDir(value, field) {
+  if (typeof value !== 'string' || value.trim() === '')
+    configError(`${field} entries must be non-empty strings`)
+  if (isAbsolute(value)) configError(`${field} entries must be relative to the checkout`)
+  const absolute = resolve(process.cwd(), value)
+  const rel = relative(PHYSICAL_ROOT, absolute)
+  if (
+    rel === '..' ||
+    rel.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) ||
+    isAbsolute(rel)
+  )
+    configError(`${field} escapes the checkout`)
+  return absolute
+}
+function assertPhysicalPath(path) {
+  const relativePath = relative(process.cwd(), path)
+  const expected = resolve(PHYSICAL_ROOT, relativePath)
+  let physical
+  try {
+    physical = realpathSync(path)
+  } catch (e) {
+    fail(`[done-evidence] ERROR: could not resolve ${path} — ${e.code ?? e.message}\n`)
+  }
+  if (physical !== expected)
+    fail(`[done-evidence] ERROR: symbolic link or path escape in pinned tree: ${path}\n`)
+}
+function commandArgv(command) {
+  return Array.isArray(command) ? command : command.trim().split(/\s+/)
+}
+
+function validateConfig(config) {
+  if (!isObject(config)) configError('top level must be an object')
+  if ('version' in config && config.version !== 1) configError('unsupported version')
+  for (const field of ['pin_dirs', 'pin_extensions', 'exclude_dirs']) {
+    if (field in config && !Array.isArray(config[field])) configError(`${field} must be an array`)
+  }
+  const dirs = config.pin_dirs ?? ['src']
+  const exts = config.pin_extensions ?? ['.ts', '.tsx', '.mjs', '.js']
+  const excludes = config.exclude_dirs ?? []
+  if (!dirs.every((v) => typeof v === 'string' && v.trim()))
+    configError('pin_dirs entries must be non-empty strings')
+  dirs.forEach((dir) => checkedRelativeDir(dir, 'pin_dirs'))
+  if (!exts.every((v) => typeof v === 'string' && /^\.[A-Za-z0-9]+$/.test(v)))
+    configError('pin_extensions entries must be extensions such as .ts')
+  if (
+    !excludes.every(
+      (v) => typeof v === 'string' && v.trim() && !/[\\/]/.test(v) && v !== '.' && v !== '..',
+    )
+  )
+    configError('exclude_dirs entries must be directory names')
+  if ('reality_contact' in config) {
+    const rc = config.reality_contact
+    if (!isObject(rc)) configError('reality_contact must be an object')
+    if (typeof rc.archetype !== 'string' || !rc.archetype.trim())
+      configError('reality_contact.archetype must be a non-empty string')
+    if (typeof rc.required !== 'boolean') configError('reality_contact.required must be boolean')
+    if (
+      typeof rc.suite !== 'string' ||
+      !['live-api-e2e', 'render-smoke', 'visual-regression'].includes(rc.suite)
+    )
+      configError('reality_contact.suite is unsupported')
+    if (!(
+      typeof rc.command === 'string' ||
+      (Array.isArray(rc.command) &&
+        rc.command.length > 0 &&
+        rc.command.every((v) => typeof v === 'string' && v.trim()))
+    ))
+      configError('reality_contact.command must be a string or argv array')
+    if (
+      rc.required &&
+      ((typeof rc.command === 'string' && !rc.command.trim()) ||
+        (Array.isArray(rc.command) && rc.command.length === 0))
+    )
+      configError('reality_contact.command is required when reality_contact.required is true')
+  }
+  return config
+}
+
 const SKIP_DIRS = new Set([
   'node_modules',
   'dist',
@@ -151,6 +237,7 @@ function walk(dir, fn, excludeDirs) {
     const full = join(dir, entry)
     let stat
     try {
+      assertPhysicalPath(full)
       stat = statSync(full)
     } catch (e) {
       fail(`[done-evidence] ERROR: could not stat ${full} — ${e.code ?? e.message}\n`)
@@ -174,7 +261,7 @@ function sha256File(absPath) {
 
 // ─── Step 1: Read config, then run L3 gate ────────────────────────────────────
 
-const config = loadConfig()
+const config = validateConfig(loadConfig())
 
 process.stdout.write('[done-evidence] Running L3 gate...\n')
 const markerPath = join('.arbiter', 'gate-pass.json')
@@ -250,14 +337,14 @@ if (rcConfig.required !== true) {
   }
   noOverclaim = true
 } else {
-  const rcCmd = String(rcConfig.command || '').trim()
-  if (rcCmd.length === 0) {
+  const rcArgs = commandArgv(rcConfig.command)
+  const rcCmd = rcArgs.join(' ')
+  if (rcArgs.length === 0) {
     fail(
       '\n[done-evidence] ERROR: reality_contact.command is empty — cannot exercise live artifact.\n' +
         '  Set evidence-files.json `reality_contact.command` to a suite that boots the real binary.\n',
     )
   }
-  const rcArgs = rcCmd.split(/\s+/)
   process.stdout.write(`[done-evidence] Running reality-contact suite: ${rcCmd}\n`)
   const rc = spawnSync(rcArgs[0], rcArgs.slice(1), {
     stdio: 'inherit',
@@ -291,9 +378,11 @@ const excludeDirs = Array.isArray(config.exclude_dirs) ? config.exclude_dirs : [
 const pinnedFiles = []
 
 for (const dir of pinDirs) {
-  if (!existsSync(dir)) continue
+  const checkedDir = checkedRelativeDir(dir, 'pin_dirs')
+  if (!existsSync(checkedDir)) continue
+  assertPhysicalPath(checkedDir)
   walk(
-    dir,
+    checkedDir,
     (absPath) => {
       if (pinExts.has(extname(absPath))) {
         const relPath = relative(process.cwd(), absPath).replace(/\\/g, '/')

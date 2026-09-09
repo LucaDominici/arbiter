@@ -627,6 +627,22 @@ describe('generateEvidenceRetention — done-evidence reality_contact/no_overcla
     expect(cfg.reality_contact.command).toContain('tests/api/run.sh')
   })
 
+  it('generated evidence-files.json (L4, frontend) requires the emitted render-smoke runner', () => {
+    generateEvidenceRetention(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L4' }))
+    const cfg = JSON.parse(readFileSync(join(dir, 'evidence-files.json'), 'utf-8'))
+    expect(cfg.reality_contact).toMatchObject({ required: true, suite: 'render-smoke' })
+    expect(cfg.reality_contact.command).toEqual([
+      'node',
+      'scripts/lib/ephemeral-server.mjs',
+      '--start',
+      'npm run start:test',
+      '--test',
+      'npx playwright test tests/e2e/render-smoke.spec.ts',
+      '--port',
+      '4173',
+    ])
+  })
+
   it('generated evidence-files.json (L4, non-service) declares reality_contact required:false (#1703)', () => {
     generateEvidenceRetention(makeConfig(dir, { archetype: 'library', governanceLevel: 'L4' }))
     const cfg = JSON.parse(readFileSync(join(dir, 'evidence-files.json'), 'utf-8'))

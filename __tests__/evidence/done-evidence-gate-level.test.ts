@@ -44,7 +44,7 @@ function gateInvocationLevel(source: string): string {
   return m[1]
 }
 
-/** The level literal `done-evidence` records in `.claude/.last-done-evidence.json`. */
+/** The level literal `done-evidence` records in the v2 completion receipt. */
 function stampedLevel(source: string): string {
   const m = source.match(/gate_level:\s*'([^']+)'/)
   if (m === null) throw new Error('no gate_level literal found in producer')
@@ -54,7 +54,7 @@ function stampedLevel(source: string): string {
 describe.each(PRODUCERS)('#2615 done-evidence gate level (%s)', (_label, relPath) => {
   const source = readFileSync(join(ROOT, relPath), 'utf-8')
 
-  it('invokes the gate at a level the gate-evidence ladder admits', () => {
+  it('AC-1: invokes the gate at a level the gate-evidence ladder admits', () => {
     // AC-1: this is the value that becomes the marker's `level` (see header), so
     // it is the one the ladder must admit. L4 is absent from the ladder by design.
     expect(Object.keys(GATE_EVIDENCE_LEVEL_RANK)).toContain(
@@ -62,14 +62,14 @@ describe.each(PRODUCERS)('#2615 done-evidence gate level (%s)', (_label, relPath
     )
   })
 
-  it('records in .last-done-evidence.json the level it actually ran', () => {
+  it('AC-3: records in the receipt the level it actually ran', () => {
     // AC-3: no consumer ranks `gate_level`, so this cannot reject a marker — but a
     // record claiming a level the gate did not run is the same defect wearing the
     // opposite sign, and it is the field a human reads when auditing a closure.
     expect(stampedLevel(source)).toBe(gateInvocationLevel(source))
   })
 
-  it('still resolves to the full gate lane, not the fast check lane', () => {
+  it('AC-2: still resolves to the full gate lane, not the fast check lane', () => {
     // AC-2: no coverage traded for the relabel.
     const parsed = parseCheckArgs([gateInvocationLevel(source)])
     expect(parsed.subcommand).toBe('gate')

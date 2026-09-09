@@ -18,7 +18,15 @@
 import { createHash } from 'node:crypto'
 import { describe, it, expect, afterEach } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../../src/evidence/gate-binding.js'
@@ -27,6 +35,7 @@ import {
   buildGateEvidence,
   captureGateStart,
   verifyGateEvidence,
+  verifyDoneEvidenceReceipt as verifyScriptReceipt,
 } from '../../scripts/lib/gate-evidence.mjs'
 import { parseCheckArgs, effectiveGateLevel } from '../../scripts/lib/parse-check-args.mjs'
 
@@ -460,7 +469,7 @@ describe('#2615 done-evidence gate level — runtime acceptance', () => {
     return effectiveGateLevel(parseCheckArgs([m[1]]))
   }
 
-  it("ACCEPTS the marker done-evidence's own gate level produces", () => {
+  it("AC-1: ACCEPTS the marker done-evidence's own gate level produces", () => {
     const dir = makeRepo()
     const level = producerMarkerLevel()
     expect(
@@ -470,7 +479,7 @@ describe('#2615 done-evidence gate level — runtime acceptance', () => {
     ).toEqual({ ok: true })
   })
 
-  it('REJECTS the governance level L4 it used to stamp, naming the ladder', () => {
+  it('AC-3: REJECTS the governance level L4 it used to stamp, naming the ladder', () => {
     const dir = makeRepo()
     const verdict = verdictOf(markerFor(dir, { level: 'L4' }), {
       root: dir,
@@ -483,8 +492,9 @@ describe('#2615 done-evidence gate level — runtime acceptance', () => {
 })
 
 describe('#2615 v2 completion receipt', () => {
-  function receiptFixture() {
+  function receiptFixture(prepare?: (root: string) => void) {
     const root = makeRepo()
+    prepare?.(root)
     const marker = markerFor(root, { level: 'L3' })
     const bytes = JSON.stringify(marker)
     mkdirSync(join(root, '.arbiter/evidence/done'), { recursive: true })
@@ -515,13 +525,58 @@ describe('#2615 v2 completion receipt', () => {
       root,
       receipt,
       save,
-      verify: () => verifyDoneEvidenceReceipt({ root, taskId: '#2328', archetype: 'library' }),
+      verify: () => {
+        const opts = { root, taskId: '#2328', archetype: 'library' }
+        const verdict = verifyDoneEvidenceReceipt(opts)
+        expect(verifyScriptReceipt(opts).ok, 'script/engine receipt verdict parity').toBe(
+          verdict.ok,
+        )
+        return verdict
+      },
     }
   }
 
   it('AC-6 accepts a v2 receipt without changing marker identity', () => {
     expect(receiptFixture().verify()).toEqual({ ok: true })
   })
+
+  it.each([null, [], 'marker', 42])(
+    'AC-5 rejects malformed marker %j without throwing',
+    (marker) => {
+      const f = receiptFixture()
+      const bytes = JSON.stringify(marker)
+      writeFileSync(join(f.root, '.arbiter/gate-pass.json'), bytes)
+      f.receipt.gate_marker_sha256 = createHash('sha256').update(bytes).digest('hex')
+      f.save()
+      expect(f.verify().ok).toBe(false)
+    },
+  )
+
+  it.each(['file', 'directory', 'ignored-target'])(
+    'AC-4 rejects pinned symlink %s drift outside gate identity',
+    (kind) => {
+      const external = track(mkdtempSync(join(tmpdir(), 'arbiter-ungated-')))
+      let target = join(external, 'source.ts')
+      const pinnedPath = kind === 'directory' ? 'alias/source.ts' : 'alias.ts'
+      const f = receiptFixture((root) => {
+        if (kind === 'ignored-target') {
+          mkdirSync(join(root, 'node_modules'))
+          target = join(root, 'node_modules/source.ts')
+        }
+        writeFileSync(target, 'before gate\n')
+        symlinkSync(
+          kind === 'directory' ? external : target,
+          join(root, kind === 'directory' ? 'alias' : 'alias.ts'),
+        )
+      })
+      writeFileSync(target, 'after gate\n')
+      f.receipt.pinned_files = [
+        { path: pinnedPath, sha256: createHash('sha256').update('after gate\n').digest('hex') },
+      ]
+      f.save()
+      expect(f.verify().ok).toBe(false)
+    },
+  )
 
   it.each(['pending', 'failed'])('AC-5 rejects %s after an earlier PASS', (state) => {
     const f = receiptFixture()

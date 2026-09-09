@@ -1,46 +1,17 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-//
-// #2328 — identity binding for the gate-pass marker (`.arbiter/gate-pass.json`).
-//
-// Binding gate evidence to `head_sha` + branch + a boolean tree-clean snapshot
-// leaves three ways for a green marker to describe a tree that was never gated:
-//
-//   * no tree identity     — a boolean says the tree *was* clean, never *what
-//                            it contained*, and it ignores untracked files;
-//   * no checkout identity — sibling worktrees share one `.git` common dir and
-//                            one branch namespace, so a marker can be honoured
-//                            from a checkout that never ran the gate;
-//   * no toolchain identity — a changed lockfile or a reinstalled node_modules
-//                            leaves the marker valid.
-//
-// #2427 added the fourth: no RUN identity. Every axis above is sampled when the
-// marker is STAMPED, so a gate that ran for twenty minutes against one tree and
-// finished after the branch moved stamped the NEW head_sha and the NEW tree hash
-// — a marker binding a tree it never tested. Schema v3 therefore records the
-// identity captured at gate START alongside the one measured at gate END, the
-// writer refuses to emit a marker when they disagree (or when either end is
-// unresolvable), and the verifier reads a disagreement as unverifiable.
-//
-// Every axis fails CLOSED, and — the load-bearing rule — a MISSING or EMPTY
-// field is never read as "unconstrained": the required fields are checked for
-// presence before anything is compared, so a marker written under an older
-// schema is rejected rather than grandfathered.
-//
-// TRUST BOUNDARY (unchanged from #2085): the marker is a plain JSON file a
-// local process could forge. This binds evidence to a tree, it does not
-// authenticate the writer. CI re-runs the full gate independently.
-//
-// Consumed by scripts/check-all.mjs (writer), .claude/hooks/enforce-gate-before-pr.mjs,
-// .claude/hooks/stop-evidence-guard.mjs, and .githooks/pre-push through the
-// `verify` CLI at the bottom of this file. The arbiter engine deliberately
-// carries its own copy of this policy (src/evidence/gate-binding.ts): a command
-// that gates a tree must not take its verdict from a script inside that tree.
+// Gate schema v3 binds task, HEAD, branch, source tree, physical checkout,
+// Node/toolchain and expiry. Start/end identity must match (#2328/#2427).
+// Missing facts reject. Local JSON binds identity, not author authenticity;
+// CI independently reruns the gates.
+// CLI, hooks and pre-push use this copy. The installed engine independently
+// implements the same contract in src/evidence/gate-binding.ts; parity tests
+// exercise both verifiers. Never delegate engine acceptance to project scripts.
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve, isAbsolute } from 'node:path'
 import { isMainModule } from './run-helpers.mjs'
 
 export const GATE_EVIDENCE_SCHEMA = 'arbiter-gate-pass-v3'
@@ -115,15 +86,7 @@ export const GATE_EVIDENCE_TOOLCHAIN_INPUTS = Object.freeze([
 /** Clock skew tolerated before a marker counts as stamped in the future. */
 export const GATE_EVIDENCE_FUTURE_SKEW_MIN = 2
 
-/**
- * One line of git output, or null when git cannot answer.
- *
- * FAIL-OPEN-INTENT: null is a REJECTION, not a default. Every caller treats it
- * as "this fact is unresolvable": buildGateEvidence writes no marker at all and
- * verifyGateEvidence returns `unverifiable`. Rethrowing here would abort the
- * gate run / crash a Claude Code hook (exit 1 = NON-blocking) instead, which is
- * the strictly weaker outcome.
- */
+/** Git's first line, or null: callers reject unresolvable identity. */
 function gitLine(root, args, env = process.env) {
   try {
     const out = execFileSync('git', args, {
@@ -133,9 +96,6 @@ function gitLine(root, args, env = process.env) {
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim()
     return out === '' ? null : out
-    // Null propagates to "no marker" (writer) or "unverifiable" (verifier); neither
-    // path accepts evidence. Rethrowing would instead abort the gate run or crash a
-    // Claude Code hook (exit 1 = NON-blocking), which is the strictly weaker outcome.
     // FAIL-OPEN-INTENT: null is the REJECTING value, not a default.
   } catch {
     return null
@@ -266,17 +226,7 @@ export function captureGateStart(root) {
   return { head_sha: headSha, tree_hash: treeHash, started_at: new Date().toISOString() }
 }
 
-/**
- * Build a schema-v3 marker for `root`. Returns null when any identity fact is
- * unresolvable — a marker that cannot prove what it describes is never written.
- *
- * `start` is the REQUIRED output of `captureGateStart(root)` taken before the
- * first check ran. The marker is refused outright when it is absent, incomplete,
- * or disagrees with the identity re-measured here at the end. Fail-closed in
- * every direction: a gate that cannot prove it measured ONE tree from start to
- * finish stamps nothing, and a green gate with no marker is honest where a
- * marker for an unknown tree is not.
- */
+/** Build v3 evidence only when all identity facts resolve and match gate start. */
 export function buildGateEvidence({ root, level, taskId, ttlMinutes, start } = {}) {
   const facts = {
     checkoutRoot: computeCheckoutRoot(root),
@@ -573,6 +523,9 @@ export function verifyDoneEvidenceReceipt({
   } catch (err) {
     return { ok: false, reason: `gate-pass marker unreadable at ${markerPath}: ${err.message}` }
   }
+  if (marker === null || typeof marker !== 'object' || Array.isArray(marker)) {
+    return { ok: false, reason: 'gate-pass marker must be a JSON object' }
+  }
   if (receipt.gate_marker_sha256 !== createHash('sha256').update(markerBytes).digest('hex')) {
     return {
       ok: false,
@@ -599,12 +552,15 @@ export function verifyDoneEvidenceReceipt({
       !entry ||
       typeof entry.path !== 'string' ||
       typeof entry.sha256 !== 'string' ||
-      entry.path.startsWith('/') ||
+      isAbsolute(entry.path) ||
       entry.path.split('/').includes('..')
     ) {
       return { ok: false, reason: 'done receipt has a malformed pinned file entry' }
     }
     try {
+      if (realpathSync(join(root, entry.path)) !== resolve(realpathSync(root), entry.path)) {
+        return { ok: false, reason: `done receipt pinned file traverses symlinks: ${entry.path}` }
+      }
       const actual = createHash('sha256')
         .update(readFileSync(join(root, entry.path)))
         .digest('hex')
