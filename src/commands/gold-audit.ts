@@ -78,7 +78,7 @@ export interface GoldAuditOptions {
    * #1419: no-regress gate mode. Delegates to the engine's `--check` path —
    * bootstraps a missing `.gold-audit-baseline.json` (exit 0, no day-1 redness)
    * and exits 1 only when the score/Y regresses below the committed baseline.
-   * This powers the downstream thin runner (`npx arbiter gold-audit --check`).
+   * This powers the downstream fixed project-local thin runner (`arbiter gold-audit --check`).
    */
   check?: boolean
   /**

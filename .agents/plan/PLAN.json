@@ -22,7 +22,15 @@
       ".agents/plan/PLAN.json",
       ".claude/plans/task-2578-m1-recovery.md",
       ".arbiter/agents-dispatched.json",
-      ".arbiter/evidence/ac-fit/2578.json"
+      ".arbiter/evidence/ac-fit/2578.json",
+      "AGENTS.md",
+      "website/governance/AGENTS.md",
+      "docs/design/gold-doc-tranches-t3-t5.md",
+      "docs/design/gold-doc-self-tier-and-coherence.md",
+      "docs/REFERENCE/gold-audit.md",
+      "src/commands/doc-set.ts",
+      "src/commands/gold-audit.ts",
+      "src/cli.ts"
     ]
   },
   "files": [
@@ -365,6 +373,38 @@
     {
       "path": ".arbiter/evidence/ac-fit/2578.json",
       "operation": "create"
+    },
+    {
+      "path": "AGENTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "website/governance/AGENTS.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/design/gold-doc-tranches-t3-t5.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/design/gold-doc-self-tier-and-coherence.md",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/REFERENCE/gold-audit.md",
+      "operation": "modify"
+    },
+    {
+      "path": "src/commands/doc-set.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/commands/gold-audit.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/cli.ts",
+      "operation": "modify"
     }
   ],
   "invariants": {

@@ -1,9 +1,13 @@
 // Tests for the run-helpers trinity (#351, CANON-01)
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { resolve } from 'node:path'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import * as runHelpersMod from '../../scripts/lib/run-helpers.mjs'
+import { renderTemplate } from '../../src/utils/render.js'
+import { makeConfig } from '../helpers.js'
 
 const HELPERS = pathToFileURL(resolve('scripts/lib/run-helpers.mjs')).href
 
@@ -179,6 +183,23 @@ describe('run-helpers — runCheck (HARD)', () => {
 })
 
 describe('run-helpers — runWarnCheck (informational)', () => {
+  it('rendered helper records a real line-leading `[SKIP]` receipt', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-rendered-warn-skip-'))
+    try {
+      const helper = join(dir, 'run-helpers.mjs')
+      writeFileSync(helper, renderTemplate('scripts/lib/run-helpers.mjs.ejs', makeConfig(dir)))
+      const r = runHarness(`
+        import { runWarnCheck, getResults } from ${JSON.stringify(pathToFileURL(helper).href)};
+        runWarnCheck('rendered-warn-skip', process.execPath, ['-e', "console.log('[SKIP] rendered receipt')"]);
+        console.log(JSON.stringify(getResults()));
+      `)
+      const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+      expect(payload[0]).toMatchObject({ name: 'rendered-warn-skip', status: 'SKIP' })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('exit 0 + line-leading `[SKIP]` records SKIP, not PASS', () => {
     const r = runHarness(`
       import { runWarnCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};

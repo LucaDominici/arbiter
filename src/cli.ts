@@ -1287,7 +1287,7 @@ review
 program
   // Hidden (like settings/upgrade-level, line ~662/1068): fully functional but omitted from the
   // curated public 16-command --help surface (#1770 T5 / T2 tier-3 / #2416). The generated governed-repo
-  // thin-runner invokes it directly (`npx arbiter doc-set`) — visibility in `--help` is not part
+  // fixed project-local thin-runner invokes it directly (`arbiter doc-set`) — visibility in `--help` is not part
   // of H1's fix, only registration. Discoverable via `arbiter help --all`.
   .command('doc-set [repo]', { hidden: true })
   .description(

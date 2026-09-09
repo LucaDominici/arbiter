@@ -1,32 +1,5 @@
-// Gate runner trinity (#351, CANON-01) — runCheck / runWarnCheck / runToolCheck
-//
-// Three semantics for gate steps invoked by scripts/check-all.mjs and the
-// generated check-all.mjs template:
-//
-//   runCheck      HARD — non-zero exit fails the gate (the default).
-//                 Accepts { soft: true } to coerce a single call to WARN
-//                 (used by template grace-period: { soft: graceActive }).
-//                 A child that exits 0 but prints a `[SKIP] <reason>` line
-//                 (#2052: self-skip, e.g. "nothing to check for this repo")
-//                 is recorded SKIP, not PASS — still non-blocking, but no
-//                 longer indistinguishable from a check that actually ran.
-//
-//   runWarnCheck  INFORMATIONAL — non-zero never fails the gate.
-//                 Allowed ONLY when no INV-NN backs the check. Surfaced as
-//                 WARN in the summary table. INV-backed checks MUST use
-//                 runCheck (audited by check-inv-enforcement-wired.mjs).
-//
-//   runToolCheck  CI-AWARE TOOL GATE — if the binary is missing:
-//                 - locally (CI unset): SKIP (yellow), gate continues
-//                 - in CI (process.env.CI === 'true' or GITHUB_ACTIONS): FAIL
-//                 Otherwise behaves like runCheck.
-//
-// State is module-local: results[], failed counter. Read via getResults() /
-// getFailed(); reset (for tests) via resetState().
-//
-// Plain ESM (.mjs). Imported from .mjs gate scripts that run pre-build and
-// cannot pull from src/. Direct spawnSync use is the documented exception
-// to INV-12 for the gate runner itself (see scripts/check-all.mjs header).
+// Shared hard, warning, and tool gate runners. This pre-build ESM module cannot
+// import from src/; its direct spawnSync use is the documented INV-12 exception.
 import { spawnSync } from 'node:child_process'
 import { accessSync, constants, statSync } from 'node:fs'
 import { availableParallelism } from 'node:os'

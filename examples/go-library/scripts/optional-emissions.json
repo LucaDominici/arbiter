@@ -7,7 +7,7 @@
     },
     {
       "path": "scripts/check-doc-freshness.mjs",
-      "rationale": "REVERSE (#1518): T4 (gold-doc-tranches-t3-t5.md \u00a72.3) emits this freshness thin-runner (`npx arbiter doc-set --freshness`) unconditionally, but it is wired ONLY from 05-release.yml (non-starter pipelineStyle) and _monthly.yml (L3+, non-trunk-solo, non-starter) \u2014 by design, kept OUTSIDE check-all.mjs so the L2 per-commit gate never carries an expensive freshness audit (solo-developer-gate-model doctrine). Any cell resolving to 'starter' pipelineStyle (trunk-solo L1/L2, peer-review L1) ships it present-but-unwired, available for manual/CI invocation."
+      "rationale": "REVERSE (#1518): T4 (gold-doc-tranches-t3-t5.md \u00a72.3) emits this fixed project-local freshness thin-runner (`arbiter doc-set --freshness`) unconditionally, but it is wired ONLY from 05-release.yml (non-starter pipelineStyle) and _monthly.yml (L3+, non-trunk-solo, non-starter) \u2014 by design, kept OUTSIDE check-all.mjs so the L2 per-commit gate never carries an expensive freshness audit (solo-developer-gate-model doctrine). Any cell resolving to 'starter' pipelineStyle (trunk-solo L1/L2, peer-review L1) ships it present-but-unwired, available for manual/CI invocation."
     },
     {
       "path": "scripts/check-anti-fake-green.mjs",

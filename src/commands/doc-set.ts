@@ -7,10 +7,10 @@
 // INV-12 runCli helper and forwards its verdict. It mirrors src/commands/gold-audit.ts (thin
 // wrapper over gold-audit.mjs).
 //
-// Why this command had to exist (H1): the generated governed-repo thin-runner
-// (scripts/check-doc-set.mjs.ejs) has always shelled `npx arbiter doc-set` — but until this file,
-// no such CLI command was registered, so every governed repo's doc-set presence gate failed with
-// `error: unknown command 'doc-set'`. This file is what makes that runner resolve.
+// Why this command had to exist (H1): before the fixed-local runner contract, the generated
+// governed-repo thin-runner invoked `arbiter doc-set` but no such CLI command was registered, so
+// every governed repo's doc-set presence gate failed with `error: unknown command 'doc-set'`. This
+// file is what the current project-local runner resolves.
 
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'

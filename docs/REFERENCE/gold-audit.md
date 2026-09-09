@@ -190,7 +190,7 @@ though the dev checkout (where `scripts/` is always present) never sees the fail
 ## Downstream generation (#1419)
 
 `arbiter init`/`update` emit a **thin runner** `scripts/gold-audit.mjs` into governed projects that
-delegates to `npx @arbiter/cli gold-audit --check` (the engine ships in the arbiter CLI — never copied), plus
+delegates through shared `runLocalArbiter` to the fixed project-local Arbiter CLI's `gold-audit --check` (the engine ships in the Arbiter CLI — never copied), plus
 the consumer-data templates `standards/gold-registry.yml` (+ per-stack), `standards/thresholds.yml`, and
 `standards/gold-doc-set.yml`. The generated `check-all.mjs` wires it **advisory** (`runWarnCheck`, plain
 `--check`, behind `existsSync`) so a freshly-initialised project is never red on its first gate run — a
