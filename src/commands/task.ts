@@ -480,7 +480,7 @@ function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOp
  * #2402 — read the branch's PRs. Through `runCli` (INV-12: no raw child_process under `src/`),
  * with a short timeout — this runs inside a phase gate, not a watcher.
  */
-function readBranchPrs(branch: string, dir: string): PrSnapshot[] {
+function readBranchPrs(branch: string, dir: string, candidateSha?: string): PrSnapshot[] {
   const out = runCli(
     'gh',
     [
@@ -491,12 +491,79 @@ function readBranchPrs(branch: string, dir: string): PrSnapshot[] {
       '--state',
       'all',
       '--json',
-      'number,state,mergeStateStatus,statusCheckRollup,headRefOid,mergeCommit',
+      'number,state,mergeStateStatus,statusCheckRollup,headRefOid,mergeCommit,mergedAt',
     ],
     { cwd: dir, timeoutMs: 30_000 },
   ).stdout
   const parsed: unknown = JSON.parse(out)
-  return Array.isArray(parsed) ? (parsed as PrSnapshot[]) : []
+  const prs = Array.isArray(parsed) ? (parsed as PrSnapshot[]) : []
+  if (!candidateSha || !prs.some((pr) => pr.state === 'MERGED' && pr.headRefOid === candidateSha)) {
+    return prs
+  }
+  const checks = readCommitCi(candidateSha, dir)
+  return prs.map((pr) =>
+    pr.headRefOid === candidateSha ? { ...pr, statusCheckRollup: checks } : pr,
+  )
+}
+
+const COMMIT_CI_QUERY = `query($owner:String!,$name:String!,$sha:GitObjectID!,$endCursor:String) {
+  repository(owner:$owner,name:$name) { object(oid:$sha) { ... on Commit {
+    statusCheckRollup { contexts(first:100,after:$endCursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        ... on CheckRun { name conclusion completedAt checkSuite { createdAt } }
+        ... on StatusContext { context state createdAt }
+      }
+    } }
+  } } }
+}`
+
+interface CiPage {
+  data: {
+    repository: {
+      object: {
+        statusCheckRollup: {
+          contexts: {
+            nodes: NonNullable<PrSnapshot['statusCheckRollup']>
+            pageInfo: { hasNextPage: boolean }
+          }
+        }
+      }
+    }
+  }
+}
+
+function readCommitCi(sha: string, dir: string): NonNullable<PrSnapshot['statusCheckRollup']> {
+  const out = runCli(
+    'gh',
+    [
+      'api',
+      'graphql',
+      '--paginate',
+      '--slurp',
+      '-F',
+      'owner={owner}',
+      '-F',
+      'name={repo}',
+      '-f',
+      `sha=${sha}`,
+      '-f',
+      `query=${COMMIT_CI_QUERY}`,
+    ],
+    { cwd: dir, timeoutMs: 30_000 },
+  ).stdout
+  const contexts = (JSON.parse(out) as CiPage[]).map(
+    (page) => page.data.repository.object.statusCheckRollup.contexts,
+  )
+  if (
+    contexts.length === 0 ||
+    contexts.some(
+      (page) => !Array.isArray(page.nodes) || typeof page.pageInfo.hasNextPage !== 'boolean',
+    ) ||
+    contexts.at(-1)?.pageInfo.hasNextPage !== false
+  )
+    throw new Error('Incomplete candidate CI pages')
+  return contexts.flatMap((page) => page.nodes)
 }
 
 /** The unverifiable / unmerged refusal, as one user-facing error. */
@@ -535,9 +602,10 @@ function prGateSnapshots(
   dir: string,
   branch: string,
   opts: TaskAdvanceOptions,
+  candidateSha?: string,
 ): readonly PrSnapshot[] {
   try {
-    return (opts.readPrs ?? readBranchPrs)(branch, dir)
+    return opts.readPrs ? opts.readPrs(branch, dir) : readBranchPrs(branch, dir, candidateSha)
   } catch (err) {
     throw prGateRefusal(
       `\`gh pr list --head ${branch}\` failed (${err instanceof Error ? err.message : String(err)}). ` +
@@ -567,7 +635,12 @@ function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
 function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?: string): void {
   if (prGateSkipped(dir, opts)) return
   const branch = prGateBranch(dir)
-  const verdict = evaluateMerged(prGateSnapshots(dir, branch, opts), branch, opts.pr, candidateSha)
+  const verdict = evaluateMerged(
+    prGateSnapshots(dir, branch, opts, candidateSha),
+    branch,
+    opts.pr,
+    candidateSha,
+  )
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
   appendLog(dir, `complete ← PR #${verdict.number} MERGED`)
 }

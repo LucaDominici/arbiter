@@ -263,7 +263,14 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
                 headRefOid: sha,
                 mergeCommit: { oid: sha },
                 mergedAt: '2026-09-09T18:36:22Z',
-                statusCheckRollup: [{ name: 'CI', conclusion: 'SUCCESS', completedAt: '2026-09-09T18:36:05Z', checkSuite: { createdAt: '2026-09-09T18:26:48Z' } }],
+                statusCheckRollup: [
+                  {
+                    name: 'CI',
+                    conclusion: 'SUCCESS',
+                    completedAt: '2026-09-09T18:36:05Z',
+                    checkSuite: { createdAt: '2026-09-09T18:26:48Z' },
+                  },
+                ],
               },
             ]
           },
@@ -272,6 +279,7 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
         complete()
         expect(readUnifiedState(dir)?.phase).toBe('complete')
         expect(remoteReads).toBe(1)
+        exerciseNativeCiReader(dir, sha)
       } else {
         expect(complete).toThrow(/done receipt/)
         expect(readUnifiedState(dir)?.phase).toBe('close')
@@ -333,8 +341,11 @@ describe('#2615 candidate landing identity', () => {
   const sha = 'a'.repeat(40)
   const mergedAt = '2026-09-09T18:36:22Z'
   const ci = (conclusion = 'SUCCESS') => ({
-    name: 'CI', conclusion, checkSuite: { createdAt: '2026-09-09T18:26:48Z' },
-    startedAt: '2026-09-09T18:35:55Z', completedAt: '2026-09-09T18:36:05Z',
+    name: 'CI',
+    conclusion,
+    checkSuite: { createdAt: '2026-09-09T18:26:48Z' },
+    startedAt: '2026-09-09T18:35:55Z',
+    completedAt: '2026-09-09T18:36:05Z',
   })
   const landed = (): PrSnapshot =>
     pr({
@@ -372,56 +383,146 @@ describe('#2615 candidate landing identity', () => {
       ).merged,
     ).toBe(false)
     expect(
-      evaluateMerged(
-        [{ ...landed(), statusCheckRollup: [ci('FAILURE')] }],
-        BRANCH,
-        undefined,
-        sha,
-      ).merged,
+      evaluateMerged([{ ...landed(), statusCheckRollup: [ci('FAILURE')] }], BRANCH, undefined, sha)
+        .merged,
     ).toBe(false)
     expect(
-      evaluateMerged(
-        [{ ...landed(), statusCheckRollup: [ci('')] }],
-        BRANCH,
-        undefined,
-        sha,
-      ).merged,
+      evaluateMerged([{ ...landed(), statusCheckRollup: [ci('')] }], BRANCH, undefined, sha).merged,
     ).toBe(false)
     expect(
       evaluateMerged([{ ...landed(), statusCheckRollup: [] }], BRANCH, undefined, sha).merged,
     ).toBe(false)
   })
   it('AC-5 preserves qualified landing when later main checks fail or remain pending', () => {
-    const later = { ...ci('FAILURE'), checkSuite: { createdAt: '2026-09-09T18:36:24Z' }, startedAt: '2026-09-09T18:36:26Z', completedAt: '2026-09-09T18:37:37Z' }
-    for (const check of [later, { ...later, conclusion: '', completedAt: '0001-01-01T00:00:00Z' }]) {
-      expect(evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), check] }], BRANCH, undefined, sha).merged).toBe(true)
+    const later = {
+      ...ci('FAILURE'),
+      checkSuite: { createdAt: '2026-09-09T18:36:24Z' },
+      startedAt: '2026-09-09T18:36:26Z',
+      completedAt: '2026-09-09T18:37:37Z',
     }
-    expect(evaluateMerged([{ ...landed(), statusCheckRollup: [later] }], BRANCH, undefined, sha).merged).toBe(false)
+    for (const check of [
+      later,
+      { ...later, conclusion: '', completedAt: '0001-01-01T00:00:00Z' },
+    ]) {
+      expect(
+        evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), check] }], BRANCH, undefined, sha)
+          .merged,
+      ).toBe(true)
+    }
+    expect(
+      evaluateMerged([{ ...landed(), statusCheckRollup: [later] }], BRANCH, undefined, sha).merged,
+    ).toBe(false)
   })
 
   it.each([
     { mergedAt: undefined },
     { mergedAt: 'invalid' },
     ...[
-      { checkSuite: undefined }, { checkSuite: { createdAt: 'invalid' } },
-      { completedAt: undefined }, { completedAt: 'invalid' },
+      { checkSuite: undefined },
+      { checkSuite: { createdAt: 'invalid' } },
+      { completedAt: undefined },
+      { completedAt: 'invalid' },
       { completedAt: '2026-09-09T18:37:37Z' },
       { conclusion: '', completedAt: '0001-01-01T00:00:00Z' },
     ].map((override) => ({ statusCheckRollup: [{ ...ci(), ...override }] })),
   ])('AC-5 refuses CI that cannot establish successful completion before merge: %j', (override) => {
-    expect(evaluateMerged([{ ...landed(), ...override }], BRANCH, undefined, sha).merged).toBe(false)
+    expect(evaluateMerged([{ ...landed(), ...override }], BRANCH, undefined, sha).merged).toBe(
+      false,
+    )
   })
 
   it('AC-5 refuses a pre-merge suite whose queued check only starts after merge', () => {
-    const queued = { ...ci(), startedAt: '2026-09-09T18:37:00Z', completedAt: '2026-09-09T18:38:00Z' }
-    expect(evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), queued] }], BRANCH, undefined, sha).merged).toBe(false)
+    const queued = {
+      ...ci(),
+      startedAt: '2026-09-09T18:37:00Z',
+      completedAt: '2026-09-09T18:38:00Z',
+    }
+    expect(
+      evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), queued] }], BRANCH, undefined, sha)
+        .merged,
+    ).toBe(false)
   })
 
   it('AC-5 accepts a successful status context created before merge', () => {
     const status = { context: 'external CI', state: 'SUCCESS', createdAt: '2026-09-09T18:36:05Z' }
-    expect(evaluateMerged([{ ...landed(), statusCheckRollup: [status] }], BRANCH, undefined, sha).merged).toBe(true)
+    expect(
+      evaluateMerged([{ ...landed(), statusCheckRollup: [status] }], BRANCH, undefined, sha).merged,
+    ).toBe(true)
     const later = { ...status, createdAt: '2026-09-09T18:37:00Z' }
-    expect(evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), later] }], BRANCH, undefined, sha).merged).toBe(false)
+    expect(
+      evaluateMerged([{ ...landed(), statusCheckRollup: [ci(), later] }], BRANCH, undefined, sha)
+        .merged,
+    ).toBe(false)
   })
-
 })
+
+function exerciseNativeCiReader(dir: string, sha: string): void {
+  const bin = mkdtempSync(join(tmpdir(), 'arbiter-ci-gh-'))
+  const originalPath = process.env.PATH
+  const check = {
+    name: 'CI',
+    conclusion: 'SUCCESS',
+    completedAt: '2026-09-09T18:36:05Z',
+    checkSuite: { createdAt: '2026-09-09T18:26:48Z' },
+  }
+  const prs = [
+    {
+      number: 7,
+      state: 'MERGED',
+      headRefOid: sha,
+      mergeCommit: { oid: sha },
+      mergedAt: '2026-09-09T18:36:22Z',
+    },
+  ]
+  const page = (nodes: unknown[], hasNextPage: boolean) => ({
+    data: {
+      repository: {
+        object: { statusCheckRollup: { contexts: { nodes, pageInfo: { hasNextPage } } } },
+      },
+    },
+  })
+  try {
+    process.env.PATH = `${bin}:${originalPath ?? ''}`
+    for (const incomplete of [false, true]) {
+      writeUnifiedState(dir, { taskId: '#2402', phase: 'close', branch: BRANCH })
+      const pages = [
+        page([check], true),
+        page(
+          [{ ...check, conclusion: 'FAILURE', checkSuite: { createdAt: '2026-09-09T18:36:24Z' } }],
+          incomplete,
+        ),
+      ]
+      writeFileSync(
+        join(bin, 'gh'),
+        `#!${process.execPath}
+const fs = require('node:fs');
+fs.appendFileSync(${JSON.stringify(join(bin, 'calls'))}, JSON.stringify(process.argv.slice(2))+String.fromCharCode(10));
+process.stdout.write(JSON.stringify(process.argv[2] === 'pr' ? ${JSON.stringify(prs)} : ${JSON.stringify(pages)}));
+`,
+        { mode: 0o755 },
+      )
+      if (incomplete) {
+        expect(() => runTaskAdvance({ to: 'complete', dir })).toThrow(
+          /Incomplete candidate CI pages/,
+        )
+        expect(readUnifiedState(dir)?.phase).toBe('close')
+      } else {
+        runTaskAdvance({ to: 'complete', dir })
+        expect(readUnifiedState(dir)?.phase).toBe('complete')
+      }
+    }
+    const calls = readFileSync(join(bin, 'calls'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as string[])
+    expect(calls).toHaveLength(4)
+    expect(calls[1]).toEqual(
+      expect.arrayContaining(['api', 'graphql', '--paginate', '--slurp', `sha=${sha}`]),
+    )
+    expect(calls[1]?.find((arg) => arg.startsWith('query='))).toContain('checkSuite { createdAt }')
+  } finally {
+    if (originalPath === undefined) delete process.env.PATH
+    else process.env.PATH = originalPath
+    rmSync(bin, { recursive: true, force: true })
+  }
+}

@@ -23,8 +23,18 @@ export interface PrSnapshot {
   mergeStateStatus?: string
   headRefOid?: string
   mergeCommit?: { oid: string } | null
-  statusCheckRollup?:
-    readonly { name?: string; context?: string; conclusion?: string; state?: string }[] | null
+  mergedAt?: string | null
+  statusCheckRollup?: readonly CiCheck[] | null
+}
+
+interface CiCheck {
+  name?: string
+  context?: string
+  conclusion?: string
+  state?: string
+  createdAt?: string
+  completedAt?: string
+  checkSuite?: { createdAt?: string } | null
 }
 
 export type MergedVerdict = { merged: true; number: number } | { merged: false; detail: string }
@@ -115,18 +125,39 @@ function evaluateQualifiedMerged(
       detail: 'Merged PR head/merge refs do not match the qualified candidate SHA.',
     }
   }
-  const checks = candidate.statusCheckRollup ?? []
-  if (
-    checks.length === 0 ||
-    checks.some(
-      (check) => !['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(check.conclusion ?? check.state ?? ''),
-    ) ||
-    !checks.some((check) => (check.conclusion ?? check.state) === 'SUCCESS')
-  ) {
+  const cutoff = Date.parse(candidate.mergedAt ?? '')
+  if (!Number.isFinite(cutoff) || !successfulCiAtMerge(candidate.statusCheckRollup ?? [], cutoff)) {
     return {
       merged: false,
-      detail: 'Candidate CI is missing, pending or not successful.',
+      detail: 'Candidate CI cannot establish successful qualification before merge.',
     }
   }
   return { merged: true, number: candidate.number }
+}
+
+function finishedBeforeMerge(check: CiCheck, cutoff: number): boolean {
+  const time = Date.parse((check.checkSuite ? check.completedAt : check.createdAt) ?? '')
+  return Number.isFinite(time) && time <= cutoff
+}
+
+function ciCreatedAt(check: CiCheck): number {
+  return Date.parse(check.checkSuite?.createdAt ?? check.createdAt ?? '')
+}
+
+function successfulCiAtMerge(checks: readonly CiCheck[], cutoff: number): boolean {
+  let success = false
+  for (const check of checks) {
+    const created = ciCreatedAt(check)
+    if (!Number.isFinite(created)) return false
+    if (created > cutoff) {
+      // A later status-context update cannot establish its earlier state.
+      if (!check.checkSuite) return false
+      continue
+    }
+    const outcome = check.conclusion ?? check.state ?? ''
+    if (!['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(outcome)) return false
+    if (!finishedBeforeMerge(check, cutoff)) return false
+    if (outcome === 'SUCCESS') success = true
+  }
+  return success
 }
