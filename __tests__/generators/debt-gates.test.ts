@@ -121,6 +121,84 @@ describe('generateDebtGates', () => {
     }
   })
 
+  it('pairs an existing ordinary Vitest selector with its missing coverage companion (#2578)', () => {
+    const pkgPath = join(dir, 'package.json')
+    const baseline = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<
+      string,
+      Record<string, string>
+    >
+
+    for (const section of ['devDependencies', 'dependencies'] as const) {
+      for (const selector of ['3.2.4', '^3.2.4', '~3.2.4']) {
+        const input = structuredClone(baseline)
+        input[section] = { ...(input[section] ?? {}), vitest: selector }
+        writeFileSync(pkgPath, JSON.stringify(input, null, 2))
+
+        generateDebtGates(makeConfig(dir, { language: 'typescript', enableDebtGates: false }))
+
+        const output = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<
+          string,
+          Record<string, string>
+        >
+        expect(output[section]?.vitest).toBe(selector)
+        expect(output.devDependencies?.['@vitest/coverage-v8']).toBe(selector)
+      }
+    }
+  })
+
+  it('preserves an existing coverage companion from either dependency section (#2578)', () => {
+    const pkgPath = join(dir, 'package.json')
+    const baseline = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<
+      string,
+      Record<string, string>
+    >
+
+    for (const section of ['devDependencies', 'dependencies'] as const) {
+      const input = structuredClone(baseline)
+      input[section] = {
+        ...(input[section] ?? {}),
+        vitest: '3.2.4',
+        '@vitest/coverage-v8': '^4.1.11',
+      }
+      writeFileSync(pkgPath, JSON.stringify(input, null, 2))
+
+      generateDebtGates(makeConfig(dir, { language: 'typescript', enableDebtGates: false }))
+
+      const output = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<
+        string,
+        Record<string, string>
+      >
+      expect(output[section]?.vitest).toBe('3.2.4')
+      expect(output[section]?.['@vitest/coverage-v8']).toBe('^4.1.11')
+      if (section === 'dependencies') {
+        expect(output.devDependencies?.['@vitest/coverage-v8']).toBeUndefined()
+      }
+    }
+  })
+
+  it('leaves unsupported Vitest specifiers untouched and retains the generic companion (#2578)', () => {
+    const pkgPath = join(dir, 'package.json')
+    const baseline = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<
+      string,
+      Record<string, string>
+    >
+
+    for (const selector of ['npm:vitest@3.2.4', 'workspace:*']) {
+      const input = structuredClone(baseline)
+      input.devDependencies = { ...input.devDependencies, vitest: selector }
+      writeFileSync(pkgPath, JSON.stringify(input, null, 2))
+
+      generateDebtGates(makeConfig(dir, { language: 'typescript', enableDebtGates: false }))
+
+      const output = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<
+        string,
+        Record<string, string>
+      >
+      expect(output.devDependencies?.vitest).toBe(selector)
+      expect(output.devDependencies?.['@vitest/coverage-v8']).toBe('^3.0.0')
+    }
+  })
+
   // ── TypeScript ──────────────────────────────────────────────────────────────
 
   it('generates knip.json for TypeScript projects', () => {
