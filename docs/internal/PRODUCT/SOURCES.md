@@ -1,6 +1,6 @@
 ---
 title: 'External sources'
-doc_version: '1.0.1'
+doc_version: '1.0.2'
 status: active
 last_review: '2026-09-10'
 owner: ''
@@ -23,8 +23,9 @@ quotation appears at all.
 
 The declared excerpt path and its resolved content target must stay inside the repository and be
 present in Git's index; an excerpt staged for its first commit is therefore valid during pre-commit.
-The Git lookup treats the declared path literally, so a wildcard cannot select a tracked sibling,
-and a tracked symlink cannot certify an untracked local target.
+The Git lookup canonicalizes the resolved path to repository-relative form, then requires that exact
+index entry; a wildcard or directory prefix cannot select a tracked sibling, and a tracked symlink
+cannot certify an untracked local target.
 
 The `url` is recorded provenance and is **never dereferenced** by the gate: a check that fails when
 a website is down fails for a reason unrelated to the claim it guards.

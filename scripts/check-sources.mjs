@@ -95,6 +95,7 @@ export function checkExcerptEvidence(source, root) {
   if (!isContained(root, abs)) {
     return [`${id}: excerpt path ${rel} resolves outside the repository`]
   }
+  const indexRel = relative(root, abs)
   if (!existsSync(abs)) {
     return [
       `${id}: excerpt file ${rel} does not exist — the quotation has nothing to check against`,
@@ -106,7 +107,7 @@ export function checkExcerptEvidence(source, root) {
     return [`${id}: excerpt path ${rel} resolves outside the repository`]
   }
   const physicalRel = relative(physicalRoot, physicalExcerpt)
-  if (!isGitIndexed(root, rel) || !isGitIndexed(physicalRoot, physicalRel)) {
+  if (!isGitIndexed(root, indexRel) || !isGitIndexed(physicalRoot, physicalRel)) {
     return [
       `${id}: excerpt file ${rel} or its resolved content is not tracked by Git — commit it, ` +
         `or stage a newly added excerpt before this pre-commit check`,
