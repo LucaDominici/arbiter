@@ -128,12 +128,13 @@ function isContained(root, candidate) {
 /** Git-index membership accepts both committed files and files staged for their first commit. */
 function isGitIndexed(root, rel) {
   try {
-    const indexed = execFileSync('git', ['--literal-pathspecs', 'ls-files', '--error-unmatch', '-z', '--', rel], {
-      cwd: root,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
+    const indexed = execFileSync(
+      'git',
+      ['--literal-pathspecs', 'ls-files', '--error-unmatch', '-z', '--', rel],
+      { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] },
+    )
     return indexed.equals(Buffer.from(`${rel}\0`))
-  // FAIL-OPEN-INTENT: Git cannot prove index membership, so this source is rejected.
+    // FAIL-OPEN-INTENT: Git cannot prove index membership, so this source is rejected.
   } catch {
     return false
   }
