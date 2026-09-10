@@ -471,6 +471,7 @@ describe('the emitted milestone gate runs where it is emitted (#2480 wave 8)', (
     mkdirSync(join(dir, 'docs'), { recursive: true })
     for (const [rel, tpl] of [
       ['scripts/check-milestones.mjs', 'scripts/check-milestones.mjs.ejs'],
+      ['scripts/lib/run-helpers.mjs', 'scripts/lib/run-helpers.mjs.ejs'],
       ['schemas/milestone.schema.json', 'schemas/milestone.schema.json.ejs'],
       ['scripts/lib/agent-return-validate.mjs', 'scripts/lib/agent-return-validate.mjs.ejs'],
     ] as const) {

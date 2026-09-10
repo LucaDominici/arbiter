@@ -34,7 +34,8 @@
 //
 // Exports for unit tests: extractSourcesBlock, findDuplicateSourceIds, checkExcerptEvidence
 
-import { readFileSync, existsSync } from 'node:fs'
+import { readRegularFileSync } from './lib/run-helpers.mjs'
+import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
@@ -95,7 +96,7 @@ export function checkExcerptEvidence(source, root) {
       `${id}: excerpt file ${rel} does not exist — the quotation has nothing to check against`,
     ]
   }
-  const raw = readFileSync(abs)
+  const raw = readRegularFileSync(abs)
   violations.push(...hashMismatch(id, raw, String(source['content_hash'])))
   violations.push(...unquotedCitations(id, raw.toString('utf-8'), rel, source['citations']))
   return violations
@@ -161,7 +162,7 @@ function main(argv) {
 
   let doc
   try {
-    doc = extractSourcesBlock(readFileSync(path, 'utf-8'))
+    doc = extractSourcesBlock(readRegularFileSync(path, 'utf-8'))
   } catch (err) {
     process.stderr.write(`check-sources: ${SOURCES_REL} could not be parsed — ${err.message}\n`)
     return 2

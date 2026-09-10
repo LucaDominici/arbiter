@@ -20,6 +20,7 @@ import {
 import { execFileSync } from 'node:child_process'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
+import { openRegularFileSync } from './lib/run-helpers.mjs'
 import { enforceCitations, validateSchema } from './lib/agent-return-validate.mjs'
 import { evidenceStaleness } from './lib/evidence-binding.mjs'
 
@@ -84,10 +85,7 @@ function openContainedFile(rootDir, relativePath) {
   const fileName = parts.pop()
   const dirFd = openContainedDirectory(rootDir, parts)
   try {
-    const fileFd = openSync(
-      join(descriptorPath(dirFd), fileName),
-      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
-    )
+    const fileFd = openRegularFileSync(join(descriptorPath(dirFd), fileName), true)
     return { dirFd, fileFd }
   } catch (cause) {
     closeSync(dirFd)
@@ -317,7 +315,12 @@ try {
   )
 }
 const artifact = readContainedJson(root, evidenceRelativePath, 'dispatch evidence')
-const schemaErrors = validateSchema(artifact, schema, schema, evidencePath)
+let schemaErrors
+try {
+  schemaErrors = validateSchema(artifact, schema, schema, evidencePath)
+} catch (cause) {
+  error(`invalid dispatch schema: ${cause instanceof Error ? cause.message : String(cause)}`)
+}
 if (schemaErrors.length > 0) fail(schemaErrors.join('; '))
 if (artifact.taskId !== taskId) {
   fail(
@@ -415,7 +418,12 @@ for (const [index, fulfilled] of artifact.fulfilled.entries()) {
     fail(`fulfilled[${index}].envelope must use the canonical Codex reviewer filename: ${envelope}`)
   }
   const envelopeValue = readContainedJson(root, envelope, 'fulfilled envelope')
-  const envelopeSchemaErrors = validateSchema(envelopeValue, agentSchema, agentSchema, envelopePath)
+  let envelopeSchemaErrors
+  try {
+    envelopeSchemaErrors = validateSchema(envelopeValue, agentSchema, agentSchema, envelopePath)
+  } catch (cause) {
+    error(`invalid agent-return schema: ${cause instanceof Error ? cause.message : String(cause)}`)
+  }
   if (envelopeSchemaErrors.length > 0) fail(envelopeSchemaErrors.join('; '))
   if (envelopeValue.agent !== 'codex-reviewer' || envelopeValue.role !== 'reviewer') {
     fail(`fulfilled[${index}].envelope must be the Codex reviewer envelope`)

@@ -16,6 +16,7 @@ import {
   cpSync,
   openSync,
   closeSync,
+  fstatSync,
 } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { randomBytes, createHash } from 'node:crypto'
@@ -785,8 +786,9 @@ function readFileContained(rootDir: string, relativePath: string): string {
     dirFd = openContainedDirectory(rootDir, parts)
     fileFd = openSync(
       `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${dirFd}/${fileName}`,
-      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+      fsConstants.O_RDONLY | fsConstants.O_NONBLOCK | fsConstants.O_NOFOLLOW,
     )
+    if (!fstatSync(fileFd).isFile()) throw new Error(`not a regular file: ${fullPath}`)
     return readFileSync(fileFd, 'utf8')
   } catch (err) {
     throw toFsError(err, fullPath)

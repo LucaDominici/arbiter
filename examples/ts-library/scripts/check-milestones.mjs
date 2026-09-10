@@ -84,7 +84,8 @@
 //                         findEpicJoinViolations, findDoubleClaimedIssues,
 //                         findTerminalEpicsWithoutEvidence, findDoneWithOpenEpics
 
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readRegularFileSync } from './lib/run-helpers.mjs'
+import { existsSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
@@ -226,7 +227,7 @@ export function evidenceResolves(ref, root) {
     if (!existsSync(catalog)) return false
     // Bounded on the trailing digit: a bare `includes("INV-10")` is also satisfied by INV-100,
     // which would resolve a reference to an invariant this project does not carry.
-    return new RegExp(`${ref}(?![0-9])`).test(readFileSync(catalog, 'utf-8'))
+    return new RegExp(`${ref}(?![0-9])`).test(readRegularFileSync(catalog, 'utf-8'))
   }
   return existsSync(join(root, ref))
 }
@@ -574,7 +575,7 @@ export function extractBlock(markdown) {
 function loadInputs(path) {
   let doc
   try {
-    doc = extractBlock(readFileSync(path, 'utf-8'))
+    doc = extractBlock(readRegularFileSync(path, 'utf-8'))
   } catch (err) {
     process.stderr.write(`check-milestones: ${MILESTONES_REL} — ${err.message}\n`)
     return { code: 2 }

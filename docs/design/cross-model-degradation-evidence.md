@@ -64,7 +64,13 @@ existing configuration with no `crossModelReview` property; ordinary optional in
 retains its canonical SKIP. Environment enablement still reaches evidence validation.
 Citation resolution shared by the recorder and review gates passes Git arguments directly
 without a shell, so citation paths remain literal while immutable-SHA and line checks apply
-(#2632).
+(#2632). The selected evidence readers open inputs nonblocking and reject nonregular files
+on the opened descriptor; contained reads retain their ancestor and leaf no-follow policy.
+The shared schema validator distinguishes null from object values and rejects nonrecord
+schema nodes. Malformed schemas remain invocation errors (exit 2), while invalid values
+remain violations (exit 1). Acceptance preserves absent/fresh record states but rejects
+existing nonrecord or dangling state; arc42 rejects nonrecord manifests and baselines
+before optional defaults or reseeding (#2635).
 
 **Dispatch axis** — `.claude/agent-dispatch-matrix.json` gains a top-level `model_diversity: { XS: 0, S: 0, Standard: 1 }`, with parity asserted against the code.
 

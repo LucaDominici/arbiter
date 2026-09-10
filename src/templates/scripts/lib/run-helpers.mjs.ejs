@@ -11,19 +11,33 @@
 // Imported by scripts/check-all.mjs. Plain ESM (.mjs).
 import { spawnSync } from 'node:child_process';
 import { availableParallelism } from 'node:os';
-import { accessSync, constants, existsSync, readFileSync, statSync, statfsSync } from 'node:fs';
+import { accessSync, closeSync, fstatSync, openSync, constants, existsSync, readFileSync, statSync, statfsSync } from 'node:fs';
 import { join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/**
- * True when `importMetaUrl` names the module Node was actually invoked with — the ESM
- * equivalent of CommonJS `require.main === module`. Pass `import.meta.url`:
- *
- *   if (isMainModule(import.meta.url)) main();
- *
- * Null-safe (argv[1] is absent under `node --eval`) and path-normalized, so a relative
- * or non-canonical argv[1] still matches (#2010).
- */
+/** Open a regular file without waiting for a FIFO writer; caller owns the returned fd. */
+export function openRegularFileSync(path, noFollow = false) {
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK | (noFollow ? constants.O_NOFOLLOW : 0))
+  try {
+    if (!fstatSync(fd).isFile()) throw new Error(`not a regular file: ${path}`)
+    return fd
+  } catch (error) {
+    closeSync(fd)
+    throw error
+  }
+}
+
+/** Preserve readFileSync string/Buffer results and ordinary regular-file symlinks. */
+export function readRegularFileSync(path, encoding) {
+  const fd = openRegularFileSync(path)
+  try {
+    return readFileSync(fd, encoding)
+  } finally {
+    closeSync(fd)
+  }
+}
+
+/** ESM main guard: argv[1] may be absent and paths need normalization (#2010). */
 export function isMainModule(importMetaUrl) {
   const entry = process.argv[1];
   if (!entry) return false;
@@ -123,18 +137,9 @@ export function isProcessAlive(pid) {
   }
 }
 
-// ── Orphan guard (#2427, AC-3) ───────────────────────────────────────────────
-//
-// A `git push` was killed while its pre-push L2 ran; the gate was reparented and
-// kept going for another twenty minutes against a tree that had since moved on,
-// then stamped a green marker for it. Signal delivery cannot be relied on here —
-// a SIGKILL aimed at one pid is untrappable and never reaches the gate at all —
-// so the gate watches, from the inside, the process it was launched to serve.
-//
-// Opt-in: nothing changes for the many other scripts that import this module.
-// `scripts/check-all.mjs` arms it; `gate-mutex.mjs` publishes the pid to watch
-// through ARBITER_GATE_PARENT_PID so an intermediate `flock` cannot mask the
-// death of the real parent.
+// Opt-in orphan guard (#2427): SIGKILL cannot notify descendants. check-all arms
+// the guard; gate-mutex supplies ARBITER_GATE_PARENT_PID across intermediate flock
+// processes, so an abandoned gate cannot stamp a green marker for a changed tree.
 /** @type {number|null} */
 let watchedPid = null
 

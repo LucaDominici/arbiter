@@ -1,14 +1,37 @@
 {
-  "task_id": "#2632",
+  "task_id": "#2635",
   "scope": {
     "track": "A",
     "paths": [
-      "src/templates/scripts/lib/agent-return-validate.mjs.ejs",
-      "scripts/lib/agent-return-validate.mjs",
-      "src/templates/scripts/check-cross-model-review.mjs.ejs",
+      "scripts/check-acceptance.mjs",
+      "scripts/check-arc42-slots.mjs",
       "scripts/check-cross-model-review.mjs",
-      "__tests__/scripts/agent-return-validate.test.ts",
+      "scripts/check-milestones.mjs",
+      "scripts/check-sources.mjs",
+      "scripts/check-tabletop-evidence.mjs",
+      "scripts/check-use-cases.mjs",
+      "src/templates/scripts/check-acceptance.mjs.ejs",
+      "src/templates/scripts/check-cross-model-review.mjs.ejs",
+      "src/templates/scripts/check-milestones.mjs.ejs",
+      "src/templates/scripts/check-sources.mjs.ejs",
+      "src/templates/scripts/check-tabletop-evidence.mjs.ejs",
+      "src/templates/scripts/check-use-cases.mjs.ejs",
+      "scripts/lib/run-helpers.mjs",
+      "src/templates/scripts/lib/run-helpers.mjs.ejs",
+      "scripts/lib/agent-return-validate.mjs",
+      "src/templates/scripts/lib/agent-return-validate.mjs.ejs",
+      "scripts/lib/doc-set-resolve.mjs",
+      "src/utils/fs.ts",
+      "__tests__/scripts/check-acceptance.test.ts",
+      "__tests__/scripts/check-arc42-slots.test.ts",
       "__tests__/scripts/check-cross-model-review.test.ts",
+      "__tests__/scripts/check-milestones.test.ts",
+      "__tests__/scripts/check-sources.test.ts",
+      "__tests__/scripts/check-tabletop-evidence.test.ts",
+      "__tests__/scripts/check-use-cases.test.ts",
+      "__tests__/scripts/agent-return-validate.test.ts",
+      "__tests__/scripts/run-helpers.test.ts",
+      "__tests__/utils/fs.test.ts",
       "docs/design/cross-model-degradation-evidence.md",
       "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
       "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
@@ -38,38 +61,57 @@
       "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
       "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
       "examples/go-library/.arbiter-generated-manifest.json",
+      "examples/go-library/scripts/check-acceptance.mjs",
       "examples/go-library/scripts/check-cross-model-review.mjs",
+      "examples/go-library/scripts/check-milestones.mjs",
+      "examples/go-library/scripts/check-sources.mjs",
+      "examples/go-library/scripts/check-tabletop-evidence.mjs",
+      "examples/go-library/scripts/check-use-cases.mjs",
+      "examples/go-library/scripts/lib/run-helpers.mjs",
       "examples/go-library/scripts/lib/agent-return-validate.mjs",
       "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/python-library/scripts/check-acceptance.mjs",
       "examples/python-library/scripts/check-cross-model-review.mjs",
+      "examples/python-library/scripts/check-milestones.mjs",
+      "examples/python-library/scripts/check-sources.mjs",
+      "examples/python-library/scripts/check-tabletop-evidence.mjs",
+      "examples/python-library/scripts/check-use-cases.mjs",
+      "examples/python-library/scripts/lib/run-helpers.mjs",
       "examples/python-library/scripts/lib/agent-return-validate.mjs",
       "examples/ts-library/.arbiter-generated-manifest.json",
+      "examples/ts-library/scripts/check-acceptance.mjs",
       "examples/ts-library/scripts/check-cross-model-review.mjs",
+      "examples/ts-library/scripts/check-milestones.mjs",
+      "examples/ts-library/scripts/check-sources.mjs",
+      "examples/ts-library/scripts/check-tabletop-evidence.mjs",
+      "examples/ts-library/scripts/check-use-cases.mjs",
+      "examples/ts-library/scripts/lib/run-helpers.mjs",
       "examples/ts-library/scripts/lib/agent-return-validate.mjs",
       ".agents/plan/PLAN.json",
-      ".claude/plans/task-2632-native-review-boundaries.md",
+      ".claude/plans/task-2635-native-input-boundaries.md",
       ".claude/.task/status.json",
-      ".arbiter/evidence/tdd/#2632.json",
-      ".arbiter/evidence/plan-review/_2632/latest.json",
-      ".arbiter/evidence/redteam/#2632.json",
-      ".arbiter/evidence/ac-fit/2632.json",
-      ".arbiter/evidence/agent-returns/_2632",
+      ".arbiter/evidence/tdd/#2635.json",
+      ".arbiter/evidence/plan-review/_2635/latest.json",
+      ".arbiter/evidence/redteam/#2635.json",
+      ".arbiter/evidence/ac-fit/2635.json",
+      ".arbiter/evidence/agent-returns/_2635",
       ".arbiter/agents-dispatched.json",
       ".arbiter/gate-pass.json",
-      ".arbiter/evidence/done/_2632.json"
+      ".arbiter/evidence/done/_2635.json",
+      "__tests__/generators/feature-matrix.test.ts",
+      "__tests__/templates/track-b-evidence-gates.test.ts",
+      "__tests__/templates/ship-driver-render.test.ts",
+      "__tests__/commands/cross-model-review.test.ts",
+      ".dogfood-divergences.json"
     ]
   },
   "files": [
     {
-      "path": "src/templates/scripts/lib/agent-return-validate.mjs.ejs",
+      "path": "scripts/check-acceptance.mjs",
       "operation": "modify"
     },
     {
-      "path": "scripts/lib/agent-return-validate.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/check-cross-model-review.mjs.ejs",
+      "path": "scripts/check-arc42-slots.mjs",
       "operation": "modify"
     },
     {
@@ -77,11 +119,107 @@
       "operation": "modify"
     },
     {
-      "path": "__tests__/scripts/agent-return-validate.test.ts",
+      "path": "scripts/check-milestones.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-sources.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-tabletop-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-use-cases.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-acceptance.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-cross-model-review.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-milestones.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-sources.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-tabletop-evidence.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-use-cases.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/lib/run-helpers.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/lib/run-helpers.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/lib/agent-return-validate.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/lib/agent-return-validate.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/lib/doc-set-resolve.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/utils/fs.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-acceptance.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-arc42-slots.test.ts",
       "operation": "modify"
     },
     {
       "path": "__tests__/scripts/check-cross-model-review.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-milestones.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-sources.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-tabletop-evidence.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-use-cases.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/agent-return-validate.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/run-helpers.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/utils/fs.test.ts",
       "operation": "modify"
     },
     {
@@ -201,7 +339,31 @@
       "operation": "modify"
     },
     {
+      "path": "examples/go-library/scripts/check-acceptance.mjs",
+      "operation": "modify"
+    },
+    {
       "path": "examples/go-library/scripts/check-cross-model-review.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/check-milestones.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/check-sources.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/check-tabletop-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/check-use-cases.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/lib/run-helpers.mjs",
       "operation": "modify"
     },
     {
@@ -213,7 +375,31 @@
       "operation": "modify"
     },
     {
+      "path": "examples/python-library/scripts/check-acceptance.mjs",
+      "operation": "modify"
+    },
+    {
       "path": "examples/python-library/scripts/check-cross-model-review.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/check-milestones.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/check-sources.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/check-tabletop-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/check-use-cases.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/lib/run-helpers.mjs",
       "operation": "modify"
     },
     {
@@ -225,7 +411,31 @@
       "operation": "modify"
     },
     {
+      "path": "examples/ts-library/scripts/check-acceptance.mjs",
+      "operation": "modify"
+    },
+    {
       "path": "examples/ts-library/scripts/check-cross-model-review.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-milestones.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-sources.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-tabletop-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-use-cases.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/lib/run-helpers.mjs",
       "operation": "modify"
     },
     {
@@ -237,31 +447,31 @@
       "operation": "modify"
     },
     {
-      "path": ".claude/plans/task-2632-native-review-boundaries.md",
-      "operation": "create"
-    },
-    {
-      "path": ".claude/.task/status.json",
+      "path": ".claude/plans/task-2635-native-input-boundaries.md",
       "operation": "modify"
     },
     {
-      "path": ".arbiter/evidence/tdd/#2632.json",
+      "path": ".claude/.task/status.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/plan-review/_2632/latest.json",
+      "path": ".arbiter/evidence/tdd/#2635.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/redteam/#2632.json",
+      "path": ".arbiter/evidence/plan-review/_2635/latest.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/ac-fit/2632.json",
+      "path": ".arbiter/evidence/redteam/#2635.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/agent-returns/_2632",
+      "path": ".arbiter/evidence/ac-fit/2635.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/agent-returns/_2635",
       "operation": "create"
     },
     {
@@ -273,8 +483,28 @@
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/done/_2632.json",
+      "path": ".arbiter/evidence/done/_2635.json",
       "operation": "create"
+    },
+    {
+      "path": "__tests__/generators/feature-matrix.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/track-b-evidence-gates.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/ship-driver-render.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/commands/cross-model-review.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": ".dogfood-divergences.json",
+      "operation": "modify"
     }
   ],
   "invariants": {

@@ -37,7 +37,8 @@
 // Exports for unit tests: SLOTS, normalizeHeading, slotForHeading, splitSections, isStub,
 // analyzeDocument, skeletonSlots, skeletonGaps
 
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { readRegularFileSync } from './lib/run-helpers.mjs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
@@ -300,7 +301,7 @@ export function skeletonSlots(root, column) {
   for (const base of SKELETON_ROOTS) {
     const rel = join(base, 'docs', 'skeletons', file)
     if (existsSync(join(root, rel))) {
-      return { rel, slots: analyzeDocument(readFileSync(join(root, rel), 'utf-8')).slots }
+      return { rel, slots: analyzeDocument(readRegularFileSync(join(root, rel), 'utf-8')).slots }
     }
   }
   return { rel: join(SKELETON_ROOTS[0], 'docs', 'skeletons', file), slots: null }
@@ -343,7 +344,11 @@ export function gapsByColumn(perColumnSlots) {
 
 function loadJson(path, label) {
   try {
-    return { value: JSON.parse(readFileSync(path, 'utf-8')) }
+    const value = JSON.parse(readRegularFileSync(path, 'utf-8'))
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('expected an object')
+    }
+    return { value }
   } catch (err) {
     process.stderr.write(`check-arc42-slots: ERROR — ${label}: ${err.message}\n`)
     return { code: 2 }
@@ -355,7 +360,10 @@ function resolveArc42Path(root) {
   if (!existsSync(manifestPath)) return { skip: `no manifest at ${MANIFEST_REL}` }
   let manifest
   try {
-    manifest = parseYaml(readFileSync(manifestPath, 'utf-8'))
+    manifest = parseYaml(readRegularFileSync(manifestPath, 'utf-8'))
+    if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+      throw new Error('expected an object')
+    }
   } catch (err) {
     process.stderr.write(`check-arc42-slots: ERROR — ${MANIFEST_REL}: ${err.message}\n`)
     return { code: 2 }
@@ -371,7 +379,10 @@ function resolveArc42Path(root) {
   // own tree it resolves to a reading-order hub page. Score every present candidate and take the
   // one carrying the most slots: the document that is most arc42-shaped IS the arc42.
   const scored = found
-    .map((rel) => ({ rel, slots: analyzeDocument(readFileSync(join(root, rel), 'utf-8')).slots }))
+    .map((rel) => ({
+      rel,
+      slots: analyzeDocument(readRegularFileSync(join(root, rel), 'utf-8')).slots,
+    }))
     .sort((a, b) => b.slots.length - a.slots.length || a.rel.localeCompare(b.rel))
   // The manifest's arc42 row deliberately admits non-arc42 formats too — `blueprint.md` and
   // `**/c4-model.md` are listed in its accept_any. Grading a C4 model against arc42's twelve slots
@@ -667,7 +678,7 @@ function main() {
     return skip(`neither ${skeletonRel} nor a \`required\` list in ${BASELINE_REL} is present`)
   }
 
-  const doc = analyzeDocument(readFileSync(join(root, located.path), 'utf-8'))
+  const doc = analyzeDocument(readRegularFileSync(join(root, located.path), 'utf-8'))
   const carried = new Set(doc.slots)
   // Every skeleton this arbiter ships, so a column nobody audits still cannot lose a slot.
   const gapsByCol = gapsByColumn(allSkeletonSlots(skeletonRoot))

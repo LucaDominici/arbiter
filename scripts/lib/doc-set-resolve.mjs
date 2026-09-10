@@ -9,7 +9,8 @@
 // Every function takes `cwd` explicitly (no module-level state) — freshness runs from the same
 // CWD as presence but is a separate process/entry point, so this lib carries no implicit global.
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { readRegularFileSync } from './run-helpers.mjs'
+import { existsSync, readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { globToRegExp, walkRepo } from './glob-walk.mjs'
@@ -173,7 +174,7 @@ export function loadTierColumn(cwd) {
   const cfgPath = resolve(cwd, 'arbiter.json')
   if (!existsSync(cfgPath)) return TIER_COLUMN[resolveCollaborationMode({})]
   try {
-    const config = JSON.parse(readFileSync(cfgPath, 'utf-8'))
+    const config = JSON.parse(readRegularFileSync(cfgPath, 'utf-8'))
     const cm = resolveCollaborationMode(config)
     return TIER_COLUMN[cm] || TIER_COLUMN[resolveCollaborationMode({})]
   } catch {
@@ -246,7 +247,7 @@ export function loadOverlays(cwd, profilePath) {
   if (!existsSync(abs)) return { overlays: new Set(), allow: [], tierFloor: undefined }
   let p
   try {
-    p = parseYaml(readFileSync(abs, 'utf-8')) || {}
+    p = parseYaml(readRegularFileSync(abs, 'utf-8')) || {}
   } catch {
     return { overlays: new Set(), allow: [], tierFloor: undefined }
   }

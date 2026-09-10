@@ -41,8 +41,8 @@
 // Exports for unit tests: parseFrontmatter, validateFrontmatter, parseFindingsTable,
 //                         parseScenarios, scenarioViolations, joinViolations
 
-import { readFileSync, readdirSync, existsSync } from 'node:fs'
-import { isMainModule } from './lib/run-helpers.mjs'
+import { readdirSync, existsSync } from 'node:fs'
+import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -344,7 +344,7 @@ export function joinViolations(evidence, scenarios) {
 }
 
 function checkFile(path, schema) {
-  const text = readFileSync(path, 'utf-8')
+  const text = readRegularFileSync(path, 'utf-8')
   const parsed = parseFrontmatter(text)
   if (!parsed) return ['frontmatter is missing or unparseable']
   const errors = validateFrontmatter(parsed.data, schema)
@@ -373,7 +373,7 @@ function checkScenarios(repoRoot) {
   if (!existsSync(path)) {
     return { scenarios: null, errors: [], note: `, no ${SCENARIOS_REL} (join skipped)` }
   }
-  const scenarios = parseScenarios(readFileSync(path, 'utf-8'))
+  const scenarios = parseScenarios(readRegularFileSync(path, 'utf-8'))
   return {
     scenarios,
     errors: scenarioViolations(scenarios),
@@ -414,7 +414,7 @@ function checkEvidenceFiles(evidenceDir, files, schema) {
   for (const file of files) {
     const path = join(evidenceDir, file)
     const errors = checkFile(path, schema)
-    const parsed = parseFrontmatter(readFileSync(path, 'utf-8'))
+    const parsed = parseFrontmatter(readRegularFileSync(path, 'utf-8'))
     if (parsed) claimed.push({ file: join(EVIDENCE_REL, file), scenario: parsed.data.scenario })
     if (errors.length === 0) continue
     failed++
@@ -462,7 +462,7 @@ function main(argv) {
     return 1
   }
 
-  const schema = JSON.parse(readFileSync(SCHEMA_PATH, 'utf-8'))
+  const schema = JSON.parse(readRegularFileSync(SCHEMA_PATH, 'utf-8'))
   const { failed, claimed } = checkEvidenceFiles(evidenceDir, found.files, schema)
 
   const unjoined = catalogue.scenarios === null ? [] : joinViolations(claimed, catalogue.scenarios)

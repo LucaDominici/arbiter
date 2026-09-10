@@ -1,17 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-// scripts/lib/agent-return-validate.mjs
-// Pure semantics export for the agent-return envelope (E1 #1943, M8 core + M12 citation).
-// Shared by scripts/check-agent-return.mjs (gate) and scripts/record-agent-return.mjs
-// (recorder): both validate against schemas/agent-return.schema.json BEFORE writing/passing,
-// so a malformed return fails at hand-back time, not at gate time. The validator also
-// encodes the M12 rule the design seals: a finding with kind:"structural" MUST carry >=1
-// citation, and every citation must resolve (file exists at the envelope sha, line <= file
-// length). A structural claim without a resolvable file:line is rejected at the tool layer.
-//
-// No entry point, no process.exit (see check-fail-closed-audit SKIP_FILES). Consumers own
-// the exit contract. Pure deterministic — missing inputs throw / return errors, never a
-// silent pass.
-import { existsSync, readFileSync } from 'node:fs'
+// Shared envelope/schema and immutable citation validation for recorder and gates.
+// Structural findings require resolvable file:line citations. No entry point or exit;
+// callers retain their own failure policy (check-fail-closed-audit SKIP_FILES).
+import { readRegularFileSync } from './run-helpers.mjs'
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 
@@ -34,13 +26,7 @@ function resolveRef(ref, rootSchema) {
   return /** @type {Record<string, unknown>} */ (node)
 }
 
-/**
- * Keywords this validator actually enforces. Anything outside this set is reported as an
- * error rather than skipped (#2509) — a subset validator that silently ignores what it does
- * not implement lets a schema declare a constraint that never runs, which is how
- * id-registry (minItems), cross-model-dispatch (maxItems) and the vendored c4-model
- * (anyOf, minItems) all shipped with dead rules.
- */
+// Unsupported constraints are reported, never silently skipped (#2509).
 const ENFORCED_KEYWORDS = new Set([
   '$ref',
   'type',
@@ -258,6 +244,9 @@ function validateExclusiveBounds(value, schemaNode, path) {
  * @returns {string[]}
  */
 export function validateSchema(value, schemaNode, rootSchema, path) {
+  if (schemaNode === null || typeof schemaNode !== 'object' || Array.isArray(schemaNode)) {
+    throw new Error(`${path}: schema must be an object`)
+  }
   /** @type {string[]} */
   const errors = []
   for (const kw of unsupportedKeywords(schemaNode)) {
@@ -270,7 +259,7 @@ export function validateSchema(value, schemaNode, rootSchema, path) {
   }
   if ('type' in schemaNode) {
     const expected = schemaNode['type']
-    const actual = Array.isArray(value) ? 'array' : typeof value
+    const actual = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
     if (expected === 'integer') {
       if (typeof value !== 'number' || !Number.isInteger(value)) {
         errors.push(`${path}: expected type "integer", got "${actual}"`)
@@ -440,7 +429,7 @@ export function resolveCitation(repoRoot, sha, file, line) {
   if (!existsSync(abs)) {
     return { ok: false, reason: `citation file "${file}" does not resolve at repo root` }
   }
-  const content = readFileSync(abs, 'utf-8')
+  const content = readRegularFileSync(abs, 'utf-8')
   const lineCount = content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
   if (line > lineCount) {
     return { ok: false, reason: `citation line ${line} > file length ${lineCount} for "${file}"` }
@@ -488,5 +477,5 @@ export function enforceCitations(envelopeParsed, repoRoot, envelopePath) {
 export function loadSchema(schemaPath) {
   const abs = resolve(schemaPath)
   if (!existsSync(abs)) throw new Error(`schema not found: ${abs}`)
-  return JSON.parse(readFileSync(abs, 'utf-8'))
+  return JSON.parse(readRegularFileSync(abs, 'utf-8'))
 }

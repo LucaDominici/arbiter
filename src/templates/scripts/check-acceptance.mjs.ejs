@@ -22,10 +22,10 @@
 // CATALOG: enforces the acceptance-criteria anchor (INV-138) — implementation-phase plans must freeze explicit AC-N criteria + non-goals, and verification/close requires an all-PASS per-criterion ac-fit evidence artifact.
 // CATALOG: rejected fold-in into check-phase-doc-consistency.mjs because that gate validates the SHAPE of .claude/.task/status.json (single-doc split-brain), while this one validates the CONTENT CONTRACT between the anchored plan, the issue's acceptance criteria, and reviewer fit evidence — a different SSOT axis with a feature-flag lifecycle.
 // CATALOG: rejected fold-in into check-evidence-bundle.mjs because evidence bundles are per-task artifact BUNDLES under .evidence/ with their own JSON schema file, whereas ac-fit is a single per-criterion verdict artifact coupled to plan parsing (scripts/lib/acceptance-criteria.mjs) that bundle validation knows nothing about.
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, lstatSync } from 'node:fs'
 import { join } from 'node:path'
 import { parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
-import { isMainModule } from './lib/run-helpers.mjs'
+import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 
 const PRE_PHASES = new Set(['preflight', 'plan', 'red-team-review', 'red-team-rework', 'complete'])
 const IMPL_PHASES = new Set(['red', 'green', 'refactor'])
@@ -36,7 +36,7 @@ export function flagEnabled(root, env = process.env) {
   if (override === '1' || override === 'true') return true
   if (override === '0' || override === 'false') return false
   try {
-    const cfg = JSON.parse(readFileSync(join(root, 'arbiter.json'), 'utf-8'))
+    const cfg = JSON.parse(readRegularFileSync(join(root, 'arbiter.json'), 'utf-8'))
     return cfg?.features?.acceptanceAnchor === true
     // FAIL-OPEN-INTENT: unreadable/absent arbiter.json means an ungoverned tree — the flag-gated feature stays inert by design (mirrors guard-done-evidence.mjs).
   } catch {
@@ -89,7 +89,7 @@ function readPlan(root, planRef) {
   const abs = withoutFragment.startsWith('/') ? withoutFragment : join(root, withoutFragment)
   if (!existsSync(abs)) return { error: `anchored plan file not found: ${withoutFragment}` }
   try {
-    return { body: readFileSync(abs, 'utf-8') }
+    return { body: readRegularFileSync(abs, 'utf-8') }
     // FAIL-OPEN-INTENT: the error object is returned and every caller surfaces it via fail() + exit 2 — fail-closed at the call site, not here.
   } catch (err) {
     return {
@@ -141,13 +141,19 @@ function checkExplicitFitArg(root, args, criteriaIds) {
 // stop early (vacuous SKIP or fail-closed ERROR).
 function resolveTaskPhase(root) {
   const statusPath = join(root, '.claude', '.task', 'status.json')
-  if (!existsSync(statusPath)) {
+  try {
+    lstatSync(statusPath)
+  } catch (err) {
+    if (err?.code !== 'ENOENT') throw err
     console.log('SKIP check-acceptance: no active task')
     return { exit: 0 }
   }
   let state
   try {
-    state = JSON.parse(readFileSync(statusPath, 'utf-8'))
+    state = JSON.parse(readRegularFileSync(statusPath, 'utf-8'))
+    if (state === null || typeof state !== 'object' || Array.isArray(state)) {
+      throw new Error('task state must be an object')
+    }
     // FAIL-OPEN-INTENT: malformed state is surfaced via fail() + exit 2 in this catch — the audit heuristic cannot see the returned {exit:2}.
   } catch {
     fail(
@@ -267,7 +273,7 @@ function main() {
 function validateFitFile(absPath, criteriaIds, requireAllPass, expectedTaskId) {
   let json
   try {
-    json = JSON.parse(readFileSync(absPath, 'utf-8'))
+    json = JSON.parse(readRegularFileSync(absPath, 'utf-8'))
     // FAIL-OPEN-INTENT: the parse error is surfaced as a returned error string; both callers print it and exit 1 — fail-closed at the call site.
   } catch {
     return [`ac-fit artifact is not valid JSON: ${absPath}`]

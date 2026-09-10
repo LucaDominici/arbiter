@@ -566,6 +566,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         'scripts/check-cross-model-review.mjs',
         'scripts/record-agent-return.mjs',
         'scripts/lib/agent-return-validate.mjs',
+        'scripts/lib/run-helpers.mjs',
         'scripts/lib/evidence-binding.mjs',
         'scripts/lib/gate-args.mjs',
       ]) {

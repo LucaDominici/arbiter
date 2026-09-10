@@ -53,10 +53,10 @@
 //                         parseScenarioExercises, findJoinViolations, collectViolations,
 //                         useCaseProjection
 
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isMainModule } from './lib/run-helpers.mjs'
+import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
@@ -289,7 +289,7 @@ function main(argv) {
     return 0
   }
 
-  const extracted = extractBlock(readFileSync(ssot, 'utf-8'))
+  const extracted = extractBlock(readRegularFileSync(ssot, 'utf-8'))
   if (!extracted.ok) {
     report(json, 'fail', 'unreadable SSOT', [`${SSOT_REL} ${extracted.error}`])
     return 1
@@ -309,11 +309,11 @@ function main(argv) {
     ])
     return 1
   }
-  const matrixIds = parseMatrixIds(readFileSync(matrixPath, 'utf-8'))
+  const matrixIds = parseMatrixIds(readRegularFileSync(matrixPath, 'utf-8'))
 
   const scenariosPath = join(root, SCENARIOS_REL)
   const exercises = existsSync(scenariosPath)
-    ? parseScenarioExercises(readFileSync(scenariosPath, 'utf-8'))
+    ? parseScenarioExercises(readRegularFileSync(scenariosPath, 'utf-8'))
     : new Map()
 
   const violations = collectViolations(useCases, matrixIds, exercises)

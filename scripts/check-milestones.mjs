@@ -67,7 +67,8 @@
 //                         findEpicJoinViolations, findDoubleClaimedIssues,
 //                         findTerminalEpicsWithoutEvidence, findDoneWithOpenEpics
 
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readRegularFileSync } from './lib/run-helpers.mjs'
+import { existsSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
@@ -206,7 +207,7 @@ export function evidenceResolves(ref, root) {
   if (/^INV-[0-9]+$/.test(ref)) {
     const catalog = join(root, CATALOG_REL)
     if (!existsSync(catalog)) return false
-    return readFileSync(catalog, 'utf-8').includes(`'${ref}'`)
+    return readRegularFileSync(catalog, 'utf-8').includes(`'${ref}'`)
   }
   return existsSync(join(root, ref))
 }
@@ -534,7 +535,7 @@ function report(json, verdict, message, violations) {
 function loadInputs(path) {
   let doc
   try {
-    doc = YAML.parse(readFileSync(path, 'utf-8'))
+    doc = YAML.parse(readRegularFileSync(path, 'utf-8'))
   } catch (err) {
     process.stderr.write(`check-milestones: ${MILESTONES_REL} is not valid YAML — ${err.message}\n`)
     return { code: 2 }
