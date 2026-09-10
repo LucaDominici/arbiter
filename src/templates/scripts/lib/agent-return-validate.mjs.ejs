@@ -13,7 +13,7 @@
 // silent pass.
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 
 /**
  * Resolve a $ref within the root schema (only local "#/$defs/Name" refs supported).
@@ -385,7 +385,7 @@ export function validateSchema(value, schemaNode, rootSchema, path) {
  */
 function isGitRepo(repoRoot) {
   try {
-    const out = execSync('git rev-parse --is-inside-work-tree', {
+    const out = execFileSync('git', ['rev-parse', '--is-inside-work-tree'], {
       cwd: repoRoot,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -398,11 +398,8 @@ function isGitRepo(repoRoot) {
 }
 
 /**
- * Resolve a citation against the envelope sha.
- * Production (git repo): `git cat-file -e <sha>:<file>` must succeed and the file content
- * at that sha must have >= `line` lines. Fail-closed — a bad sha or missing file at the
- * sha is a rejection, never a silent pass.
- * Non-git fixture dirs: fall back to the filesystem (test harness, not a real repo).
+ * Resolve a literal citation at the envelope SHA; reject missing files or lines.
+ * Non-Git fixtures use the filesystem.
  * @param {string} repoRoot
  * @param {string} sha
  * @param {string} file
@@ -412,7 +409,7 @@ function isGitRepo(repoRoot) {
 export function resolveCitation(repoRoot, sha, file, line) {
   if (isGitRepo(repoRoot)) {
     try {
-      execSync(`git cat-file -e ${sha}:${file}`, {
+      execFileSync('git', ['cat-file', '-e', `${sha}:${file}`], {
         cwd: repoRoot,
         encoding: 'utf-8',
         stdio: ['ignore', 'ignore', 'ignore'],
@@ -423,7 +420,7 @@ export function resolveCitation(repoRoot, sha, file, line) {
     }
     let content = ''
     try {
-      content = execSync(`git show ${sha}:${file}`, {
+      content = execFileSync('git', ['show', `${sha}:${file}`], {
         cwd: repoRoot,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],

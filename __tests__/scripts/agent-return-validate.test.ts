@@ -232,7 +232,7 @@ describe.each(['self', 'emitted'])('#2632 citation arguments (%s)', (projection)
         execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
       git(['init', '-q'])
       git(['config', 'user.name', 'Fixture'])
-      git(['config', 'user.email', 'fixture@example.invalid'])
+      git(['config', 'user.email', 'test@arbiter.dev'])
       for (const file of ['source.txt', 'literal space.txt', 'literal$(true).txt']) {
         writeFileSync(join(root, file), 'first\nsecond\n')
       }

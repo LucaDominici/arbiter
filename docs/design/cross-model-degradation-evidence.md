@@ -1,8 +1,8 @@
 ---
 title: 'Cross-Model Degradation Evidence — dispatch artifact, gate and model_diversity axis'
-doc_version: '0.1.0'
+doc_version: '0.1.1'
 status: draft
-last_review: '2026-08-26'
+last_review: '2026-09-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -58,6 +58,13 @@ There is also a parity loop to close: how many external slots each tier gets mus
 `reason` is a **closed enum**: `cli-not-found | not-authenticated | consent-absent | disabled-by-env | timeout | nonzero-exit | coercion-failed | envelope-rejected | diff-truncated`.
 
 **Gate** — `scripts/check-cross-model-review.mjs`, wired into `check-all.mjs` as `runWarnCheck`.
+
+The explicit `--require-fulfilled` mode fails when review is not enabled, including an
+existing configuration with no `crossModelReview` property; ordinary optional invocation
+retains its canonical SKIP. Environment enablement still reaches evidence validation.
+Citation resolution shared by the recorder and review gates passes Git arguments directly
+without a shell, so citation paths remain literal while immutable-SHA and line checks apply
+(#2632).
 
 **Dispatch axis** — `.claude/agent-dispatch-matrix.json` gains a top-level `model_diversity: { XS: 0, S: 0, Standard: 1 }`, with parity asserted against the code.
 

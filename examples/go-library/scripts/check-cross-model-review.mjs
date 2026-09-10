@@ -217,6 +217,7 @@ const configuredCrossModel = config.crossModelReview
 let crossModel
 if (configuredCrossModel === undefined) {
   if (envOverride !== true) {
+    if (requireFulfilled) fail('cross-model review is not enabled')
     process.stdout.write('[SKIP] [check-cross-model-review] skipped: crossModelReview not enabled\n')
     process.exit(0)
   }
