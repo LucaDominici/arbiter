@@ -17,6 +17,7 @@ import { resolve } from 'node:path'
 import { classifyPackSize, WARN_BYTES, HARD_CAP_BYTES } from '../../scripts/check-pack-size.mjs'
 
 describe('classifyPackSize — threshold/exit-code contract (#1491/B6)', () => {
+  const retainedTarballBytes = 4_991_083
   const underWarn = WARN_BYTES - 1
   const inWarnBand = WARN_BYTES + 1
   const overCap = HARD_CAP_BYTES + 1
@@ -24,6 +25,12 @@ describe('classifyPackSize — threshold/exit-code contract (#1491/B6)', () => {
   it('thresholds are ordered warn < hard-cap and match issue #511 (5 MB cap)', () => {
     expect(WARN_BYTES).toBeLessThan(HARD_CAP_BYTES)
     expect(HARD_CAP_BYTES).toBe(5 * 1024 * 1024)
+  })
+
+  it('keeps the measured retained tarball below the calibrated warning threshold (#2652)', () => {
+    expect(WARN_BYTES).toBe(5_000_000)
+    expect(HARD_CAP_BYTES - WARN_BYTES).toBe(242_880)
+    expect(classifyPackSize(retainedTarballBytes, 'strict')).toEqual({ level: 'ok', exitCode: 0 })
   })
 
   it('under warn → OK, exit 0, in every mode', () => {
