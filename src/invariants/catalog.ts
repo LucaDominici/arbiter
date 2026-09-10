@@ -2916,7 +2916,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'stays `staged` in the ID registry until its CLI verb (arbiter sources) and its SOTA-required ' +
       'hook land with tiers 2 and 3 — neither exists yet, so neither is cited here as enforcement. ' +
       'Verified by ' +
-      "__tests__/scripts/check-sources.test.ts (12 cases) and tamper-proven on arbiter's own two " +
+      "__tests__/scripts/check-sources.test.ts (16 cases) and tamper-proven on arbiter's own two " +
       'recorded sources in both directions: editing an excerpt so the quote still appears but the ' +
       'hash drifts fails, and claiming a quote the source never made fails. exit 0=PASS or SKIP, ' +
       '1=violation, 2=ERROR per INV-53.',

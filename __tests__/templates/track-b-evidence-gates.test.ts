@@ -77,6 +77,11 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
     return { status: r.status ?? -1, out: (r.stdout ?? '') + (r.stderr ?? '') }
   }
 
+  const git = (args: string[]): void => {
+    const r = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' })
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`)
+  }
+
   const writeSources = (over: Record<string, unknown> = {}, excerpt = EXCERPT): void => {
     mkdirSync(join(dir, 'docs', 'sources', 'excerpts'), { recursive: true })
     writeFileSync(join(dir, 'docs', 'sources', 'excerpts', 'SRC-001.txt'), excerpt)
@@ -107,6 +112,7 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
         '',
       ].join('\n'),
     )
+    git(['add', '--all'])
   }
 
   const writeMatrix = (status: string): void => {
@@ -159,6 +165,9 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-trackb-'))
+    git(['init', '--quiet'])
+    git(['config', 'user.email', 'arbiter@example.invalid'])
+    git(['config', 'user.name', 'Arbiter test'])
     emit()
   })
   afterEach(() => rmSync(dir, { recursive: true, force: true }))

@@ -17,7 +17,7 @@
  * a pre-commit hook and on a machine with no credentials.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -114,6 +114,20 @@ describe('check-sources.mjs tier 1 (#2480)', () => {
     const outside = resolve(dir, '..', 'outside-source-excerpt.txt')
     writeFileSync(outside, EXCERPT)
     write([source({ excerpt_path: '../outside-source-excerpt.txt' })])
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/outside.*repositor/i)
+    rmSync(outside, { force: true })
+  })
+
+  it('refuses an in-repository symlink whose target resolves outside the repository', () => {
+    const outside = resolve(dir, '..', 'outside-source-symlink-target.txt')
+    const excerpt = join(dir, 'docs', 'sources', 'excerpts', 'SRC-001.txt')
+    writeFileSync(outside, EXCERPT)
+    write([source()])
+    unlinkSync(excerpt)
+    symlinkSync(outside, excerpt)
+    git(['add', '--all'])
     const r = run()
     expect(r.status).toBe(1)
     expect(r.out).toMatch(/outside.*repositor/i)

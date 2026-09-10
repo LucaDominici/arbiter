@@ -3,8 +3,8 @@
 // CATALOG: validates docs/internal/PRODUCT/SOURCES.md — the SOTA source registry — against
 // CATALOG: schemas/source-record.schema.json, then proves the one property that separates a
 // CATALOG: certified source from a decorative bibliography entry: every quoted span this project
-// CATALOG: claims is a LITERAL substring of a committed excerpt whose sha256 matches what was
-// CATALOG: recorded. Deterministic, offline, no model in the loop.
+// CATALOG: claims is a LITERAL substring of a repository-contained excerpt whose sha256 matches
+// CATALOG: what was recorded. Deterministic, offline, no model in the loop.
 // CATALOG: rejected fold-in into check-id-registry.mjs because that gate proves the SRC *scheme*
 // CATALOG: is registered and collision-free; this one reads the instances and their evidence.
 // CATALOG: rejected fold-in into check-doc-set.mjs because presence and mtime freshness say
@@ -35,8 +35,9 @@
 // Exports for unit tests: extractSourcesBlock, findDuplicateSourceIds, checkExcerptEvidence
 
 import { readRegularFileSync } from './lib/run-helpers.mjs'
-import { existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { existsSync, realpathSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
@@ -91,15 +92,46 @@ export function checkExcerptEvidence(source, root) {
   const violations = []
   if (!rel) return [`${id}: no excerpt_path — a source with no committed excerpt cannot be checked`]
   const abs = resolve(root, rel)
+  if (!isContained(root, abs)) {
+    return [`${id}: excerpt path ${rel} resolves outside the repository`]
+  }
   if (!existsSync(abs)) {
     return [
       `${id}: excerpt file ${rel} does not exist — the quotation has nothing to check against`,
+    ]
+  }
+  if (!isContained(realpathSync(root), realpathSync(abs))) {
+    return [`${id}: excerpt path ${rel} resolves outside the repository`]
+  }
+  if (!isGitIndexed(root, rel)) {
+    return [
+      `${id}: excerpt file ${rel} is not tracked by Git — commit it, or stage a newly added ` +
+        `excerpt before this pre-commit check`,
     ]
   }
   const raw = readRegularFileSync(abs)
   violations.push(...hashMismatch(id, raw, String(source['content_hash'])))
   violations.push(...unquotedCitations(id, raw.toString('utf-8'), rel, source['citations']))
   return violations
+}
+
+/** True when candidate is within root, including root itself. */
+function isContained(root, candidate) {
+  const path = relative(root, candidate)
+  return path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path)
+}
+
+/** Git-index membership accepts both committed files and files staged for their first commit. */
+function isGitIndexed(root, rel) {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', rel], {
+      cwd: root,
+      stdio: ['ignore', 'ignore', 'ignore'],
+    })
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** The excerpt must still BE the excerpt that was read. @returns {string[]} */
