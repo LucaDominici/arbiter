@@ -342,9 +342,9 @@ export function gapsByColumn(perColumnSlots) {
   return out
 }
 
-function loadJson(path, label) {
+function loadObject(path, label, parse = JSON.parse) {
   try {
-    const value = JSON.parse(readRegularFileSync(path, 'utf-8'))
+    const value = parse(readRegularFileSync(path, 'utf-8'))
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       throw new Error('expected an object')
     }
@@ -358,16 +358,9 @@ function loadJson(path, label) {
 function resolveArc42Path(root) {
   const manifestPath = join(root, MANIFEST_REL)
   if (!existsSync(manifestPath)) return { skip: `no manifest at ${MANIFEST_REL}` }
-  let manifest
-  try {
-    manifest = parseYaml(readRegularFileSync(manifestPath, 'utf-8'))
-    if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
-      throw new Error('expected an object')
-    }
-  } catch (err) {
-    process.stderr.write(`check-arc42-slots: ERROR — ${MANIFEST_REL}: ${err.message}\n`)
-    return { code: 2 }
-  }
+  const loaded = loadObject(manifestPath, MANIFEST_REL, parseYaml)
+  if (loaded.code !== undefined) return loaded
+  const manifest = loaded.value
   // The path list is READ from the arc42 row rather than restated here, so this gate and
   // check-doc-set.mjs can never disagree about where a project's architecture document lives.
   const row = (manifest.checks || []).find((c) => c.template === 'arc42')
@@ -650,7 +643,7 @@ function loadContext(root, skeletonRoot) {
   const { rel: skeletonRel, slots: fromSkeleton } = skeletonSlots(skeletonRoot, column)
 
   const baselinePath = join(root, BASELINE_REL)
-  const loaded = existsSync(baselinePath) ? loadJson(baselinePath, BASELINE_REL) : { value: {} }
+  const loaded = existsSync(baselinePath) ? loadObject(baselinePath, BASELINE_REL) : { value: {} }
   if (loaded.code !== undefined) return { code: loaded.code }
   return {
     column,

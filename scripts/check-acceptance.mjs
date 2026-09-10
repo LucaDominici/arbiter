@@ -137,9 +137,9 @@ function checkExplicitFitArg(root, args, criteriaIds) {
   return 0
 }
 
-// Resolve {state, phase} from status.json; returns { exit } when the gate should
+// Read record-shaped state from status.json; return { exit } when the gate should
 // stop early (vacuous SKIP or fail-closed ERROR).
-function resolveTaskPhase(root) {
+function loadTaskState(root) {
   const statusPath = join(root, '.claude', '.task', 'status.json')
   try {
     lstatSync(statusPath)
@@ -162,9 +162,16 @@ function resolveTaskPhase(root) {
     )
     return { exit: 2 }
   }
+  return { state }
+}
+
+function resolveTaskPhase(root) {
+  const loaded = loadTaskState(root)
+  if (loaded.exit !== undefined) return loaded
+  const { state } = loaded
   // Mirror task-state.ts normalizePhase: absent/empty phase is a legal fresh state
   // (preflight), 'implementation' is the legacy alias for red.
-  let phase = typeof state?.phase === 'string' && state.phase !== '' ? state.phase : 'preflight'
+  let phase = typeof state.phase === 'string' && state.phase !== '' ? state.phase : 'preflight'
   if (phase === 'implementation') phase = 'red'
   if (PRE_PHASES.has(phase)) {
     console.log(`SKIP check-acceptance: phase ${phase} precedes the anchor contract`)
