@@ -19,7 +19,17 @@ import {
   appendLog,
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
-import { evaluateMerged, type PrSnapshot } from './pr-merged.js'
+import {
+  evaluateMerged,
+  evaluateQualifiedCompletion,
+  successfulPostMainCi,
+  type PrSnapshot,
+} from './pr-merged.js'
+import {
+  hasRawGitHubPermission,
+  resolveDirectCompletionPolicy,
+  resolveEvidenceCompletionPolicy,
+} from './completion-policy.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
 import { evaluateSeedSize, resolveTrainLimits } from './ship-train.js'
 import { UserFacingError } from '../utils/errors.js'
@@ -66,6 +76,10 @@ export interface TaskAdvanceOptions {
   pr?: number
   /** Test seam for the `gh pr list` reader, so the gate is testable without a network. */
   readPrs?: (branch: string, dir: string) => PrSnapshot[]
+  /** Test seam for proving a merged PR remains reachable from current origin/main. */
+  isMergeReachable?: (mergeSha: string, dir: string) => boolean
+  /** Test seam for the current commit CI reader used by direct landing. */
+  readCommitCi?: (sha: string, dir: string) => NonNullable<PrSnapshot['statusCheckRollup']>
 }
 
 /** Current phase from the unified document (`preflight` for a fresh tree). */
@@ -491,7 +505,7 @@ function readBranchPrs(branch: string, dir: string, candidateSha?: string): PrSn
       '--state',
       'all',
       '--json',
-      'number,state,mergeStateStatus,statusCheckRollup,headRefOid,mergeCommit,mergedAt',
+      'number,state,mergeStateStatus,statusCheckRollup,headRefOid,mergeCommit,mergedAt,baseRefName',
     ],
     { cwd: dir, timeoutMs: 30_000 },
   ).stdout
@@ -511,7 +525,7 @@ const COMMIT_CI_QUERY = `query($owner:String!,$name:String!,$sha:GitObjectID!,$e
     statusCheckRollup { contexts(first:100,after:$endCursor) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        ... on CheckRun { name conclusion completedAt checkSuite { createdAt } }
+        ... on CheckRun { name conclusion completedAt checkSuite { createdAt branch workflowRun { event } } }
         ... on StatusContext { context state createdAt }
       }
     } }
@@ -620,6 +634,17 @@ function prGateSnapshots(
  */
 function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
   if (opts.noPr === true) {
+    const rawConfig = readRawArbiterConfig(dir)
+    const policy = resolveDirectCompletionPolicy(rawConfig)
+    if (!policy.ok) throw prGateRefusal(policy.reason)
+    if (!hasRawGitHubPermission(rawConfig)) {
+      throw prGateRefusal('direct post-main CI requires raw permitGitHub: true.')
+    }
+    const head = assertDirectHeadOnMain(dir)
+    const checks = opts.readCommitCi?.(head, dir) ?? readCommitCi(head, dir)
+    if (!successfulPostMainCi(checks)) {
+      throw prGateRefusal('direct post-main CI cannot establish a successful candidate result.')
+    }
     appendLog(dir, 'complete ← no-pr (direct landing)')
     return true
   }
@@ -632,17 +657,66 @@ function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
   return false
 }
 
+function assertDirectHeadOnMain(dir: string): string {
+  try {
+    const head = runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 15_000 }).stdout.trim()
+    const main = runCli('git', ['rev-parse', 'origin/main'], { cwd: dir, timeoutMs: 15_000 }).stdout.trim()
+    if (head !== main) throw prGateRefusal('direct landing HEAD does not match current origin/main.')
+    return head
+  } catch (err) {
+    if (err instanceof UserFacingError) throw err
+    throw prGateRefusal(
+      `direct landing cannot prove current origin/main (${err instanceof Error ? err.message : String(err)}).`,
+    )
+  }
+}
+
 function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?: string): void {
+  if (candidateSha !== undefined && opts.noPr !== true) {
+    const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir))
+    if (!policy.ok) throw prGateRefusal(policy.reason)
+    if (policy.policy === 'direct') throw prGateRefusal('direct completion requires --no-pr.')
+  }
   if (prGateSkipped(dir, opts)) return
   const branch = prGateBranch(dir)
-  const verdict = evaluateMerged(
-    prGateSnapshots(dir, branch, opts, candidateSha),
-    branch,
-    opts.pr,
-    candidateSha,
-  )
+  const snapshots = prGateSnapshots(dir, branch, opts, candidateSha)
+  const verdict = candidateSha === undefined
+    ? evaluateMerged(snapshots, branch, opts.pr)
+    : evaluateHarnessCompletion(dir, snapshots, candidateSha, opts)
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
   appendLog(dir, `complete ← PR #${verdict.number} MERGED`)
+}
+
+function evaluateHarnessCompletion(
+  dir: string,
+  snapshots: readonly PrSnapshot[],
+  candidateSha: string,
+  opts: TaskAdvanceOptions,
+) {
+  const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir))
+  if (!policy.ok) return { merged: false as const, detail: policy.reason }
+  if (policy.policy === 'direct') {
+    return { merged: false as const, detail: 'direct completion requires --no-pr.' }
+  }
+  if (policy.policy === 'legacy') {
+    return { merged: false as const, detail: 'evidenceHarness requires an explicit completion policy.' }
+  }
+  const merged = snapshots.find(
+    (pr) => pr.state === 'MERGED' && pr.headRefOid === candidateSha && pr.mergeCommit?.oid,
+  )
+  const reachable = merged
+    ? (opts.isMergeReachable?.(merged.mergeCommit!.oid, dir) ?? isMergeReachable(merged.mergeCommit!.oid, dir))
+    : false
+  return evaluateQualifiedCompletion(snapshots, candidateSha, policy.policy, reachable, opts.pr)
+}
+
+function isMergeReachable(mergeSha: string, dir: string): boolean {
+  try {
+    runCli('git', ['merge-base', '--is-ancestor', mergeSha, 'origin/main'], { cwd: dir, timeoutMs: 15_000 })
+    return true
+  } catch {
+    return false
+  }
 }
 
 function checkCompletionEvidence(dir: string): string | undefined {
@@ -662,6 +736,24 @@ function checkCompletionEvidence(dir: string): string | undefined {
   })
   if (!verdict.ok) throw new Error(verdict.reason)
   return runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 15_000 }).stdout.trim()
+}
+
+function checkEvidenceCompletionPreflight(dir: string): void {
+  const config = loadConfig(dir)
+  if (config?.features.evidenceHarness !== true) return
+  const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir))
+  if (!policy.ok) throw new Error(`completion policy: ${policy.reason}`)
+}
+
+function readRawArbiterConfig(dir: string): unknown {
+  try {
+    return JSON.parse(readFileTranslated(join(dir, 'arbiter.json'), 'utf-8'))
+  } catch (err) {
+    throw new Error(
+      `completion policy cannot read raw arbiter.json: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    )
+  }
 }
 
 function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
@@ -748,6 +840,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
   const phaseGates: Partial<Record<TaskPhase, () => void>> = {
     plan: () => {
       checkTaskSeededGate(dir)
+      checkEvidenceCompletionPreflight(dir)
     },
     'red-team-review': () => {
       // Leaving `plan`: its row promises a plan-review dispatch writing a PASS verdict.

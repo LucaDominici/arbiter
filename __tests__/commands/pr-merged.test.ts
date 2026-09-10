@@ -11,7 +11,12 @@ import { mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'nod
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { evaluateMerged, failingCheckNames, type PrSnapshot } from '../../src/commands/pr-merged'
+import {
+  evaluateMerged,
+  evaluateQualifiedCompletion,
+  failingCheckNames,
+  type PrSnapshot,
+} from '../../src/commands/pr-merged'
 import { runTaskAdvance } from '../../src/commands/task'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state'
 import { writeGatePassEvidence } from '../helpers.js'
@@ -234,6 +239,8 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     (state) => {
       const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
       config.features.evidenceHarness = true
+      config.collaborationMode = 'trunk-solo'
+      config.solo = { mergeMode: 'pr-ff' }
       writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
       mkdirSync(join(dir, 'src'))
       writeFileSync(join(dir, 'src/main.ts'), 'export const value = 1\n')
@@ -254,12 +261,14 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
         runTaskAdvance({
           to: 'complete',
           dir,
+          isMergeReachable: () => true,
           readPrs: () => {
             remoteReads += 1
             return [
               {
                 number: 7,
                 state: 'MERGED',
+                baseRefName: 'main',
                 headRefOid: sha,
                 mergeCommit: { oid: sha },
                 mergedAt: '2026-09-09T18:36:22Z',
@@ -288,6 +297,64 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     },
   )
 
+  it('AC-2: completes a gated-review receipt when its distinct merge reached main', () => {
+    const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
+    config.features.evidenceHarness = true
+    config.collaborationMode = 'gated-review'
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
+    mkdirSync(join(dir, 'src'))
+    writeFileSync(join(dir, 'src/main.ts'), 'export const value = 1\n')
+    writeGatePassEvidence(dir, { taskId: '#2402', level: 'L3' })
+    execFileSync('node', [join(process.cwd(), 'scripts/done-evidence.mjs')], { cwd: dir })
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    runTaskAdvance({
+      to: 'complete',
+      dir,
+      isMergeReachable: () => true,
+      readPrs: () => [
+        {
+          number: 7,
+          state: 'MERGED',
+          baseRefName: 'main',
+          headRefOid: sha,
+          mergeCommit: { oid: 'b'.repeat(40) },
+          mergedAt: '2026-09-09T18:36:22Z',
+          statusCheckRollup: [
+            {
+              name: 'CI',
+              conclusion: 'SUCCESS',
+              completedAt: '2026-09-09T18:36:05Z',
+              checkSuite: { createdAt: '2026-09-09T18:26:48Z' },
+            },
+          ],
+        },
+      ],
+    })
+    expect(readUnifiedState(dir)?.phase).toBe('complete')
+  })
+
+  it('AC-4: refuses an evidence receipt when raw GitHub permission is withdrawn', () => {
+    const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
+    config.features.evidenceHarness = true
+    config.collaborationMode = 'gated-review'
+    config.permitGitHub = false
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
+    mkdirSync(join(dir, 'src'))
+    writeFileSync(join(dir, 'src/main.ts'), 'export const value = 1\n')
+    writeGatePassEvidence(dir, { taskId: '#2402', level: 'L3' })
+    execFileSync('node', [join(process.cwd(), 'scripts/done-evidence.mjs')], { cwd: dir })
+    expect(() =>
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        readPrs: () => {
+          throw new Error('a denied GitHub route must not read PRs')
+        },
+      }),
+    ).toThrow(/permitGitHub/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
   it('AC-2402.1: a merged PR completes, and the log records which PR it was', () => {
     runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] })
     expect(readUnifiedState(dir)?.phase).toBe('complete')
@@ -308,17 +375,139 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     ).toThrow(/PR #9/)
   })
 
-  it('AC-2402.1: --no-pr completes without a PR and LOGS the direct landing', () => {
+  it('AC-3: --no-pr refuses a peer-review landing before reading PRs', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(validConfig({ permitGitHub: true, collaborationMode: 'peer-review' })),
+    )
+    stampMarker()
+    expect(() =>
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        noPr: true,
+        readPrs: () => {
+          throw new Error('the reader must not run under --no-pr')
+        },
+      }),
+    ).toThrow(/--no-pr.*trunk-solo/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('AC-3: --no-pr direct refuses a migrated useGitHub alias', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(
+        validConfig({
+          useGitHub: true,
+          collaborationMode: 'trunk-solo',
+          solo: { mergeMode: 'direct' },
+        }),
+      ),
+    )
+    stampMarker()
+    expect(() => runTaskAdvance({ to: 'complete', dir, noPr: true })).toThrow(/raw permitGitHub/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('AC-3: --no-pr direct refuses without current origin/main proof', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(
+        validConfig({
+          permitGitHub: true,
+          collaborationMode: 'trunk-solo',
+          solo: { mergeMode: 'direct' },
+        }),
+      ),
+    )
+    stampMarker()
+    expect(() => runTaskAdvance({ to: 'complete', dir, noPr: true })).toThrow(/origin\/main/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('AC-3: --no-pr direct refuses without a successful post-main CI result', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(
+        validConfig({
+          permitGitHub: true,
+          collaborationMode: 'trunk-solo',
+          solo: { mergeMode: 'direct' },
+        }),
+      ),
+    )
+    stampMarker()
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', sha], { cwd: dir })
+    expect(() =>
+      runTaskAdvance({ to: 'complete', dir, noPr: true, readCommitCi: () => [] }),
+    ).toThrow(/post-main CI/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('AC-3: --no-pr direct completes with current main and successful post-main CI', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(
+        validConfig({
+          permitGitHub: true,
+          collaborationMode: 'trunk-solo',
+          solo: { mergeMode: 'direct' },
+        }),
+      ),
+    )
+    stampMarker()
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    const ciCreatedAt = new Date(Date.now() - 120_000).toISOString()
+    const ciCompletedAt = new Date(Date.now() - 60_000).toISOString()
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', sha], { cwd: dir })
     runTaskAdvance({
       to: 'complete',
       dir,
       noPr: true,
-      readPrs: () => {
-        throw new Error('the reader must not run under --no-pr')
-      },
+      readCommitCi: () => [
+        {
+          name: 'CI',
+          conclusion: 'SUCCESS',
+          completedAt: ciCompletedAt,
+          checkSuite: { createdAt: ciCreatedAt, branch: 'main', workflowRun: { event: 'push' } },
+        },
+      ],
     })
     expect(readUnifiedState(dir)?.phase).toBe('complete')
-    expect(log()).toContain('complete ← no-pr (direct landing)')
+  })
+
+  it('AC-3: --no-pr direct rejects CI not triggered by a main push', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(
+        validConfig({
+          permitGitHub: true,
+          collaborationMode: 'trunk-solo',
+          solo: { mergeMode: 'direct' },
+        }),
+      ),
+    )
+    stampMarker()
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', sha], { cwd: dir })
+    expect(() =>
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        noPr: true,
+        readCommitCi: () => [
+          {
+            name: 'CI',
+            conclusion: 'SUCCESS',
+            completedAt: new Date(Date.now() - 60_000).toISOString(),
+            checkSuite: { branch: 'main', workflowRun: { event: 'pull_request' } },
+          },
+        ],
+      }),
+    ).toThrow(/post-main CI/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
   })
 
   it('skips the gate for a repo that declares it does not use GitHub', () => {
@@ -355,6 +544,22 @@ describe('#2615 candidate landing identity', () => {
       mergedAt,
       statusCheckRollup: [ci()],
     })
+  it('AC-2: accepts a reviewed PR whose qualified head and merge commit differ on main', () => {
+    expect(
+      evaluateQualifiedCompletion(
+        [
+          {
+            ...landed(),
+            baseRefName: 'main',
+            mergeCommit: { oid: 'b'.repeat(40) },
+          },
+        ],
+        sha,
+        'reviewed-pr',
+        true,
+      ),
+    ).toEqual({ merged: true, number: 7 })
+  })
   it('AC-5 accepts only the qualified candidate with finished green CI', () => {
     expect(evaluateMerged([landed()], BRANCH, undefined, sha).merged).toBe(true)
     expect(
@@ -469,6 +674,7 @@ function exerciseNativeCiReader(dir: string, sha: string): void {
     {
       number: 7,
       state: 'MERGED',
+      baseRefName: 'main',
       headRefOid: sha,
       mergeCommit: { oid: sha },
       mergedAt: '2026-09-09T18:36:22Z',
@@ -482,6 +688,7 @@ function exerciseNativeCiReader(dir: string, sha: string): void {
     },
   })
   try {
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', sha], { cwd: dir })
     process.env.PATH = `${bin}:${originalPath ?? ''}`
     for (const incomplete of [false, true]) {
       writeUnifiedState(dir, { taskId: '#2402', phase: 'close', branch: BRANCH })
@@ -519,7 +726,9 @@ process.stdout.write(JSON.stringify(process.argv[2] === 'pr' ? ${JSON.stringify(
     expect(calls[1]).toEqual(
       expect.arrayContaining(['api', 'graphql', '--paginate', '--slurp', `sha=${sha}`]),
     )
-    expect(calls[1]?.find((arg) => arg.startsWith('query='))).toContain('checkSuite { createdAt }')
+    expect(calls[1]?.find((arg) => arg.startsWith('query='))).toContain(
+      'checkSuite { createdAt branch workflowRun { event } }',
+    )
   } finally {
     if (originalPath === undefined) delete process.env.PATH
     else process.env.PATH = originalPath

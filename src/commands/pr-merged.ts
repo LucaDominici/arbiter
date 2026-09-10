@@ -20,6 +20,7 @@
 export interface PrSnapshot {
   number: number
   state: string
+  baseRefName?: string
   mergeStateStatus?: string
   headRefOid?: string
   mergeCommit?: { oid: string } | null
@@ -27,14 +28,14 @@ export interface PrSnapshot {
   statusCheckRollup?: readonly CiCheck[] | null
 }
 
-interface CiCheck {
+export interface CiCheck {
   name?: string
   context?: string
   conclusion?: string
   state?: string
   createdAt?: string
   completedAt?: string
-  checkSuite?: { createdAt?: string } | null
+  checkSuite?: { createdAt?: string; branch?: string; workflowRun?: { event?: string } | null } | null
 }
 
 export type MergedVerdict = { merged: true; number: number } | { merged: false; detail: string }
@@ -113,17 +114,54 @@ function evaluateQualifiedMerged(
   candidateSha: string,
   explicitPr?: number,
 ): MergedVerdict {
+  return evaluateQualifiedCompletionInternal(prs, candidateSha, 'exact-pr', true, explicitPr, false)
+}
+
+export function evaluateQualifiedCompletion(
+  prs: readonly PrSnapshot[],
+  candidateSha: string,
+  policy: 'exact-pr' | 'reviewed-pr',
+  mergeReachableFromMain: boolean,
+  explicitPr?: number,
+): MergedVerdict {
+  return evaluateQualifiedCompletionInternal(
+    prs,
+    candidateSha,
+    policy,
+    mergeReachableFromMain,
+    explicitPr,
+    true,
+  )
+}
+
+function evaluateQualifiedCompletionInternal(
+  prs: readonly PrSnapshot[],
+  candidateSha: string,
+  policy: 'exact-pr' | 'reviewed-pr',
+  mergeReachableFromMain: boolean,
+  explicitPr: number | undefined,
+  requireMainBase: boolean,
+): MergedVerdict {
   const candidate = prs.find(
     (pr) =>
       pr.state === 'MERGED' &&
       pr.headRefOid === candidateSha &&
       (explicitPr === undefined || pr.number === explicitPr),
   )
-  if (!candidate || candidate.mergeCommit?.oid !== candidateSha) {
+  if (!candidate || !candidate.mergeCommit?.oid) {
     return {
       merged: false,
-      detail: 'Merged PR head/merge refs do not match the qualified candidate SHA.',
+      detail: 'Merged PR does not carry the qualified candidate head and merge refs.',
     }
+  }
+  if (requireMainBase && candidate.baseRefName !== 'main') {
+    return { merged: false, detail: 'Merged PR does not target main.' }
+  }
+  if (!mergeReachableFromMain) {
+    return { merged: false, detail: 'Merged PR commit is not reachable from current origin/main.' }
+  }
+  if (policy === 'exact-pr' && candidate.mergeCommit.oid !== candidateSha) {
+    return { merged: false, detail: 'Merged PR head/merge refs do not match the qualified candidate SHA.' }
   }
   const cutoff = Date.parse(candidate.mergedAt ?? '')
   if (!Number.isFinite(cutoff) || !successfulCiAtMerge(candidate.statusCheckRollup ?? [], cutoff)) {
@@ -157,6 +195,22 @@ function successfulCiAtMerge(checks: readonly CiCheck[], cutoff: number): boolea
     const outcome = check.conclusion ?? check.state ?? ''
     if (!['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(outcome)) return false
     if (!finishedBeforeMerge(check, cutoff)) return false
+    if (outcome === 'SUCCESS') success = true
+  }
+  return success
+}
+
+export function successfulPostMainCi(checks: readonly CiCheck[]): boolean {
+  let success = false
+  for (const check of checks) {
+    if (check.checkSuite?.branch !== 'main' || check.checkSuite.workflowRun?.event !== 'push') {
+      return false
+    }
+    const completed = Date.parse(check.completedAt ?? '')
+    const outcome = check.conclusion ?? check.state ?? ''
+    if (!Number.isFinite(completed) || completed > Date.now() || !['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(outcome)) {
+      return false
+    }
     if (outcome === 'SUCCESS') success = true
   }
   return success

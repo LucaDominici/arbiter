@@ -257,6 +257,7 @@ issue. Six sources:
 5. **Review/security** — the review verticals and security surfaces the diff will face.
 6. **Dependencies** — modules/contracts the slice touches (blast radius via `/impact`).
 
+Record `landing route supported: yes/no` and, when no, the blocking reason.
 Adversarial review runs against this contract **before push**. Pricing the constraint set
 in before the first line is what kills accordion PRs (write → review reveals a missed
 constraint → rewrite → repeat).

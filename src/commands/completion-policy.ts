@@ -14,20 +14,21 @@ function refusal(reason: string): EvidenceCompletionPolicyResolution {
   return { ok: false, reason }
 }
 
+export function hasRawGitHubPermission(rawConfig: unknown): boolean {
+  if (!isRecord(rawConfig)) return false
+  return rawConfig['permitGitHub'] === true
+}
+
 function rawPermitGitHub(config: Record<string, unknown>): boolean {
-  return config['permitGitHub'] === true
+  return hasRawGitHubPermission(config)
 }
 
 /**
  * Resolve the completion route from stored config without applying compatibility defaults.
  * The exact-SHA watcher has a separate mutation contract in scripts/lib/exact-sha-policy.mjs.
  */
-export function resolveEvidenceCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
+function resolveExplicitCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
   if (!isRecord(rawConfig)) return refusal('completion policy requires an object arbiter.json')
-  const features = rawConfig['features']
-  if (!isRecord(features)) return refusal('completion policy requires an object features config')
-  if (features['evidenceHarness'] !== true) return { ok: true, policy: 'legacy' }
-
   const mode = rawConfig['collaborationMode']
   if (mode === 'peer-review' || mode === 'gated-review') {
     return rawPermitGitHub(rawConfig)
@@ -39,11 +40,32 @@ export function resolveEvidenceCompletionPolicy(rawConfig: unknown): EvidenceCom
   }
   const solo = rawConfig['solo']
   if (!isRecord(solo)) return refusal('trunk-solo completion requires an explicit solo.mergeMode')
-  if (solo['mergeMode'] === 'direct') return { ok: true, policy: 'direct' }
+  if (solo['mergeMode'] === 'direct') {
+    return rawPermitGitHub(rawConfig)
+      ? { ok: true, policy: 'direct' }
+      : refusal('direct completion requires raw permitGitHub: true')
+  }
   if (solo['mergeMode'] === 'pr-ff') {
     return rawPermitGitHub(rawConfig)
       ? { ok: true, policy: 'exact-pr' }
       : refusal('exact completion requires raw permitGitHub: true')
   }
   return refusal('trunk-solo completion requires solo.mergeMode direct or pr-ff')
+}
+
+export function resolveEvidenceCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
+  if (!isRecord(rawConfig)) return refusal('completion policy requires an object arbiter.json')
+  const features = rawConfig['features']
+  if (!isRecord(features)) return refusal('completion policy requires an object features config')
+  if (features['evidenceHarness'] !== true) return { ok: true, policy: 'legacy' }
+  return resolveExplicitCompletionPolicy(rawConfig)
+}
+
+export function resolveDirectCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
+  const policy = resolveExplicitCompletionPolicy(rawConfig)
+  if (!policy.ok) return policy
+  if (policy.policy !== 'direct') {
+    return refusal('`--no-pr` requires raw trunk-solo with solo.mergeMode direct')
+  }
+  return policy
 }

@@ -32,6 +32,36 @@ function seed(dir: string, phase: TaskPhase, taskId = '#2435'): void {
   writeUnifiedState(dir, { phase, taskId })
 }
 
+function writeHarnessConfig(dir: string, over: Record<string, unknown> = {}): void {
+  writeFileSync(
+    join(dir, 'arbiter.json'),
+    JSON.stringify({
+      version: '0.2',
+      governanceLevel: 'L2',
+      tools: ['claude'],
+      permitGitHub: true,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: true,
+        debtGates: true,
+        suppressions: true,
+      },
+      thresholds: {
+        lineCoverage: 80,
+        branchCoverage: 70,
+        mutationScore: 80,
+        cyclomaticComplexity: 15,
+        methodLength: 65,
+        maxParams: 7,
+      },
+      ...over,
+    }),
+    'utf-8',
+  )
+}
+
 function enablePlanReview(dir: string): void {
   mkdirSync(join(dir, '.arbiter'), { recursive: true })
   writeFileSync(join(dir, '.arbiter', 'plan-review.enabled'), '', 'utf-8')
@@ -81,6 +111,54 @@ describe('advance --to plan — preflight must actually have seeded task state (
     seed(dir, 'preflight')
     runTaskAdvance({ to: 'plan', dir })
     expect(readUnifiedState(dir)?.phase).toBe('plan')
+  })
+
+  it('AC-1: refuses a harness without raw collaborationMode before advancing', () => {
+    const dir = tmpRepo()
+    seed(dir, 'preflight', '#2638')
+    writeHarnessConfig(dir)
+    expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/completion policy/i)
+    expect(readUnifiedState(dir)?.phase).toBe('preflight')
+  })
+
+  it('AC-1: refuses malformed raw harness config before advancing', () => {
+    const dir = tmpRepo()
+    seed(dir, 'preflight', '#2638')
+    writeFileSync(join(dir, 'arbiter.json'), '{', 'utf-8')
+    expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow()
+    expect(readUnifiedState(dir)?.phase).toBe('preflight')
+  })
+
+  it('AC-1: refuses an unknown raw collaborationMode before advancing', () => {
+    const dir = tmpRepo()
+    seed(dir, 'preflight', '#2638')
+    writeHarnessConfig(dir, { collaborationMode: 'squad-review' })
+    expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/collaborationMode|validation/i)
+    expect(readUnifiedState(dir)?.phase).toBe('preflight')
+  })
+
+  it('AC-4: rejects migrated useGitHub without raw permitGitHub before advancing', () => {
+    const dir = tmpRepo()
+    seed(dir, 'preflight', '#2638')
+    writeHarnessConfig(dir, {
+      collaborationMode: 'peer-review',
+      permitGitHub: undefined,
+      useGitHub: true,
+    })
+    expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/permitGitHub/i)
+    expect(readUnifiedState(dir)?.phase).toBe('preflight')
+  })
+
+  it('AC-3: rejects raw direct mode without raw permitGitHub before advancing', () => {
+    const dir = tmpRepo()
+    seed(dir, 'preflight', '#2638')
+    writeHarnessConfig(dir, {
+      collaborationMode: 'trunk-solo',
+      solo: { mergeMode: 'direct' },
+      permitGitHub: undefined,
+    })
+    expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/permitGitHub/i)
+    expect(readUnifiedState(dir)?.phase).toBe('preflight')
   })
 })
 

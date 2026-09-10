@@ -131,6 +131,14 @@ describe('ship.md landing + handover (#2402)', () => {
   }
 })
 
+describe('ship.md landing proof (#2638)', () => {
+  for (const path of SHIP_TWINS) {
+    it(`AC-5: ${path} records whether the merge-contract landing route is supported`, () => {
+      expect(flat(path)).toContain('landing route supported: yes/no')
+    })
+  }
+})
+
 describe('drain.md alignment (#2401)', () => {
   for (const path of DRAIN_TWINS) {
     it(`AC-2401.3: ${path} points at ship.md §Train instead of restating it`, () => {
