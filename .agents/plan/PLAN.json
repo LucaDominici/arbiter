@@ -1,72 +1,208 @@
 {
-  "task_id": "#2500",
+  "task_id": "#2627",
   "scope": {
-    "track": "D",
+    "track": "A",
     "paths": [
-      "docs/internal/architecture/ARCHITECTURE.md",
-      "website/comparisons/bmad.md",
-      "website/comparisons/claude-flow.md",
-      "website/comparisons/gsd2.md",
-      "website/comparisons/index.md",
-      "website/comparisons/spec-kit.md",
-      "website/comparisons/superclaude.md",
-      "docs/design/gold-doc-capability.md",
-      "docs/design/gold-doc-tranches-t3-t5.md",
-      "__tests__/docs/comparison-claim-truth.test.ts",
-      ".arbiter/evidence/tdd/#2500.json",
+      "src/templates/scripts/schemas/agent-return-external.schema.json",
+      "__tests__/integrations/external-review.test.ts",
+      "docs/design/cross-model-review-slot.md",
+      "schemas/agent-return-external.schema.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "examples/go-library/.arbiter-generated-manifest.json",
+      "examples/go-library/schemas/agent-return-external.schema.json",
+      "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/python-library/schemas/agent-return-external.schema.json",
+      "examples/ts-library/.arbiter-generated-manifest.json",
+      "examples/ts-library/schemas/agent-return-external.schema.json",
+      ".claude/plans/task-2627-external-schema-strict.md",
       ".agents/plan/PLAN.json",
-      ".claude/plans/task-2500-release-freshness.md",
       ".claude/.task/status.json",
-      ".arbiter/evidence/plan-review/_2500/latest.json",
-      ".arbiter/evidence/ac-fit/2500.json",
-      ".arbiter/agents-dispatched.json",
-      ".arbiter/gate-pass.json",
-      ".arbiter/evidence/agent-returns/_2500"
+      ".arbiter/evidence/tdd/#2627.json",
+      ".arbiter/evidence/ac-fit/2627.json",
+      ".arbiter/evidence/plan-review/_2627/latest.json",
+      ".arbiter/evidence/redteam/#2627.json"
+    ],
+    "boundaries": [
+      "Canonical external structured-output schema compatibility only; no provider workaround, caller/recorder change, consumer change, threshold change, or schema-version change."
     ]
   },
   "files": [
     {
-      "path": "docs/internal/architecture/ARCHITECTURE.md",
+      "path": "src/templates/scripts/schemas/agent-return-external.schema.json",
       "operation": "modify"
     },
     {
-      "path": "website/comparisons/bmad.md",
+      "path": "__tests__/integrations/external-review.test.ts",
       "operation": "modify"
     },
     {
-      "path": "website/comparisons/claude-flow.md",
+      "path": "docs/design/cross-model-review-slot.md",
       "operation": "modify"
     },
     {
-      "path": "website/comparisons/gsd2.md",
+      "path": "schemas/agent-return-external.schema.json",
       "operation": "modify"
     },
     {
-      "path": "website/comparisons/index.md",
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
       "operation": "modify"
     },
     {
-      "path": "website/comparisons/spec-kit.md",
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
       "operation": "modify"
     },
     {
-      "path": "website/comparisons/superclaude.md",
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
       "operation": "modify"
     },
     {
-      "path": "docs/design/gold-doc-capability.md",
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
       "operation": "modify"
     },
     {
-      "path": "docs/design/gold-doc-tranches-t3-t5.md",
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
       "operation": "modify"
     },
     {
-      "path": "__tests__/docs/comparison-claim-truth.test.ts",
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
       "operation": "modify"
     },
     {
-      "path": ".arbiter/evidence/tdd/#2500.json",
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/schemas/agent-return-external.schema.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/schemas/agent-return-external.schema.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/schemas/agent-return-external.schema.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".claude/plans/task-2627-external-schema-strict.md",
       "operation": "create"
     },
     {
@@ -74,31 +210,23 @@
       "operation": "modify"
     },
     {
-      "path": ".claude/plans/task-2500-release-freshness.md",
-      "operation": "create"
-    },
-    {
       "path": ".claude/.task/status.json",
+      "operation": "delete"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2627.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/plan-review/_2500/latest.json",
+      "path": ".arbiter/evidence/ac-fit/2627.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/evidence/ac-fit/2500.json",
+      "path": ".arbiter/evidence/plan-review/_2627/latest.json",
       "operation": "create"
     },
     {
-      "path": ".arbiter/agents-dispatched.json",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/gate-pass.json",
-      "operation": "create"
-    },
-    {
-      "path": ".arbiter/evidence/agent-returns/_2500",
+      "path": ".arbiter/evidence/redteam/#2627.json",
       "operation": "create"
     }
   ],
@@ -110,17 +238,19 @@
     "INV-23",
     "INV-24",
     "INV-25",
-    "INV-27",
-    "INV-28",
+    "INV-26",
+    "INV-45",
+    "INV-48",
     "INV-53",
-    "INV-96",
     "INV-114",
-    "INV-116",
     "INV-138"
   ],
   "review_bridge": {
     "enabled": true,
-    "reviewer": "independent-review",
-    "fail_on_warn": false
-  }
+    "reviewer": "native-plan-preflight",
+    "fail_on_warn": true
+  },
+  "notes": [
+    "Tier Standard: emitted template is staged by the external Codex boundary, requires self-schema byte parity, and drives 30 checked consumer projections. Exact baseline f213d033862bb7dcd37ad6390517cd8a85085610."
+  ]
 }

@@ -1,0 +1,23 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "astra-2627-final-source-review",
+  "role": "reviewer",
+  "taskId": "#2627",
+  "verdict": "PASS",
+  "confidence": 0.97,
+  "findings": [],
+  "refutations": [],
+  "evidenceRefs": [
+    "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-final-source-review.json",
+    "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-final-source-review-audit.json",
+    "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-post-main-integration-equivalence.json"
+  ],
+  "branch": "task/#2627-external-schema-strict",
+  "sha": "1200a034ff8188a51dc26de5ba1c67648edaf852",
+  "ts": "2026-09-10T00:01:54.266Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}

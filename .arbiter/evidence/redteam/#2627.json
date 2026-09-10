@@ -1,0 +1,41 @@
+{
+  "$schema": "RedTeamEvidenceV1",
+  "task_id": "#2627",
+  "tier": "Standard",
+  "verdict": "PASS",
+  "recorded_at": "2026-09-09T23:22:37.222Z",
+  "agents": 3,
+  "angles": [
+    "regression",
+    "execution",
+    "security"
+  ],
+  "reviewers": [
+    {
+      "agent": "astra-2627-regression-redteam",
+      "verdict": "PASS",
+      "dispatch": "subagent",
+      "source": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-redteam-regression.json"
+    },
+    {
+      "agent": "haben789-author-2627-execution-skeptic",
+      "verdict": "PASS",
+      "dispatch": "subagent",
+      "source": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-redteam-execution.json"
+    },
+    {
+      "agent": "2627-security-external-terra",
+      "verdict": "PASS",
+      "dispatch": "external-cli",
+      "source": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-redteam-security.json",
+      "receipt": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-redteam-external-execution.json"
+    }
+  ],
+  "findings": [],
+  "critical": 0,
+  "high": 0,
+  "medium": 0,
+  "suggestion": 0,
+  "refutationMarker": ".arbiter/evidence/agent-returns/_2627/refutation-required.json",
+  "limits": "Security is an actual external CLI red-team invocation. This round admits the schema repair plan only; it is not product structured-output fulfillment."
+}

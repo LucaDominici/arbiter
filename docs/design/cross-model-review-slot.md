@@ -55,7 +55,7 @@ planCrossModelSlots({ tier, phase, totalSlots, verticals, cfg, access }): CrossM
 The external slot **replaces** an Anthropic slot: `external + anthropic === total`, always. If the provider cannot run, that seat **reverts** to Anthropic. This preserves the panel sizes validated by #2176 and keeps `check-review-completion.mjs`'s (#2177) count reconciliation valid. _Rejected_ adding the external slot _on top of_ the panel: it would raise cost and false positives to buy what diversity already delivers, contradicting the study.
 
 **D2 — A reduced external schema, not the full one.**
-The full schema uses `format: date-time`, `pattern`, `minLength`, `minimum/maximum`, which strict structured-output mode does not support. And in any case `branch`/`sha`/`ts` are **stamped by the recorder and never trusted from input** (`record-agent-return.mjs:108-115`). Hence `schemas/agent-return-external.schema.json`: only `verdict`, `confidence`, `findings[]`, `refutations[]` — exactly the part the agent must supply. This is not an exception to the existing design: it is an application of it.
+The reduced `schemas/agent-return-external.schema.json` carries only reviewer `verdict`, `confidence`, `findings[]`, and `refutations[]`; `branch`/`sha`/`ts` are **stamped by the recorder and never trusted from input** (`record-agent-return.mjs:108-115`). Strict structured output requires every declared object field, so a refutation without support uses `citations: []`. This is not an exception to the existing design: it is an application of it.
 
 **D3 — `retries: 0`, never more.**
 Every retry re-egresses the diff to a third party and spends the user's money. A review is not idempotent and must not be repeated blindly. _Rejected_ `runCli`'s retry default.

@@ -1,0 +1,48 @@
+{
+  "taskId": "#2627",
+  "verdict": "PASS",
+  "planDigest": "4d85d2ff6be398c7a973ded7b0e735ed6949859490a05e9efa178043bca66de5",
+  "manifestDigest": "2e9bfa12b4e00579e2eb3e15efd0b230edc8d3b234fc111c902644f1d38ccc74",
+  "recordedAt": "2026-09-10T00:30:29.338439Z",
+  "reviewers": [
+    {
+      "reviewer": "root-runtime-state-review",
+      "role": "reviewer",
+      "verdict": "PASS",
+      "source": "2627-runtime-state-root-review.json"
+    },
+    {
+      "reviewer": "astra-2627-runtime-state-delta-review",
+      "role": "reviewer",
+      "verdict": "PASS",
+      "source": "2627-runtime-state-delta-review.json"
+    }
+  ],
+  "findings": [],
+  "amendment": {
+    "kind": "narrow-runtime-state-ci-recovery",
+    "historicalAdmission": {
+      "planDigest": "17528439a04b9e57b3c25988b8ba09f18bbe3f3943e4df9098f59d80d15013c5",
+      "manifestDigest": "82c68c6a8f56faaaa6778c9847f7747a20cce37bb003cf38c3f87319bd490c2a",
+      "latest": "latest.pre-runtime-state-amendment.json",
+      "reviewsRemainHistorical": true
+    },
+    "delta": {
+      "removedTrackedPath": ".claude/.task/status.json",
+      "manifestOperation": "create -> delete",
+      "localStateRetained": true
+    },
+    "evidence": [
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-runtime-state-ci-recovery-freeze.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-runtime-state-root-review.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-runtime-state-delta-review.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-runtime-state-delta-review-audit.json"
+    ],
+    "authorization": "Parent authorized this CI recovery after independent PASS reviews."
+  },
+  "limits": [
+    "This rebind covers only removal of erroneously tracked checkout-local runtime state.",
+    "Original schema/product reviews and red-team admission remain historical; no product behavior or AC changes.",
+    "The changed candidate requires fresh L1, L3, and CI; prior failures remain retained."
+  ]
+}

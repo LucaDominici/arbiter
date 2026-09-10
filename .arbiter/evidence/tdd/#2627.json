@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2627",
+  "test_path": "__tests__/integrations/external-review.test.ts",
+  "test_commit_sha": "ea163d0ca38118ca46bc4c4c2e48a4153aa7928b",
+  "test_blob_sha": "ea5c2d553672915349dfb02e006390db8c0ae98d",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/integrations/external-review.test.ts (44 tests | 1 failed) 35ms\n     × uses a scratch-only read-only Codex profile and persists only through the recorder (AC-3/AC-4/AC-7) 6ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 43 passed (44)\n   Start at  01:24:20\n   Duration  222ms (transform 83ms, setup 6ms, import 99ms, tests 35ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/integrations/external-review.test.ts > invokeExternalReview (#2357) > uses a scratch-only read-only Codex profile and persists only through the recorder (AC-3/AC-4/AC-7)\nAssertionError: expected [ '$.$defs.Refutation: citations' ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   \"$.$defs.Refutation: citations\",\n+ ]\n\n ❯ __tests__/integrations/external-review.test.ts:504:87\n    502|       ),\n    503|     )\n    504|     expect(strictSchemaMissingRequiredProperties(JSON.parse(stagedSche…\n       |                                                                                       ^\n    505|     const missingCitations = JSON.parse(stagedSchema as string) as {\n    506|       $defs: { Refutation: { required: string[] } }\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/integrations/external-review.test.ts",
+  "recorded_at": "2026-09-09T23:24:20.306Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/integrations/external-review.test.ts"
+  ]
+}
