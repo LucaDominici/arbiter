@@ -1,0 +1,11 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2645",
+  "test_path": "__tests__/scripts/check-all-args.test.ts",
+  "test_commit_sha": "4ffcf7dc1f678fd21ea37ac15ddbcd3280f4e91d",
+  "test_blob_sha": "1f8c84ab707e2b47cfdbf4a7947ad0af3981f83e",
+  "test_run_log": "FAIL  __tests__/scripts/check-all-args.test.ts > parseCheckArgs — subcommands > rejects an unsupported flag before a gate can run (#2645)\nAssertionError: expected [Function] to throw an error\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-all-args.test.ts",
+  "recorded_at": "2026-09-10T10:14:58.000Z",
+  "test_command": ["npx", "vitest", "run", "__tests__/scripts/check-all-args.test.ts"]
+}
