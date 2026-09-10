@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2640",
+  "test_path": "__tests__/commands/pr-merged.test.ts",
+  "test_commit_sha": "d96401990774a039d3e09795d03a737a68bedd82",
+  "test_blob_sha": "dfc0fabb5665780ef9a27d3de34d45ae65de1079",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/commands/pr-merged.test.ts (47 tests | 1 failed) 2549ms\n     × AC-5 native completion consumes an actual capture then handles passed 280ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 46 passed (47)\n   Start at  10:44:11\n   Duration  2.95s (transform 212ms, setup 9ms, import 296ms, tests 2.55s, environment 0ms)\n\n\nstderr | __tests__/commands/pr-merged.test.ts > advance --to complete landing gate (#2402 wiring) > AC-5 native completion consumes an actual capture then handles passed\n\n\n\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/commands/pr-merged.test.ts > advance --to complete landing gate (#2402 wiring) > AC-5 native completion consumes an actual capture then handles passed\nAssertionError: expected 'query=query($owner:String!,$name:Stri…' to contain 'checkSuite { createdAt branch { name …'\n\n- Expected\n+ Received\n\n- checkSuite { createdAt branch { name } workflowRun { event } }\n+ query=query($owner:String!,$name:String!,$sha:GitObjectID!,$endCursor:String) {\n+   repository(owner:$owner,name:$name) { object(oid:$sha) { ... on Commit {\n+     statusCheckRollup { contexts(first:100,after:$endCursor) {\n+       pageInfo { hasNextPage endCursor }\n+       nodes {\n+         ... on CheckRun { name conclusion completedAt checkSuite { createdAt branch workflowRun { event } } }\n+         ... on StatusContext { context state createdAt }\n+       }\n+     } }\n+   } } }\n+ }\n\n ❯ exerciseNativeCiReader __tests__/commands/pr-merged.test.ts:798:63\n    796|       expect.arrayContaining(['api', 'graphql', '--paginate', '--slurp…\n    797|     )\n    798|     expect(calls[1]?.find((arg) => arg.startsWith('query='))).toContai…\n       |                                                               ^\n    799|       'checkSuite { createdAt branch { name } workflowRun { event } }',\n    800|     )\n ❯ __tests__/commands/pr-merged.test.ts:286:9\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/commands/pr-merged.test.ts",
+  "recorded_at": "2026-09-10T08:44:14.813Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/pr-merged.test.ts"
+  ]
+}
