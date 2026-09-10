@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   resolveDirectCompletionPolicy,
   resolveEvidenceCompletionPolicy,
-} from '../../src/commands/completion-policy'
+} from '../../src/commands/pr-merged'
 
 describe('resolveEvidenceCompletionPolicy (#2638)', () => {
   it('AC-1/AC-2: selects reviewed-pr for an explicitly permitted gated-review harness', () => {

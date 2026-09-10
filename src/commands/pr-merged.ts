@@ -42,6 +42,73 @@ export interface CiCheck {
   } | null
 }
 
+export type EvidenceCompletionPolicy = 'exact-pr' | 'reviewed-pr' | 'direct' | 'legacy'
+
+export type EvidenceCompletionPolicyResolution =
+  { ok: true; policy: EvidenceCompletionPolicy } | { ok: false; reason: string }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function refusal(reason: string): EvidenceCompletionPolicyResolution {
+  return { ok: false, reason }
+}
+
+export function hasRawGitHubPermission(rawConfig: unknown): boolean {
+  return isRecord(rawConfig) && rawConfig['permitGitHub'] === true
+}
+
+function resolveExplicitCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
+  if (!isRecord(rawConfig)) return refusal('completion policy requires an object arbiter.json')
+  const mode = rawConfig['collaborationMode']
+  if (mode === 'peer-review' || mode === 'gated-review') {
+    return hasRawGitHubPermission(rawConfig)
+      ? { ok: true, policy: 'reviewed-pr' }
+      : refusal('reviewed completion requires raw permitGitHub: true')
+  }
+  if (mode !== 'trunk-solo') {
+    return refusal('completion policy requires an explicit supported collaborationMode')
+  }
+  const solo = rawConfig['solo']
+  if (!isRecord(solo)) return refusal('trunk-solo completion requires an explicit solo.mergeMode')
+  if (solo['mergeMode'] === 'direct') {
+    return hasRawGitHubPermission(rawConfig)
+      ? { ok: true, policy: 'direct' }
+      : refusal('direct completion requires raw permitGitHub: true')
+  }
+  if (solo['mergeMode'] === 'pr-ff') {
+    return hasRawGitHubPermission(rawConfig)
+      ? { ok: true, policy: 'exact-pr' }
+      : refusal('exact completion requires raw permitGitHub: true')
+  }
+  return refusal('trunk-solo completion requires solo.mergeMode direct or pr-ff')
+}
+
+/** Resolve completion without applying compatibility defaults. */
+export function resolveEvidenceCompletionPolicy(
+  rawConfig: unknown,
+  requireExplicit = false,
+): EvidenceCompletionPolicyResolution {
+  if (!isRecord(rawConfig)) return refusal('completion policy requires an object arbiter.json')
+  const features = rawConfig['features']
+  if (!isRecord(features)) return refusal('completion policy requires an object features config')
+  if (!requireExplicit && features['evidenceHarness'] !== true)
+    return { ok: true, policy: 'legacy' }
+  return resolveExplicitCompletionPolicy(rawConfig)
+}
+
+export function resolveDirectCompletionPolicy(
+  rawConfig: unknown,
+): EvidenceCompletionPolicyResolution {
+  const policy = resolveExplicitCompletionPolicy(rawConfig)
+  if (!policy.ok) return policy
+  if (policy.policy !== 'direct') {
+    return refusal('`--no-pr` requires raw trunk-solo with solo.mergeMode direct')
+  }
+  return policy
+}
+
 export type MergedVerdict = { merged: true; number: number } | { merged: false; detail: string }
 
 /**

@@ -30,14 +30,16 @@
  *   clean `dist/` on each build) dropped unpacked size 6.20 MB -> 4.64 MB, back under
  *   the 5 MB hard cap. The template/command surface has legitimately grown well past
  *   the original 2026-05-15 baseline (2.04 MB), so WARN is re-set to 4.75 MB to give an
- *   early-warning band below the unchanged hard cap.
- *   WARN_BYTES      = 4,980,736  (4.75 MB)
+ *   early-warning band below the unchanged hard cap. #2638 adds mode-aware landing
+ *   proof and needs 6.8 KiB beyond that initial calibration; 4.76 MB still leaves
+ *   more than 240 KiB before the hard cap.
+ *   WARN_BYTES      = 4,990,000  (4.76 MB)
  *   HARD_CAP_BYTES  = 5,242,880  (5 MB, per issue #511 — UNCHANGED)
  */
 import { spawnSync } from 'node:child_process'
 import { isMainModule } from './lib/run-helpers.mjs'
 
-export const WARN_BYTES = 4_980_736
+export const WARN_BYTES = 4_990_000
 export const HARD_CAP_BYTES = 5 * 1024 * 1024
 
 /**

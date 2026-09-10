@@ -22,15 +22,13 @@ import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import {
   evaluateMerged,
   evaluateQualifiedCompletion,
+  hasRawGitHubPermission,
+  resolveDirectCompletionPolicy,
+  resolveEvidenceCompletionPolicy,
   successfulPostMainCi,
   type MergedVerdict,
   type PrSnapshot,
 } from './pr-merged.js'
-import {
-  hasRawGitHubPermission,
-  resolveDirectCompletionPolicy,
-  resolveEvidenceCompletionPolicy,
-} from './completion-policy.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
 import { evaluateSeedSize, resolveTrainLimits } from './ship-train.js'
 import { UserFacingError } from '../utils/errors.js'
@@ -677,7 +675,7 @@ function assertDirectHeadOnMain(dir: string): string {
 }
 
 function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?: string): void {
-  if (opts.noPr !== true) {
+  if (opts.noPr !== true && existsSync(join(dir, 'arbiter.json'))) {
     const rawConfig = readRawArbiterConfig(dir)
     if (!hasRawGitHubPermission(rawConfig)) {
       throw prGateRefusal('PR completion requires raw permitGitHub: true.')
