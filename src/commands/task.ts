@@ -23,6 +23,7 @@ import {
   evaluateMerged,
   evaluateQualifiedCompletion,
   successfulPostMainCi,
+  type MergedVerdict,
   type PrSnapshot,
 } from './pr-merged.js'
 import {
@@ -660,8 +661,12 @@ function prGateSkipped(dir: string, opts: TaskAdvanceOptions): boolean {
 function assertDirectHeadOnMain(dir: string): string {
   try {
     const head = runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 15_000 }).stdout.trim()
-    const main = runCli('git', ['rev-parse', 'origin/main'], { cwd: dir, timeoutMs: 15_000 }).stdout.trim()
-    if (head !== main) throw prGateRefusal('direct landing HEAD does not match current origin/main.')
+    const main = runCli('git', ['rev-parse', 'origin/main'], {
+      cwd: dir,
+      timeoutMs: 15_000,
+    }).stdout.trim()
+    if (head !== main)
+      throw prGateRefusal('direct landing HEAD does not match current origin/main.')
     return head
   } catch (err) {
     if (err instanceof UserFacingError) throw err
@@ -672,17 +677,24 @@ function assertDirectHeadOnMain(dir: string): string {
 }
 
 function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?: string): void {
-  if (candidateSha !== undefined && opts.noPr !== true) {
-    const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir))
-    if (!policy.ok) throw prGateRefusal(policy.reason)
-    if (policy.policy === 'direct') throw prGateRefusal('direct completion requires --no-pr.')
+  if (opts.noPr !== true) {
+    const rawConfig = readRawArbiterConfig(dir)
+    if (!hasRawGitHubPermission(rawConfig)) {
+      throw prGateRefusal('PR completion requires raw permitGitHub: true.')
+    }
+    if (candidateSha !== undefined) {
+      const policy = resolveEvidenceCompletionPolicy(rawConfig, true)
+      if (!policy.ok) throw prGateRefusal(policy.reason)
+      if (policy.policy === 'direct') throw prGateRefusal('direct completion requires --no-pr.')
+    }
   }
   if (prGateSkipped(dir, opts)) return
   const branch = prGateBranch(dir)
   const snapshots = prGateSnapshots(dir, branch, opts, candidateSha)
-  const verdict = candidateSha === undefined
-    ? evaluateMerged(snapshots, branch, opts.pr)
-    : evaluateHarnessCompletion(dir, snapshots, candidateSha, opts)
+  const verdict =
+    candidateSha === undefined
+      ? evaluateMerged(snapshots, branch, opts.pr)
+      : evaluateHarnessCompletion(dir, snapshots, candidateSha, opts)
   if (!verdict.merged) throw prGateRefusal(verdict.detail)
   appendLog(dir, `complete ← PR #${verdict.number} MERGED`)
 }
@@ -692,27 +704,38 @@ function evaluateHarnessCompletion(
   snapshots: readonly PrSnapshot[],
   candidateSha: string,
   opts: TaskAdvanceOptions,
-) {
-  const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir))
+): MergedVerdict {
+  const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir), true)
   if (!policy.ok) return { merged: false as const, detail: policy.reason }
   if (policy.policy === 'direct') {
     return { merged: false as const, detail: 'direct completion requires --no-pr.' }
   }
   if (policy.policy === 'legacy') {
-    return { merged: false as const, detail: 'evidenceHarness requires an explicit completion policy.' }
+    return {
+      merged: false as const,
+      detail: 'evidenceHarness requires an explicit completion policy.',
+    }
   }
   const merged = snapshots.find(
-    (pr) => pr.state === 'MERGED' && pr.headRefOid === candidateSha && pr.mergeCommit?.oid,
+    (pr) =>
+      pr.state === 'MERGED' &&
+      pr.headRefOid === candidateSha &&
+      pr.mergeCommit?.oid &&
+      (opts.pr === undefined || pr.number === opts.pr),
   )
-  const reachable = merged
-    ? (opts.isMergeReachable?.(merged.mergeCommit!.oid, dir) ?? isMergeReachable(merged.mergeCommit!.oid, dir))
+  const mergeSha = merged?.mergeCommit?.oid
+  const reachable = mergeSha
+    ? (opts.isMergeReachable?.(mergeSha, dir) ?? isMergeReachable(mergeSha, dir))
     : false
   return evaluateQualifiedCompletion(snapshots, candidateSha, policy.policy, reachable, opts.pr)
 }
 
 function isMergeReachable(mergeSha: string, dir: string): boolean {
   try {
-    runCli('git', ['merge-base', '--is-ancestor', mergeSha, 'origin/main'], { cwd: dir, timeoutMs: 15_000 })
+    runCli('git', ['merge-base', '--is-ancestor', mergeSha, 'origin/main'], {
+      cwd: dir,
+      timeoutMs: 15_000,
+    })
     return true
   } catch {
     return false
@@ -741,7 +764,7 @@ function checkCompletionEvidence(dir: string): string | undefined {
 function checkEvidenceCompletionPreflight(dir: string): void {
   const config = loadConfig(dir)
   if (config?.features.evidenceHarness !== true) return
-  const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir))
+  const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir), true)
   if (!policy.ok) throw new Error(`completion policy: ${policy.reason}`)
 }
 

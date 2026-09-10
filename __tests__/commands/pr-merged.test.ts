@@ -355,6 +355,62 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     expect(readUnifiedState(dir)?.phase).toBe('close')
   })
 
+  it('AC-4: refuses a legacy PR completion through a migrated useGitHub alias', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(validConfig({ permitGitHub: undefined, useGitHub: true })),
+    )
+    stampMarker()
+    expect(() =>
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        readPrs: () => {
+          throw new Error('a denied GitHub route must not read PRs')
+        },
+      }),
+    ).toThrow(/raw permitGitHub/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('AC-4: --pr cannot borrow reachability from another PR with the same head', () => {
+    const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
+    config.features.evidenceHarness = true
+    config.collaborationMode = 'gated-review'
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
+    mkdirSync(join(dir, 'src'))
+    writeFileSync(join(dir, 'src/main.ts'), 'export const value = 1\n')
+    writeGatePassEvidence(dir, { taskId: '#2402', level: 'L3' })
+    execFileSync('node', [join(process.cwd(), 'scripts/done-evidence.mjs')], { cwd: dir })
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    const snapshot = (number: number, merge: string) => ({
+      number,
+      state: 'MERGED',
+      baseRefName: 'main',
+      headRefOid: sha,
+      mergeCommit: { oid: merge },
+      mergedAt: '2026-09-09T18:36:22Z',
+      statusCheckRollup: [
+        {
+          name: 'CI',
+          conclusion: 'SUCCESS',
+          completedAt: '2026-09-09T18:36:05Z',
+          checkSuite: { createdAt: '2026-09-09T18:26:48Z' },
+        },
+      ],
+    })
+    expect(() =>
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        pr: 9,
+        isMergeReachable: (merge) => merge === 'a'.repeat(40),
+        readPrs: () => [snapshot(7, 'a'.repeat(40)), snapshot(9, 'b'.repeat(40))],
+      }),
+    ).toThrow(/not reachable/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
   it('AC-2402.1: a merged PR completes, and the log records which PR it was', () => {
     runTaskAdvance({ to: 'complete', dir, readPrs: () => [{ number: 7, state: 'MERGED' }] })
     expect(readUnifiedState(dir)?.phase).toBe('complete')
@@ -510,19 +566,21 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     expect(readUnifiedState(dir)?.phase).toBe('close')
   })
 
-  it('skips the gate for a repo that declares it does not use GitHub', () => {
+  it('AC-4: refuses a PR completion for a repo that declares it does not use GitHub', () => {
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(validConfig({ useGitHub: false })))
     // The marker still gates unconditionally before the PR-check axis is even consulted, and it
     // is bound to tree content — re-stamp it over the rewritten arbiter.json.
     stampMarker()
-    runTaskAdvance({
-      to: 'complete',
-      dir,
-      readPrs: () => {
-        throw new Error('the reader must not run for a non-GitHub repo')
-      },
-    })
-    expect(readUnifiedState(dir)?.phase).toBe('complete')
+    expect(() =>
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        readPrs: () => {
+          throw new Error('the reader must not run for a non-GitHub repo')
+        },
+      }),
+    ).toThrow(/raw permitGitHub/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
   })
 })
 

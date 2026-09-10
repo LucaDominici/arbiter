@@ -1,8 +1,8 @@
 ---
 title: 'Concepts — arbiter'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-07-04'
+last_review: '2026-09-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/user', 'kind/reference']
@@ -81,6 +81,13 @@ arbiter looks for concrete evidence tied to that change: a test that failed
 before the fix and passes after it, a coverage report, a recorded gate run. A
 claim of completion with no matching evidence is treated the same as a failing
 gate — it's rejected, not waved through.
+
+When the evidence harness is active, completion also verifies the route that
+landed the change. A PR route requires the raw `permitGitHub: true` setting; a
+reviewed PR must target `main`, retain the qualified head, and have its merge
+reachable from current `origin/main`. A direct landing is limited to explicit
+`trunk-solo` direct mode and needs a completed CheckRun triggered by a `push` to
+`main`. Compatibility aliases and a matching SHA alone cannot authorize done.
 
 This is what makes arbiter useful specifically for AI-assisted development: an
 agent (human-directed or autonomous) can move fast precisely because "I'm done"

@@ -3,8 +3,7 @@
 export type EvidenceCompletionPolicy = 'exact-pr' | 'reviewed-pr' | 'direct' | 'legacy'
 
 export type EvidenceCompletionPolicyResolution =
-  | { ok: true; policy: EvidenceCompletionPolicy }
-  | { ok: false; reason: string }
+  { ok: true; policy: EvidenceCompletionPolicy } | { ok: false; reason: string }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -53,15 +52,21 @@ function resolveExplicitCompletionPolicy(rawConfig: unknown): EvidenceCompletion
   return refusal('trunk-solo completion requires solo.mergeMode direct or pr-ff')
 }
 
-export function resolveEvidenceCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
+export function resolveEvidenceCompletionPolicy(
+  rawConfig: unknown,
+  requireExplicit = false,
+): EvidenceCompletionPolicyResolution {
   if (!isRecord(rawConfig)) return refusal('completion policy requires an object arbiter.json')
   const features = rawConfig['features']
   if (!isRecord(features)) return refusal('completion policy requires an object features config')
-  if (features['evidenceHarness'] !== true) return { ok: true, policy: 'legacy' }
+  if (!requireExplicit && features['evidenceHarness'] !== true)
+    return { ok: true, policy: 'legacy' }
   return resolveExplicitCompletionPolicy(rawConfig)
 }
 
-export function resolveDirectCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
+export function resolveDirectCompletionPolicy(
+  rawConfig: unknown,
+): EvidenceCompletionPolicyResolution {
   const policy = resolveExplicitCompletionPolicy(rawConfig)
   if (!policy.ok) return policy
   if (policy.policy !== 'direct') {

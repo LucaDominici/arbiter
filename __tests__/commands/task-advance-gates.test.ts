@@ -33,6 +33,7 @@ function seed(dir: string, phase: TaskPhase, taskId = '#2435'): void {
 }
 
 function writeHarnessConfig(dir: string, over: Record<string, unknown> = {}): void {
+  const { features: featureOverrides, ...configOverrides } = over
   writeFileSync(
     join(dir, 'arbiter.json'),
     JSON.stringify({
@@ -47,6 +48,7 @@ function writeHarnessConfig(dir: string, over: Record<string, unknown> = {}): vo
         evidenceHarness: true,
         debtGates: true,
         suppressions: true,
+        ...(featureOverrides as Record<string, unknown> | undefined),
       },
       thresholds: {
         lineCoverage: 80,
@@ -56,7 +58,7 @@ function writeHarnessConfig(dir: string, over: Record<string, unknown> = {}): vo
         methodLength: 65,
         maxParams: 7,
       },
-      ...over,
+      ...configOverrides,
     }),
     'utf-8',
   )
@@ -159,6 +161,21 @@ describe('advance --to plan — preflight must actually have seeded task state (
     })
     expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/permitGitHub/i)
     expect(readUnifiedState(dir)?.phase).toBe('preflight')
+  })
+
+  it('AC-1: rejects an environment-enabled harness whose raw mode is absent', () => {
+    const dir = tmpRepo()
+    seed(dir, 'preflight', '#2638')
+    writeHarnessConfig(dir, { features: { evidenceHarness: false } })
+    const previous = process.env.ARBITER_FEATURE__EVIDENCE_HARNESS
+    process.env.ARBITER_FEATURE__EVIDENCE_HARNESS = 'true'
+    try {
+      expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/completion policy/i)
+      expect(readUnifiedState(dir)?.phase).toBe('preflight')
+    } finally {
+      if (previous === undefined) delete process.env.ARBITER_FEATURE__EVIDENCE_HARNESS
+      else process.env.ARBITER_FEATURE__EVIDENCE_HARNESS = previous
+    }
   })
 })
 
