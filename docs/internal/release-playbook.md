@@ -1,8 +1,8 @@
 ---
 title: 'Release Playbook'
-doc_version: '1.1.0'
+doc_version: '1.1.1'
 status: active
-last_review: '2026-09-09'
+last_review: '2026-09-10'
 owner: 'Luca Dominici'
 canonical_id: ''
 tags: ['audience/dev', 'kind/internal']
@@ -34,6 +34,14 @@ that tarball, and passes the same bytes through signing and attestations. The
 publisher waits for cosign, SLSA, native provenance, SBOM attestation and document
 freshness; mutation, secret history and Trivy are prerequisites of signing.
 A failure prevents publication. Keep the retained artifact and run URL together.
+
+## Package size budget
+
+`prepublishOnly` runs the pack-size guard in strict mode. The early-warning threshold is
+5,000,000 unpacked bytes; the unchanged hard cap is 5,242,880 bytes (5 MiB). The #2652
+calibration measured the retained native tarball at 4,991,083 bytes across 1,301 files,
+leaving a 242,880-byte warning band. A byte above the warning threshold still blocks a
+strict publish, and a byte above the hard cap remains fatal in every mode.
 
 ## Configure npm authentication
 
