@@ -66,6 +66,11 @@ describe('check-sources.mjs tier 1 (#2480)', () => {
         '',
       ].join('\n'),
     )
+    git(['add', '--all'])
+  }
+  const git = (args: string[]): void => {
+    const r = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' })
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`)
   }
   const run = (): { status: number; out: string } => {
     const r = spawnSync('node', [GATE, '--dir', dir], { encoding: 'utf-8' })
@@ -74,6 +79,9 @@ describe('check-sources.mjs tier 1 (#2480)', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-sources-'))
+    git(['init', '--quiet'])
+    git(['config', 'user.email', 'arbiter@example.invalid'])
+    git(['config', 'user.name', 'Arbiter test'])
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
@@ -81,9 +89,35 @@ describe('check-sources.mjs tier 1 (#2480)', () => {
 
   it('accepts a source whose excerpt hashes correctly and whose quote is literal', () => {
     write([source()])
+    git(['commit', '--quiet', '--message', 'add source excerpt'])
     const r = run()
     expect(r.status).toBe(0)
     expect(r.out).toMatch(/PASS/)
+  })
+
+  it('accepts a newly staged excerpt so the pre-commit check permits its first commit', () => {
+    write([source()])
+    const r = run()
+    expect(r.status).toBe(0)
+    expect(r.out).toMatch(/PASS/)
+  })
+
+  it('refuses an excerpt that exists locally but is not in the Git index', () => {
+    write([source()])
+    git(['reset', '--', 'docs/sources/excerpts/SRC-001.txt'])
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/tracked|Git index/i)
+  })
+
+  it('refuses an excerpt path that resolves outside the repository', () => {
+    const outside = resolve(dir, '..', 'outside-source-excerpt.txt')
+    writeFileSync(outside, EXCERPT)
+    write([source({ excerpt_path: '../outside-source-excerpt.txt' })])
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/outside.*repositor/i)
+    rmSync(outside, { force: true })
   })
 
   it('SKIPs out loud when no SOURCES.md exists — a project need not cite anything', () => {
