@@ -16,7 +16,8 @@ describe('consumer reliability workflow (#2135)', () => {
     expect(raw).not.toContain('pull_request_target')
     expect(parsed.jobs.consumer_reliability.if).toBe("github.ref == 'refs/heads/main'")
     const checkout = parsed.jobs.consumer_reliability.steps[0]
-    expect(checkout.with.ref).toBe('main')
+    // Queued main pushes must qualify the commit named by this run, even if main moves.
+    expect(checkout.with.ref).toBe('${{ github.sha }}')
     expect(checkout.with['persist-credentials']).toBe(false)
   })
 
