@@ -13,13 +13,34 @@
 //   5. wiki-before-delete: each deleted doc has a wiki/ counterpart (no content loss)
 //   6. over-delete guard: FLAG-set + KEEP-GENERATED contracts still exist
 //   7. INV-108 core-set surface ≤ 20 (DoD)
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
-import { describe, it, expect } from 'vitest'
+import { afterAll, beforeAll, describe, it, expect } from 'vitest'
 import { selectSsotDocs } from '../../scripts/gen-ssot-core.mjs'
 
 const ROOT = resolve(__dirname, '..', '..')
 const r = (p: string) => join(ROOT, p)
+const trackedExists = (p: string) => {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', p], { cwd: ROOT, stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+const RESIDUE_PATH = r('docs/METHOD/KNOWLEDGE_MAP.md')
+
+beforeAll(() => {
+  mkdirSync(r('docs/METHOD'), { recursive: true })
+  writeFileSync(RESIDUE_PATH, 'workspace residue')
+})
+
+afterAll(() => {
+  rmSync(RESIDUE_PATH)
+  rmSync(r('docs/METHOD'), { recursive: true })
+})
 
 // ── DELETE list: register §WIKI hand docs (64), confirmed wiki-covered ───────────
 const DELETE_LIST = [
