@@ -1,0 +1,141 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2635",
+  "branch": "task/#2635-native-input-boundaries",
+  "sha": "efcc80e5b43a4dfb511269cde9737d7253d4c4e5",
+  "plan_sha256": "311c93c17e3e8d43da0a70089e6d94f021a07dd97a16c6b44dc9812bfd8bf5e2",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/run-helpers.mjs",
+          "line": 17
+        },
+        {
+          "file": "src/utils/fs.ts",
+          "line": 778
+        },
+        {
+          "file": "scripts/check-cross-model-review.mjs",
+          "line": 88
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 406
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 901
+        },
+        {
+          "file": "__tests__/utils/fs.test.ts",
+          "line": 861
+        },
+        {
+          "file": "__tests__/scripts/check-acceptance.test.ts",
+          "line": 288
+        }
+      ],
+      "notes": "The shared reader opens O_NONBLOCK, verifies the opened descriptor with fstat and closes on error/finally; contained readers retain descriptor-relative traversal and O_NOFOLLOW. All seven selected checker paths and the provider leaf use this guard. Actual self/emitted FIFO child tests return without timeout, preserve the caller-specific exit policies and repair to their prior valid/optional result. Acceptance explicitly preserves valid symlink/absolute plan reads and configuration fallback; fit-read errors retain exit1. Evidence: E/2635-focused-green-final.json (608 PASS) and E/2635-source-L1.json (exit0)."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/agent-return-validate.mjs",
+          "line": 247
+        },
+        {
+          "file": "scripts/lib/agent-return-validate.mjs",
+          "line": 262
+        },
+        {
+          "file": "__tests__/scripts/agent-return-validate.test.ts",
+          "line": 296
+        },
+        {
+          "file": "__tests__/scripts/check-milestones.test.ts",
+          "line": 865
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 921
+        }
+      ],
+      "notes": "Self and actual emitted validators distinguish null from object and throw for null/array/scalar schema nodes. Tests preserve type:null and empty object schemas, required properties and referenced array-member validation. Real self/emitted milestone goal-null, goal-empty, member-null and root-null inputs fail1, do not emit success artifacts, and repair to0. Both cross-model validation calls catch malformed-schema exceptions as ERROR2 while ordinary evidence violations remain FAIL1; both projections test the distinction."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-acceptance.mjs",
+          "line": 145
+        },
+        {
+          "file": "__tests__/scripts/check-acceptance.test.ts",
+          "line": 271
+        },
+        {
+          "file": "__tests__/scripts/check-acceptance.test.ts",
+          "line": 281
+        },
+        {
+          "file": "__tests__/scripts/check-acceptance.test.ts",
+          "line": 321
+        },
+        {
+          "file": "__tests__/scripts/check-acceptance.test.ts",
+          "line": 333
+        },
+        {
+          "file": "scripts/check-arc42-slots.mjs",
+          "line": 347
+        },
+        {
+          "file": "__tests__/scripts/check-arc42-slots.test.ts",
+          "line": 798
+        }
+      ],
+      "notes": "Acceptance distinguishes actual ENOENT absence from dangling/nonregular/malformed existing state; null/array/scalar state is ERROR2 before phase handling. Fresh records, missing phase and empty phase retain their native behavior. Descriptor checking also rejects a real lstat-to-FIFO replacement without blocking. Arc42 rejects existing nonrecord manifest/baseline values with ERROR2 and leaves their bytes intact under --update-baseline; existing absent-baseline bootstrap, empty-record and ratchet behavior remain. These tests are included in the actual 608 PASS run."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".arbiter/evidence/tdd/#2635.json",
+          "line": 2
+        },
+        {
+          "file": "__tests__/scripts/agent-return-validate.test.ts",
+          "line": 302
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 412
+        },
+        {
+          "file": "__tests__/utils/fs.test.ts",
+          "line": 866
+        },
+        {
+          "file": "examples/go-library/scripts/lib/run-helpers.mjs",
+          "line": 17
+        },
+        {
+          "file": "examples/python-library/scripts/lib/agent-return-validate.mjs",
+          "line": 247
+        },
+        {
+          "file": "examples/ts-library/scripts/check-acceptance.mjs",
+          "line": 145
+        }
+      ],
+      "notes": "Native recorded RED at 69d17ff4 has 60 failed/359 passed tests, no MODULE_NOT_FOUND, and the same committed validator-test blob retained at this source commit. Actual baseline/candidate builds and source/built facade hashes match the child test imported from dist/utils/fs.js. Final focused GREEN is 608/608 across14 files; native bake32, 27 snapshot updates limited to8 existing emitted hashes, three regenerated examples, wiki123, dogfood0, strictpack0/1301 and source L1 exit0/122733ms are retained in E/2635-* receipts. Only three previously admitted dogfood pair hashes changed; reasons/allowed exports/thresholds stayed fixed. No dependency, generated consumer patch or delivery/adoption claim is part of this source fit."
+    }
+  ]
+}

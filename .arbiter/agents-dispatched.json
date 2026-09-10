@@ -1,13 +1,13 @@
 {
   "count": 2,
   "agents": [
-    "astra-2632-final-source-review",
-    "2578-recovery-author-2632-final-source-review"
+    "astra-2635-final-source-security-review",
+    "2578-recovery-author-2635-final-source-review"
   ],
-  "branch": "task/#2632-native-review-boundaries",
-  "sha": "d30c95729f282df64190bd860389d04c2872a7fe",
-  "taskId": "#2632",
-  "ts": "2026-09-10T02:03:06.468997+00:00",
+  "branch": "task/#2635-native-input-boundaries",
+  "sha": "efcc80e5b43a4dfb511269cde9737d7253d4c4e5",
+  "taskId": "#2635",
+  "ts": "2026-09-10T03:50:50.648502+00:00",
   "kind": "actual-independent-source-review-dispatch",
-  "basis": "Two independent staged source reviews, one-line fixture delta readback, and actual committed same-tree seals. Verifier recorded separately."
+  "basis": "Two actual independent committed source reviews after native sourceL1PASS; verifier recorded separately. Earlier plan and mechanical derived amendments are not source reviews."
 }
