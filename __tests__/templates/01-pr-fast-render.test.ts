@@ -119,6 +119,24 @@ describe('01-pr-fast.yml.ejs — structural invariants (CANON-18, #1131)', () =>
   })
 })
 
+describe('01-pr-fast.yml.ejs — self CI corpus ownership (#2653)', () => {
+  it('self runs unit tests only through the required L2 gate', () => {
+    const rendered = renderSelfHost()
+    const ciRequired = rendered.split('ci-required:')[1] ?? ''
+
+    expect(rendered).not.toContain('\n  unit-tests:')
+    expect(ciRequired).not.toContain('unit-tests')
+    expect(rendered).toContain('node scripts/check-all.mjs L2 --json gate-result.json')
+  })
+
+  it('consumer TypeScript and Java retain their standalone unit-test lane', () => {
+    expect(render({ language: 'typescript', governanceLevel: 'L2' })).toContain('\n  unit-tests:')
+    expect(render({ language: 'java', buildTool: 'maven', governanceLevel: 'L2' })).toContain(
+      '\n  unit-tests:',
+    )
+  })
+})
+
 // #1227 — Parallelization assertions (ADR-090: chain ≤ 3, parallel after gate)
 // Red phase: these tests FAIL before the needs: [unit-tests] → needs: [gate] fix.
 //
