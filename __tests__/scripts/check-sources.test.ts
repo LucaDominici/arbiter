@@ -102,6 +102,21 @@ describe('check-sources.mjs tier 1 (#2480)', () => {
     expect(r.out).toMatch(/PASS/)
   })
 
+  it('accepts a newly staged excerpt spelled with a dot-relative path', () => {
+    write([source({ excerpt_path: './docs/sources/excerpts/SRC-001.txt' })])
+    const r = run()
+    expect(r.status).toBe(0)
+    expect(r.out).toMatch(/PASS/)
+  })
+
+  it('accepts a newly staged excerpt spelled with a contained absolute path', () => {
+    const excerpt = join(dir, 'docs', 'sources', 'excerpts', 'SRC-001.txt')
+    write([source({ excerpt_path: excerpt })])
+    const r = run()
+    expect(r.status).toBe(0)
+    expect(r.out).toMatch(/PASS/)
+  })
+
   it('refuses an excerpt that exists locally but is not in the Git index', () => {
     write([source()])
     git(['reset', '--', 'docs/sources/excerpts/SRC-001.txt'])

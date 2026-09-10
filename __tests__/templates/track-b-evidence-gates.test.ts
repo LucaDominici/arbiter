@@ -188,6 +188,21 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
       expect(r.out).toMatch(/PASS/)
     })
 
+    it('accepts a staged excerpt spelled with a dot-relative path', () => {
+      writeSources({ excerpt_path: './docs/sources/excerpts/SRC-001.txt' })
+      const r = run('check-sources.mjs')
+      expect(r.status).toBe(0)
+      expect(r.out).toMatch(/PASS/)
+    })
+
+    it('accepts a staged excerpt spelled with a contained absolute path', () => {
+      const excerpt = join(dir, 'docs', 'sources', 'excerpts', 'SRC-001.txt')
+      writeSources({ excerpt_path: excerpt })
+      const r = run('check-sources.mjs')
+      expect(r.status).toBe(0)
+      expect(r.out).toMatch(/PASS/)
+    })
+
     it('rejects an untracked literal wildcard excerpt instead of matching a tracked sibling', () => {
       writeSources({ excerpt_path: 'docs/sources/excerpts/*.txt' })
       writeFileSync(join(dir, 'docs', 'sources', 'excerpts', '*.txt'), EXCERPT)
