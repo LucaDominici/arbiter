@@ -254,17 +254,12 @@ describe('01-pr-fast.yml.ejs — build-cache wiring (E2, #1500)', () => {
     expect(bw).toContain('timeout-minutes: 60')
   })
 
-  it('self-host: test jobs restore the cache instead of re-running npm run build', () => {
+  it('self-host: generated-gate-min restores the cache instead of re-running npm run build', () => {
     const rendered = renderSelfHost()
-    // unit-tests replaced its inline `npm run build && build-kit` prefix with a
-    // restore step (build-kit still runs, fed by restored/rebuilt dist).
-    // #1875: contract-tests no longer follows unit-tests in 01-pr-fast (moved to
-    // T2) — split on the next 2-space job header instead of a hardcoded name.
-    const unit = (rendered.split('  unit-tests:')[1] ?? '').split(/\n {2}(?=\S)/)[0]
-    expect(unit).toContain('op: restore')
-    expect(unit).not.toContain('npm run build && node scripts/build-kit.mjs')
-    // unit-tests now depends on build-workspace.
-    expect(rendered).toMatch(/unit-tests:[\s\S]{0,260}?needs:\s*\[gate, build-workspace, /)
+    const generated = (rendered.split('  generated-gate-min:')[1] ?? '').split(/\n {2}(?=\S)/)[0]
+    expect(generated).toContain('op: restore')
+    expect(generated).not.toContain('npm run build && node scripts/build-kit.mjs')
+    expect(generated).toContain('needs: [gate, build-workspace, classify-changes]')
   })
 
   it('self-host: the non-blocking rebuild fallback is preserved (action carries it)', () => {

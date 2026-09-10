@@ -354,7 +354,7 @@ const CI_COVERAGE = new Map([
   ['audit', 'gate'],
   ['consumer audit', 'gate-full'],
   ['acceptance anchor (INV-138)', 'gate-full'],
-  ['unit tests', 'unit-tests'],
+  ['unit tests', 'gate-full'],
   ['PII scan', 'security-early-fail'],
   ['circular deps', 'debt-gates'],
   ['dead code', 'debt-gates'],

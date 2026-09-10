@@ -1,0 +1,35 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2653",
+  "sha": "b42a0ad54bf2d029f39e4c888e5b5e32a3a8dc76",
+  "plan_sha256": "b389192fd37797c273059577b9d3018a5a5f95e77f771297441a392d8b442c82",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/github/workflows/01-pr-fast.yml.ejs", "line": 322 },
+        { "file": "src/templates/github/workflows/01-pr-fast.yml.ejs", "line": 948 },
+        { "file": "__tests__/templates/01-pr-fast-render.test.ts", "line": 127 }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": ".github/workflows/01-pr-fast.yml", "line": 436 },
+        { "file": "__tests__/templates/01-pr-fast-render.test.ts", "line": 129 },
+        { "file": "scripts/check-local-ci-parity.mjs", "line": 357 }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/templates/github/workflows/01-pr-fast.yml.ejs", "line": 322 },
+        { "file": "__tests__/templates/01-pr-fast-render.test.ts", "line": 132 }
+      ]
+    }
+  ],
+  "notes": "Independent plan and code review PASS. Focused render, parity, dogfood and local CI parity checks passed; final native L2 is the remaining qualification."
+}

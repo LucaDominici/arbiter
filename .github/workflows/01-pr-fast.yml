@@ -270,62 +270,6 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
 
-  unit-tests:
-    name: Unit Tests
-    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
-    timeout-minutes: 60
-    needs: [gate, build-workspace, classify-changes]
-    strategy:
-      max-parallel: 2
-    if: needs.classify-changes.outputs.docs_only != 'true'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          # TDD evidence can name an older commit; reachability requires history.
-          fetch-depth: 0
-      - uses: ./.github/actions/setup-node-pnpm
-      - name: Restore cached workspace build (non-blocking)
-        uses: ./.github/actions/build-cache
-        with:
-          op: restore
-      - run: node scripts/build-kit.mjs
-      - name: Install psmisc (fuser — #2098 gate-exec queue-depth advisory)
-        # scripts/lib/waiter-count.mjs shells out to `fuser` to count real flock
-        # waiters; unlike gitleaks/actionlint (single-binary GitHub-release
-        # tarballs, pinned in scripts/ci-tools.json), psmisc has no such release
-        # artifact, so apt is the install path here. flock itself (util-linux)
-        # is already present on the runner image; only fuser (psmisc) is missing.
-        # Root (self-hosted) uses apt-get directly; non-root (e.g. GitHub-hosted
-        # ubuntu-latest, where every consumer of this template lands by default)
-        # needs sudo. Skip entirely if fuser is already on PATH.
-        run: |
-          if ! command -v fuser >/dev/null 2>&1; then
-            if [ "$(id -u)" -eq 0 ]; then
-              apt-get update -qq && apt-get install -y -qq psmisc
-            else
-              sudo apt-get update -qq && sudo apt-get install -y -qq psmisc
-            fi
-          fi
-      # `--reporter=junit` ALONE replaces the console reporter, so a failing run
-      # names no test in the job log — the only record is the uploaded junit.xml,
-      # which is unreadable from a webhook or a log tail. Both reporters are
-      # passed so the log stays diagnosable and the artifact keeps its schema;
-      # `--outputFile.junit=` is the per-reporter form vitest requires once more
-      # than one reporter is active.
-      - run: npm run test:unit -- --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml
-
-      - name: Upload test results
-        id: upload-test-results
-        if: always()
-        # Supplementary artifact — never let an Artifacts-quota hiccup fail the
-        # job whose actual signal (the test run above) already passed.
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: test-results-unit-${{ github.run_id }}
-          path: test-results/
-          retention-days: 7
-
 
 
 
@@ -539,7 +483,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 
-    needs: [gate, unit-tests, generated-gate-min, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, gate-full, debt-gates, classify-changes]
+    needs: [gate, generated-gate-min, security-early-fail, dependency-review, iac-scan, docs-check, sonar-scan, gate-full, debt-gates, classify-changes]
     if: always()
     steps:
       - env:
@@ -554,11 +498,6 @@ jobs:
           ok() { [[ "$1" == "success" || ( "$DOCS_ONLY" == "true" && "$1" == "skipped" ) ]]; }
           if ! ok "${{ needs.gate.result }}"; then
             echo "gate failed"
-            exit 1
-          fi
-
-          if ! ok "${{ needs.unit-tests.result }}"; then
-            echo "unit-tests failed"
             exit 1
           fi
 

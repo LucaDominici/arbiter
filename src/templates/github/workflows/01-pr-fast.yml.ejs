@@ -319,7 +319,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 <% } %>
 
-  unit-tests:
+<% if (!locals.enableNativeBakeE2E) { %>  unit-tests:
     name: Unit Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
@@ -375,6 +375,7 @@ jobs:
           path: test-results/
           retention-days: 7
 <% } %>
+<% } -%>
 <%# #1875: contract-tests/integration-tests/behavioral-tests moved OFF the
     always-run T1 lane to 02-pr-extended.yml.ejs (T2, conditionally triggered).
     They used to fan out from `gate` unconditionally on every PR — on arbiter's
@@ -944,7 +945,7 @@ jobs:
   // #1875: contract-tests/integration-tests/behavioral-tests moved to the T2
   // (02-pr-extended) conditional lane — only unit-tests stays on the always-run
   // T1 path.
-  if (language === 'typescript' || language === 'java') {
+  if ((language === 'typescript' || language === 'java') && !locals.enableNativeBakeE2E) {
     _ciNeeds.push('unit-tests');
   }
   if (language === 'typescript' && locals.enableNativeBakeE2E) _ciNeeds.push('generated-gate-min');
@@ -987,7 +988,7 @@ jobs:
             echo "build-reactor failed"
             exit 1
           fi
-<% } if (language === 'typescript' || language === 'java') { %>
+<% } if ((language === 'typescript' || language === 'java') && !locals.enableNativeBakeE2E) { %>
           if ! ok "${{ needs.unit-tests.result }}"; then
             echo "unit-tests failed"
             exit 1
