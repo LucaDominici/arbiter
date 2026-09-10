@@ -22,6 +22,29 @@ interface UnwiredScaffold {
   path: string
 }
 
+function declaredOptionalScripts(dir: string): Set<string> {
+  const manifestPath = join(dir, 'scripts', 'optional-emissions.json')
+  if (!existsSync(manifestPath)) return new Set()
+  try {
+    const parsed = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
+      optional?: { path?: unknown; rationale?: unknown }[]
+    }
+    return new Set(
+      (Array.isArray(parsed.optional) ? parsed.optional : [])
+        .filter(
+          (entry) =>
+            typeof entry.path === 'string' &&
+            typeof entry.rationale === 'string' &&
+            entry.rationale.trim(),
+        )
+        .map((entry) => entry.path as string),
+    )
+    // FAIL-OPEN-INTENT: advisory health must keep reporting candidates when its optional manifest is unreadable.
+  } catch {
+    return new Set()
+  }
+}
+
 export interface ScaffoldWiringReport {
   /** scripts/check-*.mjs files present on disk but referenced by none of the
    * scanned surfaces (check-all.mjs, run.sh, Makefile). */
@@ -64,7 +87,8 @@ function listCheckScripts(dir: string): string[] {
  * never an error.
  */
 export function checkScaffoldWiring(dir: string): ScaffoldWiringReport {
-  const candidates = listCheckScripts(dir)
+  const optional = declaredOptionalScripts(dir)
+  const candidates = listCheckScripts(dir).filter((rel) => !optional.has(rel))
   if (candidates.length === 0) return { unwired: [] }
 
   const corpus = [

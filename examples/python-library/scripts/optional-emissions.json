@@ -82,6 +82,14 @@
       "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89), but wired (runCheck 'workflow perms') in check-all.mjs only inside the useGitHub block (INV-76). Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
     },
     {
+      "path": "scripts/check-secret-presence.mjs",
+      "rationale": "REVERSE (#2642): emitted by the anti-drift family, but wired only when GitHub workflows exist; without them it remains a manual validator."
+    },
+    {
+      "path": "scripts/check-continue-on-error.mjs",
+      "rationale": "REVERSE (#2642): emitted by the anti-drift family, but wired only when GitHub workflows exist; without them it remains a manual validator."
+    },
+    {
       "path": "scripts/check-workflow-runners.mjs",
       "rationale": "REVERSE (#1518, #2159): emitted unconditionally by the anti-drift family (INV-89, #1152), but wired (runCheck 'workflow runners') in check-all.mjs only inside the useGitHub block. Without GitHub CI configured it ships present-but-unwired, available for manual/CI invocation."
     },

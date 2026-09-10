@@ -417,7 +417,7 @@ function checkScaffoldWiringHealth(dir: string): HealthCheck {
       id: 'scaffold-wiring',
       label: 'gate scripts referenced by check-all.mjs/run.sh/Makefile',
       status: 'PASS',
-      detail: 'every scripts/check-*.mjs is referenced by at least one of the three',
+      detail: 'every scripts/check-*.mjs is referenced or declared optional',
     }
   }
   const names = unwired.map((u) => u.path).join(', ')
@@ -786,9 +786,8 @@ function checkGatePassLog(dir: string): HealthCheck {
     return {
       id: 'gate-pass-log',
       label: 'gate-pass log',
-      status: 'WARN',
-      detail: '.arbiter/gate-pass.jsonl not found — run the gate to start logging',
-      hint: 'Run `node scripts/check-all.mjs gate` to create the log.',
+      status: 'PASS',
+      detail: 'not created yet — run the gate to start logging',
     }
   }
   const lines = readFileTranslated(logPath, 'utf-8')
@@ -832,8 +831,8 @@ function checkGatePassLog(dir: string): HealthCheck {
  * scripts/data/advisory-ledger.json. Shells scripts/check-bypass-ceremony.mjs --json — the
  * script is the SSOT for both detectors' logic; doctor only renders its JSON, it never
  * re-implements the ceiling math or ledger parsing (one source of truth, CANON-22).
- * Absent script (e.g. a non-arbiter project, or a stripped-down fixture) WARNs rather than
- * FAILs — doctor reports state, it does not require every gate script to exist.
+ * An absent script is expected for consumers but WARNs for Arbiter itself, where this
+ * self-check must be present. Doctor reports state; it does not require every gate script.
  */
 type BypassCeremonyReport = {
   channels?: { env: string; count: number; ceiling: number }[]
@@ -895,6 +894,14 @@ function toBypassCeremonyCheck(result: RunCliResult, parsed: BypassCeremonyRepor
 function checkBypassCeremony(dir: string): HealthCheck {
   const scriptPath = join(dir, 'scripts', 'check-bypass-ceremony.mjs')
   if (!existsSync(scriptPath)) {
+    if (!isArbiterSelf(dir)) {
+      return {
+        id: 'bypass-ceremony',
+        label: 'bypass ceremony budget',
+        status: 'PASS',
+        detail: 'not configured for this project',
+      }
+    }
     return bypassCeremonyWarn('scripts/check-bypass-ceremony.mjs not found')
   }
   const outcome = runBypassCeremonyScript(dir, scriptPath)
