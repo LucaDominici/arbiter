@@ -572,7 +572,7 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
             name: 'CI',
             conclusion: 'SUCCESS',
             completedAt: new Date(Date.now() - 60_000).toISOString(),
-            checkSuite: { branch: 'main', workflowRun: { event: 'pull_request' } },
+            checkSuite: { branch: { name: 'main' }, workflowRun: { event: 'pull_request' } },
           },
         ],
       }),
