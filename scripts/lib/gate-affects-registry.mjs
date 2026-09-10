@@ -104,6 +104,7 @@ export const GATE_AFFECTS_REGISTRY = [
   // narrow bucket is provably safe for it.
   { name: 'orchestration integrity (#2387)', affects: ALWAYS },
   { name: 'build-kit', affects: ALWAYS },
+  { name: 'build', affects: ALWAYS },
   { name: 'no redacted tokens', affects: ALWAYS },
   { name: 'no work refs', affects: ALWAYS },
   { name: 'private paths ignored', affects: ALWAYS },

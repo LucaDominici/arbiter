@@ -3,7 +3,13 @@ import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
-import { extractFailureSignature, type TddEvidence } from './tdd.js'
+import {
+  combineTestOutput,
+  extractFailureIdentities,
+  extractFailureSignature,
+  repositoryRelativeLog,
+  type TddEvidence,
+} from './tdd.js'
 import { gitCwd } from './git-checks.js'
 import { mkdtempTranslated, rmTranslated, symlinkTranslated } from '../utils/fs.js'
 
@@ -19,9 +25,10 @@ export const DEFAULT_REEXEC_TIMEOUT_MS = 120_000
  * Re-derive the recorded RED phase from source instead of trusting the
  * evidence file's own prose. Checks out `test_commit_sha` into an isolated,
  * detached git worktree (never touches the caller's working tree) and
- * re-runs the exact recorded `test_command` there. The failure signature
- * re-extracted from that fresh run must match the recorded `observed_failure`
- * byte-for-byte.
+ * re-runs the exact recorded `test_command` there. The complete failure identity
+ * derived from both logs must match, independent of runner output order. V1's
+ * scalar observed_failure remains supported and must agree with its saved log;
+ * no evidence migration or duplicate identity field is needed.
  *
  * Closes the false-green found in a downstream project (#1957): evidence
  * named a specific failing test whose `test_commit_sha` predated the test's
@@ -57,15 +64,15 @@ export function verifyRedExecution(
     linkNodeModules(dir ?? repoDir, worktreeDir)
 
     const freshLog = runTestCommand(testCommand, worktreeDir, timeoutMs)
-    return compareFailure(ev, freshLog)
+    return compareFailure(ev, repositoryRelativeLog(freshLog, worktreeDir))
   } finally {
     removeDetachedWorktree(repoDir, worktreeDir)
   }
 }
 
 function compareFailure(ev: TddEvidence, freshLog: string): RedExecutionResult {
-  const freshSig = extractFailureSignature(freshLog)
-  if (freshSig === null) {
+  const fresh = extractFailureIdentities(freshLog)
+  if (fresh.length === 0) {
     return {
       ok: false,
       reason:
@@ -74,12 +81,21 @@ function compareFailure(ev: TddEvidence, freshLog: string): RedExecutionResult {
         'reproduced from source (false-green risk)',
     }
   }
-  if (freshSig.match !== ev.observed_failure) {
+  const recordedSig = extractFailureSignature(ev.test_run_log)
+  if (
+    recordedSig === null ||
+    JSON.stringify(extractFailureIdentities(recordedSig.match)) !==
+      JSON.stringify(extractFailureIdentities(ev.observed_failure))
+  ) {
+    return { ok: false, reason: 'recorded observed_failure contradicts test_run_log' }
+  }
+  const recorded = extractFailureIdentities(ev.test_run_log)
+  if (JSON.stringify(fresh) !== JSON.stringify(recorded)) {
     return {
       ok: false,
       reason:
-        `re-run at test_commit_sha ${ev.test_commit_sha} failed with "${freshSig.match}", not ` +
-        `the recorded observed_failure "${ev.observed_failure}" — the named failure may not ` +
+        `re-run at test_commit_sha ${ev.test_commit_sha} failed with ${JSON.stringify(fresh)}, not ` +
+        `the recorded observed_failure identities ${JSON.stringify(recorded)} — a named failure may not ` +
         'have existed at that commit',
     }
   }
@@ -142,9 +158,17 @@ function runTestCommand(testCommand: readonly string[], cwd: string, timeoutMs: 
   if (cmd === undefined) return ''
   try {
     const r = runCli(cmd, args, { cwd, timeoutMs })
-    return r.stdout + (r.stderr ? `\n${r.stderr}` : '')
+    return r.exitCode > 0 ? combineTestOutput(r.stdout, r.stderr) : ''
   } catch (err) {
-    if (err instanceof CliError) return err.stdout + (err.stderr ? `\n${err.stderr}` : '')
+    if (
+      err instanceof CliError &&
+      err.exitCode > 0 &&
+      !err.timedOut &&
+      !err.notFound &&
+      !err.outputTruncated
+    ) {
+      return combineTestOutput(err.stdout, err.stderr)
+    }
     return ''
   }
 }

@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
-import { extractFailureSignature, writeTddEvidence, type TddEvidence } from '../evidence/tdd.js'
+import {
+  combineTestOutput,
+  extractFailureSignature,
+  repositoryRelativeLog,
+  writeTddEvidence,
+  type TddEvidence,
+} from '../evidence/tdd.js'
 import {
   blobShaInCommit,
   currentBranch,
@@ -57,17 +63,6 @@ function clampTimeout(ms: number | undefined): number {
   return Math.floor(ms)
 }
 
-/** Replace the recording worktree prefix with a portable repository-relative path (#2174). */
-function repositoryRelativeLog(log: string, dir: string): string {
-  const root = resolve(dir)
-  const roots = [root, root.replaceAll('\\', '/')]
-  return roots.reduce(
-    (relative, prefix) =>
-      relative.replaceAll(`${prefix}/`, '').replaceAll(`${prefix}\\`, '').replaceAll(prefix, '.'),
-    log,
-  )
-}
-
 function toGoPackageDir(dir: string): string {
   if (dir === '' || dir === '.') return '.'
   if (dir.startsWith('./') || dir.startsWith('/') || dir.startsWith('../')) return dir
@@ -120,10 +115,6 @@ interface CliOutputError {
   exitCode?: number
   timedOut?: boolean
   notFound?: boolean
-}
-
-function combineTestOutput(stdout: string, stderr: string): string {
-  return stdout + (stderr ? `\n${stderr}` : '')
 }
 
 function isCliOutputError(err: unknown): err is CliOutputError {

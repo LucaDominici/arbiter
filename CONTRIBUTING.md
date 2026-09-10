@@ -103,7 +103,7 @@ npm run build                 # tsc + copy templates
 npm test                      # vitest unit suite
 npm run typecheck             # tsc --noEmit
 node scripts/check-all.mjs L1 # full L1 gate
-node scripts/check-all.mjs L2 # full L2 gate
+node scripts/check-all.mjs L2 # full L2 gate; builds dist once before checks
 ```
 
 **Test on a real project:**

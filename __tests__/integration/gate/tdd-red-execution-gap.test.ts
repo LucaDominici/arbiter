@@ -13,12 +13,13 @@
 // source can catch this. This is a real, unmocked git repo + real vitest
 // subprocess — no mocking of runVerifyTdd or its dependencies.
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest'
 import { runVerifyTdd } from '../../../src/commands/verify-tdd.js'
+import { runTaskRecordRed } from '../../../src/commands/task-record-red.js'
 
 // gitCwd() lets ARBITER_HOOK_GIT_CWD win over an explicit dir (deliberate:
 // the pre-push rsync dir has no .git). This suite runs verify against a
@@ -66,10 +67,49 @@ describe('TDD red-execution gap (#1957)', () => {
     symlinkSync(join(ARBITER_ROOT, 'node_modules'), join(d, 'node_modules'))
     writeFileSync(
       join(d, 'vitest.config.mjs'),
-      "export default { test: { include: ['*.test.ts'] } }\n",
+      "export default { test: { include: ['*.test.ts', '*.spec.ts'] } }\n",
     )
     return d
   }
+
+  it('records and replays every failure across real Vitest files without a schema migration', () => {
+    const dir = tmpRepo()
+    mkdirSync(join(dir, '.claude'))
+    writeFileSync(join(dir, '.claude', '.task-id'), '#9001\n')
+    for (const file of ['math.test.ts', 'other.spec.ts']) {
+      writeFileSync(
+        join(dir, file),
+        "import { it, expect } from 'vitest'\nit('is red', () => expect(1).toBe(2))\n",
+      )
+    }
+    commit(dir, 'test: red cases in two files')
+    const recorded = runTaskRecordRed({
+      dir,
+      testPath: 'math.test.ts',
+      testCmd: ['npx', 'vitest', 'run', 'math.test.ts', 'other.spec.ts', '--maxWorkers=1'],
+    })
+    expect(recorded.ok).toBe(true)
+    const evidencePath = join(dir, '.arbiter', 'evidence', 'tdd', '#9001.json')
+    const evidence = JSON.parse(readFileSync(evidencePath, 'utf-8'))
+    expect(evidence.$schemaVersion).toBe(1)
+    expect(evidence).not.toHaveProperty('observed_failures')
+    const verified = runVerifyTdd({ taskId: '#9001', dir })
+    expect(verified.status, verified.reason).toBe('PASS')
+
+    // Retain the old first signature but omit the OTHER file from the saved
+    // log: replay must catch that missing identity, even though both files fail.
+    const omitted = evidence.observed_failure.includes('math.test.ts')
+      ? 'other.spec.ts'
+      : 'math.test.ts'
+    evidence.test_run_log = evidence.test_run_log
+      .split('\n')
+      .filter((line: string) => !line.includes(omitted))
+      .join('\n')
+    writeFileSync(evidencePath, JSON.stringify(evidence))
+    const incomplete = runVerifyTdd({ taskId: '#9001', dir })
+    expect(incomplete.status).toBe('FAIL')
+    expect(incomplete.checks?.find((check) => check.name === 'red-execution')?.pass).toBe(false)
+  }, 60_000)
 
   it('rejects evidence naming a test that did not exist yet at test_commit_sha (false-green)', () => {
     const dir = tmpRepo()

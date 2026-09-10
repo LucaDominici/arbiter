@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { z } from 'zod'
 import { writeFile, assertWritten } from '../utils/fs.js'
 
@@ -63,6 +63,48 @@ export function extractFailureSignature(log: string): ExtractResult | null {
     }
   }
   return null
+}
+
+/**
+ * V1 already retains the complete log: derive identity instead of persisting a
+ * second list. Keep every JS FAIL header, including Vitest test labels, across
+ * mixed .test/.spec files. Other runners retain their legacy summary granularity.
+ * Ordering and colour are incidental; whitespace inside test names is identity.
+ */
+export function extractFailureIdentities(log: string): string[] {
+  const plain = log.replace(ANSI_SGR, '')
+  const identities = new Set<string>()
+  for (const { framework, pattern } of FAILURE_SIGNATURES) {
+    const isJs = framework === 'vitest' || framework === 'jest'
+    // Diagnostics can quote "FAIL path.test.ts" in a code frame. Only actual
+    // header lines prove a JS failure; legacy scalar extraction stays unchanged.
+    const source = isJs ? '^[ \\t]*FAIL[ \\t]+\\S+\\.(?:spec|test)\\.[jt]sx?\\b' : pattern.source
+    for (const match of plain.matchAll(new RegExp(source, `${pattern.flags}g`))) {
+      let identity = match[0].trim().replace(/^FAIL\s+/, 'FAIL ')
+      if (isJs) {
+        const suffix = plain.slice(match.index + match[0].length).split(/\r?\n/, 1)[0] ?? ''
+        if (/^[ \t]+>/.test(suffix)) identity += ` ${suffix.trim()}`
+      }
+      identities.add(identity)
+    }
+  }
+  return [...identities].sort()
+}
+
+/** Recording and isolated replay must name the same repository-relative paths. */
+export function repositoryRelativeLog(log: string, dir: string): string {
+  const root = resolve(dir)
+  const roots = [root, root.replaceAll('\\', '/')]
+  return roots.reduce(
+    (relative, prefix) =>
+      relative.replaceAll(`${prefix}/`, '').replaceAll(`${prefix}\\`, '').replaceAll(prefix, '.'),
+    log,
+  )
+}
+
+/** Keep recording and replay stdout/stderr framing identical. */
+export function combineTestOutput(stdout: string, stderr: string): string {
+  return stdout + (stderr ? `\n${stderr}` : '')
 }
 
 export function tddEvidencePath(taskId: string, repoDir: string): string {

@@ -1,8 +1,8 @@
 ---
 title: 'Task Recovery Reference'
-doc_version: '2.1.1'
+doc_version: '2.1.2'
 status: active
-last_review: '2026-09-08'
+last_review: '2026-09-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -82,6 +82,18 @@ Commit the RED test before recording it so the evidence can be correlated to the
 On a declared train, `--task-id #NNN` may select only the active task or an exact member of the
 state document's `chainIds` array; malformed `chainIds` data and undeclared secondary IDs are
 rejected before the test runs or any evidence is written.
+
+`arbiter verify tdd '#NNN'` replays the recorded command at the RED commit and requires
+a completed nonzero exit. It compares all actual JavaScript `FAIL` headers, including Vitest
+test labels, independent of file execution order. Missing, additional or changed failures
+reject replay; quoted diagnostic text cannot substitute for a failed test. Checkout paths
+and terminal color are normalized. The retained V1 log supplies these identities without
+an evidence migration; other runners retain their existing summary signatures.
+
+In Arbiter's own repository, `node scripts/check-all.mjs L2` prepares `dist/` with one
+`npm run build` before dependent checks. A failed or skipped build stops those checks and
+writes a failed gate result. No separate build or coverage pre-run is needed: L2 runs the
+unit corpus once with coverage. L1 keeps its lightweight kit preparation.
 
 At L2, `check-tdd-evidence.mjs` treats a branch as docs-only only when every changed path is on its
 documentation allowlist: a root documentation file (except `AGENTS.md`), or a documentation file

@@ -44,10 +44,10 @@ describe('#2419 AC-2 — bypass-ceremony is a hard check that runs at L1', () =>
     expect(line as string).not.toContain('runWarnCheck(')
   })
 
-  it('the call site sits in the L1 partition, ahead of the `subcommand !== check` boundary', () => {
+  it('the call site belongs to the captured L1 validation partition', () => {
     const source = readFileSync(SELF_CHECK_ALL, 'utf-8')
     const site = source.indexOf("'scripts/check-bypass-ceremony.mjs'")
-    const l2Boundary = source.indexOf("if (subcommand !== 'check')")
+    const l2Boundary = source.indexOf('const l1EndIdx = getResults().length')
     expect(site).toBeGreaterThan(-1)
     expect(l2Boundary).toBeGreaterThan(-1)
     expect(site).toBeLessThan(l2Boundary)

@@ -508,10 +508,14 @@ describe('check-tdd-evidence.mjs --dir <repo>', () => {
         test_commit_sha: baseSha,
         test_blob_sha: blobSha,
         // verify tdd RE-RUNS this at test_commit_sha and requires the fresh output to
-        // carry a recognised failure signature EQUAL to observed_failure (#1957). Emit
+        // reproduce the saved failure identities with a nonzero exit (#1957). Emit
         // one directly: the point of this fixture is the produced-here guard, not the
         // re-execution check, which must PASS so the exit 1 is attributable.
-        test_command: ['sh', '-c', 'echo " FAIL  __tests__/foo.test.ts"'],
+        test_command: [
+          'sh',
+          '-c',
+          'echo " FAIL  __tests__/foo.test.ts > foo > does the thing"; exit 1',
+        ],
         test_run_log:
           ' FAIL  __tests__/foo.test.ts > foo > does the thing\nexpected 1 to equal 2\n',
         observed_failure: 'FAIL  __tests__/foo.test.ts',

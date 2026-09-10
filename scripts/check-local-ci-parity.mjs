@@ -368,6 +368,7 @@ const CI_COVERAGE = new Map([
   ['codex parity (#1966)', 'gate-full'],
   ['codex self-parity (#1966)', 'gate-full'],
   ['build-kit', 'gate-full'],
+  ['build', 'gate-full'],
   ['no redacted tokens', 'gate-full'],
   ['no work refs', 'gate-full'],
   ['private paths ignored', 'gate-full'],
