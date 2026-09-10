@@ -796,7 +796,7 @@ process.stdout.write(JSON.stringify(process.argv[2] === 'pr' ? ${JSON.stringify(
       expect.arrayContaining(['api', 'graphql', '--paginate', '--slurp', `sha=${sha}`]),
     )
     expect(calls[1]?.find((arg) => arg.startsWith('query='))).toContain(
-      'checkSuite { createdAt branch workflowRun { event } }',
+      'checkSuite { createdAt branch { name } workflowRun { event } }',
     )
   } finally {
     if (originalPath === undefined) delete process.env.PATH
