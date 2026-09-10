@@ -18,6 +18,10 @@ describe('parseCheckArgs — subcommands', () => {
   it('uses last explicit subcommand when multiple given', () => {
     expect(parseCheckArgs(['check', 'full']).subcommand).toBe('full')
   })
+
+  it('rejects an unsupported flag before a gate can run (#2645)', () => {
+    expect(() => parseCheckArgs(['L2', '--dry-run'])).toThrow(/unsupported argument: --dry-run/)
+  })
 })
 
 describe('parseCheckArgs — back-compat aliases', () => {
