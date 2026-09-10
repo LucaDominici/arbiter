@@ -251,6 +251,7 @@
     "fail_on_warn": true
   },
   "notes": [
-    "Tier Standard: emitted template is staged by the external Codex boundary, requires self-schema byte parity, and drives 30 checked consumer projections. Exact baseline f213d033862bb7dcd37ad6390517cd8a85085610."
+    "Tier Standard: emitted template is staged by the external Codex boundary, requires self-schema byte parity, and drives 30 checked consumer projections. Exact baseline f213d033862bb7dcd37ad6390517cd8a85085610.",
+    "Native completion recovery: #2630 merged candidate 6eb2c01 as the second parent of ordinary GitHub merge 12b144a, which native completion rejected. Fast-forward to 12b preserves the 37 qualified product/projection blobs; a fresh evidence-only candidate will requalify and use exact-head atomic promotion. No AC, source behavior, consumer P/Q, or M1 claim changes."
   ]
 }

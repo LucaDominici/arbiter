@@ -138,5 +138,16 @@
       "notes": "The unchanged native caller stages the generated repo schema for Codex. Focused44/44, bake32, actual L1 ALL PASSED120049ms and a fresh generated-consumer native provider invocation support compatibility. Native call exit0 produced a real external-cli Codex0.153.4 envelope PASS0.85; dispatch requested1/fulfilled1/degraded0 with onUnavailable=fail and consent enabled. The receipt names source2667 and generated schema77c14e, while recorder envelope/dispatch correctly bind the separate generated-consumer commit ddd7cfef2c8233c927f55127554eec070c062791. This proves actual provider dispatch compatibility, not final source delivery review, downstream consumer adoption or M1 completion."
     }
   ],
-  "limits": "Final independent all-four-criterion code fit on source2667; actual L1 and actual provider receipt acknowledged. This does not certify subsequent CI/merge, final source delivery-review fulfillment, replacement of qualified consumer P/Q, downstream consumer adoption or final M1 acceptance. Original d821 failure retained."
+  "limits": "Final independent all-four-criterion code fit on source2667; actual L1 and actual provider receipt acknowledged. This does not certify subsequent CI/merge, final source delivery-review fulfillment, replacement of qualified consumer P/Q, downstream consumer adoption or final M1 acceptance. Original d821 failure retained.",
+  "nativeCompletionRecovery": {
+    "status": "PENDING_FINAL_METADATA_READBACK",
+    "originalQualifiedCandidate": "6eb2c01bd7098fe863b9ef61a2821a932c612e7a",
+    "mergedParent": "12b144a64b9a8c9ba7e67d1e6bc126799413d5eb",
+    "productProjectionPathCount": 37,
+    "productProjectionDriftCount": 0,
+    "sourceReviewBinding": "pending actual independent review of the eventual evidence-only commit",
+    "acFitBinding": "pending actual independent fit review of the eventual evidence-only commit",
+    "retainedFailure": "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-native-complete-receipt.json",
+    "limits": "No AC or product verdict is transferred to this metadata-only candidate before the pending exact-head reviews and qualification."
+  }
 }
