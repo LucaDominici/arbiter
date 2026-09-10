@@ -119,4 +119,14 @@ describe('ci-tier render parity — gate-full operator strictness', () => {
     expect(rendered).toContain('"${{ needs.gate-full.result }}" != "success"')
     expect(rendered).not.toContain('"${{ needs.gate-full.result }}" == "failure"')
   })
+
+  it('D4 post-merge status fails closed on the Full Gate outcome without rerunning it', () => {
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', fixture)
+    const postMergeGate = rendered.match(/  post-merge-gate:[\s\S]*?\n\n  post-merge-notify:/)?.[0] ?? ''
+
+    expect(postMergeGate).toContain('GATE_FULL_RESULT: ${{ needs.gate-full.result }}')
+    expect(postMergeGate).toContain('[[ "$GATE_FULL_RESULT" == "success" ]]')
+    expect(postMergeGate).not.toContain('actions/checkout')
+    expect(postMergeGate).not.toContain('scripts/check-all.mjs')
+  })
 })
