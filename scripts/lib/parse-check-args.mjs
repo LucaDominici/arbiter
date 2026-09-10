@@ -55,6 +55,8 @@ export function parseCheckArgs(argv) {
       if (subcommand === null) {
         subcommand = arg === 'L1' ? 'check' : 'gate'
       }
+    } else {
+      throw new Error(`unsupported argument: ${arg}`)
     }
   }
 
