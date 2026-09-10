@@ -1,10 +1,13 @@
 {
-  "count": 1,
+  "count": 2,
   "agents": [
-    "astra-2500-final-source-review"
+    "astra-2632-final-source-review",
+    "2578-recovery-author-2632-final-source-review"
   ],
-  "branch": "task/#2500-release-freshness",
-  "sha": "23acb652c27d5edde95611ad0297e81af5524ba7",
-  "taskId": "#2500",
-  "ts": "2026-09-09T23:32:12.547676+00:00"
+  "branch": "task/#2632-native-review-boundaries",
+  "sha": "d30c95729f282df64190bd860389d04c2872a7fe",
+  "taskId": "#2632",
+  "ts": "2026-09-10T02:03:06.468997+00:00",
+  "kind": "actual-independent-source-review-dispatch",
+  "basis": "Two independent staged source reviews, one-line fixture delta readback, and actual committed same-tree seals. Verifier recorded separately."
 }

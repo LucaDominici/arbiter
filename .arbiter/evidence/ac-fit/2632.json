@@ -1,0 +1,125 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2632",
+  "branch": "task/#2632-native-review-boundaries",
+  "sha": "d30c95729f282df64190bd860389d04c2872a7fe",
+  "plan_sha256": "4826c0989c0623aa981c5307f698a470d255ee77f0fe8f0ca9135a78a58aeb90",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/agent-return-validate.mjs",
+          "line": 388
+        },
+        {
+          "file": "scripts/lib/agent-return-validate.mjs",
+          "line": 412
+        },
+        {
+          "file": "scripts/lib/agent-return-validate.mjs",
+          "line": 423
+        },
+        {
+          "file": "__tests__/scripts/agent-return-validate.test.ts",
+          "line": 227
+        },
+        {
+          "file": "__tests__/scripts/agent-return-validate.test.ts",
+          "line": 256
+        }
+      ],
+      "notes": "all three Git invocations use execFileSync argv without a shell. Self+actual EJS-emitted tests assert both SHA/path marker absence, valid literal spaces/metacharacters, immutable committed content despite worktree mutation, absent-file and line99 rejection. Two original citation assertions failed on old source;65GREEN includes their repaired executions."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-cross-model-review.mjs",
+          "line": 225
+        },
+        {
+          "file": "src/templates/scripts/check-cross-model-review.mjs.ejs",
+          "line": 219
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 825
+        }
+      ],
+      "notes": "require-fulfilled is honored before absent-property optionalSKIP unless environment explicitly enables. Self/emitted tests execute blank/unset-equivalent and false env: strict1/noSKIP and optional0/SKIP; true reaches missing evidence validation. Four actual old strict-mode assertions failed0-vs1 and pass in65GREEN."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/lib/agent-return-validate.mjs.ejs",
+          "line": 412
+        },
+        {
+          "file": "src/templates/scripts/check-cross-model-review.mjs.ejs",
+          "line": 220
+        },
+        {
+          "file": "examples/go-library/scripts/check-cross-model-review.mjs",
+          "line": 220
+        },
+        {
+          "file": "examples/python-library/scripts/lib/agent-return-validate.mjs",
+          "line": 412
+        },
+        {
+          "file": "examples/ts-library/scripts/check-cross-model-review.mjs",
+          "line": 220
+        }
+      ],
+      "notes": "actual native rebuild0, bake32PASS/27snapshot changes,3example regeneration0, dogfood0 and strictpack0/1301files. Independent27snapshot JSON comparison proves only two corrected native content hashes changed. All six example scripts exactly match EJS render bytes. Original strict-schema self/raw-template bytes unchanged and no threshold increase. Initial strictpack2 retained; redundant helper comments trimmed before successful build/regeneration."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-cross-model-review.mjs",
+          "line": 319
+        },
+        {
+          "file": "scripts/check-cross-model-review.mjs",
+          "line": 328
+        },
+        {
+          "file": "scripts/check-cross-model-review.mjs",
+          "line": 377
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 263
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 270
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 323
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 489
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 510
+        },
+        {
+          "file": "__tests__/scripts/check-cross-model-review.test.ts",
+          "line": 630
+        }
+      ],
+      "notes": "existing missing-evidence, branch/history, invalid fulfilled-envelope, consent/provenance and explicit degradation/cardinality tests remain in65PASS. Immutable citation line rejection runs on both projections. Runtime changes are solely argv replacement and one strict-config branch; prior rejection branches remain. Source fit does not attest future delivery."
+    }
+  ]
+}
