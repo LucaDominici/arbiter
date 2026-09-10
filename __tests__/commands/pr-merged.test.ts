@@ -537,7 +537,11 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
           name: 'CI',
           conclusion: 'SUCCESS',
           completedAt: ciCompletedAt,
-          checkSuite: { createdAt: ciCreatedAt, branch: 'main', workflowRun: { event: 'push' } },
+          checkSuite: {
+            createdAt: ciCreatedAt,
+            branch: { name: 'main' },
+            workflowRun: { event: 'push' },
+          },
         },
       ],
     })

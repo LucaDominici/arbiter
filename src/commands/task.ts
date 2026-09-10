@@ -515,7 +515,7 @@ const COMMIT_CI_QUERY = `query($owner:String!,$name:String!,$sha:GitObjectID!,$e
     statusCheckRollup { contexts(first:100,after:$endCursor) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        ... on CheckRun { name conclusion completedAt checkSuite { createdAt branch workflowRun { event } } }
+        ... on CheckRun { name conclusion completedAt checkSuite { createdAt branch { name } workflowRun { event } } }
         ... on StatusContext { context state createdAt }
       }
     } }
@@ -844,9 +844,10 @@ function isSuccessfulPostMainCheck(
 ): boolean {
   const completed = Date.parse(check.completedAt ?? '')
   const outcome = check.conclusion ?? check.state ?? ''
+  const branch = check.checkSuite?.branch
   return (
-    check.checkSuite?.branch === 'main' &&
-    check.checkSuite.workflowRun?.event === 'push' &&
+    (typeof branch === 'string' ? branch : branch?.name) === 'main' &&
+    check.checkSuite?.workflowRun?.event === 'push' &&
     Number.isFinite(completed) &&
     completed <= Date.now() &&
     ['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(outcome)
