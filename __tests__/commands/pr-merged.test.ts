@@ -369,7 +369,22 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
           throw new Error('a denied GitHub route must not read PRs')
         },
       }),
-    ).toThrow(/raw permitGitHub/i)
+    ).toThrow(/completion policy|raw permitGitHub/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('AC-4: refuses a PR completion without raw arbiter configuration', () => {
+    rmSync(join(dir, 'arbiter.json'))
+    stampMarker()
+    expect(() =>
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        readPrs: () => {
+          throw new Error('an unconfigured route must not read PRs')
+        },
+      }),
+    ).toThrow(/completion policy|raw permitGitHub/i)
     expect(readUnifiedState(dir)?.phase).toBe('close')
   })
 

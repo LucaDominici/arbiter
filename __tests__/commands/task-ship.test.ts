@@ -327,6 +327,10 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
 
   it('auto-advances phase-by-phase through gate-green to complete', () => {
     initGitRepo(dir)
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ permitGitHub: true, collaborationMode: 'peer-review' }),
+    )
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeTddEvidence(dir, '#1206')
     writeRedTeamEvidence(dir, '#1206')

@@ -675,7 +675,7 @@ function assertDirectHeadOnMain(dir: string): string {
 }
 
 function checkPrMergedGate(dir: string, opts: TaskAdvanceOptions, candidateSha?: string): void {
-  if (opts.noPr !== true && existsSync(join(dir, 'arbiter.json'))) {
+  if (opts.noPr !== true) {
     const rawConfig = readRawArbiterConfig(dir)
     if (!hasRawGitHubPermission(rawConfig)) {
       throw prGateRefusal('PR completion requires raw permitGitHub: true.')
