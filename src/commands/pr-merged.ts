@@ -28,7 +28,7 @@ export interface PrSnapshot {
   statusCheckRollup?: readonly CiCheck[] | null
 }
 
-export interface CiCheck {
+interface CiCheck {
   name?: string
   context?: string
   conclusion?: string
@@ -40,73 +40,6 @@ export interface CiCheck {
     branch?: string
     workflowRun?: { event?: string } | null
   } | null
-}
-
-export type EvidenceCompletionPolicy = 'exact-pr' | 'reviewed-pr' | 'direct' | 'legacy'
-
-export type EvidenceCompletionPolicyResolution =
-  { ok: true; policy: EvidenceCompletionPolicy } | { ok: false; reason: string }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function refusal(reason: string): EvidenceCompletionPolicyResolution {
-  return { ok: false, reason }
-}
-
-export function hasRawGitHubPermission(rawConfig: unknown): boolean {
-  return isRecord(rawConfig) && rawConfig['permitGitHub'] === true
-}
-
-function resolveExplicitCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
-  if (!isRecord(rawConfig)) return refusal('completion policy requires an object arbiter.json')
-  const mode = rawConfig['collaborationMode']
-  if (mode === 'peer-review' || mode === 'gated-review') {
-    return hasRawGitHubPermission(rawConfig)
-      ? { ok: true, policy: 'reviewed-pr' }
-      : refusal('reviewed completion requires raw permitGitHub: true')
-  }
-  if (mode !== 'trunk-solo') {
-    return refusal('completion policy requires an explicit supported collaborationMode')
-  }
-  const solo = rawConfig['solo']
-  if (!isRecord(solo)) return refusal('trunk-solo completion requires an explicit solo.mergeMode')
-  if (solo['mergeMode'] === 'direct') {
-    return hasRawGitHubPermission(rawConfig)
-      ? { ok: true, policy: 'direct' }
-      : refusal('direct completion requires raw permitGitHub: true')
-  }
-  if (solo['mergeMode'] === 'pr-ff') {
-    return hasRawGitHubPermission(rawConfig)
-      ? { ok: true, policy: 'exact-pr' }
-      : refusal('exact completion requires raw permitGitHub: true')
-  }
-  return refusal('trunk-solo completion requires solo.mergeMode direct or pr-ff')
-}
-
-/** Resolve completion without applying compatibility defaults. */
-export function resolveEvidenceCompletionPolicy(
-  rawConfig: unknown,
-  requireExplicit = false,
-): EvidenceCompletionPolicyResolution {
-  if (!isRecord(rawConfig)) return refusal('completion policy requires an object arbiter.json')
-  const features = rawConfig['features']
-  if (!isRecord(features)) return refusal('completion policy requires an object features config')
-  if (!requireExplicit && features['evidenceHarness'] !== true)
-    return { ok: true, policy: 'legacy' }
-  return resolveExplicitCompletionPolicy(rawConfig)
-}
-
-export function resolveDirectCompletionPolicy(
-  rawConfig: unknown,
-): EvidenceCompletionPolicyResolution {
-  const policy = resolveExplicitCompletionPolicy(rawConfig)
-  if (!policy.ok) return policy
-  if (policy.policy !== 'direct') {
-    return refusal('`--no-pr` requires raw trunk-solo with solo.mergeMode direct')
-  }
-  return policy
 }
 
 export type MergedVerdict = { merged: true; number: number } | { merged: false; detail: string }
@@ -152,8 +85,14 @@ export function evaluateMerged(
   branch: string,
   explicitPr?: number,
   candidateSha?: string,
+  qualification?: {
+    policy: 'exact-pr' | 'reviewed-pr'
+    mergeReachableFromMain: boolean
+    requireMainBase: boolean
+  },
 ): MergedVerdict {
-  if (candidateSha !== undefined) return evaluateQualifiedMerged(prs, candidateSha, explicitPr)
+  if (candidateSha !== undefined)
+    return evaluateQualifiedMerged(prs, candidateSha, explicitPr, qualification)
   if (explicitPr !== undefined) {
     const named = prs.find((pr) => pr.number === explicitPr)
     if (named === undefined) {
@@ -184,55 +123,46 @@ function evaluateQualifiedMerged(
   prs: readonly PrSnapshot[],
   candidateSha: string,
   explicitPr?: number,
+  qualification?: {
+    policy: 'exact-pr' | 'reviewed-pr'
+    mergeReachableFromMain: boolean
+    requireMainBase: boolean
+  },
 ): MergedVerdict {
-  return evaluateQualifiedCompletionInternal(prs, candidateSha, 'exact-pr', true, {
-    explicitPr,
-    requireMainBase: false,
-  })
-}
-
-export function evaluateQualifiedCompletion(
-  prs: readonly PrSnapshot[],
-  candidateSha: string,
-  policy: 'exact-pr' | 'reviewed-pr',
-  mergeReachableFromMain: boolean,
-  explicitPr?: number,
-): MergedVerdict {
-  return evaluateQualifiedCompletionInternal(prs, candidateSha, policy, mergeReachableFromMain, {
-    explicitPr,
-    requireMainBase: true,
-  })
+  return evaluateQualifiedCompletionInternal(
+    prs,
+    candidateSha,
+    qualification?.policy ?? 'exact-pr',
+    {
+      explicitPr,
+      requireMainBase: qualification?.requireMainBase ?? false,
+      mergeReachableFromMain: qualification?.mergeReachableFromMain ?? true,
+    },
+  )
 }
 
 function evaluateQualifiedCompletionInternal(
   prs: readonly PrSnapshot[],
   candidateSha: string,
   policy: 'exact-pr' | 'reviewed-pr',
-  mergeReachableFromMain: boolean,
-  options: { explicitPr: number | undefined; requireMainBase: boolean },
+  options: {
+    explicitPr: number | undefined
+    requireMainBase: boolean
+    mergeReachableFromMain: boolean
+  },
 ): MergedVerdict {
-  const candidate = prs.find(
-    (pr) =>
-      pr.state === 'MERGED' &&
-      pr.headRefOid === candidateSha &&
-      (options.explicitPr === undefined || pr.number === options.explicitPr),
-  )
-  if (!candidate || !candidate.mergeCommit?.oid) {
+  const candidate = prs.find((pr) => isQualifiedCandidate(pr, candidateSha, options.explicitPr))
+  if (!hasMergeCommit(candidate)) {
     return {
       merged: false,
       detail: 'Merged PR does not carry the qualified candidate head and merge refs.',
     }
   }
-  if (options.requireMainBase && candidate.baseRefName !== 'main') {
-    return { merged: false, detail: 'Merged PR does not target main.' }
-  }
-  if (!mergeReachableFromMain) {
-    return { merged: false, detail: 'Merged PR commit is not reachable from current origin/main.' }
-  }
-  if (policy === 'exact-pr' && candidate.mergeCommit.oid !== candidateSha) {
+  const prerequisiteFailure = qualificationPrerequisiteFailure(candidate, policy, options)
+  if (prerequisiteFailure !== undefined) {
     return {
       merged: false,
-      detail: 'Merged PR head/merge refs do not match the qualified candidate SHA.',
+      detail: prerequisiteFailure,
     }
   }
   const cutoff = Date.parse(candidate.mergedAt ?? '')
@@ -243,6 +173,34 @@ function evaluateQualifiedCompletionInternal(
     }
   }
   return { merged: true, number: candidate.number }
+}
+
+function hasMergeCommit(
+  candidate: PrSnapshot | undefined,
+): candidate is PrSnapshot & { mergeCommit: { oid: string } } {
+  return candidate?.mergeCommit?.oid !== undefined
+}
+
+function isQualifiedCandidate(pr: PrSnapshot, candidateSha: string, explicitPr?: number): boolean {
+  return (
+    pr.state === 'MERGED' &&
+    pr.headRefOid === candidateSha &&
+    (explicitPr === undefined || pr.number === explicitPr)
+  )
+}
+
+function qualificationPrerequisiteFailure(
+  candidate: PrSnapshot & { mergeCommit: { oid: string } },
+  policy: 'exact-pr' | 'reviewed-pr',
+  options: { requireMainBase: boolean; mergeReachableFromMain: boolean },
+): string | undefined {
+  if (options.requireMainBase && candidate.baseRefName !== 'main')
+    return 'Merged PR does not target main.'
+  if (!options.mergeReachableFromMain)
+    return 'Merged PR commit is not reachable from current origin/main.'
+  if (policy === 'exact-pr' && candidate.mergeCommit.oid !== candidate.headRefOid)
+    return 'Merged PR head/merge refs do not match the qualified candidate SHA.'
+  return undefined
 }
 
 function finishedBeforeMerge(check: CiCheck, cutoff: number): boolean {
@@ -267,26 +225,6 @@ function successfulCiAtMerge(checks: readonly CiCheck[], cutoff: number): boolea
     const outcome = check.conclusion ?? check.state ?? ''
     if (!['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(outcome)) return false
     if (!finishedBeforeMerge(check, cutoff)) return false
-    if (outcome === 'SUCCESS') success = true
-  }
-  return success
-}
-
-export function successfulPostMainCi(checks: readonly CiCheck[]): boolean {
-  let success = false
-  for (const check of checks) {
-    if (check.checkSuite?.branch !== 'main' || check.checkSuite.workflowRun?.event !== 'push') {
-      return false
-    }
-    const completed = Date.parse(check.completedAt ?? '')
-    const outcome = check.conclusion ?? check.state ?? ''
-    if (
-      !Number.isFinite(completed) ||
-      completed > Date.now() ||
-      !['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(outcome)
-    ) {
-      return false
-    }
     if (outcome === 'SUCCESS') success = true
   }
   return success

@@ -11,12 +11,7 @@ import { mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'nod
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import {
-  evaluateMerged,
-  evaluateQualifiedCompletion,
-  failingCheckNames,
-  type PrSnapshot,
-} from '../../src/commands/pr-merged'
+import { evaluateMerged, failingCheckNames, type PrSnapshot } from '../../src/commands/pr-merged'
 import { runTaskAdvance } from '../../src/commands/task'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state'
 import { writeGatePassEvidence } from '../helpers.js'
@@ -619,7 +614,7 @@ describe('#2615 candidate landing identity', () => {
     })
   it('AC-2: accepts a reviewed PR whose qualified head and merge commit differ on main', () => {
     expect(
-      evaluateQualifiedCompletion(
+      evaluateMerged(
         [
           {
             ...landed(),
@@ -627,9 +622,10 @@ describe('#2615 candidate landing identity', () => {
             mergeCommit: { oid: 'b'.repeat(40) },
           },
         ],
+        BRANCH,
+        undefined,
         sha,
-        'reviewed-pr',
-        true,
+        { policy: 'reviewed-pr', mergeReachableFromMain: true, requireMainBase: true },
       ),
     ).toEqual({ merged: true, number: 7 })
   })

@@ -19,16 +19,7 @@ import {
   appendLog,
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
-import {
-  evaluateMerged,
-  evaluateQualifiedCompletion,
-  hasRawGitHubPermission,
-  resolveDirectCompletionPolicy,
-  resolveEvidenceCompletionPolicy,
-  successfulPostMainCi,
-  type MergedVerdict,
-  type PrSnapshot,
-} from './pr-merged.js'
+import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
 import { evaluateSeedSize, resolveTrainLimits } from './ship-train.js'
 import { UserFacingError } from '../utils/errors.js'
@@ -725,7 +716,11 @@ function evaluateHarnessCompletion(
   const reachable = mergeSha
     ? (opts.isMergeReachable?.(mergeSha, dir) ?? isMergeReachable(mergeSha, dir))
     : false
-  return evaluateQualifiedCompletion(snapshots, candidateSha, policy.policy, reachable, opts.pr)
+  return evaluateMerged(snapshots, '', opts.pr, candidateSha, {
+    policy: policy.policy,
+    mergeReachableFromMain: reachable,
+    requireMainBase: true,
+  })
 }
 
 function isMergeReachable(mergeSha: string, dir: string): boolean {
@@ -775,6 +770,87 @@ function readRawArbiterConfig(dir: string): unknown {
       { cause: err },
     )
   }
+}
+
+type EvidenceCompletionPolicy = 'exact-pr' | 'reviewed-pr' | 'direct' | 'legacy'
+type EvidenceCompletionPolicyResolution =
+  { ok: true; policy: EvidenceCompletionPolicy } | { ok: false; reason: string }
+
+function hasRawGitHubPermission(rawConfig: unknown): boolean {
+  return isRecord(rawConfig) && rawConfig['permitGitHub'] === true
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function policyRefusal(reason: string): EvidenceCompletionPolicyResolution {
+  return { ok: false, reason }
+}
+
+function resolveExplicitCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
+  if (!isRecord(rawConfig))
+    return policyRefusal('completion policy requires an object arbiter.json')
+  const policy = explicitPolicy(rawConfig)
+  if (policy === undefined)
+    return policyRefusal(
+      'completion policy requires an explicit supported collaborationMode and merge mode',
+    )
+  return hasRawGitHubPermission(rawConfig)
+    ? { ok: true, policy }
+    : policyRefusal('completion requires raw permitGitHub: true')
+}
+
+function explicitPolicy(rawConfig: Record<string, unknown>): EvidenceCompletionPolicy | undefined {
+  const mode = rawConfig['collaborationMode']
+  if (mode === 'peer-review' || mode === 'gated-review') return 'reviewed-pr'
+  if (mode !== 'trunk-solo' || !isRecord(rawConfig['solo'])) return undefined
+  const mergeMode = rawConfig['solo']['mergeMode']
+  if (mergeMode === 'direct') return 'direct'
+  return mergeMode === 'pr-ff' ? 'exact-pr' : undefined
+}
+
+function resolveEvidenceCompletionPolicy(
+  rawConfig: unknown,
+  requireExplicit = false,
+): EvidenceCompletionPolicyResolution {
+  if (!isRecord(rawConfig))
+    return policyRefusal('completion policy requires an object arbiter.json')
+  const features = rawConfig['features']
+  if (!isRecord(features))
+    return policyRefusal('completion policy requires an object features config')
+  if (!requireExplicit && features['evidenceHarness'] !== true)
+    return { ok: true, policy: 'legacy' }
+  return resolveExplicitCompletionPolicy(rawConfig)
+}
+
+function resolveDirectCompletionPolicy(rawConfig: unknown): EvidenceCompletionPolicyResolution {
+  const policy = resolveExplicitCompletionPolicy(rawConfig)
+  if (!policy.ok) return policy
+  return policy.policy === 'direct'
+    ? policy
+    : policyRefusal('`--no-pr` requires raw trunk-solo with solo.mergeMode direct')
+}
+
+function successfulPostMainCi(checks: NonNullable<PrSnapshot['statusCheckRollup']>): boolean {
+  return (
+    checks.every(isSuccessfulPostMainCheck) &&
+    checks.some((check) => check.conclusion === 'SUCCESS')
+  )
+}
+
+function isSuccessfulPostMainCheck(
+  check: NonNullable<PrSnapshot['statusCheckRollup']>[number],
+): boolean {
+  const completed = Date.parse(check.completedAt ?? '')
+  const outcome = check.conclusion ?? check.state ?? ''
+  return (
+    check.checkSuite?.branch === 'main' &&
+    check.checkSuite.workflowRun?.event === 'push' &&
+    Number.isFinite(completed) &&
+    completed <= Date.now() &&
+    ['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(outcome)
+  )
 }
 
 function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {

@@ -1,54 +1,48 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest'
-import {
-  resolveDirectCompletionPolicy,
-  resolveEvidenceCompletionPolicy,
-} from '../../src/commands/pr-merged'
+import { evaluateMerged } from '../../src/commands/pr-merged'
 
-describe('resolveEvidenceCompletionPolicy (#2638)', () => {
-  it('AC-1/AC-2: selects reviewed-pr for an explicitly permitted gated-review harness', () => {
+describe('completion policy qualification (#2638)', () => {
+  const candidate = 'a'.repeat(40)
+  const reviewedPr = {
+    number: 7,
+    state: 'MERGED',
+    baseRefName: 'main',
+    headRefOid: candidate,
+    mergeCommit: { oid: 'b'.repeat(40) },
+    mergedAt: '2026-09-10T08:00:00Z',
+    statusCheckRollup: [
+      {
+        conclusion: 'SUCCESS',
+        completedAt: '2026-09-10T07:59:00Z',
+        checkSuite: { createdAt: '2026-09-10T07:58:00Z' },
+      },
+    ],
+  }
+
+  it('AC-2: accepts a qualified reviewed PR with a distinct merge commit', () => {
     expect(
-      resolveEvidenceCompletionPolicy({
-        collaborationMode: 'gated-review',
-        permitGitHub: true,
-        features: { evidenceHarness: true },
+      evaluateMerged([reviewedPr], 'task/#2638', undefined, candidate, {
+        policy: 'reviewed-pr',
+        mergeReachableFromMain: true,
+        requireMainBase: true,
       }),
-    ).toEqual({ ok: true, policy: 'reviewed-pr' })
+    ).toEqual({ merged: true, number: 7 })
   })
 
-  it('AC-4: refuses a legacy useGitHub alias without raw permitGitHub', () => {
+  it('AC-4: rejects the same candidate when the PR does not target main', () => {
     expect(
-      resolveEvidenceCompletionPolicy({
-        collaborationMode: 'peer-review',
-        useGitHub: true,
-        features: { evidenceHarness: true },
-      }),
-    ).toMatchObject({ ok: false })
-  })
-
-  it('AC-3: selects direct only for explicit trunk-solo direct mode', () => {
-    expect(
-      resolveEvidenceCompletionPolicy({
-        collaborationMode: 'trunk-solo',
-        permitGitHub: true,
-        solo: { mergeMode: 'direct' },
-        features: { evidenceHarness: true },
-      }),
-    ).toEqual({ ok: true, policy: 'direct' })
-  })
-
-  it('AC-1: refuses a harness without a raw collaboration mode', () => {
-    expect(resolveEvidenceCompletionPolicy({ features: { evidenceHarness: true } })).toMatchObject({
-      ok: false,
-    })
-  })
-
-  it('AC-3: refuses --no-pr authorization outside raw trunk-solo direct mode', () => {
-    expect(
-      resolveDirectCompletionPolicy({
-        collaborationMode: 'peer-review',
-        permitGitHub: true,
-      }),
-    ).toMatchObject({ ok: false })
+      evaluateMerged(
+        [{ ...reviewedPr, baseRefName: 'release' }],
+        'task/#2638',
+        undefined,
+        candidate,
+        {
+          policy: 'reviewed-pr',
+          mergeReachableFromMain: true,
+          requireMainBase: true,
+        },
+      ),
+    ).toMatchObject({ merged: false })
   })
 })

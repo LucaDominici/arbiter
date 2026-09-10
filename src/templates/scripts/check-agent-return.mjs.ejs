@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: E1 (#1943, M8 core + M12 citation) — agent-return envelope gate. Validates every
-// CATALOG: file under .arbiter/evidence/agent-returns/** against schemas/agent-return.schema.json,
+// CATALOG: envelope file under .arbiter/evidence/agent-returns/** against schemas/agent-return.schema.json,
 // CATALOG: enforces the M12 rule (a structural finding without a resolvable file:line citation is
 // CATALOG: rejected at the tool layer), and under --enforce cross-checks the dispatch sidecar
 // CATALOG: (.arbiter/agents-dispatched.json) so dispatched agents whose returns evaporated into
@@ -42,6 +42,7 @@ const SIDECAR = arg('sidecar', argv)
   ? resolve(arg('sidecar', argv))
   : join(repoDefault, '.arbiter', 'agents-dispatched.json')
 const ENFORCE = argv.includes('--enforce')
+const NON_ENVELOPE_MARKER = 'refutation-required.json'
 
 /**
  * Task the cross-check below belongs to: `--task` when given, else the task state on disk.
@@ -83,7 +84,7 @@ function main() {
         const full = join(dir, entry)
         const st = statSync(full)
         if (st.isDirectory()) walk(full)
-        else if (entry.endsWith('.json')) envelopeFiles.push(full)
+        else if (entry.endsWith('.json') && entry !== NON_ENVELOPE_MARKER) envelopeFiles.push(full)
       }
     }
     walk(EVIDENCE_DIR)

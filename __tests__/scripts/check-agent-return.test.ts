@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Tests for scripts/check-agent-return.mjs + scripts/record-agent-return.mjs (E1 #1943).
- * Agent-return envelope (M8 core + M12 citation enforcement): validates every file under
+ * Agent-return envelope (M8 core + M12 citation enforcement): validates every envelope file under
  * .arbiter/evidence/agent-returns/** against schemas/agent-return.schema.json, resolves
  * structural citations against the envelope sha, and (under --enforce) cross-checks the
  * dispatch sidecar for evaporated returns.
@@ -92,6 +92,11 @@ describe('check-agent-return.mjs', () => {
   it('exits 0 when dir exists but has no envelopes', () => {
     const result = runCheck(evidenceDir)
     expect(result.exitCode).toBe(0)
+  })
+
+  it('ignores the refutation marker, which belongs to the separate E2 gate', () => {
+    writeEnvelope(evidenceDir, '#1943/refutation-required.json', { skeptics: 3, findings: [] })
+    expect(runCheck(evidenceDir).exitCode).toBe(0)
   })
 
   // ─── Valid envelopes ───────────────────────────────────────────────────────
