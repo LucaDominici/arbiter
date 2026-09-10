@@ -56,6 +56,37 @@ describe('checkScaffoldWiring (#1835)', () => {
     expect(checkScaffoldWiring(dir).unwired).toEqual([])
   })
 
+  it('keeps undeclared scripts visible beside a declared optional script', () => {
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'check-optional.mjs'), '// manual-only runner')
+    writeFileSync(join(dir, 'scripts', 'check-orphan.mjs'), '// no consumer')
+    writeFileSync(
+      join(dir, 'scripts', 'optional-emissions.json'),
+      JSON.stringify({ optional: [{ path: 'scripts/check-optional.mjs', rationale: 'manual' }] }),
+    )
+
+    expect(checkScaffoldWiring(dir).unwired).toEqual([{ path: 'scripts/check-orphan.mjs' }])
+  })
+
+  it('requires a nonblank optional rationale', () => {
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'check-orphan.mjs'), '// no consumer')
+    writeFileSync(
+      join(dir, 'scripts', 'optional-emissions.json'),
+      JSON.stringify({ optional: [{ path: 'scripts/check-orphan.mjs', rationale: '  ' }] }),
+    )
+
+    expect(checkScaffoldWiring(dir).unwired).toEqual([{ path: 'scripts/check-orphan.mjs' }])
+  })
+
+  it('keeps a script visible when its optional manifest is malformed (AC-2)', () => {
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'check-orphan.mjs'), '// no consumer')
+    writeFileSync(join(dir, 'scripts', 'optional-emissions.json'), '{broken')
+
+    expect(checkScaffoldWiring(dir).unwired).toEqual([{ path: 'scripts/check-orphan.mjs' }])
+  })
+
   it('does not flag a script referenced by check-all.mjs', () => {
     mkdirSync(join(dir, 'scripts'), { recursive: true })
     writeFileSync(

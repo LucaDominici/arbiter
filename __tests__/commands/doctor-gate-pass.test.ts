@@ -51,7 +51,7 @@ describe('doctor health — gate-pass.jsonl section', () => {
     }
   })
 
-  it('returns gate-pass check as WARN when no gate-pass.jsonl exists', async () => {
+  it('treats a not-yet-created gate-pass log as healthy', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-doctor-nogp-'))
     try {
       process.chdir(dir)
@@ -59,7 +59,10 @@ describe('doctor health — gate-pass.jsonl section', () => {
 
       const gatePassCheck = result.checks.find((c) => c.id === 'gate-pass-log')
       expect(gatePassCheck).toBeDefined()
-      expect(gatePassCheck?.status).toBe('WARN')
+      expect(gatePassCheck).toMatchObject({
+        status: 'PASS',
+        detail: 'not created yet — run the gate to start logging',
+      })
     } finally {
       process.chdir(originalCwd)
       rmSync(dir, { recursive: true, force: true })

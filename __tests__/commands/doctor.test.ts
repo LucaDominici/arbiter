@@ -314,6 +314,7 @@ describe('runDoctorHealth (#539)', () => {
     it('keeps an absent bypass checker actionable for arbiter itself (AC-3)', async () => {
       mockGitOk()
       writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@arbiter/cli' }))
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
 
       const result = await runDoctorHealth({ dir, json: true })
 
@@ -415,6 +416,7 @@ describe('runDoctorHealth (#539)', () => {
       const result = await runDoctorHealth({ dir, json: true })
       const c = result.checks.find((x) => x.id === 'scaffold-wiring')
       expect(c?.status).toBe('PASS')
+      expect(c?.detail).toContain('every scripts/check-*.mjs is referenced or declared optional')
     })
 
     it('WARN when a check-*.mjs script is not referenced by check-all.mjs/run.sh/Makefile', async () => {

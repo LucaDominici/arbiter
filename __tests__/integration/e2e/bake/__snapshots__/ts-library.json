@@ -403,7 +403,7 @@
     "scripts/lib/glob-walk.mjs": "a71a14af1cb1d8b4068f8aede857299f884740327799d4290ba6fb3e15126638",
     "scripts/lib/run-helpers.mjs": "e042aa7c55adf9adec8c385c9e37f9de3a28ddbfd6b3aaf748eb8b66e03bbcd0",
     "scripts/lib/waiter-count.mjs": "911b32639645e060fab9a1d8987859499983436e2af80ded534dd8f5fe79283f",
-    "scripts/optional-emissions.json": "6a572cbe691398761338443924b5b0c478401b9c6f87521d3e99b47a61674501",
+    "scripts/optional-emissions.json": "984c1545b184ed6d73c596b1765c1ed14e37fc5880e941a0c8b734f381c9783f",
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",
     "scripts/pii-scan.mjs": "c26e36804ba8769ee6bbd0a9a23495285a5eb37766fc93d9f9f2e8df004a6bdc",
     "scripts/pr-merge-watch.mjs": "2d9ace9446f1f5728cb46f962678bea0613c2cbe42397bb2328d9f6f5512cf13",
