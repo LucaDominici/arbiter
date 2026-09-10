@@ -13,13 +13,34 @@
 //   5. wiki-before-delete: each deleted doc has a wiki/ counterpart (no content loss)
 //   6. over-delete guard: FLAG-set + KEEP-GENERATED contracts still exist
 //   7. INV-108 core-set surface ≤ 20 (DoD)
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
-import { describe, it, expect } from 'vitest'
+import { afterAll, beforeAll, describe, it, expect } from 'vitest'
 import { selectSsotDocs } from '../../scripts/gen-ssot-core.mjs'
 
 const ROOT = resolve(__dirname, '..', '..')
 const r = (p: string) => join(ROOT, p)
+const trackedExists = (p: string) => {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', p], { cwd: ROOT, stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+const RESIDUE_PATH = r('docs/METHOD/KNOWLEDGE_MAP.md')
+
+beforeAll(() => {
+  mkdirSync(r('docs/METHOD'), { recursive: true })
+  writeFileSync(RESIDUE_PATH, 'workspace residue')
+})
+
+afterAll(() => {
+  rmSync(RESIDUE_PATH)
+  rmSync(r('docs/METHOD'), { recursive: true })
+})
 
 // ── DELETE list: register §WIKI hand docs (64), confirmed wiki-covered ───────────
 const DELETE_LIST = [
@@ -127,15 +148,15 @@ function wikiNameFor(docPath: string): string {
 
 describe('#1244 — bespoke knowledge-map retired', () => {
   it('docs/METHOD/KNOWLEDGE_MAP.md is deleted', () => {
-    expect(existsSync(r('docs/METHOD/KNOWLEDGE_MAP.md'))).toBe(false)
+    expect(trackedExists('docs/METHOD/KNOWLEDGE_MAP.md')).toBe(false)
   })
   it('knowledge-map scripts are deleted', () => {
-    expect(existsSync(r('scripts/check-knowledge-map.mjs'))).toBe(false)
-    expect(existsSync(r('scripts/knowledge-map-update.mjs'))).toBe(false)
+    expect(trackedExists('scripts/check-knowledge-map.mjs')).toBe(false)
+    expect(trackedExists('scripts/knowledge-map-update.mjs')).toBe(false)
   })
   it('orphaned knowledge-map test files are deleted (RT-01)', () => {
-    expect(existsSync(r('__tests__/scripts/check-knowledge-map.test.ts'))).toBe(false)
-    expect(existsSync(r('__tests__/scripts/knowledge-map-update.test.ts'))).toBe(false)
+    expect(trackedExists('__tests__/scripts/check-knowledge-map.test.ts')).toBe(false)
+    expect(trackedExists('__tests__/scripts/knowledge-map-update.test.ts')).toBe(false)
   })
   it("'knowledge map' check is unregistered from the gate + parity", () => {
     // scripts/harness.mjs was ALSO removed outright (A4, wave1 action plan —
@@ -163,7 +184,7 @@ describe('#1244 — bespoke knowledge-map retired', () => {
 
 describe('#1244 — §WIKI hand docs migrated (deleted, wiki reproduces)', () => {
   it.each(DELETE_LIST)('deleted: %s', (p) => {
-    expect(existsSync(r(p)), `${p} should be deleted (migrated to wiki)`).toBe(false)
+    expect(trackedExists(p), `${p} should be deleted (migrated to wiki)`).toBe(false)
   })
 
   // The generated wiki is a 1:1 derived mirror (gen-wiki sources from `git ls-files docs/`;
