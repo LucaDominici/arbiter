@@ -1,8 +1,8 @@
 ---
 title: 'Arbiter — Architecture (arc42)'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-08-09'
+last_review: '2026-09-10'
 owner: ''
 canonical_id: 'ARC42'
 tags: ['audience/dev', 'kind/spine', 'kind/architecture']
@@ -404,6 +404,8 @@ the guard.
 - **TDD-evidence gate** (`red → green`) — four claims: `task_id` matches; the recorded test-run log
   contains a _real_ framework failure signature ("the test must actually fail"); the test commit SHA
   exists on the branch; the test file existed at that SHA (`task.ts:450-490`).
+- **Landing gate** — PR completion reads the GraphQL `CheckSuite.branch.name` field at the API boundary;
+  direct landing additionally requires a completed successful `push` check on `main`.
 - **Enforcement-weakening gate** (`review diff`) — blocks (exit 2) any removed `enforces` edge or a
   removed last `proves` test, _including a net-neutral 1-for-1 swap_.
 - **Anti-fake-green** — surfaces the `check-anti-fake-green.mjs` engine's INV-53 exit code; `--enforce`
