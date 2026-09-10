@@ -528,12 +528,34 @@ interface CiPage {
       object: {
         statusCheckRollup: {
           contexts: {
-            nodes: NonNullable<PrSnapshot['statusCheckRollup']>
+            nodes: GraphqlCiCheck[]
             pageInfo: { hasNextPage: boolean }
           }
         }
       }
     }
+  }
+}
+
+type GraphqlCiCheck = Omit<NonNullable<PrSnapshot['statusCheckRollup']>[number], 'checkSuite'> & {
+  checkSuite?: {
+    createdAt?: string
+    branch?: { name?: string } | null
+    workflowRun?: { event?: string } | null
+  } | null
+}
+
+function normalizeGraphqlCiCheck(
+  check: GraphqlCiCheck,
+): NonNullable<PrSnapshot['statusCheckRollup']>[number] {
+  const { checkSuite: suite, ...rest } = check
+  if (suite === undefined) return rest
+  if (suite === null) return { ...rest, checkSuite: null }
+  const { branch: graphqlBranch, ...suiteRest } = suite
+  const branch = graphqlBranch?.name
+  return {
+    ...rest,
+    checkSuite: { ...suiteRest, ...(branch === undefined ? {} : { branch }) },
   }
 }
 
@@ -567,7 +589,7 @@ function readCommitCi(sha: string, dir: string): NonNullable<PrSnapshot['statusC
     contexts.at(-1)?.pageInfo.hasNextPage !== false
   )
     throw new Error('Incomplete candidate CI pages')
-  return contexts.flatMap((page) => page.nodes)
+  return contexts.flatMap((page) => page.nodes.map(normalizeGraphqlCiCheck))
 }
 
 /** The unverifiable / unmerged refusal, as one user-facing error. */
@@ -845,8 +867,8 @@ function isSuccessfulPostMainCheck(
   const completed = Date.parse(check.completedAt ?? '')
   const outcome = check.conclusion ?? check.state ?? ''
   return (
-    check.checkSuite?.branch?.name === 'main' &&
-    check.checkSuite?.workflowRun?.event === 'push' &&
+    check.checkSuite?.branch === 'main' &&
+    check.checkSuite.workflowRun?.event === 'push' &&
     Number.isFinite(completed) &&
     completed <= Date.now() &&
     ['SUCCESS', 'SKIPPED', 'NEUTRAL'].includes(outcome)

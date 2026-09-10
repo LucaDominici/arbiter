@@ -539,7 +539,7 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
           completedAt: ciCompletedAt,
           checkSuite: {
             createdAt: ciCreatedAt,
-            branch: { name: 'main' },
+            branch: 'main',
             workflowRun: { event: 'push' },
           },
         },
@@ -604,7 +604,7 @@ describe('#2615 candidate landing identity', () => {
   const ci = (conclusion = 'SUCCESS') => ({
     name: 'CI',
     conclusion,
-    checkSuite: { createdAt: '2026-09-09T18:26:48Z' },
+    checkSuite: { createdAt: '2026-09-09T18:26:48Z', branch: { name: 'main' } },
     startedAt: '2026-09-09T18:35:55Z',
     completedAt: '2026-09-09T18:36:05Z',
   })

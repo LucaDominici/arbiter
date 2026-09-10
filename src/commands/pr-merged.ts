@@ -37,7 +37,7 @@ interface CiCheck {
   completedAt?: string
   checkSuite?: {
     createdAt?: string
-    branch?: { name?: string } | null
+    branch?: string
     workflowRun?: { event?: string } | null
   } | null
 }
