@@ -6,7 +6,7 @@
 // Ported from arbiter's own scripts/check-sources.mjs (#2480 wave 5). The rule is identical; only
 // the registry's path differs, because a governed project keeps its documents flat under docs/
 // while arbiter keeps its own under docs/internal/PRODUCT/. Nothing else is scoped down: the
-// property this proves needs no arbiter-internal catalog, only a committed excerpt.
+// property this proves needs no arbiter-internal catalog, only a repository-contained excerpt.
 //
 // scripts/check-sources.mjs
 // L1 gate, tier 1: a cited source is quotable, and the quotation checks out.
@@ -33,8 +33,9 @@
 // Exports for unit tests: extractSourcesBlock, findDuplicateSourceIds, checkExcerptEvidence
 
 import { readRegularFileSync } from './lib/run-helpers.mjs'
-import { existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { existsSync, realpathSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
@@ -89,15 +90,52 @@ export function checkExcerptEvidence(source, root) {
   const violations = []
   if (!rel) return [`${id}: no excerpt_path — a source with no committed excerpt cannot be checked`]
   const abs = resolve(root, rel)
+  if (!isContained(root, abs)) {
+    return [`${id}: excerpt path ${rel} resolves outside the repository`]
+  }
+  const indexRel = relative(root, abs)
   if (!existsSync(abs)) {
     return [
       `${id}: excerpt file ${rel} does not exist — the quotation has nothing to check against`,
+    ]
+  }
+  const physicalRoot = realpathSync(root)
+  const physicalExcerpt = realpathSync(abs)
+  if (!isContained(physicalRoot, physicalExcerpt)) {
+    return [`${id}: excerpt path ${rel} resolves outside the repository`]
+  }
+  const physicalRel = relative(physicalRoot, physicalExcerpt)
+  if (!isGitIndexed(root, indexRel) || !isGitIndexed(physicalRoot, physicalRel)) {
+    return [
+      `${id}: excerpt file ${rel} or its resolved content is not tracked by Git — commit it, ` +
+        `or stage a newly added excerpt before this pre-commit check`,
     ]
   }
   const raw = readRegularFileSync(abs)
   violations.push(...hashMismatch(id, raw, String(source['content_hash'])))
   violations.push(...unquotedCitations(id, raw.toString('utf-8'), rel, source['citations']))
   return violations
+}
+
+/** True when candidate is within root, including root itself. */
+function isContained(root, candidate) {
+  const path = relative(root, candidate)
+  return path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path)
+}
+
+/** Git-index membership accepts both committed files and files staged for their first commit. */
+function isGitIndexed(root, rel) {
+  try {
+    const indexed = execFileSync(
+      'git',
+      ['--literal-pathspecs', 'ls-files', '--error-unmatch', '-z', '--', rel],
+      { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] },
+    )
+    return indexed.equals(Buffer.from(`${rel}\0`))
+    // FAIL-OPEN-INTENT: Git cannot prove index membership, so this source is rejected.
+  } catch {
+    return false
+  }
 }
 
 /** The excerpt must still BE the excerpt that was read. @returns {string[]} */

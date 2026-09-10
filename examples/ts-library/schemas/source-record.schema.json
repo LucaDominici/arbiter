@@ -51,7 +51,7 @@
         "excerpt_path": {
           "type": "string",
           "minLength": 1,
-          "description": "Committed, citation-length excerpt. Short by design: enough to check the quotations this project makes, never a reproduction of the source."
+          "description": "Repository-contained, citation-length excerpt tracked by Git. A newly added excerpt staged for its first commit is accepted so the pre-commit check remains usable. Short by design: enough to check the quotations this project makes, never a reproduction of the source."
         },
         "content_hash": {
           "type": "string",

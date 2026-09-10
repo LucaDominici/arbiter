@@ -249,7 +249,7 @@
     "dest": "scripts",
     "path": "check-sources.mjs",
     "reason": "#2480 wave 7: the SOTA source gate ships on both tracks and the RULE is identical — every quoted span must be a literal substring of a committed excerpt whose sha256 matches what was recorded, offline, with no model in the loop. Two things diverge and nothing else. (1) The registry's path: a governed project keeps its documents flat under docs/, so the emitted gate reads docs/SOURCES.md while arbiter's own reads docs/internal/PRODUCT/SOURCES.md. (2) The header: the emitted copy carries the generated-by line and drops the CATALOG: annotations, which are arbiter's own gate-catalog metadata and mean nothing in a target tree. The schema travels with the gate (src/generators/check-all.ts emits schemas/source-record.schema.json), so the emitted gate cannot error for want of a contract — which is the reason this rule stayed self-only until now.",
-    "diffHash": "a787f703dc4b0ad405de7bd93a3d10b7abcacb7bc1e8529c12a02a50664aa9a5"
+    "diffHash": "0fdd26bae404ee18e61c0f0b2770a35cfeec7639f128ed0d686196350f39d506"
   },
   {
     "path": "check-grace-window.mjs",
