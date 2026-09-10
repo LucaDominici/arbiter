@@ -2,6 +2,7 @@
 // #2358 — dispatch artifact schema and advisory gate.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -13,6 +14,7 @@ import {
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync, spawnSync } from 'node:child_process'
+import ejs from 'ejs'
 
 const REPO_ROOT = process.cwd()
 const SCRIPT = join(REPO_ROOT, 'scripts', 'check-cross-model-review.mjs')
@@ -817,5 +819,42 @@ describe('check-cross-model-review (#2358)', () => {
     expect(
       JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
     ).toMatchObject({ count: 3, agents })
+  })
+})
+
+describe.each(['self', 'emitted'])('#2632 explicit required review (%s)', (projection) => {
+  it.each(['', 'false'])('fails missing feature configuration with override %j', (override) => {
+    json('arbiter.json', {})
+    let script = SCRIPT
+    if (projection === 'emitted') {
+      mkdirSync(join(root, 'scripts'), { recursive: true })
+      cpSync(join(REPO_ROOT, 'scripts/lib'), join(root, 'scripts/lib'), { recursive: true })
+      script = join(root, 'scripts/check-cross-model-review.mjs')
+      writeFileSync(
+        script,
+        ejs.render(
+          readFileSync(
+            join(REPO_ROOT, 'src/templates/scripts/check-cross-model-review.mjs.ejs'),
+            'utf8',
+          ),
+        ),
+      )
+    }
+    const env = { ...process.env, ARBITER_CROSS_MODEL_REVIEW: override }
+    const invoke = (args: string[], environment = env) =>
+      spawnSync(process.execPath, [script, '--root', root, ...args], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        env: environment,
+      })
+    const required = invoke(['--require-fulfilled'])
+    expect(required.status, required.stderr).toBe(1)
+    expect(required.stdout).not.toContain('[SKIP]')
+    const optional = invoke([])
+    expect(optional.status, optional.stderr).toBe(0)
+    expect(optional.stdout).toContain('[SKIP]')
+    const enabled = invoke(['--require-fulfilled'], { ...env, ARBITER_CROSS_MODEL_REVIEW: 'true' })
+    expect(enabled.status, enabled.stderr).toBe(1)
+    expect(enabled.stdout + enabled.stderr).toMatch(/dispatch\.json|missing/i)
   })
 })

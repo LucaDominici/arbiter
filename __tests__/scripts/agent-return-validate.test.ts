@@ -23,6 +23,12 @@
  *     New test file justified (test files are outside the refactor-first rule).
  */
 import { describe, it, expect } from 'vitest'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { execFileSync } from 'node:child_process'
+import ejs from 'ejs'
 import { validateSchema } from '../../scripts/lib/agent-return-validate.mjs'
 
 /** Validate `value` against a self-contained schema, returning the violation list. */
@@ -215,5 +221,68 @@ describe('validateSchema — the three shipped schemas whose constraints were de
     const schema = { anyOf: [{ type: 'object', required: ['id'] }, { type: 'null' }] }
     expect(check(schema, { id: 'c1' })).toEqual([])
     expect(check(schema, { nope: 1 }).length).toBe(1)
+  })
+})
+
+describe.each(['self', 'emitted'])('#2632 citation arguments (%s)', (projection) => {
+  it('treats citation arguments literally and retains immutable content/line checks', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-citation-2632-'))
+    try {
+      const git = (args: string[]) =>
+        execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+      git(['init', '-q'])
+      git(['config', 'user.name', 'Fixture'])
+      git(['config', 'user.email', 'fixture@example.invalid'])
+      for (const file of ['source.txt', 'literal space.txt', 'literal$(true).txt']) {
+        writeFileSync(join(root, file), 'first\nsecond\n')
+      }
+      git(['add', '.'])
+      git(['commit', '-qm', 'citation fixture', '--no-gpg-sign'])
+      const sha = git(['rev-parse', 'HEAD'])
+      writeFileSync(join(root, 'source.txt'), 'working tree changed\n')
+      let helper = resolve('scripts/lib/agent-return-validate.mjs')
+      if (projection === 'emitted') {
+        helper = join(root, 'emitted-validator.mjs')
+        writeFileSync(
+          helper,
+          ejs.render(
+            readFileSync(
+              resolve('src/templates/scripts/lib/agent-return-validate.mjs.ejs'),
+              'utf8',
+            ),
+          ),
+        )
+      }
+      const calls = [
+        [sha, 'source.txt', 2],
+        [sha, 'literal space.txt', 2],
+        [sha, 'literal$(true).txt', 1],
+        [sha, 'absent.txt', 1],
+        [sha, 'source.txt', 99],
+        [sha, 'source.txt$(touch citation-side-effect)', 1],
+        [sha + '$(touch sha-side-effect)', 'source.txt', 1],
+      ]
+      const program = `import {resolveCitation} from ${JSON.stringify(pathToFileURL(helper).href)};
+        console.log(JSON.stringify(${JSON.stringify(calls)}.map(args => resolveCitation(process.cwd(), ...args))));`
+      const output = execFileSync(process.execPath, ['--input-type=module', '-e', program], {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 15000,
+      })
+      const results = JSON.parse(output) as Array<{ ok: boolean }>
+      expect(existsSync(join(root, 'citation-side-effect'))).toBe(false)
+      expect(existsSync(join(root, 'sha-side-effect'))).toBe(false)
+      expect(results.map((result) => result.ok)).toEqual([
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+      ])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
