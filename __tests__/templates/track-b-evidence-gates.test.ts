@@ -196,6 +196,16 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
       expect(r.out).toMatch(/tracked|Git index/i)
     })
 
+    it('rejects an untracked regular excerpt that shadows an indexed directory prefix', () => {
+      const excerpt = join(dir, 'docs', 'sources', 'excerpts')
+      writeSources({ excerpt_path: 'docs/sources/excerpts' })
+      rmSync(excerpt, { recursive: true })
+      writeFileSync(excerpt, EXCERPT)
+      const r = run('check-sources.mjs')
+      expect(r.status).toBe(1)
+      expect(r.out).toMatch(/tracked|Git index/i)
+    })
+
     it("reads docs/SOURCES.md, not arbiter's own internal path", () => {
       writeSources()
       mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })

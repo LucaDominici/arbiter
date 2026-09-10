@@ -119,6 +119,16 @@ describe('check-sources.mjs tier 1 (#2480)', () => {
     expect(r.out).toMatch(/tracked|Git index/i)
   })
 
+  it('refuses an untracked regular excerpt that shadows an indexed directory prefix', () => {
+    const excerpt = join(dir, 'docs', 'sources', 'excerpts')
+    write([source({ excerpt_path: 'docs/sources/excerpts' })])
+    rmSync(excerpt, { recursive: true })
+    writeFileSync(excerpt, EXCERPT)
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/tracked|Git index/i)
+  })
+
   it('refuses a tracked symlink whose in-repository content target is untracked', () => {
     const excerpt = join(dir, 'docs', 'sources', 'excerpts', 'SRC-001.txt')
     const target = join(dir, 'docs', 'sources', 'excerpts', 'local-only.txt')
