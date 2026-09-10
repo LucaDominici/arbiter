@@ -80,7 +80,7 @@ describe('check-sources.mjs tier 1 (#2480)', () => {
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-sources-'))
     git(['init', '--quiet'])
-    git(['config', 'user.email', 'arbiter@example.invalid'])
+    git(['config', 'user.email', 'test-user'])
     git(['config', 'user.name', 'Arbiter test'])
   })
   afterEach(() => {

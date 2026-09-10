@@ -166,7 +166,7 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-trackb-'))
     git(['init', '--quiet'])
-    git(['config', 'user.email', 'arbiter@example.invalid'])
+    git(['config', 'user.email', 'test-user'])
     git(['config', 'user.name', 'Arbiter test'])
     emit()
   })

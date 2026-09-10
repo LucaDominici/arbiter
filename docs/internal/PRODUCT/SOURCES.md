@@ -1,8 +1,8 @@
 ---
 title: 'External sources'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-09-04'
+last_review: '2026-09-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
@@ -20,6 +20,11 @@ evidence that cannot drift without the gate noticing.
 recorded, and contains each `quoted_text` **literally**. Both halves are needed — a substring check
 alone passes on an excerpt edited after the fact, and a hash alone says nothing about whether the
 quotation appears at all.
+
+The declared excerpt path and its resolved content target must stay inside the repository and be
+present in Git's index; an excerpt staged for its first commit is therefore valid during pre-commit.
+The Git lookup treats the declared path literally, so a wildcard cannot select a tracked sibling,
+and a tracked symlink cannot certify an untracked local target.
 
 The `url` is recorded provenance and is **never dereferenced** by the gate: a check that fails when
 a website is down fails for a reason unrelated to the claim it guards.
