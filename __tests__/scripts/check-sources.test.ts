@@ -110,6 +110,28 @@ describe('check-sources.mjs tier 1 (#2480)', () => {
     expect(r.out).toMatch(/tracked|Git index/i)
   })
 
+  it('refuses an untracked literal wildcard path even when a tracked path would match it', () => {
+    const wildcard = join(dir, 'docs', 'sources', 'excerpts', '*.txt')
+    write([source({ excerpt_path: 'docs/sources/excerpts/*.txt' })])
+    writeFileSync(wildcard, EXCERPT)
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/tracked|Git index/i)
+  })
+
+  it('refuses a tracked symlink whose in-repository content target is untracked', () => {
+    const excerpt = join(dir, 'docs', 'sources', 'excerpts', 'SRC-001.txt')
+    const target = join(dir, 'docs', 'sources', 'excerpts', 'local-only.txt')
+    write([source()])
+    unlinkSync(excerpt)
+    symlinkSync('local-only.txt', excerpt)
+    git(['add', '--all'])
+    writeFileSync(target, EXCERPT)
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/tracked|Git index/i)
+  })
+
   it('refuses an excerpt path that resolves outside the repository', () => {
     const outside = resolve(dir, '..', 'outside-source-excerpt.txt')
     writeFileSync(outside, EXCERPT)

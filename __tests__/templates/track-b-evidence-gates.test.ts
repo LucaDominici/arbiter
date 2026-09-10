@@ -188,6 +188,14 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
       expect(r.out).toMatch(/PASS/)
     })
 
+    it('rejects an untracked literal wildcard excerpt instead of matching a tracked sibling', () => {
+      writeSources({ excerpt_path: 'docs/sources/excerpts/*.txt' })
+      writeFileSync(join(dir, 'docs', 'sources', 'excerpts', '*.txt'), EXCERPT)
+      const r = run('check-sources.mjs')
+      expect(r.status).toBe(1)
+      expect(r.out).toMatch(/tracked|Git index/i)
+    })
+
     it("reads docs/SOURCES.md, not arbiter's own internal path", () => {
       writeSources()
       mkdirSync(join(dir, 'docs', 'internal', 'PRODUCT'), { recursive: true })
