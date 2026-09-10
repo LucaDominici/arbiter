@@ -2,7 +2,7 @@
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2635",
   "branch": "task/#2635-native-input-boundaries",
-  "sha": "efcc80e5b43a4dfb511269cde9737d7253d4c4e5",
+  "sha": "f8a3131340ec3e0663519969aa5d62dda639a158",
   "plan_sha256": "311c93c17e3e8d43da0a70089e6d94f021a07dd97a16c6b44dc9812bfd8bf5e2",
   "criteria": [
     {
@@ -38,7 +38,7 @@
           "line": 288
         }
       ],
-      "notes": "The shared reader opens O_NONBLOCK, verifies the opened descriptor with fstat and closes on error/finally; contained readers retain descriptor-relative traversal and O_NOFOLLOW. All seven selected checker paths and the provider leaf use this guard. Actual self/emitted FIFO child tests return without timeout, preserve the caller-specific exit policies and repair to their prior valid/optional result. Acceptance explicitly preserves valid symlink/absolute plan reads and configuration fallback; fit-read errors retain exit1. Evidence: E/2635-focused-green-final.json (608 PASS) and E/2635-source-L1.json (exit0)."
+      "notes": "Regular-descriptor and contained/no-follow behavior from the original efcc assessment remains intact. Acceptance now separates state loading from phase handling; only a successfully loaded record reaches phase access. Existing ENOENT-only absence, malformed/nonregular ERROR2, valid symlink/absolute plan and caller-specific fit/config policies remain unchanged. Actual current acceptance+arc42118PASS covers the affected paths; prior608PASS covers unchanged helper, corpus and contained-provider families. New source L1 exits0 (E/2635-ratchet-source-L1.json)."
     },
     {
       "id": "AC-2",
@@ -65,7 +65,7 @@
           "line": 921
         }
       ],
-      "notes": "Self and actual emitted validators distinguish null from object and throw for null/array/scalar schema nodes. Tests preserve type:null and empty object schemas, required properties and referenced array-member validation. Real self/emitted milestone goal-null, goal-empty, member-null and root-null inputs fail1, do not emit success artifacts, and repair to0. Both cross-model validation calls catch malformed-schema exceptions as ERROR2 while ordinary evidence violations remain FAIL1; both projections test the distinction."
+      "notes": "Shared self/emitted validator, both cross-model exception mappings and all milestone code/tests are byte-unchanged from the independently reviewed efcc source. Null object values and nonrecord schemas remain rejected; type:null/empty object schemas and existing keyword contracts remain supported. Native single-file historical replay at69d17 records two real self/emitted assertion failures and the unchanged test blob; current25PASS and the earlier608PASS are retained as actual evidence under their own identities."
     },
     {
       "id": "AC-3",
@@ -98,9 +98,29 @@
         {
           "file": "__tests__/scripts/check-arc42-slots.test.ts",
           "line": 798
+        },
+        {
+          "file": "scripts/check-acceptance.mjs",
+          "line": 142
+        },
+        {
+          "file": "scripts/check-acceptance.mjs",
+          "line": 168
+        },
+        {
+          "file": "scripts/check-arc42-slots.mjs",
+          "line": 345
+        },
+        {
+          "file": "scripts/check-arc42-slots.mjs",
+          "line": 361
+        },
+        {
+          "file": "scripts/check-arc42-slots.mjs",
+          "line": 643
         }
       ],
-      "notes": "Acceptance distinguishes actual ENOENT absence from dangling/nonregular/malformed existing state; null/array/scalar state is ERROR2 before phase handling. Fresh records, missing phase and empty phase retain their native behavior. Descriptor checking also rejects a real lstat-to-FIFO replacement without blocking. Arc42 rejects existing nonrecord manifest/baseline values with ERROR2 and leaves their bytes intact under --update-baseline; existing absent-baseline bootstrap, empty-record and ratchet behavior remain. These tests are included in the actual 608 PASS run."
+      "notes": "The state IO/nonrecord check now returns a checked record before phase normalization; all early exits and fresh/legacy phase semantics are unchanged. Arc42 reuses the existing regular-read/object/error loader for YAML manifest and JSON baseline, preserving ERROR2, optional missing baseline, bootstrap/ratchet behavior and unchanged labels. Actual118PASS in the two existing test files includes self/emitted acceptance null/array/scalar/fresh/FIFO/symlink/race cases and native arc42 malformed/FIFO/optional/ratchet cases. No tests were changed."
     },
     {
       "id": "AC-4",
@@ -135,7 +155,7 @@
           "line": 145
         }
       ],
-      "notes": "Native recorded RED at 69d17ff4 has 60 failed/359 passed tests, no MODULE_NOT_FOUND, and the same committed validator-test blob retained at this source commit. Actual baseline/candidate builds and source/built facade hashes match the child test imported from dist/utils/fs.js. Final focused GREEN is 608/608 across14 files; native bake32, 27 snapshot updates limited to8 existing emitted hashes, three regenerated examples, wiki123, dogfood0, strictpack0/1301 and source L1 exit0/122733ms are retained in E/2635-* receipts. Only three previously admitted dogfood pair hashes changed; reasons/allowed exports/thresholds stayed fixed. No dependency, generated consumer patch or delivery/adoption claim is part of this source fit."
+      "notes": "This delta has actual118PASS, full source L1 exit0/120580ms, native complexity collector226, strictpack0/1301, bake32 and dogfood0. Independent comparisons show27 snapshots and3 example manifests change only the acceptance content hash; one existing arc42 dogfood diffHash changes with all rationales/allowed exports/thresholds intact. Self/template/three example acceptance bytes match. Earlier608-family GREEN and built-facade identities remain evidence for unchanged code, not a newly repeated608 run. Original60FAIL history remains retained; current native TDD uses the actual same69d17/blob single-file2FAIL/23PASS replay with current25PASS and native verification0. No dependency, consumer patch, relaxed gate or delivery claim is introduced."
     }
   ]
 }
