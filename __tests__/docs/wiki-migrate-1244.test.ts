@@ -148,15 +148,15 @@ function wikiNameFor(docPath: string): string {
 
 describe('#1244 — bespoke knowledge-map retired', () => {
   it('docs/METHOD/KNOWLEDGE_MAP.md is deleted', () => {
-    expect(existsSync(r('docs/METHOD/KNOWLEDGE_MAP.md'))).toBe(false)
+    expect(trackedExists('docs/METHOD/KNOWLEDGE_MAP.md')).toBe(false)
   })
   it('knowledge-map scripts are deleted', () => {
-    expect(existsSync(r('scripts/check-knowledge-map.mjs'))).toBe(false)
-    expect(existsSync(r('scripts/knowledge-map-update.mjs'))).toBe(false)
+    expect(trackedExists('scripts/check-knowledge-map.mjs')).toBe(false)
+    expect(trackedExists('scripts/knowledge-map-update.mjs')).toBe(false)
   })
   it('orphaned knowledge-map test files are deleted (RT-01)', () => {
-    expect(existsSync(r('__tests__/scripts/check-knowledge-map.test.ts'))).toBe(false)
-    expect(existsSync(r('__tests__/scripts/knowledge-map-update.test.ts'))).toBe(false)
+    expect(trackedExists('__tests__/scripts/check-knowledge-map.test.ts')).toBe(false)
+    expect(trackedExists('__tests__/scripts/knowledge-map-update.test.ts')).toBe(false)
   })
   it("'knowledge map' check is unregistered from the gate + parity", () => {
     // scripts/harness.mjs was ALSO removed outright (A4, wave1 action plan —
@@ -184,7 +184,7 @@ describe('#1244 — bespoke knowledge-map retired', () => {
 
 describe('#1244 — §WIKI hand docs migrated (deleted, wiki reproduces)', () => {
   it.each(DELETE_LIST)('deleted: %s', (p) => {
-    expect(existsSync(r(p)), `${p} should be deleted (migrated to wiki)`).toBe(false)
+    expect(trackedExists(p), `${p} should be deleted (migrated to wiki)`).toBe(false)
   })
 
   // The generated wiki is a 1:1 derived mirror (gen-wiki sources from `git ls-files docs/`;
