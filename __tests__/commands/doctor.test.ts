@@ -299,6 +299,30 @@ describe('runDoctorHealth (#539)', () => {
       })
     }
 
+    it('treats an absent bypass checker as unconfigured for a consumer (AC-3)', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+
+      const result = await runDoctorHealth({ dir, json: true })
+
+      expect(result.checks.find((c) => c.id === 'bypass-ceremony')).toMatchObject({
+        status: 'PASS',
+        detail: 'not configured for this project',
+      })
+    })
+
+    it('keeps an absent bypass checker actionable for arbiter itself (AC-3)', async () => {
+      mockGitOk()
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@arbiter/cli' }))
+
+      const result = await runDoctorHealth({ dir, json: true })
+
+      expect(result.checks.find((c) => c.id === 'bypass-ceremony')).toMatchObject({
+        status: 'WARN',
+        detail: 'scripts/check-bypass-ceremony.mjs not found',
+      })
+    })
+
     it('reports every populated bypass channel and violation as a failing doctor check', async () => {
       writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
       writeBypassCeremonyScript()

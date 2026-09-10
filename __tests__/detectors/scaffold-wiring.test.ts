@@ -43,6 +43,19 @@ describe('checkScaffoldWiring (#1835)', () => {
     expect(unwired).toEqual([{ path: 'scripts/check-orphan.mjs' }])
   })
 
+  it('does not flag a declared optional script with a rationale (AC-1)', () => {
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'check-optional.mjs'), '// manual-only runner')
+    writeFileSync(
+      join(dir, 'scripts', 'optional-emissions.json'),
+      JSON.stringify({
+        optional: [{ path: 'scripts/check-optional.mjs', rationale: 'manual command runner' }],
+      }),
+    )
+
+    expect(checkScaffoldWiring(dir).unwired).toEqual([])
+  })
+
   it('does not flag a script referenced by check-all.mjs', () => {
     mkdirSync(join(dir, 'scripts'), { recursive: true })
     writeFileSync(
