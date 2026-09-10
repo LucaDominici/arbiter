@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { parse as parseYaml } from 'yaml'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 import { extractGoInstallPins, MIN_GO_FOR_PINNED_TOOL } from '../helpers/go-pinned-tool-minimums.js'
@@ -14,6 +16,141 @@ function renderNightlyPartial(overrides: Record<string, unknown> = {}) {
     >,
   )
 }
+
+type NightlyJob = {
+  needs?: string[]
+  if?: string
+  steps?: Array<{
+    run?: string
+    uses?: string
+    if?: string
+    'continue-on-error'?: boolean
+    with?: { name?: string; path?: string; 'retention-days'?: number }
+  }>
+}
+
+describe('#2628 — self Nightly uses required L2 coverage once', () => {
+  const fixture = JSON.parse(
+    readFileSync(resolve('__tests__/fixtures/ci-tier-render-context.json'), 'utf8'),
+  )
+  const sources = [
+    ['self render', renderTemplate('github/workflows/_nightly.yml.ejs', fixture)],
+    [
+      'self L3 render',
+      renderTemplate('github/workflows/_nightly.yml.ejs', { ...fixture, governanceLevel: 'L3' }),
+    ],
+    [
+      'self L4 render',
+      renderTemplate('github/workflows/_nightly.yml.ejs', { ...fixture, governanceLevel: 'L4' }),
+    ],
+    ['live workflow', readFileSync(resolve('.github/workflows/_nightly.yml'), 'utf8')],
+  ] as const
+
+  describe.each(sources)('%s', (_name, source) => {
+    const { jobs } = parseYaml(source) as { jobs: Record<string, NightlyJob> }
+
+    it('runs the full L2 gate once without a standalone coverage corpus', () => {
+      expect(jobs).not.toHaveProperty('coverage-report')
+      const gateSteps = jobs['gate-full-nightly'].steps ?? []
+      const gateRuns = gateSteps.filter((step) => step.run?.includes('scripts/check-all.mjs'))
+      expect(gateRuns).toHaveLength(1)
+      expect(gateRuns[0].run).toBe('node scripts/check-all.mjs L2 --json gate-result-nightly.json')
+      expect(gateRuns[0]['continue-on-error']).not.toBe(true)
+      expect(source).not.toMatch(/vitest run --coverage/)
+    })
+
+    it('uploads the L2 coverage directory once, including when the gate fails', () => {
+      const uploads = Object.entries(jobs).flatMap(([job, definition]) =>
+        (definition.steps ?? [])
+          .filter((step) => step.with?.name === 'coverage-${{ github.run_id }}')
+          .map((step) => ({ job, step })),
+      )
+      expect(uploads).toHaveLength(1)
+      expect(uploads[0].job).toBe('gate-full-nightly')
+      expect(uploads[0].step.uses).toMatch(/^actions\/upload-artifact@[a-f0-9]{40}$/)
+      expect(uploads[0].step.if).toBe('always()')
+      expect(uploads[0].step['continue-on-error']).toBe(true)
+      expect(uploads[0].step.with).toMatchObject({ path: 'coverage/', 'retention-days': 30 })
+    })
+
+    it('waits for L2 in both the aggregate and evidence collector', () => {
+      for (const job of ['nightly-required', 'evidence-collect']) {
+        expect(jobs[job].needs).toContain('gate-full-nightly')
+        expect(jobs[job].needs).not.toContain('coverage-report')
+        expect(jobs[job].if).toBe('always()')
+      }
+    })
+
+    it.each([
+      ['success', 'success', 0],
+      ['failure', 'success', 1],
+      ['cancelled', 'success', 1],
+      ['skipped', 'success', 1],
+      ['', 'success', 1],
+      ['success', 'failure', 1],
+      ['success', 'cancelled', 0],
+      ['success', 'skipped', 0],
+    ])(
+      'returns the required outcome for L2 %j and peer jobs %j',
+      (gateResult, peerResult, exitCode) => {
+        const script = jobs['nightly-required'].steps?.[0].run
+        expect(script).toBeDefined()
+        const expanded = script!.replace(
+          /\$\{\{ needs\.([\w-]+)\.result \}\}/g,
+          (_expression, job: string) => (job === 'gate-full-nightly' ? gateResult : peerResult),
+        )
+        const result = spawnSync('bash', ['-e', '-c', expanded], { encoding: 'utf8' })
+        expect(result.status, result.stderr + result.stdout).toBe(exitCode)
+      },
+    )
+  })
+
+  it.each(['L1', 'L2', 'L3', 'L4'])('%s preserves generated consumer coverage lanes', (level) => {
+    const stacks = [
+      { language: 'typescript', buildTool: 'npm', command: 'npx vitest run --coverage' },
+      {
+        language: 'java',
+        buildTool: 'gradle',
+        command: './gradlew jacocoTestCoverageVerification',
+      },
+      { language: 'go', buildTool: 'go', command: 'go test -coverprofile=coverage.out' },
+      { language: 'python', buildTool: 'pip', command: 'pytest --cov' },
+      { language: 'rust', buildTool: 'cargo', command: 'cargo tarpaulin --fail-under' },
+    ]
+    for (const stack of stacks) {
+      const source = renderNightlyPartial({ ...stack, governanceLevel: level })
+      const { jobs } = parseYaml(source) as { jobs: Record<string, NightlyJob> }
+      const steps = jobs['coverage-report'].steps ?? []
+      expect(
+        steps.some((step) => step.run?.includes(stack.command)),
+        stack.language,
+      ).toBe(true)
+      expect(
+        steps.some((step) => step.with?.path === 'coverage/'),
+        stack.language,
+      ).toBe(true)
+      for (const job of ['nightly-required', 'evidence-collect']) {
+        expect(jobs[job].needs, stack.language).toContain('coverage-report')
+      }
+      if (stack.language === 'typescript') {
+        expect(source).toContain(
+          `--coverage.thresholds.lines=${level === 'L1' || level === 'L2' ? 80 : 85}`,
+        )
+      }
+    }
+  })
+
+  it('retains standalone coverage when the self harness is rendered without an L2 gate', () => {
+    const source = renderTemplate('github/workflows/_nightly.yml.ejs', {
+      ...fixture,
+      governanceLevel: 'L1',
+    })
+    const { jobs } = parseYaml(source) as { jobs: Record<string, NightlyJob> }
+    expect(jobs).not.toHaveProperty('gate-full-nightly')
+    expect(jobs).toHaveProperty('coverage-report')
+    expect(jobs['nightly-required'].needs).toContain('coverage-report')
+  })
+})
 
 // ─── CANON-18: structural invariants ─────────────────────────────────────────
 
