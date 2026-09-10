@@ -29,7 +29,15 @@
  *     rather than reimplementing a validator.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  readFileSync,
+  existsSync,
+  cpSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -49,6 +57,9 @@ import {
   findTerminalEpicsWithoutEvidence,
   findDoneWithOpenEpics,
 } from '../../scripts/check-milestones.mjs'
+
+import { renderTemplate } from '../../src/utils/render.js'
+import { makeConfig } from '../helpers.js'
 
 const REPO_ROOT = join(__dirname, '..', '..')
 const GATE = join(REPO_ROOT, 'scripts', 'check-milestones.mjs')
@@ -849,4 +860,80 @@ ${epicsBlock}`
     expect(r.status).toBe(0)
     expect(r.stdout).toMatch(/0 epic\(s\)/)
   })
+})
+
+describe.each(['self', 'emitted'])('#2635 milestone object contract (%s)', (projection) => {
+  it.each(['goal-null', 'goal-empty', 'members-null', 'root-null'])(
+    'rejects %s, emits nothing, then repairs',
+    (mutation) => {
+      const dir = mkdtempSync(join(tmpdir(), 'milestone-shapes-'))
+      try {
+        let script = GATE
+        if (projection === 'emitted') {
+          cpSync(join(REPO_ROOT, 'scripts/lib'), join(dir, 'scripts/lib'), { recursive: true })
+          cpSync(join(REPO_ROOT, 'schemas'), join(dir, 'schemas'), { recursive: true })
+          for (const rel of [
+            'check-milestones.mjs',
+            'lib/run-helpers.mjs',
+            'lib/agent-return-validate.mjs',
+          ]) {
+            writeFileSync(
+              join(dir, 'scripts', rel),
+              renderTemplate(`scripts/${rel}.ejs`, makeConfig(dir)),
+            )
+          }
+          script = join(dir, 'scripts/check-milestones.mjs')
+        }
+        const path = join(
+          dir,
+          projection === 'self' ? 'docs/internal/PRODUCT/MILESTONES.yml' : 'docs/MILESTONES.md',
+        )
+        mkdirSync(join(path, '..'), { recursive: true })
+        const write = (doc: unknown) =>
+          writeFileSync(
+            path,
+            projection === 'self'
+              ? JSON.stringify(doc)
+              : `<!-- MILESTONES_START -->\n\`\`\`json\n${JSON.stringify(doc)}\n\`\`\`\n<!-- MILESTONES_END -->\n`,
+          )
+        const out = join(dir, 'projection.json')
+        const invoke = () =>
+          spawnSync(process.execPath, [script, '--dir', dir, '--emit', out], {
+            encoding: 'utf8',
+            timeout: 1000,
+            killSignal: 'SIGKILL',
+          })
+        const valid = { milestones: [milestone()] }
+        write(valid)
+        expect(invoke().status).toBe(0)
+        expect(existsSync(out)).toBe(true)
+        rmSync(out)
+        const invalid =
+          mutation === 'root-null'
+            ? null
+            : {
+                milestones: [
+                  milestone(
+                    mutation === 'goal-null'
+                      ? { goal: null }
+                      : mutation === 'goal-empty'
+                        ? { goal: {} }
+                        : { members: null },
+                  ),
+                ],
+              }
+        write(invalid)
+        const result = invoke()
+        expect(result.error, result.stderr).toBeUndefined()
+        expect(result.status, result.stderr).toBe(1)
+        expect(result.stderr).toMatch(/schema|expected|required/i)
+        expect(existsSync(out)).toBe(false)
+        write(valid)
+        expect(invoke().status).toBe(0)
+        expect(existsSync(out)).toBe(true)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
 })

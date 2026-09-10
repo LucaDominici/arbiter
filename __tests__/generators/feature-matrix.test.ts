@@ -134,6 +134,10 @@ function promoteFirstRowToVerified(dir: string): void {
 function emitValidator(dir: string): void {
   mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
   writeFileSync(
+    join(dir, 'scripts/lib/run-helpers.mjs'),
+    renderTemplate('scripts/lib/run-helpers.mjs.ejs', makeConfig(dir)),
+  )
+  writeFileSync(
     join(dir, 'scripts', 'lib', 'agent-return-validate.mjs'),
     renderTemplate(
       'scripts/lib/agent-return-validate.mjs.ejs',

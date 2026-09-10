@@ -244,6 +244,12 @@ describe.each(['self', 'emitted'])('#2632 citation arguments (%s)', (projection)
       if (projection === 'emitted') {
         helper = join(root, 'emitted-validator.mjs')
         writeFileSync(
+          join(root, 'run-helpers.mjs'),
+          ejs.render(
+            readFileSync(resolve('src/templates/scripts/lib/run-helpers.mjs.ejs'), 'utf8'),
+          ),
+        )
+        writeFileSync(
           helper,
           ejs.render(
             readFileSync(
@@ -283,6 +289,43 @@ describe.each(['self', 'emitted'])('#2632 citation arguments (%s)', (projection)
       ])
     } finally {
       rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe.each(['self', 'emitted'])('#2635 schema object boundaries (%s)', (projection) => {
+  it('distinguishes null values, empty records and malformed schema nodes', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'schema-shapes-'))
+    try {
+      let validate = validateSchema
+      if (projection === 'emitted') {
+        for (const rel of ['agent-return-validate.mjs', 'run-helpers.mjs']) {
+          writeFileSync(
+            join(dir, rel),
+            ejs.render(readFileSync(resolve(`src/templates/scripts/lib/${rel}.ejs`), 'utf8')),
+          )
+        }
+        validate = (await import(pathToFileURL(join(dir, 'agent-return-validate.mjs')).href))
+          .validateSchema
+      }
+      const object = {
+        type: 'object',
+        required: ['claim'],
+        properties: { claim: { type: 'string' } },
+      }
+      for (const value of [null, [], 0, 'text'])
+        expect(validate(value, object, object, '$')).not.toEqual([])
+      expect(validate({}, object, object, '$').join(' ')).toContain('claim')
+      expect(validate({ claim: 'valid' }, object, object, '$')).toEqual([])
+      expect(validate(null, { type: 'null' }, {}, '$')).toEqual([])
+      expect(validate(null, {}, {}, '$')).toEqual([])
+      for (const schema of [[], null, 1, 'schema'])
+        expect(() => validate({}, schema, schema, '$')).toThrow(/schema/i)
+      const array = { type: 'array', items: { $ref: '#/$defs/row' }, $defs: { row: object } }
+      expect(validate([null], array, array, '$').join(' ')).toMatch(/\[0\].*object/)
+      expect(validate([{ claim: 'valid' }], array, array, '$')).toEqual([])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 })

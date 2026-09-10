@@ -858,3 +858,87 @@ describe.each(['self', 'emitted'])('#2632 explicit required review (%s)', (proje
     expect(enabled.stdout + enabled.stderr).toMatch(/dispatch\.json|missing/i)
   })
 })
+
+describe.each(['self', 'emitted'])('#2635 contained review inputs (%s)', (projection) => {
+  let script: string
+  const returnPath = '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json'
+  const refreshEvidence = () => {
+    json(returnPath, envelope())
+    writeArtifact(
+      dispatch({ fulfilled: [{ provider: 'codex', cliVersion: '0.5.1', envelope: returnPath }] }),
+    )
+  }
+  beforeEach(() => {
+    script = SCRIPT
+    if (projection === 'emitted') {
+      cpSync(join(REPO_ROOT, 'scripts/lib'), join(root, 'scripts/lib'), { recursive: true })
+      for (const rel of [
+        'check-cross-model-review.mjs',
+        'lib/run-helpers.mjs',
+        'lib/agent-return-validate.mjs',
+      ]) {
+        writeFileSync(
+          join(root, 'scripts', rel),
+          ejs.render(readFileSync(join(REPO_ROOT, 'src/templates/scripts', `${rel}.ejs`), 'utf8')),
+        )
+      }
+      script = join(root, 'scripts/check-cross-model-review.mjs')
+      commitFixtureChanges('scripts')
+    }
+    json('arbiter.json', {
+      crossModelReview: { enabled: true, diffEgressConsent: true, onUnavailable: 'degrade' },
+    })
+    refreshEvidence()
+  })
+  const invoke = () =>
+    spawnSync(process.execPath, [script, '--root', root, '--require-fulfilled'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: 1000,
+      killSignal: 'SIGKILL',
+      env: { ...process.env, ARBITER_CROSS_MODEL_REVIEW: '' },
+    })
+  it.each([
+    'arbiter.json',
+    '.claude/.task/status.json',
+    'schemas/cross-model-dispatch.schema.json',
+    'schemas/agent-return.schema.json',
+    '.arbiter/evidence/cross-model/_2358/dispatch.json',
+    '.arbiter/evidence/agent-returns/_2358/codex-reviewer-0.json',
+  ])('rejects FIFO %s at the descriptor leaf', (rel) => {
+    expect(invoke().status).toBe(0)
+    const path = join(root, rel),
+      original = readFileSync(path)
+    rmSync(path)
+    expect(spawnSync('mkfifo', [path]).status).toBe(0)
+    const result = invoke()
+    expect(result.error, result.stderr).toBeUndefined()
+    expect(result.status, result.stderr).toBe(2)
+    rmSync(path)
+    writeFileSync(path, original)
+    expect(invoke().status).toBe(0)
+  })
+  it.each(['schemas/cross-model-dispatch.schema.json', 'schemas/agent-return.schema.json'])(
+    'classifies malformed %s as ERROR2 and invalid values as FAIL1',
+    (rel) => {
+      const original = JSON.parse(readFileSync(join(root, rel), 'utf8'))
+      expect(invoke().status).toBe(0)
+      for (const value of [[], null]) {
+        json(rel, value)
+        refreshEvidence()
+        const result = invoke()
+        expect(result.error, result.stderr).toBeUndefined()
+        expect(result.status, result.stderr).toBe(2)
+        expect(result.stderr).toMatch(/ERROR.*schema/i)
+      }
+      json(rel, original)
+      refreshEvidence()
+      expect(invoke().status).toBe(0)
+      if (rel.includes('dispatch')) writeArtifact(dispatch({ requested: null }))
+      else json(returnPath, envelope({ confidence: 'invalid' }))
+      expect(invoke().status).toBe(1)
+      refreshEvidence()
+      expect(invoke().status).toBe(0)
+    },
+  )
+})

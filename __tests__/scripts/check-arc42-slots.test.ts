@@ -794,3 +794,42 @@ describe('the section parser, probed the way round 2 probed it', () => {
     expect(analyzeDocument('> ## Glossary\n\nx\n').slots).toEqual([])
   })
 })
+
+describe('#2635 arc42 input boundaries', () => {
+  it.each(['standards/gold-doc-set.yml', 'scripts/data/arc42-baseline.json'])(
+    'rejects nonrecord %s without reseeding',
+    (rel) => {
+      const dir = fixture(),
+        path = join(dir, rel),
+        original = readFileSync(path, 'utf8')
+      expect(run(dir).code).toBe(0)
+      for (const value of [[], null, 3, 'invalid']) {
+        const invalid = JSON.stringify(value)
+        writeFileSync(path, invalid)
+        const result = run(dir, '--update-baseline')
+        expect(result.code, result.out).toBe(2)
+        expect(readFileSync(path, 'utf8')).toBe(invalid)
+      }
+      writeFileSync(path, original)
+      expect(run(dir).code).toBe(0)
+    },
+  )
+  it.each([
+    'standards/gold-doc-set.yml',
+    'scripts/data/arc42-baseline.json',
+    'docs/architecture/arc42.md',
+  ])('rejects FIFO %s without blocking', (rel) => {
+    const dir = fixture(),
+      path = join(dir, rel)
+    expect(run(dir).code).toBe(0)
+    rmSync(path)
+    expect(spawnSync('mkfifo', [path]).status).toBe(0)
+    const result = spawnSync(process.execPath, [GATE, '--dir', dir, '--skeleton-root', dir], {
+      encoding: 'utf8',
+      timeout: 1000,
+      killSignal: 'SIGKILL',
+    })
+    expect(result.error, result.stderr).toBeUndefined()
+    expect(result.status, result.stderr).toBe(2)
+  })
+})

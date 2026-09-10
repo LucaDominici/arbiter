@@ -3,6 +3,9 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSy
 import { join } from 'node:path'
 import { statSync, lstatSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 import {
   writeFile,
@@ -851,6 +854,42 @@ describe('destructive-op translated primitives (#1991)', () => {
     } catch (err) {
       expect(err).toBeInstanceOf(ArbiterError)
       expect((err as ArbiterError).code).toBe('ENOENT')
+    }
+  })
+})
+
+describe('#2635 built provider contained reader', () => {
+  it('reads a regular leaf and rejects FIFO/directory/symlink leaves without waiting', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'contained-regular-'))
+    try {
+      const path = join(dir, 'input')
+      const program = `import {readFileContained} from ${JSON.stringify(pathToFileURL(resolve('dist/utils/fs.js')).href)};
+        try { console.log(readFileContained(${JSON.stringify(dir)},'input')); } catch(error) { console.error(error.message); process.exit(2); }`
+      const invoke = () =>
+        spawnSync(process.execPath, ['--input-type=module', '-e', program], {
+          encoding: 'utf8',
+          timeout: 1000,
+          killSignal: 'SIGKILL',
+        })
+      writeFileSync(path, 'owned regular inode')
+      expect(invoke().stdout).toContain('owned regular inode')
+      rmSync(path)
+      expect(spawnSync('mkfifo', [path]).status).toBe(0)
+      const fifo = invoke()
+      expect(fifo.error, fifo.stderr).toBeUndefined()
+      expect(fifo.status, fifo.stderr).toBe(2)
+      rmSync(path)
+      mkdirSync(path)
+      expect(invoke().status).toBe(2)
+      rmSync(path, { recursive: true })
+      writeFileSync(join(dir, 'target'), 'data')
+      symlinkTranslated(join(dir, 'target'), path)
+      expect(invoke().status).toBe(2)
+      rmSync(path)
+      writeFileSync(path, 'repaired')
+      expect(invoke().stdout).toContain('repaired')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 })

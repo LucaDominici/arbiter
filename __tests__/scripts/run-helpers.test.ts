@@ -1,7 +1,7 @@
 // Tests for the run-helpers trinity (#351, CANON-01)
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, cpSync, mkdirSync, symlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
@@ -401,4 +401,54 @@ describe('run-helpers — isMainModule (#2010)', () => {
   it('is exported as a function', () => {
     expect(typeof (runHelpersMod as Record<string, unknown>).isMainModule).toBe('function')
   })
+})
+
+describe.each(['self', 'emitted'])('#2635 public corpus readers (%s)', (projection) => {
+  it.each(['milestones', 'sources', 'use-cases', 'tabletop-evidence'])(
+    'rejects FIFO %s corpus through its real child entry',
+    (name) => {
+      const dir = mkdtempSync(join(tmpdir(), 'corpus-regular-'))
+      try {
+        cpSync(resolve('scripts/lib'), join(dir, 'scripts/lib'), { recursive: true })
+        cpSync(resolve('schemas'), join(dir, 'schemas'), { recursive: true })
+        symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
+        const rel = `scripts/check-${name}.mjs`
+        if (projection === 'self') cpSync(resolve(rel), join(dir, rel))
+        else {
+          for (const file of [
+            rel,
+            'scripts/lib/run-helpers.mjs',
+            'scripts/lib/agent-return-validate.mjs',
+          ]) {
+            writeFileSync(join(dir, file), renderTemplate(`${file}.ejs`, makeConfig(dir)))
+          }
+        }
+        const invoke = () =>
+          spawnSync(process.execPath, [join(dir, rel), '--dir', dir], {
+            cwd: dir,
+            encoding: 'utf8',
+            timeout: 1000,
+            killSignal: 'SIGKILL',
+          })
+        const absent = invoke()
+        expect(absent.error, absent.stderr).toBeUndefined()
+        expect(absent.status, absent.stderr).toBe(0)
+        const docs = projection === 'self' ? 'docs/internal/PRODUCT' : 'docs'
+        const target =
+          name === 'tabletop-evidence'
+            ? '.arbiter/evidence/tabletop/input.md'
+            : `${docs}/${name === 'milestones' ? (projection === 'self' ? 'MILESTONES.yml' : 'MILESTONES.md') : name === 'sources' ? 'SOURCES.md' : 'USE_CASES.md'}`
+        const path = join(dir, target)
+        mkdirSync(join(path, '..'), { recursive: true })
+        expect(spawnSync('mkfifo', [path]).status).toBe(0)
+        const result = invoke()
+        expect(result.error, result.stderr).toBeUndefined()
+        expect(result.status, result.stderr).toBe(2)
+        rmSync(path)
+        expect(invoke().status).toBe(0)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
 })

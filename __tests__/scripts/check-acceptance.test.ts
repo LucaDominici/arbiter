@@ -6,9 +6,20 @@
 // at verification/close.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  cpSync,
+  symlinkSync,
+  readFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+
+import { renderTemplate } from '../../src/utils/render.js'
+import { makeConfig } from '../helpers.js'
 
 const SCRIPT = resolve(__dirname, '../../scripts/check-acceptance.mjs')
 
@@ -231,5 +242,111 @@ describe('check-acceptance gate', () => {
     const r = run()
     expect(r.status).toBe(1)
     expect(r.stderr).toMatch(/does not match/)
+  })
+})
+
+describe.each(['self', 'emitted'])('#2635 acceptance input boundaries (%s)', (projection) => {
+  let script: string
+  beforeEach(() => {
+    script = SCRIPT
+    if (projection === 'emitted') {
+      cpSync(resolve('scripts/lib'), join(root, 'scripts/lib'), { recursive: true })
+      for (const rel of ['check-acceptance.mjs', 'lib/run-helpers.mjs']) {
+        writeFileSync(
+          join(root, 'scripts', rel),
+          renderTemplate(`scripts/${rel}.ejs`, makeConfig(root)),
+        )
+      }
+      script = join(root, 'scripts/check-acceptance.mjs')
+    }
+  })
+  const invoke = (args: string[] = [], override = '1') =>
+    spawnSync(process.execPath, [script, ...args], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 1000,
+      killSignal: 'SIGKILL',
+      env: { ...process.env, ARBITER_ACCEPTANCE_ANCHOR: override },
+    })
+  it.each([null, [], 0, 'state', true].map((value) => [value]))(
+    'rejects nonrecord state %j as ERROR2',
+    (value) => {
+      writeState('red')
+      writeFileSync(join(root, '.claude/.task/status.json'), JSON.stringify(value))
+      const result = invoke()
+      expect(result.error).toBeUndefined()
+      expect(result.status, result.stderr).toBe(2)
+    },
+  )
+  it.each([{}, { taskId: '#42' }, { phase: '' }])('preserves fresh record %j as SKIP', (value) => {
+    writeState('red')
+    writeFileSync(join(root, '.claude/.task/status.json'), JSON.stringify(value))
+    const result = invoke()
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('SKIP')
+  })
+  it.each([
+    ['.claude/.task/status.json', 2],
+    ['plan.md', 2],
+    ['fit.json', 1],
+    ['arbiter.json', 0],
+  ] as const)('never waits for a FIFO writer at %s', (rel, code) => {
+    writeState('red')
+    writeFileSync(
+      join(root, 'arbiter.json'),
+      JSON.stringify({ features: { acceptanceAnchor: true } }),
+    )
+    writeFileSync(
+      join(root, 'fit.json'),
+      JSON.stringify({
+        schema: 'arbiter-ac-fit-v1',
+        taskId: '#42',
+        criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/x.ts', line: 1 }] }],
+      }),
+    )
+    const args = rel === 'fit.json' ? ['--plan', 'plan.md', '--ac-fit', 'fit.json'] : []
+    const override = rel === 'arbiter.json' ? '' : '1'
+    expect(invoke(args, override).status).toBe(0)
+    const path = join(root, rel),
+      original = readFileSync(path)
+    rmSync(path)
+    expect(spawnSync('mkfifo', [path]).status).toBe(0)
+    const result = invoke(args, override)
+    expect(result.error, result.stderr).toBeUndefined()
+    expect(result.status, result.stderr).toBe(code)
+    rmSync(path)
+    writeFileSync(path, original)
+    expect(invoke(args, override).status).toBe(0)
+  })
+  it('preserves regular state/absolute plan symlinks but rejects dangling state', () => {
+    writeState('red')
+    const state = join(root, '.claude/.task/status.json')
+    writeFileSync(join(root, 'state.json'), readFileSync(state))
+    rmSync(state)
+    symlinkSync(join(root, 'state.json'), state)
+    symlinkSync(join(root, 'plan.md'), join(root, 'plan-link.md'))
+    expect(invoke(['--plan', join(root, 'plan-link.md')]).status).toBe(0)
+    expect(invoke().status).toBe(0)
+    rmSync(join(root, 'state.json'))
+    expect(invoke().status).toBe(2)
+  })
+  it('rejects a regular state replaced with a FIFO after presence inspection', () => {
+    writeState('red')
+    const state = join(root, '.claude/.task/status.json')
+    const preload = join(root, 'replace-state.mjs')
+    writeFileSync(
+      preload,
+      `import fs from 'node:fs'; import {syncBuiltinESMExports} from 'node:module'; import {execFileSync} from 'node:child_process';
+      const original=fs.lstatSync; fs.lstatSync=function(path,...args){const stat=original(path,...args); if(path===${JSON.stringify(state)}){fs.unlinkSync(path);execFileSync('mkfifo',[path]);}return stat;};syncBuiltinESMExports();`,
+    )
+    const result = spawnSync(process.execPath, ['--import', preload, script], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 1000,
+      killSignal: 'SIGKILL',
+      env: { ...process.env, ARBITER_ACCEPTANCE_ANCHOR: '1' },
+    })
+    expect(result.error, result.stderr).toBeUndefined()
+    expect(result.status, result.stderr).toBe(2)
   })
 })
