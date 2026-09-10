@@ -1,0 +1,63 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2638",
+  "reviewer": "/root/ac_verifier_2638",
+  "reviewedAt": "2026-09-10T00:00:00Z",
+  "anchor": ".claude/plans/task-2638-complete-preflight.md",
+  "anchorSha256": "b8523ff3504559b42fc5961e38c7338caf6b78ce609b6099d33c42cb835dcbd3",
+  "sourceSHA": "0504d2ceaa6e4d3e23a1528e9ca7e7af73df3efd",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/task.ts", "line": 762 },
+        { "file": "__tests__/commands/task-advance-gates.test.ts", "line": 118 }
+      ],
+      "note": "Preflight reads raw arbiter.json and refuses absent, malformed, unknown and environment-mismatched policy before phase mutation."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/pr-merged.ts", "line": 194 },
+        { "file": "__tests__/commands/pr-merged.test.ts", "line": 300 },
+        { "file": "__tests__/commands/pr-merged.test.ts", "line": 620 }
+      ],
+      "note": "The qualified route distinguishes exact and reviewed PR evidence, requires main, ancestry and pre-merge CI, and constrains an explicit PR before reachability is checked."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/task.ts", "line": 634 },
+        { "file": "src/commands/pr-merged.ts", "line": 101 },
+        { "file": "__tests__/commands/pr-merged.test.ts", "line": 520 },
+        { "file": "__tests__/commands/pr-merged.test.ts", "line": 552 }
+      ],
+      "note": "Direct completion is limited to raw trunk-solo/direct permission, current origin/main and a completed main-push CheckRun."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/commands/task.ts", "line": 677 },
+        { "file": "src/commands/pr-merged.ts", "line": 226 },
+        { "file": "__tests__/commands/pr-merged.test.ts", "line": 358 },
+        { "file": "__tests__/commands/pr-merged.test.ts", "line": 376 },
+        { "file": "__tests__/commands/pr-merged.test.ts", "line": 391 }
+      ],
+      "note": "Every PR route requires raw permitGitHub:true and rejects migrated authorization, missing raw config, a non-main base, late or failed CI, unreachable merge, and cross-PR ancestry borrowing."
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "__tests__/commands/pr-merged.test.ts", "line": 636 },
+        { "file": "__tests__/governance/ship-train-playbook.test.ts", "line": 136 },
+        { "file": ".arbiter/evidence/tdd/#2638.json", "line": 1 }
+      ],
+      "note": "The exact-PR regression, shipping contract and committed RED receipt are retained; the candidate passed L1 and the required L2 gate is run before delivery."
+    }
+  ]
+}
