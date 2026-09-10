@@ -11,6 +11,9 @@ vi.mock('../../src/utils/run-cli.js', () => ({
   CliError: class CliError extends Error {
     stdout = ''
     stderr = ''
+    exitCode = 1
+    timedOut = false
+    notFound = false
   },
 }))
 
@@ -123,6 +126,93 @@ describe('verifyRedExecution()', () => {
     expect(result.ok).toBe(true)
   })
 
+  const redLines = [
+    'FAIL math.test.ts > add > sums positive values',
+    'FAIL math.test.ts > add > sums negative values',
+    'FAIL other.spec.ts > subtract > subtracts values',
+  ]
+
+  function replayLines(
+    lines: string[],
+    evidence: TddEvidence = {
+      ...BASE,
+      test_run_log: redLines.join('\n'),
+    },
+  ) {
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+      .mockImplementationOnce(() => {
+        throw cliError({ stdout: lines.join('\n') })
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+    return verifyRedExecution(evidence, '/repo')
+  }
+
+  it('accepts legacy evidence when all multi-file failures replay in another order', () => {
+    expect(replayLines([...redLines].reverse()).ok).toBe(true)
+  })
+
+  it.each([
+    ['missing test in the same file', [redLines[0], redLines[2]]],
+    ['missing spec file', redLines.slice(0, 2)],
+    ['extra failure', [...redLines, 'FAIL extra.test.ts > extra']],
+    ['renamed test', [redLines[0], redLines[1], 'FAIL other.spec.ts > changed']],
+  ])('rejects a replay with a %s', (_description, lines) => {
+    expect(replayLines(lines as string[]).ok).toBe(false)
+  })
+
+  it('normalizes ANSI and FAIL padding without collapsing distinct test names', () => {
+    const lines = ['FAIL math.test.ts > preserves  two spaces', 'FAIL math.test.ts > other']
+    const ev = { ...BASE, test_run_log: lines.join('\n') }
+    expect(
+      replayLines(
+        lines.map((line) => line.replace('FAIL ', '\x1b[31mFAIL\x1b[0m  ')),
+        ev,
+      ).ok,
+    ).toBe(true)
+    expect(
+      replayLines(
+        lines.map((line) => line.replace('two spaces', 'two  spaces')),
+        ev,
+      ).ok,
+    ).toBe(false)
+  })
+
+  it('rejects a scalar signature contradicted by its retained log', () => {
+    expect(
+      replayLines(['FAIL other.test.ts'], {
+        ...BASE,
+        observed_failure: 'FAIL other.test.ts',
+      }).ok,
+    ).toBe(false)
+  })
+
+  it('normalizes absolute paths from the isolated replay checkout', () => {
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+      .mockImplementationOnce((_cmd, _args, opts) => {
+        throw cliError({ stdout: `FAIL ${opts?.cwd}/math.test.ts` })
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+    expect(verifyRedExecution(BASE, '/repo').ok).toBe(true)
+  })
+
+  it('does not let a quoted code-frame signature stand in for a missing failure', () => {
+    const ev = { ...BASE, test_run_log: 'FAIL math.test.ts\nFAIL other.spec.ts' }
+    expect(
+      replayLines(['FAIL math.test.ts', '  12| const example = "FAIL other.spec.ts"'], ev).ok,
+    ).toBe(false)
+  })
+
+  it('ignores quoted FAIL signatures in diagnostic code frames', () => {
+    expect(
+      replayLines(
+        ['FAIL math.test.ts', '  12| const example = "FAIL never-executed.test.ts"'],
+        BASE,
+      ).ok,
+    ).toBe(true)
+  })
+
   it('always attempts worktree cleanup, even when the check fails', () => {
     mockedRunCli
       .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 }) // worktree add
@@ -182,7 +272,7 @@ describe('verifyRedExecution()', () => {
     expect(result.ok).toBe(true)
   })
 
-  it('honours a failure signature on stderr even when the runner exits 0', () => {
+  it('rejects a failure signature on stderr when the runner exits 0', () => {
     mockedRunCli
       .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 }) // worktree add
       .mockReturnValueOnce({
@@ -193,7 +283,20 @@ describe('verifyRedExecution()', () => {
       }) // test run — zero exit, failure only visible on stderr
       .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 }) // worktree remove
     const result = verifyRedExecution(BASE, '/repo')
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects partial failure output from a timed-out runner', () => {
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+      .mockImplementationOnce(() => {
+        throw Object.assign(cliError({ stdout: BASE.test_run_log }), {
+          exitCode: -1,
+          timedOut: true,
+        })
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+    expect(verifyRedExecution(BASE, '/repo').ok).toBe(false)
   })
 
   it('links the caller node_modules into the worktree so the re-run resolves its runner', () => {
