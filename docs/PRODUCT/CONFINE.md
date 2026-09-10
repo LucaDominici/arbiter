@@ -139,7 +139,10 @@ La barra è implementata dal workflow `consumer-reliability.yml`, eseguito solta
 fidato su `main` o tramite dispatch manuale sul branch predefinito. Il comando
 `npm run test:consumer-reliability -- …` avvia una preparazione credentialed che clona ciascun
 consumer a uno SHA immutabile con una deploy key read-only, rimuove remote e configurazione
-credenziali e termina. Solo dopo avvia un processo verifier nuovo con un allow-list di variabili
+credenziali e termina. SSH disabilita gli agent ambientali (`IdentityAgent=none`) e
+l'autenticazione interattiva (`BatchMode=yes`) per usare la chiave esplicita senza attese
+di conferma, mantenendo la verifica della chiave host fissata. Solo dopo avvia un processo
+verifier nuovo con un allow-list di variabili
 d'ambiente priva di credenziali.
 
 Il report usa esclusivamente gli ID generici `go`, `typescript` e `java`. Per ogni riga
