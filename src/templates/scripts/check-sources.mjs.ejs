@@ -98,13 +98,16 @@ export function checkExcerptEvidence(source, root) {
       `${id}: excerpt file ${rel} does not exist — the quotation has nothing to check against`,
     ]
   }
-  if (!isContained(realpathSync(root), realpathSync(abs))) {
+  const physicalRoot = realpathSync(root)
+  const physicalExcerpt = realpathSync(abs)
+  if (!isContained(physicalRoot, physicalExcerpt)) {
     return [`${id}: excerpt path ${rel} resolves outside the repository`]
   }
-  if (!isGitIndexed(root, rel)) {
+  const physicalRel = relative(physicalRoot, physicalExcerpt)
+  if (!isGitIndexed(root, rel) || !isGitIndexed(physicalRoot, physicalRel)) {
     return [
-      `${id}: excerpt file ${rel} is not tracked by Git — commit it, or stage a newly added ` +
-        `excerpt before this pre-commit check`,
+      `${id}: excerpt file ${rel} or its resolved content is not tracked by Git — commit it, ` +
+        `or stage a newly added excerpt before this pre-commit check`,
     ]
   }
   const raw = readRegularFileSync(abs)
@@ -122,7 +125,7 @@ function isContained(root, candidate) {
 /** Git-index membership accepts both committed files and files staged for their first commit. */
 function isGitIndexed(root, rel) {
   try {
-    execFileSync('git', ['ls-files', '--error-unmatch', '--', rel], {
+    execFileSync('git', ['--literal-pathspecs', 'ls-files', '--error-unmatch', '--', rel], {
       cwd: root,
       stdio: ['ignore', 'ignore', 'ignore'],
     })
