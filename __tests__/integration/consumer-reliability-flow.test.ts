@@ -68,6 +68,56 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     }
   }, 60_000)
 
+  it('bypasses an ambient signing agent and interactive authentication with the supplied key', () => {
+    const fixture = createFixture()
+    roots.push(fixture.root)
+    const reports = join(fixture.root, 'agent-reports')
+    const result = run(
+      fixture,
+      'run-consumer-reliability.mjs',
+      [
+        '--workspace',
+        join(fixture.root, 'agent-workspace'),
+        '--report-dir',
+        reports,
+        '--arbiter-cli',
+        fixture.fakeCli,
+      ],
+      { ...fixture.secrets, FAKE_REQUIRE_NONINTERACTIVE_KEY: '1' },
+    )
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(readFileSync(join(reports, 'summary.json'), 'utf-8')).result).toBe('PASS')
+    const calls = readFileSync(fixture.sshMarker, 'utf-8')
+    expect(calls).toContain('agent=none batch=yes')
+    expect(calls).not.toContain('ambient-agent-attempt')
+    expect(calls).not.toContain('interactive-auth-attempt')
+    expect(readFileSync(fixture.updateMarker, 'utf-8').trim()).not.toBe('')
+  }, 60_000)
+
+  it('returns ERROR on explicit-key rejection before any verifier execution', () => {
+    const fixture = createFixture()
+    roots.push(fixture.root)
+    const reports = join(fixture.root, 'rejected-key-reports')
+    const result = run(
+      fixture,
+      'run-consumer-reliability.mjs',
+      [
+        '--workspace',
+        join(fixture.root, 'rejected-key-workspace'),
+        '--report-dir',
+        reports,
+        '--arbiter-cli',
+        fixture.fakeCli,
+      ],
+      { ...fixture.secrets, ARBITER_CONSUMER_GO_DEPLOY_KEY: 'fake-rejected-private-key' },
+    )
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('credentialed preparation failed')
+    expect(readFileSync(fixture.sshMarker, 'utf-8')).toContain('rejected-explicit-key')
+    expect(readFileSync(fixture.updateMarker, 'utf-8')).toBe('')
+    expect(existsSync(join(reports, 'summary.json'))).toBe(false)
+  })
+
   it('returns ERROR and never updates a clone with a residual remote or mismatched HEAD', () => {
     const fixture = createFixture()
     roots.push(fixture.root)
@@ -258,7 +308,24 @@ function createFixture(): {
       '#!/bin/sh',
       `printf '%s\\n' invoked >> ${shellQuote(sshMarker)}`,
       'last=""',
-      'for arg in "$@"; do last="$arg"; done',
+      'agent=default; batch=no; key=""; previous=""',
+      'for arg in "$@"; do',
+      '  case "$previous:$arg" in',
+      '    -o:IdentityAgent=none) agent=none ;;',
+      '    -o:BatchMode=yes) batch=yes ;;',
+      '    -i:*) key="$arg" ;;',
+      '  esac',
+      '  last="$arg"; previous="$arg"',
+      'done',
+      `printf 'agent=%s batch=%s\\n' "$agent" "$batch" >> ${shellQuote(sshMarker)}`,
+      'if [ "${FAKE_REQUIRE_NONINTERACTIVE_KEY:-}" = 1 ]; then',
+      `  if [ "$agent" != none ]; then echo ambient-agent-attempt >> ${shellQuote(sshMarker)}; exit 255; fi`,
+      `  if [ "$batch" != yes ]; then echo interactive-auth-attempt >> ${shellQuote(sshMarker)}; exit 255; fi`,
+      'fi',
+      'if [ -n "$key" ] && [ "$(cat "$key")" = fake-rejected-private-key ]; then',
+      `  echo rejected-explicit-key >> ${shellQuote(sshMarker)}`,
+      '  exit 255',
+      'fi',
       'case "$last" in',
       `  *owner/go.git*) exec git-upload-pack ${shellQuote(sources.go)} ;;`,
       `  *owner/typescript.git*) exec git-upload-pack ${shellQuote(sources.typescript)} ;;`,
