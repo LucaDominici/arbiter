@@ -132,6 +132,7 @@ function isGitIndexed(root, rel) {
       stdio: ['ignore', 'ignore', 'ignore'],
     })
     return true
+  // FAIL-OPEN-INTENT: Git cannot prove index membership, so this source is rejected.
   } catch {
     return false
   }
