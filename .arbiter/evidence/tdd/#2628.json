@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2628",
+  "test_path": "__tests__/scripts/consumer-reliability-workflow.test.ts",
+  "test_commit_sha": "e256431a6948dd2729abfac88013bec2b4b2bd8b",
+  "test_blob_sha": "9d4b7bf25e7657efc390b11ba9d07b89de331e65",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/consumer-reliability-workflow.test.ts (3 tests | 1 failed) 14ms\n     × AC-6 runs the private bar only from trusted main/manual code 10ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 2 passed (3)\n   Start at  22:05:43\n   Duration  119ms (transform 10ms, setup 7ms, import 19ms, tests 14ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/consumer-reliability-workflow.test.ts > consumer reliability workflow (#2135) > AC-6 runs the private bar only from trusted main/manual code\nAssertionError: expected 'main' to be '${{ github.sha }}' // Object.is equality\n\nExpected: \"${{ github.sha }}\"\nReceived: \"main\"\n\n ❯ __tests__/scripts/consumer-reliability-workflow.test.ts:20:31\n     18|     const checkout = parsed.jobs.consumer_reliability.steps[0]\n     19|     // Queued main pushes must qualify the commit named by this run, e…\n     20|     expect(checkout.with.ref).toBe('${{ github.sha }}')\n       |                               ^\n     21|     expect(checkout.with['persist-credentials']).toBe(false)\n     22|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/consumer-reliability-workflow.test.ts",
+  "recorded_at": "2026-09-10T20:05:44.102Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/consumer-reliability-workflow.test.ts"
+  ]
+}

@@ -119,6 +119,13 @@ use the same conditional base suffix.
 directories are sub-workflow partials included by the workflows above (contract testing, k6
 runner, signing/deploy reuse); they are not independently scheduled.
 
+Arbiter's self-only `consumer-reliability.yml` runs the private Consumer Reliability Bar
+on main pushes or manual dispatches from main. Its checkout uses the triggering
+`github.sha`, so a queued run keeps testing the commit shown in its GitHub result even
+after main advances. Consumer revisions remain separately pinned in
+`scripts/data/consumer-reliability-bar.json`; the trusted-main condition and
+credential-free verifier boundary still apply.
+
 ## INV-73 canonical presence floor
 
 `scripts/check-ci-tiers.mjs` enforces presence of the canonical numbered set
