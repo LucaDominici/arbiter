@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2648",
+  "test_path": "__tests__/parity/ci-tier-render-parity.test.ts",
+  "test_commit_sha": "1c0043fc295b613fa4b08f469f4ad960b020a9bd",
+  "test_blob_sha": "1fca7cf20efe73b8d48c1fb74fc13b448305ea7c",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/parity/ci-tier-render-parity.test.ts (19 tests | 1 failed) 27ms\n     × D4 post-merge status fails closed on the Full Gate outcome without rerunning it 9ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 18 passed (19)\n   Start at  15:49:04\n   Duration  162ms (transform 37ms, setup 7ms, import 46ms, tests 27ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/parity/ci-tier-render-parity.test.ts > ci-tier render parity — gate-full operator strictness > D4 post-merge status fails closed on the Full Gate outcome without rerunning it\nAssertionError: expected '  post-merge-gate:\\n    name: D4-LITE…' to contain 'GATE_FULL_RESULT: ${{ needs.gate-full…'\n\n- Expected\n+ Received\n\n- GATE_FULL_RESULT: ${{ needs.gate-full.result }}\n+   post-merge-gate:\n+     name: D4-LITE post-merge gate (main)\n+     needs: [classify-changes, gate-full]\n+     if: >\n+       always() &&\n+       github.event_name == 'push' &&\n+       github.ref == 'refs/heads/main' &&\n+       needs.classify-changes.result == 'success' &&\n+       needs.classify-changes.outputs.docs_only != 'true'\n+     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '[\"ubuntu-latest\"]') }}\n+     timeout-minutes: 60\n+     steps:\n+       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1\n+         with:\n+           fetch-depth: 0\n+\n+       - uses: ./.github/actions/setup-node-pnpm\n+\n+       - name: Install gitleaks\n+         run: |\n+           mkdir -p \"$RUNNER_TEMP/bin\"\n+           curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C \"$RUNNER_TEMP/bin\" gitleaks\n+           echo \"$RUNNER_TEMP/bin\" >> \"$GITHUB_PATH\"\n+       - name: Install actionlint\n+         run: |\n+           mkdir -p \"$RUNNER_TEMP/bin\"\n+           curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C \"$RUNNER_TEMP/bin\" actionlint\n+           echo \"$RUNNER_TEMP/bin\" >> \"$GITHUB_PATH\"\n+       - name: Build\n+         run: npm run build && node scripts/build-kit.mjs\n+       - name: Run full L2 gate (D4-LITE catch-net)\n+         run: node scripts/check-all.mjs L2\n+\n+   post-merge-notify:\n\n ❯ __tests__/parity/ci-tier-render-parity.test.ts:127:27\n    125|     const postMergeGate = rendered.match(/  post-merge-gate:[\\s\\S]*?\\n…\n    126|\n    127|     expect(postMergeGate).toContain('GATE_FULL_RESULT: ${{ needs.gate-…\n       |                           ^\n    128|     expect(postMergeGate).toContain('[[ \"$GATE_FULL_RESULT\" == \"succes…\n    129|     expect(postMergeGate).not.toContain('actions/checkout')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/parity/ci-tier-render-parity.test.ts",
+  "recorded_at": "2026-09-10T13:49:04.248Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/parity/ci-tier-render-parity.test.ts",
+    "--silent"
+  ]
+}
