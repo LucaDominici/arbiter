@@ -1,55 +1,48 @@
 {
   "taskId": "#2627",
   "verdict": "PASS",
-  "planDigest": "17528439a04b9e57b3c25988b8ba09f18bbe3f3943e4df9098f59d80d15013c5",
-  "manifestDigest": "82c68c6a8f56faaaa6778c9847f7747a20cce37bb003cf38c3f87319bd490c2a",
-  "recordedAt": "2026-09-09T23:33:00.689584+00:00",
+  "planDigest": "4d85d2ff6be398c7a973ded7b0e735ed6949859490a05e9efa178043bca66de5",
+  "manifestDigest": "2e9bfa12b4e00579e2eb3e15efd0b230edc8d3b234fc111c902644f1d38ccc74",
+  "recordedAt": "2026-09-10T00:30:29.338439Z",
   "reviewers": [
     {
-      "reviewer": "root-2627-plan-review",
+      "reviewer": "root-runtime-state-review",
       "role": "reviewer",
       "verdict": "PASS",
-      "source": "root-final.json"
+      "source": "2627-runtime-state-root-review.json"
     },
     {
-      "reviewer": "astra-final",
+      "reviewer": "astra-2627-runtime-state-delta-review",
       "role": "reviewer",
       "verdict": "PASS",
-      "source": "astra-final.json"
-    },
-    {
-      "reviewer": "haben789-author-2627-projection-reviewer",
-      "role": "reviewer",
-      "verdict": "PASS",
-      "source": "projection-amendment.json",
-      "scope": "exact three deterministic living example schema projections"
+      "source": "2627-runtime-state-delta-review.json"
     }
   ],
   "findings": [],
   "amendment": {
-    "kind": "narrow-deterministic-projection-amendment",
+    "kind": "narrow-runtime-state-ci-recovery",
     "historicalAdmission": {
-      "planDigest": "292e431d7ca4f879a3e3b2d0f7095bc93a4c070ef191f7717335db115cfb58cd",
-      "manifestDigest": "ab18d8c6423f217b08b11b46b977001dc6abe08f55a84e275ca6a60a81220fb1",
-      "latest": "latest.pre-projection-amendment.json",
+      "planDigest": "17528439a04b9e57b3c25988b8ba09f18bbe3f3943e4df9098f59d80d15013c5",
+      "manifestDigest": "82c68c6a8f56faaaa6778c9847f7747a20cce37bb003cf38c3f87319bd490c2a",
+      "latest": "latest.pre-runtime-state-amendment.json",
       "reviewsRemainHistorical": true
     },
-    "addedPaths": [
-      "examples/go-library/schemas/agent-return-external.schema.json",
-      "examples/python-library/schemas/agent-return-external.schema.json",
-      "examples/ts-library/schemas/agent-return-external.schema.json"
-    ],
+    "delta": {
+      "removedTrackedPath": ".claude/.task/status.json",
+      "manifestOperation": "create -> delete",
+      "localStateRetained": true
+    },
     "evidence": [
-      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-external-schema-strict-projection-amendment-freeze.json",
-      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-projection-delta-review.json",
-      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-projection-delta-review-audit.json",
-      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-projection-root-readback.json"
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-runtime-state-ci-recovery-freeze.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-runtime-state-root-review.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-runtime-state-delta-review.json",
+      "/home/luca/work/forma-rooms/portfolio/evidence/astra-arbiter-20260909/2627-runtime-state-delta-review-audit.json"
     ],
-    "rootAuthorization": "Parent approved the exact mechanical amendment after independent mapping/parity PASS."
+    "authorization": "Parent authorized this CI recovery after independent PASS reviews."
   },
   "limits": [
-    "This rebind covers only the added deterministic projections.",
-    "Original plan and red-team reviews remain bound to their prior digests and are preserved as historical records.",
-    "No new acceptance criterion, non-goal, tier, behavior, or provider fulfillment is claimed."
+    "This rebind covers only removal of erroneously tracked checkout-local runtime state.",
+    "Original schema/product reviews and red-team admission remain historical; no product behavior or AC changes.",
+    "The changed candidate requires fresh L1, L3, and CI; prior failures remain retained."
   ]
 }

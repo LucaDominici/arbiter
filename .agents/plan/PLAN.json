@@ -211,7 +211,7 @@
     },
     {
       "path": ".claude/.task/status.json",
-      "operation": "create"
+      "operation": "delete"
     },
     {
       "path": ".arbiter/evidence/tdd/#2627.json",
