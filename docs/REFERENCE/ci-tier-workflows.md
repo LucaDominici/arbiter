@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.9'
+doc_version: '2.0.10'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -147,6 +147,12 @@ runs the real route integration suite without a pass-with-no-tests escape.
 At the same Coach revision, `npm-ci drift` is a direct hard L2 caller: it fails
 closed on a missing or inexact `packageManager` npm pin or lockfile and runs the
 pinned npm's `ci --dry-run`.
+At the same Coach revision, `reuse registry` is a direct hard L2 caller whose registry
+lists real shared modules and their actual importers, and rejects an empty table or a
+registered path that does not exist. `frontend lane` is DECLINED with an artifact
+reason: the generated lane checker only gates a frontend subtree and SKIPs when that
+subtree has no package manifest; this consumer's root-level Vue client is gated by typecheck,
+lint, unit tests and the hard `build (vite)` caller instead.
 
 ## INV-73 canonical presence floor
 
