@@ -238,6 +238,14 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(gateMap.consumers.typescript.mapping['npm-ci drift']).toBe('WIRED:npm-ci drift')
   })
 
+  it('pins the Go consumer at the revision whose reuse registry rejects unnamed rows (#2631)', () => {
+    const bar = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-reliability-bar.json'), 'utf-8'),
+    )
+    const go = bar.consumers.find((consumer: { id: string }) => consumer.id === 'go')
+    expect(go.sha).toBe('eccc532f16f38f8233cd3b5a0e71d8bb02b00cdf')
+  })
+
   it('records Coach reuse registry as its hard L2 caller (#2631)', () => {
     const gateMap = JSON.parse(
       readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
