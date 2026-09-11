@@ -222,6 +222,15 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(gateMap.consumers.go.mapping['reuse registry']).toBe('WIRED:reuse registry')
   })
 
+  it('records Coach db integration tests as its hard L2 caller (#2631)', () => {
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    expect(gateMap.consumers.typescript.mapping['db integration tests']).toBe(
+      'WIRED:db integration tests',
+    )
+  })
+
   // Mutation (d): the debt register GROWS. A ratchet that only ever appends is a
   // free-text escape hatch, so cardinality is pinned to a committed integer.
   it('AC-2 fails when the debt register grows past its ceiling', () => {
