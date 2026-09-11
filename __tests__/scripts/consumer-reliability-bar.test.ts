@@ -253,6 +253,15 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(gateMap.consumers.typescript.mapping['reuse registry']).toBe('WIRED:reuse registry')
   })
 
+  it('records Coach domain-api surface as its hard L1 caller (#2631)', () => {
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    expect(gateMap.consumers.typescript.mapping['domain-api surface (INV-125)']).toBe(
+      'WIRED:domain-api surface (INV-125)',
+    )
+  })
+
   it('declines Coach frontend lane with the subtree artifact reason (#2631)', () => {
     const gateMap = JSON.parse(
       readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
