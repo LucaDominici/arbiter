@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.5'
+doc_version: '2.0.6'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -140,6 +140,8 @@ workflow job and command.
 At the pinned Coach revision, `BDD @ignore check` is carried by the existing
 `anti-fake-green (INV-135)` L2 caller: its muted-test guard scans `.feature`
 files and rejects `@ignore` even when an exemption marker is present.
+At the pinned Go consumer revision, `reuse registry` is a direct hard L2 caller
+and its registry check rejects both an empty registry and a registered missing path.
 
 ## INV-73 canonical presence floor
 

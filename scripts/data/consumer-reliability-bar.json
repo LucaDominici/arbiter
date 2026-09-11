@@ -6,7 +6,7 @@
       "language": "go",
       "repoEnv": "ARBITER_CONSUMER_GO_REPO",
       "keyEnv": "ARBITER_CONSUMER_GO_DEPLOY_KEY",
-      "sha": "6727228a7ab7bb7c63b76ccbb9ddac95012923fd"
+      "sha": "76c81b16c08b2f34a1f8bc855b926f75dc74e657"
     },
     {
       "id": "typescript",

@@ -91,6 +91,7 @@
         "pr size gate": "DEBT:#2291",
         "race detector (full)": "DEBT:#2291",
         "refutation majority (E2 #1943)": "DEBT:#2291",
+        "reuse registry": "WIRED:reuse registry",
         "regulated overlay (SoD + retention + signing + mutation)": "DEBT:#2291",
         "render smoke presence (INV-127)": "WIRED:render smoke presence (INV-127)",
         "review completion (#2177)": "DEBT:#2291",
