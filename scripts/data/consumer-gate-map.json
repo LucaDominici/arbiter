@@ -152,6 +152,16 @@
         "behavioral tests": "DEBT:#2291",
         "bundle size budget": "WIRED:bundle-size",
         "canonical paths": "WIRED:canonical-paths (INV-50)",
+        "ci alignment": {
+          "verdict": "WIRED",
+          "caller": "post-merge-gate (L2)",
+          "evidence": {
+            "kind": "workflow-run",
+            "workflow": ".github/workflows/01-pr-fast.yml",
+            "job": "post-merge-gate",
+            "run": "node scripts/check-all.mjs L2 --json gate-result.json"
+          }
+        },
         "ci tiers (INV-73)": "WIRED:ci-tiers (INV-72)",
         "circular deps": "DEBT:#2291",
         "claude-md lint": "WIRED:claude-md-lint (INV-89)",

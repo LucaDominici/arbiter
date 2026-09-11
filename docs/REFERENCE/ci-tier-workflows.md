@@ -1,8 +1,8 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.3'
+doc_version: '2.0.4'
 status: active
-last_review: '2026-06-26'
+last_review: '2026-09-11'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -134,6 +134,9 @@ or empty reason as a failure.
 Where a consumer executes a control only in CI, the Bar accepts an explicit
 workflow/job/command proof after reading that exact regular file; a command in
 another job or a comment does not satisfy the control.
+For example, a consumer's post-merge `node scripts/check-all.mjs L2 --json
+gate-result.json` is evidence of CI alignment only when the Bar names that exact
+workflow job and command.
 
 ## INV-73 canonical presence floor
 
