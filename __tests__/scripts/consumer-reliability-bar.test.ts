@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   assessGateSpine,
   assessGateSurface,
@@ -162,6 +164,13 @@ describe('consumer reliability bar oracles (#2135)', () => {
       }),
     )
     expect(result.ok).toBe(true)
+  })
+
+  it('records why the Java consumer has no BDD ignore surface (#2631)', () => {
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    expect(gateMap.consumers.java.mapping['BDD @ignore check']).toMatch(/^DECLINED:.+\.feature/)
   })
 
   // Mutation (d): the debt register GROWS. A ratchet that only ever appends is a
