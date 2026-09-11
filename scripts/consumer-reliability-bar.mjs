@@ -20,6 +20,7 @@ import {
   commandOutcomeKind,
   extractCheckNames,
   formatFailureLines,
+  pinnedHeadMatches,
   parseGateSurfaceOutput,
   redactSecrets,
   resultExitCode,
@@ -178,7 +179,7 @@ function verifyConsumer(consumer, handoff, gateMap, options) {
     // the spine first, `update` withholds it on go/typescript and hands back the frozen
     // names — a fresh render that is not fresh.
     const freshRender = renderFreshSpine(repo, consumer, options)
-    if (!recordUpdate(repo, options.arbiterCli, report)) {
+    if (!recordUpdate(repo, consumer.sha, options.arbiterCli, report)) {
       report.kind = report.checks.update.status === 'ERROR' ? 'error' : 'fail'
       return report
     }
@@ -323,7 +324,7 @@ function recordGateSurface(repo, consumer, gateMap, handoff, baseline, freshRend
   report.checks.gateSurface = outcome(verdict.ok, verdict.detail)
 }
 
-function recordUpdate(repo, arbiterCli, report) {
+function recordUpdate(repo, sha, arbiterCli, report) {
   const update = run(
     'node',
     [arbiterCli, 'update', '--dir', repo, '--force', '--json'],
@@ -331,6 +332,14 @@ function recordUpdate(repo, arbiterCli, report) {
     300000,
   )
   const result = classifyUpdateResult(update)
+  const head = run('git', ['-C', repo, 'rev-parse', 'HEAD'], repo, 30000)
+  if (!pinnedHeadMatches(head, sha)) {
+    report.checks.update = {
+      status: 'ERROR',
+      detail: 'Arbiter update changed the pinned consumer HEAD',
+    }
+    return false
+  }
   report.checks.update =
     result.status === 'WARN'
       ? {

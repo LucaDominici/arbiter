@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.0'
+doc_version: '2.0.1'
 status: active
 last_review: '2026-06-26'
 owner: ''
@@ -125,6 +125,9 @@ on main pushes or manual dispatches from main. Its checkout uses the triggering
 after main advances. Consumer revisions remain separately pinned in
 `scripts/data/consumer-reliability-bar.json`; the trusted-main condition and
 credential-free verifier boundary still apply.
+The behavioral hook probe copies each pinned checkout into a temporary private
+sandbox before creating its fixture commits and branches, so verification never
+changes the revision being certified.
 
 ## INV-73 canonical presence floor
 

@@ -14,17 +14,24 @@ import {
   resultExitCode,
   summarizeProbeFailures,
   formatFailureLines,
+  pinnedHeadMatches,
   summarizeRoutingFailures,
 } from '../../scripts/lib/consumer-reliability-bar.mjs'
 
 describe('consumer reliability bar oracles (#2135)', () => {
-  it('AC-2 extracts all three gate-runner call families', () => {
+  it('AC-2 extracts every gate-result call family', () => {
     const source = [
       "runCheck('unit tests', 'npm', ['test'])",
       "runWarnCheck('docs', 'node', ['docs.mjs'])",
       "runToolCheck('lint', 'eslint', ['.'])",
+      "pushResult('dep audit', 'PASS', 12)",
     ].join('\n')
-    expect([...extractCheckNames(source)]).toEqual(['docs', 'lint', 'unit tests'])
+    expect([...extractCheckNames(source)]).toEqual(['dep audit', 'docs', 'lint', 'unit tests'])
+  })
+
+  it('rejects an update that changes the prepared consumer commit', () => {
+    expect(pinnedHeadMatches({ ok: true, stdout: 'abc\n' }, 'abc')).toBe(true)
+    expect(pinnedHeadMatches({ ok: true, stdout: 'def\n' }, 'abc')).toBe(false)
   })
 
   it('AC-2 fails when a pre-existing check disappears', () => {

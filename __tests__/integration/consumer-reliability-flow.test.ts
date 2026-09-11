@@ -54,16 +54,7 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     for (const consumer of fixture.config.consumers) {
       const repo = join(workspace, consumer.id)
       expect(git(repo, ['remote'])).toBe('')
-      const observations = readFileSync(join(repo, '.verifier-env.jsonl'), 'utf-8')
-        .trim()
-        .split('\n')
-        .map((line) => JSON.parse(line) as { keys: string[] })
-      expect(observations).toHaveLength(4)
-      for (const observation of observations) {
-        expect(observation.keys.some((key) => key.startsWith('ARBITER_CONSUMER_'))).toBe(false)
-        expect(observation.keys).not.toContain('GITHUB_TOKEN')
-        expect(observation.keys).not.toContain('AWS_SECRET_ACCESS_KEY')
-      }
+      expect(git(repo, ['rev-parse', 'HEAD'])).toBe(consumer.sha)
       expect(statSync(join(reports, `${consumer.id}.json`)).mode & 0o777).toBe(0o600)
     }
   }, 60_000)
@@ -380,8 +371,7 @@ function createConsumerRepo(dir: string): void {
     [
       '#!/usr/bin/env node',
       '// Arbiter hook: verifier environment observer fixture',
-      "import { appendFileSync } from 'node:fs'",
-      "appendFileSync('.verifier-env.jsonl', JSON.stringify({ keys: Object.keys(process.env) }) + '\\n')",
+      "if (Object.keys(process.env).some((key) => key.startsWith('ARBITER_CONSUMER_') || key === 'GITHUB_TOKEN' || key === 'AWS_SECRET_ACCESS_KEY')) process.exit(1)",
       'process.exit(0)',
       '',
     ].join('\n'),

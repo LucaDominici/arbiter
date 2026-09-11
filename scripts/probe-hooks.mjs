@@ -2,7 +2,17 @@
 // CATALOG: empirically classifies every Arbiter-owned emitted hook in BARE and PRIMED states.
 // Static routing alone cannot prove that a reachable handler blocks its declared violation.
 // This probe is the behavioral half of the v0.6 consumer reliability bar (#2135).
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { classifyAdvisoryHookResult, classifyHookResult } from './lib/consumer-reliability-bar.mjs'
@@ -248,6 +258,19 @@ function parseArgs(args) {
 }
 
 function probeRepository(root, language) {
+  // establishState needs real commits and branches to exercise stateful hooks. A
+  // caller's checkout is evidence, not probe scratch: mutate only a private copy.
+  const sandbox = mkdtempSync(join(tmpdir(), 'arbiter-probe-hooks-'))
+  const disposableRoot = join(sandbox, 'repo')
+  try {
+    cpSync(root, disposableRoot, { recursive: true })
+    return probeDisposableRepository(disposableRoot, language)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+}
+
+function probeDisposableRepository(root, language) {
   const hooksDir = join(root, '.claude', 'hooks')
   const owned = ownedHooks(root)
   const temporary = join(root, PROBE_SCRATCH)

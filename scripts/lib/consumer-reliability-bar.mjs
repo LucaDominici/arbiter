@@ -1,10 +1,14 @@
 // Pure oracles shared by the private consumer reliability prepare/verifier commands (#2135).
 
-const RUNNER_CALL = /\b(?:runCheck|runWarnCheck|runToolCheck)\s*\(\s*(['"`])([^'"`]+)\1/g
+const RUNNER_CALL = /\b(?:runCheck|runWarnCheck|runToolCheck|pushResult)\s*\(\s*(['"`])([^'"`]+)\1/g
 const CONSUMER_SECRET_PREFIX = `${['ARBITER', 'CONSUMER'].join('_')}_`
 
 export function extractCheckNames(source) {
   return new Set([...source.matchAll(RUNNER_CALL)].map((match) => match[2]).sort())
+}
+
+export function pinnedHeadMatches(result, sha) {
+  return result?.ok === true && result.stdout.trim() === sha
 }
 
 export function assessGateSpine({ before, after, existed }) {
