@@ -2,7 +2,7 @@
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { runTaskRecordRed, taskIdFromBranch } from '../../src/commands/task-record-red.js'
 
 // Mock runCli so we don't invoke real test runners
@@ -863,4 +863,95 @@ describe('runTaskRecordRed() branch-preference and evidence-ownership (#2064)', 
       expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#504.json'))).toBe(false)
     },
   )
+})
+
+// #2655 — an explicit `--task` is authoritative when NEITHER the branch nor the
+// task document resolves (detached HEAD at the RED commit, a non-task branch):
+// there is nothing for it to disagree with, so the #2064 fail-closed guard has
+// no reason to demand a `task init` detour. Every other rule is unchanged.
+describe('runTaskRecordRed() explicit --task with no resolvable active task (#2655)', () => {
+  const dirs: string[] = []
+  // mockReset (not clearAllMocks): a refusal or a throw consumes only the branch lookup
+  // and would leak its queued rev-parse/status/ls-tree/test-run responses into the next
+  // case — including from the preceding describe, hence the reset on entry too.
+  beforeEach(() => mockedRunCli.mockReset())
+  afterEach(() => {
+    while (dirs.length > 0) {
+      const d = dirs.pop()
+      if (d) rmSync(d, { recursive: true, force: true })
+    }
+    mockedRunCli.mockReset()
+  })
+
+  function bareRepo(): string {
+    const d = mkdtempSync(join(tmpdir(), 'record-red-2655-'))
+    dirs.push(d)
+    return d
+  }
+
+  function mockFailingRun(branch: string, testPath: string): void {
+    mockBranch(branch)
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks(testPath)
+    mockedRunCli.mockReturnValueOnce({
+      stdout: `FAIL ${testPath}\n✗ 1 failed`,
+      stderr: '',
+      exitCode: 1,
+      durationMs: 100,
+    })
+  }
+
+  it.each(['HEAD', 'main', 'friction/f3-no-number'])(
+    'records evidence for the explicit task on branch %j with no task document',
+    (branch) => {
+      const dir = bareRepo()
+      const testPath = '__tests__/explicit.test.ts'
+      mockFailingRun(branch, testPath)
+
+      const result = runTaskRecordRed({ testPath, dir, taskId: '#123' })
+
+      expect(result.ok, result.ok ? '' : result.reason).toBe(true)
+      const ev = JSON.parse(
+        readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#123.json'), 'utf-8'),
+      )
+      expect(ev.task_id).toBe('#123')
+    },
+  )
+
+  it('normalizes the explicit id (bare 123 → #123)', () => {
+    const dir = bareRepo()
+    const testPath = '__tests__/explicit.test.ts'
+    mockFailingRun('HEAD', testPath)
+    const result = runTaskRecordRed({ testPath, dir, taskId: '123' })
+    expect(result.ok, result.ok ? '' : result.reason).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#123.json'))).toBe(true)
+  })
+
+  it('still refuses with "no active task" when --task is absent', () => {
+    const dir = bareRepo()
+    mockBranch('HEAD')
+    const result = runTaskRecordRed({ testPath: '__tests__/explicit.test.ts', dir })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toMatch(/no active task/i)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd'))).toBe(false)
+  })
+
+  it('still refuses an explicit id that contradicts a resolved branch task outside the chain', () => {
+    const dir = bareRepo()
+    mockBranch('task/#7-primary')
+    const result = runTaskRecordRed({ testPath: '__tests__/explicit.test.ts', dir, taskId: '#9' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toMatch(/not the active task/i)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#9.json'))).toBe(false)
+  })
+
+  it('still refuses when branch and task document disagree, even with --task naming one of them', () => {
+    const dir = bareRepo()
+    mkdirSync(join(dir, '.claude'), { recursive: true })
+    writeFileSync(join(dir, '.claude', '.task-id'), '#489\n', 'utf-8')
+    mockBranch('task/#503-gate-truth')
+    const result = runTaskRecordRed({ testPath: '__tests__/explicit.test.ts', dir, taskId: '#503' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toMatch(/mismatch/i)
+  })
 })
