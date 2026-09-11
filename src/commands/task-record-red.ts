@@ -76,11 +76,15 @@ function resolveLanguage(dir: string): Language {
 }
 
 /**
- * Select the test runner for a single failing test from project language.
+ * Select the test runner for a single failing test from the test path's
+ * extension (JS/TS → vitest) and otherwise the project language.
  * The test path is repo-relative. Package/dir scoping is best-effort: the
  * user can override the exact command with `--test-command` for precise runs.
  */
 function selectRunner(language: Language, testPath: string): readonly string[] {
+  // #2656: a JS/TS test file is a vitest test whatever the repo language (a Go
+  // consumer testing its gate scripts with vitest must not get `go test ./scripts`).
+  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(testPath)) return ['npx', 'vitest', 'run', testPath]
   switch (language) {
     case 'go':
       // `go test` takes a package path, not a file. Scope to the file's

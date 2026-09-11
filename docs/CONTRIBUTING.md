@@ -1,6 +1,6 @@
 ---
 title: 'Contributing to arbiter'
-doc_version: '1.0.1'
+doc_version: '1.0.2'
 status: active
 last_review: '2026-09-12'
 owner: ''
@@ -182,6 +182,10 @@ checks at `verification` rather than `green` because a chain walks the phase mac
   (commit the RED test first — `record-red` refuses on a dirty/uncommitted `__tests__/**`, #1988)
 - `record-red` refuses a test runner that exits 0; Node `node:test`/TAP failures are recognized
   from the `# fail N` summary line.
+- `record-red` picks the runner from the test path first — `*.test.*`/`*.spec.*` with a JS/TS
+  extension always run under `npx vitest run <file>`, even in a Go or Python repository — and
+  only then from the project language (`go test <pkg>`, `pytest <file>`); `--test-command`
+  still overrides (#2656).
 - `record-red: FAIL — branch/task-document mismatch` → the current git branch (`task/#NNN-*`)
   and `.claude/.task/status.json` disagree on the active task; `record-red` fails closed rather
   than guess, to avoid overwriting another task's evidence. Run `arbiter task init --id #NNN`
