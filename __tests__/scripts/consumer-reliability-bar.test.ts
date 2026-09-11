@@ -190,6 +190,22 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(gateMap.consumers.java.mapping['BDD @ignore check']).toMatch(/^DECLINED:.+\.feature/)
   })
 
+  it('records Coach post-merge L2 as exact CI-alignment evidence (#2631)', () => {
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    expect(gateMap.consumers.typescript.mapping['ci alignment']).toMatchObject({
+      verdict: 'WIRED',
+      caller: 'post-merge-gate (L2)',
+      evidence: {
+        kind: 'workflow-run',
+        workflow: '.github/workflows/01-pr-fast.yml',
+        job: 'post-merge-gate',
+        run: 'node scripts/check-all.mjs L2 --json gate-result.json',
+      },
+    })
+  })
+
   // Mutation (d): the debt register GROWS. A ratchet that only ever appends is a
   // free-text escape hatch, so cardinality is pinned to a committed integer.
   it('AC-2 fails when the debt register grows past its ceiling', () => {
