@@ -224,7 +224,8 @@ export function taskIdFromBranch(branch: string): string | undefined {
  *   has no active task at all).
  * - Both resolve to DIFFERENT ids → refuse; this is exactly the #503/#489
  *   incident (a stale task-document surviving a branch switch) that #2064 fixes.
- * - Neither resolves → the pre-existing "no active task" refusal.
+ * - Neither resolves → an explicit `--task` is used as-is (#2655); without one,
+ *   the pre-existing "no active task" refusal.
  */
 function resolveSelectedTaskId(
   requestedTaskId: string | undefined,
@@ -272,6 +273,15 @@ function resolveActiveTaskId(
 
   const taskId = branchTaskId ?? docTaskId
   if (taskId === undefined) {
+    // #2655: nothing resolved, so nothing can contradict an explicit `--task` —
+    // it is the authority (detached HEAD at the RED commit, non-task branch).
+    if (requestedTaskId !== undefined) {
+      try {
+        return { taskId: normalizeChainId(requestedTaskId) }
+      } catch (err) {
+        return { ok: false, reason: err instanceof Error ? err.message : String(err) }
+      }
+    }
     return {
       ok: false,
       reason: `no active task — run \`arbiter task init --id #NNN\` (or \`/task #NNN\`) to initialise the task first`,

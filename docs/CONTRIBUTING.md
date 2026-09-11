@@ -1,8 +1,8 @@
 ---
 title: 'Contributing to arbiter'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-06-08'
+last_review: '2026-09-12'
 owner: ''
 canonical_id: 'CONTRIBUTING'
 tags: ['audience/dev', 'kind/setup']
@@ -186,6 +186,10 @@ checks at `verification` rather than `green` because a chain walks the phase mac
   and `.claude/.task/status.json` disagree on the active task; `record-red` fails closed rather
   than guess, to avoid overwriting another task's evidence. Run `arbiter task init --id #NNN`
   to realign the task document with the branch, then re-run (#2064).
+- `record-red: FAIL — no active task` → neither the branch nor the task document names a task
+  (detached HEAD at the RED commit, a branch without a `task/NNN` prefix). Pass the task
+  explicitly — `arbiter task record-red --test-path <file> --task '#NNN'` — instead of a
+  `task init` detour; the explicit id is authoritative only when nothing can contradict it (#2655).
 - Gate red on `this branch changes src/ but ... no verified TDD evidence` → evidence is owed
   per CHANGE, not per commit subject (#2217). Ids in a commit SUBJECT are still verified one
   by one; a branch with no such id that touches `src/` must carry **one** verified evidence

@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2655",
+  "test_path": "__tests__/commands/task-record-red.test.ts",
+  "test_commit_sha": "710553ce0a4b06158f34eae228128c703fdb231d",
+  "test_blob_sha": "f684fab5cdd0af1ce5282587af2570fe989991d2",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/commands/task-record-red.test.ts (58 tests | 4 failed) 45ms\n     × records evidence for the explicit task on branch \"HEAD\" with no task document 4ms\n     × records evidence for the explicit task on branch \"main\" with no task document 1ms\n     × records evidence for the explicit task on branch \"friction/f3-no-number\" with no task document 0ms\n     × normalizes the explicit id (bare 123 → #123) 0ms\n\n Test Files  1 failed (1)\n      Tests  4 failed | 54 passed (58)\n   Start at  01:46:27\n   Duration  300ms (transform 118ms, setup 8ms, import 158ms, tests 45ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/commands/task-record-red.test.ts > runTaskRecordRed() explicit --task with no resolvable active task (#2655) > records evidence for the explicit task on branch \"HEAD\" with no task document\n FAIL  __tests__/commands/task-record-red.test.ts > runTaskRecordRed() explicit --task with no resolvable active task (#2655) > records evidence for the explicit task on branch \"main\" with no task document\n FAIL  __tests__/commands/task-record-red.test.ts > runTaskRecordRed() explicit --task with no resolvable active task (#2655) > records evidence for the explicit task on branch \"friction/f3-no-number\" with no task document\nAssertionError: no active task — run `arbiter task init --id #NNN` (or `/task #NNN`) to initialise the task first: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/commands/task-record-red.test.ts:913:57\n    911|       const result = runTaskRecordRed({ testPath, dir, taskId: '#123' …\n    912|\n    913|       expect(result.ok, result.ok ? '' : result.reason).toBe(true)\n       |                                                         ^\n    914|       const ev = JSON.parse(\n    915|         readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#123.js…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯\n\n FAIL  __tests__/commands/task-record-red.test.ts > runTaskRecordRed() explicit --task with no resolvable active task (#2655) > normalizes the explicit id (bare 123 → #123)\nAssertionError: no active task — run `arbiter task init --id #NNN` (or `/task #NNN`) to initialise the task first: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/commands/task-record-red.test.ts:926:55\n    924|     mockFailingRun('HEAD', testPath)\n    925|     const result = runTaskRecordRed({ testPath, dir, taskId: '123' })\n    926|     expect(result.ok, result.ok ? '' : result.reason).toBe(true)\n       |                                                       ^\n    927|     expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#123.j…\n    928|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/commands/task-record-red.test.ts",
+  "recorded_at": "2026-09-11T23:46:28.137Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/task-record-red.test.ts"
+  ]
+}
