@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.12'
+doc_version: '2.0.13'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -321,6 +321,14 @@ optimization does not change emitted consumer runners.
 Local gates also read Git references: linked worktrees share `origin/main`.
 Resolve the live base before qualification and coordinate fetches with the gate
 owner; a clean worktree alone does not freeze that shared input.
+
+## Staged-file Prettier check in pre-commit (#2654)
+
+Before the RED-commit bypass (#2051) and the worktree skip (#1695), `.githooks/pre-commit`
+runs `prettier --check --ignore-unknown` on the exact staged set (NUL-delimited, so paths with
+spaces stay whole). It applies to every commit shape, so a formatting slip is rejected at
+commit time instead of surfacing at the exact-head L2 minutes later. It is not an L1 run:
+nothing else is checked here in worktrees.
 
 ## Worktree pre-commit skip (#1695)
 

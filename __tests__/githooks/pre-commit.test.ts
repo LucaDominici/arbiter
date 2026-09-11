@@ -41,7 +41,7 @@ function gitEnv() {
 }
 
 /** A main repo with one commit plus a worktree that stages `staged.ts` with the given content. */
-function worktreeWithStaged(content: string) {
+function worktreeWithStaged(content: string, fileName = 'staged.ts', phase?: string) {
   const root = mkdtempSync(join(tmpdir(), 'arbiter-precommit-'))
   tempDirs.push(root)
   const main = join(root, 'main')
@@ -55,11 +55,16 @@ function worktreeWithStaged(content: string) {
   mkdirSync(join(wt, '.githooks'))
   copyFileSync(HOOK_SRC, join(wt, '.githooks', 'pre-commit'))
   copyFileSync(join(REPO_ROOT, '.gitleaks.toml'), join(wt, '.gitleaks.toml'))
+  copyFileSync(join(REPO_ROOT, '.prettierrc.json'), join(wt, '.prettierrc.json'))
   mkdirSync(join(wt, 'suppressions'))
   writeFileSync(join(wt, 'suppressions', '.gitleaksignore'), '')
   symlinkSync(join(REPO_ROOT, 'node_modules'), join(wt, 'node_modules'))
-  writeFileSync(join(wt, 'staged.ts'), content)
-  git(wt, 'add', 'staged.ts')
+  writeFileSync(join(wt, fileName), content)
+  git(wt, 'add', fileName)
+  if (phase) {
+    mkdirSync(join(wt, '.claude', '.task'), { recursive: true })
+    writeFileSync(join(wt, '.claude', '.task', 'status.json'), JSON.stringify({ phase }))
+  }
   return wt
 }
 
@@ -75,6 +80,19 @@ describe('.githooks/pre-commit in a git worktree', () => {
   it('rejects a staged file that Prettier would reformat', () => {
     const wt = worktreeWithStaged('const  x   =  1\n')
     const result = runHook(wt)
+    expect(result.status, result.stdout + result.stderr).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/prettier/i)
+  })
+
+  it('keeps a path with spaces whole (formatted passes, unformatted fails)', () => {
+    const ok = runHook(worktreeWithStaged('const x = 1\n', 'with space.ts'))
+    expect(ok.status, ok.stdout + ok.stderr).toBe(0)
+    const bad = runHook(worktreeWithStaged('const  x   =  1\n', 'with space.ts'))
+    expect(bad.status, bad.stdout + bad.stderr).toBe(1)
+  })
+
+  it('also checks a RED test-only commit (#2051 bypass runs after the format check)', () => {
+    const result = runHook(worktreeWithStaged('const  x   =  1\n', 'red.test.ts', 'red'))
     expect(result.status, result.stdout + result.stderr).toBe(1)
     expect(result.stdout + result.stderr).toMatch(/prettier/i)
   })

@@ -21,6 +21,17 @@ fi
 # independent temp repositories without GIT_DIR poisoning their git calls.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 
+# #2654: Prettier on the exact staged set, for EVERY commit shape (RED test-only commits
+# and worktree commits included) — the L1 gate is skipped in worktrees (#1695) and for
+# RED commits (#2051), so a formatting slip would otherwise surface only at the exact-head
+# L2 minutes later. NUL-delimited so paths with spaces stay whole; unknown types are skipped.
+if git diff --cached --name-only --diff-filter=ACMR -z | grep -qz . 2>/dev/null; then
+  if ! git diff --cached --name-only --diff-filter=ACMR -z | xargs -0 npx prettier --check --ignore-unknown >/dev/null 2>&1; then
+    echo "[pre-commit] prettier --check failed on staged files — run: git diff --cached --name-only -z --diff-filter=ACMR | xargs -0 npx prettier --write (#2654)"
+    exit 1
+  fi
+fi
+
 # #2051: a genuine RED commit contains a test that FAILS — the L1 gate blocks exactly
 # the commit `arbiter task record-red` must point at. Let that one commit shape through:
 # phase=red AND every staged path is a test. The secret scan above still ran, and the
