@@ -13,7 +13,7 @@
       "language": "typescript",
       "repoEnv": "ARBITER_CONSUMER_TYPESCRIPT_REPO",
       "keyEnv": "ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY",
-      "sha": "754e197590ad79b4c37fb7c0472b9ef4d30ed6e1"
+      "sha": "065c122bbfdb5e3cc593c962e93fd0b4a71d0d7b"
     },
     {
       "id": "java",

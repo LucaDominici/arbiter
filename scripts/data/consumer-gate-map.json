@@ -185,6 +185,7 @@
             "run": "npm run test:coverage"
           }
         },
+        "db integration tests": "WIRED:db integration tests",
         "dead code": "DEBT:#2291",
         "debt ratchet": "DEBT:#2291",
         "decision registry": "DEBT:#2291",

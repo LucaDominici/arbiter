@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.6'
+doc_version: '2.0.7'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -142,6 +142,8 @@ At the pinned Coach revision, `BDD @ignore check` is carried by the existing
 files and rejects `@ignore` even when an exemption marker is present.
 At the pinned Go consumer revision, `reuse registry` is a direct hard L2 caller
 and its registry check rejects both an empty registry and a registered missing path.
+At the pinned Coach revision, `db integration tests` is a direct hard L2 caller that
+runs the real route integration suite without a pass-with-no-tests escape.
 
 ## INV-73 canonical presence floor
 
