@@ -6,6 +6,9 @@ name: Nightly jobs (reusable)
 // re-declare the archetype map here.
 const _bucket = serviceBucket;
 const _isService = isService;
+// #2628: arbiter's own render (enableNativeBakeE2E) at L2+ takes coverage from
+// the Full Gate instead of a duplicate standalone job; consumers are unchanged.
+const _selfL2Coverage = Boolean(locals.enableNativeBakeE2E) && governanceLevel !== 'L1';
 %>
 on:
   workflow_call:
@@ -453,10 +456,27 @@ jobs:
           name: gate-result-nightly
           path: gate-result-nightly.json
           retention-days: 30
+<% if (_selfL2Coverage) { -%>
+      - name: Upload L2 coverage reports
+        if: always()
+        # Supplementary artifact — never let an Artifacts-quota hiccup fail the
+        # job whose actual signal (the L2 gate above) already passed (#2058-class).
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-${{ github.run_id }}
+          path: coverage/
+          retention-days: 30
+<% } -%>
 <% } %>
 
 <%# E1 (#1502): heavy tools moved off the PR path land here at nightly cadence. %>
 <% const _covThreshold = isL3Plus ? 85 : 80; %>
+<%# #2628: arbiter's own L2 gate already runs the full coverage corpus at its
+    90% floor, so the self render must not rerun `vitest --coverage` at 80 in a
+    sibling job (measured duplicate: 316 s overlapping the 446 s Full Gate).
+    Consumer renders keep this lane. -%>
+<% if (!_selfL2Coverage) { -%>
   coverage-report:
     name: Coverage report + threshold (full suite)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
@@ -533,6 +553,7 @@ jobs:
           name: coverage-${{ github.run_id }}
           path: coverage/
           retention-days: 30
+<% } -%>
 
 <%# E1 (#1502): jscpd is a TS/JS clone detector — check-duplication.mjs is emitted
     only for the typescript stack (other stacks get duplication via native CPD,
@@ -591,7 +612,9 @@ jobs:
       - soak-e2e
 <%_ } _%>
       - gitleaks-history
+<% if (!_selfL2Coverage) { -%>
       - coverage-report
+<% } -%>
 <% if (language === 'typescript') { %>
       - duplication-baseline
 <% } %>
@@ -704,7 +727,12 @@ jobs:
       - soak-e2e
 <%_ } _%>
       - gitleaks-history
+<% if (!_selfL2Coverage) { -%>
       - coverage-report
+<% } -%>
+<% if (governanceLevel !== 'L1') { -%>
+      - gate-full-nightly
+<% } -%>
 <% if (language === 'typescript') { %>
       - duplication-baseline
 <% } %>
@@ -726,6 +754,15 @@ jobs:
     steps:
       - name: Assert no hard failures
         run: |
+<% if (governanceLevel !== 'L1') { -%>
+          # #2628: the Full Gate is the authoritative L2/coverage signal — only a
+          # real success counts; cancelled/skipped/missing is a red nightly.
+          GATE="${{ needs.gate-full-nightly.result }}"
+          if [ "$GATE" != "success" ]; then
+            echo "::error::Full Gate nightly did not succeed (result: ${GATE:-missing})."
+            exit 1
+          fi
+<% } -%>
           RESULTS=(
             "${{ needs.shared-security.result }}"
 <%_ if (locals.runnerProfile !== 'solo') { _%>
@@ -733,7 +770,12 @@ jobs:
             "${{ needs.soak-e2e.result }}"
 <%_ } _%>
             "${{ needs.gitleaks-history.result }}"
+<% if (!_selfL2Coverage) { -%>
             "${{ needs.coverage-report.result }}"
+<% } -%>
+<% if (governanceLevel !== 'L1') { -%>
+            "${{ needs.gate-full-nightly.result }}"
+<% } -%>
 <% if (language === 'typescript') { %>
             "${{ needs.duplication-baseline.result }}"
 <% } %>

@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.8'
+doc_version: '2.0.9'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -205,13 +205,20 @@ In addition to the workflows, `generateCiTier` / `generateGithub` emit:
 | `.github/actions/sign-and-attest/action.yml`            | Composite cosign sign + attest action (release/deploy path)                                                                                                                                                                                                    |
 | `sonar-project.properties`                              | SonarQube project config; JaCoCo XML path set per build tool (`maven` → `target/coverage/jacoco.xml`, `gradle` → `build/coverage/coverage.xml`)                                                                                                                |
 
-`_nightly.yml`'s three purely-supplementary artifact uploads (`gate-full-nightly`'s
-gate-result, `coverage-report`'s coverage HTML, `evidence-collect`'s summary) carry
-`continue-on-error: true` — same #2058-class tolerance as the build-cache/cleanup entries
-above: the upload is evidence for later inspection, not the gate itself (the L2 gate /
-coverage-threshold run above it already succeeded or failed on its own terms), so an
-Artifacts-quota hiccup on the upload must not retroactively red a job whose real work
-already completed.
+`_nightly.yml`'s purely-supplementary artifact uploads (`gate-full-nightly`'s
+gate-result and coverage HTML, `coverage-report`'s coverage HTML on consumer renders,
+`evidence-collect`'s summary) carry `continue-on-error: true` — same #2058-class
+tolerance as the build-cache/cleanup entries above: the upload is evidence for later
+inspection, not the gate itself (the L2 gate / coverage-threshold run above it already
+succeeded or failed on its own terms), so an Artifacts-quota hiccup on the upload must
+not retroactively red a job whose real work already completed.
+
+Arbiter's own render (`enableNativeBakeE2E`, governance L2+) has no `coverage-report`
+job (#2628): `gate-full-nightly` already runs the complete L2 corpus at its 90% floor
+and uploads `coverage/` itself, and `nightly-required` / `evidence-collect` depend on
+`gate-full-nightly`, whose result must be exactly `success` — `cancelled`, `skipped`
+or missing is a red nightly. Consumer renders keep the standalone `coverage-report`
+lane (80 at L1/L2, 85 at L3+).
 
 ## Jobs in 01-pr-fast.yml
 

@@ -111,8 +111,8 @@
   {
     "path": "_nightly.yml",
     "dest": ".github/workflows",
-    "reason": "Self sets `enableNativeBakeE2E` (bake-e2e-native + generated-gate-e2e [per-language matrix] + generated-gate-e2e-misc jobs) — a flag with no wiring path in resolveProjectConfig/src/generators (grep confirms zero setters): a manual arbiter-self-only harness augmentation for the init→bake native-fixture-smoke matrix + VITEST_L2 generated-gate harness (split per-stack, B5 gate-thesis reliability). The template comment says as much: \"Downstream-generated projects do not ship this harness, so it renders only for arbiter itself.\" Tracked under #1900. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "78f979a9e0ac78b936b094eb27c6d278c564fcd785f73b0280ad0b36a8115f99"
+    "reason": "Self sets `enableNativeBakeE2E` (bake-e2e-native + generated-gate-e2e [per-language matrix] + generated-gate-e2e-misc jobs) — a flag with no wiring path in resolveProjectConfig/src/generators (grep confirms zero setters): a manual arbiter-self-only harness augmentation for the init→bake native-fixture-smoke matrix + VITEST_L2 generated-gate harness (split per-stack, B5 gate-thesis reliability). The template comment says as much: \"Downstream-generated projects do not ship this harness, so it renders only for arbiter itself.\" Tracked under #1900. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine. #2628: the same self-only render takes coverage from gate-full-nightly (uploads coverage/, no standalone coverage-report job, aggregate requires the Full Gate success); consumer renders keep their coverage lane.",
+    "diffHash": "3b5581f006976e9f78e3c48de32659938e64a25909464de572adbf8f1e03055c"
   },
   {
     "path": "check-action-pins.mjs",
