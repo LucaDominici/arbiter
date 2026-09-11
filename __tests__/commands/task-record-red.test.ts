@@ -314,6 +314,40 @@ describe('runTaskRecordRed()', () => {
     },
   )
 
+  // #2656: a JS/TS test file is a vitest test whatever the repo language — a Go
+  // consumer that tests its gate scripts with vitest must not get `go test ./scripts`.
+  it.each([
+    ['go', 'scripts/check-foo.test.mjs'],
+    ['python', 'tools/foo.spec.ts'],
+    ['go', 'web/app.test.tsx'],
+  ] as const)(
+    'selects vitest for a JS/TS test path in a %s project (#2656)',
+    (language, testPath) => {
+      const dir = tmpRepo()
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language }), 'utf-8')
+      mockBranch()
+      mockedRunCli.mockReturnValueOnce({
+        stdout: gitSha(),
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+      })
+      mockCleanGitChecks(testPath)
+      mockedRunCli.mockReturnValueOnce({
+        stdout: `FAIL ${testPath}\n1 failed`,
+        stderr: '',
+        exitCode: 1,
+        durationMs: 50,
+      })
+      runTaskRecordRed({ testPath, dir })
+      expect(mockedRunCli.mock.calls[4]).toEqual([
+        'npx',
+        ['vitest', 'run', testPath],
+        expect.any(Object),
+      ])
+    },
+  )
+
   it('scopes `go test` to `.` for a root-level go test file (#1951)', () => {
     const dir = tmpRepo()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'go' }), 'utf-8')
