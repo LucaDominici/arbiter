@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.11'
+doc_version: '2.0.12'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -154,6 +154,10 @@ registered path that does not exist. `frontend lane` is DECLINED with an artifac
 reason: the generated lane checker only gates a frontend subtree and SKIPs when that
 subtree has no package manifest; this consumer's root-level Vue client is gated by typecheck,
 lint, unit tests and the hard `build (vite)` caller instead.
+At the pinned Coach revision, `domain-api surface (INV-125)` is a direct hard L1 caller whose
+manifest is checked against the live schema (bidirectional parity), a fixed exemption
+allowlist and mounted-route evidence; the consumer removed five never-populated tables and
+exposed two internal keys so the manifest reports zero unreachable persisted fields.
 
 ## INV-73 canonical presence floor
 

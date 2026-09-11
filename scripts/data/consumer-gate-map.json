@@ -193,6 +193,7 @@
         "doc-set": "DEBT:#2291",
         "docs updated with code (#356)": "DEBT:#2291",
         "documentation index drift": "DEBT:#2291",
+        "domain-api surface (INV-125)": "WIRED:domain-api surface (INV-125)",
         "duplication": "WIRED:duplication",
         "e2e escalation ladder (#2043)": "DEBT:#2291",
         "e2e quarantine (INV-130)": "WIRED:e2e-quarantine (INV-130)",
