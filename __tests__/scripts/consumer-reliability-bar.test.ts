@@ -12,6 +12,7 @@ import {
   classifyUpdateResult,
   commandOutcomeKind,
   extractCheckNames,
+  extractWorkflowRun,
   redactSecrets,
   resultExitCode,
   summarizeProbeFailures,
@@ -29,6 +30,20 @@ describe('consumer reliability bar oracles (#2135)', () => {
       "pushResult('dep audit', 'PASS', 12)",
     ].join('\n')
     expect([...extractCheckNames(source)]).toEqual(['dep audit', 'docs', 'lint', 'unit tests'])
+  })
+
+  it('accepts an exact workflow run only from its declared job', () => {
+    const workflow = [
+      'jobs:',
+      '  gate:',
+      '    steps:',
+      '      - run: npm run test:coverage',
+      '  other:',
+      '    steps:',
+      '      - run: npm run test:other',
+    ].join('\n')
+    expect(extractWorkflowRun(workflow, { job: 'gate', run: 'npm run test:coverage' }).ok).toBe(true)
+    expect(extractWorkflowRun(workflow, { job: 'gate', run: 'npm run test:other' }).ok).toBe(false)
   })
 
   it('rejects an update that changes the prepared consumer commit', () => {
