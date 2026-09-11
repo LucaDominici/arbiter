@@ -42,7 +42,9 @@ describe('consumer reliability bar oracles (#2135)', () => {
       '    steps:',
       '      - run: npm run test:other',
     ].join('\n')
-    expect(extractWorkflowRun(workflow, { job: 'gate', run: 'npm run test:coverage' }).ok).toBe(true)
+    expect(extractWorkflowRun(workflow, { job: 'gate', run: 'npm run test:coverage' }).ok).toBe(
+      true,
+    )
     expect(extractWorkflowRun(workflow, { job: 'gate', run: 'npm run test:other' }).ok).toBe(false)
   })
 

@@ -7,6 +7,40 @@ export function extractCheckNames(source) {
   return new Set([...source.matchAll(RUNNER_CALL)].map((match) => match[2]).sort())
 }
 
+// A deliberately small YAML reader for the only evidence shape the Bar needs:
+// an exact `run:` command inside one named top-level job. It refuses a command
+// found in another job or in a comment; full YAML interpretation is unnecessary.
+export function extractWorkflowRun(source, { job, run }) {
+  const block = workflowJobBlock(source, job)
+  return { ok: block !== null && workflowRunMatches(block, run) }
+}
+
+function workflowJobBlock(source, job) {
+  if (typeof source !== 'string' || !/^[A-Za-z0-9_-]+$/.test(job)) return null
+  const lines = source.split('\n')
+  const header = new RegExp(`^  ${job}:\\s*(?:#.*)?$`)
+  const starts = lines.flatMap((line, index) => (header.test(line) ? [index] : []))
+  if (starts.length !== 1) return null
+  const start = starts[0]
+  const end = lines.findIndex(
+    (line, index) => index > start && /^  [A-Za-z0-9_-]+:\s*(?:#.*)?$/.test(line),
+  )
+  return lines.slice(start + 1, end === -1 ? undefined : end).join('\n')
+}
+
+function workflowRunMatches(block, run) {
+  if (typeof run !== 'string') return false
+  const escaped = escapeRegExp(run).replaceAll('\n', '\\s*\\n\\s*')
+  return new RegExp(
+    `^\\s*(?:-\\s*)?run:\\s*(?:${escaped}|[>|][+-]?\\s*\\n\\s*${escaped})\\s*$`,
+    'm',
+  ).test(block)
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 export function pinnedHeadMatches(result, sha) {
   return result?.ok === true && result.stdout.trim() === sha
 }

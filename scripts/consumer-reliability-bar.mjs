@@ -3,6 +3,7 @@
 import {
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   renameSync,
@@ -18,6 +19,7 @@ import {
   buildVerifierEnvironment,
   classifyUpdateResult,
   commandOutcomeKind,
+  extractWorkflowRun,
   extractCheckNames,
   formatFailureLines,
   pinnedHeadMatches,
@@ -282,12 +284,18 @@ function renderFreshSpine(repo, consumer, options) {
 // on-disk gate entrypoint (go/typescript run it from CI); `kind: 'command'` runs the
 // consumer's own dry-run and scrapes its gate line (the java consumer never invokes check-all.mjs
 // at all — its 37+ real gates live in run.sh).
-function readDeclaredSurface(repo, surface, baseline) {
+function readDeclaredSurface(repo, surface, baseline, mapping) {
+  const resolvedMapping = resolveMappingEvidence(repo, mapping)
+  if (!resolvedMapping.ok) return resolvedMapping
   if (surface?.kind === 'spine') {
     if (!baseline.existed) {
       throw new Error('declared surface is the on-disk gate spine, and it is absent')
     }
-    return { ok: true, gates: [...extractCheckNames(baseline.before)] }
+    return {
+      ok: true,
+      gates: [...extractCheckNames(baseline.before), ...resolvedMapping.gates],
+      mapping: resolvedMapping.mapping,
+    }
   }
   const gates = new Set()
   for (const command of surface.commands) {
@@ -302,13 +310,55 @@ function readDeclaredSurface(repo, surface, baseline) {
     if (!parsed.ok) return parsed
     for (const gate of parsed.gates) gates.add(gate)
   }
-  return { ok: true, gates: [...gates] }
+  return { ok: true, gates: [...gates, ...resolvedMapping.gates], mapping: resolvedMapping.mapping }
+}
+
+function resolveMappingEvidence(repo, mapping) {
+  const resolved = {}
+  const gates = []
+  for (const [name, entry] of Object.entries(mapping ?? {})) {
+    const evidence = resolveMappingEntry(repo, name, entry)
+    if (!evidence.ok) return evidence
+    resolved[name] = evidence.mapping
+    if (evidence.gate) gates.push(evidence.gate)
+  }
+  return { ok: true, mapping: resolved, gates }
+}
+
+function resolveMappingEntry(repo, name, entry) {
+  if (typeof entry === 'string') return { ok: true, mapping: entry }
+  if (!isWorkflowEvidenceEntry(entry)) {
+    return { ok: false, detail: `${name}: invalid structured mapping evidence` }
+  }
+  const file = repositoryFile(repo, entry.evidence.workflow)
+  if (file === null)
+    return { ok: false, detail: `${name}: workflow evidence is not a regular repository file` }
+  if (!extractWorkflowRun(readFileSync(file, 'utf-8'), entry.evidence)) {
+    return { ok: false, detail: `${name}: declared workflow command is absent from its job` }
+  }
+  return { ok: true, mapping: `WIRED:${entry.caller}`, gate: entry.caller }
+}
+
+function isWorkflowEvidenceEntry(entry) {
+  return (
+    entry?.verdict === 'WIRED' &&
+    /^[A-Za-z0-9][A-Za-z0-9 _().#/-]*$/.test(entry?.caller) &&
+    entry?.evidence?.kind === 'workflow-run'
+  )
+}
+
+function repositoryFile(repo, path) {
+  if (typeof path !== 'string' || path.length === 0) return null
+  const candidate = resolve(repo, path)
+  if (!isWithin(repo, candidate)) return null
+  const stat = lstatSync(candidate)
+  return stat.isFile() && !stat.isSymbolicLink() ? candidate : null
 }
 
 function recordGateSurface(repo, consumer, gateMap, handoff, baseline, freshRender, report) {
   const entry = gateMap?.consumers?.[consumer.id]
   if (entry === undefined) throw new Error(`no gate map for consumer ${consumer.id}`)
-  const surface = readDeclaredSurface(repo, entry.gateSurface, baseline)
+  const surface = readDeclaredSurface(repo, entry.gateSurface, baseline, entry.mapping)
   if (!surface.ok) {
     // Acquisition failure is an operational ERROR: the bar learned nothing about this
     // consumer, and a queued mutex must never read as a gate that stopped running.
@@ -318,7 +368,7 @@ function recordGateSurface(repo, consumer, gateMap, handoff, baseline, freshRend
   const verdict = assessGateSurface({
     freshRender,
     declared: surface.gates,
-    mapping: entry.mapping,
+    mapping: surface.mapping,
     debtRegister: { ceiling: entry.debtCeiling, openIssues: handoff.openDebtIssues ?? [] },
   })
   report.checks.gateSurface = outcome(verdict.ok, verdict.detail)

@@ -23,6 +23,16 @@
         "bdd": "WIRED:bdd",
         "bundle size budget": "DEBT:#2291",
         "canonical paths": "WIRED:canonical paths",
+        "ci alignment": {
+          "verdict": "WIRED",
+          "caller": "local-ci-parity (INV-59)",
+          "evidence": {
+            "kind": "workflow-run",
+            "workflow": ".github/workflows/01-pr-fast.yml",
+            "job": "solo-dev-gate",
+            "run": "node scripts/check-local-ci-parity.mjs \\\n--local-result gate-result.json \\\n--ci-result gate-result.json \\\n--expected-sha \"$(git rev-parse HEAD)\" \\\n--expected-level L2"
+          }
+        },
         "ci tiers (INV-73)": "DEBT:#2291",
         "claude-md lint": "WIRED:claude-md lint",
         "collab mode wired (INV-100)": "WIRED:collab mode wired (INV-100)",
@@ -153,6 +163,16 @@
         "cross-model review (#2358)": "WIRED:cross-model review",
         "continue-on-error (swallowed gate)": "DEBT:#2291",
         "contract tests": "DEBT:#2291",
+        "coverage threshold": {
+          "verdict": "WIRED",
+          "caller": "coverage-report",
+          "evidence": {
+            "kind": "workflow-run",
+            "workflow": ".github/workflows/06-nightly.yml",
+            "job": "coverage-report",
+            "run": "npm run test:coverage"
+          }
+        },
         "dead code": "DEBT:#2291",
         "debt ratchet": "DEBT:#2291",
         "decision registry": "DEBT:#2291",

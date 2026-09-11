@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.2'
+doc_version: '2.0.3'
 status: active
 last_review: '2026-06-26'
 owner: ''
@@ -131,6 +131,9 @@ changes the revision being certified.
 An emitted control may be marked `DECLINED` only when the consumer lacks the
 artifact that control examines; the Bar records the reason and treats a missing
 or empty reason as a failure.
+Where a consumer executes a control only in CI, the Bar accepts an explicit
+workflow/job/command proof after reading that exact regular file; a command in
+another job or a comment does not satisfy the control.
 
 ## INV-73 canonical presence floor
 
