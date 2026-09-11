@@ -292,6 +292,7 @@
         "arc42 slots (INV-144)": "WIRED:arbiter-c0-arc42",
         "assertion delta (anti-fake-green)": "DEBT:#2310",
         "audit dry-pass (E3 #1943)": "DEBT:#2310",
+        "BDD @ignore check": "DECLINED:the generated check searches .feature files for @ignore. At the pinned revision this consumer has no .feature files or BDD runner, so there is no BDD artifact that can be silently ignored. If either is introduced, this entry returns to DEBT with an issue.",
         "bdd": "DEBT:#2310",
         "bundle size budget": "DEBT:#2310",
         "canonical paths": "DEBT:#2310",

@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.1'
+doc_version: '2.0.2'
 status: active
 last_review: '2026-06-26'
 owner: ''
@@ -128,6 +128,9 @@ credential-free verifier boundary still apply.
 The behavioral hook probe copies each pinned checkout into a temporary private
 sandbox before creating its fixture commits and branches, so verification never
 changes the revision being certified.
+An emitted control may be marked `DECLINED` only when the consumer lacks the
+artifact that control examines; the Bar records the reason and treats a missing
+or empty reason as a failure.
 
 ## INV-73 canonical presence floor
 
