@@ -148,6 +148,7 @@
         "assertion delta (anti-fake-green)": "DEBT:#2291",
         "audit": "WIRED:audit",
         "audit dry-pass (E3 #1943)": "DEBT:#2291",
+        "BDD @ignore check": "WIRED:anti-fake-green (INV-135)",
         "bdd": "DEBT:#2291",
         "behavioral tests": "DEBT:#2291",
         "bundle size budget": "WIRED:bundle-size",

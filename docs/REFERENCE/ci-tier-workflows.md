@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.4'
+doc_version: '2.0.5'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -137,6 +137,9 @@ another job or a comment does not satisfy the control.
 For example, a consumer's post-merge `node scripts/check-all.mjs L2 --json
 gate-result.json` is evidence of CI alignment only when the Bar names that exact
 workflow job and command.
+At the pinned Coach revision, `BDD @ignore check` is carried by the existing
+`anti-fake-green (INV-135)` L2 caller: its muted-test guard scans `.feature`
+files and rejects `@ignore` even when an exemption marker is present.
 
 ## INV-73 canonical presence floor
 
