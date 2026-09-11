@@ -231,6 +231,7 @@
         "nightly audit (prod scope)": "WIRED:audit",
         "no tracked artifacts (INV-129)": "WIRED:no-tracked-artifacts (INV-129)",
         "no-fake-db imports (INV-34)": "DEBT:#2291",
+        "npm-ci drift": "WIRED:npm-ci drift",
         "oracle discrimination (anti-fake-green)": "DEBT:#2291",
         "pipe/tee hazard": "WIRED:pipe-tee-hazard",
         "playwright e2e": "DEBT:#2291",

@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.7'
+doc_version: '2.0.8'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -144,6 +144,9 @@ At the pinned Go consumer revision, `reuse registry` is a direct hard L2 caller
 and its registry check rejects both an empty registry and a registered missing path.
 At the pinned Coach revision, `db integration tests` is a direct hard L2 caller that
 runs the real route integration suite without a pass-with-no-tests escape.
+At the same Coach revision, `npm-ci drift` is a direct hard L2 caller: it fails
+closed on a missing or inexact `packageManager` npm pin or lockfile and runs the
+pinned npm's `ci --dry-run`.
 
 ## INV-73 canonical presence floor
 
