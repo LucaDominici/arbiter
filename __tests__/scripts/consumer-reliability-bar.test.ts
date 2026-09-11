@@ -206,6 +206,15 @@ describe('consumer reliability bar oracles (#2135)', () => {
     })
   })
 
+  it('records Coach BDD @ignore as the existing hard L2 guard (#2631)', () => {
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    expect(gateMap.consumers.typescript.mapping['BDD @ignore check']).toBe(
+      'WIRED:anti-fake-green (INV-135)',
+    )
+  })
+
   // Mutation (d): the debt register GROWS. A ratchet that only ever appends is a
   // free-text escape hatch, so cardinality is pinned to a committed integer.
   it('AC-2 fails when the debt register grows past its ceiling', () => {
