@@ -290,10 +290,13 @@ describe('probe-hooks liveness contract (#2135)', () => {
       writeFileSync(join(dir, 'tracked.txt'), 'line\n')
       execFileSync('git', ['add', 'tracked.txt'], { cwd: dir, stdio: 'ignore' })
       execFileSync('git', ['commit', '-m', 'tracked file'], { cwd: dir, stdio: 'ignore' })
+      const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' })
       writeFileSync(join(dir, 'tracked.txt'), 'user edit\n')
       const result = run(dir)
       expect(result.status).toBe(0)
       expect(JSON.parse(result.stdout).failures).toEqual([])
+      expect(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' })).toBe(head)
+      expect(readFileSync(join(dir, 'tracked.txt'), 'utf-8')).toBe('user edit\n')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
