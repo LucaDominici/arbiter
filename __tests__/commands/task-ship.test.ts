@@ -566,7 +566,9 @@ describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead co
   it('plan action is a single-issue constant across every profile (#2329/#2333)', () => {
     for (const defaultGateLevel of ['L1', 'L2'] as const) {
       const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
-      expect(step.action).toBe('Write the plan, then pass the plan-review gate.')
+      expect(step.action).toBe(
+        'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
+      )
     }
   })
 })

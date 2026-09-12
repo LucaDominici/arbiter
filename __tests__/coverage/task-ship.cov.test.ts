@@ -102,7 +102,9 @@ describe('plan action — single-issue, knob-free', () => {
   it('is the same string for every profile', () => {
     for (const defaultGateLevel of ['L1', 'L2'] as const) {
       const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
-      expect(step.action).toBe('Write the plan, then pass the plan-review gate.')
+      expect(step.action).toBe(
+        'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
+      )
     }
   })
 })

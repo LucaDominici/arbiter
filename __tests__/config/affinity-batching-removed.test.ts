@@ -160,11 +160,17 @@ describe('#2329 — ship output is unchanged apart from the removal', () => {
     ...over,
   })
 
+  const PLAN_ACTION =
+    'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.'
+
   it('the plan step emits the plain single-issue action, with no batching prose', () => {
     const step = shipStepFor('plan', 'Standard', profile())
-    expect(step.action).toBe('Write the plan, then pass the plan-review gate.')
+    expect(step.action).toBe(PLAN_ACTION)
     expect(step.action).not.toMatch(/affinit|parallel worktrees/i)
-    expect(step.command).toBe('arbiter verify plan <plan-file>')
+    // #2570: `verify plan` reads PLAN.json, not the markdown plan; the gate is the
+    // plan-review verdict, enforced by `task advance`.
+    expect(step.command).toBe('arbiter task advance --to <next-phase>')
+    expect(step.command).not.toMatch(/verify plan/)
   })
 
   it('NEGATIVE CONTROL — buildShipStepLines still renders a normal ship step', () => {
