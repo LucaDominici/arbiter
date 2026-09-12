@@ -1,4 +1,4 @@
-name: _pr-staleness
+name: Stale PR sweep (bot)
 
 # Mark PRs stale after 14 days of inactivity, close after 28 days.
 # PRs with the 'no-stale' label are exempt from staleness checks.
