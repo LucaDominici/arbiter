@@ -29,4 +29,8 @@ describe('_label-sync.yml.ejs — opt-out guard (CANON-18, #1131)', () => {
     expect(rendered).toContain('gh')
     expect(rendered).toContain('label')
   })
+
+  it('declares a readable display name, not the filename (#2628)', () => {
+    expect(render()).toMatch(/^name: Label sync \(bot\)$/m)
+  })
 })

@@ -57,10 +57,13 @@ function renderPrTemplate(overrides: Record<string, unknown> = {}): string {
 // ─── _label-on-approve.yml.ejs (CANON-18) ────────────────────────────────────
 
 describe('_label-on-approve.yml.ejs — structural invariants (CANON-18)', () => {
-  it.each(STACKS)('$language: workflow name is "_label-on-approve"', ({ language, buildTool }) => {
-    const rendered = renderLabelOnApprove({ language, buildTool })
-    expect(rendered).toContain('name: _label-on-approve')
-  })
+  it.each(STACKS)(
+    '$language: workflow name is "Label on approve (bot)"',
+    ({ language, buildTool }) => {
+      const rendered = renderLabelOnApprove({ language, buildTool })
+      expect(rendered).toContain('name: Label on approve (bot)')
+    },
+  )
 
   it.each(STACKS)(
     '$language: triggers on pull_request_review submitted',
@@ -102,10 +105,13 @@ describe('_label-on-approve.yml.ejs — structural invariants (CANON-18)', () =>
 // ─── _ai-draft-check.yml.ejs (CANON-18) ──────────────────────────────────────
 
 describe('_ai-draft-check.yml.ejs — structural invariants (CANON-18)', () => {
-  it.each(STACKS)('$language: workflow name is "_ai-draft-check"', ({ language, buildTool }) => {
-    const rendered = renderAiDraftCheck({ language, buildTool })
-    expect(rendered).toContain('name: _ai-draft-check')
-  })
+  it.each(STACKS)(
+    '$language: workflow name is "AI-draft PR check (bot)"',
+    ({ language, buildTool }) => {
+      const rendered = renderAiDraftCheck({ language, buildTool })
+      expect(rendered).toContain('name: AI-draft PR check (bot)')
+    },
+  )
 
   it.each(STACKS)(
     '$language: triggers on pull_request with labeled/unlabeled',
@@ -144,10 +150,13 @@ describe('_ai-draft-check.yml.ejs — structural invariants (CANON-18)', () => {
 // ─── _pr-staleness.yml.ejs (CANON-18) ────────────────────────────────────────
 
 describe('_pr-staleness.yml.ejs — structural invariants (CANON-18)', () => {
-  it.each(STACKS)('$language: workflow name is "_pr-staleness"', ({ language, buildTool }) => {
-    const rendered = renderPrStaleness({ language, buildTool })
-    expect(rendered).toContain('name: _pr-staleness')
-  })
+  it.each(STACKS)(
+    '$language: workflow name is "Stale PR sweep (bot)"',
+    ({ language, buildTool }) => {
+      const rendered = renderPrStaleness({ language, buildTool })
+      expect(rendered).toContain('name: Stale PR sweep (bot)')
+    },
+  )
 
   it.each(STACKS)('$language: uses cron schedule', ({ language, buildTool }) => {
     const rendered = renderPrStaleness({ language, buildTool })
