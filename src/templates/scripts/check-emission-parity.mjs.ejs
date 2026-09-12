@@ -75,7 +75,15 @@ try {
 // .arbiterignore, gitignore syntax — mirrors src/config/arbiter-ignore.ts (no Arbiter install here).
 function loadIgnorePatterns(path) {
   if (!existsSync(path)) return []
-  return readFileSync(path, 'utf-8')
+  let raw
+  try {
+    raw = readFileSync(path, 'utf-8')
+    // FAIL-OPEN-INTENT: an unreadable .arbiterignore means "no opt-outs", exactly as in
+    // src/config/arbiter-ignore.ts — every manifest key is then checked, nothing is skipped.
+  } catch {
+    return []
+  }
+  return raw
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith('#'))

@@ -76,7 +76,7 @@ describe('#2110 emission-parity gate (no arbiter dependency)', () => {
     unlinkSync(join(dir, '.claude', 'hooks', 'stop-dangerous.mjs'))
     writeFileSync(
       join(dir, '.arbiterignore'),
-      'docs/runbooks/\n!.claude/hooks/stop-dangerous.mjs\n',
+      '.claude/hooks/\n!.claude/hooks/stop-dangerous.mjs\n', // ignored by the dir pattern, re-included by the negation
     )
     const gate = runGate(dir)
     expect(gate.status).toBe(1)
