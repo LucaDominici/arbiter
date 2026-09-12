@@ -60,6 +60,29 @@ describe('#2110 emission-parity gate (no arbiter dependency)', () => {
     expect(gate.stderr).toContain('MISSING emitted file .claude/hooks/stop-dangerous.mjs')
   })
 
+  // #2668: an opt-out is not a deletion. A key listed in .arbiterignore keeps its manifest entry
+  // (docs/REFERENCE/file-stability.md) and a consumer may legitimately remove the file, so the
+  // gate must report it as ignored, not missing — and still fail on a deleted key that is NOT ignored.
+  it('#2668: PASSES when the deleted file is listed in .arbiterignore, reporting it as ignored', () => {
+    unlinkSync(join(dir, '.claude', 'hooks', 'stop-dangerous.mjs'))
+    writeFileSync(join(dir, '.arbiterignore'), '# opted out\n.claude/hooks/stop-dangerous.mjs\n')
+    const gate = runGate(dir)
+    expect(gate.status, gate.stderr).toBe(0)
+    expect(gate.stdout).toMatch(/1 ignored/)
+    expect(gate.stderr).not.toContain('MISSING')
+  })
+
+  it('#2668: inversion — a deleted file NOT covered by .arbiterignore still fails', () => {
+    unlinkSync(join(dir, '.claude', 'hooks', 'stop-dangerous.mjs'))
+    writeFileSync(
+      join(dir, '.arbiterignore'),
+      'docs/runbooks/\n!.claude/hooks/stop-dangerous.mjs\n',
+    )
+    const gate = runGate(dir)
+    expect(gate.status).toBe(1)
+    expect(gate.stderr).toContain('MISSING emitted file .claude/hooks/stop-dangerous.mjs')
+  })
+
   it('PASSES on a locally diverged file — customization is not drift to fail on', () => {
     writeFileSync(join(dir, ...GATE.slice(0, 1), 'check-all.mjs'), '// customized gate\n', {
       flag: 'a',
