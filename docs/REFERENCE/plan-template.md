@@ -1,8 +1,8 @@
 ---
 title: 'Plan Template — Context Block'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-09-12'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -103,8 +103,8 @@ review machinery). The final verdict + plan SHA-256 digest belongs at
 
 ### Gate enforcement
 
-`arbiter task advance --to implementation` consults `latest.json` and refuses to advance
-when:
+`arbiter task advance --to <next-phase>` (the phase after `plan` — `red`, or `red-team-review`
+where the tier has one) consults `latest.json` and refuses to advance when:
 
 - `latest.json` is missing
 - `verdict !== PASS`
@@ -117,14 +117,18 @@ the flag file get the legacy behaviour (advance freely). Plant the flag to activ
 touch .arbiter/plan-review.enabled
 ```
 
+There is no separate gate script: the reviewers' verdict is the check, and `arbiter ship`'s
+plan step points at `task advance` accordingly. `arbiter verify plan` is unrelated — it validates
+a `PLAN.json` against invariant rules and cannot read the markdown plan (#2570).
+
 ### Bypass
 
 When you must advance without a fresh review (emergency hotfix, broken claude CLI, etc.):
 
 ```bash
-arbiter task advance --to implementation --skip-plan-review
+arbiter task advance --to red --skip-plan-review
 # or (non-CI only):
-ARBITER_SKIP_PLAN_REVIEW=1 arbiter task advance --to implementation
+ARBITER_SKIP_PLAN_REVIEW=1 arbiter task advance --to red
 ```
 
 Every bypass writes an audit record to

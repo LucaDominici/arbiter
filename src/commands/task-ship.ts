@@ -362,8 +362,13 @@ function shipStepBody(
         phase,
         // #2329 — batching guidance is model-side prose (the wave-drain skill), not a
         // config knob: the affinity engine it keyed off was deleted in the #1817 B-prune.
-        action: 'Write the plan, then pass the plan-review gate.',
-        command: 'arbiter verify plan <plan-file>',
+        // #2570 — `arbiter verify plan` validates PLAN.json, not the markdown plan this
+        // phase asks for, and no gate script exists: the plan-review agents' verdict in
+        // .arbiter/evidence/plan-review/<id>/latest.json is the gate, enforced by
+        // `task advance` (bypass only via the audited --skip-plan-review).
+        action:
+          'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
+        command: 'arbiter task advance --to <next-phase>',
         reviewAgents: 0,
       }
     case 'red':

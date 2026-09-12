@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2570",
+  "test_path": "__tests__/config/affinity-batching-removed.test.ts",
+  "test_commit_sha": "5901cb111e12ab073b1d49e2b4f09a271c9246b6",
+  "test_blob_sha": "086d26008dac573ab2b2128f217534a1f6a3e965",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n  Updated: automation.maxParallelWorktrees=3\n ❯ __tests__/config/affinity-batching-removed.test.ts (10 tests | 1 failed) 17ms\n     × the plan step emits the plain single-issue action, with no batching prose 3ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 9 passed (10)\n   Start at  15:11:24\n   Duration  391ms (transform 208ms, setup 7ms, import 281ms, tests 17ms, environment 0ms)\n\n\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/config/affinity-batching-removed.test.ts > #2329 — ship output is unchanged apart from the removal > the plan step emits the plain single-issue action, with no batching prose\nAssertionError: expected 'Write the plan, then pass the plan-re…' to be 'Write the plan, then dispatch the pla…' // Object.is equality\n\nExpected: \"Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.\"\nReceived: \"Write the plan, then pass the plan-review gate.\"\n\n ❯ __tests__/config/affinity-batching-removed.test.ts:168:25\n    166|   it('the plan step emits the plain single-issue action, with no batch…\n    167|     const step = shipStepFor('plan', 'Standard', profile())\n    168|     expect(step.action).toBe(PLAN_ACTION)\n       |                         ^\n    169|     expect(step.action).not.toMatch(/affinit|parallel worktrees/i)\n    170|     // #2570: `verify plan` reads PLAN.json, not the markdown plan; th…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/config/affinity-batching-removed.test.ts",
+  "recorded_at": "2026-09-12T13:11:24.443Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/config/affinity-batching-removed.test.ts"
+  ]
+}
