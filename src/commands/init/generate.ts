@@ -223,7 +223,7 @@ function printInstallHint(
   json: boolean | undefined,
 ): { command: string; requiresUserValue: boolean } | undefined {
   const manager = packageManager ?? config.packageManager ?? 'npm'
-  if (existsSync(join(targetDir, 'node_modules', '@arbiter', 'cli', 'dist', 'cli.js'))) {
+  if (existsSync(join(targetDir, 'node_modules', '@getarbiter', 'cli', 'dist', 'cli.js'))) {
     return localCliInstallStep(targetDir, manager, json)
   }
   const callerSpec = '$arbiter_spec'

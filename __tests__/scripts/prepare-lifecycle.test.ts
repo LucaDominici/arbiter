@@ -85,7 +85,7 @@ describe('scripts/prepare-lifecycle.mjs (#9001)', () => {
   })
 
   it('builds when installed as a git dependency (nested under node_modules, no dist)', () => {
-    const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@arbiter', 'cli')
+    const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@getarbiter', 'cli')
     mkdirSync(resolve(packageRoot, 'node_modules', '.bin'), { recursive: true })
     writeFileSync(resolve(packageRoot, 'node_modules', '.bin', 'tsc'), '')
 
@@ -95,7 +95,7 @@ describe('scripts/prepare-lifecycle.mjs (#9001)', () => {
   })
 
   it('bootstraps declared dev tooling before building when the compiler is missing (AC-2, AC-3)', () => {
-    const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@arbiter', 'cli')
+    const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@getarbiter', 'cli')
     mkdirSync(packageRoot, { recursive: true })
     writeFileSync(
       resolve(packageRoot, 'package.json'),
@@ -137,7 +137,7 @@ exit 0
   })
 
   it('does NOT rebuild when dist/cli.js already exists', () => {
-    const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@arbiter', 'cli')
+    const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@getarbiter', 'cli')
     mkdirSync(resolve(packageRoot, 'dist'), { recursive: true })
     writeFileSync(resolve(packageRoot, 'dist', 'cli.js'), '#!/usr/bin/env node\n')
 

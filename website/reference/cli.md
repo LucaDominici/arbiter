@@ -569,7 +569,7 @@ git add -A && git commit -m "chore: add arbiter governance"
 ### Upgrading after arbiter version bump
 
 ```bash
-npm update -g @arbiter/cli
+npm update -g @getarbiter/cli
 arbiter diff    # preview what would change
 arbiter update  # regenerate canonical files, preserve customizations
 ```

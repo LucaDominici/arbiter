@@ -16,6 +16,7 @@ const HISTORICAL = [
   /^website\/changelog\//,
   /^docs\/internal\/ADR\//,
   /^docs\/audit\//,
+  /^docs\/INDEX\.md$/, // derived: gen-doc-index copies the historical audit titles verbatim
 ]
 
 describe('package name (#2667)', () => {
