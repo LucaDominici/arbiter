@@ -28,12 +28,17 @@ const manifestPath = join(root, '.arbiter-generated-manifest.json')
 
 try {
   const files = readManifest(manifestPath)
+  const ignorePatterns = loadIgnorePatterns(join(root, '.arbiterignore'))
   const missing = []
   let diverged = 0
+  let ignored = 0
   for (const [key, recorded] of Object.entries(files)) {
     const path = join(root, key)
     if (!existsSync(path)) {
-      missing.push(key)
+      // #2668: an opt-out is not a deletion — a key listed in .arbiterignore keeps its manifest
+      // entry (docs/REFERENCE/file-stability.md) and the consumer may legitimately drop the file.
+      if (isIgnored(ignorePatterns, key)) ignored += 1
+      else missing.push(key)
       continue
     }
     if (sha256(path) !== recorded) diverged += 1
@@ -56,8 +61,8 @@ try {
     process.exit(1)
   }
   process.stdout.write(
-    `[emission-parity] PASS — ${Object.keys(files).length} emitted file(s) present ` +
-      `(${diverged} locally diverged)\n`,
+    `[emission-parity] PASS — ${Object.keys(files).length - ignored} emitted file(s) present ` +
+      `(${diverged} locally diverged, ${ignored} ignored via .arbiterignore)\n`,
   )
   process.exit(0)
 } catch (error) {
@@ -65,6 +70,62 @@ try {
     `[emission-parity] ERROR — ${error instanceof Error ? error.message : String(error)}\n`,
   )
   process.exit(2)
+}
+
+// .arbiterignore, gitignore syntax — mirrors src/config/arbiter-ignore.ts (no Arbiter install here).
+function loadIgnorePatterns(path) {
+  if (!existsSync(path)) return []
+  return readFileSync(path, 'utf-8')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith('#'))
+}
+
+function isIgnored(patterns, key) {
+  let ignored = false
+  for (const raw of patterns) {
+    const negated = raw.startsWith('!')
+    const pattern = negated ? raw.slice(1) : raw
+    if (patternGlobs(pattern).some((glob) => globToRegExp(glob).test(key))) ignored = !negated
+  }
+  return ignored
+}
+
+function patternGlobs(pattern) {
+  const dirOnly = pattern.endsWith('/')
+  const stripped = dirOnly ? pattern.slice(0, -1) : pattern
+  const anchored = stripped.startsWith('/')
+  const body = anchored ? stripped.slice(1) : stripped
+  if (body.length === 0) return []
+  const base = anchored || body.includes('/') ? body : `**/${body}`
+  return dirOnly ? [`${base}/**`] : [base, `${base}/**`]
+}
+
+function globToRegExp(pattern) {
+  let reStr = '^'
+  let i = 0
+  while (i < pattern.length) {
+    const ch = pattern[i] ?? ''
+    if (ch === '*' && pattern[i + 1] === '*') {
+      if (pattern[i + 2] === '/') {
+        reStr += '(?:[^/]*/)*'
+        i += 3
+      } else {
+        reStr += '[\\s\\S]*'
+        i += 2
+      }
+    } else if (ch === '*') {
+      reStr += '[^/]*'
+      i++
+    } else if ('\\.+?^${}()|[]'.includes(ch)) {
+      reStr += '\\' + ch
+      i++
+    } else {
+      reStr += ch
+      i++
+    }
+  }
+  return new RegExp(reStr + '$')
 }
 
 function sha256(path) {

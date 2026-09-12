@@ -546,10 +546,10 @@ without re-syncing everything else. Before #2353 there was no supported way: the
 
 One mechanism, two directions:
 
-| Mechanism        | Scope                | Honoured by         |
-| ---------------- | -------------------- | ------------------- |
-| `.arbiterignore` | permanent, committed | `update` and `diff` |
-| `--only <globs>` | a single run         | `update`            |
+| Mechanism        | Scope                | Honoured by                                                                                                                                  |
+| ---------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.arbiterignore` | permanent, committed | `update`, `diff`, and the emitted `check-emission-parity.mjs` gate (#2668: an ignored key whose file is gone counts as ignored, not missing) |
+| `--only <globs>` | a single run         | `update`                                                                                                                                     |
 
 `.arbiterignore` lives at the repo root and uses **gitignore syntax** — one pattern per line, `#`
 comments and blank lines skipped, `!` negates, and the **last** matching pattern decides. Patterns are

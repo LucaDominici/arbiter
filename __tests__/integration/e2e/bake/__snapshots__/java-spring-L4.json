@@ -533,7 +533,7 @@
     "scripts/check-drift.mjs": "14b386d3662baf2a89b904c66f25e42c192d6074f0f62ef537728a5967003d1d",
     "scripts/check-e2e-escalation.mjs": "c45f0d9b74168935023eb1ffdd47c14182fa5d04550667243accf21e33bf1ac7",
     "scripts/check-e2e-quarantine.mjs": "e41a47f4cfa948a51b1703d703b729adc14edf4df8bc54a9cd45145359e0427b",
-    "scripts/check-emission-parity.mjs": "7a89c96aeba8c097fe9fa1af270d55a61d9e556cd8537c7f79010981e8ada243",
+    "scripts/check-emission-parity.mjs": "9d50b3c2647e2276a85ea470b7c2455449cd0685297e39360bbc8819a53967a9",
     "scripts/check-exit-code-contract.mjs": "696d474c568fb4ca66f458df29f32f68c7446e9ba593aad1c474470179aa99d9",
     "scripts/check-feature-matrix.mjs": "1f9f50a2ed658336e8101a6fe1475260f8a45d0acf75b436ab5fc5a682005e0b",
     "scripts/check-grace-window.mjs": "de2d06eb5d0ee5f5016376cfc3a818e299cd059a0a3e06c93fe07e60df3a0020",
