@@ -56,7 +56,7 @@ jobs:
             if (typeof username !== 'string' || !username.trim() || username === token) throw new Error('Invalid identity');
             let scopeHttp = null, ownRole = 'UNPROVEN';
             try {
-              const scope = await request('/-/org/arbiter/user');
+              const scope = await request('/-/org/getarbiter/user');
               scopeHttp = scope.status;
               if (scope.ok) {
                 const members = await scope.json();
