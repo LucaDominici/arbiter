@@ -1,6 +1,6 @@
 ---
 title: 'Contributing to arbiter'
-doc_version: '1.0.2'
+doc_version: '1.0.3'
 status: active
 last_review: '2026-09-12'
 owner: ''
@@ -201,6 +201,24 @@ checks at `verification` rather than `green` because a chain walks the phase mac
   inherited from `main`. Docs- and chore-only branches stay vacuous. Two ways forward: record
   real evidence for a cited task, or move the source change onto its own branch whose subject
   carries the id (`fix(#NNN): ...`).
+- The floor is deliberate and stays intact — what "non-source" actually means to it, and two
+  recipes that meet it without weakening it (measured on 2026-09-12, one L2 rerun each when missed):
+  - **Only documentation is vacuous**: `docs/**` and `wiki/**` (`.md/.mdx/.rst/.adoc/.txt` +
+    images) and root-level `.md` files other than `AGENTS.md` (`isDocsOnlyChange`). Everything
+    else — `knip.json`, `.prettierrc`, `__tests__/**`, gate scripts — is non-documentation: with
+    no task id at all the gate fails (`cites no task id`); with an id in the SUBJECT that id is
+    verified individually; with ids only in BODIES (`Refs #NNN`) the branch owes one evidence
+    produced here. A config-only change therefore needs a real RED like source does: pin the
+    property with the smallest test (e.g. the config file's own contract), or land the config
+    change inside the branch whose RED motivates it. Consumers on an older, frozen
+    `check-all.mjs` spine (#2291) may still accept a body-only citation for config — do not
+    rely on it; it is not this repository's contract.
+  - **Test-only repair of a nightly-only or e2e test**: it cannot serve as the RED — not because
+    this check rejects it, but because the verifier's detached re-execution (`verify tdd`) has
+    no `dist/`, no `VITEST_L2`, no integration config and no minutes for real cells. Pair the
+    repair with the product defect it exposes — that fix's unit RED→GREEN covers the branch — or
+    land it in a branch that carries a real RED of its own. Never drop the citation to dodge
+    the check.
 - Gate red on `test_commit_sha ... is not reachable from HEAD` after a rebase → evidence also
   pins `test_blob_sha`, the RED test's content, which a rebase preserves; the RED commit is
   re-resolved from it automatically (#2116). Evidence recorded before that pin existed cannot
