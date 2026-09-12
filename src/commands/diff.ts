@@ -234,8 +234,6 @@ function printFileLine(f: DiffFile): void {
     process.stdout.write(`${t('cli.diff.new_file', { key: f.key })}\n`)
   } else if (f.status === 'changed') {
     process.stdout.write(`${t('cli.diff.changed_file', { key: f.key })}\n`)
-  } else if (f.status === 'withheld') {
-    process.stdout.write(`${t('cli.diff.withheld_file', { key: f.key })}\n`)
   } else if (f.status === 'ignored') {
     process.stdout.write(`${t('cli.diff.ignored_file', { key: f.key })}\n`)
   } else {
@@ -269,7 +267,8 @@ function printHuman(
     printWithheldSection(withheld)
     return
   }
-  for (const f of files) printFileLine(f)
+  // #2665: withheld files are listed once, in the dedicated section below — not inline.
+  for (const f of files) if (f.status !== 'withheld') printFileLine(f)
   if (remote.length > 0) {
     process.stdout.write(`${t('cli.diff.remote_header')}\n`)
     for (const r of remote) {

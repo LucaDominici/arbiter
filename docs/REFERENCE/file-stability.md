@@ -200,6 +200,8 @@ withheld set is now a first-class, reviewable signal:
 - `arbiter diff` lists withheld files under a dedicated **"Withheld template fixes"** section (status
   `withheld`), distinct from `unchanged`. JSON output carries `files[].status === "withheld"` plus a
   `withheldCount`. A withheld fix counts as a change (exit 1 / `warning`), so CI can flag drift.
+  Each withheld path is printed **once**, in that section only — never also inline among the per-file
+  lines — so a `grep -c '^\s*!'` over the plain output equals `withheldCount` (#2665).
 - `arbiter diff --withheld` filters the report to **only** the withheld entries — a focused reconciliation
   list for deciding which upstream changes to merge into your customised files.
 - `arbiter update` reports the withheld tally in its summary so an operator running `update` sees the
