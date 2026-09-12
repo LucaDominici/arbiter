@@ -699,6 +699,34 @@ describe('runInit', () => {
     }
   })
 
+  it('carries the install step in --json nextSteps when package.json is unreadable (#2659)', async () => {
+    writeFileSync(`${dir}/package.json`, '{ not json')
+    mkdirSync(`${dir}/node_modules/@arbiter/cli/dist`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/@arbiter/cli/dist/cli.js`, '')
+    let stdout = ''
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      stdout += String(chunk)
+      return true
+    })
+    try {
+      const { runInit } = await import('../../src/commands/init.js')
+      await runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L1',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+        json: true,
+      })
+      const payload = JSON.parse(stdout.slice(stdout.indexOf('{')))
+      expect(payload.data.nextSteps).toEqual([{ command: 'npm install', requiresUserValue: false }])
+    } finally {
+      stdoutSpy.mockRestore()
+    }
+  })
+
   it('runs toolchain verify when noVerify is false', async () => {
     const { runInit } = await import('../../src/commands/init.js')
     await runInit({
