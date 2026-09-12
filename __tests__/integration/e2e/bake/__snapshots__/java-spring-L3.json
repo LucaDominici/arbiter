@@ -564,7 +564,7 @@
     "scripts/check-unwired-guards.mjs": "10ee98d50e77e9cb297aaf31d71215013250de4f406a4e4798f87ba9e8c28b85",
     "scripts/check-use-cases.mjs": "2a3e478c1f9dcb8069be5d96c327aa7727592ff95a65c553cabbb2223e1b8654",
     "scripts/check-validator-helptext.mjs": "1dc17383a3c57b72f5708f68db5626ab8de3d15deb50a6cbd2d576bdb3eb0c23",
-    "scripts/check-wiki-lint.mjs": "d91277aa0eadf46e131f68e472aba751fccda282dd1e2a3dd29c60fd6f83966a",
+    "scripts/check-wiki-lint.mjs": "1278adfd6b5e0b9e2055ce267a6950cfa467f4473fcd3e8bfa59d71fcfe17bbf",
     "scripts/check-workflow-docs-sync.mjs": "97056298c67d8adf6b3d326f3102287efd0c310f0922ef17bb23e967d4168c98",
     "scripts/check-workflow-job-naming.mjs": "cf15fc1c33618ca9d4ec3fd8a668a068d6f81fcaadca3fd2f55d024f6a852fbc",
     "scripts/check-workflow-perms.mjs": "6005079df0002aff02ebc780052bc93ea12d9745bf57c32662137e7233fa55a3",

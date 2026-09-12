@@ -7,11 +7,12 @@
 // Usage:
 //   node scripts/check-wiki-lint.mjs              # run against wiki/ in CWD
 //   node scripts/check-wiki-lint.mjs --wiki-dir <dir>   # run against a specific wiki dir
+//   node scripts/check-wiki-lint.mjs --assert-stale     # keep the stale dimension for an untracked wiki (#2585)
 // Exits 0 if all clean; exits 1 if any violation found.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
 const wikiDirArg = args.find((a) => a.startsWith('--wiki-dir='))?.split('=')[1]
@@ -103,7 +104,21 @@ if (!pages.has(indexSlug)) {
   }
 }
 
-for (const [, { file, fm }] of pages) {
+// stale: asserted only when the wiki dir is git-tracked (#2585). An untracked (generated,
+// gitignored) wiki goes stale as a side effect of merging; that is not a review property.
+const ls = spawnSync('git', ['ls-files', '--', WIKI_DIR], { encoding: 'utf-8', cwd: root });
+const wikiTracked = ls.status === 0 && ls.stdout.trim().length > 0;
+// --assert-stale: a caller asking about freshness itself (arbiter obsidian --validate-only) keeps it.
+const assertStale = wikiTracked || args.includes('--assert-stale');
+if (!assertStale) {
+  process.stdout.write(
+    '  check-wiki-lint [stale:skip] — wiki dir is not git-tracked (generated, gitignored), so ' +
+      'page freshness is local derived state, not a review property (#2585); ' +
+      'run `node scripts/gen-wiki.mjs` to refresh it\n',
+  );
+}
+
+for (const [, { file, fm }] of assertStale ? pages : []) {
   const sourcePath = fm['source'];
   const sourceSha = fm['source_sha'];
   if (!sourcePath || !sourceSha) continue;

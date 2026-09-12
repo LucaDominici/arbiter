@@ -402,7 +402,7 @@
     "path": "check-wiki-lint.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). 118-/151+ that is almost entirely ONE structural change: self wraps the whole body in a try/catch with a fatal handler, so every line is re-indented and appears on both sides of the diff. The four INV-116 dimensions — broken wikilinks, BFS orphan reachability from INDEX.md, stale source_sha via git hash-object, citation integrity against git ls-files — are identical in logic and in message text; self only adds the expected-vs-recorded detail on the stale message and section banners. PERMANENT: the fatal-catch wrapper is self's INV-96 posture for a gate over generated content, where the template lets errors propagate to the emitted runner.",
-    "diffHash": "45088c7b015f1e9fe5d3be08beee8adfe7d13c84637481af5e9d6f84ce245169"
+    "diffHash": "6101fce4478bc1ae9b592fe7fd69d261938c265133f270e9cab31a9a698ed22e"
   },
   {
     "path": "check-workflow-docs-sync.mjs",

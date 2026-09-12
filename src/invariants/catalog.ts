@@ -2060,7 +2060,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'The generated LLM-wiki (wiki/) must pass four lint dimensions: ' +
       'broken-link (every [[WikiPage]] ref resolves to wiki/{page}.md), ' +
       'orphan (every page reachable from INDEX.md; INDEX.md exempt), ' +
-      'stale (source_sha matches current git hash), ' +
+      'stale (source_sha matches current git hash — asserted only when the wiki dir is git-tracked; an untracked, generated wiki skips this dimension loudly, #2585), ' +
       'and citation (source: field present and git-tracked). ' +
       'Exit 0 on bootstrap (wiki/ absent). Non-authoritative (SSOT wins on conflict). ' +
       'selfOnly: true because target projects may not generate wiki/ (#1241).',

@@ -1,8 +1,8 @@
 ---
 title: 'Reference: arbiter obsidian'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-07-17'
+last_review: '2026-09-12'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -45,7 +45,7 @@ the precedence order.
 
 | Mode                  | Behavior                                                                                                                                    |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--validate-only`     | Runs `check-wiki-lint.mjs --wiki-dir <vault>` against the existing vault. Writes nothing.                                                   |
+| `--validate-only`     | Runs `check-wiki-lint.mjs --wiki-dir <vault> --assert-stale` against the existing vault. Writes nothing.                                    |
 | `--sync`              | Runs `gen-wiki.mjs --wiki-dir <vault>` (write), then re-validates. Fail-closed: a regen that leaves the vault broken still reports `error`. |
 | `--write`             | Reserved. v1 has no writer of its own beyond the `--sync` regen path — behaves like `--dry-run`.                                            |
 | `--dry-run` (default) | Reports the resolved vault directory. **Writes nothing** (ADR-001: read-only by default).                                                   |

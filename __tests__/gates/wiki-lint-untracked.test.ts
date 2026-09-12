@@ -7,7 +7,7 @@
 // wiki-lint-fixture.test.ts) still fails on a stale sha, which is the inversion CANON-25 demands.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -21,6 +21,19 @@ let scratch: string
 function runLint(wikiDir: string): { status: number; output: string } {
   const result = spawnSync('node', [CHECK, '--wiki-dir', wikiDir], { encoding: 'utf-8', cwd: root })
   return { status: result.status ?? 1, output: (result.stdout ?? '') + (result.stderr ?? '') }
+}
+
+// A stale-only wiki: two pages, fully linked, citing a tracked doc with a wrong sha. (The committed
+// `stale` fixture also carries a broken wikilink, so it cannot prove the skip on its own.)
+function untrackedStaleWiki(name = 'stale-only'): string {
+  const dest = join(scratch, name)
+  mkdirSync(dest)
+  const fm =
+    "---\ngenerated: true\nsource: 'docs/internal/METHOD/ENGINEERING_DEFAULTS.md'\n" +
+    "source_sha: '0000000000000000000000000000000000000000'\n---\n"
+  writeFileSync(join(dest, 'INDEX.md'), `${fm}# Index\n\n- [[engineering-defaults]]\n`)
+  writeFileSync(join(dest, 'engineering-defaults.md'), `${fm}# Engineering Defaults\n`)
+  return dest
 }
 
 function untrackedCopyOf(fixture: string): string {
@@ -38,9 +51,9 @@ describe('check-wiki-lint.mjs — stale is skipped only for an untracked wiki (#
   })
 
   it('an untracked wiki with a stale source_sha passes, and says why it skipped', () => {
-    const { status, output } = runLint(untrackedCopyOf('stale'))
+    const { status, output } = runLint(untrackedStaleWiki())
     expect(status, `expected exit 0 but got ${status}. Output:\n${output}`).toBe(0)
-    expect(output).toMatch(/\[stale\]: SKIP/)
+    expect(output).toMatch(/\[stale:skip\]/)
     expect(output).toMatch(/not git-tracked/)
     expect(output).not.toMatch(/source_sha is stale/)
   })
@@ -49,13 +62,24 @@ describe('check-wiki-lint.mjs — stale is skipped only for an untracked wiki (#
     const { status, output } = runLint(untrackedCopyOf('broken-link'))
     expect(status, `expected exit 1 but got ${status}. Output:\n${output}`).toBe(1)
     expect(output).toMatch(/\[broken-link\]/)
-    expect(output).toMatch(/\[stale\]: SKIP/)
+    expect(output).toMatch(/\[stale:skip\]/)
+  })
+
+  it('inversion — --assert-stale keeps the dimension for an untracked wiki', () => {
+    const dir = untrackedStaleWiki('stale-only-asserted')
+    const result = spawnSync('node', [CHECK, '--wiki-dir', dir, '--assert-stale'], {
+      encoding: 'utf-8',
+      cwd: root,
+    })
+    expect(result.status).toBe(1)
+    expect(result.stdout).toMatch(/source_sha is stale/)
+    expect(result.stdout).not.toMatch(/\[stale:skip\]/)
   })
 
   it('inversion — a tracked wiki with a stale source_sha still fails, with no skip line', () => {
     const { status, output } = runLint(join(FIXTURES, 'stale', 'wiki'))
     expect(status, `expected exit 1 but got ${status}. Output:\n${output}`).toBe(1)
     expect(output).toMatch(/source_sha is stale/)
-    expect(output).not.toMatch(/\[stale\]: SKIP/)
+    expect(output).not.toMatch(/\[stale:skip\]/)
   })
 })

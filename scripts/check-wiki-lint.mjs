@@ -7,18 +7,21 @@
 // INV-116: Enforces wiki/ health across four dimensions:
 //   1. broken-link: every [[WikiPage]] reference resolves to wiki/{page}.md
 //   2. orphan: every wiki page is reachable from wiki/INDEX.md via wikilinks (INDEX.md itself exempt)
-//   3. stale: every wiki page's source_sha matches git hash-object of its source file
+//   3. stale: every wiki page's source_sha matches git hash-object of its source file — asserted
+//      only when the wiki dir is git-tracked; an untracked (generated, gitignored) wiki skips this
+//      dimension loudly, because its freshness is not reviewable (#2585)
 //   4. citation: every wiki page has a non-empty source: field pointing to a git-tracked path
 //
 // Usage:
 //   node scripts/check-wiki-lint.mjs              # run against wiki/ in CWD
 //   node scripts/check-wiki-lint.mjs --wiki-dir <dir>   # run against a specific wiki dir
 //   node scripts/check-wiki-lint.mjs --check            # alias for standard usage
+//   node scripts/check-wiki-lint.mjs --assert-stale     # keep the stale dimension for an untracked wiki (#2585)
 // Exits 0 if clean, exits 1 if any violation found.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 
 try {
   const args = process.argv.slice(2)
@@ -135,9 +138,26 @@ try {
     }
   }
 
-  // ── Check 3: stale source_sha ─────────────────────────────────────────────────
+  // ── Check 3: stale source_sha — only when wiki/ is git-tracked (#2585) ──────
+  // Freshness is a review property of content someone can commit. When the wiki dir is
+  // untracked (the self repo gitignores it; gen-wiki regenerates it), a stale sha is local
+  // derived state that goes stale as a side effect of merging, so asserting it inside the
+  // pre-push L2 was a false red. The skip is loud and scoped to this one dimension.
 
-  for (const [, { file, fm }] of pages) {
+  const ls = spawnSync('git', ['ls-files', '--', WIKI_DIR], { encoding: 'utf-8', cwd: root })
+  const wikiTracked = ls.status === 0 && ls.stdout.trim().length > 0
+  // --assert-stale: a caller that asks about freshness itself (arbiter obsidian --validate-only)
+  // keeps the dimension even for an untracked vault; the gate default is the review contract.
+  const assertStale = wikiTracked || args.includes('--assert-stale')
+  if (!assertStale) {
+    process.stdout.write(
+      '  check-wiki-lint [stale:skip] — wiki dir is not git-tracked (generated, gitignored), so ' +
+        'page freshness is local derived state, not a review property (#2585); ' +
+        'run `node scripts/gen-wiki.mjs` to refresh it\n',
+    )
+  }
+
+  for (const [, { file, fm }] of assertStale ? pages : []) {
     const sourcePath = fm['source']
     const sourceSha = fm['source_sha']
     if (!sourcePath || !sourceSha) continue // citation-integrity handles missing source

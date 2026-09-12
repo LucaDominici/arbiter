@@ -1,6 +1,6 @@
 ---
 title: 'Contributing to arbiter'
-doc_version: '1.0.4'
+doc_version: '1.0.5'
 status: active
 last_review: '2026-09-12'
 owner: ''
@@ -180,7 +180,9 @@ checks at `verification` rather than `green` because a chain walks the phase mac
 - Gate red on `docs` (`Code changed without documentation update`) → update the canonical
   document for the changed surface (workflow templates: `docs/REFERENCE/ci-tier-workflows.md`,
   bump `doc_version`), then `npx prettier --write <file>` and `npm run regen` before the gate;
-  a bare doc edit trips `format` and `wiki lint` on the next run. `[skip-docs]` is not the answer.
+  a bare doc edit trips `format` on the next run (`wiki lint` no longer reds on a stale,
+  untracked `wiki/` — #2585 — only on broken links, orphans or citations). `[skip-docs]` is not
+  the answer.
 - Commit refused by a hook (commitlint header length, prettier on staged files) → HEAD is
   unchanged and the tree still dirty, so a chained gate qualifies the wrong tree; run
   `git commit … && test -z "$(git status --porcelain)" && node scripts/check-all.mjs L2`.

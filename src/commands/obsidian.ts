@@ -83,7 +83,11 @@ function parseLintOutput(output: string): ObsidianValidation {
   return { brokenLinks, orphans, stale, ok: total === 0 }
 }
 
-/** Run check-wiki-lint.mjs against vaultAbsDir; classify launch failures as exit 2. */
+/**
+ * Run check-wiki-lint.mjs against vaultAbsDir; classify launch failures as exit 2. `--assert-stale`
+ * keeps the stale dimension for an untracked vault: this command asks "is the vault fresh?", which
+ * is exactly the question the L2 gate stopped asking of a gitignored wiki (#2585).
+ */
 function runLint(
   repoDir: string,
   vaultAbsDir: string,
@@ -91,7 +95,9 @@ function runLint(
   vaultDir: string,
 ): ObsidianValidation | ObsidianResult {
   try {
-    const r = runCli('node', [CHECK_WIKI_LINT_REL, '--wiki-dir', vaultAbsDir], { cwd: repoDir })
+    const r = runCli('node', [CHECK_WIKI_LINT_REL, '--wiki-dir', vaultAbsDir, '--assert-stale'], {
+      cwd: repoDir,
+    })
     return parseLintOutput(r.stdout + r.stderr)
   } catch (err: unknown) {
     if (err instanceof CliError && !err.notFound) {
