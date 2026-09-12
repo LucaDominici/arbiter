@@ -177,17 +177,13 @@ checks at `verification` rather than `green` because a chain walks the phase mac
   governance mirror) → `npm run regen` before re-running the gate; these gates read
   generated state that a prior source edit staled but never regenerated (see
   `scripts/lib/derived-artifacts.mjs`)
-- Gate red on `docs` (`Code changed without documentation update`) after touching
-  `src/templates/**` or `src/**` → update the canonical document that describes the changed
-  surface (workflow templates: `docs/REFERENCE/ci-tier-workflows.md`; bump its `doc_version`),
-  then `npx prettier --write` the edited file and `node scripts/gen-wiki.mjs` for the mirror
-  (INV-116) BEFORE re-running the gate — a table edit alone trips `format` and `wiki lint` on
-  the next run (measured 2026-09-12: two extra L2 runs, twice). `[skip-docs]` is not the answer.
-- A commit-msg or pre-commit refusal (`header-max-length 72`, prettier on staged files) exits
-  non-zero but leaves the tree dirty and HEAD unchanged; a chained `git commit … ; L2` then
-  qualifies the wrong tree. Gate the heavy run on the commit having landed:
-  `git commit … && test -z "$(git status --porcelain)" && node scripts/check-all.mjs L2`
-  (measured 2026-09-12: two L2 runs wasted on uncommitted trees).
+- Gate red on `docs` (`Code changed without documentation update`) → update the canonical
+  document for the changed surface (workflow templates: `docs/REFERENCE/ci-tier-workflows.md`,
+  bump `doc_version`), then `npx prettier --write <file>` and `npm run regen` before the gate;
+  a bare doc edit trips `format` and `wiki lint` on the next run. `[skip-docs]` is not the answer.
+- Commit refused by a hook (commitlint header length, prettier on staged files) → HEAD is
+  unchanged and the tree still dirty, so a chained gate qualifies the wrong tree; run
+  `git commit … && test -z "$(git status --porcelain)" && node scripts/check-all.mjs L2`.
 - Gate red on tests → run the failing test in isolation; do not bypass with `--no-verify`
 - Gate red on TDD evidence (#NNN.json missing) → `arbiter task record-red --test-path <file>`
   (commit the RED test first — `record-red` refuses on a dirty/uncommitted `__tests__/**`, #1988)
