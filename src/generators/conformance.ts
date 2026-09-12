@@ -5,10 +5,9 @@
 // check-stack-conformity.ts is a stack-drift gate (different axis); no conformance scorecard
 // generator exists. New file justified (CANON-16).
 //
-// Emits a thin conformance scorecard runner that delegates to `arbiter conformance` via npx.
-// Wired as UNCONDITIONAL_EMISSIONS entry in check-all.ts; invoked as advisory (runWarnCheck)
-// in check-all.mjs.ejs L2 — never hard-fails the gate.
-// skipIfExists: false (no user customisation expected — re-gen always safe).
+// Emits a self-contained advisory runner that points at `gold-audit` (the standalone
+// conformance command was retired, #2628). Sole emitter: the always-on registry entry
+// (not check-all.ts, #1578); advisory (runWarnCheck) in check-all.mjs.ejs L2. skipIfExists: true.
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { renderTemplate } from '../utils/render.js'
 import type { ProjectConfig } from '../wizard/types.js'
@@ -19,9 +18,8 @@ export interface ConformanceScriptResult {
 }
 
 /**
- * #1398 (INV-128): emit scripts/conformance.mjs for governed target projects.
- * The script delegates to `arbiter conformance --check` via npx so target
- * projects need no local arbiter install to run the scorecard.
+ * #1398 (INV-128): emit scripts/conformance.mjs for governed target projects —
+ * an advisory pointer to `npx @arbiter/cli gold-audit`, exit 0/2 (INV-53).
  */
 export function generateConformanceScript(
   config: ProjectConfig,

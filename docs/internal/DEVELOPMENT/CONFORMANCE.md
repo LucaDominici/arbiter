@@ -1,8 +1,8 @@
 ---
 title: 'arbiter — Conformance Scorecard'
-doc_version: '1.0.0'
-status: active
-last_review: '2026-08-26'
+doc_version: '1.1.0'
+status: deprecated
+last_review: '2026-09-12'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/spec']
@@ -10,6 +10,12 @@ related: ['docs/internal/SYSTEM/CANON.md']
 ---
 
 # arbiter conformance scorecard (#1369)
+
+> **Deprecated (#2628).** The standalone `arbiter conformance` command was retired in the T2
+> command-surface cut; the governance scorecard is `arbiter gold-audit` (level band + missing
+> items). Governed projects receive the advisory `scripts/conformance.mjs` runner (INV-128),
+> which is self-contained and points at `gold-audit` — exit codes 0=advisory OK, 2=ERROR. The
+> command surface below is kept as the design record of the retired command.
 
 > `arbiter conformance` — scores a project against the arbiter gold standard and emits a
 > per-dimension matrix (pass / partial / fail / skip + evidence ref).

@@ -387,7 +387,7 @@
     "scripts/check-workflow-runners.mjs": "93d8674fa11728af368c8417d4923107b2b3510f859218c34c0f1d16936511b8",
     "scripts/check-workflow-sha-pinning.mjs": "307597a8b85d515be49166fd03dadfc1921717822a1f0824a7591ac32f624262",
     "scripts/check-workflow-test-integrity.mjs": "0a768edc697b22aae81343f39e1f3c53e2f6bf5ce530d88b779bc0a011d0ed1c",
-    "scripts/conformance.mjs": "f2a3e5f7430c6e6ee254f914214916045b9396ac5425e340e7863e2e9490583c",
+    "scripts/conformance.mjs": "ea2ef940c8c029ec64ccfc576498c5faadb3b3eb2a3047a38561173af3087575",
     "scripts/constraint-map.json": "cb6191a2018bb8066bfa6bc0dc773195b0784a26902e92540ac8ef49768debcb",
     "scripts/gh-cleanup-expired-artifacts.mjs": "4ca6f4c99f6505d374592a4cea5cc663de574009510a6cdd9b77d672d694e83e",
     "scripts/gold-audit.mjs": "d7b16065b0830ad3738e17ca374a15a809da9a57c0dcfde61e15069bedfb112a",

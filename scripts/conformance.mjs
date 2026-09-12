@@ -33,5 +33,5 @@ try {
   process.stderr.write(
     `[conformance] unexpected error: ${err instanceof Error ? err.stack : String(err)}\n`,
   )
-  process.exit(1)
+  process.exit(2)
 }

@@ -34,6 +34,8 @@ describe('scripts/conformance.mjs.ejs render (CANON-04, #1398)', () => {
     const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
     const content = renderTemplate('scripts/conformance.mjs.ejs', config)
     expect(content).toMatch(/catch\s*\([^)]*\)\s*\{/)
-    expect(content).toContain('process.exit(1)')
+    // INV-53 family decision (#2593): an unexpected throw is the gate's inability to run — 2.
+    expect(content).toContain('process.exit(2)')
+    expect(content).not.toContain('process.exit(1)')
   })
 })

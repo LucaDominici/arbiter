@@ -27,7 +27,7 @@
 # Hand-authored (not `arbiter update`-generated): this file tests arbiter's
 # OWN generator source against arbiter's OWN fixtures — meaningless in a
 # downstream project, so it is not a `src/templates/github/workflows/*.ejs`
-# template. Same category as `kit-self-canary.yml` / `probe-writer-audit.yml`.
+# template. Same category as `consumer-reliability.yml`.
 name: Generator Matrix
 
 on:

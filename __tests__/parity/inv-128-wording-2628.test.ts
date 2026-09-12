@@ -31,6 +31,26 @@ describe('#2628 — INV-128 prose matches the shipped conformance runner', () =>
     expect(template).toMatch(/gold-audit/)
   })
 
+  it('the template header ERROR code is the one its catch block actually exits with', () => {
+    const errorCode = templateExitLine.match(/(\d)=ERROR/)?.[1]
+    expect(errorCode).toBeDefined()
+    const catchBlock = template.slice(template.lastIndexOf('} catch'))
+    expect(catchBlock).toMatch(new RegExp(`process\\.exit\\(${errorCode}\\)`))
+    expect(catchBlock).not.toMatch(/process\.exit\(1\)/)
+  })
+
+  it('AGENTS.md names the real emitter (registry entry, not check-all UNCONDITIONAL_EMISSIONS)', () => {
+    const entry = inv128Entry()
+    expect(entry).toMatch(/registry\.ts/)
+    expect(entry).not.toMatch(/via `src\/generators\/check-all\.ts` UNCONDITIONAL_EMISSIONS/)
+  })
+
+  it('the generator header does not claim the check-all emission path either', () => {
+    const gen = readFileSync(join(root, 'src/generators/conformance.ts'), 'utf-8')
+    expect(gen).not.toMatch(/Wired as UNCONDITIONAL_EMISSIONS/)
+    expect(gen).not.toMatch(/delegates to `arbiter conformance/)
+  })
+
   it('AGENTS.md INV-128 does not describe the retired delegation as a live gap', () => {
     const entry = inv128Entry()
     expect(entry).not.toMatch(/Known gap/)

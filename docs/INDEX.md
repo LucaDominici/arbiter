@@ -209,7 +209,7 @@
 | [ADR-NNN: Title](internal/ADR/ADR-000_template.md) | — | draft | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-TEMPLATE.md) | — | active | kind/adr |
 | [Architectural Decision Records](internal/ADR/README.md) | — | active | kind/adr |
-| [arbiter — Conformance Scorecard](internal/DEVELOPMENT/CONFORMANCE.md) | — | active | kind/spec |
+| [arbiter — Conformance Scorecard](internal/DEVELOPMENT/CONFORMANCE.md) | — | deprecated | kind/spec |
 | [Real-Project Testing](internal/DEVELOPMENT/REAL-PROJECT-TESTING.md) | — | active | kind/method |
 | [Adjudication with Audit — arbiter](internal/METHOD/ADJUDICATION.md) | ADJUDICATION | active | kind/method |
 | [Canonical Paths — arbiter](internal/METHOD/CANONICAL_PATHS.md) | — | active | kind/ssot |

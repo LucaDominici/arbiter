@@ -641,8 +641,8 @@ export function buildRegistry(
       run: (opts) => generatePrTooling(config, opts).files,
     },
     {
-      // #1398 (INV-128): conformance scorecard runner — always-on; the script delegates
-      // to `arbiter conformance --check` via npx (no local install required).
+      // #1398 (INV-128): advisory conformance runner — always-on; self-contained, points
+      // at `gold-audit` (the standalone conformance command was retired, #2628).
       key: 'conformance',
       enabled: true,
       run: (opts) => generateConformanceScript(config, opts).files,
