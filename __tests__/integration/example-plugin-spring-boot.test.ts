@@ -24,7 +24,7 @@ function initGit(dir: string): void {
 }
 
 function installPluginViaSymlink(dir: string): void {
-  const scopeDir = join(dir, 'node_modules', '@getarbiter')
+  const scopeDir = join(dir, 'node_modules', '@arbiter')
   mkdirSync(scopeDir, { recursive: true })
   symlinkSync(SPRING_BOOT_PLUGIN_DIR, join(scopeDir, 'plugin-spring-boot'))
 }
