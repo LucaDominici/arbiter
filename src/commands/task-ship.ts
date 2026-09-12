@@ -368,7 +368,7 @@ function shipStepBody(
         // `task advance` (bypass only via the audited --skip-plan-review).
         action:
           'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
-        command: 'arbiter task advance --to <next-phase>',
+        command: `arbiter task advance --to ${nextPhase(phase) ?? 'red-team-review'}`,
         reviewAgents: 0,
       }
     case 'red':

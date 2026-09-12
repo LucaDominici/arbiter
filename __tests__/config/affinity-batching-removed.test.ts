@@ -169,7 +169,7 @@ describe('#2329 — ship output is unchanged apart from the removal', () => {
     expect(step.action).not.toMatch(/affinit|parallel worktrees/i)
     // #2570: `verify plan` reads PLAN.json, not the markdown plan; the gate is the
     // plan-review verdict, enforced by `task advance`.
-    expect(step.command).toBe('arbiter task advance --to <next-phase>')
+    expect(step.command).toBe('arbiter task advance --to red-team-review')
     expect(step.command).not.toMatch(/verify plan/)
   })
 

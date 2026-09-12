@@ -103,8 +103,8 @@ review machinery). The final verdict + plan SHA-256 digest belongs at
 
 ### Gate enforcement
 
-`arbiter task advance --to <next-phase>` (the phase after `plan` — `red`, or `red-team-review`
-where the tier has one) consults `latest.json` and refuses to advance when:
+`arbiter task advance --to red-team-review` (the phase after `plan` in every tier; the gate is
+checked again on entry to `red`) consults `latest.json` and refuses to advance when:
 
 - `latest.json` is missing
 - `verdict !== PASS`
@@ -126,9 +126,9 @@ a `PLAN.json` against invariant rules and cannot read the markdown plan (#2570).
 When you must advance without a fresh review (emergency hotfix, broken claude CLI, etc.):
 
 ```bash
-arbiter task advance --to red --skip-plan-review
+arbiter task advance --to red-team-review --skip-plan-review
 # or (non-CI only):
-ARBITER_SKIP_PLAN_REVIEW=1 arbiter task advance --to red
+ARBITER_SKIP_PLAN_REVIEW=1 arbiter task advance --to red-team-review
 ```
 
 Every bypass writes an audit record to
