@@ -82,6 +82,11 @@ describe('_shared-security.yml.ejs — structural invariants (#1694, CANON-18)',
     expect(dastSection).not.toContain('if: false')
   })
 
+  it('declares a top-level display name so the Actions list does not show the filename (#2628)', () => {
+    const rendered = renderSharedSecurity({ language: 'typescript' })
+    expect(rendered).toMatch(/^name: Shared security jobs \(reusable\)$/m)
+  })
+
   it('has workflow_call trigger with no inputs (R-07 — nvd-cache-namespace was dead)', () => {
     const rendered = renderSharedSecurity({ language: 'typescript' })
     expect(rendered).toContain('workflow_call:')
