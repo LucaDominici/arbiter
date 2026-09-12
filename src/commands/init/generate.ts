@@ -3,7 +3,7 @@
 // #1839 (F3 friction cut): extracted from init.ts — generator execution, plugin
 // loading, dry-run preview, and rollback/verification of generation output. Pure
 // extraction, no behavior change.
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve, join, normalize, isAbsolute, relative, sep, basename } from 'node:path'
 import { ArbiterError } from '../../utils/errors.js'
 import { t } from '../../i18n/index.js'
@@ -222,11 +222,18 @@ function printInstallHint(
   packageManager: 'npm' | 'pnpm' | 'yarn' | 'bun' | undefined,
   json: boolean | undefined,
 ): { command: string; requiresUserValue: true } | undefined {
+  const manager = packageManager ?? config.packageManager ?? 'npm'
   if (existsSync(join(targetDir, 'node_modules', '@arbiter', 'cli', 'dist', 'cli.js'))) {
+    // #2658: a present local CLI says nothing about the gate toolchain init injected
+    // into devDependencies — name the install step whenever one is not installed.
+    if (json !== true && missingDevDependencies(targetDir).length > 0) {
+      process.stdout.write(
+        `${t('cli.init.install_first_hint', { installCommand: `${manager} install` })}\n`,
+      )
+    }
     return undefined
   }
   const callerSpec = '$arbiter_spec'
-  const manager = packageManager ?? config.packageManager ?? 'npm'
   const command =
     manager === 'pnpm'
       ? `pnpm add --save-dev --save-exact "${callerSpec}"`
@@ -239,6 +246,20 @@ function printInstallHint(
   if (json !== true)
     process.stdout.write(`${t('cli.init.local_arbiter_setup', { setupCommand: command })}\n`)
   return setup
+}
+
+/** Declared devDependencies with no `node_modules/<name>/package.json` (unreadable manifest → none). */
+function missingDevDependencies(targetDir: string): string[] {
+  try {
+    const manifest = JSON.parse(readFileSync(join(targetDir, 'package.json'), 'utf-8')) as {
+      devDependencies?: Record<string, string>
+    }
+    return Object.keys(manifest.devDependencies ?? {}).filter(
+      (name) => !existsSync(join(targetDir, 'node_modules', name, 'package.json')),
+    )
+  } catch {
+    return []
+  }
 }
 
 function activateGitHooks(targetDir: string, log: (message: string) => void): void {

@@ -237,8 +237,10 @@ install step is named before the `scripts/check-all.mjs L1` line, and following 
 printed steps in that order reaches a green L1. Since #2578 that install step is the
 root-local Arbiter CLI setup line (`npm install --save-dev --save-exact "$arbiter_spec"`,
 which also installs the injected gate devDependencies); the cells match its heading
-(#2657). These cells run only in Nightly, so an epilogue change is visible there, not
-in T1.
+(#2657). When the local CLI is already present, that line is not printed, and init
+instead names `<manager> install` whenever a declared devDependency is not installed
+(#2658), so the install step is never silently omitted. These cells run only in
+Nightly, so an epilogue change is visible there, not in T1.
 
 ## Jobs in 01-pr-fast.yml
 
