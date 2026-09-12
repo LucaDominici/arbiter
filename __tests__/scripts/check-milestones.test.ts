@@ -402,9 +402,14 @@ describe('the gate as invoked — INV-53 exit codes', () => {
     expect(r.stderr).toMatch(/status is not evidence/)
   })
 
-  it('exits 2 on unparseable YAML — an error, not a violation', () => {
+  // #2553: a tracked SSOT the author controls that cannot be parsed is the author's broken
+  // artifact (INV-53 → 1), the same verdict check-use-cases files; 2 stays reserved for the gate
+  // being unable to run (unloadable schema, unexpected throw).
+  it('exits 1 on unparseable YAML — a broken tracked SSOT is a violation, not a gate error', () => {
     write('milestones: [\n  broken')
-    expect(run().status).toBe(2)
+    const r = run()
+    expect(r.status).toBe(1)
+    expect(r.stdout + r.stderr).toMatch(/unreadable SSOT/)
   })
 
   it('reports the verdict as JSON under --json', () => {

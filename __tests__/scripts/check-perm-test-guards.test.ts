@@ -149,11 +149,15 @@ describe('check-perm-test-guards.mjs — C (error)', () => {
   // nowhere" vacuity (#2512, #2526) — the gate reports OK for a tree it never opened a
   // single file in. Distinct from the A-block case of a dir holding a test file with no
   // permission sites, which is a real scan that legitimately finds nothing.
-  it('exits 2 when the scan root holds no test files at all (scanned nothing)', () => {
+  // #2593: an existing scan root that resolves to zero files is a wiring/configuration defect the
+  // author fixes in the diff — a violation (INV-53 → 1), as check-no-orphan-todo and
+  // check-todo-max-age already file it; 2 stays for a path that does not exist or is not a
+  // directory (the gate cannot run at all).
+  it('exits 1 when the scan root holds no test files at all (scanned nothing)', () => {
     withFixtureDir((dir) => {
       writeFileSync(join(dir, 'README.md'), 'not a test file\n')
       const r = run(['--dir', dir])
-      expect(r.status).toBe(2)
+      expect(r.status).toBe(1)
       expect(r.stderr).toContain('no test files')
     })
   })
