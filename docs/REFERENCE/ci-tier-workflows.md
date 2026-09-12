@@ -1,8 +1,8 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.14'
+doc_version: '2.0.15'
 status: active
-last_review: '2026-09-11'
+last_review: '2026-09-12'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -100,20 +100,21 @@ use the same conditional base suffix.
 
 ## Reusable & utility workflows (no cadence bucket)
 
-| File                       | Emitted when                               | Purpose                                                                    |
-| -------------------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
-| `_nightly.yml`             | same as `06-nightly.yml`                   | Reusable partial: all nightly job definitions (called by `06-nightly.yml`) |
-| `_weekly.yml`              | same as `07-weekly.yml`                    | Reusable partial: all weekly job definitions (called by `07-weekly.yml`)   |
-| `_monthly.yml`             | same as `08-monthly.yml`                   | Reusable partial: all monthly job definitions (called by `08-monthly.yml`) |
-| `_notify.yml`              | GitHub enabled                             | Reusable: idempotent GitHub Issue notification                             |
-| `_label-sync.yml`          | GitHub enabled                             | Reusable: sync `.github/labels.yml` → repo labels on push to main          |
-| `_label-on-approve.yml`    | GitHub enabled                             | Bot: label management on PR review approval                                |
-| `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling (INV-91; `dependabot[bot]` exempt)  |
-| `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                                        |
-| `_sigstore-retry-sign.yml` | with `05-release` (`style !== 'starter'`)  | Reusable: cosign signing with retry/backoff                                |
-| `_post-merge-notify.yml`   | L2+ **and** `enableCodeownersNotify: true` | Optional: email CODEOWNERS after each merged PR (#943, opt-in)             |
-| `issue-state.yml`          | GitHub enabled                             | Issue lifecycle state automation                                           |
-| `drift-shadow.yml`         | `enableSoloDevMode` (trunk-solo)           | Shadow drift-detection for solo/trunk repos                                |
+| File                       | Emitted when                               | Purpose                                                                                                                                                                                    |
+| -------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `_nightly.yml`             | same as `06-nightly.yml`                   | Reusable partial: all nightly job definitions (called by `06-nightly.yml`)                                                                                                                 |
+| `_shared-security.yml`     | same as `06-nightly.yml`                   | Reusable partial "Shared security jobs (reusable)": scheduled DAST / dep-CVE refresh jobs called from `_nightly.yml` and `_weekly.yml`; the `name:` is what the Actions list shows (#2628) |
+| `_weekly.yml`              | same as `07-weekly.yml`                    | Reusable partial: all weekly job definitions (called by `07-weekly.yml`)                                                                                                                   |
+| `_monthly.yml`             | same as `08-monthly.yml`                   | Reusable partial: all monthly job definitions (called by `08-monthly.yml`)                                                                                                                 |
+| `_notify.yml`              | GitHub enabled                             | Reusable: idempotent GitHub Issue notification                                                                                                                                             |
+| `_label-sync.yml`          | GitHub enabled                             | Reusable: sync `.github/labels.yml` → repo labels on push to main                                                                                                                          |
+| `_label-on-approve.yml`    | GitHub enabled                             | Bot: label management on PR review approval                                                                                                                                                |
+| `_ai-draft-check.yml`      | GitHub enabled                             | Bot: AI-draft PR detection / labelling (INV-91; `dependabot[bot]` exempt)                                                                                                                  |
+| `_pr-staleness.yml`        | GitHub enabled                             | Bot: stale-PR sweep                                                                                                                                                                        |
+| `_sigstore-retry-sign.yml` | with `05-release` (`style !== 'starter'`)  | Reusable: cosign signing with retry/backoff                                                                                                                                                |
+| `_post-merge-notify.yml`   | L2+ **and** `enableCodeownersNotify: true` | Optional: email CODEOWNERS after each merged PR (#943, opt-in)                                                                                                                             |
+| `issue-state.yml`          | GitHub enabled                             | Issue lifecycle state automation                                                                                                                                                           |
+| `drift-shadow.yml`         | `enableSoloDevMode` (trunk-solo)           | Shadow drift-detection for solo/trunk repos                                                                                                                                                |
 
 `_contract-postman.yml`, `_k6-runner.yml`, and the `_cosign-copy` / `_deploy` / `_partials`
 directories are sub-workflow partials included by the workflows above (contract testing, k6
