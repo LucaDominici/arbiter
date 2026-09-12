@@ -151,6 +151,49 @@ describe('check-anti-proforma.mjs (INV-118) — warn-default mode', () => {
     }
   })
 
+  // #2670: Playwright fixture/hook calls share the `test.<x>(` shape but are not test cases.
+  it('#2670: Playwright fixture and hook calls are not proforma candidates', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      writeTest(
+        dir,
+        'nav.spec.ts',
+        `import { test, expect } from '@playwright/test'\n` +
+          `test.describe.configure({ mode: 'serial' })\n` +
+          `test.use({ viewport: { width: 320, height: 640 } })\n` +
+          `test.beforeEach(async ({ page }) => {\n  await page.goto('/')\n})\n` +
+          `test.afterEach(async ({ page }) => {\n  await page.close()\n})\n` +
+          `test.beforeAll(async () => {\n  process.env.X = '1'\n})\n` +
+          `test.afterAll(async () => {\n  delete process.env.X\n})\n` +
+          `test('lands on home', async ({ page }) => {\n  await expect(page).toHaveTitle(/Home/)\n})\n`,
+      )
+      const r = run(['--dir', dir, '--enforce'], dir)
+      expect(r.status, r.stderr).toBe(0)
+      expect(r.stderr).not.toContain('PROFORMA')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('#2670: inversion — an empty Playwright test next to fixtures still fails', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      writeTest(
+        dir,
+        'empty.spec.ts',
+        `import { test } from '@playwright/test'\n` +
+          `test.beforeEach(async ({ page }) => {\n  await page.goto('/')\n})\n` +
+          `test('does nothing', async ({ page }) => {\n  await page.goto('/about')\n})\n`,
+      )
+      const r = run(['--dir', dir, '--enforce'], dir)
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('PROFORMA')
+      expect(r.stderr).toContain('empty.spec.ts:5')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('exits 0 when no test files found in dir', () => {
     const { dir, cleanup } = fixture()
     try {
