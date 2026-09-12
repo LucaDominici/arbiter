@@ -1,6 +1,6 @@
 ---
 title: 'Contributing to arbiter'
-doc_version: '1.0.5'
+doc_version: '1.0.6'
 status: active
 last_review: '2026-09-12'
 owner: ''
@@ -189,6 +189,11 @@ checks at `verification` rather than `green` because a chain walks the phase mac
 - Gate red on tests → run the failing test in isolation; do not bypass with `--no-verify`
 - Gate red on TDD evidence (#NNN.json missing) → `arbiter task record-red --test-path <file>`
   (commit the RED test first — `record-red` refuses on a dirty/uncommitted `__tests__/**`, #1988)
+- Gate red on TDD evidence for a branch whose only content is a regenerated `package-lock.json`
+  (a dependency PR that lost a nested lock node in a merge, #2609) → there is no honest RED for a
+  lockfile, and the gate gets no carve-out for one (INV-131): the bot owns that fix — comment
+  `@dependabot recreate` on the PR so it regenerates the lock on its own branch. Do not hand-land
+  a lockfile-only commit through the local hook.
 - `record-red` refuses a test runner that exits 0; Node `node:test`/TAP failures are recognized
   from the `# fail N` summary line.
 - `record-red` picks the runner from the test path first — `*.test.*`/`*.spec.*` with a JS/TS
