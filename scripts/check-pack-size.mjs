@@ -1,81 +1,49 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: Reports the npm tarball's unpacked size. Advisory only since #2660: the size is a
+// CATALOG: warning line, never an exit code — the budget it used to gate was re-baselined by
+// CATALOG: hand three times (#511 → #1491 → #2652) and finally blocked a 1 KB fix. What ships
+// CATALOG: is governed by the surface contract instead (__tests__/scripts/pack-surface-2660.test.ts:
+// CATALOG: only the scripts/lib closure of the shipped scripts and the .d.ts closure of the
+// CATALOG: exports entry points), and by check-tarball-contents.mjs for leaks.
 /**
- * Verifies the npm tarball stays within size budget.
+ * Reports the npm tarball size. Exit 0 whenever `npm pack` itself succeeds; a size above
+ * WARN_BYTES prints a WARN line and still exits 0 (owner decision, #2660). `--strict` and
+ * `--ci` are accepted for callers that still pass them and change nothing.
  *
  * Usage:
- *   node scripts/check-pack-size.mjs           # warn-only mode (warn band exits 1)
- *   node scripts/check-pack-size.mjs --strict  # publish gate: warn band is fatal
- *   node scripts/check-pack-size.mjs --ci       # CI early-signal: warn prints but
- *                                                 only a hard-cap breach fails the build
+ *   node scripts/check-pack-size.mjs
  *
  * Exit codes:
- *   0  — under WARN_BYTES (or in the warn band under --ci)
- *   1  — between WARN_BYTES and HARD_CAP_BYTES (default mode; fatal under --strict)
- *   2  — over HARD_CAP_BYTES (always fatal, every mode)
- *
- * Modes:
- *   default — warn band is a non-zero (1) exit so an interactive `npm run pack:size`
- *             surfaces it; hard cap is fatal (2).
- *   --strict — used by `prepublishOnly`: the warn band ALSO blocks (exit 2) so a
- *             release never ships in the early-warning band unnoticed.
- *   --ci    — used by the release build job: prints the warn band loudly to stderr
- *             but exits 0 for it, so a PR living in the 4.75–5.0 MB band does not
- *             fail every build; a hard-cap breach still fails (exit 2). This is the
- *             early signal B6's prepublishOnly-only wiring lacked — it surfaces the
- *             breach at the START of a release run instead of at the terminal publish
- *             gate where it would block the whole release with no prior warning.
- *
- * Budget (re-baselined 2026-09-10, #2652):
- *   Removing source maps from the published build (declarationMap/sourceMap=false +
- *   clean `dist/` on each build) dropped unpacked size 6.20 MB -> 4.64 MB, back under
- *   the 5 MB hard cap. The template/command surface has legitimately grown well past
- *   the original 2026-05-15 baseline (2.04 MB), so WARN is re-set to 4.75 MB to give an
- *   early-warning band below the unchanged hard cap. A fresh native retained pack
- *   now measures 4,991,083 bytes across 1,301 files, 1,083 bytes above the prior
- *   warning threshold. WARN is re-set to 5,000,000 bytes, leaving a 242,880-byte
- *   warning band before the hard cap.
- *   WARN_BYTES      = 5,000,000  (4.77 MB)
- *   HARD_CAP_BYTES  = 5,242,880  (5 MB, per issue #511 — UNCHANGED)
+ *   0 — size reported (OK or WARN)
+ *   2 — `npm pack --dry-run --json` failed or produced no size
  */
 import { spawnSync } from 'node:child_process'
 import { isMainModule } from './lib/run-helpers.mjs'
 
+// Notice level only: the size at which the report says WARN. Not a gate.
 export const WARN_BYTES = 5_000_000
-export const HARD_CAP_BYTES = 5 * 1024 * 1024
 
 /**
- * Pure threshold-decision logic. Maps an unpacked-size measurement and an
- * enforcement mode to a {level, exitCode} verdict. Kept side-effect-free so every
- * band × mode combination is unit-testable without spawning `npm pack`.
+ * Pure classification: `warn` above WARN_BYTES, `ok` otherwise. The exit code is always 0 —
+ * size is information, not a verdict (#2660). Kept as a function so the report is unit-testable.
  *
  * @param {number} unpackedSize bytes
- * @param {'default'|'strict'|'ci'} mode
- * @returns {{ level: 'ok'|'warn'|'over-cap', exitCode: 0|1|2 }}
+ * @returns {{ level: 'ok'|'warn', exitCode: 0 }}
  */
-export function classifyPackSize(unpackedSize, mode = 'default') {
-  if (unpackedSize > HARD_CAP_BYTES) {
-    // Hard cap is fatal in every mode — never bypassable.
-    return { level: 'over-cap', exitCode: 2 }
-  }
-  if (unpackedSize > WARN_BYTES) {
-    if (mode === 'strict') return { level: 'warn', exitCode: 2 }
-    if (mode === 'ci') return { level: 'warn', exitCode: 0 }
-    return { level: 'warn', exitCode: 1 }
-  }
-  return { level: 'ok', exitCode: 0 }
+export function classifyPackSize(unpackedSize) {
+  return { level: unpackedSize > WARN_BYTES ? 'warn' : 'ok', exitCode: 0 }
 }
 
 const mb = (n) => (n / 1024 / 1024).toFixed(2) + ' MB'
 
 /**
- * Runs `npm pack --dry-run --json`, classifies the result, writes a human report,
- * and returns the exit code. Side-effecting (spawns npm, writes streams) but does
- * not call process.exit so it stays importable/testable.
+ * Runs `npm pack --dry-run --json` and writes a human report. Side-effecting (spawns npm,
+ * writes streams) but does not call process.exit so it stays importable/testable.
  *
- * @param {'default'|'strict'|'ci'} mode
- * @returns {number} exit code
+ * @returns {number} exit code — 0 unless npm pack itself failed
  */
-export function checkPackSize(mode = 'default') {
+export function checkPackSize() {
   const result = spawnSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf-8' })
 
   if (result.status !== 0) {
@@ -97,40 +65,20 @@ export function checkPackSize(mode = 'default') {
     return 2
   }
 
-  process.stdout.write(
-    `pack size check: ${mb(unpackedSize)} unpacked (${entryCount} files)\n` +
-      `  warn @ ${mb(WARN_BYTES)} | hard cap @ ${mb(HARD_CAP_BYTES)}\n`,
-  )
-
-  const { level, exitCode } = classifyPackSize(unpackedSize, mode)
-
-  if (level === 'over-cap') {
-    process.stderr.write(
-      `FAIL: unpacked size ${mb(unpackedSize)} exceeds hard cap ${mb(HARD_CAP_BYTES)}\n`,
-    )
-    return exitCode
-  }
-
+  process.stdout.write(`pack size: ${mb(unpackedSize)} unpacked (${entryCount} files)\n`)
+  const { level, exitCode } = classifyPackSize(unpackedSize)
   if (level === 'warn') {
     process.stderr.write(
-      `WARN: unpacked size ${mb(unpackedSize)} exceeds warn threshold ${mb(WARN_BYTES)}` +
-        (mode === 'ci' ? ' (non-fatal in CI mode — under hard cap)' : '') +
-        `\n`,
+      `WARN: unpacked size ${mb(unpackedSize)} is above the ${mb(WARN_BYTES)} notice level — ` +
+        `not a gate (#2660); check the surface contract before shipping more\n`,
     )
-    return exitCode
+  } else {
+    process.stdout.write(`OK\n`)
   }
-
-  process.stdout.write(`OK\n`)
   return exitCode
-}
-
-function parseMode(argv) {
-  if (argv.includes('--strict')) return 'strict'
-  if (argv.includes('--ci')) return 'ci'
-  return 'default'
 }
 
 // Only run when invoked directly (not when imported by tests).
 if (isMainModule(import.meta.url)) {
-  process.exit(checkPackSize(parseMode(process.argv)))
+  process.exit(checkPackSize())
 }

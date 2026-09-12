@@ -365,7 +365,7 @@ function assertFrozenContract(tarball: string): void {
 
   expect(paths).toHaveLength(contract.pack.entryCount)
   expect(digest).toBe(contract.pack.rosterSha256)
-  expect(classifyPackSize(unpackedSize, 'strict')).toEqual({ level: 'ok', exitCode: 0 })
+  expect(classifyPackSize(unpackedSize).exitCode).toBe(0) // size is advisory since #2660
   expect(manifest.bin).toEqual(contract.manifest.bin)
   expect(manifest.exports).toEqual(contract.manifest.exports)
   expect(manifest.engines).toEqual(contract.manifest.engines)

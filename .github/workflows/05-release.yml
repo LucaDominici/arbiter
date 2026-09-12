@@ -89,11 +89,11 @@ jobs:
           VERSION=$(node -e "const v=require('./package.json').version; if(typeof v!=='string'||!v) process.exit(1); process.stdout.write(v)")
           test "$RELEASE_TAG" = "v$VERSION" || { echo "::error::Release tag does not match package.json"; exit 1; }
       - run: npm run build
-      - name: Pack-size guard (early signal; hard cap blocks, #1491/B6)
-        # --ci: surfaces the 4.75–5.0 MB warn band loudly without failing the
-        # build, but a breach of the 5 MB hard cap (#511) fails here at the START
-        # of the release run instead of only at the terminal prepublishOnly gate.
-        run: node scripts/check-pack-size.mjs --ci
+      - name: Pack-size report (advisory, #2660)
+        # Size is a warning line in the log, never a gate: what ships is pinned by
+        # the surface contract (pack-surface-2660.test.ts) and leaks by the
+        # tarball-contents guard below.
+        run: node scripts/check-pack-size.mjs
       - name: Tarball-contents guard (no internal/backup leak, #1491)
         # Fails the release build if the published tarball would ship a
         # maintainer-internal doc (docs/internal/**) or a working-tree

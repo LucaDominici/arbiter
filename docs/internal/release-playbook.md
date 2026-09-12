@@ -1,8 +1,8 @@
 ---
 title: 'Release Playbook'
-doc_version: '1.1.1'
+doc_version: '1.2.0'
 status: active
-last_review: '2026-09-10'
+last_review: '2026-09-12'
 owner: 'Luca Dominici'
 canonical_id: ''
 tags: ['audience/dev', 'kind/internal']
@@ -35,13 +35,19 @@ publisher waits for cosign, SLSA, native provenance, SBOM attestation and docume
 freshness; mutation, secret history and Trivy are prerequisites of signing.
 A failure prevents publication. Keep the retained artifact and run URL together.
 
-## Package size budget
+## Package surface and size
 
-`prepublishOnly` runs the pack-size guard in strict mode. The early-warning threshold is
-5,000,000 unpacked bytes; the unchanged hard cap is 5,242,880 bytes (5 MiB). The #2652
-calibration measured the retained native tarball at 4,991,083 bytes across 1,301 files,
-leaving a 242,880-byte warning band. A byte above the warning threshold still blocks a
-strict publish, and a byte above the hard cap remains fatal in every mode.
+What ships is pinned, its size is only reported (#2660). `package.json` `files` is a plain
+whitelist: `dist`, the five shipped `scripts/*.mjs`, the five `scripts/lib` modules they
+import, and the root documents. `npm run build` ends with `scripts/prune-dist-declarations.mjs`,
+which keeps in `dist` only the `.d.ts` files tsc reaches from the four `exports` entry points
+(19 declaration files) and deletes the rest, so no negation entry and no hand-kept list exist. `__tests__/scripts/pack-surface-2660.test.ts`
+recomputes both closures on every run and fails when the shipped set drifts in either
+direction; `__tests__/fixtures/pack-contract-2597.json` freezes the resulting roster.
+`prepublishOnly` still runs `check-pack-size.mjs`, which prints the unpacked size and a WARN
+line above 5,000,000 bytes but never fails: the hand-re-baselined budget (#511 → #1491 →
+#2652) is gone. Measured at the re-pin: 4,362,750 bytes across 989 files (from 4,999,641 /
+1,301).
 
 ## Configure npm authentication
 

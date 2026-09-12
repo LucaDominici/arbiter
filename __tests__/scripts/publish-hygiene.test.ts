@@ -154,16 +154,12 @@ console.log(JSON.stringify([namedFn.name, NamedClass.name, inferred.name, namedF
       .update([...paths].sort().join('\n'))
       .digest('hex')
 
-  it('keeps the actual retained package under the unchanged strict budget (#2597 AC-1)', () => {
+  it('ships exactly the frozen roster; size is reported, not gated (#2597 AC-1, re-pinned by #2660)', () => {
     const contract = fixture()
 
-    expect(packSummary.unpackedSize).toBeLessThan(contract.pack.unpackedSize)
     expect(packSummary.entryCount).toBe(contract.pack.entryCount)
     expect(pathsDigest(packedFiles)).toBe(contract.pack.rosterSha256)
-    expect(classifyPackSize(packSummary.unpackedSize, 'strict')).toEqual({
-      level: 'ok',
-      exitCode: 0,
-    })
+    expect(classifyPackSize(packSummary.unpackedSize).exitCode).toBe(0)
   })
 
   it('keeps the frozen package surface and generated assets in the actual tarball (#2597 AC-2)', () => {

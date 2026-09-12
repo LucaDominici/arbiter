@@ -5,15 +5,23 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 5991665,
-    "entryCount": 1301,
-    "rosterSha256": "885a557514764ec6e5417e1abd421c5956097f4a9348504d8b0acce6451214c4"
+    "unpackedSize": 4365489,
+    "entryCount": 989,
+    "rosterSha256": "005bc4f433f800844dc2b63b25f281a3b56eca31740b92e599b7d864c3d36ca9"
   },
   "manifest": {
-    "bin": { "arbiter": "./dist/cli.js" },
+    "bin": {
+      "arbiter": "./dist/cli.js"
+    },
     "exports": {
-      ".": { "types": "./dist/cli.d.ts", "import": "./dist/cli.js" },
-      "./plugin": { "types": "./dist/types/plugin.d.ts", "import": "./dist/types/plugin.js" },
+      ".": {
+        "types": "./dist/cli.d.ts",
+        "import": "./dist/cli.js"
+      },
+      "./plugin": {
+        "types": "./dist/types/plugin.d.ts",
+        "import": "./dist/types/plugin.js"
+      },
       "./invariants": {
         "types": "./dist/invariants/index.d.ts",
         "import": "./dist/invariants/index.js"
@@ -23,7 +31,10 @@
         "import": "./dist/compatibility/index.js"
       }
     },
-    "engines": { "node": ">=22.0.0", "npm": ">=10.0.0" },
+    "engines": {
+      "node": ">=22.0.0",
+      "npm": ">=10.0.0"
+    },
     "files": [
       "dist",
       "scripts/check-doc-set.mjs",
@@ -31,7 +42,11 @@
       "scripts/check-doc-freshness.mjs",
       "scripts/check-arc42-slots.mjs",
       "scripts/check-doc-style.mjs",
-      "scripts/lib",
+      "scripts/lib/doc-gate-allowlist.mjs",
+      "scripts/lib/doc-set-resolve.mjs",
+      "scripts/lib/glob-walk.mjs",
+      "scripts/lib/gold-audit-lib.mjs",
+      "scripts/lib/run-helpers.mjs",
       "README.md",
       "LICENSE",
       "NOTICE",
@@ -54,15 +69,32 @@
     "dist/generators/skill-names.json"
   ],
   "declarations": {
-    "count": 299,
-    "pathsSha256": "10c85d22ff0720d86ebe384cb8a7b23867993378aeacdd568d59997995e2bc60"
+    "count": 19,
+    "pathsSha256": "e0947fc66eba1a5a4e53f9675db1fb31d3e56730f406c6c9ca8aa00db706499a"
   },
   "templates": {
     "count": 644,
     "pathsSha256": "91d8ad26161b56a8d908ce00cc04dc391136f7ebfff411226c73ab3ba41f8fca"
   },
   "leading_spdx": {
-    "count": 304,
-    "pathsSha256": "d105caf6a90896e6ed761925e09e5b71aac55790050744ba2e0eabdfc1bf1649"
+    "count": 281,
+    "pathsSha256": "f95e7ba2de8f311dcaf5e8fd09731f5548b0c530b088c35775c80882450b0c16"
+  },
+  "repinned": {
+    "task_id": "#2660",
+    "date": "2026-09-12",
+    "reason": "owner decision: ship only the reachable surface — scripts/lib closure of the shipped scripts listed explicitly in files; .d.ts pruned at build time to the tsc closure of the exports entry points (scripts/prune-dist-declarations.mjs); size is advisory. Roster re-pinned from the measured pack.",
+    "before": {
+      "entryCount": 1301,
+      "unpackedSize": 5991665,
+      "declarations": 299,
+      "spdx": 304
+    },
+    "after": {
+      "entryCount": 989,
+      "unpackedSize": 4365489,
+      "declarations": 19,
+      "spdx": 281
+    }
   }
 }

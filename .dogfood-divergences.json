@@ -106,7 +106,7 @@
     "path": "05-release.yml",
     "dest": ".github/workflows",
     "reason": "Read line-by-line (#2275), replacing the prior not-yet-audited marker. Self IS the typescript/library archetype's own release: it runs npm-package-publishing guards (check-pack-size.mjs, check-tarball-contents.mjs) plus a self-only packaged-export smoke (#2139) over the just-packed tarball — all specific to the @arbiter/cli tarball and absent from the generic multi-archetype template render for this profile, which in turn carries release steps for archetypes this profile never hits. Both sides were reconciled under #2138 to pack once and sign/publish the same npm tarball, with tag-push-only publication. #2624 adds an isolated read-only manual authentication smoke, hosted npm11/OIDC publishing, exact tag/version validation, freshness-before-publish dependencies and no SLSA secret inheritance. The trigger block, manual isolation, token boundary and publish-path shape are asserted directly in __tests__/templates/05-release-render.test.ts, so neither can hide inside this pin again. PERMANENT: an archetype-specific release cannot converge onto a multi-archetype template, and the two axes that could regress silently are pinned by a render test rather than by this entry.",
-    "diffHash": "a5b6fff801c37d98a896ba719abd9449187230bbbfd3854d80132c76e8f95aa4"
+    "diffHash": "1275c3d829d5045e70fc53e808fd9c3b7722319406f4d7f8fef044001dc37fc6"
   },
   {
     "path": "_nightly.yml",

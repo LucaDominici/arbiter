@@ -15,7 +15,12 @@ const root = resolve(__dirname, '../..')
 let shipped: string[] = []
 
 beforeAll(() => {
-  const raw = execFileSync('npm', ['pack', '--dry-run', '--json'], { cwd: root, encoding: 'utf-8' })
+  // --ignore-scripts: prepack would `rm -rf dist` and rebuild under every other test spawning
+  // dist/cli.js in the same vitest run; the file roster does not depend on the lifecycle scripts.
+  const raw = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+    cwd: root,
+    encoding: 'utf-8',
+  })
   shipped = (JSON.parse(raw) as Array<{ files: Array<{ path: string }> }>)[0].files
     .map((f) => f.path)
     .sort()
