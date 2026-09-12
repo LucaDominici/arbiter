@@ -6,6 +6,7 @@ import {
   beginGenerationSession,
   endGenerationSession,
   ensureDir,
+  readFileTranslated,
   type WriteResult,
 } from '../utils/fs.js'
 import {
@@ -27,7 +28,7 @@ import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../utils/config
 import { runGithubSetup, printResults, runPlugins, slugifyProjectName } from './init.js'
 import { resolveProjectName } from '../config/resolve-project-name.js'
 import { diffConfig, impactedGenerators } from '../config/diff.js'
-import { validateConfig } from '../config/schema.js'
+import { validateConfig, AI_TOOLS } from '../config/schema.js'
 import { resolveProjectConfig } from '../config/resolve-project-config.js'
 import {
   buildRegistry,
@@ -645,6 +646,41 @@ function printAdoptPlan(
 }
 
 /**
+ * #2661: `loadConfig`'s never-brick fallback (`sanitizeCoercibleFields`)
+ * coerces an on-disk `tools` value naming a retired target (cursor/copilot/
+ * gemini/windsurf/aider — ADR-119) to `['claude','codex']` IN MEMORY so
+ * generation can proceed. `update` must not turn that in-memory safety net
+ * into a silent, permanent rewrite of the user's declared value — so this
+ * reads `arbiter.json` directly (bypassing the coercion) and returns the
+ * RAW `tools` array to persist instead of the sanitized one, printing a
+ * once-per-run migration line when it differs. Returns `stored.tools`
+ * (already sanitized) when the raw file has no usable `tools` array to
+ * preserve — e.g. `tools` missing or not an array at all.
+ */
+function toolsToPersist(targetDir: string, stored: ArbiterConfigV2): ArbiterConfigV2['tools'] {
+  let raw: unknown
+  try {
+    raw = JSON.parse(readFileTranslated(join(targetDir, 'arbiter.json'), 'utf-8'))
+  } catch {
+    return stored.tools
+  }
+  const rawTools =
+    typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>)['tools'] : undefined
+  if (!Array.isArray(rawTools)) return stored.tools
+  const retired = rawTools.filter((t) => typeof t === 'string' && !AI_TOOLS.has(t))
+  if (retired.length > 0) {
+    getLogger().warn(
+      'update.tools_migration_deferred',
+      { path: join(targetDir, 'arbiter.json'), retired: retired.join(',') },
+      `arbiter.json 'tools' declares retired value(s) ${retired.join(', ')} — ADR-119 retired ` +
+        `these generators. The declared value is kept as-is (generation still targets ` +
+        `${stored.tools.join('+')}); run 'arbiter configure' to update 'tools' explicitly.`,
+    )
+  }
+  return rawTools as ArbiterConfigV2['tools']
+}
+
+/**
  * Build the to-be-persisted config from the stored config + freshly resolved axis
  * fields. #1317: the DERIVED databaseEngine is threaded in so saveConfigAndSnapshot
  * does not drop it every update (which would leave the diff engine-change detection
@@ -677,6 +713,10 @@ function buildNextConfig(
     // generated artifact. Writing it back makes arbiter.json the durable source
     // and freezes the answer at the first update.
     projectName,
+    // `tools` here is `stored.tools` — the SANITIZED, schema-valid value (see
+    // `sanitizeCoercibleFields`). `saveValidatedConfig` swaps in the raw on-disk
+    // value (via `toolsToPersist`, #2661) for the byte actually written, AFTER
+    // this sanitized value has passed strict `validateConfig`.
     archetype,
     architectureStyle,
     isMultiTenant,
@@ -1052,7 +1092,15 @@ function saveValidatedConfig(
     process.exit(2)
     return
   }
-  saveConfigAndSnapshot(targetDir, validation.config)
+  // #2661: validation above ran against the SANITIZED `tools` (schema-valid,
+  // `sanitizeCoercibleFields`'s never-brick default) so a retired value never
+  // fails the update outright. The byte actually written swaps in the raw
+  // on-disk `tools` declaration instead — `update` must not silently rewrite
+  // a user value it merely coerced in memory to keep generating.
+  saveConfigAndSnapshot(targetDir, {
+    ...validation.config,
+    tools: toolsToPersist(targetDir, validation.config),
+  })
 }
 
 /**
