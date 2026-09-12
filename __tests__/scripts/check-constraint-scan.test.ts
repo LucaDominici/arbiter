@@ -998,3 +998,96 @@ describe('check-constraint-scan.mjs (INV-115) — #2384 prose triage + coverage 
     expect(r.stdout).toMatch(/0 unenforceable/)
   })
 })
+
+// #2582: prohibitions phrased as *forbidden* / *prohibited* / *disallowed* / *not permitted* /
+// *not allowed* matched no INLINE_MARKER, so the extractor never saw them — a vacuous
+// denominator. Each case below fails if its register is dropped from the marker set (AC-2).
+describe('check-constraint-scan.mjs — passive prohibition registers (#2582)', () => {
+  it.each([
+    ['forbidden', '- Calling `forbiddenSentinelToken()` is forbidden in hooks.'],
+    ['prohibited', '- Calling `forbiddenSentinelToken()` is prohibited.'],
+    ['disallowed', '- `forbiddenSentinelToken()` calls are disallowed'],
+    ['not permitted', '- `forbiddenSentinelToken()` is not permitted here.'],
+    ['not allowed', '- Use of `forbiddenSentinelToken()` is not allowed.'],
+  ])('AC-1 — "%s" register: the token BEFORE the marker is derived → VIOLATION', (_, line) => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, `# Rules\n\n${line}\n`)
+      const src = writeSrc(dir, { 'bad.ts': 'export const x = forbiddenSentinelToken()\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status, r.stdout + r.stderr).toBe(1)
+      expect(r.stdout).toContain('VIOLATION')
+      expect(r.stdout).toContain('forbiddenSentinelToken')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-1 — lead "prohibited:" (AGENTS.md:60 shape) derives the tokens AFTER the colon', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(
+        dir,
+        'Shared-tree parallel editing is\nprohibited: `forbiddenSentinelToken()` corrupts the index.\n',
+      )
+      const src = writeSrc(dir, { 'bad.ts': 'forbiddenSentinelToken()\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status, r.stdout + r.stderr).toBe(1)
+      expect(r.stdout).toContain('VIOLATION')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-1 — a token-less passive prohibition is COUNTED as UNENFORCEABLE, not invisible', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '- **INV-17:** panics and unhandled errors are forbidden\n')
+      const src = writeSrc(dir, { 'ok.ts': 'export const x = 1\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status, r.stdout + r.stderr).toBe(0)
+      expect(r.stdout).toMatch(/\[UNENFORCEABLE\].*INV-17/)
+      expect(r.stdout).toMatch(/1 prohibition\(s\)/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-4 — a passive register inside a NESTED sub-bullet is elaboration, not a prohibition', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(
+        dir,
+        '- **INV-99:** Design tokens.\n  - In FE projects raw `forbiddenSentinelToken()` colors are FORBIDDEN.\n',
+      )
+      const src = writeSrc(dir, { 'bad.ts': 'forbiddenSentinelToken()\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status, r.stdout + r.stderr).toBe(0)
+      expect(r.stdout).not.toContain('VIOLATION')
+      expect(r.stdout).toMatch(/0 prohibition\(s\)/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-4 — the imperative registers still apply inside nested sub-bullets (unchanged)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(
+        dir,
+        '- **INV-99:** Rules.\n  - You MUST NOT call `forbiddenSentinelToken()`.\n',
+      )
+      const src = writeSrc(dir, { 'bad.ts': 'forbiddenSentinelToken()\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('VIOLATION')
+    } finally {
+      cleanup()
+    }
+  })
+})
