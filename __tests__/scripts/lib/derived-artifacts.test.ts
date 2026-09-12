@@ -48,6 +48,12 @@ describe('scripts/lib/derived-artifacts.mjs (registry drift guard)', () => {
     }
   })
 
+  it('#2568 — every entry declares a regen phase: produce, index or consume', () => {
+    for (const a of DERIVED_ARTIFACTS) {
+      expect(['produce', 'index', 'consume'], `${a.name} has no valid phase`).toContain(a.phase)
+    }
+  })
+
   it('every entry has a distinct name (no duplicate registry rows)', () => {
     const names = DERIVED_ARTIFACTS.map((a) => a.name)
     expect(new Set(names).size).toBe(names.length)
