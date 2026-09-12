@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.15'
+doc_version: '2.0.16'
 status: active
 last_review: '2026-09-12'
 owner: ''
@@ -240,7 +240,9 @@ root-local Arbiter CLI setup line (`npm install --save-dev --save-exact "$arbite
 which also installs the injected gate devDependencies); the cells match its heading
 (#2657). When the local CLI is already present, that line is not printed, and init
 instead names `<manager> install` whenever a declared devDependency is not installed
-(#2658), so the install step is never silently omitted. These cells run only in
+(#2658), so the install step is never silently omitted — also when `package.json`
+cannot be read (the hint then says so), and `--json` carries the same step in
+`nextSteps` with `requiresUserValue: false` (#2659). These cells run only in
 Nightly, so an epilogue change is visible there, not in T1.
 
 ## Jobs in 01-pr-fast.yml

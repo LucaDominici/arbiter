@@ -168,7 +168,7 @@ function emitInitOutput(
   result: {
     created: number
     skipped: number
-    setup: { command: string; requiresUserValue: true } | undefined
+    setup: { command: string; requiresUserValue: boolean } | undefined
   },
 ): void {
   const { created, skipped, setup } = result
@@ -221,17 +221,10 @@ function printInstallHint(
   targetDir: string,
   packageManager: 'npm' | 'pnpm' | 'yarn' | 'bun' | undefined,
   json: boolean | undefined,
-): { command: string; requiresUserValue: true } | undefined {
+): { command: string; requiresUserValue: boolean } | undefined {
   const manager = packageManager ?? config.packageManager ?? 'npm'
   if (existsSync(join(targetDir, 'node_modules', '@arbiter', 'cli', 'dist', 'cli.js'))) {
-    // #2658: a present local CLI says nothing about the gate toolchain init injected
-    // into devDependencies — name the install step whenever one is not installed.
-    if (json !== true && missingDevDependencies(targetDir).length > 0) {
-      process.stdout.write(
-        `${t('cli.init.install_first_hint', { installCommand: `${manager} install` })}\n`,
-      )
-    }
-    return undefined
+    return localCliInstallStep(targetDir, manager, json)
   }
   const callerSpec = '$arbiter_spec'
   const command =
@@ -248,8 +241,28 @@ function printInstallHint(
   return setup
 }
 
-/** Declared devDependencies with no `node_modules/<name>/package.json` (unreadable manifest → none). */
-function missingDevDependencies(targetDir: string): string[] {
+/**
+ * #2658: a present local CLI says nothing about the gate toolchain init injected into
+ * devDependencies — name the install step whenever one is not installed. #2659: an
+ * unreadable manifest is not "nothing missing" — say so and still name the step; --json
+ * carries it in nextSteps either way.
+ */
+function localCliInstallStep(
+  targetDir: string,
+  manager: string,
+  json: boolean | undefined,
+): { command: string; requiresUserValue: false } | undefined {
+  const missing = missingDevDependencies(targetDir)
+  if (missing !== null && missing.length === 0) return undefined
+  const installCommand = `${manager} install`
+  const key =
+    missing === null ? 'cli.init.install_first_hint_unreadable' : 'cli.init.install_first_hint'
+  if (json !== true) process.stdout.write(`${t(key, { installCommand })}\n`)
+  return { command: installCommand, requiresUserValue: false }
+}
+
+/** Declared devDependencies with no `node_modules/<name>/package.json`; `null` when the manifest cannot be read (#2659). */
+function missingDevDependencies(targetDir: string): string[] | null {
   try {
     const manifest = JSON.parse(readFileSync(join(targetDir, 'package.json'), 'utf-8')) as {
       devDependencies?: Record<string, string>
@@ -258,7 +271,7 @@ function missingDevDependencies(targetDir: string): string[] {
       (name) => !existsSync(join(targetDir, 'node_modules', name, 'package.json')),
     )
   } catch {
-    return []
+    return null
   }
 }
 
