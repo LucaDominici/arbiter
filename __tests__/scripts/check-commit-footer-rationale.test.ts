@@ -243,6 +243,164 @@ describe('check-commit-footer-rationale.mjs (INV-119) — footer validation', ()
   })
 })
 
+describe('check-commit-footer-rationale.mjs (INV-119) — scaffold vs entry content (#2669)', () => {
+  function hermeticRepo(): { dir: string; cleanup: () => void } {
+    const dir = mkdtempSync(join(tmpdir(), 'commit-footer-scaffold-'))
+    git(dir, ['init', '-q'])
+    git(dir, ['config', 'user.email', 'hermetic-committer'])
+    git(dir, ['config', 'user.name', 'Hermetic Test'])
+    git(dir, ['config', 'commit.gpgsign', 'false'])
+    writeFileSync(join(dir, 'README.md'), '# hermetic fixture\n')
+    git(dir, ['add', 'README.md'])
+    git(dir, ['commit', '-q', '-m', 'chore: base commit'])
+    return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
+  }
+
+  it('passes without a trailer for a scaffold-only commit (empty .trivyignore, comments only)', () => {
+    const repo = hermeticRepo()
+    const evidence = fixture()
+    try {
+      const base = git(repo.dir, ['rev-parse', 'HEAD']).trim()
+      writeFileSync(join(repo.dir, '.trivyignore'), '# no active waivers yet\n')
+      mkdirSync(join(repo.dir, 'suppressions'), { recursive: true })
+      writeFileSync(
+        join(repo.dir, 'suppressions', 'suppressions-schema.json'),
+        JSON.stringify({ $schema: 'https://example.com/schema.json', version: 1 }, null, 2) + '\n',
+      )
+      git(repo.dir, ['add', '.trivyignore', join('suppressions', 'suppressions-schema.json')])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: scaffold suppression files'])
+      const range = `${base}..HEAD`
+
+      const r = run(['--range', range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(0)
+      const ev = readEvidence(evidence.dir)
+      expect(ev.result).toBe('PASS')
+      expect(ev.commits_requiring_footer).toBe(0)
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
+  })
+
+  it('fails without a trailer once a commit adds a real .trivyignore entry', () => {
+    const repo = hermeticRepo()
+    const evidence = fixture()
+    try {
+      writeFileSync(join(repo.dir, '.trivyignore'), '# no active waivers yet\n')
+      git(repo.dir, ['add', '.trivyignore'])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: scaffold trivyignore'])
+      const base = git(repo.dir, ['rev-parse', 'HEAD']).trim()
+
+      writeFileSync(join(repo.dir, '.trivyignore'), '# no active waivers yet\nCVE-2024-9999\n')
+      git(repo.dir, ['add', '.trivyignore'])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: waive CVE-2024-9999'])
+      const range = `${base}..HEAD`
+
+      const r = run(['--range', range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(1)
+      const ev = readEvidence(evidence.dir)
+      expect(ev.result).toBe('FAIL')
+      expect(ev.commits_requiring_footer).toBeGreaterThanOrEqual(1)
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
+  })
+
+  it('passes with a well-formed Trivy-Expiry-Extension trailer on an entry-adding commit', () => {
+    const repo = hermeticRepo()
+    const evidence = fixture()
+    try {
+      writeFileSync(join(repo.dir, '.trivyignore'), '# no active waivers yet\n')
+      git(repo.dir, ['add', '.trivyignore'])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: scaffold trivyignore'])
+      const base = git(repo.dir, ['rev-parse', 'HEAD']).trim()
+
+      writeFileSync(join(repo.dir, '.trivyignore'), '# no active waivers yet\nCVE-2024-9999\n')
+      git(repo.dir, ['add', '.trivyignore'])
+      git(repo.dir, [
+        'commit',
+        '-q',
+        '-m',
+        'chore: waive CVE-2024-9999',
+        '-m',
+        'Trivy-Expiry-Extension: CVE-2024-9999 | new-expiry:2099-01-01 | reason:vendor fix pending',
+      ])
+      const range = `${base}..HEAD`
+
+      const r = run(['--range', range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(0)
+      const ev = readEvidence(evidence.dir)
+      expect(ev.result).toBe('PASS')
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
+  })
+
+  it('fails an entry-adding commit whose trailer is prefix-only (no expires: date)', () => {
+    const repo = hermeticRepo()
+    const evidence = fixture()
+    try {
+      writeFileSync(join(repo.dir, '.trivyignore'), '# no active waivers yet\n')
+      git(repo.dir, ['add', '.trivyignore'])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: scaffold trivyignore'])
+      const base = git(repo.dir, ['rev-parse', 'HEAD']).trim()
+
+      writeFileSync(join(repo.dir, '.trivyignore'), '# no active waivers yet\nCVE-2024-9999\n')
+      git(repo.dir, ['add', '.trivyignore'])
+      git(repo.dir, [
+        'commit',
+        '-q',
+        '-m',
+        'chore: waive CVE-2024-9999',
+        '-m',
+        'Suppression-Rationale: prefix only, no date',
+      ])
+      const range = `${base}..HEAD`
+
+      const r = run(['--range', range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(1)
+      const ev = readEvidence(evidence.dir)
+      expect(ev.result).toBe('FAIL')
+      expect(ev.violations.length).toBeGreaterThanOrEqual(1)
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
+  })
+})
+
+describe('check-commit-footer-rationale.mjs (INV-119) — trailer shape validation (#2669)', () => {
+  it('rejects a Suppression-Rationale trailer with an unparsable expires date', () => {
+    const r = run(
+      [
+        '--dry-run',
+        '--test-trailer',
+        'Suppression-Rationale: CVE-2024-1234 | x | expires:not-a-date',
+      ],
+      '.',
+    )
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('expires')
+  })
+
+  it('rejects a Sigstore-Bypass trailer missing retry-after entirely', () => {
+    const r = run(['--dry-run', '--test-trailer', 'Sigstore-Bypass: cosign unavailable'], '.')
+    expect(r.status).toBe(1)
+    expect(r.stderr.toLowerCase()).toContain('retry-after')
+  })
+
+  it('rejects a Pitest-Override-Rationale trailer missing follow-up', () => {
+    const r = run(
+      ['--dry-run', '--test-trailer', 'Pitest-Override-Rationale: deferred | approver:@user'],
+      '.',
+    )
+    expect(r.status).toBe(1)
+    expect(r.stderr.toLowerCase()).toContain('follow-up')
+  })
+})
+
 describe('check-commit-footer-rationale.mjs (INV-119) — suppression-file classification', () => {
   // Regression (wave-E integration): the title-string interpolation hardening of
   // src/templates/suppressions/suppressions-schema.json.ejs falsely tripped the gate.
