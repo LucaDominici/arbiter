@@ -43,16 +43,16 @@ describe('injectDevDependency (#1314 install-channel guard)', () => {
     ['./vendor/arbiter-cli-0.1.0.tgz'],
     ['https://example.com/pkg.tar.gz'],
   ])('throws on a volatile install channel: %s', (version) => {
-    expect(() => injectDevDependency(dir, '@arbiter/cli', version, false)).toThrow(/volatile/i)
+    expect(() => injectDevDependency(dir, '@getarbiter/cli', version, false)).toThrow(/volatile/i)
     // package.json must be left untouched (no partial write).
     const pkg = JSON.parse(readFileSync(pkgPath(), 'utf-8')) as {
       devDependencies: Record<string, string>
     }
-    expect(pkg.devDependencies['@arbiter/cli']).toBeUndefined()
+    expect(pkg.devDependencies['@getarbiter/cli']).toBeUndefined()
   })
 
   it('rejects a volatile version even in dryRun (validated before the dryRun short-circuit)', () => {
-    expect(() => injectDevDependency(dir, '@arbiter/cli', 'file:../x.tgz', true)).toThrow(
+    expect(() => injectDevDependency(dir, '@getarbiter/cli', 'file:../x.tgz', true)).toThrow(
       /volatile/i,
     )
   })

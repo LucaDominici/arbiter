@@ -12,7 +12,7 @@ related: []
 # Public API Reference
 
 **Issue:** #598  
-**Package:** `@arbiter/cli`
+**Package:** `@getarbiter/cli`
 
 Arbiter exposes four stable public entry points. All other paths are internal and may change without notice.
 
@@ -20,16 +20,16 @@ Arbiter exposes four stable public entry points. All other paths are internal an
 
 ## Entry Points
 
-| Export path                  | Purpose                                       |
-| ---------------------------- | --------------------------------------------- |
-| `@arbiter/cli`               | CLI entry — not intended for programmatic use |
-| `@arbiter/cli/plugin`        | Plugin type definitions                       |
-| `@arbiter/cli/invariants`    | Invariant catalog + filtering                 |
-| `@arbiter/cli/compatibility` | Environment probe + matrix types              |
+| Export path                     | Purpose                                       |
+| ------------------------------- | --------------------------------------------- |
+| `@getarbiter/cli`               | CLI entry — not intended for programmatic use |
+| `@getarbiter/cli/plugin`        | Plugin type definitions                       |
+| `@getarbiter/cli/invariants`    | Invariant catalog + filtering                 |
+| `@getarbiter/cli/compatibility` | Environment probe + matrix types              |
 
 ---
 
-## `@arbiter/cli/invariants`
+## `@getarbiter/cli/invariants`
 
 ```ts
 import {
@@ -38,7 +38,7 @@ import {
   getInvariantsByTier,
   presetToTiers,
   defaultPresetForLevel,
-} from '@arbiter/cli/invariants'
+} from '@getarbiter/cli/invariants'
 
 import type {
   Invariant,
@@ -46,7 +46,7 @@ import type {
   InvariantPreset,
   Language,
   GovernanceLevel,
-} from '@arbiter/cli/invariants'
+} from '@getarbiter/cli/invariants'
 ```
 
 ### Exports
@@ -66,10 +66,10 @@ import type {
 
 ---
 
-## `@arbiter/cli/compatibility`
+## `@getarbiter/cli/compatibility`
 
 ```ts
-import { runProbes, validateMatrix } from '@arbiter/cli/compatibility'
+import { runProbes, validateMatrix } from '@getarbiter/cli/compatibility'
 
 import type {
   MatrixEntry,
@@ -77,7 +77,7 @@ import type {
   ProbeResult,
   ProbeStatus,
   VerifyReport,
-} from '@arbiter/cli/compatibility'
+} from '@getarbiter/cli/compatibility'
 ```
 
 ### Exports

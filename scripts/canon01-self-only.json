@@ -35,11 +35,11 @@
     },
     {
       "path": "scripts/check-anti-telemetry.mjs",
-      "reason": "Scans dist/ and src/templates/ for network-call patterns outside the allowlist. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "Scans dist/ and src/templates/ for network-call patterns outside the allowlist. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-api-snapshot.mjs",
-      "reason": "Public TypeScript API exports have not changed without acknowledgment. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "Public TypeScript API exports have not changed without acknowledgment. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-bloat-ratchet.mjs",
@@ -99,7 +99,7 @@
     },
     {
       "path": "scripts/check-deprecations.mjs",
-      "reason": "No symbol in the active deprecation window is silently removed; CLI_DEPRECATED_FLAGS registry validity. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "No symbol in the active deprecation window is silently removed; CLI_DEPRECATED_FLAGS registry validity. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-doc-path-citations.mjs",
@@ -172,7 +172,7 @@
     },
     {
       "path": "scripts/check-install-command.mjs",
-      "reason": "Rejects docs telling a reader to install the unscoped package name. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "Rejects docs telling a reader to install the unscoped package name. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-inv-enforcement-wired.mjs",
@@ -246,7 +246,7 @@
     },
     {
       "path": "scripts/check-phantom-command-scan.mjs",
-      "reason": "INV-111: every `arbiter <cmd>` citation in prose resolves to a real command in src/cli.ts. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "INV-111: every `arbiter <cmd>` citation in prose resolves to a real command in src/cli.ts. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-phase-doc-consistency.mjs",
@@ -254,7 +254,7 @@
     },
     {
       "path": "scripts/check-plugin-api-stability.mjs",
-      "reason": "Guards the published plugin API surface against unacknowledged change. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "Guards the published plugin API surface against unacknowledged change. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-private-paths-ignored.mjs",
@@ -266,7 +266,7 @@
     },
     {
       "path": "scripts/check-runtime-dep-pins.mjs",
-      "reason": "Exact (non-caret) pins on every published runtime dependency. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "Exact (non-caret) pins on every published runtime dependency. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-script-cohesion.mjs",
@@ -298,11 +298,11 @@
     },
     {
       "path": "scripts/check-tool-claims.mjs",
-      "reason": "Rejects docs claiming --accept-beta-tools enables a tool the CLI hard-rejects. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "Rejects docs claiming --accept-beta-tools enables a tool the CLI hard-rejects. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-version-parity.mjs",
-      "reason": "package.json version == dist/cli.js --version == CHANGELOG.md top entry. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "package.json version == dist/cli.js --version == CHANGELOG.md top entry. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/check-workflow-cache-strategy.mjs",
@@ -326,7 +326,7 @@
     },
     {
       "path": "scripts/gen-cli-ref.mjs",
-      "reason": "Generates the CLI command-reference region from src/cli.ts. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "Generates the CLI command-reference region from src/cli.ts. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/gen-derived-pages.mjs",
@@ -342,7 +342,7 @@
     },
     {
       "path": "scripts/gen-third-party-licenses.mjs",
-      "reason": "Emits THIRD_PARTY_LICENSES.md from the published dependency closure. Its subject is the published @arbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
+      "reason": "Emits THIRD_PARTY_LICENSES.md from the published dependency closure. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },
     {
       "path": "scripts/regenerate-examples.mjs",

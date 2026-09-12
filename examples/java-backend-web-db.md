@@ -34,7 +34,7 @@ java-backend-web-db/
 ## 2. Run `arbiter init`
 
 ```bash
-npx @arbiter/cli init \
+npx @getarbiter/cli init \
   --dir ./java-backend-web-db \
   --tools claude \
   --level L2

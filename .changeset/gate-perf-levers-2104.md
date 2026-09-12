@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': patch
+'@getarbiter/cli': patch
 ---
 
 Three measured gate levers ported into the generated gate (#2104). The emitted

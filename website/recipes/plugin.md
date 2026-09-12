@@ -60,7 +60,7 @@ The `@beta` tag on the API means the contract is stable for internal use but bre
 // my-plugin/index.js
 const { join } = require('node:path')
 
-/** @type {import("@arbiter/cli/plugin").ArbiterPlugin} */
+/** @type {import("@getarbiter/cli/plugin").ArbiterPlugin} */
 module.exports = {
   name: 'my-plugin',
   apiVersion: '1',

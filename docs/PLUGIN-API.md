@@ -124,7 +124,7 @@ Plugins published to npm must follow this convention to be discoverable via the 
 | --------------- | --------------------------------------------------------- |
 | npm keyword     | `arbiter-plugin`                                          |
 | Package name    | `arbiter-plugin-<name>` or `@scope/arbiter-plugin-<name>` |
-| Peer dependency | `"@arbiter/cli": "*"`                                     |
+| Peer dependency | `"@getarbiter/cli": "*"`                                  |
 
 `src/utils/plugin-loader.ts::loadPlugin` validates an installed plugin's `package.json` against this schema before its code ever runs — automatically, on every `arbiter init` / `update` that loads the plugin (schema-only at that stage; no plugin code is executed until validation passes).
 

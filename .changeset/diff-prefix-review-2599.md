@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': patch
+'@getarbiter/cli': patch
 ---
 
 Preserve added lines beginning with plus signs in shared governance hooks, including

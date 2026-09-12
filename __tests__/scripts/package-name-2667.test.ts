@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const root = resolve(__dirname, '../..')
-const OLD = '@arbiter/cli'
+const OLD = ['@arbiter', 'cli'].join('/') // split so this file is not its own offender
 const NEW = '@getarbiter/cli'
 const HISTORICAL = [
   /^\.arbiter\/evidence\//,

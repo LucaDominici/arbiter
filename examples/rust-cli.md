@@ -44,7 +44,7 @@ clap = { version = "4", features = ["derive"] }
 ## 2. Run `arbiter init`
 
 ```bash
-npx @arbiter/cli init \
+npx @getarbiter/cli init \
   --dir ./rust-cli \
   --tools claude \
   --level L2

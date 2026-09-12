@@ -197,7 +197,7 @@ function spawn(name, cmd, args, opts) {
 
 /** Run the consumer's installed Arbiter CLI; never resolve an ambient command. */
 export function runLocalArbiter(args, opts = {}) {
-  const cli = resolvePath(opts.cwd ?? process.cwd(), 'node_modules/@arbiter/cli/dist/cli.js')
+  const cli = resolvePath(opts.cwd ?? process.cwd(), 'node_modules/@getarbiter/cli/dist/cli.js')
   try {
     const stat = statSync(cli)
     if (!stat.isFile() || (stat.mode & 0o444) === 0) throw new Error('not a readable file')

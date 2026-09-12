@@ -105,7 +105,7 @@ function buildOverrides(opts: ResolveShipProfileOptions): Record<string, string>
 }
 
 /** The unique npm package name of arbiter-self — the authoritative self-detection signal. */
-const ARBITER_SELF_PACKAGE = '@arbiter/cli'
+const ARBITER_SELF_PACKAGE = '@getarbiter/cli'
 
 /** The arbiter authoring-side gates that are self-only-forever (ADR-093 §5). */
 export const SELF_ONLY_GATES = [
@@ -221,7 +221,7 @@ export const CONSUMER_DEFAULT_PROFILE: ShipProfile = {
 
 /**
  * Detect arbiter-self by its globally-unique npm package name. A consumer can never publish
- * `@arbiter/cli`, so this has no false-positives — unlike a path heuristic (src/templates),
+ * `@getarbiter/cli`, so this has no false-positives — unlike a path heuristic (src/templates),
  * which would mis-classify a fork/monorepo/vendored consumer and leak self-only gates (RT-04).
  * Rooted at `root` (never cwd-relative) and crash-safe: a missing or malformed package.json is
  * simply "not self" (RT-09).

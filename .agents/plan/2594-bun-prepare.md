@@ -25,7 +25,7 @@ The integration writer remains in `2594-bun-git-prepare`; no #2578 files change.
 The live issue's four criteria below are verbatim. Stable numeric ids were
 added to the issue this cycle; its four criterion texts are unchanged.
 
-- [ ] AC-1: A Git dependency install under Bun with trust scoped to `@arbiter/cli` builds the project-local `node_modules/@arbiter/cli/dist/cli.js` without an ambient compiler or a global install.
+- [ ] AC-1: A Git dependency install under Bun with trust scoped to `@getarbiter/cli` builds the project-local `node_modules/@getarbiter/cli/dist/cli.js` without an ambient compiler or a global install.
 - [ ] AC-2: The lifecycle bootstrap obtains the package's declared build tooling through a deterministic package-manager command, without recursion or a blanket lifecycle bypass; ordinary contributor installs still do not build.
 - [ ] AC-3: Focused lifecycle regressions cover missing compiler bootstrap, existing `dist/cli.js`, npm Git-cache and contributor paths.
 - [ ] AC-4: A real isolated Bun install of the exact candidate executes the fixed local CLI against a non-vacuous document command. Package publication/adoption and #2578's generated-wrapper acceptance remain open.
@@ -141,8 +141,8 @@ AC fit, composed L1, exact-head L2, live green CI and pr-ff/CAS admission remain
 required (INV-08/23/24/25/26/27/53/138). Prior phase timestamps remain historical.
 
 After code review and gates, a fresh temp consumer runs Bun 1.3.9 with trust
-limited to `@arbiter/cli` and the committed candidate's full Git SHA. It asserts
-the fixed local `node_modules/@arbiter/cli/dist/cli.js`, then executes that file
+limited to `@getarbiter/cli` and the committed candidate's full Git SHA. It asserts
+the fixed local `node_modules/@getarbiter/cli/dist/cli.js`, then executes that file
 against a minimal non-vacuous `doc-set --strict --json` fixture. Retain command,
 exit, candidate SHA and installed CLI hash. This verifies #2594 only; #2578
 wrappers, package publication and consumer adoption remain separate.

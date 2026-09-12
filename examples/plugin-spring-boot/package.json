@@ -9,6 +9,6 @@
     "spring-boot"
   ],
   "peerDependencies": {
-    "@arbiter/cli": "*"
+    "@getarbiter/cli": "*"
   }
 }

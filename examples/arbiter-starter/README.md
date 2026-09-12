@@ -41,7 +41,7 @@ arbiter-starter/
 3. Run arbiter from the workspace root:
 
    ```bash
-   npx @arbiter/cli init --dir . --tools claude --level L1
+   npx @getarbiter/cli init --dir . --tools claude --level L1
    ```
 
 4. Inspect what was generated:

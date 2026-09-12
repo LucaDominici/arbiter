@@ -51,7 +51,7 @@ ts-frontend-spa/
 ## 2. Run `arbiter init`
 
 ```bash
-npx @arbiter/cli init \
+npx @getarbiter/cli init \
   --dir ./ts-frontend-spa \
   --tools claude \
   --level L2

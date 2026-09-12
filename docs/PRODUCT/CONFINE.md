@@ -54,7 +54,7 @@ ancora concordato — issue separata.
 $ readlink -f $(which arbiter)
 /home/luca/work/repos/arbiter/dist/cli.js
 $ npm ls -g --depth=0 | grep arbiter
-└── @arbiter/cli@0.5.0 -> ./../../../../../work/repos/arbiter
+└── @getarbiter/cli@0.5.0 -> ./../../../../../work/repos/arbiter
 ```
 
 `npm link` sull'albero di lavoro. I tre consumer non prendono arbiter da un registro e non lo

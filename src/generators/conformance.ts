@@ -19,7 +19,7 @@ export interface ConformanceScriptResult {
 
 /**
  * #1398 (INV-128): emit scripts/conformance.mjs for governed target projects —
- * an advisory pointer to `npx @arbiter/cli gold-audit`, exit 0/2 (INV-53).
+ * an advisory pointer to `npx @getarbiter/cli gold-audit`, exit 0/2 (INV-53).
  */
 export function generateConformanceScript(
   config: ProjectConfig,

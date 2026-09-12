@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': patch
+'@getarbiter/cli': patch
 ---
 
 Drop the `-covermode=atomic` pin from the generated `scripts/evidence-collect.mjs` Go coverage step

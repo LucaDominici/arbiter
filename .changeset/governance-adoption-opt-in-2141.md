@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': minor
+'@getarbiter/cli': minor
 ---
 
 update: WITHHOLD diverged governance files by default; add destructive `--adopt-governance` opt-in (#2141)

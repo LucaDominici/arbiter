@@ -579,8 +579,8 @@ describe('runInit', () => {
       `${dir}/package.json`,
       JSON.stringify({ name: 't', devDependencies: { vitest: '^4.0.0' } }),
     )
-    mkdirSync(`${dir}/node_modules/@arbiter/cli/dist`, { recursive: true })
-    writeFileSync(`${dir}/node_modules/@arbiter/cli/dist/cli.js`, '')
+    mkdirSync(`${dir}/node_modules/@getarbiter/cli/dist`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/@getarbiter/cli/dist/cli.js`, '')
     let stdout = ''
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       stdout += String(chunk)
@@ -613,8 +613,8 @@ describe('runInit', () => {
       `${dir}/package.json`,
       JSON.stringify({ name: 't', devDependencies: { vitest: '^4.0.0' } }),
     )
-    mkdirSync(`${dir}/node_modules/@arbiter/cli/dist`, { recursive: true })
-    writeFileSync(`${dir}/node_modules/@arbiter/cli/dist/cli.js`, '')
+    mkdirSync(`${dir}/node_modules/@getarbiter/cli/dist`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/@getarbiter/cli/dist/cli.js`, '')
     mkdirSync(`${dir}/node_modules/vitest`, { recursive: true })
     writeFileSync(`${dir}/node_modules/vitest/package.json`, '{}')
     let stdout = ''
@@ -643,8 +643,8 @@ describe('runInit', () => {
   // #2659: the two silent shapes left by #2658 — an unreadable manifest, and --json.
   it('names the install step and says why when the local CLI exists but package.json is unreadable (#2659)', async () => {
     writeFileSync(`${dir}/package.json`, '{ not json')
-    mkdirSync(`${dir}/node_modules/@arbiter/cli/dist`, { recursive: true })
-    writeFileSync(`${dir}/node_modules/@arbiter/cli/dist/cli.js`, '')
+    mkdirSync(`${dir}/node_modules/@getarbiter/cli/dist`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/@getarbiter/cli/dist/cli.js`, '')
     let stdout = ''
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       stdout += String(chunk)
@@ -673,8 +673,8 @@ describe('runInit', () => {
       `${dir}/package.json`,
       JSON.stringify({ name: 't', devDependencies: { vitest: '^4.0.0' } }),
     )
-    mkdirSync(`${dir}/node_modules/@arbiter/cli/dist`, { recursive: true })
-    writeFileSync(`${dir}/node_modules/@arbiter/cli/dist/cli.js`, '')
+    mkdirSync(`${dir}/node_modules/@getarbiter/cli/dist`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/@getarbiter/cli/dist/cli.js`, '')
     let stdout = ''
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       stdout += String(chunk)
@@ -701,8 +701,8 @@ describe('runInit', () => {
 
   it('carries the install step in --json nextSteps when package.json is unreadable (#2659)', async () => {
     writeFileSync(`${dir}/package.json`, '{ not json')
-    mkdirSync(`${dir}/node_modules/@arbiter/cli/dist`, { recursive: true })
-    writeFileSync(`${dir}/node_modules/@arbiter/cli/dist/cli.js`, '')
+    mkdirSync(`${dir}/node_modules/@getarbiter/cli/dist`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/@getarbiter/cli/dist/cli.js`, '')
     let stdout = ''
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       stdout += String(chunk)

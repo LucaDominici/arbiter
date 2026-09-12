@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: Install-command gate (B1) — rejects user-facing docs that tell a
 // CATALOG: reader to run the UNSCOPED `npx arbiter` / `npm install arbiter`
-// CATALOG: command. The published package is the SCOPED `@arbiter/cli`; the
+// CATALOG: command. The published package is the SCOPED `@getarbiter/cli`; the
 // CATALOG: unscoped `arbiter` name resolves to an unrelated third-party npm
 // CATALOG: package, so an unscoped headline install is a broken/unsafe onboarding
 // CATALOG: path. Cannot fold into check-doc-links.mjs (link resolution, not
@@ -49,17 +49,17 @@ const SKIP_PATHS = [
 
 const SENTINEL = 'install-command-allow'
 
-// Unscoped install invocations. The scoped forms `npx @arbiter/cli` and
-// `npm install -g @arbiter/cli` are explicitly allowed (negative lookahead on the
-// `@arbiter/cli` package) — only the bare `arbiter` package name is rejected.
+// Unscoped install invocations. The scoped forms `npx @getarbiter/cli` and
+// `npm install -g @getarbiter/cli` are explicitly allowed (negative lookahead on the
+// `@getarbiter/cli` package) — only the bare `arbiter` package name is rejected.
 const FORBIDDEN = [
-  // `npx arbiter ...` but NOT `npx @arbiter/cli ...`
-  { re: /\bnpx\s+arbiter\b/, label: 'npx arbiter (use: npx @arbiter/cli)' },
+  // `npx arbiter ...` but NOT `npx @getarbiter/cli ...`
+  { re: /\bnpx\s+arbiter\b/, label: 'npx arbiter (use: npx @getarbiter/cli)' },
   // `npm install [-g] arbiter` / `npm i [-g] arbiter` / `npm install arbiter@beta`
-  // but NOT `... @arbiter/cli`
+  // but NOT `... @getarbiter/cli`
   {
     re: /\bnpm\s+(?:install|i)\s+(?:-g\s+|--global\s+)?arbiter(?:@[\w.-]+)?\b/,
-    label: 'npm install arbiter (use: npm install -g @arbiter/cli)',
+    label: 'npm install arbiter (use: npm install -g @getarbiter/cli)',
   },
 ]
 
@@ -116,7 +116,7 @@ try {
       console.error(`  ${v.file}:${v.line}: "${v.match}" — ${v.label}`)
     }
     console.error(
-      '\nThe published package is @arbiter/cli; the unscoped `arbiter` name is an unrelated\n' +
+      '\nThe published package is @getarbiter/cli; the unscoped `arbiter` name is an unrelated\n' +
         'third-party package. Use the scoped form, or mark an intentional counter-example with\n' +
         `an \`<!-- ${SENTINEL} -->\` comment on the same or preceding line.`,
     )

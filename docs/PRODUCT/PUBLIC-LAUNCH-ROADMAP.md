@@ -21,7 +21,7 @@ related: ['docs/PRODUCT/PRD.md', 'ROADMAP.md']
 > Questo documento nasce da una misura, non da un'opinione. Ogni affermazione qui dentro
 > ha il comando che la sostiene. Dove non ce l'ha, è scritto che non ce l'ha.
 >
-> Stato di partenza, verificato: **`@arbiter/cli` non è pubblicato** (`npm view @arbiter/cli`
+> Stato di partenza, verificato: **`@getarbiter/cli` non è pubblicato** (`npm view @getarbiter/cli`
 > → `E404`). Non c'è nulla da ritirare. Il badge npm nel README punta oggi a una pagina 404.
 
 ---
@@ -189,7 +189,7 @@ il prodotto installa a tutti gli altri.** → **#2051**
 
 | verifica                                                                             | esito                                                                                                                                       |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm view @arbiter/cli`                                                              | **E404** — non pubblicato, niente da ritirare                                                                                               |
+| `npm view @getarbiter/cli`                                                           | **E404** — non pubblicato, niente da ritirare                                                                                               |
 | `npm i --engine-strict <tarball>` su npm 11.16.0                                     | **exit 1**, `EBADENGINE`, `Required: npm >=10.0.0 <11.0.0` → **#2128**                                                                      |
 | `npm i <tarball>` senza engine-strict                                                | riesce, ma stampa `npm warn EBADENGINE` a ogni utente                                                                                       |
 | `prepare: git config core.hooksPath .githooks` dirotta la hooksPath del consumatore? | **no** per un tarball — misurato, `.husky` invariato. Ma npm 11 lo espone a **ogni** installatore con un avviso `allow-scripts` → **#2133** |
@@ -463,5 +463,5 @@ senza diagnosi, e contare l'ignoranza come blocco gonfia il numero e basta.
 
 ---
 
-_Ultimo aggiornamento: 2026-07-26. Misure eseguite con `@arbiter/cli@0.5.0` impacchettato
+_Ultimo aggiornamento: 2026-07-26. Misure eseguite con `@getarbiter/cli@0.5.0` impacchettato
 (`npm pack`, shasum `784e2810`), su cloni usa-e-getta con `origin` rimosso._

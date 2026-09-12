@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': patch
+'@getarbiter/cli': patch
 ---
 
 Fixed `npm install github:LucaDominici/arbiter#<ref>` failing outright on some npm/git version

@@ -60,7 +60,7 @@ arbiter's **core** is a **governance installer**. It sets up the static artifact
 
 - You want the rules of your project enforced mechanically — not left to agent judgment on each run
 - You need the same governance invariants to apply regardless of which agent or tool is executing
-- You want a single `npx @arbiter/cli init` to produce a complete, language-aware governance setup
+- You want a single `npx @getarbiter/cli init` to produce a complete, language-aware governance setup
 - You need CI to fail (not warn) when governance rules are violated
 
 ## Using both together

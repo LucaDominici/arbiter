@@ -180,7 +180,7 @@ though the dev checkout (where `scripts/` is always present) never sees the fail
 - **`/close-gold-gap`** (#1422) — emits the deterministic remediation recipe for one gap, keyed on the
   check's `type`/`dimension` via a remediation catalog. **Known gap:** the `close-gold-gap` CLI command
   and its `src/remediations/` catalog were removed in the T2 command-surface cut — the emitted
-  `close-gold-gap` skill/command templates still invoke `npx @arbiter/cli close-gold-gap <gapId>`, which
+  `close-gold-gap` skill/command templates still invoke `npx @getarbiter/cli close-gold-gap <gapId>`, which
   no longer resolves. Treat this as a bug pending a follow-up (re-implement the command, or rewrite the
   skill to a manual recipe lookup). Anti-fake-green was **structural** by design: `manual`/NV checks
   route to human-only playbooks (no code recipe), a doc-set scaffold-only recipe yields verdict P

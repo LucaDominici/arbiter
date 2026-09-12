@@ -22,9 +22,9 @@ Five-minute install + first command + first gate run.
 ## 1. Install
 
 ```sh
-npm install -g @arbiter/cli
+npm install -g @getarbiter/cli
 # or run without installing
-npx @arbiter/cli init
+npx @getarbiter/cli init
 ```
 
 Requirements: Node.js ≥ 22, git ≥ 2.40.
@@ -367,7 +367,7 @@ node --version  # should print v22.x.x
 ## Step 3: Install arbiter
 
 ```bash
-npm install -g @arbiter/cli
+npm install -g @getarbiter/cli
 arbiter --version
 ```
 

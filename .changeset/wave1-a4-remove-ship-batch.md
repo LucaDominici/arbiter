@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': minor
+'@getarbiter/cli': minor
 ---
 
 `ship --batch` (deprecated at warn stage since 0.4.0, ADR-103 #1873, scheduled

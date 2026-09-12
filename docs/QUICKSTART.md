@@ -21,13 +21,13 @@ if arbiter isn't for you.
 
 ```bash
 # Interactive wizard — recommended for a first run
-npx @arbiter/cli init
+npx @getarbiter/cli init
 
 # Non-interactive (CI / scripted setup)
-npx @arbiter/cli init --yes
+npx @getarbiter/cli init --yes
 
 # Pick tools and a governance level explicitly
-npx @arbiter/cli init --yes --tools claude,codex --level L2
+npx @getarbiter/cli init --yes --tools claude,codex --level L2
 ```
 
 Requires Node.js ≥ 22 and the `gh` CLI authenticated (`gh auth login`) if you want
@@ -41,7 +41,7 @@ for what each level gates.
 ### Git-pinned installs with Bun
 
 When installing an immutable Arbiter Git revision with Bun, trust only
-`@arbiter/cli` so its prepare lifecycle can build the local CLI. If the package
+`@getarbiter/cli` so its prepare lifecycle can build the local CLI. If the package
 has neither `dist/cli.js` nor a local TypeScript compiler, prepare runs
 `npm ci --include=dev --ignore-scripts` against Arbiter's committed lockfile,
 then runs its build. This requires npm and registry access; bootstrap scripts
@@ -62,11 +62,11 @@ format gate commands invoke that detected manager rather than assuming `npm`.
 ### Before running generated document runners
 
 The generated document, freshness, arc42, and gold-audit runners use the root-local
-`@arbiter/cli`; init never installs it. Choose an immutable package spec outside init, then
+`@getarbiter/cli`; init never installs it. Choose an immutable package spec outside init, then
 use the project’s existing manager and lockfile:
 
 ```bash
-arbiter_spec='@arbiter/cli@<EXACT_VERSION>'
+arbiter_spec='@getarbiter/cli@<EXACT_VERSION>'
 # Or: arbiter_spec='github:LucaDominici/arbiter#<FULL_40_HEX_SHA>'
 
 npm install --save-dev --save-exact "$arbiter_spec"
@@ -76,7 +76,7 @@ npm install --save-dev --save-exact "$arbiter_spec"
 ```
 
 The Bun command scopes the Corepack override to that one install and trusts only
-`@arbiter/cli`, so its Git dependency prepare step can build the local checker.
+`@getarbiter/cli`, so its Git dependency prepare step can build the local checker.
 Use it in a POSIX shell (for example sh, bash, or zsh); Windows shell syntax is
 not covered by this command.
 
@@ -142,7 +142,7 @@ while a collector that runs but cannot produce a trustworthy result is fail-clos
 Every "what would this do to my repo?" question has exactly one read-only answer, and none
 of them writes a byte:
 
-- **Before adoption** — `npx @arbiter/cli init --yes --dry-run` names every file `init`
+- **Before adoption** — `npx @getarbiter/cli init --yes --dry-run` names every file `init`
   would create and every existing file it would keep untouched. The preview is the real
   generator plan executed in dry mode, not a separately maintained summary, so what it lists
   is what the run without `--dry-run` does.

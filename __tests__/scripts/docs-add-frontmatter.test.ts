@@ -176,14 +176,14 @@ describe('docs-add-frontmatter — hard-skips', () => {
     const subdir = join(tmpRoot, 'project')
     const changesetDir = join(subdir, '.changeset')
     mkdirSync(changesetDir, { recursive: true })
-    writeFileSync(join(changesetDir, 'an-entry.md'), `---\n"@arbiter/cli": patch\n---\n\nFix\n`)
+    writeFileSync(join(changesetDir, 'an-entry.md'), `---\n"@getarbiter/cli": patch\n---\n\nFix\n`)
 
     runCodemod(['--apply', '--dirs', subdir], REPO_ROOT)
 
     const after = readFileSync(join(changesetDir, 'an-entry.md'), 'utf-8')
     // changeset entries must NOT receive arbiter frontmatter.
     expect(after).not.toMatch(/doc_version:/)
-    expect(after).toContain('"@arbiter/cli": patch')
+    expect(after).toContain('"@getarbiter/cli": patch')
   })
 
   it('does not touch api/*.api.md generated files', () => {

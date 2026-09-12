@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': minor
+'@getarbiter/cli': minor
 ---
 
 New `pr-tooling` generator (#2098) emits `scripts/pr-merge-watch.mjs` (a bounded

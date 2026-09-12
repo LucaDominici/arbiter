@@ -41,7 +41,7 @@ const CATEGORIES = [
     format: 'QUESTION_ANSWER',
     firstPost: {
       title: 'How to ask a good question',
-      body: 'Include: arbiter version (`npx @arbiter/cli --version`), language + archetype, what you ran, what you expected, what happened. Mark the answer that solved your problem so future visitors find it quickly.',
+      body: 'Include: arbiter version (`npx @getarbiter/cli --version`), language + archetype, what you ran, what you expected, what happened. Mark the answer that solved your problem so future visitors find it quickly.',
     },
   },
   {

@@ -20,7 +20,7 @@ gates, generators, CLI flags — is just plumbing in service of them.
 
 Most quality tooling is something a team configures by hand: a linter here, a CI
 YAML there, a wiki page nobody re-reads. Arbiter instead **generates** a working
-governance setup into your repo in one command (`npx @arbiter/cli init`) and
+governance setup into your repo in one command (`npx @getarbiter/cli init`) and
 keeps it re-runnable — running `init` again refreshes what it manages and leaves
 your customizations alone.
 

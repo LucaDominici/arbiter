@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': minor
+'@getarbiter/cli': minor
 ---
 
 update: the gate spine is WITHHELD by default — `--adopt-gate-spine` is the opt-in (#2119)

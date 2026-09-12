@@ -52,7 +52,7 @@ workflow can reintroduce a push back to its own trigger branch.
 
    ```bash
    git fetch origin
-   npx @arbiter/cli worktree open --base <explicit origin/main SHA>   # reads the LOCAL branch otherwise
+   npx @getarbiter/cli worktree open --base <explicit origin/main SHA>   # reads the LOCAL branch otherwise
    # apply the pin bumps to .github/workflows/*.yml (copy from the dependabot PR diff)
    node scripts/sync-action-pins.mjs        # propagate yml → EJS
    node scripts/sync-action-pins.mjs --check
@@ -67,10 +67,10 @@ workflow can reintroduce a push back to its own trigger branch.
 
    ```bash
    # write the failing test, commit it, THEN:
-   npx @arbiter/cli task init --id '#NNNN'
-   npx @arbiter/cli task record-red --test-path <path to the new test>
+   npx @getarbiter/cli task init --id '#NNNN'
+   npx @getarbiter/cli task record-red --test-path <path to the new test>
    # implement, then confirm:
-   npx @arbiter/cli verify tdd '#NNNN'
+   npx @getarbiter/cli verify tdd '#NNNN'
    ```
 
    Use a **new** issue id for each train and record fresh evidence. Do not reuse a
@@ -81,7 +81,7 @@ workflow can reintroduce a push back to its own trigger branch.
    branch, over the union of subject- and body-cited ids — so reusing a merged id now
    fails the gate rather than merely being forbidden by convention.
 
-4. Gate: `npx @arbiter/cli gate-exec -- node scripts/check-all.mjs L2`. Push, merge.
+4. Gate: `npx @getarbiter/cli gate-exec -- node scripts/check-all.mjs L2`. Push, merge.
 5. Close the dependabot PR pointing at the train:
    `gh pr close <NNN> --comment "landed via <sha>"`.
 

@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': minor
+'@getarbiter/cli': minor
 ---
 
 Generated projects gain a single mode-aware landing contract at the merge trust

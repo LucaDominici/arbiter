@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': minor
+'@getarbiter/cli': minor
 ---
 
 Acceptance-criteria anchor (INV-138, ADR-110): closes the gap between "gate green"

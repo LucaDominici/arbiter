@@ -270,7 +270,7 @@ bumped.
 
 `doc_version` is **per-document content versioning** and is intentionally
 distinct from the **product semver** described in [`../../SEMVER.md`](../../SEMVER.md).
-The product semver governs the `@arbiter/cli` package; `doc_version` governs
+The product semver governs the `@getarbiter/cli` package; `doc_version` governs
 the meaning of an individual document. Two axes, two registers.
 
 ## When to bump
@@ -312,7 +312,7 @@ the meaning of an individual document. Two axes, two registers.
 ## Conflicts with product semver
 
 The two axes never share a number. A doc-only PR that bumps `doc_version`
-on a single file does NOT bump the `@arbiter/cli` package version. A product
+on a single file does NOT bump the `@getarbiter/cli` package version. A product
 MAJOR release does NOT bump every `doc_version` to MAJOR.
 
 If a product MAJOR change requires docs to be rewritten, the _affected_

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // arbiter — consumer-resolution audit gate (#1718, follow-up to #1670 parts 2&3).
 //
-// CATALOG: Audits what a CONSUMER of the published @arbiter/cli tarball actually
+// CATALOG: Audits what a CONSUMER of the published @getarbiter/cli tarball actually
 // CATALOG: resolves — npm pack (lifecycle scripts suppressed) -> install into a
 // CATALOG: throwaway root with no repo overrides/devDeps -> npm audit --json at a
 // CATALOG: moderate floor. Rejected fold-in into check-runtime-dep-pins.mjs — that
@@ -15,7 +15,7 @@
 // WHY a second audit gate at all: the existing `audit` step in scripts/check-all.mjs
 // runs `npm audit --omit=dev --audit-level=high` against the DEV tree, where npm
 // `overrides` ARE applied. npm silently drops `overrides` for anyone who installs
-// @arbiter/cli as a dependency — the dev-tree audit is structurally blind to that
+// @getarbiter/cli as a dependency — the dev-tree audit is structurally blind to that
 // class of exposure (the uuid@8 GHSA-w5hq-g745-h8pq vuln that motivated #1670 was
 // masked exactly this way, until the runtime dependency itself was replaced). This
 // gate audits the CONSUMER view instead: no repo overrides, no devDependencies, and

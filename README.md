@@ -14,23 +14,23 @@ related: []
 **AI governance that installs itself — and can't be faked.**
 
 [![No Telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)](PRIVACY.md)
-[![npm version](https://img.shields.io/npm/v/@arbiter/cli)](https://www.npmjs.com/package/@arbiter/cli)
+[![npm version](https://img.shields.io/npm/v/@getarbiter/cli)](https://www.npmjs.com/package/@getarbiter/cli)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen)](https://nodejs.org/)
 
 ```bash
-npx @arbiter/cli init
+npx @getarbiter/cli init
 ```
 
 Run init in a repository that already contains a supported language marker. In a new empty
-directory, pass it explicitly (for example, `npx @arbiter/cli init --language typescript`):
+directory, pass it explicitly (for example, `npx @getarbiter/cli init --language typescript`):
 arbiter exits non-zero when the language is unknown because the naming and test-pyramid checks
 cannot be configured honestly.
 
 ![Terminal demo: arbiter init scaffolds governance for a TypeScript project, then the L1 gate runs clean](docs/assets/demo.svg)
 
 Coding agents are great at writing code and even better at claiming it works.
-Arbiter makes "done means tested" mechanical: `npx @arbiter/cli init` gives your
+Arbiter makes "done means tested" mechanical: `npx @getarbiter/cli init` gives your
 repo a single canonical rulebook, gates that fail loudly, and evidence checks
 anchored to git history. If the test never failed first, the task doesn't
 advance. No telemetry, no server, no lock-in — delete the generated files and
@@ -78,7 +78,7 @@ the wheel.
 ## Quickstart
 
 ```bash
-npx @arbiter/cli init
+npx @getarbiter/cli init
 ```
 
 1. Ask your coding agent to implement a change and report done.

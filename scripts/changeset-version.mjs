@@ -3,8 +3,8 @@
 // Root-aware `changeset version` wrapper (#1478).
 //
 // @manypkg/get-packages (used by changesets) treats `"workspaces": ["website","packages/*"]` as a
-// monorepo and enumerates ONLY the workspace members (@arbiter/website) — the ROOT @arbiter/cli is
-// returned as `rootPackage`, which `changeset version` does NOT bump. So every @arbiter/cli
+// monorepo and enumerates ONLY the workspace members (@arbiter/website) — the ROOT @getarbiter/cli is
+// returned as `rootPackage`, which `changeset version` does NOT bump. So every @getarbiter/cli
 // changeset failed assembly ("not in the workspace") and the documented release flow never worked;
 // 0.2.0 was cut by manually stripping `workspaces` for the version step.
 //

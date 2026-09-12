@@ -283,7 +283,7 @@ describe('runTaskShip — seedShipState + drive branches (real temp-dir state I/
 
   it('detects arbiter-self via the target package.json name', () => {
     mkdirSync(dir, { recursive: true })
-    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@arbiter/cli' }))
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@getarbiter/cli' }))
     const res = runTaskShip({ dir, taskId: '#11', tier: 'Standard' })
     expect(res.profile.isArbiterSelf).toBe(true)
   })

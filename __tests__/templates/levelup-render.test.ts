@@ -27,8 +27,8 @@ describe('levelup orchestrator skill + command templates (#1421)', () => {
 
   it('skill composes the existing gold-audit + close-gold-gap CLIs (no new engine)', () => {
     const out = renderTemplate('claude/skills/levelup/SKILL.md.ejs', config)
-    // Scoped install command (B1): generated kit invokes the engine via @arbiter/cli.
-    expect(out).toContain('npx @arbiter/cli gold-audit')
+    // Scoped install command (B1): generated kit invokes the engine via @getarbiter/cli.
+    expect(out).toContain('npx @getarbiter/cli gold-audit')
     expect(out).toContain('close-gold-gap')
   })
 

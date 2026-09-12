@@ -22,7 +22,7 @@ related: []
 
 Arbiter installs a complete, standards-aligned AI governance stack into any project in one command. No manual configuration, no drift, no duplication.
 
-Any developer using AI coding agents should be able to run `npx @arbiter/cli init`, answer a few questions about their project, and receive a production-grade governance stack that all their AI tools understand natively.
+Any developer using AI coding agents should be able to run `npx @getarbiter/cli init`, answer a few questions about their project, and receive a production-grade governance stack that all their AI tools understand natively.
 
 ---
 
@@ -198,7 +198,7 @@ Arbiter's own governance level is whatever `arbiter.json` declares (`governanceL
 
 | Metric                                                             | Target                      |
 | ------------------------------------------------------------------ | --------------------------- |
-| Time from `npx @arbiter/cli init` to complete governance stack     | < 60 seconds                |
+| Time from `npx @getarbiter/cli init` to complete governance stack  | < 60 seconds                |
 | Tests passing (all stacks, all governance levels)                  | 9,000+ tests, 85%+ coverage |
 | Idempotency: running init twice produces no unintended changes     | 100%                        |
 | Brownfield safety: existing customizations preserved               | 100% of custom hooks/rules  |
@@ -217,9 +217,9 @@ Arbiter's own governance level is whatever `arbiter.json` declares (`governanceL
 
 ## Open Questions
 
-| Question                                       | Status  | Recommendation                                                          |
-| ---------------------------------------------- | ------- | ----------------------------------------------------------------------- |
-| npm package name (`arbiter` vs `@arbiter/cli`) | Decided | `@arbiter/cli` (avoids conflicts, namespace reserved)                   |
-| License                                        | Decided | Apache 2.0 (SPDX headers already added; compatible with AGENTS.md spec) |
-| Docs site                                      | Decided | Mintlify planned for v1.0; markdown-only until then                     |
-| Plugin API design                              | Decided | Shipped in M32 — see `docs/PLUGIN-API.md`                               |
+| Question                                          | Status  | Recommendation                                                          |
+| ------------------------------------------------- | ------- | ----------------------------------------------------------------------- |
+| npm package name (`arbiter` vs `@getarbiter/cli`) | Decided | `@getarbiter/cli` (avoids conflicts, namespace reserved)                |
+| License                                           | Decided | Apache 2.0 (SPDX headers already added; compatible with AGENTS.md spec) |
+| Docs site                                         | Decided | Mintlify planned for v1.0; markdown-only until then                     |
+| Plugin API design                                 | Decided | Shipped in M32 — see `docs/PLUGIN-API.md`                               |

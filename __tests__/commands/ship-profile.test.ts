@@ -185,9 +185,9 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
     expect(resolveShipProfile(dir, { claudeHome: EMPTY_HOME })).toEqual(CONSUMER_DEFAULT_PROFILE)
   })
 
-  it('arbiter-self (pkg @arbiter/cli, trunk-solo + pr-ff) → isArbiterSelf true', () => {
+  it('arbiter-self (pkg @getarbiter/cli, trunk-solo + pr-ff) → isArbiterSelf true', () => {
     const dir = tmpRepo({
-      'package.json': pkg('@arbiter/cli'),
+      'package.json': pkg('@getarbiter/cli'),
       'arbiter.json': cfg({ collaborationMode: 'trunk-solo', solo: { mergeMode: 'pr-ff' } }),
     })
     expect(resolveShipProfile(dir, { claudeHome: EMPTY_HOME })).toEqual({
@@ -253,7 +253,7 @@ describe('resolveShipProfile — companion plugins (#1730)', () => {
   })
 
   it('arbiter-self + ponytail installed → NO companion (self guard)', () => {
-    const dir = tmpRepo({ 'package.json': pkg('@arbiter/cli') })
+    const dir = tmpRepo({ 'package.json': pkg('@getarbiter/cli') })
     const p = resolveShipProfile(dir, { claudeHome: homeWithPonytail() })
     expect(p.companions).toEqual([])
   })
@@ -377,8 +377,8 @@ describe('resolveShipProfile — cross-model review (#2356)', () => {
 })
 
 describe('isArbiterSelf — package-name signal, rooted, crash-safe (#1288 RT-04/09)', () => {
-  it('true only for the unique @arbiter/cli package name', () => {
-    const self = tmpRepo({ 'package.json': pkg('@arbiter/cli') })
+  it('true only for the unique @getarbiter/cli package name', () => {
+    const self = tmpRepo({ 'package.json': pkg('@getarbiter/cli') })
     expect(isArbiterSelf(self)).toBe(true)
   })
 
@@ -399,8 +399,8 @@ describe('isArbiterSelf — package-name signal, rooted, crash-safe (#1288 RT-04
   })
 
   it('resolves against the passed root, not process.cwd() (RT-09)', () => {
-    const dir = tmpRepo({ 'package.json': pkg('@arbiter/cli') })
-    // cwd is the arbiter worktree (also @arbiter/cli) — assert the function honors `dir`
+    const dir = tmpRepo({ 'package.json': pkg('@getarbiter/cli') })
+    // cwd is the arbiter worktree (also @getarbiter/cli) — assert the function honors `dir`
     const consumer = tmpRepo({ 'package.json': pkg('other') })
     expect(isArbiterSelf(dir)).toBe(true)
     expect(isArbiterSelf(consumer)).toBe(false)

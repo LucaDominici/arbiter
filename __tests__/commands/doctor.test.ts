@@ -313,7 +313,7 @@ describe('runDoctorHealth (#539)', () => {
 
     it('keeps an absent bypass checker actionable for arbiter itself (AC-3)', async () => {
       mockGitOk()
-      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@arbiter/cli' }))
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@getarbiter/cli' }))
       writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
 
       const result = await runDoctorHealth({ dir, json: true })
@@ -1044,7 +1044,7 @@ describe('runDoctorHealth (#539)', () => {
     it('arbiter-self: states companions never activate on self, instead of a per-entry row', async () => {
       mockGitOk()
       writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
-      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@arbiter/cli' }), 'utf-8')
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@getarbiter/cli' }), 'utf-8')
       installPonytail(claudeHome)
       const result = await runDoctorHealth({ dir, claudeHome, json: true })
       const check = result.checks.find((c) => c.id === 'companions')

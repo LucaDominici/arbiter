@@ -1,5 +1,5 @@
 {
-  "name": "@arbiter/cli",
+  "name": "@getarbiter/cli",
   "version": "0.5.0",
   "description": "Governance installer for AI-assisted software development, with an optional orchestration layer",
   "license": "Apache-2.0",

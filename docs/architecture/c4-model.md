@@ -29,7 +29,7 @@ database** — all state is ordinary version-controlled files plus a local `.arb
 
 ```mermaid
 graph TB
-    dev["👤 Developer<br/>(runs npx @arbiter/cli)"]
+    dev["👤 Developer<br/>(runs npx @getarbiter/cli)"]
     agent["🤖 AI Coding Agent<br/>Claude Code / Codex<br/>(reads AGENTS.md, runs /ship)"]
 
     subgraph sys["Arbiter — AI-governance installer + optional orchestration layer"]
@@ -39,7 +39,7 @@ graph TB
     repo["📁 Target repository<br/>(the project being governed)"]
     gh["GitHub<br/>(issues, PRs, labels,<br/>branch protection, Actions)"]
     ci["CI runners<br/>(GitHub Actions:<br/>generated ci.yml / tier workflows)"]
-    npm["npm registry<br/>(@arbiter/cli distribution)"]
+    npm["npm registry<br/>(@getarbiter/cli distribution)"]
     tools["Stack toolchains<br/>(eslint · ruff · clippy · gofmt ·<br/>gradle · jscpd · trivy · gh)"]
 
     dev -->|"init · configure · ship · gold-audit"| arbiter

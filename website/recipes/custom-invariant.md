@@ -41,7 +41,7 @@ arbiter plugin add ./my-rules
 // my-rules/index.js
 const { join } = require('node:path')
 
-/** @type {import("@arbiter/cli/plugin").ArbiterPlugin} */
+/** @type {import("@getarbiter/cli/plugin").ArbiterPlugin} */
 module.exports = {
   name: 'my-rules',
   apiVersion: '1',

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Public barrel for @arbiter/cli/invariants (#598)
+// Public barrel for @getarbiter/cli/invariants (#598)
 // Re-exports the stable public surface — do not leak internal implementation modules.
 export { INVARIANT_CATALOG } from './catalog.js'
 export {

@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': patch
+'@getarbiter/cli': patch
 ---
 
 Validate enabled acceptance anchors before entering the RED phase, and require

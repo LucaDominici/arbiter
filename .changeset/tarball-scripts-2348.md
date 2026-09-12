@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': patch
+'@getarbiter/cli': patch
 ---
 
 Fixed `arbiter doc-set` / `arbiter gold-audit` crashing with `MODULE_NOT_FOUND` for every

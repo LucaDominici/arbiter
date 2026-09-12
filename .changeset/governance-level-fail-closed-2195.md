@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': major
+'@getarbiter/cli': major
 ---
 
 `governanceLevel` now fails closed. A present invalid value no longer silently

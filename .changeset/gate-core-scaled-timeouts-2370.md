@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': patch
+'@getarbiter/cli': patch
 ---
 
 Gate step timeouts now scale with the available CPU cores, allowing the full gate to run

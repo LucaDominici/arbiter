@@ -42,29 +42,29 @@ Modify `arbiter.json` configuration fields without re-running `arbiter init`.
 2. Run the configure command:
 
 ```bash
-npx @arbiter/cli configure --set <path>=<value>
+npx @getarbiter/cli configure --set <path>=<value>
 ```
 
 3. If the change affects generated files, offer to run `arbiter update`:
 
 ```bash
-npx @arbiter/cli update
+npx @getarbiter/cli update
 ```
 
 ## Examples
 
 ```bash
 # Disable mutation testing
-npx @arbiter/cli configure --set features.mutationTesting=false
+npx @getarbiter/cli configure --set features.mutationTesting=false
 
 # Raise line coverage target
-npx @arbiter/cli configure --set thresholds.lineCoverage=90
+npx @getarbiter/cli configure --set thresholds.lineCoverage=90
 
 # Multiple changes at once
-npx @arbiter/cli configure --set features.debtGates=true --set thresholds.cyclomaticComplexity=10
+npx @getarbiter/cli configure --set features.debtGates=true --set thresholds.cyclomaticComplexity=10
 
 # Change AI tools
-npx @arbiter/cli configure --set tools=claude,codex
+npx @getarbiter/cli configure --set tools=claude,codex
 ```
 
 ## Current Config

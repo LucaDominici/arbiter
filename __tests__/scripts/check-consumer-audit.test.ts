@@ -5,7 +5,7 @@
 //
 // scripts/check-all.mjs's existing `audit` step runs `npm audit --omit=dev
 // --audit-level=high` against the DEV tree, where npm `overrides` ARE applied —
-// structurally blind to what a consumer of @arbiter/cli actually resolves (npm
+// structurally blind to what a consumer of @getarbiter/cli actually resolves (npm
 // silently drops `overrides` for anyone who installs the package as a dependency).
 // This gate closes that blind spot: pack the publishable tarball, install it into a
 // throwaway root with no repo overrides/devDeps, and audit THAT tree at a stricter

@@ -24,7 +24,7 @@ Get arbiter running in under 60 seconds.
 ## Install
 
 ```bash
-npx @arbiter/cli init
+npx @getarbiter/cli init
 ```
 
 That's it. The wizard detects your stack and asks a few questions.
@@ -46,13 +46,13 @@ If you already know what you want:
 
 ```bash
 # All defaults, no prompts
-npx @arbiter/cli init --yes
+npx @getarbiter/cli init --yes
 
 # Specify tools and level explicitly
-npx @arbiter/cli init --yes --tools claude,codex --level L2
+npx @getarbiter/cli init --yes --tools claude,codex --level L2
 
 # Target a different directory
-npx @arbiter/cli init --yes --dir /path/to/your/project
+npx @getarbiter/cli init --yes --dir /path/to/your/project
 ```
 
 ---

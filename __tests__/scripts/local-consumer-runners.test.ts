@@ -30,13 +30,13 @@ function fixture(template: (typeof RUNNERS)[number][0], source = 'process.exit(0
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-local-runner-'))
   created.push(dir)
   mkdirSync(join(dir, 'scripts/lib'), { recursive: true })
-  mkdirSync(join(dir, 'node_modules/@arbiter/cli/dist'), { recursive: true })
+  mkdirSync(join(dir, 'node_modules/@getarbiter/cli/dist'), { recursive: true })
   writeFileSync(join(dir, 'scripts/runner.mjs'), renderTemplate(template, makeConfig(dir)))
   writeFileSync(
     join(dir, 'scripts/lib/run-helpers.mjs'),
     renderTemplate('scripts/lib/run-helpers.mjs.ejs', makeConfig(dir)),
   )
-  writeFileSync(join(dir, 'node_modules/@arbiter/cli/dist/cli.js'), source)
+  writeFileSync(join(dir, 'node_modules/@getarbiter/cli/dist/cli.js'), source)
   return dir
 }
 
@@ -62,7 +62,7 @@ describe('consumer-local Arbiter runners (#2578)', () => {
     rmSync(join(dir, 'node_modules'), { recursive: true, force: true })
     const result = run(dir)
     expect(result.status).toBe(2)
-    expect(existsSync(join(dir, 'node_modules/@arbiter/cli/dist/cli.js'))).toBe(false)
+    expect(existsSync(join(dir, 'node_modules/@getarbiter/cli/dist/cli.js'))).toBe(false)
   })
 
   it.each(RUNNERS)(
@@ -92,7 +92,7 @@ describe('consumer-local Arbiter runners (#2578)', () => {
   it.each(RUNNERS)('returns ERROR 2 for a directory or dangling local CLI: %s', (template) => {
     for (const kind of ['directory', 'dangling'] as const) {
       const dir = fixture(template)
-      const cli = join(dir, 'node_modules/@arbiter/cli/dist/cli.js')
+      const cli = join(dir, 'node_modules/@getarbiter/cli/dist/cli.js')
       rmSync(cli)
       if (kind === 'directory') mkdirSync(cli)
       else symlinkSync(join(dir, 'does-not-exist'), cli)
@@ -106,7 +106,7 @@ describe('consumer-local Arbiter runners (#2578)', () => {
       // Root bypasses mode bits, so this portable subprocess assertion has no claim there.
       if (process.getuid?.() === 0) return
       const dir = fixture(template)
-      const cli = join(dir, 'node_modules/@arbiter/cli/dist/cli.js')
+      const cli = join(dir, 'node_modules/@getarbiter/cli/dist/cli.js')
       chmodSync(cli, 0o000)
       try {
         expect(run(dir).status).toBe(2)

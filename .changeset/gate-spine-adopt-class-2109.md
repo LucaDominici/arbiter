@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': minor
+'@getarbiter/cli': minor
 ---
 
 `arbiter update` now force-adopts the gate spine (`scripts/check-all.mjs`, `scripts/lib/*.mjs`) over a

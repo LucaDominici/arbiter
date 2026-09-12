@@ -116,7 +116,7 @@ scripts/check-review-completion.mjs may change; fixture identity, levels, genera
 file lists and all other hashes must remain identical. Stop for any other drift.
 Rerun the same test without the update flag before qualification. No hand-edited
 hashes or debt baseline changes. Add .changeset/diff-prefix-review-2599.md with an
-@arbiter/cli patch entry describing the two already-reviewed behavior fixes, as
+@getarbiter/cli patch entry describing the two already-reviewed behavior fixes, as
 required by .changeset/README.md. AC, source behavior and postconditions remain
 unchanged. Preserve the original debt finding; its requested #2599 parity comment
 is already present in HEAD33bcd957, so verify that exact content and native parity

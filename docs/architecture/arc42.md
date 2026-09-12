@@ -47,7 +47,7 @@ that a simplified re-telling of arbiter does not capture.
 ## 1. Introduction & Goals
 
 Arbiter is a **governance installer for AI-assisted software development, with an optional
-orchestration layer** (`package.json` description). It is an `npx` CLI (`@arbiter/cli`, Apache-2.0,
+orchestration layer** (`package.json` description). It is an `npx` CLI (`@getarbiter/cli`, Apache-2.0,
 Node ≥ 22) that writes a complete, self-consistent governance stack into a target repository — a
 canonical `AGENTS.md`, per-tool pointer files, enforcement hooks, a tiered quality gate, and a
 matching CI pipeline — all as ordinary version-controlled files.
@@ -133,7 +133,7 @@ diagram.
 | GitHub                      | in/out        | Issues, PRs, labels, branch protection (via `gh`)                                            |
 | CI runners (GitHub Actions) | out           | Emitted workflows mirror the local gate                                                      |
 | Stack toolchains            | out (invoked) | `eslint`/`ruff`/`clippy`/`gofmt`/`gradle`, `jscpd`, `knip`, `madge`, `trivy`, `gitleaks`     |
-| npm registry                | in            | Distribution of `@arbiter/cli`                                                               |
+| npm registry                | in            | Distribution of `@getarbiter/cli`                                                            |
 
 ### 3.2 Out of scope
 
@@ -497,12 +497,12 @@ target repo.
 
 ### 7.1 Arbiter's own distribution
 
-- **Artifact:** an npm package `@arbiter/cli` (`bin: arbiter → dist/cli.js`). Build =
+- **Artifact:** an npm package `@getarbiter/cli` (`bin: arbiter → dist/cli.js`). Build =
   `build-kit.mjs` → `tsc` → copy `templates/` + `i18n/` + `compatibility/` + `generators/` + `kit/`
   JSON into `dist/`.
 - **Release:** Changesets-driven versioning + CHANGELOG sync; `prepublishOnly` runs pack-size + tarball
   content strict checks; third-party license generation verified.
-- **Runtime:** invoked via `npx @arbiter/cli` — no install, no service.
+- **Runtime:** invoked via `npx @getarbiter/cli` — no install, no service.
 
 ### 7.2 What arbiter deploys into a target repo (the generated topology)
 
@@ -766,7 +766,7 @@ Codex.
 | Term                           | Definition                                                                                                             |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | **AGENTS.md**                  | The single canonical governance file (Layer 0) every supported AI tool reads.                                          |
-| **arbiter**                    | The governance installer CLI (`@arbiter/cli`).                                                                         |
+| **arbiter**                    | The governance installer CLI (`@getarbiter/cli`).                                                                      |
 | **archetype**                  | Project shape (backend-web-db / cli / library / data-pipeline / frontend-spa / embedded) selecting templates/adapters. |
 | **CANON-NN**                   | A process-level rule (`docs/internal/SYSTEM/CANON.md`); promoted to an INV-NN once automatable.                        |
 | **collaboration mode**         | trunk-solo / peer-review / gated-review — drives branching, CI shape, merge policy (ADR-051).                          |

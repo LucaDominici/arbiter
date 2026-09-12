@@ -42,7 +42,7 @@ describe('changeset-version wrapper (#1478 root enumeration)', () => {
       writeFileSync(
         pkgPath,
         JSON.stringify(
-          { name: '@arbiter/cli', version: '0.2.0', workspaces: ['website'] },
+          { name: '@getarbiter/cli', version: '0.2.0', workspaces: ['website'] },
           null,
           2,
         ),
@@ -74,7 +74,7 @@ describe('changeset-version wrapper (#1478 root enumeration)', () => {
       writeFileSync(
         pkgPath,
         JSON.stringify(
-          { name: '@arbiter/cli', version: '0.2.0', workspaces: ['website'] },
+          { name: '@getarbiter/cli', version: '0.2.0', workspaces: ['website'] },
           null,
           2,
         ),

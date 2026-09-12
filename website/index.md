@@ -16,7 +16,7 @@ hero:
 features:
   - title: One command
     details: >
-      `npx @arbiter/cli init` detects your stack and generates everything —
+      `npx @getarbiter/cli init` detects your stack and generates everything —
       no configuration files to manually author.
   - title: Tool-agnostic enforcement
     details: >

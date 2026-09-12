@@ -87,7 +87,7 @@ Three contributor archetypes map to three concrete entry points.
 ### C. Adding plugins (per ADR-031)
 
 1. Hand-author the plugin package (`index.js`/`package.json`, keywords must include
-   `arbiter-plugin`) implementing the minimal contract exported from `@arbiter/cli/plugin`.
+   `arbiter-plugin`) implementing the minimal contract exported from `@getarbiter/cli/plugin`.
 2. Register it with `arbiter plugin add <path-or-package>` — it installs (unless
    `--no-install`), validates the plugin loads, and adds it to `arbiter.json`'s `plugins` array.
 3. See `examples/plugins/` and `examples/plugin-spring-boot/` for the current exemplar.
@@ -204,7 +204,7 @@ The 15 CANON-NN rules in `docs/internal/SYSTEM/CANON.md` are the process-level c
 
 ## 7. Package Size Budget
 
-The published package (`@arbiter/cli`) has a size budget enforced at PR time:
+The published package (`@getarbiter/cli`) has a size budget enforced at PR time:
 
 | Threshold | Value             | Meaning                                  |
 | --------- | ----------------- | ---------------------------------------- |

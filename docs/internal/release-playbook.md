@@ -97,7 +97,7 @@ Pushing that tag starts the automatic release. The workflow publishes the retain
 an alpha promotion step or a second local publish command. A prerelease tag is
 also a `v*` trigger: do not use it as a publication-free rehearsal.
 
-After the release run succeeds, inspect `npm view @arbiter/cli dist-tags dist`,
+After the release run succeeds, inspect `npm view @getarbiter/cli dist-tags dist`,
 install the exact published version in a fresh external directory, and execute
 the documented quickstart and required consumer checks. Bind those receipts to
 the version, registry integrity, release SHA and retained artifact. A successful

@@ -55,7 +55,7 @@ testpaths = ["tests"]
 ## 2. Run `arbiter init`
 
 ```bash
-npx @arbiter/cli init \
+npx @getarbiter/cli init \
   --dir ./python-data-pipeline \
   --tools claude \
   --level L2

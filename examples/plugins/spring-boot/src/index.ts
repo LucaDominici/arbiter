@@ -1,4 +1,4 @@
-import type { ArbiterPlugin, PluginContext, PluginResult } from '@arbiter/cli/plugin'
+import type { ArbiterPlugin, PluginContext, PluginResult } from '@getarbiter/cli/plugin'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 

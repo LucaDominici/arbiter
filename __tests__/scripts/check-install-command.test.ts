@@ -64,10 +64,14 @@ describe('check-install-command.mjs (B1 install-command gate)', () => {
     }
   })
 
-  it('PASSES on the scoped `npx @arbiter/cli` form', () => {
+  it('PASSES on the scoped `npx @getarbiter/cli` form', () => {
     const { dir, cleanup } = makeRepo()
     try {
-      write(dir, 'README.md', '```bash\nnpx @arbiter/cli init\nnpm install -g @arbiter/cli\n```\n')
+      write(
+        dir,
+        'README.md',
+        '```bash\nnpx @getarbiter/cli init\nnpm install -g @getarbiter/cli\n```\n',
+      )
       const result = run(dir)
       expect(result.status).toBe(0)
       expect(result.stdout).toContain('[check-install-command] OK')
@@ -143,7 +147,7 @@ describe('check-install-command.mjs (B1 install-command gate)', () => {
       write(
         dir,
         'src/templates/claude/skills/gold-audit/SKILL.md.ejs',
-        '# Gold Audit\n\n```bash\nnpx @arbiter/cli gold-audit --json\n```\n',
+        '# Gold Audit\n\n```bash\nnpx @getarbiter/cli gold-audit --json\n```\n',
       )
       const result = run(dir)
       expect(result.status).toBe(0)

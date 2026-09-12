@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': minor
+'@getarbiter/cli': minor
 ---
 
 Retire the five experimental tool generators (#2367, ADR-119). `cursor`,

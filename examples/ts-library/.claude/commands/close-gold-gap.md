@@ -24,7 +24,7 @@ close**.
 ## Use it
 
 ```bash
-npx @arbiter/cli gold-audit          # list the gaps
+npx @getarbiter/cli gold-audit          # list the gaps
 ```
 
 Then classify the chosen gap by category (doc-set / test / config / process) and follow that row's

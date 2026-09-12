@@ -8,7 +8,7 @@ describe('validatePluginPackageJson (#570)', () => {
     version: '0.1.0',
     keywords: ['arbiter', 'arbiter-plugin'],
     main: 'dist/index.js',
-    peerDependencies: { '@arbiter/cli': '*' },
+    peerDependencies: { '@getarbiter/cli': '*' },
   }
 
   it('passes a valid plugin package.json', () => {

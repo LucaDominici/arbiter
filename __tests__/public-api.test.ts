@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-// Public API surface test (#598): verifies barrel re-exports for @arbiter/cli/invariants
-// and @arbiter/cli/compatibility. Tests import from source barrels directly.
+// Public API surface test (#598): verifies barrel re-exports for @getarbiter/cli/invariants
+// and @getarbiter/cli/compatibility. Tests import from source barrels directly.
 import { describe, it, expect } from 'vitest'
 
-describe('@arbiter/cli/invariants barrel', () => {
+describe('@getarbiter/cli/invariants barrel', () => {
   it('exports INVARIANT_CATALOG as a non-empty array', async () => {
     const { INVARIANT_CATALOG } = await import('../src/invariants/index.js')
     expect(Array.isArray(INVARIANT_CATALOG)).toBe(true)
@@ -38,7 +38,7 @@ describe('@arbiter/cli/invariants barrel', () => {
   })
 })
 
-describe('@arbiter/cli/compatibility barrel', () => {
+describe('@getarbiter/cli/compatibility barrel', () => {
   it('exports runProbes function', async () => {
     const mod = await import('../src/compatibility/index.js')
     expect(mod).toHaveProperty('runProbes')

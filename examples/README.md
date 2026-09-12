@@ -119,4 +119,4 @@ markdown documents; their underlying starter projects live in
 
 ## Plugin examples
 
-The plugin SDK exemplars live under `examples/plugins/` and `examples/plugin-spring-boot/`. They demonstrate the minimal `@arbiter/cli/plugin` contract per ADR-031.
+The plugin SDK exemplars live under `examples/plugins/` and `examples/plugin-spring-boot/`. They demonstrate the minimal `@getarbiter/cli/plugin` contract per ADR-031.

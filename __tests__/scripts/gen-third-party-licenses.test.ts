@@ -10,7 +10,7 @@ const OUT = resolve('THIRD_PARTY_LICENSES.md')
 
 /**
  * The true production dependency closure a consumer installs with
- * `npm install @arbiter/cli`, read from package-lock.json — the SAME
+ * `npm install @getarbiter/cli`, read from package-lock.json — the SAME
  * authoritative source the generator uses, so this oracle is deterministic and
  * install-independent. An entry is production iff npm did NOT mark it `dev`;
  * production `optional` deps stay (cross-platform superset). Workspace links
@@ -100,7 +100,7 @@ describe('gen-third-party-licenses.mjs', () => {
   })
 
   it('attributes EXACTLY the production closure from the lockfile — no dev-only leakage', () => {
-    // A consumer of `@arbiter/cli` installs the entire transitive production
+    // A consumer of `@getarbiter/cli` installs the entire transitive production
     // tree; every one of those packages carries an attribution obligation
     // (MIT/BSD/ISC require the copyright notice be preserved), and NOTHING a
     // consumer never receives (devDependencies and their optional platform

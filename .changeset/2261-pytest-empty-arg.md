@@ -1,5 +1,5 @@
 ---
-'@arbiter/cli': patch
+'@getarbiter/cli': patch
 ---
 
 Fixed the generated Python `check-all.mjs`'s "unit tests" (and L2 "audit")

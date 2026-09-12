@@ -9,7 +9,7 @@
 // arbiter SHA-pins every GitHub Action (check-action-pins.mjs / INV-76) and emits
 // container-digest gates to consumers (#1442), yet its OWN published runtime
 // `dependencies` were caret-ranged. npm strips package-lock from published tarballs,
-// so `npm install @arbiter/cli` resolves the newest in-range minor/patch at install
+// so `npm install @getarbiter/cli` resolves the newest in-range minor/patch at install
 // time — the same float-to-latest supply-chain exposure the Action gate forbids. This
 // gate mirrors check-action-pins for npm: every entry under `dependencies` must be an
 // EXACT version, so what a consumer resolves is byte-for-byte what arbiter ships.
@@ -18,7 +18,7 @@
 // caret-ranged by design (not published, refreshed by Dependabot). `overrides` are NOT a
 // consumer protection and NOT a security floor: npm applies them only to the root project
 // being installed, so they constrain arbiter's OWN dev tree but are silently ignored when
-// @arbiter/cli is consumed as a dependency (#1670). Neither is gated here — a consumer-facing
+// @getarbiter/cli is consumed as a dependency (#1670). Neither is gated here — a consumer-facing
 // transitive-resolution audit (npm pack → install → audit) is the right check for that class.
 // Enforced: any non-exact runtime dependency spec fails the gate (exit 1).
 import { readFileSync } from 'node:fs'

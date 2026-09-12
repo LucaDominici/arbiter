@@ -18,14 +18,14 @@ try {
   if (args.includes('--help') || args.includes('-h')) {
     process.stdout.write(
       'Usage: node scripts/conformance.mjs [--check]\n' +
-        'Advisory runner. Run `npx @arbiter/cli gold-audit` for the governance scorecard.\n',
+        'Advisory runner. Run `npx @getarbiter/cli gold-audit` for the governance scorecard.\n',
     )
     process.exit(0)
   }
 
   process.stdout.write(
     '[conformance] advisory: the standalone conformance command was retired — run ' +
-      '`npx @arbiter/cli gold-audit` for the governance scorecard (level band + missing items).\n',
+      '`npx @getarbiter/cli gold-audit` for the governance scorecard (level band + missing items).\n',
   )
   process.exit(0)
 } catch (err) {
