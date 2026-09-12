@@ -395,6 +395,14 @@ export function extractTestBlocks(src) {
     // A skipped/todo block is check-no-skipped-tests.mjs's axis, not this one (see the
     // CATALOG note on the rejected fold-in). Counting it here would double-report it.
     if (/\.(?:skip|todo|skipIf|runIf)\b/.test(m[3])) continue
+    // #2670: fixture and hook calls share the `test.<x>(` shape but are not test cases
+    // (Playwright `test.use`, `beforeEach`…, `describe.configure`); nothing to assert in them.
+    if (
+      /\.(?:use|beforeEach|afterEach|beforeAll|afterAll|describe\.configure|extend|setTimeout|slow|fixme|fail|only\.fixme)\b/.test(
+        m[3],
+      )
+    )
+      continue
     // Curried form: `it.each(table)(name, fn)` — the body lives in the SECOND call, so
     // absorb every immediately-following paren group or the block would look empty.
     for (;;) {
