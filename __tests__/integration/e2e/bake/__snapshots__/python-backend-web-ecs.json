@@ -335,7 +335,7 @@
     "scripts/check-action-pins.mjs": "035a0f695792be6414242d120241a28864d5db2d697a7dd57eca97c1b32f3ef4",
     "scripts/check-all.mjs": "c6176d18d3e40c20ebac117dbcc28f84bd40176211767a7cb21cb1b5d4206b8f",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
-    "scripts/check-anti-proforma.mjs": "eca8b648a0bfa26e7bd69dc153022d1060f352cc684b8c5b72344ee1fa5381fe",
+    "scripts/check-anti-proforma.mjs": "a4f1a0769bb3b3b2b28ea2e0e8c6ad449a3b0a4ac2962c6a8cc1a65c93dc1b94",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",
     "scripts/check-arc42-slots.mjs": "902aad6a75951352890582cb4ab7c704e518a5477ae638531b1dd42dd85a5b74",
     "scripts/check-assertion-delta.mjs": "abfb56229da3bc796c8ebc6680805202abc714af7d401b7eb2252040afa798e1",

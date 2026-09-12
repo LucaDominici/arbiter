@@ -499,7 +499,7 @@
     "scripts/check-agent-return.mjs": "9fa6badddf66d4ef0b4064fb10c940c6217b9abd7312027728cb5b09261342a6",
     "scripts/check-all.mjs": "292ea691e9a1f7a3efb947d7a66fda7ad14e3a2cddcb8143413300fd3a2501a3",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
-    "scripts/check-anti-proforma.mjs": "3fc101cf86bdc22846a36225a7307a4f8f00b14a4a3e7f0adb743df89e986129",
+    "scripts/check-anti-proforma.mjs": "baa900212e3ae3e6cef794384ce4bdc7e0ea0f2fea36a83a846cf594980b3577",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",
     "scripts/check-arc42-slots.mjs": "902aad6a75951352890582cb4ab7c704e518a5477ae638531b1dd42dd85a5b74",
     "scripts/check-assertion-delta.mjs": "abfb56229da3bc796c8ebc6680805202abc714af7d401b7eb2252040afa798e1",
