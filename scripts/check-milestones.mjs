@@ -527,18 +527,29 @@ function report(json, verdict, message, violations) {
 
 /** @param {string[]} argv @returns {number} */
 /**
- * Read the SSOT and its schema. Both failures are exit 2, not 1 (INV-53): an unparseable file or an
- * unloadable schema means the gate could not tell, which is a different claim from "the roadmap is
- * wrong" and must not be filed as one.
+ * Read the SSOT and its schema. An unparseable SSOT is the author's broken tracked artifact —
+ * exit 1, filed as `unreadable SSOT` exactly as check-use-cases does (INV-53, #2553). An
+ * unloadable schema means the gate could not tell — exit 2.
  * @returns {{ code: number } | { doc: unknown, schema: unknown }}
  */
-function loadInputs(path) {
+function loadInputs(path, json) {
+  let raw
+  try {
+    raw = readRegularFileSync(path, 'utf-8')
+  } catch (err) {
+    // Missing, or not a regular file: the gate could not open its input — 2, not a verdict.
+    process.stderr.write(`check-milestones: cannot read ${MILESTONES_REL} — ${err.message}\n`)
+    return { code: 2 }
+  }
   let doc
   try {
-    doc = YAML.parse(readRegularFileSync(path, 'utf-8'))
+    doc = YAML.parse(raw)
+    // FAIL-OPEN-INTENT: not fail-open — the parse error is RETURNED as { code: 1 } and reported through report() so that --json keeps its envelope; the audit reads a catch without a literal stderr write, the same shape check-use-cases.mjs extractBlock() carries.
   } catch (err) {
-    process.stderr.write(`check-milestones: ${MILESTONES_REL} is not valid YAML — ${err.message}\n`)
-    return { code: 2 }
+    report(json, 'fail', 'unreadable SSOT', [
+      `unreadable SSOT — ${MILESTONES_REL} is not valid YAML — ${err.message}`,
+    ])
+    return { code: 1 }
   }
   try {
     return { doc, schema: loadSchema(resolve(scriptDir, '..', SCHEMA_REL)) }
@@ -592,7 +603,7 @@ function main(argv) {
     return 0
   }
 
-  const loaded = loadInputs(path)
+  const loaded = loadInputs(path, json)
   if (loaded.code !== undefined) return loaded.code
   const { doc, schema } = loaded
 

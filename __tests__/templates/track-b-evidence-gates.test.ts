@@ -643,16 +643,15 @@ describe('the emitted milestone gate runs where it is emitted (#2480 wave 8)', (
     expect(r.out).toMatch(/does not resolve/)
   })
 
-  // Exit 2, at PARITY with the self copy, which files unreadable YAML the same way. The two
-  // copies must agree on their exit contract or "twin" means nothing. Worth noting: the emitted
-  // use-case gate files an unreadable SSOT as 1 instead, which is a real inconsistency between two
-  // gates written days apart — filed rather than fixed here, because changing a shipped gate's
-  // exit code inside an emission commit is an unrelated behaviour change.
+  // Exit 1, at PARITY with the self copy and with check-use-cases (INV-53 family decision, #2553):
+  // a tracked SSOT the author controls but cannot be parsed is the author's artifact, so it is a
+  // violation, not "the gate could not run". Exit 2 stays for a file the gate cannot READ at all
+  // (missing, not a regular file) and for an unloadable schema.
   it('reports a malformed sentinel block as an ERROR, never as an empty plan', () => {
     writeFileSync(join(dir, 'docs', 'MILESTONES.md'), '# Milestones\n\nno sentinels\n')
     const r = runMs()
-    expect(r.status).toBe(2)
-    expect(r.out).toMatch(/sentinel block/)
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/unreadable SSOT.*sentinel block/)
   })
 
   it('reports malformed JSON inside the fence — broken and empty must not share a verdict', () => {
@@ -661,8 +660,8 @@ describe('the emitted milestone gate runs where it is emitted (#2480 wave 8)', (
       '# Milestones\n\n<!-- MILESTONES_START -->\n```json\n{not json\n```\n<!-- MILESTONES_END -->\n',
     )
     const r = runMs()
-    expect(r.status).toBe(2)
-    expect(r.out).toMatch(/not valid JSON/)
+    expect(r.status).toBe(1)
+    expect(r.out).toMatch(/unreadable SSOT.*not valid JSON/)
   })
 
   it('--emit writes the projection only after every rule passes', () => {

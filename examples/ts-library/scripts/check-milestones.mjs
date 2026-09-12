@@ -567,18 +567,27 @@ export function extractBlock(markdown) {
 }
 
 /**
- * Read the SSOT and its schema. Both failures are exit 2, not 1 (INV-53): an unparseable file or an
- * unloadable schema means the gate could not tell, which is a different claim from "the roadmap is
- * wrong" and must not be filed as one.
+ * Read the SSOT and its schema (INV-53, #2553). A tracked file that cannot be parsed is the
+ * author's artifact — exit 1, filed as `unreadable SSOT` exactly as check-use-cases does. A file
+ * that cannot be READ (missing, not a regular file) or an unloadable schema means the gate could
+ * not tell — exit 2.
  * @returns {{ code: number } | { doc: unknown, schema: unknown }}
  */
-function loadInputs(path) {
+function loadInputs(path, json) {
+  let raw
+  try {
+    raw = readRegularFileSync(path, 'utf-8')
+  } catch (err) {
+    process.stderr.write(`check-milestones: cannot read ${MILESTONES_REL} — ${err.message}\n`)
+    return { code: 2 }
+  }
   let doc
   try {
-    doc = extractBlock(readRegularFileSync(path, 'utf-8'))
+    doc = extractBlock(raw)
   } catch (err) {
-    process.stderr.write(`check-milestones: ${MILESTONES_REL} — ${err.message}\n`)
-    return { code: 2 }
+    // #2553 (INV-53): a tracked SSOT that cannot be parsed is the author's artifact — 1, not 2.
+    report(json, 'fail', 'unreadable SSOT', [`unreadable SSOT — ${MILESTONES_REL} — ${err.message}`])
+    return { code: 1 }
   }
   try {
     return { doc, schema: loadSchema(resolve(scriptDir, '..', SCHEMA_REL)) }
@@ -632,7 +641,7 @@ function main(argv) {
     return 0
   }
 
-  const loaded = loadInputs(path)
+  const loaded = loadInputs(path, json)
   if (loaded.code !== undefined) return loaded.code
   const { doc, schema } = loaded
 

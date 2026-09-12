@@ -855,6 +855,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'exactly three exit codes: 0=PASS, 1=FAIL, 2=ERROR. ' +
       'That is: 0 for success, 1 for detected failure, 2 for invocation error ' +
       '(bad arguments, missing required inputs, environment not ready). ' +
+      'Decided for the whole family (#2553, #2593): a tracked SSOT the author controls that cannot ' +
+      'be parsed is the author\'s artifact — 1, reported as "unreadable SSOT"; a scan root that exists ' +
+      'but resolves to zero files is a wiring defect — 1; a root that is missing or not a directory, ' +
+      "an unloadable schema, a missing tool or an unexpected throw are the gate's inability to run — 2. " +
       'Any other exit code is a violation. ' +
       'This contract makes every gate composable: callers can distinguish a clean run (0), ' +
       'a caught violation (1), and an unconfigured/broken environment (2) without parsing output. ' +

@@ -1,8 +1,8 @@
 ---
 title: 'Reference: Anti-fake-green guards'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-08-02'
+last_review: '2026-09-12'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -93,12 +93,10 @@ The refusal is the guard that makes such a bug loud rather than invisible:
 A scan that reads real files and finds no violations is unaffected — it is a genuine `0` and
 stays one. The distinction is _files scanned_, not _violations found_.
 
-> **Open: the exit code for this condition is not yet uniform (#2593).** `check-no-orphan-todo.mjs`
-> exits `1`; `check-perm-test-guards.mjs` exits `2` for the same condition, following its own
-> header rather than the INV-53 table below. Both fail the gate, so the behaviour is right in
-> each; only the diagnostic classification differs. #2593 decides one rule for the family —
-> including whether a _mis-invocation_ (a path that does not exist) and an _empty-but-valid scan
-> root_ should share a code at all — and converts every member in one change.
+> **Decided (#2593):** the exit code for this condition is `1` across the family —
+> `check-no-orphan-todo.mjs`, `check-todo-max-age.mjs` and `check-perm-test-guards.mjs` now agree.
+> A _mis-invocation_ (a path that does not exist, or is not a directory) stays `2`. The rule and
+> its rationale are in the INV-53 section below.
 
 ### The same bug in the sibling gate (#2526)
 
@@ -223,6 +221,15 @@ is: NEW mutes are never grandfathered implicitly).
 `0` = PASS / advisory · `1` = FAIL (`--enforce` + violations, or a hard/broken child) · `2` =
 ERROR (the guard itself malfunctioned). **NO-DATA is `0`, never `2`** — a missing `gh` is an
 environment condition, not a broken guard.
+
+Two cases decided once for the whole family (#2553, #2593), so no gate has to guess:
+
+- A **tracked SSOT the author controls that cannot be parsed** (broken sentinel block, malformed
+  JSON/YAML) is the author's artifact → `1`, reported as `unreadable SSOT`. `2` stays for the gate's
+  own inability to run: an unloadable schema, a missing tool, an unexpected throw.
+- A **scan root that exists but resolves to zero files** is a wiring defect the author fixes in the
+  diff → `1` (`ABORT — resolved scan set is empty`). A root that does not exist, or is not a
+  directory, is a bad invocation → `2`.
 
 ## Programme membership: a parser that lost rows (#2513)
 

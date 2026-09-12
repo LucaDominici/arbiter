@@ -341,7 +341,7 @@
     "scripts/check-inline-suppressions.mjs": "53bbec04dfbd36cf7c09325af128173c9c46fb88e494a9af126b4789e523d2b4",
     "scripts/check-knowledge-map.mjs": "ce96c727c876aac41c0938ac956fdc1d84e0ae514de0ad52644b1252326ef3c5",
     "scripts/check-m16-handoff.mjs": "18a3a6e412bfd015e448ee6d1f6ed2c197486d293fb9469e2b2c8b69b4056bdc",
-    "scripts/check-milestones.mjs": "84cfd1a37bfddf99aef28fb37ea77cab5c1a2a167f1d55ce5506b35364f2f0a3",
+    "scripts/check-milestones.mjs": "e9dfbc916523c33e3913f83e0cd6692dc8659f16e646d43974d05fb1349adbcd",
     "scripts/check-min-test-execution.mjs": "385557052cd98497da56e76257e60e5ebfad7b09e034214f2ea47a3126c6e439",
     "scripts/check-muted-test.mjs": "b0e3ef4dc42d59b05a3a46e2f346cd3e137f9c90a7c29c807d18ff5dc8120367",
     "scripts/check-no-stub-redirects.mjs": "644d9b316c41dcbf7f9fe86d27e0af3e423d3b203d12136025c458800e89dbf1",
