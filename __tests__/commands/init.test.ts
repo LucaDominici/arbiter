@@ -571,6 +571,75 @@ describe('runInit', () => {
     }
   })
 
+  // #2658: the root-local CLI being present says nothing about the gate toolchain init
+  // injects into devDependencies (#2434 AC-5). When any declared devDependency is not
+  // installed, the epilogue must still name the install step BEFORE the L1 gate line.
+  it('names the install step before the gate line when the local CLI exists but a devDependency is not installed (#2658)', async () => {
+    writeFileSync(
+      `${dir}/package.json`,
+      JSON.stringify({ name: 't', devDependencies: { vitest: '^4.0.0' } }),
+    )
+    mkdirSync(`${dir}/node_modules/@arbiter/cli/dist`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/@arbiter/cli/dist/cli.js`, '')
+    let stdout = ''
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      stdout += String(chunk)
+      return true
+    })
+    try {
+      const { runInit } = await import('../../src/commands/init.js')
+      await runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L1',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      })
+      const installAt = stdout.indexOf('did not install it')
+      const gateAt = stdout.indexOf('scripts/check-all.mjs L1')
+      expect(installAt, stdout.slice(-1500)).toBeGreaterThan(-1)
+      expect(gateAt).toBeGreaterThan(-1)
+      expect(installAt).toBeLessThan(gateAt)
+      expect(stdout).not.toContain('Install the root-local Arbiter CLI')
+    } finally {
+      stdoutSpy.mockRestore()
+    }
+  })
+
+  it('stays silent about devDependencies when the local CLI and every declared devDependency are installed (#2658)', async () => {
+    writeFileSync(
+      `${dir}/package.json`,
+      JSON.stringify({ name: 't', devDependencies: { vitest: '^4.0.0' } }),
+    )
+    mkdirSync(`${dir}/node_modules/@arbiter/cli/dist`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/@arbiter/cli/dist/cli.js`, '')
+    mkdirSync(`${dir}/node_modules/vitest`, { recursive: true })
+    writeFileSync(`${dir}/node_modules/vitest/package.json`, '{}')
+    let stdout = ''
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      stdout += String(chunk)
+      return true
+    })
+    try {
+      const { runInit } = await import('../../src/commands/init.js')
+      await runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L1',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      })
+      expect(stdout).not.toContain('did not install it')
+      expect(stdout).not.toContain('Install the root-local Arbiter CLI')
+    } finally {
+      stdoutSpy.mockRestore()
+    }
+  })
+
   it('runs toolchain verify when noVerify is false', async () => {
     const { runInit } = await import('../../src/commands/init.js')
     await runInit({
