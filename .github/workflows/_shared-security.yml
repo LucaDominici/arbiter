@@ -1,3 +1,5 @@
+name: Shared security jobs (reusable)
+
 on:
   workflow_call:
 
