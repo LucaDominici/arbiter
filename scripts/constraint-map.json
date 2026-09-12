@@ -143,5 +143,13 @@
   "prose:- _Baseline decay (#2418):_ `scripts/data/fail-closed-baseline.json` grandfathers exactly 156 files, and it is a debt ledger, not an exemption list. Every row carries `since` + `owner` and either an `expires` date at most **90 days** out or a written permanent rationale. The gate FAILS on an expired row, on a window longer than 90 days, and on a row whose file no longer violates — so the list may **only shrink**, never grow silently: `--update-baseline` preserves each surviving row verbatim (regeneration never renews an expiry) and refuses to grandfather a newly-violating file without `--owner`. `scripts/check-all.mjs` and the meta-check family (the gates that audit arbiter's own enforcement) are NOT in the baseline — the auditors are not exempt from the audit.": {
     "kind": "accepted",
     "rationale": "False positive on the ENFORCING flags, not a prohibition. The line's rule is that the fail-closed baseline may only shrink; the extractor matches the bare word never and sweeps the backticked tokens that follow, but `--update-baseline` and `--owner` are the mechanisms that IMPOSE that rule (regeneration preserves rows verbatim; grandfathering a newly-violating file requires an owner), not symbols anyone is banned from using. Same shape as the `unknown` case on AGENTS.md:456 — the remedy a rule recommends read as a second ban. The rule itself is carried by scripts/check-fail-closed-audit.mjs, which fails on an expired row, a window past 90 days, and a row whose file no longer violates."
+  },
+  "prose:- **INV-17:** Explicit error handling — panics and unhandled errors are forbidden": {
+    "kind": "inv",
+    "enforcer": "INV-17"
+  },
+  "prose:prohibited: git index state, lockfiles, and in-flight diffs corrupt under": {
+    "kind": "accepted",
+    "rationale": "#2582 (surfaced by the passive register). Worktree-isolation Iron Law: no gate can observe a second agent writing into the same tree — the second writer is a dispatch decision, not a file state. Carried by the dispatch protocol (one agent, one worktree) and by the pre-commit hook, which detects a worktree and defers L1 to CI (#1695)."
   }
 }

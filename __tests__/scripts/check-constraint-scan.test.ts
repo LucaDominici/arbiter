@@ -1074,6 +1074,40 @@ describe('check-constraint-scan.mjs — passive prohibition registers (#2582)', 
     }
   })
 
+  it('AC-1 — the approved alternative before a clause boundary is NOT derived', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(
+        dir,
+        '- Use `approvedWrapper()`; `forbiddenSentinelToken()` is forbidden.\n',
+      )
+      const src = writeSrc(dir, { 'ok.ts': 'approvedWrapper()\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status, r.stdout + r.stderr).toBe(0)
+      expect(r.stdout).not.toContain('approvedWrapper')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('AC-4 — a NEGATED passive ("nothing is prohibited") is not a prohibition', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(
+        dir,
+        'Nothing is prohibited here; `forbiddenSentinelToken()` is not forbidden.\n',
+      )
+      const src = writeSrc(dir, { 'bad.ts': 'forbiddenSentinelToken()\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      expect(r.status, r.stdout + r.stderr).toBe(0)
+      expect(r.stdout).toMatch(/0 prohibition\(s\)/)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('AC-4 — the imperative registers still apply inside nested sub-bullets (unchanged)', () => {
     const { dir, cleanup } = fixture()
     try {

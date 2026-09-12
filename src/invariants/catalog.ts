@@ -2029,7 +2029,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     description:
       'Every hard prohibition declared in free-text governance (AGENTS.md, CANON.md, ' +
       'CLAUDE.md) via a directive marker (NEVER / MUST NOT / DO NOT / 🛑 / `No <tok>` / ' +
-      '`never <tok>`) must resolve to exactly one honest state — it may not be merely asserted ' +
+      '`never <tok>`, or the passive register forbidden / prohibited / disallowed / not ' +
+      'permitted / not allowed at entry level, #2582) must resolve to exactly one honest state — it may not be merely asserted ' +
       'in prose. (1) COVERED: mapped in scripts/constraint-map.json to an enforcer whose ' +
       'existence is verified at scan time (gate→referenced in check-all.mjs, hook→file under ' +
       '.claude/hooks, inv→id in catalog.ts, lint→rule in an eslint config, template→path under ' +

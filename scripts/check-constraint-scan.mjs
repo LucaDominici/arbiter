@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: INV-115 enforcement. Extracts hard prohibitions (NEVER / MUST NOT / DO NOT / 🛑 /
-// CATALOG: `No <tok>` / `never <tok>`) from free-text governance docs and forces each into one
+// CATALOG: `No <tok>` / `never <tok>` / forbidden / prohibited / disallowed / not permitted|allowed, #2582) from free-text governance docs and forces each into one
 // CATALOG: honest state — COVERED (mapped to a verified enforcer), ENFORCED-BY-SCAN (derivable
 // CATALOG: token, live-grepped every run), or UNENFORCEABLE (triage warn). Extends CANON-09
 // CATALOG: (claimed-enforcement = wired-gate) to prose. Rejected fold-in into
@@ -114,6 +114,16 @@ const INLINE_MARKERS = [
   /^\s*[-*]?\s*No\s+(?=`)/, // lead `No \`tok\``
   /\bnever\b/i,
 ]
+// #2582: the passive/adjectival register — "X is forbidden", "Y are prohibited", "prohibited: Z",
+// "not permitted", "not allowed", "disallowed". The banned thing usually PRECEDES the marker, so
+// tokens are derived from the clause before it (or after a lead "prohibited:" colon). Counted only
+// at entry level: a nested sub-bullet under an entry is that entry's elaboration (mechanics, scope,
+// enforcement notes), where this register describes context rather than states a rule (AC-4).
+const PASSIVE_MARKER = /\b(?:forbidden|prohibited|disallowed|not\s+(?:permitted|allowed))\b/i
+const NESTED_BULLET = /^\s{2,}[-*]\s+/
+// A negated passive ("nothing is prohibited", "not forbidden") states the absence of a rule.
+const NEGATED_PASSIVE =
+  /\b(?:nothing|not|no longer)\s+(?:is\s+|are\s+)?(?:forbidden|prohibited|disallowed)\b/i
 
 function tokensIn(text) {
   const out = []
@@ -137,6 +147,25 @@ function tokensAfter(line, markerRe) {
   const boundary = tail.indexOf('. ')
   if (boundary !== -1) tail = tail.slice(0, boundary + 1)
   return tokensIn(tail)
+}
+
+// Tokens for the passive register: after a lead "prohibited:" colon, otherwise the clause before
+// the marker, clipped to its own sentence so an earlier clause's tokens are not swept in.
+function tokensAround(line, markerRe) {
+  const m = markerRe.exec(line)
+  if (!m) return []
+  const after = line.slice(m.index + m[0].length)
+  if (/^\s*:/.test(after)) return tokensAfter(line, markerRe)
+  let before = line.slice(0, m.index)
+  // Clause boundary: the approved alternative in "use `x`; `y` is forbidden" must not be swept in.
+  const boundary = Math.max(before.lastIndexOf('. '), before.lastIndexOf('; '))
+  if (boundary !== -1) before = before.slice(boundary + 2)
+  return tokensIn(before)
+}
+
+function pushProhibition(out, doc, line, text, toks) {
+  if (toks.length === 0) out.push({ doc, line, text: text.trim(), token: null })
+  else for (const tk of toks) out.push({ doc, line, text: text.trim(), token: tk })
 }
 
 // Returns [{ doc, line, text, token }] — token may be null (→ UNENFORCEABLE).
@@ -180,16 +209,15 @@ function extractProhibitions(docPath, body) {
       // fall through to inline processing for this non-bullet line
     }
     if (EXCLUDED_FIELD.test(line)) continue
-    for (const marker of INLINE_MARKERS) {
-      if (marker.test(line)) {
-        const toks = tokensAfter(line, marker)
-        if (toks.length === 0)
-          out.push({ doc: docPath, line: i + 1, text: line.trim(), token: null })
-        else
-          for (const tk of toks)
-            out.push({ doc: docPath, line: i + 1, text: line.trim(), token: tk })
-        break
-      }
+    const marker = INLINE_MARKERS.find((re) => re.test(line))
+    if (marker) {
+      pushProhibition(out, docPath, i + 1, line, tokensAfter(line, marker))
+    } else if (
+      !NESTED_BULLET.test(line) &&
+      PASSIVE_MARKER.test(line) &&
+      !NEGATED_PASSIVE.test(line)
+    ) {
+      pushProhibition(out, docPath, i + 1, line, tokensAround(line, PASSIVE_MARKER))
     }
   }
   return out

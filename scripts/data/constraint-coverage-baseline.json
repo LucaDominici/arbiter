@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "capturedAt": "2026-09-07T21:12:12.255Z",
+  "capturedAt": "2026-09-12T14:17:15.089Z",
   "metrics": {
     "covered": {
-      "value": 23,
+      "value": 24,
       "unit": "count",
       "direction": "informational"
     },
     "accepted": {
-      "value": 13,
+      "value": 14,
       "unit": "count",
       "direction": "informational"
     },
@@ -18,5 +18,5 @@
       "direction": "lower-is-better"
     }
   },
-  "integrityHash": "dbbc74b36a91f81a65ff3d632da6f00053e83673a104a6f903eb9c969ad21f63"
+  "integrityHash": "0b94243b5039834683e17164b4e977a5b4b05d3c88ec8330bdfbd2256544e56c"
 }
