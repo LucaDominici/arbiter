@@ -282,10 +282,13 @@ describe.skipIf(!L2)('greenfield first-run — real dist/cli.js entry point (#14
             // `check-all.mjs L1` line it sends the user to next — otherwise the very
             // first command the quickstart prints reds with four resolver failures.
             // The cell then follows exactly those printed steps, in that order.
-            // Match the hint's own distinctive wording, not a bare `npm install`:
-            // other lines (the debt-baseline deferral at L2+) also name an install
-            // command, and indexOf would silently start asserting about those.
-            const installAt = init.output.indexOf('did not install it')
+            // Since #2578 the install step is the root-local Arbiter CLI setup line
+            // (`npm install --save-dev --save-exact "$arbiter_spec"`), which installs
+            // the injected devDependencies too (#2657). Match its distinctive heading,
+            // not a bare `npm install`: other lines (the debt-baseline deferral at
+            // L2+) also name an install command, and indexOf would silently start
+            // asserting about those.
+            const installAt = init.output.indexOf('Install the root-local Arbiter CLI')
             const gateAt = init.output.indexOf('scripts/check-all.mjs L1')
             expect(
               installAt,

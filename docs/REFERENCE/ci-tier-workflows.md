@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.13'
+doc_version: '2.0.14'
 status: active
 last_review: '2026-09-11'
 owner: ''
@@ -230,6 +230,15 @@ and uploads `coverage/` itself, and `nightly-required` / `evidence-collect` depe
 `gate-full-nightly`, whose result must be exactly `success` — `cancelled`, `skipped`
 or missing is a red nightly. Consumer renders keep the standalone `coverage-report`
 lane (80 at L1/L2, 85 at L3+).
+
+The self render's `Generated-gate e2e` job runs `greenfield-first-run` with `VITEST_L2=1`.
+Its TypeScript cells assert the #2434 AC-5 property on the real `init` epilogue: the
+install step is named before the `scripts/check-all.mjs L1` line, and following the
+printed steps in that order reaches a green L1. Since #2578 that install step is the
+root-local Arbiter CLI setup line (`npm install --save-dev --save-exact "$arbiter_spec"`,
+which also installs the injected gate devDependencies); the cells match its heading
+(#2657). These cells run only in Nightly, so an epilogue change is visible there, not
+in T1.
 
 ## Jobs in 01-pr-fast.yml
 
