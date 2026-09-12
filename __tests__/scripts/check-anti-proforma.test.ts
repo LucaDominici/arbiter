@@ -165,6 +165,11 @@ describe('check-anti-proforma.mjs (INV-118) — warn-default mode', () => {
           `test.afterEach(async ({ page }) => {\n  await page.close()\n})\n` +
           `test.beforeAll(async () => {\n  process.env.X = '1'\n})\n` +
           `test.afterAll(async () => {\n  delete process.env.X\n})\n` +
+          `test.setTimeout(30_000)\n` +
+          `test.slow()\n` +
+          `test('steps then asserts', async ({ page }) => {\n` +
+          `  await test.step('navigate', async () => {\n    await page.goto('/about')\n  })\n` +
+          `  await expect(page).toHaveURL(/about/)\n})\n` +
           `test('lands on home', async ({ page }) => {\n  await expect(page).toHaveTitle(/Home/)\n})\n`,
       )
       const r = run(['--dir', dir, '--enforce'], dir)
@@ -183,12 +188,14 @@ describe('check-anti-proforma.mjs (INV-118) — warn-default mode', () => {
         'empty.spec.ts',
         `import { test } from '@playwright/test'\n` +
           `test.beforeEach(async ({ page }) => {\n  await page.goto('/')\n})\n` +
-          `test('does nothing', async ({ page }) => {\n  await page.goto('/about')\n})\n`,
+          `test('does nothing', async ({ page }) => {\n  await page.goto('/about')\n})\n` +
+          `test.fixme('declared but empty', async ({ page }) => {\n  await page.goto('/x')\n})\n`,
       )
       const r = run(['--dir', dir, '--enforce'], dir)
       expect(r.status).toBe(1)
       expect(r.stderr).toContain('PROFORMA')
       expect(r.stderr).toContain('empty.spec.ts:5')
+      expect(r.stderr).toContain('empty.spec.ts:8')
     } finally {
       cleanup()
     }

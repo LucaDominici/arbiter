@@ -396,9 +396,10 @@ export function extractTestBlocks(src) {
     // CATALOG note on the rejected fold-in). Counting it here would double-report it.
     if (/\.(?:skip|todo|skipIf|runIf)\b/.test(m[3])) continue
     // #2670: fixture and hook calls share the `test.<x>(` shape but are not test cases
-    // (Playwright `test.use`, `beforeEach`…, `describe.configure`); nothing to assert in them.
+    // (Playwright `test.use`, `beforeEach`…, `describe.configure`, `step`, `setTimeout`, `slow`);
+    // nothing to assert in them. `fixme`/`fail` DECLARE cases and stay scanned.
     if (
-      /\.(?:use|beforeEach|afterEach|beforeAll|afterAll|describe\.configure|extend|setTimeout|slow|fixme|fail|only\.fixme)\b/.test(
+      /\.(?:use|beforeEach|afterEach|beforeAll|afterAll|describe\.configure|step|setTimeout|slow)\b/.test(
         m[3],
       )
     )

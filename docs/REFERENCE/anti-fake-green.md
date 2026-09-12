@@ -261,8 +261,9 @@ should express those two conditions with one code or two.
 
 The **gh-audit** guards (#9, #10) are report-only (advisory, exit 0) by default and promote to
 blocking with `--enforce` once trusted — the `check-anti-proforma` precedent (which counts only test
-cases: Playwright fixture and hook calls such as `test.use`, `test.beforeEach`, `test.afterAll` and
-`test.describe.configure` share the `test.<x>(` shape but are never proforma candidates, #2670). The **file-scan**
+cases: Playwright fixture, hook and config calls — `test.use`, `test.beforeEach`/`afterEach`/`beforeAll`/
+`afterAll`, `test.describe.configure`, `test.step`, `test.setTimeout`, `test.slow` — share the `test.<x>(`
+shape but are never proforma candidates, while `test.fixme`/`test.fail` declare cases and stay scanned, #2670). The **file-scan**
 guards (#1, #6, E10) are deterministic and **hard-fail by default** (a child exit 1 fails the
 aggregate); they require no `--enforce`. All are wired into `check-all.mjs` via the aggregate. The
 score-side veto (#8) is already Tier-1 in the conformance engine. Tracked under epic #1411
