@@ -287,6 +287,45 @@ describe('runDiff', () => {
     expect(calls.some((c) => c.includes('(unchanged)'))).toBe(false)
   })
 
+  // #2665: a withheld file was printed inline AND again in the trailing section, so a
+  // `grep -c '^\s*!'` over the plain output doubled the operator-facing count.
+  it('#2665: each withheld path appears once in plain output, and the count matches --json', async () => {
+    mockLoadConfig.mockReturnValue(makeStoredConfig())
+    const keys = ['.claude/agents/red-team.md', '.claude/agents/bridge-reviewer.md']
+    const manifest: Record<string, string> = {}
+    for (const key of keys) {
+      mkdirSync(join(dir, dirname(key)), { recursive: true })
+      writeFileSync(join(dir, key), `user-edited ${key}`)
+      manifest[key] = createHash('sha256').update('arbiter original render').digest('hex')
+    }
+    saveGeneratedManifest(dir, manifest)
+    const out: string[] = []
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(((
+      chunk: string | Uint8Array,
+    ) => {
+      out.push(String(chunk))
+      return true
+    }) as typeof process.stdout.write)
+    const { runDiff } = await import('../../src/commands/diff.js')
+    runDiff({ dir })
+    const plain = out.join('')
+    out.length = 0
+    runDiff({ dir, json: true })
+    writeSpy.mockRestore()
+    const bangLines = plain.split('\n').filter((l) => /^\s*!\s/.test(l))
+    for (const key of keys) {
+      expect(
+        bangLines.filter((l) => l.includes(key)),
+        plain,
+      ).toHaveLength(1)
+    }
+    const envelope = JSON.parse(out.join('').trim().split('\n').pop() ?? '{}') as {
+      data: { withheldCount: number }
+    }
+    expect(envelope.data.withheldCount).toBe(keys.length)
+    expect(bangLines).toHaveLength(envelope.data.withheldCount)
+  })
+
   it('uses cwd when no dir option provided', async () => {
     mockLoadConfig.mockReturnValue(makeStoredConfig())
     const { runDiff } = await import('../../src/commands/diff.js')
