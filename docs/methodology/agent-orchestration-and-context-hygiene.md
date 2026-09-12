@@ -516,6 +516,16 @@ detector, playbook §T4) — because a routinely-bypassed gate actively trains d
 **Why.** R6. This is the immune system of every other measure: without it, M1–M14
 decay into prose within months (observed: 305 bypasses).
 
+INV-119 owes a trailer only for commits whose suppression-file hunks add an actual
+ENTRY — decided from the ADDED lines of `git show <hash> -- <path>` (non-blank,
+non-comment for `.trivyignore`/`.gitleaksignore`; a non-`$schema`/`version` key or
+item for JSON allowlists). A scaffold commit (`arbiter update` creating an empty
+`.trivyignore` or schema file, comments/deletions only) needs no trailer; a commit
+that later adds a real entry still does. Recognized trailers are shape-validated per
+key, not just the `Key:` prefix: `Suppression-Rationale`/`Trivy-Expiry-Extension`
+need a parseable `expires:`/`new-expiry:` date, `Sigstore-Bypass` a `retry-after:`
+date, `Pitest-Override-Rationale` a `follow-up:` ref (#2669).
+
 **Enforcement.** HARD: `scripts/check-fail-closed-audit.mjs` (INV-96, audits scripts/,
 `.githooks/`, `.claude/hooks/` for fail-open anti-patterns);
 `check-commit-footer-rationale.mjs`; append-only bypass-log; suppressions require

@@ -7,6 +7,11 @@
 // CATALOG: Rejected fold-in into check-suppression-rationale.mjs (that gate checks file content, not
 // CATALOG:   commit history — different invariant axis). Hard-blocks (exit 1) on missing/malformed trailer.
 // CATALOG: Writes evidence artifact to .arbiter/evidence/commit-footer-audit/<timestamp>.json (INV-evidence).
+// CATALOG: #2669 — a commit only owes a trailer when its suppression-file hunks add an actual ENTRY
+// CATALOG:   (added, non-blank, non-comment line; non-schema JSON key/item), decided from
+// CATALOG:   `git show <hash> -- <path>` ADDED lines only (deletions/comments/schema never count).
+// CATALOG:   Recognized trailers are also shape-validated per key (a parseable date/ref sub-field),
+// CATALOG:   not just the `Key:` prefix.
 // Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR
 // Usage: node scripts/check-commit-footer-rationale.mjs [--range=<ref>] [--evidence-dir=<path>] [--dry-run] [--test-trailer=<value>] [--help]
 
@@ -38,7 +43,10 @@ Recognized footer trailers:
 
 Suppression-touching files (patterns):
   *.trivyignore  *pitest*override*  suppressions/**
-  (excludes EJS templates under src/templates/ — schema templates, not active waivers)`
+  (excludes EJS templates under src/templates/ — schema templates, not active waivers)
+
+A trailer is only owed when a commit's hunks ADD a suppression entry — an empty
+scaffold, a comment-only or schema-only edit needs no trailer (#2669).`
 
 // Recognized trailer keys
 const RECOGNIZED_TRAILERS = [
@@ -87,6 +95,85 @@ function isSuppressionFile(filePath) {
 function isRecognizedTrailer(trailer) {
   if (!trailer || !trailer.trim()) return false
   return RECOGNIZED_TRAILERS.some((key) => trailer.trim().startsWith(key + ':'))
+}
+
+// AC3: the `Key:` prefix alone is not enough — each trailer key demands a parseable
+// date (or a follow-up ref, for Pitest-Override-Rationale) in its own sub-field.
+const TRAILER_SHAPE = {
+  'Suppression-Rationale': { field: 'expires', kind: 'date' },
+  'Trivy-Expiry-Extension': { field: 'new-expiry', kind: 'date' },
+  'Sigstore-Bypass': { field: 'retry-after', kind: 'date' },
+  'Pitest-Override-Rationale': { field: 'follow-up', kind: 'ref' },
+}
+
+function isValidDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const d = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(d.getTime())
+}
+
+/**
+ * Validate the SHAPE of a trailer whose key is already recognized (AC3). Returns
+ * `null` when valid, or a human-readable reason naming the missing/malformed part.
+ */
+function trailerShapeError(trailer) {
+  const trimmed = trailer.trim()
+  const key = RECOGNIZED_TRAILERS.find((k) => trimmed.startsWith(k + ':'))
+  if (!key)
+    return `trailer does not start with a recognized key (${RECOGNIZED_TRAILERS.join(', ')})`
+  const shape = TRAILER_SHAPE[key]
+  const match = new RegExp(`${shape.field}:(\\S+)`).exec(trimmed)
+  if (!match) return `${key} trailer is missing a "${shape.field}:" field`
+  if (shape.kind === 'date' && !isValidDate(match[1])) {
+    return `${key} trailer's "${shape.field}:${match[1]}" is not a valid YYYY-MM-DD date`
+  }
+  return null
+}
+
+/**
+ * AC1: decide whether ADDED lines in a suppression-file hunk add an actual entry,
+ * as opposed to only comments, schema boilerplate, or an empty scaffold. Kept
+ * intentionally simple (#2669):
+ *   - ignore-file style (.trivyignore, .gitleaksignore, any non-JSON suppression
+ *     file): a blank line or a line starting with `#` doesn't count.
+ *   - JSON allowlist style (path ends in .json): blank lines, pure JSON punctuation
+ *     (`{`, `}`, `[`, `]`, trailing commas) and the `$schema`/`version` keys don't count.
+ * Only ADDED lines are inspected — deletions never require a trailer.
+ */
+function addedLinesAddEntry(path, addedLines) {
+  const isJson = /\.json$/.test(path)
+  return addedLines.some((line) => {
+    const trimmed = line.trim()
+    if (!trimmed) return false
+    if (isJson) {
+      if (/^[{}[\],]*$/.test(trimmed)) return false
+      if (/^"(\$schema|version)"\s*:/.test(trimmed)) return false
+      return true
+    }
+    return !trimmed.startsWith('#')
+  })
+}
+
+/**
+ * Check whether commit `hash` adds a suppression ENTRY to `path` (AC1/AC2), via
+ * `git show <hash> -- <path>` added lines. Fails safe (treats as entry-adding,
+ * i.e. still demands a trailer) if the diff cannot be read.
+ */
+function commitAddsSuppressionEntry(hash, path, cwd) {
+  let diff = ''
+  try {
+    diff = execFileSync('git', ['show', hash, '--format=', '--', path], {
+      cwd,
+      encoding: 'utf-8',
+    })
+  } catch {
+    return true
+  }
+  const addedLines = diff
+    .split('\n')
+    .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+    .map((line) => line.slice(1))
+  return addedLinesAddEntry(path, addedLines)
 }
 
 /**
@@ -195,7 +282,7 @@ function getCommitsInRange(range, cwd) {
         .filter((line) => /^[A-Z][A-Za-z-]+:\s/.test(line))
         .map((l) => l.trim())
 
-      commits.push({ hash: hash.slice(0, 12), files, trailers, body })
+      commits.push({ hash: hash.slice(0, 12), fullHash: hash, files, trailers, body })
     }
 
     return commits
@@ -238,13 +325,17 @@ function main() {
 
   // --dry-run --test-trailer mode: validate a single trailer string
   if (dryRun && testTrailer !== null) {
-    if (isRecognizedTrailer(testTrailer)) {
-      process.stdout.write(`[commit-footer] VALID: trailer recognized\n`)
-      process.exit(0)
-    } else {
+    if (!isRecognizedTrailer(testTrailer)) {
       process.stderr.write(`[commit-footer] FOOTER-MISSING: trailer not recognized or empty\n`)
       process.exit(1)
     }
+    const shapeError = trailerShapeError(testTrailer)
+    if (shapeError) {
+      process.stderr.write(`[commit-footer] FOOTER-MISSING: ${shapeError}\n`)
+      process.exit(1)
+    }
+    process.stdout.write(`[commit-footer] VALID: trailer recognized\n`)
+    process.exit(0)
   }
 
   if (dryRun) {
@@ -286,23 +377,39 @@ function main() {
     const suppressionFiles = commit.files.filter(isSuppressionFile)
     if (suppressionFiles.length === 0) continue
 
-    commitsRequiringFooter++
-    const hasValidTrailer = commit.trailers.some(isRecognizedTrailer)
+    // AC1: a commit whose suppression-file hunks add no ENTRY (only comments, schema,
+    // empty scaffold, or deletions) does not owe a trailer.
+    const addsEntry = suppressionFiles.some((f) =>
+      commitAddsSuppressionEntry(commit.fullHash, f, cwd),
+    )
+    if (!addsEntry) continue
 
-    if (hasValidTrailer) {
+    commitsRequiringFooter++
+    const recognizedTrailers = commit.trailers.filter(isRecognizedTrailer)
+    const validTrailer = recognizedTrailers.find((t) => trailerShapeError(t) === null)
+
+    if (validTrailer) {
       commitsWithValidFooter++
     } else {
+      const shapeErrors = recognizedTrailers.map(trailerShapeError).filter(Boolean)
+      const error =
+        shapeErrors.length > 0
+          ? shapeErrors.join('; ')
+          : 'No recognized footer trailer found for suppression-touching commit'
       violations.push({
         commit: commit.hash,
         suppression_files: suppressionFiles,
         trailers_found: commit.trailers,
-        error: 'No recognized footer trailer found for suppression-touching commit',
+        error,
       })
       process.stderr.write(
         `[commit-footer] FOOTER-MISSING: commit ${commit.hash} touches suppression file(s) but has no recognized footer trailer\n`,
       )
       for (const f of suppressionFiles) {
         process.stderr.write(`  suppression file: ${f}\n`)
+      }
+      for (const e of shapeErrors) {
+        process.stderr.write(`  ${e}\n`)
       }
       process.stderr.write(
         `  Required: Suppression-Rationale: / Pitest-Override-Rationale: / Trivy-Expiry-Extension: / Sigstore-Bypass:\n`,
