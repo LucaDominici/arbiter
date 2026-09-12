@@ -26,14 +26,15 @@ describe('scripts/regen.mjs buildPlan()', () => {
   // #2568: generators that CONSUME documents (wiki, doc index, llms.txt) ran before the
   // generators that PRODUCE them (status, gap, adr digest, feature matrix), so one regen left
   // the wiki stale against its own sources and only a second run converged.
-  it('#2568 — orders phases produce → index → consume regardless of registry order', () => {
+  it('#2568 — orders phases source → produce → index → consume regardless of registry order', () => {
     const fake = [
+      { name: 's', phase: 'source', checkCmd: ['node', 's.mjs'], writeCmd: ['node', 's.mjs'] },
       { name: 'c', phase: 'consume', checkCmd: ['node', 'c.mjs'], writeCmd: ['node', 'c.mjs'] },
       { name: 'i', phase: 'index', checkCmd: ['node', 'i.mjs'], writeCmd: ['node', 'i.mjs'] },
       { name: 'p2', phase: 'produce', checkCmd: ['node', 'p.mjs'], writeCmd: ['node', 'p2.mjs'] },
       { name: 'p1', phase: 'produce', checkCmd: ['node', 'p.mjs'], writeCmd: ['node', 'p1.mjs'] },
     ]
-    expect(buildPlan(fake).map((s) => s.name)).toEqual(['build', 'p2', 'p1', 'i', 'c'])
+    expect(buildPlan(fake).map((s) => s.name)).toEqual(['build', 's', 'p2', 'p1', 'i', 'c'])
   })
 
   it('#2568 — an entry with no declared phase (or an unknown one) is refused, not silently appended', () => {
@@ -58,6 +59,9 @@ describe('scripts/regen.mjs buildPlan()', () => {
     const consumers = ['wiki lint (INV-116)', 'doc index (#1102)', 'llms.txt drift (#1721)']
     for (const p of producers)
       for (const c of consumers) expect(at(p), `${p} before ${c}`).toBeLessThan(at(c))
+    // status, gap and the derived pages all read FEATURE_MATRIX.md (review finding, #2568).
+    for (const r of ['status dashboard', 'gap register', 'derived pages (#1838)'])
+      expect(at('feature matrix (INV-112)'), `feature matrix before ${r}`).toBeLessThan(at(r))
     expect(at('ssot core index (#1100)')).toBeLessThan(at('wiki lint (INV-116)'))
     expect(at('doc index (#1102)')).toBeLessThan(at('wiki lint (INV-116)'))
   })

@@ -25,69 +25,91 @@
 //     both read output that the 'ssot core index (#1100)' / 'adr digest
 //     (INV-107)' rows below already regenerate — so no separate row needed.
 
+// #2568 — `phase` orders `npm run regen` so one pass converges. SOURCE: a document derived
+// from code/config that other producers read (the feature matrix feeds status, gap and the
+// derived pages). PRODUCE: generators that write documents (status, gap, adr digest, derived
+// pages; cli ref, licenses and action pins write elsewhere and have no readers here). INDEX:
+// generators that read the doc tree and write a doc from it (ssot core, doc index). CONSUME:
+// generators that only read documents (wiki mirror, llms.txt, public governance mirror).
+// Array order is kept inside a phase. regen.mjs refuses an entry without a valid phase.
+export const REGEN_PHASES = ['source', 'produce', 'index', 'consume']
+
 export const DERIVED_ARTIFACTS = [
   {
     name: 'third-party licenses',
+    phase: 'produce',
     checkCmd: ['node', 'scripts/gen-third-party-licenses.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-third-party-licenses.mjs'],
   },
   {
     name: 'wiki lint (INV-116)',
+    phase: 'consume',
     checkCmd: ['node', 'scripts/check-wiki-lint.mjs'],
     writeCmd: ['node', 'scripts/gen-wiki.mjs'],
   },
   {
     name: 'doc index (#1102)',
+    phase: 'index',
     checkCmd: ['node', 'scripts/gen-doc-index.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-doc-index.mjs'],
   },
   {
     name: 'llms.txt drift (#1721)',
+    phase: 'consume',
     checkCmd: ['node', 'scripts/gen-llms-txt.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-llms-txt.mjs'],
   },
   {
     name: 'status dashboard',
+    phase: 'produce',
     checkCmd: ['node', 'scripts/gen-status.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-status.mjs'],
   },
   {
     name: 'derived pages (#1838)',
+    phase: 'produce',
     checkCmd: ['node', 'scripts/gen-derived-pages.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-derived-pages.mjs'],
   },
   {
     name: 'gap register',
+    phase: 'produce',
     checkCmd: ['node', 'scripts/gen-gap.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-gap.mjs'],
   },
   {
     name: 'ssot core index (#1100)',
+    phase: 'index',
     checkCmd: ['node', 'scripts/gen-ssot-core.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-ssot-core.mjs'],
   },
   {
     name: 'adr digest (INV-107)',
+    phase: 'produce',
     checkCmd: ['node', 'scripts/gen-adr-readme.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-adr-readme.mjs'],
   },
   {
     name: 'cli ref parity (INV-111)',
+    phase: 'produce',
     checkCmd: ['node', 'scripts/gen-cli-ref.mjs', '--check'],
     writeCmd: ['node', 'scripts/gen-cli-ref.mjs'],
   },
   {
     name: 'feature matrix (INV-112)',
+    phase: 'source',
     checkCmd: ['node', 'scripts/check-feature-matrix.mjs', '--check'],
     writeCmd: ['node', 'scripts/check-feature-matrix.mjs', '--write'],
   },
   {
     name: 'action pin parity',
+    phase: 'produce',
     checkCmd: ['node', 'scripts/sync-action-pins.mjs', '--check'],
     writeCmd: ['node', 'scripts/sync-action-pins.mjs'],
   },
   {
     name: 'governance mirror sync (#1805)',
+    phase: 'consume',
     checkCmd: ['node', 'scripts/check-governance-mirror-sync.mjs'],
     writeCmd: ['node', 'scripts/sync-public-governance.mjs'],
   },

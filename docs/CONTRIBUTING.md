@@ -1,6 +1,6 @@
 ---
 title: 'Contributing to arbiter'
-doc_version: '1.0.6'
+doc_version: '1.0.7'
 status: active
 last_review: '2026-09-12'
 owner: ''
@@ -176,7 +176,8 @@ checks at `verification` rather than `green` because a chain walks the phase mac
   register, ADR digest, CLI ref, third-party licenses, feature matrix, action pins,
   governance mirror) → `npm run regen` before re-running the gate; these gates read
   generated state that a prior source edit staled but never regenerated (see
-  `scripts/lib/derived-artifacts.mjs`)
+  `scripts/lib/derived-artifacts.mjs`). One pass converges: the feature matrix, then the document
+  producers, then their indexers and consumers (#2568), so `regen && regen` is never needed
 - Gate red on `docs` (`Code changed without documentation update`) → update the canonical
   document for the changed surface (workflow templates: `docs/REFERENCE/ci-tier-workflows.md`,
   bump `doc_version`), then `npx prettier --write <file>` and `npm run regen` before the gate;

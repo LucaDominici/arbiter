@@ -12,14 +12,24 @@
 //
 // Usage: npm run regen
 import { execFileSync } from 'node:child_process'
-import { DERIVED_ARTIFACTS } from './lib/derived-artifacts.mjs'
+import { DERIVED_ARTIFACTS, REGEN_PHASES } from './lib/derived-artifacts.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
 
-/** Ordered plan: `npm run build` first, then every artifact's writeCmd. */
+/**
+ * Ordered plan: `npm run build` first, then every artifact's writeCmd grouped by REGEN_PHASES
+ * (source → produce → index → consume, #2568) so doc consumers see the docs this same run produced.
+ * Registry order is preserved inside a phase; a missing or unknown phase is refused.
+ */
 export function buildPlan(artifacts = DERIVED_ARTIFACTS) {
+  for (const a of artifacts) {
+    if (!REGEN_PHASES.includes(a.phase)) {
+      throw new Error(`derived artifact "${a.name}" has no valid phase (${REGEN_PHASES.join('|')})`)
+    }
+  }
+  const ordered = REGEN_PHASES.flatMap((phase) => artifacts.filter((a) => a.phase === phase))
   return [
     { name: 'build', cmd: 'npm', args: ['run', 'build'] },
-    ...artifacts.map((a) => ({ name: a.name, cmd: a.writeCmd[0], args: a.writeCmd.slice(1) })),
+    ...ordered.map((a) => ({ name: a.name, cmd: a.writeCmd[0], args: a.writeCmd.slice(1) })),
   ]
 }
 
