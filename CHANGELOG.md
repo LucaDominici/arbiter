@@ -6,6 +6,228 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are aligned to
 [Semantic Versioning](https://semver.org/) (pre-1.0: a breaking change bumps the minor).
 
+## [0.6.0] — 2026-09-13
+
+**Channel:** stable
+
+### Minor Changes
+
+- 4c15a71: New `pr-tooling` generator (#2098) emits `scripts/pr-merge-watch.mjs` (a bounded
+  merge-on-green PR watcher — merges (0), hard-fails on a real red check (1), or
+  times out (2), never loops forever) and `scripts/capacity-probe.mjs` (a
+  combined local-load + gate-queue-depth + remote-runner-busy saturation
+  advisory), sharing one `scripts/lib/waiter-count.mjs` fd-count helper. Both
+  are always-on, project-agnostic orchestration tools (not gate infrastructure).
+  `arbiter gate-exec` also gains a queue-depth advisory line (no behavior
+  change) pointing at `ARBITER_PREPUSH_BYPASS` once >= 2 processes are already
+  queued on the mutex.
+- bf935d6: Retire the five experimental tool generators (#2367, ADR-119). `cursor`,
+  `copilot`, `gemini`, `windsurf` and `aider` were retained-but-unreachable —
+  `parseTools` rejected the only values that could reach them — so their
+  generators, template trees and tests are deleted, along with the shared
+  `agent-file` factory whose only callers they were. ADR-119 also writes the
+  promotion criteria that were previously missing, derived from the `codex` track:
+  a runnable adapter, empirical tests against the live tool, an ADR-106
+  derive-from-Claude emission-parity gate (`check-codex-parity` /
+  `check-codex-self-parity` are the shape), and a fixture plus a generated
+  known-limitations table. No tool is promoted.
+
+  **Breaking (public type):** the exported `AiTool` union narrows from seven
+  members to `'claude' | 'codex'`; `AI_TOOLS`, the recipe `AiToolSchema` and the
+  `GeneratorKey` union narrow with it. No migration is required — an existing
+  `arbiter.json` naming a retired tool is coerced by `sanitizeCoercibleFields`
+  (unknown entries filtered, falling back to `['claude','codex']`) with a report
+  line, never rejected (ADR-105 never-brick). Brownfield _detection_ of
+  `.gemini/`, `windsurf-instructions.md` and `.aider.conf.yml` is deliberately
+  kept: detection is not emission, and ADR-011 still requires arbiter to back
+  those files up rather than clobber them.
+
+- 043b1eb: Acceptance-criteria anchor (INV-138, ADR-110): closes the gap between "gate green"
+  and "what was asked". New feature flag `features.acceptanceAnchor` (opt-in;
+  `ARBITER_ACCEPTANCE_ANCHOR` env override) activates `scripts/check-acceptance.mjs`
+  in check-all L1 — implementation-phase plans must freeze the issue's explicit
+  `AC-N:` acceptance criteria + Non-Goals verbatim, and verification/close requires
+  the reviewer-written all-PASS `.arbiter/evidence/ac-fit/<task>.json` with a cited
+  `file:line` per criterion (unproven criterion = REJECT, mechanically). Three
+  orchestration tools are now emitted to every governed target via `arbiter
+init`/`update`: `scripts/issue-readiness.mjs` (entry gate — unready issues get
+  `needs-clarification` before dispatch), `scripts/rework-log.mjs` (rework telemetry
+  ledger `.arbiter/rework/ledger.jsonl`, reason × caught-stage taxonomy) and the
+  shared pure core `scripts/lib/acceptance-criteria.mjs`. The generated ship /
+  wave-drain / tdd / review skills carry the readiness step, the frozen-anchor
+  contract, the per-criterion FIT rubric and the Merge Contract derivation. The
+  task-brief issue templates gain `AC-N:` prefill and a required Non-Goals section.
+- 7b0a006: `arbiter update` now force-adopts the gate spine (`scripts/check-all.mjs`, `scripts/lib/*.mjs`) over a
+  user-modified copy, the way it already does for safety hooks (#2109).
+
+  Previously a project that edited its gate entrypoint once never received another correctness or security
+  fix for it: the file is `skipIfExists`, so it stayed withheld forever behind a warning. The failure was
+  self-sealing — `check-all.mjs` is also what wires the anti-erosion ratchet into the gate, so the guard was
+  delivered through the channel the erosion blocked.
+
+  Adoption is reversible (a `.arbiter/evidence/local-overrides/<slug>.json` envelope stores the prior content
+  verbatim), previewable with `--adopt-plan`, and opt-out-able with the new `--no-adopt-gate-spine` —
+  independent of `--no-adopt-safety`, so freezing a custom gate entrypoint never disarms safety-hook
+  adoption. A spine left frozen turns `check-safety-adopt-ratchet.mjs` red rather than hiding.
+
+  `scripts/check-*.mjs` leaf checks are deliberately NOT in the class: that is where a project tunes its own
+  thresholds.
+
+  **Upgrade note:** if you deliberately maintain a customized `scripts/check-all.mjs` or `scripts/lib/*.mjs`,
+  run `arbiter update --adopt-plan` first to see the diff, and pass `--no-adopt-gate-spine` to keep it.
+
+- eadbd9e: update: the gate spine is WITHHELD by default — `--adopt-gate-spine` is the opt-in (#2119)
+
+  **This reverses the default introduced by #2109.** #2109 made `scripts/check-all.mjs` and
+  `scripts/lib/*.mjs` a force-adopt class, on the reasoning that a frozen gate entrypoint never
+  receives another fix. The reasoning holds only if the template render is a **superset** of the
+  local file. It is for `.claude/hooks/*.mjs` — whole files arbiter owns. It is not for
+  `check-all.mjs`, which is by construction the point where a project wires its OWN checks:
+  customization _is_ that file's function.
+
+  Measured on a copy of a real governed consumer, a **bare** `arbiter update` — no `--adopt`, no
+  flag at all — deleted **25 project checks, 12 of them security** (container hardening, auth
+  bypass, cookie hardening, crypto primitives, SQLi regression, distroless runtime, error
+  disclosure, workflow hardening, …) and **the gate stayed green**: the checks did not fail, they
+  disappeared. With this change the same run leaves the file **byte-identical**.
+
+  Changes:
+
+  - `arbiter update` no longer overwrites a user-modified gate spine. A **pristine** spine
+    (untouched since arbiter generated it) still receives every template fix, unchanged.
+  - New `--adopt-gate-spine`: the explicit, **destructive** opt-in. Preview it with `--adopt-plan`;
+    the prior bytes are still recorded in `.arbiter/evidence/local-overrides/`.
+  - `--no-adopt-gate-spine` is kept as an **accepted no-op** so scripts written against the old
+    default keep working.
+  - `arbiter diff` now reports a customized `scripts/check-all.mjs` as _withheld_ rather than
+    _changed_ — which is what `update` actually does with it.
+  - `check-safety-adopt-ratchet.mjs` stops prescribing the command that would erase those checks.
+    For a withheld spine it now says: `arbiter diff` → wire the new checks by hand → mark the file
+    `arbiter:preserve` if the divergence is permanent → and only as a last resort, the destructive
+    `--adopt-gate-spine`. It also **accepts** a preserve-marked file as the documented exception it
+    already demanded in writing (printed on stdout, never silent) instead of failing on it forever.
+
+  Upgrade note: if you _want_ the template's gate entrypoint, run
+  `arbiter update --adopt-plan --adopt-gate-spine` to preview, then `arbiter update
+--adopt-gate-spine`. If you keep your own, the ratchet stays red until you wire arbiter's newer
+  checks into your `check-all.mjs` or mark the file `arbiter:preserve` — that red is the honest
+  register of the debt, and it is not wired into any generated gate.
+
+- f82cdca: update: WITHHOLD diverged governance files by default; add destructive `--adopt-governance` opt-in (#2141)
+
+  Mirroring #2119's superset principle, `arbiter update` now preserves a user-modified `AGENTS.md` or
+  `.claude/settings.json` byte-for-byte unless `--adopt-governance` is supplied. Pristine governance files
+  continue to receive every template refresh. A withheld governance file is named in update output; use
+  `arbiter:preserve` for a permanent freeze.
+
+  `--no-adopt-governance` is accepted as a no-op, because withholding a diverged governance file is the default
+  since #2141.
+
+- 26ec8f6: `governanceLevel` now fails closed. A present invalid value no longer silently
+  defaults to L2 during config sanitization or v1 migration; Arbiter returns
+  `E_CONFIG_INVALID` instead. This is a breaking change for configurations that
+  relied on the previous L2 coercion. An absent governance level still defaults to L2.
+- 7e6d8d2: Generated projects gain a single mode-aware landing contract at the merge trust
+  boundary. `LANDING_CONTRACT` and `resolveLandingContract()` in
+  `scripts/lib/exact-sha-policy.mjs` replace the watcher's inline
+  `collaborationMode` literal with an explicit refusal cascade: a malformed
+  `arbiter.json`, an absent or unusable `collaborationMode`, a known-but-unlandable
+  arc (`peer-review`, `gated-review`), or a `solo.mergeMode` that does not match
+  the arc are each refused by name, and `supported: true` is reachable only as the
+  last outcome. The emitted watcher refuses before its first network call, so an
+  unsupported arc never reaches the atomic compare-and-swap on `main`.
+
+  `scripts/check-merge-method.mjs` (INV-101) now asserts the wiring rather than
+  only its presence: it requires `resolveLandingContract(` to be _called_ and the
+  `assertLandingSupported()` guard to be _invoked_ as a statement. A name-only
+  pattern would be satisfied by the import line alone and could not see the
+  enforcement call being deleted — which, in a generated project, is the only
+  INV-101 enforcement there is.
+
+  `/ship`'s emitted command text now states, for the two unsupported arcs, that
+  `main != gatedHeadSha` and points at the tracking issue rather than implying the
+  exact-SHA guarantee holds.
+
+- 647c337: `ship --batch` (deprecated at warn stage since 0.4.0, ADR-103 #1873, scheduled
+  removeIn 0.6.0) is removed: the `--batch` flag, `runShipBatchCommand`, and the
+  whole `src/batch/` module (`runBatch`, `runShipBatch`, `parseIssueList`, and
+  related types) are deleted. Use `/drain` (wave-drain skill) for overnight
+  multi-issue runs. `docs/DEPRECATIONS.md` moves the row to Closed/Removed;
+  `CLI_DEPRECATED_FLAGS` is now empty.
+
+### Patch Changes
+
+- b7300e2: Fixed the generated Python `check-all.mjs`'s "unit tests" (and L2 "audit")
+  checks emitting a spurious empty-string positional arg (`pytest ''`) for a
+  zero-arg gate-registry command. That extra `''` made `pytest` bypass
+  `pyproject.toml`'s `testpaths` scoping and collect the whole `tests/` tree
+  (including the playwright-only `tests/e2e/`), failing the generated
+  project's own L1 gate on first run.
+- 034512f: Preserve added lines beginning with plus signs in shared governance hooks, including
+  the emitted templates and kernel plugin. Match review returns to the exact
+  dispatched source before diagnosing stale historical evidence.
+- 68d2bc0: Drop the `-covermode=atomic` pin from the generated `scripts/evidence-collect.mjs` Go coverage step
+  (#2106) — the same cache-split class #2104 removed from `check-all.mjs`.
+
+  covermode is part of Go's test-cache key, so the pinned run shares nothing with the default-covermode
+  coverage run in the gate over the same packages and re-executes the whole suite (231.4 s vs 0.77 s
+  measured on a governed project). #2104 spared this call site on the assumption that evidence collection
+  runs on a fresh CI checkout with a cold cache; that assumption was never verified and is false — no
+  generated workflow invokes the script at all, so it runs where an operator runs it: the same working tree
+  as the gate, warm cache.
+
+  Statement coverage is unchanged; `atomic` is only required under `-race`, which collects no coverage here.
+
+- `arbiter diff` lists each withheld file once, under "Withheld template fixes" (#2665). The package
+  is published as `@getarbiter/cli`; the `arbiter` bin is unchanged (#2667). The emitted
+  `check-emission-parity.mjs` honours `.arbiterignore`: an opted-out key whose file is gone is
+  reported as ignored, not missing (#2668).
+- a55d6f9: Gate step timeouts now scale with the available CPU cores, allowing the full gate to run
+  on supported 4-core machines. Timed-out steps are reported as `TIMEOUT` instead of a
+  generic `FAIL`, while retaining the same fail-closed exit behavior.
+- d691f33: Three measured gate levers ported into the generated gate (#2104). The emitted
+  `scripts/lib/run-helpers.mjs` gains `resolveTmpfsTmpdir()` and the emitted
+  `scripts/check-all.mjs` uses it to point `TMPDIR` at `/dev/shm` before any child
+  process spawns, but only when the caller has not set one and only when the tmpfs
+  has at least 4 GiB free — the guard is free space, never mere existence, because
+  `/dev/shm` defaults to 64 MB inside containers and `TMPDIR` also relocates Go's
+  build work dirs. On an fsync-bound DB-fixture suite this moved the same
+  `-count=1` coverage run from 210s at 21% CPU to 33.7s at 101% CPU. The Go
+  `coverage profile` step no longer pins `-covermode=atomic`: `debt-lib.mjs` reruns
+  the whole suite with the default covermode in the same gate and covermode
+  partitions Go's test cache, so the pin forced a full 231.4s second pass that is
+  now a 0.77s cache hit (statement coverage is identical between the modes). And
+  `scripts/lib/glob-walk.mjs`'s `walkRepo` now prunes nested checkouts — a git
+  worktree, submodule or vendored clone inside the working tree carries its own
+  `.git` and belongs to a different commit, so folding its files in made every
+  consumer (debt ratchet, secret scan, doc-link and TODO gates) measure the wrong
+  tree. Existing projects pick these up by re-running `arbiter update`; a
+  user-modified `scripts/check-all.mjs` is preserved, not overwritten, so it needs
+  a manual re-sync.
+- Validate enabled acceptance anchors before entering the RED phase, and require
+  valid, committed branch-produced TDD receipts for the primary and chained tasks
+  before verification. Keep whole-chain validation out of GREEN so chained work can
+  progress. Document that a skipped worktree pre-commit hook does not prove L1 passed.
+- d154ca4: Fixed `npm install github:LucaDominici/arbiter#<ref>` failing outright on some npm/git version
+  pairings (self-hosted CI runners observed it, exit 128 "fatal: not in a git directory"). The
+  `prepare` lifecycle script's `git config core.hooksPath` half — which only matters for a real
+  contributor checkout of this repo — could abort the whole install and skip
+  `scripts/prepare-lifecycle.mjs`, the half that actually builds `dist/` for a consumer. It now
+  tolerates that failure instead of propagating it.
+- b4e724c: Fixed `arbiter doc-set` / `arbiter gold-audit` crashing with `MODULE_NOT_FOUND` for every
+  real consumer install (npm registry or git dependency). `package.json`'s `files[]` never
+  included `scripts/`, but both commands shell out to `scripts/check-doc-set.mjs` /
+  `scripts/gold-audit.mjs` (and their shared lib deps) at runtime — the bug was invisible on
+  this dev checkout, where `arbiter` is globally linked straight to the source tree.
+- bf1d0ca: `arbiter upgrade-level` now rejects grace transitions other than L1 to L2, so
+  unsupported upgrades cannot persist a grace window ignored by generated gates.
+
+All notable changes to this project are documented in this file.
+
+This project uses [changesets](https://github.com/changesets/changesets) and follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are aligned to
+[Semantic Versioning](https://semver.org/) (pre-1.0: a breaking change bumps the minor).
+
 ## [0.5.0] — 2026-07-11
 
 **Channel:** stable

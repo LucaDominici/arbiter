@@ -1,6 +1,6 @@
 ---
 title: 'Contributing to arbiter'
-doc_version: '1.0.7'
+doc_version: '1.0.8'
 status: active
 last_review: '2026-09-12'
 owner: ''
@@ -168,6 +168,25 @@ checks at `verification` rather than `green` because a chain walks the phase mac
 - [`docs/internal/architecture/ARCHITECTURE.md`](./internal/architecture/ARCHITECTURE.md) — system internals
 - [`docs/api/README.md`](./api/README.md) — public API surface
 - [`OBSIDIAN.md`](../OBSIDIAN.md) — open this repo as an Obsidian vault
+
+## Cutting a release
+
+Measured on 0.6.0 (#2672, the first tag-driven OIDC publish as `@getarbiter/cli`). The release
+commit is a governed change like any other: it carries a task id and a RED of its own.
+
+1. Open the release issue (`release: X.Y.Z — …`) and branch from `origin/main`.
+2. RED: `__tests__/release/release-<issue>.test.ts` pins the contract — `package.json` version,
+   the CHANGELOG head `## [X.Y.Z] — YYYY-MM-DD` with `**Channel:** stable`, and an empty
+   `.changeset/` — then `arbiter task record-red --task <issue> --test-path <that file>`.
+3. Pre-1.0 a `major` changeset is recorded as `minor` (CHANGELOG rule: a breaking change bumps the
+   minor); edit the changeset's frontmatter before consuming it.
+4. `npm run changeset:version`, then curate `CHANGELOG.md`: restore the intro paragraph the
+   changeset writer drops and rewrite the new `## X.Y.Z` heading to the dated `[X.Y.Z]` form —
+   `version parity (#1838)` and the #2448 SEMVER test read the bracketed heading, nothing else.
+   `node scripts/sync-changelog.mjs` refreshes `website/changelog/stable.md`.
+5. One commit `chore(release,#<issue>): X.Y.Z`, the exact-head L2, independent review, push,
+   then `git tag vX.Y.Z && git push origin vX.Y.Z`: `05-release.yml` publishes with provenance.
+   Close the issue when `npm view @getarbiter/cli version` prints X.Y.Z.
 
 ## When something fails
 
