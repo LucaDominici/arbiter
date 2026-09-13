@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.19'
+doc_version: '2.0.20'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -179,9 +179,12 @@ manifest is checked against the live schema (bidirectional parity), a fixed exem
 allowlist and mounted-route evidence; the consumer removed five never-populated tables and
 exposed two internal keys so the manifest reports zero unreachable persisted fields.
 A gate wired through `runWarnCheck` (or a `pushResult` whose status is never the literal `'FAIL'`) is
-not hard evidence and must be declared `WIRED:warn:<gate id>`; the local extension slot (#2666)
-always pushes a visible `SKIP` result when the local slot file is absent (the file lives at `<project>/scripts/check-all.local.json`), so `local checks`
-is part of the executed surface on every consumer.
+not hard evidence and must be declared `WIRED:warn:<gate id>`. The local extension slot (#2666) is
+an opt-in hook in `check-all.mjs`, present only in spines re-adopted after it shipped; it pushes a
+visible `SKIP` result for `local checks` when the slot file (`<project>/scripts/check-all.local.json`)
+is absent. A consumer pinned to a spine that predates the slot declares `local checks` `DECLINED`,
+not part of its executed surface — the Bar measures the pinned spine, never the freshly rendered
+template (CI run 34739909865).
 
 ## INV-73 canonical presence floor
 
