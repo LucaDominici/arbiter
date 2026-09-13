@@ -145,5 +145,47 @@
     "owner": "core",
     "expiresAt": "2027-07-08",
     "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "tester@example.com",
+    "reason": "RFC 2606 reserved documentation domain — git author/committer fixture identity used by __tests__/integration/ai-pr-gate-trailer.test.ts (#2552) to build hermetic commits. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "human@example.com",
+    "reason": "RFC 2606 reserved documentation domain — non-AI-author fixture email used by __tests__/integration/ai-pr-gate-trailer.test.ts (#2552) to build commit trailers the gate must NOT match. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "codex@example.com",
+    "reason": "RFC 2606 reserved documentation domain — synthetic Codex-trailer fixture email used by __tests__/integration/ai-pr-gate-trailer.test.ts (#2552). Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "noreply@anthropic.com",
+    "reason": "Claude Code's public no-reply commit-trailer identity (the address behind the real \"Co-Authored-By: Claude\" trailer) — asserted verbatim by the #2552 AI-PR trailer-detection gate tests. Not personal PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "codex@openai.com",
+    "reason": "OpenAI Codex's public commit-trailer identity, asserted by the #2552 AI-PR trailer-detection gate tests to prove the gate matches the real trailer shape. Not personal PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "175728472+Copilot@users.noreply.github.com",
+    "reason": "GitHub Copilot coding agent's public numeric-ID no-reply commit identity, asserted by the #2552 AI-PR trailer-detection gate tests to prove the gate matches the real Copilot trailer shape. Not personal PII.",
+    "owner": "core",
+    "expiresAt": "2027-07-08",
+    "scope": "pii-allowlist"
   }
 ]

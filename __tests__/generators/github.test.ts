@@ -553,7 +553,11 @@ describe('generateGithub — AI-PR gate workflows (#884)', () => {
   it('_ai-draft-check.yml exempts dependabot[bot] from the INV-91 gate', () => {
     generateGithub(makeConfig(dir))
     const content = readFileSync(join(dir, '.github', 'workflows', '_ai-draft-check.yml'), 'utf-8')
-    expect(content).toContain("user.login != 'dependabot[bot]'")
+    // #2552: the exemption moved from the job-level `if:` (`user.login !=
+    // 'dependabot[bot]'`) into the script body as an early return, because
+    // classifying AI-authorship now needs an API call the `if:` can't make.
+    expect(content).toContain("pr.user.login === 'dependabot[bot]'")
+    expect(content).toContain('is exempt from the AI-PR gate')
   })
 
   it('_label-on-approve.yml contains human reviewer guards', () => {

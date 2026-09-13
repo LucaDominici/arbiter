@@ -34,6 +34,10 @@ describe('_ai-draft-check.yml.ejs rendering (CANON-04, INV-91, #1076)', () => {
 
   it('exempts dependabot[bot] from the gate (noise, not a security gap)', () => {
     const rendered = renderTemplate('github/workflows/_ai-draft-check.yml.ejs', data)
-    expect(rendered).toContain("user.login != 'dependabot[bot]'")
+    // #2552: the exemption moved from the job-level `if:` (`user.login !=
+    // 'dependabot[bot]'`) into the script body as an early return, because
+    // classifying AI-authorship now needs an API call the `if:` can't make.
+    expect(rendered).toContain("pr.user.login === 'dependabot[bot]'")
+    expect(rendered).toContain('is exempt from the AI-PR gate')
   })
 })
