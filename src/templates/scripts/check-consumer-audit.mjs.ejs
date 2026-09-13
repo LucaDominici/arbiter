@@ -41,6 +41,11 @@ import { fileURLToPath } from 'node:url'
 /** Severity floor: MODERATE and above — stricter than the dev-tree audit's `high` floor. */
 export const SEVERITY_FLOOR = new Set(['moderate', 'high', 'critical'])
 
+/** npm audit's complete severity enum (auditReportVersion:2 schema) — anything outside
+ * this set (e.g. a made-up "bogus" value) is a malformed entry, not a below-floor
+ * finding (#2515 diff-review round 2). */
+const VALID_SEVERITIES = new Set(['info', 'low', 'moderate', 'high', 'critical'])
+
 const GHSA_URL_RE = /\/advisories\/(GHSA-[A-Za-z0-9-]+)/
 
 /**
@@ -131,10 +136,14 @@ export function classifyConsumerAudit(auditJson, allowlist, now) {
 
   const unsuppressed = []
   for (const [pkgKey, raw] of Object.entries(vulnerabilities)) {
-    // Each entry must itself be a plain object with a string `severity` — a
-    // garbage entry (e.g. `{ lodash: null }`) is a malformed report, not a
-    // package with "no finding" (diff-review round 1, #2515).
-    if (!isPlainObject(raw) || typeof (/** @type {Record<string, unknown>} */ (raw).severity) !== 'string') {
+    // Each entry must itself be a plain object with a severity drawn from npm's
+    // actual enum — a garbage entry (e.g. `{ lodash: null }`) or a made-up
+    // severity string (e.g. "bogus") is a malformed report, not a package with
+    // "no finding" (diff-review rounds 1 and 2, #2515).
+    if (
+      !isPlainObject(raw) ||
+      !VALID_SEVERITIES.has(/** @type {Record<string, unknown>} */ (raw).severity)
+    ) {
       return { unsuppressed: [], errored: true, reason: 'malformed' }
     }
     const entry = classifyVulnEntry(pkgKey, raw, allowlist, now)
