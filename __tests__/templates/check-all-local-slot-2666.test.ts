@@ -156,6 +156,7 @@ function harnessResults(stdout: string): Array<{ name: string; status: string }>
 function runLocalSlotHarnessReal(
   localFileSourceFor: (sentinelPath: string) => string,
   gitConfig: GitConfigMode,
+  launcherEnv: Record<string, string> = {},
 ): { status: number | null; stdout: string; sentinelExists: boolean } {
   const content = render()
   const cutIdx = content.indexOf('// ─── Summary')
@@ -199,7 +200,9 @@ function runLocalSlotHarnessReal(
     const r = spawnSync(process.execPath, [join(scriptsDir, 'check-all.mjs'), 'L2'], {
       encoding: 'utf-8',
       cwd: dir,
-      env: { ...process.env, NO_COLOR: '1' },
+      // launcherEnv simulates a poisoned package.json "scripts" entry setting
+      // GIT_* variables or prepending a shim onto PATH before invoking node.
+      env: { ...process.env, NO_COLOR: '1', ...launcherEnv },
     })
     return { status: r.status, stdout: r.stdout ?? '', sentinelExists: existsSync(sentinelPath) }
   } finally {
@@ -314,6 +317,68 @@ describe('check-all.mjs.ejs — local extension slot requires a git-config opt-i
       expect(r.status).not.toBe(0)
     } finally {
       rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+// #2679 round 3 (Codex): a git-config read that inherits the launcher's
+// process env or PATH is still forgeable. Every test here is an ordinary
+// `L2` run (no CLI flag, no ARBITER_ALLOW_LOCAL_CHECKS) against a repo whose
+// real `--local` `arbiter.allowLocalChecks` is absent/false, with a launcher
+// env that tries to grant the opt-in through a different channel. All must
+// fail closed (SKIP, sentinel never written).
+describe('check-all.mjs.ejs — git env/PATH taint cannot grant the opt-in (#2679)', () => {
+  it('does NOT execute when GIT_CONFIG_GLOBAL points at a file granting true', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arb-local-slot-gitenv-'))
+    try {
+      const globalConfigPath = join(dir, 'attacker-gitconfig')
+      writeFileSync(globalConfigPath, '[arbiter]\n\tallowLocalChecks = true\n')
+      const r = runLocalSlotHarnessReal(sentinelJson, 'absent', {
+        GIT_CONFIG_GLOBAL: globalConfigPath,
+      })
+      expect(r.status).toBe(0)
+      expect(r.sentinelExists).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does NOT execute when GIT_CONFIG_COUNT/KEY_0/VALUE_0 inject the key', () => {
+    const r = runLocalSlotHarnessReal(sentinelJson, 'absent', {
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'arbiter.allowLocalChecks',
+      GIT_CONFIG_VALUE_0: 'true',
+    })
+    expect(r.status).toBe(0)
+    expect(r.sentinelExists).toBe(false)
+  })
+
+  it('does NOT execute when GIT_DIR points at an attacker-controlled repo granting true', () => {
+    const otherRepo = mkdtempSync(join(tmpdir(), 'arb-local-slot-gitdir-'))
+    try {
+      initGitConfig(otherRepo, 'true')
+      const r = runLocalSlotHarnessReal(sentinelJson, 'absent', {
+        GIT_DIR: join(otherRepo, '.git'),
+      })
+      expect(r.status).toBe(0)
+      expect(r.sentinelExists).toBe(false)
+    } finally {
+      rmSync(otherRepo, { recursive: true, force: true })
+    }
+  })
+
+  it('does NOT execute when a fake `git` shim granting true is first on PATH', () => {
+    const shimDir = mkdtempSync(join(tmpdir(), 'arb-local-slot-shim-'))
+    try {
+      const shimPath = join(shimDir, 'git')
+      writeFileSync(shimPath, '#!/bin/sh\necho true\nexit 0\n', { mode: 0o755 })
+      const r = runLocalSlotHarnessReal(sentinelJson, 'absent', {
+        PATH: `${shimDir}:${process.env.PATH ?? ''}`,
+      })
+      expect(r.status).toBe(0)
+      expect(r.sentinelExists).toBe(false)
+    } finally {
+      rmSync(shimDir, { recursive: true, force: true })
     }
   })
 })
