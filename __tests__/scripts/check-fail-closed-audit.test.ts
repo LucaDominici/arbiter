@@ -643,11 +643,18 @@ describe('check-fail-closed-audit', () => {
     })
 
     it('AC-3: an unclosed string literal that blanks the rest of the file is an ERROR, not a quiet pass', () => {
+      // Realistically sized (the tail-collapse floor looks at the last 20% of lines, so a
+      // handful of lines is too small a sample — pad with plain statements either side of
+      // the never-closed string, the way an actual production file would be shaped).
+      const before = Array.from({ length: 20 }, (_, i) => `const v${i} = ${i} + ${i}`)
+      const after = Array.from({ length: 20 }, (_, i) => `const w${i} = ${i} * ${i}`)
       writeFileSync(
         join(env.root, 'scripts', 'desynced.mjs'),
         [
           '#!/usr/bin/env node',
+          ...before,
           "const oops = 'never closed",
+          ...after,
           'function tail() {',
           '  try {',
           '    a()',
