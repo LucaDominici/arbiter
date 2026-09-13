@@ -54,9 +54,10 @@ jobs:
               return;
             }
 
-            // Declared, case-insensitive AI-author trailer list (#2552).
+            // Declared, case-insensitive AI-author trailer list (#2552). Tolerates
+            // optional whitespace around the colon (git trailer syntax permits it).
             const AI_TRAILER_PATTERN =
-              /^(co-authored-by:.*(claude|codex|copilot|gpt)|claude-session:|codex-session:)/im;
+              /^(co-authored-by\s*:.*(claude|codex|copilot|gpt)|claude-session\s*:|codex-session\s*:)/im;
 
             let commits;
             try {

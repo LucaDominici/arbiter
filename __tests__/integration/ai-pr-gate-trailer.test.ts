@@ -9,7 +9,7 @@
 // `user.type: Bot` payload proves nothing about the real failure mode.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -37,10 +37,11 @@ function git(dir: string, args: string[]): string {
 function fixtureRepo(messages: string[]): { dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'ai-pr-gate-'))
   git(dir, ['init', '-q'])
-  messages.forEach((msg, i) => {
-    writeFileSync(join(dir, `file${i}.txt`), `${i}\n`)
-    git(dir, ['add', '.'])
-    git(dir, ['commit', '-q', '-m', msg])
+  // --allow-empty: only the commit MESSAGE (the trailer) matters to the gate,
+  // so real file diffs are unnecessary weight, especially for the
+  // >100-commit pagination-boundary fixture below.
+  messages.forEach((msg) => {
+    git(dir, ['commit', '-q', '--allow-empty', '-m', msg])
   })
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
@@ -68,6 +69,36 @@ function extractScriptBody(workflowPath: string): string {
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
 
+// A `github.paginate` double that actually paginates: it drives the supplied
+// `fn` (the octokit-shaped `listCommits`) page by page, honouring `per_page`,
+// exactly like the real client does. A double that just returns the whole
+// array in one call would let the script's `per_page: 100` argument rot
+// unnoticed — this proves the pagination wiring, not just the trailer regex.
+function makePaginatingGithub(commits: Array<{ commit: { message: string } }>) {
+  const listCommits = async (params: { per_page?: number; page?: number }) => {
+    const perPage = params.per_page ?? 30
+    const page = params.page ?? 1
+    const start = (page - 1) * perPage
+    return { data: commits.slice(start, start + perPage) }
+  }
+  const paginate = async (
+    fn: typeof listCommits,
+    params: { per_page?: number },
+  ): Promise<Array<{ commit: { message: string } }>> => {
+    const perPage = params.per_page ?? 30
+    let page = 1
+    let all: Array<{ commit: { message: string } }> = []
+    for (;;) {
+      const { data } = await fn({ ...params, page })
+      all = all.concat(data)
+      if (data.length < perPage) break
+      page += 1
+    }
+    return all
+  }
+  return { paginate, rest: { pulls: { listCommits } } }
+}
+
 async function runGate(
   workflowPath: string,
   opts: {
@@ -75,6 +106,7 @@ async function runGate(
     userType?: 'User' | 'Bot'
     userLogin?: string
     labels?: string[]
+    apiError?: boolean
   },
 ): Promise<{ failed: string | null; infos: string[] }> {
   const body = extractScriptBody(workflowPath)
@@ -93,10 +125,14 @@ async function runGate(
       },
       info: (msg: string) => infos.push(msg),
     }
-    const github = {
-      paginate: async () => commits,
-      rest: { pulls: { listCommits: async () => ({ data: commits }) } },
-    }
+    const github = opts.apiError
+      ? {
+          paginate: async () => {
+            throw new Error('API rate limit exceeded')
+          },
+          rest: { pulls: { listCommits: async () => ({ data: [] }) } },
+        }
+      : makePaginatingGithub(commits)
     const context = {
       repo: { owner: 'acme', repo: 'widgets' },
       payload: {
@@ -173,6 +209,52 @@ describe.each([
   it('a Codex-Session trailer also fires the gate (declared list is not Claude-only)', async () => {
     const result = await runGate(workflowPath, {
       commitMessages: ['fix: bug\n\nCodex-Session: https://example.com/session/1'],
+      userType: 'User',
+      userLogin: 'a-human-token-holder',
+      labels: [],
+    })
+    expect(result.failed).not.toBeNull()
+  })
+
+  it('a lowercase, extra-spaced trailer ("co-authored-by :") still fires the gate', async () => {
+    const result = await runGate(workflowPath, {
+      commitMessages: ['fix: bug\n\nco-authored-by : Claude <noreply@anthropic.com>'],
+      userType: 'User',
+      userLogin: 'a-human-token-holder',
+      labels: [],
+    })
+    expect(result.failed).not.toBeNull()
+  })
+
+  it('a mixed-case trailer with no space before the colon still fires the gate', async () => {
+    const result = await runGate(workflowPath, {
+      commitMessages: ['fix: bug\n\nCO-AUTHORED-BY: CODEX <codex@example.com>'],
+      userType: 'User',
+      userLogin: 'a-human-token-holder',
+      labels: [],
+    })
+    expect(result.failed).not.toBeNull()
+  })
+
+  it('an API error listing commits fails closed (requires the label) rather than passing silently', async () => {
+    const result = await runGate(workflowPath, {
+      commitMessages: ['feat: whatever'],
+      userType: 'User',
+      userLogin: 'a-human',
+      labels: [],
+      apiError: true,
+    })
+    expect(result.failed).not.toBeNull()
+  })
+
+  it('honours pagination: a trailer only on commit #101 (page 2 of a 100-per-page fetch) still fires', async () => {
+    const commitMessages = Array.from({ length: 100 }, (_, i) => `chore: filler commit ${i}`)
+    // git log lists newest-first, so the LAST commit made is the FIRST page's
+    // first entry; put the trailer on the OLDEST commit so it only surfaces
+    // once pagination walks past page 1's 100 entries.
+    commitMessages.unshift('feat: agent change\n\nCo-Authored-By: Claude <noreply@anthropic.com>')
+    const result = await runGate(workflowPath, {
+      commitMessages,
       userType: 'User',
       userLogin: 'a-human-token-holder',
       labels: [],
