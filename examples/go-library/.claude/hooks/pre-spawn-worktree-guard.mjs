@@ -31,6 +31,18 @@ function isWorktreeCwd(cwd) {
   return /(^|[/\\])[^/\\]+\.worktrees([/\\]|$)/.test(cwd)
 }
 
+/**
+ * The pid that outlives this hook (#2588): Claude Code runs hooks as `/bin/sh -c "node …"`, so
+ * process.pid and process.ppid exit with the hook; CLAUDE_PID names the session process.
+ * Absent, malformed, or naming this hook or its launcher ⇒ undefined, and the sidecar entry is
+ * age-only — a transient pid would be pruned at once and silently disable the guard.
+ */
+function sessionPid() {
+  const pid = Number(process.env.CLAUDE_PID)
+  if (!Number.isInteger(pid) || pid <= 0) return undefined
+  return pid === process.pid || pid === process.ppid ? undefined : pid
+}
+
 function countTaskIds(prompt) {
   if (typeof prompt !== 'string') return 0
   const matches = prompt.match(/#\d+/g)
@@ -104,7 +116,7 @@ function main() {
   // No other writer on the main tree, no M2 violation — allow and register.
   const updated = [
     ...entries,
-    { agent: subagentType ?? 'unknown', ts: now, pid: process.pid, cwd: cwd ?? root },
+    { agent: subagentType ?? 'unknown', ts: now, pid: sessionPid(), cwd: cwd ?? root },
   ]
   try {
     mkdirSync(join(root, '.arbiter'), { recursive: true })

@@ -490,9 +490,26 @@ export function readJsonOrNull(path) {
   }
 }
 
-/** Drops sidecar entries older than SIDECAR_TTL_MS so a killed agent cannot wedge future spawns. */
-export function pruneStaleSidecarEntries(entries, now) {
-  return entries.filter((e) => now - Number(e.ts ?? 0) < SIDECAR_TTL_MS);
+/**
+ * Drops sidecar entries older than SIDECAR_TTL_MS, and entries whose recorded pid is gone
+ * (#2588), so a killed agent cannot wedge future spawns. Only ESRCH means gone: EPERM is a
+ * live process owned by someone else. An entry without a positive-integer pid is age-only —
+ * kill(0|-1) would signal a process group and a non-integer makes kill throw.
+ * ponytail: pids are only meaningful inside one pid namespace; sessions in a container and on
+ * the host sharing one checkout prune each other's entries. Record a host marker if that matters.
+ */
+export function pruneStaleSidecarEntries(entries, now, kill = process.kill) {
+  return entries.filter((e) => {
+    if (now - Number(e.ts ?? 0) >= SIDECAR_TTL_MS) return false;
+    if (!Number.isInteger(e.pid) || e.pid <= 0) return true;
+    try {
+      kill(e.pid, 0);
+      return true;
+      // FAIL-OPEN-INTENT: only ESRCH proves the process is gone; EPERM and anything else keep the slot.
+    } catch (err) {
+      return err?.code !== 'ESRCH';
+    }
+  });
 }
 
 /**
