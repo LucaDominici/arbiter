@@ -786,6 +786,15 @@ describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
     expect(gitleaksStep?.env?.GITLEAKS_ENABLE_UPLOAD_ARTIFACT).toBe('false')
     expect(gitleaksStep?.with?.args).toContain('--full-history')
   })
+
+  // #2673: the SLSA generator halts by default on a private repo ("the workflow has halted in
+  // order to keep the repository name from being exposed in the public transparency log").
+  // Orchestrator decision: opt in — the repo name is already public via the npm package
+  // @getarbiter/cli's trusted-publisher metadata, so the Rekor entry reveals nothing new.
+  it('slsa generator opts in for the private repository (#2673)', () => {
+    const workflow = parseYaml(materialized) as ReleaseWorkflow
+    expect(workflow.jobs['slsa-provenance'].with?.['private-repository']).toBe(true)
+  })
 })
 
 type ReleaseStep = {
@@ -806,6 +815,8 @@ type ReleaseWorkflow = {
       permissions?: Record<string, string>
       secrets?: unknown
       steps?: ReleaseStep[]
+      uses?: string
+      with?: Record<string, unknown>
     }
   >
 }
