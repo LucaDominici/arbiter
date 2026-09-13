@@ -1,6 +1,6 @@
 ---
 title: 'Release Playbook'
-doc_version: '1.2.0'
+doc_version: '1.3.0'
 status: active
 last_review: '2026-09-12'
 owner: 'Luca Dominici'
@@ -60,12 +60,50 @@ owner `LucaDominici`, repository `arbiter`, workflow filename `05-release.yml`.
 The workflow grants `id-token: write` only where provenance/publication needs it.
 No npm secret is inherited by the reusable SLSA workflow.
 
-npm prefers OIDC and may fall back to the repository `NPM_TOKEN` during initial
-or transition publication. The first publication still needs an authorized npm
-account/token when the package cannot yet have a trusted-publisher entry.
-A configured GitHub secret proves neither authentication nor package permission.
-Actual registry publication is the verification of the trusted publisher; see
-[npm trusted publishers](https://docs.npmjs.com/trusted-publishers/).
+**(Round 2, #2679) OIDC only, no token in CI.** The trusted-publisher entry is
+configured and `@getarbiter/cli` has already shipped a version through it
+(0.5.0), so the earlier "initial publication may need `NPM_TOKEN`" case is
+over. `publish-package` publishes exclusively via `npm publish --provenance`
+under OIDC; there is no `NPM_TOKEN`/`NODE_AUTH_TOKEN` anywhere in the job or
+step env, and no repo/org variable re-enables one — a settable-by-Write CI
+variable gating a secret is not a control (a Write collaborator could flip it
+without review). If OIDC publication ever fails (a broken trusted-publisher
+binding, an npm outage), the recovery path is a **manual `npm publish`** run
+by a maintainer from their own authenticated machine against the exact
+retained, hash-verified `release-artifact.tgz` from the failed run — never a
+CI-held token. Record that manual publish's `npm view` readback the same way
+an automated one is recorded (see "Recovery" below).
+See [npm trusted publishers](https://docs.npmjs.com/trusted-publishers/).
+
+## Restrict who can push a release tag
+
+The in-workflow ancestry check (`build-superset`'s `ancestry-check` step) is
+defense in depth only: a workflow executes at the content of the commit it was
+triggered from, so a commit that is itself unreviewed can edit or delete that
+exact step before its author pushes the tag. The check cannot be the
+enforcing control against itself.
+
+The enforcing control is a GitHub **tag ruleset** restricting who may CREATE a
+`v*` tag, evaluated server-side before any workflow runs. Configure one (owner
+action, not something a workflow can set for itself):
+
+```bash
+gh api --method POST repos/LucaDominici/arbiter/rulesets \
+  -f name='release-tags' \
+  -f target='tag' \
+  -f enforcement='active' \
+  -f 'conditions[ref_name][include][]=refs/tags/v*' \
+  -f 'conditions[ref_name][exclude][]=refs/tags/v0.0.0-verify-*' \
+  -f 'rules[][type]=creation' \
+  -f 'bypass_actors[][actor_type]=RepositoryRole' \
+  -f 'bypass_actors[][actor_id]=5' \
+  -f 'bypass_actors[][bypass_mode]=always'
+```
+
+(`actor_id: 5` is the built-in "Admin" repository role; adjust to a specific
+team/app id for a release team narrower than "admin".) A downstream project
+generated from this template must configure the equivalent ruleset on its own
+repository — the template cannot do this for a repo that does not exist yet.
 
 ## Run the requested read-only smoke
 

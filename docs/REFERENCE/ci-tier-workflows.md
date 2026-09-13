@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.26'
+doc_version: '2.0.27'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -365,16 +365,21 @@ Nightly, so an epilogue change is visible there, not in T1.
 >
 > **Release tag ancestry and least privilege (#2679):** `build-superset` opens with an
 > `ancestry-check` step (full-history checkout) that fails closed unless the pushed tag name
-> resolves to the checked-out `GITHUB_SHA` (rejects a re-pointed tag object) and `GITHUB_SHA` is
-> an ancestor of `origin/<default branch>` (rejects a tag pushed at an unreviewed commit); who may
-> push a `v*` tag or protect the default branch is an owner-configured GitHub repo setting this
-> workflow cannot itself change. `publish-package` publishes through OIDC trusted publishing by
-> default with no token in its env; a separate `npm publish` step carrying `NODE_AUTH_TOKEN` exists
-> only behind an explicit, off-by-default `vars.NPM_PUBLISH_TOKEN_FALLBACK == 'true'` opt-in for an
-> initial/transition publish before npm's trusted-publisher entry is configured (see
-> `docs/internal/release-playbook.md`). `cosign-sign` carries only `id-token: write` (it downloads
-> an artifact and signs it — no checkout, no push), and every job in `05-release.yml` now declares
-> its own `permissions:` block instead of relying on the repo/org default.
+> resolves to the checked-out `GITHUB_SHA` (rejects a re-pointed tag object, annotated or
+> lightweight) and `GITHUB_SHA` is an ancestor of `origin/<default branch>` (rejects a tag pushed
+> at an unreviewed commit). This step is **defense in depth, not the enforcing control**: a
+> workflow runs at the tagged commit's own content, so a commit that is itself off the reviewed
+> branch can edit or delete this exact step before its tag is pushed. The enforcing control is a
+> repository **tag ruleset** restricting who may create a `v*` tag — see
+> `docs/internal/release-playbook.md` for the exact `gh api` command; that document is also where a
+> consuming repo is told to configure its own. `publish-package` publishes exclusively through OIDC
+> trusted publishing (no `NPM_TOKEN`/`NODE_AUTH_TOKEN` anywhere in the job — round 2, #2679: the
+> earlier off-by-default token-fallback step was removed once the npm trusted-publisher entry was
+> confirmed configured and the first version had already shipped; a failed OIDC publish is
+> recovered by a manual `npm publish` from a maintainer machine, never a CI-held token).
+> `cosign-sign` carries only `id-token: write` (it downloads an artifact and signs it — no
+> checkout, no push), and every job in `05-release.yml`, across every archetype, now declares its
+> own `permissions:` block instead of relying on the repo/org default.
 
 > **Gitleaks scan scope (#1908):** `security-early-fail`'s `gitleaks detect` call (and the
 > matching L2 check in `scripts/check-all.mjs`) passes `--log-opts="HEAD"`. Without it, gitleaks
