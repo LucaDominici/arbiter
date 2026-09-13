@@ -312,15 +312,24 @@ jobs:
         with:
           name: sbom
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6  # v4.1.2
-      - name: Attest SBOM (CycloneDX predicate)
+      # #2673: `cosign attest` treats its subject as an OCI image reference and fails
+      # ("UNAUTHORIZED") on a plain file — the release artifact is a blob, not an image, so this
+      # must be `attest-blob` (the same distinction as sign-blob vs sign above).
+      - name: Attest SBOM (CycloneDX predicate, keyless OIDC)
         env:
           SBOM_FILE: sbom.cdx.json
           ARTIFACT: release-artifact.tgz
         run: |
-          cosign attest --yes \
+          cosign attest-blob --yes \
             --predicate "$SBOM_FILE" \
             --type cyclonedx \
+            --bundle sbom.attestation.bundle \
             "$ARTIFACT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: sbom-attestation-bundle
+          path: sbom.attestation.bundle
+          retention-days: 90
 
   slsa-provenance:
     name: SLSA provenance (L2 signed, INV-78)
