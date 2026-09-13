@@ -551,3 +551,84 @@ describe('Codex P1 hardening (#2563)', () => {
     }
   })
 })
+
+// Codex diff-review round 2 on #2563 — 4 remaining bypasses beyond round 1.
+describe('Codex round-2 hardening (#2563)', () => {
+  function runResolve(catalogPath: string, allowlistPath?: string) {
+    const args = [SCRIPT, `--catalog=${catalogPath}`, `--gate=${resolve('scripts/check-all.mjs')}`]
+    if (allowlistPath) args.push(`--allowlist=${allowlistPath}`)
+    const r = spawnSync('node', args, { encoding: 'utf-8', cwd: resolve('.') })
+    return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+  }
+
+  // Round 2, #1: a comment between `enforcement:` and its string value defeated the value
+  // regex silently, so the whole entry was treated as having no enforcement field at all
+  // (a vacuous pass) instead of failing on the parse gap.
+  it('fails closed (exit 2) when a comment sits between enforcement: and its value [R2 #1]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-999',\n  enforcement:\n    // a sneaky comment\n    'CI (invented check)',`,
+      )
+      const result = runResolve(catalog)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('INV-999')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // Round 2, #2: a path-traversal token must not resolve outside the repo root.
+  it('rejects a path-traversal token that resolves outside the repo root [R2 #2]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-999',\n  enforcement: 'scripts/../../../../../../../../etc/passwd',`,
+      )
+      const result = runResolve(catalog)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ENFORCEMENT PATH NOT FOUND')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // Round 2, #3: an unrecognised extension under a known directory prefix must still be
+  // treated as a file claim, not silently waved through as non-file prose.
+  it('treats an unknown extension under scripts/ as a file claim and fails when absent [R2 #3]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const allowlist = join(dir, 'allowlist.json')
+      writeFileSync(catalog, `  id: 'INV-999',\n  enforcement: 'scripts/not-a-real-check.py',`)
+      // A matching non-file allowlist entry must NOT rescue this — it names no mechanism,
+      // it names a specific (nonexistent) file, so the file-existence path must fire, not
+      // the no-file-token allowlist path.
+      writeFileSync(
+        allowlist,
+        JSON.stringify({
+          'INV-999': {
+            mechanism: 'code review',
+            reason: 'should not apply',
+            enforcement: 'scripts/not-a-real-check.py',
+          },
+        }),
+      )
+      const result = runResolve(catalog, allowlist)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ENFORCEMENT PATH NOT FOUND')
+      expect(result.stdout).toContain('scripts/not-a-real-check.py')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('passes against the real catalog after round-2 hardening', () => {
+    const result = runResolve(resolve('src/invariants/catalog.ts'))
+    expect(result.status).toBe(0)
+  })
+})
