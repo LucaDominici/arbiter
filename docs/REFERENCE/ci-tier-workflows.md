@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.21'
+doc_version: '2.0.22'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -286,8 +286,10 @@ Nightly, so an epilogue change is visible there, not in T1.
 > self-hosted runner whose workspace is not under `$HOME`; the scan itself stays blocking. The SLSA
 > generator is called with `private-repository: true` because the repository is private and its
 > name is already public through the npm trusted-publisher metadata of `@getarbiter/cli`. The
-> mutation job runs Stryker in place on `vitest.stryker.config.ts`; suites that cannot run under
-> its single-worker pool are listed there with the reason.
+> mutation job builds `dist/` first (several suites spawn child processes that import the built
+> CLI) and then runs Stryker in place on `vitest.stryker.config.ts`; suites that cannot run under
+> its single-worker pool are listed there with the reason. The SLSA generator is pinned by commit
+> SHA, so it is called with `compile-generator: true` (a prebuilt generator binary needs a tag ref).
 
 > **Gitleaks scan scope (#1908):** `security-early-fail`'s `gitleaks detect` call (and the
 > matching L2 check in `scripts/check-all.mjs`) passes `--log-opts="HEAD"`. Without it, gitleaks
