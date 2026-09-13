@@ -1,6 +1,6 @@
 ---
 title: 'Release Playbook'
-doc_version: '1.6.0'
+doc_version: '1.7.0'
 status: active
 last_review: '2026-09-13'
 owner: 'Luca Dominici'
@@ -34,6 +34,16 @@ that tarball, and passes the same bytes through signing and attestations. The
 publisher waits for cosign, SLSA, native provenance, SBOM attestation and document
 freshness; mutation, secret history and Trivy are prerequisites of signing.
 A failure prevents publication. Keep the retained artifact and run URL together.
+
+The INV-92 SBOM attestation is a **blob attestation**, not an image attestation: the release
+artifact is a plain file (`release-artifact.tgz`), so `sbom-attest` uses `cosign attest-blob`
+(not `cosign attest`, which resolves its subject as an OCI image reference and fails
+`UNAUTHORIZED` against a registry for a file path — #2673). The bundle it produces
+(`sbom.attestation.bundle`) is uploaded as a build artifact for audit but is not currently
+re-verified by any CI step; to check it manually, download the bundle and the tarball from a
+release run and run `cosign verify-blob-attestation --bundle sbom.attestation.bundle --type
+cyclonedx --certificate-identity-regexp ".*" --certificate-oidc-issuer
+"https://token.actions.githubusercontent.com" release-artifact.tgz`.
 
 ## Mutation surface debt (#2673)
 

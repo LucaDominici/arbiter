@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.30'
+doc_version: '2.0.31'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -405,6 +405,13 @@ Nightly, so an epilogue change is visible there, not in T1.
 > the fallback analysis to apply if the tag run still times out at `concurrency: 6`. Stryker's
 > `incremental` mode (would let `github.ts` be re-added without paying its full cost every
 > release) is **not enabled** — it is documented future work, not a mitigation in place today.
+
+> **SBOM attestation is a blob attestation (INV-92, #2673):** `sbom-attest` uses
+> `cosign attest-blob` on the release tarball, not `cosign attest` (which resolves its subject as
+> an OCI image ref and fails `UNAUTHORIZED` for a file path — this broke every release run until
+> fixed). `src/templates/github/workflows/05-release.yml.ejs` had no `sbom-attest` job at all
+> before this fix — a template/materialized drift, now closed. See
+> `docs/internal/release-playbook.md` for the manual `cosign verify-blob-attestation` command.
 
 > **Gitleaks scan scope (#1908):** `security-early-fail`'s `gitleaks detect` call (and the
 > matching L2 check in `scripts/check-all.mjs`) passes `--log-opts="HEAD"`. Without it, gitleaks
