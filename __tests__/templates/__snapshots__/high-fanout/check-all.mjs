@@ -1644,6 +1644,35 @@ runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-l
   if (!existsSync(_localSlotPath)) {
     console.log('[CHECK] local checks ... SKIP (scripts/check-all.local.json absent)');
     pushResult('local checks', 'SKIP', 0);
+  } else if (
+    !(() => {
+      // #2679: a poisoned repository ships scripts/check-all.local.json and any
+      // developer who runs check-all executes arbitrary cmd[0]+args from it. The
+      // file's mere presence is repository-controlled (an attacker controls it),
+      // so it can never be the trust boundary — and neither can an env var or CLI
+      // flag: both are equally settable from a repo-controlled npm "scripts"
+      // launcher (`"gate": "ARBITER_ALLOW_LOCAL_CHECKS=1 node scripts/check-all.mjs"`
+      // or `"gate": "node scripts/check-all.mjs --allow-local-checks"`), so a
+      // poisoned repo can grant its own opt-in the same way it ships the payload.
+      // The one signal a tracked file cannot carry is state that lives OUTSIDE
+      // tracked content: a git config key (`--local`, in `.git/config`, never
+      // committed, or `--global`, outside the repo entirely). Read-only, no
+      // shell (`spawnSync(..., { shell: false })`); a git/config-read failure
+      // (no git, no repo, key unset) fails closed to "not opted in".
+      const _cfg = spawnSync('git', ['config', '--get', 'arbiter.allowLocalChecks'], {
+        cwd: dirname(_localSlotPath),
+        encoding: 'utf-8',
+        shell: false,
+      });
+      return _cfg.status === 0 && _cfg.stdout.trim() === 'true';
+    })()
+  ) {
+    console.log(
+      '[CHECK] local checks ... SKIP (scripts/check-all.local.json present but ' +
+        'arbiter.allowLocalChecks is not set — run `git config --local arbiter.allowLocalChecks ' +
+        'true` to run it)',
+    );
+    pushResult('local checks', 'SKIP', 0);
   } else {
     let _localChecks;
     let _localFail = null;
