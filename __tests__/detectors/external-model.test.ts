@@ -155,4 +155,14 @@ describe('external model detection', () => {
     detectExternalModels(['codex'], { homeDir, env: { OPENAI_API_KEY: 'new-value' } })
     expect(mockedRunCli).toHaveBeenCalledTimes(2)
   })
+
+  // #2673 (Codex review): the cache used to be keyed by provider only, so a lookup against the
+  // default os.homedir() and a lookup against an injected homeDir collided in the same slot —
+  // whichever ran first silently answered for both. Each distinct homeDir (including "no homeDir,
+  // use the default") must get its own cache slot.
+  it('does not let a default-home lookup collide with an injected homeDir', () => {
+    detectExternalModel('codex', { env: {} })
+    detectExternalModel('codex', { homeDir, env: {} })
+    expect(mockedRunCli).toHaveBeenCalledTimes(2)
+  })
 })

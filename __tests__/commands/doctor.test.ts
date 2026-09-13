@@ -16,6 +16,7 @@ import { defaultConfig } from '../helpers/default-config.js'
 import { acquireLock } from '../../src/utils/file-lock.js'
 import type { LockInfo } from '../../src/utils/file-lock.js'
 import { resetExternalModelDetection } from '../../src/detectors/external-model.js'
+import * as externalModel from '../../src/detectors/external-model.js'
 
 function realBootId(): string {
   try {
@@ -102,7 +103,18 @@ describe('runDoctorHealth (#539)', () => {
     // runner (reproduced: `HOME=$(mktemp -d) npx stryker run --dryRunOnly` failed this
     // assertion even though the same file passes under a plain `vitest run`) — an explicit
     // option cannot be affected by whatever propagates env vars differently there.
+    //
+    // Prove isolation, not just green: (1) poison the env-fallback path by stubbing
+    // HOME/USERPROFILE at a genuinely empty sibling dir that has no .codex/auth.json, so a
+    // regression that stops forwarding codexHome falls through to os.homedir() and fails
+    // loudly here instead of silently reading this machine's REAL ~/.codex/auth.json
+    // (Codex review, #2673: a machine with real Codex auth made a forwarding regression
+    // invisible). (2) spy on detectExternalModel and assert it receives { homeDir: dir }.
     resetExternalModelDetection()
+    const emptyHome = mkdtempSync(join(dir, 'poison-home-'))
+    vi.stubEnv('HOME', emptyHome)
+    vi.stubEnv('USERPROFILE', emptyHome)
+    const detectSpy = vi.spyOn(externalModel, 'detectExternalModel')
     mkdirSync(join(dir, '.codex'), { recursive: true })
     writeFileSync(join(dir, '.codex', 'auth.json'), '{}\n')
     mockRunCli.mockImplementation((command) => {
@@ -118,6 +130,7 @@ describe('runDoctorHealth (#539)', () => {
 
     const result = await runDoctorHealth({ dir, json: true, codexHome: dir })
 
+    expect(detectSpy).toHaveBeenCalledWith('codex', { homeDir: dir })
     expect(result.checks.find((c) => c.id === 'external-model-codex')).toMatchObject({
       status: 'PASS',
       detail: expect.stringMatching(/codex.*0\.5\.1.*authenticated/i),
