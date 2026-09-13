@@ -216,6 +216,48 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     expect(summary.consumers).toHaveLength(3)
   }, 60_000)
 
+  // #2679 round 2: the workflow packs the prepared workspace with `tar -czf` and unpacks it
+  // with `tar -xzf`, never `cpSync` — a directory-copy test proves nothing about what
+  // actually crosses the upload/download boundary in CI (upload-artifact drops hidden files
+  // and executable bits from a raw directory; tar preserves both).
+  it('packs the prepared workspace into a tar exactly like the workflow, with no credential material', () => {
+    const fixture = createFixture()
+    roots.push(fixture.root)
+    const workspace = join(fixture.root, 'tar-workspace')
+    expect(
+      run(fixture, 'prepare-consumer-reliability.mjs', ['--output', workspace], fixture.secrets)
+        .status,
+    ).toBe(0)
+
+    const tarball = join(fixture.root, 'consumer-workspace.tar.gz')
+    execFileSync('tar', ['-C', fixture.root, '-czf', tarball, 'tar-workspace'])
+
+    const listing = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf-8' })
+    expect(listing).not.toMatch(/\.ssh\//)
+    expect(listing).not.toMatch(/\.key$/m)
+
+    const extractedTo = join(fixture.root, 'tar-extracted')
+    mkdirSync(extractedTo, { recursive: true })
+    execFileSync('tar', ['-C', extractedTo, '-xzf', tarball])
+    const extractedWorkspace = join(extractedTo, 'tar-workspace')
+
+    for (const id of ['go', 'typescript', 'java']) {
+      expect(existsSync(join(extractedWorkspace, id, '.git'))).toBe(true)
+    }
+    // The executable bit on the consumer's own script must survive the round trip.
+    const runSh = join(extractedWorkspace, 'go', 'scripts', 'run.sh')
+    expect(statSync(runSh).mode & 0o111).not.toBe(0)
+
+    // No deploy-key content, SSH material, or GIT_ASKPASS token can be inside the archive —
+    // prepare unlinks the key file before the workspace is ever written, and the credential
+    // directory lives outside the workspace entirely.
+    for (const needle of ['fake-private-key', 'GIT_ASKPASS', 'x-access-token']) {
+      expect(() =>
+        execFileSync('grep', ['-r', '-l', needle, extractedWorkspace], { encoding: 'utf-8' }),
+      ).toThrow()
+    }
+  }, 60_000)
+
   it('refuses to verify when a consumer deploy-key variable reaches the verifier process', () => {
     const fixture = createFixture()
     roots.push(fixture.root)
@@ -467,6 +509,11 @@ function createConsumerRepo(dir: string): void {
     join(dir, 'scripts', 'check-all.mjs'),
     "runCheck('project check', 'node', ['project-check.mjs'])\n",
   )
+  // #2679 round 2: a real executable the consumer runs (e.g. java's run.sh) must survive the
+  // tar-based artifact round trip; git records the exec bit in the tree so the clone in
+  // prepare-consumer-reliability.mjs checks it out with the bit already set.
+  writeFileSync(join(dir, 'scripts', 'run.sh'), '#!/bin/sh\nexit 0\n')
+  chmodSync(join(dir, 'scripts', 'run.sh'), 0o755)
   execFileSync('git', ['add', '.'], { cwd: dir })
   execFileSync('git', ['commit', '-m', 'consumer fixture'], {
     cwd: dir,
