@@ -657,6 +657,17 @@ function printAdoptPlan(
  * (already sanitized) when the raw file has no usable `tools` array to
  * preserve — e.g. `tools` missing or not an array at all.
  */
+// The five tools ADR-122 actually retired the generators for — distinct from any
+// OTHER value outside `AI_TOOLS` (a typo or a value arbiter never supported), which
+// is not a "retired" value and must not be labeled as one (#2661 round 2).
+const RETIRED_AI_TOOLS: ReadonlySet<string> = new Set([
+  'cursor',
+  'copilot',
+  'gemini',
+  'windsurf',
+  'aider',
+])
+
 function toolsToPersist(targetDir: string, stored: ArbiterConfigV2): ArbiterConfigV2['tools'] {
   let raw: unknown
   try {
@@ -681,15 +692,23 @@ function toolsToPersist(targetDir: string, stored: ArbiterConfigV2): ArbiterConf
   // STRING names — a non-string entry (number, object, null...) is equally not a
   // valid `AiTool` and must not silently skip the migration warning just because
   // `AI_TOOLS.has` never matches it either way.
-  const retired = rawTools.filter((t) => typeof t !== 'string' || !AI_TOOLS.has(t))
-  if (retired.length > 0) {
-    const retiredLabels = retired.map((t) => (typeof t === 'string' ? t : JSON.stringify(t)))
+  const invalid = rawTools.filter((t) => typeof t !== 'string' || !AI_TOOLS.has(t))
+  if (invalid.length > 0) {
+    // #2661 round 2: an ADR-122-retired name (cursor/copilot/gemini/windsurf/aider) got a
+    // real generator removed out from under it — that is a MIGRATION, not a typo. An
+    // unrecognized string or a non-string entry is not a migration at all; labeling it
+    // "retired" too would misdescribe a typo/config-corruption as if ADR-122 named it.
+    const labels = invalid.map((t) => {
+      if (typeof t === 'string' && RETIRED_AI_TOOLS.has(t)) return `${t} (retired, ADR-122)`
+      const display = typeof t === 'string' ? t : JSON.stringify(t)
+      return `${display} (unknown value; accepted set: ${[...AI_TOOLS].join(', ')})`
+    })
     getLogger().warn(
       'update.tools_migration_deferred',
-      { path: join(targetDir, 'arbiter.json'), retired: retiredLabels.join(',') },
-      `arbiter.json 'tools' declares retired/invalid value(s) ${retiredLabels.join(', ')} — ` +
-        `ADR-122 retired these generators. The declared value is kept as-is (generation still ` +
-        `targets ${stored.tools.join('+')}); run 'arbiter configure' to update 'tools' explicitly.`,
+      { path: join(targetDir, 'arbiter.json'), invalid: labels.join(',') },
+      `arbiter.json 'tools' declares value(s) that are not currently generated: ${labels.join(', ')}. ` +
+        `The declared value is kept as-is (generation still targets ${stored.tools.join('+')}); ` +
+        `run 'arbiter configure' to update 'tools' explicitly.`,
     )
   }
   return rawTools as ArbiterConfigV2['tools']

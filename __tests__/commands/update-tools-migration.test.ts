@@ -78,9 +78,35 @@ describe('runUpdate — retired tools values survive unchanged (#2661)', () => {
 
     const output = warnSpy.mock.calls.map((c) => String(c[0])).join('\n')
     expect(output).toContain('tools')
-    expect(output).toContain('cursor')
-    expect(output).toContain('copilot')
-    expect(output).toContain('ADR-122')
+    expect(output).toContain('cursor (retired, ADR-122)')
+    expect(output).toContain('copilot (retired, ADR-122)')
+  })
+
+  // #2661 round 2: an ADR-122-retired name lost a real generator (a migration); an
+  // unrecognized string or non-string entry never had one (a typo/corruption) —
+  // the warning must not conflate the two under the same "retired" label.
+  it('labels an unrecognized string tools value as unknown, not retired', async () => {
+    writeV2Config(dir, { tools: ['claude', 'future-tool'] })
+    const warnSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+
+    await runUpdate({ dir, json: true, github: false })
+
+    const output = warnSpy.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(output).toContain('future-tool (unknown value; accepted set: claude, codex)')
+    expect(output).not.toContain('ADR-122')
+    expect(readArbiterJson(dir)['tools']).toEqual(['claude', 'future-tool'])
+  })
+
+  it('labels a non-string tools entry as unknown, not retired', async () => {
+    writeV2Config(dir, { tools: ['claude', 7] })
+    const warnSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+
+    await runUpdate({ dir, json: true, github: false })
+
+    const output = warnSpy.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(output).toContain('7 (unknown value; accepted set: claude, codex)')
+    expect(output).not.toContain('ADR-122')
+    expect(readArbiterJson(dir)['tools']).toEqual(['claude', 7])
   })
 
   it('generates for claude+codex only, using only the accepted tools, despite the undropped retired values', async () => {

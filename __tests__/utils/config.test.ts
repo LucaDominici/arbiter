@@ -9,7 +9,7 @@ import {
   loadConfig,
   loadSnapshot,
 } from '../../src/utils/config.js'
-import { validateConfig } from '../../src/config/schema.js'
+import { validateConfig, type ArbiterConfigV2 } from '../../src/config/schema.js'
 import { defaultConfig } from '../helpers/default-config.js'
 
 function tmpDir(): string {
@@ -278,6 +278,25 @@ describe('saveConfigAndSnapshot (#772)', () => {
     >
     expect(config['.checksum']).toBeUndefined()
     expect(config.$schemaVersion).toBeUndefined()
+  })
+
+  it('an explicit snapshotConfig diverges arbiter.json from .arbiter-generated.json (#2661)', () => {
+    // `update` is the one caller that passes a THIRD arg: arbiter.json keeps a raw
+    // user-declared value, the snapshot (the next run's diff basis) gets the
+    // sanitized one — see ARCHITECTURE.md "Config + Snapshot Write Pair".
+    const raw = {
+      ...defaultConfig(),
+      tools: ['claude', 'codex', 'cursor'] as unknown as ArbiterConfigV2['tools'],
+    }
+    const sanitized = { ...defaultConfig(), tools: ['claude', 'codex'] }
+    saveConfigAndSnapshot(dir, raw, sanitized)
+
+    const onDiskConfig = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      tools: string[]
+    }
+    const snapshot = loadSnapshot(dir)
+    expect(onDiskConfig.tools).toEqual(['claude', 'codex', 'cursor'])
+    expect(snapshot?.tools).toEqual(['claude', 'codex'])
   })
 
   it('content is valid JSON that round-trips through loadConfig', () => {

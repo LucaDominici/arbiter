@@ -365,7 +365,7 @@ If the target project already uses [ai-rulez](https://github.com/isobar-ai/ai-ru
 
 ### 3. Config + Snapshot Write Pair
 
-`saveConfigAndSnapshot(dir, config)` in `src/utils/config.ts` serializes the config to JSON once, then writes both `arbiter.json` and `.arbiter-generated.json` using `writeFile`. Pre-serializing before any write means a JSON failure leaves neither file touched; since both writes use the same string, they are always consistent in content. This replaced the prior sequential `saveConfig` + `saveSnapshot` pattern where an ENOSPC error between the two writes left the project in an inconsistent state (#772).
+`saveConfigAndSnapshot(dir, config, snapshotConfig?)` in `src/utils/config.ts` writes `arbiter.json` from `config` and `.arbiter-generated.json` from `snapshotConfig` (defaults to `config` when omitted) using `writeFile`. In the common case both files serialize the same object and are always consistent in content. `update` (#2661) is the one caller that passes a divergent `snapshotConfig`: `arbiter.json`'s `tools` keeps the user's raw on-disk declaration (never silently rewritten, even when it names an ADR-122-retired value), while the snapshot's `tools` stays on the SANITIZED value — the snapshot is the diff basis the next run compares `nextConfig` against, and `nextConfig.tools` is always sanitized, so snapshotting the raw value would make every future run see a permanent, spurious `tools` diff. This replaced the prior sequential `saveConfig` + `saveSnapshot` pattern where an ENOSPC error between the two writes left the project in an inconsistent state (#772).
 
 ### 4. Stateless Canonical, Stateful Customizable
 
