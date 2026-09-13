@@ -12,8 +12,11 @@ import { spawnSync } from 'node:child_process'
 
 const SCRIPT = new URL('../../scripts/check-refutation-verdicts.mjs', import.meta.url).pathname
 
-function run(evidenceDir: string): { exitCode: number; stdout: string; stderr: string } {
-  const r = spawnSync('node', [SCRIPT, '--evidence-dir', evidenceDir], {
+function run(
+  evidenceDir: string,
+  extraArgs: string[] = [],
+): { exitCode: number; stdout: string; stderr: string } {
+  const r = spawnSync('node', [SCRIPT, '--evidence-dir', evidenceDir, ...extraArgs], {
     encoding: 'utf-8',
     timeout: 10000,
   })
@@ -233,5 +236,29 @@ describe('check-refutation-verdicts.mjs', () => {
     const r = run(evidenceDir)
     expect(r.exitCode).toBe(0)
     expect(r.stdout).toContain('DEGRADED')
+  })
+
+  // ── #2614: explicit requiredness signal ───────────────────────────────────────────────────
+  // AC-1/AC-2: a caller that requires a marker for a task fails when it is absent; absent the
+  // signal, the pre-existing vacuous pass (and every other exit code) is unchanged.
+
+  it('--require-marker fails when no marker exists for the task', () => {
+    const r = run(evidenceDir, ['--require-marker', '#2614'])
+    expect(r.exitCode).toBe(1)
+    expect(r.stdout).toMatch(/required.*#2614/i)
+  })
+
+  it('without --require-marker, a missing marker is still a vacuous pass (AC-2)', () => {
+    expect(run(evidenceDir).exitCode).toBe(0)
+  })
+
+  it('--require-marker still passes once a valid marker exists', () => {
+    writeMarker({ task: '#2614', skeptics: 1, findings: [] })
+    expect(run(evidenceDir, ['--require-marker', '#2614']).exitCode).toBe(0)
+  })
+
+  it('--require-marker does not mask an existing invalid-quorum failure (exit 1 unchanged)', () => {
+    writeMarker({ task: '#2614', skeptics: 0, findings: ['f1'] })
+    expect(run(evidenceDir, ['--require-marker', '#2614']).exitCode).toBe(1)
   })
 })
