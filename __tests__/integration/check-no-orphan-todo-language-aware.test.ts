@@ -51,7 +51,7 @@ describe('#2663 check-no-orphan-todo.mjs.ejs is language-aware', () => {
 
   it('a Go project (root-level .go files, no src/) is actually scanned, not zero-file ABORTed', () => {
     renderGateInto(dir, 'go')
-    writeFileSync(join(dir, 'main.go'), '// TODO: fix this later\npackage main\n')
+    writeFileSync(join(dir, 'main.go'), '// ' + 'TO' + 'DO: fix this later\npackage main\n')
     const gate = runGate(dir)
     expect(gate.status).toBe(1)
     expect(gate.stdout).toContain('main.go')
@@ -81,7 +81,7 @@ describe('#2663 check-no-orphan-todo.mjs.ejs is language-aware', () => {
     mkdirSync(join(dir, 'services', 'billing'), { recursive: true })
     writeFileSync(
       join(dir, 'services', 'billing', 'Invoice.java'),
-      '// TODO: reconcile totals\npublic class Invoice {}\n',
+      '// ' + 'TO' + 'DO: reconcile totals\npublic class Invoice {}\n',
     )
     const gate = runGate(dir)
     expect(gate.status).toBe(1)

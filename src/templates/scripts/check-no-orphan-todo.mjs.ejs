@@ -104,19 +104,15 @@ export function main(exitFn = process.exit) {
     }
   }
 
-  // Programme-membership assertion (CANON-24): "nothing found" and "nothing looked at" must
-  // never produce the same green. A resolved scan set of zero files — an empty directory, a
-  // typo'd path, or (pre-fix) an absolute argument silently mis-resolved under baseDir — means
-  // the gate proved nothing, so it fails loudly instead of reporting a false "no violations".
+  // NO-DATA convention: a resolved scan set of zero files — an empty directory, a typo'd path,
+  // or a target that has no source yet under this language's conventional roots — is reported as
+  // a loud PASS, not silently treated as "no violations" (nothing found must stay visibly
+  // distinct from nothing looked at). Self and the emitted twin share this exactly (#2663):
+  // arbiter's own tree always has matching TS source in practice, so this path is defensive here,
+  // but every governed target legitimately hits it pre-scaffolding.
   process.stdout.write(
     `  Scanned ${filesScanned} file(s) across ${scanDirs.length} dir(s): ${scanDirs.join(', ')}\n`,
   )
-  // #2663 (P0 review fix, NO-DATA convention): unlike the self gate's CANON-24 ABORT (arbiter's
-  // own tree always has matching source, so a zero-file scan there means the gate looked in the
-  // wrong place), a governed target legitimately has zero files under its language's scan roots —
-  // a brand-new project, or one still on scaffolding before any source lands. Failing every such
-  // project closed on a gate it can't act on is worse than a loud PASS: NO-DATA is reported, not
-  // hidden, but does not block the pipeline.
   if (filesScanned === 0) {
     process.stdout.write(
       `\n  NO-DATA: 0 files found under ${scanDirs.join(', ')} — nothing to scan yet. PASS.\n\n`,

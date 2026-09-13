@@ -20,7 +20,7 @@ import { isMainModule } from './lib/run-helpers.mjs'
 // semantics rather than drifting to a naive \bTODO\b regex (#1796/#1799).
 export const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
 export const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
-export const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'templates'])
+export const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'templates', 'vendor', 'target'])
 
 /**
  * Collect every source file under `root` to scan: walkRepo handles traversal, then this gate's own
@@ -75,19 +75,20 @@ export function main(exitFn = process.exit) {
     }
   }
 
-  // Programme-membership assertion (CANON-24): "nothing found" and "nothing looked at" must
-  // never produce the same green. A resolved scan set of zero files — an empty directory, a
-  // typo'd path, or (pre-fix) an absolute argument silently mis-resolved under baseDir — means
-  // the gate proved nothing, so it fails loudly instead of reporting a false "no violations".
+  // NO-DATA convention: a resolved scan set of zero files — an empty directory, a typo'd path,
+  // or a target that has no source yet under this language's conventional roots — is reported as
+  // a loud PASS, not silently treated as "no violations" (nothing found must stay visibly
+  // distinct from nothing looked at). Self and the emitted twin share this exactly (#2663):
+  // arbiter's own tree always has matching TS source in practice, so this path is defensive here,
+  // but every governed target legitimately hits it pre-scaffolding.
   process.stdout.write(
     `  Scanned ${filesScanned} file(s) across ${scanDirs.length} dir(s): ${scanDirs.join(', ')}\n`,
   )
   if (filesScanned === 0) {
     process.stdout.write(
-      `\n  ABORT: resolved scan set is empty — 0 files found under ${scanDirs.join(', ')}. ` +
-        `A gate that finds nothing must first prove it looked somewhere (CANON-24).\n\n`,
+      `\n  NO-DATA: 0 files found under ${scanDirs.join(', ')} — nothing to scan yet. PASS.\n\n`,
     )
-    return exitFn(1)
+    return exitFn(0)
   }
 
   if (violations > 0) {

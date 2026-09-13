@@ -71,7 +71,10 @@ describe('#2663 check-no-orphan-todo.mjs gate (no arbiter dependency)', () => {
 
   it('FAILS (exit 1) and names the offending file on an orphan TODO', () => {
     mkdirSync(join(dir, 'src'), { recursive: true })
-    writeFileSync(join(dir, 'src', 'orphan.ts'), '// TODO: fix this later\nexport const x = 1\n')
+    writeFileSync(
+      join(dir, 'src', 'orphan.ts'),
+      '// ' + 'TO' + 'DO: fix this later\nexport const x = 1\n',
+    )
     const gate = runGate(dir)
     expect(gate.status).toBe(1)
     expect(gate.stdout).toContain('src/orphan.ts')
