@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { walkRepo } from './lib/glob-walk.mjs'
-import { validateEntry, parseArgs, isInsideStringLiteral } from './lib/suppressions-shared.mjs'
+import { validateEntry, parseArgs } from './lib/suppressions-shared.mjs'
 
 const DIRECTIVE_RE = /\/\/\s*arbiter-suppress\(([^)]+)\)/g
 const SCANNED_EXTENSIONS = new Set([
@@ -65,6 +65,38 @@ const KNOWN_INV_IDS = new Set([
   'INV-38',
   'INV-39',
 ])
+
+function isInsideStringLiteral(line, idx) {
+  // Single-line string-state tracker (#2671): walk from line start to idx, toggling
+  // in-string state on unescaped ', ", or `. Directives only count when in a real `//`
+  // comment — not when the syntax appears as text inside a string literal (e.g. a hook
+  // file documenting the directive format in a template string, which would otherwise be
+  // parsed as a real, malformed directive and FAIL the gate on its own advisory text).
+  let i = 0
+  let inStr = false
+  let quote = ''
+  while (i < idx) {
+    const ch = line[i]
+    if (inStr) {
+      if (ch === '\\') {
+        i += 2
+        continue
+      }
+      if (ch === quote) {
+        inStr = false
+        quote = ''
+      }
+      i += 1
+      continue
+    }
+    if (ch === '`' || ch === '"' || ch === "'") {
+      inStr = true
+      quote = ch
+    }
+    i += 1
+  }
+  return inStr
+}
 
 function parseDirective(argsStr) {
   const parts = parseArgs(argsStr)
