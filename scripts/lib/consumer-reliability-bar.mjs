@@ -12,30 +12,53 @@ const HARD_RUNNER_CALL = /\b(?:runCheck|runToolCheck)\s*\(\s*(['"`])([^'"`]+)\1/
 const HARD_PUSH_RESULT = /\bpushResult\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*(['"`])FAIL\3/g
 const CONSUMER_SECRET_PREFIX = `${['ARBITER', 'CONSUMER'].join('_')}_`
 
-// #2666: a name interpolated from a template literal (e.g. the local extension slot's
-// `[local] ${_lc.name}`) is DATA, resolved only at the consumer's runtime from a file this
-// bar never reads — it is not a static gate name and no fixed mapping entry could ever
-// cover it. Excluded from the emitted surface entirely, at both hardness tiers.
-const isTemplateLiteralPlaceholder = (name) => name.includes('${')
+// #2666: the local extension slot's dispatch is a template literal,
+// `runCheck(\`[local] ${_lc.name}\`, ...)` — the name is DATA, resolved only at the
+// consumer's runtime from a file this bar never reads, so no fixed mapping entry could
+// ever cover it. Excluded from the emitted surface by its EXACT dispatch shape only
+// (`[local] ${` prefix) — a bare `${` anywhere in a name (e.g. a real gate interpolating
+// a policy id, `security scan ${policy}`) is NOT exempted and must still be mapped or it
+// correctly reddens the row as unaccounted.
+const isLocalSlotPlaceholder = (name) => name.startsWith('[local] ${')
+
+// #2591/#2666 round 2: pushResult(name, status, elapsed) is hard only when `status` is
+// provably capable of being the literal 'FAIL' — HARD_PUSH_RESULT catches the literal
+// case, but a variable status (`pushResult('BDD @ignore check', _bddIgnoreStatus, ...)`)
+// is ALSO hard when the same source assigns 'FAIL' to that identifier somewhere in scope.
+// A variable only ever assigned 'PASS'/'WARN' cannot fail the build through this call,
+// same as runWarnCheck — this stays narrow (a single assignment regex, not a real
+// dataflow analysis) and is not meant to catch every possible aliasing shape.
+const VARIABLE_PUSH_RESULT = /\bpushResult\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*([A-Za-z_$][\w$]*)\s*,/g
+
+function assignsLiteralFail(source, identifier) {
+  const pattern = new RegExp(
+    `\\b${escapeRegExp(identifier)}\\s*(?<![=!<>])=(?!=)\\s*(['"\`])FAIL\\1`,
+  )
+  return pattern.test(source)
+}
 
 export function extractCheckNames(source) {
   return new Set(
     [...source.matchAll(RUNNER_CALL)]
       .map((match) => match[2])
-      .filter((name) => !isTemplateLiteralPlaceholder(name))
+      .filter((name) => !isLocalSlotPlaceholder(name))
       .sort(),
   )
 }
 
 /** Names called through a family that can actually fail the build (excludes runWarnCheck-only
- *  and pushResult calls whose status is never the literal 'FAIL'). */
+ *  and pushResult calls whose status is never the literal 'FAIL', unless the variable status
+ *  is itself provably assigned the literal 'FAIL' somewhere in source — #2591 round 2). */
 export function extractHardCheckNames(source) {
   return new Set(
     [
       ...[...source.matchAll(HARD_RUNNER_CALL)].map((match) => match[2]),
       ...[...source.matchAll(HARD_PUSH_RESULT)].map((match) => match[2]),
+      ...[...source.matchAll(VARIABLE_PUSH_RESULT)]
+        .filter((match) => assignsLiteralFail(source, match[3]))
+        .map((match) => match[2]),
     ]
-      .filter((name) => !isTemplateLiteralPlaceholder(name))
+      .filter((name) => !isLocalSlotPlaceholder(name))
       .sort(),
   )
 }

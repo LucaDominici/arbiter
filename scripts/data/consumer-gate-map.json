@@ -19,7 +19,7 @@
         "arc42 slots (INV-144)": "WIRED:arc42 slots (INV-144)",
         "assertion delta (anti-fake-green)": "DEBT:#2291",
         "audit dry-pass (E3 #1943)": "DEBT:#2291",
-        "BDD @ignore check": "WIRED:warn:BDD @ignore check",
+        "BDD @ignore check": "WIRED:BDD @ignore check",
         "bdd": "WIRED:bdd",
         "bundle size budget": "DEBT:#2291",
         "canonical paths": "WIRED:canonical paths",

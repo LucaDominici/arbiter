@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { makeConfig, renderCheckAll } from '../helpers.js'
 import {
   assessGateSpine,
   assessGateSurface,
@@ -408,127 +409,133 @@ describe('consumer reliability bar oracles (#2135)', () => {
     }
   })
 
-  // #2666 added the local extension slot to check-all.mjs.ejs. Its dispatch line is a
-  // template literal, `runCheck(\`[local] ${_lc.name}\`, ...)` — RUNNER_CALL scraped the
-  // literal source text verbatim, `${_lc.name}` and all, so extractCheckNames emitted a
-  // DATA-DRIVEN name no fixed mapping entry could ever cover. The block's static wrapper
-  // name, `local checks` (a real pushResult('local checks', 'FAIL', 0) call — hard
-  // evidence), was also unconditionally emitted with no mapping entry at all. The live bar
-  // failed closed on all three pinned consumers with "2 emitted check(s) unaccounted:
-  // [local] ${_lc.name}, local checks". This copies the real block verbatim (not a
-  // paraphrase) so a future edit to the template is re-checked against the same text.
-  const LOCAL_SLOT_BLOCK = [
-    '{',
-    "  const _localSlotPath = resolve(dirname(fileURLToPath(import.meta.url)), 'check-all.local.json');",
-    '  if (existsSync(_localSlotPath)) {',
-    '    let _localChecks;',
-    '    let _localFail = null;',
-    '    try {',
-    "      const _localParsed = JSON.parse(readFileSync(_localSlotPath, 'utf-8'));",
-    "      if (_localParsed === null || typeof _localParsed !== 'object' || Array.isArray(_localParsed)) {",
-    '        _localFail = \'scripts/check-all.local.json must be an object shaped { "checks": [{ name, cmd, tier }] }\';',
-    '      } else {',
-    '        _localChecks = _localParsed.checks;',
-    '      }',
-    '    } catch (_localErr) {',
-    '      _localFail = `scripts/check-all.local.json could not be read/parsed: ${_localErr.message}`;',
-    '    }',
-    '    if (_localFail !== null) {',
-    '      console.error(`[CHECK] local checks ... FAIL (${_localFail})`);',
-    "      pushResult('local checks', 'FAIL', 0);",
-    '    } else if (_localChecks !== undefined) {',
-    '      if (!Array.isArray(_localChecks)) {',
-    '        console.error(\'[CHECK] local checks ... FAIL (scripts/check-all.local.json "checks" must be an array of { name, cmd, tier })\');',
-    "        pushResult('local checks', 'FAIL', 0);",
-    '      } else {',
-    '        for (const _lc of _localChecks) {',
-    "          const _lcValid = _lc && typeof _lc === 'object' && typeof _lc.name === 'string' && Array.isArray(_lc.cmd)",
-    "            && _lc.cmd.length > 0 && _lc.cmd.every((_c) => typeof _c === 'string' && _c.length > 0)",
-    '            && _LEVELS.includes(_lc.tier);',
-    '          if (!_lcValid) {',
-    '            console.error(`[CHECK] local checks ... FAIL (malformed entry, expected { name: string, cmd: non-empty string[], tier: L1|L2|L3|L4 }: ${JSON.stringify(_lc)})`);',
-    "            pushResult('local checks', 'FAIL', 0);",
-    '            continue;',
-    '          }',
-    '          if (_LEVELS.indexOf(_lc.tier) > _LEVELS.indexOf(level)) continue; // declared tier not yet due',
-    '          runCheck(`[local] ${_lc.name}`, _lc.cmd[0], _lc.cmd.slice(1));',
-    '        }',
-    '      }',
-    '    }',
-    '  }',
-    '}',
-  ].join('\n')
+  // #2666 added the local extension slot to check-all.mjs.ejs; #2591 made WIRED evidence
+  // kind-aware. Both regressions are reproduced against a REAL render (renderCheckAll),
+  // never a hand-copied fixture, sliced to the relevant block by the template's own
+  // section comments so an edit to the template re-runs against the same generator output.
+  function renderedSpine(): string {
+    return renderCheckAll(
+      makeConfig('/tmp/consumer-bar-2666', {
+        language: 'typescript',
+        governanceLevel: 'L2',
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>,
+    )
+  }
 
-  it('#2666 excludes the template-literal local-check name from the emitted surface', () => {
-    const emitted = [...extractCheckNames(LOCAL_SLOT_BLOCK)]
+  function sliceBetween(source: string, startMarker: string, endMarker: string): string {
+    const start = source.indexOf(startMarker)
+    if (start === -1) throw new Error(`template start marker moved: ${startMarker}`)
+    const end = source.indexOf(endMarker, start)
+    if (end === -1) throw new Error(`template end marker moved: ${endMarker}`)
+    return source.slice(start, end)
+  }
+
+  const localSlotBlock = () =>
+    sliceBetween(renderedSpine(), '// ─── Local extension slot (#2666)', '// ─── Summary')
+
+  // Its dispatch line is a template literal, `runCheck(\`[local] ${_lc.name}\`, ...)` —
+  // RUNNER_CALL scraped the literal source text verbatim, `${_lc.name}` and all, so
+  // extractCheckNames emitted a DATA-DRIVEN name no fixed mapping entry could ever cover.
+  // The block's static wrapper name, `local checks` (a real pushResult('local checks',
+  // 'FAIL', 0) call — hard evidence), was ALSO unconditionally emitted with no mapping
+  // entry at all. The live bar failed closed on all three pinned consumers with "2 emitted
+  // check(s) unaccounted: [local] ${_lc.name}, local checks".
+  it('#2666 excludes only the local-slot dispatch shape, not every interpolated name', () => {
+    const emitted = [...extractCheckNames(localSlotBlock())]
     expect(emitted).not.toContain('[local] ${_lc.name}')
-    expect(emitted.some((name) => name.includes('${'))).toBe(false)
     expect(emitted).toContain('local checks')
-    expect([...extractHardCheckNames(LOCAL_SLOT_BLOCK)]).toContain('local checks')
+    expect([...extractHardCheckNames(localSlotBlock())]).toContain('local checks')
+
+    // Negative case (Codex review): the exemption must NOT be "any name containing
+    // ${" — a real gate interpolating a policy id outside the local-slot's exact
+    // `[local] ${` dispatch shape is still reported as unaccounted, never dropped.
+    const arbitraryInterpolation = "runCheck(`security scan ${policy}`, 'node', ['scan.mjs']);"
+    expect([...extractCheckNames(arbitraryInterpolation)]).toContain('security scan ${policy}')
   })
 
-  it('#2666 reconciles the local-check wrapper against every pinned consumer mapping', () => {
+  it('#2666 reconciles the real local-slot render against every pinned consumer mapping', () => {
     const gateMap = JSON.parse(
       readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
     )
-    const emitted = [...extractCheckNames(LOCAL_SLOT_BLOCK)]
-    const declaredHard = [...extractHardCheckNames(LOCAL_SLOT_BLOCK)]
+    const rendered = localSlotBlock()
+    const emitted = [...extractCheckNames(rendered)]
+    const emittedHard = [...extractHardCheckNames(rendered)]
     for (const id of ['go', 'typescript', 'java']) {
       const localEntry = gateMap.consumers[id].mapping['local checks']
+      expect(typeof localEntry).toBe('string')
+      // `declared` comes from the mapping's OWN wired value (its gate id), independent of
+      // `emitted` — a mapping entry pointing at a gate id the render never actually
+      // produces must still fail this, not pass by construction.
+      const declared = [String(localEntry).slice('WIRED:'.length)]
       const result = assessGateSurface({
         freshRender: emitted,
-        declared: emitted,
-        declaredHard,
-        mapping: typeof localEntry === 'string' ? { 'local checks': localEntry } : {},
+        declared,
+        declaredHard: emittedHard,
+        mapping: { 'local checks': localEntry },
         debtRegister: { ceiling: 0, openIssues: [] },
       })
       expect(result.ok, result.detail).toBe(true)
     }
   })
 
-  // #2591 kind-aware WIRED evidence, applied to go's own BDD @ignore check: the gate
-  // pushes a VARIABLE status (`pushResult('BDD @ignore check', _bddIgnoreStatus, ...)`),
-  // never the literal 'FAIL', so HARD_PUSH_RESULT does not match it and a bare
-  // `WIRED:BDD @ignore check` mapping entry is no longer sound — go's row must declare
-  // `WIRED:warn:BDD @ignore check` like the other soft-evidence rows.
-  const BDD_IGNORE_BLOCK = [
-    "  if (_inlineInspect('BDD @ignore check', 'grep -rql --include=*.feature @ignore .')) {} else {",
-    '    const _bddIgnoreStart = Date.now();',
-    "    const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });",
-    "    process.stdout.write('[CHECK] BDD @ignore check ... ');",
-    "    let _bddIgnoreStatus = 'PASS';",
-    "    if (_bddIgnore.error?.code === 'ENOENT') {",
-    "      console.log('FAIL (grep not found — cannot check @ignore tags)');",
-    "      _bddIgnoreStatus = 'FAIL';",
-    '    } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {',
-    "      console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);",
-    "      _bddIgnoreStatus = 'FAIL';",
-    '    } else if (_bddIgnore.status === 0) {',
-    "      console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');",
-    "      _bddIgnoreStatus = 'FAIL';",
-    '    } else {',
-    "      console.log('PASS');",
-    '    }',
-    "    pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);",
-    '  }',
-  ].join('\n')
+  // The `bdd-ignore-check` gate is emitted once per tier lane (L1/L2/L3), so its section
+  // comment and `pushResult` call each appear 3 times in the full render — `sliceBetween`'s
+  // first-start/first-end pairing would straddle unrelated lanes in between. Take exactly
+  // one lane's copy: the block from its section comment through the end of its own
+  // `pushResult(...)` statement, which is where the assignment(s) this test cares about
+  // (`_bddIgnoreStatus = 'FAIL'`) live.
+  const bddIgnoreBlock = () => {
+    const rendered = renderCheckAll(
+      makeConfig('/tmp/consumer-bar-2666-go', {
+        language: 'go',
+        governanceLevel: 'L2',
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>,
+    )
+    const start = rendered.indexOf('// ─── L2: BDD gate (INV-40)')
+    if (start === -1) throw new Error('template start marker moved: BDD gate (INV-40)')
+    const callIdx = rendered.indexOf("pushResult('BDD @ignore check'", start)
+    if (callIdx === -1) throw new Error('template BDD @ignore pushResult call moved')
+    const end = rendered.indexOf(';', callIdx) + 1
+    return rendered.slice(start, end)
+  }
 
-  it('#2591/#2666 go BDD @ignore check is warn-wired, not a bare WIRED claim', () => {
-    expect(extractHardCheckNames(BDD_IGNORE_BLOCK).has('BDD @ignore check')).toBe(false)
-    expect(extractCheckNames(BDD_IGNORE_BLOCK).has('BDD @ignore check')).toBe(true)
+  // #2591 kind-aware WIRED evidence, applied to go's own BDD @ignore check (Codex review):
+  // the gate pushes a VARIABLE status, `pushResult('BDD @ignore check', _bddIgnoreStatus,
+  // ...)`, but the SAME source assigns the literal 'FAIL' to that identifier on every
+  // violation branch — extractHardCheckNames now recognizes that shape as hard, so go's
+  // row stays a bare `WIRED:BDD @ignore check`, not a downgrade to `WIRED:warn:`.
+  it('#2591/#2666 go BDD @ignore check stays a bare WIRED claim (variable status assigns literal FAIL)', () => {
+    const rendered = bddIgnoreBlock()
+    expect(extractCheckNames(rendered).has('BDD @ignore check')).toBe(true)
+    expect(extractHardCheckNames(rendered).has('BDD @ignore check')).toBe(true)
     const gateMap = JSON.parse(
       readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
     )
-    expect(gateMap.consumers.go.mapping['BDD @ignore check']).toBe('WIRED:warn:BDD @ignore check')
-    const result = assessGateSurface(
-      surfaceCase({
-        freshRender: ['BDD @ignore check'],
-        declared: [...extractCheckNames(BDD_IGNORE_BLOCK)],
-        declaredHard: [...extractHardCheckNames(BDD_IGNORE_BLOCK)],
-        mapping: { 'BDD @ignore check': gateMap.consumers.go.mapping['BDD @ignore check'] },
-      }),
-    )
+    const goEntry = gateMap.consumers.go.mapping['BDD @ignore check']
+    expect(goEntry).toBe('WIRED:BDD @ignore check')
+    const declared = [String(goEntry).slice('WIRED:'.length)]
+    const result = assessGateSurface({
+      freshRender: [...extractCheckNames(rendered)],
+      declared,
+      declaredHard: [...extractHardCheckNames(rendered)],
+      mapping: { 'BDD @ignore check': goEntry },
+      debtRegister: { ceiling: 0, openIssues: [] },
+    })
     expect(result.ok, result.detail).toBe(true)
+  })
+
+  // Regression guard for a variable status that is NEVER assigned the literal 'FAIL' —
+  // must stay soft evidence (unlike BDD @ignore check above), same as runWarnCheck.
+  it('#2591 round 2: a variable status only ever assigned WARN/PASS is not hard evidence', () => {
+    const source = [
+      "let _status = 'PASS';",
+      "if (x) { _status = 'WARN'; }",
+      "pushResult('soft check', _status, 12);",
+    ].join('\n')
+    expect(extractHardCheckNames(source).has('soft check')).toBe(false)
+    expect(extractCheckNames(source).has('soft check')).toBe(true)
   })
 
   // Mutation (d): the debt register GROWS. A ratchet that only ever appends is a
