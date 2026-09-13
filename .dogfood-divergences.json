@@ -298,7 +298,7 @@
     "path": "check-pr-size-gate.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self documents an explicit SELF-EXEMPTION (#2012): arbiter ships no config/pr-size-config.json and no workflow referencing pr-size/size-check, so the check self-skips on arbiter's own gate. That is deliberate — a PR-size gate has no subject in a repo whose integration regime merges to main directly rather than through pull requests — and the check stays fully live for generated consumer projects, which do gate on PRs. The remainder is a lazy `await import('node:fs')` for readdirSync and template-literal quoting. PERMANENT: the exemption is a statement about arbiter's own merge regime and must not ship.",
-    "diffHash": "a50a71ca616d2600837e9aa3856416d70980b8576b46719b5815e8e2446dc6fa"
+    "diffHash": "3772cad6eccac3f91e9e97efd680cafff1d1b21cffc946d5c6b9bbb549287b82"
   },
   {
     "path": "check-secret-presence.mjs",
@@ -342,13 +342,13 @@
     "path": "check-suppression-expiry.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). 0-/3+: the template side of the diff is EMPTY. Self adds the SPDX header, a blank comment line and a usage line. Zero executable divergence. PERMANENT (SPDX-header class, same as check-pii-scan.mjs).",
-    "diffHash": "d62e61d4de9aaec6616fc3a84d925fded1c9f63e26777d318cc789ff404fd3fd"
+    "diffHash": "d23da791996eaf5bc42419f1e6edd78074f3c3e8e11f8bdd1c3aa0294747cd19"
   },
   {
     "path": "check-suppression-rationale.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). 0-/4+: the template side of the diff is EMPTY. Self adds the SPDX header, a usage line, and one comment locating this gate against its sibling (extends check-suppressions.mjs, which checks expiry — this checks reason quality). Zero executable divergence. PERMANENT (SPDX-header class).",
-    "diffHash": "bcd45ba00f0f317f4a354d3ea02d2377606dc2585ee675c65565d2b75d54e8a4"
+    "diffHash": "4961f42117f04a2d29f652632770e2a6b00a0b109af38e2de4a60ca5eca53dce"
   },
   {
     "path": "check-suppressions.mjs",
