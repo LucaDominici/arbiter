@@ -4,6 +4,14 @@
 // `parity` returned `null` from the old regex classifier and sat outside the family forever,
 // never asked for a flip proof (`check-todo-max-age.mjs` is the proof case named in the issue).
 //
+// Codex round-1 review found the first cut still escapable: a wired gate tripping NO heuristic
+// at all returned `[]` silently — the same defect class, one level up. The fix removes the
+// heuristic entirely: EVERY wired mechanism must be classified into exactly one of three declared
+// tables (ABSENCE_FAMILY_ROSTER / NOT_ABSENCE / ABSENCE_EXEMPT); an unclassified mechanism is a
+// loud error regardless of its name. Round-1 also required each ABSENCE_EXEMPT entry to be
+// machine-validated (script wired, reason ≥3 words, until/followUp present) so an exemption
+// cannot be a blank check.
+//
 // Kept in its own file, separate from check-guard-flip.test.ts: every case here drives the
 // harness exclusively through --gate/--registry/--roster fixtures and never touches the real
 // scripts/check-all.mjs or the kernel-plugin-parity flip fixture (which needs dist/ built). This
@@ -26,29 +34,30 @@ function withTmp<T>(fn: (dir: string) => T): T {
   }
 }
 
+// A gate whose name/basename match none of the old three regexes (no `check-no-` prefix, no
+// "ratchet", no "parity") AND none of the old wider candidate signal either (no "no"/"never"/
+// "drift"/"regress"/"snapshot"/"absence" word) — genuinely unsignalled by any name heuristic.
+const UNSIGNALLED_GATE =
+  "runCheck('widget freshness audit', 'node', ['scripts/check-widget-freshness.mjs'])\n"
+
 describe('#2560 — absence-family membership is declared, not name-matched', () => {
-  // A gate whose name/basename match NONE of the old three regexes (no `check-no-` prefix, no
-  // "ratchet", no "parity") — under the OLD code this returned category `null` and was silently
-  // excluded. It DOES assert an absence ("no widget older than N days") and IS declared in the
-  // roster here, so it must be admitted to the family.
-  const OBSCURE_GATE =
-    "runCheck('widget freshness audit', 'node', ['scripts/check-widget-freshness.mjs'])\n"
-  const OBSCURE_ROSTER = {
+  const DECLARED_ROSTER = {
     family: {
       'widget freshness audit': {
         script: 'scripts/check-widget-freshness.mjs',
         category: 'no',
       },
     },
+    notAbsence: {},
     exempt: {},
   }
 
   it('a declared gate outside the old name patterns is admitted to the family', () => {
     withTmp((dir) => {
       const gate = join(dir, 'check-all.mjs')
-      writeFileSync(gate, OBSCURE_GATE)
+      writeFileSync(gate, UNSIGNALLED_GATE)
       const roster = join(dir, 'roster.json')
-      writeFileSync(roster, JSON.stringify(OBSCURE_ROSTER))
+      writeFileSync(roster, JSON.stringify(DECLARED_ROSTER))
       const reg = join(dir, 'registry.json')
       writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
       // No flip proof registered for it either — so it is admitted (not silently excluded) AND
@@ -70,29 +79,178 @@ describe('#2560 — absence-family membership is declared, not name-matched', ()
       expect(`${r.stdout}${r.stderr}`).toMatch(/widget freshness audit/)
     })
   })
+})
 
-  it('the same gate, wired but UNDECLARED (no roster, no exemption), is a loud ERROR — never null', () => {
+describe('#2560 Codex round-1 #1 — an UNSIGNALLED, undeclared gate is a loud ERROR, never []', () => {
+  it('a wired gate with no name heuristic hit and no declaration in any table is a loud ERROR', () => {
     withTmp((dir) => {
       const gate = join(dir, 'check-all.mjs')
-      writeFileSync(gate, OBSCURE_GATE)
+      writeFileSync(gate, UNSIGNALLED_GATE)
       const reg = join(dir, 'registry.json')
       writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
-      // An empty roster: the candidate signal (drift/regress/snapshot/no/never/absence/
-      // ratchet/parity) is deliberately wider than the family it protects — swap in a name the
-      // signal DOES catch to prove the loud path fires.
-      const signalled =
-        "runCheck('widget no-regress audit', 'node', ['scripts/check-widget.mjs'])\n"
-      writeFileSync(gate, signalled)
+      // Empty on all three tables: no heuristic can excuse the silence a name-based classifier
+      // would have produced here — the old cut returned `[]` for exactly this shape.
       const emptyRoster = join(dir, 'roster.json')
-      writeFileSync(emptyRoster, JSON.stringify({ family: {}, exempt: {} }))
+      writeFileSync(emptyRoster, JSON.stringify({ family: {}, notAbsence: {}, exempt: {} }))
       const r = spawnSync(
         'node',
         [HARNESS, `--gate=${gate}`, `--registry=${reg}`, `--roster=${emptyRoster}`],
         { encoding: 'utf-8' },
       )
       expect(r.status).toBe(2)
-      expect(`${r.stdout}${r.stderr}`).toMatch(/undeclared candidate absence-asserting gate/)
-      expect(`${r.stdout}${r.stderr}`).toMatch(/widget no-regress audit/)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/unclassified wired gate/)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/widget freshness audit/)
+    })
+  })
+
+  it('the same gate is silent (no error) once declared NOT_ABSENCE — a real presence check', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, UNSIGNALLED_GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {},
+          notAbsence: {
+            'widget freshness audit': { script: 'scripts/check-widget-freshness.mjs' },
+          },
+          exempt: {},
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [
+          HARNESS,
+          `--gate=${gate}`,
+          `--registry=${reg}`,
+          `--roster=${roster}`,
+          '--min-family=0',
+          '--max-deferred=0',
+        ],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(0)
+    })
+  })
+})
+
+describe('#2560 Codex round-1 #2 — every ABSENCE_EXEMPT entry is machine-validated', () => {
+  const GATE = "runCheck('anti-drift: widget scan', 'node', ['scripts/check-widget-drift.mjs'])\n"
+  const validExempt = {
+    script: 'scripts/check-widget-drift.mjs',
+    reason: 'reads live repo state, no fixture flag',
+    followUp: '#2675',
+  }
+
+  it('a well-formed exemption (wired script, real reason, followUp) is accepted silently', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {},
+          notAbsence: {},
+          exempt: { 'anti-drift: widget scan': validExempt },
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [
+          HARNESS,
+          `--gate=${gate}`,
+          `--registry=${reg}`,
+          `--roster=${roster}`,
+          '--min-family=0',
+          '--max-deferred=0',
+        ],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(0)
+    })
+  })
+
+  it('an exemption whose script disagrees with the live wiring (stale) is a loud ERROR', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {},
+          notAbsence: {},
+          exempt: {
+            'anti-drift: widget scan': { ...validExempt, script: 'scripts/check-wrong-file.mjs' },
+          },
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [HARNESS, `--gate=${gate}`, `--registry=${reg}`, `--roster=${roster}`],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(2)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/stale exemption/)
+    })
+  })
+
+  it('an exemption with a blank/placeholder reason (<3 words) is a loud ERROR', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {},
+          notAbsence: {},
+          exempt: { 'anti-drift: widget scan': { ...validExempt, reason: 'tbd' } },
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [HARNESS, `--gate=${gate}`, `--registry=${reg}`, `--roster=${roster}`],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(2)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/at least 3 words/)
+    })
+  })
+
+  it('an exemption with neither `until` nor `followUp` is a loud ERROR (no open-ended exclusion)', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      const { followUp: _drop, ...noFollowUp } = validExempt
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {},
+          notAbsence: {},
+          exempt: { 'anti-drift: widget scan': noFollowUp },
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [HARNESS, `--gate=${gate}`, `--registry=${reg}`, `--roster=${roster}`],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(2)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/no ticket and no expiry/)
     })
   })
 })
