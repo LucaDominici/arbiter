@@ -159,4 +159,36 @@ describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', 
       true,
     )
   })
+
+  it('fails loud on a malformed entry whose cmd contains a non-string/empty-string element', () => {
+    const r = runLocalSlotHarness(
+      "export const checks = [{ name: 'bad-cmd', cmd: ['node', '', 3], tier: 'L1' }];\n",
+    )
+    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
+    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
+      true,
+    )
+    expect(r.stdout).not.toContain('[local] bad-cmd')
+  })
+
+  // P0 (Codex review): the local module is loaded in a CHILD process. A
+  // top-level `process.exit(0)` in scripts/check-all.local.mjs used to be
+  // `import()`-ed directly into the gate's OWN process, which would exit the
+  // entire gate green mid-run — every check still queued behind it silently
+  // never runs. Isolating the load in a child means that exit only ends the
+  // child; the parent sees an empty/invalid stdout and FAILS loud instead.
+  it('a top-level process.exit(0) in the local module cannot green-exit the gate — it FAILs loud', () => {
+    const r = runLocalSlotHarness(
+      "process.exit(0);\nexport const checks = [{ name: 'never-seen', cmd: ['true'], tier: 'L1' }];\n",
+    )
+    // The gate itself is still alive and finished its own run (proves the
+    // parent process was never killed by the local module's exit).
+    expect(r.stdout).toContain('HARNESS_DONE:')
+    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
+    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
+      true,
+    )
+    // The escaping module's own (unreachable) check never ran.
+    expect(r.stdout).not.toContain('[local] never-seen')
+  })
 })

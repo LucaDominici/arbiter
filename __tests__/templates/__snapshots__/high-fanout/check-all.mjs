@@ -1616,6 +1616,17 @@ runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-l
 // tier) FAILS LOUD per INV-96 (fail-closed on uncertainty) instead of being
 // silently dropped, the exact failure mode #2666 exists to close.
 //
+// Loaded in a CHILD process, never `import()`-ed directly into the gate's own
+// process: a project-local module's top-level code is untrusted with respect
+// to THIS process's lifetime — an accidental (or malicious) top-level
+// `process.exit(0)` imported in-process would green-exit the whole gate,
+// silently skipping every check still queued behind it. The child's only job
+// is reading the `checks` export and printing it as JSON; the declared check
+// COMMANDS still run in the gate's own process via the normal runCheck trio,
+// so --dry-run/--gate keep working on them exactly like any registry gate.
+// A child that exits non-zero, is killed (timeout/signal), or prints anything
+// that is not valid JSON is a FAIL — never silently treated as "no checks".
+//
 // Each entry runs through the SAME runCheck trio every registry gate uses —
 // --dry-run/--gate honor it for free via setMode — labeled `[local] <name>` so
 // the summary table and the arbiter-gate-v1 parityGates list it distinctly
@@ -1629,24 +1640,44 @@ runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-l
 {
   const _localSlotPath = resolve(dirname(fileURLToPath(import.meta.url)), 'check-all.local.mjs');
   if (existsSync(_localSlotPath)) {
-    let _localChecks;
-    try {
-      _localChecks = (await import(pathToFileURL(_localSlotPath).href)).checks;
-    } catch (_localErr) {
-      console.error(`[CHECK] local checks ... FAIL (scripts/check-all.local.mjs failed to load: ${_localErr.message})`);
-      pushResult('local checks', 'FAIL', 0);
-      _localChecks = undefined;
+    const _localImportSrc =
+      'import(' + JSON.stringify(pathToFileURL(_localSlotPath).href) + ')' +
+      '.then((m) => { process.stdout.write(JSON.stringify(m.checks === undefined ? null : m.checks)); })' +
+      '.catch((e) => { process.stderr.write(String(e && e.stack ? e.stack : e)); process.exitCode = 1; });';
+    const _localProc = spawnSync(
+      process.execPath,
+      ['--input-type=module', '-e', _localImportSrc],
+      { encoding: 'utf-8', shell: false, timeout: 10_000 },
+    );
+    let _localChecks = null;
+    let _localFail = null;
+    if (_localProc.error) {
+      _localFail = `could not spawn node to load scripts/check-all.local.mjs: ${_localProc.error.message}`;
+    } else if (_localProc.status !== 0 || _localProc.signal) {
+      _localFail = `scripts/check-all.local.mjs failed to load (exit ${_localProc.status ?? _localProc.signal}): ` +
+        `${(_localProc.stderr || '').trim() || 'a top-level process.exit or thrown error prevented its checks export from being read'}`;
+    } else {
+      try {
+        _localChecks = JSON.parse(_localProc.stdout);
+      } catch {
+        _localFail = 'scripts/check-all.local.mjs produced no readable output ' +
+          '(a top-level process.exit likely fired before its checks export could be read)';
+      }
     }
-    if (_localChecks !== undefined) {
+    if (_localFail !== null) {
+      console.error(`[CHECK] local checks ... FAIL (${_localFail})`);
+      pushResult('local checks', 'FAIL', 0);
+    } else if (_localChecks !== null) {
       if (!Array.isArray(_localChecks)) {
         console.error('[CHECK] local checks ... FAIL (scripts/check-all.local.mjs must export `checks: Array<{ name, cmd, tier }>`)');
         pushResult('local checks', 'FAIL', 0);
       } else {
         for (const _lc of _localChecks) {
           const _lcValid = _lc && typeof _lc.name === 'string' && Array.isArray(_lc.cmd)
-            && _lc.cmd.length > 0 && _LEVELS.includes(_lc.tier);
+            && _lc.cmd.length > 0 && _lc.cmd.every((_c) => typeof _c === 'string' && _c.length > 0)
+            && _LEVELS.includes(_lc.tier);
           if (!_lcValid) {
-            console.error(`[CHECK] local checks ... FAIL (malformed entry, expected { name: string, cmd: string[], tier: L1|L2|L3|L4 }: ${JSON.stringify(_lc)})`);
+            console.error(`[CHECK] local checks ... FAIL (malformed entry, expected { name: string, cmd: non-empty string[], tier: L1|L2|L3|L4 }: ${JSON.stringify(_lc)})`);
             pushResult('local checks', 'FAIL', 0);
             continue;
           }
