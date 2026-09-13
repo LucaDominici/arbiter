@@ -183,7 +183,7 @@
     "path": "check-continue-on-error.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). The 194-/48+ asymmetry is NOT missing functionality — the old boilerplate read backwards here. Self delegates the whole YAML-1.1 truthy grammar and block-scoping logic to scripts/lib/continue-on-error-core.mjs and scripts/lib/workflow-scan.mjs; the template must inline all of it because arbiter ships neither lib (src/templates/scripts/lib/ has no *-core.mjs twin) and an emitted gate has to be self-contained. On top of that self ADDS scope the template cannot have: it vets the workflow TEMPLATES arbiter ships, so a poisoned .ejs cannot ship a swallowed gate to every generated project. Detection semantics — the on/yes/y and ${{ true }} const-true set, the artifact up/download exemption, the informational-workflow patterns, the audited marker, the drift-shadow parity step — are equivalent. PERMANENT.",
-    "diffHash": "03a71f3d7e22b7fe3fa9d0b7c001c5ac4e1a2b1ebfa43eef9a78dbf012b0c32a"
+    "diffHash": "6d4e56e441254d4dc069cb444a75d2491a5588ad48dbde9741ebd5befd6f8869"
   },
   {
     "path": "check-doc-links.mjs",
@@ -298,13 +298,13 @@
     "path": "check-pr-size-gate.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self documents an explicit SELF-EXEMPTION (#2012): arbiter ships no config/pr-size-config.json and no workflow referencing pr-size/size-check, so the check self-skips on arbiter's own gate. That is deliberate — a PR-size gate has no subject in a repo whose integration regime merges to main directly rather than through pull requests — and the check stays fully live for generated consumer projects, which do gate on PRs. The remainder is a lazy `await import('node:fs')` for readdirSync and template-literal quoting. PERMANENT: the exemption is a statement about arbiter's own merge regime and must not ship.",
-    "diffHash": "f1ba1035de7e5a00316223a316a936690577380d4ce9854b7794c14633271667"
+    "diffHash": "f0cf44b3e7f9bb9fe5dde2803f74969714a2025cf9757f8bbe8b72b0197dc0b6"
   },
   {
     "path": "check-secret-presence.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Same corrected reading as check-continue-on-error: the 164-/50+ asymmetry is extraction, not loss. Self imports findSecretSkipViolations from scripts/lib/secret-presence-core.mjs and its walker/arg-parser from scripts/lib/workflow-scan.mjs — neither shipped as a template — so the emitted twin inlines extractSteps/analyzeStep verbatim. Self then ADDS a corpus the template cannot have: it vets the workflow TEMPLATES arbiter ships, so a poisoned .ejs cannot ship a silent-skip-on-empty-secret fake-green to every generated project. The GITHUB_TOKEN exemption, the informational-workflow patterns and the vars.SKIP_<NAME> sanctioned opt-out are identical. PERMANENT.",
-    "diffHash": "0657579498accafb7ae06d9491e9af1072473df561393e9c361624b45e295451"
+    "diffHash": "63e7d4fa473f8c591332b6303d9216ff51a067c461960f7a965a862e2029fe87"
   },
   {
     "path": "check-secret-scan.mjs",
@@ -342,13 +342,13 @@
     "path": "check-suppression-expiry.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). 0-/3+: the template side of the diff is EMPTY. Self adds the SPDX header, a blank comment line and a usage line. Zero executable divergence. PERMANENT (SPDX-header class, same as check-pii-scan.mjs).",
-    "diffHash": "a83e742d1fa29771e11cef68a17a4eb917b8c730e04420ce015d993b427b5823"
+    "diffHash": "311d66bb59a33b343e929b0c5cfc426025af850d0af4ef0cdad74e0984291521"
   },
   {
     "path": "check-suppression-rationale.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). 0-/4+: the template side of the diff is EMPTY. Self adds the SPDX header, a usage line, and one comment locating this gate against its sibling (extends check-suppressions.mjs, which checks expiry — this checks reason quality). Zero executable divergence. PERMANENT (SPDX-header class).",
-    "diffHash": "1603ee137e1a49d97e5278663e2753eba47b56ca0e5fc0c698336c454236b982"
+    "diffHash": "435ffa0d07dc98c9ba46f14eb490cee66f30208766a0baa94c193900023af1bc"
   },
   {
     "path": "check-suppressions.mjs",
@@ -414,13 +414,13 @@
     "path": "check-workflow-runners.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). 49-/27+ dominated by one substitution: self imports collectYamlFiles and parseHelpAndDir from scripts/lib/workflow-scan.mjs (self-only, so the template inlines both). The only content difference is that self's messages cite CI_BUILD_RUNNER_LABEL and INV-89 by name — arbiter's own runner-label-drift gate (fixed from a foreign INV-13 citation by #2412) — where the template stays generic. The expected-label rule and the ${{ … }} / $CI_ expression escape hatch are identical. PERMANENT.",
-    "diffHash": "bbcef615882ecc6c1c0eab83e37fbcac41054d7842306045b098c05c6b577a7d"
+    "diffHash": "241b88534fffd9899b4a26178b185bb1e8973040e05c5ed077d3c5325c03210c"
   },
   {
     "path": "check-workflow-test-integrity.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Dominated by the scripts/lib/workflow-scan.mjs import (self) against an inlined walker and arg parser (template). The content differences are arbiter-specific allowlist entries: 'notify' added to INFORMATIONAL_PATTERNS to cover _notify.yml and _post-merge-notify.yml, and the #2058 note naming the two supplementary-artifact upload steps (JUnit output, the gate's own --json result) that run after the real signal already succeeded or failed. The INV-80 continue-on-error rule, the drift-shadow `parity` step-scoped allowlist and the #1491 gate-command `|| true` swallow detection are identical. #2476 adds the pull_request base-branch-filter rule to BOTH sides with identical semantics and an identical scope (only a workflow carrying a `*-required` merge-gate aggregator job is bound), but DELIBERATELY different implementations: self parses the workflow with the `yaml` package (already a direct dependency and already imported by four sibling gate scripts), while the shipped twin is line-based because a generated project is not required to carry `yaml` and a gate script must never fail on a missing import. The shipped twin is not merely diff-pinned — it is rendered and EXECUTED in both directions by __tests__/templates/pr-tier-base-branch-filter.test.ts, so a bug in the line-based path cannot hide behind this pin. PERMANENT.",
-    "diffHash": "0187ea19f609db50d2a6595f8f6390e49ce9c73cfb6626e95285d0f92481f674"
+    "diffHash": "f88603aee921a6ae25b7ad9338042d8966bd2d5f5822fcafc99deae91047e3a6"
   },
   {
     "path": "glob-walk.mjs",
