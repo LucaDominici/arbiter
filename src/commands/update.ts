@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { existsSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, FatalError, ArbiterError } from '../utils/errors.js'
@@ -15,6 +16,7 @@ import {
   manifestKey,
 } from '../state/generated-manifest.js'
 import { isGateSpineKey, isSafetyClassKey } from '../generators/safety-class.js'
+import { gateSpineDependencies } from '../generators/check-all.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
@@ -1145,6 +1147,36 @@ function saveValidatedConfig(
 }
 
 /**
+ * #2664: when `--adopt-gate-spine` is forcing a rewrite of `scripts/check-all.mjs`
+ * under a scoped `--only`, widen `only` with the `scripts/lib/*.mjs` modules the
+ * RENDERED spine actually imports — otherwise the adopted spine lands importing a
+ * file this scoped run never emitted (the reported repro: a stale lib dir missing
+ * `gate-mutex.mjs`). A dependency already on disk needs no widening (the spine
+ * would import a file that already exists); one that is neither on disk nor
+ * resolvable to a template (`unresolved`) fails the whole run closed, naming the
+ * gap, rather than silently landing a spine with a dangling import.
+ */
+function widenOnlyForGateSpineDeps(
+  only: string[],
+  config: ProjectConfig,
+  targetDir: string,
+): string[] {
+  if (only.length === 0 || !matchesOnly(only, 'scripts/check-all.mjs')) return only
+  const { resolved, unresolved } = gateSpineDependencies(config)
+  if (unresolved.length > 0) {
+    throw new UserFacingError(
+      `--only scripts/check-all.mjs --adopt-gate-spine: the spine imports ` +
+        `${unresolved.length} lib module(s) with no matching template — cannot emit ` +
+        `them: ${unresolved.join(', ')}`,
+    )
+  }
+  const missing = resolved.filter(
+    (key) => !matchesOnly(only, key) && !existsSync(join(targetDir, key)),
+  )
+  return missing.length === 0 ? only : [...only, ...missing]
+}
+
+/**
  * #2353: resolve this run's selection policy — `.arbiterignore` (committed,
  * repo-permanent) plus `--only` (per-invocation, defaults to "everything").
  * Extracted out of `runUpdate` so its `??` default stays a single, separately
@@ -1152,9 +1184,13 @@ function saveValidatedConfig(
  */
 function resolveSelectionPolicy(
   options: UpdateOptions,
+  config: ProjectConfig,
   targetDir: string,
 ): { only: string[]; selectPredicate: (key: string) => SelectionVerdict } {
-  const only = options.only ?? []
+  const requested = options.only ?? []
+  const only = options.adoptGateSpine
+    ? widenOnlyForGateSpineDeps(requested, config, targetDir)
+    : requested
   const ignorePatterns = loadIgnorePatterns(targetDir)
   return { only, selectPredicate: buildSelectionPredicate({ patterns: ignorePatterns, only }) }
 }
@@ -1196,7 +1232,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     // (a committed, permanent decision); `--only` narrows this one run. Built once
     // and threaded into every session below so the plan and the apply can never
     // disagree about what is in scope.
-    const { only, selectPredicate } = resolveSelectionPolicy(options, targetDir)
+    const { only, selectPredicate } = resolveSelectionPolicy(options, config, targetDir)
     if (options.adoptPlan) {
       const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, {
         adoptPredicate,

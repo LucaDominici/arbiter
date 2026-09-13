@@ -1,6 +1,6 @@
 ---
 title: 'Generated File Format Stability Map'
-doc_version: '1.4.0'
+doc_version: '1.4.1'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -631,6 +631,12 @@ Semantics:
   path it touched. An `--only` that matches nothing warns instead of silently doing nothing.
 - On conflict `.arbiterignore` **wins** over `--only` — a committed opt-out outranks one run's flag —
   and the run prints which files that decided.
+- #2664: `--only scripts/check-all.mjs --adopt-gate-spine` widens `only` to also cover every
+  `scripts/lib/*.mjs` module the RENDERED spine imports (derived from the same
+  `check-all.mjs.ejs` render `generateCheckAll` uses, not a hand-maintained list) — an adopted
+  spine must never land importing a lib module this scoped run left unemitted. A dependency
+  already on disk needs no widening; one that resolves to no template at all fails the whole run
+  closed, naming the gap, instead of shipping a spine with a dangling import.
 - Ignoring a safety-class file (`.claude/hooks/*.mjs`) also removes it from `withheldSafetyKeys`, and
   therefore from the safety-adopt ratchet's view. That is the consumer's call to make; `update` states
   it on stderr rather than leaving the bypass to be inferred. It stays off the warnings channel that

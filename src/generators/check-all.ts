@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+import { existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { resolveEffectiveThresholds } from '../config/thresholds.js'
@@ -8,6 +11,18 @@ import { levelAtLeast, LEVEL_ORDER } from '../config/levels.js'
 import { parse as parseYaml } from 'yaml'
 import type { Archetype, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+
+// #2664: `src/templates/scripts/lib/` — same directory `renderTemplate` reads
+// `scripts/lib/*.mjs.ejs` from, resolved independently here so
+// `gateSpineDependencies` can check EXISTENCE of a lib template without
+// rendering it (a render throws on a missing file; existence is the question).
+const TEMPLATES_LIB_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'templates',
+  'scripts',
+  'lib',
+)
 
 /**
  * #2041 (AC-2041.4): the declarative gate registry — every gate the emitted
@@ -695,19 +710,30 @@ function emitExtendedGated(
   )
 }
 
-export function generateCheckAll(
-  config: ProjectConfig,
-  opts: { dryRun: boolean } = { dryRun: false },
-): CheckAllGeneratorResult {
-  const results: WriteResult[] = []
-  const base = config.targetDir
+/**
+ * The render data `scripts/check-all.mjs.ejs` (and its sibling unconditional
+ * templates) share — thresholds, the derived gate registry, the binary-size
+ * budget. Extracted from {@link generateCheckAll} (#2664) so
+ * {@link gateSpineDependencies} renders the SAME bytes the real emission does;
+ * two independently-assembled `data` objects could drift and silently
+ * misreport the spine's own imports.
+ */
+type CheckAllRenderData = ProjectConfig & {
+  coverageThreshold: number
+  coverageEnabled: boolean
+  mutationEnabled: boolean
+  mutationThreshold: number
+  binarySizeBytes: number
+  gates: GateRegistryEntry[]
+}
 
+function buildCheckAllRenderData(config: ProjectConfig): CheckAllRenderData {
   // #1527 — single resolver shared with the coverage + mutation generators so
   // the gate floor can never disagree with the tool-config floor for the same
   // project. Replaces the old per-generator `?? computed` precedence (#484).
   const effective = resolveEffectiveThresholds(config)
 
-  const data = {
+  const base = {
     ...config,
     coverageThreshold: effective.lineCoverage,
     coverageEnabled: effective.coverageEnabled,
@@ -720,8 +746,51 @@ export function generateCheckAll(
   }
   // #2041: the declarative gate registry (AC-2041.4) — the emitted
   // check-all.mjs embeds it and runs gates from it. Loaded from the SAME
-  // enriched data the template renders with (coverage thresholds etc.).
-  ;(data as unknown as { gates: GateRegistryEntry[] }).gates = loadGateRegistry(data)
+  // enriched data the template renders with (coverage thresholds etc.),
+  // BEFORE `gates` itself is added — the registry's own EJS never reads it.
+  return { ...base, gates: loadGateRegistry(base) }
+}
+
+/**
+ * #2664 (AC-2664.1/2): the `scripts/lib/*.mjs` manifest keys the RENDERED gate
+ * spine actually imports, split into `resolved` (a matching template exists
+ * under `scripts/lib/`, so arbiter can emit it) and `unresolved` (the import
+ * names a lib module with no template — a genuine drift between the spine
+ * template and its declared imports).
+ *
+ * `update --only scripts/check-all.mjs --adopt-gate-spine` used to force-adopt
+ * the spine alone: a project whose lib dir predates a newer `./lib/x.mjs`
+ * import landed a spine that crashed on the very next gate run. Rendering the
+ * SAME template+data pair `generateCheckAll` uses (via
+ * {@link buildCheckAllRenderData}) keeps this closure from ever drifting from
+ * what is actually emitted.
+ */
+export function gateSpineDependencies(config: ProjectConfig): {
+  resolved: string[]
+  unresolved: string[]
+} {
+  const rendered = renderTemplate('scripts/check-all.mjs.ejs', buildCheckAllRenderData(config))
+  const resolved = new Set<string>()
+  const unresolved = new Set<string>()
+  for (const match of rendered.matchAll(/from ['"]\.\/lib\/([^'"]+\.mjs)['"]/g)) {
+    const name = match[1] as string
+    ;(libTemplateExists(name) ? resolved : unresolved).add(`scripts/lib/${name}`)
+  }
+  return { resolved: [...resolved].sort(), unresolved: [...unresolved].sort() }
+}
+
+/** Does `src/templates/scripts/lib/<name>.ejs` exist for lib module `name`? */
+function libTemplateExists(name: string): boolean {
+  return existsSync(join(TEMPLATES_LIB_DIR, `${name}.ejs`))
+}
+
+export function generateCheckAll(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): CheckAllGeneratorResult {
+  const results: WriteResult[] = []
+  const base = config.targetDir
+  const data = buildCheckAllRenderData(config)
 
   results.push(...emitUnconditional(base, data, opts))
   results.push(...emitDebtGated(base, data, opts))
