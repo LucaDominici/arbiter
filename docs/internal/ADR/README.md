@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-09-04'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -137,7 +137,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 107 | [arbiter obsidian subcommand — thin generic orchestrator](107-obsidian-subcommand.md)                                                                                 | Accepted   | 2026-07-17 |  |
 | 108 | [Exact-SHA landing for evidence-bearing PRs](108-ff-only-merge-method-evidence-bearing-prs.md)                                                                        | Accepted   | 2026-07-27 |  |
 | 109 | [constraint-map.json scaffolded + INV-115 fail-closed on a missing map](109-constraint-map-fail-closed.md)                                                            | Accepted   | 2026-07-20 |  |
-| 110 | [Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](110-acceptance-criteria-anchor.md)                                              | Accepted   | 2026-07-21 |  |
+| 110 | [Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](110-acceptance-criteria-anchor.md)                                              | Accepted   | 2026-09-13 |  |
 | 111 | [tier origination is human-only (#2184, follow-up to #2180/#2178)](111-tier-origination-human-only.md)                                                                | Accepted   | 2026-08-03 |  |
 | 112 | [project-declared invariants (PROJ-NN) — the project is the author of its own catalog additions (#2035)](112-project-invariants-proj-nn.md)                           | Accepted   | 2026-08-04 |  |
 | 113 | [decision registry (D-NN) — blocked project decisions with per-decision enforcement (#2036)](113-decision-registry-dnn.md)                                            | Accepted   | 2026-08-04 |  |

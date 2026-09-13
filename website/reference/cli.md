@@ -587,14 +587,14 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter gate-exec`  | —                                                                               |
 | `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
 | `arbiter ignore`     | Manage the per-file opt-out (.arbiterignore, #2353/#2662)                       |
-| `arbiter init`       | Initialise / update the unified task document (#1206)                           |
+| `arbiter init`       | Initialize AI governance in a project                                           |
 | `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
 | `arbiter obsidian`   | Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)        |
 | `arbiter plugin`     | Manage third-party arbiter plugins (arbiter.json `plugins[]`)                   |
 | `arbiter review`     | Semantic diff between graph snapshots (#262)                                    |
 | `arbiter ship`       | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
 | `arbiter task`       | Manage task lifecycle state                                                     |
-| `arbiter update`     | —                                                                               |
+| `arbiter update`     | Re-generate governance files using stored config (arbiter.json)                 |
 | `arbiter validate`   | Probe toolchain compatibility for the detected stack                            |
 | `arbiter worktree`   | Manage git worktrees for parallel task development                              |
 
@@ -683,15 +683,33 @@ Manage the per-file opt-out (.arbiterignore, #2353/#2662).
 
 ## arbiter init
 
-Initialise / update the unified task document (#1206).
+Initialize AI governance in a project.
 
 **Options:**
 
-- `--id <id>` — Task id, e.g. #1206
-- `--tier <tier>` — Task tier (XS|S|Standard)
-- `--plan <path>` — Repo-relative path to the plan file
-- `--chain <id>` — Other issue id batched into this task worktree/gate/PR (repeatable, #2102)
+- `-y, --yes` — Skip wizard — use auto-detected defaults
+- `--tools <tools>` — Comma-separated list of AI tools (claude,codex)
+- `--level <level>` — Governance level: L1, L2, L3, or L4
+- `--tier <tier>` — Progressive-adoption tier: bootstrap (gentlest Day-1: L1 + brownfield) | L1 | L2 | L3 | L4. Overrides --level.
+- `--language <lang>` — Override detected language (typescript|java|kotlin|rust|python|go|multi)
+- `--archetype <archetype>` — Override detected archetype (backend-web-db|cli|library|data-pipeline|frontend-spa|embedded)
 - `--dir <dir>` — Target directory (default: current directory)
+- `--dry-run` — Preview what would be generated without writing files
+- `--brownfield` — Auto-capture debt baseline after generation (locks current state as day-0 baseline)
+- `--no-verify` — Skip toolchain compatibility probes after generation
+- `--accept-beta-tools` — Allow generation of L3 features backed by beta-maturity tools (audit trail written to arbiter.json)
+- `--backend <backend>` — Decomposition backend: github or markdown (overrides gh auth detection)
+- `--json` — Emit machine-readable JSON output (requires --yes)
+- `--quiet` — Suppress informational banners (e.g. telemetry notice)
+- `--force` — Override adverse git state check (detached HEAD, rebase, etc.)
+- `--preset <preset>` — Apply a meta-preset: industrial-grade (governance + compliance + observability + auth bundle) | solo-homelab (compliance off, governance ≤ L2, mutation off, no prod runbooks)
+- `--auth-provider <provider>` — Override auth provider (used with --preset or standalone)
+- `--observability-provider <provider>` — Override observability provider (used with --preset or standalone)
+- `--deploy-target <target>` — Deploy target: ghcr | azure-container-app | aws-ecs | gcp-cloud-run | none (non-interactive complement to the wizard)
+- `--github` — Activate GitHub API calls and set permitGitHub:true in stored config
+- `--solo` — Set collaborationMode=trunk-solo (direct-merge, full local gate ≡ CI, CI as verification mirror). Shorthand for ADR-051 trunk-solo mode.
+- `--recipe <path>` — Path or https:
+  .option(
 
 ## arbiter note
 
@@ -768,6 +786,24 @@ Manage task lifecycle state.
 
 ## arbiter update
 
+Re-generate governance files using stored config (arbiter.json).
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--github` — Activate live GitHub API calls (opt-in; ARBITER_GITHUB=1 also activates)
+- `--json` — Emit machine-readable JSON output
+- `--force` — Override adverse git state check (detached HEAD, rebase, etc.)
+- `--adopt` — Force-adopt ALL currently-withheld files (not just safety-class), recording a
+- `--no-adopt-safety` — Opt OUT of the default-on safety-class adoption (.claude/hooks/*.mjs). Leaves a
+- `--adopt-gate-spine` — Opt IN to force-adopting the gate spine (scripts/check-all.mjs, scripts/lib/*.mjs) over a
+- `--adopt-governance` — Opt IN to force-adopting governance files (AGENTS.md, .claude/settings.json) over a user-modified
+- `--no-adopt-gate-spine` — DEPRECATED (#2453, removed in 0.8.0): no-op — withholding a customized gate spine is
+- `--no-adopt-governance` — DEPRECATED (#2453, removed in 0.8.0): no-op — withholding a diverged governance file is
+- `--adopt-plan` — Two-phase preview: print what --adopt/the default safety adoption WOULD change
+- `--only <globs>` — Restrict this run to the managed files matching these globs (comma-separated,
+- `--refresh-derived` — Force-refresh the codex-track derived file set (.agents/rules/_, .claude/hooks/_
+
 ## arbiter validate
 
 Probe toolchain compatibility for the detected stack.
@@ -810,6 +846,21 @@ These commands are fully functional but hidden from the default `arbiter --help`
 | `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates                       |
 
 ## arbiter doc-set
+
+**Options:**
+
+- `--strict` — Exit 1 if any mandatory doc is missing (default: advisory, exit 0)
+- `--check` — Run the default advisory presence audit (backward-compat alias for the no-flag default;
+- `--json` — Emit the audit as JSON
+- `--generate` — Scaffold stub files for missing mandatory+recommended .md docs
+- `--refresh-stubs` — (with --generate) re-render a doc in place only if it is byte-equal to the stub template
+- `--manifest <path>` — Manifest path override (default standards/gold-doc-set.yml)
+- `--doc-profile <path>` — Overlay profile path override (default standards/doc-profile)
+- `--plan` — T3: dry-run the skeleton generator — report would-scaffold/unbound, write nothing
+- `--apply` — T3: scaffold real per-doc-type skeletons for missing bound rows (skipIfExists; never
+- `--freshness` — T4: run the per-doc freshness audit (scripts/check-doc-freshness.mjs) instead of presence
+- `--arc42` — INV-144: run the arc42 slot-completeness audit (scripts/check-arc42-slots.mjs) instead of
+- `--update-baseline` — (with --arc42) re-record the hollow-slot ratchet; refused when a counter rose
 
 ## arbiter graph
 
