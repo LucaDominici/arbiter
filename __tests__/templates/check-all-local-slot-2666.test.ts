@@ -15,7 +15,7 @@
 // gate does (AC3).
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
@@ -68,6 +68,7 @@ describe('AC1/AC3 — check-all.mjs.ejs loads the local slot', () => {
 function runLocalSlotHarness(
   localFileSource: string | null,
   args: string[] = ['L2'],
+  env: Record<string, string> = { ARBITER_ALLOW_LOCAL_CHECKS: '1' },
 ): { status: number | null; stdout: string; stderr: string } {
   const content = render()
   const cutIdx = content.indexOf('// ─── Summary')
@@ -109,10 +110,12 @@ function runLocalSlotHarness(
       join(scriptsDir, 'check-all.mjs'),
       prefix + '\nconsole.log("HARNESS_DONE:" + JSON.stringify(getResults()));\nprocess.exit(0);\n',
     )
+    const _env = { ...process.env, NO_COLOR: '1' }
+    delete _env.ARBITER_ALLOW_LOCAL_CHECKS
     const r = spawnSync(process.execPath, [join(scriptsDir, 'check-all.mjs'), ...args], {
       encoding: 'utf-8',
       cwd: dir,
-      env: { ...process.env, NO_COLOR: '1' },
+      env: { ..._env, ...env },
     })
     return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   } finally {
@@ -123,6 +126,161 @@ function runLocalSlotHarness(
 function harnessResults(stdout: string): Array<{ name: string; status: string }> {
   return JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(stdout)![1])
 }
+
+// #2679: proves the slot cannot execute an attacker-controlled command without
+// explicit opt-in. Unlike runLocalSlotHarness (whose run-helpers stub only logs
+// the call), this variant's runCheck really spawns cmd/args, so "did NOT run"
+// is proven by a sentinel file's absence, not by an unexecuted log line.
+function runLocalSlotHarnessReal(
+  localFileSourceFor: (sentinelPath: string) => string,
+  env: Record<string, string>,
+): { status: number | null; stdout: string; sentinelExists: boolean } {
+  const content = render()
+  const cutIdx = content.indexOf('// ─── Summary')
+  const prefix = content.slice(0, cutIdx)
+  const dir = mkdtempSync(join(tmpdir(), 'arb-local-slot-real-'))
+  const sentinelPath = join(dir, 'sentinel')
+  try {
+    const scriptsDir = join(dir, 'scripts')
+    mkdirSync(join(scriptsDir, 'lib'), { recursive: true })
+    writeFileSync(
+      join(scriptsDir, 'lib', 'run-helpers.mjs'),
+      [
+        "import { spawnSync } from 'node:child_process';",
+        'export function runCheck(name, cmd, args) {',
+        '  const r = spawnSync(cmd, args, { encoding: "utf-8" });',
+        '  pushResult(name, r.status === 0 ? "PASS" : "FAIL", 0);',
+        '}',
+        'export const runWarnCheck = runCheck;',
+        'export const runToolCheck = runCheck;',
+        'const _results = [];',
+        'export function pushResult(name, status, elapsed) { _results.push({ name, status, elapsed }); }',
+        'export function getResults() { return _results; }',
+        'export function getFailed() { return _results.filter((r) => r.status === "FAIL").length; }',
+        'export function setMode() {}',
+        'export function setOrphanGuard() {}',
+        'export function resolveTmpfsTmpdir() { return null; }',
+        'export function gateFileState() { return "never-emitted"; }',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(scriptsDir, 'lib', 'gate-mutex.mjs'),
+      'export const GATE_MUTEX_HELD_ENV = "ARBITER_GATE_MUTEX_HELD";\n' +
+        'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
+    )
+    writeFileSync(join(scriptsDir, 'check-all.local.json'), localFileSourceFor(sentinelPath))
+    writeFileSync(
+      join(scriptsDir, 'check-all.mjs'),
+      prefix + '\nconsole.log("HARNESS_DONE:" + JSON.stringify(getResults()));\nprocess.exit(0);\n',
+    )
+    const _env = { ...process.env, NO_COLOR: '1' }
+    delete _env.ARBITER_ALLOW_LOCAL_CHECKS
+    const r = spawnSync(process.execPath, [join(scriptsDir, 'check-all.mjs'), 'L2'], {
+      encoding: 'utf-8',
+      cwd: dir,
+      env: { ..._env, ...env },
+    })
+    return { status: r.status, stdout: r.stdout ?? '', sentinelExists: existsSync(sentinelPath) }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+function sentinelJson(sentinelPath: string): string {
+  return JSON.stringify({
+    checks: [
+      {
+        name: 'poison',
+        cmd: [
+          process.execPath,
+          '-e',
+          `require('fs').writeFileSync(${JSON.stringify(sentinelPath)}, '1')`,
+        ],
+        tier: 'L1',
+      },
+    ],
+  })
+}
+
+describe('check-all.mjs.ejs — local extension slot requires explicit opt-in (#2679)', () => {
+  it('does NOT execute the local check and prints SKIP when no opt-in is given', () => {
+    const r = runLocalSlotHarnessReal(sentinelJson, {})
+    expect(r.status).toBe(0)
+    expect(r.sentinelExists).toBe(false)
+    expect(r.stdout).toContain(
+      '[CHECK] local checks ... SKIP (scripts/check-all.local.json present but ' +
+        'ARBITER_ALLOW_LOCAL_CHECKS is not set',
+    )
+  })
+
+  it('executes the local check when ARBITER_ALLOW_LOCAL_CHECKS=1 is set', () => {
+    const r = runLocalSlotHarnessReal(sentinelJson, { ARBITER_ALLOW_LOCAL_CHECKS: '1' })
+    expect(r.status).toBe(0)
+    expect(r.sentinelExists).toBe(true)
+  })
+
+  it('does not run under an unrecognized truthy env value ("true", not "1")', () => {
+    const r = runLocalSlotHarnessReal(sentinelJson, { ARBITER_ALLOW_LOCAL_CHECKS: 'true' })
+    expect(r.status).toBe(0)
+    expect(r.sentinelExists).toBe(false)
+  })
+})
+
+describe('check-all.mjs.ejs — --allow-local-checks CLI flag (#2679)', () => {
+  it('executes the local check when --allow-local-checks is passed', () => {
+    const content = render()
+    const cutIdx = content.indexOf('// ─── Summary')
+    const prefix = content.slice(0, cutIdx)
+    const dir = mkdtempSync(join(tmpdir(), 'arb-local-slot-flag-'))
+    const sentinelPath = join(dir, 'sentinel')
+    try {
+      const scriptsDir = join(dir, 'scripts')
+      mkdirSync(join(scriptsDir, 'lib'), { recursive: true })
+      writeFileSync(
+        join(scriptsDir, 'lib', 'run-helpers.mjs'),
+        [
+          "import { spawnSync } from 'node:child_process';",
+          'export function runCheck(name, cmd, args) {',
+          '  const r = spawnSync(cmd, args, { encoding: "utf-8" });',
+          '  pushResult(name, r.status === 0 ? "PASS" : "FAIL", 0);',
+          '}',
+          'export const runWarnCheck = runCheck;',
+          'export const runToolCheck = runCheck;',
+          'const _results = [];',
+          'export function pushResult(name, status, elapsed) { _results.push({ name, status, elapsed }); }',
+          'export function getResults() { return _results; }',
+          'export function getFailed() { return _results.filter((r) => r.status === "FAIL").length; }',
+          'export function setMode() {}',
+          'export function setOrphanGuard() {}',
+          'export function resolveTmpfsTmpdir() { return null; }',
+          'export function gateFileState() { return "never-emitted"; }',
+        ].join('\n'),
+      )
+      writeFileSync(
+        join(scriptsDir, 'lib', 'gate-mutex.mjs'),
+        'export const GATE_MUTEX_HELD_ENV = "ARBITER_GATE_MUTEX_HELD";\n' +
+          'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
+      )
+      writeFileSync(join(scriptsDir, 'check-all.local.json'), sentinelJson(sentinelPath))
+      writeFileSync(
+        join(scriptsDir, 'check-all.mjs'),
+        prefix +
+          '\nconsole.log("HARNESS_DONE:" + JSON.stringify(getResults()));\nprocess.exit(0);\n',
+      )
+      const _env = { ...process.env, NO_COLOR: '1' }
+      delete _env.ARBITER_ALLOW_LOCAL_CHECKS
+      const r = spawnSync(
+        process.execPath,
+        [join(scriptsDir, 'check-all.mjs'), 'L2', '--allow-local-checks'],
+        { encoding: 'utf-8', cwd: dir, env: _env },
+      )
+      expect(r.status).toBe(0)
+      expect(existsSync(sentinelPath)).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', () => {
   // #2666 round 2: the mapping declares `local checks` WIRED on every pinned consumer,
