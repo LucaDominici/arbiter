@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
-import { jsonOutput } from '../utils/json-output.js'
+import { jsonOutput, type JsonStatus } from '../utils/json-output.js'
 
 /** The engine's `--json` audit payload (scripts/check-doc-set.mjs). */
 export interface DocSetPayload {
@@ -105,14 +105,14 @@ export interface DocSetOptions {
 }
 
 /** The freshness engine's `--json` payload (scripts/check-doc-freshness.mjs). */
-export interface DocFreshnessPayload {
+interface DocFreshnessPayload {
   manifest: string
   tierColumn: 'solo' | 'small' | 'enterprise'
   docs: Array<Record<string, unknown>>
 }
 
 /** The arc42 slot engine's `--json` payload (scripts/check-arc42-slots.mjs). */
-export interface Arc42Payload {
+interface Arc42Payload {
   doc: string
   column: string
   requiredFrom: string
@@ -125,7 +125,7 @@ export interface Arc42Payload {
 }
 
 /** Which engine answered, with that engine's own payload type (#2504: never one cast for all). */
-export type DocSetRouted =
+type DocSetRouted =
   | { route: 'presence'; payload: DocSetPayload | null }
   | { route: 'freshness'; payload: DocFreshnessPayload | null }
   | { route: 'arc42'; payload: Arc42Payload | null }
@@ -234,6 +234,8 @@ type Parsed =
   | { kind: 'payload'; payload: Record<string, unknown> }
   | { kind: 'skip'; reason: string }
   | { kind: 'invalid'; error: string }
+  /** No --json parse: text output, or --arc42 --update-baseline (verdict is the exit code alone). */
+  | { kind: 'text' }
 
 /**
  * Classify the engine's --json stdout. #2504: engines signal a skip as a plain-text `[SKIP]` line
@@ -286,23 +288,25 @@ export function runDocSet(opts: DocSetOptions = {}): DocSetResult {
   const route = routeFor(opts)
   const script = resolve(packageRoot(), engineFor(opts))
   const run = runEngine(script, buildEngineArgs(callerRelative(opts)), resolveRepo(opts))
-
   // --arc42 --update-baseline reports in text only; its verdict is the exit code alone.
-  const baselineUpdate = Boolean(opts.arc42 && opts.updateBaseline)
-  const parsed = opts.json && !baselineUpdate ? parseStdout(run.stdout, route) : null
+  const textOnly = !opts.json || Boolean(opts.arc42 && opts.updateBaseline)
+  const parsed: Parsed = textOnly ? { kind: 'text' } : parseStdout(run.stdout, route)
   // An engine that already failed (exit 2, often with empty stdout) keeps its own code.
-  const exitCode = parsed?.kind === 'invalid' && run.exitCode === 0 ? 2 : run.exitCode
+  const exitCode = parsed.kind === 'invalid' && run.exitCode === 0 ? 2 : run.exitCode
 
   if (!opts.quiet) report(opts, parsed, { ...run, exitCode })
 
   // SHAPE[route] checked the payload against this route's type in parseStdout.
   return {
     route,
-    payload: parsed?.kind === 'payload' ? parsed.payload : null,
+    payload: parsed.kind === 'payload' ? parsed.payload : null,
     exitCode,
-    ...(parsed?.kind === 'skip' ? { skipReason: parsed.reason } : {}),
+    ...(parsed.kind === 'skip' ? { skipReason: parsed.reason } : {}),
   } as DocSetResult
 }
+
+/** Engine exit code → envelope status (0 ok, 1 warning, anything else error). */
+const statusFor = (code: number): JsonStatus => (['ok', 'warning'] as const)[code] ?? 'error'
 
 /** A relative --manifest/--doc-profile was typed against the caller's cwd, not the resolved root. */
 function callerRelative(opts: DocSetOptions): DocSetOptions {
@@ -315,17 +319,17 @@ function callerRelative(opts: DocSetOptions): DocSetOptions {
 }
 
 /** Write the command's own output: the JSON envelope under --json, else the engine's text. */
-function report(opts: DocSetOptions, parsed: Parsed | null, run: EngineRun): void {
-  if (parsed?.kind === 'skip') {
+function report(opts: DocSetOptions, parsed: Parsed, run: EngineRun): void {
+  if (parsed.kind === 'skip') {
     // INV-53: a SKIP keeps exit 0 — the envelope, not the exit code, carries the non-ok signal.
     jsonOutput('doc-set', 'warning', { skipped: true, reason: parsed.reason }, undefined, {
       warnings: [`SKIP: ${parsed.reason}`],
     })
-  } else if (parsed?.kind === 'invalid') {
+  } else if (parsed.kind === 'invalid') {
     jsonOutput('doc-set', 'error', {}, [parsed.error])
   } else if (opts.json) {
-    const status = run.exitCode === 0 ? 'ok' : run.exitCode === 1 ? 'warning' : 'error'
-    jsonOutput('doc-set', status, parsed ? { ...parsed.payload } : {})
+    const data = parsed.kind === 'payload' ? { ...parsed.payload } : {}
+    jsonOutput('doc-set', statusFor(run.exitCode), data)
   } else if (run.stdout) {
     process.stdout.write(run.stdout)
   }
