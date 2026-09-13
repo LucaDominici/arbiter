@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+// CATALOG: Checks the formatting of what src/templates/**/*.ejs EMITS, not the .ejs bytes.
+// CATALOG: Rejected fold-in into check-template-tests.mjs because that gate asserts render-test
+// CATALOG: EXISTENCE per template (a different artifact-class question) and shares only the
+// CATALOG: enumeration helper (`collectEjsFiles`), not the check semantics.
+// CATALOG: Rejected fold-in into check-all.mjs's own `format` step (`prettier --check .`)
+// CATALOG: because that step operates on raw repo files and cannot infer a parser for a
+// CATALOG: `.<ext>.ejs` path at all — this script exists precisely to cover that blind spot.
+//
 // #2571: Every EJS template under src/templates/ emits content into a governed project,
 // where that project's OWN `format` gate reads it as a plain file. Arbiter's whole-repo
 // `npx prettier --check .` cannot infer a parser for `*.<ext>.ejs` and silently no-ops
@@ -92,9 +100,19 @@ export async function main() {
     process.exit(0)
   }
 
-  const baseline = existsSync(baselineFile)
-    ? parseInt(readFileSync(baselineFile, 'utf-8').trim(), 10)
-    : 0
+  let baseline = 0
+  if (existsSync(baselineFile)) {
+    const raw = readFileSync(baselineFile, 'utf-8').trim()
+    baseline = parseInt(raw, 10)
+    // Fail-closed: a blank/malformed baseline must never silently parse to NaN — every
+    // NaN comparison below is false, which would fall through to the OK branch unread.
+    if (!Number.isInteger(baseline)) {
+      process.stdout.write(
+        `[check-emitted-formatting] FAIL: baseline file is not a valid integer: ${baselineFile} (content: ${JSON.stringify(raw)})\n`,
+      )
+      process.exit(1)
+    }
+  }
 
   const scale = `${currentCount}/${tagFreeCount} (${tagFreeCount === 0 ? 0 : Math.round((currentCount / tagFreeCount) * 100)}%)`
 
