@@ -651,7 +651,7 @@ Every gate run must emit its evidence artifacts (`.evidence/SUMMARY.json` and fr
 
 ### INV-28: SSOT documents must not contradict
 
-Single-source-of-truth documents must agree; a drift check runs pre-merge so contradictory SSOT edits cannot land together. No automated content-contradiction check exists (#2563): `scripts/check-ssot-core.mjs` verifies only that `SSOT_CORE_SET.md` is exhaustive and its entries exist on disk (INV-54/INV-108), not that their content agrees. Tracked as a known gap (#2510).
+Single-source-of-truth documents must agree; contradictory SSOT edits must not land together. No automated content-contradiction check exists (#2563): `scripts/check-ssot-core.mjs` verifies only that `SSOT_CORE_SET.md` is exhaustive and its entries exist on disk (INV-54/INV-108), not that their content agrees. Tracked as a known gap (#2510).
 
 **Enforcement:** code review (manual) — no automated check exists
 

@@ -24,9 +24,9 @@
     "kind": "template",
     "enforcer": "src/templates/scripts/verify-spotbugs.mjs.ejs"
   },
-  "prose:- **INV-28:** SSOT documents must not contradict — run drift check before merge": {
-    "kind": "gate",
-    "enforcer": "check-drift.mjs"
+  "prose:- **INV-28:** SSOT documents must not contradict": {
+    "kind": "accepted",
+    "rationale": "No automated cross-document contradiction check exists (#2563): scripts/check-ssot-core.mjs verifies only that SSOT_CORE_SET.md is exhaustive and its entries exist on disk (INV-54/INV-108), not that their content agrees. Carried by manual code review until a real mechanism exists (tracked: #2510)."
   },
   "prose:- **INV-48:** EJS template render-test coverage must not regress": {
     "kind": "gate",
