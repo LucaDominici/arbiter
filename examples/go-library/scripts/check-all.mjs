@@ -1052,34 +1052,44 @@ runCheck('race detector (full)', 'go', ['test', '-race', './...']);
 // call site's position, so appending here (rather than duplicating the block
 // once per lane) costs only "a local L1 check runs after this run's L2/L3
 // gates", never a missed or duplicated execution.
+// #2679 round 3 (Codex): a git-config read that inherits the launcher's
+// process env is still forgeable — a poisoned npm "scripts" launcher can set
+// GIT_CONFIG_GLOBAL/GIT_CONFIG_SYSTEM/GIT_CONFIG_COUNT+KEY_n+VALUE_n/GIT_DIR/
+// GIT_WORK_TREE to point git at attacker-supplied config, or prepend a repo-
+// provided `git` shim onto PATH. Neither the env NOR the PATH lookup can be
+// inherited: this reads ONLY the `--local` scope (the literal `.git/config`
+// git discovers from `cwd`, never `--global`/`--system`/an env-redirected
+// file — narrower is safer, and `--local` is the one scope no ambient env var
+// can redirect elsewhere), spawns `git` by name against a FIXED PATH of
+// system-only directories (never the inherited PATH), and passes a from-
+// scratch env containing only HOME/LANG (needed for git itself to run) plus
+// that fixed PATH — no GIT_* variable survives. `git` not found on the fixed
+// PATH, or any other spawn/read failure, fails closed to "not opted in".
+function _localChecksAllowed(cwd) {
+  const _fixedPath =
+    process.platform === 'win32'
+      ? [
+          `${process.env.SystemRoot || 'C:\\Windows'}\\System32`,
+          `${process.env.SystemRoot || 'C:\\Windows'}`,
+          'C:\\Program Files\\Git\\cmd',
+        ].join(';')
+      : '/usr/local/bin:/usr/bin:/bin';
+  const _gitEnv = { HOME: process.env.HOME ?? '', LANG: process.env.LANG ?? '', PATH: _fixedPath };
+  const _cfg = spawnSync('git', ['config', '--local', '--get', 'arbiter.allowLocalChecks'], {
+    cwd,
+    encoding: 'utf-8',
+    shell: false,
+    env: _gitEnv,
+  });
+  return _cfg.status === 0 && _cfg.stdout === 'true\n';
+}
+
 {
   const _localSlotPath = resolve(dirname(fileURLToPath(import.meta.url)), 'check-all.local.json');
   if (!existsSync(_localSlotPath)) {
     console.log('[CHECK] local checks ... SKIP (scripts/check-all.local.json absent)');
     pushResult('local checks', 'SKIP', 0);
-  } else if (
-    !(() => {
-      // #2679: a poisoned repository ships scripts/check-all.local.json and any
-      // developer who runs check-all executes arbitrary cmd[0]+args from it. The
-      // file's mere presence is repository-controlled (an attacker controls it),
-      // so it can never be the trust boundary — and neither can an env var or CLI
-      // flag: both are equally settable from a repo-controlled npm "scripts"
-      // launcher (`"gate": "ARBITER_ALLOW_LOCAL_CHECKS=1 node scripts/check-all.mjs"`
-      // or `"gate": "node scripts/check-all.mjs --allow-local-checks"`), so a
-      // poisoned repo can grant its own opt-in the same way it ships the payload.
-      // The one signal a tracked file cannot carry is state that lives OUTSIDE
-      // tracked content: a git config key (`--local`, in `.git/config`, never
-      // committed, or `--global`, outside the repo entirely). Read-only, no
-      // shell (`spawnSync(..., { shell: false })`); a git/config-read failure
-      // (no git, no repo, key unset) fails closed to "not opted in".
-      const _cfg = spawnSync('git', ['config', '--get', 'arbiter.allowLocalChecks'], {
-        cwd: dirname(_localSlotPath),
-        encoding: 'utf-8',
-        shell: false,
-      });
-      return _cfg.status === 0 && _cfg.stdout.trim() === 'true';
-    })()
-  ) {
+  } else if (!_localChecksAllowed(dirname(_localSlotPath))) {
     console.log(
       '[CHECK] local checks ... SKIP (scripts/check-all.local.json present but ' +
         'arbiter.allowLocalChecks is not set — run `git config --local arbiter.allowLocalChecks ' +
