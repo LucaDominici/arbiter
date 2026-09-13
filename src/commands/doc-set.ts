@@ -291,8 +291,8 @@ export function runDocSet(opts: DocSetOptions = {}): DocSetResult {
   // --arc42 --update-baseline reports in text only; its verdict is the exit code alone.
   const textOnly = !opts.json || Boolean(opts.arc42 && opts.updateBaseline)
   const parsed: Parsed = textOnly ? { kind: 'text' } : parseStdout(run.stdout, route)
-  // An engine that already failed (exit 2, often with empty stdout) keeps its own code.
-  const exitCode = parsed.kind === 'invalid' && run.exitCode === 0 ? 2 : run.exitCode
+  // No trustworthy payload under --json is an error whatever the engine exited with (exit 1 too).
+  const exitCode = parsed.kind === 'invalid' ? 2 : run.exitCode
 
   if (!opts.quiet) report(opts, parsed, { ...run, exitCode })
 
