@@ -1,6 +1,6 @@
 ---
 title: 'Release Playbook'
-doc_version: '1.3.0'
+doc_version: '1.3.1'
 status: active
 last_review: '2026-09-12'
 owner: 'Luca Dominici'
@@ -83,9 +83,15 @@ triggered from, so a commit that is itself unreviewed can edit or delete that
 exact step before its author pushes the tag. The check cannot be the
 enforcing control against itself.
 
-The enforcing control is a GitHub **tag ruleset** restricting who may CREATE a
-`v*` tag, evaluated server-side before any workflow runs. Configure one (owner
-action, not something a workflow can set for itself):
+The enforcing control is a GitHub **tag ruleset** restricting who may create,
+update, delete or force-push (non-fast-forward move) a `v*` tag, evaluated
+server-side before any workflow runs. All four rules matter, not just
+creation: `update`/`non_fast_forward` block re-pointing an already-pushed tag
+to a different commit after the fact, and `deletion` blocks removing it to
+push it again elsewhere — either would let someone route around a
+correctly-created tag without ever triggering a new `creation` event.
+Configure one (owner action, not something a workflow can set for itself; the
+live ruleset on this repo is id `23168539`):
 
 ```bash
 gh api --method POST repos/LucaDominici/arbiter/rulesets \
@@ -95,6 +101,9 @@ gh api --method POST repos/LucaDominici/arbiter/rulesets \
   -f 'conditions[ref_name][include][]=refs/tags/v*' \
   -f 'conditions[ref_name][exclude][]=refs/tags/v0.0.0-verify-*' \
   -f 'rules[][type]=creation' \
+  -f 'rules[][type]=update' \
+  -f 'rules[][type]=deletion' \
+  -f 'rules[][type]=non_fast_forward' \
   -f 'bypass_actors[][actor_type]=RepositoryRole' \
   -f 'bypass_actors[][actor_id]=5' \
   -f 'bypass_actors[][bypass_mode]=always'
@@ -104,6 +113,15 @@ gh api --method POST repos/LucaDominici/arbiter/rulesets \
 team/app id for a release team narrower than "admin".) A downstream project
 generated from this template must configure the equivalent ruleset on its own
 repository — the template cannot do this for a repo that does not exist yet.
+
+**What the ruleset does NOT prevent:** it restricts _who_ can create/move/
+delete a `v*` tag, not _which commit_ they point it at. An admin (or any
+bypass actor) can still push a `v*` tag at a commit that never went through
+review — the ruleset has no concept of "reachable from main". That gap is
+exactly what `build-superset`'s in-workflow `ancestry-check` step catches
+(defense in depth, per above): the ruleset stops an unauthorized _tag_, the
+ancestry check stops an authorized tag pointed at the _wrong commit_. Neither
+one alone is sufficient; both are required.
 
 ## Run the requested read-only smoke
 
