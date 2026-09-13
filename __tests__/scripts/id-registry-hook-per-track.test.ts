@@ -123,6 +123,35 @@ describe('id-registry hook column: per-track shape (#2554)', () => {
     expect(r.status).toBe(1)
     expect(r.stderr).toContain('Track-B template')
   })
+
+  // generateClaudeHooks (src/generators/claude.ts) EJS-renders some hooks per name rather than
+  // copying them verbatim (e.g. pre-edit-plan-anchor.mjs.ejs, a real template in this repo). A
+  // target leg naming such a hook must resolve to its `.ejs` twin (#2554, round 2).
+  it('resolves a real target leg against an `.ejs`-rendered Track-B template', () => {
+    const dir = idRegistryFixture([
+      bothScheme({
+        hook: { self: '.claude/hooks/zz-hook.mjs', target: '.claude/hooks/zz-hook.mjs' },
+      }),
+    ])
+    mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+    mkdirSync(join(dir, 'src/templates/claude/hooks'), { recursive: true })
+    writeFileSync(join(dir, '.claude/hooks/zz-hook.mjs'), '// self hook\n')
+    writeFileSync(join(dir, 'src/templates/claude/hooks/zz-hook.mjs.ejs'), '// rendered hook\n')
+    expect(runIdRegistry(dir).status).toBe(0)
+  })
+
+  it('fails a real target leg when neither the raw nor the `.ejs` Track-B template exists', () => {
+    const dir = idRegistryFixture([
+      bothScheme({
+        hook: { self: '.claude/hooks/zz-hook.mjs', target: '.claude/hooks/zz-hook.mjs' },
+      }),
+    ])
+    mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+    writeFileSync(join(dir, '.claude/hooks/zz-hook.mjs'), '// self hook only\n')
+    const r = runIdRegistry(dir)
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('Track-B template')
+  })
 })
 
 describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
@@ -132,6 +161,7 @@ describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
     opts: {
       registerSelfHook?: boolean
       writeTargetHookTemplate?: boolean
+      targetHookIsEjs?: boolean
       registerTargetHook?: boolean
     } = {},
   ): string {
@@ -168,7 +198,8 @@ describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
       opts.registerSelfHook === false ? '{}' : '{"hooks":{"PostToolUse":"zz-hook.mjs"}}',
     )
     if (opts.writeTargetHookTemplate !== false) {
-      writeFileSync(join(dir, 'src/templates/claude/hooks/zz-hook.mjs'), '// emitted hook\n')
+      const templateName = opts.targetHookIsEjs ? 'zz-hook.mjs.ejs' : 'zz-hook.mjs'
+      writeFileSync(join(dir, 'src/templates/claude/hooks', templateName), '// emitted hook\n')
     }
     writeFileSync(
       join(dir, 'src/templates/claude/settings.json.ejs'),
@@ -233,5 +264,27 @@ describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
     const r = run(ontologyFixture([bothLegsWiredRow], undefined, { registerTargetHook: false }))
     expect(r.status).toBe(1)
     expect(r.stderr).toContain('CANON-10/CANON-14')
+  })
+
+  // generateClaudeHooks (src/generators/claude.ts) EJS-renders some hooks (e.g.
+  // pre-edit-plan-anchor.mjs.ejs) and raw-copies others (e.g. check-no-unused-exports.mjs) —
+  // real templates of both shapes exist under src/templates/claude/hooks/ today. A target leg
+  // naming an EJS-backed hook must resolve to its `.ejs` twin, not just the raw one (#2554,
+  // round 2).
+  it('passes a target leg backed by a real `.ejs`-rendered hook template', () => {
+    const r = run(ontologyFixture([bothLegsWiredRow], undefined, { targetHookIsEjs: true }))
+    expect(r.status, r.stderr).toBe(0)
+  })
+
+  it('fails a target leg when neither the raw nor the `.ejs` template exists', () => {
+    const r = run(
+      ontologyFixture([bothLegsWiredRow], undefined, {
+        writeTargetHookTemplate: false,
+        targetHookIsEjs: true,
+      }),
+    )
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('does not exist')
+    expect(r.stderr).toContain('Track-B template')
   })
 })

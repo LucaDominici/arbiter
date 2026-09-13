@@ -37,7 +37,7 @@
 import { readFileSync, existsSync, writeFileSync, statSync } from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { extractJsonBlock, hookTemplateTwin } from './check-id-registry.mjs'
+import { extractJsonBlock, hookTemplateCandidates } from './check-id-registry.mjs'
 
 /** The one hook with a per-artifact dispatch table, and therefore the one whose coverage is checkable. */
 const ARTIFACT_SCHEMA_HOOK = 'post-edit-artifact-schema.mjs'
@@ -255,20 +255,25 @@ function graphNodeViolations(s, where, root) {
  * there (#2554). A plain string still checks the SAME declared path on whichever side(s) `track`
  * wants.
  *
- * The TARGET side is never the self-repo path itself: a hook is raw-copied (not EJS-rendered)
- * into src/templates/claude/hooks/, so a non-`n/a` target leg is resolved through
- * hookTemplateTwin before its existence and registration are checked (#2554 P2) — otherwise a
- * target claim would be "verified" by looking at arbiter's own `.claude/hooks/` copy, which says
- * nothing about whether the emitted twin exists at all.
+ * The TARGET side is never the self-repo path itself: generateClaudeHooks
+ * (src/generators/claude.ts) emits some hooks copied verbatim and others EJS-rendered, per hook
+ * name, into src/templates/claude/hooks/ — so a non-`n/a` target leg is resolved through EITHER
+ * twin `hookTemplateCandidates` offers before its existence and registration are checked (#2554,
+ * round 2) — otherwise a target claim would be "verified" by looking at arbiter's own
+ * `.claude/hooks/` copy, which says nothing about whether an emitted twin exists at all.
  */
 function hookLegViolations(where, wanted, path, root, settingsText, settingsRel, isSelf) {
   if (!wanted || path === 'n/a') return []
-  const resolved = isSelf ? path : hookTemplateTwin(path)
-  if (!existsSync(join(root, resolved))) {
-    return [
-      `${where}: hook ${path} does not exist` +
-        (isSelf ? '' : ` (nor as the Track-B template ${resolved})`),
-    ]
+  if (isSelf) {
+    if (!existsSync(join(root, path))) return [`${where}: hook ${path} does not exist`]
+  } else {
+    const candidates = hookTemplateCandidates(path)
+    if (!candidates.some((c) => existsSync(join(root, c)))) {
+      return [
+        `${where}: hook ${path} does not exist (nor as the Track-B template ` +
+          `${candidates.join(' or ')})`,
+      ]
+    }
   }
   if (settingsText.includes(basename(path))) return []
   return isSelf

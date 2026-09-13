@@ -222,15 +222,27 @@ function resolveTrackPath(gatePath, track) {
 }
 
 /**
- * Where a Track-B hook's raw file lives. Unlike a gate script, a `.claude` hook is copied
- * VERBATIM (not EJS-rendered) into src/templates/claude/hooks/ — check-self-dogfood.mjs proves
- * the materialized `.claude/hooks/<name>` and its template are byte-identical — so the twin keeps
- * the same basename and gains no `.ejs` suffix (#2554).
+ * Where a Track-B hook's RAW file would live, if it is copied verbatim rather than rendered.
+ * Same directory shape as a gate's templateTwin, but no `.ejs` suffix — check-self-dogfood.mjs
+ * proves several materialized `.claude/hooks/<name>` files ARE byte-identical to this path.
  */
 export function hookTemplateTwin(hookPath) {
   const parts = hookPath.split('/')
   if (parts[0] === '.claude') parts[0] = 'claude'
   return join('src', 'templates', ...parts)
+}
+
+/**
+ * Both shapes a Track-B hook's template may take. generateClaudeHooks
+ * (src/generators/claude.ts) decides per hook name whether it is copied verbatim
+ * (`claude/hooks/<name>`, e.g. check-no-unused-exports.mjs) or EJS-rendered
+ * (`claude/hooks/<name>.ejs`, e.g. pre-edit-plan-anchor.mjs.ejs) — this gate does not need to
+ * mirror that per-hook decision, only accept whichever of the two twins is actually on disk
+ * (#2554, round 2).
+ */
+export function hookTemplateCandidates(hookPath) {
+  const raw = hookTemplateTwin(hookPath)
+  return [raw, `${raw}.ejs`]
 }
 
 /** Every OD-NN token in the tree, mapped to the files citing it. */
@@ -339,10 +351,11 @@ function hookPathViolations(s, where, root) {
     out.push(`${where}: hook.self "${s.hook.self}" does not exist`)
   }
   if (s.hook.target !== 'n/a') {
-    const twin = hookTemplateTwin(s.hook.target)
-    if (!existsSync(join(root, twin))) {
+    const candidates = hookTemplateCandidates(s.hook.target)
+    if (!candidates.some((c) => existsSync(join(root, c)))) {
       out.push(
-        `${where}: hook.target "${s.hook.target}" does not exist (nor as the Track-B template ${twin})`,
+        `${where}: hook.target "${s.hook.target}" does not exist (nor as the Track-B template ` +
+          `${candidates.join(' or ')})`,
       )
     }
   }
