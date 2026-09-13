@@ -765,12 +765,46 @@ const LIB_IMPORT_PATTERN =
   /\b(?:import\s*\(\s*|import\s+|from\s+)['"`]\.\/lib\/([^'"`${}]+\.mjs)['"`]/g
 
 /**
- * #2664 (AC-2664.1/2): the `scripts/lib/*.mjs` manifest keys the RENDERED gate
- * spine actually imports, split into `resolved` (a matching template exists
- * under `scripts/lib/`, so arbiter can emit it) and `unresolved` (the import
- * names a lib module with no template — a genuine drift between the spine
- * template and its declared imports).
- *
+ * #2664 round 3: strip line comments (`//`) and block comments (slash-star
+ * ... star-slash) before scanning for lib imports — a commented-out
+ * `import './lib/x.mjs'` (a stale note, dead code left for reference) is not
+ * a real import, and `LIB_IMPORT_PATTERN` has no way to tell code from
+ * comment context on its own. Deliberately naive (no parser, no
+ * string-literal awareness): a string literal containing a comment-opening
+ * sequence would be mis-stripped too, but the spine template never writes a
+ * lib-import path inside such a literal, so that gap is an accepted,
+ * documented limitation rather than a real one.
+ */
+function stripCodeComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+}
+
+/**
+ * #2664 (AC-2664.1/2, round 3): the pure extraction half of
+ * {@link gateSpineDependencies} — given an already-RENDERED spine source,
+ * returns the `scripts/lib/*.mjs` manifest keys it actually imports, split
+ * into `resolved` (a matching template exists under `scripts/lib/`, so
+ * arbiter can emit it) and `unresolved` (the import names a lib module with
+ * no template — a genuine drift between the spine template and its declared
+ * imports). Separated from the render step so a test can exercise the
+ * comment-stripping/matching logic against a synthetic string without
+ * mocking the template pipeline.
+ */
+export function extractLibDependencies(rendered: string): {
+  resolved: string[]
+  unresolved: string[]
+} {
+  const withoutComments = stripCodeComments(rendered)
+  const resolved = new Set<string>()
+  const unresolved = new Set<string>()
+  for (const match of withoutComments.matchAll(LIB_IMPORT_PATTERN)) {
+    const name = match[1] as string
+    ;(libTemplateExists(name) ? resolved : unresolved).add(`scripts/lib/${name}`)
+  }
+  return { resolved: [...resolved].sort(), unresolved: [...unresolved].sort() }
+}
+
+/**
  * `update --only scripts/check-all.mjs --adopt-gate-spine` used to force-adopt
  * the spine alone: a project whose lib dir predates a newer `./lib/x.mjs`
  * import landed a spine that crashed on the very next gate run. Rendering the
@@ -783,13 +817,7 @@ export function gateSpineDependencies(config: ProjectConfig): {
   unresolved: string[]
 } {
   const rendered = renderTemplate('scripts/check-all.mjs.ejs', buildCheckAllRenderData(config))
-  const resolved = new Set<string>()
-  const unresolved = new Set<string>()
-  for (const match of rendered.matchAll(LIB_IMPORT_PATTERN)) {
-    const name = match[1] as string
-    ;(libTemplateExists(name) ? resolved : unresolved).add(`scripts/lib/${name}`)
-  }
-  return { resolved: [...resolved].sort(), unresolved: [...unresolved].sort() }
+  return extractLibDependencies(rendered)
 }
 
 /** Does `src/templates/scripts/lib/<name>.ejs` exist for lib module `name`? */
