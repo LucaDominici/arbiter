@@ -89,6 +89,8 @@ function parseArgs(argsStr) {
   return parts;
 }
 
+const QUOTE_CHARS = new Set(['`', '"', "'"]);
+
 // A `/` starts a regex literal, not division or a comment, when it is not `//`
 // or `/*` and the previous non-space character is one that can only precede an
 // expression (assignment, call-arg, grouping, etc.) or the `/` is at the start
@@ -99,6 +101,17 @@ function isRegexLiteralStart(line, i) {
   while (j >= 0 && /\s/.test(line[j])) j -= 1;
   if (j < 0) return true;
   return '=([,:[!&|?{};'.includes(line[j]);
+}
+
+// Finds the index just past the end of a regex literal starting at `i` (the
+// opening `/`), skipping escaped characters (so a `\/` inside the regex does not
+// end it early). Returns line.length + 1 for an unterminated regex.
+function regexLiteralEnd(line, i) {
+  let j = i + 1;
+  while (j < line.length && line[j] !== '/') {
+    j += line[j] === '\\' ? 2 : 1;
+  }
+  return j + 1;
 }
 
 function isInsideStringLiteral(line, idx) {
@@ -128,15 +141,10 @@ function isInsideStringLiteral(line, idx) {
     }
     if (ch === '/' && line[i + 1] === '/') return false;
     if (isRegexLiteralStart(line, i)) {
-      let j = i + 1;
-      while (j < line.length && line[j] !== '/') {
-        if (line[j] === '\\') { j += 2; continue; }
-        j += 1;
-      }
-      i = j + 1;
+      i = regexLiteralEnd(line, i);
       continue;
     }
-    if (ch === '`' || ch === '"' || ch === "'") { inStr = true; quote = ch; }
+    if (QUOTE_CHARS.has(ch)) { inStr = true; quote = ch; }
     i += 1;
   }
   return inStr;
