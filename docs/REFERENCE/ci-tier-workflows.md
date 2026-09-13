@@ -180,7 +180,7 @@ allowlist and mounted-route evidence; the consumer removed five never-populated 
 exposed two internal keys so the manifest reports zero unreachable persisted fields.
 A gate wired through `runWarnCheck` (or a `pushResult` whose status is never the literal `'FAIL'`) is
 not hard evidence and must be declared `WIRED:warn:<gate id>`; the local extension slot (#2666)
-always pushes a visible `SKIP` result when `scripts/check-all.local.json` is absent, so `local checks`
+always pushes a visible `SKIP` result when the local slot file is absent (the file lives at `<project>/scripts/check-all.local.json`), so `local checks`
 is part of the executed surface on every consumer.
 
 ## INV-73 canonical presence floor
