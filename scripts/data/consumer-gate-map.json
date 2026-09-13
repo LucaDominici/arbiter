@@ -49,7 +49,7 @@
         "decision registry": "DEBT:#2291",
         "dep audit": "WIRED:dep audit",
         "doc links": "WIRED:doc links",
-        "doc-set": "WIRED:doc-set (#1428)",
+        "doc-set": "WIRED:warn:doc-set",
         "docs updated with code (#356)": "DEBT:#2291",
         "documentation index drift": "DEBT:#2291",
         "e2e escalation ladder (#2043)": "DEBT:#2291",
