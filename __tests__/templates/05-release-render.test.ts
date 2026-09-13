@@ -822,7 +822,51 @@ describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
       materializedJob.with?.['private-repository'],
     )
   })
+
+  // #2673: mutation-blocking never ran `npm run build`, so tests that spawn a child process
+  // against dist/ (e.g. __tests__/utils/fs.test.ts's "#2635 built provider contained reader")
+  // fail with an empty stdout on the release runner even though T1's gate-full job (which builds
+  // before running the same suite) passes them. Assert a build step precedes Stryker.
+  it('mutation-blocking builds dist before running stryker (#2673)', () => {
+    const mutationStep = workflowOf(materialized).jobs['mutation-blocking'].steps ?? []
+    const buildIndex = mutationStep.findIndex((s) => s.run?.includes('npm run build'))
+    const strykerIndex = mutationStep.findIndex((s) => s.run?.includes('stryker run'))
+    expect(buildIndex).toBeGreaterThanOrEqual(0)
+    expect(strykerIndex).toBeGreaterThan(buildIndex)
+  })
+
+  it('mutation-blocking build step matches the template rendered for arbiter own profile (#2673)', () => {
+    const rendered = renderRelease({ ...TS_LIB, governanceLevel: 'L2' })
+    const renderedSteps = workflowOf(rendered).jobs['mutation-blocking'].steps ?? []
+    const materializedSteps = workflowOf(materialized).jobs['mutation-blocking'].steps ?? []
+    expect(renderedSteps.some((s) => s.run?.includes('npm run build'))).toBe(
+      materializedSteps.some((s) => s.run?.includes('npm run build')),
+    )
+  })
+
+  // #2673: the SLSA generator downloads a prebuilt release binary by default, which requires the
+  // pinned ref to look like refs/tags/vX.Y.Z ("Invalid ref: <sha>. Expected ref of the form
+  // refs/tags/vX.Y.Z", generate-builder.sh) — incompatible with pinning the call by commit SHA
+  // (this repo's convention for every action). compile-generator: true builds from the pinned SHA
+  // instead (git checkout + go build), ~2 minutes slower but ref-format agnostic.
+  it('slsa generator compiles from source instead of fetching a release binary (#2673)', () => {
+    const workflow = workflowOf(materialized)
+    expect(workflow.jobs['slsa-provenance'].with?.['compile-generator']).toBe(true)
+  })
+
+  it('slsa compile-generator input matches the template rendered for arbiter own profile (#2673)', () => {
+    const rendered = renderRelease({ ...TS_LIB, governanceLevel: 'L2' })
+    const renderedJob = workflowOf(rendered).jobs['slsa-provenance']
+    const materializedJob = workflowOf(materialized).jobs['slsa-provenance']
+    expect(renderedJob.with?.['compile-generator']).toBe(
+      materializedJob.with?.['compile-generator'],
+    )
+  })
 })
+
+function workflowOf(text: string): ReleaseWorkflow {
+  return parseYaml(text) as ReleaseWorkflow
+}
 
 type ReleaseStep = {
   id?: string
