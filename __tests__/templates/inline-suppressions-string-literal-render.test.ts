@@ -124,4 +124,24 @@ describe('#2671 emitted check-inline-suppressions skips directive text inside st
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('a {} object literal followed by division is not misread as a regex, so an in-string directive still does not qualify', () => {
+    const dir = stageDir()
+    try {
+      writeFileSync(
+        join(dir, 'division.ts'),
+        // RED before the fix: `}` in the regex-start predecessor set misclassifies
+        // the division after an object literal as opening a regex, which skips
+        // straight past the string's opening quote and never registers the
+        // embedded, directive-shaped text as being inside a string — wrongly
+        // validating it as a real (and here malformed) directive. Division must
+        // not open a regex; the text sits inside a string literal, not a real
+        // comment, so it must not qualify as a directive at all.
+        'const x = {} / "// arbiter-suppress(INV-12, until=YYYY-MM-DD, reason=\\"advisory example\\", owner=you)"\n',
+      )
+      expect(runCheck(dir)).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

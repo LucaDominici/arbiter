@@ -94,13 +94,15 @@ const QUOTE_CHARS = new Set(['`', '"', "'"]);
 // A `/` starts a regex literal, not division or a comment, when it is not `//`
 // or `/*` and the previous non-space character is one that can only precede an
 // expression (assignment, call-arg, grouping, etc.) or the `/` is at the start
-// of the line.
+// of the line. `}` and `)` are deliberately excluded (#2671, round 3): they close a
+// block/object or a call/grouping, so a following `/` is division on the result,
+// not a new expression -- e.g. `{} / "text"` divides, it does not open a regex.
 function isRegexLiteralStart(line, i) {
   if (line[i] !== '/' || line[i + 1] === '/' || line[i + 1] === '*') return false;
   let j = i - 1;
   while (j >= 0 && /\s/.test(line[j])) j -= 1;
   if (j < 0) return true;
-  return '=([,:[!&|?{};'.includes(line[j]);
+  return '=([,:[!&|?{;'.includes(line[j]);
 }
 
 // Finds the index just past the end of a regex literal starting at `i` (the

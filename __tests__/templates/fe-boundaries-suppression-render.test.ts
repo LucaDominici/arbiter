@@ -119,4 +119,23 @@ describe('#2671 emitted check-fe-boundaries honors arbiter-allow-raw-fetch', () 
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('still FAILS when a {} object literal followed by division is misread as a regex, swallowing an in-string marker', () => {
+    const dir = stageDir()
+    try {
+      writeFileSync(
+        join(dir, 'src', 'entities', 'thing', 'thing.ts'),
+        'export async function load() { return fetch("/x") } const x = {} / "text // arbiter-allow-raw-fetch: reason words here"\n',
+      )
+      // RED before the fix: `}` in the regex-start predecessor set misclassifies
+      // the division after an object literal as opening a regex, which skips
+      // straight past the string's opening quote and never registers the
+      // in-string marker as being inside a string — wrongly exempting the
+      // violation. Division must not open a regex; the marker sits inside a
+      // string literal, not a real comment, so it must not qualify.
+      expect(runCheck(dir)).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
