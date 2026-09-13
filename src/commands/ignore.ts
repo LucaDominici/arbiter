@@ -19,7 +19,7 @@ import {
   appendIgnorePattern,
   removeIgnorePattern,
   loadIgnorePatterns,
-  isIgnored,
+  effectiveIgnorePattern,
 } from '../config/arbiter-ignore.js'
 import { loadGeneratedManifest } from '../state/generated-manifest.js'
 import { unlinkTranslated } from '../utils/fs.js'
@@ -82,9 +82,9 @@ export function runIgnoreRemove(options: IgnoreOptions): void {
   for (const key of options.paths) {
     removeIgnorePattern(targetDir, anchoredPattern(key))
     const remaining = loadIgnorePatterns(targetDir)
-    if (isIgnored(remaining, key)) {
-      const by = remaining.find((p) => p !== anchoredPattern(key)) ?? key
-      stillIgnored.push({ key, by })
+    const decidingPattern = effectiveIgnorePattern(remaining, key)
+    if (decidingPattern !== null) {
+      stillIgnored.push({ key, by: decidingPattern })
     } else {
       removed.push(key)
     }

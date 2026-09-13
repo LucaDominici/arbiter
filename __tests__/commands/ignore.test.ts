@@ -149,6 +149,22 @@ describe('#2662 arbiter ignore remove', () => {
 
     expect(out).toContain('still ignored')
   }, 60_000)
+
+  it('names the pattern that actually matches, not an unrelated survivor line', async () => {
+    await initProject(dir)
+    // Three lines: the exact pattern being removed, an UNRELATED pattern that
+    // does not match TARGET at all, and a broader glob that DOES. The old bug
+    // reported the first non-exact-match survivor (the unrelated one); the fix
+    // must name the glob that is actually still in effect (last-match-wins).
+    writeFileSync(join(dir, '.arbiterignore'), `/${TARGET}\nsome/unrelated/path.txt\n*.md\n`)
+
+    const out = captureStdout(() => runIgnoreRemove({ dir, paths: [TARGET], json: true }))
+    const payload = JSON.parse(out) as {
+      data: { stillIgnored: { key: string; by: string }[] }
+    }
+
+    expect(payload.data.stillIgnored).toEqual([{ key: TARGET, by: '*.md' }])
+  }, 60_000)
 })
 
 describe('#2662 diff reports retired/restore as their own statuses', () => {

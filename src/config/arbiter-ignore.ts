@@ -96,6 +96,24 @@ export function isIgnored(patterns: string[], key: string): boolean {
   return ignored
 }
 
+/**
+ * The raw pattern line that DECIDES `key`'s ignored state under the same
+ * last-match-wins precedence as {@link isIgnored} — `null` when nothing
+ * matches (key is not ignored). Exists so a caller can name the pattern
+ * actually responsible instead of an arbitrary other line that happens to
+ * also be present in the file (#2662: `ignore remove` reporting "still
+ * ignored by X" must name the pattern that matches, not just any survivor).
+ */
+export function effectiveIgnorePattern(patterns: string[], key: string): string | null {
+  let decided: string | null = null
+  for (const raw of patterns) {
+    const negated = raw.startsWith('!')
+    const pattern = negated ? raw.slice(1) : raw
+    if (matchesPattern(pattern, key)) decided = negated ? null : raw
+  }
+  return decided
+}
+
 /** Is this key inside `update --only`'s allowlist? Plain globs, no negation. */
 export function matchesOnly(globs: string[], key: string): boolean {
   return globs.some((glob) => matchesPattern(glob, key))

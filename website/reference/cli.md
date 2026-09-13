@@ -586,6 +586,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter explain`    | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
 | `arbiter gate-exec`  | —                                                                               |
 | `arbiter gold-audit` | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
+| `arbiter ignore`     | Manage the per-file opt-out (.arbiterignore, #2353/#2662)                       |
 | `arbiter init`       | Initialise / update the unified task document (#1206)                           |
 | `arbiter note`       | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
 | `arbiter obsidian`   | Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)        |
@@ -670,6 +671,15 @@ Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine).
 - `--json` — Emit machine-readable JSON output
 - `--cockpit` — Render the rich TTY-gated goldness console (#1475)
 - `--ascii` — Force pure-ASCII cockpit output (no unicode glyphs/ANSI)
+
+## arbiter ignore
+
+Manage the per-file opt-out (.arbiterignore, #2353/#2662).
+
+**Subcommands:**
+
+- `arbiter ignore add` — Retire emitted file(s): add to .arbiterignore and delete the pristine copy, reported as retired (#2662)
+- `arbiter ignore remove` — Un-ignore path(s): remove from .arbiterignore (does NOT restore the file — run `arbiter update`)
 
 ## arbiter init
 
@@ -800,19 +810,6 @@ These commands are fully functional but hidden from the default `arbiter --help`
 | `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates                       |
 
 ## arbiter doc-set
-
-**Options:**
-
-- `--strict` — Exit 1 if any mandatory doc is missing (default: advisory, exit 0)
-- `--check` — Run the default advisory presence audit (backward-compat alias for the no-flag default;
-- `--json` — Emit the audit as JSON
-- `--generate` — Scaffold stub files for missing mandatory+recommended .md docs
-- `--refresh-stubs` — (with --generate) re-render a doc in place only if it is byte-equal to the stub template
-- `--manifest <path>` — Manifest path override (default standards/gold-doc-set.yml)
-- `--doc-profile <path>` — Overlay profile path override (default standards/doc-profile)
-- `--plan` — T3: dry-run the skeleton generator — report would-scaffold/unbound, write nothing
-- `--apply` — T3: scaffold real per-doc-type skeletons for missing bound rows (skipIfExists; never
-- `--freshness` — T4: run the per-doc freshness audit (scripts/check-doc-freshness.mjs) instead of presence
 
 ## arbiter graph
 
