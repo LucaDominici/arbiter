@@ -17,11 +17,34 @@
 //
 // Usage: node scripts/check-continue-on-error.mjs [--dir <path>] [--help]
 // Exit codes (INV-53): 0=PASS, 1=FAIL (swallowed gate), 2=ERROR (self).
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
 import { createRequire } from 'node:module'
 
 const args = process.argv.slice(2)
+
+// #2675 Codex round-1/2/3: a --dir must never be read as "use the default" when it cannot be
+// honored, or the caller's own fixture-less SKIP paths silently report clean on the LIVE repo
+// instead of the intended (missing) target. Accepts both `--dir value` and `--dir=value`, "last
+// flag wins" across both forms, and refuses BEFORE the --help scan below — otherwise
+// `--dir --help` would swallow --help as --dir's value and print help instead of refusing.
+let dirGiven = false
+let dirValue
+for (let i = 0; i < args.length; i++) {
+  const a = args[i]
+  if (a === '--dir') {
+    dirGiven = true
+    dirValue = args[i + 1]
+  } else if (a.startsWith('--dir=')) {
+    dirGiven = true
+    dirValue = a.slice('--dir='.length)
+  }
+}
+if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('--'))) {
+  process.stderr.write('check-continue-on-error: --dir requires a path argument\n')
+  process.exit(2)
+}
+
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write(
     [
@@ -37,8 +60,14 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0)
 }
 
-const dirArg = args.indexOf('--dir')
-const ROOT = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
+let ROOT = process.cwd()
+if (dirGiven) {
+  ROOT = resolve(dirValue)
+  if (!existsSync(ROOT) || !statSync(ROOT).isDirectory()) {
+    process.stderr.write(`check-continue-on-error: --dir ${dirValue} does not exist or is not a directory\n`)
+    process.exit(2)
+  }
+}
 
 // js-yaml is OPTIONAL — present in some toolchains, absent in a fresh project. Loaded lazily; the
 // guard falls back to the YAML-1.1 token grammar so it never hard-depends on it.

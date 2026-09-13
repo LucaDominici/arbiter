@@ -3,10 +3,28 @@
 // Validates that the PR size gate configuration is present and within bounds.
 // Exits 0 when PR size gate config is valid; exits 1 when config is missing or invalid.
 // Part of the anti-drift validator family (W6).
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
+
+let dirGiven = false;
+let dirValue;
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '--dir') {
+    dirGiven = true;
+    dirValue = args[i + 1];
+  } else if (a.startsWith('--dir=')) {
+    dirGiven = true;
+    dirValue = a.slice('--dir='.length);
+  }
+}
+if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('--'))) {
+  process.stderr.write('check-pr-size-gate: --dir requires a path argument\n');
+  process.exit(2);
+}
+
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write([
     'Usage: node scripts/check-pr-size-gate.mjs [options]',
@@ -15,13 +33,21 @@ if (args.includes('--help') || args.includes('-h')) {
     'Exits 0 when config is valid; exits 1 when missing or invalid.',
     '',
     'Options:',
+    '  --dir <path>    Root directory to scan (default: cwd)',
     '  --help, -h      Show this help and exit',
     '',
   ].join('\n'));
   process.exit(0);
 }
 
-const CWD = process.cwd();
+let CWD = process.cwd();
+if (dirGiven) {
+  CWD = resolve(dirValue);
+  if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
+    process.stderr.write(`check-pr-size-gate: --dir ${dirValue} does not exist or is not a directory\n`);
+    process.exit(2);
+  }
+}
 const CONFIG_PATH = join(CWD, 'config', 'pr-size-config.json');
 const WORKFLOW_DIR = join(CWD, '.github', 'workflows');
 const MAX_WARNING_LINES = 1000;

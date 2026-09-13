@@ -4,10 +4,33 @@
 // Enforcing: exits 1 on unexpected labels. Use --runner or the `${{ ... }}` /
 // `$CI_` expression forms for legitimate runner-label customization.
 // Part of the anti-drift validator family (W6).
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
+
+// #2675 Codex round-1/2/3: a --dir must never be read as "use the default" when it cannot be
+// honored, or the caller's own fixture-less SKIP paths silently report clean on the LIVE repo
+// instead of the intended (missing) target. Accepts both `--dir value` and `--dir=value`, "last
+// flag wins" across both forms, and refuses BEFORE the --help scan below — otherwise
+// `--dir --help` would swallow --help as --dir's value and print help instead of refusing.
+let dirGiven = false;
+let dirValue;
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '--dir') {
+    dirGiven = true;
+    dirValue = args[i + 1];
+  } else if (a.startsWith('--dir=')) {
+    dirGiven = true;
+    dirValue = a.slice('--dir='.length);
+  }
+}
+if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('--'))) {
+  process.stderr.write('check-workflow-runners: --dir requires a path argument\n');
+  process.exit(2);
+}
+
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write([
     'Usage: node scripts/check-workflow-runners.mjs [options]',
@@ -25,8 +48,14 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0);
 }
 
-const dirArg = args.indexOf('--dir');
-const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd();
+let CWD = process.cwd();
+if (dirGiven) {
+  CWD = resolve(dirValue);
+  if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
+    process.stderr.write(`check-workflow-runners: --dir ${dirValue} does not exist or is not a directory\n`);
+    process.exit(2);
+  }
+}
 const runnerArg = args.indexOf('--runner');
 const EXPECTED_RUNNER = runnerArg >= 0 && args[runnerArg + 1] ? args[runnerArg + 1] : 'ubuntu-latest';
 const RUNS_ON_RE = /^\s*runs-on:\s+(.+)$/;

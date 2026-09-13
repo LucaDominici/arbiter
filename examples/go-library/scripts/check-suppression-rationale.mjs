@@ -3,10 +3,28 @@
 // Validates that all suppression entries have meaningful rationale (reason field).
 // Exits 0 when all rationales are meaningful; exits 1 when thin rationales found.
 // Part of the anti-drift validator family (W6).
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
+
+let dirGiven = false;
+let dirValue;
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '--dir') {
+    dirGiven = true;
+    dirValue = args[i + 1];
+  } else if (a.startsWith('--dir=')) {
+    dirGiven = true;
+    dirValue = a.slice('--dir='.length);
+  }
+}
+if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('--'))) {
+  process.stderr.write('check-suppression-rationale: --dir requires a path argument\n');
+  process.exit(2);
+}
+
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write([
     'Usage: node scripts/check-suppression-rationale.mjs [options]',
@@ -15,13 +33,21 @@ if (args.includes('--help') || args.includes('-h')) {
     'Exits 0 when all rationales are meaningful; exits 1 when thin rationales found.',
     '',
     'Options:',
+    '  --dir <path>    Root directory to scan (default: cwd)',
     '  --help, -h      Show this help and exit',
     '',
   ].join('\n'));
   process.exit(0);
 }
 
-const CWD = process.cwd();
+let CWD = process.cwd();
+if (dirGiven) {
+  CWD = resolve(dirValue);
+  if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
+    process.stderr.write(`check-suppression-rationale: --dir ${dirValue} does not exist or is not a directory\n`);
+    process.exit(2);
+  }
+}
 const SUPPRESSIONS_DIR = join(CWD, 'suppressions');
 const REASON_MIN_LEN = 20;
 let violations = 0;
