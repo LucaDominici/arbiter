@@ -408,6 +408,129 @@ describe('consumer reliability bar oracles (#2135)', () => {
     }
   })
 
+  // #2666 added the local extension slot to check-all.mjs.ejs. Its dispatch line is a
+  // template literal, `runCheck(\`[local] ${_lc.name}\`, ...)` — RUNNER_CALL scraped the
+  // literal source text verbatim, `${_lc.name}` and all, so extractCheckNames emitted a
+  // DATA-DRIVEN name no fixed mapping entry could ever cover. The block's static wrapper
+  // name, `local checks` (a real pushResult('local checks', 'FAIL', 0) call — hard
+  // evidence), was also unconditionally emitted with no mapping entry at all. The live bar
+  // failed closed on all three pinned consumers with "2 emitted check(s) unaccounted:
+  // [local] ${_lc.name}, local checks". This copies the real block verbatim (not a
+  // paraphrase) so a future edit to the template is re-checked against the same text.
+  const LOCAL_SLOT_BLOCK = [
+    '{',
+    "  const _localSlotPath = resolve(dirname(fileURLToPath(import.meta.url)), 'check-all.local.json');",
+    '  if (existsSync(_localSlotPath)) {',
+    '    let _localChecks;',
+    '    let _localFail = null;',
+    '    try {',
+    "      const _localParsed = JSON.parse(readFileSync(_localSlotPath, 'utf-8'));",
+    "      if (_localParsed === null || typeof _localParsed !== 'object' || Array.isArray(_localParsed)) {",
+    '        _localFail = \'scripts/check-all.local.json must be an object shaped { "checks": [{ name, cmd, tier }] }\';',
+    '      } else {',
+    '        _localChecks = _localParsed.checks;',
+    '      }',
+    '    } catch (_localErr) {',
+    '      _localFail = `scripts/check-all.local.json could not be read/parsed: ${_localErr.message}`;',
+    '    }',
+    '    if (_localFail !== null) {',
+    '      console.error(`[CHECK] local checks ... FAIL (${_localFail})`);',
+    "      pushResult('local checks', 'FAIL', 0);",
+    '    } else if (_localChecks !== undefined) {',
+    '      if (!Array.isArray(_localChecks)) {',
+    '        console.error(\'[CHECK] local checks ... FAIL (scripts/check-all.local.json "checks" must be an array of { name, cmd, tier })\');',
+    "        pushResult('local checks', 'FAIL', 0);",
+    '      } else {',
+    '        for (const _lc of _localChecks) {',
+    "          const _lcValid = _lc && typeof _lc === 'object' && typeof _lc.name === 'string' && Array.isArray(_lc.cmd)",
+    "            && _lc.cmd.length > 0 && _lc.cmd.every((_c) => typeof _c === 'string' && _c.length > 0)",
+    '            && _LEVELS.includes(_lc.tier);',
+    '          if (!_lcValid) {',
+    '            console.error(`[CHECK] local checks ... FAIL (malformed entry, expected { name: string, cmd: non-empty string[], tier: L1|L2|L3|L4 }: ${JSON.stringify(_lc)})`);',
+    "            pushResult('local checks', 'FAIL', 0);",
+    '            continue;',
+    '          }',
+    '          if (_LEVELS.indexOf(_lc.tier) > _LEVELS.indexOf(level)) continue; // declared tier not yet due',
+    '          runCheck(`[local] ${_lc.name}`, _lc.cmd[0], _lc.cmd.slice(1));',
+    '        }',
+    '      }',
+    '    }',
+    '  }',
+    '}',
+  ].join('\n')
+
+  it('#2666 excludes the template-literal local-check name from the emitted surface', () => {
+    const emitted = [...extractCheckNames(LOCAL_SLOT_BLOCK)]
+    expect(emitted).not.toContain('[local] ${_lc.name}')
+    expect(emitted.some((name) => name.includes('${'))).toBe(false)
+    expect(emitted).toContain('local checks')
+    expect([...extractHardCheckNames(LOCAL_SLOT_BLOCK)]).toContain('local checks')
+  })
+
+  it('#2666 reconciles the local-check wrapper against every pinned consumer mapping', () => {
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    const emitted = [...extractCheckNames(LOCAL_SLOT_BLOCK)]
+    const declaredHard = [...extractHardCheckNames(LOCAL_SLOT_BLOCK)]
+    for (const id of ['go', 'typescript', 'java']) {
+      const localEntry = gateMap.consumers[id].mapping['local checks']
+      const result = assessGateSurface({
+        freshRender: emitted,
+        declared: emitted,
+        declaredHard,
+        mapping: typeof localEntry === 'string' ? { 'local checks': localEntry } : {},
+        debtRegister: { ceiling: 0, openIssues: [] },
+      })
+      expect(result.ok, result.detail).toBe(true)
+    }
+  })
+
+  // #2591 kind-aware WIRED evidence, applied to go's own BDD @ignore check: the gate
+  // pushes a VARIABLE status (`pushResult('BDD @ignore check', _bddIgnoreStatus, ...)`),
+  // never the literal 'FAIL', so HARD_PUSH_RESULT does not match it and a bare
+  // `WIRED:BDD @ignore check` mapping entry is no longer sound — go's row must declare
+  // `WIRED:warn:BDD @ignore check` like the other soft-evidence rows.
+  const BDD_IGNORE_BLOCK = [
+    "  if (_inlineInspect('BDD @ignore check', 'grep -rql --include=*.feature @ignore .')) {} else {",
+    '    const _bddIgnoreStart = Date.now();',
+    "    const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });",
+    "    process.stdout.write('[CHECK] BDD @ignore check ... ');",
+    "    let _bddIgnoreStatus = 'PASS';",
+    "    if (_bddIgnore.error?.code === 'ENOENT') {",
+    "      console.log('FAIL (grep not found — cannot check @ignore tags)');",
+    "      _bddIgnoreStatus = 'FAIL';",
+    '    } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {',
+    "      console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);",
+    "      _bddIgnoreStatus = 'FAIL';",
+    '    } else if (_bddIgnore.status === 0) {',
+    "      console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');",
+    "      _bddIgnoreStatus = 'FAIL';",
+    '    } else {',
+    "      console.log('PASS');",
+    '    }',
+    "    pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);",
+    '  }',
+  ].join('\n')
+
+  it('#2591/#2666 go BDD @ignore check is warn-wired, not a bare WIRED claim', () => {
+    expect(extractHardCheckNames(BDD_IGNORE_BLOCK).has('BDD @ignore check')).toBe(false)
+    expect(extractCheckNames(BDD_IGNORE_BLOCK).has('BDD @ignore check')).toBe(true)
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    expect(gateMap.consumers.go.mapping['BDD @ignore check']).toBe('WIRED:warn:BDD @ignore check')
+    const result = assessGateSurface(
+      surfaceCase({
+        freshRender: ['BDD @ignore check'],
+        declared: [...extractCheckNames(BDD_IGNORE_BLOCK)],
+        declaredHard: [...extractHardCheckNames(BDD_IGNORE_BLOCK)],
+        mapping: { 'BDD @ignore check': gateMap.consumers.go.mapping['BDD @ignore check'] },
+      }),
+    )
+    expect(result.ok, result.detail).toBe(true)
+  })
+
   // Mutation (d): the debt register GROWS. A ratchet that only ever appends is a
   // free-text escape hatch, so cardinality is pinned to a committed integer.
   it('AC-2 fails when the debt register grows past its ceiling', () => {
