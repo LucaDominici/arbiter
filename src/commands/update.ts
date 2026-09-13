@@ -648,7 +648,7 @@ function printAdoptPlan(
 /**
  * #2661: `loadConfig`'s never-brick fallback (`sanitizeCoercibleFields`)
  * coerces an on-disk `tools` value naming a retired target (cursor/copilot/
- * gemini/windsurf/aider — ADR-119) to `['claude','codex']` IN MEMORY so
+ * gemini/windsurf/aider — ADR-122) to `['claude','codex']` IN MEMORY so
  * generation can proceed. `update` must not turn that in-memory safety net
  * into a silent, permanent rewrite of the user's declared value — so this
  * reads `arbiter.json` directly (bypassing the coercion) and returns the
@@ -661,20 +661,35 @@ function toolsToPersist(targetDir: string, stored: ArbiterConfigV2): ArbiterConf
   let raw: unknown
   try {
     raw = JSON.parse(readFileTranslated(join(targetDir, 'arbiter.json'), 'utf-8'))
-  } catch {
+  } catch (err) {
+    // Fail-open by design: `loadConfig` already parsed this same file successfully
+    // earlier in this run, so this re-read failing means the file changed or vanished
+    // between then and now (a race, not a config error) — falling back to the
+    // already-validated SANITIZED `tools` keeps `update` from crashing on it. But a
+    // silent fallback here is still an event worth surfacing, not swallowing.
+    const msg = err instanceof Error ? err.message : String(err)
+    process.stderr.write(
+      `  arbiter.json could not be re-read to preserve its raw 'tools' value (${msg}) — ` +
+        `falling back to the sanitized accepted set (${stored.tools.join('+')}).\n`,
+    )
     return stored.tools
   }
   const rawTools =
     typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>)['tools'] : undefined
   if (!Array.isArray(rawTools)) return stored.tools
-  const retired = rawTools.filter((t) => typeof t === 'string' && !AI_TOOLS.has(t))
+  // #2661 (finding 2): flag ANY entry outside the accepted set, not just retired
+  // STRING names — a non-string entry (number, object, null...) is equally not a
+  // valid `AiTool` and must not silently skip the migration warning just because
+  // `AI_TOOLS.has` never matches it either way.
+  const retired = rawTools.filter((t) => typeof t !== 'string' || !AI_TOOLS.has(t))
   if (retired.length > 0) {
+    const retiredLabels = retired.map((t) => (typeof t === 'string' ? t : JSON.stringify(t)))
     getLogger().warn(
       'update.tools_migration_deferred',
-      { path: join(targetDir, 'arbiter.json'), retired: retired.join(',') },
-      `arbiter.json 'tools' declares retired value(s) ${retired.join(', ')} — ADR-119 retired ` +
-        `these generators. The declared value is kept as-is (generation still targets ` +
-        `${stored.tools.join('+')}); run 'arbiter configure' to update 'tools' explicitly.`,
+      { path: join(targetDir, 'arbiter.json'), retired: retiredLabels.join(',') },
+      `arbiter.json 'tools' declares retired/invalid value(s) ${retiredLabels.join(', ')} — ` +
+        `ADR-122 retired these generators. The declared value is kept as-is (generation still ` +
+        `targets ${stored.tools.join('+')}); run 'arbiter configure' to update 'tools' explicitly.`,
     )
   }
   return rawTools as ArbiterConfigV2['tools']
@@ -1094,13 +1109,20 @@ function saveValidatedConfig(
   }
   // #2661: validation above ran against the SANITIZED `tools` (schema-valid,
   // `sanitizeCoercibleFields`'s never-brick default) so a retired value never
-  // fails the update outright. The byte actually written swaps in the raw
-  // on-disk `tools` declaration instead — `update` must not silently rewrite
-  // a user value it merely coerced in memory to keep generating.
-  saveConfigAndSnapshot(targetDir, {
-    ...validation.config,
-    tools: toolsToPersist(targetDir, validation.config),
-  })
+  // fails the update outright. The byte actually written to `arbiter.json` swaps
+  // in the raw on-disk `tools` declaration instead — `update` must not silently
+  // rewrite a user value it merely coerced in memory to keep generating. The
+  // `.arbiter-generated.json` SNAPSHOT, however, must stay on the SANITIZED value
+  // (`validation.config`): it is the diff basis the next run compares against
+  // (`selectAndRun`'s `diffConfig(snapshot, nextConfig)`), and `nextConfig.tools`
+  // is always sanitized — snapshotting the raw value would make that comparison
+  // see a permanent, spurious `tools` diff and rerun the tool generators on
+  // every single run, never converging to "no config changes".
+  saveConfigAndSnapshot(
+    targetDir,
+    { ...validation.config, tools: toolsToPersist(targetDir, validation.config) },
+    validation.config,
+  )
 }
 
 /**

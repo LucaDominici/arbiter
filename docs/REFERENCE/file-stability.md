@@ -99,11 +99,12 @@ explicitly to pin the name; the first `update` pins it for you otherwise.
 
 `tools` is a field `arbiter update` never overwrites, even when it names a retired generator (#2661).
 `loadConfig`'s never-brick fallback (`sanitizeCoercibleFields`) coerces a `tools` value naming a retired
-target — `cursor`, `copilot`, `gemini`, `windsurf`, `aider` (ADR-119, #2367) — to `['claude', 'codex']`
+target — `cursor`, `copilot`, `gemini`, `windsurf`, `aider` (ADR-122, #2367) — to `['claude', 'codex']`
 IN MEMORY so generation can still proceed, but that coercion is a load-time safety net, not a migration:
-`update` re-reads `arbiter.json` and persists the on-disk `tools` value byte-for-byte, printing one
-`update.tools_migration_deferred` warning per run naming the retired value(s) and ADR-119. Run
-`arbiter configure` to change `tools` explicitly.
+`update` re-reads `arbiter.json` and persists the on-disk `tools` VALUES unchanged (the file itself is
+still re-serialized on every run, so its exact bytes/formatting are not preserved — only the array's
+contents are), printing one `update.tools_migration_deferred` warning per run naming the retired
+value(s) and ADR-122. Run `arbiter configure` to change `tools` explicitly.
 
 ### package.json — injected dev-dependencies (#1314)
 

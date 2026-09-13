@@ -82,13 +82,24 @@ export async function saveConfig(dir: string, config: ArbiterConfig): Promise<vo
  * #2541: see `saveConfig` above for why `arbiter.json` is written with
  * `skipPreserveCheck` and its `WriteResult` asserted. `writeSnapshot` (below) applies
  * the same treatment to `.arbiter-generated.json`.
+ *
+ * #2661: `snapshotConfig` (defaults to `config`) lets a caller persist a DIFFERENT
+ * value into the snapshot than into `arbiter.json` — `update` needs this because it
+ * writes the user's raw (possibly retired) `tools` value to `arbiter.json` but must
+ * snapshot the SANITIZED value generation actually used. Snapshotting the raw value
+ * would make `.arbiter-generated.json` disagree with every future run's sanitized
+ * `tools`, producing a permanent, spurious diff that reruns tool generators forever.
  */
-export function saveConfigAndSnapshot(dir: string, config: ArbiterConfig): void {
+export function saveConfigAndSnapshot(
+  dir: string,
+  config: ArbiterConfig,
+  snapshotConfig: ArbiterConfig = config,
+): void {
   const json = JSON.stringify(config, null, 2) + '\n'
   const path = join(dir, CONFIG_FILE)
   const result = writeFile(path, json, { skipPreserveCheck: true })
   assertWritten(result, `arbiter config at ${path}`)
-  writeSnapshot(dir, config)
+  writeSnapshot(dir, snapshotConfig)
 }
 
 /**
