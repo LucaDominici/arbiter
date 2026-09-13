@@ -177,6 +177,7 @@ function extractFrontmatter(raw) {
     const doc = parseYaml(region)
     if (doc && typeof doc === 'object') return { ok: true, data: doc, region }
     return { ok: false, hasFrontmatter: true, region }
+    // FAIL-OPEN-INTENT: not a swallow — `ok:false` surfaces via adrState `unverifiable: true`, which the caller turns into a FAIL.
   } catch {
     return { ok: false, hasFrontmatter: true, region }
   }
@@ -294,6 +295,7 @@ function scanAdrFile(file, adrDir, golds, invs, adrState) {
   let raw
   try {
     raw = readFileSync(join(adrDir, file), 'utf-8')
+    // FAIL-OPEN-INTENT: numbered ADRs are marked unverifiable below (caller FAILs on that); a non-numbered unreadable entry is not a real ADR.
   } catch {
     if (numbered)
       adrState.set(file, { status: null, mandatory: true, declares: false, unverifiable: true })

@@ -171,12 +171,6 @@
       "expires": "2026-11-29"
     },
     {
-      "file": "scripts/check-adr-enforcement.mjs",
-      "since": "2026-09-13",
-      "owner": "LucaDominici",
-      "expires": "2026-12-12"
-    },
-    {
       "file": "scripts/check-anti-proforma.mjs",
       "since": "2026-09-13",
       "owner": "LucaDominici",
@@ -205,12 +199,6 @@
       "since": "2026-05-21",
       "owner": "LucaDominici",
       "expires": "2026-11-29"
-    },
-    {
-      "file": "scripts/check-ci-tiers.mjs",
-      "since": "2026-09-13",
-      "owner": "LucaDominici",
-      "expires": "2026-12-12"
     },
     {
       "file": "scripts/check-command-tests.mjs",
@@ -343,12 +331,6 @@
       "since": "2026-05-21",
       "owner": "LucaDominici",
       "expires": "2026-11-29"
-    },
-    {
-      "file": "scripts/check-self-dogfood.mjs",
-      "since": "2026-09-13",
-      "owner": "LucaDominici",
-      "expires": "2026-12-12"
     },
     {
       "file": "scripts/check-skip-critical-e2e.mjs",

@@ -268,6 +268,7 @@ export async function normalizeLines(content, filePath) {
       trailingComma: 'all',
       semi: true,
     })
+    // FAIL-OPEN-INTENT: formatting-only fallback — raw content is still compared for drift, a formatting nicety must never fail the gate.
   } catch {
     // Prettier unavailable or parse error — use raw content
     formatted = content
@@ -725,6 +726,7 @@ export async function checkExternalCiSurfaceParity(rootDir, divergences, render)
       let rendered
       try {
         rendered = render(templateRelPath)
+        // FAIL-OPEN-INTENT: not a swallow — the render error is pushed to `drifted`, which fails the gate below.
       } catch (err) {
         drifted.push({
           template: templateRelPath,
@@ -791,6 +793,7 @@ async function formatManifest(json) {
     const prettier = await import('prettier')
     const options = (await prettier.resolveConfig(MANIFEST_PATH)) ?? {}
     return await prettier.format(json, { ...options, filepath: MANIFEST_PATH })
+    // FAIL-OPEN-INTENT: formatting-only fallback, same as formatDivergenceContent above — raw JSON is still compared for drift.
   } catch {
     return json
   }
@@ -920,6 +923,7 @@ async function main() {
     try {
       const source = readFileSync(templatePath, 'utf-8')
       rendered = ejs.render(source, ctx, { filename: templatePath })
+      // FAIL-OPEN-INTENT: not a swallow — pushed to `drifted` as hard drift, which fails the gate below.
     } catch (err) {
       const relT = relative(repoRoot, templatePath)
       drifted.push({
@@ -1003,6 +1007,7 @@ async function main() {
     external = await checkExternalCiSurfaceParity(repoRoot, divergences, (relPath) =>
       renderTemplate(relPath, renderData),
     )
+    // FAIL-OPEN-INTENT: not a swallow — sets externalCheckFailed and pushes a drift finding that fails the gate below.
   } catch (err) {
     externalCheckFailed = true
     drifted.push({

@@ -97,8 +97,15 @@ function collabAwareMissing() {
   let config
   try {
     config = JSON.parse(readFileSync(cfgPath, 'utf-8'))
-  } catch {
-    return null
+  } catch (err) {
+    // #2418: an arbiter.json that EXISTS but cannot be parsed used to silently fall
+    // back to "no requirement" (floor-only mode) — a malformed config could hide a
+    // real collaboration-mode requirement from this gate. Fail closed instead.
+    process.stderr.write(
+      `check-ci-tiers: ERROR — ${cfgPath} exists but is not valid JSON (${err?.message ?? err}); ` +
+        `the collaboration-mode-required tier set cannot be resolved\n`,
+    )
+    process.exit(2)
   }
   const level = config.governanceLevel
   if (!level) return null
