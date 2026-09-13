@@ -792,22 +792,52 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(() => assertCredentialFreeEnvironment({ PATH: '/usr/bin' })).not.toThrow()
   })
 
+  // #2679 round 3 (MAJOR): matched case-insensitively, and widened to the exact env names
+  // GitHub Actions itself would inject under a misconfiguration — none of these have any
+  // reason to exist in a job declaring `permissions: {}` (no id-token scope requested).
+  it.each([
+    ['gh_token', 'lowercase gh_token'],
+    ['Gh_Token', 'mixed-case Gh_Token'],
+    ['INPUT_SOME-ACTION-INPUT'.replace('-', '_'), 'an action input mapped to INPUT_*'],
+    ['ACTIONS_RUNTIME_TOKEN', 'the Actions runtime token'],
+    ['ACTIONS_ID_TOKEN_REQUEST_TOKEN', 'the OIDC request token'],
+    ['ACTIONS_ID_TOKEN_REQUEST_URL', 'the OIDC request URL'],
+    ['arbiter_consumer_go_deploy_key', 'a lowercase consumer deploy key'],
+  ])('#2679 refuses a verifier process carrying %s (%s)', (key: string) => {
+    expect(() => assertCredentialFreeEnvironment({ [key]: 'secret-canary' })).toThrow(/credential/i)
+  })
+
   it('AC-5 builds a strict verifier environment without runner or cloud credentials', () => {
-    const clean = buildVerifierEnvironment({
-      PATH: '/usr/bin',
-      HOME: '/tmp/home',
-      AWS_SECRET_ACCESS_KEY: 'secret-canary',
-      HTTPS_PROXY: 'https://credential.invalid',
-      GITHUB_TOKEN: 'secret-canary',
-      ARBITER_CONSUMER_GO_DEPLOY_KEY: 'secret-canary',
-    })
+    const clean = buildVerifierEnvironment(
+      {
+        PATH: '/usr/bin',
+        HOME: '/home/real-user',
+        AWS_SECRET_ACCESS_KEY: 'secret-canary',
+        HTTPS_PROXY: 'https://credential.invalid',
+        GITHUB_TOKEN: 'secret-canary',
+        ARBITER_CONSUMER_GO_DEPLOY_KEY: 'secret-canary',
+      },
+      '/tmp/fresh-verifier-home',
+    )
     expect(clean.PATH).toBe('/usr/bin')
-    expect(clean.HOME).toBe('/tmp/home')
     expect(clean.GIT_CONFIG_GLOBAL).toBe('/dev/null')
     expect(clean).not.toHaveProperty('AWS_SECRET_ACCESS_KEY')
     expect(clean).not.toHaveProperty('HTTPS_PROXY')
     expect(clean).not.toHaveProperty('GITHUB_TOKEN')
     expect(clean).not.toHaveProperty('ARBITER_CONSUMER_GO_DEPLOY_KEY')
+  })
+
+  // #2679 round 3 (CRITICAL): the real HOME can hold ~/.ssh and ~/.git-credentials that
+  // consumer-controlled code (check-hook-routing.mjs, dry-run commands) could read — the
+  // allowlist must never pass the caller's real HOME through, only the fresh directory the
+  // caller supplies.
+  it('#2679 forces a fresh HOME and never passes the real one through', () => {
+    const clean = buildVerifierEnvironment(
+      { PATH: '/usr/bin', HOME: '/home/real-user' },
+      '/tmp/fresh-verifier-home',
+    )
+    expect(clean.HOME).toBe('/tmp/fresh-verifier-home')
+    expect(clean.HOME).not.toBe('/home/real-user')
   })
 
   it('AC-5 redacts tokens, private slugs, and URLs from diagnostics', () => {

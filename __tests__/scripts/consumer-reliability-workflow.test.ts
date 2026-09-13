@@ -68,6 +68,25 @@ describe('consumer reliability workflow (#2135, #2679)', () => {
     expect(wrapper).toContain('assertCredentialFreeEnvironment(process.env)')
   })
 
+  // #2679 round 3: the real HOME can hold ~/.ssh and ~/.git-credentials. The verifier binary
+  // self-remediates its own HOME regardless of caller, but the workflow overrides it too —
+  // belt-and-suspenders — on the one step that runs consumer-controlled code.
+  it('#2679 overrides HOME to an isolated directory for the verification step', () => {
+    const raw = readFileSync(WORKFLOW, 'utf-8')
+    const parsed = YAML.parse(raw)
+    const verifySteps = parsed.jobs.verify.steps as WorkflowStep[]
+    const barStep = verifySteps.find((step) =>
+      String(step.run ?? '').includes('consumer-reliability-bar.mjs'),
+    )
+    const env = (barStep as unknown as { env?: Record<string, string> })?.env
+    expect(env?.HOME).toBeDefined()
+    expect(String(env?.HOME)).not.toBe('')
+
+    const verifierSource = readFileSync(resolve('scripts/consumer-reliability-bar.mjs'), 'utf-8')
+    expect(verifierSource).toContain('mkdtempSync')
+    expect(verifierSource).toMatch(/buildVerifierEnvironment\(process\.env,\s*isolatedHome\)/)
+  })
+
   it('#2679 prepare uploads a single tar artifact with no key material, verify downloads it', () => {
     const raw = readFileSync(WORKFLOW, 'utf-8')
     const parsed = YAML.parse(raw)

@@ -15,6 +15,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import YAML from 'yaml'
 
 const PROJECT_ROOT = resolve('.')
 type SecretKey =
@@ -216,30 +217,46 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     expect(summary.consumers).toHaveLength(3)
   }, 60_000)
 
-  // #2679 round 2: the workflow packs the prepared workspace with `tar -czf` and unpacks it
-  // with `tar -xzf`, never `cpSync` — a directory-copy test proves nothing about what
-  // actually crosses the upload/download boundary in CI (upload-artifact drops hidden files
-  // and executable bits from a raw directory; tar preserves both).
-  it('packs the prepared workspace into a tar exactly like the workflow, with no credential material', () => {
+  // #2679 round 3 (MAJOR): this test must run the WORKFLOW's own tar commands, not a
+  // hand-written stand-in — extracted straight from the committed YAML text, so a future
+  // edit to the real archive/extract steps either stays proven or breaks this test, never
+  // silently diverges from what the test actually exercises.
+  it('packs the prepared workspace into the tar the WORKFLOW itself runs, with no credential material', () => {
     const fixture = createFixture()
     roots.push(fixture.root)
-    const workspace = join(fixture.root, 'tar-workspace')
+    // Two different literal paths, standing in for two different runners' $RUNNER_TEMP —
+    // the workflow's prepare and verify jobs never share a filesystem; only the artifact
+    // (the tarball) crosses between them.
+    const prepareTemp = join(fixture.root, 'prepare-runner-temp')
+    const verifyTemp = join(fixture.root, 'verify-runner-temp')
+    mkdirSync(prepareTemp, { recursive: true })
+    mkdirSync(verifyTemp, { recursive: true })
+    const workspace = join(prepareTemp, 'consumer-reliability')
     expect(
       run(fixture, 'prepare-consumer-reliability.mjs', ['--output', workspace], fixture.secrets)
         .status,
     ).toBe(0)
 
-    const tarball = join(fixture.root, 'consumer-workspace.tar.gz')
-    execFileSync('tar', ['-C', fixture.root, '-czf', tarball, 'tar-workspace'])
+    const workflowSource = readFileSync(
+      resolve('.github/workflows/consumer-reliability.yml'),
+      'utf-8',
+    )
+    const archiveCommand = extractWorkflowRunCommand(workflowSource, 'prepare', '-czf')
+    const extractCommand = extractWorkflowRunCommand(workflowSource, 'verify', '-xzf')
+    const substitute = (command: string, runnerTemp: string): string =>
+      command.replaceAll('$RUNNER_TEMP', runnerTemp).replaceAll('"', '')
 
+    execFileSync('sh', ['-c', substitute(archiveCommand, prepareTemp)], { cwd: prepareTemp })
+
+    const tarball = join(prepareTemp, 'consumer-workspace.tar.gz')
     const listing = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf-8' })
     expect(listing).not.toMatch(/\.ssh\//)
     expect(listing).not.toMatch(/\.key$/m)
 
-    const extractedTo = join(fixture.root, 'tar-extracted')
-    mkdirSync(extractedTo, { recursive: true })
-    execFileSync('tar', ['-C', extractedTo, '-xzf', tarball])
-    const extractedWorkspace = join(extractedTo, 'tar-workspace')
+    // Simulate the upload/download artifact round trip: only the tarball crosses.
+    cpSync(tarball, join(verifyTemp, 'consumer-workspace.tar.gz'))
+    execFileSync('sh', ['-c', substitute(extractCommand, verifyTemp)], { cwd: verifyTemp })
+    const extractedWorkspace = join(verifyTemp, 'consumer-reliability')
 
     for (const id of ['go', 'typescript', 'java']) {
       expect(existsSync(join(extractedWorkspace, id, '.git'))).toBe(true)
@@ -255,6 +272,14 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
       expect(() =>
         execFileSync('grep', ['-r', '-l', needle, extractedWorkspace], { encoding: 'utf-8' }),
       ).toThrow()
+    }
+    // #2679 round 3: no `http.<url>.extraheader`/credential URL (the shape actions/checkout
+    // itself uses to carry a bearer token) may survive into any packed .git/config, even
+    // though this clone is made over SSH and should never have one in the first place.
+    for (const id of ['go', 'typescript', 'java']) {
+      const gitConfig = readFileSync(join(extractedWorkspace, id, '.git', 'config'), 'utf-8')
+      expect(gitConfig).not.toMatch(/extraheader/i)
+      expect(gitConfig).not.toMatch(/https?:\/\/[^/]*:[^/]*@/)
     }
   }, 60_000)
 
@@ -558,4 +583,17 @@ function gitIdentityEnvironment(): NodeJS.ProcessEnv {
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`
+}
+
+// #2679 round 3: the test must run the workflow's OWN command, never a hand-written
+// stand-in, so a future edit to the real archive/extract step either stays proven here or
+// breaks this test.
+function extractWorkflowRunCommand(source: string, jobId: string, marker: string): string {
+  const parsed = YAML.parse(source) as { jobs: Record<string, { steps: Array<{ run?: string }> }> }
+  const steps = parsed.jobs[jobId]?.steps ?? []
+  const step = steps.find((candidate) => String(candidate.run ?? '').includes(marker))
+  if (typeof step?.run !== 'string') {
+    throw new Error(`no step in job "${jobId}" has a run command containing "${marker}"`)
+  }
+  return step.run
 }
