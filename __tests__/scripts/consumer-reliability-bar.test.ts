@@ -526,6 +526,48 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(result.ok, result.detail).toBe(true)
   })
 
+  // #2591 (Codex review, round 2): the orphan-todo-style reconciliation tests above derive
+  // both "fresh render" and "declared" from the mapping's OWN value, so a wrong gate-id
+  // suffix in the map (e.g. an accidental "(#1428)" carried over from the mapping KEY's
+  // issue-annotation convention) can never fail them — the map would simply be reconciling
+  // against itself. This asserts the map's go doc-set row against the REAL rendered
+  // template: the gate is dispatched bare, `runWarnCheck('doc-set', ...)`, with no issue
+  // suffix, so the map's value must be the same bare id.
+  const docSetDispatchLine = () => {
+    const rendered = renderCheckAll(
+      makeConfig('/tmp/consumer-bar-2591-doc-set-go', {
+        language: 'go',
+        governanceLevel: 'L2',
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>,
+    )
+    const callIdx = rendered.indexOf("runWarnCheck('doc-set'")
+    if (callIdx === -1) throw new Error("template runWarnCheck('doc-set', ...) call moved")
+    const end = rendered.indexOf(';', callIdx) + 1
+    return rendered.slice(callIdx, end)
+  }
+
+  it("#2591 go doc-set is dispatched bare via runWarnCheck, matching the map's WIRED:warn: row", () => {
+    const dispatch = docSetDispatchLine()
+    expect(dispatch).toBe(
+      "runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check']);",
+    )
+    expect(extractCheckNames(dispatch).has('doc-set')).toBe(true)
+    expect(extractHardCheckNames(dispatch).has('doc-set')).toBe(false)
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    const goEntry = gateMap.consumers.go.mapping['doc-set']
+    expect(goEntry).toBe('WIRED:warn:doc-set')
+    const result = assessGateSurface({
+      freshRender: [...extractCheckNames(dispatch)],
+      declared: ['doc-set'],
+      mapping: { 'doc-set': goEntry },
+      debtRegister: { ceiling: 0, openIssues: [] },
+    })
+    expect(result.ok, result.detail).toBe(true)
+  })
+
   // Regression guard for a variable status that is NEVER assigned the literal 'FAIL' —
   // must stay soft evidence (unlike BDD @ignore check above), same as runWarnCheck.
   it('#2591 round 2: a variable status only ever assigned WARN/PASS is not hard evidence', () => {
