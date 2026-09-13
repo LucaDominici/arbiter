@@ -67,10 +67,11 @@ describe('check-fail-closed-audit.mjs.ejs — INV-96 audit gate scaffold', () =>
     })
 
     function renderInto(): string {
-      root = mkdtempSync(join(tmpdir(), 'fail-closed-render-'))
-      mkdirSync(join(root, 'scripts', 'data'), { recursive: true })
-      writeFileSync(join(root, 'scripts', 'check-fail-closed-audit.mjs'), renderAt('L2'))
-      return root
+      const dir = mkdtempSync(join(tmpdir(), 'fail-closed-render-'))
+      root = dir
+      mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
+      writeFileSync(join(dir, 'scripts', 'check-fail-closed-audit.mjs'), renderAt('L2'))
+      return dir
     }
 
     function runEmitted(dir: string): { status: number; stdout: string; stderr: string } {
