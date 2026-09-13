@@ -212,6 +212,27 @@ legitimately see `local checks` as `SKIP` locally and `PASS`/`FAIL` in CI. That 
 contract working as designed, not a parity bug — a consumer that wants local↔CI parity for this gate
 runs `git config --local arbiter.allowLocalChecks true` in both places.
 
+Also since #2679: `consumer-reliability.yml` runs the credentialed clone/scrub phase
+(`prepare-consumer-reliability.mjs`) and the credential-free verification phase
+(`consumer-reliability-bar.mjs`) as two SEPARATE jobs on two separate runners, `prepare` →
+`verify`, connected only by an uploaded/downloaded workspace artifact (tar, to preserve the
+consumers' `.git` directories and executable bits across the round trip). Running both
+phases as two `spawnSync` children of one credentialed Node process — even with a strictly
+filtered child environment — is not a boundary: same-UID code the verifier executes
+(a consumer's `check-hook-routing.mjs`, its dry-run commands) can still read the parent
+process's own environment. The `prepare` job carries every deploy-key/`GH_TOKEN` secret and
+never executes a line of consumer-owned code; its debt-register OPEN-issue lookup (`gh issue
+view`, needs the token) also runs here and crosses into the artifact as data
+(`handoff.json`'s `openDebtIssues`), never as a credential. The `verify` job declares
+`permissions: {}` (no GitHub token minted at all) and its rendered block contains no
+`secrets.*`/`github.token`/`ARBITER_CONSUMER_*` reference anywhere; `consumer-reliability-
+bar.mjs` also calls `assertCredentialFreeEnvironment(process.env)` at its own entry point and
+refuses to run if any `ARBITER_CONSUMER_*`, `GH_TOKEN`, or `GITHUB_TOKEN` variable is present,
+fail-closed even if a future workflow edit reintroduces one by mistake. The handoff only
+records each consumer's id (never an absolute path) — the prepared workspace lands at a
+different absolute path on the `verify` runner than it did on `prepare`'s, and the verifier
+always re-roots against its own `--workspace` argument.
+
 ## INV-73 canonical presence floor
 
 `scripts/check-ci-tiers.mjs` enforces presence of the canonical numbered set
