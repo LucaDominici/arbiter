@@ -553,7 +553,7 @@
     "scripts/check-oracle-discrimination.mjs": "f4c878163ea80f36f5ab61daba84b9fa0398da63663ac95fd53879aad3d32d88",
     "scripts/check-pipe-tee-hazard.mjs": "50f9c9fc51c70268965c399c2eb77c9d2918dbb6e8c8621888b79a2b9baa736b",
     "scripts/check-pr-size-gate.mjs": "b26f5dc9b89f75094e90ccf0402d0d334610602938f95c3c9a3df88c321de653",
-    "scripts/check-refutation-verdicts.mjs": "f29c8500a49e4548cee299c69dcb0b5780a0daf4bf6d4007f8c95b3e0c0fd1ba",
+    "scripts/check-refutation-verdicts.mjs": "64227e4c541d783691d202e9969481c22baed3c352f8b797f1de045f7f785e93",
     "scripts/check-render-smoke.mjs": "16d256113c1bfeb898959b19e02f0aa8436fcbd139f0b231e5a2bb406ce97e69",
     "scripts/check-review-completion.mjs": "f92e7730a609f5b750b3ee3955c703af0d0ecaaf81fa4f855acd1e0963765c40",
     "scripts/check-safety-adopt-ratchet.mjs": "7e7d9958abb35652af74d46517792cd88cd3d465121d6bc8025bcc3342d98891",
