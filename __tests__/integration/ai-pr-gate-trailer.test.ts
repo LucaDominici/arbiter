@@ -94,7 +94,7 @@ async function runGate(
       info: (msg: string) => infos.push(msg),
     }
     const github = {
-      paginate: async (_fn: unknown, _params: unknown) => commits,
+      paginate: async () => commits,
       rest: { pulls: { listCommits: async () => ({ data: commits }) } },
     }
     const context = {
