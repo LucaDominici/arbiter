@@ -118,22 +118,72 @@ function writeBaseline(baselineFile, grandfathered) {
   writeFileSync(baselineFile, JSON.stringify(body, null, 2) + '\n')
 }
 
-export async function main() {
-  const args = process.argv.slice(2)
-  const updateBaseline = args.includes('--update-baseline')
-  const templatesArg = args.find((a) => a.startsWith('--templates='))
-  const baselineArg = args.find((a) => a.startsWith('--baseline='))
+/** Parse CLI flags into resolved paths. Extracted to keep `main` under the complexity cap. */
+function parseArgs(argv, root) {
+  const templatesArg = argv.find((a) => a.startsWith('--templates='))
+  const baselineArg = argv.find((a) => a.startsWith('--baseline='))
+  return {
+    updateBaseline: argv.includes('--update-baseline'),
+    templatesDir: templatesArg
+      ? resolve(templatesArg.split('=')[1])
+      : resolve(root, 'src/templates'),
+    baselineFile: baselineArg
+      ? resolve(baselineArg.split('=')[1])
+      : resolve(root, '.emitted-formatting-baseline.json'),
+  }
+}
 
-  const root = process.cwd()
-  const templatesDir = templatesArg
-    ? resolve(templatesArg.split('=')[1])
-    : resolve(root, 'src/templates')
-  const baselineFile = baselineArg
-    ? resolve(baselineArg.split('=')[1])
-    : resolve(root, '.emitted-formatting-baseline.json')
+function formatScale(misformattedCount, tagFreeCount) {
+  const pct = tagFreeCount === 0 ? 0 : Math.round((misformattedCount / tagFreeCount) * 100)
+  return `${misformattedCount}/${tagFreeCount} (${pct}%)`
+}
+
+/**
+ * Diff the current mis-formatted set against the grandfathered baseline. A mis-formatted path
+ * NOT grandfathered is a regression; a grandfathered path that is no longer mis-formatted is an
+ * unbanked improvement (#2013 pattern) — both named, never merged into one bare count.
+ */
+function diffAgainstBaseline(misformatted, grandfatheredPaths) {
+  const grandfathered = new Set(grandfatheredPaths)
+  const misformattedSet = new Set(misformatted)
+  const newlyMisformatted = misformatted.filter((p) => !grandfathered.has(p))
+  const nowClean = [...grandfathered]
+    .filter((p) => !misformattedSet.has(p))
+    .sort((a, b) => a.localeCompare(b))
+  return { newlyMisformatted, nowClean }
+}
+
+/** Print up to 10 named paths, then an elision count for the rest. */
+function printPaths(paths) {
+  for (const f of paths.slice(0, 10)) process.stdout.write(`    ${f}\n`)
+  if (paths.length > 10) process.stdout.write(`    ... and ${paths.length - 10} more\n`)
+}
+
+function reportRegression(newlyMisformatted) {
+  process.stdout.write(
+    `[check-emitted-formatting] FAIL: regression — ${newlyMisformatted.length} new mis-formatted template(s) not in the baseline:\n`,
+  )
+  printPaths(newlyMisformatted)
+}
+
+function reportUnbankedImprovement(nowClean) {
+  process.stdout.write(
+    `[check-emitted-formatting] FAIL: unbanked improvement — ${nowClean.length} grandfathered template(s) are no longer mis-formatted:\n`,
+  )
+  printPaths(nowClean)
+  process.stdout.write(
+    '  Bank it so the recovered slots cannot be silently re-filled: node scripts/check-emitted-formatting.mjs --update-baseline\n',
+  )
+}
+
+export async function main() {
+  const { updateBaseline, templatesDir, baselineFile } = parseArgs(
+    process.argv.slice(2),
+    process.cwd(),
+  )
 
   const { misformatted, tagFreeCount, tagBearingSkipped } = await collectMisformatted(templatesDir)
-  const scale = `${misformatted.length}/${tagFreeCount} (${tagFreeCount === 0 ? 0 : Math.round((misformatted.length / tagFreeCount) * 100)}%)`
+  const scale = formatScale(misformatted.length, tagFreeCount)
 
   if (updateBaseline) {
     writeBaseline(baselineFile, misformatted)
@@ -151,12 +201,10 @@ export async function main() {
     process.exit(1)
   }
 
-  const grandfathered = new Set(baselineResult.grandfathered)
-  const misformattedSet = new Set(misformatted)
-  const newlyMisformatted = misformatted.filter((p) => !grandfathered.has(p))
-  const nowClean = [...grandfathered]
-    .filter((p) => !misformattedSet.has(p))
-    .sort((a, b) => a.localeCompare(b))
+  const { newlyMisformatted, nowClean } = diffAgainstBaseline(
+    misformatted,
+    baselineResult.grandfathered,
+  )
 
   if (newlyMisformatted.length === 0 && nowClean.length === 0) {
     process.stdout.write(
@@ -166,26 +214,8 @@ export async function main() {
     return
   }
 
-  if (newlyMisformatted.length > 0) {
-    process.stdout.write(
-      `[check-emitted-formatting] FAIL: regression — ${newlyMisformatted.length} new mis-formatted template(s) not in the baseline:\n`,
-    )
-    for (const f of newlyMisformatted.slice(0, 10)) process.stdout.write(`    ${f}\n`)
-    if (newlyMisformatted.length > 10) {
-      process.stdout.write(`    ... and ${newlyMisformatted.length - 10} more\n`)
-    }
-  }
-
-  if (nowClean.length > 0) {
-    process.stdout.write(
-      `[check-emitted-formatting] FAIL: unbanked improvement — ${nowClean.length} grandfathered template(s) are no longer mis-formatted:\n`,
-    )
-    for (const f of nowClean.slice(0, 10)) process.stdout.write(`    ${f}\n`)
-    if (nowClean.length > 10) process.stdout.write(`    ... and ${nowClean.length - 10} more\n`)
-    process.stdout.write(
-      '  Bank it so the recovered slots cannot be silently re-filled: node scripts/check-emitted-formatting.mjs --update-baseline\n',
-    )
-  }
+  if (newlyMisformatted.length > 0) reportRegression(newlyMisformatted)
+  if (nowClean.length > 0) reportUnbankedImprovement(nowClean)
 
   process.exit(1)
 }
