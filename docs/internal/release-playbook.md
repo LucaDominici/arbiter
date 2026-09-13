@@ -106,7 +106,7 @@ and was still under-used at 4) for headroom; scope stays at 270 mutants. Run 2 a
 minutes 10 seconds**, same score 67.41 (182 killed / 75 survived / 13 no-cov / 0 timeouts / 0
 errors) — identical kill/survive counts to run 1, as expected (concurrency changes wall time, not
 which mutants are killed). Margin against the 60-minute job timeout is now **≈15 minutes**,
-measured while the machine was contended (a Haben gate with Go race tests ran concurrently), so
+measured while the machine was contended (another repository's gate with Go race tests ran concurrently on the same machine), so
 this is a conservative (not best-case) measurement. The next tag run on the actual CI runner is
 still the final proof; this doc will be updated again if that number differs meaningfully.
 Caution: `inPlace: true` instruments and mutates
