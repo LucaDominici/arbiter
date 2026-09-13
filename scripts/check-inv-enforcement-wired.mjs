@@ -85,12 +85,52 @@ const FOREIGN_PATH_EXEMPT = new Set([
   'check-arbiter-contract.mjs',
 ])
 
-// INV-137: tests/smoke/smoke-journeys.spec.ts is a TS Playwright STARTER FILE that
-// src/generators/smoke-journeys.ts writes into a governed TARGET project (verified:
-// resolvedPath(base, 'tests', 'smoke', 'smoke-journeys.spec.ts') in that generator) — it
-// is generator-authored output, not a static .ejs template, so it can never exist as a
-// path in arbiter's own tree and the template-basename fallback cannot see it either.
-const TARGET_OUTPUT_PATH_EXEMPT = new Set(['tests/smoke/smoke-journeys.spec.ts'])
+// Generator-authored output paths: files a generator WRITES into a governed target project
+// at that exact relative path, verified against a literal `resolvedPath(...)` call in the
+// named generator — never present as a static template or in arbiter's own tree, so no
+// existsSync search can ever find them. Full-token exact match only (#2563).
+const TARGET_OUTPUT_PATH_EXEMPT = new Set([
+  // INV-137: verified — resolvedPath(base, 'tests', 'smoke', 'smoke-journeys.spec.ts') in
+  // src/generators/smoke-journeys.ts:122.
+  'tests/smoke/smoke-journeys.spec.ts',
+  // INV-61: verified — resolvedPath(base, 'tests', 'e2e', 'a11y', 'run-axe.ts') in
+  // src/generators/playwright-ts.ts:42.
+  'tests/e2e/a11y/run-axe.ts',
+  // INV-126: verified — resolvedPath(base, 'tests', 'api', 'run.sh') in
+  // src/generators/api-e2e.ts:147.
+  'tests/api/run.sh',
+  // INV-60: the real generated filename is docs/coverage/Cargo.toml.profile.release
+  // (verified: resolvedPath(base, 'docs', 'coverage', 'Cargo.toml.profile.release') in
+  // src/generators/coverage.ts:190) — a double extension FILE_TOKEN_RE cannot see past
+  // the first recognised one, so the citation extracts truncated at the `.toml` boundary.
+  'docs/coverage/Cargo.toml',
+])
+
+// Target-twin documentation paths: arbiter dogfoods each of these under docs/internal/
+// (its own SSOT location, per .dogfood-divergences.json), while every GOVERNED TARGET
+// gets the bare docs/ path named here. Both twins carry the identical rule; only the path
+// differs, by deliberate divergence. The bare form can never exist in arbiter's own tree
+// by construction — verified against each catalog entry's own "docs/internal/..." twin
+// mention in the same enforcement/description text (#2563).
+const TARGET_DOC_TWIN_EXEMPT = new Set([
+  'docs/MILESTONES.md', // INV-146 — self twin: docs/internal/PRODUCT/MILESTONES.md
+  'docs/SOURCES.md', // INV-146/147 — self twin: docs/internal/PRODUCT/SOURCES.md
+  'docs/USE_CASES.md', // INV-146/149 — self twin: docs/internal/PRODUCT/USE_CASES.md
+  'docs/FEATURE_MATRIX.md', // INV-149 — self twin: docs/internal/PRODUCT/FEATURE_MATRIX.md
+  'docs/TABLETOP-SCENARIOS.md', // INV-149 — self twin: docs/internal/PRODUCT/TABLETOP-SCENARIOS.md
+])
+
+// Runtime artifacts: files a script READS or WRITES at run time (evidence, coverage,
+// manifests, markers) that are never checked in and so never exist in a fresh checkout —
+// each verified against a literal reference in the producing/consuming script named beside
+// it. Full-token exact match only (#2563).
+const RUNTIME_ARTIFACT_EXEMPT = new Set([
+  '.evidence/SUMMARY.json', // INV-33 — verified: src/generators/check-all.ts:724 (producer)
+  'status.json', // INV-113 — verified: .claude/.task/status.json, runtime task-phase file
+  '/refutation-required.json', // INV-145 — verified: scripts/check-refutation-verdicts.mjs:37 MARKER_NAME
+  'coverage/coverage-summary.json', // INV-134 — verified: scripts/check-all.mjs:614, scripts/check-coverage-ratchet.mjs
+  'module-coverage-baseline.json', // INV-134 — verified: src/templates/scripts/verify-module-coverage.mjs.ejs baseline file
+])
 
 // Match scripts/<name>.mjs — broadened to all prefix patterns and digits.
 // Negative lookahead (?!\.ejs) prevents matching the .mjs part inside .mjs.ejs template refs.
@@ -206,24 +246,43 @@ for (const name of TRACK_B_EXEMPT) {
 // above already cover. Split the catalog into per-id spans (same id-to-next-id scan the
 // retired-tombstone pass in check-catalog-agents-parity.mjs uses) so a violation can be
 // attributed to its INV id.
-const idSpanRe = /id:\s*'(INV-\d+)'/g
+// A single quoted-literal alternative, generalised to '/"/` so an id or enforcement value
+// written with any quote style is recognised — a double-quoted `id: "INV-999"` used to be
+// completely invisible to this scan (single-quote-only), which silently skipped the WHOLE
+// entry rather than flagging it [Codex review, P1 #3].
+const QUOTED_LITERAL = `(?:'[^']*'|"[^"]*"|` + '`[^`]*`)'
+const idSpanRe = new RegExp(`id:\\s*(${QUOTED_LITERAL})`, 'g')
+/** Unwrap the OUTER quote characters from a single matched quoted-literal source snippet. */
+function unquote(raw) {
+  return raw.slice(1, -1)
+}
 const idMarks = []
 {
   let m
-  while ((m = idSpanRe.exec(catalogSrc)) !== null) idMarks.push({ id: m[1], at: m.index })
+  while ((m = idSpanRe.exec(catalogSrc)) !== null) {
+    const value = unquote(m[1])
+    if (/^INV-\d+$/.test(value)) idMarks.push({ id: value, at: m.index })
+  }
 }
 const enforcementById = new Map()
 for (let i = 0; i < idMarks.length; i++) {
   const start = idMarks[i].at
   const end = i + 1 < idMarks.length ? idMarks[i + 1].at : catalogSrc.length
   const span = catalogSrc.slice(start, end)
-  // enforcement value may be a single quoted literal or several concatenated with `+`
-  // (string-literal continuation), matching the multi-line style used across the catalog.
+  // enforcement value may be a single quoted literal (any quote style) or several
+  // concatenated with `+` (string-literal continuation), matching the multi-line style
+  // used across the catalog. Matches an explicitly EMPTY literal ('') too — that is a
+  // distinct, flaggable case from the field being absent entirely (see the resolution
+  // loop below), not silently treated the same.
   const em = span.match(
-    /enforcement:\s*\n?\s*((?:'[^']*'|"[^"]*")(?:\s*\+\s*\n?\s*(?:'[^']*'|"[^"]*"))*)/,
+    new RegExp(
+      `enforcement:\\s*\\n?\\s*(${QUOTED_LITERAL}(?:\\s*\\+\\s*\\n?\\s*${QUOTED_LITERAL})*)`,
+    ),
   )
-  if (!em) continue
-  const text = [...em[1].matchAll(/'([^']*)'|"([^"]*)"/g)].map((mm) => mm[1] ?? mm[2]).join('')
+  if (!em) continue // field genuinely absent from this entry — legitimately optional
+  const text = [...em[1].matchAll(new RegExp(QUOTED_LITERAL, 'g'))]
+    .map((mm) => unquote(mm[0]))
+    .join('')
   enforcementById.set(idMarks[i].id, text)
 }
 
@@ -246,6 +305,7 @@ function walkFiles(dir) {
 }
 const templateBasenames = new Set(walkFiles(resolve(root, 'src/templates')))
 const BARE_LOOKUP_DIRS = [
+  '.', // repo root — e.g. package.json, .jscpd.json, .dogfood-divergences.json
   'scripts',
   '.claude/hooks',
   '.githooks',
@@ -255,13 +315,36 @@ const BARE_LOOKUP_DIRS = [
 
 /** True when `token` (a file-ish citation extracted from an enforcement string) resolves
  * to a real path: a repo-relative path if it contains a `/`, otherwise a bare filename
- * looked up across the gate/hook/workflow directories or the template tree. */
+ * looked up across the gate/hook/workflow directories or the template tree.
+ * #2563 [Codex review, P1 #2]: a token containing `/` is a PATH and must resolve as the
+ * exact path cited — there is no basename fallback for it. Falling back to a basename
+ * match for a slash-containing token let a fabricated path (`fake/check-secret-scan.mjs`)
+ * pass by riding on the real `check-secret-scan.mjs` living somewhere else entirely; the
+ * bare-name lookup below stays basename-scoped ONLY for tokens that were cited bare (no
+ * `/` in the citation at all), which is the legitimate case (e.g. a hook cited as
+ * `check-foo.mjs` without its directory). */
 function tokenResolves(token) {
   if (token.includes('/')) {
     // The negative lookahead in FILE_TOKEN_RE strips a trailing `.ejs` (e.g. a citation of
     // `src/templates/scripts/check-foo.mjs.ejs` extracts as `.../check-foo.mjs`) — try both
     // the bare path and its `.ejs` twin so a real template isn't reported as missing.
-    return existsSync(resolve(root, token)) || existsSync(resolve(root, `${token}.ejs`))
+    if (existsSync(resolve(root, token)) || existsSync(resolve(root, `${token}.ejs`))) return true
+    // A `scripts/<name>` citation of a name already in TRACK_B_EXEMPT is a Track-B script:
+    // generated INTO a governed target's scripts/ directory at that exact path, so it never
+    // exists at `scripts/<name>` in arbiter's own tree — only its `.ejs` template does. This
+    // is not a basename fallback (Codex P1 #2): it's exact-path-shaped (`scripts/` prefix
+    // required) and gated on the SAME emission proof (`literals`) the TRACK_B_EXEMPT pass
+    // below already independently verifies, so a fabricated `scripts/whatever.mjs` cannot
+    // ride through by picking a name off this list.
+    const m = /^scripts\/([a-z][a-z0-9-]+\.mjs)$/.exec(token)
+    if (
+      m &&
+      TRACK_B_EXEMPT.has(m[1]) &&
+      (literals.has(m[1]) || literals.has(`scripts/${m[1]}.ejs`))
+    ) {
+      return true
+    }
+    return false
   }
   for (const dir of BARE_LOOKUP_DIRS) {
     if (existsSync(resolve(root, dir, token))) return true
@@ -269,7 +352,15 @@ function tokenResolves(token) {
   return templateBasenames.has(token) || templateBasenames.has(`${token}.ejs`)
 }
 
-const FILE_TOKEN_RE = /[A-Za-z0-9_.\-/]+\.(?:mjs|ts|java|yml|yaml)\b/g
+// Broadened extension set [Codex review, P1 #4] — the original 5 extensions missed real
+// citation styles (.json manifests, .sh scripts, .md docs, .ejs templates, .toml configs).
+// Deliberately NOT "any token containing a slash": this catalog's prose is full of
+// slash-joined word pairs with no path meaning at all (CI/CD, and/or, pass/fail,
+// CANON-01/04, absent/empty, ...) — a blanket slash detector would misfire on dozens of
+// real entries. Anchoring on a recognised extension keeps recall high without that
+// false-positive explosion; verified empirically against the full catalog (#2563).
+const FILE_TOKEN_RE =
+  /[A-Za-z0-9_.\-/]+\.(?:mjs|cjs|ts|mts|cts|tsx|jsx|java|yml|yaml|json|sh|md|ejs|toml)\b/g
 // .githooks/<name> entries (pre-commit, pre-push, commit-msg, ...) carry no extension at
 // all, so FILE_TOKEN_RE never sees them — a separate, narrower pattern for that one
 // directory (#2563).
@@ -301,16 +392,34 @@ if (existsSync(allowlistPath)) {
 
 let allowlistedCount = 0
 for (const [id, enforcement] of enforcementById) {
-  if (!enforcement) continue
+  // An explicitly EMPTY enforcement literal (`enforcement: ''`) is a distinct, flaggable
+  // defect from the field being absent — the field being DECLARED with nothing in it reads
+  // as documented enforcement to anyone scanning the catalog, and resolves to nothing
+  // [Codex review, P1 #3].
+  if (enforcement === '') {
+    process.stdout.write(`  ENFORCEMENT FIELD IS EMPTY: ${id}\n`)
+    violations++
+    continue
+  }
   const tokens = extractFileTokens(enforcement)
   if (tokens.length === 0) {
-    // No file-ish token at all: the claim must be an explicit, reasoned allowlist entry —
-    // a bare "contains CI/policy/review" match would re-green the exact INV-28 defect this
-    // gate exists to catch (a claim that reads as real but resolves to nothing).
+    // No file-ish token at all: the claim must be an explicit, reasoned allowlist entry,
+    // BOUND to the exact enforcement text it was written against — a bare "contains
+    // CI/policy/review" match would re-green the exact INV-28 defect this gate exists to
+    // catch, and an allowlist entry whose bound text has drifted from the current catalog
+    // wording is stale: the catalog changed after the entry was reviewed and must be
+    // re-reviewed, not silently trusted [Codex review, P1 #1].
     const entry = nonFileAllowlist[id]
-    if (!entry || !entry.mechanism || !entry.reason) {
+    if (!entry || !entry.mechanism || !entry.reason || !entry.enforcement) {
       process.stdout.write(
         `  ENFORCEMENT NAMES NO MECHANISM (not allowlisted): ${id} — "${enforcement}"\n`,
+      )
+      violations++
+    } else if (entry.enforcement !== enforcement) {
+      process.stdout.write(
+        `  STALE ALLOWLIST ENTRY: ${id} — allowlisted text no longer matches the catalog\n` +
+          `    allowlist: "${entry.enforcement}"\n` +
+          `    catalog:   "${enforcement}"\n`,
       )
       violations++
     } else {
@@ -319,9 +428,17 @@ for (const [id, enforcement] of enforcementById) {
     continue
   }
   for (const token of tokens) {
-    const base = token.split('/').pop()
-    if (FOREIGN_PATH_EXEMPT.has(base) || TARGET_OUTPUT_PATH_EXEMPT.has(token)) continue
-    if (!tokenResolves(token) && !tokenResolves(base)) {
+    // #2563 [Codex review, P1 #2]: exemptions are keyed by the EXACT cited token, never by
+    // basename — `FOREIGN_PATH_EXEMPT.has(base)` would let a fabricated path ending in an
+    // exempted basename (e.g. `fake/check-arbiter-contract.mjs`) ride through unexamined.
+    if (
+      FOREIGN_PATH_EXEMPT.has(token) ||
+      TARGET_OUTPUT_PATH_EXEMPT.has(token) ||
+      TARGET_DOC_TWIN_EXEMPT.has(token) ||
+      RUNTIME_ARTIFACT_EXEMPT.has(token)
+    )
+      continue
+    if (!tokenResolves(token)) {
       process.stdout.write(`  ENFORCEMENT PATH NOT FOUND: ${id} cites "${token}"\n`)
       violations++
     }

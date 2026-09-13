@@ -2433,9 +2433,9 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'self-gate). Exit codes per INV-53: 0=PASS/absent, 1=FAIL (expired/malformed), 2=ERROR. ' +
       '#1817 (A3): smoke-tier zero-retry contract lives in retryLadder() (same library, same ' +
       'template); quarantine-TTL rot is also probed by src/conformance/dimensions.ts ' +
-      'probeE2eQuarantine (DISC-e2e-quarantine), wired in src/commands/conformance.ts ' +
-      'collectDimensions() — an arbiter self-gate (Track-A), distinct from the emitted ' +
-      'Track-B script above.',
+      'probeE2eQuarantine (DISC-e2e-quarantine), registered in ' +
+      'src/conformance/gate-proofs.ts — an arbiter self-gate (Track-A), distinct from the ' +
+      'emitted Track-B script above.',
   },
   {
     id: 'INV-131',
@@ -2615,7 +2615,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '__tests__/scripts/acceptance-criteria-lib.test.ts + ' +
       '__tests__/scripts/check-acceptance.test.ts + __tests__/scripts/issue-readiness.test.ts + ' +
       '__tests__/scripts/rework-log.test.ts (red→green). The orchestration tools ' +
-      '(issue-readiness.mjs, rework-log.mjs, lib/acceptance-criteria.mjs) ARE emitted to ' +
+      '(issue-readiness.mjs, rework-log.mjs, scripts/lib/acceptance-criteria.mjs) ARE emitted to ' +
       'governed targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS ' +
       '(CANON-01/04, __tests__/templates/acceptance-anchor-scripts-render.test.ts), and #2405 ' +
       'closed the ADR-110 follow-up: check-acceptance.mjs is emitted from ' +
@@ -2918,7 +2918,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'src/templates/scripts/gate-registry.yml.ejs, from src/templates/scripts/check-sources.mjs.ejs ' +
       'emitted by src/generators/check-all.ts. Validates the SOURCES registry against ' +
       'schemas/source-record.schema.json, then proves each excerpt hashes to its recorded ' +
-      'content_hash and contains every quoted_text literally. A missing SOURCES.md SKIPs out loud ' +
+      'content_hash and contains every quoted_text literally. A missing docs/SOURCES.md SKIPs out loud ' +
       '— a project need not cite anything, but a skip must never be mistakable for a pass. ' +
       'The schema travels WITH the gate (schemas/source-record.schema.json is emitted beside it), ' +
       'which is what unblocked the port: shipping the rule without its contract would have handed a ' +
