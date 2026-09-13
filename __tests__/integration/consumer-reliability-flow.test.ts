@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   chmodSync,
+  cpSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -182,6 +183,57 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     expect(result.stderr).toContain('credentialed preparation failed')
     expect(existsSync(workspace)).toBe(false)
     expect(readFileSync(fixture.sshMarker, 'utf-8')).toBe('')
+  })
+
+  // #2679: the prepared workspace crosses a real artifact upload/download between two
+  // separate CI jobs on two separate runners — a different absolute path than the one
+  // `prepare` used. The verifier must re-root against ITS OWN --workspace, with no network
+  // and no credential in its environment, and reach the same verdict shape it would from
+  // the un-moved workspace.
+  it('verifies a prepared workspace after it moves to an unrelated absolute path', () => {
+    const fixture = createFixture()
+    roots.push(fixture.root)
+    const preparedAt = join(fixture.root, 'prepare-side', 'workspace')
+    expect(
+      run(fixture, 'prepare-consumer-reliability.mjs', ['--output', preparedAt], fixture.secrets)
+        .status,
+    ).toBe(0)
+
+    const movedTo = join(fixture.root, 'verify-side', 'workspace')
+    mkdirSync(join(fixture.root, 'verify-side'), { recursive: true })
+    cpSync(preparedAt, movedTo, { recursive: true })
+
+    const reports = join(fixture.root, 'moved-reports')
+    const result = run(
+      fixture,
+      'consumer-reliability-bar.mjs',
+      ['--workspace', movedTo, '--report-dir', reports, '--arbiter-cli', fixture.fakeCli],
+      {},
+    )
+    expect(result.status, result.stderr).toBe(0)
+    const summary = JSON.parse(readFileSync(join(reports, 'summary.json'), 'utf-8'))
+    expect(summary.result).toBe('PASS')
+    expect(summary.consumers).toHaveLength(3)
+  }, 60_000)
+
+  it('refuses to verify when a consumer deploy-key variable reaches the verifier process', () => {
+    const fixture = createFixture()
+    roots.push(fixture.root)
+    const workspace = join(fixture.root, 'leaked-key-workspace')
+    expect(
+      run(fixture, 'prepare-consumer-reliability.mjs', ['--output', workspace], fixture.secrets)
+        .status,
+    ).toBe(0)
+    const reports = join(fixture.root, 'leaked-key-reports')
+    const result = run(
+      fixture,
+      'consumer-reliability-bar.mjs',
+      ['--workspace', workspace, '--report-dir', reports, '--arbiter-cli', fixture.fakeCli],
+      { ARBITER_CONSUMER_GO_DEPLOY_KEY: 'must-not-reach-verifier' },
+    )
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('credential-bearing verifier environment')
+    expect(existsSync(join(reports, 'summary.json'))).toBe(false)
   })
 })
 

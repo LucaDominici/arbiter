@@ -762,6 +762,16 @@ describe('consumer reliability bar oracles (#2135)', () => {
     ).toThrow(/credential/i)
   })
 
+  it('#2679 refuses a verifier process that still carries a GitHub token', () => {
+    expect(() => assertCredentialFreeEnvironment({ GH_TOKEN: 'secret-canary' })).toThrow(
+      /credential/i,
+    )
+    expect(() => assertCredentialFreeEnvironment({ GITHUB_TOKEN: 'secret-canary' })).toThrow(
+      /credential/i,
+    )
+    expect(() => assertCredentialFreeEnvironment({ PATH: '/usr/bin' })).not.toThrow()
+  })
+
   it('AC-5 builds a strict verifier environment without runner or cloud credentials', () => {
     const clean = buildVerifierEnvironment({
       PATH: '/usr/bin',
