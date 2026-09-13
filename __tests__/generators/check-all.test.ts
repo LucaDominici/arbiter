@@ -137,7 +137,7 @@ describe('generateCheckAll', () => {
     //   now emitted and wired via the `acceptance-anchor` gate-registry row, so INV-138's
     //   mechanism reaches a target instead of staying a canon-01 self-only entry)
     // + check-emission-parity.mjs (#2110 — manifest-vs-disk parity in the project's own gate)
-    // + check-no-orphan-todo.mjs (INV-21, #2663 — tree-scanning orphan-TODO gate, the
+    // + check-no-orphan-todo.mjs (INV-21, #2663 — tree-scanning orphan-todo gate, the
     //   CI-runnable twin of the editor-time hook)
     // + check-m16-handoff.mjs (M16 handoff-contract marker gate, #2103)
     // + lib/gate-evidence.mjs (#2328 — the gate-pass identity binding shared by the
