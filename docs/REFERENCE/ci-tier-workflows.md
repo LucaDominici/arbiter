@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.22'
+doc_version: '2.0.24'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -185,6 +185,32 @@ visible `SKIP` result for `local checks` when the slot file (`<project>/scripts/
 is absent. A consumer pinned to a spine that predates the slot declares `local checks` `DECLINED`,
 not part of its executed surface — the Bar measures the pinned spine, never the freshly rendered
 template (CI run 34739909865).
+Since #2679, a present slot file also requires an explicit, non-repository-controlled opt-in before
+it runs at all — the file's mere presence is repository-controlled, so it can never be the trust
+boundary. An env var (`ARBITER_ALLOW_LOCAL_CHECKS=1`) or a CLI flag (`--allow-local-checks`) is not
+an acceptable opt-in mechanism either: both are exactly as repository-controllable as the slot file
+itself, because a poisoned `package.json` `"scripts"` launcher can set either one itself (e.g.
+`"gate": "ARBITER_ALLOW_LOCAL_CHECKS=1 node scripts/check-all.mjs"` or `"gate": "node
+scripts/check-all.mjs --allow-local-checks"`), granting its own opt-in the same way it ships the
+payload. The one signal a tracked file cannot carry is state that lives outside tracked repository
+content: a git config key, `arbiter.allowLocalChecks`, read with `git config --local --get
+arbiter.allowLocalChecks` — `--local` ONLY, never `--global`/`--system`. `--local` in `.git/config`
+is the one scope no ambient environment variable can redirect: a poisoned launcher can still set
+`GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM`/`GIT_CONFIG_COUNT`+`GIT_CONFIG_KEY_n`+`GIT_CONFIG_VALUE_n`/
+`GIT_DIR`/`GIT_WORK_TREE` to point git at attacker-supplied config or a different repository
+entirely, and could point a broader lookup at machine-wide `--global` config the launcher process
+itself can also write. So the read spawns `git` with a from-scratch environment (only `HOME`/`LANG`,
+needed for git to run, plus a FIXED `PATH` of system-only directories —
+`/usr/local/bin:/usr/bin:/bin` on POSIX; `%SystemRoot%\System32`/`%SystemRoot%` plus `Program
+Files\Git\cmd` on Windows — never the inherited `PATH` or any `GIT_*` variable) and compares the
+exact output `true\n` (no trimming). Setting the key `--local` is real per-repository-checkout
+machine state a repository cannot write to itself; the slot runs only when that read returns exactly
+`true\n`, and any failure (no git found on the fixed PATH, no repository, key unset, wrong scope, or
+any other value) fails closed to `SKIP`. This is intentionally per-environment, not per-repo: a
+consumer whose CI sets the local config key but whose developers never set it locally will
+legitimately see `local checks` as `SKIP` locally and `PASS`/`FAIL` in CI. That asymmetry is the
+contract working as designed, not a parity bug — a consumer that wants local↔CI parity for this gate
+runs `git config --local arbiter.allowLocalChecks true` in both places.
 
 ## INV-73 canonical presence floor
 
