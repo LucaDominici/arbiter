@@ -2620,7 +2620,9 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(CANON-01/04, __tests__/templates/acceptance-anchor-scripts-render.test.ts), and #2405 ' +
       'closed the ADR-110 follow-up: check-acceptance.mjs is emitted from ' +
       'src/templates/scripts/check-acceptance.mjs.ejs and wired in the generated check-all ' +
-      'via the `acceptance-anchor` row of gate-registry.yml.ejs (advisory). The catalog entry ' +
+      'via the `acceptance-anchor` row of gate-registry.yml.ejs — #2591 flipped it to `check` ' +
+      '(hard, runCheck), matching self; a consumer who opts in gets a gate that can actually ' +
+      'fail the build, not just advise. The catalog entry ' +
       'stays selfOnly because ACTIVATION is opt-in per project ' +
       '(features.acceptanceAnchor / ARBITER_ACCEPTANCE_ANCHOR): the mechanism now exists in ' +
       'every governed tree, but the RULE is not one every target is held to by default. ' +

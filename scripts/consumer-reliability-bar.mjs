@@ -21,6 +21,7 @@ import {
   commandOutcomeKind,
   extractWorkflowRun,
   extractCheckNames,
+  extractHardCheckNames,
   formatFailureLines,
   pinnedHeadMatches,
   parseGateSurfaceOutput,
@@ -294,6 +295,10 @@ function readDeclaredSurface(repo, surface, baseline, mapping) {
     return {
       ok: true,
       gates: [...extractCheckNames(baseline.before), ...resolvedMapping.gates],
+      // #2591: a name found only via runWarnCheck cannot back a WIRED claim (never fails
+      // the build) — resolvedMapping.gates (workflow-run evidence, a real `run:` step that
+      // fails its job) is hard by construction.
+      gatesHard: [...extractHardCheckNames(baseline.before), ...resolvedMapping.gates],
       mapping: resolvedMapping.mapping,
     }
   }
@@ -310,7 +315,14 @@ function readDeclaredSurface(repo, surface, baseline, mapping) {
     if (!parsed.ok) return parsed
     for (const gate of parsed.gates) gates.add(gate)
   }
-  return { ok: true, gates: [...gates, ...resolvedMapping.gates], mapping: resolvedMapping.mapping }
+  // A command-probed surface measures a real pass/fail run per gate, not a static call
+  // family — hard by construction, same as the workflow-run evidence merged in below.
+  return {
+    ok: true,
+    gates: [...gates, ...resolvedMapping.gates],
+    gatesHard: [...gates, ...resolvedMapping.gates],
+    mapping: resolvedMapping.mapping,
+  }
 }
 
 function resolveMappingEvidence(repo, mapping) {
@@ -368,6 +380,7 @@ function recordGateSurface(repo, consumer, gateMap, handoff, baseline, freshRend
   const verdict = assessGateSurface({
     freshRender,
     declared: surface.gates,
+    declaredHard: surface.gatesHard,
     mapping: surface.mapping,
     debtRegister: { ceiling: entry.debtCeiling, openIssues: handoff.openDebtIssues ?? [] },
   })

@@ -12,6 +12,7 @@ import {
   classifyUpdateResult,
   commandOutcomeKind,
   extractCheckNames,
+  extractHardCheckNames,
   extractWorkflowRun,
   redactSecrets,
   resultExitCode,
@@ -125,6 +126,51 @@ describe('consumer reliability bar oracles (#2135)', () => {
 
   it('AC-2 reconciles a fully wired surface', () => {
     const result = assessGateSurface(surfaceCase())
+    expect(result.ok).toBe(true)
+  })
+
+  // #2591: a name found only via runWarnCheck cannot back a bare WIRED claim — that call
+  // family can never return non-zero, so "WIRED" would assert a build-failing gate that
+  // structurally cannot fail the build.
+  it('#2591 fails a WIRED mapping whose consumer gate is only warn-wired', () => {
+    const source = "runWarnCheck('acceptance anchor (INV-138)', 'node', ['check-acceptance.mjs'])"
+    const result = assessGateSurface(
+      surfaceCase({
+        freshRender: ['acceptance anchor (INV-138)'],
+        declared: [...extractCheckNames(source)],
+        declaredHard: [...extractHardCheckNames(source)],
+        mapping: { 'acceptance anchor (INV-138)': 'WIRED:acceptance anchor (INV-138)' },
+      }),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.detail).toMatch(/only found in the executed surface via a call family/)
+  })
+
+  // The escape hatch: declare the warn-level match explicitly rather than silently.
+  it('#2591 passes when the same warn-wired gate uses WIRED:warn:', () => {
+    const source = "runWarnCheck('acceptance anchor (INV-138)', 'node', ['check-acceptance.mjs'])"
+    const result = assessGateSurface(
+      surfaceCase({
+        freshRender: ['acceptance anchor (INV-138)'],
+        declared: [...extractCheckNames(source)],
+        declaredHard: [...extractHardCheckNames(source)],
+        mapping: { 'acceptance anchor (INV-138)': 'WIRED:warn:acceptance anchor (INV-138)' },
+      }),
+    )
+    expect(result.ok).toBe(true)
+  })
+
+  // A hard runCheck match still resolves as a plain WIRED claim.
+  it('#2591 passes a bare WIRED mapping whose consumer gate is hard (runCheck)', () => {
+    const source = "runCheck('acceptance anchor (INV-138)', 'node', ['check-acceptance.mjs'])"
+    const result = assessGateSurface(
+      surfaceCase({
+        freshRender: ['acceptance anchor (INV-138)'],
+        declared: [...extractCheckNames(source)],
+        declaredHard: [...extractHardCheckNames(source)],
+        mapping: { 'acceptance anchor (INV-138)': 'WIRED:acceptance anchor (INV-138)' },
+      }),
+    )
     expect(result.ok).toBe(true)
   })
 
@@ -304,6 +350,9 @@ describe('consumer reliability bar oracles (#2135)', () => {
       const declared = Object.values(mapping)
         .filter((verdict) => verdict.startsWith('WIRED:'))
         .map((verdict) => verdict.slice('WIRED:'.length))
+        // #2591: a WIRED:warn:<id> value's "declared" gate id is <id>, not "warn:<id>" —
+        // mirrors the WIRED_WARN stripping judgeMappingEntry does in the real oracle.
+        .map((value) => (value.startsWith('warn:') ? value.slice('warn:'.length) : value))
       const result = assessGateSurface({
         freshRender: Object.keys(mapping),
         declared,

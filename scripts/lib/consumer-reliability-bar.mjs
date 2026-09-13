@@ -1,10 +1,20 @@
 // Pure oracles shared by the private consumer reliability prepare/verifier commands (#2135).
 
 const RUNNER_CALL = /\b(?:runCheck|runWarnCheck|runToolCheck|pushResult)\s*\(\s*(['"`])([^'"`]+)\1/g
+// #2591: runWarnCheck can never return non-zero (scripts/lib/run-helpers.mjs), so a name
+// called ONLY through runWarnCheck cannot back a WIRED claim ("really runs a gate that
+// FAILS ON THE SAME DEFECT" — see the AC-2 note above). runCheck/runToolCheck fail closed;
+// pushResult lets the caller push FAIL directly, so it is hard by the same test.
+const HARD_RUNNER_CALL = /\b(?:runCheck|runToolCheck|pushResult)\s*\(\s*(['"`])([^'"`]+)\1/g
 const CONSUMER_SECRET_PREFIX = `${['ARBITER', 'CONSUMER'].join('_')}_`
 
 export function extractCheckNames(source) {
   return new Set([...source.matchAll(RUNNER_CALL)].map((match) => match[2]).sort())
+}
+
+/** Names called through a family that can actually fail the build (excludes runWarnCheck-only). */
+export function extractHardCheckNames(source) {
+  return new Set([...source.matchAll(HARD_RUNNER_CALL)].map((match) => match[2]).sort())
 }
 
 // A deliberately small YAML reader for the only evidence shape the Bar needs:
@@ -90,8 +100,14 @@ export function assessGateSpine({ before, after, existed }) {
 // of three buckets:
 //
 //   WIRED:<gate id>    the consumer really runs a gate with that property, under its own
-//                      name. The id is checked against the surface measured THIS run, so
-//                      a gate leaving the consumer's spine reddens the row.
+//                      name, THROUGH A CALL FAMILY THAT CAN FAIL (#2591) — a name found
+//                      only via runWarnCheck cannot carry a bare WIRED claim, because it
+//                      structurally cannot fail the consumer's build. The id is checked
+//                      against the surface measured THIS run, so a gate leaving the
+//                      consumer's spine, or downgrading to warn, reddens the row.
+//   WIRED:warn:<id>    an explicit, deliberate exception: the consumer really runs the gate
+//                      but only in warn mode. Checked against the full executed surface
+//                      (any call family), never silently upgraded to WIRED:<id>.
 //   DECLINED:<reason>  the consumer legitimately does not need it. The reason is required
 //                      — "out of scope" with no sentence behind it is how a criterion dies.
 //   DEBT:#NNNN         a real gap against a real issue, machine-verified OPEN upstream.
@@ -100,16 +116,27 @@ export function assessGateSpine({ before, after, existed }) {
 // committed integer and enforced in both directions, so a new entry can only enter when
 // another leaves resolved. Without that, one free-text `DEBT:#9999` zeroes the criterion.
 const MAPPING_VERDICT = /^(WIRED|DECLINED|DEBT):([\s\S]*)$/
+const WIRED_WARN = /^warn:([\s\S]*)$/
 
 // One mapping entry, judged against the surface measured THIS run. Returns the problem
 // text, or null when the entry is sound.
-function judgeMappingEntry(name, verdict, executed, openIssues) {
+function judgeMappingEntry(name, verdict, executed, executedHard, openIssues) {
   const parsed = MAPPING_VERDICT.exec(verdict)
   if (parsed === null) return `${name}: unknown mapping verdict ${verdict}`
   const [, kind, value] = parsed
   if (kind === 'WIRED') {
+    const warn = WIRED_WARN.exec(value)
+    if (warn !== null) {
+      const [, softValue] = warn
+      return executed.has(softValue)
+        ? null
+        : `${name}: mapped to warn-wired gate ${softValue}, absent from the executed surface`
+    }
+    if (executedHard.has(value)) return null
     return executed.has(value)
-      ? null
+      ? `${name}: mapped to gate ${value}, only found in the executed surface via a call ` +
+          'family that cannot fail the build (e.g. runWarnCheck) — declare WIRED:warn:' +
+          `${value} if that is deliberate, or DEBT if it is a real gap`
       : `${name}: mapped to gate ${value}, absent from the executed surface`
   }
   if (kind === 'DECLINED') {
@@ -147,9 +174,13 @@ function ratchetProblems(debt, ceiling) {
   ]
 }
 
-export function assessGateSurface({ freshRender, declared, mapping, debtRegister }) {
+export function assessGateSurface({ freshRender, declared, declaredHard, mapping, debtRegister }) {
   const emitted = [...new Set(freshRender)].sort()
   const executed = new Set(declared)
+  // #2591: callers with real source (kind-aware) pass declaredHard explicitly. Callers that
+  // only ever had a flat name list (no call-family info to lose) fall back to `declared` —
+  // unchanged behavior, not a silent hard-by-default over real warn-only evidence.
+  const executedHard = new Set(declaredHard ?? declared)
   const entries = mapping ?? {}
   const openIssues = new Set(debtRegister?.openIssues ?? [])
   const problems = []
@@ -159,7 +190,7 @@ export function assessGateSurface({ freshRender, declared, mapping, debtRegister
   for (const name of emitted) {
     const verdict = entries[name]
     if (typeof verdict !== 'string') continue
-    const problem = judgeMappingEntry(name, verdict, executed, openIssues)
+    const problem = judgeMappingEntry(name, verdict, executed, executedHard, openIssues)
     if (problem !== null) problems.push(problem)
   }
 

@@ -1,8 +1,8 @@
 ---
 title: 'ADR-110: Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-07-21'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: '110'
 tags: ['audience/dev', 'kind/adr']
@@ -139,3 +139,16 @@ proving CANON-01 dual-sided declination by construction. What remains follow-up 
 the `check-acceptance.mjs` GATE wiring inside the generated `check-all.mjs` (hence
 INV-138 stays `selfOnly`). The `[ -f … ]` guards in ship.md remain for brownfield trees
 that predate the emission.
+
+## Amendment (2026-09-13, #2405/#2591) — the gate wiring follow-up is closed
+
+#2405 closed the GATE-wiring follow-up above: `check-acceptance.mjs` is emitted
+(`src/templates/scripts/check-acceptance.mjs.ejs`) and wired into the generated
+`check-all.mjs` via the `acceptance-anchor` row of `gate-registry.yml.ejs`. But that
+row shipped `kind: warn`, so an opted-in consumer (`features.acceptanceAnchor: true`)
+got a line in their gate output, never a build failure — self stayed `runCheck`
+(hard) while the emitted twin could not fail closed. #2591 flipped the row to
+`kind: check`, matching self; AC-2 (a non-opted-in tree stays green) is unaffected
+because the script's own flag/phase gating, not the registry `kind`, already
+carried that inertness. INV-138 stays `selfOnly` — ACTIVATION (opt-in per
+project) is the remaining asymmetry, not enforcement strength once activated.
