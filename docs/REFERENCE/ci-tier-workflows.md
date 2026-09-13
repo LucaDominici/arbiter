@@ -362,6 +362,19 @@ Nightly, so an epilogue change is visible there, not in T1.
 > injectable `codexHome` (like `claudeHome`) so its Codex-auth assertion never depends on the
 > runner's real home directory. The SLSA generator is pinned by commit
 > SHA, so it is called with `compile-generator: true` (a prebuilt generator binary needs a tag ref).
+>
+> **Release tag ancestry and least privilege (#2679):** `build-superset` opens with an
+> `ancestry-check` step (full-history checkout) that fails closed unless the pushed tag name
+> resolves to the checked-out `GITHUB_SHA` (rejects a re-pointed tag object) and `GITHUB_SHA` is
+> an ancestor of `origin/<default branch>` (rejects a tag pushed at an unreviewed commit); who may
+> push a `v*` tag or protect the default branch is an owner-configured GitHub repo setting this
+> workflow cannot itself change. `publish-package` publishes through OIDC trusted publishing by
+> default with no token in its env; a separate `npm publish` step carrying `NODE_AUTH_TOKEN` exists
+> only behind an explicit, off-by-default `vars.NPM_PUBLISH_TOKEN_FALLBACK == 'true'` opt-in for an
+> initial/transition publish before npm's trusted-publisher entry is configured (see
+> `docs/internal/release-playbook.md`). `cosign-sign` carries only `id-token: write` (it downloads
+> an artifact and signs it — no checkout, no push), and every job in `05-release.yml` now declares
+> its own `permissions:` block instead of relying on the repo/org default.
 
 > **Gitleaks scan scope (#1908):** `security-early-fail`'s `gitleaks detect` call (and the
 > matching L2 check in `scripts/check-all.mjs`) passes `--log-opts="HEAD"`. Without it, gitleaks
