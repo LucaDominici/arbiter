@@ -5,9 +5,9 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 4365489,
-    "entryCount": 989,
-    "rosterSha256": "005bc4f433f800844dc2b63b25f281a3b56eca31740b92e599b7d864c3d36ca9"
+    "unpackedSize": 4393027,
+    "entryCount": 990,
+    "rosterSha256": "b81bd81228d7f5bb4f475ab06dab4517c873c06c99aadb88b797a2a95e41a8ad"
   },
   "manifest": {
     "bin": {
@@ -77,24 +77,24 @@
     "pathsSha256": "91d8ad26161b56a8d908ce00cc04dc391136f7ebfff411226c73ab3ba41f8fca"
   },
   "leading_spdx": {
-    "count": 281,
-    "pathsSha256": "f95e7ba2de8f311dcaf5e8fd09731f5548b0c530b088c35775c80882450b0c16"
+    "count": 282,
+    "pathsSha256": "ec46e7f4ca8e0e64d1b4dd222ad7c933c53087f1f905059d4dd0babda8348bce"
   },
   "repinned": {
-    "task_id": "#2660",
-    "date": "2026-09-12",
-    "reason": "owner decision: ship only the reachable surface — scripts/lib closure of the shipped scripts listed explicitly in files; .d.ts pruned at build time to the tsc closure of the exports entry points (scripts/prune-dist-declarations.mjs); size is advisory. Roster re-pinned from the measured pack.",
+    "task_id": "#2662",
+    "date": "2026-09-13",
+    "reason": "src/commands/ignore.ts (arbiter ignore add/remove, #2662) adds one new shipped file (dist/commands/ignore.js, carrying the SPDX header); not reachable from any .d.ts exports entry point so the declarations closure is unchanged. Roster re-pinned from the measured pack.",
     "before": {
-      "entryCount": 1301,
-      "unpackedSize": 5991665,
-      "declarations": 299,
-      "spdx": 304
-    },
-    "after": {
       "entryCount": 989,
       "unpackedSize": 4365489,
       "declarations": 19,
       "spdx": 281
+    },
+    "after": {
+      "entryCount": 990,
+      "unpackedSize": 4393027,
+      "declarations": 19,
+      "spdx": 282
     }
   }
 }
