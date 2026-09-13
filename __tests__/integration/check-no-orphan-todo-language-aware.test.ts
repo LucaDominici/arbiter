@@ -5,8 +5,10 @@
 // so a Go/Python/Rust/Java project (source outside those roots/extensions) always
 // resolved a zero-file scan set and hard-failed via the CANON-24 ABORT branch —
 // every non-TS/JS consumer got a permanent red gate for a language it doesn't use.
-// Zero files scanned for a language with no matching source yet must also not hard
-// fail (NO-DATA convention): PASS with a loud line instead of ABORT.
+// A zero-file scan still ABORTs (exit 1, CANON-24 programme-membership assertion,
+// unchanged) — the multi/unknown-language fallback now scans '.' with the union of
+// every known language's extensions, so a real project can only hit zero files if it
+// genuinely has no matching source anywhere, in which case FAIL is the honest answer.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, copyFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -64,12 +66,12 @@ describe('#2663 check-no-orphan-todo.mjs.ejs is language-aware', () => {
     expect(gate.status).toBe(0)
   })
 
-  it('NO-DATA: a language with zero matching source files PASSes loudly instead of ABORTing', () => {
+  it('a language with zero matching source files still ABORTs (CANON-24, unchanged)', () => {
     renderGateInto(dir, 'go')
     // No .go files at all under any of the gate's scan roots.
     const gate = runGate(dir)
-    expect(gate.status).toBe(0)
-    expect(gate.stdout.toLowerCase()).toMatch(/no .*(files|source)|0 file/)
+    expect(gate.status).toBe(1)
+    expect(gate.stdout).toContain('ABORT')
   })
 
   // #2663 (round 2 review fix): `language: 'multi'` (a polyglot repo) previously fell back to

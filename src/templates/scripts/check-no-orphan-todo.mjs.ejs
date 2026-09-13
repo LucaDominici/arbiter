@@ -104,20 +104,22 @@ export function main(exitFn = process.exit) {
     }
   }
 
-  // NO-DATA convention: a resolved scan set of zero files — an empty directory, a typo'd path,
-  // or a target that has no source yet under this language's conventional roots — is reported as
-  // a loud PASS, not silently treated as "no violations" (nothing found must stay visibly
-  // distinct from nothing looked at). Self and the emitted twin share this exactly (#2663):
-  // arbiter's own tree always has matching TS source in practice, so this path is defensive here,
-  // but every governed target legitimately hits it pre-scaffolding.
+  // Programme-membership assertion (CANON-24): "nothing found" and "nothing looked at" must
+  // never produce the same green. A resolved scan set of zero files — an empty directory, a
+  // typo'd path, or (pre-fix) an absolute argument silently mis-resolved under baseDir — means
+  // the gate proved nothing, so it fails loudly instead of reporting a false "no violations".
+  // #2663: the multi/unknown-language fallback scans '.' with the union of every known
+  // language's extensions, so a real project can only hit this branch if it has no matching
+  // source anywhere in the tree — FAIL is the honest answer, not a NO-DATA PASS.
   process.stdout.write(
     `  Scanned ${filesScanned} file(s) across ${scanDirs.length} dir(s): ${scanDirs.join(', ')}\n`,
   )
   if (filesScanned === 0) {
     process.stdout.write(
-      `\n  NO-DATA: 0 files found under ${scanDirs.join(', ')} — nothing to scan yet. PASS.\n\n`,
+      `\n  ABORT: resolved scan set is empty — 0 files found under ${scanDirs.join(', ')}. ` +
+        `A gate that finds nothing must first prove it looked somewhere (CANON-24).\n\n`,
     )
-    return exitFn(0)
+    return exitFn(1)
   }
 
   if (violations > 0) {
