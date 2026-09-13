@@ -235,7 +235,7 @@ describe('#2560 Codex round-1 #2 — every ABSENCE_EXEMPT entry is machine-valid
       const reg = join(dir, 'registry.json')
       writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
       const roster = join(dir, 'roster.json')
-      const { followUp: _drop, ...noFollowUp } = validExempt
+      const noFollowUp = { script: validExempt.script, reason: validExempt.reason }
       writeFileSync(
         roster,
         JSON.stringify({
