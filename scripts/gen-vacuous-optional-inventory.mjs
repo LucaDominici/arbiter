@@ -90,20 +90,32 @@ function collectTestFiles(root) {
   return acc.sort()
 }
 
+/** A `?? <literal>` hit on line `i` alone, or joined with the next line — whichever text it was
+ * found in is returned alongside, for the string-literal check. `null` when neither matches. */
+function findHit(codeLines, i, joined) {
+  const lineHit = HIT_RE.exec(codeLines[i])
+  if (lineHit) return { hit: lineHit, hitText: codeLines[i] }
+  const joinedHit = HIT_RE.exec(joined)
+  return joinedHit ? { hit: joinedHit, hitText: joined } : null
+}
+
+/** Documented via a `// arbiter-allow-vacuous` marker on this line or the line above. */
+function isExempt(rawLines, i) {
+  const prev = i > 0 ? rawLines[i - 1] : ''
+  return EXEMPT_RE.test(rawLines[i]) || EXEMPT_RE.test(prev)
+}
+
 function classify(codeLines, rawLines, i) {
   const line = codeLines[i]
   const joined = i + 1 < codeLines.length ? `${line}\n${codeLines[i + 1]}` : line
-  const lineHit = HIT_RE.exec(line)
-  const hit = lineHit ?? HIT_RE.exec(joined)
-  if (!hit) return null
-  const hitText = lineHit ? line : joined
-  if (isInsideStringLiteral(hitText, hit.index)) return null
-  const literal = hit[1]
-  const identity = IDENTITY_RE(literal)
+  const found = findHit(codeLines, i, joined)
+  if (!found) return null
+  if (isInsideStringLiteral(found.hitText, found.hit.index)) return null
+
+  const identity = IDENTITY_RE(found.hit[1])
   const vacuousShape = identity.test(line) || identity.test(joined)
   if (!vacuousShape) return { klass: 'c', reason: 'default not reasserted by an identity matcher' }
-  const prev = i > 0 ? rawLines[i - 1] : ''
-  if (EXEMPT_RE.test(rawLines[i]) || EXEMPT_RE.test(prev)) {
+  if (isExempt(rawLines, i)) {
     return { klass: 'a', reason: 'documented via // arbiter-allow-vacuous marker' }
   }
   return {

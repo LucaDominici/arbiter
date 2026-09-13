@@ -196,6 +196,59 @@ function collectTestFiles(root) {
   return acc
 }
 
+/**
+ * Read one test file, fail-closed: a directory shaped like a test file (EISDIR) or any other
+ * unreadable path returns `null` and immediately surfaces the specific failure to stderr — never
+ * a silent skip. Split out of main() to keep its cyclomatic complexity bounded.
+ */
+function readTestFileOrSurface(file) {
+  try {
+    // A directory named `*.test.ts` (or any non-regular-file path this walker returns) FAILS
+    // closed here too, before readFileSync throws its own less-specific EISDIR.
+    if (!statSync(file).isFile()) throw new Error('not a regular file')
+    return readFileSync(file, 'utf-8')
+  } catch (err) {
+    const detail = `  ${file}: unreadable — ${err?.message ?? err}`
+    process.stderr.write(`check-vacuous-optional-assertion: ${detail.trim()}\n`)
+    return { unreadable: detail }
+  }
+}
+
+/**
+ * Try line `i` alone, then joined with the next line (a `.toEqual(...)` wrapped onto its own
+ * line) — but only accept the joined match when it actually SPANS the line break (starts at or
+ * before it), so a match fully contained in line i+1 isn't double-reported here AND correctly on
+ * its own line at the next iteration. Returns `{ match, matchLine }` or `null`.
+ */
+function findLineMatch(codeLines, i) {
+  const single = findVacuousMatch(codeLines[i])
+  if (single) return { match: single, matchLine: codeLines[i] }
+  if (i + 1 >= codeLines.length) return null
+  const joinedText = `${codeLines[i]}\n${codeLines[i + 1]}`
+  const joined = findVacuousMatch(joinedText)
+  if (joined && joined.index <= codeLines[i].length) return { match: joined, matchLine: joinedText }
+  return null
+}
+
+/** One file's violations: an unreadable-file report, or one entry per vacuous line. */
+function findFileViolations(file) {
+  const content = readTestFileOrSurface(file)
+  if (typeof content !== 'string') return [content.unreadable]
+
+  const rawLines = content.split('\n')
+  const codeLines = stripBlockComments(content).split('\n').map(stripLineComment)
+  const violations = []
+  for (let i = 0; i < codeLines.length; i++) {
+    const found = findLineMatch(codeLines, i)
+    if (!found) continue
+    if (isInsideStringLiteral(found.matchLine, found.match.index)) continue
+    const prev = i > 0 ? rawLines[i - 1] : ''
+    if (EXEMPT_RE.test(rawLines[i]) || EXEMPT_RE.test(prev)) continue
+    violations.push(`  ${file}:${i + 1}: ${rawLines[i].trim()}`)
+  }
+  return violations
+}
+
 function main() {
   const files = collectTestFiles(ROOT)
   if (files.length === 0) {
@@ -203,49 +256,7 @@ function main() {
     return 0
   }
 
-  const violations = []
-  for (const file of files) {
-    let content
-    try {
-      // A directory named `*.test.ts` (or any non-regular-file path this walker returns) FAILS
-      // closed here too, before readFileSync throws its own less-specific EISDIR.
-      if (!statSync(file).isFile()) throw new Error('not a regular file')
-      content = readFileSync(file, 'utf-8')
-    } catch (err) {
-      // Fail closed: an unreadable test file is a FAIL naming the path, never a silent skip.
-      // Surfaced immediately (not only in the aggregate summary below) so `stderr` carries the
-      // specific failure even if a later file in the loop throws unexpectedly.
-      const detail = `  ${file}: unreadable — ${err?.message ?? err}`
-      process.stderr.write(`check-vacuous-optional-assertion: ${detail.trim()}\n`)
-      violations.push(detail)
-      continue
-    }
-    const rawLines = content.split('\n')
-    const codeLines = stripBlockComments(content).split('\n').map(stripLineComment)
-    for (let i = 0; i < codeLines.length; i++) {
-      // Try the line alone, then the line joined with the next (wrapped `.toEqual(...)` on its
-      // own line). The match index is looked up in whichever text matched, for the string check.
-      const single = findVacuousMatch(codeLines[i])
-      // Only accept the joined-window match when it actually SPANS the line break (starts at or
-      // before it) — otherwise a match fully contained in line i+1 would be double-reported here
-      // AND (correctly) on its own line at the next iteration.
-      let match = single
-      let matchLine = codeLines[i]
-      if (!match && i + 1 < codeLines.length) {
-        const joinedText = `${codeLines[i]}\n${codeLines[i + 1]}`
-        const joined = findVacuousMatch(joinedText)
-        if (joined && joined.index <= codeLines[i].length) {
-          match = joined
-          matchLine = joinedText
-        }
-      }
-      if (!match) continue
-      if (isInsideStringLiteral(matchLine, match.index)) continue
-      const prev = i > 0 ? rawLines[i - 1] : ''
-      if (EXEMPT_RE.test(rawLines[i]) || EXEMPT_RE.test(prev)) continue
-      violations.push(`  ${file}:${i + 1}: ${rawLines[i].trim()}`)
-    }
-  }
+  const violations = files.flatMap(findFileViolations)
 
   if (violations.length > 0) {
     process.stderr.write(
