@@ -215,6 +215,49 @@ program.parse()
     }
   })
 
+  // Regression (#2569): a command whose .action() body runs long (a real
+  // case: doc-set's action body starts 2378 chars past its .command() call)
+  // must still have its own options captured — parseCliTs's block scan must
+  // not truncate the block before reaching the terminator. This guards the
+  // {0,2000}-cap defect directly; the earlier content-drift test does not
+  // exercise the >2000-char path.
+  it('captures options for a command whose action body runs past 2000 chars', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      // Filler with no `const `/`var `/`let `/`program` token (the block
+      // scan's terminator set) and past the old 2000-char cap: the old
+      // bounded lazy scan found no terminator within budget and the WHOLE
+      // block match failed, dropping options+description entirely (not a
+      // partial truncation) — this is the doc-set failure mode reproduced
+      // synthetically. `console.log(...)` filler avoids every terminator word.
+      const padding = Array.from(
+        { length: 60 },
+        (_, i) => `      console.log('filler line to pad the action body past the old cap ${i}')`,
+      ).join('\n')
+      const cliTs = `import { Command } from 'commander'
+const program = new Command()
+program
+  .command('wide')
+  .description('Wide command')
+  .option('--first', 'First option')
+  .option('--last', 'Last option')
+  .action(() => {
+${padding}
+  })
+program.parse()
+`
+      writeFileSync(join(dir, 'cli.ts'), cliTs)
+      makeCliMd(dir, '')
+      const w = run([`--cli=${join(dir, 'cli.ts')}`, `--doc=${join(dir, 'cli.md')}`], dir)
+      expect(w.status).toBe(0)
+      const content = readFileSync(join(dir, 'cli.md'), 'utf-8')
+      expect(content).toContain('--first')
+      expect(content).toContain('--last')
+    } finally {
+      cleanup()
+    }
+  })
+
   // Regression (#1646): positional-arg subcommands must be documented, and a
   // subcommand description must be resolved from the PARENT's scope — not the
   // first same-named `.command()` elsewhere in the file.
