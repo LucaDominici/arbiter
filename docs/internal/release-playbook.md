@@ -1,6 +1,6 @@
 ---
 title: 'Release Playbook'
-doc_version: '1.4.0'
+doc_version: '1.5.0'
 status: active
 last_review: '2026-09-13'
 owner: 'Luca Dominici'
@@ -74,8 +74,14 @@ file is included, not assumed from its mutant count:
 | `src/generators/github.ts`                 | 319     | every `.github/workflows/*.yml` render                                                                           | no — cheap by count, expensive to test (~2min/mutant, >10h projected total) |
 | `src/generators/registry.ts`               | 535     | orchestrates every other generator (`arbiter init`/`update`'s dispatch hub); no templates of its own             | no — would alone exceed budget once `init.ts` is included                   |
 | `src/generators/check-all.ts`              | 804     | `scripts/check-all.mjs` (the gate script itself)                                                                 | no — exceeds the whole budget alone by count                                |
-| all other `src/generators/*.ts` (76 files) | 4568    | —                                                                                                                | no                                                                          |
+| all other `src/generators/*.ts` (77 files) | 4887    | —                                                                                                                | no                                                                          |
 | `src/invariants/catalog.ts`                | 2482    | the INV catalog (declarative data, not CI/security-emitting)                                                     | no — exceeds the whole budget alone by count                                |
+
+Reconciliation against the 83-file generator total (`src/commands/init.ts` is not a generator, so
+it is not part of the 83): 3 included generator files (`githooks.ts` + `gitignore.ts` +
+`security.ts` = 127) + `github.ts` (319) + `registry.ts` (535) + `check-all.ts` (804) + the
+remaining 77 files (4887) = **6672**, matching the 83-file generator total exactly. Grand total:
+`init.ts` (143) + `catalog.ts` (2482) + generators (6672) = **9297**, matching the CI log.
 
 `stryker.config.json`'s `mutate` is `init.ts` + `githooks.ts` + `gitignore.ts` + `security.ts` =
 **270 mutants** across 4 files. Proven with one real local `npx stryker run` to completion (not
@@ -97,24 +103,32 @@ during that measurement, which inflates the number somewhat but the equality is 
 to trust in CI). Decision: raise `concurrency` to **6** (the self-hosted runner has 24 cores/62GB
 and was still under-used at 4) for headroom; scope stays at 270 mutants. This has not yet been
 re-measured to completion locally — the next tag run on the actual CI runner is the real proof,
-and this doc will be updated with that number. Caution: `inPlace: true` means every worker
-mutates the real working tree, and the c=4 run already proved test-generator side effects clobber
-real tracked files (`.githooks/*`, `.gitignore`, `.gitleaks.toml`,
-`.claude/hooks/check-no-pii.mjs`, restored via `git checkout --` afterward); c=4 held with 0
-errors/timeouts, which is not itself evidence that 2 more concurrent writers hold too.
+and this doc will be updated with that number. Caution: `inPlace: true` instruments and mutates
+the real working tree once, before workers start, then restores it afterward from
+`.stryker-tmp/backup-*` — the real concurrency concern is not that instrumentation, it's that this
+codebase self-applies its own generators in tests (the self-application/dogfood suite), and those
+tests write real files as a side effect while workers run. The c=4 run proved this: test-generator
+side effects clobbered real tracked files (`.githooks/*`, `.gitignore`, `.gitleaks.toml`,
+`.claude/hooks/check-no-pii.mjs`), restored via `git checkout --` afterward. c=4 held with 0
+errors/timeouts, which is not itself evidence that 2 more concurrent dogfood-writers hold too.
 
 **Fallback plan if the tag run still times out at `concurrency: 6`, computed from the c=4 table
 above (aggregate score = killed / (killed+survived+no-cov), so it stays checkable as scope
 shrinks):** the released-scope order must preserve `break: 60`, and dropping the _highest_-scoring
 file lowers the aggregate, not raises it. `security.ts` (84.91%) is the strongest scorer, not the
-"cheapest to lose" — dropping it alone still clears the bar (137/(137+30+8) → verify against a
-`--dryRunOnly` recount before acting) but the doc must not claim it improves margin. `init.ts`
-(58.74%, 143 of 270 mutants — over half the runtime) is the actual time-and-score drag: dropping
-it alone gives 98/(98+21+8) ≈ 77% and the largest time cut, at the cost of losing coverage on the
-most critical file (project scaffolding entry point). This is a criticality-vs-margin call for
-the orchestrator to make at incident time with a fresh `--dryRunOnly` recount, not a pre-committed
-two-step order — do not treat `security.ts` then `githooks.ts` as a safe default; verify each step
-against `break: 60` before dropping the next file.
+"cheapest to lose" — dropping it alone still clears the bar (killed 182-45=137, survived 75-5=70,
+no-cov 13-3=10 → 137/(137+70+10) = 137/217 = **63.13%**, still ≥60 but with less margin than the
+current 67.41%) but the doc must not claim it improves margin. `init.ts` (58.74%, 143 of 270
+mutants) is the actual score drag: dropping it alone gives killed 182-84=98, survived 75-50=25,
+no-cov 13-9=4 → 98/(98+25+4) = 98/127 = **77.17%**, the larger score improvement, at the cost of
+losing coverage on the most critical file (project scaffolding entry point) and its share of
+runtime (unmeasured per-file — the c=4 run did not report a per-file elapsed breakdown, only the
+aggregate 60m 0s; do not assume `init.ts`'s share of the 270 mutants maps proportionally to its
+share of the wall time under `perTest` coverage, the whole point of this doc is that mutant count
+does not predict cost). This is a criticality-vs-margin call for the orchestrator to make at
+incident time with a fresh `--dryRunOnly` recount, not a pre-committed two-step order — do not
+treat `security.ts` then `githooks.ts` as a safe default; verify each step against `break: 60`
+before dropping the next file.
 
 **Timing model (measured, not assumed):** the CI log's own progress line (run `34754262536`)
 gave ~7.8s/mutant wall-clock at `concurrency: 2`, but that figure came from cheap `catalog.ts`
@@ -129,14 +143,15 @@ the actual CI runner.
 - `src/generators/github.ts` (319 mutants, measured ~2min/mutant) — all CI workflow renders;
   excluded for **cost**, not criticality — it is the highest-priority family by output, but its
   test fan-out makes it the most expensive per mutant of anything measured. Stryker's
-  `incremental` mode (cache unchanged mutants' results across runs) is the path to bring it back
-  without paying the full cost every release.
+  `incremental` mode (cache unchanged mutants' results across runs) would let it be added back
+  without paying its full cost every release, but **`incremental` is NOT enabled today** — this
+  is documented future work, not a mitigation already in place.
 - `src/generators/registry.ts` (535 mutants) — orchestrates every other generator (renders no
   templates itself); would alone push past budget once `init.ts` is included, so it can never
   coexist with the current required baseline under this cap.
 - `src/generators/check-all.ts` (804 mutants) — emits the gate script itself (`check-all.mjs`);
   exceeds the entire budget alone by count, independent of anything else in scope.
-- The remaining 76 `src/generators/*.ts` files (4568 mutants combined) — no individual file in
+- The remaining 77 `src/generators/*.ts` files (4887 mutants combined) — no individual file in
   this set emits CI/security-bearing output ranked above the four included files; excluded as a
   block, not individually evaluated beyond the per-file counts already measured.
 - `src/invariants/catalog.ts` (2482 mutants) — a single large declarative catalog file, not a

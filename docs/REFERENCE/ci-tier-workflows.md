@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.28'
+doc_version: '2.0.29'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -391,10 +391,16 @@ Nightly, so an epilogue change is visible there, not in T1.
 > gitleaks/PII/ZAP generator) = 270 mutants, all measured cheap. A real proving run at
 > `concurrency: 4` scored 67.41 (≥60 ✓) but took 60m 0s — exactly the job's 60-minute budget, no
 > margin — so `concurrency` is raised to 6 (24-core/62GB runner, still under-used) for headroom;
-> scope is unchanged. `break: 60` is unchanged. `github.ts` and `catalog.ts` are tracked as debt
+> scope is unchanged. `break: 60` is unchanged. This is an explicit reduction from an unusable gate
+> (never green, projected hours-to-never-finish) to a smaller real signal, not a claim that the
+> included files are the highest-criticality ones: `github.ts`, the emitter of every CI workflow
+> and arguably the single highest-criticality file in the candidate set, is excluded precisely
+> because of cost, not because it matters less. `github.ts` and `catalog.ts` are tracked as debt
 > in `docs/internal/release-playbook.md` § Mutation surface debt with their measured per-mutant
 > cost as the reason, not silently dropped; that doc also carries the per-file score table and
-> the fallback analysis to apply if the tag run still times out at `concurrency: 6`.
+> the fallback analysis to apply if the tag run still times out at `concurrency: 6`. Stryker's
+> `incremental` mode (would let `github.ts` be re-added without paying its full cost every
+> release) is **not enabled** — it is documented future work, not a mitigation in place today.
 
 > **Gitleaks scan scope (#1908):** `security-early-fail`'s `gitleaks detect` call (and the
 > matching L2 check in `scripts/check-all.mjs`) passes `--log-opts="HEAD"`. Without it, gitleaks
