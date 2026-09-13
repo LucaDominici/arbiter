@@ -143,6 +143,11 @@ export interface DocSetSkeletonsResult {
   unbound: string[]
   /** Effective tier column the engine resolved this run (undefined when the engine SKIPped). */
   tierColumn?: TierColumn
+  /**
+   * #2504: the engine ran but produced no presence payload. `doc-set --plan/--apply` fails on it;
+   * the init/update pipeline keeps its advisory no-op (its own doc-set gate reports the engine).
+   */
+  auditError?: string
 }
 
 interface TaggedRow {
@@ -215,14 +220,14 @@ function scaffoldRow(
 }
 
 /**
- * The presence payload to plan from, or null for the one honest no-op: §1.2(e) a fresh
- * `init --dry-run` has no manifest on disk yet, so the engine SKIPs (plain text) with exit 0.
- * Any other missing payload is an engine failure (#2504) and throws rather than pass as that no-op.
+ * The presence payload to plan from, `null` for the honest no-op (§1.2(e): a fresh
+ * `init --dry-run` has no manifest on disk yet, so the engine SKIPs with exit 0), or — #2504 —
+ * the error for an engine that ran and produced no payload, which must not pass as that no-op.
  */
 function presenceAudit(
   repo: string,
   opts: { manifest?: string; profile?: string },
-): DocSetPayload | null {
+): DocSetPayload | null | { error: string } {
   const audit = runDocSet({
     repo,
     json: true,
@@ -231,10 +236,8 @@ function presenceAudit(
     ...(opts.profile !== undefined ? { profile: opts.profile } : {}),
   })
   if (audit.exitCode === 0 && audit.skipReason !== undefined) return null
-  if (audit.route !== 'presence' || !audit.payload) {
-    throw new Error(`doc-set: presence audit failed (exit ${audit.exitCode}) — no plan computed`)
-  }
-  return audit.payload
+  if (audit.route === 'presence' && audit.payload) return audit.payload
+  return { error: `doc-set: presence audit failed (exit ${audit.exitCode}) — no plan computed` }
 }
 
 /**
@@ -253,6 +256,7 @@ export function generateDocSetSkeletons(
 
   const payload = presenceAudit(repo, opts)
   if (payload === null) return { files, scaffolded, unbound }
+  if ('error' in payload) return { files, scaffolded, unbound, auditError: payload.error }
 
   const ctx: RowContext = {
     repo,
@@ -306,9 +310,11 @@ export interface DocSetPlanApplyOptions {
 export function runDocSetPlanApply(opts: DocSetPlanApplyOptions = {}): DocSetSkeletonsResult {
   const repo = opts.repo ? resolve(opts.repo) : process.cwd()
   const config: DocSetGenConfig = { targetDir: repo, projectName: basename(repo) }
-  return generateDocSetSkeletons(config, {
+  const result = generateDocSetSkeletons(config, {
     dryRun: !opts.apply,
     ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
     ...(opts.profile !== undefined ? { profile: opts.profile } : {}),
   })
+  if (result.auditError !== undefined) throw new Error(result.auditError)
+  return result
 }
