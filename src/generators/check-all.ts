@@ -752,6 +752,19 @@ function buildCheckAllRenderData(config: ProjectConfig): CheckAllRenderData {
 }
 
 /**
+ * #2664: matches every way the spine template imports a `./lib/*.mjs` module —
+ * static named/default (`… from './lib/x.mjs'`), bare (`import './lib/x.mjs'`),
+ * and dynamic (`import('./lib/x.mjs')`, `await import('./lib/x.mjs')`) — single,
+ * double or backtick-quoted. `[^'"`${}]` in the captured name excludes `$`/`{`/`}`
+ * so a template-literal path WITH interpolation (`` `./lib/${x}.mjs` `` — not a
+ * statically resolvable module) is never mistaken for a literal one; the
+ * original `from ['"]…['"]`-only pattern missed `check-all.mjs.ejs`'s two
+ * `await import('./lib/gate-evidence.mjs')` sites entirely (#2664 round 2).
+ */
+const LIB_IMPORT_PATTERN =
+  /\b(?:import\s*\(\s*|import\s+|from\s+)['"`]\.\/lib\/([^'"`${}]+\.mjs)['"`]/g
+
+/**
  * #2664 (AC-2664.1/2): the `scripts/lib/*.mjs` manifest keys the RENDERED gate
  * spine actually imports, split into `resolved` (a matching template exists
  * under `scripts/lib/`, so arbiter can emit it) and `unresolved` (the import
@@ -772,7 +785,7 @@ export function gateSpineDependencies(config: ProjectConfig): {
   const rendered = renderTemplate('scripts/check-all.mjs.ejs', buildCheckAllRenderData(config))
   const resolved = new Set<string>()
   const unresolved = new Set<string>()
-  for (const match of rendered.matchAll(/from ['"]\.\/lib\/([^'"]+\.mjs)['"]/g)) {
+  for (const match of rendered.matchAll(LIB_IMPORT_PATTERN)) {
     const name = match[1] as string
     ;(libTemplateExists(name) ? resolved : unresolved).add(`scripts/lib/${name}`)
   }

@@ -45,6 +45,7 @@ import { buildAdoptPredicate, recordLocalOverride } from './adopt-policy.js'
 import {
   IGNORE_FILE_NAME,
   buildSelectionPredicate,
+  isIgnored,
   loadIgnorePatterns,
   matchesOnly,
   type SelectionVerdict,
@@ -1223,19 +1224,29 @@ function saveValidatedConfig(
  * and the advisory run lock, neither of which touches project-managed
  * content, so a refusal here still leaves the repo exactly as it found it.
  *
- * `added` is the exact set this widening appended to `only` — the caller
- * needs it to label those files distinctly in `--adopt-plan` (AC-2664.2):
- * a dependency with NO manifest baseline (never emitted before) resolves to
- * `action: 'created'`, a WriteResult bucket `partitionPlanResults` does not
- * otherwise surface at all.
+ * #2664 round 2 (P2): widening `only` is not enough — `.arbiterignore` wins
+ * over `--only` at the write chokepoint (`buildSelectionPredicate` checks
+ * ignore FIRST), so a missing dependency that is ALSO `.arbiterignore`d would
+ * be silently appended to `only` and then just as silently deselected again,
+ * landing the exact dangling-import spine this whole function exists to
+ * prevent. Refuse instead, naming the ignored gap, for any missing dependency
+ * `.arbiterignore` excludes — regardless of whether it needed widening.
+ *
+ * `deps` is the FULL resolved closure (not only the subset appended to
+ * `only`) — #2664 round 2 (P3): a dependency `--only` already covers via a
+ * wider glob (e.g. `--only 'scripts/**'`) needs no widening but can still
+ * resolve to `action: 'created'`, and the caller (`--adopt-plan`'s
+ * `wouldCreateGateSpineDependencies`, AC-2664.2) must be able to name it too.
+ * Intersecting the full closure against the run's actual results is what
+ * makes that labeling correct independent of whether widening happened.
  */
 function widenOnlyForGateSpineDeps(
   only: string[],
   config: ProjectConfig,
   targetDir: string,
-): { only: string[]; added: string[] } {
+): { only: string[]; deps: string[] } {
   if (only.length === 0 || !matchesOnly(only, 'scripts/check-all.mjs')) {
-    return { only, added: [] }
+    return { only, deps: [] }
   }
   const { resolved, unresolved } = gateSpineDependencies(config)
   if (unresolved.length > 0) {
@@ -1245,10 +1256,19 @@ function widenOnlyForGateSpineDeps(
         `them: ${unresolved.join(', ')}`,
     )
   }
-  const added = resolved.filter(
-    (key) => !matchesOnly(only, key) && !existsSync(join(targetDir, key)),
-  )
-  return added.length === 0 ? { only, added: [] } : { only: [...only, ...added], added }
+  const missing = resolved.filter((key) => !existsSync(join(targetDir, key)))
+  const ignorePatterns = loadIgnorePatterns(targetDir)
+  const ignoredMissing = missing.filter((key) => isIgnored(ignorePatterns, key))
+  if (ignoredMissing.length > 0) {
+    throw new UserFacingError(
+      `--only scripts/check-all.mjs: the spine imports ${ignoredMissing.length} lib ` +
+        `module(s) excluded by ${IGNORE_FILE_NAME} — adopting the spine without them ` +
+        `would leave a dangling import. Remove the pattern or drop the module from ` +
+        `--only scope: ${ignoredMissing.join(', ')}`,
+    )
+  }
+  const added = missing.filter((key) => !matchesOnly(only, key))
+  return { only: added.length === 0 ? only : [...only, ...added], deps: resolved }
 }
 
 /**
@@ -1266,15 +1286,15 @@ function resolveSelectionPolicy(
   // #2664 (P2): `--adopt` force-adopts the gate spine exactly like
   // `--adopt-gate-spine` (buildAdoptPredicate's `adoptAll` branch) — same
   // failure mode, so the closure must be resolved for either flag.
-  const { only, added } =
+  const { only, deps } =
     options.adoptGateSpine || options.adopt
       ? widenOnlyForGateSpineDeps(requested, config, targetDir)
-      : { only: requested, added: [] }
+      : { only: requested, deps: [] }
   const ignorePatterns = loadIgnorePatterns(targetDir)
   return {
     only,
     selectPredicate: buildSelectionPredicate({ patterns: ignorePatterns, only }),
-    gateSpineDeps: added,
+    gateSpineDeps: deps,
   }
 }
 
