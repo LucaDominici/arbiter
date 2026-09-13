@@ -117,19 +117,26 @@ export function classifyConsumerAudit(auditJson, allowlist, now) {
   ) {
     return { unsuppressed: [], errored: true, reason: 'registry-unreachable' }
   }
-  // A valid clean audit is `{ vulnerabilities: {}, metadata: {...} }` — an empty
-  // vulnerabilities object is CLEAN, not errored. Only a payload lacking BOTH keys
-  // (unrecognised schema) is treated as malformed / errored (fail-closed, never silent-pass).
-  if (!('vulnerabilities' in obj) && !('metadata' in obj)) {
+  // A well-formed npm-audit report ALWAYS carries `vulnerabilities` as a plain
+  // object keyed by package name — never absent, `null`, or an array. A valid
+  // clean audit is `{ vulnerabilities: {}, metadata: {...} }`: an empty
+  // vulnerabilities OBJECT is CLEAN, not errored — but metadata-only,
+  // `vulnerabilities: null`, and array payloads are all malformed, not "clean
+  // with zero findings" (diff-review round 1, #2515): a raw key/entry count is
+  // never evidence of validity until the shape backing it is checked first.
+  if (!isPlainObject(obj.vulnerabilities)) {
     return { unsuppressed: [], errored: true, reason: 'malformed' }
   }
-  const vulnerabilities =
-    obj.vulnerabilities !== null && typeof obj.vulnerabilities === 'object'
-      ? /** @type {Record<string, unknown>} */ (obj.vulnerabilities)
-      : {}
+  const vulnerabilities = /** @type {Record<string, unknown>} */ (obj.vulnerabilities)
 
   const unsuppressed = []
   for (const [pkgKey, raw] of Object.entries(vulnerabilities)) {
+    // Each entry must itself be a plain object with a string `severity` — a
+    // garbage entry (e.g. `{ lodash: null }`) is a malformed report, not a
+    // package with "no finding" (diff-review round 1, #2515).
+    if (!isPlainObject(raw) || typeof (/** @type {Record<string, unknown>} */ (raw).severity) !== 'string') {
+      return { unsuppressed: [], errored: true, reason: 'malformed' }
+    }
     const entry = classifyVulnEntry(pkgKey, raw, allowlist, now)
     if (entry) unsuppressed.push(entry)
   }
@@ -144,6 +151,18 @@ export function classifyConsumerAudit(auditJson, allowlist, now) {
   }
 
   return { unsuppressed, errored: false }
+}
+
+/**
+ * True for a non-null, non-array object — the shape npm audit uses for both the
+ * top-level `vulnerabilities` map and every entry inside it. Excludes arrays and
+ * `null` deliberately: both are `typeof === 'object'` in JS but neither is the
+ * keyed-object schema this gate parses (#2515 diff-review round 1).
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 /**
