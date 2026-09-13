@@ -71,4 +71,20 @@ describe('#2663 check-no-orphan-todo.mjs.ejs is language-aware', () => {
     expect(gate.status).toBe(0)
     expect(gate.stdout.toLowerCase()).toMatch(/no .*(files|source)|0 file/)
   })
+
+  // #2663 (round 2 review fix): `language: 'multi'` (a polyglot repo) previously fell back to
+  // the TypeScript-only default, so a Java file under a nonstandard directory was never
+  // scanned — an orphan TODO there was silently ignored, and a repo with zero TS/JS files
+  // resolved a false NO-DATA green even with a real Java violation on disk.
+  it('multi: a Java orphan TODO under a nonstandard dir is scanned and flagged', () => {
+    renderGateInto(dir, 'multi')
+    mkdirSync(join(dir, 'services', 'billing'), { recursive: true })
+    writeFileSync(
+      join(dir, 'services', 'billing', 'Invoice.java'),
+      '// TODO: reconcile totals\npublic class Invoice {}\n',
+    )
+    const gate = runGate(dir)
+    expect(gate.status).toBe(1)
+    expect(gate.stdout).toContain('services/billing/Invoice.java')
+  })
 })
