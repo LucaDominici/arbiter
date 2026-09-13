@@ -1,8 +1,8 @@
 ---
 title: '`.arbiter-generated.json` State File'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -31,11 +31,11 @@ The snapshot file records the config used to generate the project. `arbiter upda
 }
 ```
 
-| Field            | Type   | Notes                                                                          |
-| ---------------- | ------ | ------------------------------------------------------------------------------ |
-| `.checksum`      | hex    | SHA-256 of `canonicalJson({$schemaVersion, config})` — must come first on read |
-| `$schemaVersion` | int    | Storage-envelope version (currently `1`)                                       |
-| `config`         | object | The full `ArbiterConfig` exactly as it appears in `arbiter.json`               |
+| Field            | Type   | Notes                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.checksum`      | hex    | SHA-256 of `canonicalJson({$schemaVersion, config})` — must come first on read                                                                                                                                                                                                                                                                                                   |
+| `$schemaVersion` | int    | Storage-envelope version (currently `1`)                                                                                                                                                                                                                                                                                                                                         |
+| `config`         | object | The full `ArbiterConfig` used to generate — usually identical to `arbiter.json`, but `update` can persist a SANITIZED value here for a field it keeps raw on disk (`tools`, #2661): `arbiter.json` never silently rewrites a user's declared value, while the snapshot must stay on the value generation actually used, since it is the diff basis the next run compares against |
 
 The checksum is computed against the **canonical** serialisation (object keys sorted recursively) so reordering equivalent JSON does not invalidate it.
 
