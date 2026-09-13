@@ -4,9 +4,10 @@
 // L1: format + lint + unit tests (fast, pre-commit)
 // L2: L1 + coverage + audit (full, pre-push)
 // --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 // Helper trinity (#351, CANON-01) — runCheck (HARD), runWarnCheck (info),
@@ -1620,12 +1621,22 @@ runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-l
 // process: a project-local module's top-level code is untrusted with respect
 // to THIS process's lifetime — an accidental (or malicious) top-level
 // `process.exit(0)` imported in-process would green-exit the whole gate,
-// silently skipping every check still queued behind it. The child's only job
-// is reading the `checks` export and printing it as JSON; the declared check
+// silently skipping every check still queued behind it. The declared check
 // COMMANDS still run in the gate's own process via the normal runCheck trio,
 // so --dry-run/--gate keep working on them exactly like any registry gate.
-// A child that exits non-zero, is killed (timeout/signal), or prints anything
-// that is not valid JSON is a FAIL — never silently treated as "no checks".
+//
+// The child↔parent handoff is a FILE, not stdout, and it is unforgeable by the
+// loaded module: the parent mints a random per-run nonce and a random temp
+// path BEFORE spawning, embeds both as literals in the child's `-e` bootstrap
+// source (never exposed via env or argv, so the imported module cannot read
+// them), and only the bootstrap's OWN `.then` callback — which runs only
+// AFTER `import()` resolves — writes `nonce + JSON.stringify(checks)` to that
+// path. A malicious module that races the write (e.g. `writeSync(1, '[]');
+// process.exit(0)` before the import settles) leaves the result file missing
+// entirely; one that discovers the path some other way and writes to it still
+// can't produce the nonce it was never given. Missing file, nonce mismatch, a
+// non-zero/killed child, or invalid JSON after the nonce are ALL a FAIL —
+// never silently treated as "no checks" (INV-96 fail-closed).
 //
 // Each entry runs through the SAME runCheck trio every registry gate uses —
 // --dry-run/--gate honor it for free via setMode — labeled `[local] <name>` so
@@ -1640,10 +1651,15 @@ runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-l
 {
   const _localSlotPath = resolve(dirname(fileURLToPath(import.meta.url)), 'check-all.local.mjs');
   if (existsSync(_localSlotPath)) {
+    const _localNonce = randomBytes(16).toString('hex');
+    const _localOutPath = join(tmpdir(), `arbiter-check-all-local-${randomBytes(8).toString('hex')}.json`);
     const _localImportSrc =
-      'import(' + JSON.stringify(pathToFileURL(_localSlotPath).href) + ')' +
-      '.then((m) => { process.stdout.write(JSON.stringify(m.checks === undefined ? null : m.checks)); })' +
-      '.catch((e) => { process.stderr.write(String(e && e.stack ? e.stack : e)); process.exitCode = 1; });';
+      "import { writeFileSync } from 'node:fs';\n" +
+      'import(' + JSON.stringify(pathToFileURL(_localSlotPath).href) + ').then((m) => {\n' +
+      '  writeFileSync(' + JSON.stringify(_localOutPath) + ', ' + JSON.stringify(_localNonce) +
+      ' + JSON.stringify(m.checks === undefined ? null : m.checks));\n' +
+      '  process.exit(0);\n' +
+      '}).catch((e) => { process.stderr.write(String(e && e.stack ? e.stack : e)); process.exit(1); });';
     const _localProc = spawnSync(
       process.execPath,
       ['--input-type=module', '-e', _localImportSrc],
@@ -1656,13 +1672,28 @@ runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-l
     } else if (_localProc.status !== 0 || _localProc.signal) {
       _localFail = `scripts/check-all.local.mjs failed to load (exit ${_localProc.status ?? _localProc.signal}): ` +
         `${(_localProc.stderr || '').trim() || 'a top-level process.exit or thrown error prevented its checks export from being read'}`;
+    } else if (!existsSync(_localOutPath)) {
+      _localFail = 'scripts/check-all.local.mjs exited before its checks export could be captured ' +
+        '(result file missing — a stdout/exit hijack cannot forge this)';
     } else {
+      let _localRaw = '';
       try {
-        _localChecks = JSON.parse(_localProc.stdout);
-      } catch {
-        _localFail = 'scripts/check-all.local.mjs produced no readable output ' +
-          '(a top-level process.exit likely fired before its checks export could be read)';
+        _localRaw = readFileSync(_localOutPath, 'utf-8');
+      } catch (_readErr) {
+        _localFail = `could not read captured local-checks result: ${_readErr.message}`;
       }
+      if (_localFail === null && !_localRaw.startsWith(_localNonce)) {
+        _localFail = 'captured local-checks result is missing its per-run nonce — refusing a forged/stale result';
+      } else if (_localFail === null) {
+        try {
+          _localChecks = JSON.parse(_localRaw.slice(_localNonce.length));
+        } catch {
+          _localFail = 'captured local-checks result is not valid JSON';
+        }
+      }
+      try {
+        if (existsSync(_localOutPath)) unlinkSync(_localOutPath);
+      } catch { /* best-effort cleanup of the temp result file */ }
     }
     if (_localFail !== null) {
       console.error(`[CHECK] local checks ... FAIL (${_localFail})`);

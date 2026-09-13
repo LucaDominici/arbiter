@@ -160,15 +160,26 @@ describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', 
     )
   })
 
-  it('fails loud on a malformed entry whose cmd contains a non-string/empty-string element', () => {
+  it('fails loud on a malformed entry whose cmd contains an empty-string element', () => {
     const r = runLocalSlotHarness(
-      "export const checks = [{ name: 'bad-cmd', cmd: ['node', '', 3], tier: 'L1' }];\n",
+      "export const checks = [{ name: 'bad-cmd-empty', cmd: ['node', ''], tier: 'L1' }];\n",
     )
     const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
     expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
       true,
     )
-    expect(r.stdout).not.toContain('[local] bad-cmd')
+    expect(r.stdout).not.toContain('[local] bad-cmd-empty')
+  })
+
+  it('fails loud on a malformed entry whose cmd contains a non-string element', () => {
+    const r = runLocalSlotHarness(
+      "export const checks = [{ name: 'bad-cmd-type', cmd: ['node', 3], tier: 'L1' }];\n",
+    )
+    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
+    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
+      true,
+    )
+    expect(r.stdout).not.toContain('[local] bad-cmd-type')
   })
 
   // P0 (Codex review): the local module is loaded in a CHILD process. A
@@ -189,6 +200,27 @@ describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', 
       true,
     )
     // The escaping module's own (unreachable) check never ran.
+    expect(r.stdout).not.toContain('[local] never-seen')
+  })
+
+  // P0 round 2 (Codex review): the handoff is a file the CHILD BOOTSTRAP
+  // writes only after `import()` resolves, carrying a per-run nonce the
+  // loaded module never sees — not stdout. A module that races the write by
+  // printing straight to fd 1 and exiting before the bootstrap's `.then`
+  // fires produces no result file at all, so it cannot forge a "no checks"
+  // (or any other) result by mimicking the old stdout protocol.
+  it('a module forging stdout output (writeSync(1, ...) + exit(0)) cannot fake a result — FAILs loud', () => {
+    const r = runLocalSlotHarness(
+      "import { writeSync } from 'node:fs';\n" +
+        "writeSync(1, '[]');\n" +
+        'process.exit(0);\n' +
+        "export const checks = [{ name: 'never-seen', cmd: ['true'], tier: 'L1' }];\n",
+    )
+    expect(r.stdout).toContain('HARNESS_DONE:')
+    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
+    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
+      true,
+    )
     expect(r.stdout).not.toContain('[local] never-seen')
   })
 })
