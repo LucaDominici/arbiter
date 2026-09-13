@@ -323,33 +323,36 @@ const BARE_LOOKUP_DIRS = [
  * bare-name lookup below stays basename-scoped ONLY for tokens that were cited bare (no
  * `/` in the citation at all), which is the legitimate case (e.g. a hook cited as
  * `check-foo.mjs` without its directory). */
-function tokenResolves(token) {
-  if (token.includes('/')) {
-    // The negative lookahead in FILE_TOKEN_RE strips a trailing `.ejs` (e.g. a citation of
-    // `src/templates/scripts/check-foo.mjs.ejs` extracts as `.../check-foo.mjs`) — try both
-    // the bare path and its `.ejs` twin so a real template isn't reported as missing.
-    if (existsSync(resolve(root, token)) || existsSync(resolve(root, `${token}.ejs`))) return true
-    // A `scripts/<name>` citation of a name already in TRACK_B_EXEMPT is a Track-B script:
-    // generated INTO a governed target's scripts/ directory at that exact path, so it never
-    // exists at `scripts/<name>` in arbiter's own tree — only its `.ejs` template does. This
-    // is not a basename fallback (Codex P1 #2): it's exact-path-shaped (`scripts/` prefix
-    // required) and gated on the SAME emission proof (`literals`) the TRACK_B_EXEMPT pass
-    // below already independently verifies, so a fabricated `scripts/whatever.mjs` cannot
-    // ride through by picking a name off this list.
-    const m = /^scripts\/([a-z][a-z0-9-]+\.mjs)$/.exec(token)
-    if (
-      m &&
-      TRACK_B_EXEMPT.has(m[1]) &&
-      (literals.has(m[1]) || literals.has(`scripts/${m[1]}.ejs`))
-    ) {
-      return true
-    }
-    return false
-  }
+/** A `scripts/<name>` citation of a name already in TRACK_B_EXEMPT is a Track-B script:
+ * generated INTO a governed target's scripts/ directory at that exact path, so it never
+ * exists at `scripts/<name>` in arbiter's own tree — only its `.ejs` template does. This
+ * is not a basename fallback (Codex P1 #2): it's exact-path-shaped (`scripts/` prefix
+ * required) and gated on the SAME emission proof (`literals`) the TRACK_B_EXEMPT pass
+ * below already independently verifies, so a fabricated `scripts/whatever.mjs` cannot
+ * ride through by picking a name off this list. */
+function resolvesAsTrackBScriptPath(token) {
+  const m = /^scripts\/([a-z][a-z0-9-]+\.mjs)$/.exec(token)
+  return Boolean(
+    m && TRACK_B_EXEMPT.has(m[1]) && (literals.has(m[1]) || literals.has(`scripts/${m[1]}.ejs`)),
+  )
+}
+
+/** A bare (no `/`) token, looked up across the gate/hook/workflow directories or the
+ * template tree. */
+function bareTokenResolves(token) {
   for (const dir of BARE_LOOKUP_DIRS) {
     if (existsSync(resolve(root, dir, token))) return true
   }
   return templateBasenames.has(token) || templateBasenames.has(`${token}.ejs`)
+}
+
+function tokenResolves(token) {
+  if (!token.includes('/')) return bareTokenResolves(token)
+  // The negative lookahead in FILE_TOKEN_RE strips a trailing `.ejs` (e.g. a citation of
+  // `src/templates/scripts/check-foo.mjs.ejs` extracts as `.../check-foo.mjs`) — try both
+  // the bare path and its `.ejs` twin so a real template isn't reported as missing.
+  if (existsSync(resolve(root, token)) || existsSync(resolve(root, `${token}.ejs`))) return true
+  return resolvesAsTrackBScriptPath(token)
 }
 
 // Broadened extension set [Codex review, P1 #4] — the original 5 extensions missed real
