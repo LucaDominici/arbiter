@@ -309,9 +309,16 @@ jobs:
       # curl -> $RUNNER_TEMP/bin installation used in 01-pr-fast.
       - name: Clear stale gitleaks download temp
         run: rm -f /tmp/gitleaks.tmp
+      # #2673: gitleaks-action always attempts to upload a results.sarif artifact (regardless of
+      # findings) via actions/upload-artifact's validateRootDirectory, which requires the SARIF
+      # path to sit under the action runner's rootDirectory. On a self-hosted runner with
+      # HOME=/root and the workspace under /tmp, that check throws even on a clean scan.
+      # GITLEAKS_ENABLE_UPLOAD_ARTIFACT=false (verified against the pinned SHA's dist/index.js)
+      # skips the upload path entirely; the scan itself stays blocking.
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e  # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
         with:
           args: '--log-opts --full-history'
 
