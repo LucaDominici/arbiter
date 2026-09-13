@@ -10,6 +10,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { extractTopLevelCommandNames } from './lib/cli-command-names.mjs'
+import { prettify } from './lib/gen-doc-helpers.mjs'
 
 const CHECK = process.argv.includes('--check')
 
@@ -69,8 +70,12 @@ function parseCliTs(src) {
     // Find the block for this specific command.
     // Look for the `.command('name')` line, then scan forward for .description and .option calls.
     const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // #2569: unbounded lazy scan (was capped at {0,2000}), which cut the
+    // block off mid-registration for a command whose .action() body starts
+    // more than 2000 chars past its .command() call (e.g. doc-set, 11
+    // options), silently dropping every option/description after the cap.
     const blockRe = new RegExp(
-      `\\.command\\('${escapedName}(?: [^']*)?'(?:,\\s*\\{\\s*hidden:\\s*true\\s*\\})?\\)([\\s\\S]{0,2000}?)(?=\\.command\\('|const |var |let |\\bprogram\\b|$)`,
+      `\\.command\\('${escapedName}(?: [^']*)?'(?:,\\s*\\{\\s*hidden:\\s*true\\s*\\})?\\)([\\s\\S]*?)(?=\\.command\\('|const |var |let |\\bprogram\\b|$)`,
     )
     const blockMatch = blockRe.exec(stripped)
     let description = ''
@@ -245,6 +250,26 @@ function replaceMarkerRegion(docSrc, newContent) {
   return docSrc.slice(0, beginIdx + BEGIN_MARKER.length) + '\n' + newContent + docSrc.slice(endIdx)
 }
 
+// ── Content diff (#2569) ────────────────────────────────────────────────────
+
+/**
+ * Find the first line where two texts diverge.
+ * @param {string} a
+ * @param {string} b
+ * @returns {{line: number, a: string, b: string} | null} null when equal
+ */
+function firstDiffLine(a, b) {
+  const aLines = a.split('\n')
+  const bLines = b.split('\n')
+  const max = Math.max(aLines.length, bLines.length)
+  for (let i = 0; i < max; i++) {
+    if (aLines[i] !== bLines[i]) {
+      return { line: i + 1, a: aLines[i] ?? '(end of file)', b: bLines[i] ?? '(end of file)' }
+    }
+  }
+  return null
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────
 
 try {
@@ -273,11 +298,6 @@ try {
     const missing = [...registeredCommands].filter((n) => !existingCommands.has(n))
     const phantom = [...existingCommands].filter((n) => !registeredCommands.has(n))
 
-    if (missing.length === 0 && phantom.length === 0) {
-      process.stdout.write(`  gen-cli-ref: OK — ${commands.length} commands documented, no drift\n`)
-      process.exit(0)
-    }
-
     if (missing.length > 0) {
       process.stdout.write(
         `  gen-cli-ref: FAIL — ${missing.length} registered command(s) missing from generated region: ${missing.join(', ')}\n`,
@@ -288,11 +308,31 @@ try {
         `  gen-cli-ref: FAIL — ${phantom.length} phantom command(s) in generated region (not registered): ${phantom.join(', ')}\n`,
       )
     }
+    if (missing.length > 0 || phantom.length > 0) process.exit(1)
+
+    // #2569: heading names alone are not the documented surface — options,
+    // subcommands and descriptions live inside those headings too. Compare
+    // the full region content (prettier-normalized, since the writer's raw
+    // output and a hand-maintained committed doc format differently even
+    // when the content itself agrees).
+    const wantDoc = await prettify(replaceMarkerRegion(docSrc, generated), CLI_MD)
+    const haveDoc = await prettify(docSrc, CLI_MD)
+    const diff = firstDiffLine(haveDoc, wantDoc)
+    if (diff === null) {
+      process.stdout.write(`  gen-cli-ref: OK — ${commands.length} commands documented, no drift\n`)
+      process.exit(0)
+    }
+    process.stdout.write(
+      `  gen-cli-ref: FAIL — content drift at line ${diff.line}:\n` +
+        `    have: ${diff.a}\n` +
+        `    want: ${diff.b}\n`,
+    )
     process.exit(1)
   }
 
-  // Write mode: replace or insert the marker region.
-  const updated = replaceMarkerRegion(docSrc, generated)
+  // Write mode: replace or insert the marker region, prettier-formatted so
+  // write mode and --check's prettier-normalized comparison never deadlock.
+  const updated = await prettify(replaceMarkerRegion(docSrc, generated), CLI_MD)
   writeFileSync(CLI_MD, updated, 'utf-8')
   process.stdout.write(
     `  gen-cli-ref: wrote ${commands.length}-command CLI reference region to ${CLI_MD}\n`,

@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2569",
+  "test_path": "__tests__/scripts/gen-cli-ref.test.ts",
+  "test_commit_sha": "1c7e8d2c89f18225934338a5dde8f9ce4eecc3f8",
+  "test_blob_sha": "2f3f3d17352412cd18443467394a63adb93954b8",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/gen-cli-ref.test.ts (9 tests | 1 failed) 258ms\n     × exits 1 in --check when a documented command loses an option (content drift) 39ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 8 passed (9)\n   Start at  04:58:27\n   Duration  361ms (transform 12ms, setup 7ms, import 13ms, tests 258ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/gen-cli-ref.test.ts > gen-cli-ref.mjs > exits 1 in --check when a documented command loses an option (content drift)\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/gen-cli-ref.test.ts:211:22\n    209|         dir,\n    210|       )\n    211|       expect(status).toBe(1)\n       |                      ^\n    212|       expect(stdout.toLowerCase()).toMatch(/drift/)\n    213|     } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/gen-cli-ref.test.ts",
+  "recorded_at": "2026-09-13T02:58:27.885Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/gen-cli-ref.test.ts"
+  ]
+}

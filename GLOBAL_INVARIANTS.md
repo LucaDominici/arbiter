@@ -709,6 +709,8 @@ This document is the deep-reference companion to AGENTS.md. Every always-active 
 
 `website/reference/cli.md` hosts a machine-generated command-reference region (between `<!-- BEGIN GENERATED:cli -->` / `<!-- END GENERATED:cli -->` markers). Every top-level command registered in `src/cli.ts` must have a section in that region, and every section must correspond to a registered command (bidirectional). Hand-written prose outside the markers is preserved on every regeneration. Drift is caught at L1 by the gate. Applies to arbiter-self only (`selfOnly`).
 
+**Full-surface content check (#2569):** heading-name parity alone let a writer regression delete a command's entire option/description block while `--check` still reported no drift. `--check` now also prettier-normalizes and byte-compares the full generated region against the committed region (after the heading check), failing with the first differing line — so dropped options, descriptions, and subcommands are caught, not just missing/phantom command names. Write mode routes its output through the same `prettify()` helper so the two paths cannot deadlock against each other.
+
 **Enforcement:** scripts/gen-cli-ref.mjs --check (L1)
 
 ---
