@@ -1,8 +1,8 @@
 ---
 title: 'arbiter — AGENTS.md'
-doc_version: '1.0.1'
+doc_version: '1.0.2'
 status: active
-last_review: '2026-09-08'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/governance']
@@ -275,7 +275,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 - **INV-92:** Supply chain — keyless signing, SBOM attestation, and Trivy CRITICAL block
   - Enforcement: generated `05-release.yml` workflow (`trivy-fs-scan` + `cosign-sign` + `sbom-attest` jobs)
-  - Release artifacts must be signed with cosign keyless (OIDC) and attested with CycloneDX SBOM via `cosign attest --predicate`. Trivy must block on CRITICAL vulnerabilities before signing. A `_sigstore-retry-sign` reusable workflow handles signing retry on Sigstore flakiness.
+  - Release artifacts must be signed with cosign keyless (OIDC) and attested with CycloneDX SBOM via `cosign attest-blob --predicate ... --bundle` (the release artifact is a blob, not an OCI image — `cosign attest` resolves its subject as an image reference and fails `UNAUTHORIZED` on a file path, #2673). Trivy must block on CRITICAL vulnerabilities before signing. A `_sigstore-retry-sign` reusable workflow handles signing retry on Sigstore flakiness.
 
 ## Deploy Target Supply Chain (INV-95/97/98/99)
 

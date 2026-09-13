@@ -1,8 +1,8 @@
 ---
 title: 'Supply Chain Security Reference'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -65,7 +65,7 @@ Publishing is reachable only from a `refs/tags/v*` ref.
   | Go          | `anchore/sbom-action` (syft)          |
   | Python      | `cyclonedx-bom` (`cyclonedx_py auto`) |
   | Rust        | `cargo-cyclonedx`                     |
-- **Attestation:** `cosign attest --predicate sbom.cdx.json --type cyclonedx` (keyless OIDC)
+- **Attestation:** `cosign attest-blob --predicate sbom.cdx.json --type cyclonedx --bundle sbom.attestation.bundle` (keyless OIDC; the release artifact is a blob, not an OCI image — `cosign attest` resolves its subject as an image reference and fails `UNAUTHORIZED` on a file path, #2673). Verify: `cosign verify-blob-attestation --bundle sbom.attestation.bundle --type cyclonedx --certificate-identity-regexp ".*" --certificate-oidc-issuer https://token.actions.githubusercontent.com <artifact>`
 - **Retention:** 90 days as GitHub Actions artifact
 
 ### 4. Sigstore Retry Wrapper (`_sigstore-retry-sign.yml`)

@@ -1,8 +1,8 @@
 ---
 title: 'arbiter — Global Invariants Reference'
-doc_version: '1.0.0'
+doc_version: '1.0.1'
 status: active
-last_review: '2026-06-30'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/invariant']
@@ -313,9 +313,9 @@ AI-authored PRs must be reviewed and approved by a human before merge. "AI-autho
 
 ### INV-92: Supply chain — keyless signing, SBOM attestation, and Trivy CRITICAL block
 
-Release artifacts must be signed with cosign keyless (OIDC via Sigstore) and attested with a CycloneDX SBOM via cosign attest --predicate. Trivy must scan the filesystem for CRITICAL vulnerabilities (exit-code: 1) before the signing step runs. HIGH vulnerabilities are reported but do not block (target projects may have legacy deps). A \_sigstore-retry-sign reusable workflow is also generated as opt-in scaffolding for retry-on-flake signing; the live 05-release cosign-sign job signs inline and does not yet delegate to it (#1663), so retry-on-flake is available to wire in, not yet active.
+Release artifacts must be signed with cosign keyless (OIDC via Sigstore) and attested with a CycloneDX SBOM via `cosign attest-blob --predicate ... --bundle` (the release artifact is a blob, not an OCI image — `cosign attest` resolves its subject as an image reference and fails `UNAUTHORIZED` on a file path, #2673; verify with `cosign verify-blob-attestation --bundle ... --type cyclonedx --certificate-identity-regexp ... --certificate-oidc-issuer https://token.actions.githubusercontent.com`). Trivy must scan the filesystem for CRITICAL vulnerabilities (exit-code: 1) before the signing step runs. HIGH vulnerabilities are reported but do not block (target projects may have legacy deps). A \_sigstore-retry-sign reusable workflow is also generated as opt-in scaffolding for retry-on-flake signing; the live 05-release cosign-sign job signs inline and does not yet delegate to it (#1663), so retry-on-flake is available to wire in, not yet active.
 
-**Enforcement:** generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom jobs)
+**Enforcement:** generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom-attest jobs)
 
 **Minimum governance level:** L2+
 
