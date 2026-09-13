@@ -163,7 +163,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-25:** Gate must pass before push: `node scripts/check-all.mjs L2`
 - **INV-26:** TDD mandatory — test first, then implement
 - **INV-27:** Evidence artifacts must be generated for all gate runs
-- **INV-28:** SSOT documents must not contradict — run drift check before merge
+- **INV-28:** SSOT documents must not contradict
 - **INV-29:** No MockMvc — use RestAssured for integration tests (Java)
 - **INV-30:** Mutation testing required — PIT/pitest (Java, L2+)
 - **INV-31:** Suppressions must have mandatory expiry

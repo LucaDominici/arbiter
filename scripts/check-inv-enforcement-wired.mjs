@@ -8,7 +8,7 @@
 // Usage: node scripts/check-inv-enforcement-wired.mjs [--catalog=path] [--gate=path]
 //                                                     [--generators=dir] [--allowlist=path]
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 
 const args = process.argv.slice(2)
 const catalogArg = args.find((a) => a.startsWith('--catalog='))
@@ -99,10 +99,12 @@ const TARGET_OUTPUT_PATH_EXEMPT = new Set([
   // INV-126: verified — resolvedPath(base, 'tests', 'api', 'run.sh') in
   // src/generators/api-e2e.ts:147.
   'tests/api/run.sh',
-  // INV-60: the real generated filename is docs/coverage/Cargo.toml.profile.release
-  // (verified: resolvedPath(base, 'docs', 'coverage', 'Cargo.toml.profile.release') in
-  // src/generators/coverage.ts:190) — a double extension FILE_TOKEN_RE cannot see past
-  // the first recognised one, so the citation extracts truncated at the `.toml` boundary.
+  // INV-60: verified — resolvedPath(base, 'docs', 'coverage', 'Cargo.toml.profile.release')
+  // in src/generators/coverage.ts:190. Both forms are exempted because FILE_TOKEN_RE
+  // (extension-anchored, stops at the first recognised extension) and PREFIXED_PATH_RE
+  // (extension-agnostic) each extract a different-length substring of the SAME citation —
+  // this is one real file seen twice by two extractors, not two claims.
+  'docs/coverage/Cargo.toml.profile.release',
   'docs/coverage/Cargo.toml',
 ])
 
@@ -279,7 +281,25 @@ for (let i = 0; i < idMarks.length; i++) {
       `enforcement:\\s*\\n?\\s*(${QUOTED_LITERAL}(?:\\s*\\+\\s*\\n?\\s*${QUOTED_LITERAL})*)`,
     ),
   )
-  if (!em) continue // field genuinely absent from this entry — legitimately optional
+  if (!em) {
+    // A syntactic `enforcement:` property line (start-of-line, not a prose mention inside a
+    // description string) with no parseable value is a PARSE GAP, not an absent field — e.g.
+    // a `// comment` interposed between `enforcement:` and its string literal defeats the
+    // value regex silently. Silently `continue`-ing here is exactly the vacuous-pass shape
+    // #2563 exists to kill: the entry reads as unvalidated instead of failing loud. Fail
+    // closed [Codex review round 2, P1 #1] rather than guess a fix for arbitrary TS syntax
+    // (a full AST parse was rejected as disproportionate to the fixture-driven test harness
+    // this gate already relies on).
+    if (/^\s*enforcement:/m.test(span)) {
+      process.stderr.write(
+        `[check-inv-enforcement-wired] ERROR: ${idMarks[i].id} has an \`enforcement:\` ` +
+          `property that could not be parsed (unsupported syntax between the key and its ` +
+          `value, e.g. an interposed comment) — fix the syntax or the parser.\n`,
+      )
+      process.exit(2)
+    }
+    continue // field genuinely absent from this entry — legitimately optional
+  }
   const text = [...em[1].matchAll(new RegExp(QUOTED_LITERAL, 'g'))]
     .map((mm) => unquote(mm[0]))
     .join('')
@@ -293,6 +313,7 @@ function walkFiles(dir) {
   let items
   try {
     items = readdirSync(dir, { withFileTypes: true })
+    // FAIL-OPEN-INTENT: an unreadable subdirectory under src/templates only weakens recall for the template-basename fallback (a real template becomes harder to match); it can never manufacture a false PASS.
   } catch {
     return out
   }
@@ -346,12 +367,26 @@ function bareTokenResolves(token) {
   return templateBasenames.has(token) || templateBasenames.has(`${token}.ejs`)
 }
 
+/** Resolve `token` against the repo root and refuse to leave it. A `/`-containing token
+ * is catalog PROSE, not a trusted filesystem argument — `../../../../etc/passwd`-shaped
+ * traversal must never be handed to `existsSync` as if it were repo-relative [Codex review
+ * round 2, P1 #2]. `resolve()` already normalises `..` segments, so a plain prefix check
+ * on the normalised result is sufficient (no realpath/symlink concern: the threat here is
+ * a malicious catalog STRING, not a symlink on disk). Returns null when the token escapes. */
+function resolveInsideRoot(token) {
+  const resolved = resolve(root, token)
+  if (resolved !== root && !resolved.startsWith(root + sep)) return null
+  return resolved
+}
+
 function tokenResolves(token) {
   if (!token.includes('/')) return bareTokenResolves(token)
+  const resolvedPath = resolveInsideRoot(token)
+  if (!resolvedPath) return false
   // The negative lookahead in FILE_TOKEN_RE strips a trailing `.ejs` (e.g. a citation of
   // `src/templates/scripts/check-foo.mjs.ejs` extracts as `.../check-foo.mjs`) — try both
   // the bare path and its `.ejs` twin so a real template isn't reported as missing.
-  if (existsSync(resolve(root, token)) || existsSync(resolve(root, `${token}.ejs`))) return true
+  if (existsSync(resolvedPath) || existsSync(`${resolvedPath}.ejs`)) return true
   return resolvesAsTrackBScriptPath(token)
 }
 
@@ -368,12 +403,22 @@ const FILE_TOKEN_RE =
 // all, so FILE_TOKEN_RE never sees them — a separate, narrower pattern for that one
 // directory (#2563).
 const GITHOOKS_TOKEN_RE = /\.githooks\/[a-z][a-z-]*/g
+// A path under one of these known, always-verified repo root directories is a file
+// citation regardless of its extension — `scripts/not-a-real-check.py` names no `.mjs`
+// but is still a claim this gate must resolve or reject [Codex review round 2, P1 #3].
+// Scoped to a short allowlist of real directory names (not "any slash"): the catalog's
+// prose slash-pairs (CI/CD, and/or, CANON-01/04, ...) never start with one of these five
+// prefixes, so recall goes up without reopening the false-positive risk P1 #4 avoided.
+const PREFIXED_PATH_RE = /\b(?:scripts|src|docs|__tests__)\/[A-Za-z0-9_.\-/]+/g
 
 function extractFileTokens(text) {
   return [
     ...new Set([
       ...[...text.matchAll(FILE_TOKEN_RE)].map((m) => m[0]),
       ...[...text.matchAll(GITHOOKS_TOKEN_RE)].map((m) => m[0]),
+      // Strip a trailing sentence-ending '.' — PREFIXED_PATH_RE has no extension anchor to
+      // stop at, so "...scripts/foo.py." (end of sentence) would otherwise include it.
+      ...[...text.matchAll(PREFIXED_PATH_RE)].map((m) => m[0].replace(/\.$/, '')),
     ]),
   ]
 }

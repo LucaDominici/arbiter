@@ -414,7 +414,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-28',
     tier: 'governance',
-    title: 'SSOT documents must not contradict — run drift check before merge',
+    title: 'SSOT documents must not contradict',
     description:
       'At L3, SSOT (Single Source of Truth) documents (AGENTS.md, architecture docs, ' +
       'API contracts) must stay consistent. Contradictions between governance documents ' +
