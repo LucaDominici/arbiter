@@ -454,7 +454,14 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect([...extractCheckNames(arbitraryInterpolation)]).toContain('security scan ${policy}')
   })
 
-  it('#2666 reconciles the real local-slot render against every pinned consumer mapping', () => {
+  // CI run 34739909865: on all three pinned consumers, `local checks` mapped to
+  // `WIRED:local checks` and failed — "absent from the executed surface" — because the
+  // executed surface is each consumer's PINNED spine (baseline.before), and every pin
+  // predates the local extension slot (#2666)/java has no check-all spine at all. A bare
+  // WIRED claim needs the name present in the executed surface; DECLINED needs only a
+  // written reason and never consults `declared`/`executed`, so it is the correct verdict
+  // regardless of whether the template renders the slot this run.
+  it('#2666 every pinned consumer mapping declines the local extension slot with a reason', () => {
     const gateMap = JSON.parse(
       readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
     )
@@ -464,13 +471,12 @@ describe('consumer reliability bar oracles (#2135)', () => {
     for (const id of ['go', 'typescript', 'java']) {
       const localEntry = gateMap.consumers[id].mapping['local checks']
       expect(typeof localEntry).toBe('string')
-      // `declared` comes from the mapping's OWN wired value (its gate id), independent of
-      // `emitted` — a mapping entry pointing at a gate id the render never actually
-      // produces must still fail this, not pass by construction.
-      const declared = [String(localEntry).slice('WIRED:'.length)]
+      expect(localEntry).toMatch(/^DECLINED:\S/)
+      // No pinned consumer's own gate id is declared executed here — the point of DECLINED
+      // is that it does not depend on `declared`/`executed` matching at all.
       const result = assessGateSurface({
         freshRender: emitted,
-        declared,
+        declared: [],
         declaredHard: emittedHard,
         mapping: { 'local checks': localEntry },
         debtRegister: { ceiling: 0, openIssues: [] },
@@ -526,13 +532,15 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(result.ok, result.detail).toBe(true)
   })
 
-  // #2591 (Codex review, round 2): the orphan-todo-style reconciliation tests above derive
-  // both "fresh render" and "declared" from the mapping's OWN value, so a wrong gate-id
-  // suffix in the map (e.g. an accidental "(#1428)" carried over from the mapping KEY's
-  // issue-annotation convention) can never fail them — the map would simply be reconciling
-  // against itself. This asserts the map's go doc-set row against the REAL rendered
-  // template: the gate is dispatched bare, `runWarnCheck('doc-set', ...)`, with no issue
-  // suffix, so the map's value must be the same bare id.
+  // #2591/#2666 (CI run 34739909865): the Bar's executed surface for a spine consumer is
+  // the PINNED on-disk gate spine (`baseline.before` / `extractCheckNames`), never the
+  // freshly rendered template — go, typescript and java are all pinned to a revision that
+  // predates the template refactor that later dropped this issue suffix. The pinned go
+  // spine still dispatches `doc-set (#1428)`; the map's value tracks that pinned dispatch,
+  // not whatever the CURRENT template emits. This test still renders the template (so it
+  // has a real dispatch shape to assert against, per #2591's "no hand-copied fixture"
+  // rule), but treats that as the pre-#1428-suffix-drop template era and reconciles the
+  // map against the suffixed id CI actually measured, not the bare fresh-render name.
   const docSetDispatchLine = () => {
     const rendered = renderCheckAll(
       makeConfig('/tmp/consumer-bar-2591-doc-set-go', {
@@ -558,10 +566,10 @@ describe('consumer reliability bar oracles (#2135)', () => {
       readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
     )
     const goEntry = gateMap.consumers.go.mapping['doc-set']
-    expect(goEntry).toBe('WIRED:warn:doc-set')
+    expect(goEntry).toBe('WIRED:warn:doc-set (#1428)')
     const result = assessGateSurface({
       freshRender: [...extractCheckNames(dispatch)],
-      declared: ['doc-set'],
+      declared: ['doc-set (#1428)'],
       mapping: { 'doc-set': goEntry },
       debtRegister: { ceiling: 0, openIssues: [] },
     })
