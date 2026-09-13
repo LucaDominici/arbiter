@@ -120,14 +120,18 @@ describe('check-inv-enforcement-wired.mjs (INV-52 / CANON-09)', () => {
 
   it('exits 0 when enforcement cites a .mjs.ejs Track-B template ((?!\\.ejs) lookahead guards)', () => {
     // Use a script name NOT in TRACK_B_EXEMPT so only the lookahead prevents the false positive.
-    // Removing (?!\.ejs) from the regex would match check-generated-thing.mjs → exit 1.
+    // Removing (?!\.ejs) from the regex would match check-domain-api-surface.mjs → exit 1.
+    // #2563: the cited template must be a REAL file (check-domain-api-surface.mjs.ejs exists
+    // under src/templates/scripts/) — the new per-token existence pass added for #2563 resolves
+    // against the real repo tree even for temp-fixture catalogs, so a fabricated name here would
+    // now (correctly) fail as ENFORCEMENT PATH NOT FOUND instead of exercising the lookahead.
     const { dir, cleanup } = makeTemp()
     try {
       const catalog = join(dir, 'catalog.ts')
       const gate = join(dir, 'check-all.mjs')
       writeFileSync(
         catalog,
-        `  id: 'INV-44',\n  enforcement: 'src/templates/scripts/check-generated-thing.mjs.ejs',`,
+        `  id: 'INV-44',\n  enforcement: 'src/templates/scripts/check-domain-api-surface.mjs.ejs',`,
       )
       writeFileSync(gate, `// gate with no scripts`)
       expect(run(catalog, gate).status).toBe(0)
@@ -300,5 +304,112 @@ describe('TRACK_B_EXEMPT emission verification (#2278)', () => {
     } finally {
       cleanup()
     }
+  })
+})
+
+// #2563: every enforcement string must resolve to a real mechanism — a file-ish token
+// (.mjs/.ts/.java/.yml/.yaml) that exists on disk, or an explicit per-ID allowlist entry
+// (mechanism + reason) for a genuinely non-file case. A vague string with no file token and
+// no allowlist entry is exactly the "35 of 134 name no file" defect the issue reports.
+describe('enforcement resolution — every string names a real mechanism (#2563)', () => {
+  function runResolve(catalogPath: string, allowlistPath?: string) {
+    const args = [SCRIPT, `--catalog=${catalogPath}`, `--gate=${resolve('scripts/check-all.mjs')}`]
+    if (allowlistPath) args.push(`--allowlist=${allowlistPath}`)
+    const r = spawnSync('node', args, { encoding: 'utf-8', cwd: resolve('.') })
+    return { status: r.status ?? 1, stdout: r.stdout ?? '' }
+  }
+
+  it('exits 1 when enforcement names no file-ish token and has no allowlist entry [EXPLOIT #2563]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const allowlist = join(dir, 'allowlist.json')
+      // Mirrors the issue's own confirmed instance (INV-28): a claim that reads as real
+      // ("CI", "pre-merge hook") but names no checkable mechanism at all.
+      writeFileSync(
+        catalog,
+        `  id: 'INV-999',\n  enforcement: 'CI (drift check / pre-merge hook)',`,
+      )
+      writeFileSync(allowlist, '{}')
+      const result = runResolve(catalog, allowlist)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ENFORCEMENT NAMES NO MECHANISM')
+      expect(result.stdout).toContain('INV-999')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('does not accept a substring/keyword match in place of a per-ID allowlist entry [EXPLOIT #2563]', () => {
+    // An allowlist keyed by keyword ("contains CI") would re-green the exact defect above.
+    // The real allowlist is keyed by exact INV id — an entry for a DIFFERENT id must not
+    // rescue this one.
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const allowlist = join(dir, 'allowlist.json')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-999',\n  enforcement: 'CI (drift check / pre-merge hook)',`,
+      )
+      writeFileSync(
+        allowlist,
+        JSON.stringify({ 'INV-28': { mechanism: 'code review', reason: 'unrelated id' } }),
+      )
+      const result = runResolve(catalog, allowlist)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('INV-999')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when the exact INV id has an allowlist entry with mechanism + reason', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const allowlist = join(dir, 'allowlist.json')
+      writeFileSync(catalog, `  id: 'INV-999',\n  enforcement: 'code review / manual',`)
+      writeFileSync(
+        allowlist,
+        JSON.stringify({ 'INV-999': { mechanism: 'code review', reason: 'process invariant' } }),
+      )
+      expect(runResolve(catalog, allowlist).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when a cited file-ish token does not exist on disk [EXPLOIT #2563]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-999',\n  enforcement: 'scripts/check-does-not-exist-xyz.mjs',`,
+      )
+      const result = runResolve(catalog)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ENFORCEMENT PATH NOT FOUND')
+      expect(result.stdout).toContain('check-does-not-exist-xyz.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when a cited .githooks/<name> token exists (no file extension)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      writeFileSync(catalog, `  id: 'INV-999',\n  enforcement: '.githooks/pre-commit + CI',`)
+      expect(runResolve(catalog).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('passes against the real catalog with the real allowlist (INV-28 honestly resolved, not weakened)', () => {
+    const result = runResolve(resolve('src/invariants/catalog.ts'))
+    expect(result.status).toBe(0)
   })
 })
