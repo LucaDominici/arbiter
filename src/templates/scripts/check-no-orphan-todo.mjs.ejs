@@ -17,7 +17,15 @@ const LANG_SCAN = {
   kotlin: { dirs: ['src'], exts: ['.kt'] },
   rust: { dirs: ['src', 'tests'], exts: ['.rs'] },
 }
-const _scan = LANG_SCAN[language] || LANG_SCAN.typescript
+// #2663 round 2: `language: 'multi'` (a polyglot repo) — and any language string this map
+// does not recognize — falls back to the UNION of every known language's extensions, walked
+// from the repo root ('.', same root the 'go' entry already uses, so it already subsumes
+// every other entry's narrower `dirs` — scanning both would double-count violations under
+// e.g. src/). A per-language subset default (previously TypeScript's) silently ignored every
+// other language's source in a multi-language repo — a Java file under a nonstandard
+// directory was never scanned, so a real orphan TODO resolved a false NO-DATA green.
+const ALL_EXTS = [...new Set(Object.values(LANG_SCAN).flatMap((s) => s.exts))]
+const _scan = LANG_SCAN[language] || { dirs: ['.'], exts: ALL_EXTS }
 %>
 // SPDX-License-Identifier: Apache-2.0
 // Scans source files for orphan TODO comments (missing task ID).
