@@ -1,8 +1,8 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.17'
+doc_version: '2.0.18'
 status: active
-last_review: '2026-09-12'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -136,6 +136,12 @@ or empty reason as a failure.
 Where a consumer executes a control only in CI, the Bar accepts an explicit
 workflow/job/command proof after reading that exact regular file; a command in
 another job or a comment does not satisfy the control.
+Every new unconditionally-emitted gate (wired at L1 in `check-all.mjs.ejs` /
+`gate-registry.yml.ejs`, e.g. #2663's `no-orphan-todo`) must gain an entry in
+`scripts/data/consumer-gate-map.json` for each pinned consumer (`WIRED:<gate id>`,
+`DECLINED:<reason>`, or `DEBT:#issue`) in the same PR — otherwise the Bar's
+emitted-vs-executed reconciliation fails closed with "N emitted check(s)
+unaccounted" on every pinned consumer.
 For example, a consumer's post-merge `node scripts/check-all.mjs L2 --json
 gate-result.json` is evidence of CI alignment only when the Bar names that exact
 workflow job and command.

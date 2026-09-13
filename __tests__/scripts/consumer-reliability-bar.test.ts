@@ -279,13 +279,13 @@ describe('consumer reliability bar oracles (#2135)', () => {
   // verdict per consumer (so a drift to WIRED or a wrong issue number fails here, not
   // just a generic "still not unaccounted") and that the real map reconciles clean
   // end-to-end through the same pure oracle the live bar calls.
-  it('accounts for the #2663 orphan-TODO gate in every pinned consumer surface', () => {
+  it('accounts for the #2663 orphan-todo gate in every pinned consumer surface', () => {
     const gateMap = JSON.parse(
       readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
     )
     // The expected verdict is pinned by name here, independent of whatever the file
     // currently says: a mapping that drifted to WIRED (nothing in these consumers runs
-    // an orphan-TODO scan) or a bogus/wrong issue number must fail this, not just the
+    // an orphan-todo scan) or a bogus/wrong issue number must fail this, not just the
     // generic "not unaccounted" shape below.
     const expectedVerdict = { go: 'DEBT:#2291', typescript: 'DEBT:#2291', java: 'DEBT:#2310' }
     for (const id of ['go', 'typescript', 'java']) {
