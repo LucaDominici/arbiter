@@ -100,12 +100,52 @@ export function collectWorkflowTemplates(templatesRoot, { onReadError } = {}) {
 }
 
 /**
- * Handle the shared `--help`/`-h` and `--dir <path>` arguments.
+ * Scan `args` for a `--dir` flag in either `--dir value` or `--dir=value` form.
+ * A LEFT-TO-RIGHT scan that overwrites on each match is "last flag wins" for free,
+ * across both forms mixed (#2675 Codex round-2).
+ *
+ * @param {string[]} args
+ * @returns {{ given: boolean, value: string | undefined }} `given` is true when any
+ *   `--dir`/`--dir=` token appears; `value` is the raw (unvalidated) text that followed
+ *   it, or `undefined` for a trailing bare `--dir` with nothing after it.
+ */
+function scanDirFlag(args) {
+  let given = false
+  let value
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]
+    if (a === '--dir') {
+      given = true
+      value = args[i + 1]
+    } else if (a.startsWith('--dir=')) {
+      given = true
+      value = a.slice('--dir='.length)
+    }
+  }
+  return { given, value }
+}
+
+/**
+ * A `--dir` value that cannot be a real path: missing, empty, or flag-shaped (starts with
+ * `--`, meaning `--dir` swallowed the NEXT flag as its own value rather than being given one).
+ * #2675 Codex round-3: `--dir --help` used to swallow `--help` as this validity check ran
+ * AFTER the generic `--help` scan, so the malformed `--dir` was invisible and the process
+ * printed help and exited 0 instead of refusing the invocation it actually received.
+ *
+ * @param {string | undefined} value
+ * @returns {boolean}
+ */
+function isUnusableDirValue(value) {
+  return value === undefined || value === '' || value.startsWith('--')
+}
+
+/**
+ * Handle the shared `--help`/`-h` and `--dir <path>`/`--dir=<path>` arguments.
  *
  * If `--help` or `-h` is present, the provided `usage` string is written to
  * stdout and the process exits 0 (matching the inlined blocks). Otherwise the
- * resolved working directory is returned: the `--dir <path>` value (resolved)
- * when supplied, else `process.cwd()`.
+ * resolved working directory is returned: the `--dir` value (resolved) when
+ * supplied, else `process.cwd()`.
  *
  * #2675 Codex round-1: a bare `--dir` (no value), or a `--dir` naming a path that
  * does not exist or is not a directory, used to fall back to `process.cwd()`
@@ -113,7 +153,11 @@ export function collectWorkflowTemplates(templatesRoot, { onReadError } = {}) {
  * indistinguishable from none being given at all, and the caller's own
  * fixture-less SKIP paths would then quietly report clean on the live repo
  * instead of the intended (missing) target. Both are now a loud `exit(2)`:
- * an unusable `--dir` must never be read as "use the default".
+ * an unusable `--dir` must never be read as "use the default". Round-2 closed
+ * `--dir ''` (empty is not `undefined`, but `resolve('')` IS `process.cwd()`) and
+ * made a repeated flag deterministic (last occurrence, across `--dir v` and
+ * `--dir=v` both). Round-3 accepts `--dir=v` and validates the --dir value BEFORE
+ * the `--help` scan, so `--dir --help` refuses rather than printing help.
  *
  * Script-specific flags (e.g. `--runner`) are NOT consumed here; the caller
  * parses them from the same `args` array as before.
@@ -124,22 +168,16 @@ export function collectWorkflowTemplates(templatesRoot, { onReadError } = {}) {
  * @returns {{ cwd: string }} Resolved working directory.
  */
 export function parseHelpAndDir(args, { usage }) {
+  const { given, value } = scanDirFlag(args)
+  if (given && isUnusableDirValue(value)) {
+    process.stderr.write('--dir requires a path argument\n')
+    process.exit(2)
+  }
   if (args.includes('--help') || args.includes('-h')) {
     process.stdout.write(usage)
     process.exit(0)
   }
-  // #2675 Codex round-2: lastIndexOf, not indexOf — a repeated --dir is "last flag wins", so a
-  // bare trailing --dir must refuse even when an EARLIER occurrence carried a valid value; a
-  // first-occurrence read would silently honor the stale earlier value instead.
-  const dirArg = args.lastIndexOf('--dir')
-  if (dirArg < 0) return { cwd: process.cwd() }
-  const value = args[dirArg + 1]
-  // '' is not undefined but resolve('') is process.cwd() — the same silent, unintended fallback
-  // a bare --dir already refuses, just reached through a different falsy-but-defined value.
-  if (value === undefined || value === '') {
-    process.stderr.write('--dir requires a path argument\n')
-    process.exit(2)
-  }
+  if (!given) return { cwd: process.cwd() }
   const resolved = resolve(value)
   if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
     process.stderr.write(`--dir ${value} does not exist or is not a directory\n`)

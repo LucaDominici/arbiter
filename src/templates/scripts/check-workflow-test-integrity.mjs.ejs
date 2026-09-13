@@ -3,10 +3,33 @@
 // Validates that workflow files do not have syntax issues or missing required fields.
 // Exits 0 when all workflows pass integrity checks; exits 1 when issues found.
 // Part of the anti-drift validator family (W6).
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
+
+// #2675 Codex round-1/2/3: a --dir must never be read as "use the default" when it cannot be
+// honored, or the caller's own fixture-less SKIP paths silently report clean on the LIVE repo
+// instead of the intended (missing) target. Accepts both `--dir value` and `--dir=value`, "last
+// flag wins" across both forms, and refuses BEFORE the --help scan below — otherwise
+// `--dir --help` would swallow --help as --dir's value and print help instead of refusing.
+let dirGiven = false;
+let dirValue;
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '--dir') {
+    dirGiven = true;
+    dirValue = args[i + 1];
+  } else if (a.startsWith('--dir=')) {
+    dirGiven = true;
+    dirValue = a.slice('--dir='.length);
+  }
+}
+if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('--'))) {
+  process.stderr.write('check-workflow-test-integrity: --dir requires a path argument\n');
+  process.exit(2);
+}
+
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write([
     'Usage: node scripts/check-workflow-test-integrity.mjs [options]',
@@ -22,8 +45,14 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0);
 }
 
-const dirArg = args.indexOf('--dir');
-const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd();
+let CWD = process.cwd();
+if (dirGiven) {
+  CWD = resolve(dirValue);
+  if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
+    process.stderr.write(`check-workflow-test-integrity: --dir ${dirValue} does not exist or is not a directory\n`);
+    process.exit(2);
+  }
+}
 const WORKFLOWS_DIR = join(CWD, '.github', 'workflows');
 const INFORMATIONAL_PATTERNS = ['heartbeat', 'nightly', 'weekly', 'monthly'];
 

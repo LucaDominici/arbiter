@@ -12,6 +12,30 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
+
+// #2675 Codex round-1/2/3: a --dir must never be read as "use the default" when it cannot be
+// honored, or the caller's own fixture-less SKIP paths silently report clean on the LIVE repo
+// instead of the intended (missing) target. Accepts both `--dir value` and `--dir=value`, "last
+// flag wins" across both forms (a left-to-right scan that overwrites on each match), and refuses
+// BEFORE the --help scan below — otherwise `--dir --help` would swallow --help as --dir's value
+// and print help instead of refusing the malformed --dir it actually received.
+let dirGiven = false
+let dirValue
+for (let i = 0; i < args.length; i++) {
+  const a = args[i]
+  if (a === '--dir') {
+    dirGiven = true
+    dirValue = args[i + 1]
+  } else if (a.startsWith('--dir=')) {
+    dirGiven = true
+    dirValue = a.slice('--dir='.length)
+  }
+}
+if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('--'))) {
+  process.stderr.write('check-suppression-rationale: --dir requires a path argument\n')
+  process.exit(2)
+}
+
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write(
     [
@@ -29,17 +53,8 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0)
 }
 
-// #2675 Codex round-1: a bare or dangling --dir must never be read as "use the default" — a
-// caller asking for an explicit scan root that cannot be honored would otherwise silently fall
-// through to this gate's own fixture-less SKIP paths and report clean on the LIVE repo instead.
-const dirArg = args.lastIndexOf('--dir')
 let CWD = process.cwd()
-if (dirArg >= 0) {
-  const dirValue = args[dirArg + 1]
-  if (dirValue === undefined || dirValue === '') {
-    process.stderr.write('check-suppression-rationale: --dir requires a path argument\n')
-    process.exit(2)
-  }
+if (dirGiven) {
   CWD = resolve(dirValue)
   if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
     process.stderr.write(
