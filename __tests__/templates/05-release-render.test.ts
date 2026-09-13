@@ -835,6 +835,29 @@ describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
     expect(strykerIndex).toBeGreaterThan(buildIndex)
   })
 
+  it('typescript render: build step precedes stryker in the fallback branch (#2673)', () => {
+    const rendered = renderRelease({ language: 'typescript', buildTool: 'npm' })
+    const steps = workflowOf(rendered).jobs['mutation-blocking'].steps ?? []
+    const buildIndex = steps.findIndex((s) => s.run?.includes('npm run build'))
+    const strykerIndex = steps.findIndex((s) => s.run?.includes('stryker run'))
+    expect(buildIndex).toBeGreaterThanOrEqual(0)
+    expect(strykerIndex).toBeGreaterThan(buildIndex)
+  })
+
+  // The npm-build step is TypeScript/Stryker-specific — Java/Go don't run Stryker in this job at
+  // all (a different mutation tool per stack), so they must not pick up an `npm run build` step.
+  it.each([
+    { language: 'java', buildTool: 'gradle' },
+    { language: 'go', buildTool: 'go' },
+  ])(
+    '$language render: no npm build step in mutation-blocking (#2673)',
+    ({ language, buildTool }) => {
+      const rendered = renderRelease({ language, buildTool })
+      const steps = workflowOf(rendered).jobs['mutation-blocking'].steps ?? []
+      expect(steps.some((s) => s.run?.includes('npm run build'))).toBe(false)
+    },
+  )
+
   it('mutation-blocking build step matches the template rendered for arbiter own profile (#2673)', () => {
     const rendered = renderRelease({ ...TS_LIB, governanceLevel: 'L2' })
     const renderedSteps = workflowOf(rendered).jobs['mutation-blocking'].steps ?? []
