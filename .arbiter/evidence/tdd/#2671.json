@@ -1,16 +1,16 @@
 {
   "$schemaVersion": 1,
   "task_id": "#2671",
-  "test_path": "__tests__/templates/fe-boundaries-suppression-render.test.ts",
-  "test_commit_sha": "327a8c0c8856d300b480e7c57b4139feed145c8f",
-  "test_blob_sha": "d83923046dbe0964ae9f53b1d08996d8290cd206",
-  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/templates/fe-boundaries-suppression-render.test.ts (5 tests | 2 failed) 93ms\n     × still FAILS a token-only \"reason\" with no space (10 non-space chars is not a rationale) 20ms\n     × still FAILS when the marker sits inside a string literal, not a real // comment 20ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 3 passed (5)\n   Start at  05:15:59\n   Duration  321ms (transform 108ms, setup 6ms, import 139ms, tests 93ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/templates/fe-boundaries-suppression-render.test.ts > #2671 emitted check-fe-boundaries honors arbiter-allow-raw-fetch > still FAILS a token-only \"reason\" with no space (10 non-space chars is not a rationale)\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/templates/fe-boundaries-suppression-render.test.ts:88:29\n     86|         'export async function load() { return fetch(\"/x\") } // arbite…\n     87|       )\n     88|       expect(runCheck(dir)).toBe(1)\n       |                             ^\n     89|     } finally {\n     90|       rmSync(dir, { recursive: true, force: true })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/templates/fe-boundaries-suppression-render.test.ts > #2671 emitted check-fe-boundaries honors arbiter-allow-raw-fetch > still FAILS when the marker sits inside a string literal, not a real // comment\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/templates/fe-boundaries-suppression-render.test.ts:101:29\n     99|         'export async function load() { return fetch(url, \"// arbiter-…\n    100|       )\n    101|       expect(runCheck(dir)).toBe(1)\n       |                             ^\n    102|     } finally {\n    103|       rmSync(dir, { recursive: true, force: true })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
-  "observed_failure": "FAIL  __tests__/templates/fe-boundaries-suppression-render.test.ts",
-  "recorded_at": "2026-09-13T03:16:00.047Z",
+  "test_path": "__tests__/templates/inline-suppressions-string-literal-render.test.ts",
+  "test_commit_sha": "52bd94eeea2ba40bf90ebc3eaaaafd90c64456a9",
+  "test_blob_sha": "8e3f854976fb1d2fd728a50b8042339acd89a70f",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/templates/inline-suppressions-string-literal-render.test.ts (5 tests | 1 failed) 100ms\n     × still FAILS a real directive when an earlier regex literal on the line contains an apostrophe 22ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 4 passed (5)\n   Start at  05:25:09\n   Duration  343ms (transform 113ms, setup 6ms, import 148ms, tests 100ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/templates/inline-suppressions-string-literal-render.test.ts > #2671 emitted check-inline-suppressions skips directive text inside string literals > still FAILS a real directive when an earlier regex literal on the line contains an apostrophe\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/templates/inline-suppressions-string-literal-render.test.ts:122:29\n    120|           'export const sample = 1\\n',\n    121|       )\n    122|       expect(runCheck(dir)).toBe(1)\n       |                             ^\n    123|     } finally {\n    124|       rmSync(dir, { recursive: true, force: true })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/templates/inline-suppressions-string-literal-render.test.ts",
+  "recorded_at": "2026-09-13T03:25:09.986Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
-    "__tests__/templates/fe-boundaries-suppression-render.test.ts"
+    "__tests__/templates/inline-suppressions-string-literal-render.test.ts"
   ]
 }
