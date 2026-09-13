@@ -21,16 +21,6 @@ export default mergeConfig(base, {
       '__tests__/commands/explain.test.ts',
       '__tests__/commands/explain-handoff.test.ts',
       '__tests__/integrations/companions.test.ts',
-      // #2673: fails in the release job's real Stryker run ("reports authenticated external
-      // Codex access... zero mutants") for an unreproduced reason. Investigated: Stryker pins
-      // vitest to maxThreads/minThreads/maxWorkers=1 and maxConcurrency=1 (no concurrency, so no
-      // cross-file env race is possible), the test's HOME/USERPROFILE stub + run-cli mock pass in
-      // isolation and as a full file under `env -i HOME=/root PATH=... npx vitest run --config
-      // vitest.stryker.config.ts __tests__/commands/doctor.test.ts` (CI-like: no codex on PATH,
-      // no real auth file), and a full `npx stryker run --dryRunOnly` with this exclusion removed
-      // (9297 mutants, 10120 tests) also passed clean on this machine. Left excluded rather than
-      // asserting an unverified mechanism; see #2673 for whoever reproduces it on the real runner.
-      '__tests__/commands/doctor.test.ts',
     ],
   },
 })
