@@ -125,10 +125,16 @@ function harnessResults(stdout: string): Array<{ name: string; status: string }>
 }
 
 describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', () => {
-  it('is a silent no-op when scripts/check-all.local.json is absent', () => {
+  // #2666 round 2: the mapping declares `local checks` WIRED on every pinned consumer,
+  // but the old absent-file branch pushed no result at all — the name was emitted in
+  // source, never executed, on any consumer without a check-all.local.json. A visible
+  // SKIP keeps the name on the executed surface without claiming it can fail.
+  it('pushes a visible SKIP for "local checks" when scripts/check-all.local.json is absent', () => {
     const r = runLocalSlotHarness(null)
     expect(r.status).toBe(0)
     expect(r.stdout).not.toContain('[local]')
+    const results = harnessResults(r.stdout)
+    expect(results).toContainEqual({ name: 'local checks', status: 'SKIP', elapsed: 0 })
   })
 
   it('is a silent no-op when the file exists but declares no checks', () => {
