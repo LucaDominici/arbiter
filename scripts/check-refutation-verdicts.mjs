@@ -116,7 +116,9 @@ function findMarkerForTask(evidenceDir, task) {
       `cannot parse marker ${markerPath}: ${err instanceof Error ? err.message : String(err)}`,
     )
   }
-  if (typeof body['task'] === 'string' && body['task'] !== task) return null
+  // Strict: the marker must DECLARE the requested task, not merely sit in a directory named for
+  // it — a missing or non-string `task` field is not proof of binding either (#2614 round 2).
+  if (body['task'] !== task) return null
   return { path: markerPath, body }
 }
 
