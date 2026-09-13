@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 // Helper trinity (#351, CANON-01) — runCheck (HARD), runWarnCheck (info),
 // runToolCheck (CI-aware tool gate). pushResult/getResults/getFailed power the
 // inline ad-hoc gates that classify status outside of spawnSync.
@@ -1646,6 +1646,64 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 }
 <%_ } _%>
 <% } %>
+}
+
+// ─── Local extension slot (#2666) ────────────────────────────────────────────
+// scripts/check-all.local.mjs is a declared, adopt-safe home for PROJECT-LOCAL
+// checks (the class-C shape #2666 names: ripme's Java ratchet checks, Coach's
+// ported INV-21 static-eslint config). It is never emitted by any template, so
+// it never enters .arbiter-generated-manifest.json and is neither gate-spine
+// nor safety-class under src/generators/safety-class.ts (GATE_SPINE_PATTERN
+// matches only scripts/check-all.mjs and scripts/lib/*.mjs) — `arbiter update
+// --adopt-gate-spine` and `arbiter diff` never see it, so it survives every
+// spine update untouched, by construction, with nothing to re-wire by hand.
+//
+// Absent file is a plain no-op skip (mirrors gateFileState's documented
+// 'never-emitted' skip below) — most projects never create this file. Present
+// but malformed (non-array `checks`, or an entry missing name/cmd/a valid
+// tier) FAILS LOUD per INV-96 (fail-closed on uncertainty) instead of being
+// silently dropped, the exact failure mode #2666 exists to close.
+//
+// Each entry runs through the SAME runCheck trio every registry gate uses —
+// --dry-run/--gate honor it for free via setMode — labeled `[local] <name>` so
+// the summary table and the arbiter-gate-v1 parityGates list it distinctly
+// (AC3); check-local-ci-parity.mjs compares that JSON's parityContentHash, so
+// a local check's PASS/FAIL flows into local↔CI parity the same way.
+//
+// Runs once, after every lane: a local check's own `tier` gates it, not this
+// call site's position, so appending here (rather than duplicating the block
+// once per lane) costs only "a local L1 check runs after this run's L2/L3
+// gates", never a missed or duplicated execution.
+{
+  const _localSlotPath = resolve(dirname(fileURLToPath(import.meta.url)), 'check-all.local.mjs');
+  if (existsSync(_localSlotPath)) {
+    let _localChecks;
+    try {
+      _localChecks = (await import(pathToFileURL(_localSlotPath).href)).checks;
+    } catch (_localErr) {
+      console.error(`[CHECK] local checks ... FAIL (scripts/check-all.local.mjs failed to load: ${_localErr.message})`);
+      pushResult('local checks', 'FAIL', 0);
+      _localChecks = undefined;
+    }
+    if (_localChecks !== undefined) {
+      if (!Array.isArray(_localChecks)) {
+        console.error('[CHECK] local checks ... FAIL (scripts/check-all.local.mjs must export `checks: Array<{ name, cmd, tier }>`)');
+        pushResult('local checks', 'FAIL', 0);
+      } else {
+        for (const _lc of _localChecks) {
+          const _lcValid = _lc && typeof _lc.name === 'string' && Array.isArray(_lc.cmd)
+            && _lc.cmd.length > 0 && _LEVELS.includes(_lc.tier);
+          if (!_lcValid) {
+            console.error(`[CHECK] local checks ... FAIL (malformed entry, expected { name: string, cmd: string[], tier: L1|L2|L3|L4 }: ${JSON.stringify(_lc)})`);
+            pushResult('local checks', 'FAIL', 0);
+            continue;
+          }
+          if (_LEVELS.indexOf(_lc.tier) > _LEVELS.indexOf(level)) continue; // declared tier not yet due
+          runCheck(`[local] ${_lc.name}`, _lc.cmd[0], _lc.cmd.slice(1));
+        }
+      }
+    }
+  }
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

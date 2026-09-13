@@ -118,7 +118,6 @@ describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', 
     const r = runLocalSlotHarness(null)
     expect(r.status).toBe(0)
     expect(r.stdout).not.toContain('[local]')
-    expect(r.stdout).not.toContain('RUNCHECK:')
   })
 
   it('dispatches a declared local check through runCheck, labeled [local]', () => {
@@ -126,8 +125,11 @@ describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', 
       "export const checks = [{ name: 'ripme java coverage', cmd: ['node', 'scripts/verify-module-coverage.mjs'], tier: 'L1' }];\n",
     )
     expect(r.status).toBe(0)
-    expect(r.stdout).toContain('RUNCHECK:')
-    const call = JSON.parse(/RUNCHECK:(\{.*\})/.exec(r.stdout)![1])
+    const localLine = r.stdout
+      .split('\n')
+      .find((l) => l.startsWith('RUNCHECK:') && l.includes('[local]'))
+    expect(localLine).toBeDefined()
+    const call = JSON.parse(/RUNCHECK:(\{.*\})/.exec(localLine!)![1])
     expect(call.name).toBe('[local] ripme java coverage')
     expect(call.cmd).toBe('node')
     expect(call.args).toEqual(['scripts/verify-module-coverage.mjs'])
@@ -139,7 +141,7 @@ describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', 
       ['L1'],
     )
     expect(r.status).toBe(0)
-    expect(r.stdout).not.toContain('RUNCHECK:')
+    expect(r.stdout).not.toContain('[local] nightly-only')
   })
 
   it('fails loud (never silently drops) a malformed checks export', () => {
