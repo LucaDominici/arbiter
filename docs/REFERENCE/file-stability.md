@@ -190,7 +190,7 @@ the consumer, which is a prerequisite this issue deliberately refused to impose.
 
 **Issue:** #2663
 
-INV-21 (a `TODO`/`FIXME` must cite an issue, e.g. `TODO(#123)`) previously had only an editor-time
+INV-21 (a `TODO` must cite an issue, e.g. `TODO(#123)`) previously had only an editor-time
 enforcement path: `.claude/hooks/check-no-orphan-todo.mjs` inspects a single file — whatever tool call
 just ran — via `CLAUDE_TOOL_INPUT_PATH`. It never scans the tree, so nothing runs it in CI, and consumers
 without the Claude hook (or running an older commit) had no CI-runnable check at all; one consumer's

@@ -1,4 +1,24 @@
 #!/usr/bin/env node
+<%
+// #2663 (P0 review fix): the self gate is TypeScript-only by construction (arbiter's own tree).
+// A governed target can be any language check-all.mjs supports, and most of them don't put
+// source under src/__tests__ with a .ts/.js extension (a Go library's *.go files sit at the repo
+// root — see examples/go-library — a Rust crate's tests/ dir holds .rs, etc.), so shipping the
+// self gate's scan roots/extensions verbatim would resolve a permanent zero-file scan set for
+// every non-TS/JS consumer. Mirrors the per-language branching sibling emitted gates already do
+// (check-test-naming.mjs.ejs). Structural divergence from self is expected and pinned in
+// .dogfood-divergences.json — self has no `language` to branch on.
+const LANG_SCAN = {
+  typescript: { dirs: ['src', '__tests__'], exts: ['.ts', '.tsx', '.mjs', '.js'] },
+  javascript: { dirs: ['src', '__tests__'], exts: ['.mjs', '.js', '.jsx'] },
+  go: { dirs: ['.'], exts: ['.go'] },
+  python: { dirs: ['src', 'tests'], exts: ['.py'] },
+  java: { dirs: ['src'], exts: ['.java'] },
+  kotlin: { dirs: ['src'], exts: ['.kt'] },
+  rust: { dirs: ['src', 'tests'], exts: ['.rs'] },
+}
+const _scan = LANG_SCAN[language] || LANG_SCAN.typescript
+%>
 // SPDX-License-Identifier: Apache-2.0
 // Scans source files for orphan TODO comments (missing task ID).
 // Valid: // TODO(#123): description
@@ -19,8 +39,8 @@ import { isMainModule } from './lib/run-helpers.mjs'
 // Exported so .claude/hooks/check-no-orphan-todo.mjs can reuse the same reference
 // semantics rather than drifting to a naive \bTODO\b regex (#1796/#1799).
 export const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
-export const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
-export const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'templates'])
+export const EXTENSIONS = new Set(<%- JSON.stringify(_scan.exts) %>)
+export const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'templates', 'vendor', 'target'])
 
 /**
  * Collect every source file under `root` to scan: walkRepo handles traversal, then this gate's own
@@ -50,7 +70,8 @@ function findOrphanTodos(content) {
 }
 
 export function main(exitFn = process.exit) {
-  const scanDirs = process.argv.slice(2).length > 0 ? process.argv.slice(2) : ['src', '__tests__']
+  const scanDirs =
+    process.argv.slice(2).length > 0 ? process.argv.slice(2) : <%- JSON.stringify(_scan.dirs) %>
   const baseDir = process.cwd()
   let violations = 0
   let filesScanned = 0
@@ -82,12 +103,17 @@ export function main(exitFn = process.exit) {
   process.stdout.write(
     `  Scanned ${filesScanned} file(s) across ${scanDirs.length} dir(s): ${scanDirs.join(', ')}\n`,
   )
+  // #2663 (P0 review fix, NO-DATA convention): unlike the self gate's CANON-24 ABORT (arbiter's
+  // own tree always has matching source, so a zero-file scan there means the gate looked in the
+  // wrong place), a governed target legitimately has zero files under its language's scan roots —
+  // a brand-new project, or one still on scaffolding before any source lands. Failing every such
+  // project closed on a gate it can't act on is worse than a loud PASS: NO-DATA is reported, not
+  // hidden, but does not block the pipeline.
   if (filesScanned === 0) {
     process.stdout.write(
-      `\n  ABORT: resolved scan set is empty — 0 files found under ${scanDirs.join(', ')}. ` +
-        `A gate that finds nothing must first prove it looked somewhere (CANON-24).\n\n`,
+      `\n  NO-DATA: 0 files found under ${scanDirs.join(', ')} — nothing to scan yet. PASS.\n\n`,
     )
-    return exitFn(1)
+    return exitFn(0)
   }
 
   if (violations > 0) {

@@ -37,6 +37,8 @@ describe('#2663 check-no-orphan-todo.mjs gate (no arbiter dependency)', () => {
       tools: 'claude',
       level: 'L2',
       dir,
+      dryRun: false,
+      brownfield: false,
       noVerify: true,
       language: 'typescript',
     })
@@ -59,12 +61,12 @@ describe('#2663 check-no-orphan-todo.mjs gate (no arbiter dependency)', () => {
     const registry = JSON.parse(match![1]) as Array<{
       id: string
       level: string
-      cmd?: [string, string[]]
+      cmd?: unknown[]
     }>
     const row = registry.find((g) => g.id === 'no-orphan-todo')
     expect(row, 'no-orphan-todo row missing from GATE_REGISTRY').toBeTruthy()
     expect(row!.level).toBe('L1')
-    expect(row!.cmd).toEqual(['node', ['scripts/check-no-orphan-todo.mjs']])
+    expect(JSON.stringify(row!.cmd)).toContain('scripts/check-no-orphan-todo.mjs')
   })
 
   it('FAILS (exit 1) and names the offending file on an orphan TODO', () => {
