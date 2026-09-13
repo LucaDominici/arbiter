@@ -58,7 +58,8 @@ describe('post-subagent-release hook (SubagentStop, #2403)', () => {
     const newer = Date.now()
     writeSidecar(dir, [
       { agent: 'general-purpose', ts: older, pid: 1, cwd: dir },
-      { agent: 'general-purpose', ts: newer, pid: 2, cwd: dir },
+      // #2588: a pid that is surely alive — pid 2 may not exist in a container, and prune now drops dead pids.
+      { agent: 'general-purpose', ts: newer, pid: process.pid, cwd: dir },
     ])
     const result = runHook(dir, { agent: 'general-purpose', cwd: dir })
     expect(result.status).toBe(0)
