@@ -16,7 +16,7 @@ import { join } from 'node:path'
 // non-blocking — the completion backstop would go silent instead of blocking.
 let gateEvidence = null
 try {
-  gateEvidence = await import('../../scripts/lib/gate-evidence.mjs')
+  gateEvidence = await import('./gate-evidence.mjs')
 } catch {
   gateEvidence = null
 }
@@ -26,7 +26,7 @@ try {
 // both verifiers.
 let evidenceBinding = null
 try {
-  evidenceBinding = await import('../../scripts/lib/evidence-binding.mjs')
+  evidenceBinding = await import('./evidence-binding.mjs')
 } catch {
   evidenceBinding = null
 }

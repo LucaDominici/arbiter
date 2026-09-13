@@ -72,17 +72,18 @@ runtime, no build step, no arbiter CLI required to run them.
 
 ## Contents
 
-| File                         | Event                     | Role                                                          |
-| ---------------------------- | ------------------------- | ------------------------------------------------------------- |
-| `lib.mjs`                    | —                         | shared helpers (repo root, task-state read, sanitization)     |
-| `stop-evidence-guard.mjs`    | `Stop`                    | the completion-integrity backstop (#1–4 above)                |
-| `guard-done-evidence.mjs`    | `UserPromptSubmit`        | completion-claim detection + SHA-256 pinned-file verification |
-| `stop-dangerous.mjs`         | `PreToolUse:Bash`         | blocks destructive commands (`rm -rf /`, force-push, etc.)    |
-| `enforce-gate-before-pr.mjs` | `PreToolUse:Bash`         | blocks a PR/merge command until the gate marker is present    |
-| `enforce-read-only.mjs`      | `PreToolUse:Edit\|Write`  | blocks edits to declared read-only paths                      |
-| `pre-edit-ssot-guard.mjs`    | `PreToolUse:Edit\|Write`  | blocks edits to source-of-truth docs without approval         |
-| `check-no-orphan-todo.mjs`   | `PostToolUse:Edit\|Write` | blocks a bare `TODO` with no tracked issue reference          |
-| `check-no-placeholders.mjs`  | `PostToolUse:Edit\|Write` | blocks stub/placeholder content masquerading as done          |
+| File                                                           | Event                     | Role                                                           |
+| -------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------- |
+| `lib.mjs`                                                      | —                         | shared helpers (repo root, task-state read, sanitization)      |
+| `stop-evidence-guard.mjs`                                      | `Stop`                    | the completion-integrity backstop (#1–4 above)                 |
+| `guard-done-evidence.mjs`                                      | `UserPromptSubmit`        | completion-claim detection + SHA-256 pinned-file verification  |
+| `stop-dangerous.mjs`                                           | `PreToolUse:Bash`         | blocks destructive commands (`rm -rf /`, force-push, etc.)     |
+| `enforce-gate-before-pr.mjs`                                   | `PreToolUse:Bash`         | blocks a PR/merge command until the gate marker is present     |
+| `enforce-read-only.mjs`                                        | `PreToolUse:Edit\|Write`  | blocks edits to declared read-only paths                       |
+| `pre-edit-ssot-guard.mjs`                                      | `PreToolUse:Edit\|Write`  | blocks edits to source-of-truth docs without approval          |
+| `check-no-orphan-todo.mjs`                                     | `PostToolUse:Edit\|Write` | blocks a bare `TODO` with no tracked issue reference           |
+| `check-no-placeholders.mjs`                                    | `PostToolUse:Edit\|Write` | blocks stub/placeholder content masquerading as done           |
+| `gate-evidence.mjs`, `evidence-binding.mjs`, `run-helpers.mjs` | —                         | verifiers the evidence hooks import (shipped in-plugin, #2557) |
 
 Rebuilt from the source project's own emitted templates via
 `node scripts/build-kernel-plugin.mjs` (run after `npm run build`) — so this

@@ -77,7 +77,7 @@ function fail(reason) {
 
 let verifyDoneEvidenceReceipt
 try {
-  ;({ verifyDoneEvidenceReceipt } = await import('../../scripts/lib/gate-evidence.mjs'))
+  ;({ verifyDoneEvidenceReceipt } = await import('./gate-evidence.mjs'))
   if (typeof verifyDoneEvidenceReceipt !== 'function') fail('done receipt verifier unavailable')
 } catch (err) {
   fail(`done receipt verifier unavailable: ${err.message}`)

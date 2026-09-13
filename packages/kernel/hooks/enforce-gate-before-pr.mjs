@@ -112,7 +112,7 @@ try {
 // non-blocking — a missing verifier would silently open the gate.
 let gateEvidence
 try {
-  gateEvidence = await import('../../scripts/lib/gate-evidence.mjs')
+  gateEvidence = await import('./gate-evidence.mjs')
 } catch (err) {
   process.stderr.write(
     `[arbiter] GATE GUARD: the gate-pass verifier could not be loaded${rootNote}: ` +
