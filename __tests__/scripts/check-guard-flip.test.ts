@@ -283,6 +283,14 @@ describe('CANON-25 — the harness itself goes red when its own enforcement is i
   // production pins (MIN_ABSENCE_FAMILY / MAX_DEFERRED) would reject these fixtures outright,
   // which is the point — a fixture declares its own contract, the real gate source cannot.
   const FIXTURE_PINS = ['--min-family=1', '--max-deferred=0']
+  // #2560: family membership is a declared roster, not a name regex — a --gate fixture must also
+  // declare its fake gate in a --roster fixture, exactly as it already declares its own ledger.
+  const FIXTURE_ROSTER = {
+    family: {
+      'no fabricated thing': { script: 'scripts/check-no-fabricated.mjs', category: 'no' },
+    },
+    exempt: {},
+  }
 
   it('an unproven, unledgered absence gate makes the harness exit 1 (UNCOVERED)', () => {
     withTmp((dir) => {
@@ -290,11 +298,13 @@ describe('CANON-25 — the harness itself goes red when its own enforcement is i
       writeFileSync(gate, FAKE_GATE)
       const reg = join(dir, 'registry.json')
       writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      writeFileSync(roster, JSON.stringify(FIXTURE_ROSTER))
       // A one-gate fixture declares its own pins. The REAL gate source and ledger may not — the
       // two describe blocks below exercise the pinned defaults and prove they trip.
       const r = spawnSync(
         'node',
-        [HARNESS, `--gate=${gate}`, `--registry=${reg}`, ...FIXTURE_PINS],
+        [HARNESS, `--gate=${gate}`, `--registry=${reg}`, `--roster=${roster}`, ...FIXTURE_PINS],
         {
           encoding: 'utf-8',
         },
@@ -308,6 +318,8 @@ describe('CANON-25 — the harness itself goes red when its own enforcement is i
     withTmp((dir) => {
       const gate = join(dir, 'check-all.mjs')
       writeFileSync(gate, FAKE_GATE)
+      const roster = join(dir, 'roster.json')
+      writeFileSync(roster, JSON.stringify(FIXTURE_ROSTER))
       const covered = join(dir, 'covered.json')
       writeFileSync(
         covered,
@@ -328,7 +340,14 @@ describe('CANON-25 — the harness itself goes red when its own enforcement is i
       )
       const ok = spawnSync(
         'node',
-        [HARNESS, `--gate=${gate}`, `--registry=${covered}`, '--min-family=1', '--max-deferred=1'],
+        [
+          HARNESS,
+          `--gate=${gate}`,
+          `--registry=${covered}`,
+          `--roster=${roster}`,
+          '--min-family=1',
+          '--max-deferred=1',
+        ],
         { encoding: 'utf-8' },
       )
       expect(ok.status).toBe(0)
@@ -339,7 +358,13 @@ describe('CANON-25 — the harness itself goes red when its own enforcement is i
       writeFileSync(overflow, JSON.stringify({ ...parsed, ceiling: 0 }))
       const bad = spawnSync(
         'node',
-        [HARNESS, `--gate=${gate}`, `--registry=${overflow}`, ...FIXTURE_PINS],
+        [
+          HARNESS,
+          `--gate=${gate}`,
+          `--registry=${overflow}`,
+          `--roster=${roster}`,
+          ...FIXTURE_PINS,
+        ],
         { encoding: 'utf-8' },
       )
       expect(bad.status).toBe(1)

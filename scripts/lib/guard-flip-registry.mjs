@@ -518,4 +518,19 @@ export const FLIP_REGISTRY = {
       writeFileSync(join(d, 'stop-dangerous.mjs'), '// #2548 guard-flip: corrupted on purpose\n')
     },
   },
+  // #2560: check-todo-max-age.mjs newly admitted to the CANON-25 family via the declared roster
+  // (gate-roster.mjs) — its old name/basename matched none of the three regexes, so it sat
+  // outside the family entirely (the issue's proof case). Proven on the filesystem-only ABORT
+  // path (#2526): a resolved scan set of ZERO files is a hard FAIL, never the vacuous "no
+  // linked-issue references — PASS". Deliberately does not exercise the `gh api`-backed age check
+  // (network, offline-unsafe) — the zero-files/zero-refs pair is what the roster admission is
+  // proving: the gate cannot silently report clean by looking nowhere.
+  'todo max-age': {
+    kind: 'file-scan',
+    argv: (d) => [d],
+    // an empty directory (no source files at all) → resolved scan set is empty → ABORT (exit 1)
+    plantBad: () => {},
+    // one ordinary source file, zero linked-issue references → legitimate clean state → PASS (exit 0)
+    plantClean: (d) => write(d, join('src', 'a.ts'), 'export const a = 1\n'),
+  },
 }

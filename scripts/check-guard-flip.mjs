@@ -44,6 +44,9 @@ import {
   INVERSION_REGISTRY_PATH,
   MIN_ABSENCE_FAMILY,
   MAX_DEFERRED,
+  ABSENCE_FAMILY_ROSTER,
+  NOT_ABSENCE,
+  ABSENCE_EXEMPT,
 } from './lib/gate-roster.mjs'
 
 // Completeness surface = the aggregate roster PLUS the anti-context-rot gate roster
@@ -68,6 +71,10 @@ if (args.includes('--help') || args.includes('-h')) {
       'Options:\n' +
       '  --gate=<path>       check-all.mjs to derive the absence family from\n' +
       '  --registry=<path>   deferral ledger (default scripts/data/inversion-proof-registry.json)\n' +
+      '  --roster=<path>     JSON { family, notAbsence, exempt } overriding\n' +
+      '                      ABSENCE_FAMILY_ROSTER/NOT_ABSENCE/ABSENCE_EXEMPT (gate-roster.mjs); a\n' +
+      '                      --gate fixture declares its own roster here, the real gate source\n' +
+      '                      always uses the pinned declarations in source\n' +
       '  --now=YYYY-MM-DD    clock used for deferral expiry\n' +
       '  --min-family=<n>    floor on the derived family (default: the MIN_ABSENCE_FAMILY pin);\n' +
       '                      a --gate fixture declares its own, the real gate source may not\n' +
@@ -160,6 +167,31 @@ function numericFlag(name, fallback) {
  * so a `--gate`/`--registry` FIXTURE can declare its own tiny contract. The real gate source and
  * the real ledger get the pinned values, which is the invocation vitest and CI actually run.
  */
+/**
+ * --roster lets a --gate fixture declare its own { family, notAbsence, exempt } contract (#2560),
+ * exactly as --registry/--max-deferred already let a fixture declare its own ledger contract. With
+ * no --roster, returns the pinned ABSENCE_FAMILY_ROSTER/NOT_ABSENCE/ABSENCE_EXEMPT from
+ * gate-roster.mjs source, unconditionally — the real invocation (vitest/CI) never overrides these.
+ */
+function loadRosterOverride(rosterPath) {
+  if (rosterPath === undefined) {
+    return { roster: ABSENCE_FAMILY_ROSTER, notAbsence: NOT_ABSENCE, exempt: ABSENCE_EXEMPT }
+  }
+  let parsed
+  try {
+    parsed = JSON.parse(readFileSync(resolve(rosterPath), 'utf-8'))
+  } catch (err) {
+    throw Object.assign(new Error(`cannot read --roster ${rosterPath}: ${err.message}`), {
+      exitCode: 2,
+    })
+  }
+  return {
+    roster: parsed.family ?? {},
+    notAbsence: parsed.notAbsence ?? {},
+    exempt: parsed.exempt ?? {},
+  }
+}
+
 function absenceSurface() {
   const gatePath = resolve(flag('gate', 'scripts/check-all.mjs'))
   const registryPath = resolve(flag('registry', INVERSION_REGISTRY_PATH))
@@ -190,7 +222,8 @@ function absenceSurface() {
     })
   }
 
-  const family = deriveAbsenceFamily(gateSrc)
+  const { roster, notAbsence, exempt } = loadRosterOverride(flag('roster'))
+  const family = deriveAbsenceFamily(gateSrc, { roster, notAbsence, exempt })
   if (family.length < minFamily) {
     throw Object.assign(
       new Error(

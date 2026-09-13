@@ -47,7 +47,7 @@ export const INVERSION_REGISTRY_PATH = 'scripts/data/inversion-proof-registry.js
  * it. Only a DROP fails, which is the failure mode. Lowering the pin after a deliberate gate
  * removal is then a source edit review can see, not a silent green.
  */
-export const MIN_ABSENCE_FAMILY = 25
+export const MIN_ABSENCE_FAMILY = 27
 
 /**
  * The ledger's cardinality pin, held HERE rather than inside the ledger it governs (#2301 review).
@@ -82,33 +82,437 @@ export function enumerateGateMechanisms(gateSrc) {
 }
 
 /**
- * Which absence-asserting category a wired mechanism belongs to, or null when it asserts the
- * PRESENCE of something (a shape this class does not hide in as readily). Matched on the declared
- * check name AND the script basename so a gate stays in the family through a rename of either.
+ * #2560: membership was three regexes over a gate's NAME — a gate that asserts an absence but is
+ * not called `check-no-*`/`ratchet`/`parity` returned `null` and sat outside the family forever,
+ * never asked to prove it can go red (`check-todo-max-age.mjs` did exactly this before #2526).
+ * Fixed by an explicit, declared roster (AC-1 "explicit opt-in"): membership is decided HERE, by
+ * name, not derived from the name/script text at read time. A rename in check-all.mjs cannot
+ * silently add or drop a family member — the roster's `script` is checked against the live wiring
+ * and a mismatch is a loud error, not a fallback guess.
+ *
+ * Each entry preserves the exact { script, category } that was already flip-proven or ledgered —
+ * `todo max-age` is the one new member #2560 adds (proof registered in guard-flip-registry.mjs).
  */
-export function absenceCategory(name, scriptPath) {
-  if (!scriptPath) return null
-  const base = scriptPath.split('/').pop() ?? ''
-  const hay = `${name} ${base}`.toLowerCase()
-  if (/^check-no-/.test(base)) return 'no'
-  if (/ratchet|no-regress|non-regress/.test(hay)) return 'ratchet'
-  if (/parity/.test(hay)) return 'parity'
+export const ABSENCE_FAMILY_ROSTER = {
+  'no redacted tokens': { script: 'scripts/check-no-redacted-tokens.mjs', category: 'no' },
+  'no work refs': { script: 'scripts/check-no-work-refs.mjs', category: 'no' },
+  'no tracked artifacts (INV-117)': {
+    script: 'scripts/check-no-tracked-artifacts.mjs',
+    category: 'no',
+  },
+  'safety adopt ratchet (#2291)': {
+    script: 'scripts/check-safety-adopt-ratchet.mjs',
+    category: 'ratchet',
+  },
+  placeholders: { script: 'scripts/check-no-placeholders.mjs', category: 'no' },
+  'i18n raw strings': { script: 'scripts/check-no-raw-strings.mjs', category: 'no' },
+  'orphan TODOs': { script: 'scripts/check-no-orphan-todo.mjs', category: 'no' },
+  'no direct-fs outside the façade': { script: 'scripts/check-no-direct-fs.mjs', category: 'no' },
+  'catalog parity': { script: 'scripts/check-catalog-agents-parity.mjs', category: 'parity' },
+  'global-invariants parity': {
+    script: 'scripts/check-global-invariants-parity.mjs',
+    category: 'parity',
+  },
+  'kit catalog parity': { script: 'scripts/check-kit-catalog-parity.mjs', category: 'parity' },
+  'bloat ratchet': { script: 'scripts/check-bloat-ratchet.mjs', category: 'ratchet' },
+  'cli ref parity (INV-111)': { script: 'scripts/gen-cli-ref.mjs', category: 'parity' },
+  'version parity (#1838)': { script: 'scripts/check-version-parity.mjs', category: 'parity' },
+  'canon enforcement parity (B1)': {
+    script: 'scripts/check-canon-enforcement-parity.mjs',
+    category: 'parity',
+  },
+  'action pin parity': { script: 'scripts/sync-action-pins.mjs', category: 'parity' },
+  'gold-audit no-regress (#1373)': { script: 'scripts/gold-audit.mjs', category: 'ratchet' },
+  'ci tool parity': { script: 'scripts/check-ci-tool-parity.mjs', category: 'parity' },
+  'hook doc parity (CANON-10, #1838)': {
+    script: 'scripts/check-hook-doc-parity.mjs',
+    category: 'parity',
+  },
+  'no passWithNoTests (INV-25)': {
+    script: 'scripts/check-no-passwithnotests.mjs',
+    category: 'no',
+  },
+  'kernel plugin parity (#2548)': {
+    script: 'scripts/check-kernel-plugin-parity.mjs',
+    category: 'parity',
+  },
+  'coverage ratchet (#1483)': { script: 'scripts/check-coverage-ratchet.mjs', category: 'ratchet' },
+  'debt ratchet': { script: 'scripts/debt-report.mjs', category: 'ratchet' },
+  'local-ci parity': { script: 'scripts/check-local-ci-parity.mjs', category: 'parity' },
+  'codex parity (#1966)': { script: 'scripts/check-codex-parity.mjs', category: 'parity' },
+  'codex self-parity (#1966)': {
+    script: 'scripts/check-codex-self-parity.mjs',
+    category: 'parity',
+  },
+  'todo max-age': { script: 'scripts/check-todo-max-age.mjs', category: 'no' },
+}
+
+/**
+ * #2560 AC-3: wired mechanisms this issue identified as absence-asserting but deliberately NOT
+ * added to the family in this PR — named with a reason so the exclusion is reviewable, not a
+ * silent `null`. This is the enumerated list the issue asked for: the "anti-drift" (INV-89) family
+ * reads live repo state via process.cwd() with no fixture-injection flag (the same shape #2301
+ * already deferred 15 gates for), so proving each needs the same per-gate fixture work as the
+ * deferral ledger — sized here, not attempted in this slice.
+ *
+ * Every entry is machine-validated by `exemptionProblem` below (Codex round-1 finding #2): `script`
+ * must match the live wiring (else stale — a renamed/removed gate exempts nothing), `reason` must
+ * carry at least 3 words (not a placeholder), and `followUp` must cite a real tracking issue — an
+ * exemption is a promise to come back, and a promise with no ticket is not one. Tracked in #2675:
+ * promote each to the roster with a flip proof, or a dated `inversion-proof-registry.json` row.
+ */
+export const ABSENCE_EXEMPT = {
+  'llms.txt drift (#1721)': {
+    script: 'scripts/gen-llms-txt.mjs',
+    reason: 'diffs generated content against committed docs, no fixture flag',
+    followUp: '#2675',
+  },
+  'api snapshot': {
+    script: 'scripts/check-api-snapshot.mjs',
+    reason: 'diffs live TS exports against a committed snapshot file',
+    followUp: '#2675',
+  },
+  'npm-ci drift (#1684)': {
+    script: 'scripts/check-npm-ci-drift.mjs',
+    reason: 're-runs npm ci against the live lockfile, no fixture flag',
+    followUp: '#2675',
+  },
+  'gold registries no-false-gap (#1413)': {
+    script: 'scripts/check-gold-registries.mjs',
+    reason: 'scores live registries against a committed audit report',
+    followUp: '#2675',
+  },
+  'anti-drift: suppression rationale': {
+    script: 'scripts/check-suppression-rationale.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: suppression expiry': {
+    script: 'scripts/check-suppression-expiry.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: pii scan config': {
+    script: 'scripts/check-pii-scan.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: secret scan': {
+    script: 'scripts/check-secret-scan.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: drift manifest': {
+    script: 'scripts/check-drift.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: workflow runners': {
+    script: 'scripts/check-workflow-runners.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: docker action runner safety (#1756)': {
+    script: 'scripts/check-docker-action-runner-safety.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: workflow docs sync': {
+    script: 'scripts/check-workflow-docs-sync.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: workflow integrity': {
+    script: 'scripts/check-workflow-test-integrity.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: workflow parallelism (INV-120)': {
+    script: 'scripts/check-workflow-parallelism.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: pr size gate': {
+    script: 'scripts/check-pr-size-gate.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: unwired guards (#2159)': {
+    script: 'scripts/check-unwired-guards.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: validator helptext': {
+    script: 'scripts/check-validator-helptext.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'anti-drift: tier coverage': {
+    script: 'scripts/check-tier-coverage.mjs',
+    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
+    followUp: '#2675',
+  },
+  'examples drift (#2222)': {
+    script: 'scripts/regenerate-examples.mjs',
+    reason: 'diffs generated examples/ against committed output',
+    followUp: '#2675',
+  },
+}
+
+/**
+ * #2560 Codex round-1 finding #1: a wired mechanism that trips no candidate heuristic used to
+ * return `[]` (excluded) SILENTLY — the exact escape this issue exists to close, just moved one
+ * level up. Fail-closed now means EVERY wired mechanism in check-all.mjs must be classified into
+ * exactly one of three declared buckets: ABSENCE_FAMILY_ROSTER (proven or ledgered), ABSENCE_EXEMPT
+ * (identified absence-asserting, promotion deferred, tracked in #2675), or NOT_ABSENCE (declared,
+ * by a human, NOT absence-asserting — a presence/build/lint/doc check). A mechanism in none of the
+ * three is a loud `exitCode: 2` error, never a silent `null`/`[]` exclusion — no heuristic decides
+ * membership, a declaration does, so a gate cannot escape by carrying a name no regex anticipated.
+ *
+ * Generated as a one-time audit sweep over every mechanism `enumerateGateMechanisms` did not
+ * already place in the family or the exemption list; each entry's `script` is checked against the
+ * live wiring for drift exactly like the other two tables (a rename here is caught, not ignored).
+ */
+export const NOT_ABSENCE = {
+  build: { script: null },
+  'build-kit': { script: 'scripts/build-kit.mjs' },
+  'private paths ignored': { script: 'scripts/check-private-paths-ignored.mjs' },
+  'hook routing (#2129)': { script: 'scripts/check-hook-routing.mjs' },
+  typecheck: { script: null },
+  format: { script: null },
+  lint: { script: null },
+  'circular deps': { script: null },
+  'spdx headers': { script: 'scripts/check-spdx-headers.mjs' },
+  'PII scan': { script: 'scripts/pii-scan.mjs' },
+  'inline suppressions': { script: 'scripts/check-inline-suppressions.mjs' },
+  'suppressions expiry': { script: 'scripts/check-suppressions.mjs' },
+  commitlint: { script: null },
+  'test naming': { script: 'scripts/check-test-naming.mjs' },
+  'hardness inventory': { script: 'scripts/check-hardness-inventory.mjs' },
+  'hardness inventory (self hooks)': { script: 'scripts/check-hardness-inventory.mjs' },
+  docs: { script: 'scripts/check-docs.mjs' },
+  'install command (B1)': { script: 'scripts/check-install-command.mjs' },
+  'tool claims': { script: 'scripts/check-tool-claims.mjs' },
+  'third-party licenses': { script: 'scripts/gen-third-party-licenses.mjs' },
+  'matrix fixtures': { script: 'scripts/check-matrix-fixtures.mjs' },
+  'matrix proven cells': { script: 'scripts/check-matrix-proven-cells.mjs' },
+  'skills-matrix-schema': { script: 'scripts/check-skills-matrix.mjs' },
+  'tabletop evidence (#2429)': { script: 'scripts/check-tabletop-evidence.mjs' },
+  'template tests': { script: 'scripts/check-template-tests.mjs' },
+  'emitted formatting (#2571)': { script: 'scripts/check-emitted-formatting.mjs' },
+  'generator tests': { script: 'scripts/check-generator-tests.mjs' },
+  'command tests': { script: 'scripts/check-command-tests.mjs' },
+  'brownfield tests (CANON-11)': { script: 'scripts/check-brownfield-tests.mjs' },
+  'enforcement wired': { script: 'scripts/check-inv-enforcement-wired.mjs' },
+  'id registry (INV-140)': { script: 'scripts/check-id-registry.mjs' },
+  'ontology wired (INV-141)': { script: 'scripts/check-ontology-wired.mjs' },
+  'arc42 slots (INV-144)': { script: 'scripts/check-arc42-slots.mjs' },
+  'milestones (INV-146)': { script: 'scripts/check-milestones.mjs' },
+  'runbook coverage (INV-148)': { script: 'scripts/check-runbook-coverage.mjs' },
+  'use cases (INV-149)': { script: 'scripts/check-use-cases.mjs' },
+  'sources tier 1 (INV-147)': { script: 'scripts/check-sources.mjs' },
+  'forma schema contract (INV-143)': { script: 'scripts/check-forma-contract.mjs' },
+  'orchestrator coverage (#1410)': { script: 'scripts/check-orchestrator-coverage.mjs' },
+  'constraint scan (INV-115)': { script: 'scripts/check-constraint-scan.mjs' },
+  'agent-dispatch matrix (#1267)': { script: 'scripts/check-agent-dispatch.mjs' },
+  'wiki lint (INV-116)': { script: 'scripts/check-wiki-lint.mjs' },
+  'node version ssot': { script: 'scripts/check-node-version-ssot.mjs' },
+  'exit code contract': { script: 'scripts/check-exit-code-contract.mjs' },
+  'pipe/tee hazard': { script: 'scripts/check-pipe-tee-hazard.mjs' },
+  'ssot core': { script: 'scripts/check-ssot-core.mjs' },
+  'doc links': { script: 'scripts/check-doc-links.mjs' },
+  'governance mirror sync (#1805)': { script: 'scripts/check-governance-mirror-sync.mjs' },
+  'doc style': { script: 'scripts/check-doc-style.mjs' },
+  'orchestration integrity (#2387)': { script: 'scripts/check-orchestration-integrity.mjs' },
+  'claude-md lint (#1266)': { script: 'scripts/check-claude-md-lint.mjs' },
+  'doc index (#1102)': { script: 'scripts/gen-doc-index.mjs' },
+  'status dashboard': { script: 'scripts/gen-status.mjs' },
+  'derived pages (#1838)': { script: 'scripts/gen-derived-pages.mjs' },
+  'gap register': { script: 'scripts/gen-gap.mjs' },
+  'ssot core index (#1100)': { script: 'scripts/gen-ssot-core.mjs' },
+  'adr index (INV-107)': { script: 'scripts/check-adr-index.mjs' },
+  'adr digest (INV-107)': { script: 'scripts/gen-adr-readme.mjs' },
+  'adr enforcement linkage (#1473)': { script: 'scripts/check-adr-enforcement.mjs' },
+  'bypass ceremony (E4 #1949)': { script: 'scripts/check-bypass-ceremony.mjs' },
+  'phantom command scan (INV-111 ext, #1838)': { script: 'scripts/check-phantom-command-scan.mjs' },
+  'doc path citations (#2243)': { script: 'scripts/check-doc-path-citations.mjs' },
+  'phase doc consistency (INV-113)': { script: 'scripts/check-phase-doc-consistency.mjs' },
+  'acceptance anchor (INV-138)': { script: 'scripts/check-acceptance.mjs' },
+  'canonical paths': { script: 'scripts/check-canonical-paths.mjs' },
+  'canon references': { script: 'scripts/check-canon-references.mjs' },
+  'canon-15 wired gate (#1923)': { script: 'scripts/check-canon15-wired-gate.mjs' },
+  'plugin api stability': { script: 'scripts/check-plugin-api-stability.mjs' },
+  deprecations: { script: 'scripts/check-deprecations.mjs' },
+  'hook contracts': { script: 'scripts/check-hook-contracts.mjs' },
+  'ci tiers (INV-73)': { script: 'scripts/check-ci-tiers.mjs' },
+  'action pin sha (INV-76)': { script: 'scripts/check-action-pins.mjs' },
+  'runtime dep pins (#1557)': { script: 'scripts/check-runtime-dep-pins.mjs' },
+  'workflow hardening (INV-76/95)': { script: 'scripts/check-workflow-hardening.mjs' },
+  'gold-audit false-gap (#1373)': { script: 'scripts/gold-audit.mjs' },
+  actionlint: { script: null },
+  'perm-test guards': { script: 'scripts/check-perm-test-guards.mjs' },
+  'deploy cosign supply-chain (INV-95/97/98)': { script: 'scripts/check-workflow-cosign.mjs' },
+  'collab mode wired (INV-100)': { script: 'scripts/check-collab-mode-wired.mjs' },
+  'merge method ff-only (INV-101)': { script: 'scripts/check-merge-method.mjs' },
+  'settings coverage (#1121)': { script: 'scripts/check-settings-coverage.mjs' },
+  'methodology coverage (#2039)': { script: 'scripts/check-methodology-coverage.mjs' },
+  'feature matrix (INV-112)': { script: 'scripts/check-feature-matrix.mjs' },
+  'anti-proforma (INV-118)': { script: 'scripts/check-anti-proforma.mjs' },
+  'anti-fake-green (#1412)': { script: 'scripts/check-anti-fake-green.mjs' },
+  'fixture isolation (INV-139)': { script: 'scripts/check-fixture-isolation.mjs' },
+  'test pyramid (INV-124)': { script: 'scripts/check-test-pyramid.mjs' },
+  'test scope-tier (INV-124)': { script: 'scripts/check-test-scope-tier.mjs' },
+  'domain-api surface (INV-125)': { script: 'scripts/check-domain-api-surface.mjs' },
+  'api e2e (INV-126)': { script: 'scripts/check-api-e2e.mjs' },
+  'render smoke presence (INV-127)': { script: 'scripts/check-render-smoke.mjs' },
+  'smoke journeys (INV-137)': { script: 'scripts/check-smoke-journeys.mjs' },
+  'M16 handoff-contract marker (#2103)': { script: 'scripts/check-m16-handoff.mjs' },
+  'e2e escalation ladder (#2043)': { script: 'scripts/check-e2e-escalation.mjs' },
+  'workflow cache strategy (§17.5 rec 3)': { script: 'scripts/check-workflow-cache-strategy.mjs' },
+  'build-cache strategy (C3)': { script: 'scripts/check-build-cache-strategy.mjs' },
+  dogfood: { script: 'scripts/check-self-dogfood.mjs' },
+  'canon-01 declination (#1922)': { script: 'scripts/check-canon01-declination.mjs' },
+  'emitted markdown refs (#2415)': { script: 'scripts/check-emitted-markdown-refs.mjs' },
+  'unit tests': { script: null },
+  'greenfield smoke': { script: null },
+  coverage: { script: null },
+  'dead code': { script: null },
+  duplication: { script: 'scripts/check-duplication.mjs' },
+  'skill provenance (#2428)': { script: 'scripts/check-skill-provenance.mjs' },
+  audit: { script: null },
+  'consumer audit': { script: 'scripts/check-consumer-audit.mjs' },
+  gitleaks: { script: null },
+  'emission coherence (INV-123)': { script: 'scripts/check-emission-coherence.mjs' },
+  'STRIDE/RACI traceability': { script: 'scripts/check-stride-traceability.mjs' },
+  'self-validation drill': { script: 'scripts/self-validation.mjs' },
+  'id stability': { script: 'scripts/check-id-stability.mjs' },
+  'anti-telemetry': { script: 'scripts/check-anti-telemetry.mjs' },
+  'tdd-evidence': { script: 'scripts/check-tdd-evidence.mjs' },
+  'evidence-bundle': { script: 'scripts/check-evidence-bundle.mjs' },
+  'agent-return envelope (E1 #1943)': { script: 'scripts/check-agent-return.mjs' },
+  'cross-model review (#2358)': { script: 'scripts/check-cross-model-review.mjs' },
+  'review completion (#2177)': { script: 'scripts/check-review-completion.mjs' },
+  'refutation majority (E2 #1943)': { script: 'scripts/check-refutation-verdicts.mjs' },
+  'audit dry-pass (E3 #1943)': { script: 'scripts/check-audit-dry-pass.mjs' },
+  'handoff lint (E6a #1943)': { script: 'scripts/check-handoff-doc.mjs' },
+  'reuse survey (INV-70)': { script: 'scripts/check-reuse-survey.mjs' },
+  'commit-footer rationale (INV-119)': { script: 'scripts/check-commit-footer-rationale.mjs' },
+  'fail-closed audit (INV-96)': { script: 'scripts/check-fail-closed-audit.mjs' },
+  'script cohesion (INV-94)': { script: 'scripts/check-script-cohesion.mjs' },
+  'BDD suite (INV-25)': { script: null },
+  conformance: { script: 'scripts/conformance.mjs' },
+  'doc-set presence': { script: 'scripts/check-doc-set.mjs' },
+}
+
+/**
+ * The absence-asserting gate family derived from check-all.mjs source, resolved against the
+ * declared ABSENCE_FAMILY_ROSTER (#2560) — never against the mechanism's own name/script text.
+ * Each entry is shaped like a flip-harness roster entry ({ name, script }) plus its category, so
+ * the harness can run it directly against its registered fixtures.
+ *
+ * Every wired mechanism must be classified into exactly one of three declared buckets — roster,
+ * NOT_ABSENCE, or exempt — a heuristic decides nothing (Codex round-1 finding #1). Fail-closed on
+ * drift between any table and the live wiring, on an invalid exemption entry, and on a mechanism
+ * in none of the three tables: all three throw `exitCode: 2` (ERROR, not a shortened PASS).
+ *
+ * `roster`/`notAbsence`/`exempt` default to the real declarations above; a `--roster` fixture
+ * (check-guard-flip self-tests) passes its own tiny contract instead, exactly as `--registry`/
+ * `--max-deferred` already let a fixture declare its own ledger — the production pins are what CI
+ * actually runs.
+ */
+/** A roster entry whose declared script disagrees with the live wiring — a stale/renamed row. */
+function rosterDriftError(table, name, declaredScript, wiredPath) {
+  return Object.assign(
+    new Error(
+      `${table}['${name}'] declares script ${declaredScript} but check-all.mjs wires ${wiredPath} ` +
+        `— update the entry in gate-roster.mjs`,
+    ),
+    { exitCode: 2 },
+  )
+}
+
+/** A wired mechanism declared in NONE of ABSENCE_FAMILY_ROSTER/NOT_ABSENCE/ABSENCE_EXEMPT. */
+function unclassifiedError(name, path) {
+  return Object.assign(
+    new Error(
+      `unclassified wired gate '${name}' (${path ?? 'external tool'}) — every mechanism in ` +
+        `check-all.mjs must be declared in exactly one of ABSENCE_FAMILY_ROSTER (proven or ` +
+        `ledgered), NOT_ABSENCE (declared not absence-asserting), or ABSENCE_EXEMPT (identified, ` +
+        `promotion deferred) in gate-roster.mjs. A gate must not be able to escape the flip-proof ` +
+        `requirement by carrying a name no table anticipated (#2560).`,
+    ),
+    { exitCode: 2 },
+  )
+}
+
+const FOLLOW_UP_ISSUE = /^#\d+$/
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Problems with one ABSENCE_EXEMPT entry, or null when it is sound (Codex round-1 finding #2). */
+function exemptionProblem(name, entry, wiredPath) {
+  if (entry.script !== wiredPath) {
+    return (
+      `ABSENCE_EXEMPT['${name}'] declares script ${entry.script} but check-all.mjs wires ` +
+      `${wiredPath} — a stale exemption exempts nothing; update or remove the entry`
+    )
+  }
+  if (typeof entry.reason !== 'string' || entry.reason.trim().split(/\s+/).length < 3) {
+    return `ABSENCE_EXEMPT['${name}'] needs a \`reason\` of at least 3 words, not a placeholder`
+  }
+  const hasUntil = typeof entry.until === 'string' && ISO_DATE_RE.test(entry.until)
+  const hasFollowUp = typeof entry.followUp === 'string' && FOLLOW_UP_ISSUE.test(entry.followUp)
+  if (!hasUntil && !hasFollowUp) {
+    return (
+      `ABSENCE_EXEMPT['${name}'] needs an \`until\` date (YYYY-MM-DD) or a \`followUp\` issue ` +
+      `('#NNN') — an exemption with no ticket and no expiry is a permanent, unreviewed exclusion`
+    )
+  }
   return null
 }
 
 /**
- * The absence-asserting gate family derived from check-all.mjs source. Each entry is shaped like a
- * flip-harness roster entry ({ name, script }) plus its category, so the harness can run it
- * directly against its registered fixtures.
+ * Classify one wired mechanism against the three declared tables. Returns a family entry, or
+ * `null` when the mechanism is declared NOT_ABSENCE or validly exempt (present, not a member).
+ * Throws (exitCode: 2) on roster/NOT_ABSENCE script drift, an invalid exemption, or a mechanism
+ * declared in none of the three tables — every path is a decision made by a table, never a guess.
  */
-export function deriveAbsenceFamily(gateSrc) {
+function classifyMechanism(mech, { roster, notAbsence, exempt }) {
+  const declared = roster[mech.name]
+  if (declared) {
+    if (declared.script !== mech.path)
+      throw rosterDriftError('ABSENCE_FAMILY_ROSTER', mech.name, declared.script, mech.path)
+    return { name: mech.name, script: mech.path, category: declared.category }
+  }
+
+  const notAbsenceEntry = notAbsence[mech.name]
+  if (notAbsenceEntry) {
+    if (notAbsenceEntry.script !== mech.path)
+      throw rosterDriftError('NOT_ABSENCE', mech.name, notAbsenceEntry.script, mech.path)
+    return null
+  }
+
+  const exemption = exempt[mech.name]
+  if (exemption) {
+    const problem = exemptionProblem(mech.name, exemption, mech.path)
+    if (problem) throw Object.assign(new Error(problem), { exitCode: 2 })
+    return null
+  }
+
+  throw unclassifiedError(mech.name, mech.path)
+}
+
+export function deriveAbsenceFamily(
+  gateSrc,
+  { roster = ABSENCE_FAMILY_ROSTER, notAbsence = NOT_ABSENCE, exempt = ABSENCE_EXEMPT } = {},
+) {
   const seen = new Set()
   const family = []
+  const tables = { roster, notAbsence, exempt }
   for (const mech of enumerateGateMechanisms(gateSrc)) {
-    const category = absenceCategory(mech.name, mech.path)
-    if (category === null || seen.has(mech.name)) continue
+    if (seen.has(mech.name)) continue
     seen.add(mech.name)
-    family.push({ name: mech.name, script: mech.path, category })
+    const entry = classifyMechanism(mech, tables)
+    if (entry) family.push(entry)
   }
   return family
 }
