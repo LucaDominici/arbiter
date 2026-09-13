@@ -77,7 +77,16 @@ const TRAILER_SHAPE = {
 function isValidDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const d = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(d.getTime());
+  if (Number.isNaN(d.getTime())) return false;
+  // #2669 finding 3: Date normalizes an impossible calendar date (2026-02-31 → 2026-03-03)
+  // instead of rejecting it. Round-trip: reformat and require it to equal the input.
+  return d.toISOString().slice(0, 10) === value;
+}
+
+// #2669 finding 2: the `follow-up:` sub-field is documented as an issue reference
+// (`follow-up:#9999`), not free text — `follow-up:garbage` must not validate.
+function isValidRef(value) {
+  return /^#?\d+$/.test(value);
 }
 
 function trailerShapeError(trailer) {
@@ -85,10 +94,16 @@ function trailerShapeError(trailer) {
   const key = RECOGNIZED_TRAILERS.find((k) => trimmed.startsWith(k + ':'));
   if (!key) return `trailer does not start with a recognized key (${RECOGNIZED_TRAILERS.join(', ')})`;
   const shape = TRAILER_SHAPE[key];
-  const match = new RegExp(`${shape.field}:(\\S+)`).exec(trimmed);
+  // #2669 finding 2: anchor to the `key:value` grammar — a bare substring match let
+  // `not-expires:2099-01-01` satisfy the `expires:` field. Require the field name to
+  // start at the beginning of the trailer or after whitespace/`|`, never mid-word.
+  const match = new RegExp(`(?:^|[\\s|])${shape.field}:(\\S+)`).exec(trimmed);
   if (!match) return `${key} trailer is missing a "${shape.field}:" field`;
   if (shape.kind === 'date' && !isValidDate(match[1])) {
     return `${key} trailer's "${shape.field}:${match[1]}" is not a valid YYYY-MM-DD date`;
+  }
+  if (shape.kind === 'ref' && !isValidRef(match[1])) {
+    return `${key} trailer's "${shape.field}:${match[1]}" is not a valid issue reference (expected #NNN)`;
   }
   return null;
 }
@@ -98,6 +113,11 @@ function trailerShapeError(trailer) {
 // than $schema/version). Only ADDED lines count — deletions never require a trailer.
 function addedLinesAddEntry(path, addedLines) {
   const isJson = /\.json$/.test(path);
+  // #2669 finding 1: a JSON-schema-defining file (suppressions-schema.json) declares the
+  // SHAPE of suppression entries — it never contains one itself, no matter how many of its
+  // own boilerplate keys ($id, title, description, type, items, definitions...) get added.
+  // Keying on the two literal keys $schema/version (below) does not cover this real shape.
+  if (isJson && /-schema\.json$/.test(path)) return false;
   return addedLines.some((line) => {
     const trimmed = line.trim();
     if (!trimmed) return false;
