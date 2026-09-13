@@ -20,11 +20,15 @@
 // Exit codes (INV-53):
 //   0 — clean (consumer-resolved tree has no unsuppressed vuln >= moderate)
 //   1 — an unsuppressed vulnerability >= moderate was found in the consumer-resolved tree
-//   2 — invocation/IO error (npm pack/install/audit could not run — including a
-//       network-unreachable registry — or produced unparseable/malformed output).
-//       Fail-closed everywhere, local AND CI (INV-96): a genuinely offline
-//       developer uses the documented gate-bypass env (conscious, logged),
-//       never a silent PASS.
+//   2 — invocation/IO error: npm pack/install/audit could not run (including a
+//       network-unreachable registry), produced unparseable/malformed output, or
+//       reported zero packages audited (an absent/empty node_modules never reaching
+//       npm audit is NOT a clean result, #2515 AC-1). Fail-closed everywhere, local
+//       AND CI (INV-96): a genuinely offline developer uses the documented
+//       gate-bypass env (conscious, logged), never a silent PASS. All three causes
+//       share this exit code (deliberate, INV-96) but each gets its own stderr
+//       message (#2515 AC-2) — unreachable registry, malformed payload, and empty
+//       tree read differently.
 //
 // Usage:
 //   node scripts/check-consumer-audit.mjs
@@ -94,18 +98,30 @@ function isSuppressed(ids, allowlist, now) {
  * @param {unknown} auditJson
  * @param {Array<Record<string, unknown>>} allowlist
  * @param {Date} now
- * @returns {{ unsuppressed: Array<{ package: string, severity: string, ids: string[] }>, errored: boolean }}
+ * @returns {{ unsuppressed: Array<{ package: string, severity: string, ids: string[] }>, errored: boolean, reason?: 'malformed' | 'registry-unreachable' | 'empty-tree' }}
  */
 export function classifyConsumerAudit(auditJson, allowlist, now) {
   if (auditJson === null || typeof auditJson !== 'object') {
-    return { unsuppressed: [], errored: true }
+    return { unsuppressed: [], errored: true, reason: 'malformed' }
   }
   const obj = /** @type {Record<string, unknown>} */ (auditJson)
+  // npm audit surfaces a failed invocation (registry unreachable, auth, etc.) as
+  // `{ error: {...} }` instead of the `{ vulnerabilities, metadata }` report shape —
+  // a distinct failure mode from a genuinely unrecognised/corrupt payload (#2515
+  // AC-2). Same fail-closed exit code either way (INV-96); only the message differs.
+  if (
+    obj.error !== null &&
+    typeof obj.error === 'object' &&
+    !('vulnerabilities' in obj) &&
+    !('metadata' in obj)
+  ) {
+    return { unsuppressed: [], errored: true, reason: 'registry-unreachable' }
+  }
   // A valid clean audit is `{ vulnerabilities: {}, metadata: {...} }` — an empty
   // vulnerabilities object is CLEAN, not errored. Only a payload lacking BOTH keys
   // (unrecognised schema) is treated as malformed / errored (fail-closed, never silent-pass).
   if (!('vulnerabilities' in obj) && !('metadata' in obj)) {
-    return { unsuppressed: [], errored: true }
+    return { unsuppressed: [], errored: true, reason: 'malformed' }
   }
   const vulnerabilities =
     obj.vulnerabilities !== null && typeof obj.vulnerabilities === 'object'
@@ -117,7 +133,35 @@ export function classifyConsumerAudit(auditJson, allowlist, now) {
     const entry = classifyVulnEntry(pkgKey, raw, allowlist, now)
     if (entry) unsuppressed.push(entry)
   }
+
+  // #2515 AC-1: zero vulnerability entries is ambiguous between "genuinely clean
+  // tree" and "nothing was actually installed/audited" (an absent/empty node_modules
+  // never gets far enough for npm audit to find anything to flag). Assert programme
+  // membership before trusting the content — require a real, positive audited-package
+  // count before calling it clean; never let "nothing installed" read as "nothing wrong".
+  if (Object.keys(vulnerabilities).length === 0 && !auditedAnyPackages(obj.metadata)) {
+    return { unsuppressed: [], errored: true, reason: 'empty-tree' }
+  }
+
   return { unsuppressed, errored: false }
+}
+
+/**
+ * True when an `npm audit --json` `metadata` object reports a plausible (> 0) count
+ * of packages actually resolved and audited (`metadata.dependencies.total`, the
+ * npm v7+ `auditReportVersion:2` schema). Absent/zero/non-numeric is NOT plausible —
+ * that is the "nothing installed" signature, not a clean result (#2515 AC-1).
+ * @param {unknown} metadata
+ * @returns {boolean}
+ */
+function auditedAnyPackages(metadata) {
+  if (metadata === null || typeof metadata !== 'object') return false
+  const deps = /** @type {Record<string, unknown>} */ (metadata).dependencies
+  const total =
+    deps !== null && typeof deps === 'object'
+      ? /** @type {Record<string, unknown>} */ (deps).total
+      : undefined
+  return typeof total === 'number' && total > 0
 }
 
 /**
@@ -332,6 +376,26 @@ function runConsumerAudit(runNpm, installRoot) {
 }
 
 /**
+ * #2515 AC-2: distinct stderr message per errored `classifyConsumerAudit` reason —
+ * "could not reach the advisory service" is a claim about reachability, "malformed
+ * payload" is a claim about the data, and "empty tree" is neither, it is nothing to
+ * audit. Exit code stays 2 for all three (INV-96, fail-closed): only the message
+ * differs, never the exit semantics.
+ * @param {'malformed' | 'registry-unreachable' | 'empty-tree' | undefined} reason
+ * @returns {string}
+ */
+function errorMessageForReason(reason) {
+  switch (reason) {
+    case 'registry-unreachable':
+      return 'check-consumer-audit: npm audit returned an error payload, not a report — the advisory registry is unreachable or errored (retry, or check connectivity)'
+    case 'empty-tree':
+      return 'check-consumer-audit: consumer-resolved tree reports zero packages audited — refusing to call an empty audit clean'
+    default:
+      return 'check-consumer-audit: malformed npm audit payload (neither vulnerabilities nor metadata present)'
+  }
+}
+
+/**
  * Print the FAIL report for unsuppressed consumer-facing vulns.
  * @param {Array<{ package: string, severity: string, ids: string[] }>} unsuppressed
  * @returns {number} 1 (gate FAIL, INV-53)
@@ -381,15 +445,13 @@ function main(repoRoot) {
     if ('code' in auditResult) return auditResult.code
 
     const allowlist = loadAllowlist(repoRoot)
-    const { unsuppressed, errored } = classifyConsumerAudit(
+    const { unsuppressed, errored, reason } = classifyConsumerAudit(
       auditResult.auditJson,
       allowlist,
       new Date(),
     )
     if (errored) {
-      process.stderr.write(
-        'check-consumer-audit: malformed npm audit payload (neither vulnerabilities nor metadata present)\n',
-      )
+      process.stderr.write(`${errorMessageForReason(reason)}\n`)
       return 2
     }
     if (unsuppressed.length > 0) return reportUnsuppressed(unsuppressed)
