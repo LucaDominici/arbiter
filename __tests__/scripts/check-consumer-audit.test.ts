@@ -186,6 +186,37 @@ describe('classifyConsumerAudit — pure classifier (#1718)', () => {
     expect(reason).toBe('empty-tree')
   })
 
+  it('does NOT assert clean on a metadata-only payload — a valid report always carries `vulnerabilities` as an object (diff-review round 1)', () => {
+    const metadataOnly = { metadata: { dependencies: { total: 42 } } }
+    const { errored, reason } = classifyConsumerAudit(metadataOnly, [], new Date('2026-07-01'))
+    expect(errored).toBe(true)
+    expect(reason).toBe('malformed')
+  })
+
+  it('does NOT assert clean when `vulnerabilities` is null (diff-review round 1)', () => {
+    const nullVulns = { vulnerabilities: null, metadata: { dependencies: { total: 42 } } }
+    const { errored, reason } = classifyConsumerAudit(nullVulns, [], new Date('2026-07-01'))
+    expect(errored).toBe(true)
+    expect(reason).toBe('malformed')
+  })
+
+  it('does NOT assert clean when `vulnerabilities` is an array, not the keyed-object schema (diff-review round 1)', () => {
+    const arrayVulns = { vulnerabilities: [], metadata: { dependencies: { total: 42 } } }
+    const { errored, reason } = classifyConsumerAudit(arrayVulns, [], new Date('2026-07-01'))
+    expect(errored).toBe(true)
+    expect(reason).toBe('malformed')
+  })
+
+  it('does NOT classify a garbage vulnerability entry as "no finding" — a raw key existing is not evidence the entry is valid (diff-review round 1)', () => {
+    const garbageEntry = {
+      vulnerabilities: { lodash: null },
+      metadata: { dependencies: { total: 42 } },
+    }
+    const { errored, reason } = classifyConsumerAudit(garbageEntry, [], new Date('2026-07-01'))
+    expect(errored).toBe(true)
+    expect(reason).toBe('malformed')
+  })
+
   it('distinguishes an unreachable registry (npm audit error payload) from a corrupt payload, same fail-closed exit (#2515 AC-2)', () => {
     const registryError = {
       error: { code: 'ENOTFOUND', summary: 'getaddrinfo ENOTFOUND registry.npmjs.org' },

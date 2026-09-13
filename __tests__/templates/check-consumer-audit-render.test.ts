@@ -16,10 +16,17 @@ function render(tpl: string, overrides: Record<string, unknown> = {}): string {
   return renderTemplate(tpl, data)
 }
 
+type ClassifyResult = {
+  unsuppressed: Array<{ package: string; severity: string; ids: string[] }>
+  errored: boolean
+  reason?: 'malformed' | 'registry-unreachable' | 'empty-tree'
+}
+
 type Gate = {
   tarballNameFromPackOutput: (stdout: string) => string | null
   readSourcePackageManager: (repoRoot: string) => string | undefined
   probePackageJson: (packageManager: string | undefined) => Record<string, unknown>
+  classifyConsumerAudit: (auditJson: unknown, allowlist: unknown[], now: Date) => ClassifyResult
 }
 
 let gate: Gate
@@ -36,6 +43,38 @@ describe('scripts/check-consumer-audit.mjs.ejs — render (#1864)', () => {
     const content = render('scripts/check-consumer-audit.mjs.ejs')
     expect(content.startsWith('#!/usr/bin/env node')).toBe(true)
     expect(content).toContain('process.exit')
+  })
+})
+
+describe('classifyConsumerAudit — the rendered twin shares the self-script contract (#2515, diff-review round 1)', () => {
+  it('fails closed on an empty tree — zero vulnerabilities with no plausible package count is NOT clean', () => {
+    const { errored, reason } = gate.classifyConsumerAudit(
+      { vulnerabilities: {}, metadata: {} },
+      [],
+      new Date('2026-07-01'),
+    )
+    expect(errored).toBe(true)
+    expect(reason).toBe('empty-tree')
+  })
+
+  it('distinguishes an npm-audit error payload (unreachable registry) from a malformed payload', () => {
+    const { errored, reason } = gate.classifyConsumerAudit(
+      { error: { code: 'ENOTFOUND', summary: 'getaddrinfo ENOTFOUND registry.npmjs.org' } },
+      [],
+      new Date('2026-07-01'),
+    )
+    expect(errored).toBe(true)
+    expect(reason).toBe('registry-unreachable')
+  })
+
+  it('fails closed on a malformed payload — `vulnerabilities: null` is not a clean empty report', () => {
+    const { errored, reason } = gate.classifyConsumerAudit(
+      { vulnerabilities: null, metadata: { dependencies: { total: 42 } } },
+      [],
+      new Date('2026-07-01'),
+    )
+    expect(errored).toBe(true)
+    expect(reason).toBe('malformed')
   })
 })
 
