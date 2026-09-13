@@ -2,7 +2,7 @@
 title: 'Gold-Doc Capability — self, generator, enforcer'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-09-09'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -213,7 +213,7 @@ across two places:
    into a governed repo (`gold-doc-set.yml`, `doc-profile`, `gold-registry.yml`, `thresholds.yml`)
    plus the thin `gold-audit.mjs` runner. All `skipIfExists` (`:63,72`). Registered in
    `src/generators/registry.ts:658-662` under key `gold-kit`. It emits **no doc bodies.**
-2. **`scripts/check-doc-set.mjs:139-165` (`stubFor`)** — `--generate` scaffolds a _body_, but the
+2. **`scripts/check-doc-set.mjs:76-102` (`stubFor`)** — `--generate` scaffolds a _body_, but the
    body is a one-line banner: `> **STUB — fill me in.**` (`:143`). It is write-safe (only writes a
    MISSING file, `:218`; `--refresh-stubs` overwrites only a byte-equal stub, `:194-197`).
 
@@ -414,7 +414,8 @@ matrix rows).
 
 - **Build:** widen `accept_any`/`glob` to recognize `docs/architecture/**/arc42.md`,
   `docs/**/c4-model.md`, and `docs/**/adr/ADR-*.md`; keep the ADR dual-recognition regexes
-  (`check-doc-set.mjs:103-118`).
+  (`scripts/lib/doc-set-resolve.mjs:101-158`, `adrPresent*`; the resolver reads every file through
+  `readRegularFileSync`, #2635, so a symlinked or directory candidate never counts as present).
 - **Tested (red path):** fixture with arc42+9 ADRs under a `budget/` subtree → architecture + ADR
   checks PASS (RED today).
 - **Dogfood/proof:** re-run §6.3 on acme-consumer → arc42 + ADRs recognized; present-count rises.

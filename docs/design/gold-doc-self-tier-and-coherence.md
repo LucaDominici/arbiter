@@ -2,7 +2,7 @@
 title: 'Gold-Doc Addendum — self-tier floor & CLI-surface coherence'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-03'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -39,11 +39,12 @@ the engine). Live command outputs are quoted verbatim.
 
 The Tranche-1 diff already implements collaborationMode → column resolution:
 
-- `scripts/check-doc-set.mjs:124` — `TIER_COLUMN = { 'trunk-solo': 'solo', 'peer-review': 'small', 'gated-review': 'enterprise' }`
-- `scripts/check-doc-set.mjs:126-131` — `resolveCollaborationMode()`: explicit `collaborationMode`
+- `scripts/lib/doc-set-resolve.mjs:160` — `TIER_COLUMN = { 'trunk-solo': 'solo', 'peer-review': 'small', 'gated-review': 'enterprise' }`
+- `scripts/lib/doc-set-resolve.mjs:166-172` — `resolveCollaborationMode()`: explicit `collaborationMode`
   wins, else the `soloDevMode` back-compat alias forces `trunk-solo`.
-- `scripts/check-doc-set.mjs:134-144` — `loadTierColumn()` reads `arbiter.json` **at CWD** and
-  returns the column. No override of any kind exists.
+- `scripts/lib/doc-set-resolve.mjs:174-189` — `loadTierColumn()` reads `arbiter.json` **at CWD**
+  (through `readRegularFileSync`, #2635: a symlink or directory at that path is a config error, not a
+  silent default) and returns the column. The only override is the `tier_floor` max() below.
 - `arbiter.json` — `"collaborationMode": "trunk-solo"` **and** `"features": { "soloDevMode": true }`:
   self resolves to `solo` twice over.
 
@@ -81,7 +82,7 @@ tier_floor:
   right-sizing is unaffected. The floor is an opt-in commitment a repo makes about itself.
 - **Fail-closed (INV-96):** a `tier_floor` value outside `{solo, small, enterprise}` is a config
   error → exit 1 with a message — mirroring the malformed-`tiers{}`-cell rule already in
-  `requirementFor` (`scripts/check-doc-set.mjs:158-160`). Never silently ignored.
+  `requirementFor` (`scripts/lib/doc-set-resolve.mjs:191-200`). Never silently ignored.
 
 Why the profile and not `arbiter.json`: the engine already reads both files
 (`arbiter.json` at `:135`, the profile at `:172-180` via `loadOverlays()`), the profile is the
@@ -91,15 +92,15 @@ doc-set-scoped per-repo config by design (overlays + `allow` live there), and th
 
 ### 1.3 Hook points (file:line)
 
-| Where                                                  | Change                                                                                                              |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `scripts/check-doc-set.mjs:172-180` (`loadOverlays`)   | Also parse and return `tierFloor` from the profile YAML; validate the value (fail-closed exit 1).                   |
-| `scripts/check-doc-set.mjs:134-144` (`loadTierColumn`) | Becomes `resolveEffectiveColumn(derived, floor)` = max on `solo<small<enterprise`.                                  |
-| `scripts/check-doc-set.mjs:277-292` (report object)    | `tierColumn` stays the **effective** column; add `tierDerived` + `tierFloor` so every audit is self-explanatory.    |
-| `standards/doc-profile`                                | Self adds `tier_floor: enterprise` with the rationale comment above.                                                |
-| `src/templates/standards/doc-profile.ejs`              | Document the key in the header comment; emitted default = **absent** (governed repos are never auto-raised).        |
-| `src/commands/doc-set.ts:20-36` (`DocSetPayload`)      | Add `tierDerived` / `tierFloor` fields (additive, non-breaking — the wrapper forwards the engine verdict verbatim). |
-| `scripts/check-all.mjs:353-356`                        | **Unchanged** — `--strict` presence stays HARD (INV-135); it simply starts grading the enterprise column again.     |
+| Where                                                    | Change                                                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `scripts/lib/doc-set-resolve.mjs:246` (`loadOverlays`)   | Also parse and return `tierFloor` from the profile YAML; validate the value (fail-closed exit 1).                   |
+| `scripts/lib/doc-set-resolve.mjs:174` (`loadTierColumn`) | Becomes `resolveEffectiveColumn(derived, floor)` = max on `solo<small<enterprise`.                                  |
+| `scripts/check-doc-set.mjs:277-292` (report object)      | `tierColumn` stays the **effective** column; add `tierDerived` + `tierFloor` so every audit is self-explanatory.    |
+| `standards/doc-profile`                                  | Self adds `tier_floor: enterprise` with the rationale comment above.                                                |
+| `src/templates/standards/doc-profile.ejs`                | Document the key in the header comment; emitted default = **absent** (governed repos are never auto-raised).        |
+| `src/commands/doc-set.ts:20-36` (`DocSetPayload`)        | Add `tierDerived` / `tierFloor` fields (additive, non-breaking — the wrapper forwards the engine verdict verbatim). |
+| `scripts/check-all.mjs:353-356`                          | **Unchanged** — `--strict` presence stays HARD (INV-135); it simply starts grading the enterprise column again.     |
 
 ### 1.4 Red path — prova
 
