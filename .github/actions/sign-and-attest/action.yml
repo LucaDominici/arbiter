@@ -36,7 +36,7 @@ runs:
           --predicate "$SBOM_FILE" \
           --type cyclonedx \
           "$ARTIFACT"
-    - uses: actions/attest-build-provenance@520aba26e2f010aaab88f4a9c58cdbb3f3965fc2  # v2
+    - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
       with:
         subject-path: ${{ inputs.artifact-path }}
     - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
