@@ -165,7 +165,10 @@ function addedLinesAddEntry(path, addedLines) {
   // would let a real entry added to e.g. suppressions/custom-schema.json bypass the
   // footer. Keying on the two literal keys $schema/version (below) does not cover the
   // real generated file's shape.
-  if (isJson && /(^|\/)suppressions\/suppressions-schema\.json$/.test(path)) return false
+  // #2669 finding 1 (round 3): exact equality, not a `(^|\/)...` regex — the regex
+  // still matched a nested packages/api/suppressions/suppressions-schema.json, which
+  // is not the root-level file this exemption is scoped to.
+  if (isJson && path === 'suppressions/suppressions-schema.json') return false
   return addedLines.some((line) => {
     const trimmed = line.trim()
     if (!trimmed) return false

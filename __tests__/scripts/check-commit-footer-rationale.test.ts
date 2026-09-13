@@ -527,6 +527,46 @@ describe('check-commit-footer-rationale.mjs (INV-119) — real rendered schema s
       evidence.cleanup()
     }
   })
+
+  // Round 3: the exact-path exemption must be scoped to the ROOT-level generated file
+  // only — a nested packages/api/suppressions/suppressions-schema.json (e.g. a monorepo
+  // sub-package's own generated copy) is a distinct path and still owes a trailer once a
+  // real entry is added to it.
+  it('inversion: still requires a trailer for a real entry added to a NESTED suppressions-schema.json', () => {
+    const repo = hermeticRepo()
+    const evidence = fixture()
+    try {
+      const nestedDir = join(repo.dir, 'packages', 'api', 'suppressions')
+      mkdirSync(nestedDir, { recursive: true })
+      const rendered = renderTemplate(
+        'suppressions/suppressions-schema.json.ejs',
+        makeConfig(repo.dir),
+      )
+      writeFileSync(join(nestedDir, 'suppressions-schema.json'), rendered)
+      git(repo.dir, ['add', join('packages', 'api', 'suppressions', 'suppressions-schema.json')])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: scaffold nested suppression schema'])
+      const base = git(repo.dir, ['rev-parse', 'HEAD']).trim()
+
+      const withEntry = JSON.parse(rendered)
+      withEntry.waived = 'CVE-2024-2222'
+      writeFileSync(
+        join(nestedDir, 'suppressions-schema.json'),
+        JSON.stringify(withEntry, null, 2) + '\n',
+      )
+      git(repo.dir, ['add', join('packages', 'api', 'suppressions', 'suppressions-schema.json')])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: waive CVE-2024-2222 in nested schema'])
+      const range = `${base}..HEAD`
+
+      const r = run(['--range', range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(1)
+      const ev = readEvidence(evidence.dir)
+      expect(ev.result).toBe('FAIL')
+      expect(ev.commits_requiring_footer).toBeGreaterThanOrEqual(1)
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
+  })
 })
 
 describe('check-commit-footer-rationale.mjs (INV-119) — trailer key:value grammar (#2669 finding 2)', () => {
