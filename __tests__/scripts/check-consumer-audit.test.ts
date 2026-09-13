@@ -158,10 +158,54 @@ describe('classifyConsumerAudit — pure classifier (#1718)', () => {
   })
 
   it('treats an empty vulnerabilities object as CLEAN, not errored (the crux fix)', () => {
-    const clean = { vulnerabilities: {}, metadata: { vulnerabilities: { total: 0 } } }
+    const clean = {
+      vulnerabilities: {},
+      metadata: { vulnerabilities: { total: 0 }, dependencies: { total: 42 } },
+    }
     const { unsuppressed, errored } = classifyConsumerAudit(clean, [], new Date('2026-07-01'))
     expect(errored).toBe(false)
     expect(unsuppressed).toEqual([])
+  })
+
+  it('does NOT assert clean on an empty tree — zero vulnerabilities with no package count is errored, not OK (#2515 AC-1)', () => {
+    const emptyTree = { vulnerabilities: {}, metadata: {} }
+    const { unsuppressed, errored, reason } = classifyConsumerAudit(
+      emptyTree,
+      [],
+      new Date('2026-07-01'),
+    )
+    expect(errored).toBe(true)
+    expect(reason).toBe('empty-tree')
+    expect(unsuppressed).toEqual([])
+  })
+
+  it('does NOT assert clean when metadata.dependencies.total is explicitly 0 (#2515 AC-1)', () => {
+    const emptyTree = { vulnerabilities: {}, metadata: { dependencies: { total: 0 } } }
+    const { errored, reason } = classifyConsumerAudit(emptyTree, [], new Date('2026-07-01'))
+    expect(errored).toBe(true)
+    expect(reason).toBe('empty-tree')
+  })
+
+  it('distinguishes an unreachable registry (npm audit error payload) from a corrupt payload, same fail-closed exit (#2515 AC-2)', () => {
+    const registryError = {
+      error: { code: 'ENOTFOUND', summary: 'getaddrinfo ENOTFOUND registry.npmjs.org' },
+    }
+    const { errored: registryErrored, reason: registryReason } = classifyConsumerAudit(
+      registryError,
+      [],
+      new Date('2026-07-01'),
+    )
+    expect(registryErrored).toBe(true)
+    expect(registryReason).toBe('registry-unreachable')
+
+    const { errored: malformedErrored, reason: malformedReason } = classifyConsumerAudit(
+      { foo: 'bar' },
+      [],
+      new Date('2026-07-01'),
+    )
+    expect(malformedErrored).toBe(true)
+    expect(malformedReason).toBe('malformed')
+    expect(malformedReason).not.toBe(registryReason)
   })
 
   it('handles a `via` array mixing strings (transitive-through-package) and objects without throwing', () => {
