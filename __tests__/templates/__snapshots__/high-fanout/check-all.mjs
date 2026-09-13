@@ -1603,7 +1603,7 @@ runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-l
 // ─── Local extension slot (#2666) ────────────────────────────────────────────
 // scripts/check-all.local.json is a declared, adopt-safe home for PROJECT-LOCAL
 // checks (the class-C shape #2666 names: ripme's Java ratchet checks, Coach's
-// ported INV-21 static-eslint config). It is never emitted by any template, so
+// ported INV-21 static-analysis config). It is never emitted by any template, so
 // it never enters .arbiter-generated-manifest.json and is neither gate-spine
 // nor safety-class under src/generators/safety-class.ts (GATE_SPINE_PATTERN
 // matches only scripts/check-all.mjs and scripts/lib/*.mjs — a .json file

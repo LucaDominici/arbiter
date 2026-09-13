@@ -499,7 +499,8 @@ unaffected and keeps receiving every fix automatically.
 **The local extension slot (#2666).** A deliberate, PROJECT-LOCAL check (class C: a Java coverage ratchet,
 a ported static-eslint config — the shape ripme and Coach both hand-wired into their `check-all.mjs` after
 adopting the registry-driven spine) has, until now, had no home except editing the spine directly — which
-is exactly what makes the spine withhold on the next update. `scripts/check-all.local.json` closes that: an
+is exactly what makes the spine withhold on the next update. `<project>/scripts/check-all.local.json` closes
+that: an
 optional, DECLARATIVE (plain JSON, not an executable module) file no template ever emits, so it never enters
 `.arbiter-generated-manifest.json` and matches neither `GATE_SPINE_PATTERN` nor the safety-class pattern —
 `--adopt-gate-spine` and `diff --withheld` never see it, at any divergence state, because there is no
