@@ -8,51 +8,29 @@
 //
 // Usage: node scripts/check-suppression-expiry.mjs [--max-days <N>] [--dir <path>] [--help]
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { parseHelpAndDir } from './lib/workflow-scan.mjs'
 
 const args = process.argv.slice(2)
-
-// #2675 Codex round-1/2/3: a --dir must never be read as "use the default" when it cannot be
-// honored, or the caller's own fixture-less SKIP paths silently report clean on the LIVE repo
-// instead of the intended (missing) target. Accepts both `--dir value` and `--dir=value`, "last
-// flag wins" across both forms (a left-to-right scan that overwrites on each match), and refuses
-// BEFORE the --help scan below — otherwise `--dir --help` would swallow --help as --dir's value
-// and print help instead of refusing the malformed --dir it actually received.
-let dirGiven = false
-let dirValue
-for (let i = 0; i < args.length; i++) {
-  const a = args[i]
-  if (a === '--dir') {
-    dirGiven = true
-    dirValue = args[i + 1]
-  } else if (a.startsWith('--dir=')) {
-    dirGiven = true
-    dirValue = a.slice('--dir='.length)
-  }
-}
-if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('--'))) {
-  process.stderr.write('check-suppression-expiry: --dir requires a path argument\n')
-  process.exit(2)
-}
-
-if (args.includes('--help') || args.includes('-h')) {
-  process.stdout.write(
-    [
-      'Usage: node scripts/check-suppression-expiry.mjs [options]',
-      '',
-      'Validates that no suppression entries have excessively far expiry dates.',
-      'Exits 0 when all expiries are within the max window; exits 1 when exceeded.',
-      '',
-      'Options:',
-      '  --max-days <N>  Maximum allowed days from now to expiry (default: 365)',
-      '  --dir <path>    Root directory to scan (default: cwd)',
-      '  --help, -h      Show this help and exit',
-      '',
-    ].join('\n'),
-  )
-  process.exit(0)
-}
+// #2675: --dir/--help handling is shared with the other W6 anti-drift validators via
+// parseHelpAndDir (scripts/lib/workflow-scan.mjs) — inlining it per-script tripped the
+// debt-ratchet duplication gate (#2675 integration L2). --max-days validation stays here:
+// it is unique to this gate, not a duplicated block.
+const { cwd: CWD } = parseHelpAndDir(args, {
+  usage: [
+    'Usage: node scripts/check-suppression-expiry.mjs [options]',
+    '',
+    'Validates that no suppression entries have excessively far expiry dates.',
+    'Exits 0 when all expiries are within the max window; exits 1 when exceeded.',
+    '',
+    'Options:',
+    '  --max-days <N>  Maximum allowed days from now to expiry (default: 365)',
+    '  --dir <path>    Root directory to scan (default: cwd)',
+    '  --help, -h      Show this help and exit',
+    '',
+  ].join('\n'),
+})
 
 const maxDaysArg = args.indexOf('--max-days')
 const MAX_DAYS_RAW = maxDaysArg >= 0 ? args[maxDaysArg + 1] : undefined
@@ -67,16 +45,6 @@ if (!Number.isInteger(MAX_DAYS) || MAX_DAYS <= 0) {
   process.exit(2)
 }
 
-let CWD = process.cwd()
-if (dirGiven) {
-  CWD = resolve(dirValue)
-  if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
-    process.stderr.write(
-      `check-suppression-expiry: --dir ${dirValue} does not exist or is not a directory\n`,
-    )
-    process.exit(2)
-  }
-}
 const SUPPRESSIONS_DIR = join(CWD, 'suppressions')
 
 let violations = 0

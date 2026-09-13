@@ -297,8 +297,8 @@
   {
     "path": "check-pr-size-gate.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). Self documents an explicit SELF-EXEMPTION (#2012): arbiter ships no config/pr-size-config.json and no workflow referencing pr-size/size-check, so the check self-skips on arbiter's own gate. That is deliberate — a PR-size gate has no subject in a repo whose integration regime merges to main directly rather than through pull requests — and the check stays fully live for generated consumer projects, which do gate on PRs. The remainder is a lazy `await import('node:fs')` for readdirSync and template-literal quoting. PERMANENT: the exemption is a statement about arbiter's own merge regime and must not ship.",
-    "diffHash": "f0cf44b3e7f9bb9fe5dde2803f74969714a2025cf9757f8bbe8b72b0197dc0b6"
+    "reason": "Read line-by-line (#2275). Self documents an explicit SELF-EXEMPTION (#2012): arbiter ships no config/pr-size-config.json and no workflow referencing pr-size/size-check, so the check self-skips on arbiter's own gate. That is deliberate — a PR-size gate has no subject in a repo whose integration regime merges to main directly rather than through pull requests — and the check stays fully live for generated consumer projects, which do gate on PRs. #2675: self now imports its --dir/--help handling from scripts/lib/workflow-scan.mjs's parseHelpAndDir (self-only — src/templates/scripts/lib/ has no twin), fixing a debt-ratchet duplication regression the inlined copy caused across the 3 W6 scripts touched that issue; the template still inlines the equivalent parser since it has nothing to import. PERMANENT: the exemption is a statement about arbiter's own merge regime and must not ship, and the lib is self-only by construction.",
+    "diffHash": "4d67b77002a18d9747fd4755c2788b5f2bce5bdaf679555a0db34b55ed16f2f0"
   },
   {
     "path": "check-secret-presence.mjs",
@@ -341,14 +341,14 @@
   {
     "path": "check-suppression-expiry.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). 0-/3+: the template side of the diff is EMPTY. Self adds the SPDX header, a blank comment line and a usage line. Zero executable divergence. PERMANENT (SPDX-header class, same as check-pii-scan.mjs).",
-    "diffHash": "311d66bb59a33b343e929b0c5cfc426025af850d0af4ef0cdad74e0984291521"
+    "reason": "Read line-by-line (#2275). Self adds the SPDX header and a usage line (SPDX-header class, same as check-pii-scan.mjs). #2675: self also now imports its --dir/--help handling from scripts/lib/workflow-scan.mjs's parseHelpAndDir (self-only — src/templates/scripts/lib/ has no twin), fixing a debt-ratchet duplication regression the inlined copy caused across the 3 W6 scripts touched by that issue; the template still inlines the equivalent parser since it has nothing to import. --max-days validation is identical on both sides. PERMANENT: SPDX-header class plus a self-only-lib import, neither of which ships.",
+    "diffHash": "e7fd724c043cd6cbe6c38e6574a33ce85fc220157ee1a122616bb7ee6e0685d1"
   },
   {
     "path": "check-suppression-rationale.mjs",
     "dest": "scripts",
-    "reason": "Read line-by-line (#2275). 0-/4+: the template side of the diff is EMPTY. Self adds the SPDX header, a usage line, and one comment locating this gate against its sibling (extends check-suppressions.mjs, which checks expiry — this checks reason quality). Zero executable divergence. PERMANENT (SPDX-header class).",
-    "diffHash": "435ffa0d07dc98c9ba46f14eb490cee66f30208766a0baa94c193900023af1bc"
+    "reason": "Read line-by-line (#2275). Self adds the SPDX header and one comment locating this gate against its sibling (extends check-suppressions.mjs, which checks expiry — this checks reason quality) — SPDX-header class. #2675: self also now imports its --dir/--help handling from scripts/lib/workflow-scan.mjs's parseHelpAndDir (self-only — src/templates/scripts/lib/ has no twin), fixing a debt-ratchet duplication regression the inlined copy caused across the 3 W6 scripts touched by that issue; the template still inlines the equivalent parser since it has nothing to import. PERMANENT: SPDX-header class plus a self-only-lib import, neither of which ships.",
+    "diffHash": "78ac3a2d147534a6ce2dffc4cfba5920b232fe5ce002411c91f3170b252a8973"
   },
   {
     "path": "check-suppressions.mjs",

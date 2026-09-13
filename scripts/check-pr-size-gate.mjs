@@ -13,61 +13,28 @@
 //
 // Usage: node scripts/check-pr-size-gate.mjs [--dir <path>] [--help]
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { parseHelpAndDir } from './lib/workflow-scan.mjs'
 
 const args = process.argv.slice(2)
-
-// #2675 Codex round-1/2/3: a --dir must never be read as "use the default" when it cannot be
-// honored, or the caller's own fixture-less SKIP paths silently report clean on the LIVE repo
-// instead of the intended (missing) target. Accepts both `--dir value` and `--dir=value`, "last
-// flag wins" across both forms (a left-to-right scan that overwrites on each match), and refuses
-// BEFORE the --help scan below — otherwise `--dir --help` would swallow --help as --dir's value
-// and print help instead of refusing the malformed --dir it actually received.
-let dirGiven = false
-let dirValue
-for (let i = 0; i < args.length; i++) {
-  const a = args[i]
-  if (a === '--dir') {
-    dirGiven = true
-    dirValue = args[i + 1]
-  } else if (a.startsWith('--dir=')) {
-    dirGiven = true
-    dirValue = a.slice('--dir='.length)
-  }
-}
-if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('--'))) {
-  process.stderr.write('check-pr-size-gate: --dir requires a path argument\n')
-  process.exit(2)
-}
-
-if (args.includes('--help') || args.includes('-h')) {
-  process.stdout.write(
-    [
-      'Usage: node scripts/check-pr-size-gate.mjs [options]',
-      '',
-      'Validates that PR size gate configuration (pr-size-config.json or workflow) is present.',
-      'Exits 0 when config is valid; exits 1 when missing or invalid.',
-      '',
-      'Options:',
-      '  --dir <path>    Root directory to scan (default: cwd)',
-      '  --help, -h      Show this help and exit',
-      '',
-    ].join('\n'),
-  )
-  process.exit(0)
-}
-
-let CWD = process.cwd()
-if (dirGiven) {
-  CWD = resolve(dirValue)
-  if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
-    process.stderr.write(
-      `check-pr-size-gate: --dir ${dirValue} does not exist or is not a directory\n`,
-    )
-    process.exit(2)
-  }
-}
+// #2675: --dir/--help handling (fail-closed on a bare/empty/flag-shaped/nonexistent --dir,
+// --dir=value, last-flag-wins) is shared with the other W6 anti-drift validators via
+// parseHelpAndDir (scripts/lib/workflow-scan.mjs) — inlining it per-script tripped the
+// debt-ratchet duplication gate (#2675 integration L2).
+const { cwd: CWD } = parseHelpAndDir(args, {
+  usage: [
+    'Usage: node scripts/check-pr-size-gate.mjs [options]',
+    '',
+    'Validates that PR size gate configuration (pr-size-config.json or workflow) is present.',
+    'Exits 0 when config is valid; exits 1 when missing or invalid.',
+    '',
+    'Options:',
+    '  --dir <path>    Root directory to scan (default: cwd)',
+    '  --help, -h      Show this help and exit',
+    '',
+  ].join('\n'),
+})
 const CONFIG_PATH = join(CWD, 'config', 'pr-size-config.json')
 const WORKFLOW_DIR = join(CWD, '.github', 'workflows')
 
