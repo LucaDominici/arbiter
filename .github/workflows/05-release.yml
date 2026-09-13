@@ -296,7 +296,7 @@ jobs:
           retention-days: 90
 
   sbom-attest:
-    name: Attest SBOM (cosign attest, CycloneDX predicate, INV-92)
+    name: Attest SBOM (cosign attest-blob, CycloneDX predicate, INV-92)
     needs: [sbom, cosign-sign]
     if: github.event_name != 'pull_request'
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
