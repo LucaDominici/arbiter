@@ -26,7 +26,7 @@ import { unlinkTranslated, readFileTranslated } from '../utils/fs.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { t } from '../i18n/index.js'
 
-export interface IgnoreOptions {
+interface IgnoreOptions {
   dir: string | undefined
   paths: string[]
   json?: boolean | undefined
