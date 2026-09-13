@@ -5,9 +5,9 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 4393027,
-    "entryCount": 990,
-    "rosterSha256": "b81bd81228d7f5bb4f475ab06dab4517c873c06c99aadb88b797a2a95e41a8ad"
+    "unpackedSize": 4400013,
+    "entryCount": 991,
+    "rosterSha256": "d775f6f99ebc60d65bc97aed0ff92ebbbf59dcda7c1937336af223db4f140142"
   },
   "manifest": {
     "bin": {
@@ -73,27 +73,24 @@
     "pathsSha256": "e0947fc66eba1a5a4e53f9675db1fb31d3e56730f406c6c9ca8aa00db706499a"
   },
   "templates": {
-    "count": 644,
-    "pathsSha256": "91d8ad26161b56a8d908ce00cc04dc391136f7ebfff411226c73ab3ba41f8fca"
+    "count": 645,
+    "pathsSha256": "7399eb8c0f354844af79c8859798d3fb024ecf876ca9d73eba98368be16394f1"
   },
   "leading_spdx": {
     "count": 282,
     "pathsSha256": "ec46e7f4ca8e0e64d1b4dd222ad7c933c53087f1f905059d4dd0babda8348bce"
   },
   "repinned": {
-    "task_id": "#2662",
-    "date": "2026-09-13",
-    "reason": "src/commands/ignore.ts (arbiter ignore add/remove, #2662) adds one new shipped file (dist/commands/ignore.js, carrying the SPDX header); not reachable from any .d.ts exports entry point so the declarations closure is unchanged. Roster re-pinned from the measured pack.",
+    "task_id": "#2663+#2662",
+    "reason": "batch-3 integration: dist/commands/ignore.js (#2662) + dist/templates/scripts/check-no-orphan-todo.mjs.ejs (#2663) enter the roster",
     "before": {
-      "entryCount": 989,
-      "unpackedSize": 4365489,
-      "declarations": 19,
-      "spdx": 281
+      "entryCount": 990,
+      "templates": 644,
+      "spdx": 282
     },
     "after": {
-      "entryCount": 990,
-      "unpackedSize": 4393027,
-      "declarations": 19,
+      "entryCount": 991,
+      "templates": 645,
       "spdx": 282
     }
   }
