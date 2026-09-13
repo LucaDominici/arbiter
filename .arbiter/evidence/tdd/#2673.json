@@ -1,16 +1,16 @@
 {
   "$schemaVersion": 1,
   "task_id": "#2673",
-  "test_path": "__tests__/detectors/external-model.test.ts",
-  "test_commit_sha": "8e07cd5cfe94995575c08664ae3db726e54eb51e",
-  "test_blob_sha": "40ac582b264be2dff9dc350724bc2b03db4876c5",
-  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/detectors/external-model.test.ts (10 tests | 1 failed) 8ms\n     × does not let a default-home lookup collide with an injected homeDir 2ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 9 passed (10)\n   Start at  12:57:48\n   Duration  134ms (transform 30ms, setup 8ms, import 36ms, tests 8ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/detectors/external-model.test.ts > external model detection > does not let a default-home lookup collide with an injected homeDir\nAssertionError: expected \"vi.fn()\" to be called 2 times, but got 1 times\n ❯ __tests__/detectors/external-model.test.ts:166:26\n    164|     detectExternalModel('codex', { env: {} })\n    165|     detectExternalModel('codex', { homeDir, env: {} })\n    166|     expect(mockedRunCli).toHaveBeenCalledTimes(2)\n       |                          ^\n    167|   })\n    168| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
-  "observed_failure": "FAIL  __tests__/detectors/external-model.test.ts",
-  "recorded_at": "2026-09-13T10:57:48.290Z",
+  "test_path": "__tests__/release/attest-pin-2673.test.ts",
+  "test_commit_sha": "6cf9c9235feb33272a4665ede7d29efe3c9f5af4",
+  "test_blob_sha": "70e36fad74ff74b51375e1a60d0508e66b1e674d",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/release/attest-pin-2673.test.ts (7 tests | 2 failed) 6ms\n     × mutation surface is bounded to the highest-criticality, cheapest-to-test generators 2ms\n     × concurrency is raised again for CI headroom after the c=4 run measured 0 margin 2ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 5 passed (7)\n   Start at  17:07:44\n   Duration  105ms (transform 7ms, setup 6ms, import 7ms, tests 6ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/release/attest-pin-2673.test.ts > release 05-release attest pin (#2673) > mutation surface is bounded to the highest-criticality, cheapest-to-test generators\nAssertionError: expected [ 'src/generators/**/*.ts', …(4) ] to not include 'src/invariants/catalog.ts'\n ❯ __tests__/release/attest-pin-2673.test.ts:45:24\n     43|     const config = JSON.parse(readFileSync(resolve(root, 'stryker.conf…\n     44|     const mutate: string[] = config.mutate\n     45|     expect(mutate).not.toContain('src/invariants/catalog.ts')\n       |                        ^\n     46|     expect(mutate).not.toContain('src/generators/**/*.ts')\n     47|     expect(mutate).not.toContain('src/generators/check-all.ts')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/release/attest-pin-2673.test.ts > release 05-release attest pin (#2673) > concurrency is raised again for CI headroom after the c=4 run measured 0 margin\nAssertionError: expected 2 to be 6 // Object.is equality\n\n- Expected\n+ Received\n\n- 6\n+ 2\n\n ❯ __tests__/release/attest-pin-2673.test.ts:65:32\n     63|   it('concurrency is raised again for CI headroom after the c=4 run me…\n     64|     const config = JSON.parse(readFileSync(resolve(root, 'stryker.conf…\n     65|     expect(config.concurrency).toBe(6)\n       |                                ^\n     66|   })\n     67| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/release/attest-pin-2673.test.ts",
+  "recorded_at": "2026-09-13T15:07:44.717Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
-    "__tests__/detectors/external-model.test.ts"
+    "__tests__/release/attest-pin-2673.test.ts"
   ]
 }
