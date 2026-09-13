@@ -620,6 +620,44 @@ Semantics:
 it would land in the manifest, be restored after deletion, and be reported as withheld once edited.
 Create it by hand.
 
+#### Retiring a file the project deliberately deleted (#2662)
+
+**Issue:** #2662
+
+Deleting a generated file by hand and never re-running `update` "works" only until the next `arbiter
+update`: absent-on-disk plus a manifest baseline is exactly the restoration signal (#2295 above), so a
+plain deletion with no `.arbiterignore` entry is silently put back. `.arbiterignore` is what makes a
+deletion STICK — it is checked ahead of the restoration branch, so an ignored key is never re-emitted even
+though its manifest entry (and the restoration evidence) survives. There is deliberately no second,
+manifest-native "retired" list: one committed, reviewable file is the whole mechanism, for both directions.
+
+`arbiter ignore add <path...>` and `arbiter ignore remove <path...>` are the CLI over that file, so an
+operator does not hand-edit gitignore syntax to retire something:
+
+- `arbiter ignore add <path>` appends `/<path>` to `.arbiterignore` (creating it if absent, idempotent —
+  running it twice does not duplicate the line) and deletes the on-disk file **only if it is pristine**
+  (`sha256(disk)` matches the manifest baseline) — the same pristine-only rule `planRetirement` applies to
+  framework-side retirement (above): a user-modified file is never deleted on the operator's behalf, only
+  reported so the edit can be salvaged by hand first. The manifest entry is untouched either way.
+- `arbiter ignore remove <path>` removes the exact `/<path>` line. If a broader pattern (e.g. `docs/`) still
+  matches, the path stays ignored and the command says which pattern is still in effect, rather than
+  falsely reporting success. Removing the pattern does **not** restore the file itself — that is what the
+  next `arbiter update` does, which re-adopts it exactly like any other un-ignored manifest entry.
+
+`diff` reports the result of `arbiter ignore add` as its own **`retired`** status — distinct from the
+standing **`ignored`** status a `.arbiterignore` entry produces for a file that is still present on disk
+(the same "gone counts as ignored [here: retired], not missing" line #2668 drew for the emission-parity
+gate). Retired files get a dedicated trailing section (mirroring the withheld-fixes section above) with
+their own count, and neither status pins `diff`'s exit code at 1 — a standing retirement, like a standing
+opt-out, must not fail CI forever.
+
+AC(2)'s "would restore a deleted file" case — a manifest-tracked file the project deleted WITHOUT declaring
+`.arbiterignore` — is likewise its own `diff` status, **`restore`**, instead of collapsing into the generic
+`new` status a first-time template would get. Unlike `retired`/`ignored`, a pending `restore` DOES count
+toward `hasChanges`/exit 1: `update` will actually recreate that file, so an accidental deletion stays
+visible until the operator either commits to keeping the file (do nothing, `update` restores it) or retires
+it on purpose (`arbiter ignore add`).
+
 ### First run, corruption, and `doctor repair-state`
 
 - **No manifest yet** (a project initialised by an older arbiter, or before this feature) → every

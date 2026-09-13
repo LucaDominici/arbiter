@@ -244,12 +244,23 @@
       "remote_header": "\n  Remote side effects (`arbiter update --github` would perform):",
       "remote_effect": "  \u2192 {op}  {target}",
       "ignored_file": "  \u2013 {key}  (skipped \u2014 .arbiterignore)",
+      "restore_file": "  + {key}  (would RESTORE \u2014 deleted since it was last emitted)",
       "withheld_file": "  ! {key}  (template fix WITHHELD \u2014 user-modified)",
       "withheld_header": "\n  Withheld template fixes ({count}) \u2014 preserved because user-modified, fix NOT applied:",
       "withheld_hint": "  These files are behind the current template. Review the upstream changes and merge them manually, or run `arbiter diff --withheld` for a focused list.",
+      "retired_header": "\n  Retired ({count}) \u2014 declared in .arbiterignore and already deleted, update will not restore them:",
+      "retired_file": "  \u2013 {key}  (retired)",
+      "retired_hint": "  Run `arbiter ignore remove <path>` then `arbiter update` to re-adopt one of these.",
       "governance_stale_section": "STALE {file}: {section} \u2014 {detail}",
       "governance_stale_footer": "Governance sections are stale \u2014 run `arbiter update`.",
       "governance_up_to_date": "Governance sections are up to date."
+    },
+    "ignore": {
+      "retired": "  – {key}  retired (removed, .arbiterignore updated)",
+      "kept": "  ! {key}  kept — user-modified, not deleted (.arbiterignore updated; remove it by hand once salvaged)",
+      "removed": "  + {key}  no longer ignored — run `arbiter update` to re-adopt it",
+      "still_ignored": "  ! {key}  still ignored by pattern `{by}`",
+      "remove_hint": "  Run `arbiter update` to re-adopt the removed path(s)."
     },
     "worktree": {
       "ready": "\nWorktree ready: {path}",

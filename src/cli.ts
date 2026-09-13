@@ -6,6 +6,7 @@ import { runInit } from './commands/init.js'
 import { resolvePresetOption } from './wizard/presets.js'
 import { runUpdate } from './commands/update.js'
 import { runDiff } from './commands/diff.js'
+import { runIgnoreAdd, runIgnoreRemove } from './commands/ignore.js'
 import { runObsidian } from './commands/obsidian.js'
 import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
@@ -928,6 +929,32 @@ program
       withheld: opts.withheld,
       governance: opts.governance,
     })
+  })
+
+const ignoreGroup = program
+  .command('ignore')
+  .description('Manage the per-file opt-out (.arbiterignore, #2353/#2662)')
+
+ignoreGroup
+  .command('add <paths...>')
+  .description(
+    'Retire emitted file(s): add to .arbiterignore and delete the pristine copy, reported as retired (#2662)',
+  )
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((paths: string[], opts: { dir?: string; json: boolean }) => {
+    runIgnoreAdd({ dir: opts.dir, paths, json: opts.json })
+  })
+
+ignoreGroup
+  .command('remove <paths...>')
+  .description(
+    'Un-ignore path(s): remove from .arbiterignore (does NOT restore the file — run `arbiter update`)',
+  )
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((paths: string[], opts: { dir?: string; json: boolean }) => {
+    runIgnoreRemove({ dir: opts.dir, paths, json: opts.json })
   })
 
 program

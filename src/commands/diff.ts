@@ -160,7 +160,7 @@ export function checkGovernanceSections(
   return results
 }
 
-type DiffStatus = 'new' | 'changed' | 'unchanged' | 'withheld' | 'ignored'
+type DiffStatus = 'new' | 'changed' | 'unchanged' | 'withheld' | 'ignored' | 'retired' | 'restore'
 
 interface DiffFile {
   key: string
@@ -212,14 +212,28 @@ function buildDiffFiles(results: WriteResult[], targetDir: string): DiffFile[] {
     // WriteResult.adopted), and reporting that as a preserved fix told the
     // operator the opposite of what the next `update` does.
     // #2353: an ignored file is neither withheld (nothing was preserved against
-    // the template) nor unchanged (it may not exist at all) — `update` will simply
-    // never touch it. Its own status, so the operator sees the opt-out at work.
+    // the template) nor unchanged (it may not exist at all) — its own status, so
+    // the operator sees the opt-out at work.
+    // #2662: an ignored key ALSO absent on disk is a declared RETIREMENT, not a
+    // standing opt-out on a file that still exists — same distinction #2668 drew
+    // for the emission-parity gate ("gone counts as ignored, not missing"). Split
+    // it here so `diff` reports the retired set by name instead of folding it
+    // into the generic `ignored` line.
+    // #2295/#2662 AC(2): a restoration (`WriteResult.restored`) used to collapse
+    // into `new` via `actionToStatus('created')` — indistinguishable from a
+    // brand-new template. Its own status so "update would restore a file you
+    // deleted" is visible before the write happens, not just after (in the
+    // `update` warnings channel).
     const status: DiffStatus =
       r.excluded === 'ignored'
-        ? 'ignored'
+        ? existsSync(r.path)
+          ? 'ignored'
+          : 'retired'
         : r.withheld === true && r.adopted !== true
           ? 'withheld'
-          : actionToStatus(r.action)
+          : r.restored === true
+            ? 'restore'
+            : actionToStatus(r.action)
     return {
       key: rel,
       status,
@@ -236,6 +250,8 @@ function printFileLine(f: DiffFile): void {
     process.stdout.write(`${t('cli.diff.changed_file', { key: f.key })}\n`)
   } else if (f.status === 'ignored') {
     process.stdout.write(`${t('cli.diff.ignored_file', { key: f.key })}\n`)
+  } else if (f.status === 'restore') {
+    process.stdout.write(`${t('cli.diff.restore_file', { key: f.key })}\n`)
   } else {
     process.stdout.write(`${t('cli.diff.unchanged_file', { key: f.key })}\n`)
   }
@@ -255,6 +271,21 @@ function printWithheldSection(withheld: DiffFile[]): void {
   process.stdout.write(`${t('cli.diff.withheld_hint')}\n`)
 }
 
+/**
+ * #2662 AC(1): a dedicated trailing section for retired files — declared via
+ * `.arbiterignore` (see `arbiter ignore add`) AND already gone from disk — so a
+ * project's deliberate retirements are reviewable in one place, not scattered
+ * among "ignored" (still-present opt-outs) or missing entirely from the report.
+ */
+function printRetiredSection(retired: DiffFile[]): void {
+  if (retired.length === 0) return
+  process.stdout.write(`${t('cli.diff.retired_header', { count: retired.length })}\n`)
+  for (const f of retired) {
+    process.stdout.write(`${t('cli.diff.retired_file', { key: f.key })}\n`)
+  }
+  process.stdout.write(`${t('cli.diff.retired_hint')}\n`)
+}
+
 function printHuman(
   files: DiffFile[],
   remote: RemoteSideEffect[],
@@ -262,13 +293,15 @@ function printHuman(
   withheldOnly: boolean,
 ): void {
   const withheld = files.filter((f) => f.status === 'withheld')
+  const retired = files.filter((f) => f.status === 'retired')
   // --withheld: focused view — only the withheld section, nothing else.
   if (withheldOnly) {
     printWithheldSection(withheld)
     return
   }
-  // #2665: withheld files are listed once, in the dedicated section below — not inline.
-  for (const f of files) if (f.status !== 'withheld') printFileLine(f)
+  // #2665/#2662: withheld and retired files are listed once, in their own
+  // dedicated sections below — not inline.
+  for (const f of files) if (f.status !== 'withheld' && f.status !== 'retired') printFileLine(f)
   if (remote.length > 0) {
     process.stdout.write(`${t('cli.diff.remote_header')}\n`)
     for (const r of remote) {
@@ -276,11 +309,13 @@ function printHuman(
     }
   }
   printWithheldSection(withheld)
+  printRetiredSection(retired)
   // Footer: only claim "all up to date" when there is genuinely nothing to act on
-  // — neither pending writes nor withheld fixes (the latter print their own hint).
+  // — neither pending writes nor withheld fixes nor retirements (each prints its
+  // own hint already).
   if (hasChanges) {
     process.stdout.write(`${t('cli.diff.run_update')}\n`)
-  } else if (withheld.length === 0) {
+  } else if (withheld.length === 0 && retired.length === 0) {
     process.stdout.write(`${t('cli.diff.up_to_date')}\n`)
   }
 }
@@ -379,6 +414,9 @@ export function runDiff(options: DiffOptions): void {
 
   const allFiles = buildDiffFiles(results, targetDir)
   const withheldCount = allFiles.filter((f) => f.status === 'withheld').length
+  // #2662 AC(1): the retired set, named and counted like withheld — a project's
+  // deliberate retirements are reviewable in one place.
+  const retired = allFiles.filter((f) => f.status === 'retired').map((f) => f.key)
   // --withheld: focused reconciliation view — report only withheld entries.
   const files = options.withheld ? allFiles.filter((f) => f.status === 'withheld') : allFiles
   const remoteSideEffect = buildRemoteSideEffects(
@@ -390,10 +428,17 @@ export function runDiff(options: DiffOptions): void {
   // run-update hint + exit code). A withheld fix is explicitly NOT written — it is
   // preserved — so it does not count here (and update→diff stays idempotent: F7).
   // Withheld drift is surfaced separately via the dedicated section + withheldCount.
-  // #2353: an ignored file is likewise not a pending write — counting it would pin
-  // diff's exit code at 1 for as long as the `.arbiterignore` entry stands.
+  // #2353/#2662: an ignored OR retired file is likewise not a pending write —
+  // counting it would pin diff's exit code at 1 for as long as the standing
+  // opt-out/retirement stands. A `restore` status DOES stay counted: `update`
+  // will actually re-create that file, and AC(2) requires the mistake stay
+  // visible in the exit code, same as any other pending write.
   const hasChanges = allFiles.some(
-    (f) => f.status !== 'unchanged' && f.status !== 'withheld' && f.status !== 'ignored',
+    (f) =>
+      f.status !== 'unchanged' &&
+      f.status !== 'withheld' &&
+      f.status !== 'ignored' &&
+      f.status !== 'retired',
   )
 
   if (options.json) {
@@ -401,7 +446,7 @@ export function runDiff(options: DiffOptions): void {
     // `hasChanges` stays write-only (idempotence contract) — withheld is reported
     // via `withheldCount`, not by claiming update would write the file.
     const status = hasChanges || withheldCount > 0 ? 'warning' : 'ok'
-    jsonOutput('diff', status, { hasChanges, files, remoteSideEffect, withheldCount })
+    jsonOutput('diff', status, { hasChanges, files, remoteSideEffect, withheldCount, retired })
     const code = statusToExitCode(status)
     if (code !== 0) process.exit(code)
     return

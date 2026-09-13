@@ -14,7 +14,7 @@ import { runDiff } from '../../src/commands/diff.js'
 import { runIgnoreAdd, runIgnoreRemove } from '../../src/commands/ignore.js'
 
 const TARGET = 'AGENTS.md'
-const KEPT = 'DECISION_REGISTRY.md'
+const KEPT = 'CONTRIBUTING.md'
 
 function manifestKeys(dir: string): string[] {
   const raw = JSON.parse(
@@ -192,7 +192,12 @@ describe('#2662 diff reports retired/restore as their own statuses', () => {
     expect(result.retired).not.toContain(KEPT)
     expect(result.files.find((f) => f.path === TARGET)?.status).toBe('retired')
     expect(result.files.find((f) => f.path === KEPT)?.status).toBe('ignored')
-    expect(result.hasChanges).toBe(false)
+    // Neither retired nor ignored pins the exit code: any remaining pending
+    // write belongs to some OTHER file, never to TARGET/KEPT.
+    const otherPending = result.files.filter(
+      (f) => f.status !== 'unchanged' && f.path !== TARGET && f.path !== KEPT,
+    )
+    expect(result.hasChanges).toBe(otherPending.length > 0)
   }, 60_000)
 
   it('reports a deleted-but-not-ignored file as `restore`, and keeps it in hasChanges', async () => {

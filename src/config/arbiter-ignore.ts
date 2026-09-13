@@ -26,7 +26,7 @@
  * manifest key, and `planRetirement` treats those as retirement/stale candidates —
  * an opt-out that deletes files is the opposite of an opt-out.
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { globMatch } from '../conformance/shared.js'
 
@@ -115,4 +115,44 @@ export function buildSelectionPredicate(opts: {
     if (opts.only.length > 0 && !matchesOnly(opts.only, key)) return 'deselected'
     return 'emit'
   }
+}
+
+/**
+ * #2662: anchor a manifest key into the exact-file pattern `arbiter ignore add`
+ * writes — a leading `/` so `AGENTS.md` at the root never accidentally also
+ * matches a same-named file elsewhere the operator did not ask to retire.
+ */
+export function anchoredPattern(key: string): string {
+  return `/${key}`
+}
+
+/**
+ * Append `pattern` to `.arbiterignore` (created if missing), unless an
+ * identical line is already present — idempotent, so `ignore add` run twice on
+ * the same path is a no-op the second time, not a duplicate line.
+ */
+export function appendIgnorePattern(targetDir: string, pattern: string): void {
+  const path = join(targetDir, IGNORE_FILE_NAME)
+  const existing = existsSync(path) ? readFileSync(path, 'utf-8') : ''
+  const lines = existing.split('\n').map((l) => l.trim())
+  if (lines.includes(pattern)) return
+  const withTrailingNewline =
+    existing.length > 0 && !existing.endsWith('\n') ? `${existing}\n` : existing
+  writeFileSync(path, `${withTrailingNewline}${pattern}\n`)
+}
+
+/**
+ * Remove every line EXACTLY equal to `pattern` from `.arbiterignore`. Comments,
+ * blank lines and every other pattern are preserved untouched. No-op (returns
+ * `false`) when the file is missing or the pattern is not present — the caller
+ * distinguishes "nothing to remove" from "removed".
+ */
+export function removeIgnorePattern(targetDir: string, pattern: string): boolean {
+  const path = join(targetDir, IGNORE_FILE_NAME)
+  if (!existsSync(path)) return false
+  const lines = readFileSync(path, 'utf-8').split('\n')
+  const kept = lines.filter((l) => l.trim() !== pattern)
+  if (kept.length === lines.length) return false
+  writeFileSync(path, kept.join('\n'))
+  return true
 }

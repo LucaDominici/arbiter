@@ -184,11 +184,15 @@ describe('#2353 diff honours .arbiterignore', () => {
     writeFileSync(join(dir, '.arbiterignore'), pending.map((p) => `/${p}`).join('\n'))
 
     const after = diffJson(dir)
-    expect(after.files.find((f) => f.path === IGNORED)?.status).toBe('ignored')
-    for (const path of pending) {
+    // #2662: IGNORED was deleted before being ignored — that combination is a
+    // declared RETIREMENT (own status), distinct from a merely-ignored file
+    // that is still present on disk.
+    expect(after.files.find((f) => f.path === IGNORED)?.status).toBe('retired')
+    for (const path of pending.filter((p) => p !== IGNORED)) {
       expect(after.files.find((f) => f.path === path)?.status).toBe('ignored')
     }
-    // An ignored file is not a pending write: it must not pin diff's exit code at 1.
+    // Neither an ignored nor a retired file is a pending write: must not pin
+    // diff's exit code at 1.
     expect(after.hasChanges).toBe(false)
   }, 60_000)
 })
