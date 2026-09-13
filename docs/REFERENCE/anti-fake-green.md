@@ -195,6 +195,9 @@ already read its scan root from an argv flag), 7 into new dated ledger rows (gen
 and gates whose violation surface is intricate multi-file YAML/DAG parsing, where a confident
 fixture needed more scope than this pass). The ceiling raise is a source-reviewed edit to
 `MAX_DEFERRED`, made in the same commit as the ledger rows it bounds — same contract as the lower.
+The 7 new rows cite `issue: 2677` rather than `2675`: #2675 itself closes when this promotion
+lands, and a deferral whose provenance issue is closed reads as unowed. #2677 is the dedicated
+follow-up for proving these 7 specifically, opened for exactly that purpose.
 
 ## `arbiter doctor` diagnostics for target repos (#2162)
 

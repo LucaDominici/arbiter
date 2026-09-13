@@ -149,7 +149,7 @@
       "script": "scripts/gen-llms-txt.mjs",
       "category": "parity",
       "reason": "Diffs generated llms.txt content against llms-txt.config.json plus the live docs/INDEX.md doc count; a fixture needs a full parseable config and index pair, not a single planted file, and --check's drift arm was out of scope for this pass.",
-      "issue": 2675,
+      "issue": 2677,
       "expires": "2027-09-30"
     },
     {
@@ -157,7 +157,7 @@
       "script": "scripts/check-api-snapshot.mjs",
       "category": "parity",
       "reason": "Diffs live TypeScript export declarations (via a comment-strip/normalize pass over real source files) against committed api/*.api.md snapshots, with ROOT fixed to process.cwd() and no override flag; a fixture needs real parseable TS sources plus a matching snapshot, not a planted file.",
-      "issue": 2675,
+      "issue": 2677,
       "expires": "2027-09-30"
     },
     {
@@ -165,7 +165,7 @@
       "script": "scripts/check-gold-registries.mjs",
       "category": "ratchet",
       "reason": "Has --standards, but validates YAML registries against threshold_ref cross-references and a risk taxonomy; a bad fixture needs a coherent registry-plus-thresholds pair with exactly one planted violation, which this pass did not build.",
-      "issue": 2675,
+      "issue": 2677,
       "expires": "2027-09-30"
     },
     {
@@ -173,7 +173,7 @@
       "script": "scripts/check-workflow-test-integrity.mjs",
       "category": "no",
       "reason": "Has --dir, but its violation surface (continue-on-error step scoping, merge-gate base-branch filters, informational-workflow allowlists) is intricate multi-rule YAML parsing; a fixture confident enough to discriminate cleanly on one specific rule was not built this pass.",
-      "issue": 2675,
+      "issue": 2677,
       "expires": "2027-09-30"
     },
     {
@@ -181,7 +181,7 @@
       "script": "scripts/check-workflow-parallelism.mjs",
       "category": "ratchet",
       "reason": "Has --dir, but longest-chain DAG analysis over needs: edges with per-filename-prefix overrides (01-pr-fast/05-release/nightly etc.) needs a carefully constructed multi-job workflow fixture to avoid a brittle proof; not attempted this pass.",
-      "issue": 2675,
+      "issue": 2677,
       "expires": "2027-09-30"
     },
     {
@@ -189,7 +189,7 @@
       "script": "scripts/check-unwired-guards.mjs",
       "category": "no",
       "reason": "Scans many hardcoded reference surfaces at once (check-all.mjs, scripts/**, .claude/hooks/**, settings.json, Makefile, githooks, workflows, run.sh, package.json) with no root-injection flag; reproducing a coherent subset for a bad/clean pair is a larger fixture than this pass scoped.",
-      "issue": 2675,
+      "issue": 2677,
       "expires": "2027-09-30"
     },
     {
@@ -197,7 +197,7 @@
       "script": "scripts/regenerate-examples.mjs",
       "category": "parity",
       "reason": "Regenerates examples/ via a real `arbiter init` child-process run against the built dist/cli.js and diffs the result; a fixture needs a full generator run per --check invocation, not a planted file, and dist/cli.js is not guaranteed built in every test environment.",
-      "issue": 2675,
+      "issue": 2677,
       "expires": "2027-09-30"
     }
   ]

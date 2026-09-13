@@ -414,7 +414,8 @@ PARTIAL: flip coverage is not yet 100% (playbook §T3). CANON-25 (#2301) closed 
 first tranche — the ABSENCE-asserting family (`check-no-*`, ratchets, parity) is now
 derived live from `check-all.mjs` and each member needs a planted bad/clean proof or a
 banked row in `scripts/data/inversion-proof-registry.json`; the residue is 22 rows (#2675
-banked 7 more after promoting all 19 former `ABSENCE_EXEMPT` candidates). The
+promoted all 19 former `ABSENCE_EXEMPT` candidates and banked 7 more, tracked for proof
+under the follow-up #2677). The
 "working/dogfood" leg is enforced on arbiter-self
 (`check-self-dogfood.mjs`) but only advisory on targets.
 
