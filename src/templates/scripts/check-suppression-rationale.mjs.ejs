@@ -3,7 +3,7 @@
 // Validates that all suppression entries have meaningful rationale (reason field).
 // Exits 0 when all rationales are meaningful; exits 1 when thin rationales found.
 // Part of the anti-drift validator family (W6).
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
@@ -23,7 +23,19 @@ if (args.includes('--help') || args.includes('-h')) {
 }
 
 const dirArg = args.indexOf('--dir');
-const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd();
+let CWD = process.cwd();
+if (dirArg >= 0) {
+  const dirValue = args[dirArg + 1];
+  if (dirValue === undefined) {
+    process.stderr.write('check-suppression-rationale: --dir requires a path argument\n');
+    process.exit(2);
+  }
+  CWD = resolve(dirValue);
+  if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
+    process.stderr.write(`check-suppression-rationale: --dir ${dirValue} does not exist or is not a directory\n`);
+    process.exit(2);
+  }
+}
 const SUPPRESSIONS_DIR = join(CWD, 'suppressions');
 const REASON_MIN_LEN = 20;
 let violations = 0;

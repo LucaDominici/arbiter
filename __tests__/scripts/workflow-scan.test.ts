@@ -88,23 +88,20 @@ describe('parseHelpAndDir', () => {
     expect(parseHelpAndDir(['--dir', tmp], { usage: 'u' })).toEqual({ cwd: resolve(tmp) })
   })
 
-  it('ignores a trailing --dir with no value (defaults to cwd)', () => {
-    expect(parseHelpAndDir(['--dir'], { usage: 'u' })).toEqual({ cwd: process.cwd() })
-  })
-
-  // --help / -h call process.exit, so exercise via a subprocess.
+  // --help / -h and the #2675 refusal paths call process.exit, so exercise via a subprocess.
   // Resolve the helper relative to THIS test file (not process.cwd()) and import
   // it via a file:// URL so the child `import` works even when the repo path
   // contains characters like `#` that are invalid in a bare path-as-URL.
   const helperPath = fileURLToPath(new URL('../../scripts/lib/workflow-scan.mjs', import.meta.url))
   const helperHref = pathToFileURL(helperPath).href
-  const driver = (flag: string): { status: number; stdout: string } => {
+  const driverArgs = (flags: string[]): { status: number; stdout: string; stderr: string } => {
     const code = `import { parseHelpAndDir } from ${JSON.stringify(
       helperHref,
-    )}; parseHelpAndDir([${JSON.stringify(flag)}], { usage: 'USAGE-MARKER\\n' }); console.log('SHOULD-NOT-REACH')`
+    )}; parseHelpAndDir(${JSON.stringify(flags)}, { usage: 'USAGE-MARKER\\n' }); console.log('SHOULD-NOT-REACH')`
     const r = spawnSync('node', ['--input-type=module', '-e', code], { encoding: 'utf-8' })
-    return { status: r.status ?? 1, stdout: r.stdout ?? '' }
+    return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   }
+  const driver = (flag: string) => driverArgs([flag])
 
   it('prints usage and exits 0 on --help', () => {
     const r = driver('--help')
@@ -117,6 +114,32 @@ describe('parseHelpAndDir', () => {
     const r = driver('-h')
     expect(r.status).toBe(0)
     expect(r.stdout).toContain('USAGE-MARKER')
+    expect(r.stdout).not.toContain('SHOULD-NOT-REACH')
+  })
+
+  // #2675 Codex round-1: a bare/dangling --dir used to silently fall back to process.cwd(),
+  // so a caller's fixture-less SKIP path would quietly report clean on the LIVE repo instead
+  // of refusing an explicit scan-root request it cannot honor.
+  it('refuses a trailing --dir with no value (exit 2, never a silent cwd fallback)', () => {
+    const r = driverArgs(['--dir'])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/--dir requires a path argument/)
+    expect(r.stdout).not.toContain('SHOULD-NOT-REACH')
+  })
+
+  it('refuses a --dir naming a path that does not exist', () => {
+    const r = driverArgs(['--dir', join(tmp, 'does-not-exist')])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/does not exist or is not a directory/)
+    expect(r.stdout).not.toContain('SHOULD-NOT-REACH')
+  })
+
+  it('refuses a --dir naming a file (not a directory)', () => {
+    const filePath = join(tmp, 'a-file.txt')
+    writeFileSync(filePath, 'x')
+    const r = driverArgs(['--dir', filePath])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/does not exist or is not a directory/)
     expect(r.stdout).not.toContain('SHOULD-NOT-REACH')
   })
 })

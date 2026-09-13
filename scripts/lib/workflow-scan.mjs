@@ -18,7 +18,7 @@
 // because check-action-pins emits a warn line on readdir failure while the W6
 // scripts swallow it silently — the hook keeps both behaviors byte-identical.
 
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 /**
@@ -107,6 +107,14 @@ export function collectWorkflowTemplates(templatesRoot, { onReadError } = {}) {
  * resolved working directory is returned: the `--dir <path>` value (resolved)
  * when supplied, else `process.cwd()`.
  *
+ * #2675 Codex round-1: a bare `--dir` (no value), or a `--dir` naming a path that
+ * does not exist or is not a directory, used to fall back to `process.cwd()`
+ * SILENTLY — an explicit scan-root request that could never be honored was
+ * indistinguishable from none being given at all, and the caller's own
+ * fixture-less SKIP paths would then quietly report clean on the live repo
+ * instead of the intended (missing) target. Both are now a loud `exit(2)`:
+ * an unusable `--dir` must never be read as "use the default".
+ *
  * Script-specific flags (e.g. `--runner`) are NOT consumed here; the caller
  * parses them from the same `args` array as before.
  *
@@ -121,6 +129,16 @@ export function parseHelpAndDir(args, { usage }) {
     process.exit(0)
   }
   const dirArg = args.indexOf('--dir')
-  const cwd = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
-  return { cwd }
+  if (dirArg < 0) return { cwd: process.cwd() }
+  const value = args[dirArg + 1]
+  if (value === undefined) {
+    process.stderr.write('--dir requires a path argument\n')
+    process.exit(2)
+  }
+  const resolved = resolve(value)
+  if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
+    process.stderr.write(`--dir ${value} does not exist or is not a directory\n`)
+    process.exit(2)
+  }
+  return { cwd: resolved }
 }

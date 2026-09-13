@@ -8,7 +8,7 @@
 //
 // Usage: node scripts/check-suppression-expiry.mjs [--max-days <N>] [--dir <path>] [--help]
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
@@ -33,8 +33,25 @@ if (args.includes('--help') || args.includes('-h')) {
 const maxDaysArg = args.indexOf('--max-days')
 const MAX_DAYS = maxDaysArg >= 0 && args[maxDaysArg + 1] ? parseInt(args[maxDaysArg + 1], 10) : 365
 
+// #2675 Codex round-1: a bare or dangling --dir must never be read as "use the default" — a
+// caller asking for an explicit scan root that cannot be honored would otherwise silently fall
+// through to this gate's own fixture-less SKIP paths and report clean on the LIVE repo instead.
 const dirArg = args.indexOf('--dir')
-const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
+let CWD = process.cwd()
+if (dirArg >= 0) {
+  const dirValue = args[dirArg + 1]
+  if (dirValue === undefined) {
+    process.stderr.write('check-suppression-expiry: --dir requires a path argument\n')
+    process.exit(2)
+  }
+  CWD = resolve(dirValue)
+  if (!existsSync(CWD) || !statSync(CWD).isDirectory()) {
+    process.stderr.write(
+      `check-suppression-expiry: --dir ${dirValue} does not exist or is not a directory\n`,
+    )
+    process.exit(2)
+  }
+}
 const SUPPRESSIONS_DIR = join(CWD, 'suppressions')
 
 let violations = 0
