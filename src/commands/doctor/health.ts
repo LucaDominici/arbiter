@@ -79,6 +79,14 @@ export interface DoctorHealthOptions {
    * inject an isolated dir for determinism. Never the target repo (spoofing guard, #1730).
    */
   claudeHome?: string
+  /**
+   * #2673 — the home directory checked for `~/.codex/auth.json` (external-model.ts's auth
+   * signal). Defaults to `os.homedir()`; tests inject an isolated dir for determinism instead
+   * of stubbing the HOME/USERPROFILE env vars, which proved unreliable under Stryker's vitest
+   * runner (env-var propagation to a fresh os.homedir() read was not observed to hold there,
+   * though a plain vitest run of the same file was fine — see #2673 for the investigation).
+   */
+  codexHome?: string
 }
 
 export interface DoctorHealthResult {
@@ -122,7 +130,12 @@ function checkGitAvailable(dir: string): [HealthCheck, boolean] {
   return [check, gitOk]
 }
 
-function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): HealthCheck[] {
+function checkArbiterProject(
+  dir: string,
+  gitOk: boolean,
+  claudeHome?: string,
+  codexHome?: string,
+): HealthCheck[] {
   const out: HealthCheck[] = []
   if (!existsSync(join(dir, 'arbiter.json'))) return out
 
@@ -144,7 +157,7 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
       'advisory — review the detected and recommended skills in your configured integrations.',
     hint: 'Review your configured integrations and installed skills.',
   })
-  out.push(checkExternalModelHealth())
+  out.push(checkExternalModelHealth(codexHome))
 
   if (gitOk) {
     let hooksPath = ''
@@ -182,8 +195,8 @@ function checkArbiterProject(dir: string, gitOk: boolean, claudeHome?: string): 
   return out
 }
 
-function checkExternalModelHealth(): HealthCheck {
-  const access = detectExternalModel('codex')
+function checkExternalModelHealth(homeDir?: string): HealthCheck {
+  const access = detectExternalModel('codex', homeDir === undefined ? {} : { homeDir })
   const version = access.version ? `codex ${access.version}` : 'codex'
   if (!access.available) {
     return {
@@ -988,7 +1001,7 @@ export async function runDoctorHealth(opts: DoctorHealthOptions = {}): Promise<D
   const checks: HealthCheck[] = [
     checkNodeVersion(),
     gitCheck,
-    ...checkArbiterProject(dir, gitOk, opts.claudeHome),
+    ...checkArbiterProject(dir, gitOk, opts.claudeHome, opts.codexHome),
     checkChannelSetting(dir, opts.channelFlag),
     checkTaskDocument(dir),
     checkGatePassLog(dir),
