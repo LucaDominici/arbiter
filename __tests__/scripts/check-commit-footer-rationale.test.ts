@@ -488,6 +488,45 @@ describe('check-commit-footer-rationale.mjs (INV-119) — real rendered schema s
       evidence.cleanup()
     }
   })
+
+  // Round 2: the fix must exempt ONLY the arbiter-generated suppressions-schema.json path,
+  // not any file merely named `*-schema.json` — a real entry added to a custom schema file
+  // under suppressions/ still needs a trailer.
+  it('inversion: still requires a trailer for a real entry added to a custom *-schema.json file', () => {
+    const repo = hermeticRepo()
+    const evidence = fixture()
+    try {
+      mkdirSync(join(repo.dir, 'suppressions'), { recursive: true })
+      writeFileSync(
+        join(repo.dir, 'suppressions', 'custom-schema.json'),
+        JSON.stringify({ $schema: 'https://example.com/schema.json', version: 1 }, null, 2) + '\n',
+      )
+      git(repo.dir, ['add', join('suppressions', 'custom-schema.json')])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: scaffold custom schema'])
+      const base = git(repo.dir, ['rev-parse', 'HEAD']).trim()
+
+      writeFileSync(
+        join(repo.dir, 'suppressions', 'custom-schema.json'),
+        JSON.stringify(
+          { $schema: 'https://example.com/schema.json', version: 1, waived: 'CVE-2024-1111' },
+          null,
+          2,
+        ) + '\n',
+      )
+      git(repo.dir, ['add', join('suppressions', 'custom-schema.json')])
+      git(repo.dir, ['commit', '-q', '-m', 'chore: waive CVE-2024-1111 in custom schema'])
+      const range = `${base}..HEAD`
+
+      const r = run(['--range', range, '--evidence-dir', evidence.dir], repo.dir)
+      expect(r.status).toBe(1)
+      const ev = readEvidence(evidence.dir)
+      expect(ev.result).toBe('FAIL')
+      expect(ev.commits_requiring_footer).toBeGreaterThanOrEqual(1)
+    } finally {
+      repo.cleanup()
+      evidence.cleanup()
+    }
+  })
 })
 
 describe('check-commit-footer-rationale.mjs (INV-119) — trailer key:value grammar (#2669 finding 2)', () => {

@@ -157,11 +157,15 @@ function trailerShapeError(trailer) {
  */
 function addedLinesAddEntry(path, addedLines) {
   const isJson = /\.json$/.test(path)
-  // #2669 finding 1: a JSON-schema-defining file (suppressions-schema.json) declares the
-  // SHAPE of suppression entries — it never contains one itself, no matter how many of its
-  // own boilerplate keys ($id, title, description, type, items, definitions...) get added.
-  // Keying on the two literal keys $schema/version (below) does not cover this real shape.
-  if (isJson && /-schema\.json$/.test(path)) return false
+  // #2669 finding 1 (round 2): the ARBITER-GENERATED schema-defining file
+  // (suppressions/suppressions-schema.json, from suppressions-schema.json.ejs) declares
+  // the SHAPE of suppression entries — it never contains one itself, no matter how many
+  // of its own boilerplate keys ($id, title, description, type, items, definitions...)
+  // get added. Matched by exact generated path only — NOT any `*-schema.json`, which
+  // would let a real entry added to e.g. suppressions/custom-schema.json bypass the
+  // footer. Keying on the two literal keys $schema/version (below) does not cover the
+  // real generated file's shape.
+  if (isJson && /(^|\/)suppressions\/suppressions-schema\.json$/.test(path)) return false
   return addedLines.some((line) => {
     const trimmed = line.trim()
     if (!trimmed) return false
