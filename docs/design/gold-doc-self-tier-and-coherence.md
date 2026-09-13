@@ -1,6 +1,6 @@
 ---
 title: 'Gold-Doc Addendum — self-tier floor & CLI-surface coherence'
-doc_version: '0.1.0'
+doc_version: '0.1.1'
 status: draft
 last_review: '2026-09-13'
 owner: ''
@@ -42,9 +42,13 @@ The Tranche-1 diff already implements collaborationMode → column resolution:
 - `scripts/lib/doc-set-resolve.mjs:160` — `TIER_COLUMN = { 'trunk-solo': 'solo', 'peer-review': 'small', 'gated-review': 'enterprise' }`
 - `scripts/lib/doc-set-resolve.mjs:166-172` — `resolveCollaborationMode()`: explicit `collaborationMode`
   wins, else the `soloDevMode` back-compat alias forces `trunk-solo`.
-- `scripts/lib/doc-set-resolve.mjs:174-189` — `loadTierColumn()` reads `arbiter.json` **at CWD**
-  (through `readRegularFileSync`, #2635: a symlink or directory at that path is a config error, not a
-  silent default) and returns the column. The only override is the `tier_floor` max() below.
+- `scripts/lib/doc-set-resolve.mjs:173-183` — `loadTierColumn()` reads `arbiter.json` **at CWD**
+  through `readRegularFileSync` (#2635, so a symlink or directory at that path throws there), but
+  the function's own `try/catch` (`:176-182`) swallows that throw — and any `JSON.parse` failure —
+  and silently falls back to `TIER_COLUMN[resolveCollaborationMode({})]` (`peer-review`/`small`).
+  This is a silent default today, not a config error; whether self-tiering should instead fail
+  closed on a malformed `arbiter.json` is open, not yet decided by this design. The only override
+  on the successfully-resolved column is the `tier_floor` max() below.
 - `arbiter.json` — `"collaborationMode": "trunk-solo"` **and** `"features": { "soloDevMode": true }`:
   self resolves to `solo` twice over.
 

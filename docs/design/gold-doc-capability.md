@@ -1,6 +1,6 @@
 ---
 title: 'Gold-Doc Capability — self, generator, enforcer'
-doc_version: '0.1.0'
+doc_version: '0.1.1'
 status: draft
 last_review: '2026-09-13'
 owner: ''
@@ -214,7 +214,7 @@ across two places:
    plus the thin `gold-audit.mjs` runner. All `skipIfExists` (`:63,72`). Registered in
    `src/generators/registry.ts:658-662` under key `gold-kit`. It emits **no doc bodies.**
 2. **`scripts/check-doc-set.mjs:76-102` (`stubFor`)** — `--generate` scaffolds a _body_, but the
-   body is a one-line banner: `> **STUB — fill me in.**` (`:143`). It is write-safe (only writes a
+   body is a one-line banner: `> **STUB — fill me in.**` (`:79`). It is write-safe (only writes a
    MISSING file, `:218`; `--refresh-stubs` overwrites only a byte-equal stub, `:194-197`).
 
 So "the generator is a stub 'fill me in'" is literally true: the only body arbiter can produce is a
@@ -371,7 +371,7 @@ subtree arc42/C4/ADR count.
 | H2  | **Manifest is path-blind** — subtree arc42/C4/ADR (acme-consumer `budget/`) not recognized                                           | `standards/gold-doc-set.yml:96-102,109`                                             | High                      |
 | H3  | **Manifest is tier-blind** — no solo/small/enterprise column; every governed repo gets the cathedral                                 | `standards/gold-doc-set.yml:91-140` (all `mandatory`)                               | High                      |
 | H4  | **Doc freshness is unimplemented** — `check-monthly-freshness` reads a CI stamp, `check-doc-style` reads only `last_review` _format_ | `scripts/check-monthly-freshness.mjs:55-57`, `scripts/check-doc-style.mjs:157-163`  | High                      |
-| H5  | **Body generator is a banner** — `--generate` writes `> **STUB — fill me in.**`, no real skeletons, no two-phase                     | `scripts/check-doc-set.mjs:143`                                                     | Medium                    |
+| H5  | **Body generator is a banner** — `--generate` writes `> **STUB — fill me in.**`, no real skeletons, no two-phase                     | `scripts/check-doc-set.mjs:79`                                                      | Medium                    |
 | H6  | **Self passes a weak bar** — green against tier-blind manifest, not the enterprise column                                            | §6.1                                                                                | Medium                    |
 | H7  | **Coherence blind to CLI-subcommand ghosts** — emission-coherence resolves file paths, not `arbiter <sub>`                           | `scripts/check-emission-coherence.mjs:348-361`                                      | Medium (root cause of H1) |
 
@@ -414,8 +414,11 @@ matrix rows).
 
 - **Build:** widen `accept_any`/`glob` to recognize `docs/architecture/**/arc42.md`,
   `docs/**/c4-model.md`, and `docs/**/adr/ADR-*.md`; keep the ADR dual-recognition regexes
-  (`scripts/lib/doc-set-resolve.mjs:101-158`, `adrPresent*`; the resolver reads every file through
-  `readRegularFileSync`, #2635, so a symlinked or directory candidate never counts as present).
+  (`scripts/lib/doc-set-resolve.mjs:101-158`, `adrPresent*`). These check filename-only via
+  `existsSync`/`readdirSync` (`:102,115`), not file content: a symlinked ADR entry still matches
+  `isAdrFilename` and counts as present. Only `loadTierColumn` (arbiter.json, `:177`) and
+  `loadOverlays` (the profile YAML, `:250`) read file content through `readRegularFileSync`
+  (#2635), which does reject a symlink or directory at those two paths.
 - **Tested (red path):** fixture with arc42+9 ADRs under a `budget/` subtree → architecture + ADR
   checks PASS (RED today).
 - **Dogfood/proof:** re-run §6.3 on acme-consumer → arc42 + ADRs recognized; present-count rises.
