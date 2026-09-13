@@ -669,5 +669,61 @@ describe('check-fail-closed-audit', () => {
       expect(r.status).toBe(2)
       expect(r.stderr).toContain('desynced.mjs')
     })
+
+    // Codex review round 1 — HIGH: a size-based exemption on the integrity floor let a
+    // SHORT desynced file exit 0 (the masker stayed in string state, but the tail was too
+    // small to trip the ratio). The fix is size-independent: fail closed on any file where
+    // maskCode ends the file still inside an unterminated literal, regardless of length.
+    it('AC-3 (HIGH): a COMPACT src/*.ts with an unterminated string is an ERROR, not a quiet pass', () => {
+      mkdirSync(join(env.root, 'src'), { recursive: true })
+      writeFileSync(
+        join(env.root, 'src', 'tiny.ts'),
+        ["const oops = 'never closed", 'try {', '  a()', '} catch {', '}', ''].join('\n'),
+      )
+      const r = runAudit(env.root)
+      expect(r.status).toBe(2)
+      expect(r.stderr).toContain('tiny.ts')
+    })
+
+    // Codex review round 1 — MEDIUM: a survival-RATIO floor false-positives on a valid file
+    // that legitimately ends in a long (but properly CLOSED) block comment or template
+    // literal — most of the tail is masked, same shape as a desync, but it isn't one. The
+    // unterminated-STATE signal does not have this failure mode: a closed comment/template
+    // returns the masker to `code` before EOF, so `terminated` is true either way.
+    it('AC-3 (MEDIUM): a valid file ending in a long CLOSED block comment does not false-positive', () => {
+      const longComment = Array.from({ length: 30 }, (_, i) => ` * legitimate doc line ${i}`)
+      writeFileSync(
+        join(env.root, 'scripts', 'documented-tail.mjs'),
+        [
+          '#!/usr/bin/env node',
+          "import { runCheck } from '../scripts/lib/run-helpers.mjs'",
+          "runCheck('x', 'true', [])",
+          '/**',
+          ...longComment,
+          ' */',
+          '',
+        ].join('\n'),
+      )
+      const r = runAudit(env.root)
+      expect(r.status).not.toBe(2)
+    })
+
+    it('AC-3 (MEDIUM): a valid file ending in a long CLOSED multiline template literal does not false-positive', () => {
+      const templateLines = Array.from({ length: 30 }, (_, i) => `  legitimate template line ${i}`)
+      writeFileSync(
+        join(env.root, 'scripts', 'template-tail.mjs'),
+        [
+          '#!/usr/bin/env node',
+          "import { runCheck } from '../scripts/lib/run-helpers.mjs'",
+          "runCheck('x', 'true', [])",
+          'const doc = `',
+          ...templateLines,
+          '`',
+          '',
+        ].join('\n'),
+      )
+      const r = runAudit(env.root)
+      expect(r.status).not.toBe(2)
+    })
   })
 })
