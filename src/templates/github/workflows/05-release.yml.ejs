@@ -390,7 +390,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
       - name: Generate CycloneDX SBOM
         run: ./gradlew cyclonedxBom
-      - run: mv build/reports/bom.json sbom.cdx.json 2>/dev/null || mv build/reports/bom.xml sbom.cdx.xml || true
+      # #2673: cyclonedx-gradle-plugin's default JSON output is build/reports/cyclonedx/bom.json.
+      # This step is unconditional on purpose: sbom-attest requires sbom.cdx.json and must fail
+      # closed if the plugin didn't produce it, not silently proceed without an SBOM.
+      - run: mv build/reports/cyclonedx/bom.json sbom.cdx.json
 <% } else { %>
       - name: Generate CycloneDX SBOM
         run: mvn cyclonedx:makeAggregateBom
