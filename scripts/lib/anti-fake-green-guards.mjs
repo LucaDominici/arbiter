@@ -55,6 +55,14 @@ export const GUARDS = [
   // the #2176 study found fake-* finding IDs leaked into real results, caught only by the semantic
   // judge. NO-DATA (no evidence roots) is a PASS.
   { name: 'fixture-isolation', script: 'scripts/check-fixture-isolation.mjs', class: 'file-scan' },
+  // vacuous-optional-assertion (#2590) — `expect(x ?? <default>).toEqual(<default>)` in a test:
+  // a deleted key coerces to the same default the assertion checks for, so the removal passes
+  // silently. NO-DATA (no test files) is a PASS.
+  {
+    name: 'vacuous-optional-assertion',
+    script: 'scripts/check-vacuous-optional-assertion.mjs',
+    class: 'file-scan',
+  },
 ]
 
 // Anti-context-rot gate roster (E1-E7 #1943, M11 flip-coverage — design doc

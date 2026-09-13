@@ -337,6 +337,21 @@ export const FLIP_REGISTRY = {
       ),
   },
 
+  'vacuous-optional-assertion': {
+    kind: 'file-scan',
+    inject: 'dir',
+    // same default token on both sides of `??`/`.toEqual(` → the assertion cannot see removal.
+    plantBad: (d) =>
+      write(d, join('__tests__', 'a.test.ts'), 'expect(payload.data.x ?? []).toEqual([])\n'),
+    // default differs from the checked value → absence already fails; not vacuous.
+    plantClean: (d) =>
+      write(
+        d,
+        join('__tests__', 'a.test.ts'),
+        "expect(payload.data).toHaveProperty('x')\nexpect(payload.data.x).toEqual([])\n",
+      ),
+  },
+
   // ── anti-context-rot gates (E1-E7 #1943): proven via bespoke-argv fixtures ────────────────
   'agent-return': {
     kind: 'file-scan',
