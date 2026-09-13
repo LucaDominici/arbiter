@@ -99,9 +99,21 @@ jobs:
         # (H) red-team finding 2: any `v*` tag reached this job — a tag pushed at an
         # unreviewed commit, or at a re-pointed tag object, still built/signed/published.
         # Fail closed unless GITHUB_SHA is an ancestor of origin/<default branch>, and
-        # unless the pushed tag name itself resolves to that exact commit. Who may push
-        # a `v*` tag / branch protection on the default branch is an owner-configured
-        # GitHub repo setting this workflow cannot change (see docs/internal/release-playbook.md).
+        # unless the pushed tag name itself resolves to that exact commit (works for both
+        # annotated and lightweight tags — `^{commit}` dereferences an annotated tag
+        # object, and is a no-op on a lightweight tag that already points at a commit).
+        #
+        # HONESTY NOTE (round 2, #2679): this step is DEFENSE IN DEPTH, not the enforcing
+        # control. A workflow runs at the tagged commit's own content, so a commit that is
+        # itself off the reviewed branch can simply omit or alter this step before its
+        # author pushes the tag — the step cannot defend against a workflow file it does
+        # not control. The actual enforcing control MUST be a repository tag ruleset that
+        # restricts who may CREATE a `v*` tag to admins/a release team (GitHub rulesets,
+        # evaluated server-side before the workflow ever runs, independent of what any
+        # commit's .github/workflows/*.yml says). See docs/internal/release-playbook.md
+        # for the `gh api` command that creates it; this in-workflow check only catches a
+        # tag pushed by someone who already has that permission but targeted the wrong
+        # commit, plus gives a fast, readable failure instead of a silent bypass.
         id: ancestry-check
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -503,6 +515,8 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_BUILD || '["ubuntu-latest"]') }}
     timeout-minutes: 30
+    permissions:
+      contents: read  # checkout + local docker build/scan only, no push
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Set up Docker Buildx
@@ -616,6 +630,8 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
+    permissions:
+      contents: write  # `gh release upload` / goreleaser attach binaries to the GitHub release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -692,6 +708,9 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
+    permissions:
+      contents: write  # `gh release upload` attaches the bundle to the GitHub release
+      id-token: write  # cosign sign-blob (keyless OIDC) on the batch bundle
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
@@ -769,22 +788,14 @@ jobs:
         run: |
           VERSION=$(tar -xOf <%= _artifact %> package/package.json | node -e "const v=JSON.parse(require('node:fs').readFileSync(0,'utf8')).version; if(typeof v!=='string'||!v) process.exit(1); process.stdout.write(v)")
           test "$RELEASE_TAG" = "v$VERSION" || { echo "::error::Release tag does not match archive package.json"; exit 1; }
-      # (M) red-team finding 5: OIDC trusted publishing (npm's own configured path, see
-      # docs/internal/release-playbook.md) needs no token at all. `NPM_TOKEN`/`NODE_AUTH_TOKEN`
-      # stay OUT of this step and off by default; a separate, explicitly-gated fallback step
-      # below exists only for an initial/transition publish before npm's trusted-publisher
-      # entry exists (an npm-side, owner-configured setting this workflow cannot flip).
+      # (M) red-team finding 5, round 2: OIDC trusted publishing is the ONLY publish path.
+      # No NPM_TOKEN/NODE_AUTH_TOKEN anywhere in this job, and no repo/org variable
+      # re-enables one — a Write-settable CI variable gating a secret is not a control.
+      # The trusted-publisher entry is configured and @getarbiter/cli has already shipped
+      # through it; a failed OIDC publish is recovered by a manual `npm publish` from a
+      # maintainer machine (docs/internal/release-playbook.md), never a CI-held token.
       - name: Publish to npm (with provenance, OIDC trusted publisher)
-        if: vars.NPM_PUBLISH_TOKEN_FALLBACK != 'true'
         run: npm publish --provenance --access public <%= _artifact %>
-      - name: Publish to npm (token fallback — explicit opt-in only, #2679)
-        # Off by default (repo/org var). Flip to 'true' only for the initial/transition
-        # publish while the npm trusted-publisher entry is not yet configured, then flip
-        # back off once OIDC verifies (docs/internal/release-playbook.md).
-        if: vars.NPM_PUBLISH_TOKEN_FALLBACK == 'true'
-        run: npm publish --provenance --access public <%= _artifact %>
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 <% } else if (language === 'java') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
