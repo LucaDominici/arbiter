@@ -174,6 +174,47 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(result.ok).toBe(true)
   })
 
+  // #2591 round 2: run-helpers.mjs only counts pushResult toward `failed` when the status
+  // argument is the literal 'FAIL' — a gate that only ever pushes WARN/SKIP/PASS can never
+  // fail the build, the same non-hard shape as runWarnCheck.
+  it('#2591 round 2: pushResult with a non-FAIL status is not hard evidence', () => {
+    const source = "pushResult('acceptance anchor (INV-138)', 'WARN', 12)"
+    expect(extractHardCheckNames(source).has('acceptance anchor (INV-138)')).toBe(false)
+    const result = assessGateSurface(
+      surfaceCase({
+        freshRender: ['acceptance anchor (INV-138)'],
+        declared: [...extractCheckNames(source)],
+        declaredHard: [...extractHardCheckNames(source)],
+        mapping: { 'acceptance anchor (INV-138)': 'WIRED:acceptance anchor (INV-138)' },
+      }),
+    )
+    expect(result.ok).toBe(false)
+  })
+
+  // A pushResult call that actually pushes FAIL is hard evidence.
+  it('#2591 round 2: pushResult with a literal FAIL status is hard evidence', () => {
+    const source = "pushResult('acceptance anchor (INV-138)', 'FAIL', 12)"
+    expect(extractHardCheckNames(source).has('acceptance anchor (INV-138)')).toBe(true)
+    const result = assessGateSurface(
+      surfaceCase({
+        freshRender: ['acceptance anchor (INV-138)'],
+        declared: [...extractCheckNames(source)],
+        declaredHard: [...extractHardCheckNames(source)],
+        mapping: { 'acceptance anchor (INV-138)': 'WIRED:acceptance anchor (INV-138)' },
+      }),
+    )
+    expect(result.ok).toBe(true)
+  })
+
+  // #2591 round 2: a `command`/dry-run surface (java's `run.sh ci --dry-run`) scrapes a
+  // ROSTER of gates that would run, never a per-gate pass/fail result — no `declaredHard`
+  // is derivable from it, so assessGateSurface must fall back to `declared` rather than
+  // either inferring hardness from the roster or failing every WIRED entry closed.
+  it('#2591 round 2: a bare WIRED mapping still resolves when declaredHard is omitted (dry-run roster)', () => {
+    const result = assessGateSurface(surfaceCase({ declaredHard: undefined }))
+    expect(result.ok).toBe(true)
+  })
+
   it('AC-2 fails on an emitted name that is neither mapped, declined, nor in debt', () => {
     const result = assessGateSurface(
       surfaceCase({ freshRender: ['unit tests', 'PII scan', 'brand new gate'] }),

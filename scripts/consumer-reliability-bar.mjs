@@ -315,12 +315,16 @@ function readDeclaredSurface(repo, surface, baseline, mapping) {
     if (!parsed.ok) return parsed
     for (const gate of parsed.gates) gates.add(gate)
   }
-  // A command-probed surface measures a real pass/fail run per gate, not a static call
-  // family — hard by construction, same as the workflow-run evidence merged in below.
+  // #2591 round 2: `surface.commands` runs `--dry-run` (e.g. java's
+  // `run.sh ci --level L2 --dry-run`) — it scrapes the ROSTER of gates that WOULD run,
+  // never a per-gate pass/fail result, so this surface carries no hardness evidence to
+  // report. `gatesHard` is deliberately left unset: assessGateSurface's
+  // `declaredHard ?? declared` fallback then treats this surface exactly as it did before
+  // #2591 (unchanged behavior for a probe #2591 does not touch), rather than the earlier
+  // (wrong) inference that a dry-run listing proves the gate can fail the build.
   return {
     ok: true,
     gates: [...gates, ...resolvedMapping.gates],
-    gatesHard: [...gates, ...resolvedMapping.gates],
     mapping: resolvedMapping.mapping,
   }
 }

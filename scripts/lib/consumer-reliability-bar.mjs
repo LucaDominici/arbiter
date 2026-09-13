@@ -3,18 +3,28 @@
 const RUNNER_CALL = /\b(?:runCheck|runWarnCheck|runToolCheck|pushResult)\s*\(\s*(['"`])([^'"`]+)\1/g
 // #2591: runWarnCheck can never return non-zero (scripts/lib/run-helpers.mjs), so a name
 // called ONLY through runWarnCheck cannot back a WIRED claim ("really runs a gate that
-// FAILS ON THE SAME DEFECT" — see the AC-2 note above). runCheck/runToolCheck fail closed;
-// pushResult lets the caller push FAIL directly, so it is hard by the same test.
-const HARD_RUNNER_CALL = /\b(?:runCheck|runToolCheck|pushResult)\s*\(\s*(['"`])([^'"`]+)\1/g
+// FAILS ON THE SAME DEFECT" — see the AC-2 note above). runCheck/runToolCheck fail closed
+// unconditionally.
+const HARD_RUNNER_CALL = /\b(?:runCheck|runToolCheck)\s*\(\s*(['"`])([^'"`]+)\1/g
+// #2591 round 2: pushResult(name, status, elapsed) only counts toward `failed` when status
+// is exactly 'FAIL' (run-helpers.mjs) — a pushResult(name, 'WARN'|'SKIP'|'PASS', …) call
+// can never fail the build, same as runWarnCheck. Only a literal 'FAIL' status is hard.
+const HARD_PUSH_RESULT = /\bpushResult\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*(['"`])FAIL\3/g
 const CONSUMER_SECRET_PREFIX = `${['ARBITER', 'CONSUMER'].join('_')}_`
 
 export function extractCheckNames(source) {
   return new Set([...source.matchAll(RUNNER_CALL)].map((match) => match[2]).sort())
 }
 
-/** Names called through a family that can actually fail the build (excludes runWarnCheck-only). */
+/** Names called through a family that can actually fail the build (excludes runWarnCheck-only
+ *  and pushResult calls whose status is never the literal 'FAIL'). */
 export function extractHardCheckNames(source) {
-  return new Set([...source.matchAll(HARD_RUNNER_CALL)].map((match) => match[2]).sort())
+  return new Set(
+    [
+      ...[...source.matchAll(HARD_RUNNER_CALL)].map((match) => match[2]),
+      ...[...source.matchAll(HARD_PUSH_RESULT)].map((match) => match[2]),
+    ].sort(),
+  )
 }
 
 // A deliberately small YAML reader for the only evidence shape the Bar needs:
