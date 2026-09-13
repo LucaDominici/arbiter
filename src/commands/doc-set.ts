@@ -13,7 +13,8 @@
 // file is what the current project-local runner resolves.
 
 import { fileURLToPath } from 'node:url'
-import { resolve } from 'node:path'
+import { existsSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { jsonOutput } from '../utils/json-output.js'
 
@@ -103,11 +104,41 @@ export interface DocSetOptions {
   updateBaseline?: boolean
 }
 
-export interface DocSetResult {
-  /** The engine's own exit code, forwarded verbatim: 0=pass/advisory, 1=fail(--strict gap), 2=error. */
+/** The freshness engine's `--json` payload (scripts/check-doc-freshness.mjs). */
+export interface DocFreshnessPayload {
+  manifest: string
+  tierColumn: 'solo' | 'small' | 'enterprise'
+  docs: Array<Record<string, unknown>>
+}
+
+/** The arc42 slot engine's `--json` payload (scripts/check-arc42-slots.mjs). */
+export interface Arc42Payload {
+  doc: string
+  column: string
+  requiredFrom: string
+  required: number
+  filled: number
+  present: string[]
+  stubs: string[]
+  violations: string[]
+  [key: string]: unknown
+}
+
+/** Which engine answered, with that engine's own payload type (#2504: never one cast for all). */
+export type DocSetRouted =
+  | { route: 'presence'; payload: DocSetPayload | null }
+  | { route: 'freshness'; payload: DocFreshnessPayload | null }
+  | { route: 'arc42'; payload: Arc42Payload | null }
+
+export type DocSetResult = DocSetRouted & {
+  /**
+   * The engine's own exit code, forwarded verbatim: 0=pass/advisory/SKIP, 1=fail(--strict gap),
+   * 2=error — including (#2504) a --json stdout that is neither the route's payload nor a
+   * `[SKIP]` line.
+   */
   exitCode: number
-  /** Parsed `--json` payload, or null when --json was not requested or the engine emitted a non-JSON SKIP line. */
-  payload: DocSetPayload | null
+  /** The `[SKIP] <reason>` the engine printed instead of a verdict, when it did. */
+  skipReason?: string
 }
 
 /** Resolve the package root (this file lives at src/commands/, two levels down). */
@@ -178,20 +209,71 @@ function runEngine(script: string, args: string[], repo: string): EngineRun {
   }
 }
 
+type Route = DocSetRouted['route']
+
+function routeFor(opts: DocSetOptions): Route {
+  if (opts.arc42) return 'arc42'
+  if (opts.freshness) return 'freshness'
+  return 'presence'
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
+const isStr = (v: unknown): boolean => typeof v === 'string'
+
+/** The narrow runtime shape each route's payload must have before it is trusted as that type. */
+const SHAPE: Record<Route, (v: Record<string, unknown>) => boolean> = {
+  presence: (v) => isObj(v.totals) && Array.isArray(v.missingMandatory) && isStr(v.tierColumn),
+  freshness: (v) => isStr(v.manifest) && isStr(v.tierColumn) && Array.isArray(v.docs),
+  arc42: (v) => isStr(v.doc) && Array.isArray(v.violations),
+}
+
+/** Same anchored marker as scripts/lib/run-helpers.mjs detectSelfSkip (#2052). */
+const SELF_SKIP_RE = /^\[SKIP\][ \t]*(.*)$/m
+
+type Parsed =
+  | { kind: 'payload'; payload: Record<string, unknown> }
+  | { kind: 'skip'; reason: string }
+  | { kind: 'invalid'; error: string }
+
 /**
- * Parse the engine's stdout as the JSON payload, when JSON was requested. The engine emits a
- * plain SKIP line (no manifest found) instead of JSON even under --json — that (and any parse
- * failure) degrades to `null`, never a thrown JSON.parse error.
+ * Classify the engine's --json stdout. #2504: engines signal a skip as a plain-text `[SKIP]` line
+ * even under --json — that is a skip, reported as one; anything else that is not JSON of the
+ * route's own shape is an error, never an empty ok.
  */
-function parsePayload(stdout: string, jsonRequested: boolean): DocSetPayload | null {
-  if (!jsonRequested) return null
+function parseStdout(stdout: string, route: Route): Parsed {
   const text = stdout.trim()
-  if (!text.startsWith('{')) return null
+  if (!text.startsWith('{')) {
+    const skip = SELF_SKIP_RE.exec(stdout)
+    if (skip) return { kind: 'skip', reason: (skip[1] ?? '').trim() || 'self-skip' }
+    return { kind: 'invalid', error: `doc-set: ${route} engine printed no JSON payload` }
+  }
+  let value: unknown
   try {
-    return JSON.parse(text) as DocSetPayload
-    // FAIL-OPEN-INTENT: a parse failure is the engine's documented plain-text SKIP path, not an error.
-  } catch {
-    return null
+    value = JSON.parse(text)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { kind: 'invalid', error: `doc-set: ${route} engine printed malformed JSON — ${msg}` }
+  }
+  if (!isObj(value) || !SHAPE[route](value)) {
+    return { kind: 'invalid', error: `doc-set: ${route} engine JSON is not a ${route} payload` }
+  }
+  return { kind: 'payload', payload: value }
+}
+
+const ROOT_MARKERS = [join('standards', 'gold-doc-set.yml'), 'arbiter.json', '.git']
+
+/**
+ * The repo to audit. #2504: the engines resolve everything against their cwd, so defaulting to
+ * process.cwd() made a run from a subdirectory find no manifest and SKIP with exit 0. With no
+ * explicit repo, the nearest ancestor carrying a root marker is the root (the same upward walk as
+ * evidenceLogTarget); with no marker anywhere, cwd itself — a fresh bootstrap dir, which SKIPs.
+ */
+function resolveRepo(opts: DocSetOptions): string {
+  if (opts.repo) return resolve(opts.repo)
+  const start = process.cwd()
+  for (let dir = start; ; dir = dirname(dir)) {
+    if (ROOT_MARKERS.some((m) => existsSync(join(dir, m)))) return dir
+    if (dirname(dir) === dir) return start
   }
 }
 
@@ -200,24 +282,51 @@ function parsePayload(stdout: string, jsonRequested: boolean): DocSetPayload | n
  * Reuses the engine (no second engine, no re-scoring) — the exit code IS the engine's exit code.
  */
 export function runDocSet(opts: DocSetOptions = {}): DocSetResult {
-  const repo = opts.repo ? resolve(opts.repo) : process.cwd()
+  const route = routeFor(opts)
   const script = resolve(packageRoot(), engineFor(opts))
+  const run = runEngine(script, buildEngineArgs(callerRelative(opts)), resolveRepo(opts))
 
-  const { stdout, stderr, exitCode } = runEngine(script, buildEngineArgs(opts), repo)
+  // --arc42 --update-baseline reports in text only; its verdict is the exit code alone.
+  const baselineUpdate = Boolean(opts.arc42 && opts.updateBaseline)
+  const parsed = opts.json && !baselineUpdate ? parseStdout(run.stdout, route) : null
+  // An engine that already failed (exit 2, often with empty stdout) keeps its own code.
+  const exitCode = parsed?.kind === 'invalid' && run.exitCode === 0 ? 2 : run.exitCode
 
-  const payload = parsePayload(stdout, Boolean(opts.json))
-  if (!opts.quiet) {
-    if (opts.json) {
-      jsonOutput(
-        'doc-set',
-        exitCode === 0 ? 'ok' : exitCode === 1 ? 'warning' : 'error',
-        payload === null ? {} : { ...payload },
-      )
-    } else if (stdout) {
-      process.stdout.write(stdout)
-    }
-    if (stderr) process.stderr.write(stderr)
+  if (!opts.quiet) report(opts, parsed, { ...run, exitCode })
+
+  // SHAPE[route] checked the payload against this route's type in parseStdout.
+  return {
+    route,
+    payload: parsed?.kind === 'payload' ? parsed.payload : null,
+    exitCode,
+    ...(parsed?.kind === 'skip' ? { skipReason: parsed.reason } : {}),
+  } as DocSetResult
+}
+
+/** A relative --manifest/--doc-profile was typed against the caller's cwd, not the resolved root. */
+function callerRelative(opts: DocSetOptions): DocSetOptions {
+  if (opts.repo) return opts
+  return {
+    ...opts,
+    ...(opts.manifest ? { manifest: resolve(opts.manifest) } : {}),
+    ...(opts.profile ? { profile: resolve(opts.profile) } : {}),
   }
+}
 
-  return { exitCode, payload }
+/** Write the command's own output: the JSON envelope under --json, else the engine's text. */
+function report(opts: DocSetOptions, parsed: Parsed | null, run: EngineRun): void {
+  if (parsed?.kind === 'skip') {
+    // INV-53: a SKIP keeps exit 0 — the envelope, not the exit code, carries the non-ok signal.
+    jsonOutput('doc-set', 'warning', { skipped: true, reason: parsed.reason }, undefined, {
+      warnings: [`SKIP: ${parsed.reason}`],
+    })
+  } else if (parsed?.kind === 'invalid') {
+    jsonOutput('doc-set', 'error', {}, [parsed.error])
+  } else if (opts.json) {
+    const status = run.exitCode === 0 ? 'ok' : run.exitCode === 1 ? 'warning' : 'error'
+    jsonOutput('doc-set', status, parsed ? { ...parsed.payload } : {})
+  } else if (run.stdout) {
+    process.stdout.write(run.stdout)
+  }
+  if (run.stderr) process.stderr.write(run.stderr)
 }

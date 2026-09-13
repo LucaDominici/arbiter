@@ -228,7 +228,7 @@ export function generateDocSetSkeletons(
   const unbound: string[] = []
   const repo = config.targetDir
 
-  const { payload } = runDocSet({
+  const audit = runDocSet({
     repo,
     json: true,
     quiet: true,
@@ -237,7 +237,8 @@ export function generateDocSetSkeletons(
   })
   // §1.2(e) dry-run edge: a fresh `init --dry-run` has no manifest on disk yet, so the engine
   // SKIPs (plain-text, not JSON) and `payload` is null — honest no-op, not a phantom plan.
-  if (!payload) return { files, scaffolded, unbound }
+  if (audit.route !== 'presence' || !audit.payload) return { files, scaffolded, unbound }
+  const { payload } = audit
 
   const ctx: RowContext = {
     repo,
