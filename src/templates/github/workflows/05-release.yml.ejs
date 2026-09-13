@@ -229,6 +229,11 @@ jobs:
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
         if: steps.nightly.outputs.fresh != 'true'
+      # #2673: some suites spawn a child process against dist/ (e.g. __tests__/utils/fs.test.ts's
+      # "#2635 built provider contained reader"). This job never built dist, so those tests failed
+      # with an empty stdout even though T1's gate-full job (which builds first) passes them.
+      - run: npm run build
+        if: steps.nightly.outputs.fresh != 'true'
       - name: Stryker mutation (fallback — no fresh nightly)
         if: steps.nightly.outputs.fresh != 'true'
         # errexit + pipefail (GitHub bash default) make a below-threshold mutation score fail the
@@ -432,6 +437,12 @@ jobs:
       # in the public Rekor transparency log. Opt in: the name is already public via the npm
       # package @getarbiter/cli's trusted-publisher metadata, so the entry reveals nothing new.
       private-repository: true
+      # #2673: compile-generator: false (default) downloads a prebuilt release binary, which
+      # requires the pinned ref to look like refs/tags/vX.Y.Z ("Invalid ref: <sha>. Expected ref
+      # of the form refs/tags/vX.Y.Z" — generate-builder.sh). Incompatible with pinning this call
+      # by commit SHA (this repo's convention for every action). Compile from the pinned SHA
+      # instead (git checkout + go build, ~2 min slower per the input's own description).
+      compile-generator: true
 
   attest-build-provenance:
     name: Attest build provenance
