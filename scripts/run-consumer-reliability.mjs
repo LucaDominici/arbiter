@@ -30,57 +30,83 @@ export function main(argv, { spawn = spawnSync } = {}) {
   try {
     assertOwnEnvironmentCredentialFree(process.env)
     const options = parseArgs(argv)
-    const credentials =
-      options.credentialsFile === null ? {} : readCredentialsFile(options.credentialsFile)
+    const credentials = loadCredentials(options.credentialsFile)
 
-    const prepare = spawn(
-      'node',
-      [resolve(root, 'scripts', 'prepare-consumer-reliability.mjs'), '--output', options.workspace],
-      {
-        cwd: root,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'inherit', 'inherit'],
-        timeout: 900000,
-        // Credentials reach ONLY this child's env object — never process.env itself.
-        env: { ...process.env, ...credentials },
-      },
-    )
-    if (prepare.status !== 0 || prepare.signal) {
+    const prepare = runPrepare(spawn, root, options, credentials)
+    if (prepareFailed(prepare)) {
       process.stderr.write('[consumer-reliability] ERROR — credentialed preparation failed\n')
       return 2
     }
 
     isolatedHome = mkdtempSync(join(tmpdir(), 'arbiter-local-verifier-home-'))
-    const verify = spawn(
-      'node',
-      [
-        resolve(root, 'scripts', 'consumer-reliability-bar.mjs'),
-        '--workspace',
-        options.workspace,
-        '--report-dir',
-        options.reportDir,
-        '--arbiter-cli',
-        options.arbiterCli,
-      ],
-      {
-        cwd: root,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'inherit', 'inherit'],
-        timeout: 1800000,
-        // process.env is guaranteed credential-free already (checked at the top); this
-        // still builds an explicit allowlisted environment plus a fresh HOME from scratch.
-        env: buildVerifierEnvironment(process.env, isolatedHome),
-      },
-    )
-    return verify.signal || ![0, 1, 2].includes(verify.status) ? 2 : verify.status
+    const verify = runVerify(spawn, root, options, isolatedHome)
+    return verifyExitCode(verify)
   } catch (error) {
-    process.stderr.write(
-      `[consumer-reliability] ERROR — ${error instanceof Error ? error.message : String(error)}\n`,
-    )
+    process.stderr.write(`[consumer-reliability] ERROR — ${errorMessage(error)}\n`)
     return 2
   } finally {
-    if (isolatedHome !== null) rmSync(isolatedHome, { recursive: true, force: true })
+    cleanupIsolatedHome(isolatedHome)
   }
+}
+
+function runPrepare(spawn, root, options, credentials) {
+  return spawn(
+    'node',
+    [resolve(root, 'scripts', 'prepare-consumer-reliability.mjs'), '--output', options.workspace],
+    {
+      cwd: root,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'inherit', 'inherit'],
+      timeout: 900000,
+      // Credentials reach ONLY this child's env object — never process.env itself.
+      env: { ...process.env, ...credentials },
+    },
+  )
+}
+
+function prepareFailed(result) {
+  return result.status !== 0 || Boolean(result.signal)
+}
+
+function runVerify(spawn, root, options, isolatedHome) {
+  return spawn(
+    'node',
+    [
+      resolve(root, 'scripts', 'consumer-reliability-bar.mjs'),
+      '--workspace',
+      options.workspace,
+      '--report-dir',
+      options.reportDir,
+      '--arbiter-cli',
+      options.arbiterCli,
+    ],
+    {
+      cwd: root,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'inherit', 'inherit'],
+      timeout: 1800000,
+      // process.env is guaranteed credential-free already (checked at the top); this
+      // still builds an explicit allowlisted environment plus a fresh HOME from scratch.
+      env: buildVerifierEnvironment(process.env, isolatedHome),
+    },
+  )
+}
+
+function verifyExitCode(result) {
+  if (result.signal || ![0, 1, 2].includes(result.status)) return 2
+  return result.status
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function cleanupIsolatedHome(isolatedHome) {
+  if (isolatedHome !== null) rmSync(isolatedHome, { recursive: true, force: true })
+}
+
+function loadCredentials(credentialsFile) {
+  return credentialsFile === null ? {} : readCredentialsFile(credentialsFile)
 }
 
 function assertOwnEnvironmentCredentialFree(environment) {
