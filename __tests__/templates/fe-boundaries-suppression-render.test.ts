@@ -77,4 +77,30 @@ describe('#2671 emitted check-fe-boundaries honors arbiter-allow-raw-fetch', () 
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('still FAILS a token-only "reason" with no space (10 non-space chars is not a rationale)', () => {
+    const dir = stageDir()
+    try {
+      writeFileSync(
+        join(dir, 'src', 'entities', 'thing', 'thing.ts'),
+        'export async function load() { return fetch("/x") } // arbiter-allow-raw-fetch: aaaaaaaaaa\n',
+      )
+      expect(runCheck(dir)).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('still FAILS when the marker sits inside a string literal, not a real // comment', () => {
+    const dir = stageDir()
+    try {
+      writeFileSync(
+        join(dir, 'src', 'entities', 'thing', 'thing.ts'),
+        'export async function load() { return fetch(url, "// arbiter-allow-raw-fetch: reason words here") }\n',
+      )
+      expect(runCheck(dir)).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

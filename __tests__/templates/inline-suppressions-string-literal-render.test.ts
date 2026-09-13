@@ -72,4 +72,39 @@ describe('#2671 emitted check-inline-suppressions skips directive text inside st
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('a harmless in-string match on a line does not mask a later real, invalid directive on the same line', () => {
+    const dir = stageDir()
+    try {
+      writeFileSync(
+        join(dir, 'masked.ts'),
+        'const x = "// arbiter-suppress(INV-99, foo)" // arbiter-suppress(INV-12, until=YYYY-MM-DD, reason="documented test fixture", owner=team)\n',
+      )
+      // RED before the fix: only the first regex match per line was examined; the
+      // in-string match at index 0 is skipped via `continue`, but the loop never
+      // advances to the second, real (invalid) match, so the line is reported clean.
+      expect(runCheck(dir)).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('still FAILS a real directive when an apostrophe earlier in the same comment precedes it (per-line quote-tracking limit)', () => {
+    const dir = stageDir()
+    try {
+      writeFileSync(
+        join(dir, 'apostrophe.ts'),
+        // A real `//` comment start appears at index 0, before the apostrophe in
+        // "it's" — once that real comment start is seen, the apostrophe later in the
+        // same comment must not be mistaken for an unterminated string that swallows
+        // the directive-shaped "// arbiter-suppress(...)" text further right on the
+        // same line.
+        '// it\'s noted // arbiter-suppress(INV-12, until=2000-01-01, reason="documented test fixture", owner=team)\n' +
+          'export const sample = 1\n',
+      )
+      expect(runCheck(dir)).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
