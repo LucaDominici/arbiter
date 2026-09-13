@@ -116,7 +116,7 @@ function validateInputs(config, handoff, options) {
   const handoffById = new Map(handoff.consumers.map((row) => [row?.id, row]))
   for (const consumer of config.consumers) {
     assertConsumerConfigRow(consumer)
-    assertPreparedConsumer(consumer, handoffById.get(consumer.id), options.workspace)
+    assertPreparedConsumer(consumer, handoffById.get(consumer.id))
   }
 }
 
@@ -146,12 +146,8 @@ function assertConsumerConfigRow(consumer) {
   }
 }
 
-function assertPreparedConsumer(consumer, prepared, workspace) {
-  const expectedPath = join(workspace, consumer.id)
-  if (
-    !preparedIdentityMatches(consumer, prepared) ||
-    !preparedPathMatches(prepared, workspace, expectedPath)
-  ) {
+function assertPreparedConsumer(consumer, prepared) {
+  if (!preparedIdentityMatches(consumer, prepared) || prepared?.path !== consumer.id) {
     throw new Error(`${consumer.id}: prepared handoff does not match the pinned config`)
   }
 }
@@ -164,13 +160,10 @@ function preparedIdentityMatches(consumer, prepared) {
   )
 }
 
-function preparedPathMatches(prepared, workspace, expectedPath) {
-  return resolve(String(prepared?.path ?? '')) === expectedPath && isWithin(workspace, expectedPath)
-}
-
 function verifyConsumer(consumer, handoff, gateMap, options) {
-  const prepared = handoff.consumers.find((row) => row.id === consumer.id)
-  const repo = resolve(prepared.path)
+  // #2679: re-root against THIS run's --workspace, never a path recorded by prepare on a
+  // different runner — the handoff only carries the consumer id (validated above).
+  const repo = resolve(join(options.workspace, consumer.id))
   const report = emptyReport(consumer)
 
   try {

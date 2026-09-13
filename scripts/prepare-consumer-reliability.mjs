@@ -90,7 +90,11 @@ try {
       id: consumer.id,
       language: consumer.language,
       sha: consumer.sha,
-      path: target,
+      // #2679: relative to the output dir, never absolute. The prepared workspace crosses
+      // an artifact upload/download between two jobs on two different runners, so an
+      // absolute path recorded here would never resolve after the round trip; the verifier
+      // always re-roots this against its OWN --workspace argument.
+      path: consumer.id,
       originRemoved: true,
     })
   }

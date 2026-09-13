@@ -405,10 +405,18 @@ export function buildVerifierEnvironment(environment) {
   }
 }
 
+// #2679: same-UID consumer code executed by the verifier (check-hook-routing.mjs, dry-run
+// commands) can read this process's own environment/memory regardless of what a spawned
+// child is given — a filtered child env is not a boundary. GH_TOKEN/GITHUB_TOKEN must never
+// reach the verifier process at all, same as the ARBITER_CONSUMER_* deploy credentials.
+const CREDENTIAL_ENV_NAMES = new Set(['GH_TOKEN', 'GITHUB_TOKEN'])
+
 export function assertCredentialFreeEnvironment(environment) {
   const leaked = Object.entries(environment)
     .filter(
-      ([key, value]) => key.startsWith(CONSUMER_SECRET_PREFIX) && String(value ?? '').length > 0,
+      ([key, value]) =>
+        (key.startsWith(CONSUMER_SECRET_PREFIX) || CREDENTIAL_ENV_NAMES.has(key)) &&
+        String(value ?? '').length > 0,
     )
     .map(([key]) => key)
   if (leaked.length > 0) {

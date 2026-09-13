@@ -15,21 +15,74 @@ on:
 
 permissions:
   contents: read
-  # The prepare phase machine-verifies every DEBT entry of the AC-2 gate map against
-  # this repo's issues (#2135). Without it `gh issue view` fails and the bar ERRORs on
-  # all three rows — the credentialed half has no other way to prove an issue is OPEN.
-  issues: read
 
 concurrency:
   group: consumer-reliability-main
   cancel-in-progress: false
 
 jobs:
-  consumer_reliability:
-    name: Consumer Reliability Bar
+  # #2679: this job holds every credential (deploy keys, GH_TOKEN) and never runs a line of
+  # consumer-owned code — it only clones, detaches, and scrubs. Its ONLY output is an
+  # artifact with no key material inside (deploy keys are unlinked/rmSync'd before it is
+  # written) plus the machine-verified debt-issue list as data.
+  prepare:
+    name: Prepare consumer workspace (credentialed)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # The prepare phase machine-verifies every DEBT entry of the AC-2 gate map against
+      # this repo's issues (#2135). Without it `gh issue view` fails and the bar ERRORs on
+      # all three rows — the credentialed half has no other way to prove an issue is OPEN.
+      issues: read
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Run credentialed consumer preparation
+        env:
+          ARBITER_CONSUMER_GO_REPO: ${{ secrets.ARBITER_CONSUMER_GO_REPO }}
+          ARBITER_CONSUMER_GO_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_GO_DEPLOY_KEY }}
+          ARBITER_CONSUMER_TYPESCRIPT_REPO: ${{ secrets.ARBITER_CONSUMER_TYPESCRIPT_REPO }}
+          ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY }}
+          ARBITER_CONSUMER_JAVA_REPO: ${{ secrets.ARBITER_CONSUMER_JAVA_REPO }}
+          ARBITER_CONSUMER_JAVA_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_JAVA_DEPLOY_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/prepare-consumer-reliability.mjs --output "$RUNNER_TEMP/consumer-reliability"
+      - name: Archive prepared workspace
+        # tar preserves the hidden .git directories (upload-artifact excludes dotfiles by
+        # default) and the executable bit on the consumers' own scripts (run.sh etc.) — a
+        # directory artifact silently loses both across the upload/download round trip.
+        run: tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/consumer-workspace.tar.gz" consumer-reliability
+      - name: Upload prepared workspace
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: consumer-workspace
+          path: ${{ runner.temp }}/consumer-workspace.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  # #2679: no secret, deploy key, or token is EVER in this job's environment — not filtered
+  # out of a child process, absent from the job entirely. `permissions: {}` mints no
+  # GITHUB_TOKEN at all, so there is nothing for consumer-controlled code (check-hook-
+  # routing.mjs, the dry-run commands) to read even via /proc on the same runner.
+  verify:
+    name: Verify consumer reliability (credential-free)
+    needs: prepare
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions: {}
     steps:
       - name: Checkout trusted main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,21 +98,17 @@ jobs:
         run: npm ci
       - name: Build current Arbiter
         run: npm run build
+      - name: Download prepared workspace
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: consumer-workspace
+          path: ${{ runner.temp }}
+      - name: Extract prepared workspace
+        run: tar -C "$RUNNER_TEMP" -xzf "$RUNNER_TEMP/consumer-workspace.tar.gz"
       - name: Run detached private consumer reliability bar
         id: consumer_bar
-        env:
-          ARBITER_CONSUMER_GO_REPO: ${{ secrets.ARBITER_CONSUMER_GO_REPO }}
-          ARBITER_CONSUMER_GO_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_GO_DEPLOY_KEY }}
-          ARBITER_CONSUMER_TYPESCRIPT_REPO: ${{ secrets.ARBITER_CONSUMER_TYPESCRIPT_REPO }}
-          ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_TYPESCRIPT_DEPLOY_KEY }}
-          ARBITER_CONSUMER_JAVA_REPO: ${{ secrets.ARBITER_CONSUMER_JAVA_REPO }}
-          ARBITER_CONSUMER_JAVA_DEPLOY_KEY: ${{ secrets.ARBITER_CONSUMER_JAVA_DEPLOY_KEY }}
-          # Read-only, and consumed ONLY by the credentialed prepare phase. The verifier
-          # child runs under buildVerifierEnvironment(), whose allow-list has no token,
-          # and assertCredentialFreeEnvironment() refuses to start if one leaks in.
-          GH_TOKEN: ${{ github.token }}
         run: >-
-          npm run test:consumer-reliability --
+          node scripts/consumer-reliability-bar.mjs
           --workspace "$RUNNER_TEMP/consumer-reliability"
           --report-dir "$RUNNER_TEMP/consumer-reliability-reports"
           --arbiter-cli "$GITHUB_WORKSPACE/dist/cli.js"
