@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import config from '../../vitest.config'
 
-type ProjectEntry = { test?: { include?: string[]; pool?: string } }
+type ProjectEntry = { test?: { include?: string[]; pool?: string; globalSetup?: string[] } }
 
 function projects(): ProjectEntry[] {
   const test = (config as { test?: { projects?: ProjectEntry[] } }).test
@@ -27,5 +27,17 @@ describe('vitest coverage pool routing (#2516)', () => {
     )
     expect(coverageProject).toBeDefined()
     expect(coverageProject?.test?.pool).toBe('forks')
+  })
+
+  // `--project=coverage` alone only initializes that one project — a `unit`-only
+  // globalSetup would never run, so a coverage-only invocation would carry no
+  // tracked-.claude mutation guard at all. The guard must be wired on every
+  // project, not just on `unit`.
+  it('wires the tracked-.claude mutation guard on the coverage project too (not just unit)', () => {
+    const coverageProject = projects().find((p) =>
+      (p.test?.include ?? []).some((pattern) => pattern.includes('__tests__/coverage/')),
+    )
+    const guard = coverageProject?.test?.globalSetup ?? []
+    expect(guard.some((path) => path.includes('tracked-claude-guard'))).toBe(true)
   })
 })

@@ -69,9 +69,6 @@ export default defineConfig({
           // vitest.integration.config.ts.
           include: ['__tests__/**/*.test.ts'],
           exclude: ['**/node_modules/**', '__tests__/integration/**', '__tests__/coverage/**'],
-          // Only one project should run the tracked-.claude mutation guard, or every run pays for
-          // it twice; it snapshots the whole tree, so it still catches mutations from the coverage
-          // project's tests too.
           globalSetup: [join(root, '__tests__/setup/tracked-claude-guard.ts')],
         },
       },
@@ -84,6 +81,10 @@ export default defineConfig({
           // Each file gets its own process, so an unrestored global stub or a slow subprocess in
           // one file cannot flake another (the isolation poolMatchGlobs used to provide).
           pool: 'forks',
+          // Every project carries this guard, not just `unit`: `--project=coverage` alone only
+          // initializes this project, so a `unit`-only globalSetup would never run and a
+          // coverage-only invocation would have zero protection against tracked-.claude mutation.
+          globalSetup: [join(root, '__tests__/setup/tracked-claude-guard.ts')],
         },
       },
     ],
