@@ -201,7 +201,7 @@
     "path": "check-doc-freshness.mjs",
     "dest": "scripts",
     "reason": "T4 (gold-doc-tranches-t3-t5.md, design doc §2.3), by design (not drift), R-02 dogfood-parity rollout (#1900): self runs the REAL engine (frontmatter parsing, per-class bars, git change-coupling — scripts/check-doc-freshness.mjs) while the shipped template counterpart is a THIN runner that calls the fixed project-local Arbiter CLI through shared `runLocalArbiter` for `doc-set --freshness`, mirroring the pre-existing check-doc-set.mjs / check-doc-set.mjs.ejs split (the row directly above this one) so governed repos never take the `yaml` dependency. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "9fe0292fd10be7aa17211975790add10a578cf1d58d2c52e2a8113abd14c5ee4"
+    "diffHash": "cb1ce67f5edc936d92157e659df7127c196dd84d141a81dc66f0ffef6d69d2e9"
   },
   {
     "path": "check-arc42-slots.mjs",
