@@ -271,6 +271,41 @@ describe('consumer reliability bar oracles (#2135)', () => {
     )
   })
 
+  // #2663 added the unconditional emitted gate `no-orphan-todo` ('orphan TODOs
+  // (INV-21)', scripts/check-no-orphan-todo.mjs, INV-21) but left it out of every
+  // pinned consumer's gate-surface map, so a fresh render now emits a name none of
+  // the three mappings account for. Reproduces the live CI failure ("1 emitted
+  // check(s) unaccounted: orphan TODOs (INV-21)") through the same pure oracle the
+  // bar calls, for each pinned consumer.
+  it('accounts for the #2663 orphan-TODO gate in every pinned consumer surface', () => {
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    for (const id of ['go', 'typescript', 'java']) {
+      const entry = gateMap.consumers[id]
+      // Mirrors resolveMappingEntry() in scripts/consumer-reliability-bar.mjs: structured
+      // workflow-run evidence entries (e.g. "ci alignment") resolve to a plain
+      // "WIRED:<caller>" string before reaching this oracle. This test targets the
+      // pure oracle in isolation, so it does that same resolution inline.
+      const mapping = Object.fromEntries(
+        Object.entries(entry.mapping).map(([name, verdict]) => [
+          name,
+          typeof verdict === 'string' ? verdict : `WIRED:${verdict.caller}`,
+        ]),
+      )
+      const declared = Object.values(mapping)
+        .filter((verdict) => verdict.startsWith('WIRED:'))
+        .map((verdict) => verdict.slice('WIRED:'.length))
+      const result = assessGateSurface({
+        freshRender: [...Object.keys(mapping), 'orphan TODOs (INV-21)'],
+        declared,
+        mapping,
+        debtRegister: { ceiling: entry.debtCeiling, openIssues: ['#2291', '#2310'] },
+      })
+      expect(result.detail).not.toMatch(/unaccounted/)
+    }
+  })
+
   // Mutation (d): the debt register GROWS. A ratchet that only ever appends is a
   // free-text escape hatch, so cardinality is pinned to a committed integer.
   it('AC-2 fails when the debt register grows past its ceiling', () => {
