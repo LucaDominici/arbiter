@@ -30,6 +30,10 @@ const EXPECTED_OUTPUT_FILES = [
   'pre-edit-ssot-guard.mjs',
   'check-no-orphan-todo.mjs',
   'check-no-placeholders.mjs',
+  // #2557: verifiers the hooks import, shipped inside the plugin
+  'gate-evidence.mjs',
+  'evidence-binding.mjs',
+  'run-helpers.mjs',
   'hooks.json',
 ]
 

@@ -622,3 +622,19 @@ subject is arbiter's own distributable plugin bundle, and a governed target proj
 kernel plugin of its own, so an emitted twin would be a gate with no subject (CANON-01). That
 declaration is what moves the CANON-01 `selfOnly` count from 87 to 88 — a deliberate,
 registered increment, not baseline drift.
+
+### The plugin ships its own verifiers (#2557)
+
+`enforce-gate-before-pr.mjs`, `stop-evidence-guard.mjs` and `guard-done-evidence.mjs` lazily
+import `../../scripts/lib/gate-evidence.mjs` (and `evidence-binding.mjs`). From a governed
+repo's `.claude/hooks/` that resolves to the repo's own `scripts/lib/`; from the plugin's
+`hooks/` it escapes the plugin root. Because the imports fail closed, a plugin-only install
+blocked every `gh pr create` and every completion claim permanently.
+
+`build-kernel-plugin.mjs` now renders `gate-evidence.mjs`, `evidence-binding.mjs` and their
+transitive `run-helpers.mjs` flat beside the hooks (the `VERIFIERS` list), re-points the
+specifier to `./`, and throws if any shipped module still imports a relative path the plugin
+does not contain. The templates and the governed-repo emission are unchanged, a genuinely
+missing verifier still blocks, and the parity gate above covers the three new files.
+`__tests__/scripts/kernel-plugin-only-install.test.ts` runs each hook from a copy holding only
+what the plugin ships.

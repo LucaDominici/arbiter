@@ -23,7 +23,14 @@
 // buildKernelPlugin() is exported (#2548) for the same reason: one real render
 // path, never a second independently-maintained one that could itself drift
 // from what actually ships (the #1877/#1894 two-renderers-of-one-output class).
-import { mkdirSync, writeFileSync, readFileSync, copyFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  copyFileSync,
+  readdirSync,
+  existsSync,
+} from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -103,6 +110,17 @@ export const RENDERED = [
   ['claude/hooks/check-no-placeholders.mjs.ejs', 'check-no-placeholders.mjs'],
 ]
 
+// #2557: the verifier modules the hooks lazily import. A governed repo emits them to
+// scripts/lib/, which hooks in .claude/hooks/ reach via `../../scripts/lib/`; from the
+// plugin's hooks/ that specifier escapes the plugin root, so a plugin-only install
+// failed closed forever. They ship flat beside the hooks instead (run-helpers.mjs is
+// gate-evidence.mjs's own `./` import), and the specifier is re-pointed below.
+export const VERIFIERS = [
+  ['scripts/lib/gate-evidence.mjs.ejs', 'gate-evidence.mjs'],
+  ['scripts/lib/evidence-binding.mjs.ejs', 'evidence-binding.mjs'],
+  ['scripts/lib/run-helpers.mjs.ejs', 'run-helpers.mjs'],
+]
+
 // Already-standalone (non-templated) safety hooks — copied verbatim, byte-
 // identical to what arbiter emits (no divergence possible by construction).
 // check-no-orphan-todo.mjs and check-no-placeholders.mjs used to live here too,
@@ -117,6 +135,26 @@ export const COPIED = [
 ]
 
 /**
+ * #2557: re-point the governed-repo verifier specifier at the flat plugin copies, then
+ * throw if any shipped module still imports a relative path the plugin does not contain —
+ * a hook that cannot load its verifier blocks forever.
+ */
+function shipVerifierImports(outDir) {
+  for (const name of [...RENDERED.map(([, out]) => out), ...COPIED]) {
+    const file = join(outDir, name)
+    writeFileSync(file, readFileSync(file, 'utf-8').replaceAll("'../../scripts/lib/", "'./"))
+  }
+  for (const name of readdirSync(outDir).filter((f) => f.endsWith('.mjs'))) {
+    const body = readFileSync(join(outDir, name), 'utf-8')
+    for (const [, spec] of body.matchAll(/(?:from\s+|import\s*\(\s*)'(\.{1,2}\/[^']+)'/g)) {
+      if (spec.startsWith('../') || !existsSync(join(outDir, spec))) {
+        throw new Error(`${name} imports ${spec}, which the kernel plugin does not ship`)
+      }
+    }
+  }
+}
+
+/**
  * Render + copy the kernel-plugin hook corpus into `outDir` (default:
  * packages/kernel/hooks/, the tree committed in this repo). Throws on any
  * failure (render error, missing source hook, non-zero prettier) — callers
@@ -127,7 +165,7 @@ export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
 
   const data = buildRenderContext(config)
 
-  for (const [tpl, out] of RENDERED) {
+  for (const [tpl, out] of [...RENDERED, ...VERIFIERS]) {
     const content = renderTemplate(tpl, data)
     writeFileSync(join(outDir, out), content, 'utf-8')
     process.stdout.write(`  rendered ${tpl} -> hooks/${out}\n`)
@@ -139,8 +177,10 @@ export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
     process.stdout.write(`  copied   claude/hooks/${name} -> hooks/${name}\n`)
   }
 
+  shipVerifierImports(outDir)
+
   process.stdout.write(
-    `\nbuild-kernel-plugin: ${RENDERED.length} rendered + ${COPIED.length} copied -> packages/kernel/hooks/\n`,
+    `\nbuild-kernel-plugin: ${RENDERED.length + VERIFIERS.length} rendered + ${COPIED.length} copied -> packages/kernel/hooks/\n`,
   )
 
   // hooks.json — direct per-event wiring (mirrors arbiter's own dogfooded
@@ -176,7 +216,7 @@ export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
   process.stdout.write('  wrote    hooks/hooks.json (direct per-event wiring)\n')
 
   // Sanity: no leftover EJS delimiters in the rendered output.
-  for (const [, out] of RENDERED) {
+  for (const [, out] of [...RENDERED, ...VERIFIERS]) {
     const body = readFileSync(join(outDir, out), 'utf-8')
     if (body.includes('<%') || body.includes('%>')) {
       throw new Error(`${out} still contains EJS delimiters`)
