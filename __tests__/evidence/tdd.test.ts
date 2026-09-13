@@ -160,6 +160,28 @@ describe('extractFailureSignature()', () => {
     expect(result!.framework).toBe('vitest')
     expect(result!.match).toBe('FAIL  src/e2e-red.test.ts')
   })
+
+  it('extracts vitest FAIL line carrying a test.projects label (#2516)', () => {
+    const log = 'FAIL  |unit| __tests__/evidence/tdd.test.ts\n  Error: expected 1 to be 2'
+    const result = extractFailureSignature(log)
+    expect(result).not.toBeNull()
+    expect(result!.framework).toBe('vitest')
+  })
+
+  it('allows a project label containing spaces (#2516)', () => {
+    const log = 'FAIL  |unit tests| __tests__/evidence/tdd.test.ts\n  Error: expected 1 to be 2'
+    const result = extractFailureSignature(log)
+    expect(result).not.toBeNull()
+    expect(result!.framework).toBe('vitest')
+  })
+
+  it('does NOT let a project label swallow a newline into an unrelated line (record-red false-green guard)', () => {
+    // A label followed by a newline, with the real path on the NEXT line, must never mint
+    // a false "genuine failure" signature — record-red would otherwise accept a bogus RED
+    // phase whose "failure" is just two unrelated lines glued together across a label.
+    const log = 'FAIL |unit|\nnot-real.test.ts\n  this line has nothing to do with the label above'
+    expect(extractFailureSignature(log)).toBeNull()
+  })
 })
 
 describe('loadTddEvidence()', () => {

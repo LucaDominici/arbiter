@@ -29,11 +29,21 @@ export interface FailureSignatureEntry {
 }
 
 export const FAILURE_SIGNATURES: FailureSignatureEntry[] = [
-  // Vitest's `test.projects` (#2516) prefixes the path with a `|<project-name>|` label
+  // Vitest's `test.projects` (#2516) prefixes the path with a `|<project name>|` label
   // (e.g. `FAIL  |unit| foo.test.ts`) — the optional group tolerates that without
-  // widening the match to swallow an unrelated leading token.
-  { framework: 'vitest', pattern: /FAIL\s+(?:\|[^|\s]+\|\s+)?\S+\.test\.[jt]sx?/m },
-  { framework: 'jest', pattern: /FAIL\s+(?:\|[^|\s]+\|\s+)?\S+\.(spec|test)\.[jt]sx?/m },
+  // widening the match to swallow an unrelated leading token. Anchored to line start
+  // and restricted to horizontal whitespace ([ \t], not \s) so a label cannot swallow
+  // a newline and mint a match against an unrelated line below it (e.g.
+  // `FAIL |unit|\nnot-a-real-failure.test.ts`). The label body itself allows any
+  // non-pipe, non-newline character so a project name containing spaces still matches.
+  {
+    framework: 'vitest',
+    pattern: /(?<=^[ \t]*)FAIL[ \t]+(?:\|[^|\n]+\|[ \t]+)?\S+\.test\.[jt]sx?/m,
+  },
+  {
+    framework: 'jest',
+    pattern: /(?<=^[ \t]*)FAIL[ \t]+(?:\|[^|\n]+\|[ \t]+)?\S+\.(spec|test)\.[jt]sx?/m,
+  },
   { framework: 'cucumber', pattern: /\d+ scenarios? \(\d+ failed/m },
   { framework: 'pytest', pattern: /={3,}\s*FAILURES\s*={3,}/m },
   { framework: 'gradle', pattern: /FAILED\s*$|BUILD FAILED/m },
@@ -82,7 +92,7 @@ export function extractFailureIdentities(log: string): string[] {
     // Diagnostics can quote "FAIL path.test.ts" in a code frame. Only actual
     // header lines prove a JS failure; legacy scalar extraction stays unchanged.
     const source = isJs
-      ? '^[ \\t]*FAIL[ \\t]+(?:\\|[^|\\s]+\\|[ \\t]+)?\\S+\\.(?:spec|test)\\.[jt]sx?\\b'
+      ? '^[ \\t]*FAIL[ \\t]+(?:\\|[^|\\n]+\\|[ \\t]+)?\\S+\\.(?:spec|test)\\.[jt]sx?\\b'
       : pattern.source
     for (const match of plain.matchAll(new RegExp(source, `${pattern.flags}g`))) {
       // The `|<project>|` label (vitest test.projects, #2516) is reporter grouping, not
@@ -91,7 +101,7 @@ export function extractFailureIdentities(log: string): string[] {
       let identity = match[0]
         .trim()
         .replace(/^FAIL\s+/, 'FAIL ')
-        .replace(/^FAIL \|[^|\s]+\|\s+/, 'FAIL ')
+        .replace(/^FAIL \|[^|\n]+\|[ \t]+/, 'FAIL ')
       if (isJs) {
         const suffix = plain.slice(match.index + match[0].length).split(/\r?\n/, 1)[0] ?? ''
         if (/^[ \t]+>/.test(suffix)) identity += ` ${suffix.trim()}`

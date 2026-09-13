@@ -5,7 +5,7 @@
 // makes an unverifiable "we enforce X" claim — a fake-green).
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -247,6 +247,29 @@ describe('check-adr-enforcement gate (#1473)', () => {
       const r = runGate({ [a.name]: a.body }, { unclaimed: 99, args: ['--update-baseline'] })
       expect(r.status).toBe(1)
       expect(r.stderr).toMatch(/mandatory|allowlist|enforces/i)
+    })
+    it('fails closed (never a vacuous pass) when the ADR directory EXISTS but cannot be read', () => {
+      const a = numberedAdr('031', 'active', null)
+      const dir = mkdtempSync(join(tmpdir(), 'adr-enf-'))
+      const adrDir = join(dir, 'docs', 'internal', 'ADR')
+      try {
+        mkdirSync(adrDir, { recursive: true })
+        writeFileSync(join(adrDir, a.name), a.body)
+        mkdirSync(join(dir, 'standards'), { recursive: true })
+        mkdirSync(join(dir, 'src', 'invariants'), { recursive: true })
+        writeFileSync(join(dir, 'standards', 'gold-registry.yml'), DEFAULT_REGISTRY)
+        writeFileSync(join(dir, 'src', 'invariants', 'catalog.ts'), DEFAULT_CATALOG)
+        chmodSync(adrDir, 0o000)
+        const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: dir })
+        // Must NOT be the "no docs/internal/ADR" vacuous-pass path (exit 0) — the
+        // directory exists, it just cannot be enumerated. A silent files=[] here
+        // would report "0 ADRs, nothing to verify" and exit 0, laundering the read
+        // error into a pass.
+        expect(r.status).not.toBe(0)
+      } finally {
+        chmodSync(adrDir, 0o755)
+        rmSync(dir, { recursive: true, force: true })
+      }
     })
   })
 

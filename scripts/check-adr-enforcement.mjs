@@ -274,13 +274,11 @@ function scanAdrs(adrDir, golds, invs) {
   const dangling = []
   const adrState = new Map()
   let totalRefs = 0
-  let files
-  try {
-    files = readdirSync(adrDir).sort()
-    // FAIL-OPEN-INTENT: an unreadable ADR directory yields no files, so the vacuous-pass branch in main() reports it; there is nothing to verify, not a suppressed violation.
-  } catch {
-    files = []
-  }
+  // No try/catch: `adrDir` is already confirmed to exist (main()'s vacuous-pass check is
+  // for a MISSING directory, not an unreadable one) — an existing-but-unreadable directory
+  // must not silently degrade to "0 ADRs found" (a fail-open false pass). Let it throw to
+  // main()'s top-level handler (exit 1).
+  const files = readdirSync(adrDir).sort()
   for (const f of files) {
     if (!f.endsWith('.md')) continue
     const result = scanAdrFile(f, adrDir, golds, invs, adrState)
