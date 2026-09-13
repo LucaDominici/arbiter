@@ -512,6 +512,44 @@ describe('05-release.yml.ejs — per-language SBOM', () => {
     expect(rendered).toContain('cyclonedx:makeAggregateBom')
   })
 
+  // #2673: sbom-attest now requires a real sbom.cdx.json -- every SBOM branch must produce one
+  // or fail closed. Maven's cyclonedx-maven-plugin makeAggregateBom writes target/bom.json.
+  it.each([
+    ['java', 'maven'],
+    ['kotlin', 'maven'],
+  ] as const)('%s Maven: sbom step moves target/bom.json, fails closed', (language, buildTool) => {
+    const rendered = renderRelease({ language, buildTool })
+    const section =
+      rendered.split('Generate CycloneDX SBOM')[1]?.split('actions/upload-artifact')[0] ?? ''
+    expect(section).toContain('mv target/bom.json sbom.cdx.json')
+    expect(section).not.toContain('|| true')
+    expect(section).not.toContain('bom.xml')
+  })
+
+  // Rust's cargo-cyclonedx names its output <package-name>.cdx.json, not bom.json, and must not
+  // fabricate a placeholder JSON body if the tool didn't run.
+  it('Rust: sbom step moves the real cargo-cyclonedx output, fails closed, no placeholder', () => {
+    const rendered = renderRelease({ language: 'rust', buildTool: 'cargo' })
+    const section =
+      rendered.split('Generate CycloneDX SBOM')[1]?.split('actions/upload-artifact')[0] ?? ''
+    expect(section).toContain('cargo install cargo-cyclonedx --locked')
+    expect(section).not.toMatch(/cargo install cargo-cyclonedx --locked\s*\|\|\s*true/)
+    expect(section).toContain('cargo cyclonedx --format json')
+    expect(section).not.toMatch(/cargo cyclonedx --format json\s*\|\|\s*true/)
+    expect(section).toContain('mv *.cdx.json sbom.cdx.json')
+    expect(section).not.toContain('bomFormat')
+    expect(section).not.toContain('|| true')
+  })
+
+  // Python's cyclonedx-py must not swallow a failure behind a redirect.
+  it('Python: sbom step fails closed on a real cyclonedx-py error', () => {
+    const rendered = renderRelease({ language: 'python', buildTool: 'pip' })
+    const section =
+      rendered.split('Generate CycloneDX SBOM')[1]?.split('actions/upload-artifact')[0] ?? ''
+    expect(section).toContain('python -m cyclonedx_py auto > sbom.cdx.json')
+    expect(section).not.toContain('|| true')
+  })
+
   // #1803: kotlin fell through every language branch in BOTH build-superset
   // (which packages release-artifact.zip) and sbom (`sbom` needs:
   // build-superset, so a kotlin build-superset that never emits the artifact
