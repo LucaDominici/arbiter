@@ -413,3 +413,5 @@ patterns; `**` is **not** supported (uses `fnmatch`, not gitignore engine).
 - BCC delivery (recipients hidden from each other)
 - Recipient cap of 10 per send; STARTTLS + cert validation; SMTP exceptions logged as redacted
 - `github.run_attempt == 1` guard prevents resend on workflow re-run
+
+<!-- #2552 AC-5 inversion probe: agent-authored commit, no approved-by-human label; PR is closed without merge. -->
