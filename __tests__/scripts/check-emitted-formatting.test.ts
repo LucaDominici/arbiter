@@ -116,6 +116,22 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     }
   })
 
+  it('fails closed when the baseline file is blank/malformed instead of parsing to NaN and passing', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const tmplDir = join(dir, 'templates')
+      const baseline = join(dir, 'baseline.txt')
+      mkdirSync(tmplDir)
+      writeFileSync(join(tmplDir, 'clean.json.ejs'), '{ "a": 1 }\n')
+      writeFileSync(baseline, '') // blank — must not parse to NaN and silently pass
+      const result = run(tmplDir, baseline)
+      expect(result.status).not.toBe(0)
+      expect(result.stdout + result.stderr).toContain('baseline')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('passes against the real templates and committed baseline', () => {
     const result = run(resolve('src/templates'), resolve('.emitted-formatting-baseline.txt'))
     expect(result.status).toBe(0)
