@@ -60,7 +60,10 @@ export const MIN_ABSENCE_FAMILY = 27
 // #2514 lowered this 16 -> 15: the "no redacted tokens" row moved out of the deferral
 // ledger to a real flip proof, so the ceiling must fall with it. Unbanked improvement is
 // a failure in this repo (AGENTS.md §template-tests baseline).
-export const MAX_DEFERRED = 15
+// #2675 raises this 15 -> 22: 7 of the 19 promoted ABSENCE_EXEMPT candidates could not be
+// reduced to a fixture at this pass's scope (generator-diff gates and intricate multi-surface
+// parsers) and were banked as new ledger rows instead — see inversion-proof-registry.json.
+export const MAX_DEFERRED = 22
 
 /**
  * Every mechanism invoked by check-all.mjs, in declaration order. Returns { name, tool, path }
@@ -178,6 +181,28 @@ export const ABSENCE_FAMILY_ROSTER = {
     script: 'scripts/check-docker-action-runner-safety.mjs',
     category: 'no',
   },
+  // #2675 — promoted from ABSENCE_EXEMPT with a ledger row (scripts/data/inversion-proof-registry.json)
+  // rather than a flip proof: each needs a generator-style fixture or a fixture over intricate
+  // multi-surface parsing that this pass did not attempt (see the row's `reason` for specifics).
+  'llms.txt drift (#1721)': { script: 'scripts/gen-llms-txt.mjs', category: 'parity' },
+  'api snapshot': { script: 'scripts/check-api-snapshot.mjs', category: 'parity' },
+  'gold registries no-false-gap (#1413)': {
+    script: 'scripts/check-gold-registries.mjs',
+    category: 'ratchet',
+  },
+  'anti-drift: workflow integrity': {
+    script: 'scripts/check-workflow-test-integrity.mjs',
+    category: 'no',
+  },
+  'anti-drift: workflow parallelism (INV-120)': {
+    script: 'scripts/check-workflow-parallelism.mjs',
+    category: 'ratchet',
+  },
+  'anti-drift: unwired guards (#2159)': {
+    script: 'scripts/check-unwired-guards.mjs',
+    category: 'no',
+  },
+  'examples drift (#2222)': { script: 'scripts/regenerate-examples.mjs', category: 'parity' },
 }
 
 /**
@@ -194,43 +219,14 @@ export const ABSENCE_FAMILY_ROSTER = {
  * exemption is a promise to come back, and a promise with no ticket is not one. Tracked in #2675:
  * promote each to the roster with a flip proof, or a dated `inversion-proof-registry.json` row.
  */
-export const ABSENCE_EXEMPT = {
-  'llms.txt drift (#1721)': {
-    script: 'scripts/gen-llms-txt.mjs',
-    reason: 'diffs generated content against committed docs, no fixture flag',
-    followUp: '#2675',
-  },
-  'api snapshot': {
-    script: 'scripts/check-api-snapshot.mjs',
-    reason: 'diffs live TS exports against a committed snapshot file',
-    followUp: '#2675',
-  },
-  'gold registries no-false-gap (#1413)': {
-    script: 'scripts/check-gold-registries.mjs',
-    reason: 'scores live registries against a committed audit report',
-    followUp: '#2675',
-  },
-  'anti-drift: workflow integrity': {
-    script: 'scripts/check-workflow-test-integrity.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: workflow parallelism (INV-120)': {
-    script: 'scripts/check-workflow-parallelism.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: unwired guards (#2159)': {
-    script: 'scripts/check-unwired-guards.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'examples drift (#2222)': {
-    script: 'scripts/regenerate-examples.mjs',
-    reason: 'diffs generated examples/ against committed output',
-    followUp: '#2675',
-  },
-}
+// #2675: the last 7 of the original 19 candidates were promoted straight to a ledger row
+// (scripts/data/inversion-proof-registry.json) rather than a flip proof — each needs either a
+// generator-style fixture (llms.txt/api-snapshot/gold-registries/examples: diffing generated
+// output against a committed artifact, not a single planted file) or a fixture over intricate
+// multi-surface parsing (workflow-test-integrity/workflow-parallelism's YAML DAG logic,
+// unwired-guards' many hardcoded scan roots) that risked a brittle, false-discriminating proof
+// at this pass's scope. ABSENCE_EXEMPT is empty: nothing here still awaits classification.
+export const ABSENCE_EXEMPT = {}
 
 /**
  * #2560 Codex round-1 finding #1: a wired mechanism that trips no candidate heuristic used to
