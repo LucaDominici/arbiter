@@ -508,7 +508,7 @@
     "scripts/check-ci-tiers.mjs": "d49c6e77f273d853323ccb718cc3b8ea5903c364bd3eec3f9df4d12bc547c3d6",
     "scripts/check-claude-md-lint.mjs": "dfd0484375a677807e0da252dfab0359d56c902025b1097db7bebd9858edc59a",
     "scripts/check-collab-mode-wired.mjs": "998ef0a8d0c506846c1002c906b786e375a71301748071c54f65c9e0a44284d0",
-    "scripts/check-commit-footer-rationale.mjs": "e9b5c2146814a0ba35e0a8b1a0cd0e44758e3710dfd1e5d40b50d459e7cf229a",
+    "scripts/check-commit-footer-rationale.mjs": "192a1b7042b182c04ce063b3eae0c4dad8fb3c1e3292d3ec104bea32deacaf27",
     "scripts/check-constraint-scan.mjs": "507134bc03bc5846ee1c458fd6474818c0b9bd29d74d5db2a29770f6b1ceba12",
     "scripts/check-continue-on-error.mjs": "9449a69ae77dabde2653dfc92ce06d92988b8e6c0a90858b82e96d1b9cb4103d",
     "scripts/check-cross-model-review.mjs": "cf2e54353c1a54fbdd24917271e85aae94a45bc556e9499598753603f1d62747",
