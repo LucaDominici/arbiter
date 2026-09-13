@@ -787,6 +787,22 @@ describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
     expect(gitleaksStep?.with?.args).toContain('--full-history')
   })
 
+  // Same parity concern as the trigger-block assertion above: check-self-dogfood pins a
+  // whole-file diff hash, which is exactly why the .ejs twin can drift from the materialized
+  // file unnoticed. Assert the gitleaks env fix landed in the template too.
+  it('gitleaks env fix matches the template rendered for arbiter own profile (#2673)', () => {
+    const rendered = renderRelease({ ...TS_LIB, governanceLevel: 'L2' })
+    const renderedStep = (parseYaml(rendered) as ReleaseWorkflow).jobs[
+      'secret-scan-history'
+    ].steps?.find((s) => s.uses?.startsWith('gitleaks/gitleaks-action@'))
+    const materializedStep = (parseYaml(materialized) as ReleaseWorkflow).jobs[
+      'secret-scan-history'
+    ].steps?.find((s) => s.uses?.startsWith('gitleaks/gitleaks-action@'))
+    expect(renderedStep?.env?.GITLEAKS_ENABLE_UPLOAD_ARTIFACT).toBe(
+      materializedStep?.env?.GITLEAKS_ENABLE_UPLOAD_ARTIFACT,
+    )
+  })
+
   // #2673: the SLSA generator halts by default on a private repo ("the workflow has halted in
   // order to keep the repository name from being exposed in the public transparency log").
   // Orchestrator decision: opt in — the repo name is already public via the npm package
@@ -794,6 +810,17 @@ describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
   it('slsa generator opts in for the private repository (#2673)', () => {
     const workflow = parseYaml(materialized) as ReleaseWorkflow
     expect(workflow.jobs['slsa-provenance'].with?.['private-repository']).toBe(true)
+  })
+
+  // Same parity concern as the trigger-block assertion above: assert the SLSA opt-in landed in
+  // the template too, not only the hand-edited materialized file.
+  it('slsa private-repository input matches the template rendered for arbiter own profile (#2673)', () => {
+    const rendered = renderRelease({ ...TS_LIB, governanceLevel: 'L2' })
+    const renderedJob = (parseYaml(rendered) as ReleaseWorkflow).jobs['slsa-provenance']
+    const materializedJob = (parseYaml(materialized) as ReleaseWorkflow).jobs['slsa-provenance']
+    expect(renderedJob.with?.['private-repository']).toBe(
+      materializedJob.with?.['private-repository'],
+    )
   })
 })
 
