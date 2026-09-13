@@ -261,6 +261,40 @@ describe.each([
     })
     expect(result.failed).not.toBeNull()
   })
+
+  // Codex round-2 review: the trailer regex must not substring-match an
+  // agent name anywhere in the trailer value — only a real agent identity
+  // as the whole first token after the colon counts.
+  it.each([
+    'Co-Authored-By: GPTerson <human@example.com>',
+    'Co-Authored-By: human-gpt-test <human@example.com>',
+    'Co-Authored-By: a noncodexical human <human@example.com>',
+  ])(
+    'does NOT fire on a human name/prose that merely contains an agent substring: %s',
+    async (trailer) => {
+      const result = await runGate(workflowPath, {
+        commitMessages: [`fix: bug\n\n${trailer}`],
+        userType: 'User',
+        userLogin: 'a-human',
+        labels: [],
+      })
+      expect(result.failed).toBeNull()
+    },
+  )
+
+  it.each([
+    'Co-Authored-By: Claude <noreply@anthropic.com>',
+    'Co-authored-by: Codex <codex@openai.com>',
+    'Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>',
+  ])('fires on the real trailer shape emitted by coding-agent tooling: %s', async (trailer) => {
+    const result = await runGate(workflowPath, {
+      commitMessages: [`fix: bug\n\n${trailer}`],
+      userType: 'User',
+      userLogin: 'a-human-token-holder',
+      labels: [],
+    })
+    expect(result.failed).not.toBeNull()
+  })
 })
 
 describe('CANON-01 twin parity (#2552)', () => {

@@ -55,9 +55,13 @@ jobs:
             }
 
             // Declared, case-insensitive AI-author trailer list (#2552). Tolerates
-            // optional whitespace around the colon (git trailer syntax permits it).
+            // optional whitespace around the colon (git trailer syntax permits it). The
+            // agent token is anchored immediately after the colon with a trailing word
+            // boundary, NOT a `.*` substring search — a bare `.*` would false-positive on
+            // any human name/prose containing "gpt"/"codex" as a substring (e.g.
+            // "GPTerson", "human-gpt-test", "a noncodexical human").
             const AI_TRAILER_PATTERN =
-              /^(co-authored-by\s*:.*(claude|codex|copilot|gpt)|claude-session\s*:|codex-session\s*:)/im;
+              /^(co-authored-by\s*:\s*(claude|codex|copilot|gpt)\b|claude-session\s*:|codex-session\s*:)/im;
 
             let commits;
             try {
