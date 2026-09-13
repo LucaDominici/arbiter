@@ -132,7 +132,10 @@ the killed-push incident above produced by accident.
 ## The acceptance-criteria anchor gate (INV-138, #2405)
 
 Governed projects now receive `scripts/check-acceptance.mjs`, wired into the emitted gate
-registry as `acceptance anchor (INV-138)` — **L2, advisory (`warn`)**.
+registry as `acceptance anchor (INV-138)` — **L2, enforcing (`check`)**, matching self
+(`scripts/check-all.mjs` runs it via `runCheck`). #2591: it was `warn` (never able to fail a
+build) even for a consumer who opted in; enforcement now lives in the gate `kind` itself, not
+just in the script's own opt-in gating below.
 
 Where the rest of the gate certifies _mechanics_, this one anchors _intent_. During the
 implementation phases the active task's plan must freeze the issue's acceptance criteria as
@@ -141,13 +144,15 @@ explicit `AC-N` ids plus non-goals; at verification and close a reviewer-written
 evidence line. That is the mechanical form of **"an unproven criterion is a REJECT"** — green
 tests say the code does what it does, not that it does what was asked.
 
-**It is inert unless you turn it on.** Three layers of default-off, deliberately:
+**It is inert unless you turn it on.** Two layers of default-off, deliberately:
 
 - gated on `features.acceptanceAnchor` in `arbiter.json`, with `ARBITER_ACCEPTANCE_ANCHOR=1/0`
   as an env override;
-- `warn` rather than `check`, so even enabled it advises rather than blocks;
 - **vacuous exit 0 with no active task**, which is what keeps `main`, CI on merged trees and
   fresh clones green.
+
+Once you opt in, it can fail your build: a missing or invalid anchor during an implementation
+phase turns `check-all` red, the same way it already does for arbiter itself.
 
 Exit codes follow INV-53: `0` PASS or SKIP, `1` FAIL (anchor or fit missing/invalid), `2` ERROR.
 
