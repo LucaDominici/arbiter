@@ -299,7 +299,6 @@ if (existsSync(allowlistPath)) {
   }
 }
 
-let unresolvedTokenCount = 0
 let allowlistedCount = 0
 for (const [id, enforcement] of enforcementById) {
   if (!enforcement) continue
@@ -325,7 +324,6 @@ for (const [id, enforcement] of enforcementById) {
     if (!tokenResolves(token) && !tokenResolves(base)) {
       process.stdout.write(`  ENFORCEMENT PATH NOT FOUND: ${id} cites "${token}"\n`)
       violations++
-      unresolvedTokenCount++
     }
   }
 }
