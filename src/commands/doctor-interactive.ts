@@ -8,6 +8,8 @@ import { runDoctorHealth } from './doctor.js'
 
 export interface InteractiveDoctorOptions {
   dir?: string
+  /** #2673 — forwarded to DoctorHealthOptions.codexHome; tests inject an isolated dir. */
+  codexHome?: string
 }
 
 /**
@@ -17,10 +19,12 @@ export interface InteractiveDoctorOptions {
  */
 export async function runInteractiveDoctor(opts: InteractiveDoctorOptions = {}): Promise<void> {
   const dir = opts.dir
+  const codexHome = opts.codexHome
   intro('arbiter doctor')
 
   const first = await runDoctorHealth({
     ...(dir !== undefined ? { dir } : {}),
+    ...(codexHome !== undefined ? { codexHome } : {}),
     json: false,
     repair: false,
   })
@@ -50,6 +54,7 @@ export async function runInteractiveDoctor(opts: InteractiveDoctorOptions = {}):
 
   const repaired = await runDoctorHealth({
     ...(dir !== undefined ? { dir } : {}),
+    ...(codexHome !== undefined ? { codexHome } : {}),
     json: false,
     repair: true,
   })
