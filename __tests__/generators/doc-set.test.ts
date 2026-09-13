@@ -269,6 +269,12 @@ describe('runDocSetPlanApply — the arbiter doc-set --plan/--apply CLI path', (
     }
   })
 
+  it('an engine failure (unparseable manifest) is an error, never the no-manifest no-op (#2504)', () => {
+    writeFileSync(join(dir, 'standards', 'gold-doc-set.yml'), 'checks: [unclosed\n')
+    expect(() => runDocSetPlanApply({ repo: dir })).toThrow(/doc-set/)
+    expect(() => runDocSetPlanApply({ repo: dir, apply: true })).toThrow(/doc-set/)
+  })
+
   it('--apply exits non-zero for missing unbound rows, while --plan remains advisory (#2214)', () => {
     const manifest = join(dir, 'standards', 'unbound-doc-set.yml')
     writeFileSync(
