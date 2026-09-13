@@ -97,8 +97,11 @@ describe('runDoctorHealth (#539)', () => {
   })
 
   it('reports authenticated external Codex access in the project health checks', async () => {
-    vi.stubEnv('HOME', dir)
-    vi.stubEnv('USERPROFILE', dir)
+    // #2673: inject the home dir explicitly (DoctorHealthOptions.codexHome) rather than
+    // stubbing HOME/USERPROFILE. The env-stub form proved unreliable under Stryker's vitest
+    // runner (reproduced: `HOME=$(mktemp -d) npx stryker run --dryRunOnly` failed this
+    // assertion even though the same file passes under a plain `vitest run`) — an explicit
+    // option cannot be affected by whatever propagates env vars differently there.
     resetExternalModelDetection()
     mkdirSync(join(dir, '.codex'), { recursive: true })
     writeFileSync(join(dir, '.codex', 'auth.json'), '{}\n')
@@ -113,7 +116,7 @@ describe('runDoctorHealth (#539)', () => {
     })
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
 
-    const result = await runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true, codexHome: dir })
 
     expect(result.checks.find((c) => c.id === 'external-model-codex')).toMatchObject({
       status: 'PASS',
