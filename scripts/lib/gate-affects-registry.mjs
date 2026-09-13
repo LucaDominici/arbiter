@@ -89,6 +89,18 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'matrix proven cells', affects: TEMPLATES },
   { name: 'skills-matrix-schema', affects: TEMPLATES },
   { name: 'template tests', affects: TEMPLATES },
+  {
+    name: 'emitted formatting (#2571)',
+    // TEMPLATES plus its own baseline/script/helper — not TEMPLATES alone, because a change
+    // to check-template-tests.mjs's collectEjsFiles (imported here) would otherwise be
+    // invisible to this gate's affects list.
+    affects: [
+      ...TEMPLATES,
+      '.emitted-formatting-baseline.json',
+      'scripts/check-emitted-formatting.mjs',
+      'scripts/check-template-tests.mjs',
+    ],
+  },
   { name: 'generator tests', affects: TEMPLATES },
   { name: 'command tests', affects: TEMPLATES },
   { name: 'brownfield tests (CANON-11)', affects: TEMPLATES },

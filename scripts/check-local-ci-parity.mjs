@@ -394,6 +394,7 @@ const CI_COVERAGE = new Map([
   ['skills-matrix-schema', 'gate-full'],
   ['tabletop evidence (#2429)', 'gate-full'],
   ['template tests', 'gate-full'],
+  ['emitted formatting (#2571)', 'gate-full'],
   ['generator tests', 'gate-full'],
   ['command tests', 'gate-full'],
   ['brownfield tests (CANON-11)', 'gate-full'],
