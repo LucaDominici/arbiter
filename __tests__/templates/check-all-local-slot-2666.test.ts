@@ -61,6 +61,29 @@ describe('AC1/AC3 — check-all.mjs.ejs loads the local slot', () => {
   })
 })
 
+// #2679 round 2 (Codex): an env var or CLI flag is just as repo-controllable
+// as the slot file itself — a poisoned repo's own `package.json` "scripts"
+// launcher sets either (`"gate": "ARBITER_ALLOW_LOCAL_CHECKS=1 node
+// scripts/check-all.mjs"` / `"node scripts/check-all.mjs --allow-local-checks"`)
+// and grants its own opt-in. The only signal outside tracked content is a git
+// config key. 'true' sets `arbiter.allowLocalChecks true` in a real repo;
+// 'false' sets it to 'false'; 'absent' inits a repo with no such key; 'no-git'
+// skips `git init` entirely (git config, hence the check, can't run at all).
+type GitConfigMode = 'true' | 'false' | 'absent' | 'no-git'
+
+function initGitConfig(dir: string, mode: GitConfigMode): void {
+  if (mode === 'no-git') return
+  spawnSync('git', ['init', '--quiet'], { cwd: dir, encoding: 'utf-8' })
+  spawnSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir, encoding: 'utf-8' })
+  spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir, encoding: 'utf-8' })
+  if (mode === 'true' || mode === 'false') {
+    spawnSync('git', ['config', '--local', 'arbiter.allowLocalChecks', mode], {
+      cwd: dir,
+      encoding: 'utf-8',
+    })
+  }
+}
+
 // Runtime proof: slice the rendered script from the top through the Summary
 // section (mirrors the #1720/#2078 slice-and-run harness), stub run-helpers to
 // capture pushResult/runCheck calls, and exercise the local-slot loader end to
@@ -68,7 +91,7 @@ describe('AC1/AC3 — check-all.mjs.ejs loads the local slot', () => {
 function runLocalSlotHarness(
   localFileSource: string | null,
   args: string[] = ['L2'],
-  env: Record<string, string> = { ARBITER_ALLOW_LOCAL_CHECKS: '1' },
+  gitConfig: GitConfigMode = 'true',
 ): { status: number | null; stdout: string; stderr: string } {
   const content = render()
   const cutIdx = content.indexOf('// ─── Summary')
@@ -104,18 +127,17 @@ function runLocalSlotHarness(
     if (localFileSource !== null) {
       writeFileSync(join(scriptsDir, 'check-all.local.json'), localFileSource)
     }
+    initGitConfig(dir, gitConfig)
     // The harness never reaches gate-evidence.mjs/arbiter.json — cut before
     // the marker/JSON-write tail, then force-exit right after the local slot.
     writeFileSync(
       join(scriptsDir, 'check-all.mjs'),
       prefix + '\nconsole.log("HARNESS_DONE:" + JSON.stringify(getResults()));\nprocess.exit(0);\n',
     )
-    const _env = { ...process.env, NO_COLOR: '1' }
-    delete _env.ARBITER_ALLOW_LOCAL_CHECKS
     const r = spawnSync(process.execPath, [join(scriptsDir, 'check-all.mjs'), ...args], {
       encoding: 'utf-8',
       cwd: dir,
-      env: { ..._env, ...env },
+      env: { ...process.env, NO_COLOR: '1' },
     })
     return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   } finally {
@@ -133,7 +155,7 @@ function harnessResults(stdout: string): Array<{ name: string; status: string }>
 // is proven by a sentinel file's absence, not by an unexecuted log line.
 function runLocalSlotHarnessReal(
   localFileSourceFor: (sentinelPath: string) => string,
-  env: Record<string, string>,
+  gitConfig: GitConfigMode,
 ): { status: number | null; stdout: string; sentinelExists: boolean } {
   const content = render()
   const cutIdx = content.indexOf('// ─── Summary')
@@ -169,16 +191,15 @@ function runLocalSlotHarnessReal(
         'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
     )
     writeFileSync(join(scriptsDir, 'check-all.local.json'), localFileSourceFor(sentinelPath))
+    initGitConfig(dir, gitConfig)
     writeFileSync(
       join(scriptsDir, 'check-all.mjs'),
       prefix + '\nconsole.log("HARNESS_DONE:" + JSON.stringify(getResults()));\nprocess.exit(0);\n',
     )
-    const _env = { ...process.env, NO_COLOR: '1' }
-    delete _env.ARBITER_ALLOW_LOCAL_CHECKS
     const r = spawnSync(process.execPath, [join(scriptsDir, 'check-all.mjs'), 'L2'], {
       encoding: 'utf-8',
       cwd: dir,
-      env: { ..._env, ...env },
+      env: { ...process.env, NO_COLOR: '1' },
     })
     return { status: r.status, stdout: r.stdout ?? '', sentinelExists: existsSync(sentinelPath) }
   } finally {
@@ -202,36 +223,44 @@ function sentinelJson(sentinelPath: string): string {
   })
 }
 
-describe('check-all.mjs.ejs — local extension slot requires explicit opt-in (#2679)', () => {
-  it('does NOT execute the local check and prints SKIP when no opt-in is given', () => {
-    const r = runLocalSlotHarnessReal(sentinelJson, {})
+describe('check-all.mjs.ejs — local extension slot requires a git-config opt-in (#2679)', () => {
+  it('does NOT execute the local check and prints SKIP when the config key is absent', () => {
+    const r = runLocalSlotHarnessReal(sentinelJson, 'absent')
     expect(r.status).toBe(0)
     expect(r.sentinelExists).toBe(false)
     expect(r.stdout).toContain(
       '[CHECK] local checks ... SKIP (scripts/check-all.local.json present but ' +
-        'ARBITER_ALLOW_LOCAL_CHECKS is not set',
+        'arbiter.allowLocalChecks is not set — run `git config --local arbiter.allowLocalChecks true`',
     )
   })
 
-  it('executes the local check when ARBITER_ALLOW_LOCAL_CHECKS=1 is set', () => {
-    const r = runLocalSlotHarnessReal(sentinelJson, { ARBITER_ALLOW_LOCAL_CHECKS: '1' })
+  it('does NOT execute when arbiter.allowLocalChecks is explicitly false', () => {
+    const r = runLocalSlotHarnessReal(sentinelJson, 'false')
+    expect(r.status).toBe(0)
+    expect(r.sentinelExists).toBe(false)
+  })
+
+  it('does NOT execute when there is no git repository at all (config read fails closed)', () => {
+    const r = runLocalSlotHarnessReal(sentinelJson, 'no-git')
+    expect(r.status).toBe(0)
+    expect(r.sentinelExists).toBe(false)
+  })
+
+  it('executes the local check when git config arbiter.allowLocalChecks is true', () => {
+    const r = runLocalSlotHarnessReal(sentinelJson, 'true')
     expect(r.status).toBe(0)
     expect(r.sentinelExists).toBe(true)
   })
 
-  it('does not run under an unrecognized truthy env value ("true", not "1")', () => {
-    const r = runLocalSlotHarnessReal(sentinelJson, { ARBITER_ALLOW_LOCAL_CHECKS: 'true' })
-    expect(r.status).toBe(0)
-    expect(r.sentinelExists).toBe(false)
-  })
-})
-
-describe('check-all.mjs.ejs — --allow-local-checks CLI flag (#2679)', () => {
-  it('executes the local check when --allow-local-checks is passed', () => {
+  // #2679 round 2 (Codex): a repo-controlled npm "scripts" launcher can set the
+  // env var or pass the flag itself — neither is a real trust boundary. Proves
+  // that legacy path is dead: even with both present, without the git config
+  // key the command still does not run.
+  it('does NOT execute via an npm-script-style env+flag launcher (no git config set)', () => {
     const content = render()
     const cutIdx = content.indexOf('// ─── Summary')
     const prefix = content.slice(0, cutIdx)
-    const dir = mkdtempSync(join(tmpdir(), 'arb-local-slot-flag-'))
+    const dir = mkdtempSync(join(tmpdir(), 'arb-local-slot-launcher-'))
     const sentinelPath = join(dir, 'sentinel')
     try {
       const scriptsDir = join(dir, 'scripts')
@@ -262,20 +291,27 @@ describe('check-all.mjs.ejs — --allow-local-checks CLI flag (#2679)', () => {
           'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
       )
       writeFileSync(join(scriptsDir, 'check-all.local.json'), sentinelJson(sentinelPath))
+      initGitConfig(dir, 'absent')
       writeFileSync(
         join(scriptsDir, 'check-all.mjs'),
         prefix +
           '\nconsole.log("HARNESS_DONE:" + JSON.stringify(getResults()));\nprocess.exit(0);\n',
       )
-      const _env = { ...process.env, NO_COLOR: '1' }
-      delete _env.ARBITER_ALLOW_LOCAL_CHECKS
+      // The old (now-removed) env var and flag, exactly as a poisoned
+      // package.json "scripts" entry would set them.
       const r = spawnSync(
         process.execPath,
         [join(scriptsDir, 'check-all.mjs'), 'L2', '--allow-local-checks'],
-        { encoding: 'utf-8', cwd: dir, env: _env },
+        {
+          encoding: 'utf-8',
+          cwd: dir,
+          env: { ...process.env, NO_COLOR: '1', ARBITER_ALLOW_LOCAL_CHECKS: '1' },
+        },
       )
-      expect(r.status).toBe(0)
-      expect(existsSync(sentinelPath)).toBe(true)
+      expect(existsSync(sentinelPath)).toBe(false)
+      // Neither the flag nor the env var is a recognized argument any more —
+      // check-all.mjs.ejs's --gate/--dry-run parser rejects any leftover use.
+      expect(r.status).not.toBe(0)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
