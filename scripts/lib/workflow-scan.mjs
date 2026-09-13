@@ -128,10 +128,15 @@ export function parseHelpAndDir(args, { usage }) {
     process.stdout.write(usage)
     process.exit(0)
   }
-  const dirArg = args.indexOf('--dir')
+  // #2675 Codex round-2: lastIndexOf, not indexOf — a repeated --dir is "last flag wins", so a
+  // bare trailing --dir must refuse even when an EARLIER occurrence carried a valid value; a
+  // first-occurrence read would silently honor the stale earlier value instead.
+  const dirArg = args.lastIndexOf('--dir')
   if (dirArg < 0) return { cwd: process.cwd() }
   const value = args[dirArg + 1]
-  if (value === undefined) {
+  // '' is not undefined but resolve('') is process.cwd() — the same silent, unintended fallback
+  // a bare --dir already refuses, just reached through a different falsy-but-defined value.
+  if (value === undefined || value === '') {
     process.stderr.write('--dir requires a path argument\n')
     process.exit(2)
   }

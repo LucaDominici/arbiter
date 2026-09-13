@@ -26,11 +26,11 @@ if (args.includes('--help') || args.includes('-h')) {
 
 const maxDaysArg = args.indexOf('--max-days');
 const MAX_DAYS = maxDaysArg >= 0 && args[maxDaysArg + 1] ? parseInt(args[maxDaysArg + 1], 10) : 365;
-const dirArg = args.indexOf('--dir');
+const dirArg = args.lastIndexOf('--dir');
 let CWD = process.cwd();
 if (dirArg >= 0) {
   const dirValue = args[dirArg + 1];
-  if (dirValue === undefined) {
+  if (dirValue === undefined || dirValue === '') {
     process.stderr.write('check-suppression-expiry: --dir requires a path argument\n');
     process.exit(2);
   }

@@ -32,11 +32,11 @@ if (args.includes('--help') || args.includes('-h')) {
 // #2675 Codex round-1: a bare or dangling --dir must never be read as "use the default" — a
 // caller asking for an explicit scan root that cannot be honored would otherwise silently fall
 // through to this gate's own fixture-less SKIP paths and report clean on the LIVE repo instead.
-const dirArg = args.indexOf('--dir')
+const dirArg = args.lastIndexOf('--dir')
 let CWD = process.cwd()
 if (dirArg >= 0) {
   const dirValue = args[dirArg + 1]
-  if (dirValue === undefined) {
+  if (dirValue === undefined || dirValue === '') {
     process.stderr.write('check-suppression-rationale: --dir requires a path argument\n')
     process.exit(2)
   }
