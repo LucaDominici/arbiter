@@ -452,8 +452,8 @@ const packageVersion = readPackageVersion()
 program.name('arbiter').description('AI development governance framework').version(packageVersion)
 
 // #1770 (T5), superseded by T2 tier-3 (cathedral cut, 76→≤15 registrations):
-// 16-command public surface (11 original + gate-exec/review/explain promoted +
-// plugin, #2416 — ADR-031's CLI subcommand finally shipped).
+// 17-command public surface (11 original + gate-exec/review/explain promoted +
+// plugin, #2416 — ADR-031's CLI subcommand finally shipped; + ignore, #2662).
 // Remaining experimental commands are registered with
 // `{ hidden: true }` — fully functional, omitted from default --help. The built-in
 // help command is replaced by a hidden `help [command] [--all]` so `arbiter help --all`
@@ -1313,7 +1313,7 @@ review
 
 program
   // Hidden (like settings/upgrade-level, line ~662/1068): fully functional but omitted from the
-  // curated public 16-command --help surface (#1770 T5 / T2 tier-3 / #2416). The generated governed-repo
+  // curated public 17-command --help surface (#1770 T5 / T2 tier-3 / #2416 / #2662). The generated governed-repo
   // fixed project-local thin-runner invokes it directly (`arbiter doc-set`) — visibility in `--help` is not part
   // of H1's fix, only registration. Discoverable via `arbiter help --all`.
   .command('doc-set [repo]', { hidden: true })

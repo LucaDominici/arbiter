@@ -11,7 +11,7 @@
  * Deliberately NOT a second retire list: one pattern in `.arbiterignore` is the
  * whole state. No manifest change, no generation session — pure file mutation.
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { createHash } from 'node:crypto'
 import {
@@ -22,7 +22,7 @@ import {
   effectiveIgnorePattern,
 } from '../config/arbiter-ignore.js'
 import { loadGeneratedManifest } from '../state/generated-manifest.js'
-import { unlinkTranslated } from '../utils/fs.js'
+import { unlinkTranslated, readFileTranslated } from '../utils/fs.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { t } from '../i18n/index.js'
 
@@ -32,14 +32,17 @@ export interface IgnoreOptions {
   json?: boolean | undefined
 }
 
-/** sha256 of the on-disk file, or `null` when absent/unreadable. */
+/**
+ * sha256 of the on-disk file, or `null` when absent. An absent file is a
+ * legitimate "nothing to hash" (the caller treats it as already retired) —
+ * anything else (EACCES, EISDIR, ...) is a real failure and must surface as a
+ * translated ArbiterError rather than being silently read as "absent", which
+ * would make `ignore add` report success while never having inspected the
+ * file at all (fail-closed audit, INV-96).
+ */
 function diskHash(path: string): string | null {
   if (!existsSync(path)) return null
-  try {
-    return createHash('sha256').update(readFileSync(path)).digest('hex')
-  } catch {
-    return null
-  }
+  return createHash('sha256').update(readFileTranslated(path)).digest('hex')
 }
 
 export function runIgnoreAdd(options: IgnoreOptions): void {

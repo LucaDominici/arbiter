@@ -236,10 +236,11 @@ describe('#2411 — README.md stack table and cadence claims', () => {
 })
 
 describe('#2411 — help-surface.test.ts command count', () => {
-  it('describe title says 16-command, matching the real public CLI surface (#2416 added plugin)', () => {
-    expect(helpSurfaceTest).toContain('16-command')
+  it('describe title says 17-command, matching the real public CLI surface (#2416 added plugin, #2662 added ignore)', () => {
+    expect(helpSurfaceTest).toContain('17-command')
     expect(helpSurfaceTest).not.toContain('14-command')
     expect(helpSurfaceTest).not.toContain('15-command')
+    expect(helpSurfaceTest).not.toContain('16-command')
   })
 })
 

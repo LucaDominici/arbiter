@@ -26,9 +26,10 @@
  * manifest key, and `planRetirement` treats those as retirement/stale candidates —
  * an opt-out that deletes files is the opposite of an opt-out.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { globMatch } from '../conformance/shared.js'
+import { readFileTranslated, writeFileTranslated } from '../utils/fs.js'
 
 export const IGNORE_FILE_NAME = '.arbiterignore'
 
@@ -49,7 +50,7 @@ export function loadIgnorePatterns(targetDir: string): string[] {
   if (!existsSync(path)) return []
   let raw: string
   try {
-    raw = readFileSync(path, 'utf-8')
+    raw = readFileTranslated(path, 'utf-8')
     // FAIL-OPEN-INTENT: an unreadable .arbiterignore must not stop `update` — no patterns means arbiter manages everything, the pre-#2353 behaviour.
   } catch {
     return []
@@ -151,12 +152,12 @@ export function anchoredPattern(key: string): string {
  */
 export function appendIgnorePattern(targetDir: string, pattern: string): void {
   const path = join(targetDir, IGNORE_FILE_NAME)
-  const existing = existsSync(path) ? readFileSync(path, 'utf-8') : ''
+  const existing = existsSync(path) ? readFileTranslated(path, 'utf-8') : ''
   const lines = existing.split('\n').map((l) => l.trim())
   if (lines.includes(pattern)) return
   const withTrailingNewline =
     existing.length > 0 && !existing.endsWith('\n') ? `${existing}\n` : existing
-  writeFileSync(path, `${withTrailingNewline}${pattern}\n`)
+  writeFileTranslated(path, `${withTrailingNewline}${pattern}\n`)
 }
 
 /**
@@ -168,9 +169,9 @@ export function appendIgnorePattern(targetDir: string, pattern: string): void {
 export function removeIgnorePattern(targetDir: string, pattern: string): boolean {
   const path = join(targetDir, IGNORE_FILE_NAME)
   if (!existsSync(path)) return false
-  const lines = readFileSync(path, 'utf-8').split('\n')
+  const lines = readFileTranslated(path, 'utf-8').split('\n')
   const kept = lines.filter((l) => l.trim() !== pattern)
   if (kept.length === lines.length) return false
-  writeFileSync(path, kept.join('\n'))
+  writeFileTranslated(path, kept.join('\n'))
   return true
 }
