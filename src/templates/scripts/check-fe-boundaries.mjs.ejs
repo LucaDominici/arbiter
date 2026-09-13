@@ -49,9 +49,23 @@ const HTTP_PATTERNS = [
 const RAW_FETCH_EXEMPTION_RE = /arbiter-allow-raw-fetch:\s*(.+)/
 const RAW_FETCH_EXEMPTION_REASON_MIN_LEN = 10
 
+// A `/` starts a regex literal, not division or a comment, when it is not `//`
+// or `/*` and the previous non-space character is one that can only precede an
+// expression (assignment, call-arg, grouping, etc.) or the `/` is at the start
+// of the line.
+function isRegexLiteralStart(line, i) {
+  if (line[i] !== '/' || line[i + 1] === '/' || line[i + 1] === '*') return false
+  let j = i - 1
+  while (j >= 0 && /\s/.test(line[j])) j -= 1
+  if (j < 0) return true
+  return '=([,:[!&|?{};'.includes(line[j])
+}
+
 // Per-line string-state tracker (documented limit, #2671): does not understand
-// regex/template literals spanning lines; sufficient to tell a quoted example of
-// the marker from a real inline comment.
+// template literals spanning lines. Recognizes a `/regex/` literal (skipping its
+// content, including any quotes inside, without toggling string state) so an
+// apostrophe inside a regex — e.g. `/it's/` — is not mistaken for an open,
+// unterminated string that swallows a real trailing comment.
 function isInsideStringAt(line, idx) {
   let i = 0
   let inStr = false
@@ -68,6 +82,18 @@ function isInsideStringAt(line, idx) {
         quote = ''
       }
       i += 1
+      continue
+    }
+    if (isRegexLiteralStart(line, i)) {
+      let j = i + 1
+      while (j < line.length && line[j] !== '/') {
+        if (line[j] === '\\') {
+          j += 2
+          continue
+        }
+        j += 1
+      }
+      i = j + 1
       continue
     }
     if (ch === '`' || ch === '"' || ch === "'") {

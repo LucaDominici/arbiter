@@ -89,19 +89,32 @@ function parseArgs(argsStr) {
   return parts;
 }
 
+// A `/` starts a regex literal, not division or a comment, when it is not `//`
+// or `/*` and the previous non-space character is one that can only precede an
+// expression (assignment, call-arg, grouping, etc.) or the `/` is at the start
+// of the line.
+function isRegexLiteralStart(line, i) {
+  if (line[i] !== '/' || line[i + 1] === '/' || line[i + 1] === '*') return false;
+  let j = i - 1;
+  while (j >= 0 && /\s/.test(line[j])) j -= 1;
+  if (j < 0) return true;
+  return '=([,:[!&|?{};'.includes(line[j]);
+}
+
 function isInsideStringLiteral(line, idx) {
   // Single-line string-state tracker (documented limit, #2671): walks from line start
   // to idx, toggling in-string state on unescaped ', ", or `. Directives only count
   // when in a real `//` comment — not when the syntax appears as text inside a string
   // literal (e.g. a hook file documenting the directive format in a template string,
   // which would otherwise be parsed as a real, malformed directive and FAIL the gate
-  // on its own advisory text). Not a lexer: a quote inside a /regex/ literal is not
-  // recognized, and a multi-line template literal opened on an earlier line is
-  // invisible (real suppressions are single-line `//` comments, so this only risks
-  // false positives on contrived multi-line strings, never false negatives). Once a
-  // real (non-string) `//` comment start is seen before idx, the rest of the line is
-  // a comment and any quotes in it (e.g. an apostrophe) are ignored, so idx is never
-  // reported as "inside a string" merely because of a quote in a trailing comment.
+  // on its own advisory text). Not a lexer: a multi-line template literal opened on an
+  // earlier line is invisible (real suppressions are single-line `//` comments, so this
+  // only risks false positives on contrived multi-line strings, never false negatives).
+  // A `/regex/` literal is recognized and its content (including quotes inside, e.g. an
+  // apostrophe) is skipped without toggling string state. Once a real (non-string) `//`
+  // comment start is seen before idx, the rest of the line is a comment and any quotes
+  // in it are ignored, so idx is never reported as "inside a string" merely because of
+  // a quote in a trailing comment.
   let i = 0;
   let inStr = false;
   let quote = '';
@@ -114,6 +127,15 @@ function isInsideStringLiteral(line, idx) {
       continue;
     }
     if (ch === '/' && line[i + 1] === '/') return false;
+    if (isRegexLiteralStart(line, i)) {
+      let j = i + 1;
+      while (j < line.length && line[j] !== '/') {
+        if (line[j] === '\\') { j += 2; continue; }
+        j += 1;
+      }
+      i = j + 1;
+      continue;
+    }
     if (ch === '`' || ch === '"' || ch === "'") { inStr = true; quote = ch; }
     i += 1;
   }
