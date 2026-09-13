@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.20'
+doc_version: '2.0.21'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -279,6 +279,15 @@ Nightly, so an epilogue change is visible there, not in T1.
 | `gate`                    | `build-reactor` (maven), or — (others)                     | Checkout, setup, lint, format check, unit tests, audit               |
 | `human-approval-required` | —                                                          | Verify PR has `human-approved` label (INV-74)                        |
 | `ci-required`             | `gate`, `human-approval-required`, `build-reactor` (maven) | Status check target for branch protection                            |
+
+> **Release workflow on self-hosted runners (#2673):** the full-history secret scan sets
+> `GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'` on the `gitleaks-action` step — the action otherwise
+> uploads its SARIF as an artifact even when no leak is found, and that upload fails on a
+> self-hosted runner whose workspace is not under `$HOME`; the scan itself stays blocking. The SLSA
+> generator is called with `private-repository: true` because the repository is private and its
+> name is already public through the npm trusted-publisher metadata of `@getarbiter/cli`. The
+> mutation job runs Stryker in place on `vitest.stryker.config.ts`; suites that cannot run under
+> its single-worker pool are listed there with the reason.
 
 > **Gitleaks scan scope (#1908):** `security-early-fail`'s `gitleaks detect` call (and the
 > matching L2 check in `scripts/check-all.mjs`) passes `--log-opts="HEAD"`. Without it, gitleaks
