@@ -578,4 +578,89 @@ describe('check-fail-closed-audit', () => {
       expect(written.files).toEqual([])
     })
   })
+
+  // ── #2577: a quote inside a regex literal desyncs the masker and blanks the rest ──
+  // of the file, hiding every catch below it. Proven by inversion at three positions
+  // relative to the first quote-bearing regex in the same file.
+
+  describe('#2577 quote-bearing regex desync', () => {
+    /** A catch swallow planted at `label`, both before and after a `/['"]/`-style regex. */
+    function fixtureWithRegexAt(label: 'before' | 'after' | 'atEnd'): string {
+      const lines = [
+        '#!/usr/bin/env node',
+        "import { runCheck } from '../scripts/lib/run-helpers.mjs'",
+        '',
+      ]
+      if (label === 'before') {
+        lines.push('function before() {', '  try {', '    a()', '  } catch {', '  }', '}')
+      }
+      lines.push(
+        'const siteRe = /[\'"]/g',
+        'const classRe = /[^\'"]+/g',
+        'runCheck(siteRe, classRe)',
+      )
+      if (label === 'after') {
+        lines.push('function after() {', '  try {', '    b()', '  } catch {', '  }', '}')
+      }
+      if (label === 'atEnd') {
+        lines.push('function atEnd() {', '  try {', '    c()', '  } catch {', '  }', '}')
+      }
+      return lines.join('\n') + '\n'
+    }
+
+    it.each(['before', 'after', 'atEnd'] as const)(
+      'AC-1: a bare catch{} planted %s the quote-bearing regex is reported',
+      (label) => {
+        writeFileSync(join(env.root, 'scripts', `probe-${label}.mjs`), fixtureWithRegexAt(label))
+        const r = runAudit(env.root)
+        expect(r.status).toBe(1)
+        expect(r.stdout).toContain(`probe-${label}.mjs`)
+        expect(r.stdout).toContain('node-swallowed-catch')
+      },
+    )
+
+    it('AC-2: masker does not desync on /[\'"]/,  /[^\'"]+/, an apostrophe in a comment, or a division', () => {
+      writeFileSync(
+        join(env.root, 'scripts', 'mixed.mjs'),
+        [
+          '#!/usr/bin/env node',
+          "import { runCheck } from '../scripts/lib/run-helpers.mjs'",
+          'const siteRe = /[\'"]/g',
+          'const classRe = /[^\'"]+/g',
+          "const y = 10 / 2 // it's a division, not a regex",
+          'runCheck(siteRe, classRe, y)',
+          'try {',
+          '  doThing()',
+          '} catch {',
+          '}',
+          '',
+        ].join('\n'),
+      )
+      const r = runAudit(env.root)
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('mixed.mjs')
+      expect(r.stdout).toContain('node-swallowed-catch')
+    })
+
+    it('AC-3: an unclosed string literal that blanks the rest of the file is an ERROR, not a quiet pass', () => {
+      writeFileSync(
+        join(env.root, 'scripts', 'desynced.mjs'),
+        [
+          '#!/usr/bin/env node',
+          "const oops = 'never closed",
+          'function tail() {',
+          '  try {',
+          '    a()',
+          '  } catch {',
+          '  }',
+          '}',
+          'tail()',
+          '',
+        ].join('\n'),
+      )
+      const r = runAudit(env.root)
+      expect(r.status).toBe(2)
+      expect(r.stderr).toContain('desynced.mjs')
+    })
+  })
 })
