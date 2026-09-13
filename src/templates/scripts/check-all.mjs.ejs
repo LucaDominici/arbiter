@@ -107,10 +107,9 @@ let level = 'L2';
 let jsonPath = null;
 let dryRun = false; // #2078: print-what-would-run, spawn nothing
 let only = null; // #2078: --gate <name>, re-run a single check
-let allowLocalChecks = process.env.ARBITER_ALLOW_LOCAL_CHECKS === '1'; // #2679: explicit opt-in only
 const _rawArgs = process.argv.slice(2);
 const _gateUsage =
-  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>] [--allow-local-checks]';
+  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>]';
 function _gateFatal(_msg) {
   console.error(`[GATE] FATAL: ${_msg}`);
   console.error(`[GATE] ${_gateUsage}`);
@@ -133,8 +132,6 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
     level = _val;
   } else if (_a === '--dry-run') {
     dryRun = true;
-  } else if (_a === '--allow-local-checks') {
-    allowLocalChecks = true;
   } else if (_a === '--gate') {
     const _g = _rawArgs[_i + 1];
     if (!_g || _g.startsWith('-')) _gateFatal('--gate requires a check name');
@@ -1695,17 +1692,33 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
   if (!existsSync(_localSlotPath)) {
     console.log('[CHECK] local checks ... SKIP (scripts/check-all.local.json absent)');
     pushResult('local checks', 'SKIP', 0);
-  } else if (!allowLocalChecks) {
-    // #2679: a poisoned repository ships scripts/check-all.local.json and any
-    // developer who runs check-all executes arbitrary cmd[0]+args from it. The
-    // file's mere presence is repository-controlled (an attacker controls it),
-    // so it can never be the trust boundary; require an opt-in the repository
-    // cannot set on its own — an env var (CI) or a CLI flag (a human, one run
-    // at a time). Fail closed: absent opt-in, print and SKIP, never execute.
+  } else if (
+    !(() => {
+      // #2679: a poisoned repository ships scripts/check-all.local.json and any
+      // developer who runs check-all executes arbitrary cmd[0]+args from it. The
+      // file's mere presence is repository-controlled (an attacker controls it),
+      // so it can never be the trust boundary — and neither can an env var or CLI
+      // flag: both are equally settable from a repo-controlled npm "scripts"
+      // launcher (`"gate": "ARBITER_ALLOW_LOCAL_CHECKS=1 node scripts/check-all.mjs"`
+      // or `"gate": "node scripts/check-all.mjs --allow-local-checks"`), so a
+      // poisoned repo can grant its own opt-in the same way it ships the payload.
+      // The one signal a tracked file cannot carry is state that lives OUTSIDE
+      // tracked content: a git config key (`--local`, in `.git/config`, never
+      // committed, or `--global`, outside the repo entirely). Read-only, no
+      // shell (`spawnSync(..., { shell: false })`); a git/config-read failure
+      // (no git, no repo, key unset) fails closed to "not opted in".
+      const _cfg = spawnSync('git', ['config', '--get', 'arbiter.allowLocalChecks'], {
+        cwd: dirname(_localSlotPath),
+        encoding: 'utf-8',
+        shell: false,
+      });
+      return _cfg.status === 0 && _cfg.stdout.trim() === 'true';
+    })()
+  ) {
     console.log(
       '[CHECK] local checks ... SKIP (scripts/check-all.local.json present but ' +
-        'ARBITER_ALLOW_LOCAL_CHECKS is not set — set ARBITER_ALLOW_LOCAL_CHECKS=1 or pass ' +
-        '--allow-local-checks to run it)',
+        'arbiter.allowLocalChecks is not set — run `git config --local arbiter.allowLocalChecks ' +
+        'true` to run it)',
     );
     pushResult('local checks', 'SKIP', 0);
   } else {
