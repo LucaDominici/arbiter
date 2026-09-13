@@ -1,18 +1,16 @@
 {
   "$schemaVersion": 1,
   "task_id": "#2663",
-  "test_path": "__tests__/integration/check-no-orphan-todo-language-aware.test.ts",
-  "test_commit_sha": "c40339dccdb4b4f0468f027329aae0b947d6983e",
-  "test_blob_sha": "75e764132a018d711d5694c430c9a881f37e4ed1",
-  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/integration/check-no-orphan-todo-language-aware.test.ts (4 tests | 1 failed) 83ms\n     × multi: a Java orphan TODO under a nonstandard dir is scanned and flagged 25ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 3 passed (4)\n   Start at  02:37:58\n   Duration  307ms (transform 117ms, setup 13ms, import 148ms, tests 83ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/integration/check-no-orphan-todo-language-aware.test.ts > #2663 check-no-orphan-todo.mjs.ejs is language-aware > multi: a Java orphan TODO under a nonstandard dir is scanned and flagged\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/integration/check-no-orphan-todo-language-aware.test.ts:87:25\n     85|     )\n     86|     const gate = runGate(dir)\n     87|     expect(gate.status).toBe(1)\n       |                         ^\n     88|     expect(gate.stdout).toContain('services/billing/Invoice.java')\n     89|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
-  "observed_failure": "FAIL  __tests__/integration/check-no-orphan-todo-language-aware.test.ts",
-  "recorded_at": "2026-09-13T00:37:58.340Z",
+  "test_path": "__tests__/scripts/consumer-reliability-bar.test.ts",
+  "test_commit_sha": "60db9a1d32694618c6d8d9026c97dcdb7b37bb73",
+  "test_blob_sha": "6355a651224c8a7dccfeb1fd7cea3ff1b86495cc",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/scripts/consumer-reliability-bar.test.ts (49 tests | 1 failed) 32ms\n     × accounts for the #2663 orphan-TODO gate in every pinned consumer surface 7ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 48 passed (49)\n   Start at  04:21:22\n   Duration  357ms (transform 120ms, setup 16ms, import 126ms, tests 32ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/consumer-reliability-bar.test.ts > consumer reliability bar oracles (#2135) > accounts for the #2663 orphan-TODO gate in every pinned consumer surface\nAssertionError: expected '1 emitted check(s) unaccounted: orpha…' not to match /unaccounted/\n\n- Expected:\n/unaccounted/\n\n+ Received:\n\"1 emitted check(s) unaccounted: orphan TODOs (INV-21)\"\n\n ❯ __tests__/scripts/consumer-reliability-bar.test.ts:305:33\n    303|         debtRegister: { ceiling: entry.debtCeiling, openIssues: ['#229…\n    304|       })\n    305|       expect(result.detail).not.toMatch(/unaccounted/)\n       |                                 ^\n    306|     }\n    307|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/consumer-reliability-bar.test.ts",
+  "recorded_at": "2026-09-13T02:21:22.610Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
-    "-c",
-    "vitest.integration.config.ts",
-    "__tests__/integration/check-no-orphan-todo-language-aware.test.ts"
+    "__tests__/scripts/consumer-reliability-bar.test.ts"
   ]
 }
