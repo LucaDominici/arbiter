@@ -96,6 +96,32 @@ function isSuppressed(ids, allowlist, now) {
 }
 
 /**
+ * Top-level shape check for an `npm audit --json` payload, run before any content is
+ * trusted (#2515). Returns the failure reason, or null for a well-formed report.
+ *
+ * @param {unknown} auditJson
+ * @returns {'malformed' | 'registry-unreachable' | null}
+ */
+function reportShapeFault(auditJson) {
+  if (auditJson === null || typeof auditJson !== 'object') return 'malformed'
+  const obj = /** @type {Record<string, unknown>} */ (auditJson)
+  // npm audit surfaces a failed invocation (registry unreachable, auth, etc.) as
+  // `{ error: {...} }` instead of the `{ vulnerabilities, metadata }` report shape —
+  // a distinct failure mode from a genuinely unrecognised/corrupt payload (#2515
+  // AC-2). Same fail-closed exit code either way (INV-96); only the message differs.
+  if (isPlainObject(obj.error) && !('vulnerabilities' in obj) && !('metadata' in obj)) {
+    return 'registry-unreachable'
+  }
+  // A well-formed npm-audit report ALWAYS carries `vulnerabilities` as a plain
+  // object keyed by package name — never absent, `null`, or an array. A valid
+  // clean audit is `{ vulnerabilities: {}, metadata: {...} }`: an empty
+  // vulnerabilities OBJECT is CLEAN, not errored — but metadata-only,
+  // `vulnerabilities: null`, and array payloads are all malformed, not "clean
+  // with zero findings" (diff-review round 1, #2515).
+  return isPlainObject(obj.vulnerabilities) ? null : 'malformed'
+}
+
+/**
  * Pure classifier over an `npm audit --json` payload (npm v7+ schema: `vulnerabilities`
  * is an OBJECT keyed by package name, not an array) plus a disposition allowlist.
  * Side-effect-free and unit-testable without spawning npm.
@@ -106,32 +132,9 @@ function isSuppressed(ids, allowlist, now) {
  * @returns {{ unsuppressed: Array<{ package: string, severity: string, ids: string[] }>, errored: boolean, reason?: 'malformed' | 'registry-unreachable' | 'empty-tree' }}
  */
 export function classifyConsumerAudit(auditJson, allowlist, now) {
-  if (auditJson === null || typeof auditJson !== 'object') {
-    return { unsuppressed: [], errored: true, reason: 'malformed' }
-  }
+  const shapeFault = reportShapeFault(auditJson)
+  if (shapeFault) return { unsuppressed: [], errored: true, reason: shapeFault }
   const obj = /** @type {Record<string, unknown>} */ (auditJson)
-  // npm audit surfaces a failed invocation (registry unreachable, auth, etc.) as
-  // `{ error: {...} }` instead of the `{ vulnerabilities, metadata }` report shape —
-  // a distinct failure mode from a genuinely unrecognised/corrupt payload (#2515
-  // AC-2). Same fail-closed exit code either way (INV-96); only the message differs.
-  if (
-    obj.error !== null &&
-    typeof obj.error === 'object' &&
-    !('vulnerabilities' in obj) &&
-    !('metadata' in obj)
-  ) {
-    return { unsuppressed: [], errored: true, reason: 'registry-unreachable' }
-  }
-  // A well-formed npm-audit report ALWAYS carries `vulnerabilities` as a plain
-  // object keyed by package name — never absent, `null`, or an array. A valid
-  // clean audit is `{ vulnerabilities: {}, metadata: {...} }`: an empty
-  // vulnerabilities OBJECT is CLEAN, not errored — but metadata-only,
-  // `vulnerabilities: null`, and array payloads are all malformed, not "clean
-  // with zero findings" (diff-review round 1, #2515): a raw key/entry count is
-  // never evidence of validity until the shape backing it is checked first.
-  if (!isPlainObject(obj.vulnerabilities)) {
-    return { unsuppressed: [], errored: true, reason: 'malformed' }
-  }
   const vulnerabilities = /** @type {Record<string, unknown>} */ (obj.vulnerabilities)
 
   const unsuppressed = []
