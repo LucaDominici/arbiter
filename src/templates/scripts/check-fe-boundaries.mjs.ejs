@@ -38,16 +38,75 @@ const HTTP_PATTERNS = [
 
 // Inline exemption (#2671): a fetch that is legitimately non-JSON (binary file
 // download, internal sync with a typed snapshot) can carry an explicit
-// `arbiter-allow-raw-fetch: <reason>` marker on the same line. A rationale is
-// required — a bare marker with no reason (or a token-only one) does not
-// suppress the violation, so the escape hatch cannot become a blanket bypass.
+// `// arbiter-allow-raw-fetch: <reason>` marker in a REAL trailing comment on the
+// same line. The marker must sit after an actual `//` comment start (not inside a
+// string literal — a quoted example of the marker does not suppress anything), and
+// the reason must be a real rationale: at least 3 words, or at least
+// RAW_FETCH_EXEMPTION_REASON_MIN_LEN characters containing both a letter and a
+// space. A bare marker, a token with no space (e.g. "aaaaaaaaaa"), or the marker
+// text appearing only inside a string does not suppress the violation, so the
+// escape hatch cannot become a blanket bypass.
 const RAW_FETCH_EXEMPTION_RE = /arbiter-allow-raw-fetch:\s*(.+)/
 const RAW_FETCH_EXEMPTION_REASON_MIN_LEN = 10
 
+// Per-line string-state tracker (documented limit, #2671): does not understand
+// regex/template literals spanning lines; sufficient to tell a quoted example of
+// the marker from a real inline comment.
+function isInsideStringAt(line, idx) {
+  let i = 0
+  let inStr = false
+  let quote = ''
+  while (i < idx) {
+    const ch = line[i]
+    if (inStr) {
+      if (ch === '\\') {
+        i += 2
+        continue
+      }
+      if (ch === quote) {
+        inStr = false
+        quote = ''
+      }
+      i += 1
+      continue
+    }
+    if (ch === '`' || ch === '"' || ch === "'") {
+      inStr = true
+      quote = ch
+    }
+    i += 1
+  }
+  return inStr
+}
+
+// Finds the start of the first `//` on the line that is itself not inside a
+// string literal — i.e. a real comment start, not a `//` that is just text
+// inside a quoted string. Returns -1 if there is none.
+function findRealCommentStart(line) {
+  let idx = line.indexOf('//')
+  while (idx !== -1) {
+    if (!isInsideStringAt(line, idx)) return idx
+    idx = line.indexOf('//', idx + 1)
+  }
+  return -1
+}
+
+function isRealRationale(reason) {
+  const wordCount = reason.split(/\s+/).filter(Boolean).length
+  if (wordCount >= 3) return true
+  return (
+    reason.length >= RAW_FETCH_EXEMPTION_REASON_MIN_LEN &&
+    /[a-zA-Z]/.test(reason) &&
+    /\s/.test(reason)
+  )
+}
+
 function hasRawFetchExemption(line) {
-  const match = RAW_FETCH_EXEMPTION_RE.exec(line)
+  const commentStart = findRealCommentStart(line)
+  if (commentStart === -1) return false
+  const match = RAW_FETCH_EXEMPTION_RE.exec(line.slice(commentStart))
   if (!match) return false
-  return match[1].trim().length >= RAW_FETCH_EXEMPTION_REASON_MIN_LEN
+  return isRealRationale(match[1].trim())
 }
 
 // Patterns that signal browser globals in domain/store (INV-103)

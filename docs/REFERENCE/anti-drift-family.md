@@ -72,9 +72,12 @@ generator is disabled, so the script is never double-written.
 - `check-ssot-core.mjs`, `check-suppressions.mjs`, `check-inline-suppressions.mjs` — owned by the
   ssot / suppressions generators, which always run; anti-drift no longer double-emits them (#1318.2).
   `check-inline-suppressions.mjs` skips an `arbiter-suppress(...)`-shaped match that is inside a
-  string literal (advisory/help text, not a real directive), and the sibling FE boundary gate
-  (`check-fe-boundaries.mjs`, INV-102/103/104) honors a rationale-required inline
-  `arbiter-allow-raw-fetch: <reason>` marker on the flagged line (#2671).
+  string literal (advisory/help text, not a real directive) and examines every match on a line, not
+  just the first; and the sibling FE boundary gate (`check-fe-boundaries.mjs`, INV-102/103/104)
+  honors an `// arbiter-allow-raw-fetch: <reason>` marker in a real trailing comment on the flagged
+  line — the marker is rejected inside a string literal, and the reason must be a real rationale
+  (at least 3 words, or 10+ characters containing both a letter and a space), not a bare marker or a
+  single token (#2671).
 - `check-governance-mirror-sync.mjs` — arbiter-self meta-gate (Track A only, L1): asserts
   `website/governance/AGENTS.md` is a byte-for-byte mirror of root `AGENTS.md`, i.e. that
   `scripts/sync-public-governance.mjs` was re-run after any AGENTS.md edit (#1805). Targets have

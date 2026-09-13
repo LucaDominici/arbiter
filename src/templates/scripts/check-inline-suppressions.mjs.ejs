@@ -90,11 +90,18 @@ function parseArgs(argsStr) {
 }
 
 function isInsideStringLiteral(line, idx) {
-  // Single-line string-state tracker (#2671): walk from line start to idx, toggling
-  // in-string state on unescaped ', ", or `. Directives only count when in a real `//`
-  // comment — not when the syntax appears as text inside a string literal (e.g. a hook
-  // file documenting the directive format in a template string, which would otherwise be
-  // parsed as a real, malformed directive and FAIL the gate on its own advisory text).
+  // Single-line string-state tracker (documented limit, #2671): walks from line start
+  // to idx, toggling in-string state on unescaped ', ", or `. Directives only count
+  // when in a real `//` comment — not when the syntax appears as text inside a string
+  // literal (e.g. a hook file documenting the directive format in a template string,
+  // which would otherwise be parsed as a real, malformed directive and FAIL the gate
+  // on its own advisory text). Not a lexer: a quote inside a /regex/ literal is not
+  // recognized, and a multi-line template literal opened on an earlier line is
+  // invisible (real suppressions are single-line `//` comments, so this only risks
+  // false positives on contrived multi-line strings, never false negatives). Once a
+  // real (non-string) `//` comment start is seen before idx, the rest of the line is
+  // a comment and any quotes in it (e.g. an apostrophe) are ignored, so idx is never
+  // reported as "inside a string" merely because of a quote in a trailing comment.
   let i = 0;
   let inStr = false;
   let quote = '';
@@ -106,6 +113,7 @@ function isInsideStringLiteral(line, idx) {
       i += 1;
       continue;
     }
+    if (ch === '/' && line[i + 1] === '/') return false;
     if (ch === '`' || ch === '"' || ch === "'") { inStr = true; quote = ch; }
     i += 1;
   }
@@ -136,23 +144,24 @@ function scanFile(filePath, counters) {
   const lines = content.split('\n');
   for (let i = 0; i < lines.length; i++) {
     DIRECTIVE_RE.lastIndex = 0;
-    const match = DIRECTIVE_RE.exec(lines[i]);
-    if (!match) continue;
-    if (isInsideStringLiteral(lines[i], match.index)) continue;
-    const label = `${filePath}:${i + 1}`;
-    const parsed = parseDirective(match[1]);
-    if (!parsed || !parsed.invId) {
-      process.stderr.write(`[FAIL] ${label} — missing or malformed INV-NN identifier\n`);
-      counters.failed++;
-      continue;
+    let match;
+    while ((match = DIRECTIVE_RE.exec(lines[i])) !== null) {
+      if (isInsideStringLiteral(lines[i], match.index)) continue;
+      const label = `${filePath}:${i + 1}`;
+      const parsed = parseDirective(match[1]);
+      if (!parsed || !parsed.invId) {
+        process.stderr.write(`[FAIL] ${label} — missing or malformed INV-NN identifier\n`);
+        counters.failed++;
+        continue;
+      }
+      if (!KNOWN_INV_IDS.has(parsed.invId)) {
+        process.stderr.write(`[FAIL] ${label} — unknown invariant ID: ${parsed.invId}\n`);
+        counters.failed++;
+        continue;
+      }
+      validateEntry({ reason: parsed.reason, owner: parsed.owner, expiresAt: parsed.until },
+        label, filePath, counters);
     }
-    if (!KNOWN_INV_IDS.has(parsed.invId)) {
-      process.stderr.write(`[FAIL] ${label} — unknown invariant ID: ${parsed.invId}\n`);
-      counters.failed++;
-      continue;
-    }
-    validateEntry({ reason: parsed.reason, owner: parsed.owner, expiresAt: parsed.until },
-      label, filePath, counters);
   }
 }
 
