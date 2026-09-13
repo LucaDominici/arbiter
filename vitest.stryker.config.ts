@@ -21,6 +21,12 @@ export default mergeConfig(base, {
       '__tests__/commands/explain.test.ts',
       '__tests__/commands/explain-handoff.test.ts',
       '__tests__/integrations/companions.test.ts',
+      // Stubs HOME/USERPROFILE (vi.stubEnv) to fake a Codex auth.json under a tmp dir. Hermetic
+      // under the forks pool T1 uses (one process per file), but the threads pool this config
+      // forces shares process.env across concurrently-running files in the same worker, so the
+      // stub can race with a real HOME lookup elsewhere — not a real Codex-login dependency.
+      // Zero overlap with the `mutate` targets above, so this costs no mutation coverage.
+      '__tests__/commands/doctor.test.ts',
     ],
   },
 })
