@@ -150,6 +150,10 @@ function collectDirShapedTestFiles(root) {
     let dirStat
     try {
       dirStat = statSync(dir)
+      // Pure tree-walk helper mirroring the identical, already-exempted pattern in
+      // scripts/lib/glob-walk.mjs's own `visit` — the consumer (main(), below) owns the actual
+      // fail-closed exit contract for what it reads.
+      // FAIL-OPEN-INTENT: skip one inaccessible dir and keep walking siblings.
     } catch {
       return
     }
@@ -159,6 +163,7 @@ function collectDirShapedTestFiles(root) {
     let entries
     try {
       entries = readdirSync(dir)
+      // FAIL-OPEN-INTENT: skip one inaccessible dir and keep walking siblings (see above).
     } catch {
       return
     }
@@ -168,6 +173,7 @@ function collectDirShapedTestFiles(root) {
       let stat
       try {
         stat = lstatSync(full)
+        // FAIL-OPEN-INTENT: skip one inaccessible entry and keep walking siblings (see above).
       } catch {
         continue
       }
@@ -207,7 +213,11 @@ function main() {
       content = readFileSync(file, 'utf-8')
     } catch (err) {
       // Fail closed: an unreadable test file is a FAIL naming the path, never a silent skip.
-      violations.push(`  ${file}: unreadable — ${err?.message ?? err}`)
+      // Surfaced immediately (not only in the aggregate summary below) so `stderr` carries the
+      // specific failure even if a later file in the loop throws unexpectedly.
+      const detail = `  ${file}: unreadable — ${err?.message ?? err}`
+      process.stderr.write(`check-vacuous-optional-assertion: ${detail.trim()}\n`)
+      violations.push(detail)
       continue
     }
     const rawLines = content.split('\n')
