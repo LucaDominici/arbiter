@@ -5,7 +5,7 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 4400013,
+    "unpackedSize": 4400499,
     "entryCount": 991,
     "rosterSha256": "d775f6f99ebc60d65bc97aed0ff92ebbbf59dcda7c1937336af223db4f140142"
   },
@@ -84,8 +84,8 @@
     "task_id": "#2663+#2662",
     "reason": "batch-3 integration: dist/commands/ignore.js (#2662) + dist/templates/scripts/check-no-orphan-todo.mjs.ejs (#2663) enter the roster",
     "before": {
-      "entryCount": 990,
-      "templates": 644,
+      "entryCount": 991,
+      "templates": 645,
       "spdx": 282
     },
     "after": {
