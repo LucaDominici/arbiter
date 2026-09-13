@@ -215,6 +215,29 @@ function scaffoldRow(
 }
 
 /**
+ * The presence payload to plan from, or null for the one honest no-op: §1.2(e) a fresh
+ * `init --dry-run` has no manifest on disk yet, so the engine SKIPs (plain text) with exit 0.
+ * Any other missing payload is an engine failure (#2504) and throws rather than pass as that no-op.
+ */
+function presenceAudit(
+  repo: string,
+  opts: { manifest?: string; profile?: string },
+): DocSetPayload | null {
+  const audit = runDocSet({
+    repo,
+    json: true,
+    quiet: true,
+    ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
+    ...(opts.profile !== undefined ? { profile: opts.profile } : {}),
+  })
+  if (audit.exitCode === 0 && audit.skipReason !== undefined) return null
+  if (audit.route !== 'presence' || !audit.payload) {
+    throw new Error(`doc-set: presence audit failed (exit ${audit.exitCode}) — no plan computed`)
+  }
+  return audit.payload
+}
+
+/**
  * Generate real per-doc-type skeletons for every gap the engine reports, right-sized by tier.
  * Registered in registry.ts (key `doc-set-skeletons`) for the init/update/diff pipeline; also
  * invoked standalone by `arbiter doc-set --plan/--apply` via {@link runDocSetPlanApply} below.
@@ -228,17 +251,8 @@ export function generateDocSetSkeletons(
   const unbound: string[] = []
   const repo = config.targetDir
 
-  const audit = runDocSet({
-    repo,
-    json: true,
-    quiet: true,
-    ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
-    ...(opts.profile !== undefined ? { profile: opts.profile } : {}),
-  })
-  // §1.2(e) dry-run edge: a fresh `init --dry-run` has no manifest on disk yet, so the engine
-  // SKIPs (plain-text, not JSON) and `payload` is null — honest no-op, not a phantom plan.
-  if (audit.route !== 'presence' || !audit.payload) return { files, scaffolded, unbound }
-  const { payload } = audit
+  const payload = presenceAudit(repo, opts)
+  if (payload === null) return { files, scaffolded, unbound }
 
   const ctx: RowContext = {
     repo,
