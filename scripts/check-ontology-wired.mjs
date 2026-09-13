@@ -69,6 +69,15 @@ export function gateWiredIn(rosterText, gatePath) {
   return rosterText.includes(basename(gatePath))
 }
 
+/**
+ * The `hook` column's per-track legs. A plain string is the shorthand for "same value on every
+ * track the row wants" (unchanged); `{ self, target }` names each leg independently, for a `both`
+ * row whose hook exists on only one side (#2554).
+ */
+export function hookLegs(s) {
+  return typeof s.hook === 'object' && s.hook !== null ? s.hook : { self: s.hook, target: s.hook }
+}
+
 /** Ratchet counters: how much of the ontology is not yet behaviour. */
 export function countUnwired(schemes) {
   const counts = { staged: 0, naGate: 0, naTool: 0, naHook: 0 }
@@ -76,7 +85,14 @@ export function countUnwired(schemes) {
     if (s.status === 'staged') counts.staged += 1
     if (s.gate === 'n/a') counts.naGate += 1
     if (s.tool === 'n/a') counts.naTool += 1
-    if (s.hook === 'n/a') counts.naHook += 1
+    if (typeof s.hook === 'object' && s.hook !== null) {
+      // A per-track object counts each declined leg on its own — a `both` row that fires on
+      // self and declines target is one unwired leg, not a whole unwired row (#2554).
+      if (s.hook.self === 'n/a') counts.naHook += 1
+      if (s.hook.target === 'n/a') counts.naHook += 1
+    } else if (s.hook === 'n/a') {
+      counts.naHook += 1
+    }
   }
   return counts
 }
@@ -163,15 +179,20 @@ function toolViolations(s, where, cli) {
  * the SSOT is a path. Any other hook is a phase or event guard with no per-artifact table to
  * consult, and demanding one would be inventing a contract to satisfy a check.
  *
+ * The hook this leg checks is arbiter-internal (its REGISTERED table holds arbiter's own paths,
+ * no emitted twin exists), so it only ever reads the SELF leg — a `both` row's `target` leg names
+ * a different (or absent) mechanism and has nothing for this check to import (#2554).
+ *
  * Fails OPEN if the table cannot be read: a meta-gate that goes red because it could not import a
  * hook is reporting on itself, not on the registry.
  */
 async function hookCoverageViolations(s, where, root) {
-  if (s.hook === 'n/a' || basename(s.hook) !== ARTIFACT_SCHEMA_HOOK) return []
+  const hookPath = hookLegs(s).self
+  if (hookPath === 'n/a' || basename(hookPath) !== ARTIFACT_SCHEMA_HOOK) return []
   if (!s.ssot || s.ssot === 'github' || !existsSync(join(root, s.ssot))) return []
   let selectEntry
   try {
-    ;({ selectEntry } = await import(pathToFileURL(join(root, s.hook)).href))
+    ;({ selectEntry } = await import(pathToFileURL(join(root, hookPath)).href))
     // FAIL-OPEN-INTENT: a meta-gate that goes red because it could not import a hook is reporting on itself, not on the registry; leg 3 has already proven the file exists and is registered.
   } catch {
     return []
@@ -184,7 +205,7 @@ async function hookCoverageViolations(s, where, root) {
     : [rel]
   if (candidates.some((c) => selectEntry(c) !== undefined)) return []
   return [
-    `${where}: hook ${basename(s.hook)} does not cover ${s.ssot} — its REGISTERED table matches ` +
+    `${where}: hook ${basename(hookPath)} does not cover ${s.ssot} — its REGISTERED table matches ` +
       `nothing at that path, so the hook this row claims would never fire on an instance`,
   ]
 }
@@ -213,24 +234,49 @@ function graphNodeViolations(s, where, root) {
   ]
 }
 
-/** Leg 3: the hook exists AND is registered — an unregistered hook never fires. */
+/**
+ * Leg 3: the hook exists AND is registered — an unregistered hook never fires.
+ *
+ * A `{ self, target }` object resolves each leg on its own value and its own side, so a `both`
+ * row that fires on self and declines target is checked accordingly: the declined leg asks for
+ * nothing, rather than demanding a target-side registration of a hook that was never claimed
+ * there (#2554). A plain string still checks the SAME path on whichever side(s) `track` wants.
+ */
+/** One leg's existence + registration check, repo-relative path in every message. */
+function hookLegViolations(where, wanted, path, root, settingsText, settingsRel, isSelf) {
+  if (!wanted || path === 'n/a') return []
+  if (!existsSync(join(root, path))) return [`${where}: hook ${path} does not exist`]
+  if (settingsText.includes(basename(path))) return []
+  return isSelf
+    ? [
+        `${where}: hook ${basename(path)} exists but is not registered in ${settingsRel} — ` +
+          `an unregistered hook never fires`,
+      ]
+    : [`${where}: hook ${basename(path)} is not registered in ${settingsRel} (CANON-10/CANON-14)`]
+}
+
 function hookViolations(s, where, wants, root, surfaces) {
-  if (s.hook === 'n/a') return []
-  if (!existsSync(join(root, s.hook))) return [`${where}: hook ${s.hook} does not exist`]
-  const hookName = basename(s.hook)
-  const out = []
-  if (wants.self && !surfaces.selfSettings.includes(hookName)) {
-    out.push(
-      `${where}: hook ${hookName} exists but is not registered in ${SELF_SETTINGS} — ` +
-        `an unregistered hook never fires`,
-    )
-  }
-  if (wants.target && !surfaces.targetSettings.includes(hookName)) {
-    out.push(
-      `${where}: hook ${hookName} is not registered in ${TARGET_SETTINGS} (CANON-10/CANON-14)`,
-    )
-  }
-  return out
+  const legs = hookLegs(s)
+  return [
+    ...hookLegViolations(
+      where,
+      wants.self,
+      legs.self,
+      root,
+      surfaces.selfSettings,
+      SELF_SETTINGS,
+      true,
+    ),
+    ...hookLegViolations(
+      where,
+      wants.target,
+      legs.target,
+      root,
+      surfaces.targetSettings,
+      TARGET_SETTINGS,
+      false,
+    ),
+  ]
 }
 
 /** The ratchet: an unwired count may fall freely and may never quietly rise. */

@@ -70,9 +70,19 @@
           "description": "The CLI surface that reads or writes instances, e.g. 'arbiter validate', 'arbiter graph build'. 'n/a' requires a reason in `note`."
         },
         "hook": {
-          "type": "string",
-          "minLength": 3,
-          "description": "Repo-relative path of a .claude hook that enforces this scheme at agent-edit time, or 'n/a' with a reason in `note`."
+          "description": "Repo-relative path of a .claude hook that enforces this scheme at agent-edit time, or 'n/a' with a reason in `note`. A single string applies to every track the row's `track` names (unchanged shorthand). A `both`-track row whose hook exists on only one side declares it per-track instead: `{ \"self\": \"<path or n/a>\", \"target\": \"<path or n/a>\" }` — each leg independently a path or 'n/a'.",
+          "oneOf": [
+            { "type": "string", "minLength": 3 },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["self", "target"],
+              "properties": {
+                "self": { "type": "string", "minLength": 3 },
+                "target": { "type": "string", "minLength": 3 }
+              }
+            }
+          ]
         },
         "status": {
           "type": "string",

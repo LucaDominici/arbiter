@@ -269,13 +269,26 @@ function parseArgs(argv) {
   return { dir, today }
 }
 
+/**
+ * The `hook` column's per-track legs. A plain string is the shorthand for "same value on every
+ * track the row wants" (unchanged); the `{ self, target }` object names each leg independently,
+ * for a `both` row whose hook exists on only one side (#2554).
+ */
+function hookLegs(s) {
+  return typeof s.hook === 'object' && s.hook !== null ? s.hook : { self: s.hook, target: s.hook }
+}
+
 /** An `n/a` leg, and any staged/retired status, must carry a written reason. */
 function exemptionViolations(s, where) {
   const out = []
-  for (const field of ['gate', 'tool', 'hook']) {
+  for (const field of ['gate', 'tool']) {
     if (s[field] === 'n/a' && !s.note) {
       out.push(`${where}: ${field} is "n/a" with no note — an unreasoned exemption`)
     }
+  }
+  const legs = hookLegs(s)
+  if ((legs.self === 'n/a' || legs.target === 'n/a') && !s.note) {
+    out.push(`${where}: hook is "n/a" with no note — an unreasoned exemption`)
   }
   if ((s.status === 'staged' || s.status === 'retired') && !s.note) {
     out.push(`${where}: status "${s.status}" requires a note explaining it`)
@@ -293,21 +306,42 @@ function stagedViolations(s, where, todayStr) {
   ]
 }
 
+/**
+ * The hook column: a plain string is checked exactly as before (one path, track-derived). The
+ * `{ self, target }` object names each leg's path directly — the row author already states which
+ * track it applies to, so no further track derivation is needed (#2554).
+ */
+function hookPathViolations(s, where, root) {
+  if (typeof s.hook !== 'object' || s.hook === null) {
+    if (s.hook === 'n/a') return []
+    if (existsSync(join(root, resolveTrackPath(s.hook, s.track)))) return []
+    return [
+      `${where}: hook "${s.hook}" does not exist` +
+        (s.track === 'target' ? ` (nor as the Track-B template ${templateTwin(s.hook)})` : ''),
+    ]
+  }
+  const out = []
+  for (const leg of ['self', 'target']) {
+    const value = s.hook[leg]
+    if (value === 'n/a' || existsSync(join(root, value))) continue
+    out.push(`${where}: hook.${leg} "${value}" does not exist`)
+  }
+  return out
+}
+
 /** An ACTIVE row's declared SSOT, gate and hook must all resolve on disk. */
 function pathViolations(s, where, root) {
   const out = []
   if (s.ssot !== 'github' && !existsSync(join(root, s.ssot))) {
     out.push(`${where}: ssot "${s.ssot}" does not exist`)
   }
-  for (const field of ['gate', 'hook']) {
-    const value = s[field]
-    if (value === 'n/a') continue
-    if (existsSync(join(root, resolveTrackPath(value, s.track)))) continue
+  if (s.gate !== 'n/a' && !existsSync(join(root, resolveTrackPath(s.gate, s.track)))) {
     out.push(
-      `${where}: ${field} "${value}" does not exist` +
-        (s.track === 'target' ? ` (nor as the Track-B template ${templateTwin(value)})` : ''),
+      `${where}: gate "${s.gate}" does not exist` +
+        (s.track === 'target' ? ` (nor as the Track-B template ${templateTwin(s.gate)})` : ''),
     )
   }
+  out.push(...hookPathViolations(s, where, root))
   return out
 }
 
