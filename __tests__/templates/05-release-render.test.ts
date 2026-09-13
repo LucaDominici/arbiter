@@ -488,6 +488,25 @@ describe('05-release.yml.ejs — per-language SBOM', () => {
     expect(rendered).toContain('cyclonedxBom')
   })
 
+  // #2673: the cyclonedx-gradle-plugin's `cyclonedxBom` task writes its default JSON output to
+  // build/reports/cyclonedx/bom.json, not build/reports/bom.json. The old mv command silently
+  // missed the file and `|| true` hid the failure until sbom-attest (which requires sbom.cdx.json)
+  // failed downstream on a Gradle/Kotlin release. Fail closed: no `|| true` on this step.
+  it.each([
+    ['java', 'gradle'],
+    ['kotlin', 'gradle'],
+  ] as const)(
+    '%s Gradle: sbom step moves the plugin default output path, fails closed',
+    (language, buildTool) => {
+      const rendered = renderRelease({ language, buildTool })
+      const section =
+        rendered.split('Generate CycloneDX SBOM')[1]?.split('actions/upload-artifact')[0] ?? ''
+      expect(section).toContain('mv build/reports/cyclonedx/bom.json sbom.cdx.json')
+      expect(section).not.toContain('|| true')
+      expect(section).not.toContain('build/reports/bom.json')
+    },
+  )
+
   it('Java Maven: cyclonedx:makeAggregateBom', () => {
     const rendered = renderRelease({ language: 'java', buildTool: 'maven' })
     expect(rendered).toContain('cyclonedx:makeAggregateBom')
