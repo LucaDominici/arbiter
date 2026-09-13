@@ -20,14 +20,20 @@
 //   - tag-free: the template content IS the emitted content — prettier-check it directly.
 //   - tag-bearing: emitted content depends on locals a render pass would need to supply;
 //     out of scope here (harder half, should not block the first — issue's own scoping).
-//     Reported as a skipped count, not silently dropped.
+//     Reported as a skipped count, not silently dropped. This gate is arbiter self-only
+//     (scripts/canon01-self-only.json): a target project has no src/templates/, and the
+//     tag-bearing (render-based) half — the other track the issue asks for — is deferred,
+//     not implemented here.
 //
-// Ratchet (mirrors check-template-tests.mjs / INV-48): fails if the count of mis-formatted
-// tag-free templates INCREASES beyond the committed baseline (pre-existing debt found by
-// generalizing past the issue's manually-checked `*.json.ejs` subset) — and fails on an
-// unbanked improvement too, so recovered slots cannot be silently re-filled (#2013 pattern).
+// Ratchet is a sorted LIST of grandfathered mis-formatted template paths
+// (.emitted-formatting-baseline.json), not a bare count — a count is blind to an identity
+// swap (fix one grandfathered file, dirty a different one; the total stays put). Any
+// mis-formatted path NOT in the list is a regression, named. Any grandfathered path that is
+// no longer mis-formatted is an unbanked improvement — it must be removed from the list via
+// --update-baseline, or a fixed site could be silently re-dirtied later (#2013 pattern).
 // Fail-closed: a template prettier cannot even PARSE (throws) counts as mis-formatted and
-// is named in the output, never silently skipped.
+// is named in the output, never silently skipped; a baseline file that fails to parse as
+// the documented shape FAILs closed, naming the baseline file, rather than defaulting open.
 //
 // Update baseline: node scripts/check-emitted-formatting.mjs --update-baseline
 // Usage: node scripts/check-emitted-formatting.mjs [--templates=path] [--baseline=file]
@@ -39,8 +45,8 @@ import { collectEjsFiles } from './check-template-tests.mjs'
 
 /**
  * Check every tag-free, prettier-parsable template under `templatesDir` against
- * `resolveConfig`'s repo config. Returns the mis-formatted templates (repo-relative paths)
- * and the count of tag-bearing templates skipped as out of scope.
+ * `resolveConfig`'s repo config. Returns the mis-formatted templates (repo-relative paths,
+ * sorted) and the count of tag-bearing templates skipped as out of scope.
  */
 export async function collectMisformatted(templatesDir) {
   const ejsFiles = collectEjsFiles(templatesDir)
@@ -72,7 +78,43 @@ export async function collectMisformatted(templatesDir) {
     }
   }
 
+  misformatted.sort((a, b) => a.localeCompare(b))
   return { misformatted, tagFreeCount, tagBearingSkipped }
+}
+
+/**
+ * Load the grandfathered-paths baseline. Returns `{ grandfathered: string[] }` on success,
+ * or `{ error: string }` when the file exists but does not parse as the documented shape —
+ * fail-closed, never a silent default to an empty (or worse, NaN-derived) baseline.
+ * A MISSING file is not an error: it behaves as an empty baseline (nothing grandfathered).
+ */
+export function loadBaseline(baselineFile) {
+  if (!existsSync(baselineFile)) return { grandfathered: [] }
+  const raw = readFileSync(baselineFile, 'utf-8')
+  let parsed
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    return { error: `not valid JSON (${err.message})` }
+  }
+  if (!parsed || !Array.isArray(parsed.grandfathered)) {
+    return { error: 'missing a top-level `grandfathered` array' }
+  }
+  if (!parsed.grandfathered.every((p) => typeof p === 'string')) {
+    return { error: '`grandfathered` must be an array of strings' }
+  }
+  return { grandfathered: parsed.grandfathered }
+}
+
+function writeBaseline(baselineFile, grandfathered) {
+  const body = {
+    _comment:
+      'Pre-existing mis-formatted src/templates/**/*.ejs paths (#2571). The gate fails on any ' +
+      'path here that is now clean (unbanked improvement — remove it) and on any mis-formatted ' +
+      'path NOT here (regression). Regenerate: node scripts/check-emitted-formatting.mjs --update-baseline',
+    grandfathered: [...grandfathered].sort((a, b) => a.localeCompare(b)),
+  }
+  writeFileSync(baselineFile, JSON.stringify(body, null, 2) + '\n')
 }
 
 export async function main() {
@@ -87,65 +129,64 @@ export async function main() {
     : resolve(root, 'src/templates')
   const baselineFile = baselineArg
     ? resolve(baselineArg.split('=')[1])
-    : resolve(root, '.emitted-formatting-baseline.txt')
+    : resolve(root, '.emitted-formatting-baseline.json')
 
   const { misformatted, tagFreeCount, tagBearingSkipped } = await collectMisformatted(templatesDir)
-  const currentCount = misformatted.length
+  const scale = `${misformatted.length}/${tagFreeCount} (${tagFreeCount === 0 ? 0 : Math.round((misformatted.length / tagFreeCount) * 100)}%)`
 
   if (updateBaseline) {
-    writeFileSync(baselineFile, String(currentCount))
+    writeBaseline(baselineFile, misformatted)
     process.stdout.write(
-      `[check-emitted-formatting] Baseline updated to ${currentCount} mis-formatted templates\n`,
+      `[check-emitted-formatting] Baseline updated: ${scale} mis-formatted templates grandfathered\n`,
     )
     process.exit(0)
   }
 
-  let baseline = 0
-  if (existsSync(baselineFile)) {
-    const raw = readFileSync(baselineFile, 'utf-8').trim()
-    baseline = parseInt(raw, 10)
-    // Fail-closed: a blank/malformed baseline must never silently parse to NaN — every
-    // NaN comparison below is false, which would fall through to the OK branch unread.
-    if (!Number.isInteger(baseline)) {
-      process.stdout.write(
-        `[check-emitted-formatting] FAIL: baseline file is not a valid integer: ${baselineFile} (content: ${JSON.stringify(raw)})\n`,
-      )
-      process.exit(1)
+  const baselineResult = loadBaseline(baselineFile)
+  if (baselineResult.error) {
+    process.stdout.write(
+      `[check-emitted-formatting] FAIL: baseline file ${baselineFile} ${baselineResult.error}\n`,
+    )
+    process.exit(1)
+  }
+
+  const grandfathered = new Set(baselineResult.grandfathered)
+  const misformattedSet = new Set(misformatted)
+  const newlyMisformatted = misformatted.filter((p) => !grandfathered.has(p))
+  const nowClean = [...grandfathered]
+    .filter((p) => !misformattedSet.has(p))
+    .sort((a, b) => a.localeCompare(b))
+
+  if (newlyMisformatted.length === 0 && nowClean.length === 0) {
+    process.stdout.write(
+      `[check-emitted-formatting] OK — ${scale} mis-formatted templates, all grandfathered ` +
+        `(${tagBearingSkipped} tag-bearing skipped)\n`,
+    )
+    return
+  }
+
+  if (newlyMisformatted.length > 0) {
+    process.stdout.write(
+      `[check-emitted-formatting] FAIL: regression — ${newlyMisformatted.length} new mis-formatted template(s) not in the baseline:\n`,
+    )
+    for (const f of newlyMisformatted.slice(0, 10)) process.stdout.write(`    ${f}\n`)
+    if (newlyMisformatted.length > 10) {
+      process.stdout.write(`    ... and ${newlyMisformatted.length - 10} more\n`)
     }
   }
 
-  const scale = `${currentCount}/${tagFreeCount} (${tagFreeCount === 0 ? 0 : Math.round((currentCount / tagFreeCount) * 100)}%)`
-
-  if (currentCount < baseline) {
+  if (nowClean.length > 0) {
     process.stdout.write(
-      `[check-emitted-formatting] FAIL: unbanked improvement — ${scale} mis-formatted, below the baseline of ${baseline}.\n`,
+      `[check-emitted-formatting] FAIL: unbanked improvement — ${nowClean.length} grandfathered template(s) are no longer mis-formatted:\n`,
     )
+    for (const f of nowClean.slice(0, 10)) process.stdout.write(`    ${f}\n`)
+    if (nowClean.length > 10) process.stdout.write(`    ... and ${nowClean.length - 10} more\n`)
     process.stdout.write(
       '  Bank it so the recovered slots cannot be silently re-filled: node scripts/check-emitted-formatting.mjs --update-baseline\n',
     )
-    process.exit(1)
   }
 
-  if (currentCount > baseline) {
-    process.stdout.write(
-      `[check-emitted-formatting] FAIL: regression — ${scale} mis-formatted templates (baseline: ${baseline}, ${tagBearingSkipped} tag-bearing skipped)\n`,
-    )
-    process.stdout.write('  New mis-formatted templates (compared to baseline):\n')
-    for (const f of misformatted.slice(0, 10)) {
-      process.stdout.write(`    ${f}\n`)
-    }
-    if (misformatted.length > 10) {
-      process.stdout.write(`    ... and ${misformatted.length - 10} more\n`)
-    }
-    process.stdout.write(
-      '  To update baseline after fixing templates: node scripts/check-emitted-formatting.mjs --update-baseline\n',
-    )
-    process.exit(1)
-  }
-
-  process.stdout.write(
-    `[check-emitted-formatting] OK — ${scale} mis-formatted templates (baseline: ${baseline}, ${tagBearingSkipped} tag-bearing skipped)\n`,
-  )
+  process.exit(1)
 }
 
 if (isMainModule(import.meta.url)) {

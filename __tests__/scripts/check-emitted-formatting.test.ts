@@ -36,10 +36,10 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const tmplDir = join(dir, 'templates')
-      const baseline = join(dir, 'baseline.txt')
+      const baseline = join(dir, 'baseline.json')
       mkdirSync(tmplDir)
       writeFileSync(join(tmplDir, 'clean.json.ejs'), '{ "a": 1 }\n')
-      writeFileSync(baseline, '0')
+      writeFileSync(baseline, JSON.stringify({ grandfathered: [] }))
       expect(run(tmplDir, baseline).status).toBe(0)
     } finally {
       cleanup()
@@ -50,11 +50,11 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const tmplDir = join(dir, 'templates')
-      const baseline = join(dir, 'baseline.txt')
+      const baseline = join(dir, 'baseline.json')
       mkdirSync(tmplDir)
       // Two spaces of indent + no trailing newline — prettier reformats this.
       writeFileSync(join(tmplDir, 'dirty.json.ejs'), '{\n  "a":1\n}')
-      writeFileSync(baseline, '0')
+      writeFileSync(baseline, JSON.stringify({ grandfathered: [] }))
       const result = run(tmplDir, baseline)
       expect(result.status).toBe(1)
       expect(result.stdout).toContain('regression')
@@ -68,11 +68,11 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const tmplDir = join(dir, 'templates')
-      const baseline = join(dir, 'baseline.txt')
+      const baseline = join(dir, 'baseline.json')
       mkdirSync(tmplDir)
       // Not valid JSON on its own (EJS tag) and mis-indented — must not count against the gate.
       writeFileSync(join(tmplDir, 'tagged.json.ejs'), '{\n  "a": <%- value %>\n}')
-      writeFileSync(baseline, '0')
+      writeFileSync(baseline, JSON.stringify({ grandfathered: [] }))
       const result = run(tmplDir, baseline)
       expect(result.status).toBe(0)
     } finally {
@@ -84,11 +84,11 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const tmplDir = join(dir, 'templates')
-      const baseline = join(dir, 'baseline.txt')
+      const baseline = join(dir, 'baseline.json')
       mkdirSync(tmplDir)
       // .json extension but not valid JSON and no EJS tag — prettier throws parsing it.
       writeFileSync(join(tmplDir, 'broken.json.ejs'), '{ not valid json')
-      writeFileSync(baseline, '0')
+      writeFileSync(baseline, JSON.stringify({ grandfathered: [] }))
       const result = run(tmplDir, baseline)
       expect(result.status).toBe(1)
       expect(result.stdout).toContain('broken.json.ejs')
@@ -97,17 +97,22 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     }
   })
 
-  it('exits 1 when the mis-formatted count improves below baseline without being banked', () => {
+  it('exits 1 when a grandfathered template improves without the baseline being banked', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const tmplDir = join(dir, 'templates')
-      const baseline = join(dir, 'baseline.txt')
+      const baseline = join(dir, 'baseline.json')
       mkdirSync(tmplDir)
       writeFileSync(join(tmplDir, 'clean.json.ejs'), '{ "a": 1 }\n')
-      writeFileSync(baseline, '3')
+      // Stale baseline: names paths that are not (or no longer) mis-formatted.
+      writeFileSync(
+        baseline,
+        JSON.stringify({ grandfathered: ['ghost-a.json.ejs', 'ghost-b.json.ejs'] }),
+      )
       const r = run(tmplDir, baseline)
       expect(r.status).toBe(1)
       expect(r.stdout).toContain('unbanked improvement')
+      expect(r.stdout).toContain('ghost-a.json.ejs')
       const banked = run(tmplDir, baseline, ['--update-baseline'])
       expect(banked.status).toBe(0)
       expect(run(tmplDir, baseline).status).toBe(0)
@@ -120,10 +125,26 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const tmplDir = join(dir, 'templates')
-      const baseline = join(dir, 'baseline.txt')
+      const baseline = join(dir, 'baseline.json')
       mkdirSync(tmplDir)
       writeFileSync(join(tmplDir, 'clean.json.ejs'), '{ "a": 1 }\n')
-      writeFileSync(baseline, '') // blank — must not parse to NaN and silently pass
+      writeFileSync(baseline, '') // blank — must not parse to NaN/empty-array and silently pass
+      const result = run(tmplDir, baseline)
+      expect(result.status).not.toBe(0)
+      expect(result.stdout + result.stderr).toContain('baseline')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails closed when the baseline JSON is missing the `grandfathered` array', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const tmplDir = join(dir, 'templates')
+      const baseline = join(dir, 'baseline.json')
+      mkdirSync(tmplDir)
+      writeFileSync(join(tmplDir, 'clean.json.ejs'), '{ "a": 1 }\n')
+      writeFileSync(baseline, JSON.stringify({ notGrandfathered: [] }))
       const result = run(tmplDir, baseline)
       expect(result.status).not.toBe(0)
       expect(result.stdout + result.stderr).toContain('baseline')
@@ -140,7 +161,7 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const tmplDir = join(dir, 'templates')
-      const baseline = join(dir, 'baseline.txt')
+      const baseline = join(dir, 'baseline.json')
       mkdirSync(tmplDir)
       // Start: a.json.ejs mis-formatted (grandfathered), b.json.ejs clean.
       writeFileSync(join(tmplDir, 'a.json.ejs'), '{\n  "a":1\n}')
@@ -160,7 +181,7 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
   })
 
   it('passes against the real templates and committed baseline', () => {
-    const result = run(resolve('src/templates'), resolve('.emitted-formatting-baseline.txt'))
+    const result = run(resolve('src/templates'), resolve('.emitted-formatting-baseline.json'))
     expect(result.status).toBe(0)
   })
 })

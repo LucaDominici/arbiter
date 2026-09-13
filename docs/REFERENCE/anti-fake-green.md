@@ -70,14 +70,21 @@ into the gate via the `check-anti-fake-green.mjs` aggregate (class `gh-audit` = 
 - **N5 — emitted-formatting fail-closed (#2571)**: the whole-repo `format` step
   (`npx prettier --check .`) cannot infer a parser for `src/templates/**/*.<ext>.ejs` and
   silently `exit 0`s on every one — a fake-green where the passing signal never touched the
-  property it claims to attest (the formatting of what the template EMITS). `scripts/check-
-emitted-formatting.mjs` closes it for the tag-free half: every EJS-tag-free template is
-  prettier-checked directly (the template body IS the emitted content), ratcheted against
-  `.emitted-formatting-baseline.txt`, and an unparsable template counts as mis-formatted
-  rather than being skipped. Wired into `scripts/check-all.mjs` only (self-repo has no
-  `src/templates/`, so the generated `check-all.mjs.ejs` does not carry this step, matching
-  its self-only siblings `check-template-tests.mjs`/`check-self-dogfood.mjs`). Tag-bearing
-  templates (locals-dependent emission) are out of scope for this gate.
+  property it claims to attest (the formatting of what the template EMITS).
+  `scripts/check-emitted-formatting.mjs` closes it for the **tag-free half only**: every
+  EJS-tag-free template is prettier-checked directly (the template body IS the emitted
+  content), ratcheted against a sorted grandfathered-paths list
+  (`.emitted-formatting-baseline.json`, not a bare count — a count is blind to an identity
+  swap where one grandfathered path is fixed while a different path goes dirty), and an
+  unparsable template counts as mis-formatted rather than being skipped. **Self-only, and
+  deliberately one track of two**: wired into `scripts/check-all.mjs` only (a target project
+  has no `src/templates/`, matching self-only siblings `check-template-tests.mjs` /
+  `check-self-dogfood.mjs`, `scripts/canon01-self-only.json`). The tag-bearing half —
+  locals-dependent emission, which the issue also asks for and would need a render pass
+  through `renderTemplate`/`makeConfig` — is **deferred, not implemented**: a per-template
+  locals map to make that half render would reproduce the hand-maintained-allowlist
+  anti-pattern the issue itself rejects (#2335). This guard does not claim both-track
+  enforcement; only the tag-free half is covered today.
 
 ## Empty-scan refusal (#2512)
 
