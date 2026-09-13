@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.29'
+doc_version: '2.0.30'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -390,8 +390,12 @@ Nightly, so an epilogue change is visible there, not in T1.
 > `githooks.ts` (pre-commit/pre-push/commit-msg) + `gitignore.ts` + `security.ts` (the real
 > gitleaks/PII/ZAP generator) = 270 mutants, all measured cheap. A real proving run at
 > `concurrency: 4` scored 67.41 (≥60 ✓) but took 60m 0s — exactly the job's 60-minute budget, no
-> margin — so `concurrency` is raised to 6 (24-core/62GB runner, still under-used) for headroom;
-> scope is unchanged. `break: 60` is unchanged. This is an explicit reduction from an unusable gate
+> margin — so `concurrency` is raised to 6 (24-core/62GB runner, still under-used) for headroom. A
+> second real proving run at `concurrency: 6` (same 270-mutant scope) confirmed it: 45m 10s, same
+> score 67.41 (182 killed / 75 survived / 13 no-cov, 0 timeouts/errors) — ≈15 minutes of margin
+> against the 60-minute job timeout, measured on a contended machine (a concurrent Go race-test
+> gate), so this is a conservative reading. Scope is unchanged. `break: 60` is unchanged. This is
+> an explicit reduction from an unusable gate
 > (never green, projected hours-to-never-finish) to a smaller real signal, not a claim that the
 > included files are the highest-criticality ones: `github.ts`, the emitter of every CI workflow
 > and arguably the single highest-criticality file in the candidate set, is excluded precisely

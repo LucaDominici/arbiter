@@ -1,6 +1,6 @@
 ---
 title: 'Release Playbook'
-doc_version: '1.5.0'
+doc_version: '1.6.0'
 status: active
 last_review: '2026-09-13'
 owner: 'Luca Dominici'
@@ -84,13 +84,13 @@ remaining 77 files (4887) = **6672**, matching the 83-file generator total exact
 `init.ts` (143) + `catalog.ts` (2482) + generators (6672) = **9297**, matching the CI log.
 
 `stryker.config.json`'s `mutate` is `init.ts` + `githooks.ts` + `gitignore.ts` + `security.ts` =
-**270 mutants** across 4 files. Proven with one real local `npx stryker run` to completion (not
-`--dryRunOnly`), `HOME=$(mktemp -d)`:
+**270 mutants** across 4 files. Proven with two real local `npx stryker run` runs to completion
+(not `--dryRunOnly`), `HOME=$(mktemp -d)`:
 
-| Run | Concurrency | Elapsed                                                             | Score | Killed | Survived | No cov | Timed out |
-| --- | ----------- | ------------------------------------------------------------------- | ----- | ------ | -------- | ------ | --------- |
-| 1   | 4           | 60m 0s                                                              | 67.41 | 182    | 75       | 13     | 0         |
-| 2   | 6           | not yet re-run to completion; projected ≈40m from the c=4→c=6 ratio | —     | —      | —        | —      | —         |
+| Run | Concurrency | Elapsed | Score | Killed | Survived | No cov | Timed out |
+| --- | ----------- | ------- | ----- | ------ | -------- | ------ | --------- |
+| 1   | 4           | 60m 0s  | 67.41 | 182    | 75       | 13     | 0         |
+| 2   | 6           | 45m 10s | 67.41 | 182    | 75       | 13     | 0         |
 
 Survived-mutant breakdown per file at c=4 (the aggregate 67.41% clears `break: 60`, which is a
 global not a per-file threshold; `init.ts` alone is below 60 and is the drag on the total, the
@@ -101,9 +101,15 @@ Run 1 at `concurrency: 4` measured **60 minutes 0 seconds wall time — exactly 
 60-minute budget, with zero margin** (the machine was also running other gates concurrently
 during that measurement, which inflates the number somewhat but the equality is still too close
 to trust in CI). Decision: raise `concurrency` to **6** (the self-hosted runner has 24 cores/62GB
-and was still under-used at 4) for headroom; scope stays at 270 mutants. This has not yet been
-re-measured to completion locally — the next tag run on the actual CI runner is the real proof,
-and this doc will be updated with that number. Caution: `inPlace: true` instruments and mutates
+and was still under-used at 4) for headroom; scope stays at 270 mutants. Run 2 at
+`concurrency: 6` was proven to completion (`HOME=$(mktemp -d)`, same 270-mutant scope): **45
+minutes 10 seconds**, same score 67.41 (182 killed / 75 survived / 13 no-cov / 0 timeouts / 0
+errors) — identical kill/survive counts to run 1, as expected (concurrency changes wall time, not
+which mutants are killed). Margin against the 60-minute job timeout is now **≈15 minutes**,
+measured while the machine was contended (a Haben gate with Go race tests ran concurrently), so
+this is a conservative (not best-case) measurement. The next tag run on the actual CI runner is
+still the final proof; this doc will be updated again if that number differs meaningfully.
+Caution: `inPlace: true` instruments and mutates
 the real working tree once, before workers start, then restores it afterward from
 `.stryker-tmp/backup-*` — the real concurrency concern is not that instrumentation, it's that this
 codebase self-applies its own generators in tests (the self-application/dogfood suite), and those
