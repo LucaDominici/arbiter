@@ -112,6 +112,14 @@ Every feature implementation must include tests for each of the following patter
 | Tenant isolation    | Data from tenant A must not leak to tenant B                       | ✓        |
 | Concurrency         | Concurrent access does not produce incorrect results               | ✓        |
 
+## Vacuous Optional-Default Assertions (#2590)
+
+`expect(x.key ?? <default>).toEqual(<default>)` cannot distinguish "`key` is present and equals `<default>`" from "`key` was deleted"; assert presence first (`toHaveProperty`) when a JSON-payload key's presence is part of the contract. Enforced by `scripts/check-vacuous-optional-assertion.mjs` — an **Arbiter-self guard only**: it is enrolled in `scripts/lib/anti-fake-green-guards.mjs`/`guard-flip-registry.mjs` for this repo's own `check-anti-fake-green.mjs`/`check-guard-flip.mjs`, but (like `fixture-isolation`) it is **not** emitted into consumer projects via `src/templates/scripts/check-anti-fake-green.mjs.ejs` — a downstream repo does not get this check today.
+
+**Audited grammar (this is the exact shape flagged, not every `??` used inside an `expect(...)` call):** an `expect(`/`await expect(` call, the SAME default literal on both sides of `??` and a matcher call, one or more wrapping parens allowed (`expect((x ?? []))...` as well as `expect(x ?? [])...`), single-line or wrapped across one line break. `[]`/`{}` only flag `.toEqual`/`.toStrictEqual` — `.toBe([])`/`.toBe({})` is a _referential_ compare against a fresh literal that never passes for ANY `x`, a different (always-red) bug, not this guard's problem. `''`/`""`/`null`/`false`/`0` (primitives, value-compared under `.toBe`) flag `.toEqual`/`.toStrictEqual`/`.toBe`.
+
+**Full AC-1 inventory:** [`vacuous-optional-inventory-2590.md`](./vacuous-optional-inventory-2590.md) is a MECHANICALLY generated (`node scripts/gen-vacuous-optional-inventory.mjs`) classification of every `?? <literal>` sitting inside an `expect(...)` call repo-wide (59 rows — broader than the enforced grammar above, e.g. it also catches `__tests__/kit/catalog.test.ts:172` `expect((d?.requiresDbEngine ?? []).length).toBeGreaterThan(0)`, a different check entirely since `.length` on an absent key already goes to 0). Classes: **b** (vacuous, must be zero — currently 0) · **a** (same shape, documented via `// arbiter-allow-vacuous`, currently 2: `__tests__/commands/worktree-prune.test.ts:294,296` — `force`/`keepBranch` are genuinely optional, only set for `reason === 'inactive'`) · **c** (a different check entirely, safe by construction, currently 57). Re-run the generator and commit the diff when the shape recurs.
+
 ## Inversion Proofs for Gates (CANON-24, #2301)
 
 A gate is a claim about the codebase. The way that claim fails is not usually a red build — it is a
