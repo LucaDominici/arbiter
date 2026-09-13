@@ -196,26 +196,34 @@ function ratchetProblems(debt, ceiling) {
   ]
 }
 
-export function assessGateSurface({ freshRender, declared, declaredHard, mapping, debtRegister }) {
-  const emitted = [...new Set(freshRender)].sort()
-  const executed = new Set(declared)
-  // #2591 / round 3 (orchestrator decision): a command/dry-run surface (java's
-  // `run.sh ci --dry-run`) can only prove a gate name is PRESENT in the roster, never that
-  // it can fail the build — that limitation predates #2591 and is out of this issue's
-  // scope to close. `presenceOnly` names that contract explicitly: when a caller omits
-  // `declaredHard` (no call-family evidence to report), `executedHard` falls back to the
-  // full `declared` set and every bare WIRED match resolved through it is PRESENCE-ONLY
-  // evidence, not proof of hardness — surfaced in the success `detail` below, never
-  // silently indistinguishable from a real runCheck/runToolCheck/pushResult(FAIL) match.
-  const presenceOnly = declaredHard === undefined
-  const executedHard = new Set(declaredHard ?? declared)
-  const entries = mapping ?? {}
-  const openIssues = new Set(debtRegister?.openIssues ?? [])
+// #2591 / round 3 (orchestrator decision): a command/dry-run surface (java's
+// `run.sh ci --dry-run`) can only prove a gate name is PRESENT in the roster, never that
+// it can fail the build — that limitation predates #2591 and is out of this issue's scope
+// to close. `presenceOnly` names that contract explicitly: when a caller omits
+// `declaredHard` (no call-family evidence to report), `executedHard` falls back to the
+// full `declared` set and every bare WIRED match resolved through it is PRESENCE-ONLY
+// evidence, not proof of hardness — surfaced in the success `detail`, never silently
+// indistinguishable from a real runCheck/runToolCheck/pushResult(FAIL) match. Resolved
+// once here so assessGateSurface stays a plain pass-through of the pieces it assembles.
+function resolveHardEvidence(declared, declaredHard) {
+  return {
+    presenceOnly: declaredHard === undefined,
+    executedHard: new Set(declaredHard ?? declared),
+  }
+}
+
+/** Judges every emitted name's mapping entry; returns the failure list plus the names
+ *  whose WIRED match resolved only through presence-only evidence (round 3, above). */
+function reconcileMappingEntries(
+  emitted,
+  entries,
+  executed,
+  executedHard,
+  openIssues,
+  presenceOnly,
+) {
   const problems = []
   const presenceOnlyMatches = []
-
-  problems.push(...coverageProblems(emitted, entries))
-
   for (const name of emitted) {
     const verdict = entries[name]
     if (typeof verdict !== 'string') continue
@@ -230,20 +238,41 @@ export function assessGateSurface({ freshRender, declared, declaredHard, mapping
     if (judged.problem !== null) problems.push(judged.problem)
     else if (judged.presenceOnly === true) presenceOnlyMatches.push(name)
   }
+  return { problems, presenceOnlyMatches }
+}
+
+function formatPresenceNote(presenceOnlyMatches) {
+  if (presenceOnlyMatches.length === 0) return ''
+  const names = [...presenceOnlyMatches].sort().join(', ')
+  return `; ${presenceOnlyMatches.length} WIRED (presence-only evidence: dry-run roster): ${names}`
+}
+
+export function assessGateSurface({ freshRender, declared, declaredHard, mapping, debtRegister }) {
+  const emitted = [...new Set(freshRender)].sort()
+  const executed = new Set(declared)
+  const { presenceOnly, executedHard } = resolveHardEvidence(declared, declaredHard)
+  const entries = mapping ?? {}
+  const openIssues = new Set(debtRegister?.openIssues ?? [])
+
+  const { problems, presenceOnlyMatches } = reconcileMappingEntries(
+    emitted,
+    entries,
+    executed,
+    executedHard,
+    openIssues,
+    presenceOnly,
+  )
+  problems.unshift(...coverageProblems(emitted, entries))
 
   const debt = emitted.filter((name) => isDebt(entries[name])).length
   problems.push(...ratchetProblems(debt, debtRegister?.ceiling))
 
   if (problems.length > 0) return { ok: false, detail: problems.join('; ') }
-  const presenceNote =
-    presenceOnlyMatches.length > 0
-      ? `; ${presenceOnlyMatches.length} WIRED (presence-only evidence: dry-run roster): ${presenceOnlyMatches.sort().join(', ')}`
-      : ''
   return {
     ok: true,
     detail:
       `${emitted.length} emitted check(s) reconciled against ${executed.size} executed gate(s); ` +
-      `${debt} carried as tracked debt${presenceNote}`,
+      `${debt} carried as tracked debt${formatPresenceNote(presenceOnlyMatches)}`,
   }
 }
 
