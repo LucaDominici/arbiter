@@ -4,9 +4,10 @@
   "testRunner": "vitest",
   "coverageAnalysis": "perTest",
   "mutate": [
-    "src/generators/**/*.ts",
     "src/commands/init.ts",
-    "src/invariants/catalog.ts",
+    "src/generators/githooks.ts",
+    "src/generators/gitignore.ts",
+    "src/generators/security.ts",
     "!src/**/*.test.ts",
     "!src/**/*.spec.ts"
   ],
@@ -15,7 +16,7 @@
     "low": 50,
     "break": 60
   },
-  "concurrency": 2,
+  "concurrency": 6,
   "timeoutMS": 30000,
   "vitest": {
     "configFile": "vitest.stryker.config.ts"

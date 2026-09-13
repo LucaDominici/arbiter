@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.27'
+doc_version: '2.0.28'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -380,6 +380,21 @@ Nightly, so an epilogue change is visible there, not in T1.
 > `cosign-sign` carries only `id-token: write` (it downloads an artifact and signs it — no
 > checkout, no push), and every job in `05-release.yml`, across every archetype, now declares its
 > own `permissions:` block instead of relying on the repo/org default.
+> **Mutation surface is scoped by MEASURED PER-MUTANT COST to fit the 60-minute job (#2673):**
+> the full candidate surface (`src/generators/**/*.ts` + `src/commands/init.ts` +
+> `src/invariants/catalog.ts`) is 9297 mutants — this gate had never gone green on any release
+> run since May. Mutant _count_ alone is misleading: `github.ts` (319 mutants, all CI workflow
+> renders) looked cheap, but each of its mutants is exercised by hundreds of render/e2e tests
+> under `perTest` coverage, collapsing throughput to ~2min/mutant — a real proving run at that
+> scope projected >10 hours and was killed. `stryker.config.json`'s `mutate` is `init.ts` +
+> `githooks.ts` (pre-commit/pre-push/commit-msg) + `gitignore.ts` + `security.ts` (the real
+> gitleaks/PII/ZAP generator) = 270 mutants, all measured cheap. A real proving run at
+> `concurrency: 4` scored 67.41 (≥60 ✓) but took 60m 0s — exactly the job's 60-minute budget, no
+> margin — so `concurrency` is raised to 6 (24-core/62GB runner, still under-used) for headroom;
+> scope is unchanged. `break: 60` is unchanged. `github.ts` and `catalog.ts` are tracked as debt
+> in `docs/internal/release-playbook.md` § Mutation surface debt with their measured per-mutant
+> cost as the reason, not silently dropped; that doc also carries the per-file score table and
+> the fallback analysis to apply if the tag run still times out at `concurrency: 6`.
 
 > **Gitleaks scan scope (#1908):** `security-early-fail`'s `gitleaks detect` call (and the
 > matching L2 check in `scripts/check-all.mjs`) passes `--log-opts="HEAD"`. Without it, gitleaks
