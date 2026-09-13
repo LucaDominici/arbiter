@@ -1054,7 +1054,10 @@ runCheck('race detector (full)', 'go', ['test', '-race', './...']);
 // gates", never a missed or duplicated execution.
 {
   const _localSlotPath = resolve(dirname(fileURLToPath(import.meta.url)), 'check-all.local.json');
-  if (existsSync(_localSlotPath)) {
+  if (!existsSync(_localSlotPath)) {
+    console.log('[CHECK] local checks ... SKIP (scripts/check-all.local.json absent)');
+    pushResult('local checks', 'SKIP', 0);
+  } else {
     let _localChecks;
     let _localFail = null;
     try {
