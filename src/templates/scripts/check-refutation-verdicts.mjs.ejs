@@ -24,10 +24,14 @@
 //   node scripts/check-refutation-verdicts.mjs [--evidence-dir=<path>] [--repo-root=<dir>]
 //       [--require-marker=<task>]
 // --require-marker names the task a caller has DECLARED needs a refutation marker (#2614):
-// with it set, a missing marker is exit 1 instead of the vacuous pass below. Absent the flag,
-// every existing behaviour (including the vacuous pass) is unchanged (AC-2) — this script
-// still has no opinion of its own on which tasks require one; that classification lives with
-// the caller.
+// with it set, a missing marker BOUND to that exact task is exit 1 instead of the vacuous pass
+// below — bound both by directory (the sanitized task id) and by the marker's own `task` field,
+// so a marker that belongs to a different task can never satisfy someone else's requirement.
+// The value must look like a GitHub issue id ('#NNN'); a bare `--require-marker` (no value) or
+// an empty `--require-marker=` is malformed input, not a silent vacuous pass, and exits 2.
+// Absent the flag entirely, every existing behaviour (including the vacuous pass) is unchanged
+// (AC-2) — this script still has no opinion of its own on which tasks require one; that
+// classification lives with the caller.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -40,8 +44,20 @@ const argv = process.argv.slice(2)
 const EVIDENCE_DIR = arg('evidence-dir', argv)
   ? resolve(arg('evidence-dir', argv))
   : join(repoDefault, '.arbiter', 'evidence', 'agent-returns')
+const REQUIRE_MARKER_GIVEN =
+  argv.includes('--require-marker') || argv.some((a) => a.startsWith('--require-marker='))
 const REQUIRE_MARKER = arg('require-marker', argv)
 const MARKER_NAME = 'refutation-required.json'
+
+/** @param {string} task @returns {boolean} */
+function isTaskId(task) {
+  return /^#[0-9]+$/.test(task)
+}
+
+/** @param {string} task @returns {string} */
+function sanitizeTask(task) {
+  return task.replace(/[^0-9A-Za-z-]/g, '_')
+}
 
 /**
  * Find the refutation marker under the evidence dir (any task subdir).
@@ -77,6 +93,31 @@ function findMarker(evidenceDir) {
       `cannot parse marker ${path}: ${err instanceof Error ? err.message : String(err)}`,
     )
   }
+}
+
+/**
+ * Find the refutation marker BOUND to one task: it must live under that task's own sanitized
+ * directory, and if the marker declares a `task` field, that field must agree. A marker for a
+ * different task — whether sitting in a foreign directory or merely mis-declared — is not this
+ * task's marker (#2614, Codex review round 1).
+ * @param {string} evidenceDir
+ * @param {string} task
+ * @returns {{ path: string, body: Record<string, unknown> } | null}
+ */
+function findMarkerForTask(evidenceDir, task) {
+  const markerPath = join(evidenceDir, sanitizeTask(task), MARKER_NAME)
+  if (!existsSync(markerPath)) return null
+  /** @type {Record<string, unknown>} */
+  let body
+  try {
+    body = JSON.parse(readFileSync(markerPath, 'utf-8'))
+  } catch (err) {
+    throw new Error(
+      `cannot parse marker ${markerPath}: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
+  if (typeof body['task'] === 'string' && body['task'] !== task) return null
+  return { path: markerPath, body }
 }
 
 /**
@@ -156,9 +197,18 @@ export function unaddressedAboveFloor(skeptics, actedOn, n) {
 }
 
 function main() {
+  if (REQUIRE_MARKER_GIVEN && !isTaskId(REQUIRE_MARKER ?? '')) {
+    process.stderr.write(
+      `[check-refutation-verdicts] ERROR: --require-marker must be a GitHub issue id like ` +
+        `'#2614' (got: ${REQUIRE_MARKER ? REQUIRE_MARKER : '(empty)'})\n`,
+    )
+    return 2
+  }
   let marker
   try {
-    marker = findMarker(EVIDENCE_DIR)
+    marker = REQUIRE_MARKER
+      ? findMarkerForTask(EVIDENCE_DIR, REQUIRE_MARKER)
+      : findMarker(EVIDENCE_DIR)
   } catch (err) {
     process.stderr.write(
       `[check-refutation-verdicts] ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
