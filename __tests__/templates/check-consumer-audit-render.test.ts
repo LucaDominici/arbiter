@@ -76,6 +76,16 @@ describe('classifyConsumerAudit — the rendered twin shares the self-script con
     expect(errored).toBe(true)
     expect(reason).toBe('malformed')
   })
+
+  it('fails closed on a garbage per-entry value — `{ lodash: null }` is not a package with no finding (diff-review round 1)', () => {
+    const { errored, reason } = gate.classifyConsumerAudit(
+      { vulnerabilities: { lodash: null }, metadata: { dependencies: { total: 42 } } },
+      [],
+      new Date('2026-07-01'),
+    )
+    expect(errored).toBe(true)
+    expect(reason).toBe('malformed')
+  })
 })
 
 describe('tarballNameFromPackOutput — accepts both npm pack --json schemas (#1864)', () => {

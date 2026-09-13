@@ -217,6 +217,16 @@ describe('classifyConsumerAudit — pure classifier (#1718)', () => {
     expect(reason).toBe('malformed')
   })
 
+  it('does NOT classify clean when an entry carries an arbitrary/unrecognised severity string (diff-review round 2)', () => {
+    const bogusSeverity = {
+      vulnerabilities: { lodash: { name: 'lodash', severity: 'bogus' } },
+      metadata: { dependencies: { total: 42 } },
+    }
+    const { errored, reason } = classifyConsumerAudit(bogusSeverity, [], new Date('2026-07-01'))
+    expect(errored).toBe(true)
+    expect(reason).toBe('malformed')
+  })
+
   it('distinguishes an unreachable registry (npm audit error payload) from a corrupt payload, same fail-closed exit (#2515 AC-2)', () => {
     const registryError = {
       error: { code: 'ENOTFOUND', summary: 'getaddrinfo ENOTFOUND registry.npmjs.org' },
