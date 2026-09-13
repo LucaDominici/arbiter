@@ -254,3 +254,149 @@ describe('#2560 Codex round-1 #2 — every ABSENCE_EXEMPT entry is machine-valid
     })
   })
 })
+
+describe('#2560 Codex round-2 #1 — exactly one table per wired mechanism', () => {
+  const GATE = "runCheck('anti-drift: widget scan', 'node', ['scripts/check-widget-drift.mjs'])\n"
+
+  it('a gate declared in TWO tables is a loud ERROR naming both', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {},
+          notAbsence: { 'anti-drift: widget scan': { script: 'scripts/check-widget-drift.mjs' } },
+          exempt: {
+            'anti-drift: widget scan': {
+              script: 'scripts/check-widget-drift.mjs',
+              reason: 'reads live repo state, no fixture flag',
+              followUp: '#2675',
+            },
+          },
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [HARNESS, `--gate=${gate}`, `--registry=${reg}`, `--roster=${roster}`],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(2)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/declared in more than one table/)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/NOT_ABSENCE/)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/ABSENCE_EXEMPT/)
+    })
+  })
+
+  it('a table row naming a gate that is NOT wired (stale) is a loud ERROR, not silently skipped', () => {
+    withTmp((dir) => {
+      // GATE is wired and correctly classified NOT_ABSENCE; the roster ALSO carries a row for a
+      // gate that check-all.mjs never wires at all — a leftover from a rename or removal.
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {},
+          notAbsence: {
+            'anti-drift: widget scan': { script: 'scripts/check-widget-drift.mjs' },
+            'a gate nobody wires anymore': { script: 'scripts/check-nonexistent.mjs' },
+          },
+          exempt: {},
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [HARNESS, `--gate=${gate}`, `--registry=${reg}`, `--roster=${roster}`],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(2)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/NOT_ABSENCE\['a gate nobody wires anymore'\]/)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/not wired in check-all\.mjs/)
+    })
+  })
+})
+
+describe('#2560 Codex round-2 #2 — `until` must be a real, unexpired calendar date', () => {
+  const GATE = "runCheck('anti-drift: widget scan', 'node', ['scripts/check-widget-drift.mjs'])\n"
+  const baseExempt = {
+    script: 'scripts/check-widget-drift.mjs',
+    reason: 'reads live repo state, no fixture flag',
+  }
+
+  function runWithUntil(dir: string, until: string) {
+    const gate = join(dir, 'check-all.mjs')
+    writeFileSync(gate, GATE)
+    const reg = join(dir, 'registry.json')
+    writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+    const roster = join(dir, 'roster.json')
+    writeFileSync(
+      roster,
+      JSON.stringify({
+        family: {},
+        notAbsence: {},
+        exempt: { 'anti-drift: widget scan': { ...baseExempt, until } },
+      }),
+    )
+    return spawnSync(
+      'node',
+      [HARNESS, `--gate=${gate}`, `--registry=${reg}`, `--roster=${roster}`],
+      {
+        encoding: 'utf-8',
+      },
+    )
+  }
+
+  it('an `until` that is not a real calendar date (2026-99-99) is a loud ERROR', () => {
+    withTmp((dir) => {
+      const r = runWithUntil(dir, '2026-99-99')
+      expect(r.status).toBe(2)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/not a real calendar date/)
+    })
+  })
+
+  it('an `until` in the past (2000-01-01) is a loud ERROR — expired exemption', () => {
+    withTmp((dir) => {
+      const r = runWithUntil(dir, '2000-01-01')
+      expect(r.status).toBe(2)
+      expect(`${r.stdout}${r.stderr}`).toMatch(/expired exemption/)
+    })
+  })
+
+  it('an `until` far in the future is accepted', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(gate, GATE)
+      const reg = join(dir, 'registry.json')
+      writeFileSync(reg, JSON.stringify({ ceiling: 0, deferred: [] }))
+      const roster = join(dir, 'roster.json')
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {},
+          notAbsence: {},
+          exempt: { 'anti-drift: widget scan': { ...baseExempt, until: '2099-01-01' } },
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [
+          HARNESS,
+          `--gate=${gate}`,
+          `--registry=${reg}`,
+          `--roster=${roster}`,
+          '--min-family=0',
+          '--max-deferred=0',
+        ],
+        { encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(0)
+    })
+  })
+})
