@@ -580,30 +580,38 @@ function partitionPlanResults(results: WriteResult[]): {
   }
 }
 
-function printAdoptPlan(
-  records: AdoptRecord[],
-  results: WriteResult[],
-  retirement: RetirementPlan,
-  targetDir: string,
-  json: boolean | undefined,
-): void {
-  const { regenerate, withheld, restore } = partitionPlanResults(results)
-  const rel = (r: WriteResult): string => manifestKey(targetDir, r.path) ?? r.path
-  if (json) {
-    jsonOutput('update', 'ok', {
-      adoptPlan: records.map((r) => ({
-        path: r.key,
-        ...summarizeDiff(r.priorContent, r.newContent),
-      })),
-      wouldRegenerate: regenerate.map(rel),
-      withheld: withheld.map(rel),
-      wouldRestore: restore.map(rel),
-      wouldRetire: retirement.retire,
-      orphans: retirement.orphans,
-      stale: retirement.stale,
-    })
-    return
-  }
+interface AdoptPlanView {
+  records: AdoptRecord[]
+  retirement: RetirementPlan
+  regenerate: WriteResult[]
+  withheld: WriteResult[]
+  restore: WriteResult[]
+  /** #2664 (AC-2664.2): widened-in gate-spine dependency with NO prior manifest
+   * baseline — resolves to `action: 'created'`, a bucket none of
+   * regenerate/withheld/restore otherwise covers. */
+  wouldCreateDeps: WriteResult[]
+  rel: (r: WriteResult) => string
+}
+
+function printAdoptPlanJson(view: AdoptPlanView): void {
+  const { records, retirement, regenerate, withheld, restore, wouldCreateDeps, rel } = view
+  jsonOutput('update', 'ok', {
+    adoptPlan: records.map((r) => ({
+      path: r.key,
+      ...summarizeDiff(r.priorContent, r.newContent),
+    })),
+    wouldRegenerate: regenerate.map(rel),
+    withheld: withheld.map(rel),
+    wouldRestore: restore.map(rel),
+    wouldCreateGateSpineDependencies: wouldCreateDeps.map(rel),
+    wouldRetire: retirement.retire,
+    orphans: retirement.orphans,
+    stale: retirement.stale,
+  })
+}
+
+function printAdoptPlanRetireAndRecords(view: AdoptPlanView): void {
+  const { records, retirement } = view
   if (retirement.retire.length > 0) {
     process.stdout.write(
       `\n  would retire ${retirement.retire.length} file(s) (arbiter-owned, no longer emitted, ` +
@@ -615,15 +623,25 @@ function printAdoptPlan(
     process.stdout.write(
       '\n  adopt-plan: nothing to adopt (no withheld file matches the adopt policy).\n',
     )
-  } else {
-    process.stdout.write(`\n  adopt-plan: ${records.length} file(s) would be adopted:\n`)
-    for (const r of records) {
-      const { removed, added } = summarizeDiff(r.priorContent, r.newContent)
-      process.stdout.write(
-        `    - ${r.key}  (-${removed} +${added} lines vs. current on-disk content)\n`,
-      )
-    }
+    return
   }
+  process.stdout.write(`\n  adopt-plan: ${records.length} file(s) would be adopted:\n`)
+  for (const r of records) {
+    const { removed, added } = summarizeDiff(r.priorContent, r.newContent)
+    process.stdout.write(
+      `    - ${r.key}  (-${removed} +${added} lines vs. current on-disk content)\n`,
+    )
+  }
+}
+
+/**
+ * The four write-channel buckets a plan can name beyond the adopt records
+ * themselves (#2120/#2221/#2295, plus #2664's `wouldCreateDeps`). Split out of
+ * {@link printAdoptPlanText} to keep both functions under the complexity
+ * ceiling (CANON-22).
+ */
+function printAdoptPlanBuckets(view: AdoptPlanView, targetDir: string): void {
+  const { regenerate, withheld, restore, wouldCreateDeps, rel } = view
   if (regenerate.length > 0) {
     process.stdout.write(
       `\n  would regenerate ${regenerate.length} file(s) (always-rewrite — local edits are lost, ` +
@@ -644,7 +662,49 @@ function printAdoptPlan(
     )
     for (const r of restore) process.stdout.write(`    - ${rel(r)}\n`)
   }
+  if (wouldCreateDeps.length > 0) {
+    process.stdout.write(
+      `\n  would create ${wouldCreateDeps.length} file(s) (gate-spine dependency — the adopted ` +
+        `spine imports these; no prior copy or manifest baseline exists):\n`,
+    )
+    for (const r of wouldCreateDeps) process.stdout.write(`    - ${rel(r)}\n`)
+  }
+}
+
+function printAdoptPlanText(view: AdoptPlanView, targetDir: string): void {
+  printAdoptPlanRetireAndRecords(view)
+  printAdoptPlanBuckets(view, targetDir)
   process.stdout.write('  Re-run without --adopt-plan to apply. Nothing was written.\n')
+}
+
+function printAdoptPlan(opts: {
+  records: AdoptRecord[]
+  results: WriteResult[]
+  retirement: RetirementPlan
+  targetDir: string
+  gateSpineDeps: string[]
+  json: boolean | undefined
+}): void {
+  const { records, results, retirement, targetDir, gateSpineDeps, json } = opts
+  const { regenerate, withheld, restore } = partitionPlanResults(results)
+  const rel = (r: WriteResult): string => manifestKey(targetDir, r.path) ?? r.path
+  const wouldCreateDeps = results.filter(
+    (r) => r.action === 'created' && gateSpineDeps.includes(rel(r)),
+  )
+  const view: AdoptPlanView = {
+    records,
+    retirement,
+    regenerate,
+    withheld,
+    restore,
+    wouldCreateDeps,
+    rel,
+  }
+  if (json) {
+    printAdoptPlanJson(view)
+  } else {
+    printAdoptPlanText(view, targetDir)
+  }
 }
 
 /**
@@ -1147,33 +1207,48 @@ function saveValidatedConfig(
 }
 
 /**
- * #2664: when `--adopt-gate-spine` is forcing a rewrite of `scripts/check-all.mjs`
- * under a scoped `--only`, widen `only` with the `scripts/lib/*.mjs` modules the
- * RENDERED spine actually imports — otherwise the adopted spine lands importing a
- * file this scoped run never emitted (the reported repro: a stale lib dir missing
- * `gate-mutex.mjs`). A dependency already on disk needs no widening (the spine
- * would import a file that already exists); one that is neither on disk nor
- * resolvable to a template (`unresolved`) fails the whole run closed, naming the
- * gap, rather than silently landing a spine with a dangling import.
+ * #2664: when a force-adopt of `scripts/check-all.mjs` (`--adopt-gate-spine`,
+ * or plain `--adopt` — #2119's `adoptAll` force-adopts the gate spine too, see
+ * `adopt-policy.ts`'s `buildAdoptPredicate`) is scoped by `--only`, widen
+ * `only` with the `scripts/lib/*.mjs` modules the RENDERED spine actually
+ * imports — otherwise the adopted spine lands importing a file this scoped
+ * run never emitted (the reported repro: a stale lib dir missing
+ * `gate-mutex.mjs`). A dependency already on disk needs no widening (the
+ * spine would import a file that already exists); one that is neither on disk
+ * nor resolvable to a template (`unresolved`) fails the whole run closed,
+ * naming the gap, rather than silently landing a spine with a dangling
+ * import. Runs BEFORE any generated-file write (the session/registry loop
+ * starts after `resolveSelectionPolicy` returns) — the only prior side
+ * effects in `runUpdate` are `.arbiter/`'s directory (idempotent, no content)
+ * and the advisory run lock, neither of which touches project-managed
+ * content, so a refusal here still leaves the repo exactly as it found it.
+ *
+ * `added` is the exact set this widening appended to `only` — the caller
+ * needs it to label those files distinctly in `--adopt-plan` (AC-2664.2):
+ * a dependency with NO manifest baseline (never emitted before) resolves to
+ * `action: 'created'`, a WriteResult bucket `partitionPlanResults` does not
+ * otherwise surface at all.
  */
 function widenOnlyForGateSpineDeps(
   only: string[],
   config: ProjectConfig,
   targetDir: string,
-): string[] {
-  if (only.length === 0 || !matchesOnly(only, 'scripts/check-all.mjs')) return only
+): { only: string[]; added: string[] } {
+  if (only.length === 0 || !matchesOnly(only, 'scripts/check-all.mjs')) {
+    return { only, added: [] }
+  }
   const { resolved, unresolved } = gateSpineDependencies(config)
   if (unresolved.length > 0) {
     throw new UserFacingError(
-      `--only scripts/check-all.mjs --adopt-gate-spine: the spine imports ` +
+      `--only scripts/check-all.mjs: force-adopting the spine would import ` +
         `${unresolved.length} lib module(s) with no matching template — cannot emit ` +
         `them: ${unresolved.join(', ')}`,
     )
   }
-  const missing = resolved.filter(
+  const added = resolved.filter(
     (key) => !matchesOnly(only, key) && !existsSync(join(targetDir, key)),
   )
-  return missing.length === 0 ? only : [...only, ...missing]
+  return added.length === 0 ? { only, added: [] } : { only: [...only, ...added], added }
 }
 
 /**
@@ -1186,13 +1261,21 @@ function resolveSelectionPolicy(
   options: UpdateOptions,
   config: ProjectConfig,
   targetDir: string,
-): { only: string[]; selectPredicate: (key: string) => SelectionVerdict } {
+): { only: string[]; selectPredicate: (key: string) => SelectionVerdict; gateSpineDeps: string[] } {
   const requested = options.only ?? []
-  const only = options.adoptGateSpine
-    ? widenOnlyForGateSpineDeps(requested, config, targetDir)
-    : requested
+  // #2664 (P2): `--adopt` force-adopts the gate spine exactly like
+  // `--adopt-gate-spine` (buildAdoptPredicate's `adoptAll` branch) — same
+  // failure mode, so the closure must be resolved for either flag.
+  const { only, added } =
+    options.adoptGateSpine || options.adopt
+      ? widenOnlyForGateSpineDeps(requested, config, targetDir)
+      : { only: requested, added: [] }
   const ignorePatterns = loadIgnorePatterns(targetDir)
-  return { only, selectPredicate: buildSelectionPredicate({ patterns: ignorePatterns, only }) }
+  return {
+    only,
+    selectPredicate: buildSelectionPredicate({ patterns: ignorePatterns, only }),
+    gateSpineDeps: added,
+  }
 }
 
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
@@ -1232,13 +1315,24 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     // (a committed, permanent decision); `--only` narrows this one run. Built once
     // and threaded into every session below so the plan and the apply can never
     // disagree about what is in scope.
-    const { only, selectPredicate } = resolveSelectionPolicy(options, config, targetDir)
+    const { only, selectPredicate, gateSpineDeps } = resolveSelectionPolicy(
+      options,
+      config,
+      targetDir,
+    )
     if (options.adoptPlan) {
       const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, {
         adoptPredicate,
         selectPredicate,
       })
-      printAdoptPlan(plan.records, plan.results, plan.retirement, targetDir, options.json)
+      printAdoptPlan({
+        records: plan.records,
+        results: plan.results,
+        retirement: plan.retirement,
+        targetDir,
+        gateSpineDeps,
+        json: options.json,
+      })
       return { keysRun: null }
     }
 
