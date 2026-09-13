@@ -224,8 +224,12 @@ process's own environment. The `prepare` job carries every deploy-key/`GH_TOKEN`
 never executes a line of consumer-owned code; its debt-register OPEN-issue lookup (`gh issue
 view`, needs the token) also runs here and crosses into the artifact as data
 (`handoff.json`'s `openDebtIssues`), never as a credential. The `verify` job declares
-`permissions: {}` (no GitHub token minted at all) and its rendered block contains no
-`secrets.*`/`github.token`/`ARBITER_CONSUMER_*` reference anywhere; `consumer-reliability-
+`permissions: {}`; this does NOT mean no token is minted — GitHub still mints a per-job
+`GITHUB_TOKEN` with every permission scoped to none. That scopeless token is simply never
+exported into a `run:` step's environment (a step only sees it if a step explicitly reads
+`${{ secrets.GITHUB_TOKEN }}`/`${{ github.token }}`, and the `verify` job's rendered block does
+neither), and `persist-credentials: false` on its `actions/checkout` step is what stops the
+action from writing that token into the git credential store on disk. `consumer-reliability-
 bar.mjs` also calls `assertCredentialFreeEnvironment(process.env)` at its own entry point and
 refuses to run if any `ARBITER_CONSUMER_*`, `GH_TOKEN`, or `GITHUB_TOKEN` variable is present,
 fail-closed even if a future workflow edit reintroduces one by mistake. The handoff only
