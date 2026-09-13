@@ -83,6 +83,9 @@ describe('check-pii-scan.mjs (PII patterns file integrity — INV-89)', () => {
 
   it('exits 0 on --help and prints usage', () => {
     const r = spawnSync('node', [SCRIPT, '--help'], { encoding: 'utf-8' })
+    // #2590: `?? 1`/`?? ''` here default to values *other* than the expected
+    // ones, so a missing/undefined field still fails — not the vacuous
+    // `?? default).toEqual(default)` shape this issue targets. Left as-is.
     expect(r.status ?? 1).toBe(0)
     expect(r.stdout ?? '').toContain('Usage:')
   })

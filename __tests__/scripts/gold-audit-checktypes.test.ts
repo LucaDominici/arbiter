@@ -257,6 +257,8 @@ describe('forbidden_pattern check type (#1470)', () => {
       'src/z.ts': 'has FORBIDDEN_MARKER here\n',
     })
     expect(byId['GA-HYG-01'].verdict).toBe('N')
+    // #2590: default ('') differs from the expected value ('src/z.ts'), so an
+    // absent/undefined field still fails — not the vacuous `?? default` shape.
     expect(byId['GA-HYG-01'].evidence?.file ?? '').toBe('src/z.ts')
   })
 
@@ -402,6 +404,8 @@ describe('file_stat check type (#1470)', () => {
       'bin/run.sh': { content: '#!/bin/sh\n', mode: 0o644 },
     })
     expect(byId['GA-PERM-01'].verdict).toBe('N')
+    // #2590: default ('') differs from the expected value ('bin/run.sh'), so
+    // an absent/undefined field still fails — not the vacuous `?? default` shape.
     expect(byId['GA-PERM-01'].evidence?.file ?? '').toBe('bin/run.sh')
   })
 

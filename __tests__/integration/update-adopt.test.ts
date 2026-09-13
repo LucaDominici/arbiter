@@ -587,6 +587,9 @@ describe('#2305: --adopt-plan previews the restoration channel (`restore` bucket
     const payload = JSON.parse(out.text()) as {
       data: { wouldRestore?: string[]; wouldRegenerate?: string[]; withheld?: string[] }
     }
+    // #2590: `.toContain(EMITTED)`/`.not.toContain(EMITTED)` already fail if
+    // the key is absent (`?? []` degrades to `[]`, which cannot contain/must
+    // not contain EMITTED either way) — not the vacuous `?? default` shape.
     expect(payload.data.wouldRestore ?? []).toContain(EMITTED)
     // AC-3: a restoration is its own channel — it must not also double-count
     // into the regenerate or withheld buckets.
@@ -605,6 +608,9 @@ describe('#2305: --adopt-plan previews the restoration channel (`restore` bucket
     }
 
     const payload = JSON.parse(out.text()) as { data: { wouldRestore?: string[] } }
-    expect(payload.data.wouldRestore ?? []).toEqual([])
+    // #2590: assert presence, not `?? []`, so a deleted key fails instead of
+    // coercing to the same empty value the assertion expects.
+    expect(payload.data).toHaveProperty('wouldRestore')
+    expect(payload.data.wouldRestore).toEqual([])
   })
 })

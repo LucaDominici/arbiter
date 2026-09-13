@@ -165,8 +165,10 @@ The fake-db transcript is retained here as ordinary multi-line test evidence.`,
       writeFixture(dir, '.arbiter/evidence/run/meta.json', JSON.stringify({ id: 'fake-dir' }))
       const separate = run(dir)
       const equalsResult = spawnSync('node', [SCRIPT, `--dir=${dir}`], { encoding: 'utf-8' })
-      expect(separate.status ?? 1).toBe(1)
-      expect(equalsResult.status ?? 1).toBe(1)
+      // #2590: assert the raw status, not `?? 1` — a killed-by-signal process (status: null)
+      // must fail this, not be coerced into the same value the assertion checks for.
+      expect(separate.status).toBe(1)
+      expect(equalsResult.status).toBe(1)
     } finally {
       cleanup()
     }

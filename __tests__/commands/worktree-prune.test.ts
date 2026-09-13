@@ -286,7 +286,13 @@ describe('runWorktreePrune (#1873 T5)', () => {
 
     expect(closeCalls).toHaveLength(1)
     expect(closeCalls[0]!.taskId).toBe('202')
+    // #2590: genuinely optional — src/commands/worktree-prune.ts only spreads
+    // {force, keepBranch} in for reason 'inactive'; a merged close's options
+    // object has neither key at all, so `?? false` here is the actual contract
+    // (absent === false), not a stand-in for a key that must always be present.
+    // arbiter-allow-vacuous: absence of force/keepBranch IS the merged-close contract
     expect(closeCalls[0]!.force ?? false).toBe(false)
+    // arbiter-allow-vacuous: absence of force/keepBranch IS the merged-close contract
     expect(closeCalls[0]!.keepBranch ?? false).toBe(false)
   })
 

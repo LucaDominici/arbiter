@@ -288,7 +288,9 @@ describe('check-feature-matrix.mjs --check', () => {
         encoding: 'utf-8',
         cwd: dir,
       })
-      expect(r.status ?? 1).toBe(1)
+      // #2590: assert the raw status, not `?? 1` — a killed-by-signal process (status: null)
+      // must fail this, not be coerced into the same value the assertion checks for.
+      expect(r.status).toBe(1)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

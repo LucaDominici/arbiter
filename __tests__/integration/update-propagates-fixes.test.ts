@@ -252,7 +252,9 @@ describe('#1344 withheld template-fix visibility', () => {
 
   it('AC5: a pristine (unmodified) project reports zero withheld files (no false positive)', () => {
     const data = runDiffJson({})
-    expect(data.withheldCount ?? 0).toBe(0)
+    // #2590: assert presence, not `?? 0` — a deleted key must fail this.
+    expect(data).toHaveProperty('withheldCount')
+    expect(data.withheldCount).toBe(0)
     expect(data.files?.some((f) => f.status === 'withheld')).toBe(false)
   })
 

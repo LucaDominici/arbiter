@@ -545,7 +545,9 @@ describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)
 
   it('consumer → verification selfOnlyChecks is empty (skipped, not faked)', () => {
     const step = shipStepFor('verification', 'Standard', profile({ isArbiterSelf: false }))
-    expect(step.selfOnlyChecks ?? []).toEqual([])
+    // #2590: assert presence, not `?? []` — a deleted key must fail this.
+    expect(step).toHaveProperty('selfOnlyChecks')
+    expect(step.selfOnlyChecks).toEqual([])
   })
 })
 

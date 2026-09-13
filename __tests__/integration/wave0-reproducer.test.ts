@@ -157,6 +157,8 @@ describe('#1077 Wave 0 reproducer: diff scope == update scope', () => {
     // This fixture is initialized without GitHub (no permitGitHub/useGitHub),
     // so diff must NOT list any gh side effects.
     const diff = captureDiff(dir)
-    expect(diff.data.remoteSideEffect ?? []).toEqual([])
+    // #2590: assert presence, not `?? []` — a deleted key must fail this.
+    expect(diff.data).toHaveProperty('remoteSideEffect')
+    expect(diff.data.remoteSideEffect).toEqual([])
   })
 })
