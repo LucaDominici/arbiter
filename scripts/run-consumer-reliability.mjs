@@ -4,7 +4,7 @@
 // in a fresh child process with a strict credential-free environment.
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
-import { buildVerifierEnvironment } from './lib/consumer-reliability-bar.mjs'
+import { buildVerifierEnvironment, scrubOwnCredentials } from './lib/consumer-reliability-bar.mjs'
 
 const root = process.cwd()
 
@@ -25,6 +25,12 @@ try {
     process.stderr.write('[consumer-reliability] ERROR — credentialed preparation failed\n')
     process.exit(2)
   }
+
+  // #2679 round 2: the prepare child already received its own explicit env object above.
+  // Scrub THIS process's own environment now, before the verify child (running
+  // consumer-controlled code) is spawned — a filtered child env alone leaves the
+  // credentials resident in this parent process for as long as it stays alive.
+  scrubOwnCredentials(process.env)
 
   const verify = spawnSync(
     'node',

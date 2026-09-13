@@ -411,6 +411,19 @@ export function buildVerifierEnvironment(environment) {
 // reach the verifier process at all, same as the ARBITER_CONSUMER_* deploy credentials.
 const CREDENTIAL_ENV_NAMES = new Set(['GH_TOKEN', 'GITHUB_TOKEN'])
 
+// #2679 round 2: run-consumer-reliability.mjs (the local combined entry point) spawns
+// prepare then verify as two children of ONE credentialed process — a filtered child env
+// for verify is not enough while THIS process's own environment/memory still carries the
+// credentials for as long as it stays alive. Call this on the wrapper's own `process.env`
+// after the prepare child exits and before the verify child is spawned.
+export function scrubOwnCredentials(environment) {
+  for (const key of Object.keys(environment)) {
+    if (key.startsWith(CONSUMER_SECRET_PREFIX) || CREDENTIAL_ENV_NAMES.has(key)) {
+      Reflect.deleteProperty(environment, key)
+    }
+  }
+}
+
 export function assertCredentialFreeEnvironment(environment) {
   const leaked = Object.entries(environment)
     .filter(
