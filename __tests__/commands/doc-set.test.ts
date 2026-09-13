@@ -5,7 +5,7 @@
 // and failed with `error: unknown command 'doc-set'` — the governed presence gate never worked.
 // Parity test: the command's payload MUST equal `node scripts/check-doc-set.mjs --json` for the
 // same manifest + repo — there is exactly one engine, never a second one.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -74,5 +74,61 @@ describe('runDocSet (H1 thin wrapper, gold-doc-capability Tranche 0)', () => {
     // the wrapper doesn't misreport a clean SKIP as a failure, and never throws to the caller.
     expect(res.exitCode).toBe(0)
     expect(res.payload).toBeNull()
+  })
+})
+
+/** Run with --json (not quiet) and return the single envelope written to stdout. */
+function envelopeOf(run: () => unknown): Record<string, unknown> {
+  const writes: string[] = []
+  const spy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+    writes.push(String(chunk))
+    return true
+  })
+  try {
+    run()
+  } finally {
+    spy.mockRestore()
+  }
+  return JSON.parse(writes.join('').trim()) as Record<string, unknown>
+}
+
+describe('#2504 — doc-set --json never launders a SKIP or a subdirectory run into ok', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each([
+    ['presence', {}],
+    ['freshness', { freshness: true }],
+  ])('%s: a plain-text [SKIP] is a non-ok envelope carrying the reason', (_route, flags) => {
+    rmSync(join(dir, 'standards'), { recursive: true, force: true })
+    const env = envelopeOf(() => runDocSet({ repo: dir, json: true, ...flags }))
+    expect(env.status).not.toBe('ok')
+    expect((env.data as { skipped?: boolean }).skipped).toBe(true)
+    expect(String((env.data as { reason?: string }).reason)).toMatch(/no manifest/)
+  })
+
+  it('a run from a subdirectory audits the enclosing repo root, not a SKIP', () => {
+    writeFileSync(join(dir, 'README.md'), '# r')
+    spawnSync('git', ['init', '-q'], { cwd: dir })
+    const sub = join(dir, 'docs', 'deep')
+    mkdirSync(sub, { recursive: true })
+    vi.spyOn(process, 'cwd').mockReturnValue(sub)
+    const res = runDocSet({ json: true, quiet: true })
+    expect(res.exitCode).toBe(0)
+    expect(res.payload).not.toBeNull()
+  })
+
+  it('no resolvable repo root above cwd exits 2 instead of a silent SKIP', () => {
+    vi.spyOn(process, 'cwd').mockReturnValue(dir) // tmpdir, not inside any git repo
+    const res = runDocSet({ json: true, quiet: true })
+    expect(res.exitCode).toBe(2)
+  })
+
+  it('--arc42 parses the arc42 payload with its own type', () => {
+    // arbiter's own tree carries a filled arc42 (docs/architecture/arc42.md).
+    const res = runDocSet({ repo: resolve('.'), arc42: true, json: true, quiet: true })
+    expect(res.route).toBe('arc42')
+    if (res.route !== 'arc42' || res.payload === null) throw new Error('arc42 payload missing')
+    expect(typeof res.payload.doc).toBe('string')
+    expect(Array.isArray(res.payload.violations)).toBe(true)
   })
 })
