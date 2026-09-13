@@ -297,6 +297,10 @@
       "reason": "INV-48/CANON-04: every src/templates/**.ejs has a render test. Its subject is arbiter\u2019s generator corpus (src/templates, src/generators, src/commands, src/kit, src/compatibility, examples/). A target project has no generator corpus, so an emitted twin would be a gate with no subject \u2014 self-only by construction (CANON-01 motivated divergence)."
     },
     {
+      "path": "scripts/check-emitted-formatting.mjs",
+      "reason": "#2571: checks that every tag-free src/templates/**/*.<ext>.ejs template, prettier-checked directly, is formatted per arbiter's own .prettierrc. Its subject is arbiter's own template corpus (src/templates/); a target project has no src/templates/ directory to check \u2014 self-only by construction, same shape as check-template-tests.mjs."
+    },
+    {
       "path": "scripts/check-tool-claims.mjs",
       "reason": "Rejects docs claiming --accept-beta-tools enables a tool the CLI hard-rejects. Its subject is the published @getarbiter/cli artifact (dist/, public API surface, CLI reference, semver/CHANGELOG, deprecation window, dependency attribution). A governed target is not the arbiter package \u2014 self-only by construction."
     },

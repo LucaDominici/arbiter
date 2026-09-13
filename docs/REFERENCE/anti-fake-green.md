@@ -1,8 +1,8 @@
 ---
 title: 'Reference: Anti-fake-green guards'
-doc_version: '1.0.1'
+doc_version: '1.0.2'
 status: active
-last_review: '2026-09-12'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -67,6 +67,17 @@ into the gate via the `check-anti-fake-green.mjs` aggregate (class `gh-audit` = 
   RT-02), so it reports `[NO-BITE]` today — the tool doing its job. Impl:
   `src/commands/doctor.ts` (`runDoctorProveGates`), tests in
   `__tests__/conformance/gate-proofs.test.ts` + `__tests__/commands/doctor-prove-gates.test.ts`.
+- **N5 — emitted-formatting fail-closed (#2571)**: the whole-repo `format` step
+  (`npx prettier --check .`) cannot infer a parser for `src/templates/**/*.<ext>.ejs` and
+  silently `exit 0`s on every one — a fake-green where the passing signal never touched the
+  property it claims to attest (the formatting of what the template EMITS). `scripts/check-
+emitted-formatting.mjs` closes it for the tag-free half: every EJS-tag-free template is
+  prettier-checked directly (the template body IS the emitted content), ratcheted against
+  `.emitted-formatting-baseline.txt`, and an unparsable template counts as mis-formatted
+  rather than being skipped. Wired into `scripts/check-all.mjs` only (self-repo has no
+  `src/templates/`, so the generated `check-all.mjs.ejs` does not carry this step, matching
+  its self-only siblings `check-template-tests.mjs`/`check-self-dogfood.mjs`). Tag-bearing
+  templates (locals-dependent emission) are out of scope for this gate.
 
 ## Empty-scan refusal (#2512)
 

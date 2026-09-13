@@ -315,6 +315,9 @@ if (isMain) {
     // terminate in an owner. Vacuous when .arbiter/evidence/tabletop/ holds nothing.
     runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.mjs'])
     runCheck('template tests', 'node', ['scripts/check-template-tests.mjs'])
+    // #2571: whole-repo `prettier --check .` above cannot infer a parser for `*.<ext>.ejs`
+    // and silently exits 0 on every one — this checks what each tag-free template EMITS.
+    runCheck('emitted formatting (#2571)', 'node', ['scripts/check-emitted-formatting.mjs'])
     runCheck('generator tests', 'node', ['scripts/check-generator-tests.mjs'])
     runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])
     runCheck('brownfield tests (CANON-11)', 'node', ['scripts/check-brownfield-tests.mjs'])
