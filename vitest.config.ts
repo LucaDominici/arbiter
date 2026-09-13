@@ -42,7 +42,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    globalSetup: [join(root, '__tests__/setup/tracked-claude-guard.ts')],
     setupFiles: [join(root, 'vitest.setup.ts')],
     // Generator tests create full project trees and (with the #1486 coverage suite) many files
     // stub process globals / spawn short-lived subprocesses; under full-suite parallelism on a
@@ -51,17 +50,42 @@ export default defineConfig({
     testTimeout: 30000,
     // #2282: bound the fork pool in CI — see ciMaxWorkers above.
     maxWorkers: ciMaxWorkers(),
-    // Integration tests are L2+ per AGENTS.md gate policy; L1 unit-only keeps pre-commit fast.
-    include: ['__tests__/**/*.test.ts'],
-    exclude: ['**/node_modules/**', '__tests__/integration/**'],
-    // Integration tests use vi.doMock + dynamic import which requires process-level isolation to
-    // avoid module-registry / process-global leaks across parallel test files. The #1486
-    // coverage suite (__tests__/coverage/**) does the same — heavy vi.doMock + process.exit/stdout
-    // stubs + real subprocess spawns — so it runs in the forks pool too: each file gets its own
-    // process, so an unrestored global stub or a slow subprocess in one file cannot flake another.
-    poolMatchGlobs: [
-      ['**/__tests__/integration/**', 'forks'],
-      ['**/__tests__/coverage/**', 'forks'],
+    // #2516: `poolMatchGlobs` was deprecated in Vitest 2 and removed in Vitest 3 — vitest 4.1.11
+    // silently ignores the unknown key instead of rejecting it, so it read as enforcement while
+    // applying nothing. Vitest 3+ replaces per-glob pool selection with `test.projects`. Root
+    // `include`/`exclude` are deliberately NOT set here: Vite's mergeConfig concatenates array
+    // values, so an `extends: true` project that also set `include` would end up with the union
+    // of its own glob and the root's, defeating the split below. Leaving them undefined means
+    // each project's `include`/`exclude` is the only value in play (no existing array to merge
+    // with — see mergeConfigRecursively in vite/dist/node/chunks/node.js).
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          // The #1486 coverage suite (__tests__/coverage/**) needs process-level isolation (heavy
+          // vi.doMock + process.exit/stdout stubs + real subprocess spawns) — it runs in its own
+          // project below. Integration tests are L2+ per AGENTS.md gate policy, covered by
+          // vitest.integration.config.ts.
+          include: ['__tests__/**/*.test.ts'],
+          exclude: ['**/node_modules/**', '__tests__/integration/**', '__tests__/coverage/**'],
+          // Only one project should run the tracked-.claude mutation guard, or every run pays for
+          // it twice; it snapshots the whole tree, so it still catches mutations from the coverage
+          // project's tests too.
+          globalSetup: [join(root, '__tests__/setup/tracked-claude-guard.ts')],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'coverage',
+          include: ['__tests__/coverage/**/*.test.ts'],
+          exclude: ['**/node_modules/**'],
+          // Each file gets its own process, so an unrestored global stub or a slow subprocess in
+          // one file cannot flake another (the isolation poolMatchGlobs used to provide).
+          pool: 'forks',
+        },
+      },
     ],
     coverage: {
       provider: 'v8',
