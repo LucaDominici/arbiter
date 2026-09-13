@@ -249,7 +249,13 @@ describe('check-adr-enforcement gate (#1473)', () => {
       expect(r.stderr).toMatch(/mandatory|allowlist|enforces/i)
     })
     it('fails closed (never a vacuous pass) when the ADR directory EXISTS but cannot be read', () => {
-      const a = numberedAdr('031', 'active', null)
+      // A resolving `enforces:` + a generous ratchet baseline: everything downstream of
+      // the read is set up to PASS, so a nonzero exit can only come from the unreadable
+      // directory itself, not from an unrelated mandatory-enforces or ratchet failure —
+      // and, symmetrically, this is what lets the OLD (fail-open) code actually reach
+      // exit 0 instead of erroring out earlier for an unrelated reason (missing
+      // baseline file), which would make this fixture unable to discriminate old vs new.
+      const a = numberedAdr('031', 'active', ['INV-59'])
       const dir = mkdtempSync(join(tmpdir(), 'adr-enf-'))
       const adrDir = join(dir, 'docs', 'internal', 'ADR')
       try {
@@ -257,15 +263,26 @@ describe('check-adr-enforcement gate (#1473)', () => {
         writeFileSync(join(adrDir, a.name), a.body)
         mkdirSync(join(dir, 'standards'), { recursive: true })
         mkdirSync(join(dir, 'src', 'invariants'), { recursive: true })
+        mkdirSync(join(dir, 'scripts', 'data'), { recursive: true })
+        writeFileSync(
+          join(dir, 'scripts', 'data', 'adr-enforcement-baseline.json'),
+          JSON.stringify({ unclaimed: 99 }),
+        )
         writeFileSync(join(dir, 'standards', 'gold-registry.yml'), DEFAULT_REGISTRY)
         writeFileSync(join(dir, 'src', 'invariants', 'catalog.ts'), DEFAULT_CATALOG)
+        // Skip where the process runs as root (root ignores directory permissions, so the
+        // chmod below would not actually block the read) — same convention as
+        // __tests__/evidence/tdd.test.ts / __tests__/utils/safe-read.test.ts.
+        if (process.getuid?.() === 0) return
         chmodSync(adrDir, 0o000)
         const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: dir })
         // Must NOT be the "no docs/internal/ADR" vacuous-pass path (exit 0) — the
         // directory exists, it just cannot be enumerated. A silent files=[] here
         // would report "0 ADRs, nothing to verify" and exit 0, laundering the read
         // error into a pass.
-        expect(r.status).not.toBe(0)
+        expect(r.status).toBe(1)
+        expect(r.stderr).toMatch(/unexpected error/)
+        expect(r.stderr).toMatch(/EACCES|permission denied/i)
       } finally {
         chmodSync(adrDir, 0o755)
         rmSync(dir, { recursive: true, force: true })
