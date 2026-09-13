@@ -1,6 +1,6 @@
 ---
 title: 'CI Tier Workflows — Reference'
-doc_version: '2.0.25'
+doc_version: '2.0.26'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -231,11 +231,30 @@ exported into a `run:` step's environment (a step only sees it if a step explici
 neither), and `persist-credentials: false` on its `actions/checkout` step is what stops the
 action from writing that token into the git credential store on disk. `consumer-reliability-
 bar.mjs` also calls `assertCredentialFreeEnvironment(process.env)` at its own entry point and
-refuses to run if any `ARBITER_CONSUMER_*`, `GH_TOKEN`, or `GITHUB_TOKEN` variable is present,
-fail-closed even if a future workflow edit reintroduces one by mistake. The handoff only
-records each consumer's id (never an absolute path) — the prepared workspace lands at a
-different absolute path on the `verify` runner than it did on `prepare`'s, and the verifier
-always re-roots against its own `--workspace` argument.
+refuses to run if any `ARBITER_CONSUMER_*`/`INPUT_*`-prefixed name, or the exact names
+`GH_TOKEN`/`GITHUB_TOKEN`/`ACTIONS_RUNTIME_TOKEN`/`ACTIONS_ID_TOKEN_REQUEST_TOKEN`/
+`ACTIONS_ID_TOKEN_REQUEST_URL` (matched case-insensitively), is present — fail-closed even
+if a future workflow edit reintroduces one by mistake. The handoff only records each
+consumer's id (never an absolute path) — the prepared workspace lands at a different
+absolute path on the `verify` runner than it did on `prepare`'s, and the verifier always
+re-roots against its own `--workspace` argument.
+
+The real HOME (whether the CI runner's or a local developer's) can hold `~/.ssh` and
+`~/.git-credentials`, which consumer-controlled code could read just as easily as an env
+var. `consumer-reliability-bar.mjs` self-remediates by `mkdtempSync`-ing its own isolated,
+empty `HOME` at startup — before any consumer-controlled command runs — regardless of who
+invoked it; the `verify` job also overrides `HOME` on the bar step, belt-and-suspenders.
+
+`scripts/run-consumer-reliability.mjs` (the LOCAL, `npm run test:consumer-reliability`
+combined entry point — CI never runs it) refuses to start at all if a credential-shaped
+variable is present in its OWN environment: deleting a key from `process.env` after the
+fact does not clear `/proc/<pid>/environ`, so a same-UID process could still read the
+original value for as long as this wrapper held it, no matter what any spawned child
+receives. Credentials for the local run therefore never touch this process's own
+environment — they are supplied via `--credentials-file <path>` (`KEY=VALUE` lines, file
+mode must be exactly `0600`), read and injected only into the `prepare` child's spawn env;
+the `verify` child still gets the explicit allowlisted environment plus a fresh `HOME`,
+built from scratch, never `process.env`.
 
 ## INV-73 canonical presence floor
 
