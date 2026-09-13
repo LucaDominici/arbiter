@@ -95,6 +95,7 @@ export function loadBaseline(baselineFile) {
   try {
     parsed = JSON.parse(raw)
   } catch (err) {
+    console.error(`[check-emitted-formatting] ${baselineFile}: not valid JSON: ${err.message}`)
     return { error: `not valid JSON (${err.message})` }
   }
   if (!parsed || !Array.isArray(parsed.grandfathered)) {
