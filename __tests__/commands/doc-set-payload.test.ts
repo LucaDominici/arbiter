@@ -8,7 +8,7 @@ vi.mock('../../src/utils/run-cli.js', async (orig) => ({
   runCli: vi.fn(),
 }))
 
-import { runCli } from '../../src/utils/run-cli.js'
+import { runCli, CliError } from '../../src/utils/run-cli.js'
 import { runDocSet, type DocSetOptions } from '../../src/commands/doc-set.js'
 
 function engineSays(stdout: string): void {
@@ -34,6 +34,23 @@ describe('#2504 — doc-set --json payload contract', () => {
 
   it('non-JSON stdout without a [SKIP] marker is an error, not ok', () => {
     engineSays('something unexpected\n')
+    const { env, exitCode } = envelopeOf({})
+    expect(env.status).toBe('error')
+    expect(exitCode).toBe(2)
+  })
+
+  it('an engine exit 1 with no JSON payload is exit 2, not the engine code', () => {
+    vi.mocked(runCli).mockImplementation(() => {
+      throw new CliError({
+        cmd: 'node',
+        args: [],
+        exitCode: 1,
+        stdout: 'check-doc-set: unexpected error\n',
+        stderr: '',
+        timedOut: false,
+        notFound: false,
+      })
+    })
     const { env, exitCode } = envelopeOf({})
     expect(env.status).toBe('error')
     expect(exitCode).toBe(2)
