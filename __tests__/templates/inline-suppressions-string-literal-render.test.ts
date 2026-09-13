@@ -107,4 +107,21 @@ describe('#2671 emitted check-inline-suppressions skips directive text inside st
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('still FAILS a real directive when an earlier regex literal on the line contains an apostrophe', () => {
+    const dir = stageDir()
+    try {
+      writeFileSync(
+        join(dir, 'regex.ts'),
+        // RED before the fix: the apostrophe inside /it's/ is read as opening an
+        // unterminated string (fail-open), which swallows the real trailing
+        // directive so the invalid date is never validated.
+        '/it\'s/; // arbiter-suppress(INV-12, until=2000-01-01, reason="documented test fixture", owner=team)\n' +
+          'export const sample = 1\n',
+      )
+      expect(runCheck(dir)).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

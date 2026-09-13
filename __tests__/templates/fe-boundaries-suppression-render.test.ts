@@ -103,4 +103,20 @@ describe('#2671 emitted check-fe-boundaries honors arbiter-allow-raw-fetch', () 
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('PASSES a real trailing marker even when an earlier regex literal contains an apostrophe', () => {
+    const dir = stageDir()
+    try {
+      writeFileSync(
+        join(dir, 'src', 'entities', 'thing', 'thing.ts'),
+        'const re = /it\'s/; export async function load() { return fetch("/x") } // arbiter-allow-raw-fetch: internal LAN sync snapshot\n',
+      )
+      // RED before the fix: the apostrophe inside /it's/ is read as opening an
+      // unterminated string, which swallows the real trailing // comment so the
+      // marker is never recognized as sitting in a real comment.
+      expect(runCheck(dir)).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
