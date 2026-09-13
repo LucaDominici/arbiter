@@ -3,7 +3,7 @@
 // exercised AS EMITTED into the target — no arbiter install, no workflow-level
 // hand grep. Same shape as emission-parity-gate.test.ts (#2110).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -47,6 +47,24 @@ describe('#2663 check-no-orphan-todo.mjs gate (no arbiter dependency)', () => {
 
   it('is emitted by init and wired at L1', () => {
     expect(existsSync(join(dir, ...GATE))).toBe(true)
+  })
+
+  // #2663 (P2 review fix): file existence alone does not prove the gate actually RUNS —
+  // the emitted check-all.mjs embeds its own GATE_REGISTRY (rendered from
+  // gate-registry.yml.ejs) and only rows in that registry execute. Inspect the row itself.
+  it('is a row in the emitted check-all.mjs GATE_REGISTRY at level L1', () => {
+    const checkAllContent = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    const match = checkAllContent.match(/const GATE_REGISTRY = (\[.*?\]);/s)
+    expect(match, 'GATE_REGISTRY not found in emitted check-all.mjs').toBeTruthy()
+    const registry = JSON.parse(match![1]) as Array<{
+      id: string
+      level: string
+      cmd?: [string, string[]]
+    }>
+    const row = registry.find((g) => g.id === 'no-orphan-todo')
+    expect(row, 'no-orphan-todo row missing from GATE_REGISTRY').toBeTruthy()
+    expect(row!.level).toBe('L1')
+    expect(row!.cmd).toEqual(['node', ['scripts/check-no-orphan-todo.mjs']])
   })
 
   it('FAILS (exit 1) and names the offending file on an orphan TODO', () => {
