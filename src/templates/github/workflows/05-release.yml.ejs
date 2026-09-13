@@ -397,7 +397,9 @@ jobs:
 <% } else { %>
       - name: Generate CycloneDX SBOM
         run: mvn cyclonedx:makeAggregateBom
-      - run: mv target/bom.json sbom.cdx.json 2>/dev/null || mv target/bom.xml sbom.cdx.xml || true
+      # #2673: unconditional on purpose -- sbom-attest requires sbom.cdx.json and must fail
+      # closed if the plugin didn't produce it, not silently proceed without an SBOM.
+      - run: mv target/bom.json sbom.cdx.json
 <% } %>
 <% } else if (language === 'go') { %>
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
@@ -414,16 +416,21 @@ jobs:
         with:
           python-version-file: .python-version
       - run: pip install cyclonedx-bom
+      # #2673: unconditional on purpose -- sbom-attest requires a real sbom.cdx.json and must
+      # fail closed if this tool errored, not silently attest an empty/partial file.
       - name: Generate CycloneDX SBOM
-        run: python -m cyclonedx_py auto > sbom.cdx.json || true
+        run: python -m cyclonedx_py auto > sbom.cdx.json
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      # #2673: unconditional on purpose -- sbom-attest requires a real sbom.cdx.json and must
+      # fail closed if cargo-cyclonedx didn't run, not fabricate a placeholder JSON body.
+      # cargo-cyclonedx names its output <package-name>.cdx.json, not bom.json.
       - name: Generate CycloneDX SBOM
         run: |
-          cargo install cargo-cyclonedx --locked || true
-          cargo cyclonedx --format json || true
-          mv bom.json sbom.cdx.json 2>/dev/null || echo '{"bomFormat":"CycloneDX"}' > sbom.cdx.json
+          cargo install cargo-cyclonedx --locked
+          cargo cyclonedx --format json
+          mv *.cdx.json sbom.cdx.json
 <% } %>
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
