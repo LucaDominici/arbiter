@@ -206,13 +206,17 @@ describe('consumer reliability bar oracles (#2135)', () => {
     expect(result.ok).toBe(true)
   })
 
-  // #2591 round 2: a `command`/dry-run surface (java's `run.sh ci --dry-run`) scrapes a
-  // ROSTER of gates that would run, never a per-gate pass/fail result — no `declaredHard`
-  // is derivable from it, so assessGateSurface must fall back to `declared` rather than
-  // either inferring hardness from the roster or failing every WIRED entry closed.
-  it('#2591 round 2: a bare WIRED mapping still resolves when declaredHard is omitted (dry-run roster)', () => {
+  // #2591 round 3 (orchestrator decision): a `command`/dry-run surface (java's
+  // `run.sh ci --dry-run`) scrapes a ROSTER of gates that would run, never a per-gate
+  // pass/fail result — no `declaredHard` is derivable from it. That limitation predates
+  // #2591 and stays out of this issue's scope to close; assessGateSurface falls back to
+  // `declared` (unchanged pre-#2591 behavior) rather than inferring hardness from the
+  // roster or failing every WIRED entry closed — but it must say so explicitly, not
+  // silently pass a presence-only match off as proven-hard evidence.
+  it('presence-only evidence accepted for command surfaces (pre-#2591 contract, see follow-up)', () => {
     const result = assessGateSurface(surfaceCase({ declaredHard: undefined }))
     expect(result.ok).toBe(true)
+    expect(result.detail).toMatch(/WIRED \(presence-only evidence: dry-run roster\)/)
   })
 
   it('AC-2 fails on an emitted name that is neither mapped, declined, nor in debt', () => {

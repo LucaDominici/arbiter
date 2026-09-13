@@ -145,6 +145,14 @@ unaccounted" on every pinned consumer.
 For example, a consumer's post-merge `node scripts/check-all.mjs L2 --json
 gate-result.json` is evidence of CI alignment only when the Bar names that exact
 workflow job and command.
+A bare `WIRED:<gate id>` requires evidence the gate can actually fail the build
+(`runCheck`/`runToolCheck`, or `pushResult(..., 'FAIL')`, or matched workflow-run
+evidence); a `command`/dry-run surface (e.g. java's `run.sh ci --dry-run`) can only
+prove a gate name is present in the roster, not that it can fail — that limitation
+predates #2591, so a WIRED match resolved through it is reported as presence-only
+evidence in the Bar's result `detail`, never silently treated as proven-hard
+(#2591, follow-up tracked separately). A gate the consumer runs only in warn mode
+must use `WIRED:warn:<gate id>` instead of a bare `WIRED:<gate id>`.
 At the pinned Coach revision, `BDD @ignore check` is carried by the existing
 `anti-fake-green (INV-135)` L2 caller: its muted-test guard scans `.feature`
 files and rejects `@ignore` even when an exemption marker is present.

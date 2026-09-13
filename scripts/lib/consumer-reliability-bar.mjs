@@ -128,31 +128,43 @@ export function assessGateSpine({ before, after, existed }) {
 const MAPPING_VERDICT = /^(WIRED|DECLINED|DEBT):([\s\S]*)$/
 const WIRED_WARN = /^warn:([\s\S]*)$/
 
-// One mapping entry, judged against the surface measured THIS run. Returns the problem
-// text, or null when the entry is sound.
-function judgeMappingEntry(name, verdict, executed, executedHard, openIssues) {
+// One mapping entry, judged against the surface measured THIS run. Returns
+// `{ problem, presenceOnly }`: `problem` is the failure text (null when the entry is
+// sound); `presenceOnly` is true when a bare WIRED entry resolved only through the
+// `presenceOnly` fallback (below) — proof the gate is present, not proof it can fail.
+function judgeMappingEntry(name, verdict, executed, executedHard, openIssues, presenceOnly) {
   const parsed = MAPPING_VERDICT.exec(verdict)
-  if (parsed === null) return `${name}: unknown mapping verdict ${verdict}`
+  if (parsed === null) return { problem: `${name}: unknown mapping verdict ${verdict}` }
   const [, kind, value] = parsed
   if (kind === 'WIRED') {
     const warn = WIRED_WARN.exec(value)
     if (warn !== null) {
       const [, softValue] = warn
-      return executed.has(softValue)
-        ? null
-        : `${name}: mapped to warn-wired gate ${softValue}, absent from the executed surface`
+      return {
+        problem: executed.has(softValue)
+          ? null
+          : `${name}: mapped to warn-wired gate ${softValue}, absent from the executed surface`,
+      }
     }
-    if (executedHard.has(value)) return null
-    return executed.has(value)
-      ? `${name}: mapped to gate ${value}, only found in the executed surface via a call ` +
+    if (executedHard.has(value)) return { problem: null, presenceOnly }
+    return {
+      problem: executed.has(value)
+        ? `${name}: mapped to gate ${value}, only found in the executed surface via a call ` +
           'family that cannot fail the build (e.g. runWarnCheck) — declare WIRED:warn:' +
           `${value} if that is deliberate, or DEBT if it is a real gap`
-      : `${name}: mapped to gate ${value}, absent from the executed surface`
+        : `${name}: mapped to gate ${value}, absent from the executed surface`,
+    }
   }
   if (kind === 'DECLINED') {
-    return value.trim().length > 0 ? null : `${name}: DECLINED without a written reason`
+    return {
+      problem: value.trim().length > 0 ? null : `${name}: DECLINED without a written reason`,
+    }
   }
-  return openIssues.has(value) ? null : `${name}: debt issue ${value} is not a verified OPEN issue`
+  return {
+    problem: openIssues.has(value)
+      ? null
+      : `${name}: debt issue ${value} is not a verified OPEN issue`,
+  }
 }
 
 const isDebt = (verdict) => typeof verdict === 'string' && verdict.startsWith('DEBT:')
@@ -187,30 +199,51 @@ function ratchetProblems(debt, ceiling) {
 export function assessGateSurface({ freshRender, declared, declaredHard, mapping, debtRegister }) {
   const emitted = [...new Set(freshRender)].sort()
   const executed = new Set(declared)
-  // #2591: callers with real source (kind-aware) pass declaredHard explicitly. Callers that
-  // only ever had a flat name list (no call-family info to lose) fall back to `declared` —
-  // unchanged behavior, not a silent hard-by-default over real warn-only evidence.
+  // #2591 / round 3 (orchestrator decision): a command/dry-run surface (java's
+  // `run.sh ci --dry-run`) can only prove a gate name is PRESENT in the roster, never that
+  // it can fail the build — that limitation predates #2591 and is out of this issue's
+  // scope to close. `presenceOnly` names that contract explicitly: when a caller omits
+  // `declaredHard` (no call-family evidence to report), `executedHard` falls back to the
+  // full `declared` set and every bare WIRED match resolved through it is PRESENCE-ONLY
+  // evidence, not proof of hardness — surfaced in the success `detail` below, never
+  // silently indistinguishable from a real runCheck/runToolCheck/pushResult(FAIL) match.
+  const presenceOnly = declaredHard === undefined
   const executedHard = new Set(declaredHard ?? declared)
   const entries = mapping ?? {}
   const openIssues = new Set(debtRegister?.openIssues ?? [])
   const problems = []
+  const presenceOnlyMatches = []
 
   problems.push(...coverageProblems(emitted, entries))
 
   for (const name of emitted) {
     const verdict = entries[name]
     if (typeof verdict !== 'string') continue
-    const problem = judgeMappingEntry(name, verdict, executed, executedHard, openIssues)
-    if (problem !== null) problems.push(problem)
+    const judged = judgeMappingEntry(
+      name,
+      verdict,
+      executed,
+      executedHard,
+      openIssues,
+      presenceOnly,
+    )
+    if (judged.problem !== null) problems.push(judged.problem)
+    else if (judged.presenceOnly === true) presenceOnlyMatches.push(name)
   }
 
   const debt = emitted.filter((name) => isDebt(entries[name])).length
   problems.push(...ratchetProblems(debt, debtRegister?.ceiling))
 
   if (problems.length > 0) return { ok: false, detail: problems.join('; ') }
+  const presenceNote =
+    presenceOnlyMatches.length > 0
+      ? `; ${presenceOnlyMatches.length} WIRED (presence-only evidence: dry-run roster): ${presenceOnlyMatches.sort().join(', ')}`
+      : ''
   return {
     ok: true,
-    detail: `${emitted.length} emitted check(s) reconciled against ${executed.size} executed gate(s); ${debt} carried as tracked debt`,
+    detail:
+      `${emitted.length} emitted check(s) reconciled against ${executed.size} executed gate(s); ` +
+      `${debt} carried as tracked debt${presenceNote}`,
   }
 }
 
