@@ -120,6 +120,27 @@ Every feature implementation must include tests for each of the following patter
 
 **Full AC-1 inventory:** [`vacuous-optional-inventory-2590.md`](./vacuous-optional-inventory-2590.md) is a MECHANICALLY generated (`node scripts/gen-vacuous-optional-inventory.mjs`) classification of every `?? <literal>` sitting inside an `expect(...)` call repo-wide (59 rows — broader than the enforced grammar above, e.g. it also catches `__tests__/kit/catalog.test.ts:172` `expect((d?.requiresDbEngine ?? []).length).toBeGreaterThan(0)`, a different check entirely since `.length` on an absent key already goes to 0). Classes: **b** (vacuous, must be zero — currently 0) · **a** (same shape, documented via `// arbiter-allow-vacuous`, currently 2: `__tests__/commands/worktree-prune.test.ts:294,296` — `force`/`keepBranch` are genuinely optional, only set for `reason === 'inactive'`) · **c** (a different check entirely, safe by construction, currently 57). Re-run the generator and commit the diff when the shape recurs.
 
+## Fail-Closed Audit Robustness (#2515, #2516, #2577, #2614)
+
+Four fixes tightened INV-96 fail-closed enforcement and test isolation:
+
+- **`check-fail-closed-audit.mjs` mask-integrity floor (#2577):** the code-masking pass that lets
+  the audit ignore comments/strings could desync on a quote-bearing regex literal (e.g. `/['"]/`),
+  silently losing track of real code for the rest of the file. The gate now fails closed (exit 2,
+  `checkMaskIntegrity`) whenever `maskCode` ends a file still inside an unterminated
+  string/template/block-comment — a DATA/IO fault about the audit's own visibility, never a
+  quietly-accepted finding.
+- **`check-consumer-audit.mjs` severity classification (#2515):** an npm-audit entry with an
+  arbitrary string `severity` (not one of npm's real `auditReportVersion:2` enum values) used to
+  classify as CLEAN. It is now validated against `VALID_SEVERITIES` and anything outside the enum
+  is `reason: 'malformed'` — fail-closed rather than silently passing.
+- **`check-refutation-verdicts.mjs --require-marker` (#2614):** the flag now binds to the
+  requested task id and requires a strict string match on the task field; a missing or
+  non-string task field no longer satisfies requiredness.
+- **Coverage suite pool isolation (#2516):** `__tests__/coverage/**` is routed to the `forks`
+  Vitest pool via `test.projects` in `vitest.config.ts` (the dead `poolMatchGlobs` option was
+  removed); `__tests__/gates/vitest-coverage-forks-routing.test.ts` pins the routing.
+
 ## Inversion Proofs for Gates (CANON-24, #2301)
 
 A gate is a claim about the codebase. The way that claim fails is not usually a red build — it is a
