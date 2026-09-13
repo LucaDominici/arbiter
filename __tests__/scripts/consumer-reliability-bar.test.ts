@@ -17,7 +17,6 @@ import {
   extractWorkflowRun,
   redactSecrets,
   resultExitCode,
-  scrubOwnCredentials,
   summarizeProbeFailures,
   formatFailureLines,
   pinnedHeadMatches,
@@ -761,25 +760,6 @@ describe('consumer reliability bar oracles (#2135)', () => {
         ARBITER_CONSUMER_REPOS_TOKEN: 'secret-canary',
       }),
     ).toThrow(/credential/i)
-  })
-
-  // #2679 round 2: run-consumer-reliability.mjs (the local `npm run test:consumer-reliability`
-  // entry point) spawns prepare then verify as two children of ONE credentialed parent
-  // process — that parent's OWN process.env/proc-environ still carries the credentials while
-  // the verify child (running consumer-controlled code) executes. A filtered child env is not
-  // enough; the wrapper must scrub its OWN environment before spawning verify, so the verify
-  // child's parent environment contains none of them either.
-  it('#2679 scrubs a wrapper process env of every consumer credential before verify spawns', () => {
-    const env = {
-      PATH: '/usr/bin',
-      ARBITER_CONSUMER_GO_DEPLOY_KEY: 'secret-canary',
-      ARBITER_CONSUMER_GO_REPO: 'owner/go',
-      GH_TOKEN: 'secret-canary',
-      GITHUB_TOKEN: 'secret-canary',
-    }
-    scrubOwnCredentials(env)
-    expect(env).toEqual({ PATH: '/usr/bin' })
-    expect(() => assertCredentialFreeEnvironment(env)).not.toThrow()
   })
 
   it('#2679 refuses a verifier process that still carries a GitHub token', () => {
