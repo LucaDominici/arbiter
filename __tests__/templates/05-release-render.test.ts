@@ -1108,9 +1108,11 @@ function ancestryStepOf(source: string) {
   return buildSupersetSteps(source).find((s) => s.id === 'ancestry-check')
 }
 
-function initFixtureRepo(dir: string) {
+function initFixtureRepo(dir: string, { annotated = false }: { annotated?: boolean } = {}) {
   const git = (...args: string[]) =>
     spawnSync('git', args, { cwd: dir, encoding: 'utf8', timeout: 5000 })
+  const tag = (name: string) =>
+    annotated ? git('tag', '-a', name, '-m', `release ${name}`) : git('tag', name)
   git('init', '-q', '-b', 'main')
   git('config', 'user.email', 'a@b.c')
   git('config', 'user.name', 'red-team-fixture')
@@ -1118,13 +1120,13 @@ function initFixtureRepo(dir: string) {
   git('add', '.')
   git('commit', '-q', '-m', 'main commit')
   const mainSha = git('rev-parse', 'HEAD').stdout.trim()
-  git('tag', 'v1.0.0')
+  tag('v1.0.0')
   git('checkout', '-q', '-b', 'feature')
   writeFileSync(resolve(dir, 'g.txt'), '2')
   git('add', '.')
   git('commit', '-q', '-m', 'unreviewed commit')
   const featureSha = git('rev-parse', 'HEAD').stdout.trim()
-  git('tag', 'v1.0.1')
+  tag('v1.0.1')
   git('checkout', '-q', 'main')
   // Simulate what actions/checkout leaves behind: an `origin` remote (here,
   // pointed at this same working tree, which git can fetch from over a path).
@@ -1235,6 +1237,53 @@ describe.each([
         rmSync(dir, { recursive: true, force: true })
       }
     })
+
+    // Round 2 (#2679, red-team finding 3): the fixture above only ever pushed lightweight
+    // tags. `git rev-parse refs/tags/<name>^{commit}` must dereference an ANNOTATED tag
+    // object (not just a ref that already points straight at a commit) the same way.
+    it('accepts an ANNOTATED tag whose commit is reachable from origin/<default branch>', () => {
+      const step = ancestryStepOf(load())
+      const dir = mkdtempSync(resolve(tmpdir(), 'arbiter-ancestry-annotated-'))
+      try {
+        const { mainSha } = initFixtureRepo(dir, { annotated: true })
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', step!.run!], {
+          cwd: dir,
+          encoding: 'utf8',
+          timeout: 10000,
+          env: {
+            ...process.env,
+            GITHUB_SHA: mainSha,
+            GITHUB_REF_NAME: 'v1.0.0',
+            DEFAULT_BRANCH: 'main',
+          },
+        })
+        expect(result.status).toBe(0)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    it('fails closed for an ANNOTATED tag whose commit is NOT reachable from origin/<default branch>', () => {
+      const step = ancestryStepOf(load())
+      const dir = mkdtempSync(resolve(tmpdir(), 'arbiter-ancestry-annotated-'))
+      try {
+        const { featureSha } = initFixtureRepo(dir, { annotated: true })
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', step!.run!], {
+          cwd: dir,
+          encoding: 'utf8',
+          timeout: 10000,
+          env: {
+            ...process.env,
+            GITHUB_SHA: featureSha,
+            GITHUB_REF_NAME: 'v1.0.1',
+            DEFAULT_BRANCH: 'main',
+          },
+        })
+        expect(result.status).toBe(1)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
   },
 )
 
@@ -1242,36 +1291,63 @@ describe.each([
   ['rendered', () => renderRelease(TS_LIB)],
   ['materialized', () => readFileSync(resolve('.github/workflows/05-release.yml'), 'utf8')],
 ] as const)(
-  'publish-package — npm token stays behind an off-by-default fallback (finding 5, %s)',
+  'publish-package — OIDC only, no npm token anywhere (finding 5, round 2, %s)',
   (_name, load) => {
-    function publishSteps(source: string) {
-      return workflowOf(source).jobs['publish-package'].steps ?? []
+    function publishJob(source: string) {
+      return workflowOf(source).jobs['publish-package']
     }
 
-    it('the default (OIDC) publish step carries no token in its env', () => {
-      const steps = publishSteps(load())
-      const oidcStep = steps.find(
-        (s) => s.run?.includes('npm publish --provenance') && !s.if?.includes("== 'true'"),
-      )
-      expect(oidcStep).toBeTruthy()
-      expect(JSON.stringify(oidcStep?.env ?? {})).not.toContain('NPM_TOKEN')
-      expect(oidcStep?.if).toContain('NPM_PUBLISH_TOKEN_FALLBACK')
+    it('publishes via a single unconditional OIDC step with no `if` gate on a token flag', () => {
+      const steps = publishJob(load()).steps ?? []
+      const publishSteps = steps.filter((s) => s.run?.includes('npm publish --provenance'))
+      expect(publishSteps).toHaveLength(1)
+      expect(publishSteps[0]?.if).toBeUndefined()
     })
 
-    it('a token-fallback publish step exists, gated behind an explicit opt-in flag', () => {
-      const steps = publishSteps(load())
-      const fallback = steps.find((s) => JSON.stringify(s.env ?? {}).includes('NPM_TOKEN'))
-      expect(fallback?.if).toBe("vars.NPM_PUBLISH_TOKEN_FALLBACK == 'true'")
-      expect(fallback?.env?.NODE_AUTH_TOKEN).toBe('${{ secrets.NPM_TOKEN }}')
+    it('no NPM_TOKEN / NODE_AUTH_TOKEN anywhere in the whole publish-package job', () => {
+      expect(JSON.stringify(publishJob(load()))).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN/)
     })
 
     it('the global npm install pins an exact version with --ignore-scripts', () => {
-      const steps = publishSteps(load())
+      const steps = publishJob(load()).steps ?? []
       const install = steps.find((s) => s.run?.includes('npm install --global npm@'))
       expect(install?.run).toContain('--ignore-scripts')
     })
   },
 )
+
+// Every emitted archetype/language render must keep its publish/release job free of an
+// npm token, not just the TS_LIB profile the job structure above pins. `npm-auth-smoke`
+// (library/typescript only) legitimately carries NPM_TOKEN for its read-only whoami
+// check (#2624) — deliberate and out of scope here — so this scopes to the actual
+// publish/release job per archetype, not the whole rendered file.
+describe('05-release.yml.ejs — no npm token in the publish/release job (finding 5, round 2)', () => {
+  const PROFILES = [
+    { archetype: 'library', language: 'typescript', buildTool: 'npm', job: 'publish-package' },
+    { archetype: 'library', language: 'java', buildTool: 'gradle', job: 'publish-package' },
+    { archetype: 'library', language: 'go', buildTool: 'go', job: 'publish-package' },
+    { archetype: 'library', language: 'python', buildTool: 'pip', job: 'publish-package' },
+    { archetype: 'library', language: 'rust', buildTool: 'cargo', job: 'publish-package' },
+    {
+      archetype: 'backend-web-db',
+      language: 'typescript',
+      buildTool: 'npm',
+      job: 'build-container',
+    },
+    { archetype: 'cli', language: 'go', buildTool: 'go', job: 'build-binaries' },
+    {
+      archetype: 'data-pipeline',
+      language: 'typescript',
+      buildTool: 'npm',
+      job: 'bundle-artifact',
+    },
+  ] as const
+
+  it.each(PROFILES)('$archetype/$language: no NPM_TOKEN or NODE_AUTH_TOKEN in $job', (profile) => {
+    const job = workflowOf(renderRelease(profile)).jobs[profile.job]
+    expect(JSON.stringify(job)).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN/)
+  })
+})
 
 describe.each([
   ['rendered', () => renderRelease(TS_LIB)],
@@ -1296,3 +1372,27 @@ describe.each([
     }
   })
 })
+
+// Round 2 (#2679, red-team finding 3): the check above only ever rendered the library
+// archetype, so trivy-strict-release/build-container (service), build-binaries (cli) and
+// bundle-artifact (data-pipeline) — every one missing a permissions: block at round 1 —
+// were never exercised. Render every archetype this template emits.
+describe.each([
+  { archetype: 'library', language: 'typescript', buildTool: 'npm' },
+  { archetype: 'backend-web-db', language: 'typescript', buildTool: 'npm' },
+  { archetype: 'cli', language: 'go', buildTool: 'go' },
+  { archetype: 'data-pipeline', language: 'typescript', buildTool: 'npm' },
+] as const)(
+  'every job declares an explicit permissions block (finding 6, round 2, $archetype)',
+  (profile) => {
+    it('no job relies on the repo/org default permission set', () => {
+      const jobs = workflowOf(renderRelease(profile)).jobs
+      for (const [id, job] of Object.entries(jobs)) {
+        expect(
+          job.permissions,
+          `job "${id}" (${profile.archetype}) has no permissions: block`,
+        ).toBeTruthy()
+      }
+    })
+  },
+)
