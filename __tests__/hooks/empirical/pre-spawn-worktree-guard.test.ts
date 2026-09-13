@@ -56,7 +56,9 @@ function runHook(
     // Arbiter's own .claude/settings.json exports ARBITER_SPAWN_GUARD_HARD=1 (hard
     // grading repo-wide) — blank it so the default-grading tests test the code
     // default, not the ambient session env; hard tests still opt in explicitly.
-    env: { ...process.env, ARBITER_SPAWN_GUARD_HARD: '', ...env },
+    // CLAUDE_PID is blanked for the same reason (#2588): a test run inside a Claude Code
+    // session would otherwise register that session's pid, and CI would register none.
+    env: { ...process.env, ARBITER_SPAWN_GUARD_HARD: '', CLAUDE_PID: '', ...env },
   })
 }
 
@@ -196,6 +198,59 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
     expect(result.status).toBe(0)
     const sidecar = JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-active.json'), 'utf-8'))
     expect(sidecar.length).toBe(1)
+  })
+
+  // #2588: the hook process (and its `/bin/sh -c` parent) exits at once, so the entry must
+  // carry the session pid Claude Code exports as CLAUDE_PID — otherwise pid-liveness pruning
+  // would drop every registration and the guard would never block a second writer.
+  it('#2588 AC-4: registers the session pid, so a second write-intent spawn is still blocked (hard grading)', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    const payload = { tool_input: { subagent_type: 'general-purpose', prompt: 'work on #100' } }
+    // The hook's grandparent stands in for the session, as under `/bin/sh -c node hook.mjs`.
+    const env = { ARBITER_SPAWN_GUARD_HARD: '1', CLAUDE_PID: String(process.ppid) }
+    expect(runHook(dir, payload, env).status).toBe(0)
+    const sidecar = JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-active.json'), 'utf-8'))
+    expect(sidecar[0].pid).toBe(process.ppid)
+    expect(runHook(dir, payload, env).status).toBe(2)
+  })
+
+  it('#2588 AC-4: a CLAUDE_PID naming the hook itself or its direct parent is not recorded', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    // spawnSync makes this test process the hook's direct parent: a transient launcher pid.
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'general-purpose', prompt: 'work on #100' } },
+      { CLAUDE_PID: String(process.pid) },
+    )
+    expect(result.status).toBe(0)
+    const sidecar = JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-active.json'), 'utf-8'))
+    expect(sidecar[0]).not.toHaveProperty('pid')
+  })
+
+  it('#2588 AC-1: a dead-pid entry no longer blocks a write-intent spawn (hard grading)', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    const deadPid = spawnSync(process.execPath, ['-e', '']).pid
+    writeSidecar(dir, [{ agent: 'general-purpose', ts: Date.now(), pid: deadPid, cwd: dir }])
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'general-purpose', prompt: 'work on #100' } },
+      { ARBITER_SPAWN_GUARD_HARD: '1', CLAUDE_PID: String(process.ppid) },
+    )
+    expect(result.status).toBe(0)
+  })
+
+  it('#2588 AC-3: without CLAUDE_PID the entry is registered with no pid (age-only)', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    const result = runHook(dir, {
+      tool_input: { subagent_type: 'general-purpose', prompt: 'work on #100' },
+    })
+    expect(result.status).toBe(0)
+    const sidecar = JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-active.json'), 'utf-8'))
+    expect(sidecar[0]).not.toHaveProperty('pid')
   })
 
   it('exits 0: unreadable/empty stdin stands down (FAIL-OPEN-INTENT)', () => {
