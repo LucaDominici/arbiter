@@ -1,8 +1,8 @@
 ---
 title: 'Anti-Context-Rot Enforcers — Design of the TO-CREATE Gate Set'
-doc_version: '0.1.0'
+doc_version: '0.1.1'
 status: draft
-last_review: '2026-07-12'
+last_review: '2026-09-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -379,7 +379,9 @@ TO-CREATE (dispatch-manifest: an agent prompt references exactly one task).
    write-agent on the main tree — open a worktree: `/wt-open`, ADR-103"). No other writer ⇒
    allow (serial main-tree work is legal) and register. Entries expire after 2h or on
    session Stop (a companion 5-line cleanup in the Stop chain) so a killed agent cannot wedge
-   future spawns — staleness handling mirrors `arbiter worktree prune --stale`.
+   future spawns — staleness handling mirrors `arbiter worktree prune --stale`. The entry's
+   `pid` is the Claude Code session (`CLAUDE_PID`), not the short-lived hook process; an entry
+   whose pid is gone (ESRCH) is pruned at once, and one without a pid is age-only (#2588).
 3. **One-task rule (M2).** Count distinct `#\d+` task ids in the prompt: >1 ⇒ advisory
    stderr at soft hardness, exit 2 at hard (grading via the hooks manifest — body unchanged).
 

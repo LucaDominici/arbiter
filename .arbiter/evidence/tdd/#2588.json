@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2588",
+  "test_path": "__tests__/hooks/sidecar-liveness.test.ts",
+  "test_commit_sha": "f08097c7aaa55fb0dd4c9662a742912227afb463",
+  "test_blob_sha": "b5658057da0b92c77edf9c97928219d9b1763e5e",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ __tests__/hooks/sidecar-liveness.test.ts (12 tests | 2 failed) 23ms\n     × prunes a fresh entry whose pid is dead (AC-1) 20ms\n     × prunes a fresh entry when the kill probe reports ESRCH (AC-1) 1ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 10 passed (12)\n   Start at  21:37:07\n   Duration  165ms (transform 21ms, setup 7ms, import 29ms, tests 23ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/hooks/sidecar-liveness.test.ts > #2588 pruneStaleSidecarEntries pid liveness > prunes a fresh entry whose pid is dead (AC-1)\nAssertionError: expected [ { agent: 'general-purpose', …(3) } ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   {\n+     \"agent\": \"general-purpose\",\n+     \"cwd\": \"/x\",\n+     \"pid\": 3396231,\n+     \"ts\": 1789328227735,\n+   },\n+ ]\n\n ❯ __tests__/hooks/sidecar-liveness.test.ts:25:52\n     23|   it('prunes a fresh entry whose pid is dead (AC-1)', () => {\n     24|     const entries = [{ agent: 'general-purpose', ts: now, pid: reapedP…\n     25|     expect(pruneStaleSidecarEntries(entries, now)).toEqual([])\n       |                                                    ^\n     26|   })\n     27|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  __tests__/hooks/sidecar-liveness.test.ts > #2588 pruneStaleSidecarEntries pid liveness > prunes a fresh entry when the kill probe reports ESRCH (AC-1)\nAssertionError: expected [ { agent: 'general-purpose', …(3) } ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   {\n+     \"agent\": \"general-purpose\",\n+     \"cwd\": \"/x\",\n+     \"pid\": 4242,\n+     \"ts\": 1789328227735,\n+   },\n+ ]\n\n ❯ __tests__/hooks/sidecar-liveness.test.ts:30:71\n     28|   it('prunes a fresh entry when the kill probe reports ESRCH (AC-1)', …\n     29|     const entries = [{ agent: 'general-purpose', ts: now, pid: 4242, c…\n     30|     expect(pruneStaleSidecarEntries(entries, now, throwing('ESRCH'))).…\n       |                                                                       ^\n     31|   })\n     32|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/hooks/sidecar-liveness.test.ts",
+  "recorded_at": "2026-09-13T19:37:07.810Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/hooks/sidecar-liveness.test.ts"
+  ]
+}
