@@ -132,6 +132,33 @@ describe('check-emitted-formatting.mjs (#2571)', () => {
     }
   })
 
+  it('catches an identity swap: fixing one grandfathered template while dirtying a new one', () => {
+    // A count-only ratchet is blind to this: fix `a.json.ejs` (was grandfathered dirty),
+    // dirty `b.json.ejs` (was clean) — the total mis-formatted count stays the same, so a
+    // count comparison alone reports OK while a NEW file is now silently mis-formatted and
+    // an old grandfathered entry is stale. The gate must name both.
+    const { dir, cleanup } = makeTemp()
+    try {
+      const tmplDir = join(dir, 'templates')
+      const baseline = join(dir, 'baseline.txt')
+      mkdirSync(tmplDir)
+      // Start: a.json.ejs mis-formatted (grandfathered), b.json.ejs clean.
+      writeFileSync(join(tmplDir, 'a.json.ejs'), '{\n  "a":1\n}')
+      writeFileSync(join(tmplDir, 'b.json.ejs'), '{ "b": 1 }\n')
+      const seed = run(tmplDir, baseline, ['--update-baseline'])
+      expect(seed.status).toBe(0)
+
+      // Swap: fix a, dirty b. Net mis-formatted count is unchanged (still 1).
+      writeFileSync(join(tmplDir, 'a.json.ejs'), '{ "a": 1 }\n')
+      writeFileSync(join(tmplDir, 'b.json.ejs'), '{\n  "b":1\n}')
+      const result = run(tmplDir, baseline)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('b.json.ejs')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('passes against the real templates and committed baseline', () => {
     const result = run(resolve('src/templates'), resolve('.emitted-formatting-baseline.txt'))
     expect(result.status).toBe(0)
