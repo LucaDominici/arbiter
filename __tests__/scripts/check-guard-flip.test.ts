@@ -401,10 +401,18 @@ describe('CANON-25 — the harness fails closed when its own programme collapses
       writeFileSync(blind, '// no runCheck() call the parser recognises\nconsole.log(1)\n')
       const drained = join(dir, 'drained.json')
       writeFileSync(drained, JSON.stringify({ ceiling: 0, deferred: [] }))
+      // #2560 round-2: an empty --roster matches this fixture's true (empty) wiring — the real
+      // production tables would otherwise report every one of their 174 rows as stale against a
+      // gate source that wires nothing, which is a true but different failure than the floor this
+      // test targets. A fixture declares its own roster contract, same as its own pins.
+      const emptyRoster = join(dir, 'roster.json')
+      writeFileSync(emptyRoster, JSON.stringify({ family: {}, notAbsence: {}, exempt: {} }))
 
-      const r = spawnSync('node', [HARNESS, `--gate=${blind}`, `--registry=${drained}`], {
-        encoding: 'utf-8',
-      })
+      const r = spawnSync(
+        'node',
+        [HARNESS, `--gate=${blind}`, `--registry=${drained}`, `--roster=${emptyRoster}`],
+        { encoding: 'utf-8' },
+      )
       expect(r.status, 'a zero-length programme must be an ERROR (2), never a pass').toBe(2)
       expect(`${r.stdout}${r.stderr}`).toMatch(/derived only 0 absence-asserting gates/)
 
@@ -412,7 +420,14 @@ describe('CANON-25 — the harness fails closed when its own programme collapses
       // so the floor is what produced the failure above — not the fixture being malformed.
       const declared = spawnSync(
         'node',
-        [HARNESS, `--gate=${blind}`, `--registry=${drained}`, '--min-family=0', '--max-deferred=0'],
+        [
+          HARNESS,
+          `--gate=${blind}`,
+          `--registry=${drained}`,
+          `--roster=${emptyRoster}`,
+          '--min-family=0',
+          '--max-deferred=0',
+        ],
         { encoding: 'utf-8' },
       )
       expect(declared.status).toBe(0)

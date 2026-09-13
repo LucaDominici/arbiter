@@ -223,7 +223,7 @@ function absenceSurface() {
   }
 
   const { roster, notAbsence, exempt } = loadRosterOverride(flag('roster'))
-  const family = deriveAbsenceFamily(gateSrc, { roster, notAbsence, exempt })
+  const family = deriveAbsenceFamily(gateSrc, { roster, notAbsence, exempt, now })
   if (family.length < minFamily) {
     throw Object.assign(
       new Error(

@@ -445,11 +445,61 @@ function unclassifiedError(name, path) {
   )
 }
 
+/**
+ * A wired mechanism declared in MORE THAN ONE table (Codex round-2 finding #1). Precedence order
+ * would silently pick a winner and hide the conflict; a gate cannot simultaneously be proven
+ * absence-asserting, declared not absence-asserting, and identified-but-deferred, so this is
+ * always a data error in gate-roster.mjs, never a legitimate double-declaration.
+ */
+function duplicateMembershipError(name, tableNames) {
+  return Object.assign(
+    new Error(
+      `wired gate '${name}' is declared in more than one table (${tableNames.join(', ')}) — ` +
+        `membership must be exactly one of ABSENCE_FAMILY_ROSTER/NOT_ABSENCE/ABSENCE_EXEMPT; ` +
+        `remove it from all but one in gate-roster.mjs`,
+    ),
+    { exitCode: 2 },
+  )
+}
+
+/**
+ * A table row naming a gate that is NOT wired in check-all.mjs (Codex round-2 finding #1). A
+ * stale row exempts/declares nothing real — a removed or renamed gate must have its row removed
+ * or updated, not left behind to silently pass an audit of a gate that no longer exists.
+ */
+function staleRowError(table, name) {
+  return Object.assign(
+    new Error(
+      `${table}['${name}'] names a gate that is not wired in check-all.mjs — a stale row is not ` +
+        `visited by the classification walk and would silently exempt/declare nothing; remove it`,
+    ),
+    { exitCode: 2 },
+  )
+}
+
 const FOLLOW_UP_ISSUE = /^#\d+$/
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
+/** A YYYY-MM-DD string that round-trips through Date parsing — rejects e.g. `2026-99-99`. */
+function isValidCalendarDate(s) {
+  if (typeof s !== 'string' || !ISO_DATE_RE.test(s)) return false
+  const d = new Date(`${s}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s
+}
+
+/** Problems with `entry.until` specifically, or null (Codex round-2 finding #2: shape is not enough). */
+function untilProblem(name, until, now) {
+  if (!isValidCalendarDate(until)) {
+    return `ABSENCE_EXEMPT['${name}'] has an \`until\` that is not a real calendar date (YYYY-MM-DD): ${until}`
+  }
+  if (new Date(`${until}T00:00:00Z`).getTime() < now.getTime()) {
+    return `ABSENCE_EXEMPT['${name}'] expired exemption — \`until\` (${until}) is in the past; promote the gate or extend the date`
+  }
+  return null
+}
+
 /** Problems with one ABSENCE_EXEMPT entry, or null when it is sound (Codex round-1 finding #2). */
-function exemptionProblem(name, entry, wiredPath) {
+function exemptionProblem(name, entry, wiredPath, now) {
   if (entry.script !== wiredPath) {
     return (
       `ABSENCE_EXEMPT['${name}'] declares script ${entry.script} but check-all.mjs wires ` +
@@ -459,7 +509,11 @@ function exemptionProblem(name, entry, wiredPath) {
   if (typeof entry.reason !== 'string' || entry.reason.trim().split(/\s+/).length < 3) {
     return `ABSENCE_EXEMPT['${name}'] needs a \`reason\` of at least 3 words, not a placeholder`
   }
-  const hasUntil = typeof entry.until === 'string' && ISO_DATE_RE.test(entry.until)
+  if (entry.until !== undefined) {
+    const problem = untilProblem(name, entry.until, now)
+    if (problem) return problem
+  }
+  const hasUntil = typeof entry.until === 'string'
   const hasFollowUp = typeof entry.followUp === 'string' && FOLLOW_UP_ISSUE.test(entry.followUp)
   if (!hasUntil && !hasFollowUp) {
     return (
@@ -470,40 +524,67 @@ function exemptionProblem(name, entry, wiredPath) {
   return null
 }
 
+/** Which of the three tables declare `name` — length > 1 is a duplicate-membership error. */
+function tableMembership(name, { roster, notAbsence, exempt }) {
+  const hits = []
+  if (roster[name]) hits.push('ABSENCE_FAMILY_ROSTER')
+  if (notAbsence[name]) hits.push('NOT_ABSENCE')
+  if (exempt[name]) hits.push('ABSENCE_EXEMPT')
+  return hits
+}
+
 /**
  * Classify one wired mechanism against the three declared tables. Returns a family entry, or
  * `null` when the mechanism is declared NOT_ABSENCE or validly exempt (present, not a member).
- * Throws (exitCode: 2) on roster/NOT_ABSENCE script drift, an invalid exemption, or a mechanism
- * declared in none of the three tables — every path is a decision made by a table, never a guess.
+ * Throws (exitCode: 2) on: membership in zero or more-than-one table, roster/NOT_ABSENCE script
+ * drift, or an invalid exemption — every path is a decision made by a table, never a guess.
  */
-function classifyMechanism(mech, { roster, notAbsence, exempt }) {
-  const declared = roster[mech.name]
-  if (declared) {
+function classifyMechanism(mech, tables, now) {
+  const hits = tableMembership(mech.name, tables)
+  if (hits.length > 1) throw duplicateMembershipError(mech.name, hits)
+  if (hits.length === 0) throw unclassifiedError(mech.name, mech.path)
+
+  if (hits[0] === 'ABSENCE_FAMILY_ROSTER') {
+    const declared = tables.roster[mech.name]
     if (declared.script !== mech.path)
       throw rosterDriftError('ABSENCE_FAMILY_ROSTER', mech.name, declared.script, mech.path)
     return { name: mech.name, script: mech.path, category: declared.category }
   }
-
-  const notAbsenceEntry = notAbsence[mech.name]
-  if (notAbsenceEntry) {
+  if (hits[0] === 'NOT_ABSENCE') {
+    const notAbsenceEntry = tables.notAbsence[mech.name]
     if (notAbsenceEntry.script !== mech.path)
       throw rosterDriftError('NOT_ABSENCE', mech.name, notAbsenceEntry.script, mech.path)
     return null
   }
+  const exemption = tables.exempt[mech.name]
+  const problem = exemptionProblem(mech.name, exemption, mech.path, now)
+  if (problem) throw Object.assign(new Error(problem), { exitCode: 2 })
+  return null
+}
 
-  const exemption = exempt[mech.name]
-  if (exemption) {
-    const problem = exemptionProblem(mech.name, exemption, mech.path)
-    if (problem) throw Object.assign(new Error(problem), { exitCode: 2 })
-    return null
+/** Every row in every table not visited as a wired mechanism — a stale row (Codex round-2 #1). */
+function assertNoStaleRows(wiredNames, tables) {
+  for (const [tableName, table] of Object.entries(tables)) {
+    const label =
+      tableName === 'roster'
+        ? 'ABSENCE_FAMILY_ROSTER'
+        : tableName === 'notAbsence'
+          ? 'NOT_ABSENCE'
+          : 'ABSENCE_EXEMPT'
+    for (const name of Object.keys(table)) {
+      if (!wiredNames.has(name)) throw staleRowError(label, name)
+    }
   }
-
-  throw unclassifiedError(mech.name, mech.path)
 }
 
 export function deriveAbsenceFamily(
   gateSrc,
-  { roster = ABSENCE_FAMILY_ROSTER, notAbsence = NOT_ABSENCE, exempt = ABSENCE_EXEMPT } = {},
+  {
+    roster = ABSENCE_FAMILY_ROSTER,
+    notAbsence = NOT_ABSENCE,
+    exempt = ABSENCE_EXEMPT,
+    now = new Date(),
+  } = {},
 ) {
   const seen = new Set()
   const family = []
@@ -511,9 +592,10 @@ export function deriveAbsenceFamily(
   for (const mech of enumerateGateMechanisms(gateSrc)) {
     if (seen.has(mech.name)) continue
     seen.add(mech.name)
-    const entry = classifyMechanism(mech, tables)
+    const entry = classifyMechanism(mech, tables, now)
     if (entry) family.push(entry)
   }
+  assertNoStaleRows(seen, tables)
   return family
 }
 
