@@ -6,10 +6,10 @@
 // Exits 0 when all expiries are within the window; exits 1 when window exceeded.
 // Part of the anti-drift validator family (W6).
 //
-// Usage: node scripts/check-suppression-expiry.mjs [--max-days <N>] [--help]
+// Usage: node scripts/check-suppression-expiry.mjs [--max-days <N>] [--dir <path>] [--help]
 
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -22,6 +22,7 @@ if (args.includes('--help') || args.includes('-h')) {
       '',
       'Options:',
       '  --max-days <N>  Maximum allowed days from now to expiry (default: 365)',
+      '  --dir <path>    Root directory to scan (default: cwd)',
       '  --help, -h      Show this help and exit',
       '',
     ].join('\n'),
@@ -32,7 +33,8 @@ if (args.includes('--help') || args.includes('-h')) {
 const maxDaysArg = args.indexOf('--max-days')
 const MAX_DAYS = maxDaysArg >= 0 && args[maxDaysArg + 1] ? parseInt(args[maxDaysArg + 1], 10) : 365
 
-const CWD = process.cwd()
+const dirArg = args.indexOf('--dir')
+const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
 const SUPPRESSIONS_DIR = join(CWD, 'suppressions')
 
 let violations = 0

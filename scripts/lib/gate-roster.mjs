@@ -145,6 +145,39 @@ export const ABSENCE_FAMILY_ROSTER = {
     category: 'parity',
   },
   'todo max-age': { script: 'scripts/check-todo-max-age.mjs', category: 'no' },
+  // #2675 — promoted from ABSENCE_EXEMPT with a real flip proof (guard-flip-registry.mjs):
+  // each of these already reads its scan root from an argv flag (--dir/--root/--patterns/
+  // --gate), so a synthetic bad/clean fixture pair needed no new injection point.
+  'anti-drift: secret scan': { script: 'scripts/check-secret-scan.mjs', category: 'no' },
+  'anti-drift: validator helptext': {
+    script: 'scripts/check-validator-helptext.mjs',
+    category: 'no',
+  },
+  'anti-drift: drift manifest': { script: 'scripts/check-drift.mjs', category: 'parity' },
+  'anti-drift: workflow docs sync': {
+    script: 'scripts/check-workflow-docs-sync.mjs',
+    category: 'parity',
+  },
+  'npm-ci drift (#1684)': { script: 'scripts/check-npm-ci-drift.mjs', category: 'parity' },
+  'anti-drift: pii scan config': { script: 'scripts/check-pii-scan.mjs', category: 'no' },
+  'anti-drift: tier coverage': { script: 'scripts/check-tier-coverage.mjs', category: 'no' },
+  'anti-drift: suppression rationale': {
+    script: 'scripts/check-suppression-rationale.mjs',
+    category: 'no',
+  },
+  'anti-drift: suppression expiry': {
+    script: 'scripts/check-suppression-expiry.mjs',
+    category: 'no',
+  },
+  'anti-drift: pr size gate': { script: 'scripts/check-pr-size-gate.mjs', category: 'no' },
+  'anti-drift: workflow runners': {
+    script: 'scripts/check-workflow-runners.mjs',
+    category: 'no',
+  },
+  'anti-drift: docker action runner safety (#1756)': {
+    script: 'scripts/check-docker-action-runner-safety.mjs',
+    category: 'no',
+  },
 }
 
 /**
@@ -172,54 +205,9 @@ export const ABSENCE_EXEMPT = {
     reason: 'diffs live TS exports against a committed snapshot file',
     followUp: '#2675',
   },
-  'npm-ci drift (#1684)': {
-    script: 'scripts/check-npm-ci-drift.mjs',
-    reason: 're-runs npm ci against the live lockfile, no fixture flag',
-    followUp: '#2675',
-  },
   'gold registries no-false-gap (#1413)': {
     script: 'scripts/check-gold-registries.mjs',
     reason: 'scores live registries against a committed audit report',
-    followUp: '#2675',
-  },
-  'anti-drift: suppression rationale': {
-    script: 'scripts/check-suppression-rationale.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: suppression expiry': {
-    script: 'scripts/check-suppression-expiry.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: pii scan config': {
-    script: 'scripts/check-pii-scan.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: secret scan': {
-    script: 'scripts/check-secret-scan.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: drift manifest': {
-    script: 'scripts/check-drift.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: workflow runners': {
-    script: 'scripts/check-workflow-runners.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: docker action runner safety (#1756)': {
-    script: 'scripts/check-docker-action-runner-safety.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: workflow docs sync': {
-    script: 'scripts/check-workflow-docs-sync.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
     followUp: '#2675',
   },
   'anti-drift: workflow integrity': {
@@ -232,23 +220,8 @@ export const ABSENCE_EXEMPT = {
     reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
     followUp: '#2675',
   },
-  'anti-drift: pr size gate': {
-    script: 'scripts/check-pr-size-gate.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
   'anti-drift: unwired guards (#2159)': {
     script: 'scripts/check-unwired-guards.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: validator helptext': {
-    script: 'scripts/check-validator-helptext.mjs',
-    reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
-    followUp: '#2675',
-  },
-  'anti-drift: tier coverage': {
-    script: 'scripts/check-tier-coverage.mjs',
     reason: 'INV-89 anti-drift family, reads live repo, no fixture flag',
     followUp: '#2675',
   },

@@ -11,10 +11,10 @@
 // integration regime merges to main directly rather than through pull requests. The
 // check remains fully live for generated consumer projects, which do gate on PRs.
 //
-// Usage: node scripts/check-pr-size-gate.mjs [--help]
+// Usage: node scripts/check-pr-size-gate.mjs [--dir <path>] [--help]
 
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -26,6 +26,7 @@ if (args.includes('--help') || args.includes('-h')) {
       'Exits 0 when config is valid; exits 1 when missing or invalid.',
       '',
       'Options:',
+      '  --dir <path>    Root directory to scan (default: cwd)',
       '  --help, -h      Show this help and exit',
       '',
     ].join('\n'),
@@ -33,7 +34,8 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0)
 }
 
-const CWD = process.cwd()
+const dirArg = args.indexOf('--dir')
+const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
 const CONFIG_PATH = join(CWD, 'config', 'pr-size-config.json')
 const WORKFLOW_DIR = join(CWD, '.github', 'workflows')
 

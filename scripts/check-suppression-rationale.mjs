@@ -6,10 +6,10 @@
 // Exits 0 when all rationales are meaningful; exits 1 when thin rationales found.
 // Part of the anti-drift validator family (W6).
 //
-// Usage: node scripts/check-suppression-rationale.mjs [--help]
+// Usage: node scripts/check-suppression-rationale.mjs [--dir <path>] [--help]
 
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -21,6 +21,7 @@ if (args.includes('--help') || args.includes('-h')) {
       'Exits 0 when all rationales are meaningful; exits 1 when thin rationales found.',
       '',
       'Options:',
+      '  --dir <path>    Root directory to scan (default: cwd)',
       '  --help, -h      Show this help and exit',
       '',
     ].join('\n'),
@@ -28,7 +29,8 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0)
 }
 
-const CWD = process.cwd()
+const dirArg = args.indexOf('--dir')
+const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
 const SUPPRESSIONS_DIR = join(CWD, 'suppressions')
 
 const REASON_MIN_LEN = 20

@@ -533,4 +533,178 @@ export const FLIP_REGISTRY = {
     // one ordinary source file, zero linked-issue references → legitimate clean state → PASS (exit 0)
     plantClean: (d) => write(d, join('src', 'a.ts'), 'export const a = 1\n'),
   },
+
+  // ── #2675: 12 of the 19 #2560 ABSENCE_EXEMPT candidates, promoted with a real flip proof —
+  // each already reads its scan root from an argv flag (--dir/--root/--patterns/--gate), so no
+  // new injection point was needed.
+  'anti-drift: secret scan': {
+    kind: 'file-scan',
+    inject: 'dir',
+    // an AWS-access-key-shaped string built at runtime (never a static literal in this source
+    // file, so gitleaks/the secret scan never sees a real-looking token committed here) —
+    // still matches check-secret-scan's own AKIA[0-9A-Z]{16} pattern once written to the fixture
+    plantBad: (d) => write(d, 'config.js', `export const key = "AKIA${'ABCDEFGHIJKLMNOP'}"\n`),
+    plantClean: (d) => write(d, 'config.js', 'export const ok = true\n'),
+  },
+  'anti-drift: validator helptext': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) =>
+      write(
+        d,
+        join('scripts', 'check-fake.mjs'),
+        '// anti-drift validator family (W6)\nconsole.log("no help flag here")\n',
+      ),
+    plantClean: (d) =>
+      write(
+        d,
+        join('scripts', 'check-fake.mjs'),
+        '// anti-drift validator family (W6)\n// supports --help\n',
+      ),
+  },
+  'anti-drift: drift manifest': {
+    kind: 'file-scan',
+    inject: 'dir',
+    // manifest hash disagrees with the actual file content
+    plantBad: (d) => {
+      write(
+        d,
+        join('.arbiter', 'drift-manifest.json'),
+        JSON.stringify([{ path: 'generated.txt', hash: 'deadbeef' }]),
+      )
+      write(d, 'generated.txt', 'actual content\n')
+    },
+    // an empty manifest — nothing to check, nothing drifted
+    plantClean: (d) => write(d, join('.arbiter', 'drift-manifest.json'), '[]'),
+  },
+  'anti-drift: workflow docs sync': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) => {
+      write(d, join('.github', 'workflows', 'build.yml'), 'name: build\n')
+      write(d, join('docs', 'readme.md'), '# hi\n')
+    },
+    plantClean: (d) => {
+      write(d, join('.github', 'workflows', 'build.yml'), 'name: build\n')
+      write(d, join('docs', 'readme.md'), '# build docs\nSee the build workflow.\n')
+    },
+  },
+  'npm-ci drift (#1684)': {
+    kind: 'file-scan',
+    argv: (d) => ['--root', d],
+    // a lockfile present but no exact npm@X.Y.Z packageManager pin — the network-free FAIL branch
+    plantBad: (d) => {
+      write(d, 'package.json', JSON.stringify({ name: 'fixture', version: '1.0.0' }))
+      write(d, 'package-lock.json', '{}')
+    },
+    // no lockfile at all — not applicable, no npm invocation
+    plantClean: (d) =>
+      write(d, 'package.json', JSON.stringify({ name: 'fixture', version: '1.0.0' })),
+  },
+  'anti-drift: pii scan config': {
+    kind: 'file-scan',
+    argv: (d) => ['--patterns', join(d, 'patterns.txt')],
+    plantBad: (d) => write(d, 'patterns.txt', '[unclosed\n'),
+    plantClean: (d) => write(d, 'patterns.txt', String.raw`\d{3}-\d{2}-\d{4}` + '\n'),
+  },
+  'anti-drift: tier coverage': {
+    kind: 'file-scan',
+    argv: (d) => ['--gate', join(d, 'check-all.mjs')],
+    plantBad: (d) =>
+      write(
+        d,
+        'check-all.mjs',
+        [
+          "runCheck('build-kit', ...)",
+          "runCheck('typecheck', ...)",
+          "runCheck('lint', ...)",
+          "runCheck('unit tests', ...)",
+          "runCheck('spdx headers', ...)",
+          "runCheck('orphan TODOs', ...)",
+        ].join('\n') + '\n',
+      ),
+    plantClean: (d) =>
+      write(
+        d,
+        'check-all.mjs',
+        [
+          "runCheck('build-kit', ...)",
+          "runCheck('typecheck', ...)",
+          "runCheck('lint', ...)",
+          "runCheck('unit tests', ...)",
+          "runCheck('spdx headers', ...)",
+          "runCheck('orphan TODOs', ...)",
+          "runCheck('ci tiers', ...)",
+        ].join('\n') + '\n',
+      ),
+  },
+  'anti-drift: suppression rationale': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) =>
+      write(d, join('suppressions', 'pii-allowlist.json'), JSON.stringify([{ reason: 'short' }])),
+    plantClean: (d) =>
+      write(
+        d,
+        join('suppressions', 'pii-allowlist.json'),
+        JSON.stringify([{ reason: 'a sufficiently long and meaningful rationale' }]),
+      ),
+  },
+  'anti-drift: suppression expiry': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) =>
+      write(
+        d,
+        join('suppressions', 'pii-allowlist.json'),
+        JSON.stringify([{ expiresAt: daysFromNow(500) }]),
+      ),
+    plantClean: (d) =>
+      write(
+        d,
+        join('suppressions', 'pii-allowlist.json'),
+        JSON.stringify([{ expiresAt: daysFromNow(30) }]),
+      ),
+  },
+  'anti-drift: pr size gate': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) =>
+      write(d, join('config', 'pr-size-config.json'), JSON.stringify({ warnLines: 2000 })),
+    plantClean: (d) =>
+      write(d, join('config', 'pr-size-config.json'), JSON.stringify({ warnLines: 500 })),
+  },
+  'anti-drift: workflow runners': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) =>
+      write(
+        d,
+        join('.github', 'workflows', 'x.yml'),
+        'jobs:\n  build:\n    runs-on: macos-latest\n',
+      ),
+    plantClean: (d) =>
+      write(
+        d,
+        join('.github', 'workflows', 'x.yml'),
+        'jobs:\n  build:\n    runs-on: ubuntu-latest\n',
+      ),
+  },
+  'anti-drift: docker action runner safety (#1756)': {
+    kind: 'file-scan',
+    inject: 'dir',
+    // a denylisted docker-container action paired with an expression-based (self-hosted-capable) runner
+    plantBad: (d) =>
+      write(
+        d,
+        join('.github', 'workflows', 'x.yml'),
+        'jobs:\n  build:\n    runs-on: ${{ vars.RUNNER }}\n    steps:\n      - uses: bridgecrewio/checkov-action@v12\n',
+      ),
+    plantClean: (d) =>
+      write(
+        d,
+        join('.github', 'workflows', 'x.yml'),
+        'jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n',
+      ),
+  },
 }
