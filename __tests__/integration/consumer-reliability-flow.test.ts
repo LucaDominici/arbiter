@@ -38,15 +38,25 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     roots.push(fixture.root)
     const workspace = join(fixture.root, 'workspace')
     const reports = join(fixture.root, 'reports')
+    const credentialsFile = writeCredentialsFile(fixture, fixture.secrets)
     const result = run(
       fixture,
       'run-consumer-reliability.mjs',
-      ['--workspace', workspace, '--report-dir', reports, '--arbiter-cli', fixture.fakeCli],
-      {
-        ...fixture.secrets,
-        GITHUB_TOKEN: 'must-not-reach-verifier',
-        AWS_SECRET_ACCESS_KEY: 'must-not-reach-verifier',
-      },
+      [
+        '--workspace',
+        workspace,
+        '--report-dir',
+        reports,
+        '--arbiter-cli',
+        fixture.fakeCli,
+        '--credentials-file',
+        credentialsFile,
+      ],
+      // GITHUB_TOKEN can no longer be an ambient-env canary here — the wrapper now refuses
+      // to start at all if a credential is in its own environment (unit-tested directly in
+      // run-consumer-reliability.test.ts). AWS_SECRET_ACCESS_KEY is not a recognized
+      // credential name, so it stays a valid canary proving it never reaches verify.
+      { AWS_SECRET_ACCESS_KEY: 'must-not-reach-verifier' },
     )
 
     expect(result.status).toBe(0)
@@ -65,6 +75,7 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     const fixture = createFixture()
     roots.push(fixture.root)
     const reports = join(fixture.root, 'agent-reports')
+    const credentialsFile = writeCredentialsFile(fixture, fixture.secrets)
     const result = run(
       fixture,
       'run-consumer-reliability.mjs',
@@ -75,8 +86,10 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
         reports,
         '--arbiter-cli',
         fixture.fakeCli,
+        '--credentials-file',
+        credentialsFile,
       ],
-      { ...fixture.secrets, FAKE_REQUIRE_NONINTERACTIVE_KEY: '1' },
+      { FAKE_REQUIRE_NONINTERACTIVE_KEY: '1' },
     )
     expect(result.status, result.stderr).toBe(0)
     expect(JSON.parse(readFileSync(join(reports, 'summary.json'), 'utf-8')).result).toBe('PASS')
@@ -91,6 +104,10 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     const fixture = createFixture()
     roots.push(fixture.root)
     const reports = join(fixture.root, 'rejected-key-reports')
+    const credentialsFile = writeCredentialsFile(fixture, {
+      ...fixture.secrets,
+      ARBITER_CONSUMER_GO_DEPLOY_KEY: 'fake-rejected-private-key',
+    })
     const result = run(
       fixture,
       'run-consumer-reliability.mjs',
@@ -101,8 +118,10 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
         reports,
         '--arbiter-cli',
         fixture.fakeCli,
+        '--credentials-file',
+        credentialsFile,
       ],
-      { ...fixture.secrets, ARBITER_CONSUMER_GO_DEPLOY_KEY: 'fake-rejected-private-key' },
+      {},
     )
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('credentialed preparation failed')
@@ -166,6 +185,7 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
     roots.push(fixture.root)
     const incomplete = { ...fixture.secrets }
     delete incomplete.ARBITER_CONSUMER_JAVA_DEPLOY_KEY
+    const credentialsFile = writeCredentialsFile(fixture, incomplete)
     const workspace = join(fixture.root, 'missing-secret-workspace')
     const result = run(
       fixture,
@@ -177,8 +197,10 @@ describe('consumer reliability prepare → verify boundary (#2135)', () => {
         join(fixture.root, 'missing-secret-reports'),
         '--arbiter-cli',
         fixture.fakeCli,
+        '--credentials-file',
+        credentialsFile,
       ],
-      incomplete,
+      {},
     )
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('credentialed preparation failed')
@@ -565,6 +587,20 @@ function run(
       ...extraEnvironment,
     },
   })
+}
+
+// #2679 round 3 (final): run-consumer-reliability.mjs refuses to start if a credential is in
+// its OWN environment — secrets must be written to a 0600 KEY=VALUE file instead.
+function writeCredentialsFile(fixture: { root: string }, secrets: Record<string, string>): string {
+  const path = join(fixture.root, `credentials-${Math.random().toString(36).slice(2)}.env`)
+  writeFileSync(
+    path,
+    Object.entries(secrets)
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n') + '\n',
+    { mode: 0o600 },
+  )
+  return path
 }
 
 function git(dir: string, args: string[]): string {

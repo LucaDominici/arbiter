@@ -4,21 +4,35 @@
 // consumer-reliability-bar.mjs directly as two SEPARATE jobs on two separate runners — that
 // job boundary (no secret ever enters the verify job's environment at all) is the real
 // credential boundary. This wrapper runs both phases as two children of ONE process on a
-// developer's own machine instead, so scrubOwnCredentials and the explicit
-// allowlisted/fresh-HOME verify environment below are best-effort defense in depth here,
-// never a substitute for the CI job split (#2679 round 3).
+// developer's own machine instead.
+//
+// #2679 round 3 (final): this wrapper's OWN process.env must never hold a credential at
+// all — a same-UID process can read them from /proc/<this-pid>/environ regardless of what
+// any spawned child receives, so deleting a key after the fact (the previous
+// scrubOwnCredentials approach) does not help; the parent already exposed them for as long
+// as it held them. Fix by construction instead: refuse to start if process.env carries a
+// credential, and take credentials only via --credentials-file (KEY=VALUE lines, mode
+// 0600), injected exclusively into the prepare child's spawn env — this process's own
+// environment never holds one.
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { join, resolve } from 'node:path'
-import { buildVerifierEnvironment, scrubOwnCredentials } from './lib/consumer-reliability-bar.mjs'
+import {
+  assertCredentialFreeEnvironment,
+  buildVerifierEnvironment,
+} from './lib/consumer-reliability-bar.mjs'
 
 export function main(argv, { spawn = spawnSync } = {}) {
   const root = process.cwd()
   let isolatedHome = null
   try {
+    assertOwnEnvironmentCredentialFree(process.env)
     const options = parseArgs(argv)
+    const credentials =
+      options.credentialsFile === null ? {} : readCredentialsFile(options.credentialsFile)
+
     const prepare = spawn(
       'node',
       [resolve(root, 'scripts', 'prepare-consumer-reliability.mjs'), '--output', options.workspace],
@@ -27,7 +41,8 @@ export function main(argv, { spawn = spawnSync } = {}) {
         encoding: 'utf-8',
         stdio: ['ignore', 'inherit', 'inherit'],
         timeout: 900000,
-        env: { ...process.env },
+        // Credentials reach ONLY this child's env object — never process.env itself.
+        env: { ...process.env, ...credentials },
       },
     )
     if (prepare.status !== 0 || prepare.signal) {
@@ -35,14 +50,7 @@ export function main(argv, { spawn = spawnSync } = {}) {
       return 2
     }
 
-    // Defense in depth only — see the module comment above. Verified: deleting a key from
-    // process.env does not clear /proc/<this-pid>/environ, so a same-UID process can still
-    // read the original value from THIS process's environ file regardless. The verify child
-    // below is therefore spawned with an EXPLICIT allowlisted environment built from scratch
-    // and a fresh, empty HOME — never process.env, scrubbed or not.
-    scrubOwnCredentials(process.env)
     isolatedHome = mkdtempSync(join(tmpdir(), 'arbiter-local-verifier-home-'))
-
     const verify = spawn(
       'node',
       [
@@ -59,6 +67,8 @@ export function main(argv, { spawn = spawnSync } = {}) {
         encoding: 'utf-8',
         stdio: ['ignore', 'inherit', 'inherit'],
         timeout: 1800000,
+        // process.env is guaranteed credential-free already (checked at the top); this
+        // still builds an explicit allowlisted environment plus a fresh HOME from scratch.
         env: buildVerifierEnvironment(process.env, isolatedHome),
       },
     )
@@ -73,11 +83,44 @@ export function main(argv, { spawn = spawnSync } = {}) {
   }
 }
 
+function assertOwnEnvironmentCredentialFree(environment) {
+  try {
+    assertCredentialFreeEnvironment(environment)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `${detail} — this wrapper must never hold a credential in its own environment (a ` +
+        'same-UID process can read it from /proc/<pid>/environ regardless of what any ' +
+        'spawned child receives); pass credentials with --credentials-file <path> instead ' +
+        '(KEY=VALUE lines, file mode 0600)',
+    )
+  }
+}
+
+function readCredentialsFile(path) {
+  const mode = statSync(path).mode & 0o777
+  if (mode !== 0o600) {
+    throw new Error(`--credentials-file must be mode 0600 (found ${mode.toString(8)}): ${path}`)
+  }
+  const credentials = {}
+  for (const rawLine of readFileSync(path, 'utf-8').split('\n')) {
+    const line = rawLine.trim()
+    if (line.length === 0) continue
+    const separator = line.indexOf('=')
+    if (separator === -1) {
+      throw new Error(`--credentials-file line is not KEY=VALUE: ${line}`)
+    }
+    credentials[line.slice(0, separator)] = line.slice(separator + 1)
+  }
+  return credentials
+}
+
 function parseArgs(args) {
   return {
     workspace: resolve(argument(args, '--workspace')),
     reportDir: resolve(argument(args, '--report-dir')),
     arbiterCli: resolve(argument(args, '--arbiter-cli')),
+    credentialsFile: optionalArgument(args, '--credentials-file'),
   }
 }
 
@@ -87,6 +130,16 @@ function argument(args, name) {
     throw new Error(`required argument missing: ${name}`)
   }
   return args[index + 1]
+}
+
+function optionalArgument(args, name) {
+  const index = args.indexOf(name)
+  if (index === -1) return null
+  const value = args[index + 1]
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`required argument missing: ${name}`)
+  }
+  return resolve(value)
 }
 
 const invokedDirectly =

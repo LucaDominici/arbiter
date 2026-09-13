@@ -438,23 +438,6 @@ function isCredentialEnvKey(key) {
   )
 }
 
-// #2679 round 2: run-consumer-reliability.mjs (the local combined entry point) spawns
-// prepare then verify as two children of ONE credentialed process — a filtered child env
-// for verify is not enough while THIS process's own environment/memory still carries the
-// credentials for as long as it stays alive. Call this on the wrapper's own `process.env`
-// after the prepare child exits and before the verify child is spawned.
-// #2679 round 3: this is defense in depth ONLY — verified that deleting a key from
-// process.env does not clear /proc/<this-pid>/environ, so a same-UID process can still read
-// the original value. The real boundary for CI is the separate credential-free `verify` job
-// (no secret ever enters its environment at all); for the LOCAL wrapper, the real boundary
-// is spawning verify with an explicit allowlisted environment built from scratch (see
-// buildVerifierEnvironment), never process.env, scrubbed or not.
-export function scrubOwnCredentials(environment) {
-  for (const key of Object.keys(environment)) {
-    if (isCredentialEnvKey(key)) Reflect.deleteProperty(environment, key)
-  }
-}
-
 export function assertCredentialFreeEnvironment(environment) {
   const leaked = Object.entries(environment)
     .filter(([key, value]) => isCredentialEnvKey(key) && String(value ?? '').length > 0)
