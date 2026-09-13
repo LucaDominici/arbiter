@@ -1,6 +1,6 @@
 {
   "schema": "arbiter-fail-closed-baseline-v2",
-  "generated_at": "2026-08-31T01:55:02.785Z",
+  "generated_at": "2026-09-13T18:31:10.682Z",
   "files": [
     {
       "file": ".claude/hooks/check-circular-deps.mjs",
@@ -171,6 +171,18 @@
       "expires": "2026-11-29"
     },
     {
+      "file": "scripts/check-adr-enforcement.mjs",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
+    },
+    {
+      "file": "scripts/check-anti-proforma.mjs",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
+    },
+    {
       "file": "scripts/check-api-e2e.mjs",
       "since": "2026-06-26",
       "owner": "LucaDominici",
@@ -183,10 +195,22 @@
       "expires": "2026-11-29"
     },
     {
+      "file": "scripts/check-bypass-ceremony.mjs",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
+    },
+    {
       "file": "scripts/check-canonical-paths.mjs",
       "since": "2026-05-21",
       "owner": "LucaDominici",
       "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-ci-tiers.mjs",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
     },
     {
       "file": "scripts/check-command-tests.mjs",
@@ -267,6 +291,12 @@
       "expires": "2026-11-29"
     },
     {
+      "file": "scripts/check-no-stub-redirects.mjs",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
+    },
+    {
       "file": "scripts/check-no-tracked-artifacts.mjs",
       "since": "2026-06-26",
       "owner": "LucaDominici",
@@ -315,6 +345,12 @@
       "expires": "2026-11-29"
     },
     {
+      "file": "scripts/check-self-dogfood.mjs",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
+    },
+    {
       "file": "scripts/check-skip-critical-e2e.mjs",
       "since": "2026-06-26",
       "owner": "LucaDominici",
@@ -345,6 +381,12 @@
       "expires": "2026-11-29"
     },
     {
+      "file": "scripts/check-test-scope-tier.mjs",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
+    },
+    {
       "file": "scripts/check-tier-coverage.mjs",
       "since": "2026-05-21",
       "owner": "LucaDominici",
@@ -355,6 +397,12 @@
       "since": "2026-05-21",
       "owner": "LucaDominici",
       "expires": "2026-11-29"
+    },
+    {
+      "file": "scripts/check-wiki-lint.mjs",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
     },
     {
       "file": "scripts/check-workflow-cache-strategy.mjs",
@@ -789,6 +837,12 @@
       "expires": "2026-11-29"
     },
     {
+      "file": "src/graph/builders/adr.ts",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
+    },
+    {
       "file": "src/graph/builders/ast.ts",
       "since": "2026-06-26",
       "owner": "LucaDominici",
@@ -805,6 +859,12 @@
       "since": "2026-06-26",
       "owner": "LucaDominici",
       "expires": "2026-11-29"
+    },
+    {
+      "file": "src/graph/builders/test-nodes.ts",
+      "since": "2026-09-13",
+      "owner": "LucaDominici",
+      "expires": "2026-12-12"
     },
     {
       "file": "src/graph/builders/utils.ts",
