@@ -1097,3 +1097,202 @@ describe.each([
     },
   )
 })
+
+// ─── #2679 red-team S2: tag ancestry, npm token boundary, least-privilege ────
+
+function buildSupersetSteps(source: string) {
+  return workflowOf(source).jobs['build-superset'].steps ?? []
+}
+
+function ancestryStepOf(source: string) {
+  return buildSupersetSteps(source).find((s) => s.id === 'ancestry-check')
+}
+
+function initFixtureRepo(dir: string) {
+  const git = (...args: string[]) =>
+    spawnSync('git', args, { cwd: dir, encoding: 'utf8', timeout: 5000 })
+  git('init', '-q', '-b', 'main')
+  git('config', 'user.email', 'a@b.c')
+  git('config', 'user.name', 'red-team-fixture')
+  writeFileSync(resolve(dir, 'f.txt'), '1')
+  git('add', '.')
+  git('commit', '-q', '-m', 'main commit')
+  const mainSha = git('rev-parse', 'HEAD').stdout.trim()
+  git('tag', 'v1.0.0')
+  git('checkout', '-q', '-b', 'feature')
+  writeFileSync(resolve(dir, 'g.txt'), '2')
+  git('add', '.')
+  git('commit', '-q', '-m', 'unreviewed commit')
+  const featureSha = git('rev-parse', 'HEAD').stdout.trim()
+  git('tag', 'v1.0.1')
+  git('checkout', '-q', 'main')
+  // Simulate what actions/checkout leaves behind: an `origin` remote (here,
+  // pointed at this same working tree, which git can fetch from over a path).
+  git('remote', 'add', 'origin', dir)
+  return { mainSha, featureSha }
+}
+
+describe.each([
+  ['rendered', () => renderRelease(TS_LIB)],
+  ['materialized', () => readFileSync(resolve('.github/workflows/05-release.yml'), 'utf8')],
+] as const)(
+  'build-superset — tag ancestry bound to reviewed main (finding 2, %s)',
+  (_name, load) => {
+    it('checkout fetches full history (fetch-depth: 0)', () => {
+      const steps = buildSupersetSteps(load())
+      const checkout = steps.find((s) => s.uses?.startsWith('actions/checkout@'))
+      expect(checkout?.with?.['fetch-depth']).toBe(0)
+    })
+
+    it('ancestry-check step exists and runs before the version check', () => {
+      const steps = buildSupersetSteps(load())
+      const ancestryIndex = steps.findIndex((s) => s.id === 'ancestry-check')
+      const versionIndex = steps.findIndex((s) => s.id === 'release-version')
+      expect(ancestryIndex).toBeGreaterThanOrEqual(0)
+      expect(versionIndex).toBeGreaterThan(ancestryIndex)
+    })
+
+    it('ancestry-check runs before toolchain setup (git-only, no wasted setup on a bad tag)', () => {
+      const steps = buildSupersetSteps(load())
+      const ancestryIndex = steps.findIndex((s) => s.id === 'ancestry-check')
+      const setupIndex = steps.findIndex(
+        (s) => s.uses === './.github/actions/setup-node-pnpm' || s.uses?.includes('setup-node'),
+      )
+      expect(ancestryIndex).toBeGreaterThanOrEqual(0)
+      if (setupIndex >= 0) expect(setupIndex).toBeGreaterThan(ancestryIndex)
+    })
+
+    it('uses the repo default branch, not a hardcoded "main"', () => {
+      const step = ancestryStepOf(load())
+      expect(step?.env?.DEFAULT_BRANCH).toBe('${{ github.event.repository.default_branch }}')
+    })
+
+    it('accepts a tag whose commit is reachable from origin/<default branch>', () => {
+      const step = ancestryStepOf(load())
+      expect(step?.run).toBeTruthy()
+      const dir = mkdtempSync(resolve(tmpdir(), 'arbiter-ancestry-'))
+      try {
+        const { mainSha } = initFixtureRepo(dir)
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', step!.run!], {
+          cwd: dir,
+          encoding: 'utf8',
+          timeout: 10000,
+          env: {
+            ...process.env,
+            GITHUB_SHA: mainSha,
+            GITHUB_REF_NAME: 'v1.0.0',
+            DEFAULT_BRANCH: 'main',
+          },
+        })
+        expect(result.status).toBe(0)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    it('fails closed when the tagged commit is NOT reachable from origin/<default branch>', () => {
+      const step = ancestryStepOf(load())
+      const dir = mkdtempSync(resolve(tmpdir(), 'arbiter-ancestry-'))
+      try {
+        const { featureSha } = initFixtureRepo(dir)
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', step!.run!], {
+          cwd: dir,
+          encoding: 'utf8',
+          timeout: 10000,
+          env: {
+            ...process.env,
+            GITHUB_SHA: featureSha,
+            GITHUB_REF_NAME: 'v1.0.1',
+            DEFAULT_BRANCH: 'main',
+          },
+        })
+        expect(result.status).toBe(1)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    it('fails closed when the tag ref does not point at the checked-out SHA', () => {
+      const step = ancestryStepOf(load())
+      const dir = mkdtempSync(resolve(tmpdir(), 'arbiter-ancestry-'))
+      try {
+        const { mainSha } = initFixtureRepo(dir)
+        // GITHUB_SHA claims the reviewed commit, but the pushed tag name actually
+        // resolves elsewhere — a swapped/re-pointed tag object must not pass.
+        const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', step!.run!], {
+          cwd: dir,
+          encoding: 'utf8',
+          timeout: 10000,
+          env: {
+            ...process.env,
+            GITHUB_SHA: mainSha,
+            GITHUB_REF_NAME: 'v1.0.1',
+            DEFAULT_BRANCH: 'main',
+          },
+        })
+        expect(result.status).toBe(1)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
+  },
+)
+
+describe.each([
+  ['rendered', () => renderRelease(TS_LIB)],
+  ['materialized', () => readFileSync(resolve('.github/workflows/05-release.yml'), 'utf8')],
+] as const)(
+  'publish-package — npm token stays behind an off-by-default fallback (finding 5, %s)',
+  (_name, load) => {
+    function publishSteps(source: string) {
+      return workflowOf(source).jobs['publish-package'].steps ?? []
+    }
+
+    it('the default (OIDC) publish step carries no token in its env', () => {
+      const steps = publishSteps(load())
+      const oidcStep = steps.find(
+        (s) => s.run?.includes('npm publish --provenance') && !s.if?.includes("== 'true'"),
+      )
+      expect(oidcStep).toBeTruthy()
+      expect(JSON.stringify(oidcStep?.env ?? {})).not.toContain('NPM_TOKEN')
+      expect(oidcStep?.if).toContain('NPM_PUBLISH_TOKEN_FALLBACK')
+    })
+
+    it('a token-fallback publish step exists, gated behind an explicit opt-in flag', () => {
+      const steps = publishSteps(load())
+      const fallback = steps.find((s) => JSON.stringify(s.env ?? {}).includes('NPM_TOKEN'))
+      expect(fallback?.if).toBe("vars.NPM_PUBLISH_TOKEN_FALLBACK == 'true'")
+      expect(fallback?.env?.NODE_AUTH_TOKEN).toBe('${{ secrets.NPM_TOKEN }}')
+    })
+
+    it('the global npm install pins an exact version with --ignore-scripts', () => {
+      const steps = publishSteps(load())
+      const install = steps.find((s) => s.run?.includes('npm install --global npm@'))
+      expect(install?.run).toContain('--ignore-scripts')
+    })
+  },
+)
+
+describe.each([
+  ['rendered', () => renderRelease(TS_LIB)],
+  ['materialized', () => readFileSync(resolve('.github/workflows/05-release.yml'), 'utf8')],
+] as const)('cosign-sign least privilege (finding 6, %s)', (_name, load) => {
+  it('has only id-token: write (no contents: write — it only signs a downloaded blob)', () => {
+    const job = workflowOf(load()).jobs['cosign-sign']
+    expect(job.permissions).toEqual({ 'id-token': 'write' })
+  })
+})
+
+describe.each([
+  ['rendered', () => renderRelease(TS_LIB)],
+  ['materialized', () => readFileSync(resolve('.github/workflows/05-release.yml'), 'utf8')],
+] as const)('every job declares an explicit permissions block (finding 6, %s)', (_name, load) => {
+  it('no job relies on the repo/org default permission set', () => {
+    const jobs = workflowOf(load()).jobs
+    for (const [id, job] of Object.entries(jobs)) {
+      // slsa-provenance calls a reusable workflow: its `permissions:` governs what
+      // it grants the callee, and IS present; every local job must have one too.
+      expect(job.permissions, `job "${id}" has no permissions: block`).toBeTruthy()
+    }
+  })
+})
