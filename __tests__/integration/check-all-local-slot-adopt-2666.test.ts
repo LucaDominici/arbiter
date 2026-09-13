@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2666 AC2, hermetic proof: scripts/check-all.local.mjs is a project-local
+// #2666 AC2, hermetic proof: scripts/check-all.local.json is a project-local
 // file no template emits, so it is invisible to BOTH `arbiter update
 // --adopt-gate-spine` and `arbiter diff --withheld` — not "not withheld
 // because it's pristine" (the gate-spine default), but genuinely never a
@@ -15,7 +15,7 @@ import { runInit as runInitCommand } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { runDiff } from '../../src/commands/diff.js'
 
-const LOCAL_SLOT = 'scripts/check-all.local.mjs'
+const LOCAL_SLOT = 'scripts/check-all.local.json'
 
 function initGit(dir: string): void {
   for (const args of [
@@ -35,9 +35,9 @@ function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex')
 }
 
-describe('#2666 AC2 — scripts/check-all.local.mjs survives adopt-gate-spine and diff untouched', () => {
+describe('#2666 AC2 — scripts/check-all.local.json survives adopt-gate-spine and diff untouched', () => {
   let dir: string
-  const localContent = "export const checks = [{ name: 'x', cmd: ['true'], tier: 'L1' }];\n"
+  const localContent = JSON.stringify({ checks: [{ name: 'x', cmd: ['true'], tier: 'L1' }] })
 
   beforeEach(async () => {
     dir = mkdtempSync(join(tmpdir(), 'arb-local-slot-adopt-'))

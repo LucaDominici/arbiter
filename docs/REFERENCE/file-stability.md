@@ -499,16 +499,22 @@ unaffected and keeps receiving every fix automatically.
 **The local extension slot (#2666).** A deliberate, PROJECT-LOCAL check (class C: a Java coverage ratchet,
 a ported static-eslint config — the shape ripme and Coach both hand-wired into their `check-all.mjs` after
 adopting the registry-driven spine) has, until now, had no home except editing the spine directly — which
-is exactly what makes the spine withhold on the next update. `scripts/check-all.local.mjs` closes that: an
-optional file no template ever emits, so it never enters `.arbiter-generated-manifest.json` and matches
-neither `GATE_SPINE_PATTERN` nor the safety-class pattern — `--adopt-gate-spine` and `diff --withheld` never
-see it, at any divergence state, because there is no divergence state to see. The emitted `check-all.mjs`
-loads it at runtime (absent file: silent no-op; malformed export or entry: FAIL loud, never a silent drop)
-and dispatches each declared `{ name, cmd, tier }` through the same `runCheck` trio every registry gate
-uses, labeled `[local] <name>` in the summary table and the `arbiter-gate-v1` `parityGates` the
-`check-local-ci-parity.mjs` comparison reads — a local check's pass/fail counts in local↔CI parity like any
-other gate. Not in `GOVERNANCE_CLASS_KEYS` or `GATE_SPINE_PATTERN` by design: it is the one file this whole
-protected-class machinery is built to leave alone.
+is exactly what makes the spine withhold on the next update. `scripts/check-all.local.json` closes that: an
+optional, DECLARATIVE (plain JSON, not an executable module) file no template ever emits, so it never enters
+`.arbiter-generated-manifest.json` and matches neither `GATE_SPINE_PATTERN` nor the safety-class pattern —
+`--adopt-gate-spine` and `diff --withheld` never see it, at any divergence state, because there is no
+divergence state to see. Two earlier designs here (a direct `import()` of a `.mjs` module, then a
+child-process handoff guarded by a per-run nonce) were both defeated in review: any in-process trust placed
+in a LOADED CODE MODULE is forgeable — a top-level `process.exit(0)` green-exits the gate if imported
+in-process, and a spawned child's secret still leaks via `process.execArgv` (the `-e` source is visible
+there) with its file-write channel interceptable via `syncBuiltinESMExports`. Plain JSON has no code to run
+and nothing to forge: `JSON.parse` returns data or throws, with no third option. The emitted `check-all.mjs`
+reads and parses it (absent file: silent no-op; unreadable/invalid JSON or a malformed entry: FAIL loud,
+never a silent drop) and dispatches each declared `{ name, cmd, tier }` through the same `runCheck` trio
+every registry gate uses, labeled `[local] <name>` in the summary table and the `arbiter-gate-v1`
+`parityGates` the `check-local-ci-parity.mjs` comparison reads — a local check's pass/fail counts in
+local↔CI parity like any other gate. Not in `GOVERNANCE_CLASS_KEYS` or `GATE_SPINE_PATTERN` by design: it is
+the one file this whole protected-class machinery is built to leave alone.
 
 ### Refreshing codex-track derived files (`update --refresh-derived`, #1983)
 

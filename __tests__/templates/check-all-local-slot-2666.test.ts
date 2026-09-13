@@ -1,13 +1,18 @@
 // #2666 — declared extension slot for project-local checks in the gate spine.
 //
-// `scripts/check-all.local.mjs` is a never-emitted, optional file: no template
-// renders it, so it is absent from `.arbiter-generated-manifest.json` and never
-// classified gate-spine/safety by src/generators/safety-class.ts — the exact
-// property that lets it survive `arbiter update`/`--adopt-gate-spine` untouched
-// (AC1, AC2). check-all.mjs.ejs loads it at runtime and dispatches each entry
-// through the standard runCheck trio, labeled `[local] <name>`, so it
-// participates in the summary table and the arbiter-gate-v1 parityGates the
-// same way a registry gate does (AC3).
+// `scripts/check-all.local.json` is a never-emitted, optional PLAIN DATA file:
+// no template renders it, so it is absent from `.arbiter-generated-manifest.json`
+// and never classified gate-spine/safety by src/generators/safety-class.ts — the
+// exact property that lets it survive `arbiter update`/`--adopt-gate-spine`
+// untouched (AC1, AC2). Declarative JSON, not an executable module (Codex
+// review, round 3): two earlier designs here (a direct `import()` of a .mjs
+// module, then a child-process + nonce handoff) were both defeated because any
+// in-process trust placed in a LOADED CODE MODULE is forgeable. `JSON.parse`
+// either returns data or throws — there is no third option and nothing for the
+// data to forge. check-all.mjs.ejs parses it and dispatches each entry through
+// the standard runCheck trio, labeled `[local] <name>`, so it participates in
+// the summary table and the arbiter-gate-v1 parityGates the same way a registry
+// gate does (AC3).
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -39,18 +44,20 @@ function render(): string {
   })
 }
 
-describe('AC2 — scripts/check-all.local.mjs is not a protected class', () => {
+describe('AC2 — scripts/check-all.local.json is not a protected class', () => {
   it('is neither gate-spine nor safety-class, so --adopt-gate-spine/diff never touch it', () => {
-    expect(isGateSpineKey('scripts/check-all.local.mjs')).toBe(false)
-    expect(isSafetyClassKey('scripts/check-all.local.mjs')).toBe(false)
+    expect(isGateSpineKey('scripts/check-all.local.json')).toBe(false)
+    expect(isSafetyClassKey('scripts/check-all.local.json')).toBe(false)
   })
 })
 
 describe('AC1/AC3 — check-all.mjs.ejs loads the local slot', () => {
-  it('renders the local-slot loader referencing check-all.local.mjs', () => {
+  it('renders the local-slot loader referencing check-all.local.json (no module import)', () => {
     const content = render()
-    expect(content).toContain('check-all.local.mjs')
+    expect(content).toContain('check-all.local.json')
     expect(content).toContain('[local] ')
+    // Declarative only — no dynamic import()/child bootstrap of the slot file.
+    expect(content).not.toContain('check-all.local.mjs')
   })
 })
 
@@ -59,7 +66,7 @@ describe('AC1/AC3 — check-all.mjs.ejs loads the local slot', () => {
 // capture pushResult/runCheck calls, and exercise the local-slot loader end to
 // end in a temp project directory.
 function runLocalSlotHarness(
-  localModuleSource: string | null,
+  localFileSource: string | null,
   args: string[] = ['L2'],
 ): { status: number | null; stdout: string; stderr: string } {
   const content = render()
@@ -93,8 +100,8 @@ function runLocalSlotHarness(
       'export const GATE_MUTEX_HELD_ENV = "ARBITER_GATE_MUTEX_HELD";\n' +
         'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
     )
-    if (localModuleSource !== null) {
-      writeFileSync(join(scriptsDir, 'check-all.local.mjs'), localModuleSource)
+    if (localFileSource !== null) {
+      writeFileSync(join(scriptsDir, 'check-all.local.json'), localFileSource)
     }
     // The harness never reaches gate-evidence.mjs/arbiter.json — cut before
     // the marker/JSON-write tail, then force-exit right after the local slot.
@@ -113,16 +120,36 @@ function runLocalSlotHarness(
   }
 }
 
+function harnessResults(stdout: string): Array<{ name: string; status: string }> {
+  return JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(stdout)![1])
+}
+
 describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', () => {
-  it('is a silent no-op when scripts/check-all.local.mjs is absent', () => {
+  it('is a silent no-op when scripts/check-all.local.json is absent', () => {
     const r = runLocalSlotHarness(null)
     expect(r.status).toBe(0)
     expect(r.stdout).not.toContain('[local]')
   })
 
+  it('is a silent no-op when the file exists but declares no checks', () => {
+    const r = runLocalSlotHarness('{}')
+    expect(r.status).toBe(0)
+    expect(r.stdout).not.toContain('[local]')
+    const results = harnessResults(r.stdout)
+    expect(results.some((res) => res.status === 'FAIL')).toBe(false)
+  })
+
   it('dispatches a declared local check through runCheck, labeled [local]', () => {
     const r = runLocalSlotHarness(
-      "export const checks = [{ name: 'ripme java coverage', cmd: ['node', 'scripts/verify-module-coverage.mjs'], tier: 'L1' }];\n",
+      JSON.stringify({
+        checks: [
+          {
+            name: 'ripme java coverage',
+            cmd: ['node', 'scripts/verify-module-coverage.mjs'],
+            tier: 'L1',
+          },
+        ],
+      }),
     )
     expect(r.status).toBe(0)
     const localLine = r.stdout
@@ -137,90 +164,61 @@ describe('check-all.mjs.ejs — local extension slot runtime behavior (#2666)', 
 
   it('skips a local check whose declared tier is above the requested level', () => {
     const r = runLocalSlotHarness(
-      "export const checks = [{ name: 'nightly-only', cmd: ['true'], tier: 'L3' }];\n",
+      JSON.stringify({ checks: [{ name: 'nightly-only', cmd: ['true'], tier: 'L3' }] }),
       ['L1'],
     )
     expect(r.status).toBe(0)
     expect(r.stdout).not.toContain('[local] nightly-only')
   })
 
-  it('fails loud (never silently drops) a malformed checks export', () => {
-    const r = runLocalSlotHarness("export const checks = 'not-an-array';\n")
-    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
-    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
-      true,
-    )
+  it('fails loud on invalid JSON rather than silently skipping it', () => {
+    const r = runLocalSlotHarness('{ not valid json')
+    const results = harnessResults(r.stdout)
+    expect(results.some((res) => res.status === 'FAIL')).toBe(true)
+  })
+
+  it('fails loud (never silently drops) a non-array "checks" field', () => {
+    const r = runLocalSlotHarness(JSON.stringify({ checks: 'not-an-array' }))
+    const results = harnessResults(r.stdout)
+    expect(results.some((res) => res.status === 'FAIL')).toBe(true)
+  })
+
+  it('fails loud on a top-level array instead of an object', () => {
+    const r = runLocalSlotHarness('[]')
+    const results = harnessResults(r.stdout)
+    expect(results.some((res) => res.status === 'FAIL')).toBe(true)
   })
 
   it('fails loud on a malformed entry (missing cmd) rather than silently skipping it', () => {
-    const r = runLocalSlotHarness("export const checks = [{ name: 'broken', tier: 'L1' }];\n")
-    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
-    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
-      true,
-    )
+    const r = runLocalSlotHarness(JSON.stringify({ checks: [{ name: 'broken', tier: 'L1' }] }))
+    const results = harnessResults(r.stdout)
+    expect(results.some((res) => res.status === 'FAIL')).toBe(true)
   })
 
   it('fails loud on a malformed entry whose cmd contains an empty-string element', () => {
     const r = runLocalSlotHarness(
-      "export const checks = [{ name: 'bad-cmd-empty', cmd: ['node', ''], tier: 'L1' }];\n",
+      JSON.stringify({ checks: [{ name: 'bad-cmd-empty', cmd: ['node', ''], tier: 'L1' }] }),
     )
-    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
-    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
-      true,
-    )
+    const results = harnessResults(r.stdout)
+    expect(results.some((res) => res.status === 'FAIL')).toBe(true)
     expect(r.stdout).not.toContain('[local] bad-cmd-empty')
   })
 
   it('fails loud on a malformed entry whose cmd contains a non-string element', () => {
     const r = runLocalSlotHarness(
-      "export const checks = [{ name: 'bad-cmd-type', cmd: ['node', 3], tier: 'L1' }];\n",
+      JSON.stringify({ checks: [{ name: 'bad-cmd-type', cmd: ['node', 3], tier: 'L1' }] }),
     )
-    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
-    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
-      true,
-    )
+    const results = harnessResults(r.stdout)
+    expect(results.some((res) => res.status === 'FAIL')).toBe(true)
     expect(r.stdout).not.toContain('[local] bad-cmd-type')
   })
 
-  // P0 (Codex review): the local module is loaded in a CHILD process. A
-  // top-level `process.exit(0)` in scripts/check-all.local.mjs used to be
-  // `import()`-ed directly into the gate's OWN process, which would exit the
-  // entire gate green mid-run — every check still queued behind it silently
-  // never runs. Isolating the load in a child means that exit only ends the
-  // child; the parent sees an empty/invalid stdout and FAILS loud instead.
-  it('a top-level process.exit(0) in the local module cannot green-exit the gate — it FAILs loud', () => {
+  it('fails loud on an invalid tier value', () => {
     const r = runLocalSlotHarness(
-      "process.exit(0);\nexport const checks = [{ name: 'never-seen', cmd: ['true'], tier: 'L1' }];\n",
+      JSON.stringify({ checks: [{ name: 'bad-tier', cmd: ['true'], tier: 'nightly' }] }),
     )
-    // The gate itself is still alive and finished its own run (proves the
-    // parent process was never killed by the local module's exit).
-    expect(r.stdout).toContain('HARNESS_DONE:')
-    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
-    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
-      true,
-    )
-    // The escaping module's own (unreachable) check never ran.
-    expect(r.stdout).not.toContain('[local] never-seen')
-  })
-
-  // P0 round 2 (Codex review): the handoff is a file the CHILD BOOTSTRAP
-  // writes only after `import()` resolves, carrying a per-run nonce the
-  // loaded module never sees — not stdout. A module that races the write by
-  // printing straight to fd 1 and exiting before the bootstrap's `.then`
-  // fires produces no result file at all, so it cannot forge a "no checks"
-  // (or any other) result by mimicking the old stdout protocol.
-  it('a module forging stdout output (writeSync(1, ...) + exit(0)) cannot fake a result — FAILs loud', () => {
-    const r = runLocalSlotHarness(
-      "import { writeSync } from 'node:fs';\n" +
-        "writeSync(1, '[]');\n" +
-        'process.exit(0);\n' +
-        "export const checks = [{ name: 'never-seen', cmd: ['true'], tier: 'L1' }];\n",
-    )
-    expect(r.stdout).toContain('HARNESS_DONE:')
-    const results = JSON.parse(/HARNESS_DONE:(\[.*\])/.exec(r.stdout)![1])
-    expect(results.some((res: { name: string; status: string }) => res.status === 'FAIL')).toBe(
-      true,
-    )
-    expect(r.stdout).not.toContain('[local] never-seen')
+    const results = harnessResults(r.stdout)
+    expect(results.some((res) => res.status === 'FAIL')).toBe(true)
+    expect(r.stdout).not.toContain('[local] bad-tier')
   })
 })
