@@ -27,4 +27,41 @@ describe('release 05-release attest pin (#2673)', () => {
     const config = JSON.parse(readFileSync(resolve(root, 'stryker.config.json'), 'utf-8'))
     expect(config.vitest.configFile).toBe('vitest.stryker.config.ts')
   })
+
+  // #2673: the mutation-blocking job never went green on any release run since May -- the full
+  // candidate surface (generators/**/*.ts + init.ts + catalog.ts) is 9297 mutants at concurrency
+  // 2. break: 60 stays untouched; the surface is bounded by MEASURED PER-MUTANT COST, not just
+  // mutant count -- github.ts (319 mutants) looked cheap by count, but each of its mutants is
+  // covered by hundreds of render/e2e tests under perTest coverage, collapsing throughput to
+  // ~2min/mutant (a real proving run projected >10h and was killed). init.ts + githooks.ts +
+  // gitignore.ts + security.ts (the real gitleaks/PII/ZAP generator) = 270 mutants, all cheap,
+  // at concurrency: 4 (this runner has 24 cores/62GB, was under-used at 2). check-all.ts (804)
+  // and registry.ts (535) each individually exceed the remaining budget; github.ts and
+  // catalog.ts (2482) are debt with their measured per-mutant cost as the reason
+  // (docs/internal/release-playbook.md § Mutation surface debt), not silently dropped.
+  it('mutation surface is bounded to the highest-criticality, cheapest-to-test generators', () => {
+    const config = JSON.parse(readFileSync(resolve(root, 'stryker.config.json'), 'utf-8'))
+    const mutate: string[] = config.mutate
+    expect(mutate).not.toContain('src/invariants/catalog.ts')
+    expect(mutate).not.toContain('src/generators/**/*.ts')
+    expect(mutate).not.toContain('src/generators/check-all.ts')
+    expect(mutate).not.toContain('src/generators/registry.ts')
+    expect(mutate).not.toContain('src/generators/github.ts')
+    expect(mutate).toContain('src/commands/init.ts')
+    expect(mutate).toContain('src/generators/githooks.ts')
+    expect(mutate).toContain('src/generators/gitignore.ts')
+    expect(mutate).toContain('src/generators/security.ts')
+    expect(mutate.filter((g) => g.startsWith('src/generators/') && !g.startsWith('!')).length).toBe(
+      3,
+    )
+  })
+
+  // Measured: 270 mutants at concurrency 4 on a contended machine (other gates running
+  // concurrently) took 60min 0s wall time -- equal to the CI job's 60-minute budget, no margin.
+  // Raised to 6 (24-core/62GB runner, still under-used) for headroom; see
+  // docs/internal/release-playbook.md § Mutation surface debt for the full measured table.
+  it('concurrency is raised again for CI headroom after the c=4 run measured 0 margin', () => {
+    const config = JSON.parse(readFileSync(resolve(root, 'stryker.config.json'), 'utf-8'))
+    expect(config.concurrency).toBe(6)
+  })
 })
