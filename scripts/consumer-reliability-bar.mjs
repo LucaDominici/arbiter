@@ -5,6 +5,7 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -12,6 +13,7 @@ import {
 } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import {
   assessGateSpine,
   assessGateSurface,
@@ -32,6 +34,12 @@ import {
 } from './lib/consumer-reliability-bar.mjs'
 
 const root = process.cwd()
+// #2679 round 3: the real HOME (whether the CI runner's or a local developer's) can hold
+// ~/.ssh and ~/.git-credentials, and every consumer-controlled command this script runs
+// (check-hook-routing.mjs, dry-run commands, `arbiter update`) goes through sanitizedEnvironment()
+// below — this self-remediates HOME for THAT path regardless of who invoked this script, on
+// top of the workflow's own belt-and-suspenders HOME override for the CI `verify` job.
+const isolatedHome = mkdtempSync(join(tmpdir(), 'arbiter-verifier-home-'))
 
 try {
   assertCredentialFreeEnvironment(process.env)
@@ -74,11 +82,15 @@ try {
   process.stdout.write(
     `[consumer-reliability] ${summary.result} — ${results.length} pinned consumers verified\n`,
   )
-  process.exit(exitCode)
+  // Not process.exit() here — that terminates immediately and skips the finally cleanup
+  // below. process.exitCode lets the isolated HOME get removed once the event loop drains.
+  process.exitCode = exitCode
 } catch (error) {
   const detail = safeDiagnostic(error instanceof Error ? error.message : String(error))
   process.stderr.write(`[consumer-reliability] ERROR — ${detail}\n`)
-  process.exit(2)
+  process.exitCode = 2
+} finally {
+  rmSync(isolatedHome, { recursive: true, force: true })
 }
 
 function parseArgs(args) {
@@ -512,7 +524,7 @@ function run(command, args, cwd, timeout) {
 }
 
 function sanitizedEnvironment() {
-  return buildVerifierEnvironment(process.env)
+  return buildVerifierEnvironment(process.env, isolatedHome)
 }
 
 function childOutcome(result, success) {

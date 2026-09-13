@@ -72,10 +72,16 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # #2679: no secret, deploy key, or token is EVER in this job's environment — not filtered
-  # out of a child process, absent from the job entirely. `permissions: {}` mints no
-  # GITHUB_TOKEN at all, so there is nothing for consumer-controlled code (check-hook-
-  # routing.mjs, the dry-run commands) to read even via /proc on the same runner.
+  # #2679: no deploy key or ARBITER_CONSUMER_* secret is EVER in this job's environment —
+  # not filtered out of a child process, absent from the job entirely. `permissions: {}`
+  # does NOT mean no token is minted: GitHub still mints a per-job GITHUB_TOKEN with every
+  # permission scoped to none. That scopeless token is simply never exported into a `run:`
+  # step's environment unless a step explicitly reads secrets.GITHUB_TOKEN/github.token —
+  # neither appears below — and `persist-credentials: false` on the checkout step is what
+  # stops actions/checkout writing it into the git credential store on disk. `HOME` is also
+  # overridden to an isolated, empty directory (see the "Create isolated HOME" step) so
+  # consumer-controlled code (check-hook-routing.mjs, the dry-run commands) cannot read
+  # ~/.ssh or ~/.git-credentials either.
   verify:
     name: Verify consumer reliability (credential-free)
     needs: prepare
@@ -105,8 +111,16 @@ jobs:
           path: ${{ runner.temp }}
       - name: Extract prepared workspace
         run: tar -C "$RUNNER_TEMP" -xzf "$RUNNER_TEMP/consumer-workspace.tar.gz"
+      - name: Create isolated HOME for verification
+        # Belt-and-suspenders: consumer-reliability-bar.mjs already self-remediates its own
+        # HOME to a fresh mkdtemp directory before running anything consumer-controlled, but
+        # the job-level HOME is overridden here too so nothing on this runner's real HOME
+        # (~/.ssh, ~/.git-credentials) is ever the ambient value in the first place.
+        run: mkdir -p "$RUNNER_TEMP/verify-home"
       - name: Run detached private consumer reliability bar
         id: consumer_bar
+        env:
+          HOME: ${{ runner.temp }}/verify-home
         run: >-
           node scripts/consumer-reliability-bar.mjs
           --workspace "$RUNNER_TEMP/consumer-reliability"

@@ -370,9 +370,12 @@ export function commandOutcomeKind({ status, signal }) {
   return 'fail'
 }
 
+// HOME is deliberately NOT in this allowlist (#2679 round 3): a consumer running under the
+// verifier's real HOME can read ~/.ssh and ~/.git-credentials. buildVerifierEnvironment
+// always forces HOME to a caller-supplied fresh, empty directory instead of ever passing
+// the real one through.
 const VERIFIER_ENV_KEYS = new Set([
   'PATH',
-  'HOME',
   'TMPDIR',
   'TMP',
   'TEMP',
@@ -389,7 +392,7 @@ const VERIFIER_ENV_KEYS = new Set([
   'NO_COLOR',
 ])
 
-export function buildVerifierEnvironment(environment) {
+export function buildVerifierEnvironment(environment, freshHome) {
   const clean = Object.fromEntries(
     Object.entries(environment).filter(
       ([key, value]) => VERIFIER_ENV_KEYS.has(key) && String(value ?? '').length > 0,
@@ -397,6 +400,7 @@ export function buildVerifierEnvironment(environment) {
   )
   return {
     ...clean,
+    HOME: freshHome,
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_TERMINAL_PROMPT: '0',
@@ -409,28 +413,51 @@ export function buildVerifierEnvironment(environment) {
 // commands) can read this process's own environment/memory regardless of what a spawned
 // child is given — a filtered child env is not a boundary. GH_TOKEN/GITHUB_TOKEN must never
 // reach the verifier process at all, same as the ARBITER_CONSUMER_* deploy credentials.
-const CREDENTIAL_ENV_NAMES = new Set(['GH_TOKEN', 'GITHUB_TOKEN'])
+// #2679 round 3: matched case-insensitively, and widened to the exact names GitHub Actions
+// itself would inject under a MISconfiguration — `ACTIONS_RUNTIME_TOKEN` and the OIDC
+// `ACTIONS_ID_TOKEN_REQUEST_*` pair have no reason to exist under `permissions: {}` (no
+// `id-token` scope requested), and `INPUT_*` is how Actions maps a `uses:` step's `with:`
+// inputs into env — their presence in the verifier's own environment is itself a signal
+// something upstream is misconfigured, not merely a credential leak.
+const CREDENTIAL_ENV_NAMES = new Set([
+  'GH_TOKEN',
+  'GITHUB_TOKEN',
+  'ACTIONS_RUNTIME_TOKEN',
+  'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
+  'ACTIONS_ID_TOKEN_REQUEST_URL',
+])
+const CREDENTIAL_ENV_PREFIXES = [CONSUMER_SECRET_PREFIX, 'INPUT_']
+
+/** One predicate shared by every credential check below — a second, drifting copy of this
+ *  list is exactly how a future name gets caught by one check and missed by the other. */
+function isCredentialEnvKey(key) {
+  const upper = key.toUpperCase()
+  return (
+    CREDENTIAL_ENV_NAMES.has(upper) ||
+    CREDENTIAL_ENV_PREFIXES.some((prefix) => upper.startsWith(prefix))
+  )
+}
 
 // #2679 round 2: run-consumer-reliability.mjs (the local combined entry point) spawns
 // prepare then verify as two children of ONE credentialed process — a filtered child env
 // for verify is not enough while THIS process's own environment/memory still carries the
 // credentials for as long as it stays alive. Call this on the wrapper's own `process.env`
 // after the prepare child exits and before the verify child is spawned.
+// #2679 round 3: this is defense in depth ONLY — verified that deleting a key from
+// process.env does not clear /proc/<this-pid>/environ, so a same-UID process can still read
+// the original value. The real boundary for CI is the separate credential-free `verify` job
+// (no secret ever enters its environment at all); for the LOCAL wrapper, the real boundary
+// is spawning verify with an explicit allowlisted environment built from scratch (see
+// buildVerifierEnvironment), never process.env, scrubbed or not.
 export function scrubOwnCredentials(environment) {
   for (const key of Object.keys(environment)) {
-    if (key.startsWith(CONSUMER_SECRET_PREFIX) || CREDENTIAL_ENV_NAMES.has(key)) {
-      Reflect.deleteProperty(environment, key)
-    }
+    if (isCredentialEnvKey(key)) Reflect.deleteProperty(environment, key)
   }
 }
 
 export function assertCredentialFreeEnvironment(environment) {
   const leaked = Object.entries(environment)
-    .filter(
-      ([key, value]) =>
-        (key.startsWith(CONSUMER_SECRET_PREFIX) || CREDENTIAL_ENV_NAMES.has(key)) &&
-        String(value ?? '').length > 0,
-    )
+    .filter(([key, value]) => isCredentialEnvKey(key) && String(value ?? '').length > 0)
     .map(([key]) => key)
   if (leaked.length > 0) {
     throw new Error(`credential-bearing verifier environment: ${leaked.join(', ')}`)

@@ -269,10 +269,21 @@ function runStrict(command, args, cwd, extraEnvironment, failure) {
   return result.stdout ?? ''
 }
 
+// #2679 round 3: `credential.*` was the only pattern scrubbed. This clone is made over SSH
+// with an explicit GIT_SSH_COMMAND (never actions/checkout's HTTPS token flow), so an
+// `http.<url>.extraheader`/`.extraHeader` (the config key actions/checkout itself uses to
+// carry `Authorization: Basic …`) should never be present — scrubbed anyway, defensively,
+// so the packed archive can never carry one even if a future code path introduces it.
 function scrubCredentialConfig(dir, id) {
+  for (const pattern of ['^credential\\.', '\\.extraheader$']) {
+    unsetMatchingConfig(dir, id, pattern)
+  }
+}
+
+function unsetMatchingConfig(dir, id, pattern) {
   const listed = spawnSync(
     'git',
-    ['-C', dir, 'config', '--local', '--name-only', '--get-regexp', '^credential\\.'],
+    ['-C', dir, 'config', '--local', '--name-only', '--get-regexp', pattern],
     {
       cwd: dir,
       encoding: 'utf-8',
