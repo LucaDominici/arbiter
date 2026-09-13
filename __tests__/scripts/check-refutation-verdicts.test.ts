@@ -285,6 +285,22 @@ describe('check-refutation-verdicts.mjs', () => {
     expect(r.stdout).toMatch(/required.*#2614/i)
   })
 
+  it('a marker with NO task field does not satisfy --require-marker (Codex round 2, HIGH)', () => {
+    // Directory placement alone is not proof of binding — the marker must strictly DECLARE
+    // the requested task, not merely omit one and ride the directory-name coincidence.
+    writeMarkerForTask('#2614', { skeptics: 1, findings: [] })
+    const r = run(evidenceDir, ['--require-marker', '#2614'])
+    expect(r.exitCode).toBe(1)
+    expect(r.stdout).toMatch(/required.*#2614/i)
+  })
+
+  it('a marker with a non-string task field does not satisfy --require-marker (Codex round 2, HIGH)', () => {
+    writeMarkerForTask('#2614', { task: 2614, skeptics: 1, findings: [] })
+    const r = run(evidenceDir, ['--require-marker', '#2614'])
+    expect(r.exitCode).toBe(1)
+    expect(r.stdout).toMatch(/required.*#2614/i)
+  })
+
   it('--require-marker with no value (bare, end of argv) is malformed: exit 2', () => {
     const r = run(evidenceDir, ['--require-marker'])
     expect(r.exitCode).toBe(2)
