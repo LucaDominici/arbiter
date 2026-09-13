@@ -22,6 +22,12 @@
 //
 // Usage:
 //   node scripts/check-refutation-verdicts.mjs [--evidence-dir=<path>] [--repo-root=<dir>]
+//       [--require-marker=<task>]
+// --require-marker names the task a caller has DECLARED needs a refutation marker (#2614):
+// with it set, a missing marker is exit 1 instead of the vacuous pass below. Absent the flag,
+// every existing behaviour (including the vacuous pass) is unchanged (AC-2) — this script
+// still has no opinion of its own on which tasks require one; that classification lives with
+// the caller.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -34,6 +40,7 @@ const argv = process.argv.slice(2)
 const EVIDENCE_DIR = arg('evidence-dir', argv)
   ? resolve(arg('evidence-dir', argv))
   : join(repoDefault, '.arbiter', 'evidence', 'agent-returns')
+const REQUIRE_MARKER = arg('require-marker', argv)
 const MARKER_NAME = 'refutation-required.json'
 
 /**
@@ -159,6 +166,13 @@ function main() {
     return 2
   }
   if (!marker) {
+    if (REQUIRE_MARKER) {
+      process.stdout.write(
+        `[check-refutation-verdicts] FAIL: refutation marker required for task ` +
+          `${REQUIRE_MARKER} but none found under ${EVIDENCE_DIR}\n`,
+      )
+      return 1
+    }
     process.stdout.write(
       '[check-refutation-verdicts] OK — no refutation marker, nothing to adjudicate\n',
     )
