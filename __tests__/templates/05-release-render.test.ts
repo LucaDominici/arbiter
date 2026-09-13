@@ -773,6 +773,19 @@ describe('05-release.yml — MATERIALIZED self workflow (#2138)', () => {
     const rendered = renderRelease({ ...TS_LIB, governanceLevel: 'L2' })
     expect(triggerBlockOf(materialized).trim()).toBe(triggerBlockOf(rendered).trim())
   })
+
+  // #2673: gitleaks-action's default-on SARIF artifact upload crashes on a self-hosted runner
+  // whose HOME (/root) is not a parent of the workspace (validateRootDirectory throws even on
+  // a clean scan). GITLEAKS_ENABLE_UPLOAD_ARTIFACT=false (confirmed against the pinned action's
+  // dist/index.js) disables just the upload; the scan itself must stay blocking.
+  it('gitleaks step disables the SARIF artifact upload but keeps scanning (#2673)', () => {
+    const workflow = parseYaml(materialized) as ReleaseWorkflow
+    const gitleaksStep = workflow.jobs['secret-scan-history'].steps?.find((s) =>
+      s.uses?.startsWith('gitleaks/gitleaks-action@'),
+    )
+    expect(gitleaksStep?.env?.GITLEAKS_ENABLE_UPLOAD_ARTIFACT).toBe('false')
+    expect(gitleaksStep?.with?.args).toContain('--full-history')
+  })
 })
 
 type ReleaseStep = {
