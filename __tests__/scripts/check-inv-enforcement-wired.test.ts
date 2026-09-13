@@ -25,12 +25,19 @@ function makeTemp(): { dir: string; cleanup: () => void } {
 
 describe('check-inv-enforcement-wired.mjs (INV-52 / CANON-09)', () => {
   it('exits 0 when all catalog enforcement scripts are wired in gate', () => {
+    // #2563: the cited script must be REAL (check-domain-api-surface.mjs exists under
+    // scripts/) — the new per-token existence pass resolves against the real repo tree
+    // even for temp-fixture catalogs, so a fabricated name here would now (correctly)
+    // fail as ENFORCEMENT PATH NOT FOUND instead of exercising the wiring check.
     const { dir, cleanup } = makeTemp()
     try {
       const catalog = join(dir, 'catalog.ts')
       const gate = join(dir, 'check-all.mjs')
-      writeFileSync(catalog, `{ id: "INV-01", enforcement: "scripts/check-foo.mjs" }`)
-      writeFileSync(gate, `runCheck("foo", "node", ["scripts/check-foo.mjs"])`)
+      writeFileSync(
+        catalog,
+        `{ id: "INV-01", enforcement: "scripts/check-domain-api-surface.mjs" }`,
+      )
+      writeFileSync(gate, `runCheck("foo", "node", ["scripts/check-domain-api-surface.mjs"])`)
       expect(run(catalog, gate).status).toBe(0)
     } finally {
       cleanup()
@@ -372,7 +379,13 @@ describe('enforcement resolution — every string names a real mechanism (#2563)
       writeFileSync(catalog, `  id: 'INV-999',\n  enforcement: 'code review / manual',`)
       writeFileSync(
         allowlist,
-        JSON.stringify({ 'INV-999': { mechanism: 'code review', reason: 'process invariant' } }),
+        JSON.stringify({
+          'INV-999': {
+            mechanism: 'code review',
+            reason: 'process invariant',
+            enforcement: 'code review / manual',
+          },
+        }),
       )
       expect(runResolve(catalog, allowlist).status).toBe(0)
     } finally {
@@ -411,5 +424,130 @@ describe('enforcement resolution — every string names a real mechanism (#2563)
   it('passes against the real catalog with the real allowlist (INV-28 honestly resolved, not weakened)', () => {
     const result = runResolve(resolve('src/invariants/catalog.ts'))
     expect(result.status).toBe(0)
+  })
+})
+
+// Codex diff-review P1 findings on #2563 — each closes one specific exploit against the
+// #2563 gate itself, proven failing-then-passing.
+describe('Codex P1 hardening (#2563)', () => {
+  function runResolve(catalogPath: string, allowlistPath?: string) {
+    const args = [SCRIPT, `--catalog=${catalogPath}`, `--gate=${resolve('scripts/check-all.mjs')}`]
+    if (allowlistPath) args.push(`--allowlist=${allowlistPath}`)
+    const r = spawnSync('node', args, { encoding: 'utf-8', cwd: resolve('.') })
+    return { status: r.status ?? 1, stdout: r.stdout ?? '' }
+  }
+
+  // P1 #1: an allowlist entry not bound to the exact enforcement text would still pass
+  // after the catalog reverted to a previously-flagged false claim — the allowlist review
+  // would be reviewing wording that no longer exists.
+  it('exits 1 when the catalog enforcement text drifts from the allowlisted text [P1 #1]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const allowlist = join(dir, 'allowlist.json')
+      // The catalog was reverted to the exact false claim the issue reports for INV-28.
+      writeFileSync(catalog, `  id: 'INV-28',\n  enforcement: 'CI (drift check / pre-merge hook)',`)
+      // But the allowlist still carries the entry reviewed against the OLD, honest wording.
+      writeFileSync(
+        allowlist,
+        JSON.stringify({
+          'INV-28': {
+            mechanism: 'code review (manual) — no automated check exists',
+            reason: 'honest gap, reviewed against different wording',
+            enforcement: 'code review (manual) — no automated check exists',
+          },
+        }),
+      )
+      const result = runResolve(catalog, allowlist)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('STALE ALLOWLIST ENTRY')
+      expect(result.stdout).toContain('INV-28')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // P1 #2: a fabricated path must not pass by matching a real basename living elsewhere,
+  // and a foreign-repo exemption must not rescue a fabricated path either (it must match
+  // the exact exempted token, not just end in the exempted basename).
+  it('exits 1 for a fabricated path riding on a real basename [P1 #2]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      // check-secret-presence.mjs is real under scripts/ — the fabricated directory must
+      // not be accepted via basename fallback.
+      writeFileSync(catalog, `  id: 'INV-999',\n  enforcement: 'fake/check-secret-presence.mjs',`)
+      const result = runResolve(catalog)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ENFORCEMENT PATH NOT FOUND')
+      expect(result.stdout).toContain('fake/check-secret-presence.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 for a fabricated path ending in the exact foreign-exempt basename [P1 #2]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-999',\n  enforcement: 'fake/dir/check-arbiter-contract.mjs',`,
+      )
+      const result = runResolve(catalog)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('fake/dir/check-arbiter-contract.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // P1 #3: valid catalog syntax the original hand-rolled parser missed — double-quoted
+  // ids, and an explicitly empty enforcement literal.
+  it('resolves a double-quoted id and still flags an unresolvable claim [P1 #3]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const allowlist = join(dir, 'allowlist.json')
+      writeFileSync(catalog, `{ id: "INV-999", enforcement: "CI (invented check)" }`)
+      writeFileSync(allowlist, '{}')
+      const result = runResolve(catalog, allowlist)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('INV-999')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 on an explicitly empty enforcement literal [P1 #3]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      writeFileSync(catalog, `  id: 'INV-999',\n  enforcement: '',`)
+      const result = runResolve(catalog)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ENFORCEMENT FIELD IS EMPTY')
+      expect(result.stdout).toContain('INV-999')
+    } finally {
+      cleanup()
+    }
+  })
+
+  // P1 #4: the tokenizer must resolve tokens beyond the original 5 extensions.
+  it('exits 1 when a non-mjs/ts/java/yml extension token does not exist [P1 #4]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-999',\n  enforcement: 'scripts/check-domain-api-surface.mjs + docs/missing.json',`,
+      )
+      const result = runResolve(catalog)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ENFORCEMENT PATH NOT FOUND')
+      expect(result.stdout).toContain('docs/missing.json')
+    } finally {
+      cleanup()
+    }
   })
 })
