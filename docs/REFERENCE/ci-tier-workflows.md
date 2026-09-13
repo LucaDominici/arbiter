@@ -142,6 +142,10 @@ Every new unconditionally-emitted gate (wired at L1 in `check-all.mjs.ejs` /
 `DECLINED:<reason>`, or `DEBT:#issue`) in the same PR — otherwise the Bar's
 emitted-vs-executed reconciliation fails closed with "N emitted check(s)
 unaccounted" on every pinned consumer.
+A check name built from data at render time (a template literal containing `${`,
+e.g. #2666's per-entry local-extension-slot name) is excluded from the emitted
+surface entirely — it is not a static gate name, so no fixed mapping entry could
+ever cover it; only the surrounding static wrapper name needs an entry.
 For example, a consumer's post-merge `node scripts/check-all.mjs L2 --json
 gate-result.json` is evidence of CI alignment only when the Bar names that exact
 workflow job and command.

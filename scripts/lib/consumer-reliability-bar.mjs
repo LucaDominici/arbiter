@@ -12,8 +12,19 @@ const HARD_RUNNER_CALL = /\b(?:runCheck|runToolCheck)\s*\(\s*(['"`])([^'"`]+)\1/
 const HARD_PUSH_RESULT = /\bpushResult\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*(['"`])FAIL\3/g
 const CONSUMER_SECRET_PREFIX = `${['ARBITER', 'CONSUMER'].join('_')}_`
 
+// #2666: a name interpolated from a template literal (e.g. the local extension slot's
+// `[local] ${_lc.name}`) is DATA, resolved only at the consumer's runtime from a file this
+// bar never reads — it is not a static gate name and no fixed mapping entry could ever
+// cover it. Excluded from the emitted surface entirely, at both hardness tiers.
+const isTemplateLiteralPlaceholder = (name) => name.includes('${')
+
 export function extractCheckNames(source) {
-  return new Set([...source.matchAll(RUNNER_CALL)].map((match) => match[2]).sort())
+  return new Set(
+    [...source.matchAll(RUNNER_CALL)]
+      .map((match) => match[2])
+      .filter((name) => !isTemplateLiteralPlaceholder(name))
+      .sort(),
+  )
 }
 
 /** Names called through a family that can actually fail the build (excludes runWarnCheck-only
@@ -23,7 +34,9 @@ export function extractHardCheckNames(source) {
     [
       ...[...source.matchAll(HARD_RUNNER_CALL)].map((match) => match[2]),
       ...[...source.matchAll(HARD_PUSH_RESULT)].map((match) => match[2]),
-    ].sort(),
+    ]
+      .filter((name) => !isTemplateLiteralPlaceholder(name))
+      .sort(),
   )
 }
 
