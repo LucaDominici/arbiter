@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { walkRepo } from './lib/glob-walk.mjs'
-import { validateEntry, parseArgs } from './lib/suppressions-shared.mjs'
+import { validateEntry, parseArgs, isInsideStringLiteral } from './lib/suppressions-shared.mjs'
 
 const DIRECTIVE_RE = /\/\/\s*arbiter-suppress\(([^)]+)\)/g
 const SCANNED_EXTENSIONS = new Set([
@@ -104,6 +104,7 @@ function scanFile(filePath, counters) {
     DIRECTIVE_RE.lastIndex = 0
     const match = DIRECTIVE_RE.exec(lines[i])
     if (!match) continue
+    if (isInsideStringLiteral(lines[i], match.index)) continue
     const label = `${filePath}:${i + 1}`
     const parsed = parseDirective(match[1])
     if (!parsed || !parsed.invId) {

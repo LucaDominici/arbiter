@@ -98,6 +98,44 @@ export function parseArgs(argsStr) {
 }
 
 /**
+ * Single-line string-state tracker (#2671): walk from line start to idx, toggling
+ * in-string state on unescaped ', ", or `. A directive-shaped match only counts when
+ * it sits in a real `//` comment — not when the syntax appears as text inside a string
+ * literal (e.g. a hook documenting the directive format in a template string, which
+ * would otherwise be parsed as a real, malformed directive and FAIL on its own advisory
+ * text). Used by check-inline-suppressions.mjs.
+ * @param {string} line
+ * @param {number} idx
+ * @returns {boolean}
+ */
+export function isInsideStringLiteral(line, idx) {
+  let i = 0
+  let inStr = false
+  let quote = ''
+  while (i < idx) {
+    const ch = line[i]
+    if (inStr) {
+      if (ch === '\\') {
+        i += 2
+        continue
+      }
+      if (ch === quote) {
+        inStr = false
+        quote = ''
+      }
+      i += 1
+      continue
+    }
+    if (ch === '`' || ch === '"' || ch === "'") {
+      inStr = true
+      quote = ch
+    }
+    i += 1
+  }
+  return inStr
+}
+
+/**
  * #1809: specificity-floor allowlist matcher — shared by scripts/pii-scan.mjs
  * and .claude/hooks/check-no-pii.mjs so the two consumers of
  * suppressions/pii-allowlist.json can never drift back apart (both previously

@@ -36,6 +36,20 @@ const HTTP_PATTERNS = [
   /\bky\s*\./,
 ]
 
+// Inline exemption (#2671): a fetch that is legitimately non-JSON (binary file
+// download, internal sync with a typed snapshot) can carry an explicit
+// `arbiter-allow-raw-fetch: <reason>` marker on the same line. A rationale is
+// required — a bare marker with no reason (or a token-only one) does not
+// suppress the violation, so the escape hatch cannot become a blanket bypass.
+const RAW_FETCH_EXEMPTION_RE = /arbiter-allow-raw-fetch:\s*(.+)/
+const RAW_FETCH_EXEMPTION_REASON_MIN_LEN = 10
+
+function hasRawFetchExemption(line) {
+  const match = RAW_FETCH_EXEMPTION_RE.exec(line)
+  if (!match) return false
+  return match[1].trim().length >= RAW_FETCH_EXEMPTION_REASON_MIN_LEN
+}
+
 // Patterns that signal browser globals in domain/store (INV-103)
 const BROWSER_GLOBALS = [
   /\blocalStorage\s*[.[]/,
@@ -132,6 +146,7 @@ function checkFile(absPath) {
   if (isNonAdapterSource(rel)) {
     const hits = scanLines(content, HTTP_PATTERNS)
     for (const { line, lineNum } of hits) {
+      if (hasRawFetchExemption(line)) continue
       process.stderr.write(
         `[INV-102] ${rel}:${lineNum}: raw HTTP call outside adapter/api layer — move to a designated api/ directory\n` +
           `         ${line.trim()}\n`,
