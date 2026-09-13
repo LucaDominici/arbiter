@@ -320,6 +320,11 @@ function maskRegexLiteral(literal) {
  * exactly the prior (safe) behavior. This closes the actual hazard — a quote inside a
  * regex character class (e.g. `/['"]/`) being read as a string open and desyncing the
  * masker for the rest of the file (#2577) — without needing a full lexer.
+ *
+ * Returns `{ masked, terminated }`: `terminated` is false when the state machine ends the
+ * file still inside a string/template/block-comment — the desync signature itself (an
+ * unclosed literal swallows every line after it, however short the file is), which the
+ * caller (`checkMaskIntegrity`) treats as an audit INTEGRITY fault regardless of file size.
  */
 function maskCode(src) {
   let out = ''
@@ -400,7 +405,12 @@ function maskCode(src) {
     }
     out += c === '\n' ? '\n' : ' '
   }
-  return out
+  // `terminated` is false when the state machine ends the file still inside a string,
+  // template literal or block comment — an UNCLOSED literal/comment, which is exactly the
+  // desync shape (#2577's own bug: an unclosed string swallows everything after it). A
+  // trailing `line` (`// comment` with no final newline) is normal EOF, not a desync — there
+  // is nothing after it to lose.
+  return { masked: out, terminated: state === 'code' || state === 'line' }
 }
 
 /**
@@ -467,50 +477,25 @@ function hasIntentMarkerAbove(lines, lineNo) {
   return false
 }
 
-// AC-3 (#2577) — programme-membership floor: a masker that desyncs (a bug like the one this
-// issue fixes, or a future one) blanks a long TAIL of the file rather than scattering blanks
-// evenly the way normal string/comment masking does. Measured against this repo's own
-// scanned files post-fix, the lowest legitimate tail-survival ratio is ~0.065 (heavily
-// commented/string-literal-dense modules); a real desync collapses it near zero (~0.01).
-// TAIL_SURVIVAL_FLOOR sits with margin below the legitimate floor and above the desync
-// signal. This is a backstop for "nobody thought of this hazard" (CANON-24), not a claim
-// that 0.03 is theoretically exact — an integrity fault here is a DATA/IO fault (exit 2,
-// via `fatal`), never a gate finding: it means the audit could not see the file, not that
-// the file violates the contract, so it must never be silently grandfathered into the
-// baseline ledger.
-const TAIL_LINE_FRACTION = 0.2
-const TAIL_MIN_LINES = 10
-const TAIL_MIN_ORIG_CHARS = 50 // ignore trivial tails — nothing to desync
-const TAIL_SURVIVAL_FLOOR = 0.03
-
-function tailSurvivalRatio(content, masked) {
-  const origLines = content.split('\n')
-  const maskedLines = masked.split('\n')
-  const n = origLines.length
-  const tailStart = Math.max(0, n - Math.max(TAIL_MIN_LINES, Math.round(n * TAIL_LINE_FRACTION)))
-  let origNonWs = 0
-  let maskedNonWs = 0
-  for (let i = tailStart; i < n; i++) {
-    origNonWs += (origLines[i] ?? '').replace(/\s/g, '').length
-    maskedNonWs += (maskedLines[i] ?? '').replace(/\s/g, '').length
-  }
-  return { origNonWs, ratio: origNonWs > 0 ? maskedNonWs / origNonWs : 1 }
-}
-
 /**
- * Fail closed (exit 2) when masking has visibly collapsed a file's tail — the audit cannot
- * distinguish "this file has no more catches" from "the masker went blind here", so it must
- * not guess. This is the check that would have caught #2577 without anyone thinking of quotes.
+ * AC-3 (#2577) — programme-membership floor: fail closed (exit 2) when `maskCode` ends the
+ * file still inside a string/template/block-comment. That is the desync signature itself
+ * (an unclosed literal swallows every line after it), not a heuristic proxy for it — so,
+ * unlike a survival-ratio threshold, it cannot be fooled by a SHORT file (nothing to dilute
+ * a ratio with) or false-positive on a LONG one legitimately ending in a big block comment
+ * or template literal (that closes cleanly, so `terminated` is still true). An integrity
+ * fault here is a DATA/IO fault (via `fatal`), never a gate finding: it means the audit
+ * could not see the file, not that the file violates the contract, so it must never be
+ * silently grandfathered into the baseline ledger. This is the check that would have caught
+ * #2577 without anyone thinking of quotes.
  */
-function checkMaskIntegrity(rel, content, masked) {
-  const { origNonWs, ratio } = tailSurvivalRatio(content, masked)
-  if (origNonWs < TAIL_MIN_ORIG_CHARS) return
-  if (ratio < TAIL_SURVIVAL_FLOOR) {
+function checkMaskIntegrity(rel, terminated) {
+  if (!terminated) {
     fatal(
-      `masking collapsed for ${rel} — only ${(ratio * 100).toFixed(1)}% of its tail survived ` +
-        `masking (floor ${(TAIL_SURVIVAL_FLOOR * 100).toFixed(0)}%). This means the masker ` +
-        `desynced (a string/regex was never closed) and the audit can no longer see this ` +
-        `file's catches — fix the file or the masker, this is not a gate finding.`,
+      `masking desynced for ${rel} — the file ends with an unterminated string, template ` +
+        `literal or block comment. This means the masker lost track of real code and the ` +
+        `audit can no longer see this file's catches — fix the file or the masker, this is ` +
+        `not a gate finding.`,
     )
   }
 }
@@ -521,8 +506,8 @@ function checkMaskIntegrity(rel, content, masked) {
  * Suppressed when the line above the catch carries a FAIL-OPEN-INTENT marker.
  */
 function findSwallowedCatches(content, rel) {
-  const masked = maskCode(content)
-  checkMaskIntegrity(rel, content, masked)
+  const { masked, terminated } = maskCode(content)
+  checkMaskIntegrity(rel, terminated)
   const lines = content.split('\n')
   const surfacing = surfacingHelperNames(masked)
   const delegatesRe =
