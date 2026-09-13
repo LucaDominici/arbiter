@@ -250,6 +250,7 @@ function parseStdout(stdout: string, route: Route): Parsed {
   let value: unknown
   try {
     value = JSON.parse(text)
+    // FAIL-OPEN-INTENT: not swallowed — returned as `invalid`, which runDocSet surfaces as exit 2.
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { kind: 'invalid', error: `doc-set: ${route} engine printed malformed JSON — ${msg}` }
