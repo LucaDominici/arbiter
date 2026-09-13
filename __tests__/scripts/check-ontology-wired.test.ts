@@ -139,10 +139,41 @@ describe('check-ontology-wired.mjs (INV-141)', () => {
     it('countUnwired counts staged rows and every n/a leg', () => {
       expect(
         countUnwired([
-          { status: 'staged', gate: 'n/a', tool: 'n/a', hook: 'n/a' },
-          { status: 'active', gate: 'g', tool: 't', hook: 'n/a' },
+          { status: 'staged', track: 'self', gate: 'n/a', tool: 'n/a', hook: 'n/a' },
+          { status: 'active', track: 'self', gate: 'g', tool: 't', hook: 'n/a' },
         ]),
       ).toEqual({ staged: 1, naGate: 1, naTool: 1, naHook: 2 })
+    })
+
+    it('countUnwired counts naHook per APPLICABLE leg, so a `both` row with no hook at all counts 2', () => {
+      expect(
+        countUnwired([{ status: 'active', track: 'both', gate: 'g', tool: 't', hook: 'n/a' }]),
+      ).toEqual({ staged: 0, naGate: 0, naTool: 0, naHook: 2 })
+    })
+
+    it('countUnwired gives the string shorthand and the equivalent object the same naHook count (#2554 P1)', () => {
+      const string = countUnwired([
+        { status: 'active', track: 'both', gate: 'g', tool: 't', hook: 'n/a' },
+      ])
+      const object = countUnwired([
+        {
+          status: 'active',
+          track: 'both',
+          gate: 'g',
+          tool: 't',
+          hook: { self: 'n/a', target: 'n/a' },
+        },
+      ])
+      expect(object.naHook).toBe(string.naHook)
+    })
+
+    it('countUnwired only counts the leg(s) the track actually wants', () => {
+      expect(
+        countUnwired([{ status: 'active', track: 'self', gate: 'g', tool: 't', hook: 'n/a' }]),
+      ).toMatchObject({ naHook: 1 })
+      expect(
+        countUnwired([{ status: 'active', track: 'target', gate: 'g', tool: 't', hook: 'n/a' }]),
+      ).toMatchObject({ naHook: 1 })
     })
   })
 })

@@ -221,6 +221,18 @@ function resolveTrackPath(gatePath, track) {
   return track === 'target' ? templateTwin(gatePath) : gatePath
 }
 
+/**
+ * Where a Track-B hook's raw file lives. Unlike a gate script, a `.claude` hook is copied
+ * VERBATIM (not EJS-rendered) into src/templates/claude/hooks/ — check-self-dogfood.mjs proves
+ * the materialized `.claude/hooks/<name>` and its template are byte-identical — so the twin keeps
+ * the same basename and gains no `.ejs` suffix (#2554).
+ */
+export function hookTemplateTwin(hookPath) {
+  const parts = hookPath.split('/')
+  if (parts[0] === '.claude') parts[0] = 'claude'
+  return join('src', 'templates', ...parts)
+}
+
 /** Every OD-NN token in the tree, mapped to the files citing it. */
 /** The OD tokens one file cites, or null when the file is not worth scanning. */
 function odTokensIn(root, rel) {
@@ -308,8 +320,10 @@ function stagedViolations(s, where, todayStr) {
 
 /**
  * The hook column: a plain string is checked exactly as before (one path, track-derived). The
- * `{ self, target }` object names each leg's path directly — the row author already states which
- * track it applies to, so no further track derivation is needed (#2554).
+ * `{ self, target }` object names each leg's OWN path: `self` is the literal repo path; `target`
+ * is resolved through the Track-B hook twin (same convention as `gate`'s templateTwin, but hooks
+ * are raw-copied rather than `.ejs`-rendered), because the emitted file lives at a different path
+ * than the self-repo one it mirrors (#2554).
  */
 function hookPathViolations(s, where, root) {
   if (typeof s.hook !== 'object' || s.hook === null) {
@@ -321,10 +335,16 @@ function hookPathViolations(s, where, root) {
     ]
   }
   const out = []
-  for (const leg of ['self', 'target']) {
-    const value = s.hook[leg]
-    if (value === 'n/a' || existsSync(join(root, value))) continue
-    out.push(`${where}: hook.${leg} "${value}" does not exist`)
+  if (s.hook.self !== 'n/a' && !existsSync(join(root, s.hook.self))) {
+    out.push(`${where}: hook.self "${s.hook.self}" does not exist`)
+  }
+  if (s.hook.target !== 'n/a') {
+    const twin = hookTemplateTwin(s.hook.target)
+    if (!existsSync(join(root, twin))) {
+      out.push(
+        `${where}: hook.target "${s.hook.target}" does not exist (nor as the Track-B template ${twin})`,
+      )
+    }
   }
   return out
 }

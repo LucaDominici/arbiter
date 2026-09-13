@@ -37,7 +37,7 @@
 import { readFileSync, existsSync, writeFileSync, statSync } from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { extractJsonBlock } from './check-id-registry.mjs'
+import { extractJsonBlock, hookTemplateTwin } from './check-id-registry.mjs'
 
 /** The one hook with a per-artifact dispatch table, and therefore the one whose coverage is checkable. */
 const ARTIFACT_SCHEMA_HOOK = 'post-edit-artifact-schema.mjs'
@@ -78,21 +78,33 @@ export function hookLegs(s) {
   return typeof s.hook === 'object' && s.hook !== null ? s.hook : { self: s.hook, target: s.hook }
 }
 
-/** Ratchet counters: how much of the ontology is not yet behaviour. */
+/** Which side(s) a row's `track` names — the same self/target split every leg check reads from. */
+function trackWants(track) {
+  return {
+    self: track === 'self' || track === 'both',
+    target: track === 'target' || track === 'both',
+  }
+}
+
+/**
+ * Ratchet counters: how much of the ontology is not yet behaviour.
+ *
+ * `naHook` is normalized through `hookLegs()` and counted per APPLICABLE leg (the sides `track`
+ * actually wants), so the plain-string shorthand and the `{ self, target }` object count
+ * identically for the same real declaration — a `both` row that declines its hook entirely
+ * counts 2 (one per side) whichever shape the author picked, not 1 for the string and 2 for the
+ * object (#2554 P1: a representation choice must not move the ratchet).
+ */
 export function countUnwired(schemes) {
   const counts = { staged: 0, naGate: 0, naTool: 0, naHook: 0 }
   for (const s of schemes) {
     if (s.status === 'staged') counts.staged += 1
     if (s.gate === 'n/a') counts.naGate += 1
     if (s.tool === 'n/a') counts.naTool += 1
-    if (typeof s.hook === 'object' && s.hook !== null) {
-      // A per-track object counts each declined leg on its own — a `both` row that fires on
-      // self and declines target is one unwired leg, not a whole unwired row (#2554).
-      if (s.hook.self === 'n/a') counts.naHook += 1
-      if (s.hook.target === 'n/a') counts.naHook += 1
-    } else if (s.hook === 'n/a') {
-      counts.naHook += 1
-    }
+    const wants = trackWants(s.track)
+    const legs = hookLegs(s)
+    if (wants.self && legs.self === 'n/a') counts.naHook += 1
+    if (wants.target && legs.target === 'n/a') counts.naHook += 1
   }
   return counts
 }
@@ -240,12 +252,24 @@ function graphNodeViolations(s, where, root) {
  * A `{ self, target }` object resolves each leg on its own value and its own side, so a `both`
  * row that fires on self and declines target is checked accordingly: the declined leg asks for
  * nothing, rather than demanding a target-side registration of a hook that was never claimed
- * there (#2554). A plain string still checks the SAME path on whichever side(s) `track` wants.
+ * there (#2554). A plain string still checks the SAME declared path on whichever side(s) `track`
+ * wants.
+ *
+ * The TARGET side is never the self-repo path itself: a hook is raw-copied (not EJS-rendered)
+ * into src/templates/claude/hooks/, so a non-`n/a` target leg is resolved through
+ * hookTemplateTwin before its existence and registration are checked (#2554 P2) — otherwise a
+ * target claim would be "verified" by looking at arbiter's own `.claude/hooks/` copy, which says
+ * nothing about whether the emitted twin exists at all.
  */
-/** One leg's existence + registration check, repo-relative path in every message. */
 function hookLegViolations(where, wanted, path, root, settingsText, settingsRel, isSelf) {
   if (!wanted || path === 'n/a') return []
-  if (!existsSync(join(root, path))) return [`${where}: hook ${path} does not exist`]
+  const resolved = isSelf ? path : hookTemplateTwin(path)
+  if (!existsSync(join(root, resolved))) {
+    return [
+      `${where}: hook ${path} does not exist` +
+        (isSelf ? '' : ` (nor as the Track-B template ${resolved})`),
+    ]
+  }
   if (settingsText.includes(basename(path))) return []
   return isSelf
     ? [
@@ -318,10 +342,7 @@ async function wiringViolations(schemes, root, surfaces) {
   for (const s of schemes) {
     if (s.status !== 'active') continue
     const where = `scheme "${s.prefix}"`
-    const wants = {
-      self: s.track === 'self' || s.track === 'both',
-      target: s.track === 'target' || s.track === 'both',
-    }
+    const wants = trackWants(s.track)
     out.push(
       ...gateViolations(s, where, wants, surfaces),
       ...toolViolations(s, where, surfaces.cli),

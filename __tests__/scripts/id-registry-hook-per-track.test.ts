@@ -97,20 +97,50 @@ describe('id-registry hook column: per-track shape (#2554)', () => {
     expect(r.status).toBe(1)
     expect(r.stderr).toContain('does not exist')
   })
+
+  it('resolves a real target leg against its emitted Track-B template, not the self-repo path (#2554 P2)', () => {
+    const dir = idRegistryFixture([
+      bothScheme({
+        hook: { self: '.claude/hooks/zz-hook.mjs', target: '.claude/hooks/zz-hook.mjs' },
+      }),
+    ])
+    mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+    mkdirSync(join(dir, 'src/templates/claude/hooks'), { recursive: true })
+    writeFileSync(join(dir, '.claude/hooks/zz-hook.mjs'), '// self hook\n')
+    writeFileSync(join(dir, 'src/templates/claude/hooks/zz-hook.mjs'), '// emitted hook\n')
+    expect(runIdRegistry(dir).status).toBe(0)
+  })
+
+  it('fails a real target leg when only the self-repo copy exists, not the emitted twin', () => {
+    const dir = idRegistryFixture([
+      bothScheme({
+        hook: { self: '.claude/hooks/zz-hook.mjs', target: '.claude/hooks/zz-hook.mjs' },
+      }),
+    ])
+    mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
+    writeFileSync(join(dir, '.claude/hooks/zz-hook.mjs'), '// self hook only\n')
+    const r = runIdRegistry(dir)
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('Track-B template')
+  })
 })
 
 describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
   function ontologyFixture(
     schemes: Record<string, unknown>[],
     baseline = { staged: 0, naGate: 0, naTool: 0, naHook: 9 },
-    opts: { registerSelfHook?: boolean } = {},
+    opts: {
+      registerSelfHook?: boolean
+      writeTargetHookTemplate?: boolean
+      registerTargetHook?: boolean
+    } = {},
   ): string {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-ontology-hook-'))
     created.push(dir)
     mkdirSync(join(dir, 'docs/internal/SYSTEM'), { recursive: true })
     mkdirSync(join(dir, 'scripts/data'), { recursive: true })
     mkdirSync(join(dir, 'src/templates/scripts'), { recursive: true })
-    mkdirSync(join(dir, 'src/templates/claude'), { recursive: true })
+    mkdirSync(join(dir, 'src/templates/claude/hooks'), { recursive: true })
     mkdirSync(join(dir, '.claude/hooks'), { recursive: true })
 
     writeFileSync(
@@ -137,7 +167,13 @@ describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
       join(dir, '.claude/settings.json'),
       opts.registerSelfHook === false ? '{}' : '{"hooks":{"PostToolUse":"zz-hook.mjs"}}',
     )
-    writeFileSync(join(dir, 'src/templates/claude/settings.json.ejs'), '{}')
+    if (opts.writeTargetHookTemplate !== false) {
+      writeFileSync(join(dir, 'src/templates/claude/hooks/zz-hook.mjs'), '// emitted hook\n')
+    }
+    writeFileSync(
+      join(dir, 'src/templates/claude/settings.json.ejs'),
+      opts.registerTargetHook === false ? '{}' : '{"hooks":{"PostToolUse":"zz-hook.mjs"}}',
+    )
     return dir
   }
 
@@ -172,5 +208,30 @@ describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
     const r = run(ontologyFixture([bothTrackHookRow]))
     expect(r.stderr).not.toContain('TARGET_SETTINGS')
     expect(r.status, r.stderr).toBe(0)
+  })
+
+  const bothLegsWiredRow = {
+    ...bothTrackHookRow,
+    hook: { self: '.claude/hooks/zz-hook.mjs', target: '.claude/hooks/zz-hook.mjs' },
+  }
+
+  it('passes when a real target leg resolves to its emitted Track-B template (#2554 P2)', () => {
+    const r = run(ontologyFixture([bothLegsWiredRow]))
+    expect(r.status, r.stderr).toBe(0)
+  })
+
+  it('fails a real target leg whose emitted Track-B template does not exist', () => {
+    const r = run(
+      ontologyFixture([bothLegsWiredRow], undefined, { writeTargetHookTemplate: false }),
+    )
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('does not exist')
+    expect(r.stderr).toContain('Track-B template')
+  })
+
+  it('fails a real target leg whose emitted template exists but is unregistered on the target side', () => {
+    const r = run(ontologyFixture([bothLegsWiredRow], undefined, { registerTargetHook: false }))
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('CANON-10/CANON-14')
   })
 })
