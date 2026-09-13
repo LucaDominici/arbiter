@@ -117,10 +117,16 @@ describe('#2504 — doc-set --json never launders a SKIP or a subdirectory run i
     expect(res.payload).not.toBeNull()
   })
 
-  it('no resolvable repo root above cwd exits 2 instead of a silent SKIP', () => {
-    vi.spyOn(process, 'cwd').mockReturnValue(dir) // tmpdir, not inside any git repo
-    const res = runDocSet({ json: true, quiet: true })
-    expect(res.exitCode).toBe(2)
+  it('a marker-less cwd is audited in place: non-ok SKIP envelope, exit 0 (INV-53)', () => {
+    rmSync(join(dir, 'standards'), { recursive: true, force: true })
+    vi.spyOn(process, 'cwd').mockReturnValue(dir) // tmpdir: no manifest, arbiter.json or .git
+    let exitCode = -1
+    const env = envelopeOf(() => {
+      exitCode = runDocSet({ json: true }).exitCode
+    })
+    expect(env.status).not.toBe('ok')
+    expect((env.data as { skipped?: boolean }).skipped).toBe(true)
+    expect(exitCode).toBe(0)
   })
 
   it('--arc42 parses the arc42 payload with its own type', () => {

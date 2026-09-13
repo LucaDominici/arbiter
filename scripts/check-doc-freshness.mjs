@@ -184,6 +184,8 @@ function evaluateDoc(check, filePath, bars, cwd) {
 function main() {
   if (!existsSync(resolve(CWD, MANIFEST))) {
     process.stdout.write(`check-doc-freshness: SKIP — no manifest at ${MANIFEST}\n`)
+    // #2052/#2504: recognized marker so runCheck and `arbiter doc-set --json` surface SKIP, not PASS.
+    process.stdout.write(`[SKIP] no manifest at ${MANIFEST}\n`)
     return 0
   }
   let manifest
