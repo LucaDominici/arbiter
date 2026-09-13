@@ -172,6 +172,49 @@ describe('gen-cli-ref.mjs', () => {
     }
   })
 
+  // Regression (#2569): --check must catch content drift inside a documented
+  // command, not just a missing/phantom heading. A writer regression that drops
+  // an option (or any other line inside the region) must fail --check even
+  // though every `## arbiter <name>` heading still matches.
+  it('exits 1 in --check when a documented command loses an option (content drift)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const cliTs = `import { Command } from 'commander'
+const program = new Command()
+program
+  .command('doc-set')
+  .description('Doc-set audit')
+  .option('--strict', 'Exit 1 if any mandatory doc is missing')
+  .option('--json', 'Emit the audit as JSON')
+  .action(() => {})
+program.parse()
+`
+      writeFileSync(join(dir, 'cli.ts'), cliTs)
+      makeCliMd(dir, '')
+      const w = run([`--cli=${join(dir, 'cli.ts')}`, `--doc=${join(dir, 'cli.md')}`], dir)
+      expect(w.status).toBe(0)
+
+      // Simulate the writer regression from #2569: the heading and table stay
+      // put, but the `--json` option bullet is dropped from the doc body.
+      const before = readFileSync(join(dir, 'cli.md'), 'utf-8')
+      expect(before).toContain('--json')
+      const drifted = before
+        .split('\n')
+        .filter((line) => !line.includes('--json'))
+        .join('\n')
+      writeFileSync(join(dir, 'cli.md'), drifted)
+
+      const { status, stdout } = run(
+        ['--check', `--cli=${join(dir, 'cli.ts')}`, `--doc=${join(dir, 'cli.md')}`],
+        dir,
+      )
+      expect(status).toBe(1)
+      expect(stdout.toLowerCase()).toMatch(/drift/)
+    } finally {
+      cleanup()
+    }
+  })
+
   // Regression (#1646): positional-arg subcommands must be documented, and a
   // subcommand description must be resolved from the PARENT's scope — not the
   // first same-named `.command()` elsewhere in the file.
