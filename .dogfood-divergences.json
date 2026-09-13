@@ -142,7 +142,7 @@
     "path": "check-ci-tiers.mjs",
     "dest": "scripts",
     "reason": "#1900 RESOLVED (A1/wave1 action plan): the template's INV-72 mislabel (file-lock semantics, unrelated) was corrected to INV-73 (CI tier presence) — both sides now cite the same invariant. Remaining divergence: self implements a minPresent/collab-aware-missing floor read from src/invariants/catalog.ts at runtime; the template resolves the required set at RENDER time via EJS. That structural difference is out of scope for the label fix — tracked separately if/when the two engines are unified. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "9622d5c3e0ee59d7759674f8aa5bde1a23c71691cc890ee561e242ba1afc2317"
+    "diffHash": "6026ad13fac23bf3a96b15724abe94f52754086ea2383bd36dc08a7aa1d52f6f"
   },
   {
     "path": "check-claude-md-lint.mjs",
@@ -172,7 +172,7 @@
     "path": "check-consumer-audit.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). The two sides audit different tarballs and the divergence follows from that. Self names @getarbiter/cli concretely (its CATALOG block cites the uuid@8 GHSA-w5hq-g745-h8pq exposure that motivated #1670, and its runtime deps by name) and resolves the npm binary through parsePinnedNpm imported from check-npm-ci-drift.mjs, pinning the auditReportVersion:2 JSON schema this gate parses. The template is generic, cannot import an arbiter sibling script, and instead carries #1864 portability work self does not need: tarballNameFromPackOutput accepting BOTH the npm<12 array and npm>=12 object pack-output shapes, and readSourcePackageManager/probePackageJson propagating a corepack pin into the throwaway probe. Both keep the same fail-closed-everywhere posture and the same `moderate` floor. PERMANENT: consumer-portability breadth belongs in the shipped twin; the @getarbiter/cli specifics cannot be shipped. #2327: the three template-only helpers named above are declared in allowedDroppedExports — a reviewed, permanent drop, not the #2324 absorb-a-regression class.",
-    "diffHash": "8ac508302147bb4ab4770c0f05e3366679910e4b5d2af2237a92af3438687753",
+    "diffHash": "07fff871a7f23cbd632019da8221e2e6f10b4d41bc573ce7aaa8463ea3d7bcf7",
     "allowedDroppedExports": [
       "probePackageJson",
       "readSourcePackageManager",
@@ -237,7 +237,7 @@
     "path": "check-fail-closed-audit.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self is a strict superset on two axes. (1) Corpus: self classifies .github/workflows/*.yml as a `yaml` kind and runs the `|| true` fail-open scan over workflow files; the template audits only scripts/, .githooks/ and .claude/hooks/. (2) The library allowlist: 28 named scripts/lib/* modules exempted from the entry-point error-handling contract because they export semantics rather than being entry points (gold-audit-lib, anti-fake-green-core, secret-presence-core, continue-on-error-core, doc-set-resolve, dist-staleness, acceptance-criteria, consumer-reliability-bar, self-only-surfaces (#2417 pure commands/skills/agents/hooks derivation; no entry point — consumers own the exit contract), gate-roster (CANON-24 #2301 pure check-all.mjs roster parser + inversion-ledger semantics; no entry point), …). Nearly every one of those files is self-only, so the list has no subject in a target. Self also handles the ENOENT readdir/stat race explicitly with a FAIL-OPEN-INTENT marker and rethrows everything else, where the template swallows. PERMANENT. Re-pinned #2548: one further scripts/lib/* allowlist entry, dir-diff.mjs (a pure byte-level directory-diff helper shared by check-kernel-plugin-parity.mjs and regenerate-examples.mjs, no entry point, no isMainModule/process.exit — the identical shape as every other named module in this list), same class.",
-    "diffHash": "16286eed6aa185d5757ec78f0d4184b7a082b4d2b074471dcb6cff6d3d2ff1b0"
+    "diffHash": "89583421e15e45300addbd50ae49ffc88f134e9bd6529c6ffc199a0bdab3f772"
   },
   {
     "dest": "scripts",
