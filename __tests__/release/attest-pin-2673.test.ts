@@ -39,21 +39,17 @@ describe('release 05-release attest pin (#2673)', () => {
   // and registry.ts (535) each individually exceed the remaining budget; github.ts and
   // catalog.ts (2482) are debt with their measured per-mutant cost as the reason
   // (docs/internal/release-playbook.md § Mutation surface debt), not silently dropped.
-  it('mutation surface is bounded to the highest-criticality, cheapest-to-test generators', () => {
+  it('mutation surface is bounded to exactly the measured-cheap 270-mutant scope', () => {
     const config = JSON.parse(readFileSync(resolve(root, 'stryker.config.json'), 'utf-8'))
-    const mutate: string[] = config.mutate
-    expect(mutate).not.toContain('src/invariants/catalog.ts')
-    expect(mutate).not.toContain('src/generators/**/*.ts')
-    expect(mutate).not.toContain('src/generators/check-all.ts')
-    expect(mutate).not.toContain('src/generators/registry.ts')
-    expect(mutate).not.toContain('src/generators/github.ts')
-    expect(mutate).toContain('src/commands/init.ts')
-    expect(mutate).toContain('src/generators/githooks.ts')
-    expect(mutate).toContain('src/generators/gitignore.ts')
-    expect(mutate).toContain('src/generators/security.ts')
-    expect(mutate.filter((g) => g.startsWith('src/generators/') && !g.startsWith('!')).length).toBe(
-      3,
-    )
+    expect(config.mutate).toStrictEqual([
+      'src/commands/init.ts',
+      'src/generators/githooks.ts',
+      'src/generators/gitignore.ts',
+      'src/generators/security.ts',
+      '!src/**/*.test.ts',
+      '!src/**/*.spec.ts',
+    ])
+    expect(config.thresholds.break).toBe(60)
   })
 
   // Measured: 270 mutants at concurrency 4 on a contended machine (other gates running
