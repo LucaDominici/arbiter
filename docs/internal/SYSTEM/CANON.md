@@ -151,9 +151,9 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** The INV-32 gate was claimed but never called, meaning language promotions silently bypassed the fixture requirement.
 
-**Enforcement:** `scripts/check-inv-enforcement-wired.mjs` (L1 gate, INV-52) — wired in `check-all.mjs`; parses every catalog `enforcement` field for a `scripts/*.mjs` or hook citation and fails if it is not actually called from `check-all.mjs` / registered in `.claude/settings.json`. Was prose-only ("verify by grepping... whenever claims change") until the B1 CANON-parity pass (2026-07-11) caught the stale field: the gate had already existed since the INV-52 promotion.
+**Enforcement:** `scripts/check-inv-enforcement-wired.mjs` (L1 gate, INV-52) — wired in `check-all.mjs`; parses every catalog `enforcement` field for a `scripts/*.mjs` or hook citation and fails if it is not actually called from `check-all.mjs` / registered in `.claude/settings.json`. Was prose-only ("verify by grepping... whenever claims change") until the B1 CANON-parity pass (2026-07-11) caught the stale field: the gate had already existed since the INV-52 promotion. #2563 closed the remaining gap: every catalog `enforcement` string is now resolved, not just `.mjs`-shaped citations — a `.java`/`.yml`/`.yaml`/`.githooks/*`-shaped token must exist on disk, and a string naming no file-ish token at all must carry an explicit per-ID entry in `scripts/data/enforcement-non-file-allowlist.json` (mechanism + reason). The allowlist is keyed by exact INV id, never by keyword/substring, so a vague claim (e.g. "CI (drift check / pre-merge hook)", INV-28's confirmed unresolvable instance) cannot pass by merely containing a plausible-sounding word.
 
-**Source issues:** #179
+**Source issues:** #179, #2563
 
 **Promoted to:** INV-52
 

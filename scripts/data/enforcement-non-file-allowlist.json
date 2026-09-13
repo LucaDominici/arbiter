@@ -1,0 +1,131 @@
+{
+  "_comment": "CANON-09/INV-52 (#2563): per-ID allowlist for catalog `enforcement` strings that name NO file-ish token (.mjs/.ts/.java/.yml/.yaml). Every entry here is reviewed individually — this is NOT a substring/keyword match (that would re-green INV-28's own confirmed defect: a string that merely CONTAINS 'CI' or 'policy'). Adding an ID here is a deliberate claim that the named mechanism is real and the reason is accurate; an unlisted vague enforcement string fails the gate.",
+  "INV-01": {
+    "mechanism": "per-language CI toolchain",
+    "reason": "Generic architectural invariant applied across every governed target language; the concrete tools (madge/go vet/cargo check/pylint) are already named literally in the enforcement string. No single arbiter-owned script exists because the check varies per target language's own toolchain."
+  },
+  "INV-02": {
+    "mechanism": "per-language CI toolchain",
+    "reason": "Same class as INV-01 — tool names (Knip/cargo doc/PMD/unused linters) are literal in the string; enforced by the target project's own per-language CI, not an arbiter script."
+  },
+  "INV-03": {
+    "mechanism": "per-language CI toolchain",
+    "reason": "Same class as INV-01 — ArchUnit/architecture linters are named literally; per-language, no single arbiter-owned script."
+  },
+  "INV-04": {
+    "mechanism": "hook + per-language CI toolchain",
+    "reason": "Same class as INV-01 — ESLint no-explicit-any/cargo clippy/ruff/golangci-lint are named literally; per-language, no single arbiter-owned script."
+  },
+  "INV-05": {
+    "mechanism": "per-language CI toolchain",
+    "reason": "Same class as INV-01 — ESLint/PMD/clippy/golangci-lint/ruff are named literally; per-language, no single arbiter-owned script."
+  },
+  "INV-06": {
+    "mechanism": "per-language CI toolchain",
+    "reason": "Same class as INV-01 — Knip/PMD/clippy/golangci-lint/ruff are named literally; per-language, no single arbiter-owned script."
+  },
+  "INV-07": {
+    "mechanism": "CI migration lint + manual review",
+    "reason": "Data-tier invariant enforced by whichever migration tool the target stack uses (Flyway/Alembic/golang-migrate) plus human review of migration PRs; no arbiter-owned script, mechanism varies per stack."
+  },
+  "INV-08": {
+    "mechanism": "code review + integration tests",
+    "reason": "Boundary-validation discipline verified by human review and the target project's own integration test suite; not a single checkable file by design."
+  },
+  "INV-09": {
+    "mechanism": "code review + integration tests",
+    "reason": "Audit-trail discipline verified by human review and integration tests; not a single checkable file by design."
+  },
+  "INV-10": {
+    "mechanism": "code review + ArchUnit or equivalent",
+    "reason": "Soft-delete convention verified by human review, optionally backed by a target's own ArchUnit-style rule; no arbiter-owned script."
+  },
+  "INV-13": {
+    "mechanism": "per-language CI dep-audit toolchain",
+    "reason": "The exact commands per stack (npm audit, rustsec/audit-check, trivy fs, govulncheck, pip-audit) are named literally in the enforcement string; enforced by the target's own CI, not an arbiter script."
+  },
+  "INV-14": {
+    "mechanism": "code review + SAST",
+    "reason": "Untrusted-input/dynamic-execution discipline verified by human review plus SAST tooling (semgrep/CodeQL) named in the string; no arbiter-owned script."
+  },
+  "INV-15": {
+    "mechanism": "code review + integration tests",
+    "reason": "Authentication-at-every-endpoint discipline verified by human review and integration tests; not a single checkable file by design."
+  },
+  "INV-16": {
+    "mechanism": "hook + per-language lint toolchain",
+    "reason": "Same class as INV-01 — lint rules/grep/ESLint no-console are named literally; per-language, no single arbiter-owned script."
+  },
+  "INV-17": {
+    "mechanism": "hook + per-language lint toolchain",
+    "reason": "Same class as INV-01 — lint rules/clippy are named literally; per-language, no single arbiter-owned script."
+  },
+  "INV-18": {
+    "mechanism": "code review + SAST",
+    "reason": "No-hardcoded-env-values discipline verified by human review plus SAST; not a single checkable file by design."
+  },
+  "INV-19": {
+    "mechanism": "code review + integration tests",
+    "reason": "Resilience-pattern discipline (retry/circuit-breaker) verified by human review and integration tests; not a single checkable file by design."
+  },
+  "INV-20": {
+    "mechanism": "integration tests + deployment checks",
+    "reason": "Health/readiness endpoint presence verified by integration tests and the deployment platform's own probes; not a single checkable file by design."
+  },
+  "INV-22": {
+    "mechanism": "policy (no automated check)",
+    "reason": "No branch-name check exists in self hooks (.githooks/pre-push) or the generated template (src/templates/githooks/pre-push.ejs) — verified by reading both. Enforced by convention/PR review only; documented as a gap rather than asserting an automated check that does not exist."
+  },
+  "INV-23": {
+    "mechanism": "GitHub branch protection (server-side repo setting)",
+    "reason": "No-direct-commits-to-main is enforced by GitHub's branch-protection configuration, a repository setting rather than a file in this repo; there is no local pre-push branch-name check to pair it with (same finding as INV-22)."
+  },
+  "INV-27": {
+    "mechanism": "CI evidence-collection step (per target's CI, L4-only)",
+    "reason": "Applies to governed target projects operating at L4; the specific evidence-collection step is provided by that target's own CI pipeline, not a single arbiter-owned script."
+  },
+  "INV-28": {
+    "mechanism": "code review (manual) — no automated check exists",
+    "reason": "Confirmed unenforceable as previously worded (#2563's own reported instance): scripts/check-ssot-core.mjs verifies only SSOT_CORE_SET.md listing existence/exhaustiveness (INV-54/INV-108), never cross-document content contradiction. No drift/contradiction check exists anywhere in this repo or its templates. Recorded here as an honest gap rather than continuing to claim a CI drift check that does not exist (tracked in #2510)."
+  },
+  "INV-62": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-63": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-64": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-65": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-66": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-67": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-68": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-69": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-70": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  },
+  "INV-71": {
+    "mechanism": "code review (manual)",
+    "reason": "Extended opt-in design-judgment invariant; no automated check exists by design, verified by human review only."
+  }
+}

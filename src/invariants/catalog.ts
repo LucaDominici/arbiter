@@ -369,7 +369,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'The L1 gate (lint + unit tests) is the minimum bar for any commit. Committing broken ' +
       "code wastes reviewer time and breaks other developers' workflows.",
     alwaysActive: true,
-    enforcement: 'pre-commit hook / CI',
+    enforcement: '.githooks/pre-commit + CI',
   },
 
   {
@@ -380,7 +380,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'The L2 gate (L1 + coverage + integration tests) verifies that the feature works end-to-end ' +
       'before others are affected. Pushing broken code blocks the team.',
     alwaysActive: true,
-    enforcement: 'pre-push hook / CI',
+    enforcement: '.githooks/pre-push + CI',
   },
 
   {
@@ -418,10 +418,13 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     description:
       'At L3, SSOT (Single Source of Truth) documents (AGENTS.md, architecture docs, ' +
       'API contracts) must stay consistent. Contradictions between governance documents ' +
-      'create ambiguity for agents and humans alike.',
+      'create ambiguity for agents and humans alike. ' +
+      'No automated content-contradiction check exists (#2563): scripts/check-ssot-core.mjs ' +
+      'verifies only that SSOT_CORE_SET.md is exhaustive and its entries exist on disk ' +
+      '(INV-54/INV-108), not that their content agrees. Tracked as a known gap (#2510).',
     alwaysActive: true,
     minGovernanceLevel: 'L3',
-    enforcement: 'CI (drift check / pre-merge hook)',
+    enforcement: 'code review (manual) — no automated check exists',
   },
 
   // ─── Java-specific: Test Architecture ────────────────────────────────────────
@@ -1194,7 +1197,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'a corrupt lock is recoverable through `doctor recover-lock`.',
     alwaysActive: true,
     selfOnly: true,
-    enforcement: 'doctor health check + code review for any new `.arbiter/` mutator',
+    enforcement:
+      'src/commands/doctor.ts (health / --repair) + code review for any new `.arbiter/` mutator',
   },
 
   // ─── GitHub CI Tier Invariants (INV-73..INV-82) ──────────────────────────────
@@ -1310,7 +1314,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Only informational/alerting jobs (nightly, weekly, heartbeat) may use continue-on-error, ' +
       'and only at the job level, never on individual steps.',
     alwaysActive: false,
-    enforcement: 'generated: workflow-integrity hook regex (post-edit)',
+    enforcement:
+      'self: check-continue-on-error.mjs (invoked via the anti-fake-green aggregate roster, ' +
+      'scripts/check-anti-fake-green.mjs, wired in check-all.mjs) + emitted for targets via ' +
+      'src/templates/scripts/check-continue-on-error.mjs.ejs',
   },
 
   {
@@ -2072,7 +2079,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement:
       'scripts/check-wiki-lint.mjs (L2 gate, wired in check-all.mjs): validates ' +
       'all 4 dimensions; exits 0 on bootstrap. Emitted for targets as ' +
-      'check-wiki-lint.mjs.ejs (CANON-01/14). Tests: tests/gates/wiki-lint-fixture.test.ts.',
+      'check-wiki-lint.mjs.ejs (CANON-01/14). Tests: __tests__/gates/wiki-lint-fixture.test.ts.',
   },
   {
     id: 'INV-117',
@@ -2756,7 +2763,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement:
       'scripts/check-forma-contract.mjs (L1 gate, self) — wired in scripts/check-all.mjs as ' +
       "'forma schema contract (INV-143)'; forma runs the mirror gate " +
-      'scripts/check-arbiter-contract.mjs in its own CI. Verified by ' +
+      "check-arbiter-contract.mjs (forma's own repo, not this one) in its own CI. Verified by " +
       '__tests__/scripts/check-forma-contract.test.ts. exit 0=PASS, 1=violation, 2=ERROR per ' +
       'INV-53. Confirmed self-only: the subject is the boundary between these two repositories, ' +
       'which a governed target owns neither side of.',
@@ -2876,7 +2883,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '__tests__/templates/track-b-evidence-gates.test.ts renders it into a project-shaped tree and ' +
       'runs it, cycle, decay, fail-closed `done`, the epic join and both malformed-block paths ' +
       'included (#2335). A missing ' +
-      'MILESTONES.yml SKIPs out loud rather than passing silently, so a project without a codified ' +
+      'docs/internal/PRODUCT/MILESTONES.yml SKIPs out loud rather than passing silently, so a project without a codified ' +
       'roadmap is distinguishable from one whose gate never ran. `--emit <path>` writes the machine ' +
       'projection forma consumes (schema arbiter-milestones-v1, carrying the epic index) — written ' +
       'only AFTER every rule ' +
