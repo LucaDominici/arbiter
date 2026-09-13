@@ -76,6 +76,39 @@ describe('05-release.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).toContain('sigstore/cosign-installer')
   })
 
+  // #2673: `cosign attest` on the release tarball treats the path as an OCI image ref and fails
+  // ("UNAUTHORIZED": GET https://index.docker.io/v2/library/release-artifact.tgz/manifests/latest).
+  // The artifact is a blob, so this must be `attest-blob` (same distinction as sign-blob vs sign).
+  it.each(STACKS)(
+    '$language: sbom-attest job uses attest-blob, not attest (INV-92)',
+    ({ language, buildTool }) => {
+      const rendered = renderRelease({ language, buildTool })
+      expect(rendered).toContain('sbom-attest:')
+      const jobSection = rendered.split('sbom-attest:')[1]?.split(/\n {2}\S/)[0] ?? ''
+      expect(jobSection).toContain('cosign attest-blob')
+      expect(jobSection).toContain('--bundle sbom.attestation.bundle')
+      expect(jobSection).not.toMatch(/cosign attest --yes/)
+    },
+  )
+
+  it('materialized: sbom-attest job uses attest-blob, not attest, and uploads the bundle (INV-92, #2673)', () => {
+    const materialized = readFileSync(resolve('.github/workflows/05-release.yml'), 'utf8')
+    const job = (parseYaml(materialized) as ReleaseWorkflow).jobs['sbom-attest']
+    const commands = (job.steps ?? []).map((s) => s.run ?? '').join('\n')
+    expect(commands).toContain('cosign attest-blob')
+    expect(commands).toContain('--bundle sbom.attestation.bundle')
+    expect(commands).not.toMatch(/cosign attest --yes/)
+    const uploadsBundle = (job.steps ?? []).some(
+      (s) =>
+        s.uses?.startsWith('actions/upload-artifact@') &&
+        s.with?.path === 'sbom.attestation.bundle',
+    )
+    expect(uploadsBundle).toBe(true)
+    expect((parseYaml(materialized) as ReleaseWorkflow).jobs['publish-package'].needs).toContain(
+      'sbom-attest',
+    )
+  })
+
   it.each(STACKS)('$language: slsa-provenance job present', ({ language, buildTool }) => {
     const rendered = renderRelease({ language, buildTool })
     expect(rendered).toContain('slsa-provenance:')
