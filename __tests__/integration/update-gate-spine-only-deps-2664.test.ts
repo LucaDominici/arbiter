@@ -21,6 +21,15 @@
 //      silently widened-then-deselected (ignore wins over `--only`).
 //   3. `--adopt-plan` must name a dependency as "would create" even when a
 //      WIDER `--only` (e.g. `scripts/**`) already covers it without widening.
+//
+// Round-3 review follow-up:
+//   `LIB_IMPORT_PATTERN` matched inside `//` and `/* */` comments too — a
+//   commented-out `import './lib/x.mjs'` (a stale note, dead code kept for
+//   reference) wrongly counted as a real dependency. Exercised directly
+//   against `extractLibDependencies` (the pure post-render half of
+//   `gateSpineDependencies`) with a synthetic string, not through a real
+//   `runUpdate` flow — the production spine template carries no commented-out
+//   import to delete/restore, so this is the honest way to reach the branch.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -28,6 +37,7 @@ import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { runInit } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../../src/state/generated-manifest.js'
+import { extractLibDependencies } from '../../src/generators/check-all.js'
 
 async function initProject(dir: string): Promise<void> {
   await runInit({
@@ -252,4 +262,23 @@ describe('#2664 update --adopt-gate-spine --only scripts/check-all.mjs — lib d
     expect(payload.data.wouldCreateGateSpineDependencies).toContain('scripts/lib/gate-mutex.mjs')
     expect(existsSync(join(dir, 'scripts', 'lib', 'gate-mutex.mjs'))).toBe(false)
   }, 60_000)
+})
+
+describe('#2664 round 3: extractLibDependencies ignores commented-out imports', () => {
+  it('excludes a lib import mentioned only inside // and /* */ comments', () => {
+    const rendered = `
+import { runCheck } from './lib/run-helpers.mjs';
+// import { X } from './lib/never.mjs';
+/*
+ * import('./lib/never.mjs')
+ */
+const { captureGateStart } = await import('./lib/gate-evidence.mjs');
+`
+    const { resolved, unresolved } = extractLibDependencies(rendered)
+    expect([...resolved, ...unresolved]).not.toContain('scripts/lib/never.mjs')
+    // Control: real (non-commented) imports on either side of the comments
+    // still resolve, so this isn't stripping everything.
+    expect(resolved).toContain('scripts/lib/run-helpers.mjs')
+    expect(resolved).toContain('scripts/lib/gate-evidence.mjs')
+  })
 })
