@@ -1,6 +1,6 @@
 ---
 title: 'Reference: Anti-fake-green guards'
-doc_version: '1.0.2'
+doc_version: '1.0.3'
 status: active
 last_review: '2026-09-13'
 owner: ''
@@ -188,6 +188,13 @@ This also moves "no redacted tokens" out of the deferral ledger in
 falls 16 → 15. Lowering it is mandatory, not optional: an improvement left unbanked is a failure
 in this repo, and the ceiling is pinned once in `scripts/lib/gate-roster.mjs` (`MAX_DEFERRED`) so
 it cannot drift from the ledger it bounds.
+
+#2675 moves the ceiling the other way, 15 → 22: it promoted the last 19 gates sitting in
+`ABSENCE_EXEMPT` (CANON-25, `scripts/lib/gate-roster.mjs`) — 12 with a real flip proof (each
+already read its scan root from an argv flag), 7 into new dated ledger rows (generator-diff gates
+and gates whose violation surface is intricate multi-file YAML/DAG parsing, where a confident
+fixture needed more scope than this pass). The ceiling raise is a source-reviewed edit to
+`MAX_DEFERRED`, made in the same commit as the ledger rows it bounds — same contract as the lower.
 
 ## `arbiter doctor` diagnostics for target repos (#2162)
 
