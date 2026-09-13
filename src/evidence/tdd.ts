@@ -29,8 +29,11 @@ export interface FailureSignatureEntry {
 }
 
 export const FAILURE_SIGNATURES: FailureSignatureEntry[] = [
-  { framework: 'vitest', pattern: /FAIL\s+\S+\.test\.[jt]sx?/m },
-  { framework: 'jest', pattern: /FAIL\s+\S+\.(spec|test)\.[jt]sx?/m },
+  // Vitest's `test.projects` (#2516) prefixes the path with a `|<project-name>|` label
+  // (e.g. `FAIL  |unit| foo.test.ts`) — the optional group tolerates that without
+  // widening the match to swallow an unrelated leading token.
+  { framework: 'vitest', pattern: /FAIL\s+(?:\|[^|\s]+\|\s+)?\S+\.test\.[jt]sx?/m },
+  { framework: 'jest', pattern: /FAIL\s+(?:\|[^|\s]+\|\s+)?\S+\.(spec|test)\.[jt]sx?/m },
   { framework: 'cucumber', pattern: /\d+ scenarios? \(\d+ failed/m },
   { framework: 'pytest', pattern: /={3,}\s*FAILURES\s*={3,}/m },
   { framework: 'gradle', pattern: /FAILED\s*$|BUILD FAILED/m },
@@ -78,9 +81,17 @@ export function extractFailureIdentities(log: string): string[] {
     const isJs = framework === 'vitest' || framework === 'jest'
     // Diagnostics can quote "FAIL path.test.ts" in a code frame. Only actual
     // header lines prove a JS failure; legacy scalar extraction stays unchanged.
-    const source = isJs ? '^[ \\t]*FAIL[ \\t]+\\S+\\.(?:spec|test)\\.[jt]sx?\\b' : pattern.source
+    const source = isJs
+      ? '^[ \\t]*FAIL[ \\t]+(?:\\|[^|\\s]+\\|[ \\t]+)?\\S+\\.(?:spec|test)\\.[jt]sx?\\b'
+      : pattern.source
     for (const match of plain.matchAll(new RegExp(source, `${pattern.flags}g`))) {
-      let identity = match[0].trim().replace(/^FAIL\s+/, 'FAIL ')
+      // The `|<project>|` label (vitest test.projects, #2516) is reporter grouping, not
+      // part of the test's identity — stripped here the same way ANSI colour is, so
+      // recorded-vs-replayed identities compare equal regardless of project config.
+      let identity = match[0]
+        .trim()
+        .replace(/^FAIL\s+/, 'FAIL ')
+        .replace(/^FAIL \|[^|\s]+\|\s+/, 'FAIL ')
       if (isJs) {
         const suffix = plain.slice(match.index + match[0].length).split(/\r?\n/, 1)[0] ?? ''
         if (/^[ \t]+>/.test(suffix)) identity += ` ${suffix.trim()}`
