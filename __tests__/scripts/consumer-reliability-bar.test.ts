@@ -273,16 +273,24 @@ describe('consumer reliability bar oracles (#2135)', () => {
 
   // #2663 added the unconditional emitted gate `no-orphan-todo` ('orphan TODOs
   // (INV-21)', scripts/check-no-orphan-todo.mjs, INV-21) but left it out of every
-  // pinned consumer's gate-surface map, so a fresh render now emits a name none of
-  // the three mappings account for. Reproduces the live CI failure ("1 emitted
-  // check(s) unaccounted: orphan TODOs (INV-21)") through the same pure oracle the
-  // bar calls, for each pinned consumer.
+  // pinned consumer's gate-surface map, so a fresh render emitted a name none of the
+  // three mappings accounted for and the live bar failed closed with "1 emitted
+  // check(s) unaccounted: orphan TODOs (INV-21)". Asserts both the exact recorded
+  // verdict per consumer (so a drift to WIRED or a wrong issue number fails here, not
+  // just a generic "still not unaccounted") and that the real map reconciles clean
+  // end-to-end through the same pure oracle the live bar calls.
   it('accounts for the #2663 orphan-TODO gate in every pinned consumer surface', () => {
     const gateMap = JSON.parse(
       readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
     )
+    // The expected verdict is pinned by name here, independent of whatever the file
+    // currently says: a mapping that drifted to WIRED (nothing in these consumers runs
+    // an orphan-TODO scan) or a bogus/wrong issue number must fail this, not just the
+    // generic "not unaccounted" shape below.
+    const expectedVerdict = { go: 'DEBT:#2291', typescript: 'DEBT:#2291', java: 'DEBT:#2310' }
     for (const id of ['go', 'typescript', 'java']) {
       const entry = gateMap.consumers[id]
+      expect(entry.mapping['orphan TODOs (INV-21)']).toBe(expectedVerdict[id])
       // Mirrors resolveMappingEntry() in scripts/consumer-reliability-bar.mjs: structured
       // workflow-run evidence entries (e.g. "ci alignment") resolve to a plain
       // "WIRED:<caller>" string before reaching this oracle. This test targets the
@@ -297,12 +305,12 @@ describe('consumer reliability bar oracles (#2135)', () => {
         .filter((verdict) => verdict.startsWith('WIRED:'))
         .map((verdict) => verdict.slice('WIRED:'.length))
       const result = assessGateSurface({
-        freshRender: [...Object.keys(mapping), 'orphan TODOs (INV-21)'],
+        freshRender: Object.keys(mapping),
         declared,
         mapping,
         debtRegister: { ceiling: entry.debtCeiling, openIssues: ['#2291', '#2310'] },
       })
-      expect(result.detail).not.toMatch(/unaccounted/)
+      expect(result.ok, result.detail).toBe(true)
     }
   })
 
