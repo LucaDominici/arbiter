@@ -89,8 +89,35 @@ jobs:
     timeout-minutes: 60
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
+    permissions:
+      contents: read  # checkout only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Verify the tagged commit is reachable from the reviewed default branch (#2679)
+        # (H) red-team finding 2: any `v*` tag reached this job — a tag pushed at an
+        # unreviewed commit, or at a re-pointed tag object, still built/signed/published.
+        # Fail closed unless GITHUB_SHA is an ancestor of origin/<default branch>, and
+        # unless the pushed tag name itself resolves to that exact commit. Who may push
+        # a `v*` tag / branch protection on the default branch is an owner-configured
+        # GitHub repo setting this workflow cannot change (see docs/internal/release-playbook.md).
+        id: ancestry-check
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch --no-tags origin "+refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH"
+          git fetch --force origin "+refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          TAG_COMMIT=$(git rev-parse "refs/tags/$GITHUB_REF_NAME^{commit}")
+          if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME resolves to $TAG_COMMIT, not the checked-out commit $GITHUB_SHA — refusing to release."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "refs/remotes/origin/$DEFAULT_BRANCH"; then
+            echo "::error::$GITHUB_SHA is not reachable from origin/$DEFAULT_BRANCH — refusing to release an unreviewed commit."
+            exit 1
+          fi
+          echo "Tag $GITHUB_REF_NAME ($GITHUB_SHA) is reachable from origin/$DEFAULT_BRANCH."
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
 <% if (_npmLib) { %>
@@ -166,6 +193,8 @@ jobs:
     needs: [build-superset]
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
+    permissions:
+      contents: read  # checkout only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Scan filesystem for CRITICAL vulnerabilities
@@ -186,8 +215,8 @@ jobs:
     # #1505: mutation and fail-on-empty block at every emitted level, including L1.
     continue-on-error: false
     permissions:
-      contents: read
-      actions: read
+      contents: read  # checkout + tool build
+      actions: read   # gh run list / gh api against the nightly mutation-deep run
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       # #1502: consume fresh nightly mutation evidence to avoid a synchronous rerun.
@@ -305,6 +334,8 @@ jobs:
     needs: [build-superset]
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
+    permissions:
+      contents: read  # checkout (full history) only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -332,6 +363,8 @@ jobs:
     needs: [build-superset]
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
+    permissions:
+      contents: read  # checkout only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 <% if (language === 'typescript') { %>
@@ -390,7 +423,8 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     permissions:
-      contents: write
+      # (M) red-team finding 6: this job only downloads an artifact, signs it and
+      # uploads a bundle — no checkout, no push. id-token is the only grant it uses.
       id-token: write
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
@@ -724,7 +758,10 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
           registry-url: https://registry.npmjs.org
-      - run: npm install --global npm@11.16.0
+      # npm >=11.5.1 is required for OIDC trusted publishing (`npm publish --provenance`
+      # with no token, https://docs.npmjs.com/trusted-publishers/); --ignore-scripts
+      # because this only swaps the npm binary — no package lifecycle script should run.
+      - run: npm install --global npm@11.16.0 --ignore-scripts
       - name: Verify release tag matches package version
         id: release-version
         env:
@@ -732,8 +769,19 @@ jobs:
         run: |
           VERSION=$(tar -xOf <%= _artifact %> package/package.json | node -e "const v=JSON.parse(require('node:fs').readFileSync(0,'utf8')).version; if(typeof v!=='string'||!v) process.exit(1); process.stdout.write(v)")
           test "$RELEASE_TAG" = "v$VERSION" || { echo "::error::Release tag does not match archive package.json"; exit 1; }
-      - name: Publish to npm (with provenance)
-        # #2138: never repack here: prepack would change the attested bytes.
+      # (M) red-team finding 5: OIDC trusted publishing (npm's own configured path, see
+      # docs/internal/release-playbook.md) needs no token at all. `NPM_TOKEN`/`NODE_AUTH_TOKEN`
+      # stay OUT of this step and off by default; a separate, explicitly-gated fallback step
+      # below exists only for an initial/transition publish before npm's trusted-publisher
+      # entry exists (an npm-side, owner-configured setting this workflow cannot flip).
+      - name: Publish to npm (with provenance, OIDC trusted publisher)
+        if: vars.NPM_PUBLISH_TOKEN_FALLBACK != 'true'
+        run: npm publish --provenance --access public <%= _artifact %>
+      - name: Publish to npm (token fallback — explicit opt-in only, #2679)
+        # Off by default (repo/org var). Flip to 'true' only for the initial/transition
+        # publish while the npm trusted-publisher entry is not yet configured, then flip
+        # back off once OIDC verifies (docs/internal/release-playbook.md).
+        if: vars.NPM_PUBLISH_TOKEN_FALLBACK == 'true'
         run: npm publish --provenance --access public <%= _artifact %>
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -789,6 +837,8 @@ jobs:
     needs: [build-superset]
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 30
+    permissions:
+      contents: read  # checkout (full history) only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -824,6 +874,7 @@ jobs:
 <% } %>
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
+    permissions: {}  # no checkout; only reads job outcomes via toJSON(needs)
     steps:
       - name: Release gate summary
         id: release-results
