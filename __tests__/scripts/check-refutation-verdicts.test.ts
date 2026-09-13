@@ -240,7 +240,15 @@ describe('check-refutation-verdicts.mjs', () => {
 
   // ── #2614: explicit requiredness signal ───────────────────────────────────────────────────
   // AC-1/AC-2: a caller that requires a marker for a task fails when it is absent; absent the
-  // signal, the pre-existing vacuous pass (and every other exit code) is unchanged.
+  // signal, the pre-existing vacuous pass (and every other exit code) is unchanged. The marker
+  // must be BOUND to the requested task (Codex review round 1, HIGH): a marker sitting under
+  // another task's directory must not satisfy --require-marker for this one.
+
+  function writeMarkerForTask(task: string, body: Record<string, unknown>) {
+    const dir = join(evidenceDir, task.replace(/[^0-9A-Za-z-]/g, '_'))
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'refutation-required.json'), JSON.stringify(body, null, 2))
+  }
 
   it('--require-marker fails when no marker exists for the task', () => {
     const r = run(evidenceDir, ['--require-marker', '#2614'])
@@ -252,13 +260,43 @@ describe('check-refutation-verdicts.mjs', () => {
     expect(run(evidenceDir).exitCode).toBe(0)
   })
 
-  it('--require-marker still passes once a valid marker exists', () => {
-    writeMarker({ task: '#2614', skeptics: 1, findings: [] })
+  it('--require-marker still passes once a valid marker exists for that task', () => {
+    writeMarkerForTask('#2614', { task: '#2614', skeptics: 1, findings: [] })
     expect(run(evidenceDir, ['--require-marker', '#2614']).exitCode).toBe(0)
   })
 
   it('--require-marker does not mask an existing invalid-quorum failure (exit 1 unchanged)', () => {
-    writeMarker({ task: '#2614', skeptics: 0, findings: ['f1'] })
+    writeMarkerForTask('#2614', { task: '#2614', skeptics: 0, findings: ['f1'] })
     expect(run(evidenceDir, ['--require-marker', '#2614']).exitCode).toBe(1)
+  })
+
+  it('a marker belonging to a DIFFERENT task does not satisfy --require-marker (foreign dir)', () => {
+    writeMarkerForTask('#9999', { task: '#9999', skeptics: 1, findings: [] })
+    const r = run(evidenceDir, ['--require-marker', '#2614'])
+    expect(r.exitCode).toBe(1)
+    expect(r.stdout).toMatch(/required.*#2614/i)
+  })
+
+  it('a marker in the right directory but declaring a different task field is rejected as foreign', () => {
+    // The dir naming convention alone is not proof — the marker's own declared task must agree.
+    writeMarkerForTask('#2614', { task: '#9999', skeptics: 1, findings: [] })
+    const r = run(evidenceDir, ['--require-marker', '#2614'])
+    expect(r.exitCode).toBe(1)
+    expect(r.stdout).toMatch(/required.*#2614/i)
+  })
+
+  it('--require-marker with no value (bare, end of argv) is malformed: exit 2', () => {
+    const r = run(evidenceDir, ['--require-marker'])
+    expect(r.exitCode).toBe(2)
+  })
+
+  it('--require-marker= (empty value) is malformed: exit 2, not a silent vacuous pass', () => {
+    const r = run(evidenceDir, ['--require-marker='])
+    expect(r.exitCode).toBe(2)
+  })
+
+  it('--require-marker with a non-task-id value is malformed: exit 2', () => {
+    const r = run(evidenceDir, ['--require-marker', 'not-a-task'])
+    expect(r.exitCode).toBe(2)
   })
 })
