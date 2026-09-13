@@ -18,6 +18,9 @@
   "concurrency": 2,
   "timeoutMS": 30000,
   "vitest": {
-    "configFile": "vite.config.ts"
-  }
+    "configFile": "vitest.stryker.config.ts"
+  },
+  "inPlace": true,
+  "dryRunTimeoutMinutes": 15,
+  "disableTypeChecks": "src/generators/**/*.ts"
 }
