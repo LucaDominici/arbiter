@@ -318,6 +318,15 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-emission-parity.mjs'],
     tpl: 'scripts/check-emission-parity.mjs.ejs',
   },
+  // #2663 (INV-21): tree-scanning orphan-TODO gate — the CI-runnable twin of the
+  // editor-time `.claude/hooks/check-no-orphan-todo.mjs` hook, which inspects only
+  // the single file in `CLAUDE_TOOL_INPUT_PATH`. Without this gate, INV-21 enforcement
+  // in CI depended on a consumer hand-writing a grep in its own workflow. Emitted
+  // unconditionally and wired at L1 in check-all.mjs.ejs (gate-registry.yml.ejs).
+  {
+    rel: ['scripts', 'check-no-orphan-todo.mjs'],
+    tpl: 'scripts/check-no-orphan-todo.mjs.ejs',
+  },
   { rel: ['scripts', 'check-constraint-scan.mjs'], tpl: 'scripts/check-constraint-scan.mjs.ejs' },
   // #2037 (INV-115): scaffold the map alongside its checker so the gate never runs
   // against an absent map by construction. skipIfExists — a project's curated

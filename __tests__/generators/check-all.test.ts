@@ -99,7 +99,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 60 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 61 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -137,6 +137,8 @@ describe('generateCheckAll', () => {
     //   now emitted and wired via the `acceptance-anchor` gate-registry row, so INV-138's
     //   mechanism reaches a target instead of staying a canon-01 self-only entry)
     // + check-emission-parity.mjs (#2110 — manifest-vs-disk parity in the project's own gate)
+    // + check-no-orphan-todo.mjs (INV-21, #2663 — tree-scanning orphan-TODO gate, the
+    //   CI-runnable twin of the editor-time hook)
     // + check-m16-handoff.mjs (M16 handoff-contract marker gate, #2103)
     // + lib/gate-evidence.mjs (#2328 — the gate-pass identity binding shared by the
     //   writer, both Claude hooks and the pre-push reuse rule)
@@ -150,7 +152,7 @@ describe('generateCheckAll', () => {
     // 59 on main — because each had grown the unconditional set independently. The count
     // is MEASURED from the generator after every merge, never reconciled by hand: a number
     // picked from one side stays green on that side and silently asserts the wrong surface.
-    expect(result.files).toHaveLength(60)
+    expect(result.files).toHaveLength(61)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-evidence.mjs'))).toBe(true)
     // #2427 — the per-repo gate mutex: check-all re-execs itself under it and the
     // pre-push hook launches the gate through it, so a consumer missing it would
@@ -172,6 +174,7 @@ describe('generateCheckAll', () => {
     expect(result.files.some((f) => f.path.endsWith('scripts/check-emission-parity.mjs'))).toBe(
       true,
     )
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-no-orphan-todo.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-todo-max-age.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/verify-module-coverage.mjs'))).toBe(
       true,

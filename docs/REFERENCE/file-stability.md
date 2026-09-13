@@ -186,6 +186,23 @@ This is the weaker of the two possible checks and knowingly so: it detects LOCAL
 render, never "the template moved on since your last update". The strong version needs arbiter present in
 the consumer, which is a prerequisite this issue deliberately refused to impose.
 
+### Tree-scanning orphan-TODO gate (`<project>/scripts/check-no-orphan-todo.mjs`, INV-21, #2663)
+
+**Issue:** #2663
+
+INV-21 (a `TODO`/`FIXME` must cite an issue, e.g. `TODO(#123)`) previously had only an editor-time
+enforcement path: `.claude/hooks/check-no-orphan-todo.mjs` inspects a single file — whatever tool call
+just ran — via `CLAUDE_TOOL_INPUT_PATH`. It never scans the tree, so nothing runs it in CI, and consumers
+without the Claude hook (or running an older commit) had no CI-runnable check at all; one consumer's
+workaround was a hand-written grep in its own CI workflow, which drifts from the reference regex the
+hook uses.
+
+Every governed project now also emits `<project>/scripts/check-no-orphan-todo.mjs`, wired at L1, the
+CI-runnable twin: it walks the whole tree (via the shared `scripts/lib/glob-walk.mjs` walker, pruning
+`node_modules`/`.git`/`dist`/`templates`), applies the same reference regex the editor-time hook uses, and
+exits 1 listing every offending `file:line`, or 0 when clean. This closes INV-21 at the one gate command
+instead of a workflow-specific grep.
+
 ### Update / diff semantics for `skipIfExists` files
 
 On `arbiter update` (and the read-only `arbiter diff`), for each `skipIfExists` file that already exists:

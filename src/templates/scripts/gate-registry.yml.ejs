@@ -103,6 +103,7 @@ gates:
   - { id: hook-routing, name: 'hook routing (#2129)', level: L1, kind: check, cmd: ['node', ['scripts/check-hook-routing.mjs']] }
   - { id: safety-adopt-ratchet, name: 'safety adopt ratchet', level: L1, kind: check, cmd: ['node', ['scripts/check-safety-adopt-ratchet.mjs']] }
   - { id: emission-parity, name: 'emission parity (#2110)', level: L1, kind: check, cmd: ['node', ['scripts/check-emission-parity.mjs']] }
+  - { id: no-orphan-todo, name: 'orphan TODOs (INV-21)', level: L1, kind: check, cmd: ['node', ['scripts/check-no-orphan-todo.mjs']] }
   - { id: constraint-scan, name: 'constraint scan (INV-115)', level: L1, kind: check, cmd: ['node', ['scripts/check-constraint-scan.mjs']] }
   - { id: wiki-lint, name: 'wiki lint (INV-116)', level: L1, kind: check, emitIf: "governanceLevel !== 'L1'", cmd: ['node', ['scripts/check-wiki-lint.mjs']] }
   - { id: doc-index-drift, name: 'documentation index drift', level: L1, kind: check, emitIf: "governanceLevel !== 'L1'", condition: "existsSync('docs/INDEX.md')", cmd: ['node', ['scripts/gen-doc-index.mjs', '--check']] }
