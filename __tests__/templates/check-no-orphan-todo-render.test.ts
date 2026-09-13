@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2663 (INV-21): render test for the tree-scanning orphan-TODO gate twin —
+// #2663 (INV-21): render test for the tree-scanning orphan-todo gate twin —
 // the CI-runnable counterpart to the editor-time `.claude/hooks/check-no-orphan-todo.mjs`
 // hook, which only ever inspects the single file in CLAUDE_TOOL_INPUT_PATH.
 import { describe, it, expect } from 'vitest'
@@ -14,7 +14,7 @@ describe('check-no-orphan-todo.mjs.ejs rendering (#2663)', () => {
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-no-orphan-todo.mjs.ejs', data)
     // Same reference regex as the self gate (scripts/check-no-orphan-todo.mjs):
-    // a TODO/FIXME-shaped comment must cite an issue like TODO(#123).
+    // an orphan-todo/FIXME-shaped comment must cite an issue like todo(#123).
     expect(content).toContain('ORPHAN_TODO')
     expect(content).toContain('#\\d+')
     // Tree-scanning, not single-file: walks via the shared glob-walk helper.

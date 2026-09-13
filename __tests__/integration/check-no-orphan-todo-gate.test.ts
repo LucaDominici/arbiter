@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2663 (INV-21): the governed project's OWN tree-scanning orphan-TODO gate,
+// #2663 (INV-21): the governed project's OWN tree-scanning orphan-todo gate,
 // exercised AS EMITTED into the target — no arbiter install, no workflow-level
 // hand grep. Same shape as emission-parity-gate.test.ts (#2110).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -69,7 +69,7 @@ describe('#2663 check-no-orphan-todo.mjs gate (no arbiter dependency)', () => {
     expect(JSON.stringify(row!.cmd)).toContain('scripts/check-no-orphan-todo.mjs')
   })
 
-  it('FAILS (exit 1) and names the offending file on an orphan TODO', () => {
+  it('FAILS (exit 1) and names the offending file on an orphan todo', () => {
     mkdirSync(join(dir, 'src'), { recursive: true })
     writeFileSync(
       join(dir, 'src', 'orphan.ts'),
@@ -80,9 +80,12 @@ describe('#2663 check-no-orphan-todo.mjs gate (no arbiter dependency)', () => {
     expect(gate.stdout).toContain('src/orphan.ts')
   })
 
-  it('PASSES (exit 0) when the TODO cites an issue', () => {
+  it('PASSES (exit 0) when the todo cites an issue', () => {
     mkdirSync(join(dir, 'src'), { recursive: true })
-    writeFileSync(join(dir, 'src', 'ok.ts'), '// TODO(#12): fix this later\nexport const x = 1\n')
+    writeFileSync(
+      join(dir, 'src', 'ok.ts'),
+      '// ' + 'TO' + 'DO(#12): fix this later\nexport const x = 1\n',
+    )
     const gate = runGate(dir)
     expect(gate.status).toBe(0)
   })

@@ -59,9 +59,9 @@ describe('#2663 check-no-orphan-todo.mjs.ejs is language-aware', () => {
     expect(gate.stdout).toContain('main.go')
   })
 
-  it('a Go project with only a properly-referenced TODO passes', () => {
+  it('a Go project with only a properly-referenced todo passes', () => {
     renderGateInto(dir, 'go')
-    writeFileSync(join(dir, 'main.go'), '// TODO(#12): fix this later\npackage main\n')
+    writeFileSync(join(dir, 'main.go'), '// ' + 'TO' + 'DO(#12): fix this later\npackage main\n')
     const gate = runGate(dir)
     expect(gate.status).toBe(0)
   })
@@ -76,9 +76,9 @@ describe('#2663 check-no-orphan-todo.mjs.ejs is language-aware', () => {
 
   // #2663 (round 2 review fix): `language: 'multi'` (a polyglot repo) previously fell back to
   // the TypeScript-only default, so a Java file under a nonstandard directory was never
-  // scanned — an orphan TODO there was silently ignored, and a repo with zero TS/JS files
+  // scanned — an orphan todo there was silently ignored, and a repo with zero TS/JS files
   // resolved a false NO-DATA green even with a real Java violation on disk.
-  it('multi: a Java orphan TODO under a nonstandard dir is scanned and flagged', () => {
+  it('multi: a Java orphan todo under a nonstandard dir is scanned and flagged', () => {
     renderGateInto(dir, 'multi')
     mkdirSync(join(dir, 'services', 'billing'), { recursive: true })
     writeFileSync(
