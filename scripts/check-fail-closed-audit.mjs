@@ -145,7 +145,7 @@ const HELPER_USE = /\brun(Check|WarnCheck|ToolCheck)\s*\(/
 const TRY_CATCH_EXIT = /process\.exit\(\s*[12]\s*\)|throw\b/
 
 // `catch` opener — built from a string so this audit file does not self-match (maskCode
-// blanks string/comment bodies before scanning, so the construction string is invisible).
+// blanks string/comment/regex bodies before scanning, so the construction string is invisible).
 const CATCH_OPEN_RE = new RegExp('catch\\s*(?:\\([^)]*\\))?\\s*\\{', 'g')
 
 // A catch body is a fail-open SWALLOW unless it re-throws, exits non-zero, surfaces the
@@ -217,22 +217,124 @@ function inferKind(relPath, content) {
   return null
 }
 
+// Identifiers/keywords after which a following `/` cannot start a regex — the token
+// immediately before is a VALUE (identifier, number, closing bracket), so `/` there reads
+// as divide. Everything else (operators, punctuation, keywords, start-of-file) allows a
+// regex literal to open. This is the standard divide/regex disambiguation heuristic; it is
+// deliberately conservative (see `tryReadRegexLiteral`'s same-line bound below).
+const NON_REGEX_KEYWORDS = new Set([
+  'return',
+  'typeof',
+  'instanceof',
+  'in',
+  'of',
+  'new',
+  'delete',
+  'void',
+  'yield',
+  'await',
+  'do',
+  'else',
+  'case',
+  'throw',
+])
+
+/** True when a `/` right after `lastSig` (last significant code char) can open a regex. */
+function regexAllowedAfter(out) {
+  let j = out.length - 1
+  while (j >= 0 && /\s/.test(out[j])) j--
+  if (j < 0) return true // start of file
+  const c = out[j]
+  if (/[A-Za-z0-9_$]/.test(c)) {
+    // Walk back over the identifier/number and check it against the keyword lists.
+    let k = j
+    while (k >= 0 && /[A-Za-z0-9_$]/.test(out[k])) k--
+    const word = out.slice(k + 1, j + 1)
+    if (NON_REGEX_KEYWORDS.has(word)) return true
+    // VALUE_KEYWORDS and any other identifier/number are values => `/` here is divide.
+    return false
+  }
+  if (c === ')' || c === ']') return false // call/index result or grouped expression => a value
+  return true // operators, `(`, `{`, `,`, `;`, `:`, `!`, `=`, etc. all allow a regex
+}
+
 /**
- * Return a same-length copy of `src` with the BODIES of strings and comments replaced by
- * spaces (newlines preserved so line numbers and brace structure survive). This lets the
- * catch-body scanner reason about real code only — braces or the word "catch" inside a
- * string or comment disappear, so the audit never self-matches on the patterns it documents
- * and never mis-scopes a body on a brace inside a literal.
+ * From `start` (the opening `/`), try to read a full regex literal ending on an unescaped
+ * `/` on the SAME LINE, respecting character classes (`/` is not a delimiter inside `[...]`)
+ * and backslash escapes. Returns the literal text (including trailing flags) or null if no
+ * closing `/` is found before the line ends — bounding the scan to one line means a wrong
+ * divide/regex guess can never desync masking across line boundaries.
+ */
+function tryReadRegexLiteral(src, start) {
+  let i = start + 1
+  let inClass = false
+  while (i < src.length) {
+    const c = src[i]
+    if (c === '\n') return null
+    if (c === '\\') {
+      i += 2
+      continue
+    }
+    if (inClass) {
+      if (c === ']') inClass = false
+      i++
+      continue
+    }
+    if (c === '[') {
+      inClass = true
+      i++
+      continue
+    }
+    if (c === '/') {
+      let j = i + 1
+      while (j < src.length && /[A-Za-z]/.test(src[j])) j++
+      return src.slice(start, j)
+    }
+    i++
+  }
+  return null
+}
+
+/** Blank a regex literal's body (between the delimiters) the same way string bodies are
+ * blanked — this is what neutralizes a quote inside a character class before it can be
+ * mistaken for a string open. */
+function maskRegexLiteral(literal) {
+  const lastSlash = literal.lastIndexOf('/')
+  let out = literal[0]
+  for (let i = 1; i < lastSlash; i++) out += literal[i] === '\n' ? '\n' : ' '
+  out += literal.slice(lastSlash)
+  return out
+}
+
+/**
+ * Return a same-length copy of `src` with the BODIES of strings, comments and regex
+ * literals replaced by spaces (newlines preserved so line numbers and brace structure
+ * survive). This lets the catch-body scanner reason about real code only — braces or the
+ * word "catch" inside a string, comment or regex disappear, so the audit never self-matches
+ * on the patterns it documents and never mis-scopes a body on a brace inside a literal.
  *
- * Regex literals are intentionally NOT masked: distinguishing `/` (divide) from `/…/`
- * (regex) needs a full JS lexer, and a wrong guess desyncs the masker and blanks real code.
- * A regex literal almost never contains an unescaped `catch {` or an unbalanced brace, so
- * leaving it visible is strictly safer than a heuristic that can swallow whole files.
+ * Regex literals ARE masked, via a bounded heuristic (`regexAllowedAfter` +
+ * `tryReadRegexLiteral`): distinguishing `/` (divide) from `/…/` (regex) needs a full JS
+ * lexer, so this only commits to "regex" when the previous significant token cannot be a
+ * value AND a closing `/` exists on the same line; otherwise `/` is left as ordinary code,
+ * exactly the prior (safe) behavior. This closes the actual hazard — a quote inside a
+ * regex character class (e.g. `/['"]/`) being read as a string open and desyncing the
+ * masker for the rest of the file (#2577) — without needing a full lexer.
  */
 function maskCode(src) {
   let out = ''
+  // A shebang line (`#!/usr/bin/env node`) is never JS syntax — copy it verbatim before the
+  // state machine starts. Without this, `regexAllowedAfter`'s start-of-file/after-`!` rule
+  // reads the `/` in `/usr/bin/env` as a regex open and hunts for a closing `/`, which it
+  // finds inside the path itself (`/usr/`) and masks part of the shebang.
+  let i0 = 0
+  if (src.startsWith('#!')) {
+    const nl = src.indexOf('\n')
+    i0 = nl === -1 ? src.length : nl + 1
+    out += src.slice(0, i0)
+  }
   let state = 'code' // code | line | block | single | double | template
-  for (let i = 0; i < src.length; i++) {
+  for (let i = i0; i < src.length; i++) {
     const c = src[i]
     const c2 = src[i + 1]
     if (state === 'code') {
@@ -244,6 +346,14 @@ function maskCode(src) {
         out += '  '
         i++
         state = 'block'
+      } else if (c === '/' && regexAllowedAfter(out)) {
+        const literal = tryReadRegexLiteral(src, i)
+        if (literal) {
+          out += maskRegexLiteral(literal)
+          i += literal.length - 1
+        } else {
+          out += c
+        }
       } else if (c === "'") {
         out += c
         state = 'single'
@@ -357,13 +467,62 @@ function hasIntentMarkerAbove(lines, lineNo) {
   return false
 }
 
+// AC-3 (#2577) — programme-membership floor: a masker that desyncs (a bug like the one this
+// issue fixes, or a future one) blanks a long TAIL of the file rather than scattering blanks
+// evenly the way normal string/comment masking does. Measured against this repo's own
+// scanned files post-fix, the lowest legitimate tail-survival ratio is ~0.065 (heavily
+// commented/string-literal-dense modules); a real desync collapses it near zero (~0.01).
+// TAIL_SURVIVAL_FLOOR sits with margin below the legitimate floor and above the desync
+// signal. This is a backstop for "nobody thought of this hazard" (CANON-24), not a claim
+// that 0.03 is theoretically exact — an integrity fault here is a DATA/IO fault (exit 2,
+// via `fatal`), never a gate finding: it means the audit could not see the file, not that
+// the file violates the contract, so it must never be silently grandfathered into the
+// baseline ledger.
+const TAIL_LINE_FRACTION = 0.2
+const TAIL_MIN_LINES = 10
+const TAIL_MIN_ORIG_CHARS = 50 // ignore trivial tails — nothing to desync
+const TAIL_SURVIVAL_FLOOR = 0.03
+
+function tailSurvivalRatio(content, masked) {
+  const origLines = content.split('\n')
+  const maskedLines = masked.split('\n')
+  const n = origLines.length
+  const tailStart = Math.max(0, n - Math.max(TAIL_MIN_LINES, Math.round(n * TAIL_LINE_FRACTION)))
+  let origNonWs = 0
+  let maskedNonWs = 0
+  for (let i = tailStart; i < n; i++) {
+    origNonWs += (origLines[i] ?? '').replace(/\s/g, '').length
+    maskedNonWs += (maskedLines[i] ?? '').replace(/\s/g, '').length
+  }
+  return { origNonWs, ratio: origNonWs > 0 ? maskedNonWs / origNonWs : 1 }
+}
+
+/**
+ * Fail closed (exit 2) when masking has visibly collapsed a file's tail — the audit cannot
+ * distinguish "this file has no more catches" from "the masker went blind here", so it must
+ * not guess. This is the check that would have caught #2577 without anyone thinking of quotes.
+ */
+function checkMaskIntegrity(rel, content, masked) {
+  const { origNonWs, ratio } = tailSurvivalRatio(content, masked)
+  if (origNonWs < TAIL_MIN_ORIG_CHARS) return
+  if (ratio < TAIL_SURVIVAL_FLOOR) {
+    fatal(
+      `masking collapsed for ${rel} — only ${(ratio * 100).toFixed(1)}% of its tail survived ` +
+        `masking (floor ${(TAIL_SURVIVAL_FLOOR * 100).toFixed(0)}%). This means the masker ` +
+        `desynced (a string/regex was never closed) and the audit can no longer see this ` +
+        `file's catches — fix the file or the masker, this is not a gate finding.`,
+    )
+  }
+}
+
 /**
  * Find every fail-open swallowed `catch` in `content`. A catch is a swallow when its body
  * (masked) carries no surface/propagate token and does not delegate to a surfacing helper.
  * Suppressed when the line above the catch carries a FAIL-OPEN-INTENT marker.
  */
-function findSwallowedCatches(content) {
+function findSwallowedCatches(content, rel) {
   const masked = maskCode(content)
+  checkMaskIntegrity(rel, content, masked)
   const lines = content.split('\n')
   const surfacing = surfacingHelperNames(masked)
   const delegatesRe =
@@ -435,7 +594,7 @@ function auditBash(content) {
   return [...auditBashPipefail(content), ...auditBashOrTrue(content)]
 }
 
-function auditNode(content, entryScript) {
+function auditNode(content, entryScript, rel) {
   const violations = []
 
   // Entry-point contract: executable scripts must carry top-level error handling. Library
@@ -454,7 +613,7 @@ function auditNode(content, entryScript) {
   }
 
   // Swallowed-catch detection (applies everywhere, including src/).
-  for (const lineNo of findSwallowedCatches(content)) {
+  for (const lineNo of findSwallowedCatches(content, rel)) {
     violations.push({
       kind: 'node-swallowed-catch',
       detail: `catch swallows error without rethrow/exit/surface at line ${lineNo}`,
@@ -690,7 +849,7 @@ function audit() {
           ? auditBash(content)
           : kind === 'yaml'
             ? auditBashOrTrue(content)
-            : auditNode(content, entryScript)
+            : auditNode(content, entryScript, rel)
       if (violations.length > 0) {
         allViolations.push({ file: rel, kind, violations })
       }

@@ -120,15 +120,99 @@ function inferKind(relPath, content) {
   return null
 }
 
-// Return a same-length copy of `src` with the BODIES of strings and comments blanked to
-// spaces (newlines preserved). Lets the catch scanner reason about real code only — braces
-// or the word "catch" inside a string/comment disappear. Regex literals are intentionally
-// NOT masked: telling `/` (divide) from `/…/` (regex) needs a full lexer, and a wrong guess
-// desyncs the masker and blanks real code; a regex rarely holds an unescaped `catch {`.
+// Identifiers/keywords after which a following `/` cannot start a regex — see the sibling
+// comment in scripts/check-fail-closed-audit.mjs for the full rationale (#2577).
+const NON_REGEX_KEYWORDS = new Set([
+  'return',
+  'typeof',
+  'instanceof',
+  'in',
+  'of',
+  'new',
+  'delete',
+  'void',
+  'yield',
+  'await',
+  'do',
+  'else',
+  'case',
+  'throw',
+])
+
+function regexAllowedAfter(out) {
+  let j = out.length - 1
+  while (j >= 0 && /\s/.test(out[j])) j--
+  if (j < 0) return true
+  const c = out[j]
+  if (/[A-Za-z0-9_$]/.test(c)) {
+    let k = j
+    while (k >= 0 && /[A-Za-z0-9_$]/.test(out[k])) k--
+    const word = out.slice(k + 1, j + 1)
+    return NON_REGEX_KEYWORDS.has(word)
+  }
+  if (c === ')' || c === ']') return false
+  return true
+}
+
+function tryReadRegexLiteral(src, start) {
+  let i = start + 1
+  let inClass = false
+  while (i < src.length) {
+    const c = src[i]
+    if (c === '\n') return null
+    if (c === '\\') {
+      i += 2
+      continue
+    }
+    if (inClass) {
+      if (c === ']') inClass = false
+      i++
+      continue
+    }
+    if (c === '[') {
+      inClass = true
+      i++
+      continue
+    }
+    if (c === '/') {
+      let j = i + 1
+      while (j < src.length && /[A-Za-z]/.test(src[j])) j++
+      return src.slice(start, j)
+    }
+    i++
+  }
+  return null
+}
+
+function maskRegexLiteral(literal) {
+  const lastSlash = literal.lastIndexOf('/')
+  let out = literal[0]
+  for (let i = 1; i < lastSlash; i++) out += literal[i] === '\n' ? '\n' : ' '
+  out += literal.slice(lastSlash)
+  return out
+}
+
+// Return a same-length copy of `src` with the BODIES of strings, comments and regex
+// literals blanked to spaces (newlines preserved). Lets the catch scanner reason about real
+// code only — braces or the word "catch" inside a string/comment/regex disappear.
+//
+// Regex literals ARE masked, via a bounded heuristic: only commit to "regex" when the
+// previous significant token cannot be a value AND a closing `/` exists on the SAME line;
+// otherwise `/` is left as ordinary code. This closes the hazard where a quote inside a
+// regex character class (`/['"]/`) reads as a string open and desyncs the masker for the
+// rest of the file (#2577), without needing a full lexer.
 function maskCode(src) {
   let out = ''
+  // A shebang line is never JS syntax — copy it verbatim so `regexAllowedAfter`'s
+  // start-of-file rule cannot mistake `/usr/bin/env` for a regex literal.
+  let i0 = 0
+  if (src.startsWith('#!')) {
+    const nl = src.indexOf('\n')
+    i0 = nl === -1 ? src.length : nl + 1
+    out += src.slice(0, i0)
+  }
   let state = 'code' // code | line | block | single | double | template
-  for (let i = 0; i < src.length; i++) {
+  for (let i = i0; i < src.length; i++) {
     const c = src[i]
     const c2 = src[i + 1]
     if (state === 'code') {
@@ -140,6 +224,14 @@ function maskCode(src) {
         out += '  '
         i++
         state = 'block'
+      } else if (c === '/' && regexAllowedAfter(out)) {
+        const literal = tryReadRegexLiteral(src, i)
+        if (literal) {
+          out += maskRegexLiteral(literal)
+          i += literal.length - 1
+        } else {
+          out += c
+        }
       } else if (c === "'") {
         out += c
         state = 'single'
@@ -200,11 +292,50 @@ function readBraceBlock(masked, openIdx) {
   return masked.slice(openIdx + 1)
 }
 
+// AC-3 (#2577) — programme-membership floor: a masker that desyncs blanks a long TAIL of
+// the file rather than scattering blanks the way normal string/comment masking does. See
+// scripts/check-fail-closed-audit.mjs's sibling constants for the measured rationale.
+const TAIL_LINE_FRACTION = 0.2
+const TAIL_MIN_LINES = 10
+const TAIL_MIN_ORIG_CHARS = 50
+const TAIL_SURVIVAL_FLOOR = 0.03
+
+function tailSurvivalRatio(content, masked) {
+  const origLines = content.split('\n')
+  const maskedLines = masked.split('\n')
+  const n = origLines.length
+  const tailStart = Math.max(0, n - Math.max(TAIL_MIN_LINES, Math.round(n * TAIL_LINE_FRACTION)))
+  let origNonWs = 0
+  let maskedNonWs = 0
+  for (let i = tailStart; i < n; i++) {
+    origNonWs += (origLines[i] ?? '').replace(/\s/g, '').length
+    maskedNonWs += (maskedLines[i] ?? '').replace(/\s/g, '').length
+  }
+  return { origNonWs, ratio: origNonWs > 0 ? maskedNonWs / origNonWs : 1 }
+}
+
+/** Fail closed (exit 2) when masking has visibly collapsed a file's tail — an integrity
+ * fault, not a gate finding, so it is never grandfathered into the baseline. */
+function checkMaskIntegrity(rel, content, masked) {
+  const { origNonWs, ratio } = tailSurvivalRatio(content, masked)
+  if (origNonWs < TAIL_MIN_ORIG_CHARS) return
+  if (ratio < TAIL_SURVIVAL_FLOOR) {
+    process.stderr.write(
+      `[check-fail-closed-audit] ERROR: masking collapsed for ${rel} — only ` +
+        `${(ratio * 100).toFixed(1)}% of its tail survived masking (floor ` +
+        `${(TAIL_SURVIVAL_FLOOR * 100).toFixed(0)}%); the masker desynced and can no ` +
+        `longer see this file's catches — fix the file or the masker.\n`,
+    )
+    process.exit(2)
+  }
+}
+
 // Find every fail-open swallowed `catch`. A catch is a swallow when its masked body carries
 // no surface/propagate token; suppressed when the previous non-blank ORIGINAL line is a
 // `// FAIL-OPEN-INTENT:` (or `# …`) marker.
-function findSwallowedCatches(content) {
+function findSwallowedCatches(content, rel) {
   const masked = maskCode(content)
+  checkMaskIntegrity(rel, content, masked)
   const lines = content.split('\n')
   const hits = []
   CATCH_OPEN_RE.lastIndex = 0
@@ -264,7 +395,7 @@ function auditBash(content) {
   return violations
 }
 
-function auditNode(content, entryScript) {
+function auditNode(content, entryScript, rel) {
   const violations = []
   // Entry-point contract: executable scripts must carry top-level error handling.
   // Library modules under src/ are imported, never run directly — skip it there.
@@ -280,7 +411,7 @@ function auditNode(content, entryScript) {
       })
     }
   }
-  for (const lineNo of findSwallowedCatches(content)) {
+  for (const lineNo of findSwallowedCatches(content, rel)) {
     violations.push({
       kind: 'node-swallowed-catch',
       detail: `catch swallows error without rethrow/exit/surface at line ${lineNo}`,
@@ -343,7 +474,7 @@ function audit() {
       }
       const kind = inferKind(rel, content)
       if (!kind) continue
-      const violations = kind === 'bash' ? auditBash(content) : auditNode(content, entryScript)
+      const violations = kind === 'bash' ? auditBash(content) : auditNode(content, entryScript, rel)
       if (violations.length > 0) allViolations.push({ file: rel, kind, violations })
     }
   }
