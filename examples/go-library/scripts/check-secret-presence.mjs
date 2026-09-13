@@ -62,7 +62,9 @@ let ROOT = process.cwd()
 if (dirGiven) {
   ROOT = resolve(dirValue)
   if (!existsSync(ROOT) || !statSync(ROOT).isDirectory()) {
-    process.stderr.write(`check-secret-presence: --dir ${dirValue} does not exist or is not a directory\n`)
+    process.stderr.write(
+      `check-secret-presence: --dir ${dirValue} does not exist or is not a directory\n`,
+    )
     process.exit(2)
   }
 }
