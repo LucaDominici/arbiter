@@ -303,7 +303,7 @@ Every artifact published by the release workflow (jars, binaries, wheels, images
 
 ### INV-91: AI-PR human-approval gate
 
-Bot-authored PRs (github.event.pull_request.user.type == "Bot") must be reviewed and approved by a human before merge. Approval is signaled by the "approved-by-human" label applied by \_label-on-approve.yml (idempotent, rejects bot reviewers and self-reviews). \_ai-draft-check.yml asserts the label presence on every label/sync event. Complements INV-74 which enforces the label requirement regardless of PR author type.
+AI-authored PRs must be reviewed and approved by a human before merge. "AI-authored" (#2552) is detected from any commit in the PR range carrying an agent trailer (`Co-Authored-By: Claude/Codex/Copilot/GPT`, `Claude-Session:`, `Codex-Session:`, case-insensitive) — the primary signal, since an agent working through a human's OAuth/PAT token still opens the PR as that human — OR the manual `ai-authored` label override, OR github.event.pull_request.user.type == "Bot" (kept as an additional signal for GitHub-App authors, which never fires for a human-token agent). `dependabot[bot]` is exempt. Approval is signaled by the "approved-by-human" label applied by \_label-on-approve.yml (idempotent, rejects bot reviewers and self-reviews). \_ai-draft-check.yml asserts the label presence on every label/sync event, fetching the PR's commits to evaluate the trailer signal. Complements INV-74 which enforces the label requirement regardless of PR author type.
 
 **Enforcement:** generated: \_ai-draft-check.yml workflow + \_label-on-approve.yml workflow
 

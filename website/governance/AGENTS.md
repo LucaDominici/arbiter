@@ -255,7 +255,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 ## AI-PR Gate (INV-91)
 
 - **INV-91:** AI-PR human-approval gate
-  - Bot-authored PRs require the `approved-by-human` label before merge
+  - AI-authored PRs require the `approved-by-human` label before merge. "AI-authored" (#2552) is detected from: a commit trailer left by agent tooling on any commit in the PR (`Co-Authored-By: Claude/Codex/Copilot/GPT`, `Claude-Session:`, `Codex-Session:`, case-insensitive) — the primary signal, since a human token holder can still open the PR; the `ai-authored` label as a manual override; or `github.event.pull_request.user.type == 'Bot'` as an additional signal for GitHub-App authors. `dependabot[bot]` stays exempt.
   - _Enforcement:_ generated `_ai-draft-check.yml` workflow + `_label-on-approve.yml` workflow
 
 ## Script Catalog Cohesion (INV-94)

@@ -1116,7 +1116,7 @@ Every gate run writes to `.evidence/<batch>/`. The `schemas/evidence-bundle.sche
 
 ### Q8 — How does the AI-PR gate satisfy 21 CFR §11.10(g)?
 
-`_label-on-approve.yml` applies `approved-by-human` only when: reviewer ≠ author AND reviewer.type ≠ Bot AND review.state = APPROVED. `_ai-draft-check.yml` blocks merge unless that label is present on AI-authored PRs. The generated workflow pair implements the triple-check.
+`_label-on-approve.yml` applies `approved-by-human` only when: reviewer ≠ author AND reviewer.type ≠ Bot AND review.state = APPROVED. `_ai-draft-check.yml` blocks merge unless that label is present on AI-authored PRs — "AI-authored" is detected from a commit trailer (`Co-Authored-By: Claude/Codex/…`, `Claude-Session:`), the `ai-authored` label override, or `user.type == Bot` (#2552). The generated workflow pair implements the triple-check.
 
 ### Q9 — How are templates parameterized across 3 governance levels?
 

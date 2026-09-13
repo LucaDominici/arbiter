@@ -197,8 +197,9 @@ following boundary statement applies.
 - Git hooks are distinct: `git config core.hooksPath .githooks` makes them git-level hooks, which
   do fire for delegated-session `git commit` and `git push` commands (`.githooks/pre-push` runs
   the L2 gate and exits 1 on failure). They are the local control that survives delegation.
-- Bot-authored PRs are additionally gated by the AI-PR gate (INV-91): `_ai-draft-check.yml`
-  fails CI (`core.setFailed`) for a bot-authored PR that lacks the `approved-by-human` label.
+- AI-authored PRs (commit trailer, `ai-authored` label, or Bot account — #2552) are additionally
+  gated by the AI-PR gate (INV-91): `_ai-draft-check.yml` fails CI (`core.setFailed`) for an
+  AI-authored PR that lacks the `approved-by-human` label.
 - The #2054 Bash-channel pattern guard in `stop-dangerous.mjs` uses this same settings-hook chain
   and inherits the delegated-session limitation.
 - Therefore, no Arbiter enforcement claim may rest on a `.claude/settings.json` hook alone.
@@ -206,7 +207,7 @@ following boundary statement applies.
 **Enforcement verification (AC-2022.2/3, 2026-08-03):** all three compensating controls are wired
 and fail-closed, verified on this tree — `core.hooksPath=.githooks` (`commit-msg`/`pre-commit`/
 `pre-push` present, pre-push runs L2 and exits 1), `_ai-draft-check.yml` INV-91 fails closed for
-bot-authored PRs, and branch protection requires `CI Required` (gate-full L2). Residual gap:
+AI-authored PRs, and branch protection requires `CI Required` (gate-full L2). Residual gap:
 nothing local prevents a delegated session from running `gh pr create` without gate-pass.json —
 only the CI boundary closes it. Tracked as follow-up issue #2233 (enforcement surface: a
 per-session PreToolUse hook contract, or moving the PR-create guard into the git pre-push chain).
