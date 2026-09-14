@@ -92,7 +92,7 @@ export function extractFailureIdentities(log: string): string[] {
     // Diagnostics can quote "FAIL path.test.ts" in a code frame. Only actual
     // header lines prove a JS failure; legacy scalar extraction stays unchanged.
     const source = isJs
-      ? '^[ \\t]*FAIL[ \\t]+(?:\\|[^|\\n]+\\|[ \\t]+)?\\S+\\.(?:spec|test)\\.[jt]sx?\\b'
+      ? '^[ \\t]*FAIL[ \\t]+(?:(?:\\|[^|\\n]+\\|[ \\t]+)|(?:\\S+[ \\t]{2,}))?\\S+\\.(?:spec|test)\\.[jt]sx?\\b'
       : pattern.source
     for (const match of plain.matchAll(new RegExp(source, `${pattern.flags}g`))) {
       // The `|<project>|` label (vitest test.projects, #2516) is reporter grouping, not
@@ -101,6 +101,7 @@ export function extractFailureIdentities(log: string): string[] {
       let identity = match[0]
         .trim()
         .replace(/^FAIL\s+/, 'FAIL ')
+        .replace(/^FAIL [^|\s]+[ \t]{2,}/, 'FAIL ')
         .replace(/^FAIL \|[^|\n]+\|[ \t]+/, 'FAIL ')
       if (isJs) {
         const suffix = plain.slice(match.index + match[0].length).split(/\r?\n/, 1)[0] ?? ''
