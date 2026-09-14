@@ -254,7 +254,7 @@ export function setFailFast(enabled) {
 }
 
 // Shared pre-flight for the runCheck/runWarnCheck/runToolCheck trio. Returns true
-// when the caller must return WITHOUT spawning (skipped by --gate, or dry-run printed).
+// when the caller must return WITHOUT spawning.
 function inspectSkip(name, cmd, args) {
   if (mode.only !== null && name !== mode.only) return true // --gate <name>: skip non-match (unrecorded)
   if (mode.dryRun) {
@@ -262,13 +262,11 @@ function inspectSkip(name, cmd, args) {
     results.push({ name, status: 'SKIP', elapsed: 0 })
     return true
   }
+  if (failFast && failed > 0 && mode.only === null) {
+    recordSkip(name, 0, 'fail-fast after prior hard failure')
+    return true
+  }
   return false
-}
-
-function skipIfFailFast(name) {
-  if (!failFast || failed === 0 || mode.only !== null) return false
-  recordSkip(name, 0, 'fail-fast after prior hard failure')
-  return true
 }
 
 function spawn(name, cmd, args, opts) {
@@ -363,7 +361,6 @@ function recordPass(name, elapsed) {
 
 export function runCheck(name, cmd, args, opts = {}) {
   if (inspectSkip(name, cmd, args)) return
-  if (skipIfFailFast(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
   if (r.error && r.error.code === 'ENOENT') {
     recordFail(name, elapsed, `command not found: ${cmd}`)
@@ -400,7 +397,6 @@ export function runCheck(name, cmd, args, opts = {}) {
 
 export function runWarnCheck(name, cmd, args, opts = {}) {
   if (inspectSkip(name, cmd, args)) return
-  if (skipIfFailFast(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
   if (r.error && r.error.code === 'ENOENT') {
     recordWarn(name, elapsed, `command not found: ${cmd}`)
@@ -430,7 +426,6 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
 
 export function runToolCheck(name, cmd, args, opts = {}) {
   if (inspectSkip(name, cmd, args)) return
-  if (skipIfFailFast(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
   if (r.error && r.error.code === 'ENOENT') {
     if (IS_CI()) {

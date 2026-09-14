@@ -189,7 +189,7 @@
     "scripts/lib/gate-evidence.mjs": "8df0b7c096ba79a3fcc8e33c2a35d963d20374d6241ea19818ae99ad47cc01f2",
     "scripts/lib/gate-mutex.mjs": "dc796b041cebe65d9b53e042ee8eedc5fcb78ae792421df1e9337e522d6954dd",
     "scripts/lib/glob-walk.mjs": "a71a14af1cb1d8b4068f8aede857299f884740327799d4290ba6fb3e15126638",
-    "scripts/lib/run-helpers.mjs": "0b28ac0d0bdaa1b9a6eea121c51e3b565107ba171b37f8bec3038bef4f15df46",
+    "scripts/lib/run-helpers.mjs": "9faee56cefbfec8b0915726da4581c077e9fbb3648c5dd7a03cd07d02f6bba72",
     "scripts/lib/waiter-count.mjs": "911b32639645e060fab9a1d8987859499983436e2af80ded534dd8f5fe79283f",
     "scripts/optional-emissions.json": "984c1545b184ed6d73c596b1765c1ed14e37fc5880e941a0c8b734f381c9783f",
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",

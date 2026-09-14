@@ -285,25 +285,18 @@ function recordPass(name, elapsed) {
 }
 
 /**
- * True (and recorded) when `name` is in the selective-gate skip set — callers
- * must return immediately without spawning. Split out of the runCheck trinity
- * to keep each runner's own complexity under the ratchet (#2094).
+ * True (and recorded) when the current runner must skip before spawning. Keep
+ * both local skip policies here so they do not add branches to every runner.
  */
-function skipIfSelected(name, opts = {}) {
-  if (!skippedChecks.has(name)) return false
+function skipBeforeSpawn(name, opts = {}) {
   if (failFast && failed > 0) {
     recordSkip(name, 0, 'fail-fast after prior hard failure')
     return true
   }
+  if (!skippedChecks.has(name)) return false
   const reason = 'selective gate: no affected files changed'
   if (opts.failOnSkip) recordFail(name, 0, `required check skipped: ${reason}`)
   else recordSkip(name, 0, reason)
-  return true
-}
-
-function skipIfFailFast(name) {
-  if (!failFast || failed === 0) return false
-  recordSkip(name, 0, 'fail-fast after prior hard failure')
   return true
 }
 
@@ -330,8 +323,7 @@ function classifySpawnError(r, cmd, elapsed, opts) {
  * HARD gate step. Non-zero exit fails the gate (failed++).
  */
 export function runCheck(name, cmd, args, opts = {}) {
-  if (skipIfSelected(name, opts)) return
-  if (skipIfFailFast(name)) return
+  if (skipBeforeSpawn(name, opts)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
@@ -364,8 +356,7 @@ export function runCheck(name, cmd, args, opts = {}) {
  * INFORMATIONAL gate step. Non-zero exit records WARN, never fails the gate.
  */
 export function runWarnCheck(name, cmd, args, opts = {}) {
-  if (skipIfSelected(name)) return
-  if (skipIfFailFast(name)) return
+  if (skipBeforeSpawn(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
@@ -390,8 +381,7 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
  * CI-AWARE TOOL gate step. Missing binary => SKIP locally, FAIL in CI.
  */
 export function runToolCheck(name, cmd, args, opts = {}) {
-  if (skipIfSelected(name)) return
-  if (skipIfFailFast(name)) return
+  if (skipBeforeSpawn(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   if (r.error?.code === 'ENOENT') {
