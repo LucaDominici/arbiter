@@ -3,7 +3,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readlinkSync, rmSync } f
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { verifyRedExecution } from '../../src/evidence/tdd-reexecute.js'
+import { DEFAULT_REEXEC_TIMEOUT_MS, verifyRedExecution } from '../../src/evidence/tdd-reexecute.js'
 import type { TddEvidence } from '../../src/evidence/tdd.js'
 
 vi.mock('../../src/utils/run-cli.js', () => ({
@@ -178,6 +178,36 @@ describe('verifyRedExecution()', () => {
     ).toBe(false)
   })
 
+  it('normalizes the ANSI-styled CI project badge while preserving replay argv/cwd/env (AC-1, AC-2)', () => {
+    const testPath = '__tests__/evidence/tdd-reexecute.test.ts'
+    const evidence = {
+      ...BASE,
+      test_path: testPath,
+      test_run_log: `FAIL |unit| ${testPath}`,
+      observed_failure: `FAIL |unit| ${testPath}`,
+      test_command: ['npx', 'vitest', 'run', testPath, '--reporter=verbose'],
+    }
+    let replayCwd = ''
+
+    mockedRunCli
+      .mockImplementationOnce((_cmd, args) => {
+        replayCwd = String((args as readonly string[])[4])
+        mkdirSync(replayCwd, { recursive: true })
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      })
+      .mockImplementationOnce((_cmd, _args, opts) => {
+        const replayOptions = opts as { cwd?: string; timeoutMs?: number; env?: NodeJS.ProcessEnv }
+        expect(replayOptions).toEqual({ cwd: replayCwd, timeoutMs: DEFAULT_REEXEC_TIMEOUT_MS })
+        expect(replayOptions).not.toHaveProperty('env')
+        throw cliError({ stdout: `FAIL \x1b[31m  unit\x1b[39m  ${testPath}` })
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+
+    expect(verifyRedExecution(evidence, '/repo').ok).toBe(true)
+    expect(mockedRunCli.mock.calls[1]?.[0]).toBe('npx')
+    expect(mockedRunCli.mock.calls[1]?.[1]).toEqual(evidence.test_command.slice(1))
+  })
+
   it('rejects a scalar signature contradicted by its retained log', () => {
     expect(
       replayLines(['FAIL other.test.ts'], {
@@ -297,6 +327,24 @@ describe('verifyRedExecution()', () => {
       })
       .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
     expect(verifyRedExecution(BASE, '/repo').ok).toBe(false)
+  })
+
+  it.each([
+    ['a missing tool', { notFound: true }],
+    ['truncated output', { outputTruncated: true }],
+  ])('fails closed on %s (AC-3)', (_description, fields) => {
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+      .mockImplementationOnce(() => {
+        throw Object.assign(cliError({ stdout: BASE.test_run_log }), {
+          exitCode: -1,
+          ...fields,
+        })
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+    const result = verifyRedExecution(BASE, '/repo')
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/did not fail when re-run/)
   })
 
   it('links the caller node_modules into the worktree so the re-run resolves its runner', () => {

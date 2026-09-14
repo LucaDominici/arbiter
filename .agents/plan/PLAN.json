@@ -1,22 +1,21 @@
 {
-  "task_id": "#2628",
+  "task_id": "#2690",
   "scope": {
     "track": "A",
     "paths": [
-      ".github/workflows/consumer-reliability.yml",
-      "__tests__/scripts/consumer-reliability-workflow.test.ts",
+      "src/evidence/tdd.ts",
+      "__tests__/evidence/tdd-reexecute.test.ts",
       ".agents/plan/PLAN.json",
-      "docs/REFERENCE/ci-tier-workflows.md",
-      ".arbiter/evidence/tdd/#2628.json"
+      ".arbiter/evidence/tdd/#2690.json"
     ]
   },
   "files": [
     {
-      "path": ".github/workflows/consumer-reliability.yml",
+      "path": "src/evidence/tdd.ts",
       "operation": "modify"
     },
     {
-      "path": "__tests__/scripts/consumer-reliability-workflow.test.ts",
+      "path": "__tests__/evidence/tdd-reexecute.test.ts",
       "operation": "modify"
     },
     {
@@ -24,11 +23,7 @@
       "operation": "modify"
     },
     {
-      "path": "docs/REFERENCE/ci-tier-workflows.md",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/tdd/#2628.json",
+      "path": ".arbiter/evidence/tdd/#2690.json",
       "operation": "create"
     }
   ],
@@ -36,7 +31,19 @@
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": ["INV-08", "INV-22", "INV-24", "INV-25", "INV-26", "INV-53", "INV-76", "INV-77"],
+  "invariant_ids": [
+    "INV-04",
+    "INV-08",
+    "INV-12",
+    "INV-17",
+    "INV-22",
+    "INV-24",
+    "INV-25",
+    "INV-26",
+    "INV-53",
+    "INV-131",
+    "INV-138"
+  ],
   "review_bridge": {
     "enabled": true,
     "reviewer": "bridge-reviewer",
