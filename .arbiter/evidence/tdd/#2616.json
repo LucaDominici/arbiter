@@ -11,6 +11,8 @@
     "npx",
     "vitest",
     "run",
+    "--root",
+    ".",
     "__tests__/scripts/run-helpers.test.ts",
     "--reporter=verbose"
   ]
