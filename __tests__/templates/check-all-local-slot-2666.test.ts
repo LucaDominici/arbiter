@@ -138,7 +138,7 @@ function runLocalSlotHarness(
     const r = spawnSync(process.execPath, [join(scriptsDir, 'check-all.mjs'), ...args], {
       encoding: 'utf-8',
       cwd: dir,
-      env: { ...process.env, NO_COLOR: '1' },
+      env: { ...process.env, CI: '', GITHUB_ACTIONS: '', NO_COLOR: '1' },
     })
     return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   } finally {

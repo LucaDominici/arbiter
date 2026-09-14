@@ -72,6 +72,8 @@ syncBuiltinESMExports()
     )
     const env = {
       ...process.env,
+      CI: '',
+      GITHUB_ACTIONS: '',
       ARBITER_SELECTIVE_GATE: '0',
       BOOTSTRAP_TEST_MODE: buildMode,
       [GATE_MUTEX_HELD_ENV]: gateLockPathFor(dir),
@@ -175,7 +177,10 @@ describe('native L2 build prerequisite', () => {
 
   it('ignores fail-fast in L2 and CI lanes so later checks still launch (AC-2)', () => {
     const l2 = runGate('L2', 'first-hard-fail', ['--fail-fast'])
-    const ci = runGate('L1', 'first-hard-fail', ['--fail-fast'], { CI: '1' })
+    const ci = runGate('L1', 'first-hard-fail', ['--fail-fast'], {
+      CI: '1',
+      GITHUB_ACTIONS: '1',
+    })
     const explicitL2 = runGate('L1', 'first-hard-fail', ['check', '--level', 'L2', '--fail-fast'])
     for (const result of [l2, ci, explicitL2]) {
       expect(result.status).toBe(1)

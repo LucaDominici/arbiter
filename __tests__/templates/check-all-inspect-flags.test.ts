@@ -28,7 +28,7 @@ function runHarness(script: string) {
   return spawnSync(process.execPath, ['--input-type=module', '-e', script], {
     encoding: 'utf-8',
     shell: false,
-    env: { ...process.env, NO_COLOR: '1' },
+    env: { ...process.env, CI: '', GITHUB_ACTIONS: '', NO_COLOR: '1' },
   })
 }
 
@@ -134,10 +134,31 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     })
   }
 
-  function runRenderedGate(args: string[] = [], env: Record<string, string> = {}) {
+  function runRenderedGate(
+    args: string[] = [],
+    env: Record<string, string> = {},
+    options: { build?: boolean; localChecks?: unknown } = {},
+  ) {
     const dir = mkdtempSync(join(tmpdir(), 'arb-rendered-gate-'))
     try {
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+      if (options.build) {
+        writeFileSync(
+          join(dir, 'package.json'),
+          JSON.stringify({ private: true, scripts: { build: 'node -e "process.exit(0)"' } }),
+        )
+      }
+      if (options.localChecks !== undefined) {
+        writeFileSync(
+          join(dir, 'scripts', 'check-all.local.json'),
+          JSON.stringify(options.localChecks),
+        )
+        spawnSync('git', ['init', '--quiet'], { cwd: dir, encoding: 'utf-8' })
+        spawnSync('git', ['config', '--local', 'arbiter.allowLocalChecks', 'true'], {
+          cwd: dir,
+          encoding: 'utf-8',
+        })
+      }
       writeFileSync(join(dir, 'scripts', 'check-all.mjs'), render())
       writeFileSync(
         join(dir, 'scripts', 'lib', 'run-helpers.mjs'),
@@ -151,7 +172,7 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
       const r = spawnSync(process.execPath, ['scripts/check-all.mjs', ...args], {
         encoding: 'utf-8',
         cwd: dir,
-        env: { ...process.env, NO_COLOR: '1', ...env },
+        env: { ...process.env, CI: '', GITHUB_ACTIONS: '', NO_COLOR: '1', ...env },
       })
       return {
         ...r,
@@ -194,6 +215,69 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     expect(result.artifact.pass).toBe(false)
   })
 
+  it('keeps emitted L2 accumulation when --fail-fast is requested (AC-2, AC-3)', () => {
+    const result = runRenderedGate(['gate', '--fail-fast'], {}, { build: true })
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('[CHECK] unit tests ...')
+    expect(result.stdout).not.toContain('SKIP (fail-fast after prior hard failure')
+    expect(result.marker).toBe(false)
+  })
+
+  it('keeps emitted CI accumulation when --fail-fast is requested (AC-2, AC-3)', () => {
+    const result = runRenderedGate(['check', '--fail-fast'], {
+      CI: '1',
+      GITHUB_ACTIONS: '1',
+    })
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('[CHECK] unit tests ...')
+    expect(result.stdout).not.toContain('SKIP (fail-fast after prior hard failure')
+    expect(result.marker).toBe(false)
+  })
+
+  it('runs an opted-in named local check after malformed prior input (AC-3)', () => {
+    const result = runRenderedGate(
+      ['L1', '--fail-fast', '--gate', '[local] chosen'],
+      {},
+      {
+        localChecks: {
+          checks: [
+            null,
+            {
+              name: 'chosen',
+              cmd: [process.execPath, '-e', 'process.exit(0)'],
+              tier: 'L1',
+            },
+          ],
+        },
+      },
+    )
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('[CHECK] local checks ... FAIL (malformed entry')
+    expect(result.stdout).toContain('[CHECK] [local] chosen ... PASS')
+    expect(result.stdout).not.toContain('fail-fast after prior hard failure')
+    expect(result.marker).toBe(false)
+    expect(result.artifact).toBe(null)
+  })
+
+  it('retains an emitted timeout diagnostic before fail-fast skips later work (AC-1, AC-3)', () => {
+    const r = runHarness(`
+      import { runCheck, setFailFast, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      setFailFast(true);
+      runCheck('slow', process.execPath, [
+        '-e',
+        "process.stderr.write('EMITTED-TIMEOUT-DIAGNOSTIC'); setInterval(() => {}, 1000)",
+      ], { timeoutMs: 1000 });
+      runCheck('later', process.execPath, ['-e', "console.log('EMITTED-MUST-NOT-RUN')"]);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    expect(r.stderr).toContain('EMITTED-TIMEOUT-DIAGNOSTIC')
+    expect(r.stdout).toContain('SKIP (fail-fast after prior hard failure')
+    expect(r.stdout).not.toContain('EMITTED-MUST-NOT-RUN')
+    const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+    expect(payload.failed).toBe(1)
+    expect(payload.results.map((x: { status: string }) => x.status)).toEqual(['TIMEOUT', 'SKIP'])
+  })
+
   it('runs a named inline inspection gate even when fail-fast is requested', () => {
     const result = runRenderedGate(['check', '--fail-fast', '--gate', 'workflow runners'])
     expect(result.status).toBe(0)
@@ -205,7 +289,7 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
   // Runtime proof that the parser threads argv into setMode() — closes the gap the
   // string assertions above leave. Slices the parse+setMode region (like the #1720
   // clamp test) and runs it against a capturing run-helpers stub.
-  function runParse(args: string[]): unknown {
+  function runParse(args: string[], env: Record<string, string> = {}): unknown {
     const content = render()
     const cutIdx = content.indexOf('Grace Period Guard')
     const prefix = content.slice(0, content.lastIndexOf('\n', cutIdx))
@@ -239,6 +323,7 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
       const r = spawnSync('node', [join(scriptsDir, 'check-all.mjs'), ...args], {
         encoding: 'utf-8',
         cwd: dir,
+        env: { ...process.env, CI: '', GITHUB_ACTIONS: '', ...env },
       })
       const m = /SETMODE:(\{.*\})/.exec(r.stdout ?? '')
       if (!m) return null
@@ -270,5 +355,8 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     expect(runParse(['L1', '--fail-fast'])).toMatchObject({ failFast: true })
     expect(runParse(['L2', '--fail-fast'])).toMatchObject({ failFast: false })
     expect(runParse(['check', '--level', 'L2', '--fail-fast'])).toMatchObject({ failFast: false })
+    expect(runParse(['check', '--fail-fast'], { CI: '1', GITHUB_ACTIONS: '1' })).toMatchObject({
+      failFast: false,
+    })
   })
 })
