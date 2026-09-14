@@ -204,7 +204,7 @@ function runLocalSlotHarnessReal(
       cwd: dir,
       // launcherEnv simulates a poisoned package.json "scripts" entry setting
       // GIT_* variables or prepending a shim onto PATH before invoking node.
-      env: { ...process.env, NO_COLOR: '1', ...launcherEnv },
+      env: { ...process.env, CI: '', GITHUB_ACTIONS: '', NO_COLOR: '1', ...launcherEnv },
     })
     return { status: r.status, stdout: r.stdout ?? '', sentinelExists: existsSync(sentinelPath) }
   } finally {
@@ -311,7 +311,13 @@ describe('check-all.mjs.ejs — local extension slot requires a git-config opt-i
         {
           encoding: 'utf-8',
           cwd: dir,
-          env: { ...process.env, NO_COLOR: '1', ARBITER_ALLOW_LOCAL_CHECKS: '1' },
+          env: {
+            ...process.env,
+            CI: '',
+            GITHUB_ACTIONS: '',
+            NO_COLOR: '1',
+            ARBITER_ALLOW_LOCAL_CHECKS: '1',
+          },
         },
       )
       expect(existsSync(sentinelPath)).toBe(false)
