@@ -199,7 +199,9 @@ describe('verifyRedExecution()', () => {
         const replayOptions = opts as { cwd?: string; timeoutMs?: number; env?: NodeJS.ProcessEnv }
         expect(replayOptions).toEqual({ cwd: replayCwd, timeoutMs: DEFAULT_REEXEC_TIMEOUT_MS })
         expect(replayOptions).not.toHaveProperty('env')
-        throw cliError({ stdout: `FAIL \x1b[31m  unit\x1b[39m  ${testPath}` })
+        throw cliError({
+          stdout: `\x1b[41m\x1b[1m FAIL \x1b[22m\x1b[49m \x1b[30m\x1b[42m unit tests \x1b[49m\x1b[39m ${testPath}`,
+        })
       })
       .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
 
@@ -214,6 +216,10 @@ describe('verifyRedExecution()', () => {
 
   it('normalizes an ANSI-wrapped multiword project badge (AC-1)', () => {
     expect(replayLines(['FAIL \x1b[31m  unit tests\x1b[39m  math.test.ts'], BASE).ok).toBe(true)
+  })
+
+  it('rejects an ANSI badge whose JavaScript path starts on the next line (AC-1)', () => {
+    expect(replayLines(['FAIL \x1b[31m  unit tests\x1b[39m', 'math.test.ts'], BASE).ok).toBe(false)
   })
 
   it('rejects a scalar signature contradicted by its retained log', () => {
