@@ -1,0 +1,135 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2616",
+  "sha": "52c5125b88bffb789e7efd4bcb4c0ff6ae081790",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/run-helpers.mjs",
+          "line": 304
+        },
+        {
+          "file": "scripts/lib/run-helpers.mjs",
+          "line": 332
+        },
+        {
+          "file": "__tests__/scripts/check-all-bootstrap.test.ts",
+          "line": 152
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 46
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 770
+        }
+      ],
+      "notes": "The self gate stops after the first hard L1 failure, records visible SKIP results, retains the original failure/timeout output, exits nonzero, and writes a marker only when failed === 0. The bounded bootstrap assertion records 140 -> 1 child processes and 2839 -> 45 ms in the current rerun."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/parse-check-args.mjs",
+          "line": 29
+        },
+        {
+          "file": "scripts/check-all.mjs",
+          "line": 92
+        },
+        {
+          "file": "__tests__/scripts/check-all-bootstrap.test.ts",
+          "line": 169
+        },
+        {
+          "file": "__tests__/scripts/check-all-bootstrap.test.ts",
+          "line": 178
+        },
+        {
+          "file": "__tests__/scripts/run-helpers.test.ts",
+          "line": 65
+        },
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 218
+        },
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 226
+        }
+      ],
+      "notes": "Fail-fast is disabled by default and is enabled only for local check/L1 without CI markers. Current execution tests prove all-green process-list equality, WARN/SKIP continuation, and continued accumulation in emitted L2 and CI lanes."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/lib/run-helpers.mjs.ejs",
+          "line": 228
+        },
+        {
+          "file": "src/templates/scripts/lib/run-helpers.mjs.ejs",
+          "line": 341
+        },
+        {
+          "file": "src/templates/scripts/check-all.mjs.ejs",
+          "line": 359
+        },
+        {
+          "file": "src/templates/scripts/check-all.mjs.ejs",
+          "line": 372
+        },
+        {
+          "file": "src/templates/scripts/check-all.mjs.ejs",
+          "line": 1757
+        },
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 206
+        },
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 237
+        },
+        {
+          "file": "__tests__/templates/check-all-inspect-flags.test.ts",
+          "line": 262
+        }
+      ],
+      "notes": "The emitted helper and template wire the same fail-fast state through the existing runner seam; inline gates and the local-check discovery/individual-run path use the shared preflight. Rendered executions prove inline skips, L2/CI accumulation, named local inspection after malformed input, and emitted timeout diagnostic retention."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/check-all-bootstrap.test.ts",
+          "line": 152
+        },
+        {
+          "file": "__tests__/scripts/check-all-bootstrap.test.ts",
+          "line": 163
+        },
+        {
+          "file": "__tests__/scripts/check-all-bootstrap.test.ts",
+          "line": 169
+        },
+        {
+          "file": ".arbiter/evidence/tdd/#2616.json",
+          "line": 7
+        },
+        {
+          "file": ".claude/plans/task-2616.md",
+          "line": 109
+        }
+      ],
+      "notes": "The runnable bootstrap regression compares planted first-hard-failure accumulation with local fail-fast and separately proves the clean case has identical process selection. The committed RED evidence records the pre-fix failures; the measurement is bounded to this controlled fixture and makes no portfolio-throughput claim."
+    }
+  ]
+}
