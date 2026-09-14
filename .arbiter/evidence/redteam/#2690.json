@@ -1,0 +1,61 @@
+{
+  "$schema": "RedTeamEvidenceV1",
+  "task_id": "#2690",
+  "tier": "Standard",
+  "verdict": "PASS",
+  "recorded_at": "2026-09-14T23:25:11.392302Z",
+  "agents": 3,
+  "angles": [
+    "correctness",
+    "data-integrity",
+    "simplicity"
+  ],
+  "reviewers": [
+    {
+      "agent": "/root/2690_redteam_correctness",
+      "verdict": "PASS",
+      "dispatch": "subagent"
+    },
+    {
+      "agent": "/root/2690_redteam_integrity",
+      "verdict": "PASS_AFTER_REWORK",
+      "dispatch": "subagent"
+    },
+    {
+      "agent": "/root/2690_redteam_simplicity",
+      "verdict": "PASS_AFTER_REWORK",
+      "dispatch": "subagent"
+    }
+  ],
+  "findings": [
+    {
+      "id": "RT-2690-01",
+      "severity": "HIGH",
+      "summary": "Forcing NO_COLOR/FORCE_COLOR changes the tested program environment and can reproduce a different failure under the same identity.",
+      "auditorHint": "test-quality",
+      "resolved": true,
+      "action": "removed environment mutation; normalize only at extraction boundary"
+    },
+    {
+      "id": "RT-2690-02",
+      "severity": "HIGH",
+      "summary": "Same-name failures in separate Vitest projects collapse after project labels are stripped.",
+      "auditorHint": "data-integrity",
+      "resolved": false,
+      "action": "parked as GitHub issue #2691"
+    },
+    {
+      "id": "RT-2690-03",
+      "severity": "HIGH",
+      "summary": "Passing an explicit spread of process.env would preserve credential exposure while changing replay controls.",
+      "auditorHint": "security",
+      "resolved": true,
+      "action": "removed environment mutation; existing runCli options remain byte-equivalent"
+    }
+  ],
+  "critical": 0,
+  "high": 0,
+  "medium": 0,
+  "suggestion": 0,
+  "limits": "#2690 repairs only the captured CI reporter formatting boundary. Project-level failure multiplicity is independently owned by #2691."
+}

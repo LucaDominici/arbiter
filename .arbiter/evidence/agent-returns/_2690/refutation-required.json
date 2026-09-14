@@ -1,0 +1,27 @@
+{
+  "task": "#2690",
+  "threshold": "high",
+  "skeptics": 3,
+  "findings": [],
+  "round": "red-team-1",
+  "evaluated": [
+    {
+      "id": "RT-2690-01",
+      "upheld": 2,
+      "refuted": 0,
+      "decision": "plan reworked; environment mutation removed"
+    },
+    {
+      "id": "RT-2690-02",
+      "upheld": 1,
+      "refuted": 0,
+      "decision": "durably parked as #2691; independent from scoped parser repair"
+    },
+    {
+      "id": "RT-2690-03",
+      "upheld": 1,
+      "refuted": 0,
+      "decision": "plan reworked; no new environment or credential surface"
+    }
+  ]
+}
