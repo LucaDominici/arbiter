@@ -1440,12 +1440,13 @@ verify
   .description('Verify the .evidence/SUMMARY.json snapshot (SHA + freshness window).')
   .option('--json', 'Emit machine-readable JSON output', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { json: boolean; dir?: string }, cmd: Command) => {
-    // #1994: same parent/child --json shadowing #1992 fixed for `verify tdd` —
-    // `verify`/`validate` declares its own --json, so opts.json here reads the
-    // parent's default. optsWithGlobals() reflects the flag actually passed.
-    const json = Boolean(cmd.optsWithGlobals().json)
-    const result = runVerifyEvidence({ dir: opts.dir })
+  .action((_opts: { json: boolean; dir?: string }, cmd: Command) => {
+    // #1994/#2683: `verify`/`validate` also declares --json and --dir, which
+    // shadow this subcommand's own values in `opts`; optsWithGlobals() reflects
+    // the flags actually passed on either segment.
+    const commandOpts = cmd.optsWithGlobals<{ dir?: string; json?: boolean }>()
+    const json = Boolean(commandOpts.json)
+    const result = runVerifyEvidence({ dir: commandOpts.dir })
     if (json) {
       jsonOutput(
         'verify evidence',

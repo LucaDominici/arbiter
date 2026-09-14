@@ -1,13 +1,1 @@
-{
-  "count": 2,
-  "agents": [
-    "astra-2635-ratchet-source-delta-review",
-    "2578-recovery-author-2635-ratchet-source-review"
-  ],
-  "branch": "task/#2635-native-input-boundaries",
-  "sha": "f8a3131340ec3e0663519969aa5d62dda639a158",
-  "taskId": "#2635",
-  "ts": "2026-09-10T04:24:03.814923+00:00",
-  "kind": "actual-independent-source-review-dispatch",
-  "basis": "Two actual independent committed source-delta reviews following the efcc source reviews, exact unchanged staged tree3650b2 plus sourceL1PASS; original full-source reviews retained. Verifier recorded separately."
-}
+{"count":1,"agents":["independent-review"],"branch":"task/#2683-evidence-verify-target","sha":"a05e6b733502ea3c03c3359777215f8c9ca87b5c","taskId":"#2683"}
