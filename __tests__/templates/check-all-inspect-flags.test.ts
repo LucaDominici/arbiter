@@ -259,5 +259,6 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     expect(runParse(['check', '--fail-fast'])).toMatchObject({ failFast: true })
     expect(runParse(['L1', '--fail-fast'])).toMatchObject({ failFast: true })
     expect(runParse(['L2', '--fail-fast'])).toMatchObject({ failFast: false })
+    expect(runParse(['check', '--level', 'L2', '--fail-fast'])).toMatchObject({ failFast: false })
   })
 })

@@ -123,4 +123,12 @@ describe('parseCheckArgs — --fail-fast', () => {
     expect(parseCheckArgs(['check', '--fail-fast']).failFast).toBe(true)
     expect(parseCheckArgs(['L1', '--fail-fast']).failFast).toBe(true)
   })
+
+  it('keeps a higher explicit level out of local L1 fail-fast (AC-2)', () => {
+    expect(parseCheckArgs(['check', '--level', 'L2', '--fail-fast'])).toMatchObject({
+      failFast: true,
+      explicitLevel: true,
+      level: 'L2',
+    })
+  })
 })

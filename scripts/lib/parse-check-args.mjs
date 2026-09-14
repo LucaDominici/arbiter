@@ -24,7 +24,7 @@ export function effectiveGateLevel({ subcommand, level }) {
 /**
  * Parse argv into check-all options.
  * @param {string[]} argv  process.argv.slice(2)
- * @returns {{ subcommand: string, level: string, langs: string[]|null, noMutation: boolean, jsonPath: string|null, failFast: boolean }}
+ * @returns {{ subcommand: string, level: string, langs: string[]|null, noMutation: boolean, jsonPath: string|null, failFast: boolean, explicitLevel: boolean }}
  */
 export function parseCheckArgs(argv) {
   let subcommand = null
@@ -33,6 +33,7 @@ export function parseCheckArgs(argv) {
   let noMutation = false
   let jsonPath = null // null = write to default path; '' = default; string = explicit path
   let failFast = false
+  let explicitLevel = false
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -40,6 +41,7 @@ export function parseCheckArgs(argv) {
       subcommand = arg
     } else if (arg === '--level' && i + 1 < argv.length) {
       level = argv[++i]
+      explicitLevel = true
     } else if (arg === '--lang' && i + 1 < argv.length) {
       langs = argv[++i].split(',')
     } else if (arg === '--no-mutation') {
@@ -55,6 +57,7 @@ export function parseCheckArgs(argv) {
     } else if (LEVELS.includes(arg)) {
       // Back-compat: L1 → check/L1, L2/L3/L4 → gate/level
       level = arg
+      explicitLevel = true
       if (subcommand === null) {
         subcommand = arg === 'L1' ? 'check' : 'gate'
       }
@@ -65,5 +68,5 @@ export function parseCheckArgs(argv) {
 
   if (subcommand === null) subcommand = 'gate'
 
-  return { subcommand, level, langs, noMutation, jsonPath, failFast }
+  return { subcommand, level, langs, noMutation, jsonPath, failFast, explicitLevel }
 }

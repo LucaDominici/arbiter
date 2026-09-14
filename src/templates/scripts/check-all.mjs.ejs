@@ -111,6 +111,7 @@ const _SUBCOMMAND_LEVEL = {
 };
 let level = 'L2';
 let subcommand = null;
+let explicitLevel = false;
 let jsonPath = null;
 let dryRun = false; // #2078: print-what-would-run, spawn nothing
 let only = null; // #2078: --gate <name>, re-run a single check
@@ -132,12 +133,14 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
     if (!_LEVELS.includes(_val))
       _gateFatal(`--level requires one of ${_LEVELS.join('|')}, got "${_val ?? '(missing)'}"`);
     level = _val;
+    explicitLevel = true;
     _i++;
   } else if (_a.startsWith('--level=')) {
     const _val = _a.slice('--level='.length);
     if (!_LEVELS.includes(_val))
       _gateFatal(`--level requires one of ${_LEVELS.join('|')}, got "${_val}"`);
     level = _val;
+    explicitLevel = true;
   } else if (_a === '--dry-run') {
     dryRun = true;
   } else if (_a === '--fail-fast') {
@@ -153,6 +156,7 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
     only = _g;
   } else if (_LEVELS.includes(_a)) {
     level = _a;
+    explicitLevel = true;
     if (subcommand === null) subcommand = _a === 'L1' ? 'check' : 'gate';
   } else if (Object.prototype.hasOwnProperty.call(_SUBCOMMAND_LEVEL, _a)) {
     subcommand = _a;
@@ -355,7 +359,7 @@ setMode({ dryRun, only });
 const _failFast =
   failFast &&
   subcommand === 'check' &&
-  level === 'L1' &&
+  (!explicitLevel || level === 'L1') &&
   !IS_CI;
 setFailFast(_failFast);
 

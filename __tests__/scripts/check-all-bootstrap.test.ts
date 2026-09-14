@@ -176,7 +176,8 @@ describe('native L2 build prerequisite', () => {
   it('ignores fail-fast in L2 and CI lanes so later checks still launch (AC-2)', () => {
     const l2 = runGate('L2', 'first-hard-fail', ['--fail-fast'])
     const ci = runGate('L1', 'first-hard-fail', ['--fail-fast'], { CI: 'true' })
-    for (const result of [l2, ci]) {
+    const explicitL2 = runGate('L1', 'first-hard-fail', ['check', '--level', 'L2', '--fail-fast'])
+    for (const result of [l2, ci, explicitL2]) {
       expect(result.status).toBe(1)
       expect(result.stderr).toContain('FIXTURE-FIRST-HARD-DIAGNOSTIC')
       expect(result.calls.length).toBeGreaterThan(2)

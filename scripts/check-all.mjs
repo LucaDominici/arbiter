@@ -90,6 +90,7 @@ if (isMain) {
   setFailFast(
     parsedArgs.failFast &&
       subcommand === 'check' &&
+      (!parsedArgs.explicitLevel || parsedArgs.level === 'L1') &&
       process.env.CI !== 'true' &&
       process.env.GITHUB_ACTIONS !== 'true',
   )
