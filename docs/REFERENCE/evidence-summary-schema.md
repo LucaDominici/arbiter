@@ -38,6 +38,11 @@ fall through to step 2.
 
 If neither is found, the command exits 1 with `.evidence/SUMMARY.json not found`.
 
+`--dir` (and `--json`) select the verified project wherever they are placed —
+`arbiter validate --dir <dir> evidence` and `arbiter validate evidence --dir <dir>` verify
+the same `<dir>`, resolved relative to the current directory; the current directory is
+used only when `--dir` is absent (#2683).
+
 ---
 
 ## Required fields
