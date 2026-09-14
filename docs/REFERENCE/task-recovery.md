@@ -87,7 +87,8 @@ rejected before the test runs or any evidence is written.
 a completed nonzero exit. It compares all actual JavaScript `FAIL` headers, including Vitest
 test labels, independent of file execution order. Missing, additional or changed failures
 reject replay; quoted diagnostic text cannot substitute for a failed test. Checkout paths
-and terminal color are normalized. The retained V1 log supplies these identities without
+and terminal color are normalized. ANSI background-styled Vitest project badges normalize
+to the existing pipe-label form; foreground-only diagnostics remain rejected. The retained V1 log supplies these identities without
 an evidence migration; other runners retain their existing summary signatures.
 
 In Arbiter's own repository, `node scripts/check-all.mjs L2` prepares `dist/` with one

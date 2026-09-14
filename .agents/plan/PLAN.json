@@ -5,6 +5,7 @@
     "paths": [
       "src/evidence/tdd.ts",
       "__tests__/evidence/tdd-reexecute.test.ts",
+      "docs/REFERENCE/task-recovery.md",
       ".agents/plan/PLAN.json",
       ".arbiter/evidence/tdd/#2690.json"
     ]
@@ -16,6 +17,10 @@
     },
     {
       "path": "__tests__/evidence/tdd-reexecute.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/REFERENCE/task-recovery.md",
       "operation": "modify"
     },
     {
