@@ -1078,7 +1078,7 @@ describe('check-all.mjs.ejs — L3/L4 executable local lanes (#2041, resolves #1
         writeFileSync(join(scriptsDir, 'check-all.mjs'), probe)
         writeFileSync(
           join(scriptsDir, 'lib', 'run-helpers.mjs'),
-          'export const runCheck = () => {};\nexport const runWarnCheck = () => {};\nexport const runToolCheck = () => {};\nexport const pushResult = () => {};\nexport const getResults = () => [];\nexport const getFailed = () => [];\nexport const setMode = () => {};\n' +
+          'export const runCheck = () => {};\nexport const runWarnCheck = () => {};\nexport const runToolCheck = () => {};\nexport const pushResult = () => {};\nexport const getResults = () => [];\nexport const getFailed = () => [];\nexport const setMode = () => {};\nexport const setFailFast = () => {};\n' +
             // #2104: the gate resolves a tmpfs TMPDIR before any spawn. Stubbed to null so
             // this probe stays hermetic (no TMPDIR mutation) and host-independent.
             'export const resolveTmpfsTmpdir = () => null;\n' +
