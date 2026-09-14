@@ -72,6 +72,13 @@ node scripts/check-all.mjs L1   # fast: lint + format + unit tests
 node scripts/check-all.mjs L2   # full: L1 + coverage + integration
 ```
 
+For local diagnosis, `node scripts/check-all.mjs check --fail-fast` (or
+`node scripts/check-all.mjs L1 --fail-fast`) stops launching checks after the
+first hard failure or timeout and records the remaining checks as `SKIP`. This
+is an explicit local L1 option; default runs, CI, and L2+ continue to collect
+the complete result set, and advisory `WARN` or legitimate `SKIP` results do
+not trigger it.
+
 L1 must pass before commit, L2 before push. The `.githooks/` scripts enforce
 both automatically once the git hook path is configured.
 
