@@ -66,6 +66,11 @@ export interface ExtractResult {
 // generated-gate-e2e, #1770-class regression).
 // eslint-disable-next-line no-control-regex -- strips ANSI SGR codes (\x1b[...m)
 const ANSI_SGR = /\x1b\[[0-9;]*m/g
+// Vitest can wrap a multiword project badge in SGR codes. Normalize only that
+// complete, same-line badge-plus-JS-path shape before stripping the styling.
+// eslint-disable-next-line no-control-regex -- matches ANSI SGR delimiters
+const ANSI_WRAPPED_JS_BADGE =
+  /(^[ \t]*FAIL[ \t]+)\x1b\[[0-9;]*m[ \t]+([^|\n]+?)\x1b\[[0-9;]*m[ \t]{2,}(\S+\.(?:spec|test)\.[jt]sx?\b)/gm
 
 export function extractFailureSignature(log: string): ExtractResult | null {
   const plain = log.replace(ANSI_SGR, '')
@@ -85,14 +90,14 @@ export function extractFailureSignature(log: string): ExtractResult | null {
  * Ordering and colour are incidental; whitespace inside test names is identity.
  */
 export function extractFailureIdentities(log: string): string[] {
-  const plain = log.replace(ANSI_SGR, '')
+  const plain = log.replace(ANSI_WRAPPED_JS_BADGE, '$1|$2| $3').replace(ANSI_SGR, '')
   const identities = new Set<string>()
   for (const { framework, pattern } of FAILURE_SIGNATURES) {
     const isJs = framework === 'vitest' || framework === 'jest'
     // Diagnostics can quote "FAIL path.test.ts" in a code frame. Only actual
     // header lines prove a JS failure; legacy scalar extraction stays unchanged.
     const source = isJs
-      ? '^[ \\t]*FAIL[ \\t]+(?:(?:\\|[^|\\n]+\\|[ \\t]+)|(?:\\S+[ \\t]{2,}))?\\S+\\.(?:spec|test)\\.[jt]sx?\\b'
+      ? '^[ \\t]*FAIL[ \\t]+(?:\\|[^|\\n]+\\|[ \\t]+)?\\S+\\.(?:spec|test)\\.[jt]sx?\\b'
       : pattern.source
     for (const match of plain.matchAll(new RegExp(source, `${pattern.flags}g`))) {
       // The `|<project>|` label (vitest test.projects, #2516) is reporter grouping, not
@@ -101,7 +106,6 @@ export function extractFailureIdentities(log: string): string[] {
       let identity = match[0]
         .trim()
         .replace(/^FAIL\s+/, 'FAIL ')
-        .replace(/^FAIL [^|\s]+[ \t]{2,}/, 'FAIL ')
         .replace(/^FAIL \|[^|\n]+\|[ \t]+/, 'FAIL ')
       if (isJs) {
         const suffix = plain.slice(match.index + match[0].length).split(/\r?\n/, 1)[0] ?? ''
