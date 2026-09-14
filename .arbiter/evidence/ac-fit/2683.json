@@ -1,0 +1,78 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2683",
+  "sha": "5743963d0ebe2824bb63905c8b6a2b16856175ba",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/cli.ts",
+          "line": 1448
+        },
+        {
+          "file": "__tests__/cli/verify-evidence-dir-routing.test.ts",
+          "line": 70
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/cli/verify-evidence-dir-routing.test.ts",
+          "line": 79
+        },
+        {
+          "file": "__tests__/cli/verify-evidence-dir-routing.test.ts",
+          "line": 90
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/cli/verify-evidence-dir-routing.test.ts",
+          "line": 101
+        },
+        {
+          "file": "src/commands/verify.ts",
+          "line": 306
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/cli/verify-evidence-dir-routing.test.ts",
+          "line": 109
+        },
+        {
+          "file": "src/commands/verify.ts",
+          "line": 264
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/cli/verify-evidence-dir-routing.test.ts",
+          "line": 9
+        },
+        {
+          "file": "__tests__/commands/verify-evidence.test.ts",
+          "line": 12
+        }
+      ]
+    }
+  ],
+  "notes": "Verdicts and citations projected unchanged from the native adversarial verifier return saved as 2683-ac-fit-return-source.json. The reviewed implementation is 5743963d; the documentation-only delta at a05e6b73 has its separate round-2 reviewer receipt. No new verdict or review is asserted by this draft."
+}
