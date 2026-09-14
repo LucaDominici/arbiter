@@ -149,6 +149,7 @@ function detectSelfSkip(stdout) {
 /** @type {{ name: string; status: 'PASS'|'FAIL'|'TIMEOUT'|'WARN'|'SKIP'; elapsed: number }[]} */
 let results = []
 let failed = 0
+let failFast = false
 
 // Opt-in selective gating (#2094): a name-based skip set computed by
 // computeSkipped() in check-all.mjs and installed via setSkippedChecks()
@@ -173,8 +174,14 @@ export function getFailed() {
 export function resetState() {
   results = []
   failed = 0
+  failFast = false
   skippedChecks = new Set()
   watchedPid = null
+}
+
+/** Enable local fail-fast after a hard failure; disabled unless explicitly opted in. */
+export function setFailFast(enabled) {
+  failFast = Boolean(enabled)
 }
 
 /**
@@ -284,9 +291,19 @@ function recordPass(name, elapsed) {
  */
 function skipIfSelected(name, opts = {}) {
   if (!skippedChecks.has(name)) return false
+  if (failFast && failed > 0) {
+    recordSkip(name, 0, 'fail-fast after prior hard failure')
+    return true
+  }
   const reason = 'selective gate: no affected files changed'
   if (opts.failOnSkip) recordFail(name, 0, `required check skipped: ${reason}`)
   else recordSkip(name, 0, reason)
+  return true
+}
+
+function skipIfFailFast(name) {
+  if (!failFast || failed === 0) return false
+  recordSkip(name, 0, 'fail-fast after prior hard failure')
   return true
 }
 
@@ -314,10 +331,12 @@ function classifySpawnError(r, cmd, elapsed, opts) {
  */
 export function runCheck(name, cmd, args, opts = {}) {
   if (skipIfSelected(name, opts)) return
+  if (skipIfFailFast(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
   if (spawnErr) {
+    emitOutput(r)
     if (r.error?.code === 'ETIMEDOUT') recordTimeout(name, elapsed)
     else recordFail(name, elapsed, spawnErr.detail)
     return
@@ -346,6 +365,7 @@ export function runCheck(name, cmd, args, opts = {}) {
  */
 export function runWarnCheck(name, cmd, args, opts = {}) {
   if (skipIfSelected(name)) return
+  if (skipIfFailFast(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
@@ -371,6 +391,7 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
  */
 export function runToolCheck(name, cmd, args, opts = {}) {
   if (skipIfSelected(name)) return
+  if (skipIfFailFast(name)) return
   const { r, elapsed } = spawn(name, cmd, args, opts)
 
   if (r.error?.code === 'ENOENT') {
@@ -383,6 +404,7 @@ export function runToolCheck(name, cmd, args, opts = {}) {
   }
   const spawnErr = classifySpawnError(r, cmd, elapsed, opts)
   if (spawnErr) {
+    emitOutput(r)
     if (r.error?.code === 'ETIMEDOUT') recordTimeout(name, elapsed)
     else recordFail(name, elapsed, spawnErr.detail)
     return

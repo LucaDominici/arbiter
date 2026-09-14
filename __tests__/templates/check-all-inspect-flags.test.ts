@@ -5,7 +5,7 @@
 //      a gate-pass marker / result JSON in inspection mode (anti-fake-green).
 import { describe, it, expect, beforeAll } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -134,6 +134,37 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     })
   }
 
+  function runRenderedGate(args: string[] = [], env: Record<string, string> = {}) {
+    const dir = mkdtempSync(join(tmpdir(), 'arb-rendered-gate-'))
+    try {
+      mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+      writeFileSync(join(dir, 'scripts', 'check-all.mjs'), render())
+      writeFileSync(
+        join(dir, 'scripts', 'lib', 'run-helpers.mjs'),
+        renderTemplate('scripts/lib/run-helpers.mjs.ejs', {}),
+      )
+      writeFileSync(
+        join(dir, 'scripts', 'lib', 'gate-mutex.mjs'),
+        'export const GATE_MUTEX_HELD_ENV = "ARBITER_GATE_MUTEX_HELD";\n' +
+          'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
+      )
+      const r = spawnSync(process.execPath, ['scripts/check-all.mjs', ...args], {
+        encoding: 'utf-8',
+        cwd: dir,
+        env: { ...process.env, NO_COLOR: '1', ...env },
+      })
+      return {
+        ...r,
+        marker: existsSync(join(dir, '.arbiter', 'gate-pass.json')),
+        artifact: JSON.parse(
+          readFileSync(join(dir, '.arbiter', 'gate', 'local-result.json'), 'utf-8'),
+        ),
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
   it('parses --dry-run and --gate and wires them into setMode()', () => {
     const content = render()
     expect(content).toContain('--dry-run')
@@ -149,6 +180,16 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     expect(content).toContain('!_inspect')
     expect(content).toMatch(/&& !_inspect[\s\S]*gate-pass\.json/)
     expect(content).toMatch(/if \(!_inspect\)[\s\S]*arbiter-gate-v1/)
+  })
+
+  it('executes rendered inline checks through the fail-fast seam after a hard L1 failure (AC-3)', () => {
+    const result = runRenderedGate(['check', '--fail-fast'])
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('SKIP (fail-fast after prior hard failure')
+    expect(result.stdout).toContain('workflow runners')
+    expect(result.stdout).toContain('ci alignment')
+    expect(result.marker).toBe(false)
+    expect(result.artifact.pass).toBe(false)
   })
 
   // Runtime proof that the parser threads argv into setMode() — closes the gap the
@@ -190,7 +231,10 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
         cwd: dir,
       })
       const m = /SETMODE:(\{.*\})/.exec(r.stdout ?? '')
-      return m ? JSON.parse(m[1]) : null
+      if (!m) return null
+      const mode = JSON.parse(m[1])
+      const failFast = /FAILFAST:(true|false)/.exec(r.stdout ?? '')
+      return { ...mode, failFast: failFast?.[1] === 'true' }
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

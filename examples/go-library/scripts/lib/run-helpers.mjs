@@ -225,6 +225,13 @@ export function setMode(m = {}) {
   mode = { dryRun: Boolean(m.dryRun), only: m.only ?? null };
 }
 
+// Local L1 diagnostic mode (#2616): hard failures stop future checks while the
+// default, CI, and L2+ lanes continue to accumulate as before.
+let failFast = false;
+export function setFailFast(enabled) {
+  failFast = Boolean(enabled);
+}
+
 // Shared pre-flight for the runCheck/runWarnCheck/runToolCheck trio. Returns true
 // when the caller must return WITHOUT spawning (skipped by --gate, or dry-run printed).
 function inspectSkip(name, cmd, args) {
@@ -235,6 +242,12 @@ function inspectSkip(name, cmd, args) {
     return true;
   }
   return false;
+}
+
+function skipIfFailFast(name) {
+  if (!failFast || failed === 0) return false;
+  recordSkip(name, 0, 'fail-fast after prior hard failure');
+  return true;
 }
 
 function spawn(name, cmd, args, opts) {
@@ -327,17 +340,20 @@ function recordPass(name, elapsed) {
 
 export function runCheck(name, cmd, args, opts = {}) {
   if (inspectSkip(name, cmd, args)) return;
+  if (skipIfFailFast(name)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     recordFail(name, elapsed, `command not found: ${cmd}`);
     return;
   }
   if (r.error && r.error.code === 'ETIMEDOUT') {
+    emitOutput(r);
     recordTimeout(name, elapsed);
     return;
   }
   if (r.error && r.error.code === 'ENOBUFS') {
     const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES;
+    emitOutput(r);
     recordFail(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`);
     return;
   }
@@ -358,6 +374,7 @@ export function runCheck(name, cmd, args, opts = {}) {
 
 export function runWarnCheck(name, cmd, args, opts = {}) {
   if (inspectSkip(name, cmd, args)) return;
+  if (skipIfFailFast(name)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     recordWarn(name, elapsed, `command not found: ${cmd}`);
@@ -384,6 +401,7 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
 
 export function runToolCheck(name, cmd, args, opts = {}) {
   if (inspectSkip(name, cmd, args)) return;
+  if (skipIfFailFast(name)) return;
   const { r, elapsed } = spawn(name, cmd, args, opts);
   if (r.error && r.error.code === 'ENOENT') {
     if (IS_CI()) {
@@ -394,11 +412,13 @@ export function runToolCheck(name, cmd, args, opts = {}) {
     return;
   }
   if (r.error && r.error.code === 'ETIMEDOUT') {
+    emitOutput(r);
     recordTimeout(name, elapsed);
     return;
   }
   if (r.error && r.error.code === 'ENOBUFS') {
     const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES;
+    emitOutput(r);
     recordFail(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`);
     return;
   }

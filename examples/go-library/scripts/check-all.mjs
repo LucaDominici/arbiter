@@ -20,6 +20,7 @@ import {
   getResults,
   getFailed,
   setMode,
+  setFailFast,
   setOrphanGuard,
   resolveTmpfsTmpdir,
   gateFileState,
@@ -47,6 +48,11 @@ const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
 // emitted stays a normal skip; a delivered guard later deleted is a gate failure.
 function gateFilePresent(_path, _label, _neverEmittedLine = null, _alternatePaths = []) {
   if (_alternatePaths.some((_alternatePath) => existsSync(_alternatePath))) return true;
+  if (_failFast && getFailed() > 0 && only === null) {
+    console.log(`[CHECK] ${_label} ... SKIP (fail-fast after prior hard failure, 0ms)`);
+    pushResult(_label, 'SKIP', 0);
+    return false;
+  }
   const _state = gateFileState(_path);
   if (_state === 'present') return true;
   if (_state === 'never-emitted') {
@@ -98,12 +104,14 @@ const _SUBCOMMAND_LEVEL = {
   'simulate-weekly': 'L2',
 };
 let level = 'L2';
+let subcommand = null;
 let jsonPath = null;
 let dryRun = false; // #2078: print-what-would-run, spawn nothing
 let only = null; // #2078: --gate <name>, re-run a single check
+let failFast = false;
 const _rawArgs = process.argv.slice(2);
 const _gateUsage =
-  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>]';
+  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>] [--fail-fast]';
 function _gateFatal(_msg) {
   console.error(`[GATE] FATAL: ${_msg}`);
   console.error(`[GATE] ${_gateUsage}`);
@@ -126,6 +134,8 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
     level = _val;
   } else if (_a === '--dry-run') {
     dryRun = true;
+  } else if (_a === '--fail-fast') {
+    failFast = true;
   } else if (_a === '--gate') {
     const _g = _rawArgs[_i + 1];
     if (!_g || _g.startsWith('-')) _gateFatal('--gate requires a check name');
@@ -137,7 +147,9 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
     only = _g;
   } else if (_LEVELS.includes(_a)) {
     level = _a;
+    if (subcommand === null) subcommand = _a === 'L1' ? 'check' : 'gate';
   } else if (Object.prototype.hasOwnProperty.call(_SUBCOMMAND_LEVEL, _a)) {
+    subcommand = _a;
     level = _SUBCOMMAND_LEVEL[_a];
   } else {
     _gateFatal(`unrecognized argument "${_a}"`);
@@ -236,6 +248,12 @@ if (only !== null) {
 }
 const _inspect = dryRun || only !== null;
 setMode({ dryRun, only });
+const _failFast =
+  failFast &&
+  subcommand === 'check' &&
+  level === 'L1' &&
+  !IS_CI;
+setFailFast(_failFast);
 
 // #2041 (AC-2041.5/6): inline gate bodies bypass the runCheck trio, so they must
 // honour the inspection modes themselves — --dry-run prints and spawns NOTHING
@@ -249,7 +267,19 @@ function _inlineInspect(_name, _wouldRun) {
     return true;
   }
   if (only !== null && only !== _name) return true;
+  if (_failFast && getFailed() > 0) {
+    console.log(`[CHECK] ${_name} ... SKIP (fail-fast after prior hard failure, 0ms)`);
+    pushResult(_name, 'SKIP', 0);
+    return true;
+  }
   return false;
+}
+
+function _failFastInlineSkip(_name) {
+  if (!_failFast || getFailed() === 0 || only !== null) return false;
+  console.log(`[CHECK] ${_name} ... SKIP (fail-fast after prior hard failure, 0ms)`);
+  pushResult(_name, 'SKIP', 0);
+  return true;
 }
 
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
@@ -533,7 +563,7 @@ runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
 
 
 
-{
+if (_inlineInspect('workflow runners', 'read .github/workflows')) {} else {
   const _wrStart = Date.now();
   process.stdout.write('[CHECK] workflow runners ... ');
   const _wrWorkflowsDir = join(process.cwd(), '.github', 'workflows');
@@ -590,7 +620,7 @@ runCheck('unwired guards', 'node', ['scripts/check-unwired-guards.mjs']);
 
 
 
-{
+if (_inlineInspect('ci alignment', 'read scripts/check-all.mjs and .github/workflows/ci.yml')) {} else {
   const _caStart = Date.now();
   process.stdout.write('[CHECK] ci alignment ... ');
   const _caManifestPath = join(process.cwd(), 'scripts', 'check-all.mjs');
@@ -1084,7 +1114,11 @@ function _localChecksAllowed(cwd) {
   return _cfg.status === 0 && _cfg.stdout === 'true\n';
 }
 
-{
+if (_failFastInlineSkip('local checks')) {
+  // A prior hard L1 result makes local-check discovery unnecessary. Named
+  // `--gate [local] ...` inspection remains eligible because the helper above
+  // leaves inspection runs out of this guard.
+} else {
   const _localSlotPath = resolve(dirname(fileURLToPath(import.meta.url)), 'check-all.local.json');
   if (!existsSync(_localSlotPath)) {
     console.log('[CHECK] local checks ... SKIP (scripts/check-all.local.json absent)');

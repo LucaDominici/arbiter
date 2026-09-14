@@ -39,6 +39,7 @@ import {
   getResults,
   getFailed,
   setSkippedChecks,
+  setFailFast,
   setOrphanGuard,
   isMainModule,
 } from './lib/run-helpers.mjs'
@@ -86,6 +87,12 @@ if (isMain) {
   const parsedArgs = parseCheckArgs(process.argv.slice(2))
   const { subcommand, jsonPath: _parsedJsonPath } = parsedArgs
   const level = effectiveGateLevel(parsedArgs)
+  setFailFast(
+    parsedArgs.failFast &&
+      subcommand === 'check' &&
+      process.env.CI !== 'true' &&
+      process.env.GITHUB_ACTIONS !== 'true',
+  )
   let jsonPath = _parsedJsonPath
 
   // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
