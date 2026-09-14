@@ -214,8 +214,8 @@ describe('verifyRedExecution()', () => {
     expect(replayLines(['FAIL diagnostic:  math.test.ts'], BASE).ok).toBe(false)
   })
 
-  it('normalizes an ANSI-wrapped multiword project badge (AC-1)', () => {
-    expect(replayLines(['FAIL \x1b[31m  unit tests\x1b[39m  math.test.ts'], BASE).ok).toBe(true)
+  it('rejects an ANSI-styled arbitrary prefix without a background project badge (AC-1)', () => {
+    expect(replayLines(['FAIL \x1b[31m diagnostic:\x1b[39m  math.test.ts'], BASE).ok).toBe(false)
   })
 
   it('rejects an ANSI badge whose JavaScript path starts on the next line (AC-1)', () => {

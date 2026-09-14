@@ -69,9 +69,11 @@ const ANSI_SGR = /\x1b\[[0-9;]*m/g
 // Vitest can wrap a multiword project badge in SGR codes. Normalize only that
 // complete, same-line badge-plus-JS-path shape before stripping the styling;
 // SGR delimiters may surround FAIL and appear between the badge delimiters.
+// A standard ANSI background opening (40-48) identifies the reporter badge;
+// foreground-only styling must not turn arbitrary diagnostics into headers.
 // eslint-disable-next-line no-control-regex -- matches ANSI SGR delimiters
 const ANSI_WRAPPED_JS_BADGE =
-  /(^[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)*FAIL[ \t]+(?:\x1b\[[0-9;]*m[ \t]*)+)([^|\n]+?)[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)+[ \t]+(\S+\.(?:spec|test)\.[jt]sx?\b)/gm
+  /(^[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)*FAIL[ \t]+(?:\x1b\[[0-9;]*m[ \t]*)*\x1b\[4[0-8](?:;[0-9]+)*m[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)*)([^|\n]+?)[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)+[ \t]+(\S+\.(?:spec|test)\.[jt]sx?\b)/gm
 
 export function extractFailureSignature(log: string): ExtractResult | null {
   const plain = log.replace(ANSI_SGR, '')
