@@ -208,6 +208,14 @@ describe('verifyRedExecution()', () => {
     expect(mockedRunCli.mock.calls[1]?.[1]).toEqual(evidence.test_command.slice(1))
   })
 
+  it('rejects an unstyled diagnostic prefix as a JavaScript failure header (AC-1)', () => {
+    expect(replayLines(['FAIL diagnostic:  math.test.ts'], BASE).ok).toBe(false)
+  })
+
+  it('normalizes an ANSI-wrapped multiword project badge (AC-1)', () => {
+    expect(replayLines(['FAIL \x1b[31m  unit tests\x1b[39m  math.test.ts'], BASE).ok).toBe(true)
+  })
+
   it('rejects a scalar signature contradicted by its retained log', () => {
     expect(
       replayLines(['FAIL other.test.ts'], {
