@@ -87,12 +87,14 @@ if (isMain) {
   const parsedArgs = parseCheckArgs(process.argv.slice(2))
   const { subcommand, jsonPath: _parsedJsonPath } = parsedArgs
   const level = effectiveGateLevel(parsedArgs)
+  const isCIValue = (value) =>
+    ['1', 'true', 'yes', 'on'].includes((value ?? '').trim().toLowerCase())
   setFailFast(
     parsedArgs.failFast &&
       subcommand === 'check' &&
       (!parsedArgs.explicitLevel || parsedArgs.level === 'L1') &&
-      process.env.CI !== 'true' &&
-      process.env.GITHUB_ACTIONS !== 'true',
+      !isCIValue(process.env.CI) &&
+      !isCIValue(process.env.GITHUB_ACTIONS),
   )
   let jsonPath = _parsedJsonPath
 

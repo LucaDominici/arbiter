@@ -44,7 +44,8 @@ if (!process.env.TMPDIR) {
 import { evaluateCoverageGate } from './lib/coverage-gate.mjs';
 <% } %>
 
-const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+const isCIValue = (value) => ['1', 'true', 'yes', 'on'].includes((value ?? '').trim().toLowerCase());
+const IS_CI = isCIValue(process.env.CI) || isCIValue(process.env.GITHUB_ACTIONS);
 <% if (language === 'typescript' && enableDebtGates && coverageEnabled) { %>
 let _coverageRunStartedAt = null;
 <% } %>
@@ -375,7 +376,7 @@ function _inlineInspect(_name, _wouldRun) {
     return true;
   }
   if (only !== null && only !== _name) return true;
-  if (_failFast && getFailed() > 0) {
+  if (_failFast && getFailed() > 0 && only === null) {
     console.log(`[CHECK] ${_name} ... SKIP (fail-fast after prior hard failure, 0ms)`);
     pushResult(_name, 'SKIP', 0);
     return true;

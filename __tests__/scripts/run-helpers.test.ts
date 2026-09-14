@@ -33,7 +33,7 @@ describe('run-helpers — runCheck (HARD)', () => {
   it('records TIMEOUT distinctly from a genuine FAIL (#2370)', () => {
     const r = runHarness(`
       import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
-      runCheck('slow', process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 20 });
+      runCheck('slow', process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 200 });
       console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
     `)
     const last = r.stdout.trim().split('\n').pop()!
@@ -50,7 +50,7 @@ describe('run-helpers — runCheck (HARD)', () => {
       runCheck('slow', process.execPath, [
         '-e',
         "process.stderr.write('TIMEOUT-DIAGNOSTIC'); setInterval(() => {}, 1000)",
-      ], { timeoutMs: 20 });
+      ], { timeoutMs: 1000 });
       runCheck('later', process.execPath, ['-e', "console.log('MUST-NOT-RUN')"]);
       console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
     `)

@@ -245,7 +245,7 @@ function inspectSkip(name, cmd, args) {
 }
 
 function skipIfFailFast(name) {
-  if (!failFast || failed === 0) return false;
+  if (!failFast || failed === 0 || mode.only !== null) return false;
   recordSkip(name, 0, 'fail-fast after prior hard failure');
   return true;
 }

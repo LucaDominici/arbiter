@@ -156,9 +156,9 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
       return {
         ...r,
         marker: existsSync(join(dir, '.arbiter', 'gate-pass.json')),
-        artifact: JSON.parse(
-          readFileSync(join(dir, '.arbiter', 'gate', 'local-result.json'), 'utf-8'),
-        ),
+        artifact: existsSync(join(dir, '.arbiter', 'gate', 'local-result.json'))
+          ? JSON.parse(readFileSync(join(dir, '.arbiter', 'gate', 'local-result.json'), 'utf-8'))
+          : null,
       }
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -185,11 +185,21 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
   it('executes rendered inline checks through the fail-fast seam after a hard L1 failure (AC-3)', () => {
     const result = runRenderedGate(['check', '--fail-fast'])
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain('SKIP (fail-fast after prior hard failure')
-    expect(result.stdout).toContain('workflow runners')
-    expect(result.stdout).toContain('ci alignment')
+    for (const name of ['npm-ci drift', 'workflow runners', 'ci alignment']) {
+      expect(result.stdout).toContain(
+        `[CHECK] ${name} ... SKIP (fail-fast after prior hard failure`,
+      )
+    }
     expect(result.marker).toBe(false)
     expect(result.artifact.pass).toBe(false)
+  })
+
+  it('runs a named inline inspection gate even when fail-fast is requested', () => {
+    const result = runRenderedGate(['check', '--fail-fast', '--gate', 'workflow runners'])
+    expect(result.status).toBe(0)
+    expect(result.stdout).toMatch(/\[CHECK\] workflow runners \.\.\. (PASS|SKIP)/)
+    expect(result.stdout).not.toContain('fail-fast after prior hard failure')
+    expect(result.marker).toBe(false)
   })
 
   // Runtime proof that the parser threads argv into setMode() — closes the gap the
