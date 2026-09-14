@@ -43,6 +43,43 @@ describe('run-helpers — runCheck (HARD)', () => {
     expect(r.stdout).toContain('TIMEOUT (after')
   })
 
+  it('retains a timeout diagnostic before fail-fast can skip later work (AC-1)', () => {
+    const r = runHarness(`
+      import { runCheck, setFailFast, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      setFailFast(true);
+      runCheck('slow', process.execPath, [
+        '-e',
+        "process.stderr.write('TIMEOUT-DIAGNOSTIC'); setInterval(() => {}, 1000)",
+      ], { timeoutMs: 20 });
+      runCheck('later', process.execPath, ['-e', "console.log('MUST-NOT-RUN')"]);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    expect(r.stderr).toContain('TIMEOUT-DIAGNOSTIC')
+    expect(r.stdout).toContain('SKIP (fail-fast after prior hard failure')
+    expect(r.stdout).not.toContain('MUST-NOT-RUN')
+    const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+    expect(payload.failed).toBe(1)
+    expect(payload.results.map((x: { status: string }) => x.status)).toEqual(['TIMEOUT', 'SKIP'])
+  })
+
+  it('continues after advisory WARN and legitimate SKIP in fail-fast mode (AC-2)', () => {
+    const r = runHarness(`
+      import { runWarnCheck, runCheck, setFailFast, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      setFailFast(true);
+      runWarnCheck('advisory', process.execPath, ['-e', 'process.exit(3)']);
+      runCheck('optional', process.execPath, ['-e', "console.log('[SKIP] fixture not applicable')"]);
+      runCheck('later', process.execPath, ['-e', 'process.exit(0)']);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+    expect(payload.failed).toBe(0)
+    expect(payload.results.map((x: { status: string }) => x.status)).toEqual([
+      'WARN',
+      'SKIP',
+      'PASS',
+    ])
+  })
+
   it('records PASS and does not increment failed when command exits 0', () => {
     const r = runHarness(`
       import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
@@ -311,6 +348,7 @@ describe('run-helpers — module shape', () => {
     expect(typeof mod.getResults).toBe('function')
     expect(typeof mod.getFailed).toBe('function')
     expect(typeof mod.resetState).toBe('function')
+    expect(typeof mod.setFailFast).toBe('function')
   })
 })
 

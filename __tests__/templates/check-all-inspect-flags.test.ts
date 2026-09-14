@@ -61,6 +61,23 @@ describe('run-helpers — dry-run mode', () => {
     expect(payload.results.map((x: { name: string }) => x.name)).toEqual(['warn-x', 'tool-y'])
     expect(payload.results.every((x: { status: string }) => x.status === 'SKIP')).toBe(true)
   })
+
+  it('rendered helper retains a hard diagnostic and visibly skips later work (AC-1)', () => {
+    const r = runHarness(`
+      import { runCheck, setFailFast, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      setFailFast(true);
+      runCheck('first', process.execPath, ['-e', "console.error('RENDERED-DIAGNOSTIC'); process.exit(9)"]);
+      runCheck('later', process.execPath, ['-e', "console.log('RENDERED-MUST-NOT-RUN')"]);
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    expect(r.status).toBe(0)
+    expect(r.stderr).toContain('RENDERED-DIAGNOSTIC')
+    expect(r.stdout).toContain('SKIP (fail-fast after prior hard failure')
+    expect(r.stdout).not.toContain('RENDERED-MUST-NOT-RUN')
+    const payload = JSON.parse(r.stdout.trim().split('\n').pop()!)
+    expect(payload.failed).toBe(1)
+    expect(payload.results.map((x: { status: string }) => x.status)).toEqual(['FAIL', 'SKIP'])
+  })
 })
 
 describe('run-helpers — single-gate (only) mode', () => {
@@ -151,6 +168,7 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
           'export const runToolCheck = () => {};\nexport const pushResult = () => {};\n' +
           'export const getResults = () => [];\nexport const getFailed = () => 0;\n' +
           'export const setMode = (m) => console.log("SETMODE:" + JSON.stringify(m));\n' +
+          'export const setFailFast = (enabled) => console.log("FAILFAST:" + enabled);\n' +
           // #2104: the gate resolves a tmpfs TMPDIR before any spawn. Stubbed to null so
           // this harness stays hermetic (no TMPDIR mutation) and host-independent.
           'export const resolveTmpfsTmpdir = () => null;\n' +
@@ -191,5 +209,11 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
 
   it('leaves setMode a no-op on a normal run', () => {
     expect(runParse(['L2'])).toMatchObject({ dryRun: false, only: null })
+  })
+
+  it('enables fail-fast only for an explicit local check/L1 lane (AC-1, AC-2)', () => {
+    expect(runParse(['check', '--fail-fast'])).toMatchObject({ failFast: true })
+    expect(runParse(['L1', '--fail-fast'])).toMatchObject({ failFast: true })
+    expect(runParse(['L2', '--fail-fast'])).toMatchObject({ failFast: false })
   })
 })

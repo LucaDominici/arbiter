@@ -112,3 +112,15 @@ describe('parseCheckArgs — --json flag', () => {
     expect(parseCheckArgs(['--json', '--level', 'L1']).jsonPath).toBe('')
   })
 })
+
+describe('parseCheckArgs — --fail-fast', () => {
+  it('defaults failFast to false so ordinary and L2+ runs keep accumulating (AC-2)', () => {
+    expect(parseCheckArgs([]).failFast).toBe(false)
+    expect(parseCheckArgs(['L2']).failFast).toBe(false)
+  })
+
+  it('recognises the explicit local check opt-in (AC-1)', () => {
+    expect(parseCheckArgs(['check', '--fail-fast']).failFast).toBe(true)
+    expect(parseCheckArgs(['L1', '--fail-fast']).failFast).toBe(true)
+  })
+})
