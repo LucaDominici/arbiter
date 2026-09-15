@@ -65,41 +65,21 @@ export const MIN_ABSENCE_FAMILY = 27
 // parsers) and were banked as new ledger rows instead — see inversion-proof-registry.json.
 export const MAX_DEFERRED = 22
 
+const STRING_OR_COMMENT =
+  /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`|\/\/[^\n]*|\/\*[\s\S]*?\*\//.source
+const ARRAY_NESTING_TOKEN = new RegExp(`${STRING_OR_COMMENT}|[\\[\\]]`, 'g')
+const ARG_TOKEN = new RegExp(`${STRING_OR_COMMENT}|[()[\\]{},]`, 'g')
+const OPEN_BRACKETS = new Set(['(', '[', '{'])
+const CLOSE_BRACKETS = new Set([')', ']', '}'])
+
 function readArgArray(source, start) {
   let depth = 1
-  let quote = null
-  let escaped = false
-  let lineComment = false
-  let blockComment = false
-  for (let i = start; i < source.length; i++) {
-    const char = source[i]
-    const next = source[i + 1]
-    if (lineComment) {
-      if (char === '\n') lineComment = false
-      continue
+  for (const token of source.slice(start).matchAll(ARRAY_NESTING_TOKEN)) {
+    if (token[0] === '[') depth++
+    else if (token[0] === ']' && --depth === 0) {
+      const end = start + token.index
+      return { source: source.slice(start, end), end }
     }
-    if (blockComment) {
-      if (char === '*' && next === '/') {
-        blockComment = false
-        i++
-      }
-      continue
-    }
-    if (quote !== null) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === quote) quote = null
-      continue
-    }
-    if (char === '/' && next === '/') {
-      lineComment = true
-      i++
-    } else if (char === '/' && next === '*') {
-      blockComment = true
-      i++
-    } else if (char === "'" || char === '"' || char === '`') quote = char
-    else if (char === '[') depth++
-    else if (char === ']' && --depth === 0) return { source: source.slice(start, i), end: i }
   }
   throw new Error('unterminated runCheck argument array')
 }
@@ -109,57 +89,24 @@ function topLevelArgs(source) {
   const stack = []
   let start = 0
   let code = ''
-  let quote = null
-  let escaped = false
-  let lineComment = false
-  let blockComment = false
-  for (let i = 0; i < source.length; i++) {
-    const char = source[i]
-    const next = source[i + 1]
-    if (lineComment) {
-      if (char === '\n') {
-        lineComment = false
-        code += char
-      }
-      continue
-    }
-    if (blockComment) {
-      if (char === '*' && next === '/') {
-        blockComment = false
-        i++
-      }
-      continue
-    }
-    if (quote !== null) {
-      code += char
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === quote) quote = null
-      continue
-    }
-    if (char === '/' && next === '/') {
-      lineComment = true
-      code += ' '
-      i++
-      continue
-    }
-    if (char === '/' && next === '*') {
-      blockComment = true
-      code += ' '
-      i++
-      continue
-    }
-    if (char === ',' && stack.length === 0) {
-      args.push({ raw: source.slice(start, i).trim(), code: code.trim(), end: i })
-      start = i + 1
+  let cursor = 0
+  for (const match of source.matchAll(ARG_TOKEN)) {
+    const token = match[0]
+    const index = match.index
+    code += source.slice(cursor, index)
+    cursor = index + token.length
+    if (token.startsWith('/')) code += ' '
+    else if (token === ',' && stack.length === 0) {
+      args.push({ raw: source.slice(start, index).trim(), code: code.trim(), end: index })
+      start = cursor
       code = ''
-      continue
+    } else {
+      code += token
+      if (OPEN_BRACKETS.has(token)) stack.push(token)
+      else if (CLOSE_BRACKETS.has(token)) stack.pop()
     }
-    if (char === "'" || char === '"' || char === '`') quote = char
-    else if (char === '(' || char === '[' || char === '{') stack.push(char)
-    else if (char === ')' || char === ']' || char === '}') stack.pop()
-    code += char
   }
+  code += source.slice(cursor)
   args.push({ raw: source.slice(start).trim(), code: code.trim(), end: source.length })
   return args
 }
@@ -205,41 +152,45 @@ export function enumerateGateMechanisms(gateSrc) {
 const STATIC_PATH_FLAGS = new Set(['--inventory', '--config'])
 const POSITIONAL_SELECTORS = new Set(['all'])
 
-/** Missing static scan/config inputs in the real wired invocation. */
-export function wiredPathProblems(family, repoRoot = process.cwd()) {
+function missingWiredPath(gate, repoRoot, value, source) {
+  if (value && existsSync(resolve(repoRoot, value))) return []
+  return [`${gate.name}: wired ${source} path does not exist: ${value || '<missing>'}`]
+}
+
+function followingLiteral(argv, index) {
+  const value = argv[index + 1]
+  return value !== undefined && !value.startsWith('--') ? value : null
+}
+
+function wiredGatePathProblems(gate, repoRoot) {
   const problems = []
-  for (const gate of family) {
-    const argv = gate.argv ?? []
-    let beforeFlags = true
-    const checkPath = (value, source) => {
-      if (!value || !existsSync(resolve(repoRoot, value))) {
-        problems.push(`${gate.name}: wired ${source} path does not exist: ${value || '<missing>'}`)
-      }
+  const argv = gate.argv ?? []
+  let beforeFlags = true
+  for (let i = 0; i < argv.length; i++) {
+    const value = argv[i]
+    if (!value.startsWith('--')) {
+      if (beforeFlags && !POSITIONAL_SELECTORS.has(value))
+        problems.push(...missingWiredPath(gate, repoRoot, value, 'scan root'))
+      continue
     }
 
-    for (let i = 0; i < argv.length; i++) {
-      const value = argv[i]
-      if (!value.startsWith('--')) {
-        if (beforeFlags && !POSITIONAL_SELECTORS.has(value)) checkPath(value, 'scan root')
-        continue
-      }
-
-      beforeFlags = false
-      const equals = value.match(/^(--(?:inventory|config))=(.*)$/)
-      if (equals) {
-        checkPath(equals[2], equals[1])
-        continue
-      }
-      if (!STATIC_PATH_FLAGS.has(value)) continue
-      const next = argv[i + 1]
-      if (next === undefined || next.startsWith('--')) checkPath('', value)
-      else {
-        checkPath(next, value)
-        i++
-      }
+    beforeFlags = false
+    const equals = value.match(/^(--(?:inventory|config))=(.*)$/)
+    if (equals) {
+      problems.push(...missingWiredPath(gate, repoRoot, equals[2], equals[1]))
+      continue
     }
+    if (!STATIC_PATH_FLAGS.has(value)) continue
+    const next = followingLiteral(argv, i)
+    problems.push(...missingWiredPath(gate, repoRoot, next ?? '', value))
+    if (next !== null) i++
   }
   return problems
+}
+
+/** Missing static scan/config inputs in the real wired invocation. */
+export function wiredPathProblems(family, repoRoot = process.cwd()) {
+  return family.flatMap((gate) => wiredGatePathProblems(gate, repoRoot))
 }
 
 /**
