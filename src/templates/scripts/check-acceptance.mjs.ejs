@@ -28,6 +28,7 @@ import { existsSync, lstatSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { computeAcHash, parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
 import { enforceAcFitCitations } from './lib/agent-return-validate.mjs'
+import { evidenceStaleness } from './lib/evidence-binding.mjs'
 import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 
 const PRE_PHASES = new Set(['preflight', 'plan', 'red-team-review', 'red-team-rework', 'complete'])
@@ -234,29 +235,30 @@ function currentGitIdentity(root) {
   }
 }
 
-function fitSubjectErrors(state, json, identity) {
+function fitSubjectErrors(root, state, json, identity) {
   const errors = []
   if (typeof state.branch !== 'string' || state.branch.length === 0)
     errors.push('ac-fit: active task branch binding is missing')
   if (!identity.branch || identity.branch !== state.branch)
     errors.push('ac-fit: current branch does not match active task')
   if (json.branch !== state.branch) errors.push('ac-fit: branch does not match active task')
-  if (json.sha !== identity.sha) errors.push('ac-fit: sha does not match current HEAD')
+  const staleness = evidenceStaleness(root, json.sha, { branch: state.branch })
+  if (staleness !== null) errors.push(`ac-fit: ${staleness}`)
   return errors
 }
 
-function sourceEnvelopeMismatch(envelope, state, json, sha) {
+function sourceEnvelopeMismatch(envelope, state, json) {
   const expected = { schema: json.schema, taskId: json.taskId, criteria: json.criteria }
   return [
     envelope.taskId !== state.taskId,
     envelope.branch !== state.branch,
-    envelope.sha !== sha,
+    envelope.sha !== json.sha,
     envelope.role !== 'verifier',
     JSON.stringify(envelope.acceptanceFit) !== JSON.stringify(expected),
   ].some(Boolean)
 }
 
-function fitSourceErrors(root, state, json, sha) {
+function fitSourceErrors(root, state, json) {
   const source = json.sourceEnvelope
   if (typeof source?.path !== 'string' || typeof source?.sha256 !== 'string') {
     return ['ac-fit: source envelope binding is missing']
@@ -271,8 +273,8 @@ function fitSourceErrors(root, state, json, sha) {
       return ['ac-fit: source envelope digest mismatch']
     }
     const envelope = JSON.parse(raw)
-    const errors = enforceAcFitCitations(envelope.acceptanceFit, root, sha, source.path)
-    if (sourceEnvelopeMismatch(envelope, state, json, sha)) {
+    const errors = enforceAcFitCitations(envelope.acceptanceFit, root, json.sha, source.path)
+    if (sourceEnvelopeMismatch(envelope, state, json)) {
       errors.push('ac-fit: source verifier envelope does not match the admitted fit')
     }
     return errors
@@ -285,11 +287,11 @@ function fitSourceErrors(root, state, json, sha) {
 function boundFitErrors(root, state, planRef, json) {
   const identity = currentGitIdentity(root)
   if (identity === null) return ['ac-fit: current Git identity is unavailable']
-  const errors = fitSubjectErrors(state, json, identity)
+  const errors = fitSubjectErrors(root, state, json, identity)
   const plan = parsePlanAnchor(readRegularFileSync(join(root, planRef.split('#')[0]), 'utf8'))
   if (plan === null || json.planHash !== computeAcHash(plan.criteria))
     errors.push('ac-fit: plan hash does not match frozen acceptance criteria')
-  errors.push(...fitSourceErrors(root, state, json, identity.sha))
+  errors.push(...fitSourceErrors(root, state, json))
   return errors
 }
 

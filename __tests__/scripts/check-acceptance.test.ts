@@ -5,6 +5,7 @@
 // strip #fragment plan anchors (wave mode), and demand an all-PASS ac-fit artifact
 // at verification/close.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   mkdtempSync,
@@ -19,6 +20,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 import { renderTemplate } from '../../src/utils/render.js'
+import { computeAcHash, parsePlanAnchor } from '../../scripts/lib/acceptance-criteria.mjs'
 import { makeConfig } from '../helpers.js'
 
 const SCRIPT = resolve(__dirname, '../../scripts/check-acceptance.mjs')
@@ -173,6 +175,75 @@ describe('check-acceptance gate', () => {
     const result = run()
     expect(result.status).toBe(1)
     expect(result.stderr + result.stdout).toMatch(/branch/i)
+  })
+
+  it('keeps frozen ac-fit valid across an evidence-only commit and rejects later source changes', () => {
+    const branch = 'task/#42-fit'
+    writeState('verification')
+    writeFileSync(
+      join(root, '.claude', '.task', 'status.json'),
+      JSON.stringify({ taskId: '#42', phase: 'verification', plan: 'plan.md', branch }),
+    )
+    mkdirSync(join(root, 'src'), { recursive: true })
+    writeFileSync(join(root, 'src', 'subject.ts'), 'export const subject = true\n')
+    execFileSync('git', ['init', '-b', branch], { cwd: root, stdio: 'ignore' })
+    execFileSync('git', ['config', 'user.email', 'fixture.invalid'], { cwd: root })
+    execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: root })
+    execFileSync('git', ['add', '.claude/.task/status.json', 'plan.md', 'src/subject.ts'], {
+      cwd: root,
+    })
+    execFileSync('git', ['commit', '-m', 'source'], { cwd: root, stdio: 'ignore' })
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim()
+    const acceptanceFit = {
+      schema: 'arbiter-ac-fit-v1',
+      taskId: '#42',
+      criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/subject.ts', line: 1 }] }],
+    }
+    const envelope = JSON.stringify({
+      schema: 'arbiter-agent-return-v1',
+      agent: 'fixture-verifier',
+      role: 'verifier',
+      taskId: '#42',
+      branch,
+      sha,
+      verdict: 'PASS',
+      confidence: 1,
+      findings: [],
+      acceptanceFit,
+    })
+    const envelopePath = '.arbiter/evidence/agent-returns/_42/verifier.json'
+    mkdirSync(join(root, '.arbiter', 'evidence', 'agent-returns', '_42'), { recursive: true })
+    mkdirSync(join(root, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
+    writeFileSync(join(root, envelopePath), envelope)
+    const plan = parsePlanAnchor(GOOD_PLAN)
+    expect(plan).not.toBeNull()
+    writeFileSync(
+      join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'),
+      JSON.stringify({
+        ...acceptanceFit,
+        branch,
+        sha,
+        planHash: computeAcHash(plan!.criteria),
+        sourceEnvelope: {
+          path: envelopePath,
+          sha256: createHash('sha256').update(envelope).digest('hex'),
+        },
+      }),
+    )
+    execFileSync('git', ['add', '.arbiter'], { cwd: root })
+    execFileSync('git', ['commit', '-m', 'evidence'], { cwd: root, stdio: 'ignore' })
+
+    expect(run().status).toBe(0)
+
+    writeFileSync(join(root, 'src', 'subject.ts'), 'export const subject = false\n')
+    execFileSync('git', ['add', 'src/subject.ts'], { cwd: root })
+    execFileSync('git', ['commit', '-m', 'source changed'], { cwd: root, stdio: 'ignore' })
+    const stale = run()
+    expect(stale.status).toBe(1)
+    expect(stale.stderr).toMatch(/source changed/i)
   })
 
   it('--plan mode validates a given plan file directly (wave integrate)', () => {
