@@ -1,0 +1,16 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "2685-2687-final-bugs",
+  "role": "reviewer",
+  "taskId": "#2685",
+  "branch": "task/#2685-native-ship-host",
+  "sha": "2dc17f1202ad9feb8928f4a17b5519f6af9c4197",
+  "ts": "2026-09-15T04:15:27.926Z",
+  "verdict": "PASS",
+  "confidence": 1,
+  "findings": [],
+  "provenance": {
+    "vendor": "anthropic",
+    "dispatch": "subagent"
+  }
+}

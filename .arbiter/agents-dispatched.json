@@ -1,7 +1,1 @@
-{
-  "count": 1,
-  "agents": ["independent-review"],
-  "branch": "task/#2686-verify-plan-tdd-dir",
-  "sha": "6a7c74aca2e21a9a9c784680991e33ff1fe0a2a5",
-  "taskId": "#2686"
-}
+{"count":3,"agents":["2685-2687-final-bugs","independent-review","native-ship-host-final-confirmation"],"auditors":["bugs","type-safety","domain","test-quality","silent-failures"],"branch":"task/#2685-native-ship-host","sha":"2dc17f1202ad9feb8928f4a17b5519f6af9c4197","taskId":"#2685"}

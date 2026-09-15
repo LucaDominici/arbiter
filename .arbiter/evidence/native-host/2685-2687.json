@@ -1,0 +1,50 @@
+{
+  "schema": "arbiter-native-host-qualification-v1",
+  "taskIds": ["#2685", "#2687"],
+  "sourceSha": "2dc17f1202ad9feb8928f4a17b5519f6af9c4197",
+  "claudeVersion": "2.1.271",
+  "permissionMode": "auto",
+  "recordedAt": "2026-09-15T04:16:13Z",
+  "worktreeRun": {
+    "worktreePath": "${REPO_PARENT}/arbiter.worktrees/2685-native-ship-host",
+    "sessionId": "cc951720-8a41-48f5-9554-ba966c8dc043",
+    "transcriptPath": "${HOME}/.claude/projects/-home-luca-work-repos-arbiter-worktrees-2685-native-ship-host/cc951720-8a41-48f5-9554-ba966c8dc043.jsonl",
+    "transcriptSha256": "01ccb50c77322edf14f2bad0149e36b6a0fb265a58eeeba6e6ec7bd9dfe286a0",
+    "hostPreflight": "PASS",
+    "readOnlyDispatch": "PASS",
+    "completedAgentNotification": "PASS",
+    "reviewerPanelProducer": "PASS",
+    "reviewCompletionConsumer": "PASS",
+    "stopFindingLoss": "PASS",
+    "stopEvidenceGuard": "PASS",
+    "hookErrors": 0,
+    "subagentsSpawned": 1,
+    "subagentsCompleted": 1,
+    "permissionDenials": 0
+  },
+  "mainRootInverse": {
+    "exercisedAtSourceSha": "24e30167ffbe9ce12987594c1ecd6774f3c8e72c",
+    "sessionId": "3da2279f-de4f-4879-9cfc-929773cbfb51",
+    "hostPreflightExit": 1,
+    "dispatches": 0,
+    "result": "PASS: a main-root native session was rejected although the exact worktree was supplied",
+    "finalShaRegression": "PASS: focused tests reject both single-task and chained-task read-only dispatch from main before task state exists"
+  },
+  "verification": {
+    "l1": "PASS",
+    "l1DurationMs": 136627,
+    "focusedTests": 102,
+    "reviewerPanelSize": 3,
+    "reviewerPanelVerdict": "PASS"
+  },
+  "workflowMeasures": {
+    "nativeRunDurationMs": 306079,
+    "nativeApiDurationMs": 276405,
+    "nativeReviewDurationMs": 58370,
+    "nativeSubagentTokens": 48165,
+    "staleHeadReviews": 4,
+    "contractReworkBatches": 4,
+    "inlineReviewerWriterRemoved": true,
+    "inlineAcFitWriterRemoved": true
+  }
+}
