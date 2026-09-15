@@ -156,8 +156,9 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
    from that state: one reviewer for `trunk-solo`, two for collaborative modes, while the existing routed
    risk escalation remains three. Missing state keeps the stricter collaborative default. This closes the
    measured #2681 mismatch without letting unvalidated raw config weaken the guard.
-4. No change to writer, verifier, done-evidence, pre-push or engine guards. They already reuse by rank
-   and reject every invalidation boundary.
+4. Keep the marker schema, writer, done-evidence and engine guard unchanged. The canonical pre-push hook
+   binds Git's pushed commit to the checkout subject, while the script verifier returns the same parsed
+   marker snapshot it validated so direct landing can consume its exact SHA without a second read.
 
 Harness data flow after the pre-commit diagnostic: clean-HEAD `check-all L3` → `gate-pass.json` → (C rank ≥ L1) → (D reuse,
 receipt pins bytes) → (P rank ≥ L2) → merge exact SHA → (K receipt+marker unchanged). Non-harness:
@@ -169,13 +170,15 @@ Local JSON is identity binding, not authenticity; CI reruns the gate (unchanged 
 (a) passing a dirty or staged receipt off as committed proof — stays rejected (`clean=false`).
 (b) A lower-level marker satisfying D — rank check. (c) Replaying another task's or checkout's marker —
 `task_id`, `checkout_root`. (d) Mutating source after the final gate, then pushing on the old receipt —
-`tree_hash`/`head_sha`. (e) Receipt reused post-merge after marker rewrite — digest pin. (f) A parseable
+`tree_hash`/`head_sha`. (e) A pushed ref differs from checkout HEAD, or HEAD moves while the hook runs —
+the pre-push subject checks fail closed. (f) Receipt reused post-merge after marker rewrite — digest pin. (g) A parseable
 but schema-invalid raw config lowers the review panel — recorder trusts only validated task state. The change only
 reorders prescribed commands; it removes no axis.
 
 ## Input validation
 
-Trust boundary is the marker/receipt files read by the verifier twins; unchanged. `evidenceHarness` is
+Trust boundary and marker format are unchanged. The script verifier optionally returns its already-validated
+marker object; it does not reread or reinterpret the receipt. `evidenceHarness` is
 read through existing `loadConfig` (throws on malformed config); a missing config → non-harness → `L2`,
 which matches K's non-harness requirement, so it cannot select a level below what completion needs.
 The same validator supplies `collaborationMode` to task state; the recorder never reparses raw config.
@@ -197,8 +200,8 @@ The same validator supplies `collaborationMode` to task state; the recorder neve
 - [ ] AC-2: A staged gate receipt remains invalid after commit even when the projected tree matches, because HEAD/history checks did not evaluate that commit; the worktree lifecycle no longer prescribes this unsafe run.
 - [ ] AC-3: Any source/staged mutation, different tree hash, insufficient gate level, or ambiguous dirty state invalidates reuse.
 - [ ] AC-4: `/ship` verification selects one sufficient final gate level before entering close; harness `done-evidence` reuses that receipt instead of launching a second full gate on the same tree.
-- [ ] AC-5: Pre-push reuses the same qualified receipt when head and tree binding still match.
-- [ ] AC-6: Tests cover reuse and every invalidation boundary without creating a parallel evidence format.
+- [ ] AC-5: Pre-push reuses the same qualified receipt only when the pushed commit, checkout HEAD, and tree binding still match.
+- [ ] AC-6: Tests cover reuse, push-subject mismatch, concurrent HEAD movement, and every existing invalidation boundary without creating a parallel evidence format.
 - [ ] AC-7: Gate duration and avoided duplicate runs remain observable metrics, not new blocking ceremony.
 - [ ] AC-8: The compatibility preflight is durable. A test pins that the close-selected final level ranks ≥ every consumer requirement (C ≥ L1, P ≥ L2, D = L3 under evidenceHarness, K). It fails if any requirement or the prescribed level changes independently.
 - [ ] AC-9: A staged (`tree_was_clean_at_run_time=false`) receipt is rejected after commit even when HEAD's tree minus `.arbiter/` equals its `tree_hash`. The rejection reason is actionable, and no verifier axis is removed or relaxed (INV-33).
