@@ -234,7 +234,8 @@ function boundFitErrors(root, state, planRef, json) {
   }
   if (typeof state.branch !== 'string' || state.branch.length === 0)
     errors.push('ac-fit: active task branch binding is missing')
-  if (!branch || branch !== state.branch) errors.push('ac-fit: current branch does not match active task')
+  if (!branch || branch !== state.branch)
+    errors.push('ac-fit: current branch does not match active task')
   if (json.branch !== state.branch) errors.push('ac-fit: branch does not match active task')
   if (json.sha !== sha) errors.push('ac-fit: sha does not match current HEAD')
   const plan = parsePlanAnchor(readRegularFileSync(join(root, planRef.split('#')[0]), 'utf8'))
