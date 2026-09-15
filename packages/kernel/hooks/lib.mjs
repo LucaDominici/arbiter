@@ -572,7 +572,7 @@ export function nativeHostBindingError(event, root) {
           : [],
       ),
     ]
-    if (taskIds.length !== 1) return null
+    if (taskIds.length === 0) return null
     try {
       const actualRoot = realpathSync(root)
       const common = spawnSync('git', ['rev-parse', '--git-common-dir'], {
@@ -587,10 +587,9 @@ export function nativeHostBindingError(event, root) {
       )
       if (!existsSync(logPath)) return null
       const rows = JSON.parse(readFileSync(logPath, 'utf8'))
-      const matches = Array.isArray(rows) ? rows.filter((row) => row?.taskId === taskIds[0]) : []
+      const matches = Array.isArray(rows) ? rows.filter((row) => taskIds.includes(row?.taskId)) : []
       if (matches.length === 0) return null
-      if (matches.length !== 1) return 'exact native host worktree log binding is ambiguous'
-      if (realpathSync(matches[0].worktreePath) !== actualRoot)
+      if (matches.some((row) => realpathSync(row.worktreePath) !== actualRoot))
         return 'native lifecycle task is bound to another worktree'
       return 'native lifecycle task state is missing from its worktree'
     } catch {

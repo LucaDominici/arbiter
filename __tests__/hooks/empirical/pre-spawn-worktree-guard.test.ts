@@ -126,6 +126,19 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
 
     expect(result.status).toBe(2)
     expect(result.stderr).toMatch(/bound to another worktree/i)
+
+    const trainResult = runHook(
+      dir,
+      {
+        tool_input: {
+          subagent_type: 'codebase-scanner',
+          prompt: 'review #100 with chained issue #101',
+        },
+      },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+    expect(trainResult.status).toBe(2)
+    expect(trainResult.stderr).toMatch(/bound to another worktree/i)
   })
 
   it('#2685 blocks even a read-only dispatch when the native session is not the bound worktree', () => {
