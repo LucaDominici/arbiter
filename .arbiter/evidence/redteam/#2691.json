@@ -1,0 +1,61 @@
+{
+  "$schema": "RedTeamEvidenceV1",
+  "task_id": "#2691",
+  "tier": "Standard",
+  "verdict": "PASS",
+  "recorded_at": "2026-09-15T01:06:33.974Z",
+  "agents": 3,
+  "angles": [
+    "correctness",
+    "data-integrity",
+    "adversarial-log-parsing"
+  ],
+  "reviewers": [
+    {
+      "agent": "/root/2691_redteam_integrity",
+      "verdict": "PASS",
+      "dispatch": "subagent"
+    },
+    {
+      "agent": "/root/2691_redteam_adversarial",
+      "verdict": "PASS",
+      "dispatch": "subagent"
+    },
+    {
+      "agent": "/root/2691_redteam_simplicity",
+      "verdict": "PASS",
+      "dispatch": "subagent"
+    }
+  ],
+  "findings": [
+    {
+      "id": "RT-2691-01",
+      "severity": "MEDIUM",
+      "summary": "Two duplicate headers from one project can equal one header from each of two projects after badge normalization.",
+      "auditorHint": "data-integrity",
+      "resolved": false,
+      "action": "durably parked in #2695; no scope expansion"
+    },
+    {
+      "id": "RT-2691-02",
+      "severity": "MEDIUM",
+      "summary": "A syntactically valid background-styled arbitrary badge can be normalized as a JavaScript failure header.",
+      "auditorHint": "security",
+      "resolved": false,
+      "action": "durably parked in #2695; no scope expansion"
+    },
+    {
+      "id": "RT-2691-03",
+      "severity": "LOW",
+      "summary": "An indented FAIL line is accepted as a header outside the existing quoted code-frame shape.",
+      "auditorHint": "test-quality",
+      "resolved": false,
+      "action": "durably parked in #2695; no scope expansion"
+    }
+  ],
+  "critical": 0,
+  "high": 0,
+  "medium": 2,
+  "suggestion": 1,
+  "limits": "Project badges remain normalized metadata; #2691 preserves JavaScript occurrence counts without changing legacy non-JavaScript summary semantics."
+}

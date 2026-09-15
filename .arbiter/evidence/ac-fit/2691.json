@@ -1,0 +1,79 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2691",
+  "branch": "task/#2691-tdd-multiplicity",
+  "sha": "c64c6094432754e8b2a2c9072403fdb90adb0fd9",
+  "plan_sha256": "8e321c259a38076172d59adf771b8e51c2913bd6d188f90603675c5543969da2",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 94
+        },
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 120
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 155
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 166
+        }
+      ],
+      "notes": "JavaScript headers are retained as a sorted multiset, so replaying one of two recorded same-name project failures is rejected."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 151
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 155
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 167
+        },
+        {
+          "file": "docs/REFERENCE/task-recovery.md",
+          "line": 87
+        }
+      ],
+      "notes": "Focused tests prove missing multiplicity rejects, complete reordered project failures pass, and ordinary reordered single-project failures remain accepted."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 179
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 228
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 259
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 362
+        }
+      ],
+      "notes": "Existing ANSI, diagnostic-prefix, quoted code-frame, timeout, missing-tool, truncated-output and identity-mismatch checks remain fail closed; the focused and complete evidence suites pass."
+    }
+  ],
+  "limits": "Project badges remain normalized grouping metadata. Lower-severity reporter-authenticity residuals are durably tracked in #2695."
+}

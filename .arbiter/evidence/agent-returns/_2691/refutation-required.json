@@ -1,0 +1,27 @@
+{
+  "task": "#2691",
+  "threshold": "high",
+  "skeptics": 3,
+  "findings": [],
+  "round": "red-team-1",
+  "evaluated": [
+    {
+      "id": "RT-2691-01",
+      "upheld": 2,
+      "refuted": 0,
+      "decision": "below HIGH; durably parked in #2695"
+    },
+    {
+      "id": "RT-2691-02",
+      "upheld": 1,
+      "refuted": 0,
+      "decision": "below HIGH; durably parked in #2695"
+    },
+    {
+      "id": "RT-2691-03",
+      "upheld": 1,
+      "refuted": 0,
+      "decision": "below HIGH; durably parked in #2695"
+    }
+  ]
+}
