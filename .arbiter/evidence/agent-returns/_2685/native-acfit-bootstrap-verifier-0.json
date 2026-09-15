@@ -1,0 +1,196 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "native-acfit-bootstrap-verifier",
+  "role": "verifier",
+  "taskId": "#2685",
+  "branch": "task/#2685-native-ship-host",
+  "sha": "8f32fa8e47f1fa2c017751ab5aed670a41524be9",
+  "ts": "2026-09-15T04:20:04.767Z",
+  "verdict": "PASS",
+  "confidence": 0.97,
+  "findings": [],
+  "acceptanceFit": {
+    "schema": "arbiter-ac-fit-v1",
+    "taskId": "#2685",
+    "criteria": [
+      {
+        "id": "AC-2685.1",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/capabilities/host-probe.ts",
+            "line": 52
+          },
+          {
+            "file": ".claude/hooks/lib.mjs",
+            "line": 590
+          }
+        ]
+      },
+      {
+        "id": "AC-2685.2",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 13
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 18
+          }
+        ]
+      },
+      {
+        "id": "AC-2685.3",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 25
+          },
+          {
+            "file": "__tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts",
+            "line": 121
+          }
+        ]
+      },
+      {
+        "id": "AC-2685.4",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/capabilities/host-probe.ts",
+            "line": 59
+          },
+          {
+            "file": ".claude/hooks/lib.mjs",
+            "line": 630
+          }
+        ]
+      },
+      {
+        "id": "AC-2685.5",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 13
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 15
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 18
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.1",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 16
+          },
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 398
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.2",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 301
+          },
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 385
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.3",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 5
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 13
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 23
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.4",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 340
+          },
+          {
+            "file": "__tests__/scripts/record-agent-return-modes.test.ts",
+            "line": 117
+          },
+          {
+            "file": "__tests__/scripts/record-agent-return-modes.test.ts",
+            "line": 175
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.5",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".claude/commands/ship.md",
+            "line": 431
+          },
+          {
+            "file": ".claude/commands/ship.md",
+            "line": 466
+          },
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 414
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.6",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 359
+          },
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 367
+          },
+          {
+            "file": "__tests__/scripts/record-agent-return-modes.test.ts",
+            "line": 129
+          }
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "vendor": "anthropic",
+    "dispatch": "subagent"
+  }
+}

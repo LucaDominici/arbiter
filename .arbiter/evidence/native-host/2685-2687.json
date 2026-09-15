@@ -4,17 +4,21 @@
   "sourceSha": "2dc17f1202ad9feb8928f4a17b5519f6af9c4197",
   "claudeVersion": "2.1.271",
   "permissionMode": "auto",
-  "recordedAt": "2026-09-15T04:16:13Z",
+  "recordedAt": "2026-09-15T04:20:53Z",
   "worktreeRun": {
     "worktreePath": "${REPO_PARENT}/arbiter.worktrees/2685-native-ship-host",
     "sessionId": "cc951720-8a41-48f5-9554-ba966c8dc043",
     "transcriptPath": "${HOME}/.claude/projects/-home-luca-work-repos-arbiter-worktrees-2685-native-ship-host/cc951720-8a41-48f5-9554-ba966c8dc043.jsonl",
-    "transcriptSha256": "01ccb50c77322edf14f2bad0149e36b6a0fb265a58eeeba6e6ec7bd9dfe286a0",
+    "transcriptSha256": "d3e41e2d750e91456bf9e110f954232fcb00bacaae677d29f1b7cffdd72b1e76",
+    "taskPhase": "refactor",
     "hostPreflight": "PASS",
+    "currentTranscriptValidator": "PASS",
     "readOnlyDispatch": "PASS",
     "completedAgentNotification": "PASS",
     "reviewerPanelProducer": "PASS",
     "reviewCompletionConsumer": "PASS",
+    "acFitProducer": "PASS",
+    "acceptanceConsumer": "PASS (phase refactor, 11 criteria)",
     "stopFindingLoss": "PASS",
     "stopEvidenceGuard": "PASS",
     "hookErrors": 0,
@@ -29,6 +33,14 @@
     "dispatches": 0,
     "result": "PASS: a main-root native session was rejected although the exact worktree was supplied",
     "finalShaRegression": "PASS: focused tests reject both single-task and chained-task read-only dispatch from main before task state exists"
+  },
+  "nativeRecovery": {
+    "outsideProjectInput": "DENIED",
+    "inlineEnvironmentOverride": "DENIED",
+    "canonicalProjectInput": "PASS",
+    "canonicalConsumerWithoutOverride": "PASS",
+    "sourceChangedDuringRecovery": false,
+    "reviewersRepeated": false
   },
   "verification": {
     "l1": "PASS",
