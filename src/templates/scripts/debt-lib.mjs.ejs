@@ -238,6 +238,18 @@ export function countTodos(cwd) {
   return count;
 }
 
+/** Count top-level TypeScript export declarations without platform grep heuristics. */
+export function countPublicApi(cwd) {
+  let count = 0;
+  for (const rel of walkRepo(cwd)) {
+    if (!rel.startsWith('src/') || !/\.m?ts$/.test(rel)) continue;
+    count += readFileSync(resolve(cwd, rel), 'utf-8')
+      .split('\n')
+      .filter((line) => line.startsWith('export')).length;
+  }
+  return count;
+}
+
 /**
  * Return the short git commit hash for HEAD, or 'unknown'.
  * @param {string} cwd
@@ -654,18 +666,15 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   // ── Public API surface (library archetype — count of top-level exports) ───
   {
     if (existsSync(resolve(cwd, 'src'))) {
-      const grepOut = run('grep', ['-rh', '--include=*.ts', '--include=*.mts', '^export', 'src/'], {
-        cwd,
-      });
-      if (grepOut.error || (grepOut.status !== 0 && grepOut.status !== 1)) {
-        const reason = `public API grep failed${grepOut.error?.message ? `: ${grepOut.error.message}` : ` (exit ${grepOut.status})`}`;
-        collectionErrors.push({ metric: 'publicApiSurface', reason });
-        process.stderr.write(`[baseline] ERROR: ${reason}\n`);
-      } else {
+      try {
         metrics.publicApiSurface = {
-          value: grepOut.stdout ? grepOut.stdout.split('\n').filter(Boolean).length : 0,
+          value: countPublicApi(cwd),
           unit: 'count', direction: 'lower-is-better',
         };
+      } catch (error) {
+        const reason = `public API scan failed: ${error instanceof Error ? error.message : String(error)}`;
+        collectionErrors.push({ metric: 'publicApiSurface', reason });
+        process.stderr.write(`[baseline] ERROR: ${reason}\n`);
       }
     }
   }

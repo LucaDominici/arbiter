@@ -15,7 +15,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
-import { collectMetrics, countTodos, spawnOrSkip } from '../../scripts/debt-lib.mjs'
+import { collectMetrics, countPublicApi, countTodos, spawnOrSkip } from '../../scripts/debt-lib.mjs'
 
 const ROOT = join(__dirname, '..', '..')
 
@@ -58,6 +58,20 @@ describe('debt-lib orphan work metric (#2550)', () => {
       )
 
       expect(countTodos(dir)).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('debt-lib public API metric (#2550 CI fallout)', () => {
+  it('counts TypeScript exports deterministically when a source file contains a NUL byte', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-debt-api-'))
+    try {
+      mkdirSync(join(dir, 'src'), { recursive: true })
+      writeFileSync(join(dir, 'src', 'binary-looking.ts'), '\0fixture\nexport const visible = 1\n')
+
+      expect(countPublicApi(dir)).toBe(1)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
