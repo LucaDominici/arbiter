@@ -99,9 +99,14 @@ function createTddFixture(root: string): { valid: string; malformed: string } {
   const malformed = join(root, 'malformed')
   mkdirSync(valid)
   mkdirSync(malformed)
+  mkdirSync(join(valid, 'node_modules', 'fixture-dependency'), { recursive: true })
+  writeFileSync(
+    join(valid, 'node_modules', 'fixture-dependency', 'index.js'),
+    'module.exports = 1\n',
+  )
   writeFileSync(
     join(valid, 'red.test.cjs'),
-    "const test=require('node:test');const assert=require('node:assert/strict');test('RED',()=>assert.equal(1,2));\n",
+    "const test=require('node:test');const assert=require('node:assert/strict');const actual=require('fixture-dependency');test('RED',()=>assert.equal(actual,2));\n",
   )
   const gitEnv = {
     ...process.env,

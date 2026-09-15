@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
 import {
   combineTestOutput,
@@ -55,7 +55,7 @@ export function verifyRedExecution(
     }
   }
 
-  const repoDir = gitCwd(dir)
+  const repoDir = resolve(gitCwd(dir))
   const worktreeDir = freeTempPath()
   try {
     const added = addDetachedWorktree(repoDir, worktreeDir, ev.test_commit_sha)
