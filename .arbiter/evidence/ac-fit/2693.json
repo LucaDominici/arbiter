@@ -12,7 +12,7 @@
         },
         {
           "file": "src/commands/task.ts",
-          "line": 1069
+          "line": 1074
         }
       ]
     },
@@ -54,11 +54,11 @@
       "evidence": [
         {
           "file": "src/commands/task-ship.ts",
-          "line": 393
+          "line": 397
         },
         {
           "file": "src/commands/task-ship.ts",
-          "line": 396
+          "line": 400
         },
         {
           "file": "__tests__/evidence/done-evidence-sequence.test.ts",
@@ -134,11 +134,11 @@
       "evidence": [
         {
           "file": "src/commands/task-ship.ts",
-          "line": 393
+          "line": 397
         },
         {
           "file": "src/commands/task-ship.ts",
-          "line": 396
+          "line": 400
         },
         {
           "file": "scripts/lib/gate-evidence.mjs",
@@ -206,10 +206,10 @@
     }
   ],
   "branch": "task/#2693-exact-tree-gate-reuse",
-  "sha": "1341a52442f15dd277f07a993ba6740c5cd0ed84",
+  "sha": "7ad7f84d9d6efc079f92c70f7eb556e376201a74",
   "planHash": "69d5896254e00a909985345612b9a4907d99709f",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2693/2693-final-ac-fit-delta-0.json",
-    "sha256": "02ae287d30627b8d44493a6770034246d92c5bfabe11a8f915157e1d4d1e9c3a"
+    "path": ".arbiter/evidence/agent-returns/_2693/2693-final-ac-fit-recertified-0.json",
+    "sha256": "a63886645d6cf55bd302d98c4fc76ecbfd4f267bac44fde8bfa4d35592b7c720"
   }
 }
