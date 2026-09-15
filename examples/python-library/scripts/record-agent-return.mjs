@@ -20,7 +20,6 @@
 import {
   constants as fsConstants,
   closeSync,
-  existsSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -447,54 +446,33 @@ function recordAcceptanceFit(parsed, schema) {
   return writeAcceptanceFit(validated.env, validated.anchor, stamped)
 }
 
-function routedPanelRequirement(state, sha) {
-  const trunkSolo = state.collaborationMode === 'trunk-solo'
-  const baseCount =
-    state.tier === 'Standard'
-      ? trunkSolo
-        ? 1
-        : 2
-      : state.tier === 'XS' || state.tier === 'S'
-        ? 1
-        : 0
-  if (baseCount === 0) throw new Error(`unsupported task tier ${String(state.tier)}`)
-  const changed = execFileSync('git', ['diff', '--name-only', `origin/main...${sha}`], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  })
-  let active = []
-  const router = join(REPO_ROOT, 'scripts', 'route-auditors.mjs')
-  if (existsSync(router)) {
-    active = JSON.parse(
-      execFileSync(process.execPath, [router, '--diff-stdin'], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-        input: changed,
-        stdio: ['pipe', 'pipe', 'ignore'],
-      }),
-    ).active
-    if (!Array.isArray(active)) throw new Error('reviewer router returned no active auditor list')
-  } else {
-    active = changed
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .some((path) =>
-        /(^|\/)(auth|authz|crypto|secrets?|migrations?)(\/|$)|(^|\/)\.env[^/]*$|\.(sql|pem|key)$|^\.github\/|^\.githooks\/|^scripts\/|^\.claude\/(hooks\/|settings(?:\.[^/]+)?\.json$)|^src\/utils\/run-cli\.ts$/i.test(
-          path,
-        ),
-      )
-      ? ['silent-failures']
-      : []
+function routedPanelRequirement(state) {
+  const treatment = state.treatment
+  const verticals = treatment?.reviewerVerticals
+  if (
+    treatment?.version !== 1 ||
+    !Number.isInteger(treatment.finalReviewers) ||
+    treatment.finalReviewers < 1 ||
+    treatment.finalReviewers > 3 ||
+    !Array.isArray(verticals) ||
+    verticals.length !== treatment.finalReviewers ||
+    verticals.some((vertical) => typeof vertical !== 'string' || vertical.length === 0) ||
+    new Set(verticals).size !== verticals.length ||
+    typeof treatment.signalsHash !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(treatment.signalsHash)
+  ) {
+    throw new Error('active task has no valid persisted ship treatment')
   }
-  const escalated = active.some((name) =>
-    ['security', 'data-integrity', 'silent-failures'].includes(name),
-  )
-  return { count: escalated ? 3 : baseCount, auditors: active }
+  return {
+    count: treatment.finalReviewers,
+    auditors: verticals,
+    treatmentHash: treatment.signalsHash,
+  }
 }
 
-function panelRequirement(state, stamped) {
+function panelRequirement(state) {
   try {
-    return { requirement: routedPanelRequirement(state, stamped.sha) }
+    return { requirement: routedPanelRequirement(state) }
   } catch (err) {
     process.stderr.write(
       `[record-agent-return] ERROR: cannot derive reviewer panel: ${err instanceof Error ? err.message : String(err)}\n`,
@@ -503,7 +481,7 @@ function panelRequirement(state, stamped) {
   }
 }
 
-function validatePanel(envelopes, state, schema) {
+function validatePanel(envelopes, state, schema, requirement) {
   const validated = []
   for (const candidate of envelopes) {
     if (assertModeIdentity(candidate, state) === null) {
@@ -517,6 +495,12 @@ function validatePanel(envelopes, state, schema) {
   const agents = validated.map((envelope) => String(envelope.agent))
   if (new Set(agents).size !== agents.length) {
     process.stdout.write('[record-agent-return] FAIL: reviewer agents must be distinct\n')
+    return null
+  }
+  if ([...agents].sort().join('\n') !== [...requirement.auditors].sort().join('\n')) {
+    process.stdout.write(
+      `[record-agent-return] FAIL: reviewer identities must match assigned verticals: ${requirement.auditors.join(', ')}\n`,
+    )
     return null
   }
   return { validated, agents }
@@ -542,6 +526,7 @@ function writeReviewerPanel(validated, agents, requirement, stamped) {
         count: requirement.count,
         agents,
         auditors: requirement.auditors,
+        treatmentHash: requirement.treatmentHash,
         branch: stamped.branch,
         sha: stamped.sha,
         taskId: TASK_ID,
@@ -563,7 +548,7 @@ function recordReviewerPanel(parsed, schema) {
   const contextExit = reportModeContextError(context)
   if (contextExit !== 0) return contextExit
   const { state, stamped } = context
-  const routed = panelRequirement(state, stamped)
+  const routed = panelRequirement(state)
   if (routed === null) return 2
   const { requirement } = routed
   if (envelopes.length !== requirement.count) {
@@ -572,7 +557,7 @@ function recordReviewerPanel(parsed, schema) {
     )
     return 1
   }
-  const panel = validatePanel(envelopes, state, schema)
+  const panel = validatePanel(envelopes, state, schema, requirement)
   if (panel === null) return 1
   return writeReviewerPanel(panel.validated, panel.agents, requirement, stamped)
 }

@@ -82,15 +82,6 @@ const STACK_CONFIG: Record<Language, Partial<Parameters<typeof makeConfig>[1]>> 
   unknown: {},
 }
 
-const TEST_COMMANDS: Record<Language, string> = {
-  typescript: 'npm test',
-  java: './gradlew test',
-  rust: 'cargo test',
-  go: 'go test ./...',
-  python: 'pytest',
-  unknown: 'echo',
-}
-
 function configFor(lang: Language, level: GovernanceLevel): Record<string, unknown> {
   const config = makeConfig('/tmp/test', {
     language: lang,
@@ -482,71 +473,24 @@ describe('cross-product: AGENTS.md — tech debt section at L2+, absent at L1', 
   }
 })
 
-// ─── Claude commands ──────────────────────────────────────────────────────────
-// #1216: /ship is the orchestration entrypoint; /task is the engine/CLI ref.
-// testCommand, tier classification, and verification live in ship.md (not task.md).
-
-describe('cross-product: ship.md — testCommand in output for all stack × level combinations (#1216)', () => {
+// The generated command is deliberately stack- and level-invariant. Runtime configuration owns the
+// diagnostic command and treatment; the prompt carries one contract instead of twenty variants.
+describe('cross-product: ship.md — one adaptive contract for every stack and level', () => {
   function renderShip(lang: Language, level: GovernanceLevel): string {
     return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
   }
 
+  const baseline = renderShip('typescript', 'L1')
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
-      it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" appears in output`, () => {
-        expect(renderShip(lang, level)).toContain(TEST_COMMANDS[lang])
+      it(`${lang}+${level}: renders the same runtime-owned contract`, () => {
+        const output = renderShip(lang, level)
+        expect(output).toBe(baseline)
+        expect(output).toContain('ShipTreatment')
+        expect(output).toContain('configured diagnostic once before freezing')
+        expect(output).not.toContain('<%')
       })
     }
-  }
-})
-
-describe('cross-product: ship.md — governance structure across all stacks (#1216)', () => {
-  function renderShip(lang: Language, level: GovernanceLevel): string {
-    return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
-  }
-
-  for (const lang of LANGUAGES) {
-    it(`${lang}+L1: no tier classification note at L1`, () => {
-      const content = renderShip(lang, 'L1')
-      expect(content).not.toMatch(/The tier \(XS \/ S \/ Standard\) sets/)
-    })
-
-    it(`${lang}+L2: tier classification note present`, () => {
-      const content = renderShip(lang, 'L2')
-      expect(content).toMatch(/XS|Standard/)
-    })
-
-    it(`${lang}+L3: tier classification and evidence present`, () => {
-      const content = renderShip(lang, 'L3')
-      expect(content).toMatch(/XS|Standard/)
-      expect(content).toMatch(/verif|evidence/i)
-    })
-  }
-})
-
-describe('cross-product: ship.md — testCommand and verification across all stacks (#1216)', () => {
-  function renderShip(lang: Language, level: GovernanceLevel): string {
-    return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
-  }
-
-  for (const lang of LANGUAGES) {
-    for (const level of LEVELS) {
-      it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" in verification row`, () => {
-        expect(renderShip(lang, level)).toContain(TEST_COMMANDS[lang])
-      })
-    }
-  }
-
-  for (const lang of LANGUAGES) {
-    it(`${lang}+L2: evidence section present`, () => {
-      const content = renderShip(lang, 'L2')
-      expect(content).toMatch(/evidence/i)
-    })
-
-    it(`${lang}+L1: no red-team dispatch section`, () => {
-      const content = renderShip(lang, 'L1')
-      expect(content).not.toMatch(/RedTeamEvidenceV1/)
-    })
   }
 })
 
@@ -1616,53 +1560,28 @@ describe('cross-product: generated check-all.mjs — runner allowlist covers RUN
   })
 })
 
-// ─── Claude commands: ship.md (#1206) ──────────────────────────────────────────
-
-describe('cross-product: ship.md — orchestrator content across all stacks × levels', () => {
+describe('cross-product: ship.md — result-first lifecycle across all stacks and levels', () => {
   function renderShip(lang: Language, level: GovernanceLevel): string {
     return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
   }
 
+  const baseline = renderShip('typescript', 'L1')
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
-      it(`${lang}+${level}: loop commands + testCommand "${TEST_COMMANDS[lang]}" present`, () => {
-        const out = renderShip(lang, level)
-        expect(out).toContain('arbiter ship')
-        expect(out).toContain('arbiter mark')
-        expect(out).toContain(TEST_COMMANDS[lang])
+      it(`${lang}+${level}: keeps the bounded runtime loop`, () => {
+        const output = renderShip(lang, level)
+        expect(output).toBe(baseline)
+        expect(output).toContain('arbiter ship')
+        expect(output).toContain('arbiter mark')
+        expect(output).toContain('normal cap is two rounds')
+        expect(output).toContain('one clean-HEAD full gate')
       })
     }
   }
 
-  for (const lang of LANGUAGES) {
-    it(`${lang}+L1: omits tier-classification guidance`, () => {
-      expect(renderShip(lang, 'L1')).not.toContain('sets the number of review agents')
-    })
-    it(`${lang}+L4: includes tier-classification guidance`, () => {
-      expect(renderShip(lang, 'L4')).toContain('sets the number of review agents')
-    })
-  }
-
-  // ─── Plan-mode auto enter/exit (#1209) ──────────────────────────────────────
-  it('ship.md: contains EnterPlanMode instruction (auto plan-mode enter)', () => {
-    // All stacks/levels should instruct the model to call EnterPlanMode at plan start
-    expect(renderShip('typescript', 'L4')).toContain('EnterPlanMode')
-  })
-
-  it('ship.md: contains ExitPlanMode instruction (auto plan-mode exit at handoff)', () => {
-    expect(renderShip('typescript', 'L4')).toContain('ExitPlanMode')
-  })
-
-  it('ship.md: contains --units flag in the handoff advance command', () => {
-    // The skill should instruct the model to pass --units when calling arbiter ship --advance
-    expect(renderShip('typescript', 'L4')).toContain('--units')
-  })
-
-  it('ship.md: plan-mode enter is conditional on phase (preflight or plan only)', () => {
-    // The rendered skill must mention the phase condition so the model does not re-enter plan mode
-    const out = renderShip('typescript', 'L4')
-    // Must include both the conditional instruction and EnterPlanMode
-    expect(out).toContain('EnterPlanMode')
-    expect(out).toMatch(/preflight|plan.*phase|phase.*plan/i)
+  it('does not embed host plan-mode or retired unit flags', () => {
+    expect(baseline).not.toContain('EnterPlanMode')
+    expect(baseline).not.toContain('ExitPlanMode')
+    expect(baseline).not.toContain('--units')
   })
 })

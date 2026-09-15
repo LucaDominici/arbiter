@@ -37,6 +37,16 @@ describe('unified task-state document (#1206)', () => {
       writeFileSync(statusPath(dir), '{ not json', 'utf-8')
       expect(() => readUnifiedState(dir)).toThrow(/corrupted status/i)
     })
+
+    it('rejects a malformed persisted delivery treatment', () => {
+      mkdirSync(taskStateDir(dir), { recursive: true })
+      writeFileSync(
+        statusPath(dir),
+        JSON.stringify({ taskId: '#1', treatment: { version: 1, finalReviewers: 0 } }),
+        'utf-8',
+      )
+      expect(() => readUnifiedState(dir)).toThrow(/corrupted treatment/i)
+    })
   })
 
   describe('writeUnifiedState', () => {

@@ -118,38 +118,19 @@ describe('#2329 — the removed knob is rejected, never silently accepted', () =
   })
 })
 
-// ── the doc surfaces stop promising an Affinity line no code emits ────────────
+// ── explicit per-append evidence replaces the removed configuration knob ─────
 
-describe('#2329 — no doc, self or generated, promises the phantom Affinity line', () => {
-  // Globbed, not enumerated: a future generated copy is caught automatically.
-  const DOC_GLOBS = [
-    '.claude/commands/ship.md',
-    '.claude/skills/wave-drain/SKILL.md',
-    'src/templates/claude/commands/ship.md.ejs',
-    'src/templates/claude/skills/wave-drain/SKILL.md.ejs',
-    'examples/python-library/.claude/commands/ship.md',
-    'examples/python-library/.claude/skills/wave-drain/SKILL.md',
-    'examples/ts-library/.claude/commands/ship.md',
-    'examples/ts-library/.claude/skills/wave-drain/SKILL.md',
-    'examples/go-library/.claude/commands/ship.md',
-    'examples/go-library/.claude/skills/wave-drain/SKILL.md',
-  ]
-
-  it('every ship/wave-drain doc copy (self, template, examples) is affinity-free', () => {
-    const offenders: string[] = []
-    for (const rel of DOC_GLOBS) {
-      if (!existsSync(rel)) continue
-      const src = readFileSync(rel, 'utf-8')
-      for (const [i, line] of src.split('\n').entries()) {
-        if (/affinit/i.test(line)) offenders.push(`${rel}:${i + 1}: ${line.trim()}`)
-      }
-    }
-    expect(offenders).toEqual([])
-  })
-
-  it('at least the four canonical copies actually exist (the glob is not vacuous)', () => {
-    expect(DOC_GLOBS.filter((p) => existsSync(p)).length).toBeGreaterThanOrEqual(4)
-  })
+describe('#2329/#2681 — no phantom knob; /ship requires explicit affinity evidence', () => {
+  it.each(['.claude/commands/ship.md', 'src/templates/claude/commands/ship.md.ejs'])(
+    '%s documents the wired append input',
+    (path) => {
+      expect(existsSync(path)).toBe(true)
+      const source = readFileSync(path, 'utf-8')
+      expect(source).toContain('--chain-add')
+      expect(source).toContain('--affinity')
+      expect(source).not.toContain(REMOVED_PATH)
+    },
+  )
 })
 
 // ── the ship step keeps working; the profile no longer carries the dead field ──
@@ -186,7 +167,7 @@ describe('#2329 — ship output is unchanged apart from the removal', () => {
     expect(text).toMatch(/Phase:/)
     expect(text).toMatch(/Action:/)
     expect(text).toMatch(/Command:/)
-    expect(text).not.toMatch(/Affinity/i)
+    expect(text).not.toMatch(/automation\.affinityBatching/i)
   })
 
   it('ShipProfile no longer carries an affinityBatching field', () => {

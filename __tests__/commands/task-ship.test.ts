@@ -11,7 +11,6 @@ import {
   shipStepFor,
   nextPhase,
   buildShipStepLines,
-  REVIEW_AGENTS_SECURITY_SURFACE,
   type ShipResult,
 } from '../../src/commands/task-ship.js'
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
@@ -89,20 +88,20 @@ function companionEvidencePath(taskId: string, dir: string): string {
 }
 
 describe('ship sequencing — pure plan', () => {
-  it('dispatches tier-N red-team agents at red-team-review', () => {
-    expect(shipStepFor('red-team-review', 'XS').reviewAgents).toBe(1)
-    expect(shipStepFor('red-team-review', 'S').reviewAgents).toBe(2)
-    expect(shipStepFor('red-team-review', 'Standard').reviewAgents).toBe(3)
+  it('challenges only full plans before implementation', () => {
+    expect(shipStepFor('red-team-review', 'XS').reviewAgents).toBe(0)
+    expect(shipStepFor('red-team-review', 'S').reviewAgents).toBe(0)
+    expect(shipStepFor('red-team-review', 'Standard').reviewAgents).toBe(1)
   })
 
-  it('routes trunk-solo directly to the independent final review (#2681)', () => {
+  it('keeps the Standard plan challenge in trunk-solo (#2681)', () => {
     const step = shipStepFor(
       'red-team-review',
       'Standard',
       profile({ collaborationMode: 'trunk-solo' }),
     )
-    expect(step.reviewAgents).toBe(0)
-    expect(step.action).toMatch(/final code review/i)
+    expect(step.reviewAgents).toBe(1)
+    expect(step.action).toMatch(/targeted plan reviewer/i)
   })
 
   it('dispatches tier-N code-review agents at refactor', () => {
@@ -139,7 +138,7 @@ describe('ship sequencing — pure plan', () => {
     expect(step.action).toContain('panel total: 2')
   })
 
-  it('keeps the trunk-solo external panel at one reviewer', () => {
+  it('keeps the Standard two-seat panel in trunk-solo', () => {
     const step = shipStepFor(
       'refactor',
       'Standard',
@@ -167,8 +166,8 @@ describe('ship sequencing — pure plan', () => {
         },
       },
     )
-    expect(step).toMatchObject({ reviewAgents: 1, externalReviewers: 1 })
-    expect(step.action).toContain('panel total: 1')
+    expect(step).toMatchObject({ reviewAgents: 2, externalReviewers: 1 })
+    expect(step.action).toContain('panel total: 2')
   })
 
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {
@@ -186,34 +185,20 @@ describe('ship sequencing — pure plan', () => {
     ).toBe(1)
   })
 
-  // #1260 — size (via tier) drives BOTH the review-agent COUNT and the orthogonal
-  // VERTICAL breadth. This is the "drive, not print" proof: both fields move together.
-  it('refactor step surfaces a vertical floor that WIDENS with tier (count + breadth)', () => {
+  it('assigns only the treatment seats that the tier earned', () => {
     const xs = shipStepFor('refactor', 'XS')
     const s = shipStepFor('refactor', 'S')
     const std = shipStepFor('refactor', 'Standard')
 
-    // breadth widens with size
-    expect(s.verticals.length).toBeGreaterThan(xs.verticals.length)
-    expect(std.verticals.length).toBeGreaterThan(s.verticals.length)
-    expect(s.verticals).toEqual(expect.arrayContaining(xs.verticals))
-    expect(std.verticals).toEqual(expect.arrayContaining(s.verticals))
-
-    // count widens too (Standard refactor > XS refactor)
+    expect(xs.verticals).toEqual(['domain'])
+    expect(s.verticals).toEqual(['domain'])
+    expect(std.verticals).toEqual(['domain', 'test-quality'])
     expect(std.reviewAgents).toBeGreaterThan(xs.reviewAgents)
-
-    // verticals are real auditor-routing names (not free text)
-    expect(std.verticals).toContain('security')
-    expect(std.verticals).toContain('data-integrity')
   })
 
-  it('red-team-review step also carries the size-derived vertical floor', () => {
-    expect(shipStepFor('red-team-review', 'Standard').verticals).toContain('security')
-    expect(shipStepFor('red-team-review', 'XS').verticals).toEqual([
-      'bugs',
-      'type-safety',
-      'domain',
-    ])
+  it('red-team-review carries the same assigned treatment seats', () => {
+    expect(shipStepFor('red-team-review', 'Standard').verticals).toEqual(['domain', 'test-quality'])
+    expect(shipStepFor('red-team-review', 'XS').verticals).toEqual(['domain'])
   })
 
   it('nextPhase walks forward and stops at complete', () => {
@@ -226,31 +211,25 @@ describe('ship sequencing — pure plan', () => {
 describe('self /ship documentation coherence (#2178)', () => {
   const shipCommand = readFileSync(join(process.cwd(), '.claude', 'commands', 'ship.md'), 'utf-8')
 
-  it('states the recalibrated code-review minimums by tier', () => {
-    expect(
-      shipCommand.includes('XS=1, S=1, Standard=2') &&
-        shipCommand.includes(
-          `Security escalation — ${REVIEW_AGENTS_SECURITY_SURFACE} code-review agents.`,
-        ),
-    ).toBe(true)
+  it('states the adaptive treatment table', () => {
+    const flat = shipCommand.replace(/\s+/g, ' ')
+    expect(flat).toMatch(/\| XS\s+\| minimal \|\s+0 \|\s+1 pertinent vertical/)
+    expect(flat).toMatch(/\| Standard\s+\| full\s+\|\s+1 targeted \|\s+2 orthogonal verticals/)
   })
 
-  it('reserves three code-review agents for the file-path-matched auditor set', () => {
-    expect(shipCommand.includes('3 code-review agents')).toBe(true)
-    expect(shipCommand.includes('file-path-matched auditor set')).toBe(true)
-    expect(shipCommand.includes('route-auditors.mjs')).toBe(true)
+  it('caps specialist review through the persisted treatment', () => {
+    expect(shipCommand).toContain('relevant specialists, maximum 3')
+    expect(shipCommand).toContain('persists one `ShipTreatment`')
   })
 
-  it('names review completion as the precondition that makes a single reviewer safe', () => {
+  it('names review completion and its blocking severity floor', () => {
     expect(shipCommand.includes('scripts/check-review-completion.mjs')).toBe(true)
-    expect(shipCommand.includes('single reviewer safe')).toBe(true)
+    expect(shipCommand).toContain('MED/HIGH/CRITICAL')
   })
 
-  it('keeps the generic verification L2 out of the native ship cadence', () => {
-    expect(shipCommand).toContain("do not also run the generic verification skill's before-push L2")
-    expect(shipCommand).toContain(
-      'commit review/AC-fit evidence, then run one clean-HEAD `node scripts/check-all.mjs L3`',
-    )
+  it('documents the one-final-gate cadence', () => {
+    expect(shipCommand).toContain('one full clean-HEAD gate')
+    expect(shipCommand).toContain('Do not repeat a green full gate')
   })
 })
 
@@ -312,7 +291,7 @@ describe('ship id normalization (#1280)', () => {
     expect(readUnifiedState(dir)).toMatchObject({
       taskId: '#2135',
       phase: 'preflight',
-      tier: 'S',
+      tier: 'Standard',
       plan: '',
     })
   })

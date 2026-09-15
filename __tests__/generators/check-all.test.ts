@@ -175,11 +175,10 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    // 59 -> 60 on the merge with main. Both sides of the conflict were stale — 53 here,
-    // 59 on main — because each had grown the unconditional set independently. The count
-    // is MEASURED from the generator after every merge, never reconciled by hand: a number
-    // picked from one side stays green on that side and silently asserts the wrong surface.
-    expect(result.files).toHaveLength(61)
+    expect(result.files).toHaveLength(62)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-review-completion.mjs'))).toBe(
+      true,
+    )
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/gate-evidence.mjs'))).toBe(true)
     // #2427 — the per-repo gate mutex: check-all re-execs itself under it and the
     // pre-push hook launches the gate through it, so a consumer missing it would

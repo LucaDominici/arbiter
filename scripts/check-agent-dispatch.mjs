@@ -77,11 +77,11 @@ for (const a of ['tier', 'track', 'review_mode', 'pr_type']) {
   }
 }
 
-// The universe of valid vertical names = union of all tier_verticals values.
-const verticalUniverse = new Set()
-for (const list of Object.values(matrix.tier_verticals)) {
-  for (const v of list) verticalUniverse.add(v)
-}
+// Specialist names come from the canonical auditor registry, not the adaptive tier projection.
+const routing = JSON.parse(
+  readFileSync(join(REPO_ROOT, '.claude', 'auditor-routing.json'), 'utf-8'),
+)
+const verticalUniverse = new Set(Object.keys(routing.auditors ?? {}))
 // Every track/pr_type modifier vertical must be a declared vertical (no free text).
 for (const [grp, label] of [
   [matrix.track_modifiers, 'track_modifiers'],

@@ -1,23 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
-import { execFileSync, spawnSync } from 'node:child_process'
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
 const SHIP_VARS = { shipLabel: 'ship', harnessCmd: 'claude' }
 const dummyDir = '/tmp/arbiter-ship-render-test'
-const REPO_ROOT = process.cwd()
 
 function baseData(overrides: Record<string, unknown>): Record<string, unknown> {
   return { ...makeConfig(dummyDir), ...SHIP_VARS, ...overrides } as unknown as Record<
@@ -36,41 +23,6 @@ function renderTickPrompt(overrides: Record<string, unknown> = {}): string {
 
 function renderShipCommand(): string {
   return renderTemplate('claude/commands/ship.md.ejs', baseData({}))
-}
-
-function renderPeerShipCommand(): string {
-  return renderTemplate(
-    'claude/commands/ship.md.ejs',
-    baseData({ collaborationMode: 'peer-review' }),
-  )
-}
-
-function installCrossModelChecker(
-  root: string,
-  onUnavailable: 'degrade' | 'fail' = 'degrade',
-  enabled = true,
-): void {
-  for (const rel of [
-    'scripts/check-cross-model-review.mjs',
-    'scripts/lib/agent-return-validate.mjs',
-    'scripts/lib/run-helpers.mjs',
-    'scripts/lib/evidence-binding.mjs',
-    'schemas/cross-model-dispatch.schema.json',
-    'schemas/agent-return.schema.json',
-  ]) {
-    const target = join(root, rel)
-    mkdirSync(join(target, '..'), { recursive: true })
-    writeFileSync(target, readFileSync(join(REPO_ROOT, rel)))
-  }
-  writeFileSync(
-    join(root, 'arbiter.json'),
-    JSON.stringify({
-      collaborationMode: 'peer-review',
-      crossModelReview: { enabled, diffEgressConsent: true, onUnavailable },
-    }),
-  )
-  execFileSync('git', ['add', '-A'], { cwd: root })
-  execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'cross-model fixture'], { cwd: root })
 }
 
 describe('supervisor.sh.ejs render', () => {
@@ -196,400 +148,35 @@ describe('cross-stack render (DoD: stacks × governance)', () => {
   })
 })
 
-describe('ship command local-only state (#2343)', () => {
-  it('keeps direct landing on the frozen receipt instead of rebasing or gating again', () => {
-    const md = renderTemplate(
-      'claude/commands/ship.md.ejs',
-      baseData({
-        collaborationMode: 'trunk-solo',
-        mergeMode: 'direct',
-        enableEvidenceHarness: true,
-      }),
-    )
-    const direct = md.slice(md.indexOf('**trunk-solo + direct:**'), md.indexOf('## Complete'))
-
-    expect(direct).toContain('gate-evidence.mjs verify --min-level L3 --print-head')
-    expect(direct).toContain('if [ "$(git rev-parse HEAD)" != "$frozen_head" ]')
-    expect(direct).toContain('git merge-base --is-ancestor origin/main "$frozen_head"')
-    expect(direct).toContain('git push origin "$frozen_head":main')
-    expect(direct).not.toContain('git push origin HEAD:main')
-    expect(direct).not.toContain('git rebase')
-    expect(direct).not.toContain('check-all.mjs')
+describe('ship command delegates mechanics to the runtime', () => {
+  it('keeps the frozen receipt and landing truth in the contract', () => {
+    const md = renderShipCommand()
+    expect(md).toContain('reuse the unchanged qualification through PR and CI')
+    expect(md).toContain('exact-subject receipt')
+    expect(md).toContain('merge and green CI are observed')
+    expect(md).not.toContain('git rebase')
   })
 
-  it('does not put .arbiter/ in the shared .git/info/exclude', () => {
-    const excludeLoop = renderShipCommand().match(/for pattern in[\s\S]*?\ndone/)?.[0]
-    expect(excludeLoop).toBeDefined()
-    expect(excludeLoop).toContain('".claude/.task/"')
-    expect(excludeLoop).not.toContain('".arbiter/"')
+  it('does not mutate shared Git exclude state', () => {
+    const md = renderShipCommand()
+    expect(md).not.toContain('.git/info/exclude')
+    expect(md).not.toContain('for pattern in')
   })
 
-  it('removes only a legacy .arbiter/ entry from the shared worktree exclude', () => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-exclude-'))
-    const main = join(root, 'main')
-    const worktree = join(root, 'worktree')
-    try {
-      expect(spawnSync('git', ['init', main]).status).toBe(0)
-      expect(
-        spawnSync('git', ['-C', main, 'commit', '--allow-empty', '-m', 'init'], {
-          env: {
-            ...process.env,
-            GIT_AUTHOR_NAME: 'Arbiter Test',
-            GIT_AUTHOR_EMAIL: 'arbiter-test',
-            GIT_COMMITTER_NAME: 'Arbiter Test',
-            GIT_COMMITTER_EMAIL: 'arbiter-test',
-          },
-        }).status,
-      ).toBe(0)
-      expect(
-        spawnSync('git', ['-C', main, 'worktree', 'add', '-b', 'test-worktree', worktree]).status,
-      ).toBe(0)
-
-      const excludePath = join(main, '.git', 'info', 'exclude')
-      writeFileSync(excludePath, 'before\n.arbiter/\nafter\n.arbiter-cache/\n')
-      const block = renderShipCommand().match(
-        /## Local-only state[\s\S]*?```bash\n([\s\S]*?)```/,
-      )?.[1]
-      expect(block).toBeDefined()
-
-      const first = spawnSync('bash', ['-c', block as string], { cwd: worktree })
-      expect(first.status, first.stderr.toString()).toBe(0)
-      const expected =
-        'before\nafter\n.arbiter-cache/\n' +
-        '.claude/.task-*\n.claude/.task/\n.claude/plans/\n.agents-dispatched\n'
-      expect(readFileSync(excludePath, 'utf8')).toBe(expected)
-
-      expect(spawnSync('bash', ['-c', block as string], { cwd: worktree }).status).toBe(0)
-      expect(readFileSync(excludePath, 'utf8')).toBe(expected)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-})
-
-describe('ship command cross-model sidecar (#2357)', () => {
-  it('preserves the automatic Codex seat when the manual panel is recorded', () => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-'))
-    try {
-      expect(
-        spawnSync('git', ['init', '-q', '-b', 'task/#2357-template'], { cwd: root }).status,
-      ).toBe(0)
-      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
-      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
-      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
-      installCrossModelChecker(root)
-
-      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
-      mkdirSync(join(root, '.arbiter', 'evidence', 'cross-model', '_2357'), { recursive: true })
-      mkdirSync(join(root, '.arbiter', 'evidence', 'agent-returns', '_2357'), {
-        recursive: true,
-      })
-      writeFileSync(
-        join(root, '.claude', '.task', 'status.json'),
-        JSON.stringify({ taskId: '#2357', tier: 'Standard' }),
-      )
-      execFileSync('git', ['add', '.claude/.task/status.json'], { cwd: root })
-      execFileSync('git', ['commit', '-q', '-m', 'task fixture'], { cwd: root })
-      const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-      const envelope = '.arbiter/evidence/agent-returns/_2357/codex-reviewer-0.json'
-      writeFileSync(
-        join(root, envelope),
-        JSON.stringify({
-          schema: 'arbiter-agent-return-v1',
-          agent: 'codex-reviewer',
-          role: 'reviewer',
-          taskId: '#2357',
-          branch: 'task/#2357-template',
-          sha,
-          ts: '2026-08-28T12:00:00.000Z',
-          verdict: 'PASS',
-          confidence: 1,
-          findings: [],
-          provenance: {
-            vendor: 'openai',
-            dispatch: 'external-cli',
-            cli: 'codex',
-            cliVersion: '0.5.1',
-          },
-        }),
-      )
-      writeFileSync(
-        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
-        JSON.stringify({
-          schema: 'arbiter-cross-model-dispatch-v1',
-          taskId: '#2357',
-          branch: 'task/#2357-template',
-          sha,
-          ts: '2026-08-28T12:00:00.000Z',
-          phase: 'refactor',
-          requested: [{ provider: 'codex', vertical: 'bugs' }],
-          fulfilled: [{ provider: 'codex', cliVersion: '0.5.1', envelope }],
-          degraded: [],
-        }),
-      )
-      writeFileSync(
-        join(root, '.arbiter', 'agents-dispatched.json'),
-        JSON.stringify({
-          count: 1,
-          agents: ['codex-reviewer'],
-          taskId: '#2357',
-          branch: 'task/#2357-template',
-          sha,
-        }),
-      )
-
-      const block = renderPeerShipCommand().match(
-        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
-      )?.[1]
-      expect(block).toBeDefined()
-      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
-      expect(result.status, result.stderr).toBe(0)
-      expect(
-        JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
-      ).toEqual({
-        count: 2,
-        agents: ['bugs', 'codex-reviewer'],
-        taskId: '#2357',
-        branch: 'task/#2357-template',
-        sha,
-      })
-
-      writeFileSync(
-        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
-        JSON.stringify({
-          schema: 'arbiter-cross-model-dispatch-v1',
-          taskId: '#2357',
-          branch: 'task/#2357-template',
-          sha,
-          ts: '2026-08-28T12:00:00.000Z',
-          phase: 'refactor',
-          requested: [{ provider: 'codex', vertical: 'bugs' }],
-          fulfilled: [
-            {
-              provider: 'codex',
-              cliVersion: '0.5.1',
-              envelope: '.arbiter/evidence/agent-returns/_2357/missing.json',
-            },
-          ],
-          degraded: [],
-        }),
-      )
-      const forged = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
-      expect(forged.status, forged.stderr).not.toBe(0)
-      expect(
-        JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
-      ).toEqual({
-        count: 2,
-        agents: ['bugs', 'codex-reviewer'],
-        taskId: '#2357',
-        branch: 'task/#2357-template',
-        sha,
-      })
-
-      writeFileSync(
-        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
-        JSON.stringify({
-          taskId: '#2357',
-          branch: 'task/#2357-template',
-          sha,
-          fulfilled: [{}],
-          degraded: [],
-        }),
-      )
-      const malformed = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
-      expect(malformed.status, malformed.stderr).not.toBe(0)
-      expect(
-        JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
-      ).toEqual({
-        count: 2,
-        agents: ['bugs', 'codex-reviewer'],
-        taskId: '#2357',
-        branch: 'task/#2357-template',
-        sha,
-      })
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
+  it('uses the canonical evidence writer and checker instead of embedded shell', () => {
+    const md = renderShipCommand()
+    expect(md).toContain('scripts/record-agent-return.mjs --mode reviewer-panel')
+    expect(md).toContain('scripts/check-review-completion.mjs')
+    expect(md).toContain("reviewer envelope's")
+    expect(md).toContain('must be the exact assigned')
+    expect(md).not.toContain('check-cross-model-review.mjs')
   })
 
-  it('does not degrade on missing external evidence with a degrade policy', () => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-missing-evidence-'))
-    try {
-      expect(
-        spawnSync('git', ['init', '-q', '-b', 'task/#2357-missing-evidence'], { cwd: root }).status,
-      ).toBe(0)
-      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
-      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
-      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
-      installCrossModelChecker(root, 'degrade')
-      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
-      writeFileSync(
-        join(root, '.claude', '.task', 'status.json'),
-        JSON.stringify({ taskId: '#2357' }),
-      )
-
-      const block = renderPeerShipCommand().match(
-        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
-      )?.[1]
-      expect(block).toBeDefined()
-      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
-      expect(result.status).not.toBe(0)
-      expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  it('does not fall back when the external policy is fail', () => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-fail-policy-'))
-    try {
-      expect(
-        spawnSync('git', ['init', '-q', '-b', 'task/#2357-fail-policy'], { cwd: root }).status,
-      ).toBe(0)
-      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
-      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
-      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
-      installCrossModelChecker(root, 'fail')
-      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
-      writeFileSync(
-        join(root, '.claude', '.task', 'status.json'),
-        JSON.stringify({ taskId: '#2357' }),
-      )
-
-      const block = renderPeerShipCommand().match(
-        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
-      )?.[1]
-      expect(block).toBeDefined()
-      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
-      expect(result.status).not.toBe(0)
-      expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  it('applies the environment enable override to the fail policy', () => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-env-policy-'))
-    try {
-      expect(
-        spawnSync('git', ['init', '-q', '-b', 'task/#2357-env-policy'], { cwd: root }).status,
-      ).toBe(0)
-      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
-      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
-      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
-      installCrossModelChecker(root, 'fail', false)
-      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
-      writeFileSync(
-        join(root, '.claude', '.task', 'status.json'),
-        JSON.stringify({ taskId: '#2357' }),
-      )
-
-      const block = renderPeerShipCommand().match(
-        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
-      )?.[1]
-      expect(block).toBeDefined()
-      const result = spawnSync('bash', ['-c', block as string], {
-        cwd: root,
-        encoding: 'utf8',
-        env: { ...process.env, ARBITER_CROSS_MODEL_REVIEW: 'true' },
-      })
-      expect(result.status).not.toBe(0)
-      expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  it('does not treat a dispatch artifact for another task as fulfilled', () => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-task-binding-'))
-    try {
-      expect(
-        spawnSync('git', ['init', '-q', '-b', 'task/#2357-task-binding'], { cwd: root }).status,
-      ).toBe(0)
-      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
-      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
-      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
-      const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-
-      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
-      mkdirSync(join(root, '.arbiter', 'evidence', 'cross-model', '_2357'), { recursive: true })
-      writeFileSync(
-        join(root, '.claude', '.task', 'status.json'),
-        JSON.stringify({ taskId: '#2357' }),
-      )
-      writeFileSync(
-        join(root, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
-        JSON.stringify({
-          taskId: '#other-task',
-          branch: 'task/#2357-task-binding',
-          sha,
-          fulfilled: [{}],
-          degraded: [],
-        }),
-      )
-
-      const block = renderPeerShipCommand().match(
-        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
-      )?.[1]
-      expect(block).toBeDefined()
-      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
-      expect(result.status, result.stderr).not.toBe(0)
-      expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
-
-  it('refuses to write the manual reviewer sidecar through a symlinked .arbiter directory', () => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-symlink-'))
-    const outside = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-outside-'))
-    try {
-      expect(
-        spawnSync('git', ['init', '-q', '-b', 'task/#2357-sidecar-symlink'], { cwd: root }).status,
-      ).toBe(0)
-      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
-      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
-      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
-      mkdirSync(join(root, '.claude', '.task'), { recursive: true })
-      writeFileSync(
-        join(root, '.claude', '.task', 'status.json'),
-        JSON.stringify({ taskId: '#2357' }),
-      )
-      symlinkSync(outside, join(root, '.arbiter'), 'dir')
-
-      const block = renderPeerShipCommand().match(
-        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
-      )?.[1]
-      expect(block).toBeDefined()
-      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
-      expect(result.status).not.toBe(0)
-      expect(existsSync(join(outside, 'agents-dispatched.json'))).toBe(false)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-      rmSync(outside, { recursive: true, force: true })
-    }
-  })
-
-  it('fails closed when the active task state is missing', () => {
-    const root = mkdtempSync(join(tmpdir(), 'arbiter-ship-sidecar-no-task-'))
-    try {
-      expect(
-        spawnSync('git', ['init', '-q', '-b', 'task/#2357-no-task'], { cwd: root }).status,
-      ).toBe(0)
-      execFileSync('git', ['config', 'user.email', 'arbiter-test'], { cwd: root })
-      execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
-      execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: root })
-
-      const block = renderPeerShipCommand().match(
-        /## Refactor \/ code-review evidence[\s\S]*?```bash\n([\s\S]*?)```/,
-      )?.[1]
-      expect(block).toBeDefined()
-      const result = spawnSync('bash', ['-c', block as string], { cwd: root, encoding: 'utf8' })
-      expect(result.status).not.toBe(0)
-      expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
+  it('fails closed on missing, stale, or material review evidence', () => {
+    const md = renderShipCommand()
+    expect(md).toContain('rejects missing or malformed envelopes')
+    expect(md).toContain('a different task/branch/SHA')
+    expect(md).toContain('MED/HIGH/CRITICAL finding')
   })
 })
 

@@ -15,7 +15,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   appendChainIds,
+  evaluateAffinity,
   evaluateSeal,
+  parseTrainAffinity,
   splitTrainIds,
   DEFAULT_TRAIN_LIMITS,
 } from '../../src/commands/ship-train'
@@ -44,6 +46,16 @@ const PAST_AGE_BUDGET = new Date(
 )
 /** #2401 — the pre-config bounds, pinned so the wiring tests below keep testing the wiring, not the default. */
 const PINNED_LIMITS: TrainLimits = { maxChain: 5, maxAgeMinutes: 240 }
+const AFFINITY = {
+  sameOutcome: true,
+  ownerPathOverlap: true,
+  dependencyRelated: true,
+  sharedProof: true,
+  orderingCompatible: true,
+  sharedAcceptanceBoundary: true,
+  sharedRollbackBoundary: true,
+  hardConflicts: [] as string[],
+}
 
 const signals = (over: Partial<Parameters<typeof evaluateSeal>[0]> = {}) => ({
   chainSize: 0,
@@ -51,6 +63,7 @@ const signals = (over: Partial<Parameters<typeof evaluateSeal>[0]> = {}) => ({
   now: at('2026-08-22T00:10:00.000Z'),
   widenedTier: 'S' as const,
   explicitSeal: false,
+  affinity: AFFINITY,
   ...over,
 })
 
@@ -73,6 +86,26 @@ describe('appendChainIds (#2331)', () => {
 
   it('is a no-op for an empty addition list', () => {
     expect(appendChainIds(['#2'], [])).toEqual(['#2'])
+  })
+})
+
+describe('train affinity (#2681)', () => {
+  it('joins only when every component is affirmative and there are no conflicts', () => {
+    expect(evaluateAffinity(AFFINITY)).toMatchObject({ decision: 'JOIN' })
+  })
+
+  it('has zero false JOINs across the negative component corpus', () => {
+    for (const key of Object.keys(AFFINITY).filter((name) => name !== 'hardConflicts')) {
+      expect(evaluateAffinity({ ...AFFINITY, [key]: false })).toMatchObject({ decision: 'SEAL' })
+    }
+    expect(evaluateAffinity({ ...AFFINITY, hardConflicts: ['shared migration'] })).toMatchObject({
+      decision: 'SEAL',
+    })
+    expect(evaluateAffinity(undefined)).toMatchObject({ decision: 'SEAL' })
+  })
+
+  it('rejects malformed affinity JSON at the CLI boundary', () => {
+    expect(() => parseTrainAffinity('{"sameOutcome":true}')).toThrow(/malformed/i)
   })
 })
 
@@ -176,6 +209,7 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
       profileOverride: TEST_PROFILE,
       gatherTierSignals: () => XS_SIGNALS,
       now: new Date('2026-08-22T00:10:00.000Z'),
+      trainAffinity: AFFINITY,
       ...opts,
     })
 
@@ -194,6 +228,13 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
     ship({ chainAddIds: ['#101'] })
     ship({ chainAddIds: ['#102'] })
     expect(chain()).toEqual(['#101', '#102'])
+  })
+
+  it('seals an append whose affinity was not proven', () => {
+    expect(() => ship({ chainAddIds: ['#101'], trainAffinity: undefined })).toThrow(
+      /SEALED: affinity/,
+    )
+    expect(chain()).toEqual([])
   })
 
   it('does not clear a live train when no flag is passed', () => {
@@ -288,6 +329,7 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
           profileOverride: TEST_PROFILE,
           gatherTierSignals: () => XS_SIGNALS,
           now: new Date('2026-08-22T00:10:00.000Z'),
+          trainAffinity: AFFINITY,
         }),
       ).toThrow(/SEALED: max-chain/)
       expect(readUnifiedState(fresh)).toBeNull()
@@ -296,7 +338,7 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
     }
   })
 
-  it('does not seed when the preflight signal changes before persistence', () => {
+  it('decides the append once before separately treating the primary issue', () => {
     const fresh = mkdtempSync(join(tmpdir(), 'arbiter-train-single-decision-'))
     let signalCalls = 0
     try {
@@ -310,9 +352,10 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
           gatherTierSignals: () =>
             signalCalls++ === 0 ? XS_SIGNALS : { ...XS_SIGNALS, labels: ['epic'] },
           now: new Date('2026-08-22T00:10:00.000Z'),
+          trainAffinity: AFFINITY,
         }),
       ).not.toThrow()
-      expect(signalCalls).toBe(1)
+      expect(signalCalls).toBe(2)
       expect(readUnifiedState(fresh)?.chainIds).toEqual(['#101'])
     } finally {
       rmSync(fresh, { recursive: true, force: true })
@@ -327,7 +370,12 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
         chainIds: ['#101', '#102', '#103', '#104'],
         profileOverride: TEST_PROFILE,
       })
-      runTaskShip({ dir: fresh, chainAddIds: ['#105'], profileOverride: TEST_PROFILE })
+      runTaskShip({
+        dir: fresh,
+        chainAddIds: ['#105'],
+        trainAffinity: AFFINITY,
+        profileOverride: TEST_PROFILE,
+      })
       expect(readUnifiedState(fresh)?.chainIds).toEqual(['#101', '#102', '#103', '#104', '#105'])
     } finally {
       rmSync(fresh, { recursive: true, force: true })
@@ -529,9 +577,19 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
   it('AC-2401.1: a project can shrink its train below the default', () => {
     withConfig({ train: { maxChain: 2 } }, (dir) => {
       runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
-      runTaskShip({ dir, chainAddIds: ['#101'], profileOverride: TEST_PROFILE })
+      runTaskShip({
+        dir,
+        chainAddIds: ['#101'],
+        trainAffinity: AFFINITY,
+        profileOverride: TEST_PROFILE,
+      })
       expect(() =>
-        runTaskShip({ dir, chainAddIds: ['#102'], profileOverride: TEST_PROFILE }),
+        runTaskShip({
+          dir,
+          chainAddIds: ['#102'],
+          trainAffinity: AFFINITY,
+          profileOverride: TEST_PROFILE,
+        }),
       ).toThrow(/SEALED: max-chain/)
     })
   })
@@ -542,6 +600,7 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
       runTaskShip({
         dir,
         chainAddIds: ['#101', '#102', '#103', '#104', '#105', '#106', '#107', '#108', '#109'],
+        trainAffinity: AFFINITY,
         profileOverride: TEST_PROFILE,
       })
       expect(readUnifiedState(dir)?.chainIds).toHaveLength(9)
@@ -554,6 +613,7 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
       runTaskShip({
         dir,
         chainAddIds: ['#101', '#102'],
+        trainAffinity: AFFINITY,
         trainLimits: PINNED_LIMITS,
         profileOverride: TEST_PROFILE,
       })

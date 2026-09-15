@@ -19,14 +19,18 @@ import { runTaskShip, shipStepFor } from '../../src/commands/task-ship.js'
 import { writeUnifiedState } from '../../src/commands/task-state.js'
 import {
   gatherTierSignals,
+  resolveShipTreatment,
   widenTier,
   type ShipTier,
   type TierSignals,
 } from '../../src/commands/ship-tier.js'
 
-const runCliJson = vi.hoisted(() => vi.fn())
+const { runCli, runCliJson } = vi.hoisted(() => ({
+  runCli: vi.fn(() => ({ stdout: '', stderr: '', exitCode: 0, durationMs: 0 })),
+  runCliJson: vi.fn(),
+}))
 
-vi.mock('../../src/utils/run-cli.js', () => ({ runCliJson }))
+vi.mock('../../src/utils/run-cli.js', () => ({ runCli, runCliJson }))
 
 const tiers: readonly ShipTier[] = ['XS', 'S', 'Standard']
 const blastRadii = [null, 0, 24, 25, 74, 75, 1000, Number.NaN, -1] as const
@@ -43,7 +47,26 @@ function tierRank(tier: ShipTier): number {
 }
 
 function neutralSignals(): TierSignals {
-  return { blastRadius: null, labels: [], milestoneBundled: false }
+  return {
+    blastRadius: null,
+    callerCount: null,
+    changedFiles: [],
+    complete: false,
+    labels: [],
+    milestoneBundled: false,
+  }
+}
+
+function completeSignals(overrides: Partial<TierSignals> = {}): TierSignals {
+  return {
+    blastRadius: 0,
+    callerCount: 0,
+    changedFiles: ['docs/guide.md'],
+    complete: true,
+    labels: [],
+    milestoneBundled: false,
+    ...overrides,
+  }
 }
 
 function writePlanWithFiles(dir: string, files: readonly string[]): void {
@@ -78,11 +101,11 @@ describe('widenTier (#2180)', () => {
     }
   })
 
-  it('floors XS to Standard for wave/epic labels and milestone bundling', () => {
+  it('floors XS to Standard for wave/epic labels, not ordinary outcome milestones', () => {
     for (const labels of [['wave'], ['epic'], ['epic/decompose'], ['WAVE']]) {
       expect(widenTier('XS', { ...neutralSignals(), labels })).toBe('Standard')
     }
-    expect(widenTier('XS', { ...neutralSignals(), milestoneBundled: true })).toBe('Standard')
+    expect(widenTier('XS', { ...neutralSignals(), milestoneBundled: true })).toBe('XS')
     expect(widenTier('XS', { ...neutralSignals(), labels: ['bug'] })).toBe('XS')
   })
 
@@ -96,11 +119,87 @@ describe('widenTier (#2180)', () => {
   })
 })
 
+describe('resolveShipTreatment (#2681)', () => {
+  it('requires affirmative complete evidence before selecting XS or S', () => {
+    expect(resolveShipTreatment('XS', neutralSignals())).toMatchObject({
+      tier: 'Standard',
+      qualifiedNarrow: false,
+      modelCapability: 'capable',
+      finalReviewers: 2,
+    })
+    expect(resolveShipTreatment('XS', completeSignals())).toMatchObject({
+      tier: 'XS',
+      qualifiedNarrow: true,
+      planDepth: 'minimal',
+      preCodeReviewers: 0,
+      finalReviewers: 1,
+      reviewerVerticals: ['domain'],
+      modelCapability: 'economy',
+    })
+    expect(resolveShipTreatment('Standard', neutralSignals()).reasons).toEqual([
+      'Standard treatment selected without narrow qualification',
+    ])
+  })
+
+  it('widens on directional callers and core paths', () => {
+    expect(resolveShipTreatment('XS', completeSignals({ callerCount: 2 })).tier).toBe('S')
+    expect(
+      resolveShipTreatment('XS', completeSignals({ changedFiles: ['src/commands/task-ship.ts'] }))
+        .tier,
+    ).toBe('Standard')
+  })
+
+  it('adds only pertinent sensitive specialists and caps final reviewers at three', () => {
+    const treatment = resolveShipTreatment(
+      'XS',
+      completeSignals({
+        changedFiles: ['src/auth/token.ts', 'migrations/001.sql', '.github/workflows/ci.yml'],
+      }),
+    )
+    expect(treatment).toMatchObject({
+      tier: 'Standard',
+      sensitive: true,
+      finalReviewers: 3,
+      modelCapability: 'frontier',
+    })
+    expect(treatment.reviewerVerticals).toEqual(['security', 'migration', 'deployment'])
+  })
+
+  it('never narrows a treatment already widened in the same task', () => {
+    const previous = resolveShipTreatment('XS', neutralSignals())
+    const resumed = resolveShipTreatment('XS', completeSignals(), previous)
+    expect(resumed.tier).toBe('Standard')
+    expect(resumed.reasons).toContain('preserved prior widening')
+  })
+
+  it('preserves specialist seats after later qualification inputs become unavailable', () => {
+    const previous = resolveShipTreatment(
+      'XS',
+      completeSignals({ changedFiles: ['src/auth/token.ts', 'migrations/001.sql'] }),
+    )
+    const resumed = resolveShipTreatment('XS', neutralSignals(), previous)
+    expect(resumed).toMatchObject({ tier: 'Standard', sensitive: true, finalReviewers: 3 })
+    expect(resumed.reviewerVerticals).toEqual(['security', 'migration', 'domain'])
+  })
+
+  it('escalates only for a new material risk and keeps infrastructure states separate', () => {
+    const base = resolveShipTreatment('XS', completeSignals())
+    const risk = resolveShipTreatment('XS', completeSignals({ executionOutcome: 'new-risk' }), base)
+    const infra = resolveShipTreatment('XS', completeSignals({ executionOutcome: 'timeout' }), base)
+    expect(risk.modelCapability).toBe('capable')
+    expect(risk.reasons).toContain('model escalated after a new material risk')
+    expect(infra.modelCapability).toBe('economy')
+    expect(infra.reasons).toContain('infrastructure state: timeout; model unchanged')
+  })
+})
+
 describe('gatherTierSignals (#2180)', () => {
   let dir: string
 
   beforeEach(() => {
     dir = createTestProject()
+    runCli.mockReset()
+    runCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0, durationMs: 0 })
     runCliJson.mockReset()
   })
   afterEach(() => cleanupTestProject(dir))
@@ -110,7 +209,11 @@ describe('gatherTierSignals (#2180)', () => {
     writeFile(dir, 'src/changed.ts')
 
     expect(existsSync(join(dir, 'graphify-out', 'graph.json'))).toBe(false)
-    expect(gatherTierSignals(dir, undefined).blastRadius).toBeNull()
+    expect(gatherTierSignals(dir, undefined, '.claude/plans/task-2180.md')).toMatchObject({
+      blastRadius: null,
+      callerCount: null,
+      complete: false,
+    })
   })
 
   it('reads lowercased GitHub labels and milestone bundling through the sanctioned CLI wrapper', () => {
@@ -119,7 +222,7 @@ describe('gatherTierSignals (#2180)', () => {
       milestone: { title: 'release train' },
     })
 
-    expect(gatherTierSignals(dir, '#2180')).toMatchObject({
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
       labels: ['wave', 'bug'],
       milestoneBundled: true,
     })
@@ -135,9 +238,25 @@ describe('gatherTierSignals (#2180)', () => {
       throw new Error('gh unavailable')
     })
 
-    expect(gatherTierSignals(dir, '#2180')).toMatchObject({
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
       labels: [],
       milestoneBundled: false,
+    })
+  })
+
+  it('refuses narrow routing when the checkout contains a file omitted from the plan', () => {
+    writePlanWithFiles(dir, ['docs/guide.md'])
+    runCliJson.mockReturnValue({ labels: [], milestone: null })
+    runCli.mockImplementation((_cmd, args) => ({
+      stdout: args[0] === 'diff' && args.includes('origin/main...HEAD') ? 'src/unplanned.ts\n' : '',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 0,
+    }))
+
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
+      changedFiles: ['docs/guide.md', 'src/unplanned.ts'],
+      complete: false,
     })
   })
 
@@ -152,7 +271,10 @@ describe('gatherTierSignals (#2180)', () => {
     utimesSync(graph, new Date(now.getTime() - 2_000), new Date(now.getTime() - 2_000))
     utimesSync(changed, now, now)
 
-    expect(gatherTierSignals(dir, '#2180').blastRadius).toBeNull()
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
+      blastRadius: null,
+      complete: false,
+    })
   })
 
   it('counts only distinct dependent files on allowlisted edges, excluding contains', () => {
@@ -194,7 +316,10 @@ describe('gatherTierSignals (#2180)', () => {
     utimesSync(alsoChanged, new Date(fresh.getTime() - 1_000), new Date(fresh.getTime() - 1_000))
     utimesSync(graph, fresh, fresh)
 
-    expect(gatherTierSignals(dir, '#2180').blastRadius).toBe(2)
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
+      blastRadius: 2,
+      callerCount: 0,
+    })
   })
 })
 
@@ -220,7 +345,7 @@ describe('runTaskShip deterministic widening (#2180)', () => {
     expect(result.step.verticals).toEqual(shipStepFor('preflight', 'Standard').verticals)
   })
 
-  it('keeps an XS override byte-for-byte equivalent in routing fields when signals are neutral', () => {
+  it('widens an XS override to Standard when qualification is absent', () => {
     const result = runTaskShip({
       dir,
       taskId: '#2180',
@@ -228,11 +353,11 @@ describe('runTaskShip deterministic widening (#2180)', () => {
       gatherTierSignals: neutralSignals,
     })
 
-    expect(result.tier).toBe('XS')
-    expect(result.step).toEqual(shipStepFor('preflight', 'XS', result.profile))
+    expect(result.tier).toBe('Standard')
+    expect(result.step).toEqual(shipStepFor('preflight', 'Standard', result.profile))
   })
 
-  it('skips gathering widen-only signals when the Standard tier is already selected', () => {
+  it('still gathers signals for Standard so sensitive obligations cannot be skipped', () => {
     const gatherSignals = vi.fn(() => ({ ...neutralSignals(), labels: ['wave'] }))
 
     const result = runTaskShip({
@@ -242,13 +367,13 @@ describe('runTaskShip deterministic widening (#2180)', () => {
       gatherTierSignals: gatherSignals,
     })
 
-    expect(gatherSignals).not.toHaveBeenCalled()
+    expect(gatherSignals).toHaveBeenCalledTimes(1)
     expect(result.tier).toBe('Standard')
     expect(result.step).toEqual(shipStepFor('preflight', 'Standard', result.profile))
   })
 
   it('gathers signals exactly once when an XS tier could be widened', () => {
-    const gatherSignals = vi.fn(neutralSignals)
+    const gatherSignals = vi.fn(completeSignals)
 
     runTaskShip({
       dir,
@@ -259,9 +384,21 @@ describe('runTaskShip deterministic widening (#2180)', () => {
 
     expect(gatherSignals).toHaveBeenCalledTimes(1)
   })
+
+  it('records no-progress as BLOCKED before another implementation attempt', () => {
+    expect(() =>
+      runTaskShip({
+        dir,
+        taskId: '#2180',
+        tier: 'XS',
+        executionOutcome: 'no-progress',
+        gatherTierSignals: completeSignals,
+      }),
+    ).toThrow(/BLOCKED.*no progress/i)
+  })
 })
 
-// ─── #2207 / #2184: tier ORIGINATION is human-only, and survives a bare ship ───
+// ─── #2207 / #2681: requested tiers are candidates; effective widening is durable ───
 // Root cause of #2207: src/cli.ts baked `opts.tier ?? 'Standard'` at the CLI
 // boundary, so the `tier` key was ALWAYS present in the patch handed to
 // seedShipState -> writeUnifiedState, whose merge only preserves fields the
@@ -308,42 +445,37 @@ describe('#2207 — bare `ship <id>` respects the persisted tier', () => {
     return result.stdout ?? ''
   }
 
-  it('preserves a persisted narrow tier and reports it as effective', () => {
+  it('widens a persisted narrow tier when no qualifying evidence exists', () => {
     const dir = shipDir()
     try {
       persistTier(dir, 'S')
       const stdout = ship(dir, [])
-      expect(stdout).toMatch(/Tier: S\b/)
-      expect(readTier(dir)).toBe('S')
+      expect(stdout).toMatch(/Tier: Standard\b/)
+      expect(readTier(dir)).toBe('Standard')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  // Assertion corrected after the red: ADR-111 (#2184) decides that ONLY a human
-  // originates a tier. Writing 'Standard' back here would make `ship` itself an
-  // originator, and would collapse "unset" ('' — what defaultState() already
-  // stores) into "explicitly widest", destroying the distinction. Leaving it
-  // untouched is the stronger contract: it proves ship never originates a tier.
-  it('leaves an unset tier unset and reports the widest tier as effective', () => {
+  it('persists the fail-closed Standard treatment for an unset tier', () => {
     const dir = shipDir()
     try {
       persistTier(dir, '')
       const stdout = ship(dir, [])
       expect(stdout).toMatch(/Tier: Standard\b/)
-      expect(readTier(dir)).toBe('')
+      expect(readTier(dir)).toBe('Standard')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('lets an explicit --tier override AND persist over the stored value', () => {
+  it('does not let an unqualified explicit override narrow stored treatment', () => {
     const dir = shipDir()
     try {
       persistTier(dir, 'S')
       const stdout = ship(dir, ['--tier', 'XS'])
-      expect(stdout).toMatch(/Tier: XS\b/)
-      expect(readTier(dir)).toBe('XS')
+      expect(stdout).toMatch(/Tier: Standard\b/)
+      expect(readTier(dir)).toBe('Standard')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

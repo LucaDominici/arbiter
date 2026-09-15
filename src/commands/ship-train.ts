@@ -46,9 +46,27 @@ export interface TrainSignals {
   /** Pre-implementation tier for the issue being appended. */
   widenedTier: ShipTier
   explicitSeal: boolean
+  affinity?: TrainAffinitySignals
 }
 
-type SealReason = 'explicit' | 'risk' | 'max-chain' | 'max-age'
+export interface TrainAffinitySignals {
+  sameOutcome: boolean
+  ownerPathOverlap: boolean
+  dependencyRelated: boolean
+  sharedProof: boolean
+  orderingCompatible: boolean
+  sharedAcceptanceBoundary: boolean
+  sharedRollbackBoundary: boolean
+  hardConflicts: string[]
+}
+
+export interface AffinityVerdict {
+  decision: 'JOIN' | 'SEAL'
+  components: TrainAffinitySignals
+  reason: string
+}
+
+type SealReason = 'explicit' | 'risk' | 'affinity' | 'max-chain' | 'max-age'
 
 type SealVerdict = { sealed: false } | { sealed: true; reason: SealReason; detail: string }
 
@@ -123,6 +141,68 @@ export function appendChainIds(
   return result
 }
 
+export function parseTrainAffinity(raw: string): TrainAffinitySignals {
+  const value = JSON.parse(raw) as unknown
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('--affinity must be a JSON object')
+  }
+  const candidate = value as Record<string, unknown>
+  const booleans = [
+    'sameOutcome',
+    'ownerPathOverlap',
+    'dependencyRelated',
+    'sharedProof',
+    'orderingCompatible',
+    'sharedAcceptanceBoundary',
+    'sharedRollbackBoundary',
+  ] as const
+  if (
+    booleans.some((key) => typeof candidate[key] !== 'boolean') ||
+    !Array.isArray(candidate.hardConflicts) ||
+    candidate.hardConflicts.some(
+      (conflict) => typeof conflict !== 'string' || conflict.length === 0,
+    )
+  ) {
+    throw new Error('--affinity has missing or malformed components')
+  }
+  return candidate as unknown as TrainAffinitySignals
+}
+
+export function evaluateAffinity(signals: TrainAffinitySignals | undefined): AffinityVerdict {
+  if (signals === undefined) {
+    return {
+      decision: 'SEAL',
+      components: {
+        sameOutcome: false,
+        ownerPathOverlap: false,
+        dependencyRelated: false,
+        sharedProof: false,
+        orderingCompatible: false,
+        sharedAcceptanceBoundary: false,
+        sharedRollbackBoundary: false,
+        hardConflicts: ['affinity-unproven'],
+      },
+      reason: 'affinity was not proven',
+    }
+  }
+  const joined =
+    signals.sameOutcome &&
+    signals.ownerPathOverlap &&
+    signals.dependencyRelated &&
+    signals.sharedProof &&
+    signals.orderingCompatible &&
+    signals.sharedAcceptanceBoundary &&
+    signals.sharedRollbackBoundary &&
+    signals.hardConflicts.length === 0
+  return {
+    decision: joined ? 'JOIN' : 'SEAL',
+    components: signals,
+    reason: joined
+      ? 'all affinity obligations are proven'
+      : 'one or more affinity obligations failed',
+  }
+}
+
 /** Minutes elapsed, or null when the open time is absent or unparseable. */
 function ageMinutes(openedAt: string | undefined, now: Date): number | null {
   if (openedAt === undefined) return null
@@ -152,6 +232,14 @@ export function evaluateSeal(signals: TrainSignals, limits: TrainLimits): SealVe
       reason: 'risk',
       detail:
         'the issue being added widens the tier to Standard — a risk-bearing issue rides its own train',
+    }
+  }
+  const affinity = evaluateAffinity(signals.affinity)
+  if (affinity.decision === 'SEAL') {
+    return {
+      sealed: true,
+      reason: 'affinity',
+      detail: `${affinity.reason}; components=${JSON.stringify(affinity.components)}`,
     }
   }
   if (signals.chainSize >= limits.maxChain) {

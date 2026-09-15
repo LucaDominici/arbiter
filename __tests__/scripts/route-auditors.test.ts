@@ -98,18 +98,16 @@ describe('route-auditors — docs-only diff → minimal auditors', () => {
 })
 
 describe('route-auditors — --size-floor widens breadth (#1260 / #1267 seam)', () => {
-  it('Standard size-floor unions the full vertical breadth into a docs-only diff', () => {
-    // Docs-only normally yields a minimal active set; a Standard size-floor must
-    // ADD the wider verticals (size widens breadth beyond file-path matching).
+  it('Standard size-floor adds only the default treatment projection', () => {
     const base = JSON.parse(runScriptWithDiff(['docs/README.md']).stdout)
     expect(base.active).not.toContain('security')
 
     const r = runScriptWithDiff(['docs/README.md'], ['--size-floor', 'Standard'])
     expect(r.status).toBe(0)
     const out = JSON.parse(r.stdout)
-    expect(out.active).toContain('security')
-    expect(out.active).toContain('data-integrity')
-    expect(out.active).toContain('silent-failures')
+    expect(out.active).toContain('domain')
+    expect(out.active).toContain('test-quality')
+    expect(out.active).not.toContain('security')
   })
 
   it('size-floor is UNION-ONLY: never removes a file-path-selected auditor', () => {

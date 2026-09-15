@@ -647,6 +647,10 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     tpl: 'scripts/check-cross-model-review.mjs.ejs',
   },
   {
+    rel: ['scripts', 'check-review-completion.mjs'],
+    tpl: 'scripts/check-review-completion.mjs.ejs',
+  },
+  {
     rel: ['schemas', 'cross-model-dispatch.schema.json'],
     tpl: 'scripts/schemas/cross-model-dispatch.schema.json',
   },
@@ -666,10 +670,6 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
 // class; caught by check-emission-coherence on L1/peer-review).
 const DEBT_GATED_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string }> = [
   { rel: ['scripts', 'check-agent-return.mjs'], tpl: 'scripts/check-agent-return.mjs.ejs' },
-  {
-    rel: ['scripts', 'check-review-completion.mjs'],
-    tpl: 'scripts/check-review-completion.mjs.ejs',
-  },
   {
     rel: ['scripts', 'check-refutation-verdicts.mjs'],
     tpl: 'scripts/check-refutation-verdicts.mjs.ejs',
