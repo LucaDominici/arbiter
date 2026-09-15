@@ -100,10 +100,10 @@
     }
   ],
   "branch": "task/#2695-tdd-authenticated-failure-headers",
-  "sha": "ae39cf4d15fbfa66815260030b394c35be6c1cb0",
+  "sha": "523d62b2a096dd8d09f65d38dbc64e472c01dff0",
   "planHash": "d05501bc7624f24ab6ac0ed49bfe81831e14c60e",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2695/root-codex-orchestrator-ac-fit-0.json",
-    "sha256": "9291df6fb77633b7f235ae281f4d8b341493f28b7f4547ba63751bce8a67913d"
+    "path": ".arbiter/evidence/agent-returns/_2695/root-codex-orchestrator-ac-fit-round-2-0.json",
+    "sha256": "eee1ee178aaab12bbc24a15c04113f585bc8166b603294b848cac5a868d2bd80"
   }
 }
