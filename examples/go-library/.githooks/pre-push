@@ -27,7 +27,11 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 PUSH_SUBJECT_SHA=""
 while read -r _local_ref local_sha _remote_ref _remote_sha; do
   [ -z "$local_sha" ] && continue
-  pushed_commit=$(git rev-parse --verify "$local_sha^{commit}" 2>/dev/null) || continue
+  [[ "$local_sha" =~ ^0+$ ]] && continue
+  if ! pushed_commit=$(git rev-parse --verify "$local_sha^{commit}" 2>/dev/null); then
+    echo "Error: pushed object is not a commit and cannot be qualified by the pre-push gate."
+    exit 1
+  fi
   if [ -n "$PUSH_SUBJECT_SHA" ] && [ "$PUSH_SUBJECT_SHA" != "$pushed_commit" ]; then
     echo "Error: one pre-push gate cannot qualify multiple commits; push them separately."
     exit 1

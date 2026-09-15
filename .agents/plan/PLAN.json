@@ -43,7 +43,10 @@
       "src/templates/scripts/lib/gate-evidence.mjs.ejs",
       "examples/ts-library/scripts/lib/gate-evidence.mjs",
       "examples/python-library/scripts/lib/gate-evidence.mjs",
-      "examples/go-library/scripts/lib/gate-evidence.mjs"
+      "examples/go-library/scripts/lib/gate-evidence.mjs",
+      "__tests__/templates/commands-claude.test.ts",
+      "packages/kernel/hooks/gate-evidence.mjs",
+      ".arbiter/evidence/tdd/#2681.json"
     ]
   },
   "files": [
@@ -210,6 +213,18 @@
     {
       "path": "examples/go-library/scripts/lib/gate-evidence.mjs",
       "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/commands-claude.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "packages/kernel/hooks/gate-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2681.json",
+      "operation": "create"
     }
   ],
   "invariants": {

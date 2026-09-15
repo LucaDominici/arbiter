@@ -1,10 +1,9 @@
 {
   "verdict": "PASS",
-  "reviewer": "orchestrator final plan reconciliation",
-  "reviewedAt": "2026-09-15T07:38:22.558Z",
+  "reviewer": "orchestrator gate-failure reconciliation",
+  "reviewedAt": "2026-09-15T07:53:14.034Z",
   "branch": "task/#2693-exact-tree-gate-reuse",
-  "sha": "4e7b81b8d86a454786e206b641a924fd25cbe8fa",
-  "planDigest": "16f5d61aed826dacc670380cdf45062d33dc630cba5f686d4a3461b0fb527652",
+  "planDigest": "7c5383a16692659be3b5e64536afba84d4e579550bf127093af8de6507b9c423",
   "checks": {
     "mandatorySections": "PASS",
     "acceptanceNarrowingRecorded": "PASS",
@@ -12,5 +11,6 @@
     "testContract": "PASS",
     "sequencing": "PASS"
   },
-  "findings": []
+  "findings": [],
+  "sha": "42641fe5861187fc3c9f2c065ac7e5ffd89907f6"
 }

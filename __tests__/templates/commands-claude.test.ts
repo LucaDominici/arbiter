@@ -272,9 +272,11 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).not.toContain('%>')
   })
 
-  it('trunk-solo+direct: emits git push origin HEAD:main', () => {
+  it('trunk-solo+direct: pushes the SHA from the qualified receipt', () => {
     const content = renderShip('typescript', 'L2', 'trunk-solo', 'direct')
-    expect(content).toContain('git push origin HEAD:main')
+    expect(content).toContain('gate-evidence.mjs verify --min-level L2 --print-head')
+    expect(content).toContain('git push origin "$frozen_head":main')
+    expect(content).not.toContain('git push origin HEAD:main')
   })
 
   it('peer-review (non-direct): does NOT emit git push origin HEAD:main in merge step', () => {

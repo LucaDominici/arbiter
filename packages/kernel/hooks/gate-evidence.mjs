@@ -451,7 +451,9 @@ export function verifyGateEvidenceFile(markerPath, opts = {}) {
   } catch (err) {
     return { ok: false, reason: `gate-pass marker unreadable at ${markerPath}: ${err.message}` }
   }
-  return verifyGateEvidence(parsed, opts)
+  const result = verifyGateEvidence(parsed, opts)
+  if (!result.ok || opts.includeMarker !== true) return result
+  return { ok: true, marker: parsed }
 }
 
 export function sanitizeTaskId(raw) {
@@ -597,7 +599,7 @@ function flag(argv, name, fallback) {
 function main(argv) {
   if (argv[0] !== 'verify') {
     process.stderr.write('usage: gate-evidence.mjs verify [--root d] [--min-level L2]')
-    process.stderr.write(' [--max-age-min n] [--task-id id] [--marker path]\n')
+    process.stderr.write(' [--max-age-min n] [--task-id id] [--marker path] [--print-head]\n')
     process.exit(2)
   }
   const root = flag(argv, 'root', process.cwd())
@@ -607,12 +609,17 @@ function main(argv) {
     minLevel: flag(argv, 'min-level', 'L2'),
     maxAgeMin: Number(flag(argv, 'max-age-min', GATE_EVIDENCE_DEFAULT_TTL_MIN)),
     taskId: flag(argv, 'task-id', undefined),
+    includeMarker: true,
   })
   if (!result.ok) {
     process.stderr.write(`${result.reason}\n`)
     process.exit(1)
   }
-  const marker = JSON.parse(readFileSync(markerPath, 'utf-8'))
+  const marker = result.marker
+  if (argv.includes('--print-head')) {
+    process.stdout.write(marker.head_sha)
+    return
+  }
   const ageMin = Math.round((Date.now() - Date.parse(marker.timestamp)) / 60_000)
   process.stdout.write(
     `${marker.level} evidence for ${String(marker.head_sha).slice(0, 12)} (verified ${ageMin} min ago)`,

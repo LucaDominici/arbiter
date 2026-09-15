@@ -34,10 +34,12 @@ files:
   - src/templates/claude/commands/ship.md.ejs       # emitted twin of the same text (Track B)
   - __tests__/commands/task-ship.test.ts            # final-level selection per evidenceHarness
   - __tests__/templates/ship-driver-render.test.ts  # direct landing preserves frozen receipt
+  - __tests__/templates/commands-claude.test.ts     # generated direct landing contract
   - __tests__/commands/ship-profile.test.ts         # existing feature reaches the resolved profile
   - __tests__/evidence/gate-evidence-binding.test.ts     # staged-after-commit rejection
   - scripts/lib/gate-evidence.mjs                       # print SHA from verified marker snapshot
   - src/templates/scripts/lib/gate-evidence.mjs.ejs     # emitted verifier twin
+  - packages/kernel/hooks/gate-evidence.mjs             # kernel distribution twin
   - scripts/record-agent-return.mjs                     # align reviewer recorder with trunk-solo /ship
   - src/templates/scripts/record-agent-return.mjs.ejs   # emitted twin of recorder alignment
   - src/commands/task-state.ts                          # carry schema-validated collaboration mode
@@ -53,6 +55,7 @@ files:
   - examples/{ts-library,python-library,go-library}/scripts/record-agent-return.mjs
   - examples/{ts-library,python-library,go-library}/.arbiter-generated-manifest.json
   - .arbiter/evidence/tdd/#2693.json                # committed TDD evidence
+  - .arbiter/evidence/tdd/#2681.json                # secondary workflow-economy RED evidence
 
 Not edited (read as contract): `src/evidence/gate-binding.ts`, `scripts/check-all.mjs`, and
 `scripts/done-evidence.mjs` (+ `.ejs`).
@@ -201,7 +204,7 @@ The same validator supplies `collaborationMode` to task state; the recorder neve
 - [ ] AC-3: Any source/staged mutation, different tree hash, insufficient gate level, or ambiguous dirty state invalidates reuse.
 - [ ] AC-4: `/ship` verification selects one sufficient final gate level before entering close; harness `done-evidence` reuses that receipt instead of launching a second full gate on the same tree.
 - [ ] AC-5: Pre-push reuses the same qualified receipt only when the pushed commit, checkout HEAD, and tree binding still match.
-- [ ] AC-6: Tests cover reuse, push-subject mismatch, concurrent HEAD movement, and every existing invalidation boundary without creating a parallel evidence format.
+- [ ] AC-6: Tests cover reuse, push-subject mismatch, unqualifiable push objects, concurrent HEAD movement, and every existing invalidation boundary without creating a parallel evidence format.
 - [ ] AC-7: Gate duration and avoided duplicate runs remain observable metrics, not new blocking ceremony.
 - [ ] AC-8: The compatibility preflight is durable. A test pins that the close-selected final level ranks ≥ every consumer requirement (C ≥ L1, P ≥ L2, D = L3 under evidenceHarness, K). It fails if any requirement or the prescribed level changes independently.
 - [ ] AC-9: A staged (`tree_was_clean_at_run_time=false`) receipt is rejected after commit even when HEAD's tree minus `.arbiter/` equals its `tree_hash`. The rejection reason is actionable, and no verifier axis is removed or relaxed (INV-33).
