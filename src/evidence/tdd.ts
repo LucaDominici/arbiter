@@ -69,10 +69,10 @@ const ANSI_SGR = /\x1b\[[0-9;]*m/g
 // Vitest can wrap a multiword project badge in SGR codes. Normalize only that
 // complete, same-line badge-plus-JS-path shape before stripping the styling;
 // SGR delimiters may surround FAIL and appear between the badge delimiters.
-// A standard ANSI background opening (40-48) identifies the reporter badge;
-// foreground-only styling must not turn arbitrary diagnostics into headers.
+// Match Vitest's actual `black(background(project))` framing, including paired
+// resets. A background alone is ordinary terminal styling, not reporter proof.
 const ANSI_WRAPPED_JS_BADGE =
-  /(^[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)*FAIL[ \t]+(?:\x1b\[[0-9;]*m[ \t]*)*\x1b\[4[0-8](?:;[0-9]+)*m[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)*)([^|\n]+?)[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)+[ \t]+(\S+\.(?:spec|test)\.[jt]sx?\b)/gm // eslint-disable-line no-control-regex -- matches ANSI SGR delimiters
+  /(^[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)*FAIL[ \t]+(?:\x1b\[[0-9;]*m[ \t]*)*)\x1b\[30m\x1b\[4[1-7]m[ \t]+([^|\n]+?)[ \t]+\x1b\[49m\x1b\[39m[ \t]+(\S+\.(?:spec|test)\.[jt]sx?\b)/gm // eslint-disable-line no-control-regex -- matches ANSI SGR delimiters
 
 export function extractFailureSignature(log: string): ExtractResult | null {
   const plain = log.replace(ANSI_SGR, '')
@@ -96,15 +96,9 @@ export function extractFailureIdentities(log: string): string[] {
   const jsIdentities: string[] = []
   // Diagnostics can quote "FAIL path.test.ts" in a code frame. Only actual
   // header lines prove a JS failure; legacy scalar extraction stays unchanged.
-  const jsHeader = /^[ \t]*FAIL[ \t]+(?:\|[^|\n]+\|[ \t]+)?\S+\.(?:spec|test)\.[jt]sx?\b/gm
+  const jsHeader = /^ ?FAIL[ \t]+(?:\|[^|\n]+\|[ \t]+)?\S+\.(?:spec|test)\.[jt]sx?\b/gm
   for (const match of plain.matchAll(jsHeader)) {
-    // The `|<project>|` label (vitest test.projects, #2516) is reporter grouping, not
-    // part of the test's identity — stripped here the same way ANSI colour is, so
-    // recorded-vs-replayed identities compare equal regardless of project config.
-    let identity = match[0]
-      .trim()
-      .replace(/^FAIL\s+/, 'FAIL ')
-      .replace(/^FAIL \|[^|\n]+\|[ \t]+/, 'FAIL ')
+    let identity = match[0].trim().replace(/^FAIL\s+/, 'FAIL ')
     const suffix = plain.slice(match.index + match[0].length).split(/\r?\n/, 1)[0] ?? ''
     if (/^[ \t]+>/.test(suffix)) identity += ` ${suffix.trim()}`
     jsIdentities.push(identity)
