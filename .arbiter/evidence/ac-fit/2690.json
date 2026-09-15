@@ -1,0 +1,118 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2690",
+  "branch": "task/#2690-tdd-ci-color",
+  "sha": "4f40b2174503a9e7430acbfd2e2efa850016751d",
+  "plan_sha256": "812a87adfd9737c04c5f5a1291580db4d9228c49259d403bae088f4f06770c8d",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 75
+        },
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 95
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 181
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 213
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 217
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 221
+        }
+      ],
+      "notes": "The candidate normalizes only a same-line ANSI background badge. Exact multi-SGR CI framing passes; unstyled and foreground-only diagnostic prefixes plus newline-crossing paths are rejected."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 181
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 198
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 200
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 201
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 203
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 209
+        }
+      ],
+      "notes": "The focused boundary test uses captured CI SGR framing and proves exact command args, detached cwd, timeout, and no env override."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 90
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 106
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 151
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 155
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 333
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 346
+        }
+      ],
+      "notes": "Green replay, identity mismatch, missing/extra failures, timeout, missing tool and truncated output remain fail closed."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 75
+        },
+        {
+          "file": ".arbiter/evidence/tdd/#2616.json",
+          "line": 1
+        }
+      ],
+      "notes": "On the same self-hosted runner slot that failed PR #2689, candidate HEAD 4f40b217 with the unchanged #2616 receipt passed verify tdd 7/7 including red-execution (issue #2690 comment 5672449539). PR #2689 L2 remains the immediate post-landing release proof."
+    }
+  ],
+  "limits": "Independent fit for source HEAD 4f40b217. It does not claim #2690 CI/merge or the required post-landing #2689 L2 run."
+}

@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2690",
+  "test_path": "__tests__/evidence/tdd-reexecute.test.ts",
+  "test_commit_sha": "3d98f5d126f394ff5d0b1999bbda86f3b620b1b8",
+  "test_blob_sha": "c85c572703f89a5231e3122d6f897b57cb371a0a",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/evidence/tdd-reexecute.test.ts (32 tests | 2 failed) 15ms\n     × rejects an unstyled diagnostic prefix as a JavaScript failure header (AC-1) 4ms\n     × normalizes an ANSI-wrapped multiword project badge (AC-1) 1ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 30 passed (32)\n   Start at  01:36:42\n   Duration  182ms (transform 55ms, setup 6ms, import 80ms, tests 15ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/evidence/tdd-reexecute.test.ts > verifyRedExecution() > rejects an unstyled diagnostic prefix as a JavaScript failure header (AC-1)\nAssertionError: expected true to be false // Object.is equality\n\n- Expected\n+ Received\n\n- false\n+ true\n\n ❯ __tests__/evidence/tdd-reexecute.test.ts:212:70\n    210|\n    211|   it('rejects an unstyled diagnostic prefix as a JavaScript failure he…\n    212|     expect(replayLines(['FAIL diagnostic:  math.test.ts'], BASE).ok).t…\n       |                                                                      ^\n    213|   })\n    214|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/evidence/tdd-reexecute.test.ts > verifyRedExecution() > normalizes an ANSI-wrapped multiword project badge (AC-1)\nAssertionError: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/evidence/tdd-reexecute.test.ts:216:87\n    214|\n    215|   it('normalizes an ANSI-wrapped multiword project badge (AC-1)', () =…\n    216|     expect(replayLines(['FAIL \\x1b[31m  unit tests\\x1b[39m  math.test.…\n       |                                                                                       ^\n    217|   })\n    218|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/evidence/tdd-reexecute.test.ts",
+  "recorded_at": "2026-09-14T23:36:42.692Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/evidence/tdd-reexecute.test.ts"
+  ]
+}

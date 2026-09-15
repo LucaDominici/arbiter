@@ -66,6 +66,13 @@ export interface ExtractResult {
 // generated-gate-e2e, #1770-class regression).
 // eslint-disable-next-line no-control-regex -- strips ANSI SGR codes (\x1b[...m)
 const ANSI_SGR = /\x1b\[[0-9;]*m/g
+// Vitest can wrap a multiword project badge in SGR codes. Normalize only that
+// complete, same-line badge-plus-JS-path shape before stripping the styling;
+// SGR delimiters may surround FAIL and appear between the badge delimiters.
+// A standard ANSI background opening (40-48) identifies the reporter badge;
+// foreground-only styling must not turn arbitrary diagnostics into headers.
+const ANSI_WRAPPED_JS_BADGE =
+  /(^[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)*FAIL[ \t]+(?:\x1b\[[0-9;]*m[ \t]*)*\x1b\[4[0-8](?:;[0-9]+)*m[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)*)([^|\n]+?)[ \t]*(?:\x1b\[[0-9;]*m[ \t]*)+[ \t]+(\S+\.(?:spec|test)\.[jt]sx?\b)/gm // eslint-disable-line no-control-regex -- matches ANSI SGR delimiters
 
 export function extractFailureSignature(log: string): ExtractResult | null {
   const plain = log.replace(ANSI_SGR, '')
@@ -85,7 +92,7 @@ export function extractFailureSignature(log: string): ExtractResult | null {
  * Ordering and colour are incidental; whitespace inside test names is identity.
  */
 export function extractFailureIdentities(log: string): string[] {
-  const plain = log.replace(ANSI_SGR, '')
+  const plain = log.replace(ANSI_WRAPPED_JS_BADGE, '$1|$2| $3').replace(ANSI_SGR, '')
   const identities = new Set<string>()
   for (const { framework, pattern } of FAILURE_SIGNATURES) {
     const isJs = framework === 'vitest' || framework === 'jest'
