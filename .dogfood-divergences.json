@@ -17,7 +17,7 @@
   {
     "path": "commands/wt-open.md",
     "reason": "Arbiter self-dogfood: extended with condensed argument parsing style. Template ships verbose style. (Confirmed intentional 2026-05-29, #1092.)",
-    "diffHash": "6a3739ead2db9835f9f78aa44aebd3b19a8a363938c74d89b5fb68ad8bfba437"
+    "diffHash": "4722fc737e2b35f5bd0da037ea61fc2d6316cb05f737b4d397ae35510b89faab"
   },
   {
     "path": "commands/wt-prune.md",

@@ -32,9 +32,15 @@ import { resolve, join, relative } from 'node:path'
 import { createHash, randomBytes } from 'node:crypto'
 import { execFileSync, execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { validateSchema, enforceCitations, loadSchema } from './lib/agent-return-validate.mjs'
+import {
+  validateSchema,
+  enforceCitations,
+  enforceAcFitCitations,
+  loadSchema,
+} from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
 import { computeAcHash, parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
+import { nativeHostBindingError } from '../.claude/hooks/lib.mjs'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
@@ -300,12 +306,16 @@ function assertModeIdentity(parsed, state) {
   if (state.branch !== stamped.branch) return null
   if (process.env.CLAUDE_CODE_SESSION_ID) {
     const binding = state.hostBinding
-    if (
-      binding?.worktreePath !== resolve(process.cwd()) ||
-      binding?.sessionId !== process.env.CLAUDE_CODE_SESSION_ID
-    ) {
-      return null
-    }
+    if (!binding) return null
+    const bindingError = nativeHostBindingError(
+      {
+        cwd: process.cwd(),
+        session_id: process.env.CLAUDE_CODE_SESSION_ID,
+        transcript_path: binding.transcriptPath,
+      },
+      REPO_ROOT,
+    )
+    if (bindingError) return null
   }
   return stamped
 }
@@ -353,6 +363,7 @@ function recordAcceptanceFit(parsed, schema) {
     requireAllPass: true,
     expectedTaskId: TASK_ID,
   })
+  errors.push(...enforceAcFitCitations(env.acceptanceFit, REPO_ROOT, stamped.sha, '<stdin>'))
   if (errors.length > 0) {
     for (const error of errors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
     return 1
@@ -403,23 +414,15 @@ function routedPanelRequirement(state, sha) {
   })
   let active = []
   const router = join(REPO_ROOT, 'scripts', 'route-auditors.mjs')
-  try {
-    active = JSON.parse(
-      execFileSync(process.execPath, [router, '--diff-stdin'], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-        input: changed,
-        stdio: ['pipe', 'pipe', 'ignore'],
-      }),
-    ).active
-  } catch {
-    active = changed
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .some((path) => /(^|\/)(auth|crypto|migrations?|\.github)(\/|$)|\.sql$/i.test(path))
-      ? ['silent-failures']
-      : []
-  }
+  active = JSON.parse(
+    execFileSync(process.execPath, [router, '--diff-stdin'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      input: changed,
+      stdio: ['pipe', 'pipe', 'ignore'],
+    }),
+  ).active
+  if (!Array.isArray(active)) throw new Error('reviewer router returned no active auditor list')
   const escalated = active.some((name) =>
     ['security', 'data-integrity', 'silent-failures'].includes(name),
   )

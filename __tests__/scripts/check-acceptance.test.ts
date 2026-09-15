@@ -5,7 +5,7 @@
 // strip #fragment plan anchors (wave mode), and demand an all-PASS ac-fit artifact
 // at verification/close.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import {
   mkdtempSync,
   mkdirSync,
@@ -143,19 +143,27 @@ describe('check-acceptance gate', () => {
     expect(r.stderr + r.stdout).toMatch(/ac-fit/i)
   })
 
-  it('passes verification with a complete all-PASS ac-fit artifact', () => {
+  it('rejects late-phase fit when live branch binding is absent', () => {
     writeState('verification')
+    execFileSync('git', ['init', '-b', 'task/#42-fit'], { cwd: root, stdio: 'ignore' })
+    execFileSync('git', ['config', 'user.email', 'test@fixture.invalid'], { cwd: root })
+    execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: root })
+    execFileSync('git', ['add', 'plan.md'], { cwd: root })
+    execFileSync('git', ['commit', '-m', 'seed'], { cwd: root, stdio: 'ignore' })
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
     mkdirSync(join(root, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
     writeFileSync(
       join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'),
       JSON.stringify({
         schema: 'arbiter-ac-fit-v1',
         taskId: '#42',
-        sha: 'abc',
-        criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/x.ts', line: 1 }] }],
+        sha,
+        criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'plan.md', line: 1 }] }],
       }),
     )
-    expect(run().status).toBe(0)
+    const result = run()
+    expect(result.status).toBe(1)
+    expect(result.stderr + result.stdout).toMatch(/branch/i)
   })
 
   it('--plan mode validates a given plan file directly (wave integrate)', () => {
@@ -171,6 +179,8 @@ describe('check-acceptance gate', () => {
       join(root, 'wave.md'),
       ['## Acceptance Criteria', '- [ ] AC-123.1: behavior', '## Non-Goals', '- x'].join('\n'),
     )
+    mkdirSync(join(root, 'src'), { recursive: true })
+    writeFileSync(join(root, 'src', 'x.ts'), 'one\ntwo\nthree\n')
     mkdirSync(join(root, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
     const fit = join('.arbiter', 'evidence', 'ac-fit', 'wave-1.json')
     writeFileSync(
@@ -301,7 +311,7 @@ describe.each(['self', 'emitted'])('#2635 acceptance input boundaries (%s)', (pr
       JSON.stringify({
         schema: 'arbiter-ac-fit-v1',
         taskId: '#42',
-        criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/x.ts', line: 1 }] }],
+        criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'plan.md', line: 1 }] }],
       }),
     )
     const args = rel === 'fit.json' ? ['--plan', 'plan.md', '--ac-fit', 'fit.json'] : []

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { ensureDir, writeFileTranslated, readFileTranslated } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
@@ -162,18 +162,31 @@ export function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
         'claude --resume "$CLAUDE_CODE_SESSION_ID" --fork-session --permission-mode auto',
     )
   }
+  if (realpathSync(root) !== hostBinding.worktreePath) {
+    throw new Error('task write root does not match the bound worktree')
+  }
   writeUnifiedState(root, { taskId, branch: hostBinding.branch, hostBinding })
   appendLog(root, `host-preflight ${taskId} session=${hostBinding.sessionId}`)
   process.stdout.write(`host-preflight: OK — ${hostBinding.worktreePath}\n`)
 }
 
-function assertBoundClaudeHost(root: string, host: NativeHostContext = {}): void {
+function assertBoundClaudeHost(
+  root: string,
+  requestedTaskId: string | undefined,
+  host: NativeHostContext = {},
+): void {
   const env = host.env ?? process.env
   if (!env['CLAUDE_CODE_SESSION_ID']) return
   const state = readUnifiedState(root)
   const binding = state?.hostBinding
   if (!state?.taskId || !binding) {
     throw new Error('native host binding is missing — run arbiter task host-preflight first')
+  }
+  if (realpathSync(root) !== binding.worktreePath) {
+    throw new Error('task write root does not match the native host binding')
+  }
+  if (requestedTaskId !== undefined && normalizeChainId(requestedTaskId) !== state.taskId) {
+    throw new Error('task id does not match the native host binding')
   }
   const live = resolveNativeHostBinding(state.taskId, binding.worktreePath, host)
   if (JSON.stringify(live) !== JSON.stringify(binding)) {
@@ -187,7 +200,7 @@ function assertBoundClaudeHost(root: string, host: NativeHostContext = {}): void
  */
 export function runTaskInit(opts: TaskInitOptions = {}): void {
   const root = opts.dir ?? process.cwd()
-  assertBoundClaudeHost(root, opts.host)
+  assertBoundClaudeHost(root, opts.id, opts.host)
   const patch: TaskStatePatch = {}
   if (opts.id !== undefined) patch.taskId = opts.id
   if (opts.tier !== undefined) patch.tier = opts.tier

@@ -1,9 +1,9 @@
 // Arbiter hook library — shared utilities for all hooks
 // Project: python-library
-import { mkdirSync, appendFileSync, readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
-import { join, extname, dirname, resolve, sep } from 'node:path';
+import { mkdirSync, appendFileSync, readFileSync, existsSync, lstatSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { basename, isAbsolute, join, extname, dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
@@ -537,4 +537,84 @@ export function readTaskState(root) {
     tier: pick(state.tier),
     branch: pick(state.branch),
   };
+}
+
+/** Exact Claude project/session binding established by `task host-preflight` (#2685). */
+export function nativeHostBindingError(event, root) {
+  const path = join(root, '.claude', '.task', 'status.json');
+  if (!existsSync(path)) return null;
+  let state;
+  try {
+    state = JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return 'task state is unreadable';
+  }
+  if (typeof state?.taskId !== 'string' || state.taskId.length === 0) return null;
+  const binding = state.hostBinding;
+  if (!binding || typeof binding !== 'object') return 'native host binding is missing';
+  const transcriptError = claudeTranscriptIdentityError(event, root);
+  if (transcriptError) return transcriptError;
+  try {
+    const actualRoot = realpathSync(root);
+    const eventRoot = realpathSync(event?.cwd);
+    if (actualRoot !== binding.worktreePath || eventRoot !== binding.worktreePath)
+      return 'native host root does not match the task worktree';
+    if (process.env.CLAUDE_PROJECT_DIR && realpathSync(process.env.CLAUDE_PROJECT_DIR) !== binding.worktreePath)
+      return 'CLAUDE_PROJECT_DIR does not match the task worktree';
+    if (event?.session_id !== binding.sessionId) return 'native host session does not match binding';
+    const branch = spawnSync('git', ['branch', '--show-current'], { cwd: actualRoot, encoding: 'utf8' });
+    if (branch.status !== 0 || branch.stdout.trim() !== binding.branch || state.branch !== binding.branch)
+      return 'native host branch does not match binding';
+    const transcript = event?.transcript_path;
+    if (transcript !== binding.transcriptPath) return 'native host transcript does not match binding';
+    const stat = lstatSync(transcript);
+    if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(transcript) !== resolve(transcript))
+      return 'native host transcript is not a regular unsymlinked file';
+    const common = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd: actualRoot, encoding: 'utf8' });
+    if (common.status !== 0) return 'native host Git common directory is unavailable';
+    const logPath = join(dirname(resolve(actualRoot, common.stdout.trim())), '.arbiter', 'worktree-open.log.json');
+    const logStat = lstatSync(logPath);
+    if (!logStat.isFile() || logStat.isSymbolicLink()) return 'worktree-open log is not a regular file';
+    const rows = JSON.parse(readFileSync(logPath, 'utf8'));
+    if (!Array.isArray(rows) || rows.filter((row) =>
+      row?.taskId === state.taskId && row?.worktreePath === binding.worktreePath && row?.branch === binding.branch
+    ).length !== 1)
+      return 'exact native host worktree log binding is missing or ambiguous';
+  } catch {
+    return 'native host binding cannot be corroborated';
+  }
+  return null;
+}
+
+/** Shared exact project/session/transcript predicate for Claude hooks (#2685). */
+export function claudeTranscriptIdentityError(event, repoRoot) {
+  if (typeof event?.session_id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(event.session_id))
+    return 'hook input has no valid session_id';
+  if (typeof event?.transcript_path !== 'string' || !isAbsolute(event.transcript_path))
+    return 'transcript_path must be absolute';
+  let projectRoot;
+  try {
+    projectRoot = typeof event.cwd === 'string' && isAbsolute(event.cwd) ? realpathSync(event.cwd) : repoRoot;
+  } catch {
+    return 'hook cwd is not a readable project directory';
+  }
+  if (projectRoot !== repoRoot && !projectRoot.startsWith(`${repoRoot}${sep}`))
+    return 'hook cwd is outside the current repository';
+  const expected = join(
+    homedir(),
+    '.claude',
+    'projects',
+    projectRoot.replace(/[^A-Za-z0-9]/g, '-'),
+    `${event.session_id}.jsonl`,
+  );
+  if (resolve(event.transcript_path) !== resolve(expected) || basename(event.transcript_path) !== `${event.session_id}.jsonl`)
+    return 'transcript_path is not the current session transcript for this project';
+  try {
+    const stat = lstatSync(event.transcript_path);
+    if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(event.transcript_path) !== resolve(event.transcript_path))
+      return 'transcript_path must be a regular unsymlinked file';
+  } catch {
+    return 'transcript_path is unavailable';
+  }
+  return null;
 }

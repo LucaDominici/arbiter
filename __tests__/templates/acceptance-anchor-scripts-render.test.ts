@@ -107,7 +107,11 @@ describe('acceptance-anchor script templates (ADR-110)', () => {
     try {
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
       mkdirSync(join(dir, '.claude', '.task'), { recursive: true })
-      for (const rel of ['lib/acceptance-criteria.mjs', 'lib/run-helpers.mjs']) {
+      for (const rel of [
+        'lib/acceptance-criteria.mjs',
+        'lib/agent-return-validate.mjs',
+        'lib/run-helpers.mjs',
+      ]) {
         writeFileSync(join(dir, 'scripts', rel), render(`scripts/${rel}.ejs`))
       }
       writeFileSync(

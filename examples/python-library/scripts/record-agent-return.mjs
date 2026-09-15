@@ -23,20 +23,31 @@ import {
   mkdirSync,
   openSync,
   readdirSync,
+  readFileSync,
+  renameSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { resolve, join } from 'node:path'
-import { execSync } from 'node:child_process'
+import { resolve, join, relative } from 'node:path'
+import { createHash, randomBytes } from 'node:crypto'
+import { execFileSync, execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { validateSchema, enforceCitations, loadSchema } from './lib/agent-return-validate.mjs'
+import {
+  validateSchema,
+  enforceCitations,
+  enforceAcFitCitations,
+  loadSchema,
+} from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
+import { computeAcHash, parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
+import { nativeHostBindingError } from '../.claude/hooks/lib.mjs'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
 
 const argv = process.argv.slice(2)
 const TASK_ID = arg('task', argv)
+const MODE = arg('mode', argv) ?? 'return'
 const PROVENANCE_VENDOR = arg('provenance-vendor', argv)
 const PROVENANCE_CLI = arg('provenance-cli', argv)
 const PROVENANCE_CLI_VERSION = arg('provenance-cli-version', argv)
@@ -89,6 +100,14 @@ function stampProvenance() {
     /* non-git fixture */
   }
   return { branch, sha, ts: new Date().toISOString() }
+}
+
+function currentIdentity() {
+  const stamped = stampProvenance()
+  if (stamped.branch === 'unknown' || stamped.sha === '0000000') {
+    throw new Error('current Git identity is unavailable')
+  }
+  return stamped
 }
 
 function stampAgentProvenance() {
@@ -190,6 +209,37 @@ function writeEnvelopeContained(evidenceDir, task, agent, content) {
   }
 }
 
+function writeAtomicContained(rootDir, childParts, filename, content) {
+  let dirFd = -1
+  let tempPath = null
+  try {
+    dirFd = openContainedDirectory(rootDir, childParts)
+    const dirPath = descriptorPath(dirFd)
+    tempPath = join(dirPath, `.arbiter-tmp-${randomBytes(6).toString('hex')}`)
+    const fd = openSync(
+      tempPath,
+      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+      0o600,
+    )
+    try {
+      writeFileSync(fd, content, 'utf8')
+    } finally {
+      closeSync(fd)
+    }
+    renameSync(tempPath, join(dirPath, filename))
+    tempPath = null
+  } finally {
+    if (tempPath !== null) {
+      try {
+        unlinkSync(tempPath)
+      } catch {
+        // Preserve the primary error.
+      }
+    }
+    if (dirFd !== -1) closeSync(dirFd)
+  }
+}
+
 function parseInput(raw) {
   try {
     return { parsed: JSON.parse(raw) }
@@ -229,10 +279,231 @@ function stampAndValidate(parsed, schema) {
   }
   const citationErrors = enforceCitations(env, REPO_ROOT, '<stdin>')
   if (citationErrors.length > 0) {
-    for (const error of citationErrors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
+    for (const error of citationErrors)
+      process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
     return null
   }
   return env
+}
+
+function loadActiveTask() {
+  const path = join(REPO_ROOT, '.claude', '.task', 'status.json')
+  const state = JSON.parse(readFileSync(path, 'utf8'))
+  if (state?.taskId !== TASK_ID)
+    throw new Error(`active task ${String(state?.taskId)} does not match ${TASK_ID}`)
+  return state
+}
+
+function assertModeIdentity(parsed, state) {
+  const stamped = currentIdentity()
+  if (
+    parsed?.taskId !== TASK_ID ||
+    parsed?.branch !== stamped.branch ||
+    parsed?.sha !== stamped.sha
+  ) {
+    return null
+  }
+  if (state.branch !== stamped.branch) return null
+  if (process.env.CLAUDE_CODE_SESSION_ID) {
+    const binding = state.hostBinding
+    if (!binding) return null
+    const bindingError = nativeHostBindingError(
+      {
+        cwd: process.cwd(),
+        session_id: process.env.CLAUDE_CODE_SESSION_ID,
+        transcript_path: binding.transcriptPath,
+      },
+      REPO_ROOT,
+    )
+    if (bindingError) return null
+  }
+  return stamped
+}
+
+function modeContext(parsed) {
+  if (arg('evidence-dir', argv))
+    return { error: 'qualified modes write only canonical evidence paths' }
+  try {
+    const state = loadActiveTask()
+    const stamped = assertModeIdentity(parsed, state)
+    if (stamped === null) return { error: 'task, branch, sha, or native host binding is stale' }
+    return { state, stamped }
+  } catch (err) {
+    return { internal: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+function recordAcceptanceFit(parsed, schema) {
+  const context = modeContext(parsed)
+  if ('internal' in context) {
+    process.stderr.write(`[record-agent-return] ERROR: ${context.internal}\n`)
+    return 2
+  }
+  if ('error' in context) {
+    process.stdout.write(`[record-agent-return] FAIL: ${context.error}\n`)
+    return 1
+  }
+  const { state, stamped } = context
+  const env = stampAndValidate(parsed, schema)
+  if (env === null) return 1
+  if (env.role !== 'verifier' || !env.acceptanceFit) {
+    process.stdout.write(
+      '[record-agent-return] FAIL: ac-fit mode requires one verifier acceptanceFit envelope\n',
+    )
+    return 1
+  }
+  const planPath = join(REPO_ROOT, String(state.plan ?? '').split('#')[0])
+  const anchor = parsePlanAnchor(readFileSync(planPath, 'utf8'))
+  if (anchor === null) {
+    process.stdout.write('[record-agent-return] FAIL: active plan has no acceptance anchor\n')
+    return 1
+  }
+  const criteriaIds = anchor.criteria.map((criterion) => criterion.id)
+  const errors = validateAcFit(env.acceptanceFit, criteriaIds, {
+    requireAllPass: true,
+    expectedTaskId: TASK_ID,
+  })
+  errors.push(...enforceAcFitCitations(env.acceptanceFit, REPO_ROOT, stamped.sha, '<stdin>'))
+  if (errors.length > 0) {
+    for (const error of errors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
+    return 1
+  }
+  const sanitizedTask = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')
+  const agent = String(env.agent).replace(/[^0-9A-Za-z-]/g, '-')
+  const envelopeContent = `${JSON.stringify(env, null, 2)}\n`
+  try {
+    const sourcePath = writeEnvelopeContained(
+      join(REPO_ROOT, '.arbiter', 'evidence', 'agent-returns'),
+      sanitizedTask,
+      agent,
+      envelopeContent,
+    )
+    const fit = {
+      ...env.acceptanceFit,
+      branch: stamped.branch,
+      sha: stamped.sha,
+      planHash: computeAcHash(anchor.criteria),
+      sourceEnvelope: {
+        path: relative(REPO_ROOT, sourcePath),
+        sha256: createHash('sha256').update(envelopeContent).digest('hex'),
+      },
+    }
+    writeAtomicContained(
+      join(REPO_ROOT, '.arbiter', 'evidence'),
+      ['ac-fit'],
+      `${TASK_ID.replace(/[^0-9A-Za-z-]/g, '')}.json`,
+      `${JSON.stringify(fit, null, 2)}\n`,
+    )
+    process.stdout.write(`[record-agent-return] OK — recorded verifier envelope and ac-fit\n`)
+    return 0
+  } catch (err) {
+    process.stderr.write(
+      `[record-agent-return] ERROR: cannot write evidence: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    return 2
+  }
+}
+
+function routedPanelRequirement(state, sha) {
+  const baseCount =
+    state.tier === 'Standard' ? 2 : state.tier === 'XS' || state.tier === 'S' ? 1 : 0
+  if (baseCount === 0) throw new Error(`unsupported task tier ${String(state.tier)}`)
+  const changed = execFileSync('git', ['diff', '--name-only', `origin/main...${sha}`], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  })
+  let active = []
+  const router = join(REPO_ROOT, 'scripts', 'route-auditors.mjs')
+  active = JSON.parse(
+    execFileSync(process.execPath, [router, '--diff-stdin'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      input: changed,
+      stdio: ['pipe', 'pipe', 'ignore'],
+    }),
+  ).active
+  if (!Array.isArray(active)) throw new Error('reviewer router returned no active auditor list')
+  const escalated = active.some((name) =>
+    ['security', 'data-integrity', 'silent-failures'].includes(name),
+  )
+  return { count: escalated ? 3 : baseCount, auditors: active }
+}
+
+function recordReviewerPanel(parsed, schema) {
+  const subject = Array.isArray(parsed?.envelopes) ? parsed.envelopes[0] : undefined
+  const context = modeContext(subject)
+  if ('internal' in context) {
+    process.stderr.write(`[record-agent-return] ERROR: ${context.internal}\n`)
+    return 2
+  }
+  if ('error' in context) {
+    process.stdout.write(`[record-agent-return] FAIL: ${context.error}\n`)
+    return 1
+  }
+  const { state, stamped } = context
+  const envelopes = Array.isArray(parsed?.envelopes) ? parsed.envelopes : []
+  let requirement
+  try {
+    requirement = routedPanelRequirement(state, stamped.sha)
+  } catch (err) {
+    process.stderr.write(
+      `[record-agent-return] ERROR: cannot derive reviewer panel: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    return 2
+  }
+  if (envelopes.length !== requirement.count) {
+    process.stdout.write(
+      `[record-agent-return] FAIL: routed panel requires ${requirement.count} reviewer envelopes\n`,
+    )
+    return 1
+  }
+  const validated = []
+  for (const candidate of envelopes) {
+    if (assertModeIdentity(candidate, state) === null) {
+      process.stdout.write('[record-agent-return] FAIL: reviewer envelope subject is stale\n')
+      return 1
+    }
+    const envelope = stampAndValidate(candidate, schema)
+    if (envelope === null || envelope.role !== 'reviewer') return 1
+    validated.push(envelope)
+  }
+  const agents = validated.map((envelope) => String(envelope.agent))
+  if (new Set(agents).size !== agents.length) {
+    process.stdout.write('[record-agent-return] FAIL: reviewer agents must be distinct\n')
+    return 1
+  }
+  try {
+    const evidenceDir = join(REPO_ROOT, '.arbiter', 'evidence', 'agent-returns')
+    const task = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')
+    for (const envelope of validated) {
+      writeEnvelopeContained(
+        evidenceDir,
+        task,
+        String(envelope.agent).replace(/[^0-9A-Za-z-]/g, '-'),
+        `${JSON.stringify(envelope, null, 2)}\n`,
+      )
+    }
+    writeAtomicContained(
+      REPO_ROOT,
+      ['.arbiter'],
+      'agents-dispatched.json',
+      `${JSON.stringify({
+        count: requirement.count,
+        agents,
+        auditors: requirement.auditors,
+        branch: stamped.branch,
+        sha: stamped.sha,
+        taskId: TASK_ID,
+      })}\n`,
+    )
+    process.stdout.write('[record-agent-return] OK — recorded routed reviewer panel\n')
+    return 0
+  } catch (err) {
+    process.stderr.write(
+      `[record-agent-return] ERROR: cannot write panel evidence: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    return 2
+  }
 }
 
 async function main() {
@@ -247,6 +518,12 @@ async function main() {
   if ('exitCode' in input) return input.exitCode
   const schemaResult = loadReturnSchema()
   if ('exitCode' in schemaResult) return schemaResult.exitCode
+  if (MODE === 'ac-fit') return recordAcceptanceFit(input.parsed, schemaResult.schema)
+  if (MODE === 'reviewer-panel') return recordReviewerPanel(input.parsed, schemaResult.schema)
+  if (MODE !== 'return') {
+    process.stderr.write(`[record-agent-return] ERROR: unsupported --mode ${MODE}\n`)
+    return 2
+  }
   const env = stampAndValidate(input.parsed, schemaResult.schema)
   if (env === null) return 1
   const sanitizedTask = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')

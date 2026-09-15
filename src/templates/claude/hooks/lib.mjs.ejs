@@ -559,12 +559,27 @@ export function nativeHostBindingError(event, root) {
     const eventRoot = realpathSync(event?.cwd);
     if (actualRoot !== binding.worktreePath || eventRoot !== binding.worktreePath)
       return 'native host root does not match the task worktree';
+    if (process.env.CLAUDE_PROJECT_DIR && realpathSync(process.env.CLAUDE_PROJECT_DIR) !== binding.worktreePath)
+      return 'CLAUDE_PROJECT_DIR does not match the task worktree';
     if (event?.session_id !== binding.sessionId) return 'native host session does not match binding';
+    const branch = spawnSync('git', ['branch', '--show-current'], { cwd: actualRoot, encoding: 'utf8' });
+    if (branch.status !== 0 || branch.stdout.trim() !== binding.branch || state.branch !== binding.branch)
+      return 'native host branch does not match binding';
     const transcript = event?.transcript_path;
     if (transcript !== binding.transcriptPath) return 'native host transcript does not match binding';
     const stat = lstatSync(transcript);
     if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(transcript) !== resolve(transcript))
       return 'native host transcript is not a regular unsymlinked file';
+    const common = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd: actualRoot, encoding: 'utf8' });
+    if (common.status !== 0) return 'native host Git common directory is unavailable';
+    const logPath = join(dirname(resolve(actualRoot, common.stdout.trim())), '.arbiter', 'worktree-open.log.json');
+    const logStat = lstatSync(logPath);
+    if (!logStat.isFile() || logStat.isSymbolicLink()) return 'worktree-open log is not a regular file';
+    const rows = JSON.parse(readFileSync(logPath, 'utf8'));
+    if (!Array.isArray(rows) || rows.filter((row) =>
+      row?.taskId === state.taskId && row?.worktreePath === binding.worktreePath && row?.branch === binding.branch
+    ).length !== 1)
+      return 'exact native host worktree log binding is missing or ambiguous';
   } catch {
     return 'native host binding cannot be corroborated';
   }

@@ -69,4 +69,27 @@ describe('task host-preflight (#2685)', () => {
     )
     expect(readUnifiedState(worktree)).toBeNull()
   })
+
+  it('rejects a write root or task id that differs from the bound worktree task', () => {
+    const { main, worktree, host } = setup()
+
+    expect(() => runTaskHostPreflight({ id: '#2685', worktree, dir: main, host })).toThrow(
+      /write root.*worktree/i,
+    )
+    runTaskHostPreflight({ id: '#2685', worktree, host })
+    expect(() => runTaskInit({ dir: worktree, id: '#9999', host })).toThrow(/task id.*binding/i)
+    expect(readUnifiedState(main)).toBeNull()
+  })
+
+  it('rejects a contradictory Claude project root when the host exposes it', () => {
+    const { main, worktree, host } = setup()
+    const contradictory = {
+      ...host,
+      env: { ...host.env, CLAUDE_PROJECT_DIR: main },
+    }
+
+    expect(() => runTaskHostPreflight({ id: '#2685', worktree, host: contradictory })).toThrow(
+      /CLAUDE_PROJECT_DIR/i,
+    )
+  })
 })

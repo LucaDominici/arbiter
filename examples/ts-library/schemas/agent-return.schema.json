@@ -106,9 +106,39 @@
           "minLength": 1
         }
       }
+    },
+    "acceptanceFit": {
+      "$ref": "#/$defs/AcceptanceFit",
+      "description": "Optional exact per-criterion verifier result; the recorder derives the admitted ac-fit artifact from this member."
     }
   },
   "$defs": {
+    "AcceptanceFit": {
+      "type": "object",
+      "required": ["schema", "taskId", "criteria"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "arbiter-ac-fit-v1" },
+        "taskId": { "type": "string", "pattern": "^#[0-9]+$" },
+        "criteria": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AcceptanceFitCriterion" }
+        }
+      }
+    },
+    "AcceptanceFitCriterion": {
+      "type": "object",
+      "required": ["id", "verdict", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^AC-[A-Za-z0-9.]+$" },
+        "verdict": { "enum": ["PASS", "FAIL", "NOT-TESTED"] },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Citation" }
+        }
+      }
+    },
     "Finding": {
       "type": "object",
       "required": ["id", "severity", "kind", "claim", "citations"],

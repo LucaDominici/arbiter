@@ -56,10 +56,16 @@ function bindHost(dir: string, sessionId = 'bound-session') {
   mkdirSync(join(transcript, '..'), { recursive: true })
   writeFileSync(transcript, '{}\n')
   mkdirSync(join(dir, '.claude', '.task'), { recursive: true })
+  mkdirSync(join(dir, '.arbiter'), { recursive: true })
+  writeFileSync(
+    join(dir, '.arbiter', 'worktree-open.log.json'),
+    JSON.stringify([{ taskId: '#100', worktreePath: dir, branch: 'main' }]),
+  )
   writeFileSync(
     join(dir, '.claude', '.task', 'status.json'),
     JSON.stringify({
       taskId: '#100',
+      branch: 'main',
       hostBinding: { worktreePath: dir, branch: 'main', sessionId, transcriptPath: transcript },
     }),
   )

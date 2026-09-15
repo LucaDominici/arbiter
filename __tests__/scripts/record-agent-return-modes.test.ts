@@ -48,6 +48,14 @@ function record(input: unknown) {
   )
 }
 
+function recordWithEnv(input: unknown, env: Record<string, string>) {
+  return spawnSync(
+    process.execPath,
+    [RECORDER, '--mode', 'ac-fit', '--task', '#42', '--repo-root', root],
+    { cwd: root, encoding: 'utf8', input: JSON.stringify(input), env: { ...process.env, ...env } },
+  )
+}
+
 function recordPanel(envelopes: unknown[]) {
   return spawnSync(
     process.execPath,
@@ -62,6 +70,11 @@ beforeEach(() => {
   execFileSync('git', ['config', 'user.email', 'test@fixture.invalid'], { cwd: root })
   execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: root })
   writeFileSync(join(root, 'plan.md'), PLAN)
+  mkdirSync(join(root, 'scripts'), { recursive: true })
+  writeFileSync(
+    join(root, 'scripts', 'route-auditors.mjs'),
+    "process.stdin.resume(); process.stdin.on('end',()=>console.log(JSON.stringify({active:[]})))\n",
+  )
   execFileSync('git', ['add', 'plan.md'], { cwd: root })
   execFileSync('git', ['commit', '-m', 'test: seed'], { cwd: root, stdio: 'ignore' })
   execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: root })
@@ -130,6 +143,45 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(check.stdout + check.stderr).toMatch(/source|digest|envelope/i)
   })
 
+  it('rejects nonexistent acceptance evidence citations', () => {
+    const invalid = envelope()
+    invalid.acceptanceFit.criteria[0].evidence = [{ file: 'missing.ts', line: 999 }]
+
+    const result = record(invalid)
+
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/citation|does not resolve/i)
+  })
+
+  it('rejects a stale native host tuple before writing qualified evidence', () => {
+    const sessionId = 'missing-session'
+    writeFileSync(
+      join(root, '.claude', '.task', 'status.json'),
+      JSON.stringify({
+        taskId: '#42',
+        phase: 'verification',
+        plan: 'plan.md',
+        branch: 'task/#42-fit',
+        tier: 'Standard',
+        hostBinding: {
+          worktreePath: root,
+          branch: 'wrong-branch',
+          sessionId,
+          transcriptPath: join(root, 'not-a-transcript.jsonl'),
+        },
+      }),
+    )
+
+    const result = recordWithEnv(envelope(), {
+      CLAUDE_CODE_SESSION_ID: sessionId,
+      CLAUDE_PROJECT_DIR: root,
+      HOME: root,
+    })
+
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/native host binding|stale/i)
+  })
+
   it('derives a complete Standard reviewer sidecar from distinct accepted envelopes', () => {
     const first = { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined }
     const second = { ...envelope(), agent: 'review-b', role: 'reviewer', acceptanceFit: undefined }
@@ -140,5 +192,16 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(
       JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
     ).toMatchObject({ count: 2, agents: ['review-a', 'review-b'], taskId: '#42' })
+  })
+
+  it('fails closed when the canonical reviewer router is unavailable', () => {
+    writeFileSync(join(root, 'scripts', 'route-auditors.mjs'), 'process.exit(1)\n')
+    const first = { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined }
+    const second = { ...envelope(), agent: 'review-b', role: 'reviewer', acceptanceFit: undefined }
+
+    const result = recordPanel([first, second])
+
+    expect(result.status).toBe(2)
+    expect(result.stdout + result.stderr).toMatch(/reviewer panel|router/i)
   })
 })

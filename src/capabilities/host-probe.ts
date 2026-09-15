@@ -67,6 +67,18 @@ export function resolveNativeHostBinding(
     throw new Error(`exact worktree binding for ${canonicalTask} is missing or ambiguous`)
   }
   const env = context.env ?? process.env
+  const projectDir = env['CLAUDE_PROJECT_DIR']
+  if (projectDir) {
+    let projectPath
+    try {
+      projectPath = realpathSync(projectDir)
+    } catch {
+      throw new Error('CLAUDE_PROJECT_DIR is not a readable project directory')
+    }
+    if (projectPath !== worktreePath) {
+      throw new Error(`CLAUDE_PROJECT_DIR ${projectPath} does not match worktree ${worktreePath}`)
+    }
+  }
   const sessionId = env['CLAUDE_CODE_SESSION_ID']
   if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) {
     throw new Error('native host binding requires a valid CLAUDE_CODE_SESSION_ID')

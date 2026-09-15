@@ -469,6 +469,21 @@ export function enforceCitations(envelopeParsed, repoRoot, envelopePath) {
   return errors
 }
 
+/** Resolve every acceptance-fit proof citation against the reviewed subject. */
+export function enforceAcFitCitations(fit, repoRoot, sha = 'HEAD', fitPath = 'ac-fit') {
+  const errors = []
+  const criteria = Array.isArray(fit?.criteria) ? fit.criteria : []
+  for (let i = 0; i < criteria.length; i++) {
+    const evidence = Array.isArray(criteria[i]?.evidence) ? criteria[i].evidence : []
+    for (let j = 0; j < evidence.length; j++) {
+      const citation = evidence[j]
+      const result = resolveCitation(repoRoot, sha, citation?.file ?? '', citation?.line ?? 0)
+      if (!result.ok) errors.push(`${fitPath}: criteria[${i}].evidence[${j}] — ${result.reason}`)
+    }
+  }
+  return errors
+}
+
 /**
  * Load and parse a JSON schema file.
  * @param {string} schemaPath
