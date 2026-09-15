@@ -7,12 +7,16 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "src/capabilities/host-probe.ts",
-          "line": 52
+          "file": ".claude/hooks/lib.mjs",
+          "line": 546
         },
         {
           "file": ".claude/hooks/lib.mjs",
-          "line": 590
+          "line": 587
+        },
+        {
+          "file": ".arbiter/evidence/native-host/2685-2687.json",
+          "line": 14
         }
       ]
     },
@@ -22,11 +26,15 @@
       "evidence": [
         {
           "file": ".arbiter/evidence/native-host/2685-2687.json",
-          "line": 13
+          "line": 9
         },
         {
           "file": ".arbiter/evidence/native-host/2685-2687.json",
           "line": 18
+        },
+        {
+          "file": ".arbiter/evidence/native-host/2685-2687.json",
+          "line": 22
         }
       ]
     },
@@ -36,11 +44,15 @@
       "evidence": [
         {
           "file": ".arbiter/evidence/native-host/2685-2687.json",
-          "line": 25
+          "line": 29
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 264
         },
         {
           "file": "__tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts",
-          "line": 121
+          "line": 106
         }
       ]
     },
@@ -49,12 +61,16 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "src/capabilities/host-probe.ts",
-          "line": 59
+          "file": "src/commands/task.ts",
+          "line": 193
         },
         {
-          "file": ".claude/hooks/lib.mjs",
-          "line": 630
+          "file": "src/commands/task.ts",
+          "line": 241
+        },
+        {
+          "file": ".claude/commands/wt-open.md",
+          "line": 41
         }
       ]
     },
@@ -68,11 +84,11 @@
         },
         {
           "file": ".arbiter/evidence/native-host/2685-2687.json",
-          "line": 15
+          "line": 17
         },
         {
-          "file": ".arbiter/evidence/native-host/2685-2687.json",
-          "line": 18
+          "file": ".claude/hooks/lib.mjs",
+          "line": 661
         }
       ]
     },
@@ -82,11 +98,15 @@
       "evidence": [
         {
           "file": ".arbiter/evidence/native-host/2685-2687.json",
-          "line": 16
+          "line": 18
         },
         {
-          "file": "scripts/record-agent-return.mjs",
-          "line": 398
+          "file": ".arbiter/evidence/native-host/2685-2687.json",
+          "line": 20
+        },
+        {
+          "file": ".arbiter/evidence/native-host/2685-2687.json",
+          "line": 43
         }
       ]
     },
@@ -96,11 +116,15 @@
       "evidence": [
         {
           "file": "scripts/record-agent-return.mjs",
-          "line": 301
+          "line": 302
         },
         {
           "file": "scripts/record-agent-return.mjs",
-          "line": 385
+          "line": 374
+        },
+        {
+          "file": "scripts/record-agent-return.mjs",
+          "line": 391
         }
       ]
     },
@@ -110,15 +134,15 @@
       "evidence": [
         {
           "file": ".arbiter/evidence/native-host/2685-2687.json",
-          "line": 5
+          "line": 20
         },
         {
           "file": ".arbiter/evidence/native-host/2685-2687.json",
-          "line": 13
+          "line": 37
         },
         {
           "file": ".arbiter/evidence/native-host/2685-2687.json",
-          "line": 23
+          "line": 43
         }
       ]
     },
@@ -128,15 +152,15 @@
       "evidence": [
         {
           "file": "scripts/record-agent-return.mjs",
-          "line": 340
+          "line": 247
         },
         {
-          "file": "__tests__/scripts/record-agent-return-modes.test.ts",
-          "line": 117
+          "file": "scripts/record-agent-return.mjs",
+          "line": 336
         },
         {
-          "file": "__tests__/scripts/record-agent-return-modes.test.ts",
-          "line": 175
+          "file": ".arbiter/evidence/native-host/2685-2687.json",
+          "line": 37
         }
       ]
     },
@@ -153,8 +177,8 @@
           "line": 466
         },
         {
-          "file": "scripts/record-agent-return.mjs",
-          "line": 414
+          "file": ".arbiter/evidence/native-host/2685-2687.json",
+          "line": 58
         }
       ]
     },
@@ -164,11 +188,11 @@
       "evidence": [
         {
           "file": "scripts/record-agent-return.mjs",
-          "line": 359
+          "line": 348
         },
         {
           "file": "scripts/record-agent-return.mjs",
-          "line": 367
+          "line": 562
         },
         {
           "file": "__tests__/scripts/record-agent-return-modes.test.ts",
@@ -178,10 +202,10 @@
     }
   ],
   "branch": "task/#2685-native-ship-host",
-  "sha": "8f32fa8e47f1fa2c017751ab5aed670a41524be9",
+  "sha": "31b6bc44a6d6b5c545d08fbab824e7a3db745129",
   "planHash": "630018a5f390bbb64422f3081b88bcf92c21832f",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2685/native-acfit-bootstrap-verifier-0.json",
-    "sha256": "04a847d1723fe9a7591713f2ae98da1762b23f51325ec22378778105391978fe"
+    "path": ".arbiter/evidence/agent-returns/_2685/2685-2687-acfit-verifier-1.json",
+    "sha256": "141f39070165e07e1d6d54c30c53b1c8be821beb5bc2cf0179357698ae6aed9e"
   }
 }

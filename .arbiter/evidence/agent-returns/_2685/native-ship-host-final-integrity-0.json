@@ -1,0 +1,17 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "native-ship-host-final-integrity",
+  "role": "reviewer",
+  "taskId": "#2685",
+  "branch": "task/#2685-native-ship-host",
+  "sha": "31b6bc44a6d6b5c545d08fbab824e7a3db745129",
+  "ts": "2026-09-15T04:55:10.930Z",
+  "verdict": "PASS",
+  "confidence": 0.99,
+  "findings": [],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}
