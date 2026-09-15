@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2686",
+  "test_path": "__tests__/cli/verify-plan-tdd-dir-routing.test.ts",
+  "test_commit_sha": "ba00a9d9ad72b2c4ce1e234ac37d7798dd86f740",
+  "test_blob_sha": "585219025f71ba533e04d58b73abedb2f0a5674d",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/cli/verify-plan-tdd-dir-routing.test.ts (4 tests | 2 failed) 804ms\n     × loads target B plan rules and persists review in B for both aliases and positions (AC-1, AC-4) 127ms\n     × uses target B for both TDD inversion directions, aliases and positions (AC-2, AC-4) 226ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 2 passed (4)\n   Start at  04:01:39\n   Duration  903ms (transform 11ms, setup 6ms, import 11ms, tests 804ms, environment 0ms)\n\n\nbuild-kit: derived 78 dimensions → src/kit/derived.json\nbuild-dist: compacted 300 emitted JS files and 3 kit JSON files\nprune-dist-declarations: kept 19 reachable .d.ts, pruned 281\nwrite-dist-manifest: dist/.src-manifest.json srcHash=b74cf94a5b84…\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/cli/verify-plan-tdd-dir-routing.test.ts > verify plan/TDD honors the selected --dir (#2686) > loads target B plan rules and persists review in B for both aliases and positions (AC-1, AC-4)\nAssertionError: validate --dir /tmp/arbiter-2686-qIhAlP/B plan /tmp/arbiter-2686-qIhAlP/PLAN.json --json: expected +0 to be 2 // Object.is equality\n\n- Expected\n+ Received\n\n- 2\n+ 0\n\n ❯ __tests__/cli/verify-plan-tdd-dir-routing.test.ts:157:45\n    155|         data: { status: string; reviewPath: string }\n    156|       }\n    157|       expect(result.status, args.join(' ')).toBe(2)\n       |                                             ^\n    158|       expect(output.status).toBe('error')\n    159|       expect(output.data.status).toBe('REJECTED')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/cli/verify-plan-tdd-dir-routing.test.ts > verify plan/TDD honors the selected --dir (#2686) > uses target B for both TDD inversion directions, aliases and positions (AC-2, AC-4)\nAssertionError: validate --dir /tmp/arbiter-2686-qYjDPT/malformed tdd #90002686 --json: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/cli/verify-plan-tdd-dir-routing.test.ts:184:45\n    182|       const result = run(valid, args)\n    183|       const output = JSON.parse(result.stdout) as { status: string; da…\n    184|       expect(result.status, args.join(' ')).toBe(1)\n       |                                             ^\n    185|       expect(output.status).toBe('error')\n    186|       expect(output.data.exitCode).toBe(1)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/cli/verify-plan-tdd-dir-routing.test.ts",
+  "recorded_at": "2026-09-15T02:01:40.062Z",
+  "test_command": [
+    "sh",
+    "-c",
+    "npm run build >/dev/null && npx vitest run __tests__/cli/verify-plan-tdd-dir-routing.test.ts"
+  ]
+}

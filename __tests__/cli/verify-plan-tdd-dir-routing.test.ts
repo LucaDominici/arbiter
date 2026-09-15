@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { DEFAULT_THRESHOLDS } from '../helpers.js'
 
 const CLI = resolve(import.meta.dirname, '../../dist/cli.js')
 const PLAN_FIXTURE = resolve(import.meta.dirname, '../fixtures/bridge/approved/PLAN.json')
@@ -80,6 +81,15 @@ function installBlockingPlanPlugin(dir: string): void {
     tools: ['claude'],
     governanceLevel: 'L2',
     useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: true,
+      securityScanning: true,
+      evidenceHarness: false,
+      debtGates: true,
+      suppressions: true,
+    },
+    thresholds: DEFAULT_THRESHOLDS.L2,
     plugins: ['block-plan'],
   })
 }

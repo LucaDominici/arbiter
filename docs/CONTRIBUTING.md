@@ -295,6 +295,8 @@ produced-here guard (#2307) cannot apply` → the target's `.gitignore` swallows
   envelope with the six per-check verdicts (#1992); plain output unchanged without the flag
 - `verify evidence`/`verify graph`/`verify plan` honor `--json` the same way (#1994) —
   standard envelope on the flag, plain output and exit codes unchanged without it
+- For `verify plan` and `verify tdd`, `--dir` selects the project whether placed before or after
+  the subcommand. Relative paths resolve from the current directory; absolute paths are used as-is.
 - Self-hosted CI runner offline → set repo variable `CI_BUILD_RUNNER_LABEL=ubuntu-latest` (default already ubuntu-latest as of #959)
 
 ---

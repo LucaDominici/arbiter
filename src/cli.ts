@@ -1491,9 +1491,10 @@ verify
       // #1994: same parent/child --json shadowing #1992 fixed for `verify tdd` —
       // opts.json reads the verify/validate parent's default; optsWithGlobals()
       // reflects the flag actually passed.
-      const json = Boolean(cmd.optsWithGlobals().json)
+      const commandOpts = cmd.optsWithGlobals<{ dir?: string; json?: boolean }>()
+      const json = Boolean(commandOpts.json)
       const { resolve } = await import('node:path')
-      const dir = resolve(opts.dir ?? '.')
+      const dir = resolve(commandOpts.dir ?? '.')
       const stored = loadConfig(dir)
       const pluginNames: string[] =
         stored != null && Array.isArray(stored.plugins) ? stored.plugins : []
@@ -1573,11 +1574,12 @@ verify
     // which shadows this subcommand's own parsed value in `opts` — Commander
     // resolves the name collision to the parent's default. optsWithGlobals()
     // merges local + inherited options and reflects the flag actually passed.
-    const json = Boolean(cmd.optsWithGlobals().json)
+    const commandOpts = cmd.optsWithGlobals<{ dir?: string; json?: boolean }>()
+    const json = Boolean(commandOpts.json)
     const result = runVerifyTdd({
       taskId,
       json,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      ...(commandOpts.dir !== undefined ? { dir: commandOpts.dir } : {}),
     })
     if (json) {
       jsonOutput(
