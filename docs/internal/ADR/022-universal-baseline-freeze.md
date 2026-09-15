@@ -58,7 +58,8 @@ Generator emits a third file `scripts/debt-lib.mjs` exporting:
 
 - `spawnOrSkip(name, tool, cmd, args, opts)` — returns null on ENOENT with a warning
 - `collectMetrics(cwd)` — dispatches to the correct per-stack collector
-- `countTodos(cwd)` and `getCommit(cwd)` — shared utilities
+- `countTodos(cwd)` and `getCommit(cwd)` — shared utilities; `countTodos` uses the release gate's
+  source extensions and orphan-comment detector, so linked work, strings, and prose do not inflate debt
 
 Both `capture-debt-baseline.mjs` and `debt-report.mjs` import from `./debt-lib.mjs`. This eliminates the ~160-line duplication and provides a stable extension point for future milestones (MC suppressions, MK grace period, ME matrix maturity).
 
