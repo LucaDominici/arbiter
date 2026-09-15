@@ -48,6 +48,10 @@ Specifically:
    CODEX.md.ejs, /replay phase mapping, QUICKSTART.md, task-recovery.md, migration recipes,
    OVERVIEW.md, and FEATURE_MATRIX (REQ-053 /ship row → Verified).
 
+5. **Landing consumes Ship proof** — the canonical merge watcher refuses promotion unless the
+   local lifecycle is at `close`, review and configured acceptance evidence pass, the final gate
+   receipt is valid, and the PR head equals the locally qualified HEAD.
+
 ## Consequences
 
 - A reader following only `/ship` will not trip any gate (INV-114, INV-38).

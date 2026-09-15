@@ -28,7 +28,7 @@ const WATCHER_REQUIRED = {
   // entry exists to catch. Proven by inversion: with the assertLandingSupported()
   // statement removed, the name-only pattern still matches and these two do not.
   landing_contract: /resolveLandingContract\s*\(/,
-  landing_guard_invoked: /^\s*assertLandingSupported\(\)/m,
+  landing_guard_invoked: /^\s*(?:const\s+\w+\s*=\s*)?assertLandingSupported\(\)/m,
 }
 const WATCHER_FORBIDDEN = {
   gh_pr_merge: /['"]pr['"]\s*,\s*['"]merge['"]|gh\s+pr\s+merge/,

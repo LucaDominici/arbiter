@@ -325,10 +325,7 @@ export function assertShipLandingReady(config, root = process.cwd()) {
     if (!marker.ok) refuseLocalLanding(marker.reason)
   }
 
-  runLandingChecker(root, join(root, 'scripts', 'check-review-completion.mjs'), [
-    '--task',
-    taskId,
-  ])
+  runLandingChecker(root, join(root, 'scripts', 'check-review-completion.mjs'), ['--task', taskId])
 
   if (config?.features?.acceptanceAnchor === true) {
     const fit = join(
@@ -453,7 +450,9 @@ async function promoteExactSha(
     process.exit(1)
   }
   if (current.headRefOid !== candidateSha) {
-    process.stderr.write('pr-merge-watch: promotion rejected — PR head differs from local qualified HEAD\n')
+    process.stderr.write(
+      'pr-merge-watch: promotion rejected — PR head differs from local qualified HEAD\n',
+    )
     process.exit(1)
   }
   const repositoryId = readPromotionPolicy(ownerRepo)
@@ -513,7 +512,9 @@ async function main() {
       timeoutMin,
     )
     if (snapshot.headRefOid !== candidateSha) {
-      process.stderr.write('pr-merge-watch: promotion rejected — PR head differs from local qualified HEAD\n')
+      process.stderr.write(
+        'pr-merge-watch: promotion rejected — PR head differs from local qualified HEAD\n',
+      )
       process.exit(1)
     }
     const rollup = snapshot.statusCheckRollup ?? []
