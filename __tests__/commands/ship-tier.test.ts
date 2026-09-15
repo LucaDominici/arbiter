@@ -165,6 +165,19 @@ describe('resolveShipTreatment (#2681)', () => {
     expect(treatment.reviewerVerticals).toEqual(['security', 'migration', 'deployment'])
   })
 
+  it('keeps Standard at two reviewers for non-sensitive contract paths', () => {
+    const treatment = resolveShipTreatment(
+      'Standard',
+      completeSignals({ changedFiles: ['docs/adaptive-contract.md'] }),
+    )
+
+    expect(treatment).toMatchObject({
+      sensitive: false,
+      finalReviewers: 2,
+      reviewerVerticals: ['domain', 'test-quality'],
+    })
+  })
+
   it('never narrows a treatment already widened in the same task', () => {
     const previous = resolveShipTreatment('XS', neutralSignals())
     const resumed = resolveShipTreatment('XS', completeSignals(), previous)

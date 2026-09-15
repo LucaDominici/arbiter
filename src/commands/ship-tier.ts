@@ -184,7 +184,12 @@ function relevantVerticals(files: readonly string[]): ReviewVertical[] {
 
 function treatmentVerticals(tier: ShipTier, relevant: readonly ReviewVertical[]): ReviewVertical[] {
   if (tier !== 'Standard') return [relevant[0] ?? 'domain']
-  const selected = unique([...relevant, 'domain', 'test-quality'] as ReviewVertical[])
+  const specialists = relevant.filter((vertical) =>
+    ['security', 'data-integrity', 'concurrency', 'money', 'migration', 'deployment'].includes(
+      vertical,
+    ),
+  )
+  const selected = unique([...specialists, 'domain', 'test-quality'] as ReviewVertical[])
   return selected.slice(0, 3)
 }
 
