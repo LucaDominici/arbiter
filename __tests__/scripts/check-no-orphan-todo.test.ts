@@ -107,10 +107,9 @@ describe('check-no-orphan-todo.mjs (orphan TODO enforcement)', () => {
     const fixtureRoot = mkdtempSync(join(tmpdir(), 'orphan-abs-fixture-'))
     try {
       mkdirSync(join(fixtureRoot, 'src'), { recursive: true })
-      // Built via template interpolation (matches scripts/lib/guard-flip-registry.mjs's ORPHAN
-      // constant) so no source LINE here contains the contiguous marker word — the debt ratchet's
-      // countTodos scans raw source lines, and this file legitimately needs the runtime STRING
-      // value to contain it once written to the fixture below.
+      // Built via template interpolation so this source does not itself present an orphan-form
+      // comment; the runtime fixture below deliberately does. countTodos now shares this gate's
+      // comment-aware detector (#2550), so the string value itself is not counted as debt.
       const orphan = `// TO${'DO'}: unbound work item`
       writeFileSync(join(fixtureRoot, 'src', 'bad.ts'), `${orphan}\nexport const a = 1\n`)
       const absScanDir = join(fixtureRoot, 'src')

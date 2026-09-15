@@ -15,11 +15,9 @@ import {
   DEFAULT_MAX_AGE_DAYS,
 } from '../../scripts/check-todo-max-age.mjs'
 
-// #2526: the debt ratchet's todoCount collector matches a bare /\bTODO\b/ per line in .ts
-// files, and cannot tell a deliberate fixture from real deferred work — so a test OF the
-// TO-DO machinery inflates the very metric it exercises. Building the marker at runtime keeps
-// every fixture and assertion byte-identical while keeping this file out of the count. Same
-// technique the content-scanning checkers use for their own PATTERNS arrays.
+// Keep the linked-work marker assembled so hook fixtures can reuse it without presenting an
+// orphan-form comment in this source. The debt collector now shares the comment-aware INV-21
+// detector (#2550), so string/prose mentions no longer inflate todoCount.
 const M = 'TO' + 'DO'
 
 const DAY = 24 * 60 * 60 * 1000

@@ -213,10 +213,8 @@ describe('isStub', () => {
 
   it('is false for prose that merely MENTIONS a placeholder', () => {
     // The false positives that killed the first keyword-scan design: prose ABOUT the marker.
-    // The literal is assembled rather than spelled inline because scripts/debt-lib.mjs's
-    // countTodos is a bare `\bTODO\b` line scan over .ts files — writing it out would add this
-    // test's own prose to the repo's technical-debt count, which is precisely the false-positive
-    // class under test here.
+    // countTodos now shares the comment-aware INV-21 detector (#2550), so this explanatory
+    // string does not become technical debt.
     const marker = ['TO', 'DO'].join('')
     expect(
       isStub(
