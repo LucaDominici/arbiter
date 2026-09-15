@@ -108,29 +108,64 @@ function topLevelArgs(source) {
   const args = []
   const stack = []
   let start = 0
+  let code = ''
   let quote = null
   let escaped = false
-  for (let i = 0; i <= source.length; i++) {
+  let lineComment = false
+  let blockComment = false
+  for (let i = 0; i < source.length; i++) {
     const char = source[i]
+    const next = source[i + 1]
+    if (lineComment) {
+      if (char === '\n') {
+        lineComment = false
+        code += char
+      }
+      continue
+    }
+    if (blockComment) {
+      if (char === '*' && next === '/') {
+        blockComment = false
+        i++
+      }
+      continue
+    }
     if (quote !== null) {
+      code += char
       if (escaped) escaped = false
       else if (char === '\\') escaped = true
       else if (char === quote) quote = null
       continue
     }
+    if (char === '/' && next === '/') {
+      lineComment = true
+      code += ' '
+      i++
+      continue
+    }
+    if (char === '/' && next === '*') {
+      blockComment = true
+      code += ' '
+      i++
+      continue
+    }
+    if (char === ',' && stack.length === 0) {
+      args.push({ raw: source.slice(start, i).trim(), code: code.trim(), end: i })
+      start = i + 1
+      code = ''
+      continue
+    }
     if (char === "'" || char === '"' || char === '`') quote = char
     else if (char === '(' || char === '[' || char === '{') stack.push(char)
     else if (char === ')' || char === ']' || char === '}') stack.pop()
-    else if ((char === ',' && stack.length === 0) || i === source.length) {
-      args.push({ raw: source.slice(start, i).trim(), end: i })
-      start = i + 1
-    }
+    code += char
   }
+  args.push({ raw: source.slice(start).trim(), code: code.trim(), end: source.length })
   return args
 }
 
 function singleQuotedLiteral(arg) {
-  return arg.raw.match(/^'((?:[^'\\]|\\.)*)'$/s)?.[1] ?? null
+  return arg.code.match(/^'((?:[^'\\]|\\.)*)'$/s)?.[1] ?? null
 }
 
 /**

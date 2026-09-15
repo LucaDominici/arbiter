@@ -163,7 +163,7 @@ describe('CANON-25 — wired invocation binding (#2572)', () => {
   })
 
   it('preserves nested expressions without treating their strings as argv (AC-1, AC-3)', () => {
-    const [strict, relaxed, inventory] = enumerateGateMechanisms(`
+    const [strict, relaxed, inventory, commented] = enumerateGateMechanisms(`
       runCheck('strict', 'node', ['scripts/check-x.mjs', roots[0], '--strict'])
       runCheck('relaxed', 'node', ['scripts/check-x.mjs', roots[0], '--relaxed'])
       runCheck('inventory', 'node', [
@@ -171,6 +171,12 @@ describe('CANON-25 — wired invocation binding (#2572)', () => {
         resolve('src', 'components'),
         '--inventory',
         'inventory.json',
+      ])
+      runCheck('commented', 'node', [
+        'scripts/check-x.mjs',
+        roots[0],
+        /* [ 'not-an-argument' */ '--inventory',
+        'missing.json',
       ])
     `)
     expect(strict.argv).toEqual(['--strict'])
@@ -182,6 +188,7 @@ describe('CANON-25 — wired invocation binding (#2572)', () => {
     withTmp((dir) => {
       writeFileSync(join(dir, 'inventory.json'), '[]')
       expect(wiredPathProblems([inventory], dir)).toEqual([])
+      expect(wiredPathProblems([commented], dir).join('\n')).toMatch(/missing\.json/)
     })
   })
 
