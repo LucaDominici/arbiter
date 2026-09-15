@@ -45,7 +45,6 @@ import {
   type TierSignals,
 } from './ship-tier.js'
 
-export { type ShipTier } from './ship-tier.js'
 import {
   appendChainIds,
   evaluateAffinity,
@@ -117,7 +116,7 @@ export function verticalsForTier(tier: ShipTier): string[] {
   }).reviewerVerticals
 }
 
-export interface ShipStep {
+interface ShipStep {
   phase: TaskPhase
   /** What the agent must do while in this phase. */
   action: string
@@ -543,7 +542,7 @@ export interface ShipResult {
  * #1260 tier + vertical-breadth summary. Kept here (not inline in the CLI action) so the
  * action stays simple and the formatting is unit-testable.
  */
-function optionalShipStepLines(result: ShipResult): string[] {
+function optionalShipStepLines(result: ShipResult, tier: ShipTier): string[] {
   const lines: string[] = []
   if (result.step.command) lines.push(`Command: ${result.step.command}`)
   if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
@@ -555,16 +554,6 @@ function optionalShipStepLines(result: ShipResult): string[] {
   if (result.step.reviewScope !== undefined) {
     lines.push(`Review scope: ${result.step.reviewScope}`)
   }
-  return lines
-}
-
-export function buildShipStepLines(result: ShipResult, legacyTier?: string): string[] {
-  const tier = result.tier ?? normTier(legacyTier)
-  const lines = [
-    `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
-    `Action: ${result.step.action}`,
-  ]
-  lines.push(...optionalShipStepLines(result))
   lines.push(`Tier: ${tier} · verticals: ${result.step.verticals.join(', ')}`)
   if (result.treatment !== undefined) {
     lines.push(
@@ -577,6 +566,16 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
       `Train: ${result.trainDecision.decision} · ${result.trainDecision.reason} · components=${JSON.stringify(result.trainDecision.components)}`,
     )
   }
+  return lines
+}
+
+export function buildShipStepLines(result: ShipResult, legacyTier?: string): string[] {
+  const tier = result.tier ?? normTier(legacyTier)
+  const lines = [
+    `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
+    `Action: ${result.step.action}`,
+  ]
+  lines.push(...optionalShipStepLines(result, tier))
   // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
   // consumer of the field, so the read is honest and not dead config).
   lines.push(`Governance: ${result.profile.governanceLevel}`)
@@ -755,19 +754,26 @@ function writeVerificationCompanionEvidence(
   writeCompanionEvidence(root, taskId, profile, opts)
 }
 
+function requestedShipTier(opts: TaskShipOptions, state: UnifiedTaskState | null): ShipTier {
+  return normTier(opts.tier ?? state?.treatment?.requestedTier ?? state?.tier)
+}
+
+function shipPrimaryId(opts: TaskShipOptions, state: UnifiedTaskState | null): string | undefined {
+  return opts.taskId === undefined ? state?.taskId : normalizeShipTaskId(opts.taskId)
+}
+
 function shipTreatmentFor(
   root: string,
   state: ReturnType<typeof readUnifiedState>,
   opts: TaskShipOptions,
 ): ShipTreatment {
-  const base = normTier(opts.tier ?? state?.treatment?.requestedTier ?? state?.tier)
   const signals = (opts.gatherTierSignals ?? gatherTierSignals)(
     root,
     state?.taskId ?? opts.taskId,
     state?.plan,
   )
   return resolveShipTreatment(
-    base,
+    requestedShipTier(opts, state),
     {
       ...signals,
       ...(opts.executionOutcome !== undefined ? { executionOutcome: opts.executionOutcome } : {}),
@@ -804,12 +810,12 @@ function primaryTrainTier(
   state: UnifiedTaskState | null,
 ): { tier: ShipTier; planPath: string | undefined } {
   const gather = opts.gatherTierSignals ?? gatherTierSignals
-  const primaryId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
+  const primaryId = shipPrimaryId(opts, state)
   const taskChanged = shipTaskChanged(state, primaryId)
   const planPath = taskChanged ? undefined : state?.plan
   const tier = hasShipTaskId(primaryId)
     ? resolveShipTreatment(
-        normTier(opts.tier ?? state?.treatment?.requestedTier ?? state?.tier),
+        requestedShipTier(opts, state),
         gather(root, primaryId, planPath),
         taskChanged ? undefined : state?.treatment,
       ).tier
@@ -850,18 +856,20 @@ interface ChainAddContext {
 }
 
 function chainAddContext(opts: TaskShipOptions, state: UnifiedTaskState | null): ChainAddContext {
-  const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
+  const taskId = shipPrimaryId(opts, state)
   const taskChanged = shipTaskChanged(state, taskId)
-  const existing = taskChanged ? [] : (state?.chainIds ?? [])
+  const signalState = taskChanged ? null : state
+  const existing = signalState?.chainIds ?? []
   const replacement = opts.chainIds?.map(normalizeChainId)
   const base = replacement ?? existing
-  const additions = appendChainIds([], [...(replacement ?? []), ...(opts.chainAddIds ?? [])])
+  const chainAddIds = opts.chainAddIds ?? []
+  const additions = appendChainIds([], [...(replacement ?? []), ...chainAddIds])
   const primaryCount = hasShipTaskId(taskId) ? 1 : 0
   return {
-    signalState: taskChanged ? null : state,
+    signalState,
     additions,
     currentSize: primaryCount + (replacement === undefined ? existing.length : 0),
-    projectedSize: primaryCount + appendChainIds(base, opts.chainAddIds ?? []).length,
+    projectedSize: primaryCount + appendChainIds(base, chainAddIds).length,
   }
 }
 

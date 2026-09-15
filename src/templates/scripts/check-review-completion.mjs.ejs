@@ -472,6 +472,19 @@ function collectReviewFailures(sidecar, task, files, valid) {
   return checkLegacyReviewerCount(sidecar, task, valid)
 }
 
+function validTreatmentPanel(version, count, verticals, hash) {
+  return (
+    version === 1 &&
+    isNonNegativeInteger(count) &&
+    count >= 1 &&
+    count <= 3 &&
+    isValidAgentList(verticals) &&
+    verticals.length === count &&
+    typeof hash === 'string' &&
+    /^[0-9a-f]{64}$/.test(hash)
+  )
+}
+
 function activeTreatmentFailure(sidecar, task) {
   const path = join(repoRoot, '.claude', '.task', 'status.json')
   if (!existsSync(path)) return null
@@ -483,16 +496,7 @@ function activeTreatmentFailure(sidecar, task) {
     const verticals = treatment['reviewerVerticals']
     const count = treatment['finalReviewers']
     const hash = treatment['signalsHash']
-    if (
-      treatment['version'] !== 1 ||
-      !isNonNegativeInteger(count) ||
-      count < 1 ||
-      count > 3 ||
-      !isValidAgentList(verticals) ||
-      verticals.length !== count ||
-      typeof hash !== 'string' ||
-      !/^[0-9a-f]{64}$/.test(hash)
-    ) {
+    if (!validTreatmentPanel(treatment['version'], count, verticals, hash)) {
       return 'active task has a malformed ship treatment'
     }
     if (

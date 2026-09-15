@@ -8,10 +8,10 @@ import { runCli, runCliJson } from '../utils/run-cli.js'
 import { readFileTranslated } from '../utils/fs.js'
 
 export type ShipTier = 'XS' | 'S' | 'Standard'
-export type ModelCapability = 'economy' | 'capable' | 'frontier'
+type ModelCapability = 'economy' | 'capable' | 'frontier'
 export type ShipExecutionOutcome =
   'new-risk' | 'no-progress' | 'timeout' | 'oom' | 'rate-limit' | 'tool-unavailable' | 'ci-queue'
-export type ReviewVertical =
+type ReviewVertical =
   | 'domain'
   | 'type-safety'
   | 'test-quality'
@@ -218,6 +218,28 @@ function hasCompleteQualification(signals: TierSignals, changedFiles: readonly s
   )
 }
 
+function qualifiedTier(
+  initial: ShipTier,
+  signals: TierSignals,
+  changedFiles: readonly string[],
+  reasons: string[],
+): ShipTier {
+  let tier = initial
+  if (changedFiles.some((file) => CORE_PATH.test(file))) {
+    tier = 'Standard'
+    reasons.push('core delivery or authority path changed')
+  }
+  if (Number(signals.callerCount) > 1 && tier === 'XS') {
+    tier = 'S'
+    reasons.push('more than one directional caller')
+  }
+  if (Number(signals.callerCount) > 5) {
+    tier = 'Standard'
+    reasons.push('more than five directional callers')
+  }
+  return tier
+}
+
 function resolvedTier(
   requested: ShipTier,
   signals: TierSignals,
@@ -231,18 +253,7 @@ function resolvedTier(
     tier = 'Standard'
     reasons.push('narrow treatment refused: qualification inputs are incomplete or stale')
   }
-  if (complete && changedFiles.some((file) => CORE_PATH.test(file))) {
-    tier = 'Standard'
-    reasons.push('core delivery or authority path changed')
-  }
-  if (complete && Number(signals.callerCount) > 1 && tier === 'XS') {
-    tier = 'S'
-    reasons.push('more than one directional caller')
-  }
-  if (complete && Number(signals.callerCount) > 5) {
-    tier = 'Standard'
-    reasons.push('more than five directional callers')
-  }
+  if (complete) tier = qualifiedTier(tier, signals, changedFiles, reasons)
   if (signals.labels.some((label) => WAVE_OR_EPIC.test(label))) reasons.push('wave or epic scope')
   if (previous !== undefined && TIER_RANK[previous.tier] > TIER_RANK[tier]) {
     reasons.push('preserved prior widening')
@@ -275,6 +286,26 @@ function resolvedModel(
   return model
 }
 
+function treatmentReview(
+  initialTier: ShipTier,
+  previous: ShipTreatment | undefined,
+  changedFiles: readonly string[],
+): { tier: ShipTier; sensitive: boolean; reviewerVerticals: ReviewVertical[] } {
+  const relevant = unique([
+    ...(previous?.reviewerVerticals ?? []),
+    ...relevantVerticals(changedFiles),
+  ])
+  const sensitive =
+    previous?.sensitive === true ||
+    relevant.some((vertical) =>
+      ['security', 'data-integrity', 'concurrency', 'money', 'migration', 'deployment'].includes(
+        vertical,
+      ),
+    )
+  const tier = sensitive ? 'Standard' : initialTier
+  return { tier, sensitive, reviewerVerticals: treatmentVerticals(tier, relevant) }
+}
+
 /**
  * Resolve the one delivery treatment consumed by /ship and lifecycle gates.
  * A narrow request is only a candidate: incomplete evidence always resolves to Standard.
@@ -289,19 +320,9 @@ export function resolveShipTreatment(
   const complete = hasCompleteQualification(signals, changedFiles)
   const reasons: string[] = []
   let tier = resolvedTier(requestedTier, signals, changedFiles, previous, reasons)
-  const relevant = unique([
-    ...(previous?.reviewerVerticals ?? []),
-    ...relevantVerticals(changedFiles),
-  ])
-  const sensitive =
-    previous?.sensitive === true ||
-    relevant.some((vertical) =>
-      ['security', 'data-integrity', 'concurrency', 'money', 'migration', 'deployment'].includes(
-        vertical,
-      ),
-    )
-  if (sensitive) tier = 'Standard'
-  const reviewerVerticals = treatmentVerticals(tier, relevant)
+  const review = treatmentReview(tier, previous, changedFiles)
+  tier = review.tier
+  const { sensitive, reviewerVerticals } = review
   const finalReviewers = reviewerVerticals.length as 1 | 2 | 3
   const modelCapability = resolvedModel(
     tier,
@@ -510,11 +531,10 @@ function graphSignals(
   const dependents = new Set<string>()
   const callers = new Set<string>()
   for (const link of graph.links) {
-    if (!isRecord(link)) return { blastRadius: null, callerCount: null, complete: false }
-    const { source, target, relation } = link
-    if (typeof source !== 'string' || typeof target !== 'string' || typeof relation !== 'string') {
+    if (!isGraphLink(link)) {
       return { blastRadius: null, callerCount: null, complete: false }
     }
+    const { source, target, relation } = link
     const sourceFile = sourceFiles.get(source)
     const targetFile = sourceFiles.get(target)
     if (sourceFile === undefined || targetFile === undefined) {
@@ -525,6 +545,17 @@ function graphSignals(
     }
   }
   return { blastRadius: dependents.size, callerCount: callers.size, complete: true }
+}
+
+function isGraphLink(
+  value: unknown,
+): value is { source: string; target: string; relation: string } {
+  return (
+    isRecord(value) &&
+    typeof value.source === 'string' &&
+    typeof value.target === 'string' &&
+    typeof value.relation === 'string'
+  )
 }
 
 function graphNodeSourceFiles(nodes: unknown[]): Map<string, string> {

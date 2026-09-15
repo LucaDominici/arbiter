@@ -33,7 +33,7 @@ export function resolveReviewMaxRounds(ship: ShipConfig | undefined): number {
   return ship?.review?.maxRounds ?? DEFAULT_REVIEW_MAX_ROUNDS
 }
 
-export interface ReviewRoundSignals {
+interface ReviewRoundSignals {
   /** Rounds already recorded on this task, BEFORE the one being requested. */
   rounds: number
   maxRounds: number
@@ -41,7 +41,7 @@ export interface ReviewRoundSignals {
   forced: boolean
 }
 
-export type ReviewRoundVerdict = { allowed: true } | { allowed: false; detail: string }
+type ReviewRoundVerdict = { allowed: true } | { allowed: false; detail: string }
 
 export interface PlannedReviewRound {
   rounds: number

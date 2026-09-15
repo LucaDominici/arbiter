@@ -185,15 +185,16 @@ export function evaluateAffinity(signals: TrainAffinitySignals | undefined): Aff
       reason: 'affinity was not proven',
     }
   }
-  const joined =
-    signals.sameOutcome &&
-    signals.ownerPathOverlap &&
-    signals.dependencyRelated &&
-    signals.sharedProof &&
-    signals.orderingCompatible &&
-    signals.sharedAcceptanceBoundary &&
-    signals.sharedRollbackBoundary &&
-    signals.hardConflicts.length === 0
+  const joined = [
+    signals.sameOutcome,
+    signals.ownerPathOverlap,
+    signals.dependencyRelated,
+    signals.sharedProof,
+    signals.orderingCompatible,
+    signals.sharedAcceptanceBoundary,
+    signals.sharedRollbackBoundary,
+    signals.hardConflicts.length === 0,
+  ].every(Boolean)
   return {
     decision: joined ? 'JOIN' : 'SEAL',
     components: signals,
@@ -312,7 +313,7 @@ function seedProjectedSize(
   )
 }
 
-export type SeedSizeVerdict = { ok: true } | { ok: false; detail: string }
+type SeedSizeVerdict = { ok: true } | { ok: false; detail: string }
 
 /**
  * #2402 — may this seed declare a train of that size?

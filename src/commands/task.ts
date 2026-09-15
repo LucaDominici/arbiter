@@ -48,7 +48,7 @@ export class HandoffRequiredError extends Error {
 // Re-export the phase types here so existing importers (e.g. src/cli.ts) keep their import path.
 export type { TaskPhase } from './task-state.js'
 
-export interface TaskAdvanceOptions {
+interface TaskAdvanceOptions {
   to: TaskPhase
   dir?: string
   reverse?: boolean
@@ -77,7 +77,7 @@ export interface TaskAdvanceOptions {
   headSha?: string | null
 }
 
-export interface TaskReviewRoundOptions {
+interface TaskReviewRoundOptions {
   dir?: string
   forceReview?: boolean
   reviewMaxRounds?: number
@@ -89,7 +89,7 @@ function currentPhase(root: string): TaskPhase {
   return readUnifiedState(root)?.phase ?? 'preflight'
 }
 
-export interface TaskResumeOptions {
+interface TaskResumeOptions {
   dir?: string
 }
 
@@ -139,7 +139,7 @@ export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
 
 /* ────────────────────────  #1206 — shell-facing state I/O  ──────────────────────── */
 
-export interface TaskInitOptions {
+interface TaskInitOptions {
   dir?: string
   id?: string
   tier?: string
@@ -384,7 +384,7 @@ function detectCurrentBranch(root: string): string | undefined {
 
 const GETTABLE_FIELDS = ['phase', 'taskId', 'tier', 'plan', 'tddPhase', 'lastAction', 'nextAction']
 
-export interface TaskGetOptions {
+interface TaskGetOptions {
   dir?: string
   field: string
 }
@@ -453,7 +453,7 @@ function backlogPath(dir: string, sanitisedId: string): string {
   return join(dir, '.arbiter', 'evidence', sanitisedId, 'BACKLOG.md')
 }
 
-export interface TaskRecoverOptions {
+interface TaskRecoverOptions {
   dir?: string
   taskId?: string
   runner?: Runner
@@ -588,7 +588,10 @@ function requirePlanReviewPass(opts: RequirePlanReviewPassOptions): RequirePlanR
 }
 
 function gateEnabled(dir: string): boolean {
-  return existsSync(join(dir, '.arbiter', 'plan-review.enabled'))
+  return (
+    existsSync(join(dir, '.arbiter', 'plan-review.enabled')) &&
+    readUnifiedState(dir)?.treatment?.preCodeReviewers !== 0
+  )
 }
 
 function readGitUserName(): string {
@@ -626,7 +629,6 @@ function loadPlanContentIfAvailable(dir: string): string | undefined {
 
 function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
   if (!gateEnabled(dir)) return
-  if (readUnifiedState(dir)?.treatment?.preCodeReviewers === 0) return
   const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
   const sanit = sanitizeTaskId(rawId)
   const inCi = process.env.CI === 'true'
@@ -1178,6 +1180,29 @@ function assertNoProgressNotBlocked(dir: string): void {
   if (blocked === true) throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
 }
 
+function assertPhaseTransition(
+  current: TaskPhase,
+  target: TaskPhase,
+  reverse: boolean | undefined,
+): void {
+  const isLateralTarget = (LATERAL_PHASES as readonly string[]).includes(target)
+  const isLateralCurrent = (LATERAL_PHASES as readonly string[]).includes(current)
+  if (isLateralTarget || isLateralCurrent) return
+
+  const currentIdx = PHASE_ORDER.indexOf(current)
+  const targetIdx = PHASE_ORDER.indexOf(target)
+  if (targetIdx < currentIdx && !reverse) {
+    throw new Error(
+      `Backward transition "${current}" → "${target}" blocked. Use --reverse to allow backward transitions.`,
+    )
+  }
+  if (targetIdx > currentIdx + 1) {
+    throw new Error(
+      `Illegal skip: cannot advance from "${current}" to "${target}" (missing intermediate phases). Advance one phase at a time.`,
+    )
+  }
+}
+
 export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | null {
   const dir = opts.dir ?? process.cwd()
   const claudeDir = join(dir, '.claude')
@@ -1194,26 +1219,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
   const current = currentPhase(dir)
 
   if (current === to) return null
-
-  const isLateralTarget = (LATERAL_PHASES as readonly string[]).includes(to)
-  const isLateralCurrent = (LATERAL_PHASES as readonly string[]).includes(current)
-
-  if (!isLateralTarget && !isLateralCurrent) {
-    const currentIdx = PHASE_ORDER.indexOf(current)
-    const targetIdx = PHASE_ORDER.indexOf(to)
-
-    if (targetIdx < currentIdx && !opts.reverse) {
-      throw new Error(
-        `Backward transition "${current}" → "${to}" blocked. Use --reverse to allow backward transitions.`,
-      )
-    }
-
-    if (targetIdx > currentIdx + 1) {
-      throw new Error(
-        `Illegal skip: cannot advance from "${current}" to "${to}" (missing intermediate phases). Advance one phase at a time.`,
-      )
-    }
-  }
+  assertPhaseTransition(current, to, opts.reverse)
 
   const PLANNING_PHASES: ReadonlySet<TaskPhase> = new Set(['red-team-review', 'red-team-rework'])
   // #2435 — the gate for a phase runs on ENTRY, so the promise `.claude/commands/ship.md`
