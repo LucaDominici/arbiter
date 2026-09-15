@@ -61,7 +61,7 @@ export function verifyRedExecution(
     const added = addDetachedWorktree(repoDir, worktreeDir, ev.test_commit_sha)
     if (!added.ok) return added
 
-    linkNodeModules(dir ?? repoDir, worktreeDir)
+    linkNodeModules(repoDir, worktreeDir)
 
     const freshLog = runTestCommand(testCommand, worktreeDir, timeoutMs)
     return compareFailure(ev, repositoryRelativeLog(freshLog, worktreeDir))

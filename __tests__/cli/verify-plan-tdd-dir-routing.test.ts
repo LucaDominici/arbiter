@@ -206,6 +206,7 @@ describe('verify plan/TDD honors the selected --dir (#2686)', () => {
       expect(output.data.exitCode).toBe(0)
       expect(output.data.checks).toHaveLength(6)
     }
+    expect(run(valid, ['verify', 'tdd', TASK, '--dir', '.', '--json']).status).toBe(0)
   }, 120_000)
 
   it('keeps TDD rooted in cwd without --dir (AC-3)', () => {

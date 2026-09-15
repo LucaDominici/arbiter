@@ -4,6 +4,7 @@
     "track": "A",
     "paths": [
       "src/cli.ts",
+      "src/evidence/tdd-reexecute.ts",
       "__tests__/cli/verify-plan-tdd-dir-routing.test.ts",
       "docs/REFERENCE/evidence-summary-schema.md",
       ".agents/plan/PLAN.json",
@@ -17,6 +18,10 @@
   "files": [
     {
       "path": "src/cli.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "src/evidence/tdd-reexecute.ts",
       "operation": "modify"
     },
     {
