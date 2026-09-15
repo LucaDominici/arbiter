@@ -1,0 +1,19 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2695",
+  "verdict": "PASS",
+  "confidence": 0.84,
+  "findings": [],
+  "refutations": [],
+  "branch": "task/#2695-tdd-authenticated-failure-headers",
+  "sha": "ae39cf4d15fbfa66815260030b394c35be6c1cb0",
+  "ts": "2026-09-15T09:03:33.665Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

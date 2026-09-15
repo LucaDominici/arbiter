@@ -1,0 +1,202 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "root-codex-orchestrator-ac-fit",
+  "role": "verifier",
+  "taskId": "#2695",
+  "verdict": "PASS",
+  "confidence": 0.99,
+  "findings": [],
+  "refutations": [
+    {
+      "target": "external-ac-fit:AC-1",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 95
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 197
+        }
+      ]
+    },
+    {
+      "target": "external-ac-fit:AC-2",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 101
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 167
+        }
+      ]
+    },
+    {
+      "target": "external-ac-fit:AC-3",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 75
+        },
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 99
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 238
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 244
+        }
+      ]
+    },
+    {
+      "target": "external-ac-fit:AC-4",
+      "verdict": "UPHELD",
+      "citations": [
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 118
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 151
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 180
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 271
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 360
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 373
+        }
+      ]
+    }
+  ],
+  "acceptanceFit": {
+    "schema": "arbiter-ac-fit-v1",
+    "taskId": "#2695",
+    "criteria": [
+      {
+        "id": "AC-1",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/evidence/tdd.ts",
+            "line": 95
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 197
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 224
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/evidence/tdd.ts",
+            "line": 101
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 155
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 167
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/evidence/tdd.ts",
+            "line": 75
+          },
+          {
+            "file": "src/evidence/tdd.ts",
+            "line": 99
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 237
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 241
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 118
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 151
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 171
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 180
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 197
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 271
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 360
+          },
+          {
+            "file": "__tests__/evidence/tdd-reexecute.test.ts",
+            "line": 373
+          }
+        ]
+      }
+    ]
+  },
+  "branch": "task/#2695-tdd-authenticated-failure-headers",
+  "sha": "ae39cf4d15fbfa66815260030b394c35be6c1cb0",
+  "ts": "2026-09-15T09:07:11.501Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

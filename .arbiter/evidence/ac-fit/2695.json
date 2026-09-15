@@ -1,0 +1,109 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2695",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 95
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 197
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 224
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 101
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 155
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 167
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 75
+        },
+        {
+          "file": "src/evidence/tdd.ts",
+          "line": 99
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 237
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 241
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 118
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 151
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 171
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 180
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 197
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 271
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 360
+        },
+        {
+          "file": "__tests__/evidence/tdd-reexecute.test.ts",
+          "line": 373
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2695-tdd-authenticated-failure-headers",
+  "sha": "ae39cf4d15fbfa66815260030b394c35be6c1cb0",
+  "planHash": "d05501bc7624f24ab6ac0ed49bfe81831e14c60e",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2695/root-codex-orchestrator-ac-fit-0.json",
+    "sha256": "9291df6fb77633b7f235ae281f4d8b341493f28b7f4547ba63751bce8a67913d"
+  }
+}
