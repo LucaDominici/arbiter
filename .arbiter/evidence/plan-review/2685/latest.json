@@ -1,0 +1,22 @@
+{
+  "verdict": "PASS",
+  "reviewer": "red-team remediation panel",
+  "reviewedAt": "2026-09-15T03:17:26.597008Z",
+  "branch": "task/#2685-native-ship-host",
+  "sha": "d9441a6f0bcb5f9c7307414defffff9ee6d48060",
+  "planDigest": "1237f96fecee8aed33eb6d2b1d66024307b6e1d8968eef6cf76deec88c4d3f36",
+  "checks": {
+    "mandatorySections": "PASS",
+    "acceptanceVerbatim": "PASS",
+    "contextBlock": "PASS",
+    "manifest": "PASS",
+    "mergeContract": "PASS",
+    "minimalRootCauseScope": "PASS",
+    "nativeHostInverse": "PASS",
+    "evidenceSourceBinding": "PASS",
+    "hostWriterBoundary": "PASS",
+    "canonicalEvidencePaths": "PASS",
+    "routerDerivedRoster": "PASS"
+  },
+  "findings": []
+}

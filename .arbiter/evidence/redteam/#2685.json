@@ -1,0 +1,93 @@
+{
+  "$schema": "RedTeamEvidenceV1",
+  "task_id": "#2685",
+  "tier": "Standard",
+  "verdict": "PASS",
+  "recorded_at": "2026-09-15T03:17:26.597008Z",
+  "agents": 3,
+  "angles": [
+    "host-boundary",
+    "evidence-integrity",
+    "integration-minimality"
+  ],
+  "reviewers": [
+    {
+      "agent": "/root/2685_redteam_host",
+      "verdict": "PASS_AFTER_REWORK",
+      "dispatch": "subagent"
+    },
+    {
+      "agent": "/root/2687_redteam_evidence",
+      "verdict": "PASS_AFTER_REWORK",
+      "dispatch": "subagent"
+    },
+    {
+      "agent": "/root/2685_2687_redteam_scope",
+      "verdict": "PASS_AFTER_REWORK",
+      "dispatch": "subagent"
+    }
+  ],
+  "findings": [
+    {
+      "id": "RT-2685-01",
+      "severity": "HIGH",
+      "summary": "Host preflight was optional at task initialization and evidence-writer boundaries.",
+      "auditorHint": "silent-failures",
+      "resolved": true,
+      "action": "Plan now requires live host corroboration on task init and both new recorder modes, plus a direct-persistence inverse."
+    },
+    {
+      "id": "RT-2687-01",
+      "severity": "HIGH",
+      "summary": "Agent-return identity could be restamped without validating stale or unavailable Git identity.",
+      "auditorHint": "data-integrity",
+      "resolved": true,
+      "action": "Plan now rejects supplied identity mismatch and unavailable Git identity before stamping."
+    },
+    {
+      "id": "RT-2687-02",
+      "severity": "HIGH",
+      "summary": "Review admission did not require recorder provenance and citations.",
+      "auditorHint": "data-integrity",
+      "resolved": true,
+      "action": "Plan now enforces both at current sidecar admission."
+    },
+    {
+      "id": "RT-2687-03",
+      "severity": "HIGH",
+      "summary": "AC-fit admission lacked exact source-envelope, plan, branch, and SHA binding.",
+      "auditorHint": "data-integrity",
+      "resolved": true,
+      "action": "Plan now derives fit from one nested verifier payload and revalidates its recorded envelope digest."
+    },
+    {
+      "id": "RT-2687-04",
+      "severity": "HIGH",
+      "summary": "New evidence modes could have accepted a non-canonical output root.",
+      "auditorHint": "security",
+      "resolved": true,
+      "action": "Plan now fixes new modes to canonical task-keyed evidence paths."
+    },
+    {
+      "id": "RT-2687-05",
+      "severity": "HIGH",
+      "summary": "A caller-supplied reviewer roster could shrink the required panel.",
+      "auditorHint": "silent-failures",
+      "resolved": true,
+      "action": "Plan now derives required count and auditors from persisted tier and canonical routing."
+    },
+    {
+      "id": "RT-2687-06",
+      "severity": "HIGH",
+      "summary": "Planned AC-fit output did not match the existing task-keyed consumer path.",
+      "auditorHint": "correctness",
+      "resolved": true,
+      "action": "Plan now preserves .arbiter/evidence/ac-fit/<task>.json."
+    }
+  ],
+  "critical": 0,
+  "high": 0,
+  "medium": 0,
+  "suggestion": 0,
+  "limits": "Plan admission only; implementation and real Claude auto-mode qualification remain unproven."
+}
