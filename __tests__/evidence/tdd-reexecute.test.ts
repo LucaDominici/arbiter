@@ -152,6 +152,21 @@ describe('verifyRedExecution()', () => {
     expect(replayLines([...redLines].reverse()).ok).toBe(true)
   })
 
+  it('preserves same-name failure multiplicity across projects (AC-1, AC-2)', () => {
+    const projectFailures = [
+      'FAIL |unit| math.test.ts > add > sums',
+      'FAIL |integration| math.test.ts > add > sums',
+    ]
+    const evidence = {
+      ...BASE,
+      test_run_log: projectFailures.join('\n'),
+      observed_failure: 'FAIL |unit| math.test.ts',
+    }
+
+    expect(replayLines([projectFailures[0]], evidence).ok).toBe(false)
+    expect(replayLines([...projectFailures].reverse(), evidence).ok).toBe(true)
+  })
+
   it.each([
     ['missing test in the same file', [redLines[0], redLines[2]]],
     ['missing spec file', redLines.slice(0, 2)],

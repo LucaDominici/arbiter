@@ -1,69 +1,57 @@
 {
-  "task_id": "#2616",
+  "task_id": "#2691",
   "scope": {
     "track": "A",
     "paths": [
-      "scripts/lib/run-helpers.mjs",
-      "scripts/lib/parse-check-args.mjs",
-      "scripts/check-all.mjs",
-      "src/templates/scripts/lib/run-helpers.mjs.ejs",
-      "src/templates/scripts/check-all.mjs.ejs",
-      "__tests__/scripts/run-helpers.test.ts",
-      "__tests__/scripts/check-all-args.test.ts",
-      "__tests__/scripts/check-all-bootstrap.test.ts",
-      "__tests__/templates/check-all-inspect-flags.test.ts",
-      "__tests__/templates/__snapshots__/high-fanout/check-all.mjs",
-      "examples/ts-library/scripts/check-all.mjs",
-      "examples/ts-library/scripts/lib/run-helpers.mjs",
-      "examples/python-library/scripts/check-all.mjs",
-      "examples/python-library/scripts/lib/run-helpers.mjs",
-      "examples/go-library/scripts/check-all.mjs",
-      "examples/go-library/scripts/lib/run-helpers.mjs",
-      "examples/ts-library/.arbiter-generated-manifest.json",
-      "examples/python-library/.arbiter-generated-manifest.json",
-      "examples/go-library/.arbiter-generated-manifest.json",
-      ".agents/plan/PLAN.json"
+      "src/evidence/tdd.ts",
+      "__tests__/evidence/tdd-reexecute.test.ts",
+      "docs/REFERENCE/task-recovery.md",
+      ".agents/plan/PLAN.json",
+      ".arbiter/evidence/plan-review/2691/latest.json",
+      ".arbiter/evidence/tdd/#2691.json"
     ]
   },
   "files": [
-    { "path": "scripts/lib/run-helpers.mjs", "operation": "modify" },
-    { "path": "scripts/lib/parse-check-args.mjs", "operation": "modify" },
-    { "path": "scripts/check-all.mjs", "operation": "modify" },
-    { "path": "src/templates/scripts/lib/run-helpers.mjs.ejs", "operation": "modify" },
-    { "path": "src/templates/scripts/check-all.mjs.ejs", "operation": "modify" },
-    { "path": "__tests__/scripts/run-helpers.test.ts", "operation": "modify" },
-    { "path": "__tests__/scripts/check-all-args.test.ts", "operation": "modify" },
-    { "path": "__tests__/scripts/check-all-bootstrap.test.ts", "operation": "modify" },
-    { "path": "__tests__/templates/check-all-inspect-flags.test.ts", "operation": "modify" },
     {
-      "path": "__tests__/templates/__snapshots__/high-fanout/check-all.mjs",
+      "path": "src/evidence/tdd.ts",
       "operation": "modify"
     },
-    { "path": "examples/ts-library/scripts/check-all.mjs", "operation": "modify" },
-    { "path": "examples/ts-library/scripts/lib/run-helpers.mjs", "operation": "modify" },
-    { "path": "examples/python-library/scripts/check-all.mjs", "operation": "modify" },
-    { "path": "examples/python-library/scripts/lib/run-helpers.mjs", "operation": "modify" },
-    { "path": "examples/go-library/scripts/check-all.mjs", "operation": "modify" },
-    { "path": "examples/go-library/scripts/lib/run-helpers.mjs", "operation": "modify" },
-    { "path": "examples/ts-library/.arbiter-generated-manifest.json", "operation": "modify" },
-    { "path": "examples/python-library/.arbiter-generated-manifest.json", "operation": "modify" },
-    { "path": "examples/go-library/.arbiter-generated-manifest.json", "operation": "modify" },
-    { "path": ".agents/plan/PLAN.json", "operation": "modify" }
+    {
+      "path": "__tests__/evidence/tdd-reexecute.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "docs/REFERENCE/task-recovery.md",
+      "operation": "modify"
+    },
+    {
+      "path": ".agents/plan/PLAN.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/plan-review/2691/latest.json",
+      "operation": "create"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2691.json",
+      "operation": "create"
+    }
   ],
   "invariants": {
     "ui_language": "EN",
     "no_skips": true
   },
   "invariant_ids": [
+    "INV-04",
     "INV-08",
+    "INV-12",
+    "INV-17",
     "INV-22",
     "INV-24",
     "INV-25",
     "INV-26",
     "INV-53",
-    "INV-59",
-    "INV-122",
-    "INV-123",
+    "INV-131",
     "INV-138"
   ],
   "review_bridge": {
