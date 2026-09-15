@@ -352,6 +352,21 @@ describe('pr-merge-watch exact-SHA promotion (#2148)', () => {
     expect(state.base).toBe(state.initialHead)
   })
 
+  it('still refuses failed review when the evidence harness is off (#2681)', () => {
+    const { result, state } = runWatcher(
+      {},
+      {
+        collaborationMode: 'trunk-solo',
+        solo: { mergeMode: 'pr-ff' },
+        features: { evidenceHarness: false, acceptanceAnchor: false },
+      },
+      { omitReceipt: true, omitAcFit: true, reviewExit: 1 },
+    )
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/local Ship preflight refused/i)
+    expect(state.calls).toEqual([])
+  })
+
   it('refuses a PR whose head differs from the locally qualified candidate (#2681)', () => {
     const { result, state } = runWatcher({ head: 'c'.repeat(40) })
     expect(result.status).toBe(1)

@@ -316,10 +316,6 @@ export function assertShipLandingReady(config, root = process.cwd()) {
       archetype: typeof config?.archetype === 'string' ? config.archetype : 'library',
     })
     if (!receipt.ok) refuseLocalLanding(receipt.reason)
-    runLandingChecker(root, join(root, 'scripts', 'check-review-completion.mjs'), [
-      '--task',
-      taskId,
-    ])
   } else {
     const marker = verifyGateEvidenceFile(join(root, '.arbiter', 'gate-pass.json'), {
       root,
@@ -328,6 +324,8 @@ export function assertShipLandingReady(config, root = process.cwd()) {
     })
     if (!marker.ok) refuseLocalLanding(marker.reason)
   }
+
+  runLandingChecker(root, join(root, 'scripts', 'check-review-completion.mjs'), ['--task', taskId])
 
   if (config?.features?.acceptanceAnchor === true) {
     const fit = join(
