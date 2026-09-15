@@ -159,7 +159,7 @@
     "scripts/check-test-scope-tier.mjs": "593b9beaec9929ef2862b57c67987cd481efd660caa1b4b15cafab959ccefdef",
     "scripts/check-todo-max-age.mjs": "013ee9d24e4470219ec7a543b3cc9736c3e444c76c0e4575c2c95551e8219872",
     "scripts/check-touched-vs-manifest.mjs": "e92e288c27320903b046e4d6fb69b15dea0e0c169b249db7b2ad4befb12aa1ca",
-    "scripts/check-unwired-guards.mjs": "f74233468f8b8cedf5f789b30fe744d6a89d67ec94c44fb528207853f00dcbc9",
+    "scripts/check-unwired-guards.mjs": "9563fd3135c4c17e80fa7e3255c197be129bf73f95927ef56203d7df3a106dcd",
     "scripts/check-use-cases.mjs": "56147b4ec97bc0806303f9ac221c0220ee0378381eba774e7c503f3cd25ddae6",
     "scripts/check-validator-helptext.mjs": "2374a1d073061f8306bbdaa2ee1914953c4f275dbfb36dcc7c77e11c74d31c74",
     "scripts/check-workflow-docs-sync.mjs": "b44a96a45e002a47a1fe05adfd37337aba4f637f41177f111b680645c6ca673c",

@@ -702,6 +702,47 @@ export const FLIP_REGISTRY = {
         'jobs:\n  build:\n    runs-on: ubuntu-latest\n',
       ),
   },
+  'anti-drift: workflow integrity': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) =>
+      wf(
+        d,
+        'ci.yml',
+        'on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n        continue-on-error: true\n',
+      ),
+    plantClean: (d) =>
+      wf(
+        d,
+        'ci.yml',
+        'on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n',
+      ),
+  },
+  'anti-drift: workflow parallelism (INV-120)': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) =>
+      wf(
+        d,
+        'ci.yml',
+        'on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n  b:\n    needs: a\n    runs-on: ubuntu-latest\n  c:\n    needs: b\n    runs-on: ubuntu-latest\n  d:\n    needs: c\n    runs-on: ubuntu-latest\n  e:\n    needs: d\n    runs-on: ubuntu-latest\n',
+      ),
+    plantClean: (d) =>
+      wf(
+        d,
+        'ci.yml',
+        'on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n  b:\n    needs: a\n    runs-on: ubuntu-latest\n  c:\n    needs: b\n    runs-on: ubuntu-latest\n  d:\n    needs: c\n    runs-on: ubuntu-latest\n',
+      ),
+  },
+  'anti-drift: unwired guards (#2159)': {
+    kind: 'file-scan',
+    inject: 'dir',
+    plantBad: (d) => write(d, join('scripts', 'check-orphan.mjs'), '// guard\n'),
+    plantClean: (d) => {
+      write(d, join('scripts', 'check-orphan.mjs'), '// guard\n')
+      write(d, join('scripts', 'check-all.mjs'), "run('scripts/check-orphan.mjs')\n")
+    },
+  },
   'anti-drift: docker action runner safety (#1756)': {
     kind: 'file-scan',
     inject: 'dir',

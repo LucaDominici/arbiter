@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2677",
+  "test_path": "__tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts",
+  "test_commit_sha": "7f4d256eb456a87671244632bfa9da1c1678066a",
+  "test_blob_sha": "09c6ad15ffe06180ecc80a416fc267e0d2a511e3",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts (20 tests | 2 failed) 446ms\n     × scripts/check-unwired-guards.mjs: --dir '' exits 2, never a silent cwd fallback 53ms\n     × scripts/check-unwired-guards.mjs: --dir <valid> --dir (bare last) exits 2 — last flag wins 55ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 18 passed (20)\n   Start at  18:45:31\n   Duration  541ms (transform 8ms, setup 7ms, import 8ms, tests 446ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts > #2675 Codex round-2 — --dir refuses an empty value and a repeated bare flag > scripts/check-unwired-guards.mjs: --dir '' exits 2, never a silent cwd fallback\nAssertionError: expected +0 to be 2 // Object.is equality\n\n- Expected\n+ Received\n\n- 2\n+ 0\n\n ❯ __tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts:51:24\n     49|     it(`${script}: --dir '' exits 2, never a silent cwd fallback`, () …\n     50|       const r = spawnSync('node', [resolve(script), '--dir', ''], { en…\n     51|       expect(r.status).toBe(2)\n       |                        ^\n     52|       expect(r.stderr).toMatch(/--dir requires a path argument/)\n     53|     })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts > #2675 Codex round-2 — --dir refuses an empty value and a repeated bare flag > scripts/check-unwired-guards.mjs: --dir <valid> --dir (bare last) exits 2 — last flag wins\nAssertionError: expected +0 to be 2 // Object.is equality\n\n- Expected\n+ Received\n\n- 2\n+ 0\n\n ❯ __tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts:60:26\n     58|           encoding: 'utf-8',\n     59|         })\n     60|         expect(r.status).toBe(2)\n       |                          ^\n     61|         expect(r.stderr).toMatch(/--dir requires a path argument/)\n     62|       })\n ❯ withTmp __tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts:21:12\n ❯ __tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts:56:7\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts",
+  "recorded_at": "2026-09-15T16:45:32.367Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/gate-roster-2675-dir-empty-repeated.test.ts"
+  ]
+}

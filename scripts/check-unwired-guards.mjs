@@ -40,9 +40,9 @@
 // scripts/ directory or .claude/hooks/ directory at all (vacuous SKIP). 1 =
 // >=1 unreferenced guard script (not allowlisted). 2 = allowlist schema error.
 //
-// Usage: node scripts/check-unwired-guards.mjs [--help]
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+// Usage: node scripts/check-unwired-guards.mjs [--dir <path>] [--help]
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 const SELF_NAME = 'check-unwired-guards.mjs'
 const ALLOWLIST_REL = 'scripts/optional-emissions.json'
@@ -62,6 +62,7 @@ emission-coherence gate) with a non-empty rationale silences one candidate
 manifest is a schema error (exit 2).
 
 Options:
+  --dir <path>    Root directory to scan (default: cwd)
   --help, -h      Show this help and exit
 
 Exit codes:
@@ -70,9 +71,31 @@ Exit codes:
   2   allowlist schema error
 `
 
-if (process.argv.includes('--help') || process.argv.includes('-h')) {
+const args = process.argv.slice(2)
+let dirGiven = false
+let dirValue
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i]
+  if (arg === '--dir') {
+    dirGiven = true
+    dirValue = args[i + 1]
+  } else if (arg.startsWith('--dir=')) {
+    dirGiven = true
+    dirValue = arg.slice('--dir='.length)
+  }
+}
+if (dirGiven && (dirValue === undefined || dirValue === '' || dirValue.startsWith('-'))) {
+  process.stderr.write('--dir requires a path argument\n')
+  process.exit(2)
+}
+if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write(HELP)
   process.exit(0)
+}
+const CWD = dirGiven ? resolve(dirValue) : process.cwd()
+if (dirGiven && (!existsSync(CWD) || !statSync(CWD).isDirectory())) {
+  process.stderr.write(`--dir ${dirValue} does not exist or is not a directory\n`)
+  process.exit(2)
 }
 
 // Recursively collect every file path (relative to `dir`) under `dir/sub`.
@@ -318,7 +341,7 @@ function loadAllowlist(dir) {
 }
 
 function main() {
-  const dir = process.cwd()
+  const dir = CWD
   const allowlist = loadAllowlist(dir)
   const candidates = collectCandidates(dir)
   if (candidates === null) {

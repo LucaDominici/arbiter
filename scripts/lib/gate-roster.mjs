@@ -60,10 +60,9 @@ export const MIN_ABSENCE_FAMILY = 27
 // #2514 lowered this 16 -> 15: the "no redacted tokens" row moved out of the deferral
 // ledger to a real flip proof, so the ceiling must fall with it. Unbanked improvement is
 // a failure in this repo (AGENTS.md §template-tests baseline).
-// #2675 raises this 15 -> 22: 7 of the 19 promoted ABSENCE_EXEMPT candidates could not be
-// reduced to a fixture at this pass's scope (generator-diff gates and intricate multi-surface
-// parsers) and were banked as new ledger rows instead — see inversion-proof-registry.json.
-export const MAX_DEFERRED = 22
+// #2675 raised this 15 -> 22 for seven banked candidates. #2677 lowers it 22 -> 19 after
+// promoting the three workflow guards to executable bad/clean proofs.
+export const MAX_DEFERRED = 19
 
 const STRING_OR_COMMENT =
   /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`|\/\/[^\n]*|\/\*[\s\S]*?\*\//.source

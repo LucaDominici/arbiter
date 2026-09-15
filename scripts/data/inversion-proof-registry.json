@@ -22,7 +22,7 @@
     "check was rejected deliberately — it cannot run offline or in a tokenless job, and a check that",
     "silently no-ops in some environments is the corollary #2301 itself names."
   ],
-  "ceiling": 22,
+  "ceiling": 19,
   "deferred": [
     {
       "gate": "bloat ratchet",
@@ -165,30 +165,6 @@
       "script": "scripts/check-gold-registries.mjs",
       "category": "ratchet",
       "reason": "Has --standards, but validates YAML registries against threshold_ref cross-references and a risk taxonomy; a bad fixture needs a coherent registry-plus-thresholds pair with exactly one planted violation, which this pass did not build.",
-      "issue": 2677,
-      "expires": "2027-09-30"
-    },
-    {
-      "gate": "anti-drift: workflow integrity",
-      "script": "scripts/check-workflow-test-integrity.mjs",
-      "category": "no",
-      "reason": "Has --dir, but its violation surface (continue-on-error step scoping, merge-gate base-branch filters, informational-workflow allowlists) is intricate multi-rule YAML parsing; a fixture confident enough to discriminate cleanly on one specific rule was not built this pass.",
-      "issue": 2677,
-      "expires": "2027-09-30"
-    },
-    {
-      "gate": "anti-drift: workflow parallelism (INV-120)",
-      "script": "scripts/check-workflow-parallelism.mjs",
-      "category": "ratchet",
-      "reason": "Has --dir, but longest-chain DAG analysis over needs: edges with per-filename-prefix overrides (01-pr-fast/05-release/nightly etc.) needs a carefully constructed multi-job workflow fixture to avoid a brittle proof; not attempted this pass.",
-      "issue": 2677,
-      "expires": "2027-09-30"
-    },
-    {
-      "gate": "anti-drift: unwired guards (#2159)",
-      "script": "scripts/check-unwired-guards.mjs",
-      "category": "no",
-      "reason": "Scans many hardcoded reference surfaces at once (check-all.mjs, scripts/**, .claude/hooks/**, settings.json, Makefile, githooks, workflows, run.sh, package.json) with no root-injection flag; reproducing a coherent subset for a bad/clean pair is a larger fixture than this pass scoped.",
       "issue": 2677,
       "expires": "2027-09-30"
     },

@@ -563,7 +563,7 @@
     "scripts/check-test-scope-tier.mjs": "593b9beaec9929ef2862b57c67987cd481efd660caa1b4b15cafab959ccefdef",
     "scripts/check-todo-max-age.mjs": "013ee9d24e4470219ec7a543b3cc9736c3e444c76c0e4575c2c95551e8219872",
     "scripts/check-touched-vs-manifest.mjs": "e92e288c27320903b046e4d6fb69b15dea0e0c169b249db7b2ad4befb12aa1ca",
-    "scripts/check-unwired-guards.mjs": "10ee98d50e77e9cb297aaf31d71215013250de4f406a4e4798f87ba9e8c28b85",
+    "scripts/check-unwired-guards.mjs": "d4e89c0bc5646a6694a096257913cd58c7d9481d5904545dc098aa4e758932a0",
     "scripts/check-use-cases.mjs": "2a3e478c1f9dcb8069be5d96c327aa7727592ff95a65c553cabbb2223e1b8654",
     "scripts/check-validator-helptext.mjs": "1dc17383a3c57b72f5708f68db5626ab8de3d15deb50a6cbd2d576bdb3eb0c23",
     "scripts/check-wiki-lint.mjs": "1278adfd6b5e0b9e2055ce267a6950cfa467f4473fcd3e8bfa59d71fcfe17bbf",
