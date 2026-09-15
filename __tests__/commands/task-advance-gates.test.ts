@@ -96,6 +96,10 @@ function installAcceptanceChecker(dir: string): void {
     join(dir, 'scripts/lib/agent-return-validate.mjs'),
   )
   copyFileSync(
+    resolve(__dirname, '../../scripts/lib/evidence-binding.mjs'),
+    join(dir, 'scripts/lib/evidence-binding.mjs'),
+  )
+  copyFileSync(
     resolve(__dirname, '../../scripts/lib/run-helpers.mjs'),
     join(dir, 'scripts/lib/run-helpers.mjs'),
   )
