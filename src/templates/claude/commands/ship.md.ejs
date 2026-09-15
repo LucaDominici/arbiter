@@ -641,9 +641,12 @@ When the script is absent (brownfield trees predating its emission, ADR-110), no
 **trunk-solo + direct:** fast-forward the local branch onto `main` after a green gate:
 
 ```bash
-git fetch origin main && git rebase origin/main
-   node scripts/check-all.mjs L2
-git push origin HEAD:main   # ff-only
+git fetch origin main
+if ! git merge-base --is-ancestor origin/main HEAD; then
+  echo "origin/main advanced: rebase before review, then repeat verification on the new SHA"
+  exit 1
+fi
+git push origin HEAD:main   # ff-only; pre-push reuses the qualified receipt
 ```
 <% } else { %>
 <% if (_collaborationMode === 'trunk-solo') { %>

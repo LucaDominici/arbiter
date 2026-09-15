@@ -197,6 +197,23 @@ describe('cross-stack render (DoD: stacks × governance)', () => {
 })
 
 describe('ship command local-only state (#2343)', () => {
+  it('keeps direct landing on the frozen receipt instead of rebasing or gating again', () => {
+    const md = renderTemplate(
+      'claude/commands/ship.md.ejs',
+      baseData({
+        collaborationMode: 'trunk-solo',
+        mergeMode: 'direct',
+        enableEvidenceHarness: true,
+      }),
+    )
+    const direct = md.slice(md.indexOf('**trunk-solo + direct:**'), md.indexOf('## Complete'))
+
+    expect(direct).toContain('git merge-base --is-ancestor origin/main HEAD')
+    expect(direct).toContain('git push origin HEAD:main')
+    expect(direct).not.toContain('git rebase')
+    expect(direct).not.toContain('check-all.mjs')
+  })
+
   it('does not put .arbiter/ in the shared .git/info/exclude', () => {
     const excludeLoop = renderShipCommand().match(/for pattern in[\s\S]*?\ndone/)?.[0]
     expect(excludeLoop).toBeDefined()

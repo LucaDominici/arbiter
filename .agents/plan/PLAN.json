@@ -31,7 +31,8 @@
       "examples/go-library/.claude/commands/ship.md",
       "examples/go-library/scripts/record-agent-return.mjs",
       "examples/go-library/.arbiter-generated-manifest.json",
-      "docs/REFERENCE/task-recovery.md"
+      "docs/REFERENCE/task-recovery.md",
+      "__tests__/templates/ship-driver-render.test.ts"
     ]
   },
   "files": [
@@ -149,6 +150,10 @@
     },
     {
       "path": "docs/REFERENCE/task-recovery.md",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/templates/ship-driver-render.test.ts",
       "operation": "modify"
     }
   ],

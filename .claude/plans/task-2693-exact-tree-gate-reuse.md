@@ -33,6 +33,7 @@ files:
   - .claude/commands/ship.md                        # Gate economy, Complete: prescribed gate order
   - src/templates/claude/commands/ship.md.ejs       # emitted twin of the same text (Track B)
   - __tests__/commands/task-ship.test.ts            # final-level selection per evidenceHarness
+  - __tests__/templates/ship-driver-render.test.ts  # direct landing preserves frozen receipt
   - __tests__/commands/ship-profile.test.ts         # existing feature reaches the resolved profile
   - __tests__/evidence/gate-evidence-binding.test.ts     # staged-after-commit rejection
   - scripts/record-agent-return.mjs                     # align reviewer recorder with trunk-solo /ship
@@ -141,7 +142,8 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
    The phase map consumes only the verification skill's claim checks, not its generic before-push L2,
    so that fallback cannot overwrite the final receipt. The final gate runs before the transition into
    `close`, whose entry guard already requires a valid marker.
-   Trunk-solo direct-merge block `L2` → the same final-level wording.
+   Trunk-solo direct landing performs no rebase or second gate after freeze: it rejects an advanced
+   `origin/main`, otherwise pre-push reuses the qualified receipt.
 3. `task init` + `record-agent-return.mjs` and its emitted twin — load `collaborationMode` through the
    canonical schema validator, persist it in unified task state, and derive the Standard panel minimum
    from that state: one reviewer for `trunk-solo`, two for collaborative modes, while the existing routed
