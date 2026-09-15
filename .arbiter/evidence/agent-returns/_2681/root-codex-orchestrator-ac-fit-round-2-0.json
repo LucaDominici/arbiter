@@ -1,0 +1,122 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "root-codex-orchestrator-ac-fit-round-2",
+  "role": "verifier",
+  "taskId": "#2681",
+  "branch": "task/#2681-ship-review-economy",
+  "sha": "c7aabe4584a739688c45570154c5ba4893efa7b6",
+  "verdict": "PASS",
+  "confidence": 0.99,
+  "findings": [],
+  "acceptanceFit": {
+    "schema": "arbiter-ac-fit-v1",
+    "taskId": "#2681",
+    "criteria": [
+      {
+        "id": "AC-1",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/commands/task-ship.ts",
+            "line": 309
+          },
+          {
+            "file": "__tests__/commands/task-ship.test.ts",
+            "line": 98
+          },
+          {
+            "file": "__tests__/commands/task-advance-gates.test.ts",
+            "line": 252
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/commands/task-ship.ts",
+            "line": 317
+          },
+          {
+            "file": "src/commands/task.ts",
+            "line": 1287
+          },
+          {
+            "file": "__tests__/commands/task-advance-gates.test.ts",
+            "line": 215
+          },
+          {
+            "file": "__tests__/utils/config.test.ts",
+            "line": 56
+          },
+          {
+            "file": "__tests__/coverage/schema.cov.test.ts",
+            "line": 280
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/commands/task-ship.ts",
+            "line": 330
+          },
+          {
+            "file": "src/commands/task-ship.ts",
+            "line": 377
+          },
+          {
+            "file": "src/commands/task-ship.ts",
+            "line": 404
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".claude/commands/ship.md",
+            "line": 365
+          },
+          {
+            "file": "src/templates/claude/commands/ship.md.ejs",
+            "line": 368
+          },
+          {
+            "file": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+            "line": 227
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "docs/internal/ADR/116-evidence-content-binding-train-ceremony-pr-ownership.md",
+            "line": 60
+          },
+          {
+            "file": "docs/internal/ADR/116-evidence-content-binding-train-ceremony-pr-ownership.md",
+            "line": 75
+          },
+          {
+            "file": "__tests__/commands/task-advance-gates.test.ts",
+            "line": 252
+          }
+        ]
+      }
+    ]
+  },
+  "ts": "2026-09-15T11:01:53.822Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

@@ -35,6 +35,14 @@
         {
           "file": "__tests__/commands/task-advance-gates.test.ts",
           "line": 215
+        },
+        {
+          "file": "__tests__/utils/config.test.ts",
+          "line": 56
+        },
+        {
+          "file": "__tests__/coverage/schema.cov.test.ts",
+          "line": 280
         }
       ]
     },
@@ -67,6 +75,10 @@
         {
           "file": "src/templates/claude/commands/ship.md.ejs",
           "line": 368
+        },
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+          "line": 227
         }
       ]
     },
@@ -90,10 +102,10 @@
     }
   ],
   "branch": "task/#2681-ship-review-economy",
-  "sha": "7918dc913e1aa846da259472382a13a5677672fe",
+  "sha": "c7aabe4584a739688c45570154c5ba4893efa7b6",
   "planHash": "59be0d7c3f406415fc01591396593eebbdf8c01a",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2681/root-codex-orchestrator-ac-fit-0.json",
-    "sha256": "f3350bacbdd95f1c21b208f03a62c46fb61c857f0bc28c983b73bc1acd925ded"
+    "path": ".arbiter/evidence/agent-returns/_2681/root-codex-orchestrator-ac-fit-round-2-0.json",
+    "sha256": "e3b2e294550222a46bafe4f972ef9d0039b92f0e90a98011925edb53bed585db"
   }
 }
