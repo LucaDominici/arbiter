@@ -510,19 +510,8 @@ function graphSignals(
   const dependents = new Set<string>()
   const callers = new Set<string>()
   for (const link of graph.links) {
-    if (!isRecord(link)) return { blastRadius: null, callerCount: null, complete: false }
-    const { source, target, relation } = link
-    if (typeof source !== 'string' || typeof target !== 'string' || typeof relation !== 'string') {
-      return { blastRadius: null, callerCount: null, complete: false }
-    }
-    const sourceFile = sourceFiles.get(source)
-    const targetFile = sourceFiles.get(target)
-    if (sourceFile === undefined || targetFile === undefined) {
-      return { blastRadius: null, callerCount: null, complete: false }
-    }
-    if (ALLOWED_RELATIONS.has(relation)) {
-      addRelatedFiles(manifest, dependents, callers, [sourceFile, targetFile])
-    }
+    const files = allowlistedEdgeFiles(link, sourceFiles)
+    if (files !== null) addRelatedFiles(manifest, dependents, callers, files)
   }
   return { blastRadius: dependents.size, callerCount: callers.size, complete: true }
 }
@@ -537,6 +526,25 @@ function graphNodeSourceFiles(nodes: unknown[]): Map<string, string> {
 
 function isGraphNode(value: unknown): value is { id: string; source_file: string } {
   return isRecord(value) && typeof value.id === 'string' && typeof value.source_file === 'string'
+}
+
+function allowlistedEdgeFiles(
+  link: unknown,
+  sourceFiles: ReadonlyMap<string, string>,
+): readonly [string, string] | null {
+  if (!isRecord(link)) return null
+  const { source, target, relation } = link
+  if (
+    typeof source !== 'string' ||
+    typeof target !== 'string' ||
+    typeof relation !== 'string' ||
+    !ALLOWED_RELATIONS.has(relation)
+  ) {
+    return null
+  }
+  const sourceFile = sourceFiles.get(source)
+  const targetFile = sourceFiles.get(target)
+  return sourceFile === undefined || targetFile === undefined ? null : [sourceFile, targetFile]
 }
 
 function addRelatedFiles(
