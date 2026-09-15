@@ -2,7 +2,7 @@
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2686",
   "branch": "task/#2686-verify-plan-tdd-dir",
-  "sha": "121ae5cb1858b4fbf08025cd42567decbb25f5a6",
+  "sha": "6a7c74aca2e21a9a9c784680991e33ff1fe0a2a5",
   "plan_sha256": "054ffbf52b814475503ad0610a7202fad562014a6b101d66acb68eecf8e08c30",
   "criteria": [
     {
