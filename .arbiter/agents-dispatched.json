@@ -1,1 +1,1 @@
-{"count":3,"agents":["final-bugs-r3","final-test-quality-r3","final-silent-failures-r3"],"auditors":["bugs","type-safety","domain","test-quality","silent-failures"],"branch":"task/#2677-absence-flips","sha":"358e35e7a948c1c82a08647a2ee098c394f2d607","taskId":"#2677"}
+{"count":2,"agents":["domain","test-quality"],"auditors":["domain","test-quality"],"treatmentHash":"09cce5ca90197745c66acfa988b02a7f149ee47a7b34f5dc77be0dff0680c594","branch":"task/#2681-canonical-landing","sha":"efc3848b3906354692152884bb88dbc0f8c99b45","taskId":"#2681"}

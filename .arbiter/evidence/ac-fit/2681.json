@@ -1,0 +1,173 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2681",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task.ts",
+          "line": 1272
+        },
+        {
+          "file": "scripts/check-review-completion.mjs",
+          "line": 371
+        },
+        {
+          "file": "scripts/pr-merge-watch.mjs",
+          "line": 328
+        },
+        {
+          "file": "__tests__/scripts/pr-merge-watch-promotion.test.ts",
+          "line": 355
+        },
+        {
+          "file": "__tests__/commands/ship-review.test.ts",
+          "line": 137
+        },
+        {
+          "file": "__tests__/commands/pr-merged.test.ts",
+          "line": 192
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/ship-tier.ts",
+          "line": 206
+        },
+        {
+          "file": "src/commands/ship-tier.ts",
+          "line": 258
+        },
+        {
+          "file": "__tests__/commands/ship-tier.test.ts",
+          "line": 132
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/ship-tier.ts",
+          "line": 185
+        },
+        {
+          "file": "src/commands/ship-tier.ts",
+          "line": 343
+        },
+        {
+          "file": "__tests__/commands/ship-tier.test.ts",
+          "line": 162
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/ship-tier.ts",
+          "line": 265
+        },
+        {
+          "file": "src/commands/ship-tier.ts",
+          "line": 278
+        },
+        {
+          "file": "__tests__/commands/ship-tier.test.ts",
+          "line": 208
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/ship-train.ts",
+          "line": 144
+        },
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 569
+        },
+        {
+          "file": "__tests__/commands/ship-train.test.ts",
+          "line": 100
+        }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/commands/ship.md",
+          "line": 109
+        },
+        {
+          "file": "scripts/check-review-completion.mjs",
+          "line": 371
+        },
+        {
+          "file": "scripts/pr-merge-watch.mjs",
+          "line": 282
+        },
+        {
+          "file": "scripts/pr-merge-watch.mjs",
+          "line": 437
+        },
+        {
+          "file": "__tests__/scripts/pr-merge-watch-promotion.test.ts",
+          "line": 280
+        }
+      ]
+    },
+    {
+      "id": "AC-7",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 985
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1279
+        },
+        {
+          "file": "src/commands/task-state.ts",
+          "line": 289
+        }
+      ]
+    },
+    {
+      "id": "AC-8",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/cli.ts",
+          "line": 2140
+        },
+        {
+          "file": "__tests__/behavioral/help-surface.test.ts",
+          "line": 16
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2681-canonical-landing",
+  "sha": "efc3848b3906354692152884bb88dbc0f8c99b45",
+  "planHash": "9f4ccf8137a943ed1ed3cc0d470e4a34333a1a9f",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2681/acceptance-fit-0.json",
+    "sha256": "3754ddd311c3aff4d1759e6ea1f9b479ecb5caa509315dc5fed7ebfb526b7949"
+  }
+}
