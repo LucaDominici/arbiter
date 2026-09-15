@@ -212,6 +212,16 @@ describe('leaving red-team-review — the tier-N dispatch promise is asserted (A
     expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/red-team evidence/i)
   })
 
+  it.each(['peer-review', 'gated-review'])(
+    '%s still requires red-team evidence (#2681)',
+    (mode) => {
+      const dir = tmpRepo()
+      seed(dir, 'red-team-review', '#2681')
+      writeHarnessConfig(dir, { collaborationMode: mode })
+      expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/red-team evidence/i)
+    },
+  )
+
   it('refuses to advance to red-team-rework with no red-team evidence (AC-1)', () => {
     const dir = tmpRepo()
     seed(dir, 'red-team-review')

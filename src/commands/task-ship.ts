@@ -306,6 +306,14 @@ function reviewPhaseStepBody(
 ): Omit<ShipStep, 'verticals'> {
   const { verticals, externalModelAccess, review: reviewPlan } = context
   if (phase === RED_TEAM_REVIEW_PHASE) {
+    if (profile.collaborationMode === 'trunk-solo') {
+      return {
+        phase,
+        action:
+          'No pre-implementation reviewer dispatch in trunk-solo; proceed to TDD and use the independent final code review.',
+        reviewAgents: 0,
+      }
+    }
     return {
       phase,
       action: `Dispatch ${REDTEAM_AGENTS[t]} red-team agent(s); route CRITICAL findings to red-team-rework.`,

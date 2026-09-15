@@ -1284,6 +1284,7 @@ function checkRedTeamEvidenceGate(
   planningPhases: ReadonlySet<TaskPhase>,
 ): void {
   if (!planningPhases.has(current)) return
+  if (loadConfig(dir)?.collaborationMode === 'trunk-solo') return
   const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
   const path = join(dir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`)
   if (existsSync(path)) return
