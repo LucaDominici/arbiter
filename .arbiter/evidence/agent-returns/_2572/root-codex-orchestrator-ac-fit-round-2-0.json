@@ -1,0 +1,129 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "root-codex-orchestrator-ac-fit-round-2",
+  "role": "verifier",
+  "taskId": "#2572",
+  "branch": "task/#2572-gate-wiring-proof",
+  "sha": "24b5701f2034e9aa2b888e50ee7aad6f411a8833",
+  "ts": "2026-09-15T10:20:24.685Z",
+  "verdict": "PASS",
+  "confidence": 0.99,
+  "findings": [],
+  "refutations": [],
+  "acceptanceFit": {
+    "schema": "arbiter-ac-fit-v1",
+    "taskId": "#2572",
+    "criteria": [
+      {
+        "id": "AC-1",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/lib/gate-roster.mjs",
+            "line": 192
+          },
+          {
+            "file": "__tests__/scripts/check-guard-flip.test.ts",
+            "line": 156
+          },
+          {
+            "file": "__tests__/scripts/check-guard-flip.test.ts",
+            "line": 293
+          },
+          {
+            "file": "__tests__/scripts/check-guard-flip.test.ts",
+            "line": 307
+          },
+          {
+            "file": "__tests__/scripts/check-guard-flip.test.ts",
+            "line": 323
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/lib/guard-flip-registry.mjs",
+            "line": 438
+          },
+          {
+            "file": "scripts/lib/guard-flip-registry.mjs",
+            "line": 440
+          },
+          {
+            "file": "scripts/lib/guard-flip-registry.mjs",
+            "line": 450
+          },
+          {
+            "file": "__tests__/scripts/check-guard-flip.test.ts",
+            "line": 327
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/lib/gate-roster.mjs",
+            "line": 692
+          },
+          {
+            "file": "scripts/lib/gate-roster.mjs",
+            "line": 697
+          },
+          {
+            "file": "__tests__/scripts/check-guard-flip.test.ts",
+            "line": 165
+          },
+          {
+            "file": "__tests__/scripts/check-guard-flip.test.ts",
+            "line": 185
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "__tests__/scripts/check-guard-flip-roster-2560.test.ts",
+            "line": 85
+          },
+          {
+            "file": "__tests__/scripts/check-guard-flip-roster-2560.test.ts",
+            "line": 258
+          },
+          {
+            "file": "docs/internal/SYSTEM/CANON.md",
+            "line": 385
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "__tests__/scripts/check-guard-flip.test.ts",
+            "line": 39
+          },
+          {
+            "file": "scripts/check-guard-flip.mjs",
+            "line": 227
+          },
+          {
+            "file": "scripts/check-guard-flip.mjs",
+            "line": 240
+          }
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "vendor": "anthropic",
+    "dispatch": "subagent"
+  }
+}

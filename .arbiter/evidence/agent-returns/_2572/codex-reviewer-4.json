@@ -1,0 +1,19 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2572",
+  "verdict": "PASS",
+  "confidence": 0.8,
+  "findings": [],
+  "refutations": [],
+  "branch": "task/#2572-gate-wiring-proof",
+  "sha": "24b5701f2034e9aa2b888e50ee7aad6f411a8833",
+  "ts": "2026-09-15T10:18:40.925Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

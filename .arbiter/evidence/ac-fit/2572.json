@@ -8,7 +8,11 @@
       "evidence": [
         {
           "file": "scripts/lib/gate-roster.mjs",
-          "line": 209
+          "line": 192
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 156
         },
         {
           "file": "__tests__/scripts/check-guard-flip.test.ts",
@@ -30,11 +34,11 @@
       "evidence": [
         {
           "file": "scripts/lib/guard-flip-registry.mjs",
-          "line": 440
+          "line": 438
         },
         {
           "file": "scripts/lib/guard-flip-registry.mjs",
-          "line": 442
+          "line": 440
         },
         {
           "file": "scripts/lib/guard-flip-registry.mjs",
@@ -52,11 +56,11 @@
       "evidence": [
         {
           "file": "scripts/lib/gate-roster.mjs",
-          "line": 741
+          "line": 692
         },
         {
           "file": "scripts/lib/gate-roster.mjs",
-          "line": 745
+          "line": 697
         },
         {
           "file": "__tests__/scripts/check-guard-flip.test.ts",
@@ -64,7 +68,7 @@
         },
         {
           "file": "__tests__/scripts/check-guard-flip.test.ts",
-          "line": 255
+          "line": 185
         }
       ]
     },
@@ -96,20 +100,20 @@
         },
         {
           "file": "scripts/check-guard-flip.mjs",
-          "line": 265
+          "line": 227
         },
         {
           "file": "scripts/check-guard-flip.mjs",
-          "line": 271
+          "line": 240
         }
       ]
     }
   ],
   "branch": "task/#2572-gate-wiring-proof",
-  "sha": "07192e0e7339fb4d9a20093084eccbcecdd38103",
+  "sha": "24b5701f2034e9aa2b888e50ee7aad6f411a8833",
   "planHash": "33664ae13d64c81ea620d2213c3e8567a3a3ac8d",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2572/root-codex-orchestrator-ac-fit-0.json",
-    "sha256": "d173ff3b42c9aea3a4c5ca836a38a046d4ae6a9c8ce59cf0b4a652f39b9fa379"
+    "path": ".arbiter/evidence/agent-returns/_2572/root-codex-orchestrator-ac-fit-round-2-0.json",
+    "sha256": "acf45eed3066804d52b161126f3af95ce6d2b75858ffea26c80a4a65aa6d8d83"
   }
 }
