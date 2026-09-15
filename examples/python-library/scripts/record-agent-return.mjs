@@ -446,6 +446,15 @@ function recordAcceptanceFit(parsed, schema) {
   return writeAcceptanceFit(validated.env, validated.anchor, stamped)
 }
 
+function validReviewerVerticals(verticals, count) {
+  return (
+    Array.isArray(verticals) &&
+    verticals.length === count &&
+    verticals.every((vertical) => typeof vertical === 'string' && vertical.length > 0) &&
+    new Set(verticals).size === verticals.length
+  )
+}
+
 function routedPanelRequirement(state) {
   const treatment = state.treatment
   const verticals = treatment?.reviewerVerticals
@@ -454,10 +463,7 @@ function routedPanelRequirement(state) {
     !Number.isInteger(treatment.finalReviewers) ||
     treatment.finalReviewers < 1 ||
     treatment.finalReviewers > 3 ||
-    !Array.isArray(verticals) ||
-    verticals.length !== treatment.finalReviewers ||
-    verticals.some((vertical) => typeof vertical !== 'string' || vertical.length === 0) ||
-    new Set(verticals).size !== verticals.length ||
+    !validReviewerVerticals(verticals, treatment.finalReviewers) ||
     typeof treatment.signalsHash !== 'string' ||
     !/^[0-9a-f]{64}$/.test(treatment.signalsHash)
   ) {
