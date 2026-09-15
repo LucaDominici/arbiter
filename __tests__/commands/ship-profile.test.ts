@@ -95,11 +95,29 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       mergeMode: 'pr-ff',
       governanceLevel: 'L2',
       autonomy: 'L0',
+      evidenceHarness: false,
       // #1306 — no automation block ⇒ resolver derived floor.
       defaultGateLevel: 'L1',
       // #1730 — no companion installed in the injected home.
       companions: [],
     })
+  })
+
+  it('surfaces the existing features.evidenceHarness flag on the resolved profile', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfgV2({
+        features: {
+          debtGates: true,
+          suppressions: true,
+          securityScanning: true,
+          mutationTesting: true,
+          contractTesting: false,
+          evidenceHarness: true,
+        },
+      }),
+    })
+    expect(resolveShipProfile(dir, { claudeHome: EMPTY_HOME }).evidenceHarness).toBe(true)
   })
 
   it('consumer trunk-solo + solo.mergeMode:direct → mergeMode direct (RT-02 override honored)', () => {
@@ -196,6 +214,7 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       mergeMode: 'pr-ff',
       governanceLevel: 'L2',
       autonomy: 'L0',
+      evidenceHarness: false,
       // #1306 — no automation block ⇒ resolver derived floor.
       defaultGateLevel: 'L1',
       // #1730 — arbiter-self never activates a companion (guard at resolution).

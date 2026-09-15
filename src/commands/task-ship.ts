@@ -227,11 +227,17 @@ function greenAction(profile: ShipProfile): string {
  * one line, no action), same error twice → 5-line root-cause or declare BLOCKED, foreground waits
  * only (no background "monitor" for gate/PR checks), never end on a promise.
  */
-function closeAction(): string {
+function closeAction(profile: ShipProfile): string {
+  const finalGate = profile.evidenceHarness ? 'L3' : 'L2'
+  const doneEvidence = profile.evidenceHarness
+    ? ' Then run `node scripts/done-evidence.mjs` to capture and reuse that L3 receipt.'
+    : ''
   return (
     'CLOSER mode: single named target, no new issues or refactor beyond the diff ' +
     '(findings → PARKING list, one line, no action). Same error twice → 5-line root-cause, ' +
-    'else declare BLOCKED. Commit the candidate, then run `node scripts/check-all.mjs L2` once before push. ' +
+    `else declare BLOCKED. Commit the candidate, then run \`node scripts/check-all.mjs ${finalGate}\` once on the clean HEAD before push.` +
+    doneEvidence +
+    ' Do not run another gate while the candidate is unchanged. ' +
     'Foreground-wait on the PR/gate checks; never end the turn on a promise.'
   )
 }
@@ -400,7 +406,7 @@ function shipStepBody(
     case 'close':
       return {
         phase,
-        action: closeAction(),
+        action: closeAction(profile),
         reviewAgents: 0,
       }
     case 'complete':

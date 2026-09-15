@@ -235,6 +235,13 @@ describe('self /ship documentation coherence (#2178)', () => {
     expect(shipCommand.includes('scripts/check-review-completion.mjs')).toBe(true)
     expect(shipCommand.includes('single reviewer safe')).toBe(true)
   })
+
+  it('keeps the generic verification L2 out of the native ship cadence', () => {
+    expect(shipCommand).toContain("do not also run the generic verification skill's before-push L2")
+    expect(shipCommand).toContain(
+      'Skip its generic before-push L2; `close` owns the sufficient final gate.',
+    )
+  })
 })
 
 // #1280 — the bare positional id (`ship 1280 ...`) must be normalized to the canonical
@@ -380,6 +387,7 @@ const profile = (over: Partial<ShipProfile> = {}): ShipProfile => ({
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
   autonomy: 'L0',
+  evidenceHarness: false,
   // #1306 — orchestration pref (defaults to the resolver floor).
   defaultGateLevel: 'L1',
   // #1730 — no companion by default; individual tests inject one.
@@ -533,7 +541,16 @@ describe('ship close action ordering', () => {
   it('commits before the exact-HEAD L2 gate', () => {
     const action = shipStepFor('close', 'Standard', profile()).action
     expect(action).toContain('Commit the candidate, then run `node scripts/check-all.mjs L2`')
+    expect(action).not.toContain('done-evidence.mjs')
     expect(action).not.toContain('L2` before commit')
+  })
+
+  it('selects one final L3 gate and reuses it for done-evidence when the harness is active', () => {
+    const action = shipStepFor('close', 'Standard', profile({ evidenceHarness: true })).action
+    expect(action).toContain('Commit the candidate, then run `node scripts/check-all.mjs L3` once')
+    expect(action).toContain('node scripts/done-evidence.mjs')
+    expect(action.match(/check-all\.mjs/g)).toHaveLength(1)
+    expect(action).not.toContain('L3` before commit')
   })
 })
 

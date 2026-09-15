@@ -192,6 +192,21 @@ describe('#2328 gate-evidence binding — shape and schema fail closed', () => {
 })
 
 describe('#2328 gate-evidence binding — tree identity', () => {
+  it('rejects a staged receipt after commit even when the projected tree matches', () => {
+    const dir = track(makeRepo())
+    writeFileSync(join(dir, 'src.txt'), 'candidate\n')
+    git(dir, ['add', 'src.txt'])
+    const marker = markerFor(dir)
+    expect(marker.tree_was_clean_at_run_time).toBe(false)
+
+    git(dir, ['commit', '-q', '-m', 'candidate'])
+    expect(computeTreeHash(dir)).toBe(marker.tree_hash)
+
+    const result = verify(marker, dir)
+    expect(result.ok).toBe(false)
+    expect(String(result.reason)).toMatch(/head_sha|tree_was_clean_at_run_time/i)
+  })
+
   it('rejects evidence once a TRACKED file changed under an unchanged head_sha', () => {
     const dir = track(makeRepo())
     const marker = markerFor(dir)

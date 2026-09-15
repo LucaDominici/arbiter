@@ -31,6 +31,7 @@ const TEST_PROFILE: ShipProfile = {
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
   autonomy: 'L0',
+  evidenceHarness: false,
   defaultGateLevel: 'L1',
   companions: [],
 }

@@ -133,6 +133,8 @@ export interface ShipProfile {
    * no reader after #2329, so `ship --set` accepted it and the run ignored it.)
    */
   defaultGateLevel: GateLevel
+  /** Existing completion evidence switch; selects the final close gate and done-evidence capture. */
+  evidenceHarness: boolean
   /**
    * #1730 — companion plugins active for this ship run (ponytail, …), resolved HOME-ONLY and
    * empty on arbiter-self. Consumed by the green-phase action (drafting instruction) and the
@@ -214,6 +216,7 @@ export const CONSUMER_DEFAULT_PROFILE: ShipProfile = {
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
   autonomy: 'L0',
+  evidenceHarness: false,
   // #1306 — conservative floor matching the resolver's DERIVED_DEFAULTS table.
   defaultGateLevel: 'L1',
   companions: [],
@@ -292,6 +295,7 @@ export function resolveShipProfile(
     ...collaborationProfile(config),
     isArbiterSelf: self,
     autonomy,
+    evidenceHarness: config.features.evidenceHarness,
     ...prefs,
     companions,
     ...(crossModelReview !== undefined ? { crossModelReview } : {}),

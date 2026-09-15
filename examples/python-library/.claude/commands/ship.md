@@ -95,9 +95,11 @@ the train to Standard does not join it — a risk-bearing issue rides its own tr
 `arbiter.json` (defaults: 10 issues, 480 minutes); `ship.review.maxRounds` bounds review rework
 the same way (default 2). A refused `--chain-add` is the policy working — land the train.
 
-**Gate cadence.** Targeted tests during `green` / `refactor`, `node scripts/check-all.mjs L1`
-once at the landing commit, `L2` once at push — see §Gate economy, which governs a train exactly
-as it governs a single issue. Gates are per LANDING, ceremony is per TRAIN; neither is per issue.
+**Gate cadence.** Targeted tests during `green` / `refactor`, one L1 diagnostic at `verification`,
+then one clean-HEAD L2 at close; pre-push reuse that final receipt. This cadence
+is authoritative inside `/ship`: do not also run the generic verification skill's before-push L2. See §Gate
+economy, which governs a train exactly as it governs a single issue. Gates are per LANDING,
+ceremony is per TRAIN; neither is per issue.
 
 **Running the full per-issue ceremony over a batch of small issues is a playbook violation, not
 extra safety.** It buys no additional signal — the same plan reviewer, the same red-team, the
@@ -143,7 +145,7 @@ arbiter task advance --to plan
 | `red` | Write failing tests with the `tdd` skill (red → verify-red is its own step: watch each test fail for the right reason) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass, continuing the `tdd` loop (composes with active companion plugins — see below) | — |
 | `refactor` | Clean up; dispatch 2 code-review agents + 1 adversarial verifier | 2 (Standard) |
-| `verification` | Run the `verification` skill, then the gate: `pytest` then `node scripts/check-all.mjs check` | — |
+| `verification` | Run the claim checks from the `verification` skill, then one `node scripts/check-all.mjs L1` diagnostic. Skip its generic before-push L2; `close` owns the sufficient final gate. | — |
 | `close` | The closing phase (#A11): entry requires a valid L1 gate-pass marker and switches the active rule set to CLOSER mode (`.claude/rules/95-closer-mode.md`) — single named target, no discovery, findings to the PARKING list | — |
 | `complete` | Commit, push, open/merge PR, close issue, clean up | — |
 
@@ -267,8 +269,10 @@ once. This is a **speed** optimization, not a gate skip. In a normal checkout th
 the boundary checks before commit (L1) and before push (L2); the pre-commit hook intentionally
 skips L1 in Git worktrees because their shared `node_modules` makes the license probe invalid
 (#1695). That worktree skip is not an L1 PASS: run `node scripts/check-all.mjs L1` independently
-in the worktree before committing and retain its receipt; the canonical integration checkout/CI
-must repeat L1, and the push boundary must run L2.
+in the worktree before committing as a diagnostic. Do not reuse its dirty-tree receipt: HEAD-bound
+checks did not evaluate the future commit. Commit the candidate and all evidence, then run one
+clean-HEAD `node scripts/check-all.mjs L2`; pre-push reuse that receipt while the
+candidate stays unchanged. The canonical integration checkout/CI still verifies independently.
 
 Optional, at `verification` and before release-class changes: run `/tabletop <scenario>` to
 walk one user journey end to end and record where the docs and the behaviour disagree

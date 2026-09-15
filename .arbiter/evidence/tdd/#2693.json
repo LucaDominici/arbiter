@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2693",
+  "test_path": "__tests__/commands/task-ship.test.ts",
+  "test_commit_sha": "2d6de9120d346e2d847951e86dbefb5027f59cd8",
+  "test_blob_sha": "67800503d5c5c5c617a197e9f6144674c2e80fd2",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/task-ship.test.ts (48 tests | 1 failed) 493ms\n     × selects one final L3 gate and reuses it for done-evidence when the harness is active 5ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 47 passed (48)\n   Start at  08:19:39\n   Duration  874ms (transform 217ms, setup 6ms, import 291ms, tests 493ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/task-ship.test.ts > ship close action ordering > selects one final L3 gate and reuses it for done-evidence when the harness is active\nAssertionError: expected 'CLOSER mode: single named target, no …' to contain 'Commit the candidate, then run `node …'\n\nExpected: \"Commit the candidate, then run `node scripts/check-all.mjs L3` once\"\nReceived: \"CLOSER mode: single named target, no new issues or refactor beyond the diff (findings → PARKING list, one line, no action). Same error twice → 5-line root-cause, else declare BLOCKED. Commit the candidate, then run `node scripts/check-all.mjs L2` once before push. Foreground-wait on the PR/gate checks; never end the turn on a promise.\"\n\n ❯ __tests__/commands/task-ship.test.ts:542:20\n    540|   it('selects one final L3 gate and reuses it for done-evidence when t…\n    541|     const action = shipStepFor('close', 'Standard', profile({ evidence…\n    542|     expect(action).toContain('Commit the candidate, then run `node scr…\n       |                    ^\n    543|     expect(action).toContain('node scripts/done-evidence.mjs')\n    544|     expect(action).not.toContain('L3` before commit')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/task-ship.test.ts",
+  "recorded_at": "2026-09-15T06:19:40.378Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/task-ship.test.ts"
+  ]
+}
