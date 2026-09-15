@@ -777,6 +777,7 @@ Manage task lifecycle state.
 **Subcommands:**
 
 - `arbiter task resume` — Print recovery instructions for the current task phase
+- `arbiter task host-preflight` — Bind the native Claude host to an exact task worktree before lifecycle writes
 - `arbiter task advance` — Advance (or reverse) the task lifecycle phase
 - `arbiter task recover` — Print 3-layer recovery context for the current task (#694)
 - `arbiter task record-red` — Record TDD red-phase evidence: run a failing test and capture evidence (#551)

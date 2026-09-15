@@ -146,7 +146,7 @@ describe('check-acceptance gate', () => {
   it('rejects late-phase fit when live branch binding is absent', () => {
     writeState('verification')
     execFileSync('git', ['init', '-b', 'task/#42-fit'], { cwd: root, stdio: 'ignore' })
-    execFileSync('git', ['config', 'user.email', 'test@fixture.invalid'], { cwd: root })
+    execFileSync('git', ['config', 'user.email', 'fixture.invalid'], { cwd: root })
     execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: root })
     execFileSync('git', ['add', 'plan.md'], { cwd: root })
     execFileSync('git', ['commit', '-m', 'seed'], { cwd: root, stdio: 'ignore' })

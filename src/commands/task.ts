@@ -160,6 +160,7 @@ export function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
     throw new Error(
       `${reason}\nRecovery: cd ${JSON.stringify(opts.worktree)} && ` +
         'claude --resume "$CLAUDE_CODE_SESSION_ID" --fork-session --permission-mode auto',
+      { cause: err },
     )
   }
   if (realpathSync(root) !== hostBinding.worktreePath) {

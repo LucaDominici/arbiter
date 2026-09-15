@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -17,7 +17,7 @@ function setup() {
   const home = join(parent, 'home')
   mkdirSync(main, { recursive: true })
   execFileSync('git', ['init', '-b', 'main'], { cwd: main, stdio: 'ignore' })
-  execFileSync('git', ['config', 'user.email', 'test@fixture.invalid'], { cwd: main })
+  execFileSync('git', ['config', 'user.email', 'fixture.invalid'], { cwd: main })
   execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: main })
   execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], { cwd: main, stdio: 'ignore' })
   execFileSync('git', ['worktree', 'add', '-b', 'task/#2685-native-host', worktree], {

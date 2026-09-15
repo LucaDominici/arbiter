@@ -67,7 +67,7 @@ function recordPanel(envelopes: unknown[]) {
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'arbiter-record-fit-'))
   execFileSync('git', ['init', '-b', 'task/#42-fit'], { cwd: root, stdio: 'ignore' })
-  execFileSync('git', ['config', 'user.email', 'test@fixture.invalid'], { cwd: root })
+  execFileSync('git', ['config', 'user.email', 'fixture.invalid'], { cwd: root })
   execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: root })
   writeFileSync(join(root, 'plan.md'), PLAN)
   mkdirSync(join(root, 'scripts'), { recursive: true })

@@ -221,12 +221,27 @@ the legacy files migrates it transparently (seed + delete) on first access.
 | `timestamps`           | ISO timestamps per phase entered (accumulated across sessions)                    |
 | `runId`                | `<pid>-<epoch-ms>` — unique per process invocation                                |
 | `gateDecisions`        | Gate pass/fail records                                                            |
+| `hostBinding`          | Exact Claude worktree, branch, session and transcript established by preflight    |
 
 Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
 update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file
 is registered for SIGTERM/SIGINT cleanup (#613). Shell consumers read fields via
 `arbiter task get --field <phase|taskId|tier|plan|tddPhase|lastAction|nextAction>` and seed state via
 `arbiter task init --id #NNN --tier <tier> --plan <path>`.
+
+In Claude auto mode, open the worktree with `arbiter wt open <id> --json`, start a fresh Claude
+session rooted at the returned `worktreePath`, then run
+`arbiter task host-preflight --id <id> --worktree <worktreePath>` before `task init`. Lifecycle
+writes and qualified review/acceptance evidence reject a different root, task, branch, session,
+transcript, or worktree-log row. A present `CLAUDE_PROJECT_DIR` must corroborate the same root.
+Non-Claude recorders do not require Claude hooks.
+
+Final review evidence is recorded once per routed panel with
+`record-agent-return.mjs --mode reviewer-panel`; the recorder derives panel size from the frozen
+diff and fails closed when an installed router errors. Generated projects, which intentionally do
+not include the router, use the same conservative changed-path escalation. The adversarial verifier
+uses `--mode ac-fit`; every PASS citation must resolve at the exact recorded SHA before the fit can
+be admitted.
 
 Entering red validates the anchored Markdown plan when the acceptance-anchor profile is enabled.
 A missing checker or invalid anchor prevents the transition without changing the phase.

@@ -26,6 +26,33 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
+  it('runs the emitted legacy recorder without optional Claude hooks', () => {
+    generateCheckAll(makeConfig(dir, { aiTools: ['codex'] }))
+    const result = spawnSync(
+      process.execPath,
+      [join(dir, 'scripts', 'record-agent-return.mjs'), '--task', '#42'],
+      {
+        cwd: dir,
+        encoding: 'utf8',
+        input: JSON.stringify({
+          schema: 'arbiter-agent-return-v1',
+          agent: 'worker',
+          role: 'scanner',
+          taskId: '#42',
+          branch: 'ignored',
+          sha: 'ignored',
+          ts: '2026-09-15T00:00:00.000Z',
+          verdict: 'PASS',
+          confidence: 1,
+          findings: [],
+        }),
+      },
+    )
+
+    expect(result.status, result.stderr + result.stdout).toBe(0)
+    expect(existsSync(join(dir, '.claude', 'hooks', 'lib.mjs'))).toBe(false)
+  })
+
   it('emits the reduced external-review schema beside the generic agent-return schema (#2357)', () => {
     const result = generateCheckAll(makeConfig(dir))
     expect(

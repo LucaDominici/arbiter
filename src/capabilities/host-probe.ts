@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import { lstatSync, readFileSync, realpathSync, readdirSync } from 'node:fs'
+import { lstatSync, realpathSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
+import { readFileTranslated } from '../utils/fs.js'
 
 export interface HostCapabilities {
   modelSwitch: boolean
@@ -38,7 +39,7 @@ function readOpenLog(worktree: string): unknown[] {
   const stat = lstatSync(path)
   if (!stat.isFile() || stat.isSymbolicLink())
     throw new Error('worktree-open log is not a regular file')
-  const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
+  const parsed: unknown = JSON.parse(readFileTranslated(path, 'utf8'))
   if (!Array.isArray(parsed)) throw new Error('worktree-open log is malformed')
   return parsed
 }
@@ -67,18 +68,7 @@ export function resolveNativeHostBinding(
     throw new Error(`exact worktree binding for ${canonicalTask} is missing or ambiguous`)
   }
   const env = context.env ?? process.env
-  const projectDir = env['CLAUDE_PROJECT_DIR']
-  if (projectDir) {
-    let projectPath
-    try {
-      projectPath = realpathSync(projectDir)
-    } catch {
-      throw new Error('CLAUDE_PROJECT_DIR is not a readable project directory')
-    }
-    if (projectPath !== worktreePath) {
-      throw new Error(`CLAUDE_PROJECT_DIR ${projectPath} does not match worktree ${worktreePath}`)
-    }
-  }
+  assertClaudeProjectDir(worktreePath, env['CLAUDE_PROJECT_DIR'])
   const sessionId = env['CLAUDE_CODE_SESSION_ID']
   if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) {
     throw new Error('native host binding requires a valid CLAUDE_CODE_SESSION_ID')
@@ -98,6 +88,20 @@ export function resolveNativeHostBinding(
     throw new Error('native host transcript resolves through a symlink')
   }
   return { worktreePath, branch, sessionId, transcriptPath }
+}
+
+function assertClaudeProjectDir(worktreePath: string, projectDir: string | undefined): void {
+  if (projectDir) {
+    let projectPath
+    try {
+      projectPath = realpathSync(projectDir)
+    } catch {
+      throw new Error('CLAUDE_PROJECT_DIR is not a readable project directory')
+    }
+    if (projectPath !== worktreePath) {
+      throw new Error(`CLAUDE_PROJECT_DIR ${projectPath} does not match worktree ${worktreePath}`)
+    }
+  }
 }
 
 function isTruthy(val: string | undefined): boolean {

@@ -20,6 +20,7 @@
 import {
   constants as fsConstants,
   closeSync,
+  existsSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -40,7 +41,11 @@ import {
 } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
 import { computeAcHash, parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
-import { nativeHostBindingError } from '../.claude/hooks/lib.mjs'
+
+let nativeHostBindingError
+if (process.env.CLAUDE_CODE_SESSION_ID) {
+  ;({ nativeHostBindingError } = await import('../.claude/hooks/lib.mjs'))
+}
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
@@ -414,15 +419,28 @@ function routedPanelRequirement(state, sha) {
   })
   let active = []
   const router = join(REPO_ROOT, 'scripts', 'route-auditors.mjs')
-  active = JSON.parse(
-    execFileSync(process.execPath, [router, '--diff-stdin'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-      input: changed,
-      stdio: ['pipe', 'pipe', 'ignore'],
-    }),
-  ).active
-  if (!Array.isArray(active)) throw new Error('reviewer router returned no active auditor list')
+  if (existsSync(router)) {
+    active = JSON.parse(
+      execFileSync(process.execPath, [router, '--diff-stdin'], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        input: changed,
+        stdio: ['pipe', 'pipe', 'ignore'],
+      }),
+    ).active
+    if (!Array.isArray(active)) throw new Error('reviewer router returned no active auditor list')
+  } else {
+    active = changed
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .some((path) =>
+        /(^|\/)(auth|authz|crypto|secrets?|migrations?)(\/|$)|\.sql$|^\.github\/|^scripts\/|^\.claude\/hooks\//i.test(
+          path,
+        ),
+      )
+      ? ['silent-failures']
+      : []
+  }
   const escalated = active.some((name) =>
     ['security', 'data-integrity', 'silent-failures'].includes(name),
   )
