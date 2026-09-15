@@ -1,0 +1,221 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "2685-2687-acfit-verifier",
+  "role": "verifier",
+  "taskId": "#2685",
+  "branch": "task/#2685-native-ship-host",
+  "sha": "b1f9f785fdbaf5809f8b940419b2553af298e958",
+  "ts": "2026-09-15T05:09:52.566Z",
+  "verdict": "PASS",
+  "confidence": 0.97,
+  "findings": [],
+  "acceptanceFit": {
+    "schema": "arbiter-ac-fit-v1",
+    "taskId": "#2685",
+    "criteria": [
+      {
+        "id": "AC-2685.1",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".claude/hooks/lib.mjs",
+            "line": 546
+          },
+          {
+            "file": ".claude/hooks/lib.mjs",
+            "line": 587
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 14
+          }
+        ]
+      },
+      {
+        "id": "AC-2685.2",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 9
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 18
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 22
+          }
+        ]
+      },
+      {
+        "id": "AC-2685.3",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 29
+          },
+          {
+            "file": "src/commands/task.ts",
+            "line": 264
+          },
+          {
+            "file": "__tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts",
+            "line": 106
+          }
+        ]
+      },
+      {
+        "id": "AC-2685.4",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "src/commands/task.ts",
+            "line": 193
+          },
+          {
+            "file": "src/commands/task.ts",
+            "line": 241
+          },
+          {
+            "file": ".claude/commands/wt-open.md",
+            "line": 41
+          }
+        ]
+      },
+      {
+        "id": "AC-2685.5",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 13
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 17
+          },
+          {
+            "file": ".claude/hooks/lib.mjs",
+            "line": 661
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.1",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 18
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 20
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 43
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.2",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 302
+          },
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 374
+          },
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 391
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.3",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 20
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 37
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 43
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.4",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 247
+          },
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 336
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 37
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.5",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": ".claude/commands/ship.md",
+            "line": 431
+          },
+          {
+            "file": ".claude/commands/ship.md",
+            "line": 466
+          },
+          {
+            "file": ".arbiter/evidence/native-host/2685-2687.json",
+            "line": 58
+          }
+        ]
+      },
+      {
+        "id": "AC-2687.6",
+        "verdict": "PASS",
+        "evidence": [
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 348
+          },
+          {
+            "file": "scripts/record-agent-return.mjs",
+            "line": 562
+          },
+          {
+            "file": "__tests__/scripts/check-acceptance.test.ts",
+            "line": 178
+          }
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}

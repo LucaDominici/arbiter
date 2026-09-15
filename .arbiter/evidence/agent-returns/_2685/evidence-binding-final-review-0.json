@@ -1,0 +1,17 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "evidence-binding-final-review",
+  "role": "reviewer",
+  "taskId": "#2685",
+  "branch": "task/#2685-native-ship-host",
+  "sha": "b1f9f785fdbaf5809f8b940419b2553af298e958",
+  "ts": "2026-09-15T05:09:52.519Z",
+  "verdict": "PASS",
+  "confidence": 0.99,
+  "findings": [],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent",
+    "cli": "codex"
+  }
+}

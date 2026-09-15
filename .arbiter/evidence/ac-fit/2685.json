@@ -195,17 +195,17 @@
           "line": 562
         },
         {
-          "file": "__tests__/scripts/record-agent-return-modes.test.ts",
-          "line": 129
+          "file": "__tests__/scripts/check-acceptance.test.ts",
+          "line": 178
         }
       ]
     }
   ],
   "branch": "task/#2685-native-ship-host",
-  "sha": "31b6bc44a6d6b5c545d08fbab824e7a3db745129",
+  "sha": "b1f9f785fdbaf5809f8b940419b2553af298e958",
   "planHash": "630018a5f390bbb64422f3081b88bcf92c21832f",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2685/2685-2687-acfit-verifier-1.json",
-    "sha256": "141f39070165e07e1d6d54c30c53b1c8be821beb5bc2cf0179357698ae6aed9e"
+    "path": ".arbiter/evidence/agent-returns/_2685/2685-2687-acfit-verifier-2.json",
+    "sha256": "549c10d847b38445405ccfef9a6c7704b6728263020fd52a0fda6b456ef0b103"
   }
 }
