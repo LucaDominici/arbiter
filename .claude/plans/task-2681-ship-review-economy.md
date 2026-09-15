@@ -21,11 +21,11 @@ Implementation:
 
 ## Acceptance criteria
 
-- AC-1: trunk-solo Standard reports zero pre-code red-team agents and can advance to `red` without a fabricated evidence file.
-- AC-2: peer-review and gated-review still report tier-N agents and refuse to leave red-team review without evidence.
-- AC-3: plan-review admission, acceptance-anchor admission, handoff logic, one independent final code reviewer and high-risk final escalation are unchanged.
-- AC-4: self and emitted `/ship` docs state the same mode-specific behavior.
-- AC-5: mechanisms decrease for trunk-solo (pre-code panel and evidence requirement removed); guarantees are preserved by plan completeness, TDD, final review, AC-fit, L3 and CI.
+- [ ] AC-1: trunk-solo Standard reports zero pre-code red-team agents and can advance to `red` without a fabricated evidence file.
+- [ ] AC-2: peer-review and gated-review still report tier-N agents and refuse to leave red-team review without evidence.
+- [ ] AC-3: plan-review admission, acceptance-anchor admission, handoff logic, one independent final code reviewer and high-risk final escalation are unchanged.
+- [ ] AC-4: self and emitted `/ship` docs state the same mode-specific behavior.
+- [ ] AC-5: mechanisms decrease for trunk-solo (pre-code panel and evidence requirement removed); guarantees are preserved by plan completeness, TDD, final review, AC-fit, L3 and CI.
 
 ## Verification
 
