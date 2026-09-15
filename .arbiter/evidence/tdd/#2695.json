@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2695",
+  "test_path": "__tests__/evidence/tdd-reexecute.test.ts",
+  "test_commit_sha": "03342aa97dcdfbcf679d75cb01209229e2786d58",
+  "test_blob_sha": "0ed4babf6b7523a0eafdbaccbc0a2ea1ff4df554",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/evidence/tdd-reexecute.test.ts (37 tests | 4 failed) 17ms\n     × preserves same-name failure identity and multiplicity across projects (AC-1, AC-2) 4ms\n     × rejects an arbitrary background-styled diagnostic prefix (AC-3) 0ms\n     × rejects an indented code-frame header: \"  FAIL math.test.ts\" (AC-3) 0ms\n     × rejects an indented code-frame header: \"\\tFAIL math.test.ts\" (AC-3) 0ms\n\n Test Files  1 failed (1)\n      Tests  4 failed | 33 passed (37)\n   Start at  11:00:04\n   Duration  197ms (transform 59ms, setup 6ms, import 88ms, tests 17ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/evidence/tdd-reexecute.test.ts > verifyRedExecution() > preserves same-name failure identity and multiplicity across projects (AC-1, AC-2)\nAssertionError: expected true to be false // Object.is equality\n\n- Expected\n+ Received\n\n- false\n+ true\n\n ❯ __tests__/evidence/tdd-reexecute.test.ts:167:80\n    165|\n    166|     expect(replayLines([projectFailures[0]], evidence).ok).toBe(false)\n    167|     expect(replayLines([projectFailures[0], projectFailures[0]], evide…\n       |                                                                                ^\n    168|     expect(replayLines([...projectFailures].reverse(), evidence).ok).t…\n    169|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯\n\n FAIL  |unit| __tests__/evidence/tdd-reexecute.test.ts > verifyRedExecution() > rejects an arbitrary background-styled diagnostic prefix (AC-3)\nAssertionError: expected true to be false // Object.is equality\n\n- Expected\n+ Received\n\n- false\n+ true\n\n ❯ __tests__/evidence/tdd-reexecute.test.ts:238:86\n    236|\n    237|   it('rejects an arbitrary background-styled diagnostic prefix (AC-3)'…\n    238|     expect(replayLines(['FAIL \\x1b[44m diagnostic \\x1b[49m math.test.t…\n       |                                                                                      ^\n    239|   })\n    240|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯\n\n FAIL  |unit| __tests__/evidence/tdd-reexecute.test.ts > verifyRedExecution() > rejects an indented code-frame header: \"  FAIL math.test.ts\" (AC-3)\n FAIL  |unit| __tests__/evidence/tdd-reexecute.test.ts > verifyRedExecution() > rejects an indented code-frame header: \"\\tFAIL math.test.ts\" (AC-3)\nAssertionError: expected true to be false // Object.is equality\n\n- Expected\n+ Received\n\n- false\n+ true\n\n ❯ __tests__/evidence/tdd-reexecute.test.ts:244:44\n    242|     'rejects an indented code-frame header: %j (AC-3)',\n    243|     (line) => {\n    244|       expect(replayLines([line], BASE).ok).toBe(false)\n       |                                            ^\n    245|     },\n    246|   )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/evidence/tdd-reexecute.test.ts",
+  "recorded_at": "2026-09-15T09:00:04.349Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/evidence/tdd-reexecute.test.ts"
+  ]
+}
