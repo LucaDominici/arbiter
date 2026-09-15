@@ -8,6 +8,7 @@ import {
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { walkRepo } from './lib/glob-walk.mjs';
+import { EXTENSIONS, findOrphanTodos } from './check-no-orphan-todo.mjs';
 
 // The `eslint <paths> --format json` output for this repo exceeds the Node
 // spawnSync default maxBuffer (1 MiB); without a raised ceiling the child aborts
@@ -226,19 +227,13 @@ export function spawnOrSkip(name, tool, cmd, args, opts) {
  * @returns {number}
  */
 export function countTodos(cwd) {
-  const MARKER_EXTENSIONS = new Set(['.js', '.ts', '.java', '.go', '.py', '.rs']);
   const EXTRA_SKIP_SEGMENTS = new Set(['target', '.arbiter', '.temp']);
-  // arbiter-suppress(INV-21, until=2099-01-01, reason="self-referential marker regex inside the TODO-counting collector itself, not an unresolved TODO", owner=@luca)
-  const MARKER_RE = /\bTODO\b/;
   let count = 0;
   for (const rel of walkRepo(cwd)) {
     const dot = rel.lastIndexOf('.');
-    if (dot === -1 || !MARKER_EXTENSIONS.has(rel.slice(dot))) continue;
+    if (dot === -1 || !EXTENSIONS.has(rel.slice(dot))) continue;
     if (rel.split('/').some((seg) => EXTRA_SKIP_SEGMENTS.has(seg))) continue;
-    try {
-      const lines = readFileSync(resolve(cwd, rel), 'utf-8').split('\n');
-      count += lines.filter((l) => MARKER_RE.test(l)).length;
-    } catch { /* skip unreadable files */ }
+    count += findOrphanTodos(readFileSync(resolve(cwd, rel), 'utf-8')).length;
   }
   return count;
 }

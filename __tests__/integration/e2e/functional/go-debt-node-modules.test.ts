@@ -51,8 +51,8 @@ describe.skipIf(!L2)('generated Go debt collector excludes node_modules (#1950)'
           'package flatted\n\n// Encode is a vendored npm shim, not project code.\nfunc Encode(in any) any { return in }\n',
         )
 
-        // Render the Go debt-lib.mjs into the temp project + stub the only
-        // relative dependency (glob-walk) so the rendered module imports cleanly.
+        // Render the Go debt-lib.mjs into the temp project + stub its relative
+        // dependencies so the rendered module imports cleanly.
         const config = makeConfig(dir, { language: 'go', enableDebtGates: true })
         const data = {
           ...config,
@@ -64,6 +64,10 @@ describe.skipIf(!L2)('generated Go debt collector excludes node_modules (#1950)'
         mkdirSync(libDir, { recursive: true })
         writeFileSync(join(scriptsDir, 'debt-lib.mjs'), rendered)
         writeFileSync(join(libDir, 'glob-walk.mjs'), 'export function walkRepo() { return [] }\n')
+        writeFileSync(
+          join(scriptsDir, 'check-no-orphan-todo.mjs'),
+          "export const EXTENSIONS = new Set(['.go']);\nexport function findOrphanTodos() { return []; }\n",
+        )
 
         const modUrl = pathToFileURL(join(scriptsDir, 'debt-lib.mjs')).href
         const mod = (await import(modUrl)) as {

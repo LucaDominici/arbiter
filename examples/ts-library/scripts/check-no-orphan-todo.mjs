@@ -22,6 +22,7 @@ import { isMainModule } from './lib/run-helpers.mjs'
 export const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
 export const EXTENSIONS = new Set([".ts",".tsx",".mjs",".js"])
 export const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'templates', 'vendor', 'target'])
+const ORPHAN_TODO_AT_COMMENT_START = new RegExp(`^(?:${ORPHAN_TODO.source})`)
 
 /**
  * Collect every source file under `root` to scan: walkRepo handles traversal, then this gate's own
@@ -41,11 +42,28 @@ export function collectSourceFiles(root) {
  * Return every orphan-TODO line in `content` as { line (1-based), text }.
  * Pure: no I/O, no exit.
  */
-function findOrphanTodos(content) {
+export function findOrphanTodos(content) {
   const hits = []
   const lines = String(content ?? '').split('\n')
   for (let i = 0; i < lines.length; i++) {
-    if (ORPHAN_TODO.test(lines[i])) hits.push({ line: i + 1, text: lines[i].trim() })
+    const line = lines[i]
+    let quote = null
+    let escaped = false
+    let comment = line.trimStart().startsWith('*') ? line.trimStart() : null
+    for (let j = 0; comment === null && j < line.length - 1; j++) {
+      const char = line[j]
+      if (quote !== null) {
+        if (escaped) escaped = false
+        else if (char === '\\') escaped = true
+        else if (char === quote) quote = null
+        continue
+      }
+      if (char === "'" || char === '"' || char === '`') quote = char
+      else if (char === '/' && (line[j + 1] === '/' || line[j + 1] === '*'))
+        comment = line.slice(j)
+    }
+    if (comment !== null && ORPHAN_TODO_AT_COMMENT_START.test(comment))
+      hits.push({ line: i + 1, text: line.trim() })
   }
   return hits
 }

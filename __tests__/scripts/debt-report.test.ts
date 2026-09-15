@@ -19,6 +19,13 @@ const CAPTURE_SCRIPT = resolve('scripts/capture-debt-baseline.mjs')
 const DEBT_LIB = resolve('scripts/debt-lib.mjs')
 const GLOB_WALK = resolve('scripts/lib/glob-walk.mjs')
 
+function writeTodoCheckerStub(scriptsDir: string) {
+  writeFileSync(
+    join(scriptsDir, 'check-no-orphan-todo.mjs'),
+    "export const EXTENSIONS = new Set(['.ts']);\nexport function findOrphanTodos() { return []; }\n",
+  )
+}
+
 function run(cwd: string, args: string[] = []) {
   const r = spawnSync('node', [SCRIPT, ...args], {
     encoding: 'utf-8',
@@ -99,6 +106,7 @@ describe('capture-debt-baseline.mjs (collection failures)', () => {
       copyFileSync(CAPTURE_SCRIPT, join(scriptsDir, 'capture-debt-baseline.mjs'))
       copyFileSync(DEBT_LIB, join(scriptsDir, 'debt-lib.mjs'))
       copyFileSync(GLOB_WALK, join(scriptsDir, 'lib', 'glob-walk.mjs'))
+      writeTodoCheckerStub(scriptsDir)
       writeFileSync(join(dir, 'src', 'fixture.ts'), 'export const fixture = 1\n')
       writeFileSync(
         join(dir, '.jscpd.json'),
@@ -143,6 +151,7 @@ exit 0
       copyFileSync(CAPTURE_SCRIPT, join(scriptsDir, 'capture-debt-baseline.mjs'))
       copyFileSync(DEBT_LIB, join(scriptsDir, 'debt-lib.mjs'))
       copyFileSync(GLOB_WALK, join(scriptsDir, 'lib', 'glob-walk.mjs'))
+      writeTodoCheckerStub(scriptsDir)
       writeFileSync(join(dir, 'src', 'fixture.ts'), 'export const fixture = 1\n')
       writeFileSync(
         join(dir, '.jscpd.json'),
