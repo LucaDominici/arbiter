@@ -1,0 +1,79 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2550",
+  "verdict": "FAIL",
+  "confidence": 0.99,
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "med",
+      "kind": "behavioral",
+      "claim": "Regex literals still corrupt quote state. Valid JavaScript `const re = /`/;\\n// TODO: fix` returns no hits because the regex backtick opens a persistent template-string state. Likewise, a regex containing an apostrophe hides a trailing same-line orphan comment. Recognize regex literals before processing quotes; the current regression test only covers recovery on the next line.",
+      "citations": [
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 75
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "severity": "med",
+      "kind": "behavioral",
+      "claim": "Resetting single/double quote state on every line incorrectly flags valid backslash-continued JavaScript strings. For source consisting of `const s = \"hello\\` followed by a newline and `// TODO: example\";`, the second line is string data but is reported as an orphan. This can block the release gate and inflate the zero-baseline debt metric. Preserve quote state across genuine line continuations.",
+      "citations": [
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 141
+        },
+        {
+          "file": "src/templates/scripts/check-no-orphan-todo.mjs.ejs",
+          "line": 169
+        }
+      ]
+    },
+    {
+      "id": "F3",
+      "severity": "med",
+      "kind": "behavioral",
+      "claim": "Go raw strings incorrectly use backslash escaping. In valid Go source with a backtick-delimited string ending in a backslash, the scanner treats the closing backtick as escaped, then silently ignores subsequent TODO comments until another backtick appears. Go raw strings do not interpret backslash escapes. Make quote handling language-aware in the template and generated checker.",
+      "citations": [
+        {
+          "file": "examples/go-library/scripts/check-no-orphan-todo.mjs",
+          "line": 47
+        },
+        {
+          "file": "src/templates/scripts/check-no-orphan-todo.mjs.ejs",
+          "line": 74
+        }
+      ]
+    }
+  ],
+  "refutations": [
+    {
+      "target": "codex-reviewer-2.json:F3",
+      "verdict": "REFUTED",
+      "citations": [
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 108
+        },
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 109
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2550-debt-todo-truth",
+  "sha": "b6649263a7d67d634f47568f1b3e4caf20c7b857",
+  "ts": "2026-09-15T11:59:06.779Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

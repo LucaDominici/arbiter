@@ -16,7 +16,7 @@
         },
         {
           "file": "scripts/check-no-orphan-todo.mjs",
-          "line": 45
+          "line": 131
         }
       ]
     },
@@ -106,7 +106,7 @@
       "evidence": [
         {
           "file": "src/templates/scripts/check-no-orphan-todo.mjs.ejs",
-          "line": 73
+          "line": 159
         },
         {
           "file": "src/templates/scripts/debt-lib.mjs.ejs",
@@ -124,10 +124,10 @@
     }
   ],
   "branch": "task/#2550-debt-todo-truth",
-  "sha": "cfdd3aca9c60f5c1f22da79a0c5cfca26f18a2ea",
+  "sha": "b6649263a7d67d634f47568f1b3e4caf20c7b857",
   "planHash": "e1e0ba013aade26fef192468b399b44fc50c98c3",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2550/root-codex-orchestrator-ac-fit-0.json",
-    "sha256": "535406e5bc07c57910951a95ca868536177f35c57fc1f83a5ea8e77a482673d4"
+    "path": ".arbiter/evidence/agent-returns/_2550/root-codex-orchestrator-ac-fit-final-0.json",
+    "sha256": "862f382cdfafdcfaaf62da35b83a1680fc3bf40bfdedd3a18535e4adf629cb70"
   }
 }
