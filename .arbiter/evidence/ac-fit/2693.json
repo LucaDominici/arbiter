@@ -90,15 +90,23 @@
       "evidence": [
         {
           "file": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
+          "line": 142
+        },
+        {
+          "file": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
+          "line": 151
+        },
+        {
+          "file": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
           "line": 163
         },
         {
           "file": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
-          "line": 200
+          "line": 176
         },
         {
           "file": "scripts/lib/gate-evidence.mjs",
-          "line": 414
+          "line": 454
         }
       ]
     },
@@ -198,10 +206,10 @@
     }
   ],
   "branch": "task/#2693-exact-tree-gate-reuse",
-  "sha": "f607de470829ce0c4bda76e34d7fcedd69206817",
-  "planHash": "a133a64178ee1e0571f487b018f1bf5b3fa95b40",
+  "sha": "1341a52442f15dd277f07a993ba6740c5cd0ed84",
+  "planHash": "69d5896254e00a909985345612b9a4907d99709f",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2693/2693-final-ac-fit-0.json",
-    "sha256": "8c0c41059aace173722a191a5e4d310aaeef354f3aa714a2f3db6d380325d987"
+    "path": ".arbiter/evidence/agent-returns/_2693/2693-final-ac-fit-delta-0.json",
+    "sha256": "02ae287d30627b8d44493a6770034246d92c5bfabe11a8f915157e1d4d1e9c3a"
   }
 }
