@@ -106,7 +106,7 @@ function createTddFixture(root: string): { valid: string; malformed: string } {
   )
   writeFileSync(
     join(valid, 'red.test.cjs'),
-    "const test=require('node:test');const assert=require('node:assert/strict');const actual=require('fixture-dependency');test('RED',()=>assert.equal(actual,2));\n",
+    "const test=require('node:test');const assert=require('node:assert/strict');const actual=require('fixture-dependency');test('RED one',()=>assert.equal(actual,2));test('RED two',()=>assert.equal(actual,3));\n",
   )
   const gitEnv = {
     ...process.env,
@@ -135,14 +135,14 @@ function createTddFixture(root: string): { valid: string; malformed: string } {
     encoding: 'utf-8',
   })
   expect(red.status).toBe(1)
-  expect(red.stdout).toMatch(/^# fail 1$/m)
+  expect(red.stdout).toMatch(/^# fail 2$/m)
   writeJson(join(valid, '.arbiter', 'evidence', 'tdd', `${TASK}.json`), {
     $schemaVersion: 1,
     task_id: TASK,
     test_path: 'red.test.cjs',
     test_commit_sha: sha,
     test_run_log: red.stdout,
-    observed_failure: '# fail 1',
+    observed_failure: '# fail 2',
     recorded_at: new Date().toISOString(),
     test_command: testCommand,
   })
