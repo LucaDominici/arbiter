@@ -2,7 +2,7 @@
   "schema": "arbiter-ac-fit-v1",
   "taskId": "#2691",
   "branch": "task/#2691-tdd-multiplicity",
-  "sha": "c64c6094432754e8b2a2c9072403fdb90adb0fd9",
+  "sha": "dc9ef0f045a94adff1b26b49f5892614950e34dd",
   "plan_sha256": "8e321c259a38076172d59adf771b8e51c2913bd6d188f90603675c5543969da2",
   "criteria": [
     {
@@ -15,7 +15,7 @@
         },
         {
           "file": "src/evidence/tdd.ts",
-          "line": 120
+          "line": 110
         },
         {
           "file": "__tests__/evidence/tdd-reexecute.test.ts",
