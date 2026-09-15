@@ -21,6 +21,7 @@ import {
   appendLog,
   normalizeChainId,
   type UnifiedTaskState,
+  isNoProgressBlocked,
 } from './task-state.js'
 import { runTaskAdvance, runTaskReviewRound } from './task.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
@@ -800,6 +801,16 @@ function trainSignalsFor(
   chainSize = (state?.taskId ? 1 : 0) + (state?.chainIds ?? []).length,
 ): TrainSignals {
   const gather = opts.gatherTierSignals ?? gatherTierSignals
+  const primaryId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
+  const taskChanged = shipTaskChanged(state, primaryId)
+  const planPath = taskChanged ? undefined : state?.plan
+  const primaryTier = hasShipTaskId(primaryId)
+    ? resolveShipTreatment(
+        normTier(opts.tier ?? state?.treatment?.requestedTier ?? state?.tier),
+        gather(root, primaryId, planPath),
+        taskChanged ? undefined : state?.treatment,
+      ).tier
+    : 'XS'
   return {
     // The primary id rides the same branch, gate and PR, so it counts toward the bound.
     chainSize,
@@ -807,9 +818,9 @@ function trainSignalsFor(
     now,
     // Resolve every candidate through the same fail-closed treatment as /ship.
     widenedTier: additions.reduce<ShipTier>((acc, raw) => {
-      const tier = resolveShipTreatment('XS', gather(root, normalizeChainId(raw))).tier
+      const tier = resolveShipTreatment('XS', gather(root, normalizeChainId(raw), planPath)).tier
       return tier === 'Standard' || acc === 'Standard' ? 'Standard' : tier === 'S' ? 'S' : acc
-    }, 'XS'),
+    }, primaryTier),
     explicitSeal: opts.seal === true,
     ...(opts.trainAffinity !== undefined ? { affinity: opts.trainAffinity } : {}),
   }
@@ -868,8 +879,8 @@ function prepareChainAdd(
   root: string,
   opts: TaskShipOptions,
   limits: TrainLimits,
+  state: UnifiedTaskState | null,
 ): { additions: readonly string[]; now: Date; affinity: AffinityVerdict } | null {
-  const state = readUnifiedState(root)
   const additions = chainAddContext(opts, state).additions
   if (additions.length === 0 && opts.seal !== true) return null
 
@@ -929,11 +940,15 @@ function openExplicitReviewRound(root: string, opts: TaskShipOptions): PlannedRe
 
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
+  const initialState = readUnifiedState(root)
+  if (isNoProgressBlocked(initialState) && opts.executionOutcome !== 'new-risk') {
+    throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
+  }
   const shipConfig = shipConfigFor(root)
   // Validate the complete train mutation before seeding task metadata. A rejected append must
   // leave both fresh and existing state untouched, including task/tier/override fields.
   const trainLimits = trainLimitsFor(shipConfig, opts)
-  const preparedChainAdd = prepareChainAdd(root, opts, trainLimits)
+  const preparedChainAdd = prepareChainAdd(root, opts, trainLimits, initialState)
   seedShipState(root, opts, trainLimits)
   applyPreparedChainAdd(root, preparedChainAdd)
 

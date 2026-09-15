@@ -10,6 +10,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
+import { runTaskShip } from '../../src/commands/task-ship.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 
@@ -99,6 +100,27 @@ describe('runTaskAdvance', () => {
     expect(() => runTaskAdvance({ to: 'nonexistent' as never, dir })).toThrow(
       /unknown.*phase|invalid.*to/i,
     )
+  })
+
+  it('refuses a direct lifecycle advance while no-progress remains BLOCKED', () => {
+    seed('plan')
+    expect(() =>
+      runTaskShip({
+        dir,
+        executionOutcome: 'no-progress',
+        gatherTierSignals: () => ({
+          blastRadius: 0,
+          callerCount: 0,
+          changedFiles: ['docs/guide.md'],
+          complete: true,
+          labels: [],
+          milestoneBundled: false,
+        }),
+      }),
+    ).toThrow(/BLOCKED.*no progress/i)
+
+    expect(() => runTaskAdvance({ to: 'red-team-review', dir })).toThrow(/BLOCKED.*no progress/i)
+    expect(phaseOf()).toBe('plan')
   })
 
   it('AC-7 runTaskInit normalizes a new bare id and resets stale completed state', () => {

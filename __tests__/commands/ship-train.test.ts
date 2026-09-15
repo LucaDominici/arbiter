@@ -214,6 +214,7 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
     runTaskShip({
       dir,
       profileOverride: TEST_PROFILE,
+      tier: 'XS',
       gatherTierSignals: () => LOW_RISK_SIGNALS,
       now: new Date('2026-08-22T00:10:00.000Z'),
       trainAffinity: AFFINITY,
@@ -224,7 +225,13 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-train-'))
-    runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
+    runTaskShip({
+      dir,
+      taskId: '#100',
+      tier: 'XS',
+      profileOverride: TEST_PROFILE,
+      gatherTierSignals: () => LOW_RISK_SIGNALS,
+    })
   })
 
   afterEach(() => {
@@ -320,11 +327,9 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
     expect(chain()).toEqual([])
   })
 
-  it('judges the appended issue on its own risk, not the train it is joining', () => {
-    // Regression guard: widening from the train's tier would seal every append onto a
-    // Standard train for a reason that has nothing to do with the incoming issue.
-    ship({ chainAddIds: ['#101'], tier: 'Standard' })
-    expect(chain()).toEqual(['#101'])
+  it('seals when the primary issue already requires Standard treatment', () => {
+    expect(() => ship({ chainAddIds: ['#101'], tier: 'Standard' })).toThrow(/SEALED: risk/)
+    expect(chain()).toEqual([])
   })
 
   it('seals on --seal alone, with no ids to add', () => {
@@ -374,28 +379,37 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
     }
   })
 
-  it('decides the append once before separately treating the primary issue', () => {
-    const fresh = mkdtempSync(join(tmpdir(), 'arbiter-train-single-decision-'))
-    let signalCalls = 0
+  it('seals a sensitive primary before writing a qualified companion', () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'arbiter-train-primary-risk-'))
     try {
       expect(() =>
         runTaskShip({
           dir: fresh,
           taskId: '#100',
-          tier: 'Standard',
           chainAddIds: ['#101'],
           profileOverride: TEST_PROFILE,
-          gatherTierSignals: () =>
-            signalCalls++ === 0 ? LOW_RISK_SIGNALS : { ...LOW_RISK_SIGNALS, labels: ['epic'] },
+          gatherTierSignals: (_root, taskId) =>
+            taskId === '#100'
+              ? { ...LOW_RISK_SIGNALS, changedFiles: ['src/auth/token.ts'] }
+              : LOW_RISK_SIGNALS,
           now: new Date('2026-08-22T00:10:00.000Z'),
           trainAffinity: AFFINITY,
         }),
-      ).not.toThrow()
-      expect(signalCalls).toBe(2)
-      expect(readUnifiedState(fresh)?.chainIds).toEqual(['#101'])
+      ).toThrow(/SEALED: risk/)
+      expect(readUnifiedState(fresh)).toBeNull()
     } finally {
       rmSync(fresh, { recursive: true, force: true })
     }
+  })
+
+  it('does not mutate a train while its persisted treatment is BLOCKED', () => {
+    expect(() =>
+      ship({ taskId: '#100', executionOutcome: 'no-progress', chainAddIds: undefined }),
+    ).toThrow(/BLOCKED.*no progress/i)
+    const before = readUnifiedState(dir)
+
+    expect(() => ship({ chainAddIds: ['#101'] })).toThrow(/BLOCKED.*no progress/i)
+    expect(readUnifiedState(dir)).toEqual(before)
   })
 
   it('allows five chained issues when no primary issue is declared', () => {
@@ -428,6 +442,7 @@ it('refuses an initial --chain seed that exceeds the train limit', () => {
     runTaskShip({
       dir,
       taskId: '#100',
+      tier: 'XS',
       chainIds: ['#101', '#102', '#103', '#104'],
       trainAffinity: AFFINITY,
       gatherTierSignals: () => LOW_RISK_SIGNALS,
@@ -460,6 +475,7 @@ it('refuses an unsafe --chain replacement without changing the existing train', 
     runTaskShip({
       dir,
       taskId: '#100',
+      tier: 'XS',
       chainIds: ['#101'],
       trainAffinity: AFFINITY,
       gatherTierSignals: () => LOW_RISK_SIGNALS,
@@ -517,6 +533,7 @@ it.each([
       runTaskShip({
         dir,
         taskId: '#100',
+        tier: 'XS',
         chainIds: ['#101'],
         profileOverride: TEST_PROFILE,
         ...admission,
@@ -561,6 +578,7 @@ it('does not count a prior task train when a new primary resets task state', () 
     runTaskShip({
       dir,
       taskId: '#100',
+      tier: 'XS',
       chainIds: ['#101', '#102', '#103', '#104'],
       trainAffinity: AFFINITY,
       gatherTierSignals: () => LOW_RISK_SIGNALS,
@@ -659,6 +677,7 @@ describe('task init refuses multi-issue state (#2402)', () => {
       runTaskShip({
         dir,
         taskId: '#100',
+        tier: 'XS',
         chainIds: oversized,
         trainAffinity: AFFINITY,
         gatherTierSignals: () => LOW_RISK_SIGNALS,
@@ -704,7 +723,13 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
 
   it('AC-2401.1: a project can shrink its train below the default', () => {
     withConfig({ train: { maxChain: 2 } }, (dir) => {
-      runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        tier: 'XS',
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      })
       runTaskShip({
         dir,
         chainAddIds: ['#101'],
@@ -726,7 +751,13 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
 
   it('AC-2401.1: the default carries ten issues when the config declares no bound', () => {
     withConfig(undefined, (dir) => {
-      runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        tier: 'XS',
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      })
       runTaskShip({
         dir,
         chainAddIds: ['#101', '#102', '#103', '#104', '#105', '#106', '#107', '#108', '#109'],
@@ -740,7 +771,13 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
 
   it('AC-2401.1: an explicit trainLimits option still beats the config', () => {
     withConfig({ train: { maxChain: 2 } }, (dir) => {
-      runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        tier: 'XS',
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      })
       runTaskShip({
         dir,
         chainAddIds: ['#101', '#102'],

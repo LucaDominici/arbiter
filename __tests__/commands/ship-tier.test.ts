@@ -41,6 +41,16 @@ const labelSets: readonly (readonly string[])[] = [
   ['epic/decompose'],
   ['WAVE'],
 ]
+const COMPLETE_AFFINITY = {
+  sameOutcome: true,
+  ownerPathOverlap: true,
+  dependencyRelated: true,
+  sharedProof: true,
+  orderingCompatible: true,
+  sharedAcceptanceBoundary: true,
+  sharedRollbackBoundary: true,
+  hardConflicts: [] as string[],
+}
 
 function tierRank(tier: ShipTier): number {
   return tiers.indexOf(tier)
@@ -333,6 +343,48 @@ describe('gatherTierSignals (#2180)', () => {
       blastRadius: 2,
       callerCount: 0,
     })
+  })
+
+  it('treats an edge that names an absent graph node as incomplete evidence', () => {
+    writePlanWithFiles(dir, ['src/changed.ts'])
+    const changed = writeFile(dir, 'src/changed.ts')
+    const graphDir = join(dir, 'graphify-out')
+    mkdirSync(graphDir, { recursive: true })
+    const graph = join(graphDir, 'graph.json')
+    writeFileSync(
+      graph,
+      JSON.stringify({
+        nodes: [{ id: 'changed', source_file: 'src/changed.ts' }],
+        links: [{ source: 'missing', target: 'changed', relation: 'calls' }],
+      }),
+      'utf-8',
+    )
+    const fresh = new Date(Date.now() + 2_000)
+    utimesSync(changed, new Date(fresh.getTime() - 1_000), new Date(fresh.getTime() - 1_000))
+    utimesSync(graph, fresh, fresh)
+    runCliJson.mockReturnValue({ labels: [], milestone: null })
+
+    expect(gatherTierSignals(dir, '#2180', '.claude/plans/task-2180.md')).toMatchObject({
+      blastRadius: null,
+      callerCount: null,
+      complete: false,
+    })
+  })
+
+  it('admits a qualified train through the production collector using the persisted plan', () => {
+    writePlanWithFiles(dir, ['docs/guide.md'])
+    runCliJson.mockReturnValue({ labels: [], milestone: null })
+
+    expect(() =>
+      runTaskShip({
+        dir,
+        taskId: '#2180',
+        tier: 'XS',
+        chainIds: ['#2181'],
+        trainAffinity: COMPLETE_AFFINITY,
+      }),
+    ).not.toThrow()
+    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2181'])
   })
 })
 

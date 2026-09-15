@@ -77,7 +77,7 @@ companion issue, including an initial positional or `--chain` seed, needs comple
 and one affinity decision:
 
 ```bash
-arbiter ship #A #B #C --affinity '{
+arbiter ship #A #B #C --tier XS --affinity '{
   "sameOutcome":true,
   "ownerPathOverlap":true,
   "dependencyRelated":true,

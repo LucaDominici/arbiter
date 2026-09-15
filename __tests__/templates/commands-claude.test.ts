@@ -56,7 +56,7 @@ describe('ship is one adaptive delivery narrative', () => {
   it('contains executable train affinity and resume paths', () => {
     const content = render('claude/commands/ship.md.ejs')
     expect(content).toContain('arbiter ship #NNN --advance')
-    expect(content).toContain('arbiter ship #A #B #C --affinity')
+    expect(content).toContain('arbiter ship #A #B #C --tier XS --affinity')
     expect(content).toContain('`--chain-add #B --chain-add #C`')
     expect(content).toContain('same treatment, phase, round, and next action')
   })

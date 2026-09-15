@@ -153,6 +153,10 @@ export interface UnifiedTaskState {
   treatment?: ShipTreatment
 }
 
+export function isNoProgressBlocked(state: UnifiedTaskState | null): boolean {
+  return state?.treatment?.reasons.some((reason) => reason.startsWith('BLOCKED:')) === true
+}
+
 /** #2400 — how many review rounds this task has spent, and what the last one was pinned to. */
 export interface ReviewState {
   /** Rounds recorded so far. 0 ⇒ the change has never been reviewed. */

@@ -19,6 +19,7 @@ import {
   readTaskId,
   appendLog,
   reviewStateOf,
+  isNoProgressBlocked,
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
@@ -1180,6 +1181,10 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
     throw new Error(
       `Invalid --to value: "${String(to)}". Valid phases: ${[...PHASE_ORDER, ...LATERAL_PHASES].join(', ')}`,
     )
+  }
+
+  if (isNoProgressBlocked(readUnifiedState(dir))) {
+    throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
   }
 
   const current = currentPhase(dir)
