@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { runTaskHostPreflight, runTaskInit } from '../../src/commands/task.js'
+import { runTaskInit } from '../../src/commands/task.js'
 import { readUnifiedState } from '../../src/commands/task-state.js'
 
 const roots: string[] = []
@@ -46,7 +46,7 @@ describe('task host-preflight (#2685)', () => {
   it('binds the exact logged worktree, branch, session and transcript before task init', () => {
     const { worktree, sessionId, transcriptPath, host } = setup()
 
-    runTaskHostPreflight({ id: '#2685', worktree, dir: worktree, host })
+    runTaskInit({ id: '#2685', worktree, dir: worktree, host })
     runTaskInit({ dir: worktree, id: '#2685', host })
 
     expect(readUnifiedState(worktree)?.hostBinding).toEqual({
@@ -61,9 +61,9 @@ describe('task host-preflight (#2685)', () => {
     const { main, worktree, host } = setup()
     const wrongHost = { ...host, cwd: main }
 
-    expect(() =>
-      runTaskHostPreflight({ id: '#2685', worktree, dir: worktree, host: wrongHost }),
-    ).toThrow(/host root.*worktree/i)
+    expect(() => runTaskInit({ id: '#2685', worktree, dir: worktree, host: wrongHost })).toThrow(
+      /host root.*worktree/i,
+    )
     expect(() => runTaskInit({ dir: worktree, id: '#2685', host: wrongHost })).toThrow(
       /host binding/i,
     )
@@ -73,10 +73,10 @@ describe('task host-preflight (#2685)', () => {
   it('rejects a write root or task id that differs from the bound worktree task', () => {
     const { main, worktree, host } = setup()
 
-    expect(() => runTaskHostPreflight({ id: '#2685', worktree, dir: main, host })).toThrow(
+    expect(() => runTaskInit({ id: '#2685', worktree, dir: main, host })).toThrow(
       /write root.*worktree/i,
     )
-    runTaskHostPreflight({ id: '#2685', worktree, host })
+    runTaskInit({ id: '#2685', worktree, host })
     expect(() => runTaskInit({ dir: worktree, id: '#9999', host })).toThrow(/task id.*binding/i)
     expect(readUnifiedState(main)).toBeNull()
   })
@@ -88,7 +88,7 @@ describe('task host-preflight (#2685)', () => {
       env: { ...host.env, CLAUDE_PROJECT_DIR: main },
     }
 
-    expect(() => runTaskHostPreflight({ id: '#2685', worktree, host: contradictory })).toThrow(
+    expect(() => runTaskInit({ id: '#2685', worktree, host: contradictory })).toThrow(
       /CLAUDE_PROJECT_DIR/i,
     )
   })

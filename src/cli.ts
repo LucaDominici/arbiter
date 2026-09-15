@@ -45,7 +45,6 @@ import {
   runTaskRecover,
   runTaskResume,
   runTaskInit,
-  runTaskHostPreflight,
   runTaskGet,
   HandoffRequiredError,
 } from './commands/task.js'
@@ -1877,7 +1876,7 @@ task
   .requiredOption('--worktree <path>', 'Exact path returned by worktree open --json')
   .option('--dir <dir>', 'Target task directory (defaults to --worktree)')
   .action((opts: { id: string; worktree: string; dir?: string }) => {
-    runTaskHostPreflight({
+    runTaskInit({
       id: opts.id,
       worktree: opts.worktree,
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),

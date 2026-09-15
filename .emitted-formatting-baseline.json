@@ -69,7 +69,6 @@
     "scripts/gen-wiki.mjs.ejs",
     "scripts/lib/ephemeral-server.mjs.ejs",
     "scripts/lib/run-helpers.mjs.ejs",
-    "scripts/record-agent-return.mjs.ejs",
     "scripts/validate-api-snapshots.mjs.ejs",
     "scripts/validate-openapi-field-types.mjs.ejs",
     "scripts/verify-fe-coverage.mjs.ejs",

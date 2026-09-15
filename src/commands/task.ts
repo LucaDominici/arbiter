@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto'
-import { existsSync, realpathSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, lstatSync, realpathSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { ensureDir, writeFileTranslated, readFileTranslated } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { normalizeChainId } from './task-state.js'
@@ -30,11 +31,7 @@ import {
   resolveEvidenceCommit,
   tddEvidenceProducedOnBranch,
 } from '../evidence/git-checks.js'
-import {
-  detectHostCapabilities,
-  resolveNativeHostBinding,
-  type NativeHostContext,
-} from '../capabilities/host-probe.js'
+import { detectHostCapabilities } from '../capabilities/host-probe.js'
 import { loadConfig } from '../utils/config.js'
 import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../evidence/gate-binding.js'
 
@@ -140,16 +137,122 @@ export interface TaskInitOptions {
   chainIds?: string[]
   /** Native-host test seam; CLI callers use the live process context. */
   host?: NativeHostContext
+  /** Exact worktree for the explicit `task host-preflight` command. */
+  worktree?: string
 }
 
-export interface TaskHostPreflightOptions {
+interface NativeHostBinding {
+  worktreePath: string
+  branch: string
+  sessionId: string
+  transcriptPath: string
+}
+
+interface NativeHostContext {
+  cwd?: string
+  homeDir?: string
+  env?: NodeJS.ProcessEnv
+}
+
+interface TaskHostPreflightOptions {
   id: string
   worktree: string
   dir?: string
   host?: NativeHostContext
 }
 
-export function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
+const CLAUDE_SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/
+
+function encodeClaudeProjectPath(path: string): string {
+  return path.replace(/[^A-Za-z0-9]/g, '-')
+}
+
+function git(cwd: string, args: string[]): string {
+  return runCli('git', args, { cwd, timeoutMs: 5000 }).stdout.trim()
+}
+
+function readOpenLog(worktree: string): unknown[] {
+  const commonDir = resolve(worktree, git(worktree, ['rev-parse', '--git-common-dir']))
+  const path = join(dirname(commonDir), '.arbiter', 'worktree-open.log.json')
+  const stat = lstatSync(path)
+  if (!stat.isFile() || stat.isSymbolicLink())
+    throw new Error('worktree-open log is not a regular file')
+  const parsed: unknown = JSON.parse(readFileTranslated(path, 'utf8'))
+  if (!Array.isArray(parsed)) throw new Error('worktree-open log is malformed')
+  return parsed
+}
+
+function matchesOpenLog(entry: unknown, taskId: string, worktreePath: string, branch: string) {
+  if (entry === null || typeof entry !== 'object') return false
+  const row = entry as Record<string, unknown>
+  return (
+    row['taskId'] === taskId && row['worktreePath'] === worktreePath && row['branch'] === branch
+  )
+}
+
+function assertOpenLogBinding(taskId: string, worktreePath: string, branch: string): void {
+  const matches = readOpenLog(worktreePath).filter((entry) =>
+    matchesOpenLog(entry, taskId, worktreePath, branch),
+  )
+  if (matches.length !== 1)
+    throw new Error(`exact worktree binding for ${taskId} is missing or ambiguous`)
+}
+
+function assertClaudeProjectDir(worktreePath: string, projectDir: string | undefined): void {
+  if (!projectDir) return
+  let projectPath
+  try {
+    projectPath = realpathSync(projectDir)
+  } catch {
+    throw new Error('CLAUDE_PROJECT_DIR is not a readable project directory')
+  }
+  if (projectPath !== worktreePath)
+    throw new Error(`CLAUDE_PROJECT_DIR ${projectPath} does not match worktree ${worktreePath}`)
+}
+
+function requireSessionId(env: NodeJS.ProcessEnv): string {
+  const sessionId = env['CLAUDE_CODE_SESSION_ID']
+  if (typeof sessionId !== 'string' || !CLAUDE_SESSION_ID.test(sessionId))
+    throw new Error('native host binding requires a valid CLAUDE_CODE_SESSION_ID')
+  return sessionId
+}
+
+function requireTranscript(worktreePath: string, sessionId: string, homeDir: string): string {
+  const transcriptPath = join(
+    homeDir,
+    '.claude',
+    'projects',
+    encodeClaudeProjectPath(worktreePath),
+    `${sessionId}.jsonl`,
+  )
+  const stat = lstatSync(transcriptPath)
+  if (!stat.isFile() || stat.isSymbolicLink())
+    throw new Error('native host transcript is not a regular file')
+  if (realpathSync(transcriptPath) !== resolve(transcriptPath))
+    throw new Error('native host transcript resolves through a symlink')
+  return transcriptPath
+}
+
+function resolveNativeHostBinding(
+  taskId: string,
+  requestedWorktree: string,
+  context: NativeHostContext = {},
+): NativeHostBinding {
+  const worktreePath = realpathSync(requestedWorktree)
+  const cwd = realpathSync(context.cwd ?? process.cwd())
+  if (cwd !== worktreePath)
+    throw new Error(`native host root ${cwd} does not match worktree ${worktreePath}`)
+  const branch = git(worktreePath, ['branch', '--show-current'])
+  const canonicalTask = taskId.startsWith('#') ? taskId : `#${taskId}`
+  assertOpenLogBinding(canonicalTask, worktreePath, branch)
+  const env = context.env ?? process.env
+  assertClaudeProjectDir(worktreePath, env['CLAUDE_PROJECT_DIR'])
+  const sessionId = requireSessionId(env)
+  const transcriptPath = requireTranscript(worktreePath, sessionId, context.homeDir ?? homedir())
+  return { worktreePath, branch, sessionId, transcriptPath }
+}
+
+function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
   const root = opts.dir ?? opts.worktree
   const taskId = normalizeChainId(opts.id)
   let hostBinding
@@ -171,6 +274,21 @@ export function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
   process.stdout.write(`host-preflight: OK — ${hostBinding.worktreePath}\n`)
 }
 
+function requireNativeHostState(root: string): {
+  state: UnifiedTaskState
+  binding: NativeHostBinding
+} {
+  const state = readUnifiedState(root)
+  if (!state?.taskId || !state.hostBinding)
+    throw new Error('native host binding is missing — run arbiter task host-preflight first')
+  return { state, binding: state.hostBinding }
+}
+
+function requestedTaskMatches(requestedTaskId: string | undefined, boundTaskId: string): boolean {
+  if (requestedTaskId === undefined) return true
+  return normalizeChainId(requestedTaskId) === boundTaskId
+}
+
 function assertBoundClaudeHost(
   root: string,
   requestedTaskId: string | undefined,
@@ -178,15 +296,11 @@ function assertBoundClaudeHost(
 ): void {
   const env = host.env ?? process.env
   if (!env['CLAUDE_CODE_SESSION_ID']) return
-  const state = readUnifiedState(root)
-  const binding = state?.hostBinding
-  if (!state?.taskId || !binding) {
-    throw new Error('native host binding is missing — run arbiter task host-preflight first')
-  }
+  const { state, binding } = requireNativeHostState(root)
   if (realpathSync(root) !== binding.worktreePath) {
     throw new Error('task write root does not match the native host binding')
   }
-  if (requestedTaskId !== undefined && normalizeChainId(requestedTaskId) !== state.taskId) {
+  if (!requestedTaskMatches(requestedTaskId, state.taskId)) {
     throw new Error('task id does not match the native host binding')
   }
   const live = resolveNativeHostBinding(state.taskId, binding.worktreePath, host)
@@ -195,11 +309,26 @@ function assertBoundClaudeHost(
   }
 }
 
+function initializeHostPreflight(opts: TaskInitOptions): boolean {
+  if (opts.worktree === undefined) return false
+  if (opts.id === undefined) throw new Error('task host-preflight requires a task id')
+  const preflight: TaskHostPreflightOptions = { id: opts.id, worktree: opts.worktree }
+  if (opts.dir !== undefined) preflight.dir = opts.dir
+  if (opts.host !== undefined) preflight.host = opts.host
+  runTaskHostPreflight(preflight)
+  return true
+}
+
+function taskInitLog(state: UnifiedTaskState): string {
+  return `init task ${state.taskId || '(unset)'} tier=${state.tier || '(unset)'}`
+}
+
 /**
  * Initialise / update the unified task document from the slash-command shell layer (replaces the
  * historical per-task dotfile writes). Never advances the phase.
  */
 export function runTaskInit(opts: TaskInitOptions = {}): void {
+  if (initializeHostPreflight(opts)) return
   const root = opts.dir ?? process.cwd()
   assertBoundClaudeHost(root, opts.id, opts.host)
   const patch: TaskStatePatch = {}
@@ -216,7 +345,7 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   const branch = detectCurrentBranch(root)
   if (branch !== undefined) patch.branch = branch
   const state = writeUnifiedState(root, patch)
-  appendLog(root, `init task ${state.taskId || '(unset)'} tier=${state.tier || '(unset)'}`)
+  appendLog(root, taskInitLog(state))
 }
 
 /**

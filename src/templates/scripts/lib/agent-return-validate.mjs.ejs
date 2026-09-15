@@ -474,12 +474,19 @@ export function enforceAcFitCitations(fit, repoRoot, sha = 'HEAD', fitPath = 'ac
   const errors = []
   const criteria = Array.isArray(fit?.criteria) ? fit.criteria : []
   for (let i = 0; i < criteria.length; i++) {
-    const evidence = Array.isArray(criteria[i]?.evidence) ? criteria[i].evidence : []
-    for (let j = 0; j < evidence.length; j++) {
-      const citation = evidence[j]
-      const result = resolveCitation(repoRoot, sha, citation?.file ?? '', citation?.line ?? 0)
-      if (!result.ok) errors.push(`${fitPath}: criteria[${i}].evidence[${j}] — ${result.reason}`)
-    }
+    errors.push(...acceptanceCitationErrors(criteria[i], i, repoRoot, sha, fitPath))
+  }
+  return errors
+}
+
+function acceptanceCitationErrors(criterion, criterionIndex, repoRoot, sha, fitPath) {
+  const errors = []
+  const evidence = Array.isArray(criterion?.evidence) ? criterion.evidence : []
+  for (let i = 0; i < evidence.length; i++) {
+    const citation = evidence[i]
+    const result = resolveCitation(repoRoot, sha, citation?.file ?? '', citation?.line ?? 0)
+    if (!result.ok)
+      errors.push(`${fitPath}: criteria[${criterionIndex}].evidence[${i}] — ${result.reason}`)
   }
   return errors
 }

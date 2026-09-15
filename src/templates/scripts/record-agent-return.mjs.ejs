@@ -236,6 +236,7 @@ function writeAtomicContained(rootDir, childParts, filename, content) {
     if (tempPath !== null) {
       try {
         unlinkSync(tempPath)
+        // FAIL-OPEN-INTENT: cleanup failure must not replace the primary write error.
       } catch {
         // Preserve the primary error.
       }
@@ -300,27 +301,21 @@ function loadActiveTask() {
 
 function assertModeIdentity(parsed, state) {
   const stamped = currentIdentity()
-  if (
-    parsed?.taskId !== TASK_ID ||
-    parsed?.branch !== stamped.branch ||
-    parsed?.sha !== stamped.sha
-  ) {
-    return null
-  }
-  if (state.branch !== stamped.branch) return null
-  if (process.env.CLAUDE_CODE_SESSION_ID) {
-    const binding = state.hostBinding
-    if (!binding) return null
-    const bindingError = nativeHostBindingError(
-      {
-        cwd: process.cwd(),
-        session_id: process.env.CLAUDE_CODE_SESSION_ID,
-        transcript_path: binding.transcriptPath,
-      },
-      REPO_ROOT,
-    )
-    if (bindingError) return null
-  }
+  const actual = [parsed?.taskId, parsed?.branch, parsed?.sha, state.branch]
+  const expected = [TASK_ID, stamped.branch, stamped.sha, stamped.branch]
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) return null
+  if (!process.env.CLAUDE_CODE_SESSION_ID) return stamped
+  const binding = state.hostBinding
+  if (!binding) return null
+  const bindingError = nativeHostBindingError(
+    {
+      cwd: process.cwd(),
+      session_id: process.env.CLAUDE_CODE_SESSION_ID,
+      transcript_path: binding.transcriptPath,
+    },
+    REPO_ROOT,
+  )
+  if (bindingError) return null
   return stamped
 }
 
@@ -332,13 +327,13 @@ function modeContext(parsed) {
     const stamped = assertModeIdentity(parsed, state)
     if (stamped === null) return { error: 'task, branch, sha, or native host binding is stale' }
     return { state, stamped }
+    // FAIL-OPEN-INTENT: the returned internal error is surfaced by each mode as exit 2.
   } catch (err) {
     return { internal: err instanceof Error ? err.message : String(err) }
   }
 }
 
-function recordAcceptanceFit(parsed, schema) {
-  const context = modeContext(parsed)
+function reportModeContextError(context) {
   if ('internal' in context) {
     process.stderr.write(`[record-agent-return] ERROR: ${context.internal}\n`)
     return 2
@@ -347,23 +342,17 @@ function recordAcceptanceFit(parsed, schema) {
     process.stdout.write(`[record-agent-return] FAIL: ${context.error}\n`)
     return 1
   }
-  const { state, stamped } = context
-  const env = stampAndValidate(parsed, schema)
-  if (env === null) return 1
-  if (env.role !== 'verifier' || !env.acceptanceFit) {
-    process.stdout.write(
-      '[record-agent-return] FAIL: ac-fit mode requires one verifier acceptanceFit envelope\n',
-    )
-    return 1
-  }
+  return 0
+}
+
+function frozenPlanAnchor(state, stamped) {
   const planPath = resolve(REPO_ROOT, String(state.plan ?? '').split('#')[0])
   const trackedPlan = relative(REPO_ROOT, planPath)
-  let anchor
   try {
     if (!trackedPlan || trackedPlan === '..' || trackedPlan.startsWith('../'))
       throw new Error('plan is outside repository')
     const liveAnchor = parsePlanAnchor(readFileSync(planPath, 'utf8'))
-    anchor = parsePlanAnchor(
+    const anchor = parsePlanAnchor(
       execFileSync('git', ['show', `${stamped.sha}:${trackedPlan}`], {
         cwd: REPO_ROOT,
         encoding: 'utf8',
@@ -375,13 +364,30 @@ function recordAcceptanceFit(parsed, schema) {
       computeAcHash(liveAnchor.criteria) !== computeAcHash(anchor.criteria)
     )
       throw new Error('active plan drifted from the frozen subject')
+    return { anchor }
+    // FAIL-OPEN-INTENT: the returned error is printed by validatedAcceptanceFit and exits 1.
   } catch (err) {
-    process.stdout.write(
-      `[record-agent-return] FAIL: frozen plan is unavailable or changed: ${err instanceof Error ? err.message : String(err)}\n`,
-    )
-    return 1
+    return { error: err instanceof Error ? err.message : String(err) }
   }
-  const criteriaIds = anchor.criteria.map((criterion) => criterion.id)
+}
+
+function validatedAcceptanceFit(parsed, schema, state, stamped) {
+  const env = stampAndValidate(parsed, schema)
+  if (env === null) return null
+  if (env.role !== 'verifier' || !env.acceptanceFit) {
+    process.stdout.write(
+      '[record-agent-return] FAIL: ac-fit mode requires one verifier acceptanceFit envelope\n',
+    )
+    return null
+  }
+  const frozen = frozenPlanAnchor(state, stamped)
+  if ('error' in frozen) {
+    process.stdout.write(
+      `[record-agent-return] FAIL: frozen plan is unavailable or changed: ${frozen.error}\n`,
+    )
+    return null
+  }
+  const criteriaIds = frozen.anchor.criteria.map((criterion) => criterion.id)
   const errors = validateAcFit(env.acceptanceFit, criteriaIds, {
     requireAllPass: true,
     expectedTaskId: TASK_ID,
@@ -389,8 +395,12 @@ function recordAcceptanceFit(parsed, schema) {
   errors.push(...enforceAcFitCitations(env.acceptanceFit, REPO_ROOT, stamped.sha, '<stdin>'))
   if (errors.length > 0) {
     for (const error of errors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
-    return 1
+    return null
   }
+  return { env, anchor: frozen.anchor }
+}
+
+function writeAcceptanceFit(env, anchor, stamped) {
   const sanitizedTask = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')
   const agent = String(env.agent).replace(/[^0-9A-Za-z-]/g, '-')
   const envelopeContent = `${JSON.stringify(env, null, 2)}\n`
@@ -427,6 +437,16 @@ function recordAcceptanceFit(parsed, schema) {
   }
 }
 
+function recordAcceptanceFit(parsed, schema) {
+  const context = modeContext(parsed)
+  const contextExit = reportModeContextError(context)
+  if (contextExit !== 0) return contextExit
+  const { state, stamped } = context
+  const validated = validatedAcceptanceFit(parsed, schema, state, stamped)
+  if (validated === null) return 1
+  return writeAcceptanceFit(validated.env, validated.anchor, stamped)
+}
+
 function routedPanelRequirement(state, sha) {
   const baseCount =
     state.tier === 'Standard' ? 2 : state.tier === 'XS' || state.tier === 'S' ? 1 : 0
@@ -451,11 +471,10 @@ function routedPanelRequirement(state, sha) {
     active = changed
       .split(/\r?\n/)
       .filter(Boolean)
-      .some(
-        (path) =>
-          /(^|\/)(auth|authz|crypto|secrets?|migrations?)(\/|$)|(^|\/)\.env[^/]*$|\.(sql|pem|key)$|^\.github\/|^\.githooks\/|^scripts\/|^\.claude\/(hooks\/|settings(?:\.[^/]+)?\.json$)|^src\/utils\/run-cli\.ts$/i.test(
-            path,
-          ),
+      .some((path) =>
+        /(^|\/)(auth|authz|crypto|secrets?|migrations?)(\/|$)|(^|\/)\.env[^/]*$|\.(sql|pem|key)$|^\.github\/|^\.githooks\/|^scripts\/|^\.claude\/(hooks\/|settings(?:\.[^/]+)?\.json$)|^src\/utils\/run-cli\.ts$/i.test(
+          path,
+        ),
       )
       ? ['silent-failures']
       : []
@@ -466,49 +485,37 @@ function routedPanelRequirement(state, sha) {
   return { count: escalated ? 3 : baseCount, auditors: active }
 }
 
-function recordReviewerPanel(parsed, schema) {
-  const subject = Array.isArray(parsed?.envelopes) ? parsed.envelopes[0] : undefined
-  const context = modeContext(subject)
-  if ('internal' in context) {
-    process.stderr.write(`[record-agent-return] ERROR: ${context.internal}\n`)
-    return 2
-  }
-  if ('error' in context) {
-    process.stdout.write(`[record-agent-return] FAIL: ${context.error}\n`)
-    return 1
-  }
-  const { state, stamped } = context
-  const envelopes = Array.isArray(parsed?.envelopes) ? parsed.envelopes : []
-  let requirement
+function panelRequirement(state, stamped) {
   try {
-    requirement = routedPanelRequirement(state, stamped.sha)
+    return { requirement: routedPanelRequirement(state, stamped.sha) }
   } catch (err) {
     process.stderr.write(
       `[record-agent-return] ERROR: cannot derive reviewer panel: ${err instanceof Error ? err.message : String(err)}\n`,
     )
-    return 2
+    return null
   }
-  if (envelopes.length !== requirement.count) {
-    process.stdout.write(
-      `[record-agent-return] FAIL: routed panel requires ${requirement.count} reviewer envelopes\n`,
-    )
-    return 1
-  }
+}
+
+function validatePanel(envelopes, state, schema) {
   const validated = []
   for (const candidate of envelopes) {
     if (assertModeIdentity(candidate, state) === null) {
       process.stdout.write('[record-agent-return] FAIL: reviewer envelope subject is stale\n')
-      return 1
+      return null
     }
     const envelope = stampAndValidate(candidate, schema)
-    if (envelope === null || envelope.role !== 'reviewer') return 1
+    if (envelope === null || envelope.role !== 'reviewer') return null
     validated.push(envelope)
   }
   const agents = validated.map((envelope) => String(envelope.agent))
   if (new Set(agents).size !== agents.length) {
     process.stdout.write('[record-agent-return] FAIL: reviewer agents must be distinct\n')
-    return 1
+    return null
   }
+  return { validated, agents }
+}
+
+function writeReviewerPanel(validated, agents, requirement, stamped) {
   try {
     const evidenceDir = join(REPO_ROOT, '.arbiter', 'evidence', 'agent-returns')
     const task = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')
@@ -543,25 +550,28 @@ function recordReviewerPanel(parsed, schema) {
   }
 }
 
-async function main() {
-  if (!TASK_ID || !/^#[0-9]+$/.test(TASK_ID)) {
-    process.stderr.write(
-      `[record-agent-return] ERROR: --task must be a GitHub issue id like '#1943' (got: ${String(TASK_ID)})\n`,
+function recordReviewerPanel(parsed, schema) {
+  const envelopes = Array.isArray(parsed?.envelopes) ? parsed.envelopes : []
+  const context = modeContext(envelopes[0])
+  const contextExit = reportModeContextError(context)
+  if (contextExit !== 0) return contextExit
+  const { state, stamped } = context
+  const routed = panelRequirement(state, stamped)
+  if (routed === null) return 2
+  const { requirement } = routed
+  if (envelopes.length !== requirement.count) {
+    process.stdout.write(
+      `[record-agent-return] FAIL: routed panel requires ${requirement.count} reviewer envelopes\n`,
     )
-    return 2
+    return 1
   }
-  const raw = await readStdin()
-  const input = parseInput(raw)
-  if ('exitCode' in input) return input.exitCode
-  const schemaResult = loadReturnSchema()
-  if ('exitCode' in schemaResult) return schemaResult.exitCode
-  if (MODE === 'ac-fit') return recordAcceptanceFit(input.parsed, schemaResult.schema)
-  if (MODE === 'reviewer-panel') return recordReviewerPanel(input.parsed, schemaResult.schema)
-  if (MODE !== 'return') {
-    process.stderr.write(`[record-agent-return] ERROR: unsupported --mode ${MODE}\n`)
-    return 2
-  }
-  const env = stampAndValidate(input.parsed, schemaResult.schema)
+  const panel = validatePanel(envelopes, state, schema)
+  if (panel === null) return 1
+  return writeReviewerPanel(panel.validated, panel.agents, requirement, stamped)
+}
+
+function recordReturn(parsed, schema) {
+  const env = stampAndValidate(parsed, schema)
   if (env === null) return 1
   const sanitizedTask = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')
   const agent =
@@ -581,6 +591,25 @@ async function main() {
     )
     return 2
   }
+}
+
+async function main() {
+  if (!TASK_ID || !/^#[0-9]+$/.test(TASK_ID)) {
+    process.stderr.write(
+      `[record-agent-return] ERROR: --task must be a GitHub issue id like '#1943' (got: ${String(TASK_ID)})\n`,
+    )
+    return 2
+  }
+  const input = parseInput(await readStdin())
+  if ('exitCode' in input) return input.exitCode
+  const schemaResult = loadReturnSchema()
+  if ('exitCode' in schemaResult) return schemaResult.exitCode
+  const handlers = { 'ac-fit': recordAcceptanceFit, 'reviewer-panel': recordReviewerPanel }
+  const handler = handlers[MODE]
+  if (handler) return handler(input.parsed, schemaResult.schema)
+  if (MODE === 'return') return recordReturn(input.parsed, schemaResult.schema)
+  process.stderr.write(`[record-agent-return] ERROR: unsupported --mode ${MODE}\n`)
+  return 2
 }
 
 main()

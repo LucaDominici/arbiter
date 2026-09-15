@@ -23,7 +23,6 @@ import {
   assertWritten,
 } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
-import type { NativeHostBinding } from '../capabilities/host-probe.js'
 
 // ─── Phase vocabulary (single source; re-exported by task.ts for back-compat) ────────────────
 
@@ -112,7 +111,12 @@ export interface UnifiedTaskState {
   /** Task branch name, when known (stamped by `arbiter task init`). */
   branch?: string
   /** Exact Claude project/session tuple established before worktree lifecycle writes (#2685). */
-  hostBinding?: NativeHostBinding
+  hostBinding?: {
+    worktreePath: string
+    branch: string
+    sessionId: string
+    transcriptPath: string
+  }
   handoffStrategy: HandoffStrategy
   handoffReady: boolean
   planningHandoffReady?: string

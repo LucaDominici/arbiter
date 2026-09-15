@@ -220,59 +220,76 @@ function resolveGatePlan(root, state, phase) {
 // except for wave workers — a task anchored to `wave-N.md#group` never produces a
 // per-worker ac-fit; the wave's fit enforcement runs at integrate time
 // (`--plan … --ac-fit wave-N.json` in the main tree, see wave-drain Phase 4).
-function boundFitErrors(root, state, planRef, json) {
-  const errors = []
-  let sha, branch
+function currentGitIdentity(root) {
   try {
-    sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-    branch = execFileSync('git', ['branch', '--show-current'], {
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+    const branch = execFileSync('git', ['branch', '--show-current'], {
       cwd: root,
       encoding: 'utf8',
     }).trim()
+    return { sha, branch }
+    // FAIL-OPEN-INTENT: Git identity failure is returned as a blocking fit error below.
   } catch {
-    return ['ac-fit: current Git identity is unavailable']
+    return null
   }
+}
+
+function fitSubjectErrors(state, json, identity) {
+  const errors = []
   if (typeof state.branch !== 'string' || state.branch.length === 0)
     errors.push('ac-fit: active task branch binding is missing')
-  if (!branch || branch !== state.branch)
+  if (!identity.branch || identity.branch !== state.branch)
     errors.push('ac-fit: current branch does not match active task')
   if (json.branch !== state.branch) errors.push('ac-fit: branch does not match active task')
-  if (json.sha !== sha) errors.push('ac-fit: sha does not match current HEAD')
-  const plan = parsePlanAnchor(readRegularFileSync(join(root, planRef.split('#')[0]), 'utf8'))
-  if (plan === null || json.planHash !== computeAcHash(plan.criteria)) {
-    errors.push('ac-fit: plan hash does not match frozen acceptance criteria')
-  }
+  if (json.sha !== identity.sha) errors.push('ac-fit: sha does not match current HEAD')
+  return errors
+}
+
+function sourceEnvelopeMismatch(envelope, state, json, sha) {
+  const expected = { schema: json.schema, taskId: json.taskId, criteria: json.criteria }
+  return [
+    envelope.taskId !== state.taskId,
+    envelope.branch !== state.branch,
+    envelope.sha !== sha,
+    envelope.role !== 'verifier',
+    JSON.stringify(envelope.acceptanceFit) !== JSON.stringify(expected),
+  ].some(Boolean)
+}
+
+function fitSourceErrors(root, state, json, sha) {
   const source = json.sourceEnvelope
   if (typeof source?.path !== 'string' || typeof source?.sha256 !== 'string') {
-    errors.push('ac-fit: source envelope binding is missing')
-    return errors
+    return ['ac-fit: source envelope binding is missing']
   }
   const sourcePath = resolve(root, source.path)
   if (sourcePath !== root && !sourcePath.startsWith(`${resolve(root)}${sep}`)) {
-    errors.push('ac-fit: source envelope escapes the repository')
-    return errors
+    return ['ac-fit: source envelope escapes the repository']
   }
   try {
     const raw = readRegularFileSync(sourcePath, 'utf8')
     if (createHash('sha256').update(raw).digest('hex') !== source.sha256) {
-      errors.push('ac-fit: source envelope digest mismatch')
-      return errors
+      return ['ac-fit: source envelope digest mismatch']
     }
     const envelope = JSON.parse(raw)
-    errors.push(...enforceAcFitCitations(envelope.acceptanceFit, root, sha, source.path))
-    const expected = { schema: json.schema, taskId: json.taskId, criteria: json.criteria }
-    if (
-      envelope.taskId !== state.taskId ||
-      envelope.branch !== state.branch ||
-      envelope.sha !== sha ||
-      envelope.role !== 'verifier' ||
-      JSON.stringify(envelope.acceptanceFit) !== JSON.stringify(expected)
-    ) {
+    const errors = enforceAcFitCitations(envelope.acceptanceFit, root, sha, source.path)
+    if (sourceEnvelopeMismatch(envelope, state, json, sha)) {
       errors.push('ac-fit: source verifier envelope does not match the admitted fit')
     }
+    return errors
+    // FAIL-OPEN-INTENT: unreadable source evidence is accumulated as a blocking fit error.
   } catch {
-    errors.push('ac-fit: source verifier envelope is unreadable')
+    return ['ac-fit: source verifier envelope is unreadable']
   }
+}
+
+function boundFitErrors(root, state, planRef, json) {
+  const identity = currentGitIdentity(root)
+  if (identity === null) return ['ac-fit: current Git identity is unavailable']
+  const errors = fitSubjectErrors(state, json, identity)
+  const plan = parsePlanAnchor(readRegularFileSync(join(root, planRef.split('#')[0]), 'utf8'))
+  if (plan === null || json.planHash !== computeAcHash(plan.criteria))
+    errors.push('ac-fit: plan hash does not match frozen acceptance criteria')
+  errors.push(...fitSourceErrors(root, state, json, identity.sha))
   return errors
 }
 
@@ -287,15 +304,10 @@ function checkTaskFit(root, state, phase, planRef, criteriaIds) {
   const isWaveWorker = planRef.includes('#')
   const late = LATE_PHASES.has(phase)
   if (existsSync(fitPath)) {
-    const errors = validateFitFile(fitPath, criteriaIds, late, state.taskId, root)
-    if (late) {
-      try {
-        const json = JSON.parse(readRegularFileSync(fitPath, 'utf8'))
-        errors.push(...boundFitErrors(root, state, planRef, json))
-      } catch {
-        // validateFitFile already reports malformed evidence.
-      }
-    }
+    const fit = readValidatedFit(fitPath, criteriaIds, late, state.taskId, root)
+    const errors = fit.errors
+    if (late && fit.json !== undefined)
+      errors.push(...boundFitErrors(root, state, planRef, fit.json))
     if (errors.length > 0) {
       for (const e of errors) fail(e)
       return 1
@@ -344,17 +356,21 @@ function main() {
   return runGateMode(root)
 }
 
-function validateFitFile(absPath, criteriaIds, requireAllPass, expectedTaskId, root) {
+function readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, root) {
   let json
   try {
     json = JSON.parse(readRegularFileSync(absPath, 'utf-8'))
     // FAIL-OPEN-INTENT: the parse error is surfaced as a returned error string; both callers print it and exit 1 — fail-closed at the call site.
   } catch {
-    return [`ac-fit artifact is not valid JSON: ${absPath}`]
+    return { errors: [`ac-fit artifact is not valid JSON: ${absPath}`] }
   }
   const errors = validateAcFit(json, criteriaIds, { requireAllPass, expectedTaskId })
   if (root) errors.push(...enforceAcFitCitations(json, root, json.sha ?? 'HEAD', absPath))
-  return errors
+  return { json, errors }
+}
+
+function validateFitFile(absPath, criteriaIds, requireAllPass, expectedTaskId, root) {
+  return readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, root).errors
 }
 
 if (isMainModule(import.meta.url)) {
