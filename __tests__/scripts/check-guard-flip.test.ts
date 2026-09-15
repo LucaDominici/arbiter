@@ -16,9 +16,11 @@ import { GUARDS, CONTEXT_ROT_GATES } from '../../scripts/lib/anti-fake-green-gua
 import { FLIP_REGISTRY } from '../../scripts/lib/guard-flip-registry.mjs'
 import {
   deriveAbsenceFamily,
+  enumerateGateMechanisms,
   auditInversionRegistry,
   loadInversionRegistry,
   flipProofFor,
+  wiredPathProblems,
   MIN_ABSENCE_FAMILY,
   MAX_DEFERRED,
 } from '../../scripts/lib/gate-roster.mjs'
@@ -150,6 +152,147 @@ const DEFERRED_CEILING = MAX_DEFERRED
 // The rosters whose proofs may also cover a family gate by SCRIPT (check-no-passwithnotests is
 // wired both as the INV-25 gate and as the anti-fake-green `no-empty-suite` guard).
 const BASE_ROSTER = [...GUARDS, ...CONTEXT_ROT_GATES]
+
+describe('CANON-25 — wired invocation binding (#2572)', () => {
+  it('retains literal argv and the raw ordered source tail (AC-3)', () => {
+    const [gate] = enumerateGateMechanisms(
+      "runCheck('strict', 'node', ['scripts/check-x.mjs', '--extensions', 'ts,tsx', String(level)])",
+    )
+    expect(gate.argv).toEqual(['--extensions', 'ts,tsx'])
+    expect(gate.argvSource).toBe("'--extensions', 'ts,tsx', String(level)")
+  })
+
+  it('recognizes only the declared static path grammar (AC-1)', () => {
+    withTmp((dir) => {
+      writeFileSync(join(dir, 'config.json'), '{}')
+      writeFileSync(join(dir, 'inventory.json'), '[]')
+      const family = [
+        {
+          name: 'fixture',
+          script: 'scripts/check-x.mjs',
+          category: 'no',
+          argv: [
+            '.',
+            '--inventory',
+            'inventory.json',
+            '--config=config.json',
+            '--mode',
+            'strict',
+            '--from',
+            'origin/main',
+            '--to',
+            'HEAD',
+            '--unknown=value',
+          ],
+          argvSource: '',
+        },
+        {
+          name: 'selector',
+          script: 'scripts/check-y.mjs',
+          category: 'no',
+          argv: ['all'],
+          argvSource: "'all'",
+        },
+      ]
+      expect(wiredPathProblems(family, dir)).toEqual([])
+    })
+  })
+
+  it('rejects a missing scan root and a missing recognized path value (AC-1)', () => {
+    expect(
+      wiredPathProblems(
+        [
+          {
+            name: 'missing-root',
+            script: 'scripts/check-x.mjs',
+            category: 'no',
+            argv: ['missing-src'],
+            argvSource: "'missing-src'",
+          },
+          {
+            name: 'missing-value',
+            script: 'scripts/check-y.mjs',
+            category: 'no',
+            argv: ['--inventory'],
+            argvSource: "'--inventory'",
+          },
+        ],
+        process.cwd(),
+      ).join('\n'),
+    ).toMatch(/missing-src.*--inventory/s)
+  })
+
+  it('reuses a same-script proof only for identical argv source (AC-3)', () => {
+    const proof = { kind: 'file-scan' as const }
+    const registry = { base: proof }
+    const base = [{ name: 'base', script: 'scripts/check-x.mjs', argvSource: '' }]
+    expect(
+      flipProofFor({ name: 'same', script: 'scripts/check-x.mjs', argvSource: '' }, registry, base),
+    ).toBe(proof)
+    expect(
+      flipProofFor(
+        { name: 'strict', script: 'scripts/check-x.mjs', argvSource: "'--strict'" },
+        registry,
+        base,
+      ),
+    ).toBeNull()
+  })
+
+  it('fails the harness before a silently-green gate can certify a missing wired root (AC-1)', () => {
+    withTmp((dir) => {
+      const gate = join(dir, 'check-all.mjs')
+      const registry = join(dir, 'registry.json')
+      const roster = join(dir, 'roster.json')
+      const missing = join(dir, 'missing-src')
+      writeFileSync(
+        gate,
+        `runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', '${missing}'])\n`,
+      )
+      writeFileSync(registry, JSON.stringify({ ceiling: 0, deferred: [] }))
+      writeFileSync(
+        roster,
+        JSON.stringify({
+          family: {
+            placeholders: { script: 'scripts/check-no-placeholders.mjs', category: 'no' },
+          },
+          notAbsence: {},
+          exempt: {},
+        }),
+      )
+
+      const child = spawnSync('node', ['scripts/check-no-placeholders.mjs', missing])
+      expect(child.status, 'the child still has the historical silent-return defect').toBe(0)
+      const harness = spawnSync(
+        'node',
+        [
+          HARNESS,
+          `--gate=${gate}`,
+          `--registry=${registry}`,
+          `--roster=${roster}`,
+          '--min-family=1',
+          '--max-deferred=0',
+        ],
+        { encoding: 'utf-8' },
+      )
+      expect(harness.status).toBe(1)
+      expect(`${harness.stdout}${harness.stderr}`).toMatch(/missing-src/)
+    })
+  })
+
+  it('exercises the i18n inventory branch in both flip fixtures (AC-2)', () => {
+    const entry = FLIP_REGISTRY['i18n raw strings']
+    withTmp((dir) => {
+      expect(entry.argv(dir)).toEqual([
+        join(dir, 'src'),
+        '--inventory',
+        join(dir, 'inventory.json'),
+      ])
+    })
+    expect(
+      flipGuard({ name: 'i18n raw strings', script: 'scripts/check-no-raw-strings.mjs' }, entry),
+    ).toEqual([])
+  })
+})
 
 describe('CANON-25 — the absence-asserting gate family is derived, not hand-listed (#2301)', () => {
   it('derives every check-no-*, ratchet and parity gate wired in check-all.mjs', () => {
