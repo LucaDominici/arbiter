@@ -105,16 +105,16 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "src/templates/scripts/check-no-orphan-todo.mjs.ejs",
-          "line": 159
-        },
-        {
           "file": "src/templates/scripts/debt-lib.mjs.ejs",
-          "line": 236
+          "line": 242
         },
         {
-          "file": "examples/python-library/scripts/check-no-orphan-todo.mjs",
-          "line": 46
+          "file": "__tests__/generators/debt-ratchet-archetype.test.ts",
+          "line": 165
+        },
+        {
+          "file": "__tests__/generators/debt-ratchet-archetype.test.ts",
+          "line": 186
         },
         {
           "file": "scripts/debt-baseline.json",
@@ -124,10 +124,10 @@
     }
   ],
   "branch": "task/#2550-debt-todo-truth",
-  "sha": "b6649263a7d67d634f47568f1b3e4caf20c7b857",
+  "sha": "2967ac88d13aec6dc37b93c53728d95ecaeb712e",
   "planHash": "e1e0ba013aade26fef192468b399b44fc50c98c3",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2550/root-codex-orchestrator-ac-fit-final-0.json",
-    "sha256": "862f382cdfafdcfaaf62da35b83a1680fc3bf40bfdedd3a18535e4adf629cb70"
+    "path": ".arbiter/evidence/agent-returns/_2550/root-codex-orchestrator-ac-fit-ci-final-0.json",
+    "sha256": "da88b278812b9fcfff718af77cf4234d17c3df92f0d48ccdcd5ed452a8344af5"
   }
 }

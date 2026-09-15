@@ -1,9 +1,1 @@
-{
-  "count": 1,
-  "agents": [
-    "codex-reviewer"
-  ],
-  "taskId": "#2550",
-  "branch": "task/#2550-debt-todo-truth",
-  "sha": "b6649263a7d67d634f47568f1b3e4caf20c7b857"
-}
+{"count":3,"agents":["final-bugs","final-types","final-test-quality"],"auditors":["bugs","type-safety","domain","test-quality","silent-failures"],"branch":"task/#2550-debt-todo-truth","sha":"2967ac88d13aec6dc37b93c53728d95ecaeb712e","taskId":"#2550"}
