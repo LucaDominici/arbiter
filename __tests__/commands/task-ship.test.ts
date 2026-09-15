@@ -95,6 +95,16 @@ describe('ship sequencing — pure plan', () => {
     expect(shipStepFor('red-team-review', 'Standard').reviewAgents).toBe(3)
   })
 
+  it('routes trunk-solo directly to the independent final review (#2681)', () => {
+    const step = shipStepFor(
+      'red-team-review',
+      'Standard',
+      profile({ collaborationMode: 'trunk-solo' }),
+    )
+    expect(step.reviewAgents).toBe(0)
+    expect(step.action).toMatch(/final code review/i)
+  })
+
   it('dispatches tier-N code-review agents at refactor', () => {
     expect(shipStepFor('refactor', 'XS').reviewAgents).toBe(1)
     expect(shipStepFor('refactor', 'S').reviewAgents).toBe(1)

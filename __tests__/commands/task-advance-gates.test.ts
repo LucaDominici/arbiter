@@ -238,6 +238,17 @@ describe('leaving red-team-review — the tier-N dispatch promise is asserted (A
     runTaskAdvance({ to: 'red-team-review', dir })
     expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
   })
+
+  it('does not fabricate pre-code review evidence for explicit trunk-solo (#2681)', () => {
+    const dir = tmpRepo()
+    seed(dir, 'red-team-review', '#2681')
+    writeHarnessConfig(dir, {
+      collaborationMode: 'trunk-solo',
+      solo: { mergeMode: 'pr-ff' },
+    })
+    runTaskAdvance({ to: 'red', dir })
+    expect(readUnifiedState(dir)?.phase).toBe('red')
+  })
 })
 
 describe('red admission — the existing Markdown acceptance anchor runs before mutation (#2587)', () => {
