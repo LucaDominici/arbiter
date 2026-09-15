@@ -31,6 +31,12 @@ Issue AC-4 says the release gate honors `arbiter-suppress`. Current main does no
 - [ ] AC-5: one inversion proves a real orphan comment counts, while a tracked form, string literal and explanatory prose do not. A regression to a detector that counts nothing fails.
 - [ ] AC-6: the emitted template has the same behavior and the debt baseline is tightened only by the canonical updater.
 
+## Non-Goals
+
+- No parser dependency, new evidence store, registry or configuration axis.
+- No metric-only suppression that the release gate does not share.
+- No change to debt metrics other than `todoCount` and baseline tightening measured by the canonical updater.
+
 ## Test strategy
 
 Add one table-driven test to the existing debt-lib test file using a temporary repository-shaped tree. It plants a real orphan in `.mjs`, tracked and non-comment controls in `.ts`, plus an explanatory nested example; expected count is exactly one. The RED commit changes only this test. GREEN exports/reuses the detector and updates template twins. Then run the focused checker/debt tests, generator/template parity, L1, frozen-SHA review, AC-fit and one final clean-HEAD L3.
