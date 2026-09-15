@@ -1,0 +1,99 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2681",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 309
+        },
+        {
+          "file": "__tests__/commands/task-ship.test.ts",
+          "line": 98
+        },
+        {
+          "file": "__tests__/commands/task-advance-gates.test.ts",
+          "line": 252
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 317
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1287
+        },
+        {
+          "file": "__tests__/commands/task-advance-gates.test.ts",
+          "line": 215
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 330
+        },
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 377
+        },
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 404
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/commands/ship.md",
+          "line": 365
+        },
+        {
+          "file": "src/templates/claude/commands/ship.md.ejs",
+          "line": 368
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "docs/internal/ADR/116-evidence-content-binding-train-ceremony-pr-ownership.md",
+          "line": 60
+        },
+        {
+          "file": "docs/internal/ADR/116-evidence-content-binding-train-ceremony-pr-ownership.md",
+          "line": 75
+        },
+        {
+          "file": "__tests__/commands/task-advance-gates.test.ts",
+          "line": 252
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2681-ship-review-economy",
+  "sha": "7918dc913e1aa846da259472382a13a5677672fe",
+  "planHash": "59be0d7c3f406415fc01591396593eebbdf8c01a",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2681/root-codex-orchestrator-ac-fit-0.json",
+    "sha256": "f3350bacbdd95f1c21b208f03a62c46fb61c857f0bc28c983b73bc1acd925ded"
+  }
+}
