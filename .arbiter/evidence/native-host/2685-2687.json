@@ -42,6 +42,12 @@
     "sourceChangedDuringRecovery": false,
     "reviewersRepeated": false
   },
+  "bootstrapVerifier": {
+    "author": "root Codex orchestrator",
+    "purpose": "first native ac-fit producer admission",
+    "finalAcceptanceAuthority": false,
+    "provenanceCorrection": "openai/codex external-cli"
+  },
   "verification": {
     "l1": "PASS",
     "l1DurationMs": 136627,

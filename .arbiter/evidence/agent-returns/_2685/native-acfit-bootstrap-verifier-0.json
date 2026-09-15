@@ -190,7 +190,9 @@
     ]
   },
   "provenance": {
-    "vendor": "anthropic",
-    "dispatch": "subagent"
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "model": "gpt-6"
   }
 }
