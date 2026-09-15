@@ -56,6 +56,14 @@ const AFFINITY = {
   sharedRollbackBoundary: true,
   hardConflicts: [] as string[],
 }
+const LOW_RISK_SIGNALS = {
+  labels: [] as string[],
+  blastRadius: 0,
+  callerCount: 0,
+  milestoneBundled: false,
+  complete: true,
+  changedFiles: ['docs/issue.md'],
+}
 
 const signals = (over: Partial<Parameters<typeof evaluateSeal>[0]> = {}) => ({
   chainSize: 0,
@@ -201,13 +209,12 @@ describe('evaluateSeal (#2331)', () => {
  */
 describe('arbiter ship --chain-add (#2331 wiring)', () => {
   let dir: string
-  const XS_SIGNALS = { labels: [] as string[], blastRadius: 0, milestoneBundled: false }
 
   const ship = (opts: Record<string, unknown> = {}) =>
     runTaskShip({
       dir,
       profileOverride: TEST_PROFILE,
-      gatherTierSignals: () => XS_SIGNALS,
+      gatherTierSignals: () => LOW_RISK_SIGNALS,
       now: new Date('2026-08-22T00:10:00.000Z'),
       trainAffinity: AFFINITY,
       ...opts,
@@ -231,10 +238,39 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
   })
 
   it('seals an append whose affinity was not proven', () => {
+    const before = readUnifiedState(dir)
     expect(() => ship({ chainAddIds: ['#101'], trainAffinity: undefined })).toThrow(
       /SEALED: affinity/,
     )
-    expect(chain()).toEqual([])
+    expect(readUnifiedState(dir)).toEqual(before)
+  })
+
+  it.each([
+    ['a false affinity component', { ...AFFINITY, sharedProof: false }],
+    ['a hard conflict', { ...AFFINITY, hardConflicts: ['shared migration'] }],
+  ])('seals an append with %s', (_name, trainAffinity) => {
+    const before = readUnifiedState(dir)
+    expect(() => ship({ chainAddIds: ['#101'], trainAffinity })).toThrow(/SEALED: affinity/)
+    expect(readUnifiedState(dir)).toEqual(before)
+  })
+
+  it.each([
+    ['missing qualification', undefined],
+    ['incomplete qualification', { ...LOW_RISK_SIGNALS, complete: false }],
+  ])('seals an append with %s', (_name, tierSignals) => {
+    const before = readUnifiedState(dir)
+    expect(() =>
+      ship({
+        chainAddIds: ['#101'],
+        gatherTierSignals: () =>
+          tierSignals ?? {
+            labels: [],
+            blastRadius: null,
+            milestoneBundled: false,
+          },
+      }),
+    ).toThrow(/SEALED: risk/)
+    expect(readUnifiedState(dir)).toEqual(before)
   })
 
   it('does not clear a live train when no flag is passed', () => {
@@ -278,7 +314,7 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
     expect(() =>
       ship({
         chainAddIds: ['#101'],
-        gatherTierSignals: () => ({ ...XS_SIGNALS, labels: ['epic'] }),
+        gatherTierSignals: () => ({ ...LOW_RISK_SIGNALS, labels: ['epic'] }),
       }),
     ).toThrow(/SEALED: risk/)
     expect(chain()).toEqual([])
@@ -327,7 +363,7 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
           chainAddIds: ['#102', '#103', '#104', '#105'],
           trainLimits: PINNED_LIMITS,
           profileOverride: TEST_PROFILE,
-          gatherTierSignals: () => XS_SIGNALS,
+          gatherTierSignals: () => LOW_RISK_SIGNALS,
           now: new Date('2026-08-22T00:10:00.000Z'),
           trainAffinity: AFFINITY,
         }),
@@ -350,7 +386,7 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
           chainAddIds: ['#101'],
           profileOverride: TEST_PROFILE,
           gatherTierSignals: () =>
-            signalCalls++ === 0 ? XS_SIGNALS : { ...XS_SIGNALS, labels: ['epic'] },
+            signalCalls++ === 0 ? LOW_RISK_SIGNALS : { ...LOW_RISK_SIGNALS, labels: ['epic'] },
           now: new Date('2026-08-22T00:10:00.000Z'),
           trainAffinity: AFFINITY,
         }),
@@ -368,12 +404,15 @@ describe('arbiter ship --chain-add (#2331 wiring)', () => {
       runTaskShip({
         dir: fresh,
         chainIds: ['#101', '#102', '#103', '#104'],
+        trainAffinity: AFFINITY,
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
         profileOverride: TEST_PROFILE,
       })
       runTaskShip({
         dir: fresh,
         chainAddIds: ['#105'],
         trainAffinity: AFFINITY,
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
         profileOverride: TEST_PROFILE,
       })
       expect(readUnifiedState(fresh)?.chainIds).toEqual(['#101', '#102', '#103', '#104', '#105'])
@@ -390,6 +429,8 @@ it('refuses an initial --chain seed that exceeds the train limit', () => {
       dir,
       taskId: '#100',
       chainIds: ['#101', '#102', '#103', '#104'],
+      trainAffinity: AFFINITY,
+      gatherTierSignals: () => LOW_RISK_SIGNALS,
       trainLimits: PINNED_LIMITS,
       profileOverride: TEST_PROFILE,
     })
@@ -401,11 +442,87 @@ it('refuses an initial --chain seed that exceeds the train limit', () => {
         dir,
         taskId: '#100',
         chainIds: ['#101', '#102', '#103', '#104', '#105'],
+        trainAffinity: AFFINITY,
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
         trainLimits: PINNED_LIMITS,
         profileOverride: TEST_PROFILE,
       }),
     ).toThrow(/SEALED: max-chain/)
     expect(readUnifiedState(dir)).toEqual(before)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+it('refuses an unsafe --chain replacement without changing the existing train', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-replacement-'))
+  try {
+    runTaskShip({
+      dir,
+      taskId: '#100',
+      chainIds: ['#101'],
+      trainAffinity: AFFINITY,
+      gatherTierSignals: () => LOW_RISK_SIGNALS,
+      profileOverride: TEST_PROFILE,
+    })
+    const before = readUnifiedState(dir)
+
+    expect(() =>
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        chainIds: ['#102'],
+        trainAffinity: { ...AFFINITY, orderingCompatible: false },
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      }),
+    ).toThrow(/SEALED: affinity/)
+    expect(readUnifiedState(dir)).toEqual(before)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+it.each([
+  ['missing affinity', { gatherTierSignals: () => LOW_RISK_SIGNALS }, /SEALED: affinity/],
+  [
+    'a false affinity component',
+    {
+      trainAffinity: { ...AFFINITY, sameOutcome: false },
+      gatherTierSignals: () => LOW_RISK_SIGNALS,
+    },
+    /SEALED: affinity/,
+  ],
+  [
+    'a hard conflict',
+    {
+      trainAffinity: { ...AFFINITY, hardConflicts: ['shared migration'] },
+      gatherTierSignals: () => LOW_RISK_SIGNALS,
+    },
+    /SEALED: affinity/,
+  ],
+  ['missing qualification', { trainAffinity: AFFINITY }, /SEALED: risk/],
+  [
+    'incomplete qualification',
+    {
+      trainAffinity: AFFINITY,
+      gatherTierSignals: () => ({ ...LOW_RISK_SIGNALS, complete: false }),
+    },
+    /SEALED: risk/,
+  ],
+])('refuses an initial --chain seed with %s without writing state', (_name, admission, seal) => {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-train-seed-admission-'))
+  try {
+    expect(() =>
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        chainIds: ['#101'],
+        profileOverride: TEST_PROFILE,
+        ...admission,
+      }),
+    ).toThrow(seal)
+    expect(readUnifiedState(dir)).toBeNull()
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -417,6 +534,8 @@ it('rejects adding a primary issue to an already-full chain before writing it', 
     runTaskShip({
       dir,
       chainIds: ['#101', '#102', '#103', '#104', '#105'],
+      trainAffinity: AFFINITY,
+      gatherTierSignals: () => LOW_RISK_SIGNALS,
       trainLimits: PINNED_LIMITS,
       profileOverride: TEST_PROFILE,
     })
@@ -443,6 +562,8 @@ it('does not count a prior task train when a new primary resets task state', () 
       dir,
       taskId: '#100',
       chainIds: ['#101', '#102', '#103', '#104'],
+      trainAffinity: AFFINITY,
+      gatherTierSignals: () => LOW_RISK_SIGNALS,
       profileOverride: TEST_PROFILE,
     })
 
@@ -503,12 +624,8 @@ describe('splitTrainIds (#2401)', () => {
   })
 })
 
-/**
- * #2402 — `task init` writes the same `chainIds` field `ship` does and never checked the bound,
- * so `task init 1 2 ... 15` seeded a train no limit ever saw while `ship` refused the identical
- * request. One rule, both writers.
- */
-describe('task init respects the train bound (#2402)', () => {
+/** #2402 — `task init` has no affinity or qualification inputs, so it stays single-issue. */
+describe('task init refuses multi-issue state (#2402)', () => {
   let dir: string
 
   beforeEach(() => {
@@ -521,21 +638,32 @@ describe('task init respects the train bound (#2402)', () => {
 
   const ids = (n: number): string[] => Array.from({ length: n }, (_, i) => String(101 + i))
 
-  it('refuses a seed past the default ten-issue bound, writing nothing', () => {
-    expect(() => runTaskInit({ dir, id: '#100', chainIds: ids(10) })).toThrow(/SEALED: max-chain/)
+  it('refuses an oversized seed through the same safe route, writing nothing', () => {
+    expect(() => runTaskInit({ dir, id: '#100', chainIds: ids(10) })).toThrow(
+      /SEALED: affinity.*arbiter ship/,
+    )
     expect(readUnifiedState(dir)).toBeNull()
   })
 
-  it('accepts a seed that exactly fills the train', () => {
-    runTaskInit({ dir, id: '#100', chainIds: ids(9) })
-    expect(readUnifiedState(dir)?.chainIds).toHaveLength(9)
+  it('refuses multi-issue task init because it cannot prove admission', () => {
+    expect(() => runTaskInit({ dir, id: '#100', chainIds: ids(1) })).toThrow(
+      /SEALED: affinity.*arbiter ship/,
+    )
+    expect(readUnifiedState(dir)).toBeNull()
   })
 
-  it('refuses the same request `arbiter ship` refuses, with the same seal', () => {
+  it('leaves bounds and admission to `arbiter ship`', () => {
     const oversized = ids(12)
-    expect(() => runTaskInit({ dir, id: '#100', chainIds: oversized })).toThrow(/SEALED: max-chain/)
+    expect(() => runTaskInit({ dir, id: '#100', chainIds: oversized })).toThrow(/arbiter ship/)
     expect(() =>
-      runTaskShip({ dir, taskId: '#100', chainIds: oversized, profileOverride: TEST_PROFILE }),
+      runTaskShip({
+        dir,
+        taskId: '#100',
+        chainIds: oversized,
+        trainAffinity: AFFINITY,
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
+        profileOverride: TEST_PROFILE,
+      }),
     ).toThrow(/SEALED: max-chain/)
   })
 })
@@ -581,6 +709,7 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
         dir,
         chainAddIds: ['#101'],
         trainAffinity: AFFINITY,
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
         profileOverride: TEST_PROFILE,
       })
       expect(() =>
@@ -588,6 +717,7 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
           dir,
           chainAddIds: ['#102'],
           trainAffinity: AFFINITY,
+          gatherTierSignals: () => LOW_RISK_SIGNALS,
           profileOverride: TEST_PROFILE,
         }),
       ).toThrow(/SEALED: max-chain/)
@@ -601,6 +731,7 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
         dir,
         chainAddIds: ['#101', '#102', '#103', '#104', '#105', '#106', '#107', '#108', '#109'],
         trainAffinity: AFFINITY,
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
         profileOverride: TEST_PROFILE,
       })
       expect(readUnifiedState(dir)?.chainIds).toHaveLength(9)
@@ -614,6 +745,7 @@ describe('train limits from arbiter.json (#2401 wiring)', () => {
         dir,
         chainAddIds: ['#101', '#102'],
         trainAffinity: AFFINITY,
+        gatherTierSignals: () => LOW_RISK_SIGNALS,
         trainLimits: PINNED_LIMITS,
         profileOverride: TEST_PROFILE,
       })

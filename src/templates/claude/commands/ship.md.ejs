@@ -72,17 +72,12 @@ or model escalation by themselves.
 
 ## Capability train
 
-A train is one capability, one plan, one branch, one candidate, one final gate, and one PR. Declare
-known related issues together:
+A train is one capability, one plan, one branch, one candidate, one final gate, and one PR. Every
+companion issue, including an initial positional or `--chain` seed, needs complete qualification
+and one affinity decision:
 
 ```bash
-arbiter ship #A #B #C
-```
-
-A later issue may join only with a complete affinity decision:
-
-```bash
-arbiter ship --chain-add #D --affinity '{
+arbiter ship #A #B #C --affinity '{
   "sameOutcome":true,
   "ownerPathOverlap":true,
   "dependencyRelated":true,
@@ -93,6 +88,9 @@ arbiter ship --chain-add #D --affinity '{
   "hardConflicts":[]
 }'
 ```
+
+When that proof is not available at the initial call, start with `#A` and use the same affinity
+object with `--chain-add #B --chain-add #C` after the plan and dependency evidence exist.
 
 The command emits every component and `JOIN` or `SEAL(reason)`. Missing evidence, any false
 component, any hard conflict, Standard treatment, age limit, or size limit seals the train. Low

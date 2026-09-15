@@ -129,9 +129,8 @@ describe('runTaskAdvance', () => {
   })
 })
 
-// #2102 — `arbiter task init --chain <id>` (repeatable): persists chainIds, validated the same
-// way `arbiter ship`'s primary id already is (numeric-only, canonical `#NNN`).
-describe('runTaskInit — chainIds (--chain, #2102)', () => {
+// Multi-issue state needs the affinity and qualification admission available only through ship.
+describe('runTaskInit — refuses chainIds', () => {
   let dir: string
 
   beforeEach(() => {
@@ -143,14 +142,18 @@ describe('runTaskInit — chainIds (--chain, #2102)', () => {
     cleanupTestProject(dir)
   })
 
-  it('persists a single --chain id, normalized to canonical #NNN', () => {
-    runTaskInit({ dir, id: '#2102', chainIds: ['2103'] })
-    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103'])
+  it('refuses a single --chain id and directs the caller through ship', () => {
+    expect(() => runTaskInit({ dir, id: '#2102', chainIds: ['2103'] })).toThrow(
+      /SEALED: affinity.*arbiter ship/,
+    )
+    expect(readUnifiedState(dir)).toBeNull()
   })
 
-  it('persists multiple --chain ids (repeatable flag) in order', () => {
-    runTaskInit({ dir, id: '#2102', chainIds: ['2103', '#2104'] })
-    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103', '#2104'])
+  it('refuses multiple --chain ids without a partial write', () => {
+    expect(() => runTaskInit({ dir, id: '#2102', chainIds: ['2103', '#2104'] })).toThrow(
+      /SEALED: affinity.*arbiter ship/,
+    )
+    expect(readUnifiedState(dir)).toBeNull()
   })
 
   it('rejects a non-numeric chain id the same way the primary ship id is validated', () => {

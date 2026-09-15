@@ -450,7 +450,30 @@ describe('ship chain batching — seeding (--chain, #2102)', () => {
   afterEach(() => cleanupTestProject(dir))
 
   it('persists chainIds normalized to canonical #NNN', () => {
-    runTaskShip({ dir, taskId: '2102', tier: 'XS', chainIds: ['2103', '#2104'] })
+    runTaskShip({
+      dir,
+      taskId: '2102',
+      tier: 'XS',
+      chainIds: ['2103', '#2104'],
+      trainAffinity: {
+        sameOutcome: true,
+        ownerPathOverlap: true,
+        dependencyRelated: true,
+        sharedProof: true,
+        orderingCompatible: true,
+        sharedAcceptanceBoundary: true,
+        sharedRollbackBoundary: true,
+        hardConflicts: [],
+      },
+      gatherTierSignals: () => ({
+        labels: [],
+        blastRadius: 0,
+        callerCount: 0,
+        milestoneBundled: false,
+        complete: true,
+        changedFiles: ['docs/issue.md'],
+      }),
+    })
     expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103', '#2104'])
   })
 
@@ -461,7 +484,30 @@ describe('ship chain batching — seeding (--chain, #2102)', () => {
   })
 
   it('omitting --chain on a later call does NOT clear a previously-declared chain', () => {
-    runTaskShip({ dir, taskId: '2102', tier: 'XS', chainIds: ['2103'] })
+    runTaskShip({
+      dir,
+      taskId: '2102',
+      tier: 'XS',
+      chainIds: ['2103'],
+      trainAffinity: {
+        sameOutcome: true,
+        ownerPathOverlap: true,
+        dependencyRelated: true,
+        sharedProof: true,
+        orderingCompatible: true,
+        sharedAcceptanceBoundary: true,
+        sharedRollbackBoundary: true,
+        hardConflicts: [],
+      },
+      gatherTierSignals: () => ({
+        labels: [],
+        blastRadius: 0,
+        callerCount: 0,
+        milestoneBundled: false,
+        complete: true,
+        changedFiles: ['docs/issue.md'],
+      }),
+    })
     // Simulates `arbiter ship --advance` without repeating --chain.
     runTaskShip({ dir, advance: true })
     expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103'])

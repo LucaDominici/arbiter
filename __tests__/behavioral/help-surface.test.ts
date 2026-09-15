@@ -101,6 +101,19 @@ describe('arbiter --help — public 17-command surface (#1770 T5, T2 tier-3, #24
     expect(status).toBe(0)
     expect(stdout.toLowerCase()).toContain('init')
   })
+
+  it('describes multi-issue admission on ship, not task init', () => {
+    const source = readFileSync(join(REPO, 'src', 'cli.ts'), 'utf-8')
+    expect(source).toContain(
+      'Initialise / update one task; multi-issue admission belongs to `arbiter ship`',
+    )
+    expect(source).toContain(
+      'Refused by task init; use `arbiter ship` for complete affinity/qualification admission',
+    )
+    expect(source).toContain(
+      'Complete affinity components required by every multi-issue seed, replacement, or append',
+    )
+  })
 })
 
 // ─── #2211: documented capability ⇒ CLI surface ───────────────────────────────

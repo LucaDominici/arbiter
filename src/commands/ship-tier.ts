@@ -264,7 +264,10 @@ function resolvedModel(
     reasons.push('model escalated after a new material risk')
     return nextModel(model)
   }
-  if (outcome === 'no-progress') {
+  if (
+    outcome === 'no-progress' ||
+    previous?.reasons.some((reason) => reason.startsWith('BLOCKED:')) === true
+  ) {
     reasons.push('BLOCKED: the current implementation approach made no progress')
   } else if (outcome !== undefined) {
     reasons.push(`infrastructure state: ${outcome}; model unchanged`)

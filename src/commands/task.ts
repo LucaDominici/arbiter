@@ -23,7 +23,6 @@ import {
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
-import { evaluateSeedSize, resolveTrainLimits } from './ship-train.js'
 import { UserFacingError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
@@ -352,37 +351,23 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   if (opts.id !== undefined) patch.taskId = opts.id
   if (opts.tier !== undefined) patch.tier = opts.tier
   if (opts.plan !== undefined) patch.plan = opts.plan
-  // #2102 — rejects a non-numeric id the same way `arbiter ship`'s primary-id normalizer does,
-  // so a chain id can never silently fail the pre-push `#<id>` commit-message scan it feeds.
+  // Keep malformed ids distinguishable from the multi-issue admission refusal below.
   if (opts.chainIds !== undefined) patch.chainIds = opts.chainIds.map(normalizeChainId)
-  // #2402 — the SAME train bound `arbiter ship` enforces. This writer had none, so
-  // `task init 1 2 ... 15` seeded a train no limit ever saw while `ship` refused the identical
-  // request; the positional-id sugar made that a one-line typo rather than fifteen flags.
-  assertSeedWithinTrainLimit(root, opts.id, patch.chainIds)
+  assertTaskInitSingleIssue(patch.chainIds)
   const branch = detectCurrentBranch(root)
   if (branch !== undefined) patch.branch = branch
   const state = writeUnifiedState(root, patch)
   appendLog(root, taskInitLog(state))
 }
 
-/**
- * #2402 — refuse a `task init` that would seed a train past `ship.train.maxChain`. Shares the
- * verdict with `arbiter ship`'s seed check (`evaluateSeedSize`) so the two writers of `chainIds`
- * cannot disagree about the bound.
- */
-function assertSeedWithinTrainLimit(
-  root: string,
-  taskId: string | undefined,
-  chainIds: readonly string[] | undefined,
-): void {
-  const verdict = evaluateSeedSize(
-    readUnifiedState(root),
-    taskId,
-    chainIds,
-    resolveTrainLimits(shipConfigFor(root)),
-  )
-  if (verdict.ok) return
-  const seal = { reason: 'max-chain' as const, detail: verdict.detail }
+/** `task init` has no admission inputs; multi-issue state must enter through `ship`. */
+function assertTaskInitSingleIssue(chainIds: readonly string[] | undefined): void {
+  if ((chainIds?.length ?? 0) === 0) return
+  const seal = {
+    reason: 'affinity' as const,
+    detail:
+      'task init cannot prove multi-issue admission; use `arbiter ship` with complete affinity and qualification signals',
+  }
   throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
 }
 

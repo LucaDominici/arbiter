@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { cleanupTestProject, createTestProject } from '../helpers.js'
 import { runTaskShip, shipStepFor } from '../../src/commands/task-ship.js'
-import { writeUnifiedState } from '../../src/commands/task-state.js'
+import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import {
   gatherTierSignals,
   resolveShipTreatment,
@@ -408,6 +408,40 @@ describe('runTaskShip deterministic widening (#2180)', () => {
         gatherTierSignals: completeSignals,
       }),
     ).toThrow(/BLOCKED.*no progress/i)
+
+    const blockedModel = readUnifiedState(dir)?.treatment?.modelCapability
+
+    expect(() =>
+      runTaskShip({
+        dir,
+        taskId: '#2180',
+        tier: 'XS',
+        gatherTierSignals: completeSignals,
+      }),
+    ).toThrow(/BLOCKED.*no progress/i)
+
+    expect(() =>
+      runTaskShip({
+        dir,
+        taskId: '#2180',
+        tier: 'XS',
+        executionOutcome: 'timeout',
+        gatherTierSignals: completeSignals,
+      }),
+    ).toThrow(/BLOCKED.*no progress/i)
+
+    const resumed = runTaskShip({
+      dir,
+      taskId: '#2180',
+      tier: 'XS',
+      executionOutcome: 'new-risk',
+      gatherTierSignals: completeSignals,
+    }).treatment
+    expect(blockedModel).toBe('economy')
+    expect(resumed.modelCapability).toBe('capable')
+    expect(resumed.reasons).not.toContain(
+      'BLOCKED: the current implementation approach made no progress',
+    )
   })
 })
 

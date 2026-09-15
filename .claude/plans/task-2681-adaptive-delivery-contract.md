@@ -7,6 +7,7 @@ files:
   - .claude/commands/review-code.md
   - .claude/commands/ship.md
   - .claude/plans/task-2681-adaptive-delivery-contract.md
+  - __tests__/behavioral/help-surface.test.ts
   - __tests__/commands/cross-model-review.test.ts
   - __tests__/commands/ship-review.test.ts
   - __tests__/commands/ship-tier.test.ts
@@ -14,6 +15,7 @@ files:
   - __tests__/commands/task-advance-gates.test.ts
   - __tests__/commands/task-ship.test.ts
   - __tests__/commands/task-state.test.ts
+  - __tests__/commands/task.test.ts
   - __tests__/config/affinity-batching-removed.test.ts
   - __tests__/coverage/task-ship.cov.test.ts
   - __tests__/docs/review-code-ssot.test.ts

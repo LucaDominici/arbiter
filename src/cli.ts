@@ -2035,13 +2035,15 @@ task
 
 task
   .command('init [ids...]')
-  .description('Initialise / update the unified task document (#1206)')
+  .description(
+    'Initialise / update one task; multi-issue admission belongs to `arbiter ship` (#1206)',
+  )
   .option('--id <id>', 'Task id, e.g. #1206')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
   .option('--plan <path>', 'Repo-relative path to the plan file')
   .option(
     '--chain <id>',
-    'Other issue id batched into this task worktree/gate/PR (repeatable, #2102)',
+    'Refused by task init; use `arbiter ship` for complete affinity/qualification admission',
     (v: string, acc: string[]) => [...acc, v],
     [] as string[],
   )
@@ -2172,18 +2174,21 @@ program
   )
   .option(
     '--chain <id>',
-    'Other issue id batched into this ship worktree/gate/PR (repeatable, #2102)',
+    'Other issue id admitted to this ship train; requires --affinity and complete qualification',
     (v: string, acc: string[]) => [...acc, v],
     [] as string[],
   )
   .option(
     '--chain-add <id>',
-    'Append an issue to the open train, or refuse if it must seal first (repeatable, #2331)',
+    'Append an issue to the open train; requires --affinity and complete qualification',
     (v: string, acc: string[]) => [...acc, v],
     [] as string[],
   )
   .option('--seal', 'Seal the open train now — land it before starting another (#2331)', false)
-  .option('--affinity <json>', 'Complete affinity components required by --chain-add')
+  .option(
+    '--affinity <json>',
+    'Complete affinity components required by every multi-issue seed, replacement, or append',
+  )
   .option(
     '--outcome <outcome>',
     'Last attempt result: new-risk|no-progress|timeout|oom|rate-limit|tool-unavailable|ci-queue',

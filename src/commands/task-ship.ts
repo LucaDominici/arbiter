@@ -39,7 +39,6 @@ import {
   gatherTierSignals,
   normTier,
   resolveShipTreatment,
-  widenTier,
   type ShipTreatment,
   type ShipExecutionOutcome,
   type ShipTier,
@@ -783,22 +782,21 @@ function shipTreatmentFor(
  * enforced by the underlying gates (a red gate throws and is surfaced to the caller).
  */
 /**
- * #2331 — grow the open train by one or more ids, or refuse and tell the caller to land it.
+ * Validate every chain seed, replacement, and append before it can mutate task state.
  *
  * Runs BEFORE `seedShipState` so a refused append leaves the document exactly as it was: a
  * sealed train must not half-apply. Throws rather than returning a verdict because every caller
- * (CLI, orchestrator) must stop — `--chain-add` is a request that either takes effect or does
- * not.
+ * must stop when admission fails.
  *
- * The tier for the appended issue is widened from `XS`, never from the train's current tier: the
- * question is whether THIS issue is risk-bearing, and seeding from a train that is already
- * Standard would seal every subsequent append for the wrong reason.
+ * Each candidate resolves from `XS`, never from the train's current tier: the question is whether
+ * that issue is independently risk-bearing.
  */
 function trainSignalsFor(
   root: string,
   opts: TaskShipOptions,
   state: UnifiedTaskState | null,
   now: Date,
+  additions: readonly string[],
   chainSize = (state?.taskId ? 1 : 0) + (state?.chainIds ?? []).length,
 ): TrainSignals {
   const gather = opts.gatherTierSignals ?? gatherTierSignals
@@ -807,11 +805,11 @@ function trainSignalsFor(
     chainSize,
     openedAt: state?.timestamps.chainOpened,
     now,
-    // Widen once per appended id; the strongest verdict across them decides.
-    widenedTier: (opts.chainAddIds ?? []).reduce<ShipTier>(
-      (acc, raw) => widenTier(acc, gather(root, normalizeChainId(raw))),
-      'XS',
-    ),
+    // Resolve every candidate through the same fail-closed treatment as /ship.
+    widenedTier: additions.reduce<ShipTier>((acc, raw) => {
+      const tier = resolveShipTreatment('XS', gather(root, normalizeChainId(raw))).tier
+      return tier === 'Standard' || acc === 'Standard' ? 'Standard' : tier === 'S' ? 'S' : acc
+    }, 'XS'),
     explicitSeal: opts.seal === true,
     ...(opts.trainAffinity !== undefined ? { affinity: opts.trainAffinity } : {}),
   }
@@ -819,25 +817,24 @@ function trainSignalsFor(
 
 interface ChainAddContext {
   signalState: UnifiedTaskState | null
+  additions: readonly string[]
   currentSize: number
   projectedSize: number
 }
 
 function chainAddContext(opts: TaskShipOptions, state: UnifiedTaskState | null): ChainAddContext {
-  const additions = opts.chainAddIds ?? []
   const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
   const taskChanged = shipTaskChanged(state, taskId)
-  const existing =
-    opts.chainIds !== undefined
-      ? opts.chainIds.map(normalizeChainId)
-      : taskChanged
-        ? []
-        : (state?.chainIds ?? [])
+  const existing = taskChanged ? [] : (state?.chainIds ?? [])
+  const replacement = opts.chainIds?.map(normalizeChainId)
+  const base = replacement ?? existing
+  const additions = appendChainIds([], [...(replacement ?? []), ...(opts.chainAddIds ?? [])])
   const primaryCount = hasShipTaskId(taskId) ? 1 : 0
   return {
     signalState: taskChanged ? null : state,
-    currentSize: primaryCount + existing.length,
-    projectedSize: primaryCount + appendChainIds(existing, additions).length,
+    additions,
+    currentSize: primaryCount + (replacement === undefined ? existing.length : 0),
+    projectedSize: primaryCount + appendChainIds(base, opts.chainAddIds ?? []).length,
   }
 }
 
@@ -848,9 +845,9 @@ function assertChainAddAllowed(
   now: Date,
   limits: TrainLimits,
 ): AffinityVerdict {
-  const { signalState, currentSize, projectedSize } = chainAddContext(opts, state)
+  const { signalState, additions, currentSize, projectedSize } = chainAddContext(opts, state)
   const currentVerdict = evaluateSeal(
-    trainSignalsFor(root, opts, signalState, now, currentSize),
+    trainSignalsFor(root, opts, signalState, now, additions, currentSize),
     limits,
   )
   if (currentVerdict.sealed) {
@@ -872,10 +869,10 @@ function prepareChainAdd(
   opts: TaskShipOptions,
   limits: TrainLimits,
 ): { additions: readonly string[]; now: Date; affinity: AffinityVerdict } | null {
-  const additions = opts.chainAddIds ?? []
+  const state = readUnifiedState(root)
+  const additions = chainAddContext(opts, state).additions
   if (additions.length === 0 && opts.seal !== true) return null
 
-  const state = readUnifiedState(root)
   const now = opts.now ?? new Date()
   const affinity = assertChainAddAllowed(root, opts, state, now, limits)
   return { additions, now, affinity }
@@ -945,7 +942,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const treatment = shipTreatmentFor(root, state, opts)
   const tier = treatment.tier
   writeUnifiedState(root, { tier, treatment })
-  if (opts.executionOutcome === 'no-progress') {
+  if (treatment.reasons.some((reason) => reason.startsWith('BLOCKED:'))) {
     appendLog(root, 'ship → BLOCKED: current implementation approach made no progress')
     throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
   }
