@@ -34,6 +34,7 @@ const PARSE_HELP_AND_DIR_CONSUMERS = [
   'scripts/check-docker-action-runner-safety.mjs',
   'scripts/check-workflow-test-integrity.mjs',
   'scripts/check-workflow-parallelism.mjs',
+  'scripts/check-unwired-guards.mjs',
   'scripts/check-secret-presence.mjs',
   'scripts/check-continue-on-error.mjs',
 ]
@@ -54,6 +55,7 @@ const EMITTED_TEMPLATES = [
   'check-workflow-test-integrity.mjs.ejs',
   'check-secret-presence.mjs.ejs',
   'check-continue-on-error.mjs.ejs',
+  'check-unwired-guards.mjs.ejs',
   'check-pr-size-gate.mjs.ejs',
   'check-suppression-expiry.mjs.ejs',
   'check-suppression-rationale.mjs.ejs',
@@ -97,6 +99,15 @@ describe('#2675 Codex round-3 — --dir=value is accepted (real scripts)', () =>
       expect(r.stdout).not.toMatch(/Usage:/)
     })
   }
+
+  it('check-unwired-guards refuses --dir -h instead of treating the value as help', () => {
+    const r = spawnSync('node', [resolve('scripts/check-unwired-guards.mjs'), '--dir', '-h'], {
+      encoding: 'utf-8',
+    })
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/--dir requires a path argument/)
+    expect(r.stdout).not.toMatch(/Usage:/)
+  })
 })
 
 describe('#2675 Codex round-3 — the emitted templates carry the same fail-closed guard', () => {
@@ -122,6 +133,17 @@ describe('#2675 Codex round-3 — the emitted templates carry the same fail-clos
       })
     })
   }
+
+  it('the emitted unwired-guards script refuses --dir -h', () => {
+    const r = spawnSync(
+      'node',
+      [emittedScriptPath('check-unwired-guards.mjs.ejs'), '--dir', '-h'],
+      { encoding: 'utf-8' },
+    )
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/--dir requires a path argument/)
+    expect(r.stdout).not.toMatch(/Usage:/)
+  })
 })
 
 describe('#2675 Codex round-3 — check-suppression-expiry --max-days rejects NaN', () => {

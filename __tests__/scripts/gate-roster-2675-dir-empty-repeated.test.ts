@@ -30,6 +30,7 @@ const PARSE_HELP_AND_DIR_CONSUMERS = [
   'scripts/check-docker-action-runner-safety.mjs',
   'scripts/check-workflow-test-integrity.mjs',
   'scripts/check-workflow-parallelism.mjs',
+  'scripts/check-unwired-guards.mjs',
   'scripts/check-secret-presence.mjs',
   'scripts/check-continue-on-error.mjs',
 ]
