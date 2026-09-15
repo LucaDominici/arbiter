@@ -15,7 +15,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
-import { collectMetrics, spawnOrSkip } from '../../scripts/debt-lib.mjs'
+import { collectMetrics, countTodos, spawnOrSkip } from '../../scripts/debt-lib.mjs'
 
 const ROOT = join(__dirname, '..', '..')
 
@@ -39,6 +39,28 @@ describe('debt-lib complexity ratchet scope (#1523/#1542)', () => {
     // The complexityViolations collector must pass both paths so the gate code is
     // ratcheted alongside product code.
     expect(source).toMatch(/'eslint',\s*'src',\s*'scripts'/)
+  })
+})
+
+describe('debt-lib orphan work metric (#2550)', () => {
+  it('counts real orphan comments across the gate fileset without counting mentions', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-debt-todo-'))
+    try {
+      mkdirSync(join(dir, 'src'), { recursive: true })
+      writeFileSync(
+        join(dir, 'src', 'markers.mjs'),
+        [
+          `// TO${'DO'}: real work`,
+          `// TO${'DO'}(#123): tracked work`,
+          `const marker = "// TO${'DO'}: data"`,
+          `// This explains the form // TO${'DO'}: example only`,
+        ].join('\n'),
+      )
+
+      expect(countTodos(dir)).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
 
