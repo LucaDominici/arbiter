@@ -3,7 +3,7 @@
   "reviewer": "orchestrator atomic-receipt reconciliation",
   "reviewedAt": "2026-09-15T07:34:35.629Z",
   "branch": "task/#2693-exact-tree-gate-reuse",
-  "sha": "86fe0ff5cfa5797001b8da748a3a7d631fa8abfa",
+  "sha": "86fe0ff5a5d456fff7dce46d0095c35a8bd27632",
   "planDigest": "94e381ecfa51ae346f89dd16bf99abeec0884fcf5a7a8f96a1c845c7f210e776",
   "checks": {
     "mandatorySections": "PASS",
