@@ -38,7 +38,12 @@
       "__tests__/githooks/pre-push-reuse-evidence.test.ts",
       "examples/ts-library/.githooks/pre-push",
       "examples/python-library/.githooks/pre-push",
-      "examples/go-library/.githooks/pre-push"
+      "examples/go-library/.githooks/pre-push",
+      "scripts/lib/gate-evidence.mjs",
+      "src/templates/scripts/lib/gate-evidence.mjs.ejs",
+      "examples/ts-library/scripts/lib/gate-evidence.mjs",
+      "examples/python-library/scripts/lib/gate-evidence.mjs",
+      "examples/go-library/scripts/lib/gate-evidence.mjs"
     ]
   },
   "files": [
@@ -184,6 +189,26 @@
     },
     {
       "path": "examples/go-library/.githooks/pre-push",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/lib/gate-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/lib/gate-evidence.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/lib/gate-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/lib/gate-evidence.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/lib/gate-evidence.mjs",
       "operation": "modify"
     }
   ],

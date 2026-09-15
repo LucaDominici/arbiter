@@ -597,7 +597,7 @@ function flag(argv, name, fallback) {
 function main(argv) {
   if (argv[0] !== 'verify') {
     process.stderr.write('usage: gate-evidence.mjs verify [--root d] [--min-level L2]')
-    process.stderr.write(' [--max-age-min n] [--task-id id] [--marker path]\n')
+    process.stderr.write(' [--max-age-min n] [--task-id id] [--marker path] [--print-head]\n')
     process.exit(2)
   }
   const root = flag(argv, 'root', process.cwd())
@@ -613,6 +613,10 @@ function main(argv) {
     process.exit(1)
   }
   const marker = JSON.parse(readFileSync(markerPath, 'utf-8'))
+  if (argv.includes('--print-head')) {
+    process.stdout.write(marker.head_sha)
+    return
+  }
   const ageMin = Math.round((Date.now() - Date.parse(marker.timestamp)) / 60_000)
   process.stdout.write(
     `${marker.level} evidence for ${String(marker.head_sha).slice(0, 12)} (verified ${ageMin} min ago)`,

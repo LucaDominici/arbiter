@@ -1,10 +1,10 @@
 {
   "verdict": "PASS",
-  "reviewer": "orchestrator frozen-receipt reconciliation",
-  "reviewedAt": "2026-09-15T07:32:14.961Z",
+  "reviewer": "orchestrator atomic-receipt reconciliation",
+  "reviewedAt": "2026-09-15T07:34:35.629Z",
   "branch": "task/#2693-exact-tree-gate-reuse",
-  "sha": "1455e367c8ebcb9dd946558b267e382452970410",
-  "planDigest": "20ea8ac86a687f86f97099ac593a911bf08b7208a3d7e3b4cb1c1ce96df34940",
+  "sha": "86fe0ff5cfa5797001b8da748a3a7d631fa8abfa",
+  "planDigest": "94e381ecfa51ae346f89dd16bf99abeec0884fcf5a7a8f96a1c845c7f210e776",
   "checks": {
     "mandatorySections": "PASS",
     "acceptanceNarrowingRecorded": "PASS",

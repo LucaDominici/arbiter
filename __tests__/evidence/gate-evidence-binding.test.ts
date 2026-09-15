@@ -112,6 +112,29 @@ describe('#2328 gate-evidence binding — negative control', () => {
     const dir = track(makeRepo())
     expect(verify(markerFor(dir), dir, { taskId: '#2328' })).toEqual({ ok: true })
   })
+
+  it('CLI returns the full SHA from the same verified marker snapshot', () => {
+    const dir = track(makeRepo())
+    const marker = markerFor(dir)
+    const markerPath = join(dir, '.arbiter', 'gate-pass.json')
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(markerPath, JSON.stringify(marker))
+    const result = spawnSync(
+      process.execPath,
+      [
+        join(process.cwd(), 'scripts', 'lib', 'gate-evidence.mjs'),
+        'verify',
+        '--root',
+        dir,
+        '--marker',
+        markerPath,
+        '--print-head',
+      ],
+      { encoding: 'utf-8' },
+    )
+    expect(result.status).toBe(0)
+    expect(result.stdout).toBe(marker.head_sha)
+  })
 })
 
 describe('#2328 gate-evidence binding — shape and schema fail closed', () => {

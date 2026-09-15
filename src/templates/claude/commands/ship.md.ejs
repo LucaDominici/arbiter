@@ -642,11 +642,10 @@ When the script is absent (brownfield trees predating its emission, ADR-110), no
 
 ```bash
 git fetch origin main
-if ! node scripts/lib/gate-evidence.mjs verify --min-level <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>L3<% } else { -%>L2<% } -%> >/dev/null; then
+if ! frozen_head=$(node scripts/lib/gate-evidence.mjs verify --min-level <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>L3<% } else { -%>L2<% } -%> --print-head); then
   echo "qualified receipt is missing or stale: return to verification"
   exit 1
 fi
-frozen_head=$(node -e 'const m=require("./.arbiter/gate-pass.json"); if (!/^[0-9a-f]{40}$/.test(m.head_sha)) process.exit(1); process.stdout.write(m.head_sha)')
 if [ "$(git rev-parse HEAD)" != "$frozen_head" ]; then
   echo "HEAD changed after qualification: return to review and verification"
   exit 1

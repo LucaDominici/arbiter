@@ -36,6 +36,8 @@ files:
   - __tests__/templates/ship-driver-render.test.ts  # direct landing preserves frozen receipt
   - __tests__/commands/ship-profile.test.ts         # existing feature reaches the resolved profile
   - __tests__/evidence/gate-evidence-binding.test.ts     # staged-after-commit rejection
+  - scripts/lib/gate-evidence.mjs                       # print SHA from verified marker snapshot
+  - src/templates/scripts/lib/gate-evidence.mjs.ejs     # emitted verifier twin
   - scripts/record-agent-return.mjs                     # align reviewer recorder with trunk-solo /ship
   - src/templates/scripts/record-agent-return.mjs.ejs   # emitted twin of recorder alignment
   - src/commands/task-state.ts                          # carry schema-validated collaboration mode
@@ -52,8 +54,8 @@ files:
   - examples/{ts-library,python-library,go-library}/.arbiter-generated-manifest.json
   - .arbiter/evidence/tdd/#2693.json                # committed TDD evidence
 
-Not edited (read as contract): `scripts/lib/gate-evidence.mjs` (+ `.ejs` twin), `src/evidence/gate-binding.ts`,
-`scripts/check-all.mjs`, and `scripts/done-evidence.mjs` (+ `.ejs`).
+Not edited (read as contract): `src/evidence/gate-binding.ts`, `scripts/check-all.mjs`, and
+`scripts/done-evidence.mjs` (+ `.ejs`).
 The existing consumer/start-end tests retain the other identity and invalidation boundaries.
 
 Existing Code Survey (CANON-16): no new `src/` file. Reuse `verifyGateEvidence` rank semantics
