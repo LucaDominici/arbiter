@@ -1,0 +1,15 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "adversarial-verifier",
+  "role": "verifier",
+  "taskId": "#2686",
+  "verdict": "PASS",
+  "confidence": 0.95,
+  "findings": [],
+  "refutations": [],
+  "evidenceRefs": [".arbiter/evidence/ac-fit/2686.json"],
+  "branch": "task/#2686-verify-plan-tdd-dir",
+  "sha": "121ae5cb1858b4fbf08025cd42567decbb25f5a6",
+  "ts": "2026-09-15T02:16:27.411888Z",
+  "provenance": { "vendor": "openai", "dispatch": "subagent" }
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "RedTeamEvidenceV1",
+  "task_id": "#2686",
+  "tier": "Standard",
+  "verdict": "PASS",
+  "recorded_at": "2026-09-15T01:59:29.703975Z",
+  "agents": 3,
+  "angles": [
+    "data-integrity",
+    "correctness",
+    "simplicity"
+  ],
+  "reviewers": [
+    {
+      "agent": "/root/2686_redteam_integrity",
+      "verdict": "PASS",
+      "dispatch": "subagent"
+    },
+    {
+      "agent": "/root/2686_plan_review",
+      "verdict": "PASS",
+      "dispatch": "subagent"
+    },
+    {
+      "agent": "/root/2686_root_trace",
+      "verdict": "PASS",
+      "dispatch": "subagent"
+    }
+  ],
+  "findings": [
+    {
+      "id": "RT-2686-01",
+      "severity": "MEDIUM",
+      "summary": "A RED receipt that omits the build cannot replay a built-CLI test because dist is ignored.",
+      "resolved": true,
+      "action": "Plan now requires the recorded test_command to build dist in the isolated RED checkout."
+    },
+    {
+      "id": "RT-2686-02",
+      "severity": "LOW",
+      "summary": "Initial invariant mapping and TDD normalization wording were inaccurate.",
+      "resolved": true,
+      "action": "Corrected to INV-25/26/53/96/131/138 and existing target pass-through."
+    },
+    {
+      "id": "RT-2686-03",
+      "severity": "LOW",
+      "summary": "Focused sibling evidence routing rerun was redundant.",
+      "resolved": true,
+      "action": "Removed from focused loop; L1 still covers repository regression."
+    }
+  ],
+  "critical": 0,
+  "high": 0,
+  "medium": 1,
+  "suggestion": 2,
+  "limits": "Implementation and built-CLI behavior remain to be proven through TDD and exact-head review."
+}

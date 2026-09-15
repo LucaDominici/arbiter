@@ -1,0 +1,57 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2686",
+  "branch": "task/#2686-verify-plan-tdd-dir",
+  "sha": "121ae5cb1858b4fbf08025cd42567decbb25f5a6",
+  "plan_sha256": "054ffbf52b814475503ad0610a7202fad562014a6b101d66acb68eecf8e08c30",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/cli.ts", "line": 1494 },
+        { "file": "src/cli.ts", "line": 1497 },
+        { "file": "__tests__/cli/verify-plan-tdd-dir-routing.test.ts", "line": 156 }
+      ],
+      "notes": "Both aliases and both option positions load the selected project's blocking plugin and persist REVIEW.json under that project."
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "src/cli.ts", "line": 1577 },
+        { "file": "src/evidence/tdd-reexecute.ts", "line": 58 },
+        { "file": "__tests__/cli/verify-plan-tdd-dir-routing.test.ts", "line": 194 },
+        { "file": "__tests__/cli/verify-plan-tdd-dir-routing.test.ts", "line": 214 }
+      ],
+      "notes": "Absolute A/B inversions and a relative target replay through a real target-local dependency all use the selected project."
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "__tests__/cli/verify-plan-tdd-dir-routing.test.ts", "line": 181 },
+        { "file": "__tests__/cli/verify-plan-tdd-dir-routing.test.ts", "line": 217 }
+      ],
+      "notes": "No-dir plan and TDD controls preserve cwd behavior, JSON envelopes and exit codes."
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "__tests__/cli/verify-plan-tdd-dir-routing.test.ts", "line": 155 },
+        { "file": "__tests__/cli/verify-plan-tdd-dir-routing.test.ts", "line": 194 }
+      ],
+      "notes": "The regression invokes the built dist/cli.js for plan and TDD cases."
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        { "file": "docs/REFERENCE/evidence-summary-schema.md", "line": 41 }
+      ],
+      "notes": "The reference distinguishes relative, absolute and omitted --dir behavior."
+    }
+  ],
+  "limits": "No verifier schema, output taxonomy, plan-file semantics or new mechanism was introduced."
+}

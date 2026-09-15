@@ -1,0 +1,21 @@
+{
+  "task": "#2686",
+  "threshold": "high",
+  "skeptics": 3,
+  "findings": [],
+  "round": "review-3-forced",
+  "evaluated": [
+    {
+      "id": "CR-2686-01",
+      "upheld": 2,
+      "refuted": 0,
+      "decision": "fixed in one bounded batch; exact relative target replay passes"
+    },
+    {
+      "id": "CR-2686-02",
+      "upheld": 2,
+      "refuted": 0,
+      "decision": "test identity strengthened from TAP fail 1 to fail 2; no fourth review round"
+    }
+  ]
+}
