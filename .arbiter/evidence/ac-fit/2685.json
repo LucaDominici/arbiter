@@ -202,10 +202,10 @@
     }
   ],
   "branch": "task/#2685-native-ship-host",
-  "sha": "b1f9f785fdbaf5809f8b940419b2553af298e958",
+  "sha": "a83f33eb5ac8a97c1c3b7eb7a3976347626db3da",
   "planHash": "630018a5f390bbb64422f3081b88bcf92c21832f",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2685/2685-2687-acfit-verifier-2.json",
-    "sha256": "549c10d847b38445405ccfef9a6c7704b6728263020fd52a0fda6b456ef0b103"
+    "path": ".arbiter/evidence/agent-returns/_2685/2685-2687-acfit-verifier-3.json",
+    "sha256": "992caf85302a3d2574c2a2804476d4096d13e15ea1693f4321c4e672c443cd99"
   }
 }
