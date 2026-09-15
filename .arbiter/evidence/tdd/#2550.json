@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2550",
+  "test_path": "__tests__/scripts/debt-lib-buffer.test.ts",
+  "test_commit_sha": "64cc16ccfe5fc0b74ff6a90610e4334451b01bca",
+  "test_blob_sha": "0f3336b70ff612c3f207452f44b7145b6a9b91b6",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/debt-lib-buffer.test.ts (10 tests | 1 failed) 252ms\n     × counts real orphan comments across the gate fileset without counting mentions 4ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 9 passed (10)\n   Start at  13:20:15\n   Duration  374ms (transform 25ms, setup 6ms, import 33ms, tests 252ms, environment 0ms)\n\n\n[baseline] ERROR: vitest coverage summary unreadable: ENOENT: no such file or directory, open '/tmp/arbiter-debt-lib-2202-BbYnEI/.coverage-tmp/coverage-summary.json' — exit 0 — vitest version unknown — .coverage-tmp NOT created\n[baseline] ERROR: jscpd scanned 0 source files — fileset/config drift; refusing to record 0% (fail-closed, CANON-22 / #1286). Check .jscpd.json \"path\" entries exist.\n[baseline] ERROR: jscpd scanned 0 source files — fileset/config drift; refusing to record 0% (fail-closed, CANON-22 / #1286). Check .jscpd.json \"path\" entries exist.\n[baseline] ERROR: gate coverage summary unreadable: coverage summary is stale: /tmp/arbiter-debt-lib-2202-8KztEq/coverage-summary.json\n[baseline] ERROR: jscpd scanned 0 source files — fileset/config drift; refusing to record 0% (fail-closed, CANON-22 / #1286). Check .jscpd.json \"path\" entries exist.\n[baseline] ERROR: vitest coverage summary unreadable: ENOENT: no such file or directory, open '/tmp/arbiter-debt-lib-2202-zyku71/.coverage-tmp/coverage-summary.json' — exit 0 — vitest version unknown — .coverage-tmp NOT created\n[baseline] ERROR: jscpd scanned 0 source files — fileset/config drift; refusing to record 0% (fail-closed, CANON-22 / #1286). Check .jscpd.json \"path\" entries exist.\n[baseline] ERROR: vitest coverage summary unreadable: ENOENT: no such file or directory, open '/tmp/arbiter-debt-lib-2202-7U0Yi4/.coverage-tmp/coverage-summary.json' — exit 1 — RUN v4.1.10 /tmp/runner/work/arbiter/arbiter — .coverage-tmp NOT created — stdout: RUN v4.1.10 /tmp/runner/work/arbiter/arbiter | Failed Tests: 1 | verify-commands.test.ts > verify tdd #551 — stderr: Error: coverage provider v8 failed to start\n[baseline] ERROR: jscpd scanned 0 source files — fileset/config drift; refusing to record 0% (fail-closed, CANON-22 / #1286). Check .jscpd.json \"path\" entries exist.\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/debt-lib-buffer.test.ts > debt-lib orphan work metric (#2550) > counts real orphan comments across the gate fileset without counting mentions\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/debt-lib-buffer.test.ts:60:31\n     58|       )\n     59|\n     60|       expect(countTodos(dir)).toBe(1)\n       |                               ^\n     61|     } finally {\n     62|       rmSync(dir, { recursive: true, force: true })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/debt-lib-buffer.test.ts",
+  "recorded_at": "2026-09-15T11:20:15.982Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/debt-lib-buffer.test.ts"
+  ]
+}
