@@ -448,14 +448,7 @@ function recordAcceptanceFit(parsed, schema) {
 }
 
 function routedPanelRequirement(state, sha) {
-  let trunkSolo = false
-  try {
-    trunkSolo =
-      JSON.parse(readFileSync(join(REPO_ROOT, 'arbiter.json'), 'utf8')).collaborationMode ===
-      'trunk-solo'
-  } catch {
-    // Missing or malformed config keeps the stricter collaborative default.
-  }
+  const trunkSolo = state.collaborationMode === 'trunk-solo'
   const baseCount =
     state.tier === 'Standard'
       ? trunkSolo

@@ -37,15 +37,20 @@ files:
   - __tests__/evidence/gate-evidence-binding.test.ts     # staged-after-commit rejection
   - scripts/record-agent-return.mjs                     # align reviewer recorder with trunk-solo /ship
   - src/templates/scripts/record-agent-return.mjs.ejs   # emitted twin of recorder alignment
+  - src/commands/task-state.ts                          # carry schema-validated collaboration mode
+  - src/commands/task.ts                                # persist validated mode during task init
+  - __tests__/commands/task.test.ts                     # task-state writer contract
   - __tests__/scripts/record-agent-return-modes.test.ts  # one-reviewer trunk-solo regression
   - __tests__/evidence/done-evidence-sequence.test.ts    # final L3 reuse without a second gate
   - __tests__/githooks/pre-push-reuse-evidence.test.ts  # stronger final receipt reused at push
+  - docs/REFERENCE/task-recovery.md                    # durable lifecycle and review contract
   - examples/{ts-library,python-library,go-library}/.claude/commands/ship.md
+  - examples/{ts-library,python-library,go-library}/scripts/record-agent-return.mjs
   - examples/{ts-library,python-library,go-library}/.arbiter-generated-manifest.json
   - .arbiter/evidence/tdd/#2693.json                # committed TDD evidence
 
 Not edited (read as contract): `scripts/lib/gate-evidence.mjs` (+ `.ejs` twin), `src/evidence/gate-binding.ts`,
-`scripts/check-all.mjs`, `scripts/done-evidence.mjs` (+ `.ejs`), `.githooks/pre-push`, `src/commands/task.ts`.
+`scripts/check-all.mjs`, `scripts/done-evidence.mjs` (+ `.ejs`), `.githooks/pre-push`.
 The existing consumer/start-end tests retain the other identity and invalidation boundaries.
 
 Existing Code Survey (CANON-16): no new `src/` file. Reuse `verifyGateEvidence` rank semantics
@@ -137,10 +142,11 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
    so that fallback cannot overwrite the final receipt. The final gate runs before the transition into
    `close`, whose entry guard already requires a valid marker.
    Trunk-solo direct-merge block `L2` → the same final-level wording.
-3. `record-agent-return.mjs` + emitted twin — use the existing `collaborationMode` axis when deriving
-   the Standard panel minimum: one reviewer for `trunk-solo`, two for collaborative modes, while the
-   existing routed risk escalation remains three. This closes the measured #2681 mismatch where
-   `/ship` prescribed one reviewer but its recorder rejected fewer than two.
+3. `task init` + `record-agent-return.mjs` and its emitted twin — load `collaborationMode` through the
+   canonical schema validator, persist it in unified task state, and derive the Standard panel minimum
+   from that state: one reviewer for `trunk-solo`, two for collaborative modes, while the existing routed
+   risk escalation remains three. Missing state keeps the stricter collaborative default. This closes the
+   measured #2681 mismatch without letting unvalidated raw config weaken the guard.
 4. No change to writer, verifier, done-evidence, pre-push or engine guards. They already reuse by rank
    and reject every invalidation boundary.
 
@@ -154,7 +160,8 @@ Local JSON is identity binding, not authenticity; CI reruns the gate (unchanged 
 (a) passing a dirty or staged receipt off as committed proof — stays rejected (`clean=false`).
 (b) A lower-level marker satisfying D — rank check. (c) Replaying another task's or checkout's marker —
 `task_id`, `checkout_root`. (d) Mutating source after the final gate, then pushing on the old receipt —
-`tree_hash`/`head_sha`. (e) Receipt reused post-merge after marker rewrite — digest pin. The change only
+`tree_hash`/`head_sha`. (e) Receipt reused post-merge after marker rewrite — digest pin. (f) A parseable
+but schema-invalid raw config lowers the review panel — recorder trusts only validated task state. The change only
 reorders prescribed commands; it removes no axis.
 
 ## Input validation
@@ -162,6 +169,7 @@ reorders prescribed commands; it removes no axis.
 Trust boundary is the marker/receipt files read by the verifier twins; unchanged. `evidenceHarness` is
 read through existing `loadConfig` (throws on malformed config); a missing config → non-harness → `L2`,
 which matches K's non-harness requirement, so it cannot select a level below what completion needs.
+The same validator supplies `collaborationMode` to task state; the recorder never reparses raw config.
 
 ## Idiomatic patterns & pitfalls
 
@@ -223,7 +231,7 @@ Landing route supported: yes (trunk-solo + pr-ff).
 | AC-6 | review of diff | only existing `arbiter-gate-pass-v3` marker used; no new file format |
 | AC-7 | lifecycle test | reuse messages (pre-push `PRE-PUSH: reusing green`, done-evidence reuse line) and `durationMs` in `local-result.json` remain present; none add an exit path |
 | AC-10 | existing emission/bake parity + grep assertion | both ship texts contain the same final-level order |
-| AC-11 | `record-agent-return-modes.test.ts` | trunk-solo accepts one reviewer; existing collaborative and routed-escalation cases remain green |
+| AC-11 | `task.test.ts`, `record-agent-return-modes.test.ts` | task init persists a validated mode; trunk-solo accepts one reviewer; raw invalid config cannot lower the collaborative minimum; routed escalation remains green |
 
 Baseline (issue comments, before): L1 132,967 / 134,311 / 137,054 / 134,090–137,668 ms; L2 247,322–253,423 ms;
 L3 245,955–273,288 ms. Totals per slice: 656,658 ms (#2691), 932,229 ms (#2686), 1,178,722 ms (#2698).

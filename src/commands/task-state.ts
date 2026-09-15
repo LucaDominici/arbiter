@@ -110,6 +110,8 @@ export interface UnifiedTaskState {
   cursor: StepCursor
   /** Task branch name, when known (stamped by `arbiter task init`). */
   branch?: string
+  /** Schema-validated delivery mode consumed by local evidence guards. */
+  collaborationMode?: 'trunk-solo' | 'peer-review' | 'gated-review'
   /** Exact Claude project/session tuple established before worktree lifecycle writes (#2685). */
   hostBinding?: {
     worktreePath: string

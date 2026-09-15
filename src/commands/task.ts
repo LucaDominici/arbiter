@@ -338,6 +338,8 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   // #2102 — rejects a non-numeric id the same way `arbiter ship`'s primary-id normalizer does,
   // so a chain id can never silently fail the pre-push `#<id>` commit-message scan it feeds.
   if (opts.chainIds !== undefined) patch.chainIds = opts.chainIds.map(normalizeChainId)
+  const config = loadConfig(root)
+  if (config?.collaborationMode !== undefined) patch.collaborationMode = config.collaborationMode
   // #2402 — the SAME train bound `arbiter ship` enforces. This writer had none, so
   // `task init 1 2 ... 15` seeded a train no limit ever saw while `ship` refused the identical
   // request; the positional-id sugar made that a one-line typo rather than fifteen flags.

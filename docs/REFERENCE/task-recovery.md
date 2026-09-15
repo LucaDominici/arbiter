@@ -222,6 +222,7 @@ the legacy files migrates it transparently (seed + delete) on first access.
 | `runId`                | `<pid>-<epoch-ms>` — unique per process invocation                                |
 | `gateDecisions`        | Gate pass/fail records                                                            |
 | `hostBinding`          | Exact Claude worktree, branch, session and transcript established by preflight    |
+| `collaborationMode`    | Schema-validated delivery mode used by local review guards                        |
 
 Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
 update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file
@@ -238,8 +239,11 @@ Non-Claude recorders do not require Claude hooks.
 
 Final review evidence is recorded once per routed panel with
 `record-agent-return.mjs --mode reviewer-panel`; the recorder derives panel size from the frozen
-diff and fails closed when an installed router errors. Generated projects, which intentionally do
-not include the router, use the same conservative changed-path escalation. The adversarial verifier
+diff and the validated `collaborationMode` persisted by `task init`. Trunk-solo Standard work uses
+one independent reviewer, collaborative Standard work uses two, and routed sensitive changes still
+require three. Missing task state keeps the stricter collaborative default; the recorder never trusts
+raw configuration. Generated projects, which intentionally do not include the router, use the same
+conservative changed-path escalation. The adversarial verifier
 uses `--mode ac-fit`; every PASS citation must resolve at the exact recorded SHA before the fit can
 be admitted.
 
@@ -250,6 +254,8 @@ in HEAD, unchanged in the index/worktree, and produced after the merge-base with
 Missing origin/main is unverifiable provenance and prevents verification. Commit genuine RED
 receipts before advancing; whole-chain provenance is not required at green.
 
+Verification commits review evidence, then runs one clean-HEAD L3 gate when the evidence harness is
+active (L2 otherwise). Close and done-evidence reuse that receipt while the candidate is unchanged.
 The close and complete transitions validate `.arbiter/gate-pass.json` before writing
 the phase (L1 and L2 respectively). The marker must be valid for the current HEAD and branch and have
 `tree_was_clean_at_run_time: true`; missing, corrupt, stale, or dirty-tree markers fail closed.

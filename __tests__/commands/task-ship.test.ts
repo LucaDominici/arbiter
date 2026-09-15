@@ -559,6 +559,20 @@ describe('ship final-gate action ordering', () => {
     expect(sequence.match(/check-all\.mjs/g)).toHaveLength(1)
     expect(close.action).toContain('Reuse the qualified clean-HEAD receipt')
   })
+
+  it('pins the selected final level to every delivery consumer requirement', () => {
+    const taskSource = readFileSync(join(process.cwd(), 'src', 'commands', 'task.ts'), 'utf8')
+    const doneSource = readFileSync(join(process.cwd(), 'scripts', 'done-evidence.mjs'), 'utf8')
+    const prePushSource = readFileSync(join(process.cwd(), '.githooks', 'pre-push'), 'utf8')
+
+    expect(taskSource).toContain("function checkGatePassMarkerGate(dir: string, minLevel = 'L2')")
+    expect(taskSource).toContain("checkGatePassMarkerGate(dir, 'L1')")
+    expect(doneSource).toContain("minLevel: 'L3'")
+    expect(prePushSource).toContain('--min-level L2')
+    expect(
+      shipStepFor('verification', 'Standard', profile({ evidenceHarness: true })).command,
+    ).toBe('node scripts/check-all.mjs L3')
+  })
 })
 
 describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)', () => {

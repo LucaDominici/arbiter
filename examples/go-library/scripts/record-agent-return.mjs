@@ -448,16 +448,15 @@ function recordAcceptanceFit(parsed, schema) {
 }
 
 function routedPanelRequirement(state, sha) {
-  let trunkSolo = false
-  try {
-    trunkSolo =
-      JSON.parse(readFileSync(join(REPO_ROOT, 'arbiter.json'), 'utf8')).collaborationMode ===
-      'trunk-solo'
-  } catch {
-    // Missing or malformed config keeps the stricter collaborative default.
-  }
+  const trunkSolo = state.collaborationMode === 'trunk-solo'
   const baseCount =
-    state.tier === 'Standard' ? (trunkSolo ? 1 : 2) : state.tier === 'XS' || state.tier === 'S' ? 1 : 0
+    state.tier === 'Standard'
+      ? trunkSolo
+        ? 1
+        : 2
+      : state.tier === 'XS' || state.tier === 'S'
+        ? 1
+        : 0
   if (baseCount === 0) throw new Error(`unsupported task tier ${String(state.tier)}`)
   const changed = execFileSync('git', ['diff', '--name-only', `origin/main...${sha}`], {
     cwd: REPO_ROOT,

@@ -87,6 +87,7 @@ beforeEach(() => {
       plan: 'plan.md',
       branch: 'task/#42-fit',
       tier: 'Standard',
+      collaborationMode: 'peer-review',
     }),
   )
 })
@@ -214,7 +215,9 @@ describe('record-agent-return evidence modes (#2687)', () => {
   })
 
   it('accepts the single reviewer prescribed for a trunk-solo Standard task', () => {
-    writeFileSync(join(root, 'arbiter.json'), JSON.stringify({ collaborationMode: 'trunk-solo' }))
+    const statusPath = join(root, '.claude', '.task', 'status.json')
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'))
+    writeFileSync(statusPath, JSON.stringify({ ...status, collaborationMode: 'trunk-solo' }))
     const reviewer = {
       ...envelope(),
       agent: 'independent-review',
@@ -228,6 +231,24 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(
       JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
     ).toMatchObject({ count: 1, agents: ['independent-review'], taskId: '#42' })
+  })
+
+  it('does not lower the panel from an unvalidated raw config', () => {
+    writeFileSync(
+      join(root, 'arbiter.json'),
+      JSON.stringify({ collaborationMode: 'trunk-solo', features: null }),
+    )
+    const reviewer = {
+      ...envelope(),
+      agent: 'independent-review',
+      role: 'reviewer',
+      acceptanceFit: undefined,
+    }
+
+    const result = recordPanel([reviewer])
+
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/requires 2/i)
   })
 
   it('fails closed when the canonical reviewer router is unavailable', () => {

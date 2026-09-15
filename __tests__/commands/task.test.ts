@@ -8,7 +8,7 @@ vi.mock('../../src/capabilities/host-probe.js', () => ({
 }))
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createTestProject, cleanupTestProject } from '../helpers.js'
+import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
@@ -115,6 +115,17 @@ describe('runTaskAdvance', () => {
       tier: 'Standard',
       plan: '.claude/plans/2135.md',
     })
+  })
+
+  it('persists the schema-validated collaboration mode for delivery guards', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify(makeConfig(dir, { collaborationMode: 'trunk-solo' })),
+    )
+
+    runTaskInit({ dir, id: '#2681', tier: 'Standard' })
+
+    expect(readUnifiedState(dir)?.collaborationMode).toBe('trunk-solo')
   })
 })
 
