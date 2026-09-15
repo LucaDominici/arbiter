@@ -42,17 +42,16 @@ import {
 import { arg } from './lib/gate-args.mjs'
 import { computeAcHash, parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
 
-let nativeHostBindingError
-if (process.env.CLAUDE_CODE_SESSION_ID) {
-  ;({ nativeHostBindingError } = await import('../.claude/hooks/lib.mjs'))
-}
-
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const repoDefault = resolve(__dirname, '..')
 
 const argv = process.argv.slice(2)
 const TASK_ID = arg('task', argv)
 const MODE = arg('mode', argv) ?? 'return'
+let nativeHostBindingError
+if (MODE !== 'return' && process.env.CLAUDE_CODE_SESSION_ID) {
+  ;({ nativeHostBindingError } = await import('../.claude/hooks/lib.mjs'))
+}
 const PROVENANCE_VENDOR = arg('provenance-vendor', argv)
 const PROVENANCE_CLI = arg('provenance-cli', argv)
 const PROVENANCE_CLI_VERSION = arg('provenance-cli-version', argv)
