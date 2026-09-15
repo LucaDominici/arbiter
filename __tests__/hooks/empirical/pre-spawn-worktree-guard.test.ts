@@ -103,6 +103,31 @@ afterEach(() => {
 })
 
 describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
+  it('#2685 blocks a main-root read-only dispatch for a task opened in another worktree', () => {
+    const dir = track(setup())
+    const worktree = track(`${dir}.worktrees/100`)
+    mkdirSync(join(worktree, '..'), { recursive: true })
+    execFileSync('git', ['worktree', 'add', '-b', 'task/100', worktree], {
+      cwd: dir,
+      stdio: 'ignore',
+    })
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'worktree-open.log.json'),
+      JSON.stringify([{ taskId: '#100', worktreePath: worktree, branch: 'task/100' }]),
+    )
+
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'codebase-scanner', prompt: 'scan #100' } },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/bound to another worktree/i)
+  })
+
   it('#2685 blocks even a read-only dispatch when the native session is not the bound worktree', () => {
     const dir = track(setup())
     writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })

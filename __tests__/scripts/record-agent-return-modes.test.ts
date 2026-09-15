@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const RECORDER = new URL('../../scripts/record-agent-return.mjs', import.meta.url).pathname
@@ -126,6 +126,25 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(readFileSync(path, 'utf8')).toBe(before)
   })
 
+  it('rejects same-ID plan text drift without writing a replacement envelope or fit', () => {
+    expect(record(envelope()).status).toBe(0)
+    const fitPath = join(root, '.arbiter', 'evidence', 'ac-fit', '42.json')
+    const envelopeDir = join(root, '.arbiter', 'evidence', 'agent-returns', '_42')
+    const fitBefore = readFileSync(fitPath, 'utf8')
+    const envelopesBefore = readdirSync(envelopeDir)
+
+    writeFileSync(
+      join(root, 'plan.md'),
+      PLAN.replace('exact verifier result', 'changed verifier result'),
+    )
+    const drifted = record(envelope())
+
+    expect(drifted.status).toBe(1)
+    expect(drifted.stdout + drifted.stderr).toMatch(/plan.*drift|changed|frozen/i)
+    expect(readFileSync(fitPath, 'utf8')).toBe(fitBefore)
+    expect(readdirSync(envelopeDir)).toEqual(envelopesBefore)
+  })
+
   it('rejects fit admission after its recorded verifier envelope is changed', () => {
     expect(record(envelope()).status).toBe(0)
     const fit = JSON.parse(
@@ -204,4 +223,29 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(result.status).toBe(2)
     expect(result.stdout + result.stderr).toMatch(/reviewer panel|router/i)
   })
+
+  it.each(['.env.local', '.claude/settings.json'])(
+    'escalates generated-project review when %s changes without a router',
+    (changedPath) => {
+      rmSync(join(root, 'scripts', 'route-auditors.mjs'))
+      mkdirSync(dirname(join(root, changedPath)), { recursive: true })
+      writeFileSync(join(root, changedPath), '{}\n')
+      execFileSync('git', ['add', changedPath], { cwd: root })
+      execFileSync('git', ['commit', '-m', 'test: sensitive change'], {
+        cwd: root,
+        stdio: 'ignore',
+      })
+      const reviewers = ['review-a', 'review-b', 'review-c'].map((agent) => ({
+        ...envelope(),
+        agent,
+        role: 'reviewer',
+        acceptanceFit: undefined,
+      }))
+
+      const incomplete = recordPanel(reviewers.slice(0, 2))
+      expect(incomplete.status).toBe(1)
+      expect(incomplete.stdout + incomplete.stderr).toMatch(/requires 3/i)
+      expect(recordPanel(reviewers).status).toBe(0)
+    },
+  )
 })

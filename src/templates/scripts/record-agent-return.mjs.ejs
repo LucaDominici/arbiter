@@ -356,10 +356,29 @@ function recordAcceptanceFit(parsed, schema) {
     )
     return 1
   }
-  const planPath = join(REPO_ROOT, String(state.plan ?? '').split('#')[0])
-  const anchor = parsePlanAnchor(readFileSync(planPath, 'utf8'))
-  if (anchor === null) {
-    process.stdout.write('[record-agent-return] FAIL: active plan has no acceptance anchor\n')
+  const planPath = resolve(REPO_ROOT, String(state.plan ?? '').split('#')[0])
+  const trackedPlan = relative(REPO_ROOT, planPath)
+  let anchor
+  try {
+    if (!trackedPlan || trackedPlan === '..' || trackedPlan.startsWith('../'))
+      throw new Error('plan is outside repository')
+    const liveAnchor = parsePlanAnchor(readFileSync(planPath, 'utf8'))
+    anchor = parsePlanAnchor(
+      execFileSync('git', ['show', `${stamped.sha}:${trackedPlan}`], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      }),
+    )
+    if (
+      liveAnchor === null ||
+      anchor === null ||
+      computeAcHash(liveAnchor.criteria) !== computeAcHash(anchor.criteria)
+    )
+      throw new Error('active plan drifted from the frozen subject')
+  } catch (err) {
+    process.stdout.write(
+      `[record-agent-return] FAIL: frozen plan is unavailable or changed: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
     return 1
   }
   const criteriaIds = anchor.criteria.map((criterion) => criterion.id)
@@ -434,7 +453,7 @@ function routedPanelRequirement(state, sha) {
       .filter(Boolean)
       .some(
         (path) =>
-          /(^|\/)(auth|authz|crypto|secrets?|migrations?)(\/|$)|\.sql$|^\.github\/|^scripts\/|^\.claude\/hooks\//i.test(
+          /(^|\/)(auth|authz|crypto|secrets?|migrations?)(\/|$)|(^|\/)\.env[^/]*$|\.(sql|pem|key)$|^\.github\/|^\.githooks\/|^scripts\/|^\.claude\/(hooks\/|settings(?:\.[^/]+)?\.json$)|^src\/utils\/run-cli\.ts$/i.test(
             path,
           ),
       )

@@ -542,7 +542,30 @@ export function readTaskState(root) {
 /** Exact Claude project/session binding established by `task host-preflight` (#2685). */
 export function nativeHostBindingError(event, root) {
   const path = join(root, '.claude', '.task', 'status.json');
-  if (!existsSync(path)) return null;
+  if (!existsSync(path)) {
+    const taskIds = [...new Set(
+      typeof event?.tool_input?.prompt === 'string'
+        ? (event.tool_input.prompt.match(/#\d+/g) ?? [])
+        : []
+    )];
+    if (taskIds.length !== 1) return null;
+    try {
+      const actualRoot = realpathSync(root);
+      const common = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd: actualRoot, encoding: 'utf8' });
+      if (common.status !== 0) return null;
+      const logPath = join(dirname(resolve(actualRoot, common.stdout.trim())), '.arbiter', 'worktree-open.log.json');
+      if (!existsSync(logPath)) return null;
+      const rows = JSON.parse(readFileSync(logPath, 'utf8'));
+      const matches = Array.isArray(rows) ? rows.filter((row) => row?.taskId === taskIds[0]) : [];
+      if (matches.length === 0) return null;
+      if (matches.length !== 1) return 'exact native host worktree log binding is ambiguous';
+      if (realpathSync(matches[0].worktreePath) !== actualRoot)
+        return 'native lifecycle task is bound to another worktree';
+      return 'native lifecycle task state is missing from its worktree';
+    } catch {
+      return 'native lifecycle task binding cannot be corroborated';
+    }
+  }
   let state;
   try {
     state = JSON.parse(readFileSync(path, 'utf8'));
