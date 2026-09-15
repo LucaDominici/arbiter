@@ -451,7 +451,9 @@ export function verifyGateEvidenceFile(markerPath, opts = {}) {
   } catch (err) {
     return { ok: false, reason: `gate-pass marker unreadable at ${markerPath}: ${err.message}` }
   }
-  return verifyGateEvidence(parsed, opts)
+  const result = verifyGateEvidence(parsed, opts)
+  if (!result.ok || opts.includeMarker !== true) return result
+  return { ok: true, marker: parsed }
 }
 
 export function sanitizeTaskId(raw) {
@@ -607,12 +609,13 @@ function main(argv) {
     minLevel: flag(argv, 'min-level', 'L2'),
     maxAgeMin: Number(flag(argv, 'max-age-min', GATE_EVIDENCE_DEFAULT_TTL_MIN)),
     taskId: flag(argv, 'task-id', undefined),
+    includeMarker: true,
   })
   if (!result.ok) {
     process.stderr.write(`${result.reason}\n`)
     process.exit(1)
   }
-  const marker = JSON.parse(readFileSync(markerPath, 'utf-8'))
+  const marker = result.marker
   if (argv.includes('--print-head')) {
     process.stdout.write(marker.head_sha)
     return

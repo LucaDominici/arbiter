@@ -32,6 +32,7 @@ import {
   computeToolchainFingerprint,
   computeTreeHash,
   verifyGateEvidence,
+  verifyGateEvidenceFile,
 } from '../../scripts/lib/gate-evidence.mjs'
 import { GATE_PASS_POLICY } from '../../src/evidence/gate-binding.js'
 
@@ -134,6 +135,21 @@ describe('#2328 gate-evidence binding — negative control', () => {
     )
     expect(result.status).toBe(0)
     expect(result.stdout).toBe(marker.head_sha)
+  })
+
+  it('file verifier can return the marker snapshot it actually validated', () => {
+    const dir = track(makeRepo())
+    const marker = markerFor(dir)
+    const markerPath = join(dir, '.arbiter', 'gate-pass.json')
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(markerPath, JSON.stringify(marker))
+    const result = verifyGateEvidenceFile(markerPath, {
+      root: dir,
+      minLevel: 'L2',
+      includeMarker: true,
+    })
+    writeFileSync(markerPath, JSON.stringify({ ...marker, head_sha: 'f'.repeat(40) }))
+    expect(result).toMatchObject({ ok: true, marker: { head_sha: marker.head_sha } })
   })
 })
 
