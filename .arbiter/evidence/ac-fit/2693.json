@@ -1,0 +1,207 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2693",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/plans/task-2693-exact-tree-gate-reuse.md",
+          "line": 163
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 1069
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/gate-evidence-binding.test.ts",
+          "line": 234
+        },
+        {
+          "file": "src/templates/claude/commands/ship.md.ejs",
+          "line": 353
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/gate-evidence.mjs",
+          "line": 398
+        },
+        {
+          "file": "scripts/lib/gate-evidence.mjs",
+          "line": 414
+        },
+        {
+          "file": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
+          "line": 200
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 393
+        },
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 396
+        },
+        {
+          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
+          "line": 217
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".githooks/pre-push",
+          "line": 214
+        },
+        {
+          "file": ".githooks/pre-push",
+          "line": 217
+        },
+        {
+          "file": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
+          "line": 151
+        }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
+          "line": 163
+        },
+        {
+          "file": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
+          "line": 200
+        },
+        {
+          "file": "scripts/lib/gate-evidence.mjs",
+          "line": 414
+        }
+      ]
+    },
+    {
+      "id": "AC-7",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".githooks/pre-push",
+          "line": 221
+        },
+        {
+          "file": "__tests__/evidence/done-evidence-sequence.test.ts",
+          "line": 232
+        },
+        {
+          "file": ".claude/plans/task-2693-exact-tree-gate-reuse.md",
+          "line": 250
+        }
+      ]
+    },
+    {
+      "id": "AC-8",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 393
+        },
+        {
+          "file": "src/commands/task-ship.ts",
+          "line": 396
+        },
+        {
+          "file": "scripts/lib/gate-evidence.mjs",
+          "line": 421
+        }
+      ]
+    },
+    {
+      "id": "AC-9",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/evidence/gate-evidence-binding.test.ts",
+          "line": 234
+        },
+        {
+          "file": "scripts/lib/gate-evidence.mjs",
+          "line": 332
+        },
+        {
+          "file": "scripts/lib/gate-evidence.mjs",
+          "line": 400
+        }
+      ]
+    },
+    {
+      "id": "AC-10",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/claude/commands/ship.md.ejs",
+          "line": 100
+        },
+        {
+          "file": "src/templates/claude/commands/ship.md.ejs",
+          "line": 229
+        },
+        {
+          "file": "__tests__/commands/task-ship.test.ts",
+          "line": 242
+        }
+      ]
+    },
+    {
+      "id": "AC-11",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-state.ts",
+          "line": 113
+        },
+        {
+          "file": "scripts/record-agent-return.mjs",
+          "line": 451
+        },
+        {
+          "file": "scripts/record-agent-return.mjs",
+          "line": 492
+        },
+        {
+          "file": "__tests__/scripts/record-agent-return-modes.test.ts",
+          "line": 217
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2693-exact-tree-gate-reuse",
+  "sha": "f607de470829ce0c4bda76e34d7fcedd69206817",
+  "planHash": "a133a64178ee1e0571f487b018f1bf5b3fa95b40",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2693/2693-final-ac-fit-0.json",
+    "sha256": "8c0c41059aace173722a191a5e4d310aaeef354f3aa714a2f3db6d380325d987"
+  }
+}
