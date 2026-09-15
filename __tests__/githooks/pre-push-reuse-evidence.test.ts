@@ -160,6 +160,19 @@ describe('.githooks/pre-push — green-evidence reuse (skip redundant rerun)', (
     expect(r.stdout).toContain('pushed commit does not match HEAD')
   })
 
+  it('non-commit push subject → rejects before a useless gate', () => {
+    dir = setupRepo({ stamp: {} })
+    const blob = execFileSync('git', ['hash-object', '-w', '--stdin'], {
+      cwd: dir,
+      encoding: 'utf-8',
+      input: 'not a commit\n',
+    }).trim()
+    const r = runHook(dir, {}, `refs/tags/blob ${blob} refs/tags/blob ${'0'.repeat(40)}\n`)
+    expect(r.status).not.toBe(0)
+    expect(r.stubRan).toBe(false)
+    expect(r.stdout).toContain('pushed object is not a commit')
+  })
+
   it('HEAD moves during receipt verification → rejects before reuse', () => {
     dir = setupRepo({ stamp: null })
     writeFileSync(
