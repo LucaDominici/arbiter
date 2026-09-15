@@ -1,1 +1,1 @@
-{"count":3,"agents":["final-bugs","final-types","final-test-quality"],"auditors":["bugs","type-safety","domain","test-quality","silent-failures"],"branch":"task/#2550-debt-todo-truth","sha":"2967ac88d13aec6dc37b93c53728d95ecaeb712e","taskId":"#2550"}
+{"count":3,"agents":["final-bugs-r3","final-test-quality-r3","final-silent-failures-r3"],"auditors":["bugs","type-safety","domain","test-quality","silent-failures"],"branch":"task/#2677-absence-flips","sha":"358e35e7a948c1c82a08647a2ee098c394f2d607","taskId":"#2677"}

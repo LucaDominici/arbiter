@@ -1,0 +1,107 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2677",
+  "criteria": [
+    {
+      "id": "AC-2677.1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/plans/task-2677-absence-flips.md",
+          "line": 40
+        },
+        {
+          "file": "scripts/check-unwired-guards.mjs",
+          "line": 43
+        },
+        {
+          "file": "src/templates/scripts/check-unwired-guards.mjs.ejs",
+          "line": 43
+        },
+        {
+          "file": "scripts/lib/guard-flip-registry.mjs",
+          "line": 705
+        },
+        {
+          "file": "scripts/lib/guard-flip-registry.mjs",
+          "line": 721
+        },
+        {
+          "file": "scripts/lib/guard-flip-registry.mjs",
+          "line": 737
+        },
+        {
+          "file": "__tests__/scripts/gate-roster-2675-flip-proofs.test.ts",
+          "line": 101
+        }
+      ]
+    },
+    {
+      "id": "AC-2677.2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/plans/task-2677-absence-flips.md",
+          "line": 42
+        },
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 65
+        },
+        {
+          "file": "scripts/data/inversion-proof-registry.json",
+          "line": 25
+        },
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 301
+        },
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 305
+        },
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 309
+        },
+        {
+          "file": "__tests__/scripts/gate-roster-2675-absence-promotion.test.ts",
+          "line": 50
+        }
+      ]
+    },
+    {
+      "id": "AC-2677.3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/plans/task-2677-absence-flips.md",
+          "line": 44
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 375
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 377
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 378
+        },
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 837
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2677-absence-flips",
+  "sha": "358e35e7a948c1c82a08647a2ee098c394f2d607",
+  "planHash": "2924adf648cae49f67f319e05195aef59b46c9be",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2677/final-ac-fit-r3-0.json",
+    "sha256": "f0a650f5ff68c1b22107d741f1ed0a561939b98d19dd730e1ce7cf39a0647aa0"
+  }
+}
