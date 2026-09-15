@@ -44,6 +44,8 @@ files:
   - __tests__/scripts/record-agent-return-modes.test.ts  # one-reviewer trunk-solo regression
   - __tests__/evidence/done-evidence-sequence.test.ts    # final L3 reuse without a second gate
   - __tests__/githooks/pre-push-reuse-evidence.test.ts  # stronger final receipt reused at push
+  - .githooks/pre-push                                  # bind qualification to the pushed commit
+  - src/templates/githooks/pre-push.ejs                 # emitted twin of push-subject binding
   - docs/REFERENCE/task-recovery.md                    # durable lifecycle and review contract
   - examples/{ts-library,python-library,go-library}/.claude/commands/ship.md
   - examples/{ts-library,python-library,go-library}/scripts/record-agent-return.mjs
@@ -51,7 +53,7 @@ files:
   - .arbiter/evidence/tdd/#2693.json                # committed TDD evidence
 
 Not edited (read as contract): `scripts/lib/gate-evidence.mjs` (+ `.ejs` twin), `src/evidence/gate-binding.ts`,
-`scripts/check-all.mjs`, `scripts/done-evidence.mjs` (+ `.ejs`), `.githooks/pre-push`.
+`scripts/check-all.mjs`, and `scripts/done-evidence.mjs` (+ `.ejs`).
 The existing consumer/start-end tests retain the other identity and invalidation boundaries.
 
 Existing Code Survey (CANON-16): no new `src/` file. Reuse `verifyGateEvidence` rank semantics
@@ -143,7 +145,9 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
    so that fallback cannot overwrite the final receipt. The final gate runs before the transition into
    `close`, whose entry guard already requires a valid marker.
    Trunk-solo direct landing performs no rebase or second gate after freeze: it captures the qualified
-   SHA, rejects an advanced `origin/main`, then pushes that exact SHA.
+   SHA, rejects an advanced `origin/main`, then pushes that exact SHA. The canonical pre-push hook
+   consumes Git's ref-update input and fails closed if the commit being pushed differs from HEAD or
+   HEAD moves while the receipt or fallback gate is evaluated.
 3. `task init` + `record-agent-return.mjs` and its emitted twin — load `collaborationMode` through the
    canonical schema validator, persist it in unified task state, and derive the Standard panel minimum
    from that state: one reviewer for `trunk-solo`, two for collaborative modes, while the existing routed

@@ -66,7 +66,7 @@
     ".env.example": "d1d006084de62566cfa2e00c779ae175892cae98e05320296477e9f5f0c7799c",
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",
     ".githooks/pre-commit": "7596e6686ec9424d9d8d9f559312a93aae17582a9fe187d1696e47dc325921d7",
-    ".githooks/pre-push": "56baca40e7ffd5d062a08284846c25ee22d4b82d606b6dbbaf2f7b91fc11041f",
+    ".githooks/pre-push": "f87ea6c8e48e073428d60ee2a2aef6eab3d212881e25bba3bfc074c5fe510feb",
     ".nvmrc": "0775c6feb7638122e8b68d611cd709bf270f7b5adb5d0d2baa9afab8a6c0fc42",
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",

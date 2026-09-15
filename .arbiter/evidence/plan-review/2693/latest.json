@@ -1,10 +1,10 @@
 {
   "verdict": "PASS",
-  "reviewer": "orchestrator round-2 finding reconciliation",
-  "reviewedAt": "2026-09-15T07:23:18.787Z",
+  "reviewer": "orchestrator round-2 root-cause reconciliation",
+  "reviewedAt": "2026-09-15T07:29:47.557Z",
   "branch": "task/#2693-exact-tree-gate-reuse",
-  "sha": "f2678f633a1ff2803a7ee3bbe705a37d926ddb94",
-  "planDigest": "7519bf5f19d1734b7e7c0fa1360bc04b4998190968bb444c3d73135b067513cb",
+  "sha": "1c34d07582023957cb68594e1e47b9051ea4f2c5",
+  "planDigest": "0433c2d9a1846d0c50906c11c47dc89211aa050c851b2904a85d2b90568acab5",
   "checks": {
     "mandatorySections": "PASS",
     "acceptanceNarrowingRecorded": "PASS",

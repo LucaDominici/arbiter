@@ -22,6 +22,28 @@ fi
 # Unset git hook env vars so nested git calls in scripts work correctly.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 
+# Bind the gate to the commit(s) Git will actually push. A single checkout can
+# qualify only one commit; different pushed commits need separate qualified runs.
+PUSH_SUBJECT_SHA=""
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  [ -z "$local_sha" ] && continue
+  pushed_commit=$(git rev-parse --verify "$local_sha^{commit}" 2>/dev/null) || continue
+  if [ -n "$PUSH_SUBJECT_SHA" ] && [ "$PUSH_SUBJECT_SHA" != "$pushed_commit" ]; then
+    echo "Error: one pre-push gate cannot qualify multiple commits; push them separately."
+    exit 1
+  fi
+  PUSH_SUBJECT_SHA="$pushed_commit"
+done
+
+push_subject_matches_head() {
+  [ -z "$PUSH_SUBJECT_SHA" ] || [ "$(git rev-parse HEAD 2>/dev/null)" = "$PUSH_SUBJECT_SHA" ]
+}
+
+if ! push_subject_matches_head; then
+  echo "Error: pushed commit does not match HEAD; check out and qualify the commit being pushed."
+  exit 1
+fi
+
 if [ -n "$(git status --porcelain | grep -v '^??')" ]; then
   echo "Error: working tree has uncommitted changes. Commit or stash before pushing."
   exit 1
@@ -179,11 +201,20 @@ fi
 if [ -f ".arbiter/gate-pass.json" ] && [ -f "scripts/lib/gate-evidence.mjs" ]; then
   if REUSE_MSG=$(node scripts/lib/gate-evidence.mjs verify \
        --min-level L2 --max-age-min "$ARBITER_PREPUSH_MAX_AGE_MIN" 2>/dev/null); then
+    if ! push_subject_matches_head; then
+      echo "Error: HEAD changed while pre-push evidence was being verified."
+      exit 1
+    fi
     echo "PRE-PUSH: reusing green $REUSE_MSG, skipping rerun"
     exit 0
   fi
 fi
 # ─── end green-evidence reuse ────────────────────────────────────────────────
+
+if ! push_subject_matches_head; then
+  echo "Error: HEAD changed before the pre-push gate started."
+  exit 1
+fi
 
 # ─── one gate per repo, foreground (#2427) ───────────────────────────────────
 # Both branches below launch the heavy gate through scripts/lib/gate-mutex.mjs,
@@ -201,3 +232,7 @@ ORIG_DIR="$(pwd -P)"
 
 
 node scripts/lib/gate-mutex.mjs run --dir "$ORIG_DIR" -- node scripts/check-all.mjs gate --json .arbiter/gate/local-result.json
+if ! push_subject_matches_head; then
+  echo "Error: HEAD changed while the pre-push gate ran."
+  exit 1
+fi

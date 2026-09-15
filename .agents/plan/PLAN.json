@@ -32,7 +32,13 @@
       "examples/go-library/scripts/record-agent-return.mjs",
       "examples/go-library/.arbiter-generated-manifest.json",
       "docs/REFERENCE/task-recovery.md",
-      "__tests__/templates/ship-driver-render.test.ts"
+      "__tests__/templates/ship-driver-render.test.ts",
+      ".githooks/pre-push",
+      "src/templates/githooks/pre-push.ejs",
+      "__tests__/githooks/pre-push-reuse-evidence.test.ts",
+      "examples/ts-library/.githooks/pre-push",
+      "examples/python-library/.githooks/pre-push",
+      "examples/go-library/.githooks/pre-push"
     ]
   },
   "files": [
@@ -154,6 +160,30 @@
     },
     {
       "path": "__tests__/templates/ship-driver-render.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": ".githooks/pre-push",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/githooks/pre-push.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.githooks/pre-push",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.githooks/pre-push",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.githooks/pre-push",
       "operation": "modify"
     }
   ],

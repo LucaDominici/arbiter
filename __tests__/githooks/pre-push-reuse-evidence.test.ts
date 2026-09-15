@@ -113,10 +113,11 @@ function setupRepo(opts: SetupOpts = {}): string {
   return dir
 }
 
-function runHook(dir: string, env: Record<string, string> = {}): RunResult {
+function runHook(dir: string, env: Record<string, string> = {}, input = ''): RunResult {
   const result = spawnSync('/usr/bin/bash', ['.githooks/pre-push'], {
     cwd: dir,
     encoding: 'utf-8',
+    input,
     env: {
       PATH: process.env.PATH ?? '/usr/bin:/bin',
       HOME: process.env.HOME ?? '/tmp',
@@ -140,10 +141,23 @@ describe('.githooks/pre-push — green-evidence reuse (skip redundant rerun)', (
 
   it('valid fresh stamp for HEAD (clean, L2, matching node) → SKIPS the rerun', () => {
     dir = setupRepo({ stamp: {} })
-    const r = runHook(dir)
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim()
+    const r = runHook(dir, {}, `refs/heads/task ${head} refs/heads/main ${head}\n`)
     expect(r.status).toBe(0)
     expect(r.stubRan).toBe(false)
     expect(r.stdout).toMatch(/reusing green L2 evidence/)
+  })
+
+  it('push subject differs from HEAD → rejects instead of qualifying the wrong commit', () => {
+    dir = setupRepo({ stamp: {}, advanceHeadAfterStamp: true })
+    const parent = execFileSync('git', ['rev-parse', 'HEAD^'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
+    const r = runHook(dir, {}, `refs/heads/task ${parent} refs/heads/main ${parent}\n`)
+    expect(r.status).not.toBe(0)
+    expect(r.stubRan).toBe(false)
+    expect(r.stdout).toContain('pushed commit does not match HEAD')
   })
 
   it('no stamp present → runs the full gate (no skip)', () => {
