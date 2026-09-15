@@ -162,6 +162,29 @@ describe('CANON-25 — wired invocation binding (#2572)', () => {
     expect(gate.argvSource).toBe("'--extensions', 'ts,tsx', String(level)")
   })
 
+  it('preserves nested expressions without treating their strings as argv (AC-1, AC-3)', () => {
+    const [strict, relaxed, inventory] = enumerateGateMechanisms(`
+      runCheck('strict', 'node', ['scripts/check-x.mjs', roots[0], '--strict'])
+      runCheck('relaxed', 'node', ['scripts/check-x.mjs', roots[0], '--relaxed'])
+      runCheck('inventory', 'node', [
+        'scripts/check-x.mjs',
+        resolve('src', 'components'),
+        '--inventory',
+        'inventory.json',
+      ])
+    `)
+    expect(strict.argv).toEqual(['--strict'])
+    expect(strict.argvSource).toBe("roots[0], '--strict'")
+    expect(relaxed.argvSource).toBe("roots[0], '--relaxed'")
+    expect(flipProofFor(relaxed, { strict: { kind: 'file-scan' } }, [strict])).toBeNull()
+    expect(inventory.argv).toEqual(['--inventory', 'inventory.json'])
+
+    withTmp((dir) => {
+      writeFileSync(join(dir, 'inventory.json'), '[]')
+      expect(wiredPathProblems([inventory], dir)).toEqual([])
+    })
+  })
+
   it('recognizes only the declared static path grammar (AC-1)', () => {
     withTmp((dir) => {
       writeFileSync(join(dir, 'config.json'), '{}')

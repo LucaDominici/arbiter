@@ -65,33 +65,104 @@ export const MIN_ABSENCE_FAMILY = 27
 // parsers) and were banked as new ledger rows instead — see inversion-proof-registry.json.
 export const MAX_DEFERRED = 22
 
+function readArgArray(source, start) {
+  let depth = 1
+  let quote = null
+  let escaped = false
+  let lineComment = false
+  let blockComment = false
+  for (let i = start; i < source.length; i++) {
+    const char = source[i]
+    const next = source[i + 1]
+    if (lineComment) {
+      if (char === '\n') lineComment = false
+      continue
+    }
+    if (blockComment) {
+      if (char === '*' && next === '/') {
+        blockComment = false
+        i++
+      }
+      continue
+    }
+    if (quote !== null) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === quote) quote = null
+      continue
+    }
+    if (char === '/' && next === '/') {
+      lineComment = true
+      i++
+    } else if (char === '/' && next === '*') {
+      blockComment = true
+      i++
+    } else if (char === "'" || char === '"' || char === '`') quote = char
+    else if (char === '[') depth++
+    else if (char === ']' && --depth === 0) return { source: source.slice(start, i), end: i }
+  }
+  throw new Error('unterminated runCheck argument array')
+}
+
+function topLevelArgs(source) {
+  const args = []
+  const stack = []
+  let start = 0
+  let quote = null
+  let escaped = false
+  for (let i = 0; i <= source.length; i++) {
+    const char = source[i]
+    if (quote !== null) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === quote) quote = null
+      continue
+    }
+    if (char === "'" || char === '"' || char === '`') quote = char
+    else if (char === '(' || char === '[' || char === '{') stack.push(char)
+    else if (char === ')' || char === ']' || char === '}') stack.pop()
+    else if ((char === ',' && stack.length === 0) || i === source.length) {
+      args.push({ raw: source.slice(start, i).trim(), end: i })
+      start = i + 1
+    }
+  }
+  return args
+}
+
+function singleQuotedLiteral(arg) {
+  return arg.raw.match(/^'((?:[^'\\]|\\.)*)'$/s)?.[1] ?? null
+}
+
 /**
  * Every mechanism invoked by check-all.mjs, in declaration order. Returns { name, tool, path }
  * where `path` is the scripts/ argument, or null for an off-the-shelf binary (external tool).
  */
 export function enumerateGateMechanisms(gateSrc) {
-  const re =
-    /run(?:Check|WarnCheck|ToolCheck)\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*'([^']*)'\s*,\s*\[([^\]]*)\]/gs
+  const re = /run(?:Check|WarnCheck|ToolCheck)\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*'([^']*)'\s*,\s*\[/gs
   const mechanisms = []
-  for (const m of gateSrc.matchAll(re)) {
-    const arraySource = m[3]
-    const script = [...arraySource.matchAll(/'((?:[^'\\]|\\.)*)'/g)].find((arg) =>
-      arg[1].startsWith('scripts/'),
-    )
+  let match
+  while ((match = re.exec(gateSrc)) !== null) {
+    const array = readArgArray(gateSrc, re.lastIndex)
+    const args = topLevelArgs(array.source)
+    const scriptIndex = args.findIndex((arg) => singleQuotedLiteral(arg)?.startsWith('scripts/'))
+    const script = scriptIndex >= 0 ? singleQuotedLiteral(args[scriptIndex]) : null
     const argvSource = script
-      ? arraySource
-          .slice((script.index ?? 0) + script[0].length)
+      ? array.source
+          .slice(args[scriptIndex].end)
           .replace(/^\s*,\s*/, '')
-          .replace(/,\s*$/, '')
           .trim()
       : ''
     mechanisms.push({
-      name: m[1],
-      tool: m[2],
-      path: script?.[1] ?? null,
-      argv: [...argvSource.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((arg) => arg[1]),
+      name: match[1],
+      tool: match[2],
+      path: script,
+      argv: args.slice(scriptIndex + 1).flatMap((arg) => {
+        const literal = singleQuotedLiteral(arg)
+        return literal === null ? [] : [literal]
+      }),
       argvSource,
     })
+    re.lastIndex = array.end + 1
   }
   return mechanisms
 }
