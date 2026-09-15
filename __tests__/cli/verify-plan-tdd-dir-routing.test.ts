@@ -113,9 +113,9 @@ function createTddFixture(root: string): { valid: string; malformed: string } {
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_AUTHOR_NAME: 'Arbiter fixture',
-    GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
+    GIT_AUTHOR_EMAIL: 'fixture.invalid',
     GIT_COMMITTER_NAME: 'Arbiter fixture',
-    GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
+    GIT_COMMITTER_EMAIL: 'fixture.invalid',
   }
   for (const args of [
     ['init', '-q'],
