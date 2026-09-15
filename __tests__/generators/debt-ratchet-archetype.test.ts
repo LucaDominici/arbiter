@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateDebtRatchet, computeMetricsProfile } from '../../src/generators/debt-ratchet.js'
 
@@ -152,7 +153,7 @@ describe('generateDebtRatchet with metricsProfile', () => {
     })
   }
 
-  it('TS+library: debt-lib.mjs contains publicApiSurface metric (#127)', () => {
+  it('TS+library: generated debt-lib executes the portable publicApiSurface metric (#127)', async () => {
     const libraryDir = createTestProject('typescript')
     initGit(libraryDir)
     try {
@@ -164,7 +165,25 @@ describe('generateDebtRatchet with metricsProfile', () => {
       generateDebtRatchet(config)
       const content = readFileSync(join(libraryDir, 'scripts', 'debt-lib.mjs'), 'utf-8')
       expect(content).toContain('publicApiSurface')
-      expect(content).toContain('countPublicApi(cwd)')
+
+      mkdirSync(join(libraryDir, 'scripts', 'lib'), { recursive: true })
+      mkdirSync(join(libraryDir, 'src'), { recursive: true })
+      writeFileSync(
+        join(libraryDir, 'scripts', 'lib', 'glob-walk.mjs'),
+        "export function walkRepo() { return ['src/binary-looking.ts'] }\n",
+      )
+      writeFileSync(
+        join(libraryDir, 'scripts', 'check-no-orphan-todo.mjs'),
+        "export const EXTENSIONS = new Set(['.ts']); export function findOrphanTodos() { return [] }\n",
+      )
+      writeFileSync(
+        join(libraryDir, 'src', 'binary-looking.ts'),
+        '\0fixture\nexport const visible = 1\n',
+      )
+      const generated = await import(
+        pathToFileURL(join(libraryDir, 'scripts', 'debt-lib.mjs')).href
+      )
+      expect(generated.countPublicApi(libraryDir)).toBe(1)
     } finally {
       cleanupTestProject(libraryDir)
     }
