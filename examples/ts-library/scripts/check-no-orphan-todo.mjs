@@ -56,16 +56,21 @@ export function findOrphanTodos(content, extension = '.ts') {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    if (quote !== '`') {
+      quote = null
+      escaped = false
+    }
     let found = false
     for (let j = 0; !found && j < line.length; ) {
       if (blockComment) {
         const rest = line.slice(j).trimStart()
         const comment = rest.startsWith('*') ? rest : `* ${rest}`
+        const end = line.indexOf('*/', j)
         if (ORPHAN_TODO_AT_COMMENT_START.test(comment)) {
+          if (end !== -1) blockComment = false
           found = true
           break
         }
-        const end = line.indexOf('*/', j)
         if (end === -1) break
         blockComment = false
         j = end + 2

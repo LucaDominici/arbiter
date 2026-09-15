@@ -44,6 +44,16 @@ describe('check-no-orphan-todo.mjs (orphan TODO enforcement)', () => {
     expect(findOrphanTodos(source, extension)).toHaveLength(expected)
   })
 
+  it('keeps scanning after an orphan closes its block comment', () => {
+    const source = `/*\n * ${MARKER}: first */\n// ${MARKER}: second`
+    expect(findOrphanTodos(source, '.ts')).toHaveLength(2)
+  })
+
+  it('does not carry a quote from a JavaScript regex into the next line', () => {
+    const source = `const apostrophe = /'/;\n// ${MARKER}: fix`
+    expect(findOrphanTodos(source, '.ts')).toHaveLength(1)
+  })
+
   it('exits 0 when all TODOs have issue IDs', () => {
     const { dir, cleanup } = makeDir()
     try {

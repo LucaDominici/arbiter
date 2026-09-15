@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "capturedAt": "2026-09-15T11:41:20.253Z",
-  "commit": "5a41e7b1",
+  "capturedAt": "2026-09-15T11:46:13.577Z",
+  "commit": "02433273",
   "archetype": "library",
   "metrics": {
     "coverageLine": {
-      "value": 96.53,
+      "value": 96.61,
       "unit": "percent",
       "direction": "higher-is-better"
     },
@@ -35,7 +35,7 @@
       "direction": "lower-is-better"
     },
     "duplicationPercentage": {
-      "value": 0.99119029436541,
+      "value": 0.991143475693761,
       "unit": "percent",
       "direction": "lower-is-better"
     },
