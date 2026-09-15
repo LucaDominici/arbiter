@@ -81,7 +81,8 @@ describe('check-acceptance gate', () => {
 
   it('fails (1) when the anchor has criteria without explicit AC-N ids', () => {
     writeState('red', 'plan.md', '## Acceptance Criteria\n- [ ] bare\n## Non-Goals\n- x')
-    expect(run().status).toBe(1)
+    const result = run()
+    expect(result.status, result.stderr + result.stdout).toBe(1)
   })
 
   it('passes (0) an implementation-phase task with a frozen anchor', () => {
@@ -141,6 +142,14 @@ describe('check-acceptance gate', () => {
     const r = run()
     expect(r.status).toBe(1)
     expect(r.stderr + r.stdout).toMatch(/ac-fit/i)
+  })
+
+  it('classifies a null late-phase ac-fit as evidence failure (1)', () => {
+    writeState('verification')
+    mkdirSync(join(root, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
+    writeFileSync(join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'), 'null')
+    const result = run()
+    expect(result.status, result.stderr + result.stdout).toBe(1)
   })
 
   it('rejects late-phase fit when live branch binding is absent', () => {

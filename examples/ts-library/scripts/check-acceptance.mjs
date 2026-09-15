@@ -306,7 +306,7 @@ function checkTaskFit(root, state, phase, planRef, criteriaIds) {
   if (existsSync(fitPath)) {
     const fit = readValidatedFit(fitPath, criteriaIds, late, state.taskId, root)
     const errors = fit.errors
-    if (late && fit.json !== undefined)
+    if (late && fit.errors.length === 0 && fit.json !== undefined)
       errors.push(...boundFitErrors(root, state, planRef, fit.json))
     if (errors.length > 0) {
       for (const e of errors) fail(e)
@@ -365,7 +365,8 @@ function readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, 
     return { errors: [`ac-fit artifact is not valid JSON: ${absPath}`] }
   }
   const errors = validateAcFit(json, criteriaIds, { requireAllPass, expectedTaskId })
-  if (root) errors.push(...enforceAcFitCitations(json, root, json.sha ?? 'HEAD', absPath))
+  if (root && errors.length === 0)
+    errors.push(...enforceAcFitCitations(json, root, json.sha ?? 'HEAD', absPath))
   return { json, errors }
 }
 
