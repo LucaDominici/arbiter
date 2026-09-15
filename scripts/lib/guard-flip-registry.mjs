@@ -437,10 +437,22 @@ export const FLIP_REGISTRY = {
   },
   'i18n raw strings': {
     kind: 'file-scan',
-    argv: (d) => [d],
-    // a user-facing throw carrying a raw literal instead of a t() key
-    plantBad: (d) => write(d, join('src', 'a.ts'), "throw new UserFacingError('a raw message')\n"),
-    plantClean: (d) => write(d, join('src', 'a.ts'), "throw new UserFacingError(t('a.key'))\n"),
+    argv: (d) => [join(d, 'src'), '--inventory', join(d, 'inventory.json')],
+    // The bad raw string is not covered by the loaded inventory.
+    plantBad: (d) => {
+      write(d, join('src', 'a.ts'), "throw new UserFacingError('a raw message')\n")
+      write(
+        d,
+        'inventory.json',
+        JSON.stringify([{ file: 'a.ts', text: "throw new UserFacingError('different')" }]),
+      )
+    },
+    // The same raw string is clean only when the inventory names its exact file and text.
+    plantClean: (d) => {
+      const text = "throw new UserFacingError('a raw message')"
+      write(d, join('src', 'a.ts'), `${text}\n`)
+      write(d, 'inventory.json', JSON.stringify([{ file: 'a.ts', text }]))
+    },
   },
   'no direct-fs outside the façade': {
     kind: 'file-scan',

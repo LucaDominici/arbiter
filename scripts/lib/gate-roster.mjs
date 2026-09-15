@@ -29,8 +29,8 @@
 // the very corollary this issue names (#2301 corollary 3). What the ledger's exemption actually
 // buys is bounded by `expires`, which a clock verifies in EVERY environment; `issue` is recorded
 // provenance and grants nothing on its own, so a fabricated number cannot widen the exemption.
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 /** Repo-relative path of the CANON-25 deferral ledger. */
 export const INVERSION_REGISTRY_PATH = 'scripts/data/inversion-proof-registry.json'
@@ -74,14 +74,66 @@ export function enumerateGateMechanisms(gateSrc) {
     /run(?:Check|WarnCheck|ToolCheck)\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*'([^']*)'\s*,\s*\[([^\]]*)\]/gs
   const mechanisms = []
   for (const m of gateSrc.matchAll(re)) {
-    const args = m[3].split(',').map((s) => s.trim().replace(/^'/, '').replace(/'$/, ''))
+    const arraySource = m[3]
+    const script = [...arraySource.matchAll(/'((?:[^'\\]|\\.)*)'/g)].find((arg) =>
+      arg[1].startsWith('scripts/'),
+    )
+    const argvSource = script
+      ? arraySource
+          .slice((script.index ?? 0) + script[0].length)
+          .replace(/^\s*,\s*/, '')
+          .replace(/,\s*$/, '')
+          .trim()
+      : ''
     mechanisms.push({
       name: m[1],
       tool: m[2],
-      path: args.find((a) => a.startsWith('scripts/')) ?? null,
+      path: script?.[1] ?? null,
+      argv: [...argvSource.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((arg) => arg[1]),
+      argvSource,
     })
   }
   return mechanisms
+}
+
+const STATIC_PATH_FLAGS = new Set(['--inventory', '--config'])
+const POSITIONAL_SELECTORS = new Set(['all'])
+
+/** Missing static scan/config inputs in the real wired invocation. */
+export function wiredPathProblems(family, repoRoot = process.cwd()) {
+  const problems = []
+  for (const gate of family) {
+    const argv = gate.argv ?? []
+    let beforeFlags = true
+    const checkPath = (value, source) => {
+      if (!value || !existsSync(resolve(repoRoot, value))) {
+        problems.push(`${gate.name}: wired ${source} path does not exist: ${value || '<missing>'}`)
+      }
+    }
+
+    for (let i = 0; i < argv.length; i++) {
+      const value = argv[i]
+      if (!value.startsWith('--')) {
+        if (beforeFlags && !POSITIONAL_SELECTORS.has(value)) checkPath(value, 'scan root')
+        continue
+      }
+
+      beforeFlags = false
+      const equals = value.match(/^(--(?:inventory|config))=(.*)$/)
+      if (equals) {
+        checkPath(equals[2], equals[1])
+        continue
+      }
+      if (!STATIC_PATH_FLAGS.has(value)) continue
+      const next = argv[i + 1]
+      if (next === undefined || next.startsWith('--')) checkPath('', value)
+      else {
+        checkPath(next, value)
+        i++
+      }
+    }
+  }
+  return problems
 }
 
 /**
@@ -517,7 +569,13 @@ function classifyMechanism(mech, tables, now) {
     const declared = tables.roster[mech.name]
     if (declared.script !== mech.path)
       throw rosterDriftError('ABSENCE_FAMILY_ROSTER', mech.name, declared.script, mech.path)
-    return { name: mech.name, script: mech.path, category: declared.category }
+    return {
+      name: mech.name,
+      script: mech.path,
+      category: declared.category,
+      argv: mech.argv,
+      argvSource: mech.argvSource,
+    }
   }
   if (hits[0] === 'NOT_ABSENCE') {
     const notAbsenceEntry = tables.notAbsence[mech.name]
@@ -577,7 +635,12 @@ export function deriveAbsenceFamily(
 export function flipProofFor(gate, registry, roster = []) {
   if (registry[gate.name]) return registry[gate.name]
   for (const other of roster) {
-    if (other.script === gate.script && registry[other.name]) return registry[other.name]
+    if (
+      other.script === gate.script &&
+      (other.argvSource ?? '') === (gate.argvSource ?? '') &&
+      registry[other.name]
+    )
+      return registry[other.name]
   }
   return null
 }

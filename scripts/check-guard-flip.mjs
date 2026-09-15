@@ -47,6 +47,7 @@ import {
   ABSENCE_FAMILY_ROSTER,
   NOT_ABSENCE,
   ABSENCE_EXEMPT,
+  wiredPathProblems,
 } from './lib/gate-roster.mjs'
 
 // Completeness surface = the aggregate roster PLUS the anti-context-rot gate roster
@@ -236,6 +237,7 @@ function absenceSurface() {
     )
   }
   const problems = auditInversionRegistry({ family, registry, now, pinnedCeiling })
+  problems.push(...wiredPathProblems(family))
   const deferred = new Set(registry.deferred.map((d) => d?.gate))
   const owing = family.filter((f) => !deferred.has(f.name))
   return { family, deferred, owing, problems }

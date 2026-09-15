@@ -8,7 +8,7 @@
 // must not.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { flipGuard } from '../../scripts/check-guard-flip.mjs'
@@ -276,6 +276,21 @@ describe('CANON-25 — wired invocation binding (#2572)', () => {
       )
       expect(harness.status).toBe(1)
       expect(`${harness.stdout}${harness.stderr}`).toMatch(/missing-src/)
+
+      mkdirSync(missing)
+      const restored = spawnSync(
+        'node',
+        [
+          HARNESS,
+          `--gate=${gate}`,
+          `--registry=${registry}`,
+          `--roster=${roster}`,
+          '--min-family=1',
+          '--max-deferred=0',
+        ],
+        { encoding: 'utf-8' },
+      )
+      expect(restored.status).toBe(0)
     })
   })
 
