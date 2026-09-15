@@ -164,7 +164,7 @@ describe('generateDebtRatchet with metricsProfile', () => {
       generateDebtRatchet(config)
       const content = readFileSync(join(libraryDir, 'scripts', 'debt-lib.mjs'), 'utf-8')
       expect(content).toContain('publicApiSurface')
-      expect(content).toContain('^export')
+      expect(content).toContain('countPublicApi(cwd)')
     } finally {
       cleanupTestProject(libraryDir)
     }
