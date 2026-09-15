@@ -30,7 +30,11 @@ import {
   resolveEvidenceCommit,
   tddEvidenceProducedOnBranch,
 } from '../evidence/git-checks.js'
-import { detectHostCapabilities } from '../capabilities/host-probe.js'
+import {
+  detectHostCapabilities,
+  resolveNativeHostBinding,
+  type NativeHostContext,
+} from '../capabilities/host-probe.js'
 import { loadConfig } from '../utils/config.js'
 import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../evidence/gate-binding.js'
 
@@ -134,6 +138,47 @@ export interface TaskInitOptions {
   plan?: string
   /** #2102 — `--chain <id>` (repeatable): other issue ids batched into this task's worktree. */
   chainIds?: string[]
+  /** Native-host test seam; CLI callers use the live process context. */
+  host?: NativeHostContext
+}
+
+export interface TaskHostPreflightOptions {
+  id: string
+  worktree: string
+  dir?: string
+  host?: NativeHostContext
+}
+
+export function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
+  const root = opts.dir ?? opts.worktree
+  const taskId = normalizeChainId(opts.id)
+  let hostBinding
+  try {
+    hostBinding = resolveNativeHostBinding(taskId, opts.worktree, opts.host)
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err)
+    throw new Error(
+      `${reason}\nRecovery: cd ${JSON.stringify(opts.worktree)} && ` +
+        'claude --resume "$CLAUDE_CODE_SESSION_ID" --fork-session --permission-mode auto',
+    )
+  }
+  writeUnifiedState(root, { taskId, branch: hostBinding.branch, hostBinding })
+  appendLog(root, `host-preflight ${taskId} session=${hostBinding.sessionId}`)
+  process.stdout.write(`host-preflight: OK — ${hostBinding.worktreePath}\n`)
+}
+
+function assertBoundClaudeHost(root: string, host: NativeHostContext = {}): void {
+  const env = host.env ?? process.env
+  if (!env['CLAUDE_CODE_SESSION_ID']) return
+  const state = readUnifiedState(root)
+  const binding = state?.hostBinding
+  if (!state?.taskId || !binding) {
+    throw new Error('native host binding is missing — run arbiter task host-preflight first')
+  }
+  const live = resolveNativeHostBinding(state.taskId, binding.worktreePath, host)
+  if (JSON.stringify(live) !== JSON.stringify(binding)) {
+    throw new Error('native host binding is stale — run arbiter task host-preflight again')
+  }
 }
 
 /**
@@ -142,6 +187,7 @@ export interface TaskInitOptions {
  */
 export function runTaskInit(opts: TaskInitOptions = {}): void {
   const root = opts.dir ?? process.cwd()
+  assertBoundClaudeHost(root, opts.host)
   const patch: TaskStatePatch = {}
   if (opts.id !== undefined) patch.taskId = opts.id
   if (opts.tier !== undefined) patch.tier = opts.tier

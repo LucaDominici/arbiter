@@ -22,22 +22,21 @@ wt-close #NNN [--harvest]    → reads log to find worktree path, removes it
 2. Run the arbiter worktree open command:
 
    ```bash
-   arbiter wt open <TASK_ID> [SLUG]
+   arbiter wt open <TASK_ID> [SLUG] --json
    ```
 
    Add `--base <branch>` if the user specified a base branch other than `main`.
 
-3. Parse the output:
-   - Worktree path: line starting with `Worktree ready:`.
-   - Branch name: line starting with `Branch:`.
-   - Base ref: line starting with `Base:`.
-   - Link status: line starting with `Links:`.
+3. Read `worktreePath`, `branch`, `baseBranch`, and `baseRef` from the JSON result. Never select a path by recency.
 
-4. Switch the session to the worktree:
+4. Start a fresh Claude project session from that exact directory. Shell-local `cd` does not rebind the current session or transcript.
 
    ```bash
    cd <worktree-path>
+   claude --resume "$CLAUDE_CODE_SESSION_ID" --fork-session --permission-mode auto
    ```
+
+   In the new session, run `arbiter task host-preflight --id <TASK_ID> --worktree <worktree-path>` before `task init` or agent dispatch.
 
 5. Print a summary with worktree path, branch, base ref, and link status.
 
@@ -51,7 +50,7 @@ wt-close #NNN [--harvest]    → reads log to find worktree path, removes it
 
 ## Allowed Tools
 
-- `Bash` for running `arbiter wt open` and `cd`.
+- `Bash` for running `arbiter wt open`, starting the worktree-rooted session, and host preflight.
 - `Read` for reading AGENTS.md in the worktree if needed.
 
 ## Notes

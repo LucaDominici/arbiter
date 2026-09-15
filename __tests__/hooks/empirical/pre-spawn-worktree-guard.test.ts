@@ -44,6 +44,28 @@ function writeSidecar(dir: string, entries: unknown[]): void {
   writeFileSync(join(arbiterDir, 'agents-active.json'), JSON.stringify(entries, null, 2) + '\n')
 }
 
+function bindHost(dir: string, sessionId = 'bound-session') {
+  const home = join(dir, 'home')
+  const transcript = join(
+    home,
+    '.claude',
+    'projects',
+    dir.replace(/[^A-Za-z0-9]/g, '-'),
+    `${sessionId}.jsonl`,
+  )
+  mkdirSync(join(transcript, '..'), { recursive: true })
+  writeFileSync(transcript, '{}\n')
+  mkdirSync(join(dir, '.claude', '.task'), { recursive: true })
+  writeFileSync(
+    join(dir, '.claude', '.task', 'status.json'),
+    JSON.stringify({
+      taskId: '#100',
+      hostBinding: { worktreePath: dir, branch: 'main', sessionId, transcriptPath: transcript },
+    }),
+  )
+  return { home, transcript, sessionId }
+}
+
 function runHook(
   dir: string,
   payload: Record<string, unknown>,
@@ -75,6 +97,41 @@ afterEach(() => {
 })
 
 describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
+  it('#2685 blocks even a read-only dispatch when the native session is not the bound worktree', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    const bound = bindHost(dir)
+    const result = runHook(
+      dir,
+      {
+        cwd: join(dir, '..'),
+        session_id: bound.sessionId,
+        transcript_path: bound.transcript,
+        tool_input: { subagent_type: 'codebase-scanner', prompt: 'scan #100' },
+      },
+      { ARBITER_SPAWN_GUARD_HARD: '1', HOME: bound.home },
+    )
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/native host root|outside the current repository/i)
+  })
+
+  it('#2685 allows the bound worktree session before the read-only fast path', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    const bound = bindHost(dir)
+    const result = runHook(
+      dir,
+      {
+        cwd: dir,
+        session_id: bound.sessionId,
+        transcript_path: bound.transcript,
+        tool_input: { subagent_type: 'codebase-scanner', prompt: 'scan #100' },
+      },
+      { ARBITER_SPAWN_GUARD_HARD: '1', HOME: bound.home },
+    )
+    expect(result.status).toBe(0)
+  })
+
   it('exits 2: unknown agent type + no isolation + a live writer already registered, hard grading', () => {
     const dir = track(setup())
     writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })

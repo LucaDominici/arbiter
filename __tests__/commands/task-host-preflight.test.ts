@@ -27,7 +27,7 @@ function setup() {
   mkdirSync(join(main, '.arbiter'), { recursive: true })
   writeFileSync(
     join(main, '.arbiter', 'worktree-open.log.json'),
-    JSON.stringify([{ task: '2685', worktreePath: worktree, branch: 'task/#2685-native-host' }]),
+    JSON.stringify([{ taskId: '#2685', worktreePath: worktree, branch: 'task/#2685-native-host' }]),
   )
   const sessionId = 'session-worktree-2685'
   const projectDir = join(home, '.claude', 'projects', worktree.replace(/[^A-Za-z0-9]/g, '-'))

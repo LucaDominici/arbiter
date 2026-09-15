@@ -45,6 +45,7 @@ import {
   runTaskRecover,
   runTaskResume,
   runTaskInit,
+  runTaskHostPreflight,
   runTaskGet,
   HandoffRequiredError,
 } from './commands/task.js'
@@ -1867,6 +1868,20 @@ task
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action((opts: { dir?: string }) => {
     runTaskResume({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
+  })
+
+task
+  .command('host-preflight')
+  .description('Bind the native Claude host to an exact task worktree before lifecycle writes')
+  .requiredOption('--id <id>', 'Task id, e.g. #2685')
+  .requiredOption('--worktree <path>', 'Exact path returned by worktree open --json')
+  .option('--dir <dir>', 'Target task directory (defaults to --worktree)')
+  .action((opts: { id: string; worktree: string; dir?: string }) => {
+    runTaskHostPreflight({
+      id: opts.id,
+      worktree: opts.worktree,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
   })
 
 /**

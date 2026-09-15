@@ -3,16 +3,9 @@
 // Hook type: UserPromptSubmit — fires before every user prompt
 // UserPromptSubmit runs before the assistant can invoke a skill, so this gate is retrospective:
 // it blocks only after a successful implementation edit is already present in the transcript.
-import {
-  existsSync,
-  lstatSync,
-  readFileSync,
-  realpathSync,
-  statSync,
-} from 'node:fs';
-import { homedir } from 'node:os';
-import { basename, isAbsolute, join, resolve, sep } from 'node:path';
-import { getRepoRoot } from './lib.mjs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { claudeTranscriptIdentityError, getRepoRoot } from './lib.mjs';
 
 const IMPLEMENTATION_PHASES = new Set(['red', 'green', 'refactor']);
 const KNOWN_PHASES = new Set([
@@ -128,21 +121,12 @@ function readTranscript(event, repoRoot) {
     // FAIL-OPEN-INTENT: Claude may omit transcript_path on hosts without local transcript access.
     return null;
   }
-  if (!isAbsolute(path)) block('transcript_path must be absolute');
-
-  const projectRoot = projectPath(event.cwd, repoRoot);
-  const expectedDir = join(homedir(), '.claude', 'projects', encodeProjectPath(projectRoot));
-  const expectedPath = join(expectedDir, `${event.session_id}.jsonl`);
-  if (resolve(path) !== resolve(expectedPath) || basename(path) !== `${event.session_id}.jsonl`) {
-    block('transcript_path is not the current session transcript for this project');
-  }
+  if (!existsSync(path)) return null;
+  const identityError = claudeTranscriptIdentityError(event, repoRoot);
+  if (identityError) block(identityError);
 
   let raw;
   try {
-    const linkStat = lstatSync(path);
-    if (!linkStat.isFile() || linkStat.isSymbolicLink()) block('transcript_path must be a regular file');
-    const canonical = realpathSync(path);
-    if (canonical !== resolve(path)) block('transcript_path must not resolve through a symlink');
     const size = statSync(path).size;
     if (size > MAX_TRANSCRIPT_BYTES) block(`transcript exceeds ${MAX_TRANSCRIPT_BYTES} bytes`);
     raw = readFileSync(path, 'utf-8');
@@ -154,21 +138,6 @@ function readTranscript(event, repoRoot) {
   const lineCount = raw.split('\n').length;
   if (lineCount > MAX_TRANSCRIPT_LINES) block(`transcript exceeds ${MAX_TRANSCRIPT_LINES} lines`);
   return raw;
-}
-
-function projectPath(cwd, repoRoot) {
-  if (typeof cwd !== 'string' || !isAbsolute(cwd)) return repoRoot;
-  try {
-    const resolved = realpathSync(cwd);
-    if (resolved === repoRoot || resolved.startsWith(`${repoRoot}${sep}`)) return resolved;
-  } catch {
-    block('hook cwd is not a readable project directory');
-  }
-  block('hook cwd is outside the current repository');
-}
-
-function encodeProjectPath(path) {
-  return path.replace(/[^A-Za-z0-9]/g, '-');
 }
 
 function inspectTranscript(raw, startedAt) {

@@ -15,7 +15,13 @@
 // real incident (R3, 2026-03-01). Also carries the M2 one-task-per-dispatch check.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { getRepoRoot, SIDECAR_PATH, readJsonOrNull, pruneStaleSidecarEntries } from './lib.mjs'
+import {
+  getRepoRoot,
+  SIDECAR_PATH,
+  nativeHostBindingError,
+  readJsonOrNull,
+  pruneStaleSidecarEntries,
+} from './lib.mjs'
 
 const WRITE_CLASSES_PATH = join('.claude', 'agents', 'agent-write-classes.json')
 
@@ -65,6 +71,14 @@ function main() {
   const prompt = toolInput.prompt
 
   const root = getRepoRoot()
+  const HARD_GRADING = process.env.ARBITER_SPAWN_GUARD_HARD === '1'
+  const bindingError = nativeHostBindingError(input, root)
+  if (bindingError) {
+    process.stderr.write(
+      `[arbiter] SPAWN GUARD: ${bindingError}; run arbiter task host-preflight from the exact worktree session.\n`,
+    )
+    process.exit(HARD_GRADING ? 2 : 0)
+  }
   const writeClasses = loadWriteClasses(root)
 
   // 1. Classify write-intent. Unknown type => write-intent (fail-closed).
@@ -77,8 +91,6 @@ function main() {
 
   // 2. Write-intent path: allowed iff isolated in a worktree.
   const inWorktree = isolation === 'worktree' || isWorktreeCwd(cwd)
-
-  const HARD_GRADING = process.env.ARBITER_SPAWN_GUARD_HARD === '1'
 
   const sidecarPath = join(root, SIDECAR_PATH)
   const now = Date.now()
