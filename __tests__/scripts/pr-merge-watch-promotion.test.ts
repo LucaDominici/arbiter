@@ -3,10 +3,12 @@
 // GitHub's PR and git-ref endpoints; the real watcher process must update main
 // with force=false and must never invoke a rewriting `gh pr merge` method.
 import { afterEach, describe, expect, it } from 'vitest'
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
+import { createHash } from 'node:crypto'
+import { writeGatePassEvidence } from '../helpers.js'
 
 const roots: string[] = []
 afterEach(() => {
@@ -14,30 +16,114 @@ afterEach(() => {
 })
 
 const BASE = 'a'.repeat(40)
-const HEAD = 'b'.repeat(40)
 const WATCHER = resolve('scripts/pr-merge-watch.mjs')
+const GIT_BIN_DIR = dirname(
+  execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim(),
+)
 
 function runWatcher(
   overrides: Record<string, unknown> = {},
   config: Record<string, unknown> = {
     collaborationMode: 'trunk-solo',
     solo: { mergeMode: 'pr-ff' },
+    features: { evidenceHarness: true, acceptanceAnchor: true },
   },
-  options: { timeoutMin?: number; intervalSec?: number; rawConfig?: string } = {},
+  options: {
+    timeoutMin?: number
+    intervalSec?: number
+    rawConfig?: string
+    phase?: string
+    reviewExit?: number
+    acceptanceExit?: number
+    omitAcFit?: boolean
+    omitReceipt?: boolean
+  } = {},
 ) {
-  const { timeoutMin = 1, intervalSec = 0, rawConfig } = options
+  const {
+    timeoutMin = 1,
+    intervalSec = 0,
+    rawConfig,
+    phase = 'close',
+    reviewExit = 0,
+    acceptanceExit = 0,
+    omitAcFit = false,
+    omitReceipt = false,
+  } = options
   const root = mkdtempSync(join(tmpdir(), 'arbiter-ff-watch-'))
   roots.push(root)
   const statePath = join(root, 'state.json')
   const ghPath = join(root, 'gh')
   writeFileSync(join(root, 'arbiter.json'), rawConfig ?? JSON.stringify(config))
+  mkdirSync(join(root, 'scripts'), { recursive: true })
+  writeFileSync(
+    join(root, 'scripts', 'check-review-completion.mjs'),
+    `process.stderr.write('review verdict\\n'); process.exit(${reviewExit})\n`,
+  )
+  writeFileSync(
+    join(root, 'scripts', 'check-acceptance.mjs'),
+    `process.stderr.write('acceptance verdict\\n'); process.exit(process.argv.length === 2 && process.env.ARBITER_ACCEPTANCE_ANCHOR === '1' ? ${acceptanceExit} : 9)\n`,
+  )
+  writeFileSync(join(root, 'plan.md'), '# Plan\n')
+  writeFileSync(join(root, '.gitignore'), '.arbiter/\n.claude/.task/\nstate.json\ngh\n')
+  execFileSync('git', ['init', '-q', '-b', 'task/#2148-ff-watcher'], { cwd: root })
+  execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: root })
+  execFileSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: root })
+  execFileSync('git', ['add', '-A'], { cwd: root })
+  execFileSync('git', ['commit', '-q', '-m', 'fixture', '--no-gpg-sign'], { cwd: root })
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+  const marker = writeGatePassEvidence(root, { taskId: '#2148', level: 'L3' })
+  const markerBytes = readFileSync(join(root, '.arbiter', 'gate-pass.json'))
+  mkdirSync(join(root, '.arbiter', 'evidence', 'done'), { recursive: true })
+  if (!omitReceipt)
+    writeFileSync(
+      join(root, '.arbiter', 'evidence', 'done', '_2148.json'),
+      JSON.stringify({
+        version: 2,
+        task_id: '#2148',
+        state: 'passed',
+        all_green: true,
+        no_overclaim: true,
+        gate_level: 'L3',
+        gate_marker_sha256: createHash('sha256').update(markerBytes).digest('hex'),
+        ...Object.fromEntries(
+          ['head_sha', 'tree_hash', 'checkout_root', 'toolchain_fingerprint', 'node_version'].map(
+            (key) => [key, marker[key]],
+          ),
+        ),
+        pinned_files: [
+          {
+            path: 'plan.md',
+            sha256: createHash('sha256')
+              .update(readFileSync(join(root, 'plan.md')))
+              .digest('hex'),
+          },
+        ],
+        reality_contact: { archetype: 'library', required: false, passed: null },
+      }),
+    )
+  if (!omitAcFit) {
+    mkdirSync(join(root, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
+    writeFileSync(join(root, '.arbiter', 'evidence', 'ac-fit', '2148.json'), '{}\n')
+  }
+  mkdirSync(join(root, '.claude', '.task'), { recursive: true })
+  writeFileSync(
+    join(root, '.claude', '.task', 'status.json'),
+    JSON.stringify({
+      taskId: '#2148',
+      phase,
+      plan: 'plan.md',
+      branch: 'task/#2148-ff-watcher',
+      review: { rounds: 1, lastReviewedSha: head },
+    }),
+  )
   writeFileSync(
     statePath,
     JSON.stringify({
       calls: [],
       viewCalls: 0,
       base: BASE,
-      head: HEAD,
+      head,
+      initialHead: head,
       merged: false,
       refReads: 0,
       ...overrides,
@@ -146,7 +232,8 @@ if (args[0] === 'pr' && args[1] === 'view') {
       encoding: 'utf-8',
       env: {
         ...process.env,
-        PATH: `${root}:${dirname(process.execPath)}`,
+        ARBITER_ACCEPTANCE_ANCHOR: '0',
+        PATH: `${root}:${dirname(process.execPath)}:${GIT_BIN_DIR}`,
         FAKE_GH_STATE: statePath,
       },
     },
@@ -155,6 +242,7 @@ if (args[0] === 'pr' && args[1] === 'view') {
     result,
     state: JSON.parse(readFileSync(statePath, 'utf8')) as {
       base: string
+      initialHead: string
       merged: boolean
       mutationInput?: {
         variables: {
@@ -175,14 +263,14 @@ describe('pr-merge-watch exact-SHA promotion (#2148)', () => {
   it('promotes the gated head with force=false and verifies the merged PR', () => {
     const { result, state } = runWatcher()
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
-    expect(state.base).toBe(HEAD)
+    expect(state.base).toBe(state.initialHead)
     expect(state.merged).toBe(true)
     expect(state.mutationInput?.variables.refUpdates).toEqual([
-      { name: 'refs/heads/main', beforeOid: BASE, afterOid: HEAD, force: false },
+      { name: 'refs/heads/main', beforeOid: BASE, afterOid: state.initialHead, force: false },
       {
         name: 'refs/heads/task/#2148-ff-watcher',
-        beforeOid: HEAD,
-        afterOid: HEAD,
+        beforeOid: state.initialHead,
+        afterOid: state.initialHead,
         force: false,
       },
     ])
@@ -223,7 +311,52 @@ describe('pr-merge-watch exact-SHA promotion (#2148)', () => {
   it('retries a stale post-updateRefs ref read before accepting the exact promoted SHA (#2171, #2152)', () => {
     const { result, state } = runWatcher({ staleRefReads: 1 })
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
-    expect(state.base).toBe(HEAD)
+    expect(state.base).toBe(state.initialHead)
+  })
+
+  it('refuses a non-terminal lifecycle before any GitHub call (#2681)', () => {
+    const { result, state } = runWatcher({}, undefined, { phase: 'refactor' })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/lifecycle.*close/i)
+    expect(state.calls).toEqual([])
+  })
+
+  it.each([
+    ['review', { reviewExit: 1 }],
+    ['acceptance', { acceptanceExit: 1 }],
+  ])('refuses missing or invalid %s proof before any GitHub call (#2681)', (_name, options) => {
+    const { result, state } = runWatcher({}, undefined, options)
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/local Ship preflight refused/i)
+    expect(state.calls).toEqual([])
+  })
+
+  it('refuses a missing configured AC-fit before any GitHub call (#2681)', () => {
+    const { result, state } = runWatcher({}, undefined, { omitAcFit: true })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/acceptance fit is missing/i)
+    expect(state.calls).toEqual([])
+  })
+
+  it('uses exact L2 gate evidence when the configured harness and acceptance are off (#2681)', () => {
+    const { result, state } = runWatcher(
+      {},
+      {
+        collaborationMode: 'trunk-solo',
+        solo: { mergeMode: 'pr-ff' },
+        features: { evidenceHarness: false, acceptanceAnchor: false },
+      },
+      { omitReceipt: true, omitAcFit: true },
+    )
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
+    expect(state.base).toBe(state.initialHead)
+  })
+
+  it('refuses a PR whose head differs from the locally qualified candidate (#2681)', () => {
+    const { result, state } = runWatcher({ head: 'c'.repeat(40) })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/PR head differs from local qualified HEAD/i)
+    expect(state.mutationInput).toBeUndefined()
   })
 })
 

@@ -68,6 +68,8 @@ describe('generatePrTooling (#2098, CANON-05)', () => {
     expect(content).toContain('updateRefs')
     expect(content).not.toContain("'pr', 'merge'")
     expect(content).toContain('--self-test')
+    expect(content).toContain('assertShipLandingReady')
+    expect(content).toContain("from './lib/gate-evidence.mjs'")
   })
 
   it('emitted capacity-probe.mjs imports the shared waiter-count helper', () => {

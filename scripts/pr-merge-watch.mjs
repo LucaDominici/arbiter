@@ -11,10 +11,12 @@
 //
 // Usage: pr-merge-watch <owner/repo> <pr-number> [--timeout-min 90] [--interval-sec 30]
 //        pr-merge-watch --self-test   (pure predicate fixtures, no `gh` calls)
-import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { resolveLandingContract, validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
-import { isMainModule } from './lib/run-helpers.mjs'
+import { verifyDoneEvidenceReceipt, verifyGateEvidenceFile } from './lib/gate-evidence.mjs'
+import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 
 const HARD_FAIL = new Set([
   'FAILURE',
@@ -258,6 +260,89 @@ function assertLandingSupported() {
     process.stderr.write(`pr-merge-watch: exact-SHA landing refused — ${decision.reason}\n`)
     process.exit(1)
   }
+  return config
+}
+
+function refuseLocalLanding(reason) {
+  process.stderr.write(`pr-merge-watch: local Ship preflight refused — ${reason}\n`)
+  process.exit(1)
+}
+
+function runLandingChecker(root, script, args, env = {}) {
+  const result = spawnSync(process.execPath, [script, ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+  })
+  if (result.status === 0) return
+  const detail = `${result.stderr ?? ''}${result.stdout ?? ''}`.trim()
+  refuseLocalLanding(`${script} failed${detail ? `: ${detail}` : ''}`)
+}
+
+/** Refuse promotion until the local lifecycle proves this exact candidate is ready to land. */
+export function assertShipLandingReady(config, root = process.cwd()) {
+  let state
+  try {
+    state = JSON.parse(readRegularFileSync(join(root, '.claude', '.task', 'status.json'), 'utf8'))
+  } catch (error) {
+    refuseLocalLanding(`cannot read canonical lifecycle state (${error.message})`)
+  }
+  if (state?.phase !== 'close') {
+    refuseLocalLanding(`lifecycle must be at close, got ${JSON.stringify(state?.phase)}`)
+  }
+  const taskId = typeof state.taskId === 'string' ? state.taskId : ''
+  if (!/^#\d+$/.test(taskId)) refuseLocalLanding('canonical task id is missing or malformed')
+  const plan = typeof state.plan === 'string' ? state.plan.trim() : ''
+  if (!plan) refuseLocalLanding('canonical plan path is missing')
+
+  let head
+  let branch
+  try {
+    head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+    branch = execFileSync('git', ['branch', '--show-current'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim()
+  } catch (error) {
+    refuseLocalLanding(`cannot resolve local candidate (${error.message})`)
+  }
+  if (state.branch !== branch) {
+    refuseLocalLanding(`lifecycle branch ${JSON.stringify(state.branch)} does not match ${branch}`)
+  }
+  if (config?.features?.evidenceHarness === true) {
+    const receipt = verifyDoneEvidenceReceipt({
+      root,
+      taskId,
+      archetype: typeof config?.archetype === 'string' ? config.archetype : 'library',
+    })
+    if (!receipt.ok) refuseLocalLanding(receipt.reason)
+    runLandingChecker(root, join(root, 'scripts', 'check-review-completion.mjs'), [
+      '--task',
+      taskId,
+    ])
+  } else {
+    const marker = verifyGateEvidenceFile(join(root, '.arbiter', 'gate-pass.json'), {
+      root,
+      minLevel: 'L2',
+      taskId,
+    })
+    if (!marker.ok) refuseLocalLanding(marker.reason)
+  }
+
+  if (config?.features?.acceptanceAnchor === true) {
+    const fit = join(
+      root,
+      '.arbiter',
+      'evidence',
+      'ac-fit',
+      `${taskId.replace(/[^0-9A-Za-z-]/g, '')}.json`,
+    )
+    if (!existsSync(fit)) refuseLocalLanding(`acceptance fit is missing at ${fit}`)
+    runLandingChecker(root, join(root, 'scripts', 'check-acceptance.mjs'), [], {
+      ARBITER_ACCEPTANCE_ANCHOR: '1',
+    })
+  }
+  return head
 }
 
 const UPDATE_REFS_MUTATION = `mutation PromoteExactSha(
@@ -351,11 +436,25 @@ async function verifyMerged(ownerRepo, prNumber, expectedHead, deadline, interva
   }
 }
 
-async function promoteExactSha(ownerRepo, prNumber, checked, deadline, intervalSec, timeoutMin) {
+async function promoteExactSha(
+  ownerRepo,
+  prNumber,
+  checked,
+  candidateSha,
+  deadline,
+  intervalSec,
+  timeoutMin,
+) {
   const current = fetchPr(ownerRepo, prNumber)
   const rejection = validatePromotion(checked, current)
   if (rejection) {
     process.stderr.write(`pr-merge-watch: promotion rejected — ${rejection}\n`)
+    process.exit(1)
+  }
+  if (current.headRefOid !== candidateSha) {
+    process.stderr.write(
+      'pr-merge-watch: promotion rejected — PR head differs from local qualified HEAD\n',
+    )
     process.exit(1)
   }
   const repositoryId = readPromotionPolicy(ownerRepo)
@@ -402,7 +501,8 @@ async function main() {
     )
     process.exit(2)
   }
-  assertLandingSupported()
+  const config = assertLandingSupported()
+  const candidateSha = assertShipLandingReady(config)
 
   const deadline = Date.now() + timeoutMin * 60_000
   for (;;) {
@@ -413,6 +513,12 @@ async function main() {
       intervalSec,
       timeoutMin,
     )
+    if (snapshot.headRefOid !== candidateSha) {
+      process.stderr.write(
+        'pr-merge-watch: promotion rejected — PR head differs from local qualified HEAD\n',
+      )
+      process.exit(1)
+    }
     const rollup = snapshot.statusCheckRollup ?? []
     const status = classify(rollup, ['CI Required'])
 
@@ -422,7 +528,15 @@ async function main() {
     }
 
     if (status === 'green') {
-      await promoteExactSha(ownerRepo, prNumber, snapshot, deadline, intervalSec, timeoutMin)
+      await promoteExactSha(
+        ownerRepo,
+        prNumber,
+        snapshot,
+        candidateSha,
+        deadline,
+        intervalSec,
+        timeoutMin,
+      )
     }
 
     if (Date.now() >= deadline) {

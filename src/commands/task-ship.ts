@@ -237,11 +237,16 @@ function closeAction(profile: ShipProfile): string {
   const doneEvidence = profile.evidenceHarness
     ? ' Run `node scripts/done-evidence.mjs` to capture and reuse that L3 receipt.'
     : ''
+  const exactLanding =
+    profile.collaborationMode === 'trunk-solo' && profile.mergeMode === 'pr-ff'
+      ? ' Land only with `node scripts/pr-merge-watch.mjs <owner/repo> <pr>`; it refuses before GitHub unless lifecycle, review, applicable acceptance, receipt, and local HEAD agree.'
+      : ''
   return (
     'CLOSER mode: single named target, no new issues or refactor beyond the diff ' +
     '(findings → PARKING list, one line, no action). Same error twice → 5-line root-cause, ' +
     'else declare BLOCKED. Reuse the qualified clean-HEAD receipt; do not run another gate while the candidate is unchanged.' +
     doneEvidence +
+    exactLanding +
     ' Push, then foreground-wait on the PR/gate checks; never end the turn on a promise.'
   )
 }

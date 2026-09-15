@@ -585,7 +585,11 @@ describe('ship final-gate action ordering', () => {
   })
 
   it('runs one final L3 before close and reuses it for done-evidence with the harness', () => {
-    const harness = profile({ evidenceHarness: true })
+    const harness = profile({
+      collaborationMode: 'trunk-solo',
+      mergeMode: 'pr-ff',
+      evidenceHarness: true,
+    })
     const verification = shipStepFor('verification', 'Standard', harness)
     const close = shipStepFor('close', 'Standard', harness)
     const sequence = `${verification.action} ${close.action}`
@@ -593,6 +597,10 @@ describe('ship final-gate action ordering', () => {
     expect(sequence).toContain('node scripts/done-evidence.mjs')
     expect(sequence.match(/check-all\.mjs/g)).toHaveLength(1)
     expect(close.action).toContain('Reuse the qualified clean-HEAD receipt')
+    expect(close.action).toContain('node scripts/pr-merge-watch.mjs <owner/repo> <pr>')
+    expect(close.action).toMatch(
+      /lifecycle, review, applicable acceptance, receipt, and local HEAD agree/,
+    )
   })
 
   it('pins the selected final level to every delivery consumer requirement', () => {
