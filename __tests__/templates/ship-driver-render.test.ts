@@ -208,7 +208,9 @@ describe('ship command local-only state (#2343)', () => {
     )
     const direct = md.slice(md.indexOf('**trunk-solo + direct:**'), md.indexOf('## Complete'))
 
-    expect(direct).toContain('frozen_head=$(git rev-parse HEAD)')
+    expect(direct).toContain('gate-evidence.mjs verify --min-level L3')
+    expect(direct).toContain('require("./.arbiter/gate-pass.json")')
+    expect(direct).toContain('if [ "$(git rev-parse HEAD)" != "$frozen_head" ]')
     expect(direct).toContain('git merge-base --is-ancestor origin/main "$frozen_head"')
     expect(direct).toContain('git push origin "$frozen_head":main')
     expect(direct).not.toContain('git push origin HEAD:main')

@@ -144,8 +144,9 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
    The phase map consumes only the verification skill's claim checks, not its generic before-push L2,
    so that fallback cannot overwrite the final receipt. The final gate runs before the transition into
    `close`, whose entry guard already requires a valid marker.
-   Trunk-solo direct landing performs no rebase or second gate after freeze: it captures the qualified
-   SHA, rejects an advanced `origin/main`, then pushes that exact SHA. The canonical pre-push hook
+   Trunk-solo direct landing performs no rebase or second gate after freeze: it validates the canonical
+   receipt, reads the qualified SHA from that receipt, rejects a changed HEAD or advanced `origin/main`,
+   then pushes that exact SHA. The canonical pre-push hook
    consumes Git's ref-update input and fails closed if the commit being pushed differs from HEAD or
    HEAD moves while the receipt or fallback gate is evaluated.
 3. `task init` + `record-agent-return.mjs` and its emitted twin — load `collaborationMode` through the
