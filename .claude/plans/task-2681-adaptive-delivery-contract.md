@@ -69,6 +69,7 @@ files:
   - examples/ts-library/scripts/check-review-completion.mjs
   - examples/ts-library/scripts/record-agent-return.mjs
   - scripts/check-agent-dispatch.mjs
+  - scripts/debt-baseline.json
   - scripts/check-review-completion.mjs
   - scripts/record-agent-return.mjs
   - src/cli.ts
@@ -83,6 +84,7 @@ files:
   - src/templates/claude/commands/ship.md.ejs
   - src/templates/scripts/check-review-completion.mjs.ejs
   - src/templates/scripts/record-agent-return.mjs.ejs
+  - website/reference/cli.md
 ---
 
 # Plan — #2681 One adaptive delivery obligation contract
@@ -104,8 +106,10 @@ files:
   - src/cli.ts
   - scripts/record-agent-return.mjs
   - scripts/check-review-completion.mjs
+  - scripts/debt-baseline.json
   - .claude/commands/ship.md
   - src/templates/claude/commands/ship.md.ejs
+  - website/reference/cli.md
   - docs/internal/ADR/088-ship-as-orchestration-entrypoint.md
   - docs/internal/ADR/111-tier-origination-human-only.md
   - docs/internal/ADR/119-adversarial-review-hops-until-low-only.md

@@ -21,7 +21,6 @@ import {
   appendLog,
   normalizeChainId,
   type UnifiedTaskState,
-  isNoProgressBlocked,
 } from './task-state.js'
 import { runTaskAdvance, runTaskReviewRound } from './task.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
@@ -792,35 +791,52 @@ function shipTreatmentFor(
  * Each candidate resolves from `XS`, never from the train's current tier: the question is whether
  * that issue is independently risk-bearing.
  */
-function trainSignalsFor(
+interface TrainSignalInput {
+  state: UnifiedTaskState | null
+  now: Date
+  additions: readonly string[]
+  chainSize: number
+}
+
+function primaryTrainTier(
   root: string,
   opts: TaskShipOptions,
   state: UnifiedTaskState | null,
-  now: Date,
-  additions: readonly string[],
-  chainSize = (state?.taskId ? 1 : 0) + (state?.chainIds ?? []).length,
-): TrainSignals {
+): { tier: ShipTier; planPath: string | undefined } {
   const gather = opts.gatherTierSignals ?? gatherTierSignals
   const primaryId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
   const taskChanged = shipTaskChanged(state, primaryId)
   const planPath = taskChanged ? undefined : state?.plan
-  const primaryTier = hasShipTaskId(primaryId)
+  const tier = hasShipTaskId(primaryId)
     ? resolveShipTreatment(
         normTier(opts.tier ?? state?.treatment?.requestedTier ?? state?.tier),
         gather(root, primaryId, planPath),
         taskChanged ? undefined : state?.treatment,
       ).tier
     : 'XS'
+  return { tier, planPath }
+}
+
+function trainSignalsFor(
+  root: string,
+  opts: TaskShipOptions,
+  input: TrainSignalInput,
+): TrainSignals {
+  const gather = opts.gatherTierSignals ?? gatherTierSignals
+  const primary = primaryTrainTier(root, opts, input.state)
   return {
     // The primary id rides the same branch, gate and PR, so it counts toward the bound.
-    chainSize,
-    openedAt: state?.timestamps.chainOpened,
-    now,
+    chainSize: input.chainSize,
+    openedAt: input.state?.timestamps.chainOpened,
+    now: input.now,
     // Resolve every candidate through the same fail-closed treatment as /ship.
-    widenedTier: additions.reduce<ShipTier>((acc, raw) => {
-      const tier = resolveShipTreatment('XS', gather(root, normalizeChainId(raw), planPath)).tier
+    widenedTier: input.additions.reduce<ShipTier>((acc, raw) => {
+      const tier = resolveShipTreatment(
+        'XS',
+        gather(root, normalizeChainId(raw), primary.planPath),
+      ).tier
       return tier === 'Standard' || acc === 'Standard' ? 'Standard' : tier === 'S' ? 'S' : acc
-    }, primaryTier),
+    }, primary.tier),
     explicitSeal: opts.seal === true,
     ...(opts.trainAffinity !== undefined ? { affinity: opts.trainAffinity } : {}),
   }
@@ -858,7 +874,12 @@ function assertChainAddAllowed(
 ): AffinityVerdict {
   const { signalState, additions, currentSize, projectedSize } = chainAddContext(opts, state)
   const currentVerdict = evaluateSeal(
-    trainSignalsFor(root, opts, signalState, now, additions, currentSize),
+    trainSignalsFor(root, opts, {
+      state: signalState,
+      now,
+      additions,
+      chainSize: currentSize,
+    }),
     limits,
   )
   if (currentVerdict.sealed) {
@@ -938,12 +959,20 @@ function openExplicitReviewRound(root: string, opts: TaskShipOptions): PlannedRe
   })
 }
 
+function assertShipNotBlocked(
+  state: UnifiedTaskState | null,
+  outcome: ShipExecutionOutcome | undefined,
+): void {
+  const blocked = state?.treatment?.reasons.some((reason) => reason.startsWith('BLOCKED:'))
+  if (blocked === true && outcome !== 'new-risk') {
+    throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
+  }
+}
+
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
   const initialState = readUnifiedState(root)
-  if (isNoProgressBlocked(initialState) && opts.executionOutcome !== 'new-risk') {
-    throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
-  }
+  assertShipNotBlocked(initialState, opts.executionOutcome)
   const shipConfig = shipConfigFor(root)
   // Validate the complete train mutation before seeding task metadata. A rejected append must
   // leave both fresh and existing state untouched, including task/tier/override fields.

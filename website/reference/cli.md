@@ -782,7 +782,7 @@ Manage task lifecycle state.
 - `arbiter task recover` — Print 3-layer recovery context for the current task (#694)
 - `arbiter task record-red` — Record TDD red-phase evidence: run a failing test and capture evidence (#551)
 - `arbiter task record-tech-debt` — File a tech-debt GitHub issue and persist evidence (#702)
-- `arbiter task init` — Initialise / update the unified task document (#1206)
+- `arbiter task init` — Initialise / update one task; multi-issue admission belongs to `arbiter ship` (#1206)
 - `arbiter task get` — Print a single task-state field for shell consumers (#1206)
 
 ## arbiter update

@@ -19,7 +19,6 @@ import {
   readTaskId,
   appendLog,
   reviewStateOf,
-  isNoProgressBlocked,
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
@@ -1172,6 +1171,13 @@ export function runTaskReviewRound(opts: TaskReviewRoundOptions = {}): PlannedRe
   return plan
 }
 
+function assertNoProgressNotBlocked(dir: string): void {
+  const blocked = readUnifiedState(dir)?.treatment?.reasons.some((reason) =>
+    reason.startsWith('BLOCKED:'),
+  )
+  if (blocked === true) throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
+}
+
 export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | null {
   const dir = opts.dir ?? process.cwd()
   const claudeDir = join(dir, '.claude')
@@ -1183,9 +1189,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
     )
   }
 
-  if (isNoProgressBlocked(readUnifiedState(dir))) {
-    throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
-  }
+  assertNoProgressNotBlocked(dir)
 
   const current = currentPhase(dir)
 
