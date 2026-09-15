@@ -1,0 +1,133 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2550",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/debt-lib.mjs",
+          "line": 18
+        },
+        {
+          "file": "scripts/debt-lib.mjs",
+          "line": 363
+        },
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 45
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 53
+        },
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 54
+        },
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 60
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 22
+        },
+        {
+          "file": "scripts/debt-lib.mjs",
+          "line": 361
+        },
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 51
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/plans/task-2550-debt-todo-truth.md",
+          "line": 21
+        },
+        {
+          "file": ".claude/plans/task-2550-debt-todo-truth.md",
+          "line": 23
+        },
+        {
+          "file": ".claude/plans/task-2550-debt-todo-truth.md",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 53
+        },
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 54
+        },
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 55
+        },
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 56
+        },
+        {
+          "file": "__tests__/scripts/debt-lib-buffer.test.ts",
+          "line": 60
+        }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/scripts/check-no-orphan-todo.mjs.ejs",
+          "line": 73
+        },
+        {
+          "file": "src/templates/scripts/debt-lib.mjs.ejs",
+          "line": 236
+        },
+        {
+          "file": "examples/python-library/scripts/check-no-orphan-todo.mjs",
+          "line": 46
+        },
+        {
+          "file": "scripts/debt-baseline.json",
+          "line": 57
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2550-debt-todo-truth",
+  "sha": "cfdd3aca9c60f5c1f22da79a0c5cfca26f18a2ea",
+  "planHash": "e1e0ba013aade26fef192468b399b44fc50c98c3",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2550/root-codex-orchestrator-ac-fit-0.json",
+    "sha256": "535406e5bc07c57910951a95ca868536177f35c57fc1f83a5ea8e77a482673d4"
+  }
+}

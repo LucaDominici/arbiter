@@ -1,0 +1,48 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2550",
+  "verdict": "FAIL",
+  "confidence": 0.99,
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "med",
+      "kind": "behavioral",
+      "claim": "Finding a TODO inside a block comment stops scanning before processing its closing delimiter. For `/*\\n * TODO: first */\\n// TODO: second`, blockComment remains true after line 2, so line 3 is silently missed. Continue updating lexical state after recording a hit. Apply the fix to the template and generated copies.",
+      "citations": [
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 62
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "severity": "med",
+      "kind": "behavioral",
+      "claim": "Quotes inside JavaScript regex literals are treated as string delimiters, and that incorrect state persists across lines. Valid source `const apostrophe = /'/;\\n// TODO: fix` therefore produces zero hits. This regresses the release gate and silently understates todoCount. Recognize regex literals before interpreting their contents as quotes; add regression coverage in both the runtime and emitted checker.",
+      "citations": [
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 94
+        },
+        {
+          "file": "src/templates/scripts/check-no-orphan-todo.mjs.ejs",
+          "line": 122
+        }
+      ]
+    }
+  ],
+  "refutations": [],
+  "branch": "task/#2550-debt-todo-truth",
+  "sha": "024332737a49b0966edb5346ec03b5125691180c",
+  "ts": "2026-09-15T11:42:57.021Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

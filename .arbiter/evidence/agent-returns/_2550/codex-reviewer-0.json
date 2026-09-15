@@ -1,0 +1,68 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2550",
+  "verdict": "FAIL",
+  "confidence": 0.98,
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "high",
+      "kind": "behavioral",
+      "claim": "Generated Python debt collection now silently ignores ordinary orphan comments such as `# TODO: fix this`. countTodos previously counted these, but now delegates to a detector that recognizes only //, /*, and *. The Python checker explicitly scans .py files, so Python todoCount can report zero despite unresolved work. Support Python comment syntax before using this detector for its debt metric.",
+      "citations": [
+        {
+          "file": "src/templates/scripts/debt-lib.mjs.ejs",
+          "line": 236
+        },
+        {
+          "file": "examples/python-library/scripts/check-no-orphan-todo.mjs",
+          "line": 22
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "severity": "med",
+      "kind": "behavioral",
+      "claim": "The scanner stops at the first comment opener without checking whether a block comment ends. Valid source such as `/* explanation */ const x = 1; // TODO: fix this` now returns no hits, whereas the previous gate detected the orphan. Resume scanning after a closing block comment so a later real comment cannot silently bypass both enforcement and debt collection.",
+      "citations": [
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 50
+        },
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 60
+        }
+      ]
+    },
+    {
+      "id": "F3",
+      "severity": "med",
+      "kind": "behavioral",
+      "claim": "Resetting quote state for every line misses real comments following multiline template literals. For example, in `const text = `hello` followed on the next line by `world`; // TODO: fix this` (with backticks delimiting the template), the closing backtick is treated as an opening quote and the TODO is ignored. The old gate detected this comment. Preserve lexical state across lines; the same issue affects generated Go code using multiline raw strings.",
+      "citations": [
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 48
+        },
+        {
+          "file": "scripts/check-no-orphan-todo.mjs",
+          "line": 59
+        }
+      ]
+    }
+  ],
+  "refutations": [],
+  "branch": "task/#2550-debt-todo-truth",
+  "sha": "5a41e7b182961e290d97d64947973a7bd146c07a",
+  "ts": "2026-09-15T11:35:41.501Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}
