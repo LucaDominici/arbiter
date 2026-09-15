@@ -213,6 +213,23 @@ describe('record-agent-return evidence modes (#2687)', () => {
     ).toMatchObject({ count: 2, agents: ['review-a', 'review-b'], taskId: '#42' })
   })
 
+  it('accepts the single reviewer prescribed for a trunk-solo Standard task', () => {
+    writeFileSync(join(root, 'arbiter.json'), JSON.stringify({ collaborationMode: 'trunk-solo' }))
+    const reviewer = {
+      ...envelope(),
+      agent: 'independent-review',
+      role: 'reviewer',
+      acceptanceFit: undefined,
+    }
+
+    const result = recordPanel([reviewer])
+
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    expect(
+      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+    ).toMatchObject({ count: 1, agents: ['independent-review'], taskId: '#42' })
+  })
+
   it('fails closed when the canonical reviewer router is unavailable', () => {
     writeFileSync(join(root, 'scripts', 'route-auditors.mjs'), 'process.exit(1)\n')
     const first = { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined }

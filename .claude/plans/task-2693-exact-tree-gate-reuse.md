@@ -6,7 +6,7 @@ last_review: '2026-09-15'
 owner: 'Luca Dominici'
 canonical_id: 'task-2693-exact-tree-gate-reuse'
 tags: ['audience/agent', 'kind/plan']
-related: ['#2693', '#2328', '#2427', '#2615', '#2698']
+related: ['#2693', '#2681', '#2328', '#2427', '#2615', '#2698']
 ---
 
 context:
@@ -35,6 +35,9 @@ files:
   - __tests__/commands/task-ship.test.ts            # final-level selection per evidenceHarness
   - __tests__/commands/ship-profile.test.ts         # existing feature reaches the resolved profile
   - __tests__/evidence/gate-evidence-binding.test.ts     # staged-after-commit rejection
+  - scripts/record-agent-return.mjs                     # align reviewer recorder with trunk-solo /ship
+  - src/templates/scripts/record-agent-return.mjs.ejs   # emitted twin of recorder alignment
+  - __tests__/scripts/record-agent-return-modes.test.ts  # one-reviewer trunk-solo regression
   - __tests__/evidence/done-evidence-sequence.test.ts    # final L3 reuse without a second gate
   - __tests__/githooks/pre-push-reuse-evidence.test.ts  # stronger final receipt reused at push
   - examples/{ts-library,python-library,go-library}/.claude/commands/ship.md
@@ -133,7 +136,11 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
    The phase map consumes only the verification skill's claim checks, not its generic before-push L2,
    so that fallback cannot overwrite the final receipt.
    Trunk-solo direct-merge block `L2` → the same final-level wording.
-3. No change to writer, verifier, done-evidence, pre-push or engine guards. They already reuse by rank
+3. `record-agent-return.mjs` + emitted twin — use the existing `collaborationMode` axis when deriving
+   the Standard panel minimum: one reviewer for `trunk-solo`, two for collaborative modes, while the
+   existing routed risk escalation remains three. This closes the measured #2681 mismatch where
+   `/ship` prescribed one reviewer but its recorder rejected fewer than two.
+4. No change to writer, verifier, done-evidence, pre-push or engine guards. They already reuse by rank
    and reject every invalidation boundary.
 
 Harness data flow after the pre-commit diagnostic: clean-HEAD `check-all L3` → `gate-pass.json` → (C rank ≥ L1) → (D reuse,
@@ -178,6 +185,7 @@ which matches K's non-harness requirement, so it cannot select a level below wha
 - [ ] AC-8: The compatibility preflight is durable. A test pins that the close-selected final level ranks ≥ every consumer requirement (C ≥ L1, P ≥ L2, D = L3 under evidenceHarness, K). It fails if any requirement or the prescribed level changes independently.
 - [ ] AC-9: A staged (`tree_was_clean_at_run_time=false`) receipt is rejected after commit even when HEAD's tree minus `.arbiter/` equals its `tree_hash`. The rejection reason is actionable, and no verifier axis is removed or relaxed (INV-33).
 - [ ] AC-10: The emitted `ship.md.ejs` twin and the self `ship.md` prescribe the same final-gate order; generated bake snapshots are regenerated, not hand-edited.
+- [ ] AC-11: The reviewer recorder accepts the single independent reviewer prescribed by a trunk-solo Standard `/ship`, retains two for collaborative Standard work, and retains the routed three-reviewer escalation.
 
 ## Non-Goals
 
@@ -185,6 +193,7 @@ which matches K's non-harness requirement, so it cannot select a level below wha
 - No L2≡L3 ladder equivalence, TTL change, or relaxation of any verifier axis.
 - No change to CI gates, the check set of any level, or done-evidence runtime/pinning.
 - No projection-aware rewrite of HEAD/history checks (R2); revisit only if staged-gate survival becomes a measured product need.
+- No broader reviewer-router redesign; #2681 retains the remaining review and wait economy work.
 
 ## Merge contract
 
@@ -213,6 +222,7 @@ Landing route supported: yes (trunk-solo + pr-ff).
 | AC-6 | review of diff | only existing `arbiter-gate-pass-v3` marker used; no new file format |
 | AC-7 | lifecycle test | reuse messages (pre-push `PRE-PUSH: reusing green`, done-evidence reuse line) and `durationMs` in `local-result.json` remain present; none add an exit path |
 | AC-10 | existing emission/bake parity + grep assertion | both ship texts contain the same final-level order |
+| AC-11 | `record-agent-return-modes.test.ts` | trunk-solo accepts one reviewer; existing collaborative and routed-escalation cases remain green |
 
 Baseline (issue comments, before): L1 132,967 / 134,311 / 137,054 / 134,090–137,668 ms; L2 247,322–253,423 ms;
 L3 245,955–273,288 ms. Totals per slice: 656,658 ms (#2691), 932,229 ms (#2686), 1,178,722 ms (#2698).
