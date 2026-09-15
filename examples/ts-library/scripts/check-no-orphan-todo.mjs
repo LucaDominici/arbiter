@@ -12,14 +12,14 @@
 // This gate's own SKIP_DIRS is re-applied as a path-segment filter so `templates/` stays pruned —
 // walkRepo's SKIP_DIRS already covers node_modules/.git/dist (plus build/coverage/.coverage).
 import { readFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { extname, join, relative, resolve } from 'node:path'
 import { walkRepo } from './lib/glob-walk.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
 
-// Match // TODO or /* TODO or * TODO (in comment context), but NOT TODO(#NNN)
+// Match // TODO, /* TODO, * TODO, or # TODO (in comment context), but NOT TODO(#NNN)
 // Exported so .claude/hooks/check-no-orphan-todo.mjs can reuse the same reference
 // semantics rather than drifting to a naive \bTODO\b regex (#1796/#1799).
-export const ORPHAN_TODO = /(?:\/\/|\/\*|\*)\s*TODO(?!\s*\(#\d+\))/
+export const ORPHAN_TODO = /(?:\/\/|\/\*|\*|#)\s*TODO(?!\s*\(#\d+\))/
 export const EXTENSIONS = new Set([".ts",".tsx",".mjs",".js"])
 export const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'templates', 'vendor', 'target'])
 const ORPHAN_TODO_AT_COMMENT_START = new RegExp(`^(?:${ORPHAN_TODO.source})`)
@@ -40,30 +40,84 @@ export function collectSourceFiles(root) {
 
 /**
  * Return every orphan-TODO line in `content` as { line (1-based), text }.
+ * `extension` selects Python's hash comments; all other supported stacks use slash comments.
  * Pure: no I/O, no exit.
  */
-export function findOrphanTodos(content) {
+export function findOrphanTodos(content, extension = '.ts') {
   const hits = []
   const lines = String(content ?? '').split('\n')
+  const normalizedExtension = extension.toLowerCase()
+  const hashComments = normalizedExtension === '.py'
+  const tripleQuotes = ['.py', '.java', '.kt'].includes(normalizedExtension)
+  let blockComment = false
+  let quote = null
+  let tripleQuote = null
+  let escaped = false
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    let quote = null
-    let escaped = false
-    let comment = line.trimStart().startsWith('*') ? line.trimStart() : null
-    for (let j = 0; comment === null && j < line.length - 1; j++) {
+    let found = false
+    for (let j = 0; !found && j < line.length; ) {
+      if (blockComment) {
+        const rest = line.slice(j).trimStart()
+        const comment = rest.startsWith('*') ? rest : `* ${rest}`
+        if (ORPHAN_TODO_AT_COMMENT_START.test(comment)) {
+          found = true
+          break
+        }
+        const end = line.indexOf('*/', j)
+        if (end === -1) break
+        blockComment = false
+        j = end + 2
+        continue
+      }
+      if (tripleQuote !== null) {
+        const end = line.indexOf(tripleQuote, j)
+        if (end === -1) break
+        j = end + tripleQuote.length
+        tripleQuote = null
+        continue
+      }
+
       const char = line[j]
       if (quote !== null) {
         if (escaped) escaped = false
         else if (char === '\\') escaped = true
         else if (char === quote) quote = null
+        j++
         continue
       }
-      if (char === "'" || char === '"' || char === '`') quote = char
-      else if (char === '/' && (line[j + 1] === '/' || line[j + 1] === '*'))
-        comment = line.slice(j)
+
+      const triple = line.slice(j, j + 3)
+      if (tripleQuotes && (triple === "'''" || triple === '\"\"\"')) {
+        tripleQuote = triple
+        j += 3
+      } else if (char === "'" || char === '"' || char === '`') {
+        quote = char
+        escaped = false
+        j++
+      } else if (hashComments && char === '#') {
+        found = ORPHAN_TODO_AT_COMMENT_START.test(line.slice(j))
+        break
+      } else if (!hashComments && char === '/' && line[j + 1] === '/') {
+        found = ORPHAN_TODO_AT_COMMENT_START.test(line.slice(j))
+        break
+      } else if (!hashComments && char === '/' && line[j + 1] === '*') {
+        if (ORPHAN_TODO_AT_COMMENT_START.test(line.slice(j))) {
+          found = true
+          break
+        }
+        const end = line.indexOf('*/', j + 2)
+        if (end === -1) {
+          blockComment = true
+          break
+        }
+        j = end + 2
+      } else {
+        j++
+      }
     }
-    if (comment !== null && ORPHAN_TODO_AT_COMMENT_START.test(comment))
-      hits.push({ line: i + 1, text: line.trim() })
+    if (found) hits.push({ line: i + 1, text: line.trim() })
   }
   return hits
 }
@@ -88,7 +142,7 @@ export function main(exitFn = process.exit) {
     filesScanned += files.length
     for (const file of files) {
       const rel = relative(baseDir, file)
-      for (const hit of findOrphanTodos(readFileSync(file, 'utf-8'))) {
+      for (const hit of findOrphanTodos(readFileSync(file, 'utf-8'), extname(file))) {
         process.stdout.write(`  ${rel}:${hit.line}  ${hit.text}\n`)
         violations++
       }

@@ -360,7 +360,7 @@ export function countTodos(cwd) {
     const dot = rel.lastIndexOf('.')
     if (dot === -1 || !EXTENSIONS.has(rel.slice(dot))) continue
     if (rel.split('/').some((seg) => EXTRA_SKIP_SEGMENTS.has(seg))) continue
-    count += findOrphanTodos(readFileSync(resolve(cwd, rel), 'utf-8')).length
+    count += findOrphanTodos(readFileSync(resolve(cwd, rel), 'utf-8'), rel.slice(dot)).length
   }
   return count
 }

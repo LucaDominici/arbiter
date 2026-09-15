@@ -3,8 +3,10 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { findOrphanTodos } from '../../scripts/check-no-orphan-todo.mjs'
 
 const SCRIPT = resolve('scripts/check-no-orphan-todo.mjs')
+const MARKER = 'TO' + 'DO'
 
 function run(dir: string, scanDir = 'src') {
   const r = spawnSync('node', [SCRIPT, scanDir], { encoding: 'utf-8', cwd: dir })
@@ -27,6 +29,21 @@ function runFrom(cwd: string, scanDirArg: string) {
 }
 
 describe('check-no-orphan-todo.mjs (orphan TODO enforcement)', () => {
+  it.each([
+    ['Python hash comment', `value = 1 # ${MARKER}: fix`, '.py', 1],
+    ['Python string', `value = "# ${MARKER}: example"`, '.py', 0],
+    ['Python multiline string', `value = """example\n# ${MARKER}: prose\n"""`, '.py', 0],
+    ['comment after closed block', `/* explanation */ const x = 1; // ${MARKER}: fix`, '.ts', 1],
+    [
+      'comment after multiline raw string',
+      `const text = \`example\ntext\`; // ${MARKER}: fix`,
+      '.ts',
+      1,
+    ],
+  ])('classifies %s without hiding a real orphan', (_name, source, extension, expected) => {
+    expect(findOrphanTodos(source, extension)).toHaveLength(expected)
+  })
+
   it('exits 0 when all TODOs have issue IDs', () => {
     const { dir, cleanup } = makeDir()
     try {
