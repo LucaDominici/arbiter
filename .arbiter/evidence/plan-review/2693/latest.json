@@ -1,10 +1,10 @@
 {
   "verdict": "PASS",
-  "reviewer": "orchestrator approved-delta verification",
-  "reviewedAt": "2026-09-15T07:11:51.318Z",
+  "reviewer": "orchestrator round-2 finding reconciliation",
+  "reviewedAt": "2026-09-15T07:23:18.787Z",
   "branch": "task/#2693-exact-tree-gate-reuse",
-  "sha": "a1d7cb5728e36e31d413cce1f8a8811469b75379",
-  "planDigest": "f1d6f3bd7ba80893f76da589e7d0a743f9341c71dfa1395ae1aec49dca2d65c5",
+  "sha": "f2678f633a1ff2803a7ee3bbe705a37d926ddb94",
+  "planDigest": "7519bf5f19d1734b7e7c0fa1360bc04b4998190968bb444c3d73135b067513cb",
   "checks": {
     "mandatorySections": "PASS",
     "acceptanceNarrowingRecorded": "PASS",

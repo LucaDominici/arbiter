@@ -142,8 +142,8 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
    The phase map consumes only the verification skill's claim checks, not its generic before-push L2,
    so that fallback cannot overwrite the final receipt. The final gate runs before the transition into
    `close`, whose entry guard already requires a valid marker.
-   Trunk-solo direct landing performs no rebase or second gate after freeze: it rejects an advanced
-   `origin/main`, otherwise pre-push reuses the qualified receipt.
+   Trunk-solo direct landing performs no rebase or second gate after freeze: it captures the qualified
+   SHA, rejects an advanced `origin/main`, then pushes that exact SHA.
 3. `task init` + `record-agent-return.mjs` and its emitted twin — load `collaborationMode` through the
    canonical schema validator, persist it in unified task state, and derive the Standard panel minimum
    from that state: one reviewer for `trunk-solo`, two for collaborative modes, while the existing routed
