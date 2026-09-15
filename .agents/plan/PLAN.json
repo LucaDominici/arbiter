@@ -1,246 +1,36 @@
 {
-  "task_id": "#2693",
+  "task_id": "#2695",
   "scope": {
     "track": "A",
     "paths": [
-      "src/commands/ship-profile.ts",
-      "src/commands/task-ship.ts",
-      "src/commands/task-state.ts",
-      "src/commands/task.ts",
-      ".claude/commands/ship.md",
-      "src/templates/claude/commands/ship.md.ejs",
-      "scripts/record-agent-return.mjs",
-      "src/templates/scripts/record-agent-return.mjs.ejs",
-      "__tests__/commands/task-ship.test.ts",
-      "__tests__/commands/ship-profile.test.ts",
-      "__tests__/commands/task.test.ts",
-      "__tests__/scripts/record-agent-return-modes.test.ts",
-      "__tests__/evidence/gate-evidence-binding.test.ts",
+      "src/evidence/tdd.ts",
+      "__tests__/evidence/tdd-reexecute.test.ts",
       ".agents/plan/PLAN.json",
-      ".claude/plans/task-2693-exact-tree-gate-reuse.md",
-      ".arbiter/evidence/plan-review/2693/latest.json",
-      ".arbiter/evidence/tdd/#2693.json",
-      ".arbiter/evidence/ac-fit/2693.json",
-      ".arbiter/evidence/agent-returns/_2693",
-      "examples/ts-library/.claude/commands/ship.md",
-      "examples/ts-library/scripts/record-agent-return.mjs",
-      "examples/ts-library/.arbiter-generated-manifest.json",
-      "examples/python-library/.claude/commands/ship.md",
-      "examples/python-library/scripts/record-agent-return.mjs",
-      "examples/python-library/.arbiter-generated-manifest.json",
-      "examples/go-library/.claude/commands/ship.md",
-      "examples/go-library/scripts/record-agent-return.mjs",
-      "examples/go-library/.arbiter-generated-manifest.json",
-      "docs/REFERENCE/task-recovery.md",
-      "__tests__/templates/ship-driver-render.test.ts",
-      ".githooks/pre-push",
-      "src/templates/githooks/pre-push.ejs",
-      "__tests__/githooks/pre-push-reuse-evidence.test.ts",
-      "examples/ts-library/.githooks/pre-push",
-      "examples/python-library/.githooks/pre-push",
-      "examples/go-library/.githooks/pre-push",
-      "scripts/lib/gate-evidence.mjs",
-      "src/templates/scripts/lib/gate-evidence.mjs.ejs",
-      "examples/ts-library/scripts/lib/gate-evidence.mjs",
-      "examples/python-library/scripts/lib/gate-evidence.mjs",
-      "examples/go-library/scripts/lib/gate-evidence.mjs",
-      "__tests__/templates/commands-claude.test.ts",
-      "packages/kernel/hooks/gate-evidence.mjs",
-      ".arbiter/evidence/tdd/#2681.json"
+      ".claude/plans/task-2695-authenticated-failure-headers.md",
+      ".arbiter/evidence/plan-review/2695/latest.json",
+      ".arbiter/evidence/tdd/#2695.json",
+      ".arbiter/evidence/ac-fit/2695.json",
+      ".arbiter/evidence/agent-returns/_2695"
     ]
   },
   "files": [
+    { "path": "src/evidence/tdd.ts", "operation": "modify" },
+    { "path": "__tests__/evidence/tdd-reexecute.test.ts", "operation": "modify" },
+    { "path": ".agents/plan/PLAN.json", "operation": "modify" },
     {
-      "path": "src/commands/ship-profile.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "src/commands/task-ship.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "src/commands/task-state.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "src/commands/task.ts",
-      "operation": "modify"
-    },
-    {
-      "path": ".claude/commands/ship.md",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/claude/commands/ship.md.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "scripts/record-agent-return.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/record-agent-return.mjs.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/commands/task-ship.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/commands/ship-profile.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/commands/task.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/scripts/record-agent-return-modes.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/evidence/gate-evidence-binding.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": ".agents/plan/PLAN.json",
-      "operation": "modify"
-    },
-    {
-      "path": ".claude/plans/task-2693-exact-tree-gate-reuse.md",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/plan-review/2693/latest.json",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/tdd/#2693.json",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/ac-fit/2693.json",
+      "path": ".claude/plans/task-2695-authenticated-failure-headers.md",
       "operation": "create"
     },
-    {
-      "path": ".arbiter/evidence/agent-returns/_2693",
-      "operation": "create"
-    },
-    {
-      "path": "examples/ts-library/.claude/commands/ship.md",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/record-agent-return.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/.arbiter-generated-manifest.json",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/.claude/commands/ship.md",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/scripts/record-agent-return.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/.arbiter-generated-manifest.json",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/.claude/commands/ship.md",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/record-agent-return.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/.arbiter-generated-manifest.json",
-      "operation": "modify"
-    },
-    {
-      "path": "docs/REFERENCE/task-recovery.md",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/templates/ship-driver-render.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": ".githooks/pre-push",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/githooks/pre-push.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/githooks/pre-push-reuse-evidence.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/.githooks/pre-push",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/.githooks/pre-push",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/.githooks/pre-push",
-      "operation": "modify"
-    },
-    {
-      "path": "scripts/lib/gate-evidence.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "src/templates/scripts/lib/gate-evidence.mjs.ejs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/ts-library/scripts/lib/gate-evidence.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/python-library/scripts/lib/gate-evidence.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "examples/go-library/scripts/lib/gate-evidence.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": "__tests__/templates/commands-claude.test.ts",
-      "operation": "modify"
-    },
-    {
-      "path": "packages/kernel/hooks/gate-evidence.mjs",
-      "operation": "modify"
-    },
-    {
-      "path": ".arbiter/evidence/tdd/#2681.json",
-      "operation": "create"
-    }
+    { "path": ".arbiter/evidence/plan-review/2695/latest.json", "operation": "create" },
+    { "path": ".arbiter/evidence/tdd/#2695.json", "operation": "create" },
+    { "path": ".arbiter/evidence/ac-fit/2695.json", "operation": "create" },
+    { "path": ".arbiter/evidence/agent-returns/_2695", "operation": "create" }
   ],
   "invariants": {
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": [
-    "INV-24",
-    "INV-25",
-    "INV-26",
-    "INV-33",
-    "INV-38",
-    "INV-45",
-    "INV-114",
-    "INV-138"
-  ],
+  "invariant_ids": ["INV-25", "INV-38", "INV-114", "INV-131", "INV-138"],
   "review_bridge": {
     "enabled": true,
     "reviewer": "bridge-reviewer",

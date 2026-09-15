@@ -1,0 +1,21 @@
+{
+  "task": "#2695",
+  "threshold": "high",
+  "skeptics": 3,
+  "findings": [],
+  "round": "red-team-1",
+  "evaluated": [
+    {
+      "id": "RT-2691-01",
+      "decision": "below HIGH; owned by AC-1 and AC-2"
+    },
+    {
+      "id": "RT-2691-02",
+      "decision": "below HIGH; owned by AC-3"
+    },
+    {
+      "id": "RT-2691-03",
+      "decision": "below HIGH; owned by AC-3"
+    }
+  ]
+}

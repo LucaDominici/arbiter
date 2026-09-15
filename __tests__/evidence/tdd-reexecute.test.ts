@@ -152,7 +152,7 @@ describe('verifyRedExecution()', () => {
     expect(replayLines([...redLines].reverse()).ok).toBe(true)
   })
 
-  it('preserves same-name failure multiplicity across projects (AC-1, AC-2)', () => {
+  it('preserves same-name failure identity and multiplicity across projects (AC-1, AC-2)', () => {
     const projectFailures = [
       'FAIL |unit| math.test.ts > add > sums',
       'FAIL |integration| math.test.ts > add > sums',
@@ -164,6 +164,7 @@ describe('verifyRedExecution()', () => {
     }
 
     expect(replayLines([projectFailures[0]], evidence).ok).toBe(false)
+    expect(replayLines([projectFailures[0], projectFailures[0]], evidence).ok).toBe(false)
     expect(replayLines([...projectFailures].reverse(), evidence).ok).toBe(true)
   })
 
@@ -198,8 +199,8 @@ describe('verifyRedExecution()', () => {
     const evidence = {
       ...BASE,
       test_path: testPath,
-      test_run_log: `FAIL |unit| ${testPath}`,
-      observed_failure: `FAIL |unit| ${testPath}`,
+      test_run_log: `FAIL |unit tests| ${testPath}`,
+      observed_failure: `FAIL |unit tests| ${testPath}`,
       test_command: ['npx', 'vitest', 'run', testPath, '--reporter=verbose'],
     }
     let replayCwd = ''
@@ -232,6 +233,17 @@ describe('verifyRedExecution()', () => {
   it('rejects an ANSI-styled arbitrary prefix without a background project badge (AC-1)', () => {
     expect(replayLines(['FAIL \x1b[31m diagnostic:\x1b[39m  math.test.ts'], BASE).ok).toBe(false)
   })
+
+  it('rejects an arbitrary background-styled diagnostic prefix (AC-3)', () => {
+    expect(replayLines(['FAIL \x1b[44m diagnostic \x1b[49m math.test.ts'], BASE).ok).toBe(false)
+  })
+
+  it.each(['  FAIL math.test.ts', '\tFAIL math.test.ts'])(
+    'rejects an indented code-frame header: %j (AC-3)',
+    (line) => {
+      expect(replayLines([line], BASE).ok).toBe(false)
+    },
+  )
 
   it('rejects an ANSI badge whose JavaScript path starts on the next line (AC-1)', () => {
     expect(replayLines(['FAIL \x1b[31m  unit tests\x1b[39m', 'math.test.ts'], BASE).ok).toBe(false)
