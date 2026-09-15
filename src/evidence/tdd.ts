@@ -93,9 +93,13 @@ export function extractFailureSignature(log: string): ExtractResult | null {
  */
 export function extractFailureIdentities(log: string): string[] {
   const plain = log.replace(ANSI_WRAPPED_JS_BADGE, '$1|$2| $3').replace(ANSI_SGR, '')
-  const identities = new Set<string>()
+  const jsIdentities: string[] = []
+  const legacyIdentities = new Set<string>()
+  let jsHeadersScanned = false
   for (const { framework, pattern } of FAILURE_SIGNATURES) {
     const isJs = framework === 'vitest' || framework === 'jest'
+    if (isJs && jsHeadersScanned) continue
+    if (isJs) jsHeadersScanned = true
     // Diagnostics can quote "FAIL path.test.ts" in a code frame. Only actual
     // header lines prove a JS failure; legacy scalar extraction stays unchanged.
     const source = isJs
@@ -113,10 +117,11 @@ export function extractFailureIdentities(log: string): string[] {
         const suffix = plain.slice(match.index + match[0].length).split(/\r?\n/, 1)[0] ?? ''
         if (/^[ \t]+>/.test(suffix)) identity += ` ${suffix.trim()}`
       }
-      identities.add(identity)
+      if (isJs) jsIdentities.push(identity)
+      else legacyIdentities.add(identity)
     }
   }
-  return [...identities].sort()
+  return [...jsIdentities, ...legacyIdentities].sort()
 }
 
 /** Recording and isolated replay must name the same repository-relative paths. */
