@@ -150,13 +150,13 @@ describe('collaborationMode — ceremony divergence (#1119)', () => {
   it('trunk-solo (direct) ship.md shows "direct merge" block — no PR (#1216)', async () => {
     // #1216: orchestration content is now in ship.md, not task.md.
     // With backend=markdown (no --github flag), direct merge shows the trunk-direct block,
-    // NOT the PR ceremony. The distinguishing marker is "git push origin HEAD:main".
+    // NOT the PR ceremony. The distinguishing marker pushes the SHA from the qualified receipt.
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true, solo: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
-    expect(shipMd).toContain('git push origin HEAD:main')
+    expect(shipMd).toContain('git push origin "$frozen_head":main')
     expect(shipMd).not.toContain('gh pr create')
   })
 

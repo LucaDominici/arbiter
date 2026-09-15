@@ -323,6 +323,11 @@ function taskInitLog(state: UnifiedTaskState): string {
   return `init task ${state.taskId || '(unset)'} tier=${state.tier || '(unset)'}`
 }
 
+function configuredTaskPatch(root: string): TaskStatePatch {
+  const collaborationMode = loadConfig(root)?.collaborationMode
+  return collaborationMode === undefined ? {} : { collaborationMode }
+}
+
 /**
  * Initialise / update the unified task document from the slash-command shell layer (replaces the
  * historical per-task dotfile writes). Never advances the phase.
@@ -331,15 +336,13 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   if (initializeHostPreflight(opts)) return
   const root = opts.dir ?? process.cwd()
   assertBoundClaudeHost(root, opts.id, opts.host)
-  const patch: TaskStatePatch = {}
+  const patch = configuredTaskPatch(root)
   if (opts.id !== undefined) patch.taskId = opts.id
   if (opts.tier !== undefined) patch.tier = opts.tier
   if (opts.plan !== undefined) patch.plan = opts.plan
   // #2102 — rejects a non-numeric id the same way `arbiter ship`'s primary-id normalizer does,
   // so a chain id can never silently fail the pre-push `#<id>` commit-message scan it feeds.
   if (opts.chainIds !== undefined) patch.chainIds = opts.chainIds.map(normalizeChainId)
-  const config = loadConfig(root)
-  if (config?.collaborationMode !== undefined) patch.collaborationMode = config.collaborationMode
   // #2402 — the SAME train bound `arbiter ship` enforces. This writer had none, so
   // `task init 1 2 ... 15` seeded a train no limit ever saw while `ship` refused the identical
   // request; the positional-id sugar made that a one-line typo rather than fifteen flags.

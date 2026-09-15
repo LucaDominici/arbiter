@@ -343,6 +343,10 @@ function reviewPhaseStepBody(
   return externalCount > 0 ? { ...step, externalReviewers: externalCount } : step
 }
 
+function finalGateLevel(profile: ShipProfile): 'L2' | 'L3' {
+  return profile.evidenceHarness ? 'L3' : 'L2'
+}
+
 /** The phase body (count + action), before the size-derived vertical floor is attached. */
 function shipStepBody(
   phase: TaskPhase,
@@ -390,7 +394,7 @@ function shipStepBody(
         reviewAgents: 0,
       }
     case 'verification': {
-      const finalGate = profile.evidenceHarness ? 'L3' : 'L2'
+      const finalGate = finalGateLevel(profile)
       return {
         phase,
         action: `Commit the candidate and its evidence, then run \`node scripts/check-all.mjs ${finalGate}\` once on the clean HEAD; fix failures before advancing to close.`,
