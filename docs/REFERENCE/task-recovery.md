@@ -85,12 +85,13 @@ rejected before the test runs or any evidence is written.
 
 `arbiter verify tdd '#NNN'` replays the recorded command at the RED commit and requires
 a completed nonzero exit. It compares a sorted multiset of actual JavaScript `FAIL` headers,
-independent of file execution order. Vitest project badges are normalized as grouping metadata,
-while repeated normalized failures remain separate occurrences. Missing, additional or changed
-failures reject replay; quoted diagnostic text cannot substitute for a failed test. Checkout paths
-and terminal color are normalized. ANSI background-styled Vitest project badges normalize to the
-existing pipe-label form; foreground-only diagnostics remain rejected. The retained V1 log supplies
-these identities without an evidence migration; other runners retain their existing summary signatures.
+independent of file execution order. Vitest project badges remain part of each failure identity, and
+repeated failures remain separate occurrences. Missing, additional, changed or wrong-project failures
+reject replay; quoted or indented diagnostic text cannot substitute for a failed test. Checkout paths
+and terminal color are normalized. Only Vitest's black-foreground/background badge framing normalizes
+to the existing pipe-label form; arbitrary terminal styling remains rejected. The retained V1 log
+supplies these identities without an evidence migration; other runners retain their existing summary
+signatures.
 
 In Arbiter's own repository, `node scripts/check-all.mjs L2` prepares `dist/` with one
 `npm run build` before dependent checks. A failed or skipped build stops those checks and
