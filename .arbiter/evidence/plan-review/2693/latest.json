@@ -1,10 +1,10 @@
 {
   "verdict": "PASS",
   "reviewer": "/root/2693_plan_review + orchestrator approved-delta verification",
-  "reviewedAt": "2026-09-15T06:40:50.100Z",
+  "reviewedAt": "2026-09-15T06:48:22.688Z",
   "branch": "task/#2693-exact-tree-gate-reuse",
   "sha": "2d6de9120d346e2d847951e86dbefb5027f59cd8",
-  "planDigest": "1e1608bf8c60d51209bb2f3cd945c8a73b89694c3c3ae634730acfb835d63125",
+  "planDigest": "f6a43a6eeb6153601802a0af5b1f450238b3c230db3083b62af33f5f9ae16db7",
   "checks": {
     "mandatorySections": "PASS",
     "acceptanceNarrowingRecorded": "PASS",

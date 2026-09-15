@@ -118,14 +118,14 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
 ## Approach & decomposition (R1)
 
 1. `src/commands/ship-profile.ts` + `src/commands/task-ship.ts` — expose the existing
-   `features.evidenceHarness` boolean on the resolved profile and make the close action select ONE final
+   `features.evidenceHarness` boolean on the resolved profile and make the verification action select ONE final
    level: `L3` when the harness is active (the level D and K require), otherwise `L2` (the level P and
-   non-harness K require). Keep the existing verification-phase default gate as the single pre-commit
-   diagnostic run; its dirty marker is deliberately not reused. At close, commit candidate plus evidence,
+   non-harness K require). Keep the existing profile-default gate as the single pre-commit
+   diagnostic run in refactor; its dirty marker is deliberately not reused. At verification, commit candidate plus evidence,
    run `node scripts/check-all.mjs <final>` once, then do not run another gate while the subject is unchanged.
    With `evidenceHarness`, run
    `node scripts/done-evidence.mjs` to capture the existing receipt from that L3 marker; without it,
-   skip done-evidence. Then push (pre-push reuses either qualifying marker). The profile/context already reaches `shipStepFor`; thread the boolean
+   skip done-evidence. Close consumes the qualified receipt, then push reuses it. The profile/context already reaches `shipStepFor`; thread the boolean
    from existing config loading. No new config key.
 2. `.claude/commands/ship.md` + `ship.md.ejs` — update every cadence instruction, including the landing
    and push summary near lines 98–100. Replace "run L1 in the worktree before
@@ -134,7 +134,8 @@ by that narrowed issue evidence: preserve the exact committed subject and reuse 
    (evidence commits → final gate → conditional done-evidence capture → push reuse → post-merge validate
    in the original checkout/branch with the unchanged candidate HEAD, no recapture).
    The phase map consumes only the verification skill's claim checks, not its generic before-push L2,
-   so that fallback cannot overwrite the final receipt.
+   so that fallback cannot overwrite the final receipt. The final gate runs before the transition into
+   `close`, whose entry guard already requires a valid marker.
    Trunk-solo direct-merge block `L2` → the same final-level wording.
 3. `record-agent-return.mjs` + emitted twin — use the existing `collaborationMode` axis when deriving
    the Standard panel minimum: one reviewer for `trunk-solo`, two for collaborative modes, while the
@@ -178,7 +179,7 @@ which matches K's non-harness requirement, so it cannot select a level below wha
 - [ ] AC-1: A preflight verifies compatibility between the gate receipt writer, `/ship` verification/close guards, `done-evidence`, and pre-push requirements before implementation begins.
 - [ ] AC-2: A staged gate receipt remains invalid after commit even when the projected tree matches, because HEAD/history checks did not evaluate that commit; the worktree lifecycle no longer prescribes this unsafe run.
 - [ ] AC-3: Any source/staged mutation, different tree hash, insufficient gate level, or ambiguous dirty state invalidates reuse.
-- [ ] AC-4: `/ship` close selects one sufficient final gate level; harness `done-evidence` reuses that receipt instead of launching a second full gate on the same tree.
+- [ ] AC-4: `/ship` verification selects one sufficient final gate level before entering close; harness `done-evidence` reuses that receipt instead of launching a second full gate on the same tree.
 - [ ] AC-5: Pre-push reuses the same qualified receipt when head and tree binding still match.
 - [ ] AC-6: Tests cover reuse and every invalidation boundary without creating a parallel evidence format.
 - [ ] AC-7: Gate duration and avoided duplicate runs remain observable metrics, not new blocking ceremony.
@@ -197,7 +198,7 @@ which matches K's non-harness requirement, so it cannot select a level below wha
 
 ## Merge contract
 
-1. ACs: AC-1..AC-10 above (hard-gated by `check-acceptance`).
+1. ACs: AC-1..AC-11 above (hard-gated by `check-acceptance`).
 2. Policy: INV-33 (no green-by-assertion), INV-38 (done evidence), INV-114 (Stop evidence), INV-138,
    CANON-06 (`src/commands`), CANON-25 (gate-behaviour change: name what turns it red — AC-8/AC-9 tests),
    Track A+B dual canon (ship.md + `.ejs`).
@@ -216,7 +217,7 @@ Landing route supported: yes (trunk-solo + pr-ff).
 
 | AC | Unit / level | Proof |
 | -- | ------------ | ----- |
-| AC-1, AC-8 | `ship-profile.test.ts`, `task-ship.test.ts` plus existing consumer requirement fixtures | the existing harness feature reaches `/ship`; selected final level satisfies close, done and pre-push contracts; the close sequence contains one gate command |
+| AC-1, AC-8 | `ship-profile.test.ts`, `task-ship.test.ts` plus existing consumer requirement fixtures | the existing harness feature reaches `/ship`; selected final level satisfies close, done and pre-push contracts; verification + close contain one gate command before the close entry guard |
 | AC-2, AC-3, AC-9 | `gate-evidence-binding.test.ts` plus existing start/end and consumer tests | add only the staged-then-commit equal-tree rejection; retain existing mutation, level, dirty and untracked cases |
 | AC-4, AC-5 | `done-evidence-sequence.test.ts`, `pre-push-reuse-evidence.test.ts` | clean L3 is captured without launching another gate and reused at push; non-harness path contains no done-evidence command |
 | AC-6 | review of diff | only existing `arbiter-gate-pass-v3` marker used; no new file format |
@@ -237,7 +238,7 @@ in the PR. Do not pay extra gates for a matched benchmark.
   Accepted residual; no TTL change (Non-goal). Recorded, not mitigated.
 - Late evidence commit after the final gate forces a rerun → mitigated by the prescribed order and a
   step-text test.
-- Generated projects with a heavier L3 lane now run L3 at close instead of L2 plus a separate L3 at
+- Generated projects with a heavier L3 lane now run L3 at verification instead of L2 plus a separate L3 at
   done-evidence. That is still one full gate instead of two, and D already demanded L3.
 - R1 intentionally does not deliver staged-receipt survival; the preflight proved that doing so would
   require projection-aware semantics for every HEAD/history check.

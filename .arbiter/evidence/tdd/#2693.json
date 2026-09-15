@@ -1,16 +1,16 @@
 {
   "$schemaVersion": 1,
   "task_id": "#2693",
-  "test_path": "__tests__/scripts/record-agent-return-modes.test.ts",
-  "test_commit_sha": "5b29c90334b3cb80c9a10e897093a9efb8397799",
-  "test_blob_sha": "fa2e7afa48bf5bdf835e5f6e92d0f12067a3ad65",
-  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/record-agent-return-modes.test.ts (11 tests | 1 failed) 928ms\n     × accepts the single reviewer prescribed for a trunk-solo Standard task 70ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 10 passed (11)\n   Start at  08:40:20\n   Duration  1.03s (transform 13ms, setup 6ms, import 14ms, tests 928ms, environment 0ms)\n\n\nstderr | __tests__/scripts/record-agent-return-modes.test.ts > record-agent-return evidence modes (#2687) > accepts the single reviewer prescribed for a trunk-solo Standard task\n\n\n\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/record-agent-return-modes.test.ts > record-agent-return evidence modes (#2687) > accepts the single reviewer prescribed for a trunk-solo Standard task\nAssertionError: [record-agent-return] FAIL: routed panel requires 2 reviewer envelopes\n: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/scripts/record-agent-return-modes.test.ts:227:58\n    225|     const result = recordPanel([reviewer])\n    226|\n    227|     expect(result.status, result.stdout + result.stderr).toBe(0)\n       |                                                          ^\n    228|     expect(\n    229|       JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatche…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
-  "observed_failure": "FAIL  |unit| __tests__/scripts/record-agent-return-modes.test.ts",
-  "recorded_at": "2026-09-15T06:40:21.888Z",
+  "test_path": "__tests__/commands/task-ship.test.ts",
+  "test_commit_sha": "af7a5cb0a312389b224f328a2edc7c83e043b373",
+  "test_blob_sha": "7a872c7f122469bc04c8ce54b2eb377f918756dc",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/task-ship.test.ts (49 tests | 2 failed) 522ms\n     × runs the exact-HEAD L2 before entering close for a non-harness project 7ms\n     × runs one final L3 before close and reuses it for done-evidence with the harness 1ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 47 passed (49)\n   Start at  08:45:32\n   Duration  903ms (transform 214ms, setup 7ms, import 285ms, tests 522ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/task-ship.test.ts > ship final-gate action ordering > runs the exact-HEAD L2 before entering close for a non-harness project\nAssertionError: expected 'Run the L1 gate; fix any failures.' to contain 'Commit the candidate and its evidence…'\n\nExpected: \"Commit the candidate and its evidence, then run `node scripts/check-all.mjs L2`\"\nReceived: \"Run the L1 gate; fix any failures.\"\n\n ❯ __tests__/commands/task-ship.test.ts:544:33\n    542|     const verification = shipStepFor('verification', 'Standard', profi…\n    543|     const close = shipStepFor('close', 'Standard', profile())\n    544|     expect(verification.action).toContain(\n       |                                 ^\n    545|       'Commit the candidate and its evidence, then run `node scripts/c…\n    546|     )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/commands/task-ship.test.ts > ship final-gate action ordering > runs one final L3 before close and reuses it for done-evidence with the harness\nAssertionError: expected 'node scripts/check-all.mjs L1' to be 'node scripts/check-all.mjs L3' // Object.is equality\n\nExpected: \"node scripts/check-all.mjs L3\"\nReceived: \"node scripts/check-all.mjs L1\"\n\n ❯ __tests__/commands/task-ship.test.ts:557:34\n    555|     const close = shipStepFor('close', 'Standard', harness)\n    556|     const sequence = `${verification.action} ${close.action}`\n    557|     expect(verification.command).toBe('node scripts/check-all.mjs L3')\n       |                                  ^\n    558|     expect(sequence).toContain('node scripts/done-evidence.mjs')\n    559|     expect(sequence.match(/check-all\\.mjs/g)).toHaveLength(1)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/task-ship.test.ts",
+  "recorded_at": "2026-09-15T06:45:33.160Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
-    "__tests__/scripts/record-agent-return-modes.test.ts"
+    "__tests__/commands/task-ship.test.ts"
   ]
 }

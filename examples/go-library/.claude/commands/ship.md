@@ -21,6 +21,7 @@ related: []
 
 
 
+
 # /ship #NNN
 
 `/ship` is the **single orchestration entrypoint** — it drives an issue to a reviewed, merged PR by
@@ -95,8 +96,8 @@ the train to Standard does not join it — a risk-bearing issue rides its own tr
 `arbiter.json` (defaults: 10 issues, 480 minutes); `ship.review.maxRounds` bounds review rework
 the same way (default 2). A refused `--chain-add` is the policy working — land the train.
 
-**Gate cadence.** Targeted tests during `green` / `refactor`, one L1 diagnostic at `verification`,
-then one clean-HEAD L2 at close; pre-push reuse that final receipt. This cadence
+**Gate cadence.** Targeted tests during `green`, one L1 diagnostic before the refactor commit,
+then one clean-HEAD L2 at `verification`; close, pre-push reuse that receipt. This cadence
 is authoritative inside `/ship`: do not also run the generic verification skill's before-push L2. See §Gate
 economy, which governs a train exactly as it governs a single issue. Gates are per LANDING,
 ceremony is per TRAIN; neither is per issue.
@@ -144,9 +145,9 @@ arbiter task advance --to plan
 | `red-team-rework` | Lateral rework phase entered only on a CRITICAL red-team finding: revise the plan, then re-enter `red-team-review` (or `plan` for a full replan) | — |
 | `red` | Write failing tests with the `tdd` skill (red → verify-red is its own step: watch each test fail for the right reason) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
 | `green` | Implement the minimum to pass, continuing the `tdd` loop (composes with active companion plugins — see below) | — |
-| `refactor` | Clean up; dispatch 2 code-review agents + 1 adversarial verifier | 2 (Standard) |
-| `verification` | Run the claim checks from the `verification` skill, then one `node scripts/check-all.mjs L1` diagnostic. Skip its generic before-push L2; `close` owns the sufficient final gate. | — |
-| `close` | The closing phase (#A11): entry requires a valid L1 gate-pass marker and switches the active rule set to CLOSER mode (`.claude/rules/95-closer-mode.md`) — single named target, no discovery, findings to the PARKING list | — |
+| `refactor` | Clean up; run the configured pre-commit diagnostic, commit the candidate, then dispatch 2 code-review agents + 1 adversarial verifier | 2 (Standard) |
+| `verification` | Run the claim checks from the `verification` skill; commit review/AC-fit evidence, then run one clean-HEAD `node scripts/check-all.mjs L2`. Skip the skill's generic before-push L2. | — |
+| `close` | Entry consumes the valid final marker, then switches to CLOSER mode (`.claude/rules/95-closer-mode.md`) — push, no new gate while the subject is unchanged | — |
 | `complete` | Commit, push, open/merge PR, close issue, clean up | — |
 
 ### Model tier per dispatch (static guidance, AGENTS.md §Model-Pyramid)

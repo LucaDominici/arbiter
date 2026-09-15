@@ -239,7 +239,7 @@ describe('self /ship documentation coherence (#2178)', () => {
   it('keeps the generic verification L2 out of the native ship cadence', () => {
     expect(shipCommand).toContain("do not also run the generic verification skill's before-push L2")
     expect(shipCommand).toContain(
-      'Skip its generic before-push L2; `close` owns the sufficient final gate.',
+      'commit review/AC-fit evidence, then run one clean-HEAD `node scripts/check-all.mjs L3`',
     )
   })
 })
@@ -537,20 +537,27 @@ describe('ship complete-action — chain batching (--chain, #2102)', () => {
   })
 })
 
-describe('ship close action ordering', () => {
-  it('commits before the exact-HEAD L2 gate', () => {
-    const action = shipStepFor('close', 'Standard', profile()).action
-    expect(action).toContain('Commit the candidate, then run `node scripts/check-all.mjs L2`')
-    expect(action).not.toContain('done-evidence.mjs')
-    expect(action).not.toContain('L2` before commit')
+describe('ship final-gate action ordering', () => {
+  it('runs the exact-HEAD L2 before entering close for a non-harness project', () => {
+    const verification = shipStepFor('verification', 'Standard', profile())
+    const close = shipStepFor('close', 'Standard', profile())
+    expect(verification.action).toContain(
+      'Commit the candidate and its evidence, then run `node scripts/check-all.mjs L2`',
+    )
+    expect(verification.command).toBe('node scripts/check-all.mjs L2')
+    expect(close.action).not.toContain('check-all.mjs')
+    expect(close.action).not.toContain('done-evidence.mjs')
   })
 
-  it('selects one final L3 gate and reuses it for done-evidence when the harness is active', () => {
-    const action = shipStepFor('close', 'Standard', profile({ evidenceHarness: true })).action
-    expect(action).toContain('Commit the candidate, then run `node scripts/check-all.mjs L3` once')
-    expect(action).toContain('node scripts/done-evidence.mjs')
-    expect(action.match(/check-all\.mjs/g)).toHaveLength(1)
-    expect(action).not.toContain('L3` before commit')
+  it('runs one final L3 before close and reuses it for done-evidence with the harness', () => {
+    const harness = profile({ evidenceHarness: true })
+    const verification = shipStepFor('verification', 'Standard', harness)
+    const close = shipStepFor('close', 'Standard', harness)
+    const sequence = `${verification.action} ${close.action}`
+    expect(verification.command).toBe('node scripts/check-all.mjs L3')
+    expect(sequence).toContain('node scripts/done-evidence.mjs')
+    expect(sequence.match(/check-all\.mjs/g)).toHaveLength(1)
+    expect(close.action).toContain('Reuse the qualified clean-HEAD receipt')
   })
 })
 
@@ -569,15 +576,14 @@ describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)
 })
 
 // #1306 — the orchestration prefs are CONSUMED in the ship step plan (not dead):
-// verification reads defaultGateLevel. (#2329 deleted affinityBatching; the plan
+// refactor reads defaultGateLevel. (#2329 deleted affinityBatching; the plan
 // action is now a constant — see __tests__/config/affinity-batching-removed.test.ts.)
 describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead code)', () => {
-  it('verification gate command + action reflect defaultGateLevel', () => {
-    const l2 = shipStepFor('verification', 'Standard', profile({ defaultGateLevel: 'L2' }))
-    expect(l2.command).toContain('L2')
+  it('refactor pre-commit diagnostic reflects defaultGateLevel', () => {
+    const l2 = shipStepFor('refactor', 'Standard', profile({ defaultGateLevel: 'L2' }))
     expect(l2.action).toContain('L2')
-    const l1 = shipStepFor('verification', 'Standard', profile({ defaultGateLevel: 'L1' }))
-    expect(l1.command).toContain('L1')
+    const l1 = shipStepFor('refactor', 'Standard', profile({ defaultGateLevel: 'L1' }))
+    expect(l1.action).toContain('L1')
   })
 
   // #2329 removed the knob that used to branch this action; #2333 removed the

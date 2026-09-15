@@ -228,17 +228,15 @@ function greenAction(profile: ShipProfile): string {
  * only (no background "monitor" for gate/PR checks), never end on a promise.
  */
 function closeAction(profile: ShipProfile): string {
-  const finalGate = profile.evidenceHarness ? 'L3' : 'L2'
   const doneEvidence = profile.evidenceHarness
-    ? ' Then run `node scripts/done-evidence.mjs` to capture and reuse that L3 receipt.'
+    ? ' Run `node scripts/done-evidence.mjs` to capture and reuse that L3 receipt.'
     : ''
   return (
     'CLOSER mode: single named target, no new issues or refactor beyond the diff ' +
     '(findings → PARKING list, one line, no action). Same error twice → 5-line root-cause, ' +
-    `else declare BLOCKED. Commit the candidate, then run \`node scripts/check-all.mjs ${finalGate}\` once on the clean HEAD before push.` +
+    'else declare BLOCKED. Reuse the qualified clean-HEAD receipt; do not run another gate while the candidate is unchanged.' +
     doneEvidence +
-    ' Do not run another gate while the candidate is unchanged. ' +
-    'Foreground-wait on the PR/gate checks; never end the turn on a promise.'
+    ' Push, then foreground-wait on the PR/gate checks; never end the turn on a promise.'
   )
 }
 
@@ -332,12 +330,13 @@ function reviewPhaseStepBody(
   })
   const externalCount = plan.external.length
   const scope = reviewScopeFor(reviewPlan)
+  const prepare = `Clean up, run \`node scripts/check-all.mjs ${profile.defaultGateLevel}\` as the pre-commit diagnostic, commit the candidate, then`
   const step: Omit<ShipStep, 'verticals'> = {
     phase,
     action:
       externalCount > 0
-        ? `Clean up, then dispatch ${reviewAgents - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${reviewAgents}.`
-        : `Clean up, then dispatch ${reviewAgents} code-review agent(s) + 1 adversarial verifier.`,
+        ? `${prepare} dispatch ${reviewAgents - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${reviewAgents}.`
+        : `${prepare} dispatch ${reviewAgents} code-review agent(s) + 1 adversarial verifier.`,
     reviewAgents,
     ...(scope !== undefined ? { reviewScope: scope } : {}),
   }
@@ -390,19 +389,18 @@ function shipStepBody(
         action: greenAction(profile),
         reviewAgents: 0,
       }
-    case 'verification':
+    case 'verification': {
+      const finalGate = profile.evidenceHarness ? 'L3' : 'L2'
       return {
         phase,
-        // #1306 — verification consumes profile.defaultGateLevel (resolved through the
-        // unified resolver): the default gate run is the profile's level (L1/L2), not a
-        // hard-coded one. A per-run `--set automation.defaultGateLevel=L2` raises it.
-        action: `Run the ${profile.defaultGateLevel} gate; fix any failures.`,
-        command: `node scripts/check-all.mjs ${profile.defaultGateLevel}`,
+        action: `Commit the candidate and its evidence, then run \`node scripts/check-all.mjs ${finalGate}\` once on the clean HEAD; fix failures before advancing to close.`,
+        command: `node scripts/check-all.mjs ${finalGate}`,
         reviewAgents: 0,
         // Self-only authoring gates run here for arbiter-self only; a consumer repo has no
         // such concern, so the list is empty (skipped, not faked — ADR-093 §5 / INV-115).
         selfOnlyChecks: verificationSelfOnlyChecks(profile),
       }
+    }
     case 'close':
       return {
         phase,
