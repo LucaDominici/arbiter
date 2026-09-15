@@ -24,6 +24,92 @@ export const EXTENSIONS = new Set([".ts",".tsx",".mjs",".js"])
 export const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'templates', 'vendor', 'target'])
 const ORPHAN_TODO_AT_COMMENT_START = new RegExp(`^(?:${ORPHAN_TODO.source})`)
 
+function scanBlockComment(line, index, state) {
+  const rest = line.slice(index).trimStart()
+  const comment = rest.startsWith('*') ? rest : `* ${rest}`
+  const end = line.indexOf('*/', index)
+  if (end === -1) return { found: ORPHAN_TODO_AT_COMMENT_START.test(comment), next: line.length }
+  state.blockComment = false
+  return { found: ORPHAN_TODO_AT_COMMENT_START.test(comment), next: end + 2 }
+}
+
+function scanTripleQuote(line, index, state) {
+  const end = line.indexOf(state.tripleQuote, index)
+  if (end === -1) return line.length
+  const length = state.tripleQuote.length
+  state.tripleQuote = null
+  return end + length
+}
+
+function scanQuote(line, index, state) {
+  const char = line[index]
+  if (state.escaped) state.escaped = false
+  else if (char === '\\') state.escaped = true
+  else if (char === state.quote) state.quote = null
+  return index + 1
+}
+
+function scanSlashComment(line, index, state) {
+  if (line[index + 1] === '/') {
+    return { found: ORPHAN_TODO_AT_COMMENT_START.test(line.slice(index)), next: line.length }
+  }
+  const end = line.indexOf('*/', index + 2)
+  if (end === -1) {
+    state.blockComment = true
+    return { found: ORPHAN_TODO_AT_COMMENT_START.test(line.slice(index)), next: line.length }
+  }
+  return { found: ORPHAN_TODO_AT_COMMENT_START.test(line.slice(index)), next: end + 2 }
+}
+
+function scanQuoteStart(line, index, state, tripleQuotes) {
+  const char = line[index]
+  const triple = line.slice(index, index + 3)
+  if (tripleQuotes && (triple === "'''" || triple === '\"\"\"')) {
+    state.tripleQuote = triple
+    return { found: false, next: index + 3 }
+  }
+  if (char === "'" || char === '"' || char === '`') {
+    state.quote = char
+    state.escaped = false
+    return { found: false, next: index + 1 }
+  }
+  return null
+}
+
+function scanCode(line, index, state, hashComments, tripleQuotes) {
+  const quote = scanQuoteStart(line, index, state, tripleQuotes)
+  if (quote !== null) return quote
+  if (hashComments && line[index] === '#') {
+    return { found: ORPHAN_TODO_AT_COMMENT_START.test(line.slice(index)), next: line.length }
+  }
+  if (
+    !hashComments &&
+    line[index] === '/' &&
+    (line[index + 1] === '/' || line[index + 1] === '*')
+  ) {
+    return scanSlashComment(line, index, state)
+  }
+  return { found: false, next: index + 1 }
+}
+
+function scanLine(line, state, hashComments, tripleQuotes) {
+  let found = false
+  for (let index = 0; index < line.length;) {
+    let step
+    if (state.blockComment) step = scanBlockComment(line, index, state)
+    else if (state.tripleQuote !== null) {
+      index = scanTripleQuote(line, index, state)
+      continue
+    } else if (state.quote !== null) {
+      index = scanQuote(line, index, state)
+      continue
+    } else step = scanCode(line, index, state, hashComments, tripleQuotes)
+    if (step.found) found = true
+    index = step.next
+  }
+  return found
+}
+
 /**
  * Collect every source file under `root` to scan: walkRepo handles traversal, then this gate's own
  * SKIP_DIRS (path-segment filter) and EXTENSIONS narrow the set. Returns absolute paths.
@@ -49,80 +135,17 @@ export function findOrphanTodos(content, extension = '.ts') {
   const normalizedExtension = extension.toLowerCase()
   const hashComments = normalizedExtension === '.py'
   const tripleQuotes = ['.py', '.java', '.kt'].includes(normalizedExtension)
-  let blockComment = false
-  let quote = null
-  let tripleQuote = null
-  let escaped = false
+  const state = { blockComment: false, quote: null, tripleQuote: null, escaped: false }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    if (quote !== '`') {
-      quote = null
-      escaped = false
+    if (state.quote !== '`') {
+      state.quote = null
+      state.escaped = false
     }
-    let found = false
-    for (let j = 0; !found && j < line.length; ) {
-      if (blockComment) {
-        const rest = line.slice(j).trimStart()
-        const comment = rest.startsWith('*') ? rest : `* ${rest}`
-        const end = line.indexOf('*/', j)
-        if (ORPHAN_TODO_AT_COMMENT_START.test(comment)) {
-          if (end !== -1) blockComment = false
-          found = true
-          break
-        }
-        if (end === -1) break
-        blockComment = false
-        j = end + 2
-        continue
-      }
-      if (tripleQuote !== null) {
-        const end = line.indexOf(tripleQuote, j)
-        if (end === -1) break
-        j = end + tripleQuote.length
-        tripleQuote = null
-        continue
-      }
-
-      const char = line[j]
-      if (quote !== null) {
-        if (escaped) escaped = false
-        else if (char === '\\') escaped = true
-        else if (char === quote) quote = null
-        j++
-        continue
-      }
-
-      const triple = line.slice(j, j + 3)
-      if (tripleQuotes && (triple === "'''" || triple === '\"\"\"')) {
-        tripleQuote = triple
-        j += 3
-      } else if (char === "'" || char === '"' || char === '`') {
-        quote = char
-        escaped = false
-        j++
-      } else if (hashComments && char === '#') {
-        found = ORPHAN_TODO_AT_COMMENT_START.test(line.slice(j))
-        break
-      } else if (!hashComments && char === '/' && line[j + 1] === '/') {
-        found = ORPHAN_TODO_AT_COMMENT_START.test(line.slice(j))
-        break
-      } else if (!hashComments && char === '/' && line[j + 1] === '*') {
-        if (ORPHAN_TODO_AT_COMMENT_START.test(line.slice(j))) {
-          found = true
-          break
-        }
-        const end = line.indexOf('*/', j + 2)
-        if (end === -1) {
-          blockComment = true
-          break
-        }
-        j = end + 2
-      } else {
-        j++
-      }
+    if (scanLine(line, state, hashComments, tripleQuotes)) {
+      hits.push({ line: i + 1, text: line.trim() })
     }
-    if (found) hits.push({ line: i + 1, text: line.trim() })
   }
   return hits
 }
