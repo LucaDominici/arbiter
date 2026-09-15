@@ -1,0 +1,115 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2572",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 209
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 293
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 307
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 323
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/guard-flip-registry.mjs",
+          "line": 440
+        },
+        {
+          "file": "scripts/lib/guard-flip-registry.mjs",
+          "line": 442
+        },
+        {
+          "file": "scripts/lib/guard-flip-registry.mjs",
+          "line": 450
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 327
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 741
+        },
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 745
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 165
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 255
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/check-guard-flip-roster-2560.test.ts",
+          "line": 85
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip-roster-2560.test.ts",
+          "line": 258
+        },
+        {
+          "file": "docs/internal/SYSTEM/CANON.md",
+          "line": 385
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 39
+        },
+        {
+          "file": "scripts/check-guard-flip.mjs",
+          "line": 265
+        },
+        {
+          "file": "scripts/check-guard-flip.mjs",
+          "line": 271
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2572-gate-wiring-proof",
+  "sha": "07192e0e7339fb4d9a20093084eccbcecdd38103",
+  "planHash": "33664ae13d64c81ea620d2213c3e8567a3a3ac8d",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2572/root-codex-orchestrator-ac-fit-0.json",
+    "sha256": "d173ff3b42c9aea3a4c5ca836a38a046d4ae6a9c8ce59cf0b4a652f39b9fa379"
+  }
+}

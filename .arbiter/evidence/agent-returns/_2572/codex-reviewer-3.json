@@ -1,0 +1,34 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2572",
+  "verdict": "PASS",
+  "confidence": 0.9,
+  "findings": [],
+  "refutations": [
+    {
+      "target": "The supplied delta changes executable implementation or weakens AC-1 through AC-5.",
+      "verdict": "REFUTED",
+      "citations": [
+        {
+          "file": ".claude/plans/task-2572-gate-wiring-proof.md",
+          "line": 49
+        },
+        {
+          "file": ".claude/plans/task-2572-gate-wiring-proof.md",
+          "line": 65
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2572-gate-wiring-proof",
+  "sha": "07192e0e7339fb4d9a20093084eccbcecdd38103",
+  "ts": "2026-09-15T10:08:57.981Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

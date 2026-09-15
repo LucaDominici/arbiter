@@ -1,0 +1,32 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2572",
+  "verdict": "FAIL",
+  "confidence": 0.93,
+  "findings": [
+    {
+      "id": "R2-F1",
+      "severity": "high",
+      "kind": "behavioral",
+      "claim": "topLevelArgs does not skip comments, so brackets or quotes inside comments can hide subsequent literal inventory/config arguments. For example, ['scripts/check-x.mjs', roots[0], /* [ */ '--inventory', 'missing.json'] leaves the comment's '[' on the stack and produces argv: [], preventing the missing inventory path from being checked. readArgArray already skips comments; apply equivalent comment handling when splitting top-level arguments and add a missing-path regression test.",
+      "citations": [
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 122
+        }
+      ]
+    }
+  ],
+  "refutations": [],
+  "branch": "task/#2572-gate-wiring-proof",
+  "sha": "0cd3dec40e5fd5e8fb758ee9c9ae9bba0e2cab4c",
+  "ts": "2026-09-15T10:01:03.754Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

@@ -1,1 +1,9 @@
-{"count":1,"agents":["codex-reviewer-round-2"],"auditors":["bugs","type-safety","domain","test-quality"],"branch":"task/#2695-tdd-authenticated-failure-headers","sha":"523d62b2a096dd8d09f65d38dbc64e472c01dff0","taskId":"#2695"}
+{
+  "count": 1,
+  "agents": [
+    "codex-reviewer"
+  ],
+  "taskId": "#2572",
+  "branch": "task/#2572-gate-wiring-proof",
+  "sha": "07192e0e7339fb4d9a20093084eccbcecdd38103"
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2572",
+  "verdict": "FAIL",
+  "confidence": 0.91,
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "high",
+      "kind": "behavioral",
+      "claim": "The array regex stops at the first closing bracket, including one inside an argument expression. Invocations ending with `roots[0], '--strict'` and `roots[0], '--relaxed'` therefore retain identical truncated argvSource and can incorrectly share a proof. Any literal inventory/config paths after that expression also escape validation. Parse the complete argument array with nesting awareness and test both bypasses.",
+      "citations": [
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 74
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "severity": "med",
+      "kind": "behavioral",
+      "claim": "Literal extraction matches strings inside expressions rather than only standalone literal arguments. For example, `resolve('src', 'components')` becomes two scan roots, causing a valid invocation to fail when `src/components` exists but top-level `components` does not. Preserve argument boundaries and distinguish dynamic expressions from static literal paths; add coverage for nested string literals.",
+      "citations": [
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 92
+        }
+      ]
+    }
+  ],
+  "refutations": [],
+  "branch": "task/#2572-gate-wiring-proof",
+  "sha": "c7a2581bd0ba06d40e457d476addd19aeaa10e41",
+  "ts": "2026-09-15T09:57:35.773Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}

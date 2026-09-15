@@ -1,0 +1,38 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "codex-reviewer",
+  "role": "reviewer",
+  "taskId": "#2572",
+  "verdict": "PASS",
+  "confidence": 0.87,
+  "findings": [],
+  "refutations": [
+    {
+      "target": "R2-F1: Comments can alter bracket nesting, hide literal argv, or suppress missing-path checks. The delta excludes comments from nesting and literal recognition while preserving raw source slices. The regression meaningfully checks an unmatched bracket inside a comment followed by a missing inventory path. Assessment is diff-only; local execution was unavailable.",
+      "verdict": "REFUTED",
+      "citations": [
+        {
+          "file": "scripts/lib/gate-roster.mjs",
+          "line": 108
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 175
+        },
+        {
+          "file": "__tests__/scripts/check-guard-flip.test.ts",
+          "line": 191
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2572-gate-wiring-proof",
+  "sha": "201a17feff9e1444ef5ea3590474172008bade96",
+  "ts": "2026-09-15T10:02:31.352Z",
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "external-cli",
+    "cli": "codex",
+    "cliVersion": "0.154.0"
+  }
+}
