@@ -50,6 +50,7 @@ import {
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskShip, buildShipStepLines, shipStepFor } from './commands/task-ship.js'
+import type { TaskShipOptions } from './commands/task-ship.js'
 import { runCrossModelReview, runShipCrossModelReview } from './commands/cross-model-review.js'
 import { buildShipOverrides, resolveShipProfile } from './commands/ship-profile.js'
 import { detectExternalModel } from './detectors/external-model.js'
@@ -60,7 +61,7 @@ import { runTaskMark } from './commands/task-mark.js'
 import { isTddPhase, readUnifiedState } from './commands/task-state.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
 import { normTier } from './commands/ship-tier.js'
-import { splitTrainIds } from './commands/ship-train.js'
+import { parseTrainAffinity, splitTrainIds } from './commands/ship-train.js'
 import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
 import type { GraphFormat } from './commands/graph.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
@@ -2034,13 +2035,15 @@ task
 
 task
   .command('init [ids...]')
-  .description('Initialise / update the unified task document (#1206)')
+  .description(
+    'Initialise / update one task; multi-issue admission belongs to `arbiter ship` (#1206)',
+  )
   .option('--id <id>', 'Task id, e.g. #1206')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
   .option('--plan <path>', 'Repo-relative path to the plan file')
   .option(
     '--chain <id>',
-    'Other issue id batched into this task worktree/gate/PR (repeatable, #2102)',
+    'Refused by task init; use `arbiter ship` for complete affinity/qualification admission',
     (v: string, acc: string[]) => [...acc, v],
     [] as string[],
   )
@@ -2124,6 +2127,16 @@ function shipReviewFlags(opts: { reviewRound: boolean; forceReview: boolean }): 
   }
 }
 
+function shipAdaptiveFlags(opts: {
+  affinity?: string
+  outcome?: import('./commands/ship-tier.js').ShipExecutionOutcome
+}): Partial<Pick<TaskShipOptions, 'trainAffinity' | 'executionOutcome'>> {
+  return {
+    ...(opts.affinity !== undefined ? { trainAffinity: parseTrainAffinity(opts.affinity) } : {}),
+    ...(opts.outcome !== undefined ? { executionOutcome: opts.outcome } : {}),
+  }
+}
+
 program
   // #2401 — variadic: `arbiter ship #A #B #C` declares a train, sugar for repeated `--chain`.
   .command('ship [ids...]')
@@ -2161,17 +2174,38 @@ program
   )
   .option(
     '--chain <id>',
-    'Other issue id batched into this ship worktree/gate/PR (repeatable, #2102)',
+    'Other issue id admitted to this ship train; requires --affinity and complete qualification',
     (v: string, acc: string[]) => [...acc, v],
     [] as string[],
   )
   .option(
     '--chain-add <id>',
-    'Append an issue to the open train, or refuse if it must seal first (repeatable, #2331)',
+    'Append an issue to the open train; requires --affinity and complete qualification',
     (v: string, acc: string[]) => [...acc, v],
     [] as string[],
   )
   .option('--seal', 'Seal the open train now — land it before starting another (#2331)', false)
+  .option(
+    '--affinity <json>',
+    'Complete affinity components required by every multi-issue seed, replacement, or append',
+  )
+  .option(
+    '--outcome <outcome>',
+    'Last attempt result: new-risk|no-progress|timeout|oom|rate-limit|tool-unavailable|ci-queue',
+    (value: string) => {
+      const allowed = [
+        'new-risk',
+        'no-progress',
+        'timeout',
+        'oom',
+        'rate-limit',
+        'tool-unavailable',
+        'ci-queue',
+      ]
+      if (!allowed.includes(value)) throw new Error(`--outcome must be one of ${allowed.join('|')}`)
+      return value
+    },
+  )
   .option('--no-pr', 'Complete without a merged PR — this repo lands by direct push (logged)')
   .option(
     '--pr <n>',
@@ -2202,6 +2236,8 @@ program
         set: string[]
         chain: string[]
         chainAdd: string[]
+        affinity?: string
+        outcome?: import('./commands/ship-tier.js').ShipExecutionOutcome
         seal: boolean
         reviewRound: boolean
         forceReview: boolean
@@ -2239,6 +2275,7 @@ program
           // #2331 — same shape as --chain: only pass when actually supplied, so an absent flag
           // is never mistaken for "append nothing" and can never seal or clear a live train.
           ...(opts.chainAdd.length > 0 ? { chainAddIds: opts.chainAdd } : {}),
+          ...shipAdaptiveFlags(opts),
           ...(opts.seal ? { seal: true } : {}),
           ...shipReviewFlags(opts),
           advance: opts.advance,

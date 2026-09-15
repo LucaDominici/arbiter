@@ -23,6 +23,7 @@ import {
   assertWritten,
 } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
+import { isShipTreatment, type ShipTreatment } from './ship-tier.js'
 
 // ─── Phase vocabulary (single source; re-exported by task.ts for back-compat) ────────────────
 
@@ -148,6 +149,8 @@ export interface UnifiedTaskState {
    * round 0 — the key is never written speculatively.
    */
   review?: ReviewState
+  /** Effective, monotonic delivery obligations resolved by /ship for this task. */
+  treatment?: ShipTreatment
 }
 
 /** #2400 — how many review rounds this task has spent, and what the last one was pinned to. */
@@ -262,6 +265,9 @@ function normalize(raw: Partial<UnifiedTaskState>): UnifiedTaskState {
     (!Array.isArray(raw.chainIds) || raw.chainIds.some((id) => typeof id !== 'string'))
   ) {
     throw new Error('Corrupted chainIds in status.json: expected an array of strings.')
+  }
+  if (raw.treatment !== undefined && !isShipTreatment(raw.treatment)) {
+    throw new Error('Corrupted treatment in status.json: expected a valid ship treatment.')
   }
   const base = defaultState()
   return {

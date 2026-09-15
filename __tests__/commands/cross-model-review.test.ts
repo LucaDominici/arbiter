@@ -554,7 +554,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       )
       writeFileSync(
         join(dir, '.gitignore'),
-        '.claude/.task/\n.evidence/\ncodex-count\ncodex-stdin.txt\n',
+        '.claude/.task/\n.evidence/\n.local/\ncodex-count\ncodex-stdin.txt\n',
       )
 
       mkdirSync(join(dir, 'schemas'), { recursive: true })

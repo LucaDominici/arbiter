@@ -57,10 +57,10 @@ describe('check-agent-dispatch — catches a planted mismatch (AC4)', () => {
   })
 
   it('exits non-zero when the matrix tier->verticals is mutated to disagree with the task-ship mirror', () => {
-    // Plant a mismatch: drop 'security' from the Standard tier floor so the matrix
+    // Plant a mismatch: drop 'domain' from the Standard tier projection so the matrix
     // disagrees with src/commands/task-ship.ts::verticalsForTier('Standard').
     const m = JSON.parse(readFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), 'utf-8'))
-    m.tier_verticals.Standard = m.tier_verticals.Standard.filter((v: string) => v !== 'security')
+    m.tier_verticals.Standard = m.tier_verticals.Standard.filter((v: string) => v !== 'domain')
     writeFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), JSON.stringify(m, null, 2))
 
     const r = spawnSync(process.execPath, [SCRIPT, '--matrix-root', tmp], {
@@ -69,7 +69,7 @@ describe('check-agent-dispatch — catches a planted mismatch (AC4)', () => {
       env: { ...process.env, NO_COLOR: '1' },
     })
     expect(r.status).not.toBe(0)
-    expect(`${r.stdout}${r.stderr}`).toMatch(/mismatch|drift|security|Standard/i)
+    expect(`${r.stdout}${r.stderr}`).toMatch(/mismatch|drift|domain|Standard/i)
   })
 
   it('exits non-zero (fail-loud) when the matrix file is absent', () => {

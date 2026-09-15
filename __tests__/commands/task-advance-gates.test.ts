@@ -14,10 +14,19 @@ import { join, resolve } from 'node:path'
 vi.mock('../../src/capabilities/host-probe.js', () => ({
   detectHostCapabilities: vi.fn().mockReturnValue({ modelSwitch: false, transcriptPath: null }),
 }))
+vi.mock('../../src/evidence/git-checks.js', () => ({
+  pathExistsInCommit: vi.fn().mockReturnValue(true),
+  resolveEvidenceCommit: vi.fn((evidence: { test_commit_sha: string }) => ({
+    sha: evidence.test_commit_sha,
+    healed: false,
+  })),
+  tddEvidenceProducedOnBranch: vi.fn().mockReturnValue(true),
+}))
 
 import { runTaskAdvance } from '../../src/commands/task.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
+import { resolveShipTreatment } from '../../src/commands/ship-tier.js'
 
 const dirs: string[] = []
 
@@ -81,6 +90,23 @@ function recordRedTeam(dir: string, taskId = '#2435'): void {
   writeFileSync(join(evDir, `${taskId}.json`), JSON.stringify({ findings: [] }), 'utf-8')
 }
 
+function recordTdd(dir: string, taskId = '#2435'): void {
+  const evDir = join(dir, '.arbiter', 'evidence', 'tdd')
+  mkdirSync(evDir, { recursive: true })
+  writeFileSync(
+    join(evDir, `${taskId}.json`),
+    JSON.stringify({
+      $schemaVersion: 1,
+      task_id: taskId,
+      test_path: '__tests__/x.test.ts',
+      test_commit_sha: 'a'.repeat(40),
+      test_run_log: 'FAIL __tests__/x.test.ts\n✗ 1 test failed',
+      observed_failure: 'FAIL __tests__/x.test.ts',
+      recorded_at: '2026-09-15T00:00:00.000Z',
+    }),
+  )
+}
+
 function installAcceptanceChecker(dir: string): void {
   mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
   copyFileSync(
@@ -129,6 +155,36 @@ describe('advance --to plan — preflight must actually have seeded task state (
     writeHarnessConfig(dir)
     expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/completion policy/i)
     expect(readUnifiedState(dir)?.phase).toBe('preflight')
+  })
+
+  it('refuses a harness whose writer did not persist the delivery treatment', () => {
+    const dir = tmpRepo()
+    seed(dir, 'preflight', '#2681')
+    writeHarnessConfig(dir, { collaborationMode: 'peer-review' })
+    expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/delivery contract preflight/i)
+    expect(readUnifiedState(dir)?.phase).toBe('preflight')
+  })
+
+  it('advances when writer and delivery guards share the supported treatment contract', () => {
+    const dir = tmpRepo()
+    writeHarnessConfig(dir, { collaborationMode: 'peer-review' })
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'record-agent-return.mjs'), '')
+    writeFileSync(join(dir, 'scripts', 'check-review-completion.mjs'), '')
+    writeUnifiedState(dir, {
+      phase: 'preflight',
+      taskId: '#2681',
+      treatment: resolveShipTreatment('Standard', {
+        blastRadius: null,
+        labels: [],
+        milestoneBundled: false,
+        complete: false,
+      }),
+    })
+
+    runTaskAdvance({ to: 'plan', dir })
+
+    expect(readUnifiedState(dir)?.phase).toBe('plan')
   })
 
   it('AC-1: refuses malformed raw harness config before advancing', () => {
@@ -331,5 +387,35 @@ describe('advance --to refactor — the review machinery must have an id to key 
     seed(dir, 'green')
     runTaskAdvance({ to: 'refactor', dir })
     expect(readUnifiedState(dir)?.phase).toBe('refactor')
+  })
+
+  it('records the first review round even through direct lifecycle advance', () => {
+    const dir = tmpRepo()
+    seed(dir, 'green')
+    const headSha = 'a'.repeat(40)
+    runTaskAdvance({ to: 'refactor', dir, headSha })
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 1, lastReviewedSha: headSha })
+  })
+})
+
+describe('advance --to verification — qualified review evidence is mandatory', () => {
+  it('refuses when the evidence profile has no review-completion checker', () => {
+    const dir = tmpRepo()
+    seed(dir, 'refactor')
+    recordTdd(dir)
+    writeHarnessConfig(dir, { collaborationMode: 'peer-review' })
+    expect(() => runTaskAdvance({ to: 'verification', dir })).toThrow(/review-completion/i)
+    expect(readUnifiedState(dir)?.phase).toBe('refactor')
+  })
+
+  it('advances after the canonical review-completion checker passes', () => {
+    const dir = tmpRepo()
+    seed(dir, 'refactor')
+    recordTdd(dir)
+    writeHarnessConfig(dir, { collaborationMode: 'peer-review' })
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'check-review-completion.mjs'), 'process.exit(0)\n')
+    runTaskAdvance({ to: 'verification', dir })
+    expect(readUnifiedState(dir)?.phase).toBe('verification')
   })
 })

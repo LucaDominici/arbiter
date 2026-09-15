@@ -83,7 +83,7 @@ function activeTaskId() {
 const activeTask = activeTaskId()
 
 /**
- * @typedef {{ count: number, branch: string, sha: string, agents?: string[], task?: string, taskId?: string }} DispatchSidecar
+ * @typedef {{ count: number, branch: string, sha: string, agents?: string[], auditors?: string[], treatmentHash?: string, task?: string, taskId?: string }} DispatchSidecar
  */
 
 /** @typedef {{ envelope: Record<string, unknown>, file: string }} ValidEnvelope */
@@ -380,7 +380,19 @@ function checkAgentEnvelope(agent, sidecar, task, files, valid) {
   const branchMatch =
     branchMatches.find((envelope) => envelope['sha'] === sidecar.sha) ?? branchMatches[0]
   if (branchMatch) {
-    if (branchMatch['sha'] === sidecar.sha) return null
+    if (branchMatch['sha'] === sidecar.sha) {
+      const blocking = Array.isArray(branchMatch['findings'])
+        ? branchMatch['findings'].filter(
+            (finding) =>
+              isRecord(finding) &&
+              ['critical', 'high', 'med'].includes(String(finding['severity'])),
+          )
+        : []
+      if (blocking.length > 0) {
+        return `${agent}: ${blocking.length} applicable MED/HIGH/CRITICAL reviewer finding(s) still block`
+      }
+      return null
+    }
     return `${agent}: provenance mismatch — expected sha ${sidecar.sha}, observed ${branchMatch['sha']}`
   }
   const wrongRole = taskMatch.find((envelope) => envelope['branch'] === sidecar.branch)
@@ -458,6 +470,47 @@ function checkLegacyReviewerCount(sidecar, task, valid) {
 function collectReviewFailures(sidecar, task, files, valid) {
   if (Array.isArray(sidecar.agents)) return checkNamedAgentEnvelopes(sidecar, task, files, valid)
   return checkLegacyReviewerCount(sidecar, task, valid)
+}
+
+function validTreatmentPanel(version, count, verticals, hash) {
+  return (
+    version === 1 &&
+    isNonNegativeInteger(count) &&
+    count >= 1 &&
+    count <= 3 &&
+    isValidAgentList(verticals) &&
+    verticals.length === count &&
+    typeof hash === 'string' &&
+    /^[0-9a-f]{64}$/.test(hash)
+  )
+}
+
+function activeTreatmentFailure(sidecar, task) {
+  const path = join(repoRoot, '.claude', '.task', 'status.json')
+  if (!existsSync(path)) return null
+  try {
+    const state = JSON.parse(readFileSync(path, 'utf-8'))
+    if (!isRecord(state) || state['taskId'] !== task) return null
+    const treatment = state['treatment']
+    if (!isRecord(treatment)) return 'active task has no persisted ship treatment'
+    const verticals = treatment['reviewerVerticals']
+    const count = treatment['finalReviewers']
+    const hash = treatment['signalsHash']
+    if (!validTreatmentPanel(treatment['version'], count, verticals, hash)) {
+      return 'active task has a malformed ship treatment'
+    }
+    if (
+      sidecar.count !== count ||
+      JSON.stringify(sidecar.auditors) !== JSON.stringify(verticals) ||
+      sidecar.treatmentHash !== hash
+    ) {
+      return 'review sidecar does not match the active ship treatment'
+    }
+    return null
+    // FAIL-OPEN-INTENT: the returned diagnostic is added to blocking failures by the caller.
+  } catch (err) {
+    return `cannot validate active ship treatment: ${errorMessage(err)}`
+  }
 }
 
 /**
@@ -669,6 +722,12 @@ function main() {
   if ('exitCode' in taskResult) return taskResult.exitCode
   const { sidecar } = sidecarResult
   const { task } = taskResult
+
+  const treatmentFailure = activeTreatmentFailure(sidecar, task)
+  if (treatmentFailure) {
+    process.stdout.write(`[check-review-completion] FAIL: ${treatmentFailure}\n`)
+    return 1
+  }
 
   const checkoutError = checkoutBindingError(sidecar)
   if (checkoutError) {

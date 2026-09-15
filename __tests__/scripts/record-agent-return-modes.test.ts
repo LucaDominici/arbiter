@@ -2,7 +2,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const RECORDER = new URL('../../scripts/record-agent-return.mjs', import.meta.url).pathname
@@ -13,6 +13,22 @@ const PLAN = [
   '## Non-Goals',
   '- no alternate evidence store',
 ].join('\n')
+const TREATMENT_HASH = 'a'.repeat(64)
+const STANDARD_TREATMENT = {
+  version: 1,
+  requestedTier: 'Standard',
+  tier: 'Standard',
+  sensitive: false,
+  planDepth: 'full',
+  preCodeReviewers: 1,
+  finalReviewers: 2,
+  acceptanceFitReviewers: 1,
+  reviewerVerticals: ['domain', 'test-quality'],
+  modelCapability: 'capable',
+  qualifiedNarrow: false,
+  signalsHash: TREATMENT_HASH,
+  reasons: ['complete affirmative qualification'],
+}
 
 let root: string
 
@@ -88,6 +104,7 @@ beforeEach(() => {
       branch: 'task/#42-fit',
       tier: 'Standard',
       collaborationMode: 'peer-review',
+      treatment: STANDARD_TREATMENT,
     }),
   )
 })
@@ -203,18 +220,43 @@ describe('record-agent-return evidence modes (#2687)', () => {
   })
 
   it('derives a complete Standard reviewer sidecar from distinct accepted envelopes', () => {
-    const first = { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined }
-    const second = { ...envelope(), agent: 'review-b', role: 'reviewer', acceptanceFit: undefined }
+    const first = { ...envelope(), agent: 'domain', role: 'reviewer', acceptanceFit: undefined }
+    const second = {
+      ...envelope(),
+      agent: 'test-quality',
+      role: 'reviewer',
+      acceptanceFit: undefined,
+    }
 
     const result = recordPanel([first, second])
 
     expect(result.status, result.stdout + result.stderr).toBe(0)
     expect(
       JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
-    ).toMatchObject({ count: 2, agents: ['review-a', 'review-b'], taskId: '#42' })
+    ).toMatchObject({
+      count: 2,
+      agents: ['domain', 'test-quality'],
+      auditors: ['domain', 'test-quality'],
+      treatmentHash: TREATMENT_HASH,
+      taskId: '#42',
+    })
   })
 
-  it('accepts the single reviewer prescribed for a trunk-solo Standard task', () => {
+  it('rejects a correctly-sized panel that did not fill the assigned verticals', () => {
+    const reviewers = ['review-a', 'review-b'].map((agent) => ({
+      ...envelope(),
+      agent,
+      role: 'reviewer',
+      acceptanceFit: undefined,
+    }))
+
+    const result = recordPanel(reviewers)
+
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/assigned verticals.*domain.*test-quality/i)
+  })
+
+  it('does not reduce the persisted Standard panel in trunk-solo', () => {
     const statusPath = join(root, '.claude', '.task', 'status.json')
     const status = JSON.parse(readFileSync(statusPath, 'utf8'))
     writeFileSync(statusPath, JSON.stringify({ ...status, collaborationMode: 'trunk-solo' }))
@@ -227,10 +269,8 @@ describe('record-agent-return evidence modes (#2687)', () => {
 
     const result = recordPanel([reviewer])
 
-    expect(result.status, result.stdout + result.stderr).toBe(0)
-    expect(
-      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
-    ).toMatchObject({ count: 1, agents: ['independent-review'], taskId: '#42' })
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/requires 2/i)
   })
 
   it('does not lower the panel from an unvalidated raw config', () => {
@@ -251,39 +291,46 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(result.stdout + result.stderr).toMatch(/requires 2/i)
   })
 
-  it('fails closed when the canonical reviewer router is unavailable', () => {
-    writeFileSync(join(root, 'scripts', 'route-auditors.mjs'), 'process.exit(1)\n')
+  it('fails closed when the active task has no persisted treatment', () => {
+    const statusPath = join(root, '.claude', '.task', 'status.json')
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'))
+    delete status.treatment
+    writeFileSync(statusPath, JSON.stringify(status))
     const first = { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined }
     const second = { ...envelope(), agent: 'review-b', role: 'reviewer', acceptanceFit: undefined }
 
     const result = recordPanel([first, second])
 
     expect(result.status).toBe(2)
-    expect(result.stdout + result.stderr).toMatch(/reviewer panel|router/i)
+    expect(result.stdout + result.stderr).toMatch(/ship treatment/i)
   })
 
-  it.each(['.env.local', '.claude/settings.json'])(
-    'escalates generated-project review when %s changes without a router',
-    (changedPath) => {
-      rmSync(join(root, 'scripts', 'route-auditors.mjs'))
-      mkdirSync(dirname(join(root, changedPath)), { recursive: true })
-      writeFileSync(join(root, changedPath), '{}\n')
-      execFileSync('git', ['add', changedPath], { cwd: root })
-      execFileSync('git', ['commit', '-m', 'test: sensitive change'], {
-        cwd: root,
-        stdio: 'ignore',
-      })
-      const reviewers = ['review-a', 'review-b', 'review-c'].map((agent) => ({
-        ...envelope(),
-        agent,
-        role: 'reviewer',
-        acceptanceFit: undefined,
-      }))
+  it('uses the specialist panel already selected by the persisted treatment', () => {
+    const statusPath = join(root, '.claude', '.task', 'status.json')
+    const status = JSON.parse(readFileSync(statusPath, 'utf8'))
+    writeFileSync(
+      statusPath,
+      JSON.stringify({
+        ...status,
+        treatment: {
+          ...STANDARD_TREATMENT,
+          sensitive: true,
+          finalReviewers: 3,
+          reviewerVerticals: ['security', 'migration', 'deployment'],
+          modelCapability: 'frontier',
+        },
+      }),
+    )
+    const reviewers = ['security', 'migration', 'deployment'].map((agent) => ({
+      ...envelope(),
+      agent,
+      role: 'reviewer',
+      acceptanceFit: undefined,
+    }))
 
-      const incomplete = recordPanel(reviewers.slice(0, 2))
-      expect(incomplete.status).toBe(1)
-      expect(incomplete.stdout + incomplete.stderr).toMatch(/requires 3/i)
-      expect(recordPanel(reviewers).status).toBe(0)
-    },
-  )
+    const incomplete = recordPanel(reviewers.slice(0, 2))
+    expect(incomplete.status).toBe(1)
+    expect(incomplete.stdout + incomplete.stderr).toMatch(/requires 3/i)
+    expect(recordPanel(reviewers).status).toBe(0)
+  })
 })

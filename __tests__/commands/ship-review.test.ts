@@ -55,12 +55,13 @@ describe('evaluateReviewRound (#2400)', () => {
     expect(evaluateReviewRound({ rounds: 1, maxRounds: 2, forced: false }).allowed).toBe(true)
   })
 
-  it('refuses the round past the cap, naming the cap and both ways out', () => {
+  it('refuses the round past the cap without weakening unresolved findings', () => {
     const verdict = evaluateReviewRound({ rounds: 2, maxRounds: 2, forced: false })
     expect(verdict.allowed).toBe(false)
     if (!verdict.allowed) {
       expect(verdict.detail).toMatch(/2/)
-      expect(verdict.detail).toMatch(/arbiter note/)
+      expect(verdict.detail).toMatch(/BLOCKED/)
+      expect(verdict.detail).toMatch(/MED\/HIGH\/CRITICAL/)
       expect(verdict.detail).toMatch(/--force-review/)
     }
   })
@@ -200,7 +201,7 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     expect(scope).toBeDefined()
     expect(scope).toContain(`git diff ${SHA_A}..HEAD`)
     expect(scope).toContain('round 2 of 2')
-    expect(scope).toContain('reviewer findings below HIGH do not block landing')
+    expect(scope).toContain('only LOW findings may be parked')
   })
 
   it('AC-2400.3: round 1 reviews the whole diff, so it prints no delta scope', () => {

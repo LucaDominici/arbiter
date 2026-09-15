@@ -28,6 +28,8 @@ type Sidecar = {
   branch: string
   sha: string
   agents?: string[]
+  auditors?: string[]
+  treatmentHash?: string
   taskId?: string
 }
 
@@ -120,6 +122,35 @@ describe('check-review-completion.mjs', () => {
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
   })
 
+  it('rejects a sidecar that drifts from the active task treatment', () => {
+    mkdirSync(join(tmpDir, '.claude', '.task'), { recursive: true })
+    writeFileSync(
+      join(tmpDir, '.claude', '.task', 'status.json'),
+      JSON.stringify({
+        taskId: TASK,
+        treatment: {
+          version: 1,
+          finalReviewers: 2,
+          reviewerVerticals: ['domain', 'test-quality'],
+          signalsHash: 'a'.repeat(64),
+        },
+      }),
+    )
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['alpha'],
+      auditors: ['domain'],
+      treatmentHash: 'b'.repeat(64),
+    })
+    writeEnvelope('alpha', envelope('alpha'))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toMatch(/ship treatment/i)
+  })
+
   it('uses the recorder-compatible underscore-sanitized task directory', () => {
     writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
     writeEnvelope('alpha', envelope('alpha'))
@@ -186,6 +217,29 @@ describe('check-review-completion.mjs', () => {
     const result = runCheck(sidecar, evidenceDir, tmpDir)
     expect(result.exitCode).toBe(1)
     expect(output(result)).toContain('beta')
+  })
+
+  it('refuses completion while an applicable MED reviewer finding remains', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope(
+      'alpha',
+      envelope('alpha', {
+        verdict: 'WARN',
+        findings: [
+          {
+            id: 'review-med-1',
+            severity: 'med',
+            kind: 'behavioral',
+            claim: 'The user-visible result is incomplete.',
+            citations: [],
+          },
+        ],
+      }),
+    )
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toMatch(/MED\/HIGH\/CRITICAL/i)
   })
 
   it('exits 1 and names an agent whose envelope artifact is empty', () => {

@@ -33,7 +33,7 @@ export function resolveReviewMaxRounds(ship: ShipConfig | undefined): number {
   return ship?.review?.maxRounds ?? DEFAULT_REVIEW_MAX_ROUNDS
 }
 
-export interface ReviewRoundSignals {
+interface ReviewRoundSignals {
   /** Rounds already recorded on this task, BEFORE the one being requested. */
   rounds: number
   maxRounds: number
@@ -41,15 +41,22 @@ export interface ReviewRoundSignals {
   forced: boolean
 }
 
-export type ReviewRoundVerdict = { allowed: true } | { allowed: false; detail: string }
+type ReviewRoundVerdict = { allowed: true } | { allowed: false; detail: string }
+
+export interface PlannedReviewRound {
+  rounds: number
+  maxRounds: number
+  base: string | null
+  head: string | null
+  forced: boolean
+}
 
 /**
  * May another review round run?
  *
  * The refusal names BOTH exits, because a cap that only says "no" just gets bypassed: land the
  * change with the remaining findings parked, or take the round deliberately with `--force-review`.
- * Parking is the default for a reason — a finding below HIGH that survives two rounds is
- * follow-up work, not a reason to hold a reviewed change out of main.
+ * The cap bounds cost, never severity. Applicable MED/HIGH/CRITICAL findings still block.
  */
 export function evaluateReviewRound(signals: ReviewRoundSignals): ReviewRoundVerdict {
   if (signals.forced) return { allowed: true }
@@ -58,8 +65,25 @@ export function evaluateReviewRound(signals: ReviewRoundSignals): ReviewRoundVer
     allowed: false,
     detail:
       `this task has already had ${signals.rounds} review round(s) and the cap is ${signals.maxRounds}. ` +
-      'Land it with the remaining findings parked (`arbiter note` each one, then ONE follow-up issue), ' +
-      'or pass --force-review to take another round deliberately.',
+      'BLOCKED: resolve or refute every applicable MED/HIGH/CRITICAL finding before landing, ' +
+      'or pass --force-review to take another round deliberately. Only LOW findings may be parked.',
+  }
+}
+
+export function planReviewRound(
+  previous: { rounds: number; lastReviewedSha: string | null; forced?: boolean },
+  maxRounds: number,
+  head: string | null,
+  forced: boolean,
+): PlannedReviewRound | { allowed: false; detail: string } {
+  const verdict = evaluateReviewRound({ rounds: previous.rounds, maxRounds, forced })
+  if (!verdict.allowed) return verdict
+  return {
+    rounds: previous.rounds + 1,
+    maxRounds,
+    base: previous.lastReviewedSha,
+    head,
+    forced,
   }
 }
 
@@ -74,6 +98,6 @@ export function evaluateReviewRound(signals: ReviewRoundSignals): ReviewRoundVer
 export function reviewScopeLine(base: string, rounds: number, maxRounds: number): string {
   return (
     `git diff ${base}..HEAD (round ${rounds} of ${maxRounds}) · ` +
-    'reviewer findings below HIGH do not block landing; AC-fit verdicts still require all-PASS'
+    'only LOW findings may be parked; applicable MED/HIGH/CRITICAL and AC-fit failures still block'
   )
 }

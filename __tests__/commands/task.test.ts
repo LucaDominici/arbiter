@@ -10,6 +10,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
+import { runTaskShip } from '../../src/commands/task-ship.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 
@@ -101,6 +102,27 @@ describe('runTaskAdvance', () => {
     )
   })
 
+  it('refuses a direct lifecycle advance while no-progress remains BLOCKED', () => {
+    seed('plan')
+    expect(() =>
+      runTaskShip({
+        dir,
+        executionOutcome: 'no-progress',
+        gatherTierSignals: () => ({
+          blastRadius: 0,
+          callerCount: 0,
+          changedFiles: ['docs/guide.md'],
+          complete: true,
+          labels: [],
+          milestoneBundled: false,
+        }),
+      }),
+    ).toThrow(/BLOCKED.*no progress/i)
+
+    expect(() => runTaskAdvance({ to: 'red-team-review', dir })).toThrow(/BLOCKED.*no progress/i)
+    expect(phaseOf()).toBe('plan')
+  })
+
   it('AC-7 runTaskInit normalizes a new bare id and resets stale completed state', () => {
     writeUnifiedState(dir, {
       taskId: '#2120',
@@ -129,9 +151,8 @@ describe('runTaskAdvance', () => {
   })
 })
 
-// #2102 — `arbiter task init --chain <id>` (repeatable): persists chainIds, validated the same
-// way `arbiter ship`'s primary id already is (numeric-only, canonical `#NNN`).
-describe('runTaskInit — chainIds (--chain, #2102)', () => {
+// Multi-issue state needs the affinity and qualification admission available only through ship.
+describe('runTaskInit — refuses chainIds', () => {
   let dir: string
 
   beforeEach(() => {
@@ -143,14 +164,18 @@ describe('runTaskInit — chainIds (--chain, #2102)', () => {
     cleanupTestProject(dir)
   })
 
-  it('persists a single --chain id, normalized to canonical #NNN', () => {
-    runTaskInit({ dir, id: '#2102', chainIds: ['2103'] })
-    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103'])
+  it('refuses a single --chain id and directs the caller through ship', () => {
+    expect(() => runTaskInit({ dir, id: '#2102', chainIds: ['2103'] })).toThrow(
+      /SEALED: affinity.*arbiter ship/,
+    )
+    expect(readUnifiedState(dir)).toBeNull()
   })
 
-  it('persists multiple --chain ids (repeatable flag) in order', () => {
-    runTaskInit({ dir, id: '#2102', chainIds: ['2103', '#2104'] })
-    expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103', '#2104'])
+  it('refuses multiple --chain ids without a partial write', () => {
+    expect(() => runTaskInit({ dir, id: '#2102', chainIds: ['2103', '#2104'] })).toThrow(
+      /SEALED: affinity.*arbiter ship/,
+    )
+    expect(readUnifiedState(dir)).toBeNull()
   })
 
   it('rejects a non-numeric chain id the same way the primary ship id is validated', () => {

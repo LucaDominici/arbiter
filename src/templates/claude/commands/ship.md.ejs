@@ -1,812 +1,189 @@
 ---
-description: Single orchestration entrypoint — drive an issue to a reviewed, merged PR (#1206, #1216)
+description: One adaptive path from issue to merged, green capability
 argument-hint: '#NNN [--tier XS|S|Standard]'
 title: '/ship #NNN'
-doc_version: '2.0.0'
+doc_version: '3.0.0'
 status: active
-last_review: '2026-06-05'
+last_review: '2026-09-15'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
 related: []
 ---
-<% const _safetyNet = { XS: { reviewAgentCount: 1 }, S: { reviewAgentCount: 1 }, Standard: { reviewAgentCount: 2 } }; %>
-<% const _tiers = (typeof taskTiers !== 'undefined' && taskTiers) ? taskTiers : _safetyNet; %>
-<% const _reviewLeadAngles = ['bugs', 'domain', 'type-safety', 'test-quality', 'security', 'data-integrity', 'silent-failures']; %>
-<% const _collaborationMode = (typeof collaborationMode !== 'undefined' && collaborationMode) ? collaborationMode : 'peer-review'; %>
-<% const _mergeMode = (typeof mergeMode !== 'undefined' && mergeMode) ? mergeMode : 'pr-ff'; %>
-<% const _testCommand = (typeof testCommand !== 'undefined' && testCommand) ? testCommand : 'npm test'; %>
-<% const _defaultGateLevel = (typeof defaultGateLevel !== 'undefined' && defaultGateLevel) ? defaultGateLevel : 'L1'; %>
-<% const _backend = (typeof decompositionBackend !== 'undefined' ? decompositionBackend : null) ?? (useGitHub ? 'github' : 'markdown'); %>
-<% const _soloMode = _collaborationMode === 'trunk-solo'; %>
-<% const _refactorLabel = _soloMode ? 'dispatch 1 independent code-review agent (trunk-solo mode — a fresh subagent with no implementation context) + 1 adversarial verifier' : `dispatch ${_tiers.Standard.reviewAgentCount} code-review agents + 1 adversarial verifier`; %>
-<% const _refactorCount = _soloMode ? '1' : `${_tiers.Standard.reviewAgentCount} (Standard)`; %>
 
 # /ship #NNN
 
-`/ship` is the **single orchestration entrypoint** — it drives an issue to a reviewed, merged PR by
-auto-sequencing arbiter's engine (worktree → plan → red-team → TDD impl → review → verify → merge → cleanup).
-Use `/task` subcommands (`init`, `advance`, `record-red`, etc.) only for low-level engine control or recovery.
+`/ship` is the single delivery entrypoint. The unit of work is a capability that a user can run,
+possibly backed by several related issues. Work is done only after merge, green CI, and live proof
+when the capability has a live surface.
 
-> Semantics: `ship` = drive an issue to a merged PR. It is NOT deploy/release.
+`arbiter ship` owns the next action and lifecycle state. Follow its output. Use `arbiter task`
+subcommands only for recovery or direct lifecycle control; they enforce the same gates.
 
----
-
-## The loop
-
-`arbiter ship` is the next-action computer; this command is the loop that executes the model-requiring
-steps between its calls.
+## Start and resume
 
 ```bash
-# 1. Ask the orchestrator for the current step
-arbiter ship #NNN --tier <tier>
-
-# 2. Do the work the step describes (plan / write tests / implement / dispatch review agents)
-
-# 3. Advance when this phase's gate is green (the gate throws if red)
+arbiter ship #NNN --tier <XS|S|Standard>
 arbiter ship #NNN --advance
-
-# repeat 1–3 until the step reports "Phase: complete (done)"
 ```
 
-On every sub-step, pin the cursor so a mid-task `/clear` resumes exactly:
+Call the first form to read the current treatment and next action. Do that work, then call the
+second form. Repeat until `Phase: complete (done)`. After context loss, call the first form again;
+`.claude/.task/status.json` reconstructs the same treatment, phase, round, and next action.
+
+Keep the cursor precise during implementation:
 
 ```bash
-arbiter mark --tdd GREEN --last "<done>" --next "<exact next action>" --digest "<one line>"
+arbiter mark --tdd GREEN --last '<completed result>' --next '<one executable next action>' --digest '<one line>'
 ```
 
+## Adaptive treatment
+
+The runtime persists one `ShipTreatment`. Plans, prompts, reviewers, evidence writers, and delivery
+gates consume that record; none recomputes its own reviewer policy.
+
+| Treatment | Plan    | Pre-code challenge |               Final code review | Acceptance fit | Model capability |
+| --------- | ------- | -----------------: | ------------------------------: | -------------: | ---------------- |
+| XS        | minimal |                  0 |            1 pertinent vertical |  1 independent | economy          |
+| S         | brief   |                  0 |            1 pertinent vertical |  1 independent | economy          |
+| Standard  | full    |         1 targeted |          2 orthogonal verticals |  1 independent | capable          |
+| Sensitive | full    |         1 targeted | relevant specialists, maximum 3 |  1 independent | frontier         |
+
+XS and S require affirmative, fresh qualification: readable issue metadata, a plan `files:`
+manifest covering every actual changed file, and a fresh directional dependency graph covering all
+non-document files. Missing, stale, malformed, or incomplete input resolves to Standard. Core paths,
+directional callers, wave or epic scope, and sensitive paths can only widen. A treatment never
+narrows after it has widened.
+
+Put the manifest in the plan's YAML frontmatter so hooks and runtime read the same list:
+
+```yaml
 ---
+files:
+  - src/example.ts
+  - __tests__/example.test.ts
+---
+```
 
-## Train
+Use the lowest model capability printed by `arbiter ship`. Escalate only when the treatment widens,
+a new material risk appears, or one implementation approach makes no progress. Timeout, OOM, rate
+limit, unavailable tools, and queued CI are infrastructure states; they do not justify source edits
+or model escalation by themselves.
 
-A **train** is one worktree, one branch, one plan, one gate and one PR carrying N issues. It is
-the **DEFAULT unit of ceremony** for every issue that does not widen the tier to Standard (the
-XS/S band, size ≤ M). Ten three-line fixes pass ONE ceremony, not ten.
+## Capability train
+
+A train is one capability, one plan, one branch, one candidate, one final gate, and one PR. Every
+companion issue, including an initial positional or `--chain` seed, needs complete qualification
+and one affinity decision:
 
 ```bash
-arbiter ship #A #B #C          # declare a train — sugar for `#A --chain #B --chain #C`
-arbiter ship --chain-add #D    # grow it, or be refused and told to land it first
-arbiter ship --seal            # close it now; the next issue starts a new train
+arbiter ship #A #B #C --tier XS --affinity '{
+  "sameOutcome":true,
+  "ownerPathOverlap":true,
+  "dependencyRelated":true,
+  "sharedProof":true,
+  "orderingCompatible":true,
+  "sharedAcceptanceBoundary":true,
+  "sharedRollbackBoundary":true,
+  "hardConflicts":[]
+}'
 ```
 
-| Runs ONCE per train                 | Runs per issue                          |
-| ----------------------------------- | --------------------------------------- |
-| plan (one cumulative plan)          | its `AC-<issue>.<n>` anchor lines       |
-| plan-review                         | its TDD evidence file                   |
-| red-team                            | its `Closes #N` line in the PR body     |
-| code review + adversarial verify    |                                         |
-| review rounds (`ship.review.maxRounds`) |                                     |
-| cross-model review seat             |                                         |
-| full gate                           |                                         |
-| PR (`Closes #A`, `Closes #B`, …)    |                                         |
+When that proof is not available at the initial call, start with `#A` and use the same affinity
+object with `--chain-add #B --chain-add #C` after the plan and dependency evidence exist.
 
-**One plan, one anchor.** The train's plan carries a SINGLE `## Acceptance Criteria` section
-listing every member's criteria, namespaced per issue as `AC-<issue>.<n>` (`AC-2401.1`,
-`AC-2402.1`, …). The anchor parser accepts that dotted numeric form, and `check-acceptance`
-rejects duplicate ids — which is exactly what an un-namespaced multi-issue plan produces. Every
-other mandatory section (see §Plan contents) is written once, for the train.
+The command emits every component and `JOIN` or `SEAL(reason)`. Missing evidence, any false
+component, any hard conflict, Standard treatment, age limit, or size limit seals the train. Low
+recall is deliberate: uncertain issues land separately. Each joined issue still needs its own
+namespaced acceptance criteria, RED evidence, commit reference, and closing reference.
 
-**Tier = widest member.** Compute each member's tier as usual and take the widest; the
-widen-only rule above applies unchanged (signals may widen, never narrow). An issue that widens
-the train to Standard does not join it — a risk-bearing issue rides its own train.
+## Result-first lifecycle
 
-**Stop rules** — the train seals, and the next issue starts a new one, on any of: an explicit
-`--seal`, a member that widens the tier to Standard, `maxChain` ids already on the branch, or
-`maxAgeMinutes` elapsed since the train opened. Both bounds come from `ship.train` in
-`arbiter.json` (defaults: 10 issues, 480 minutes); `ship.review.maxRounds` bounds review rework
-the same way (default 2). A refused `--chain-add` is the policy working — land the train.
+1. **Preflight** — read the issue and current repository; seed state; verify that the state writer
+   and delivery guard agree before implementation.
+2. **Plan** — freeze `AC-N` criteria and non-goals; list the complete file set, proof, rollback,
+   and smallest executable implementation. Standard gets one targeted plan challenge; XS/S do not.
+3. **RED** — write the smallest tests that fail for the intended reason and record RED evidence.
+4. **GREEN** — implement the capability. Run targeted checks while editing. Defer documentation and
+   issue hygiene until behavior is green unless a decision is needed to implement correctly.
+5. **Freeze** — finish all fixes, commit, and freeze HEAD plus the plan acceptance hash.
+6. **Certify** — run one targeted certification for that HEAD. Dispatch the treatment's final code
+   reviewers and the independent acceptance-fit verifier in parallel against the same SHA and shared
+   evidence.
+7. **Rework** — reconcile every finding from the round into one fix batch. A changed source SHA
+   invalidates review, acceptance-fit, and gate evidence. Round two reviews only the delta. The
+   normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
+   block. If another ordinary round would be needed, report BLOCKED or deliberately force it.
+8. **Verify** — after review completion and all-PASS acceptance fit, run one clean-HEAD full gate.
+9. **Land** — reuse the unchanged qualification through PR and CI. Merge, verify green post-merge CI,
+   perform live proof when applicable, close every carried issue, then clean up.
 
-**Gate cadence.** Targeted tests during `green`, one <%= _defaultGateLevel %> diagnostic before the refactor commit,
-then one clean-HEAD <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>L3<% } else { -%>L2<% } -%> at `verification`; close, <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>done-evidence and <% } -%>pre-push reuse that receipt. This cadence
-is authoritative inside `/ship`: do not also run the generic verification skill's before-push L2. See §Gate
-economy, which governs a train exactly as it governs a single issue. Gates are per LANDING,
-ceremony is per TRAIN; neither is per issue.
+For a product with a live surface, use `/tabletop` as an optional pre-release step or run the
+configured live journey before declaring the landing complete. The lifecycle must still observe the
+merged PR and green CI; tabletop blockers are hard stops, and an open or red PR remains owned by the
+current lane.
 
-**Running the full per-issue ceremony over a batch of small issues is a playbook violation, not
-extra safety.** It buys no additional signal — the same plan reviewer, the same red-team, the
-same reviewer panel read the same kind of diff N times — and it spends the budget on the part of
-the work that was already cheap instead of on the residual 10% (merge, red gate, conflict) that
-is not.
+| Phase             | What `/ship` does                                                                                                                          | Review agents |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------: |
+| `preflight`       | Read the issue and seed validated task state.                                                                                              |             0 |
+| `plan`            | Freeze acceptance, non-goals, files, proof, and rollback.                                                                                  |             0 |
+| `red-team-review` | For Standard/Sensitive, dispatch the targeted plan challenge and record `.arbiter/evidence/redteam/<task-id>.json`; XS/S advance directly. |     treatment |
+| `red-team-rework` | Reconcile blocking plan findings in one batch, then re-enter review.                                                                       |             0 |
+| `red`             | Use the `tdd` skill to write failing tests and `arbiter task record-red`.                                                                  |             0 |
+| `green`           | Implement the smallest executable capability and run targeted checks.                                                                      |             0 |
+| `refactor`        | Freeze HEAD; dispatch the treatment's final reviewers and independent acceptance-fit verifier.                                             |     treatment |
+| `verification`    | Require review and acceptance evidence, then run one full clean-HEAD gate.                                                                 |             0 |
+| `close`           | Reuse the unchanged receipt through push, PR, and CI.                                                                                      |             0 |
+| `complete`        | Verify merge and green CI, close carried issues, and clean up.                                                                             |             0 |
 
----
+One implementer owns the write lane. Use at most one independent blocker lane. Add specialist
+reviewers only for auth, data integrity, concurrency, money, migrations, or deployment. Reviewers
+receive the frozen plan, candidate diff, and shared evidence; they do not receive the implementer's
+transcript.
 
-## Local-only state
+## Evidence commands
 
-Before writing task state, ensure runtime files never get committed:
+Record the complete final reviewer panel once. The recorder reads reviewer count, verticals, and
+treatment hash from active task state. Each reviewer envelope's `agent` must be the exact assigned
+vertical name, so a declared specialist seat cannot be filled by an unrelated review. The recorder
+writes the one authoritative `.arbiter/agents-dispatched.json` sidecar.
 
 ```bash
-exclude_file="$(git rev-parse --git-path info/exclude)"
-mkdir -p "$(dirname "$exclude_file")" .claude/plans
-touch "$exclude_file"
-node -e 'const fs=require("node:fs"),p=process.argv[1],s=fs.readFileSync(p,"utf8"),n=s.replace(/^\.arbiter\/\r?$(?:\n)?/gm,"");if(n!==s)fs.writeFileSync(p,n)' "$exclude_file"
-for pattern in ".claude/.task-*" ".claude/.task/" ".claude/plans/" ".agents-dispatched"; do
-  grep -qxF "$pattern" "$exclude_file" || printf "%s\n" "$pattern" >> "$exclude_file"
-done
-```
-
-Then seed task state:
-
-```bash
-arbiter task init --id "#NNN" --plan ".claude/plans/task-NNN.md" --tier <tier>
-arbiter task advance --to plan
-```
-
----
-
-## Phase map
-
-<% if (governanceLevel !== 'L1') { %>
-The tier (XS / S / Standard) sets the number of review agents dispatched per review phase.
-
-**Code-review agents per tier: XS=1, S=1, Standard=2.** Recalibrated from the #2176 controlled
-study: 1 reviewer catches 77% of known defects intent-to-treat but **88% per-protocol** (stage
-actually completed), 2 reviewers 87.5%, 3 reviewers 90.1% — half a panel's value is
-fault-tolerance, not extra eyes, and false positives grow with panel size.
-
-### Optional cross-model review seat (#2357)
-
-When `arbiter.json` opts in to `crossModelReview.enabled` and records explicit
-`diffEgressConsent`, `/ship` replaces one code-review seat with the read-only
-`codex-reviewer` CLI seat. The panel never grows: `reviewAgents` remains the total,
-and `externalReviewers` is only the external portion. The external seat is assigned
-to `security` when that vertical is active, otherwise `bugs`; unavailable, unauthenticated,
-or unconsented access falls back to Anthropic.
-For Standard with a fulfilled external seat, dispatch one Anthropic reviewer plus one
-`codex-reviewer`; do not dispatch two Anthropic reviewers in addition to Codex.
-
-When `arbiter ship` reaches the refactor step, it invokes the wired boundary below from the
-repository root; the diff is sent on stdin and the actual `codex exec` invocation is delegated.
-The same command is available for an explicit manual rerun when the evidence needs refreshing.
-
-```bash
-git diff --binary origin/main...HEAD | arbiter review cross-model --task '#NNN' --tier Standard --phase refactor --vertical security --prompt 'Review this change for bugs, type safety, security, data integrity, and silent failures.'
-```
-
-The boundary invokes `codex exec --strict-config --ephemeral --ignore-user-config` with a
-scratch-only profile extending `:read-only`, denying the host filesystem root, permitting scratch
-reads, and disabling network. (Codex rejects combining the legacy `--sandbox read-only` override
-with `default_permissions`.) The prompt and a maximum 512 KiB diff are passed on stdin. Output uses the reduced
-`schemas/agent-return-external.schema.json` projection and is persisted only through
-`scripts/record-agent-return.mjs` with `vendor=openai`, `cli=codex`, and
-`dispatch=external-cli`. Retries are disabled. A truncated diff, failed coercion, or
-recorder rejection is a degradation and must not be silently treated as a clean review.
-
-Use the shared sidecar contract in the Refactor / code-review evidence below. The automatic CLI
-bridge records a fulfilled external seat first; the manual block writes the complete reviewer
-panel. When the external seat is active, preserve `codex-reviewer` in that same `agents[]` list
-and set `count` to the total number actually dispatched; never inflate the panel.
-
-**XS/S=1 depends on the completion gate.** A single reviewer is only safe because
-`scripts/check-review-completion.mjs` (#2177) fails the stage when a dispatched reviewer returned
-no envelope and re-dispatches exactly that agent once — that gate plus its single targeted retry
-is what makes a single reviewer safe (it is what turns 77% ITT into 88% per-protocol). If the
-completion gate is ever removed, XS/S must go back to a panel.
-
-**Security escalation — 3 code-review agents.** When the change's **file-path-matched auditor set**
-includes `security`, `data-integrity` or `silent-failures`, dispatch 3 code-review agents
-regardless of tier (study: security-class defects — singles 82-83%, panels 97-99%). The trigger is
-the file-path-matched auditor set computed by the existing router —
-the router `route-auditors.mjs` over `git diff --name-only ...` with `--diff-stdin`, run **without**
-`--size-floor`, whose `active` array comes from `.claude/auditor-routing.json` path matching. It is
-**not** the tier's vertical floor: Standard's floor lists those same verticals as breadth for every
-Standard change, so reading the escalation off the floor would make "Standard=2" unreachable. Same
-mechanism, read without the size floor — no new classifier.
-Where `route-auditors.mjs` and `.claude/auditor-routing.json` exist (arbiter's own tree), run
-the router without `--size-floor` and read its `active` array; where they do not exist — every
-generated project, since neither file is emitted — apply the same rule by inspecting changed paths
-for auth/authz, crypto and secret material, database migrations and SQL, and CI workflow and
-permission config. A missing router is never a "no security surface" verdict.
-
-Red-team agent counts (XS=1, S=2, Standard=3) are **unchanged**: the study measured code review
-only, so there is no evidence to move them.
-
-Only a human may originate a non-widest ship tier: either an explicit `--tier XS|S` flag, or a tier persisted by `arbiter task init --id <id> --tier <tier>`. Without either, `arbiter ship` falls back to the widest tier (`Standard`) as a fail-safe. Deterministic signals do not originate a tier; they may only widen the selected tier and its review-agent count and vertical breadth.
-
-**XS/S must be confirmed by blast radius, not diff size.** Diff size measures typing cost,
-not risk: a one-line edit in a shared module carries a Standard-sized blast radius. Before
-accepting a human-originated XS or S tier, run `/impact` on every file the plan touches and
-record the dependent list in the plan. The tier stays XS/S only when every touched file is a
-leaf — at most one upstream dependent — and none sits on a core path (`src/invariants/`,
-`src/generators/`, `src/commands/`, `.claude/hooks/`, the shipped template tree (any file
-with an `.ejs` twin), or config consumed by `scripts/check-all.mjs`). Two or more dependents, or any
-core-path file, widens the tier to Standard. This is a count over the impact report, not a
-judgment call, and it composes with the widen-only rule above: impact can widen a tier,
-never narrow it. The impact report goes into the reviewer's context so the single XS
-reviewer reads the change together with its callers.
-
-The selected tier may be widened by deterministic signals only: a FRESH `graphify-out/graph.json` blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle (floor: Standard). Signals may only widen, never narrow. Tier/routing selection is never driven by text-only LLM classification (Study C, #2176: 75.6% adjacent accuracy, 20% fail-dangerous L→S). The review count follows the **final** tier — a widened tier gets the widened tier's count — and the security escalation only ever widens it further; nothing narrows it.
-<% } %>
-
-| Phase | What `/ship` does | Review agents |
-|-------|-------------------|---------------|
-| `preflight` | Open worktree (`/wt-open #NNN`), read issue, **readiness gate (INV-138)**: `gh issue view NNN --json body -q .body > /tmp/issue-NNN.md && [ -f scripts/issue-readiness.mjs ] && node scripts/issue-readiness.mjs --body-file /tmp/issue-NNN.md --emit-comment` — exit 1 ⇒ label `needs-clarification`, post the emitted comment (skip when already labeled), stop the ship. When the script is absent (brownfield trees predating its emission, ADR-110) a missing script is never a not-ready verdict — but the skip is declared, never silent: record `readiness: script absent — skipped` in the plan preamble so the omission stays visible. Seed task state (see Local-only state above) | — |
-| `plan` | Write the plan; **freeze the issue's `AC-N:` criteria verbatim into `## Acceptance Criteria` + `## Non-Goals` (INV-138 anchor — the DoD derives from the issue, not from your interpretation)**; run the `senior-survey` skill for every new `src/` file the plan introduces (the pre-edit hook validates its Survey block); pass the plan-review gate (dispatch review agents, write `.arbiter/evidence/plan-review/<id>/latest.json` with verdict `PASS`); the plan carries every mandatory section (see §Plan contents) — a missing section is a FAIL | — |
-| `red-team-review` | `trunk-solo`: no pre-code dispatch; proceed to TDD and keep the independent final review. Other modes: dispatch tier-N red-team agents and record `.arbiter/evidence/redteam/<task-id>.json`; route CRITICAL → `red-team-rework` | 0 (trunk-solo); tier-N otherwise |
-| `red-team-rework` | Lateral rework phase entered only on a CRITICAL red-team finding: revise the plan, then re-enter `red-team-review` (or `plan` for a full replan) | — |
-| `red` | Write failing tests with the `tdd` skill (red → verify-red is its own step: watch each test fail for the right reason) — test titles cite the anchor ids (`it('… (AC-2)')`); the red commit body carries "tests map 1:1 to the acceptance criteria of #NNN"; `arbiter task record-red` | — |
-| `green` | Implement the minimum to pass, continuing the `tdd` loop (composes with active companion plugins — see below) | — |
-| `refactor` | Clean up; run the configured pre-commit diagnostic, commit the candidate, then <%= _refactorLabel %> | <%= _refactorCount %> |
-| `verification` | Run the claim checks from the `verification` skill; commit review/AC-fit evidence, then run one clean-HEAD `node scripts/check-all.mjs <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>L3<% } else { -%>L2<% } -%>`. Skip the skill's generic before-push L2. | — |
-| `close` | Entry consumes the valid final marker, then switches to CLOSER mode (`.claude/rules/95-closer-mode.md`) — <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>capture/reuse done-evidence, <% } -%>push, no new gate while the subject is unchanged | — |
-| `complete` | Commit, push, open/merge PR, close issue, clean up | — |
-
-### Model tier per dispatch (static guidance, AGENTS.md §Model-Pyramid)
-
-Mechanical sub-steps — readiness parsing, auditor routing, file discovery, grep sweeps — go
-to the cheapest agent (`codebase-scanner`, Haiku). Review, context-check and gate-bridge
-subagents run on Sonnet-class agents (their registry defaults). The session model
-(Opus/Fable-class) is reserved for the judgment stages: plan synthesis, red-team attack
-angles, and the adversarial verifier's verdict. This is dispatch guidance the orchestrator
-applies when spawning agents, not runtime machinery — arbiter never selects a model tier
-programmatically.
-
-<% if (!_soloMode) { %>
-Review-agent minimums by tier: XS=<%= _tiers.XS.reviewAgentCount %>, S=<%= _tiers.S.reviewAgentCount %>, Standard=<%= _tiers.Standard.reviewAgentCount %>.
-<% } %>
-
----
-
-## Merge Contract (derive before writing — INV-138)
-
-Before the first edit of each slice, derive its **merge contract** and record it in the
-plan; code and tests are born against the contract, never against a re-reading of the
-issue. Six sources:
-
-1. **Acceptance criteria** — the frozen `AC-N` anchor (the DoD core, hard-gated by
-   `check-acceptance`).
-2. **Repo policy** — invariants/CANON in scope (cite `INV-NN` ids).
-3. **Required tests** — the TDD units proving each `AC-N`, named up front.
-4. **CI** — which gate checks/lanes the slice must keep green (L1/L2, workflows).
-5. **Review/security** — the review verticals and security surfaces the diff will face.
-6. **Dependencies** — modules/contracts the slice touches (blast radius via `/impact`).
-
-Record `landing route supported: yes/no` and, when no, the blocking reason.
-Adversarial review runs against this contract **before push**. Pricing the constraint set
-in before the first line is what kills accordion PRs (write → review reveals a missed
-constraint → rewrite → repeat).
-
----
-
-## Plan contents (mandatory sections)
-
-/ship plans with a SINGLE planner; these mandatory sections make that one plan carry what a multi-specialist panel would have produced (#2176 study: union-of-specialists prompt reproduced 3-specialist content at +19% cost vs +69% for real orchestration, equal quality — multi-specialist planning is NOT adopted).
-
-- **Approach & decomposition** — module boundaries and data flow of the change.
-- **Threat model & abuse cases** — who can abuse this and how. `n/a — no security surface` is accepted only with a one-line justification; a bare `n/a` is a plan-review FAIL.
-- **Input validation** — what is validated, where the trust boundary is, what happens on invalid input.
-- **Idiomatic patterns & pitfalls** — the recommended stdlib/framework APIs for this change and the known traps to avoid.
-- **Acceptance criteria (merged)** — the frozen `AC-N` anchor VERBATIM, extended with security ACs and edge cases that continue the same numeric `AC-N` series (the anchor parser only accepts numeric ids like `AC-4` — or the dotted per-issue `AC-<issue>.<n>` form a train plan uses, see §Train; hand-invented ids such as `AC-S1` fail the gate); extend the existing `## Acceptance Criteria` anchor, never a rival heading.
-- **Test strategy** — which TDD units prove which AC, and at which level (unit/integration/gate).
-- **Risks** — what can go wrong, with the mitigation or the accepted residual.
-
-Never one-shot it — draft, then revise once before finalizing: the revise pass was part of the measured treatment, not optional polish.
-
-These sections EXPAND the Merge Contract's six sources (merged ACs ⊃ source 1, test strategy ⊃ source 3, threat model ⊃ source 5, decomposition ⊃ source 6) — derive the contract once, express it here.
-
-Plan-review agents verify every mandatory section is present and non-empty; a missing or empty section is a FAIL verdict in `.arbiter/evidence/plan-review/<id>/latest.json`. No separate gate script exists for this — the reviewers are the check.
-
----
-
-## Companion plugins
-
-`arbiter ship` is **companion-aware**. If a known companion plugin (first-class: **ponytail**, a
-YAGNI drafting persona) is installed in your Claude home, the `green` step composes with it and every
-step announces which companions are active:
-
-```
-Companion: ponytail (full) · arbiter gates remain the safety net
-```
-
-- **Detected HOME-only** — a companion is a per-user tool choice; your repo is never scanned, so a
-  cloned repo can never force a companion on you.
-- **`lite` / `full`, never `ultra`** — ultra skips tests, incompatible with TDD.
-- **Graceful** — no companion installed ⇒ ship is byte-identical to before (no `Companion:` line).
-- **Gates stay authoritative** — if the persona cuts too much, your gate catches it.
-
-Configure in `arbiter.json` (optional): `companions.ponytail.enabled=false` disables it;
-`companions.ponytail.mode="lite"` or `"full"` wins explicitly. Without an override, arbiter
-uses a conservative stack default: `java`, `kotlin`, and `csharp` resolve companions to `lite`;
-other stacks (including TypeScript/JavaScript/Python) stay on the policy default `full`.
-`ultra` is never representable. arbiter never vendors a companion's code.
-
----
-
-## FEATURE_MATRIX (consume at plan, maintain at verification)
-
-The project's `FEATURE_MATRIX.md` is the product RTM. /ship keeps it from being write-only ceremony by
-**reading it at `plan`** and **updating it at `verification`** — so it drives the next action instead
-of just being audited by the gate.
-
-**At `plan`** — find the REQ row(s) this issue advances (match on the `issue_ref` column):
-
-```bash
-grep -rnE "REQ-[0-9]+" --include=FEATURE_MATRIX.md . | grep "#NNN"
-```
-
-If a row matches, surface its `feature_id`, current `status`, and the **gap to promote** (which of
-`code_ref` / `test_ref` / `doc_ref` is empty), and state in the plan how this work advances that REQ.
-If no row matches, the issue is out of product-RTM scope — note it and move on.
-
-**At `verification`** — if the work supplied a missing `code_ref` / `test_ref` / `doc_ref`, update that
-row (refs + status) and include the matrix change in the **same PR** (atomic code + SSOT). The
-FEATURE_MATRIX gate (part of `check-all`) refreshes the counters and validates `status ⟺ refs` — e.g.
-`Done` requires all three refs to exist on disk — so a status the refs don't back up fails closed.
-
----
-
-## Gate economy (dev loop)
-
-During `green` / `refactor` iteration, do **not** re-run `node scripts/check-all.mjs` — that
-is the gate for the `verification` phase, and pre-commit / pre-push hooks already enforce it at
-the boundary. Re-running it per edit wastes wall-clock.
-
-Run only what covers the files you actually touched:
-- the granular check script(s) whose scope includes the changed file(s),
-- `<%= _testCommand %> run <path>` for added or changed tests,
-- a formatter `--check` on just the edited files.
-
-Resolve everything in one work session, then let the `verification` phase run the full gate
-once. This is a **speed** optimization, not a gate skip. In a normal checkout the hooks run
-the boundary checks before commit (L1) and before push (L2); the pre-commit hook intentionally
-skips L1 in Git worktrees because their shared `node_modules` makes the license probe invalid
-(#1695). That worktree skip is not an L1 PASS: run `node scripts/check-all.mjs L1` independently
-in the worktree before committing as a diagnostic. Do not reuse its dirty-tree receipt: HEAD-bound
-checks did not evaluate the future commit. Commit the candidate and all evidence, then run one
-clean-HEAD `node scripts/check-all.mjs <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>L3<% } else { -%>L2<% } -%>`; <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>done-evidence and <% } -%>pre-push reuse that receipt while the
-candidate stays unchanged. The canonical integration checkout/CI still verifies independently.
-
-Optional, at `verification` and before release-class changes: run `/tabletop <scenario>` to
-walk one user journey end to end and record where the docs and the behaviour disagree
-(`docs/internal/METHOD/TABLETOP-SCENARIOS.md`). It is evidence-only and never edits the tree;
-blockers are hard stops — ship nothing until each one is fixed or filed with an owner.
-
----
-
-## Red-team review
-
-<% if (governanceLevel !== 'L1') { %>
-In `trunk-solo`, do not dispatch a pre-implementation panel or fabricate its evidence. The root
-implementer owns the plan and threat model, then proceeds to TDD; the independent final diff review,
-AC-fit, full gate and CI remain mandatory. In `peer-review` and `gated-review`, dispatch **N parallel
-agents** (XS=1, S=2, Standard=3). Each agent self-selects an attack angle from: `security`,
-`concurrency`, `performance`, `edge-cases`, `regression`, `dependency`, `data-integrity`,
-`error-handling`.
-
-**Evidence path:** `.arbiter/evidence/redteam/<task-id>.json` (schema: `RedTeamEvidenceV1`).
-
-**Forward-link to code-review (#1212):** record each finding in the unified task document as
-`redTeamFindings` — `{ id: "RT-01", severity, summary, auditorHint, resolved: false }` — where
-`auditorHint` names the `auditor-routing.json` auditor whose remit covers the finding. At code-review,
-every still-`resolved:false` finding caps its mapped auditor's verdict score and is tagged
-`[RT-xx UNRESOLVED]`. Flip `resolved` to `true` once addressed.
-
-| Impact | Action |
-|--------|--------|
-| CRITICAL | `arbiter task advance --to red-team-rework` → revise plan → re-run red-team-review |
-| HIGH / MEDIUM | Adapt plan in-place before advancing |
-| SUGGESTION | Note only — no blocking |
-
-**Refutation of high-stakes findings (skill: `refutation`).** As soon as the red-team
-returns findings, the orchestrator — not the reviewing agent — writes the marker
-`.arbiter/evidence/agent-returns/<task>/refutation-required.json` listing every finding at
-severity `high` or `critical`, then dispatches the skeptics (counts from
-`.claude/agent-dispatch-matrix.json` `refutation_skeptics`: XS/S=1, where the red-team is
-the skeptic; Standard=3). Writing the marker at this point is a numbered step of the review
-phase, not a choice: `scripts/check-refutation-verdicts.mjs` adjudicates only when the
-marker exists, so a marker left unwritten is a gate that never fires. No findings at or
-above `high` ⇒ write the marker with an empty `findings` array, which records that the
-threshold was evaluated.
-
-<% } %>
-
----
-
-## Refactor / code-review evidence
-
-**Review rounds are bounded.** Entering `refactor` opens round 1; each review dispatched after a
-FIX is `arbiter ship --review-round`, which counts. A completion-gate retry does not: re-dispatching
-a reviewer that returned no envelope re-reads the same diff, so it is the same round. Round N ≥ 2
-reviews the DELTA only — `git diff <lastReviewedSha>..HEAD`, printed as the step's `Review scope:`
-line — never the whole change again: re-reading a growing diff always finds something new, which is
-how a review loop burns a day without converging. Reviewer findings **below HIGH do not block
-landing** — park them (`arbiter note` each, then ONE follow-up issue) and land; that threshold is
-about REVIEWER findings, while the ac-fit verdicts below are a separate hard gate still requiring
-all-PASS. The cap is `ship.review.maxRounds` in `arbiter.json` (default 2): the round past it is
-refused naming both exits, and `arbiter ship --review-round --force-review` takes it deliberately
-and records `forced`. Rounds are counted per train, like every other ceremony.
-
-<% if (governanceLevel !== 'L1') { %>
-<% if (_soloMode) { %>
-**Solo review — independent reviewer (1 agent):**
-
-Dispatch a single independent code-review agent covering: bugs & logic errors, type safety,
-domain consistency (AGENTS.md / ADRs), silent failures (swallowed exceptions, wrong
-fallbacks). The reviewer is a fresh subagent that receives the diff, the plan's frozen
-anchor and the impact report — never the implementation transcript: a reviewer that shares
-the implementer's context inherits the implementer's blind spots, which is the failure mode
-review exists to catch.
-
-Security escalation applies in trunk-solo too: when the escalation fires, the agent writes
-`"count":3` and the three reviewer names into the `printf` instead of `1` and `["independent-review"]`
-in `.arbiter/agents-dispatched.json` (#2177). Where `route-auditors.mjs` and
-`.claude/auditor-routing.json` exist (arbiter's own tree), run the router without `--size-floor`
-and read its `active` array; where they do not exist — every generated project, since neither file
-is emitted — apply the same rule by inspecting changed paths for auth/authz, crypto and secret
-material, database migrations and SQL, and CI workflow and permission config. A missing router is
-never a "no security surface" verdict.
-
-```bash
-# After every routed reviewer has returned one envelope, submit the whole panel once.
-# The producer derives the required count/auditors from the frozen diff and task tier.
 node scripts/record-agent-return.mjs --mode reviewer-panel --task '#NNN' <<'JSON'
 {"envelopes":[/* exact arbiter-agent-return-v1 reviewer envelopes */]}
 JSON
-```
-
-Write this file only after the reviewer subagent has actually been dispatched — "I reviewed
-it" without an agent tool call does not satisfy the gate, and the fail-closed Stop hook
-(INV-114) reads branch+sha from this file, so a sidecar written for an undispatched reviewer
-makes every later completion claim false.
-
-**Persist.** Each reviewer hands back an `arbiter-agent-return-v1` envelope with `role: "reviewer"`.
-Pass the complete returned panel to the single `--mode reviewer-panel` call above; it records the
-envelopes and sidecar atomically after checking the canonical router requirement.
-
-```bash
 node scripts/check-review-completion.mjs --task '#NNN'
 ```
 
-On non-zero: re-dispatch only the agent(s) named by the failure, exactly once, persist their returns
-the same way, and re-run the check. If it still fails, stop and report the blocked agent —
-advancing past an incomplete review is what the completion gate exists to prevent (it is
-what turns 77% ITT into 88% per-protocol; see §Phase map). An agent that exhausted its turn budget but wrote its findings counts as COMPLETED —
-it is never re-dispatched; only a missing or malformed artifact is.
+The completion check rejects missing or malformed envelopes, a different task/branch/SHA, a sidecar
+that differs from the persisted treatment, source changes after review, and any applicable
+MED/HIGH/CRITICAL finding.
 
-<% } else { %>
-**Dispatch parallel review agents (run ALL simultaneously):**
-
-Each reviewer's mandate is the FULL active vertical floor for the tier — bugs & logic, type safety &
-patterns, domain consistency, plus the tier's widened verticals — and its NAME is only its lead angle.
-The #2176 study found a broad vs conformance-only mandate worth -0.5pp, so the count is what matters,
-not the split. Lead angles for this dispatch: <%- Array.from({ length: _tiers.Standard.reviewAgentCount }, (_, i) => `\`${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}\``).join(', ') %>.
-**Silent failure hunter:** silent failures remain in the FULL mandate; this is not a separate agent.
+Record acceptance fit independently against every frozen criterion:
 
 ```bash
-# Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-# review_agents: the exact reviewer names you dispatched — one per agent, same names the envelopes carry.
-# The validated external-review path records the complete reviewer panel atomically; preserve the
-# fulfilled Codex seat and do not add another Anthropic seat.
-# Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
-external_review_fulfilled=0
-if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;if(typeof t!=="string"||!/^#[0-9]+$/.test(t))process.exit(2);process.stdout.write(JSON.stringify(t))' 2>/dev/null)"; then
-  echo 'ERROR: active task id is missing or invalid' >&2
-  exit 2
-fi
-if ! task_tier="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).tier;if(!["XS","S","Standard"].includes(t))process.exit(2);process.stdout.write(t)' 2>/dev/null)"; then
-  echo 'ERROR: active task tier is missing or invalid' >&2
-  exit 2
-fi
-review_agents_json='[<%- Array.from({ length: _tiers.Standard.reviewAgentCount }, (_, i) => `"${_reviewLeadAngles[i] ?? `reviewer-${i + 1}`}"`).join(',') %>]'
-if [ "$task_tier" = Standard ]; then
-candidate_review_agents_json="$(node - "$review_agents_json" <<'NODE'
-const agents = JSON.parse(process.argv[2])
-if (!Array.isArray(agents) || agents.length === 0 || agents.some((agent) => typeof agent !== 'string'))
-  process.exit(2)
-const candidate = [...agents]
-const codex = candidate.indexOf('codex-reviewer')
-if (codex === -1) candidate[candidate.length - 1] = 'codex-reviewer'
-if (candidate.filter((agent) => agent === 'codex-reviewer').length !== 1)
-  process.exit(2)
-process.stdout.write(JSON.stringify(candidate))
-NODE
-)"
-candidate_review_count="$(node -e 'const agents=JSON.parse(process.argv[1]);process.stdout.write(String(agents.length))' "$candidate_review_agents_json")"
-checker_status=0
-node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "$candidate_review_count" >/dev/null 2>&1 || checker_status=$?
-if [ "$checker_status" = 0 ]; then
-  external_review_fulfilled=1
-  review_agents_json="$candidate_review_agents_json"
-elif node scripts/check-cross-model-review.mjs --require-degraded >/dev/null 2>&1; then
-  :
-elif node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8")),r=process.env.ARBITER_CROSS_MODEL_REVIEW?.trim().toLowerCase(),o=r===undefined?undefined:["true","1","yes","on"].includes(r)?true:["false","0","no","off"].includes(r)?false:undefined;process.exit((o??c.crossModelReview?.enabled)===true&&c.crossModelReview?.onUnavailable==="fail"?0:1)}catch{process.exit(1)}'; then
-  echo 'ERROR: cross-model review is required and did not fulfill its Codex seat' >&2
-  exit "$checker_status"
-else
-  echo 'ERROR: cross-model review failed without valid degradation evidence' >&2
-  exit "$checker_status"
-fi
-fi
-if [ "$external_review_fulfilled" != 1 ]; then
-node - "$review_agents_json" "<%= _tiers.Standard.reviewAgentCount %>" "$task_id_json" <<'NODE' || exit 2
-const fs = require('node:fs')
-const path = require('node:path')
-const crypto = require('node:crypto')
-const child = require('node:child_process')
-
-if (process.platform === 'win32')
-  throw new Error('secure reviewer sidecar writing is unsupported on Windows')
-
-const [agentsJson, countText, taskIdJson] = process.argv.slice(2)
-const agents = JSON.parse(agentsJson)
-const count = Number(countText)
-const taskId = JSON.parse(taskIdJson)
-if (!Number.isInteger(count) || !Array.isArray(agents) || agents.length !== count)
-  throw new Error('invalid reviewer sidecar panel')
-
-const descriptorPath = (fd) => `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${fd}`
-const directoryFlags = fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW
-let dirFd = -1
-try {
-  dirFd = fs.openSync('/', directoryFlags)
-  for (const part of path.resolve(process.cwd()).split('/').filter(Boolean).concat('.arbiter')) {
-    const childPath = path.join(descriptorPath(dirFd), part)
-    try {
-      fs.mkdirSync(childPath)
-    } catch (error) {
-      if (error?.code !== 'EEXIST') throw error
-    }
-    const nextFd = fs.openSync(childPath, directoryFlags)
-    fs.closeSync(dirFd)
-    dirFd = nextFd
-  }
-  const dirPath = descriptorPath(dirFd)
-  const tempPath = path.join(dirPath, `.arbiter-tmp-${crypto.randomBytes(4).toString('hex')}`)
-  let tempFd = -1
-  let pendingTemp = tempPath
-  try {
-    tempFd = fs.openSync(
-      tempPath,
-      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW,
-      0o600,
-    )
-    const branch = child.execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim()
-    const sha = child.execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-    fs.writeFileSync(tempFd, `${JSON.stringify({ count, agents, branch, sha, taskId })}\n`)
-    fs.closeSync(tempFd)
-    tempFd = -1
-    fs.renameSync(tempPath, path.join(dirPath, 'agents-dispatched.json'))
-    pendingTemp = null
-  } finally {
-    if (tempFd !== -1) {
-      try {
-        fs.closeSync(tempFd)
-      } catch {
-        // Preserve the primary write error.
-      }
-    }
-    if (pendingTemp !== null) {
-      try {
-        fs.unlinkSync(pendingTemp)
-      } catch {
-        // Preserve the primary write error.
-      }
-    }
-  }
-} finally {
-  if (dirFd !== -1) fs.closeSync(dirFd)
-}
-NODE
-fi
+node scripts/record-agent-return.mjs --mode ac-fit --task '#NNN' <<'JSON'
+{/* one arbiter-agent-return-v1 verifier envelope with all-PASS acceptanceFit */}
+JSON
 ```
 
-When the security escalation fires, dispatch a third reviewer whose lead angle is the security-class
-vertical that fired and include its name in `agents[]` and the `count` — the sidecar must never
-under-declare the reviewers actually dispatched (#2177).
+`arbiter task advance --to verification` runs the canonical review-completion and acceptance-fit
+checkers before changing phase. The final full gate writes the exact-subject receipt. A source change
+invalidates it; evidence-only commits may preserve it when the binding checker proves source content
+unchanged.
 
-Write the sidecar only after the agents have actually been dispatched — "I reviewed it"
-without agent tool calls does not satisfy this gate, and the fail-closed Stop hook (INV-114)
-reads branch+sha from this file, so a sidecar written for undispatched reviewers makes every
-later completion claim false.
+## Gate economy
 
-**Persist.** Every reviewer hands back an `arbiter-agent-return-v1` envelope with `role: "reviewer"`
-and `agent` equal to its name in `agents[]`, piped through `node scripts/record-agent-return.mjs --task '#NNN'`.
+Run targeted tests during implementation, the configured diagnostic once before freezing, and one
+full clean-HEAD gate after review and acceptance fit. Do not repeat a green full gate while HEAD and
+its relevant environment are unchanged. PR and pre-push paths consume the same receipt.
 
-```bash
-node scripts/check-review-completion.mjs --task '#NNN'
-```
-
-On non-zero: re-dispatch only the agent(s) named by the failure, exactly once, persist their returns
-the same way, and re-run the check. If it still fails, stop and report the blocked agent —
-advancing past an incomplete review is what the completion gate exists to prevent (it is
-what turns 77% ITT into 88% per-protocol; see §Phase map). An agent that exhausted its turn budget but wrote its findings counts as COMPLETED —
-it is never re-dispatched; only a missing or malformed artifact is.
-
-<% } %>
-
-**Adversarial Verifier (runs after review, every tier — review checks quality, the verifier
-checks fit, and neither substitutes for the other):** Trace each new feature end-to-end; check dead code,
-CLI option wiring end-to-end (flag declared → parsed → forwarded), fixture assumptions and test setup.
-
-**FIT rubric (INV-138):** The verifier judges FIT against the plan's frozen `## Acceptance
-Criteria` anchor — not a re-reading of the live issue (mutable) and not "is this good
-code". For **each** `AC-N`: verdict PASS / FAIL / NOT-TESTED **with the diff or test
-`file:line` that proves it** — an uncited PASS does not count. Return those criteria as the
-`acceptanceFit` member of the verifier's `arbiter-agent-return-v1` envelope, then pipe that exact
-envelope through `node scripts/record-agent-return.mjs --mode ac-fit --task '#NNN'`. The producer
-records the envelope and derives the task-keyed fit artifact with exact plan/branch/SHA/digest
-binding; `check-acceptance` hard-requires all-PASS at verification/close.
-Any FAIL or NOT-TESTED blocks advance — unproven criterion = REJECT. A REJECT that forces
-a redo is rework data:
-`[ -f scripts/rework-log.mjs ] && node scripts/rework-log.mjs add --issue NNN --reason <r> --caught review`
-When the script is absent (brownfield trees predating its emission, ADR-110), note
-`rework-log: script absent — skipped` next to the REJECT so the lost data point is visible.
-
-<% } %>
-
----
-
-## Merge step
-
-
-<% if (_collaborationMode === 'trunk-solo' && _mergeMode === 'direct') { %>
-**trunk-solo + direct:** fast-forward the local branch onto `main` after a green gate:
-
-```bash
-git fetch origin main
-if ! frozen_head=$(node scripts/lib/gate-evidence.mjs verify --min-level <% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>L3<% } else { -%>L2<% } -%> --print-head); then
-  echo "qualified receipt is missing or stale: return to verification"
-  exit 1
-fi
-if [ "$(git rev-parse HEAD)" != "$frozen_head" ]; then
-  echo "HEAD changed after qualification: return to review and verification"
-  exit 1
-fi
-if ! git merge-base --is-ancestor origin/main "$frozen_head"; then
-  echo "origin/main advanced: rebase before review, then repeat verification on the new SHA"
-  exit 1
-fi
-git push origin "$frozen_head":main   # ff-only; push the exact qualified SHA
-```
-<% } else { %>
-<% if (_collaborationMode === 'trunk-solo') { %>
-**trunk-solo + pr-ff:** open a PR as the check/audit carrier, then atomically
-fast-forward `main` to the exact gated head SHA:
-<% } else { %>
-**peer-review / gated-review:** open a PR and merge without rewriting its commits.
-
-> **This arc does NOT land the exact gated SHA.** The GitHub merge gives `main` a new
-> tip, so here `main != gatedHeadSha` — the exact-SHA guarantee of `trunk-solo + pr-ff`
-> does not carry over. Landing the gated head itself needs a trusted updater (a GitHub
-> App authorised to advance the ref), tracked on #2289. Until it exists this is the only
-> landing path available in these modes, and `scripts/pr-merge-watch.mjs` refuses them
-> outright rather than pretending otherwise.
-<% } %>
-
-```bash
-gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
-## Summary
-<1-3 bullet points of what changed and why>
-
-## Changes
-- `file/path.ts`: <what changed>
-- `__tests__/...`: <tests added/updated>
-
-## Test plan
-- [ ] New tests pass (`<%= _testCommand %> run <path>`)
-- [ ] Gate green (`node scripts/check-all.mjs L1`)
-- [ ] Acceptance criteria verified (list each criterion: PASS/FAIL)
-
-Closes #NNN
-PRBODY
-)"
-<% if (_collaborationMode === 'trunk-solo') { %>
-node scripts/pr-merge-watch.mjs \
-  "$(gh repo view --json nameWithOwner -q .nameWithOwner)" \
-  "$(gh pr view --json number -q .number)"
-<% } else { %>
-gh pr checks --watch
-gh pr merge --merge
-<% } %>
-```
-<% } %>
-
----
-
-## Complete
-
-<% if (typeof enableEvidenceHarness !== 'undefined' && enableEvidenceHarness !== false) { -%>
-Capture done-evidence on the final committed candidate **before push**. Verification already produced the
-clean-HEAD L3 marker; this command reuses it, otherwise runs one L3, then records
-pinned files and required runtime proof. The native push verifier may reuse this
-L3 at its L2 boundary. After merge, validate the unchanged receipt and exact refs;
-do not repeat capture merely because the phase advanced.
-
-Capture command (also releases the `guard-done-evidence` hook):
-
-```bash
-node scripts/done-evidence.mjs
-```
-
-<% } -%>
-Close the issue:
-
-<% if (_backend === 'github') { %>
-```bash
-gh issue close NNN
-```
-<% } else { %>
-Mark the work item done manually (no CLI command for the `markdown` backend — the `work` command was
-removed in #1817; track closure in your issue tracker of choice).
-<% } %>
-
-Advance to the terminal phase and close the worktree. `--to complete` now VERIFIES the landing:
-it reads the branch's PR (`gh pr list --head <branch> --state all`) and refuses unless it is
-MERGED, naming the PR, its state and every check whose conclusion is FAILURE / TIMED_OUT /
-CANCELLED. A repo that lands by direct push passes `--no-pr` (logged as
-`complete ← no-pr (direct landing)`); `--pr <n>` names the PR when the branch carries more than
-one. With evidenceHarness active, the independent engine additionally requires the
-passed v2 receipt and PR head/merge refs matching the qualified candidate, with
-concluded successful CI. An unreadable `gh` refuses too — an unverifiable landing is not a landing.
-
-```bash
-arbiter task advance --to complete
-arbiter wt close NNN
-```
-
-### Handover
-
-A session may end in exactly two states: the PR is **merged**, or the PR is labeled
-`needs-human` and the handover names the failing check. There is no third state — an open PR
-with red CI that nobody owns is the failure this rule exists to prevent.
-
-The handover file is `.arbiter/HANDOVER-<date>-<slug>.md` and its FIRST section is the open-PR
-table, so whoever picks it up sees the debt before the narrative:
-
-```markdown
-## Open PRs
-
-| PR   | Branch                  | CI state         | Blocker                          |
-| ---- | ----------------------- | ---------------- | -------------------------------- |
-| #123 | task/#120-thing         | red (Docs Build) | needs-human: link check 404s     |
-| #124 | task/#121-other         | green, unmerged  | awaiting required review         |
-```
-
-Every red row carries the check name and the `gh run view --job <id> --log` the watcher printed.
-A row with no blocker text is an unfinished handover, not a finished one.
-
----
-
-## Plan mode (auto)
-
-At the **start of the `plan` phase** — and only when `.claude/.task/status.json` shows `phase` ∈
-{`preflight`, `plan`} — call `EnterPlanMode` to enforce no-edit discipline while drafting the plan.
-Do NOT call EnterPlanMode when resuming an exec phase (check the phase-doc first).
-
-At **GO/handoff** (plan-review gate green):
-1. Call `ExitPlanMode`.
-2. Advance to red-team-review (no units yet — `checkHandoffGate` is not triggered here):
-   ```bash
-   arbiter ship #NNN --advance
-   ```
-3. In trunk-solo, advance directly to **red**. In other modes, advance after red-team-review
-   completes. Pass the unit count from the plan (§7):
-   ```bash
-   arbiter ship #NNN --advance --units <N>
-   ```
-   This is the transition where `checkHandoffGate` fires and the size-driven strategy applies.
-4. Follow the printed banner: it shows the strategy (`inline` / `sub-agent` / `stop`) and the
-   exact resume steps (use `--post-clear` on re-entry after a `/clear`).
-
----
+A killed process has no verdict. Preserve these outcomes distinctly: `PRODUCT FAIL`, `TEST FAIL`,
+`ENVIRONMENT ERROR`, `TOOL UNAVAILABLE`, `TIMEOUT`, `KILLED/OOM`, and `NO DATA`.
 
 ## Hard stops
 
-- A phase gate throws (plan-review FAIL, TDD evidence missing, budget breach) → fix the root cause; do
-  not bypass. `arbiter ship --advance` surfaces the gate's exit code (78 handoff, 79 budget).
-- CRITICAL red-team finding → `arbiter task advance --to red-team-rework`, revise, re-run review.
-- If `tasks.worktree` is `always` in `arbiter.json`, open a worktree before any edit — a ship
-  that skipped it stops here, because every downstream artifact (branch, evidence, gate) is
-  anchored to the worktree.
-- The fail-closed Stop hook (INV-114) requires three correlated artifacts before any completion claim:
-  plan-review `latest.json` (written by the plan-review dispatch — not a CLI command since #1817),
-  `.arbiter/agents-dispatched.json`
-  (written in the refactor section above), `.arbiter/gate-pass.json` (written by the gate). The
-  `phase: complete` state releases the guard. Review evidence binds to SOURCE CONTENT, not to an
-  exact HEAD: an evidence-only commit keeps it valid, a source change invalidates it, and a sidecar
-  whose `taskId` is another task counts as absent — record this task's own before claiming.
-- An open PR with red CI is never abandoned — watch, fix, re-watch. Ending a session on one is
-  allowed only with the PR labeled `needs-human` and the failing check named in the handover.
-- Never skip the gate, never commit to `main` outside the merge step, never leave the loop mid-phase
-  without an `arbiter mark` cursor.
+Stop the current lane when a lifecycle gate fails, affinity seals, no implementation approach makes
+progress, required evidence is unavailable, or a material product decision is unresolved. Continue
+independent work when possible. Do not bypass the state machine, invent a second worktree manager,
+write a second evidence store, or claim completion before the merge and green CI are observed.

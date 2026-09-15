@@ -147,45 +147,34 @@ describe('collaborationMode — ceremony divergence (#1119)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('trunk-solo (direct) ship.md shows "direct merge" block — no PR (#1216)', async () => {
-    // #1216: orchestration content is now in ship.md, not task.md.
-    // With backend=markdown (no --github flag), direct merge shows the trunk-direct block,
-    // NOT the PR ceremony. The distinguishing marker pushes the SHA from the qualified receipt.
+  it('trunk-solo ship.md delegates landing to the runtime (#2681)', async () => {
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true, solo: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
-    expect(shipMd).toContain('git push origin "$frozen_head":main')
-    expect(shipMd).not.toContain('gh pr create')
+    expect(shipMd).toContain('`arbiter ship` owns the next action and lifecycle state')
+    expect(shipMd).not.toContain('git push origin HEAD:main')
   })
 
-  it('trunk-solo ship.md has 1 review agent minimum, and it is independent (#1216)', async () => {
-    // #1216: orchestration content (review agent count) is now in ship.md.
-    // The count stays 1 in trunk-solo (minimal ceremony); what changed is that the
-    // reviewer is a fresh subagent rather than the implementer auditing itself — a
-    // reviewer sharing the implementer's context inherits its blind spots.
+  it('trunk-solo ship.md keeps independent review in the adaptive contract (#2681)', async () => {
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true, solo: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
-    expect(shipMd).toContain('Solo review — independent reviewer (1 agent)')
-    expect(shipMd).not.toContain('self-audit pass')
+    expect(shipMd).toContain('One implementer owns the write lane.')
+    expect(shipMd).toContain('independent acceptance-fit verifier')
   })
 
-  it('peer-review ship.md does NOT show "direct merge" block (#1216)', async () => {
-    // #1216: orchestration content is now in ship.md.
-    // peer-review uses mergeMode=pr-ff, so the direct merge block is absent.
-    // With markdown backend, Complete section has no CLI command for closing the work item
-    // (`arbiter work` was removed in #1817) — it points at manual tracking instead.
+  it('peer-review ship.md delegates landing to the same runtime (#2681)', async () => {
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
     expect(shipMd).not.toContain('git push origin HEAD:main')
-    expect(shipMd).toContain('Mark the work item done manually')
+    expect(shipMd).toContain('Merge, verify green post-merge CI')
   })
 
   it('peer-review ship.md does NOT contain --squash (ADR-051 compliance, #1216)', async () => {
@@ -198,15 +187,14 @@ describe('collaborationMode — ceremony divergence (#1119)', () => {
     expect(shipMd).not.toContain('--squash')
   })
 
-  it('peer-review ship.md has tiered review agent counts from taskTiers (#1216)', async () => {
-    // #1216: orchestration content (tier review agent counts) is now in ship.md.
+  it('peer-review ship.md describes the persisted adaptive treatment (#2681)', async () => {
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
-    // peer-review uses tier reviewAgentCount from DEFAULT_TASK_TIERS (1/1/2)
-    expect(shipMd).toContain('Review-agent minimums by tier: XS=1, S=1, Standard=2.')
+    expect(shipMd).toContain('The runtime persists one `ShipTreatment`.')
+    expect(shipMd).toContain('| Standard  | full')
   })
 })
 

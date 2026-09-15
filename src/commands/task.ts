@@ -18,11 +18,11 @@ import {
   writeUnifiedState,
   readTaskId,
   appendLog,
+  reviewStateOf,
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
-import { evaluateSeedSize, resolveTrainLimits } from './ship-train.js'
 import { UserFacingError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
@@ -34,6 +34,8 @@ import {
 import { detectHostCapabilities } from '../capabilities/host-probe.js'
 import { loadConfig } from '../utils/config.js'
 import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../evidence/gate-binding.js'
+import { planReviewRound, resolveReviewMaxRounds, type PlannedReviewRound } from './ship-review.js'
+import { isShipTreatment } from './ship-tier.js'
 
 export class HandoffRequiredError extends Error {
   constructor(message: string) {
@@ -46,7 +48,7 @@ export class HandoffRequiredError extends Error {
 // Re-export the phase types here so existing importers (e.g. src/cli.ts) keep their import path.
 export type { TaskPhase } from './task-state.js'
 
-export interface TaskAdvanceOptions {
+interface TaskAdvanceOptions {
   to: TaskPhase
   dir?: string
   reverse?: boolean
@@ -71,6 +73,15 @@ export interface TaskAdvanceOptions {
   isMergeReachable?: (mergeSha: string, dir: string) => boolean
   /** Test seam for the current commit CI reader used by direct landing. */
   readCommitCi?: (sha: string, dir: string) => NonNullable<PrSnapshot['statusCheckRollup']>
+  /** Test seam for the review candidate HEAD opened when entering refactor. */
+  headSha?: string | null
+}
+
+interface TaskReviewRoundOptions {
+  dir?: string
+  forceReview?: boolean
+  reviewMaxRounds?: number
+  headSha?: string | null
 }
 
 /** Current phase from the unified document (`preflight` for a fresh tree). */
@@ -78,7 +89,7 @@ function currentPhase(root: string): TaskPhase {
   return readUnifiedState(root)?.phase ?? 'preflight'
 }
 
-export interface TaskResumeOptions {
+interface TaskResumeOptions {
   dir?: string
 }
 
@@ -128,7 +139,7 @@ export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
 
 /* ────────────────────────  #1206 — shell-facing state I/O  ──────────────────────── */
 
-export interface TaskInitOptions {
+interface TaskInitOptions {
   dir?: string
   id?: string
   tier?: string
@@ -340,37 +351,23 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   if (opts.id !== undefined) patch.taskId = opts.id
   if (opts.tier !== undefined) patch.tier = opts.tier
   if (opts.plan !== undefined) patch.plan = opts.plan
-  // #2102 — rejects a non-numeric id the same way `arbiter ship`'s primary-id normalizer does,
-  // so a chain id can never silently fail the pre-push `#<id>` commit-message scan it feeds.
+  // Keep malformed ids distinguishable from the multi-issue admission refusal below.
   if (opts.chainIds !== undefined) patch.chainIds = opts.chainIds.map(normalizeChainId)
-  // #2402 — the SAME train bound `arbiter ship` enforces. This writer had none, so
-  // `task init 1 2 ... 15` seeded a train no limit ever saw while `ship` refused the identical
-  // request; the positional-id sugar made that a one-line typo rather than fifteen flags.
-  assertSeedWithinTrainLimit(root, opts.id, patch.chainIds)
+  assertTaskInitSingleIssue(patch.chainIds)
   const branch = detectCurrentBranch(root)
   if (branch !== undefined) patch.branch = branch
   const state = writeUnifiedState(root, patch)
   appendLog(root, taskInitLog(state))
 }
 
-/**
- * #2402 — refuse a `task init` that would seed a train past `ship.train.maxChain`. Shares the
- * verdict with `arbiter ship`'s seed check (`evaluateSeedSize`) so the two writers of `chainIds`
- * cannot disagree about the bound.
- */
-function assertSeedWithinTrainLimit(
-  root: string,
-  taskId: string | undefined,
-  chainIds: readonly string[] | undefined,
-): void {
-  const verdict = evaluateSeedSize(
-    readUnifiedState(root),
-    taskId,
-    chainIds,
-    resolveTrainLimits(shipConfigFor(root)),
-  )
-  if (verdict.ok) return
-  const seal = { reason: 'max-chain' as const, detail: verdict.detail }
+/** `task init` has no admission inputs; multi-issue state must enter through `ship`. */
+function assertTaskInitSingleIssue(chainIds: readonly string[] | undefined): void {
+  if ((chainIds?.length ?? 0) === 0) return
+  const seal = {
+    reason: 'affinity' as const,
+    detail:
+      'task init cannot prove multi-issue admission; use `arbiter ship` with complete affinity and qualification signals',
+  }
   throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
 }
 
@@ -387,7 +384,7 @@ function detectCurrentBranch(root: string): string | undefined {
 
 const GETTABLE_FIELDS = ['phase', 'taskId', 'tier', 'plan', 'tddPhase', 'lastAction', 'nextAction']
 
-export interface TaskGetOptions {
+interface TaskGetOptions {
   dir?: string
   field: string
 }
@@ -456,7 +453,7 @@ function backlogPath(dir: string, sanitisedId: string): string {
   return join(dir, '.arbiter', 'evidence', sanitisedId, 'BACKLOG.md')
 }
 
-export interface TaskRecoverOptions {
+interface TaskRecoverOptions {
   dir?: string
   taskId?: string
   runner?: Runner
@@ -591,7 +588,10 @@ function requirePlanReviewPass(opts: RequirePlanReviewPassOptions): RequirePlanR
 }
 
 function gateEnabled(dir: string): boolean {
-  return existsSync(join(dir, '.arbiter', 'plan-review.enabled'))
+  return (
+    existsSync(join(dir, '.arbiter', 'plan-review.enabled')) &&
+    readUnifiedState(dir)?.treatment?.preCodeReviewers !== 0
+  )
 }
 
 function readGitUserName(): string {
@@ -977,6 +977,20 @@ function checkEvidenceCompletionPreflight(dir: string): void {
   if (!policy.ok) throw new Error(`completion policy: ${policy.reason}`)
 }
 
+function checkDeliveryContractPreflight(dir: string): void {
+  if (loadConfig(dir)?.features.evidenceHarness !== true) return
+  if (!isShipTreatment(readUnifiedState(dir)?.treatment)) {
+    throw new Error(
+      'delivery contract preflight: state writer did not persist a supported ship treatment',
+    )
+  }
+  for (const scriptName of ['record-agent-return.mjs', 'check-review-completion.mjs']) {
+    if (!existsSync(join(dir, 'scripts', scriptName))) {
+      throw new Error(`delivery contract preflight: missing canonical guard scripts/${scriptName}`)
+    }
+  }
+}
+
 function readRawArbiterConfig(dir: string): unknown {
   try {
     return JSON.parse(readFileTranslated(join(dir, 'arbiter.json'), 'utf-8'))
@@ -1108,7 +1122,88 @@ function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
   }
 }
 
-export function runTaskAdvance(opts: TaskAdvanceOptions): void {
+function reviewHead(dir: string, injected: string | null | undefined): string | null {
+  if (injected !== undefined) return injected
+  try {
+    const sha = runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 5000 }).stdout.trim()
+    return sha.length > 0 ? sha : null
+  } catch {
+    return null
+  }
+}
+
+function prepareLifecycleReviewRound(
+  dir: string,
+  opts: TaskReviewRoundOptions,
+): PlannedReviewRound {
+  const previous = reviewStateOf(readUnifiedState(dir))
+  const maxRounds = opts.reviewMaxRounds ?? resolveReviewMaxRounds(shipConfigFor(dir))
+  const planned = planReviewRound(
+    previous,
+    maxRounds,
+    reviewHead(dir, opts.headSha),
+    opts.forceReview === true,
+  )
+  if ('allowed' in planned) {
+    throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: planned.detail }))
+  }
+  return planned
+}
+
+function appendReviewLog(dir: string, plan: PlannedReviewRound): void {
+  const at = plan.head === null ? 'an unknown sha' : plan.head.slice(0, 7)
+  appendLog(dir, `review → round ${plan.rounds} at ${at}${plan.forced ? ' (forced)' : ''}`)
+}
+
+export function runTaskReviewRound(opts: TaskReviewRoundOptions = {}): PlannedReviewRound {
+  const dir = opts.dir ?? process.cwd()
+  if (currentPhase(dir) !== 'refactor') {
+    throw new Error('review round can only be opened while lifecycle phase is refactor')
+  }
+  const plan = prepareLifecycleReviewRound(dir, opts)
+  const wasForced = reviewStateOf(readUnifiedState(dir)).forced === true
+  writeUnifiedState(dir, {
+    review: {
+      rounds: plan.rounds,
+      lastReviewedSha: plan.head,
+      ...(plan.forced || wasForced ? { forced: true } : {}),
+    },
+  })
+  appendReviewLog(dir, plan)
+  return plan
+}
+
+function assertNoProgressNotBlocked(dir: string): void {
+  const blocked = readUnifiedState(dir)?.treatment?.reasons.some((reason) =>
+    reason.startsWith('BLOCKED:'),
+  )
+  if (blocked === true) throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
+}
+
+function assertPhaseTransition(
+  current: TaskPhase,
+  target: TaskPhase,
+  reverse: boolean | undefined,
+): void {
+  const isLateralTarget = (LATERAL_PHASES as readonly string[]).includes(target)
+  const isLateralCurrent = (LATERAL_PHASES as readonly string[]).includes(current)
+  if (isLateralTarget || isLateralCurrent) return
+
+  const currentIdx = PHASE_ORDER.indexOf(current)
+  const targetIdx = PHASE_ORDER.indexOf(target)
+  if (targetIdx < currentIdx && !reverse) {
+    throw new Error(
+      `Backward transition "${current}" → "${target}" blocked. Use --reverse to allow backward transitions.`,
+    )
+  }
+  if (targetIdx > currentIdx + 1) {
+    throw new Error(
+      `Illegal skip: cannot advance from "${current}" to "${target}" (missing intermediate phases). Advance one phase at a time.`,
+    )
+  }
+}
+
+export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | null {
   const dir = opts.dir ?? process.cwd()
   const claudeDir = join(dir, '.claude')
   const { to } = opts
@@ -1119,29 +1214,12 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     )
   }
 
+  assertNoProgressNotBlocked(dir)
+
   const current = currentPhase(dir)
 
-  if (current === to) return
-
-  const isLateralTarget = (LATERAL_PHASES as readonly string[]).includes(to)
-  const isLateralCurrent = (LATERAL_PHASES as readonly string[]).includes(current)
-
-  if (!isLateralTarget && !isLateralCurrent) {
-    const currentIdx = PHASE_ORDER.indexOf(current)
-    const targetIdx = PHASE_ORDER.indexOf(to)
-
-    if (targetIdx < currentIdx && !opts.reverse) {
-      throw new Error(
-        `Backward transition "${current}" → "${to}" blocked. Use --reverse to allow backward transitions.`,
-      )
-    }
-
-    if (targetIdx > currentIdx + 1) {
-      throw new Error(
-        `Illegal skip: cannot advance from "${current}" to "${to}" (missing intermediate phases). Advance one phase at a time.`,
-      )
-    }
-  }
+  if (current === to) return null
+  assertPhaseTransition(current, to, opts.reverse)
 
   const PLANNING_PHASES: ReadonlySet<TaskPhase> = new Set(['red-team-review', 'red-team-rework'])
   // #2435 — the gate for a phase runs on ENTRY, so the promise `.claude/commands/ship.md`
@@ -1154,6 +1232,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     plan: () => {
       checkTaskSeededGate(dir)
       checkEvidenceCompletionPreflight(dir)
+      checkDeliveryContractPreflight(dir)
     },
     'red-team-review': () => {
       // Leaving `plan`: its row promises a plan-review dispatch writing a PASS verdict.
@@ -1184,6 +1263,8 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     verification: () => {
       checkChainTddEvidenceGate(dir)
       checkTddEvidenceProvenanceGate(dir)
+      checkReviewCompletionGate(dir)
+      checkAcceptanceFitGate(dir)
     },
     close: () => {
       checkGatePassMarkerGate(dir, 'L1')
@@ -1196,12 +1277,27 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     },
   }
   phaseGates[to]?.()
+  const openedReview = to === 'refactor' ? prepareLifecycleReviewRound(dir, opts) : null
 
   // Single authoritative write: phase advances in the unified document; the transition is
   // recorded in the append-only log. Gates that throw (handoff) run BEFORE this and never
   // mutate the phase — see checkHandoffGate (C1, #1206).
-  writeUnifiedState(dir, { phase: to })
+  if (openedReview === null) {
+    writeUnifiedState(dir, { phase: to })
+  } else {
+    const wasForced = reviewStateOf(readUnifiedState(dir)).forced === true
+    writeUnifiedState(dir, {
+      phase: to,
+      review: {
+        rounds: openedReview.rounds,
+        lastReviewedSha: openedReview.head,
+        ...(openedReview.forced || wasForced ? { forced: true } : {}),
+      },
+    })
+    appendReviewLog(dir, openedReview)
+  }
   appendLog(dir, `${current} → ${to}`)
+  return openedReview
 }
 
 /**
@@ -1229,6 +1325,38 @@ function checkAcceptancePlanGate(dir: string): void {
       { cause: err },
     )
   }
+}
+
+function runRequiredTaskChecker(dir: string, scriptName: string, args: readonly string[]): void {
+  const script = join(dir, 'scripts', scriptName)
+  if (!existsSync(script)) {
+    throw new Error(`${scriptName} is required by the active delivery profile but is missing`)
+  }
+  try {
+    runCli('node', [script, ...args], { cwd: dir, timeoutMs: 30_000 })
+  } catch (err) {
+    throw new Error(
+      `${scriptName} blocked the lifecycle transition: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    )
+  }
+}
+
+function checkReviewCompletionGate(dir: string): void {
+  if (loadConfig(dir)?.features.evidenceHarness !== true) return
+  const taskId = readTaskIdFromDisk(dir)
+  if (!taskId) throw new Error('review completion requires the current task id')
+  runRequiredTaskChecker(dir, 'check-review-completion.mjs', ['--task', taskId])
+}
+
+function checkAcceptanceFitGate(dir: string): void {
+  if (!acceptanceProfileEnabled(dir)) return
+  const state = readUnifiedState(dir)
+  const taskId = state?.taskId
+  const plan = state?.plan.trim()
+  if (!taskId || !plan) throw new Error('acceptance fit requires the current task id and plan')
+  const fit = join('.arbiter', 'evidence', 'ac-fit', `${taskId.replace(/[^0-9A-Za-z-]/g, '')}.json`)
+  runRequiredTaskChecker(dir, 'check-acceptance.mjs', ['--plan', plan, '--ac-fit', fit])
 }
 
 /** Match the emitted checker's lightweight profile resolution before deciding whether a missing checker is optional. */
@@ -1284,7 +1412,9 @@ function checkRedTeamEvidenceGate(
   planningPhases: ReadonlySet<TaskPhase>,
 ): void {
   if (!planningPhases.has(current)) return
-  if (loadConfig(dir)?.collaborationMode === 'trunk-solo') return
+  const treatment = readUnifiedState(dir)?.treatment
+  if (treatment?.preCodeReviewers === 0) return
+  if (treatment === undefined && loadConfig(dir)?.collaborationMode === 'trunk-solo') return
   const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
   const path = join(dir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`)
   if (existsSync(path)) return

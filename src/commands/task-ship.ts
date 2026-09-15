@@ -20,10 +20,9 @@ import {
   writeUnifiedState,
   appendLog,
   normalizeChainId,
-  reviewStateOf,
   type UnifiedTaskState,
 } from './task-state.js'
-import { runTaskAdvance } from './task.js'
+import { runTaskAdvance, runTaskReviewRound } from './task.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
 import {
   autonomyAllows,
@@ -39,23 +38,27 @@ import { planCrossModelSlots } from '../integrations/external-review.js'
 import {
   gatherTierSignals,
   normTier,
-  widenTier,
+  resolveShipTreatment,
+  type ShipTreatment,
+  type ShipExecutionOutcome,
   type ShipTier,
   type TierSignals,
 } from './ship-tier.js'
 
-export { type ShipTier } from './ship-tier.js'
 import {
   appendChainIds,
+  evaluateAffinity,
   evaluateSeal,
   evaluateSeedSize,
   hasShipTaskId,
   resolveTrainLimits,
   shipTaskChanged,
   type TrainLimits,
+  type AffinityVerdict,
+  type TrainAffinitySignals,
   type TrainSignals,
 } from './ship-train.js'
-import { evaluateReviewRound, resolveReviewMaxRounds, reviewScopeLine } from './ship-review.js'
+import { reviewScopeLine, type PlannedReviewRound } from './ship-review.js'
 import { shipConfigFor } from './ship-config.js'
 import type { PrSnapshot } from './pr-merged.js'
 import type { ShipConfig } from '../config/schema.js'
@@ -101,31 +104,19 @@ const CompanionEvidenceV1 = z.object({
 
 type CompanionEvidenceV1 = z.infer<typeof CompanionEvidenceV1>
 
-/** Pre-implementation red-team agents per tier (mirrors /task Phase 3.5; #2176 did not measure red-team). */
-const REDTEAM_AGENTS: Record<ShipTier, number> = { XS: 1, S: 2, Standard: 3 }
-/** #2178/#2176: post-implementation code-review agents per tier (mirrors /task Phase 6 minimums). */
-const REVIEW_AGENTS: Record<ShipTier, number> = { XS: 1, S: 1, Standard: 2 }
-/** #2178: a diff whose file-path-matched auditors include security/data-integrity/silent-failures
-    escalates the code review to a panel (study: singles 82-83%, panels 97-99%). */
-export const REVIEW_AGENTS_SECURITY_SURFACE = 3
-
-/**
- * #1260's orthogonal vertical FLOOR, inlined (A8 — guidance, not machinery; the git-diff
- * auto-tiering `arbiter.sizing` subsystem it used to live in was pruned as 2025-era
- * machinery). Real `auditor-routing.json` auditor names, in stable widening order: XS is the
- * always-on triad, S adds test-quality, Standard adds the heavy verticals.
- */
-const FLOOR_XS = ['bugs', 'type-safety', 'domain'] as const
-const FLOOR_S_ADD = ['test-quality'] as const
-const FLOOR_STD_ADD = ['security', 'data-integrity', 'silent-failures'] as const
-
+/** Backward-compatible projection; the treatment resolver remains the only policy owner. */
 export function verticalsForTier(tier: ShipTier): string[] {
-  if (tier === 'XS') return [...FLOOR_XS]
-  if (tier === 'S') return [...FLOOR_XS, ...FLOOR_S_ADD]
-  return [...FLOOR_XS, ...FLOOR_S_ADD, ...FLOOR_STD_ADD]
+  return resolveShipTreatment(tier, {
+    blastRadius: 0,
+    callerCount: 0,
+    changedFiles: ['src/domain.ts'],
+    complete: true,
+    labels: [],
+    milestoneBundled: false,
+  }).reviewerVerticals
 }
 
-export interface ShipStep {
+interface ShipStep {
   phase: TaskPhase
   /** What the agent must do while in this phase. */
   action: string
@@ -163,12 +154,15 @@ interface ShipStepContext {
   verticals: readonly string[]
   externalModelAccess?: ExternalModelAccess
   /** #2400 — the review round this invocation opened, when it opened one. */
-  review?: ReviewRoundPlan
+  review?: PlannedReviewRound
+  treatment: ShipTreatment
 }
 
-type ShipStepTail = readonly string[] | Omit<ShipStepContext, 'verticals'>
+type ShipStepTail = readonly string[] | Omit<ShipStepContext, 'verticals' | 'treatment'>
 
-function normalizeShipStepTail(tail: ShipStepTail): Omit<ShipStepContext, 'verticals'> {
+function normalizeShipStepTail(
+  tail: ShipStepTail,
+): Omit<ShipStepContext, 'verticals' | 'treatment'> {
   if (Array.isArray(tail)) return { chainIds: tail as readonly string[] }
   return tail as Omit<ShipStepContext, 'verticals'>
 }
@@ -181,21 +175,33 @@ function normalizeShipStepTail(tail: ShipStepTail): Omit<ShipStepContext, 'verti
  */
 export function shipStepFor(
   phase: TaskPhase,
-  tier: string | undefined,
+  tierOrTreatment: string | ShipTreatment | undefined,
   profile: ShipProfile = CONSUMER_DEFAULT_PROFILE,
   /** #2102 — the primary task id, named alongside `chainIds` in the close-step text. */
   taskId?: string,
   /** #2102/#2357 — legacy chain array or the optional injected review context. */
   tail: ShipStepTail = [],
 ): ShipStep {
-  const t = normTier(tier)
-  const verticals = verticalsForTier(t)
   const normalizedTail = normalizeShipStepTail(tail)
+  const treatment =
+    typeof tierOrTreatment === 'object'
+      ? tierOrTreatment
+      : resolveShipTreatment(tierOrTreatment, {
+          blastRadius: 0,
+          callerCount: 0,
+          changedFiles: ['src/domain.ts'],
+          complete: true,
+          labels: [],
+          milestoneBundled: false,
+        })
+  const t = treatment.tier
+  const verticals = treatment.reviewerVerticals
   const withVerticals = (step: Omit<ShipStep, 'verticals'>): ShipStep => ({ ...step, verticals })
   return withVerticals(
     shipStepBody(phase, t, profile, {
       ...normalizedTail,
       verticals,
+      treatment,
       ...(taskId !== undefined ? { taskId } : {}),
     }),
   )
@@ -293,7 +299,7 @@ function isReviewPhase(phase: TaskPhase): phase is ReviewPhase {
  * #2400 — the delta-scope annotation for a re-review, or undefined when there is nothing to
  * narrow: round 1 reads the whole change, and a round whose base sha is unknown has no range.
  */
-function reviewScopeFor(plan: ReviewRoundPlan | undefined): string | undefined {
+function reviewScopeFor(plan: PlannedReviewRound | undefined): string | undefined {
   if (plan === undefined || plan.rounds < 2 || plan.base === null) return undefined
   return reviewScopeLine(plan.base, plan.rounds, plan.maxRounds)
 }
@@ -302,11 +308,12 @@ function reviewPhaseStepBody(
   phase: ReviewPhase,
   t: ShipTier,
   profile: ShipProfile,
-  context: Pick<ShipStepContext, 'verticals' | 'externalModelAccess' | 'review'>,
+  context: Pick<ShipStepContext, 'verticals' | 'externalModelAccess' | 'review' | 'treatment'>,
 ): Omit<ShipStep, 'verticals'> {
-  const { verticals, externalModelAccess, review: reviewPlan } = context
+  const { verticals, externalModelAccess, review: reviewPlan, treatment } = context
   if (phase === RED_TEAM_REVIEW_PHASE) {
-    if (profile.collaborationMode === 'trunk-solo') {
+    const reviewers = treatment.preCodeReviewers
+    if (reviewers === 0) {
       return {
         phase,
         action:
@@ -316,8 +323,8 @@ function reviewPhaseStepBody(
     }
     return {
       phase,
-      action: `Dispatch ${REDTEAM_AGENTS[t]} red-team agent(s); route CRITICAL findings to red-team-rework.`,
-      reviewAgents: REDTEAM_AGENTS[t],
+      action: `Dispatch ${reviewers} targeted plan reviewer; route applicable findings above LOW to red-team-rework.`,
+      reviewAgents: reviewers,
     }
   }
   if (phase === RED_TEAM_REWORK_PHASE) {
@@ -327,7 +334,7 @@ function reviewPhaseStepBody(
       reviewAgents: 0,
     }
   }
-  const reviewAgents = profile.collaborationMode === 'trunk-solo' ? 1 : REVIEW_AGENTS[t]
+  const reviewAgents = treatment.finalReviewers
   const plan = planCrossModelSlots({
     tier: t,
     phase,
@@ -460,6 +467,8 @@ export interface TaskShipOptions {
    * stop condition holds — the caller lands the train instead of growing it.
    */
   chainAddIds?: string[]
+  /** Complete, explicit affinity inputs for a dynamic train append. */
+  trainAffinity?: TrainAffinitySignals
   /** #2331 — `--seal`: close the train now, whatever the other signals say. */
   seal?: boolean
   /**
@@ -481,6 +490,8 @@ export interface TaskShipOptions {
   reviewMaxRounds?: number
   /** Test seam: HEAD for the review pin. `null` means "unreadable"; absent means "ask git". */
   headSha?: string | null
+  /** Result of the last attempt; drives bounded escalation without conflating infrastructure. */
+  executionOutcome?: ShipExecutionOutcome
   /** #1291 — per-run --autonomy override (flag > arbiter.json automation.autonomy > L0). */
   autonomy?: string
   /**
@@ -506,7 +517,7 @@ export interface TaskShipOptions {
   /** Test seam for deterministic companion evidence diff stats. */
   gatherCompanionDiffStats?: (repoDir: string) => CompanionDiffStats
   /** Test seam for deterministic tier-routing signals without graphify or GitHub CLI state. */
-  gatherTierSignals?: (root: string, taskId: string | undefined) => TierSignals
+  gatherTierSignals?: (root: string, taskId: string | undefined, planPath?: string) => TierSignals
   /** Test seam for deterministic companion evidence timestamps. */
   recordedAt?: string
   /** #2357 — external-model detection is performed at the CLI edge and injected here. */
@@ -520,6 +531,8 @@ export interface ShipResult {
   done: boolean
   /** The effective tier after deterministic widening. Present on all real ship invocations. */
   tier?: ShipTier
+  treatment?: ShipTreatment
+  trainDecision?: AffinityVerdict
   /** #1288 — the ship profile resolved from the target repo's arbiter.json. */
   profile: ShipProfile
 }
@@ -529,7 +542,7 @@ export interface ShipResult {
  * #1260 tier + vertical-breadth summary. Kept here (not inline in the CLI action) so the
  * action stays simple and the formatting is unit-testable.
  */
-function optionalShipStepLines(result: ShipResult): string[] {
+function optionalShipStepLines(result: ShipResult, tier: ShipTier): string[] {
   const lines: string[] = []
   if (result.step.command) lines.push(`Command: ${result.step.command}`)
   if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
@@ -541,6 +554,18 @@ function optionalShipStepLines(result: ShipResult): string[] {
   if (result.step.reviewScope !== undefined) {
     lines.push(`Review scope: ${result.step.reviewScope}`)
   }
+  lines.push(`Tier: ${tier} · verticals: ${result.step.verticals.join(', ')}`)
+  if (result.treatment !== undefined) {
+    lines.push(
+      `Treatment: ${result.treatment.sensitive ? 'Sensitive' : result.treatment.tier} · model: ${result.treatment.modelCapability} · plan: ${result.treatment.planDepth}`,
+    )
+    lines.push(`Treatment reason: ${result.treatment.reasons.join('; ')}`)
+  }
+  if (result.trainDecision !== undefined) {
+    lines.push(
+      `Train: ${result.trainDecision.decision} · ${result.trainDecision.reason} · components=${JSON.stringify(result.trainDecision.components)}`,
+    )
+  }
   return lines
 }
 
@@ -550,8 +575,7 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
     `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
     `Action: ${result.step.action}`,
   ]
-  lines.push(...optionalShipStepLines(result))
-  lines.push(`Tier: ${tier} · verticals: ${result.step.verticals.join(', ')}`)
+  lines.push(...optionalShipStepLines(result, tier))
   // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
   // consumer of the field, so the read is honest and not dead config).
   lines.push(`Governance: ${result.profile.governanceLevel}`)
@@ -643,13 +667,18 @@ function advanceShipPhase(
   root: string,
   phase: TaskPhase,
   opts: TaskShipOptions,
-): { phase: TaskPhase; advanced: boolean } {
-  if (!opts.advance) return { phase, advanced: false }
+): { phase: TaskPhase; advanced: boolean; review: PlannedReviewRound | null } {
+  if (!opts.advance) return { phase, advanced: false, review: null }
   const target = advanceTargetFor(phase)
-  if (target === null) return { phase, advanced: false }
-  runTaskAdvance({ to: target, dir: root, ...(opts.advanceOpts ?? {}) })
+  if (target === null) return { phase, advanced: false, review: null }
+  const review = runTaskAdvance({
+    to: target,
+    dir: root,
+    ...(opts.advanceOpts ?? {}),
+    ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
+  })
   appendLog(root, `ship → advanced to ${target}`)
-  return { phase: target, advanced: true }
+  return { phase: target, advanced: true, review }
 }
 
 function companionEvidencePath(taskId: string, repoDir: string): string {
@@ -725,23 +754,32 @@ function writeVerificationCompanionEvidence(
   writeCompanionEvidence(root, taskId, profile, opts)
 }
 
-function shipTierFor(
+function requestedShipTier(opts: TaskShipOptions, state: UnifiedTaskState | null): ShipTier {
+  return normTier(opts.tier ?? state?.treatment?.requestedTier ?? state?.tier)
+}
+
+function shipPrimaryId(opts: TaskShipOptions, state: UnifiedTaskState | null): string | undefined {
+  return opts.taskId === undefined ? state?.taskId : normalizeShipTaskId(opts.taskId)
+}
+
+function shipTreatmentFor(
   root: string,
   state: ReturnType<typeof readUnifiedState>,
   opts: TaskShipOptions,
-): ShipTier {
-  // #2180 / Study C (#2176): text-only triage reached only 75.6% adjacent accuracy and 20%
-  // fail-dangerous L→S errors. Routing therefore accepts deterministic signals only, and their
-  // one-way floors can widen XS→S→Standard but can never narrow the caller's tier. Standard is
-  // the widest tier, therefore a fixed point of this widen-only function: gathering its signals
-  // cannot affect routing and is skipped to avoid an unnecessary graph parse and GitHub request.
-  const base = normTier(opts.tier ?? state?.tier)
-  return base === 'Standard'
-    ? base
-    : widenTier(
-        base,
-        (opts.gatherTierSignals ?? gatherTierSignals)(root, state?.taskId ?? opts.taskId),
-      )
+): ShipTreatment {
+  const signals = (opts.gatherTierSignals ?? gatherTierSignals)(
+    root,
+    state?.taskId ?? opts.taskId,
+    state?.plan,
+  )
+  return resolveShipTreatment(
+    requestedShipTier(opts, state),
+    {
+      ...signals,
+      ...(opts.executionOutcome !== undefined ? { executionOutcome: opts.executionOutcome } : {}),
+    },
+    state?.treatment,
+  )
 }
 
 /**
@@ -750,60 +788,88 @@ function shipTierFor(
  * enforced by the underlying gates (a red gate throws and is surfaced to the caller).
  */
 /**
- * #2331 — grow the open train by one or more ids, or refuse and tell the caller to land it.
+ * Validate every chain seed, replacement, and append before it can mutate task state.
  *
  * Runs BEFORE `seedShipState` so a refused append leaves the document exactly as it was: a
  * sealed train must not half-apply. Throws rather than returning a verdict because every caller
- * (CLI, orchestrator) must stop — `--chain-add` is a request that either takes effect or does
- * not.
+ * must stop when admission fails.
  *
- * The tier for the appended issue is widened from `XS`, never from the train's current tier: the
- * question is whether THIS issue is risk-bearing, and seeding from a train that is already
- * Standard would seal every subsequent append for the wrong reason.
+ * Each candidate resolves from `XS`, never from the train's current tier: the question is whether
+ * that issue is independently risk-bearing.
  */
-function trainSignalsFor(
+interface TrainSignalInput {
+  state: UnifiedTaskState | null
+  now: Date
+  additions: readonly string[]
+  chainSize: number
+}
+
+function primaryTrainTier(
   root: string,
   opts: TaskShipOptions,
   state: UnifiedTaskState | null,
-  now: Date,
-  chainSize = (state?.taskId ? 1 : 0) + (state?.chainIds ?? []).length,
+): { tier: ShipTier; planPath: string | undefined } {
+  const gather = opts.gatherTierSignals ?? gatherTierSignals
+  const primaryId = shipPrimaryId(opts, state)
+  const taskChanged = shipTaskChanged(state, primaryId)
+  const planPath = taskChanged ? undefined : state?.plan
+  const tier = hasShipTaskId(primaryId)
+    ? resolveShipTreatment(
+        requestedShipTier(opts, state),
+        gather(root, primaryId, planPath),
+        taskChanged ? undefined : state?.treatment,
+      ).tier
+    : 'XS'
+  return { tier, planPath }
+}
+
+function trainSignalsFor(
+  root: string,
+  opts: TaskShipOptions,
+  input: TrainSignalInput,
 ): TrainSignals {
   const gather = opts.gatherTierSignals ?? gatherTierSignals
+  const primary = primaryTrainTier(root, opts, input.state)
   return {
     // The primary id rides the same branch, gate and PR, so it counts toward the bound.
-    chainSize,
-    openedAt: state?.timestamps.chainOpened,
-    now,
-    // Widen once per appended id; the strongest verdict across them decides.
-    widenedTier: (opts.chainAddIds ?? []).reduce<ShipTier>(
-      (acc, raw) => widenTier(acc, gather(root, normalizeChainId(raw))),
-      'XS',
-    ),
+    chainSize: input.chainSize,
+    openedAt: input.state?.timestamps.chainOpened,
+    now: input.now,
+    // Resolve every candidate through the same fail-closed treatment as /ship.
+    widenedTier: input.additions.reduce<ShipTier>((acc, raw) => {
+      const tier = resolveShipTreatment(
+        'XS',
+        gather(root, normalizeChainId(raw), primary.planPath),
+      ).tier
+      return tier === 'Standard' || acc === 'Standard' ? 'Standard' : tier === 'S' ? 'S' : acc
+    }, primary.tier),
     explicitSeal: opts.seal === true,
+    ...(opts.trainAffinity !== undefined ? { affinity: opts.trainAffinity } : {}),
   }
 }
 
 interface ChainAddContext {
   signalState: UnifiedTaskState | null
+  additions: readonly string[]
   currentSize: number
   projectedSize: number
 }
 
 function chainAddContext(opts: TaskShipOptions, state: UnifiedTaskState | null): ChainAddContext {
-  const additions = opts.chainAddIds ?? []
-  const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : state?.taskId
+  const taskId = shipPrimaryId(opts, state)
   const taskChanged = shipTaskChanged(state, taskId)
-  const existing =
-    opts.chainIds !== undefined
-      ? opts.chainIds.map(normalizeChainId)
-      : taskChanged
-        ? []
-        : (state?.chainIds ?? [])
+  const signalState = taskChanged ? null : state
+  const existing = signalState?.chainIds ?? []
+  const replacement = opts.chainIds?.map(normalizeChainId)
+  const base = replacement ?? existing
+  const chainAddIds = opts.chainAddIds ?? []
+  const additions = appendChainIds([], [...(replacement ?? []), ...chainAddIds])
   const primaryCount = hasShipTaskId(taskId) ? 1 : 0
   return {
-    signalState: taskChanged ? null : state,
-    currentSize: primaryCount + existing.length,
-    projectedSize: primaryCount + appendChainIds(existing, additions).length,
+    signalState,
+    additions,
+    currentSize: primaryCount + (replacement === undefined ? existing.length : 0),
+    projectedSize: primaryCount + appendChainIds(base, chainAddIds).length,
   }
 }
 
@@ -813,10 +879,15 @@ function assertChainAddAllowed(
   state: UnifiedTaskState | null,
   now: Date,
   limits: TrainLimits,
-): void {
-  const { signalState, currentSize, projectedSize } = chainAddContext(opts, state)
+): AffinityVerdict {
+  const { signalState, additions, currentSize, projectedSize } = chainAddContext(opts, state)
   const currentVerdict = evaluateSeal(
-    trainSignalsFor(root, opts, signalState, now, currentSize),
+    trainSignalsFor(root, opts, {
+      state: signalState,
+      now,
+      additions,
+      chainSize: currentSize,
+    }),
     limits,
   )
   if (currentVerdict.sealed) {
@@ -825,7 +896,7 @@ function assertChainAddAllowed(
     const seal = { reason: currentVerdict.reason, detail: currentVerdict.detail }
     throw new UserFacingError(t('errors.E_TRAIN_SEALED', seal))
   }
-  if (projectedSize <= limits.maxChain) return
+  if (projectedSize <= limits.maxChain) return evaluateAffinity(opts.trainAffinity)
   const seal = {
     reason: 'max-chain' as const,
     detail: `the requested append would make the train carry ${projectedSize} issue(s), the limit is ${limits.maxChain}`,
@@ -837,14 +908,14 @@ function prepareChainAdd(
   root: string,
   opts: TaskShipOptions,
   limits: TrainLimits,
-): { additions: readonly string[]; now: Date } | null {
-  const additions = opts.chainAddIds ?? []
+  state: UnifiedTaskState | null,
+): { additions: readonly string[]; now: Date; affinity: AffinityVerdict } | null {
+  const additions = chainAddContext(opts, state).additions
   if (additions.length === 0 && opts.seal !== true) return null
 
-  const state = readUnifiedState(root)
   const now = opts.now ?? new Date()
-  assertChainAddAllowed(root, opts, state, now, limits)
-  return { additions, now }
+  const affinity = assertChainAddAllowed(root, opts, state, now, limits)
+  return { additions, now, affinity }
 }
 
 /** Persist an accepted append. Split from the decision so each half stays legible. */
@@ -853,6 +924,7 @@ function persistTrainAppend(
   state: UnifiedTaskState | null,
   additions: readonly string[],
   now: Date,
+  affinity: AffinityVerdict,
 ): void {
   const existing = state?.chainIds ?? []
   const chainIds = appendChainIds(existing, additions)
@@ -865,133 +937,81 @@ function persistTrainAppend(
       : {}),
   })
   appendLog(root, `ship → train +${chainIds.length - existing.length} (${chainIds.join(', ')})`)
+  appendLog(
+    root,
+    `ship → ${affinity.decision} ${affinity.reason} components=${JSON.stringify(affinity.components)}`,
+  )
 }
 
 function applyPreparedChainAdd(
   root: string,
-  prepared: { additions: readonly string[]; now: Date } | null,
+  prepared: { additions: readonly string[]; now: Date; affinity: AffinityVerdict } | null,
 ): void {
   if (prepared === null) return
-  persistTrainAppend(root, readUnifiedState(root), prepared.additions, prepared.now)
+  persistTrainAppend(
+    root,
+    readUnifiedState(root),
+    prepared.additions,
+    prepared.now,
+    prepared.affinity,
+  )
 }
 
-/** #2400 — a review round that passed the cap check and is waiting to be persisted. */
-interface ReviewRoundPlan {
-  /** The round number this dispatch is, 1-based. */
-  rounds: number
-  maxRounds: number
-  /** HEAD the PREVIOUS round was pinned to — the diff base for this one. Null on round 1. */
-  base: string | null
-  /** HEAD now; becomes the base for the next round. Null when git could not be read. */
-  head: string | null
-  forced: boolean
-}
-
-/**
- * HEAD, or null when it cannot be read (a fresh tree with no commit, or no git at all).
- *
- * FAIL-CLOSED on the cap: an unreadable sha costs the round its delta scope, never its count.
- * The opposite choice — skipping the round because HEAD is unknown — would silently disarm the
- * bound this feature exists to enforce.
- */
-function headShaFor(root: string, opts: TaskShipOptions): string | null {
-  if (opts.headSha !== undefined) return opts.headSha
-  try {
-    const sha = runCli('git', ['rev-parse', 'HEAD'], { cwd: root }).stdout.trim()
-    return sha.length > 0 ? sha : null
-    // FAIL-OPEN-INTENT: a missing HEAD costs the scope line, not the round (see above).
-  } catch {
-    return null
-  }
-}
-
-/** The phase this invocation ends in — `--advance`'s target, or the phase it is already on. */
-function resultingPhase(phase: TaskPhase, opts: TaskShipOptions): TaskPhase {
-  if (opts.advance !== true) return phase
-  return advanceTargetFor(phase) ?? phase
-}
-
-/**
- * #2400 — decide whether this invocation opens a review round, and refuse it once the cap is
- * spent.
- *
- * A round is opened by ENTERING `refactor` (the first review of the change) or by an explicit
- * `--review-round` while there (every re-dispatch after a fix). Both run through the same cap.
- * Throws rather than returning a verdict because the caller must stop: a refused round is the
- * signal to land the change with its remaining findings parked.
- */
-function prepareReviewRound(
-  root: string,
-  phase: TaskPhase,
-  opts: TaskShipOptions,
-  ship: ShipConfig | undefined,
-): ReviewRoundPlan | null {
-  if (resultingPhase(phase, opts) !== REFACTOR_PHASE) return null
-  if (opts.advance !== true && opts.reviewRound !== true) return null
-  const previous = reviewStateOf(readUnifiedState(root))
-  const maxRounds = opts.reviewMaxRounds ?? resolveReviewMaxRounds(ship)
-  const forced = opts.forceReview === true
-  const verdict = evaluateReviewRound({ rounds: previous.rounds, maxRounds, forced })
-  if (!verdict.allowed) {
-    // UserFacingError, not Error: a spent cap is the policy working as designed, not a fault.
-    throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: verdict.detail }))
-  }
-  return {
-    rounds: previous.rounds + 1,
-    maxRounds,
-    base: previous.lastReviewedSha,
-    head: headShaFor(root, opts),
-    forced,
-  }
-}
-
-/** Persist an accepted round. Split from the decision so each half stays legible. */
-function applyReviewRound(root: string, plan: ReviewRoundPlan | null): void {
-  if (plan === null) return
-  // `forced` is STICKY: it records that this task once needed a round past its cap, which stays
-  // true however many ordinary rounds follow. `review` is replaced wholesale by the patch merge,
-  // so carrying it forward here is what keeps the record from being erased by the next round.
-  const wasForced = reviewStateOf(readUnifiedState(root)).forced === true
-  writeUnifiedState(root, {
-    review: {
-      rounds: plan.rounds,
-      lastReviewedSha: plan.head,
-      ...(plan.forced || wasForced ? { forced: true } : {}),
-    },
+function openExplicitReviewRound(root: string, opts: TaskShipOptions): PlannedReviewRound | null {
+  if (opts.reviewRound !== true) return null
+  return runTaskReviewRound({
+    dir: root,
+    ...(opts.forceReview !== undefined ? { forceReview: opts.forceReview } : {}),
+    ...(opts.reviewMaxRounds !== undefined ? { reviewMaxRounds: opts.reviewMaxRounds } : {}),
+    ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
   })
-  const at = plan.head === null ? 'an unknown sha' : plan.head.slice(0, 7)
-  appendLog(root, `review → round ${plan.rounds} at ${at}${plan.forced ? ' (forced)' : ''}`)
+}
+
+function assertShipNotBlocked(
+  state: UnifiedTaskState | null,
+  outcome: ShipExecutionOutcome | undefined,
+): void {
+  const blocked = state?.treatment?.reasons.some((reason) => reason.startsWith('BLOCKED:'))
+  if (blocked === true && outcome !== 'new-risk') {
+    throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
+  }
 }
 
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
+  const initialState = readUnifiedState(root)
+  assertShipNotBlocked(initialState, opts.executionOutcome)
   const shipConfig = shipConfigFor(root)
   // Validate the complete train mutation before seeding task metadata. A rejected append must
   // leave both fresh and existing state untouched, including task/tier/override fields.
   const trainLimits = trainLimitsFor(shipConfig, opts)
-  const preparedChainAdd = prepareChainAdd(root, opts, trainLimits)
+  const preparedChainAdd = prepareChainAdd(root, opts, trainLimits, initialState)
   seedShipState(root, opts, trainLimits)
   applyPreparedChainAdd(root, preparedChainAdd)
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'
-  const tier = shipTierFor(root, state, opts)
-  // #2400 — decide the round BEFORE the phase advances, so a refused round leaves the document
-  // exactly as it was (same contract as a sealed train).
-  const preparedRound = prepareReviewRound(root, phase, opts, shipConfig)
+  const treatment = shipTreatmentFor(root, state, opts)
+  const tier = treatment.tier
+  writeUnifiedState(root, { tier, treatment })
+  if (treatment.reasons.some((reason) => reason.startsWith('BLOCKED:'))) {
+    appendLog(root, 'ship → BLOCKED: current implementation approach made no progress')
+    throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
+  }
 
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.
   const profile = shipProfileFor(root, opts)
+  const explicitRound = openExplicitReviewRound(root, opts)
   const advancedPhase = advanceShipPhase(root, phase, opts)
   phase = advancedPhase.phase
-  applyReviewRound(root, preparedRound)
+  const preparedRound = explicitRound ?? advancedPhase.review
   writeVerificationCompanionEvidence(root, phase, state?.taskId, profile, opts)
 
   return {
     phase,
     // #2102 — thread taskId + chainIds through so the close-step text names the whole chain.
-    step: shipStepFor(phase, tier, profile, state?.taskId, {
+    step: shipStepFor(phase, treatment, profile, state?.taskId, {
       chainIds: state?.chainIds ?? [],
       ...(opts.externalModelAccess !== undefined
         ? { externalModelAccess: opts.externalModelAccess }
@@ -1003,6 +1023,8 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
     advanced: advancedPhase.advanced,
     done: phase === 'complete',
     tier,
+    treatment,
+    ...(preparedChainAdd !== null ? { trainDecision: preparedChainAdd.affinity } : {}),
     profile,
   }
 }
