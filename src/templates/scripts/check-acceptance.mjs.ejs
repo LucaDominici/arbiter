@@ -22,9 +22,11 @@
 // CATALOG: enforces the acceptance-criteria anchor (INV-138) — implementation-phase plans must freeze explicit AC-N criteria + non-goals, and verification/close requires an all-PASS per-criterion ac-fit evidence artifact.
 // CATALOG: rejected fold-in into check-phase-doc-consistency.mjs because that gate validates the SHAPE of .claude/.task/status.json (single-doc split-brain), while this one validates the CONTENT CONTRACT between the anchored plan, the issue's acceptance criteria, and reviewer fit evidence — a different SSOT axis with a feature-flag lifecycle.
 // CATALOG: rejected fold-in into check-evidence-bundle.mjs because evidence bundles are per-task artifact BUNDLES under .evidence/ with their own JSON schema file, whereas ac-fit is a single per-criterion verdict artifact coupled to plan parsing (scripts/lib/acceptance-criteria.mjs) that bundle validation knows nothing about.
+import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { existsSync, lstatSync } from 'node:fs'
-import { join } from 'node:path'
-import { parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
+import { join, resolve, sep } from 'node:path'
+import { computeAcHash, parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
 import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 
 const PRE_PHASES = new Set(['preflight', 'plan', 'red-team-review', 'red-team-rework', 'complete'])
@@ -217,6 +219,54 @@ function resolveGatePlan(root, state, phase) {
 // except for wave workers — a task anchored to `wave-N.md#group` never produces a
 // per-worker ac-fit; the wave's fit enforcement runs at integrate time
 // (`--plan … --ac-fit wave-N.json` in the main tree, see wave-drain Phase 4).
+function boundFitErrors(root, state, planRef, json) {
+  if (typeof state.branch !== 'string' || state.branch.length === 0) return []
+  const errors = []
+  let sha
+  try {
+    sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+  } catch {
+    return ['ac-fit: current Git identity is unavailable']
+  }
+  if (json.branch !== state.branch) errors.push('ac-fit: branch does not match active task')
+  if (json.sha !== sha) errors.push('ac-fit: sha does not match current HEAD')
+  const plan = parsePlanAnchor(readRegularFileSync(join(root, planRef.split('#')[0]), 'utf8'))
+  if (plan === null || json.planHash !== computeAcHash(plan.criteria)) {
+    errors.push('ac-fit: plan hash does not match frozen acceptance criteria')
+  }
+  const source = json.sourceEnvelope
+  if (typeof source?.path !== 'string' || typeof source?.sha256 !== 'string') {
+    errors.push('ac-fit: source envelope binding is missing')
+    return errors
+  }
+  const sourcePath = resolve(root, source.path)
+  if (sourcePath !== root && !sourcePath.startsWith(`${resolve(root)}${sep}`)) {
+    errors.push('ac-fit: source envelope escapes the repository')
+    return errors
+  }
+  try {
+    const raw = readRegularFileSync(sourcePath, 'utf8')
+    if (createHash('sha256').update(raw).digest('hex') !== source.sha256) {
+      errors.push('ac-fit: source envelope digest mismatch')
+      return errors
+    }
+    const envelope = JSON.parse(raw)
+    const expected = { schema: json.schema, taskId: json.taskId, criteria: json.criteria }
+    if (
+      envelope.taskId !== state.taskId ||
+      envelope.branch !== state.branch ||
+      envelope.sha !== sha ||
+      envelope.role !== 'verifier' ||
+      JSON.stringify(envelope.acceptanceFit) !== JSON.stringify(expected)
+    ) {
+      errors.push('ac-fit: source verifier envelope does not match the admitted fit')
+    }
+  } catch {
+    errors.push('ac-fit: source verifier envelope is unreadable')
+  }
+  return errors
+}
+
 function checkTaskFit(root, state, phase, planRef, criteriaIds) {
   const fitPath = join(
     root,
@@ -229,6 +279,14 @@ function checkTaskFit(root, state, phase, planRef, criteriaIds) {
   const late = LATE_PHASES.has(phase)
   if (existsSync(fitPath)) {
     const errors = validateFitFile(fitPath, criteriaIds, late, state.taskId)
+    if (late) {
+      try {
+        const json = JSON.parse(readRegularFileSync(fitPath, 'utf8'))
+        errors.push(...boundFitErrors(root, state, planRef, json))
+      } catch {
+        // validateFitFile already reports malformed evidence.
+      }
+    }
     if (errors.length > 0) {
       for (const e of errors) fail(e)
       return 1

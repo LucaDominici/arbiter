@@ -290,7 +290,8 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
 
   it('trunk-solo external candidate replaces its single seat without growing the panel', () => {
     const content = renderShip('typescript', 'L2', 'trunk-solo', 'pr-ff')
-    expect(content).toContain('if [ "$task_tier" = Standard ]; then')
+    expect(content).toContain('--mode reviewer-panel')
+    expect(content).toContain('derives the required count/auditors')
     expect(content).not.toContain('while (candidate.length < total)')
   })
 })

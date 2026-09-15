@@ -71,6 +71,7 @@ function envelope(agent: string, overrides: Record<string, unknown> = {}): Recor
     verdict: 'PASS',
     confidence: 0.8,
     findings: [],
+    provenance: { vendor: 'anthropic', dispatch: 'subagent' },
     ...overrides,
   }
 }
@@ -124,6 +125,13 @@ describe('check-review-completion.mjs', () => {
     writeEnvelope('alpha', envelope('alpha'))
 
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('rejects a review envelope that did not pass through the sanctioned recorder', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope('alpha', envelope('alpha', { provenance: undefined }))
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(1)
   })
 
   it('accepts legacy task directories when no recorder-compatible directory exists', () => {

@@ -48,6 +48,14 @@ function record(input: unknown) {
   )
 }
 
+function recordPanel(envelopes: unknown[]) {
+  return spawnSync(
+    process.execPath,
+    [RECORDER, '--mode', 'reviewer-panel', '--task', '#42', '--repo-root', root],
+    { cwd: root, encoding: 'utf8', input: JSON.stringify({ envelopes }) },
+  )
+}
+
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'arbiter-record-fit-'))
   execFileSync('git', ['init', '-b', 'task/#42-fit'], { cwd: root, stdio: 'ignore' })
@@ -56,6 +64,7 @@ beforeEach(() => {
   writeFileSync(join(root, 'plan.md'), PLAN)
   execFileSync('git', ['add', 'plan.md'], { cwd: root })
   execFileSync('git', ['commit', '-m', 'test: seed'], { cwd: root, stdio: 'ignore' })
+  execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: root })
   mkdirSync(join(root, '.claude', '.task'), { recursive: true })
   writeFileSync(
     join(root, '.claude', '.task', 'status.json'),
@@ -64,6 +73,7 @@ beforeEach(() => {
       phase: 'verification',
       plan: 'plan.md',
       branch: 'task/#42-fit',
+      tier: 'Standard',
     }),
   )
 })
@@ -101,5 +111,34 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(stale.status).toBe(1)
     expect(stale.stdout + stale.stderr).toMatch(/sha|stale/i)
     expect(readFileSync(path, 'utf8')).toBe(before)
+  })
+
+  it('rejects fit admission after its recorded verifier envelope is changed', () => {
+    expect(record(envelope()).status).toBe(0)
+    const fit = JSON.parse(
+      readFileSync(join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'), 'utf8'),
+    )
+    writeFileSync(join(root, fit.sourceEnvelope.path), '{}\n')
+
+    const check = spawnSync(process.execPath, [CHECK], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, ARBITER_ACCEPTANCE_ANCHOR: '1' },
+    })
+
+    expect(check.status).toBe(1)
+    expect(check.stdout + check.stderr).toMatch(/source|digest|envelope/i)
+  })
+
+  it('derives a complete Standard reviewer sidecar from distinct accepted envelopes', () => {
+    const first = { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined }
+    const second = { ...envelope(), agent: 'review-b', role: 'reviewer', acceptanceFit: undefined }
+
+    const result = recordPanel([first, second])
+
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    expect(
+      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+    ).toMatchObject({ count: 2, agents: ['review-a', 'review-b'], taskId: '#42' })
   })
 })

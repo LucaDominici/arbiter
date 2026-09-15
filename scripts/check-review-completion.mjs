@@ -34,7 +34,7 @@ import {
 import { spawnSync } from 'node:child_process'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
+import { enforceCitations, loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
 import { arg } from './lib/gate-args.mjs'
 import { evidenceStaleness, isForeignSidecar } from './lib/evidence-binding.mjs'
 
@@ -339,6 +339,7 @@ function readEnvelopes(files, schema) {
       if (validateSchema(parsed, schema, schema, file).length > 0) {
         continue
       }
+      if (!parsed.provenance || enforceCitations(parsed, repoRoot, file).length > 0) continue
       valid.push({ envelope: /** @type {Record<string, unknown>} */ (parsed), file })
       // FAIL-OPEN-INTENT: malformed or unreadable envelope artifacts are recorded as incomplete reviewers below, never accepted as a return.
     } catch {

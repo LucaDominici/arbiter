@@ -426,122 +426,11 @@ material, database migrations and SQL, and CI workflow and permission config. A 
 never a "no security surface" verdict.
 
 ```bash
-# Record dispatch evidence — fail-closed Stop hook (INV-114) reads branch+sha from this file
-# The validated external-review path records the complete reviewer panel atomically; preserve the
-# fulfilled Codex seat and do not add another Anthropic seat.
-# Evidence source: `.arbiter/evidence/cross-model/<task>/dispatch.json`.
-external_review_fulfilled=0
-if ! task_id_json="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).taskId;if(typeof t!=="string"||!/^#[0-9]+$/.test(t))process.exit(2);process.stdout.write(JSON.stringify(t))' 2>/dev/null)"; then
-  echo 'ERROR: active task id is missing or invalid' >&2
-  exit 2
-fi
-if ! task_tier="$(node -e 'const f=require("node:fs"),t=JSON.parse(f.readFileSync(".claude/.task/status.json","utf8")).tier;if(!["XS","S","Standard"].includes(t))process.exit(2);process.stdout.write(t)' 2>/dev/null)"; then
-  echo 'ERROR: active task tier is missing or invalid' >&2
-  exit 2
-fi
-review_agents_json='["independent-review"]'
-if [ "$task_tier" = Standard ]; then
-candidate_review_agents_json="$(node - "$review_agents_json" <<'NODE'
-const agents = JSON.parse(process.argv[2])
-if (!Array.isArray(agents) || agents.length === 0 || agents.some((agent) => typeof agent !== 'string'))
-  process.exit(2)
-const candidate = [...agents]
-const codex = candidate.indexOf('codex-reviewer')
-if (codex === -1) candidate[candidate.length - 1] = 'codex-reviewer'
-if (candidate.filter((agent) => agent === 'codex-reviewer').length !== 1)
-  process.exit(2)
-process.stdout.write(JSON.stringify(candidate))
-NODE
-)"
-candidate_review_count="$(node -e 'const agents=JSON.parse(process.argv[1]);process.stdout.write(String(agents.length))' "$candidate_review_agents_json")"
-checker_status=0
-node scripts/check-cross-model-review.mjs --require-fulfilled --record-panel "$candidate_review_agents_json" --record-count "$candidate_review_count" >/dev/null 2>&1 || checker_status=$?
-if [ "$checker_status" = 0 ]; then
-  external_review_fulfilled=1
-  review_agents_json="$candidate_review_agents_json"
-elif node scripts/check-cross-model-review.mjs --require-degraded >/dev/null 2>&1; then
-  :
-elif node -e 'const f=require("node:fs");try{const c=JSON.parse(f.readFileSync("arbiter.json","utf8")),r=process.env.ARBITER_CROSS_MODEL_REVIEW?.trim().toLowerCase(),o=r===undefined?undefined:["true","1","yes","on"].includes(r)?true:["false","0","no","off"].includes(r)?false:undefined;process.exit((o??c.crossModelReview?.enabled)===true&&c.crossModelReview?.onUnavailable==="fail"?0:1)}catch{process.exit(1)}'; then
-  echo 'ERROR: cross-model review is required and did not fulfill its Codex seat' >&2
-  exit "$checker_status"
-else
-  echo 'ERROR: cross-model review failed without valid degradation evidence' >&2
-  exit "$checker_status"
-fi
-fi
-if [ "$external_review_fulfilled" != 1 ]; then
-node - "$review_agents_json" "1" "$task_id_json" <<'NODE' || exit 2
-const fs = require('node:fs')
-const path = require('node:path')
-const crypto = require('node:crypto')
-const child = require('node:child_process')
-
-if (process.platform === 'win32')
-  throw new Error('secure reviewer sidecar writing is unsupported on Windows')
-
-const [agentsJson, countText, taskIdJson] = process.argv.slice(2)
-const agents = JSON.parse(agentsJson)
-const count = Number(countText)
-const taskId = JSON.parse(taskIdJson)
-if (!Number.isInteger(count) || !Array.isArray(agents) || agents.length !== count)
-  throw new Error('invalid reviewer sidecar panel')
-
-const descriptorPath = (fd) => `${process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'}/${fd}`
-const directoryFlags = fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW
-let dirFd = -1
-try {
-  dirFd = fs.openSync('/', directoryFlags)
-  for (const part of path.resolve(process.cwd()).split('/').filter(Boolean).concat('.arbiter')) {
-    const childPath = path.join(descriptorPath(dirFd), part)
-    try {
-      fs.mkdirSync(childPath)
-    } catch (error) {
-      if (error?.code !== 'EEXIST') throw error
-    }
-    const nextFd = fs.openSync(childPath, directoryFlags)
-    fs.closeSync(dirFd)
-    dirFd = nextFd
-  }
-  const dirPath = descriptorPath(dirFd)
-  const tempPath = path.join(dirPath, `.arbiter-tmp-${crypto.randomBytes(4).toString('hex')}`)
-  let tempFd = -1
-  let pendingTemp = tempPath
-  try {
-    tempFd = fs.openSync(
-      tempPath,
-      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW,
-      0o600,
-    )
-    const branch = child.execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim()
-    const sha = child.execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-    fs.writeFileSync(tempFd, `${JSON.stringify({ count, agents, branch, sha, taskId })}\n`)
-    fs.closeSync(tempFd)
-    tempFd = -1
-    fs.renameSync(tempPath, path.join(dirPath, 'agents-dispatched.json'))
-    pendingTemp = null
-  } finally {
-    if (tempFd !== -1) {
-      try {
-        fs.closeSync(tempFd)
-      } catch {
-        // Preserve the primary write error.
-      }
-    }
-    if (pendingTemp !== null) {
-      try {
-        fs.unlinkSync(pendingTemp)
-      } catch {
-        // Preserve the primary write error.
-      }
-    }
-  }
-} finally {
-  if (dirFd !== -1) fs.closeSync(dirFd)
-}
-NODE
-fi
+# After every routed reviewer has returned one envelope, submit the whole panel once.
+# The producer derives the required count/auditors from the frozen diff and task tier.
+node scripts/record-agent-return.mjs --mode reviewer-panel --task '#NNN' <<'JSON'
+{"envelopes":[/* exact arbiter-agent-return-v1 reviewer envelopes */]}
+JSON
 ```
 
 Write this file only after the reviewer subagent has actually been dispatched — "I reviewed
@@ -549,8 +438,9 @@ it" without an agent tool call does not satisfy the gate, and the fail-closed St
 (INV-114) reads branch+sha from this file, so a sidecar written for an undispatched reviewer
 makes every later completion claim false.
 
-**Persist.** The reviewer hands back an `arbiter-agent-return-v1` envelope with `role: "reviewer"`
-and `agent: "independent-review"`, piped through `node scripts/record-agent-return.mjs --task '#NNN'`.
+**Persist.** Each reviewer hands back an `arbiter-agent-return-v1` envelope with `role: "reviewer"`.
+Pass the complete returned panel to the single `--mode reviewer-panel` call above; it records the
+envelopes and sidecar atomically after checking the canonical router requirement.
 
 ```bash
 node scripts/check-review-completion.mjs --task '#NNN'
@@ -571,11 +461,11 @@ CLI option wiring end-to-end (flag declared → parsed → forwarded), fixture a
 **FIT rubric (INV-138):** The verifier judges FIT against the plan's frozen `## Acceptance
 Criteria` anchor — not a re-reading of the live issue (mutable) and not "is this good
 code". For **each** `AC-N`: verdict PASS / FAIL / NOT-TESTED **with the diff or test
-`file:line` that proves it** — an uncited PASS does not count. Write the verdicts to
-`.arbiter/evidence/ac-fit/<taskId>.json` with the taskId SANITIZED for the filename —
-`#` and `/` stripped, so task `#42` writes `42.json` (schema `arbiter-ac-fit-v1`,
-committed; the `check-acceptance` gate validates it and hard-requires all-PASS at
-verification/close).
+`file:line` that proves it** — an uncited PASS does not count. Return those criteria as the
+`acceptanceFit` member of the verifier's `arbiter-agent-return-v1` envelope, then pipe that exact
+envelope through `node scripts/record-agent-return.mjs --mode ac-fit --task '#NNN'`. The producer
+records the envelope and derives the task-keyed fit artifact with exact plan/branch/SHA/digest
+binding; `check-acceptance` hard-requires all-PASS at verification/close.
 Any FAIL or NOT-TESTED blocks advance — unproven criterion = REJECT. A REJECT that forces
 a redo is rework data:
 `[ -f scripts/rework-log.mjs ] && node scripts/rework-log.mjs add --issue NNN --reason <r> --caught review`
