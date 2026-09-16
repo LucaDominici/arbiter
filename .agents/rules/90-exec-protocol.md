@@ -1,3 +1,14 @@
+---
+title: 'Execution Protocol'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-07-17'
+owner: ''
+canonical_id: ''
+tags: ['audience/agent', 'audience/dev', 'kind/internal']
+related: []
+---
+
 # Execution Protocol
 
 ## Branch Enforcement

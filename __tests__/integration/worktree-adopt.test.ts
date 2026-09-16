@@ -140,12 +140,12 @@ describe('runWorktreeAdopt', () => {
 
     const result = spawnSync(
       process.execPath,
-      ['--import', TSX_ESM_LOADER, CLI_PATH, 'worktree', 'adopt', '#2564', checkout, '--json'],
+      ['--import', TSX_ESM_LOADER, CLI_PATH, 'worktree', 'prepare', '#2564', checkout, '--json'],
       { cwd: repo, encoding: 'utf-8', timeout: 15_000 },
     )
 
     expect(result.status, result.stderr).toBe(0)
-    expect(JSON.parse(result.stdout)).toMatchObject({ command: 'worktree-adopt', status: 'ok' })
+    expect(JSON.parse(result.stdout)).toMatchObject({ command: 'worktree prepare', status: 'ok' })
   })
 
   it('adopts a Claude-native checkout before binding its optional session attestation', async () => {

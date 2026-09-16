@@ -39,14 +39,14 @@ Configured in `.claude/settings.json`. Active hooks:
 
 ### Slash Commands
 
-| Command | Purpose |
-|---------|---------|
+| Command      | Purpose                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------- |
 | `/ship #NNN` | **Orchestration entrypoint** — drive an issue to a merged PR (plan → review → gate → merge) |
-| `/task` | Low-level engine/CLI: `arbiter lifecycle start/advance/record-red/recover/get` |
-| `/wt-open` | Open an isolated task worktree |
-| `/wt-close` | Close or harvest a task worktree |
-| `/wt-list` | List active git worktrees with status |
-| `/wt-prune` | Prune stale worktree metadata |
+| `/drain`     | Deliver a bounded backlog wave through the `/ship` contract                                 |
+| `/audit`     | Run the product audit                                                                       |
+| `/impact`    | Inspect change impact                                                                       |
+| `/review`    | Review a frozen candidate                                                                   |
+| `/tabletop`  | Exercise a product journey                                                                  |
 
 ---
 

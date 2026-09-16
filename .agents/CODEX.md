@@ -1,3 +1,14 @@
+---
+title: 'arbiter — Codex Configuration'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-08-26'
+owner: ''
+canonical_id: ''
+tags: ['audience/agent', 'audience/dev', 'kind/internal']
+related: []
+---
+
 # arbiter — Codex Configuration
 
 > **Governance rules are in `AGENTS.md` (canonical, AAIF standard).**
