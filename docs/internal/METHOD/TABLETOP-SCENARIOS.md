@@ -31,6 +31,11 @@ and a new slug. Nothing else needs editing — `scripts/check-tabletop-evidence.
 directly, so the structure, the id and slug uniqueness, and the join to every evidence file under
 `.arbiter/evidence/tabletop/` are all checked from here rather than restated in a test constant.
 
+An evidence-only branch may land structured `.json`, `.md`, `.log`, or `.txt` records under
+`.arbiter/evidence/` without inventing a TDD cycle. The evidence-specific gates validate their
+content. Executable files in that tree, or a branch that also changes source, still require the
+normal TDD evidence.
+
 ---
 
 ## 1. Greenfield `arbiter init` on a TypeScript library
