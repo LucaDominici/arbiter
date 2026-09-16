@@ -21,7 +21,7 @@
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
 //
-// NOTE: this entrypoint needs no compiled imports; L2+ prepares dist before checks.
+// NOTE: this entrypoint needs no compiled imports; L2+ prepares dist before consumers.
 // It cannot import from src/.
 // src/ code goes through src/utils/run-cli.ts (INV-12). Gate scripts use the
 // helper trinity in scripts/lib/run-helpers.mjs (#351, CANON-01): runCheck (HARD),
@@ -37,12 +37,14 @@ import {
   runWarnCheck,
   runToolCheck,
   getResults,
+  pushResult,
   getFailed,
   setSkippedChecks,
   setFailFast,
   setOrphanGuard,
   isMainModule,
 } from './lib/run-helpers.mjs'
+import { checkDistFresh } from './lib/dist-staleness.mjs'
 import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs'
 import { effectiveGateLevel, parseCheckArgs } from './lib/parse-check-args.mjs'
 import { GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST } from './lib/gate-affects-registry.mjs'
@@ -81,6 +83,25 @@ export function integrationSuiteArgs(results) {
     args.push('--exclude', '__tests__/integration/init-greenfield-smoke.test.ts')
   }
   return args
+}
+
+// Dist is a local prerequisite, not a source verdict. Keep the existing hash contract.
+function checkDistPrerequisite(root) {
+  const startedAt = Date.now()
+  let reason
+  try {
+    const result = checkDistFresh(root)
+    if (!result.fresh) reason = result.reason
+  } catch (err) {
+    reason = `cannot read dist build manifest: ${err.message}. Run "npm run build" first.`
+    process.stderr.write(`check-all: prerequisite ERROR: ${reason}\n`)
+  }
+  const status = reason ? 'FAIL' : 'PASS'
+  const elapsed = Date.now() - startedAt
+  pushResult('dist freshness prerequisite', status, elapsed)
+  process.stdout.write(`dist freshness prerequisite ... ${status} (${elapsed}ms)\n`)
+  if (reason) process.stderr.write(`check-all: prerequisite ERROR: ${reason}\n`)
+  return !reason
 }
 
 if (isMain) {
@@ -182,8 +203,18 @@ if (isMain) {
 
   // Gates excluded from parityContentHash (INV-59): these differ structurally between
   // local and CI environments — PR-only gates or tests run with different selectors.
-  // Preparation differs by lane; its outcome still belongs to full gate evidence.
-  const PARITY_EXCLUDE = new Set(['commitlint', 'docs', 'unit tests', 'build', 'build-kit'])
+  // Preparation and L2-only prerequisites differ by lane; both stay in full gate evidence.
+  const PARITY_EXCLUDE = new Set([
+    'commitlint',
+    'docs',
+    'unit tests',
+    'build',
+    'build-kit',
+    'dist freshness prerequisite',
+    'tdd-evidence',
+    'evidence-bundle',
+    'review completion (#2177)',
+  ])
 
   // Opt-in selective gating (#2094): local iteration speed only, never a merge
   // gate — CI and any pre-push/pre-merge invocation always run the full,
@@ -235,10 +266,22 @@ if (isMain) {
   process.stdout.write(`=== arbiter Quality Gate: ${subcommand} [${level}] ===\n`)
   process.stdout.write('\n')
 
+  let prerequisiteError = false
+
   function runChecks() {
     // L2 owns its compiled prerequisites. npm build already generates the kit;
     // coverage remains the single unit-corpus run later in this gate.
     if (subcommand !== 'check') {
+      // These contracts use source/committed evidence and need no compiled output.
+      // A rejected prerequisite must never start build, smoke, coverage or integration.
+      runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'], { failOnSkip: true })
+      runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'], {
+        failOnSkip: true,
+      })
+      runCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'], {
+        failOnSkip: true,
+      })
+      if (getFailed() > 0) return getResults().length
       runCheck('build', 'npm', ['run', 'build'], { failOnSkip: true })
       if (getResults().at(-1)?.status !== 'PASS') {
         process.stderr.write(
@@ -247,6 +290,8 @@ if (isMain) {
         return getResults().length
       }
     } else {
+      prerequisiteError = !checkDistPrerequisite(process.cwd())
+      if (prerequisiteError) return getResults().length
       runCheck('build-kit', 'node', ['scripts/build-kit.mjs'])
     }
 
@@ -633,7 +678,6 @@ if (isMain) {
       runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
       runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
       runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
-      runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
       // ADR-106 (#1966): codex-track parity contract — derive-from-Claude rules,
       // 100% classified parity surface, generated Known Limitations, merge-base
       // baseline anti-shrinkage. Bakes a fixture via the real CLI (init).
@@ -643,16 +687,10 @@ if (isMain) {
       runCheck('codex self-parity (#1966)', 'node', ['scripts/check-codex-self-parity.mjs'])
       // INV-133 (#1456): over-age linked task-marker gate. SKIPs offline / no token.
       runCheck('todo max-age', 'node', ['scripts/check-todo-max-age.mjs'])
-      runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
       // E1-E6a #1943 (anti-context-rot enforcers, advisory at land-time per design §0; promote
       // to runCheck at gated-review). Vacuous-pass when no evidence — wired now so the path is real.
       runWarnCheck('agent-return envelope (E1 #1943)', 'node', ['scripts/check-agent-return.mjs'])
       runWarnCheck('cross-model review (#2358)', 'node', ['scripts/check-cross-model-review.mjs'])
-      // #2435 AC-2: promoted from runWarnCheck. `refactor` promises a code-review dispatch and
-      // nothing could fail a build over it, so a ship reached `verification` with no review ever
-      // dispatched. The check vacuous-passes with no sidecar for this task/branch, so the
-      // promotion costs nothing where no review was owed and refuses where one was.
-      runCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'])
       runWarnCheck('refutation majority (E2 #1943)', 'node', [
         'scripts/check-refutation-verdicts.mjs',
       ])
@@ -832,7 +870,7 @@ if (isMain) {
     console.error('Failed checks:')
     for (const r of failedResults) console.error(`- ${r.name} (${r.status})`)
     console.error('')
-    process.exit(1)
+    process.exit(prerequisiteError ? 2 : 1)
   } else {
     process.stdout.write('=== ALL PASSED ===\n\n')
   }

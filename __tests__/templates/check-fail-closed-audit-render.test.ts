@@ -111,6 +111,22 @@ describe('check-fail-closed-audit.mjs.ejs — INV-96 audit gate scaffold', () =>
       expect(r.stdout).toContain('node-swallowed-catch')
     })
 
+    it('recognizes the canonical sibling run-helpers import', () => {
+      const dir = renderInto()
+      writeFileSync(
+        join(dir, 'scripts', 'helper-user.mjs'),
+        [
+          '#!/usr/bin/env node',
+          "import { runCheck } from './lib/run-helpers.mjs'",
+          '',
+          "runCheck('typecheck', 'tsc', ['--noEmit'])",
+          '',
+        ].join('\n'),
+      )
+      const r = runEmitted(dir)
+      expect(r.status, `${r.stdout}\n${r.stderr}`).toBe(0)
+    })
+
     it('fails closed (exit 2) on an unterminated string, regardless of file size (AC-3)', () => {
       const dir = renderInto()
       writeFileSync(

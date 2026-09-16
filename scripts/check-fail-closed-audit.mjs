@@ -140,7 +140,8 @@ const PIPEFAIL = /^\s*set\s+-[a-zA-Z]*o\s+pipefail|^\s*set\s+-euo\s+pipefail|^\s
 const OR_TRUE = /\|\|\s*true\b/
 const FAIL_OPEN_MARK = /#\s*FAIL-OPEN-INTENT\s*:/i
 const FAIL_OPEN_MARK_JS = /\/\/\s*FAIL-OPEN-INTENT\s*:/i
-const HELPER_IMPORT = /from\s+['"][^'"]*scripts\/lib\/run-helpers(?:\.mjs)?['"]/
+const HELPER_IMPORT =
+  /from\s+['"](?:\.\/lib\/run-helpers|[^'"]*scripts\/lib\/run-helpers)(?:\.mjs)?['"]/
 const HELPER_USE = /\brun(Check|WarnCheck|ToolCheck)\s*\(/
 const TRY_CATCH_EXIT = /process\.exit\(\s*[12]\s*\)|throw\b/
 

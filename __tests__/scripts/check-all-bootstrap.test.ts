@@ -6,6 +6,8 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from '../../scripts/lib/gate-mutex.mjs'
 
+import { writeDistManifest } from '../../scripts/lib/dist-staleness.mjs'
+
 const SCRIPT = resolve('scripts/check-all.mjs')
 
 /** Exercise the real orchestration and artifact writer; stub only child tools. */
@@ -21,6 +23,14 @@ function runGate(
     if (level === 'L1') {
       mkdirSync(join(dir, 'dist'))
       writeFileSync(join(dir, 'dist', 'cli.js'), '')
+      writeDistManifest(dir)
+      if (buildMode === 'missing-dist') rmSync(join(dir, 'dist'), { recursive: true })
+      if (buildMode === 'missing-manifest') rmSync(join(dir, 'dist/.src-manifest.json'))
+      if (buildMode === 'corrupt-dist') writeFileSync(join(dir, 'dist/.src-manifest.json'), '{')
+      if (buildMode === 'stale-dist') {
+        mkdirSync(join(dir, 'src/generators'), { recursive: true })
+        writeFileSync(join(dir, 'src/generators/changed.ts'), 'export const changed = true')
+      }
     }
     const preload = join(dir, 'tools.mjs')
     writeFileSync(
@@ -30,6 +40,10 @@ import { syncBuiltinESMExports } from 'node:module'
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 cp.spawnSync = (cmd, args) => {
   appendFileSync('calls.jsonl', JSON.stringify([cmd, ...args]) + '\\n')
+  if (args.includes(process.env.BOOTSTRAP_TEST_MODE))
+    return { status: 1, stdout: '', stderr: 'FIXTURE-CONTRACT-DIAGNOSTIC' }
+  if (args.includes('scripts/check-tdd-evidence.mjs') && process.env.BOOTSTRAP_TEST_MODE === 'tdd-skip')
+    return { status: 0, stdout: '[SKIP] fixture provenance unavailable', stderr: '' }
   const build = cmd === 'npm' && args.join(' ') === 'run build'
   const firstHard =
     process.env.BOOTSTRAP_TEST_MODE === 'first-hard-fail' &&
@@ -87,9 +101,12 @@ syncBuiltinESMExports()
       timeout: 15_000,
       env,
     })
-    const calls = readFileSync(join(dir, 'calls.jsonl'), 'utf-8')
+    const calls = (
+      existsSync(join(dir, 'calls.jsonl')) ? readFileSync(join(dir, 'calls.jsonl'), 'utf-8') : ''
+    )
       .trim()
       .split('\n')
+      .filter(Boolean)
       .map((line) => JSON.parse(line) as string[])
     return {
       ...result,
@@ -97,6 +114,10 @@ syncBuiltinESMExports()
       calls,
       artifact: JSON.parse(readFileSync(join(dir, '.arbiter/gate/local-result.json'), 'utf-8')),
       marker: existsSync(join(dir, '.arbiter/gate-pass.json')),
+      receipt: existsSync(join(dir, '.arbiter/gate-pass.json'))
+        ? JSON.parse(readFileSync(join(dir, '.arbiter/gate-pass.json'), 'utf-8'))
+        : null,
+      head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim(),
     }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -109,23 +130,41 @@ describe('native L2 build prerequisite', () => {
     (level) => {
       const result = runGate(level)
       expect(result.status, result.stderr).toBe(0)
-      expect(result.calls[0]).toEqual(['npm', 'run', 'build'])
+      expect(result.calls.slice(0, 4)).toEqual([
+        ['node', 'scripts/check-tdd-evidence.mjs'],
+        ['node', 'scripts/check-evidence-bundle.mjs'],
+        ['node', 'scripts/check-review-completion.mjs'],
+        ['npm', 'run', 'build'],
+      ])
       expect(result.calls.filter((call) => call.join(' ') === 'npm run build')).toHaveLength(1)
       expect(result.calls.some((call) => call.includes('scripts/build-kit.mjs'))).toBe(false)
       expect(result.calls.filter((call) => call[0] === 'npm' && call[1] === 'test')).toEqual([
         ['npm', 'test', '--', '--coverage'],
       ])
-      expect(result.artifact.gates[0]).toMatchObject({ name: 'build', status: 'PASS' })
+      expect(result.artifact.gates[3]).toMatchObject({ name: 'build', status: 'PASS' })
       expect(result.marker).toBe(true)
+      expect(result.receipt).toMatchObject({ head_sha: result.head, start_head_sha: result.head })
+      const gateNames = result.artifact.gates.map((gate: { name: string }) => gate.name)
+      expect(gateNames).toEqual(
+        expect.arrayContaining([
+          'coverage ratchet (#1483)',
+          'debt ratchet',
+          'integration suite (INV-25)',
+          'BDD suite (INV-25)',
+          'doc-set presence',
+        ]),
+      )
+      expect(new Set(gateNames).size).toBe(gateNames.length)
     },
   )
 
   it.each(['fail', 'skip'])('stops on a %s build and emits failed evidence', (mode) => {
     const result = runGate('L2', mode)
     expect(result.status).toBe(1)
-    expect(result.calls).toEqual([['npm', 'run', 'build']])
+    expect(result.calls.at(-1)).toEqual(['npm', 'run', 'build'])
+    expect(result.calls).toHaveLength(4)
     expect(result.artifact.pass).toBe(false)
-    expect(result.artifact.gates).toEqual([
+    expect(result.artifact.gates.slice(3)).toEqual([
       expect.objectContaining({ name: 'build', status: 'FAIL', pass: false }),
     ])
     expect(result.stdout).toContain('=== Summary ===')
@@ -156,7 +195,9 @@ describe('native L2 build prerequisite', () => {
     expect(failFast.status).toBe(1)
     expect(failFast.stderr).toContain('FIXTURE-FIRST-HARD-DIAGNOSTIC')
     expect(failFast.stdout).toContain('SKIP (fail-fast after prior hard failure')
-    expect(failFast.stdout).not.toContain('PASS (')
+    expect(
+      failFast.artifact.gates.filter((gate: { status: string }) => gate.status === 'PASS'),
+    ).toEqual([expect.objectContaining({ name: 'dist freshness prerequisite' })])
     expect(failFast.calls).toEqual([['node', 'scripts/build-kit.mjs']])
     expect(accumulating.calls.length).toBeGreaterThan(failFast.calls.length)
     expect(failFast.marker).toBe(false)
@@ -190,4 +231,46 @@ describe('native L2 build prerequisite', () => {
       expect(result.marker).toBe(false)
     }
   })
+})
+
+describe('cheap gate prerequisites', () => {
+  it.each([
+    'scripts/check-tdd-evidence.mjs',
+    'scripts/check-evidence-bundle.mjs',
+    'scripts/check-review-completion.mjs',
+    'tdd-skip',
+  ])('blocks build and suites when %s fails or skips (AC-1)', (mode) => {
+    const result = runGate('L2', mode)
+    expect(result.status).toBe(1)
+    expect(
+      result.calls.every(
+        (call) =>
+          call[0] === 'node' &&
+          [
+            'scripts/check-tdd-evidence.mjs',
+            'scripts/check-evidence-bundle.mjs',
+            'scripts/check-review-completion.mjs',
+          ].includes(call[1]),
+      ),
+    ).toBe(true)
+    expect(result.artifact.pass).toBe(false)
+    expect(result.marker).toBe(false)
+    expect(result.stdout).toContain('=== Summary ===')
+  })
+
+  it.each(['missing-dist', 'missing-manifest', 'stale-dist', 'corrupt-dist'])(
+    'classifies %s as a prerequisite error before any L1 child (AC-2)',
+    (mode) => {
+      const result = runGate('L1', mode)
+      expect(result.status).toBe(2)
+      expect(result.calls).toEqual([])
+      expect(result.artifact.pass).toBe(false)
+      expect(result.artifact.gates).toEqual([
+        expect.objectContaining({ name: 'dist freshness prerequisite', status: 'FAIL' }),
+      ])
+      expect(result.stderr).toContain('prerequisite')
+      expect(result.stderr).toContain('npm run build')
+      expect(result.marker).toBe(false)
+    },
+  )
 })
