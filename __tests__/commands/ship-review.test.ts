@@ -138,6 +138,20 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     expect(review()).toEqual({ rounds: 2, lastReviewedSha: SHA_B })
   })
 
+  it('retrying the same frozen dispatch is idempotent even at the cap', () => {
+    ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_B })
+    const before = readFileSync(join(dir, '.claude/.task/status.json'), 'utf8')
+    const beforeLog = log()
+    ship({ reviewRound: true, headSha: SHA_B })
+    expect(review().rounds).toBe(2)
+    expect(readFileSync(join(dir, '.claude/.task/status.json'), 'utf8')).toBe(before)
+    expect(log()).toBe(beforeLog)
+    writeFileSync(join(dir, 'plan.md'), '# dirty plan')
+    expect(() => ship({ reviewRound: true, headSha: SHA_B })).toThrow(/clean HEAD/)
+  })
+
   it('does not burn a round just for re-reading the step', () => {
     ship({ advance: true, headSha: SHA_A })
     ship({ reviewRound: true, headSha: SHA_A })

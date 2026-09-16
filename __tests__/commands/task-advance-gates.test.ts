@@ -419,3 +419,14 @@ describe('advance --to verification — qualified review evidence is mandatory',
     expect(readUnifiedState(dir)?.phase).toBe('verification')
   })
 })
+
+describe('result-first mechanical plan admission (#2724)', () => {
+  it('advances directly from plan to RED without pre-code review or a forced clear', () => {
+    const dir = tmpRepo()
+    seed(dir, 'plan', '#2724')
+    enablePlanReview(dir) // stale opt-in cannot resurrect a retired phase
+    expect(() => runTaskAdvance({ dir, to: 'red' })).not.toThrow()
+    expect(readUnifiedState(dir)?.phase).toBe('red')
+    expect(readUnifiedState(dir)?.handoffReady).toBe(false)
+  })
+})

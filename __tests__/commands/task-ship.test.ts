@@ -798,3 +798,62 @@ describe('ship companion evidence emission (#1745)', () => {
     expect(existsSync(companionEvidencePath('#1745', dir))).toBe(false)
   })
 })
+
+describe('result-first read-only status (#2724)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('reads the same subject twice without remote gathering, state/log writes or round changes', () => {
+    runTaskShip({ dir, taskId: '#2724', tier: 'Standard' })
+    writeUnifiedState(dir, {
+      phase: 'refactor',
+      review: { rounds: 1, lastReviewedSha: 'a'.repeat(40) },
+      cursor: { lastAction: 'targeted tests green', nextAction: 'record final reviewer' },
+    })
+    const path = join(dir, '.claude/.task/status.json')
+    const before = readFileSync(path, 'utf8')
+    const gather = vi.fn(() => {
+      throw new Error('status must not gather remote signals')
+    })
+    const first = runTaskShip({ dir, taskId: '#2724', gatherTierSignals: gather })
+    const second = runTaskShip({ dir, gatherTierSignals: gather })
+    expect(first).toEqual(second)
+    expect(gather).not.toHaveBeenCalled()
+    expect(readFileSync(path, 'utf8')).toBe(before)
+    expect(buildShipStepLines(first).join('\n')).toContain('record final reviewer')
+    expect(buildShipStepLines(first).join('\n')).toContain('a'.repeat(40))
+  })
+
+  it('refreshes risk on an operational invocation', () => {
+    runTaskShip({
+      dir,
+      taskId: '#2724',
+      tier: 'XS',
+      gatherTierSignals: () => ({
+        blastRadius: 0,
+        callerCount: 0,
+        labels: [],
+        milestoneBundled: false,
+        changedFiles: ['src/leaf.ts'],
+        complete: true,
+      }),
+    })
+    const gather = vi.fn(() => ({
+      blastRadius: 100,
+      callerCount: 100,
+      labels: ['security'],
+      milestoneBundled: false,
+      changedFiles: ['src/auth/login.ts'],
+      complete: true,
+    }))
+    const result = runTaskShip({ dir, executionOutcome: 'new-risk', gatherTierSignals: gather })
+    expect(gather).toHaveBeenCalled()
+    expect(result.treatment?.sensitive).toBe(true)
+    expect(result.tier).toBe('Standard')
+  })
+})
