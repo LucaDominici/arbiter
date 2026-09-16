@@ -16,6 +16,8 @@ related: []
 >
 > Standard: [AGENTS.md — AAIF / Linux Foundation](https://agents.md/)
 
+For Arbiter Convergence 2026 work or continuation, read [programme #2684](https://github.com/LucaDominici/arbiter/issues/2684) before choosing scope. It records the current assignment, approved plan, proof gaps and next action; resume that work instead of restarting historical audits.
+
 ---
 
 ## Project

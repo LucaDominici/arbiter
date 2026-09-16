@@ -309,6 +309,25 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(existsSync(join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'))).toBe(false)
   })
 
+  it('retains a valid negative reviewer result without admitting acceptance', () => {
+    const reviewer = { ...envelope(), agent: 'domain', role: 'reviewer', verdict: 'FAIL' }
+    reviewer.acceptanceFit.criteria[0].verdict = 'FAIL'
+
+    const result = recordPanel([reviewer])
+
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    const fit = JSON.parse(
+      readFileSync(join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'), 'utf8'),
+    )
+    expect(fit.criteria[0].verdict).toBe('FAIL')
+    const check = spawnSync(process.execPath, [CHECK], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, ARBITER_ACCEPTANCE_ANCHOR: '1' },
+    })
+    expect(check.status, check.stdout + check.stderr).toBe(1)
+  })
+
   it('rejects a correctly-sized panel that did not fill the assigned verticals', () => {
     const result = recordPanel([
       { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined },
