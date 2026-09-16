@@ -27,7 +27,14 @@ function setup() {
   mkdirSync(join(main, '.arbiter'), { recursive: true })
   writeFileSync(
     join(main, '.arbiter', 'worktree-open.log.json'),
-    JSON.stringify([{ taskId: '#2685', worktreePath: worktree, branch: 'task/#2685-native-host' }]),
+    JSON.stringify([
+      {
+        taskId: '#2685',
+        worktreePath: worktree,
+        branch: 'task/#2685-native-host',
+        bindingId: 'binding-2685',
+      },
+    ]),
   )
   const sessionId = 'session-worktree-2685'
   const projectDir = join(home, '.claude', 'projects', worktree.replace(/[^A-Za-z0-9]/g, '-'))
@@ -50,10 +57,23 @@ describe('task host-preflight (#2685)', () => {
     runTaskInit({ dir: worktree, id: '#2685', host })
 
     expect(readUnifiedState(worktree)?.hostBinding).toEqual({
+      bindingId: 'binding-2685',
       worktreePath: worktree,
       branch: 'task/#2685-native-host',
       sessionId,
       transcriptPath,
+    })
+  })
+
+  it('binds a Codex or manual native checkout without Claude session state', () => {
+    const { worktree } = setup()
+
+    runTaskInit({ id: '#2685', worktree, dir: worktree, host: { cwd: worktree, env: {} } })
+
+    expect(readUnifiedState(worktree)?.hostBinding).toEqual({
+      bindingId: 'binding-2685',
+      worktreePath: worktree,
+      branch: 'task/#2685-native-host',
     })
   })
 
@@ -65,7 +85,7 @@ describe('task host-preflight (#2685)', () => {
       /host root.*worktree/i,
     )
     expect(() => runTaskInit({ dir: worktree, id: '#2685', host: wrongHost })).toThrow(
-      /host binding/i,
+      /host root.*worktree/i,
     )
     expect(readUnifiedState(worktree)).toBeNull()
   })

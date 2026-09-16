@@ -11,7 +11,7 @@
 // pick up the fixture state (mirrors __tests__/hooks/enforce-gate-before-pr-worktree.test.ts).
 import { spawnSync, execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { hostname, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
 
@@ -59,14 +59,22 @@ function bindHost(dir: string, sessionId = 'bound-session') {
   mkdirSync(join(dir, '.arbiter'), { recursive: true })
   writeFileSync(
     join(dir, '.arbiter', 'worktree-open.log.json'),
-    JSON.stringify([{ taskId: '#100', worktreePath: dir, branch: 'main' }]),
+    JSON.stringify([
+      { taskId: '#100', worktreePath: dir, branch: 'main', bindingId: 'binding-100' },
+    ]),
   )
   writeFileSync(
     join(dir, '.claude', '.task', 'status.json'),
     JSON.stringify({
       taskId: '#100',
       branch: 'main',
-      hostBinding: { worktreePath: dir, branch: 'main', sessionId, transcriptPath: transcript },
+      hostBinding: {
+        bindingId: 'binding-100',
+        worktreePath: dir,
+        branch: 'main',
+        sessionId,
+        transcriptPath: transcript,
+      },
     }),
   )
   return { home, transcript, sessionId }
@@ -103,6 +111,80 @@ afterEach(() => {
 })
 
 describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
+  it('#2564 recognizes a Git-native worktree outside the historical .worktrees naming convention', () => {
+    const main = track(setup())
+    const native = track(mkdtempSync(join(tmpdir(), 'codex-native-checkout-')))
+    rmSync(native, { recursive: true, force: true })
+    execFileSync('git', ['worktree', 'add', '-b', 'feature/native', native], {
+      cwd: main,
+      stdio: 'ignore',
+    })
+    writeWriteClasses(native, {})
+    writeSidecar(native, [{ agent: 'general-purpose', ts: Date.now(), pid: 1, cwd: native }])
+
+    const result = runHook(
+      native,
+      { tool_input: { subagent_type: 'general-purpose', cwd: native, prompt: 'work on #2564' } },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+
+    expect(result.status).toBe(0)
+  })
+
+  it('#2564 fails closed when another process holds the sidecar writer lock', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, {})
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'agents-active.lock'),
+      JSON.stringify({
+        pid: process.pid,
+        hostname: hostname(),
+        bootId: existsSync('/proc/sys/kernel/random/boot_id')
+          ? readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+          : 'unknown',
+        startedAt: new Date().toISOString(),
+      }),
+    )
+
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'general-purpose', prompt: 'work on #2564' } },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/writer lock/i)
+    expect(existsSync(join(dir, '.arbiter', 'agents-active.json'))).toBe(false)
+  })
+
+  it('#2564 recovers a sidecar lock whose local owner is dead', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, {})
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'agents-active.lock'),
+      JSON.stringify({
+        pid: 2_147_483_647,
+        hostname: hostname(),
+        bootId: existsSync('/proc/sys/kernel/random/boot_id')
+          ? readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+          : 'unknown',
+        startedAt: new Date(0).toISOString(),
+        nonce: 'dead-owner',
+      }),
+    )
+
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'general-purpose', prompt: 'work on #2564' } },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+
+    expect(result.status).toBe(0)
+    expect(existsSync(join(dir, '.arbiter', 'agents-active.lock'))).toBe(false)
+  })
+
   it('#2685 blocks a main-root read-only dispatch for a task opened in another worktree', () => {
     const dir = track(setup())
     const worktree = track(`${dir}.worktrees/100`)

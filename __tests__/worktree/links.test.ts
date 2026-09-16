@@ -88,6 +88,30 @@ describe('materializeLink', () => {
     expect(result.result).toBe('LINKED')
   })
 
+  it('rejects policy paths that escape the repository or checkout', () => {
+    expect(() => materializeLink({ path: '../secret' }, mainRepo, worktree)).toThrow(
+      /inside the repository/i,
+    )
+    expect(() =>
+      materializeLink({ path: '.env', template: '../secret.example' }, mainRepo, worktree),
+    ).toThrow(/inside the repository/i)
+  })
+
+  it('rejects an existing symlink to the wrong source', () => {
+    writeFileSync(join(mainRepo, '.env'), 'SECRET=1')
+    writeFileSync(join(mainRepo, 'wrong.env'), 'WRONG=1')
+    symlinkSync(join(mainRepo, 'wrong.env'), join(worktree, '.env'))
+
+    expect(() => materializeLink({ path: '.env' }, mainRepo, worktree)).toThrow(/wrong target/i)
+  })
+
+  it('accepts an unchanged file previously copied from its template', () => {
+    writeFileSync(join(mainRepo, '.env.example'), 'SECRET=')
+    const spec: WorktreeLinkSpec = { path: '.env', template: '.env.example' }
+    materializeLink(spec, mainRepo, worktree)
+    expect(materializeLink(spec, mainRepo, worktree).result).toBe('COPIED_TEMPLATE')
+  })
+
   it('refuses to silently replace a real destination file with a symlink', () => {
     writeFileSync(join(mainRepo, '.env'), 'SECRET=1')
     writeFileSync(join(worktree, '.env'), 'local override')

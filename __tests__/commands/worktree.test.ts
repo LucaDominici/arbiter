@@ -127,6 +127,24 @@ describe('runWorktreeList', () => {
 
     expect(lines.some((l) => l.includes('No open task worktrees'))).toBe(true)
   })
+
+  it('lists non-task and detached native checkouts with --all', async () => {
+    const featurePath = join(gitRoot, '../feature-native')
+    const detachedPath = join(gitRoot, '../codex-detached')
+    const porcelain =
+      `worktree ${gitRoot}\nHEAD abc123\nbranch refs/heads/main\n\n` +
+      `worktree ${featurePath}\nHEAD def456\nbranch refs/heads/feature/native\n\n` +
+      `worktree ${detachedPath}\nHEAD fedcba\ndetached\n\n`
+    mockRunCli.mockReturnValueOnce(ok(gitRoot)).mockReturnValueOnce(ok(porcelain))
+
+    const lines: string[] = []
+    const { runWorktreeList } = await import('../../src/commands/worktree.js')
+    runWorktreeList({ cwd: gitRoot, all: true, onLine: (l) => lines.push(l) })
+
+    expect(lines.join('\n')).toContain('feature/native')
+    expect(lines.join('\n')).toContain('(detached)')
+    expect(lines.some((l) => l.includes('Open worktrees (2)'))).toBe(true)
+  })
 })
 
 describe('runWorktreeOpen', () => {
@@ -209,7 +227,15 @@ describe('runWorktreeClose', () => {
     mockIsRunningFromMainRepo.mockReturnValue(true)
     mockWorkingTreeDirty.mockReturnValue(false)
     mockBranchFullyMerged.mockReturnValue(true)
-    mockRunCli.mockReturnValue(ok(gitRoot))
+    mockRunCli.mockImplementation((_cmd, args) => {
+      if (args[0] === 'worktree' && args[1] === 'list') {
+        return ok(
+          `worktree ${gitRoot}\nHEAD abc123\nbranch refs/heads/main\n\n` +
+            `worktree ${worktreePath}\nHEAD def456\nbranch refs/heads/task/#123-test\n\n`,
+        )
+      }
+      return ok(gitRoot)
+    })
     // Write a valid log entry — taskId must be in canonical #NNN form
     writeFileSync(
       join(gitRoot, '.arbiter', 'worktree-open.log.json'),
@@ -252,6 +278,27 @@ describe('runWorktreeClose', () => {
     const { runWorktreeClose } = await import('../../src/commands/worktree.js')
     expect(() => runWorktreeClose({ taskId: '123', cwd: gitRoot, noFetch: true })).toThrow(
       /Untracked files also block close[\s\S]*Use --force to close anyway/,
+    )
+  })
+
+  it('refuses cleanup when a stale log path now belongs to another branch', async () => {
+    mockRunCli.mockImplementation((_cmd, args) => {
+      if (args[0] === 'worktree' && args[1] === 'list') {
+        return ok(
+          `worktree ${gitRoot}\nHEAD abc123\nbranch refs/heads/main\n\n` +
+            `worktree ${worktreePath}\nHEAD def456\nbranch refs/heads/feature/reused\n\n`,
+        )
+      }
+      return ok(gitRoot)
+    })
+    const { runWorktreeClose } = await import('../../src/commands/worktree.js')
+    expect(() => runWorktreeClose({ taskId: '123', cwd: gitRoot, force: true })).toThrow(
+      /no longer matches Git worktree inventory/i,
+    )
+    expect(mockRunCli).not.toHaveBeenCalledWith(
+      'git',
+      expect.arrayContaining(['remove']),
+      expect.anything(),
     )
   })
 
