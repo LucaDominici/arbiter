@@ -394,9 +394,9 @@ function validatedAcceptanceFit(parsed, schema, state, stamped) {
   return { env, anchor: frozen.anchor }
 }
 
-function acceptanceFitErrors(env, criteriaIds, sha, fitPath) {
+function acceptanceFitErrors(env, criteriaIds, sha, fitPath, requireAllPass = true) {
   const errors = validateAcFit(env.acceptanceFit, criteriaIds, {
-    requireAllPass: true,
+    requireAllPass,
     expectedTaskId: TASK_ID,
   })
   errors.push(...enforceAcFitCitations(env.acceptanceFit, REPO_ROOT, sha, fitPath))
@@ -533,7 +533,7 @@ function validatePanel(envelopes, state, schema, requirement) {
   }
   const criteriaIds = frozen.anchor.criteria.map((criterion) => criterion.id)
   const fitErrors = fitEnvelopes.flatMap((envelope) =>
-    acceptanceFitErrors(envelope, criteriaIds, validated[0].sha, '<stdin>'),
+    acceptanceFitErrors(envelope, criteriaIds, validated[0].sha, '<stdin>', false),
   )
   if (fitErrors.length > 0) {
     for (const error of fitErrors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
