@@ -52,6 +52,30 @@ describe('settings catalog (#1121)', () => {
     expect(all.length).toBe(new Set(all).size)
   })
 
+  it('classifies every row with product-facing effect, cost, consent and applicability', () => {
+    for (const field of SETTINGS_CATALOG.flatMap((group) => group.fields)) {
+      expect(field.classification, field.path).toMatch(
+        /^(editable|derived|mandatory|not-applicable|internal)$/,
+      )
+      expect(field.effect, field.path).not.toHaveLength(0)
+      expect(field.cost, field.path).toMatch(/^(none|low|medium|high|unmeasured)$/)
+      expect(field.consent, field.path).toMatch(/^(none|github|diff-egress)$/)
+      expect(field.applicability, field.path).toBeTypeOf('function')
+    }
+  })
+
+  it('surfaces existing runtime controls that were only reachable through config, recipe or init', () => {
+    for (const path of [
+      'features.fiveLaneCi',
+      'runnerProfile',
+      'ship.train.maxChain',
+      'ship.train.maxAgeMinutes',
+      'ship.review.maxRounds',
+    ]) {
+      expect(SETTINGS_PATHS.has(path), path).toBe(true)
+    }
+  })
+
   // #1261: the Project Profile autonomy axis must be a discoverable setting.
   it('surfaces automation.autonomy in an Automation group (#1261)', () => {
     expect(SETTINGS_PATHS.has('automation.autonomy')).toBe(true)
@@ -106,8 +130,76 @@ describe('runSettings', () => {
     expect(parsed.data.groups.map((g) => g.group)).toContain('Project shape')
   })
 
-  // #1261: absent automation block renders (unset) — the label documents absent=L0.
-  it('renders automation.autonomy as (unset) when absent and the level when set (#1261)', () => {
+  it('reports declared and effective values with env provenance in JSON', () => {
+    process.env['ARBITER_THRESHOLD__LINE_COVERAGE'] = '88'
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    try {
+      runSettings({
+        dir: projectWith({
+          thresholds: {
+            lineCoverage: 60,
+            branchCoverage: 70,
+            mutationScore: 70,
+            cyclomaticComplexity: 15,
+            methodLength: 60,
+            maxParams: 5,
+          },
+        }),
+        json: true,
+      })
+    } finally {
+      delete process.env['ARBITER_THRESHOLD__LINE_COVERAGE']
+    }
+    const parsed = JSON.parse(out.join('')) as {
+      data: {
+        groups: Array<{
+          fields: Array<{
+            path: string
+            declared: unknown
+            effective: unknown
+            source: string
+            applicability: { applicable: boolean; reason: string | null }
+            cost: string
+            consent: string
+          }>
+        }>
+      }
+    }
+    const field = parsed.data.groups
+      .flatMap((group) => group.fields)
+      .find((candidate) => candidate.path === 'thresholds.lineCoverage')
+    expect(field).toMatchObject({
+      declared: 60,
+      effective: 88,
+      source: 'env',
+      applicability: { applicable: true, reason: null },
+      cost: expect.any(String),
+      consent: 'none',
+    })
+  })
+
+  it('reports the derived autonomy default instead of an unexplained unset value', () => {
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    runSettings({ dir: projectWith({}), json: true })
+    const parsed = JSON.parse(out.join('')) as {
+      data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }
+    }
+    const autonomy = parsed.data.groups
+      .flatMap((group) => group.fields)
+      .find((field) => field['path'] === 'automation.autonomy')
+    expect(autonomy).toMatchObject({ declared: null, effective: 'L0', source: 'default' })
+  })
+
+  // #1261/#2039: absence is an explained effective default, never an unexplained unset.
+  it('renders automation.autonomy with declared/effective provenance (#1261)', () => {
     const out: string[] = []
     vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
       out.push(String(s))
@@ -115,13 +207,13 @@ describe('runSettings', () => {
     })
     runSettings({ dir: projectWith({}) })
     const absentText = out.join('')
-    expect(absentText).toMatch(/automation\.autonomy\s+\(unset\)/)
+    expect(absentText).toMatch(/automation\.autonomy\s+L0 .*declared null; default/)
 
     out.length = 0
     rmSync(dir, { recursive: true, force: true })
     runSettings({ dir: projectWith({ automation: { autonomy: 'L2' } }) })
     const setText = out.join('')
-    expect(setText).toMatch(/automation\.autonomy\s+L2/)
+    expect(setText).toMatch(/automation\.autonomy\s+L2 .*declared L2; project/)
   })
 
   it('exits nonzero when no arbiter.json exists', () => {

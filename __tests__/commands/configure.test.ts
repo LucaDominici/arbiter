@@ -200,6 +200,29 @@ describe('runConfigure — --set round-trips', () => {
     expect((raw['thresholds'] as Record<string, unknown>)['lineCoverage']).toBe(85)
   })
 
+  it('edits existing ship bounds, runner cadence and init-only feature flags through configure', async () => {
+    writeV2Config(dir)
+
+    await runConfigure({
+      dir,
+      sets: [
+        'features.fiveLaneCi=true',
+        'runnerProfile=solo',
+        'ship.train.maxChain=3',
+        'ship.train.maxAgeMinutes=120',
+        'ship.review.maxRounds=1',
+      ],
+    })
+
+    const raw = readArbiterJson(dir)
+    expect((raw['features'] as Record<string, unknown>)['fiveLaneCi']).toBe(true)
+    expect(raw['runnerProfile']).toBe('solo')
+    expect(raw['ship']).toEqual({
+      train: { maxChain: 3, maxAgeMinutes: 120 },
+      review: { maxRounds: 1 },
+    })
+  })
+
   // #1887-A: activation path for enableCodeownersNotify / enableTaxonomy25d /
   // enablePerfTesting — `configure --set` is the persistent-settings half
   // (mirrors the pre-existing features.soloDevMode ALLOWED_PATHS entry).
@@ -263,6 +286,20 @@ describe('runConfigure — validation', () => {
     await expect(runConfigure({ dir, sets: ['nonExistent.key=true'] })).rejects.toThrow()
 
     expect(readArbiterJson(dir)).toEqual(before)
+  })
+
+  it('rejects an invalid late ship assignment without writing earlier assignments', async () => {
+    writeV2Config(dir)
+    const before = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+
+    await expect(
+      runConfigure({
+        dir,
+        sets: ['features.fiveLaneCi=true', 'ship.review.maxRounds=0'],
+      }),
+    ).rejects.toThrow()
+
+    expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(before)
   })
 
   it('rejects out-of-range lineCoverage (>100) and does not write', async () => {
