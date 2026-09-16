@@ -23,10 +23,6 @@
           "line": 355
         },
         {
-          "file": "__tests__/commands/ship-review.test.ts",
-          "line": 137
-        },
-        {
           "file": "__tests__/commands/pr-merged.test.ts",
           "line": 192
         }
@@ -92,7 +88,7 @@
       "evidence": [
         {
           "file": "src/commands/ship-train.ts",
-          "line": 144
+          "line": 171
         },
         {
           "file": "src/commands/task-ship.ts",
@@ -110,7 +106,7 @@
       "evidence": [
         {
           "file": ".claude/commands/ship.md",
-          "line": 109
+          "line": 113
         },
         {
           "file": "scripts/check-review-completion.mjs",
@@ -118,15 +114,23 @@
         },
         {
           "file": "scripts/pr-merge-watch.mjs",
-          "line": 282
+          "line": 328
         },
         {
-          "file": "scripts/pr-merge-watch.mjs",
-          "line": 437
+          "file": "src/templates/scripts/pr-merge-watch.mjs.ejs",
+          "line": 328
         },
         {
-          "file": "__tests__/scripts/pr-merge-watch-promotion.test.ts",
-          "line": 280
+          "file": "examples/ts-library/scripts/pr-merge-watch.mjs",
+          "line": 328
+        },
+        {
+          "file": "scripts/check-merge-method.mjs",
+          "line": 31
+        },
+        {
+          "file": "docs/internal/ADR/088-ship-as-orchestration-entrypoint.md",
+          "line": 51
         }
       ]
     },
@@ -164,10 +168,10 @@
     }
   ],
   "branch": "task/#2681-canonical-landing",
-  "sha": "efc3848b3906354692152884bb88dbc0f8c99b45",
+  "sha": "e3de470f968b9a076d2303d1faba695b4c4d2b86",
   "planHash": "9f4ccf8137a943ed1ed3cc0d470e4a34333a1a9f",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2681/acceptance-fit-0.json",
-    "sha256": "3754ddd311c3aff4d1759e6ea1f9b479ecb5caa509315dc5fed7ebfb526b7949"
+    "path": ".arbiter/evidence/agent-returns/_2681/acceptance-fit-1.json",
+    "sha256": "9b7bb79885303e877a073dfbdd18b456a4923f4d5c3995bc44e9800920dcc434"
   }
 }
