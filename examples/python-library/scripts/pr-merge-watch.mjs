@@ -27,6 +27,32 @@ const HARD_FAIL = new Set([
 ])
 const GREEN_OK = new Set(['SUCCESS', 'SKIPPED', 'NEUTRAL'])
 
+/** Keep only the latest unambiguous attempt of each check identity. */
+function attemptIdentity(check, index) {
+  const name = check.name ?? check.context
+  if (check.workflowName && name) return `${check.workflowName}\0${name}`
+  return check.context ?? `ungrouped:${index}`
+}
+
+function latestAttempt(group) {
+  if (group.length === 1) return group
+  const dated = group.map((check) => ({ check, started: Date.parse(check.startedAt ?? '') }))
+  if (dated.some(({ started }) => !Number.isFinite(started))) return group
+  const latest = Math.max(...dated.map(({ started }) => started))
+  const current = dated.filter(({ started }) => started === latest)
+  return current.length === 1 ? [current[0].check] : group
+}
+
+function effectiveRollup(rollup) {
+  const groups = rollup.reduce((result, check, index) => {
+    const key = attemptIdentity(check, index)
+    const group = result.get(key) ?? []
+    group.push(check)
+    return result.set(key, group)
+  }, new Map())
+  return [...groups.values()].flatMap(latestAttempt)
+}
+
 /**
  * Green/hard-fail/pending predicate over a PR's `statusCheckRollup`.
  * - 'hard-fail' wins even if OTHER checks are still pending — a real red
@@ -40,10 +66,11 @@ const GREEN_OK = new Set(['SUCCESS', 'SKIPPED', 'NEUTRAL'])
  */
 export function classify(rollup, required = []) {
   if (!Array.isArray(rollup) || rollup.length === 0) return 'pending'
-  if (rollup.some((c) => HARD_FAIL.has(c.conclusion))) return 'hard-fail'
-  const names = new Set(rollup.map((check) => check.name ?? check.context).filter(Boolean))
+  const current = effectiveRollup(rollup)
+  if (current.some((c) => HARD_FAIL.has(c.conclusion))) return 'hard-fail'
+  const names = new Set(current.map((check) => check.name ?? check.context).filter(Boolean))
   if (required.some((name) => !names.has(name))) return 'pending'
-  return rollup.every((c) => GREEN_OK.has(c.conclusion)) ? 'green' : 'pending'
+  return current.every((c) => GREEN_OK.has(c.conclusion)) ? 'green' : 'pending'
 }
 
 const HARD_FAIL_HELP = [
@@ -65,7 +92,9 @@ const HARD_FAIL_HELP = [
  * @returns {string}
  */
 export function buildHardFailReport(rollup, prNumber) {
-  const failing = (Array.isArray(rollup) ? rollup : []).filter((c) => HARD_FAIL.has(c.conclusion))
+  const failing = effectiveRollup(Array.isArray(rollup) ? rollup : []).filter((c) =>
+    HARD_FAIL.has(c.conclusion),
+  )
   const lines = [
     `pr-merge-watch: hard-fail — ${failing.length} check(s) reported a red conclusion:`,
   ]

@@ -126,6 +126,30 @@ describe('verifyRedExecution()', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('remaps a recorded checkout-local node_modules binary into the replay checkout (#2712)', () => {
+    let replayCwd = ''
+    mockedRunCli
+      .mockImplementationOnce((_cmd, args) => {
+        replayCwd = String((args as readonly string[])[4])
+        mkdirSync(replayCwd, { recursive: true })
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      })
+      .mockImplementationOnce((cmd) => {
+        expect(cmd).toBe(join(replayCwd, 'node_modules', '.bin', 'vitest'))
+        throw cliError({ stdout: 'FAIL math.test.ts\n1 test failed' })
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+
+    const result = verifyRedExecution(
+      {
+        ...BASE,
+        test_command: ['/recording/checkout/node_modules/.bin/vitest', 'run', 'math.test.ts'],
+      },
+      '/repo',
+    )
+    expect(result.ok).toBe(true)
+  })
+
   const redLines = [
     'FAIL math.test.ts > add > sums positive values',
     'FAIL math.test.ts > add > sums negative values',

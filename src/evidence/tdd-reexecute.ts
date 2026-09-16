@@ -153,11 +153,18 @@ function linkNodeModules(sourceDir: string, worktreeDir: string): void {
   }
 }
 
+function replayExecutable(cmd: string, cwd: string): string {
+  const localBin = /(?:^|\/)node_modules\/\.bin\/([^/]+)$/.exec(cmd.replaceAll('\\', '/'))?.[1]
+  return localBin && localBin !== '.' && localBin !== '..'
+    ? join(cwd, 'node_modules', '.bin', localBin)
+    : cmd
+}
+
 function runTestCommand(testCommand: readonly string[], cwd: string, timeoutMs: number): string {
   const [cmd, ...args] = testCommand
   if (cmd === undefined) return ''
   try {
-    const r = runCli(cmd, args, { cwd, timeoutMs })
+    const r = runCli(replayExecutable(cmd, cwd), args, { cwd, timeoutMs })
     return r.exitCode > 0 ? combineTestOutput(r.stdout, r.stderr) : ''
   } catch (err) {
     if (

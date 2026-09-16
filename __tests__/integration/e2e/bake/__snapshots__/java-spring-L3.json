@@ -604,7 +604,7 @@
     "scripts/optional-emissions.json": "984c1545b184ed6d73c596b1765c1ed14e37fc5880e941a0c8b734f381c9783f",
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",
     "scripts/pii-scan.mjs": "d740cb2903fb9f012d7947c46a0522f4758a4e405512967bb26c28b60ead05c9",
-    "scripts/pr-merge-watch.mjs": "0db385c3c56e2f782125491f515e4a9c7337e460e9853af0e569dba48466cc03",
+    "scripts/pr-merge-watch.mjs": "80fccd1610e990fa8cbe7939295147dde8de44263716c1e37157bb9f793331e3",
     "scripts/record-agent-return.mjs": "ff1bbc5845ef6e481656630ba8c78d7819fd7c6cf2feae91f8b644149cb0e977",
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
     "scripts/run-postman-tests.sh": "cdb7871c8a2a3db4133a33121afc888dbf52ca7562f7d15c72ec07cef09d7bde",
