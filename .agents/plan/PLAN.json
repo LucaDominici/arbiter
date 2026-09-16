@@ -6,6 +6,7 @@
       "src/generators/agents-md.ts",
       "src/templates/agents-md/AGENTS.md.ejs",
       "__tests__/generators/agents-md.test.ts",
+      "docs/INTEGRATIONS.md",
       ".claude/plans/task-2618-context-economy.md",
       ".agents/plan/PLAN.json",
       ".arbiter/evidence/tdd/#2618.json"
@@ -15,6 +16,7 @@
     { "path": "src/generators/agents-md.ts", "operation": "modify" },
     { "path": "src/templates/agents-md/AGENTS.md.ejs", "operation": "modify" },
     { "path": "__tests__/generators/agents-md.test.ts", "operation": "modify" },
+    { "path": "docs/INTEGRATIONS.md", "operation": "modify" },
     { "path": ".claude/plans/task-2618-context-economy.md", "operation": "create" },
     { "path": ".agents/plan/PLAN.json", "operation": "modify" },
     { "path": ".arbiter/evidence/tdd/#2618.json", "operation": "create" }

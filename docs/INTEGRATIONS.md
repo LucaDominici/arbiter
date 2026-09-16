@@ -2,7 +2,7 @@
 title: 'Integrations'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-09-16'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -23,11 +23,11 @@ Arbiter generates governance artifacts — `AGENTS.md`, hooks, CI gate, skills �
 
 ## What "detect-and-reference" means
 
-1. **Detect** — during `arbiter init` (or `arbiter update`), arbiter inspects known install paths (`~/.claude/skills/`, `~/.claude/plugins/`, `<project>/.claude/skills/`) against the [skills matrix](../src/integrations/skills-matrix.ts).
-2. **Reference** — when a skill is detected, arbiter omits its own equivalent (e.g. arbiter's bundled `tdd` skill is skipped if superpowers `tdd` is present) and instead adds an `Integrations` section to `AGENTS.md` pointing to the installed skill.
+1. **Detect** — during `arbiter init` or `arbiter update`, arbiter inspects known install paths (`~/.claude/skills/`, `~/.claude/plugins/`, `<project>/.claude/skills/`) against the [skills matrix](../src/compatibility/skills-matrix.json).
+2. **Reference** — `AGENTS.md` lists only detected skills with an operative role or an active, version-qualified replacement. When a replacement qualifies, arbiter omits its own equivalent (for example, the bundled `tdd` skill).
 3. **No duplication** — arbiter never copies, embeds, or modifies upstream skill files.
 
-Detection runs automatically during `arbiter init` / `arbiter update`; the result shows up as the `Integrations` section of the generated `AGENTS.md`. To inspect the full catalog directly, read `src/integrations/skills-matrix.ts`.
+Detection runs automatically during `arbiter init` and `arbiter update`. `AGENTS.md` is the small operative view; when init writes `.arbiter/detected-integrations.json`, that file is the complete detection snapshot from that init. The supported catalogue is `src/compatibility/skills-matrix.json`.
 
 ---
 
