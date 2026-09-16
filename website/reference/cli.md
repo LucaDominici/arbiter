@@ -843,6 +843,7 @@ These commands are fully functional but hidden from the default `arbiter --help`
 | Command                 | Description                                                                      |
 | ----------------------- | -------------------------------------------------------------------------------- |
 | `arbiter doc-set`       | —                                                                                |
+| `arbiter finding`       | Inspect, triage, and promote the incidental-finding spool (#2414)                |
 | `arbiter graph`         | Manage the provenance graph (#259)                                               |
 | `arbiter mark`          | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206)  |
 | `arbiter method`        | Methodology lens: per-feature Config+Emit wiring status over `configure` (#2039) |
@@ -865,6 +866,16 @@ These commands are fully functional but hidden from the default `arbiter --help`
 - `--freshness` — T4: run the per-doc freshness audit (scripts/check-doc-freshness.mjs) instead of presence
 - `--arc42` — INV-144: run the arc42 slot-completeness audit (scripts/check-arc42-slots.mjs) instead of
 - `--update-baseline` — (with --arc42) re-record the hollow-slot ratchet; refused when a counter rose
+
+## arbiter finding
+
+Inspect, triage, and promote the incidental-finding spool (#2414).
+
+**Subcommands:**
+
+- `arbiter finding list` — List deduplicated findings without changing the spool
+- `arbiter finding triage` — Classify findings against HEAD without writing or contacting GitHub
+- `arbiter finding promote` — Revalidate, deduplicate, and file ready findings as GitHub issues
 
 ## arbiter graph
 

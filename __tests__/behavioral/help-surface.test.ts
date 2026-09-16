@@ -88,6 +88,14 @@ describe('arbiter --help — public 17-command surface (#1770 T5, T2 tier-3, #24
     expect(stdout).toContain('settable')
   })
 
+  it('finding exposes the durable spool operations without expanding the default surface', () => {
+    const { status, stdout } = spawn(['finding', '--help'])
+    expect(status).toBe(0)
+    expect(stdout).toContain('list')
+    expect(stdout).toContain('triage')
+    expect(stdout).toContain('promote')
+  })
+
   it('validate is the public name and verify still works as alias', () => {
     const validate = spawn(['validate', '--help'])
     expect(validate.status).toBe(0)

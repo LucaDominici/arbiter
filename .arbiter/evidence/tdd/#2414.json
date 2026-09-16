@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2414",
+  "test_path": "__tests__/scripts/check-feature-matrix.test.ts",
+  "test_commit_sha": "fb2c7523e44e37c48764dbc99c2901287790cec2",
+  "test_blob_sha": "a8d6fbdfa9cdc113d3c19019acc6eb8c651c026b",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n·················xxx········································\n\n Test Files  1 failed (1)\n      Tests  3 failed | 57 passed (60)\n   Start at  17:08:06\n   Duration  1.58s (transform 25ms, setup 7ms, import 29ms, tests 1.46s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/check-feature-matrix.test.ts > check-feature-matrix.mjs --product-report (#2414) > accepts a complete report with an exact subject, fixed denominator and honest coverage\nAssertionError: expected '  check-feature-matrix: OK — 2 rows, …' to contain 'product-complete report OK'\n\n- Expected\n+ Received\n\n- product-complete report OK\n+   check-feature-matrix: OK — 2 rows, all KIT dims covered, level=L2\n+\n\n ❯ __tests__/scripts/check-feature-matrix.test.ts:333:27\n    331|\n    332|     expect(result.status).toBe(0)\n    333|     expect(result.stdout).toContain('product-complete report OK')\n       |                           ^\n    334|   })\n    335|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯\n\n FAIL  |unit| __tests__/scripts/check-feature-matrix.test.ts > check-feature-matrix.mjs --product-report (#2414) > rejects a report that invents a capability, omits cells, lies about behavior, and miscounts entrypoints\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-feature-matrix.test.ts:342:27\n    340|     })\n    341|\n    342|     expect(result.status).toBe(1)\n       |                           ^\n    343|     expect(result.stdout).toContain('subject_sha')\n    344|     expect(result.stdout).toContain('entrypoint_denominator')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯\n\n FAIL  |unit| __tests__/scripts/check-feature-matrix.test.ts > check-feature-matrix.mjs --product-report (#2414) > keeps the four product gaps distinct instead of collapsing them into one green score\nAssertionError: expected '  check-feature-matrix: OK — 4 rows, …' to contain '4 coverage row(s)'\n\n- Expected\n+ Received\n\n- 4 coverage row(s)\n+   check-feature-matrix: OK — 4 rows, all KIT dims covered, level=L2\n+\n\n ❯ __tests__/scripts/check-feature-matrix.test.ts:364:27\n    362|\n    363|     expect(result.status).toBe(0)\n    364|     expect(result.stdout).toContain('4 coverage row(s)')\n       |                           ^\n    365|   })\n    366| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/check-feature-matrix.test.ts",
+  "recorded_at": "2026-09-16T15:08:08.248Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-feature-matrix.test.ts",
+    "--reporter=dot"
+  ]
+}

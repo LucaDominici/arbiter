@@ -35,16 +35,26 @@ const _levelEqArg = args.find((a) => a.startsWith('--level='))?.split('=')[1] ??
 const _levelIdx = args.indexOf('--level')
 const _levelNextArg = _levelIdx >= 0 ? (args[_levelIdx + 1] ?? null) : null
 const levelArg = _levelEqArg ?? (_levelNextArg?.match(/^L[1-4]$/) ? _levelNextArg : null)
+const _productReportIdx = args.indexOf('--product-report')
+const productReportArg = _productReportIdx >= 0 ? (args[_productReportIdx + 1] ?? null) : null
 const MATRIX_PATH = resolve(ROOT, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md')
 const KIT_CATALOG_PATH = resolve(ROOT, 'src', 'kit', 'catalog.json')
 const GLOB_BASELINE_PATH = resolve(ROOT, 'scripts', 'data', 'feature-matrix-glob-baseline.json')
 const AGENTS_MD_PATH = resolve(ROOT, 'AGENTS.md')
 const ADR_README_PATH = resolve(ROOT, 'docs', 'internal', 'ADR', 'README.md')
 const PRD_PATH = resolve(ROOT, 'docs', 'PRODUCT', 'PRD.md')
+const RTM_SCHEMA_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'schemas',
+  'rtm-verdict.schema.json',
+)
 
 // ─── Sentinel markers ────────────────────────────────────────────────────────
 const START_MARKER = '<!-- FEATURE_MATRIX_START -->'
 const END_MARKER = '<!-- FEATURE_MATRIX_END -->'
+const PRODUCT_START_MARKER = '<!-- PRODUCT_COVERAGE_START -->'
+const PRODUCT_END_MARKER = '<!-- PRODUCT_COVERAGE_END -->'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -94,6 +104,169 @@ function splitRawRefs(cell) {
     .split(',')
     .map((r) => r.trim())
     .filter(Boolean)
+}
+
+const COVERAGE_STATES = new Set([
+  'VERIFIED',
+  'SOURCE_TRACED',
+  'SAMPLED',
+  'NEEDS_REVALIDATION',
+  'UNCOVERED',
+  'N/A',
+])
+const RESULT_VERDICTS = new Set(['PASS', 'FAIL', 'NO_DATA', 'N/A'])
+const ENTRYPOINT_CLASSIFICATIONS = new Set(['SUPPORTED', 'INTERNAL', 'RETIRED'])
+
+/** Validate the opt-in product-complete projection against FEATURE_MATRIX capability IDs. */
+function checkProductReport(reportText, matrixRows, projectRoot, schema) {
+  const failures = []
+  const metadataBlock = /<!--\s*PRODUCT_AUDIT\s*\n([\s\S]*?)-->/m.exec(reportText)?.[1]
+  const metadata = {}
+  if (metadataBlock) {
+    for (const line of metadataBlock.split('\n')) {
+      const match = /^\s*([a-z_]+):\s*(.*?)\s*$/.exec(line)
+      if (match) metadata[match[1]] = match[2]
+    }
+  } else {
+    failures.push('product report metadata block is required')
+  }
+
+  if (metadata.scope !== 'product-complete') {
+    failures.push('scope must be product-complete')
+  }
+  if (!/^[0-9a-f]{40}$/.test(metadata.subject_sha ?? '')) {
+    failures.push('subject_sha must be an exact 40-character lowercase Git SHA')
+  }
+  for (const key of ['readiness_verdict', 'docs_verdict', 'behavior_verdict']) {
+    if (!RESULT_VERDICTS.has(metadata[key])) {
+      failures.push(`${key} must be PASS, FAIL, NO_DATA, or N/A`)
+    }
+  }
+
+  const start = reportText.indexOf(PRODUCT_START_MARKER)
+  const end = reportText.indexOf(PRODUCT_END_MARKER)
+  if (start === -1 || end === -1 || end <= start) {
+    failures.push('product coverage sentinel block is required')
+    return { failures, rowCount: 0 }
+  }
+
+  const expectedHeader = [
+    'capability_id',
+    'classification',
+    'entrypoints',
+    'owner',
+    'config',
+    'proof',
+    'external_overlap',
+    'coverage',
+    'verdict',
+  ]
+  const tableLines = reportText
+    .slice(start + PRODUCT_START_MARKER.length, end)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('|'))
+  const cellsFor = (line) =>
+    line
+      .split('|')
+      .slice(1, -1)
+      .map((cell) => cell.trim())
+  const header = tableLines[0] ? cellsFor(tableLines[0]) : []
+  if (header.join('|') !== expectedHeader.join('|')) {
+    failures.push(`product coverage header must be: ${expectedHeader.join(' | ')}`)
+  }
+
+  const knownCapabilities = new Set(matrixRows.map((row) => row.featureId))
+  const coveredCapabilities = new Set()
+  const entrypoints = new Set()
+  const rows = []
+  for (const line of tableLines.slice(2)) {
+    const cells = cellsFor(line)
+    if (cells.length !== expectedHeader.length) {
+      failures.push(`product coverage row must have ${expectedHeader.length} cells: ${line}`)
+      continue
+    }
+    const [
+      capabilityId,
+      classification,
+      entrypointCell,
+      owner,
+      config,
+      proof,
+      overlap,
+      coverage,
+      verdict,
+    ] = cells
+    rows.push({ capabilityId, classification, coverage, verdict })
+    if (!ENTRYPOINT_CLASSIFICATIONS.has(classification)) {
+      failures.push(
+        `${capabilityId || '(blank)'}: unknown classification ${classification || '(blank)'}`,
+      )
+    }
+    if (classification === 'SUPPORTED' && !knownCapabilities.has(capabilityId)) {
+      failures.push(`unknown capability ${capabilityId || '(blank)'}`)
+    }
+    if (classification === 'SUPPORTED') {
+      if (coveredCapabilities.has(capabilityId)) {
+        failures.push(`capability mapped more than once: ${capabilityId}`)
+      }
+      coveredCapabilities.add(capabilityId)
+      if (coverage === 'VERIFIED') {
+        failures.push(
+          ...checkProductProof(capabilityId, proof, metadata.subject_sha, projectRoot, schema),
+        )
+      }
+    }
+    if ((classification === 'INTERNAL' || classification === 'RETIRED') && capabilityId !== 'N/A') {
+      failures.push(`${classification} entrypoints must use capability_id N/A`)
+    }
+    for (const [name, value] of [
+      ['entrypoints', entrypointCell],
+      ['owner', owner],
+      ['config', config],
+      ['proof', proof],
+      ['external_overlap', overlap],
+    ]) {
+      if (!value) failures.push(`${capabilityId || '(blank)'}: ${name} is required`)
+    }
+    for (const entrypoint of entrypointCell
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)) {
+      if (entrypoints.has(entrypoint))
+        failures.push(`entrypoint mapped more than once: ${entrypoint}`)
+      entrypoints.add(entrypoint)
+    }
+    if (!COVERAGE_STATES.has(coverage)) {
+      failures.push(`${capabilityId || '(blank)'}: unknown coverage ${coverage || '(blank)'}`)
+    }
+    if (!RESULT_VERDICTS.has(verdict)) {
+      failures.push(`${capabilityId || '(blank)'}: unknown verdict ${verdict || '(blank)'}`)
+    }
+  }
+  if (rows.length === 0) failures.push('product coverage table requires at least one data row')
+  for (const capabilityId of knownCapabilities) {
+    if (!coveredCapabilities.has(capabilityId)) {
+      failures.push(`product-complete report is missing capability ${capabilityId}`)
+    }
+  }
+
+  const declaredDenominator = Number(metadata.entrypoint_denominator)
+  if (!Number.isSafeInteger(declaredDenominator) || declaredDenominator < 0) {
+    failures.push('entrypoint_denominator must be a non-negative integer')
+  } else if (declaredDenominator !== entrypoints.size) {
+    failures.push(
+      `entrypoint_denominator=${declaredDenominator} but coverage rows contain ${entrypoints.size} unique entrypoint(s)`,
+    )
+  }
+
+  if (
+    metadata.behavior_verdict === 'PASS' &&
+    rows.some((row) => row.coverage !== 'VERIFIED' || row.verdict !== 'PASS')
+  ) {
+    failures.push('behavior_verdict PASS requires every row to be VERIFIED with verdict PASS')
+  }
+  return { failures, rowCount: rows.length }
 }
 
 // ─── Span-pinned refs: OUTDATED detection (#2480 wave 4, RTM axis 1) ─────────
@@ -276,6 +449,26 @@ export function checkRtmEnvelope(row, projectRoot, schema) {
     ],
     missing: false,
   }
+}
+
+function checkProductProof(capabilityId, proof, subjectSha, projectRoot, schema) {
+  const expected = `.arbiter/evidence/rtm/${capabilityId}.json`
+  if (proof !== expected) {
+    return [`${capabilityId}: VERIFIED proof must be ${expected}`]
+  }
+  if (!schema) return [`${capabilityId}: VERIFIED proof cannot be checked without the RTM schema`]
+  const result = checkRtmEnvelope({ featureId: capabilityId }, projectRoot, schema)
+  if (result.missing) return [`${capabilityId}: VERIFIED proof is missing at ${expected}`]
+  const failures = [...result.failures]
+  if (failures.length === 0) {
+    const envelope = JSON.parse(readFileSync(resolve(projectRoot, expected), 'utf-8'))
+    if (envelope.subject_sha !== subjectSha) {
+      failures.push(
+        `${capabilityId}: verification envelope subject_sha must equal product audit subject_sha ${subjectSha}`,
+      )
+    }
+  }
+  return failures
 }
 
 /** The envelope must be ABOUT this row, and must record the one verdict that admits `Verified`. */
@@ -721,6 +914,37 @@ const effectiveLevel = resolveLevel()
 const allDimIds = loadAllDimIds(KIT_CATALOG_PATH)
 const auditTrailDims = loadAuditTrailDims(KIT_CATALOG_PATH)
 const failures = []
+let productReportResult = null
+
+if (_productReportIdx >= 0) {
+  if (!productReportArg || productReportArg.startsWith('--')) {
+    process.stdout.write(
+      '  check-feature-matrix: ERROR — --product-report requires a report path\n',
+    )
+    process.exit(2)
+  }
+  const reportPath = resolve(ROOT, productReportArg)
+  if (!existsSync(reportPath)) {
+    process.stdout.write(
+      `  check-feature-matrix: ERROR — product report not found at ${reportPath}\n`,
+    )
+    process.exit(2)
+  }
+  try {
+    productReportResult = checkProductReport(
+      readFileSync(reportPath, 'utf-8'),
+      rows,
+      ROOT,
+      existsSync(RTM_SCHEMA_PATH) ? loadSchema(RTM_SCHEMA_PATH) : null,
+    )
+    failures.push(...productReportResult.failures)
+  } catch (err) {
+    process.stdout.write(
+      `  check-feature-matrix: ERROR — cannot read product report: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
+  }
+}
 
 // 1. Status ladder (fail-closed)
 for (const row of rows) {
@@ -872,14 +1096,8 @@ checkTestRefGlobBan(rows, globBaseline, failures)
 // ERROR, never a silent skip — a rule that quietly stops applying is the failure this gate exists
 // to prevent.
 {
-  const schemaPath = resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    '..',
-    'schemas',
-    'rtm-verdict.schema.json',
-  )
-  if (existsSync(schemaPath)) {
-    failures.push(...checkRtmEnvelopes(rows, ROOT, loadSchema(schemaPath)))
+  if (existsSync(RTM_SCHEMA_PATH)) {
+    failures.push(...checkRtmEnvelopes(rows, ROOT, loadSchema(RTM_SCHEMA_PATH)))
   } else if (rows.some((row) => row.status === 'Verified')) {
     failures.push(
       'RTM axis 2: schemas/rtm-verdict.schema.json is missing, so no Verified row can be ' +
@@ -892,6 +1110,11 @@ checkTestRefGlobBan(rows, globBaseline, failures)
 failures.sort() // D5: deterministic output regardless of row order
 
 if (failures.length === 0) {
+  if (productReportResult !== null) {
+    process.stdout.write(
+      `  check-feature-matrix: product-complete report OK — ${productReportResult.rowCount} coverage row(s)\n`,
+    )
+  }
   process.stdout.write(
     `  check-feature-matrix: OK — ${rows.length} rows, all KIT dims covered, level=${effectiveLevel}\n`,
   )

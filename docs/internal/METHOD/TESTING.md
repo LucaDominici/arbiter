@@ -172,6 +172,15 @@ a way in for a new gate: the data file cannot raise its own ceiling. Widening it
 reviewed as one. The derivation carries a floor too (`MIN_ABSENCE_FAMILY`): a `check-all.mjs` the
 parser can no longer read is an ERROR, not a short programme that quietly proves less.
 
+**Product-complete audits.** `check-feature-matrix.mjs --product-report <report.md>` validates the
+audit against the existing FEATURE_MATRIX capability IDs. The report freezes its subject SHA,
+derives its entrypoint denominator from coverage rows, and keeps readiness, documentation, and
+behavior verdicts separate. A behavior `PASS` requires every row to be both `VERIFIED` and `PASS`;
+source tracing, samples, historical proof, missing evidence, and unavailable attestations remain
+visible states. Every FEATURE_MATRIX capability must appear exactly once, and a `VERIFIED` row must
+name its structured RTM envelope with a `PROVEN` verdict bound to the report's exact subject SHA.
+The same contract is emitted to governed L2+ projects.
+
 **Four traps, all measured:**
 
 | Trap                        | How it bites                                                                                 | Do this instead                                                                              |
