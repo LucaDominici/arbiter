@@ -54,6 +54,30 @@ describe('check-no-orphan-todo.mjs (orphan TODO enforcement)', () => {
     expect(findOrphanTodos(source, '.ts')).toHaveLength(1)
   })
 
+  it('does not enter template state for a JavaScript regex containing a backtick', () => {
+    const source = `const pattern = /\`/;\n// ${MARKER}: fix`
+    expect(findOrphanTodos(source, '.ts')).toHaveLength(1)
+  })
+
+  it('does not mistake division for a JavaScript regex literal', () => {
+    const source = `const ratio = total / divisor; const label = \`value\`;\n// ${MARKER}: fix`
+    expect(findOrphanTodos(source, '.ts')).toHaveLength(1)
+  })
+
+  it('keeps a JavaScript backslash-newline continuation inside its string', () => {
+    const source = [
+      'const value = "continued' + '\\',
+      `// ${MARKER}: string content";`,
+      `// ${MARKER}: real`,
+    ].join('\n')
+    expect(findOrphanTodos(source, '.ts')).toEqual([{ line: 3, text: `// ${MARKER}: real` }])
+  })
+
+  it('treats backslashes literally inside a Go raw backtick string', () => {
+    const source = ['const value = `path' + '\\' + '`', `// ${MARKER}: real`].join('\n')
+    expect(findOrphanTodos(source, '.go')).toEqual([{ line: 2, text: `// ${MARKER}: real` }])
+  })
+
   it('exits 0 when all TODOs have issue IDs', () => {
     const { dir, cleanup } = makeDir()
     try {

@@ -1,33 +1,230 @@
 {
-  "task_id": "#2618",
+  "task_id": "#2703",
   "scope": {
     "track": "A",
+    "boundaries": [
+      "findOrphanTodos is the public behavioral seam",
+      "language-aware quote and regex state only; no general parser",
+      "runtime, generator template, generated examples and bake hashes remain coherent",
+      "editor hook and already-fixed second block opener are out of scope"
+    ],
     "paths": [
-      "src/generators/agents-md.ts",
-      "src/templates/agents-md/AGENTS.md.ejs",
-      "__tests__/generators/agents-md.test.ts",
-      "docs/INTEGRATIONS.md",
-      ".claude/plans/task-2618-context-economy.md",
+      ".claude/plans/task-2703-orphan-todo-lexical.md",
       ".agents/plan/PLAN.json",
-      ".arbiter/evidence/tdd/#2618.json",
-      ".arbiter/evidence/benchmark/#2618.json"
+      "__tests__/scripts/check-no-orphan-todo.test.ts",
+      "__tests__/integration/check-no-orphan-todo-language-aware.test.ts",
+      "scripts/check-no-orphan-todo.mjs",
+      "src/templates/scripts/check-no-orphan-todo.mjs.ejs",
+      "examples/go-library/scripts/check-no-orphan-todo.mjs",
+      "examples/go-library/.arbiter-generated-manifest.json",
+      "examples/python-library/scripts/check-no-orphan-todo.mjs",
+      "examples/python-library/.arbiter-generated-manifest.json",
+      "examples/ts-library/scripts/check-no-orphan-todo.mjs",
+      "examples/ts-library/.arbiter-generated-manifest.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      ".arbiter/evidence/tdd/#2703.json"
     ]
   },
   "files": [
-    { "path": "src/generators/agents-md.ts", "operation": "modify" },
-    { "path": "src/templates/agents-md/AGENTS.md.ejs", "operation": "modify" },
-    { "path": "__tests__/generators/agents-md.test.ts", "operation": "modify" },
-    { "path": "docs/INTEGRATIONS.md", "operation": "modify" },
-    { "path": ".claude/plans/task-2618-context-economy.md", "operation": "create" },
-    { "path": ".agents/plan/PLAN.json", "operation": "modify" },
-    { "path": ".arbiter/evidence/tdd/#2618.json", "operation": "create" },
-    { "path": ".arbiter/evidence/benchmark/#2618.json", "operation": "create" }
+    {
+      "path": ".claude/plans/task-2703-orphan-todo-lexical.md",
+      "operation": "create"
+    },
+    {
+      "path": ".agents/plan/PLAN.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/scripts/check-no-orphan-todo.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/check-no-orphan-todo-language-aware.test.ts",
+      "operation": "modify"
+    },
+    {
+      "path": "scripts/check-no-orphan-todo.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "src/templates/scripts/check-no-orphan-todo.mjs.ejs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/scripts/check-no-orphan-todo.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/go-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/scripts/check-no-orphan-todo.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/python-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/scripts/check-no-orphan-todo.mjs",
+      "operation": "modify"
+    },
+    {
+      "path": "examples/ts-library/.arbiter-generated-manifest.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-backend-web-gcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/go-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-acr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-backend-web-db-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-bdd-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-library-gradle.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L4.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/multi-lane-fe-be.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web-ecs.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-backend-web.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-data-pipeline.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/python-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-cli.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-embedded.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/rust-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-ghcr.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db-none.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-backend-web-db.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-bdd.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-codex-only.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/ts-library.json",
+      "operation": "modify"
+    },
+    {
+      "path": "__tests__/integration/e2e/bake/__snapshots__/vue-frontend-spa.json",
+      "operation": "modify"
+    },
+    {
+      "path": ".arbiter/evidence/tdd/#2703.json",
+      "operation": "create"
+    }
   ],
   "invariants": {
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": ["INV-25", "INV-26", "INV-46", "INV-48", "INV-114"],
+  "invariant_ids": ["INV-21", "INV-25", "INV-26", "INV-46", "INV-48"],
+  "notes": [
+    "TDD seam is findOrphanTodos(content, extension), explicitly required by issue #2703.",
+    "One vertical regression at a time: JavaScript regex backtick, JavaScript backslash-newline continuation, Go raw backtick trailing backslash.",
+    "Preserve Python hash comments, Python/Java/Kotlin triple strings, JS template strings and block-comment continuation.",
+    "No dependency, new parser, new evidence store or configuration axis.",
+    "Generated examples and bake snapshots change only through canonical regeneration."
+  ],
   "review_bridge": {
     "enabled": true,
     "reviewer": "bridge-reviewer",
