@@ -116,10 +116,10 @@
     }
   ],
   "branch": "task/#2564-native-checkout-adoption",
-  "sha": "4f850e984b92f7f5ea3b11c1b1abc02ab0601689",
+  "sha": "762a691b77f082a51a9d93e4914f91653e7126ee",
   "planHash": "e81ed0f1efe69f2f4ec6c5bd005c05d5ade2cd45",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2564/acceptance-fit-0.json",
-    "sha256": "7316bf9a3df081c422f9928be7f2c1795804974c52dffbc348ddf07bdac06329"
+    "path": ".arbiter/evidence/agent-returns/_2564/acceptance-fit-1.json",
+    "sha256": "3497d2320adfd49d9e7bf344b630bd8164c8eb5d0b08343ce4473e23972c671c"
   }
 }
