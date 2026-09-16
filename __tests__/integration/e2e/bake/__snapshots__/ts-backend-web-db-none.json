@@ -300,7 +300,7 @@
     ".claude/skills/verification/SKILL.md": "2b0f3784c083f7b2db50551723a4f759802195e97567553916953d6c4f749fd6",
     ".claude/skills/wave-drain/SKILL.md": "bb6dc5f6ee43828b344363320dbdaaa8f67bb55277a77cd2ac0140ab2a93014a",
     ".editorconfig": "1aa3a82cfa54369e322cd22414ea2570437e0edfcfa177b3547d3079d0ba93df",
-    ".env.example": "3926257c96c909482d41a5489e84a3b38c2e64a944de76fed1cbe9144b7d23dd",
+    ".env.example": "ab6229e62aa6b2f4aa68114df8da1b6988699f7cb14819c6074d328e704a0450",
     ".eslintrc-static.json": "3a3aa03974af8d2e0db99302c30d606043cd98cf771d8e1303fc574f12f0b137",
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",
     ".githooks/pre-commit": "d03114839ef5528563e9308c8ece10bc6dcce402ac0d8dd6eab97a459224a07e",

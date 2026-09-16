@@ -939,6 +939,118 @@ function validateCompanions(raw: Record<string, unknown>, errors: string[]): voi
   }
 }
 
+const INVARIANT_TIERS = new Set(['architectural', 'data', 'security', 'operational', 'governance'])
+const WORKTREE_LINK_STRATEGIES = new Set(['symlink', 'copy', 'symlink-children'])
+const WORKTREE_LINK_TYPES = new Set(['file', 'directory'])
+const EVIDENCE_RETENTION_MODES = new Set(['local-last-N', 'external-bucket', 'none'])
+
+function validateStringArray(field: string, value: unknown, errors: string[]): void {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    errors.push(`${field} must be an array of strings`)
+  }
+}
+
+function validateWorktreeLinks(field: string, value: unknown, errors: string[]): void {
+  if (!Array.isArray(value)) {
+    errors.push(`${field} must be an array`)
+    return
+  }
+  value.forEach((entry, index) => {
+    if (!isRecord(entry)) {
+      errors.push(`${field}[${index}] must be an object`)
+      return
+    }
+    if (typeof entry['path'] !== 'string' || entry['path'].length === 0) {
+      errors.push(`${field}[${index}].path must be a non-empty string`)
+    }
+    if (entry['required'] !== undefined && typeof entry['required'] !== 'boolean') {
+      errors.push(`${field}[${index}].required must be a boolean`)
+    }
+    if (entry['template'] !== undefined && typeof entry['template'] !== 'string') {
+      errors.push(`${field}[${index}].template must be a string`)
+    }
+    if (
+      entry['strategy'] !== undefined &&
+      !WORKTREE_LINK_STRATEGIES.has(entry['strategy'] as string)
+    ) {
+      errors.push(`${field}[${index}].strategy must be symlink, copy, or symlink-children`)
+    }
+    if (entry['type'] !== undefined && !WORKTREE_LINK_TYPES.has(entry['type'] as string)) {
+      errors.push(`${field}[${index}].type must be file or directory`)
+    }
+  })
+}
+
+function validateInvariantTiers(raw: Record<string, unknown>, errors: string[]): void {
+  const invariantTiers = raw['invariantTiers']
+  if (invariantTiers === undefined) return
+  if (!Array.isArray(invariantTiers)) {
+    errors.push('invariantTiers must be an array')
+    return
+  }
+  for (const tier of invariantTiers) {
+    if (!INVARIANT_TIERS.has(tier as string)) {
+      errors.push(`invariantTiers contains invalid value: ${String(tier)}`)
+    }
+  }
+}
+
+function validateEvidenceRetention(raw: Record<string, unknown>, errors: string[]): void {
+  const retention = raw['evidenceRetention']
+  if (retention === undefined) return
+  if (!isRecord(retention)) {
+    errors.push('evidenceRetention must be an object')
+    return
+  }
+  if (!EVIDENCE_RETENTION_MODES.has(retention['mode'] as string)) {
+    errors.push('evidenceRetention.mode must be local-last-N, external-bucket, or none')
+  }
+  if (
+    retention['count'] !== undefined &&
+    (typeof retention['count'] !== 'number' ||
+      !Number.isInteger(retention['count']) ||
+      retention['count'] < 1)
+  ) {
+    errors.push('evidenceRetention.count must be a positive integer')
+  }
+  if (retention['bucketUrl'] !== undefined && typeof retention['bucketUrl'] !== 'string') {
+    errors.push('evidenceRetention.bucketUrl must be a string')
+  }
+}
+
+function validateWorktree(raw: Record<string, unknown>, errors: string[]): void {
+  const worktree = raw['worktree']
+  if (worktree === undefined) return
+  if (!isRecord(worktree)) {
+    errors.push('worktree must be an object')
+    return
+  }
+  if (worktree['base'] !== null && typeof worktree['base'] !== 'string') {
+    errors.push('worktree.base must be a string or null')
+  }
+  validateWorktreeLinks('worktree.links', worktree['links'], errors)
+  if (worktree['buildLinks'] !== undefined) {
+    validateWorktreeLinks('worktree.buildLinks', worktree['buildLinks'], errors)
+  }
+  if (
+    worktree['closeHook'] !== undefined &&
+    worktree['closeHook'] !== null &&
+    typeof worktree['closeHook'] !== 'string'
+  ) {
+    errors.push('worktree.closeHook must be a string or null')
+  }
+}
+
+/** Validate structured optional fields before they reach runtime consumers. */
+function validateStructuredOptions(raw: Record<string, unknown>, errors: string[]): void {
+  validateInvariantTiers(raw, errors)
+  if (raw['plugins'] !== undefined) {
+    validateStringArray('plugins', raw['plugins'], errors)
+  }
+  validateEvidenceRetention(raw, errors)
+  validateWorktree(raw, errors)
+}
+
 /** One entry of the `companions` map: `{ enabled?: boolean; mode?: 'lite' | 'full' }`. */
 function validateCompanionOverride(name: string, override: unknown, errors: string[]): void {
   if (!isRecord(override)) {
@@ -977,6 +1089,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateOptionalEnums(draft, errors)
   validateProviders(draft, errors)
   validateCompanions(draft, errors)
+  validateStructuredOptions(draft, errors)
 
   const rawLevel = draft['governanceLevel']
   const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel

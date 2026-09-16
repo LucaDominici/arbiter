@@ -607,6 +607,7 @@ Modify arbiter.json configuration (interactive on TTY, or use --set).
 
 - `--dir <dir>` — Target directory (default: current directory)
 - `--set <path=value>` — Set a config path to a value (repeatable)
+- `--preset <name>` — Apply a configuration preset: solo-homelab or industrial-grade
 - `--json` — Emit machine-readable JSON output
 
 ## arbiter diff

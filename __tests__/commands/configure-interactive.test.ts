@@ -24,9 +24,14 @@ vi.mock('../../src/utils/file-lock.js', () => ({
   acquireLock: vi.fn().mockResolvedValue({ release: vi.fn() }),
 }))
 
+vi.mock('../../src/commands/init.js', () => ({
+  runInit: vi.fn().mockResolvedValue(undefined),
+}))
+
 import * as clack from '@clack/prompts'
 import { saveConfig } from '../../src/utils/config.js'
 import { runInteractiveConfigure } from '../../src/commands/configure-interactive.js'
+import { runInit } from '../../src/commands/init.js'
 
 const CANCEL_SYMBOL = Symbol('clack-cancel')
 
@@ -71,6 +76,15 @@ function mockAllGroupsNoChange(th: (typeof DEFAULT_THRESHOLDS)['L2']): void {
   const mockConfirm = vi.mocked(clack.confirm)
   const mockText = vi.mocked(clack.text)
 
+  mockSelect.mockResolvedValueOnce('custom')
+  mockMultiselect.mockResolvedValueOnce([
+    'shape',
+    'features',
+    'thresholds',
+    'collaboration',
+    'access',
+    'automation',
+  ])
   // Group 1: axis (all same)
   mockSelect.mockResolvedValueOnce('library')
   mockSelect.mockResolvedValueOnce('none')
@@ -121,6 +135,15 @@ describe('runInteractiveConfigure', () => {
     writeConfig(dir)
     const th = DEFAULT_THRESHOLDS.L2
 
+    vi.mocked(clack.select).mockResolvedValueOnce('custom')
+    vi.mocked(clack.multiselect).mockResolvedValueOnce([
+      'shape',
+      'features',
+      'thresholds',
+      'collaboration',
+      'access',
+      'automation',
+    ])
     // Group 1: archetype changed to 'cli', rest same
     vi.mocked(clack.select).mockResolvedValueOnce('cli') // archetype ← changed
     vi.mocked(clack.select).mockResolvedValueOnce('none')
@@ -166,7 +189,7 @@ describe('runInteractiveConfigure', () => {
   it('cancel at first prompt → cancel() called, saveConfig not called', async () => {
     writeConfig(dir)
     vi.mocked(clack.isCancel).mockImplementation((v) => v === CANCEL_SYMBOL)
-    vi.mocked(clack.select).mockResolvedValueOnce(CANCEL_SYMBOL) // archetype cancelled
+    vi.mocked(clack.select).mockResolvedValueOnce(CANCEL_SYMBOL) // profile cancelled
 
     await runInteractiveConfigure(dir)
 
@@ -178,6 +201,8 @@ describe('runInteractiveConfigure', () => {
     writeConfig(dir)
     vi.mocked(clack.isCancel).mockImplementation((v) => v === CANCEL_SYMBOL)
 
+    vi.mocked(clack.select).mockResolvedValueOnce('custom')
+    vi.mocked(clack.multiselect).mockResolvedValueOnce(['shape', 'features', 'thresholds'])
     // Group 1: complete normally
     vi.mocked(clack.select).mockResolvedValueOnce('library')
     vi.mocked(clack.select).mockResolvedValueOnce('none')
@@ -211,6 +236,74 @@ describe('runInteractiveConfigure', () => {
     await runInteractiveConfigure(dir)
 
     expect(vi.mocked(clack.cancel)).toHaveBeenCalledWith(expect.any(String))
+    expect(vi.mocked(saveConfig)).not.toHaveBeenCalled()
+  })
+
+  it('applies the solo preset through two prompts without enabling egress or auto-merge', async () => {
+    writeConfig(dir, {
+      governanceLevel: 'L4',
+      automation: { autonomy: 'L0' },
+      crossModelReview: {
+        enabled: false,
+        diffEgressConsent: false,
+        providers: ['codex'],
+        slots: { codeReview: 1, redTeamReview: 0 },
+        timeoutMs: 300000,
+        onUnavailable: 'degrade',
+      },
+      features: {
+        ...(makeBaseConfig()['features'] as Record<string, unknown>),
+        mutationTesting: true,
+        evidenceHarness: true,
+        operationsHandbook: true,
+      },
+    })
+    vi.mocked(clack.select).mockResolvedValueOnce('solo-homelab')
+    vi.mocked(clack.confirm).mockResolvedValueOnce(true)
+
+    await runInteractiveConfigure(dir)
+
+    const saved = vi.mocked(saveConfig).mock.calls[0]?.[1] as Record<string, unknown>
+    expect(saved['governanceLevel']).toBe('L2')
+    expect(saved['automation']).toEqual({ autonomy: 'L0' })
+    expect(saved['crossModelReview']).toMatchObject({
+      enabled: false,
+      diffEgressConsent: false,
+    })
+  })
+
+  it('initializes a new project directly from the selected preset', async () => {
+    vi.mocked(clack.select).mockResolvedValueOnce('solo-homelab')
+    vi.mocked(clack.confirm).mockResolvedValueOnce(true)
+
+    await runInteractiveConfigure(dir)
+
+    expect(vi.mocked(runInit)).toHaveBeenCalledWith(
+      expect.objectContaining({ dir, yes: true, preset: 'solo-homelab' }),
+    )
+    expect(vi.mocked(saveConfig)).not.toHaveBeenCalled()
+  })
+
+  it('customizes only the selected group', async () => {
+    writeConfig(dir, { automation: { autonomy: 'L0' } })
+    vi.mocked(clack.select).mockResolvedValueOnce('custom')
+    vi.mocked(clack.multiselect).mockResolvedValueOnce(['automation'])
+    vi.mocked(clack.select).mockResolvedValueOnce('L1')
+    vi.mocked(clack.confirm).mockResolvedValueOnce(true)
+
+    await runInteractiveConfigure(dir)
+
+    const saved = vi.mocked(saveConfig).mock.calls[0]?.[1] as Record<string, unknown>
+    expect(saved['automation']).toEqual({ autonomy: 'L1' })
+  })
+
+  it('declining a preset preview writes nothing', async () => {
+    writeConfig(dir)
+    vi.mocked(clack.select).mockResolvedValueOnce('industrial-grade')
+    vi.mocked(clack.confirm).mockResolvedValueOnce(false)
+
+    await runInteractiveConfigure(dir)
+
     expect(vi.mocked(saveConfig)).not.toHaveBeenCalled()
   })
 

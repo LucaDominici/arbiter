@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve } from 'node:path'
+import { existsSync } from 'node:fs'
 import {
   intro,
   outro,
@@ -11,11 +12,15 @@ import {
   cancel,
   note,
 } from '@clack/prompts'
-import { loadConfig } from '../utils/config.js'
 import { t } from '../i18n/index.js'
-import { runConfigure } from './configure.js'
+import { assignmentsForPreset, runConfigure } from './configure.js'
+import { validateConfig } from '../config/schema.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
+import { migrate } from '../config/migrations/index.js'
+import { runInit } from './init.js'
+import { readFileTranslated } from '../utils/fs.js'
 import { SUPPORTED_AI_TOOLS } from '../wizard/types.js'
+import type { ProjectPreset } from '../wizard/types.js'
 
 // Returns ['path=value', ...] for fields that changed, or null if cancelled.
 type GroupFn = (config: ArbiterConfigV2) => Promise<string[] | null>
@@ -272,36 +277,102 @@ async function promptAutomationGroup(config: ArbiterConfigV2): Promise<string[] 
   return diffStr('automation.autonomy', config.automation?.autonomy, autonomy)
 }
 
-export async function runInteractiveConfigure(dir?: string): Promise<void> {
-  const targetDir = resolve(dir ?? process.cwd())
-  const stored = loadConfig(targetDir)
-  if (!stored) {
-    process.stderr.write(`${t('cli.configure.interactive.no_config')}\n`)
-    process.exit(1)
+type ConfigureChoice = Exclude<ProjectPreset, 'none'> | 'custom'
+type ConfigureGroup =
+  'shape' | 'features' | 'thresholds' | 'collaboration' | 'access' | 'automation'
+
+interface ConfigureSnapshot {
+  rawText: string
+  stored: ArbiterConfigV2
+}
+
+function readConfigureSnapshot(targetDir: string): ConfigureSnapshot | null {
+  const configPath = resolve(targetDir, 'arbiter.json')
+  if (!existsSync(configPath)) return null
+  const rawText = readFileTranslated(configPath, 'utf8')
+  const validation = validateConfig(migrate(JSON.parse(rawText) as unknown))
+  if (!validation.ok) throw new Error(validation.errors.join('; '))
+  return { rawText, stored: validation.config }
+}
+
+async function initializePreset(targetDir: string, choice: ApplicablePreset): Promise<void> {
+  note(`Initialize this project with the ${choice} preset.`, 'Preset preview')
+  const apply = await confirm({ message: `Apply ${choice}?`, initialValue: true })
+  if (isCancel(apply) || !apply) {
+    cancel(t('cli.configure.no_changes'))
     return
   }
+  await runInit({
+    yes: true,
+    tools: undefined,
+    level: undefined,
+    dir: targetDir,
+    dryRun: false,
+    brownfield: false,
+    noVerify: false,
+    preset: choice,
+  })
+}
 
-  intro(t('cli.configure.interactive.intro'))
+type ApplicablePreset = Exclude<ProjectPreset, 'none'>
 
-  const groups: GroupFn[] = [
-    (c) => promptAxisGroup(c),
-    (c) => promptFeaturesGroup(c),
-    (c) => promptThresholdsGroup(c),
-    (c) => promptCollaborationGroup(c),
-    (c) => promptAccessGroup(c),
-    (c) => promptAutomationGroup(c),
-  ]
+async function applyStoredPreset(
+  targetDir: string,
+  snapshot: ConfigureSnapshot,
+  choice: ApplicablePreset,
+): Promise<void> {
+  const assignments = assignmentsForPreset(snapshot.stored, choice)
+  const preview =
+    snapshot.stored.preset === choice ? assignments : [`preset=${choice}`, ...assignments]
+  if (preview.length === 0) {
+    outro(t('cli.configure.no_changes'))
+    return
+  }
+  note(preview.join('\n'), 'Preset preview')
+  const apply = await confirm({
+    message: `Apply ${choice} (${preview.length} change${preview.length === 1 ? '' : 's'})?`,
+    initialValue: true,
+  })
+  if (isCancel(apply) || !apply) {
+    cancel(t('cli.configure.no_changes'))
+    return
+  }
+  await runConfigure({
+    dir: targetDir,
+    sets: [],
+    preset: choice,
+    expectedConfig: snapshot.rawText,
+  })
+}
 
+const CUSTOM_GROUPS: Array<{ value: ConfigureGroup; label: string; prompt: GroupFn }> = [
+  { value: 'shape', label: 'Project shape', prompt: promptAxisGroup },
+  { value: 'features', label: 'Feature flags', prompt: promptFeaturesGroup },
+  { value: 'thresholds', label: 'Quality thresholds', prompt: promptThresholdsGroup },
+  { value: 'collaboration', label: 'Collaboration', prompt: promptCollaborationGroup },
+  { value: 'access', label: 'AI tools and GitHub access', prompt: promptAccessGroup },
+  { value: 'automation', label: 'Ship automation', prompt: promptAutomationGroup },
+]
+
+async function customizeStored(targetDir: string, snapshot: ConfigureSnapshot): Promise<void> {
+  const selected = await multiselect<ConfigureGroup>({
+    message: 'Choose groups to customize',
+    options: CUSTOM_GROUPS.map(({ value, label }) => ({ value, label })),
+    required: true,
+  })
+  if (isCancel(selected)) {
+    cancel(t('cli.configure.no_changes'))
+    return
+  }
   const allAssignments: string[] = []
-  for (const group of groups) {
-    const result = await group(stored)
+  for (const group of CUSTOM_GROUPS.filter(({ value }) => selected.includes(value))) {
+    const result = await group.prompt(snapshot.stored)
     if (result === null) {
       cancel(t('cli.configure.no_changes'))
       return
     }
     allAssignments.push(...result)
   }
-
   const saveit = await confirm({
     message: t('cli.configure.interactive.save_confirm'),
     initialValue: true,
@@ -310,11 +381,51 @@ export async function runInteractiveConfigure(dir?: string): Promise<void> {
     cancel(t('cli.configure.no_changes'))
     return
   }
-
   if (allAssignments.length === 0) {
     outro(t('cli.configure.no_changes'))
     return
   }
+  await runConfigure({
+    dir: targetDir,
+    sets: allAssignments,
+    expectedConfig: snapshot.rawText,
+  })
+}
 
-  await runConfigure({ dir: targetDir, sets: allAssignments })
+export async function runInteractiveConfigure(dir?: string): Promise<void> {
+  const targetDir = resolve(dir ?? process.cwd())
+  const snapshot = readConfigureSnapshot(targetDir)
+
+  intro(t('cli.configure.interactive.intro'))
+
+  const choice = await select<ConfigureChoice>({
+    message: 'Choose a configuration profile',
+    options: [
+      {
+        value: 'solo-homelab',
+        label: 'Solo / homelab',
+        hint: 'lean controls, governance up to L2',
+      },
+      { value: 'industrial-grade', label: 'Industrial', hint: 'compliance and evidence controls' },
+      { value: 'custom', label: 'Customize', hint: 'edit focused groups' },
+    ],
+    initialValue: 'solo-homelab',
+  })
+  if (isCancel(choice)) {
+    cancel(t('cli.configure.no_changes'))
+    return
+  }
+
+  if (choice !== 'custom') {
+    if (snapshot === null) await initializePreset(targetDir, choice)
+    else await applyStoredPreset(targetDir, snapshot, choice)
+    return
+  }
+
+  if (snapshot === null) {
+    process.stderr.write(`${t('cli.configure.interactive.no_config')}\n`)
+    process.exit(1)
+    return
+  }
+  await customizeStored(targetDir, snapshot)
 }

@@ -85,15 +85,16 @@ describe('local-wrapper/.env.example.ejs — env var reference (#879, W3)', () =
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('.env.example contains ARBITER_LEVEL', () => {
+  it('.env.example contains the runtime-backed governance override', () => {
     generateEnvTemplate(makeConfig(dir))
     const content = readFileSync(join(dir, '.env.example'), 'utf-8')
-    expect(content).toContain('ARBITER_LEVEL')
+    expect(content).toContain('ARBITER_GOVERNANCE_LEVEL')
+    expect(content).not.toMatch(/\bARBITER_LEVEL\b/)
   })
 
-  it('.env.example contains ARBITER_EVIDENCE_DIR', () => {
+  it('.env.example does not advertise the unconsumed ARBITER_EVIDENCE_DIR', () => {
     generateEnvTemplate(makeConfig(dir))
     const content = readFileSync(join(dir, '.env.example'), 'utf-8')
-    expect(content).toContain('ARBITER_EVIDENCE_DIR')
+    expect(content).not.toContain('ARBITER_EVIDENCE_DIR')
   })
 })

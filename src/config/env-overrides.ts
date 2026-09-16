@@ -53,12 +53,57 @@ const VALID_FEATURE_KEYS = new Set<keyof FeatureFlags>([
  * Convert SCREAMING_SNAKE_CASE to camelCase.
  * Examples: LINE_COVERAGE → lineCoverage, GOVERNANCE_LEVEL → governanceLevel
  */
-function screamingSnakeToCamel(s: string): string {
+export function screamingSnakeToCamel(s: string): string {
   return s
     .toLowerCase()
     .split('_')
     .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
     .join('')
+}
+
+function camelToScreamingSnake(s: string): string {
+  return s.replace(/[A-Z]/g, (letter) => `_${letter}`).toUpperCase()
+}
+
+/** Return the valid environment override that owns a catalog path, if present. */
+export function envOverrideKeyForPath(path: string, env: Env): string | undefined {
+  const direct = directEnvOverrideKeyForPath(path, env)
+  if (direct !== undefined) return direct
+  const [group, field] = path.split('.')
+  if (field === undefined) return undefined
+  if (group === 'thresholds') return thresholdOverrideKey(field, env)
+  if (group === 'features') return featureOverrideKey(field, env)
+  return undefined
+}
+
+function thresholdOverrideKey(field: string, env: Env): string | undefined {
+  if (!VALID_THRESHOLD_KEYS.has(field as keyof ThresholdsV2)) return undefined
+  const key = `${THRESHOLD_PREFIX}${camelToScreamingSnake(field)}`
+  const raw = env[key]
+  if (raw === undefined) return undefined
+  const value = parseNumericEnv(raw)
+  return value !== undefined && isThresholdValueInRange(field, value) ? key : undefined
+}
+
+function featureOverrideKey(field: string, env: Env): string | undefined {
+  if (!VALID_FEATURE_KEYS.has(field as keyof FeatureFlags)) return undefined
+  const key = `${FEATURE_PREFIX}${camelToScreamingSnake(field)}`
+  return parseBooleanEnv(env[key]) === undefined ? undefined : key
+}
+
+function directEnvOverrideKeyForPath(path: string, env: Env): string | undefined {
+  if (path === 'governanceLevel') {
+    const value = env['ARBITER_GOVERNANCE_LEVEL']
+    return value === 'L1' || value === 'L2' || value === 'L3' || value === 'L4'
+      ? 'ARBITER_GOVERNANCE_LEVEL'
+      : undefined
+  }
+  if (path === 'crossModelReview.enabled') {
+    return parseBooleanEnv(env['ARBITER_CROSS_MODEL_REVIEW']) !== undefined
+      ? 'ARBITER_CROSS_MODEL_REVIEW'
+      : undefined
+  }
+  return undefined
 }
 
 function parseNumericEnv(raw: string): number | undefined {

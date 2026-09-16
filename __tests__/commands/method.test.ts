@@ -137,6 +137,14 @@ describe('probe — Config facet', () => {
     expect(probeFeature(feature, { tools: [] }, {}, '/nowhere').config).toBe('inactive')
     expect(probeFeature(feature, { tools: ['claude'] }, {}, '/nowhere').config).toBe('active')
   })
+
+  it('uses the canonical settings default for an absent runtime value', () => {
+    const feature = METHODOLOGY_CATALOG.find((candidate) => candidate.id === 'M-AGENT-03')
+    expect(feature).toBeDefined()
+    const status = probeFeature(feature as MethodologyFeature, {}, {}, '/nowhere')
+    expect(status.config).toBe('active')
+    expect(status.values).toEqual({ 'automation.maxParallelWorktrees': 3 })
+  })
 })
 
 describe('probe — Emit facet', () => {

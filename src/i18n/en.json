@@ -34,6 +34,7 @@
     "E_CONFIGURE_INVALID_KEY": "Unknown configuration key: {key}.",
     "E_CONFIGURE_READ": "Failed to read current configuration.",
     "E_CONFIGURE_CONFIG_INVALID": "Configuration invalid after changes: {errors}",
+    "E_CONFIG_CHANGED": "arbiter.json changed after the preview; nothing was written.",
     "E_UPDATE_FETCH": "Failed to fetch update information.",
     "E_UPDATE_WRITE": "Failed to write update files.",
     "E_UPDATE_CONFIG_INVALID": "Config invalid after update: {errors}.",
@@ -154,7 +155,8 @@
       "no_changes": "No changes made.",
       "reset_confirm": "Reset all configuration to defaults?",
       "usage_hint": "  Usage: arbiter configure --set <path>=<value>\n  Interactive mode requires a TTY. Non-interactive usage requires --set.",
-      "drain_sync_withheld": "warning: {path} carries the `arbiter:preserve` marker, so its --max-parallel default was not updated. Set it to {cap} by hand to keep it in sync.",
+      "invalid_preset": "Unknown configure preset: {preset}",
+      "preset_set_conflict": "--preset and --set cannot be combined.",
       "interactive": {
         "intro": "arbiter configure \u2014 interactive mode",
         "save_confirm": "Save these changes?",

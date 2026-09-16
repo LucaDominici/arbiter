@@ -1051,3 +1051,95 @@ describe('validateConfig — frontend block (#1124)', () => {
       expect(result.errors).toEqual(expect.arrayContaining([expect.stringMatching(/frontend/i)]))
   })
 })
+
+describe('validateConfig — structured configuration', () => {
+  const base = {
+    version: '0.2',
+    tools: ['claude'],
+    governanceLevel: 'L2',
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: false,
+      securityScanning: false,
+      evidenceHarness: false,
+      debtGates: false,
+      suppressions: true,
+    },
+    thresholds: DEFAULT_THRESHOLDS.L2,
+  }
+
+  it('accepts complete valid retention, plugin, invariant and worktree policies', () => {
+    const result = validateConfig({
+      ...base,
+      plugins: ['security'],
+      invariantTiers: ['architectural', 'data', 'security', 'operational', 'governance'],
+      evidenceRetention: {
+        mode: 'external-bucket',
+        count: 10,
+        bucketUrl: 's3://arbiter-evidence',
+      },
+      worktree: {
+        base: null,
+        links: [
+          {
+            path: 'node_modules',
+            required: true,
+            template: 'shared/{project}',
+            strategy: 'symlink',
+            type: 'directory',
+          },
+        ],
+        buildLinks: [{ path: 'dist', strategy: 'copy', type: 'directory' }],
+        closeHook: null,
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('accepts a partial worktree policy and leaves omitted defaults to the consumer', () => {
+    const result = validateConfig({
+      ...base,
+      worktree: {
+        base: null,
+        links: [{ path: 'node_modules', type: 'directory' }],
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('rejects malformed nested values with path-specific errors', () => {
+    const result = validateConfig({
+      ...base,
+      plugins: ['security', 42],
+      invariantTiers: ['unknown'],
+      evidenceRetention: { mode: 'forever', count: 0, bucketUrl: 42 },
+      worktree: {
+        base: 42,
+        links: [null, { path: '', required: 'yes', template: 42, strategy: 'move', type: 'pipe' }],
+        buildLinks: 'dist',
+        closeHook: 42,
+      },
+    })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        'plugins must be an array of strings',
+        'invariantTiers contains invalid value: unknown',
+        'evidenceRetention.mode must be local-last-N, external-bucket, or none',
+        'evidenceRetention.count must be a positive integer',
+        'evidenceRetention.bucketUrl must be a string',
+        'worktree.base must be a string or null',
+        'worktree.links[0] must be an object',
+        'worktree.links[1].path must be a non-empty string',
+        'worktree.links[1].required must be a boolean',
+        'worktree.links[1].template must be a string',
+        'worktree.links[1].strategy must be symlink, copy, or symlink-children',
+        'worktree.links[1].type must be file or directory',
+        'worktree.buildLinks must be an array',
+        'worktree.closeHook must be a string or null',
+      ]),
+    )
+  })
+})
