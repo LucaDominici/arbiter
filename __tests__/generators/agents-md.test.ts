@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { generateAgentsMd } from '../../src/generators/agents-md.js'
+import { generateAgentsMd, renderAgentsMd } from '../../src/generators/agents-md.js'
 import { makeConfig } from '../helpers.js'
 
 describe('generateAgentsMd', () => {
@@ -142,6 +142,33 @@ describe('generateAgentsMd', () => {
     expect(content).toContain('TDD enforcement')
     expect(content).toContain('`tdd`')
     expect(content).toContain('do not regenerate the listed files')
+  })
+
+  it('unrelated installed skills do not grow always-loaded governance (#2618)', () => {
+    const replacement = {
+      skillId: 'superpowers:test-driven-development',
+      pluginOwner: 'superpowers',
+      version: '5.0.0',
+      sourcePath: '/some/SKILL.md',
+    }
+    const skipReport = [
+      {
+        generator: 'tdd',
+        reason: 'Replaced by superpowers:test-driven-development',
+        replacedBy: replacement.skillId,
+      },
+    ]
+    const unrelated = Array.from({ length: 1_000 }, (_, index) => ({
+      skillId: `unrelated:skill-${index}`,
+      pluginOwner: 'unrelated',
+      version: '1.0.0',
+      sourcePath: `/unrelated/skill-${index}/SKILL.md`,
+    }))
+
+    const baseline = renderAgentsMd(makeConfig(dir), [replacement], skipReport)
+    const withInventory = renderAgentsMd(makeConfig(dir), [replacement, ...unrelated], skipReport)
+
+    expect(withInventory).toBe(baseline)
   })
 
   it('Integrations section renders skill with empty replaces as dash (#556)', () => {

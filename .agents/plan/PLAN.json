@@ -1,38 +1,29 @@
 {
-  "task_id": "#2695",
+  "task_id": "#2618",
   "scope": {
     "track": "A",
     "paths": [
-      "src/evidence/tdd.ts",
-      "__tests__/evidence/tdd-reexecute.test.ts",
-      "docs/REFERENCE/task-recovery.md",
+      "src/generators/agents-md.ts",
+      "src/templates/agents-md/AGENTS.md.ejs",
+      "__tests__/generators/agents-md.test.ts",
+      ".claude/plans/task-2618-context-economy.md",
       ".agents/plan/PLAN.json",
-      ".claude/plans/task-2695-authenticated-failure-headers.md",
-      ".arbiter/evidence/plan-review/2695/latest.json",
-      ".arbiter/evidence/tdd/#2695.json",
-      ".arbiter/evidence/ac-fit/2695.json",
-      ".arbiter/evidence/agent-returns/_2695"
+      ".arbiter/evidence/tdd/#2618.json"
     ]
   },
   "files": [
-    { "path": "src/evidence/tdd.ts", "operation": "modify" },
-    { "path": "__tests__/evidence/tdd-reexecute.test.ts", "operation": "modify" },
-    { "path": "docs/REFERENCE/task-recovery.md", "operation": "modify" },
+    { "path": "src/generators/agents-md.ts", "operation": "modify" },
+    { "path": "src/templates/agents-md/AGENTS.md.ejs", "operation": "modify" },
+    { "path": "__tests__/generators/agents-md.test.ts", "operation": "modify" },
+    { "path": ".claude/plans/task-2618-context-economy.md", "operation": "create" },
     { "path": ".agents/plan/PLAN.json", "operation": "modify" },
-    {
-      "path": ".claude/plans/task-2695-authenticated-failure-headers.md",
-      "operation": "create"
-    },
-    { "path": ".arbiter/evidence/plan-review/2695/latest.json", "operation": "create" },
-    { "path": ".arbiter/evidence/tdd/#2695.json", "operation": "create" },
-    { "path": ".arbiter/evidence/ac-fit/2695.json", "operation": "create" },
-    { "path": ".arbiter/evidence/agent-returns/_2695", "operation": "create" }
+    { "path": ".arbiter/evidence/tdd/#2618.json", "operation": "create" }
   ],
   "invariants": {
     "ui_language": "EN",
     "no_skips": true
   },
-  "invariant_ids": ["INV-25", "INV-38", "INV-114", "INV-131", "INV-138"],
+  "invariant_ids": ["INV-25", "INV-26", "INV-46", "INV-48", "INV-114"],
   "review_bridge": {
     "enabled": true,
     "reviewer": "bridge-reviewer",
