@@ -76,6 +76,8 @@ function runScenario(opts: {
   docsOnlyTaskCommit?: boolean
   /** A conventional task subject that changes a root-level Go source file. */
   rootGoTaskCommit?: boolean
+  /** A conventional task subject that adds only a structured Arbiter evidence record. */
+  evidenceOnlyTaskCommit?: boolean
   skipTrailer?: boolean
   /** Leave an orphaned (unreachable but still present) commit object behind, as a rebase does. */
   orphan?: boolean
@@ -129,18 +131,22 @@ function runScenario(opts: {
     g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
 
     if (opts.taskCommit) {
-      const taskDir = opts.docsOnlyTaskCommit
-        ? 'docs'
-        : opts.rootGoTaskCommit
-          ? '.'
-          : opts.nestedSource
-            ? join('backend', 'src', 'main', 'java')
-            : 'src'
-      const taskFile = opts.docsOnlyTaskCommit
-        ? 'note.md'
-        : opts.rootGoTaskCommit
-          ? 'math.go'
-          : 'foo.test.ts'
+      const taskDir = opts.evidenceOnlyTaskCommit
+        ? join('.arbiter', 'evidence', 'benchmark')
+        : opts.docsOnlyTaskCommit
+          ? 'docs'
+          : opts.rootGoTaskCommit
+            ? '.'
+            : opts.nestedSource
+              ? join('backend', 'src', 'main', 'java')
+              : 'src'
+      const taskFile = opts.evidenceOnlyTaskCommit
+        ? '#42.json'
+        : opts.docsOnlyTaskCommit
+          ? 'note.md'
+          : opts.rootGoTaskCommit
+            ? 'math.go'
+            : 'foo.test.ts'
       mkdirSync(join(repo, taskDir), { recursive: true })
       writeFileSync(join(repo, taskDir, taskFile), 'test("foo", () => {})\n')
       g(['add', '.'])
@@ -296,6 +302,10 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     expect(runScenario({ taskCommit: true, docsOnlyTaskCommit: true, evidence: () => null })).toBe(
       0,
     )
+  })
+
+  it('vacuous PASS (exit 0) for an evidence-only task commit (#2455)', () => {
+    expect(runScenario({ taskCommit: true, evidenceOnlyTaskCommit: true })).toBe(0)
   })
 
   it('FAIL (exit 1) for a root-level Go change with a task-id subject but no evidence', () => {
