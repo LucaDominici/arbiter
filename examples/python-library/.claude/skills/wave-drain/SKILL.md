@@ -37,17 +37,17 @@ merge-train).
 
 ## Primitives
 
-| Primitive                                                              | Role here                                                                                             |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `/ship`                                                                | Pipeline reference for the per-issue phase contract (plan → red-team → TDD → review → verify → merge) |
-| `arbiter lifecycle start / advance / record-red / recover / get`       | The state engine each agent anchors its work to                                                       |
-| Native host worktree commands + `arbiter worktree prepare/list/relink` | Isolated git worktrees, one per group                                                                 |
-| `arbiter check run -- <cmd>`                                           | Per-repo gate mutex (flock(1)): serializes expensive gates across parallel agents (ADR-103)           |
-| Skill `epic-decompose`                                                 | Only if an entangled issue must be split before batching                                              |
-| Skill `understand-code`                                                | Per-agent code comprehension before editing                                                           |
-| Skill `tdd`                                                            | The red → green → refactor loop every agent runs per unit                                             |
-| Skill `verification`                                                   | Claim-based verification on the cumulative branch before the gate                                     |
-| Skill `ssot-navigation`                                                | Locate invariants / SSOT before touching guarded files                                                |
+| Primitive                                                               | Role here                                                                                             |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `/ship`                                                                 | Pipeline reference for the per-issue phase contract (plan → red-team → TDD → review → verify → merge) |
+| `arbiter lifecycle start / advance / record-red / recover / get`        | The state engine each agent anchors its work to                                                       |
+| Native host worktree commands + `arbiter worktree prepare/check/relink` | Isolated git worktrees, one per group                                                                 |
+| `arbiter check run -- <cmd>`                                            | Per-repo gate mutex (flock(1)): serializes expensive gates across parallel agents (ADR-103)           |
+| Skill `epic-decompose`                                                  | Only if an entangled issue must be split before batching                                              |
+| Skill `understand-code`                                                 | Per-agent code comprehension before editing                                                           |
+| Skill `tdd`                                                             | The red → green → refactor loop every agent runs per unit                                             |
+| Skill `verification`                                                    | Claim-based verification on the cumulative branch before the gate                                     |
+| Skill `ssot-navigation`                                                 | Locate invariants / SSOT before touching guarded files                                                |
 
 ---
 
@@ -381,7 +381,7 @@ wave.** The rest of the wave proceeds.
 
    CI red → root-cause fix → re-gate (PRs are owned until merged green).
 
-8. Close the worktree with the native host, then use `arbiter worktree list` to verify cleanup
+8. Close the worktree with the native host, then use `arbiter worktree check` to verify cleanup
    before the **next wave**, until the backlog is empty. The
    reaper also runs inside the watchdog sweep, so a crashed worker's zombie worktree never
    outlives the wave (dirty trees are never touched — INV-96).
