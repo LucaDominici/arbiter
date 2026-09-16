@@ -8,11 +8,15 @@
       "evidence": [
         {
           "file": "src/generators/agents-md.ts",
-          "line": 33
+          "line": 35
         },
         {
           "file": "src/generators/skills.ts",
           "line": 104
+        },
+        {
+          "file": "src/generators/skills.ts",
+          "line": 147
         },
         {
           "file": "src/templates/agents-md/AGENTS.md.ejs",
@@ -52,15 +56,15 @@
       "evidence": [
         {
           "file": "__tests__/generators/agents-md.test.ts",
-          "line": 143
-        },
-        {
-          "file": "__tests__/generators/agents-md.test.ts",
           "line": 161
         },
         {
           "file": "__tests__/generators/agents-md.test.ts",
           "line": 171
+        },
+        {
+          "file": "__tests__/generators/agents-md.test.ts",
+          "line": 143
         }
       ]
     },
@@ -75,6 +79,10 @@
         {
           "file": ".arbiter/evidence/benchmark/#2618.json",
           "line": 11
+        },
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 13
         },
         {
           "file": ".arbiter/evidence/benchmark/#2618.json",
@@ -110,10 +118,10 @@
     }
   ],
   "branch": "task/#2618-context-economy",
-  "sha": "db4b2617bce2f16e8585382dd1fbdab9ae84f3b9",
+  "sha": "cf9ead8c9598e4e74f374b02e22360119565f557",
   "planHash": "39cc68ebe3852491fb29299d1b3f8a227ae87ccc",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2618/acceptance-fit-0.json",
-    "sha256": "0a14ad405ad18919e1f45b21ee6d2099e16c81d9378422526f93d97ab023f22e"
+    "path": ".arbiter/evidence/agent-returns/_2618/acceptance-fit-1.json",
+    "sha256": "f949eb384cba50e08700fe150dbecc3467a4a085eff84a0da1f30c69fae0fa32"
   }
 }
