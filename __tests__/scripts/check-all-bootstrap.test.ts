@@ -114,6 +114,10 @@ syncBuiltinESMExports()
       calls,
       artifact: JSON.parse(readFileSync(join(dir, '.arbiter/gate/local-result.json'), 'utf-8')),
       marker: existsSync(join(dir, '.arbiter/gate-pass.json')),
+      receipt: existsSync(join(dir, '.arbiter/gate-pass.json'))
+        ? JSON.parse(readFileSync(join(dir, '.arbiter/gate-pass.json'), 'utf-8'))
+        : null,
+      head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim(),
     }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -139,6 +143,18 @@ describe('native L2 build prerequisite', () => {
       ])
       expect(result.artifact.gates[3]).toMatchObject({ name: 'build', status: 'PASS' })
       expect(result.marker).toBe(true)
+      expect(result.receipt).toMatchObject({ head_sha: result.head, start_head_sha: result.head })
+      const gateNames = result.artifact.gates.map((gate: { name: string }) => gate.name)
+      expect(gateNames).toEqual(
+        expect.arrayContaining([
+          'coverage ratchet (#1483)',
+          'debt ratchet',
+          'integration suite (INV-25)',
+          'BDD suite (INV-25)',
+          'doc-set presence',
+        ]),
+      )
+      expect(new Set(gateNames).size).toBe(gateNames.length)
     },
   )
 

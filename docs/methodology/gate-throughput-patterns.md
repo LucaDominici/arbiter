@@ -124,6 +124,11 @@ only cares about the latter.
 **Validated:** arbiter's own `scripts/lib/dist-staleness.mjs` — see its fix commit and
 regression tests covering both failure modes above.
 
+Arbiter's L1 runner checks this manifest before any compiled-output consumer (#2714).
+Missing, stale or unreadable `dist` stops the run with prerequisite error exit 2 and
+asks for `npm run build`; the existing gate result records the failure and no new
+pass receipt is written. L2 continues to build its own compiled prerequisites.
+
 ---
 
 ## 4. Fail-closed, not fail-open, when the mutex binary itself is broken
@@ -202,6 +207,13 @@ now wired into the generated gate:
   invoke the script; the script is operator-run, in the same working tree as the gate, against
   a warm cache. **An audit that exempts a call site on an unverified assumption about where it
   runs has not audited it.** Grep for the invocation before granting the exemption.
+
+Arbiter's L2/L3 runner checks TDD provenance, evidence bundles and review completion
+before build or suites (#2714). A hard failure or skipped prerequisite stops that run;
+a valid candidate still executes the remaining gates, with one coverage run and the
+existing exact-SHA receipt contract. The existing `.arbiter/gate/local-result.json`
+records each prerequisite's `durationMs`; their sum measures the prelude, excluding
+mutex wait. TDD verification may replay a test, so its cost depends on that test.
 
 **Corollary:** the same audit catches correctness bugs, not only slow ones. Pruning nested
 checkouts in `walkRepo` (a git worktree or submodule inside the working tree carries its own
