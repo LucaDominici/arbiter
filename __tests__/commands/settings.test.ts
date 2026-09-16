@@ -9,12 +9,12 @@ import {
   SETTINGS_CATALOG,
   SETTINGS_PATHS,
   resolveCatalogSettingValue,
-  resolveSettingValue,
   runSettings,
 } from '../../src/commands/settings.js'
 import { ALLOWED_PATHS } from '../../src/commands/configure.js'
 import { DEFAULT_THRESHOLDS } from '../../src/config/schema.js'
 import { ARBITER_ENV_FLAGS } from '../../src/config/env-registry.js'
+import { writeUnifiedState } from '../../src/commands/task-state.js'
 
 let dir: string
 afterEach(() => {
@@ -133,12 +133,14 @@ describe('settings catalog (#1121)', () => {
   })
 })
 
-describe('resolveSettingValue', () => {
+describe('resolveCatalogSettingValue', () => {
   it('resolves nested dotted paths', () => {
     const cfg = { thresholds: { lineCoverage: 80 }, governanceLevel: 'L2' }
-    expect(resolveSettingValue(cfg, 'thresholds.lineCoverage')).toBe(80)
-    expect(resolveSettingValue(cfg, 'governanceLevel')).toBe('L2')
-    expect(resolveSettingValue(cfg, 'missing.path')).toBeUndefined()
+    expect(resolveCatalogSettingValue(cfg, 'thresholds.lineCoverage')).toBe(80)
+    expect(resolveCatalogSettingValue(cfg, 'governanceLevel')).toBe('L2')
+    expect(() => resolveCatalogSettingValue(cfg, 'missing.path')).toThrow(
+      'Unknown settings catalog path: missing.path',
+    )
   })
 
   it('maps the legacy solo feature into the runtime parallelism default', () => {
@@ -247,6 +249,106 @@ describe('runSettings', () => {
       .flatMap((group) => group.fields)
       .find((candidate) => candidate['path'] === 'thresholds.lineCoverage')
     expect(field).toMatchObject({ declared: 60, effective: 60, source: 'env' })
+  })
+
+  it('reports session overrides as the effective value', () => {
+    const target = projectWith({ automation: { autonomy: 'L0' } })
+    writeUnifiedState(target, {
+      taskId: '#2039',
+      overrides: { 'automation.autonomy': 'L3' },
+    })
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+
+    runSettings({ dir: target, json: true })
+
+    const parsed = JSON.parse(out.join('')) as {
+      data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }
+    }
+    const autonomy = parsed.data.groups
+      .flatMap((group) => group.fields)
+      .find((field) => field['path'] === 'automation.autonomy')
+    expect(autonomy).toMatchObject({ declared: 'L0', effective: 'L3', source: 'session' })
+  })
+
+  it('parses and redacts the registered environment value shapes', () => {
+    const values = {
+      ARBITER_RUN_ID: 'run-secret',
+      ARBITER_HOOK_DEBOUNCE_MS: '250',
+      ARBITER_LOG_FORMAT: 'json',
+      ARBITER_FINDING_LOSS_HARD: 'true',
+      ARBITER_THRESHOLD__LINE_COVERAGE: '88',
+      ARBITER_FEATURE__CONTRACT_TESTING: 'true',
+    }
+    Object.assign(process.env, values)
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    try {
+      runSettings({ dir: projectWith({}), json: true })
+    } finally {
+      for (const key of Object.keys(values)) delete process.env[key]
+    }
+    const parsed = JSON.parse(out.join('')) as {
+      data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }
+    }
+    const byPath = new Map(
+      parsed.data.groups.flatMap((group) => group.fields).map((field) => [field['path'], field]),
+    )
+    expect(byPath.get('ARBITER_RUN_ID')).toMatchObject({
+      declared: '(set)',
+      effective: '(set)',
+      source: 'env',
+    })
+    expect(byPath.get('ARBITER_HOOK_DEBOUNCE_MS')).toMatchObject({ effective: 250, source: 'env' })
+    expect(byPath.get('ARBITER_LOG_FORMAT')).toMatchObject({ effective: 'json', source: 'env' })
+    expect(byPath.get('ARBITER_FINDING_LOSS_HARD')).toMatchObject({
+      effective: true,
+      source: 'env',
+    })
+    expect(byPath.get('ARBITER_THRESHOLD__')).toMatchObject({
+      effective: { ARBITER_THRESHOLD__LINE_COVERAGE: 88 },
+      source: 'env',
+    })
+    expect(byPath.get('ARBITER_FEATURE__')).toMatchObject({
+      effective: { ARBITER_FEATURE__CONTRACT_TESTING: true },
+      source: 'env',
+    })
+  })
+
+  it('falls back for invalid numeric and boolean environment values', () => {
+    process.env['ARBITER_HOOK_DEBOUNCE_MS'] = '-1'
+    process.env['ARBITER_FINDING_LOSS_HARD'] = 'maybe'
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    try {
+      runSettings({ dir: projectWith({}), json: true })
+    } finally {
+      delete process.env['ARBITER_HOOK_DEBOUNCE_MS']
+      delete process.env['ARBITER_FINDING_LOSS_HARD']
+    }
+    const parsed = JSON.parse(out.join('')) as {
+      data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }
+    }
+    const byPath = new Map(
+      parsed.data.groups.flatMap((group) => group.fields).map((field) => [field['path'], field]),
+    )
+    expect(byPath.get('ARBITER_HOOK_DEBOUNCE_MS')).toMatchObject({
+      effective: 20000,
+      source: 'default',
+    })
+    expect(byPath.get('ARBITER_FINDING_LOSS_HARD')).toMatchObject({
+      effective: false,
+      source: 'default',
+    })
   })
 
   it('reports the derived autonomy default instead of an unexplained unset value', () => {

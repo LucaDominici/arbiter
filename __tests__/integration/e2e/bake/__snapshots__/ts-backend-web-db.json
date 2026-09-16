@@ -297,7 +297,7 @@
     ".claude/skills/verification/SKILL.md": "6c58d2dea7f8c436dc69d5d417c3c81f181740cd7184b5c22fb3497db48d8d66",
     ".claude/skills/wave-drain/SKILL.md": "bb6dc5f6ee43828b344363320dbdaaa8f67bb55277a77cd2ac0140ab2a93014a",
     ".editorconfig": "1aa3a82cfa54369e322cd22414ea2570437e0edfcfa177b3547d3079d0ba93df",
-    ".env.example": "72a68697f7b8991547af8841ec36381db8fefd1798c9ccaaf1abdb6f9cf81f50",
+    ".env.example": "9436da042848b3d3f2e3249507ef4fd1b079a6f1f3775edeed48e17a4a11a8dc",
     ".eslintrc-static.json": "3a3aa03974af8d2e0db99302c30d606043cd98cf771d8e1303fc574f12f0b137",
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",
     ".githooks/pre-commit": "d03114839ef5528563e9308c8ece10bc6dcce402ac0d8dd6eab97a459224a07e",

@@ -393,6 +393,39 @@ function parseFeatureValue(path: string, raw: string): boolean | null {
   )
 }
 
+function parseThresholdValue(path: string, raw: string): number {
+  const value = Number(raw)
+  if (Number.isFinite(value)) return value
+  throw ArbiterError.fromKey(
+    'E_INVALID_NUMBER',
+    'errors.E_INVALID_NUMBER',
+    { path, value: raw },
+    { hint: `Provide a numeric value. Example: \`arbiter configure --set ${path}=80\`.` },
+  )
+}
+
+function parseTools(raw: string): string[] {
+  const tools = raw.split(',').map((tool) => tool.trim())
+  for (const tool of tools) {
+    if (VALID_TOOLS.has(tool)) continue
+    throw ArbiterError.fromKey(
+      'E_INVALID_TOOL',
+      'errors.E_INVALID_TOOL',
+      { noun: 'tool', tool: `"${tool}"`, valid: [...VALID_TOOLS].join(', ') },
+      { hint: `Valid tools: ${[...VALID_TOOLS].join(', ')}.` },
+    )
+  }
+  return tools
+}
+
+function parseScalarValue(path: string, raw: string): unknown {
+  if (path.startsWith('crossModelReview.')) return parseCrossModelValue(path, raw)
+  if (AXIS_PATHS.has(path)) return parseAxisValue(path, raw)
+  if (POSITIVE_INTEGER_PATHS.has(path)) return parsePositiveInteger(path, raw)
+  if (ENUM_PATHS.has(path)) return parseEnumPathValue(path, raw)
+  return raw
+}
+
 const AXIS_PATHS = new Set([
   'archetype',
   'architectureStyle',
@@ -410,74 +443,38 @@ const AXIS_PATHS = new Set([
 export function parseValue(path: string, raw: string): unknown {
   const featureValue = parseFeatureValue(path, raw)
   if (featureValue !== null) return featureValue
-  if (path.startsWith('thresholds.')) {
-    const n = Number(raw)
-    if (!Number.isFinite(n))
-      throw ArbiterError.fromKey(
-        'E_INVALID_NUMBER',
-        'errors.E_INVALID_NUMBER',
-        { path, value: raw },
-        {
-          hint: `Provide a numeric value. Example: \`arbiter configure --set ${path}=80\`.`,
-        },
-      )
-    return n
-  }
+  if (path.startsWith('thresholds.')) return parseThresholdValue(path, raw)
   if (BOOLEAN_PATHS.has(path)) return parseCrossModelBoolean(path, raw)
   if (JSON_PATHS.has(path)) return parseJsonValue(path, raw)
-  if (path === 'tools') {
-    const toolList = raw.split(',').map((tool) => tool.trim())
-    for (const tool of toolList) {
-      if (!VALID_TOOLS.has(tool)) {
-        throw ArbiterError.fromKey(
-          'E_INVALID_TOOL',
-          'errors.E_INVALID_TOOL',
-          {
-            // The template owns no quotes; quote the single offending tool here.
-            noun: 'tool',
-            tool: `"${tool}"`,
-            valid: [...VALID_TOOLS].join(', '),
-          },
-          { hint: `Valid tools: ${[...VALID_TOOLS].join(', ')}.` },
-        )
-      }
-    }
-    return toolList
-  }
-  if (path.startsWith('crossModelReview.')) return parseCrossModelValue(path, raw)
-  if (AXIS_PATHS.has(path)) return parseAxisValue(path, raw)
-  // #1306 — the two scalar automation prefs (int / bool) are validated in a helper
-  // so parseValue stays within the complexity-15 limit. Returns undefined when the
-  // path is not one of them (so the enum + raw fall-through below still apply).
-  if (POSITIVE_INTEGER_PATHS.has(path)) return parsePositiveInteger(path, raw)
-  // ADR-051 (#1119) / #1261 / #1306: enum-validate enum-shaped settable paths.
-  const ENUM_PATHS = new Set([
-    'collaborationMode',
-    'solo.mergeMode',
-    'branchingStrategy',
-    'automation.autonomy',
-    'automation.defaultGateLevel',
-    'runnerProfile',
-    'language',
-    'packageManager',
-    'databaseEngine',
-    'decomposition.backend',
-    'channel',
-    'thresholdProfile',
-    'strictnessTier',
-    'industryOverlay',
-    'deployTarget',
-    'observability.provider',
-    'auth.provider',
-    'frontend.framework',
-    'frontend.stateManager',
-    'frontend.validationLib',
-    'governance.invariants_catalog',
-    'governance.constraintScan',
-  ])
-  if (ENUM_PATHS.has(path)) return parseEnumPathValue(path, raw)
-  return raw
+  if (path === 'tools') return parseTools(raw)
+  return parseScalarValue(path, raw)
 }
+
+// ADR-051 (#1119) / #1261 / #1306: enum-shaped settable paths.
+const ENUM_PATHS = new Set([
+  'collaborationMode',
+  'solo.mergeMode',
+  'branchingStrategy',
+  'automation.autonomy',
+  'automation.defaultGateLevel',
+  'runnerProfile',
+  'language',
+  'packageManager',
+  'databaseEngine',
+  'decomposition.backend',
+  'channel',
+  'thresholdProfile',
+  'strictnessTier',
+  'industryOverlay',
+  'deployTarget',
+  'observability.provider',
+  'auth.provider',
+  'frontend.framework',
+  'frontend.stateManager',
+  'frontend.validationLib',
+  'governance.invariants_catalog',
+  'governance.constraintScan',
+])
 
 /** #1306 — the non-enum automation scalar prefs (positive-int). */
 const POSITIVE_INTEGER_PATHS = new Set([
@@ -663,6 +660,20 @@ interface ConfigureMutation {
   changedConfig: boolean
 }
 
+function applyAssignments(
+  initial: ArbiterConfigV2,
+  assignments: string[],
+): { config: ArbiterConfigV2; archetypeTouched: boolean } {
+  let config = initial
+  let archetypeTouched = false
+  for (const assignment of assignments) {
+    const next = applyAssignment(config, assignment)
+    config = next.config
+    archetypeTouched ||= next.archetypeTouched
+  }
+  return { config, archetypeTouched }
+}
+
 async function mutateConfig(
   targetDir: string,
   configPath: string,
@@ -682,14 +693,11 @@ async function mutateConfig(
       })
     }
     const raw = JSON.parse(rawText) as unknown
-    let config = migrate(raw)
-    const updated = preset === undefined ? sets : assignmentsForPreset(config, preset)
-    let archetypeTouched = false
-    for (const assignment of updated) {
-      const next = applyAssignment(config, assignment)
-      config = next.config
-      if (next.archetypeTouched) archetypeTouched = true
-    }
+    const initial = migrate(raw)
+    const updated = preset === undefined ? sets : assignmentsForPreset(initial, preset)
+    const applied = applyAssignments(initial, updated)
+    let config = applied.config
+    const { archetypeTouched } = applied
     if (archetypeTouched && config.archetype !== undefined) {
       config = cascadeAxisDefaults(config, config.archetype)
     }
@@ -713,36 +721,63 @@ async function mutateConfig(
   }
 }
 
+function rejectMissingConfigureInput(
+  options: ConfigureOptions,
+  preset: ApplicablePreset | undefined,
+): boolean {
+  if (options.sets.length > 0 || preset !== undefined) return false
+  if (options.json) {
+    jsonOutput('configure', 'error', {}, ['--set is required (non-interactive usage)'])
+    process.exit(1)
+    return true
+  }
+  process.stderr.write(`${t('cli.configure.usage_hint')}\n`)
+  process.exit(2)
+  return true
+}
+
+function requireConfigPath(targetDir: string, json: boolean | undefined): string | null {
+  const configPath = join(targetDir, 'arbiter.json')
+  if (existsSync(configPath)) return configPath
+  if (json) {
+    jsonOutput('configure', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
+    process.exit(1)
+    return null
+  }
+  throw ArbiterError.fromKey(
+    'E_CONFIG_NOT_FOUND',
+    'errors.E_CONFIG_NOT_FOUND',
+    {},
+    {
+      hint: 'Run `arbiter init` to initialize governance in this directory.',
+      docUrl: 'https://arbiter.dev/reference/cli#init',
+    },
+  )
+}
+
+function reportConfigureResult(
+  options: ConfigureOptions,
+  preset: ApplicablePreset | undefined,
+  mutation: ConfigureMutation,
+): void {
+  if (!mutation.changedConfig) {
+    if (options.json) jsonOutput('configure', 'ok', { updated: [] })
+    else process.stdout.write(`${t('cli.configure.no_changes')}\n`)
+    return
+  }
+  const reported =
+    preset === undefined ? mutation.updated : [`preset=${preset}`, ...mutation.updated]
+  if (options.json) jsonOutput('configure', 'ok', { updated: reported })
+  else process.stdout.write(`${t('cli.configure.updated', { keys: reported.join(', ') })}\n`)
+}
+
 export async function runConfigure(options: ConfigureOptions): Promise<void> {
   const preset = resolvePreset(options)
-  if (options.sets.length === 0 && preset === undefined) {
-    if (options.json) {
-      jsonOutput('configure', 'error', {}, ['--set is required (non-interactive usage)'])
-      process.exit(1)
-      return
-    }
-    process.stderr.write(`${t('cli.configure.usage_hint')}\n`)
-    process.exit(2)
-  }
+  if (rejectMissingConfigureInput(options, preset)) return
 
   const targetDir = resolve(options.dir ?? process.cwd())
-  const configPath = join(targetDir, 'arbiter.json')
-  if (!existsSync(configPath)) {
-    if (options.json) {
-      jsonOutput('configure', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
-      process.exit(1)
-      return
-    }
-    throw ArbiterError.fromKey(
-      'E_CONFIG_NOT_FOUND',
-      'errors.E_CONFIG_NOT_FOUND',
-      {},
-      {
-        hint: 'Run `arbiter init` to initialize governance in this directory.',
-        docUrl: 'https://arbiter.dev/reference/cli#init',
-      },
-    )
-  }
+  const configPath = requireConfigPath(targetDir, options.json)
+  if (configPath === null) return
 
   const mutation = await mutateConfig(
     targetDir,
@@ -752,19 +787,5 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
     options.expectedConfig,
   )
 
-  if (!mutation.changedConfig) {
-    if (options.json) jsonOutput('configure', 'ok', { updated: [] })
-    else process.stdout.write(`${t('cli.configure.no_changes')}\n`)
-    return
-  }
-
-  if (options.json) {
-    const reported =
-      preset !== undefined ? [`preset=${preset}`, ...mutation.updated] : mutation.updated
-    jsonOutput('configure', 'ok', { updated: reported })
-    return
-  }
-  const reported =
-    preset !== undefined ? [`preset=${preset}`, ...mutation.updated] : mutation.updated
-  process.stdout.write(`${t('cli.configure.updated', { keys: reported.join(', ') })}\n`)
+  reportConfigureResult(options, preset, mutation)
 }

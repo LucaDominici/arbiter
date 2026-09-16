@@ -211,6 +211,36 @@ describe('applyEnvOverrides (#233)', () => {
     expect(out.thresholds.lineCoverage).toBe(80)
   })
 
+  it('ignores invalid feature and cross-model booleans with an observable warning', () => {
+    const cfg = baseConfig()
+    const err = captureStderr(() => {
+      const out = applyEnvOverrides(cfg, {
+        ARBITER_FEATURE__CONTRACT_TESTING: 'maybe',
+        ARBITER_CROSS_MODEL_REVIEW: 'maybe',
+      })
+      expect(out.features.contractTesting).toBe(false)
+      expect(out.crossModelReview).toBeUndefined()
+    })
+    expect(err).toContain('ARBITER_FEATURE__CONTRACT_TESTING')
+    expect(err).toContain('ARBITER_CROSS_MODEL_REVIEW')
+  })
+
+  it('ignores undefined values and the reserved no-evidence flag', () => {
+    const cfg = baseConfig()
+    const out = applyEnvOverrides(cfg, {
+      ARBITER_LOG_LEVEL: undefined,
+      ARBITER_NO_EVIDENCE: 'true',
+    })
+    expect(out).toEqual(cfg)
+  })
+
+  it('keeps thresholds unchanged when the governance override repeats the current level', () => {
+    const cfg = baseConfig()
+    const out = applyEnvOverrides(cfg, { ARBITER_GOVERNANCE_LEVEL: 'L2' })
+    expect(out.governanceLevel).toBe('L2')
+    expect(out.thresholds).toEqual(cfg.thresholds)
+  })
+
   it('does not mutate the input config', () => {
     const cfg = baseConfig()
     const before = JSON.stringify(cfg)

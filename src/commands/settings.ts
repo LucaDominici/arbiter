@@ -21,12 +21,11 @@ import { DEFAULT_CROSS_MODEL_REVIEW } from '../config/schema.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import { resolveMaxParallelWorktrees } from '../config/collaboration-mode-defaults.js'
 
-export type SettingClassification =
-  'editable' | 'derived' | 'mandatory' | 'not-applicable' | 'internal'
-export type SettingCost = 'none' | 'low' | 'medium' | 'high' | 'unmeasured'
-export type SettingConsent = 'none' | 'github' | 'diff-egress'
+type SettingClassification = 'editable' | 'derived' | 'mandatory' | 'not-applicable' | 'internal'
+type SettingCost = 'none' | 'low' | 'medium' | 'high' | 'unmeasured'
+type SettingConsent = 'none' | 'github' | 'diff-egress'
 
-export interface SettingApplicability {
+interface SettingApplicability {
   applicable: boolean
   reason: string | null
 }
@@ -47,7 +46,7 @@ interface SettingDefinition {
   environmentFlag?: EnvFlag
 }
 
-export interface SettingField extends SettingDefinition {
+interface SettingField extends SettingDefinition {
   classification: SettingClassification
   effect: string
   cost: SettingCost
@@ -55,7 +54,7 @@ export interface SettingField extends SettingDefinition {
   applicability: (config: unknown) => SettingApplicability
 }
 
-export interface SettingGroup {
+interface SettingGroup {
   group: string
   fields: SettingField[]
 }
@@ -403,7 +402,7 @@ export const SETTINGS_PATHS: ReadonlySet<string> = new Set(
 )
 
 /** Resolve a dotted path against a loaded config object. */
-export function resolveSettingValue(config: unknown, path: string): unknown {
+function resolveSettingValue(config: unknown, path: string): unknown {
   let cursor: unknown = config
   for (const segment of path.split('.')) {
     if (cursor == null || typeof cursor !== 'object') return undefined
@@ -522,6 +521,17 @@ function declaredEnvironmentValue(
   return matches.map(([key]) => key)
 }
 
+function parsedEnvironmentValue(
+  field: SettingField,
+  flag: EnvFlag,
+  matches: Array<[string, string]>,
+  effectiveConfig: unknown,
+): unknown {
+  if (field.path.endsWith('_')) return parsePrefixEnvironment(field, matches, effectiveConfig)
+  const raw = matches[0]?.[1]
+  return raw === undefined ? undefined : parseEnvironmentValue(flag, raw)
+}
+
 function environmentSettingState(field: SettingField, effectiveConfig: unknown): SettingState {
   const flag = field.environmentFlag
   if (flag === undefined) throw new Error(`Missing environment metadata for ${field.path}`)
@@ -534,11 +544,7 @@ function environmentSettingState(field: SettingField, effectiveConfig: unknown):
     (entry): entry is [string, string] => entry[1] !== undefined,
   )
   const declared = declaredEnvironmentValue(field, definedMatches, prefix)
-  const parsed = prefix
-    ? parsePrefixEnvironment(field, definedMatches, effectiveConfig)
-    : matches[0]?.[1] === undefined
-      ? undefined
-      : parseEnvironmentValue(flag, matches[0][1])
+  const parsed = parsedEnvironmentValue(field, flag, definedMatches, effectiveConfig)
   const hasEffective = prefix
     ? Object.keys(parsed as Record<string, unknown>).length > 0
     : parsed !== undefined
@@ -555,9 +561,40 @@ function environmentSettingState(field: SettingField, effectiveConfig: unknown):
   }
 }
 
-export interface SettingsOptions {
+interface SettingsOptions {
   dir?: string
   json?: boolean
+}
+
+function settingsOutput(raw: unknown, config: unknown, overrides: Record<string, string>) {
+  return SETTINGS_CATALOG.map((group) => ({
+    group: group.group,
+    fields: group.fields.map((field) => ({
+      path: field.path,
+      label: field.label,
+      classification: field.classification,
+      effect: field.effect,
+      cost: field.cost,
+      consent: field.consent,
+      ...settingState(field, raw, config, overrides),
+    })),
+  }))
+}
+
+function printSettings(groups: ReturnType<typeof settingsOutput>): void {
+  process.stdout.write('\narbiter settings — current configuration\n')
+  for (const group of groups) {
+    process.stdout.write(`\n${group.group}\n`)
+    for (const field of group.fields) {
+      process.stdout.write(
+        `  ${field.path.padEnd(34)} ${formatValue(field.effective)} ` +
+          `(declared ${formatValue(field.declared)}; ${field.source}; ${field.applicability.applicable ? 'applicable' : `n/a: ${field.applicability.reason ?? 'unspecified'}`})\n`,
+      )
+    }
+  }
+  process.stdout.write(
+    '\nEdit with `arbiter configure` (interactive) or `arbiter configure --set <path>=<value>`.\n',
+  )
 }
 
 /** Print the grouped discovery listing of all settable paths + current values. */
@@ -572,35 +609,10 @@ export function runSettings(opts: SettingsOptions = {}): void {
 
   const raw = rawProjectConfig(dir)
   const overrides = readUnifiedState(dir)?.overrides ?? {}
+  const groups = settingsOutput(raw, config, overrides)
   if (opts.json) {
-    const out = SETTINGS_CATALOG.map((g) => ({
-      group: g.group,
-      fields: g.fields.map((f) => ({
-        path: f.path,
-        label: f.label,
-        classification: f.classification,
-        effect: f.effect,
-        cost: f.cost,
-        consent: f.consent,
-        ...settingState(f, raw, config, overrides),
-      })),
-    }))
-    jsonOutput('settings', 'ok', { groups: out })
+    jsonOutput('settings', 'ok', { groups })
     return
   }
-
-  process.stdout.write('\narbiter settings — current configuration\n')
-  for (const group of SETTINGS_CATALOG) {
-    process.stdout.write(`\n${group.group}\n`)
-    for (const field of group.fields) {
-      const state = settingState(field, raw, config, overrides)
-      process.stdout.write(
-        `  ${field.path.padEnd(34)} ${formatValue(state.effective)} ` +
-          `(declared ${formatValue(state.declared)}; ${state.source}; ${state.applicability.applicable ? 'applicable' : `n/a: ${state.applicability.reason ?? 'unspecified'}`})\n`,
-      )
-    }
-  }
-  process.stdout.write(
-    '\nEdit with `arbiter configure` (interactive) or `arbiter configure --set <path>=<value>`.\n',
-  )
+  printSettings(groups)
 }

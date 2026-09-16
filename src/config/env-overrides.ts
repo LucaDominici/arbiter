@@ -71,17 +71,24 @@ export function envOverrideKeyForPath(path: string, env: Env): string | undefine
   if (direct !== undefined) return direct
   const [group, field] = path.split('.')
   if (field === undefined) return undefined
-  if (group === 'thresholds' && VALID_THRESHOLD_KEYS.has(field as keyof ThresholdsV2)) {
-    const key = `${THRESHOLD_PREFIX}${camelToScreamingSnake(field)}`
-    const value = env[key]
-    const parsed = value === undefined ? undefined : parseNumericEnv(value)
-    return parsed !== undefined && isThresholdValueInRange(field, parsed) ? key : undefined
-  }
-  if (group === 'features' && VALID_FEATURE_KEYS.has(field as keyof FeatureFlags)) {
-    const key = `${FEATURE_PREFIX}${camelToScreamingSnake(field)}`
-    return parseBooleanEnv(env[key]) !== undefined ? key : undefined
-  }
+  if (group === 'thresholds') return thresholdOverrideKey(field, env)
+  if (group === 'features') return featureOverrideKey(field, env)
   return undefined
+}
+
+function thresholdOverrideKey(field: string, env: Env): string | undefined {
+  if (!VALID_THRESHOLD_KEYS.has(field as keyof ThresholdsV2)) return undefined
+  const key = `${THRESHOLD_PREFIX}${camelToScreamingSnake(field)}`
+  const raw = env[key]
+  if (raw === undefined) return undefined
+  const value = parseNumericEnv(raw)
+  return value !== undefined && isThresholdValueInRange(field, value) ? key : undefined
+}
+
+function featureOverrideKey(field: string, env: Env): string | undefined {
+  if (!VALID_FEATURE_KEYS.has(field as keyof FeatureFlags)) return undefined
+  const key = `${FEATURE_PREFIX}${camelToScreamingSnake(field)}`
+  return parseBooleanEnv(env[key]) === undefined ? undefined : key
 }
 
 function directEnvOverrideKeyForPath(path: string, env: Env): string | undefined {

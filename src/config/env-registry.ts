@@ -33,8 +33,8 @@ import { parseBooleanEnv } from '../utils/env.js'
 type Env = Record<string, string | undefined>
 
 /** Value shape of an `ARBITER_*` flag. `prefix` marks a dynamic dispatcher. */
-export type EnvFlagType = 'boolean' | 'number' | 'string' | 'enum' | 'prefix'
-export type EnvFlagClassification = 'runtime' | 'internal' | 'reserved'
+type EnvFlagType = 'boolean' | 'number' | 'string' | 'enum' | 'prefix'
+type EnvFlagClassification = 'runtime' | 'internal' | 'reserved'
 
 export interface EnvFlag {
   /** Full env-var name, e.g. `ARBITER_SKIP_TDD`. */
