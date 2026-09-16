@@ -1,0 +1,16 @@
+{
+  "schema": "arbiter-agent-return-v1",
+  "agent": "test-quality",
+  "role": "reviewer",
+  "taskId": "#2564",
+  "branch": "task/#2564-native-checkout-adoption",
+  "sha": "4f850e984b92f7f5ea3b11c1b1abc02ab0601689",
+  "ts": "2026-09-16T02:45:16.938Z",
+  "verdict": "PASS",
+  "confidence": 0.97,
+  "findings": [],
+  "provenance": {
+    "vendor": "openai",
+    "dispatch": "subagent"
+  }
+}

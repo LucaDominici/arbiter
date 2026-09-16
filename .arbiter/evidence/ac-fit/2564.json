@@ -1,0 +1,125 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2564",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/worktree.ts",
+          "line": 522
+        },
+        {
+          "file": "__tests__/integration/worktree-adopt.test.ts",
+          "line": 59
+        },
+        {
+          "file": "__tests__/integration/worktree-adopt.test.ts",
+          "line": 91
+        },
+        {
+          "file": "__tests__/integration/worktree-adopt.test.ts",
+          "line": 151
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/worktree/links.ts",
+          "line": 44
+        },
+        {
+          "file": "src/worktree/links.ts",
+          "line": 91
+        },
+        {
+          "file": "__tests__/integration/worktree-adopt.test.ts",
+          "line": 99
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 555
+        },
+        {
+          "file": "__tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts",
+          "line": 189
+        },
+        {
+          "file": "__tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts",
+          "line": 239
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/task-state.ts",
+          "line": 78
+        },
+        {
+          "file": "src/commands/task.ts",
+          "line": 313
+        },
+        {
+          "file": "__tests__/integration/worktree-adopt.test.ts",
+          "line": 179
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/worktree.ts",
+          "line": 302
+        },
+        {
+          "file": "src/commands/worktree.ts",
+          "line": 858
+        },
+        {
+          "file": "__tests__/integration/worktree-adopt.test.ts",
+          "line": 309
+        }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/worktree.ts",
+          "line": 522
+        },
+        {
+          "file": "__tests__/integration/worktree-adopt.test.ts",
+          "line": 91
+        },
+        {
+          "file": "__tests__/integration/worktree-adopt.test.ts",
+          "line": 151
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2564-native-checkout-adoption",
+  "sha": "4f850e984b92f7f5ea3b11c1b1abc02ab0601689",
+  "planHash": "e81ed0f1efe69f2f4ec6c5bd005c05d5ade2cd45",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2564/acceptance-fit-0.json",
+    "sha256": "7316bf9a3df081c422f9928be7f2c1795804974c52dffbc348ddf07bdac06329"
+  }
+}
