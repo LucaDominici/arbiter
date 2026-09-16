@@ -86,6 +86,6 @@ Work in vertical RED/GREEN slices. Do not test private helper shapes or mock the
 - The native probe records runtime version, plugin digest, command invocation, output, exit classification and filesystem hashes in the existing benchmark evidence store.
 - Final reviewers inspect the same frozen SHA; one full final gate follows.
 
-## Non-goals
+## Non-Goals
 
 No command-hook migration, lifecycle advancement, recovery change, preflight duplication, shell rewrite, background process, dashboard, transcript mining, global installation, timer/store, remote telemetry or new framework.
