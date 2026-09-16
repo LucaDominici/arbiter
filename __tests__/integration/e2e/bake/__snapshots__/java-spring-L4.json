@@ -619,7 +619,7 @@
     "scripts/optional-emissions.json": "984c1545b184ed6d73c596b1765c1ed14e37fc5880e941a0c8b734f381c9783f",
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",
     "scripts/pii-scan.mjs": "9a71b2e064edea21eeb6da9d3a0b6d57e7782c3636c6866c924977c355ccff74",
-    "scripts/pr-merge-watch.mjs": "0db385c3c56e2f782125491f515e4a9c7337e460e9853af0e569dba48466cc03",
+    "scripts/pr-merge-watch.mjs": "f485ee6d40ab923e600f64253f5543bd710a9e842272ac508b703612c5b0835c",
     "scripts/record-agent-return.mjs": "ff1bbc5845ef6e481656630ba8c78d7819fd7c6cf2feae91f8b644149cb0e977",
     "scripts/record-journey-evidence.mjs": "d56cb468d7c895de02a5c9f74c5ca9947874e2196acb48d48f1dea5917dbea41",
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
