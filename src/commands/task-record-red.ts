@@ -11,8 +11,8 @@ import {
 import {
   blobShaInCommit,
   currentBranch,
-  hasDirtyTestPaths,
-  pathExistsInCommit,
+  commitPathStatus,
+  dirtyTestPathStatus,
 } from '../evidence/git-checks.js'
 import { normalizeChainId, readTaskId, readUnifiedState } from './task-state.js'
 import { loadConfig } from '../utils/config.js'
@@ -179,24 +179,38 @@ function resolveHeadSha(dir: string, timeoutMs: number): string | RecordRedFailu
 
 /**
  * #1988: refuse to record evidence that would point at a commit not actually
- * containing the RED test — either because `__tests__/**` is dirty (the
- * eventual test_commit_sha wouldn't yet include it) or because `testPath`
- * isn't present in HEAD at all. No flag may weaken this exact-subject binding.
+ * containing the RED test — either because the exact `testPath` is dirty (the
+ * eventual test_commit_sha wouldn't yet include it) or because it isn't
+ * present in HEAD at all. No flag may weaken this exact-subject binding.
  */
 function checkTestCommitIntegrity(
   opts: RecordRedOptions,
   sha: string,
   dir: string,
 ): RecordRedFailure | null {
-  if (hasDirtyTestPaths(dir)) {
+  const dirty = dirtyTestPathStatus(dir, opts.testPath)
+  if (!dirty.ok) {
+    return {
+      ok: false,
+      reason: `cannot verify test_path "${opts.testPath}" before recording RED: ${dirty.reason}`,
+    }
+  }
+  if (dirty.value) {
     return {
       ok: false,
       reason:
         `commit the RED test first — evidence must point at the commit that contains it ` +
-        `(__tests__/** has uncommitted changes).`,
+        `(${opts.testPath} has uncommitted changes).`,
     }
   }
-  if (!pathExistsInCommit(sha, opts.testPath, dir)) {
+  const present = commitPathStatus(sha, opts.testPath, dir)
+  if (!present.ok) {
+    return {
+      ok: false,
+      reason: `cannot verify test_path "${opts.testPath}" in HEAD before recording RED: ${present.reason}`,
+    }
+  }
+  if (!present.value) {
     return {
       ok: false,
       reason:

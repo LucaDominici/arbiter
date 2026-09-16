@@ -32,7 +32,7 @@ function mockBranch(name = 'main'): void {
 /**
  * Queue the two mocked `runCli` responses record-red issues between
  * `git rev-parse HEAD` and the actual test run: a clean `git status`
- * scoped to `__tests__/**` and a non-empty `git ls-tree` (test path
+ * scoped to the recorded test path and a non-empty `git ls-tree` (test path
  * present in HEAD). Call right after mocking rev-parse (#1988).
  */
 function mockCleanGitChecks(testPath: string): void {
@@ -580,7 +580,7 @@ describe('runTaskRecordRed()', () => {
     mockedRunCli
       // git rev-parse HEAD
       .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      // git status --porcelain -- __tests__ → dirty test file reported
+      // git status --porcelain -- <test-path> → dirty test file reported
       .mockReturnValueOnce({
         stdout: ' M __tests__/evidence/tdd.test.ts\n',
         stderr: '',
@@ -595,12 +595,73 @@ describe('runTaskRecordRed()', () => {
     expect(mockedRunCli).toHaveBeenCalledTimes(3)
   })
 
+  it.each([
+    ['src/foo.test.ts', ' M src/foo.test.ts'],
+    ['fixtures/example.yaml', '?? fixtures/example.yaml'],
+  ])('refuses a dirty or untracked test path outside __tests__ (%s)', (testPath, status) => {
+    const dir = tmpRepo()
+    mockBranch()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockImplementationOnce((_cmd, args) => ({
+        // A clean __tests__ directory says nothing about a colocated or non-TS
+        // test; only the exact recorded path reports this fixture's status.
+        stdout: args.at(-1) === testPath ? status : '',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+      }))
+
+    const result = runTaskRecordRed({ testPath, dir })
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/commit the red test first/i)
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'git',
+      ['status', '--porcelain', '--untracked-files=all', '--', testPath],
+      { cwd: dir, timeoutMs: 5000 },
+    )
+  })
+
+  it('surfaces a Git status failure instead of treating the test path as clean', () => {
+    const dir = tmpRepo()
+    const testPath = 'src/foo.test.ts'
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockedRunCli.mockImplementationOnce(() => {
+      throw new Error('git status unavailable')
+    })
+
+    const result = runTaskRecordRed({ testPath, dir })
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/git status.*unavailable|git status.*failed/i)
+    expect(mockedRunCli).toHaveBeenCalledTimes(3)
+  })
+
+  it('surfaces a Git path lookup failure instead of reporting a missing test', () => {
+    const dir = tmpRepo()
+    const testPath = 'fixtures/example.yaml'
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockedRunCli.mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 10 })
+    mockedRunCli.mockImplementationOnce(() => {
+      throw new Error('git ls-tree unavailable')
+    })
+
+    const result = runTaskRecordRed({ testPath, dir })
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/git ls-tree.*unavailable|git ls-tree.*failed/i)
+    expect(mockedRunCli).toHaveBeenCalledTimes(4)
+  })
+
   it('refuses when the recorded test_path is absent from HEAD (#1988)', () => {
     const dir = tmpRepo()
     mockBranch()
     mockedRunCli
       .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      // git status --porcelain -- __tests__ → clean
+      // git status --porcelain -- <test-path> → clean
       .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 10 })
       // git ls-tree HEAD <path> → empty stdout means the path is not in HEAD
       .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 10 })
