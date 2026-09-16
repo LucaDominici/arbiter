@@ -92,99 +92,19 @@ describe('runConfigure — --set round-trips', () => {
     })
   })
 
-  it('updates an existing /drain default when the worktree cap changes (#2344)', async () => {
+  it('leaves generated /drain content for the explicit update step', async () => {
     writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 2 } })
     const drainPath = join(dir, '.claude', 'commands', 'drain.md')
     mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    writeFileSync(
-      drainPath,
-      'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n',
-    )
+    const generated = '| `--max-parallel N` | 6 | Max worktree agents |\n'
+    writeFileSync(drainPath, generated)
 
     await runConfigure({ dir, sets: ['automation.maxParallelWorktrees=7'] })
 
-    expect(readFileSync(drainPath, 'utf8')).toBe(
-      'before\n| `--max-parallel N` | 7       | Max worktree agents; keep this text |\nafter\n',
-    )
-  })
-
-  // #2546 — CANON-24 inversion proof, silent-happy-path half: an ordinary
-  // (non-preserve-marked) drain.md that actually changes must sync with NO
-  // new stderr output. The regression this guards is a fix that reports on
-  // EVERY run instead of only the withheld one.
-  it('syncs an ordinary /drain default SILENTLY — no new stderr output (#2546)', async () => {
-    writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 2 } })
-    const drainPath = join(dir, '.claude', 'commands', 'drain.md')
-    mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    writeFileSync(
-      drainPath,
-      'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n',
-    )
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    await runConfigure({ dir, sets: ['automation.maxParallelWorktrees=9'] })
-
-    expect(readFileSync(drainPath, 'utf8')).toContain('| `--max-parallel N` | 9       |')
-    // Pre-existing, unrelated `useGitHub` migration deprecation warning fires
-    // on every load — assert no NEW output about the (successful) drain sync,
-    // not that stderr is untouched by anything.
-    const stderrOutput = stderrSpy.mock.calls.map((c) => String(c[0])).join('')
-    expect(stderrOutput.toLowerCase()).not.toContain('drain')
-    expect(stderrOutput).not.toContain('arbiter:preserve')
-  })
-
-  // #2546 — CANON-24 inversion proof, silent-happy-path half (no-op case): the
-  // overwhelmingly common run is "content already identical" (writeFile
-  // returns withheld: false because there is nothing to write at all). That
-  // must ALSO stay silent — this is the case a naive "report on withheld"
-  // fix would most easily get right by accident while breaking the marker case.
-  it('produces no new output when the /drain default already matches (no-op, #2546)', async () => {
-    writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 7 } })
-    const drainPath = join(dir, '.claude', 'commands', 'drain.md')
-    mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    writeFileSync(
-      drainPath,
-      'before\n| `--max-parallel N` | 7       | Max worktree agents; keep this text |\nafter\n',
-    )
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    // Re-set the same value: cap resolves to 7 again, before === after, no write at all.
-    await runConfigure({ dir, sets: ['automation.maxParallelWorktrees=7'] })
-
-    const stderrOutput = stderrSpy.mock.calls.map((c) => String(c[0])).join('')
-    expect(stderrOutput.toLowerCase()).not.toContain('drain')
-    expect(stderrOutput).not.toContain('arbiter:preserve')
-  })
-
-  // #2546 AC-1/AC-3: a preserve-marked drain.md must NOT be overwritten, must
-  // NOT throw (configure still succeeds), and must report the un-synced file
-  // plus the value the user has to set by hand — without telling them to
-  // delete their marker.
-  it('reports (but does not overwrite) a preserve-marked /drain default, and still succeeds (#2546)', async () => {
-    writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 2 } })
-    const drainPath = join(dir, '.claude', 'commands', 'drain.md')
-    mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    const original =
-      '<!-- arbiter:preserve -->\n' +
-      'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n'
-    writeFileSync(drainPath, original)
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    await expect(
-      runConfigure({ dir, sets: ['automation.maxParallelWorktrees=9'] }),
-    ).resolves.toBeUndefined()
-
-    // The file was NOT overwritten — the preserve marker held.
-    expect(readFileSync(drainPath, 'utf8')).toBe(original)
-    // arbiter.json itself still landed — the command is not half-applied.
-    const raw = readArbiterJson(dir)
-    expect((raw['automation'] as Record<string, unknown>)['maxParallelWorktrees']).toBe(9)
-
-    const stderrOutput = stderrSpy.mock.calls.map((c) => String(c[0])).join('')
-    expect(stderrOutput).toContain('drain.md')
-    expect(stderrOutput).toContain('arbiter:preserve')
-    expect(stderrOutput).toContain('9')
-    expect(stderrOutput.toLowerCase()).not.toContain('delete')
+    expect(readFileSync(drainPath, 'utf8')).toBe(generated)
+    expect(
+      (readArbiterJson(dir)['automation'] as Record<string, unknown>)['maxParallelWorktrees'],
+    ).toBe(7)
   })
 
   it('applies multiple --set flags atomically', async () => {
@@ -376,6 +296,32 @@ describe('runConfigure — validation', () => {
     await expect(runConfigure({ dir, sets: ['features.debtGates=maybe'] })).rejects.toThrow()
 
     expect(readArbiterJson(dir)).toEqual(before)
+  })
+
+  it.each(['invariantTiers=42', 'worktree=42', 'plugins=42', 'evidenceRetention=42'])(
+    'rejects malformed structured setting %s without writing',
+    async (assignment) => {
+      writeV2Config(dir)
+      const before = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+      await expect(runConfigure({ dir, sets: [assignment] })).rejects.toThrow()
+      expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(before)
+    },
+  )
+
+  it('rejects a stale interactive preview without writing', async () => {
+    writeV2Config(dir)
+    const previewed = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+    writeV2Config(dir, { governanceLevel: 'L3' })
+    const changed = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+
+    await expect(
+      runConfigure({
+        dir,
+        sets: ['features.debtGates=false'],
+        expectedConfig: previewed,
+      }),
+    ).rejects.toMatchObject({ code: 'E_CONFIG_CHANGED' })
+    expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(changed)
   })
 
   it('exits with code 2 when no --set provided and no TTY', async () => {

@@ -12,7 +12,11 @@ import { readUnifiedState } from './task-state.js'
 import { parseValue } from './configure.js'
 import { envOverrideKeyForPath } from '../config/env-overrides.js'
 import { ARBITER_ENV_FLAGS } from '../config/env-registry.js'
+import type { EnvFlag } from '../config/env-registry.js'
 import { readFileTranslated } from '../utils/fs.js'
+import { parseBooleanEnv } from '../utils/env.js'
+import { DEFAULT_TRAIN_LIMITS } from './ship-train.js'
+import { DEFAULT_REVIEW_MAX_ROUNDS } from './ship-review.js'
 
 export type SettingClassification =
   'editable' | 'derived' | 'mandatory' | 'not-applicable' | 'internal'
@@ -36,6 +40,7 @@ interface SettingDefinition {
   applicability?: (config: unknown) => SettingApplicability
   defaultValue?: unknown
   environment?: boolean
+  environmentFlag?: EnvFlag
 }
 
 export interface SettingField extends SettingDefinition {
@@ -154,10 +159,26 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
       // coherence and rendered /drain surfaces; absent ⇒ collaboration-mode default.
       { path: 'automation.maxParallelWorktrees', label: 'Max parallel wave worktrees' },
       // defaultGateLevel keeps its resolver floor (absent ⇒ L1 at every read site).
-      { path: 'automation.defaultGateLevel', label: 'Default gate level (L1|L2)' },
-      { path: 'ship.train.maxChain', label: 'Maximum issues per delivery train' },
-      { path: 'ship.train.maxAgeMinutes', label: 'Maximum delivery-train age (minutes)' },
-      { path: 'ship.review.maxRounds', label: 'Maximum review rounds' },
+      {
+        path: 'automation.defaultGateLevel',
+        label: 'Default gate level (L1|L2)',
+        defaultValue: 'L1',
+      },
+      {
+        path: 'ship.train.maxChain',
+        label: 'Maximum issues per delivery train',
+        defaultValue: DEFAULT_TRAIN_LIMITS.maxChain,
+      },
+      {
+        path: 'ship.train.maxAgeMinutes',
+        label: 'Maximum delivery-train age (minutes)',
+        defaultValue: DEFAULT_TRAIN_LIMITS.maxAgeMinutes,
+      },
+      {
+        path: 'ship.review.maxRounds',
+        label: 'Maximum review rounds',
+        defaultValue: DEFAULT_REVIEW_MAX_ROUNDS,
+      },
     ],
   },
   {
@@ -309,6 +330,7 @@ const ENVIRONMENT_SETTINGS: SettingDefinitionGroup = {
     applicability: flag.classification === 'reserved' ? NO_RUNTIME_CONSUMER : ALWAYS_APPLICABLE,
     defaultValue: flag.default,
     environment: true,
+    environmentFlag: flag,
   })),
 }
 
@@ -405,24 +427,72 @@ function settingState(
   }
 }
 
+function parseEnvironmentValue(flag: EnvFlag, raw: string): unknown {
+  if (flag.type === 'boolean') return parseBooleanEnv(raw)
+  if (flag.type === 'number') {
+    const value = Number(raw)
+    return Number.isFinite(value) && value > 0 ? value : undefined
+  }
+  if (flag.type === 'enum') return flag.enumValues?.includes(raw) === true ? raw : undefined
+  return raw
+}
+
+function parsePrefixEnvironment(field: SettingField, matches: Array<[string, string]>): unknown {
+  return Object.fromEntries(
+    matches.flatMap(([key, value]) => {
+      const effective =
+        field.path === 'ARBITER_FEATURE__'
+          ? parseBooleanEnv(value)
+          : field.path === 'ARBITER_THRESHOLD__' && Number.isFinite(Number(value))
+            ? Number(value)
+            : field.path === 'ARBITER_THRESHOLD__'
+              ? undefined
+              : value
+      return effective === undefined ? [] : [[key, effective]]
+    }),
+  )
+}
+
+function declaredEnvironmentValue(
+  field: SettingField,
+  matches: Array<[string, string]>,
+  prefix: boolean,
+): unknown {
+  if (matches.length === 0) return null
+  if (field.classification === 'internal') return '(set)'
+  if (matches.length === 1 && !prefix) return matches[0]?.[1]
+  return matches.map(([key]) => key)
+}
+
 function environmentSettingState(field: SettingField): SettingState {
+  const flag = field.environmentFlag
+  if (flag === undefined) throw new Error(`Missing environment metadata for ${field.path}`)
   const prefix = field.path.endsWith('_')
   const matches = Object.entries(process.env).filter(
     ([key, value]) =>
       value !== undefined && (prefix ? key.startsWith(field.path) : key === field.path),
   )
-  const declared =
-    matches.length === 0
-      ? null
-      : field.classification === 'internal'
-        ? '(set)'
-        : matches.length === 1 && !prefix
-          ? matches[0]?.[1]
-          : matches.map(([key]) => key)
+  const definedMatches = matches.filter(
+    (entry): entry is [string, string] => entry[1] !== undefined,
+  )
+  const declared = declaredEnvironmentValue(field, definedMatches, prefix)
+  const parsed = prefix
+    ? parsePrefixEnvironment(field, definedMatches)
+    : matches[0]?.[1] === undefined
+      ? undefined
+      : parseEnvironmentValue(flag, matches[0][1])
+  const hasEffective = prefix
+    ? Object.keys(parsed as Record<string, unknown>).length > 0
+    : parsed !== undefined
   return {
     declared,
-    effective: declared ?? field.defaultValue ?? null,
-    source: declared === null ? 'default' : 'env',
+    effective:
+      field.classification === 'internal' && declared !== null
+        ? '(set)'
+        : hasEffective
+          ? parsed
+          : (field.defaultValue ?? null),
+    source: hasEffective ? 'env' : 'default',
     applicability: field.applicability({}),
   }
 }

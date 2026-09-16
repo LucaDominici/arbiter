@@ -161,6 +161,15 @@ describe('runInteractiveConfigure — edge / cancel-guard branch coverage', () =
     dir = mkdtempSync(join(tmpdir(), 'arbiter-cfgint-edge-'))
     mockSelect.mockReset()
     mockSelect.mockResolvedValueOnce('custom')
+    mockMultiselect.mockReset()
+    mockMultiselect.mockResolvedValueOnce([
+      'shape',
+      'features',
+      'thresholds',
+      'collaboration',
+      'access',
+      'automation',
+    ])
     // Default: nothing is a cancel. Each test that needs a cancel overrides this
     // to recognise the CANCEL sentinel only.
     vi.mocked(clack.isCancel).mockImplementation((v: unknown): v is symbol => v === CANCEL)

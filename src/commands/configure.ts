@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { resolve, join, relative } from 'node:path'
+import { resolve, join } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { saveConfig } from '../utils/config.js'
 import {
@@ -20,8 +20,7 @@ import { SUPPORTED_AI_TOOLS } from '../wizard/types.js'
 import type { Archetype } from '../wizard/types.js'
 import type { ProjectPreset } from '../wizard/types.js'
 import { t } from '../i18n/index.js'
-import { ensureDir, readFileTranslated, writeFile } from '../utils/fs.js'
-import { resolveMaxParallelWorktrees } from '../config/collaboration-mode-defaults.js'
+import { ensureDir } from '../utils/fs.js'
 import { migrate } from '../config/migrations/index.js'
 
 export interface ConfigureOptions {
@@ -29,6 +28,8 @@ export interface ConfigureOptions {
   sets: string[]
   json?: boolean | undefined
   preset?: string | undefined
+  /** Raw arbiter.json bytes shown in an interactive preview. */
+  expectedConfig?: string | undefined
 }
 
 type ApplicablePreset = Exclude<ProjectPreset, 'none'>
@@ -642,56 +643,6 @@ function applySet(config: ArbiterConfigV2, path: string, value: unknown): Arbite
   return { ...config, [top]: setNested(current, tail, value) }
 }
 
-/**
- * #2546: the withheld half of a drain.md sync — `drainPath` (for naming the
- * file in the report) and `cap` (the value the user must now set by hand).
- * Returned ONLY when `writeFile` actually withheld the write; an ordinary
- * sync (or a no-op — content already matched) returns `null` and callers
- * stay silent, which is the CANON-24 inversion this type exists to protect.
- */
-interface DrainSyncWithheld {
-  drainPath: string
-  cap: number
-}
-
-/**
- * Keep the materialized /drain default live for existing projects (#2344).
- *
- * #2546: `writeFile`'s `WriteResult` is inspected rather than discarded. At
- * this call site `withheld: true` can only ever mean the on-disk drain.md
- * carries the `arbiter:preserve` marker (see `src/utils/fs.ts` —
- * `resolveSessionSkip`'s withheld branch requires an active generation
- * session, and `configure` never opens one; this call also passes no
- * `session`/`skipIfExists`/`backup`). A preserve mark here is a legitimate
- * user action, not a failure: `drain.md` is a generator-emitted file a
- * downstream repo may deliberately hand-customise and freeze. So this does
- * NOT call `assertWritten` and does NOT throw — `syncDrainMaxParallel` is
- * called after `saveConfig` inside the same lock, and throwing would leave
- * `arbiter.json` persisted but the command reporting failure. Instead the
- * withheld outcome is returned for the caller to report as a warning while
- * `configure` still exits 0.
- */
-function syncDrainMaxParallel(
-  targetDir: string,
-  config: ArbiterConfigV2,
-): DrainSyncWithheld | null {
-  const drainPath = join(targetDir, '.claude', 'commands', 'drain.md')
-  if (!existsSync(drainPath)) return null
-  const cap = resolveMaxParallelWorktrees({
-    automation: config.automation,
-    collaborationMode: config.collaborationMode,
-    enableSoloDevMode: config.features.soloDevMode,
-  })
-  const before = readFileTranslated(drainPath, 'utf8')
-  const after = before.replace(
-    /^(\| `--max-parallel N` \|) [^|\r\n]+(\| Max worktree agents;.*)$/m,
-    `$1 ${cap}       $2`,
-  )
-  if (after === before) return null
-  const result = writeFile(drainPath, after)
-  return result.withheld ? { drainPath, cap } : null
-}
-
 function resolvePreset(options: ConfigureOptions): ApplicablePreset | undefined {
   const preset =
     options.preset === 'industrial-grade' || options.preset === 'solo-homelab'
@@ -716,7 +667,6 @@ function resolvePreset(options: ConfigureOptions): ApplicablePreset | undefined 
 interface ConfigureMutation {
   updated: string[]
   changedConfig: boolean
-  drainWithheld: DrainSyncWithheld | null
 }
 
 async function mutateConfig(
@@ -724,13 +674,20 @@ async function mutateConfig(
   configPath: string,
   sets: string[],
   preset: ApplicablePreset | undefined,
+  expectedConfig: string | undefined,
 ): Promise<ConfigureMutation> {
   ensureDir(join(targetDir, '.arbiter'))
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
   try {
     // The lock covers the raw read and write. Using loadConfig here would persist
     // process.env overrides and allow concurrent writers to lose one another's update.
-    const raw = JSON.parse(readFileSync(configPath, 'utf8')) as unknown
+    const rawText = readFileSync(configPath, 'utf8')
+    if (expectedConfig !== undefined && rawText !== expectedConfig) {
+      throw ArbiterError.fromKey('E_CONFIG_CHANGED', 'errors.E_CONFIG_CHANGED', undefined, {
+        hint: 'Review the current configuration and retry.',
+      })
+    }
+    const raw = JSON.parse(rawText) as unknown
     let config = migrate(raw)
     const updated = preset === undefined ? sets : assignmentsForPreset(config, preset)
     let archetypeTouched = false
@@ -754,13 +711,9 @@ async function mutateConfig(
       )
     }
     const changedConfig = JSON.stringify(raw) !== JSON.stringify(result.config)
-    if (!changedConfig) return { updated, changedConfig, drainWithheld: null }
+    if (!changedConfig) return { updated, changedConfig }
     await saveConfig(targetDir, result.config)
-    return {
-      updated,
-      changedConfig,
-      drainWithheld: syncDrainMaxParallel(targetDir, result.config),
-    }
+    return { updated, changedConfig }
   } finally {
     await lock.release()
   }
@@ -797,14 +750,13 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
     )
   }
 
-  const mutation = await mutateConfig(targetDir, configPath, options.sets, preset)
-
-  const drainWarning = mutation.drainWithheld
-    ? t('cli.configure.drain_sync_withheld', {
-        path: relative(targetDir, mutation.drainWithheld.drainPath),
-        cap: mutation.drainWithheld.cap,
-      })
-    : null
+  const mutation = await mutateConfig(
+    targetDir,
+    configPath,
+    options.sets,
+    preset,
+    options.expectedConfig,
+  )
 
   if (!mutation.changedConfig) {
     if (options.json) jsonOutput('configure', 'ok', { updated: [] })
@@ -815,17 +767,10 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
   if (options.json) {
     const reported =
       preset !== undefined ? [`preset=${preset}`, ...mutation.updated] : mutation.updated
-    jsonOutput(
-      'configure',
-      'ok',
-      { updated: reported },
-      undefined,
-      drainWarning ? { warnings: [drainWarning] } : undefined,
-    )
+    jsonOutput('configure', 'ok', { updated: reported })
     return
   }
   const reported =
     preset !== undefined ? [`preset=${preset}`, ...mutation.updated] : mutation.updated
   process.stdout.write(`${t('cli.configure.updated', { keys: reported.join(', ') })}\n`)
-  if (drainWarning) process.stderr.write(`${drainWarning}\n`)
 }

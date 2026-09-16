@@ -232,6 +232,50 @@ describe('runSettings', () => {
     expect(autonomy).toMatchObject({ declared: null, effective: 'L0', source: 'default' })
   })
 
+  it('reports the runtime defaults used by Ship when fields are absent', () => {
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    runSettings({ dir: projectWith({}), json: true })
+    const parsed = JSON.parse(out.join('')) as {
+      data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }
+    }
+    const byPath = new Map(
+      parsed.data.groups.flatMap((group) => group.fields).map((field) => [field['path'], field]),
+    )
+    expect(byPath.get('automation.defaultGateLevel')).toMatchObject({
+      declared: null,
+      effective: 'L1',
+      source: 'default',
+    })
+    expect(byPath.get('ship.train.maxChain')).toMatchObject({ effective: 10 })
+    expect(byPath.get('ship.train.maxAgeMinutes')).toMatchObject({ effective: 480 })
+    expect(byPath.get('ship.review.maxRounds')).toMatchObject({ effective: 2 })
+  })
+
+  it('does not report an invalid environment value as effective', () => {
+    process.env['ARBITER_LOG_LEVEL'] = 'verbose'
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    try {
+      runSettings({ dir: projectWith({}), json: true })
+    } finally {
+      delete process.env['ARBITER_LOG_LEVEL']
+    }
+    const parsed = JSON.parse(out.join('')) as {
+      data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }
+    }
+    const level = parsed.data.groups
+      .flatMap((group) => group.fields)
+      .find((field) => field['path'] === 'ARBITER_LOG_LEVEL')
+    expect(level).toMatchObject({ declared: 'verbose', effective: 'info', source: 'default' })
+  })
+
   // #1261/#2039: absence is an explained effective default, never an unexplained unset.
   it('renders automation.autonomy with declared/effective provenance (#1261)', () => {
     const out: string[] = []

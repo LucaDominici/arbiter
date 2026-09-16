@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runConfigure } from '../../src/commands/configure.js'
 import { cleanupTestProject, createTestProject } from '../helpers.js'
@@ -90,60 +90,24 @@ describe('configure --json', () => {
     expect(written.trim().startsWith('{')).toBe(false)
   })
 
-  // #2546 AC-4: a withheld drain.md sync must surface as a `warnings` field on
-  // the still-`ok` payload — never as an `error` status — and the process
-  // must still exit 0 (no process.exit call at all in this branch).
-  it('reports a withheld /drain sync as a warning on the ok payload, not an error (#2546)', async () => {
+  it('leaves generated files untouched until update runs', async () => {
     const drainPath = join(dir, '.claude', 'commands', 'drain.md')
     mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    writeFileSync(
-      drainPath,
-      '<!-- arbiter:preserve -->\n' +
-        'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n',
-    )
+    const original = '<!-- arbiter:preserve -->\ncustom drain command\n'
+    writeFileSync(drainPath, original)
     const config = {
       ...BASE_CONFIG,
       automation: { autonomy: 'L0', maxParallelWorktrees: 9 },
     }
     writeConfig(dir, config)
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit')
-    })
 
     await runConfigure({ dir, sets: ['permitGitHub=true'], json: true })
 
-    expect(exitSpy).not.toHaveBeenCalled()
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.status).toBe('ok')
     expect(parsed.data).toMatchObject({ updated: ['permitGitHub=true'] })
-    const warnings = parsed.warnings as string[]
-    expect(warnings).toBeDefined()
-    expect(warnings.join(' ')).toContain('drain.md')
-    expect(warnings.join(' ')).toContain('arbiter:preserve')
-    expect(warnings.join(' ')).toContain('9')
-    expect(warnings.join(' ').toLowerCase()).not.toContain('delete')
-  })
-
-  // #2546 — silent-happy-path half of the JSON surface: an ordinary sync must
-  // not add a `warnings` field at all (status stays a bare `ok`).
-  it('does not add a warnings field when the /drain sync lands normally (#2546)', async () => {
-    const drainPath = join(dir, '.claude', 'commands', 'drain.md')
-    mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    writeFileSync(
-      drainPath,
-      'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n',
-    )
-    const config = {
-      ...BASE_CONFIG,
-      automation: { autonomy: 'L0', maxParallelWorktrees: 9 },
-    }
-    writeConfig(dir, config)
-
-    await runConfigure({ dir, sets: ['permitGitHub=true'], json: true })
-
-    const parsed = JSON.parse(written) as Record<string, unknown>
-    expect(parsed.status).toBe('ok')
     expect(parsed.warnings).toBeUndefined()
+    expect(readFileSync(drainPath, 'utf8')).toBe(original)
   })
 
   it('emits JSON error envelope on empty --set with --json (BLOCKER-9)', async () => {

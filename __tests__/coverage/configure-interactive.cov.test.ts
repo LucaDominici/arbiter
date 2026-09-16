@@ -144,6 +144,15 @@ describe('runInteractiveConfigure — branch coverage', () => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-cfgint-cov-'))
     mockSelect.mockReset()
     mockSelect.mockResolvedValueOnce('custom')
+    mockMultiselect.mockReset()
+    mockMultiselect.mockResolvedValueOnce([
+      'shape',
+      'features',
+      'thresholds',
+      'collaboration',
+      'access',
+      'automation',
+    ])
     vi.mocked(clack.isCancel).mockImplementation(() => false)
   })
 
@@ -152,7 +161,7 @@ describe('runInteractiveConfigure — branch coverage', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('no config present → writes no_config to stderr and process.exit(1)', async () => {
+  it('custom first run without config → writes no_config to stderr and process.exit(1)', async () => {
     // No arbiter.json written → loadConfig returns null.
     const stderrSpy = vi
       .spyOn(process.stderr, 'write')
@@ -167,7 +176,7 @@ describe('runInteractiveConfigure — branch coverage', () => {
 
     expect(exitSpy).toHaveBeenCalledWith(1)
     expect(stderrSpy).toHaveBeenCalled()
-    expect(vi.mocked(clack.intro)).not.toHaveBeenCalled()
+    expect(vi.mocked(clack.intro)).toHaveBeenCalled()
 
     stderrSpy.mockRestore()
     exitSpy.mockRestore()
