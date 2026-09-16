@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { dirname } from 'node:path'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 import {
   combineTestOutput,
@@ -160,6 +160,15 @@ function captureTestOutput(
     }
     return testCommandLaunchFailure(err)
   }
+}
+
+function portableRecordedCommand(testCmd: readonly string[], dir: string): string[] {
+  const [cmd, ...args] = testCmd
+  if (cmd === undefined || !isAbsolute(cmd)) return [...testCmd]
+  const parts = relative(resolve(dir), cmd).split(sep)
+  return parts.length === 3 && parts[0] === 'node_modules' && parts[1] === '.bin'
+    ? [`node_modules/.bin/${parts[2]}`, ...args]
+    : [...testCmd]
 }
 
 /** Resolve current HEAD sha — this becomes the recorded test_commit_sha. */
@@ -347,7 +356,7 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
     recorded_at: new Date().toISOString(),
     // Persist the exact command used (binary + args), so the evidence is
     // reproducible and the runner selection is auditable.
-    test_command: [...testCmd],
+    test_command: portableRecordedCommand(testCmd, dir),
   }
 
   return saveEvidence(dir, evidence, sig.framework)
