@@ -505,7 +505,7 @@ When using Codex: read `.agents/CODEX.md` for Codex-specific configuration.
 
 ## Integrations
 
-Installed Claude Code skills detected at init time. These replace the corresponding built-in arbiter skill generators — do not regenerate the listed files.
+Installed Claude Code skills with an operative role or an active built-in generator replacement — do not regenerate the listed files under "Replaces".
 
 | Skill ID | Owner | Role | Replaces |
 |----------|-------|------|---------|
@@ -513,5 +513,6 @@ Installed Claude Code skills detected at init time. These replace the correspond
 <% } %>
 
 **Note:** Skill SKILL.md files listed under "Replaces" are not generated — the installed plugin provides superior coverage. Reference the plugin's documentation directly.
+When init produced `.arbiter/detected-integrations.json`, that file remains the complete detection snapshot from that init.
 <% } %>
 All governance rules are in **this file**.

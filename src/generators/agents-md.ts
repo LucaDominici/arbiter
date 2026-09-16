@@ -5,6 +5,7 @@ import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import { getFilteredInvariants, getInvariantsByTier } from '../invariants/filter.js'
 import { TIER_LABELS } from '../invariants/tiers.js'
+import { getSkillsMatrixEntries } from '../compatibility/skills-validator.js'
 import type { InstalledSkill, SkipReport } from '../integrations/types.js'
 
 /**
@@ -28,13 +29,18 @@ export function renderAgentsMd(
       : {}),
   })
   const invariantsByTier = getInvariantsByTier(invariants)
+  const roles = new Map(getSkillsMatrixEntries().map((skill) => [skill.skillId, skill.role]))
+  const replacements = new Set(skippedGenerators.map((skip) => skip.replacedBy))
+  const operativeSkills = installedSkills
+    .map((skill) => ({ ...skill, role: skill.role || roles.get(skill.skillId) }))
+    .filter((skill) => skill.role || replacements.has(skill.skillId))
 
   const data = {
     ...config,
     invariants,
     invariantsByTier,
     tierLabels: TIER_LABELS,
-    installedSkills,
+    installedSkills: operativeSkills,
     skippedGenerators,
   }
 

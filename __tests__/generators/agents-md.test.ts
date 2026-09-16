@@ -171,18 +171,31 @@ describe('generateAgentsMd', () => {
     expect(withInventory).toBe(baseline)
   })
 
-  it('Integrations section renders skill with empty replaces as dash (#556)', () => {
+  it('keeps a matrix-known operative skill without a replacement (#2618)', () => {
     const skill = {
-      skillId: 'pr-review-toolkit:code-reviewer',
-      pluginOwner: 'pr-review-toolkit',
+      skillId: 'superpowers:brainstorming',
+      pluginOwner: 'superpowers',
       version: '1.0.0',
       sourcePath: '/some/SKILL.md',
     }
     generateAgentsMd(makeConfig(dir), [skill], [])
     const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
     expect(content).toContain('## Integrations')
-    expect(content).toContain('pr-review-toolkit:code-reviewer')
-    expect(content).toContain('—')
+    expect(content).toContain('superpowers:brainstorming')
+    expect(content).toContain('pre-implementation design')
+  })
+
+  it('omits an unknown skill without a role or replacement (#2618)', () => {
+    const skill = {
+      skillId: 'unrelated:unknown',
+      pluginOwner: 'unrelated',
+      version: '1.0.0',
+      sourcePath: '/some/SKILL.md',
+    }
+    generateAgentsMd(makeConfig(dir), [skill], [])
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).not.toContain('## Integrations')
+    expect(content).not.toContain('unrelated:unknown')
   })
 
   // #1887-F: AGENTS.md documents the JaCoCo/Kover gradle-snippet wiring —
