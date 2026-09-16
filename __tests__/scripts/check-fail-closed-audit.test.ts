@@ -153,6 +153,21 @@ describe('check-fail-closed-audit', () => {
     expect(r.status).toBe(0)
   })
 
+  it('recognizes the canonical sibling run-helpers import used by check-all', () => {
+    writeFileSync(
+      join(env.root, 'scripts', 'helper-user.mjs'),
+      [
+        '#!/usr/bin/env node',
+        "import { runCheck } from './lib/run-helpers.mjs'",
+        '',
+        "runCheck('typecheck', 'tsc', ['--noEmit'])",
+        '',
+      ].join('\n'),
+    )
+    const r = runAudit(env.root)
+    expect(r.status).toBe(0)
+  })
+
   it('passes a node script that wraps its entry block in try/catch with process.exit(1)', () => {
     writeFileSync(
       join(env.root, 'scripts', 'try-catch.mjs'),

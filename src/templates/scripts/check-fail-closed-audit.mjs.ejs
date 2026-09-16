@@ -57,7 +57,8 @@ const PIPEFAIL = /^\s*set\s+-[a-zA-Z]*o\s+pipefail|^\s*set\s+-euo\s+pipefail|^\s
 const OR_TRUE = /\|\|\s*true\b/
 const FAIL_OPEN_MARK = /#\s*FAIL-OPEN-INTENT\s*:/i
 const FAIL_OPEN_MARK_JS = /\/\/\s*FAIL-OPEN-INTENT\s*:/i
-const HELPER_IMPORT = /from\s+['"][^'"]*scripts\/lib\/run-helpers(?:\.mjs)?['"]/
+const HELPER_IMPORT =
+  /from\s+['"](?:\.\/lib\/run-helpers|[^'"]*scripts\/lib\/run-helpers)(?:\.mjs)?['"]/
 const HELPER_USE = /\brun(Check|WarnCheck|ToolCheck)\s*\(/
 const TRY_CATCH_EXIT = /process\.exit\(\s*1\s*\)|throw\b/
 
@@ -98,8 +99,10 @@ function listFiles(absDir, recurse) {
     let st
     try {
       st = statSync(full)
-    } catch {
-      continue
+    } catch (err) {
+      // FAIL-OPEN-INTENT: ENOENT is a race (file removed between readdir and stat); rethrow all others.
+      if (err && err.code === 'ENOENT') continue
+      throw err
     }
     if (st.isDirectory()) {
       if (recurse) out.push(...listFiles(full, recurse))

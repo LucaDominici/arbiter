@@ -94,6 +94,7 @@ function checkDistPrerequisite(root) {
     if (!result.fresh) reason = result.reason
   } catch (err) {
     reason = `cannot read dist build manifest: ${err.message}. Run "npm run build" first.`
+    process.stderr.write(`check-all: prerequisite ERROR: ${reason}\n`)
   }
   const status = reason ? 'FAIL' : 'PASS'
   const elapsed = Date.now() - startedAt
