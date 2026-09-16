@@ -28,38 +28,29 @@ const HARD_FAIL = new Set([
 const GREEN_OK = new Set(['SUCCESS', 'SKIPPED', 'NEUTRAL'])
 
 /** Keep only the latest unambiguous attempt of each check identity. */
+function attemptIdentity(check, index) {
+  const name = check.name ?? check.context
+  if (check.workflowName && name) return `${check.workflowName}\0${name}`
+  return check.context ?? `ungrouped:${index}`
+}
+
+function latestAttempt(group) {
+  if (group.length === 1) return group
+  const dated = group.map((check) => ({ check, started: Date.parse(check.startedAt ?? '') }))
+  if (dated.some(({ started }) => !Number.isFinite(started))) return group
+  const latest = Math.max(...dated.map(({ started }) => started))
+  const current = dated.filter(({ started }) => started === latest)
+  return current.length === 1 ? [current[0].check] : group
+}
+
 function effectiveRollup(rollup) {
-  const groups = new Map()
-  const ungrouped = []
-
-  for (const check of rollup) {
-    const name = check.name ?? check.context
-    const key = check.workflowName && name ? `${check.workflowName}\0${name}` : check.context
-    if (!key) {
-      ungrouped.push(check)
-      continue
-    }
-    const group = groups.get(key) ?? []
+  const groups = rollup.reduce((result, check, index) => {
+    const key = attemptIdentity(check, index)
+    const group = result.get(key) ?? []
     group.push(check)
-    groups.set(key, group)
-  }
-
-  for (const group of groups.values()) {
-    if (group.length === 1) {
-      ungrouped.push(group[0])
-      continue
-    }
-    const dated = group.map((check) => ({ check, started: Date.parse(check.startedAt ?? '') }))
-    if (dated.some(({ started }) => !Number.isFinite(started))) {
-      ungrouped.push(...group)
-      continue
-    }
-    const latest = Math.max(...dated.map(({ started }) => started))
-    const current = dated.filter(({ started }) => started === latest)
-    ungrouped.push(...(current.length === 1 ? [current[0].check] : group))
-  }
-
-  return ungrouped
+    return result.set(key, group)
+  }, new Map())
+  return [...groups.values()].flatMap(latestAttempt)
 }
 
 /**
