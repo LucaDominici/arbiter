@@ -99,17 +99,20 @@ const COOLDOWN_DAYS = 30
 function isSpoolFinding(v: unknown): v is SpoolFinding {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
+  const requiredStrings = [
+    'ts',
+    'note',
+    'kind',
+    'severity',
+    'foundDuring',
+    'file',
+    'sha',
+    'fingerprint',
+  ]
   return (
-    typeof o['ts'] === 'string' &&
-    typeof o['note'] === 'string' &&
-    typeof o['kind'] === 'string' &&
-    typeof o['severity'] === 'string' &&
-    typeof o['foundDuring'] === 'string' &&
-    typeof o['file'] === 'string' &&
+    requiredStrings.every((key) => typeof o[key] === 'string') &&
     (o['line'] === null || (typeof o['line'] === 'number' && Number.isInteger(o['line']))) &&
-    typeof o['sha'] === 'string' &&
-    (o['graphNode'] === undefined || typeof o['graphNode'] === 'string') &&
-    typeof o['fingerprint'] === 'string'
+    (o['graphNode'] === undefined || typeof o['graphNode'] === 'string')
   )
 }
 
@@ -402,6 +405,18 @@ interface GhIssueListItem {
   closedAt?: string | null
 }
 
+function isGhIssueListItem(value: unknown): value is GhIssueListItem {
+  if (typeof value !== 'object' || value === null) return false
+  const item = value as Partial<GhIssueListItem>
+  if (typeof item.state !== 'string') return false
+  return (
+    typeof item.number === 'number' &&
+    Number.isInteger(item.number) &&
+    ['open', 'closed'].includes(item.state.toLowerCase()) &&
+    (item.closedAt === undefined || item.closedAt === null || typeof item.closedAt === 'string')
+  )
+}
+
 /** Search open+closed issues for the embedded fingerprint marker via gh full-text search. */
 function searchIssueByFingerprint(dir: string, fingerprint: string): IssueSearchResult | null {
   const result = runCli(
@@ -423,23 +438,12 @@ function searchIssueByFingerprint(dir: string, fingerprint: string): IssueSearch
   const parsed: unknown = JSON.parse(result.stdout)
   if (!Array.isArray(parsed)) throw new Error('malformed GitHub issue search response')
   if (parsed.length === 0) return null
-  const first = parsed[0] as Partial<GhIssueListItem> | null
-  if (first === null || typeof first !== 'object') {
+  const first: unknown = parsed[0]
+  if (!isGhIssueListItem(first)) {
     throw new Error('malformed GitHub issue search response')
   }
-  const issueNumber = first.number
-  const rawState = first.state
-  if (
-    typeof issueNumber !== 'number' ||
-    !Number.isInteger(issueNumber) ||
-    typeof rawState !== 'string' ||
-    !['open', 'closed'].includes(rawState.toLowerCase()) ||
-    !(first.closedAt === undefined || first.closedAt === null || typeof first.closedAt === 'string')
-  ) {
-    throw new Error('malformed GitHub issue search response')
-  }
-  const state = rawState.toLowerCase() as 'open' | 'closed'
-  const out: IssueSearchResult = { issueNumber, state }
+  const state = first.state.toLowerCase() as 'open' | 'closed'
+  const out: IssueSearchResult = { issueNumber: first.number, state }
   if (typeof first.closedAt === 'string' && first.closedAt.length > 0) out.closedAt = first.closedAt
   return out
 }
