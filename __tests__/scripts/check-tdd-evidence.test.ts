@@ -103,6 +103,12 @@ describe('isDocsOnlyChange', () => {
 
   it('is true only for documentation artifacts', () => {
     expect(isDocsOnlyChange('docs/x.md\nwiki/guide.svg\nREADME.md')).toBe(true)
+    expect(
+      isDocsOnlyChange(
+        '.arbiter/evidence/tabletop/scenario.md\n.arbiter/evidence/benchmark/#2718.json',
+      ),
+    ).toBe(true)
+    expect(isDocsOnlyChange('.arbiter/evidence/probe.mjs')).toBe(false)
     expect(isDocsOnlyChange('website/src/App.tsx')).toBe(false)
     expect(isDocsOnlyChange('AGENTS.md')).toBe(false)
     expect(isDocsOnlyChange('')).toBe(false)
