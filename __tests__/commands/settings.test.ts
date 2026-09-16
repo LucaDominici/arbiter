@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import {
   SETTINGS_CATALOG,
   SETTINGS_PATHS,
+  resolveCatalogSettingValue,
   resolveSettingValue,
   runSettings,
 } from '../../src/commands/settings.js'
@@ -79,18 +80,26 @@ describe('settings catalog (#1121)', () => {
   })
 
   it('keeps controls without a safe generic writer out of configure', () => {
-    for (const path of ['plugins', 'companions', 'conformanceThresholds']) {
+    for (const path of ['plugins', 'companions']) {
       const field = SETTINGS_CATALOG.flatMap((group) => group.fields).find(
         (candidate) => candidate.path === path,
       )
-      expect(field, path).toMatchObject({ classification: 'not-applicable' })
-      expect(field?.applicability({})).toEqual({
-        applicable: false,
-        reason: expect.any(String),
-      })
+      expect(field, path).toMatchObject({ classification: 'internal' })
+      expect(field?.applicability({})).toEqual({ applicable: true, reason: null })
       expect(SETTINGS_PATHS.has(path), path).toBe(false)
       expect(ALLOWED_PATHS.has(path), path).toBe(false)
     }
+
+    const conformance = SETTINGS_CATALOG.flatMap((group) => group.fields).find(
+      (candidate) => candidate.path === 'conformanceThresholds',
+    )
+    expect(conformance).toMatchObject({ classification: 'not-applicable' })
+    expect(conformance?.applicability({})).toEqual({
+      applicable: false,
+      reason: 'No operational runtime consumer',
+    })
+    expect(SETTINGS_PATHS.has('conformanceThresholds')).toBe(false)
+    expect(ALLOWED_PATHS.has('conformanceThresholds')).toBe(false)
   })
 
   it('classifies every registered environment control without exposing it as persistent', () => {
@@ -130,6 +139,15 @@ describe('resolveSettingValue', () => {
     expect(resolveSettingValue(cfg, 'thresholds.lineCoverage')).toBe(80)
     expect(resolveSettingValue(cfg, 'governanceLevel')).toBe('L2')
     expect(resolveSettingValue(cfg, 'missing.path')).toBeUndefined()
+  })
+
+  it('maps the legacy solo feature into the runtime parallelism default', () => {
+    expect(
+      resolveCatalogSettingValue(
+        { features: { soloDevMode: true } },
+        'automation.maxParallelWorktrees',
+      ),
+    ).toBe(1)
   })
 })
 

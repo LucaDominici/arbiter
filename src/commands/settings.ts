@@ -18,6 +18,7 @@ import { parseBooleanEnv } from '../utils/env.js'
 import { DEFAULT_TRAIN_LIMITS } from './ship-train.js'
 import { DEFAULT_REVIEW_MAX_ROUNDS } from './ship-review.js'
 import { DEFAULT_CROSS_MODEL_REVIEW } from '../config/schema.js'
+import type { ArbiterConfigV2 } from '../config/schema.js'
 import { resolveMaxParallelWorktrees } from '../config/collaboration-mode-defaults.js'
 
 export type SettingClassification =
@@ -69,6 +70,19 @@ const NO_RUNTIME_CONSUMER = (): SettingApplicability => ({
   applicable: false,
   reason: 'No operational runtime consumer',
 })
+
+function resolveMaxParallelDefault(config: unknown): number {
+  const project = config as {
+    automation?: ArbiterConfigV2['automation']
+    collaborationMode?: ArbiterConfigV2['collaborationMode']
+    features?: Pick<ArbiterConfigV2['features'], 'soloDevMode'>
+  }
+  return resolveMaxParallelWorktrees({
+    automation: project.automation,
+    collaborationMode: project.collaborationMode,
+    enableSoloDevMode: project.features?.soloDevMode,
+  })
+}
 
 /**
  * Catalog of every settable path, grouped for discovery. MUST stay in lockstep
@@ -163,8 +177,7 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
       {
         path: 'automation.maxParallelWorktrees',
         label: 'Max parallel wave worktrees',
-        defaultValueFor: (config) =>
-          resolveMaxParallelWorktrees(config as Parameters<typeof resolveMaxParallelWorktrees>[0]),
+        defaultValueFor: resolveMaxParallelDefault,
       },
       // defaultGateLevel keeps its resolver floor (absent ⇒ L1 at every read site).
       {
@@ -205,18 +218,16 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
       {
         path: 'plugins',
         label: 'Installed Arbiter plugins',
-        classification: 'not-applicable',
-        effect: 'Managed by arbiter plugin add/list after package validation',
+        classification: 'internal',
+        effect: 'Managed and availability-checked by arbiter plugin add/list',
         cost: 'unmeasured',
-        applicability: NO_RUNTIME_CONSUMER,
       },
       {
         path: 'companions',
         label: 'Companion skill policy',
-        classification: 'not-applicable',
-        effect: 'Availability depends on installed companion skills',
+        classification: 'internal',
+        effect: 'Resolved from installed companion skills and reported by arbiter doctor',
         cost: 'unmeasured',
-        applicability: NO_RUNTIME_CONSUMER,
       },
       { path: 'lanes', label: 'Project lanes' },
       { path: 'taskTiers', label: 'Task-size planning and review policy' },
