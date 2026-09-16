@@ -99,7 +99,18 @@ const COOLDOWN_DAYS = 30
 function isSpoolFinding(v: unknown): v is SpoolFinding {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
-  return typeof o['fingerprint'] === 'string' && typeof o['note'] === 'string'
+  return (
+    typeof o['ts'] === 'string' &&
+    typeof o['note'] === 'string' &&
+    typeof o['kind'] === 'string' &&
+    typeof o['severity'] === 'string' &&
+    typeof o['foundDuring'] === 'string' &&
+    typeof o['file'] === 'string' &&
+    (o['line'] === null || (typeof o['line'] === 'number' && Number.isInteger(o['line']))) &&
+    typeof o['sha'] === 'string' &&
+    (o['graphNode'] === undefined || typeof o['graphNode'] === 'string') &&
+    typeof o['fingerprint'] === 'string'
+  )
 }
 
 /** Read every `.arbiter/findings/*.jsonl` shard; unreadable or malformed data fails closed. */
@@ -123,14 +134,18 @@ function readSpool(dir: string): SpoolFinding[] {
     for (const [index, line] of raw.split('\n').entries()) {
       const trimmed = line.trim()
       if (trimmed.length === 0) continue
+      let parsed: unknown
       try {
-        const parsed: unknown = JSON.parse(trimmed)
-        if (isSpoolFinding(parsed)) out.push(parsed)
+        parsed = JSON.parse(trimmed)
       } catch (err) {
         throw new Error(`${shard}:${index + 1} is not valid finding JSON: ${String(err)}`, {
           cause: err,
         })
       }
+      if (!isSpoolFinding(parsed)) {
+        throw new Error(`${shard}:${index + 1} does not match the finding schema`)
+      }
+      out.push(parsed)
     }
   }
   return out
@@ -406,11 +421,25 @@ function searchIssueByFingerprint(dir: string, fingerprint: string): IssueSearch
     { cwd: dir, timeoutMs: 30_000 },
   )
   const parsed: unknown = JSON.parse(result.stdout)
-  if (!Array.isArray(parsed) || parsed.length === 0) return null
-  const first = parsed[0] as GhIssueListItem
-  if (typeof first.number !== 'number') return null
-  const state = first.state.toLowerCase() === 'open' ? 'open' : 'closed'
-  const out: IssueSearchResult = { issueNumber: first.number, state }
+  if (!Array.isArray(parsed)) throw new Error('malformed GitHub issue search response')
+  if (parsed.length === 0) return null
+  const first = parsed[0] as Partial<GhIssueListItem> | null
+  if (first === null || typeof first !== 'object') {
+    throw new Error('malformed GitHub issue search response')
+  }
+  const issueNumber = first.number
+  const rawState = first.state
+  if (
+    typeof issueNumber !== 'number' ||
+    !Number.isInteger(issueNumber) ||
+    typeof rawState !== 'string' ||
+    !['open', 'closed'].includes(rawState.toLowerCase()) ||
+    !(first.closedAt === undefined || first.closedAt === null || typeof first.closedAt === 'string')
+  ) {
+    throw new Error('malformed GitHub issue search response')
+  }
+  const state = rawState.toLowerCase() as 'open' | 'closed'
+  const out: IssueSearchResult = { issueNumber, state }
   if (typeof first.closedAt === 'string' && first.closedAt.length > 0) out.closedAt = first.closedAt
   return out
 }

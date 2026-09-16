@@ -3,7 +3,15 @@ import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync, writeFileSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
+
+const { mockRunCli } = vi.hoisted(() => ({ mockRunCli: vi.fn() }))
+
+vi.mock('../../src/utils/run-cli.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/utils/run-cli.js')>()),
+  runCli: mockRunCli,
+}))
+
 import { findingOperations } from '../../src/findings/operations.js'
 
 const { promote: runFindingsPromote, triage: runFindingsTriage } = findingOperations
@@ -37,6 +45,7 @@ describe('runFindingsPromote()', () => {
   const dirs: string[] = []
 
   afterEach(() => {
+    mockRunCli.mockReset()
     while (dirs.length > 0) {
       const d = dirs.pop()
       if (d) rmSync(d, { recursive: true, force: true })
@@ -122,6 +131,31 @@ describe('runFindingsPromote()', () => {
 
     expect(() => runFindingsPromote({ dir }, deps)).toThrow('broken.jsonl:1')
   })
+
+  it('schema-invalid spool data fails closed instead of being silently discarded', () => {
+    const dir = tmpRepo()
+    const findingsDir = join(dir, '.arbiter', 'findings')
+    mkdirSync(findingsDir, { recursive: true })
+    writeFileSync(
+      join(findingsDir, 'incomplete.jsonl'),
+      `${JSON.stringify({ fingerprint: 'abc', note: 'missing required fields' })}\n`,
+      'utf-8',
+    )
+    const { deps } = makeDeps()
+
+    expect(() => runFindingsPromote({ dir }, deps)).toThrow(/incomplete\.jsonl:1.*schema/i)
+  })
+
+  it.each(['{}', '[{"state":"OPEN"}]'])(
+    'malformed GitHub issue search shape fails closed: %s',
+    (stdout) => {
+      mockRunCli.mockReturnValue({ stdout, stderr: '', exitCode: 0, durationMs: 1 })
+
+      expect(() => findingOperations.defaultDeps.searchIssueByFingerprint('/tmp', 'abc')).toThrow(
+        /malformed.*issue search/i,
+      )
+    },
+  )
 
   it('(unit 2) finding whose file is gone → DROPPED, never filed', () => {
     const dir = tmpRepo()
