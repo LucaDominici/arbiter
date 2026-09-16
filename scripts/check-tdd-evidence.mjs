@@ -99,9 +99,11 @@ export function isDocsOnlyChange(changedPaths) {
     .filter(Boolean)
   const doc = /\.(?:md|mdx|rst|adoc|txt)$/i
   const docAsset = /\.(?:png|jpe?g|gif|webp|svg)$/i
+  const evidenceRecord = /\.(?:json|md|log|txt)$/i
   return (
     paths.length > 0 &&
     paths.every((p) => {
+      if (/^\.arbiter\/evidence\//.test(p)) return evidenceRecord.test(p)
       if (!p.includes('/')) return p !== 'AGENTS.md' && doc.test(p)
       return /^(?:docs|wiki)\//.test(p) && (doc.test(p) || docAsset.test(p))
     })
