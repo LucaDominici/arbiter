@@ -200,6 +200,21 @@ describe('runConfigure — --set round-trips', () => {
     expect((raw['thresholds'] as Record<string, unknown>)['lineCoverage']).toBe(85)
   })
 
+  it('never persists environment overrides while editing another field', async () => {
+    writeV2Config(dir, {
+      thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 60 },
+    })
+    process.env['ARBITER_THRESHOLD__LINE_COVERAGE'] = '88'
+    try {
+      await runConfigure({ dir, sets: ['features.debtGates=false'] })
+    } finally {
+      delete process.env['ARBITER_THRESHOLD__LINE_COVERAGE']
+    }
+
+    const raw = readArbiterJson(dir)
+    expect((raw['thresholds'] as Record<string, unknown>)['lineCoverage']).toBe(60)
+  })
+
   it('edits existing ship bounds, runner cadence and init-only feature flags through configure', async () => {
     writeV2Config(dir)
 
@@ -221,6 +236,49 @@ describe('runConfigure — --set round-trips', () => {
       train: { maxChain: 3, maxAgeMinutes: 120 },
       review: { maxRounds: 1 },
     })
+  })
+
+  it('edits structured and deep runtime policy through the same atomic writer', async () => {
+    writeV2Config(dir)
+
+    await runConfigure({
+      dir,
+      sets: [
+        'smokeJourneys.requiredJourneys=["auth","crud","authz"]',
+        'e2ePolicy.escalation.strikes=[2,3,5]',
+        'e2ePolicy.escalation.maxStrikes=5',
+      ],
+    })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['smokeJourneys']).toEqual({ requiredJourneys: ['auth', 'crud', 'authz'] })
+    expect(raw['e2ePolicy']).toEqual({ escalation: { strikes: [2, 3, 5], maxStrikes: 5 } })
+  })
+
+  it('applies a preset noninteractively and repeated apply is byte-identical', async () => {
+    writeV2Config(dir, { governanceLevel: 'L4' })
+
+    await runConfigure({ dir, sets: [], preset: 'solo-homelab' })
+    const first = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+    const config = JSON.parse(first) as Record<string, unknown>
+    expect(config['preset']).toBe('solo-homelab')
+    expect(config['governanceLevel']).toBe('L2')
+
+    await runConfigure({ dir, sets: [], preset: 'solo-homelab' })
+    expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(first)
+  })
+
+  it('rejects unknown presets and ambiguous preset plus set input before writing', async () => {
+    writeV2Config(dir)
+    const before = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+
+    await expect(runConfigure({ dir, sets: [], preset: 'unknown' })).rejects.toThrow(
+      /Unknown configure preset/,
+    )
+    await expect(
+      runConfigure({ dir, sets: ['features.debtGates=false'], preset: 'solo-homelab' }),
+    ).rejects.toThrow(/cannot be combined/)
+    expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(before)
   })
 
   // #1887-A: activation path for enableCodeownersNotify / enableTaxonomy25d /

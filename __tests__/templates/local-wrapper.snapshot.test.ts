@@ -92,9 +92,9 @@ describe('local-wrapper/.env.example.ejs — env var reference (#879, W3)', () =
     expect(content).not.toMatch(/\bARBITER_LEVEL\b/)
   })
 
-  it('.env.example contains ARBITER_EVIDENCE_DIR', () => {
+  it('.env.example does not advertise the unconsumed ARBITER_EVIDENCE_DIR', () => {
     generateEnvTemplate(makeConfig(dir))
     const content = readFileSync(join(dir, '.env.example'), 'utf-8')
-    expect(content).toContain('ARBITER_EVIDENCE_DIR')
+    expect(content).not.toContain('ARBITER_EVIDENCE_DIR')
   })
 })

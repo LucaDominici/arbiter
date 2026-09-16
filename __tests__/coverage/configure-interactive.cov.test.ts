@@ -28,6 +28,7 @@ vi.mock('../../src/utils/file-lock.js', () => ({
 // Mock runConfigure so we can assert on the exact `sets` (assignment list) the
 // interactive flow produces, independent of migration side-effects in saveConfig.
 vi.mock('../../src/commands/configure.js', () => ({
+  assignmentsForPreset: vi.fn(() => []),
   runConfigure: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -141,6 +142,8 @@ describe('runInteractiveConfigure — branch coverage', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-cfgint-cov-'))
+    mockSelect.mockReset()
+    mockSelect.mockResolvedValueOnce('custom')
     vi.mocked(clack.isCancel).mockImplementation(() => false)
   })
 

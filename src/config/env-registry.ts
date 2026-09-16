@@ -34,6 +34,7 @@ type Env = Record<string, string | undefined>
 
 /** Value shape of an `ARBITER_*` flag. `prefix` marks a dynamic dispatcher. */
 export type EnvFlagType = 'boolean' | 'number' | 'string' | 'enum' | 'prefix'
+export type EnvFlagClassification = 'runtime' | 'internal' | 'reserved'
 
 export interface EnvFlag {
   /** Full env-var name, e.g. `ARBITER_SKIP_TDD`. */
@@ -48,16 +49,23 @@ export interface EnvFlag {
   readonly isGateBypass: boolean
   /** Allowed values for an `enum` flag. */
   readonly enumValues?: readonly string[]
+  /** Whether users may tune it per process, or Arbiter owns/reserves it. */
+  readonly classification: EnvFlagClassification
+}
+
+type EnvFlagDefinition = Omit<EnvFlag, 'classification'> & {
+  readonly classification?: EnvFlagClassification
 }
 
 /**
  * The complete flag set. Adding a new `ARBITER_*` read to `src/` or `scripts/`
  * without adding its entry here is a gate violation (the inventory guard fails).
  */
-export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
+const ENV_FLAG_DEFINITIONS: readonly EnvFlagDefinition[] = [
   // ── Runtime / trace ──────────────────────────────────────────────────────
   {
     name: 'ARBITER_RUN_ID',
+    classification: 'internal',
     type: 'string',
     purpose:
       'Trace ID for the current process; minted once and exported so subprocesses inherit it.',
@@ -88,6 +96,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   {
     name: 'ARBITER_EXPERIMENTAL',
+    classification: 'internal',
     type: 'string',
     purpose:
       'JSON map of enabled experimental flags; set by the CLI for downstream command access.',
@@ -95,10 +104,10 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   // ── Config overrides (top-level + prefix dispatchers) ────────────────────
   {
-    name: 'ARBITER_LEVEL',
+    name: 'ARBITER_GOVERNANCE_LEVEL',
     type: 'enum',
     enumValues: ['L1', 'L2', 'L3', 'L4'],
-    purpose: 'Governance level override for local gate runs.',
+    purpose: 'Governance level override applied by the canonical config loader.',
     isGateBypass: false,
   },
   {
@@ -116,6 +125,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   {
     name: 'ARBITER_CONSUMER_',
+    classification: 'internal',
     type: 'prefix',
     purpose:
       'Credential namespace used only by the trusted consumer-reliability preparation process; stripped before verification.',
@@ -148,6 +158,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   // ── Paths / integration ──────────────────────────────────────────────────
   {
     name: 'ARBITER_EVIDENCE_DIR',
+    classification: 'reserved',
     type: 'string',
     purpose: 'Path to the evidence artifact directory.',
     isGateBypass: false,
@@ -179,12 +190,14 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   // ── Hooks ────────────────────────────────────────────────────────────────
   {
     name: 'ARBITER_HOOK_GIT_CWD',
+    classification: 'internal',
     type: 'string',
     purpose: 'Working directory hooks resolve git operations against.',
     isGateBypass: false,
   },
   {
     name: 'ARBITER_HOOK_BASENAMES',
+    classification: 'reserved',
     type: 'string',
     purpose: 'Override the set of hook basenames considered by hook dispatch.',
     isGateBypass: false,
@@ -283,6 +296,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   {
     name: 'ARBITER_GATE_MUTEX_HELD',
+    classification: 'internal',
     type: 'string',
     default: '',
     purpose:
@@ -293,6 +307,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   {
     name: 'ARBITER_GATE_PARENT_PID',
+    classification: 'internal',
     type: 'string',
     default: '',
     purpose:
@@ -310,6 +325,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   {
     name: 'ARBITER_BYPASS_BRANCH',
+    classification: 'internal',
     type: 'string',
     purpose: 'Branch name recorded in the loud-bypass audit line.',
     isGateBypass: false,
@@ -378,6 +394,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   {
     name: 'ARBITER_POST_CLEAR',
+    classification: 'internal',
     type: 'boolean',
     default: false,
     purpose: 'Signal a post-/clear re-entry (mirrors --post-clear); controls handoff strategy.',
@@ -414,6 +431,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   {
     name: 'ARBITER_GATE_BYPASS',
+    classification: 'reserved',
     type: 'boolean',
     default: false,
     purpose: 'Generic gate bypass switch (loud-bypass audited).',
@@ -428,6 +446,7 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
   },
   {
     name: 'ARBITER_PREPUSH_SKIP',
+    classification: 'internal',
     type: 'boolean',
     default: false,
     purpose:
@@ -442,6 +461,11 @@ export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = [
     isGateBypass: true,
   },
 ]
+
+export const ARBITER_ENV_FLAGS: readonly EnvFlag[] = ENV_FLAG_DEFINITIONS.map((flag) => ({
+  ...flag,
+  classification: flag.classification ?? 'runtime',
+}))
 
 const FLAG_BY_NAME: ReadonlyMap<string, EnvFlag> = new Map(
   ARBITER_ENV_FLAGS.map((f) => [f.name, f]),

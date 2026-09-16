@@ -5,19 +5,8 @@ import { runConfigure } from '../../src/commands/configure.js'
 import { cleanupTestProject, createTestProject } from '../helpers.js'
 
 vi.mock('../../src/utils/config.js', () => ({
-  loadConfig: vi.fn(),
   saveConfig: vi.fn(),
 }))
-
-vi.mock('../../src/config/schema.js', () => ({
-  validateConfig: vi.fn(),
-}))
-
-import { loadConfig } from '../../src/utils/config.js'
-import { validateConfig } from '../../src/config/schema.js'
-
-const mockLoadConfig = loadConfig as ReturnType<typeof vi.fn>
-const mockValidateConfig = validateConfig as ReturnType<typeof vi.fn>
 
 const BASE_CONFIG = {
   governanceLevel: 'L1',
@@ -43,6 +32,10 @@ const BASE_CONFIG = {
   version: 2 as const,
 }
 
+function writeConfig(dir: string, config: unknown = BASE_CONFIG): void {
+  writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config, null, 2) + '\n')
+}
+
 describe('configure --json', () => {
   let written: string
   let dir: string
@@ -62,8 +55,7 @@ describe('configure --json', () => {
   })
 
   it('emits JSON envelope on success', async () => {
-    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
-    mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
+    writeConfig(dir)
 
     await runConfigure({ dir, sets: ['permitGitHub=true'], json: true })
 
@@ -75,7 +67,6 @@ describe('configure --json', () => {
   })
 
   it('emits JSON error when no config found', async () => {
-    mockLoadConfig.mockReturnValue(null)
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit')
     })
@@ -90,8 +81,7 @@ describe('configure --json', () => {
   })
 
   it('does not emit JSON in human mode', async () => {
-    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
-    mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
+    writeConfig(dir)
 
     await runConfigure({ dir, sets: ['permitGitHub=false'], json: false })
 
@@ -115,8 +105,7 @@ describe('configure --json', () => {
       ...BASE_CONFIG,
       automation: { autonomy: 'L0', maxParallelWorktrees: 9 },
     }
-    mockLoadConfig.mockReturnValue({ ...config })
-    mockValidateConfig.mockReturnValue({ ok: true, config })
+    writeConfig(dir, config)
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit')
     })
@@ -148,8 +137,7 @@ describe('configure --json', () => {
       ...BASE_CONFIG,
       automation: { autonomy: 'L0', maxParallelWorktrees: 9 },
     }
-    mockLoadConfig.mockReturnValue({ ...config })
-    mockValidateConfig.mockReturnValue({ ok: true, config })
+    writeConfig(dir, config)
 
     await runConfigure({ dir, sets: ['permitGitHub=true'], json: true })
 

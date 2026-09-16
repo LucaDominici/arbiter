@@ -61,6 +61,44 @@ function screamingSnakeToCamel(s: string): string {
     .join('')
 }
 
+function camelToScreamingSnake(s: string): string {
+  return s.replace(/[A-Z]/g, (letter) => `_${letter}`).toUpperCase()
+}
+
+/** Return the valid environment override that owns a catalog path, if present. */
+export function envOverrideKeyForPath(path: string, env: Env): string | undefined {
+  const direct = directEnvOverrideKeyForPath(path, env)
+  if (direct !== undefined) return direct
+  const [group, field] = path.split('.')
+  if (field === undefined) return undefined
+  if (group === 'thresholds' && VALID_THRESHOLD_KEYS.has(field as keyof ThresholdsV2)) {
+    const key = `${THRESHOLD_PREFIX}${camelToScreamingSnake(field)}`
+    const value = env[key]
+    const parsed = value === undefined ? undefined : parseNumericEnv(value)
+    return parsed !== undefined && isThresholdValueInRange(field, parsed) ? key : undefined
+  }
+  if (group === 'features' && VALID_FEATURE_KEYS.has(field as keyof FeatureFlags)) {
+    const key = `${FEATURE_PREFIX}${camelToScreamingSnake(field)}`
+    return parseBooleanEnv(env[key]) !== undefined ? key : undefined
+  }
+  return undefined
+}
+
+function directEnvOverrideKeyForPath(path: string, env: Env): string | undefined {
+  if (path === 'governanceLevel') {
+    const value = env['ARBITER_GOVERNANCE_LEVEL']
+    return value === 'L1' || value === 'L2' || value === 'L3' || value === 'L4'
+      ? 'ARBITER_GOVERNANCE_LEVEL'
+      : undefined
+  }
+  if (path === 'crossModelReview.enabled') {
+    return parseBooleanEnv(env['ARBITER_CROSS_MODEL_REVIEW']) !== undefined
+      ? 'ARBITER_CROSS_MODEL_REVIEW'
+      : undefined
+  }
+  return undefined
+}
+
 function parseNumericEnv(raw: string): number | undefined {
   const trimmed = raw.trim()
   if (trimmed === '') return undefined

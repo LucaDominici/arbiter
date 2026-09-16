@@ -13,9 +13,10 @@ import {
 } from '@clack/prompts'
 import { loadConfig } from '../utils/config.js'
 import { t } from '../i18n/index.js'
-import { runConfigure } from './configure.js'
+import { assignmentsForPreset, runConfigure } from './configure.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import { SUPPORTED_AI_TOOLS } from '../wizard/types.js'
+import type { ProjectPreset } from '../wizard/types.js'
 
 // Returns ['path=value', ...] for fields that changed, or null if cancelled.
 type GroupFn = (config: ArbiterConfigV2) => Promise<string[] | null>
@@ -272,6 +273,8 @@ async function promptAutomationGroup(config: ArbiterConfigV2): Promise<string[] 
   return diffStr('automation.autonomy', config.automation?.autonomy, autonomy)
 }
 
+type ConfigureChoice = Exclude<ProjectPreset, 'none'> | 'custom'
+
 export async function runInteractiveConfigure(dir?: string): Promise<void> {
   const targetDir = resolve(dir ?? process.cwd())
   const stored = loadConfig(targetDir)
@@ -282,6 +285,44 @@ export async function runInteractiveConfigure(dir?: string): Promise<void> {
   }
 
   intro(t('cli.configure.interactive.intro'))
+
+  const choice = await select<ConfigureChoice>({
+    message: 'Choose a configuration profile',
+    options: [
+      {
+        value: 'solo-homelab',
+        label: 'Solo / homelab',
+        hint: 'lean controls, governance up to L2',
+      },
+      { value: 'industrial-grade', label: 'Industrial', hint: 'compliance and evidence controls' },
+      { value: 'custom', label: 'Customize', hint: 'edit focused groups' },
+    ],
+    initialValue: 'solo-homelab',
+  })
+  if (isCancel(choice)) {
+    cancel(t('cli.configure.no_changes'))
+    return
+  }
+
+  if (choice !== 'custom') {
+    const assignments = assignmentsForPreset(stored, choice)
+    const preview = stored.preset === choice ? assignments : [`preset=${choice}`, ...assignments]
+    if (preview.length === 0) {
+      outro(t('cli.configure.no_changes'))
+      return
+    }
+    note(preview.join('\n'), 'Preset preview')
+    const apply = await confirm({
+      message: `Apply ${choice} (${preview.length} change${preview.length === 1 ? '' : 's'})?`,
+      initialValue: true,
+    })
+    if (isCancel(apply) || !apply) {
+      cancel(t('cli.configure.no_changes'))
+      return
+    }
+    await runConfigure({ dir: targetDir, sets: [], preset: choice })
+    return
+  }
 
   const groups: GroupFn[] = [
     (c) => promptAxisGroup(c),

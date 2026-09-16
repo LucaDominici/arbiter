@@ -826,14 +826,15 @@ program
     (v, acc: string[]) => [...acc, v],
     [] as string[],
   )
+  .option('--preset <name>', 'Apply a configuration preset: solo-homelab or industrial-grade')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string | undefined; set: string[]; json: boolean }) => {
+  .action((opts: { dir?: string | undefined; set: string[]; preset?: string; json: boolean }) => {
     const handler = async (): Promise<void> => {
-      if (opts.set.length === 0 && !opts.json && process.stdin.isTTY) {
+      if (opts.set.length === 0 && opts.preset === undefined && !opts.json && process.stdin.isTTY) {
         const { runInteractiveConfigure } = await import('./commands/configure-interactive.js')
         return runInteractiveConfigure(opts.dir)
       }
-      return runConfigure({ dir: opts.dir, sets: opts.set, json: opts.json })
+      return runConfigure({ dir: opts.dir, sets: opts.set, preset: opts.preset, json: opts.json })
     }
     handler().catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err)

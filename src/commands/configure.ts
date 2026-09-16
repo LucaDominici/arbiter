@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, join, relative } from 'node:path'
-import { existsSync } from 'node:fs'
-import { loadConfig, saveConfig } from '../utils/config.js'
+import { existsSync, readFileSync } from 'node:fs'
+import { saveConfig } from '../utils/config.js'
 import {
   validateConfig,
   VALID_COLLABORATION_MODES,
@@ -18,19 +18,62 @@ import { ArbiterError } from '../utils/errors.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import { SUPPORTED_AI_TOOLS } from '../wizard/types.js'
 import type { Archetype } from '../wizard/types.js'
+import type { ProjectPreset } from '../wizard/types.js'
 import { t } from '../i18n/index.js'
 import { ensureDir, readFileTranslated, writeFile } from '../utils/fs.js'
 import { resolveMaxParallelWorktrees } from '../config/collaboration-mode-defaults.js'
+import { migrate } from '../config/migrations/index.js'
 
 export interface ConfigureOptions {
   dir?: string | undefined
   sets: string[]
   json?: boolean | undefined
+  preset?: string | undefined
+}
+
+type ApplicablePreset = Exclude<ProjectPreset, 'none'>
+
+function changed(path: string, current: unknown, next: unknown): string[] {
+  return current === next ? [] : [`${path}=${String(next)}`]
+}
+
+/** The existing init presets expressed through configure's canonical writer. */
+export function assignmentsForPreset(config: ArbiterConfigV2, preset: ApplicablePreset): string[] {
+  if (preset === 'solo-homelab') {
+    const assignments = [
+      ...changed('features.iso27001Mapping', config.features.iso27001Mapping, false),
+      ...changed('features.nis2Mapping', config.features.nis2Mapping, false),
+      ...changed('features.gdprMapping', config.features.gdprMapping, false),
+      ...changed('features.riskRegister', config.features.riskRegister, false),
+      ...changed('features.mutationTesting', config.features.mutationTesting, false),
+      ...changed('features.evidenceHarness', config.features.evidenceHarness, false),
+      ...changed('features.operationsHandbook', config.features.operationsHandbook, false),
+      ...changed('industryOverlay', config.industryOverlay, 'none'),
+    ]
+    return config.governanceLevel === 'L3' || config.governanceLevel === 'L4'
+      ? [...assignments, 'governanceLevel=L2']
+      : assignments
+  }
+  return [
+    ...changed('features.iso27001Mapping', config.features.iso27001Mapping, true),
+    ...changed('features.nis2Mapping', config.features.nis2Mapping, true),
+    ...changed('features.gdprMapping', config.features.gdprMapping, true),
+    ...changed('features.riskRegister', config.features.riskRegister, true),
+    ...changed('features.evidenceHarness', config.features.evidenceHarness, true),
+    ...changed('features.operationsHandbook', config.features.operationsHandbook, true),
+    ...changed('features.mcpFallback', config.features.mcpFallback, true),
+  ]
 }
 
 // Exported so `arbiter settings` (#1121) and check-settings-coverage.mjs can
 // enforce that every settable path is surfaced in the settings catalog.
 export const ALLOWED_PATHS = new Set([
+  'projectName',
+  'language',
+  'packageManager',
+  'databaseEngine',
+  'acceptBetaTools',
+  'decomposition.backend',
   'features.contractTesting',
   'features.mutationTesting',
   'features.securityScanning',
@@ -39,6 +82,11 @@ export const ALLOWED_PATHS = new Set([
   'features.debtGates',
   'features.suppressions',
   'features.soloDevMode',
+  'features.selfValidationHarness',
+  'features.auditToolchain',
+  'features.fiveLaneCi',
+  'features.mcpFallback',
+  'features.noSkippedTests',
   // #1887-A: these 3 had generators built + gated on the ProjectConfig field
   // but no public activation path at all (recipe field added alongside).
   'features.codeownersNotify',
@@ -73,6 +121,39 @@ export const ALLOWED_PATHS = new Set([
   // #1306 (ADR-094 §Decision.4) — Project-Profile orchestration prefs.
   'automation.maxParallelWorktrees',
   'automation.defaultGateLevel',
+  'runnerProfile',
+  'channel',
+  'evidenceRetention',
+  'thresholdProfile',
+  'strictnessTier',
+  'industryOverlay',
+  'basePackage',
+  'deployTarget',
+  'invariantTiers',
+  'worktree',
+  'plugins',
+  'companions',
+  'lanes',
+  'taskTiers',
+  'taxonomy.domainDims',
+  'observability.provider',
+  'auth.provider',
+  'auth.tenantIsolation',
+  'frontend.framework',
+  'frontend.stateManager',
+  'frontend.validationLib',
+  'governance.invariants_catalog',
+  'governance.constraintScan',
+  'governance.ssotGuardPatterns',
+  'governance.projectInvariants',
+  'governance.liveSsot',
+  'conformanceThresholds',
+  'smokeJourneys.requiredJourneys',
+  'e2ePolicy.escalation.strikes',
+  'e2ePolicy.escalation.maxStrikes',
+  'ship.train.maxChain',
+  'ship.train.maxAgeMinutes',
+  'ship.review.maxRounds',
   'crossModelReview.enabled',
   'crossModelReview.diffEgressConsent',
   'crossModelReview.providers',
@@ -158,6 +239,38 @@ const CROSS_MODEL_SLOT_PATHS = new Set([
   'crossModelReview.slots.codeReview',
   'crossModelReview.slots.redTeamReview',
 ])
+
+const BOOLEAN_PATHS = new Set(['permitGitHub', 'acceptBetaTools', 'auth.tenantIsolation'])
+
+const JSON_PATHS = new Set([
+  'evidenceRetention',
+  'invariantTiers',
+  'worktree',
+  'plugins',
+  'companions',
+  'lanes',
+  'taskTiers',
+  'taxonomy.domainDims',
+  'governance.ssotGuardPatterns',
+  'governance.projectInvariants',
+  'governance.liveSsot',
+  'conformanceThresholds',
+  'smokeJourneys.requiredJourneys',
+  'e2ePolicy.escalation.strikes',
+])
+
+function parseJsonValue(path: string, raw: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    throw ArbiterError.fromKey(
+      'E_INVALID_FORMAT',
+      'errors.E_INVALID_FORMAT',
+      { assignment: `${path}=${raw}` },
+      { hint: `Provide valid JSON after ${path}=.` },
+    )
+  }
+}
 
 function parseAxisValue(path: string, raw: string): unknown {
   if (path === 'archetype') {
@@ -315,18 +428,8 @@ export function parseValue(path: string, raw: string): unknown {
       )
     return n
   }
-  if (path === 'permitGitHub') {
-    if (raw === 'true') return true
-    if (raw === 'false') return false
-    throw ArbiterError.fromKey(
-      'E_INVALID_BOOL',
-      'errors.E_INVALID_BOOL',
-      { path: 'permitGitHub', value: raw },
-      {
-        hint: 'Use `true` or `false` (lowercase).',
-      },
-    )
-  }
+  if (BOOLEAN_PATHS.has(path)) return parseCrossModelBoolean(path, raw)
+  if (JSON_PATHS.has(path)) return parseJsonValue(path, raw)
   if (path === 'tools') {
     const toolList = raw.split(',').map((tool) => tool.trim())
     for (const tool of toolList) {
@@ -351,7 +454,7 @@ export function parseValue(path: string, raw: string): unknown {
   // #1306 — the two scalar automation prefs (int / bool) are validated in a helper
   // so parseValue stays within the complexity-15 limit. Returns undefined when the
   // path is not one of them (so the enum + raw fall-through below still apply).
-  if (AUTOMATION_SCALAR_PATHS.has(path)) return parseAutomationScalar(path, raw)
+  if (POSITIVE_INTEGER_PATHS.has(path)) return parsePositiveInteger(path, raw)
   // ADR-051 (#1119) / #1261 / #1306: enum-validate enum-shaped settable paths.
   const ENUM_PATHS = new Set([
     'collaborationMode',
@@ -359,20 +462,43 @@ export function parseValue(path: string, raw: string): unknown {
     'branchingStrategy',
     'automation.autonomy',
     'automation.defaultGateLevel',
+    'runnerProfile',
+    'language',
+    'packageManager',
+    'databaseEngine',
+    'decomposition.backend',
+    'channel',
+    'thresholdProfile',
+    'strictnessTier',
+    'industryOverlay',
+    'deployTarget',
+    'observability.provider',
+    'auth.provider',
+    'frontend.framework',
+    'frontend.stateManager',
+    'frontend.validationLib',
+    'governance.invariants_catalog',
+    'governance.constraintScan',
   ])
   if (ENUM_PATHS.has(path)) return parseEnumPathValue(path, raw)
   return raw
 }
 
 /** #1306 — the non-enum automation scalar prefs (positive-int). */
-const AUTOMATION_SCALAR_PATHS = new Set(['automation.maxParallelWorktrees'])
+const POSITIVE_INTEGER_PATHS = new Set([
+  'automation.maxParallelWorktrees',
+  'ship.train.maxChain',
+  'ship.train.maxAgeMinutes',
+  'ship.review.maxRounds',
+  'e2ePolicy.escalation.maxStrikes',
+])
 
 /**
  * #1306 — validate the scalar automation pref: maxParallelWorktrees is a positive
  * integer (rejects 0/negatives/floats). Extracted from parseValue to keep it under
  * the complexity ceiling.
  */
-function parseAutomationScalar(path: string, raw: string): number {
+function parsePositiveInteger(path: string, raw: string): number {
   const n = Number(raw)
   if (!Number.isInteger(n) || n < 1) {
     throw ArbiterError.fromKey(
@@ -380,7 +506,7 @@ function parseAutomationScalar(path: string, raw: string): number {
       'errors.E_INVALID_NUMBER',
       { path, value: raw },
       {
-        hint: 'Provide a positive integer (≥1). Example: `--set automation.maxParallelWorktrees=3`.',
+        hint: `Provide a positive integer (≥1). Example: \`--set ${path}=3\`.`,
       },
     )
   }
@@ -414,6 +540,10 @@ function parseEnumPathValue(path: string, raw: string): string {
     'automation.defaultGateLevel': {
       valid: new Set(VALID_GATE_LEVELS),
       hint: 'Valid values: L1, L2. The gate level `arbiter verify` runs by default. Per-run override: `arbiter ship --set automation.defaultGateLevel=L2`.',
+    },
+    runnerProfile: {
+      valid: new Set(['solo', 'fleet']),
+      hint: 'Valid values: solo, fleet.',
     },
   }
   const spec = SPECS[path]
@@ -492,51 +622,24 @@ function applyTopLevel(config: ArbiterConfigV2, key: string, value: unknown): Ar
   return { ...config, [key]: value }
 }
 
-function applyNested(
-  config: ArbiterConfigV2,
-  top: string,
-  key: string,
-  value: unknown,
-): ArbiterConfigV2 {
-  const root = config as unknown as Record<string, Record<string, unknown>>
+function setNested(current: unknown, parts: string[], value: unknown): unknown {
+  const [head, ...tail] = parts
+  if (head === undefined) return value
   const parent =
-    root[top] ?? (top === 'crossModelReview' ? structuredClone(DEFAULT_CROSS_MODEL_REVIEW) : {})
-  return { ...config, [top]: { ...parent, [key]: value } }
-}
-
-function applyDeep(
-  config: ArbiterConfigV2,
-  top: string,
-  middle: string,
-  leaf: string,
-  value: unknown,
-): ArbiterConfigV2 {
-  const root = config as unknown as Record<string, Record<string, unknown>>
-  const fallback: Record<string, unknown> =
-    top === 'crossModelReview' ? { ...structuredClone(DEFAULT_CROSS_MODEL_REVIEW) } : {}
-  const parent = root[top] ?? fallback
-  const nested = (parent[middle] as Record<string, unknown> | undefined) ?? {}
-  return { ...config, [top]: { ...parent, [middle]: { ...nested, [leaf]: value } } }
+    current !== null && typeof current === 'object' && !Array.isArray(current)
+      ? (current as Record<string, unknown>)
+      : {}
+  return { ...parent, [head]: setNested(parent[head], tail, value) }
 }
 
 function applySet(config: ArbiterConfigV2, path: string, value: unknown): ArbiterConfigV2 {
   const parts = path.split('.')
-  const [top, middle, leaf] = parts
-  if (parts.length === 1 && top !== undefined) return applyTopLevel(config, top, value)
-  if (parts.length === 2 && top !== undefined && middle !== undefined) {
-    return applyNested(config, top, middle, value)
-  }
-  if (parts.length === 3 && top !== undefined && middle !== undefined && leaf !== undefined) {
-    return applyDeep(config, top, middle, leaf, value)
-  }
-  throw ArbiterError.fromKey(
-    'E_UNSUPPORTED_PATH_DEPTH',
-    'errors.E_UNSUPPORTED_PATH_DEPTH',
-    { path },
-    {
-      hint: 'Run `arbiter configure --help` to see valid paths.',
-    },
-  )
+  const [top, ...tail] = parts
+  if (top === undefined || tail.length === 0) return applyTopLevel(config, path, value)
+  const root = config as unknown as Record<string, unknown>
+  const current =
+    root[top] ?? (top === 'crossModelReview' ? structuredClone(DEFAULT_CROSS_MODEL_REVIEW) : {})
+  return { ...config, [top]: setNested(current, tail, value) }
 }
 
 /**
@@ -589,8 +692,83 @@ function syncDrainMaxParallel(
   return result.withheld ? { drainPath, cap } : null
 }
 
+function resolvePreset(options: ConfigureOptions): ApplicablePreset | undefined {
+  const preset =
+    options.preset === 'industrial-grade' || options.preset === 'solo-homelab'
+      ? options.preset
+      : undefined
+  if (options.preset !== undefined && preset === undefined) {
+    throw ArbiterError.fromKey(
+      'E_INVALID_FORMAT',
+      'cli.configure.invalid_preset',
+      { preset: options.preset },
+      {
+        hint: 'Use industrial-grade or solo-homelab.',
+      },
+    )
+  }
+  if (preset !== undefined && options.sets.length > 0) {
+    throw ArbiterError.fromKey('E_INVALID_FORMAT', 'cli.configure.preset_set_conflict')
+  }
+  return preset
+}
+
+interface ConfigureMutation {
+  updated: string[]
+  changedConfig: boolean
+  drainWithheld: DrainSyncWithheld | null
+}
+
+async function mutateConfig(
+  targetDir: string,
+  configPath: string,
+  sets: string[],
+  preset: ApplicablePreset | undefined,
+): Promise<ConfigureMutation> {
+  ensureDir(join(targetDir, '.arbiter'))
+  const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
+  try {
+    // The lock covers the raw read and write. Using loadConfig here would persist
+    // process.env overrides and allow concurrent writers to lose one another's update.
+    const raw = JSON.parse(readFileSync(configPath, 'utf8')) as unknown
+    let config = migrate(raw)
+    const updated = preset === undefined ? sets : assignmentsForPreset(config, preset)
+    let archetypeTouched = false
+    for (const assignment of updated) {
+      const next = applyAssignment(config, assignment)
+      config = next.config
+      if (next.archetypeTouched) archetypeTouched = true
+    }
+    if (archetypeTouched && config.archetype !== undefined) {
+      config = cascadeAxisDefaults(config, config.archetype)
+    }
+    if (preset !== undefined) config = { ...config, preset }
+
+    const result = validateConfig(config)
+    if (!result.ok) {
+      throw ArbiterError.fromKey(
+        'E_CONFIG_INVALID',
+        'errors.E_CONFIGURE_CONFIG_INVALID',
+        { errors: result.errors.join('; ') },
+        { hint: 'Fix the errors above, or delete arbiter.json and re-run `arbiter init`.' },
+      )
+    }
+    const changedConfig = JSON.stringify(raw) !== JSON.stringify(result.config)
+    if (!changedConfig) return { updated, changedConfig, drainWithheld: null }
+    await saveConfig(targetDir, result.config)
+    return {
+      updated,
+      changedConfig,
+      drainWithheld: syncDrainMaxParallel(targetDir, result.config),
+    }
+  } finally {
+    await lock.release()
+  }
+}
+
 export async function runConfigure(options: ConfigureOptions): Promise<void> {
-  if (options.sets.length === 0) {
+  const preset = resolvePreset(options)
+  if (options.sets.length === 0 && preset === undefined) {
     if (options.json) {
       jsonOutput('configure', 'error', {}, ['--set is required (non-interactive usage)'])
       process.exit(1)
@@ -601,8 +779,8 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
   }
 
   const targetDir = resolve(options.dir ?? process.cwd())
-  const stored = loadConfig(targetDir)
-  if (!stored) {
+  const configPath = join(targetDir, 'arbiter.json')
+  if (!existsSync(configPath)) {
     if (options.json) {
       jsonOutput('configure', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
       process.exit(1)
@@ -619,63 +797,35 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
     )
   }
 
-  let config = stored
+  const mutation = await mutateConfig(targetDir, configPath, options.sets, preset)
 
-  let archetypeTouched = false
-  for (const assignment of options.sets) {
-    const next = applyAssignment(config, assignment)
-    config = next.config
-    if (next.archetypeTouched) archetypeTouched = true
-  }
-
-  // #504 — when archetype is changed via configure, cascade derived axis
-  // fields (hasDatabase, hasPublicApi, contractType, …) into the persisted
-  // config. Precedence is delegated to deriveAxisDefaults: any field already
-  // explicit on the draft wins (including same-batch --set overrides and
-  // previously-stored values); only undefined fields receive derived defaults.
-  if (archetypeTouched && config.archetype !== undefined) {
-    config = cascadeAxisDefaults(config, config.archetype)
-  }
-
-  const result = validateConfig(config)
-  if (!result.ok) {
-    throw ArbiterError.fromKey(
-      'E_CONFIG_INVALID',
-      'errors.E_CONFIGURE_CONFIG_INVALID',
-      {
-        errors: result.errors.join('; '),
-      },
-      { hint: 'Fix the errors above, or delete arbiter.json and re-run `arbiter init`.' },
-    )
-  }
-
-  ensureDir(join(targetDir, '.arbiter'))
-  const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
-  let drainWithheld: DrainSyncWithheld | null
-  try {
-    await saveConfig(targetDir, result.config)
-    drainWithheld = syncDrainMaxParallel(targetDir, result.config)
-  } finally {
-    await lock.release()
-  }
-
-  const drainWarning = drainWithheld
+  const drainWarning = mutation.drainWithheld
     ? t('cli.configure.drain_sync_withheld', {
-        path: relative(targetDir, drainWithheld.drainPath),
-        cap: drainWithheld.cap,
+        path: relative(targetDir, mutation.drainWithheld.drainPath),
+        cap: mutation.drainWithheld.cap,
       })
     : null
 
+  if (!mutation.changedConfig) {
+    if (options.json) jsonOutput('configure', 'ok', { updated: [] })
+    else process.stdout.write(`${t('cli.configure.no_changes')}\n`)
+    return
+  }
+
   if (options.json) {
+    const reported =
+      preset !== undefined ? [`preset=${preset}`, ...mutation.updated] : mutation.updated
     jsonOutput(
       'configure',
       'ok',
-      { updated: options.sets },
+      { updated: reported },
       undefined,
       drainWarning ? { warnings: [drainWarning] } : undefined,
     )
     return
   }
-  process.stdout.write(`${t('cli.configure.updated', { keys: options.sets.join(', ') })}\n`)
+  const reported =
+    preset !== undefined ? [`preset=${preset}`, ...mutation.updated] : mutation.updated
+  process.stdout.write(`${t('cli.configure.updated', { keys: reported.join(', ') })}\n`)
   if (drainWarning) process.stderr.write(`${drainWarning}\n`)
 }

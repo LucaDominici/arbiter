@@ -12,6 +12,8 @@ import {
   runSettings,
 } from '../../src/commands/settings.js'
 import { ALLOWED_PATHS } from '../../src/commands/configure.js'
+import { DEFAULT_THRESHOLDS } from '../../src/config/schema.js'
+import { ARBITER_ENV_FLAGS } from '../../src/config/env-registry.js'
 
 let dir: string
 afterEach(() => {
@@ -74,6 +76,17 @@ describe('settings catalog (#1121)', () => {
     ]) {
       expect(SETTINGS_PATHS.has(path), path).toBe(true)
     }
+  })
+
+  it('classifies every registered environment control without exposing it as persistent', () => {
+    const environment = SETTINGS_CATALOG.find((group) => group.group === 'Per-process environment')
+    expect(environment?.fields.map((field) => field.path)).toEqual(
+      ARBITER_ENV_FLAGS.map((flag) => flag.name),
+    )
+    expect(environment?.fields.every((field) => field.classification !== 'editable')).toBe(true)
+    expect(
+      environment?.fields.find((field) => field.path === 'ARBITER_EVIDENCE_DIR')?.applicability({}),
+    ).toEqual({ applicable: false, reason: 'No operational runtime consumer' })
   })
 
   // #1261: the Project Profile autonomy axis must be a discoverable setting.
@@ -180,6 +193,27 @@ describe('runSettings', () => {
       cost: expect.any(String),
       consent: 'none',
     })
+  })
+
+  it('reports env provenance even when the override equals the declared value', () => {
+    process.env['ARBITER_THRESHOLD__LINE_COVERAGE'] = '60'
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    try {
+      runSettings({ dir: projectWith({ thresholds: { ...DEFAULT_THRESHOLDS.L1 } }), json: true })
+    } finally {
+      delete process.env['ARBITER_THRESHOLD__LINE_COVERAGE']
+    }
+    const parsed = JSON.parse(out.join('')) as {
+      data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }
+    }
+    const field = parsed.data.groups
+      .flatMap((group) => group.fields)
+      .find((candidate) => candidate['path'] === 'thresholds.lineCoverage')
+    expect(field).toMatchObject({ declared: 60, effective: 60, source: 'env' })
   })
 
   it('reports the derived autonomy default instead of an unexplained unset value', () => {

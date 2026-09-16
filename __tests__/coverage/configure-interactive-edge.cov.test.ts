@@ -31,6 +31,7 @@ vi.mock('../../src/utils/file-lock.js', () => ({
 // Stub runConfigure so the cancel/early-return branches can be asserted without
 // invoking the real config-migration machinery.
 vi.mock('../../src/commands/configure.js', () => ({
+  assignmentsForPreset: vi.fn(() => []),
   runConfigure: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -158,6 +159,8 @@ describe('runInteractiveConfigure — edge / cancel-guard branch coverage', () =
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-cfgint-edge-'))
+    mockSelect.mockReset()
+    mockSelect.mockResolvedValueOnce('custom')
     // Default: nothing is a cancel. Each test that needs a cancel overrides this
     // to recognise the CANCEL sentinel only.
     vi.mocked(clack.isCancel).mockImplementation((v: unknown): v is symbol => v === CANCEL)
