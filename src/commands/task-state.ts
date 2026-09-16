@@ -74,6 +74,19 @@ export function isTddPhase(s: string): s is Exclude<TddPhase, null> {
   return s === 'RED' || s === 'GREEN' || s === 'REFACTOR'
 }
 
+/** Remove checkout-bound delivery receipts after a binding changes. */
+export function invalidateTaskReceipts(root: string, taskId: string): void {
+  const evidenceId = taskId.replace(/[^0-9A-Za-z-]/g, '')
+  for (const path of [
+    join(root, '.arbiter', 'gate-pass.json'),
+    join(root, '.arbiter', 'agents-dispatched.json'),
+    join(root, '.arbiter', 'evidence', 'ac-fit', `${evidenceId}.json`),
+    join(root, '.arbiter', 'evidence', 'agent-returns', `_${evidenceId}`),
+  ]) {
+    rmTranslated(path, { recursive: true, force: true })
+  }
+}
+
 interface StepCursor {
   /** Fine-grained TDD sub-phase within the coarse `red`/`green`/`refactor` phases. */
   tddPhase: TddPhase
@@ -331,7 +344,11 @@ export function writeUnifiedState(root: string, patch: TaskStatePatch): UnifiedT
     nextTaskId.length > 0 &&
     prev.taskId.length > 0 &&
     canonicalTaskId(prev.taskId) !== nextTaskId
-  const base = taskChanged ? defaultState() : prev
+  const bindingChanged =
+    patch.hostBinding !== undefined &&
+    prev.hostBinding !== undefined &&
+    patch.hostBinding.bindingId !== prev.hostBinding.bindingId
+  const base = taskChanged || bindingChanged ? defaultState() : prev
   const normalizedPatch: TaskStatePatch = {
     ...patch,
     ...(nextTaskId !== undefined ? { taskId: nextTaskId } : {}),

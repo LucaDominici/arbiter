@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { ensureDir, renameTranslated, toFsError, writeFileTranslated } from '../utils/fs.js'
 import { dirname, join, resolve } from 'node:path'
@@ -21,6 +21,7 @@ import { harvestFiles } from '../worktree/harvest.js'
 import type { HarvestOptions, HarvestResult } from '../worktree/harvest.js'
 import { isRunningFromMainRepo, workingTreeDirty, branchFullyMerged } from '../worktree/validate.js'
 import type { WorktreeConfig, WorktreeLinkSpec } from '../wizard/types.js'
+import { invalidateTaskReceipts } from './task-state.js'
 
 // ---------------------------------------------------------------------------
 // Default config
@@ -282,9 +283,42 @@ function inventoryEntryFor(gitRoot: string, worktreePath: string): GitWorktreeEn
   return gitWorktreeInventory(gitRoot).find((entry) => sameRealPath(entry.path, worktreePath))
 }
 
+function bindingMarkerPath(worktreePath: string): string {
+  return join(worktreePath, '.arbiter', 'checkout-binding.json')
+}
+
+function writeBindingMarker(
+  entry: Pick<OpenLogEntry, 'taskId' | 'worktreePath' | 'bindingId' | 'owner'>,
+): void {
+  if (typeof entry.bindingId !== 'string') throw new Error('checkout binding id is missing')
+  const path = bindingMarkerPath(entry.worktreePath)
+  ensureDir(dirname(path))
+  writeFileTranslated(
+    path,
+    `${JSON.stringify({ taskId: entry.taskId, bindingId: entry.bindingId, owner: entry.owner })}\n`,
+  )
+}
+
+function bindingMarkerMatches(entry: OpenLogEntry): boolean {
+  try {
+    const path = bindingMarkerPath(entry.worktreePath)
+    const stat = lstatSync(path)
+    if (!stat.isFile() || stat.isSymbolicLink()) return false
+    const marker = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
+    return (
+      typeof entry.bindingId === 'string' &&
+      marker['taskId'] === entry.taskId &&
+      marker['bindingId'] === entry.bindingId &&
+      marker['owner'] === (entry.owner ?? 'arbiter')
+    )
+  } catch {
+    return false
+  }
+}
+
 function assertLiveWorktreeBinding(gitRoot: string, entry: OpenLogEntry): void {
   const live = inventoryEntryFor(gitRoot, entry.worktreePath)
-  if (live === undefined || live.branch !== entry.branch) {
+  if (live === undefined || live.branch !== entry.branch || !bindingMarkerMatches(entry)) {
     throw new Error(
       `Logged checkout for ${entry.taskId} no longer matches Git worktree inventory; ` +
         're-adopt the checkout before cleanup.',
@@ -447,7 +481,7 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
   try {
     const logPath = join(arbiterDir, 'worktree-open.log.json')
     const entries = readJsonArray(logPath).filter(isOpenLogEntry)
-    entries.push({
+    const entry: OpenLogEntry = {
       taskId,
       slug: slug ?? null,
       worktreePath,
@@ -457,7 +491,9 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
       openedAt: new Date().toISOString(),
       bindingId: randomUUID(),
       owner: 'arbiter',
-    })
+    }
+    writeBindingMarker(entry)
+    entries.push(entry)
     writeJsonArray(logPath, entries)
   } finally {
     await lock.release()
@@ -514,10 +550,15 @@ async function recordAdoptedCheckout(
   const lock = await acquireLock(join(arbiterDir, '.lock'))
   try {
     const logPath = join(arbiterDir, 'worktree-open.log.json')
-    const entries = readJsonArray(logPath)
-      .filter(isOpenLogEntry)
-      .filter((entry) => entry.taskId !== taskId)
-    entries.push({
+    const previousEntries = readJsonArray(logPath).filter(isOpenLogEntry)
+    for (const previous of previousEntries.filter((entry) => entry.taskId === taskId)) {
+      const livePrevious = inventoryEntryFor(gitRoot, previous.worktreePath)
+      if (livePrevious?.branch === previous.branch && bindingMarkerMatches(previous)) {
+        invalidateTaskReceipts(previous.worktreePath, taskId)
+      }
+    }
+    const entries = previousEntries.filter((entry) => entry.taskId !== taskId)
+    const entry: OpenLogEntry = {
       taskId,
       slug: null,
       worktreePath: realpathSync(requested),
@@ -527,7 +568,9 @@ async function recordAdoptedCheckout(
       openedAt: new Date().toISOString(),
       bindingId: randomUUID(),
       owner: 'host',
-    })
+    }
+    writeBindingMarker(entry)
+    entries.push(entry)
     writeJsonArray(logPath, entries)
   } finally {
     await lock.release()
@@ -810,6 +853,9 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 
   runCloseHookIfConfigured(wtConfig.closeHook, worktreePath, gitRoot, effectiveForce, warn)
 
+  // Hooks are arbitrary code and may race with native checkout management. Re-prove
+  // the exact Git administrative identity at the destructive boundary.
+  assertArbiterOwnedLiveBinding(gitRoot, entry)
   runCli('git', ['worktree', 'remove', '--force', worktreePath], {
     cwd: gitRoot,
   })

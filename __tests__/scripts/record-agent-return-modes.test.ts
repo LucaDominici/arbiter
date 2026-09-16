@@ -219,6 +219,39 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(result.stdout + result.stderr).toMatch(/native host binding|stale/i)
   })
 
+  it('rejects a stale native binding for a non-Claude host', () => {
+    const statusPath = join(root, '.claude', '.task', 'status.json')
+    const state = JSON.parse(readFileSync(statusPath, 'utf8')) as Record<string, unknown>
+    writeFileSync(
+      statusPath,
+      JSON.stringify({
+        ...state,
+        hostBinding: {
+          bindingId: 'stale-binding',
+          worktreePath: root,
+          branch: 'task/#42-fit',
+        },
+      }),
+    )
+    mkdirSync(join(root, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(root, '.arbiter', 'worktree-open.log.json'),
+      JSON.stringify([
+        {
+          taskId: '#42',
+          worktreePath: root,
+          branch: 'task/#42-fit',
+          bindingId: 'live-binding',
+        },
+      ]),
+    )
+
+    const result = record(envelope())
+
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/native host binding|stale/i)
+  })
+
   it('derives a complete Standard reviewer sidecar from distinct accepted envelopes', () => {
     const first = { ...envelope(), agent: 'domain', role: 'reviewer', acceptanceFit: undefined }
     const second = {

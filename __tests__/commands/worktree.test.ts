@@ -195,6 +195,13 @@ describe('runWorktreeOpen', () => {
     const { runWorktreeOpen } = await import('../../src/commands/worktree.js')
     await runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Worktree ready'))
+    const log = JSON.parse(
+      readFileSync(join(gitRoot, '.arbiter', 'worktree-open.log.json'), 'utf-8'),
+    ) as Array<{ worktreePath: string; bindingId: string }>
+    const marker = JSON.parse(
+      readFileSync(join(log[0]!.worktreePath, '.arbiter', 'checkout-binding.json'), 'utf-8'),
+    ) as Record<string, unknown>
+    expect(marker).toEqual({ taskId: '#123', bindingId: log[0]!.bindingId, owner: 'arbiter' })
     logSpy.mockRestore()
   })
 
@@ -248,8 +255,15 @@ describe('runWorktreeClose', () => {
           baseBranch: 'main',
           baseRef: 'abc123',
           openedAt: new Date().toISOString(),
+          bindingId: 'binding-123',
+          owner: 'arbiter',
         },
       ]) + '\n',
+    )
+    mkdirSync(join(worktreePath, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(worktreePath, '.arbiter', 'checkout-binding.json'),
+      JSON.stringify({ taskId: '#123', bindingId: 'binding-123', owner: 'arbiter' }),
     )
   })
 
@@ -425,6 +439,8 @@ describe('runWorktreeClose', () => {
           baseBranch: 'main',
           baseRef: 'abc123',
           openedAt: new Date().toISOString(),
+          bindingId: 'binding-123',
+          owner: 'arbiter',
         },
       ]) + '\n',
     )

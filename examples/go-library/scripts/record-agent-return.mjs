@@ -48,7 +48,7 @@ const argv = process.argv.slice(2)
 const TASK_ID = arg('task', argv)
 const MODE = arg('mode', argv) ?? 'return'
 let nativeHostBindingError
-if (MODE !== 'return' && process.env.CLAUDE_CODE_SESSION_ID) {
+if (MODE !== 'return') {
   ;({ nativeHostBindingError } = await import('../.claude/hooks/lib.mjs'))
 }
 const PROVENANCE_VENDOR = arg('provenance-vendor', argv)
@@ -303,9 +303,8 @@ function assertModeIdentity(parsed, state) {
   const actual = [parsed?.taskId, parsed?.branch, parsed?.sha, state.branch]
   const expected = [TASK_ID, stamped.branch, stamped.sha, stamped.branch]
   if (JSON.stringify(actual) !== JSON.stringify(expected)) return null
-  if (!process.env.CLAUDE_CODE_SESSION_ID) return stamped
   const binding = state.hostBinding
-  if (!binding) return null
+  if (!binding) return stamped
   const bindingError = nativeHostBindingError(
     {
       cwd: process.cwd(),

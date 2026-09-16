@@ -9,8 +9,18 @@
 // fixture) so its `./lib.mjs` import resolves normally; only `cwd` points at the
 // temp git repo, which is how getRepoRoot() and the sidecar/write-classes reads
 // pick up the fixture state (mirrors __tests__/hooks/enforce-gate-before-pr-worktree.test.ts).
-import { spawnSync, execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { spawn, spawnSync, execFileSync } from 'node:child_process'
+import {
+  mkdtempSync,
+  mkdirSync,
+  chmodSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  realpathSync,
+} from 'node:fs'
+import { createHash } from 'node:crypto'
 import { hostname, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, it, expect, afterEach } from 'vitest'
@@ -42,6 +52,27 @@ function writeSidecar(dir: string, entries: unknown[]): void {
   const arbiterDir = join(dir, '.arbiter')
   mkdirSync(arbiterDir, { recursive: true })
   writeFileSync(join(arbiterDir, 'agents-active.json'), JSON.stringify(entries, null, 2) + '\n')
+}
+
+function sidecarLockRef(dir: string): string {
+  const scope = createHash('sha256').update(realpathSync(dir)).digest('hex').slice(0, 16)
+  return `refs/arbiter/locks/sidecar-${scope}`
+}
+
+function writeSidecarLock(dir: string, owner: Record<string, unknown>): void {
+  const oid = execFileSync('git', ['hash-object', '-w', '--stdin'], {
+    cwd: dir,
+    input: JSON.stringify(owner),
+    encoding: 'utf-8',
+  }).trim()
+  execFileSync('git', ['update-ref', sidecarLockRef(dir), oid], { cwd: dir })
+}
+
+function sidecarLockExists(dir: string): boolean {
+  return (
+    spawnSync('git', ['show-ref', '--verify', '--quiet', sidecarLockRef(dir)], { cwd: dir })
+      .status === 0
+  )
 }
 
 function bindHost(dir: string, sessionId = 'bound-session') {
@@ -134,18 +165,15 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
   it('#2564 fails closed when another process holds the sidecar writer lock', () => {
     const dir = track(setup())
     writeWriteClasses(dir, {})
-    mkdirSync(join(dir, '.arbiter'), { recursive: true })
-    writeFileSync(
-      join(dir, '.arbiter', 'agents-active.lock'),
-      JSON.stringify({
-        pid: process.pid,
-        hostname: hostname(),
-        bootId: existsSync('/proc/sys/kernel/random/boot_id')
-          ? readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
-          : 'unknown',
-        startedAt: new Date().toISOString(),
-      }),
-    )
+    writeSidecarLock(dir, {
+      pid: process.pid,
+      hostname: hostname(),
+      bootId: existsSync('/proc/sys/kernel/random/boot_id')
+        ? readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+        : 'unknown',
+      startedAt: new Date().toISOString(),
+      nonce: 'live-owner',
+    })
 
     const result = runHook(
       dir,
@@ -158,22 +186,45 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
     expect(existsSync(join(dir, '.arbiter', 'agents-active.json'))).toBe(false)
   })
 
+  it('#2564 fails closed when Git cannot create the lock identity', () => {
+    const dir = track(setup())
+    const bin = track(mkdtempSync(join(tmpdir(), 'arbiter-failing-git-')))
+    const git = join(bin, 'git')
+    const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf-8' }).trim()
+    writeFileSync(
+      git,
+      '#!/bin/sh\nfor arg in "$@"; do if [ "$arg" = "hash-object" ]; then echo "injected hash failure" >&2; exit 1; fi; done\nexec "$ARBITER_REAL_GIT" "$@"\n',
+    )
+    chmodSync(git, 0o755)
+    writeWriteClasses(dir, {})
+
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'general-purpose', prompt: 'work on #2564' } },
+      {
+        ARBITER_SPAWN_GUARD_HARD: '1',
+        ARBITER_REAL_GIT: realGit,
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+      },
+    )
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/writer lock unavailable.*cannot create lock identity/i)
+    expect(existsSync(join(dir, '.arbiter', 'agents-active.json'))).toBe(false)
+  })
+
   it('#2564 recovers a sidecar lock whose local owner is dead', () => {
     const dir = track(setup())
     writeWriteClasses(dir, {})
-    mkdirSync(join(dir, '.arbiter'), { recursive: true })
-    writeFileSync(
-      join(dir, '.arbiter', 'agents-active.lock'),
-      JSON.stringify({
-        pid: 2_147_483_647,
-        hostname: hostname(),
-        bootId: existsSync('/proc/sys/kernel/random/boot_id')
-          ? readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
-          : 'unknown',
-        startedAt: new Date(0).toISOString(),
-        nonce: 'dead-owner',
-      }),
-    )
+    writeSidecarLock(dir, {
+      pid: 2_147_483_647,
+      hostname: hostname(),
+      bootId: existsSync('/proc/sys/kernel/random/boot_id')
+        ? readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+        : 'unknown',
+      startedAt: new Date(0).toISOString(),
+      nonce: 'dead-owner',
+    })
 
     const result = runHook(
       dir,
@@ -182,7 +233,46 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
     )
 
     expect(result.status).toBe(0)
-    expect(existsSync(join(dir, '.arbiter', 'agents-active.lock'))).toBe(false)
+    expect(sidecarLockExists(dir)).toBe(false)
+  })
+
+  it('#2564 admits only one writer during concurrent stale-lock recovery', async () => {
+    const dir = track(setup())
+    writeSidecarLock(dir, {
+      pid: 2_147_483_647,
+      hostname: hostname(),
+      bootId: existsSync('/proc/sys/kernel/random/boot_id')
+        ? readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+        : 'unknown',
+      nonce: 'dead-owner',
+    })
+    const log = join(dir, 'writers.log')
+    const script = `
+      import { appendFileSync } from 'node:fs';
+      import { withSidecarLock } from ${JSON.stringify(new URL('../../../.claude/hooks/lib.mjs', import.meta.url).href)};
+      try {
+        withSidecarLock(process.argv[1], () => {
+          appendFileSync(process.argv[2], 'start ' + process.pid + '\\n');
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150);
+          appendFileSync(process.argv[2], 'end ' + process.pid + '\\n');
+        });
+      } catch { process.exitCode = 2; }
+    `
+    const run = (): Promise<number> =>
+      new Promise((resolveExit) => {
+        const child = spawn(process.execPath, ['--input-type=module', '-e', script, dir, log], {
+          stdio: 'ignore',
+        })
+        child.on('exit', (code) => resolveExit(code ?? 1))
+      })
+
+    const statuses = await Promise.all([run(), run()])
+
+    expect(statuses.sort()).toEqual([0, 2])
+    expect(readFileSync(log, 'utf-8').trim().split('\n')).toEqual([
+      expect.stringMatching(/^start /),
+      expect.stringMatching(/^end /),
+    ])
   })
 
   it('#2685 blocks a main-root read-only dispatch for a task opened in another worktree', () => {

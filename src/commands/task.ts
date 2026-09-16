@@ -19,6 +19,7 @@ import {
   readTaskId,
   appendLog,
   reviewStateOf,
+  invalidateTaskReceipts,
 } from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
@@ -291,6 +292,10 @@ function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
   }
   if (realpathSync(root) !== hostBinding.worktreePath) {
     throw new Error('task write root does not match the bound worktree')
+  }
+  const previousBinding = readUnifiedState(root)?.hostBinding?.bindingId
+  if (previousBinding !== undefined && previousBinding !== hostBinding.bindingId) {
+    invalidateTaskReceipts(root, taskId)
   }
   writeUnifiedState(root, { taskId, branch: hostBinding.branch, hostBinding })
   appendLog(
@@ -1180,6 +1185,7 @@ function appendReviewLog(dir: string, plan: PlannedReviewRound): void {
 
 export function runTaskReviewRound(opts: TaskReviewRoundOptions = {}): PlannedReviewRound {
   const dir = opts.dir ?? process.cwd()
+  assertBoundNativeHost(dir, undefined)
   if (currentPhase(dir) !== 'refactor') {
     throw new Error('review round can only be opened while lifecycle phase is refactor')
   }

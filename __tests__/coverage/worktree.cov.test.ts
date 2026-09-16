@@ -402,8 +402,15 @@ describe('runWorktreeClose — branch coverage', () => {
           baseBranch: 'main',
           baseRef: 'abc123',
           openedAt: new Date().toISOString(),
+          bindingId: 'binding-123',
+          owner: 'arbiter',
         },
       ]) + '\n',
+    )
+    mkdirSync(join(worktreePath, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(worktreePath, '.arbiter', 'checkout-binding.json'),
+      JSON.stringify({ taskId: '#123', bindingId: 'binding-123', owner: 'arbiter' }),
     )
   }
 
@@ -476,6 +483,32 @@ describe('runWorktreeClose — branch coverage', () => {
     expect(() =>
       runWorktreeClose({ taskId: '123', cwd: gitRoot, noFetch: true, onWarning: () => undefined }),
     ).toThrow('Close hook failed')
+  })
+
+  it('revalidates checkout ownership after the close hook before removal', () => {
+    const hookFile = join(gitRoot, 'hook.sh')
+    writeFileSync(hookFile, '#!/bin/sh\nexit 0\n', 'utf-8')
+    mockLoadConfig.mockReturnValue({
+      worktree: { base: null, links: [], closeHook: 'hook.sh' },
+    } as ReturnType<typeof loadConfig>)
+    mockRunCli.mockImplementation((cmd: string, args?: readonly string[]): CliResult => {
+      if (cmd.endsWith('hook.sh')) {
+        writeFileSync(
+          join(worktreePath, '.arbiter', 'checkout-binding.json'),
+          JSON.stringify({ taskId: '#123', bindingId: 'replacement', owner: 'arbiter' }),
+        )
+      }
+      return closeCliResult(cmd, args)
+    })
+
+    expect(() =>
+      runWorktreeClose({ taskId: '123', cwd: gitRoot, noFetch: true, force: true }),
+    ).toThrow(/no longer matches Git worktree inventory/i)
+    expect(mockRunCli).not.toHaveBeenCalledWith(
+      'git',
+      expect.arrayContaining(['remove']),
+      expect.anything(),
+    )
   })
 
   it('warns (does not throw) when an existing close hook fails and forced', () => {

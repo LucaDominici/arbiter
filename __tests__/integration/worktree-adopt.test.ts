@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   existsSync,
   lstatSync,
@@ -6,19 +6,23 @@ import {
   mkdirSync,
   readFileSync,
   readlinkSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { runWorktreeAdopt, runWorktreeClose } from '../../src/commands/worktree.js'
-import { runTaskInit } from '../../src/commands/task.js'
-import { readUnifiedState } from '../../src/commands/task-state.js'
+import { runTaskInit, runTaskReviewRound } from '../../src/commands/task.js'
+import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 
 let repo: string
 let checkout: string
 let secondCheckout: string
+const CLI_PATH = resolve(new URL('../../src/cli.ts', import.meta.url).pathname)
+const TSX_ESM_LOADER = createRequire(import.meta.url).resolve('tsx/esm')
 
 function git(cwd: string, ...args: string[]): string {
   return execFileSync('git', args, { cwd, encoding: 'utf-8' }).trim()
@@ -92,10 +96,111 @@ describe('runWorktreeAdopt', () => {
     expect(git(checkout, 'branch', '--show-current')).toBe('task/#2564')
   })
 
+  it('applies configured local-library and opt-in build links during adoption', async () => {
+    git(repo, 'worktree', 'add', '-b', 'feature/resources', checkout)
+    mkdirSync(join(repo, 'vendor', 'local-lib'), { recursive: true })
+    mkdirSync(join(repo, 'dist'), { recursive: true })
+    writeFileSync(join(repo, 'vendor', 'local-lib', 'index.js'), 'export {}\n')
+    writeFileSync(join(repo, 'dist', 'bundle.js'), 'export {}\n')
+    const config = JSON.parse(readFileSync(resolve('arbiter.json'), 'utf-8')) as Record<
+      string,
+      unknown
+    >
+    writeFileSync(
+      join(repo, 'arbiter.json'),
+      JSON.stringify({
+        ...config,
+        projectName: 'fixture',
+        worktree: {
+          base: null,
+          links: [{ path: 'vendor/local-lib', required: true, type: 'directory' }],
+          buildLinks: [{ path: 'dist', required: true, type: 'directory' }],
+        },
+      }),
+    )
+
+    await runWorktreeAdopt({ taskId: '#2564', worktreePath: checkout, cwd: repo })
+    expect(realpathSync(join(checkout, 'vendor', 'local-lib'))).toBe(
+      realpathSync(join(repo, 'vendor', 'local-lib')),
+    )
+    expect(existsSync(join(checkout, 'dist'))).toBe(false)
+
+    await runWorktreeAdopt({
+      taskId: '#2564',
+      worktreePath: checkout,
+      cwd: repo,
+      withBuildLinks: true,
+    })
+
+    expect(realpathSync(join(checkout, 'dist'))).toBe(realpathSync(join(repo, 'dist')))
+  })
+
+  it('exposes adoption through the public CLI', () => {
+    git(repo, 'worktree', 'add', '-b', 'feature/cli-adopt', checkout)
+
+    const result = spawnSync(
+      process.execPath,
+      ['--import', TSX_ESM_LOADER, CLI_PATH, 'worktree', 'adopt', '#2564', checkout, '--json'],
+      { cwd: repo, encoding: 'utf-8', timeout: 15_000 },
+    )
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({ command: 'worktree-adopt', status: 'ok' })
+  })
+
+  it('adopts a Claude-native checkout before binding its optional session attestation', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'arbiter-claude-home-'))
+    try {
+      git(repo, 'worktree', 'add', '-b', 'feature/claude-native', checkout)
+      await runWorktreeAdopt({ taskId: '#2564', worktreePath: checkout, cwd: repo })
+      const sessionId = 'claude-native-session'
+      const project = resolve(checkout).replace(/[^A-Za-z0-9]/g, '-')
+      const transcriptDir = join(home, '.claude', 'projects', project)
+      mkdirSync(transcriptDir, { recursive: true })
+      writeFileSync(join(transcriptDir, `${sessionId}.jsonl`), '{}\n')
+
+      runTaskInit({
+        id: '#2564',
+        worktree: checkout,
+        dir: checkout,
+        host: {
+          cwd: checkout,
+          homeDir: home,
+          env: { CLAUDE_CODE_SESSION_ID: sessionId, CLAUDE_PROJECT_DIR: checkout },
+        },
+      })
+
+      expect(readUnifiedState(checkout)?.hostBinding?.sessionId).toBe(sessionId)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
   it('replaces the task binding on handoff instead of leaving two authoritative checkouts', async () => {
     git(repo, 'worktree', 'add', '-b', 'feature/first-host', checkout)
     git(repo, 'worktree', 'add', '-b', 'feature/second-host', secondCheckout)
     await runWorktreeAdopt({ taskId: '#2564', worktreePath: checkout, cwd: repo })
+    runTaskInit({
+      id: '#2564',
+      worktree: checkout,
+      dir: checkout,
+      host: { cwd: checkout, env: {} },
+    })
+    writeUnifiedState(checkout, {
+      phase: 'refactor',
+      review: { rounds: 1, lastReviewedSha: git(checkout, 'rev-parse', 'HEAD') },
+    })
+    const receipts = [
+      join(checkout, '.arbiter', 'gate-pass.json'),
+      join(checkout, '.arbiter', 'agents-dispatched.json'),
+      join(checkout, '.arbiter', 'evidence', 'ac-fit', '2564.json'),
+      join(checkout, '.arbiter', 'evidence', 'agent-returns', '_2564', 'reviewer-0.json'),
+    ]
+    for (const receipt of receipts) {
+      mkdirSync(join(receipt, '..'), { recursive: true })
+      writeFileSync(receipt, '{}\n')
+    }
+
     await runWorktreeAdopt({ taskId: '#2564', worktreePath: secondCheckout, cwd: repo })
 
     const log = JSON.parse(
@@ -103,6 +208,16 @@ describe('runWorktreeAdopt', () => {
     ) as Array<Record<string, unknown>>
     expect(log).toHaveLength(1)
     expect(log[0]?.['worktreePath']).toBe(resolve(secondCheckout))
+
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(checkout)
+    expect(() => runTaskReviewRound({ dir: checkout })).toThrow(
+      /binding.*(?:stale|missing|ambiguous)/i,
+    )
+    cwd.mockRestore()
+    expect(() =>
+      runTaskInit({ id: '#2564', dir: checkout, host: { cwd: checkout, env: {} } }),
+    ).toThrow(/binding.*(?:stale|missing|ambiguous)/i)
+    for (const receipt of receipts) expect(existsSync(receipt)).toBe(false)
   })
 
   it('invalidates task state when the checkout is adopted again', async () => {
@@ -115,9 +230,26 @@ describe('runWorktreeAdopt', () => {
       host: { cwd: checkout, env: {} },
     })
     const firstBinding = readUnifiedState(checkout)?.hostBinding?.bindingId
+    writeUnifiedState(checkout, {
+      phase: 'refactor',
+      review: { rounds: 1, lastReviewedSha: git(checkout, 'rev-parse', 'HEAD') },
+    })
+    const receiptPaths = [
+      join(checkout, '.arbiter', 'gate-pass.json'),
+      join(checkout, '.arbiter', 'agents-dispatched.json'),
+      join(checkout, '.arbiter', 'evidence', 'ac-fit', '2564.json'),
+      join(checkout, '.arbiter', 'evidence', 'agent-returns', '_2564', 'reviewer-0.json'),
+    ]
+    for (const path of receiptPaths) {
+      mkdirSync(join(path, '..'), { recursive: true })
+      writeFileSync(path, '{}\n')
+    }
 
     await runWorktreeAdopt({ taskId: '#2564', worktreePath: checkout, cwd: repo })
 
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(checkout)
+    expect(() => runTaskReviewRound({ dir: checkout })).toThrow(/binding is stale/i)
+    cwd.mockRestore()
     expect(() =>
       runTaskInit({ id: '#2564', dir: checkout, host: { cwd: checkout, env: {} } }),
     ).toThrow(/binding is stale/i)
@@ -127,7 +259,44 @@ describe('runWorktreeAdopt', () => {
       dir: checkout,
       host: { cwd: checkout, env: {} },
     })
-    expect(readUnifiedState(checkout)?.hostBinding?.bindingId).not.toBe(firstBinding)
+    const rebound = readUnifiedState(checkout)
+    expect(rebound?.hostBinding?.bindingId).not.toBe(firstBinding)
+    expect(rebound?.phase).toBe('preflight')
+    expect(rebound?.review).toBeUndefined()
+    for (const path of receiptPaths) expect(existsSync(path)).toBe(false)
+  })
+
+  it('does not close a replacement checkout reusing the same path and branch', () => {
+    git(repo, 'worktree', 'add', '-b', 'feature/replaced', checkout)
+    mkdirSync(join(repo, '.arbiter'), { recursive: true })
+    mkdirSync(join(checkout, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(checkout, '.arbiter', 'checkout-binding.json'),
+      JSON.stringify({ taskId: '#2564', bindingId: 'original-binding', owner: 'arbiter' }),
+    )
+    writeFileSync(
+      join(repo, '.arbiter', 'worktree-open.log.json'),
+      JSON.stringify([
+        {
+          taskId: '#2564',
+          slug: null,
+          worktreePath: resolve(checkout),
+          branch: 'feature/replaced',
+          baseBranch: 'main',
+          baseRef: git(repo, 'rev-parse', '--short', 'HEAD'),
+          openedAt: new Date().toISOString(),
+          bindingId: 'original-binding',
+          owner: 'arbiter',
+        },
+      ]),
+    )
+    git(repo, 'worktree', 'remove', '--force', checkout)
+    git(repo, 'worktree', 'add', checkout, 'feature/replaced')
+
+    expect(() =>
+      runWorktreeClose({ taskId: '#2564', cwd: repo, force: true, keepBranch: true }),
+    ).toThrow(/no longer matches Git worktree inventory/i)
+    expect(existsSync(checkout)).toBe(true)
   })
 
   it('rejects a directory that Git does not inventory as a linked worktree', async () => {
@@ -135,5 +304,11 @@ describe('runWorktreeAdopt', () => {
     await expect(
       runWorktreeAdopt({ taskId: '#2564', worktreePath: checkout, cwd: repo }),
     ).rejects.toThrow(/git worktree inventory/i)
+  })
+
+  it('rejects adoption of the primary checkout', async () => {
+    await expect(
+      runWorktreeAdopt({ taskId: '#2564', worktreePath: repo, cwd: repo }),
+    ).rejects.toThrow(/not a linked checkout/i)
   })
 })

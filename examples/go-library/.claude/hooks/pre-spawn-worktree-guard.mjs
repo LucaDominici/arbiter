@@ -120,7 +120,7 @@ function main() {
     }
   } catch (err) {
     process.stderr.write(`[arbiter] SPAWN GUARD: ${err.message}\n`)
-    process.exit(HARD_GRADING ? 2 : 0)
+    process.exit(2)
   }
 
   process.exit(0)

@@ -41,6 +41,18 @@ function resolveContained(root: string, candidate: string): string {
   return resolved
 }
 
+function assertDestinationParents(root: string, destination: string): void {
+  const parent = dirname(destination)
+  const rel = relative(resolve(root), parent)
+  let current = resolve(root)
+  for (const part of rel.split(sep).filter(Boolean)) {
+    current = join(current, part)
+    if (existsSync(current) && lstatSync(current).isSymbolicLink()) {
+      throw new Error(`Worktree resource destination escapes through symlink: ${current}`)
+    }
+  }
+}
+
 function symlinkTarget(path: string): string {
   return resolve(dirname(path), readlinkSync(path))
 }
@@ -75,6 +87,9 @@ function existingMaterialization(
   }
   if (symlinkTarget(destPath) !== sourcePath) {
     throw new Error(`Cannot materialize '${spec.path}': existing symlink has the wrong target.`)
+  }
+  if (!existsSync(sourcePath)) {
+    return { spec, result: missingOrThrow(spec, `Required resource missing: ${spec.path}`) }
   }
   return { spec, result: linkType === 'directory' ? 'LINKED_DIR' : 'LINKED' }
 }
@@ -122,6 +137,7 @@ export function materializeLink(
 ): MaterializeResult {
   const sourcePath = resolveContained(mainRepoPath, spec.path)
   const destPath = resolveContained(worktreePath, spec.path)
+  assertDestinationParents(worktreePath, destPath)
   const templatePath =
     spec.template === undefined ? undefined : resolveContained(mainRepoPath, spec.template)
   const linkType = spec.type ?? 'file'

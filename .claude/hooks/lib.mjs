@@ -9,10 +9,6 @@ import {
   realpathSync,
   statSync,
   writeFileSync,
-  openSync,
-  closeSync,
-  unlinkSync,
-  renameSync,
 } from 'node:fs'
 import { basename, isAbsolute, join, extname, dirname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -480,7 +476,6 @@ export function getRepoRoot() {
 // registers entries, post-subagent-release.mjs (SubagentStop) removes them on cleanup.
 // Both files import from here rather than duplicating the path/TTL/prune logic.
 export const SIDECAR_PATH = join('.arbiter', 'agents-active.json')
-export const SIDECAR_LOCK_PATH = join('.arbiter', 'agents-active.lock')
 export const SIDECAR_TTL_MS = 2 * 60 * 60 * 1000 // 2h — mirrors `arbiter worktree prune --stale`
 
 /** Git-authoritative worktree identity; independent of host and directory naming. */
@@ -509,73 +504,95 @@ function currentBootId() {
   }
 }
 
-function takeDeadSidecarLock(lockPath) {
-  let info
+function deadSidecarInfo(info) {
   try {
-    info = JSON.parse(readFileSync(lockPath, 'utf-8'))
     if (info?.hostname !== hostname()) return false
-    if (info?.bootId !== currentBootId()) {
-      // A reboot makes every prior local pid identity stale.
-    } else {
-      if (!Number.isInteger(info?.pid) || info.pid <= 0) return false
-      try {
-        process.kill(info.pid, 0)
-        return false
-      } catch (err) {
-        if (err?.code !== 'ESRCH') return false
-      }
+    if (info?.bootId !== currentBootId()) return true
+    if (!Number.isInteger(info?.pid) || info.pid <= 0) return false
+    try {
+      process.kill(info.pid, 0)
+      return false
+    } catch (err) {
+      return err?.code === 'ESRCH'
     }
-    const marker = `${lockPath}.stale-${process.pid}-${randomBytes(4).toString('hex')}`
-    renameSync(lockPath, marker)
-    unlinkSync(marker)
-    return true
   } catch {
     return false
   }
 }
 
-/** Serialize the sidecar's read-modify-write cycle; dead owners are recovered, never bypassed. */
-export function withSidecarLock(root, operation) {
-  const lockPath = join(root, SIDECAR_LOCK_PATH)
-  mkdirSync(dirname(lockPath), { recursive: true })
+const ZERO_GIT_OID = '0'.repeat(40)
+
+function runGitLock(root, args, input) {
+  return spawnSync('git', ['-C', root, ...args], {
+    encoding: 'utf-8',
+    ...(input === undefined ? {} : { input }),
+  })
+}
+
+function sidecarLockRef(root) {
+  const scope = createHash('sha256').update(realpathSync(root)).digest('hex').slice(0, 16)
+  return `refs/arbiter/locks/sidecar-${scope}`
+}
+
+function acquireSidecarLock(root) {
+  const ref = sidecarLockRef(root)
   const nonce = randomBytes(8).toString('hex')
-  let fd
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      fd = openSync(lockPath, 'wx')
-      writeFileSync(
-        fd,
-        JSON.stringify({
-          pid: process.pid,
-          hostname: hostname(),
-          bootId: currentBootId(),
-          startedAt: new Date().toISOString(),
-          nonce,
-        }),
-      )
-      break
-    } catch (err) {
-      if (fd !== undefined) closeSync(fd)
-      fd = undefined
-      if (err?.code === 'EEXIST' && attempt === 0 && takeDeadSidecarLock(lockPath)) continue
-      const cause =
-        err?.code === 'EEXIST'
-          ? 'another live or unverifiable writer holds it'
-          : String(err?.message ?? err)
-      throw new Error(`sidecar writer lock unavailable (${cause}): ${lockPath}`)
-    }
+  const owner = JSON.stringify({
+    pid: process.pid,
+    hostname: hostname(),
+    bootId: currentBootId(),
+    startedAt: new Date().toISOString(),
+    nonce,
+  })
+  const blob = runGitLock(root, ['hash-object', '-w', '--stdin'], owner)
+  const oid = blob.status === 0 ? blob.stdout.trim() : ''
+  if (!/^[0-9a-f]{40}$/.test(oid)) {
+    throw new Error(
+      `cannot create lock identity: ${blob.stderr.trim() || 'git hash-object failed'}`,
+    )
   }
-  if (fd === undefined) throw new Error(`sidecar writer lock unavailable: ${lockPath}`)
-  closeSync(fd)
+
+  const created = runGitLock(root, ['update-ref', ref, oid, ZERO_GIT_OID])
+  if (created.status === 0) return { ref, oid }
+
+  const current = runGitLock(root, ['rev-parse', '--verify', ref])
+  const currentOid = current.status === 0 ? current.stdout.trim() : ''
+  const payload = /^[0-9a-f]{40}$/.test(currentOid)
+    ? runGitLock(root, ['cat-file', 'blob', currentOid])
+    : null
+  let info = null
+  try {
+    info = payload?.status === 0 ? JSON.parse(payload.stdout) : null
+  } catch {
+    info = null
+  }
+  if (!deadSidecarInfo(info)) {
+    throw Object.assign(new Error('another live or unverifiable writer holds it'), {
+      code: 'EEXIST',
+    })
+  }
+
+  const replaced = runGitLock(root, ['update-ref', ref, oid, currentOid])
+  if (replaced.status !== 0) {
+    throw Object.assign(new Error('another writer won stale-lock recovery'), { code: 'EEXIST' })
+  }
+  return { ref, oid }
+}
+
+/** Serialize sidecar writes through Git's atomic compare-and-swap ref contract. */
+export function withSidecarLock(root, operation) {
+  mkdirSync(dirname(join(root, SIDECAR_PATH)), { recursive: true })
+  let lock
+  try {
+    lock = acquireSidecarLock(root)
+  } catch (err) {
+    const cause = err?.code === 'EEXIST' ? err.message : String(err?.message ?? err)
+    throw new Error(`sidecar writer lock unavailable (${cause}): Git ref ${sidecarLockRef(root)}`)
+  }
   try {
     return operation()
   } finally {
-    try {
-      const current = JSON.parse(readFileSync(lockPath, 'utf-8'))
-      if (current?.nonce === nonce) unlinkSync(lockPath)
-    } catch {
-      // Ownership could not be proven; leave the lock fail-closed for explicit recovery.
-    }
+    runGitLock(root, ['update-ref', '-d', lock.ref, lock.oid])
   }
 }
 

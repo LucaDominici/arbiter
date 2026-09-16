@@ -67,6 +67,15 @@ describe('materializeLink', () => {
     expect(() => materializeLink(spec, mainRepo, worktree)).toThrow(/required.*missing/i)
   })
 
+  it('rejects a required dangling link instead of reporting it linked', () => {
+    const source = join(mainRepo, '.env.required')
+    symlinkSync(source, join(worktree, '.env.required'))
+
+    expect(() =>
+      materializeLink({ path: '.env.required', required: true }, mainRepo, worktree),
+    ).toThrow(/required.*missing/i)
+  })
+
   it('creates parent directories as needed', () => {
     mkdirSync(join(mainRepo, '.claude'))
     writeFileSync(join(mainRepo, '.claude', 'settings.local.json'), '{}')
@@ -95,6 +104,22 @@ describe('materializeLink', () => {
     expect(() =>
       materializeLink({ path: '.env', template: '../secret.example' }, mainRepo, worktree),
     ).toThrow(/inside the repository/i)
+  })
+
+  it('rejects a destination that escapes through a symlinked parent', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'arbiter-links-outside-'))
+    try {
+      mkdirSync(join(mainRepo, 'config'))
+      writeFileSync(join(mainRepo, 'config', 'local.json'), '{}')
+      symlinkSync(outside, join(worktree, 'config'))
+
+      expect(() => materializeLink({ path: 'config/local.json' }, mainRepo, worktree)).toThrow(
+        /escapes through symlink/i,
+      )
+      expect(existsSync(join(outside, 'local.json'))).toBe(false)
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
   })
 
   it('rejects an existing symlink to the wrong source', () => {
