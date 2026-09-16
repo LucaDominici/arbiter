@@ -102,11 +102,9 @@ behavior_verdict: PASS|FAIL|NO_DATA|N/A
 
 Use FEATURE_MATRIX IDs for `SUPPORTED` rows; use capability `N/A` only for `INTERNAL` or `RETIRED`.
 Coverage is `VERIFIED`, `SOURCE_TRACED`, `SAMPLED`, `NEEDS_REVALIDATION`, `UNCOVERED`, or `N/A`.
-Validate the completed report with:
 
-```bash
-node scripts/check-feature-matrix.mjs --product-report <report.md>
-```
+At L1, retain the report as evidence; mechanical report validation becomes available at L2.
+
 
 Counts come from rows. Presence, markers, authored transcripts, and historical evidence cannot
 produce a behavior `PASS`.

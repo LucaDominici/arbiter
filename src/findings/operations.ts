@@ -17,7 +17,7 @@
 //   2. `graphNode` present AND graph fresh      → DROP if the node is gone; KEEP if present
 //   3. symbol-only with no graph (low-conf)     → do NOT bare-grep-drop; route to age-sweep
 //   4. age-sweep: unpromoted older than N days  → promote; younger → defer
-import { existsSync, readFileSync, mkdirSync, statSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import {
@@ -27,6 +27,7 @@ import {
   type CreateGhIssueResult,
 } from '../utils/github-issue-helper.js'
 import { loadGraphSnapshot } from '../graph/load.js'
+import { ensureDir } from '../utils/fs.js'
 
 /** One drained finding line — the canonical `FindingEntry` shape from `task-note.ts` (SSOT). */
 export interface SpoolFinding {
@@ -328,7 +329,7 @@ export function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): Fin
     }
 
     if (!evidenceReady) {
-      mkdirSync(evidenceDir, { recursive: true })
+      ensureDir(evidenceDir)
       evidenceReady = true
     }
     appendTechDebtIssue(evidenceDir, result.issueNumber)

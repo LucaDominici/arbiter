@@ -9,7 +9,7 @@ import {
   runFindingsTriage,
   type PromoteDeps,
   type IssueSearchResult,
-} from '../../src/commands/findings-promote.js'
+} from '../../src/findings/operations.js'
 
 /** Mirror of task-note.ts computeFingerprint material (SSOT dedup material). */
 function fp(parts: { kind: string; file: string; symbol: string; note: string }): string {

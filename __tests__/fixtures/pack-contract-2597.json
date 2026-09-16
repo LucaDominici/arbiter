@@ -5,9 +5,9 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 4430651,
-    "entryCount": 991,
-    "rosterSha256": "d775f6f99ebc60d65bc97aed0ff92ebbbf59dcda7c1937336af223db4f140142"
+    "unpackedSize": 4529407,
+    "entryCount": 992,
+    "rosterSha256": "4ace3df609ce15e09781c61146595444f7e584becd211d7cc9cdaa1a2e88e530"
   },
   "manifest": {
     "bin": {
@@ -77,21 +77,21 @@
     "pathsSha256": "7399eb8c0f354844af79c8859798d3fb024ecf876ca9d73eba98368be16394f1"
   },
   "leading_spdx": {
-    "count": 282,
-    "pathsSha256": "ec46e7f4ca8e0e64d1b4dd222ad7c933c53087f1f905059d4dd0babda8348bce"
+    "count": 283,
+    "pathsSha256": "579b6df6a432ac9a3e5c657e934fc4dad2686ec63d63b29392a841467e0f8214"
   },
   "repinned": {
-    "task_id": "#2663+#2662",
-    "reason": "batch-3 integration: dist/commands/ignore.js (#2662) + dist/templates/scripts/check-no-orphan-todo.mjs.ejs (#2663) enter the roster",
+    "task_id": "#2663+#2662+#2414",
+    "reason": "the product-audit finding domain enters the published runtime roster",
     "before": {
       "entryCount": 991,
       "templates": 645,
       "spdx": 282
     },
     "after": {
-      "entryCount": 991,
+      "entryCount": 992,
       "templates": 645,
-      "spdx": 282
+      "spdx": 283
     }
   }
 }
