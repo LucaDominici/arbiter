@@ -82,7 +82,7 @@ function main() {
       `━━━ STOP EVIDENCE GUARD ━━━\n` +
         `Completion claim blocked on ${branch} (phase: ${phase}):\n` +
         `  ${reason}\n\n` +
-        `A completion claim requires plan-review + dispatch + gate-pass + journey evidence,\n` +
+        `A completion claim requires the task's applicable review, gate and journey evidence,\n` +
         `each recorded on this branch at a commit reachable from HEAD.\n` +
         `Re-run the missing step, then claim completion again.\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`,
@@ -128,25 +128,29 @@ function main() {
     if (!doneVerdict.ok) fail(doneVerdict.reason)
   }
 
-  // 1. plan-review — verdict PASS, on this branch, sha is an ancestor of HEAD.
-  // Deliberately ancestor-only: a plan is reviewed BEFORE the implementation commits, so
-  // source necessarily changes afterwards. The #2399 source-unchanged binding applies to
-  // evidence that describes reviewed CODE (the dispatch sidecar), never to the plan.
-  const planPath = join(
-    root,
-    '.arbiter',
-    'evidence',
-    'plan-review',
-    sanitizeTaskId(taskId),
-    'latest.json',
-  )
-  const plan = readJson(planPath)
-  if (plan === null) fail('plan-review evidence missing or unreadable (latest.json)')
-  if (plan.verdict !== 'PASS')
-    fail(`plan-review verdict is ${JSON.stringify(plan.verdict)} — must be PASS`)
-  if (plan.branch !== branch)
-    fail(`plan-review evidence is for branch ${JSON.stringify(plan.branch)}, not ${branch}`)
-  if (!isAncestor(plan.sha)) fail('plan-review evidence sha is not an ancestor of HEAD (stale)')
+  // Historical tasks retain their declared obligation until lifecycle recovery migrates them.
+  const treatment = readJson(join(root, '.claude', '.task', 'status.json'))?.treatment
+  if (treatment?.preCodeReviewers !== 0) {
+    // 1. plan-review — verdict PASS, on this branch, sha is an ancestor of HEAD.
+    // Deliberately ancestor-only: a plan is reviewed BEFORE the implementation commits, so
+    // source necessarily changes afterwards. The #2399 source-unchanged binding applies to
+    // evidence that describes reviewed CODE (the dispatch sidecar), never to the plan.
+    const planPath = join(
+      root,
+      '.arbiter',
+      'evidence',
+      'plan-review',
+      sanitizeTaskId(taskId),
+      'latest.json',
+    )
+    const plan = readJson(planPath)
+    if (plan === null) fail('plan-review evidence missing or unreadable (latest.json)')
+    if (plan.verdict !== 'PASS')
+      fail(`plan-review verdict is ${JSON.stringify(plan.verdict)} — must be PASS`)
+    if (plan.branch !== branch)
+      fail(`plan-review evidence is for branch ${JSON.stringify(plan.branch)}, not ${branch}`)
+    if (!isAncestor(plan.sha)) fail('plan-review evidence sha is not an ancestor of HEAD (stale)')
+  }
 
   // 2. dispatch sidecar — review agents dispatched on this branch, and the source they
   // reviewed is still the source at HEAD (#2399). The sidecar is a TRACKED, branch-shared
