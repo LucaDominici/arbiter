@@ -111,9 +111,19 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
   // newlines, or the substring " -> " (fixes #500, #501).
   // Use --untracked-files=all to list individual files inside untracked
   // directories (default shows only the directory name, which we can't copy).
-  const statusOutput = runCli('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
-    cwd: worktreePath,
-  }).stdout
+  const statusOutput = runCli(
+    'git',
+    [
+      'status',
+      '--porcelain=v1',
+      '-z',
+      '--untracked-files=all',
+      '--',
+      '.',
+      ':(exclude).arbiter/checkout-binding.json',
+    ],
+    { cwd: worktreePath },
+  ).stdout
 
   if (statusOutput.length === 0) {
     return result // No changes to harvest

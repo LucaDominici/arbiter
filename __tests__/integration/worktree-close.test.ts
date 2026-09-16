@@ -398,6 +398,8 @@ describe('runWorktreeClose --harvest', () => {
     })
 
     expect(harvested).toContain('src/app.ts')
+    expect(harvested).not.toContain('.arbiter/checkout-binding.json')
+    expect(existsSync(join(repoRoot, '.arbiter', 'checkout-binding.json'))).toBe(false)
     expect(readFileSync(join(repoRoot, 'src/app.ts'), 'utf-8')).toBe('modified-in-wt')
     expect(existsSync(wtPath)).toBe(false)
   })

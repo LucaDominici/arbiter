@@ -196,7 +196,7 @@ export interface WorktreeCloseOptions {
   json?: boolean | undefined
 }
 
-export interface WorktreeListOptions {
+interface WorktreeListOptions {
   cwd?: string
   /** Include every linked checkout, including non-task and detached worktrees. */
   all?: boolean
@@ -205,7 +205,7 @@ export interface WorktreeListOptions {
   json?: boolean | undefined
 }
 
-export interface WorktreeAdoptOptions {
+interface WorktreeAdoptOptions {
   taskId: string
   /** Existing checkout created by the native host. Defaults to cwd. */
   worktreePath?: string
@@ -216,7 +216,7 @@ export interface WorktreeAdoptOptions {
   json?: boolean | undefined
 }
 
-export interface WorktreeRelinkOptions {
+interface WorktreeRelinkOptions {
   taskId: string
   cwd?: string
   /** Also materialize build-artifact links (WorktreeConfig.buildLinks). */
@@ -246,6 +246,12 @@ interface GitWorktreeEntry {
   detached: boolean
 }
 
+function updateGitWorktreeEntry(entry: GitWorktreeEntry, line: string): void {
+  if (line.startsWith('HEAD ')) entry.head = line.slice(5)
+  else if (line.startsWith('branch ')) entry.branch = line.slice(7).replace('refs/heads/', '')
+  else if (line === 'detached') entry.detached = true
+}
+
 function parseGitWorktrees(output: string): GitWorktreeEntry[] {
   const entries: GitWorktreeEntry[] = []
   let current: GitWorktreeEntry | null = null
@@ -253,13 +259,7 @@ function parseGitWorktrees(output: string): GitWorktreeEntry[] {
     if (line.startsWith('worktree ')) {
       if (current !== null) entries.push(current)
       current = { path: line.slice(9), head: null, branch: null, detached: false }
-    } else if (current !== null && line.startsWith('HEAD ')) {
-      current.head = line.slice(5)
-    } else if (current !== null && line.startsWith('branch ')) {
-      current.branch = line.slice(7).replace('refs/heads/', '')
-    } else if (current !== null && line === 'detached') {
-      current.detached = true
-    }
+    } else if (current !== null) updateGitWorktreeEntry(current, line)
   }
   if (current !== null) entries.push(current)
   return entries
@@ -303,7 +303,7 @@ function bindingMarkerMatches(entry: OpenLogEntry): boolean {
   try {
     const path = bindingMarkerPath(entry.worktreePath)
     const stat = lstatSync(path)
-    if (!stat.isFile() || stat.isSymbolicLink()) return false
+    if (!stat.isFile()) return false
     const marker = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
     return (
       typeof entry.bindingId === 'string' &&
@@ -995,9 +995,7 @@ export function runWorktreeList(opts: WorktreeListOptions = {}): void {
   const worktrees = gitWorktreeInventory(gitRoot)
 
   // Skip the main worktree (first entry) and filter to task branches
-  const taskWorktrees = opts.all
-    ? worktrees.slice(1)
-    : worktrees.slice(1).filter((w) => w.branch?.startsWith('task/'))
+  const taskWorktrees = listWorktrees(worktrees, opts.all === true)
 
   if (opts.json) {
     jsonOutput('worktree-list', 'ok', { worktrees: taskWorktrees })
@@ -1005,13 +1003,26 @@ export function runWorktreeList(opts: WorktreeListOptions = {}): void {
   }
 
   if (taskWorktrees.length === 0) {
-    emit(opts.all ? '\nNo linked worktrees.\n' : '\nNo open task worktrees.\n')
+    emit(emptyListMessage(opts.all === true))
     return
   }
 
-  emit(`\n${opts.all ? 'Open worktrees' : 'Open task worktrees'} (${taskWorktrees.length}):\n`)
+  emit(`\n${listHeading(opts.all === true)} (${taskWorktrees.length}):\n`)
   for (const wt of taskWorktrees) {
     emit(`  ${wt.branch ?? '(detached)'}  ${wt.path}`)
   }
   emit('')
+}
+
+function listWorktrees(worktrees: GitWorktreeEntry[], all: boolean): GitWorktreeEntry[] {
+  const linked = worktrees.slice(1)
+  return all ? linked : linked.filter((worktree) => worktree.branch?.startsWith('task/'))
+}
+
+function emptyListMessage(all: boolean): string {
+  return all ? '\nNo linked worktrees.\n' : '\nNo open task worktrees.\n'
+}
+
+function listHeading(all: boolean): string {
+  return all ? 'Open worktrees' : 'Open task worktrees'
 }

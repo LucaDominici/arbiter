@@ -57,6 +57,43 @@ function symlinkTarget(path: string): string {
   return resolve(dirname(path), readlinkSync(path))
 }
 
+function matchesCopiedTemplate(
+  sourcePath: string,
+  destPath: string,
+  templatePath: string | undefined,
+): boolean {
+  return (
+    !existsSync(sourcePath) &&
+    templatePath !== undefined &&
+    existsSync(templatePath) &&
+    readFileTranslated(destPath).equals(readFileTranslated(templatePath))
+  )
+}
+
+function existingRegularFile(
+  spec: WorktreeLinkSpec,
+  sourcePath: string,
+  destPath: string,
+  templatePath: string | undefined,
+): MaterializeResult {
+  if (matchesCopiedTemplate(sourcePath, destPath, templatePath)) {
+    return { spec, result: 'COPIED_TEMPLATE' }
+  }
+  throw new Error(
+    `Cannot materialize '${spec.path}': a non-symlink already exists at ${destPath}. ` +
+      `Remove it manually then retry.`,
+  )
+}
+
+function needsMaterialization(
+  destPath: string,
+  linkType: 'file' | 'directory',
+  strategy: 'symlink' | 'symlink-children' | 'copy',
+): boolean {
+  if (linkType === 'directory' && strategy === 'symlink-children') return true
+  return !existsSync(destPath) && !lstatSync2IsLink(destPath)
+}
+
 function existingMaterialization(
   spec: WorktreeLinkSpec,
   sourcePath: string,
@@ -65,25 +102,9 @@ function existingMaterialization(
 ): MaterializeResult | null {
   const linkType = spec.type ?? 'file'
   const strategy = spec.strategy ?? 'symlink'
-  if (
-    (!existsSync(destPath) && !lstatSync2IsLink(destPath)) ||
-    (linkType === 'directory' && strategy === 'symlink-children')
-  ) {
-    return null
-  }
+  if (needsMaterialization(destPath, linkType, strategy)) return null
   if (!lstatSync(destPath).isSymbolicLink()) {
-    if (
-      !existsSync(sourcePath) &&
-      templatePath !== undefined &&
-      existsSync(templatePath) &&
-      readFileTranslated(destPath).equals(readFileTranslated(templatePath))
-    ) {
-      return { spec, result: 'COPIED_TEMPLATE' }
-    }
-    throw new Error(
-      `Cannot materialize '${spec.path}': a non-symlink already exists at ${destPath}. ` +
-        `Remove it manually then retry.`,
-    )
+    return existingRegularFile(spec, sourcePath, destPath, templatePath)
   }
   if (symlinkTarget(destPath) !== sourcePath) {
     throw new Error(`Cannot materialize '${spec.path}': existing symlink has the wrong target.`)

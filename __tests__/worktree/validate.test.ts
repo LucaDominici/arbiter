@@ -92,7 +92,14 @@ describe('workingTreeDirty', () => {
     expect(workingTreeDirty('/repo')).toBe(true)
     expect(mockRunCli).toHaveBeenCalledWith(
       'git',
-      ['status', '--porcelain', '--untracked-files=all'],
+      [
+        'status',
+        '--porcelain',
+        '--untracked-files=all',
+        '--',
+        '.',
+        ':(exclude).arbiter/checkout-binding.json',
+      ],
       { cwd: '/repo' },
     )
   })
@@ -104,7 +111,14 @@ describe('workingTreeDirty', () => {
     expect(workingTreeDirty('/repo', 'exclude')).toBe(false)
     expect(mockRunCli).toHaveBeenCalledWith(
       'git',
-      ['status', '--porcelain', '--untracked-files=no'],
+      [
+        'status',
+        '--porcelain',
+        '--untracked-files=no',
+        '--',
+        '.',
+        ':(exclude).arbiter/checkout-binding.json',
+      ],
       { cwd: '/repo' },
     )
   })

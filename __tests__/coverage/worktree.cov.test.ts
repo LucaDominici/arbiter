@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -68,6 +68,7 @@ import { harvestFiles } from '../../src/worktree/harvest.js'
 import { loadConfig } from '../../src/utils/config.js'
 import {
   runWorktreeOpen,
+  runWorktreeAdopt,
   runWorktreeClose,
   runWorktreeList,
   isOpenLogEntry,
@@ -226,6 +227,21 @@ describe('runWorktreeOpen — branch coverage', () => {
     expect(out.join('')).toContain('3 copied-dir')
   })
 
+  it('covers the symlink-children summary branch', async () => {
+    primeHappyOpen()
+    mockMaterializeLink.mockReturnValue({ result: 'LINKED_CHILDREN' })
+    const out: string[] = []
+    const stdoutSpy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((value: string | Uint8Array): boolean => {
+        out.push(String(value))
+        return true
+      })
+    await runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })
+    stdoutSpy.mockRestore()
+    expect(out.join('')).toContain('3 linked-children')
+  })
+
   it('falls back to origin/<base> when the local branch is absent (recoverable CliError)', async () => {
     mockRunCli
       .mockReturnValueOnce(ok(gitRoot)) // getGitRoot
@@ -311,6 +327,14 @@ describe('runWorktreeOpen — branch coverage', () => {
     stdoutSpy.mockRestore()
     // 2 specs (1 link + 1 buildLink) → materializeLink called twice.
     expect(mockMaterializeLink).toHaveBeenCalledTimes(2)
+  })
+
+  it('tolerates absent buildLinks when build-link materialization is requested', async () => {
+    primeHappyOpen()
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    await runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir, withBuildLinks: true })
+    stdoutSpy.mockRestore()
+    expect(mockMaterializeLink).toHaveBeenCalledTimes(3)
   })
 
   it('does NOT append build links when withBuildLinks is absent (config has buildLinks)', async () => {
@@ -448,6 +472,57 @@ describe('runWorktreeClose — branch coverage', () => {
     expect(() =>
       runWorktreeClose({ taskId: '123', cwd: gitRoot, noFetch: true, onWarning: () => undefined }),
     ).toThrow('Close hook not found')
+  })
+
+  it('refuses to remove a host-owned checkout', () => {
+    const logPath = join(gitRoot, '.arbiter', 'worktree-open.log.json')
+    const entries = JSON.parse(readFileSync(logPath, 'utf8')) as Array<Record<string, unknown>>
+    entries[0]!['owner'] = 'host'
+    writeFileSync(logPath, JSON.stringify(entries))
+    writeFileSync(
+      join(worktreePath, '.arbiter', 'checkout-binding.json'),
+      JSON.stringify({ taskId: '#123', bindingId: 'binding-123', owner: 'host' }),
+    )
+
+    expect(() => runWorktreeClose({ taskId: '#123', cwd: gitRoot })).toThrow(/host-owned/i)
+  })
+
+  it('accepts a historical Arbiter-owned entry without an owner field', () => {
+    const logPath = join(gitRoot, '.arbiter', 'worktree-open.log.json')
+    const entries = JSON.parse(readFileSync(logPath, 'utf8')) as Array<Record<string, unknown>>
+    delete entries[0]!['owner']
+    writeFileSync(logPath, JSON.stringify(entries))
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+
+    expect(() => runWorktreeClose({ taskId: '#123', cwd: gitRoot, noFetch: true })).not.toThrow()
+    stdoutSpy.mockRestore()
+  })
+
+  it('fails closed when the checkout binding marker is not a regular file', () => {
+    const marker = join(worktreePath, '.arbiter', 'checkout-binding.json')
+    rmSync(marker)
+    mkdirSync(marker)
+
+    expect(() => runWorktreeClose({ taskId: '#123', cwd: gitRoot })).toThrow(
+      /no longer matches Git worktree inventory/i,
+    )
+  })
+
+  it('blocks dirty checkout teardown and preserves it', () => {
+    mockWorkingTreeDirty.mockReturnValue(true)
+    expect(() => runWorktreeClose({ taskId: '#123', cwd: gitRoot })).toThrow(
+      /uncommitted or untracked changes/i,
+    )
+    expect(existsSync(worktreePath)).toBe(true)
+  })
+
+  it('allows explicit force to remove a dirty checkout', () => {
+    mockWorkingTreeDirty.mockReturnValue(true)
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    expect(() =>
+      runWorktreeClose({ taskId: '#123', cwd: gitRoot, noFetch: true, force: true }),
+    ).not.toThrow()
+    stdoutSpy.mockRestore()
   })
 
   it('silently skips a missing close hook when forced', () => {
@@ -716,6 +791,291 @@ describe('runWorktreeClose — branch coverage', () => {
     stdoutSpy.mockRestore()
     expect(out.some((l) => l.includes('"command":"worktree-close"'))).toBe(true)
     expect(out.some((l) => l.includes('Worktree closed'))).toBe(false)
+  })
+})
+
+// ===========================================================================
+// runWorktreeAdopt — native checkout discovery, detached recovery, binding handoff
+// ===========================================================================
+
+describe('runWorktreeAdopt — branch coverage', () => {
+  let gitRoot: string
+  let worktreePath: string
+
+  function inventory(branch = 'feature/native'): string {
+    return (
+      `worktree ${gitRoot}\nHEAD abc123\nbranch refs/heads/main\n\n` +
+      `worktree ${worktreePath}\nHEAD def456\nbranch refs/heads/${branch}\n\n`
+    )
+  }
+
+  beforeEach(() => {
+    gitRoot = mkdtempSync(join(tmpdir(), 'wtcov-adopt-main-'))
+    worktreePath = mkdtempSync(join(tmpdir(), 'wtcov-adopt-task-'))
+    mkdirSync(join(gitRoot, '.arbiter'), { recursive: true })
+    resetCommonMocks()
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
+      if (args?.join(' ') === 'worktree list --porcelain') return ok(inventory())
+      return ok(gitRoot)
+    })
+  })
+
+  afterEach(() => {
+    rmSync(gitRoot, { recursive: true, force: true })
+    rmSync(worktreePath, { recursive: true, force: true })
+  })
+
+  it('adopts a native checkout, materializes configured resources, and emits JSON', async () => {
+    mockLoadConfig.mockReturnValue({
+      worktree: {
+        base: null,
+        links: [{ path: '.env', required: false }],
+        buildLinks: [{ path: 'dist', required: false, type: 'directory' }],
+        closeHook: null,
+      },
+    } as ReturnType<typeof loadConfig>)
+    const out: string[] = []
+    const stdoutSpy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((value: string | Uint8Array): boolean => {
+        out.push(String(value))
+        return true
+      })
+
+    await runWorktreeAdopt({
+      taskId: '2564',
+      cwd: gitRoot,
+      worktreePath,
+      withBuildLinks: true,
+      json: true,
+    })
+    stdoutSpy.mockRestore()
+
+    expect(mockMaterializeLink).toHaveBeenCalledTimes(2)
+    expect(out.some((line) => line.includes('"command":"worktree-adopt"'))).toBe(true)
+    const marker = JSON.parse(
+      readFileSync(join(worktreePath, '.arbiter', 'checkout-binding.json'), 'utf8'),
+    ) as Record<string, unknown>
+    expect(marker).toMatchObject({ taskId: '#2564', owner: 'host' })
+  })
+
+  it('creates a task branch when the native checkout is detached', async () => {
+    let switched = false
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
+      if (args?.join(' ') === 'worktree list --porcelain') {
+        return ok(
+          switched
+            ? inventory('task/#2564')
+            : `worktree ${gitRoot}\nHEAD abc123\nbranch refs/heads/main\n\n` +
+                `worktree ${worktreePath}\nHEAD def456\ndetached\n\n`,
+        )
+      }
+      if (args?.[0] === 'switch') switched = true
+      return ok(gitRoot)
+    })
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    await runWorktreeAdopt({ taskId: '#2564', cwd: gitRoot, worktreePath })
+    stdoutSpy.mockRestore()
+
+    expect(switched).toBe(true)
+  })
+
+  it('fails when a detached checkout still has no branch after switch', async () => {
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
+      if (args?.join(' ') === 'worktree list --porcelain') {
+        return ok(
+          `worktree ${gitRoot}\nHEAD abc123\nbranch refs/heads/main\n\n` +
+            `worktree ${worktreePath}\nHEAD def456\ndetached\n\n`,
+        )
+      }
+      return ok(gitRoot)
+    })
+
+    await expect(
+      runWorktreeAdopt({ taskId: '#2564', cwd: gitRoot, worktreePath }),
+    ).rejects.toThrow(/unable to establish a branch/i)
+  })
+
+  it('adopts from the checkout cwd and derives the main repository from git-common-dir', async () => {
+    mockIsRunningFromMainRepo.mockReturnValueOnce(false).mockReturnValue(true)
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
+      if (args?.join(' ') === 'rev-parse --show-toplevel') return ok(worktreePath)
+      if (args?.join(' ') === 'rev-parse --path-format=absolute --git-common-dir') {
+        return ok(join(gitRoot, '.git'))
+      }
+      if (args?.join(' ') === 'worktree list --porcelain') return ok(inventory())
+      return ok(gitRoot)
+    })
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+
+    await runWorktreeAdopt({ taskId: '#2564', cwd: worktreePath, onWarning: () => undefined })
+    stdoutSpy.mockRestore()
+
+    expect(readFileSync(join(gitRoot, '.arbiter', 'worktree-open.log.json'), 'utf8')).toContain(
+      worktreePath,
+    )
+  })
+
+  it('uses process cwd when adopting the current native checkout', async () => {
+    const originalCwd = process.cwd()
+    mockIsRunningFromMainRepo.mockReturnValueOnce(false).mockReturnValue(true)
+    mockCheckLinkIntegrity.mockReturnValue(['.env'])
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
+      if (args?.join(' ') === 'rev-parse --show-toplevel') return ok(worktreePath)
+      if (args?.join(' ') === 'rev-parse --path-format=absolute --git-common-dir') {
+        return ok(join(gitRoot, '.git'))
+      }
+      if (args?.join(' ') === 'worktree list --porcelain') return ok(inventory())
+      return ok(gitRoot)
+    })
+    const warnings: string[] = []
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    try {
+      process.chdir(worktreePath)
+      await runWorktreeAdopt({ taskId: '#2564', onWarning: (warning) => warnings.push(warning) })
+    } finally {
+      process.chdir(originalCwd)
+      stdoutSpy.mockRestore()
+    }
+    expect(warnings.join('\n')).toContain('dangling symlink: .env')
+  })
+
+  it('rejects a linked checkout whose common directory does not resolve to the main repo', async () => {
+    mockIsRunningFromMainRepo.mockReturnValue(false)
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
+      if (args?.join(' ') === 'rev-parse --show-toplevel') return ok(worktreePath)
+      if (args?.join(' ') === 'rev-parse --path-format=absolute --git-common-dir') {
+        return ok(join(gitRoot, '.git'))
+      }
+      return ok(gitRoot)
+    })
+    await expect(
+      runWorktreeAdopt({ taskId: '#2564', cwd: worktreePath }),
+    ).rejects.toThrow(/does not resolve to a main repository/i)
+  })
+
+  it('rejects adoption when Git reports no linked worktrees', async () => {
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult =>
+      args?.join(' ') === 'worktree list --porcelain' ? ok('') : ok(gitRoot),
+    )
+    await expect(
+      runWorktreeAdopt({ taskId: '#2564', cwd: gitRoot, worktreePath }),
+    ).rejects.toThrow(/not a linked checkout/i)
+  })
+
+  it('records an empty base ref when Git omits HEAD and tolerates absent build links', async () => {
+    mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
+      if (args?.join(' ') === 'worktree list --porcelain') {
+        return ok(
+          `worktree ${gitRoot}\nHEAD abc123\nbranch refs/heads/main\n\n` +
+            `worktree ${worktreePath}\nbranch refs/heads/feature/native\n\n`,
+        )
+      }
+      return ok(gitRoot)
+    })
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+
+    await runWorktreeAdopt({
+      taskId: '#2564',
+      cwd: gitRoot,
+      worktreePath,
+      withBuildLinks: true,
+      onWarning: () => undefined,
+    })
+    stdoutSpy.mockRestore()
+
+    const entries = JSON.parse(
+      readFileSync(join(gitRoot, '.arbiter', 'worktree-open.log.json'), 'utf8'),
+    ) as Array<Record<string, unknown>>
+    expect(entries[0]!['baseRef']).toBe('')
+  })
+
+  it('rejects the main checkout instead of adopting it as task work', async () => {
+    await expect(
+      runWorktreeAdopt({ taskId: '#2564', cwd: gitRoot, worktreePath: gitRoot }),
+    ).rejects.toThrow(/not a linked checkout/i)
+  })
+
+  it('invalidates receipts from the previous live binding during handoff', async () => {
+    const previousPath = mkdtempSync(join(tmpdir(), 'wtcov-adopt-previous-'))
+    try {
+      mkdirSync(join(previousPath, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
+      writeFileSync(join(previousPath, '.arbiter', 'gate-pass.json'), '{}')
+      writeFileSync(
+        join(previousPath, '.arbiter', 'checkout-binding.json'),
+        JSON.stringify({ taskId: '#2564', bindingId: 'old-binding', owner: 'host' }),
+      )
+      writeFileSync(
+        join(gitRoot, '.arbiter', 'worktree-open.log.json'),
+        JSON.stringify([
+          {
+            taskId: '#2564',
+            slug: null,
+            worktreePath: previousPath,
+            branch: 'feature/previous',
+            baseBranch: 'main',
+            baseRef: 'abc123',
+            openedAt: new Date().toISOString(),
+            bindingId: 'old-binding',
+            owner: 'host',
+          },
+        ]),
+      )
+      const expandedInventory =
+        inventory() +
+        `worktree ${previousPath}\nHEAD fedcba\nbranch refs/heads/feature/previous\n\n`
+      mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult =>
+        args?.join(' ') === 'worktree list --porcelain' ? ok(expandedInventory) : ok(gitRoot),
+      )
+      const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+      await runWorktreeAdopt({ taskId: '#2564', cwd: gitRoot, worktreePath })
+      stdoutSpy.mockRestore()
+
+      expect(() => readFileSync(join(previousPath, '.arbiter', 'gate-pass.json'))).toThrow()
+    } finally {
+      rmSync(previousPath, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves prior receipts when the previous marker does not corroborate the log', async () => {
+    const previousPath = mkdtempSync(join(tmpdir(), 'wtcov-adopt-stale-'))
+    try {
+      mkdirSync(join(previousPath, '.arbiter'), { recursive: true })
+      writeFileSync(join(previousPath, '.arbiter', 'gate-pass.json'), '{}')
+      writeFileSync(
+        join(previousPath, '.arbiter', 'checkout-binding.json'),
+        JSON.stringify({ taskId: '#2564', bindingId: 'different-binding', owner: 'host' }),
+      )
+      writeFileSync(
+        join(gitRoot, '.arbiter', 'worktree-open.log.json'),
+        JSON.stringify([
+          {
+            taskId: '#2564',
+            slug: null,
+            worktreePath: previousPath,
+            branch: 'feature/previous',
+            baseBranch: 'main',
+            baseRef: 'abc123',
+            openedAt: new Date().toISOString(),
+            bindingId: 'old-binding',
+            owner: 'host',
+          },
+        ]),
+      )
+      const expandedInventory =
+        inventory() +
+        `worktree ${previousPath}\nHEAD fedcba\nbranch refs/heads/feature/previous\n\n`
+      mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult =>
+        args?.join(' ') === 'worktree list --porcelain' ? ok(expandedInventory) : ok(gitRoot),
+      )
+      const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+      await runWorktreeAdopt({ taskId: '#2564', cwd: gitRoot, worktreePath })
+      stdoutSpy.mockRestore()
+
+      expect(readFileSync(join(previousPath, '.arbiter', 'gate-pass.json'), 'utf8')).toBe('{}')
+    } finally {
+      rmSync(previousPath, { recursive: true, force: true })
+    }
   })
 })
 

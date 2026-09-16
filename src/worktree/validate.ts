@@ -28,9 +28,18 @@ export function workingTreeDirty(
   untrackedFiles: UntrackedFilesMode = 'include',
 ): boolean {
   const untrackedArg = untrackedFiles === 'include' ? 'all' : 'no'
-  const result = runCli('git', ['status', '--porcelain', `--untracked-files=${untrackedArg}`], {
-    cwd,
-  })
+  const result = runCli(
+    'git',
+    [
+      'status',
+      '--porcelain',
+      `--untracked-files=${untrackedArg}`,
+      '--',
+      '.',
+      ':(exclude).arbiter/checkout-binding.json',
+    ],
+    { cwd },
+  )
   return result.stdout.trim().length > 0
 }
 
