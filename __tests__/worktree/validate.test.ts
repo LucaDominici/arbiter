@@ -97,8 +97,7 @@ describe('workingTreeDirty', () => {
         '--porcelain',
         '--untracked-files=all',
         '--',
-        '.',
-        ':(exclude).arbiter/checkout-binding.json',
+        ':(top,exclude).arbiter/checkout-binding.json',
       ],
       { cwd: '/repo' },
     )
@@ -116,8 +115,7 @@ describe('workingTreeDirty', () => {
         '--porcelain',
         '--untracked-files=no',
         '--',
-        '.',
-        ':(exclude).arbiter/checkout-binding.json',
+        ':(top,exclude).arbiter/checkout-binding.json',
       ],
       { cwd: '/repo' },
     )

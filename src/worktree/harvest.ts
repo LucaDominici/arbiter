@@ -119,8 +119,7 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
       '-z',
       '--untracked-files=all',
       '--',
-      '.',
-      ':(exclude).arbiter/checkout-binding.json',
+      ':(top,exclude).arbiter/checkout-binding.json',
     ],
     { cwd: worktreePath },
   ).stdout

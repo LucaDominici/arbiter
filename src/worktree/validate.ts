@@ -35,8 +35,7 @@ export function workingTreeDirty(
       '--porcelain',
       `--untracked-files=${untrackedArg}`,
       '--',
-      '.',
-      ':(exclude).arbiter/checkout-binding.json',
+      ':(top,exclude).arbiter/checkout-binding.json',
     ],
     { cwd },
   )

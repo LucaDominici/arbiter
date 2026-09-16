@@ -128,6 +128,18 @@ async function openAndMerge(taskId: string, slug: string): Promise<string> {
 // close
 // ---------------------------------------------------------------------------
 
+describe('runWorktreeOpen', () => {
+  it('checks the whole repository when invoked from a nested directory', async () => {
+    const nestedDir = join(repoRoot, 'nested')
+    mkdirSync(nestedDir)
+    writeFileSync(join(repoRoot, 'README.md'), '# dirty outside nested cwd')
+
+    await expect(
+      runWorktreeOpen({ taskId: '#2564', cwd: nestedDir, worktreesDir }),
+    ).rejects.toThrow(/uncommitted changes/i)
+  })
+})
+
 describe('runWorktreeClose', () => {
   it('closes a merged worktree — directory removed, log written', async () => {
     await openAndMerge('#999', 'test')
