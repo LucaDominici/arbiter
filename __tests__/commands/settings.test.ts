@@ -292,7 +292,12 @@ describe('runSettings', () => {
     try {
       runSettings({ dir: projectWith({}), json: true })
     } finally {
-      for (const key of Object.keys(values)) delete process.env[key]
+      delete process.env['ARBITER_RUN_ID']
+      delete process.env['ARBITER_HOOK_DEBOUNCE_MS']
+      delete process.env['ARBITER_LOG_FORMAT']
+      delete process.env['ARBITER_FINDING_LOSS_HARD']
+      delete process.env['ARBITER_THRESHOLD__LINE_COVERAGE']
+      delete process.env['ARBITER_FEATURE__CONTRACT_TESTING']
     }
     const parsed = JSON.parse(out.join('')) as {
       data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }

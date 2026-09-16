@@ -1097,6 +1097,17 @@ describe('validateConfig — structured configuration', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('accepts a partial worktree policy and leaves omitted defaults to the consumer', () => {
+    const result = validateConfig({
+      ...base,
+      worktree: {
+        base: null,
+        links: [{ path: 'node_modules', type: 'directory' }],
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+
   it('rejects malformed nested values with path-specific errors', () => {
     const result = validateConfig({
       ...base,

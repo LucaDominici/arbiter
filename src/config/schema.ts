@@ -1032,7 +1032,11 @@ function validateWorktree(raw: Record<string, unknown>, errors: string[]): void 
   if (worktree['buildLinks'] !== undefined) {
     validateWorktreeLinks('worktree.buildLinks', worktree['buildLinks'], errors)
   }
-  if (worktree['closeHook'] !== null && typeof worktree['closeHook'] !== 'string') {
+  if (
+    worktree['closeHook'] !== undefined &&
+    worktree['closeHook'] !== null &&
+    typeof worktree['closeHook'] !== 'string'
+  ) {
     errors.push('worktree.closeHook must be a string or null')
   }
 }
