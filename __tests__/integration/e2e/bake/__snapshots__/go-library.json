@@ -333,7 +333,7 @@
     "scripts/check-milestones.mjs": "63e7c9dfa4d0a8d56d141e87ddb4a76595fc42991667160c4beef1359bd50ae7",
     "scripts/check-min-test-execution.mjs": "385557052cd98497da56e76257e60e5ebfad7b09e034214f2ea47a3126c6e439",
     "scripts/check-muted-test.mjs": "b0e3ef4dc42d59b05a3a46e2f346cd3e137f9c90a7c29c807d18ff5dc8120367",
-    "scripts/check-no-orphan-todo.mjs": "d3d6bb317f01b37468e6e6b62e6e19113e36320635ca782ce12b9deb3a7998ef",
+    "scripts/check-no-orphan-todo.mjs": "c80d16025bf821aa572bb4fbd3c936167c1a76e8a90412fc9b4f12ab127be3fe",
     "scripts/check-no-stub-redirects.mjs": "644d9b316c41dcbf7f9fe86d27e0af3e423d3b203d12136025c458800e89dbf1",
     "scripts/check-no-tracked-artifacts.mjs": "3fd8650b6b9c100ef4d2a3fb90c00539654936aa6e5077217533f37efb00e3b3",
     "scripts/check-pipe-tee-hazard.mjs": "50f9c9fc51c70268965c399c2eb77c9d2918dbb6e8c8621888b79a2b9baa736b",

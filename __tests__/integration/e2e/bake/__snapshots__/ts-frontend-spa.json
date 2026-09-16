@@ -382,7 +382,7 @@
     "scripts/check-milestones.mjs": "8891bfc2cf0a48b5407987987d819e37439dbe699c4af79feb82cb0acec29809",
     "scripts/check-min-test-execution.mjs": "385557052cd98497da56e76257e60e5ebfad7b09e034214f2ea47a3126c6e439",
     "scripts/check-muted-test.mjs": "b0e3ef4dc42d59b05a3a46e2f346cd3e137f9c90a7c29c807d18ff5dc8120367",
-    "scripts/check-no-orphan-todo.mjs": "0509921fa811950ea0c52810ae05880b7b7834e7e016f4c2c0055e594c92245d",
+    "scripts/check-no-orphan-todo.mjs": "834282ca34525578e1fb2725194bfec9f2d437a84451dd76653867320a7d2a80",
     "scripts/check-no-stub-redirects.mjs": "644d9b316c41dcbf7f9fe86d27e0af3e423d3b203d12136025c458800e89dbf1",
     "scripts/check-no-tracked-artifacts.mjs": "3945527c681a16553a9af7d09a66782fad6b8ea19ca44c2e6e0071d4c44d24ba",
     "scripts/check-oracle-discrimination.mjs": "f4c878163ea80f36f5ab61daba84b9fa0398da63663ac95fd53879aad3d32d88",
