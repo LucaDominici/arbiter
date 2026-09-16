@@ -372,9 +372,9 @@ function frozenPlanAnchor(state, stamped) {
 function validatedAcceptanceFit(parsed, schema, state, stamped) {
   const env = stampAndValidate(parsed, schema)
   if (env === null) return null
-  if (env.role !== 'verifier' || !env.acceptanceFit) {
+  if ((env.role !== 'verifier' && env.role !== 'reviewer') || !env.acceptanceFit) {
     process.stdout.write(
-      '[record-agent-return] FAIL: ac-fit mode requires one verifier acceptanceFit envelope\n',
+      '[record-agent-return] FAIL: ac-fit mode requires one final-reviewer or verifier acceptanceFit envelope\n',
     )
     return null
   }

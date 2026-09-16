@@ -317,7 +317,7 @@
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",
     "scripts/pii-scan.mjs": "08a8a14c8c60952614301e4271290a8da5132f66765c72a7642fec6871163254",
     "scripts/pr-merge-watch.mjs": "80fccd1610e990fa8cbe7939295147dde8de44263716c1e37157bb9f793331e3",
-    "scripts/record-agent-return.mjs": "ff1bbc5845ef6e481656630ba8c78d7819fd7c6cf2feae91f8b644149cb0e977",
+    "scripts/record-agent-return.mjs": "db68671eaad5a8623b6c62f79b96d62d4665a2f21c2f1019eec3e707a0d47c3d",
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
     "scripts/self-validation.mjs": "bb50ed871af6c4c0c0d68073cb43607c6c1dae812c5ee6e0b4be4b5c95cb9c30",
     "scripts/test-gate-layering.mjs": "d98ad89c3725fc7bbcf0df3c43a9f8b76149a687c9cd18a9441d9b1b318401d7",

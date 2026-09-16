@@ -44,10 +44,10 @@ gates consume that record; none recomputes its own reviewer policy.
 
 | Treatment | Plan    | Pre-code challenge |               Final code review | Acceptance fit | Model capability |
 | --------- | ------- | -----------------: | ------------------------------: | -------------: | ---------------- |
-| XS        | minimal |                  0 |            1 pertinent vertical |  1 independent | economy          |
-| S         | brief   |                  0 |            1 pertinent vertical |  1 independent | economy          |
-| Standard  | full    |         1 targeted |          2 orthogonal verticals |  1 independent | capable          |
-| Sensitive | full    |         1 targeted | relevant specialists, maximum 3 |  1 independent | frontier         |
+| XS        | minimal |                  0 |            1 pertinent vertical |       included | economy          |
+| S         | brief   |                  0 |            1 pertinent vertical |       included | economy          |
+| Standard  | full    |                  0 |            1 pertinent vertical |       included | capable          |
+| Sensitive | full    |                  0 | relevant specialists, maximum 3 |       included | frontier         |
 
 XS and S require affirmative, fresh qualification: readable issue metadata, a plan `files:`
 manifest covering every actual changed file, and a fresh directional dependency graph covering all
@@ -102,14 +102,13 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
 1. **Preflight** — read the issue and current repository; seed state; verify that the state writer
    and delivery guard agree before implementation.
 2. **Plan** — freeze `AC-N` criteria and non-goals; list the complete file set, proof, rollback,
-   and smallest executable implementation. Standard gets one targeted plan challenge; XS/S do not.
+   and smallest executable implementation. Mechanical admission checks replace pre-code review.
 3. **RED** — write the smallest tests that fail for the intended reason and record RED evidence.
 4. **GREEN** — implement the capability. Run targeted checks while editing. Defer documentation and
    issue hygiene until behavior is green unless a decision is needed to implement correctly.
 5. **Freeze** — finish all fixes, commit, and freeze HEAD plus the plan acceptance hash.
 6. **Certify** — run one targeted certification for that HEAD. Dispatch the treatment's final code
-   reviewers and the independent acceptance-fit verifier in parallel against the same SHA and shared
-   evidence.
+   final reviewer against the same SHA and shared evidence. That reviewer also returns acceptance fit.
 7. **Rework** — reconcile every finding from the round into one fix batch. A changed source SHA
    invalidates review, acceptance-fit, and gate evidence. Round two reviews only the delta. The
    normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
@@ -127,11 +126,11 @@ current lane.
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------: |
 | `preflight`       | Read the issue and seed validated task state.                                                                                              |             0 |
 | `plan`            | Freeze acceptance, non-goals, files, proof, and rollback.                                                                                  |             0 |
-| `red-team-review` | For Standard/Sensitive, dispatch the targeted plan challenge and record `.arbiter/evidence/redteam/<task-id>.json`; XS/S advance directly. |     treatment |
+| `red-team-review` | Mechanical plan admission only; `/ship --advance` skips this empty phase.                                                                  |             0 |
 | `red-team-rework` | Reconcile blocking plan findings in one batch, then re-enter review.                                                                       |             0 |
 | `red`             | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                                                  |             0 |
 | `green`           | Implement the smallest executable capability and run targeted checks.                                                                      |             0 |
-| `refactor`        | Freeze HEAD; dispatch the treatment's final reviewers and independent acceptance-fit verifier.                                             |     treatment |
+| `refactor`        | Freeze HEAD; dispatch one final reviewer, adding specialist seats only for sensitive domains.                                           |     treatment |
 | `verification`    | Require review and acceptance evidence, then run one full clean-HEAD gate.                                                                 |             0 |
 | `close`           | Reuse the unchanged receipt through push, PR, and CI.                                                                                      |             0 |
 | `complete`        | Verify merge and green CI, close carried issues, and clean up.                                                                             |             0 |
@@ -159,11 +158,11 @@ The completion check rejects missing or malformed envelopes, a different task/br
 that differs from the persisted treatment, source changes after review, and any applicable
 MED/HIGH/CRITICAL finding.
 
-Record acceptance fit independently against every frozen criterion:
+Record the same final reviewer's acceptance fit against every frozen criterion:
 
 ```bash
 node scripts/record-agent-return.mjs --mode ac-fit --task '#NNN' <<'JSON'
-{/* one arbiter-agent-return-v1 verifier envelope with all-PASS acceptanceFit */}
+{/* the final reviewer envelope with all-PASS acceptanceFit */}
 JSON
 ```
 
@@ -174,8 +173,8 @@ unchanged.
 
 ## Gate economy
 
-Run targeted tests during implementation, the configured diagnostic once before freezing, and one
-full clean-HEAD gate after review and acceptance fit. Do not repeat a green full gate while HEAD and
+Run touched tests, changed-file format/lint, and `git diff --check` before freezing, then one full
+clean-HEAD gate after review and acceptance fit. Do not repeat a green full gate while HEAD and
 its relevant environment are unchanged. PR and pre-push paths consume the same receipt.
 
 A killed process has no verdict. Preserve these outcomes distinctly: `PRODUCT FAIL`, `TEST FAIL`,

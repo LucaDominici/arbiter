@@ -23,8 +23,8 @@ diff size, a routing matrix, or prose.
    targeted certification evidence.
 3. Dispatch one independent reviewer per `reviewerVerticals` entry. Do not add seats beyond
    `finalReviewers`. Reviewer agents are distinct from the implementer.
-4. Run the independent acceptance-fit verifier against every frozen criterion in parallel with
-   code review. It is not a code-review seat.
+4. The final reviewer also returns acceptance fit for every frozen criterion. Do not dispatch a
+   second general verifier. Add seats only for the sensitive verticals selected by the treatment.
 5. Submit the complete code-review panel once:
 
 ```bash
@@ -32,6 +32,9 @@ node scripts/record-agent-return.mjs --mode reviewer-panel --task '#NNN' <<'JSON
 {"envelopes":[/* exact arbiter-agent-return-v1 reviewer envelopes */]}
 JSON
 node scripts/check-review-completion.mjs --task '#NNN'
+node scripts/record-agent-return.mjs --mode ac-fit --task '#NNN' <<'JSON'
+{/* reuse the final reviewer envelope with all-PASS acceptanceFit */}
+JSON
 ```
 
 The recorder stamps branch and SHA and writes the sidecar from the persisted treatment. The checker

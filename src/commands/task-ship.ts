@@ -317,19 +317,11 @@ function reviewPhaseStepBody(
 ): Omit<ShipStep, 'verticals'> {
   const { verticals, externalModelAccess, review: reviewPlan, treatment } = context
   if (phase === RED_TEAM_REVIEW_PHASE) {
-    const reviewers = treatment.preCodeReviewers
-    if (reviewers === 0) {
-      return {
-        phase,
-        action:
-          'No pre-implementation reviewer dispatch in trunk-solo; proceed to TDD and use the independent final code review.',
-        reviewAgents: 0,
-      }
-    }
     return {
       phase,
-      action: `Dispatch ${reviewers} targeted plan reviewer; route applicable findings above LOW to red-team-rework.`,
-      reviewAgents: reviewers,
+      action:
+        'No pre-implementation reviewer dispatch; mechanical plan admission is complete, so proceed to TDD.',
+      reviewAgents: 0,
     }
   }
   if (phase === RED_TEAM_REWORK_PHASE) {
@@ -350,13 +342,15 @@ function reviewPhaseStepBody(
   })
   const externalCount = plan.external.length
   const scope = reviewScopeFor(reviewPlan)
-  const prepare = `Clean up, run \`node scripts/check-all.mjs ${profile.defaultGateLevel}\` as the pre-commit diagnostic, commit the candidate, then`
+  const prepare =
+    'Run touched tests, formatter/linter on changed files, and `git diff --check`; commit the candidate, open the review round, then'
   const step: Omit<ShipStep, 'verticals'> = {
     phase,
     action:
       externalCount > 0
         ? `${prepare} dispatch ${reviewAgents - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${reviewAgents}.`
-        : `${prepare} dispatch ${reviewAgents} code-review agent(s) + 1 adversarial verifier.`,
+        : `${prepare} dispatch ${reviewAgents} independent final reviewer(s) covering code, tests, and acceptance.`,
+    command: 'arbiter ship --review-round',
     reviewAgents,
     ...(scope !== undefined ? { reviewScope: scope } : {}),
   }
@@ -391,12 +385,10 @@ function shipStepBody(
         phase,
         // #2329 — batching guidance is model-side prose (the wave-drain skill), not a
         // config knob: the affinity engine it keyed off was deleted in the #1817 B-prune.
-        // #2570 — `arbiter check plan` validates PLAN.json, not the markdown plan this
-        // phase asks for, and no gate script exists: the plan-review agents' verdict in
-        // .arbiter/evidence/plan-review/<id>/latest.json is the gate, enforced by
-        // `task advance` (bypass only via the audited --skip-plan-review).
+        // #2724 — plan admission is mechanical; review is reserved for the frozen
+        // implementation candidate.
         action:
-          'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
+          'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
         command: `arbiter lifecycle advance --to ${nextPhase(phase) ?? 'red-team-review'}`,
         reviewAgents: 0,
       }
@@ -683,6 +675,11 @@ function advanceShipPhase(
     ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
   })
   appendLog(root, `ship → advanced to ${target}`)
+  if (phase === 'plan' && readUnifiedState(root)?.treatment?.preCodeReviewers === 0) {
+    runTaskAdvance({ to: 'red', dir: root, ...(opts.advanceOpts ?? {}) })
+    appendLog(root, 'ship → skipped empty pre-code review phase')
+    return { phase: 'red', advanced: true, review: null }
+  }
   return { phase: target, advanced: true, review }
 }
 

@@ -182,15 +182,14 @@ function relevantVerticals(files: readonly string[]): ReviewVertical[] {
   return ['domain']
 }
 
-function treatmentVerticals(tier: ShipTier, relevant: readonly ReviewVertical[]): ReviewVertical[] {
-  if (tier !== 'Standard') return [relevant[0] ?? 'domain']
+function treatmentVerticals(relevant: readonly ReviewVertical[]): ReviewVertical[] {
   const specialists = relevant.filter((vertical) =>
     ['security', 'data-integrity', 'concurrency', 'money', 'migration', 'deployment'].includes(
       vertical,
     ),
   )
-  const selected = unique([...specialists, 'domain', 'test-quality'] as ReviewVertical[])
-  return selected.slice(0, 3)
+  if (specialists.length > 0) return unique(specialists).slice(0, 3)
+  return [relevant.find((vertical) => vertical !== 'test-quality') ?? relevant[0] ?? 'domain']
 }
 
 const MODEL_RANK: Record<ModelCapability, number> = { economy: 0, capable: 1, frontier: 2 }
@@ -303,7 +302,7 @@ function treatmentReview(
       ),
     )
   const tier = sensitive ? 'Standard' : initialTier
-  return { tier, sensitive, reviewerVerticals: treatmentVerticals(tier, relevant) }
+  return { tier, sensitive, reviewerVerticals: treatmentVerticals(relevant) }
 }
 
 /**
@@ -346,7 +345,7 @@ export function resolveShipTreatment(
     tier,
     sensitive,
     planDepth: tier === 'XS' ? 'minimal' : tier === 'S' ? 'brief' : 'full',
-    preCodeReviewers: tier === 'Standard' ? 1 : 0,
+    preCodeReviewers: 0,
     finalReviewers,
     acceptanceFitReviewers: 1,
     reviewerVerticals,

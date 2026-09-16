@@ -1164,6 +1164,7 @@ function prepareLifecycleReviewRound(
   dir: string,
   opts: TaskReviewRoundOptions,
 ): PlannedReviewRound {
+  assertReviewSubjectFrozen(dir)
   const previous = reviewStateOf(readUnifiedState(dir))
   const maxRounds = opts.reviewMaxRounds ?? resolveReviewMaxRounds(shipConfigFor(dir))
   const planned = planReviewRound(
@@ -1176,6 +1177,17 @@ function prepareLifecycleReviewRound(
     throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: planned.detail }))
   }
   return planned
+}
+
+function assertReviewSubjectFrozen(dir: string): void {
+  const plan = readUnifiedState(dir)?.plan.trim().split('#')[0]?.trim() ?? ''
+  if (plan.length === 0 || !pathExistsInCommit('HEAD', plan, dir)) {
+    throw new Error('review freeze requires a tracked plan present in HEAD')
+  }
+  const dirty = runCli('git', ['status', '--porcelain'], { cwd: dir, timeoutMs: 5000 }).stdout.trim()
+  if (dirty.length > 0) {
+    throw new Error('review freeze requires a clean HEAD; commit the plan and every candidate fix')
+  }
 }
 
 function appendReviewLog(dir: string, plan: PlannedReviewRound): void {
@@ -1308,27 +1320,10 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
     },
   }
   phaseGates[to]?.()
-  const openedReview = to === 'refactor' ? prepareLifecycleReviewRound(dir, opts) : null
-
-  // Single authoritative write: phase advances in the unified document; the transition is
-  // recorded in the append-only log. Gates that throw (handoff) run BEFORE this and never
-  // mutate the phase — see checkHandoffGate (C1, #1206).
-  if (openedReview === null) {
-    writeUnifiedState(dir, { phase: to })
-  } else {
-    const wasForced = reviewStateOf(readUnifiedState(dir)).forced === true
-    writeUnifiedState(dir, {
-      phase: to,
-      review: {
-        rounds: openedReview.rounds,
-        lastReviewedSha: openedReview.head,
-        ...(openedReview.forced || wasForced ? { forced: true } : {}),
-      },
-    })
-    appendReviewLog(dir, openedReview)
-  }
+  // Phase entry never spends a review round. Only an explicit reviewer dispatch does.
+  writeUnifiedState(dir, { phase: to })
   appendLog(dir, `${current} → ${to}`)
-  return openedReview
+  return null
 }
 
 /**
