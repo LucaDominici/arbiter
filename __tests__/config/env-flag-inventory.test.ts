@@ -109,6 +109,9 @@ describe('ARBITER_* env-flag registry — well-formedness', () => {
     for (const f of ARBITER_ENV_FLAGS) {
       expect(f.name.startsWith('ARBITER_'), `${f.name} must start with ARBITER_`).toBe(true)
       expect(f.purpose.length, `${f.name} must have a purpose`).toBeGreaterThan(0)
+      expect(['runtime', 'internal', 'reserved'], `${f.name} must be classified`).toContain(
+        f.classification,
+      )
     }
   })
 

@@ -92,99 +92,19 @@ describe('runConfigure — --set round-trips', () => {
     })
   })
 
-  it('updates an existing /drain default when the worktree cap changes (#2344)', async () => {
+  it('leaves generated /drain content for the explicit update step', async () => {
     writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 2 } })
     const drainPath = join(dir, '.claude', 'commands', 'drain.md')
     mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    writeFileSync(
-      drainPath,
-      'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n',
-    )
+    const generated = '| `--max-parallel N` | 6 | Max worktree agents |\n'
+    writeFileSync(drainPath, generated)
 
     await runConfigure({ dir, sets: ['automation.maxParallelWorktrees=7'] })
 
-    expect(readFileSync(drainPath, 'utf8')).toBe(
-      'before\n| `--max-parallel N` | 7       | Max worktree agents; keep this text |\nafter\n',
-    )
-  })
-
-  // #2546 — CANON-24 inversion proof, silent-happy-path half: an ordinary
-  // (non-preserve-marked) drain.md that actually changes must sync with NO
-  // new stderr output. The regression this guards is a fix that reports on
-  // EVERY run instead of only the withheld one.
-  it('syncs an ordinary /drain default SILENTLY — no new stderr output (#2546)', async () => {
-    writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 2 } })
-    const drainPath = join(dir, '.claude', 'commands', 'drain.md')
-    mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    writeFileSync(
-      drainPath,
-      'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n',
-    )
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    await runConfigure({ dir, sets: ['automation.maxParallelWorktrees=9'] })
-
-    expect(readFileSync(drainPath, 'utf8')).toContain('| `--max-parallel N` | 9       |')
-    // Pre-existing, unrelated `useGitHub` migration deprecation warning fires
-    // on every load — assert no NEW output about the (successful) drain sync,
-    // not that stderr is untouched by anything.
-    const stderrOutput = stderrSpy.mock.calls.map((c) => String(c[0])).join('')
-    expect(stderrOutput.toLowerCase()).not.toContain('drain')
-    expect(stderrOutput).not.toContain('arbiter:preserve')
-  })
-
-  // #2546 — CANON-24 inversion proof, silent-happy-path half (no-op case): the
-  // overwhelmingly common run is "content already identical" (writeFile
-  // returns withheld: false because there is nothing to write at all). That
-  // must ALSO stay silent — this is the case a naive "report on withheld"
-  // fix would most easily get right by accident while breaking the marker case.
-  it('produces no new output when the /drain default already matches (no-op, #2546)', async () => {
-    writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 7 } })
-    const drainPath = join(dir, '.claude', 'commands', 'drain.md')
-    mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    writeFileSync(
-      drainPath,
-      'before\n| `--max-parallel N` | 7       | Max worktree agents; keep this text |\nafter\n',
-    )
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    // Re-set the same value: cap resolves to 7 again, before === after, no write at all.
-    await runConfigure({ dir, sets: ['automation.maxParallelWorktrees=7'] })
-
-    const stderrOutput = stderrSpy.mock.calls.map((c) => String(c[0])).join('')
-    expect(stderrOutput.toLowerCase()).not.toContain('drain')
-    expect(stderrOutput).not.toContain('arbiter:preserve')
-  })
-
-  // #2546 AC-1/AC-3: a preserve-marked drain.md must NOT be overwritten, must
-  // NOT throw (configure still succeeds), and must report the un-synced file
-  // plus the value the user has to set by hand — without telling them to
-  // delete their marker.
-  it('reports (but does not overwrite) a preserve-marked /drain default, and still succeeds (#2546)', async () => {
-    writeV2Config(dir, { automation: { autonomy: 'L0', maxParallelWorktrees: 2 } })
-    const drainPath = join(dir, '.claude', 'commands', 'drain.md')
-    mkdirSync(join(dir, '.claude', 'commands'), { recursive: true })
-    const original =
-      '<!-- arbiter:preserve -->\n' +
-      'before\n| `--max-parallel N` | 6       | Max worktree agents; keep this text |\nafter\n'
-    writeFileSync(drainPath, original)
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    await expect(
-      runConfigure({ dir, sets: ['automation.maxParallelWorktrees=9'] }),
-    ).resolves.toBeUndefined()
-
-    // The file was NOT overwritten — the preserve marker held.
-    expect(readFileSync(drainPath, 'utf8')).toBe(original)
-    // arbiter.json itself still landed — the command is not half-applied.
-    const raw = readArbiterJson(dir)
-    expect((raw['automation'] as Record<string, unknown>)['maxParallelWorktrees']).toBe(9)
-
-    const stderrOutput = stderrSpy.mock.calls.map((c) => String(c[0])).join('')
-    expect(stderrOutput).toContain('drain.md')
-    expect(stderrOutput).toContain('arbiter:preserve')
-    expect(stderrOutput).toContain('9')
-    expect(stderrOutput.toLowerCase()).not.toContain('delete')
+    expect(readFileSync(drainPath, 'utf8')).toBe(generated)
+    expect(
+      (readArbiterJson(dir)['automation'] as Record<string, unknown>)['maxParallelWorktrees'],
+    ).toBe(7)
   })
 
   it('applies multiple --set flags atomically', async () => {
@@ -198,6 +118,87 @@ describe('runConfigure — --set round-trips', () => {
     const raw = readArbiterJson(dir)
     expect((raw['features'] as Record<string, unknown>)['mutationTesting']).toBe(false)
     expect((raw['thresholds'] as Record<string, unknown>)['lineCoverage']).toBe(85)
+  })
+
+  it('never persists environment overrides while editing another field', async () => {
+    writeV2Config(dir, {
+      thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 60 },
+    })
+    process.env['ARBITER_THRESHOLD__LINE_COVERAGE'] = '88'
+    try {
+      await runConfigure({ dir, sets: ['features.debtGates=false'] })
+    } finally {
+      delete process.env['ARBITER_THRESHOLD__LINE_COVERAGE']
+    }
+
+    const raw = readArbiterJson(dir)
+    expect((raw['thresholds'] as Record<string, unknown>)['lineCoverage']).toBe(60)
+  })
+
+  it('edits existing ship bounds, runner cadence and init-only feature flags through configure', async () => {
+    writeV2Config(dir)
+
+    await runConfigure({
+      dir,
+      sets: [
+        'features.fiveLaneCi=true',
+        'runnerProfile=solo',
+        'ship.train.maxChain=3',
+        'ship.train.maxAgeMinutes=120',
+        'ship.review.maxRounds=1',
+      ],
+    })
+
+    const raw = readArbiterJson(dir)
+    expect((raw['features'] as Record<string, unknown>)['fiveLaneCi']).toBe(true)
+    expect(raw['runnerProfile']).toBe('solo')
+    expect(raw['ship']).toEqual({
+      train: { maxChain: 3, maxAgeMinutes: 120 },
+      review: { maxRounds: 1 },
+    })
+  })
+
+  it('edits structured and deep runtime policy through the same atomic writer', async () => {
+    writeV2Config(dir)
+
+    await runConfigure({
+      dir,
+      sets: [
+        'smokeJourneys.requiredJourneys=["auth","crud","authz"]',
+        'e2ePolicy.escalation.strikes=[2,3,5]',
+        'e2ePolicy.escalation.maxStrikes=5',
+      ],
+    })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['smokeJourneys']).toEqual({ requiredJourneys: ['auth', 'crud', 'authz'] })
+    expect(raw['e2ePolicy']).toEqual({ escalation: { strikes: [2, 3, 5], maxStrikes: 5 } })
+  })
+
+  it('applies a preset noninteractively and repeated apply is byte-identical', async () => {
+    writeV2Config(dir, { governanceLevel: 'L4' })
+
+    await runConfigure({ dir, sets: [], preset: 'solo-homelab' })
+    const first = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+    const config = JSON.parse(first) as Record<string, unknown>
+    expect(config['preset']).toBe('solo-homelab')
+    expect(config['governanceLevel']).toBe('L2')
+
+    await runConfigure({ dir, sets: [], preset: 'solo-homelab' })
+    expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(first)
+  })
+
+  it('rejects unknown presets and ambiguous preset plus set input before writing', async () => {
+    writeV2Config(dir)
+    const before = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+
+    await expect(runConfigure({ dir, sets: [], preset: 'unknown' })).rejects.toThrow(
+      /Unknown configure preset/,
+    )
+    await expect(
+      runConfigure({ dir, sets: ['features.debtGates=false'], preset: 'solo-homelab' }),
+    ).rejects.toThrow(/cannot be combined/)
+    expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(before)
   })
 
   // #1887-A: activation path for enableCodeownersNotify / enableTaxonomy25d /
@@ -265,6 +266,20 @@ describe('runConfigure — validation', () => {
     expect(readArbiterJson(dir)).toEqual(before)
   })
 
+  it('rejects an invalid late ship assignment without writing earlier assignments', async () => {
+    writeV2Config(dir)
+    const before = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+
+    await expect(
+      runConfigure({
+        dir,
+        sets: ['features.fiveLaneCi=true', 'ship.review.maxRounds=0'],
+      }),
+    ).rejects.toThrow()
+
+    expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(before)
+  })
+
   it('rejects out-of-range lineCoverage (>100) and does not write', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
@@ -281,6 +296,32 @@ describe('runConfigure — validation', () => {
     await expect(runConfigure({ dir, sets: ['features.debtGates=maybe'] })).rejects.toThrow()
 
     expect(readArbiterJson(dir)).toEqual(before)
+  })
+
+  it.each(['invariantTiers=42', 'worktree=42', 'plugins=42', 'evidenceRetention=42'])(
+    'rejects malformed structured setting %s without writing',
+    async (assignment) => {
+      writeV2Config(dir)
+      const before = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+      await expect(runConfigure({ dir, sets: [assignment] })).rejects.toThrow()
+      expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(before)
+    },
+  )
+
+  it('rejects a stale interactive preview without writing', async () => {
+    writeV2Config(dir)
+    const previewed = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+    writeV2Config(dir, { governanceLevel: 'L3' })
+    const changed = readFileSync(join(dir, 'arbiter.json'), 'utf8')
+
+    await expect(
+      runConfigure({
+        dir,
+        sets: ['features.debtGates=false'],
+        expectedConfig: previewed,
+      }),
+    ).rejects.toMatchObject({ code: 'E_CONFIG_CHANGED' })
+    expect(readFileSync(join(dir, 'arbiter.json'), 'utf8')).toBe(changed)
   })
 
   it('exits with code 2 when no --set provided and no TTY', async () => {

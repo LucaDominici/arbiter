@@ -306,7 +306,7 @@
     ".claude/skills/verification/SKILL.md": "6c58d2dea7f8c436dc69d5d417c3c81f181740cd7184b5c22fb3497db48d8d66",
     ".claude/skills/wave-drain/SKILL.md": "bb6dc5f6ee43828b344363320dbdaaa8f67bb55277a77cd2ac0140ab2a93014a",
     ".editorconfig": "1aa3a82cfa54369e322cd22414ea2570437e0edfcfa177b3547d3079d0ba93df",
-    ".env.example": "51bdc474f2e4c6b426bc6caa52feaf31234c2261b197dc4e003f2c3acaaaa474",
+    ".env.example": "f8b44d259fb79c1a7b2570fcc180f88ddf32a6a9d02f3ce09567928d7122e4fb",
     ".eslintrc-frontend-spa.cjs": "633dde9712097f765c8cc25d5241bce49d19ceaeb044fc36b8dc98400c11385a",
     ".eslintrc-playwright.json": "6a0a4d08b1a86364acd53c8d3f5555f90a9335d1ebd9793c2f4a3a4c2afab8dd",
     ".eslintrc-static.json": "3a3aa03974af8d2e0db99302c30d606043cd98cf771d8e1303fc574f12f0b137",

@@ -63,7 +63,7 @@
     ".claude/skills/verification/SKILL.md": "c2c9485dce49287a7555557c3dcfcd047a46f29ca13dcd3cf23b383d71c215ca",
     ".claude/skills/wave-drain/SKILL.md": "aa2cde12283a22f59044a5dfdc3f1d1b9127df8713872abca4ce844f6ead0281",
     ".editorconfig": "c35d31a489013e09ec94754038893cba684617c74744083bd82c2f15e0537efa",
-    ".env.example": "d1d006084de62566cfa2e00c779ae175892cae98e05320296477e9f5f0c7799c",
+    ".env.example": "dd9003dbcec73c6143a22809963703d6f7245c232e48c67b6d015ae78a3caa2e",
     ".githooks/commit-msg": "80d9d52810d42ee08746e6ebc607c2da68dfb1785c414638e5ddc599947adbb1",
     ".githooks/pre-commit": "7596e6686ec9424d9d8d9f559312a93aae17582a9fe187d1696e47dc325921d7",
     ".githooks/pre-push": "8582bbe5991d0c6d006e75ebf5c16e04e9c84b5b2b45ee11505e0260d7fab28f",
