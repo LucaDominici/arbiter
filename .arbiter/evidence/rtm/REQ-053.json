@@ -6,7 +6,7 @@
   "transcript_digest": "c1ce1581745e97721e19e9409fb78d2750ffdb486f9a365c75d861493c9c1db0",
   "citations": [
     "src/commands/task-ship.ts#L1-L30@0a306660016e",
-    "__tests__/templates/commands-claude.test.ts#L1-L25@eb7f5e187174"
+    "__tests__/templates/commands-claude.test.ts#L1-L25@6e927613ddbd"
   ],
   "recorded_at": "2026-09-15T20:56:19Z"
 }

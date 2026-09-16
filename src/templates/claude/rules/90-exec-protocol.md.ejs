@@ -13,7 +13,7 @@ Before any file edit:
 2. Create task branch if not on one
 3. Plan before editing (3+ file changes → outline first)
 4. Run `/ship #NNN` — the single orchestration entrypoint (auto-sequences plan → review → gate → merge)
-5. Implement with TDD (test first) — `/ship` drives each phase; `/task` subcommands for recovery only
+5. Implement with TDD (test first) — `/ship` drives each phase; `arbiter lifecycle` is for recovery or direct lifecycle control
 6. Run `node scripts/check-all.mjs L1` before commit
 7. Run `node scripts/check-all.mjs L2` before push
 

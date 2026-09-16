@@ -26,7 +26,8 @@ skipping phases.
 > one wave PR**, reusing the same engine and the same gates.
 
 **Legality (ADR-103):** parallel write-agents are in-contract ONLY under the rule-50
-carve-out — every agent in a **dedicated worktree** (`/wt-open`), on a **distinct branch**,
+carve-out — every agent in a **dedicated worktree** created by the native host and prepared with
+`arbiter worktree prepare`, on a **distinct branch**,
 with **plan-manifest-disjoint file-sets**. Dependency changes (`package.json`/lockfiles),
 main-tree edits and tags stay serial-only. **Convergence model (owner-ratified
 2026-07-10):** on arbiter-governed repos every wave converges into **ONE wave PR** — the
@@ -36,18 +37,17 @@ merge-train).
 
 ## Primitives
 
-| Primitive                                                        | Role here                                                                                             |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `/ship`                                                          | Pipeline reference for the per-issue phase contract (plan → red-team → TDD → review → verify → merge) |
-| `arbiter lifecycle start / advance / record-red / recover / get` | The state engine each agent anchors its work to                                                       |
-| `/wt-open`, `/wt-close`, `/wt-prune`, `/wt-list`                 | Isolated git worktrees, one per group                                                                 |
-| `arbiter check run -- <cmd>`                                     | Per-repo gate mutex (flock(1)): serializes expensive gates across parallel agents (ADR-103)           |
-| `git worktree prune --stale [h]`                                 | Zombie reaper: merged/inactive clean worktrees, dry-run default (ADR-103)                             |
-| Skill `epic-decompose`                                           | Only if an entangled issue must be split before batching                                              |
-| Skill `understand-code`                                          | Per-agent code comprehension before editing                                                           |
-| Skill `tdd`                                                      | The red → green → refactor loop every agent runs per unit                                             |
-| Skill `verification`                                             | Claim-based verification on the cumulative branch before the gate                                     |
-| Skill `ssot-navigation`                                          | Locate invariants / SSOT before touching guarded files                                                |
+| Primitive                                                              | Role here                                                                                             |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `/ship`                                                                | Pipeline reference for the per-issue phase contract (plan → red-team → TDD → review → verify → merge) |
+| `arbiter lifecycle start / advance / record-red / recover / get`       | The state engine each agent anchors its work to                                                       |
+| Native host worktree commands + `arbiter worktree prepare/list/relink` | Isolated git worktrees, one per group                                                                 |
+| `arbiter check run -- <cmd>`                                           | Per-repo gate mutex (flock(1)): serializes expensive gates across parallel agents (ADR-103)           |
+| Skill `epic-decompose`                                                 | Only if an entangled issue must be split before batching                                              |
+| Skill `understand-code`                                                | Per-agent code comprehension before editing                                                           |
+| Skill `tdd`                                                            | The red → green → refactor loop every agent runs per unit                                             |
+| Skill `verification`                                                   | Claim-based verification on the cumulative branch before the gate                                     |
+| Skill `ssot-navigation`                                                | Locate invariants / SSOT before touching guarded files                                                |
 
 ---
 
@@ -210,7 +210,8 @@ issues regardless of tier.
 
 ## Phase 3 — Parallel execution (scale out)
 
-Spawn **one agent per group** in an **isolated worktree** (`/wt-open`, a branch per group).
+Spawn **one agent per group** in an **isolated native host worktree** (prepared with
+`arbiter worktree prepare`, a branch per group).
 `--max-parallel` defaults to **1** from
 `automation.maxParallelWorktrees` (or the collaboration-mode default when absent).
 Effective cap: **`min(--max-parallel, nproc - 2, wave size)`** — the mutex serializes the
@@ -381,8 +382,8 @@ wave.** The rest of the wave proceeds.
 
    CI red → root-cause fix → re-gate (PRs are owned until merged green).
 
-8. `/wt-close` (harvest) + `git worktree prune --stale 24` (review the dry-run report,
-   then re-run with `--execute`) → `/clear` → **next wave**, until the backlog is empty. The
+8. Close the worktree with the native host, then use `arbiter worktree list` to verify cleanup
+   before the **next wave**, until the backlog is empty. The
    reaper also runs inside the watchdog sweep, so a crashed worker's zombie worktree never
    outlives the wave (dirty trees are never touched — INV-96).
 

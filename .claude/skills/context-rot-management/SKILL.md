@@ -32,7 +32,7 @@ Tier = Standard  AND  (implementation_units > 5  OR  user requests explicitly)
 
 A 1M-context model handles compaction for most Standard tasks natively, so auto-activating every task only adds BACKLOG overhead with no benefit when units are few.
 
-**Evaluated at:** end of the `/ship` (or `/task`) plan phase, after GO, once the implementation-unit count is known.
+**Evaluated at:** end of the `/ship` plan phase, after GO, once the implementation-unit count is known.
 
 | Scenario | Tier     | Units | Result                                |
 | -------- | -------- | ----- | ------------------------------------- |

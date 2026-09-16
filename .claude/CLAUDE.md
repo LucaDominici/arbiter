@@ -65,7 +65,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → Edit\|Write  | `check-circular-deps.mjs`       | Detect circular dependencies after TS/JS edits                                                                                     |
 | `PostToolUse` → Edit\|Write  | `post-edit-dispatch.mjs`        | Run format + lint after file edits                                                                                                 |
 | `PostToolUseFailure` → Bash  | `debug-state-on-failure.mjs`    | Persist debug state when gate/test commands fail                                                                                   |
-| `UserPromptSubmit` → \*      | `post-brainstorm-stop.mjs`      | Block /task while brainstorm session active                                                                                        |
+| `UserPromptSubmit` → \*      | `post-brainstorm-stop.mjs`      | Block delivery while a brainstorm session is active                                                                                |
 | `UserPromptSubmit` → \*      | `skill-forced-eval.mjs`         | Phase-bound TDD evidence verifier; blocks implementation edits without a successful `Skill(tdd)` result (exit 2)                   |
 | `UserPromptSubmit` → \*      | `guard-task-completion.mjs`     | Hard-block premature task-completion claims (exit 2)                                                                               |
 | `UserPromptSubmit` → \*      | `guard-done-evidence.mjs`       | Validate SHA-pinned done-evidence before completion claims (#1872; active — `features.evidenceHarness: true` in arbiter.json)      |
@@ -81,11 +81,11 @@ Configured in `.claude/settings.json`. Active hooks:
 | Command      | Purpose                                                                                     |
 | ------------ | ------------------------------------------------------------------------------------------- |
 | `/ship #NNN` | **Orchestration entrypoint** — drive an issue to a merged PR (plan → review → gate → merge) |
-| `/task`      | Low-level engine/CLI: `arbiter lifecycle start/advance/record-red/recover/get`              |
-| `/wt-open`   | Open an isolated task worktree                                                              |
-| `/wt-close`  | Close or harvest a task worktree                                                            |
-| `/wt-list`   | List active git worktrees with status                                                       |
-| `/wt-prune`  | Prune stale worktree metadata                                                               |
+| `/drain`     | Deliver a bounded backlog wave through the `/ship` contract                                 |
+| `/audit`     | Run the product audit                                                                       |
+| `/impact`    | Inspect change impact                                                                       |
+| `/review`    | Review a frozen candidate                                                                   |
+| `/tabletop`  | Exercise a product journey                                                                  |
 
 ---
 

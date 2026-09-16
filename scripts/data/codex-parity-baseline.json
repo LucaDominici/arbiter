@@ -10,18 +10,12 @@
         ".claude/agents/codebase-scanner.md",
         ".claude/agents/context-checker.md",
         ".claude/agents/red-team.md",
-        ".claude/commands/close-gold-gap.md",
+        ".claude/commands/audit.md",
         ".claude/commands/drain.md",
-        ".claude/commands/gold-audit.md",
         ".claude/commands/impact.md",
-        ".claude/commands/levelup.md",
+        ".claude/commands/review.md",
         ".claude/commands/ship.md",
         ".claude/commands/tabletop.md",
-        ".claude/commands/task.md",
-        ".claude/commands/wt-close.md",
-        ".claude/commands/wt-list.md",
-        ".claude/commands/wt-open.md",
-        ".claude/commands/wt-prune.md",
         ".claude/hooks/check-circular-deps.mjs",
         ".claude/hooks/check-no-any.mjs",
         ".claude/hooks/check-no-orphan-todo.mjs",
@@ -92,5 +86,46 @@
       ]
     }
   },
-  "removals": []
+  "removals": [
+    {
+      "file": ".claude/commands/close-gold-gap.md",
+      "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
+      "issue": "#2706"
+    },
+    {
+      "file": ".claude/commands/gold-audit.md",
+      "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
+      "issue": "#2706"
+    },
+    {
+      "file": ".claude/commands/levelup.md",
+      "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
+      "issue": "#2706"
+    },
+    {
+      "file": ".claude/commands/task.md",
+      "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
+      "issue": "#2706"
+    },
+    {
+      "file": ".claude/commands/wt-close.md",
+      "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
+      "issue": "#2706"
+    },
+    {
+      "file": ".claude/commands/wt-list.md",
+      "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
+      "issue": "#2706"
+    },
+    {
+      "file": ".claude/commands/wt-open.md",
+      "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
+      "issue": "#2706"
+    },
+    {
+      "file": ".claude/commands/wt-prune.md",
+      "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
+      "issue": "#2706"
+    }
+  ]
 }

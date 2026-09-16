@@ -52,7 +52,8 @@ describe('tool output: codex', () => {
     const config = codexConfig()
     generateCodex(config)
     const content = readFileSync(join(dir, '.agents', 'CODEX.md'), 'utf-8')
-    expect(content).toContain('/task')
+    expect(content).toContain('arbiter lifecycle')
+    expect(content).not.toContain('/task')
   })
 
   it('generates the tool-agnostic rules subset in .agents/rules/', () => {

@@ -71,7 +71,7 @@ gh issue create --title "design: <topic-slug>" --body "$(cat docs/design/<topic-
 - Begin implementation
 - Edit source files
 - Create branches or commits
-- Run `/task`
+- Run `/ship`
 
 The brainstorm session ends when the design doc exists and the issue is created. Implementation begins only after the user explicitly clears the marker:
 
@@ -79,8 +79,8 @@ The brainstorm session ends when the design doc exists and the issue is created.
 rm .arbiter/brainstorm-active
 ```
 
-Until the marker is cleared, the `post-brainstorm-stop` hook blocks `/task` commands with an error citing this file path.
+Until the marker is cleared, the `post-brainstorm-stop` hook blocks delivery commands with an error citing this file path.
 
 ## Exit
 
-After the user clears the marker (or it auto-expires after 24h), the session is ready for `/task #<issue-number>` to begin implementation.
+After the user clears the marker (or it auto-expires after 24h), the session is ready for `/ship #<issue-number>` to begin implementation.

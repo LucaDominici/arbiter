@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 import { buildKnownLimitations } from '../../src/generators/codex-known-limitations.js'
@@ -64,5 +65,18 @@ describe('host command inventories still expose /ship', () => {
     } as unknown as Record<string, unknown>)
     expect(codex).toContain('/ship')
     expect(render('claude/rules/90-exec-protocol.md.ejs')).toContain('/ship')
+  })
+
+  it.each([
+    'src/templates/claude/CLAUDE.md.ejs',
+    'src/templates/claude/rules/55-brainstorm-terminal-state.md',
+    'src/templates/claude/rules/90-exec-protocol.md.ejs',
+    'src/templates/claude/skills/brainstorming/SKILL.md.ejs',
+    'src/templates/claude/skills/wave-drain/SKILL.md.ejs',
+    'src/templates/codex/CODEX.md.ejs',
+  ])('%s does not advertise retired slash commands', (path) => {
+    expect(readFileSync(path, 'utf8')).not.toMatch(
+      /(?<![\w.-])\/(?:task|wt-open|wt-close|wt-list|wt-prune)\b/,
+    )
   })
 })

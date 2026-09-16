@@ -1,14 +1,3 @@
----
-title: 'arbiter — Codex Configuration'
-doc_version: '1.0.0'
-status: active
-last_review: '2026-08-26'
-owner: ''
-canonical_id: ''
-tags: ['audience/agent', 'audience/dev', 'kind/internal']
-related: []
----
-
 # arbiter — Codex Configuration
 
 > **Governance rules are in `AGENTS.md` (canonical, AAIF standard).**
@@ -94,13 +83,13 @@ Follow this lifecycle for every task:
 
 ## Command Translation
 
-| Claude Code                     | Codex Equivalent                                                               |
-| ------------------------------- | ------------------------------------------------------------------------------ |
-| `/ship #NNN`                    | **Orchestration entrypoint** — drive an issue to a merged PR                   |
-| `/task`                         | Low-level engine/CLI: `arbiter lifecycle start/advance/record-red/recover/get` |
-| `npm run test`                  | Run tests for this stack                                                       |
-| `node scripts/check-all.mjs L1` | Run before each commit                                                         |
-| `node scripts/check-all.mjs L2` | Run before push/PR                                                             |
+| Claude Code                     | Codex Equivalent                                              |
+| ------------------------------- | ------------------------------------------------------------- |
+| `/ship #NNN`                    | **Orchestration entrypoint** — drive an issue to a merged PR  |
+| `arbiter lifecycle`             | Low-level engine/CLI for recovery or direct lifecycle control |
+| `npm run test`                  | Run tests for this stack                                      |
+| `node scripts/check-all.mjs L1` | Run before each commit                                        |
+| `node scripts/check-all.mjs L2` | Run before push/PR                                            |
 
 ## Hard Stops
 
@@ -165,7 +154,7 @@ or pass `codex exec --dangerously-bypass-hook-trust` in automation. Editing
 Claude-only surfaces with no Codex equivalent (by design, ADR-106 — accurate
 disclosure, not implementation parity):
 
-- **Commands** (12): `/task`, `/ship`, `/drain`, `/impact`, `/gold-audit`, `/wt-open`, `/wt-close`, `/wt-list`, `/wt-prune`, `/close-gold-gap`, `/levelup`, `/tabletop`
+- **Commands** (6): `/ship`, `/drain`, `/impact`, `/review`, `/audit`, `/tabletop`
 - **Agents** (4): `codebase-scanner`, `red-team`, `context-checker`, `bridge-reviewer`
 - **Skills** (15): `tdd`, `verification`, `architect-review`, `clean-code`, `understand-code`, `codebase-audit`, `epic-decompose`, `configure`, `brainstorming`, `wave-drain`, `impact`, `gold-audit`, `close-gold-gap`, `levelup`, `tabletop`
 - **Rules not derived into the Codex track** (4): `40-context-economy.md`, `55-brainstorm-terminal-state.md`, `75-impact-vault-reading.md`, `95-closer-mode.md` — each is coupled to a Claude-only mechanism (knowledge-map routing, brainstorm hook, `/impact` skill, CLOSER hook)

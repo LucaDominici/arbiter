@@ -93,9 +93,9 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
     expect(md).toMatch(/git diff --name-only/)
   })
 
-  it('reaps zombies at end of wave with the prune primitive (dry-run first)', () => {
-    expect(md).toMatch(/git worktree prune --stale/)
-    expect(md).toMatch(/--execute/)
+  it('returns native host worktrees and verifies cleanup at the end of a wave', () => {
+    expect(md).toMatch(/close the worktree with the native host/i)
+    expect(md).toMatch(/arbiter worktree list/)
   })
 
   it('uses the exact-SHA merge watcher for the governed wave PR', () => {
