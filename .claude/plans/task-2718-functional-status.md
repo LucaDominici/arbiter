@@ -55,7 +55,7 @@ One exact, explicit status request may use an optional Claude function hook to d
 2. Run a network-denied native probe from a temporary plugin directory. Prove module load, exact trigger, visible output, coexistence with command hooks, fallback and before/after filesystem identity. Do not modify global settings.
 3. If load/trigger/output cannot be proven, record `UNSUPPORTED` and close the experiment without product surface.
 4. If runtime qualification passes, implement the smallest adapter and opt-in through the existing owners.
-5. Compare agent-mediated status, native `!` shell mode and the adapter over the same subject. Ship only on correct output, zero mutations, zero false acceptance and measurable value beyond native shell mode.
+5. Compare agent-mediated status, native `!` shell mode and the adapter over the same subject. The adapter qualifies only if the installed runtime proves that its successful output is visible to the user but absent from the subsequent model context, while native `!` output is retained there; this is the primary advantage. If either side is unobservable, equal, or the adapter is slower by more than 10% in median wall time across the three runs, the result is no-go. Process count is diagnostic only.
 
 ## Acceptance Criteria
 
@@ -63,9 +63,9 @@ One exact, explicit status request may use an optional Claude function hook to d
 - [ ] AC-2: Only the exact request is eligible. Near matches, extra text, plugin-origin prompts and unrelated requests pass through. Absent or false opt-in never consumes.
 - [ ] AC-3: The adapter drops a prompt only after successful fixed-argv read-only execution and validated output. Missing CLI, nonzero exit, malformed/truncated output, timeout or abort cannot emit success.
 - [ ] AC-4: Existing method-status distinctions remain intact and are never promoted to runtime or product acceptance.
-- [ ] AC-5: Kernel source/package parity and installed-package tests prove the module ships while every existing command guard remains present and effective.
+- [ ] AC-5: Kernel source/package parity and installed-package tests prove the module ships while every existing command guard remains present and effective. A native isolated probe must load the built `packages/kernel` artifact through its production registration metadata and prove both the function trigger and an existing command hook execute from that artifact.
 - [ ] AC-6: A same-subject three-run comparison reports model dispatches, retained output size where observable, process count and median/range latency for agent-mediated status, native shell mode and the adapter. Missing token data is `NO DATA`.
-- [ ] AC-7: The feature is default-off and retained only if it shows measurable value over native shell mode. Otherwise no module or configuration surface remains.
+- [ ] AC-7: The feature is default-off and retained only if it satisfies the predeclared primary context-retention advantage and latency bound in checkpoint 5. Otherwise no module or configuration surface remains.
 
 ## TDD seams
 
