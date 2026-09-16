@@ -1,19 +1,25 @@
 {
   "schema": "arbiter-context-economy-experiment-v1",
   "taskId": "#2618",
-  "recordedAt": "2026-09-16T12:49:56Z",
+  "recordedAt": "2026-09-16T13:02:04Z",
   "owner": "/root",
   "scope": "One read-only paired render on the same real consumer inputs; byte and line reduction only",
   "protocol": {
     "consumer": "coach-system",
     "baseSha": "80b5c544f9ef1e4fabf3202407786e24bc553e2b",
     "baseTree": "992a811bc236755ca2f294eac0f1785cb4bf4ec0",
-    "candidateSha": "83b526bef581969bb213fc1a54fc2bcd12a0de64",
-    "candidateTree": "280bb46d6a6500db86ec9000775b8a41d9707787",
+    "measuredAtSha": "c4029c8a050372756874d62cb1fe8b400ff3c061",
+    "measuredTree": "da733a4d68896911089a0c1432150e1b1536ca25",
     "method": "Build base and candidate, resolve the same consumer config once, detect the same installed skills once, then render AGENTS.md with each renderAgentsMd implementation without writing the consumer",
     "detectedSkills": 1014,
     "installedSkillsAfterOwnExclusion": 1000,
-    "qualifiedReplacements": 0
+    "qualifiedReplacements": 0,
+    "exactSubject": {
+      "src/generators/agents-md.ts": "2039cedb4d0bcb11e95f4003a2bf265a314fd05b9d0ec4d10e76967d7249ba85",
+      "src/templates/agents-md/AGENTS.md.ejs": "bdc5ff1b198549c7c736b4eb06092da0ecb76d06d00b73c792154cce63318a74",
+      "src/compatibility/skills-matrix.json": "627f4052c433a23dbe506921e3b12c973eb132f7578914b4c4976293c5482752",
+      "src/generators/skills.ts": "f8abf6a3ca23dbe1d090ee0ced8966e2ce7f4d9c2a6d226baa983a59051fbbdd"
+    }
   },
   "materializedConsumer": {
     "sha256": "215a1d66dd5221c7c14f7122ef49feb06785bea046c6dadb194a131d2da9b81b",
@@ -52,6 +58,7 @@
     "Bytes and lines are measured. Model tokens, latency, delivery speed and quality uplift are not measured.",
     "The consumer's stored tools list required the existing safe config coercion from four entries to claude and codex during both renders.",
     "The materialized consumer differs from the base render because of pre-existing template and environment drift; only the paired base-versus-candidate comparison attributes reduction to #2618.",
-    "No consumer file was modified. Temporary rendered outputs are identified by digest rather than committed as a second authority."
+    "No consumer file was modified. Temporary rendered outputs are identified by digest rather than committed as a second authority.",
+    "The tracked evidence commit necessarily follows the measured commit. Exact-subject binding uses the listed executable-input hashes; the final gate binds the complete delivery HEAD."
   ]
 }

@@ -1,1 +1,1 @@
-{"count":2,"agents":["domain","test-quality"],"auditors":["domain","test-quality"],"treatmentHash":"b9e33a51d1b010ceef0a5f3b6d63f226a401c62b9a561c17f2f1f96cdddbbfa4","branch":"task/#2564-native-checkout-adoption","sha":"e99e696fb25a9a934db8be9c14236d088d27affd","taskId":"#2564"}
+{"count":2,"agents":["domain","test-quality"],"auditors":["domain","test-quality"],"treatmentHash":"186149c23a1a6eff0bf5bf79d19f73bc612eb91d4e518715b6a0010c1ba36cf2","branch":"task/#2618-context-economy","sha":"c4029c8a050372756874d62cb1fe8b400ff3c061","taskId":"#2618"}
