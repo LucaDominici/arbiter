@@ -35,6 +35,8 @@ export interface GateRegistryEntry {
   name: string
   level: 'L1' | 'L2' | 'L3'
   kind: 'check' | 'warn' | 'tool' | 'inline'
+  /** Cheap diagnostics independent of future task proofs; default is qualification-only. */
+  preflight?: boolean
   cmd?: string[]
   language?: string
   /** Generation-time condition — resolved against the render data (e.g. useGitHub). */
@@ -156,6 +158,9 @@ function flattenGateCmd(entry: Record<string, unknown>): string[] | undefined {
 function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): GateRegistryEntry {
   const { id, level, kind } = validateGateEntryShape(entry, seen)
   const flatCmd = flattenGateCmd(entry)
+  if (entry['preflight'] !== undefined && typeof entry['preflight'] !== 'boolean') {
+    throw new Error(`gate registry: gate "${id}" preflight must be boolean`)
+  }
   return {
     id,
     name: String(entry['name']),
@@ -166,6 +171,7 @@ function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): 
     ...(typeof entry['emitIf'] === 'string' ? { emitIf: entry['emitIf'] } : {}),
     ...(typeof entry['condition'] === 'string' ? { condition: entry['condition'] } : {}),
     ...(typeof entry['else'] === 'string' ? { else: entry['else'] } : {}),
+    ...(entry['preflight'] === true ? { preflight: true } : {}),
     ...(entry['soft'] === true ? { soft: true } : {}),
     ...(typeof entry['promotes_to'] === 'string' ? { promotes_to: entry['promotes_to'] } : {}),
     ...(entry['audit'] === true ? { audit: true } : {}),

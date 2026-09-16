@@ -107,6 +107,7 @@ function checkDistPrerequisite(root) {
 if (isMain) {
   const parsedArgs = parseCheckArgs(process.argv.slice(2))
   const { subcommand, jsonPath: _parsedJsonPath } = parsedArgs
+  const preflight = subcommand === 'preflight'
   const level = effectiveGateLevel(parsedArgs)
   const isCIValue = (value) =>
     ['1', 'true', 'yes', 'on'].includes((value ?? '').trim().toLowerCase())
@@ -263,7 +264,9 @@ if (isMain) {
   }
 
   process.stdout.write('\n')
-  process.stdout.write(`=== arbiter Quality Gate: ${subcommand} [${level}] ===\n`)
+  process.stdout.write(
+    `=== arbiter ${preflight ? 'PREFLIGHT' : 'Quality Gate'}: ${subcommand} [${level}] ===\n`,
+  )
   process.stdout.write('\n')
 
   let prerequisiteError = false
@@ -271,7 +274,7 @@ if (isMain) {
   function runChecks() {
     // L2 owns its compiled prerequisites. npm build already generates the kit;
     // coverage remains the single unit-corpus run later in this gate.
-    if (subcommand !== 'check') {
+    if (subcommand !== 'check' && !preflight) {
       // These contracts use source/committed evidence and need no compiled output.
       // A rejected prerequisite must never start build, smoke, coverage or integration.
       runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'], { failOnSkip: true })
@@ -462,7 +465,8 @@ if (isMain) {
     runCheck('phase doc consistency (INV-113)', 'node', ['scripts/check-phase-doc-consistency.mjs'])
     // INV-138: acceptance-criteria anchor — flag-gated (features.acceptanceAnchor),
     // vacuous without an active task, so main/CI/fresh clones stay green.
-    runCheck('acceptance anchor (INV-138)', 'node', ['scripts/check-acceptance.mjs'])
+    if (!preflight)
+      runCheck('acceptance anchor (INV-138)', 'node', ['scripts/check-acceptance.mjs'])
     runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
     runCheck('canon references', 'node', ['scripts/check-canon-references.mjs'])
     runCheck('canon enforcement parity (B1)', 'node', [
@@ -575,6 +579,10 @@ if (isMain) {
     // not deferred to L2/nightly where drift would sit unnoticed for longer.
     runCheck('kernel plugin parity (#2548)', 'node', ['scripts/check-kernel-plugin-parity.mjs'])
 
+    // Collect the whole cheap batch, then refuse costly work on a known-red candidate.
+    // Preflight runs no future review/TDD obligations and cannot qualify delivery.
+    if (preflight || getFailed() > 0) return getResults().length
+
     // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
     // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still
     // inside the L1 partition (captured by l1EndIdx below) → hash- and set-invariant.
@@ -604,7 +612,7 @@ if (isMain) {
     // they run `arbiter init` 27 times — far too expensive for the every-commit partition.
 
     // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
-    if (subcommand !== 'check') {
+    if (subcommand !== 'check' && !preflight) {
       const coverageRunStartedAt = Date.now()
       runCheck('coverage', 'npm', ['test', '--', '--coverage'], {
         ...vitestOptions,
@@ -613,10 +621,16 @@ if (isMain) {
       // Coverage no-regression ratchet (#1483): runs right after coverage, reading the
       // coverage/coverage-summary.json the run above emits (json-summary reporter). Fails if any
       // of lines/branches/functions/statements drops below the .coverage-baseline.json floor.
-      runCheck('coverage ratchet (#1483)', 'node', [
-        'scripts/check-coverage-ratchet.mjs',
-        '--require-data',
-      ])
+      const coveragePassed = getResults().at(-1)?.status === 'PASS'
+      if (coveragePassed) {
+        runCheck('coverage ratchet (#1483)', 'node', [
+          'scripts/check-coverage-ratchet.mjs',
+          '--require-data',
+        ])
+      } else {
+        pushResult('coverage ratchet (#1483)', 'SKIP', 0)
+        process.stdout.write('coverage ratchet (#1483) ... SKIP (NO DATA: coverage did not pass)\n')
+      }
       // When running from rsync'd temp dir on behalf of a '#'-path worktree,
       // VitePress cannot resolve workspace paths; degrade to warn (CI validates).
       const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck
@@ -665,14 +679,19 @@ if (isMain) {
         'scripts/check-emission-coherence.mjs',
         '.',
       ])
-      runCheck('debt ratchet', 'node', [
-        'scripts/debt-report.mjs',
-        '--gate',
-        '--coverage-summary',
-        'coverage/coverage-summary.json',
-        '--coverage-started-at',
-        String(coverageRunStartedAt),
-      ])
+      if (coveragePassed) {
+        runCheck('debt ratchet', 'node', [
+          'scripts/debt-report.mjs',
+          '--gate',
+          '--coverage-summary',
+          'coverage/coverage-summary.json',
+          '--coverage-started-at',
+          String(coverageRunStartedAt),
+        ])
+      } else {
+        pushResult('debt ratchet', 'SKIP', 0)
+        process.stdout.write('debt ratchet ... SKIP (NO DATA: coverage did not pass)\n')
+      }
       runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'])
       runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])
       runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
@@ -755,8 +774,9 @@ if (isMain) {
 `)
   process.stdout.write('\n')
 
+  // Diagnostics never write qualification artifacts, including explicit --json paths.
   // ─── Gate result JSON (INV-59) ────────────────────────────────────────────────
-  {
+  if (!preflight) {
     const l1Gates = results.slice(0, l1EndIdx)
     const parityGates = l1Gates
       .filter((r) => !PARITY_EXCLUDE.has(r.name))
@@ -805,7 +825,7 @@ if (isMain) {
     }
   }
 
-  if (failed === 0) {
+  if (failed === 0 && !preflight) {
     try {
       const root = GIT_CWD ?? process.cwd()
       // #1441: stamp the task id so the fail-closed Stop hook can reject a prior
@@ -866,12 +886,14 @@ if (isMain) {
 
   if (failed > 0) {
     const failedResults = results.filter((r) => r.status === 'FAIL' || r.status === 'TIMEOUT')
-    console.error(`=== FAILED: ${failed} check(s) ===`)
+    console.error(`=== ${preflight ? 'PREFLIGHT ' : ''}FAILED: ${failed} check(s) ===`)
     console.error('Failed checks:')
     for (const r of failedResults) console.error(`- ${r.name} (${r.status})`)
     console.error('')
     process.exit(prerequisiteError ? 2 : 1)
   } else {
-    process.stdout.write('=== ALL PASSED ===\n\n')
+    process.stdout.write(
+      preflight ? '=== PREFLIGHT PASSED (diagnostics only) ===\n\n' : '=== ALL PASSED ===\n\n',
+    )
   }
 } // end isMain
