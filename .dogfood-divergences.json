@@ -237,7 +237,7 @@
     "path": "check-fail-closed-audit.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self is a strict superset on two axes. (1) Corpus: self classifies .github/workflows/*.yml as a `yaml` kind and runs the `|| true` fail-open scan over workflow files; the template audits only scripts/, .githooks/ and .claude/hooks/. (2) The library allowlist: 28 named scripts/lib/* modules exempted from the entry-point error-handling contract because they export semantics rather than being entry points (gold-audit-lib, anti-fake-green-core, secret-presence-core, continue-on-error-core, doc-set-resolve, dist-staleness, acceptance-criteria, consumer-reliability-bar, self-only-surfaces (#2417 pure commands/skills/agents/hooks derivation; no entry point — consumers own the exit contract), gate-roster (CANON-24 #2301 pure check-all.mjs roster parser + inversion-ledger semantics; no entry point), …). Nearly every one of those files is self-only, so the list has no subject in a target. Self also handles the ENOENT readdir/stat race explicitly with a FAIL-OPEN-INTENT marker and rethrows everything else, where the template swallows. PERMANENT. Re-pinned #2548: one further scripts/lib/* allowlist entry, dir-diff.mjs (a pure byte-level directory-diff helper shared by check-kernel-plugin-parity.mjs and regenerate-examples.mjs, no entry point, no isMainModule/process.exit — the identical shape as every other named module in this list), same class.",
-    "diffHash": "89583421e15e45300addbd50ae49ffc88f134e9bd6529c6ffc199a0bdab3f772"
+    "diffHash": "c5b1ec5367984171cc5f19e1b07ee6fa7b1490a751cacb60b146cbf2e80e3b6b"
   },
   {
     "dest": "scripts",
