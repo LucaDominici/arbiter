@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #2162 — `arbiter doctor tool-pins`: compares the LOCAL toolchain against the
+// #2162 — `arbiter check tool-pins`: compares the LOCAL toolchain against the
 // version pins recorded in the target's own CI workflows. Motivating field
 // evidence: a local trivy/gitleaks older than the CI pin still prints PASSED
 // (worse than a missing tool — it lies instead of warning). Read-only: only
@@ -184,7 +184,7 @@ export function runDoctorToolPins(opts: DoctorToolPinsOptions = {}): DoctorToolP
   const exitCode: 0 | 1 = fail > 0 ? 1 : 0
 
   if (opts.json) {
-    jsonOutput('doctor tool-pins', fail > 0 ? 'error' : 'ok', { checks, pass, warn, fail })
+    jsonOutput('check tool-pins', fail > 0 ? 'error' : 'ok', { checks, pass, warn, fail })
   } else {
     emitTextOutput(checks, pass, warn, fail)
   }

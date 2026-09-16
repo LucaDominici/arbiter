@@ -108,7 +108,7 @@ if (!pages.has(indexSlug)) {
 // gitignored) wiki goes stale as a side effect of merging; that is not a review property.
 const ls = spawnSync('git', ['ls-files', '--', WIKI_DIR], { encoding: 'utf-8', cwd: root });
 const wikiTracked = ls.status === 0 && ls.stdout.trim().length > 0;
-// --assert-stale: a caller asking about freshness itself (arbiter obsidian --validate-only) keeps it.
+// --assert-stale: a caller asking about freshness itself (arbiter docs vault --validate-only) keeps it.
 const assertStale = wikiTracked || args.includes('--assert-stale');
 if (!assertStale) {
   process.stdout.write(

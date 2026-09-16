@@ -11,9 +11,9 @@ describe('/wt-open skill', () => {
     expect(existsSync(skillPath)).toBe(true)
   })
 
-  it('references arbiter wt open command', () => {
+  it('references git worktree add command', () => {
     const content = readFileSync(skillPath, 'utf-8')
-    expect(content).toContain('arbiter wt open')
+    expect(content).toContain('git worktree add')
   })
 
   it('mentions worktree path parsing', () => {
@@ -34,9 +34,9 @@ describe('/wt-close skill', () => {
     expect(existsSync(skillPath)).toBe(true)
   })
 
-  it('references arbiter wt close command', () => {
+  it('references git worktree remove command', () => {
     const content = readFileSync(skillPath, 'utf-8')
-    expect(content).toContain('arbiter wt close')
+    expect(content).toContain('git worktree remove')
   })
 
   it('mentions harvest option', () => {

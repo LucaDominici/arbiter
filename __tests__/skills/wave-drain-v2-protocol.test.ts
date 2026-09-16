@@ -52,7 +52,7 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
   })
 
   it('scopes SIGKILL/OOM release to the gate-exec supervisor and keeps serial fallback', () => {
-    expect(md).toMatch(/arbiter gate-exec/)
+    expect(md).toMatch(/arbiter check run/)
     expect(md).toMatch(/flock\(1\)/)
     expect(md).toMatch(/gate-exec\s+supervisor[^.]*SIGKILL\/OOM/i)
     expect(md).toMatch(/Arbiter Node\s+PID alone/i)
@@ -94,7 +94,7 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
   })
 
   it('reaps zombies at end of wave with the prune primitive (dry-run first)', () => {
-    expect(md).toMatch(/arbiter worktree prune --stale/)
+    expect(md).toMatch(/git worktree prune --stale/)
     expect(md).toMatch(/--execute/)
   })
 
@@ -106,13 +106,13 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
 
   it('commits review evidence before one exact-HEAD L2 gate and PR creation', () => {
     const commit = md.indexOf('Commit the cumulative candidate and all review/evidence artifacts')
-    const gate = md.indexOf('arbiter gate-exec -- node scripts/check-all.mjs L2')
+    const gate = md.indexOf('arbiter check run -- node scripts/check-all.mjs L2')
     const pr = md.indexOf('One PR per wave')
     expect(commit).toBeGreaterThan(-1)
     expect(gate).toBeGreaterThan(commit)
     expect(pr).toBeGreaterThan(gate)
     expect(md).not.toContain(
-      "arbiter gate-exec -- sh -c 'npm run test && node scripts/check-all.mjs L2'",
+      "arbiter check run -- sh -c 'npm run test && node scripts/check-all.mjs L2'",
     )
   })
 
@@ -152,10 +152,10 @@ describe('/drain v2 — entrypoint (#1873, ADR-103)', () => {
   })
 
   it('wires the v2 protocol: mutex, cap, 3-hop, prune, convergence', () => {
-    expect(md).toMatch(/arbiter gate-exec/)
+    expect(md).toMatch(/arbiter check run/)
     expect(md).toMatch(/nproc - 2/)
     expect(md).toMatch(/needs-plan/)
-    expect(md).toMatch(/arbiter worktree prune --stale/)
+    expect(md).toMatch(/native host worktree cleanup command/)
     expect(md).toMatch(/ADR-103/)
     expect(md).toMatch(/one wave PR/i)
   })

@@ -4,7 +4,7 @@
  * schema-v2 binding. Missing one leaves the hole open, so each consumer gets
  * both halves of the proof here:
  *
- *   1. `arbiter task advance`            (src/commands/task.ts)
+ *   1. `arbiter lifecycle advance`            (src/commands/task.ts)
  *   2. `enforce-gate-before-pr.mjs`      (blocks `gh pr create`)
  *   3. `stop-evidence-guard.mjs`         (blocks a completion claim)
  *   4. `.githooks/pre-push` reuse rule   (#2085 — skips a redundant L2)
@@ -110,8 +110,8 @@ function stampEvidence(stampedIn: string, writtenTo: string = stampedIn): void {
   )
 }
 
-// ── 1. arbiter task advance ────────────────────────────────────────────────
-describe('#2328 consumer: arbiter task advance', () => {
+// ── 1. arbiter lifecycle advance ────────────────────────────────────────────────
+describe('#2328 consumer: arbiter lifecycle advance', () => {
   function seed(dir: string): void {
     writeTaskStateFile(dir, { phase: 'verification', tier: 'Standard', taskId: TASK_ID })
   }

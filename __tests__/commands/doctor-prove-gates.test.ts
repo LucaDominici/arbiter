@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1817 (A5) — arbiter doctor --prove-gates: text/JSON output and exit-code wiring.
+// #1817 (A5) — arbiter status health --prove-gates: text/JSON output and exit-code wiring.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { runDoctorProveGates } from '../../src/commands/doctor.js'
 import { runGateProofs } from '../../src/conformance/gate-proofs.js'
@@ -64,7 +64,7 @@ describe('runDoctorProveGates — json mode', () => {
       const result = runDoctorProveGates({ json: true })
       const parsed: unknown = JSON.parse(captured.out)
       expect(parsed).toMatchObject({
-        command: 'doctor --prove-gates',
+        command: 'status health --prove-gates',
         status: result.exitCode === 0 ? 'ok' : 'error',
         data: {
           bitingCount: result.bitingCount,

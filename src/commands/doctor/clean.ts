@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter doctor clean`
+// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter lifecycle clean`
 // subcommand (#1217). Pure extraction, no behavior change.
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -63,7 +63,7 @@ export function runDoctorClean(opts: DoctorCleanOptions = {}): DoctorCleanResult
   }
 
   if (opts.json) {
-    jsonOutput('doctor clean', 'ok', { found, deleted })
+    jsonOutput('lifecycle clean', 'ok', { found, deleted })
   }
 
   return { found, deleted }

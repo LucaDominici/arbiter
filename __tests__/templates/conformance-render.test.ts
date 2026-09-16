@@ -15,7 +15,7 @@ describe('scripts/conformance.mjs.ejs render (CANON-04, #1398)', () => {
     expect(content).not.toContain('spawnSync')
     expect(content).not.toMatch(/'conformance'\s*,/)
     // Intent preserved: it points at the surviving governance scorecard.
-    expect(content).toContain('gold-audit')
+    expect(content).toContain('audit readiness')
   })
 
   it('rendered output starts with shebang', () => {

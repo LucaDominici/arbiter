@@ -54,7 +54,7 @@ describe('ADR status vocabulary — single canonical source (#2468)', () => {
   // Scope note: #2468 AC-1 reconciles exactly ONE non-canonical value — the `accepted` alias a
   // handful of ADRs drifted onto, distinct from the frontmatter vocabulary's own `active`. Other
   // pre-existing non-canonical values (`proposed`, `superseded`) are a separate, out-of-scope
-  // finding (captured via `arbiter note`, not fixed here) — this assertion targets only the
+  // finding (captured via `arbiter finding add`, not fixed here) — this assertion targets only the
   // `accepted` class the issue names, so it does not widen this task's diff to cover them.
   it('never draws a numbered ADR\'s frontmatter status from the retired "accepted" alias', () => {
     const canonical = canonicalStatuses()

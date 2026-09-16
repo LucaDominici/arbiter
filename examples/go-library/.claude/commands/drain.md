@@ -48,9 +48,9 @@ without arbiter → N-PR + merge-train (skill appendix).
    hop 2's skeptic count scales with the tier) before its agent writes code — the
    `needs-plan` label raises hop 2 to the Standard skeptic floor, it no longer switches the
    gate on.
-4. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`), TDD per
+4. **Parallel execution** — one agent per group in an isolated worktree (the native host worktree command followed by `arbiter worktree prepare`), TDD per
    unit, light checks only; full gate forbidden in worktrees. Expensive gates that can race
-   another agent on the same repo go through `arbiter gate-exec -- <cmd>` (flock(1) mutex,
+   another agent on the same repo go through `arbiter check run -- <cmd>` (flock(1) mutex,
    released when the gate-exec supervisor is SIGKILL/OOM-killed; killing the Arbiter Node
    PID alone leaves that supervisor holding; Linux tracks ordinary process-group escapes by an
    inherited sentinel, but a payload that deliberately closes it is outside the guarantee;
@@ -60,10 +60,10 @@ without arbiter → N-PR + merge-train (skill appendix).
 5. **Local integration** on `wave-N-integration` (off `main`): sequential merge,
    minimum-overlap order from the REAL `git diff --name-only` of the branches → multiagent
    review + adversarial verify (evidence, INV-114) → **full gate under the mutex**
-   (`arbiter gate-exec -- sh -c 'go test ./... && node scripts/check-all.mjs check'`) →
+   (`arbiter check run -- sh -c 'go test ./... && node scripts/check-all.mjs check'`) →
    `gate-pass.json`.
 6. **One PR per wave**, `Closes #…`, merge only on GREEN CI.
-7. `/wt-close` + `arbiter worktree prune --stale 24` (dry-run, then `--execute`) → `/clear`
+7. the native host worktree cleanup command → `/clear`
    → next wave, until the backlog is empty.
 
 ## Hard stops (fail-closed)

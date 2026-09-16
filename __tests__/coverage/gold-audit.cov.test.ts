@@ -140,7 +140,7 @@ describe('runGoldAudit default path (#1414)', () => {
     expect(res.exitCode).toBe(0)
     expect(res.payload).toBeTruthy()
     const envelope = jsonEnvelope()
-    expect(envelope).toMatchObject({ command: 'gold-audit', version: '1', status: 'ok' })
+    expect(envelope).toMatchObject({ command: 'audit readiness', version: '1', status: 'ok' })
     const data = envelope['data'] as Record<string, unknown>
     expect(data['registryVersion']).toBe('1.0.0')
   })
@@ -150,7 +150,7 @@ describe('runGoldAudit default path (#1414)', () => {
     const res = runGoldAudit({ repo: '/tmp/x', class: 'gold' })
     expect(res.exitCode).toBe(0)
     const out = stdout()
-    expect(out).toContain('gold-audit: L1 (gold)')
+    expect(out).toContain('audit readiness: L1 (gold)')
     expect(out).toContain("what's missing (1 family/families)")
     expect(out).toContain('N A-2 a two')
     expect(out).toContain('[README.md: missing install]') // evidence file + detail branch
@@ -171,7 +171,7 @@ describe('runGoldAudit default path (#1414)', () => {
     mockRunCli.mockReturnValue(ok(JSON.stringify(maxed)))
     runGoldAudit({ repo: '/tmp/x', class: 'gold' })
     const line = stdout().split('\n')[0]!
-    expect(line).toContain('gold-audit: L1 (gold)')
+    expect(line).toContain('audit readiness: L1 (gold)')
     expect(line).not.toContain(' to ') // nextLevel null ⇒ no "· N to L2" suffix
   })
 
@@ -253,7 +253,7 @@ describe('runGoldAudit SKIP (no registry)', () => {
     const res = runGoldAudit({ repo: '/tmp/x', json: true })
     expect(res.exitCode).toBe(0)
     expect(res.payload).toBeNull()
-    expect(jsonEnvelope()).toEqual({ command: 'gold-audit', version: '1', status: 'ok', data: {} })
+    expect(jsonEnvelope()).toEqual({ command: 'audit readiness', version: '1', status: 'ok', data: {} })
   })
 
   it('non-JSON stdout with quiet prints nothing', () => {
@@ -274,8 +274,8 @@ describe('runGoldAudit error paths', () => {
     expect(res.exitCode).toBe(1)
     expect(res.payload).toBeNull()
     const envelope = jsonEnvelope()
-    expect(envelope).toMatchObject({ command: 'gold-audit', version: '1', status: 'error', data: {} })
-    expect((envelope['errors'] as string[]).join('\n')).toContain('gold-audit: engine failed')
+    expect(envelope).toMatchObject({ command: 'audit readiness', version: '1', status: 'error', data: {} })
+    expect((envelope['errors'] as string[]).join('\n')).toContain('audit readiness: engine failed')
   })
 
   it('a non-CliError thrown ⇒ String(err) fallback in the error envelope, exit 1', () => {
@@ -413,7 +413,7 @@ describe('runGoldAudit --cockpit (#1475)', () => {
     const res = runGoldAudit({ repo: '/tmp/x', cockpit: true })
     expect(res.exitCode).toBe(1)
     expect(res.payload).toBeNull()
-    expect(stderr()).toContain('gold-audit: engine failed')
+    expect(stderr()).toContain('audit readiness: engine failed')
   })
 
   it('engine non-CliError ⇒ exit 1 with String(err) on stderr', () => {

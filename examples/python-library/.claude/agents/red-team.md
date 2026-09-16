@@ -60,7 +60,7 @@ These are **blocking-eligible** — a confirmed finding here is a HIGH (merge bl
 | **Dup-of-existing-helper** | Does this introduce logic that already exists as a helper/util elsewhere? (Grep for the behaviour before accepting new code.) |
 | **Missed extraction** | Are ≥2 near-identical blocks introduced or left adjacent that should be one extracted function? (Juergens'09: inconsistent clones are latent bugs.) |
 
-If a root-cause fix is genuinely out of scope, the change must carry an `arbiter task record-tech-debt` reference; absence of one with a live smell is a blocking finding.
+If a root-cause fix is genuinely out of scope, the change must carry an `arbiter lifecycle record-debt` reference; absence of one with a live smell is a blocking finding.
 
 ## SSOT Alignment Vectors (arbiter-specific)
 

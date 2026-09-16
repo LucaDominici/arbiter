@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter doctor
+// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter status health
 // --prove-gates` subcommand (#1817, A5). Pure extraction, no behavior change.
 import { jsonOutput } from '../../utils/json-output.js'
 import { runGateProofs } from '../../conformance/gate-proofs.js'
@@ -28,7 +28,7 @@ export interface DoctorProveGatesResult {
 }
 
 function emitProveGatesOutput(results: GateProofResult[]): void {
-  process.stdout.write('\narbiter doctor --prove-gates — negative proof per tier-1 gate\n\n')
+  process.stdout.write('\narbiter status health --prove-gates — negative proof per tier-1 gate\n\n')
   for (const r of results) {
     const label = r.bites ? '[BITES]' : '[NO-BITE]'
     process.stdout.write(`  ${label} ${r.id} — ${r.title}\n`)
@@ -50,7 +50,7 @@ export function runDoctorProveGates(opts: DoctorProveGatesOptions = {}): DoctorP
   const exitCode: DoctorProveGatesResult['exitCode'] = notBitingCount > 0 ? 1 : 0
 
   if (opts.json) {
-    jsonOutput('doctor --prove-gates', exitCode === 0 ? 'ok' : 'error', {
+    jsonOutput('status health --prove-gates', exitCode === 0 ? 'ok' : 'error', {
       results,
       bitingCount,
       notBitingCount,

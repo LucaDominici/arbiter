@@ -166,7 +166,7 @@ const ENV_FLAG_DEFINITIONS: readonly EnvFlagDefinition[] = [
   {
     name: 'ARBITER_WORKTREES_DIR',
     type: 'string',
-    purpose: 'Override the base directory where `arbiter worktree open` creates worktrees.',
+    purpose: 'Override the base directory where `git worktree add` creates worktrees.',
     isGateBypass: false,
   },
   {
@@ -300,7 +300,7 @@ const ENV_FLAG_DEFINITIONS: readonly EnvFlagDefinition[] = [
     type: 'string',
     default: '',
     purpose:
-      'Set BY the mutex wrapper (and by `arbiter gate-exec`) to the lock path it already ' +
+      'Set BY the mutex wrapper (and by `arbiter check run`) to the lock path it already ' +
       'holds, so a nested gate recognises the mutex as taken instead of self-deadlocking ' +
       'waiting on it (#2427). Not a user-facing knob.',
     isGateBypass: false,

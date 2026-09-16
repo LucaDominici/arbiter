@@ -11,14 +11,7 @@ import { runObsidian } from './commands/obsidian.js'
 import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
 import { runMethodStatus } from './commands/method.js'
-import {
-  runWorktreeAdopt,
-  runWorktreeOpen,
-  runWorktreeClose,
-  runWorktreeList,
-  runWorktreeRelink,
-} from './commands/worktree.js'
-import { runWorktreePrune } from './commands/worktree-prune.js'
+import { runWorktreeAdopt, runWorktreeList, runWorktreeRelink } from './commands/worktree.js'
 import { runGateExec } from './commands/gate-exec.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { formatProvenance, type Provenance } from './evidence/provenance.js'
@@ -122,14 +115,14 @@ function refuseUnsupportedArc42Flags(opts: {
   if (!opts.arc42) return
   if (opts.manifest === undefined && opts.docProfile === undefined) return
   process.stderr.write(
-    'arbiter doc-set: --manifest/--doc-profile are not supported with --arc42 — the arc42 ' +
+    'arbiter audit docs: --manifest/--doc-profile are not supported with --arc42 — the arc42 ' +
       'engine reads standards/gold-doc-set.yml directly. Re-run without them.\n',
   )
   process.exit(2)
 }
 
 /**
- * T3 (gold-doc-tranches-t3-t5.md §1.2d): human report for `arbiter doc-set --plan/--apply` —
+ * T3 (gold-doc-tranches-t3-t5.md §1.2d): human report for `arbiter audit docs --plan/--apply` —
  * present · would-scaffold(+template id) · unbound · withheld. `--plan` writes nothing (dryRun);
  * the action label reflects the PROSPECTIVE action either way (writeFile's dryRun/real paths are
  * structurally incapable of drifting, src/utils/fs.ts `resolveWriteAction`).
@@ -528,8 +521,12 @@ program
 
 // #1401 — zero-friction incidental-finding capture. Appends ONE line to a per-shard JSONL spool
 // under .arbiter/findings/<shard>.jsonl. Non-blocking, no network. See rule 60-incidental-capture.
-program
-  .command('note')
+const finding = program
+  .command('finding')
+  .description('Capture, inspect, triage, and promote engineering findings')
+
+finding
+  .command('add')
   .description('Capture an out-of-scope finding to the per-agent JSONL spool (#1401)')
   .argument('[note]', 'Finding text (or use --note)')
   .option('--note <text>', 'Finding text (alternative to the positional argument)')
@@ -553,7 +550,9 @@ program
       const text = (positional ?? opts.note ?? '').trim()
       const logger = getLogger()
       if (text.length === 0) {
-        process.stderr.write('arbiter note: a finding text is required (positional or --note)\n')
+        process.stderr.write(
+          'arbiter finding add: a finding text is required (positional or --note)\n',
+        )
         process.exitCode = 1
         return
       }
@@ -569,17 +568,11 @@ program
         logger.info('note.captured', { spool: result.spoolPath, fingerprint: result.fingerprint })
         process.stdout.write(`noted → ${result.spoolPath}\n`)
       } else {
-        process.stderr.write(`arbiter note: ${result.reason}\n`)
+        process.stderr.write(`arbiter finding add: ${result.reason}\n`)
         process.exitCode = 1
       }
     },
   )
-
-// #2414 — durable operations over the spool written by `arbiter note`. Hidden while the public
-// surface remains capped; `arbiter help --all` keeps it discoverable.
-const finding = program
-  .command('finding', { hidden: true })
-  .description('Inspect, triage, and promote the incidental-finding spool (#2414)')
 
 finding
   .command('list')
@@ -806,6 +799,9 @@ program
     false,
   )
   .option('--json', 'Emit machine-readable JSON output', false)
+  .option('--dry-run', 'Show what update would change without writing', false)
+  .option('--withheld', 'With --dry-run, show only fixes withheld from modified files', false)
+  .option('--governance', 'With --dry-run, audit governance files for staleness', false)
   .option('--force', 'Override adverse git state check (detached HEAD, rebase, etc.)', false)
   .option(
     '--adopt',
@@ -876,6 +872,9 @@ program
       dir?: string
       github: boolean
       json: boolean
+      dryRun: boolean
+      withheld: boolean
+      governance: boolean
       force: boolean
       adopt: boolean
       adoptSafety: boolean
@@ -885,6 +884,15 @@ program
       refreshDerived: boolean
       only: string[]
     }) => {
+      if (opts.dryRun) {
+        runDiff({
+          dir: opts.dir,
+          json: opts.json,
+          withheld: opts.withheld,
+          governance: opts.governance,
+        })
+        return
+      }
       if (_channelFlag !== undefined) {
         const config = loadConfig(opts.dir ?? '.')
         await confirmChannelDowngrade(_channelFlag as ReleaseChannel, config?.channel)
@@ -905,7 +913,7 @@ program
     },
   )
 
-program
+const configure = program
   .command('configure')
   .description('Modify arbiter.json configuration (interactive on TTY, or use --set)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -932,13 +940,14 @@ program
     })
   })
 
-program
-  .command('settings', { hidden: true })
+configure
+  .command('show')
   .description('List every settable arbiter.json path with its current value (#1121)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string | undefined; json: boolean }) => {
+  .action((_opts: { dir?: string | undefined; json: boolean }, cmd: Command) => {
     try {
+      const opts = cmd.optsWithGlobals<{ dir?: string; json: boolean }>()
       runSettings({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}), json: opts.json })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -956,8 +965,8 @@ program
 // CLI commands". `settings` — the FIELD view over the same paths — is hidden for the same
 // reason, so the FEATURE view over them belongs in the same tier. `arbiter help --all` and
 // the generated CLI reference both still document it.
-const method = program
-  .command('method', { hidden: true })
+const method = configure
+  .command('method')
   .description('Methodology lens: per-feature Config+Emit wiring status over `configure` (#2039)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -1003,27 +1012,7 @@ method
     }
   })
 
-program
-  .command('diff')
-  .description('Show what arbiter update would change (dry run)')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .option('--withheld', 'Show only template fixes withheld from user-modified files (#1344)', false)
-  .option(
-    '--governance',
-    'Audit Iron Laws (AGENTS.md) and the permission deny list (.claude/settings.json) for staleness vs the current template; fail-closed (#2040)',
-    false,
-  )
-  .action((opts: { dir?: string; json: boolean; withheld: boolean; governance: boolean }) => {
-    runDiff({
-      dir: opts.dir,
-      json: opts.json,
-      withheld: opts.withheld,
-      governance: opts.governance,
-    })
-  })
-
-const ignoreGroup = program
+const ignoreGroup = configure
   .command('ignore')
   .description('Manage the per-file opt-out (.arbiterignore, #2353/#2662)')
 
@@ -1049,8 +1038,10 @@ ignoreGroup
     runIgnoreRemove({ dir: opts.dir, paths, json: opts.json })
   })
 
-program
-  .command('obsidian')
+const docs = program.command('docs').description('Audit and maintain governed documentation')
+
+docs
+  .command('vault')
   .description('Sync/validate the Obsidian vault via the repo-owned wiki scripts (#1979)')
   .option('--repo <dir>', 'Target repo directory (default: current directory)')
   .option('--vault-path <dir>', 'Vault directory relative to the repo root', 'wiki')
@@ -1079,12 +1070,12 @@ program
         json: opts.json,
       })
       if (opts.json) {
-        jsonOutput('obsidian', result.status, { ...result })
+        jsonOutput('docs vault', result.status, { ...result })
       } else if (result.reason) {
-        process.stdout.write(`obsidian: ${result.reason}\n`)
+        process.stdout.write(`docs vault: ${result.reason}\n`)
       } else {
         process.stdout.write(
-          `obsidian: ${result.mode} — ${result.status} (vault: ${result.vaultDir})\n`,
+          `docs vault: ${result.mode} — ${result.status} (vault: ${result.vaultDir})\n`,
         )
       }
       process.exit(result.exitCode)
@@ -1093,9 +1084,9 @@ program
 
 // ── plugin (#2416) — ADR-031 designed `plugin add | remove | list` but only
 // `add`/`list` ship; see docs/internal/ADR/121-plugin-add-ship-minimal.md.
-const plugin = program
+const plugin = configure
   .command('plugin')
-  .description('Manage third-party arbiter plugins (arbiter.json `plugins[]`)')
+  .description('Manage third-party arbiter configure plugins (arbiter.json `plugins[]`)')
 
 plugin
   .command('add <package>')
@@ -1128,41 +1119,10 @@ plugin
 
 const worktree = program
   .command('worktree')
-  .alias('wt')
-  .description('Manage git worktrees for parallel task development')
+  .description('Prepare and inspect native host worktrees')
 
 worktree
-  .command('open <task-id> [slug]')
-  .description('Create a sibling worktree with a task branch and symlinked local files')
-  .option('--base <branch>', 'Base branch to branch from', 'main')
-  .option('--sibling [slug]', 'Place worktree at <repo>.worktrees/<slug> (sibling layout)')
-  .option('--with-build-links', 'Also materialize buildLinks from config', false)
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    (
-      taskId: string,
-      slug: string | undefined,
-      opts: { base: string; sibling?: string | boolean; withBuildLinks: boolean; json: boolean },
-    ) => {
-      runWorktreeOpen({
-        taskId,
-        ...(slug !== undefined ? { slug } : {}),
-        base: opts.base,
-        ...(opts.sibling !== undefined
-          ? { sibling: opts.sibling === true ? '' : (opts.sibling as string) }
-          : {}),
-        withBuildLinks: opts.withBuildLinks,
-        json: opts.json,
-      }).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err)
-        process.stderr.write(`  Error: ${msg}\n`)
-        process.exit(1)
-      })
-    },
-  )
-
-worktree
-  .command('adopt <task-id> [path]')
+  .command('prepare <task-id> [path]')
   .description('Adopt and prepare an existing native Git worktree without owning its cleanup')
   .option('--with-build-links', 'Also materialize buildLinks from config', false)
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -1186,44 +1146,7 @@ worktree
   )
 
 worktree
-  .command('close <task-id>')
-  .description('Tear down an Arbiter-created task worktree after its branch is merged')
-  .option('--force', 'Close even if branch is unmerged or hook fails', false)
-  .option('--keep-branch', 'Do not delete the task branch after closing', false)
-  .option('--no-fetch', 'Skip git fetch before the merge check', false)
-  .option('--harvest', 'Copy modified/untracked files back to main repo before closing', false)
-  .option(
-    '--harvest-all',
-    'Harvest all files and skip merge check (implies --force for cleanup)',
-    false,
-  )
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    (
-      taskId: string,
-      opts: {
-        force: boolean
-        keepBranch: boolean
-        fetch: boolean
-        harvest: boolean
-        harvestAll: boolean
-        json: boolean
-      },
-    ) => {
-      runWorktreeClose({
-        taskId,
-        force: opts.force,
-        keepBranch: opts.keepBranch,
-        noFetch: !opts.fetch,
-        harvest: opts.harvest,
-        harvestAll: opts.harvestAll,
-        json: opts.json,
-      })
-    },
-  )
-
-worktree
-  .command('list')
+  .command('check')
   .description('List open task worktrees')
   .option('--all', 'Include non-task and detached linked worktrees', false)
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -1246,50 +1169,18 @@ worktree
     }
   })
 
-worktree
-  .command('prune')
-  .description(
-    'Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive ' +
-      'beyond --stale hours. Dry-run by default; dirty trees are never touched (INV-96); ' +
-      'inactive-unmerged candidates keep their branch.',
-  )
-  .option(
-    '--stale <hours>',
-    'Inactivity threshold in hours for unmerged worktrees',
-    (v: string) => {
-      const n = parseInt(v, 10)
-      if (isNaN(n) || n <= 0) throw new Error('--stale must be a positive integer (hours)')
-      return n
-    },
-  )
-  .option('--execute', 'Close the candidates (default: dry-run report)', false)
-  .option('--no-fetch', 'Skip git fetch before the merge check', false)
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { stale?: number; execute: boolean; fetch: boolean; json: boolean }) => {
-    try {
-      runWorktreePrune({
-        ...(opts.stale !== undefined ? { staleHours: opts.stale } : {}),
-        execute: opts.execute,
-        noFetch: !opts.fetch,
-        json: opts.json,
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      process.stderr.write(`  Error: ${msg}\n`)
-      process.exit(1)
-    }
-  })
+const check = program.command('check').description('Run deterministic engineering checks')
 
-program
+check
   // Promoted to public (T2 tier-3, #1770 T5 supersession): gate-exec is a
   // load-bearing primitive (J5) invoked by the wave-drain skill — worth
   // surfacing directly rather than hiding behind `help --all`.
-  .command('gate-exec <cmd...>')
+  .command('run <cmd...>')
   .description(
     'Run a command under the per-repo gate mutex (#1873, ADR-103): every worktree of ' +
       'the same repo converges on ONE flock(1) lock, the wait is kernel-side (blocking), ' +
       'and flock closes the lock fd before the command and its descendants run. Usage: ' +
-      'arbiter gate-exec [--key K] -- <cmd> [args...]. Exit code: passthrough of the ' +
+      'arbiter check run [--key K] -- <cmd> [args...]. Exit code: passthrough of the ' +
       'command; 2 on gate-exec errors (e.g. flock missing — fail-closed).',
   )
   .option('--key <key>', 'Explicit mutex key (overrides per-repo derivation)')
@@ -1309,11 +1200,9 @@ program
     }
   })
 
-const review = program.command('review').description('Semantic diff between graph snapshots (#262)')
+const review = program.command('review').description('Run distinct read-only engineering reviews')
 
-const graph = program
-  .command('graph', { hidden: true })
-  .description('Manage the provenance graph (#259)')
+const graph = program.command('graph').description('Manage the provenance graph (#259)')
 
 graph
   .command('build')
@@ -1350,8 +1239,10 @@ graph
     process.exit(result.exitCode)
   })
 
-program
-  .command('gold-audit [repo]')
+const audit = program.command('audit').description('Evaluate release and product evidence')
+
+audit
+  .command('readiness [repo]')
   .description('Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)')
   .option('--stack <stack>', 'Per-stack registry selector (standards/gold-registry.<stack>.yml)')
   .option('--class <class>', 'Brownfield class for the level band: gold|light|medium|heavy')
@@ -1428,12 +1319,12 @@ review
     },
   )
 
-program
+audit
   // Hidden (like settings/upgrade-level, line ~662/1068): fully functional but omitted from the
   // curated public 17-command --help surface (#1770 T5 / T2 tier-3 / #2416 / #2662). The generated governed-repo
-  // fixed project-local thin-runner invokes it directly (`arbiter doc-set`) — visibility in `--help` is not part
+  // fixed project-local thin-runner invokes it directly (`arbiter audit docs`) — visibility in `--help` is not part
   // of H1's fix, only registration. Discoverable via `arbiter help --all`.
-  .command('doc-set [repo]', { hidden: true })
+  .command('docs [repo]')
   .description(
     'Deterministic gold doc-set presence audit (H1, gold-doc-capability: wraps ' +
       'scripts/check-doc-set.mjs). Required-set is tier-parameterized by collaborationMode ' +
@@ -1534,6 +1425,83 @@ program
     },
   )
 
+docs
+  .command('scaffold [repo]')
+  .description('Plan or apply governed documentation skeletons')
+  .option('--manifest <path>', 'Manifest path override (default standards/gold-doc-set.yml)')
+  .option('--doc-profile <path>', 'Overlay profile path override (default standards/doc-profile)')
+  .option('--plan', 'Report what would be scaffolded without writing', false)
+  .option('--apply', 'Write missing bound documentation skeletons', false)
+  .option('--refresh-stubs', 'Refresh only byte-equal generated stubs', false)
+  .action(
+    (
+      repo: string | undefined,
+      opts: {
+        manifest?: string
+        docProfile?: string
+        plan: boolean
+        apply: boolean
+        refreshStubs: boolean
+      },
+    ) => {
+      if (opts.plan || opts.apply) {
+        const result = runDocSetPlanApply({
+          ...(repo !== undefined ? { repo } : {}),
+          apply: opts.apply,
+          ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
+          ...(opts.docProfile !== undefined ? { profile: opts.docProfile } : {}),
+        })
+        printDocSetPlanApplyReport(result, opts.apply)
+        process.exit(
+          opts.apply && result.scaffolded.length === 0 && result.unbound.length > 0 ? 1 : 0,
+        )
+      }
+      const result = runDocSet({
+        ...(repo !== undefined ? { repo } : {}),
+        strict: false,
+        json: false,
+        generate: true,
+        refreshStubs: opts.refreshStubs,
+        freshness: false,
+        arc42: false,
+        updateBaseline: false,
+        ...(opts.manifest !== undefined ? { manifest: opts.manifest } : {}),
+        ...(opts.docProfile !== undefined ? { profile: opts.docProfile } : {}),
+      })
+      process.exit(result.exitCode)
+    },
+  )
+
+audit
+  .command('product <report>')
+  .description('Validate exact-subject product-complete evidence')
+  .option('--dir <dir>', 'Target project directory (default: current directory)')
+  .action((report: string, opts: { dir?: string }) => {
+    try {
+      const result = runCli(
+        process.execPath,
+        ['scripts/check-feature-matrix.mjs', '--product-report', report],
+        { cwd: opts.dir ?? process.cwd() },
+      )
+      process.stdout.write(result.stdout)
+      process.stderr.write(result.stderr)
+    } catch (err) {
+      const failure = err as {
+        stdout?: string
+        stderr?: string
+        exitCode?: number
+        message?: string
+      }
+      if (failure.stdout) process.stdout.write(failure.stdout)
+      if (failure.stderr) process.stderr.write(failure.stderr)
+      if (!failure.stdout && !failure.stderr)
+        process.stderr.write(`${failure.message ?? String(err)}\n`)
+      process.exit(
+        typeof failure.exitCode === 'number' && failure.exitCode >= 0 ? failure.exitCode : 2,
+      )
+    }
+  })
+
 /** #2164: print formatProvenance() lines when a provenance block is present; no-op otherwise. */
 function printProvenanceLines(provenance: Provenance | undefined): void {
   if (provenance === undefined) return
@@ -1542,9 +1510,8 @@ function printProvenanceLines(provenance: Provenance | undefined): void {
   }
 }
 
-const verify = program
-  .command('validate')
-  .alias('verify')
+check
+  .command('environment')
   .description('Probe toolchain compatibility for the detected stack')
   .option('--json', 'Emit JSON report', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -1552,7 +1519,7 @@ const verify = program
     runVerify({ json: opts.json, dir: opts.dir })
   })
 
-verify
+check
   .command('evidence')
   .description('Verify the .evidence/SUMMARY.json snapshot (SHA + freshness window).')
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -1566,7 +1533,7 @@ verify
     const result = runVerifyEvidence({ dir: commandOpts.dir })
     if (json) {
       jsonOutput(
-        'verify evidence',
+        'check evidence',
         result.status,
         {
           exitCode: result.exitCode,
@@ -1581,13 +1548,13 @@ verify
     } else {
       const label = result.status === 'ok' ? 'OK' : result.status.toUpperCase()
       const tail = result.reason ? ` — ${result.reason}` : ''
-      process.stdout.write(`verify evidence: ${label}${tail}\n`)
+      process.stdout.write(`check evidence: ${label}${tail}\n`)
       printProvenanceLines(result.provenance)
     }
     process.exit(result.exitCode)
   })
 
-verify
+check
   .command('plan <file>')
   .description('Validate a PLAN.json against invariant rules and write REVIEW.json (#253)')
   .option('--dir <dir>', 'Project root (default: current directory)')
@@ -1624,7 +1591,7 @@ verify
           }
         } catch (err) {
           process.stderr.write(
-            `[arbiter] verify plan: plugin "${pkg}" failed to load — its rules will not run: ${err instanceof Error ? err.message : String(err)}\n`,
+            `[arbiter] check plan: plugin "${pkg}" failed to load — its rules will not run: ${err instanceof Error ? err.message : String(err)}\n`,
           )
         }
       }
@@ -1640,8 +1607,8 @@ verify
     },
   )
 
-verify
-  .command('graph')
+graph
+  .command('check')
   .description(
     'Verify the provenance graph (#259) — fails on orphan invariants (no enforces / no implements)',
   )
@@ -1660,7 +1627,7 @@ verify
     const result = runVerifyGraph(verifyOpts)
     if (json) {
       jsonOutput(
-        'verify graph',
+        'graph check',
         result.status,
         {
           exitCode: result.exitCode,
@@ -1671,9 +1638,9 @@ verify
         result.reason !== undefined ? [result.reason] : undefined,
       )
     } else if (result.status === 'ok') {
-      process.stdout.write(`verify graph: OK (${result.totalInv} invariant(s) checked, 0 orphan)\n`)
+      process.stdout.write(`graph check: OK (${result.totalInv} invariant(s) checked, 0 orphan)\n`)
     } else {
-      process.stderr.write(`verify graph: FAIL — ${result.reason ?? 'unknown error'}\n`)
+      process.stderr.write(`graph check: FAIL — ${result.reason ?? 'unknown error'}\n`)
       for (const orphan of result.orphans) {
         process.stderr.write(`  orphan: ${orphan.id} — ${orphan.reason}\n`)
       }
@@ -1681,7 +1648,7 @@ verify
     process.exit(result.exitCode)
   })
 
-verify
+check
   .command('tdd <task-id>')
   .description('Verify TDD red-phase evidence for a task — replayable audit (#553)')
   .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
@@ -1700,7 +1667,7 @@ verify
     })
     if (json) {
       jsonOutput(
-        'verify tdd',
+        'check tdd',
         result.status === 'PASS' ? 'ok' : 'error',
         {
           exitCode: result.exitCode,
@@ -1710,17 +1677,17 @@ verify
         result.reason !== undefined ? [result.reason] : undefined,
       )
     } else if (result.status === 'PASS') {
-      process.stdout.write(`verify tdd: PASS (${result.checks?.length ?? 0} checks)\n`)
+      process.stdout.write(`check tdd: PASS (${result.checks?.length ?? 0} checks)\n`)
     } else if (result.status === 'DEGRADED') {
-      process.stderr.write(`verify tdd: DEGRADED — ${result.reason ?? 'unknown'}\n`)
+      process.stderr.write(`check tdd: DEGRADED — ${result.reason ?? 'unknown'}\n`)
     } else {
-      process.stderr.write(`verify tdd: FAIL — ${result.reason ?? 'unknown'}\n`)
+      process.stderr.write(`check tdd: FAIL — ${result.reason ?? 'unknown'}\n`)
     }
     process.exit(result.exitCode)
   })
 
-program
-  .command('upgrade-level', { hidden: true })
+configure
+  .command('level')
   .description('Upgrade governance level with a grace period for new gates')
   .option('--target <level>', 'Target level (L2 or L3)')
   .option('--extend', 'Extend an existing active grace period by --days (default: 30)', false)
@@ -1829,25 +1796,12 @@ function runDoctorHealthAction(
     })
 }
 
-const doctor = program
-  .command('doctor')
-  .description('Diagnose and repair arbiter state')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .option(
-    '--repair',
-    'Auto-release stale .arbiter/.lock files detected by the health check (#824)',
-    false,
-  )
-  .option('--interactive', 'Guided health check with one-key repair on a TTY (#1168)', false)
-  .option(
-    '--prove-gates',
-    'Run negative proofs for every tier-1 conformance gate; report any gate that does not bite (#1817, A5)',
-    false,
-  )
-  .action(runDoctorHealthAction)
+const status = program.command('status').description('Inspect Arbiter health and delivery state')
+const lifecycle = program
+  .command('lifecycle')
+  .description('Manage task and recovery lifecycle state')
 
-doctor
+status
   .command('health')
   .description('Run arbiter health checks')
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -1865,7 +1819,7 @@ doctor
   )
   .action(runDoctorHealthAction)
 
-doctor
+lifecycle
   .command('repair-state')
   .description('Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -1886,7 +1840,7 @@ doctor
       })
   })
 
-doctor
+lifecycle
   .command('recover-lock')
   .description('Force-release a stale .arbiter/.lock file left by a crashed process')
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -1905,7 +1859,7 @@ doctor
     })
   })
 
-doctor
+lifecycle
   .command('clean')
   .description('Remove arbiter backup files (*.arbiter-backup, .arbiter-generated.json.bak.*)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -1926,7 +1880,7 @@ doctor
     }
   })
 
-doctor
+check
   .command('tool-pins')
   .description(
     'Compare local tool versions against CI workflow pins (see `check-ci-tool-parity.mjs` ' +
@@ -1950,8 +1904,8 @@ doctor
     if (result.exitCode !== 0) process.exit(result.exitCode)
   })
 
-doctor
-  .command('fail-open-census')
+check
+  .command('fail-open')
   .description(
     'Census `command -v X || <fail-open>` and positive `if command -v X; then ... fi` gate-script presence-gates (see ' +
       '`check-fail-closed-audit.mjs` for a different pattern class — `|| true` / swallowed ' +
@@ -1976,9 +1930,7 @@ doctor
     if (result.exitCode !== 0) process.exit(result.exitCode)
   })
 
-const task = program.command('task').description('Manage task lifecycle state')
-
-task
+lifecycle
   .command('resume')
   .description('Print recovery instructions for the current task phase')
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -1986,8 +1938,8 @@ task
     runTaskResume({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
   })
 
-task
-  .command('host-preflight')
+lifecycle
+  .command('preflight')
   .description('Bind the native host to an exact adopted task worktree before lifecycle writes')
   .requiredOption('--id <id>', 'Task id, e.g. #2685')
   .requiredOption('--worktree <path>', 'Exact path prepared by worktree adopt or open')
@@ -2010,7 +1962,7 @@ function advanceLandingFlags(opts: { pr?: number | false }): { noPr?: true; pr?:
   return typeof opts.pr === 'number' ? { pr: opts.pr } : {}
 }
 
-task
+lifecycle
   .command('advance')
   .description('Advance (or reverse) the task lifecycle phase')
   .requiredOption(
@@ -2063,7 +2015,7 @@ task
     },
   )
 
-task
+lifecycle
   .command('recover')
   .description('Print 3-layer recovery context for the current task (#694)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -2075,7 +2027,7 @@ task
     })
   })
 
-task
+lifecycle
   .command('record-red')
   .description('Record TDD red-phase evidence: run a failing test and capture evidence (#551)')
   .requiredOption('--test-path <path>', 'Repo-relative path to the failing test file')
@@ -2126,8 +2078,8 @@ task
     },
   )
 
-task
-  .command('record-tech-debt')
+lifecycle
+  .command('record-debt')
   .description('File a tech-debt GitHub issue and persist evidence (#702)')
   .requiredOption('--description <text>', 'Short description of the tech-debt finding')
   .option(
@@ -2149,8 +2101,8 @@ task
     }
   })
 
-task
-  .command('init [ids...]')
+lifecycle
+  .command('start [ids...]')
   .description(
     'Initialise / update one task; multi-issue admission belongs to `arbiter ship` (#1206)',
   )
@@ -2169,7 +2121,7 @@ task
       ids: string[],
       opts: { id?: string; tier?: string; plan?: string; chain: string[]; dir?: string },
     ) => {
-      // #2401 — `arbiter task init #A #B #C` is the same train sugar `arbiter ship` takes.
+      // #2401 — `arbiter lifecycle start #A #B #C` is the same train sugar `arbiter ship` takes.
       const train = splitTrainIds(ids, opts.id, opts.chain)
       runTaskInit({
         ...(train.taskId !== undefined ? { id: train.taskId } : {}),
@@ -2181,7 +2133,7 @@ task
     },
   )
 
-task
+lifecycle
   .command('get')
   .description('Print a single task-state field for shell consumers (#1206)')
   .requiredOption('--field <field>', 'phase|taskId|tier|plan|tddPhase|lastAction|nextAction')
@@ -2190,8 +2142,8 @@ task
     runTaskGet({ field: opts.field, ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
   })
 
-program
-  .command('mark', { hidden: true })
+lifecycle
+  .command('checkpoint')
   .description('Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206)')
   .option('--next <action>', 'The exact next sub-step to resume on')
   .option('--last <action>', 'The sub-step just completed')
@@ -2438,7 +2390,7 @@ function exitReviewDiffFailure(
   process.exit(exitCode)
 }
 
-review
+graph
   .command('diff')
   .description('Semantic diff between two graph snapshots (#262)')
   .option(
@@ -2563,19 +2515,7 @@ program
   .option('--all', 'Also list experimental (hidden) commands', false)
   .action((commandName: string | undefined, opts: { all: boolean }) => {
     if (opts.all) {
-      const helpRenderer = program.createHelp()
-      const visibleNames = new Set(helpRenderer.visibleCommands(program).map((c) => c.name()))
-      const hidden = program.commands.filter(
-        (c) => !visibleNames.has(c.name()) && c.name() !== 'help',
-      )
       process.stdout.write(program.helpInformation())
-      process.stdout.write('\nExperimental commands:\n')
-      const width = Math.max(...hidden.map((c) => c.name().length))
-      for (const cmd of hidden.slice().sort((a, b) => a.name().localeCompare(b.name()))) {
-        process.stdout.write(
-          `  ${cmd.name().padEnd(width + 2)}${cmd.summary() || cmd.description()}\n`,
-        )
-      }
       return
     }
     if (commandName) {

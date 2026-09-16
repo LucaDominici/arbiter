@@ -88,7 +88,7 @@ describe('shipStepFor — normTier + per-phase bodies', () => {
   })
 
   it('preflight + red carry a command; green carries none', () => {
-    expect(shipStepFor('preflight', 'S').command).toContain('arbiter task init')
+    expect(shipStepFor('preflight', 'S').command).toContain('arbiter lifecycle start')
     expect(shipStepFor('red', 'S').command).toContain('record-red')
     expect(shipStepFor('green', 'S').command).toBeUndefined()
   })
@@ -182,7 +182,7 @@ describe('buildShipStepLines branch matrix', () => {
 
   it('prints the Command line when a phase carries a command', () => {
     const lines = buildShipStepLines(resultFor('preflight', profile(), false), 'Standard')
-    expect(lines.some((l) => l.startsWith('Command: arbiter task init'))).toBe(true)
+    expect(lines.some((l) => l.startsWith('Command: arbiter lifecycle start'))).toBe(true)
   })
 
   it('appends " (done)" and prints the self-only header for an arbiter-self verification', () => {

@@ -78,7 +78,7 @@ function main() {
   if (daysAhead > MAX_DAYS) {
     findings.push(
       `over-long grace: graceEndsAt is ${daysAhead} days ahead (bound ${MAX_DAYS}). A hand-edited ` +
-        `far-future date neuters the L2 gate. Re-run \`arbiter upgrade-level --extend\` instead.`,
+        `far-future date neuters the L2 gate. Re-run \`arbiter configure level --extend\` instead.`,
     )
   }
 

@@ -11,7 +11,7 @@ import {
   type SemVer,
 } from '../../src/commands/doctor/tool-pin-extract.js'
 
-// #2162 — arbiter doctor tool-pins: local toolchain vs CI workflow pins.
+// #2162 — arbiter check tool-pins: local toolchain vs CI workflow pins.
 // AC-1: fixture with CI pin > local version → FAIL naming tool/local/pin/workflow:line.
 // AC-2: tool absent + blocking gate → FAIL; absent + advisory-only → WARN.
 
@@ -270,7 +270,7 @@ describe('runDoctorToolPins', () => {
       spy.mockRestore()
     }
     const envelope = JSON.parse(written)
-    expect(envelope.command).toBe('doctor tool-pins')
+    expect(envelope.command).toBe('check tool-pins')
     expect(envelope.data.checks.length).toBeGreaterThan(0)
   })
 
@@ -460,14 +460,14 @@ describe('doctor tool-pins via CLI subprocess (#2162)', () => {
       // No .github/workflows/ → zero pins → exit 0, so this doesn't fight process.exit(1).
       const result = spawnSync(
         'node',
-        ['dist/cli.js', 'doctor', 'tool-pins', '--dir', dir, '--json'],
+        ['dist/cli.js', 'check', 'tool-pins', '--dir', dir, '--json'],
         {
           encoding: 'utf-8',
         },
       )
       expect(result.status).toBe(0)
       const envelope = JSON.parse(result.stdout)
-      expect(envelope.command).toBe('doctor tool-pins')
+      expect(envelope.command).toBe('check tool-pins')
       expect(envelope.data.checks).toEqual([])
     } finally {
       rmSync(dir, { recursive: true, force: true })

@@ -79,7 +79,7 @@ describe('upgrade-level --json', () => {
     await runUpgradeLevel({ target: 'L2', json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
-    expect(parsed.command).toBe('upgrade-level')
+    expect(parsed.command).toBe('configure level')
     expect(parsed.version).toBe('1')
     expect(parsed.status).toBe('ok')
     const data = parsed.data as Record<string, unknown>
@@ -123,7 +123,7 @@ describe('upgrade-level --json', () => {
     await runUpgradeLevel({ extend: true, days: 7, json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
-    expect(parsed.command).toBe('upgrade-level')
+    expect(parsed.command).toBe('configure level')
     expect(parsed.version).toBe('1')
     expect(parsed.status).toBe('ok')
     const data = parsed.data as Record<string, unknown>

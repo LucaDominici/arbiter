@@ -100,7 +100,7 @@ node scripts/gold-report.mjs --check        # exit 1 if the committed report is 
 
 npm aliases: `npm run check:doc-set`, `npm run gold:report`.
 
-`arbiter doc-set` (also `--freshness`, `--arc42`) wraps these engines. Without a repo argument it
+`arbiter audit docs` (also `--freshness`, `--arc42`) wraps these engines. Without a repo argument it
 audits the nearest ancestor of the current directory holding `standards/gold-doc-set.yml`,
 `arbiter.json` or `.git`, so a run from a subdirectory audits the repo, not the subdirectory.
 Under `--json`, an engine SKIP (`[SKIP] <reason>`) is a `warning` envelope with

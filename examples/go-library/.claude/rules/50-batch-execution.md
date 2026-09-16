@@ -36,7 +36,7 @@ agent is exempt from the edit/commit/branch prohibitions only when ALL of the fo
 conditions hold — each is necessary, and any miss voids the exemption:
 
 1. **Dedicated worktree** — the agent operates in its own git worktree opened via
-   `arbiter worktree open` (or `/wt-open`). What prevents the ref race is git itself:
+   `git worktree add`. What prevents the ref race is git itself:
    `git worktree add -b` creates the branch atomically and refuses one that exists.
    (The `.arbiter/.lock` taken during open guards the open-log write, not branch
    creation — ADR-103 D1.)
@@ -51,7 +51,7 @@ Still prohibited even under the carve-out:
 - **Editing the main working tree** — workers write only inside their own worktree.
 - **Creating tags** — tags are repo-global refs; no worktree isolation applies.
 
-Lock discipline under the carve-out (ADR-103 §4): `arbiter gate-exec` is a **leaf**
+Lock discipline under the carve-out (ADR-103 §4): `arbiter check run` is a **leaf**
 operation — it acquires only the gate flock and is never invoked while `.arbiter/.lock`
 is held, so the one BLOCKING lock is never taken underneath a file lock. Total
 acquisition order: gate-lock ≺ worktree-lock ≺ wave-claim.

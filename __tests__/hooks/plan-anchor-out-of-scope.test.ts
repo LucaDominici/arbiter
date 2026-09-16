@@ -103,7 +103,7 @@ describe('pre-edit-plan-anchor — out-of-scope soft redirect (#1402)', () => {
       const result = run(hookPath, dir, 'src/out-of-scope.ts')
       // SOFT: never exit 2 — must not block a legitimate multi-file edit.
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('arbiter note')
+      expect(result.stdout).toContain('arbiter finding add')
       expect(result.stdout.toLowerCase()).toContain('out of scope')
     } finally {
       rmSync(dir, { recursive: true, force: true })

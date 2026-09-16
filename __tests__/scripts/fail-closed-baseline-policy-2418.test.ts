@@ -126,10 +126,9 @@ describe('#2418 AC-3 — the governance text names the size and the decay rule',
     const ledger = JSON.parse(read('.dogfood-divergences.json')) as unknown[]
     // The line above is the contract: the ratchet must equal the ledger it measures.
     // This literal is the deliberate second guard — a snapshot that has to be updated by
-    // hand, so the ledger cannot grow unnoticed. 72 -> 77 when main added five divergence
-    // entries (the arc42 / milestones / sources / tabletop / use-cases gates); updated
-    // consciously here, which is the point of pinning it rather than deriving it.
+    // hand, so the ledger cannot grow unnoticed. The baseline follows the current
+    // reviewed allowlist, including the removal of dead entries for retired commands.
     expect(canon.divergences).toBe(ledger.length)
-    expect(canon.divergences).toBe(77)
+    expect(canon.divergences).toBe(73)
   })
 })

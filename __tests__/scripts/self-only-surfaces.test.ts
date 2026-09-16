@@ -18,7 +18,7 @@ const MANIFEST_PATH = resolve('scripts/data/self-only-surfaces.json')
 describe('deriveSelfOnlySurfaces()', () => {
   it('finds the self-only slash commands (in .claude/commands/, no template twin)', () => {
     const derived = deriveSelfOnlySurfaces(ROOT)
-    expect(derived.commands).toEqual(['gap', 'replay', 'review-code', 'status'])
+    expect(derived.commands).toEqual([])
   })
 
   it('finds the self-only skills (in .claude/skills/, absent from skill-names.json)', () => {

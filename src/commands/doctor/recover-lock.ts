@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter doctor
+// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter status health
 // recover-lock` subcommand (#618). Pure extraction, no behavior change.
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -61,7 +61,7 @@ function emitRefusedRecovery(
 ): void {
   if (!opts.json) return
   jsonOutput(
-    'doctor recover-lock',
+    'lifecycle recover-lock',
     'error',
     {
       found: true,
@@ -80,7 +80,7 @@ function emitRecoveryResult(
   result: DoctorRecoverLockResult,
 ): void {
   if (opts.json) {
-    jsonOutput('doctor recover-lock', 'ok', {
+    jsonOutput('lifecycle recover-lock', 'ok', {
       found: result.found,
       released: result.released,
       ...(result.info ? { info: result.info } : {}),

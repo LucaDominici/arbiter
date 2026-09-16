@@ -61,13 +61,13 @@ For **machine-readable evidence in your own project**, the evidence harness (INV
 `.evidence/SUMMARY.json` — but note this is **L4-only** and opt-in:
 
 ```bash
-arbiter verify evidence           # in a generated L4 project
+arbiter check evidence           # in a generated L4 project
 ```
 
 **Why arbiter itself runs without the evidence harness:** arbiter governs itself at L2, and the
 harness defaults to L4 (ADR-037) — consistent, not an oversight. Contract testing is enabled on
 self (`features.contractTesting: true`); it is a structural no-op here (no owned/consumed API,
-ADR-028), verified via `arbiter diff` before flipping the flag. Activating the evidence harness
+ADR-028), verified via `arbiter update --dry-run` before flipping the flag. Activating the evidence harness
 for real is deferred and tracked (#1872): arbiter's `.claude/settings.json` carries
 hand-adapted, self-only hooks (`.dogfood-divergences.json`) that a mechanical `arbiter update`
 would silently collapse into the generic template shape — enabling it safely needs the same

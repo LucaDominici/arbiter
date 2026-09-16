@@ -265,12 +265,19 @@ program.parse()
     const { dir, cleanup } = makeTemp()
     try {
       // Top-level `diff` with a distinct description that must NOT be mis-attributed
-      // to the review subcommand `diff`.
+      // to the graph subcommand `diff`.
       const cliTs = `import { Command } from 'commander'
 const program = new Command()
 program
   .command('diff')
   .description('Top-level diff dry run')
+  .action(() => {})
+const graph = program
+  .command('graph')
+  .description('Graph operations')
+graph
+  .command('diff')
+  .description('Semantic graph diff (#262)')
   .action(() => {})
 const review = program
   .command('review')
@@ -289,10 +296,6 @@ review
   .command('code')
   .description('Multi-agent code review')
   .action(() => {})
-review
-  .command('diff')
-  .description('Semantic graph diff (#262)')
-  .action(() => {})
 program.parse()
 `
       writeFileSync(join(dir, 'cli.ts'), cliTs)
@@ -305,9 +308,9 @@ program.parse()
       expect(content).toContain('`arbiter review submit`')
       // Multi-line `.description(\n  '...'\n)` registration is still captured.
       expect(content).toMatch(/arbiter review submit`.*Submit review verdicts/)
-      // review diff's own description, NOT the top-level diff description.
-      expect(content).toMatch(/arbiter review diff`.*Semantic graph diff \(#262\)/)
-      expect(content).not.toMatch(/arbiter review diff`.*Top-level diff dry run/)
+      // graph diff's own description, NOT the top-level diff description.
+      expect(content).toMatch(/arbiter graph diff`.*Semantic graph diff \(#262\)/)
+      expect(content).not.toMatch(/arbiter graph diff`.*Top-level diff dry run/)
     } finally {
       cleanup()
     }

@@ -71,7 +71,7 @@ function main() {
   const bindingError = nativeHostBindingError(input, root)
   if (bindingError) {
     process.stderr.write(
-      `[arbiter] SPAWN GUARD: ${bindingError}; run arbiter task host-preflight from the exact worktree session.\n`,
+      `[arbiter] SPAWN GUARD: ${bindingError}; run arbiter lifecycle preflight from the exact worktree session.\n`,
     )
     process.exit(HARD_GRADING ? 2 : 0)
   }

@@ -3,9 +3,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const doc = readFileSync(resolve('.claude/commands/review-code.md'), 'utf-8')
+const doc = readFileSync(resolve('.claude/commands/review.md'), 'utf-8')
 
-describe('.claude/commands/review-code.md — adaptive treatment consumer (#2681)', () => {
+describe('.claude/commands/review.md — adaptive treatment consumer (#2681)', () => {
   it('uses persisted ShipTreatment instead of a second routing authority', () => {
     expect(doc).toMatch(/persisted\s+`ShipTreatment`/)
     expect(doc).not.toContain('tier_verticals')

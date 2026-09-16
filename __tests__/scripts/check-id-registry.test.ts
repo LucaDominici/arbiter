@@ -54,7 +54,7 @@ function scheme(over: Record<string, unknown> = {}) {
     ssot: 'scripts/placeholder-gate.mjs',
     gate: 'scripts/placeholder-gate.mjs',
     track: 'self',
-    tool: 'arbiter validate',
+    tool: 'arbiter check',
     hook: 'n/a',
     status: 'active',
     note: 'Fixture row; hook is n/a because nothing edits it.',

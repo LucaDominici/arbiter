@@ -117,7 +117,7 @@ describe('check-install-command.mjs (B1 install-command gate)', () => {
       write(
         dir,
         'src/templates/claude/skills/gold-audit/SKILL.md.ejs',
-        '# Gold Audit\n\n```bash\nnpx arbiter gold-audit --json\n```\n',
+        '# Gold Audit\n\n```bash\nnpx arbiter audit readiness --json\n```\n',
       )
       const result = run(dir)
       expect(result.status).toBe(1)
@@ -132,7 +132,7 @@ describe('check-install-command.mjs (B1 install-command gate)', () => {
   it('FAILS on an unscoped `npx arbiter` in a materialized .claude/commands file', () => {
     const { dir, cleanup } = makeRepo()
     try {
-      write(dir, '.claude/commands/gold-audit.md', 'Run `npx arbiter gold-audit --json`.\n')
+      write(dir, '.claude/commands/gold-audit.md', 'Run `npx arbiter audit readiness --json`.\n')
       const result = run(dir)
       expect(result.status).toBe(1)
       expect(result.stderr).toContain('.claude/commands/gold-audit.md')
@@ -147,7 +147,7 @@ describe('check-install-command.mjs (B1 install-command gate)', () => {
       write(
         dir,
         'src/templates/claude/skills/gold-audit/SKILL.md.ejs',
-        '# Gold Audit\n\n```bash\nnpx @getarbiter/cli gold-audit --json\n```\n',
+        '# Gold Audit\n\n```bash\nnpx @getarbiter/cli audit readiness --json\n```\n',
       )
       const result = run(dir)
       expect(result.status).toBe(0)

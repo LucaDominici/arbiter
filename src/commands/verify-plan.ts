@@ -97,7 +97,7 @@ function parsePlan(
 
 function emitError(json: boolean | undefined, filePath: string, msg: string): void {
   if (json) {
-    jsonOutput('verify plan', 'error', { file: filePath }, [msg])
+    jsonOutput('check plan', 'error', { file: filePath }, [msg])
   } else {
     process.stderr.write(`Error: ${msg}\n`)
   }
@@ -110,7 +110,7 @@ function emitVerifyResult(
   reviewPath: string,
 ): void {
   if (json) {
-    jsonOutput('verify plan', exitCode === 0 ? 'ok' : 'error', {
+    jsonOutput('check plan', exitCode === 0 ? 'ok' : 'error', {
       status: result.status,
       runId: result.runId,
       violations: result.review.verification.violations.length,
@@ -120,7 +120,7 @@ function emitVerifyResult(
     return
   }
   process.stdout.write(
-    `verify plan: ${result.status} (runId=${result.runId}, violations=${result.review.verification.violations.length})\n`,
+    `check plan: ${result.status} (runId=${result.runId}, violations=${result.review.verification.violations.length})\n`,
   )
   for (const v of result.review.verification.violations) {
     process.stdout.write(`  [${v.severity} ${v.rule_id}] ${v.message}\n`)
@@ -179,9 +179,9 @@ export function runVerifyPlan(opts: VerifyPlanOptions): VerifyPlanResult {
     writeFileTranslated(join(pointerDir, 'PLAN.json'), planSource)
     writeFileTranslated(reviewPath, JSON.stringify(skippedReview, null, 2))
     if (opts.json) {
-      jsonOutput('verify plan', 'ok', { status: 'SKIPPED', reviewPath })
+      jsonOutput('check plan', 'ok', { status: 'SKIPPED', reviewPath })
     } else {
-      process.stdout.write(`verify plan: SKIPPED (review_bridge.enabled:false)\n`)
+      process.stdout.write(`check plan: SKIPPED (review_bridge.enabled:false)\n`)
     }
     return { exitCode: 0, status: 'SKIPPED', reviewPath }
   }

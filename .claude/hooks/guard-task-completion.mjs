@@ -86,7 +86,7 @@ if (!skipTdd && taskId !== 'unknown') {
   const evidencePath = join(root, '.arbiter', 'evidence', 'tdd', `${taskId}.json`)
   if (!existsSync(evidencePath)) {
     warnings.push(
-      `- TDD evidence missing at ${evidencePath} — run \`arbiter task record-red --test-path <path>\` first`,
+      `- TDD evidence missing at ${evidencePath} — run \`arbiter lifecycle record-red --test-path <path>\` first`,
     )
   }
 }

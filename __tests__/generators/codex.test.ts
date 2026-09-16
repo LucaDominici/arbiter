@@ -47,7 +47,7 @@ describe('generateCodex', () => {
   })
 
   // #1952 — the CODEX.md "Plan Schema" example is a contract: it MUST validate
-  // against PlanJsonV1 (the schema `arbiter verify plan` enforces) and reach an
+  // against PlanJsonV1 (the schema `arbiter check plan` enforces) and reach an
   // APPROVED plan state when run. Prevents the template docs and the parser
   // from drifting apart silently.
   it('CODEX.md Plan Schema example validates against PlanJsonV1 and verifies APPROVED (#1952)', () => {
@@ -71,7 +71,7 @@ describe('generateCodex', () => {
     const parsed = PlanJsonV1.safeParse(example)
     expect(parsed.success, parsed.success ? '' : JSON.stringify(parsed.error.issues)).toBe(true)
 
-    // Run the example through `arbiter verify plan` and assert it reaches APPROVED.
+    // Run the example through `arbiter check plan` and assert it reaches APPROVED.
     const planFile = join(dir, 'PLAN.json')
     writeFileSync(planFile, JSON.stringify(example, null, 2))
     const result = runVerifyPlan({ file: planFile, dir })

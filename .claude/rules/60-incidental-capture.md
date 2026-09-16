@@ -21,7 +21,7 @@ When you notice an out-of-scope finding while working task X, your ONLY in-band
 action is to capture it:
 
 ```bash
-arbiter note "<finding>" --kind <dup|smell|risk|debt> --severity <low|med|high> --file <path> --line <n>
+arbiter finding add "<finding>" --kind <dup|smell|risk|debt> --severity <low|med|high> --file <path> --line <n>
 ```
 
 Capture is the TERMINAL action for that finding during this task. Once noted, you
@@ -38,16 +38,16 @@ For a finding that is out of scope for the current task, do NOT:
 The note lands in a per-agent JSONL spool at `.arbiter/findings/<shard>.jsonl`
 (ephemeral, gitignored — drained downstream, never committed). The
 `pre-edit-plan-anchor` hook softly redirects edits to files outside the active
-plan's `files:` manifest to `arbiter note`. The `stop-evidence-guard` reflection
+plan's `files:` manifest to `arbiter finding add`. The `stop-evidence-guard` reflection
 sweep surfaces "N undrained findings" at end of task so nothing is silently lost.
 
 ## Composes With
 
 - **CANON-22 / `90-exec-protocol.md`** — root-cause discipline still governs code
   you ARE touching: a smell INSIDE X's scope is fixed or `record-tech-debt`'d, not
-  merely noted. `arbiter note` is for findings OUTSIDE the current diff.
+  merely noted. `arbiter finding add` is for findings OUTSIDE the current diff.
 - **Tech-debt** — a finding that warrants a tracked, durable follow-up is promoted
-  to `arbiter task record-tech-debt`; `arbiter note` is the lightweight, zero-friction
+  to `arbiter lifecycle record-debt`; `arbiter finding add` is the lightweight, zero-friction
   first capture, drained and triaged later.
 
 ## Why

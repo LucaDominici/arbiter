@@ -164,7 +164,7 @@ npm alias: `npm run gold:audit`. Wired into `scripts/check-all.mjs` (the `gold-a
 and `gold-audit false-gap` checks, L1) and mirrored in the local↔CI parity map. The engine's
 score and dimension table render into `GOLD-REPORT.md` via `scripts/gold-report.mjs`.
 
-The `arbiter gold-audit` and `arbiter doc-set` CLI subcommands are thin wrappers that shell out
+The `arbiter audit readiness` and `arbiter audit docs` CLI subcommands are thin wrappers that shell out
 to this same `scripts/gold-audit.mjs` engine (and `scripts/check-doc-set.mjs`) at runtime, so
 those two files — plus `scripts/check-doc-freshness.mjs`, `scripts/check-doc-style.mjs`, and
 `scripts/lib/{doc-set-resolve,gold-audit-lib}.mjs` — are pinned in `package.json`'s `files[]` and
@@ -174,7 +174,7 @@ though the dev checkout (where `scripts/` is always present) never sees the fail
 
 ## Level-up skill family (#1420 / #1422)
 
-- **`/gold-audit`** (#1420) — read-only measurement front door. Runs `arbiter gold-audit --json` and
+- **`/gold-audit`** (#1420) — read-only measurement front door. Runs `arbiter audit readiness --json` and
   reports the level band + a prioritized "what's missing" list (N/P checks grouped by family, with
   evidence). It never re-scores (no AI scoring) and never changes code.
 - **`/close-gold-gap`** (#1422) — emits the deterministic remediation recipe for one gap, keyed on the

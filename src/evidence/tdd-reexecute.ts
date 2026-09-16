@@ -51,7 +51,7 @@ export function verifyRedExecution(
       ok: false,
       reason:
         'evidence has no recorded test_command — legacy evidence predating #1957 cannot be ' +
-        're-verified against source; re-record with `arbiter task record-red` to upgrade',
+        're-verified against source; re-record with `arbiter lifecycle record-red` to upgrade',
     }
   }
 

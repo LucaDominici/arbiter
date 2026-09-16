@@ -143,7 +143,7 @@ is by construction fresh, scoped, and disposable.
 **Enforcement.** SOFT: session discipline is structural in `/ship` (each phase's work is
 dispatched, the phase machine holds state) and in wave-drain (one agent per group per
 worktree, closed at harvest). HARD at the boundary: the phase machine
-(`arbiter task advance`) refuses to move on red, so a dead agent's unfinished work
+(`arbiter lifecycle advance`) refuses to move on red, so a dead agent's unfinished work
 cannot silently pass to the next. TO-CREATE: a dispatch-manifest check that an agent
 prompt references exactly one task id.
 
@@ -187,9 +187,9 @@ until the handoff fields are satisfied (`checkHandoffGate`, `src/commands/task.t
 activates only for Standard-tier tasks with >5 units (right-sized by its own skill).
 
 > Transitional note: the §T2.B tranche (playbook context now carried by
-> `docs/design/anti-context-rot-enforcers.md`) cuts the `arbiter mark` cursor
+> `docs/design/anti-context-rot-enforcers.md`) cuts the `arbiter lifecycle checkpoint` cursor
 > _command_ (danger cluster D2). The cursor survives as `status.json` fields (INV-113,
-> ADR-054); skills referencing `arbiter mark` must be repointed when T2 lands.
+> ADR-054); skills referencing `arbiter lifecycle checkpoint` must be repointed when T2 lands.
 
 ---
 
@@ -198,14 +198,14 @@ activates only for Standard-tier tasks with >5 units (right-sized by its own ski
 **What.** Anything an agent finds or decides is written to a durable, append-friendly
 artifact **at the moment of discovery**, not summarized at session end:
 
-| Artifact class        | Canonical home                                                                           | Mechanism                                                                                                                          |
-| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Incidental findings   | `.arbiter/findings/` JSONL spool                                                         | `arbiter note` → `src/commands/task-note.ts::FindingEntry` (ts, kind, severity, file:line, sha, fingerprint; parallel-safe shards) |
-| Decisions             | `docs/internal/ADR/`                                                                     | INV-107 (unique numbers, index in sync, `scripts/check-adr-index.mjs`)                                                             |
-| Evidence per phase    | `.arbiter/evidence/<task>/…` (`tdd/`, `plan-review/`, `redteam/`, `review/`, `dogfood/`) | INV-90 schema (`schemas/evidence-bundle.schema.json`, `scripts/check-evidence-bundle.mjs`); INV-27 evidence for all gate runs      |
-| Task state            | `.claude/.task/status.json` + append-only log                                            | INV-113 single authoritative phase doc (`scripts/check-phase-doc-consistency.mjs`)                                                 |
-| Plan                  | `.claude/plans/*.md`                                                                     | plan anchor required before edit (CANON-16, `.claude/hooks/pre-edit-plan-anchor.mjs`)                                              |
-| Suppressions/bypasses | commit footers + `.arbiter/evidence/bypass-log.jsonl` (append-only)                      | `scripts/check-commit-footer-rationale.mjs` (INV-119)                                                                              |
+| Artifact class        | Canonical home                                                                           | Mechanism                                                                                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Incidental findings   | `.arbiter/findings/` JSONL spool                                                         | `arbiter finding add` → `src/commands/task-note.ts::FindingEntry` (ts, kind, severity, file:line, sha, fingerprint; parallel-safe shards) |
+| Decisions             | `docs/internal/ADR/`                                                                     | INV-107 (unique numbers, index in sync, `scripts/check-adr-index.mjs`)                                                                    |
+| Evidence per phase    | `.arbiter/evidence/<task>/…` (`tdd/`, `plan-review/`, `redteam/`, `review/`, `dogfood/`) | INV-90 schema (`schemas/evidence-bundle.schema.json`, `scripts/check-evidence-bundle.mjs`); INV-27 evidence for all gate runs             |
+| Task state            | `.claude/.task/status.json` + append-only log                                            | INV-113 single authoritative phase doc (`scripts/check-phase-doc-consistency.mjs`)                                                        |
+| Plan                  | `.claude/plans/*.md`                                                                     | plan anchor required before edit (CANON-16, `.claude/hooks/pre-edit-plan-anchor.mjs`)                                                     |
+| Suppressions/bypasses | commit footers + `.arbiter/evidence/bypass-log.jsonl` (append-only)                      | `scripts/check-commit-footer-rationale.mjs` (INV-119)                                                                                     |
 
 Findings never rot in the spool: wave-drain Phase 0.5 **harvests** the spool into
 tracked issues before composing each wave ("the backlog is the queue, not the
@@ -332,11 +332,11 @@ only under the ADR-103 carve-out, all conditions necessary: (1) dedicated worktr
 agent (`/wt-open`, `src/worktree/`), (2) distinct branch per agent, (3) file-sets
 declared disjoint in the plan manifest _before_ dispatch. Always serial regardless:
 dependency/lockfile changes, main-tree edits, tags. Expensive gates serialize through
-the flock mutex (`arbiter gate-exec`, kernel-level, released when the gate-exec supervisor
+the flock mutex (`arbiter check run`, kernel-level, released when the gate-exec supervisor
 is SIGKILL/OOM-killed; killing the Arbiter Node PID alone leaves that supervisor holding);
 lock acquisition is totally ordered
 (gate ≺ worktree ≺ wave-claim, ADR-103 §4) with `gate-exec` as the leaf;
-stale worktrees are reaped (`arbiter worktree prune --stale`).
+stale worktrees are reaped (`git worktree prune --stale`).
 
 **Why.** R3 — the one failure mode with a confirmed real incident and no clean
 recovery path. Isolation converts a catastrophic race into ordinary merge mechanics.
@@ -373,7 +373,7 @@ pressure; a phase machine cannot. Determinism also makes the process auditable a
 resumable (M3).
 
 **Enforcement.** HARD: the phase machine refuses out-of-order advance
-(`arbiter task advance` gates each transition; INV-38 phase-tracked lifecycle);
+(`arbiter lifecycle advance` gates each transition; INV-38 phase-tracked lifecycle);
 dispatch parity gate (M1). SOFT: playbook execution-order contracts.
 
 **Self / Governed.** Both — ship/task/wave engine is the product.
@@ -389,7 +389,7 @@ of done requires, mechanically:
 
 - **Wired:** the change is invoked (call-site `file:line` + the command that reaches it).
 - **Tested (red-path):** a test that _failed before_ the fix and passes after —
-  `arbiter task record-red` captures the failing run; `checkTddEvidenceGate` verifies
+  `arbiter lifecycle record-red` captures the failing run; `checkTddEvidenceGate` verifies
   task-id match, a recognized failure signature in the log, the test commit SHA in
   history, and the test path present in that commit. Required ordering: commit the
   RED test _before_ running `record-red` — it refuses on a dirty/uncommitted
@@ -649,7 +649,7 @@ Status legend: **EXISTS** (wired today) · **PARTIAL** (exists, gap named) ·
 | M1  | Handoff-lint (tier suggested per task)                  | advisory check (runWarnCheck)                                                                 | **EXISTS** (#1943)                                                       | `scripts/check-handoff-doc.mjs`; wired `scripts/check-all.mjs`; `__tests__/scripts/check-handoff-doc.test.ts`; advisory-ledger entry `scripts/data/advisory-ledger.json`                                                                                                                                                                                                                                                                                                |
 | M2  | Short-lived / one task per session                      | phase machine + wave worker lifecycle                                                         | **EXISTS** (structural)                                                  | `src/commands/task.ts` (advance gates); `.claude/skills/wave-drain/SKILL.md`                                                                                                                                                                                                                                                                                                                                                                                            |
 | M3  | Mesocycle handover + /clear                             | handoff gate, clear strategy, post-clear re-entry, pre-compact, 3-layer skill                 | **EXISTS**                                                               | `src/commands/task.ts::decideClearStrategy` (~L511) / `::buildHandoffBanner` (~L526) / `handlePostClearReEntry`; ADR-054; `.claude/hooks/pre-compact.mjs`; `.claude/skills/context-rot-management/SKILL.md`; `src/capabilities/host-probe.ts`                                                                                                                                                                                                                           |
-| M3  | Cursor after T2 cut of `arbiter mark`                   | status.json fields only; repoint skill docs                                                   | **PARTIAL** (transition)                                                 | playbook §T2.B D2; INV-113                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| M3  | Cursor after T2 cut of `arbiter lifecycle checkpoint`   | status.json fields only; repoint skill docs                                                   | **PARTIAL** (transition)                                                 | playbook §T2.B D2; INV-113                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | M4  | Findings spool + harvest                                | task-note JSONL + wave Phase 0.5                                                              | **EXISTS**                                                               | `src/commands/task-note.ts::FindingEntry` (~L61); `.arbiter/findings/`; wave-drain Phase 0.5                                                                                                                                                                                                                                                                                                                                                                            |
 | M4  | Evidence per phase, schema'd                            | evidence dirs + bundle schema + phase doc                                                     | **EXISTS**                                                               | `.arbiter/evidence/**`; `schemas/evidence-bundle.schema.json`; `scripts/check-evidence-bundle.mjs` (INV-90); `scripts/check-phase-doc-consistency.mjs` (INV-113)                                                                                                                                                                                                                                                                                                        |
 | M4  | Plan anchor before edit                                 | pre-edit hook (CANON-16)                                                                      | **EXISTS**                                                               | `.claude/hooks/pre-edit-plan-anchor.mjs`                                                                                                                                                                                                                                                                                                                                                                                                                                |

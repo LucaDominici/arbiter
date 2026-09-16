@@ -49,7 +49,7 @@ PROCESS_CORE.md (or equivalent execution-governance doc) for the project-specifi
 codification and its `scripts/gates/chain-batching.sh`-class detector; this document is
 the portable pattern, not the project-specific enforcement point.
 
-**Arbiter-side enforcer (#2102):** declare the chain explicitly — `arbiter task init --id
+**Arbiter-side enforcer (#2102):** declare the chain explicitly — `arbiter lifecycle start --id
 <id> --chain <id> [--chain <id> ...]` or `arbiter ship <id> --chain <id> [...]` (repeatable,
 never auto-derived from a shared parent epic). This persists `chainIds` on the unified task
 document; `arbiter ship`'s close-step advisory then names every id in the chain, and the

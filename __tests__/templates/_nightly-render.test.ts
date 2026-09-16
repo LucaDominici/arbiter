@@ -269,7 +269,7 @@ describe('_nightly.yml.ejs — structural invariants (CANON-18)', () => {
 
   // This pins a KNOWN GAP, not an endorsement: evidence-collect's scrub step needs
   // `node` for every language (see the #2256 comment above), but non-typescript
-  // projects get no setup step at all here. Tracked as a finding (arbiter note
+  // projects get no setup step at all here. Tracked as a finding (arbiter finding add
   // fingerprint 8da674a014533c4806dc05fd340cb65baae9a6bf, severity high) — fixing
   // it needs a universal .nvmrc/tooling-package.json emission or a no-cache/
   // no-nvmrc-required input on setup-node-pnpm, both out of #2256's Files

@@ -168,7 +168,7 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 // completion and stamped a green marker for a tree it had never finished
 // testing. Both are fixed here.
 //
-// The mutex is the per-repo flock `arbiter gate-exec` takes, keyed off
+// The mutex is the per-repo flock `arbiter check run` takes, keyed off
 // ARBITER_HOOK_GIT_CWD when set — the pre-push '#'-in-path branch runs this file
 // from an rsync'd copy under /tmp, and keying off cwd there would mint a fresh
 // key per push, i.e. a null mutex. A synchronous gate cannot hold a kernel lock
@@ -289,7 +289,7 @@ function _failFastInlineSkip(_name) {
 
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
 // A freshly-upgraded L1→L2 project may run its new L2 gates WARN-only for a
-// bounded settling window (set ONLY by `arbiter upgrade-level`, never by hand).
+// bounded settling window (set ONLY by `arbiter configure level`, never by hand).
 //
 // Three guards close the L2 fake-green vector this mechanism could otherwise open:
 //   1. CURRENT-LEVEL binding — grace is honored only while THIS project is at L2
@@ -318,7 +318,7 @@ if (existsSync(_arbiterJsonPath)) {
       const _maxEnds = _now + GRACE_MAX_DAYS * 86400000;
       if (_ends > _maxEnds) {
         const _endsDate = _cfg.graceEndsAt.slice(0, 10);
-        console.log(`[GRACE] IGNORED — graceEndsAt (${_endsDate}) exceeds the ${GRACE_MAX_DAYS}-day bound; treating L2 gates as HARD. Re-run \`arbiter upgrade-level --extend\` instead of hand-editing arbiter.json.`);
+        console.log(`[GRACE] IGNORED — graceEndsAt (${_endsDate}) exceeds the ${GRACE_MAX_DAYS}-day bound; treating L2 gates as HARD. Re-run \`arbiter configure level --extend\` instead of hand-editing arbiter.json.`);
       } else {
         graceActive = true;
         const _daysLeft = Math.ceil((_ends - _now) / 86400000);
@@ -1056,7 +1056,7 @@ runCheck('race detector (full)', 'go', ['test', '-race', './...']);
 // nor safety-class under src/generators/safety-class.ts (GATE_SPINE_PATTERN
 // matches only scripts/check-all.mjs and scripts/lib/*.mjs — a .json file
 // under scripts/ matches neither alternative) — `arbiter update
-// --adopt-gate-spine` and `arbiter diff` never see it, so it survives every
+// --adopt-gate-spine` and `arbiter update --dry-run` never see it, so it survives every
 // spine update untouched, by construction, with nothing to re-wire by hand.
 //
 // PLAIN JSON, not an executable module: two prior designs here (a direct

@@ -22,4 +22,4 @@ import { runLocalArbiter } from './lib/run-helpers.mjs'
 
 const args = process.argv.slice(2)
 
-process.exit(runLocalArbiter(['doc-set', '--arc42', ...args]))
+process.exit(runLocalArbiter(['audit', 'docs', '--arc42', ...args]))

@@ -44,7 +44,7 @@ export function generateCodexHooks(
   // Sole-emitter contract (#1578/INV-128): a path may be emitted by exactly one
   // enabled registry generator. When `claude` is ALSO selected, generateClaudeHooks
   // (claude.ts) already emits these same files — codex-hooks.ts must defer to it
-  // rather than duplicate-emit, or `arbiter diff`/the generated-manifest would see
+  // rather than duplicate-emit, or `arbiter update --dry-run`/the generated-manifest would see
   // the same path claimed by two generators (the #1318.2 double-write class). Only
   // take ownership when codex is the ONLY AI tool selected, i.e. claude.ts will not run.
   if (!config.tools.includes('claude')) {

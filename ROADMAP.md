@@ -33,7 +33,7 @@ related: []
 - Composite framework archetype detection (e.g., `express+spring-boot`)
 - Anti-telemetry CI assertion
 - Update channel infrastructure — `--channel latest|beta|canary` global flag, arbiter.json channel field, downgrade warnings in `doctor health`
-- TDD workflow integration — gate-blocked phase machine (`arbiter task advance`, `task record-red --test-path`), `verify tdd` replay audit, stop-evidence-guard evidence gate (INV-114)
+- TDD workflow integration — gate-blocked phase machine (`arbiter lifecycle advance`, `task record-red --test-path`), `verify tdd` replay audit, stop-evidence-guard evidence gate (INV-114)
 
 ## Now (Current Quarter)
 

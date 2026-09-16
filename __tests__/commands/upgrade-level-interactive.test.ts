@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1168 Phase 3: arbiter upgrade-level --interactive guided flow.
+// #1168 Phase 3: arbiter configure level --interactive guided flow.
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 

@@ -11,7 +11,7 @@ related: []
 
 # Recipe: Add a Custom Generator
 
-Generators live in `src/generators/` and are how arbiter itself emits files to target projects. This recipe is for **arbiter contributors** extending core support for a new language or archetype. If you want to emit custom files without modifying arbiter, use a plugin instead (see [Write an arbiter plugin](./plugin)).
+Generators live in `src/generators/` and are how arbiter itself emits files to target projects. This recipe is for **arbiter contributors** extending core support for a new language or archetype. If you want to emit custom files without modifying arbiter, use a plugin instead (see [Write an arbiter configure plugin](./plugin)).
 
 ## Generator vs plugin
 

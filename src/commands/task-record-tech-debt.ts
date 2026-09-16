@@ -25,7 +25,7 @@ function buildIssueBody(description: string, taskId: string): string {
   return [
     '## Background',
     '',
-    `This issue was filed automatically by \`arbiter task record-tech-debt\` (triggered by ${taskId}).`,
+    `This issue was filed automatically by \`arbiter lifecycle record-debt\` (triggered by ${taskId}).`,
     '',
     '## Finding',
     '',

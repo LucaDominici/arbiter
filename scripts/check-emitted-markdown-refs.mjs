@@ -134,7 +134,7 @@ const HOOK_RE = /(\.claude\/hooks\/[\w.-]+\.mjs)\b/g
 // the word — "Companion: ponytail (full) · arbiter gates remain the safety net" and
 // "# existing arbiter project" both sit mid-line and are correctly not invocations.
 // Tokens are separated by [ \t] only: `\s` would cross a newline and glue an inline
-// `arbiter task` span to an unrelated word masked out three lines below.
+// `arbiter lifecycle` span to an unrelated word masked out three lines below.
 const ARBITER_RE =
   /(?:^|[;|&(])[ \t]*(?:\$[ \t]+)?(?:(?:npx|bunx)(?:[ \t]+--no-install)?[ \t]+|(?:pnpm|yarn)[ \t]+dlx[ \t]+)?(?:@arbiter\/cli|arbiter)[ \t]+([a-z][a-z0-9-]*)(?:[ \t]+([a-z][a-z0-9-]*))?/gm
 

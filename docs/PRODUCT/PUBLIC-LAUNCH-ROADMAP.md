@@ -165,7 +165,7 @@ da #2119 è il comportamento di default.
 ### 1.5 Il reperto peggiore: il flusso di punta è impossibile nel repo che arbiter appena configura
 
 Il README vende tre primitivi, e il primo è l'evidenza. Il Quickstart, passo 3: _"Write a
-failing test first, then record it: `arbiter task record-red --test-path <file>`."_
+failing test first, then record it: `arbiter lifecycle record-red --test-path <file>`."_
 
 `record-red` ha bisogno di un **commit** che contenga il test rosso. Ma il pre-commit hook che
 `arbiter init` ha appena armato — annunciandolo: _"Git hooks activated (core.hooksPath →
@@ -393,7 +393,7 @@ Onestà sulle lacune di questa stessa verifica:
   attiva: non l'ho toccato. **È la lacuna più grande della matrice.**
 - **Nessun repo multi-linguaggio** (`language: multi`) è stato provato.
 - **Nessun repo Windows o macOS.** Tutto misurato su Linux, Node 22.21.1, npm 11.16.0.
-- **`arbiter ship`, `arbiter task`, `arbiter gold-audit`** non sono stati esercitati end-to-end
+- **`arbiter ship`, `arbiter lifecycle`, `arbiter audit readiness`** non sono stati esercitati end-to-end
   su un repo bersaglio. La barra copre `init`, `update`, la gate e gli hook. Non copre
   l'orchestrazione.
 - `npm i` da **git URL** (dove `prepare` _verrebbe_ eseguito) non è stato provato: #2133 lo

@@ -88,7 +88,7 @@ Three contributor archetypes map to three concrete entry points.
 
 1. Hand-author the plugin package (`index.js`/`package.json`, keywords must include
    `arbiter-plugin`) implementing the minimal contract exported from `@getarbiter/cli/plugin`.
-2. Register it with `arbiter plugin add <path-or-package>` — it installs (unless
+2. Register it with `arbiter configure plugin add <path-or-package>` — it installs (unless
    `--no-install`), validates the plugin loads, and adds it to `arbiter.json`'s `plugins` array.
 3. See `examples/plugins/` and `examples/plugin-spring-boot/` for the current exemplar.
 
@@ -147,7 +147,7 @@ Arbiter tasks follow a validated five-phase lifecycle:
 preflight → plan → implementation → verification → complete
 ```
 
-Advance with `arbiter task advance --to <phase>`. Forward-only by default; commits are blocked during `preflight` and `plan` (INV-38). Claiming completion while still in `implementation` or `verification` triggers the completion guard.
+Advance with `arbiter lifecycle advance --to <phase>`. Forward-only by default; commits are blocked during `preflight` and `plan` (INV-38). Claiming completion while still in `implementation` or `verification` triggers the completion guard.
 
 ### SEMVER and deprecation
 

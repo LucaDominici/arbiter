@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2662: `.arbiterignore` IS the retire mechanism (#2353) — no second list. This
-// covers the CLI surface (`arbiter ignore add/remove`) and the `diff` reporting
+// covers the CLI surface (`arbiter configure ignore add/remove`) and the `diff` reporting
 // #2662 adds on top of it: a `retired` status/section/count distinct from the
 // standing `ignored` status, and a `restore` status for AC(2) (a deleted file
 // `update` would bring back).
@@ -54,7 +54,7 @@ function captureStdout(fn: () => void): string {
   return out.join('')
 }
 
-describe('#2662 arbiter ignore add — CLI retire', () => {
+describe('#2662 arbiter configure ignore add — CLI retire', () => {
   let dir: string
 
   beforeEach(() => {
@@ -115,7 +115,7 @@ describe('#2662 arbiter ignore add — CLI retire', () => {
   }, 60_000)
 })
 
-describe('#2662 arbiter ignore remove', () => {
+describe('#2662 arbiter configure ignore remove', () => {
   let dir: string
 
   beforeEach(() => {

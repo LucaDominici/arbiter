@@ -18,7 +18,7 @@ This skill **never fakes a close**: a recipe is a plan of real work, not a short
 
 ## When to use
 
-After `arbiter gold-audit` reports a gap (an `N` or `P` check, or a `manual` check that a human must
+After `arbiter audit readiness` reports a gap (an `N` or `P` check, or a `manual` check that a human must
 attest). Pick the gap's `id` and ask for its recipe.
 
 ## Workflow
@@ -26,7 +26,7 @@ attest). Pick the gap's `id` and ask for its recipe.
 1. Run the audit to list the gaps:
 
 ```bash
-npx @getarbiter/cli gold-audit
+npx @getarbiter/cli audit readiness
 ```
 
 2. Classify the gap by **category** — what does the failed check actually verify? There is no
@@ -53,6 +53,6 @@ npx @getarbiter/cli gold-audit
 
 ## Re-audit
 
-After executing a recipe, re-run `npx @getarbiter/cli gold-audit` and confirm the gap flipped for a real
+After executing a recipe, re-run `npx @getarbiter/cli audit readiness` and confirm the gap flipped for a real
 reason — the genuine metric improved or real content/config now exists. If it only flipped because a
 threshold moved or a literal was pasted in, that is fake-green: revert and do the real work.

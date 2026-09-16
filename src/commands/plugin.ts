@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2416: minimal `arbiter plugin add`/`arbiter plugin list`. ADR-031 designed a CLI
+// #2416: minimal `arbiter configure plugin add`/`arbiter configure plugin list`. ADR-031 designed a CLI
 // subcommand for the plugin API (`add | remove | list`) but it was never registered
 // in cli.ts, leaving three public docs (website/recipes/plugin.md,
 // website/recipes/custom-invariant.md, examples/plugins/spring-boot/README.md) and
@@ -85,7 +85,7 @@ async function requireLoadable(name: string, targetDir: string, json: boolean): 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (json) {
-      jsonOutput('plugin add', 'error', { name }, [message])
+      jsonOutput('configure plugin add', 'error', { name }, [message])
       process.exit(1)
     }
     throw ArbiterError.fromKey('E_PLUGIN_UNRESOLVABLE', 'cli.plugin.load_error', {
@@ -114,7 +114,7 @@ async function persistPlugins(
 export async function runPluginAdd(options: PluginAddOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
   const json = options.json === true
-  const stored = requireConfig(targetDir, 'plugin add', json)
+  const stored = requireConfig(targetDir, 'configure plugin add', json)
 
   const spec = options.pkg
   const local = isLocalSpec(spec)
@@ -133,7 +133,7 @@ export async function runPluginAdd(options: PluginAddOptions): Promise<void> {
   if (added) await persistPlugins(targetDir, stored, plugins)
 
   if (json) {
-    jsonOutput('plugin add', 'ok', { name, added, plugins })
+    jsonOutput('configure plugin add', 'ok', { name, added, plugins })
     return
   }
   if (!added) {
@@ -161,7 +161,7 @@ async function loadStatus(name: string, targetDir: string): Promise<PluginStatus
 
 export async function runPluginList(options: PluginListOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
-  const stored = requireConfig(targetDir, 'plugin list', options.json === true)
+  const stored = requireConfig(targetDir, 'configure plugin list', options.json === true)
 
   const names = stored.plugins ?? []
   const plugins: { name: string; status: PluginStatus }[] = []
@@ -170,7 +170,7 @@ export async function runPluginList(options: PluginListOptions): Promise<void> {
   }
 
   if (options.json) {
-    jsonOutput('plugin list', 'ok', { plugins })
+    jsonOutput('configure plugin list', 'ok', { plugins })
     return
   }
 

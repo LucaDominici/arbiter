@@ -476,7 +476,7 @@ export function getRepoRoot() {
 // registers entries, post-subagent-release.mjs (SubagentStop) removes them on cleanup.
 // Both files import from here rather than duplicating the path/TTL/prune logic.
 export const SIDECAR_PATH = join('.arbiter', 'agents-active.json')
-export const SIDECAR_TTL_MS = 2 * 60 * 60 * 1000 // 2h — mirrors `arbiter worktree prune --stale`
+export const SIDECAR_TTL_MS = 2 * 60 * 60 * 1000 // 2h — mirrors `git worktree prune --stale`
 
 /** Git-authoritative worktree identity; independent of host and directory naming. */
 export function isGitWorktree(cwd) {

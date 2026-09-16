@@ -309,7 +309,7 @@ describe('runDoctorHealth — task-document branches', () => {
     const t = result.checks.find((c) => c.id === 'task-document')
     expect(t?.status).toBe('WARN')
     expect(t?.detail).toMatch(/invalid phase/)
-    expect(t?.hint).toMatch(/arbiter task/)
+    expect(t?.hint).toMatch(/arbiter lifecycle/)
   })
 
   it('PASS for a valid phase with a taskId', async () => {
@@ -532,7 +532,7 @@ describe('runDoctorClean — fs-error / dry-run / realpath / json branches', () 
     expect(result.found).toHaveLength(1)
     expect(result.deleted).toHaveLength(0)
     expect(existsSync(f)).toBe(true)
-    expect(cap.out).toMatch(/"command":\s*"doctor clean"/)
+    expect(cap.out).toMatch(/"command":\s*"lifecycle clean"/)
   })
 
   it('falls back to the raw dir when realpathSync throws (broken symlink target)', () => {

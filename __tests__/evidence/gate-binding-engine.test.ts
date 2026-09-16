@@ -2,7 +2,7 @@
 /**
  * #2328 — direct tests for the ENGINE-side verifier, `src/evidence/gate-binding.ts`.
  *
- * `arbiter task advance` calls this copy, not `scripts/lib/gate-evidence.mjs`,
+ * `arbiter lifecycle advance` calls this copy, not `scripts/lib/gate-evidence.mjs`,
  * and it deliberately carries its own copy of the policy: a command that gates a
  * tree must not take its verdict from a script inside that tree. Until now it was
  * only exercised incidentally through task.ts, so the copy that actually guards

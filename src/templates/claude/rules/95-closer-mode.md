@@ -17,7 +17,7 @@ _closing_ it — discovery is cheap and visible, the residual 10% (merge, red ga
 conflict) is hard. This rule fixes the mode, not the hope.
 
 **Trigger:** the task enters its closing phase (post-implementation, pre-merge —
-`arbiter task advance --to close`), or a human invokes it on stuck work.
+`arbiter lifecycle advance --to close`), or a human invokes it on stuck work.
 
 ## The 7 rules
 
@@ -42,4 +42,4 @@ conflict) is hard. This rule fixes the mode, not the hope.
 
 **PARKING list convention:** append findings to `.arbiter/findings/<task-id>.jsonl`
 (one line per finding, no code changes) rather than opening an issue or fixing them
-inline — see `arbiter note`.
+inline — see `arbiter finding add`.

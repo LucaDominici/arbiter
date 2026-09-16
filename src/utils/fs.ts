@@ -566,7 +566,7 @@ function defaultWithheldWarn(key: string): void {
   getLogger().warn(
     'fs.fix_withheld',
     { path: key },
-    `user-modified, template fix NOT applied: ${key} (review with \`arbiter diff --withheld\`; ` +
+    `user-modified, template fix NOT applied: ${key} (review with \`arbiter update --dry-run --withheld\`; ` +
       `adopt every withheld fix with \`arbiter update --adopt\`)`,
   )
 }
@@ -664,7 +664,7 @@ export function writeFile(
 /**
  * #2533: the write-truth half of the fix. A caller writing evidence, logs, or other
  * tooling-authored data artifacts (as opposed to a generator target, where `withheld`
- * is a normal, REPORTED outcome — see `arbiter diff --withheld`) must never treat a
+ * is a normal, REPORTED outcome — see `arbiter update --dry-run --withheld`) must never treat a
  * `WriteResult` with `withheld: true` as success: it means the content it intended to
  * write did NOT land on disk. `adopted: true` is the one exception — a force-adopt DID
  * write the shipped content over the user-modified one, so `withheld` there records

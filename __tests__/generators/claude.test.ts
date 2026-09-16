@@ -88,11 +88,9 @@ describe('generateClaude', () => {
   it('generates rules, commands, and hooks directories', () => {
     generateClaude(makeConfig(dir))
     expect(existsSync(join(dir, '.claude', 'rules', '90-exec-protocol.md'))).toBe(true)
-    expect(existsSync(join(dir, '.claude', 'commands', 'task.md'))).toBe(true)
-    expect(existsSync(join(dir, '.claude', 'commands', 'wt-open.md'))).toBe(true)
-    expect(existsSync(join(dir, '.claude', 'commands', 'wt-close.md'))).toBe(true)
-    expect(existsSync(join(dir, '.claude', 'commands', 'wt-list.md'))).toBe(true)
-    expect(existsSync(join(dir, '.claude', 'commands', 'wt-prune.md'))).toBe(true)
+    expect(readdirSync(join(dir, '.claude', 'commands')).sort()).toEqual(
+      ['audit.md', 'drain.md', 'impact.md', 'review.md', 'ship.md', 'tabletop.md'].sort(),
+    )
     expect(existsSync(join(dir, '.claude', 'hooks', 'lib.mjs'))).toBe(true)
   })
 
@@ -241,28 +239,11 @@ describe('generateClaude', () => {
     expect(existsSync(join(hooksDir, 'exitplanmode-banner.mjs'))).toBe(false)
   })
 
-  it('generates wt-list.md with git worktree list reference', () => {
+  it('emits no retired worktree or lifecycle wrapper', () => {
     generateClaude(makeConfig(dir))
-    const content = readFileSync(join(dir, '.claude', 'commands', 'wt-list.md'), 'utf-8')
-    expect(content).toContain('git worktree list')
-  })
-
-  it('generates wt-open.md with arbiter wt open reference', () => {
-    generateClaude(makeConfig(dir))
-    const content = readFileSync(join(dir, '.claude', 'commands', 'wt-open.md'), 'utf-8')
-    expect(content).toContain('arbiter wt open')
-  })
-
-  it('generates wt-close.md with arbiter wt close reference', () => {
-    generateClaude(makeConfig(dir))
-    const content = readFileSync(join(dir, '.claude', 'commands', 'wt-close.md'), 'utf-8')
-    expect(content).toContain('arbiter wt close')
-  })
-
-  it('generates wt-prune.md with git worktree prune reference', () => {
-    generateClaude(makeConfig(dir))
-    const content = readFileSync(join(dir, '.claude', 'commands', 'wt-prune.md'), 'utf-8')
-    expect(content).toContain('git worktree prune')
+    const commands = readdirSync(join(dir, '.claude', 'commands'))
+    expect(commands).not.toContain('task.md')
+    expect(commands.some((name) => name.startsWith('wt-'))).toBe(false)
   })
 
   it('guard-task-completion.mjs is present at L2', () => {
@@ -415,11 +396,7 @@ describe('generateClaude', () => {
     // #1216: Tier content moved from task.md (engine-ref) to ship.md (orchestration).
     it('renders default taskTiers when config.taskTiers is undefined', () => {
       generateClaude(makeConfig(dir))
-      // task.md is now the engine/CLI reference — tier blocks are in ship.md
-      const taskContent = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
       const shipContent = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
-      // task.md: engine ref, has /ship pointer
-      expect(taskContent).toContain('/ship')
       // ship.md: DEFAULT_TASK_TIERS: XS=3, S=3, Standard=4 in phase map
       expect(shipContent).toMatch(/XS|Standard/)
     })

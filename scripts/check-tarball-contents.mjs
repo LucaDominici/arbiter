@@ -66,7 +66,7 @@ export const FORBIDDEN = [
 const ENGINE_RESOLVER_ROOT = join('src', 'commands')
 
 /**
- * #2335, and again in #2480: the engine scripts `arbiter doc-set` / `arbiter gold-audit` spawn
+ * #2335, and again in #2480: the engine scripts `arbiter audit docs` / `arbiter audit readiness` spawn
  * were omitted from `package.json` files[], so every command threw MODULE_NOT_FOUND for every
  * real consumer and only ever "worked" on a dev checkout, where `scripts/` happens to sit next
  * to the globally-linked `dist/cli.js`. The #2335 fix was a hand-maintained list of literal

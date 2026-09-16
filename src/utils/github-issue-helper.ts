@@ -2,7 +2,7 @@
 //
 // Shared GitHub-issue helper (CANON-16 extraction from `commands/task-record-tech-debt.ts`).
 //
-// Both `arbiter task record-tech-debt` and `arbiter findings promote` file GitHub issues and
+// Both `arbiter lifecycle record-debt` and `arbiter findings promote` file GitHub issues and
 // persist the resulting issue number under `.arbiter/evidence/<task>/tech-debt.json` (which
 // `scripts/gen-gap.mjs` reads to populate GAP.md). Extracting the two private helpers into one
 // shared module gives both callers ONE `gh issue create` code path — no duplicated invocation

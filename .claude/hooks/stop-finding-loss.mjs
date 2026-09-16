@@ -143,7 +143,7 @@ function main() {
   const HARD_GRADING = process.env.ARBITER_FINDING_LOSS_HARD === '1'
   const message =
     `[arbiter] FINDING LOSS: ${dispatchCount} research agent${dispatchCount === 1 ? '' : 's'} ` +
-    `returned; nothing was persisted — write \`arbiter note\` / record envelopes before stopping.\n`
+    `returned; nothing was persisted — write \`arbiter finding add\` / record envelopes before stopping.\n`
 
   if (HARD_GRADING) {
     process.stderr.write(message)

@@ -99,7 +99,7 @@ describe('handoff via CLI subprocess (#703)', () => {
     const dir = tmpRepo()
     const result = spawnSync(
       'node',
-      ['dist/cli.js', 'task', 'advance', '--to', 'red', '--dir', dir],
+      ['dist/cli.js', 'lifecycle', 'advance', '--to', 'red', '--dir', dir],
       {
         encoding: 'utf-8',
         env: { ...process.env, CLAUDECODE: '1', ARBITER_SKIP_PLAN_REVIEW: '1' },

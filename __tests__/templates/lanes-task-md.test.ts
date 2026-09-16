@@ -2,24 +2,24 @@ import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
-// #1216: Lane discipline section was in task.md (orchestration prose). task.md is now
+// #1216: Lane discipline section was in ship.md (orchestration prose). ship.md is now
 // the engine/CLI reference — no lane discipline section. Lane discipline in /ship is a
-// follow-up (tech-debt). For now: verify task.md does NOT emit lane discipline content.
+// follow-up (tech-debt). For now: verify ship.md does NOT emit lane discipline content.
 
-describe('task.md.ejs lane discipline (#1216)', () => {
+describe('ship.md.ejs lane discipline (#1216)', () => {
   it('single-lane: no lane discipline section emitted', () => {
     const data = makeConfig('/tmp/test', { lanes: [] }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('claude/commands/task.md.ejs', data)
+    const rendered = renderTemplate('claude/commands/ship.md.ejs', data)
     expect(rendered).not.toContain('Lane Discipline')
     expect(rendered).not.toContain('Cross-stack')
   })
 
-  it('multi-lane: task.md (engine-ref) does NOT emit lane discipline section', () => {
-    // After #1216, task.md is engine-ref only — no orchestration prose including lane discipline.
+  it('multi-lane: ship.md (engine-ref) does NOT emit lane discipline section', () => {
+    // After #1216, ship.md is engine-ref only — no orchestration prose including lane discipline.
     const data = makeConfig('/tmp/test', {
       lanes: ['frontend', 'backend'],
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('claude/commands/task.md.ejs', data)
+    const rendered = renderTemplate('claude/commands/ship.md.ejs', data)
     expect(rendered).not.toContain('Lane Discipline')
   })
 
@@ -33,8 +33,8 @@ describe('task.md.ejs lane discipline (#1216)', () => {
         governanceLevel: level,
       }) as unknown as Record<string, unknown>
       // Both default to [] so output should match
-      expect(renderTemplate('claude/commands/task.md.ejs', base)).toBe(
-        renderTemplate('claude/commands/task.md.ejs', withEmptyLanes),
+      expect(renderTemplate('claude/commands/ship.md.ejs', base)).toBe(
+        renderTemplate('claude/commands/ship.md.ejs', withEmptyLanes),
       )
     }
   })

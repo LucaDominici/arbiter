@@ -31,12 +31,12 @@ Every file arbiter generates has a declared stability status. This determines th
 
 ### AGENTS.md
 
-| Property       | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Default path   | `AGENTS.md` (project root)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Status         | **stable**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| User-editable  | Yes, but there is no preserved custom-content zone inside the file — see Merge strategy. Mark it `arbiter:preserve` (see below) to opt the whole file out of every future overwrite.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Merge strategy | Governance class (#2120/#2141; `src/generators/safety-class.ts` `isGovernanceClassKey`) — there is no line-level marker merge. **Pristine** (on-disk `sha256` matches the last recorded render): re-rendered from config + template on every `arbiter update`, prior bytes backed up to `AGENTS.md.arbiter-backup` first. **Diverged** (any hand edit since the last render): withheld **whole** — arbiter leaves the file untouched and reports it under `arbiter diff --withheld`, never merges into it. `arbiter update --adopt-governance` force-adopts the shipped render over a diverged copy (same backup + a reversible `.arbiter/evidence/local-overrides/` envelope). See §Protected classes below for the full mechanism shared with `.claude/settings.json`. |
+| Property       | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Default path   | `AGENTS.md` (project root)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Status         | **stable**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| User-editable  | Yes, but there is no preserved custom-content zone inside the file — see Merge strategy. Mark it `arbiter:preserve` (see below) to opt the whole file out of every future overwrite.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Merge strategy | Governance class (#2120/#2141; `src/generators/safety-class.ts` `isGovernanceClassKey`) — there is no line-level marker merge. **Pristine** (on-disk `sha256` matches the last recorded render): re-rendered from config + template on every `arbiter update`, prior bytes backed up to `AGENTS.md.arbiter-backup` first. **Diverged** (any hand edit since the last render): withheld **whole** — arbiter leaves the file untouched and reports it under `arbiter update --dry-run --withheld`, never merges into it. `arbiter update --adopt-governance` force-adopts the shipped render over a diverged copy (same backup + a reversible `.arbiter/evidence/local-overrides/` envelope). See §Protected classes below for the full mechanism shared with `.claude/settings.json`. |
 
 ### .claude/settings.json
 
@@ -56,12 +56,12 @@ comments, but the marker is a whole-file substring test, so an ordinary key carr
 
 ### .claude/knowledge-map.json
 
-| Property       | Value                                                                                                                                                                                                                                                                                                                                                           |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Default path   | `.claude/knowledge-map.json`                                                                                                                                                                                                                                                                                                                                    |
-| Status         | **evolving**                                                                                                                                                                                                                                                                                                                                                    |
-| User-editable  | No — machine-readable track-routing map (#720), not meant for hand edits.                                                                                                                                                                                                                                                                                       |
-| Merge strategy | Plain `skipIfExists` file (`src/generators/claude.ts`) — not governance, safety, or gate-spine class. Standard #1328 manifest protocol: **pristine** → rewritten to propagate a template fix; **user-modified** → withheld and reported (`arbiter diff --withheld`), adoptable only via the broad `arbiter update --adopt` (no per-file adopt flag of its own). |
+| Property       | Value                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Default path   | `.claude/knowledge-map.json`                                                                                                                                                                                                                                                                                                                                                |
+| Status         | **evolving**                                                                                                                                                                                                                                                                                                                                                                |
+| User-editable  | No — machine-readable track-routing map (#720), not meant for hand edits.                                                                                                                                                                                                                                                                                                   |
+| Merge strategy | Plain `skipIfExists` file (`src/generators/claude.ts`) — not governance, safety, or gate-spine class. Standard #1328 manifest protocol: **pristine** → rewritten to propagate a template fix; **user-modified** → withheld and reported (`arbiter update --dry-run --withheld`), adoptable only via the broad `arbiter update --adopt` (no per-file adopt flag of its own). |
 
 ### GLOBAL_INVARIANTS.md
 
@@ -142,7 +142,7 @@ value(s) and ADR-122. Run `arbiter configure` to change `tools` explicitly.
 Many files are emitted with `skipIfExists` — once present, a plain re-run leaves them alone so user
 edits survive. Historically that meant `arbiter update` could **never** deliver an upstream template fix
 to such a file (a validator script, `check-all.mjs`, `.githooks/pre-push`): the stale copy lived forever,
-and `arbiter diff` reported it as `(unchanged)` without comparing content — a parity report that lied.
+and `arbiter update --dry-run` reported it as `(unchanged)` without comparing content — a parity report that lied.
 
 Arbiter now records a per-file content-hash **manifest** so it can tell the two cases apart:
 
@@ -205,14 +205,14 @@ instead of a workflow-specific grep.
 
 ### Update / diff semantics for `skipIfExists` files
 
-On `arbiter update` (and the read-only `arbiter diff`), for each `skipIfExists` file that already exists:
+On `arbiter update` (and the read-only `arbiter update --dry-run`), for each `skipIfExists` file that already exists:
 
 - **on-disk content == current render** → `skipped` (already up to date).
 - **on-disk hash == the recorded manifest hash** (pristine — unmodified since arbiter generated it) and
   the template changed → **rewritten** to the new render. The fix propagates. `diff` reports `changed`.
 - **on-disk hash ≠ the recorded manifest hash** (you edited it) → **preserved**, and the withheld fix is
   surfaced (#1344): `diff` reports the file with status `withheld` (no longer a lying `unchanged`), and
-  `update`'s summary counts it (`… N withheld`). Inspect it with `arbiter diff --withheld`; re-adopt all
+  `update`'s summary counts it (`… N withheld`). Inspect it with `arbiter update --dry-run --withheld`; re-adopt all
   withheld files with `arbiter update --adopt`, or merge the upstream change manually.
 
 ### Visibility of withheld fixes (`diff --withheld`)
@@ -223,12 +223,12 @@ Anti-clobber (#1328) is correct, but a withheld fix that never lands is silent, 
 more a client personalises, the more upstream gate/security fixes stay out without anyone noticing. So the
 withheld set is now a first-class, reviewable signal:
 
-- `arbiter diff` lists withheld files under a dedicated **"Withheld template fixes"** section (status
+- `arbiter update --dry-run` lists withheld files under a dedicated **"Withheld template fixes"** section (status
   `withheld`), distinct from `unchanged`. JSON output carries `files[].status === "withheld"` plus a
   `withheldCount`. A withheld fix counts as a change (exit 1 / `warning`), so CI can flag drift.
   Each withheld path is printed **once**, in that section only — never also inline among the per-file
   lines — so a `grep -c '^\s*!'` over the plain output equals `withheldCount` (#2665).
-- `arbiter diff --withheld` filters the report to **only** the withheld entries — a focused reconciliation
+- `arbiter update --dry-run --withheld` filters the report to **only** the withheld entries — a focused reconciliation
   list for deciding which upstream changes to merge into your customised files.
 - `arbiter update` reports the withheld tally in its summary so an operator running `update` sees the
   drift directly, not just a buried per-file warning.
@@ -279,7 +279,7 @@ list:
 `skipped` is deliberately NOT a section: it is every unchanged file, and a preview nobody reads protects
 nobody. `--json` carries `wouldRegenerate` and `withheld` so the two output channels cannot disagree.
 
-`arbiter diff` models the same adopt policy (#2120). It used to open its generation session without an
+`arbiter update --dry-run` models the same adopt policy (#2120). It used to open its generation session without an
 adopt predicate, so every file `update` force-adopts — the safety class, the gate spine, and now the
 governance pair — was reported as a preserved "withheld template fix" with a reconcile hint, when the very
 next `update` overwrites it. `diff` now reports those as `changed`, which is what they are: a file that is
@@ -445,7 +445,7 @@ moratorium keeps working.
 `--no-adopt-governance` is accepted as a no-op, because withholding a diverged governance file is the default
 since #2141.
 
-For any withheld file, use `arbiter diff --withheld` to review the exact set; `arbiter update --adopt`
+For any withheld file, use `arbiter update --dry-run --withheld` to review the exact set; `arbiter update --adopt`
 is the broad force-adopt, while the table flags target their respective classes.
 
 The same policy applies to a governed `arbiter init` re-run (#2125), not only to
@@ -484,13 +484,13 @@ default is now to withhold, and `--adopt-gate-spine` is an explicit, destructive
 
 **Not in the class: `scripts/check-*.mjs` leaf checks.** A leaf check is exactly where a project
 legitimately tunes its own thresholds; force-adopting those would overwrite intent rather than restore a
-fix. They stay `skipIfExists`, surface through `arbiter diff --withheld` like any other file, and are
+fix. They stay `skipIfExists`, surface through `arbiter update --dry-run --withheld` like any other file, and are
 included only in the broad `arbiter update --adopt` force-adopt.
 
 **Accepted cost.** A project that customized its gate spine stops receiving spine fixes — and every check
 arbiter ships later that its `check-all.mjs` does not wire. `check-safety-adopt-ratchet.mjs` stays **red**
 for exactly that reason: the red is the register of that debt, not a bug to silence. It clears in one of
-three honest ways — wire the new checks into your own `check-all.mjs` by hand (run `arbiter diff` to see
+three honest ways — wire the new checks into your own `check-all.mjs` by hand (run `arbiter update --dry-run` to see
 what the template would add), mark the file `arbiter:preserve` when the divergence is permanent (the
 documented exception the ratchet accepts), or run the destructive `arbiter update --adopt-gate-spine` after
 previewing it with `--adopt-plan`. A **pristine** spine — untouched since arbiter generated it — is
@@ -589,7 +589,7 @@ The preserve marker above is per-FILE and requires editing the file. A consumer 
 hand-authored equivalent for a whole slice of the generated surface — its own CI workflow numbering, its
 own `docs/`, its own `run.sh` — needs to decline that slice wholesale, and to take ONE upstream fix
 without re-syncing everything else. Before #2353 there was no supported way: the only route was
-`arbiter diff --json` plus hand-copying content out of a throwaway rendered clone.
+`arbiter update --dry-run --json` plus hand-copying content out of a throwaway rendered clone.
 
 One mechanism, two directions:
 
@@ -658,20 +658,20 @@ deletion STICK — it is checked ahead of the restoration branch, so an ignored 
 though its manifest entry (and the restoration evidence) survives. There is deliberately no second,
 manifest-native "retired" list: one committed, reviewable file is the whole mechanism, for both directions.
 
-`arbiter ignore add <path...>` and `arbiter ignore remove <path...>` are the CLI over that file, so an
+`arbiter configure ignore add <path...>` and `arbiter configure ignore remove <path...>` are the CLI over that file, so an
 operator does not hand-edit gitignore syntax to retire something:
 
-- `arbiter ignore add <path>` appends `/<path>` to `.arbiterignore` (creating it if absent, idempotent —
+- `arbiter configure ignore add <path>` appends `/<path>` to `.arbiterignore` (creating it if absent, idempotent —
   running it twice does not duplicate the line) and deletes the on-disk file **only if it is pristine**
   (`sha256(disk)` matches the manifest baseline) — the same pristine-only rule `planRetirement` applies to
   framework-side retirement (above): a user-modified file is never deleted on the operator's behalf, only
   reported so the edit can be salvaged by hand first. The manifest entry is untouched either way.
-- `arbiter ignore remove <path>` removes the exact `/<path>` line. If a broader pattern (e.g. `docs/`) still
+- `arbiter configure ignore remove <path>` removes the exact `/<path>` line. If a broader pattern (e.g. `docs/`) still
   matches, the path stays ignored and the command says which pattern is still in effect, rather than
   falsely reporting success. Removing the pattern does **not** restore the file itself — that is what the
   next `arbiter update` does, which re-adopts it exactly like any other un-ignored manifest entry.
 
-`diff` reports the result of `arbiter ignore add` as its own **`retired`** status — distinct from the
+`diff` reports the result of `arbiter configure ignore add` as its own **`retired`** status — distinct from the
 standing **`ignored`** status a `.arbiterignore` entry produces for a file that is still present on disk
 (the same "gone counts as ignored [here: retired], not missing" line #2668 drew for the emission-parity
 gate). Retired files get a dedicated trailing section (mirroring the withheld-fixes section above) with
@@ -683,7 +683,7 @@ AC(2)'s "would restore a deleted file" case — a manifest-tracked file the proj
 `new` status a first-time template would get. Unlike `retired`/`ignored`, a pending `restore` DOES count
 toward `hasChanges`/exit 1: `update` will actually recreate that file, so an accidental deletion stays
 visible until the operator either commits to keeping the file (do nothing, `update` restores it) or retires
-it on purpose (`arbiter ignore add`).
+it on purpose (`arbiter configure ignore add`).
 
 ### First run, corruption, and `doctor repair-state`
 
@@ -693,12 +693,12 @@ it on purpose (`arbiter ignore add`).
   stale file immediately, delete it and re-run `arbiter update`.
 - **Corrupt/unparseable manifest** → `arbiter update` fails closed (exit 2). It is never silently treated
   as empty (that would withhold fixes fleet-wide while exiting 0).
-- `arbiter doctor repair-state` re-derives `.arbiter-generated.json` from `arbiter.json` but **cannot**
+- `arbiter lifecycle repair-state` re-derives `.arbiter-generated.json` from `arbiter.json` but **cannot**
   re-derive the manifest (hashes are not a function of config). It warns accordingly; re-run
   `arbiter update` if you suspect drift.
 
 Doctor subcommands accept `--dir` and `--json` after the subcommand name. These options apply to
-the selected operation (for example, `arbiter doctor repair-state --dir /repo --json` repairs that
+the selected operation (for example, `arbiter lifecycle repair-state --dir /repo --json` repairs that
 repository and emits its JSON envelope), rather than falling back to the caller's working directory.
 
 When `arbiter update --adopt-gate-spine` force-adopts a withheld `scripts/check-all.mjs`, the spine

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2039: `arbiter method` — a FEATURE lens over the FIELD-oriented `configure` surface.
+// #2039: `arbiter configure method` — a FEATURE lens over the FIELD-oriented `configure` surface.
 //
 // `configure` answers "what can I set?". Nothing answered "is feature X wired end-to-end,
 // or half on?" — and a solo dev thinks in features, not in dotted paths. `method status`
@@ -502,7 +502,7 @@ function facets(s: FeatureStatus): string {
 }
 
 /**
- * `arbiter method status` — read-only. Exit code stays 0 for a merely partial project:
+ * `arbiter configure method status` — read-only. Exit code stays 0 for a merely partial project:
  * this is a report, not a gate. A gate over the same data is the v1 `--assert-pinned`
  * work, and conflating the two would make `status` unusable in a shell pipeline.
  */
@@ -521,7 +521,7 @@ export function runMethodStatus(opts: MethodStatusOptions = {}): void {
   const statuses = probeAll(targetDir, config)
 
   if (opts.json) {
-    jsonOutput('method', 'ok', {
+    jsonOutput('configure method', 'ok', {
       clusters: CLUSTERS.map((cluster) => ({
         cluster,
         features: statuses.filter((s) => s.cluster === cluster),
@@ -536,7 +536,7 @@ export function runMethodStatus(opts: MethodStatusOptions = {}): void {
     return
   }
 
-  process.stdout.write('\narbiter method — methodology wiring status\n')
+  process.stdout.write('\narbiter configure method — methodology wiring status\n')
   for (const cluster of CLUSTERS) {
     const rows = statuses.filter((s) => s.cluster === cluster)
     if (rows.length === 0) continue
@@ -561,6 +561,6 @@ export function runMethodStatus(opts: MethodStatusOptions = {}): void {
     )
   }
   process.stdout.write(
-    'Tune with `arbiter method` (interactive) — every write is delegated to `arbiter configure`.\n',
+    'Tune with `arbiter configure method` (interactive) — every write is delegated to `arbiter configure`.\n',
   )
 }

@@ -7,7 +7,7 @@
 // ONE authoritative document pair at a fixed path:
 //
 //   .claude/.task/status.json   structured state (phase + cursor + metadata) — single writer
-//   .claude/.task/log.md        append-only human-readable digest (transitions + `arbiter mark`)
+//   .claude/.task/log.md        append-only human-readable digest (transitions + `arbiter lifecycle checkpoint`)
 //
 // Fixed path (not per-sanitized-id) lets generated hooks find state without first reading a
 // `.task-id` dotfile. This module is the LOWER layer: it owns the phase vocabulary and all state
@@ -122,7 +122,7 @@ export interface UnifiedTaskState {
   /** Repo-relative path to the active plan file. */
   plan: string
   cursor: StepCursor
-  /** Task branch name, when known (stamped by `arbiter task init`). */
+  /** Task branch name, when known (stamped by `arbiter lifecycle start`). */
   branch?: string
   /** Schema-validated delivery mode consumed by local evidence guards. */
   collaborationMode?: 'trunk-solo' | 'peer-review' | 'gated-review'

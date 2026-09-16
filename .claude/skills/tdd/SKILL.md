@@ -20,7 +20,7 @@ can only confirm what the code already does, never what it was supposed to do.
 
 1. **RED** — Write one failing test for the next behavior
 2. **Verify RED** — Run the test, confirm it fails for the right reason
-3. **Record RED** — `arbiter task record-red --test-path <path>` (add `--task '#NNN'` for a
+3. **Record RED** — `arbiter lifecycle record-red --test-path <path>` (add `--task '#NNN'` for a
    secondary issue on a train). It runs the test, captures the failure, and writes the
    SHA-pinned evidence file that the `red → green` phase gate reads; advancing into `green`
    refuses without it. A step of the loop, not a separate ceremony: a loop that stops at
@@ -70,7 +70,7 @@ writing tests from your own reading of the issue is grading your own homework.
   FIT rubric maps each `AC-N` to the test line that proves it.
 - State the mapping in the red commit body: "tests map 1:1 to the acceptance criteria of #NNN".
 - A behavior worth implementing that maps to NO criterion means the anchor is incomplete:
-  update the plan anchor first (or capture it via `arbiter note`), don't silently widen scope.
+  update the plan anchor first (or capture it via `arbiter finding add`), don't silently widen scope.
 
 ## When to Skip TDD
 

@@ -19,22 +19,16 @@ describe('levelup orchestrator skill + command templates (#1421)', () => {
     expect(out.length).toBeGreaterThan(50)
   })
 
-  it('renders claude/commands/levelup.md.ejs', () => {
-    const out = renderTemplate('claude/commands/levelup.md.ejs', config)
-    expect(out).toContain('levelup')
-    expect(out.length).toBeGreaterThan(20)
-  })
-
   it('skill composes the existing gold-audit + close-gold-gap CLIs (no new engine)', () => {
     const out = renderTemplate('claude/skills/levelup/SKILL.md.ejs', config)
     // Scoped install command (B1): generated kit invokes the engine via @getarbiter/cli.
-    expect(out).toContain('npx @getarbiter/cli gold-audit')
+    expect(out).toContain('npx @getarbiter/cli audit readiness')
     expect(out).toContain('close-gold-gap')
   })
 
   it('skill gates each wave on the no-regress + anti-fake-green guards (fail-closed)', () => {
     const out = renderTemplate('claude/skills/levelup/SKILL.md.ejs', config)
-    expect(out).toContain('gold-audit --check')
+    expect(out).toContain('audit readiness --check')
     expect(out).toMatch(/anti-fake-green/i)
     expect(out).toMatch(/fail-closed/i)
   })

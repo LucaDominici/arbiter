@@ -46,7 +46,7 @@ describe('runWorktreeList --json envelope shape (W-4)', () => {
     fakeWorktreeList(`worktree /tmp/fake-repo\nHEAD abc\nbranch refs/heads/main\n`)
     runWorktreeList({ json: true, cwd: '/tmp/fake-repo' })
     const parsed = JSON.parse(written) as Record<string, unknown>
-    expect(parsed.command).toBe('worktree-list')
+    expect(parsed.command).toBe('worktree check')
     expect(parsed.version).toBe('1')
     expect(parsed.status).toBe('ok')
     const data = parsed.data as { worktrees: unknown[] }

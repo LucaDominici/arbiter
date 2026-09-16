@@ -5,26 +5,6 @@
     "diffHash": "203f8431db67ba3f6dc1b965426dea5782a7699bcd5514634265ed6a4fc24d50"
   },
   {
-    "path": "commands/wt-close.md",
-    "reason": "Arbiter self-dogfood: extended with improved descriptions referencing .arbiter/worktree-open.log.json and condensed flag documentation. Template ships a simpler description. (Confirmed intentional 2026-05-29, #1092.)",
-    "diffHash": "f192faad566c84f7cc1d0d8abcc9c98474c85eeebd0c1a0d4d5d32efea88e1d1"
-  },
-  {
-    "path": "commands/wt-list.md",
-    "reason": "Arbiter self-dogfood: extended with cross-reference to .arbiter/worktree-open.log.json for task ID mapping. Template ships a simpler description. (Confirmed intentional 2026-05-29, #1092.)",
-    "diffHash": "53a1f4e7c777e6941d975d5de7c024505ffbfe57eb57daefac3603049604a6e0"
-  },
-  {
-    "path": "commands/wt-open.md",
-    "reason": "Arbiter self-dogfood: extended with condensed argument parsing style. Template ships verbose style. (Confirmed intentional 2026-05-29, #1092.)",
-    "diffHash": "4722fc737e2b35f5bd0da037ea61fc2d6316cb05f737b4d397ae35510b89faab"
-  },
-  {
-    "path": "commands/wt-prune.md",
-    "reason": "Arbiter self-dogfood: extended with .arbiter/worktree-open.log.json cleanup step and additional Read/Write tool permissions. Template ships a simpler version. (Confirmed intentional 2026-05-29, #1092.)",
-    "diffHash": "cb2888dacf0532f534bb46d456484181d48411395278f40dbec33b6d3fbd3599"
-  },
-  {
     "path": "hooks/check-no-pii.mjs",
     "reason": "Arbiter self-dogfood: uses findInlineSuppression() from lib.mjs for INV-12 inline suppression support. Target template does not have this dependency yet.",
     "diffHash": "fd9e85123860517ecacbe0592f616ac3afebedef634a6a494c2b9adf9a6a10cc"
@@ -32,7 +12,7 @@
   {
     "path": "hooks/guard-task-completion.mjs",
     "reason": "Arbiter self-dogfood: inlines getRepoRoot() and readTaskState() instead of importing from lib.mjs, making it self-contained for the arbiter repo's own task-lifecycle enforcement. (Confirmed intentional 2026-05-29, #1092.)",
-    "diffHash": "ea3f916c0636437a8048e59f3d0f2385b63a8f8997b5546e444d88df18122e99"
+    "diffHash": "9f520609f3c52f493b1945d415d795aea680ccb2d5f7a936d9d84dd816feeb89"
   },
   {
     "path": "hooks/lib.mjs",
@@ -42,7 +22,7 @@
   {
     "path": "hooks/post-edit-dispatch.mjs",
     "reason": "Arbiter self-dogfood: hardcodes 'npx prettier --check .' (validate, not auto-fix, to avoid silent file changes) and 'npx eslint src __tests__' as the scopeCommandToFile inputs, whereas the template feeds the formatCommand/lintCommand config variables. Both scope to the single edited file via scopeCommandToFile (#1515); the divergence is only the hardcoded vs config-driven command source. (Confirmed intentional 2026-05-29, #1092; updated #1515.)",
-    "diffHash": "63e78167ea7378b8c30a341fbac5b6d469c2284656fb4b742aad45173f87272e"
+    "diffHash": "5d8ee7673dc7410003df31541079dfdae322cb76fb2cfcb4bfbe20798a7fec01"
   },
   {
     "path": "rules/90-exec-protocol.md",
@@ -195,19 +175,19 @@
     "path": "check-doc-set.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). These are two different programs sharing a name, by design. The template is a thin wrapper that calls the fixed project-local Arbiter CLI through shared `runLocalArbiter` for `doc-set`, so a generated project needs no local `yaml` dependency and no engine copy — the audit runs inside arbiter's own environment against the target repo. Self IS that engine: manifest parsing (standards/gold-doc-set.yml), overlay and tier resolution via scripts/lib/doc-set-resolve.mjs, accept_any and glob matching, --generate/--refresh-stubs scaffolding with its write-safety guards (scaffold only when MISSING; refresh only a byte-equal stub), and the structured JSON report consumed by src/generators/doc-set.ts. PERMANENT: the wrapper/engine split is the shipped architecture; collapsing it would force the yaml dependency and the whole engine into every target.",
-    "diffHash": "78a5cbcd862d06bb7005b56ccf61fa9a26440934b9061df3f663331191792ab7"
+    "diffHash": "c653b52f6b48a7407d4312bc085586c22876fed08cad596deb762d123b6a717f"
   },
   {
     "path": "check-doc-freshness.mjs",
     "dest": "scripts",
     "reason": "T4 (gold-doc-tranches-t3-t5.md, design doc §2.3), by design (not drift), R-02 dogfood-parity rollout (#1900): self runs the REAL engine (frontmatter parsing, per-class bars, git change-coupling — scripts/check-doc-freshness.mjs) while the shipped template counterpart is a THIN runner that calls the fixed project-local Arbiter CLI through shared `runLocalArbiter` for `doc-set --freshness`, mirroring the pre-existing check-doc-set.mjs / check-doc-set.mjs.ejs split (the row directly above this one) so governed repos never take the `yaml` dependency. Made permanent-by-design 2026-08-15 (owner-proxy): structural self-hardening, not drift — classifyDivergence exempts un-dated entries from expiry by doctrine.",
-    "diffHash": "cb1ce67f5edc936d92157e659df7127c196dd84d141a81dc66f0ffef6d69d2e9"
+    "diffHash": "af9b1913c42f3f47b63cb4ac5a5540f8d502aba3d7583ebcc0d4cbb9faac6b51"
   },
   {
     "path": "check-arc42-slots.mjs",
     "dest": "scripts",
     "reason": "INV-144, by design (not drift): the third member of the engine/thin-runner family whose first two rows sit directly above (check-doc-set.mjs, check-doc-freshness.mjs). Self IS the engine — arc42 heading parsing into ARC-01..ARC-12, hollow-slot detection, the required set read from the arc42 skeletons, the tier column resolved through scripts/lib/doc-set-resolve.mjs (and so the `yaml` dependency), and the two ratchets over scripts/data/arc42-baseline.json. The shipped template is a thin runner that calls the fixed project-local Arbiter CLI through shared `runLocalArbiter` for `doc-set --arc42`. The split is load-bearing beyond the usual dependency argument: the arc42 SKELETONS the audit compares against live in arbiter, so a governed project reaches the engine where they are rather than carrying a copy that could drift from the skeleton it was generated from. Two things had to be true for that to work and neither was, until #2480's adversarial review: the engine must be in package.json files[] (now enforced by the DERIVED engine set in check-tarball-contents.mjs, because the hand-maintained list from #2335 did not ratchet), and the skeleton path must resolve in the SHIPPED layout, dist/templates, not only in a dev checkout's src/templates. This entry pins the two texts against each other and nothing more — it cannot and does not attest that the delegation reaches a working engine; the tarball gate and the package-shaped test in __tests__/scripts/check-arc42-slots.test.ts do that. PERMANENT: collapsing the split would force both the yaml dependency and a duplicate of the skeletons into every target.",
-    "diffHash": "c82f9051dfc3ac2790d6fe368ac71d435584bc6c26c6883b13ec9a3d440f75cf"
+    "diffHash": "ed263ea808309d1165a4bed92c1fb94436ea8261f0e4a03f6badc1cd01f64e83"
   },
   {
     "path": "check-docs.mjs",
@@ -360,7 +340,7 @@
     "path": "check-tdd-evidence.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). The largest pin, and the two sides are deliberately different programs. The TEMPLATE is self-contained by design: it inlines the TddEvidenceV1 schema, the failure-signature list and the git reachability checks so a target needs no local arbiter install. SELF delegates verification to `tsx src/cli.ts verify tdd` and exports its helpers for unit tests. Both sides now enforce the produced-here floor over subject ∪ body ids (#2217, #2307), so an already-merged task's inherited evidence cannot satisfy the branch floor ('without this the floor is theatre') on EITHER the body- or the subject-cited path. The template applies it TRACKED-CONDITIONALLY: a generated .gitignore ignores .arbiter/ wholesale, so where the evidence file is untracked the guard warns and stands down rather than rejecting every branch, and becomes live the moment a target un-ignores .arbiter/evidence/tdd/*.json (as arbiter does for itself). Both sides exempt only an allowlisted docs-only file set; executable changes in flat, cmd/, internal/, pkg/, nested-module, and gate-script layouts remain governed. Both sides share the ARBITER-SKIP-TDD rejection. PERMANENT: each side's design is forced by whether the arbiter CLI is present.",
-    "diffHash": "f521252e078258a01359a58a9133bf29f386343d48efc668bbcfeec9ac3537f5"
+    "diffHash": "058ee87e63a8ac2a3e9373cb2b5e3abf0c0ea7db36b6db33f8858812d05db12c"
   },
   {
     "path": "check-test-naming.mjs",
@@ -402,7 +382,7 @@
     "path": "check-wiki-lint.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). 118-/151+ that is almost entirely ONE structural change: self wraps the whole body in a try/catch with a fatal handler, so every line is re-indented and appears on both sides of the diff. The four INV-116 dimensions — broken wikilinks, BFS orphan reachability from INDEX.md, stale source_sha via git hash-object, citation integrity against git ls-files — are identical in logic and in message text; self only adds the expected-vs-recorded detail on the stale message and section banners. PERMANENT: the fatal-catch wrapper is self's INV-96 posture for a gate over generated content, where the template lets errors propagate to the emitted runner.",
-    "diffHash": "6101fce4478bc1ae9b592fe7fd69d261938c265133f270e9cab31a9a698ed22e"
+    "diffHash": "64b52ed09038724f26c6b9f7b8f8476061ef029d0e659b0cb815654a4ab924fd"
   },
   {
     "path": "check-workflow-docs-sync.mjs",

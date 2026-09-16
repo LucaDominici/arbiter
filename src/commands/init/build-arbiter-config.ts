@@ -119,7 +119,7 @@ function buildOptionalAxisFields(
  * Only collaborationMode + explicit user overrides (solo.mergeMode, branchingStrategy) are
  * persisted; derived values are re-computed at render time by resolveCollaborationAxes.
  * #1261: the automation block is always persisted explicitly — the Project Profile is a
- * discovery surface (`arbiter settings`); absent stays valid for legacy repos
+ * discovery surface (`arbiter configure show`); absent stays valid for legacy repos
  * (absent ⇒ L0 at every read site), but fresh inits spell it out.
  */
 function buildCollaborationOverrides(config: ProjectConfig): {

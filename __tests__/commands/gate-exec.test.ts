@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// T3 of #1873 (ADR-103): `arbiter gate-exec` — per-repo gate mutex primitive.
+// T3 of #1873 (ADR-103): `arbiter check run` — per-repo gate mutex primitive.
 // Key derivation is per-REPO (git-common-dir), so every worktree of the same
 // repo converges on the same lock; execution delegates acquisition to flock(1)
 // while Node keeps a safety fd until supervisor process-group teardown;

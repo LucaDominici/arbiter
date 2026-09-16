@@ -24,7 +24,7 @@ holes the cross-project gap hunt filed against the capability (AR-5 and AR-3/AR-
 **demote arbiter itself to the SOLO column** the moment it lands, because `arbiter.json` says
 `trunk-solo` — the exact opposite of the parent design's "Self = Enterprise always" rule; (2) H7
 (coherence blind to `arbiter <sub>` ghosts) is unbuilt, the T2 command cut (`3bd2f1db`) killed
-`arbiter mark` while the anti-context-rot skill, two playbooks, and two emitted templates still
+`arbiter lifecycle checkpoint` while the anti-context-rot skill, two playbooks, and two emitted templates still
 instruct it, and the cut's "zero-ref" verification never looked at the doc/template surface at all.
 
 Every anchor below was re-verified against the working tree on `feat/gold-doc-capability-t0-t2`
@@ -148,7 +148,7 @@ a window where self grades itself SOLO. Rule: **floor lands in the same PR as (o
 
 ---
 
-## Fix 2 — CLI-surface coherence (H7) + restore `arbiter mark`
+## Fix 2 — CLI-surface coherence (H7) + restore `arbiter lifecycle checkpoint`
 
 ### 2.1 Verified anatomy of the failure class
 
@@ -162,12 +162,12 @@ commands. Its verification had **two** blind spots, not one:
    emitted runner (e.g. `acme-consumer/scripts/check-doc-set.mjs:18`) broke, and every _future_ scaffold
    would have been born broken. That is H1's root cause; T0 (`f471ce3e`) restored the command but
    not the guard.
-2. **Doc/agent surface (intra-repo!):** `arbiter mark` was cut with live instructions to run it in
+2. **Doc/agent surface (intra-repo!):** `arbiter lifecycle checkpoint` was cut with live instructions to run it in
    `.claude/skills/context-rot-management/SKILL.md:21,52,112,122` (layer 2 of the 3-layer
    durable-redundancy protocol), `.claude/commands/ship.md:58,306`, `.claude/commands/task.md:29`,
    and the emitted templates `src/templates/claude/commands/ship.md.ejs:58,347` and
    `task.md.ejs:34`. The "zero-ref" grep only covered code surfaces. (Correction to the gap
-   report's count: `src/templates/docs/steering/structure.md.ejs:39` says "an arbiter marker" —
+   report's count: `src/templates/docs/steering/structure.md.ejs:39` says "an arbiter lifecycle checkpointer" —
    prose, not an invocation; a backtick-anchored scanner rightly ignores it. Two emitted templates
    instruct `mark`, not three.)
 
@@ -200,7 +200,7 @@ shipped.
 **Accepted blind spots (documented, all verified empty or bounded today):**
 (i) EJS-interpolated command names — none exist (the only `arbiter <%= %>` in the corpus is a
 version string, `src/templates/governance/solo-dev-exception.md.ejs:68`);
-(ii) sub-subcommand depth (`arbiter task <ghost-sub>` passes — first-token granularity, unchanged
+(ii) sub-subcommand depth (`arbiter lifecycle <ghost-sub>` passes — first-token granularity, unchanged
 from the existing gate);
 (iii) runners **already emitted into repos in the field** predate any template fix — that residual
 class is what (b) covers.
@@ -239,11 +239,11 @@ carrying a `// TOMBSTONE(#issue)` marker); **every command the templates cite �
 "cross-repo ref-check before command deletion" gate AR-3 asked for, as data + one loop — not a
 process document. Priority: (a)+(c) are the landing PR; (b) can follow in its own small PR.
 
-### 2.4 Design (c) — `arbiter mark`: RESTORE (not remove), and the evidence for it
+### 2.4 Design (c) — `arbiter lifecycle checkpoint`: RESTORE (not remove), and the evidence for it
 
 Decision: **restore**. Every piece of the feature except the 40-line CLI writer is alive today:
 
-- **Reader alive:** `arbiter task resume` (`src/cli.ts:1248`) still implements pinpoint-resume
+- **Reader alive:** `arbiter lifecycle resume` (`src/cli.ts:1248`) still implements pinpoint-resume
   (#1206) — `src/commands/task.ts:86-93` reads `state.cursor` and lands on the exact next action.
 - **Substrate alive:** `src/commands/task-state.ts` still exports `writeUnifiedState` (`:232`),
   `appendLog` (`:273`), `TddPhase`/`isTddPhase` (`:62-66`) — every import of the deleted file
@@ -251,7 +251,7 @@ Decision: **restore**. Every piece of the feature except the 40-line CLI writer 
 - **Writer dead:** verified no remaining `cursor` writers outside task-state defaults — so #1206
   is currently an unreachable feature: live reader, no possible writer.
 - **Consumers everywhere:** the skill + 2 playbooks + 2 emitted templates (§2.1) all instruct
-  `arbiter mark` — governed repos are scaffolded with instructions for a command that errors.
+  `arbiter lifecycle checkpoint` — governed repos are scaffolded with instructions for a command that errors.
 - **ADR fit:** mark is exactly the ADR-054 pattern (state as fields on the unified status doc via
   the single-writer), so restoring it needs no new decision record — the "status.json fields vs
   restore" fork in the gap report is a false dichotomy: mark **is** the status-fields writer.
@@ -273,9 +273,9 @@ CONTEXT_PACK.md's real provenance.
 
 ```
 $ node scripts/check-phantom-command-scan.mjs --roots=.claude/skills,.claude/commands,.claude/agents,src/templates
-  phantom: .claude/skills/context-rot-management/SKILL.md: `arbiter mark` is not a registered command
-  phantom: .claude/commands/ship.md: `arbiter mark` is not a registered command
-  phantom: .claude/commands/task.md: `arbiter mark` is not a registered command
+  phantom: .claude/skills/context-rot-management/SKILL.md: `arbiter lifecycle checkpoint` is not a registered command
+  phantom: .claude/commands/ship.md: `arbiter lifecycle checkpoint` is not a registered command
+  phantom: .claude/commands/task.md: `arbiter lifecycle checkpoint` is not a registered command
   phantom: .claude/agents/context-checker.md: `arbiter context-pack` is not a registered command
 [check-phantom-command-scan] FAIL: 4 phantom command citation(s) found   (exit=1)
 ```
@@ -290,7 +290,7 @@ fixture `src/templates/claude/commands/x.md.ejs` citing `` `arbiter ghostcmd` ``
 runner with `'arbiter', 'ghostcmd'` → scan exits 1 naming both; remove the citation → exits 0.
 
 **Also red today, resolved by this design:** the _default-roots_ scan already FAILS on this branch
-(3 citations: the sealed methodology doc cites `arbiter mark` — fixed by the restore; the sealed
+(3 citations: the sealed methodology doc cites `arbiter lifecycle checkpoint` — fixed by the restore; the sealed
 gate-model design doc cites `ship-on-red`/`watch` — fixed by the `docs/design/` skip). **This file
 itself adds 4 more** (verified: 7 total after writing it) — a design doc cannot discuss dead
 commands without citing them, which is the living demonstration of why `docs/design/` belongs in

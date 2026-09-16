@@ -511,7 +511,7 @@ function updateBaseline(baselinePath, baseline, required, stubs, gapsByCol, allo
 
 /**
  * The four things argv decides. `--dir` is the tree to AUDIT and defaults to cwd, exactly as
- * check-doc-set.mjs is run by `arbiter doc-set`; `--skeleton-root` is where the arc42 skeletons
+ * check-doc-set.mjs is run by `arbiter audit docs`; `--skeleton-root` is where the arc42 skeletons
  * come from and defaults to arbiter's own install — the two are separate because in production
  * they ARE separate, and conflating them would hold a governed project to a skeleton it carries.
  */

@@ -41,14 +41,14 @@ rest of the wave.
 2. **One cumulative plan** → `.claude/plans/wave-N.md`, a manifest per group (files,
    invariants, the issues' `AC-N` criteria frozen verbatim + non-goals — the INV-138
    anchor tests and review cite, TDD units, conflict risks). Each agent anchors its
-   `arbiter task` to its group's section (CANON-16, `pre-edit-plan-anchor`).
+   `arbiter lifecycle` to its group's section (CANON-16, `pre-edit-plan-anchor`).
 3. **One plan review** — plan review on the cumulative plan + a tier-Standard
    red-team. CRITICAL → rework (max 2 cycles) → else GO for the whole wave.
 4. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`),
    capped at `min(--max-parallel, nproc - 2, wave size)`. Worktrees run **light checks
    only** (targeted `vitest` + lint); the full gate is forbidden in worktrees. Expensive
    gates that can race another agent on the same repo go through
-   `arbiter gate-exec -- <cmd>` (flock(1) mutex — kernel wait, released when the gate-exec
+   `arbiter check run -- <cmd>` (flock(1) mutex — kernel wait, released when the gate-exec
    supervisor is SIGKILL/OOM-killed; killing the Arbiter Node PID alone leaves that
    supervisor holding; fail-closed serial where flock is missing). Caches are per-worktree
    (`symlink-children`). Anti-stall: gate-waits are ONE foreground wait; turn-stalls are
@@ -56,10 +56,10 @@ rest of the wave.
 5. **Local integration** — `wave-N-integration` off `main`: sequential merge in
    minimum-overlap order from the REAL `git diff --name-only` of the branches →
    multiagent review + adversarial verify (evidence file, INV-114) → full gate under the
-   mutex (`arbiter gate-exec -- sh -c 'npm run test && node scripts/check-all.mjs check'`)
+   mutex (`arbiter check run -- sh -c 'npm run test && node scripts/check-all.mjs check'`)
    → `gate-pass.json`.
 6. **One PR per wave** — `Closes #N1, #N2, …`; merge only on GREEN CI.
-7. `/wt-close` (harvest) + `arbiter worktree prune --stale 24` (dry-run, then
+7. `/wt-close` (harvest) + `git worktree prune --stale 24` (dry-run, then
    `--execute`) → next wave, until the backlog is empty.
 
 ## v2 additions (#1873, ADR-103)
@@ -74,8 +74,8 @@ rest of the wave.
 - **Optional 3-hop plan gate:** issues labelled `needs-plan` carry a 3-comment plan trail
   (draft → red-team with `file:line` evidence → final) verified deterministically via
   `gh` before their agent writes code; cost (3 agent-runs/issue) is explicit.
-- **Primitives:** see [wave-primitives](wave-primitives.md) for `arbiter gate-exec`, the
-  `symlink-children` strategy, `arbiter worktree prune --stale`, and the liveness-first
+- **Primitives:** see [wave-primitives](wave-primitives.md) for `arbiter check run`, the
+  `symlink-children` strategy, `git worktree prune --stale`, and the liveness-first
   `isLockStale` fix.
 
 ## Iron law

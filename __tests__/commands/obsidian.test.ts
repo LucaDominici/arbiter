@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// TDD RED tests for #1979: `arbiter obsidian` — thin generic orchestrator that
+// TDD RED tests for #1979: `arbiter docs vault` — thin generic orchestrator that
 // shells out to the vault scripts a consumer repo already received from arbiter
 // (scripts/gen-wiki.mjs, scripts/check-wiki-lint.mjs). No new walker/wikilink
 // engine — see ADR-107 for the CANON-16 reuse survey.
@@ -47,7 +47,7 @@ function listVaultFiles(dir: string, vaultDir = 'wiki'): string[] {
   return execFileSync('find', [p, '-type', 'f'], { encoding: 'utf-8' }).trim().split('\n')
 }
 
-describe('arbiter obsidian (#1979)', () => {
+describe('arbiter docs vault (#1979)', () => {
   let dir: string
 
   afterEach(() => {

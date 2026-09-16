@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1979: `arbiter obsidian` — v1 thin generic orchestrator. It shells out to
+// #1979: `arbiter docs vault` — v1 thin generic orchestrator. It shells out to
 // the vault scripts a governed repo ALREADY received from arbiter
 // (scripts/gen-wiki.mjs, scripts/check-wiki-lint.mjs) rather than
 // reimplementing a walker/wikilink engine.

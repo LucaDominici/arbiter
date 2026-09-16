@@ -11,7 +11,7 @@
  *             coercible set — a broken `features` block) still throws
  *             E_CONFIG_INVALID, proving the fallback is not a swallow-everything.
  *   WORKING — dogfooded separately against a real downstream showcase repo via
- *             `arbiter diff` / `arbiter doctor` (see task report); this file
+ *             `arbiter update --dry-run` / `arbiter status health` (see task report); this file
  *             proves the mechanism in isolation with disposable fixtures.
  *
  * Root cause (docs/EXECUTION-PLAYBOOK.md §T0): a v0.2 `arbiter.json` with a

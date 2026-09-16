@@ -28,12 +28,12 @@ hard to prove was followed.
 
 `arbiter init` generates TDD evidence enforcement at **L2**:
 
-- **INV-26 (TDD evidence):** `arbiter task record-red` captures the failing-test run; `arbiter verify
-tdd` runs in the L2 gate and at `arbiter task advance --to green`. Advancing to implementation
+- **INV-26 (TDD evidence):** `arbiter lifecycle record-red` captures the failing-test run; `arbiter check
+tdd` runs in the L2 gate and at `arbiter lifecycle advance --to green`. Advancing to implementation
   without a recorded red test is blocked. Recording the test file's path and a failure-signature
   string was not sufficient on its own: evidence could name a specific test that did not exist yet
   at the recorded commit (the file existed, that test did not — a real false-green found downstream).
-  Arbiter's own `arbiter verify tdd` now re-executes the recorded test command in an isolated,
+  Arbiter's own `arbiter check tdd` now re-executes the recorded test command in an isolated,
   detached checkout of the recorded commit and requires the reproduced failure to match byte-for-byte
   (#1957); evidence recorded before this check lacks the data to be re-verified and fails closed
   until re-recorded.
@@ -50,7 +50,7 @@ In a generated L2 project:
 
 ```bash
 # Write implementation with no recorded red test, then:
-arbiter verify tdd            # blocks — no failing-test evidence
+arbiter check tdd            # blocks — no failing-test evidence
 # Java projects:
 node scripts/check-all.mjs L2 # runs the generated pitest mutation gate
 ```

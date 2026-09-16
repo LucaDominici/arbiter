@@ -18,7 +18,7 @@
 // pattern read, the marker location, the file-bypass evidence log — is anchored at the
 // worktree the EDITED FILE lives in (`git -C <the file's dir> rev-parse --show-toplevel`),
 // not at the hook process's cwd. Anchoring at the process cwd silently un-guarded every
-// sanctioned worktree: `arbiter worktree open` places those at
+// sanctioned worktree: `git worktree add` places those at
 // `<repoParent>/<repoName>.worktrees/<slug>` (src/worktree/paths.ts), a SIBLING of the
 // main root, so `relative(mainRoot, fileInWorktree)` began with '..' and the guard
 // exited 0 before matching a single pattern. Repo MEMBERSHIP is NOT re-derived here —

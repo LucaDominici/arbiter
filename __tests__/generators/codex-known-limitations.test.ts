@@ -115,7 +115,7 @@ describe('buildKnownLimitations', () => {
   it('lists commands, agents, and skills inventories with content', () => {
     const kl = buildKnownLimitations(config())
     expect(kl.commands).toContain('ship')
-    expect(kl.commands).toContain('task')
+    expect(kl.commands).toContain('audit')
     expect(kl.agents).toContain('red-team')
     expect(kl.skills.length).toBeGreaterThan(0)
   })

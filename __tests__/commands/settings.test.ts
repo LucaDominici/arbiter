@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1121: `arbiter settings` discovery view + SSOT coverage of ALLOWED_PATHS.
+// #1121: `arbiter configure show` discovery view + SSOT coverage of ALLOWED_PATHS.
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -122,7 +122,7 @@ describe('settings catalog (#1121)', () => {
     expect(group?.group).toBe('Automation')
   })
 
-  // #1306: the orchestration prefs must be discoverable in `arbiter settings`.
+  // #1306: the orchestration prefs must be discoverable in `arbiter configure show`.
   // #2329 removed the third (automation.affinityBatching) — pinned absent in
   // __tests__/config/affinity-batching-removed.test.ts.
   it('surfaces the #1306 orchestration prefs in the Automation group', () => {

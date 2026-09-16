@@ -197,7 +197,7 @@ function resolveGatePlan(root, state, phase) {
   const planRef = typeof planField === 'string' && planField !== 'unknown' ? planField : null
   if (!planRef) {
     fail(
-      `phase ${phase} requires an anchored plan (arbiter task init --plan <path>). ` +
+      `phase ${phase} requires an anchored plan (arbiter lifecycle start --plan <path>). ` +
         'Escape hatch: ARBITER_ACCEPTANCE_ANCHOR=0',
     )
     return { exit: 2 }

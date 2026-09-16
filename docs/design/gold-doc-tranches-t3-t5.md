@@ -41,7 +41,7 @@ retained as historical design and red-path evidence.
 
 | Piece                                                     | Where (verified)                                                                                                                                                                                                                                              |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `arbiter doc-set` CLI (T0/H1)                             | `src/cli.ts:884` (hidden command) → `src/commands/doc-set.ts` (thin wrapper, forwards engine verdict; parity test `__tests__/commands/doc-set.test.ts` pins "exactly one engine")                                                                             |
+| `arbiter audit docs` CLI (T0/H1)                          | `src/cli.ts:884` (hidden command) → `src/commands/doc-set.ts` (thin wrapper, forwards engine verdict; parity test `__tests__/commands/doc-set.test.ts` pins "exactly one engine")                                                                             |
 | `tiers{}` + column resolution (T1/H3)                     | `scripts/check-doc-set.mjs:160-201` (`TIER_COLUMN`, `resolveCollaborationMode`, `loadTierColumn`, `requirementFor` — fail-closed on malformed cell `:198-200`); manifest rows carry `tiers{}` + `freshness_class` (`standards/gold-doc-set.yml:14-26` header) |
 | Subtree recognition (T2/H2, **uncommitted working tree**) | `scripts/check-doc-set.mjs:83-87` (`**` via `walkRepo`/`globToRegExp`), `:149-158` (`adrPresentAnywhere`), manifest `accept_any` widened (`standards/gold-doc-set.yml:146-156`)                                                                               |
 | Governed thin runner                                      | `src/templates/scripts/check-doc-set.mjs.ejs` (spawn-array `'arbiter', 'doc-set'`); emitted via `UNCONDITIONAL_EMISSIONS` (`src/generators/check-all.ts:180-181`); wired advisory in governed check-all (`src/templates/scripts/check-all.mjs.ejs:1115-1119`) |
@@ -134,20 +134,20 @@ directory.
    `key: 'doc-set-skeletons'`, enabled always — the manifest is on disk by the time it runs
    (writeFile is immediate in a real run). **dryRun edge (documented):** on a fresh
    `init --dry-run` the manifest is not yet on disk, the engine SKIPs, and the generator reports
-   `skeletons: planned after manifest emission — run 'arbiter doc-set --plan' post-init`. Honest,
+   `skeletons: planned after manifest emission — run 'arbiter audit docs --plan' post-init`. Honest,
    no phantom plan.
 
-**(d) Command surface** — `arbiter doc-set` gains `--plan` / `--apply` (options on the existing
+**(d) Command surface** — `arbiter audit docs` gains `--plan` / `--apply` (options on the existing
 hidden command; `src/commands/doc-set.ts` routes them to the generator instead of the engine
 passthrough):
 
 ```bash
-arbiter doc-set --plan    # table: present · would-scaffold(+template id) · unbound · withheld. Writes nothing.
-arbiter doc-set --apply   # scaffolds missing bound skeletons (skipIfExists) + banner upgrades; reports withheld
+arbiter audit docs --plan    # table: present · would-scaffold(+template id) · unbound · withheld. Writes nothing.
+arbiter audit docs --apply   # scaffolds missing bound skeletons (skipIfExists) + banner upgrades; reports withheld
 ```
 
 `--plan` = `dryRun: true` through the same code path (the `src/utils/fs.ts` action table guarantees
-plan/apply parity). Re-entry after user customization is `arbiter diff`/`update`'s three-way
+plan/apply parity). Re-entry after user customization is `arbiter update --dry-run`/`update`'s three-way
 surface — because the skeletons are emitted by a registered generator, the generated-manifest
 records their hashes and a user-modified skeleton is `withheld`, never overwritten. Scope parity
 with the engine's `--generate`: mandatory + recommended.
@@ -158,7 +158,7 @@ engine (`requirementFor`, `check-doc-set.mjs:192-201`) — they never appear in 
 
 ### 1.3 Red path — prova
 
-- **RED today:** `arbiter doc-set --apply` does not exist as a flag; the only scaffold is the
+- **RED today:** `arbiter audit docs --apply` does not exist as a flag; the only scaffold is the
   banner (`:231-232`).
 - **Unit (fixture repo, small column + `deploys` overlay, no `docs/operations/slo.md`):**
   `--apply` writes a file whose body contains the real section headers
@@ -169,8 +169,8 @@ engine (`requirementFor`, `check-doc-set.mjs:192-201`) — they never appear in 
   file with one edited character → reported `withheld`, bytes untouched.
 - **Right-sizing:** trunk-solo fixture with SLA overlay off → `--plan` lists **no** SLO/threat-model
   rows (RED if the generator ever grows its own resolution).
-- **Dogfood:** `arbiter doc-set --plan` on acme-team (peer-review = small): plan lists the small
-  column's bound gaps; apply one, hand-edit it, run `arbiter diff` → `withheld`.
+- **Dogfood:** `arbiter audit docs --plan` on acme-team (peer-review = small): plan lists the small
+  column's bound gaps; apply one, hand-edit it, run `arbiter update --dry-run` → `withheld`.
 
 ---
 
@@ -251,14 +251,14 @@ pre-push gate is the solo-dev's required check, `:111-117`; everything slower ri
   liveness-asserted by the heartbeat (`09-heartbeat.yml.ejs:186-187`, ≤35d) — so worst-case rot is
   bounded by `bar + 35d` without touching pre-push latency.
 
-| Surface                                               | Wiring                                                                                                                                                                                                                                                                                                                                                                                             |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Self (industrial)                                     | New job in `_monthly.yml` (`fetch-depth: 0`): `node scripts/check-doc-freshness.mjs` HARD. Plus one HARD step in `05-release.yml` (release-tag blocking). **NOT** in `check-all.mjs` L2 — pre-push stays fast.                                                                                                                                                                                     |
-| Governed engine access                                | No local engine copy: thin runner `src/templates/scripts/check-doc-freshness.mjs.ejs` calls the fixed project-local Arbiter CLI through shared `runLocalArbiter`, mirroring `check-doc-set.mjs.ejs`. Added to `UNCONDITIONAL_EMISSIONS` (`src/generators/check-all.ts`, beside `:180-181`).                                                                                                        |
-| CLI surface                                           | **No new top-level command.** `--freshness` on `arbiter doc-set` routes the wrapper to the freshness engine script (`src/commands/doc-set.ts` selects the script path; everything else — runCli, exit forwarding, payload parse — is reused). Rationale: every new emitted `arbiter <sub>` is a phantom-scan + ledger liability (addendum §2.2-2.3); a flag on an already-ledgered command is not. |
-| Governed banding (`pipelineStyle`, emission-time EJS) | `starter`: runner emitted, wired advisory in `_monthly.yml.ejs`; `standard`: monthly HARD; `industrial`: monthly HARD + release-workflow HARD. The script itself never softens — banding is purely where/how it is wired.                                                                                                                                                                          |
-| Ledger (T5b″ coordination)                            | `standards/cli-emitted-surface.yml` row `doc-set` gains `emitted_by: [..., 'src/templates/scripts/check-doc-freshness.mjs.ejs']`. The addendum's extended phantom scan (spawn-array matcher over `src/templates/scripts/*.mjs.ejs`) covers the new runner automatically.                                                                                                                           |
-| Stamp gate                                            | `check-monthly-freshness.mjs` is KEPT — it asserts the monthly lane itself ran (lane liveness); the new gate asserts docs are not rotten (content staleness). Different axes, both real.                                                                                                                                                                                                           |
+| Surface                                               | Wiring                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Self (industrial)                                     | New job in `_monthly.yml` (`fetch-depth: 0`): `node scripts/check-doc-freshness.mjs` HARD. Plus one HARD step in `05-release.yml` (release-tag blocking). **NOT** in `check-all.mjs` L2 — pre-push stays fast.                                                                                                                                                                                        |
+| Governed engine access                                | No local engine copy: thin runner `src/templates/scripts/check-doc-freshness.mjs.ejs` calls the fixed project-local Arbiter CLI through shared `runLocalArbiter`, mirroring `check-doc-set.mjs.ejs`. Added to `UNCONDITIONAL_EMISSIONS` (`src/generators/check-all.ts`, beside `:180-181`).                                                                                                           |
+| CLI surface                                           | **No new top-level command.** `--freshness` on `arbiter audit docs` routes the wrapper to the freshness engine script (`src/commands/doc-set.ts` selects the script path; everything else — runCli, exit forwarding, payload parse — is reused). Rationale: every new emitted `arbiter <sub>` is a phantom-scan + ledger liability (addendum §2.2-2.3); a flag on an already-ledgered command is not. |
+| Governed banding (`pipelineStyle`, emission-time EJS) | `starter`: runner emitted, wired advisory in `_monthly.yml.ejs`; `standard`: monthly HARD; `industrial`: monthly HARD + release-workflow HARD. The script itself never softens — banding is purely where/how it is wired.                                                                                                                                                                             |
+| Ledger (T5b″ coordination)                            | `standards/cli-emitted-surface.yml` row `doc-set` gains `emitted_by: [..., 'src/templates/scripts/check-doc-freshness.mjs.ejs']`. The addendum's extended phantom scan (spawn-array matcher over `src/templates/scripts/*.mjs.ejs`) covers the new runner automatically.                                                                                                                              |
+| Stamp gate                                            | `check-monthly-freshness.mjs` is KEPT — it asserts the monthly lane itself ran (lane liveness); the new gate asserts docs are not rotten (content staleness). Different axes, both real.                                                                                                                                                                                                              |
 
 ### 2.4 Red path — prova
 
@@ -284,7 +284,7 @@ pre-push gate is the solo-dev's required check, `:111-117`; everything slower ri
 - **`tier_floor: enterprise`** in `standards/doc-profile` with max() semantics — addendum §1
   (T1b). T1b is implemented; the self profile now resolves the enterprise floor before charter
   checks are evaluated.
-- **H7 = phantom-command-scan extension + emitted-surface ledger + `arbiter mark` restore** —
+- **H7 = phantom-command-scan extension + emitted-surface ledger + `arbiter lifecycle checkpoint` restore** —
   addendum §2 (T5b′/T5b″), which supersedes the parent §5.4 emission-coherence sketch (two drift
   models, two gates: file-paths stay with `check-emission-coherence.mjs`, command-existence with
   `check-phantom-command-scan.mjs` over the SSOT `cli.ts` parser). Nothing to add here except the
@@ -365,7 +365,7 @@ transcription; verification stays with the orchestrator.
 
 **Exit criteria (each = WIRED + TESTED-red-path + WORKING-dogfood):**
 
-- **T3:** `arbiter doc-set --plan/--apply` live; ≥1 real skeleton per bound row of §1.2(b);
+- **T3:** `arbiter audit docs --plan/--apply` live; ≥1 real skeleton per bound row of §1.2(b);
   banner-upgrade + withheld tests green; acme-team dogfood run recorded.
 - **T4:** engine + shared-resolve refactor with frozen engine parity; monthly + release wiring on
   both self and governed templates; all §2.4 fixtures green; self monthly run produces the JSON

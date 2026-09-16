@@ -44,10 +44,7 @@ function run(cwd: string, args: string[]) {
 }
 
 function placements(command: 'plan' | 'tdd', value: string, dir: string): string[][] {
-  return ['validate', 'verify'].flatMap((alias) => [
-    [alias, '--dir', dir, command, value, '--json'],
-    [alias, command, value, '--dir', dir, '--json'],
-  ])
+  return [['check', command, value, '--dir', dir, '--json']]
 }
 
 function installBlockingPlanPlugin(dir: string): void {
@@ -152,7 +149,7 @@ function createTddFixture(root: string): { valid: string; malformed: string } {
   return { valid, malformed }
 }
 
-describe('verify plan/TDD honors the selected --dir (#2686)', () => {
+describe('check plan/TDD honors the selected --dir (#2686)', () => {
   it('loads target B plan rules and persists review in B for both aliases and positions (AC-1, AC-4)', () => {
     const root = fixtureRoot()
     const cwd = join(root, 'A')
@@ -184,7 +181,7 @@ describe('verify plan/TDD honors the selected --dir (#2686)', () => {
     mkdirSync(cwd)
     const plan = join(root, 'PLAN.json')
     writeFileSync(plan, readFileSync(PLAN_FIXTURE))
-    const result = run(cwd, ['verify', 'plan', plan, '--json'])
+    const result = run(cwd, ['check', 'plan', plan, '--json'])
     const output = JSON.parse(result.stdout) as { data: { status: string; reviewPath: string } }
     expect(result.status).toBe(0)
     expect(output.data.status).toBe('APPROVED')
@@ -211,12 +208,12 @@ describe('verify plan/TDD honors the selected --dir (#2686)', () => {
       expect(output.data.exitCode).toBe(0)
       expect(output.data.checks).toHaveLength(6)
     }
-    expect(run(valid, ['verify', 'tdd', TASK, '--dir', '.', '--json']).status).toBe(0)
+    expect(run(valid, ['check', 'tdd', TASK, '--dir', '.', '--json']).status).toBe(0)
   }, 120_000)
 
   it('keeps TDD rooted in cwd without --dir (AC-3)', () => {
     const { valid, malformed } = createTddFixture(fixtureRoot())
-    expect(run(valid, ['validate', 'tdd', TASK, '--json']).status).toBe(0)
-    expect(run(malformed, ['verify', 'tdd', TASK, '--json']).status).toBe(1)
+    expect(run(valid, ['check', 'tdd', TASK, '--json']).status).toBe(0)
+    expect(run(malformed, ['check', 'tdd', TASK, '--json']).status).toBe(1)
   }, 60_000)
 })

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1168 Phase 3: `arbiter doctor --interactive` — run the health check, then
+// #1168 Phase 3: `arbiter status health --interactive` — run the health check, then
 // offer a one-key repair when fixable issues are present. Delegates the actual
 // work to runDoctorHealth so behaviour stays identical to the non-interactive path.
 
@@ -20,7 +20,7 @@ export interface InteractiveDoctorOptions {
 export async function runInteractiveDoctor(opts: InteractiveDoctorOptions = {}): Promise<void> {
   const dir = opts.dir
   const codexHome = opts.codexHome
-  intro('arbiter doctor')
+  intro('arbiter status health')
 
   const first = await runDoctorHealth({
     ...(dir !== undefined ? { dir } : {}),

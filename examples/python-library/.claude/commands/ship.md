@@ -17,7 +17,7 @@ related: []
 possibly backed by several related issues. Work is done only after merge, green CI, and live proof
 when the capability has a live surface.
 
-`arbiter ship` owns the next action and lifecycle state. Follow its output. Use `arbiter task`
+`arbiter ship` owns the next action and lifecycle state. Follow its output. Use `arbiter lifecycle`
 subcommands only for recovery or direct lifecycle control; they enforce the same gates.
 
 ## Start and resume
@@ -34,7 +34,7 @@ second form. Repeat until `Phase: complete (done)`. After context loss, call the
 Keep the cursor precise during implementation:
 
 ```bash
-arbiter mark --tdd GREEN --last '<completed result>' --next '<one executable next action>' --digest '<one line>'
+arbiter lifecycle checkpoint --tdd GREEN --last '<completed result>' --next '<one executable next action>' --digest '<one line>'
 ```
 
 ## Adaptive treatment
@@ -129,7 +129,7 @@ current lane.
 | `plan`            | Freeze acceptance, non-goals, files, proof, and rollback.                                                                                  |             0 |
 | `red-team-review` | For Standard/Sensitive, dispatch the targeted plan challenge and record `.arbiter/evidence/redteam/<task-id>.json`; XS/S advance directly. |     treatment |
 | `red-team-rework` | Reconcile blocking plan findings in one batch, then re-enter review.                                                                       |             0 |
-| `red`             | Use the `tdd` skill to write failing tests and `arbiter task record-red`.                                                                  |             0 |
+| `red`             | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                                                  |             0 |
 | `green`           | Implement the smallest executable capability and run targeted checks.                                                                      |             0 |
 | `refactor`        | Freeze HEAD; dispatch the treatment's final reviewers and independent acceptance-fit verifier.                                             |     treatment |
 | `verification`    | Require review and acceptance evidence, then run one full clean-HEAD gate.                                                                 |             0 |
@@ -167,7 +167,7 @@ node scripts/record-agent-return.mjs --mode ac-fit --task '#NNN' <<'JSON'
 JSON
 ```
 
-`arbiter task advance --to verification` runs the canonical review-completion and acceptance-fit
+`arbiter lifecycle advance --to verification` runs the canonical review-completion and acceptance-fit
 checkers before changing phase. The final full gate writes the exact-subject receipt. A source change
 invalidates it; evidence-only commits may preserve it when the binding checker proves source content
 unchanged.

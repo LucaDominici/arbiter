@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter doctor
+// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter status health
 // repair-state` subcommand (#619). Pure extraction, no behavior change.
 import { existsSync } from 'node:fs'
 import { ensureDir } from '../../utils/fs.js'
@@ -22,7 +22,7 @@ export interface DoctorRepairStateResult {
   snapshotPath: string
 }
 
-const REPAIR_STATE_CMD = 'doctor repair-state'
+const REPAIR_STATE_CMD = 'lifecycle repair-state'
 
 export async function runDoctorRepairState(
   opts: DoctorRepairStateOptions = {},
@@ -72,8 +72,10 @@ export async function runDoctorRepairState(
       warnings: [manifestWarning],
     })
   } else {
-    process.stdout.write(`doctor: snapshot re-derived from arbiter.json → ${snapshotPath}\n`)
-    process.stderr.write(`doctor: warning — ${manifestWarning}\n`)
+    process.stdout.write(
+      `lifecycle repair-state: snapshot re-derived from arbiter.json → ${snapshotPath}\n`,
+    )
+    process.stderr.write(`lifecycle repair-state: warning — ${manifestWarning}\n`)
   }
   return { exitCode: 0, repaired: true, snapshotPath }
 }

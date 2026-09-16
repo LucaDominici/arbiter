@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `arbiter gate-exec [--key K] -- <cmd...>` — per-repo gate mutex (#1873 T3, ADR-103).
+ * `arbiter check run [--key K] -- <cmd...>` — per-repo gate mutex (#1873 T3, ADR-103).
  *
  * Serializes expensive gates across N parallel worktree agents of the SAME
  * repo. Deterministic leaf primitive (ADR-103 §2): no orchestration state, no

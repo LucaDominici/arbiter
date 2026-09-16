@@ -64,27 +64,27 @@ describe('post-brainstorm-stop — marker creation', () => {
   })
 })
 
-describe('post-brainstorm-stop — /task blocked when marker active', () => {
-  it('/task prompt with active marker → exit 2', () => {
-    const r = runHook({ prompt: '/task #123', markerExists: true, repoSubdir: 'repo-block' })
+describe('post-brainstorm-stop — /ship blocked when marker active', () => {
+  it('/ship prompt with active marker → exit 2', () => {
+    const r = runHook({ prompt: '/ship #123', markerExists: true, repoSubdir: 'repo-block' })
     expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/brainstorm/i)
   })
 
   it('stderr cites exact marker file path', () => {
-    const r = runHook({ prompt: '/task #456', markerExists: true, repoSubdir: 'repo-path' })
+    const r = runHook({ prompt: '/ship #456', markerExists: true, repoSubdir: 'repo-path' })
     expect(r.status).toBe(2)
     expect(r.stderr).toContain('brainstorm-active')
   })
 
   it('stderr includes one-line clear instruction', () => {
-    const r = runHook({ prompt: '/task #789', markerExists: true, repoSubdir: 'repo-clear' })
+    const r = runHook({ prompt: '/ship #789', markerExists: true, repoSubdir: 'repo-clear' })
     expect(r.status).toBe(2)
     expect(r.stderr).toMatch(/rm|clear|delete|remove/i)
   })
 })
 
-describe('post-brainstorm-stop — non-/task prompts pass through', () => {
+describe('post-brainstorm-stop — non-/ship prompts pass through', () => {
   it('regular prompt passes when marker active → exit 0', () => {
     const r = runHook({
       prompt: 'what is the current state of auth?',
@@ -95,23 +95,23 @@ describe('post-brainstorm-stop — non-/task prompts pass through', () => {
   })
 
   it('/review prompt is not blocked → exit 0', () => {
-    const r = runHook({ prompt: '/review-code', markerExists: true, repoSubdir: 'repo-review' })
+    const r = runHook({ prompt: '/review', markerExists: true, repoSubdir: 'repo-review' })
     expect(r.status).toBe(0)
   })
 })
 
 describe('post-brainstorm-stop — no marker → always pass', () => {
-  it('/task passes when no marker exists → exit 0', () => {
-    const r = runHook({ prompt: '/task #123', markerExists: false, repoSubdir: 'repo-nomark' })
+  it('/ship passes when no marker exists → exit 0', () => {
+    const r = runHook({ prompt: '/ship #123', markerExists: false, repoSubdir: 'repo-nomark' })
     expect(r.status).toBe(0)
   })
 })
 
 describe('post-brainstorm-stop — 24h auto-expire', () => {
-  it('marker older than 24h is auto-cleared → /task allowed', () => {
+  it('marker older than 24h is auto-cleared → /ship allowed', () => {
     const TWENTY_FIVE_HOURS_MS = 25 * 60 * 60 * 1000
     const r = runHook({
-      prompt: '/task #111',
+      prompt: '/ship #111',
       markerExists: true,
       markerAgeMs: TWENTY_FIVE_HOURS_MS,
       repoSubdir: 'repo-expire',
@@ -124,7 +124,7 @@ describe('post-brainstorm-stop — 24h auto-expire', () => {
   it('marker exactly 24h old is still blocked (boundary: < not <=)', () => {
     const TWENTY_THREE_HOURS_MS = 23 * 60 * 60 * 1000
     const r = runHook({
-      prompt: '/task #222',
+      prompt: '/ship #222',
       markerExists: true,
       markerAgeMs: TWENTY_THREE_HOURS_MS,
       repoSubdir: 'repo-fresh',

@@ -146,7 +146,7 @@ try {
 
   const ls = spawnSync('git', ['ls-files', '--', WIKI_DIR], { encoding: 'utf-8', cwd: root })
   const wikiTracked = ls.status === 0 && ls.stdout.trim().length > 0
-  // --assert-stale: a caller that asks about freshness itself (arbiter obsidian --validate-only)
+  // --assert-stale: a caller that asks about freshness itself (arbiter docs vault --validate-only)
   // keeps the dimension even for an untracked vault; the gate default is the review contract.
   const assertStale = wikiTracked || args.includes('--assert-stale')
   if (!assertStale) {

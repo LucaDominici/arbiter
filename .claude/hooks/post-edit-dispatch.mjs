@@ -32,7 +32,7 @@ if (!existsSync(filePath)) process.exit(0)
 const root = getRepoRoot()
 
 // ── Step 1: FORMAT (scoped to the edited file, #1515) ────────────────────────
-// arbiter validates (`--check`) rather than auto-writing, to avoid silent edits.
+// arbiter checks (`--check`) rather than auto-writing, to avoid silent edits.
 const formatParts = scopeCommandToFile('npx prettier --check .', filePath)
 if (formatParts.length > 0) {
   const formatResult = spawnSync(formatParts[0], formatParts.slice(1), {

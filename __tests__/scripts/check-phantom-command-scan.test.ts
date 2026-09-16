@@ -29,8 +29,8 @@ describe('extractCitedCommands', () => {
   })
 
   it('extracts multiple distinct citations', () => {
-    const md = 'Use `arbiter validate` then `arbiter doctor`.'
-    expect(extractCitedCommands(md)).toEqual(new Set(['validate', 'doctor']))
+    const md = 'Use `arbiter check` then `arbiter status health`.'
+    expect(extractCitedCommands(md)).toEqual(new Set(['check', 'status']))
   })
 
   it('does not match bare prose without backticks', () => {
@@ -155,9 +155,9 @@ describe('check-phantom-command-scan.mjs — real repo (INV-111 extension)', () 
     expect(r.status).toBe(0)
   })
 
-  it('does not flag `arbiter verify` (real alias of validate) or `arbiter wt` (real alias of worktree)', () => {
+  it('accepts canonical roots and rejects retired aliases', () => {
     const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: resolve('.') })
-    expect(r.stdout).not.toContain('`arbiter verify`')
+    expect(r.stdout).not.toContain('`arbiter check`')
     expect(r.stdout).not.toContain('`arbiter wt`')
   })
 })
@@ -551,10 +551,12 @@ describe('check-phantom-command-scan.mjs — subcommand-token validation (AC-223
   // and plain top-level registrations.
   const CLI_WITH_SUBCOMMANDS =
     "import { Command } from 'commander'\nconst program = new Command()\n" +
-    "const review = program.command('review').description('Semantic diff between graph snapshots')\n" +
-    "review\n  .command('diff')\n  .description('Semantic diff between two graph snapshots')\n" +
-    "const verify = program\n  .command('validate')\n  .alias('verify')\n  .description('Validate')\n" +
-    "verify\n  .command('tdd <task-id>')\n  .description('Verify TDD red-phase evidence')\n" +
+    "const graph = program.command('graph').description('Provenance graph')\n" +
+    "graph\n  .command('diff')\n  .description('Semantic diff between two graph snapshots')\n" +
+    "const review = program.command('review').description('Reviews')\n" +
+    "review\n  .command('cross-model')\n  .description('Cross-model review')\n" +
+    "const check = program.command('check').description('Checks')\n" +
+    "check\n  .command('tdd <task-id>')\n  .description('Verify TDD red-phase evidence')\n" +
     "program.command('ship [id]').description('Orchestrate an issue')\n" +
     "program.command('init').description('Init')\n" +
     "program.command('update').description('Update')\n"
@@ -602,14 +604,14 @@ describe('check-phantom-command-scan.mjs — subcommand-token validation (AC-223
     }
   })
 
-  it("accepts `arbiter verify tdd '#NNN'` — tdd IS a real subcommand, reached through the validate alias", () => {
+  it("accepts `arbiter check tdd '#NNN'` — tdd IS a real subcommand, under the canonical check root", () => {
     const dir = mkdtempSync(join(tmpdir(), 'phantom-sub-alias-'))
     try {
       const r = runInTemp(
         dir,
         CLI_WITH_SUBCOMMANDS,
         'docs/tdd.md',
-        "Run `arbiter verify tdd '#NNN' --json` to replay the audit.\n",
+        "Run `arbiter check tdd '#NNN' --json` to replay the audit.\n",
       )
       expect(r.status).toBe(0)
       expect(r.stdout).not.toContain('phantom:')
@@ -618,14 +620,14 @@ describe('check-phantom-command-scan.mjs — subcommand-token validation (AC-223
     }
   })
 
-  it('accepts a real subcommand pair in chain form (`arbiter review diff`)', () => {
+  it('accepts a real subcommand pair in chain form (`arbiter graph diff`)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'phantom-sub-real-'))
     try {
       const r = runInTemp(
         dir,
         CLI_WITH_SUBCOMMANDS,
         'docs/ref.md',
-        'Run `arbiter review diff origin/main HEAD`.\n',
+        'Run `arbiter graph diff origin/main HEAD`.\n',
       )
       expect(r.status).toBe(0)
       expect(r.stdout).not.toContain('phantom:')
@@ -655,8 +657,8 @@ describe('extractFencedCitations (#2408)', () => {
   })
 
   it('captures a subcommand token as a pair', () => {
-    const md = '```sh\narbiter plugin add my-plugin\n```\n'
-    expect(extractFencedCitations(md).pairs.get('plugin')).toEqual(new Set(['add']))
+    const md = '```sh\narbiter configure plugin add my-plugin\n```\n'
+    expect(extractFencedCitations(md).pairs.get('configure')).toEqual(new Set(['plugin']))
   })
 
   it('scans an unlabeled fence', () => {

@@ -92,7 +92,7 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 ### Phase 3 — Update and Diff (shipped in v0.1)
 
 - `arbiter update`: re-run generation on existing repo (idempotent)
-- `arbiter diff`: preview what would change without writing
+- `arbiter update --dry-run`: preview what would change without writing
 - `arbiter.json`: persisted config (skip wizard on subsequent runs)
 
 ### Phase 4 — Extended Tool Support (shipped in v0.1, **retired in 0.6.0**)

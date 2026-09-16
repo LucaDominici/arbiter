@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// `arbiter doc-set` — a THIN wrapper over the SSOT gold doc-set engine (H1, gold-doc-capability).
+// `arbiter audit docs` — a THIN wrapper over the SSOT gold doc-set engine (H1, gold-doc-capability).
 //
 // Existing Code Survey: the presence-audit ENGINE already exists as scripts/check-doc-set.mjs
 // (overlays, accept_any, glob, ADR dual-recognition, write-safe --generate, --strict). No second
@@ -8,7 +8,7 @@
 // wrapper over gold-audit.mjs).
 //
 // Why this command had to exist (H1): before the fixed-local runner contract, the generated
-// governed-repo thin-runner invoked `arbiter doc-set` but no such CLI command was registered, so
+// governed-repo thin-runner invoked `arbiter audit docs` but no such CLI command was registered, so
 // every governed repo's doc-set presence gate failed with `error: unknown command 'doc-set'`. This
 // file is what the current project-local runner resolves.
 
@@ -322,14 +322,14 @@ function callerRelative(opts: DocSetOptions): DocSetOptions {
 function report(opts: DocSetOptions, parsed: Parsed, run: EngineRun): void {
   if (parsed.kind === 'skip') {
     // INV-53: a SKIP keeps exit 0 — the envelope, not the exit code, carries the non-ok signal.
-    jsonOutput('doc-set', 'warning', { skipped: true, reason: parsed.reason }, undefined, {
+    jsonOutput('audit docs', 'warning', { skipped: true, reason: parsed.reason }, undefined, {
       warnings: [`SKIP: ${parsed.reason}`],
     })
   } else if (parsed.kind === 'invalid') {
-    jsonOutput('doc-set', 'error', {}, [parsed.error])
+    jsonOutput('audit docs', 'error', {}, [parsed.error])
   } else if (opts.json) {
     const data = parsed.kind === 'payload' ? { ...parsed.payload } : {}
-    jsonOutput('doc-set', statusFor(run.exitCode), data)
+    jsonOutput('audit docs', statusFor(run.exitCode), data)
   } else if (run.stdout) {
     process.stdout.write(run.stdout)
   }

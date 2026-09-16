@@ -41,7 +41,7 @@ precedence over `arbiter.json` for testing/CI. An absent `arbiter.json` leaves t
 - the prompt contains a completion claim (`task complete`, `pr merged`, …).
 
 The prompt and Stop guards validate the same receipt contract as the independent
-engine used by `arbiter task advance --to complete`: current task, passed state,
+engine used by `arbiter lifecycle advance --to complete`: current task, passed state,
 exact marker digest, candidate identity, readable matching pinned files and
 required runtime proof. Backend live API and frontend render/visual requirements
 cannot be disabled with `required:false`. Missing, corrupt, pending, failed or

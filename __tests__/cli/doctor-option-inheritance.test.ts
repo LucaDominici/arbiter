@@ -25,7 +25,7 @@ function realBootId(): string {
   }
 }
 
-describe('doctor subcommand option inheritance (#2165)', () => {
+describe('lifecycle recovery subcommand option inheritance (#2165)', () => {
   it('uses subcommand --dir and --json for repair-state instead of the caller cwd', () => {
     const root = mkdtempSync(join(tmpdir(), 'arbiter-doctor-options-'))
     roots.push(root)
@@ -35,19 +35,19 @@ describe('doctor subcommand option inheritance (#2165)', () => {
     mkdirSync(outside)
     writeFileSync(join(target, 'arbiter.json'), readFileSync(resolve('arbiter.json'), 'utf-8'))
 
-    const result = run(['doctor', 'repair-state', '--dir', target, '--json'], outside)
+    const result = run(['lifecycle', 'repair-state', '--dir', target, '--json'], outside)
     expect(result.status, result.stderr).toBe(0)
-    expect(JSON.parse(result.stdout).command).toBe('doctor repair-state')
+    expect(JSON.parse(result.stdout).command).toBe('lifecycle repair-state')
   })
 
   it.each(['recover-lock', 'clean'])(
-    'emits the real JSON envelope for doctor %s --json',
+    'emits the real JSON envelope for lifecycle %s --json',
     (command) => {
       const root = mkdtempSync(join(tmpdir(), 'arbiter-doctor-json-'))
       roots.push(root)
-      const result = run(['doctor', command, '--json'], root)
+      const result = run(['lifecycle', command, '--json'], root)
       expect(result.status, result.stderr).toBe(0)
-      expect(JSON.parse(result.stdout).command).toBe(`doctor ${command}`)
+      expect(JSON.parse(result.stdout).command).toBe(`lifecycle ${command}`)
     },
   )
 
@@ -73,13 +73,13 @@ describe('doctor subcommand option inheritance (#2165)', () => {
       const lockPath = join(lockDir, '.lock')
       writeFileSync(lockPath, JSON.stringify(info), 'utf-8')
 
-      const refused = run(['doctor', 'recover-lock', '--dir', target], root)
+      const refused = run(['lifecycle', 'recover-lock', '--dir', target], root)
       expect(refused.status, refused.stderr).toBe(1)
       expect(refused.stderr).toMatch(/--force/)
       expect(existsSync(lockPath)).toBe(true)
       expect(() => process.kill(pid, 0)).not.toThrow()
 
-      const forced = run(['doctor', 'recover-lock', '--dir', target, '--force'], root)
+      const forced = run(['lifecycle', 'recover-lock', '--dir', target, '--force'], root)
       expect(forced.status, forced.stderr).toBe(0)
       expect(existsSync(lockPath)).toBe(false)
       expect(() => process.kill(pid, 0)).not.toThrow()
@@ -117,11 +117,11 @@ describe('doctor subcommand option inheritance (#2165)', () => {
       writeFileSync(lockPath, JSON.stringify(liveInfo), 'utf-8')
       writeFileSync(kitLockPath, JSON.stringify({ ...liveInfo, pid: deadPid }), 'utf-8')
 
-      const result = run(['doctor', 'recover-lock', '--dir', target, '--json'], root)
+      const result = run(['lifecycle', 'recover-lock', '--dir', target, '--json'], root)
       const output = JSON.parse(result.stdout)
       expect(result.status, result.stderr).toBe(1)
       expect(output).toMatchObject({
-        command: 'doctor recover-lock',
+        command: 'lifecycle recover-lock',
         status: 'error',
         data: {
           found: true,
@@ -154,7 +154,7 @@ describe('doctor subcommand option inheritance (#2165)', () => {
     const lockPath = join(lockDir, '.lock')
     writeFileSync(lockPath, 'not json at all', 'utf-8')
 
-    const result = run(['doctor', 'recover-lock', '--dir', target], root)
+    const result = run(['lifecycle', 'recover-lock', '--dir', target], root)
     expect(result.status, result.stderr).toBe(0)
     expect(result.stdout).toMatch(/CORRUPT/)
     expect(result.stdout).not.toMatch(/No lock file found/)

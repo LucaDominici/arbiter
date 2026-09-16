@@ -133,7 +133,7 @@ describe('diff --json', () => {
     runDiff({ dir: '/tmp/fake', json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
-    expect(parsed.command).toBe('diff')
+    expect(parsed.command).toBe('update --dry-run')
     expect(parsed.version).toBe('1')
     expect(parsed.status).toBe('warning')
     const data = parsed.data as Record<string, unknown>
@@ -157,7 +157,7 @@ describe('diff --json', () => {
     runDiff({ dir: '/tmp/fake', json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
-    expect(parsed.command).toBe('diff')
+    expect(parsed.command).toBe('update --dry-run')
     expect(parsed.version).toBe('1')
     expect(parsed.status).toBe('ok')
     const data = parsed.data as Record<string, unknown>

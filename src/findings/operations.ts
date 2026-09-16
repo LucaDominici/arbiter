@@ -2,7 +2,7 @@
 //
 // `arbiter finding promote` — drain the incidental-finding spool into tracked issues.
 //
-// `arbiter note` (#1401) appends one JSON line per finding to `.arbiter/findings/<shard>.jsonl`.
+// `arbiter finding add` (#1401) appends one JSON line per finding to `.arbiter/findings/<shard>.jsonl`.
 // This command reads every shard, dedups within the spool by fingerprint, RE-VALIDATES each
 // survivor against HEAD (so a finding whose code is gone is dropped, never filed), dedups against
 // already-open issues via an embedded `<!-- arbiter-fp:FP -->` body marker, then promotes the

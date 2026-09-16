@@ -80,10 +80,10 @@ describe('arbiter CLI — top-level surface', () => {
 
   // H1 (gold-doc-capability, Tranche 0) regression guard: `doc-set` was previously unregistered
   // (`error: unknown command 'doc-set'`), which meant the governed thin-runner
-  // (scripts/check-doc-set.mjs.ejs → local `arbiter doc-set`) could never resolve. This asserts the
+  // (scripts/check-doc-set.mjs.ejs → local `arbiter audit docs`) could never resolve. This asserts the
   // command is actually wired into Commander, not just exported as a TS function.
-  it('doc-set --help exits 0 and mentions --strict + --doc-profile', () => {
-    const { status, stdout } = spawn(['doc-set', '--help'])
+  it('audit docs --help exits 0 and mentions --strict + --doc-profile', () => {
+    const { status, stdout } = spawn(['audit', 'docs', '--help'])
     expect(status).toBe(0)
     expect(stdout).toContain('--strict')
     expect(stdout).toContain('--doc-profile')
@@ -91,16 +91,16 @@ describe('arbiter CLI — top-level surface', () => {
 
   // Cross-repo compat regression: the emitted governed-repo thin-runner
   // (src/templates/scripts/check-doc-set.mjs.ejs) passes CLI argv straight through to
-  // the local installed `arbiter doc-set ...args`, and its own usage comment documents `--check` as a
+  // the local installed `arbiter audit docs ...args`, and its own usage comment documents `--check` as a
   // backward-compat alias for the no-flag advisory default. Commander never registered the
   // option, so every emitted runner invoking `--check` (e.g. a governed repo's generated
   // scripts/check-doc-set.mjs calling `node scripts/check-doc-set.mjs --check`) hit
   // `error: unknown option '--check'` and died before the audit ever ran. Bootstrap mode
   // (no manifest) keeps this fast and isolated.
-  it('doc-set --check exits 0 (backward-compat advisory alias, not an unknown option)', () => {
+  it('audit docs --check exits 0 (backward-compat advisory alias, not an unknown option)', () => {
     const dir = makeTmpDir()
     try {
-      const { status, stderr } = spawn(['doc-set', '--check'], dir)
+      const { status, stderr } = spawn(['audit', 'docs', '--check'], dir)
       expect(stderr).not.toContain('unknown option')
       expect(status).toBe(0)
     } finally {

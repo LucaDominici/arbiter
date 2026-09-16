@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `arbiter worktree prune --stale [hours]` — zombie-worktree reaper (#1873 T5, M3).
+ * `git worktree prune --stale [hours]` — zombie-worktree reaper (#1873 T5, M3).
  *
  * On worker CRASH (not escalate) nobody closes the worktree: the dir, branch
  * and log entry rot until a human runs /wt-prune by hand. This deterministic

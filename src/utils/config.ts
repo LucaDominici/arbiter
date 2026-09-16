@@ -40,7 +40,7 @@ const SNAPSHOT_FILE = '.arbiter-generated.json'
  * stale-takeover (a lock orphaned by a crashed/SIGKILL'd run is reclaimed
  * instead of bricking every future write), registers exit/SIGINT/SIGTERM/SIGHUP
  * cleanup, refuses symlinked lock paths, and raises actionable `E_LOCK_*` errors
- * that point at `arbiter doctor recover-lock`. `kit.lock` is a distinct inner
+ * that point at `arbiter lifecycle recover-lock`. `kit.lock` is a distinct inner
  * lock from `.arbiter/.lock`; `doctor` is taught about both (#1517).
  *
  * #2541: `arbiter.json` is never a generator-emitted target — no `src/generators/*.ts`
@@ -104,7 +104,7 @@ export function saveConfigAndSnapshot(
 
 /**
  * Write only the snapshot envelope (`.arbiter-generated.json`) without
- * touching `arbiter.json`. Used by `arbiter doctor --repair-state` so
+ * touching `arbiter.json`. Used by `arbiter status health --repair-state` so
  * repair never clobbers the source-of-truth config (#619).
  *
  * #2541: `.arbiter-generated.json` is documented (docs/REFERENCE/file-stability.md) as

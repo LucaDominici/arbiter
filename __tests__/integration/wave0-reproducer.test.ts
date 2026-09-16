@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1077 (Wave 0 F1 + F7): `arbiter diff` must enumerate the SAME file set that
+// #1077 (Wave 0 F1 + F7): `arbiter update --dry-run` must enumerate the SAME file set that
 // `arbiter update` touches. Before this fix, `diff` hardcoded ~9 files while
 // `update` wrote ~55 via the generator registry — diff under-reported by ~89%
 // (F1) and, because it ran its own compare loop, also lied in both directions

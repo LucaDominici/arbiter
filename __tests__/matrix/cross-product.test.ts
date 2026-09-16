@@ -703,25 +703,25 @@ describe('cross-product: settings.json — advanced hooks governance gating', ()
 
 // ─── task engine subcommand ref (M17) ────────────────────────────────────────
 // #1216: task.md is now the engine/CLI reference (all governance levels).
-// arbiter task advance appears in the subcommand reference table for all levels.
+// arbiter lifecycle advance appears in the subcommand reference table for all levels.
 
-describe('cross-product: task.md — engine subcommand reference (#1216)', () => {
+describe('cross-product: ship.md — lifecycle reference reference (#1216)', () => {
   function renderTask(lang: Language, level: GovernanceLevel): string {
-    return renderTemplate('claude/commands/task.md.ejs', configFor(lang, level))
+    return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
   }
 
   for (const lang of LANGUAGES) {
-    it(`${lang}+L2: contains arbiter task advance (engine subcommand)`, () => {
-      expect(renderTask(lang, 'L2')).toContain('arbiter task advance')
+    it(`${lang}+L2: contains arbiter lifecycle advance (engine subcommand)`, () => {
+      expect(renderTask(lang, 'L2')).toContain('arbiter lifecycle advance')
     })
 
-    it(`${lang}+L3: contains arbiter task advance (engine subcommand)`, () => {
-      expect(renderTask(lang, 'L3')).toContain('arbiter task advance')
+    it(`${lang}+L3: contains arbiter lifecycle advance (engine subcommand)`, () => {
+      expect(renderTask(lang, 'L3')).toContain('arbiter lifecycle advance')
     })
 
-    it(`${lang}+L1: task.md has engine subcommand reference (arbiter task advance)`, () => {
+    it(`${lang}+L1: ship.md has engine subcommand reference (arbiter lifecycle advance)`, () => {
       // #1216: engine-ref is governance-level-agnostic; all levels have the subcommand table
-      expect(renderTask(lang, 'L1')).toContain('arbiter task advance')
+      expect(renderTask(lang, 'L1')).toContain('arbiter lifecycle advance')
     })
   }
 })
@@ -1287,11 +1287,11 @@ describe('cross-product: multi-lane (#403) — ci.yml + task.md contain lane dis
       expect(rendered).toContain('cross-stack-guard')
     })
 
-    it(`${lang}+${level}+lanes[${lanes.join(',')}]: task.md is engine-ref (no Lane Discipline — #1216)`, () => {
+    it(`${lang}+${level}+lanes[${lanes.join(',')}]: ship.md is delivery contract (no Lane Discipline — #1216)`, () => {
       // #1216: task.md is now the engine/CLI reference only. Lane discipline was
       // orchestration prose; it has been removed. Lane discipline in /ship is a follow-up.
       const rendered = renderTemplate(
-        'claude/commands/task.md.ejs',
+        'claude/commands/ship.md.ejs',
         makeConfig('/tmp/test', {
           language: lang,
           governanceLevel: level,
@@ -1572,7 +1572,7 @@ describe('cross-product: ship.md — result-first lifecycle across all stacks an
         const output = renderShip(lang, level)
         expect(output).toBe(baseline)
         expect(output).toContain('arbiter ship')
-        expect(output).toContain('arbiter mark')
+        expect(output).toContain('arbiter lifecycle checkpoint')
         expect(output).toContain('normal cap is two rounds')
         expect(output).toContain('one clean-HEAD full gate')
       })

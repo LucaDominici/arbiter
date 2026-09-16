@@ -123,7 +123,7 @@ describe('runVerify (probe-driven CLI path)', () => {
     expect(mockLoadConfig).toHaveBeenCalledOnce()
     expect(mockFormatText).not.toHaveBeenCalled()
     const envelope = JSON.parse(String(writeSpy.mock.calls[0]?.[0])) as Record<string, unknown>
-    expect(envelope).toMatchObject({ command: 'validate', version: '1', status: 'ok' })
+    expect(envelope).toMatchObject({ command: 'check environment', version: '1', status: 'ok' })
     // The enriched report is preserved under the canonical envelope's data field.
     const data = envelope['data'] as Record<string, unknown>
     expect(data['effectiveConfig']).toEqual({ governanceLevel: 'standard' })

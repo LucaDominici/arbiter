@@ -116,7 +116,7 @@ describe('tool output: codex', () => {
     generateCodex(config)
     const rule = readFileSync(join(dir, '.agents', 'rules', '90-exec-protocol.md'), 'utf-8')
     expect(rule).toContain('## Root-Cause Discipline (CANON-22)')
-    expect(rule).toContain('arbiter task record-tech-debt')
+    expect(rule).toContain('arbiter lifecycle record-debt')
   })
 
   // ADR-106: the Known Limitations table is GENERATED from the actual

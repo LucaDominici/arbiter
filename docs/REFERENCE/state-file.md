@@ -59,7 +59,7 @@ The checksum is computed against the **canonical** serialisation (object keys so
 3. Prune oldest `.bak.*` files past cap (default **10**).
 4. Wrap current config in envelope, compute checksum, write `.arbiter-generated.json`.
 
-`writeSnapshot(dir, config)` does steps 2-4 only; used by `arbiter doctor --repair-state` to avoid touching `arbiter.json`.
+`writeSnapshot(dir, config)` does steps 2-4 only; used by `arbiter status health --repair-state` to avoid touching `arbiter.json`.
 
 ---
 
@@ -81,7 +81,7 @@ Migrations run before the config migration chain, so a v0 snapshot containing a 
 When `loadSnapshot` throws `SnapshotChecksumError` (or the file is otherwise unrecoverable):
 
 ```bash
-arbiter doctor --repair-state
+arbiter status health --repair-state
 ```
 
 This re-derives the snapshot from `arbiter.json` (the source-of-truth config), writes a fresh envelope, and prints the new snapshot path. `arbiter.json` is never modified.
@@ -92,7 +92,7 @@ Pre-existing backup files at `.arbiter-generated.json.bak.<ts>` remain available
 
 ## Exit codes
 
-| Command                         | Exit | Meaning                                                                  |
-| ------------------------------- | ---- | ------------------------------------------------------------------------ |
-| `arbiter doctor --repair-state` | 0    | Snapshot re-derived; new envelope written                                |
-| `arbiter doctor --repair-state` | 2    | `arbiter.json` missing or unparseable — repair impossible without source |
+| Command                                | Exit | Meaning                                                                  |
+| -------------------------------------- | ---- | ------------------------------------------------------------------------ |
+| `arbiter status health --repair-state` | 0    | Snapshot re-derived; new envelope written                                |
+| `arbiter status health --repair-state` | 2    | `arbiter.json` missing or unparseable — repair impossible without source |

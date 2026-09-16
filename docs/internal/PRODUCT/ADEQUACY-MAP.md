@@ -60,7 +60,7 @@ competitor owns — mechanical spec↔code drift reconciliation.
 Ten load-bearing defects (full tables in the milestone issues):
 
 1. `docs/internal/**` exempt from link and style gates — the SSOT backbone is unlinted.
-2. `arbiter plugin add` documented on the public website and an example README; it does not exist.
+2. `arbiter configure plugin add` documented on the public website and an example README; it does not exist.
 3. Emitted `wave-drain` skill calls three scripts consumers never receive; emitted `configure` skill uses `bun run arbiter`.
 4. `STATUS.md` reports "all milestones complete" while 3 epics + 19 issues are open (parser only reads `## M<n>`).
 5. `GAP.md` corrupts every `__tests__` path and its "Enforcement Gaps" table is token noise.

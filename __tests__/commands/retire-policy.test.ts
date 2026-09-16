@@ -151,3 +151,30 @@ describe('planRetirement — known retired renders (#2221)', () => {
     expect(result).toEqual({ retire: [], orphans: [], stale: [] })
   })
 })
+
+describe('planRetirement — atomic command cut (#2706)', () => {
+  const retired = '.claude/commands/task.md'
+
+  it('deletes a manifest-proven pristine retired command', () => {
+    const result = planRetirement({
+      prevManifest: { [retired]: 'owned-hash' },
+      results: [],
+      targetDir: '/p',
+      fullRegistryRun: true,
+      diskHash: (key) => (key === retired ? 'owned-hash' : null),
+    })
+    expect(result).toEqual({ retire: [retired], orphans: [], stale: [] })
+  })
+
+  it('preserves and diagnoses a modified retired command', () => {
+    const result = planRetirement({
+      prevManifest: { [retired]: 'owned-hash' },
+      results: [],
+      targetDir: '/p',
+      fullRegistryRun: true,
+      diskHash: (key) => (key === retired ? 'user-hash' : null),
+    })
+    expect(result).toEqual({ retire: [], orphans: [retired], stale: [] })
+    expect(retirementWarning(result)).toContain('edited locally')
+  })
+})

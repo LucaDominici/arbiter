@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2416 — `arbiter plugin add` was documented on the public website and in
+// #2416 — `arbiter configure plugin add` was documented on the public website and in
 // CONTRIBUTING.md/examples/plugins/spring-boot/README.md as a scaffolder
 // ("creates index.js/package.json/templates/") while no such command existed
 // (src/cli.ts listed `plugin` as an unregistered nested name). Decision: ship
@@ -26,8 +26,8 @@ describe('#2416 — plugin add docs match the shipped minimal command', () => {
     expect(text).toMatch(/does not scaffold/)
   })
 
-  it('plugin.md still instructs the real `arbiter plugin add` command', () => {
-    expect(read(PLUGIN_RECIPE)).toMatch(/`arbiter plugin add /)
+  it('plugin.md still instructs the real `arbiter configure plugin add` command', () => {
+    expect(read(PLUGIN_RECIPE)).toMatch(/`arbiter configure plugin add /)
   })
 
   it('custom-invariant.md no longer promises a scaffolded index.js stub', () => {
@@ -35,23 +35,25 @@ describe('#2416 — plugin add docs match the shipped minimal command', () => {
     expect(text).not.toContain('This creates `my-rules/index.js` with a minimal')
   })
 
-  it('custom-invariant.md still instructs the real `arbiter plugin add` command', () => {
-    expect(read(CUSTOM_INVARIANT_RECIPE)).toMatch(/`arbiter plugin add /)
+  it('custom-invariant.md still instructs the real `arbiter configure plugin add` command', () => {
+    expect(read(CUSTOM_INVARIANT_RECIPE)).toMatch(/`arbiter configure plugin add /)
   })
 
-  it('spring-boot README instructs the real `arbiter plugin add` command', () => {
-    expect(read(SPRING_BOOT_README)).toMatch(/arbiter plugin add arbiter-plugin-spring-boot/)
+  it('spring-boot README instructs the real `arbiter configure plugin add` command', () => {
+    expect(read(SPRING_BOOT_README)).toMatch(
+      /arbiter configure plugin add arbiter-plugin-spring-boot/,
+    )
   })
 
   it('spring-boot README no longer cites the phantom `arbiter integrations` command', () => {
     expect(read(SPRING_BOOT_README)).not.toMatch(/`arbiter integrations/)
   })
 
-  it('CONTRIBUTING.md no longer tells contributors to "Scaffold a plugin with `arbiter plugin add`"', () => {
-    expect(read(CONTRIBUTING)).not.toMatch(/Scaffold a plugin with `arbiter plugin add/)
+  it('CONTRIBUTING.md no longer tells contributors to "Scaffold a plugin with `arbiter configure plugin add`"', () => {
+    expect(read(CONTRIBUTING)).not.toMatch(/Scaffold a plugin with `arbiter configure plugin add/)
   })
 
-  it('CONTRIBUTING.md still points at the real `arbiter plugin add` command', () => {
-    expect(read(CONTRIBUTING)).toMatch(/`arbiter plugin add /)
+  it('CONTRIBUTING.md still points at the real `arbiter configure plugin add` command', () => {
+    expect(read(CONTRIBUTING)).toMatch(/`arbiter configure plugin add /)
   })
 })

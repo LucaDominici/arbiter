@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// UserPromptSubmit: block /task commands while brainstorm-active marker exists.
+// UserPromptSubmit: block /ship commands while brainstorm-active marker exists.
 // Purpose: enforce terminal-state of brainstorming skill (#699) — user must
 //          explicitly clear the marker before implementation can begin.
 // Marker: .arbiter/brainstorm-active (auto-expires after 24h via mtime).
-// Never blocks non-/task prompts. Always exits 0 on read errors.
+// Never blocks non-/ship prompts. Always exits 0 on read errors.
 import { readFileSync, statSync, unlinkSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -18,8 +18,8 @@ try {
   process.exit(0)
 }
 
-// Only gate /task commands
-if (!prompt.trimStart().startsWith('/task')) process.exit(0)
+// Only gate /ship commands
+if (!prompt.trimStart().startsWith('/ship')) process.exit(0)
 
 const markerPath = join(process.cwd(), '.arbiter', 'brainstorm-active')
 if (!existsSync(markerPath)) process.exit(0)
@@ -43,6 +43,6 @@ process.stderr.write(
   `[brainstorm-gate] BLOCKED: brainstorm session still active.\n` +
     `  Marker: ${markerPath}\n` +
     `  Clear it first:  rm "${markerPath}"\n` +
-    `  Then retry your /task command.\n`,
+    `  Then retry your /ship command.\n`,
 )
 process.exit(2)

@@ -92,7 +92,7 @@ export function generateSmokeJourneys(
 
   const manifest = buildManifest(config.archetype, config.language)
   // Render the manifest through an EJS template (not a bare JSON.stringify write) so the
-  // `arbiter diff` dry-run path — which mocks renderTemplate — treats it like every other
+  // `arbiter update --dry-run` dry-run path — which mocks renderTemplate — treats it like every other
   // generated file (convention parity with api-e2e.ts / optional-emissions.json, #1331);
   // a JSON.stringify write mismatches the mock and reads as a spurious withheld-drift.
   const manifestPath = resolvedPath(base, 'smoke-journeys.json')

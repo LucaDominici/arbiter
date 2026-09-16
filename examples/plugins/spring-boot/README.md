@@ -11,7 +11,7 @@ related: []
 
 # arbiter-plugin-spring-boot
 
-Canonical example arbiter plugin for Spring Boot projects. Demonstrates the plugin API v1 contract.
+Canonical example arbiter configure plugin for Spring Boot projects. Demonstrates the plugin API v1 contract.
 
 ## What it does
 
@@ -22,7 +22,7 @@ Canonical example arbiter plugin for Spring Boot projects. Demonstrates the plug
 
 ```bash
 cd your-spring-boot-project
-arbiter plugin add arbiter-plugin-spring-boot
+arbiter configure plugin add arbiter-plugin-spring-boot
 arbiter init --yes
 ```
 
@@ -33,7 +33,7 @@ validates it loads, and registers it in `arbiter.json`'s `plugins` array — pas
 ## Discovery
 
 This package uses keyword `arbiter-plugin` in `package.json`, the naming convention every
-arbiter plugin follows (see below), and is listed on the [plugin registry](https://arbiter.dev/plugins).
+arbiter configure plugin follows (see below), and is listed on the [plugin registry](https://arbiter.dev/plugins).
 
 ## Development
 
@@ -44,7 +44,7 @@ npm test
 
 ## Naming convention
 
-All arbiter plugins must:
+All arbiter configure plugins must:
 
 - Set keyword `arbiter-plugin` in `package.json`
 - Name the package `arbiter-plugin-*` or `@scope/arbiter-plugin-*`

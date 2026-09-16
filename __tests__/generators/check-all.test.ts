@@ -501,7 +501,7 @@ describe('generateCheckAll', () => {
 
   it('rendered GRACE_MAX_DAYS matches the CLI upgrade-level bound (no drift)', async () => {
     // The generated gate caps the honored grace window at GRACE_MAX_DAYS and the
-    // `arbiter upgrade-level` CLI clamps the persisted window to the SAME value.
+    // `arbiter configure level` CLI clamps the persisted window to the SAME value.
     // If they drift, the CLI could write a window the gate silently ignores
     // (fake-green-adjacent). This parity test forbids that drift.
     const { GRACE_MAX_DAYS } = await import('../../src/commands/upgrade-level.js')

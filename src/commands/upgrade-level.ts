@@ -124,7 +124,7 @@ function rejectUnsupportedUpgradeTarget(
     },
   )
   if (json) {
-    jsonOutput('upgrade-level', 'error', {}, [error.message])
+    jsonOutput('configure level', 'error', {}, [error.message])
     process.exit(1)
     return true
   }
@@ -139,7 +139,7 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
 
   if (!stored) {
     if (opts.json) {
-      jsonOutput('upgrade-level', 'error', {}, ['No arbiter.json found. Run arbiter init first.'])
+      jsonOutput('configure level', 'error', {}, ['No arbiter.json found. Run arbiter init first.'])
       process.exit(1)
       return
     }
@@ -165,7 +165,7 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
       'errors.E_TARGET_REQUIRED',
       {},
       {
-        hint: 'Example: `arbiter upgrade-level --target L2`.',
+        hint: 'Example: `arbiter configure level --target L2`.',
       },
     )
   }
@@ -227,7 +227,7 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
   }
 
   if (opts.json) {
-    jsonOutput('upgrade-level', 'ok', {
+    jsonOutput('configure level', 'ok', {
       from: current,
       to: target,
       graceEndsAt,
@@ -254,7 +254,7 @@ async function handleExtend(
       'E_NO_GRACE_PERIOD',
       'errors.E_NO_GRACE_PERIOD',
       {},
-      { hint: 'Run `arbiter upgrade-level --target L2` to start a new grace period.' },
+      { hint: 'Run `arbiter configure level --target L2` to start a new grace period.' },
     )
   }
 
@@ -320,7 +320,7 @@ async function handleExtend(
   }
 
   if (json) {
-    jsonOutput('upgrade-level', 'ok', {
+    jsonOutput('configure level', 'ok', {
       action: 'extend',
       newEndsAt,
       extensionDays: appliedDays,

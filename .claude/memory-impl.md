@@ -25,5 +25,5 @@ related: []
 - Hook tests use `spawnSync('node', [HOOK], { cwd: tmpDir, env: { CLAUDE_TOOL_INPUT_PATH: ... } })` — do NOT use `exec` or shell expansion.
 - `minimatch` v10+ requires bare import `'minimatch'` (not a relative path); it's a direct dep in `package.json`.
 - stdin in hooks/scripts read via `readFileSync(0, 'utf-8')` (fd 0), NOT `/dev/stdin` — the latter fails with ENXIO under `spawnSync` with `input:`.
-- `arbiter task advance` must be called at each phase transition — skipping it means the local state file diverges from the expected phase.
+- `arbiter lifecycle advance` must be called at each phase transition — skipping it means the local state file diverges from the expected phase.
 - CANON-10: every new hook entry in `settings.json` must also appear in the hooks table in `.claude/CLAUDE.md`.

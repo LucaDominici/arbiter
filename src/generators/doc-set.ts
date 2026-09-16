@@ -21,7 +21,7 @@ import { isoToday } from '../utils/today.js'
 
 /**
  * Minimal shape the generator needs. A full `ProjectConfig` (the registry.ts pipeline, `init`/
- * `update`/`diff`) satisfies it structurally; the standalone `arbiter doc-set --plan/--apply` CLI
+ * `update`/`diff`) satisfies it structurally; the standalone `arbiter audit docs --plan/--apply` CLI
  * path (no wizard run) builds a bare `{ targetDir, projectName }` literal instead — `object`-typed
  * `renderTemplate` doesn't require the rest of `ProjectConfig`, so nothing is faked to satisfy it.
  */
@@ -243,7 +243,7 @@ function presenceAudit(
 /**
  * Generate real per-doc-type skeletons for every gap the engine reports, right-sized by tier.
  * Registered in registry.ts (key `doc-set-skeletons`) for the init/update/diff pipeline; also
- * invoked standalone by `arbiter doc-set --plan/--apply` via {@link runDocSetPlanApply} below.
+ * invoked standalone by `arbiter audit docs --plan/--apply` via {@link runDocSetPlanApply} below.
  */
 export function generateDocSetSkeletons(
   config: DocSetGenConfig,
@@ -302,7 +302,7 @@ export interface DocSetPlanApplyOptions {
 }
 
 /**
- * CLI-facing entry point for `arbiter doc-set --plan/--apply` (src/cli.ts). Builds the minimal
+ * CLI-facing entry point for `arbiter audit docs --plan/--apply` (src/cli.ts). Builds the minimal
  * config {@link generateDocSetSkeletons} needs standalone (no wizard `ProjectConfig` exists
  * outside `init`/`update`/`diff`) and forwards `--apply` as `dryRun: false` — `--plan` is the
  * default (dryRun: true), matching the engine's own advisory-by-default posture.

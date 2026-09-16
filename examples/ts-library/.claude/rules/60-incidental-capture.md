@@ -10,7 +10,7 @@ When you notice an out-of-scope finding while working task X, your ONLY in-band
 action is to capture it:
 
 ```bash
-arbiter note "<finding>" --kind <dup|smell|risk|debt> --severity <low|med|high> --file <path> --line <n>
+arbiter finding add "<finding>" --kind <dup|smell|risk|debt> --severity <low|med|high> --file <path> --line <n>
 ```
 
 Capture is the TERMINAL action for that finding during this task. Once noted, you
@@ -30,10 +30,10 @@ The note lands in a per-agent JSONL spool at `.arbiter/findings/<shard>.jsonl`
 ## Composes With
 
 - **Root-cause discipline** — a smell INSIDE the current diff is fixed or recorded
-  as tech-debt, not merely noted. `arbiter note` is for findings OUTSIDE the current
+  as tech-debt, not merely noted. `arbiter finding add` is for findings OUTSIDE the current
   diff.
 - **Tech-debt** — a finding that warrants a tracked, durable follow-up is promoted
-  to `arbiter task record-tech-debt`; `arbiter note` is the lightweight first capture,
+  to `arbiter lifecycle record-debt`; `arbiter finding add` is the lightweight first capture,
   drained and triaged later.
 
 ## Why

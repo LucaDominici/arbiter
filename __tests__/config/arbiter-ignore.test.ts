@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2353: `.arbiterignore` pattern matching — the ONE selection mechanism shared by
-// `arbiter update` and `arbiter diff`. Patterns are gitignore syntax and are matched
+// `arbiter update` and `arbiter update --dry-run`. Patterns are gitignore syntax and are matched
 // against MANIFEST KEYS (targetDir-relative posix paths — the id under which a
 // generated file is tracked in `.arbiter-generated-manifest.json`).
 import { describe, it, expect } from 'vitest'

@@ -244,12 +244,12 @@ accuracy, 20% fail-dangerous L→S on 45 real issues).
 
 **2. Four distinct count-axes all derive from tier — do not conflate them:**
 
-| Axis                           | XS  | S   | Standard | Source                            |
-| ------------------------------ | --- | --- | -------- | --------------------------------- |
-| Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77`                 |
-| Refactor-phase review agents   | 1   | 1   | 2        | `task-ship.ts:79`                 |
-| `/review-code` reviewers       | 3   | 3   | 5        | `.claude/commands/review-code.md` |
-| Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100`             |
+| Axis                           | XS  | S   | Standard | Source                       |
+| ------------------------------ | --- | --- | -------- | ---------------------------- |
+| Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77`            |
+| Refactor-phase review agents   | 1   | 1   | 2        | `task-ship.ts:79`            |
+| `/review` reviewers            | 3   | 3   | 5        | `.claude/commands/review.md` |
+| Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100`        |
 
 Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`; Standard =
 `+security, data-integrity, silent-failures`.

@@ -26,7 +26,7 @@ related: []
 > dedicated pass reconciles it. Tracked for follow-up — not fixed wholesale here
 > (out of scope for a dead-code-removal pass).
 
-Arbiter's real-project fixtures exercise the full pipeline — `arbiter init → arbiter verify → check-all.mjs` — against each one. This document explains how the system works, how to add a new fixture, and how to debug failures.
+Arbiter's real-project fixtures exercise the full pipeline — `arbiter init → arbiter check → check-all.mjs` — against each one. This document explains how the system works, how to add a new fixture, and how to debug failures.
 
 See ADR-027 for the architectural rationale.
 

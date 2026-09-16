@@ -39,7 +39,7 @@ describe('evidence-collect.mjs.ejs render (#241)', () => {
     expect(out).toContain('head_sha')
   })
 
-  // ── G1b unit 7 (#1316): persist the stack so `arbiter verify` resolves the
+  // ── G1b unit 7 (#1316): persist the stack so `arbiter check` resolves the
   // signed language instead of falling back to detect (which can yield 'unknown'
   // and skip the matrix). The render context language is the source of truth.
   it('persists the stack field in SUMMARY.json (typescript)', () => {

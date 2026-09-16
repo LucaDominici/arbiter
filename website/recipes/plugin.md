@@ -15,7 +15,7 @@ Plugins extend arbiter for a specific project without modifying arbiter itself. 
 
 ## Layout
 
-`arbiter plugin add` does not scaffold a plugin project — it resolves, installs, and
+`arbiter configure plugin add` does not scaffold a plugin project — it resolves, installs, and
 registers one that already exists. Hand-author the package first:
 
 ```
@@ -28,14 +28,14 @@ my-plugin/
 Then register it:
 
 ```bash
-arbiter plugin add ./my-plugin
+arbiter configure plugin add ./my-plugin
 ```
 
 `add` validates the plugin loads (via the same loader `arbiter update` uses) before
 writing it to `arbiter.json`'s `plugins` array — a plugin that fails to load never
 gets persisted. Passing an npm package name instead of a local path (e.g.
-`arbiter plugin add arbiter-plugin-spring-boot`) installs it as a devDependency
-first (`--no-install` skips that step). `arbiter plugin list` shows every
+`arbiter configure plugin add arbiter-plugin-spring-boot`) installs it as a devDependency
+first (`--no-install` skips that step). `arbiter configure plugin list` shows every
 configured plugin with its current load status.
 
 ## The ArbiterPlugin contract
@@ -94,7 +94,7 @@ module.exports = {
 
 ## Register in arbiter config
 
-`arbiter plugin add ./my-plugin` writes this for you (see Layout above). The result is
+`arbiter configure plugin add ./my-plugin` writes this for you (see Layout above). The result is
 the same as hand-editing `arbiter.json`:
 
 ```json

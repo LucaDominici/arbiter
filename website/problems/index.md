@@ -25,8 +25,8 @@ explicit on every page and collected under [What arbiter is NOT](/governance/).
 | [Vulnerable dependencies reach prod](/problems/vulnerable-deps)          | Dependency audit, CVSS ≥ 7.0 fails the build (INV-13, L2)           | the generated dep-audit step                                                 |
 | [Suppressions become permanent](/problems/suppression-expiry)            | Mandatory expiry; a past-due waiver blocks L1 (INV-31)              | expired waiver → `check-all.mjs L1`                                          |
 | [Direct pushes / bot self-approval](/problems/branch-protection)         | Branch protection + human-approval workflow (INV-23, INV-74/91)     | inspect generated `.github/workflows/`                                       |
-| [Tests written after the fact](/problems/tdd-evidence)                   | TDD red-evidence + mutation/real-DB at L2 (INV-26, INV-30/34)       | `arbiter verify tdd`                                                         |
-| [Can I trust the tool itself?](/problems/dogfooding-trust)               | arbiter governs arbiter at L2; public evidence trail                | browse the repo; `arbiter verify evidence` (L4)                              |
+| [Tests written after the fact](/problems/tdd-evidence)                   | TDD red-evidence + mutation/real-DB at L2 (INV-26, INV-30/34)       | `arbiter check tdd`                                                          |
+| [Can I trust the tool itself?](/problems/dogfooding-trust)               | arbiter governs arbiter at L2; public evidence trail                | browse the repo; `arbiter check evidence` (L4)                               |
 | [A second AI tool drifts to weaker governance](/problems/codex-parity)   | Derive-from-Claude + parity gate, 100% classified surface (ADR-106) | `check-codex-parity.mjs` + `check-codex-self-parity.mjs`; inject drift → red |
 
 ## What's deliberately not here

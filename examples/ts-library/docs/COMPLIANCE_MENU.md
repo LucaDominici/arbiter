@@ -6,7 +6,7 @@
 > project: **who merges** (collaborationMode), **how strict the gates are**
 > (governanceLevel), and **which compliance overlay** scaffolds domain controls
 > (industryOverlay). This document presents every cell with its rationale so you
-> can pick a coherent combination — then `arbiter doctor` flags incoherent ones.
+> can pick a coherent combination — then `arbiter status health` flags incoherent ones.
 
 ---
 
@@ -60,7 +60,7 @@ explains the intended fit; pick the row that matches your delivery context.
 
 ## Coherence — (overlay × governanceLevel)
 
-`arbiter doctor` runs this check and the wizard surfaces it after the overlay
+`arbiter status health` runs this check and the wizard surfaces it after the overlay
 choice. **Heavy** overlays expect **L3+** rigour (mutation, evidence harness,
 human-approval gates); **medium** overlays expect **L2+** (debt + security
 scans). A heavy overlay at L1 scaffolds controls the gate set never enforces —
@@ -83,7 +83,7 @@ flagged as a `WARN` (advisory, never blocking).
 2. Pick your **governanceLevel** (how strict) — L1 lightweight … L4 audit-grade.
 3. Pick your **compliance overlay** (which controls) — keep it coherent with the
    level using the table above.
-4. Run `arbiter doctor` to confirm the chosen cell is coherent.
+4. Run `arbiter status health` to confirm the chosen cell is coherent.
 
 Re-run `arbiter init` (or `arbiter configure`) to change any axis; overlays are
 brownfield-safe — re-init never overwrites your customised compliance documents.

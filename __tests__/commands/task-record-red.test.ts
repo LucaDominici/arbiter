@@ -812,7 +812,7 @@ describe('runTaskRecordRed() branch-preference and evidence-ownership (#2064)', 
 
   // Test case 3: branch/task-document mismatch => exit non-zero and no file
   // changes. This is the actual #503/#489 incident shape: a stale
-  // task-document (`arbiter task init` never re-run after switching branches)
+  // task-document (`arbiter lifecycle start` never re-run after switching branches)
   // disagreeing with the real current branch.
   it('fails closed and writes nothing when branch and task-document disagree', () => {
     const dir = tmpRepo()
@@ -843,7 +843,7 @@ describe('runTaskRecordRed() branch-preference and evidence-ownership (#2064)', 
   // deterministic task selection. Detached HEAD means `currentBranch()`
   // returns the literal 'HEAD' (git's own convention) — no task/#NNN pattern
   // to derive from — so the pre-set task-document (the CI job's explicit
-  // `arbiter task init --id`) decides deterministically, same as before #2064.
+  // `arbiter lifecycle start --id`) decides deterministically, same as before #2064.
   it('falls back deterministically to the task-document on a detached HEAD checkout', () => {
     const dir = tmpRepo()
     seedTaskDoc(dir, '#77')

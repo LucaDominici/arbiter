@@ -318,7 +318,7 @@ type SeedSizeVerdict = { ok: true } | { ok: false; detail: string }
 /**
  * #2402 — may this seed declare a train of that size?
  *
- * Lifted out of the ship path because `arbiter task init` writes exactly the same `chainIds`
+ * Lifted out of the ship path because `arbiter lifecycle start` writes exactly the same `chainIds`
  * field and never checked the bound: `task init 1 2 ... 15` seeded a fifteen-issue train that no
  * limit ever saw, while `arbiter ship` refused the identical request. One rule, both writers.
  */

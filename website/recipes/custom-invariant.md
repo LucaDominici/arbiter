@@ -16,11 +16,11 @@ Custom invariants extend a project's governance contract with rules specific to 
 ## When to use this
 
 - Your team has a naming convention, banned dependency, or architectural constraint not covered by the built-in INV-NN catalog.
-- You want the rule enforced by `arbiter verify plan` in CI alongside the built-in rules.
+- You want the rule enforced by `arbiter check plan` in CI alongside the built-in rules.
 
 ## Step 1 — Author and register a plugin
 
-`arbiter plugin add` does not scaffold a plugin — hand-author a minimal package:
+`arbiter configure plugin add` does not scaffold a plugin — hand-author a minimal package:
 
 ```
 my-rules/
@@ -32,7 +32,7 @@ my-rules/
 Then register it:
 
 ```bash
-arbiter plugin add ./my-rules
+arbiter configure plugin add ./my-rules
 ```
 
 ## Step 2 — Add a verify-plan rule
@@ -71,7 +71,7 @@ Rules receive `ctx.changedFiles` (files in the current plan diff) and return an 
 
 ## Step 3 — Register in arbiter config
 
-Already done by `arbiter plugin add ./my-rules` in Step 1 — it wrote:
+Already done by `arbiter configure plugin add ./my-rules` in Step 1 — it wrote:
 
 ```json
 {
@@ -82,7 +82,7 @@ Already done by `arbiter plugin add ./my-rules` in Step 1 — it wrote:
 ## Step 4 — Verify it fires
 
 ```bash
-arbiter verify plan --context .arbiter/plan
+arbiter check plan --context .arbiter/plan
 ```
 
 The rule appears in the report alongside built-in rules. A violation exits 1 and blocks the gate.
@@ -93,7 +93,7 @@ Document the invariant so AI agents know the rule exists:
 
 ```markdown
 - **MY-INV-01**: No direct lodash imports — use native Array/Object methods.
-  _Enforced by_: `my-rules` plugin, `arbiter verify plan`.
+  _Enforced by_: `my-rules` plugin, `arbiter check plan`.
 ```
 
 ## Reference

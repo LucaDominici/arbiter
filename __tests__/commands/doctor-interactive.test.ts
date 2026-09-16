@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1168 Phase 3: arbiter doctor --interactive guided health-check + repair.
+// #1168 Phase 3: arbiter status health --interactive guided health-check + repair.
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 

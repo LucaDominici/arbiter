@@ -146,8 +146,8 @@ of them writes a byte:
   would create and every existing file it would keep untouched. The preview is the real
   generator plan executed in dry mode, not a separately maintained summary, so what it lists
   is what the run without `--dry-run` does.
-- **After adoption** — `arbiter diff` is the whole-run preview of `arbiter update` (`update`
-  with the writes elided); `arbiter diff --withheld` narrows it to the template fixes held
+- **After adoption** — `arbiter update --dry-run` is the whole-run preview of `arbiter update` (`update`
+  with the writes elided); `arbiter update --dry-run --withheld` narrows it to the template fixes held
   back from files you have edited; `arbiter update --adopt-plan` previews exactly which of
   those adoption would overwrite. See
   [REFERENCE/file-stability.md](REFERENCE/file-stability.md).

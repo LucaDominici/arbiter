@@ -437,7 +437,7 @@ describe('.githooks/pre-push — chain-batching gate (#2102)', () => {
 
   it('taskId stored WITHOUT a leading # (raw `task init --id` form) is still matched', () => {
     dir = setupRepo({ ageMin: 30 })
-    // Mirrors what `arbiter task init --id 2102` persists verbatim (no # normalization there).
+    // Mirrors what `arbiter lifecycle start --id 2102` persists verbatim (no # normalization there).
     writeChainStatus(dir, { taskId: '2102', chainIds: ['#2103'], phase: 'close' })
     commitAheadOfOrigin(dir, 'feat: first issue in chain #2102')
     commitAheadOfOrigin(dir, 'feat: second issue in chain #2103')

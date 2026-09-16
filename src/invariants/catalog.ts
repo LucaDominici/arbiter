@@ -391,11 +391,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Test-driven development forces explicit design thinking before coding and produces code ' +
       'that is testable by construction. Writing tests after the fact often results in tests ' +
       'written to pass rather than tests that document expected behavior. ' +
-      'Evidence is recorded via `arbiter task record-red` and verified via `arbiter verify tdd`.',
+      'Evidence is recorded via `arbiter lifecycle record-red` and verified via `arbiter check tdd`.',
     alwaysActive: true,
     minGovernanceLevel: 'L2',
     enforcement:
-      'gate (scripts/check-all.mjs L2 — arbiter verify tdd) + task advance --to green gate',
+      'gate (scripts/check-all.mjs L2 — arbiter check tdd) + task advance --to green gate',
   },
 
   {
@@ -510,7 +510,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       "plus a canonical sha field. A merge is blocked when obs_gate !== 'PASS', which " +
       'indicates that tests failed, coverage dropped below threshold, mutation score is ' +
       'insufficient, or critical security findings exist. The L4 gate runs ' +
-      '`arbiter verify evidence` which: (1) validates the schema via src/evidence/summary.ts, ' +
+      '`arbiter check evidence` which: (1) validates the schema via src/evidence/summary.ts, ' +
       '(2) verifies the embedded sha, (3) confirms head_sha matches `git rev-parse HEAD`, ' +
       "and (4) requires obs_gate === 'PASS'. Any failure blocks merge.",
     alwaysActive: true,
@@ -601,7 +601,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     description:
       'Task lifecycle phase transitions are validated mechanically: completion guard exits 2 on ' +
       'premature claim (returns stderr to Claude as error context), pre-commit blocks commits during ' +
-      'preflight/plan phases, and arbiter task advance validates forward-only transitions with audit log. ' +
+      'preflight/plan phases, and arbiter lifecycle advance validates forward-only transitions with audit log. ' +
       'Evidence guard (guard-done-evidence.mjs.ejs) additionally blocks done claims until SHA-pinned ' +
       'evidence (.claude/.last-done-evidence.json) is present, all_green, and SHAs match current tree. ' +
       'Evidence is captured by running node scripts/done-evidence.mjs (runs L2 gate + pins source SHAs). ' +
@@ -2200,7 +2200,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '`arbiter update` must rewrite a skipIfExists-emitted file whose on-disk content is byte-' +
       "identical to arbiter's last recorded render (pristine, unmodified since generation) so upstream " +
       'template fixes reach the governed fleet; it must preserve a user-modified file (on-disk hash ≠ ' +
-      'recorded baseline) and warn that the fix was withheld; and `arbiter diff` must report a pristine-' +
+      'recorded baseline) and warn that the fix was withheld; and `arbiter update --dry-run` must report a pristine-' +
       'stale file as changed, never as a lying "unchanged". Provenance is a committed per-file content-' +
       'hash manifest (.arbiter-generated-manifest.json at the repo root, sibling of .arbiter-generated.' +
       'json), not config alone. A corrupt manifest fails closed (exit 2); a missing one is a legitimate ' +
@@ -2358,7 +2358,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Every arbiter-governed project must ship a conformance scorecard runner ' +
       '(`scripts/conformance.mjs`). The runner is SELF-CONTAINED: the standalone ' +
       '`arbiter conformance` command was retired, so it no longer shells out to it — it ' +
-      'points at `arbiter gold-audit` (the surviving governance scorecard: level band + ' +
+      'points at `arbiter audit readiness` (the surviving governance scorecard: level band + ' +
       'missing items) and exits 0. Enforced by the conformance generator ' +
       '(UNCONDITIONAL_EMISSIONS entry in check-all.ts); wired as an advisory ' +
       '(runWarnCheck) in check-all.mjs L2 — informational, never hard-fails the gate.',
@@ -2489,7 +2489,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '`L1`–`L4` are governance-level aliases. The tier adds NO new persisted config field — ' +
       'it is a view over (governanceLevel, brownfield, grace) and desugars into the existing ' +
       '`--level` + `--brownfield` settings. The adoption ladder bootstrap→L1→L2→L3→L4 has ' +
-      'documented entry/exit criteria; graduation uses the existing `arbiter upgrade-level` ' +
+      'documented entry/exit criteria; graduation uses the existing `arbiter configure level` ' +
       '(grace-softened, ADR-028) and `arbiter configure` flows. selfOnly: this governs ' +
       "arbiter's own init CLI behaviour, not a gate emitted into target projects.",
     enforcement:
@@ -2541,7 +2541,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     description:
       'Every arbiter-governed project ships TWO Track-B thin runners that delegate to arbiter ' +
       'via npx so a consumer needs NO local `yaml` dep: scripts/check-doc-set.mjs (delegates to ' +
-      '`arbiter doc-set` — the deterministic doc-set presence audit) and ' +
+      '`arbiter audit docs` — the deterministic doc-set presence audit) and ' +
       'scripts/check-anti-fake-green.mjs (delegates to `arbiter anti-fake-green` — the ' +
       'disarm-proof guard aggregate). Both follow the gold-audit thin-runner shape (#1419, ' +
       'INV-128): a STATIC `spawnSync("npx", ["--no-install", "arbiter", "<cmd>", ...args])` ' +
@@ -2808,7 +2808,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'src/templates/scripts/gate-registry.yml.ejs is L2, runWarnCheck, and gated on ' +
       'enableDebtGates, because a freshly generated arc42 is hollow by construction and a gate ' +
       'that made `arbiter init` produce a red repo would only teach people to delete it. The ' +
-      'governed project receives a thin runner delegating to `arbiter doc-set --arc42`, so the ' +
+      'governed project receives a thin runner delegating to `arbiter audit docs --arc42`, so the ' +
       'engine and its skeletons stay in one place and no copy can drift; the engine ships via ' +
       'package.json files[], enforced by the DERIVED engine set in check-tarball-contents.mjs ' +
       '(#2335/#2480 — a hand-maintained list of the same paths failed to ratchet and let a ' +

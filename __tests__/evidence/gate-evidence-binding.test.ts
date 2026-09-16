@@ -642,7 +642,7 @@ describe('#2328 gate-evidence binding — writer fails closed', () => {
 })
 
 /**
- * The engine (`arbiter task advance`) must NOT delegate its verdict to a script
+ * The engine (`arbiter lifecycle advance`) must NOT delegate its verdict to a script
  * inside the tree it is gating, so `src/evidence/gate-binding.ts` carries its
  * own copy of the policy. This test is what stops the two copies from drifting
  * into a gate that validates nothing.

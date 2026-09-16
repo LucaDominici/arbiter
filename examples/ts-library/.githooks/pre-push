@@ -135,7 +135,7 @@ fi
 # ─── arbiter pre-push chain-batching gate (#2102) ────────────────────────────
 # Enforced half of the chain-batching advisory (`is_unbatched`): when
 # `.claude/.task/status.json` declares a non-empty `chainIds` (via
-# `arbiter task init --chain <id>` / `arbiter ship --chain <id>`), every id in
+# `arbiter lifecycle start --chain <id>` / `arbiter ship --chain <id>`), every id in
 # [taskId, ...chainIds] must have a commit in the push range before the push
 # is allowed. Fails CLOSED only on a genuine missing id — any other condition
 # (no status file, empty/absent chainIds, unreadable JSON, no push-range base)
@@ -222,7 +222,7 @@ fi
 
 # ─── one gate per repo, foreground (#2427) ───────────────────────────────────
 # Both branches below launch the heavy gate through scripts/lib/gate-mutex.mjs,
-# which takes the SAME per-repo flock `arbiter gate-exec` takes. Two pushes (or a
+# which takes the SAME per-repo flock `arbiter check run` takes. Two pushes (or a
 # push and an agent's gate) in one repo therefore serialise instead of trampling
 # each other's temp files and starving each other's test workers.
 #

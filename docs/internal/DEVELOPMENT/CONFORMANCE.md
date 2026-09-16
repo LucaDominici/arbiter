@@ -12,7 +12,7 @@ related: ['docs/internal/SYSTEM/CANON.md']
 # arbiter conformance scorecard (#1369)
 
 > **Deprecated (#2628).** The standalone `arbiter conformance` command was retired in the T2
-> command-surface cut; the governance scorecard is `arbiter gold-audit` (level band + missing
+> command-surface cut; the governance scorecard is `arbiter audit readiness` (level band + missing
 > items). Governed projects receive the advisory `scripts/conformance.mjs` runner (INV-128),
 > which is self-contained and points at `gold-audit` — exit codes 0=advisory OK, 2=ERROR. The
 > command surface below is kept as the design record of the retired command.
@@ -21,7 +21,7 @@ related: ['docs/internal/SYSTEM/CANON.md']
 > per-dimension matrix (pass / partial / fail / skip + evidence ref).
 
 > **Status:** this is a proposed command interface, not a registered current CLI
-> command. The shipped related surface is `arbiter doctor --prove-gates`, which
+> command. The shipped related surface is `arbiter status health --prove-gates`, which
 > runs negative proofs for the tier-1 conformance dimensions.
 
 ---
@@ -101,7 +101,7 @@ arbiter conformance --fail-on partial
 - **`src/conformance/gate-proofs.ts`** — negative-proof registry for tier-1
   conformance dimensions.
 - **`src/commands/doctor/prove-gates.ts`** — implementation of the current
-  `arbiter doctor --prove-gates` surface.
+  `arbiter status health --prove-gates` surface.
 - **`__tests__/conformance/engine.test.ts`** and
   **`__tests__/commands/doctor-prove-gates.test.ts`** — direct coverage of the
   evaluator and current command.

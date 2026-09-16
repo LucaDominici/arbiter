@@ -190,7 +190,7 @@
 | [ADR-104: Trivy fs replaces OWASP Dependency-Check for JVM dependency scanning](internal/ADR/104-trivy-fs-replaces-owasp-dependency-check.md) | 104 | active | kind/adr |
 | [ADR-105: never-brick config migration — coercible vs fatal fields](internal/ADR/105-never-brick-config-migration.md) | 105 | active | kind/adr |
 | [ADR-106: Codex-track parity contract — derive-from-Claude + gate-enforced parity surface](internal/ADR/106-codex-track-parity-contract.md) | 106 | active | kind/adr |
-| [ADR-107: arbiter obsidian subcommand — thin generic orchestrator](internal/ADR/107-obsidian-subcommand.md) | 107 | active | kind/adr |
+| [ADR-107: arbiter docs vault subcommand — thin generic orchestrator](internal/ADR/107-obsidian-subcommand.md) | 107 | active | kind/adr |
 | [ADR-108: Exact-SHA landing for evidence-bearing PRs](internal/ADR/108-ff-only-merge-method-evidence-bearing-prs.md) | 108 | active | kind/adr |
 | [ADR-109: constraint-map.json scaffolded + INV-115 fail-closed on a missing map](internal/ADR/109-constraint-map-fail-closed.md) | 109 | active | kind/adr |
 | [ADR-110: Acceptance-criteria anchor — entry gate, external DoD, FIT review, rework telemetry](internal/ADR/110-acceptance-criteria-anchor.md) | 110 | active | kind/adr |
@@ -204,7 +204,7 @@
 | [ADR-118: The lifecycle ontology is wired, not written](internal/ADR/118-lifecycle-ontology-wired-not-written.md) | 118 | active | kind/adr |
 | [ADR-119: Adversarial review hops until nothing above low survives](internal/ADR/119-adversarial-review-hops-until-low-only.md) | 119 | active | kind/adr |
 | [ADR-120: Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](internal/ADR/120-ignore-stryker-tmp-scratch-sandbox.md) | 120 | active | kind/adr |
-| [ADR-121: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](internal/ADR/121-plugin-add-ship-minimal.md) | 121 | active | kind/adr |
+| [ADR-121: `arbiter configure plugin add`/`list` — Ship the Minimal Command, No Scaffolder](internal/ADR/121-plugin-add-ship-minimal.md) | 121 | active | kind/adr |
 | [ADR-122: Experimental tool generators — promotion criteria, and retire all five](internal/ADR/122-experimental-tool-generators-retired.md) | 122 | active | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-000_template.md) | — | draft | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-TEMPLATE.md) | — | active | kind/adr |
@@ -286,7 +286,7 @@
 | [ISO 9001 Overlay — Reference](REFERENCE/iso9001-overlay.md) | — | active | kind/reference |
 | [Reference: Java gold tooling wiring](REFERENCE/java-gold-tooling.md) | — | active | kind/reference |
 | [Local-Wrapper Contract (INV-87, W3)](REFERENCE/local-wrapper-contract.md) | — | active | kind/reference |
-| [Reference: arbiter obsidian](REFERENCE/obsidian.md) | — | active | kind/reference |
+| [Reference: arbiter docs vault](REFERENCE/obsidian.md) | — | active | kind/reference |
 | [Plan Template — Context Block](REFERENCE/plan-template.md) | — | active | kind/reference |
 | [Reference: Ship Driver (generated)](REFERENCE/ship-driver.md) | — | active | kind/reference |
 | [`.arbiter-generated.json` State File](REFERENCE/state-file.md) | — | active | kind/reference |

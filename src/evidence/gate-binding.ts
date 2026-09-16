@@ -5,7 +5,7 @@
 // whose gate started on one tree and finished on another is unverifiable, not
 // merely stale.
 //
-// `arbiter task advance` must NOT delegate its verdict to a script that lives
+// `arbiter lifecycle advance` must NOT delegate its verdict to a script that lives
 // inside the tree it is gating: anyone who can edit `scripts/lib/gate-evidence.mjs`
 // would otherwise make `advance` pass forever. The engine therefore carries its
 // own copy of the same policy. `GATE_PASS_POLICY` is the shared contract and is

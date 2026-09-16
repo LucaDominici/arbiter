@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // #1121: every settable path in configure.ts ALLOWED_PATHS MUST appear in the
 // settings.ts SETTINGS_CATALOG (and vice versa). Drift = build failure, so
-// `arbiter settings` can never silently omit a configurable path.
+// `arbiter configure show` can never silently omit a configurable path.
 // CATALOG: reconciles configure.ts ALLOWED_PATHS against settings.ts SETTINGS_CATALOG.
 // CATALOG: rejected fold-in into check-command-tests.mjs (tests-per-command, not field coverage).
 // CATALOG: rejected fold-in into gen-cli-ref (command-level docs, not the settable-path catalog).

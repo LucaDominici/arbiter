@@ -25,7 +25,7 @@
 //   4. test_commit_sha (40 hex) is REACHABLE from HEAD — not merely present as an object,
 //      which a pre-rebase commit behind a stale branch would be (#2116). A rebase must
 //      fail here loudly; re-record the evidence. (Re-resolving a rewritten sha from the
-//      RED test's blob is arbiter's own `verify tdd`, not this self-contained gate.)
+//      RED test's blob is arbiter's own `check tdd`, not this self-contained gate.)
 //   5. test_path exists in that commit
 //
 // Exit codes (INV-53): 0 = all verified / vacuous · 1 = missing/inconsistent evidence
@@ -104,7 +104,7 @@ function isDocsOnlyChange(changedPaths) {
 const FLOOR_REMEDY =
   '  Two ways forward:\n' +
   '    1. record real red→green evidence for one cited task:\n' +
-  '         arbiter task record-red --test-path <path>\n' +
+  '         arbiter lifecycle record-red --test-path <path>\n' +
   '    2. move the source change onto its own branch whose commit SUBJECT carries the\n' +
   '       task id (fix(#NNN): ...) — that commit is then verified individually.\n'
 
@@ -309,7 +309,7 @@ function verifySubjectTasks(taskIds) {
   if (!anyFail) return true
   process.stderr.write(
     '\ncheck-tdd-evidence: one or more task(s) failed TDD evidence re-verification. ' +
-      'Record red→green evidence with `arbiter task record-red --test-path <path>`.\n',
+      'Record red→green evidence with `arbiter lifecycle record-red --test-path <path>`.\n',
   )
   return false
 }

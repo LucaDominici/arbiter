@@ -172,7 +172,7 @@ describe('#2141: a diverged governance file is withheld unless explicitly adopte
       .filter((line) => line.includes('[warn] fs.fix_withheld'))
     expect(warnings).toHaveLength(2)
     for (const warning of warnings) {
-      expect(warning).toContain('arbiter diff --withheld')
+      expect(warning).toContain('arbiter update --dry-run --withheld')
       expect(warning).toContain('arbiter update --adopt')
     }
   })

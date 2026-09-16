@@ -10,7 +10,7 @@ import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
 describe('scripts/check-doc-set.mjs.ejs render (CANON-04, #1428)', () => {
-  it('renders without error and delegates to `arbiter doc-set`', () => {
+  it('renders without error and delegates to `arbiter audit docs`', () => {
     const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
     const content = renderTemplate('scripts/check-doc-set.mjs.ejs', config)
     expect(content.trim().length).toBeGreaterThan(0)
@@ -35,7 +35,7 @@ describe('scripts/check-doc-set.mjs.ejs render (CANON-04, #1428)', () => {
 // T4 (gold-doc-tranches-t3-t5.md §2.3): scripts/check-doc-freshness.mjs.ejs — the freshness
 // thin runner, same shape as check-doc-set.mjs.ejs above (INV-135, check-template-tests.mjs ratchet).
 describe('scripts/check-doc-freshness.mjs.ejs render (T4)', () => {
-  it('renders without error and delegates to `arbiter doc-set --freshness`', () => {
+  it('renders without error and delegates to `arbiter audit docs --freshness`', () => {
     const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
     const content = renderTemplate('scripts/check-doc-freshness.mjs.ejs', config)
     expect(content.trim().length).toBeGreaterThan(0)
@@ -76,7 +76,7 @@ describe('scripts/check-doc-freshness.mjs.ejs render (T4)', () => {
 // member of this family (check-template-tests.mjs ratchet). It lives beside its two siblings
 // deliberately: the shape they share IS the contract, and a divergence should be visible in one file.
 describe('scripts/check-arc42-slots.mjs.ejs render (INV-144)', () => {
-  it('renders without error and delegates to `arbiter doc-set --arc42`', () => {
+  it('renders without error and delegates to `arbiter audit docs --arc42`', () => {
     const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
     const content = renderTemplate('scripts/check-arc42-slots.mjs.ejs', config)
     expect(content.trim().length).toBeGreaterThan(0)

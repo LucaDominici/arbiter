@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 function trackedClaudeSnapshot(root: string): Map<string, string> {
@@ -17,9 +17,11 @@ function trackedClaudeSnapshot(root: string): Map<string, string> {
   return new Map(
     files.map((file) => [
       file,
-      createHash('sha256')
-        .update(readFileSync(resolve(root, file)))
-        .digest('hex'),
+      existsSync(resolve(root, file))
+        ? createHash('sha256')
+            .update(readFileSync(resolve(root, file)))
+            .digest('hex')
+        : '<deleted>',
     ]),
   )
 }

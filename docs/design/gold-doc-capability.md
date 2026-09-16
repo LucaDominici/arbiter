@@ -81,7 +81,7 @@ Three responsibilities, one manifest as the pivot.
 |             | Self (arbiter repo)                                                                | Governed repo                                                                   |
 | ----------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Tier        | **Enterprise** always (a framework, published to npm, exposes a plugin API)        | Derived from `collaborationMode` — usually solo/small                           |
-| Engine      | The **real** `scripts/check-doc-set.mjs` runs locally                              | A **thin runner** shells `arbiter doc-set` (no local `yaml` dep)                |
+| Engine      | The **real** `scripts/check-doc-set.mjs` runs locally                              | A **thin runner** shells `arbiter audit docs` (no local `yaml` dep)             |
 | Enforcement | Presence `--strict` HARD in `check-all` (`scripts/check-all.mjs:353-356`, INV-135) | Advisory in `check-all` (`src/generators/check-all.ts:174-181`) unless promoted |
 | Freshness   | Release-blocking (industrial band)                                                 | Advisory (starter) → monthly (standard) → release-block (industrial)            |
 
@@ -222,7 +222,7 @@ frontmatter shell + a fill-me-in banner. That is presence-satisfying but content
 
 ### 4.2 Target design: a real doc-body generator, riding the existing two-phase engine
 
-Do **not** build a new update engine — ride `arbiter diff` (plan, `src/cli.ts:676`) and
+Do **not** build a new update engine — ride `arbiter update --dry-run` (plan, `src/cli.ts:676`) and
 `arbiter update` (apply, `src/cli.ts:581`). That engine is already real: hash-aware pristine
 propagation, `withheld` for user-modified files, two-phase diff=plan/update=apply
 (`docs/audit/FRAMEWORK_AUDIT.md:72`, `src/commands/update.ts`). The doc generator becomes a
@@ -239,17 +239,17 @@ scaffold, not a banner — right-sized by `collaborationMode`:
 - `operations/slo.md.ejs`, `security/threat-model.md.ejs`, `data/er-model.md.ejs`, … — one skeleton
   per conditional family, emitted only when the trigger overlay fires.
 
-**Two-phase contract (new `arbiter doc-set` command — see Tranche 0):**
+**Two-phase contract (new `arbiter audit docs` command — see Tranche 0):**
 
 ```bash
-arbiter doc-set --plan     # dry-run: table of {present · would-scaffold · stale · withheld}. Writes nothing.
-arbiter doc-set --apply    # scaffolds missing required skeletons (skipIfExists); reports withheld user-modified
-arbiter doc-set --json     # machine-readable audit (presence + freshness roll-up)
+arbiter audit docs --plan     # dry-run: table of {present · would-scaffold · stale · withheld}. Writes nothing.
+arbiter audit docs --apply    # scaffolds missing required skeletons (skipIfExists); reports withheld user-modified
+arbiter audit docs --json     # machine-readable audit (presence + freshness roll-up)
 ```
 
 `--plan`/`--apply` map onto `writeFile(..., { dryRun })` which the generators already thread
 (`src/generators/gold-kit.ts:53,63`). Idempotence and own-the-code come from `skipIfExists`; the
-re-entry path for a customized doc is `arbiter diff`/`update`'s three-way surface, not a blind
+re-entry path for a customized doc is `arbiter update --dry-run`/`update`'s three-way surface, not a blind
 overwrite. **No file is ever overwritten without a reviewed diff.**
 
 ### 4.3 `check-no-direct-fs` compliance
@@ -319,7 +319,7 @@ of rotting into broken-warnings.
 
 `scripts/check-emission-coherence.mjs` (INV-123) verifies every _referenced file_ resolves
 (`:348-361`) and every emitted script is referenced (`:291-341`). But it resolves **file paths**,
-not **`arbiter <subcommand>` invocations** — which is exactly why the broken `arbiter doc-set`
+not **`arbiter <subcommand>` invocations** — which is exactly why the broken `arbiter audit docs`
 runner (§7 H1) shipped invisibly. Tranche 5 adds a check (or extends emission-coherence) that every
 `npx arbiter <sub>` shelled from a generated runner resolves to a registered `cli.ts` command. <!-- install-command-allow: emitted runner's own `npx --no-install arbiter <sub>` spawn, never a user-facing install -->
 
@@ -342,7 +342,7 @@ the true enterprise column (and enrolls the two foundational docs + this file).
 ### 6.2 Governed (acme-consumer, `trunk-solo`=SOLO, L2) — the runner is broken
 
 `node acme-consumer/scripts/check-doc-set.mjs --json` → **`error: unknown command 'doc-set'`.** The
-generated runner shells <!-- install-command-allow: emitted `npx --no-install arbiter <sub>`, not a user-facing install --> `npx arbiter doc-set` (`acme-consumer/scripts/check-doc-set.mjs:22`), but no such
+generated runner shells <!-- install-command-allow: emitted `npx --no-install arbiter <sub>`, not a user-facing install --> `npx arbiter audit docs` (`acme-consumer/scripts/check-doc-set.mjs:22`), but no such
 command exists (`src/cli.ts` has `gold-audit` at `:831`, no `doc-set`). **The governed-side
 presence gate has never functioned.** This is finding H1.
 
@@ -367,7 +367,7 @@ subtree arc42/C4/ADR count.
 
 | #   | Finding                                                                                                                              | Evidence                                                                            | Severity                  |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------- |
-| H1  | **Governed presence gate is dead** — thin runner shells a non-existent `arbiter doc-set`                                             | `acme-consumer/scripts/check-doc-set.mjs:22` vs `src/cli.ts` (no `doc-set` command) | Blocker                   |
+| H1  | **Governed presence gate is dead** — thin runner shells a non-existent `arbiter audit docs`                                          | `acme-consumer/scripts/check-doc-set.mjs:22` vs `src/cli.ts` (no `doc-set` command) | Blocker                   |
 | H2  | **Manifest is path-blind** — subtree arc42/C4/ADR (acme-consumer `budget/`) not recognized                                           | `standards/gold-doc-set.yml:96-102,109`                                             | High                      |
 | H3  | **Manifest is tier-blind** — no solo/small/enterprise column; every governed repo gets the cathedral                                 | `standards/gold-doc-set.yml:91-140` (all `mandatory`)                               | High                      |
 | H4  | **Doc freshness is unimplemented** — `check-monthly-freshness` reads a CI stamp, `check-doc-style` reads only `last_review` _format_ | `scripts/check-monthly-freshness.mjs:55-57`, `scripts/check-doc-style.mjs:157-163`  | High                      |
@@ -387,14 +387,14 @@ Ordered so each tranche is independently shippable and leaves the tree green. Mo
 pyramid: Sonnet implements; Opus verifies the plan; Haiku does mechanical transcription (the §2
 matrix rows).
 
-### Tranche 0 — Unblock: the `arbiter doc-set` command (fixes H1)
+### Tranche 0 — Unblock: the `arbiter audit docs` command (fixes H1)
 
 - **Build:** add `src/commands/doc-set.ts` mirroring `src/commands/gold-audit.ts` (thin wrapper over
   the `scripts/check-doc-set.mjs` engine); register `.command('doc-set [repo]')` in `src/cli.ts`
   next to `gold-audit` (`:831`).
 - **Wired:** `src/cli.ts` command registration; the existing governed runner
   (`acme-consumer/scripts/check-doc-set.mjs:22`) now resolves.
-- **Tested (red path):** a test that `arbiter doc-set --json` on a fixture repo returns an audit
+- **Tested (red path):** a test that `arbiter audit docs --json` on a fixture repo returns an audit
   payload — RED today (`unknown command 'doc-set'`), GREEN after.
 - **Dogfood/proof:** re-run §6.2 on acme-consumer → real JSON, not an error.
 
@@ -427,14 +427,14 @@ matrix rows).
 
 - **Build:** `src/templates/docs/skeletons/*.ejs` (arc42 Canvas/full, MADR ADR, PRD 1-pager, SLO,
   threat-model, ER-model), right-sized by tier; new `src/generators/doc-set.ts` that emits the
-  right skeletons through `writeFile({dryRun})`; wire `arbiter doc-set --plan/--apply` onto it;
+  right skeletons through `writeFile({dryRun})`; wire `arbiter audit docs --plan/--apply` onto it;
   register in `registry.ts`.
 - **Wired:** `registry.ts` generator entry; `--plan`/`--apply` in `src/commands/doc-set.ts`; rides
-  `arbiter diff`/`update` for re-entry.
-- **Tested (red path):** `arbiter doc-set --apply` on a fixture missing `docs/operations/slo.md`
+  `arbiter update --dry-run`/`update` for re-entry.
+- **Tested (red path):** `arbiter audit docs --apply` on a fixture missing `docs/operations/slo.md`
   (small + SLA trigger) writes a skeleton with **real section headers** (Objectives/SLIs/Error
   budget), not a `fill me in` banner; `--plan` writes nothing (RED: today only the banner exists).
-- **Dogfood/proof:** generate the SLO skeleton on acme-team; confirm `arbiter diff` treats a
+- **Dogfood/proof:** generate the SLO skeleton on acme-team; confirm `arbiter update --dry-run` treats a
   subsequent user edit as `withheld`, not overwritten.
 
 ### Tranche 4 — Freshness gate (fixes H4)
@@ -477,7 +477,7 @@ matrix rows).
   false-gap; a `freshness` helper is already imported, `:51`).
 - Tier axis config — `collaborationMode` (`schema.ts:436-438`) × `pipelineStyle`
   (`collaboration-mode-defaults.ts:28-47`).
-- Two-phase own-the-code engine — `arbiter diff`/`update` (`cli.ts:676,581`; `update.ts`).
+- Two-phase own-the-code engine — `arbiter update --dry-run`/`update` (`cli.ts:676,581`; `update.ts`).
 - Frontmatter discipline — `check-doc-style.mjs` (`last_review` format), `docs-add-frontmatter.mjs`
   (backfill).
 - Emission/orchestrator coherence — `check-emission-coherence.mjs` (INV-123),
@@ -486,7 +486,7 @@ matrix rows).
 
 **MISSING (build):**
 
-- `arbiter doc-set` CLI command (H1) — **Tranche 0.**
+- `arbiter audit docs` CLI command (H1) — **Tranche 0.**
 - `tiers{}` + `freshness_class` manifest fields + collaborationMode column resolution (H3) —
   **Tranche 1.**
 - Subtree arc42/C4/ADR recognition (H2) — **Tranche 2.**

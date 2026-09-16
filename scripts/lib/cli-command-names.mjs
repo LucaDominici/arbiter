@@ -38,7 +38,7 @@ export function extractTopLevelCommandNames(src) {
 /**
  * Extract every `.alias('name')` registered on a commander Command instance
  * in src/cli.ts (e.g. `.command('worktree').alias('wt')`, `.command('validate').alias('verify')`).
- * These are real, working invocations — `arbiter wt` and `arbiter verify` both
+ * These are real, working invocations — command aliases both
  * run today — but they are NOT separate entries in topLevelNames (gen-cli-ref's
  * generated reference table is keyed by the canonical .command() name only;
  * treating an alias as its own top-level command would make it try to render
@@ -105,7 +105,7 @@ export function extractCommandOptions(src, commandName) {
  *   never subcommands.
  *
  * Returns the Set of subcommand base names. Hidden subcommands are included —
- * `arbiter task mark` genuinely runs even though `mark` is registered hidden,
+ * `arbiter lifecycle checkpoint` genuinely runs even though `mark` is registered hidden,
  * and the phantom-scan's contract is "does this word actually invoke
  * something".
  */
@@ -135,14 +135,22 @@ export function extractSubcommandNames(src, topLevelName) {
     if (m[1] !== alias) continue
     for (const cm of m[2].matchAll(/\.command\('([^' ]+)/g)) subs.add(cm[1])
   }
+
+  // A named sub-namespace may be bound while it is registered
+  // (`const plugin = configure.command('plugin')`). It is still a direct child
+  // of the canonical root even though later leaf commands hang off `plugin`.
+  const namedSubRe = new RegExp(
+    `const\\s+\\w+\\s*=\\s*${alias}\\s*[\\s\\S]{0,80}?\\.command\\('([^' ]+)`,
+    'g',
+  )
+  for (const m of stripped.matchAll(namedSubRe)) subs.add(m[1])
   return subs
 }
 
 /**
  * Extract alias→canonical command mappings from src/cli.ts (AC-2231.5,
- * #2231). `arbiter wt list` and `arbiter verify tdd` are real invocations
- * whose second token is a subcommand of the CANONICAL name (`worktree` /
- * `validate`) — the phantom-scan must resolve the alias before checking the
+ * #2231). `arbiter worktree check` and `arbiter check tdd` are real invocations
+ * whose second token is a subcommand of the CANONICAL name (`worktree` / `check`) — the phantom-scan must resolve the alias before checking the
  * subcommand tree. Returns a Map<alias, canonicalTopLevelName>.
  *
  * The existing flat extractCommandAliases() stays for callers that only need
@@ -167,7 +175,7 @@ export function extractCommandAliasMappings(src) {
  * Assemble the full "does this invocation exist" surface from src/cli.ts source
  * text — the ∪ of top-level names, aliases and the always-valid `help`
  * meta-command, plus the per-command subcommand tree and the alias→canonical
- * map that `findPhantomSubcommands` needs to resolve `arbiter wt close`.
+ * map that `findPhantomSubcommands` needs to resolve `git worktree remove`.
  *
  * Factored out of check-phantom-command-scan.mjs's main() (CANON-16
  * refactor-first, #2415) so the emitted-markdown resolver validates against the

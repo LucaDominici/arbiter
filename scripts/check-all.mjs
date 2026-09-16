@@ -128,7 +128,7 @@ if (isMain) {
   // broke docs:build; a subprocess-heavy unit test flaked under the doubled
   // load), and the orphan of a killed `git push` went on to stamp a green marker.
   //
-  // The mutex is the SAME per-repo flock `arbiter gate-exec` takes — keyed off
+  // The mutex is the SAME per-repo flock `arbiter check run` takes — keyed off
   // GIT_CWD when present, because the pre-push '#'-in-path branch runs this file
   // from an rsync'd copy under /tmp and keying off cwd there would derive a fresh
   // key per run, i.e. a null mutex. Re-exec (rather than acquire-in-place) is how

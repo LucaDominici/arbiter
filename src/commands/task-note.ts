@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// `arbiter note` (#1401) — zero-friction incidental-finding capture.
+// `arbiter finding add` (#1401) — zero-friction incidental-finding capture.
 //
 // When, while doing task X, an agent notices debt/smell/risk OUTSIDE X's scope, the ONLY in-band
-// action is `arbiter note` (see `.claude/rules/60-incidental-capture.md`). This appends EXACTLY one
+// action is `arbiter finding add` (see `.claude/rules/60-incidental-capture.md`). This appends EXACTLY one
 // JSON line to a per-shard spool under `.arbiter/findings/<shard>.jsonl`. Per-shard files make
 // concurrent capture across parallel worktrees lost-update-safe: each agent writes its own shard.
 //

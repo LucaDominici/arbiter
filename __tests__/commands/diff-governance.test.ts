@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2040: `arbiter diff --governance` audits whether high-authority governance sections
+// #2040: `arbiter update --dry-run --governance` audits whether high-authority governance sections
 // (Iron Laws in AGENTS.md, the permission deny list in .claude/settings.json) are stale
 // relative to the CURRENT template — section-scoped, not a whole-file diff (a whole-file
 // compare would false-positive on any unrelated customization; the issue's own test case
@@ -184,7 +184,7 @@ describe('checkGovernanceSections (#2040)', () => {
   })
 })
 
-describe('arbiter diff --governance (CLI wiring, #2040)', () => {
+describe('arbiter update --dry-run --governance (CLI wiring, #2040)', () => {
   let dir: string
 
   afterEach(() => {

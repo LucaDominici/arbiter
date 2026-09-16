@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2039: the interactive half of `arbiter method` — a cluster lens over the SAME fields
+// #2039: the interactive half of `arbiter configure method` — a cluster lens over the SAME fields
 // `configure` already edits, re-grouped by feature instead of by dotted path.
 //
 // Two contracts this file exists to keep literal:
@@ -131,7 +131,7 @@ async function promptCluster(
 }
 
 /**
- * `arbiter method` with no subcommand on a TTY. The caller (cli.ts) owns the TTY check,
+ * `arbiter configure method` with no subcommand on a TTY. The caller (cli.ts) owns the TTY check,
  * matching `configure`'s split.
  */
 export async function runInteractiveMethod(dir?: string): Promise<void> {
@@ -152,10 +152,10 @@ export async function runInteractiveMethod(dir?: string): Promise<void> {
   const partial = statuses.filter((s) => s.verdict === 'partial').length
   const off = statuses.filter((s) => s.verdict === 'off').length
 
-  clack.intro('arbiter method')
+  clack.intro('arbiter configure method')
   clack.note(
     `wired ${wired}   partial ${partial}   off ${off}\n` +
-      `Full report: arbiter method status (or --json)`,
+      `Full report: arbiter configure method status (or --json)`,
     'methodology',
   )
 

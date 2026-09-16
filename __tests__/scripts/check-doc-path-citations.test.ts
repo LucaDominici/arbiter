@@ -170,7 +170,7 @@ describe('check-doc-path-citations.mjs — synthetic phantom fails closed (AC-22
         join(dir, 'docs', 'usage.md'),
         'Run `node scripts/does-not-exist.mjs --check` to validate.\n' +
           'Also: `arbiter ship #NNN --advance`, `arbiter init --recipe <url>`, ' +
-          "`arbiter update --governance`, `arbiter verify tdd '#NNN'`.\n",
+          "`arbiter update --governance`, `arbiter check tdd '#NNN'`.\n",
       )
       const r = spawnSync('node', [SCRIPT, `--roots=${join(dir, 'docs')}`], {
         encoding: 'utf-8',

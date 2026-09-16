@@ -157,7 +157,7 @@ Every dispatch should carry:
 
 - The issues, with the instruction to read each one and **falsify its premise**.
 - The cause you believe unites them (and permission to disagree).
-- The declared file manifest — anything outside it goes to `arbiter note`.
+- The declared file manifest — anything outside it goes to `arbiter finding add`.
 - TDD per issue with a **real** red captured verbatim. A red that fails for the
   wrong reason is not a red.
 - Dual-track: every artefact that is also emitted to targets gets its template

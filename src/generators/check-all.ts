@@ -528,7 +528,7 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // each has a dedicated always-on owner (generateConformanceScript / generateGoldKit)
   // that runs later in the registry and is the SOLE emitter. Listing them here too made
   // generateCheckAll a second always-on emitter — the #1318.2 double-write class (false
-  // "already exist" on fresh init + duplicated/over-counted `arbiter diff` entries, #1578).
+  // "already exist" on fresh init + duplicated/over-counted `arbiter update --dry-run` entries, #1578).
   // The wiring is independent of emission: check-all.mjs.ejs gates each as an advisory
   // `runWarnCheck` on `existsSync(scripts/<file>)`, so the gate stays fully intact.
   // #1428 (INV-135): doc-set + anti-fake-green thin runners. Each delegates to
@@ -541,11 +541,11 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     tpl: 'scripts/check-doc-set.mjs.ejs',
   },
   // T4 (gold-doc-tranches-t3-t5.md §2.3): freshness thin runner, same shape/rationale as
-  // check-doc-set.mjs above — delegates to local `arbiter doc-set --freshness`. Emitted
+  // check-doc-set.mjs above — delegates to local `arbiter audit docs --freshness`. Emitted
   // unconditionally but wired OUTSIDE check-all.mjs L2 (monthly + release lane only, per the
   // solo-developer-gate-model doctrine) — see _monthly.yml.ejs / 05-release.yml.ejs.
   // INV-144: arc42 slot-completeness thin runner, same shape/rationale as check-doc-set.mjs —
-  // delegates to local `arbiter doc-set --arc42`. The skeletons the audit compares against stay in
+  // delegates to local `arbiter audit docs --arc42`. The skeletons the audit compares against stay in
   // arbiter's own tree, so a governed project is held to the skeleton IT received without carrying
   // a copy that could drift. Wired L2 warn in the registry: hollow sections are a real finding, but
   // a freshly generated arc42 is hollow by construction and must not make `arbiter init` red.
@@ -843,7 +843,7 @@ export function generateCheckAll(
   // #2278: the PRODUCER of .evidence/SUMMARY.json (INV-33). The template existed
   // since ADR-030 ("L3 projects generate … evidence-collect.mjs") but no generator
   // ever wired it, so the evidence-gate block emitted into check-all.mjs — plus
-  // `arbiter verify evidence` and the evidence graph builder — read a file nothing
+  // `arbiter check evidence` and the evidence graph builder — read a file nothing
   // in the tree could write, and the gate WARNed forever. Same ghost class as
   // #1331's ci-classify-changes.mjs. Gated on the SAME condition as its consumer
   // (gate-registry `evidence-gate`, emitIf isL3Plus) so producer and gate can never

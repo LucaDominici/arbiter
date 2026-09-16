@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2683: `validate evidence` / `verify evidence` must verify the directory selected with --dir,
+// #2683: `check evidence` must verify the directory selected with --dir,
 // wherever --dir sits on the command line — spawned against the BUILT entrypoint (dist/cli.js).
 import { afterEach, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -60,19 +60,15 @@ function run(args: string[], cwd: string) {
   return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
 
-const placements = (dir: string): string[][] =>
-  ['validate', 'verify'].flatMap((name) => [
-    [name, '--dir', dir, 'evidence'],
-    [name, 'evidence', '--dir', dir],
-  ])
+const placements = (dir: string): string[][] => [['check', 'evidence', '--dir', dir]]
 
-describe('verify evidence honors the selected --dir (#2683)', () => {
+describe('check evidence honors the selected --dir (#2683)', () => {
   it('reports malformed target B from valid cwd A, both names and positions (AC-1, AC-5)', () => {
     const { a } = fixture('valid', 'malformed')
     for (const args of placements('../B')) {
       const r = run(args, a)
       expect(r.status, args.join(' ')).toBe(1)
-      expect(r.stdout, args.join(' ')).toMatch(/^verify evidence: ERROR — invalid JSON/)
+      expect(r.stdout, args.join(' ')).toMatch(/^check evidence: ERROR — invalid JSON/)
     }
   }, 60_000)
 
@@ -82,7 +78,7 @@ describe('verify evidence honors the selected --dir (#2683)', () => {
       for (const args of placements('../B')) {
         const r = run(args, a)
         expect(r.status, `${aKind} A: ${args.join(' ')}`).toBe(0)
-        expect(r.stdout).toMatch(/^verify evidence: OK/)
+        expect(r.stdout).toMatch(/^check evidence: OK/)
       }
     }
   }, 60_000)
@@ -93,27 +89,27 @@ describe('verify evidence honors the selected --dir (#2683)', () => {
       for (const args of placements(dir)) {
         const r = run(args, c)
         expect(r.status, args.join(' ')).toBe(0)
-        expect(r.stdout).toMatch(/^verify evidence: OK/)
+        expect(r.stdout).toMatch(/^check evidence: OK/)
       }
     }
   }, 60_000)
 
   it('keeps cwd verification unchanged without --dir (AC-3)', () => {
     const { a, b } = fixture('valid', 'malformed')
-    for (const name of ['validate', 'verify']) {
+    for (const name of ['check']) {
       const ok = run([name, 'evidence'], a)
       expect(ok.status).toBe(0)
-      expect(ok.stdout).toMatch(/^verify evidence: OK/)
+      expect(ok.stdout).toMatch(/^check evidence: OK/)
       const bad = run([name, 'evidence'], b)
       expect(bad.status).toBe(1)
-      expect(bad.stdout).toMatch(/^verify evidence: ERROR — invalid JSON/)
+      expect(bad.stdout).toMatch(/^check evidence: ERROR — invalid JSON/)
     }
   }, 60_000)
 
   it('emits exactly one JSON result for the selected target, agreeing with human mode (AC-4)', () => {
     const cases = [
-      { a: 'valid', b: 'malformed', exit: 1, status: 'error', label: /^verify evidence: ERROR/ },
-      { a: 'malformed', b: 'valid', exit: 0, status: 'ok', label: /^verify evidence: OK/ },
+      { a: 'valid', b: 'malformed', exit: 1, status: 'error', label: /^check evidence: ERROR/ },
+      { a: 'malformed', b: 'valid', exit: 0, status: 'ok', label: /^check evidence: OK/ },
     ] as const
     for (const c of cases) {
       const { a } = fixture(c.a, c.b)
@@ -121,10 +117,7 @@ describe('verify evidence honors the selected --dir (#2683)', () => {
         const human = run(args, a)
         expect(human.status, args.join(' ')).toBe(c.exit)
         expect(human.stdout).toMatch(c.label)
-        for (const jsonArgs of [
-          [...args, '--json'],
-          [args[0], '--json', ...args.slice(1)],
-        ]) {
+        for (const jsonArgs of [[...args, '--json']]) {
           const r = run(jsonArgs, a)
           const lines = r.stdout.trim().split('\n')
           expect(lines, jsonArgs.join(' ')).toHaveLength(1)
@@ -133,7 +126,7 @@ describe('verify evidence honors the selected --dir (#2683)', () => {
             status: string
             data: { exitCode: number }
           }
-          expect(out.command).toBe('verify evidence')
+          expect(out.command).toBe('check evidence')
           expect(out.status, jsonArgs.join(' ')).toBe(c.status)
           expect(out.data.exitCode).toBe(c.exit)
           expect(r.status, jsonArgs.join(' ')).toBe(c.exit)

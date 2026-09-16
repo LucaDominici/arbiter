@@ -138,7 +138,7 @@ describe('scripts/conformance.mjs sole emitter (#1578)', () => {
   // generateConformanceScript owner (which runs later in the registry) is the sole
   // emitter. A second always-on emitter re-introduced the #1318.2 double-write class:
   // a false "already exist" warning on fresh init + a duplicated, over-counted entry
-  // in `arbiter diff`.
+  // in `arbiter update --dry-run`.
   it('generateCheckAll does NOT emit scripts/conformance.mjs (dedup, #1578)', () => {
     const config = makeConfig(dir, { language: 'typescript', archetype: 'backend-web-db' })
     const result = generateCheckAll(config)

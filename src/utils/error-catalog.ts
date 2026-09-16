@@ -158,7 +158,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       code: 'E_NO_GRACE_PERIOD',
       summary: 'No active grace period to extend',
       detail: 'The `--extend` flag requires an existing, non-expired grace period.',
-      recovery: 'Run `arbiter upgrade-level --target L2` first to start a new grace period.',
+      recovery: 'Run `arbiter configure level --target L2` first to start a new grace period.',
       docUrl: 'https://arbiter.dev/reference/cli#upgrade-level',
     },
   ],
@@ -177,7 +177,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     {
       code: 'E_PLUGIN_FAILED',
       summary: 'One or more plugins failed during init',
-      detail: 'A third-party arbiter plugin threw an error during the init run.',
+      detail: 'A third-party arbiter configure plugin threw an error during the init run.',
       recovery:
         'Remove the failing plugin from the `plugins` array in arbiter.json, then re-run `arbiter update`.',
       docUrl: 'https://arbiter.dev/reference/cli#plugin',
@@ -189,7 +189,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       code: 'E_PLUGIN_UNRESOLVABLE',
       summary: '`plugin add` could not load the given package or path',
       detail:
-        'The package/path passed to `arbiter plugin add` did not resolve or failed plugin-loader validation. arbiter.json was not modified.',
+        'The package/path passed to `arbiter configure plugin add` did not resolve or failed plugin-loader validation. arbiter.json was not modified.',
       recovery:
         'Verify the package name or path is correct and, for an npm package, that it installed successfully.',
       docUrl: 'https://arbiter.dev/reference/cli#plugin',
@@ -212,7 +212,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       code: 'E_TASK_NOT_FOUND',
       summary: 'Task not found',
       detail: 'The requested task ID does not exist in the current task store.',
-      recovery: 'Run `arbiter task list` to see available task IDs.',
+      recovery: 'Run `arbiter lifecycle --help` to inspect task state operations.',
       docUrl: 'https://arbiter.dev/reference/cli#task',
     },
   ],
@@ -222,7 +222,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       code: 'E_INVALID_PHASE',
       summary: 'Invalid task phase',
       detail: 'The --to flag received a phase name that does not exist in the phase sequence.',
-      recovery: 'Run `arbiter task advance --help` to see valid phase names.',
+      recovery: 'Run `arbiter lifecycle advance --help` to see valid phase names.',
       docUrl: 'https://arbiter.dev/reference/cli#task',
     },
   ],
@@ -387,7 +387,7 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       code: 'E_GATE_MUTEX_UNSUPPORTED',
       summary: 'flock(1) unavailable — gate mutex unsupported on this platform',
       detail:
-        '`arbiter gate-exec` delegates the per-repo gate mutex to util-linux flock(1) because ' +
+        '`arbiter check run` delegates the per-repo gate mutex to util-linux flock(1) because ' +
         'the kernel-backed lock survives killing the Arbiter Node PID alone and releases after ' +
         'the gate-exec supervisor is SIGKILL/OOM-killed and its process group is torn down. On platforms ' +
         'without flock (macOS base system, Windows) the mutex cannot be provided safely, and a ' +

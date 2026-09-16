@@ -15,7 +15,7 @@ related: []
 
 > **SUPERSEDED (#1873, ADR-103):** this prompt-form is superseded by the **`wave-drain`
 > skill v2** + **`/drain`** command (`.claude/skills/wave-drain/SKILL.md`), which absorb
-> its technique — worktree parallelism, gate mutex (`arbiter gate-exec`), anti-stall,
+> its technique — worktree parallelism, gate mutex (`arbiter check run`), anti-stall,
 > watchdog sweep, zombie reaper — as the maintained, dual-side-generated protocol.
 > Kept for historical reference only; do not run it as-is.
 

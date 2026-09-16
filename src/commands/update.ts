@@ -554,7 +554,7 @@ function summarizeDiff(
  *   - `regenerate` — will be overwritten, no adopt decision involved (the
  *     invisible channel: nothing warns about these today).
  *   - `withheld` — diverged and preserved because no adopt policy matched (the
- *     same set `arbiter diff` surfaces; kept as its own bucket so a file that
+ *     same set `arbiter update --dry-run` surfaces; kept as its own bucket so a file that
  *     moves between the two channels never drops out of the plan entirely).
  *   - `restore` (#2305) — a fourth write channel #2295 added AFTER this split:
  *     `action: 'created'` + `restored: true`, a manifest-baselined path the

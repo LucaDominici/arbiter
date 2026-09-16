@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://arbiter.dev/schemas/evidence-bundle/v1",
   "title": "ArbiterEvidenceBundle",
-  "description": "Schema for arbiter task evidence bundles stored in .evidence/task-NNN/. Every bundle must record the TDD red/green test paths, gate result, and optional artifact list. Enforced by INV-90 via scripts/check-evidence-bundle.mjs.",
+  "description": "Schema for arbiter lifecycle evidence bundles stored in .evidence/task-NNN/. Every bundle must record the TDD red/green test paths, gate result, and optional artifact list. Enforced by INV-90 via scripts/check-evidence-bundle.mjs.",
   "type": "object",
   "required": ["taskId", "timestamp", "gateResult", "redTestPath", "greenTestPath", "artifacts"],
   "additionalProperties": false,

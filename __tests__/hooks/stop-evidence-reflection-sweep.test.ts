@@ -4,7 +4,7 @@
 //
 // Property: when the agent stops on a task/ branch with no completion claim (the natural
 // end-of-task moment) AND undrained findings exist in `.arbiter/findings/*.jsonl`, the hook emits
-// a non-blocking nudge to `arbiter note` surfacing "N undrained findings". It NEVER changes the
+// a non-blocking nudge to `arbiter finding add` surfacing "N undrained findings". It NEVER changes the
 // exit code (stays 0) and emits nothing when there are zero findings (no noise).
 import { spawnSync, execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -83,14 +83,14 @@ function runHook(hookPath: string, dir: string, transcriptPath: string) {
 }
 
 describe('stop-evidence-guard — reflection sweep (#1402)', () => {
-  it('surfaces "N undrained findings" and nudges arbiter note, exit 0 (non-blocking)', () => {
+  it('surfaces "N undrained findings" and nudges arbiter finding add, exit 0 (non-blocking)', () => {
     const { dir, hookPath } = setup()
     try {
       writeFindings(dir, '_1402', 3)
       const r = runHook(hookPath, dir, noClaimTranscript(dir))
       expect(r.status).toBe(0)
       expect(r.stderr).toMatch(/3 undrained findings/i)
-      expect(r.stderr).toMatch(/arbiter note/i)
+      expect(r.stderr).toMatch(/arbiter finding add/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

@@ -135,7 +135,7 @@ describe('runVerifyPlan — missing plan file (IO)', () => {
       const env1 = out.lines.find((l: string) => l.includes('"command"'))
       expect(env1).toBeDefined()
       const parsed = JSON.parse(env1 as string) as { command: string; status: string }
-      expect(parsed.command).toBe('verify plan')
+      expect(parsed.command).toBe('check plan')
       expect(parsed.status).toBe('error')
     } finally {
       out.restore()
@@ -282,7 +282,7 @@ describe('runVerifyPlan — engine verdicts', () => {
       expect(result.status).toBe('APPROVED')
       expect(result.runId).toBeDefined()
       expect(result.reviewPath).toMatch(/REVIEW\.json$/)
-      expect(out.lines.join('')).toMatch(/verify plan: APPROVED/)
+      expect(out.lines.join('')).toMatch(/check plan: APPROVED/)
     } finally {
       out.restore()
     }
@@ -319,7 +319,7 @@ describe('runVerifyPlan — engine verdicts', () => {
       expect(result.exitCode).toBe(2)
       expect(result.status).toBe('REJECTED')
       const text = out.lines.join('')
-      expect(text).toMatch(/verify plan: REJECTED/)
+      expect(text).toMatch(/check plan: REJECTED/)
       // emitVerifyResult's violation loop renders the single violation.
       expect(text).toMatch(/\[ERROR EXTRA_BLOCK\] hard blocker/)
     } finally {
