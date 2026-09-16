@@ -46,20 +46,20 @@ describe('githooks/pre-commit.ejs', () => {
     expect(out).not.toContain('%>')
   })
 
-  it('typescript: invokes L1 gate', () => {
+  it('typescript: does not invoke a full gate', () => {
     const out = renderTemplate('githooks/pre-commit.ejs', tsConfig())
-    expect(out).toContain('node scripts/check-all.mjs L1')
+    expect(out).not.toContain('node scripts/check-all.mjs L1')
   })
 
-  it('typescript: includes rsync workaround for # in path', () => {
+  it('typescript: needs no rsync workaround to save checkpoints', () => {
     const out = renderTemplate('githooks/pre-commit.ejs', tsConfig())
-    expect(out).toContain('rsync -a')
-    expect(out).toContain('#"*')
+    expect(out).not.toContain('rsync -a')
+    expect(out).toContain('staged checks passed')
   })
 
-  it('typescript: includes mktemp for tmp dir creation', () => {
+  it('typescript: needs no temporary checkout', () => {
     const out = renderTemplate('githooks/pre-commit.ejs', tsConfig())
-    expect(out).toContain('mktemp')
+    expect(out).not.toContain('mktemp')
   })
 
   it('typescript: guards on node_modules presence', () => {
@@ -67,9 +67,9 @@ describe('githooks/pre-commit.ejs', () => {
     expect(out).toContain('node_modules')
   })
 
-  it('rust: invokes L1 gate', () => {
+  it('rust: does not invoke a full gate', () => {
     const out = renderTemplate('githooks/pre-commit.ejs', rustConfig())
-    expect(out).toContain('node scripts/check-all.mjs L1')
+    expect(out).not.toContain('node scripts/check-all.mjs L1')
   })
 
   it('rust: does NOT include rsync block', () => {
@@ -78,22 +78,22 @@ describe('githooks/pre-commit.ejs', () => {
     expect(out).not.toContain('mktemp')
   })
 
-  it('rust: guards on node command availability', () => {
+  it('rust: retains staged secret scanning', () => {
     const out = renderTemplate('githooks/pre-commit.ejs', rustConfig())
-    expect(out).toContain('command -v node')
+    expect(out).toContain('gitleaks')
   })
 
-  it('both stacks: include phase guard blocking preflight and plan', () => {
+  it('both stacks: allow plan and RED checkpoints without future proof', () => {
     for (const cfg of [tsConfig(), rustConfig()]) {
       const out = renderTemplate('githooks/pre-commit.ejs', cfg)
-      expect(out).toContain('preflight|plan')
+      expect(out).not.toContain('preflight|plan')
     }
   })
 
-  it('both stacks: phase guard instructs arbiter lifecycle advance', () => {
+  it('both stacks: report the actual staged-check scope', () => {
     for (const cfg of [tsConfig(), rustConfig()]) {
       const out = renderTemplate('githooks/pre-commit.ejs', cfg)
-      expect(out).toContain('arbiter lifecycle advance --to red')
+      expect(out).toContain('staged checks passed')
     }
   })
 })
