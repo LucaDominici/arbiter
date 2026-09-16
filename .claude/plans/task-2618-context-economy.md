@@ -61,7 +61,7 @@ files:
 - An unknown skill without role or replacement is omitted.
 - Existing generator tests and template/render gates remain green.
 - Existing init/update, brownfield and cross-profile matrix tests remain green so the filter is proven at every existing caller without changing lifecycle behavior.
-- Read-only proof on `/home/luca/work/repos/coach-system`: compare its current 89,959-byte / 1,240-line `AGENTS.md` with candidate rendering from the same config and installed-skill environment. Report bytes separately from token or speed claims.
+- Read-only proof on one existing local consumer (identity redacted): compare its current 89,959-byte / 1,240-line `AGENTS.md` with candidate rendering from the same config and installed-skill environment. Report bytes separately from token or speed claims.
 - Persist the paired base-versus-candidate result in the existing benchmark evidence store so the reduction is attributable to this renderer change rather than unrelated consumer drift.
 
 ## Non-Goals

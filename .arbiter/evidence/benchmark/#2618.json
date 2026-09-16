@@ -5,7 +5,7 @@
   "owner": "/root",
   "scope": "One read-only paired render on the same real consumer inputs; byte and line reduction only",
   "protocol": {
-    "consumer": "coach-system",
+    "consumer": "real-consumer-a (identity redacted)",
     "baseSha": "80b5c544f9ef1e4fabf3202407786e24bc553e2b",
     "baseTree": "992a811bc236755ca2f294eac0f1785cb4bf4ec0",
     "measuredAtSha": "c4029c8a050372756874d62cb1fe8b400ff3c061",
