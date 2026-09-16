@@ -58,6 +58,7 @@ import { detectExternalModel } from './detectors/external-model.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
+import { findingOperations } from './findings/operations.js'
 import { runTaskMark } from './commands/task-mark.js'
 import { isTddPhase, readUnifiedState } from './commands/task-state.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
@@ -573,6 +574,94 @@ program
       }
     },
   )
+
+// #2414 — durable operations over the spool written by `arbiter note`. Hidden while the public
+// surface remains capped; `arbiter help --all` keeps it discoverable.
+const finding = program
+  .command('finding', { hidden: true })
+  .description('Inspect, triage, and promote the incidental-finding spool (#2414)')
+
+finding
+  .command('list')
+  .description('List deduplicated findings without changing the spool')
+  .option('--dir <path>', 'Project root (default: cwd)')
+  .action((opts: { dir?: string }): void => {
+    try {
+      const entries = findingOperations.list(opts.dir ?? process.cwd())
+      for (const entry of entries) {
+        const loc = entry.file
+          ? ` (${entry.file}${entry.line !== null ? `:${entry.line}` : ''})`
+          : ''
+        process.stdout.write(`[${entry.severity}] ${entry.kind}: ${entry.note}${loc}\n`)
+      }
+      process.stdout.write(`findings: ${entries.length} unique finding(s)\n`)
+    } catch (err) {
+      process.stderr.write(
+        `arbiter finding list: ${err instanceof Error ? err.message : String(err)}\n`,
+      )
+      process.exitCode = 1
+    }
+  })
+
+finding
+  .command('triage')
+  .description('Classify findings against HEAD without writing or contacting GitHub')
+  .option('--dir <path>', 'Project root (default: cwd)')
+  .option('--age-sweep-days <n>', 'Age after which unresolved findings become ready', '14')
+  .action((opts: { dir?: string; ageSweepDays: string }): void => {
+    const ageSweepDays = Number.parseInt(opts.ageSweepDays, 10)
+    if (!Number.isInteger(ageSweepDays) || ageSweepDays < 0) {
+      process.stderr.write(
+        'arbiter finding triage: --age-sweep-days must be a non-negative integer\n',
+      )
+      process.exitCode = 1
+      return
+    }
+    try {
+      const entries = findingOperations.triage(
+        { ...(opts.dir !== undefined ? { dir: opts.dir } : {}), ageSweepDays },
+        findingOperations.defaultDeps,
+      )
+      for (const { finding: entry, disposition } of entries) {
+        process.stdout.write(`${disposition} [${entry.severity}] ${entry.note}\n`)
+      }
+      process.stdout.write(`findings triage: ${entries.length} finding(s)\n`)
+    } catch (err) {
+      process.stderr.write(
+        `arbiter finding triage: ${err instanceof Error ? err.message : String(err)}\n`,
+      )
+      process.exitCode = 1
+    }
+  })
+
+finding
+  .command('promote')
+  .description('Revalidate, deduplicate, and file ready findings as GitHub issues')
+  .option('--dir <path>', 'Project root (default: cwd)')
+  .option('--age-sweep-days <n>', 'Age after which unresolved findings become ready', '14')
+  .action((opts: { dir?: string; ageSweepDays: string }): void => {
+    const ageSweepDays = Number.parseInt(opts.ageSweepDays, 10)
+    if (!Number.isInteger(ageSweepDays) || ageSweepDays < 0) {
+      process.stderr.write(
+        'arbiter finding promote: --age-sweep-days must be a non-negative integer\n',
+      )
+      process.exitCode = 1
+      return
+    }
+    const result = findingOperations.promote(
+      { ...(opts.dir !== undefined ? { dir: opts.dir } : {}), ageSweepDays },
+      findingOperations.defaultDeps,
+    )
+    if (!result.ok) {
+      process.stderr.write(`arbiter finding promote: ${result.reason}\n`)
+      process.exitCode = 1
+      return
+    }
+    process.stdout.write(
+      `findings promote: ${result.promoted.length} filed, ${result.dropped.length} stale, ` +
+        `${result.skipped.length} existing, ${result.deferred.length} deferred\n`,
+    )
+  })
 
 program
   .command('init')

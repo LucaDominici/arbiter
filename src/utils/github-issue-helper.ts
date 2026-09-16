@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { writeFile, readFileTranslated, assertWritten } from './fs.js'
 import { runCli, CliError } from './run-cli.js'
 
-export interface CreateGhIssueInput {
+interface CreateGhIssueInput {
   /** Issue title. */
   title: string
   /** Issue body (Markdown). */
@@ -24,7 +24,7 @@ export interface CreateGhIssueInput {
   labels: readonly string[]
 }
 
-export type CreateGhIssueResult = { ok: true; issueNumber: number } | { ok: false; reason: string }
+type CreateGhIssueResult = { ok: true; issueNumber: number } | { ok: false; reason: string }
 
 /** Parse `https://github.com/owner/repo/issues/42` → 42 (searches all stdout lines). */
 function parseIssueNumber(stdout: string): number | null {

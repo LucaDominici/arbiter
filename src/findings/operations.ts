@@ -20,17 +20,15 @@
 import { existsSync, readFileSync, statSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
-import {
-  createGhIssue,
-  appendTechDebtIssue,
-  type CreateGhIssueInput,
-  type CreateGhIssueResult,
-} from '../utils/github-issue-helper.js'
+import { createGhIssue, appendTechDebtIssue } from '../utils/github-issue-helper.js'
 import { loadGraphSnapshot } from '../graph/load.js'
 import { ensureDir } from '../utils/fs.js'
 
 /** One drained finding line — the canonical `FindingEntry` shape from `task-note.ts` (SSOT). */
-export interface SpoolFinding {
+type CreateGhIssueInput = Parameters<typeof createGhIssue>[1]
+type CreateGhIssueResult = ReturnType<typeof createGhIssue>
+
+interface SpoolFinding {
   ts: string
   note: string
   kind: string
@@ -43,7 +41,7 @@ export interface SpoolFinding {
   fingerprint: string
 }
 
-export interface IssueSearchResult {
+interface IssueSearchResult {
   issueNumber: number
   state: 'open' | 'closed'
   /** ISO close time when known — used for the closed-recently cooldown. */
@@ -54,7 +52,7 @@ export interface IssueSearchResult {
  * Injectable side-effect surface. Production wires these to `gh`/`git`/the graph snapshot;
  * tests pass deterministic stubs so the promotion logic is exercised hermetically.
  */
-export interface PromoteDeps {
+interface PromoteDeps {
   /** Idempotently create the `finding` label (it does not exist by default). */
   ensureFindingLabel: (dir: string) => void
   /** Find an existing issue carrying the `<!-- arbiter-fp:FP -->` marker; null when none. */
@@ -67,7 +65,7 @@ export interface PromoteDeps {
   graphHasNode: (dir: string, nodeId: string) => boolean
 }
 
-export interface PromoteOptions {
+interface PromoteOptions {
   dir?: string
   /** Findings unpromoted longer than this many days get force-decided by the age-sweep. */
   ageSweepDays?: number
@@ -81,7 +79,7 @@ interface Outcome {
   severity: string
 }
 
-export type FindingsPromoteResult =
+type FindingsPromoteResult =
   | {
       ok: true
       promoted: Outcome[]
@@ -104,32 +102,34 @@ function isSpoolFinding(v: unknown): v is SpoolFinding {
   return typeof o['fingerprint'] === 'string' && typeof o['note'] === 'string'
 }
 
-/** Read every `.arbiter/findings/*.jsonl` shard; malformed lines are skipped (never throw). */
+/** Read every `.arbiter/findings/*.jsonl` shard; unreadable or malformed data fails closed. */
 function readSpool(dir: string): SpoolFinding[] {
   const findingsDir = join(dir, '.arbiter', 'findings')
   if (!existsSync(findingsDir)) return []
   let shards: string[]
   try {
     shards = readdirSync(findingsDir).filter((f) => f.endsWith('.jsonl'))
-  } catch {
-    return []
+  } catch (err) {
+    throw new Error(`findings spool directory is unreadable: ${String(err)}`, { cause: err })
   }
   const out: SpoolFinding[] = []
   for (const shard of shards.sort()) {
     let raw: string
     try {
       raw = readFileSync(join(findingsDir, shard), 'utf-8')
-    } catch {
-      continue
+    } catch (err) {
+      throw new Error(`${shard} is unreadable: ${String(err)}`, { cause: err })
     }
-    for (const line of raw.split('\n')) {
+    for (const [index, line] of raw.split('\n').entries()) {
       const trimmed = line.trim()
       if (trimmed.length === 0) continue
       try {
         const parsed: unknown = JSON.parse(trimmed)
         if (isSpoolFinding(parsed)) out.push(parsed)
-      } catch {
-        // malformed line — skip
+      } catch (err) {
+        throw new Error(`${shard}:${index + 1} is not valid finding JSON: ${String(err)}`, {
+          cause: err,
+        })
       }
     }
   }
@@ -152,7 +152,7 @@ function dedupByFingerprint(findings: readonly SpoolFinding[]): SpoolFinding[] {
  * Read + within-spool-dedup the findings spool without promoting anything.
  * Backs `arbiter finding list`. Empty when the spool is absent.
  */
-export function listSpoolFindings(dir: string): SpoolFinding[] {
+function listSpoolFindings(dir: string): SpoolFinding[] {
   return dedupByFingerprint(readSpool(dir))
 }
 
@@ -161,9 +161,9 @@ export function listSpoolFindings(dir: string): SpoolFinding[] {
 // ---------------------------------------------------------------------------
 
 type Verdict = 'promote' | 'drop' | 'age-sweep'
-export type FindingDisposition = 'READY' | 'STALE' | 'DEFERRED'
+type FindingDisposition = 'READY' | 'STALE' | 'DEFERRED'
 
-export interface TriagedFinding {
+interface TriagedFinding {
   finding: SpoolFinding
   disposition: FindingDisposition
 }
@@ -201,7 +201,7 @@ function ageInDays(ts: string, now: Date): number {
 }
 
 /** Classify every deduplicated finding without mutating the spool or contacting GitHub. */
-export function runFindingsTriage(
+function runFindingsTriage(
   opts: PromoteOptions,
   deps: Pick<PromoteDeps, 'graphFresh' | 'graphHasNode'>,
 ): TriagedFinding[] {
@@ -269,70 +269,83 @@ function recentlyClosed(hit: IssueSearchResult, now: Date): boolean {
   return ageInDays(hit.closedAt, now) < COOLDOWN_DAYS
 }
 
+type PromotionAction =
+  | { kind: 'dropped' }
+  | { kind: 'skipped' }
+  | { kind: 'deferred' }
+  | { kind: 'promoted'; issueNumber: number }
+  | { kind: 'failed'; reason: string }
+
+function promoteOne(
+  dir: string,
+  finding: SpoolFinding,
+  now: Date,
+  ageSweepDays: number,
+  deps: PromoteDeps,
+): PromotionAction {
+  const verdict = revalidate(dir, finding, deps)
+  if (verdict === 'drop') return { kind: 'dropped' }
+  if (verdict === 'age-sweep' && ageInDays(finding.ts, now) < ageSweepDays) {
+    return { kind: 'deferred' }
+  }
+  const hit = deps.searchIssueByFingerprint(dir, finding.fingerprint)
+  if (hit !== null && (hit.state === 'open' || recentlyClosed(hit, now))) {
+    return { kind: 'skipped' }
+  }
+  const result = deps.createIssue(dir, {
+    title: `finding: ${finding.note.slice(0, 80)}`,
+    body: buildBody(finding),
+    labels: ['finding', 'tech-debt', severityToPriority(finding.severity)],
+  })
+  return result.ok
+    ? { kind: 'promoted', issueNumber: result.issueNumber }
+    : { kind: 'failed', reason: result.reason }
+}
+
+function ensureLabelFor(findings: readonly SpoolFinding[], dir: string, deps: PromoteDeps): void {
+  if (findings.length > 0) deps.ensureFindingLabel(dir)
+}
+
 // ---------------------------------------------------------------------------
 // Orchestrator
 // ---------------------------------------------------------------------------
 
-export function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPromoteResult {
-  const dir = opts.dir ?? process.cwd()
-  const now = opts.now ?? new Date()
-  const ageSweepDays = opts.ageSweepDays ?? DEFAULT_AGE_SWEEP_DAYS
+function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPromoteResult {
+  const { dir = process.cwd(), now = new Date(), ageSweepDays = DEFAULT_AGE_SWEEP_DAYS } = opts
 
-  const unique = dedupByFingerprint(readSpool(dir))
   const promoted: Outcome[] = []
   const dropped: Outcome[] = []
   const skipped: Outcome[] = []
   const deferred: Outcome[] = []
 
-  if (unique.length === 0) {
-    return { ok: true, promoted, dropped, skipped, deferred }
-  }
+  const unique = dedupByFingerprint(readSpool(dir))
 
   // Bootstrap the `finding` label once before any filing.
-  deps.ensureFindingLabel(dir)
+  ensureLabelFor(unique, dir, deps)
 
   const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
   let evidenceReady = false
 
   for (const f of unique) {
-    const verdict = revalidate(dir, f, deps)
-
-    if (verdict === 'drop') {
+    const action = promoteOne(dir, f, now, ageSweepDays, deps)
+    if (action.kind === 'dropped') {
       dropped.push(toOutcome(f))
       continue
     }
-
-    if (verdict === 'age-sweep') {
-      if (ageInDays(f.ts, now) < ageSweepDays) {
-        deferred.push(toOutcome(f))
-        continue
-      }
-      // old enough → fall through to promote
-    }
-
-    // Dedup against existing issues via the embedded fingerprint marker.
-    const hit = deps.searchIssueByFingerprint(dir, f.fingerprint)
-    if (hit !== null && (hit.state === 'open' || recentlyClosed(hit, now))) {
+    if (action.kind === 'skipped') {
       skipped.push(toOutcome(f))
       continue
     }
-
-    const result = deps.createIssue(dir, {
-      title: `finding: ${f.note.slice(0, 80)}`,
-      body: buildBody(f),
-      labels: ['finding', 'tech-debt', severityToPriority(f.severity)],
-    })
-    if (!result.ok) {
-      // Soft-fail this finding (e.g. gh unavailable) but keep going for the rest.
-      skipped.push(toOutcome(f))
+    if (action.kind === 'deferred') {
+      deferred.push(toOutcome(f))
       continue
     }
-
+    if (action.kind === 'failed') return { ok: false, reason: action.reason }
     if (!evidenceReady) {
       ensureDir(evidenceDir)
       evidenceReady = true
     }
-    appendTechDebtIssue(evidenceDir, result.issueNumber)
+    appendTechDebtIssue(evidenceDir, action.issueNumber)
     promoted.push(toOutcome(f))
   }
 
@@ -362,6 +375,7 @@ function ensureFindingLabel(dir: string): void {
     )
   } catch (err: unknown) {
     // Label bootstrap is best-effort: a missing/erroring gh must not abort the drain.
+    // FAIL-OPEN-INTENT: label creation is cosmetic; issue creation still supplies labels and fails closed.
     if (err instanceof CliError) return
     throw err
   }
@@ -375,34 +389,23 @@ interface GhIssueListItem {
 
 /** Search open+closed issues for the embedded fingerprint marker via gh full-text search. */
 function searchIssueByFingerprint(dir: string, fingerprint: string): IssueSearchResult | null {
-  let raw: string
-  try {
-    const result = runCli(
-      'gh',
-      [
-        'issue',
-        'list',
-        '--state',
-        'all',
-        '--search',
-        `arbiter-fp:${fingerprint} in:body`,
-        '--json',
-        'number,state,closedAt',
-        '--limit',
-        '5',
-      ],
-      { cwd: dir, timeoutMs: 30_000 },
-    )
-    raw = result.stdout
-  } catch {
-    return null
-  }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return null
-  }
+  const result = runCli(
+    'gh',
+    [
+      'issue',
+      'list',
+      '--state',
+      'all',
+      '--search',
+      `arbiter-fp:${fingerprint} in:body`,
+      '--json',
+      'number,state,closedAt',
+      '--limit',
+      '5',
+    ],
+    { cwd: dir, timeoutMs: 30_000 },
+  )
+  const parsed: unknown = JSON.parse(result.stdout)
   if (!Array.isArray(parsed) || parsed.length === 0) return null
   const first = parsed[0] as GhIssueListItem
   if (typeof first.number !== 'number') return null
@@ -416,23 +419,14 @@ function searchIssueByFingerprint(dir: string, fingerprint: string): IssueSearch
 function graphFresh(dir: string): boolean {
   const graphPath = join(dir, '.arbiter', 'graph.json')
   if (!existsSync(graphPath)) return false
-  let graphMtime: number
-  try {
-    graphMtime = statSync(graphPath).mtimeMs
-  } catch {
-    return false
-  }
-  try {
-    const result = runCli('git', ['log', '-1', '--format=%cI', 'HEAD'], {
-      cwd: dir,
-      timeoutMs: 5000,
-    })
-    const headTime = Date.parse(result.stdout.trim())
-    if (Number.isNaN(headTime)) return false
-    return graphMtime >= headTime
-  } catch {
-    return false
-  }
+  const graphMtime = statSync(graphPath).mtimeMs
+  const result = runCli('git', ['log', '-1', '--format=%cI', 'HEAD'], {
+    cwd: dir,
+    timeoutMs: 5000,
+  })
+  const headTime = Date.parse(result.stdout.trim())
+  if (Number.isNaN(headTime)) return false
+  return graphMtime >= headTime
 }
 
 function graphHasNode(dir: string, nodeId: string): boolean {
@@ -443,10 +437,17 @@ function graphHasNode(dir: string, nodeId: string): boolean {
 }
 
 /** Production deps: the real gh / git / graph side effects. */
-export const defaultPromoteDeps: PromoteDeps = {
+const defaultPromoteDeps: PromoteDeps = {
   ensureFindingLabel,
   searchIssueByFingerprint,
   createIssue: (dir, input) => createGhIssue(dir, input),
   graphFresh,
   graphHasNode,
+}
+
+export const findingOperations = {
+  list: listSpoolFindings,
+  triage: runFindingsTriage,
+  promote: runFindingsPromote,
+  defaultDeps: defaultPromoteDeps,
 }

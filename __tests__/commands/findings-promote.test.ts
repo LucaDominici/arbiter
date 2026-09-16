@@ -4,12 +4,11 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import { describe, it, expect, afterEach } from 'vitest'
-import {
-  runFindingsPromote,
-  runFindingsTriage,
-  type PromoteDeps,
-  type IssueSearchResult,
-} from '../../src/findings/operations.js'
+import { findingOperations } from '../../src/findings/operations.js'
+
+const { promote: runFindingsPromote, triage: runFindingsTriage } = findingOperations
+type PromoteDeps = Parameters<typeof runFindingsPromote>[1]
+type IssueSearchResult = NonNullable<ReturnType<PromoteDeps['searchIssueByFingerprint']>>
 
 /** Mirror of task-note.ts computeFingerprint material (SSOT dedup material). */
 function fp(parts: { kind: string; file: string; symbol: string; note: string }): string {
@@ -114,6 +113,16 @@ describe('runFindingsPromote()', () => {
     expect(created).toHaveLength(0)
   })
 
+  it('malformed spool data fails closed instead of reporting an empty success', () => {
+    const dir = tmpRepo()
+    const findingsDir = join(dir, '.arbiter', 'findings')
+    mkdirSync(findingsDir, { recursive: true })
+    writeFileSync(join(findingsDir, 'broken.jsonl'), '{not json}\n', 'utf-8')
+    const { deps } = makeDeps()
+
+    expect(() => runFindingsPromote({ dir }, deps)).toThrow('broken.jsonl:1')
+  })
+
   it('(unit 2) finding whose file is gone → DROPPED, never filed', () => {
     const dir = tmpRepo()
     const f = {
@@ -161,6 +170,21 @@ describe('runFindingsPromote()', () => {
     if (!r.ok) return
     expect(created).toHaveLength(0)
     expect(r.skipped.map((s) => s.fingerprint)).toContain(h)
+  })
+
+  it('issue lookup failure aborts promotion instead of risking a duplicate', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const f = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'recheck this' }
+    writeShard(dir, 'a', [{ ...f, severity: 'high', fingerprint: fp(f) }])
+    const { deps, created } = makeDeps({
+      searchIssueByFingerprint: () => {
+        throw new Error('GitHub unavailable')
+      },
+    })
+
+    expect(() => runFindingsPromote({ dir }, deps)).toThrow('GitHub unavailable')
+    expect(created).toHaveLength(0)
   })
 
   it('severity → priority label mapping (high=P0, med=P1, low=P2) + finding+tech-debt labels', () => {
