@@ -1,5 +1,5 @@
 import { spawnSync, execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
@@ -239,6 +239,31 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
       const r = runHook(hookPath, dir, { transcript_path: t })
       expect(r.status).toBe(2)
       expect(r.stderr).toMatch(/plan-review/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('allows a result-first treatment without obsolete plan-review evidence (#2724)', () => {
+    const { dir, hookPath, branch, sha } = setup()
+    try {
+      const statusPath = join(dir, '.claude', '.task', 'status.json')
+      const status = JSON.parse(readFileSync(statusPath, 'utf8'))
+      writeFileSync(
+        statusPath,
+        JSON.stringify({
+          ...status,
+          treatment: {
+            version: 1,
+            preCodeReviewers: 0,
+          },
+        }),
+      )
+      writeCorrelatedEvidence(dir, branch, sha, { omit: 'plan' })
+
+      const r = runHook(hookPath, dir, { transcript_path: claimTranscript(dir) })
+
+      expect(r.status, r.stderr).toBe(0)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

@@ -326,7 +326,6 @@ describe('record-agent-return evidence modes (#2687)', () => {
       ...envelope(),
       agent: 'domain',
       role: 'reviewer',
-      acceptanceFit: undefined,
     }
 
     const result = recordPanel([reviewer])
@@ -343,7 +342,6 @@ describe('record-agent-return evidence modes (#2687)', () => {
       ...envelope(),
       agent: 'domain',
       role: 'reviewer',
-      acceptanceFit: undefined,
     }
 
     const result = recordPanel([reviewer])
@@ -389,7 +387,6 @@ describe('record-agent-return evidence modes (#2687)', () => {
       ...envelope(),
       agent,
       role: 'reviewer',
-      acceptanceFit: undefined,
     }))
 
     const incomplete = recordPanel(reviewers.slice(0, 2))
