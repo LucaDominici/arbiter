@@ -79,7 +79,7 @@ function writeSkipEntry(dir: string, reason: string): void {
         ? String((err as Record<string, unknown>)['code'])
         : 'unknown'
     process.stderr.write(
-      `arbiter verify evidence: refusing to honour E2E_RISK_SKIP — ` +
+      `arbiter check evidence: refusing to honour E2E_RISK_SKIP — ` +
         `audit log write failed (${errno}) at ${logPath}\n`,
     )
     throw err
@@ -151,14 +151,14 @@ function handleRiskSkip(dir: string): VerifyEvidenceResult | null {
   if (isValidSkipReason(trimmed)) {
     writeSkipEntry(dir, trimmed)
     process.stderr.write(
-      `arbiter verify evidence: E2E_RISK_SKIP honoured — ` +
+      `arbiter check evidence: E2E_RISK_SKIP honoured — ` +
         `reason="${trimmed}" log=${join(dir, '.evidence', 'skip-log.jsonl')}\n`,
     )
     return { status: 'ok', exitCode: 0, skipped: true, reason: trimmed }
   }
   // Invalid skip pattern → refuse, fall through to normal verification.
   process.stderr.write(
-    `arbiter verify evidence: E2E_RISK_SKIP="${trimmed}" rejected — ` +
+    `arbiter check evidence: E2E_RISK_SKIP="${trimmed}" rejected — ` +
       `must match <flake|infra|external>:#<issue>[:<slug>] (e.g. flake:#123). ` +
       `Falling through to normal verification.\n`,
   )
@@ -378,7 +378,7 @@ export function runVerify(opts: VerifyOptions): void {
       effectiveConfig: cfg,
     }
     jsonOutput(
-      'validate',
+      'check environment',
       report.hasFailures ? 'error' : report.hasWarnings ? 'warning' : 'ok',
       enriched,
     )

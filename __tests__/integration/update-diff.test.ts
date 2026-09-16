@@ -201,7 +201,7 @@ describe('arbiter update', () => {
   })
 })
 
-describe('arbiter diff', () => {
+describe('arbiter update --dry-run', () => {
   let dir: string
 
   beforeEach(async () => {

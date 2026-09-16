@@ -57,7 +57,7 @@ agents can't fake green.
 One `arbiter init` emits `AGENTS.md` (the canonical governance file every
 supported AI tool reads), thin per-tool pointer files, hooks, gates, and a
 matching CI workflow — all ordinary, version-controlled files. Re-running
-`arbiter init` — or `arbiter update` / `arbiter diff` to preview what would
+`arbiter init` — or `arbiter update` / `arbiter update --dry-run` to preview what would
 change — refreshes what arbiter manages and leaves your customizations alone.
 For a declared `language` and `databaseEngine`, the emitted stack-conformity
 gate reads only root evidence: Node dependency keys from `package.json`, or
@@ -68,7 +68,7 @@ lockfile occurrence alone never proves a database driver.
 
 Work moves through a fixed, machine-checked phase sequence — plan → red (a
 failing test written first) → green (the fix makes it pass) → verify → ship —
-and each advance is gate-blocked: `arbiter task advance` runs that phase's gate
+and each advance is gate-blocked: `arbiter lifecycle advance` runs that phase's gate
 and refuses to move forward on red. Any agent (human-directed or autonomous)
 can drive it; the phase machine enforces the order regardless of who's behind
 the wheel.
@@ -84,7 +84,7 @@ npx @getarbiter/cli init
 1. Ask your coding agent to implement a change and report done.
 2. It can't — the `stop-evidence-guard` hook blocks the completion claim
    because there's no correlated evidence yet (INV-114).
-3. Write a failing test first, then record it: `arbiter task record-red --test-path <file>`.
+3. Write a failing test first, then record it: `arbiter lifecycle record-red --test-path <file>`.
 4. Implement until the test passes.
 5. `node scripts/check-all.mjs L1` goes green — now "done" is accepted, because
    it's backed by a test that failed before the fix and passes after it.
@@ -188,7 +188,7 @@ functional — list them with `arbiter help --all`. See the
 [CLI Reference](website/reference/cli.md) for full option documentation.
 
 For a document declared with `template: arc42` in the documentation standard,
-`arbiter doc-set --arc42` checks section completeness against its tier's skeleton.
+`arbiter audit docs --arc42` checks section completeness against its tier's skeleton.
 The matcher accepts English and explicit Italian section titles; translated headings
 do not waive missing sections or the hollow-section ratchet. Other translations
 are not inferred automatically.

@@ -327,17 +327,11 @@ function generateClaudeRules(
  * CODEX.md is derived from this list, never hand-maintained.
  */
 export const CLAUDE_COMMANDS: readonly string[] = [
-  'task.md',
   'ship.md',
   'drain.md',
   'impact.md',
-  'gold-audit.md',
-  'wt-open.md',
-  'wt-close.md',
-  'wt-list.md',
-  'wt-prune.md',
-  'close-gold-gap.md',
-  'levelup.md',
+  'review.md',
+  'audit.md',
   'tabletop.md',
 ]
 

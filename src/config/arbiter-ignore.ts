@@ -5,7 +5,7 @@
  * A consumer that wants ONE upstream fix (a security hook, a labels file) had no
  * supported way to take it without re-syncing its whole generated surface: a bare
  * `arbiter update` rematerializes every manifest entry, and the only workaround was
- * to `arbiter diff --json` and hand-copy content out of a throwaway rendered clone.
+ * to `arbiter update --dry-run --json` and hand-copy content out of a throwaway rendered clone.
  *
  * ONE mechanism, two directions:
  *   - `.arbiterignore` at the repo root — gitignore syntax, PERMANENT, honoured by
@@ -137,7 +137,7 @@ export function buildSelectionPredicate(opts: {
 }
 
 /**
- * #2662: anchor a manifest key into the exact-file pattern `arbiter ignore add`
+ * #2662: anchor a manifest key into the exact-file pattern `arbiter configure ignore add`
  * writes — a leading `/` so `AGENTS.md` at the root never accidentally also
  * matches a same-named file elsewhere the operator did not ask to retire.
  */

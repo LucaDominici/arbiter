@@ -508,7 +508,7 @@ describe('generateGithooks — empirical fail-fast spawn', () => {
   // ── #2051: the RED commit the TDD evidence must point at ────────────────────
   //
   // A genuine RED commit contains a test that FAILS. The L1 gate blocks exactly
-  // that commit, so `arbiter task record-red` could never point at a real one.
+  // that commit, so `arbiter lifecycle record-red` could never point at a real one.
   // While phase=red, a commit whose staged paths are ALL tests is let through.
 
   /** Repo with hooks + a check-all stub that always fails, and phase=red on disk. */

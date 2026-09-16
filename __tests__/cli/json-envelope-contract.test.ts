@@ -56,12 +56,12 @@ describe('#2213 — --seed is not inert surface', () => {
 })
 
 describe('#2213 — error paths honour --json and carry an E_* code', () => {
-  it('review diff --json emits the envelope instead of plain text on failure', () => {
+  it('graph diff --json emits the envelope instead of plain text on failure', () => {
     // A7-19: the failure branch wrote `review diff: FAIL — ...` to stderr and
     // ignored --json entirely; only the success path was enveloped.
     const dir = mkdtempSync(join(tmpdir(), 'arb-2213-review-'))
     try {
-      const { stdout, status } = run(['review', 'diff', '--json', '--dir', dir])
+      const { stdout, status } = run(['graph', 'diff', '--json', '--dir', dir])
       expect(status).not.toBe(0)
       const payload = envelopeOf(stdout)
       expectEnvelope(payload)
@@ -91,16 +91,16 @@ describe('#2213 — error paths honour --json and carry an E_* code', () => {
 })
 
 describe('#2213 — every --json command emits the one canonical envelope', () => {
-  it('settings --json is enveloped, not a bare array', () => {
-    const payload = envelopeOf(run(['settings', '--json']).stdout)
+  it('configure show --json is enveloped, not a bare array', () => {
+    const payload = envelopeOf(run(['configure', 'show', '--json']).stdout)
     expect(Array.isArray(payload)).toBe(false)
     expectEnvelope(payload)
   })
 
-  it('validate --json is enveloped, not a bare report object', () => {
+  it('check environment --json is enveloped, not a bare report object', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arb-2213-validate-'))
     try {
-      const payload = envelopeOf(run(['validate', '--json', '--dir', dir]).stdout)
+      const payload = envelopeOf(run(['check', 'environment', '--json', '--dir', dir]).stdout)
       expectEnvelope(payload)
       // the domain payload moves under data, it is not lost
       expect(payload['data']).toHaveProperty('stack')
@@ -110,19 +110,19 @@ describe('#2213 — every --json command emits the one canonical envelope', () =
     }
   })
 
-  it('obsidian --json is enveloped, not its own contractVersion shape', () => {
+  it('docs vault --json is enveloped, not its own contractVersion shape', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arb-2213-obsidian-'))
     try {
       mkdirSync(join(dir, 'wiki'), { recursive: true })
-      const payload = envelopeOf(run(['obsidian', '--validate-only', '--json'], dir).stdout)
+      const payload = envelopeOf(run(['docs', 'vault', '--validate-only', '--json'], dir).stdout)
       expectEnvelope(payload)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('gold-audit --json nests the untouched engine payload under data', () => {
-    const payload = envelopeOf(run(['gold-audit', '--json'], REPO).stdout)
+  it('audit readiness --json nests the untouched engine payload under data', () => {
+    const payload = envelopeOf(run(['audit', 'readiness', '--json'], REPO).stdout)
     expectEnvelope(payload)
     expect(payload['data']).toHaveProperty('level')
     expect(payload['data']).toHaveProperty('checks')

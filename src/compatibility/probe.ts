@@ -351,7 +351,7 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
       tool: spec.name,
       status: 'skipped',
       kind: 'build',
-      reason: 'node-modules-missing: run `npm install`, then `arbiter validate` to verify',
+      reason: 'node-modules-missing: run `npm install`, then `arbiter check` to verify',
     }
   }
 

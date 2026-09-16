@@ -454,7 +454,7 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
   if (existsSync(worktreePath)) {
     throw new Error(
       `Worktree already exists at: ${worktreePath}\n` +
-        "Run 'arbiter worktree list' to see open worktrees.",
+        "Run 'arbiter worktree check' to see open worktrees.",
     )
   }
 
@@ -602,7 +602,7 @@ export async function runWorktreeAdopt(opts: WorktreeAdoptOptions): Promise<void
   await recordAdoptedCheckout(gitRoot, taskId, requested, live)
 
   if (opts.json) {
-    jsonOutput('worktree-adopt', 'ok', {
+    jsonOutput('worktree prepare', 'ok', {
       taskId,
       worktreePath: realpathSync(requested),
       branch: live.branch,
@@ -785,7 +785,7 @@ function resolveOpenEntry(logPath: string, taskId: string): OpenLogEntry {
     }
     throw new Error(
       `No open worktree found for task ${taskId}. ` +
-        "Run 'arbiter worktree list' to see open worktrees.",
+        "Run 'arbiter worktree check' to see open worktrees.",
     )
   }
   return entry
@@ -913,7 +913,7 @@ export function runWorktreeRelink(opts: WorktreeRelinkOptions): void {
   const linkSummary = materializeLinks(linkSpecs, gitRoot, entry.worktreePath)
 
   if (opts.json) {
-    jsonOutput('worktree-relink', 'ok', {
+    jsonOutput('worktree relink', 'ok', {
       taskId,
       worktreePath: entry.worktreePath,
       linkSummary,
@@ -998,7 +998,7 @@ export function runWorktreeList(opts: WorktreeListOptions = {}): void {
   const taskWorktrees = listWorktrees(worktrees, opts.all === true)
 
   if (opts.json) {
-    jsonOutput('worktree-list', 'ok', { worktrees: taskWorktrees })
+    jsonOutput('worktree check', 'ok', { worktrees: taskWorktrees })
     return
   }
 

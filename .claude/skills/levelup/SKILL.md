@@ -29,23 +29,23 @@ existing engines and skills — there is **no new TS engine** and **no new `arbi
 
 ## Primitives
 
-| Primitive                    | Role here                                                            |
-| ---------------------------- | -------------------------------------------------------------------- |
-| Skill `gold-audit`           | Measure the band + the prioritized `gaps[]` (read-only, no AI score) |
-| `arbiter gold-audit --json`  | The deterministic engine payload `/gold-audit` reads                 |
-| `arbiter gold-audit --check` | No-regress ratchet gate — locks each gain, fails on any regress      |
-| Skill `close-gold-gap`       | The typed, honest recipe (doc-set / test / config / process) per gap |
-| Skill `wave-drain`           | The fan-out shape for the remediation wave (groups, parallel agents) |
-| Skill `tdd`                  | Red → green → refactor for every `test`-category gap                 |
-| Skill `verification`         | Claim-based verification before the re-audit gate                    |
-| `scripts/check-all.mjs`      | The anti-fake-green aggregate — fail-closed disarm-proof verdict     |
+| Primitive                         | Role here                                                            |
+| --------------------------------- | -------------------------------------------------------------------- |
+| Skill `gold-audit`                | Measure the band + the prioritized `gaps[]` (read-only, no AI score) |
+| `arbiter audit readiness --json`  | The deterministic engine payload `/gold-audit` reads                 |
+| `arbiter audit readiness --check` | No-regress ratchet gate — locks each gain, fails on any regress      |
+| Skill `close-gold-gap`            | The typed, honest recipe (doc-set / test / config / process) per gap |
+| Skill `wave-drain`                | The fan-out shape for the remediation wave (groups, parallel agents) |
+| Skill `tdd`                       | Red → green → refactor for every `test`-category gap                 |
+| Skill `verification`              | Claim-based verification before the re-audit gate                    |
+| `scripts/check-all.mjs`           | The anti-fake-green aggregate — fail-closed disarm-proof verdict     |
 
 ---
 
 ## Phase 0 — Measure the starting band
 
 ```bash
-npx @getarbiter/cli gold-audit --json
+npx @getarbiter/cli audit readiness --json
 ```
 
 Load the **`gold-audit`** skill and read the payload verbatim — `level.level`,
@@ -92,13 +92,13 @@ flip — never by a moved threshold, a pasted literal, or a disabled check:
 
 ```bash
 # 1. No-regress ratchet — locks the gain; exit 1 if score/Y regressed below baseline.
-npx @getarbiter/cli gold-audit --check
+npx @getarbiter/cli audit readiness --check
 
 # 2. Anti-fake-green aggregate — disarm-proof; a broken guard (exit 2) fails unconditionally.
 node scripts/check-all.mjs
 
 # 3. Re-measure the band and compare to the before snapshot.
-npx @getarbiter/cli gold-audit --json
+npx @getarbiter/cli audit readiness --json
 ```
 
 **Fail-closed semantics (structural anti-fake-green):**
@@ -142,5 +142,5 @@ Emit the **final report**:
   no marker-stuffing (pasting the matched `pattern`/`equals` literal as the sole action), no
   doc stub claimed as `Y`. A gap that can't be closed honestly → **`needs-human`**.
 - **No new engine, no new CLI verb.** `/levelup` is a skill + slash command; it composes
-  `arbiter gold-audit` and the `close-gold-gap` skill — it never re-implements scoring or the
+  `arbiter audit readiness` and the `close-gold-gap` skill — it never re-implements scoring or the
   no-regress check.

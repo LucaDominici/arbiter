@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2039: `arbiter method` — the feature lens over configure's field surface.
+// #2039: `arbiter configure method` — the feature lens over configure's field surface.
 //
 // The load-bearing assertions here are the ones that stop the probe from LYING:
 // a catalog row bound to a path `configure` would reject, a feature reported "wired"

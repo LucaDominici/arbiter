@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2435 AC-3 — `arbiter task get` handed a fresh maintainer a phase read out of ANOTHER
+// #2435 AC-3 — `arbiter lifecycle get` handed a fresh maintainer a phase read out of ANOTHER
 // branch's state file (`.claude/.task/status.json` is a fixed, shared path). Silence there
 // tells someone starting from a clean checkout that their task is already seeded.
 import { describe, it, expect, afterEach } from 'vitest'

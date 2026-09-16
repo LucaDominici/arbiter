@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// `arbiter mark` (#1206) — pinpoint step-cursor snapshot.
+// `arbiter lifecycle checkpoint` (#1206) — pinpoint step-cursor snapshot.
 //
 // Writes a fine-grained step-cursor {tddPhase, lastAction, nextAction} into the unified task
-// document and appends a one-line progress digest to log.md. After a mid-task `/clear`, `arbiter task
+// document and appends a one-line progress digest to log.md. After a mid-task `/clear`, `arbiter lifecycle
 // resume` reads this cursor and lands on the EXACT next action instead of inferring from phase.
 import { type TddPhase, writeUnifiedState, appendLog } from './task-state.js'
 

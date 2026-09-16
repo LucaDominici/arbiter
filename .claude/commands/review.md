@@ -1,7 +1,7 @@
 ---
 description: Manual recovery entry for the final review stage owned by /ship
 argument-hint: ''
-title: '/review-code'
+title: '/review'
 doc_version: '2.0.0'
 status: active
 last_review: '2026-09-15'
@@ -11,7 +11,7 @@ tags: ['audience/agent', 'audience/dev', 'kind/internal']
 related: []
 ---
 
-# /review-code
+# /review
 
 Use this only to recover the final review stage of an active `/ship`. The persisted
 `ShipTreatment` in `.claude/.task/status.json` is the authority for reviewer count, verticals,

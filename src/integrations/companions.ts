@@ -146,7 +146,7 @@ export function companionStatusLine(active: readonly ActiveCompanion[]): string 
 }
 
 /**
- * #1747 — one per-registry-entry read-only diagnostic row for `arbiter doctor`'s Companions
+ * #1747 — one per-registry-entry read-only diagnostic row for `arbiter status health`'s Companions
  * section. Unlike {@link resolveCompanions} (which returns only the ACTIVE subset for `/ship`),
  * this reports every known companion — installed or not, enabled or not — because "silently
  * vanished after a machine rebuild" is exactly the failure doctor exists to surface.
@@ -178,7 +178,7 @@ export interface DiagnoseCompanionsInput {
 }
 
 /**
- * Diagnose every registry companion for `arbiter doctor`'s Companions section — installed state,
+ * Diagnose every registry companion for `arbiter status health`'s Companions section — installed state,
  * disabled-by-config state, and resolved mode + source, regardless of whether the companion would
  * actually activate on a ship run. Deterministic and read-only: no ship-run activation decision is
  * made here (that stays {@link resolveCompanions}'s job), so this can never diverge from `/ship`'s

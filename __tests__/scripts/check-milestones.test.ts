@@ -5,7 +5,7 @@
  * RED phase: the module under test does not exist yet, so every case here fails by
  * construction. That is the point — the gate this suite describes must be shown to go red
  * before it is trusted, and #2051 lets a tests-only red commit through the L1 gate so
- * `arbiter task record-red` has a real commit to pin.
+ * `arbiter lifecycle record-red` has a real commit to pin.
  *
  * What the milestone gate must prove, and therefore what is asserted here:
  *   - the SSOT satisfies schemas/milestone.schema.json, including the Now/Next/Later

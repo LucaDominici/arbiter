@@ -43,7 +43,7 @@ export function detectExternalModels(): ExternalModelAccess[]
 
 Per-provider details (binary, version args, how auth is established, install hint) live in a declarative `PROVIDER_SPECS` table rather than scattered through the code. Invocation via `runCli()` (INV-12/CANON-12 — never direct `child_process`), `timeoutMs: 5_000`, `retries: 0`, with **typed** branching on `CliError.notFound` and `.timedOut`. Per-process memoization: one `/ship` run must not spawn `codex --version` five times.
 
-The module earns its keep immediately by being printed by `arbiter doctor health` (`codex: available, authenticated`) — that makes it independently shippable, and more importantly guarantees a **real reader** exists before there is any configuration to read (see D4).
+The module earns its keep immediately by being printed by `arbiter status health` (`codex: available, authenticated`) — that makes it independently shippable, and more importantly guarantees a **real reader** exists before there is any configuration to read (see D4).
 
 ## Key decisions and rejected alternatives
 
@@ -57,7 +57,7 @@ Verified caveat: unlike `gh auth status --json`, **Codex has no non-interactive 
 Survey performed: `src/detectors/github.ts` is the pattern to mirror, but `GithubAccess` carries `username`, is consumed by `WizardInput.githubAccess` and by the Q12 gating; widening it into a provider table would force the `gh` path to carry vendor fields it never reads. `src/capabilities/host-probe.ts` detects _host_ facts from env/fs and spawns nothing: wrong subject. `src/detectors/{language,build,package-manager}.ts` detect the _project's_ toolchain from marker files: wrong subject. `src/utils/run-cli.ts` is **reused**, not duplicated. Verdict: new file justified — sibling of `github.ts`, distinct subject (third-party model CLIs), same shape.
 
 **D4 — Independently shippable, for a precise reason.**
-This PR is read-only and introduces no configuration. By being printed by `arbiter doctor` it becomes the **reader** that must already exist when the config block arrives: this is the direct mitigation of the #2344/#2333 bug class (field validated and never read). _Rejected_ merging detection and configuration into one PR: it would produce exactly the accept-then-ignore the repo has already opened twice.
+This PR is read-only and introduces no configuration. By being printed by `arbiter status health` it becomes the **reader** that must already exist when the config block arrives: this is the direct mitigation of the #2344/#2333 bug class (field validated and never read). _Rejected_ merging detection and configuration into one PR: it would produce exactly the accept-then-ignore the repo has already opened twice.
 
 **D5 — Extensible table, one customer-facing adapter.**
 `src/wizard/types.ts:94-112` already writes the policy: only what is dogfooded end-to-end gets exposed; the rest is retained but not advertised. It applies identically here — `codex` is the only verified one, and the table allows adding more without a refactor. _Rejected_ both hardcoding codex (it would need redoing at the second provider) and exposing gemini now (not dogfooded: that would be overclaim).
@@ -65,13 +65,13 @@ This PR is read-only and introduces no configuration. By being printed by `arbit
 **D6 — No bare `catch` (INV-96).**
 `scripts/check-fail-closed-audit.mjs` rejects `catch {}` without a `// FAIL-OPEN-INTENT:` comment. Every error branch is typed and lands in a readable `error`, never in silence.
 
-**Declared blind spot:** this presence check is a fail-open living in `src/`, while `arbiter doctor fail-open-census` scans only `scripts/`. The census **will not see it**. The compensating control is the mandatory degradation artifact in the downstream issue; it must be stated explicitly here rather than passed over in silence.
+**Declared blind spot:** this presence check is a fail-open living in `src/`, while `arbiter check fail-open` scans only `scripts/`. The census **will not see it**. The compensating control is the mandatory degradation artifact in the downstream issue; it must be stated explicitly here rather than passed over in silence.
 
 ## Open questions
 
 - The presence probe costs ~50-200 ms per provider. Is per-process memoization enough, or is an on-disk cache with a TTL needed so it is not paid on every `arbiter` invocation?
 - If a future Codex release changes its auth-file location, the detector must be updated from an observed CLI contract rather than guessing from environment variables.
-- Should `arbiter doctor health` always print providers, or only when at least one is `available` (so as not to advertise a feature to someone who will not use it)?
+- Should `arbiter status health` always print providers, or only when at least one is `available` (so as not to advertise a feature to someone who will not use it)?
 
 ---
 
@@ -83,7 +83,7 @@ This PR is read-only and introduces no configuration. By being printed by `arbit
 - [ ] AC-4: no credential **value** is ever read, returned or logged: a test asserts the returned object does not contain the value of `OPENAI_API_KEY` when it is set to a known sentinel.
 - [ ] AC-5: `authenticated` is documented in code as an **inference** (not an assertion), citing the openai/codex#10233 caveat.
 - [ ] AC-6: two consecutive calls for the same provider invoke `runCli` once (memoization), with a reset exposed for tests.
-- [ ] AC-7: `arbiter doctor health` prints detected provider status — the module has a real consumer in this same PR.
+- [ ] AC-7: `arbiter status health` prints detected provider status — the module has a real consumer in this same PR.
 - [ ] AC-8: `node scripts/check-all.mjs L2` green, `check-anti-telemetry` included; no new runtime dependency in `package.json`.
 
 ## Non-Goals
@@ -109,6 +109,6 @@ Lane **B (provider detection)**, parallel-safe with Lane A. Blocks the config an
 ## Implementation status
 
 Issue #2355 implements the Codex probe and exposes its inferred availability and
-authentication state through `arbiter doctor health`. The probe remains local-only:
+authentication state through `arbiter status health`. The probe remains local-only:
 it checks the CLI version and credential-presence signals without reading or logging
 credential contents.

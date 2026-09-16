@@ -12,7 +12,7 @@ related: []
 # Task Recovery Reference
 
 **Issues:** #690, #694, #1206
-**Commands:** `arbiter task resume`, `arbiter task recover`, `arbiter ship`
+**Commands:** `arbiter lifecycle resume`, `arbiter lifecycle recover`, `arbiter ship`
 
 Use this when a session interrupted mid-task and you need to know where to pick up.
 
@@ -21,7 +21,7 @@ Use this when a session interrupted mid-task and you need to know where to pick 
 ## Quick Command
 
 ```bash
-arbiter task resume
+arbiter lifecycle resume
 ```
 
 Reads the unified task document (`.claude/.task/status.json`, see below) and prints where to resume.
@@ -32,10 +32,10 @@ phase-level recovery guidance.
 
 ## Pinpoint resume — the step-cursor (#1206)
 
-`arbiter task resume` is phase-granular by default. For an interrupted session to resume at the EXACT
+`arbiter lifecycle resume` is phase-granular by default. For an interrupted session to resume at the EXACT
 sub-step (not "you were somewhere in green"), drop a step-cursor as you work.
 
-**Known gap:** the "arbiter mark" command that used to write this cursor was removed in the T2
+**Known gap:** the "arbiter lifecycle checkpoint" command that used to write this cursor was removed in the T2
 command-surface cut (`src/commands/task-mark.ts` deleted) — there is no CLI replacement. The `cursor`
 field is still read by `resume` (see the `status.json` schema below), so until a replacement command
 lands, set it by merging directly into `.claude/.task/status.json`:
@@ -53,7 +53,7 @@ lands, set it by merging directly into `.claude/.task/status.json`:
 (a shallow merge into the existing document — never overwrite the whole file). Optionally append a
 one-line entry to `.claude/.task/log.md` yourself; there is no `--digest` flag anymore either.
 
-After a mid-task `/clear`, `arbiter task resume` reads the cursor from disk and prints:
+After a mid-task `/clear`, `arbiter lifecycle resume` reads the cursor from disk and prints:
 
 ```
 Phase: green (GREEN)
@@ -71,10 +71,10 @@ filesystem.
 `/ship #NNN` (Claude Code) / `arbiter ship <id>` (CLI) is the **single orchestration entrypoint** —
 it drives an issue to a reviewed, merged PR by auto-sequencing
 (worktree → plan → red-team → TDD impl → review → gate → merge → cleanup).
-Use `/task` subcommands (`arbiter task advance`, `record-red`, etc.) only for recovery or manual
+Use `/task` subcommands (`arbiter lifecycle advance`, `record-red`, etc.) only for recovery or manual
 phase control; the `/ship` loop auto-advances phases when their gates are green.
 
-`arbiter task record-red --test-path <path>` records only a genuinely failing test run. A runner
+`arbiter lifecycle record-red --test-path <path>` records only a genuinely failing test run. A runner
 that exits 0 is rejected, and Node's `node:test`/TAP failure summary is recognized via `# fail N`.
 Playwright's `line`/`list` reporters are recognized via their `N failed` summary, with N ≥ 1 so
 `0 failed` never becomes red evidence.
@@ -83,7 +83,7 @@ On a declared train, `--task-id #NNN` may select only the active task or an exac
 state document's `chainIds` array; malformed `chainIds` data and undeclared secondary IDs are
 rejected before the test runs or any evidence is written.
 
-`arbiter verify tdd '#NNN'` replays the recorded command at the RED commit and requires
+`arbiter check tdd '#NNN'` replays the recorded command at the RED commit and requires
 a completed nonzero exit. It compares a sorted multiset of actual JavaScript `FAIL` headers,
 independent of file execution order. Vitest project badges remain part of each failure identity, and
 repeated failures remain separate occurrences. Missing, additional, changed or wrong-project failures
@@ -112,11 +112,11 @@ form once at parse (#1280), so the persisted task id always matches the TDD-evid
 
 ## Context-Rot 3-Layer Recovery (#694)
 
-When a session is auto-compacted or `/clear`-ed mid-task and `arbiter task resume` is not enough:
+When a session is auto-compacted or `/clear`-ed mid-task and `arbiter lifecycle resume` is not enough:
 
 ```bash
-arbiter task recover               # uses .claude/.task-id
-arbiter task recover --task #694   # explicit id
+arbiter lifecycle recover               # uses .claude/.task-id
+arbiter lifecycle recover --task #694   # explicit id
 ```
 
 Output assembles three layers of recovery context:
@@ -165,10 +165,10 @@ git commit -m "CHECKPOINT(#694): refactor dispatch.ts before context window fill
 | ---------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `preflight`                  | Task not started                                      | Run `/task #NNN` to initialize branch and plan                                                                                                                                   |
 | `plan`                       | Plan being written                                    | Check `.claude/plans/` for draft — await user GO                                                                                                                                 |
-| `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter task advance --to red-team-rework`; clear → `--to red`                                                    |
+| `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter lifecycle advance --to red-team-rework`; clear → `--to red`                                               |
 | _(handoff boundary)_         | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter ship #NNN --advance --post-clear --units <N>`                                                                                                         |
-| `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter task advance --to red-team-review`; or full replan: `--to plan`                                                                              |
-| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter task resume` (lands on the cursor if one was set — see the known gap above); run `node scripts/check-all.mjs L1`                                                        |
+| `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter lifecycle advance --to red-team-review`; or full replan: `--to plan`                                                                         |
+| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter lifecycle resume` (lands on the cursor if one was set — see the known gap above); run `node scripts/check-all.mjs L1`                                                   |
 | `verification`               | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; a current `.arbiter/gate-pass.json` must match HEAD and branch and report `tree_was_clean_at_run_time: true` before the phase is written |
 | `close`                      | CLOSER mode                                           | The same current gate-pass marker is required before entering the phase; commit, push, and land the PR                                                                           |
 | `complete`                   | Task done                                             | The same current gate-pass marker is required before entering the phase; verify PR created: `gh pr list --head $(git branch --show-current)` and confirm issue closed            |
@@ -228,14 +228,14 @@ the legacy files migrates it transparently (seed + delete) on first access.
 Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
 update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file
 is registered for SIGTERM/SIGINT cleanup (#613). Shell consumers read fields via
-`arbiter task get --field <phase|taskId|tier|plan|tddPhase|lastAction|nextAction>` and seed state via
-`arbiter task init --id #NNN --tier <tier> --plan <path>`.
+`arbiter lifecycle get --field <phase|taskId|tier|plan|tddPhase|lastAction|nextAction>` and seed state via
+`arbiter lifecycle start --id #NNN --tier <tier> --plan <path>`.
 
 Prefer the checkout created by the active host (Claude, Codex, or a manual Git workflow), then run
-`arbiter worktree adopt <id> [path]` and
-`arbiter task host-preflight --id <id> --worktree <path>` before `task init`. Adoption binds the
+`arbiter worktree prepare <id> [path]` and
+`arbiter lifecycle preflight --id <id> --worktree <path>` before `task init`. Adoption binds the
 native checkout to Arbiter's existing resource policy without transferring cleanup ownership.
-`arbiter worktree open` remains the fallback for hosts that cannot create an isolated checkout.
+`git worktree add` remains the fallback for hosts that cannot create an isolated checkout.
 Lifecycle writes and qualified review/acceptance evidence reject a different binding id, root,
 task, or branch; when Claude session data exists, its session and transcript must also match.
 

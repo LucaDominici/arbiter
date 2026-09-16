@@ -24,7 +24,7 @@ Each dimension has a TML level (L1 BLOCKING / L2 ADVISORY / L3 REFERENCE) and pe
 | C     | Audit-trail opt-in (wizard `enableAuditTrail` + generators + INV-83/84)   | open     |
 | D     | CI/CD developer-reference doc generator (multilingual)                    | open     |
 | E     | Greenfield recipes + `arbiter kit greenfield <L>`                         | open     |
-| F     | Brownfield `arbiter doctor kit` + wave playbook generator                 | open     |
+| F     | Brownfield `arbiter status health kit` + wave playbook generator                 | open     |
 | G     | Per-dim follow-up issues (decomposed from `kit list --format=csv`)        | open     |
 
 ## Phase A acceptance criteria (task #862)

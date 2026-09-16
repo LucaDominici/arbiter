@@ -379,7 +379,7 @@ TO-CREATE (dispatch-manifest: an agent prompt references exactly one task).
    write-agent on the main tree — open a worktree: `/wt-open`, ADR-103"). No other writer ⇒
    allow (serial main-tree work is legal) and register. Entries expire after 2h or on
    session Stop (a companion 5-line cleanup in the Stop chain) so a killed agent cannot wedge
-   future spawns — staleness handling mirrors `arbiter worktree prune --stale`. The entry's
+   future spawns — staleness handling mirrors `git worktree prune --stale`. The entry's
    `pid` is the Claude Code session (`CLAUDE_PID`), not the short-lived hook process; an entry
    whose pid is gone (ESRCH) is pruned at once, and one without a pid is age-only (#2588).
 3. **One-task rule (M2).** Count distinct `#\d+` task ids in the prompt: >1 ⇒ advisory
@@ -478,7 +478,7 @@ no new sidecar:
    with `ts >= start` (shape `FindingEntry`, `src/commands/task-note.ts` ~L61) + files under
    `.arbiter/evidence/agent-returns/` with mtime ≥ start.
 3. Dispatches ≥ 2 and persistence == 0 ⇒ advisory: stderr instruction ("N research agents
-   returned; nothing was persisted — write `arbiter note` / record envelopes before
+   returned; nothing was persisted — write `arbiter finding add` / record envelopes before
    stopping") with exit 0; at hard grading (hooks manifest) ⇒ exit 2, which re-prompts the
    model to persist (re-entry loop already guarded by `stop_hook_active`,
    `stop-evidence-guard.mjs:27` — same guard here).
@@ -562,7 +562,7 @@ rows. The standard applies to its own enforcement.
   enforcement remains on declarations (handoff-lint covers the declaration gap).
 - A DSL or config framework for enforcer grading: grading is one wiring line or one manifest
   field by design (Sentinel), and that is the feature, not a limitation.
-- Repointing `arbiter mark` skill references (M3-PARTIAL): a docs task tracked by playbook
+- Repointing `arbiter lifecycle checkpoint` skill references (M3-PARTIAL): a docs task tracked by playbook
   §T2.B, not an enforcer.
 
 ## The kernel plugin build, and the two lists it splits hooks across (#2538)

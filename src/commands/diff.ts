@@ -273,7 +273,7 @@ function printWithheldSection(withheld: DiffFile[]): void {
 
 /**
  * #2662 AC(1): a dedicated trailing section for retired files — declared via
- * `.arbiterignore` (see `arbiter ignore add`) AND already gone from disk — so a
+ * `.arbiterignore` (see `arbiter configure ignore add`) AND already gone from disk — so a
  * project's deliberate retirements are reviewable in one place, not scattered
  * among "ignored" (still-present opt-outs) or missing entirely from the report.
  */
@@ -325,7 +325,7 @@ function printGovernanceReport(config: ProjectConfig, targetDir: string, json: b
   const sections = checkGovernanceSections(config, targetDir)
   const stale = sections.filter((s) => s.stale)
   if (json) {
-    jsonOutput('diff', stale.length > 0 ? 'warning' : 'ok', { sections })
+    jsonOutput('update --dry-run', stale.length > 0 ? 'warning' : 'ok', { sections })
     if (stale.length > 0) process.exit(statusToExitCode('warning'))
     return
   }
@@ -353,7 +353,9 @@ export function runDiff(options: DiffOptions): void {
   const stored = loadConfig(targetDir)
   if (!stored) {
     if (options.json) {
-      jsonOutput('diff', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
+      jsonOutput('update --dry-run', 'error', {}, [
+        'No arbiter.json found. Run `arbiter init` first.',
+      ])
     } else {
       process.stdout.write(`${t('cli.diff.no_config')}\n`)
     }
@@ -446,7 +448,13 @@ export function runDiff(options: DiffOptions): void {
     // `hasChanges` stays write-only (idempotence contract) — withheld is reported
     // via `withheldCount`, not by claiming update would write the file.
     const status = hasChanges || withheldCount > 0 ? 'warning' : 'ok'
-    jsonOutput('diff', status, { hasChanges, files, remoteSideEffect, withheldCount, retired })
+    jsonOutput('update --dry-run', status, {
+      hasChanges,
+      files,
+      remoteSideEffect,
+      withheldCount,
+      retired,
+    })
     const code = statusToExitCode(status)
     if (code !== 0) process.exit(code)
     return

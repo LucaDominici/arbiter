@@ -5,7 +5,7 @@
  * The SUMMARY.json file is the canonical snapshot of an evidence run.
  * Its embedded `sha` is computed over a canonicalised representation of
  * the rest of the object — any tampering or stale state surfaces as a
- * mismatch that `arbiter verify evidence` treats as exit code 2.
+ * mismatch that `arbiter check evidence` treats as exit code 2.
  *
  * Canonicalisation strategy: sort keys deeply, exclude the `sha` field
  * itself, then SHA-256 the resulting JSON string.

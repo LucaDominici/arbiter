@@ -58,7 +58,7 @@ describe('runVerify (#174)', () => {
     runVerify({ json: true })
 
     const envelope = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0])) as Record<string, unknown>
-    expect(envelope).toMatchObject({ command: 'validate', version: '1', status: 'ok' })
+    expect(envelope).toMatchObject({ command: 'check environment', version: '1', status: 'ok' })
     const data = envelope['data'] as Record<string, unknown>
     expect(data['stack']).toBe('typescript')
     expect(data['probes']).toEqual([])
@@ -71,7 +71,7 @@ describe('runVerify (#174)', () => {
     runVerify({ json: true })
 
     const envelope = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0])) as Record<string, unknown>
-    expect(envelope).toMatchObject({ command: 'validate', version: '1', status: 'error' })
+    expect(envelope).toMatchObject({ command: 'check environment', version: '1', status: 'error' })
     const data = envelope['data'] as Record<string, unknown>
     expect(data['stack']).toBe('typescript')
     expect(data['probes']).toEqual([])
@@ -113,7 +113,7 @@ describe('runVerify (#174)', () => {
     runVerify({ json: true })
 
     const envelope = JSON.parse(captured.join('')) as Record<string, unknown>
-    expect(envelope).toMatchObject({ command: 'validate', version: '1', status: 'ok' })
+    expect(envelope).toMatchObject({ command: 'check environment', version: '1', status: 'ok' })
     const data = envelope['data'] as Record<string, unknown>
     expect(data['effectiveConfig']).toMatchObject({ governanceLevel: 'L2' })
   })

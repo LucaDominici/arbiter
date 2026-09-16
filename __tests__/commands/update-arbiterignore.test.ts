@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #2353: per-file opt-out for `arbiter update` / `arbiter diff`.
+// #2353: per-file opt-out for `arbiter update` / `arbiter update --dry-run`.
 //
 // A consumer that wants ONE upstream fix must not have to accept the whole
 // generated surface. Two halves of ONE mechanism:

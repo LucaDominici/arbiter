@@ -127,7 +127,7 @@ describe('findMissingRequired — required runtime-asset presence (#1575, #1801)
   it('flags a manifest missing the doc-set/gold-audit engine scripts (#2348)', () => {
     // src/commands/doc-set.ts and gold-audit.ts shell out to these at runtime
     // (packageRoot()/scripts/*.mjs) — omitted from files[] until #2348, so every
-    // real consumer install threw MODULE_NOT_FOUND on `arbiter doc-set`/`gold-audit`.
+    // real consumer install threw MODULE_NOT_FOUND on `arbiter audit docs`/`gold-audit`.
     const m = findMissingRequired(['dist/cli.js', 'dist/kit/catalog.json'], derivedEngineScripts())
     const labels = m.map((x) => x.label).join(' ')
     expect(labels).toMatch(/check-doc-set\.mjs/)

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1121: `arbiter settings` — discovery view of every settable arbiter.json path
+// #1121: `arbiter configure show` — discovery view of every settable arbiter.json path
 // with its current value, grouped by category. Editing is delegated to
 // `arbiter configure` (interactive on TTY, or --set). The SETTINGS_CATALOG is the
 // single source of truth that check-settings-coverage.mjs reconciles against
@@ -218,14 +218,14 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
         path: 'plugins',
         label: 'Installed Arbiter plugins',
         classification: 'internal',
-        effect: 'Managed and availability-checked by arbiter plugin add/list',
+        effect: 'Managed and availability-checked by arbiter configure plugin add/list',
         cost: 'unmeasured',
       },
       {
         path: 'companions',
         label: 'Companion skill policy',
         classification: 'internal',
-        effect: 'Resolved from installed companion skills and reported by arbiter doctor',
+        effect: 'Resolved from installed companion skills and reported by arbiter status health',
         cost: 'unmeasured',
       },
       { path: 'lanes', label: 'Project lanes' },
@@ -275,14 +275,14 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
         path: 'graceEndsAt',
         label: 'Governance upgrade grace deadline',
         classification: 'derived',
-        effect: 'Managed by arbiter upgrade-level',
+        effect: 'Managed by arbiter configure level',
         cost: 'none',
       },
       {
         path: 'graceFromLevel',
         label: 'Governance upgrade source level',
         classification: 'derived',
-        effect: 'Managed by arbiter upgrade-level',
+        effect: 'Managed by arbiter configure level',
         cost: 'none',
       },
       {
@@ -582,7 +582,7 @@ function settingsOutput(raw: unknown, config: unknown, overrides: Record<string,
 }
 
 function printSettings(groups: ReturnType<typeof settingsOutput>): void {
-  process.stdout.write('\narbiter settings — current configuration\n')
+  process.stdout.write('\narbiter configure show — current configuration\n')
   for (const group of groups) {
     process.stdout.write(`\n${group.group}\n`)
     for (const field of group.fields) {
@@ -611,7 +611,7 @@ export function runSettings(opts: SettingsOptions = {}): void {
   const overrides = readUnifiedState(dir)?.overrides ?? {}
   const groups = settingsOutput(raw, config, overrides)
   if (opts.json) {
-    jsonOutput('settings', 'ok', { groups })
+    jsonOutput('configure show', 'ok', { groups })
     return
   }
   printSettings(groups)

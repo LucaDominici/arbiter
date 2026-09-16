@@ -18,7 +18,7 @@ Consolidated process reference: the work-scope track model, post-commit track cl
 ## Track Model — arbiter
 
 **Purpose:** Define the work-scope taxonomy used to delimit a task. Each
-arbiter task belongs to exactly one _track_. A track scopes:
+arbiter lifecycle belongs to exactly one _track_. A track scopes:
 
 - Which CODEOWNERS reviewers are recruited.
 - Which gate subset must pass before the work merges.

@@ -316,7 +316,7 @@ adjacent accuracy and 20% fail-dangerous L→S on 45 real issues.
 | ------------------------------ | --- | --- | -------- | ------------------------------------------ |
 | Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77` (`REDTEAM_AGENTS`)       |
 | Refactor-phase review agents   | 1   | 1   | 2        | `task-ship.ts:79` (`REVIEW_AGENTS`)        |
-| `/review-code` reviewers       | 3   | 3   | 5        | `.claude/commands/review-code.md`          |
+| `/review` reviewers            | 3   | 3   | 5        | `.claude/commands/review.md`               |
 | Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100` (`verticalsForTier`) |
 
 Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`; Standard =
@@ -438,14 +438,14 @@ autonomy behavior.**
 1. **Triage + compose** — `gh issue list --state open`, exclude `blocked/needs-human/epic`; an issue
    labelled `conflicts-with:#N` shares a _serial lane_ with #N. _(This declarative label is the
    surviving substitute for the pruned auto-correlation — see §11.1.)_
-2. **Harvest finding spool** — drain `.arbiter/findings/*.jsonl` (written by `arbiter note` during
+2. **Harvest finding spool** — drain `.arbiter/findings/*.jsonl` (written by `arbiter finding add` during
    CLOSER mode) into tracked issues; transactional check-all-then-claim-all with rollback.
 3. **One cumulative plan** → `.claude/plans/wave-N.md` with per-group manifests whose file-sets are
    **disjoint** (the ADR-103 carve-out precondition) and anchored for CANON-16.
 4. **One plan review** + one tier-Standard red-team (CRITICAL → rework, max 2 cycles).
 5. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`, branch per group),
    TDD per unit, **light checks only; the full gate is forbidden inside worktrees**. Expensive gates
-   go through `arbiter gate-exec -- <cmd>` (the flock mutex). Per-worktree caches (`symlink-children`).
+   go through `arbiter check run -- <cmd>` (the flock mutex). Per-worktree caches (`symlink-children`).
 6. **Local integration** on `wave-N-integration` (off `main`): sequential merge in _minimum-overlap
    order computed from the real `git diff --name-only`_, then multiagent review + adversarial verify +
    evidence (INV-114), then the full gate **under the mutex** → `gate-pass.json`.

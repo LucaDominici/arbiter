@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1414 — `arbiter gold-audit` is a THIN wrapper over the SSOT engine (scripts/gold-audit.mjs).
+// #1414 — `arbiter audit readiness` is a THIN wrapper over the SSOT engine (scripts/gold-audit.mjs).
 // It reuses the engine's deterministic verdicts and ADDS the level-band + gap-render presentation.
 // Parity test: the command's core verdicts MUST equal `node scripts/gold-audit.mjs --json` for the
 // same registry + repo — there is exactly one engine, never a second one.
@@ -103,7 +103,7 @@ describe('runGoldAudit (#1414 thin wrapper)', () => {
 
 // ─── #1419: --check no-regress mode (downstream thin-runner enabler) ─────────────
 // The downstream thin runner (scripts/gold-audit.mjs) delegates to
-// local `arbiter gold-audit --check`. The command must therefore support --check:
+// local `arbiter audit readiness --check`. The command must therefore support --check:
 // it delegates to the engine's no-regress path (bootstrap missing baseline → exit 0).
 describe('runGoldAudit --check (#1419 downstream enabler)', () => {
   it('--check bootstraps a missing baseline and exits 0 (no day-1 redness)', () => {

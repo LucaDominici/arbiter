@@ -2,9 +2,9 @@
 //
 // THE pinpoint proof test (#1206).
 //
-// Property: a mid-task `arbiter mark` writes a step-cursor {tddPhase, lastAction, nextAction}
+// Property: a mid-task `arbiter lifecycle checkpoint` writes a step-cursor {tddPhase, lastAction, nextAction}
 // into the single unified phase document. After a simulated `/clear` (a fresh process that has
-// only the on-disk document, no conversation memory), `arbiter task resume` must land at the
+// only the on-disk document, no conversation memory), `arbiter lifecycle resume` must land at the
 // EXACT nextAction string — NOT the coarse, hardcoded RECOVERY_TABLE[phase] blurb.
 //
 // Fail-before/pass-after: against the pre-redesign engine, resume reads `.task-phase` and prints
@@ -35,7 +35,7 @@ function captureStdout(fn: () => void): string {
   return chunks.join('')
 }
 
-describe('arbiter mark + cursor-aware resume — the pinpoint proof (#1206)', () => {
+describe('arbiter lifecycle checkpoint + cursor-aware resume — the pinpoint proof (#1206)', () => {
   let dir: string
 
   beforeEach(() => {

@@ -320,7 +320,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 - **Code smells** — Khomh et al. 2009 and Palomba et al. 2018 link antipatterns to change/fault-proneness.
 - **Duplication, esp. inconsistent clones** — Juergens et al. ICSE 2009: inconsistent (diverged) clones are a significant source of bugs (`jscpd` gate).
 - **Monotonic non-regression** — Lehman's laws (rising entropy): the debt ratchet blocks any net increase in complexity, dead code, or duplication.
-- **Technical-debt accounting** — SEI / Kruchten et al. 2012 and the SQALE method: debt is measurable and must be recorded, not silently absorbed (`arbiter task record-tech-debt`).
+- **Technical-debt accounting** — SEI / Kruchten et al. 2012 and the SQALE method: debt is measurable and must be recorded, not silently absorbed (`arbiter lifecycle record-debt`).
 - **Shift-left** — Boehm 1981: defect cost rises sharply with discovery latency; gates run at L1/L2 pre-merge.
 
 **Tier-2 (advisory only — do NOT hard-gate alone):**

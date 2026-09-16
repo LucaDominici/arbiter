@@ -218,7 +218,7 @@ function main() {
 
 /**
  * #1402 — count undrained findings across `.arbiter/findings/*.jsonl` and, when any exist, emit a
- * non-blocking nudge to drain them with `arbiter note`/review. Never throws (best-effort), never
+ * non-blocking nudge to drain them with `arbiter finding add`/review. Never throws (best-effort), never
  * changes the exit code — it only writes advisory text to stderr (visible to the model).
  */
 function reflectionSweep(root) {
@@ -234,7 +234,7 @@ function reflectionSweep(root) {
     if (count === 0) return
     process.stderr.write(
       `[arbiter] REFLECTION SWEEP: ${count} undrained finding${count === 1 ? '' : 's'} in .arbiter/findings/.\n` +
-        `Capture anything seen-but-unrecorded with \`arbiter note\`, then review/drain the spool before wrapping up.\n`,
+        `Capture anything seen-but-unrecorded with \`arbiter finding add\`, then review/drain the spool before wrapping up.\n`,
     )
   } catch {
     // Best-effort nudge — never block the stop on a sweep failure.

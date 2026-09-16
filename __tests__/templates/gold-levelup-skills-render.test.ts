@@ -20,21 +20,9 @@ describe('gold level-up skill + command templates (#1420/#1422)', () => {
     expect(out.length).toBeGreaterThan(50)
   })
 
-  it('renders claude/commands/gold-audit.md.ejs', () => {
-    const out = renderTemplate('claude/commands/gold-audit.md.ejs', config)
-    expect(out).toContain('gold-audit')
-    expect(out.length).toBeGreaterThan(20)
-  })
-
   it('renders claude/skills/close-gold-gap/SKILL.md.ejs', () => {
     const out = renderTemplate('claude/skills/close-gold-gap/SKILL.md.ejs', config)
     expect(out).toContain('close-gold-gap')
     expect(out.length).toBeGreaterThan(50)
-  })
-
-  it('renders claude/commands/close-gold-gap.md.ejs', () => {
-    const out = renderTemplate('claude/commands/close-gold-gap.md.ejs', config)
-    expect(out).toContain('close-gold-gap')
-    expect(out.length).toBeGreaterThan(20)
   })
 })

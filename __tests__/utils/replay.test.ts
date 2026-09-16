@@ -129,7 +129,7 @@ describe('startReplay / close', () => {
   it('writes all 5 files synchronously', () => {
     const handle = startReplay({
       runId: 'r1',
-      argv: ['arbiter', 'doctor'],
+      argv: ['arbiter', 'status', 'health'],
       env: { PATH: '/usr/bin', GITHUB_TOKEN: 'ghp_xxx' },
       cwd: projectDir,
       baseDir,
@@ -145,7 +145,7 @@ describe('startReplay / close', () => {
     expect(existsSync(join(dir, 'state-after.json'))).toBe(true)
     expect(existsSync(join(dir, 'output.log'))).toBe(true)
 
-    expect(readFileSync(join(dir, 'command.txt'), 'utf-8')).toContain('arbiter doctor')
+    expect(readFileSync(join(dir, 'command.txt'), 'utf-8')).toContain('arbiter status health')
     const env = JSON.parse(readFileSync(join(dir, 'env.json'), 'utf-8')) as Record<string, string>
     expect(env.GITHUB_TOKEN).toBe('***REDACTED***')
     expect(env.PATH).toBe('/usr/bin')
@@ -161,7 +161,7 @@ describe('startReplay / close', () => {
     writeFileSync(join(projectDir, 'arbiter.json'), JSON.stringify({ version: 1, level: 'L2' }))
     const handle = startReplay({
       runId: 'r2',
-      argv: ['arbiter', 'doctor'],
+      argv: ['arbiter', 'status', 'health'],
       env: {},
       cwd: projectDir,
       baseDir,
@@ -178,7 +178,7 @@ describe('startReplay / close', () => {
     writeFileSync(join(projectDir, '.arbiter', 'evidence', 'a.json'), '{}')
     const handle = startReplay({
       runId: 'r3',
-      argv: ['arbiter', 'doctor'],
+      argv: ['arbiter', 'status', 'health'],
       env: {},
       cwd: projectDir,
       baseDir,

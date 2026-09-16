@@ -6,8 +6,8 @@
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
     "unpackedSize": 4529407,
-    "entryCount": 992,
-    "rosterSha256": "4ace3df609ce15e09781c61146595444f7e584becd211d7cc9cdaa1a2e88e530"
+    "entryCount": 986,
+    "rosterSha256": "59f4a1df1570eb6e3ad7a5e7444ce1c8ed97f2cd69b94d6ec32d93c2ee2ec04f"
   },
   "manifest": {
     "bin": {
@@ -73,8 +73,8 @@
     "pathsSha256": "e0947fc66eba1a5a4e53f9675db1fb31d3e56730f406c6c9ca8aa00db706499a"
   },
   "templates": {
-    "count": 645,
-    "pathsSha256": "7399eb8c0f354844af79c8859798d3fb024ecf876ca9d73eba98368be16394f1"
+    "count": 639,
+    "pathsSha256": "0f53c909cbad67ff768464d8ad91f1e21b9e70e31a5cc07f7af46e79576eb81d"
   },
   "leading_spdx": {
     "count": 283,

@@ -199,7 +199,7 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   'guard-done-evidence.mjs': {
     name: 'guard-done-evidence.mjs',
     enforces: 'Requires recorded evidence before done claims',
-    codexEquivalent: bridgedPlusGate('`arbiter verify tdd` / evidence checks'),
+    codexEquivalent: bridgedPlusGate('`arbiter check tdd` / evidence checks'),
   },
   'post-brainstorm-stop.mjs': {
     name: 'post-brainstorm-stop.mjs',

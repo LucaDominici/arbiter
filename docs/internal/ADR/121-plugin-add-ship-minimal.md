@@ -1,5 +1,5 @@
 ---
-title: 'ADR-121: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder'
+title: 'ADR-121: `arbiter configure plugin add`/`list` — Ship the Minimal Command, No Scaffolder'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-08-30'
@@ -9,7 +9,7 @@ tags: ['audience/dev', 'kind/adr']
 related: ['docs/internal/ADR/031-plugin-api-v1.md']
 ---
 
-# ADR-121: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder
+# ADR-121: `arbiter configure plugin add`/`list` — Ship the Minimal Command, No Scaffolder
 
 **Project:** arbiter
 **Date:** 2026-08-30
@@ -18,11 +18,11 @@ related: ['docs/internal/ADR/031-plugin-api-v1.md']
 
 ## Context
 
-ADR-031 designed a `arbiter plugin add | remove | list` CLI subcommand alongside the Plugin
+ADR-031 designed a `arbiter configure plugin add | remove | list` CLI subcommand alongside the Plugin
 API v1, but the subcommand was never registered in `src/cli.ts` — only the loader, types, and
 config field shipped. Three public docs (`website/recipes/plugin.md`,
 `website/recipes/custom-invariant.md`, `examples/plugins/spring-boot/README.md`) and
-`CONTRIBUTING.md` kept instructing users to run `arbiter plugin add <name>` and described it as
+`CONTRIBUTING.md` kept instructing users to run `arbiter configure plugin add <name>` and described it as
 a scaffolder that creates `index.js`/`package.json`/`templates/` — a command and a behavior
 that both did not exist. `src/cli.ts:298` already reserved `plugin` in the nested-subcommand
 parser; `src/i18n/en.json` already carried a full `cli.plugin.*` string catalog (including
@@ -32,7 +32,7 @@ partially scaffolded in supporting files, and never finished.
 
 ## Decision
 
-Ship a minimal `arbiter plugin add <package>` and `arbiter plugin list` — **no scaffolder**
+Ship a minimal `arbiter configure plugin add <package>` and `arbiter configure plugin list` — **no scaffolder**
 (`plugin init`/`plugin add`'s old "creates a project skeleton" behavior is dropped) and **no
 `remove`** (nothing in the current doc surface promises it, and ADR-031's `remove` design is
 deferred, not built, until something actually needs it).
@@ -47,7 +47,7 @@ update` uses — **before** `arbiter.json` is touched, so a plugin that fails to
 - `plugin list` loads every configured entry the same way and reports `loaded` / `not found` /
   `error` per plugin.
 - The public website recipes are rewritten from "Scaffold" (a `## Scaffold` heading promising
-  generated files) to "Layout" (a hand-authored package structure, then `arbiter plugin add` to
+  generated files) to "Layout" (a hand-authored package structure, then `arbiter configure plugin add` to
   register it) — because generating plugin skeletons is not a product promise arbiter wants to
   maintain: a plugin is a normal npm package with one JSON contract to satisfy, and a generator
   for that is speculative scaffolding for a shape simple enough to hand-write once per plugin.

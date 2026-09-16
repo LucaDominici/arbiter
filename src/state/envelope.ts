@@ -70,7 +70,7 @@ export class SnapshotChecksumError extends Error {
   constructor(expected: string, actual: string) {
     super(
       `snapshot checksum mismatch: expected ${expected.slice(0, 12)}…, got ${actual.slice(0, 12)}…. ` +
-        `Run \`arbiter doctor --repair-state\` to re-derive from arbiter.json.`,
+        `Run \`arbiter status health --repair-state\` to re-derive from arbiter.json.`,
     )
     this.name = 'SnapshotChecksumError'
     this.expected = expected

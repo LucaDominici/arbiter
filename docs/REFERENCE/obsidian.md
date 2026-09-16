@@ -1,5 +1,5 @@
 ---
-title: 'Reference: arbiter obsidian'
+title: 'Reference: arbiter docs vault'
 doc_version: '1.0.1'
 status: active
 last_review: '2026-09-12'
@@ -9,7 +9,7 @@ tags: ['audience/dev', 'kind/reference']
 related: ['107-obsidian-subcommand']
 ---
 
-# Reference: arbiter obsidian
+# Reference: arbiter docs vault
 
 > **Target:** governed repos at L2+ (the Obsidian vault requires the `docs/` SSOT corpus)
 > **Command:** `src/commands/obsidian.ts`, registered in `src/cli.ts`
@@ -19,7 +19,7 @@ related: ['107-obsidian-subcommand']
 ## Synopsis
 
 ```
-arbiter obsidian [options]
+arbiter docs vault [options]
 
   --repo <dir>        Target repo directory (default: current directory)
   --vault-path <dir>  Vault directory relative to the repo root (default: "wiki")
@@ -30,7 +30,7 @@ arbiter obsidian [options]
   --json              Emit machine-readable JSON output
 ```
 
-`arbiter obsidian` is a **v1 thin generic orchestrator**. It does not parse markdown,
+`arbiter docs vault` is a **v1 thin generic orchestrator**. It does not parse markdown,
 walk wiki cross-references, or check staleness itself — it shells out to the two vault
 scripts a governed repo already received from `arbiter update`/`init`
 (`scripts/gen-wiki.mjs`, `scripts/check-wiki-lint.mjs`) and turns their output into a
@@ -97,12 +97,12 @@ repo. If either is missing, the command exits 2 with a hint to run `arbiter upda
 
 The Obsidian vault (`wiki/`) requires the `docs/` SSOT corpus that only L2+ governance
 levels populate (see `src/generators/wiki.ts`: `generateWiki` is a no-op at L1). Running
-`arbiter obsidian` against an L1 repo will hit the missing-scripts preflight and exit 2
+`arbiter docs vault` against an L1 repo will hit the missing-scripts preflight and exit 2
 with the `arbiter update` hint — there is nothing to sync until the corpus exists.
 
 ## Relationship to gen-wiki.mjs / check-wiki-lint.mjs
 
-`arbiter obsidian` never duplicates the two scripts' logic. A `--vault-path` other than
+`arbiter docs vault` never duplicates the two scripts' logic. A `--vault-path` other than
 the default `wiki` is passed straight through as `--wiki-dir` to both scripts — this
 requires both scripts to support that flag (as of #1979, `check-wiki-lint.mjs` already
 did; `gen-wiki.mjs` was given parity as part of this same change, see ADR-107 §Design-risk-#3).

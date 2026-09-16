@@ -204,7 +204,7 @@
 | [ADR-118: The lifecycle ontology is wired, not written](internal/ADR/118-lifecycle-ontology-wired-not-written.md) | 118 | active | kind/adr |
 | [ADR-119: Adversarial review hops until nothing above low survives](internal/ADR/119-adversarial-review-hops-until-low-only.md) | 119 | active | kind/adr |
 | [ADR-120: Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](internal/ADR/120-ignore-stryker-tmp-scratch-sandbox.md) | 120 | active | kind/adr |
-| [ADR-121: `arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](internal/ADR/121-plugin-add-ship-minimal.md) | 121 | active | kind/adr |
+| [ADR-121: `arbiter configure plugin add`/`list` — Ship the Minimal Command, No Scaffolder](internal/ADR/121-plugin-add-ship-minimal.md) | 121 | active | kind/adr |
 | [ADR-122: Experimental tool generators — promotion criteria, and retire all five](internal/ADR/122-experimental-tool-generators-retired.md) | 122 | active | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-000_template.md) | — | draft | kind/adr |
 | [ADR-NNN: Title](internal/ADR/ADR-TEMPLATE.md) | — | active | kind/adr |
@@ -286,7 +286,7 @@
 | [ISO 9001 Overlay — Reference](REFERENCE/iso9001-overlay.md) | — | active | kind/reference |
 | [Reference: Java gold tooling wiring](REFERENCE/java-gold-tooling.md) | — | active | kind/reference |
 | [Local-Wrapper Contract (INV-87, W3)](REFERENCE/local-wrapper-contract.md) | — | active | kind/reference |
-| [Reference: arbiter obsidian](REFERENCE/obsidian.md) | — | active | kind/reference |
+| [Reference: arbiter docs vault](REFERENCE/obsidian.md) | — | active | kind/reference |
 | [Plan Template — Context Block](REFERENCE/plan-template.md) | — | active | kind/reference |
 | [Reference: Ship Driver (generated)](REFERENCE/ship-driver.md) | — | active | kind/reference |
 | [`.arbiter-generated.json` State File](REFERENCE/state-file.md) | — | active | kind/reference |

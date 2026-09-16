@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // T3 (gold-doc-capability Tranche 3, gold-doc-tranches-t3-t5.md §1) — real per-doc skeleton
 // generator tests. Closes H5: before this file (and src/generators/doc-set.ts) existed, the ONLY
-// body `arbiter doc-set` (or any --generate) could produce was a one-line
+// body `arbiter audit docs` (or any --generate) could produce was a one-line
 // "> **STUB — fill me in.**" banner (scripts/check-doc-set.mjs `stubFor()`).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -244,7 +244,7 @@ checks:
   })
 })
 
-describe('runDocSetPlanApply — the arbiter doc-set --plan/--apply CLI path', () => {
+describe('runDocSetPlanApply — the arbiter audit docs --plan/--apply CLI path', () => {
   it('--plan (apply: false) writes nothing', () => {
     const result = runDocSetPlanApply({ repo: dir })
     expect(existsSync(join(dir, 'docs', 'GLOSSARY.md'))).toBe(false)
@@ -282,12 +282,20 @@ describe('runDocSetPlanApply — the arbiter doc-set --plan/--apply CLI path', (
       `version: '1.1.0'\nprofile: tooling\nchecks:\n  - path: docs/mystery.md\n    tier: mandatory\n    applies: always\n`,
     )
     const cli = join(process.cwd(), 'dist', 'cli.js')
-    const plan = spawnSync('node', [cli, 'doc-set', dir, '--plan', '--manifest', manifest], {
-      encoding: 'utf-8',
-    })
-    const apply = spawnSync('node', [cli, 'doc-set', dir, '--apply', '--manifest', manifest], {
-      encoding: 'utf-8',
-    })
+    const plan = spawnSync(
+      'node',
+      [cli, 'docs', 'scaffold', dir, '--plan', '--manifest', manifest],
+      {
+        encoding: 'utf-8',
+      },
+    )
+    const apply = spawnSync(
+      'node',
+      [cli, 'docs', 'scaffold', dir, '--apply', '--manifest', manifest],
+      {
+        encoding: 'utf-8',
+      },
+    )
 
     expect(plan.status, plan.stderr).toBe(0)
     expect(apply.status, apply.stderr).not.toBe(0)

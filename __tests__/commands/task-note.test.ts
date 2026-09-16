@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1401 — `arbiter note` per-agent JSONL finding spool.
+// #1401 — `arbiter finding add` per-agent JSONL finding spool.
 //
-// Property: a single `arbiter note` appends EXACTLY one JSON line to a per-shard spool under
+// Property: a single `arbiter finding add` appends EXACTLY one JSON line to a per-shard spool under
 // `.arbiter/findings/<shard>.jsonl`. Shards are per-active-task (parallel-safe across worktrees),
 // so two concurrent notes on different shards never lose-update each other. The fingerprint is
 // line-number independent and excludes ts/sha, so the SAME finding noted at line N and line N+10
@@ -33,7 +33,7 @@ function readAllFindings(dir: string): Array<Record<string, unknown>> {
   return out
 }
 
-describe('arbiter note — per-agent JSONL finding spool (#1401)', () => {
+describe('arbiter finding add — per-agent JSONL finding spool (#1401)', () => {
   let dir: string
 
   beforeEach(() => {

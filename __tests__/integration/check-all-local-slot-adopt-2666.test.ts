@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2666 AC2, hermetic proof: scripts/check-all.local.json is a project-local
 // file no template emits, so it is invisible to BOTH `arbiter update
-// --adopt-gate-spine` and `arbiter diff --withheld` — not "not withheld
+// --adopt-gate-spine` and `arbiter update --dry-run --withheld` — not "not withheld
 // because it's pristine" (the gate-spine default), but genuinely never a
 // candidate at all, because no generator ever produces it (mirrors the
 // runInit + runUpdate hermetic pattern in update-adopt.test.ts).
@@ -65,7 +65,7 @@ describe('#2666 AC2 — scripts/check-all.local.json survives adopt-gate-spine a
     expect(readFileSync(join(dir, LOCAL_SLOT), 'utf-8')).toBe(localContent)
   })
 
-  it('never appears in `arbiter diff` output at all — not even in the withheld section', () => {
+  it('never appears in `arbiter update --dry-run` output at all — not even in the withheld section', () => {
     const writes: string[] = []
     const origWrite = process.stdout.write.bind(process.stdout)
     process.stdout.write = ((s: unknown) => {
@@ -80,7 +80,7 @@ describe('#2666 AC2 — scripts/check-all.local.json survives adopt-gate-spine a
     expect(writes.some((w) => w.includes(LOCAL_SLOT))).toBe(false)
   })
 
-  it('never appears in `arbiter diff --withheld` (the focused reconciliation view)', () => {
+  it('never appears in `arbiter update --dry-run --withheld` (the focused reconciliation view)', () => {
     const writes: string[] = []
     const origWrite = process.stdout.write.bind(process.stdout)
     process.stdout.write = ((s: unknown) => {

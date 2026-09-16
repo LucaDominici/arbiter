@@ -56,7 +56,7 @@ if (violations.length > 0) {
   for (const v of violations) console.error('  ' + v)
   console.error(
     '\nTask state lives in `.claude/.task/status.json`. Use readTaskState / readUnifiedState / ' +
-      'arbiter task get instead of the flat dotfiles (only src/commands/task-state.ts may name them).',
+      'arbiter lifecycle get instead of the flat dotfiles (only src/commands/task-state.ts may name them).',
   )
 }
 

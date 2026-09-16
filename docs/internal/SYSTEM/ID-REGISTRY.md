@@ -61,7 +61,7 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "src/invariants/catalog.ts",
       "gate": "scripts/check-inv-enforcement-wired.mjs",
       "track": "self",
-      "tool": "arbiter validate",
+      "tool": "arbiter check",
       "hook": "n/a",
       "status": "active",
       "graphNode": "INV",
@@ -74,10 +74,10 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "src/config/schema.ts",
       "gate": "n/a",
       "track": "target",
-      "tool": "arbiter validate",
+      "tool": "arbiter check",
       "hook": "n/a",
       "status": "active",
-      "note": "Shape is enforced by the arbiter.json config schema (ADR-112) rather than a standalone script; `arbiter validate` is the surface that runs it, and the SSOT column names the schema that defines the field."
+      "note": "Shape is enforced by the arbiter.json config schema (ADR-112) rather than a standalone script; `arbiter check` is the surface that runs it, and the SSOT column names the schema that defines the field."
     },
     {
       "prefix": "CANON",
@@ -111,7 +111,7 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "src/templates/docs/skeletons/decision-registry.md.ejs",
       "gate": "scripts/check-decision-registry.mjs",
       "track": "target",
-      "tool": "arbiter doc-set",
+      "tool": "arbiter audit docs",
       "hook": "n/a",
       "status": "active",
       "note": "A target-project scheme (ADR-113): arbiter owns the template and the gate, the consumer owns the instances, so the gate is wired in the generated check-all rather than arbiter's own."
@@ -136,7 +136,7 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "src/commands/task-state.ts",
       "gate": "scripts/check-acceptance.mjs",
       "track": "self",
-      "tool": "arbiter task get",
+      "tool": "arbiter lifecycle get",
       "hook": "n/a",
       "status": "active",
       "note": "Issue-scoped rather than globally numbered: AC-1 means something different under each task id, which is why the pattern carries no width. The SSOT is the module owning the shape, not the runtime .claude/.task/status.json it writes — that file is per-checkout state and absent on a fresh clone."
@@ -148,10 +148,10 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "github",
       "gate": "n/a",
       "track": "self",
-      "tool": "arbiter task get",
+      "tool": "arbiter lifecycle get",
       "hook": "n/a",
       "status": "active",
-      "note": "GitHub owns the instances; arbiter validates only the citation shape, which the plan and evidence schemas already pin to ^#[0-9]+$."
+      "note": "GitHub owns the instances; arbiter checks only the citation shape, which the plan and evidence schemas already pin to ^#[0-9]+$."
     },
     {
       "prefix": "N",
@@ -172,7 +172,7 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "standards/gold-registry.yml",
       "gate": "scripts/gold-audit.mjs",
       "track": "both",
-      "tool": "arbiter gold-audit",
+      "tool": "arbiter audit readiness",
       "hook": "n/a",
       "status": "active",
       "note": "No edit-time hook: a gold-audit check's verdict is computed from the repository as a whole by the audit engine, so there is no single edited file whose validity a hook could decide."
@@ -184,7 +184,7 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "src/commands/task-state.ts",
       "gate": "n/a",
       "track": "self",
-      "tool": "arbiter task get",
+      "tool": "arbiter lifecycle get",
       "hook": "n/a",
       "status": "active",
       "note": "Findings live in the typed UnifiedTaskState written by src/commands/task-state.ts, whose shape is enforced at write time rather than by a separate script; the runtime .claude/.task/status.json is per-checkout state, not a tracked SSOT."
@@ -208,7 +208,7 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "docs/methodology/agent-orchestration-and-context-hygiene.md",
       "gate": "scripts/check-methodology-coverage.mjs",
       "track": "self",
-      "tool": "arbiter method",
+      "tool": "arbiter configure method",
       "hook": "n/a",
       "status": "active",
       "note": "The prefix is assigned to the methodology measures, and MS-NN (below) claims the milestone scheme so a NEW bare M13 can only mean adversarial refutation. The migration is not retroactive and this row does not pretend otherwise: docs/internal/PRODUCT/MILESTONES.md still carries 33 historical `## MN` headings, which wave 3 supersedes when MILESTONES.yml becomes the milestone SSOT and the prose file becomes a record. Four ADR titles keep their historical `(M19)`/`(M20)`/`(M21)`/`(M24)` suffix deliberately — a title records what a decision was called, and rewriting it would falsify the record."
@@ -232,7 +232,7 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "docs/architecture/arc42.md",
       "gate": "scripts/check-arc42-slots.mjs",
       "track": "both",
-      "tool": "arbiter doc-set",
+      "tool": "arbiter audit docs",
       "hook": "n/a",
       "status": "active",
       "note": "NOT the bare `A` prefix the programme plan proposed: `A2`, `A4` and `A11` are already in use as audit-wave and action-plan ids (docs/internal/DEVELOPMENT/REAL-PROJECT-TESTING.md, docs/internal/ADR/037-evidence-harness-target-projects.md, .claude/rules/95-closer-mode.md), so `A` would have collided on the day it was registered — this registry catching its own plan is the mechanism working. A fixed enumeration rather than minted ids, like CANON: the twelve slots are arc42's, and a project neither invents nor retires one. The pattern is deliberately the loose `[0-9]{2}` shared by every other scheme rather than an exact 01-12 alternation: this registry's job is collision detection, which needs a pattern the gate can expand into a sample, and check-arc42-slots.mjs is what enumerates the real twelve. `hook: n/a` — the artifact is prose under a heading, not a schema'd document, so there is nothing for post-edit-artifact-schema.mjs to validate at edit time; the gate is the enforcement."
@@ -293,7 +293,7 @@ so a gate that ships on both tracks can still say its hook covers only self.
       "ssot": "docs",
       "gate": "scripts/check-runbook-coverage.mjs",
       "track": "self",
-      "tool": "arbiter doc-set",
+      "tool": "arbiter audit docs",
       "hook": "n/a",
       "status": "staged",
       "expires": "2027-01-31",

@@ -1,6 +1,6 @@
 ---
 name: gold-audit
-description: Use when the user wants to measure how close the project is to gold-standard quality — runs the deterministic `arbiter gold-audit` engine and reports the level band plus a prioritized list of what is missing. Read-only; never changes code.
+description: Use when the user wants to measure how close the project is to gold-standard quality — runs the deterministic `arbiter audit readiness` engine and reports the level band plus a prioritized list of what is missing. Read-only; never changes code.
 title: "Gold Audit (measure)"
 doc_version: "1.0.0"
 status: active
@@ -26,7 +26,7 @@ or "estimate" anything with the model — the verdicts come straight from the en
 ## Step 1 — Run the engine
 
 ```bash
-npx @getarbiter/cli gold-audit --json
+npx @getarbiter/cli audit readiness --json
 ```
 
 The CLI auto-detects the project's brownfield class and degrades gracefully when no

@@ -134,7 +134,7 @@ describe('checkEmittedTree — arbiter command references (#2415)', () => {
     expect(
       problemsFor({
         ...NPM_PROJECT,
-        '.claude/commands/wt-close.md': '`arbiter wt close` then `arbiter ship #123`\n',
+        '.claude/commands/wt-close.md': '`git worktree remove` then `arbiter ship #123`\n',
       }),
     ).toEqual([])
   })

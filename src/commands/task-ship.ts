@@ -383,7 +383,7 @@ function shipStepBody(
       return {
         phase,
         action: 'Open the worktree, read the issue, write task state.',
-        command: 'arbiter task init --id <id> --tier <tier> --plan <path>',
+        command: 'arbiter lifecycle start --id <id> --tier <tier> --plan <path>',
         reviewAgents: 0,
       }
     case 'plan':
@@ -391,20 +391,20 @@ function shipStepBody(
         phase,
         // #2329 — batching guidance is model-side prose (the wave-drain skill), not a
         // config knob: the affinity engine it keyed off was deleted in the #1817 B-prune.
-        // #2570 — `arbiter verify plan` validates PLAN.json, not the markdown plan this
+        // #2570 — `arbiter check plan` validates PLAN.json, not the markdown plan this
         // phase asks for, and no gate script exists: the plan-review agents' verdict in
         // .arbiter/evidence/plan-review/<id>/latest.json is the gate, enforced by
         // `task advance` (bypass only via the audited --skip-plan-review).
         action:
           'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
-        command: `arbiter task advance --to ${nextPhase(phase) ?? 'red-team-review'}`,
+        command: `arbiter lifecycle advance --to ${nextPhase(phase) ?? 'red-team-review'}`,
         reviewAgents: 0,
       }
     case 'red':
       return {
         phase,
         action: 'Write failing tests first (TDD red); record evidence.',
-        command: 'arbiter task record-red --test-path <path>',
+        command: 'arbiter lifecycle record-red --test-path <path>',
         reviewAgents: 0,
       }
     case 'green':

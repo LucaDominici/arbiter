@@ -530,7 +530,7 @@
   },
   {
     "id": "N52",
-    "name": "Self-dogfood check (arbiter validates itself)",
+    "name": "Self-dogfood check (arbiter checks itself)",
     "tml": "L1",
     "gate": "BLOCKING",
     "categoryRef": "scripts_quality",

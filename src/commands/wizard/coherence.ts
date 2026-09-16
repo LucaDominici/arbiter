@@ -10,7 +10,7 @@
  * | gated-review  | WARN | OK   | OK   | OK   |
  *
  * CRITICAL → wizard rejects with remediation prompt.
- * WARN     → wizard emits advisory; arbiter doctor surfaces it.
+ * WARN     → wizard emits advisory; arbiter status health surfaces it.
  * OK       → no message.
  */
 import type { Archetype, CollaborationMode, GovernanceLevel, Language } from '../../wizard/types.js'

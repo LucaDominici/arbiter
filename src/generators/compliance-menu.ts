@@ -5,7 +5,7 @@
 // traceability table gated on the enable*Mapping booleans): this generator emits an
 // always-available onboarding menu that presents every collaborationMode (team) ×
 // industryOverlay (compliance) cell with its rationale, plus the
-// (industryOverlay × governanceLevel) coherence guidance surfaced by `arbiter doctor`.
+// (industryOverlay × governanceLevel) coherence guidance surfaced by `arbiter status health`.
 // It is unconditionally generated so a user can see the full decision surface before
 // (re-)running init. Language-neutral: identical artefact on every stack.
 

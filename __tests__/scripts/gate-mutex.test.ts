@@ -8,7 +8,7 @@
  * subprocess-heavy unit test flaked under the doubled load) and the orphan went
  * on to stamp a green marker.
  *
- * AC-2: the gate runs under the per-repo `arbiter gate-exec` mutex, so a second
+ * AC-2: the gate runs under the per-repo `arbiter check run` mutex, so a second
  * gate in the same repo waits (announcing itself) or fails closed.
  * AC-3: the gate runs in the FOREGROUND process group — no setsid, no detach —
  * so signal delivery reaches it, and it independently aborts when the process it
@@ -215,7 +215,7 @@ appendFileSync(process.argv[3], tag + '-exit\\n')
     const env = isolatedEnv()
     const lockPath = gateLockPathFor(dir, env)
     const marker = join(dir, 'nested-ran')
-    // Simulate `arbiter gate-exec` having taken the lock for this process tree.
+    // Simulate `arbiter check run` having taken the lock for this process tree.
     const r = spawnSync(
       'node',
       [

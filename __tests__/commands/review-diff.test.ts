@@ -1,5 +1,5 @@
 /**
- * `arbiter review diff` command tests (#262).
+ * `arbiter graph diff` command tests (#262).
  *
  * Covers:
  *   AC-1  compares two graph snapshots

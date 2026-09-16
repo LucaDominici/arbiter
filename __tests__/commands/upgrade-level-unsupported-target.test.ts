@@ -146,7 +146,7 @@ describe('upgrade-level target contract (#2201)', () => {
   })
 
   it('rejects --target L4 because the accepted target set is exactly L2 and L3', () => {
-    const result = spawn(['upgrade-level', '--target', 'L4', '--dir', dir], dir)
+    const result = spawn(['configure', 'level', '--target', 'L4', '--dir', dir], dir)
 
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('invalid --target "L4". Valid values: L2, L3.')

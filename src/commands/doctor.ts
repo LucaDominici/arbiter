@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// `arbiter doctor` commands (#619, #539, #618, #1217, #1817).
+// `arbiter status health` commands (#619, #539, #618, #1217, #1817).
 //
 // #1839 (F3 friction cut): split into src/commands/doctor/*.ts by subcommand (was
 // ~1093 LOC / 5 mixed subcommands in this one file). This file is now a pure

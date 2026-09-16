@@ -32,7 +32,7 @@ function versionStr(p: ProbeResult): string {
 
 export function formatText(report: VerifyReport): string {
   const lines: string[] = []
-  lines.push(`arbiter verify — stack: ${report.stack}  dir: ${report.dir}`)
+  lines.push(`arbiter check — stack: ${report.stack}  dir: ${report.dir}`)
   lines.push('')
 
   for (const p of report.probes) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { readFileSync, existsSync, writeFileSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateClaude } from '../../src/generators/claude.js'
@@ -155,24 +155,20 @@ describe('tool output: claude', () => {
     expect(existsSync(join(rulesDir, '90-exec-protocol.md'))).toBe(true)
   })
 
-  it('generates task.md + ship.md; ship.md is the orchestration entrypoint (#1216)', () => {
-    const config = claudeConfig({
-      useGitHub: true,
-      decompositionBackend: 'github',
-    })
-    generateClaude(config)
+  it('generates exactly the canonical command runbooks', () => {
+    generateClaude(claudeConfig({ useGitHub: true, decompositionBackend: 'github' }))
     const commandsDir = join(dir, '.claude', 'commands')
-    // Both files generated
-    expect(existsSync(join(commandsDir, 'task.md'))).toBe(true)
-    expect(existsSync(join(commandsDir, 'ship.md'))).toBe(true)
-    expect(existsSync(join(commandsDir, 'start-task.md'))).toBe(false)
-    expect(existsSync(join(commandsDir, 'complete-task.md'))).toBe(false)
-    // task.md: engine-ref — points at /ship
-    const taskContent = readFileSync(join(commandsDir, 'task.md'), 'utf-8')
-    expect(taskContent).toContain('/ship')
-    // ship.md: orchestration — references the issue (read in preflight)
-    const shipContent = readFileSync(join(commandsDir, 'ship.md'), 'utf-8')
-    expect(shipContent).toMatch(/read.*issue|issue.*read|preflight/i)
+    expect(readdirSync(commandsDir).sort()).toEqual([
+      'audit.md',
+      'drain.md',
+      'impact.md',
+      'review.md',
+      'ship.md',
+      'tabletop.md',
+    ])
+    expect(readFileSync(join(commandsDir, 'ship.md'), 'utf-8')).toMatch(
+      /read.*issue|issue.*read|preflight/i,
+    )
   })
 
   it('TypeScript language hooks generate check-no-any.mjs', () => {
@@ -327,10 +323,10 @@ describe('generateClaude — batch-execution rule (#722)', () => {
     expect(existsSync(join(dir, '.claude', 'rules', '60-incidental-capture.md'))).toBe(true)
   })
 
-  it('60-incidental-capture.md mandates arbiter note for out-of-scope findings', () => {
+  it('60-incidental-capture.md mandates arbiter finding add for out-of-scope findings', () => {
     generateClaude(claudeConfig())
     const content = readFileSync(join(dir, '.claude', 'rules', '60-incidental-capture.md'), 'utf-8')
-    expect(content).toMatch(/arbiter note/i)
+    expect(content).toMatch(/arbiter finding add/i)
     expect(content).toMatch(/out.of.scope|outside/i)
   })
 })

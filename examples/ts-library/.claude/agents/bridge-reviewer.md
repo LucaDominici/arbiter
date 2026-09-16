@@ -30,7 +30,7 @@ Rule: the final outcome is `PASS` **only** when both phases pass.
 ## Inputs
 
 1. `REVIEW_CONTEXT` — JSON block emitted by the `context-checker` agent (Phase 1)
-2. `REVIEW.json` — verification result from `arbiter verify plan` (`runVerify`)
+2. `REVIEW.json` — verification result from `arbiter check plan` (`runVerify`)
 
 ## Protocol
 

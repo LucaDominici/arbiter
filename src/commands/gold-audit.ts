@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// `arbiter gold-audit` — a THIN wrapper over the SSOT gold-audit engine (#1414).
+// `arbiter audit readiness` — a THIN wrapper over the SSOT gold-audit engine (#1414).
 //
 // Existing Code Survey (CANON-16): the gold-audit ENGINE already exists as scripts/gold-audit.mjs
 // + scripts/lib/gold-audit-lib.mjs (deterministic registry→Y/P/N verdicts, --check no-regress,
@@ -78,7 +78,7 @@ export interface GoldAuditOptions {
    * #1419: no-regress gate mode. Delegates to the engine's `--check` path —
    * bootstraps a missing `.gold-audit-baseline.json` (exit 0, no day-1 redness)
    * and exits 1 only when the score/Y regresses below the committed baseline.
-   * This powers the downstream fixed project-local thin runner (`arbiter gold-audit --check`).
+   * This powers the downstream fixed project-local thin runner (`arbiter audit readiness --check`).
    */
   check?: boolean
   /**
@@ -132,7 +132,7 @@ function renderReport(p: GoldAuditPayload): string {
   const b = p.level
   const toNext = b.nextLevel === null ? '' : ` · ${b.toNextLevel} to ${b.nextLevel}`
   lines.push(
-    `gold-audit: ${b.level} (${b.brownfieldClass}) · score ${p.score}${toNext} · ` +
+    `audit readiness: ${b.level} (${b.brownfieldClass}) · score ${p.score}${toNext} · ` +
       `Y ${p.yCount}/${p.totals.checks} · RISKY ${p.riskyCount}`,
   )
   if (p.gaps.length === 0) {
@@ -352,7 +352,7 @@ function runGoldAuditCheck(
       // exitCode 2 = engine IO error; anything else (incl. regress) = gate fail (1).
       return { exitCode: err.exitCode === 2 ? 2 : 1, payload: null }
     }
-    process.stderr.write(`gold-audit: engine failed — ${String(err)}\n`)
+    process.stderr.write(`audit readiness: engine failed — ${String(err)}\n`)
     return { exitCode: 1, payload: null }
   }
 }
@@ -374,7 +374,7 @@ function runGoldAuditCockpit(
     stdout = runCli('node', args, { cwd: repo }).stdout
   } catch (err) {
     const detail = err instanceof CliError ? err.message : String(err)
-    process.stderr.write(`gold-audit: engine failed — ${detail}\n`)
+    process.stderr.write(`audit readiness: engine failed — ${detail}\n`)
     return { exitCode: 1, payload: null }
   }
   const text = stdout.trim()
@@ -387,7 +387,7 @@ function runGoldAuditCockpit(
   try {
     env = JSON.parse(text) as { payload: GoldAuditPayload; freshness?: FreshnessInfo }
   } catch (err) {
-    process.stderr.write(`gold-audit: invalid cockpit JSON — ${(err as Error).message}\n`)
+    process.stderr.write(`audit readiness: invalid cockpit JSON — ${(err as Error).message}\n`)
     return { exitCode: 1, payload: null }
   }
   if (!opts.quiet) {
@@ -398,7 +398,9 @@ function runGoldAuditCockpit(
     } catch (err) {
       // Defense-in-depth: renderCockpit is pure but consumes an untyped subprocess envelope — a
       // pathologically malformed payload must degrade to an error, never a raw stack trace.
-      process.stderr.write(`gold-audit: could not render cockpit — ${(err as Error).message}\n`)
+      process.stderr.write(
+        `audit readiness: could not render cockpit — ${(err as Error).message}\n`,
+      )
       return { exitCode: 1, payload: env.payload }
     }
   }
@@ -409,7 +411,7 @@ function runGoldAuditCockpit(
 function emitGoldAuditResult(opts: GoldAuditOptions, result: GoldAuditPayload | string): void {
   if (opts.quiet) return
   if (opts.json) {
-    jsonOutput('gold-audit', 'ok', typeof result === 'string' ? {} : { ...result })
+    jsonOutput('audit readiness', 'ok', typeof result === 'string' ? {} : { ...result })
   } else if (typeof result === 'string') {
     process.stdout.write(result + '\n')
   } else {
@@ -443,8 +445,9 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
     stdout = runCli('node', [script, ...args], { cwd: repo }).stdout
   } catch (err) {
     const detail = err instanceof CliError ? err.message : String(err)
-    if (opts.json) jsonOutput('gold-audit', 'error', {}, [`gold-audit: engine failed — ${detail}`])
-    else process.stderr.write(`gold-audit: engine failed — ${detail}\n`)
+    if (opts.json)
+      jsonOutput('audit readiness', 'error', {}, [`audit readiness: engine failed — ${detail}`])
+    else process.stderr.write(`audit readiness: engine failed — ${detail}\n`)
     return { exitCode: 1, payload: null }
   }
 
@@ -459,8 +462,8 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
   try {
     payload = JSON.parse(text) as GoldAuditPayload
   } catch (err) {
-    const message = `gold-audit: engine emitted invalid JSON — ${(err as Error).message}`
-    if (opts.json) jsonOutput('gold-audit', 'error', {}, [message])
+    const message = `audit readiness: engine emitted invalid JSON — ${(err as Error).message}`
+    if (opts.json) jsonOutput('audit readiness', 'error', {}, [message])
     else process.stderr.write(message + '\n')
     return { exitCode: 1, payload: null }
   }

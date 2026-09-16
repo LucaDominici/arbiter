@@ -47,7 +47,7 @@ function fixture(
   )
   writeFileSync(join(dir, 'scripts/check-zz.mjs'), '// gate\n')
   writeFileSync(join(dir, 'src/templates/scripts/gate-registry.yml.ejs'), '# roster\n')
-  writeFileSync(join(dir, 'src/cli.ts'), ".command('validate')\n")
+  writeFileSync(join(dir, 'src/cli.ts'), ".command('check')\n")
   writeFileSync(join(dir, '.claude/hooks/zz-hook.mjs'), '// hook\n')
   writeFileSync(
     join(dir, '.claude/settings.json'),
@@ -64,7 +64,7 @@ const active = {
   ssot: 'scripts/check-zz.mjs',
   gate: 'scripts/check-zz.mjs',
   track: 'self',
-  tool: 'arbiter validate',
+  tool: 'arbiter check',
   hook: '.claude/hooks/zz-hook.mjs',
   status: 'active',
 }
@@ -125,7 +125,7 @@ describe('check-ontology-wired.mjs (INV-141)', () => {
   describe('pure helpers', () => {
     it('verbTokens splits an arbiter verb chain and rejects a non-CLI tool', () => {
       expect(verbTokens('arbiter graph build')).toEqual(['graph', 'build'])
-      expect(verbTokens('arbiter validate --json')).toEqual(['validate'])
+      expect(verbTokens('arbiter check --json')).toEqual(['check'])
       expect(verbTokens('n/a')).toBeNull()
     })
 

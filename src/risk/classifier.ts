@@ -5,7 +5,7 @@
  * Maps a path + stack to one of R0..R4 (R0 = highest risk, R4 = lowest)
  * OR returns `UNCLASSIFIED_LEVEL` ("R-unknown") when no rule matches.
  *
- * Used by `arbiter verify evidence` to decide which evidence checks are
+ * Used by `arbiter check evidence` to decide which evidence checks are
  * required for the change set.
  *
  * Semantics on unclassified inputs:

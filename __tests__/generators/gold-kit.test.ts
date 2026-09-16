@@ -4,7 +4,7 @@
 // CANON-11: brownfield / skipIfExists test for the file-emitting generator.
 //
 // #1419: downstream gold-audit thin runner + consumer-DATA registries. The thin
-// runner delegates to the local `arbiter gold-audit --check` CLI (mirrors the W1 INV-128
+// runner delegates to the local `arbiter audit readiness --check` CLI (mirrors the W1 INV-128
 // conformance.mjs.ejs precedent); the standards/* files are genuine per-project
 // data so `arbiter init`/`update` install them.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -64,7 +64,7 @@ describe('generateGoldKit (#1419, CANON-05)', () => {
     }
   })
 
-  it('emitted thin runner delegates to the local `arbiter gold-audit` CLI', () => {
+  it('emitted thin runner delegates to the local `arbiter audit readiness` CLI', () => {
     const config = makeConfig(dir)
     generateGoldKit(config)
     const content = readFileSync(join(dir, 'scripts', 'gold-audit.mjs'), 'utf-8')
@@ -179,7 +179,7 @@ describe('generateCheckAll wiring for gold-audit (#1419, #1578)', () => {
 
 // ─── #1419 ACCEPTANCE: a fresh consumer bootstraps with NO day-1 redness ──────
 // Render the templated consumer-DATA registry + thresholds into a fresh tree, then
-// run the bundled engine (what `arbiter gold-audit --check` delegates to) and assert
+// run the bundled engine (what `arbiter audit readiness --check` delegates to) and assert
 // the first run bootstraps (exit 0) and the second run holds no-regress (exit 0).
 describe('downstream gold-audit acceptance (#1419)', () => {
   it('templated registry + engine --check bootstraps clean, then holds no-regress', () => {

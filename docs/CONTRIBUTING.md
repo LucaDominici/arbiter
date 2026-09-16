@@ -116,7 +116,7 @@ arbiter ship #NNN --tier Standard   # equivalent CLI
 
 `/ship` is the single orchestration entrypoint — it auto-sequences an issue through
 plan → red-team → TDD impl → review → gate → merge. Use `/task` subcommands only
-for low-level engine control or recovery (`arbiter task advance`, `record-red`, etc.).
+for low-level engine control or recovery (`arbiter lifecycle advance`, `record-red`, etc.).
 
 ### Merge-train batching a sequential chain (`--chain`, #2102)
 
@@ -125,7 +125,7 @@ worktree/gate/PR instead of paying the gate's cost N times (see
 `docs/methodology/gate-throughput-patterns.md` §1):
 
 ```sh
-arbiter task init --id #NNN --chain #NNN1 --chain #NNN2   # declare the chain (repeatable, opt-in only)
+arbiter lifecycle start --id #NNN --chain #NNN1 --chain #NNN2   # declare the chain (repeatable, opt-in only)
 arbiter ship #NNN --advance                                 # --chain is not repeated on every call
 ```
 
@@ -162,7 +162,7 @@ precedence order:
 A train that is open too long stops being a batch and becomes a long-lived branch, which is what
 batching exists to avoid. See ADR-115 for the full contract.
 
-**Every issue on the train owes RED evidence.** `arbiter task advance --to verification` requires
+**Every issue on the train owes RED evidence.** `arbiter lifecycle advance --to verification` requires
 TDD evidence for every id in `[taskId, ...chainIds]` and names all the missing ones at once. It
 checks at `verification` rather than `green` because a chain walks the phase machine once — at
 `green` only the primary issue is implemented.
@@ -184,7 +184,7 @@ commit is a governed change like any other: it carries a task id and a RED of it
 1. Open the release issue (`release: X.Y.Z — …`) and branch from `origin/main`.
 2. RED: `__tests__/release/release-<issue>.test.ts` pins the contract — `package.json` version,
    the CHANGELOG head `## [X.Y.Z] — YYYY-MM-DD` with `**Channel:** stable`, and an empty
-   `.changeset/` — then `arbiter task record-red --task <issue> --test-path <that file>`.
+   `.changeset/` — then `arbiter lifecycle record-red --task <issue> --test-path <that file>`.
 3. Pre-1.0 a `major` changeset is recorded as `minor` (CHANGELOG rule: a breaking change bumps the
    minor); edit the changeset's frontmatter before consuming it.
 4. `npm run changeset:version`, then curate `CHANGELOG.md`: restore the intro paragraph the
@@ -214,7 +214,7 @@ commit is a governed change like any other: it carries a task id and a RED of it
   unchanged and the tree still dirty, so a chained gate qualifies the wrong tree; run
   `git commit … && test -z "$(git status --porcelain)" && node scripts/check-all.mjs L2`.
 - Gate red on tests → run the failing test in isolation; do not bypass with `--no-verify`
-- Gate red on TDD evidence (#NNN.json missing) → `arbiter task record-red --test-path <file>`
+- Gate red on TDD evidence (#NNN.json missing) → `arbiter lifecycle record-red --test-path <file>`
   (commit the RED test first — `record-red` refuses on a dirty/uncommitted `__tests__/**`, #1988)
 - Gate red on TDD evidence for a branch whose only content is a regenerated `package-lock.json`
   (a dependency PR that lost a nested lock node in a merge, #2609) → there is no honest RED for a
@@ -229,11 +229,11 @@ commit is a governed change like any other: it carries a task id and a RED of it
   still overrides (#2656).
 - `record-red: FAIL — branch/task-document mismatch` → the current git branch (`task/#NNN-*`)
   and `.claude/.task/status.json` disagree on the active task; `record-red` fails closed rather
-  than guess, to avoid overwriting another task's evidence. Run `arbiter task init --id #NNN`
+  than guess, to avoid overwriting another task's evidence. Run `arbiter lifecycle start --id #NNN`
   to realign the task document with the branch, then re-run (#2064).
 - `record-red: FAIL — no active task` → neither the branch nor the task document names a task
   (detached HEAD at the RED commit, a branch without a `task/NNN` prefix). Pass the task
-  explicitly — `arbiter task record-red --test-path <file> --task '#NNN'` — instead of a
+  explicitly — `arbiter lifecycle record-red --test-path <file> --task '#NNN'` — instead of a
   `task init` detour; the explicit id is authoritative only when nothing can contradict it (#2655).
 - Gate red on `this branch changes src/ but ... no verified TDD evidence` → evidence is owed
   per CHANGE, not per commit subject (#2217). Ids in a commit SUBJECT are still verified one
@@ -263,7 +263,7 @@ commit is a governed change like any other: it carries a task id and a RED of it
 - Gate red on `test_commit_sha ... is not reachable from HEAD` after a rebase → evidence also
   pins `test_blob_sha`, the RED test's content, which a rebase preserves; the RED commit is
   re-resolved from it automatically (#2116). Evidence recorded before that pin existed cannot
-  be healed — re-record it with `arbiter task record-red`.
+  be healed — re-record it with `arbiter lifecycle record-red`.
 - Cannot commit the failing RED test because the pre-commit gate blocks it → `--no-verify` is
   no longer the answer (#2051). While `phase=red`, a commit whose staged paths are ALL tests
   skips the L1 gate (secret scanning and lint still run). Stage source alongside and the full
@@ -291,7 +291,7 @@ produced-here guard (#2307) cannot apply` → the target's `.gitignore` swallows
   scope: vacuous pass rather than a wrong failure.
 - `node scripts/check-tdd-evidence.mjs --dir <repo>` runs the gate against another checkout —
   useful to reproduce a governed target's evidence failure locally.
-- Machine-readable verification → `arbiter verify tdd '#NNN' --json` emits the standard
+- Machine-readable verification → `arbiter check tdd '#NNN' --json` emits the standard
   envelope with the six per-check verdicts (#1992); plain output unchanged without the flag
 - `verify evidence`/`verify graph`/`verify plan` honor `--json` the same way (#1994) —
   standard envelope on the flag, plain output and exit codes unchanged without it
@@ -402,7 +402,7 @@ arbiter --version
 ## Step 4: Verify your environment
 
 ```bash
-arbiter doctor
+arbiter status health
 ```
 
 All checks should PASS. If `git` is missing:

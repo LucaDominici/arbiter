@@ -271,7 +271,7 @@ describe('runBuildProbe — npx command without node_modules → skipped, not fa
     expect(result.status).toBe('skipped')
     expect(result.kind).toBe('build')
     expect(result.reason).toBe(
-      'node-modules-missing: run `npm install`, then `arbiter validate` to verify',
+      'node-modules-missing: run `npm install`, then `arbiter check` to verify',
     )
     expect(mockRunCli).not.toHaveBeenCalled()
   })

@@ -134,6 +134,6 @@ The pre-commit hook runs the L1 gate, which re-runs the same invariant check via
 
 ## 6. Typical follow-up edits
 
-- Add a new component under `src/`. The `pre-edit-plan-anchor.mjs` hook requires an active plan when in `implementation` phase; advance the task lifecycle with `arbiter task advance --to implementation`.
+- Add a new component under `src/`. The `pre-edit-plan-anchor.mjs` hook requires an active plan when in `implementation` phase; advance the task lifecycle with `arbiter lifecycle advance --to implementation`.
 - Add an ADR for any architectural shift in `docs/SYSTEM/DECISIONS.md`.
 - Promote stack support to `proven` in the matrix only after adding a real-project fixture (CANON-02 / INV-32).

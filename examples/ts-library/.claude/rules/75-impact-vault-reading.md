@@ -24,7 +24,7 @@ it is the cheapest way to avoid an out-of-scope break.
 Record the result in the plan: the upstream callers and downstream dependents the change
 reaches, and which of them this edit must keep working. The plan's `files:` manifest
 should cover them — if `/impact` surfaces a dependent outside the manifest, widen the
-plan or capture it with `arbiter note`, do not edit it incidentally.
+plan or capture it with `arbiter finding add`, do not edit it incidentally.
 
 ## What This Is NOT
 

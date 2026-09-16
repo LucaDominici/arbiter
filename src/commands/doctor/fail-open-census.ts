@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #2162 — `arbiter doctor fail-open-census`: scans a target's `scripts/` and
+// #2162 — `arbiter check fail-open`: scans a target's `scripts/` and
 // `.githooks/` (the bash/gate-script surfaces) for the `command -v X ||
 // <fail-open>` and positive `if command -v X; then ... fi` presence-gate
 // anti-patterns. Motivating field evidence: 13
@@ -223,7 +223,7 @@ export function runDoctorFailOpenCensus(
   if (malformed) {
     if (opts.json) {
       jsonOutput(
-        'doctor fail-open-census',
+        'check fail-open',
         'error',
         { findings: [] },
         ['Allowlist entry missing a reason — every entry must justify its suppression.'],
@@ -246,7 +246,7 @@ export function runDoctorFailOpenCensus(
   const exitCode: 0 | 1 = unsuppressed > 0 ? 1 : 0
 
   if (opts.json) {
-    jsonOutput('doctor fail-open-census', exitCode === 0 ? 'ok' : 'error', { findings })
+    jsonOutput('check fail-open', exitCode === 0 ? 'ok' : 'error', { findings })
   } else {
     emitTextOutput(findings)
   }

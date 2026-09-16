@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `arbiter ignore add/remove` (#2662) — the CLI surface over `.arbiterignore`
+ * `arbiter configure ignore add/remove` (#2662) — the CLI surface over `.arbiterignore`
  * (#2353). AC(1): "a declared, reviewable way to retire an emitted file... that
  * update/diff honour and report as retired, not new". `.arbiterignore` already
  * IS that mechanism (a declared, committed, reviewable file update/diff both
@@ -67,7 +67,7 @@ export function runIgnoreAdd(options: IgnoreOptions): void {
     }
   }
   if (options.json) {
-    jsonOutput('ignore', 'ok', { added: options.paths, retired, kept })
+    jsonOutput('configure ignore add', 'ok', { added: options.paths, retired, kept })
     return
   }
   for (const key of retired) {
@@ -93,7 +93,7 @@ export function runIgnoreRemove(options: IgnoreOptions): void {
     }
   }
   if (options.json) {
-    jsonOutput('ignore', 'ok', { removed, stillIgnored })
+    jsonOutput('configure ignore remove', 'ok', { removed, stillIgnored })
     return
   }
   for (const key of removed) {

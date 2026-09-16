@@ -17,7 +17,7 @@ Provider degradation artifact, advisory accountability gate, and the `model_dive
 
 The real risk of cross-model review is not that the external provider is missing. It is that it goes missing **silently**.
 
-A quiet fallback to Claude produces a panel that _looks_ model-diverse and is not: evidence that claims more than what happened. For a system whose product is evidence, that is the worst possible failure mode — and it is exactly the class INV-96 (`check-fail-closed-audit.mjs`) forbids and that `arbiter doctor fail-open-census` exists to census.
+A quiet fallback to Claude produces a panel that _looks_ model-diverse and is not: evidence that claims more than what happened. For a system whose product is evidence, that is the worst possible failure mode — and it is exactly the class INV-96 (`check-fail-closed-audit.mjs`) forbids and that `arbiter check fail-open` exists to census.
 
 There is a specific blind spot to declare openly: the provider presence check lives in `src/`, while the fail-open census scans only `scripts/`. **The census will not see this fail-open.** The compensating control is precisely the artifact described here; not naming the blind spot would be leaving it in silence, which is the very defect being corrected.
 

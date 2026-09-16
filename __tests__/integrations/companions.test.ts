@@ -207,7 +207,7 @@ describe('companion formatters (#1730)', () => {
   })
 })
 
-describe('diagnoseCompanions (#1747 — arbiter doctor Companions section)', () => {
+describe('diagnoseCompanions (#1747 — arbiter status health Companions section)', () => {
   it('reports installed:true, policy-default mode/source when nothing overrides it', () => {
     const rows = diagnoseCompanions({ claudeHome: makeHome(true) })
     expect(rows).toHaveLength(1)

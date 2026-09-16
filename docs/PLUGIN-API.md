@@ -14,7 +14,7 @@ related: []
 **Issue:** #603 (R1.K6)
 **Current `apiVersion`:** `"1"`
 
-The arbiter plugin API lets third parties register generators that emit files into the target project alongside arbiter's own templates. This document is the **stability contract** between arbiter and plugin authors.
+The arbiter configure plugin API lets third parties register generators that emit files into the target project alongside arbiter's own templates. This document is the **stability contract** between arbiter and plugin authors.
 
 ---
 

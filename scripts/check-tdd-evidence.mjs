@@ -131,7 +131,7 @@ export function formatSkipError(sha, taskId) {
 const FLOOR_REMEDY =
   `  Two ways forward:\n` +
   `    1. record real red→green evidence for one cited task:\n` +
-  `         arbiter task record-red --test-path <path>\n` +
+  `         arbiter lifecycle record-red --test-path <path>\n` +
   `    2. move the non-documentation change onto its own branch whose commit SUBJECT carries the\n` +
   `       task id (fix(#NNN): ...) — that commit is then verified individually.\n`
 
@@ -154,7 +154,7 @@ export function formatFloorError(ids, subjectCited = false) {
   // answers — only the fresh-evidence remedy applies.
   const remedy = subjectCited
     ? `  Record real red→green evidence for one cited task:\n` +
-      `    arbiter task record-red --test-path <path>\n`
+      `    arbiter lifecycle record-red --test-path <path>\n`
     : FLOOR_REMEDY
   return (
     `\ncheck-tdd-evidence: FAIL — this branch changes non-documentation files and cites ${ids.join(', ')},\n` +
@@ -258,7 +258,7 @@ function verifyOne(run, taskId) {
   const cliSrc = resolve(scriptRoot, 'src/cli.ts')
   process.stdout.write(`  checking ${taskId}... `)
   try {
-    const out = run(tsxBin, [cliSrc, 'verify', 'tdd', taskId, '--dir', repoRoot], {
+    const out = run(tsxBin, [cliSrc, 'check', 'tdd', taskId, '--dir', repoRoot], {
       cwd: repoRoot,
     })
     process.stdout.write('PASS\n')
@@ -344,7 +344,7 @@ function verifySubjectTasks(run, taskIds) {
   if (!taskIds.map((taskId) => verifyOne(run, taskId)).includes(false)) return true
   process.stderr.write(
     `\ncheck-tdd-evidence: one or more task IDs failed TDD evidence verification.\n` +
-      `Run: arbiter task record-red --test-path <path>\n`,
+      `Run: arbiter lifecycle record-red --test-path <path>\n`,
   )
   return false
 }

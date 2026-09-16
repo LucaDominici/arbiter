@@ -16,7 +16,7 @@
  * `doctor --repair-state` re-derives that from `arbiter.json`, but file hashes
  * are NOT derivable from config. Integrity is the repo's git history, not an
  * in-file checksum: a corrupt/forged manifest is bounded to skip-or-overwrite of
- * two known canonical renders, both recoverable via git + `arbiter diff`.
+ * two known canonical renders, both recoverable via git + `arbiter update --dry-run`.
  */
 import { existsSync } from 'node:fs'
 // #1991: re-exported from its leaf module so utils/fs.ts can import it without a cycle.

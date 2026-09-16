@@ -15,10 +15,10 @@ import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
 const RUNNERS = [
-  ['scripts/check-arc42-slots.mjs.ejs', 'doc-set --arc42'],
-  ['scripts/check-doc-set.mjs.ejs', 'doc-set'],
-  ['scripts/check-doc-freshness.mjs.ejs', 'doc-set --freshness'],
-  ['scripts/gold-audit.mjs.ejs', 'gold-audit'],
+  ['scripts/check-arc42-slots.mjs.ejs', 'audit docs --arc42'],
+  ['scripts/check-doc-set.mjs.ejs', 'audit docs'],
+  ['scripts/check-doc-freshness.mjs.ejs', 'audit docs --freshness'],
+  ['scripts/gold-audit.mjs.ejs', 'audit readiness'],
 ] as const
 const created: string[] = []
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Behavioral tests (#1040): arbiter verify sub-commands — spawn the real CLI
+// Behavioral tests (#1040): arbiter check sub-commands — spawn the real CLI
 // binary and assert observable output/exit-code invariants.
 import { describe, it, expect, afterEach } from 'vitest'
 import { resolve, join } from 'node:path'
@@ -40,22 +40,22 @@ function writePlanFixture(content: string): string {
   return file
 }
 
-describe('arbiter verify — sub-command surface', () => {
+describe('arbiter check — sub-command surface', () => {
   it('verify --help exits 0 and lists sub-commands', () => {
-    const { status, stdout } = spawn(['verify', '--help'])
+    const { status, stdout } = spawn(['check', '--help'])
     expect(status).toBe(0)
     expect(stdout).toContain('evidence')
     expect(stdout).toContain('tdd')
   })
 
   it('verify exits 0 in a TypeScript project', () => {
-    const { status, stdout, stderr } = spawn(['verify'])
+    const { status, stdout, stderr } = spawn(['check', 'environment'])
     expect(status, `stdout: ${stdout}\nstderr: ${stderr}`).toBe(0)
     expect(stdout + stderr).toContain('typescript')
   })
 
   it('verify --json exits 0 and emits JSON', () => {
-    const { status, stdout, stderr } = spawn(['verify', '--json'])
+    const { status, stdout, stderr } = spawn(['check', 'environment', '--json'])
     expect(status, `stdout: ${stdout}\nstderr: ${stderr}`).toBe(0)
     const parsed = JSON.parse(stdout)
     expect(parsed.data).toHaveProperty('stack')
@@ -63,13 +63,13 @@ describe('arbiter verify — sub-command surface', () => {
   })
 
   it('verify tdd --help exits 0 and mentions task-id', () => {
-    const { status, stdout } = spawn(['verify', 'tdd', '--help'])
+    const { status, stdout } = spawn(['check', 'tdd', '--help'])
     expect(status).toBe(0)
     expect(stdout).toContain('task-id')
   })
 
   it('verify tdd exits non-zero for a nonexistent task ID', () => {
-    const { status } = spawn(['verify', 'tdd', '#9999999'])
+    const { status } = spawn(['check', 'tdd', '#9999999'])
     expect(status).not.toBe(0)
   })
 
@@ -80,13 +80,13 @@ describe('arbiter verify — sub-command surface', () => {
     // was silently ignored: a Commander parent/child `--json` name collision
     // (verify/validate declares its own `--json`) shadowed the subcommand's
     // parsed value, so the CLI always printed the human-readable line.
-    const { status, stdout, stderr } = spawn(['verify', 'tdd', '#551', '--json'])
+    const { status, stdout, stderr } = spawn(['check', 'tdd', '#551', '--json'])
     expect(status).not.toBe(0)
     expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
-      'verify tdd: FAIL —',
+      'check tdd: FAIL —',
     )
     const parsed = JSON.parse(stdout)
-    expect(parsed.command).toBe('verify tdd')
+    expect(parsed.command).toBe('check tdd')
     expect(parsed.status).toBe('error')
     expect(parsed.data.exitCode).toBe(1)
     expect(Array.isArray(parsed.data.checks)).toBe(true)
@@ -98,7 +98,7 @@ describe('arbiter verify — sub-command surface', () => {
   })
 
   it('verify graph --help exits 0', () => {
-    const { status, stdout } = spawn(['verify', 'graph', '--help'])
+    const { status, stdout } = spawn(['graph', 'check', '--help'])
     expect(status).toBe(0)
     expect(stdout).toContain('provenance')
   })
@@ -111,42 +111,40 @@ describe('arbiter verify — sub-command surface', () => {
 
   it('verify evidence --json emits a parseable error envelope (#1994)', () => {
     // No .evidence/SUMMARY.json in this repo — deterministic error path.
-    const { status, stdout, stderr } = spawn(['verify', 'evidence', '--json'])
+    const { status, stdout, stderr } = spawn(['check', 'evidence', '--json'])
     expect(status).not.toBe(0)
     expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
-      'verify evidence:',
+      'check evidence:',
     )
     const parsed = JSON.parse(stdout)
-    expect(parsed.command).toBe('verify evidence')
+    expect(parsed.command).toBe('check evidence')
     expect(parsed.status).toBe('error')
   })
 
   it('verify graph --json emits a parseable error envelope (#1994)', () => {
     // No .arbiter/graph.json in this repo — deterministic error path.
-    const { status, stdout, stderr } = spawn(['verify', 'graph', '--json'])
+    const { status, stdout, stderr } = spawn(['graph', 'check', '--json'])
     expect(status).not.toBe(0)
     expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
-      'verify graph:',
+      'graph check:',
     )
     const parsed = JSON.parse(stdout)
-    expect(parsed.command).toBe('verify graph')
+    expect(parsed.command).toBe('graph check')
     expect(parsed.status).toBe('error')
   })
 
   it('verify plan <file> --json emits a parseable error envelope (#1994)', () => {
     // Nonexistent plan file — deterministic error path.
     const { status, stdout, stderr } = spawn([
-      'verify',
+      'check',
       'plan',
       '/tmp/arbiter-1994-does-not-exist.json',
       '--json',
     ])
     expect(status).not.toBe(0)
-    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
-      'verify plan:',
-    )
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain('check plan:')
     const parsed = JSON.parse(stdout)
-    expect(parsed.command).toBe('verify plan')
+    expect(parsed.command).toBe('check plan')
     expect(parsed.status).toBe('error')
   })
 
@@ -159,37 +157,31 @@ describe('arbiter verify — sub-command surface', () => {
 
   it('verify plan <file> --json: existing file, schema-invalid content (wrong field) → exit 2 + error envelope (#2001)', () => {
     const file = writePlanFixture(JSON.stringify({ not_a_valid_plan_field: true }))
-    const { status, stdout, stderr } = spawn(['verify', 'plan', file, '--json'])
+    const { status, stdout, stderr } = spawn(['check', 'plan', file, '--json'])
     expect(status).toBe(2)
-    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
-      'verify plan:',
-    )
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain('check plan:')
     const parsed = JSON.parse(stdout)
-    expect(parsed.command).toBe('verify plan')
+    expect(parsed.command).toBe('check plan')
     expect(parsed.status).toBe('error')
   })
 
   it('verify plan <file> --json: existing file, malformed JSON → exit 2 + error envelope (#2001)', () => {
     const file = writePlanFixture('{ this is not valid JSON')
-    const { status, stdout, stderr } = spawn(['verify', 'plan', file, '--json'])
+    const { status, stdout, stderr } = spawn(['check', 'plan', file, '--json'])
     expect(status).toBe(2)
-    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
-      'verify plan:',
-    )
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain('check plan:')
     const parsed = JSON.parse(stdout)
-    expect(parsed.command).toBe('verify plan')
+    expect(parsed.command).toBe('check plan')
     expect(parsed.status).toBe('error')
   })
 
   it('verify plan <file> --json: existing file, wrong root type (array) → exit 2 + error envelope (#2001)', () => {
     const file = writePlanFixture(JSON.stringify([1, 2, 3]))
-    const { status, stdout, stderr } = spawn(['verify', 'plan', file, '--json'])
+    const { status, stdout, stderr } = spawn(['check', 'plan', file, '--json'])
     expect(status).toBe(2)
-    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain(
-      'verify plan:',
-    )
+    expect(stdout, `expected JSON, got plain text — stderr: ${stderr}`).not.toContain('check plan:')
     const parsed = JSON.parse(stdout)
-    expect(parsed.command).toBe('verify plan')
+    expect(parsed.command).toBe('check plan')
     expect(parsed.status).toBe('error')
   })
 })
@@ -199,12 +191,12 @@ describe('arbiter verify — sub-command surface', () => {
 // evidence, graph, plan). Read the real source and assert every child
 // `.action(` body reads `cmd.optsWithGlobals().json`, never the shadowed
 // `opts.json` / `options.json` — so a 5th child can't reintroduce the bug.
-describe('arbiter verify — child commands never read the shadowed --json (#1996)', () => {
+describe('arbiter check — child commands never read the shadowed --json (#1996)', () => {
   /** Source lines where a top-level `verify` child registration starts. */
   function childBlockStarts(lines: string[]): number[] {
     const starts: number[] = []
     for (let i = 0; i < lines.length; i++) {
-      if (/^verify$/.test(lines[i] ?? '')) starts.push(i)
+      if (/^check$/.test(lines[i] ?? '')) starts.push(i)
     }
     return starts
   }
@@ -220,7 +212,7 @@ describe('arbiter verify — child commands never read the shadowed --json (#199
     return block.match(/\.command\(\s*['"]([a-z]+)/)?.[1]
   }
 
-  it('finds the 4 known verify child commands with no shadowed opts.json read', () => {
+  it('finds the canonical check child commands with no shadowed opts.json read', () => {
     const src = readFileSync(CLI_SRC, 'utf-8')
     const lines = src.split('\n')
     const starts = childBlockStarts(lines)
@@ -235,12 +227,13 @@ describe('arbiter verify — child commands never read the shadowed --json (#199
         .join('\n')
       const name = childCommandName(codeOnly)
       if (name !== undefined) seen.push(name)
+      if (!['evidence', 'plan', 'tdd'].includes(name ?? '')) continue
       const shadowedRead = /\b(?:opts|options)\.json\b/.test(codeOnly)
       expect(
         shadowedRead,
-        `verify ${name ?? '?'} reads the shadowed opts.json — use cmd.optsWithGlobals().json instead`,
+        `check ${name ?? '?'} reads the shadowed opts.json — use cmd.optsWithGlobals().json instead`,
       ).toBe(false)
     }
-    expect(seen).toEqual(expect.arrayContaining(['evidence', 'plan', 'graph', 'tdd']))
+    expect(seen).toEqual(expect.arrayContaining(['evidence', 'plan', 'tdd']))
   })
 })

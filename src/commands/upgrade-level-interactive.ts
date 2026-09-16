@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1168 Phase 3: `arbiter upgrade-level --interactive` — pick a target governance
+// #1168 Phase 3: `arbiter configure level --interactive` — pick a target governance
 // level and confirm before applying. Delegates to runUpgradeLevel so the actual
 // upgrade behaviour (grace period, diff, write) is unchanged.
 
@@ -23,7 +23,7 @@ export async function runInteractiveUpgradeLevel(
   opts: InteractiveUpgradeOptions = {},
 ): Promise<void> {
   const dir = opts.dir
-  intro('arbiter upgrade-level')
+  intro('arbiter configure level')
 
   const target = await select({ message: 'Upgrade to which governance level?', options: LEVELS })
   if (isCancel(target)) {

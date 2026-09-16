@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// conformance/gate-proofs.ts — negative proofs for `arbiter doctor --prove-gates` (#1817, A5).
+// conformance/gate-proofs.ts — negative proofs for `arbiter status health --prove-gates` (#1817, A5).
 //
 // Handoff A5 (#1817 gold-rebaseline patterns): the anti-pattern observed on a 100k-LOC
 // reference project was ~40 `test-*.sh` scripts that unit-tested the gate SCRIPTS

@@ -115,7 +115,7 @@ export type { AutonomyLevel }
 export const AUTONOMY_LEVELS: readonly AutonomyLevel[] = ['L0', 'L1', 'L2', 'L3']
 
 /**
- * #1306 (ADR-094 §Decision.4) — the gate level `arbiter verify` runs by default.
+ * #1306 (ADR-094 §Decision.4) — the gate level `arbiter check` runs by default.
  * Deliberately ONLY L1/L2 (the runnable gate levels): a defaultGateLevel is a
  * per-run gate selector, not a governance tier, so L3/L4 are not valid values.
  */
@@ -290,7 +290,7 @@ export interface ArbiterConfigV2 {
   graceFromLevel?: GovernanceLevel
   contractType?: ContractType
   /**
-   * #1254: industry compliance overlay axis. Persisted so `arbiter doctor`
+   * #1254: industry compliance overlay axis. Persisted so `arbiter status health`
    * can flag incoherent (overlay × governanceLevel) cells and `arbiter update`
    * re-emits the overlay artefacts. Absent = 'none'.
    */
@@ -337,7 +337,7 @@ export interface ArbiterConfigV2 {
   frontend?: FrontendConfig
   /** Active project preset for audit/drift detection. Absent = no preset applied. */
   preset?: ProjectPreset
-  /** Release channel preference. Controls `arbiter doctor` reporting + downgrade warnings. Default: latest. */
+  /** Release channel preference. Controls `arbiter status health` reporting + downgrade warnings. Default: latest. */
   channel?: 'latest' | 'beta' | 'canary'
   /** Governance policy overrides. Absent = default behaviour. */
   governance?: GovernanceConfig

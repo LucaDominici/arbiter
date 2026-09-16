@@ -13,8 +13,8 @@
     "E_LOCK_STALE": "Stale lock file detected at {path}.",
     "E_LOCK_RELEASE": "Failed to release file lock at {path}.",
     "E_LOCK_SYMLINK": "Lock path {path} is a symlink \u2014 refusing to create lock.",
-    "E_LOCK_FOREIGN_HOST": "Lock held by a process on a different host ({host}). Run `arbiter doctor --recover-lock` to manually release.",
-    "E_LOCK_BUSY": "arbiter is already running (PID {pid}, host {host}, cmd: {cmd}, age: {age}s). Run `arbiter doctor --recover-lock` to force-release if the process is gone.",
+    "E_LOCK_FOREIGN_HOST": "Lock held by a process on a different host ({host}). Run `arbiter lifecycle recover-lock` to manually release.",
+    "E_LOCK_BUSY": "arbiter is already running (PID {pid}, host {host}, cmd: {cmd}, age: {age}s). Run `arbiter lifecycle recover-lock` to force-release if the process is gone.",
     "E_LOCK_CONFLICT": "Lock already exists at {path}.",
     "E_LOCK_PATH_ESCAPE": "Refusing to release lock at {path} \u2014 path escapes outside the project root.",
     "E_LOCK_SYMLINK_UNLINK": "Lock path {path} is a symlink \u2014 refusing to unlink. Remove it manually.",
@@ -250,10 +250,10 @@
       "restore_file": "  + {key}  (would RESTORE \u2014 deleted since it was last emitted)",
       "withheld_file": "  ! {key}  (template fix WITHHELD \u2014 user-modified)",
       "withheld_header": "\n  Withheld template fixes ({count}) \u2014 preserved because user-modified, fix NOT applied:",
-      "withheld_hint": "  These files are behind the current template. Review the upstream changes and merge them manually, or run `arbiter diff --withheld` for a focused list.",
+      "withheld_hint": "  These files are behind the current template. Review the upstream changes and merge them manually, or run `arbiter update --dry-run --withheld` for a focused list.",
       "retired_header": "\n  Retired ({count}) \u2014 declared in .arbiterignore and already deleted, update will not restore them:",
       "retired_file": "  \u2013 {key}  (retired)",
-      "retired_hint": "  Run `arbiter ignore remove <path>` then `arbiter update` to re-adopt one of these.",
+      "retired_hint": "  Run `arbiter configure ignore remove <path>` then `arbiter update` to re-adopt one of these.",
       "governance_stale_section": "STALE {file}: {section} \u2014 {detail}",
       "governance_stale_footer": "Governance sections are stale \u2014 run `arbiter update`.",
       "governance_up_to_date": "Governance sections are up to date."
@@ -282,7 +282,7 @@
     },
     "doctor": {
       "recover_lock": {
-        "refused": "Refusing to release live or unconfirmed lock holder(s): {holders}. Use `arbiter doctor recover-lock --force` to override deliberately."
+        "refused": "Refusing to release live or unconfirmed lock holder(s): {holders}. Use `arbiter lifecycle recover-lock --force` to override deliberately."
       }
     },
     "wizard": {

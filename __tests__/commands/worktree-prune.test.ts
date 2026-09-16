@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// T5 of #1873 (M3): `arbiter worktree prune --stale [hours]` — the zombie
+// T5 of #1873 (M3): `git worktree prune --stale [hours]` — the zombie
 // reaper. Candidates come from the worktree-open log and must have a CLEAN
 // tree AND (branch fully merged OR no activity within the threshold).
 // A dirty tree is NEVER a candidate (INV-96). Dry-run is the default;

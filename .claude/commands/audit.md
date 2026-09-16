@@ -1,6 +1,6 @@
 ---
-description: Measure the project against the gold-standard registry — level band + prioritized "what's missing" list, deterministic and read-only (skill:gold-audit)
-title: '/gold-audit'
+description: Measure the project against the gold-standard registry — level band + prioritized "what's missing" list, deterministic and read-only (skill:audit readiness)
+title: '/audit'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-06-16'
@@ -10,10 +10,10 @@ tags: ['audience/agent', 'audience/dev', 'kind/internal', 'kind/analysis']
 related: ['ship', 'gap']
 ---
 
-# /gold-audit
+# /audit
 
-`/gold-audit` measures how close this project is to gold-standard quality. It loads the
-**`gold-audit`** skill, which runs the deterministic `arbiter gold-audit` engine and
+`/audit` measures how close this project is to gold-standard quality. It loads the
+**`audit readiness`** skill, which runs the deterministic `arbiter audit readiness` engine and
 reports the **level band** (`L0`–`L3`) plus a prioritized list of **what's missing**.
 
 It is **read-only**: it measures and reports, it never changes code. The score and every
@@ -25,7 +25,7 @@ repo + registry always produces identical output.
 1. Run the engine and capture stdout:
 
 ```bash
-npx @getarbiter/cli gold-audit --json
+npx @getarbiter/cli audit readiness --json
 ```
 
 2. If stdout is not JSON (a SKIP line — no registry installed), do not invent a score.
@@ -37,7 +37,7 @@ npx @getarbiter/cli gold-audit --json
 
 ## Allowed Tools
 
-- `Bash` to run `npx @getarbiter/cli gold-audit --json`
+- `Bash` to run `npx @getarbiter/cli audit readiness --json`
 - `Read` to inspect cited evidence files
 
-> See the **`gold-audit`** skill for the full field-by-field reading protocol and hard rules.
+> See the **`audit readiness`** skill for the full field-by-field reading protocol and hard rules.

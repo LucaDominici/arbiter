@@ -837,7 +837,7 @@ describe('runInit', () => {
   // #1347: (collaborationMode × governanceLevel) coherence is enforced at the
   // pre-generation init gate — the same point as the L3 maturity gate — so a
   // CRITICAL cell is refused before any files are written (previously it slipped
-  // through init and was only surfaced later by `arbiter doctor`).
+  // through init and was only surfaced later by `arbiter status health`).
   it('coherence gate blocks L4 × trunk-solo before generation (#1347)', async () => {
     exitSpy.mockImplementation((code?: number) => {
       throw new Error(`process.exit(${code})`)

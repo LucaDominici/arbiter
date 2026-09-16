@@ -210,7 +210,7 @@ Applied to `main` via `gh api`:
 
 Phases 3 and 4 are complete and shipped:
 
-- **Phase 3** — `arbiter update` and `arbiter diff` commands with `arbiter.json` config persistence
+- **Phase 3** — `arbiter update` and `arbiter update --dry-run` commands with `arbiter.json` config persistence
 - **Phase 4** — Additional tool targets (Cursor, Copilot, Gemini CLI, Windsurf, Aider) — shipped in v0.1, demoted to experimental by ADR-095, and **retired** by ADR-119 (#2367)
 
 See the [CLI Reference](../../../website/reference/cli.md) for command documentation.
@@ -557,7 +557,7 @@ original 8 — it is a representative sample of the pattern, not a complete inve
 | `src/templates/claude/hooks/post-edit-dispatch.mjs.ejs` | `<project>/.claude/hooks/post-edit-dispatch.mjs` | Dynamic |
 | `src/templates/claude/hooks/post-commit-check.mjs.ejs`  | `<project>/.claude/hooks/post-commit-check.mjs`  | Dynamic |
 | `src/templates/claude/rules/90-exec-protocol.md.ejs`    | `<project>/.claude/rules/90-exec-protocol.md`    | Dynamic |
-| `src/templates/claude/commands/task.md.ejs`             | `<project>/.claude/commands/task.md`             | Dynamic |
+| `src/templates/claude/commands/ship.md.ejs`             | `<project>/.claude/commands/ship.md`             | Dynamic |
 
 ### `codex/` (multiple files)
 
@@ -881,7 +881,7 @@ The `check-evidence-bundle.mjs` script is wired at the L2 gate (`gate` subcomman
 
 ## Lifecycle
 
-Evidence bundles are created by `arbiter task record-red` and written to
+Evidence bundles are created by `arbiter lifecycle record-red` and written to
 `.arbiter/evidence/tdd/#NNN.json`. The `.evidence/task-NNN/bundle.json` format
 is the published, schema-validated form intended for external audit consumption.
 
@@ -1026,7 +1026,7 @@ A generated project is conformant when:
 - No suppression without rationale + expiry date (W6 validator)
 - All anti-drift validators exit 0 on the project tree
 
-Conformance is checked by `arbiter doctor` (existing CLI) + `scripts/check-self-dogfood.mjs`.
+Conformance is checked by `arbiter status health` (existing CLI) + `scripts/check-self-dogfood.mjs`.
 
 ---
 

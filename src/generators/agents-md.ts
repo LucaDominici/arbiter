@@ -10,7 +10,7 @@ import type { InstalledSkill, SkipReport } from '../integrations/types.js'
 
 /**
  * Render AGENTS.md content for the given config without writing it. Extracted
- * (#2040) so `arbiter diff --governance` can compare the CURRENT template's
+ * (#2040) so `arbiter update --dry-run --governance` can compare the CURRENT template's
  * rendered content against a materialized file without duplicating the
  * invariant-filtering/tier-grouping logic.
  */

@@ -84,7 +84,7 @@ files in that tree, or a branch that also changes source, still require normal T
 --dry-run` is driven by the same generator plan the real run executes (#2452) — and no
   documented skip promise is contradicted by the plan.
 
-> There is no `update --dry-run`. The whole-run preview of `update` is `arbiter diff`
+> There is no `update --dry-run`. The whole-run preview of `update` is `arbiter update --dry-run`
 > ("`update` with the writes elided"); `update --adopt-plan` previews the narrower
 > question of which withheld files adoption would overwrite. Naming a third spelling
 > would only add a surface that can drift.

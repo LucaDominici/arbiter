@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Commands backing `arbiter graph build` and `arbiter verify graph` (#259).
+ * Commands backing `arbiter graph build` and `arbiter graph check` (#259).
  *
  * Wave-1 wires only the INV builder and one verify mode (orphan-invariant).
  * #259-followup (this file) adds:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `arbiter review diff` command (#262).
+ * `arbiter graph diff` command (#262).
  *
  * Compares two graph snapshots (base vs head) and emits a semantic diff:
  *   - Enforcement changes per INV (strengthened / weakened)

@@ -216,7 +216,7 @@ describe('generateCodexHooks', () => {
     // #1578 sole-emitter (INV-128): when `claude` is ALSO selected, generateClaudeHooks
     // (claude.ts) owns these paths — generateCodexHooks must defer entirely, not
     // duplicate-emit (even a safe, byte-identical duplicate breaks the "each path has
-    // exactly one owning registry generator" contract that arbiter diff / the
+    // exactly one owning registry generator" contract that arbiter update --dry-run / the
     // generated-manifest relies on).
     it('does not emit the shared guard hooks when claude is also selected (defers to claude.ts)', () => {
       const result = generateCodexHooks(makeConfig(dir, { tools: ['claude', 'codex'] }))

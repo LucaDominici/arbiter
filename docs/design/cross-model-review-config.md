@@ -73,7 +73,7 @@ A single run may legitimately _switch off_ the external slot (offline, rate-limi
 An egress question cannot default to yes. And a user is not asked to configure something their machine does not have: the gating replicates Q12, which is already the precedent for "question conditional on a CLI being present".
 
 **D7 — The block must have a real reader in this same PR.**
-`resolveShipProfile` (`src/commands/ship-profile.ts`) exposes it on `ShipProfile` and `arbiter doctor` prints it. Without that, this PR **is** bug #2344/#2333. If for some reason the reader cannot land here, this issue must be merged with #2357.
+`resolveShipProfile` (`src/commands/ship-profile.ts`) exposes it on `ShipProfile` and `arbiter status health` prints it. Without that, this PR **is** bug #2344/#2333. If for some reason the reader cannot land here, this issue must be merged with #2357.
 
 ## Open questions
 

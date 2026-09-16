@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #1328 integration: `arbiter update` propagates template fixes to pristine
 // (unmodified-since-generation) skipIfExists files, preserves user-modified ones,
-// and `arbiter diff` reports the pristine-stale file as changed (no longer lies).
+// and `arbiter update --dry-run` reports the pristine-stale file as changed (no longer lies).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

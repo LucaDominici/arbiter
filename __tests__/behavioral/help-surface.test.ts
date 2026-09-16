@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-// Behavioral tests (#1770 T5, superseded by T2 tier-3 cathedral cut; #2416 adds
-// `plugin`; #2662 adds `ignore`): public 17-command CLI surface — spawn the real
-// CLI binary and assert default --help shows exactly the public commands while
-// `arbiter help --all` still lists the experimental (hidden) surface.
+// #2706: one incompatible public command vocabulary. Exercise the built entry
+// point so hidden registrations and aliases cannot escape detection.
 import { describe, it, expect } from 'vitest'
 import { resolve, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -15,22 +13,39 @@ const REPO = resolve(import.meta.dirname, '../..')
 
 const PUBLIC_COMMANDS = [
   'init',
-  'update',
-  'diff',
   'configure',
-  'doctor',
-  'validate',
-  'task',
+  'update',
   'ship',
-  'note',
-  'gold-audit',
-  'plugin',
-  'worktree',
-  'gate-exec',
-  'review',
+  'status',
   'explain',
-  'obsidian',
+  'lifecycle',
+  'check',
+  'audit',
+  'finding',
+  'docs',
+  'graph',
+  'worktree',
+  'review',
+]
+
+const RETIRED_COMMANDS = [
+  'note',
+  'task',
+  'mark',
+  'validate',
+  'verify',
+  'gate-exec',
+  'gold-audit',
+  'doc-set',
+  'settings',
+  'method',
+  'upgrade-level',
+  'diff',
+  'doctor',
   'ignore',
+  'plugin',
+  'obsidian',
+  'wt',
 ]
 
 function spawn(args: string[]): { stdout: string; stderr: string; status: number } {
@@ -42,66 +57,38 @@ function spawn(args: string[]): { stdout: string; stderr: string; status: number
   }
 }
 
-/** Extract primary command names from the "Commands:" section of help output. */
+/** Extract primary command names from a Commander "Commands:" section. */
 function commandNames(helpText: string): string[] {
   const commandsIdx = helpText.indexOf('Commands:')
   if (commandsIdx === -1) return []
-  const section = helpText.slice(commandsIdx)
   const names: string[] = []
-  for (const line of section.split('\n').slice(1)) {
-    const m = /^ {2}(\S+)/.exec(line)
-    if (!m) continue
-    // Term looks like `init [options]` or `validate|verify [options]` — keep
-    // the primary name only.
-    names.push(m[1].split('|')[0])
+  for (const line of helpText.slice(commandsIdx).split('\n').slice(1)) {
+    const match = /^ {2}(\S+)/.exec(line)
+    if (match?.[1] !== undefined && match[1] !== 'help') names.push(match[1].split('|')[0])
   }
   return names
 }
 
-describe('arbiter --help — public 17-command surface (#1770 T5, T2 tier-3, #2416, #2662)', () => {
-  it('default help lists exactly the 17 public commands', () => {
+describe('arbiter --help — atomic canonical surface (#2706)', () => {
+  it('lists exactly the 14 canonical roots', () => {
     const { status, stdout } = spawn(['--help'])
     expect(status).toBe(0)
-    const names = commandNames(stdout)
-    expect(names.sort()).toEqual([...PUBLIC_COMMANDS].sort())
+    expect(commandNames(stdout).sort()).toEqual([...PUBLIC_COMMANDS].sort())
   })
 
-  it('default help points at `help --all` for experimental commands', () => {
-    const { status, stdout } = spawn(['--help'])
-    expect(status).toBe(0)
-    expect(stdout).toContain('Run `arbiter help --all` for experimental commands.')
-  })
-
-  it('help --all lists the remaining experimental commands', () => {
+  it('has no hidden legacy command tier', () => {
     const { status, stdout } = spawn(['help', '--all'])
     expect(status).toBe(0)
-    expect(stdout).toContain('Experimental commands:')
-    const experimentalSection = stdout.slice(stdout.indexOf('Experimental commands:'))
-    for (const hidden of ['settings', 'upgrade-level']) {
-      expect(experimentalSection).toMatch(new RegExp(`^ {2}${hidden}\\s`, 'm'))
+    expect(commandNames(stdout).sort()).toEqual([...PUBLIC_COMMANDS].sort())
+    expect(stdout).not.toContain('Experimental commands:')
+  })
+
+  it('rejects every retired root spelling', () => {
+    for (const retired of RETIRED_COMMANDS) {
+      const result = spawn([retired])
+      expect(result.status, retired).not.toBe(0)
+      expect(result.stderr + result.stdout, retired).toMatch(/unknown command|error/i)
     }
-  })
-
-  it('hidden commands remain fully functional', () => {
-    const { status, stdout } = spawn(['settings', '--help'])
-    expect(status).toBe(0)
-    expect(stdout).toContain('settable')
-  })
-
-  it('finding exposes the durable spool operations without expanding the default surface', () => {
-    const { status, stdout } = spawn(['finding', '--help'])
-    expect(status).toBe(0)
-    expect(stdout).toContain('list')
-    expect(stdout).toContain('triage')
-    expect(stdout).toContain('promote')
-  })
-
-  it('validate is the public name and verify still works as alias', () => {
-    const validate = spawn(['validate', '--help'])
-    expect(validate.status).toBe(0)
-    const verify = spawn(['verify', '--help'])
-    expect(verify.status).toBe(0)
-    expect(verify.stdout).toContain('Probe toolchain compatibility')
   })
 
   it('help <command> still shows help for a named command', () => {
@@ -110,74 +97,74 @@ describe('arbiter --help — public 17-command surface (#1770 T5, T2 tier-3, #24
     expect(stdout.toLowerCase()).toContain('init')
   })
 
-  it('describes multi-issue admission on ship, not task init', () => {
-    const source = readFileSync(join(REPO, 'src', 'cli.ts'), 'utf-8')
-    expect(source).toContain(
-      'Initialise / update one task; multi-issue admission belongs to `arbiter ship`',
-    )
-    expect(source).toContain(
-      'Refused by task init; use `arbiter ship` for complete affinity/qualification admission',
-    )
-    expect(source).toContain(
-      'Complete affinity components required by every multi-issue seed, replacement, or append',
-    )
+  it.each([
+    ['finding', ['add', 'list', 'triage', 'promote']],
+    [
+      'lifecycle',
+      [
+        'start',
+        'get',
+        'resume',
+        'advance',
+        'recover',
+        'preflight',
+        'record-red',
+        'record-debt',
+        'checkpoint',
+        'repair-state',
+        'recover-lock',
+        'clean',
+      ],
+    ],
+    ['check', ['environment', 'evidence', 'plan', 'tdd', 'run', 'tool-pins', 'fail-open']],
+    ['audit', ['readiness', 'docs', 'product']],
+    ['docs', ['scaffold', 'vault']],
+    ['graph', ['build', 'check', 'diff']],
+    ['worktree', ['prepare', 'relink', 'check']],
+    ['review', ['cross-model']],
+  ])('%s exposes only its canonical operations', (root, expected) => {
+    const { status, stdout } = spawn([root, '--help'])
+    expect(status).toBe(0)
+    expect(commandNames(stdout).sort()).toEqual([...expected].sort())
   })
 })
 
-// ─── #2211: documented capability ⇒ CLI surface ───────────────────────────────
-// Root cause: two deliberate surface-reduction commits (3bd2f1db "cut 17 leaf
-// commands", c1a50e96 "cut graph build + kit surface") verified "zero-ref" in
-// CODE only, leaving the references in PROSE — error-catalog recovery strings,
-// --help text, and the JSON envelope's own self-identification.
-describe('#2211 — every documented capability has a real CLI surface', () => {
-  it('`graph build` is registered and writes the snapshot verify/review consume', () => {
+describe('#2211 — documented capability has a real canonical route', () => {
+  it('`graph build` writes the snapshot `graph check` consumes', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arb-2211-graph-'))
     try {
       const build = spawn(['graph', 'build', '--dir', dir])
       expect(build.status).toBe(0)
       expect(existsSync(join(dir, '.arbiter', 'graph.json'))).toBe(true)
-
-      // The round-trip the audit called untestable: after `graph build`, the
-      // ONLY remediation `validate graph` offers must no longer be needed.
-      const verify = spawn(['validate', 'graph', '--json', '--dir', dir])
-      expect(verify.stdout + verify.stderr).not.toContain('graph snapshot not found')
+      const check = spawn(['graph', 'check', '--json', '--dir', dir])
+      expect(check.stdout + check.stderr).not.toContain('graph snapshot not found')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('`doctor health` is invocable and its JSON envelope stops lying', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'arb-2211-doctor-'))
+  it('`status health` is invocable and identifies the canonical route', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arb-2211-status-'))
     try {
-      // The audit's exact repro. Note the flags: commander does NOT inherit
-      // parent options, so a bare `.command('health')` would fail here.
-      const { status, stdout } = spawn(['doctor', 'health', '--json', '--dir', dir])
+      const { status, stdout } = spawn(['status', 'health', '--json', '--dir', dir])
       expect(status).toBe(0)
       const envelope = JSON.parse(stdout.trim().split('\n').at(-1) as string) as {
         command: string
       }
-      expect(envelope.command).toBe('doctor health')
+      expect(envelope.command).toBe('status health')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('no user-facing remediation string cites a command that does not exist', () => {
-    // ponytail: first-token only — `arbiter doctor health` is checked as `doctor`.
-    // Catching dangling SUBcommands means walking the commander tree; upgrade to
-    // that if a subcommand-level dangling reference ever ships.
-    // Scoped to the remediation surface (what a user is TOLD to run) — comments
-    // elsewhere in src/ still carry cut-command names and are out of scope.
-    const registered = new Set(commandNames(spawn(['help', '--all']).stdout))
-    expect(registered.size).toBeGreaterThan(10)
-
+  it('no user-facing remediation cites a removed command root', () => {
     const sources = ['src/utils/error-catalog.ts', 'src/i18n/en.json']
     const dangling: string[] = []
     for (const rel of sources) {
       const text = readFileSync(join(REPO, rel), 'utf-8')
-      for (const m of text.matchAll(/`arbiter ([a-z][a-z-]*)/g)) {
-        const name = m[1]
-        if (!registered.has(name)) dangling.push(`${rel}: \`arbiter ${name}\``)
+      for (const match of text.matchAll(/`arbiter ([a-z][a-z-]*)/g)) {
+        const root = match[1]
+        if (!PUBLIC_COMMANDS.includes(root)) dangling.push(`${rel}: arbiter ${root}`)
       }
     }
     expect([...new Set(dangling)]).toEqual([])

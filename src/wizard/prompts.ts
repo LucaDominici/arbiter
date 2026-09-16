@@ -644,7 +644,7 @@ function deriveDeployTarget(answers: WizardAnswers): DeployTarget {
  * #1254/#1261: the Project-Profile axes persisted from wizard answers.
  * industryOverlay is only set for a real overlay ('none'/absent leaves the field
  * off so overlay generators stay disabled); automation is always explicit
- * (absent answer = safe L0) so `arbiter settings` shows a configured profile.
+ * (absent answer = safe L0) so `arbiter configure show` shows a configured profile.
  * Extracted from buildConfigFromAnswers to keep it within the complexity-15 limit.
  */
 function buildProfileAxes(
@@ -652,8 +652,8 @@ function buildProfileAxes(
 ): Pick<ProjectConfig, 'industryOverlay' | 'automation'> {
   // #1306 (ADR-094 §Decision.4): derive the three orchestration prefs from the
   // collaboration mode + governance level (convention over configuration — the
-  // wizard does NOT ask for them). Persisted explicitly so `arbiter settings`
-  // shows a fully-populated profile and `arbiter doctor` has values to check.
+  // wizard does NOT ask for them). Persisted explicitly so `arbiter configure show`
+  // shows a fully-populated profile and `arbiter status health` has values to check.
   const mode = collaborationModeFromAnswers(answers)
   return {
     ...(answers.industryOverlay !== undefined && answers.industryOverlay !== 'none'

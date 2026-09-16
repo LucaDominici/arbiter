@@ -606,7 +606,7 @@ function parseLevel(level: string | undefined): GovernanceLevel {
  * plus brownfield baseline lock-in so a messy repo's pre-existing debt is captured
  * rather than failing the gate on day one. `L1`–`L4` are governance-level aliases that
  * do NOT force brownfield. Graduation up the ladder (bootstrap → L1 → L2 → L3 → L4)
- * uses the existing `arbiter upgrade-level` / `arbiter configure` flow (see ADR-098).
+ * uses the existing `arbiter configure level` / `arbiter configure` flow (see ADR-098).
  * Returns the resolved governance level + whether to auto-capture the brownfield debt
  * baseline. The return shape is inlined (not an exported interface) to keep the public
  * API surface to the single function.

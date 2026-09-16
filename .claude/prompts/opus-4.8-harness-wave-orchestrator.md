@@ -15,13 +15,13 @@ related: []
 
 > **SUPERSEDED (#1873, ADR-103):** this prompt-form is superseded by the **`wave-drain`
 > skill v2** + **`/drain`** command (`.claude/skills/wave-drain/SKILL.md`), which absorb
-> its technique — worktree parallelism, gate mutex (`arbiter gate-exec`), anti-stall,
+> its technique — worktree parallelism, gate mutex (`arbiter check run`), anti-stall,
 > watchdog sweep, zombie reaper — as the maintained, dual-side-generated protocol.
 > Kept for historical reference only; do not run it as-is.
 
 > Modello target: **Claude Opus 4.8** (rilasciato 2026-05-28, feature: Dynamic Workflows).
 > Progetto: **arbiter** (`/home/user/work/repos/arbiter`).
-> Pipeline subagent: **`/task #NNN`** (lifecycle ufficiale arbiter: branch → plan → implement → gate → PR).
+> Pipeline subagent: **`/ship #NNN`** (lifecycle ufficiale arbiter: branch → plan → implement → gate → PR).
 > Modalità: **Dynamic Workflow** con parallel subagents.
 
 ---
@@ -32,8 +32,8 @@ Sei l'**orchestratore** di un Dynamic Workflow su arbiter. Il tuo compito è cre
 
 ### IRON LAW (non negoziabile)
 
-1. **Worktree-only.** Ogni wave apre **almeno 4 worktree** isolati via `/wt-open`. Zero edit sul tree principale. Zero edit su `main`. Una worktree = un branch `task/...`.
-2. **`/task` per worktree, batch ≤5.** Ogni worktree esegue il comando `/task #NNN` in modalità batch su un **gruppo di max 5 issue** affini (stessa area, stesso file set, stesso layer di harness). Il subagent itera `/task` sequenzialmente sulle issue del batch, riusando lo stesso branch worktree. Sotto i 5 issue solo se: sono grandi, toccano file delicati, o saturerebbero il contesto.
+1. **Worktree-only.** Ogni wave apre **almeno 4 worktree** isolati con il native host, poi esegue `arbiter worktree prepare`. Zero edit sul tree principale. Zero edit su `main`. Una worktree = un branch `task/...`.
+2. **`/ship` per worktree, batch ≤5.** Ogni worktree esegue il comando `/ship #NNN` in modalità batch su un **gruppo di max 5 issue** affini (stessa area, stesso file set, stesso layer di harness). Il subagent itera `/ship` sequenzialmente sulle issue del batch, riusando lo stesso branch worktree. Sotto i 5 issue solo se: sono grandi, toccano file delicati, o saturerebbero il contesto.
 3. **Wave = 4 worktree in parallelo.** Spawni 4 subagent concorrenti — uno per worktree. Loro lavorano in isolamento. Tu **non scrivi mai codice direttamente**: solo plani, deleghi, fai merge.
 4. **Foundations first, no roof-before-walls.** Prima dell'apertura della prima wave costruisci la **piramide harness** (vedi §Strategia). Ogni issue creata deve cadere su un piano inferiore già stabile. Se ti accorgi che stai per piazzare un'issue su un piano vuoto sotto → STOP, scendi.
 5. **Merge intelligente per wave.** Alla chiusura di ogni wave: leggi i 4 risultati, risolvi i conflitti, ordina i merge per minimizzare rework, esegui il gate `node scripts/check-all.mjs L2` sul merge consolidato **prima** di aprire la wave successiva.
@@ -47,7 +47,7 @@ Prima di aprire la wave 1, **enumera per piano** gli harness mancanti. Non salta
 P0  Plumbing & invariants    → catalog.ts, hook scaffolding, gate scripts
 P1  Test harness              → fixture loader, snapshot infra, matrix runner
 P2  Generator harness         → template lint, dry-run differ, EJS guard
-P3  Lifecycle harness         → /task, /wt-*, branch enforcement
+P3  Lifecycle harness         → /ship, native worktrees, branch enforcement
 P4  Observability harness     → debug-state, post-mortem hooks, telemetry
 P5  Integration harness       → real-project fixtures, cross-language matrix
 P6  Roof                      → DX polish, slash commands, ergonomia
@@ -69,7 +69,7 @@ Per ogni wave _w_ (target: 4 wave per sessione, 16 worktree totali, fino a 80 is
 **2. Fan-out (4 subagent paralleli):**
 Spawni 4 subagent Dynamic-Workflow, uno per cluster. Brief identico modulo cluster:
 
-> Sei un worker arbiter su worktree isolato. Apri il worktree con `/wt-open task/#<lead-issue>`. Itera `/task #NNN` su questo batch: [issue IDs] — una issue alla volta, stesso branch worktree, ordine dato. Vincoli: rispetta INV-04 (no any), INV-06 (no orphan TODO), INV-12 (no PII, no direct child_process), CANON-16 (refactor-first survey nel plan di ogni `/task`). Gate L1 dopo ogni issue chiusa, L2 prima della PR finale del batch. Se gate fallisce due volte su una issue → ferma il batch a quella issue, riporta blocker, non bypassare.
+> Sei un worker arbiter su worktree isolato. Usa il native host e `arbiter worktree prepare`. Itera `/ship #NNN` su questo batch: [issue IDs] — una issue alla volta, stesso branch worktree, ordine dato. Vincoli: rispetta INV-04 (no any), INV-06 (no orphan TODO), INV-12 (no PII, no direct child_process), CANON-16 (refactor-first survey nel plan di ogni `/ship`). Gate L1 dopo ogni issue chiusa, L2 prima della PR finale del batch. Se gate fallisce due volte su una issue → ferma il batch a quella issue, riporta blocker, non bypassare.
 
 **3. Fan-in (orchestratore, sequenziale):**
 Quando tutti e 4 i subagent riportano:
@@ -79,7 +79,7 @@ Quando tutti e 4 i subagent riportano:
 - Merge sequenziale su `main` (oppure su branch integrazione `integration/wave-w` se la wave include refactor cross-file).
 - Esegui `node scripts/check-all.mjs L2` sul consolidato.
 - Se verde → push, chiudi le issue. Se rosso → revert dell'ultimo merge, apri issue di reconciliation, prosegui.
-- Chiudi i worktree con `/wt-close` (harvest se ci sono artefatti utili).
+- Chiudi i worktree con il native host dopo aver verificato che gli artefatti utili siano atterrati.
 
 **4. Reflect (orchestratore):**
 

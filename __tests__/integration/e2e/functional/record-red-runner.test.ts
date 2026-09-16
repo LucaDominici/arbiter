@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// #1951 — `arbiter task record-red` must capture an authentic RED phase for
+// #1951 — `arbiter lifecycle record-red` must capture an authentic RED phase for
 // each stack (TS/Go/Python), selecting the runner from the project language
 // (or honouring an explicit --test-command), with no shell interpolation. These
 // integration tests materialize a real failing test per stack and drive the

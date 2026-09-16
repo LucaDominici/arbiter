@@ -5,7 +5,7 @@
 //
 // Self-contained (INV-96 fail-closed): the standalone `conformance` command
 // was retired, so this runner no longer shells out to it. The governance scorecard
-// now lives in `arbiter gold-audit` (level band + missing items); this script points
+// now lives in `arbiter audit readiness` (level band + missing items); this script points
 // at it and exits 0. Wired as an advisory (runWarnCheck) in check-all.mjs L2 — it
 // never hard-fails the gate.
 //
@@ -18,14 +18,14 @@ try {
   if (args.includes('--help') || args.includes('-h')) {
     process.stdout.write(
       'Usage: node scripts/conformance.mjs [--check]\n' +
-        'Advisory runner. Run `npx @getarbiter/cli gold-audit` for the governance scorecard.\n',
+        'Advisory runner. Run `npx @getarbiter/cli audit readiness` for the governance scorecard.\n',
     )
     process.exit(0)
   }
 
   process.stdout.write(
     '[conformance] advisory: the standalone conformance command was retired — run ' +
-      '`npx @getarbiter/cli gold-audit` for the governance scorecard (level band + missing items).\n',
+      '`npx @getarbiter/cli audit readiness` for the governance scorecard (level band + missing items).\n',
   )
   process.exit(0)
 } catch (err) {

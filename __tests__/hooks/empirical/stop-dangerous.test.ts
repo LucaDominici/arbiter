@@ -67,7 +67,7 @@ describe('stop-dangerous hook protected-Arbiter-state-write guard (#2403)', () =
   })
 
   it('exits 0: arbiter/git/gh commands referencing evidence paths', () => {
-    expect(runHook('arbiter task get --evidence .arbiter/evidence/x.json').status).toBe(0)
+    expect(runHook('arbiter lifecycle get --evidence .arbiter/evidence/x.json').status).toBe(0)
     expect(runHook('git add .arbiter/evidence/x.json').status).toBe(0)
   })
 

@@ -9,10 +9,10 @@ import { resolve } from 'node:path'
 import { extractTopLevelCommandNames } from '../../scripts/lib/cli-command-names.mjs'
 
 describe('docs/technical-debt.md — --governance lives on `diff`, not `update` (#2417)', () => {
-  it('cites `arbiter diff --governance`, never `arbiter update --governance`', () => {
+  it('cites `arbiter update --dry-run --governance`, never `arbiter update --governance`', () => {
     const src = readFileSync(resolve('docs/technical-debt.md'), 'utf-8')
     expect(src).not.toContain('arbiter update --governance')
-    expect(src).toContain('arbiter diff --governance')
+    expect(src).toContain('arbiter update --dry-run --governance')
   })
 })
 

@@ -124,7 +124,7 @@ try {
         `  THIS project wires its own checks, so \`arbiter update\` will not overwrite it. This\n` +
         `  red is the register of the debt, i.e. the checks arbiter now ships that your gate\n` +
         `  does not run yet. To clear it:\n` +
-        `    1. \`arbiter diff\` — see what the current template would add;\n` +
+        `    1. \`arbiter update --dry-run\` — see what the current template would add;\n` +
         `    2. wire those checks into your own scripts/check-all.mjs by hand (it is your file);\n` +
         `    3. if the divergence is permanent, mark the file \`${PRESERVE_MARKER}\` — the\n` +
         `       documented exception this gate accepts;\n` +

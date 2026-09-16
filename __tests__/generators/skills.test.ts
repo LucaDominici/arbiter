@@ -192,7 +192,7 @@ describe('generateSkills', () => {
   })
 
   // #1420 — /gold-audit skill: read-only measurement front door over the
-  // deterministic `arbiter gold-audit --json` engine. No AI re-scoring.
+  // deterministic `arbiter audit readiness --json` engine. No AI re-scoring.
   describe('gold-audit skill (#1420)', () => {
     it('SKILL_NAMES registry includes gold-audit', () => {
       expect(SKILL_NAMES).toContain('gold-audit')
@@ -214,7 +214,7 @@ describe('generateSkills', () => {
       // Scoped install command (B1): the published package is @getarbiter/cli; the
       // unscoped `arbiter` name resolves to an unrelated npm package, so the
       // generated kit must invoke the engine via the scoped name.
-      expect(content).toContain('npx @getarbiter/cli gold-audit --json')
+      expect(content).toContain('npx @getarbiter/cli audit readiness --json')
       // Reads the payload verbatim — level/score/checks — never re-scores.
       expect(content).toContain('level')
       expect(content).toContain('checks')
@@ -260,7 +260,7 @@ describe('generateSkills', () => {
       const config = makeConfig(dir, { tools: ['claude'] })
       generateSkills(config, [])
       const content = readFileSync(join(dir, '.claude', 'skills', 'levelup', 'SKILL.md'), 'utf-8')
-      expect(content).toContain('npx @getarbiter/cli gold-audit')
+      expect(content).toContain('npx @getarbiter/cli audit readiness')
       expect(content).toContain('close-gold-gap')
     })
 

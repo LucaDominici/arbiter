@@ -223,7 +223,7 @@ describe('file-lock (#614 #618)', () => {
       hostname: os.hostname(),
       bootId: realBootId(),
       startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // age 2h
-      cmd: 'arbiter gate-exec -- npm test',
+      cmd: 'arbiter check run -- npm test',
       nonce: 'live-holder',
     }
     writeFileSync(lockPath, JSON.stringify(longRunning))
@@ -461,7 +461,7 @@ describe('file-lock (#614 #618)', () => {
       hostname: os.hostname(),
       bootId: realBootId(),
       startedAt: new Date().toISOString(),
-      cmd: 'arbiter doctor recover-lock',
+      cmd: 'arbiter lifecycle recover-lock',
       nonce: 'default-root-lock',
     }
     writeFileSync(workspaceLock, JSON.stringify(info), 'utf-8')

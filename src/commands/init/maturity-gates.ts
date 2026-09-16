@@ -236,13 +236,13 @@ export function checkL3MaturityGates(config: ProjectConfig): void {
  * #1347: Gate (collaborationMode × governanceLevel) coherence at the init
  * pre-generation point — the same place checkL3MaturityGates aborts — so a
  * CRITICAL cell (e.g. L4 × trunk-solo, ADR-050/ADR-051) is refused BEFORE any
- * files are written, instead of being surfaced only later by `arbiter doctor`.
+ * files are written, instead of being surfaced only later by `arbiter status health`.
  * Reuses the SAME shared matrix doctor uses (validateCollaborationCoherence);
  * the rule lives in one place to avoid divergence.
  */
 export function checkCollaborationCoherenceGate(config: ProjectConfig): void {
   // #1347: advisory language × archetype axis — WARN only, never blocks. Surfaced
-  // at the same pre-init gate (and in `arbiter doctor`) so the two guardrail paths
+  // at the same pre-init gate (and in `arbiter status health`) so the two guardrail paths
   // read one coherence SSOT. Printed before the collaboration check so the user
   // sees it even when the collaboration cell aborts.
   const langArch = validateLanguageArchetypeCoherence(config.language, config.archetype)

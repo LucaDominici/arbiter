@@ -100,7 +100,7 @@ describe('#2435 AC-1 — every ship.md phase row that promises a dispatch or art
 })
 
 describe('#2435 AC-4 — the --to phase set equals the ship.md phase-map row set', () => {
-  /** The phases enumerated in the `--to <phase>` help string of `arbiter task advance`. */
+  /** The phases enumerated in the `--to <phase>` help string of `arbiter lifecycle advance`. */
   function advanceChoices(cliSource: string): Set<string> {
     const m = cliSource.match(/'Target phase \(([^)]+)\)'/)
     expect(m, '--to help string not found in src/cli.ts').not.toBeNull()
@@ -131,12 +131,12 @@ describe('#2435 AC-5 — the tdd skill names the command that writes the green g
   const SKILL = '.claude/skills/tdd/SKILL.md'
   const SKILL_TPL = 'src/templates/claude/skills/tdd/SKILL.md.ejs'
 
-  it('SKILL.md names `arbiter task record-red` (AC-5)', () => {
-    expect(readFileSync(SKILL, 'utf-8')).toContain('arbiter task record-red')
+  it('SKILL.md names `arbiter lifecycle record-red` (AC-5)', () => {
+    expect(readFileSync(SKILL, 'utf-8')).toContain('arbiter lifecycle record-red')
   })
 
   it('the template twin names it too (AC-5)', () => {
-    expect(readFileSync(SKILL_TPL, 'utf-8')).toContain('arbiter task record-red')
+    expect(readFileSync(SKILL_TPL, 'utf-8')).toContain('arbiter lifecycle record-red')
   })
 
   it('every phase gate that reads an evidence file is named by the skill the ship.md row routes to (AC-5)', () => {
@@ -145,6 +145,6 @@ describe('#2435 AC-5 — the tdd skill names the command that writes the green g
     const rows = phaseMapRows(readFileSync(SHIP_MD, 'utf-8'))
     const redRow = rows.get('red') ?? ''
     expect(redRow).toMatch(/`tdd` skill/)
-    expect(readFileSync(SKILL, 'utf-8')).toMatch(/arbiter task record-red/)
+    expect(readFileSync(SKILL, 'utf-8')).toMatch(/arbiter lifecycle record-red/)
   })
 })

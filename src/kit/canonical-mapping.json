@@ -1458,7 +1458,7 @@
     {
       "id": 52,
       "category": "Scripts Quality",
-      "name": "Self-dogfood check (arbiter validates itself)",
+      "name": "Self-dogfood check (arbiter checks itself)",
       "detail": "",
       "tml": "M2",
       "tml_source": "L1",

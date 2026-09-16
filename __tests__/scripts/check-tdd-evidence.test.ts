@@ -219,7 +219,7 @@ describe('main()', () => {
       ['evidence/tdd', 'c'.repeat(40)],
       ['diff --name-only', 'src/thing.ts'],
       ['--format=%H', ''],
-      ['verify', 'PASS'],
+      ['check tdd', 'PASS'],
     ])
     main({ runFn: makeRun(responses) as never, exitFn: exitFn as never })
     expect(exitFn).toHaveBeenCalledWith(0)

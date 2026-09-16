@@ -28,7 +28,7 @@ describe('#2628 — INV-128 prose matches the shipped conformance runner', () =>
 
   it('the template header states its exit codes (the source of truth for the prose)', () => {
     expect(templateExitLine).toMatch(/0=/)
-    expect(template).toMatch(/gold-audit/)
+    expect(template).toMatch(/audit readiness/)
   })
 
   it('the template header ERROR code is the one its catch block actually exits with', () => {
@@ -55,7 +55,7 @@ describe('#2628 — INV-128 prose matches the shipped conformance runner', () =>
     const entry = inv128Entry()
     expect(entry).not.toMatch(/Known gap/)
     expect(entry).not.toMatch(/nothing to delegate to/)
-    expect(entry).toMatch(/gold-audit/)
+    expect(entry).toMatch(/audit readiness/)
   })
 
   it('AGENTS.md INV-128 states the same exit codes as the template header', () => {

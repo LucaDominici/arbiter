@@ -52,7 +52,7 @@ function bothScheme(over: Record<string, unknown> = {}) {
     ssot: 'scripts/placeholder-gate.mjs',
     gate: 'scripts/placeholder-gate.mjs',
     track: 'both',
-    tool: 'arbiter validate',
+    tool: 'arbiter check',
     hook: { self: 'scripts/placeholder-hook.mjs', target: 'n/a' },
     status: 'active',
     note: 'Fixture: the hook governs the self-repo instance only, no emitted twin exists.',
@@ -191,7 +191,7 @@ describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
       join(dir, 'src/templates/scripts/gate-registry.yml.ejs'),
       '# roster\nscripts/check-zz.mjs\n',
     )
-    writeFileSync(join(dir, 'src/cli.ts'), ".command('validate')\n")
+    writeFileSync(join(dir, 'src/cli.ts'), ".command('check')\n")
     writeFileSync(join(dir, '.claude/hooks/zz-hook.mjs'), '// hook\n')
     writeFileSync(
       join(dir, '.claude/settings.json'),
@@ -215,7 +215,7 @@ describe('check-ontology-wired.mjs: per-track hook resolution (#2554)', () => {
     ssot: 'scripts/check-zz.mjs',
     gate: 'scripts/check-zz.mjs',
     track: 'both',
-    tool: 'arbiter validate',
+    tool: 'arbiter check',
     hook: { self: '.claude/hooks/zz-hook.mjs', target: 'n/a' },
     status: 'active',
   }

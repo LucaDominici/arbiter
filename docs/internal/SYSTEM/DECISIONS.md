@@ -139,5 +139,5 @@ related: []
 | 118 | [The lifecycle ontology is wired, not written](../ADR/118-lifecycle-ontology-wired-not-written.md) | Accepted | 2026-09-02 |
 | 119 | [Adversarial review hops until nothing above low survives](../ADR/119-adversarial-review-hops-until-low-only.md) | Accepted | 2026-09-03 |
 | 120 | [Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](../ADR/120-ignore-stryker-tmp-scratch-sandbox.md) | Accepted | 2026-08-30 |
-| 121 | [`arbiter plugin add`/`list` — Ship the Minimal Command, No Scaffolder](../ADR/121-plugin-add-ship-minimal.md) | Accepted | 2026-08-30 |
+| 121 | [`arbiter configure plugin add`/`list` — Ship the Minimal Command, No Scaffolder](../ADR/121-plugin-add-ship-minimal.md) | Accepted | 2026-08-30 |
 | 122 | [Experimental tool generators — promotion criteria, and retire all five](../ADR/122-experimental-tool-generators-retired.md) | Accepted | 2026-08-30 |

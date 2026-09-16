@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 import { buildKnownLimitations } from '../../src/generators/codex-known-limitations.js'
@@ -11,17 +12,6 @@ function render(template: string, over: Record<string, unknown> = {}): string {
     ...over,
   })
 }
-
-describe('task remains the low-level lifecycle reference', () => {
-  it('points to /ship and exposes recovery commands', () => {
-    const content = render('claude/commands/task.md.ejs')
-    expect(content).toContain('/ship')
-    expect(content).toContain('arbiter task init')
-    expect(content).toContain('arbiter task advance')
-    expect(content).toContain('arbiter task record-tech-debt')
-    expect(content).not.toContain('<%')
-  })
-})
 
 describe('ship is one adaptive delivery narrative', () => {
   const levels: GovernanceLevel[] = ['L1', 'L2', 'L3']
@@ -77,10 +67,16 @@ describe('host command inventories still expose /ship', () => {
     expect(render('claude/rules/90-exec-protocol.md.ejs')).toContain('/ship')
   })
 
-  it.each(['claude/commands/wt-open.md.ejs', 'claude/commands/wt-close.md.ejs'])(
-    '%s remains renderable',
-    (command) => {
-      expect(render(command)).not.toContain('<%')
-    },
-  )
+  it.each([
+    'src/templates/claude/CLAUDE.md.ejs',
+    'src/templates/claude/rules/55-brainstorm-terminal-state.md',
+    'src/templates/claude/rules/90-exec-protocol.md.ejs',
+    'src/templates/claude/skills/brainstorming/SKILL.md.ejs',
+    'src/templates/claude/skills/wave-drain/SKILL.md.ejs',
+    'src/templates/codex/CODEX.md.ejs',
+  ])('%s does not advertise retired slash commands', (path) => {
+    expect(readFileSync(path, 'utf8')).not.toMatch(
+      /(?<![\w.-])\/(?:task|wt-open|wt-close|wt-list|wt-prune)\b/,
+    )
+  })
 })

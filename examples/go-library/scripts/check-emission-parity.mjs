@@ -46,7 +46,7 @@ try {
   if (diverged > 0) {
     process.stderr.write(
       `[emission-parity] ${diverged} recorded file(s) diverged from Arbiter's last render — ` +
-        `expected in a customized project; run \`arbiter diff --withheld\` to review.\n`,
+        `expected in a customized project; run \`arbiter update --dry-run --withheld\` to review.\n`,
     )
   }
   if (missing.length > 0) {

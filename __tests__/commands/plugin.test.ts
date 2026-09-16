@@ -190,7 +190,7 @@ describe('runPluginAdd', () => {
     await runPluginAdd({ dir, pkg: './my-plugin', install: true, json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
-    expect(parsed.command).toBe('plugin add')
+    expect(parsed.command).toBe('configure plugin add')
     expect(parsed.status).toBe('ok')
     expect(parsed.data).toMatchObject({ name: './my-plugin' })
   })

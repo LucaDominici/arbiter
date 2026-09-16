@@ -17,7 +17,7 @@ related: ['103-worktree-parallel-carveout']
 > issue awareness. The multi-issue decision loop stays model-side in the skill
 > (w3c decision: no new TS engine).
 
-## `arbiter gate-exec [--key K] -- <cmd...>` — per-repo gate mutex
+## `arbiter check run [--key K] -- <cmd...>` — per-repo gate mutex
 
 Serializes expensive gates across N parallel worktree agents of the same repo.
 
@@ -57,7 +57,7 @@ waste fix-on-red strikes.
   already-open worktree, healing missing child links and warning about links whose source still
   does not exist.
 
-## `arbiter worktree prune [--stale <hours>] [--execute]` — zombie reaper
+## `git worktree prune [--stale <hours>] [--execute]` — zombie reaper
 
 On worker crash nobody closes the worktree; the dir, branch and open-log entry rot. The
 reaper detects candidates from REAL state (open log + git), never memory:

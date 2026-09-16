@@ -230,7 +230,7 @@ const PLACEHOLDER_PATTERNS = [
   'file/path.', // commit/report body template line: `file/path.ts`: <what changed>
   'wave-N.md', // N is the wave number — `.claude/plans/wave-N.md` is a naming rule
   'my-tool', // CONTRIBUTING's "add your own generator" walkthrough scaffold
-  'my-rules/', // custom-invariant recipe scaffold emitted by `arbiter plugin init`
+  'my-rules/', // custom-invariant recipe scaffold emitted by `arbiter configure plugin init`
   'my-language', // custom-generator recipe's stand-in language name
   'dim-NN-', // generic KIT-dimension filename in architecture tables
   'scripts/X.mjs', // invariant-enforcement sample for an arbitrary gate

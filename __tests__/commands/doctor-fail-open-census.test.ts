@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runDoctorFailOpenCensus } from '../../src/commands/doctor/fail-open-census.js'
 
-// #2162 — arbiter doctor fail-open-census: bash `command -v X || <fail open>` presence-gate scan.
+// #2162 — arbiter check fail-open: bash `command -v X || <fail open>` presence-gate scan.
 // AC-3: deterministic file:line list; allowlist entry missing `reason` → exit 2.
 // AC-4: read-only — never writes to the target.
 
@@ -325,7 +325,7 @@ describe('runDoctorFailOpenCensus', () => {
         runDoctorFailOpenCensus({ dir, json: true })
       })
       const envelope = JSON.parse(written)
-      expect(envelope.command).toBe('doctor fail-open-census')
+      expect(envelope.command).toBe('check fail-open')
       expect(envelope.status).toBe('ok')
     })
 

@@ -1,5 +1,5 @@
 {
-  "commands": ["gap", "replay", "review-code", "status"],
+  "commands": [],
   "skills": [
     "context-rot-management",
     "product-acceptance",

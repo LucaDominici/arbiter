@@ -63,7 +63,7 @@ if (!currentBranch) {
   process.stderr.write(
     `[arbiter] PLAN ANCHOR: cannot resolve current Git branch while ${statusFile} ` +
       `claims task=${taskId} phase=${phase} branch=${recordedBranch}. ` +
-      `Failing closed; run \`arbiter task init --id ${taskId} --plan ${plan}\` after restoring Git state.\n`,
+      `Failing closed; run \`arbiter lifecycle start --id ${taskId} --plan ${plan}\` after restoring Git state.\n`,
   )
   process.exit(2)
 }
@@ -78,7 +78,7 @@ if (staleBranch) {
   process.stderr.write(
     `[arbiter] PLAN ANCHOR: stale task state disarmed. status=${statusFile} task=${taskId} ` +
       `plan=${plan} recordedBranch=${recordedBranch} currentBranch=${currentBranch}. ` +
-      `Realign with \`arbiter task init --id <current-issue> --plan <current-plan>\`.\n`,
+      `Realign with \`arbiter lifecycle start --id <current-issue> --plan <current-plan>\`.\n`,
   )
   process.exit(0)
 }
@@ -91,7 +91,7 @@ if (!planPath || !existsSync(planPath)) {
     `[arbiter] PLAN ANCHOR: ${phase} phase requires a plan pointer to an existing plan file. ` +
       `status=${statusFile} task=${taskId} plan=${plan} ` +
       `recordedBranch=${recordedBranch} currentBranch=${currentBranch}.\n` +
-      `Set via: arbiter task init --plan <path> (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
+      `Set via: arbiter lifecycle start --plan <path> (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
   )
   process.stderr.write(`[arbiter] Run \`arbiter explain CANON-16\` for details.\n`)
   process.exit(2)
@@ -190,7 +190,7 @@ if (targetRaw) {
         (planBody.match(/^\s*issues?\s*:\s*\[?\s*["']?(#?\d+)/m) ?? [])[1] ?? 'this task'
       process.stdout.write(
         `[arbiter] OUT OF SCOPE for ${issueRef}: \`${relForRedirect}\` is not in the plan's files: manifest.\n` +
-          `Run \`arbiter note "<finding>" --file ${relForRedirect}\` to capture it — do not fix it here.\n` +
+          `Run \`arbiter finding add "<finding>" --file ${relForRedirect}\` to capture it — do not fix it here.\n` +
           `See .claude/rules/60-incidental-capture.md (advisory only; this edit is NOT blocked).\n`,
       )
     }

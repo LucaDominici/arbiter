@@ -479,7 +479,7 @@ comment. It is **mutually exclusive** with the standard `github`/`ci-tier` gener
 - **Recipe**: `"enableFiveLaneCi": true` in a `--recipe` JSON file — the non-interactive
   path.
 - **Persistence**: stored as `features.fiveLaneCi` in `arbiter.json`, read back on every
-  `arbiter update` / `arbiter diff`, so the opt-in survives regeneration.
+  `arbiter update` / `arbiter update --dry-run`, so the opt-in survives regeneration.
 
 ## Arbiter self-runner test execution (#2605)
 

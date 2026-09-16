@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter doctor health`
+// #1839 (F3 friction cut): extracted from doctor.ts — the `arbiter status health`
 // subcommand (#539). Pure extraction, no behavior change.
 import { existsSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -765,7 +765,7 @@ function checkLockHealth(dir: string, rel: string, id: string): HealthCheck {
       label: `${rel} unreadable`,
       status: 'WARN',
       detail: 'lock file exists but contents are not valid JSON',
-      hint: `Run \`arbiter doctor recover-lock\` to remove it.`,
+      hint: `Run \`arbiter lifecycle recover-lock\` to remove it.`,
     }
   }
   const ageMs = Date.now() - new Date(info.startedAt).getTime()
@@ -778,7 +778,7 @@ function checkLockHealth(dir: string, rel: string, id: string): HealthCheck {
       label: `${rel} stale`,
       status: 'WARN',
       detail: `pid ${info.pid}, age ${ageH}h, cmd: ${info.cmd}`,
-      hint: 'Run `arbiter doctor recover-lock` to clean up.',
+      hint: 'Run `arbiter lifecycle recover-lock` to clean up.',
     }
   }
   return {
@@ -975,7 +975,7 @@ function checkTaskDocument(dir: string): HealthCheck {
         label,
         status: 'WARN',
         detail: `.claude/.task/status.json has an invalid phase: ${JSON.stringify(state.phase)}`,
-        hint: 'Re-run `arbiter task init` / `arbiter task advance` to repair task state.',
+        hint: 'Re-run `arbiter lifecycle start` / `arbiter lifecycle advance` to repair task state.',
       }
     }
     return {
@@ -990,7 +990,7 @@ function checkTaskDocument(dir: string): HealthCheck {
       label,
       status: 'WARN',
       detail: `.claude/.task/status.json is not valid JSON — ${err instanceof Error ? err.message : String(err)}`,
-      hint: 'Delete .claude/.task/ and re-initialise with `arbiter task init`.',
+      hint: 'Delete .claude/.task/ and re-initialise with `arbiter lifecycle start`.',
     }
   }
 }
@@ -1017,7 +1017,7 @@ export async function runDoctorHealth(opts: DoctorHealthOptions = {}): Promise<D
   const fail = checks.filter((c) => c.status === 'FAIL').length
 
   if (opts.json) {
-    jsonOutput('doctor health', fail > 0 ? 'error' : 'ok', {
+    jsonOutput('status health', fail > 0 ? 'error' : 'ok', {
       checks,
       pass,
       warn,

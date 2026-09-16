@@ -54,14 +54,14 @@ into the gate via the `check-anti-fake-green.mjs` aggregate (class `gh-audit` = 
   score drop vs the committed `.gold-audit-baseline.json` fails the gate), wired into
   `scripts/check-all.mjs` as the `gold-audit no-regress` step. **Not re-implemented** in
   `src/conformance/` — the single `checkNoRegress` lives in `scripts/lib/gold-audit-lib.mjs`.
-- **N4 — gates bite (`arbiter doctor --prove-gates`, #1817)**: every tier-1 (must-pass)
+- **N4 — gates bite (`arbiter status health --prove-gates`, #1817)**: every tier-1 (must-pass)
   conformance dimension has ONE intentional-violation fixture proving the gate actually _bites_.
   For each tier-1 dimension, `src/conformance/gate-proofs.ts` seeds an isolated `mkdtemp` fixture
   that violates the rule, runs the **real** probe against it, and asserts the verdict is failing
   (`N` or `P` — the same `score.ts` `tier1Fails` predicate that flips a repo to NON-CONFORMANT).
   A gate that cannot reach a failing verdict is installed in name only — a fake-green. This
   replaces the anti-pattern of per-script self-test suites (dozens of `test-*.sh` scripts testing
-  the gate scripts) with one small negative fixture per gate. `arbiter doctor --prove-gates`
+  the gate scripts) with one small negative fixture per gate. `arbiter status health --prove-gates`
   (text or `--json`) runs all proofs and exits `1` if any gate does not bite. Surfaced finding:
   `D-INVARIANTS-ENFORCED` has no reachable `N` verdict (rescoped to presence-only per #1698
   RT-02), so it reports `[NO-BITE]` today — the tool doing its job. Impl:
@@ -199,10 +199,10 @@ The 7 new rows cite `issue: 2677` rather than `2675`: #2675 itself closes when t
 lands, and a deferral whose provenance issue is closed reads as unowed. #2677 is the dedicated
 follow-up for proving these 7 specifically, opened for exactly that purpose.
 
-## `arbiter doctor` diagnostics for target repos (#2162)
+## `arbiter status health` diagnostics for target repos (#2162)
 
-The guards above catch arbiter faking green on **its own** gate. `arbiter doctor tool-pins` and
-`arbiter doctor fail-open-census` catch the same doctrine failure in an arbitrary **target**
+The guards above catch arbiter faking green on **its own** gate. `arbiter check tool-pins` and
+`arbiter check fail-open` catch the same doctrine failure in an arbitrary **target**
 repo's local dev loop, one layer below CI:
 
 - **`tool-pins`**: a local gate tool older than the CI-pinned version still runs and prints

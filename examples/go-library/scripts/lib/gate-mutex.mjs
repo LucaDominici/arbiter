@@ -234,7 +234,7 @@ function effectiveMode(env) {
   process.stderr.write(
     'gate-mutex: flock(1) is not available on this platform — the gate is running ' +
       'UNSERIALISED. Two gates in this repo can now interfere; run them one at a time, ' +
-      'or use `arbiter gate-exec` on a platform that has flock.\n',
+      'or use `arbiter check run` on a platform that has flock.\n',
   )
   return 'off'
 }
@@ -282,7 +282,7 @@ export async function runUnderGateLock(opts = {}) {
   const lockPath = gateLockPathFor(dir, env)
   const childEnv = gateChildEnv(env, lockPath)
 
-  // Already held by an ancestor (`arbiter gate-exec`, or an outer gate-mutex):
+  // Already held by an ancestor (`arbiter check run`, or an outer gate-mutex):
   // re-acquiring the same flock from a second process would DEADLOCK.
   const mode = env[GATE_MUTEX_HELD_ENV] === lockPath ? 'off' : effectiveMode(env)
   if (mode === 'off') return runForeground(cmdArgs, { env: childEnv })

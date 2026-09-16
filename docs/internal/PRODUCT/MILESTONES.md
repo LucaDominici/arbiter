@@ -210,7 +210,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 - `src/wizard/prompts.ts` — State-reactive: detect → show findings → confirm → execute
 - Brownfield flow: scan existing governance, display what will change, preserve customizations
 - Greenfield flow: show generation preview before any writes
-- `arbiter init --dry-run` — Preview without writing (currently only `arbiter diff` does this)
+- `arbiter init --dry-run` — Preview without writing (currently only `arbiter update --dry-run` does this)
 - Tests for both flows in `__tests__/integration/`
 
 **Exit criteria:**
@@ -486,11 +486,11 @@ Generate `suppressions/` dir with OWASP DC, Gitleaks, PII allowlist, ArchUnit ba
 
 ---
 
-### MD — `arbiter verify` Post-Init Toolchain Probe
+### MD — `arbiter check` Post-Init Toolchain Probe
 
 **Issue:** #85 · **Resolves:** C4 · **Size:** M · **Deps:** —
 
-New `arbiter verify` command invokes minimal probes per stack (`./gradlew help --offline`, `cargo check`, `ruff --version`, etc.) and compares against a pinned compatibility matrix. Auto-runs at end of `arbiter init`. **First implementation target — smallest blast radius.**
+New `arbiter check` command invokes minimal probes per stack (`./gradlew help --offline`, `cargo check`, `ruff --version`, etc.) and compares against a pinned compatibility matrix. Auto-runs at end of `arbiter init`. **First implementation target — smallest blast radius.**
 
 ---
 
@@ -548,7 +548,7 @@ Generate STRIDE/RACI/RTM enforcement _skeletons_ (empty schemas), not pre-popula
 
 **Issue:** #92 · **Resolves:** H9 · **Size:** M · **Deps:** MB
 
-New `arbiter upgrade-level` command captures baseline for newly activated gates, sets `graceEndsAt` (+30 days). During grace, new gates warn only; after grace, hard-fail. Bounded escape hatch for L1 → L2 → L3 migration.
+New `arbiter configure level` command captures baseline for newly activated gates, sets `graceEndsAt` (+30 days). During grace, new gates warn only; after grace, hard-fail. Bounded escape hatch for L1 → L2 → L3 migration.
 
 **Shipped:** ADR-028 Part I; `src/commands/upgrade-level.ts`; grace guard in `check-all.mjs.ejs`; INV-33; `--extend` with `.arbiter/grace-log.json`.
 

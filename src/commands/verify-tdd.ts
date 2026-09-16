@@ -112,7 +112,7 @@ function unresolvedCommitReason(ev: {
   }
   return (
     `${prefix} and this evidence predates the rebase-stable blob pin — re-record it with ` +
-    `\`arbiter task record-red --test-path ${ev.test_path}\``
+    `\`arbiter lifecycle record-red --test-path ${ev.test_path}\``
   )
 }
 

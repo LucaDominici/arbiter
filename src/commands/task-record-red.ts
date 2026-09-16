@@ -279,7 +279,7 @@ function resolveActiveTaskId(
       reason:
         `branch/task-document mismatch — refusing to guess which task's evidence to record. ` +
         `branch "${branch}" resolves to task ${branchTaskId}; the task document ` +
-        `(.claude/.task/status.json) says ${docTaskId}. Run \`arbiter task init --id ${branchTaskId}\` ` +
+        `(.claude/.task/status.json) says ${docTaskId}. Run \`arbiter lifecycle start --id ${branchTaskId}\` ` +
         `to realign the task document with the current branch (or switch to the intended branch).`,
     }
   }
@@ -297,7 +297,7 @@ function resolveActiveTaskId(
     }
     return {
       ok: false,
-      reason: `no active task — run \`arbiter task init --id #NNN\` (or \`/task #NNN\`) to initialise the task first`,
+      reason: `no active task — run \`arbiter lifecycle start --id #NNN\` (or \`/task #NNN\`) to initialise the task first`,
     }
   }
   return resolveSelectedTaskId(requestedTaskId, taskId, dir)

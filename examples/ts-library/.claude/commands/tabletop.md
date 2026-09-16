@@ -7,7 +7,7 @@ last_review: '2026-08-29'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal', 'kind/analysis']
-related: ['ship', 'gold-audit']
+related: ['ship', 'audit readiness']
 ---
 
 # /tabletop

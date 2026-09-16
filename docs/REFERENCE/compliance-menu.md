@@ -24,7 +24,7 @@ configuration. It surfaces in three places:
 1. **Wizard** — `arbiter init` prompts for the overlay and prints the resulting
    `(team × compliance)` cell (branching strategy, gate level, overlay artefacts)
    plus an advisory when the overlay's weight outpaces the governance level.
-2. **`arbiter doctor`** — a new `overlay-coherence` health check flags incoherent
+2. **`arbiter status health`** — a new `overlay-coherence` health check flags incoherent
    `(industryOverlay × governanceLevel)` cells (advisory `WARN`, never `FAIL`).
 3. **Generated doc** — `<project>/docs/COMPLIANCE_MENU.md` presents every cell with rationale.
 
@@ -75,7 +75,7 @@ or `OK`, never `CRITICAL`: an overlay never structurally breaks generation.
 | medium (`sox`, `gdpr`, `iso9001`) | WARN | OK   | OK  | OK  |
 | heavy (`iso27001`, `pharma`)      | WARN | WARN | OK  | OK  |
 
-`arbiter doctor` surfaces the `WARN` for the configured cell; the wizard surfaces it
+`arbiter status health` surfaces the `WARN` for the configured cell; the wizard surfaces it
 inline after the overlay prompt. Neither blocks — the user chooses to proceed or
 raise the governance level.
 

@@ -18,7 +18,7 @@ related: ['tdd', 'verification', 'task', 'ship']
 **Trigger:** Deterministic heuristic (see _When this applies_).
 **Enforcement:** MANDATORY once activated — skipping a checkpoint requires an explicit human override.
 
-Context compaction destroys in-memory state. This skill keeps three **independent** durable records of the task, any one of which can fully recover it. CLI-first by design (ADR-020): the checkpoint layer is `arbiter mark`, not an MCP call, so it works in any governed project with no MCP dependency.
+Context compaction destroys in-memory state. This skill keeps three **independent** durable records of the task, any one of which can fully recover it. CLI-first by design (ADR-020): the checkpoint layer is `arbiter lifecycle checkpoint`, not an MCP call, so it works in any governed project with no MCP dependency.
 
 ---
 
@@ -32,7 +32,7 @@ Tier = Standard  AND  (implementation_units > 5  OR  user requests explicitly)
 
 A 1M-context model handles compaction for most Standard tasks natively, so auto-activating every task only adds BACKLOG overhead with no benefit when units are few.
 
-**Evaluated at:** end of the `/ship` (or `/task`) plan phase, after GO, once the implementation-unit count is known.
+**Evaluated at:** end of the `/ship` plan phase, after GO, once the implementation-unit count is known.
 
 | Scenario | Tier     | Units | Result                                |
 | -------- | -------- | ----- | ------------------------------------- |
@@ -46,11 +46,11 @@ A 1M-context model handles compaction for most Standard tasks natively, so auto-
 
 ## The 3 layers
 
-| Layer              | Artifact                                            | Survives            | How to access       |
-| ------------------ | --------------------------------------------------- | ------------------- | ------------------- |
-| **1. BACKLOG**     | `.arbiter/evidence/<task-id>/BACKLOG.md`            | git push            | Read tool           |
-| **2. Task cursor** | `arbiter mark` (last / next / digest in task state) | `/clear`, recompute | `arbiter task get`  |
-| **3. Git log**     | phase-boundary commits                              | git history         | `git log --oneline` |
+| Layer              | Artifact                                                            | Survives            | How to access           |
+| ------------------ | ------------------------------------------------------------------- | ------------------- | ----------------------- |
+| **1. BACKLOG**     | `.arbiter/evidence/<task-id>/BACKLOG.md`                            | git push            | Read tool               |
+| **2. Task cursor** | `arbiter lifecycle checkpoint` (last / next / digest in task state) | `/clear`, recompute | `arbiter lifecycle get` |
+| **3. Git log**     | phase-boundary commits                                              | git history         | `git log --oneline`     |
 
 Any single layer failing → the other two still recover the task. Zero single point of failure. (`pre-compact.mjs` additionally re-grounds the model immediately after a compaction by printing branch / task / phase to stdout.)
 
@@ -109,7 +109,7 @@ Append a new section per phase. **Never delete old phase sections** — they _ar
 Run all three at every phase boundary (finishing phase N, starting N+1):
 
 1. **Update BACKLOG** — add the new phase section (status of the completed phase, files done/remaining, decisions, issues).
-2. **Pin the cursor** — `arbiter mark --last "<what was just done>" --next "<exact next action>" --digest "<one line>"`. This is the searchable, CLI-native checkpoint; it survives `/clear`.
+2. **Pin the cursor** — `arbiter lifecycle checkpoint --last "<what was just done>" --next "<exact next action>" --digest "<one line>"`. This is the searchable, CLI-native checkpoint; it survives `/clear`.
 3. **Commit** — one logical unit per the exec-protocol commit strategy; the message names the phase completed and what's next.
 
 ---
@@ -119,7 +119,7 @@ Run all three at every phase boundary (finishing phase N, starting N+1):
 Execute in order; stop once state is fully recovered.
 
 1. **Read** `.arbiter/evidence/<task-id>/BACKLOG.md` — current phase, files done/remaining, open decisions, open issues.
-2. **Read the cursor** — `arbiter task get` (last / next / digest pinned by `arbiter mark`); recovers any decision not yet written to BACKLOG.
+2. **Read the cursor** — `arbiter lifecycle get` (last / next / digest pinned by `arbiter lifecycle checkpoint`); recovers any decision not yet written to BACKLOG.
 3. **Verify against git** — `git log --oneline`; confirm phase commits are present and resolve any discrepancy with the BACKLOG.
 4. **Resume** — continue from the last checkpoint. Re-read **only** the files listed under "remaining". Do **NOT** re-read the generic SSOT docs (AGENTS.md, ADRs) unless a specific invariant is in question — that is context bloat, not recovery.
 

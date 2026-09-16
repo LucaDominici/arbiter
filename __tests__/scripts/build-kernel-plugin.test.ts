@@ -99,7 +99,7 @@ describe('build-kernel-plugin.mjs', () => {
   // generator (the generator has been unable to run at all, so nothing under
   // packages/kernel/hooks/ could be regenerated) — a materially larger, separate
   // body of work spanning many issues (#565, #1441, #1872, #1990, #2022, #2399,
-  // #2403), captured via `arbiter note` rather than folded into this fix.
+  // #2403), captured via `arbiter finding add` rather than folded into this fix.
   // #2599 also binds the shared lib.mjs diff-parser repair to the qualified input bytes.
   const FILES_FIXED_BY_2538 = ['check-no-orphan-todo.mjs', 'check-no-placeholders.mjs', 'lib.mjs']
 

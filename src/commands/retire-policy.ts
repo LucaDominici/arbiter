@@ -49,6 +49,20 @@ export interface RetirementPlan {
 
 const byKey = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 
+// #2706: these generated wrappers were deliberately retired in one incompatible
+// cut. The consumer manifest must still prove byte ownership before deletion.
+const RETIRED_MANAGED_PATHS = new Set([
+  '.claude/commands/task.md',
+  '.claude/commands/gold-audit.md',
+  '.claude/commands/wt-open.md',
+  '.claude/commands/wt-close.md',
+  '.claude/commands/wt-list.md',
+  '.claude/commands/wt-prune.md',
+  '.claude/commands/close-gold-gap.md',
+  '.claude/commands/levelup.md',
+  ...Object.keys(RETIRED_RENDERS),
+])
+
 /**
  * Read the on-disk hash for a manifest key. `null` when the file is gone or
  * unreadable — the retirement decision then has nothing to do. Injected as a
@@ -98,7 +112,8 @@ export function planRetirement(opts: {
     if (visited.has(key)) continue
     const onDisk = opts.diskHash(key)
     if (onDisk === null) continue
-    if (!isSafetyClassKey(key)) plan.stale.push(key)
+    const explicitlyRetired = RETIRED_MANAGED_PATHS.has(key)
+    if (!isSafetyClassKey(key) && !explicitlyRetired) plan.stale.push(key)
     else if (onDisk === opts.prevManifest[key] || (RETIRED_RENDERS[key] ?? []).includes(onDisk))
       plan.retire.push(key)
     else plan.orphans.push(key)

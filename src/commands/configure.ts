@@ -66,7 +66,7 @@ export function assignmentsForPreset(config: ArbiterConfigV2, preset: Applicable
   ]
 }
 
-// Exported so `arbiter settings` (#1121) and check-settings-coverage.mjs can
+// Exported so `arbiter configure show` (#1121) and check-settings-coverage.mjs can
 // enforce that every settable path is surfaced in the settings catalog.
 export const ALLOWED_PATHS = new Set([
   'projectName',
@@ -531,7 +531,7 @@ function parseEnumPathValue(path: string, raw: string): string {
     // #1306 — defaultGateLevel is L1/L2 ONLY (the runnable gate levels), never L3/L4.
     'automation.defaultGateLevel': {
       valid: new Set(VALID_GATE_LEVELS),
-      hint: 'Valid values: L1, L2. The gate level `arbiter verify` runs by default. Per-run override: `arbiter ship --set automation.defaultGateLevel=L2`.',
+      hint: 'Valid values: L1, L2. The gate level `arbiter check` runs by default. Per-run override: `arbiter ship --set automation.defaultGateLevel=L2`.',
     },
     runnerProfile: {
       valid: new Set(['solo', 'fleet']),

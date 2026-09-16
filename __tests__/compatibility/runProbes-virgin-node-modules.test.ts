@@ -57,7 +57,7 @@ describe('runProbes — virgin `arbiter init -y` (node_modules not yet installed
     const tscProbe = report.probes.find((p) => p.tool === 'tsc:noEmit')
     expect(tscProbe?.status).toBe('skipped')
     expect(tscProbe?.reason).toBe(
-      'node-modules-missing: run `npm install`, then `arbiter validate` to verify',
+      'node-modules-missing: run `npm install`, then `arbiter check` to verify',
     )
     expect(mockRunCli).not.toHaveBeenCalledWith('npx', expect.anything(), expect.anything())
   })

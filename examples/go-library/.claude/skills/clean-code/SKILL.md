@@ -27,7 +27,7 @@ This skill is a **gate-map, not a lecture.** Every limit below is mechanically e
 
 ## When a gate fires
 
-Fix the **root cause** — extract the shared helper, simplify the function, delete the dead branch — or run `arbiter task record-tech-debt` with a rationale. A symptom patch over a flagged smell is a stop condition (see `90-exec-protocol.md` → Root-Cause Discipline). Juergens'09: an *inconsistent* clone (duplicated, then edited in one copy only) is a latent bug — dedup before it diverges.
+Fix the **root cause** — extract the shared helper, simplify the function, delete the dead branch — or run `arbiter lifecycle record-debt` with a rationale. A symptom patch over a flagged smell is a stop condition (see `90-exec-protocol.md` → Root-Cause Discipline). Juergens'09: an *inconsistent* clone (duplicated, then edited in one copy only) is a latent bug — dedup before it diverges.
 
 ## Naming & extraction (review heuristic — not gated)
 

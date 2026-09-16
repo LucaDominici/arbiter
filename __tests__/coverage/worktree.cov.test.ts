@@ -852,7 +852,7 @@ describe('runWorktreeAdopt — branch coverage', () => {
     stdoutSpy.mockRestore()
 
     expect(mockMaterializeLink).toHaveBeenCalledTimes(2)
-    expect(out.some((line) => line.includes('"command":"worktree-adopt"'))).toBe(true)
+    expect(out.some((line) => line.includes('"command":"worktree prepare"'))).toBe(true)
     const marker = JSON.parse(
       readFileSync(join(worktreePath, '.arbiter', 'checkout-binding.json'), 'utf8'),
     ) as Record<string, unknown>
@@ -1141,7 +1141,7 @@ describe('runWorktreeList — branch coverage', () => {
       })
     runWorktreeList({ cwd: gitRoot, json: true })
     stdoutSpy.mockRestore()
-    expect(out.some((l) => l.includes('"command":"worktree-list"'))).toBe(true)
+    expect(out.some((l) => l.includes('"command":"worktree check"'))).toBe(true)
   })
 
   it('renders the human-readable list with branch + path for task worktrees', () => {

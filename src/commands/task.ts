@@ -99,18 +99,18 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
     'Phase: preflight\nAction: Run /task #NNN to initialize the task branch and plan.\nCommand: node scripts/check-all.mjs L1',
   plan: 'Phase: plan\nAction: Plan is being written. Review .claude/plans/ for existing plan draft.\nNext: Await user GO before editing files.',
   'red-team-review':
-    'Phase: red-team-review\nAction: Red-team agents running. Review .arbiter/evidence/redteam/<task-id>.json.\nNext: CRITICAL findings → arbiter task advance --to red-team-rework. All clear → arbiter task advance --to red.',
+    'Phase: red-team-review\nAction: Red-team agents running. Review .arbiter/evidence/redteam/<task-id>.json.\nNext: CRITICAL findings → arbiter lifecycle advance --to red-team-rework. All clear → arbiter lifecycle advance --to red.',
   'red-team-rework':
-    'Phase: red-team-rework\nAction: Critical findings require plan revision. Fix plan, then re-run red-team.\nNext: arbiter task advance --to red-team-review (re-triggers review) or --to plan (full replan).',
-  red: 'Phase: red\nAction: Write failing tests first. No implementation yet.\nNext: Tests written → arbiter task advance --to green.',
+    'Phase: red-team-rework\nAction: Critical findings require plan revision. Fix plan, then re-run red-team.\nNext: arbiter lifecycle advance --to red-team-review (re-triggers review) or --to plan (full replan).',
+  red: 'Phase: red\nAction: Write failing tests first. No implementation yet.\nNext: Tests written → arbiter lifecycle advance --to green.',
   green:
-    'Phase: green\nAction: Make tests pass with minimal implementation.\nNext: All tests green → arbiter task advance --to refactor.',
+    'Phase: green\nAction: Make tests pass with minimal implementation.\nNext: All tests green → arbiter lifecycle advance --to refactor.',
   refactor:
-    'Phase: refactor\nAction: Clean up implementation. Tests must stay green.\nNext: Refactor done → arbiter task advance --to verification.',
+    'Phase: refactor\nAction: Clean up implementation. Tests must stay green.\nNext: Refactor done → arbiter lifecycle advance --to verification.',
   verification:
-    'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then arbiter task advance --to close.',
+    'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then arbiter lifecycle advance --to close.',
   close:
-    'Phase: close\nAction: CLOSER mode active — see .claude/rules/95-closer-mode.md. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter task advance --to complete.',
+    'Phase: close\nAction: CLOSER mode active — see .claude/rules/95-closer-mode.md. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter lifecycle advance --to complete.',
   complete:
     'Phase: complete\nAction: Task is complete. Check if PR was created: gh pr list --head $(git branch --show-current)\nNext: Verify PR merged and issue closed.',
 }
@@ -330,7 +330,7 @@ function assertBoundNativeHost(
     live.worktreePath !== binding.worktreePath ||
     live.branch !== binding.branch
   ) {
-    throw new Error('native host binding is stale — run arbiter task host-preflight again')
+    throw new Error('native host binding is stale — run arbiter lifecycle preflight again')
   }
 }
 
@@ -436,7 +436,7 @@ function warnOnForeignTaskState(root: string, state: UnifiedTaskState): void {
   process.stderr.write(
     `WARNING: task state is foreign — .claude/.task/status.json records task ${state.taskId || '(none)'} ` +
       `on branch "${recorded}", but the checkout is on "${actual}". ` +
-      `The value below belongs to that other task. Run \`arbiter task init --id <id>\` to seed this one.\n`,
+      `The value below belongs to that other task. Run \`arbiter lifecycle start --id <id>\` to seed this one.\n`,
   )
 }
 
@@ -1425,14 +1425,14 @@ function checkTaskSeededGate(dir: string): void {
   throw new Error(
     'task-seed gate: no task id in .claude/.task/status.json — `preflight` promises seeded ' +
       'task state, and every later evidence gate keys on that id. ' +
-      'Run `arbiter task init --id <id> --tier <tier>` first.',
+      'Run `arbiter lifecycle start --id <id> --tier <tier>` first.',
   )
 }
 
 /**
  * #2435 — `.claude/commands/ship.md` promises the `red-team-review` phase dispatches tier-N
  * red-team agents and records them at `.arbiter/evidence/redteam/<task-id>.json`. Nothing
- * asserted it, so `arbiter task advance --to red` succeeded with no red team ever run.
+ * asserted it, so `arbiter lifecycle advance --to red` succeeded with no red team ever run.
  *
  * Scoped to the exits FROM a red-team phase: entering `red` straight from `plan` is not a
  * path the red-team promise covers.
@@ -1530,7 +1530,7 @@ function assertTddEvidenceFor(rawId: string, dir: string): void {
   if (!result.ok) {
     throw new Error(
       `TDD evidence gate: ${result.reason}. ` +
-        `Run \`arbiter task record-red --test-path <path>\` to capture failing test evidence first.`,
+        `Run \`arbiter lifecycle record-red --test-path <path>\` to capture failing test evidence first.`,
     )
   }
 
@@ -1554,7 +1554,7 @@ function assertTddEvidenceFor(rawId: string, dir: string): void {
   if (resolved === null) {
     throw new Error(
       `TDD evidence gate: test_commit_sha "${ev.test_commit_sha}" is not reachable from HEAD. ` +
-        `Ensure the test was committed before running \`arbiter task record-red\`, or re-record ` +
+        `Ensure the test was committed before running \`arbiter lifecycle record-red\`, or re-record ` +
         `the evidence after a rebase.`,
     )
   }
@@ -1621,7 +1621,7 @@ export function buildHandoffBanner({
   const resumeCmd = `arbiter ship #${numericId} --advance --post-clear`
   const continueHint =
     strategy === 'inline'
-      ? `Continue in this context: run \`${resumeCmd}\` or \`arbiter task advance --to red --post-clear\``
+      ? `Continue in this context: run \`${resumeCmd}\` or \`arbiter lifecycle advance --to red --post-clear\``
       : strategy === 'sub-agent'
         ? `Spawn a sub-agent for the exec phase, then pass \`--post-clear\` on re-entry:\n  \`${resumeCmd}\``
         : `1. Run: /clear\n2. Re-invoke: \`${resumeCmd}\``
@@ -1648,7 +1648,7 @@ function handlePostClearReEntry(rawId: string, dir: string): void {
   if (!taskId) {
     throw new Error(
       `Post-clear re-entry: task state has no taskId. ` +
-        `Re-initialize the task with \`arbiter task init --id #NNN\` before resuming. ` +
+        `Re-initialize the task with \`arbiter lifecycle start --id #NNN\` before resuming. ` +
         `(rawId="${rawId}", existing.taskId="${existing.taskId ?? ''}")`,
     )
   }

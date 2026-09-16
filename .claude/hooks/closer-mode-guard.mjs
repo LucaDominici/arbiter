@@ -3,7 +3,7 @@
 // Arbiter hook: CLOSER mode enforcement (#A11) — mechanically-checkable subset of the 7 rules
 // in `.claude/rules/95-closer-mode.md`. Fires on: PreToolUse → Bash. Only active while the task
 // is in its `close` phase (post-implementation, pre-merge, entered via
-// `arbiter task advance --to close`) — inert on every other phase.
+// `arbiter lifecycle advance --to close`) — inert on every other phase.
 // Exit 2: block — stderr is returned to Claude as error context.
 // Fail-closed contract: phase detection is fail-OPEN (if the task context can't be read the
 // guard stays inert, so it never wedges Bash outside a close), but once we know we ARE closing,
@@ -53,12 +53,12 @@ try {
   }
 
   // Rule 2 (no discovery): opening a new issue mid-close is forbidden — findings go on the
-  // PARKING list (`arbiter note`) instead of spawning tracked work.
+  // PARKING list (`arbiter finding add`) instead of spawning tracked work.
   if (/\bgh\s+issue\s+create\b/.test(command)) {
     block(
       'Rule 2 (no discovery)',
       'opening a new issue mid-close is forbidden — append the finding to the PARKING list ' +
-        '(`arbiter note`) instead',
+        '(`arbiter finding add`) instead',
     )
   }
 

@@ -26,7 +26,8 @@ skipping phases.
 > one wave PR**, reusing the same engine and the same gates.
 
 **Legality (ADR-103):** parallel write-agents are in-contract ONLY under the rule-50
-carve-out — every agent in a **dedicated worktree** (`/wt-open`), on a **distinct branch**,
+carve-out — every agent in a **dedicated worktree** created by the native host and prepared with
+`arbiter worktree prepare`, on a **distinct branch**,
 with **plan-manifest-disjoint file-sets**. Dependency changes (`package.json`/lockfiles),
 main-tree edits and tags stay serial-only. **Convergence model (owner-ratified
 2026-07-10):** on arbiter-governed repos every wave converges into **ONE wave PR** — the
@@ -36,18 +37,17 @@ merge-train).
 
 ## Primitives
 
-| Primitive                                                  | Role here                                                                                             |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `/ship`                                                    | Pipeline reference for the per-issue phase contract (plan → red-team → TDD → review → verify → merge) |
-| `arbiter task init / advance / record-red / recover / get` | The state engine each agent anchors its work to                                                       |
-| `/wt-open`, `/wt-close`, `/wt-prune`, `/wt-list`           | Isolated git worktrees, one per group                                                                 |
-| `arbiter gate-exec -- <cmd>`                               | Per-repo gate mutex (flock(1)): serializes expensive gates across parallel agents (ADR-103)           |
-| `arbiter worktree prune --stale [h]`                       | Zombie reaper: merged/inactive clean worktrees, dry-run default (ADR-103)                             |
-| Skill `epic-decompose`                                     | Only if an entangled issue must be split before batching                                              |
-| Skill `understand-code`                                    | Per-agent code comprehension before editing                                                           |
-| Skill `tdd`                                                | The red → green → refactor loop every agent runs per unit                                             |
-| Skill `verification`                                       | Claim-based verification on the cumulative branch before the gate                                     |
-| Skill `ssot-navigation`                                    | Locate invariants / SSOT before touching guarded files                                                |
+| Primitive                                                               | Role here                                                                                             |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `/ship`                                                                 | Pipeline reference for the per-issue phase contract (plan → red-team → TDD → review → verify → merge) |
+| `arbiter lifecycle start / advance / record-red / recover / get`        | The state engine each agent anchors its work to                                                       |
+| Native host worktree commands + `arbiter worktree prepare/check/relink` | Isolated git worktrees, one per group                                                                 |
+| `arbiter check run -- <cmd>`                                            | Per-repo gate mutex (flock(1)): serializes expensive gates across parallel agents (ADR-103)           |
+| Skill `epic-decompose`                                                  | Only if an entangled issue must be split before batching                                              |
+| Skill `understand-code`                                                 | Per-agent code comprehension before editing                                                           |
+| Skill `tdd`                                                             | The red → green → refactor loop every agent runs per unit                                             |
+| Skill `verification`                                                    | Claim-based verification on the cumulative branch before the gate                                     |
+| Skill `ssot-navigation`                                                 | Locate invariants / SSOT before touching guarded files                                                |
 
 ---
 
@@ -103,7 +103,7 @@ findings noticed in prior waves become first-class backlog candidates instead of
 cat .arbiter/findings/*.jsonl 2>/dev/null | jq -s '.'
 ```
 
-Each shard entry is a finding recorded via `arbiter note` (fingerprinted by file+kind+text, line
+Each shard entry is a finding recorded via `arbiter finding add` (fingerprinted by file+kind+text, line
 excluded). Triage manually: drop entries whose file/graph-node no longer exists at HEAD, skip
 anything already tracked by an open issue, and `gh issue create` the survivors yourself
 (`finding`+`tech-debt`+`priority/Pn` labels). The spool being absent/empty is a clean no-op.
@@ -168,7 +168,7 @@ policy + required tests + CI expectations + review/security surfaces + dependenc
 derived BEFORE writing. Code and tests are born against it — adversarial review judges
 the diff against it before integration, which is what kills accordion PRs.
 
-Every implementation agent will **anchor its `arbiter task` to its group's section** of this
+Every implementation agent will **anchor its `arbiter lifecycle` to its group's section** of this
 plan (CANON-16, enforced by the `pre-edit-plan-anchor` hook). No per-issue plans.
 
 ---
@@ -210,7 +210,8 @@ issues regardless of tier.
 
 ## Phase 3 — Parallel execution (scale out)
 
-Spawn **one agent per group** in an **isolated worktree** (`/wt-open`, a branch per group).
+Spawn **one agent per group** in an **isolated native host worktree** (prepared with
+`arbiter worktree prepare`, a branch per group).
 `--max-parallel` defaults to **3** from
 `automation.maxParallelWorktrees` (or the collaboration-mode default when absent).
 Effective cap: **`min(--max-parallel, nproc - 2, wave size)`** — the mutex serializes the
@@ -222,7 +223,7 @@ runs **once**, on integration.
 
 **Gate mutex (ADR-103):** any expensive gate that could run concurrently with another
 agent's gate on the same repo (parallel waves, ship agents, overnight batches) goes through
-`arbiter gate-exec -- <gate-cmd>`. The wait is kernel-side (`flock(1)`, blocking) and the
+`arbiter check run -- <gate-cmd>`. The wait is kernel-side (`flock(1)`, blocking) and the
 lock releases if the gate-exec supervisor is SIGKILL/OOM-killed; killing the Arbiter Node
 PID alone leaves that supervisor holding — no 1h stale stall, no poll loop. Linux tracks ordinary
 process-group escapes by an inherited sentinel; a payload that deliberately closes it before
@@ -230,7 +231,7 @@ escaping is outside the guarantee and can outlive mutex release.
 Where `flock(1)` does not exist (macOS base system, Windows) `gate-exec` fails closed:
 degrade the wave to serial (`--max-parallel 1`).
 
-**Cache isolation:** `arbiter worktree open` links `node_modules` with the
+**Cache isolation:** `git worktree add` links `node_modules` with the
 `symlink-children` strategy — `.vite`/`.cache` stay per-worktree, so parallel builds cannot
 corrupt one shared cache into spurious reds. Belt-and-braces in each worker brief:
 `export VITE_CACHE_DIR="$PWD/.cache/vite"`.
@@ -246,7 +247,7 @@ coordinator (`bg-run.sh` + `pid-watch.sh`, #2103).
   later" on a mutex.
 - **Turn-stall** (an agent idling mid-task) is only **bounded**, never prevented, by the
   **watchdog sweep**: at every orchestrator turn boundary, reconcile REAL state — `gh pr
-checks`, `gh issue view`, `arbiter worktree list`, DONE reports — and re-dispatch, mark
+checks`, `gh issue view`, `arbiter worktree check`, DONE reports — and re-dispatch, mark
   `needs-human`, or reap what stalled beyond its budget. Never rely on memory of what
   agents "should" be doing; never close an orchestrator turn passively waiting on a PR —
   arm auto-merge and let the NEXT sweep observe it.
@@ -254,7 +255,7 @@ checks`, `gh issue view`, `arbiter worktree list`, DONE reports — and re-dispa
 Each agent's loop:
 
 ```bash
-arbiter task init --plan <wave-N.md#group-anchor>   # anchor to the group's plan section
+arbiter lifecycle start --plan <wave-N.md#group-anchor>   # anchor to the group's plan section
 # invoke the tdd skill per unit: red → verify-red → green → verify-green → refactor
 # targeted tests green
 git commit                                          # format enforced by post-commit-check
@@ -268,7 +269,7 @@ Then emit a **DONE report**: files touched, tests added, commits, and `findings[
 
 #### Canonical finding shape (#1404)
 
-The DONE-report `findings[]` use the **same `FindingEntry` shape as `arbiter note`** — the SSOT is
+The DONE-report `findings[]` use the **same `FindingEntry` shape as `arbiter finding add`** — the SSOT is
 `src/commands/task-note.ts` (interface `FindingEntry`). This is what lets a finding flow straight
 into the `.arbiter/findings` spool and get triaged manually (see "Phase 0.5 — Harvest the finding
 spool" above) in the next wave, with fingerprint dedup using the SAME material as `task-note.ts`
@@ -300,7 +301,7 @@ other field is required):
 - `graphNode` — optional graph-node id; **omitted** (not a key) when absent.
 - `auditorHint` — optional; the `auditor-routing.json` auditor whose remit covers the finding.
 
-The cheapest way to honour this shape is to capture findings in-band with `arbiter note` (which
+The cheapest way to honour this shape is to capture findings in-band with `arbiter finding add` (which
 writes exactly this entry); the DONE report then just mirrors what is already in the spool.
 
 **A blocked agent → mark its issue `needs-human` and STOP that agent. It does NOT block the
@@ -348,7 +349,7 @@ wave.** The rest of the wave proceeds.
    # skill: verification — claim-based pass on the cumulative branch first
    # FULL GATE → writes gate-pass.json; under the per-repo mutex (ADR-103) so a
    # concurrent agent's gate never interleaves with this one:
-   arbiter gate-exec -- node scripts/check-all.mjs L2
+   arbiter check run -- node scripts/check-all.mjs L2
    ```
 
    `gate-pass.json` is required by the `enforce-gate-before-pr` hook.
@@ -380,8 +381,8 @@ wave.** The rest of the wave proceeds.
 
    CI red → root-cause fix → re-gate (PRs are owned until merged green).
 
-8. `/wt-close` (harvest) + `arbiter worktree prune --stale 24` (review the dry-run report,
-   then re-run with `--execute`) → `/clear` → **next wave**, until the backlog is empty. The
+8. Close the worktree with the native host, then use `arbiter worktree check` to verify cleanup
+   before the **next wave**, until the backlog is empty. The
    reaper also runs inside the watchdog sweep, so a crashed worker's zombie worktree never
    outlives the wave (dirty trees are never touched — INV-96).
 
@@ -454,7 +455,7 @@ the train is native — PRs are the only integration unit). Field-proven 2026-07
 
 1. **Worktrees + branches:** one `git worktree add` per issue, one branch per agent, disjoint
    file-sets — the ADR-103 conditions apply verbatim even without the engine.
-2. **Gate mutex (one-liner):** no `arbiter gate-exec` here — use flock directly,
+2. **Gate mutex (one-liner):** no `arbiter check run` here — use flock directly,
    parameterized on the repo's own gate:
 
    ```bash
