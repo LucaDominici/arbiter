@@ -72,6 +72,85 @@ describe('classify (#2098) — green/hard-fail/pending predicate', () => {
       ),
     ).toBe('green')
   })
+
+  it('uses the newest attempt of one workflow check instead of a superseded failure (#2712)', () => {
+    expect(
+      classify(
+        [
+          {
+            workflowName: 'PR Fast (T1)',
+            name: 'CI Required',
+            conclusion: 'FAILURE',
+            startedAt: '2026-09-16T06:31:16Z',
+          },
+          {
+            workflowName: 'PR Fast (T1)',
+            name: 'CI Required',
+            conclusion: 'SUCCESS',
+            startedAt: '2026-09-16T06:43:36Z',
+          },
+        ],
+        ['CI Required'],
+      ),
+    ).toBe('green')
+  })
+
+  it('keeps the newest pending or failed attempt non-green (#2712)', () => {
+    const oldSuccess = {
+      workflowName: 'PR Fast (T1)',
+      name: 'CI Required',
+      conclusion: 'SUCCESS',
+      startedAt: '2026-09-16T06:31:16Z',
+    }
+    expect(
+      classify(
+        [
+          oldSuccess,
+          {
+            ...oldSuccess,
+            conclusion: '',
+            startedAt: '2026-09-16T06:43:36Z',
+          },
+        ],
+        ['CI Required'],
+      ),
+    ).toBe('pending')
+    expect(
+      classify(
+        [
+          oldSuccess,
+          {
+            ...oldSuccess,
+            conclusion: 'FAILURE',
+            startedAt: '2026-09-16T06:43:36Z',
+          },
+        ],
+        ['CI Required'],
+      ),
+    ).toBe('hard-fail')
+  })
+
+  it('does not conflate same-named checks from different workflows (#2712)', () => {
+    expect(
+      classify(
+        [
+          {
+            workflowName: 'PR Fast (T1)',
+            name: 'CI Required',
+            conclusion: 'SUCCESS',
+            startedAt: '2026-09-16T06:43:36Z',
+          },
+          {
+            workflowName: 'Security',
+            name: 'CI Required',
+            conclusion: 'FAILURE',
+            startedAt: '2026-09-16T06:44:36Z',
+          },
+        ],
+        ['CI Required'],
+      ),
+    ).toBe('hard-fail')
+  })
 })
 
 describe('validatePromotion (#2148) — exact-SHA TOCTOU guard', () => {

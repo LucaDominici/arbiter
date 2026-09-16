@@ -233,6 +233,32 @@ describe('runTaskRecordRed()', () => {
     expect(ev.test_command).toEqual(['go', 'test', '-run', 'TestFoo', './pkg'])
   })
 
+  it('stores a repo-local node_modules binary without the recording checkout path (#2712)', () => {
+    const dir = tmpRepo()
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('src/foo.test.ts')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'FAIL src/foo.test.ts\n1 test failed',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 100,
+    })
+    const absoluteVitest = join(dir, 'node_modules', '.bin', 'vitest')
+    const result = runTaskRecordRed({
+      testPath: 'src/foo.test.ts',
+      dir,
+      testCmd: [absoluteVitest, 'run', 'src/foo.test.ts'],
+    })
+    expect(result.ok).toBe(true)
+    expect(mockedRunCli.mock.calls[4]?.[0]).toBe(absoluteVitest)
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_command).toEqual(['node_modules/.bin/vitest', 'run', 'src/foo.test.ts'])
+    expect(JSON.stringify(ev)).not.toContain(dir)
+  })
+
   it('clamps the timeout into [1000, 600000] and forwards it to runCli (#1951)', () => {
     const dir = tmpRepo()
     mockBranch()
