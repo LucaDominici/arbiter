@@ -42,48 +42,10 @@ function scanTripleQuote(line, index, state) {
 
 function scanQuote(line, index, state) {
   const char = line[index]
-  if (state.rawQuote) {
-    if (char === '`') {
-      state.quote = null
-      state.rawQuote = false
-    }
-    return index + 1
-  }
   if (state.escaped) state.escaped = false
   else if (char === '\\') state.escaped = true
   else if (char === state.quote) state.quote = null
   return index + 1
-}
-
-function isRegexStart(line, index) {
-  let previous = index - 1
-  while (previous >= 0 && /\s/.test(line[previous])) previous--
-  if (previous < 0) return true
-  if ('([{,:;=!?&|+-*%^~<>'.includes(line[previous])) return true
-  const prefix = line.slice(0, previous + 1)
-  return /(?:^|\s)(?:return|throw|case|delete|void|typeof|instanceof|in|of|yield|await|else|do|new)\s*$/.test(
-    prefix,
-  )
-}
-
-function scanRegex(line, index) {
-  let inClass = false
-  let escaped = false
-  for (let cursor = index + 1; cursor < line.length; cursor++) {
-    const char = line[cursor]
-    if (escaped) {
-      escaped = false
-      continue
-    }
-    if (char === '\\') {
-      escaped = true
-      continue
-    }
-    if (char === '[') inClass = true
-    else if (char === ']') inClass = false
-    else if (char === '/' && !inClass) return { found: false, next: cursor + 1 }
-  }
-  return { found: false, next: line.length }
 }
 
 function scanSlashComment(line, index, state) {
@@ -98,7 +60,7 @@ function scanSlashComment(line, index, state) {
   return { found: ORPHAN_TODO_AT_COMMENT_START.test(line.slice(index)), next: end + 2 }
 }
 
-function scanQuoteStart(line, index, state, tripleQuotes, rawBackticks) {
+function scanQuoteStart(line, index, state, tripleQuotes) {
   const char = line[index]
   const triple = line.slice(index, index + 3)
   if (tripleQuotes && (triple === "'''" || triple === '\"\"\"')) {
@@ -108,14 +70,13 @@ function scanQuoteStart(line, index, state, tripleQuotes, rawBackticks) {
   if (char === "'" || char === '"' || char === '`') {
     state.quote = char
     state.escaped = false
-    state.rawQuote = char === '`' && rawBackticks
     return { found: false, next: index + 1 }
   }
   return null
 }
 
-function scanCode(line, index, state, hashComments, tripleQuotes, rawBackticks) {
-  const quote = scanQuoteStart(line, index, state, tripleQuotes, rawBackticks)
+function scanCode(line, index, state, hashComments, tripleQuotes) {
+  const quote = scanQuoteStart(line, index, state, tripleQuotes)
   if (quote !== null) return quote
   if (hashComments && line[index] === '#') {
     return { found: ORPHAN_TODO_AT_COMMENT_START.test(line.slice(index)), next: line.length }
@@ -127,13 +88,10 @@ function scanCode(line, index, state, hashComments, tripleQuotes, rawBackticks) 
   ) {
     return scanSlashComment(line, index, state)
   }
-  if (!hashComments && line[index] === '/' && isRegexStart(line, index)) {
-    return scanRegex(line, index)
-  }
   return { found: false, next: index + 1 }
 }
 
-function scanLine(line, state, hashComments, tripleQuotes, rawBackticks) {
+function scanLine(line, state, hashComments, tripleQuotes) {
   let found = false
   for (let index = 0; index < line.length;) {
     let step
@@ -144,7 +102,7 @@ function scanLine(line, state, hashComments, tripleQuotes, rawBackticks) {
     } else if (state.quote !== null) {
       index = scanQuote(line, index, state)
       continue
-    } else step = scanCode(line, index, state, hashComments, tripleQuotes, rawBackticks)
+    } else step = scanCode(line, index, state, hashComments, tripleQuotes)
     if (step.found) found = true
     index = step.next
   }
@@ -176,23 +134,15 @@ export function findOrphanTodos(content, extension = '.ts') {
   const normalizedExtension = extension.toLowerCase()
   const hashComments = normalizedExtension === '.py'
   const tripleQuotes = ['.py', '.java', '.kt'].includes(normalizedExtension)
-  const rawBackticks = normalizedExtension === '.go'
-  const state = {
-    blockComment: false,
-    quote: null,
-    tripleQuote: null,
-    escaped: false,
-    rawQuote: false,
-  }
+  const state = { blockComment: false, quote: null, tripleQuote: null, escaped: false }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    if (state.quote !== '`' && !state.escaped) {
+    if (state.quote !== '`') {
       state.quote = null
       state.escaped = false
-      state.rawQuote = false
     }
-    if (scanLine(line, state, hashComments, tripleQuotes, rawBackticks)) {
+    if (scanLine(line, state, hashComments, tripleQuotes)) {
       hits.push({ line: i + 1, text: line.trim() })
     }
   }

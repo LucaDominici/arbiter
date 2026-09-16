@@ -59,9 +59,13 @@ describe('check-no-orphan-todo.mjs (orphan TODO enforcement)', () => {
     expect(findOrphanTodos(source, '.ts')).toHaveLength(1)
   })
 
-  it('does not mistake division for a JavaScript regex literal', () => {
-    const source = `const ratio = total / divisor; const label = \`value\`;\n// ${MARKER}: fix`
-    expect(findOrphanTodos(source, '.ts')).toHaveLength(1)
+  it.each([
+    ['identifier division', `const ratio = total / divisor; // ${MARKER}: fix`, '.ts'],
+    ['postfix increment division', `const ratio = i++ / divisor; // ${MARKER}: fix`, '.ts'],
+    ['postfix decrement division', `const ratio = i-- / divisor; // ${MARKER}: fix`, '.ts'],
+    ['Java postfix division', `int ratio = i++ / divisor; // ${MARKER}: fix`, '.java'],
+  ])('does not mistake %s for a regex literal', (_name, source, extension) => {
+    expect(findOrphanTodos(source, extension)).toEqual([{ line: 1, text: source }])
   })
 
   it('keeps a JavaScript backslash-newline continuation inside its string', () => {

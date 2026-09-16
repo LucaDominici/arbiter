@@ -66,6 +66,37 @@ describe('#2663 check-no-orphan-todo.mjs.ejs is language-aware', () => {
     expect(gate.status).toBe(0)
   })
 
+  it('the emitted TypeScript gate preserves regex, continuation, and division state', () => {
+    renderGateInto(dir, 'typescript')
+    mkdirSync(join(dir, 'src'), { recursive: true })
+    const marker = 'TO' + 'DO'
+    const source = [
+      'const pattern = /`/;',
+      'const text = "continued' + '\\',
+      `// ${marker}: string content";`,
+      `const ratio = i++ / divisor; // ${marker}: division`,
+      `// ${marker}: later`,
+    ].join('\n')
+    writeFileSync(join(dir, 'src', 'state.ts'), source)
+    const gate = runGate(dir)
+    expect(gate.status).toBe(1)
+    expect(gate.stdout).toContain(`${marker}: division`)
+    expect(gate.stdout).toContain(`${marker}: later`)
+    expect(gate.stdout).not.toContain(`${marker}: string content`)
+  })
+
+  it('the emitted Go gate treats backslashes literally inside raw strings', () => {
+    renderGateInto(dir, 'go')
+    const marker = 'TO' + 'DO'
+    const source = ['var value = `path' + '\\' + '`', `// ${marker}: later`, 'package main'].join(
+      '\n',
+    )
+    writeFileSync(join(dir, 'main.go'), source)
+    const gate = runGate(dir)
+    expect(gate.status).toBe(1)
+    expect(gate.stdout).toContain(`${marker}: later`)
+  })
+
   it('a language with zero matching source files still ABORTs (CANON-24, unchanged)', () => {
     renderGateInto(dir, 'go')
     // No .go files at all under any of the gate's scan roots.
