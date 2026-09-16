@@ -317,6 +317,54 @@ describe('check-feature-matrix.mjs --check', () => {
   })
 })
 
+describe('check-feature-matrix.mjs --product-report (#2414)', () => {
+  const productMatrix = makeMatrix([
+    `| REQ-001 | Bootstrap | ${ALL_DIMS} | L2 | Missing | | | | #1 | |`,
+    `| REQ-002 | Delivery | N01 | L2 | Missing | | | | #2 | |`,
+  ])
+
+  it('accepts a complete report with an exact subject, fixed denominator and honest coverage', () => {
+    const report = readFileSync(resolve('__tests__/fixtures/product-audit/clean.md'), 'utf-8')
+    const result = run(['--product-report', 'product-audit.md'], productMatrix, {
+      'product-audit.md': report,
+    })
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('product-complete report OK')
+  })
+
+  it('rejects a report that invents a capability, omits cells, lies about behavior, and miscounts entrypoints', () => {
+    const report = readFileSync(resolve('__tests__/fixtures/product-audit/bad.md'), 'utf-8')
+    const result = run(['--product-report', 'product-audit.md'], productMatrix, {
+      'product-audit.md': report,
+    })
+
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('subject_sha')
+    expect(result.stdout).toContain('entrypoint_denominator')
+    expect(result.stdout).toContain('unknown capability REQ-999')
+    expect(result.stdout).toContain('config is required')
+    expect(result.stdout).toContain('proof is required')
+    expect(result.stdout).toContain('behavior_verdict PASS')
+  })
+
+  it('keeps the four product gaps distinct instead of collapsing them into one green score', () => {
+    const matrix = makeMatrix([
+      `| REQ-001 | Docs | ${ALL_DIMS} | L2 | Missing | | | | #1 | |`,
+      `| REQ-002 | Emission | N01 | L2 | Missing | | | | #2 | |`,
+      `| REQ-003 | Behavior | N02 | L2 | Missing | | | | #3 | |`,
+      `| REQ-004 | Attestation | N03 | L2 | Missing | | | | #4 | |`,
+    ])
+    const report = readFileSync(resolve('__tests__/fixtures/product-audit/four-gap.md'), 'utf-8')
+    const result = run(['--product-report', 'four-gap.md'], matrix, {
+      'four-gap.md': report,
+    })
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('4 coverage row(s)')
+  })
+})
+
 describe('KIT catalog error handling (#1196)', () => {
   const MINIMAL_MATRIX = makeMatrix([
     `| REQ-001 | Architecture | N01 | L2 | Partial | src/foo.ts | | | | |`,

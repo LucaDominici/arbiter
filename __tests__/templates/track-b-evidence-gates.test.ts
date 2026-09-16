@@ -163,6 +163,27 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
     )
   }
 
+  const writeProductReport = (coverage: string, behaviorVerdict: string): void => {
+    writeFileSync(
+      join(dir, 'product-audit.md'),
+      [
+        '<!-- PRODUCT_AUDIT',
+        'scope: product-complete',
+        `subject_sha: ${'a'.repeat(40)}`,
+        'entrypoint_denominator: 1',
+        'readiness_verdict: FAIL',
+        'docs_verdict: FAIL',
+        `behavior_verdict: ${behaviorVerdict}`,
+        '-->',
+        '<!-- PRODUCT_COVERAGE_START -->',
+        '| capability_id | classification | entrypoints | owner | config | proof | external_overlap | coverage | verdict |',
+        '|---|---|---|---|---|---|---|---|---|',
+        `| REQ-001 | SUPPORTED | arbiter init | src/a.ts | config:init | test:a | native runtime | ${coverage} | PASS |`,
+        '<!-- PRODUCT_COVERAGE_END -->',
+      ].join('\n'),
+    )
+  }
+
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-trackb-'))
     git(['init', '--quiet'])
@@ -250,6 +271,22 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
   })
 
   describe('check-feature-matrix.mjs axis 2 (INV-112)', () => {
+    it('executes the product-complete contract in an emitted project', () => {
+      writeMatrix('Partial')
+      writeProductReport('VERIFIED', 'PASS')
+      const r = run('check-feature-matrix.mjs', ['--product-report', 'product-audit.md'])
+      expect(r.status).toBe(0)
+      expect(r.out).toMatch(/product-complete report OK/)
+    })
+
+    it('rejects a false behavior green in an emitted project', () => {
+      writeMatrix('Partial')
+      writeProductReport('SOURCE_TRACED', 'PASS')
+      const r = run('check-feature-matrix.mjs', ['--product-report', 'product-audit.md'])
+      expect(r.status).toBe(1)
+      expect(r.out).toMatch(/behavior_verdict PASS/)
+    })
+
     it('refuses a Verified row with no verification envelope — status is not evidence', () => {
       writeMatrix('Verified')
       const r = run('check-feature-matrix.mjs')
