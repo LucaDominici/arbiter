@@ -84,3 +84,37 @@ Run scopes in parallel when possible.
 
 - Read-only. No edits during audit.
 - Do not fix issues inline — create task briefs for fixes.
+
+## Product-complete mode
+
+When the requested scope is `product-complete`, code-quality lanes are only inputs. Freeze the
+subject SHA, inventory every in-scope public/emitted entrypoint, then add this metadata and marked
+table to the report:
+
+```markdown
+<!-- PRODUCT_AUDIT
+scope: product-complete
+subject_sha: <40-char SHA>
+entrypoint_denominator: <count derived from rows>
+readiness_verdict: PASS|FAIL|NO_DATA|N/A
+docs_verdict: PASS|FAIL|NO_DATA|N/A
+behavior_verdict: PASS|FAIL|NO_DATA|N/A
+-->
+<!-- PRODUCT_COVERAGE_START -->
+
+| capability_id | classification | entrypoints | owner | config | proof | external_overlap | coverage | verdict |
+| ------------- | -------------- | ----------- | ----- | ------ | ----- | ---------------- | -------- | ------- |
+
+<!-- PRODUCT_COVERAGE_END -->
+```
+
+Use FEATURE_MATRIX IDs for `SUPPORTED` rows; use capability `N/A` only for `INTERNAL` or `RETIRED`.
+Coverage is `VERIFIED`, `SOURCE_TRACED`, `SAMPLED`, `NEEDS_REVALIDATION`, `UNCOVERED`, or `N/A`.
+Validate the completed report with:
+
+```bash
+node scripts/check-feature-matrix.mjs --product-report <report.md>
+```
+
+Counts come from rows. Presence, markers, authored transcripts, and historical evidence cannot
+produce a behavior `PASS`.
