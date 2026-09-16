@@ -1686,6 +1686,43 @@ check
     process.exit(result.exitCode)
   })
 
+type UpgradeLevelCliOptions = {
+  target?: string
+  extend: boolean
+  days?: string
+  dir?: string
+  interactive: boolean
+  json: boolean
+}
+
+function resolveUpgradeLevelOptions(
+  opts: UpgradeLevelCliOptions,
+): import('./commands/upgrade-level.js').UpgradeLevelOptions {
+  const resolved: import('./commands/upgrade-level.js').UpgradeLevelOptions = {
+    extend: opts.extend,
+    json: opts.json,
+  }
+  if (opts.target) {
+    if (opts.target !== 'L2' && opts.target !== 'L3') {
+      printCliError(`invalid --target "${opts.target}". Valid values: L2, L3.`)
+      getLogger().error('invalid_target', { value: opts.target })
+      process.exit(1)
+    }
+    resolved.target = opts.target
+  }
+  if (opts.days !== undefined) {
+    const parsedDays = Number.parseInt(opts.days, 10)
+    if (!Number.isInteger(parsedDays) || parsedDays < 1) {
+      printCliError(`invalid --days "${opts.days}". Must be a positive integer (>= 1).`)
+      getLogger().error('invalid_days', { value: opts.days })
+      process.exit(1)
+    }
+    resolved.days = parsedDays
+  }
+  if (opts.dir !== undefined) resolved.dir = opts.dir
+  return resolved
+}
+
 configure
   .command('level')
   .description('Upgrade governance level with a grace period for new gates')
@@ -1697,55 +1734,24 @@ configure
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--interactive', 'Guided level selection on a TTY (#1168)', false)
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    (opts: {
-      target?: string
-      extend: boolean
-      days?: string
-      dir?: string
-      interactive: boolean
-      json: boolean
-    }) => {
-      if (opts.interactive && !opts.json && process.stdin.isTTY) {
-        void import('./commands/upgrade-level-interactive.js')
-          .then(({ runInteractiveUpgradeLevel }) =>
-            runInteractiveUpgradeLevel({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }),
-          )
-          .catch((err: unknown) => {
-            process.stderr.write(`  Error: ${err instanceof Error ? err.message : String(err)}\n`)
-            process.exit(1)
-          })
-        return
-      }
-      const upgradeOpts: import('./commands/upgrade-level.js').UpgradeLevelOptions = {
-        extend: opts.extend,
-        json: opts.json,
-      }
-      if (opts.target) {
-        if (opts.target !== 'L2' && opts.target !== 'L3') {
-          printCliError(`invalid --target "${opts.target}". Valid values: L2, L3.`)
-          getLogger().error('invalid_target', { value: opts.target ?? null })
+  .action((opts: UpgradeLevelCliOptions) => {
+    if (opts.interactive && !opts.json && process.stdin.isTTY) {
+      void import('./commands/upgrade-level-interactive.js')
+        .then(({ runInteractiveUpgradeLevel }) =>
+          runInteractiveUpgradeLevel({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }),
+        )
+        .catch((err: unknown) => {
+          process.stderr.write(`  Error: ${err instanceof Error ? err.message : String(err)}\n`)
           process.exit(1)
-        }
-        upgradeOpts.target = opts.target
-      }
-      if (opts.days !== undefined) {
-        const parsedDays = Number.parseInt(opts.days, 10)
-        if (!Number.isInteger(parsedDays) || parsedDays < 1) {
-          printCliError(`invalid --days "${opts.days}". Must be a positive integer (>= 1).`)
-          getLogger().error('invalid_days', { value: opts.days })
-          process.exit(1)
-        }
-        upgradeOpts.days = parsedDays
-      }
-      if (opts.dir !== undefined) upgradeOpts.dir = opts.dir
-      runUpgradeLevel(upgradeOpts).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err)
-        process.stderr.write(`  Error: ${msg}\n`)
-        process.exit(1)
-      })
-    },
-  )
+        })
+      return
+    }
+    runUpgradeLevel(resolveUpgradeLevelOptions(opts)).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    })
+  })
 
 function runDoctorHealthAction(
   _opts: {

@@ -60,6 +60,7 @@ const RETIRED_MANAGED_PATHS = new Set([
   '.claude/commands/wt-prune.md',
   '.claude/commands/close-gold-gap.md',
   '.claude/commands/levelup.md',
+  ...Object.keys(RETIRED_RENDERS),
 ])
 
 /**
@@ -111,7 +112,7 @@ export function planRetirement(opts: {
     if (visited.has(key)) continue
     const onDisk = opts.diskHash(key)
     if (onDisk === null) continue
-    const explicitlyRetired = RETIRED_MANAGED_PATHS.has(key) || Object.hasOwn(RETIRED_RENDERS, key)
+    const explicitlyRetired = RETIRED_MANAGED_PATHS.has(key)
     if (!isSafetyClassKey(key) && !explicitlyRetired) plan.stale.push(key)
     else if (onDisk === opts.prevManifest[key] || (RETIRED_RENDERS[key] ?? []).includes(onDisk))
       plan.retire.push(key)
