@@ -126,7 +126,7 @@ describe('generateAgentsMd', () => {
       pluginOwner: 'superpowers',
       version: '5.0.0',
       sourcePath: '/some/SKILL.md',
-      role: 'TDD enforcement',
+      role: 'Project-specific TDD role',
     }
     const skipReport = [
       {
@@ -139,7 +139,7 @@ describe('generateAgentsMd', () => {
     const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
     expect(content).toContain('## Integrations')
     expect(content).toContain('superpowers:test-driven-development')
-    expect(content).toContain('TDD enforcement')
+    expect(content).toContain('Project-specific TDD role')
     expect(content).toContain('`tdd`')
     expect(content).toContain('do not regenerate the listed files')
   })

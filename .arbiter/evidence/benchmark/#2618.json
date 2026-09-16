@@ -1,0 +1,57 @@
+{
+  "schema": "arbiter-context-economy-experiment-v1",
+  "taskId": "#2618",
+  "recordedAt": "2026-09-16T12:49:56Z",
+  "owner": "/root",
+  "scope": "One read-only paired render on the same real consumer inputs; byte and line reduction only",
+  "protocol": {
+    "consumer": "coach-system",
+    "baseSha": "80b5c544f9ef1e4fabf3202407786e24bc553e2b",
+    "baseTree": "992a811bc236755ca2f294eac0f1785cb4bf4ec0",
+    "candidateSha": "83b526bef581969bb213fc1a54fc2bcd12a0de64",
+    "candidateTree": "280bb46d6a6500db86ec9000775b8a41d9707787",
+    "method": "Build base and candidate, resolve the same consumer config once, detect the same installed skills once, then render AGENTS.md with each renderAgentsMd implementation without writing the consumer",
+    "detectedSkills": 1014,
+    "installedSkillsAfterOwnExclusion": 1000,
+    "qualifiedReplacements": 0
+  },
+  "materializedConsumer": {
+    "sha256": "215a1d66dd5221c7c14f7122ef49feb06785bea046c6dadb194a131d2da9b81b",
+    "bytes": 89959,
+    "lines": 1240,
+    "integrationBytes": 77699,
+    "integrationLines": 953,
+    "integrationRows": 941
+  },
+  "control": {
+    "sha256": "2a1305d32df9ce61c547b27725353aa173ef51beba399d8079d5b69694fd3bfa",
+    "bytes": 97000,
+    "lines": 1376,
+    "integrationBytes": 80341,
+    "integrationLines": 1012,
+    "integrationRows": 1000
+  },
+  "candidate": {
+    "sha256": "2cf12704dc3928c2b907f5c8903f3a105e2a19191b34cc4163a0fbacd7582c2a",
+    "bytes": 18044,
+    "lines": 386,
+    "integrationBytes": 1385,
+    "integrationLines": 22,
+    "integrationRows": 9
+  },
+  "isolatedReduction": {
+    "bytes": 78956,
+    "lines": 990,
+    "integrationBytes": 78956,
+    "integrationLines": 990,
+    "integrationRows": 991,
+    "percentBytes": 81.4
+  },
+  "limitations": [
+    "One consumer and one installed-skill snapshot; this is not a portfolio distribution.",
+    "Bytes and lines are measured. Model tokens, latency, delivery speed and quality uplift are not measured.",
+    "The consumer's stored tools list required the existing safe config coercion from four entries to claude and codex during both renders.",
+    "The materialized consumer differs from the base render because of pre-existing template and environment drift; only the paired base-versus-candidate comparison attributes reduction to #2618.",
+    "No consumer file was modified. Temporary rendered outputs are identified by digest rather than committed as a second authority."
+  ]
+}

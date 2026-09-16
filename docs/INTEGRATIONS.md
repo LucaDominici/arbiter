@@ -63,17 +63,19 @@ Example (generated `AGENTS.md` fragment):
 
 ## How to add a new skill to the matrix
 
-1. Open `src/integrations/skills-matrix.ts`.
-2. Add an entry to the `UPSTREAM_SKILLS` array:
+1. Open `src/compatibility/skills-matrix.json`.
+2. Add an entry to its `skills` array:
 
-```typescript
+```json
 {
-  id: 'my-plugin:my-skill',
-  owner: 'npm-org-or-github-org',
-  role: 'short-role-description',
-  installCmd: '/plugin add my-org/my-plugin  # or: npm i my-plugin',
-  installSource: 'plugin',  // 'builtin' | 'plugin' | 'npm'
-},
+  "skillId": "my-plugin:my-skill",
+  "pluginOwner": "my-plugin",
+  "versionRange": ">=1.0.0",
+  "role": "short role description",
+  "integrationStatus": "beta",
+  "replaces": [],
+  "referenceUrl": "https://example.com/my-plugin"
+}
 ```
 
 3. Add detection logic if the skill uses a non-standard path (default: walks `~/.claude/skills/<skill-basename>`).

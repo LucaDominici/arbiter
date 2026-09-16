@@ -9,7 +9,8 @@
       "docs/INTEGRATIONS.md",
       ".claude/plans/task-2618-context-economy.md",
       ".agents/plan/PLAN.json",
-      ".arbiter/evidence/tdd/#2618.json"
+      ".arbiter/evidence/tdd/#2618.json",
+      ".arbiter/evidence/benchmark/#2618.json"
     ]
   },
   "files": [
@@ -19,7 +20,8 @@
     { "path": "docs/INTEGRATIONS.md", "operation": "modify" },
     { "path": ".claude/plans/task-2618-context-economy.md", "operation": "create" },
     { "path": ".agents/plan/PLAN.json", "operation": "modify" },
-    { "path": ".arbiter/evidence/tdd/#2618.json", "operation": "create" }
+    { "path": ".arbiter/evidence/tdd/#2618.json", "operation": "create" },
+    { "path": ".arbiter/evidence/benchmark/#2618.json", "operation": "create" }
   ],
   "invariants": {
     "ui_language": "EN",
