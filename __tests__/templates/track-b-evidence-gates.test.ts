@@ -178,7 +178,7 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
         '<!-- PRODUCT_COVERAGE_START -->',
         '| capability_id | classification | entrypoints | owner | config | proof | external_overlap | coverage | verdict |',
         '|---|---|---|---|---|---|---|---|---|',
-        `| REQ-001 | SUPPORTED | arbiter init | src/a.ts | config:init | test:a | native runtime | ${coverage} | PASS |`,
+        `| REQ-001 | SUPPORTED | arbiter init | src/a.ts | config:init | .arbiter/evidence/rtm/REQ-001.json | native runtime | ${coverage} | PASS |`,
         '<!-- PRODUCT_COVERAGE_END -->',
       ].join('\n'),
     )
@@ -273,10 +273,20 @@ describe('Track-B evidence gates run where they are emitted (#2480)', () => {
   describe('check-feature-matrix.mjs axis 2 (INV-112)', () => {
     it('executes the product-complete contract in an emitted project', () => {
       writeMatrix('Partial')
+      writeEnvelope({ subject_sha: 'a'.repeat(40) })
       writeProductReport('VERIFIED', 'PASS')
       const r = run('check-feature-matrix.mjs', ['--product-report', 'product-audit.md'])
       expect(r.status).toBe(0)
       expect(r.out).toMatch(/product-complete report OK/)
+    })
+
+    it('rejects a product green whose proof is not bound to the frozen subject', () => {
+      writeMatrix('Partial')
+      writeEnvelope()
+      writeProductReport('VERIFIED', 'PASS')
+      const r = run('check-feature-matrix.mjs', ['--product-report', 'product-audit.md'])
+      expect(r.status).toBe(1)
+      expect(r.out).toMatch(/subject_sha/)
     })
 
     it('rejects a false behavior green in an emitted project', () => {

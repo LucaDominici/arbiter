@@ -327,6 +327,15 @@ describe('check-feature-matrix.mjs --product-report (#2414)', () => {
     const report = readFileSync(resolve('__tests__/fixtures/product-audit/clean.md'), 'utf-8')
     const result = run(['--product-report', 'product-audit.md'], productMatrix, {
       'product-audit.md': report,
+      '.arbiter/evidence/rtm/REQ-001.json': JSON.stringify({
+        feature_id: 'REQ-001',
+        verdict: 'PROVEN',
+        justification: 'The product journey passed against the frozen audit subject.',
+        command: 'npm test -- product-journey',
+        transcript_digest: 'a'.repeat(64),
+        subject_sha: 'a'.repeat(40),
+        recorded_at: '2026-09-16T00:00:00Z',
+      }),
     })
 
     expect(result.status).toBe(0)
@@ -346,6 +355,31 @@ describe('check-feature-matrix.mjs --product-report (#2414)', () => {
     expect(result.stdout).toContain('config is required')
     expect(result.stdout).toContain('proof is required')
     expect(result.stdout).toContain('behavior_verdict PASS')
+  })
+
+  it('rejects a self-counted report that omits a capability and calls prose proof', () => {
+    const report = [
+      '<!-- PRODUCT_AUDIT',
+      'scope: product-complete',
+      `subject_sha: ${'a'.repeat(40)}`,
+      'entrypoint_denominator: 1',
+      'readiness_verdict: PASS',
+      'docs_verdict: PASS',
+      'behavior_verdict: PASS',
+      '-->',
+      '<!-- PRODUCT_COVERAGE_START -->',
+      '| capability_id | classification | entrypoints | owner | config | proof | external_overlap | coverage | verdict |',
+      '|---|---|---|---|---|---|---|---|---|',
+      '| REQ-001 | SUPPORTED | arbiter init | src/init.ts | config:init | authored transcript | native runtime | VERIFIED | PASS |',
+      '<!-- PRODUCT_COVERAGE_END -->',
+    ].join('\n')
+    const result = run(['--product-report', 'product-audit.md'], productMatrix, {
+      'product-audit.md': report,
+    })
+
+    expect(result.status).toBe(1)
+    expect(result.stdout).toContain('missing capability REQ-002')
+    expect(result.stdout).toContain('.arbiter/evidence/rtm/REQ-001.json')
   })
 
   it('keeps the four product gaps distinct instead of collapsing them into one green score', () => {

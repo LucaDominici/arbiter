@@ -43,6 +43,12 @@ const GLOB_BASELINE_PATH = resolve(ROOT, 'scripts', 'data', 'feature-matrix-glob
 const AGENTS_MD_PATH = resolve(ROOT, 'AGENTS.md')
 const ADR_README_PATH = resolve(ROOT, 'docs', 'internal', 'ADR', 'README.md')
 const PRD_PATH = resolve(ROOT, 'docs', 'PRODUCT', 'PRD.md')
+const RTM_SCHEMA_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'schemas',
+  'rtm-verdict.schema.json',
+)
 
 // ─── Sentinel markers ────────────────────────────────────────────────────────
 const START_MARKER = '<!-- FEATURE_MATRIX_START -->'
@@ -112,7 +118,7 @@ const RESULT_VERDICTS = new Set(['PASS', 'FAIL', 'NO_DATA', 'N/A'])
 const ENTRYPOINT_CLASSIFICATIONS = new Set(['SUPPORTED', 'INTERNAL', 'RETIRED'])
 
 /** Validate the opt-in product-complete projection against FEATURE_MATRIX capability IDs. */
-function checkProductReport(reportText, matrixRows) {
+function checkProductReport(reportText, matrixRows, projectRoot, schema) {
   const failures = []
   const metadataBlock = /<!--\s*PRODUCT_AUDIT\s*\n([\s\S]*?)-->/m.exec(reportText)?.[1]
   const metadata = {}
@@ -171,6 +177,7 @@ function checkProductReport(reportText, matrixRows) {
   }
 
   const knownCapabilities = new Set(matrixRows.map((row) => row.featureId))
+  const coveredCapabilities = new Set()
   const entrypoints = new Set()
   const rows = []
   for (const line of tableLines.slice(2)) {
@@ -198,6 +205,17 @@ function checkProductReport(reportText, matrixRows) {
     }
     if (classification === 'SUPPORTED' && !knownCapabilities.has(capabilityId)) {
       failures.push(`unknown capability ${capabilityId || '(blank)'}`)
+    }
+    if (classification === 'SUPPORTED') {
+      if (coveredCapabilities.has(capabilityId)) {
+        failures.push(`capability mapped more than once: ${capabilityId}`)
+      }
+      coveredCapabilities.add(capabilityId)
+      if (coverage === 'VERIFIED') {
+        failures.push(
+          ...checkProductProof(capabilityId, proof, metadata.subject_sha, projectRoot, schema),
+        )
+      }
     }
     if ((classification === 'INTERNAL' || classification === 'RETIRED') && capabilityId !== 'N/A') {
       failures.push(`${classification} entrypoints must use capability_id N/A`)
@@ -227,6 +245,11 @@ function checkProductReport(reportText, matrixRows) {
     }
   }
   if (rows.length === 0) failures.push('product coverage table requires at least one data row')
+  for (const capabilityId of knownCapabilities) {
+    if (!coveredCapabilities.has(capabilityId)) {
+      failures.push(`product-complete report is missing capability ${capabilityId}`)
+    }
+  }
 
   const declaredDenominator = Number(metadata.entrypoint_denominator)
   if (!Number.isSafeInteger(declaredDenominator) || declaredDenominator < 0) {
@@ -426,6 +449,26 @@ export function checkRtmEnvelope(row, projectRoot, schema) {
     ],
     missing: false,
   }
+}
+
+function checkProductProof(capabilityId, proof, subjectSha, projectRoot, schema) {
+  const expected = `.arbiter/evidence/rtm/${capabilityId}.json`
+  if (proof !== expected) {
+    return [`${capabilityId}: VERIFIED proof must be ${expected}`]
+  }
+  if (!schema) return [`${capabilityId}: VERIFIED proof cannot be checked without the RTM schema`]
+  const result = checkRtmEnvelope({ featureId: capabilityId }, projectRoot, schema)
+  if (result.missing) return [`${capabilityId}: VERIFIED proof is missing at ${expected}`]
+  const failures = [...result.failures]
+  if (failures.length === 0) {
+    const envelope = JSON.parse(readFileSync(resolve(projectRoot, expected), 'utf-8'))
+    if (envelope.subject_sha !== subjectSha) {
+      failures.push(
+        `${capabilityId}: verification envelope subject_sha must equal product audit subject_sha ${subjectSha}`,
+      )
+    }
+  }
+  return failures
 }
 
 /** The envelope must be ABOUT this row, and must record the one verdict that admits `Verified`. */
@@ -888,7 +931,12 @@ if (_productReportIdx >= 0) {
     process.exit(2)
   }
   try {
-    productReportResult = checkProductReport(readFileSync(reportPath, 'utf-8'), rows)
+    productReportResult = checkProductReport(
+      readFileSync(reportPath, 'utf-8'),
+      rows,
+      ROOT,
+      existsSync(RTM_SCHEMA_PATH) ? loadSchema(RTM_SCHEMA_PATH) : null,
+    )
     failures.push(...productReportResult.failures)
   } catch (err) {
     process.stdout.write(
@@ -1048,14 +1096,8 @@ checkTestRefGlobBan(rows, globBaseline, failures)
 // ERROR, never a silent skip — a rule that quietly stops applying is the failure this gate exists
 // to prevent.
 {
-  const schemaPath = resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    '..',
-    'schemas',
-    'rtm-verdict.schema.json',
-  )
-  if (existsSync(schemaPath)) {
-    failures.push(...checkRtmEnvelopes(rows, ROOT, loadSchema(schemaPath)))
+  if (existsSync(RTM_SCHEMA_PATH)) {
+    failures.push(...checkRtmEnvelopes(rows, ROOT, loadSchema(RTM_SCHEMA_PATH)))
   } else if (rows.some((row) => row.status === 'Verified')) {
     failures.push(
       'RTM axis 2: schemas/rtm-verdict.schema.json is missing, so no Verified row can be ' +

@@ -53,6 +53,12 @@ const GLOB_BASELINE_PATH = resolve(ROOT, '.feature-matrix-glob-baseline.json')
 const AGENTS_MD_PATH = resolve(ROOT, 'AGENTS.md')
 const ADR_DIR_PATH = resolve(ROOT, 'docs', 'adr')
 const PRD_PATH = resolve(ROOT, 'docs', 'PRD.md')
+const RTM_SCHEMA_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'schemas',
+  'rtm-verdict.schema.json',
+)
 
 // ─── Sentinel markers ────────────────────────────────────────────────────────
 const START_MARKER = '<!-- FEATURE_MATRIX_START -->'
@@ -115,7 +121,7 @@ const RESULT_VERDICTS = new Set(['PASS', 'FAIL', 'NO_DATA', 'N/A'])
 const ENTRYPOINT_CLASSIFICATIONS = new Set(['SUPPORTED', 'INTERNAL', 'RETIRED'])
 
 /** Validate the opt-in product-complete projection against FEATURE_MATRIX capability IDs. */
-function checkProductReport(reportText, matrixRows) {
+function checkProductReport(reportText, matrixRows, projectRoot, schema, validateSchema) {
   const failures = []
   const metadataBlock = /<!--\s*PRODUCT_AUDIT\s*\n([\s\S]*?)-->/m.exec(reportText)?.[1]
   const metadata = {}
@@ -170,6 +176,7 @@ function checkProductReport(reportText, matrixRows) {
   }
 
   const knownCapabilities = new Set(matrixRows.map((row) => row.featureId))
+  const coveredCapabilities = new Set()
   const entrypoints = new Set()
   const rows = []
   for (const line of tableLines.slice(2)) {
@@ -185,6 +192,24 @@ function checkProductReport(reportText, matrixRows) {
     }
     if (classification === 'SUPPORTED' && !knownCapabilities.has(capabilityId)) {
       failures.push(`unknown capability ${capabilityId || '(blank)'}`)
+    }
+    if (classification === 'SUPPORTED') {
+      if (coveredCapabilities.has(capabilityId)) {
+        failures.push(`capability mapped more than once: ${capabilityId}`)
+      }
+      coveredCapabilities.add(capabilityId)
+      if (coverage === 'VERIFIED') {
+        failures.push(
+          ...checkProductProof(
+            capabilityId,
+            proof,
+            metadata.subject_sha,
+            projectRoot,
+            schema,
+            validateSchema,
+          ),
+        )
+      }
     }
     if ((classification === 'INTERNAL' || classification === 'RETIRED') && capabilityId !== 'N/A') {
       failures.push(`${classification} entrypoints must use capability_id N/A`)
@@ -210,6 +235,11 @@ function checkProductReport(reportText, matrixRows) {
     }
   }
   if (rows.length === 0) failures.push('product coverage table requires at least one data row')
+  for (const capabilityId of knownCapabilities) {
+    if (!coveredCapabilities.has(capabilityId)) {
+      failures.push(`product-complete report is missing capability ${capabilityId}`)
+    }
+  }
 
   const declaredDenominator = Number(metadata.entrypoint_denominator)
   if (!Number.isSafeInteger(declaredDenominator) || declaredDenominator < 0) {
@@ -300,6 +330,33 @@ function checkRtmEnvelope(row, projectRoot, schema, validateSchema) {
     ],
     missing: false,
   }
+}
+
+function checkProductProof(capabilityId, proof, subjectSha, projectRoot, schema, validateSchema) {
+  const expected = `.arbiter/evidence/rtm/${capabilityId}.json`
+  if (proof !== expected) {
+    return [`${capabilityId}: VERIFIED proof must be ${expected}`]
+  }
+  if (!schema || !validateSchema) {
+    return [`${capabilityId}: VERIFIED proof cannot be checked without the RTM schema`]
+  }
+  const result = checkRtmEnvelope(
+    { featureId: capabilityId },
+    projectRoot,
+    schema,
+    validateSchema,
+  )
+  if (result.missing) return [`${capabilityId}: VERIFIED proof is missing at ${expected}`]
+  const failures = [...result.failures]
+  if (failures.length === 0) {
+    const envelope = JSON.parse(readFileSync(resolve(projectRoot, expected), 'utf-8'))
+    if (envelope.subject_sha !== subjectSha) {
+      failures.push(
+        `${capabilityId}: verification envelope subject_sha must equal product audit subject_sha ${subjectSha}`,
+      )
+    }
+  }
+  return failures
 }
 
 /** The envelope must be ABOUT this row, and must record the one verdict that admits `Verified`. */
@@ -805,6 +862,16 @@ if (!CHECK) {
 const effectiveLevel = resolveLevel()
 const failures = []
 let productReportResult = null
+let rtmValidator = null
+if (_productReportIdx >= 0 || rows.some((row) => row.status === 'Verified')) {
+  try {
+    rtmValidator = await import('./lib/agent-return-validate.mjs')
+  } catch {
+    rtmValidator = null
+  }
+}
+const rtmSchema =
+  rtmValidator && existsSync(RTM_SCHEMA_PATH) ? rtmValidator.loadSchema(RTM_SCHEMA_PATH) : null
 
 if (_productReportIdx >= 0) {
   if (!productReportArg || productReportArg.startsWith('--')) {
@@ -821,7 +888,13 @@ if (_productReportIdx >= 0) {
     process.exit(2)
   }
   try {
-    productReportResult = checkProductReport(readFileSync(reportPath, 'utf-8'), rows)
+    productReportResult = checkProductReport(
+      readFileSync(reportPath, 'utf-8'),
+      rows,
+      ROOT,
+      rtmSchema,
+      rtmValidator?.validateSchema,
+    )
     failures.push(...productReportResult.failures)
   } catch (err) {
     process.stdout.write(
@@ -952,27 +1025,19 @@ if (rows.some((row) => row.status === 'Verified')) {
   // a loud FAILURE, never a silent skip: a rule that quietly stops applying is what this gate
   // exists to prevent. Nothing is loaded when no row claims `Verified`, so a project that never
   // uses the rule never pays for it.
-  const here = dirname(fileURLToPath(import.meta.url))
-  const schemaPath = resolve(here, '..', 'schemas', 'rtm-verdict.schema.json')
-  let validator = null
-  try {
-    validator = await import('./lib/agent-return-validate.mjs')
-  } catch {
-    validator = null
-  }
-  if (!existsSync(schemaPath)) {
+  if (!existsSync(RTM_SCHEMA_PATH)) {
     failures.push(
       'RTM axis 2: schemas/rtm-verdict.schema.json is missing, so no Verified row can be ' +
         'adjudicated. Restore it (arbiter update) rather than letting the rule lapse silently.',
     )
-  } else if (!validator) {
+  } else if (!rtmValidator) {
     failures.push(
       'RTM axis 2: scripts/lib/agent-return-validate.mjs is missing, so no Verified row can be ' +
         'adjudicated. Restore it (arbiter update) rather than letting the rule lapse silently.',
     )
   } else {
     failures.push(
-      ...checkRtmEnvelopes(rows, ROOT, validator.loadSchema(schemaPath), validator.validateSchema),
+      ...checkRtmEnvelopes(rows, ROOT, rtmSchema, rtmValidator.validateSchema),
     )
   }
 }

@@ -38,6 +38,11 @@
       "pattern": "^[a-f0-9]{64}$",
       "description": "sha256 of the executed command's output. The digest is not re-verifiable offline by design — its job is to make the claim falsifiable and attributable, not to re-run CI inside a lint gate."
     },
+    "subject_sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$",
+      "description": "Optional exact Git subject. Product-complete VERIFIED rows require it to match the report's frozen subject_sha; ordinary RTM envelopes remain backwards compatible."
+    },
     "citations": {
       "type": "array",
       "description": "Where the proof lives, in axis 1's pinned-span grammar (`path#Lx-Ly@<12 hex>`) so a citation that drifts is reported OUTDATED by the same mechanism rather than a second one.",

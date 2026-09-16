@@ -177,7 +177,9 @@ audit against the existing FEATURE_MATRIX capability IDs. The report freezes its
 derives its entrypoint denominator from coverage rows, and keeps readiness, documentation, and
 behavior verdicts separate. A behavior `PASS` requires every row to be both `VERIFIED` and `PASS`;
 source tracing, samples, historical proof, missing evidence, and unavailable attestations remain
-visible states. The same contract is emitted to governed L2+ projects.
+visible states. Every FEATURE_MATRIX capability must appear exactly once, and a `VERIFIED` row must
+name its structured RTM envelope with a `PROVEN` verdict bound to the report's exact subject SHA.
+The same contract is emitted to governed L2+ projects.
 
 **Four traps, all measured:**
 
