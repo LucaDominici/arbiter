@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -276,6 +284,29 @@ describe('record-agent-return evidence modes (#2687)', () => {
       treatmentHash: TREATMENT_HASH,
       taskId: '#42',
     })
+  })
+
+  it('persists the reviewer result and its acceptance fit from one submission', () => {
+    const reviewer = { ...envelope(), agent: 'domain', role: 'reviewer' }
+
+    const result = recordPanel([reviewer])
+
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    expect(
+      JSON.parse(readFileSync(join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'), 'utf8')),
+    ).toMatchObject({ taskId: '#42', branch: 'task/#42-fit', sha: head() })
+  })
+
+  it('rejects an invalid acceptance fit before writing either reviewer artifact', () => {
+    const reviewer = { ...envelope(), agent: 'domain', role: 'reviewer' }
+    reviewer.acceptanceFit.criteria[0].evidence = [{ file: 'missing.ts', line: 999 }]
+
+    const result = recordPanel([reviewer])
+
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/citation|does not resolve/i)
+    expect(existsSync(join(root, '.arbiter', 'agents-dispatched.json'))).toBe(false)
+    expect(existsSync(join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'))).toBe(false)
   })
 
   it('rejects a correctly-sized panel that did not fill the assigned verticals', () => {
