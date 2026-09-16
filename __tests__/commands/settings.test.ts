@@ -78,6 +78,21 @@ describe('settings catalog (#1121)', () => {
     }
   })
 
+  it('keeps controls without a safe generic writer out of configure', () => {
+    for (const path of ['plugins', 'companions', 'conformanceThresholds']) {
+      const field = SETTINGS_CATALOG.flatMap((group) => group.fields).find(
+        (candidate) => candidate.path === path,
+      )
+      expect(field, path).toMatchObject({ classification: 'not-applicable' })
+      expect(field?.applicability({})).toEqual({
+        applicable: false,
+        reason: expect.any(String),
+      })
+      expect(SETTINGS_PATHS.has(path), path).toBe(false)
+      expect(ALLOWED_PATHS.has(path), path).toBe(false)
+    }
+  })
+
   it('classifies every registered environment control without exposing it as persistent', () => {
     const environment = SETTINGS_CATALOG.find((group) => group.group === 'Per-process environment')
     expect(environment?.fields.map((field) => field.path)).toEqual(
@@ -253,6 +268,9 @@ describe('runSettings', () => {
     expect(byPath.get('ship.train.maxChain')).toMatchObject({ effective: 10 })
     expect(byPath.get('ship.train.maxAgeMinutes')).toMatchObject({ effective: 480 })
     expect(byPath.get('ship.review.maxRounds')).toMatchObject({ effective: 2 })
+    expect(byPath.get('automation.maxParallelWorktrees')).toMatchObject({ effective: 3 })
+    expect(byPath.get('runnerProfile')).toMatchObject({ effective: 'fleet' })
+    expect(byPath.get('crossModelReview.enabled')).toMatchObject({ effective: false })
   })
 
   it('does not report an invalid environment value as effective', () => {
@@ -274,6 +292,31 @@ describe('runSettings', () => {
       .flatMap((group) => group.fields)
       .find((field) => field['path'] === 'ARBITER_LOG_LEVEL')
     expect(level).toMatchObject({ declared: 'verbose', effective: 'info', source: 'default' })
+  })
+
+  it('does not report rejected prefix overrides as effective', () => {
+    process.env['ARBITER_THRESHOLD__LINE_COVERAGE'] = '999'
+    process.env['ARBITER_FEATURE__NO_SKIPPED_TESTS'] = 'false'
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try {
+      runSettings({ dir: projectWith({}), json: true })
+    } finally {
+      delete process.env['ARBITER_THRESHOLD__LINE_COVERAGE']
+      delete process.env['ARBITER_FEATURE__NO_SKIPPED_TESTS']
+    }
+    const parsed = JSON.parse(out.join('')) as {
+      data: { groups: Array<{ fields: Array<Record<string, unknown>> }> }
+    }
+    const byPath = new Map(
+      parsed.data.groups.flatMap((group) => group.fields).map((field) => [field['path'], field]),
+    )
+    expect(byPath.get('ARBITER_THRESHOLD__')).toMatchObject({ effective: null, source: 'default' })
+    expect(byPath.get('ARBITER_FEATURE__')).toMatchObject({ effective: null, source: 'default' })
   })
 
   // #1261/#2039: absence is an explained effective default, never an unexplained unset.

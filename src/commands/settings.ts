@@ -10,13 +10,15 @@ import { loadConfig } from '../utils/config.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { readUnifiedState } from './task-state.js'
 import { parseValue } from './configure.js'
-import { envOverrideKeyForPath } from '../config/env-overrides.js'
+import { envOverrideKeyForPath, screamingSnakeToCamel } from '../config/env-overrides.js'
 import { ARBITER_ENV_FLAGS } from '../config/env-registry.js'
 import type { EnvFlag } from '../config/env-registry.js'
 import { readFileTranslated } from '../utils/fs.js'
 import { parseBooleanEnv } from '../utils/env.js'
 import { DEFAULT_TRAIN_LIMITS } from './ship-train.js'
 import { DEFAULT_REVIEW_MAX_ROUNDS } from './ship-review.js'
+import { DEFAULT_CROSS_MODEL_REVIEW } from '../config/schema.js'
+import { resolveMaxParallelWorktrees } from '../config/collaboration-mode-defaults.js'
 
 export type SettingClassification =
   'editable' | 'derived' | 'mandatory' | 'not-applicable' | 'internal'
@@ -39,6 +41,7 @@ interface SettingDefinition {
   consent?: SettingConsent
   applicability?: (config: unknown) => SettingApplicability
   defaultValue?: unknown
+  defaultValueFor?: (config: unknown) => unknown
   environment?: boolean
   environmentFlag?: EnvFlag
 }
@@ -118,9 +121,9 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
       { path: 'features.debtGates', label: 'Debt gates' },
       { path: 'features.suppressions', label: 'Suppressions' },
       { path: 'features.securityScanning', label: 'Security scanning' },
-      { path: 'features.mutationTesting', label: 'Mutation testing' },
-      { path: 'features.contractTesting', label: 'Contract testing' },
-      { path: 'features.evidenceHarness', label: 'Evidence harness' },
+      { path: 'features.mutationTesting', label: 'Mutation testing', defaultValue: true },
+      { path: 'features.contractTesting', label: 'Contract testing', defaultValue: true },
+      { path: 'features.evidenceHarness', label: 'Evidence harness', defaultValue: true },
       { path: 'features.acceptanceAnchor', label: 'Acceptance-criteria anchor gate (INV-138)' },
       { path: 'features.soloDevMode', label: 'Solo dev mode (deprecated)' },
       // #1887-A: activation path for 3 previously-unreachable opt-in generators.
@@ -157,7 +160,12 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
       // #2333: maxParallelWorktrees is PERSISTENT-ONLY — no per-run `--set`, no
       // resolver floor. It is a persistent wave cap consumed by doctor/wizard
       // coherence and rendered /drain surfaces; absent ⇒ collaboration-mode default.
-      { path: 'automation.maxParallelWorktrees', label: 'Max parallel wave worktrees' },
+      {
+        path: 'automation.maxParallelWorktrees',
+        label: 'Max parallel wave worktrees',
+        defaultValueFor: (config) =>
+          resolveMaxParallelWorktrees(config as Parameters<typeof resolveMaxParallelWorktrees>[0]),
+      },
       // defaultGateLevel keeps its resolver floor (absent ⇒ L1 at every read site).
       {
         path: 'automation.defaultGateLevel',
@@ -184,7 +192,7 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
   {
     group: 'Runtime',
     fields: [
-      { path: 'runnerProfile', label: 'Heavy-check runner cadence' },
+      { path: 'runnerProfile', label: 'Heavy-check runner cadence', defaultValue: 'fleet' },
       { path: 'channel', label: 'Release channel' },
       { path: 'evidenceRetention', label: 'Evidence retention policy', cost: 'low' },
       { path: 'thresholdProfile', label: 'Threshold scaling policy' },
@@ -194,8 +202,22 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
       { path: 'deployTarget', label: 'Deployment target', cost: 'high' },
       { path: 'invariantTiers', label: 'Active invariant tiers' },
       { path: 'worktree', label: 'Worktree materialization policy', cost: 'low' },
-      { path: 'plugins', label: 'Installed Arbiter plugins', cost: 'unmeasured' },
-      { path: 'companions', label: 'Companion skill policy', cost: 'unmeasured' },
+      {
+        path: 'plugins',
+        label: 'Installed Arbiter plugins',
+        classification: 'not-applicable',
+        effect: 'Managed by arbiter plugin add/list after package validation',
+        cost: 'unmeasured',
+        applicability: NO_RUNTIME_CONSUMER,
+      },
+      {
+        path: 'companions',
+        label: 'Companion skill policy',
+        classification: 'not-applicable',
+        effect: 'Availability depends on installed companion skills',
+        cost: 'unmeasured',
+        applicability: NO_RUNTIME_CONSUMER,
+      },
       { path: 'lanes', label: 'Project lanes' },
       { path: 'taskTiers', label: 'Task-size planning and review policy' },
       { path: 'taxonomy.domainDims', label: 'Project test-taxonomy dimensions' },
@@ -210,7 +232,13 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
       { path: 'governance.ssotGuardPatterns', label: 'Additional protected SSOT paths' },
       { path: 'governance.projectInvariants', label: 'Project-owned invariants' },
       { path: 'governance.liveSsot', label: 'Live SSOT surfaces' },
-      { path: 'conformanceThresholds', label: 'Conformance scoring policy' },
+      {
+        path: 'conformanceThresholds',
+        label: 'Conformance scoring policy',
+        classification: 'not-applicable',
+        effect: 'Schema-retained compatibility data without an operational consumer',
+        applicability: NO_RUNTIME_CONSUMER,
+      },
       { path: 'smokeJourneys.requiredJourneys', label: 'Required product smoke journeys' },
       { path: 'e2ePolicy.escalation.strikes', label: 'E2E escalation ladder' },
       { path: 'e2ePolicy.escalation.maxStrikes', label: 'E2E hard-stop threshold' },
@@ -287,7 +315,11 @@ const SETTINGS_DEFINITIONS: SettingDefinitionGroup[] = [
   {
     group: 'Cross-model review',
     fields: [
-      { path: 'crossModelReview.enabled', label: 'Cross-model review enabled' },
+      {
+        path: 'crossModelReview.enabled',
+        label: 'Cross-model review enabled',
+        defaultValue: DEFAULT_CROSS_MODEL_REVIEW.enabled,
+      },
       {
         path: 'crossModelReview.diffEgressConsent',
         label: 'Diff egress consent',
@@ -369,6 +401,21 @@ export function resolveSettingValue(config: unknown, path: string): unknown {
   return cursor
 }
 
+const SETTINGS_BY_PATH = new Map(
+  SETTINGS_CATALOG.flatMap((group) => group.fields).map((field) => [field.path, field]),
+)
+
+function resolveSettingDefault(field: SettingField, config: unknown): unknown {
+  return field.defaultValueFor?.(config) ?? field.defaultValue
+}
+
+/** Canonical effective value used by every read-only configuration view. */
+export function resolveCatalogSettingValue(config: unknown, path: string): unknown {
+  const field = SETTINGS_BY_PATH.get(path)
+  if (field === undefined) throw new Error(`Unknown settings catalog path: ${path}`)
+  return resolveSettingValue(config, path) ?? resolveSettingDefault(field, config) ?? null
+}
+
 function formatValue(value: unknown): string {
   if (value === undefined) return '(unset)'
   if (Array.isArray(value)) return value.length ? value.join(', ') : '(none)'
@@ -400,7 +447,7 @@ function settingState(
   effectiveConfig: unknown,
   overrides: Record<string, string>,
 ): SettingState {
-  if (field.environment === true) return environmentSettingState(field)
+  if (field.environment === true) return environmentSettingState(field, effectiveConfig)
   const declared = resolveSettingValue(raw, field.path)
   const loadedValue = resolveSettingValue(effectiveConfig, field.path)
   const sessionValue = overrides[field.path]
@@ -412,7 +459,7 @@ function settingState(
       applicability: field.applicability(effectiveConfig),
     }
   }
-  const fallback = field.defaultValue
+  const fallback = resolveSettingDefault(field, effectiveConfig)
   const effective = loadedValue ?? fallback ?? null
   const source: SettingSource = envOverrideKeyForPath(field.path, process.env)
     ? 'env'
@@ -437,17 +484,17 @@ function parseEnvironmentValue(flag: EnvFlag, raw: string): unknown {
   return raw
 }
 
-function parsePrefixEnvironment(field: SettingField, matches: Array<[string, string]>): unknown {
+function parsePrefixEnvironment(
+  field: SettingField,
+  matches: Array<[string, string]>,
+  effectiveConfig: unknown,
+): unknown {
+  const group = field.path === 'ARBITER_FEATURE__' ? 'features' : 'thresholds'
   return Object.fromEntries(
-    matches.flatMap(([key, value]) => {
-      const effective =
-        field.path === 'ARBITER_FEATURE__'
-          ? parseBooleanEnv(value)
-          : field.path === 'ARBITER_THRESHOLD__' && Number.isFinite(Number(value))
-            ? Number(value)
-            : field.path === 'ARBITER_THRESHOLD__'
-              ? undefined
-              : value
+    matches.flatMap(([key]) => {
+      const path = `${group}.${screamingSnakeToCamel(key.slice(field.path.length))}`
+      if (envOverrideKeyForPath(path, process.env) !== key) return []
+      const effective = resolveSettingValue(effectiveConfig, path)
       return effective === undefined ? [] : [[key, effective]]
     }),
   )
@@ -464,7 +511,7 @@ function declaredEnvironmentValue(
   return matches.map(([key]) => key)
 }
 
-function environmentSettingState(field: SettingField): SettingState {
+function environmentSettingState(field: SettingField, effectiveConfig: unknown): SettingState {
   const flag = field.environmentFlag
   if (flag === undefined) throw new Error(`Missing environment metadata for ${field.path}`)
   const prefix = field.path.endsWith('_')
@@ -477,7 +524,7 @@ function environmentSettingState(field: SettingField): SettingState {
   )
   const declared = declaredEnvironmentValue(field, definedMatches, prefix)
   const parsed = prefix
-    ? parsePrefixEnvironment(field, definedMatches)
+    ? parsePrefixEnvironment(field, definedMatches, effectiveConfig)
     : matches[0]?.[1] === undefined
       ? undefined
       : parseEnvironmentValue(flag, matches[0][1])

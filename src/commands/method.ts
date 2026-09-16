@@ -27,7 +27,7 @@ import { join, resolve } from 'node:path'
 import { loadConfig } from '../utils/config.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { GENERATED_MANIFEST_FILE, loadGeneratedManifest } from '../state/generated-manifest.js'
-import { resolveSettingValue } from './settings.js'
+import { resolveCatalogSettingValue } from './settings.js'
 
 /** The 7 top-level clusters the lens groups by (design §3.1). */
 export type Cluster =
@@ -88,19 +88,6 @@ export interface MethodologyFeature {
 }
 
 /**
- * Paths whose ABSENCE means ON. Three generators are gated with `!== false`
- * (src/generators/registry.ts:499/537/542), so an arbiter.json that never mentions them is a
- * project where they are running. Treating "absent" as off — the intuitive rule, and the rule
- * every other path follows — would report three live features as disabled on a default config,
- * which is the probe lying in the direction that matters most.
- */
-const DEFAULT_ON_PATHS: ReadonlySet<string> = new Set([
-  'features.contractTesting',
-  'features.mutationTesting',
-  'features.evidenceHarness',
-])
-
-/**
  * Paths that are settable but are NOT methodology — project SHAPE and access, which
  * describe what the project IS rather than how it is built. Listed explicitly with a
  * reason, because the parity gate requires every ALLOWED_PATH to be either lensed or
@@ -130,8 +117,6 @@ export const NON_METHODOLOGY_PATHS: ReadonlyMap<string, string> = new Map([
   ['deployTarget', 'deployment topology'],
   ['invariantTiers', 'invariant selection policy'],
   ['worktree', 'workspace materialization policy'],
-  ['plugins', 'installed extension inventory'],
-  ['companions', 'installed companion policy'],
   ['lanes', 'project decomposition shape'],
   ['taskTiers', 'task sizing policy'],
   ['taxonomy.domainDims', 'project taxonomy extension'],
@@ -146,7 +131,6 @@ export const NON_METHODOLOGY_PATHS: ReadonlyMap<string, string> = new Map([
   ['governance.ssotGuardPatterns', 'project-owned guard extension'],
   ['governance.projectInvariants', 'project-owned governance data'],
   ['governance.liveSsot', 'project-owned traceability data'],
-  ['conformanceThresholds', 'conformance scoring policy'],
   ['smokeJourneys.requiredJourneys', 'product acceptance policy'],
   ['e2ePolicy.escalation.strikes', 'product-test escalation policy'],
   ['e2ePolicy.escalation.maxStrikes', 'product-test escalation policy'],
@@ -401,8 +385,8 @@ export interface FeatureStatus {
  * configured would make every row green on a default config.
  */
 function pathActive(config: unknown, path: string): boolean {
-  const value = resolveSettingValue(config, path)
-  if (value === undefined || value === null) return DEFAULT_ON_PATHS.has(path)
+  const value = resolveCatalogSettingValue(config, path)
+  if (value === null) return false
   if (typeof value === 'boolean') return value
   if (Array.isArray(value)) return value.length > 0
   if (typeof value === 'string') return value !== ''
@@ -460,7 +444,7 @@ export function probeFeature(
     : 'inactive'
 
   const values: Record<string, unknown> = {}
-  for (const p of feature.configPaths) values[p] = resolveSettingValue(config, p) ?? null
+  for (const p of feature.configPaths) values[p] = resolveCatalogSettingValue(config, p)
 
   const declared = feature.emits ?? []
   // An artifact counts only when arbiter RECORDED emitting it and it is still on disk.

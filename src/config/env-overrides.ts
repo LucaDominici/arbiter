@@ -53,7 +53,7 @@ const VALID_FEATURE_KEYS = new Set<keyof FeatureFlags>([
  * Convert SCREAMING_SNAKE_CASE to camelCase.
  * Examples: LINE_COVERAGE → lineCoverage, GOVERNANCE_LEVEL → governanceLevel
  */
-function screamingSnakeToCamel(s: string): string {
+export function screamingSnakeToCamel(s: string): string {
   return s
     .toLowerCase()
     .split('_')
