@@ -14,9 +14,9 @@ describe('ship treatment template', () => {
   it('renders the runtime-owned tier obligations', () => {
     const output = render().replace(/\s+/g, ' ')
     expect(output).toMatch(/\| XS\s+\| minimal \|\s+0 \|\s+1 pertinent vertical/)
-    expect(output).toMatch(/\| Standard\s+\| full\s+\|\s+1 targeted \|\s+2 orthogonal verticals/)
+    expect(output).toMatch(/\| Standard\s+\| full\s+\|\s+0 \|\s+1 pertinent vertical/)
     expect(output).toMatch(
-      /\| Sensitive \| full\s+\|\s+1 targeted \| relevant specialists, maximum 3/,
+      /\| Sensitive \| full\s+\|\s+0 \| relevant specialists, maximum 3/,
     )
   })
 

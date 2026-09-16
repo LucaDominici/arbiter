@@ -88,26 +88,26 @@ function companionEvidencePath(taskId: string, dir: string): string {
 }
 
 describe('ship sequencing — pure plan', () => {
-  it('challenges only full plans before implementation', () => {
+  it('does not dispatch pre-code reviewers at any treatment', () => {
     expect(shipStepFor('red-team-review', 'XS').reviewAgents).toBe(0)
     expect(shipStepFor('red-team-review', 'S').reviewAgents).toBe(0)
-    expect(shipStepFor('red-team-review', 'Standard').reviewAgents).toBe(1)
+    expect(shipStepFor('red-team-review', 'Standard').reviewAgents).toBe(0)
   })
 
-  it('keeps the Standard plan challenge in trunk-solo (#2681)', () => {
+  it('uses mechanical plan checks instead of a Standard plan-review dispatch', () => {
     const step = shipStepFor(
       'red-team-review',
       'Standard',
       profile({ collaborationMode: 'trunk-solo' }),
     )
-    expect(step.reviewAgents).toBe(1)
-    expect(step.action).toMatch(/targeted plan reviewer/i)
+    expect(step.reviewAgents).toBe(0)
+    expect(step.action).toMatch(/proceed to TDD/i)
   })
 
   it('dispatches tier-N code-review agents at refactor', () => {
     expect(shipStepFor('refactor', 'XS').reviewAgents).toBe(1)
     expect(shipStepFor('refactor', 'S').reviewAgents).toBe(1)
-    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(2)
+    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(1)
   })
 
   it('adds an external reviewer seat without changing the total reviewAgents count (AC-2357.8)', () => {
@@ -132,13 +132,13 @@ describe('ship sequencing — pure plan', () => {
         error: null,
       },
     })
-    expect(step.reviewAgents).toBe(2)
+    expect(step.reviewAgents).toBe(1)
     expect(step.externalReviewers).toBe(1)
-    expect(step.action).toContain('dispatch 1 Anthropic code-review agent(s) + 1 Codex reviewer(s)')
-    expect(step.action).toContain('panel total: 2')
+    expect(step.action).toContain('dispatch 0 Anthropic code-review agent(s) + 1 Codex reviewer(s)')
+    expect(step.action).toContain('panel total: 1')
   })
 
-  it('keeps the Standard two-seat panel in trunk-solo', () => {
+  it('keeps one Standard final reviewer in trunk-solo', () => {
     const step = shipStepFor(
       'refactor',
       'Standard',
@@ -166,8 +166,8 @@ describe('ship sequencing — pure plan', () => {
         },
       },
     )
-    expect(step).toMatchObject({ reviewAgents: 2, externalReviewers: 1 })
-    expect(step.action).toContain('panel total: 2')
+    expect(step).toMatchObject({ reviewAgents: 1, externalReviewers: 1 })
+    expect(step.action).toContain('panel total: 1')
   })
 
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {
@@ -176,7 +176,7 @@ describe('ship sequencing — pure plan', () => {
         'refactor',
         widenTier('XS', { blastRadius: 75, labels: [], milestoneBundled: false }),
       ).reviewAgents,
-    ).toBe(2)
+    ).toBe(1)
     expect(
       shipStepFor(
         'refactor',
@@ -192,12 +192,12 @@ describe('ship sequencing — pure plan', () => {
 
     expect(xs.verticals).toEqual(['domain'])
     expect(s.verticals).toEqual(['domain'])
-    expect(std.verticals).toEqual(['domain', 'test-quality'])
-    expect(std.reviewAgents).toBeGreaterThan(xs.reviewAgents)
+    expect(std.verticals).toEqual(['domain'])
+    expect(std.reviewAgents).toBe(xs.reviewAgents)
   })
 
   it('red-team-review carries the same assigned treatment seats', () => {
-    expect(shipStepFor('red-team-review', 'Standard').verticals).toEqual(['domain', 'test-quality'])
+    expect(shipStepFor('red-team-review', 'Standard').verticals).toEqual(['domain'])
     expect(shipStepFor('red-team-review', 'XS').verticals).toEqual(['domain'])
   })
 
@@ -214,7 +214,7 @@ describe('self /ship documentation coherence (#2178)', () => {
   it('states the adaptive treatment table', () => {
     const flat = shipCommand.replace(/\s+/g, ' ')
     expect(flat).toMatch(/\| XS\s+\| minimal \|\s+0 \|\s+1 pertinent vertical/)
-    expect(flat).toMatch(/\| Standard\s+\| full\s+\|\s+1 targeted \|\s+2 orthogonal verticals/)
+    expect(flat).toMatch(/\| Standard\s+\| full\s+\|\s+0 \|\s+1 pertinent vertical/)
   })
 
   it('caps specialist review through the persisted treatment', () => {
@@ -356,7 +356,6 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(visited).toEqual([
       'preflight',
       'plan',
-      'red-team-review',
       'red',
       'green',
       'refactor',
@@ -635,12 +634,13 @@ describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)
 // #1306 — the orchestration prefs are CONSUMED in the ship step plan (not dead):
 // refactor reads defaultGateLevel. (#2329 deleted affinityBatching; the plan
 // action is now a constant — see __tests__/config/affinity-batching-removed.test.ts.)
-describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead code)', () => {
-  it('refactor pre-commit diagnostic reflects defaultGateLevel', () => {
+describe('ship steps keep expensive gates out of pre-review preparation', () => {
+  it('refactor uses a cheap targeted preflight at every configured gate level', () => {
     const l2 = shipStepFor('refactor', 'Standard', profile({ defaultGateLevel: 'L2' }))
-    expect(l2.action).toContain('L2')
+    expect(l2.action).toContain('touched tests')
+    expect(l2.action).not.toContain('check-all.mjs')
     const l1 = shipStepFor('refactor', 'Standard', profile({ defaultGateLevel: 'L1' }))
-    expect(l1.action).toContain('L1')
+    expect(l1.action).toBe(l2.action)
   })
 
   // #2329 removed the knob that used to branch this action; #2333 removed the
@@ -649,7 +649,7 @@ describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead co
     for (const defaultGateLevel of ['L1', 'L2'] as const) {
       const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
       expect(step.action).toBe(
-        'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
+        'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
       )
     }
   })

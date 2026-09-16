@@ -590,32 +590,9 @@ describe('runTaskRecordRed()', () => {
     const result = runTaskRecordRed({ testPath: '__tests__/evidence/tdd.test.ts', dir })
     expect(result.ok).toBe(false)
     expect(result.reason).toMatch(/commit the red test first/i)
-    expect(result.reason).toMatch(/--force/)
+    expect(result.reason).not.toMatch(/--force/)
     // branch(1) + rev-parse(1) + status(1) = 3 runCli calls total.
     expect(mockedRunCli).toHaveBeenCalledTimes(3)
-  })
-
-  it('--force overrides the dirty-__tests__ refusal and proceeds to record (#1988)', () => {
-    const dir = tmpRepo()
-    mockBranch()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      // Both the dirty-check and HEAD-presence check are skipped entirely
-      // under --force, so the very next call is the actual test run.
-      .mockReturnValueOnce({
-        stdout: 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 failed',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 500,
-      })
-    const result = runTaskRecordRed({
-      testPath: '__tests__/evidence/tdd.test.ts',
-      dir,
-      force: true,
-    })
-    expect(result.ok).toBe(true)
-    // branch(1) + rev-parse(1) + test run(1) + blob pin(1, #2116) = 4.
-    expect(mockedRunCli).toHaveBeenCalledTimes(4)
   })
 
   it('refuses when the recorded test_path is absent from HEAD (#1988)', () => {
@@ -630,30 +607,8 @@ describe('runTaskRecordRed()', () => {
     const result = runTaskRecordRed({ testPath: '__tests__/evidence/missing.test.ts', dir })
     expect(result.ok).toBe(false)
     expect(result.reason).toMatch(/not found in head|not found in commit/i)
-    expect(result.reason).toMatch(/--force/)
+    expect(result.reason).not.toMatch(/--force/)
     // branch(1) + rev-parse(1) + status(1) + ls-tree(1) = 4.
-    expect(mockedRunCli).toHaveBeenCalledTimes(4)
-  })
-
-  it('--force overrides the missing-test-in-HEAD refusal (#1988)', () => {
-    const dir = tmpRepo()
-    mockBranch()
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
-      .mockReturnValueOnce({
-        stdout: 'FAIL __tests__/evidence/missing.test.ts\n✗ 1 failed',
-        stderr: '',
-        exitCode: 1,
-        durationMs: 500,
-      })
-    const result = runTaskRecordRed({
-      testPath: '__tests__/evidence/missing.test.ts',
-      dir,
-      force: true,
-    })
-    expect(result.ok).toBe(true)
-    // Under --force, neither the dirty-check nor the HEAD-presence check runs:
-    // branch(1) + rev-parse(1) + the test run itself(1) + blob pin(1, #2116) = 4.
     expect(mockedRunCli).toHaveBeenCalledTimes(4)
   })
 

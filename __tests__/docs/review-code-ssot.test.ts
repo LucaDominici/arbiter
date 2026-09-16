@@ -12,9 +12,10 @@ describe('.claude/commands/review.md — adaptive treatment consumer (#2681)', (
     expect(doc).not.toContain('--size-floor')
   })
 
-  it('keeps final review and acceptance fit independent on one frozen subject', () => {
+  it('uses one final reviewer for code and acceptance on one frozen subject', () => {
     expect(doc).toContain('same plan, diff, SHA')
-    expect(doc).toContain('independent acceptance-fit verifier')
+    expect(doc).toContain('final reviewer also returns acceptance fit')
+    expect(doc).toContain('--mode ac-fit')
   })
 
   it('records and checks one complete reviewer panel', () => {

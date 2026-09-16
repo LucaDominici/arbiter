@@ -487,7 +487,7 @@ describe('cross-product: ship.md — one adaptive contract for every stack and l
         const output = renderShip(lang, level)
         expect(output).toBe(baseline)
         expect(output).toContain('ShipTreatment')
-        expect(output).toContain('configured diagnostic once before freezing')
+        expect(output).toContain('changed-file format/lint')
         expect(output).not.toContain('<%')
       })
     }

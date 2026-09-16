@@ -20,10 +20,10 @@ const STANDARD_TREATMENT = {
   tier: 'Standard',
   sensitive: false,
   planDepth: 'full',
-  preCodeReviewers: 1,
-  finalReviewers: 2,
+  preCodeReviewers: 0,
+  finalReviewers: 1,
   acceptanceFitReviewers: 1,
-  reviewerVerticals: ['domain', 'test-quality'],
+  reviewerVerticals: ['domain'],
   modelCapability: 'capable',
   qualifiedNarrow: false,
   signalsHash: TREATMENT_HASH,
@@ -130,6 +130,15 @@ describe('record-agent-return evidence modes (#2687)', () => {
       env: { ...process.env, ARBITER_ACCEPTANCE_ANCHOR: '1' },
     })
     expect(check.status, check.stderr + check.stdout).toBe(0)
+  })
+
+  it('accepts the final reviewer as the acceptance-fit verifier', () => {
+    const reviewer = { ...envelope(), agent: 'domain', role: 'reviewer' }
+    const result = record(reviewer)
+    expect(result.status, result.stderr + result.stdout).toBe(0)
+    expect(
+      JSON.parse(readFileSync(join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'), 'utf8')),
+    ).toMatchObject({ taskId: '#42', sha: head() })
   })
 
   it('rejects a stale supplied SHA without replacing prior valid fit evidence', () => {
@@ -252,76 +261,63 @@ describe('record-agent-return evidence modes (#2687)', () => {
     expect(result.stdout + result.stderr).toMatch(/native host binding|stale/i)
   })
 
-  it('derives a complete Standard reviewer sidecar from distinct accepted envelopes', () => {
-    const first = { ...envelope(), agent: 'domain', role: 'reviewer', acceptanceFit: undefined }
-    const second = {
-      ...envelope(),
-      agent: 'test-quality',
-      role: 'reviewer',
-      acceptanceFit: undefined,
-    }
+  it('derives a complete Standard reviewer sidecar from one accepted envelope', () => {
+    const reviewer = { ...envelope(), agent: 'domain', role: 'reviewer' }
 
-    const result = recordPanel([first, second])
+    const result = recordPanel([reviewer])
 
     expect(result.status, result.stdout + result.stderr).toBe(0)
     expect(
       JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8')),
     ).toMatchObject({
-      count: 2,
-      agents: ['domain', 'test-quality'],
-      auditors: ['domain', 'test-quality'],
+      count: 1,
+      agents: ['domain'],
+      auditors: ['domain'],
       treatmentHash: TREATMENT_HASH,
       taskId: '#42',
     })
   })
 
   it('rejects a correctly-sized panel that did not fill the assigned verticals', () => {
-    const reviewers = ['review-a', 'review-b'].map((agent) => ({
-      ...envelope(),
-      agent,
-      role: 'reviewer',
-      acceptanceFit: undefined,
-    }))
-
-    const result = recordPanel(reviewers)
+    const result = recordPanel([
+      { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined },
+    ])
 
     expect(result.status).toBe(1)
-    expect(result.stdout + result.stderr).toMatch(/assigned verticals.*domain.*test-quality/i)
+    expect(result.stdout + result.stderr).toMatch(/assigned verticals.*domain/i)
   })
 
-  it('does not reduce the persisted Standard panel in trunk-solo', () => {
+  it('uses the same persisted one-reviewer panel in trunk-solo', () => {
     const statusPath = join(root, '.claude', '.task', 'status.json')
     const status = JSON.parse(readFileSync(statusPath, 'utf8'))
     writeFileSync(statusPath, JSON.stringify({ ...status, collaborationMode: 'trunk-solo' }))
     const reviewer = {
       ...envelope(),
-      agent: 'independent-review',
+      agent: 'domain',
       role: 'reviewer',
       acceptanceFit: undefined,
     }
 
     const result = recordPanel([reviewer])
 
-    expect(result.status).toBe(1)
-    expect(result.stdout + result.stderr).toMatch(/requires 2/i)
+    expect(result.status, result.stdout + result.stderr).toBe(0)
   })
 
-  it('does not lower the panel from an unvalidated raw config', () => {
+  it('does not widen the persisted panel from an unvalidated raw config', () => {
     writeFileSync(
       join(root, 'arbiter.json'),
       JSON.stringify({ collaborationMode: 'trunk-solo', features: null }),
     )
     const reviewer = {
       ...envelope(),
-      agent: 'independent-review',
+      agent: 'domain',
       role: 'reviewer',
       acceptanceFit: undefined,
     }
 
     const result = recordPanel([reviewer])
 
-    expect(result.status).toBe(1)
-    expect(result.stdout + result.stderr).toMatch(/requires 2/i)
+    expect(result.status, result.stdout + result.stderr).toBe(0)
   })
 
   it('fails closed when the active task has no persisted treatment', () => {
@@ -329,10 +325,14 @@ describe('record-agent-return evidence modes (#2687)', () => {
     const status = JSON.parse(readFileSync(statusPath, 'utf8'))
     delete status.treatment
     writeFileSync(statusPath, JSON.stringify(status))
-    const first = { ...envelope(), agent: 'review-a', role: 'reviewer', acceptanceFit: undefined }
-    const second = { ...envelope(), agent: 'review-b', role: 'reviewer', acceptanceFit: undefined }
+    const reviewer = {
+      ...envelope(),
+      agent: 'domain',
+      role: 'reviewer',
+      acceptanceFit: undefined,
+    }
 
-    const result = recordPanel([first, second])
+    const result = recordPanel([reviewer])
 
     expect(result.status).toBe(2)
     expect(result.stdout + result.stderr).toMatch(/ship treatment/i)

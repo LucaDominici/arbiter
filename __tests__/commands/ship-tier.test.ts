@@ -135,7 +135,8 @@ describe('resolveShipTreatment (#2681)', () => {
       tier: 'Standard',
       qualifiedNarrow: false,
       modelCapability: 'capable',
-      finalReviewers: 2,
+      preCodeReviewers: 0,
+      finalReviewers: 1,
     })
     expect(resolveShipTreatment('XS', completeSignals())).toMatchObject({
       tier: 'XS',
@@ -175,7 +176,7 @@ describe('resolveShipTreatment (#2681)', () => {
     expect(treatment.reviewerVerticals).toEqual(['security', 'migration', 'deployment'])
   })
 
-  it('keeps Standard at two reviewers for non-sensitive contract paths', () => {
+  it('keeps one final reviewer for non-sensitive Standard work', () => {
     const treatment = resolveShipTreatment(
       'Standard',
       completeSignals({ changedFiles: ['docs/adaptive-contract.md'] }),
@@ -183,8 +184,9 @@ describe('resolveShipTreatment (#2681)', () => {
 
     expect(treatment).toMatchObject({
       sensitive: false,
-      finalReviewers: 2,
-      reviewerVerticals: ['domain', 'test-quality'],
+      preCodeReviewers: 0,
+      finalReviewers: 1,
+      reviewerVerticals: ['type-safety'],
     })
   })
 
@@ -201,8 +203,8 @@ describe('resolveShipTreatment (#2681)', () => {
       completeSignals({ changedFiles: ['src/auth/token.ts', 'migrations/001.sql'] }),
     )
     const resumed = resolveShipTreatment('XS', neutralSignals(), previous)
-    expect(resumed).toMatchObject({ tier: 'Standard', sensitive: true, finalReviewers: 3 })
-    expect(resumed.reviewerVerticals).toEqual(['security', 'migration', 'domain'])
+    expect(resumed).toMatchObject({ tier: 'Standard', sensitive: true, finalReviewers: 2 })
+    expect(resumed.reviewerVerticals).toEqual(['security', 'migration'])
   })
 
   it('escalates only for a new material risk and keeps infrastructure states separate', () => {
