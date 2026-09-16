@@ -439,7 +439,7 @@
     "scripts/optional-emissions.json": "984c1545b184ed6d73c596b1765c1ed14e37fc5880e941a0c8b734f381c9783f",
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",
     "scripts/pii-scan.mjs": "f5ba9f84dc93a64cf0326aada7456324c7d86587213f0036b84fca506aa3af0a",
-    "scripts/pr-merge-watch.mjs": "bd44fab8bd1c71376892fdc326233ec4bfc9dc98601d87940d4a174cd3139859",
+    "scripts/pr-merge-watch.mjs": "0db385c3c56e2f782125491f515e4a9c7337e460e9853af0e569dba48466cc03",
     "scripts/record-agent-return.mjs": "fc1595bfb1dd9d103d1f11831f887fe4627c60e1ab31218360e5bf69212ded7e",
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
     "scripts/self-validation.mjs": "bb50ed871af6c4c0c0d68073cb43607c6c1dae812c5ee6e0b4be4b5c95cb9c30",

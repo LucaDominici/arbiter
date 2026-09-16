@@ -279,8 +279,7 @@ function runLandingChecker(root, script, args, env = {}) {
   refuseLocalLanding(`${script} failed${detail ? `: ${detail}` : ''}`)
 }
 
-/** Refuse promotion until the local lifecycle proves this exact candidate is ready to land. */
-export function assertShipLandingReady(config, root = process.cwd()) {
+function readShipLandingState(root) {
   let state
   try {
     state = JSON.parse(readRegularFileSync(join(root, '.claude', '.task', 'status.json'), 'utf8'))
@@ -294,7 +293,10 @@ export function assertShipLandingReady(config, root = process.cwd()) {
   if (!/^#\d+$/.test(taskId)) refuseLocalLanding('canonical task id is missing or malformed')
   const plan = typeof state.plan === 'string' ? state.plan.trim() : ''
   if (!plan) refuseLocalLanding('canonical plan path is missing')
+  return { state, taskId }
+}
 
+function resolveLocalCandidate(root, state) {
   let head
   let branch
   try {
@@ -309,6 +311,10 @@ export function assertShipLandingReady(config, root = process.cwd()) {
   if (state.branch !== branch) {
     refuseLocalLanding(`lifecycle branch ${JSON.stringify(state.branch)} does not match ${branch}`)
   }
+  return head
+}
+
+function assertLandingEvidence(config, root, taskId) {
   if (config?.features?.evidenceHarness === true) {
     const receipt = verifyDoneEvidenceReceipt({
       root,
@@ -326,20 +332,29 @@ export function assertShipLandingReady(config, root = process.cwd()) {
   }
 
   runLandingChecker(root, join(root, 'scripts', 'check-review-completion.mjs'), ['--task', taskId])
+}
 
-  if (config?.features?.acceptanceAnchor === true) {
-    const fit = join(
-      root,
-      '.arbiter',
-      'evidence',
-      'ac-fit',
-      `${taskId.replace(/[^0-9A-Za-z-]/g, '')}.json`,
-    )
-    if (!existsSync(fit)) refuseLocalLanding(`acceptance fit is missing at ${fit}`)
-    runLandingChecker(root, join(root, 'scripts', 'check-acceptance.mjs'), [], {
-      ARBITER_ACCEPTANCE_ANCHOR: '1',
-    })
-  }
+function assertLandingAcceptance(config, root, taskId) {
+  if (config?.features?.acceptanceAnchor !== true) return
+  const fit = join(
+    root,
+    '.arbiter',
+    'evidence',
+    'ac-fit',
+    `${taskId.replace(/[^0-9A-Za-z-]/g, '')}.json`,
+  )
+  if (!existsSync(fit)) refuseLocalLanding(`acceptance fit is missing at ${fit}`)
+  runLandingChecker(root, join(root, 'scripts', 'check-acceptance.mjs'), [], {
+    ARBITER_ACCEPTANCE_ANCHOR: '1',
+  })
+}
+
+/** Refuse promotion until the local lifecycle proves this exact candidate is ready to land. */
+export function assertShipLandingReady(config, root = process.cwd()) {
+  const { state, taskId } = readShipLandingState(root)
+  const head = resolveLocalCandidate(root, state)
+  assertLandingEvidence(config, root, taskId)
+  assertLandingAcceptance(config, root, taskId)
   return head
 }
 
