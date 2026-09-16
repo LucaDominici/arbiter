@@ -407,12 +407,22 @@ describe('runWorktreeClose — branch coverage', () => {
     )
   }
 
+  function closeCliResult(cmd: string, args?: readonly string[]): CliResult {
+    if (cmd === 'git' && args?.join(' ') === 'worktree list --porcelain') {
+      return ok(
+        `worktree ${gitRoot}\nHEAD abc123\nbranch refs/heads/main\n\n` +
+          `worktree ${worktreePath}\nHEAD def456\nbranch refs/heads/task/#123-test\n\n`,
+      )
+    }
+    return ok(gitRoot)
+  }
+
   beforeEach(() => {
     gitRoot = mkdtempSync(join(tmpdir(), 'wtcov-close-'))
     worktreePath = mkdtempSync(join(tmpdir(), 'wtcov-close-task-'))
     mkdirSync(join(gitRoot, '.arbiter'), { recursive: true })
     resetCommonMocks()
-    mockRunCli.mockReturnValue(ok(gitRoot))
+    mockRunCli.mockImplementation(closeCliResult)
     writeOpenLog()
   })
 
@@ -459,9 +469,9 @@ describe('runWorktreeClose — branch coverage', () => {
     const hookCfg: WorktreeConfig = { base: null, links: [], closeHook: 'hook.sh' }
     mockLoadConfig.mockReturnValue({ worktree: hookCfg } as ReturnType<typeof loadConfig>)
     // The hook invocation (runCli on absPath) throws; default git mocks are ok().
-    mockRunCli.mockImplementation((cmd: string): CliResult => {
+    mockRunCli.mockImplementation((cmd: string, args?: readonly string[]): CliResult => {
       if (cmd.endsWith('hook.sh')) throw new Error('hook boom')
-      return ok(gitRoot)
+      return closeCliResult(cmd, args)
     })
     expect(() =>
       runWorktreeClose({ taskId: '123', cwd: gitRoot, noFetch: true, onWarning: () => undefined }),
@@ -473,9 +483,9 @@ describe('runWorktreeClose — branch coverage', () => {
     writeFileSync(hookFile, '#!/bin/sh\nexit 1\n', 'utf-8')
     const hookCfg: WorktreeConfig = { base: null, links: [], closeHook: 'hook.sh' }
     mockLoadConfig.mockReturnValue({ worktree: hookCfg } as ReturnType<typeof loadConfig>)
-    mockRunCli.mockImplementation((cmd: string): CliResult => {
+    mockRunCli.mockImplementation((cmd: string, args?: readonly string[]): CliResult => {
       if (cmd.endsWith('hook.sh')) throw 'non-error throw'
-      return ok(gitRoot)
+      return closeCliResult(cmd, args)
     })
     const warnings: string[] = []
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
@@ -504,7 +514,7 @@ describe('runWorktreeClose — branch coverage', () => {
       if (cmd === 'git' && args?.[0] === 'branch' && args?.[1] === '-d') {
         throw new Error('not fully merged')
       }
-      return ok(gitRoot)
+      return closeCliResult(cmd, args)
     })
     runWorktreeClose({ taskId: '123', cwd: gitRoot, noFetch: true, onWarning: () => undefined })
     stdoutSpy.mockRestore()
@@ -522,7 +532,7 @@ describe('runWorktreeClose — branch coverage', () => {
       if (cmd === 'git' && args?.[0] === 'branch' && args?.[1] === '-D') {
         hardDeleteCalled = true
       }
-      return ok(gitRoot)
+      return closeCliResult(cmd, args)
     })
     runWorktreeClose({
       taskId: '123',
@@ -548,7 +558,7 @@ describe('runWorktreeClose — branch coverage', () => {
       if (cmd === 'git' && args?.[0] === 'branch') {
         throw 'string-error' // both -d and -D throw (non-Error)
       }
-      return ok(gitRoot)
+      return closeCliResult(cmd, args)
     })
     runWorktreeClose({
       taskId: '123',

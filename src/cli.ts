@@ -12,6 +12,7 @@ import { runConfigure } from './commands/configure.js'
 import { runSettings } from './commands/settings.js'
 import { runMethodStatus } from './commands/method.js'
 import {
+  runWorktreeAdopt,
   runWorktreeOpen,
   runWorktreeClose,
   runWorktreeList,
@@ -1071,8 +1072,32 @@ worktree
   )
 
 worktree
+  .command('adopt <task-id> [path]')
+  .description('Adopt and prepare an existing native Git worktree without owning its cleanup')
+  .option('--with-build-links', 'Also materialize buildLinks from config', false)
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(
+    (
+      taskId: string,
+      path: string | undefined,
+      opts: { withBuildLinks: boolean; json: boolean },
+    ) => {
+      runWorktreeAdopt({
+        taskId,
+        ...(path !== undefined ? { worktreePath: path } : {}),
+        withBuildLinks: opts.withBuildLinks,
+        json: opts.json,
+      }).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        process.stderr.write(`  Error: ${msg}\n`)
+        process.exit(1)
+      })
+    },
+  )
+
+worktree
   .command('close <task-id>')
-  .description('Tear down a task worktree after its branch is merged')
+  .description('Tear down an Arbiter-created task worktree after its branch is merged')
   .option('--force', 'Close even if branch is unmerged or hook fails', false)
   .option('--keep-branch', 'Do not delete the task branch after closing', false)
   .option('--no-fetch', 'Skip git fetch before the merge check', false)
@@ -1110,9 +1135,10 @@ worktree
 worktree
   .command('list')
   .description('List open task worktrees')
+  .option('--all', 'Include non-task and detached linked worktrees', false)
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { json: boolean }) => {
-    runWorktreeList({ json: opts.json })
+  .action((opts: { all: boolean; json: boolean }) => {
+    runWorktreeList({ all: opts.all, json: opts.json })
   })
 
 worktree
@@ -1872,9 +1898,9 @@ task
 
 task
   .command('host-preflight')
-  .description('Bind the native Claude host to an exact task worktree before lifecycle writes')
+  .description('Bind the native host to an exact adopted task worktree before lifecycle writes')
   .requiredOption('--id <id>', 'Task id, e.g. #2685')
-  .requiredOption('--worktree <path>', 'Exact path returned by worktree open --json')
+  .requiredOption('--worktree <path>', 'Exact path prepared by worktree adopt or open')
   .option('--dir <dir>', 'Target task directory (defaults to --worktree)')
   .action((opts: { id: string; worktree: string; dir?: string }) => {
     runTaskInit({

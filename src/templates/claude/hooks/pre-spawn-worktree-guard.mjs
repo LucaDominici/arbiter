@@ -17,10 +17,12 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   getRepoRoot,
+  isGitWorktree,
   SIDECAR_PATH,
   nativeHostBindingError,
   readJsonOrNull,
   pruneStaleSidecarEntries,
+  withSidecarLock,
 } from './lib.mjs'
 
 const WRITE_CLASSES_PATH = join('.claude', 'agents', 'agent-write-classes.json')
@@ -29,12 +31,6 @@ const WRITE_CLASSES_PATH = join('.claude', 'agents', 'agent-write-classes.json')
 function loadWriteClasses(root) {
   const doc = readJsonOrNull(join(root, WRITE_CLASSES_PATH))
   return doc && typeof doc.classes === 'object' && doc.classes !== null ? doc.classes : {}
-}
-
-/** True when cwd sits under a `<name>.worktrees/` sibling directory (any depth). */
-function isWorktreeCwd(cwd) {
-  if (typeof cwd !== 'string' || cwd.length === 0) return false
-  return /(^|[/\\])[^/\\]+\.worktrees([/\\]|$)/.test(cwd)
 }
 
 /**
@@ -90,52 +86,41 @@ function main() {
   if (classification === 'read-only') process.exit(0) // M7 firewall path stays frictionless
 
   // 2. Write-intent path: allowed iff isolated in a worktree.
-  const inWorktree = isolation === 'worktree' || isWorktreeCwd(cwd)
+  const inWorktree = isolation === 'worktree' || isGitWorktree(cwd ?? root)
 
   const sidecarPath = join(root, SIDECAR_PATH)
   const now = Date.now()
-  const existing = readJsonOrNull(sidecarPath)
-  const entries = pruneStaleSidecarEntries(Array.isArray(existing) ? existing : [], now)
-
-  if (!inWorktree && entries.length > 0) {
-    const message =
-      `[arbiter] SPAWN GUARD: a write-intent agent is already active on the main working tree.\n` +
-      `Second write-agent on the main tree is blocked — open a worktree: \`/wt-open\` (ADR-103).\n`
-    if (HARD_GRADING) {
-      process.stderr.write(message)
-      process.exit(2)
-    }
-    process.stderr.write(message) // advisory: soft grading always exits 0
-    process.exit(0)
-  }
-
-  // 3. One-task-per-dispatch (M2): count distinct #NNN ids in the prompt. Checked
-  // BEFORE registering the sidecar entry — a rejected spawn must never occupy a slot
-  // (#2403: registering first let a rejected M2 spawn wedge the 2h TTL for nothing).
-  const taskIdCount = countTaskIds(prompt)
-  if (taskIdCount > 1) {
-    const message =
-      `[arbiter] SPAWN GUARD: dispatch prompt references ${taskIdCount} distinct task ids — ` +
-      `one-task-per-dispatch (M2) requires exactly one.\n`
-    if (HARD_GRADING) {
-      process.stderr.write(message)
-      process.exit(2)
-    }
-    process.stderr.write(message) // advisory: soft grading always exits 0
-    process.exit(0)
-  }
-
-  // No other writer on the main tree, no M2 violation — allow and register.
-  const updated = [
-    ...entries,
-    { agent: subagentType ?? 'unknown', ts: now, pid: sessionPid(), cwd: cwd ?? root },
-  ]
   try {
-    mkdirSync(join(root, '.arbiter'), { recursive: true })
-    writeFileSync(sidecarPath, JSON.stringify(updated, null, 2) + '\n')
-    // FAIL-OPEN-INTENT: best-effort bookkeeping — a sidecar write failure must not block a legal spawn.
-  } catch {
-    void 0
+    const rejection = withSidecarLock(root, () => {
+      const existing = readJsonOrNull(sidecarPath)
+      const entries = pruneStaleSidecarEntries(Array.isArray(existing) ? existing : [], now)
+      if (!inWorktree && entries.length > 0) {
+        return (
+          `[arbiter] SPAWN GUARD: a write-intent agent is already active on the main working tree.\n` +
+          `Second write-agent on the main tree is blocked — open a worktree: \`/wt-open\` (ADR-103).\n`
+        )
+      }
+      const taskIdCount = countTaskIds(prompt)
+      if (taskIdCount > 1) {
+        return (
+          `[arbiter] SPAWN GUARD: dispatch prompt references ${taskIdCount} distinct task ids — ` +
+          `one-task-per-dispatch (M2) requires exactly one.\n`
+        )
+      }
+      const updated = [
+        ...entries,
+        { agent: subagentType ?? 'unknown', ts: now, pid: sessionPid(), cwd: cwd ?? root },
+      ]
+      writeFileSync(sidecarPath, JSON.stringify(updated, null, 2) + '\n')
+      return null
+    })
+    if (rejection !== null) {
+      process.stderr.write(rejection)
+      process.exit(HARD_GRADING ? 2 : 0)
+    }
+  } catch (err) {
+    process.stderr.write(`[arbiter] SPAWN GUARD: ${err.message}\n`)
+    process.exit(HARD_GRADING ? 2 : 0)
   }
 
   process.exit(0)

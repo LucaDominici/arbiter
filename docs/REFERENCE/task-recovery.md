@@ -208,22 +208,22 @@ the legacy files migrates it transparently (seed + delete) on first access.
 }
 ```
 
-| Field                  | Description                                                                       |
-| ---------------------- | --------------------------------------------------------------------------------- |
-| `taskId`               | Active task id (was `.task-id`)                                                   |
-| `phase`                | Current lifecycle phase — authoritative, single writer (was `.task-phase`)        |
-| `tier`                 | Task tier XS/S/Standard (was `.task-tier`)                                        |
-| `plan`                 | Repo-relative path to the plan file (was `.task-plan`)                            |
-| `cursor`               | Step-cursor (no CLI writer since the T2 cut — see above) — drives pinpoint resume |
-| `handoffStrategy`      | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy         |
-| `handoffReady`         | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)             |
-| `planningHandoffReady` | ISO timestamp when the interactive handoff gate was triggered                     |
-| `postClearResumed`     | ISO timestamp set after a successful post-clear re-entry                          |
-| `timestamps`           | ISO timestamps per phase entered (accumulated across sessions)                    |
-| `runId`                | `<pid>-<epoch-ms>` — unique per process invocation                                |
-| `gateDecisions`        | Gate pass/fail records                                                            |
-| `hostBinding`          | Exact Claude worktree, branch, session and transcript established by preflight    |
-| `collaborationMode`    | Schema-validated delivery mode used by local review guards                        |
+| Field                  | Description                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `taskId`               | Active task id (was `.task-id`)                                                        |
+| `phase`                | Current lifecycle phase — authoritative, single writer (was `.task-phase`)             |
+| `tier`                 | Task tier XS/S/Standard (was `.task-tier`)                                             |
+| `plan`                 | Repo-relative path to the plan file (was `.task-plan`)                                 |
+| `cursor`               | Step-cursor (no CLI writer since the T2 cut — see above) — drives pinpoint resume      |
+| `handoffStrategy`      | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy              |
+| `handoffReady`         | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)                  |
+| `planningHandoffReady` | ISO timestamp when the interactive handoff gate was triggered                          |
+| `postClearResumed`     | ISO timestamp set after a successful post-clear re-entry                               |
+| `timestamps`           | ISO timestamps per phase entered (accumulated across sessions)                         |
+| `runId`                | `<pid>-<epoch-ms>` — unique per process invocation                                     |
+| `gateDecisions`        | Gate pass/fail records                                                                 |
+| `hostBinding`          | Exact checkout identity established by host preflight; Claude session data is optional |
+| `collaborationMode`    | Schema-validated delivery mode used by local review guards                             |
 
 Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
 update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file
@@ -231,12 +231,13 @@ is registered for SIGTERM/SIGINT cleanup (#613). Shell consumers read fields via
 `arbiter task get --field <phase|taskId|tier|plan|tddPhase|lastAction|nextAction>` and seed state via
 `arbiter task init --id #NNN --tier <tier> --plan <path>`.
 
-In Claude auto mode, open the worktree with `arbiter wt open <id> --json`, start a fresh Claude
-session rooted at the returned `worktreePath`, then run
-`arbiter task host-preflight --id <id> --worktree <worktreePath>` before `task init`. Lifecycle
-writes and qualified review/acceptance evidence reject a different root, task, branch, session,
-transcript, or worktree-log row. A present `CLAUDE_PROJECT_DIR` must corroborate the same root.
-Non-Claude recorders do not require Claude hooks.
+Prefer the checkout created by the active host (Claude, Codex, or a manual Git workflow), then run
+`arbiter worktree adopt <id> [path]` and
+`arbiter task host-preflight --id <id> --worktree <path>` before `task init`. Adoption binds the
+native checkout to Arbiter's existing resource policy without transferring cleanup ownership.
+`arbiter worktree open` remains the fallback for hosts that cannot create an isolated checkout.
+Lifecycle writes and qualified review/acceptance evidence reject a different binding id, root,
+task, or branch; when Claude session data exists, its session and transcript must also match.
 
 Final review evidence is recorded once per routed panel with
 `record-agent-return.mjs --mode reviewer-panel`; the recorder derives panel size from the frozen

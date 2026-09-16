@@ -4,10 +4,11 @@ import {
   copyFileTranslated,
   copyTreeTranslated,
   ensureDir,
+  readFileTranslated,
   symlinkTranslated,
   toFsError,
 } from '../utils/fs.js'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { WorktreeLinkSpec } from '../wizard/types.js'
 
 type LinkResult =
@@ -29,6 +30,53 @@ const SYMLINK_CHILDREN_EXCLUSIONS: ReadonlySet<string> = new Set([
 export interface MaterializeResult {
   spec: WorktreeLinkSpec
   result: LinkResult
+}
+
+function resolveContained(root: string, candidate: string): string {
+  const resolved = resolve(root, candidate)
+  const rel = relative(resolve(root), resolved)
+  if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    throw new Error(`Worktree resource '${candidate}' must stay inside the repository.`)
+  }
+  return resolved
+}
+
+function symlinkTarget(path: string): string {
+  return resolve(dirname(path), readlinkSync(path))
+}
+
+function existingMaterialization(
+  spec: WorktreeLinkSpec,
+  sourcePath: string,
+  destPath: string,
+  templatePath: string | undefined,
+): MaterializeResult | null {
+  const linkType = spec.type ?? 'file'
+  const strategy = spec.strategy ?? 'symlink'
+  if (
+    (!existsSync(destPath) && !lstatSync2IsLink(destPath)) ||
+    (linkType === 'directory' && strategy === 'symlink-children')
+  ) {
+    return null
+  }
+  if (!lstatSync(destPath).isSymbolicLink()) {
+    if (
+      !existsSync(sourcePath) &&
+      templatePath !== undefined &&
+      existsSync(templatePath) &&
+      readFileTranslated(destPath).equals(readFileTranslated(templatePath))
+    ) {
+      return { spec, result: 'COPIED_TEMPLATE' }
+    }
+    throw new Error(
+      `Cannot materialize '${spec.path}': a non-symlink already exists at ${destPath}. ` +
+        `Remove it manually then retry.`,
+    )
+  }
+  if (symlinkTarget(destPath) !== sourcePath) {
+    throw new Error(`Cannot materialize '${spec.path}': existing symlink has the wrong target.`)
+  }
+  return { spec, result: linkType === 'directory' ? 'LINKED_DIR' : 'LINKED' }
 }
 
 // Creates a symlink; on EEXIST re-checks the dest is already a symlink (TOCTOU guard).
@@ -72,8 +120,10 @@ export function materializeLink(
   mainRepoPath: string,
   worktreePath: string,
 ): MaterializeResult {
-  const sourcePath = resolve(mainRepoPath, spec.path)
-  const destPath = resolve(worktreePath, spec.path)
+  const sourcePath = resolveContained(mainRepoPath, spec.path)
+  const destPath = resolveContained(worktreePath, spec.path)
+  const templatePath =
+    spec.template === undefined ? undefined : resolveContained(mainRepoPath, spec.template)
   const linkType = spec.type ?? 'file'
 
   const strategy = spec.strategy ?? 'symlink'
@@ -83,15 +133,8 @@ export function materializeLink(
   // (copy-from-template, external tool, or botched run) — refuse silently to avoid
   // masking the mismatch and silently skipping what should have been a symlink.
   // Exception: 'symlink-children' owns a REAL dest directory — handled below.
-  if (existsSync(destPath) && !(linkType === 'directory' && strategy === 'symlink-children')) {
-    if (!lstatSync(destPath).isSymbolicLink()) {
-      throw new Error(
-        `Cannot materialize '${spec.path}': a non-symlink already exists at ${destPath}. ` +
-          `Remove it manually then retry.`,
-      )
-    }
-    return { spec, result: linkType === 'directory' ? 'LINKED_DIR' : 'LINKED' }
-  }
+  const existing = existingMaterialization(spec, sourcePath, destPath, templatePath)
+  if (existing !== null) return existing
 
   const sourceExists = existsSync(sourcePath)
 
@@ -142,7 +185,7 @@ function materializeFile(
   }
 
   if (spec.template) {
-    const templatePath = resolve(mainRepoPath, spec.template)
+    const templatePath = resolveContained(mainRepoPath, spec.template)
     if (existsSync(templatePath)) {
       ensureDir(dirname(destPath))
       copyFileTranslated(templatePath, destPath)
@@ -185,8 +228,17 @@ function materializeChildren(sourcePath: string, destPath: string, specPath: str
   for (const child of readdirSync(sourcePath)) {
     if (SYMLINK_CHILDREN_EXCLUSIONS.has(child)) continue
     const childDest = join(destPath, child)
-    if (existsSync(childDest) || lstatSync2IsLink(childDest)) continue
-    symlinkTranslated(join(sourcePath, child), childDest)
+    const childSource = join(sourcePath, child)
+    if (lstatSync2IsLink(childDest)) {
+      if (symlinkTarget(childDest) !== childSource) {
+        throw new Error(
+          `Cannot materialize '${specPath}/${child}': existing symlink has the wrong target.`,
+        )
+      }
+      continue
+    }
+    if (existsSync(childDest)) continue
+    symlinkTranslated(childSource, childDest)
   }
   return 'LINKED_CHILDREN'
 }

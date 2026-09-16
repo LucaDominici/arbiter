@@ -113,12 +113,13 @@ export interface UnifiedTaskState {
   branch?: string
   /** Schema-validated delivery mode consumed by local evidence guards. */
   collaborationMode?: 'trunk-solo' | 'peer-review' | 'gated-review'
-  /** Exact Claude project/session tuple established before worktree lifecycle writes (#2685). */
+  /** Exact host-neutral checkout binding; Claude attestation is optional. */
   hostBinding?: {
+    bindingId: string
     worktreePath: string
     branch: string
-    sessionId: string
-    transcriptPath: string
+    sessionId?: string
+    transcriptPath?: string
   }
   handoffStrategy: HandoffStrategy
   handoffReady: boolean

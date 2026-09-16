@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { ensureDir, renameTranslated, toFsError, writeFileTranslated } from '../utils/fs.js'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { t } from '../i18n/index.js'
 import { loadConfig } from '../utils/config.js'
@@ -50,6 +51,10 @@ export interface OpenLogEntry {
   baseBranch: string
   baseRef: string
   openedAt: string
+  /** Changes when a checkout is adopted again, invalidating checkout-bound task state. */
+  bindingId?: string
+  /** Native hosts retain cleanup ownership; absent historical rows are Arbiter-owned. */
+  owner?: 'arbiter' | 'host'
 }
 
 export interface CloseLogEntry {
@@ -135,6 +140,19 @@ function getGitRoot(cwd: string): string {
   return runCli('git', ['rev-parse', '--show-toplevel'], { cwd }).stdout.trim()
 }
 
+function getMainGitRoot(cwd: string): string {
+  const checkoutRoot = getGitRoot(cwd)
+  if (isRunningFromMainRepo(checkoutRoot)) return checkoutRoot
+  const commonDir = runCli('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+    cwd,
+  }).stdout.trim()
+  const mainRoot = dirname(commonDir)
+  if (!isRunningFromMainRepo(mainRoot)) {
+    throw new Error('Git common directory does not resolve to a main repository checkout.')
+  }
+  return mainRoot
+}
+
 // ---------------------------------------------------------------------------
 // Public command options
 // ---------------------------------------------------------------------------
@@ -179,8 +197,21 @@ export interface WorktreeCloseOptions {
 
 export interface WorktreeListOptions {
   cwd?: string
+  /** Include every linked checkout, including non-task and detached worktrees. */
+  all?: boolean
   /** Receive output lines instead of printing them (used in tests). */
   onLine?: (line: string) => void
+  json?: boolean | undefined
+}
+
+export interface WorktreeAdoptOptions {
+  taskId: string
+  /** Existing checkout created by the native host. Defaults to cwd. */
+  worktreePath?: string
+  cwd?: string
+  /** Also materialize build-artifact links (WorktreeConfig.buildLinks). */
+  withBuildLinks?: boolean
+  onWarning?: (msg: string) => void
   json?: boolean | undefined
 }
 
@@ -205,6 +236,69 @@ interface LinkSummary {
   copied: number
   copiedDir: number
   missing: number
+}
+
+interface GitWorktreeEntry {
+  path: string
+  head: string | null
+  branch: string | null
+  detached: boolean
+}
+
+function parseGitWorktrees(output: string): GitWorktreeEntry[] {
+  const entries: GitWorktreeEntry[] = []
+  let current: GitWorktreeEntry | null = null
+  for (const line of output.split('\n')) {
+    if (line.startsWith('worktree ')) {
+      if (current !== null) entries.push(current)
+      current = { path: line.slice(9), head: null, branch: null, detached: false }
+    } else if (current !== null && line.startsWith('HEAD ')) {
+      current.head = line.slice(5)
+    } else if (current !== null && line.startsWith('branch ')) {
+      current.branch = line.slice(7).replace('refs/heads/', '')
+    } else if (current !== null && line === 'detached') {
+      current.detached = true
+    }
+  }
+  if (current !== null) entries.push(current)
+  return entries
+}
+
+function gitWorktreeInventory(gitRoot: string): GitWorktreeEntry[] {
+  return parseGitWorktrees(
+    runCli('git', ['worktree', 'list', '--porcelain'], { cwd: gitRoot }).stdout,
+  )
+}
+
+function sameRealPath(left: string, right: string): boolean {
+  try {
+    return realpathSync(left) === realpathSync(right)
+  } catch {
+    return false
+  }
+}
+
+function inventoryEntryFor(gitRoot: string, worktreePath: string): GitWorktreeEntry | undefined {
+  return gitWorktreeInventory(gitRoot).find((entry) => sameRealPath(entry.path, worktreePath))
+}
+
+function assertLiveWorktreeBinding(gitRoot: string, entry: OpenLogEntry): void {
+  const live = inventoryEntryFor(gitRoot, entry.worktreePath)
+  if (live === undefined || live.branch !== entry.branch) {
+    throw new Error(
+      `Logged checkout for ${entry.taskId} no longer matches Git worktree inventory; ` +
+        're-adopt the checkout before cleanup.',
+    )
+  }
+}
+
+function assertArbiterOwnedLiveBinding(gitRoot: string, entry: OpenLogEntry): void {
+  if (entry.owner === 'host') {
+    throw new Error(
+      `Checkout ${entry.worktreePath} is host-owned; remove it with the native host after delivery.`,
+    )
+  }
+  assertLiveWorktreeBinding(gitRoot, entry)
 }
 
 function materializeLinks(
@@ -361,6 +455,8 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
       baseBranch,
       baseRef,
       openedAt: new Date().toISOString(),
+      bindingId: randomUUID(),
+      owner: 'arbiter',
     })
     writeJsonArray(logPath, entries)
   } finally {
@@ -381,6 +477,99 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
   process.stdout.write(`${t('cli.worktree.base', { base: baseBranch, ref: baseRef })}\n`)
   printLinkSummary(linkSummary)
   process.stdout.write(`${t('cli.worktree.next', { path: worktreePath })}\n`)
+}
+
+// ---------------------------------------------------------------------------
+// adopt
+// ---------------------------------------------------------------------------
+
+function resolveAdoptedCheckout(
+  taskId: string,
+  requested: string,
+  gitRoot: string,
+): GitWorktreeEntry {
+  let live = inventoryEntryFor(gitRoot, requested)
+  const mainPath = gitWorktreeInventory(gitRoot)[0]?.path
+  if (live === undefined || (mainPath !== undefined && sameRealPath(requested, mainPath))) {
+    throw new Error(`${requested} is not a linked checkout in Git worktree inventory.`)
+  }
+  if (live.detached || live.branch === null) {
+    runCli('git', ['switch', '-c', branchNameFor(taskId, undefined)], { cwd: requested })
+    live = inventoryEntryFor(gitRoot, requested)
+  }
+  if (live?.branch === null || live === undefined) {
+    throw new Error(`Unable to establish a branch for adopted checkout ${requested}.`)
+  }
+  return live
+}
+
+async function recordAdoptedCheckout(
+  gitRoot: string,
+  taskId: string,
+  requested: string,
+  live: GitWorktreeEntry,
+): Promise<void> {
+  const arbiterDir = arbiterLogDir(gitRoot)
+  ensureDir(arbiterDir)
+  const lock = await acquireLock(join(arbiterDir, '.lock'))
+  try {
+    const logPath = join(arbiterDir, 'worktree-open.log.json')
+    const entries = readJsonArray(logPath)
+      .filter(isOpenLogEntry)
+      .filter((entry) => entry.taskId !== taskId)
+    entries.push({
+      taskId,
+      slug: null,
+      worktreePath: realpathSync(requested),
+      branch: live.branch as string,
+      baseBranch: 'main',
+      baseRef: live.head?.slice(0, 12) ?? '',
+      openedAt: new Date().toISOString(),
+      bindingId: randomUUID(),
+      owner: 'host',
+    })
+    writeJsonArray(logPath, entries)
+  } finally {
+    await lock.release()
+  }
+}
+
+/** Adopt and prepare an existing native checkout without taking ownership of its cleanup. */
+export async function runWorktreeAdopt(opts: WorktreeAdoptOptions): Promise<void> {
+  const caller = opts.cwd ?? process.cwd()
+  const callerRoot = getGitRoot(caller)
+  const gitRoot = getMainGitRoot(caller)
+
+  const taskId = sanitizeTaskId(opts.taskId)
+  const requested = resolve(opts.worktreePath ?? callerRoot)
+  const live = resolveAdoptedCheckout(taskId, requested, gitRoot)
+
+  const config = loadConfig(gitRoot)
+  const wtConfig = config?.worktree ?? defaultWorktreeConfig()
+  const specs = opts.withBuildLinks
+    ? [...wtConfig.links, ...(wtConfig.buildLinks ?? [])]
+    : wtConfig.links
+  const summary = materializeLinks(specs, gitRoot, requested)
+  const warn =
+    opts.onWarning ??
+    ((msg: string): void => {
+      process.stdout.write(`${msg}\n`)
+    })
+  warnDanglingLinks(specs, requested, warn)
+  await recordAdoptedCheckout(gitRoot, taskId, requested, live)
+
+  if (opts.json) {
+    jsonOutput('worktree-adopt', 'ok', {
+      taskId,
+      worktreePath: realpathSync(requested),
+      branch: live.branch,
+      linkSummary: summary,
+    })
+    return
+  }
+  process.stdout.write(`Adopted checkout: ${realpathSync(requested)}\n`)
+  process.stdout.write(`Branch:           ${live.branch}\n`)
+  printLinkSummary(summary)
 }
 
 // ---------------------------------------------------------------------------
@@ -598,6 +787,8 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 
   const { worktreePath, branch, baseBranch } = entry
 
+  assertArbiterOwnedLiveBinding(gitRoot, entry)
+
   let harvestResult: HarvestResult | null = null
   if (harvest || harvestAll) {
     harvestResult = harvestAndReport(worktreePath, gitRoot, harvestAll, opts.onHarvestFile)
@@ -755,32 +946,12 @@ export function runWorktreeList(opts: WorktreeListOptions = {}): void {
     })
   const gitRoot = getGitRoot(cwd)
 
-  const result = runCli('git', ['worktree', 'list', '--porcelain'], {
-    cwd: gitRoot,
-  })
-
-  // Parse porcelain output into path + branch pairs
-  const worktrees: Array<{ path: string; branch: string | null }> = []
-  let currentPath: string | undefined
-  let currentBranch: string | null = null
-
-  for (const line of result.stdout.split('\n')) {
-    if (line.startsWith('worktree ')) {
-      if (currentPath !== undefined) {
-        worktrees.push({ path: currentPath, branch: currentBranch })
-      }
-      currentPath = line.slice('worktree '.length)
-      currentBranch = null
-    } else if (line.startsWith('branch ')) {
-      currentBranch = line.slice('branch '.length).replace('refs/heads/', '')
-    }
-  }
-  if (currentPath !== undefined) {
-    worktrees.push({ path: currentPath, branch: currentBranch })
-  }
+  const worktrees = gitWorktreeInventory(gitRoot)
 
   // Skip the main worktree (first entry) and filter to task branches
-  const taskWorktrees = worktrees.slice(1).filter((w) => w.branch?.startsWith('task/'))
+  const taskWorktrees = opts.all
+    ? worktrees.slice(1)
+    : worktrees.slice(1).filter((w) => w.branch?.startsWith('task/'))
 
   if (opts.json) {
     jsonOutput('worktree-list', 'ok', { worktrees: taskWorktrees })
@@ -788,11 +959,11 @@ export function runWorktreeList(opts: WorktreeListOptions = {}): void {
   }
 
   if (taskWorktrees.length === 0) {
-    emit('\nNo open task worktrees.\n')
+    emit(opts.all ? '\nNo linked worktrees.\n' : '\nNo open task worktrees.\n')
     return
   }
 
-  emit(`\nOpen task worktrees (${taskWorktrees.length}):\n`)
+  emit(`\n${opts.all ? 'Open worktrees' : 'Open task worktrees'} (${taskWorktrees.length}):\n`)
   for (const wt of taskWorktrees) {
     emit(`  ${wt.branch ?? '(detached)'}  ${wt.path}`)
   }

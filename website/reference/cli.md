@@ -479,8 +479,9 @@ Manage git worktrees for parallel task development.
 
 ```
 arbiter worktree open <task-id> [slug] [options]
+arbiter worktree adopt <task-id> [path] [options]
 arbiter worktree close <task-id> [options]
-arbiter worktree list
+arbiter worktree list [--all]
 arbiter worktree relink <task-id> [options]
 ```
 
@@ -777,7 +778,7 @@ Manage task lifecycle state.
 **Subcommands:**
 
 - `arbiter task resume` — Print recovery instructions for the current task phase
-- `arbiter task host-preflight` — Bind the native Claude host to an exact task worktree before lifecycle writes
+- `arbiter task host-preflight` — Bind the native host to an exact adopted task worktree before lifecycle writes
 - `arbiter task advance` — Advance (or reverse) the task lifecycle phase
 - `arbiter task recover` — Print 3-layer recovery context for the current task (#694)
 - `arbiter task record-red` — Record TDD red-phase evidence: run a failing test and capture evidence (#551)
@@ -828,7 +829,8 @@ Manage git worktrees for parallel task development.
 **Subcommands:**
 
 - `arbiter worktree open` — Create a sibling worktree with a task branch and symlinked local files
-- `arbiter worktree close` — Tear down a task worktree after its branch is merged
+- `arbiter worktree adopt` — Adopt and prepare an existing native Git worktree without owning its cleanup
+- `arbiter worktree close` — Tear down an Arbiter-created task worktree after its branch is merged
 - `arbiter worktree list` — List open task worktrees
 - `arbiter worktree relink` — Re-materialize configured links for an existing task worktree
 - `arbiter worktree prune` — Reap zombie worktrees (#1873, ADR-103): clean trees that are merged or inactive

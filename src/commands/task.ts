@@ -153,10 +153,11 @@ interface TaskInitOptions {
 }
 
 interface NativeHostBinding {
+  bindingId: string
   worktreePath: string
   branch: string
-  sessionId: string
-  transcriptPath: string
+  sessionId?: string
+  transcriptPath?: string
 }
 
 interface NativeHostContext {
@@ -201,12 +202,16 @@ function matchesOpenLog(entry: unknown, taskId: string, worktreePath: string, br
   )
 }
 
-function assertOpenLogBinding(taskId: string, worktreePath: string, branch: string): void {
+function openLogBindingId(taskId: string, worktreePath: string, branch: string): string {
   const matches = readOpenLog(worktreePath).filter((entry) =>
     matchesOpenLog(entry, taskId, worktreePath, branch),
   )
   if (matches.length !== 1)
     throw new Error(`exact worktree binding for ${taskId} is missing or ambiguous`)
+  const bindingId = (matches[0] as Record<string, unknown>)['bindingId']
+  if (typeof bindingId !== 'string' || bindingId.length === 0)
+    throw new Error(`exact worktree binding for ${taskId} has no binding id; re-adopt it`)
+  return bindingId
 }
 
 function assertClaudeProjectDir(worktreePath: string, projectDir: string | undefined): void {
@@ -221,9 +226,10 @@ function assertClaudeProjectDir(worktreePath: string, projectDir: string | undef
     throw new Error(`CLAUDE_PROJECT_DIR ${projectPath} does not match worktree ${worktreePath}`)
 }
 
-function requireSessionId(env: NodeJS.ProcessEnv): string {
+function optionalSessionId(env: NodeJS.ProcessEnv): string | undefined {
   const sessionId = env['CLAUDE_CODE_SESSION_ID']
-  if (typeof sessionId !== 'string' || !CLAUDE_SESSION_ID.test(sessionId))
+  if (sessionId === undefined) return undefined
+  if (!CLAUDE_SESSION_ID.test(sessionId))
     throw new Error('native host binding requires a valid CLAUDE_CODE_SESSION_ID')
   return sessionId
 }
@@ -254,13 +260,19 @@ function resolveNativeHostBinding(
   if (cwd !== worktreePath)
     throw new Error(`native host root ${cwd} does not match worktree ${worktreePath}`)
   const branch = git(worktreePath, ['branch', '--show-current'])
+  if (branch.length === 0) throw new Error('native checkout must have an explicit branch')
   const canonicalTask = taskId.startsWith('#') ? taskId : `#${taskId}`
-  assertOpenLogBinding(canonicalTask, worktreePath, branch)
+  const bindingId = openLogBindingId(canonicalTask, worktreePath, branch)
   const env = context.env ?? process.env
   assertClaudeProjectDir(worktreePath, env['CLAUDE_PROJECT_DIR'])
-  const sessionId = requireSessionId(env)
-  const transcriptPath = requireTranscript(worktreePath, sessionId, context.homeDir ?? homedir())
-  return { worktreePath, branch, sessionId, transcriptPath }
+  const sessionId = optionalSessionId(env)
+  const binding = { bindingId, worktreePath, branch }
+  if (sessionId === undefined) return binding
+  return {
+    ...binding,
+    sessionId,
+    transcriptPath: requireTranscript(worktreePath, sessionId, context.homeDir ?? homedir()),
+  }
 }
 
 function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
@@ -281,18 +293,11 @@ function runTaskHostPreflight(opts: TaskHostPreflightOptions): void {
     throw new Error('task write root does not match the bound worktree')
   }
   writeUnifiedState(root, { taskId, branch: hostBinding.branch, hostBinding })
-  appendLog(root, `host-preflight ${taskId} session=${hostBinding.sessionId}`)
+  appendLog(
+    root,
+    `host-preflight ${taskId} binding=${hostBinding.bindingId} host=${hostBinding.sessionId ? 'claude' : 'git'}`,
+  )
   process.stdout.write(`host-preflight: OK — ${hostBinding.worktreePath}\n`)
-}
-
-function requireNativeHostState(root: string): {
-  state: UnifiedTaskState
-  binding: NativeHostBinding
-} {
-  const state = readUnifiedState(root)
-  if (!state?.taskId || !state.hostBinding)
-    throw new Error('native host binding is missing — run arbiter task host-preflight first')
-  return { state, binding: state.hostBinding }
 }
 
 function requestedTaskMatches(requestedTaskId: string | undefined, boundTaskId: string): boolean {
@@ -300,14 +305,14 @@ function requestedTaskMatches(requestedTaskId: string | undefined, boundTaskId: 
   return normalizeChainId(requestedTaskId) === boundTaskId
 }
 
-function assertBoundClaudeHost(
+function assertBoundNativeHost(
   root: string,
   requestedTaskId: string | undefined,
   host: NativeHostContext = {},
 ): void {
-  const env = host.env ?? process.env
-  if (!env['CLAUDE_CODE_SESSION_ID']) return
-  const { state, binding } = requireNativeHostState(root)
+  const state = readUnifiedState(root)
+  if (!state?.hostBinding) return
+  const binding = state.hostBinding
   if (realpathSync(root) !== binding.worktreePath) {
     throw new Error('task write root does not match the native host binding')
   }
@@ -315,7 +320,11 @@ function assertBoundClaudeHost(
     throw new Error('task id does not match the native host binding')
   }
   const live = resolveNativeHostBinding(state.taskId, binding.worktreePath, host)
-  if (JSON.stringify(live) !== JSON.stringify(binding)) {
+  if (
+    live.bindingId !== binding.bindingId ||
+    live.worktreePath !== binding.worktreePath ||
+    live.branch !== binding.branch
+  ) {
     throw new Error('native host binding is stale — run arbiter task host-preflight again')
   }
 }
@@ -346,7 +355,7 @@ function configuredTaskPatch(root: string): TaskStatePatch {
 export function runTaskInit(opts: TaskInitOptions = {}): void {
   if (initializeHostPreflight(opts)) return
   const root = opts.dir ?? process.cwd()
-  assertBoundClaudeHost(root, opts.id, opts.host)
+  assertBoundNativeHost(root, opts.id, opts.host)
   const patch = configuredTaskPatch(root)
   if (opts.id !== undefined) patch.taskId = opts.id
   if (opts.tier !== undefined) patch.tier = opts.tier
@@ -356,6 +365,9 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   assertTaskInitSingleIssue(patch.chainIds)
   const branch = detectCurrentBranch(root)
   if (branch !== undefined) patch.branch = branch
+  if (opts.id !== undefined && branch !== undefined && isLinkedCheckout(root)) {
+    patch.hostBinding = resolveNativeHostBinding(opts.id, root, opts.host)
+  }
   const state = writeUnifiedState(root, patch)
   appendLog(root, taskInitLog(state))
 }
@@ -379,6 +391,17 @@ function detectCurrentBranch(root: string): string | undefined {
     return name.length > 0 ? name : undefined
   } catch {
     return undefined
+  }
+}
+
+function isLinkedCheckout(root: string): boolean {
+  try {
+    return (
+      git(root, ['rev-parse', '--path-format=absolute', '--git-dir']) !==
+      git(root, ['rev-parse', '--path-format=absolute', '--git-common-dir'])
+    )
+  } catch {
+    return false
   }
 }
 
@@ -1207,6 +1230,8 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
   const dir = opts.dir ?? process.cwd()
   const claudeDir = join(dir, '.claude')
   const { to } = opts
+
+  assertBoundNativeHost(dir, undefined)
 
   if (!isValidPhase(to)) {
     throw new Error(

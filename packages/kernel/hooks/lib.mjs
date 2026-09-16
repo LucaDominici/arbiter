@@ -9,11 +9,15 @@ import {
   realpathSync,
   statSync,
   writeFileSync,
+  openSync,
+  closeSync,
+  unlinkSync,
+  renameSync,
 } from 'node:fs'
 import { basename, isAbsolute, join, extname, dirname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { homedir, tmpdir } from 'node:os'
-import { createHash } from 'node:crypto'
+import { homedir, tmpdir, hostname } from 'node:os'
+import { createHash, randomBytes } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 
 const PROJECT = 'my-project'
@@ -497,7 +501,99 @@ export function getRepoRoot() {
 // registers entries, post-subagent-release.mjs (SubagentStop) removes them on cleanup.
 // Both files import from here rather than duplicating the path/TTL/prune logic.
 export const SIDECAR_PATH = join('.arbiter', 'agents-active.json')
+export const SIDECAR_LOCK_PATH = join('.arbiter', 'agents-active.lock')
 export const SIDECAR_TTL_MS = 2 * 60 * 60 * 1000 // 2h — mirrors `arbiter worktree prune --stale`
+
+export function isGitWorktree(cwd) {
+  if (typeof cwd !== 'string' || cwd.length === 0) return false
+  const result = spawnSync(
+    'git',
+    ['-C', cwd, 'rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir'],
+    { encoding: 'utf-8' },
+  )
+  if (result.status !== 0) return false
+  const [gitDir, commonDir] = result.stdout.trim().split(/\r?\n/)
+  if (!gitDir || !commonDir) return false
+  try {
+    return realpathSync(gitDir) !== realpathSync(commonDir)
+  } catch {
+    return false
+  }
+}
+
+function currentBootId() {
+  try {
+    return readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8').trim()
+  } catch {
+    return 'unknown'
+  }
+}
+
+function takeDeadSidecarLock(lockPath) {
+  try {
+    const info = JSON.parse(readFileSync(lockPath, 'utf-8'))
+    if (info?.hostname !== hostname()) return false
+    if (info?.bootId === currentBootId()) {
+      if (!Number.isInteger(info?.pid) || info.pid <= 0) return false
+      try {
+        process.kill(info.pid, 0)
+        return false
+      } catch (err) {
+        if (err?.code !== 'ESRCH') return false
+      }
+    }
+    const marker = `${lockPath}.stale-${process.pid}-${randomBytes(4).toString('hex')}`
+    renameSync(lockPath, marker)
+    unlinkSync(marker)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function withSidecarLock(root, operation) {
+  const lockPath = join(root, SIDECAR_LOCK_PATH)
+  mkdirSync(dirname(lockPath), { recursive: true })
+  const nonce = randomBytes(8).toString('hex')
+  let fd
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      fd = openSync(lockPath, 'wx')
+      writeFileSync(
+        fd,
+        JSON.stringify({
+          pid: process.pid,
+          hostname: hostname(),
+          bootId: currentBootId(),
+          startedAt: new Date().toISOString(),
+          nonce,
+        }),
+      )
+      break
+    } catch (err) {
+      if (fd !== undefined) closeSync(fd)
+      fd = undefined
+      if (err?.code === 'EEXIST' && attempt === 0 && takeDeadSidecarLock(lockPath)) continue
+      const cause =
+        err?.code === 'EEXIST'
+          ? 'another live or unverifiable writer holds it'
+          : String(err?.message ?? err)
+      throw new Error(`sidecar writer lock unavailable (${cause}): ${lockPath}`)
+    }
+  }
+  if (fd === undefined) throw new Error(`sidecar writer lock unavailable: ${lockPath}`)
+  closeSync(fd)
+  try {
+    return operation()
+  } finally {
+    try {
+      const current = JSON.parse(readFileSync(lockPath, 'utf-8'))
+      if (current?.nonce === nonce) unlinkSync(lockPath)
+    } catch {
+      /* leave an unowned lock fail-closed */
+    }
+  }
+}
 
 /** Generic best-effort JSON read; missing/malformed file => null (caller decides fallback). */
 export function readJsonOrNull(path) {
@@ -561,7 +657,7 @@ export function readTaskState(root) {
   }
 }
 
-/** Exact Claude project/session binding established by `task host-preflight` (#2685). */
+/** Exact host-neutral checkout binding; Claude session attestation is optional. */
 export function nativeHostBindingError(event, root) {
   const path = join(root, '.claude', '.task', 'status.json')
   if (!existsSync(path)) {
@@ -605,8 +701,8 @@ export function nativeHostBindingError(event, root) {
   if (typeof state?.taskId !== 'string' || state.taskId.length === 0) return null
   const binding = state.hostBinding
   if (!binding || typeof binding !== 'object') return 'native host binding is missing'
-  const transcriptError = claudeTranscriptIdentityError(event, root)
-  if (transcriptError) return transcriptError
+  if (typeof binding.bindingId !== 'string' || binding.bindingId.length === 0)
+    return 'native host binding id is missing'
   try {
     const actualRoot = realpathSync(root)
     const eventRoot = realpathSync(event?.cwd)
@@ -617,7 +713,6 @@ export function nativeHostBindingError(event, root) {
       realpathSync(process.env.CLAUDE_PROJECT_DIR) !== binding.worktreePath
     )
       return 'CLAUDE_PROJECT_DIR does not match the task worktree'
-    if (event?.session_id !== binding.sessionId) return 'native host session does not match binding'
     const branch = spawnSync('git', ['branch', '--show-current'], {
       cwd: actualRoot,
       encoding: 'utf8',
@@ -628,12 +723,22 @@ export function nativeHostBindingError(event, root) {
       state.branch !== binding.branch
     )
       return 'native host branch does not match binding'
-    const transcript = event?.transcript_path
-    if (transcript !== binding.transcriptPath)
-      return 'native host transcript does not match binding'
-    const stat = lstatSync(transcript)
-    if (!stat.isFile() || stat.isSymbolicLink() || realpathSync(transcript) !== resolve(transcript))
-      return 'native host transcript is not a regular unsymlinked file'
+    if (binding.sessionId !== undefined) {
+      const transcriptError = claudeTranscriptIdentityError(event, root)
+      if (transcriptError) return transcriptError
+      if (event?.session_id !== binding.sessionId)
+        return 'native host session does not match binding'
+      const transcript = event?.transcript_path
+      if (transcript !== binding.transcriptPath)
+        return 'native host transcript does not match binding'
+      const stat = lstatSync(transcript)
+      if (
+        !stat.isFile() ||
+        stat.isSymbolicLink() ||
+        realpathSync(transcript) !== resolve(transcript)
+      )
+        return 'native host transcript is not a regular unsymlinked file'
+    }
     const common = spawnSync('git', ['rev-parse', '--git-common-dir'], {
       cwd: actualRoot,
       encoding: 'utf8',
@@ -654,7 +759,8 @@ export function nativeHostBindingError(event, root) {
         (row) =>
           row?.taskId === state.taskId &&
           row?.worktreePath === binding.worktreePath &&
-          row?.branch === binding.branch,
+          row?.branch === binding.branch &&
+          row?.bindingId === binding.bindingId,
       ).length !== 1
     )
       return 'exact native host worktree log binding is missing or ambiguous'

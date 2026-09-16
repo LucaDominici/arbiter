@@ -21,7 +21,13 @@
 // the backstop for whatever this correlation cannot catch.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { getRepoRoot, SIDECAR_PATH, readJsonOrNull, pruneStaleSidecarEntries } from './lib.mjs'
+import {
+  getRepoRoot,
+  SIDECAR_PATH,
+  readJsonOrNull,
+  pruneStaleSidecarEntries,
+  withSidecarLock,
+} from './lib.mjs'
 
 function main() {
   let input = {}
@@ -38,31 +44,26 @@ function main() {
   const root = getRepoRoot()
   const sidecarPath = join(root, SIDECAR_PATH)
   const now = Date.now()
-  const existing = readJsonOrNull(sidecarPath)
-  const entries = pruneStaleSidecarEntries(Array.isArray(existing) ? existing : [], now)
-
-  if (cwdKey !== undefined) {
-    // Remove the OLDEST entry matching this dispatch (agent+cwd when the agent is
-    // known, else cwd alone) — SubagentStop carries no stable per-dispatch id to
-    // correlate exactly, so FIFO-by-ts is the best available tie-break.
-    let removeAt = -1
-    let oldestTs = Infinity
-    entries.forEach((e, i) => {
-      const matches = e.cwd === cwdKey && (agentKey === undefined || e.agent === agentKey)
-      if (matches && Number(e.ts ?? 0) < oldestTs) {
-        oldestTs = Number(e.ts ?? 0)
-        removeAt = i
-      }
-    })
-    if (removeAt !== -1) entries.splice(removeAt, 1)
-  }
-
   try {
-    mkdirSync(join(root, '.arbiter'), { recursive: true })
-    writeFileSync(sidecarPath, JSON.stringify(entries, null, 2) + '\n')
-    // FAIL-OPEN-INTENT: best-effort bookkeeping — a sidecar write failure must never block Stop.
-  } catch {
-    void 0
+    withSidecarLock(root, () => {
+      const existing = readJsonOrNull(sidecarPath)
+      const entries = pruneStaleSidecarEntries(Array.isArray(existing) ? existing : [], now)
+      if (cwdKey !== undefined) {
+        let removeAt = -1
+        let oldestTs = Infinity
+        entries.forEach((e, i) => {
+          const matches = e.cwd === cwdKey && (agentKey === undefined || e.agent === agentKey)
+          if (matches && Number(e.ts ?? 0) < oldestTs) {
+            oldestTs = Number(e.ts ?? 0)
+            removeAt = i
+          }
+        })
+        if (removeAt !== -1) entries.splice(removeAt, 1)
+      }
+      writeFileSync(sidecarPath, JSON.stringify(entries, null, 2) + '\n')
+    })
+  } catch (err) {
+    process.stderr.write(`[arbiter] SUBAGENT RELEASE: ${err.message}\n`)
   }
 
   process.exit(0)
