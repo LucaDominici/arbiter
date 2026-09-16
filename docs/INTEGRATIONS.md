@@ -79,7 +79,7 @@ Example (generated `AGENTS.md` fragment):
 ```
 
 3. Add detection logic if the skill uses a non-standard path (default: walks `~/.claude/skills/<skill-basename>`).
-4. Open a PR. `scripts/check-skills-matrix.mjs` (wired in CI) and `__tests__/integrations/skills-matrix.test.ts` will catch any malformed entries.
+4. Open a PR. `scripts/check-skills-matrix.mjs` (wired in CI), `__tests__/scripts/check-skills-matrix.test.ts`, and `__tests__/unit/compatibility/skills-validator.test.ts` catch malformed entries.
 
 ---
 
