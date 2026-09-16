@@ -1,0 +1,119 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2618",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/generators/agents-md.ts",
+          "line": 33
+        },
+        {
+          "file": "src/generators/skills.ts",
+          "line": 104
+        },
+        {
+          "file": "src/templates/agents-md/AGENTS.md.ejs",
+          "line": 515
+        },
+        {
+          "file": "__tests__/generators/agents-md.test.ts",
+          "line": 143
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/generators/agents-md.ts",
+          "line": 36
+        },
+        {
+          "file": "src/commands/init/generate.ts",
+          "line": 128
+        },
+        {
+          "file": "src/templates/agents-md/AGENTS.md.ejs",
+          "line": 516
+        },
+        {
+          "file": "__tests__/generators/agents-md.test.ts",
+          "line": 198
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/generators/agents-md.test.ts",
+          "line": 143
+        },
+        {
+          "file": "__tests__/generators/agents-md.test.ts",
+          "line": 161
+        },
+        {
+          "file": "__tests__/generators/agents-md.test.ts",
+          "line": 171
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 8
+        },
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 11
+        },
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 17
+        },
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 32
+        },
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 40
+        },
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 48
+        },
+        {
+          "file": ".arbiter/evidence/benchmark/#2618.json",
+          "line": 58
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2618-context-economy",
+  "sha": "db4b2617bce2f16e8585382dd1fbdab9ae84f3b9",
+  "planHash": "39cc68ebe3852491fb29299d1b3f8a227ae87ccc",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2618/acceptance-fit-0.json",
+    "sha256": "0a14ad405ad18919e1f45b21ee6d2099e16c81d9378422526f93d97ab023f22e"
+  }
+}
