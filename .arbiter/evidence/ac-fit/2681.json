@@ -16,15 +16,15 @@
         },
         {
           "file": "scripts/pr-merge-watch.mjs",
-          "line": 328
+          "line": 317
+        },
+        {
+          "file": "scripts/pr-merge-watch.mjs",
+          "line": 334
         },
         {
           "file": "__tests__/scripts/pr-merge-watch-promotion.test.ts",
           "line": 355
-        },
-        {
-          "file": "__tests__/commands/pr-merged.test.ts",
-          "line": 192
         }
       ]
     },
@@ -114,19 +114,19 @@
         },
         {
           "file": "scripts/pr-merge-watch.mjs",
-          "line": 328
+          "line": 299
+        },
+        {
+          "file": "scripts/pr-merge-watch.mjs",
+          "line": 353
         },
         {
           "file": "src/templates/scripts/pr-merge-watch.mjs.ejs",
-          "line": 328
+          "line": 353
         },
         {
           "file": "examples/ts-library/scripts/pr-merge-watch.mjs",
-          "line": 328
-        },
-        {
-          "file": "scripts/check-merge-method.mjs",
-          "line": 31
+          "line": 353
         },
         {
           "file": "docs/internal/ADR/088-ship-as-orchestration-entrypoint.md",
@@ -168,10 +168,10 @@
     }
   ],
   "branch": "task/#2681-canonical-landing",
-  "sha": "e3de470f968b9a076d2303d1faba695b4c4d2b86",
+  "sha": "4b9a7b4e77837528d4ac2bb4b8220e1a6e0ccddc",
   "planHash": "9f4ccf8137a943ed1ed3cc0d470e4a34333a1a9f",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2681/acceptance-fit-1.json",
-    "sha256": "9b7bb79885303e877a073dfbdd18b456a4923f4d5c3995bc44e9800920dcc434"
+    "path": ".arbiter/evidence/agent-returns/_2681/acceptance-fit-2.json",
+    "sha256": "5eeaa8378d0623dea6c825ba2a873f5348155214bd3762667deab32f390b9c08"
   }
 }
