@@ -1,0 +1,55 @@
+{
+  "schema": "arbiter-runtime-qualification-v1",
+  "taskId": "#2718",
+  "recordedAt": "2026-09-16T14:18:23Z",
+  "owner": "/root",
+  "verdict": "NO_GO",
+  "decision": "Do not ship the functional status adapter from this experiment.",
+  "reason": "Claude Code 2.1.271 accepted the function-hook API and mixed hook manifest statically, but isolated startup stopped before the prompt loop. Live trigger, fallback, context-retention and comparative latency cells are NO_DATA, so the predeclared benefit over native shell mode is unproven.",
+  "subject": {
+    "branchHead": "f7fcf78d9382effff43d9b9ed0181be568a8f4d9",
+    "tree": "c6580b66f0f5e850a5654e8873a537a5fcbe3385",
+    "claudeVersion": "2.1.271",
+    "claudeBinarySha256": "5e7b6fc24d0e124f68e99a0641c47b662945c6d197d768d7ad7a72cbf1897f58",
+    "generatedTypesSha256": "b41f835ed9038e503c59ffd9580477af43e1ddc14a8d7d79fd692a011c2508f6"
+  },
+  "observations": {
+    "staticManifestValidation": "PASS",
+    "moduleAndCommandHookDiscovery": "PASS_STATIC_ONLY",
+    "directMethodStatus": {
+      "result": "PASS",
+      "wallTimeSecondsApprox": 0.7,
+      "stdoutBytes": 5804,
+      "summary": {
+        "wired": 13,
+        "partial": 0,
+        "unverified": 3,
+        "off": 12
+      }
+    },
+    "livePromptSubmit": "NO_DATA",
+    "exactTrigger": "NO_DATA",
+    "nearMatchPassThrough": "NO_DATA",
+    "failurePassThrough": "NO_DATA",
+    "visibleDrop": "NO_DATA",
+    "contextRetentionComparison": "NO_DATA",
+    "threeRunLatencyComparison": "NO_DATA",
+    "modelRequestsDelivered": 0,
+    "worktreeMutation": false
+  },
+  "failureClassification": "ENVIRONMENT_ERROR",
+  "failureDetail": "Every isolated interactive launch exited before input with an Anthropic connectivity error; a local base-URL stub received no request.",
+  "artifactDigests": {
+    "probeReportSha256": "a486f2d51ebd51b2afd04e5aa5cc338bd6d7c0970b31e73e14f8be4f91c11b5c",
+    "staticValidationSha256": "b206fa52abe6598739e2bc1cddd503537e21dc41e2953fbef78a13be420dd709",
+    "directStatusSha256": "4770400ded948dc4c3061bf02a3551cc699fd3691cb44c948514ffe7b982aba8",
+    "interactiveDebugSha256": "4b81efbdb604139becf12a579d28208218bd815e459dc8e836111090f6bb4098",
+    "closingManifestSha256": "576017d2a1d5711f277629c3191ce9d2597e92e543b360ff01a11a99880d77c2"
+  },
+  "limitations": [
+    "Static validation does not prove runtime hook execution.",
+    "The direct command is not an interactive native-shell measurement.",
+    "No claim is made that function hooks are unsupported; the experiment failed its proof threshold.",
+    "Reconsider only with a safe live 2.1.271 runtime probe and a predeclared measurable advantage over native shell mode."
+  ]
+}
