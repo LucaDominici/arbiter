@@ -88,4 +88,4 @@ Work in vertical RED/GREEN slices. Do not test private helper shapes or mock the
 
 ## Non-Goals
 
-No command-hook migration, lifecycle advancement, recovery change, preflight duplication, shell rewrite, background process, dashboard, transcript mining, global installation, timer/store, remote telemetry or new framework.
+- No command-hook migration, lifecycle advancement, recovery change, preflight duplication, shell rewrite, background process, dashboard, transcript mining, global installation, timer/store, remote telemetry or new framework.
