@@ -297,32 +297,93 @@ function sessionOverlaps(session, firstCommit, mergedAt) {
   const mergedMs = Date.parse(mergedAt ?? '')
   const sessionFirstMs = Date.parse(session?.firstTs ?? '')
   const sessionLastMs = Date.parse(session?.lastTs ?? '')
+  const windowStartMs = firstMs - 2 * 60 * 60 * 1000
   return (
     Number.isFinite(firstMs) &&
     Number.isFinite(mergedMs) &&
     Number.isFinite(sessionFirstMs) &&
     Number.isFinite(sessionLastMs) &&
     sessionFirstMs <= mergedMs &&
-    sessionLastMs >= firstMs
+    sessionLastMs >= windowStartMs
   )
 }
 
-/** Keep exact-branch sessions and branchless Codex sessions in the PR worktree. */
-export function attributeSessions(
-  sessions,
-  { headRefName, firstCommit, mergedAt, worktreeDir } = {},
-) {
-  return (Array.isArray(sessions) ? sessions : []).filter((session) => {
-    if (!sessionOverlaps(session, firstCommit, mergedAt)) return false
-    const exactBranch =
-      typeof headRefName === 'string' && headRefName !== '' && session.gitBranch === headRefName
-    const codexWorktree =
-      session.host === 'codex' &&
-      !session.gitBranch &&
-      typeof worktreeDir === 'string' &&
-      session.cwd === worktreeDir
-    return exactBranch || codexWorktree
-  })
+const DELIMITED_NUMBER_RE = /(?<!\d)\d+(?!\d)/g
+const PROMPT_ISSUE_RE = /#(\d{3,5})\b/g
+
+function sortedUnique(numbers) {
+  return [...new Set(numbers)].sort((a, b) => a - b)
+}
+
+function delimitedNumbers(value) {
+  if (typeof value !== 'string') return []
+  return [...value.matchAll(DELIMITED_NUMBER_RE)].map((match) => Number(match[0]))
+}
+
+function promptIssueIds(prompt) {
+  if (typeof prompt !== 'string') return []
+  return sortedUnique([...prompt.matchAll(PROMPT_ISSUE_RE)].map((match) => Number(match[1])))
+}
+
+function containsIssueId(value, issueIds) {
+  return delimitedNumbers(value).some((id) => issueIds.includes(id))
+}
+
+export function issueIdsOf(pr) {
+  const branchIds = delimitedNumbers(pr?.headRefName)
+  const closingIds = (Array.isArray(pr?.closingIssuesReferences) ? pr.closingIssuesReferences : [])
+    .map((reference) => reference?.number)
+    .filter((number) =>
+      typeof number === 'number'
+        ? Number.isSafeInteger(number)
+        : typeof number === 'string' && /^\d+$/.test(number),
+    )
+    .map(Number)
+  return sortedUnique([...branchIds, ...closingIds])
+}
+
+/** Attribute overlapping sessions through an issue-bearing path or Codex ancestry. */
+export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {}) {
+  const issueIds = issueIdsOf(pr)
+  const candidates = (Array.isArray(sessions) ? sessions : []).filter((session) =>
+    sessionOverlaps(session, firstCommit, mergedAt),
+  )
+  const attributed = []
+  const attributedThreads = new Set()
+  const pending = [...candidates]
+  let changed = true
+  while (changed) {
+    changed = false
+    for (let i = pending.length - 1; i >= 0; i--) {
+      const meta = pending[i]
+      let via = null
+      if (containsIssueId(meta.gitBranch, issueIds)) via = 'branch'
+      else if (containsIssueId(meta.cwd, issueIds)) via = 'cwd'
+      else if (containsIssueId(meta.agentPath, issueIds)) via = 'agent-path'
+      else if (
+        meta.host === 'codex' &&
+        typeof meta.parentThreadId === 'string' &&
+        attributedThreads.has(meta.parentThreadId)
+      ) {
+        via = 'parent'
+      } else if (
+        meta.host === 'claude' &&
+        meta.issueIdsInPrompt?.length === 1 &&
+        issueIds.includes(meta.issueIdsInPrompt[0])
+      ) {
+        via = 'prompt'
+      }
+      if (via === null) continue
+      pending.splice(i, 1)
+      attributed.push({ meta, via })
+      if (meta.host === 'codex' && typeof meta.threadId === 'string') {
+        attributedThreads.add(meta.threadId)
+      }
+      changed = true
+    }
+  }
+  const order = new Map(candidates.map((meta, index) => [meta, index]))
+  return attributed.sort((a, b) => order.get(a.meta) - order.get(b.meta))
 }
 
 function messageContent(event) {
@@ -354,6 +415,8 @@ export function claudeSessionMeta(lines) {
   let input = null
   let output = null
   let cache = null
+  let firstPrompt = null
+  let issueIdsInPrompt = []
   const times = { firstTs: null, lastTs: null }
   for (const line of Array.isArray(lines) ? lines : []) {
     const event = parseSessionLine(line)
@@ -366,6 +429,11 @@ export function claudeSessionMeta(lines) {
     if (role === 'user' && event.isSidechain !== true && !isToolResultMessage(event)) {
       humanMessages++
       hasHumanMessage = true
+      const content = messageContent(event)
+      if (firstPrompt === null && typeof content === 'string') {
+        firstPrompt = content.slice(0, 400)
+        issueIdsInPrompt = promptIssueIds(firstPrompt)
+      }
     }
     if (role !== 'assistant') continue
     const usage = event.message?.usage ?? event.usage
@@ -385,12 +453,17 @@ export function claudeSessionMeta(lines) {
     usage: { input, output, cache },
     humanMessages: hasHumanMessage ? humanMessages : null,
     effort,
+    firstPrompt,
+    issueIdsInPrompt,
   }
 }
 
 /** Summarize Codex rollout JSONL using its latest context and token snapshot. */
 export function codexSessionMeta(lines) {
   let cwd = null
+  let agentPath = null
+  let threadId = null
+  let parentThreadId = null
   let model = null
   let effort = null
   let usage = { input: null, output: null, cache: null }
@@ -400,8 +473,28 @@ export function codexSessionMeta(lines) {
     if (event === null) continue
     updateSessionTimes(times, eventTimestamp(event))
     const payload = event.payload ?? {}
+    const spawn = payload.source?.subagent?.thread_spawn
     if (cwd === null && typeof (payload.cwd ?? event.cwd) === 'string')
       cwd = payload.cwd ?? event.cwd
+    if (
+      agentPath === null &&
+      typeof (spawn?.agent_path ?? payload.agent_path ?? event.agent_path) === 'string'
+    ) {
+      agentPath = spawn?.agent_path ?? payload.agent_path ?? event.agent_path
+    }
+    if (
+      threadId === null &&
+      typeof (payload.id ?? payload.thread_id ?? event.thread_id) === 'string'
+    ) {
+      threadId = payload.id ?? payload.thread_id ?? event.thread_id
+    }
+    if (
+      parentThreadId === null &&
+      typeof (payload.parent_thread_id ?? spawn?.parent_thread_id ?? event.parent_thread_id) ===
+        'string'
+    ) {
+      parentThreadId = payload.parent_thread_id ?? spawn?.parent_thread_id ?? event.parent_thread_id
+    }
     if (event.type === 'turn_context') {
       if (typeof payload.model === 'string') model = payload.model
       const nextEffort = payload.reasoning_effort ?? payload.effort
@@ -421,7 +514,17 @@ export function codexSessionMeta(lines) {
       }
     }
   }
-  return { cwd, firstTs: times.firstTs, lastTs: times.lastTs, model, effort, usage }
+  return {
+    cwd,
+    firstTs: times.firstTs,
+    lastTs: times.lastTs,
+    model,
+    effort,
+    agentPath,
+    threadId,
+    parentThreadId,
+    usage,
+  }
 }
 
 function sumNullable(values) {
@@ -472,6 +575,20 @@ export function mergeDeliverySources(row, { ci, sessions } = {}) {
     models: [...new Set(models)],
     sourcesKnown,
   }
+}
+
+export function unattributedUsage(metas, attributedFiles) {
+  const result = { claude: 0, codex: 0, sessions: 0 }
+  const isAttributed = (file) =>
+    attributedFiles instanceof Set
+      ? attributedFiles.has(file)
+      : Array.isArray(attributedFiles) && attributedFiles.includes(file)
+  for (const meta of Array.isArray(metas) ? metas : []) {
+    if (isAttributed(meta?.file) || !['claude', 'codex'].includes(meta?.host)) continue
+    result[meta.host] += tokenTotal(meta?.usage) ?? 0
+    result.sessions++
+  }
+  return result
 }
 
 /** Build per-stratum writer references from the first thirty deliveries seen. */
@@ -748,7 +865,7 @@ function fetchPrDetail(repo, number) {
       'view',
       String(number),
       '--json',
-      'commits,createdAt,mergedAt,headRefName,additions,deletions,statusCheckRollup,labels',
+      'commits,createdAt,mergedAt,headRefName,closingIssuesReferences,additions,deletions,statusCheckRollup,labels',
       ...repoArgs(repo),
     ],
     `gh pr view #${number}`,
@@ -783,7 +900,7 @@ function collectFiles(dir, predicate, maxDepth, depth = 0) {
   for (const entry of entries) {
     const full = join(dir, entry.name)
     if (entry.isFile() && predicate(entry.name)) files.push(full)
-    else if (entry.isDirectory() && depth < maxDepth) {
+    else if (entry.isDirectory() && !entry.name.includes('observer-sessions') && depth < maxDepth) {
       files.push(...collectFiles(full, predicate, maxDepth, depth + 1))
     }
   }
@@ -822,7 +939,7 @@ async function readJsonlLines(file) {
   }
 }
 
-async function discoverSessions(dir, host, sinceMs, untilMs) {
+export async function discoverSessions(dir, host, sinceMs, untilMs) {
   const sessions = []
   for (const file of sessionFiles(dir, host, sinceMs, untilMs)) {
     const lines = await readJsonlLines(file)
@@ -950,7 +1067,7 @@ function enrichPrRow(row, pr, commits, lines) {
   }
 }
 
-function fetchPrRow(repo, number, sessions, worktreeDir) {
+function fetchPrRow(repo, number, sessions, worktreeDir, attributedFiles) {
   const pr = fetchPrDetail(repo, number)
   const commits = (pr.commits ?? []).map((c) => ({
     subject: c.messageHeadline,
@@ -962,15 +1079,20 @@ function fetchPrRow(repo, number, sessions, worktreeDir) {
   const row = buildPrRow({ ...pr, number }, commits)
   const firstCommit = commits[0]?.authoredDate ?? pr.createdAt
   const attributed = attributeSessions(sessions, {
+    ...pr,
     headRefName: pr.headRefName,
     firstCommit,
     mergedAt: pr.mergedAt,
     worktreeDir,
   })
+  const attributedMetas = attributed.map(({ meta }) => meta)
+  for (const session of attributedMetas) {
+    if (session.file) attributedFiles?.add(session.file)
+  }
   const enriched = enrichPrRow(row, pr, commits, null)
-  const loggedEvents = attributed.flatMap((session) => session.events ?? [])
+  const loggedEvents = attributedMetas.flatMap((session) => session.events ?? [])
   if (loggedEvents.length > 0) enriched.leadTimeSplit = splitLeadTime(loggedEvents)
-  return mergeDeliverySources(enriched, { ci: ciTiming(pr), sessions: attributed })
+  return mergeDeliverySources(enriched, { ci: ciTiming(pr), sessions: attributedMetas })
 }
 
 // `git log --since/--until` resolve in the LOCAL timezone while the `gh` search
@@ -1190,7 +1312,7 @@ function renderStratumSummary(rows) {
   return lines
 }
 
-function renderMarkdown({ since, until, rows, aggregate, hookBlocks }) {
+export function renderMarkdown({ since, until, rows, aggregate, hookBlocks, unattributed }) {
   const lines = []
   lines.push(`# Ship KPI — ${since} → ${until}`, '')
   lines.push('## Per-PR', '')
@@ -1206,6 +1328,9 @@ function renderMarkdown({ since, until, rows, aggregate, hookBlocks }) {
     )
   }
   lines.push('', ...renderStratumSummary(rows))
+  lines.push(
+    `unattributed: claude ${unattributed?.claude ?? 0} / codex ${unattributed?.codex ?? 0} across ${unattributed?.sessions ?? 0} sessions`,
+  )
   lines.push('', '## Aggregate', '')
   lines.push('| Metric | Value |', '|--------|-------|')
   lines.push(`| PRs merged | ${aggregate.prsMerged} |`)
@@ -1262,7 +1387,11 @@ async function main() {
     ...(await discoverSessions(opts.sessions, 'claude', sinceMs, untilMs)),
     ...(await discoverSessions(opts.codexSessions, 'codex', sinceMs, untilMs)),
   ]
-  const rows = prNumbers.map((n) => fetchPrRow(opts.repo, n, sessions, process.cwd()))
+  const attributedFiles = new Set()
+  const rows = prNumbers.map((n) =>
+    fetchPrRow(opts.repo, n, sessions, process.cwd(), attributedFiles),
+  )
+  const unattributed = unattributedUsage(sessions, attributedFiles)
   const openPrs = fetchOpenPrs(opts.repo)
   const issuesClosedCount = fetchIssuesClosedCount(opts.repo, opts.since, until)
   const mainSubjects = fetchMainSubjects(opts.since, until)
@@ -1291,10 +1420,18 @@ async function main() {
     rows,
     aggregate,
     hookBlocks,
+    unattributed,
   }
 
   process.stdout.write(
-    renderMarkdown({ since: opts.since, until: untilLabel, rows, aggregate, hookBlocks }),
+    renderMarkdown({
+      since: opts.since,
+      until: untilLabel,
+      rows,
+      aggregate,
+      hookBlocks,
+      unattributed,
+    }),
   )
 
   const jsonPath = opts.json ?? join('.arbiter/evidence/kpi', `${untilLabel}.json`)

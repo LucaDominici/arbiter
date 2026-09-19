@@ -6,7 +6,9 @@
 // scripts must be executed in tests, not just string-matched).
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { dirname } from 'node:path'
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import * as shipKpi from '../../scripts/ship-kpi.mjs'
 import {
   isEvidenceOnlySubject,
@@ -39,6 +41,7 @@ const checkpointVerdict = Reflect.get(shipKpi, 'checkpointVerdict') as (
 ) => unknown
 const formatLogEntry = Reflect.get(shipKpi, 'formatLogEntry') as (...args: unknown[]) => unknown
 const ciTiming = Reflect.get(shipKpi, 'ciTiming') as (...args: unknown[]) => unknown
+const issueIdsOf = Reflect.get(shipKpi, 'issueIdsOf') as (...args: unknown[]) => unknown
 const attributeSessions = Reflect.get(shipKpi, 'attributeSessions') as (
   ...args: unknown[]
 ) => unknown
@@ -46,6 +49,11 @@ const claudeSessionMeta = Reflect.get(shipKpi, 'claudeSessionMeta') as (
   ...args: unknown[]
 ) => unknown
 const codexSessionMeta = Reflect.get(shipKpi, 'codexSessionMeta') as (...args: unknown[]) => unknown
+const discoverSessions = Reflect.get(shipKpi, 'discoverSessions') as (...args: unknown[]) => unknown
+const unattributedUsage = Reflect.get(shipKpi, 'unattributedUsage') as (
+  ...args: unknown[]
+) => unknown
+const renderMarkdown = Reflect.get(shipKpi, 'renderMarkdown') as (...args: unknown[]) => unknown
 const mergeDeliverySources = Reflect.get(shipKpi, 'mergeDeliverySources') as (
   ...args: unknown[]
 ) => unknown
@@ -660,6 +668,17 @@ describe('real delivery data sources (#2725 increment 2)', () => {
   const firstCommit = '2026-09-19T00:01:00Z'
   const worktreeDir = '/home/luca/work/repos/arbiter.worktrees/2725-ship-kpi-loop'
 
+  it('extracts sorted unique issue ids from the PR branch and closing references', () => {
+    expect(typeof issueIdsOf).toBe('function')
+    if (typeof issueIdsOf !== 'function') return
+    expect(
+      issueIdsOf({
+        headRefName: '2703-fix/2704-follow-up/12703-not-this',
+        closingIssuesReferences: [{ number: 2704 }, { number: 2705 }, { number: 2703 }],
+      }),
+    ).toEqual([2703, 2704, 2705, 12703])
+  })
+
   it('derives CI wait, run, and red counts from completed pre-merge checks only', () => {
     expect(
       ciTiming({
@@ -719,7 +738,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual(expected)
   })
 
-  it('attributes exact branch sessions and overlapping branchless Codex worktree sessions only', () => {
+  it('attributes sessions by delimited branch or cwd issue ids and returns the match path', () => {
     const sessions = [
       {
         file: 'claude-branch',
@@ -730,15 +749,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         host: 'claude',
       },
       {
-        file: 'codex-worktree',
-        gitBranch: null,
-        cwd: worktreeDir,
-        firstTs: firstCommit,
-        lastTs: mergedAt,
-        host: 'codex',
-      },
-      {
-        file: 'same-name-other-tree',
+        file: 'codex-cwd',
         gitBranch: null,
         cwd: '/other/2725-ship-kpi-loop',
         firstTs: firstCommit,
@@ -746,19 +757,27 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         host: 'codex',
       },
       {
+        file: 'digit-boundary',
+        gitBranch: null,
+        cwd: '/other/12725-ship-kpi-loop',
+        firstTs: firstCommit,
+        lastTs: mergedAt,
+        host: 'codex',
+      },
+      {
         file: 'wrong-branch',
         gitBranch: 'task/other',
-        cwd: worktreeDir,
+        cwd: '/other',
         firstTs: firstCommit,
         lastTs: mergedAt,
         host: 'claude',
       },
       {
         file: 'outside-window',
-        gitBranch: null,
-        cwd: worktreeDir,
-        firstTs: '2026-09-18T23:00:00Z',
-        lastTs: '2026-09-18T23:30:00Z',
+        gitBranch: 'task/#2725-ship-kpi-loop',
+        cwd: '/other',
+        firstTs: '2026-09-18T21:00:00Z',
+        lastTs: '2026-09-18T21:59:00Z',
         host: 'codex',
       },
     ]
@@ -769,7 +788,115 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         mergedAt,
         worktreeDir,
       }),
-    ).toEqual([sessions[0], sessions[1]])
+    ).toEqual([
+      { meta: sessions[0], via: 'branch' },
+      { meta: sessions[1], via: 'cwd' },
+    ])
+  })
+
+  it('attributes a main-rooted Claude session through one issue in its first prompt', () => {
+    const meta = {
+      file: 'claude-main',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter',
+      firstPrompt: 'Ship issue #2703 with the KPI changes',
+      issueIdsInPrompt: [2703],
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    }
+    expect(
+      attributeSessions([meta], {
+        headRefName: '2703-ship-kpi-loop',
+        firstCommit,
+        mergedAt,
+        worktreeDir,
+      }),
+    ).toEqual([{ meta, via: 'prompt' }])
+  })
+
+  it('does not attribute a coordinator Claude session whose prompt names multiple issues', () => {
+    const meta = {
+      file: 'claude-coordinator',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter',
+      firstPrompt: 'Ship #2703 and #2704',
+      issueIdsInPrompt: [2703, 2704],
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    }
+    expect(
+      attributeSessions([meta], {
+        headRefName: '2703-ship-kpi-loop',
+        firstCommit,
+        mergedAt,
+        worktreeDir,
+      }),
+    ).toEqual([])
+  })
+
+  it('attributes a Codex rollout through agent path and a two-level parent chain', () => {
+    const root = {
+      file: 'codex-root',
+      host: 'codex',
+      cwd: '/chatgpt/project',
+      agentPath: '/root/2703_plan_review',
+      threadId: 'root',
+      parentThreadId: null,
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    }
+    const child = {
+      file: 'codex-child',
+      host: 'codex',
+      cwd: '/chatgpt/project',
+      agentPath: '/root/worker',
+      threadId: 'child',
+      parentThreadId: 'root',
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    }
+    const grandchild = {
+      file: 'codex-grandchild',
+      host: 'codex',
+      cwd: '/chatgpt/project',
+      agentPath: '/root/worker/deep',
+      threadId: 'grandchild',
+      parentThreadId: 'child',
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    }
+    expect(
+      attributeSessions([root, child, grandchild], {
+        headRefName: '2703-ship-kpi-loop',
+        firstCommit,
+        mergedAt,
+        worktreeDir,
+      }),
+    ).toEqual([
+      { meta: root, via: 'agent-path' },
+      { meta: child, via: 'parent' },
+      { meta: grandchild, via: 'parent' },
+    ])
+  })
+
+  it('rejects a matching session outside the two-hour pre-commit window', () => {
+    const meta = {
+      file: 'too-early',
+      host: 'claude',
+      gitBranch: 'task/#2703-ship-kpi-loop',
+      firstTs: '2026-09-18T21:00:00Z',
+      lastTs: '2026-09-18T21:59:00Z',
+    }
+    expect(
+      attributeSessions([meta], {
+        headRefName: '2703-ship-kpi-loop',
+        firstCommit,
+        mergedAt,
+        worktreeDir,
+      }),
+    ).toEqual([])
   })
 
   it('summarizes Claude usage without counting sidechains or tool-result arrays as human messages', () => {
@@ -781,7 +908,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
           gitBranch: 'task/#2725-ship-kpi-loop',
           timestamp: firstCommit,
           isSidechain: false,
-          message: { role: 'user', content: 'start' },
+          message: { role: 'user', content: 'Ship issue #2725' },
         }),
         JSON.stringify({
           type: 'assistant',
@@ -838,7 +965,22 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       usage: { input: 140, output: 30, cache: 37 },
       humanMessages: 2,
       effort: 'high',
+      firstPrompt: 'Ship issue #2725',
+      issueIdsInPrompt: [2725],
     })
+  })
+
+  it('truncates the first Claude prompt to 400 characters before extracting prompt issue ids', () => {
+    const prompt = '#2703 ' + 'x'.repeat(500)
+    const meta = claudeSessionMeta([
+      JSON.stringify({
+        type: 'user',
+        timestamp: firstCommit,
+        message: { role: 'user', content: prompt },
+      }),
+    ]) as Record<string, unknown>
+    expect(meta.firstPrompt).toBe(prompt.slice(0, 400))
+    expect(meta.issueIdsInPrompt).toEqual([2703])
   })
 
   it('keeps Claude usage and human message count null when no user or assistant lines exist', () => {
@@ -854,6 +996,8 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       usage: { input: null, output: null, cache: null },
       humanMessages: null,
       effort: null,
+      firstPrompt: null,
+      issueIdsInPrompt: [],
     })
   })
 
@@ -862,7 +1006,13 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       codexSessionMeta([
         JSON.stringify({
           type: 'session_meta',
-          payload: { cwd: worktreeDir, timestamp: firstCommit },
+          payload: {
+            cwd: worktreeDir,
+            timestamp: firstCommit,
+            id: 'thread-2725',
+            parent_thread_id: 'parent-thread',
+            source: { subagent: { thread_spawn: { agent_path: '/root/2725_worker' } } },
+          },
         }),
         JSON.stringify({
           type: 'turn_context',
@@ -900,6 +1050,9 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       lastTs: '2026-09-19T00:05:00Z',
       model: 'gpt-5.4',
       effort: 'high',
+      agentPath: '/root/2725_worker',
+      threadId: 'thread-2725',
+      parentThreadId: 'parent-thread',
       usage: { input: 160, output: 18, cache: 40 },
     })
   })
@@ -959,6 +1112,76 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       rounds: null,
       sourcesKnown: [],
     })
+  })
+
+  it('sums unattributed tokens by host and excludes files attributed to deliveries', () => {
+    expect(typeof unattributedUsage).toBe('function')
+    if (typeof unattributedUsage !== 'function') return
+    expect(
+      unattributedUsage(
+        [
+          { file: 'claude-delivery', host: 'claude', usage: { input: 10, output: 2, cache: 3 } },
+          {
+            file: 'claude-orchestration',
+            host: 'claude',
+            usage: { input: 20, output: 3, cache: 2 },
+          },
+          { file: 'codex-orchestration', host: 'codex', usage: { input: 30, output: 4, cache: 6 } },
+        ],
+        new Set(['claude-delivery']),
+      ),
+    ).toEqual({ claude: 25, codex: 40, sessions: 2 })
+  })
+
+  it('skips Claude observer-session project directories during discovery', async () => {
+    expect(typeof discoverSessions).toBe('function')
+    if (typeof discoverSessions !== 'function') return
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-discovery-'))
+    const sinceMs = Date.parse('2026-09-19T00:00:00Z')
+    const untilMs = Date.parse('2026-09-19T00:20:00Z')
+    try {
+      const normal = join(root, 'normal-project')
+      const observer = join(root, 'normal-project-observer-sessions')
+      mkdirSync(normal, { recursive: true })
+      mkdirSync(observer, { recursive: true })
+      for (const file of [join(normal, 'normal.jsonl'), join(observer, 'observer.jsonl')]) {
+        writeFileSync(
+          file,
+          JSON.stringify({ type: 'system', timestamp: '2026-09-19T00:05:00Z' }) + '\n',
+        )
+        utimesSync(file, new Date(sinceMs), new Date(sinceMs))
+      }
+      const sessions = (await discoverSessions(root, 'claude', sinceMs, untilMs)) as Array<{
+        file: string
+      }>
+      expect(sessions.map((session) => session.file)).toEqual([join(normal, 'normal.jsonl')])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('renders one orchestration line below the per-stratum table', () => {
+    expect(typeof renderMarkdown).toBe('function')
+    if (typeof renderMarkdown !== 'function') return
+    const rendered = renderMarkdown({
+      since: '2026-09-01',
+      until: '2026-09-19',
+      rows: [],
+      aggregate: {
+        prsMerged: 0,
+        issuesClosed: 0,
+        issuesPer24h: 0,
+        medianCommitsPerPr: 0,
+        medianLeadTimeHours: 0,
+        pctEvidenceOnlyCommits: 0,
+        pctReviewLoopCommits: 0,
+        openPrsStale: [],
+        pctMainEvidenceOnlyCommits: 0,
+      },
+      hookBlocks: {},
+      unattributed: { claude: 100, codex: 200, sessions: 3 },
+    })
+    expect(rendered).toContain('unattributed: claude 100 / codex 200 across 3 sessions')
   })
 
   it('requires the source needed by each overhead floor and reports measured/reference components', () => {
