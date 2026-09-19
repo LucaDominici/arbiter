@@ -1,6 +1,7 @@
 // parse-check-args.mjs — argv parser for scripts/check-all.mjs
 //
 // Subcommands:
+//   preflight        cheap diagnostics only; never qualification evidence
 //   check            T1 fast checks (~2 min)
 //   gate             T1+T2 extended checks (~10 min, default)
 //   full             gate + T3 dry-run (~35 min)
@@ -13,7 +14,14 @@
 //   L3 → gate  --level L3
 //   L4 → gate  --level L4
 
-export const SUBCOMMANDS = ['check', 'gate', 'full', 'simulate-nightly', 'simulate-weekly']
+export const SUBCOMMANDS = [
+  'preflight',
+  'check',
+  'gate',
+  'full',
+  'simulate-nightly',
+  'simulate-weekly',
+]
 export const LEVELS = ['L1', 'L2', 'L3', 'L4']
 
 /** The fast `check` lane only executes L1 gates, so its evidence is always L1. */

@@ -95,7 +95,7 @@ function clazzes(result: SelfParityResult): string[] {
 
 const EXEC_PROTOCOL = '.agents/rules/90-exec-protocol.md'
 const CONFIG_TOML = '.codex/config.toml'
-const PLAN_JSON = '.agents/plan/PLAN.json'
+const RUNTIME_SESSION = '.agents/runtime/session.json'
 
 const EXEC_BODY =
   '# Execution Protocol\n\n## Stop Conditions\n\n- Gate fails after two focused attempts → STOP\n'
@@ -190,25 +190,27 @@ describe('validateSelfDivergences', () => {
 describe('validateRuntimeArtifacts', () => {
   it('accepts the declared runtime-artifact envelope', async () => {
     const lib = await loadLib()
-    expect(() => lib.validateRuntimeArtifacts({ runtimeArtifacts: [PLAN_JSON] })).not.toThrow()
+    expect(() =>
+      lib.validateRuntimeArtifacts({ runtimeArtifacts: [RUNTIME_SESSION] }),
+    ).not.toThrow()
     expect(() => lib.validateRuntimeArtifacts({ runtimeArtifacts: [] })).not.toThrow()
   })
 
   it('throws on an unknown key', async () => {
     const lib = await loadLib()
     expect(() =>
-      lib.validateRuntimeArtifacts({ runtimeArtifacts: [PLAN_JSON], legacy: true }),
+      lib.validateRuntimeArtifacts({ runtimeArtifacts: [RUNTIME_SESSION], legacy: true }),
     ).toThrow()
   })
 
   it('throws when runtimeArtifacts is not a string array', async () => {
     const lib = await loadLib()
-    expect(() => lib.validateRuntimeArtifacts({ runtimeArtifacts: PLAN_JSON })).toThrow()
+    expect(() => lib.validateRuntimeArtifacts({ runtimeArtifacts: RUNTIME_SESSION })).toThrow()
   })
 
   it('throws when the root is not an object envelope', async () => {
     const lib = await loadLib()
-    expect(() => lib.validateRuntimeArtifacts([PLAN_JSON])).toThrow()
+    expect(() => lib.validateRuntimeArtifacts([RUNTIME_SESSION])).toThrow()
   })
 })
 
@@ -265,8 +267,8 @@ describe('classifySelfParity — mutation classes (#1966 self-track)', () => {
     const result = lib.classifySelfParity(
       classifyInput({
         emitted: {},
-        repo: { [PLAN_JSON]: '{ "task": "#1966" }\n' },
-        runtimeArtifacts: [PLAN_JSON],
+        repo: { [RUNTIME_SESSION]: '{ "session": "fixture" }\n' },
+        runtimeArtifacts: [RUNTIME_SESSION],
       }),
     )
     expect(result.findings).toEqual([])
@@ -364,7 +366,7 @@ describe('classifySelfParity — mutation classes (#1966 self-track)', () => {
           '.agents/rules/50-batch-execution.md': matchBody,
           [CONFIG_TOML]: pinnedRepo,
           [EXEC_PROTOCOL]: EXEC_BODY,
-          [PLAN_JSON]: '{ "task": "#1966" }\n',
+          [RUNTIME_SESSION]: '{ "session": "fixture" }\n',
         },
         divergences: [
           {
@@ -373,7 +375,7 @@ describe('classifySelfParity — mutation classes (#1966 self-track)', () => {
             diffHash: lib.computeDivergenceDiffHash(pinnedEmitted, pinnedRepo),
           },
         ],
-        runtimeArtifacts: [PLAN_JSON],
+        runtimeArtifacts: [RUNTIME_SESSION],
       }),
     )
     expect(clazzes(result), JSON.stringify(result.findings)).toEqual(['STALE'])

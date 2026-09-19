@@ -61,14 +61,9 @@ function setup(evidenceHarness: boolean) {
   return { dir, hookPath, branch, sha }
 }
 
-/** Write the three baseline correlated artifacts (plan-review, dispatch, gate-pass). */
+/** Write the baseline correlated review-dispatch and gate-pass artifacts. */
 function writeBaselineEvidence(dir: string, branch: string, sha: string) {
-  const prDir = join(dir, '.arbiter', 'evidence', 'plan-review', SANITIZED_ID)
-  mkdirSync(prDir, { recursive: true })
-  writeFileSync(
-    join(prDir, 'latest.json'),
-    JSON.stringify({ verdict: 'PASS', branch, sha, planDigest: 'x'.repeat(64), tier: 'Standard' }),
-  )
+  mkdirSync(join(dir, '.arbiter'), { recursive: true })
   writeFileSync(
     join(dir, '.arbiter', 'agents-dispatched.json'),
     JSON.stringify({ count: 4, branch, sha }),
@@ -185,9 +180,9 @@ describe('stop-evidence-guard — journey-first DoD (#A2)', () => {
       'utf8',
     )
     expect(raw).toContain(
-      'A completion claim requires plan-review + dispatch + gate-pass + journey evidence',
+      "A completion claim requires the task's applicable review, gate and journey evidence",
     )
-    expect(raw).toContain('// 4. journey evidence (#A2, extends INV-114)')
+    expect(raw).toContain('// 3. journey evidence (#A2, extends INV-114)')
     expect(raw).toContain("sanitizeTaskId(taskId) + '.json'")
     expect(raw).toContain("journey.target !== 'artifact'")
   })

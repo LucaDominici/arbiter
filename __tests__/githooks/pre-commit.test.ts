@@ -7,6 +7,7 @@
  * host hook copied in, `node_modules` linked to this checkout so `npx prettier`
  * resolves, and the gitleaks config copied so the staged secret scan still runs.
  */
+import { renderTemplate } from '../../src/utils/render.js'
 import { describe, it, expect, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, copyFileSync, symlinkSync } from 'node:fs'
 import { spawnSync, execFileSync } from 'node:child_process'
@@ -41,7 +42,13 @@ function gitEnv() {
 }
 
 /** A main repo with one commit plus a worktree that stages `staged.ts` with the given content. */
-function worktreeWithStaged(content: string, fileName = 'staged.ts', phase?: string) {
+function worktreeWithStaged(
+  content: string,
+  fileName = 'staged.ts',
+  phase?: string,
+  plain = false,
+  emitted = false,
+) {
   const root = mkdtempSync(join(tmpdir(), 'arbiter-precommit-'))
   tempDirs.push(root)
   const main = join(root, 'main')
@@ -50,10 +57,15 @@ function worktreeWithStaged(content: string, fileName = 'staged.ts', phase?: str
   writeFileSync(join(main, 'README.md'), '# t\n')
   git(main, 'add', 'README.md')
   git(main, 'commit', '-q', '-m', 'init')
-  const wt = join(root, 'wt')
-  git(main, 'worktree', 'add', '-q', wt, '-b', 'task/wt')
+  const wt = plain ? main : join(root, 'wt')
+  if (!plain) git(main, 'worktree', 'add', '-q', wt, '-b', 'task/wt')
   mkdirSync(join(wt, '.githooks'))
-  copyFileSync(HOOK_SRC, join(wt, '.githooks', 'pre-commit'))
+  if (emitted)
+    writeFileSync(
+      join(wt, '.githooks', 'pre-commit'),
+      renderTemplate('githooks/pre-commit.ejs', { language: 'typescript' }),
+    )
+  else copyFileSync(HOOK_SRC, join(wt, '.githooks', 'pre-commit'))
   copyFileSync(join(REPO_ROOT, '.gitleaks.toml'), join(wt, '.gitleaks.toml'))
   copyFileSync(join(REPO_ROOT, '.prettierrc.json'), join(wt, '.prettierrc.json'))
   mkdirSync(join(wt, 'suppressions'))
@@ -101,6 +113,36 @@ describe('.githooks/pre-commit in a git worktree', () => {
     const wt = worktreeWithStaged('const x = 1\n')
     const result = runHook(wt)
     expect(result.status, result.stdout + result.stderr).toBe(0)
-    expect(result.stdout).toMatch(/git worktree detected/)
+    expect(result.stdout).toContain('staged checks passed')
+  })
+})
+
+describe('result-first commits (#2724)', () => {
+  it.each([false, true])(
+    'stages checks without a full gate in a plain checkout (emitted=%s)',
+    (emitted) => {
+      const wt = worktreeWithStaged('const x = 1\n', 'staged.ts', undefined, true, emitted)
+      mkdirSync(join(wt, 'scripts'))
+      writeFileSync(
+        join(wt, 'scripts/check-all.mjs'),
+        'throw new Error("full gate must not run at commit")',
+      )
+      const result = runHook(wt)
+      expect(result.status, result.stdout + result.stderr).toBe(0)
+      expect(result.stdout).toContain('staged checks passed')
+    },
+  )
+
+  it('emitted commit still blocks bad formatting before final qualification', () => {
+    const wt = worktreeWithStaged('const  x  = 1\n', 'staged.ts', undefined, true, true)
+    const result = runHook(wt)
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/prettier/i)
+  })
+
+  it('can save the plan before RED without requiring evidence from future phases', () => {
+    const wt = worktreeWithStaged('# Plan\n', 'plan.md', 'plan', true, true)
+    const result = runHook(wt)
+    expect(result.status, result.stdout + result.stderr).toBe(0)
   })
 })

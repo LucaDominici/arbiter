@@ -752,9 +752,11 @@ Orchestrate an issue → reviewed, merged PR over the existing engine (#1206).
 - `--autonomy <level>` — Per-run autonomy override (L0|L1|L2|L3) — beats arbiter.json automation.autonomy (#1291)
 - `--set <path=value>` — Per-run override of an overridable config path (repeatable, ADR-094).
 - `--advance` — Advance to the next phase (runs that phase gate; fails if red)
-- `--skip-plan-review` — Bypass the plan-review gate on advance
-- `--post-clear` — Signal post-/clear re-entry on advance
-- `--units <n>` — Implementation unit count from the plan — drives the size-driven clear decision
+- `--chain <id>` — Other issue id admitted to this ship train; requires --affinity and complete qualification
+- `--chain-add <id>` — Append an issue to the open train; requires --affinity and complete qualification
+- `--seal` — Seal the open train now — land it before starting another (#2331)
+- `--affinity <json>` — Complete affinity components required by every multi-issue seed, replacement, or append
+- `--outcome <outcome>` — Last attempt result: new-risk|no-progress|timeout|oom|rate-limit|tool-unavailable|ci-queue
 
 ## arbiter status
 

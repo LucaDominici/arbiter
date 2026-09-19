@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
-const BANNER_PHASES = new Set(['plan', 'red-team-review'])
+const BANNER_PHASES = new Set(['plan'])
 
 function git(args) {
   return (spawnSync('git', args, { encoding: 'utf-8' }).stdout ?? '').trim()

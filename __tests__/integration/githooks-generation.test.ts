@@ -60,18 +60,19 @@ describe('generateGithooks — typescript stack', () => {
     expect(isExecutable(join(dir, '.githooks', 'pre-commit'))).toBe(true)
   })
 
-  it('.githooks/pre-commit calls L1 gate', () => {
+  it('.githooks/pre-commit leaves full qualification to delivery', () => {
     const config = makeConfig(dir, { language: 'typescript' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-commit'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs L1')
+    expect(content).not.toContain('node scripts/check-all.mjs L1')
+    expect(content).toContain('staged checks passed')
   })
 
-  it('.githooks/pre-commit includes rsync workaround (TS-specific)', () => {
+  it('.githooks/pre-commit needs no copied checkout', () => {
     const config = makeConfig(dir, { language: 'typescript' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-commit'), 'utf-8')
-    expect(content).toContain('rsync')
+    expect(content).not.toContain('rsync')
   })
 
   it('emits .githooks/pre-push', () => {
@@ -218,11 +219,12 @@ describe('generateGithooks — rust stack', () => {
     expect(isExecutable(join(dir, '.githooks', 'pre-commit'))).toBe(true)
   })
 
-  it('.githooks/pre-commit calls L1 gate for rust', () => {
+  it('.githooks/pre-commit leaves full qualification to delivery for rust', () => {
     const config = makeConfig(dir, { language: 'rust', buildTool: 'cargo' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-commit'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs L1')
+    expect(content).not.toContain('node scripts/check-all.mjs L1')
+    expect(content).toContain('staged checks passed')
   })
 
   it('.githooks/pre-commit does NOT include rsync for rust', () => {
@@ -283,14 +285,15 @@ describe('generateGithooks — java-gradle stack', () => {
     expect(isExecutable(join(dir, '.githooks', 'pre-commit'))).toBe(true)
   })
 
-  it('.githooks/pre-commit calls L1 gate for java-gradle', () => {
+  it('.githooks/pre-commit leaves full qualification to delivery for java-gradle', () => {
     const config = makeConfig(dir, {
       language: 'java',
       buildTool: 'gradle',
     })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-commit'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs L1')
+    expect(content).not.toContain('node scripts/check-all.mjs L1')
+    expect(content).toContain('staged checks passed')
   })
 
   it('emits scripts/setup-hooks.sh for java-gradle', () => {
@@ -367,11 +370,12 @@ describe('generateGithooks — go stack', () => {
     expect(isExecutable(join(dir, '.githooks', 'pre-commit'))).toBe(true)
   })
 
-  it('.githooks/pre-commit calls L1 gate for go', () => {
+  it('.githooks/pre-commit leaves full qualification to delivery for go', () => {
     const config = makeConfig(dir, { language: 'go', buildTool: 'go' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-commit'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs L1')
+    expect(content).not.toContain('node scripts/check-all.mjs L1')
+    expect(content).toContain('staged checks passed')
   })
 
   it('emits scripts/setup-hooks.sh for go', () => {
@@ -405,11 +409,12 @@ describe('generateGithooks — python stack', () => {
     expect(isExecutable(join(dir, '.githooks', 'pre-commit'))).toBe(true)
   })
 
-  it('.githooks/pre-commit calls L1 gate for python', () => {
+  it('.githooks/pre-commit leaves full qualification to delivery for python', () => {
     const config = makeConfig(dir, { language: 'python', buildTool: 'pip' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-commit'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs L1')
+    expect(content).not.toContain('node scripts/check-all.mjs L1')
+    expect(content).toContain('staged checks passed')
   })
 
   it('emits scripts/setup-hooks.sh for python', () => {
@@ -443,18 +448,8 @@ describe('generateGithooks — skipIfExists (idempotency)', () => {
 })
 
 describe('generateGithooks — empirical fail-fast spawn', () => {
-  // This suite verifies that the generated pre-commit hook propagates a
-  // non-zero exit code back to git when the L1 gate fails.
-  //
-  // Strategy: rather than running the full gate toolchain (which would
-  // require tsc, eslint, vitest etc. in the tmpdir), we generate the hook
-  // and check-all script, then OVERWRITE scripts/check-all.mjs with a
-  // stub that unconditionally exits 1. This proves the hook shell chain
-  // (pre-commit → node scripts/check-all.mjs L1) correctly propagates
-  // non-zero exits — which is the invariant the spec demands.
-  //
-  // A real end-to-end test requires a fully installed Node.js project and
-  // is deferred to the brownfield fixture suite (see real-projects/).
+  // Checkpoints never invoke full qualification. The staged formatter and secret scanner
+  // remain blocking; their real negative cases live in githooks/pre-commit.test.ts.
 
   let dir: string
 
@@ -467,7 +462,7 @@ describe('generateGithooks — empirical fail-fast spawn', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('pre-commit exits non-zero when L1 gate fails', () => {
+  it('pre-commit does not invoke the final gate even when it would fail', () => {
     // 1. Generate hooks and the check-all script
     const config = makeConfig(dir, { language: 'typescript' })
     generateGithooks(config)
@@ -478,7 +473,7 @@ describe('generateGithooks — empirical fail-fast spawn', () => {
     const nodeModulesTarget = join(repoRoot, 'node_modules')
     // Assert loudly if the source doesn't exist: a missing symlink target would
     // cause the node_modules guard to skip the hook (exit 0), making the
-    // expect(result.status).not.toBe(0) assertion fail with a cryptic message.
+    // expect(result.status, result.stdout + result.stderr).toBe(0) assertion fail with a cryptic message.
     expect(existsSync(nodeModulesTarget)).toBe(true)
     symlinkSync(nodeModulesTarget, join(dir, 'node_modules'))
 
@@ -502,7 +497,7 @@ describe('generateGithooks — empirical fail-fast spawn', () => {
       encoding: 'utf-8',
     })
 
-    expect(result.status).not.toBe(0)
+    expect(result.status, result.stdout + result.stderr).toBe(0)
   })
 
   // ── #2051: the RED commit the TDD evidence must point at ────────────────────
@@ -557,18 +552,18 @@ describe('generateGithooks — empirical fail-fast spawn', () => {
 
     const { status, out } = runPreCommit()
     expect(status).toBe(0)
-    expect(out).toMatch(/#2051/)
+    expect(out).toContain('staged checks passed')
   })
 
-  it('pre-commit still runs the gate for a red-phase commit that stages source (#2051)', () => {
+  it('pre-commit checks staged files without a full gate in RED', () => {
     seedRedPhaseRepo()
     stage('__tests__/thing.test.ts')
     stage('src/thing.ts')
 
-    expect(runPreCommit().status).not.toBe(0)
+    expect(runPreCommit().status).toBe(0)
   })
 
-  it('pre-commit runs the gate for a test-only commit outside phase=red (#2051)', () => {
+  it('pre-commit checks staged files without a full gate in GREEN', () => {
     seedRedPhaseRepo()
     writeFileSync(
       join(dir, '.claude', '.task', 'status.json'),
@@ -577,6 +572,6 @@ describe('generateGithooks — empirical fail-fast spawn', () => {
     )
     stage('__tests__/thing.test.ts')
 
-    expect(runPreCommit().status).not.toBe(0)
+    expect(runPreCommit().status).toBe(0)
   })
 })

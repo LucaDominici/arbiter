@@ -22,18 +22,7 @@
     "sha": { "type": "string", "minLength": 1 },
     "ts": { "type": "string", "format": "date-time" },
     "phase": {
-      "enum": [
-        "preflight",
-        "plan",
-        "red-team-review",
-        "red-team-rework",
-        "red",
-        "green",
-        "refactor",
-        "verification",
-        "close",
-        "complete"
-      ]
+      "enum": ["preflight", "plan", "red", "green", "refactor", "verification", "close", "complete"]
     },
     "requested": {
       "type": "array",

@@ -14,11 +14,14 @@ function integrationIncludePatterns(): string[] {
 }
 
 describe('check-all.mjs L1 wiring', () => {
-  it('keeps the complete unit corpus in L1 while L2/L3 use coverage as the single corpus run (#2605)', () => {
+  it('keeps unit qualification in L1, coverage in L2, and both out of diagnostic preflight (#2605)', () => {
     const unitIdx = content.indexOf("runCheck('unit tests'")
     const coverageIdx = content.indexOf("runCheck('coverage'")
     const unitGuardIdx = content.lastIndexOf("if (subcommand === 'check')", unitIdx)
-    const coverageGuardIdx = content.lastIndexOf("if (subcommand !== 'check')", coverageIdx)
+    const coverageGuardIdx = content.lastIndexOf(
+      "if (subcommand !== 'check' && !preflight)",
+      coverageIdx,
+    )
 
     expect(unitIdx).toBeGreaterThan(-1)
     expect(unitGuardIdx).toBeGreaterThan(-1)
@@ -26,6 +29,7 @@ describe('check-all.mjs L1 wiring', () => {
     expect(coverageIdx).toBeGreaterThan(-1)
     expect(coverageGuardIdx).toBeGreaterThan(-1)
     expect(coverageGuardIdx).toBeLessThan(coverageIdx)
+    expect(content.slice(unitGuardIdx, unitIdx)).not.toContain('preflight')
     expect(content.slice(coverageIdx, coverageIdx + 240)).toContain('failOnSkip: true')
     const ratchetIdx = content.indexOf("runCheck('coverage ratchet (#1483)'")
     expect(ratchetIdx).toBeGreaterThan(coverageIdx)

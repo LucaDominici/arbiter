@@ -29,7 +29,7 @@ function renderGate(data: Record<string, unknown>): string {
 function runScript(
   scriptBody: string,
   args: string[],
-): { status: number; stdout: string; stderr: string } {
+): { status: number; stdout: string; stderr: string; artifact: boolean; marker: boolean } {
   const dir = mkdtempSync(join(tmpdir(), 'gate-registry-'))
   try {
     writeFileSync(join(dir, 'check-all.mjs'), scriptBody, 'utf-8')
@@ -62,7 +62,13 @@ function runScript(
       cwd: dir,
       encoding: 'utf-8',
     })
-    return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+    return {
+      status: r.status ?? 1,
+      stdout: r.stdout ?? '',
+      stderr: r.stderr ?? '',
+      artifact: existsSync(join(dir, '.arbiter/gate/local-result.json')),
+      marker: existsSync(join(dir, '.arbiter/gate-pass.json')),
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -519,4 +525,82 @@ describe('gate-registry INV-label correctness (#2413)', () => {
       ).toBe(true)
     })
   }
+})
+
+describe('emitted result-first preflight (#2724)', () => {
+  it.each(['typescript', 'python'])(
+    'collects cheap failures before any expensive %s check',
+    (language) => {
+      const data = baseData('/tmp/fixture', { language })
+      const rendered = renderGate({
+        ...data,
+        gates: [
+          {
+            id: 'suite',
+            name: 'suite',
+            level: 'L1',
+            kind: 'check',
+            cmd: ['node', '-e', 'console.log(12345)'],
+          },
+          {
+            id: 'format',
+            name: 'format',
+            level: 'L1',
+            kind: 'check',
+            preflight: true,
+            cmd: ['node', '-e', 'process.exit(1)'],
+          },
+          {
+            id: 'docs',
+            name: 'docs',
+            level: 'L2',
+            kind: 'check',
+            preflight: true,
+            cmd: ['node', '-e', 'process.exit(1)'],
+          },
+        ],
+      })
+      const result = runScript(rendered, ['L2'])
+      expect(result.status, result.stderr).toBe(1)
+      expect(result.stdout).toContain('format')
+      expect(result.stdout).toContain('docs')
+      expect(result.stdout).not.toContain('12345')
+      expect(result.stdout).not.toContain('[CHECK] suite')
+    },
+  )
+
+  it('never writes qualification evidence for a green preflight; full gate retains every check once', () => {
+    const data = baseData('/tmp/fixture')
+    const rendered = renderGate({
+      ...data,
+      gates: [
+        {
+          id: 'cheap',
+          name: 'cheap',
+          level: 'L1',
+          kind: 'check',
+          preflight: true,
+          cmd: ['node', '-e', 'console.log(11111)'],
+        },
+        {
+          id: 'suite',
+          name: 'suite',
+          level: 'L1',
+          kind: 'check',
+          cmd: ['node', '-e', 'console.log(22222)'],
+        },
+      ],
+    })
+    const diagnostic = runScript(rendered, ['preflight'])
+    expect(diagnostic.status, diagnostic.stderr).toBe(0)
+    expect(diagnostic.stdout).toContain('[CHECK] cheap')
+    expect(diagnostic.stdout).not.toContain('[CHECK] suite')
+    expect(diagnostic.artifact).toBe(false)
+    expect(diagnostic.marker).toBe(false)
+    const full = runScript(rendered, ['L1'])
+    expect(full.status, full.stderr).toBe(0)
+    expect(full.stdout.match(/\[CHECK\] cheap/g)).toHaveLength(1)
+    expect(full.stdout.match(/\[CHECK\] suite/g)).toHaveLength(1)
+    expect(full.artifact).toBe(true)
+  })
 })

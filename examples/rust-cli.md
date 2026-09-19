@@ -67,7 +67,7 @@ Arbiter detects language and archetype automatically. To override, pass `--arche
 
 **Git hooks**
 
-- `.githooks/pre-commit` — runs `node scripts/check-all.mjs L1`.
+- `.githooks/pre-commit` — runs staged safety/economy checks; L1 qualifies the frozen candidate.
 - `.githooks/pre-push` — runs `node scripts/check-all.mjs L2`.
 
 **AI-tool configs (Claude Code, because `--tools claude`)**
@@ -110,7 +110,7 @@ git add src/main.rs
 git commit -m "feat: test"
 ```
 
-The pre-commit hook runs `node scripts/check-all.mjs L1`, which invokes `scripts/check-rust-no-unwrap.mjs`. The commit is rejected with: `unwrap() is banned — use ? or explicit error handling`.
+Frozen-candidate L1 invokes `scripts/check-rust-no-unwrap.mjs` and rejects the candidate with: `unwrap() is banned — use ? or explicit error handling`.
 
 Fix by propagating the error:
 

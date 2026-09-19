@@ -53,9 +53,9 @@ describe('docs/REFERENCE/api.md — environment variables section (#807)', () =>
   })
 
   // Task lifecycle vars
-  it('documents ARBITER_SKIP_PLAN_REVIEW', () => {
+  it('does not document the retired ARBITER_SKIP_PLAN_REVIEW bypass', () => {
     if (!content) content = readFileSync(API_MD_PATH, 'utf8')
-    expect(content).toContain('ARBITER_SKIP_PLAN_REVIEW')
+    expect(content).not.toContain('ARBITER_SKIP_PLAN_REVIEW')
   })
 
   it('documents ARBITER_PLAN_BYPASS', () => {
@@ -63,9 +63,9 @@ describe('docs/REFERENCE/api.md — environment variables section (#807)', () =>
     expect(content).toContain('ARBITER_PLAN_BYPASS')
   })
 
-  it('documents ARBITER_POST_CLEAR', () => {
+  it('does not document the retired ARBITER_POST_CLEAR handoff flag', () => {
     if (!content) content = readFileSync(API_MD_PATH, 'utf8')
-    expect(content).toContain('ARBITER_POST_CLEAR')
+    expect(content).not.toContain('ARBITER_POST_CLEAR')
   })
 
   // Worktrees

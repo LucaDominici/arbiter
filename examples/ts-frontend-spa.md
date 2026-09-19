@@ -76,7 +76,7 @@ Grouped by purpose. Exact filenames are produced by `src/generators/` and the te
 
 **Git hooks**
 
-- `.githooks/pre-commit` — runs `node scripts/check-all.mjs L1`.
+- `.githooks/pre-commit` — runs staged safety/economy checks; L1 qualifies the frozen candidate.
 - `.githooks/pre-push` — runs `node scripts/check-all.mjs L2`.
 
 **AI-tool configs (Claude Code, because `--tools claude`)**

@@ -171,7 +171,7 @@ npm install                     # or pnpm/yarn/bun — whatever init detected
 Every change then flows through the same local gate before it can be committed:
 
 ```bash
-node scripts/check-all.mjs L1   # lint + format + unit tests — fast, pre-commit
+node scripts/check-all.mjs L1   # lint + format + unit tests — frozen-candidate qualification
 node scripts/check-all.mjs L2   # L1 + integration tests + coverage + debt gates
 ```
 

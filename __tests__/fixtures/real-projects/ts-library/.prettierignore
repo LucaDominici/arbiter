@@ -17,3 +17,11 @@ knip.json
 .jscpd.json
 test-pyramid.json
 api-e2e.json
+
+# Arbiter emits and owns every file under schemas/. They are formatted once at
+# arbiter's printWidth; a consumer whose prettier config differs (a .prettierrc
+# without printWidth defaults to 80, and takes precedence over the emitted
+# .prettierrc.json) would reformat them out of parity with the generator on every
+# run. Measured on #2724: the dispatch phase enum collapses to exactly 100 columns.
+# The durable fix is #2737 — format emitted files with the consumer's resolved config.
+schemas/

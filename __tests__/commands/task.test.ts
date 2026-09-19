@@ -22,16 +22,6 @@ describe('runTaskAdvance', () => {
   const seed = (phase: TaskPhase) => writeUnifiedState(dir, { phase, taskId: '#1' })
   const phaseOf = () => readUnifiedState(dir)?.phase
 
-  /** #2435: the artifact `red-team-review` promises (ship.md §Red-team review). */
-  const recordRedTeam = (taskId = '#1') => {
-    mkdirSync(join(dir, '.arbiter', 'evidence', 'redteam'), { recursive: true })
-    writeFileSync(
-      join(dir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`),
-      JSON.stringify({ findings: [] }),
-      'utf-8',
-    )
-  }
-
   beforeEach(() => {
     dir = createTestProject()
     mkdirSync(join(dir, '.claude'), { recursive: true })
@@ -47,11 +37,9 @@ describe('runTaskAdvance', () => {
     expect(phaseOf()).toBe('plan')
   })
 
-  it('happy path: plan → red-team-review → red advances phase', () => {
+  it('happy path: plan → red advances phase', () => {
     seed('plan')
-    runTaskAdvance({ to: 'red-team-review', dir })
-    recordRedTeam()
-    runTaskAdvance({ to: 'red', dir, skipPlanReview: true })
+    runTaskAdvance({ to: 'red', dir })
     expect(phaseOf()).toBe('red')
   })
 
@@ -119,7 +107,7 @@ describe('runTaskAdvance', () => {
       }),
     ).toThrow(/BLOCKED.*no progress/i)
 
-    expect(() => runTaskAdvance({ to: 'red-team-review', dir })).toThrow(/BLOCKED.*no progress/i)
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/BLOCKED.*no progress/i)
     expect(phaseOf()).toBe('plan')
   })
 

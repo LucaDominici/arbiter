@@ -1,8 +1,8 @@
 ---
 title: 'ADR-054: Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)'
-doc_version: '1.0.0'
-status: active
-last_review: '2026-05-31'
+doc_version: '1.1.0'
+status: superseded
+last_review: '2026-09-19'
 owner: ''
 canonical_id: '054'
 tags: ['audience/dev', 'kind/adr']
@@ -11,7 +11,7 @@ related: []
 
 # ADR-054: Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)
 
-**Status:** Accepted
+**Status:** Superseded by ADR-088 amendment for #2724
 **Reference:** Issue #703
 
 **Context:** Phase 3.5 requires a hard session boundary between planning phases (Opus) and
@@ -29,3 +29,11 @@ red-team-rework | red | green | refactor | verification | complete`. The gate fi
 docs) need updating. The handoff state is auditable via `status.json` diff. The boundary can
 be re-checked idempotently: `planningHandoffReady` present + `postClearResumed` absent = gate
 fires; both present = already resumed, no-op.
+
+## Supersession (#2724)
+
+The mandatory planning-to-implementation handoff, forced context reset, host-capability strategy,
+and its two planning phases are retired. The active lifecycle is `preflight → plan → red → green →
+refactor → verification → close → complete`; legacy phase values normalize to `plan` on read.
+Durable recovery remains in the single `status.json` document through treatment, cursor, candidate
+and review-round state, but recovery never requires clearing context and a read does not mutate it.

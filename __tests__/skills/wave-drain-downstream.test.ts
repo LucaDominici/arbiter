@@ -44,15 +44,17 @@ describe('wave-drain downstream generation — Probe loop (#1406)', () => {
     return readFileSync(join(dir, '.claude', 'skills', 'wave-drain', 'SKILL.md'), 'utf-8')
   }
 
-  it('renders a Phase 0.5 — Harvest step noting findings promote/list was removed', () => {
+  it('renders a Phase 0.5 — Harvest step using the finding commands', () => {
     const md = renderWaveDrain()
     expect(md).toMatch(/Phase 0\.5/)
-    expect(md).toMatch(/was removed in the B-prune/)
+    expect(md).toContain('arbiter finding list')
+    expect(md).toContain('arbiter finding promote')
   })
 
-  it('documents the manual escape hatch (inspect the spool directly)', () => {
+  it('does not document stale plural commands or a manual escape hatch', () => {
     const md = renderWaveDrain()
-    expect(md).toMatch(/cat \.arbiter\/findings/)
+    expect(md).not.toContain('arbiter findings ')
+    expect(md).not.toContain('manual escape hatch')
   })
 
   it('cites task-note.ts FindingEntry as the SSOT for the DONE-report shape', () => {

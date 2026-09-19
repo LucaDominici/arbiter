@@ -1,110 +1,47 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { describe, it, expect, afterEach, vi } from 'vitest'
-import { runTaskAdvance, HandoffRequiredError } from '../../src/commands/task.js'
+import { describe, it, expect } from 'vitest'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 
-vi.mock('../../src/capabilities/host-probe.js', () => ({
-  detectHostCapabilities: vi.fn().mockReturnValue({
-    modelSwitch: true,
-    transcriptPath: null,
-  }),
-}))
-
-vi.mock('../../src/evidence/git-checks.js', () => ({
-  shaExistsOnBranch: vi.fn().mockReturnValue(true),
-  resolveEvidenceCommit: vi.fn((ev: { test_commit_sha: string }) => ({
-    sha: ev.test_commit_sha,
-    healed: false,
-  })),
-  pathExistsInCommit: vi.fn().mockReturnValue(true),
-}))
-
-describe('handoff roundtrip E2E (#703)', () => {
-  const dirs: string[] = []
-
-  afterEach(() => {
-    vi.unstubAllEnvs()
-    while (dirs.length > 0) {
-      const d = dirs.pop()
-      if (d) rmSync(d, { recursive: true, force: true })
+describe('cold native lifecycle resume (#2724)', () => {
+  it('crosses plan to RED in a fresh Claude process, then reports without mutating', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-resume-cli-'))
+    try {
+      writeUnifiedState(dir, {
+        taskId: '#2724',
+        phase: 'plan',
+        plan: 'plan.md',
+        cursor: { nextAction: 'write the failing regression' },
+      })
+      const cli = resolve('dist/cli.js')
+      const run = (...args: string[]) =>
+        spawnSync(process.execPath, [cli, ...args, '--dir', dir], {
+          encoding: 'utf8',
+          env: { ...process.env, CLAUDECODE: '1' },
+        })
+      const advance = run('lifecycle', 'advance', '--to', 'red')
+      expect(advance.status, advance.stdout + advance.stderr).toBe(0)
+      expect(readUnifiedState(dir)?.phase).toBe('red')
+      const path = join(dir, '.claude/.task/status.json')
+      const before = readFileSync(path, 'utf8')
+      const status = run('ship', '#2724')
+      expect(status.status, status.stdout + status.stderr).toBe(0)
+      expect(
+        status.stdout,
+        JSON.stringify({
+          stderr: status.stderr,
+          error: status.error?.message,
+          signal: status.signal,
+        }),
+      ).toContain('write the failing regression')
+      expect(readFileSync(path, 'utf8')).toBe(before)
+      expect(run('lifecycle', 'advance', '--to', 'green').status).not.toBe(0)
+      expect(run('ship', '--post-clear').status).not.toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
-  })
-
-  function tmpRepo(phase = 'red-team-review'): string {
-    const d = mkdtempSync(join(tmpdir(), 'handoff-e2e-'))
-    dirs.push(d)
-    mkdirSync(join(d, '.claude'), { recursive: true })
-    writeUnifiedState(d, { taskId: '#703', phase: phase as never })
-    // #2435: leaving a red-team phase asserts the evidence ship.md promises it records; this
-    // roundtrip exercises the model-switch crossing, so the fixture supplies it.
-    mkdirSync(join(d, '.arbiter', 'evidence', 'redteam'), { recursive: true })
-    writeFileSync(
-      join(d, '.arbiter', 'evidence', 'redteam', '#703.json'),
-      JSON.stringify({ findings: [] }),
-      'utf-8',
-    )
-    return d
-  }
-
-  it('full roundtrip: STOP on first crossing, resume on post-clear', () => {
-    const dir = tmpRepo('red-team-review')
-
-    // Step 1: first crossing → STOP, metadata recorded, phase NOT advanced (C1)
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(HandoffRequiredError)
-    const status = readUnifiedState(dir)
-    expect(status?.handoffStrategy).toBe('interactive')
-    expect(typeof status?.planningHandoffReady).toBe('string')
-    expect(status?.phase).toBe('red-team-review')
-
-    // Step 2: simulate /clear → new session → post-clear re-entry advances to red
-    vi.stubEnv('ARBITER_POST_CLEAR', '1')
-    expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
-    const status2 = readUnifiedState(dir)
-    expect(typeof status2?.postClearResumed).toBe('string')
-    expect(status2?.phase).toBe('red')
-  })
-})
-
-describe('handoff via CLI subprocess (#703)', () => {
-  const dirs: string[] = []
-
-  afterEach(() => {
-    while (dirs.length > 0) {
-      const d = dirs.pop()
-      if (d) rmSync(d, { recursive: true, force: true })
-    }
-  })
-
-  function tmpRepo(): string {
-    const d = mkdtempSync(join(tmpdir(), 'handoff-cli-'))
-    dirs.push(d)
-    mkdirSync(join(d, '.claude'), { recursive: true })
-    writeUnifiedState(d, { taskId: '#703', phase: 'red-team-review' })
-    // #2435: the red-team evidence gate precedes the handoff crossing; this case asserts the
-    // handoff exit code, so the fixture records the evidence that phase promises.
-    mkdirSync(join(d, '.arbiter', 'evidence', 'redteam'), { recursive: true })
-    writeFileSync(
-      join(d, '.arbiter', 'evidence', 'redteam', '#703.json'),
-      JSON.stringify({ findings: [] }),
-      'utf-8',
-    )
-    return d
-  }
-
-  it('CLI exits 78 on handoff STOP (modelSwitch=true via CLAUDECODE)', () => {
-    const dir = tmpRepo()
-    const result = spawnSync(
-      'node',
-      ['dist/cli.js', 'lifecycle', 'advance', '--to', 'red', '--dir', dir],
-      {
-        encoding: 'utf-8',
-        env: { ...process.env, CLAUDECODE: '1', ARBITER_SKIP_PLAN_REVIEW: '1' },
-      },
-    )
-    expect(result.status).toBe(78)
   })
 })

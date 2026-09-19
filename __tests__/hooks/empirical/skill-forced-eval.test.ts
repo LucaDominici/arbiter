@@ -247,7 +247,7 @@ describe('skill-forced-eval — empirical verification gate (#2383)', () => {
     }
   })
 
-  it.each(['preflight', 'plan', 'red-team-review', 'red-team-rework', 'verification', 'complete'])(
+  it.each(['preflight', 'plan', 'verification', 'complete'])(
     'AC-2383.2 stands down in %s',
     (phase) => {
       const { dir, hookPath } = setup()

@@ -1,34 +1,65 @@
 {
-  ".checksum": "413444555bd2a2e95508ddbd9af47dceef99a478f11c447dde9c78719e598c1c",
   "$schemaVersion": 1,
+  ".checksum": "90768fb4bea5002bd914a8607b2cee300ea5b4cf6895b42478dd2505e55756c2",
   "config": {
     "$schemaVersion": 4,
     "archetype": "library",
     "architectureStyle": "none",
+    "automation": {
+      "autonomy": "L3"
+    },
     "collaborationMode": "trunk-solo",
     "contractType": "none",
+    "databaseEngine": "none",
     "decomposition": {
       "backend": "github"
     },
     "features": {
-      "contractTesting": false,
+      "acceptanceAnchor": true,
+      "contractTesting": true,
       "debtGates": true,
-      "evidenceHarness": false,
+      "evidenceHarness": true,
       "mutationTesting": true,
       "securityScanning": true,
       "soloDevMode": true,
       "suppressions": true
     },
+    "governance": {
+      "ssotGuardPatterns": [
+        "docs/internal/METHOD/",
+        "docs/internal/SYSTEM/DECISIONS",
+        "docs/internal/SYSTEM/CANON.md",
+        "docs/internal/ADR/"
+      ]
+    },
     "governanceLevel": "L2",
     "hasDatabase": false,
     "hasPublicApi": false,
-    "invariantTiers": ["architectural", "governance", "data", "operational"],
+    "invariantTiers": [
+      "architectural",
+      "governance",
+      "data",
+      "operational"
+    ],
     "isMultiTenant": false,
     "kit": {
       "measure": {}
     },
-    "lanes": ["docs"],
+    "lanes": [
+      "docs"
+    ],
+    "language": "typescript",
     "permitGitHub": true,
+    "projectName": "arbiter",
+    "ship": {
+      "review": {
+        "maxRounds": 2
+      },
+      "train": {
+        "maxAgeMinutes": 480,
+        "maxChain": 10
+      }
+    },
     "solo": {
       "mergeMode": "pr-ff"
     },
@@ -40,7 +71,10 @@
       "methodLength": 65,
       "mutationScore": 80
     },
-    "tools": ["claude", "codex"],
+    "tools": [
+      "claude",
+      "codex"
+    ],
     "version": "0.2"
   }
 }

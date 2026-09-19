@@ -104,7 +104,6 @@
       "Bash(git push --force)",
       "Bash(*ARBITER_GATE_BYPASS*)",
       "Bash(*ARBITER_PLAN_BYPASS*)",
-      "Bash(*ARBITER_SKIP_PLAN_REVIEW*)",
       "Bash(*ARBITER_SKIP_TDD*)",
       "Bash(*ARBITER_SKIP_GATE_MARKER*)",
       "Bash(*ARBITER_SSOT_BYPASS*)",

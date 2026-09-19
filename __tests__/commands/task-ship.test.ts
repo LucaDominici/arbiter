@@ -16,7 +16,7 @@ import {
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
-import { widenTier } from '../../src/commands/ship-tier.js'
+import { resolveShipTreatment, widenTier } from '../../src/commands/ship-tier.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
 
 // Gates that would otherwise require a real repo / model switch
@@ -54,16 +54,6 @@ function writeTddEvidence(dir: string, taskId: string): void {
 }
 
 /**
- * #2435 — the artifact the `red-team-review` row of `.claude/commands/ship.md` promises.
- * Leaving that phase now asserts it, so a fixture that drives the whole lifecycle records it.
- */
-function writeRedTeamEvidence(dir: string, taskId: string): void {
-  const evDir = join(dir, '.arbiter', 'evidence', 'redteam')
-  mkdirSync(evDir, { recursive: true })
-  writeFileSync(join(evDir, `${taskId}.json`), JSON.stringify({ findings: [] }), 'utf-8')
-}
-
-/**
  * #2328: the marker gate verifies tree, checkout, toolchain, level and age
  * against a REAL checkout, so the fixture becomes a real repo and the marker is
  * stamped by the writer rather than hand-written.
@@ -88,26 +78,22 @@ function companionEvidencePath(taskId: string, dir: string): string {
 }
 
 describe('ship sequencing — pure plan', () => {
-  it('challenges only full plans before implementation', () => {
-    expect(shipStepFor('red-team-review', 'XS').reviewAgents).toBe(0)
-    expect(shipStepFor('red-team-review', 'S').reviewAgents).toBe(0)
-    expect(shipStepFor('red-team-review', 'Standard').reviewAgents).toBe(1)
+  it('does not dispatch pre-code reviewers at any treatment', () => {
+    expect(shipStepFor('plan', 'XS').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', 'S').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', 'Standard').reviewAgents).toBe(0)
   })
 
-  it('keeps the Standard plan challenge in trunk-solo (#2681)', () => {
-    const step = shipStepFor(
-      'red-team-review',
-      'Standard',
-      profile({ collaborationMode: 'trunk-solo' }),
-    )
-    expect(step.reviewAgents).toBe(1)
-    expect(step.action).toMatch(/targeted plan reviewer/i)
+  it('uses mechanical plan checks with no pre-code dispatch', () => {
+    const step = shipStepFor('plan', 'Standard', profile({ collaborationMode: 'trunk-solo' }))
+    expect(step.reviewAgents).toBe(0)
+    expect(step.action).toMatch(/acceptance/i)
   })
 
   it('dispatches tier-N code-review agents at refactor', () => {
     expect(shipStepFor('refactor', 'XS').reviewAgents).toBe(1)
     expect(shipStepFor('refactor', 'S').reviewAgents).toBe(1)
-    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(2)
+    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(1)
   })
 
   it('adds an external reviewer seat without changing the total reviewAgents count (AC-2357.8)', () => {
@@ -132,13 +118,13 @@ describe('ship sequencing — pure plan', () => {
         error: null,
       },
     })
-    expect(step.reviewAgents).toBe(2)
+    expect(step.reviewAgents).toBe(1)
     expect(step.externalReviewers).toBe(1)
-    expect(step.action).toContain('dispatch 1 Anthropic code-review agent(s) + 1 Codex reviewer(s)')
-    expect(step.action).toContain('panel total: 2')
+    expect(step.action).toContain('dispatch 0 Anthropic code-review agent(s) + 1 Codex reviewer(s)')
+    expect(step.action).toContain('panel total: 1')
   })
 
-  it('keeps the Standard two-seat panel in trunk-solo', () => {
+  it('keeps one Standard final reviewer in trunk-solo', () => {
     const step = shipStepFor(
       'refactor',
       'Standard',
@@ -166,8 +152,8 @@ describe('ship sequencing — pure plan', () => {
         },
       },
     )
-    expect(step).toMatchObject({ reviewAgents: 2, externalReviewers: 1 })
-    expect(step.action).toContain('panel total: 2')
+    expect(step).toMatchObject({ reviewAgents: 1, externalReviewers: 1 })
+    expect(step.action).toContain('panel total: 1')
   })
 
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {
@@ -176,7 +162,7 @@ describe('ship sequencing — pure plan', () => {
         'refactor',
         widenTier('XS', { blastRadius: 75, labels: [], milestoneBundled: false }),
       ).reviewAgents,
-    ).toBe(2)
+    ).toBe(1)
     expect(
       shipStepFor(
         'refactor',
@@ -192,18 +178,17 @@ describe('ship sequencing — pure plan', () => {
 
     expect(xs.verticals).toEqual(['domain'])
     expect(s.verticals).toEqual(['domain'])
-    expect(std.verticals).toEqual(['domain', 'test-quality'])
-    expect(std.reviewAgents).toBeGreaterThan(xs.reviewAgents)
+    expect(std.verticals).toEqual(['domain'])
+    expect(std.reviewAgents).toBe(xs.reviewAgents)
   })
 
-  it('red-team-review carries the same assigned treatment seats', () => {
-    expect(shipStepFor('red-team-review', 'Standard').verticals).toEqual(['domain', 'test-quality'])
-    expect(shipStepFor('red-team-review', 'XS').verticals).toEqual(['domain'])
+  it('plan carries the treatment vertical without dispatching it', () => {
+    expect(shipStepFor('plan', 'Standard').verticals).toEqual(['domain'])
+    expect(shipStepFor('plan', 'XS').verticals).toEqual(['domain'])
   })
 
   it('nextPhase walks forward and stops at complete', () => {
-    expect(nextPhase('plan')).toBe('red-team-review')
-    expect(nextPhase('red-team-review')).toBe('red')
+    expect(nextPhase('plan')).toBe('red')
     expect(nextPhase('complete')).toBeNull()
   })
 })
@@ -214,7 +199,7 @@ describe('self /ship documentation coherence (#2178)', () => {
   it('states the adaptive treatment table', () => {
     const flat = shipCommand.replace(/\s+/g, ' ')
     expect(flat).toMatch(/\| XS\s+\| minimal \|\s+0 \|\s+1 pertinent vertical/)
-    expect(flat).toMatch(/\| Standard\s+\| full\s+\|\s+1 targeted \|\s+2 orthogonal verticals/)
+    expect(flat).toMatch(/\| Standard\s+\| full\s+\|\s+0 \|\s+1 pertinent vertical/)
   })
 
   it('caps specialist review through the persisted treatment', () => {
@@ -313,12 +298,12 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(readUnifiedState(dir)?.tier).toBe('Standard')
   })
 
-  it('--advance from red-team-rework re-enters red-team-review (no silent stall)', () => {
+  it('--advance moves directly from plan to red', () => {
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
-    writeUnifiedState(dir, { phase: 'red-team-rework' })
+    writeUnifiedState(dir, { phase: 'plan' })
     const r = runTaskShip({ dir, advance: true })
     expect(r.advanced).toBe(true)
-    expect(r.phase).toBe('red-team-review')
+    expect(r.phase).toBe('red')
   })
 
   it('auto-advances phase-by-phase through gate-green to complete', () => {
@@ -329,7 +314,6 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     )
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeTddEvidence(dir, '#1206')
-    writeRedTeamEvidence(dir, '#1206')
     // The verification/close/complete phase gates require a real-shape marker correlated to
     // this fixture's mocked branch and HEAD, just as a successful check-all run would write.
     writeGatePassMarker(dir, '#1206')
@@ -344,7 +328,6 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
         // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
         // remote, so the reader is seamed to a merged PR rather than the gate being disarmed.
         advanceOpts: {
-          skipPlanReview: true,
           readPrs: () => [{ number: 1206, state: 'MERGED' }],
         },
       })
@@ -356,7 +339,6 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(visited).toEqual([
       'preflight',
       'plan',
-      'red-team-review',
       'red',
       'green',
       'refactor',
@@ -635,12 +617,13 @@ describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)
 // #1306 — the orchestration prefs are CONSUMED in the ship step plan (not dead):
 // refactor reads defaultGateLevel. (#2329 deleted affinityBatching; the plan
 // action is now a constant — see __tests__/config/affinity-batching-removed.test.ts.)
-describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead code)', () => {
-  it('refactor pre-commit diagnostic reflects defaultGateLevel', () => {
+describe('ship steps keep expensive gates out of pre-review preparation', () => {
+  it('refactor uses a cheap targeted preflight at every configured gate level', () => {
     const l2 = shipStepFor('refactor', 'Standard', profile({ defaultGateLevel: 'L2' }))
-    expect(l2.action).toContain('L2')
+    expect(l2.action).toContain('touched tests')
+    expect(l2.action).not.toContain('check-all.mjs')
     const l1 = shipStepFor('refactor', 'Standard', profile({ defaultGateLevel: 'L1' }))
-    expect(l1.action).toContain('L1')
+    expect(l1.action).toBe(l2.action)
   })
 
   // #2329 removed the knob that used to branch this action; #2333 removed the
@@ -649,7 +632,7 @@ describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead co
     for (const defaultGateLevel of ['L1', 'L2'] as const) {
       const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
       expect(step.action).toBe(
-        'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
+        'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
       )
     }
   })
@@ -770,6 +753,7 @@ describe('ship companion evidence emission (#1745)', () => {
 
     runTaskShip({
       dir,
+      executionOutcome: 'new-risk',
       profileOverride: profile({
         isArbiterSelf: false,
         companions: [testCompanion],
@@ -796,5 +780,87 @@ describe('ship companion evidence emission (#1745)', () => {
       gatherCompanionDiffStats: () => ({ files: 2, insertions: 5, deletions: 1 }),
     })
     expect(existsSync(companionEvidencePath('#1745', dir))).toBe(false)
+  })
+})
+
+describe('result-first read-only status (#2724)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('reads the same subject twice without remote gathering, state/log writes or round changes', () => {
+    runTaskShip({ dir, taskId: '#2724', tier: 'Standard' })
+    writeUnifiedState(dir, {
+      phase: 'refactor',
+      review: { rounds: 1, lastReviewedSha: 'a'.repeat(40) },
+      cursor: { lastAction: 'targeted tests green', nextAction: 'record final reviewer' },
+    })
+    const path = join(dir, '.claude/.task/status.json')
+    const before = readFileSync(path, 'utf8')
+    const gather = vi.fn(() => {
+      throw new Error('status must not gather remote signals')
+    })
+    const first = runTaskShip({ dir, taskId: '#2724', gatherTierSignals: gather })
+    const second = runTaskShip({ dir, gatherTierSignals: gather })
+    expect(first).toEqual(second)
+    expect(gather).not.toHaveBeenCalled()
+    expect(readFileSync(path, 'utf8')).toBe(before)
+    expect(buildShipStepLines(first).join('\n')).toContain('record final reviewer')
+    expect(buildShipStepLines(first).join('\n')).toContain('a'.repeat(40))
+  })
+
+  it('derives a wider treatment without writing, then persists it on the next transition', () => {
+    const persisted = resolveShipTreatment('XS', {
+      blastRadius: 0,
+      callerCount: 0,
+      labels: [],
+      milestoneBundled: false,
+      changedFiles: ['docs/guide.md'],
+      complete: true,
+    })
+    writeUnifiedState(dir, { taskId: '#2724', tier: 'XS', treatment: persisted })
+    const path = join(dir, '.claude/.task/status.json')
+    const before = readFileSync(path, 'utf8')
+
+    const status = runTaskShip({ dir, taskId: '#2724' })
+
+    expect(buildShipStepLines(status).join('\n')).toContain('Tier: Standard')
+    expect(status.treatment?.tier).toBe('Standard')
+    expect(readFileSync(path, 'utf8')).toBe(before)
+
+    runTaskShip({ dir, advance: true })
+    expect(readUnifiedState(dir)?.treatment?.tier).toBe('Standard')
+  })
+
+  it('refreshes risk on an operational invocation', () => {
+    runTaskShip({
+      dir,
+      taskId: '#2724',
+      tier: 'XS',
+      gatherTierSignals: () => ({
+        blastRadius: 0,
+        callerCount: 0,
+        labels: [],
+        milestoneBundled: false,
+        changedFiles: ['src/leaf.ts'],
+        complete: true,
+      }),
+    })
+    const gather = vi.fn(() => ({
+      blastRadius: 100,
+      callerCount: 100,
+      labels: ['security'],
+      milestoneBundled: false,
+      changedFiles: ['src/auth/login.ts'],
+      complete: true,
+    }))
+    const result = runTaskShip({ dir, executionOutcome: 'new-risk', gatherTierSignals: gather })
+    expect(gather).toHaveBeenCalled()
+    expect(result.treatment?.sensitive).toBe(true)
+    expect(result.tier).toBe('Standard')
   })
 })

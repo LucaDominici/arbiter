@@ -22,7 +22,7 @@ describe('ship is one adaptive delivery narrative', () => {
     expect(content).toContain('single delivery entrypoint')
     expect(content).toContain('ShipTreatment')
     expect(content).toContain('.claude/.task/status.json')
-    expect(content).toContain('.arbiter/evidence/redteam/')
+    expect(content).not.toContain('.arbiter/evidence/redteam/')
     expect(content).toContain('.arbiter/agents-dispatched.json')
     expect(content).toContain('check-review-completion.mjs')
     expect(content).toContain('MED/HIGH/CRITICAL')
@@ -31,14 +31,21 @@ describe('ship is one adaptive delivery narrative', () => {
 
   it.each(languages)('does not duplicate stack-specific gate policy for %s', (language) => {
     const content = render('claude/commands/ship.md.ejs', { language })
-    expect(content).toContain('configured diagnostic')
+    expect(content).toContain('changed-file format/lint')
     expect(content).toContain('one full clean-HEAD gate')
   })
 
   it('keeps review and acceptance evidence separate and exact-subject bound', () => {
     const content = render('claude/commands/ship.md.ejs')
+    expect(content).toContain('Record the complete final reviewer panel once.')
     expect(content).toContain('--mode reviewer-panel')
+    expect(content).toContain(
+      "reviewer-panel envelope includes that reviewer's acceptance fit against every frozen criterion",
+    )
+    expect(content).toContain('writes both correlated artifacts from the same submission')
+    expect(content).toContain('adversarial verifier and wave-worker path')
     expect(content).toContain('--mode ac-fit')
+    expect(content).toContain('a different task/branch/SHA')
     expect(content).toContain('exact-subject receipt')
     expect(content.replace(/\s+/g, ' ')).toMatch(/source change invalidates/i)
   })

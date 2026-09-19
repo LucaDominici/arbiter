@@ -47,30 +47,9 @@ export function generateCodex(
     )
   }
 
-  // Plan directory scaffold
-  const planDir = resolvedPath(base, '.agents', 'plan')
-  results.push(
-    writeFile(join(planDir, 'README.md'), PLAN_README, { skipIfExists: true, dryRun: opts.dryRun }),
-  )
-
   // Hook parity — .codex/config.toml + codex-adapter.mjs
   const hookResult = generateCodexHooks(config, opts)
   results.push(...hookResult.files)
 
   return { files: results }
 }
-
-const PLAN_README = `# .agents/plan/
-
-Task plan artifacts for Codex execution.
-
-## Files
-
-- \`PLAN.json\` — current task plan (created by Codex before implementation)
-- \`CONTEXT_PACK.md\` — context digest for the current task
-- \`runs/\` — historical run snapshots
-
-## Plan Schema
-
-See \`.agents/CODEX.md\` §Plan Schema for the required format.
-`

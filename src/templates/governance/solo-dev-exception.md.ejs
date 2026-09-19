@@ -81,7 +81,8 @@ The reactivation check runs nightly via `scripts/check-solo-reactivation.mjs`
 
 The following automated controls are active:
 
-- `scripts/check-all.mjs L1` — runs on every commit (pre-commit hook)
+- staged secrets, formatting/economy checks and RED integrity — run on checkpoint commits
+- `scripts/check-all.mjs L1` — qualifies the frozen delivery candidate
 - `scripts/check-all.mjs L2` — runs on every push (pre-push hook)
 - Nightly CI (`06-nightly-lite.yml`) — dependency CVE refresh + integration tests
 - Cosign attestation — every release artifact is signed with OIDC identity

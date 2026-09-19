@@ -21,7 +21,7 @@ related: ['088-ship-as-orchestration-entrypoint']
 
 `/impact <symbol-or-file>` reports the **blast radius** of a change — its upstream and
 downstream dependents — before you touch it. It is the analysis sibling of `/ship`: scope a
-change before planning, and validate in the plan/red-team phases that the plan reaches
+change before planning, and validate during plan admission and final review that the plan reaches
 everything the change actually affects.
 
 ## Opt-in, graph-first (never required)
@@ -50,5 +50,5 @@ stale. With no graphify installed, `/impact` still works via ripgrep — you jus
 ## Relationship to /ship
 
 `/ship` drives an issue to a merged PR. Use `/impact` to scope the change beforehand and, within
-`/ship`'s plan and red-team phases, to confirm the plan covers the full blast radius. `/impact`
+`/ship`'s plan admission and final-review stages, to confirm the plan covers the full blast radius. `/impact`
 itself only analyzes — it never edits.

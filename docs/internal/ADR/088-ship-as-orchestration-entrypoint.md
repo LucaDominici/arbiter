@@ -1,8 +1,8 @@
 ---
 title: 'ADR-088: /ship as the Single Orchestration Entrypoint'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-06-05'
+last_review: '2026-09-19'
 owner: ''
 canonical_id: '088'
 tags: ['audience/dev', 'kind/adr']
@@ -52,9 +52,23 @@ Specifically:
    local lifecycle is at `close`, review and configured acceptance evidence pass, the final gate
    receipt is valid, and the PR head equals the locally qualified HEAD.
 
+6. **Result-first delivery (#2724)** — Ship mechanically admits the plan, preserves TDD, and
+   reserves independent judgment for the frozen candidate. One persisted `ShipTreatment` owns plan
+   depth, reviewer count, pertinent verticals, acceptance fit and model capability. XS, S and
+   ordinary Standard work use one final reviewer; sensitive surfaces may add specialists up to
+   three. The final panel records code findings and one verdict per AC in a single correlated
+   submission. The dispatch matrix is a projection/test oracle, never a second runtime policy.
+
+7. **Checkpoint and candidate obligations differ (#2724)** — local TDD commits retain staged
+   secret scanning, staged-file economy checks and RED integrity. Targeted checks run while editing;
+   the full L1 gate qualifies the frozen candidate once and L2 qualifies it before push. The former
+   pre-code reviewer stages, forced context reset, and fixed multi-level review pipeline are retired.
+
 ## Consequences
 
 - A reader following only `/ship` will not trip any gate (INV-114, INV-38).
 - `/task` stops being the "full lifecycle" command; its description changes to "low-level engine/CLI."
 - `/replay` phase mapping updated to reference `/ship` sections.
 - The duplicate manual checklist in task.md is eliminated; jscpd duplication ratchet stays green.
+- Recovery reads are durable and non-mutating; no context reset or host-specific handoff is required.
+- A changed source SHA invalidates final-review, acceptance-fit and gate evidence.
