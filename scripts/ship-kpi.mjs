@@ -908,8 +908,34 @@ export function unattributedUsage(metas, attributedFiles) {
   return result
 }
 
-/** Build per-stratum writer references from the first thirty deliveries seen. */
-export function calibrate(deliveries, _weights) {
+const CALIBRATION_WINDOW = 30
+
+function calibrationMinimum(value) {
+  const configured = value && typeof value === 'object' ? value.minCalibration : value
+  return finiteNumber(configured) ?? DEFAULT_MIN_CALIBRATION
+}
+
+function calibrationMetric(deliveries, valueOf, minCalibration) {
+  const known = deliveries
+    .filter((delivery) => finiteNumber(valueOf(delivery)) !== null)
+    .slice(0, CALIBRATION_WINDOW)
+  const values = known.map(valueOf)
+  const medianValue = quantiles(values).median
+  return {
+    value: known.length >= minCalibration && medianValue !== null ? rounded(medianValue, 2) : null,
+    calibration: {
+      n: known.length,
+      range: {
+        from: known[0]?.mergedAt ?? null,
+        to: known.at(-1)?.mergedAt ?? null,
+      },
+    },
+  }
+}
+
+/** Build per-stratum writer references from the oldest known deliveries per quantity. */
+export function calibrate(deliveries, _weights, minCalibration) {
+  const minimum = calibrationMinimum(minCalibration)
   const groups = {}
   for (const delivery of Array.isArray(deliveries) ? deliveries : []) {
     if (
@@ -922,25 +948,43 @@ export function calibrate(deliveries, _weights) {
   }
   return Object.fromEntries(
     Object.entries(groups).map(([stratum, all]) => {
-      const group = all
-        .sort(
-          (a, b) => mergedAtMs(a) - mergedAtMs(b) || Number(a.number ?? 0) - Number(b.number ?? 0),
-        )
-        .slice(0, 30)
-      const writerTime = quantiles(group.map(writerTimeReference)).median
-      const writerCost = quantiles(group.map((delivery) => delivery.writerCostUnits)).median
-      const reviewTime = quantiles(group.map((delivery) => delivery.review)).median
-      const reviewCost = quantiles(group.map((delivery) => delivery.reviewerCostUnits)).median
+      const group = [...all].sort(
+        (a, b) => mergedAtMs(a) - mergedAtMs(b) || Number(a.number ?? 0) - Number(b.number ?? 0),
+      )
+      const writerTime = calibrationMetric(group, writerTimeReference, minimum)
+      const writerCost = calibrationMetric(group, (delivery) => delivery.writerCostUnits, minimum)
+      const reviewTime = calibrationMetric(group, (delivery) => delivery.review, minimum)
+      const reviewCost = calibrationMetric(group, (delivery) => delivery.reviewerCostUnits, minimum)
       return [
         stratum,
         {
-          writerTimeMedianSec: writerTime,
-          writerCostUnitsMedian: writerCost,
+          writerTimeMedianSec: writerTime.value,
+          writerCostUnitsMedian: writerCost.value,
           buckets: {
-            writer: { timeMedianSec: writerTime, costUnitsMedian: writerCost },
-            review: { timeMedianSec: reviewTime, costUnitsMedian: reviewCost },
+            writer: {
+              timeMedianSec: writerTime.value,
+              costUnitsMedian: writerCost.value,
+            },
+            review: {
+              timeMedianSec: reviewTime.value,
+              costUnitsMedian: reviewCost.value,
+            },
           },
-          n: group.length,
+          calibration: {
+            writerTimeMedianSec: writerTime.calibration,
+            writerCostUnitsMedian: writerCost.calibration,
+            buckets: {
+              writer: {
+                timeMedianSec: writerTime.calibration,
+                costUnitsMedian: writerCost.calibration,
+              },
+              review: {
+                timeMedianSec: reviewTime.calibration,
+                costUnitsMedian: reviewCost.calibration,
+              },
+            },
+          },
+          n: Math.min(group.length, CALIBRATION_WINDOW),
         },
       ]
     }),
@@ -1057,6 +1101,15 @@ export function checkpointVerdict({ current, previous, baseline, thresholds, his
 }
 
 /** Render one deterministic markdown checkpoint entry for the tuning log. */
+function roundDeep(value) {
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? Math.round(value * 100) / 100 : value
+  if (Array.isArray(value)) return value.map(roundDeep)
+  if (value !== null && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, roundDeep(item)]))
+  return value
+}
+
 export function formatLogEntry(result) {
   const time = result?.indices?.time ?? { median: null, p90: null }
   const tokens = result?.indices?.tokens ?? { median: null, p90: null }
@@ -1106,7 +1159,9 @@ export function formatLogEntry(result) {
           : 'none'
     }`,
   )
-  lines.push('', '```json', JSON.stringify({ shipKpiCheckpoint: result }), '```', '')
+  // One-line HTML comment: prettier leaves it untouched (a fenced JSON block gets re-wrapped and the
+  // entry stops parsing), and instruction loaders strip comments, so it costs no context.
+  lines.push('', `<!-- shipKpiCheckpoint ${JSON.stringify(roundDeep(result))} -->`, '')
   return lines.join('\n')
 }
 
@@ -1831,6 +1886,8 @@ function costDelivery(row, weights) {
   }
 }
 
+const DEFAULT_MIN_CALIBRATION = 8
+
 export function loadThresholds(path = THRESHOLDS_PATH) {
   let value
   try {
@@ -1874,11 +1931,12 @@ function writeBaseline(baseline, recalibrate) {
 }
 
 function runCalibration(opts) {
-  const weights = loadThresholds().costWeights
+  const thresholds = loadThresholds()
+  const weights = thresholds.costWeights
   const deliveries = historicalRows()
     .map((row) => costDelivery(row, weights))
     .filter((delivery) => delivery.stratum !== null)
-  const baseline = calibrate(deliveries, weights)
+  const baseline = calibrate(deliveries, weights, thresholds)
   if (Object.keys(baseline).length === 0) {
     throw new Error('no historical deliveries with a stratum; refusing to write an empty baseline')
   }
@@ -2011,10 +2069,10 @@ export function checkpointHistory(path = TUNING_LOG_PATH) {
   if (!existsSync(path)) return []
   return readFileSync(path, 'utf-8')
     .split('\n')
-    .map((line) => line.match(/^\{"shipKpiCheckpoint":(.*)\}$/)?.[1])
+    .map((line) => line.match(/^<!-- shipKpiCheckpoint (\{.*\}) -->$/)?.[1])
     .flatMap((payload) => {
       try {
-        return payload ? [JSON.parse(`{"shipKpiCheckpoint":${payload}}`)] : []
+        return payload ? [{ shipKpiCheckpoint: JSON.parse(payload) }] : []
         // FAIL-OPEN-INTENT: one malformed historical checkpoint is excluded; valid logged checkpoints remain available and a missing history only prevents PLATEAU.
       } catch {
         return []
@@ -2029,7 +2087,7 @@ function ensureTuningLog() {
   mkdirSync(join(TUNING_LOG_PATH, '..'), { recursive: true })
   writeFileSync(
     TUNING_LOG_PATH,
-    "---\ntitle: 'Ship tuning log'\ndoc_version: '1.0.0'\nstatus: active\nlast_review: '2026-09-19'\nowner: ''\ncanonical_id: 'ship-tuning-log'\ntags: ['audience/dev', 'kind/measurement']\nrelated: []\n---\n\n# Ship tuning log\n\n<!-- Generated by ship-kpi --checkpoint. -->\n",
+    "---\ntitle: 'Ship tuning log'\ndoc_version: '1.0.0'\nstatus: active\nlast_review: '2026-09-19'\nowner: ''\ncanonical_id: ''\ntags: ['audience/dev', 'kind/measurement']\nrelated: []\n---\n\n# Ship tuning log\n\n<!-- Generated by ship-kpi --checkpoint. -->\n",
   )
 }
 

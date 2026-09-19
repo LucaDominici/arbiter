@@ -592,8 +592,8 @@ describe('delivery cost classifiers (#2725)', () => {
         n: 30,
       }),
       Standard: expect.objectContaining({
-        writerTimeMedianSec: 50,
-        writerCostUnitsMedian: 100,
+        writerTimeMedianSec: null,
+        writerCostUnitsMedian: null,
         n: 2,
       }),
     })
@@ -1668,7 +1668,7 @@ describe('review rework semantics (#2725 round 2)', () => {
       writerCostUnits: 10_000,
       reviewerCostUnits: 10_000,
     })
-    expect(calibrate(rows, weights)).toEqual({
+    expect(calibrate(rows, weights)).toMatchObject({
       Standard: {
         writerTimeMedianSec: 15.5,
         writerCostUnitsMedian: 31,
@@ -1678,6 +1678,106 @@ describe('review rework semantics (#2725 round 2)', () => {
         },
         n: 30,
       },
+    })
+  })
+
+  it('calibrates each median from its own oldest-known window and records that window', () => {
+    const rows = Array.from({ length: 40 }, (_, index) => ({
+      number: index + 1,
+      mergedAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
+      stratum: 'Standard',
+      leadTime: index + 100,
+      preflight: 5,
+      fullGate: 5,
+      review: 5,
+      ci: 5,
+      writerCostUnits: index >= 28 ? 100 + index + 0.123 : null,
+      reviewerCostUnits: index + 0.125,
+    }))
+    rows.push({
+      number: 999,
+      mergedAt: null,
+      stratum: 'Standard',
+      leadTime: 10_000,
+      preflight: 0,
+      fullGate: 0,
+      review: 0,
+      ci: 0,
+      writerCostUnits: 10_000,
+      reviewerCostUnits: 10_000,
+    })
+    const shuffled = [...rows].reverse()
+    const result = calibrate(rows, weights) as {
+      Standard: {
+        writerTimeMedianSec: number | null
+        writerCostUnitsMedian: number | null
+        buckets: Record<string, Record<string, unknown>>
+        n: number
+        calibration: Record<string, unknown>
+      }
+    }
+    expect(result).toEqual(calibrate(shuffled, weights))
+    expect(result.Standard).toMatchObject({
+      writerTimeMedianSec: 94.5,
+      writerCostUnitsMedian: 133.62,
+      buckets: {
+        writer: { timeMedianSec: 94.5, costUnitsMedian: 133.62 },
+        review: { timeMedianSec: 5, costUnitsMedian: 14.63 },
+      },
+      n: 30,
+      calibration: {
+        writerTimeMedianSec: {
+          n: 30,
+          range: { from: rows[0].mergedAt, to: rows[29].mergedAt },
+        },
+        writerCostUnitsMedian: {
+          n: 12,
+          range: { from: rows[28].mergedAt, to: rows[39].mergedAt },
+        },
+        buckets: {
+          writer: {
+            timeMedianSec: {
+              n: 30,
+              range: { from: rows[0].mergedAt, to: rows[29].mergedAt },
+            },
+            costUnitsMedian: {
+              n: 12,
+              range: { from: rows[28].mergedAt, to: rows[39].mergedAt },
+            },
+          },
+          review: {
+            timeMedianSec: {
+              n: 30,
+              range: { from: rows[0].mergedAt, to: rows[29].mergedAt },
+            },
+            costUnitsMedian: {
+              n: 30,
+              range: { from: rows[0].mergedAt, to: rows[29].mergedAt },
+            },
+          },
+        },
+      },
+    })
+  })
+
+  it('keeps a median null when fewer than the calibration minimum are known', () => {
+    const rows = Array.from({ length: 7 }, (_, index) => ({
+      number: index + 1,
+      mergedAt: new Date(Date.UTC(2026, 1, index + 1)).toISOString(),
+      stratum: 'Standard',
+      leadTime: 100,
+      writerCostUnits: index + 1,
+    }))
+    const result = calibrate(rows, weights) as {
+      Standard: {
+        writerCostUnitsMedian: number | null
+        calibration: { writerCostUnitsMedian: { n: number; range: unknown } }
+      }
+    }
+    expect(result.Standard.writerCostUnitsMedian).toBeNull()
+    expect(result.Standard.calibration.writerCostUnitsMedian).toEqual({
+      n: 7,
+      range: { from: rows[0].mergedAt, to: rows[6].mergedAt },
     })
   })
 
