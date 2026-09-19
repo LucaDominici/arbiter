@@ -37,8 +37,13 @@ describe('ship is one adaptive delivery narrative', () => {
 
   it('keeps review and acceptance evidence separate and exact-subject bound', () => {
     const content = render('claude/commands/ship.md.ejs')
+    expect(content).toContain('Record the complete final reviewer panel once.')
     expect(content).toContain('--mode reviewer-panel')
-    expect(content).toContain('--mode ac-fit')
+    expect(content).toContain(
+      "reviewer-panel envelope includes that reviewer's acceptance fit against every frozen criterion",
+    )
+    expect(content).toContain('writes both correlated artifacts from the same submission')
+    expect(content).toContain('a different task/branch/SHA')
     expect(content).toContain('exact-subject receipt')
     expect(content.replace(/\s+/g, ' ')).toMatch(/source change invalidates/i)
   })
