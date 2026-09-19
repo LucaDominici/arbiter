@@ -42,6 +42,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'data'])
 const SKIP_FILES = new Set([
   'scripts/lib/run-helpers.mjs',
   'scripts/lib/parse-check-args.mjs',
+  // Pure constants SSOT; entry-point consumers own the exit contract.
+  'scripts/lib/governance-paths.mjs',
   'scripts/lib/glob-walk.mjs', // #1366: pure glob/tree-walk helper; consumers own the exit contract
   // #2148 pure exact-SHA policy declarations/validation; the watcher and branch
   // protection applicator own all I/O and convert validation errors fail-closed.

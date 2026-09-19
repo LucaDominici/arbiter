@@ -66,19 +66,6 @@ function getAllTrackedFiles() {
   }
 }
 
-function getDeletedWorktreeFiles() {
-  try {
-    return new Set(
-      execFileSync('git', ['diff', 'HEAD', '--name-only', '--diff-filter=D'], { encoding: 'utf8' })
-        .trim()
-        .split('\n')
-        .filter(Boolean),
-    )
-  } catch {
-    return new Set()
-  }
-}
-
 // A violation is a single line that BOTH mentions the flag AND names a non-core
 // tool — the false coupling "<non-core tool> ... --accept-beta-tools". Lines that
 // only describe beta *languages* (Rust/Python) with the flag are correct and never
@@ -110,12 +97,12 @@ function violatesToolsFlagOnLine(line) {
 
 try {
   const files = getAllTrackedFiles()
-  const deleted = getDeletedWorktreeFiles()
   const violations = []
 
   for (const file of files) {
     if (!shouldScan(file)) continue
-    if (deleted.has(file) && !existsSync(join(process.cwd(), file))) continue
+    // tracked but absent = deleted in the worktree, nothing to scan
+    if (!existsSync(join(process.cwd(), file))) continue
     let content
     try {
       content = readFileSync(join(process.cwd(), file), 'utf8')

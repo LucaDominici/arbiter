@@ -37,8 +37,8 @@ Canonical cross-tool entrypoint for the arbiter repository. Tool-specific shims 
 - Test first for behavior changes and preserve strict typing, boundary validation, and error handling.
 
 The full invariant, CI-tier, supply-chain, canon, gate, and debt reference is
-[`docs/internal/SYSTEM/INVARIANT-CATALOG.md`](docs/internal/SYSTEM/INVARIANT-CATALOG.md).
-Use `arbiter explain <ID>` for an invariant, and [`docs/INDEX.md`](docs/INDEX.md) for the documentation map.
+`docs/internal/SYSTEM/INVARIANT-CATALOG.md`.
+Use `arbiter explain <ID>` for an invariant, and `docs/INDEX.md` for the documentation map.
 
 ## Working efficiently
 

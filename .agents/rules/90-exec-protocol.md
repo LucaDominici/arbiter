@@ -2,7 +2,7 @@
 title: 'Execution Protocol'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-07-17'
+last_review: '2026-09-20'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
@@ -11,42 +11,10 @@ related: []
 
 # Execution Protocol
 
-## Branch Enforcement
+Before editing, confirm the task branch and read the active plan. Use the `/ship`
+entrypoint for delivery. Keep checkpoint evidence intact and record red-test
+evidence before advancing a TDD phase.
 
-Before any file edit:
-
-1. Run `git branch --show-current`
-2. If on `main` → stop and create a task branch first — edits on `main` bypass every review and gate artifact that anchors to a task branch
-3. Branch must start with `task/` — e.g., `task/#123-description`
-
-## Execution Flow
-
-1. Read AGENTS.md (invariants + governance)
-2. Create task branch if not on one
-3. Plan before editing (3+ file changes → outline first)
-4. Run `/ship #NNN` — the single orchestration entrypoint (auto-sequences plan → review → gate → merge)
-5. Implement with TDD (test first) — `/ship` drives each phase; `arbiter lifecycle` is for recovery or direct lifecycle control
-6. Keep checkpoint commits safe: staged secrets/economy checks always run; test-only RED commits require recorded RED integrity
-7. Run `node scripts/check-all.mjs L1` once on the frozen final candidate, then `node scripts/check-all.mjs L2` before push
-
-## Gate Commands
-
-```bash
-node scripts/check-all.mjs L1   # fast: lint + format + unit tests
-node scripts/check-all.mjs L2   # full: L1 + coverage + integration
-```
-
-## Stop Conditions
-
-- Gate fails after two focused attempts → STOP, report blockers
-- INV violation found → STOP, do not bypass
-- Orphan TODO found → fix before proceeding
-- Symptom patch over a known smell (duplicate-of-existing-helper, missed extraction) without `arbiter lifecycle record-debt` → STOP
-
-## Root-Cause Discipline (CANON-22)
-
-When a change touches code that the duplication (jscpd), complexity, or dead-code gates flag:
-
-- **Fix the root cause** in the smelly/duplicated code you touch — extract the shared helper, simplify the over-complex function, delete the dead branch.
-- **OR** run `arbiter lifecycle record-debt` with an explicit rationale (why the root-cause fix is out of scope now) before proceeding.
-- A symptom-only patch layered over a known smell — duplicating a helper that already exists, widening a function already over the complexity ceiling — is a stop condition, not a tradeoff. The duplication ratchet (Lehman entropy) blocks any net increase regardless of intent.
+If a gate fails, stop after two focused attempts and report the actual blocker;
+never bypass it or suppress an orphan TODO. Checkpoint commits may capture staged
+work cheaply; reserve the full gate for the final candidate.
