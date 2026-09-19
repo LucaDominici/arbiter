@@ -6,7 +6,7 @@
 // scripts must be executed in tests, not just string-matched).
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import * as shipKpi from '../../scripts/ship-kpi.mjs'
@@ -233,6 +233,7 @@ describe('classifyPrCommits / buildPrRow / computeAggregate (#2398)', () => {
     const row = buildPrRow(pr, commits)
     expect(row).toEqual({
       number: 42,
+      mergedAt: '2026-08-27T13:00:00Z',
       commits: 1,
       evidenceOnlyCommits: 0,
       reviewLoopCommits: 0,
@@ -405,6 +406,25 @@ describe('delivery cost classifiers (#2725)', () => {
     )
     expect(indices).toMatchObject({ time: 2, tokens: 5.05 })
     expect(indices).toHaveProperty('floorComponents')
+  })
+
+  it('uses weighted costUnits for a delivery whose measured floor parts are zero', () => {
+    const reference = 100
+    expect(
+      overheadIndices(
+        {
+          stratum: 'Standard',
+          sourcesKnown: ['ci', 'claude'],
+          preflight: 0,
+          fullGate: 0,
+          review: 0,
+          ci: 0,
+          tokens: { input: 0, cache: 0, output: 20 },
+        },
+        { Standard: { timeMedian: 1, tokensMedian: reference, n: 30 } },
+        { input: 1, cache: 0.1, output: 5 },
+      ),
+    ).toMatchObject({ tokens: 1 })
   })
 
   it('returns null only for the overhead index whose source is missing', () => {
@@ -668,6 +688,103 @@ describe('delivery cost classifiers (#2725)', () => {
     expect(entry).toContain('review')
     expect(entry).toContain('HOLD')
     expect(entry.trim().split('\n').length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('formats checkpoint identity, rounded numbers, and actionable ANDON details', () => {
+    const entry = formatLogEntry({
+      date: '2026-09-19',
+      stratum: 'Standard',
+      window: { since: '2026-09-01', until: '2026-09-19' },
+      n: 10,
+      indices: {
+        time: { median: 1.6400000000000001, p90: 17.98 },
+        tokens: { median: 0.03, p90: 0.04 },
+      },
+      topBucket: null,
+      verdict: 'ANDON',
+      offenders: [
+        { number: 42, time: 3.456, tokens: 4.567 },
+        { number: 7, time: 2, tokens: 1 },
+      ],
+      escapes: ['red-ci'],
+    })
+    expect(entry).toContain('- stratum: Standard')
+    expect(entry).toContain('median=1.64, p90=17.98')
+    expect(entry).toContain('median=0.03, p90=0.04')
+    expect(entry).toContain(
+      '- offenders: #42 overhead_time=3.46 overhead_tokens=4.57; #7 overhead_time=2 overhead_tokens=1',
+    )
+    expect(entry).toContain('- escapes: red-ci')
+  })
+})
+
+describe('checkpoint history selection (#2725 checkpoint fixes)', () => {
+  it('deduplicates by PR using the newest snapshot, sorts by mergedAt, and reports the worst PR', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-checkpoint-'))
+    try {
+      mkdirSync(join(root, '.arbiter/evidence/kpi'), { recursive: true })
+      mkdirSync(join(root, 'scripts/data'), { recursive: true })
+      mkdirSync(join(root, 'docs/internal/SYSTEM'), { recursive: true })
+      writeFileSync(
+        join(root, 'scripts/data/ship-kpi-baseline.json'),
+        JSON.stringify({ Standard: { timeMedian: 100, tokensMedian: 100, n: 30 } }),
+      )
+      writeFileSync(
+        join(root, 'scripts/data/ship-kpi-thresholds.json'),
+        JSON.stringify({ n: 10, andon: 3, costWeights: { input: 1, cache: 0.1, output: 5 } }),
+      )
+      const normal = (number: number, mergedAt: string) => ({
+        number,
+        mergedAt,
+        stratum: 'Standard',
+        leadTimeSplit: { work: 100 },
+        tokens: { input: 100, cache: 0, output: 0 },
+      })
+      writeFileSync(
+        join(root, '.arbiter/evidence/kpi/2026-09-18.json'),
+        JSON.stringify({
+          rows: [
+            ...Array.from({ length: 8 }, (_, index) =>
+              normal(index + 1, `2026-09-0${index + 1}T00:00:00Z`),
+            ),
+            { stratum: 'Standard', leadTimeSplit: { work: 100 }, tokens: { input: 100 } },
+          ],
+        }),
+      )
+      writeFileSync(
+        join(root, '.arbiter/evidence/kpi/2026-09-19.json'),
+        JSON.stringify({
+          rows: [
+            normal(1, '2026-09-18T00:00:00Z'),
+            {
+              ...normal(9, '2026-09-19T00:00:00Z'),
+              leadTimeSplit: { work: 400 },
+              tokens: { input: 0, cache: 0, output: 80 },
+              ciRedAtOpen: true,
+            },
+          ],
+        }),
+      )
+
+      const result = spawnSync(
+        'node',
+        [join(process.cwd(), 'scripts/ship-kpi.mjs'), '--checkpoint'],
+        {
+          cwd: root,
+          encoding: 'utf-8',
+        },
+      )
+      expect(result.status, `stderr:\n${result.stderr}`).toBe(0)
+      expect(result.stdout).toContain('Standard: ANDON')
+      expect(result.stdout).toContain('worst PR #9')
+      const log = readFileSync(join(root, 'docs/internal/SYSTEM/SHIP_TUNING_LOG.md'), 'utf-8')
+      expect(log).toContain('- stratum: Standard')
+      expect(log).toContain('- Window: 2026-09-02 → 2026-09-19')
+      expect(log).toContain('- offenders: #9 overhead_time=4 overhead_tokens=4')
+      expect(log).toContain('- escapes: red-ci')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
 

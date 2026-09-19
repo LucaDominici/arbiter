@@ -706,16 +706,34 @@ export function checkpointVerdict({ current, previous, baseline, thresholds, his
 export function formatLogEntry(result) {
   const time = result?.indices?.time ?? { median: null, p90: null }
   const tokens = result?.indices?.tokens ?? { median: null, p90: null }
-  return [
+  const lines = [
     `### Ship checkpoint — ${result?.date ?? 'NO DATA'}`,
+    `- stratum: ${result?.stratum ?? 'NO DATA'}`,
     `- Window: ${result?.window?.since ?? 'NO DATA'} → ${result?.window?.until ?? 'NO DATA'}`,
     `- n: ${result?.n ?? 'NO DATA'}`,
-    `- time: median=${time.median ?? 'NO DATA'}, p90=${time.p90 ?? 'NO DATA'}`,
-    `- tokens: median=${tokens.median ?? 'NO DATA'}, p90=${tokens.p90 ?? 'NO DATA'}`,
+    `- time: median=${formatMetric(time.median)}, p90=${formatMetric(time.p90)}`,
+    `- tokens: median=${formatMetric(tokens.median)}, p90=${formatMetric(tokens.p90)}`,
     `- top bucket: ${result?.topBucket ?? 'NO DATA'}`,
     `- verdict: ${result?.verdict ?? 'NO DATA'}`,
-    '',
-  ].join('\n')
+  ]
+  if (result?.verdict === 'ANDON' || result?.verdict === 'ROLLBACK') {
+    const offenders = (Array.isArray(result?.offenders) ? result.offenders : [])
+      .filter((offender) => offender?.number !== null && offender?.number !== undefined)
+      .sort(
+        (a, b) =>
+          Math.max(b.time ?? -Infinity, b.tokens ?? -Infinity) -
+          Math.max(a.time ?? -Infinity, a.tokens ?? -Infinity),
+      )
+      .slice(0, 5)
+      .map(
+        (offender) =>
+          `#${offender.number} overhead_time=${formatMetric(offender.time)} overhead_tokens=${formatMetric(offender.tokens)}`,
+      )
+    lines.push(`- offenders: ${offenders.length > 0 ? offenders.join('; ') : 'none'}`)
+    const escapes = Array.isArray(result?.escapes) ? result.escapes : []
+    lines.push(`- escapes: ${escapes.length > 0 ? escapes.join(', ') : 'none'}`)
+  }
+  return lines.concat('').join('\n')
 }
 
 /** Open PR older than `staleHours` whose rollup is not `classify()`-green. */
@@ -739,6 +757,7 @@ export function buildPrRow(pr, commits) {
   const { evidenceOnlyCount, reviewLoopCount } = classifyPrCommits(commits)
   return {
     number: pr.number,
+    mergedAt: pr.mergedAt ?? null,
     commits: commits.length,
     evidenceOnlyCommits: evidenceOnlyCount,
     reviewLoopCommits: reviewLoopCount,
@@ -1158,7 +1177,8 @@ const TUNING_LOG_PATH = join(process.cwd(), 'docs/internal/SYSTEM/SHIP_TUNING_LO
 
 function historicalRows() {
   if (!existsSync(KPI_HISTORY_DIR)) return []
-  const rows = []
+  const numbered = new Map()
+  const unnumbered = []
   for (const name of readdirSync(KPI_HISTORY_DIR)
     .filter((file) => file.endsWith('.json'))
     .sort()) {
@@ -1169,10 +1189,14 @@ function historicalRows() {
       // FAIL-OPEN-INTENT: one malformed historical report is excluded; valid reports still provide auditable calibration input and missing measures remain null.
       continue
     }
-    if (Array.isArray(payload)) rows.push(...payload)
-    else if (Array.isArray(payload?.rows)) rows.push(...payload.rows)
+    const snapshotRows = Array.isArray(payload) ? payload : payload?.rows
+    if (!Array.isArray(snapshotRows)) continue
+    for (const row of snapshotRows) {
+      if (row?.number === null || row?.number === undefined) unnumbered.push(row)
+      else numbered.set(String(row.number), row)
+    }
   }
-  return rows
+  return [...unnumbered, ...numbered.values()]
 }
 
 function tokenTotal(tokens) {
@@ -1183,7 +1207,7 @@ function tokenTotal(tokens) {
   return present.length > 0 ? present.reduce((sum, value) => sum + value, 0) : null
 }
 
-function costDelivery(row) {
+function costDelivery(row, weights) {
   const split = row?.leadTimeSplit ?? {}
   const phases = LEAD_TIME_KINDS.map((kind) => finiteNumber(split[kind])).filter(
     (value) => value !== null,
@@ -1196,7 +1220,7 @@ function costDelivery(row) {
     stratum: row?.stratum ?? null,
     time,
     leadTime: time,
-    tokens: row?.tokens ?? null,
+    tokens: costUnits(row?.tokens, weights),
   }
 }
 
@@ -1213,10 +1237,11 @@ function writeBaseline(baseline, recalibrate) {
 }
 
 function runCalibration(opts) {
+  const weights = loadJson(THRESHOLDS_PATH).costWeights
   const deliveries = historicalRows()
-    .map(costDelivery)
+    .map((row) => costDelivery(row, weights))
     .filter((delivery) => delivery.stratum !== null)
-  const baseline = calibrate(deliveries, loadJson(THRESHOLDS_PATH).costWeights)
+  const baseline = calibrate(deliveries, weights)
   if (Object.keys(baseline).length === 0) {
     throw new Error('no historical deliveries with a stratum; refusing to write an empty baseline')
   }
@@ -1224,9 +1249,26 @@ function runCalibration(opts) {
   process.stderr.write(`ship-kpi: wrote ${BASELINE_PATH}\n`)
 }
 
+function mergedAtMs(row) {
+  const value = Date.parse(row?.mergedAt ?? '')
+  return Number.isFinite(value) ? value : null
+}
+
+function orderedRows(rows, stratum) {
+  return rows
+    .filter((row) => row.stratum === stratum)
+    .sort((a, b) => {
+      const aMs = mergedAtMs(a)
+      const bMs = mergedAtMs(b)
+      if (aMs === null) return bMs === null ? 0 : -1
+      if (bMs === null) return 1
+      return aMs - bMs
+    })
+}
+
 function checkpointForRows(rows, stratum, baseline, weights) {
-  const selected = rows.filter((row) => row.stratum === stratum).slice(-10)
-  const costs = selected.map(costDelivery)
+  const selected = orderedRows(rows, stratum).slice(-10)
+  const costs = selected.map((row) => costDelivery(row, weights))
   const indices = costs.map((delivery) => overheadIndices(delivery, baseline, weights))
   const time = quantiles(indices.map((index) => index.time))
   const tokens = quantiles(indices.map((index) => index.tokens))
@@ -1236,12 +1278,41 @@ function checkpointForRows(rows, stratum, baseline, weights) {
   const escapes = selected
     .filter((row) => row.ciRedAtOpen === true || (finiteNumber(row.redCiRuns) ?? 0) > 0)
     .map(() => 'red-ci')
+  const ranked = indices
+    .map((index, position) => ({
+      number: selected[position]?.number ?? null,
+      time: index.time,
+      tokens: index.tokens,
+    }))
+    .sort(
+      (a, b) =>
+        Math.max(b.time ?? -Infinity, b.tokens ?? -Infinity) -
+        Math.max(a.time ?? -Infinity, a.tokens ?? -Infinity),
+    )
+  const offenders = ranked.filter(
+    (offender) => Math.max(offender.time ?? -Infinity, offender.tokens ?? -Infinity) > 1,
+  )
   return {
     n: selected.length,
     indices: { time, tokens },
     buckets: {},
     maxOverhead: observed.length > 0 ? Math.max(...observed) : null,
     escapes: [...new Set(escapes)],
+    offenders,
+    worst: ranked[0] ?? null,
+    window: {
+      since:
+        selected
+          .map(mergedAtMs)
+          .filter((value) => value !== null)
+          .map((value) => new Date(value).toISOString().slice(0, 10))[0] ?? 'NO DATA',
+      until:
+        [...selected]
+          .reverse()
+          .map(mergedAtMs)
+          .filter((value) => value !== null)
+          .map((value) => new Date(value).toISOString().slice(0, 10))[0] ?? 'NO DATA',
+    },
     _selected: selected,
   }
 }
@@ -1271,22 +1342,30 @@ function runCheckpoint() {
   const history = checkpointHistory()
   const results = strata.map((stratum) => {
     const current = checkpointForRows(rows, stratum, baseline, thresholds.costWeights)
-    const previousRows = rows.filter((row) => row.stratum === stratum).slice(-20, -10)
+    const previousRows = orderedRows(rows, stratum).slice(-20, -10)
     const previous = checkpointForRows(previousRows, stratum, baseline, thresholds.costWeights)
     const verdict = checkpointVerdict({ current, previous, baseline, thresholds, history })
     return {
       date: today(),
-      window: { since: current._selected[0]?.mergedAt ?? 'NO DATA', until: today() },
+      window: current.window,
       n: current.n,
       indices: current.indices,
       topBucket: null,
       verdict,
       stratum,
+      offenders: current.offenders,
+      worst: current.worst,
+      escapes: current.escapes,
     }
   })
   ensureTuningLog()
   for (const result of results) {
-    process.stdout.write(`${result.stratum}: ${result.verdict} (n: ${result.n})\n`)
+    const worst = result.worst
+    const worstLabel =
+      worst?.number === null || worst?.number === undefined ? '' : `, worst PR #${worst.number}`
+    process.stdout.write(
+      `${result.stratum}: ${result.verdict} (n: ${result.n}, time=${formatMetric(result.indices.time.median)}, tokens=${formatMetric(result.indices.tokens.median)}${worstLabel})\n`,
+    )
     appendFileSync(TUNING_LOG_PATH, formatLogEntry(result))
   }
 }
@@ -1306,6 +1385,11 @@ function formatCompact(value) {
     if (absolute >= unit) return `${rounded(value / unit)}${suffix}`
   }
   return String(rounded(value))
+}
+
+function formatMetric(value) {
+  if (finiteNumber(value) === null) return 'NO DATA'
+  return String(rounded(value, 2))
 }
 
 function roundHours(value) {
