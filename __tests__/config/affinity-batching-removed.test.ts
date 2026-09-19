@@ -142,15 +142,13 @@ describe('#2329 — ship output is unchanged apart from the removal', () => {
   })
 
   const PLAN_ACTION =
-    'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.'
+    'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.'
 
   it('the plan step emits the plain single-issue action, with no batching prose', () => {
     const step = shipStepFor('plan', 'Standard', profile())
     expect(step.action).toBe(PLAN_ACTION)
     expect(step.action).not.toMatch(/affinit|parallel worktrees/i)
-    // #2570: `verify plan` reads PLAN.json, not the markdown plan; the gate is the
-    // plan-review verdict, enforced by `task advance`.
-    expect(step.command).toBe('arbiter lifecycle advance --to red-team-review')
+    expect(step.command).toBe('arbiter lifecycle advance --to red')
     expect(step.command).not.toMatch(/verify plan/)
   })
 

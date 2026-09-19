@@ -4,7 +4,7 @@
 // Simulates a real consumer end to end: `npm pack` this repo, install the TARBALL
 // (never this repo's own dist/) into a fresh project, run `arbiter init` through
 // the INSTALLED bin, assert the generated project's own L1 gate passes, then
-// round-trip the task lifecycle (init → plan → red-team-review → red →
+// round-trip the task lifecycle (init → plan → red →
 // record-red → green) through the installed CLI too.
 //
 // CANON-16 survey: virgin-init-matrix.test.ts (this dir) already runs
@@ -222,37 +222,15 @@ describe.skipIf(!L2)('packaged-artifact — outsider install E2E (#1770 T8)', ()
       expect(docSet.status, `installed doc-set failed:\n${docSet.output.slice(-3000)}`).toBe(0)
       expect(docSet.output).toContain('check-doc-set [tier:')
 
-      // ── Task round-trip, through the installed bin: init → plan →
-      // red-team-review → red → record-red → green ──
+      // ── Task round-trip, through the installed bin: init → plan → red → record-red → green ──
       const taskId = '#9001'
       const taskInit = runInstalledArbiter(projectDir, ['task', 'init', '--id', taskId])
       expect(taskInit.status, `task init failed:\n${taskInit.output}`).toBe(0)
 
-      // Strip CLAUDECODE so the handoff gate (red-team-review → red) takes its
-      // deterministic inline (non-throwing) path — this test is a plain
-      // subprocess, not an interactive Claude Code session.
-      const noHandoffEnv = { ...process.env }
-      delete noHandoffEnv.CLAUDECODE
-      for (const phase of ['plan', 'red-team-review']) {
-        const advance = runInstalledArbiter(
-          projectDir,
-          ['task', 'advance', '--to', phase],
-          noHandoffEnv,
-        )
+      for (const phase of ['plan', 'red']) {
+        const advance = runInstalledArbiter(projectDir, ['task', 'advance', '--to', phase])
         expect(advance.status, `advance --to ${phase} failed:\n${advance.output}`).toBe(0)
       }
-      mkdirSync(join(projectDir, '.arbiter', 'evidence', 'redteam'), { recursive: true })
-      writeFileSync(
-        join(projectDir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`),
-        JSON.stringify({ findings: [] }),
-        'utf-8',
-      )
-      const advance = runInstalledArbiter(
-        projectDir,
-        ['task', 'advance', '--to', 'red'],
-        noHandoffEnv,
-      )
-      expect(advance.status, `advance --to red failed:\n${advance.output}`).toBe(0)
 
       const testRelPath = 'src/e2e-red.test.ts'
       writeFileSync(

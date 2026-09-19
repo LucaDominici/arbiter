@@ -97,6 +97,12 @@ describe('arbiter --help — atomic canonical surface (#2706)', () => {
     expect(stdout.toLowerCase()).toContain('init')
   })
 
+  it('offers no TDD evidence-integrity bypass', () => {
+    const { status, stdout } = spawn(['lifecycle', 'record-red', '--help'])
+    expect(status).toBe(0)
+    expect(stdout).not.toContain('--force')
+  })
+
   it.each([
     ['finding', ['add', 'list', 'triage', 'promote']],
     [

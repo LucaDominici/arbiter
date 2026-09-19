@@ -304,10 +304,13 @@ describe('consumer-audit gate wiring (#1718)', () => {
 
   it('is registered in scripts/check-all.mjs AFTER the L1/L2 boundary (L2-only)', () => {
     const src = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
-    const boundaryIdx = src.indexOf("if (subcommand !== 'check')")
+    const boundaryIdx = src.indexOf('const l1EndIdx')
     const consumerIdx = src.indexOf("runCheck('consumer audit'")
     expect(boundaryIdx).toBeGreaterThan(-1)
     expect(consumerIdx).toBeGreaterThan(boundaryIdx)
+    expect(src.slice(boundaryIdx, consumerIdx)).toContain(
+      "if (subcommand !== 'check' && !preflight)",
+    )
   })
 
   it('is registered in CI_COVERAGE (scripts/check-local-ci-parity.mjs, INV-59)', () => {

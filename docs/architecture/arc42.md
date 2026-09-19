@@ -190,7 +190,7 @@ Container diagram. This section is the textual decomposition.
 | **Fix-on-Red**                 | Policy only, no CLI engine since the T2 cut — `docs/REFERENCE/fix-on-red.md`                                                                                | Failure-signature 2-strike rule the ship-driver agent reasons through itself; fail-closed `escalate-uncertain`.                                |
 | **Gate Mutex**                 | `src/commands/gate-exec.ts`                                                                                                                                 | `flock(1)` serialization of gates across worktrees of one repo.                                                                                |
 | **Worktree Manager**           | `src/commands/worktree.ts`, `src/worktree`                                                                                                                  | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest.                                                                      |
-| **Evidence Store**             | `src/evidence`, `.arbiter/evidence`                                                                                                                         | Append-only TDD / plan-review / red-team / gate / companion artifacts.                                                                         |
+| **Evidence Store**             | `src/evidence`, `.arbiter/evidence`                                                                                                                         | Append-only TDD, final-review, acceptance-fit, gate, and companion artifacts.                                                                  |
 | **Provenance Graph**           | `src/graph`                                                                                                                                                 | 9 node kinds × 8 edge kinds linking INV ↔ GATE ↔ TEST ↔ EVIDENCE (ADR-040).                                                                    |
 | **Plugin API**                 | `src/types/plugin.ts`, `src/utils/plugin-loader.ts`                                                                                                         | Config-driven third-party rule plugins (`arbiter.json` `plugins[]`); no CLI subcommand currently registered (v1.1, ADR-031/048).               |
 
@@ -280,127 +280,56 @@ sequenceDiagram
         E->>S: read phase, resolve ShipProfile
         E-->>A: ShipStep{action, reviewAgents, verticals, command}
         A->>A: do the model-work (plan / tests / impl / dispatch agents)
-        A->>E: arbiter ship #NNN --advance [--units N]
+        A->>E: arbiter ship #NNN --advance
         E->>G: run this phase's gate
         alt gate green
             G-->>E: pass
             E->>S: write next phase + timestamp (single writer)
         else gate red
-            G-->>E: throw (exit 78 handoff / 79 budget)
+            G-->>E: fail with the observed gate result
             E-->>A: STOP — fix root cause, do not bypass
         end
     end
 ```
 
-**Phase machine** (`task-state.ts:22-49`): `preflight → plan → red-team-review → red → green →
-refactor → verification → close → complete`, plus the lateral `red-team-rework → red-team-review`
-for CRITICAL red-team findings. `status.json` (`UnifiedTaskState`) is a **single-writer** document at
+**Phase machine** (`task-state.ts`): `preflight → plan → red → green → refactor → verification →
+close → complete`. Retired planning phases are normalized to `plan` when old state is read.
+`status.json` (`UnifiedTaskState`) is a **single-writer** document at
 a fixed path `.claude/.task/status.json` with an append-only `log.md`; every write is atomic
 tmp+rename and stamps a per-phase transition timestamp.
 
 ### 6.2 The dynamic dispatch rules (the crown jewels)
 
-**Tier is auto-computed from issue SIZE, not chosen by a human — and never by model identity.**
-`arbiter ship` computes change size (files + LOC), falls back to the plan's unit estimate, then to
-the widest tier (`Standard`) as a fail-safe (`ship.md.ejs:89`; `task-ship.ts:81-84`). There is **no**
-model-tier gating anywhere (see §11.6).
-The selected tier may be widened by two deterministic signals: a FRESH `graphify-out/graph.json`
-blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle
-(floor: Standard). These signals may only widen the tier, never narrow it. Tier/routing gates MUST
-NOT be driven by text-only LLM classification of issue text: Study C (epic #2176) measured 75.6%
-adjacent accuracy and 20% fail-dangerous L→S on 45 real issues.
+`resolveShipTreatment` in `src/commands/ship-tier.ts` is the single runtime policy authority. It
+starts from the requested XS/S/Standard treatment, requires complete and fresh narrow-tier evidence,
+and widens for directional callers, blast radius, wave/epic scope, and sensitive paths. Missing,
+stale, malformed, or incomplete evidence resolves conservatively to Standard. Persisted treatments
+never narrow and are trusted on later read-only Ship calls.
 
-**Four count-axes, all derived from tier — do not conflate them:**
+Each treatment specifies plan depth, one final reviewer by default, pertinent reviewer verticals,
+one acceptance-fit reviewer, and the minimum model capability. Sensitive auth, money, concurrency,
+migration, data-integrity, or deployment work may add specialist seats, capped at three. The same
+frozen reviewer panel supplies code findings and a verdict for every acceptance criterion.
 
-| Axis                           | XS  | S   | Standard | Source                                     |
-| ------------------------------ | --- | --- | -------- | ------------------------------------------ |
-| Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77` (`REDTEAM_AGENTS`)       |
-| Refactor-phase review agents   | 1   | 1   | 2        | `task-ship.ts:79` (`REVIEW_AGENTS`)        |
-| `/review` reviewers            | 3   | 3   | 5        | `.claude/commands/review.md`               |
-| Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100` (`verticalsForTier`) |
-
-Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`; Standard =
-`+security, data-integrity, silent-failures`.
-
-A file-path-matched security/data-integrity surface escalates refactor-phase review to 3 agents (#2178).
-
-**Which verticals actually fire is resolved UNION-only, fail-safe toward MORE review.** Two SSOT
-config files drive it:
-
-- `.claude/agent-dispatch-matrix.json` — a drift-proof oracle over `tier × track × review_mode ×
-pr_type`; resolution is _additive and never narrows below the tier floor_. A gate asserts
-  `verticalsForTier` (code) ≡ this matrix.
-- `.claude/auditor-routing.json` — **7 weighted auditors** with an `always_on` floor and a `tag_map`
-  from changed-file glob → auditors:
-
-  | Auditor         | Weight | Fires on (examples from `tag_map`)                          |
-  | --------------- | ------ | ----------------------------------------------------------- |
-  | security        | 4      | `**/*.env*`, `**/*.pem/.key`, `migrations/**`, `.github/**` |
-  | data-integrity  | 4      | `migrations/**`, `**/*.sql`                                 |
-  | bugs            | 3      | always_on; `src/**`, `scripts/**`                           |
-  | domain          | 3      | always_on; `src/templates/**`, `src/generators/**`          |
-  | type-safety     | 2      | always_on; `src/**/*.ts`                                    |
-  | test-quality    | 2      | `__tests__/**`, `src/commands/**`                           |
-  | silent-failures | 2      | `scripts/**`, `.claude/hooks/**`                            |
-
-  `critical_paths` (e.g. `AGENTS.md`, `auditor-routing.json`, `catalog.ts`) force **all** auditors.
-
-**The weighted verdict makes unresolved findings mathematically block PASS.**
-`score = 100 × Σ(weight of passing active auditors) / Σ(weight of ALL active auditors)`; ladder
-`≥80 PASS / ≥60 CONCERNS / ≥40 REWORK / <40 FAIL`. The denominator is the **total** active weight, so
-a _skip can never raise the score_ (no inflation by omission). Every still-`resolved:false` red-team
-finding **caps its mapped auditor's score to 0** — so findings-resolution is enforced arithmetic, not
-advice. Red-team findings are forward-linked into review as
-`redTeamFindings[] = {id:'RT-01', severity, summary, auditorHint, resolved}`.
-
-**Red-team dispatch (the challenge agents).** At `red-team-review`, the driver dispatches N parallel
-**READ-ONLY** red-team agents (1/2/3 by tier). Each self-selects an attack angle (`security`,
-`concurrency`, `performance`, `edge-cases`, `regression`, `dependency`, `data-integrity`,
-`error-handling`). Routing by impact: `CRITICAL → red-team-rework` (revise plan, re-run);
-`HIGH/MEDIUM → adapt plan in-place`; `SUGGESTION → note only`. Findings are written to
-`.arbiter/evidence/redteam/<task-id>.json` (`RedTeamEvidenceV1`). The red-team also runs
-SSOT-alignment vectors (template↔materialized drift, invariant-catalog↔gate) reported as HIGH blockers.
-
-**The review swarm + two-phase verification bridge.** At `refactor`, the driver dispatches the
-tier-N review agents (bugs&logic, type-safety, domain-consistency, and — Standard-only — test-quality)
-plus a **separate silent-failure hunter** and a **mandatory adversarial verifier** (traces each
-feature end-to-end; checks dead code and CLI-flag wiring). Then the two-phase bridge runs:
-**context-checker** (Phase 1, reads `CONTEXT_PACK.md` + diff → per-file `REVIEW_CONTEXT` verdict) →
-**bridge-reviewer** (Phase 2, applies the combined-verdict matrix). The combined outcome is **PASS
-only when both phases pass**; a REJECT cannot be overridden.
-
-**Governance / collaboration gating.** At `governanceLevel === 'L1'` there is **no** red-team /
-multi-agent review phase at all. In `trunk-solo` mode the swarm collapses to _1 self-review agent + 1
-adversarial verifier_. Autonomy grants (`AUTONOMY_GRANTS`, `ship-profile.ts:153-165`) scale L0→L3 what
-the loop may do unattended:
-
-| Level | Grants                                                 |
-| ----- | ------------------------------------------------------ |
-| L0    | ∅ (ask each step) — the default                        |
-| L1    | auto-advance, auto-merge                               |
-| L2    | + fix-on-red-attempt                                   |
-| L3    | + wave-batch, fix-on-red-autopush, subagent-auto-spawn |
-
-Floor invariants (2-strike, reproduce-before-push, no `--no-verify`, no commit-to-main) are **not
-behaviors and cannot be granted away**.
+`.claude/agent-dispatch-matrix.json` is a projection and test oracle, not a second runtime decision.
+`scripts/check-agent-dispatch.mjs` compares it with the compiled resolver and fails on drift;
+`scripts/route-auditors.mjs` calls the resolver directly for tier floors. File-path routing remains
+union-only, so specialist evidence may widen a panel but never remove a required vertical.
 
 ### 6.3 Completion is fail-closed on correlated evidence (INV-114)
 
-Before any completion claim, three correlated artifacts must exist and match the current branch+SHA:
-
-1. `plan-review/latest.json` (written by the plan-review step of the task lifecycle — a SHA-256 **plan-digest** — a
-   plan changed since review fails the gate),
-2. `.arbiter/agents-dispatched.json` (written by the refactor step — "I reviewed it" without real
-   agent tool-calls does not satisfy it),
-3. `.arbiter/gate-pass.json` (stamped by a green gate with `head_sha, branch, task_id` for anti-replay).
+Before any completion claim, applicable correlated evidence must match the current task, branch and
+candidate. `.arbiter/agents-dispatched.json` proves the persisted independent final-review panel;
+the acceptance-fit artifact covers every frozen AC; `.arbiter/gate-pass.json` binds the exact source
+tree, checkout, toolchain, gate level and TTL. A source change invalidates all three.
 
 The `stop-evidence-guard` hook (Claude `Stop` event, exit 2) enforces this; `phase: complete` releases
 the guard.
 
 **Claim-verified sub-gates** the engine runs before it advances:
 
-- **Plan-review gate** — reads `latest.json`, requires `verdict: PASS` **and** a plan-digest match
-  (`task.ts:287-318`).
+- **Mechanical plan admission** — validates the acceptance anchor, non-goals, file manifest and
+  treatment inputs before `plan → red`.
 - **TDD-evidence gate** (`red → green`) — four claims: `task_id` matches; the recorded test-run log
   contains a _real_ framework failure signature ("the test must actually fail"); the test commit SHA
   exists on the branch; the test file existed at that SHA (`task.ts:450-490`).
@@ -424,9 +353,8 @@ the life of a task (full spec, including the removal record: `docs/REFERENCE/fix
 
 ### 6.5 Wave drain — multi-issue batch orchestration (`/drain`)
 
-`/drain` is the batch sibling of `/ship`: it drains the open backlog as **waves** and drives each
-wave to a **single PR merged GREEN**, running the heavy ceremony _once per wave, not per issue_. The
-orchestrator directs parallel agents; it does not implement.
+`/drain` selects compatible backlog work and invokes the same Ship contract for the resulting
+capability train. It does not define a second lifecycle, reviewer policy, or evidence path.
 
 **Bounds:** wave ≤ 10 issues, partitioned into groups ≤ 5 (a group is the unit of parallelism);
 effective parallelism `min(--max-parallel [default 6], nproc − 2, wave size)`; per-mode default
@@ -442,18 +370,19 @@ autonomy behavior.**
    CLOSER mode) into tracked issues; transactional check-all-then-claim-all with rollback.
 3. **One cumulative plan** → `.claude/plans/wave-N.md` with per-group manifests whose file-sets are
    **disjoint** (the ADR-103 carve-out precondition) and anchored for CANON-16.
-4. **One plan review** + one tier-Standard red-team (CRITICAL → rework, max 2 cycles).
-5. **Parallel execution** — one agent per group in an isolated worktree (`/wt-open`, branch per group),
+4. **Mechanical admission** validates acceptance, non-goals, manifest, proof and rollback.
+5. **Parallel execution** — one author per group in an isolated worktree (`/wt-open`, branch per group),
    TDD per unit, **light checks only; the full gate is forbidden inside worktrees**. Expensive gates
    go through `arbiter check run -- <cmd>` (the flock mutex). Per-worktree caches (`symlink-children`).
 6. **Local integration** on `wave-N-integration` (off `main`): sequential merge in _minimum-overlap
-   order computed from the real `git diff --name-only`_, then multiagent review + adversarial verify +
-   evidence (INV-114), then the full gate **under the mutex** → `gate-pass.json`.
-7. **One PR per wave** (one `Closes #N` line per issue), merge only on GREEN CI; `/wt-close` +
-   `worktree prune --stale 24` → `/clear` → next wave.
+   order computed from the real `git diff --name-only`_, then the persisted Ship treatment's
+   independent final review and per-AC acceptance fit, then the exact-subject full gate **under the
+   mutex** → `gate-pass.json`.
+7. **One PR per train** (one `Closes #N` line per issue), merge only on GREEN CI; `/wt-close` +
+   `worktree prune --stale 24` → next train.
 
 **Iron law:** no group integrates without TDD + targeted tests green; nothing reaches `main` without
-plan red-team + multiagent review + a full gate GREEN on the wave PR.
+independent final review, per-AC acceptance, and a full gate GREEN on the exact candidate.
 
 **Worktree isolation** (`worktree.ts`, `src/worktree`): must run from the main repo on a clean tree;
 branch `task/<#id>`; the on-disk dir strips `#` (it breaks Vite/Vitest/Node-ESM path resolution);
@@ -513,7 +442,7 @@ target-repo/
 │   ├── CLAUDE.md, settings.json  #   thin pointer + hook wiring
 │   ├── hooks/*.mjs               #   Pre/Post/Stop enforcement
 │   ├── rules/*.md, commands/*.md #   exec protocol, /ship, /drain
-│   ├── agents/*.md               #   red-team, bridge-reviewer, context-checker, codebase-scanner
+│   ├── agents/*.md               #   specialized final reviewers and codebase-scanner
 │   └── auditor-routing.json, agent-dispatch-matrix.json
 ├── .agents/CODEX.md              # Layer 1 — Codex overlay (mirrored rules)
 ├── .github/                      # Layer 2 — CI + issue/PR governance
@@ -781,7 +710,7 @@ Codex.
 | **KIT**                        | The 78-dimension self-assessment taxonomy a project is measured against (ADR-045).                                     |
 | **ProjectProfile**             | The resolved configuration across all axes; persisted as `arbiter.json`.                                               |
 | **provenance graph**           | The INV↔GATE↔TEST↔EVIDENCE graph (9 node kinds, 8 edge kinds) that `verify graph` walks.                               |
-| **red-team agent**             | A READ-ONLY adversarial challenge agent dispatched at `red-team-review` (1/2/3 by tier).                               |
+| **final reviewer**             | An independent read-only reviewer selected by the persisted Ship treatment for the frozen candidate.                   |
 | **/ship**                      | The single orchestration entrypoint — drives one issue to a reviewed, merged PR (not deploy).                          |
 | **/drain**                     | The multi-issue sibling of `/ship` — drains the backlog as waves, one wave PR merged GREEN per cycle.                  |
 | **tier (XS/S/Standard)**       | The ship ceremony tier auto-computed from issue size; sets review-agent count + vertical breadth.                      |

@@ -154,7 +154,7 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   'pre-edit-plan-anchor.mjs': {
     name: 'pre-edit-plan-anchor.mjs',
     enforces: 'Requires plan file in implementation phase',
-    codexEquivalent: '`.agents/plan/PLAN.json` protocol',
+    codexEquivalent: 'Shared Ship plan + persisted task state',
   },
   'pre-compact.mjs': {
     name: 'pre-compact.mjs',

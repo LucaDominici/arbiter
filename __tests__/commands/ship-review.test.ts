@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -103,32 +104,57 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'arbiter-review-'))
+    execFileSync('git', ['init', '-q', '-b', 'task/#100-review'], { cwd: dir })
+    execFileSync('git', ['config', 'user.email', 'fixture@arbiter.dev'], { cwd: dir })
+    execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: dir })
+    writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.arbiter/\n')
+    writeFileSync(join(dir, 'plan.md'), '# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n')
+    execFileSync('git', ['add', '.gitignore', 'plan.md'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: seed plan'], { cwd: dir })
     runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
-    writeUnifiedState(dir, { phase: 'green' })
+    writeUnifiedState(dir, { phase: 'green', plan: 'plan.md' })
   })
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('AC-2400.1: advancing into refactor records round 1 and pins HEAD', () => {
+  it('entering refactor does not consume a review round before dispatch', () => {
     ship({ advance: true, headSha: SHA_A })
-    expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
+    expect(review()).toEqual({ rounds: 0, lastReviewedSha: null })
   })
 
-  it('AC-2400.1: the round lands in the digest log with the short sha', () => {
+  it('AC-2400.1: an explicit dispatch records round 1 and pins HEAD', () => {
     ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
+    expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
     expect(log()).toContain(`review → round 1 at ${SHA_A.slice(0, 7)}`)
   })
 
   it('AC-2400.1: --review-round records the next round and re-pins HEAD', () => {
     ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
     ship({ reviewRound: true, headSha: SHA_B })
     expect(review()).toEqual({ rounds: 2, lastReviewedSha: SHA_B })
   })
 
+  it('retrying the same frozen dispatch is idempotent even at the cap', () => {
+    ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_B })
+    const before = readFileSync(join(dir, '.claude/.task/status.json'), 'utf8')
+    const beforeLog = log()
+    ship({ reviewRound: true, headSha: SHA_B })
+    expect(review().rounds).toBe(2)
+    expect(readFileSync(join(dir, '.claude/.task/status.json'), 'utf8')).toBe(before)
+    expect(log()).toBe(beforeLog)
+    writeFileSync(join(dir, 'plan.md'), '# dirty plan')
+    expect(() => ship({ reviewRound: true, headSha: SHA_B })).toThrow(/clean HEAD/)
+  })
+
   it('does not burn a round just for re-reading the step', () => {
     ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
     ship({ headSha: SHA_B })
     ship({ headSha: SHA_C })
     expect(review().rounds).toBe(1)
@@ -136,6 +162,7 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
 
   it('AC-2400.2: refuses a third round without --force-review, leaving state untouched', () => {
     ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
     ship({ reviewRound: true, headSha: SHA_B })
     const before = review()
     expect(() => ship({ reviewRound: true, headSha: SHA_C })).toThrow(/REVIEW ROUNDS EXHAUSTED/)
@@ -144,6 +171,7 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
 
   it('AC-2400.2: --force-review takes the extra round and records that it was forced', () => {
     ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
     ship({ reviewRound: true, headSha: SHA_B })
     ship({ reviewRound: true, forceReview: true, headSha: SHA_C })
     expect(review()).toMatchObject({ rounds: 3, lastReviewedSha: SHA_C, forced: true })
@@ -152,6 +180,7 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
 
   it('AC-2400.2: `forced` is sticky — a later ordinary round never erases the record', () => {
     ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
     ship({ reviewRound: true, forceReview: true, headSha: SHA_B })
     ship({ reviewRound: true, reviewMaxRounds: 9, headSha: SHA_C })
     expect(review()).toMatchObject({ rounds: 3, forced: true })
@@ -184,17 +213,22 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
         ship: { review: { maxRounds: 1 } },
       }),
     )
+    execFileSync('git', ['add', 'arbiter.json'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: configure review cap'], { cwd: dir })
     ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
     expect(() => ship({ reviewRound: true, headSha: SHA_B })).toThrow(/REVIEW ROUNDS EXHAUSTED/)
   })
 
   it('counts the round when HEAD cannot be read — an unreadable sha never disarms the cap', () => {
     ship({ advance: true, headSha: null })
+    ship({ reviewRound: true, headSha: null })
     expect(review()).toEqual({ rounds: 1, lastReviewedSha: null })
   })
 
   it('AC-2400.3: round 2 prints the delta scope and the severity rule', () => {
     ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
     const result = ship({ reviewRound: true, headSha: SHA_B })
     const lines = buildShipStepLines(result)
     const scope = lines.find((l) => l.startsWith('Review scope:'))
@@ -205,7 +239,23 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
   })
 
   it('AC-2400.3: round 1 reviews the whole diff, so it prints no delta scope', () => {
-    const result = ship({ advance: true, headSha: SHA_A })
+    ship({ advance: true, headSha: SHA_A })
+    const result = ship({ reviewRound: true, headSha: SHA_A })
     expect(buildShipStepLines(result).some((l) => l.startsWith('Review scope:'))).toBe(false)
+  })
+
+  it('refuses to open a round when the frozen plan is dirty', () => {
+    ship({ advance: true })
+    writeFileSync(join(dir, 'plan.md'), '# changed after freeze\n')
+    expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(/plan.*dirty|commit.*plan/i)
+    expect(review()).toEqual({ rounds: 0, lastReviewedSha: null })
+  })
+
+  it('refuses to open a round when the plan is absent from HEAD', () => {
+    ship({ advance: true })
+    writeFileSync(join(dir, 'untracked-plan.md'), '# Plan\n')
+    writeUnifiedState(dir, { plan: 'untracked-plan.md' })
+    expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(/tracked.*plan|plan.*HEAD/i)
+    expect(review()).toEqual({ rounds: 0, lastReviewedSha: null })
   })
 })

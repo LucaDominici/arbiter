@@ -78,18 +78,6 @@ function enablePlanReview(dir: string): void {
   writeFileSync(join(dir, '.arbiter', 'plan-review.enabled'), '', 'utf-8')
 }
 
-function recordPlanReviewPass(dir: string, taskId = '#2435'): void {
-  const evDir = join(dir, '.arbiter', 'evidence', 'plan-review', taskId.replace(/[^\w-]/g, '_'))
-  mkdirSync(evDir, { recursive: true })
-  writeFileSync(join(evDir, 'latest.json'), JSON.stringify({ verdict: 'PASS' }), 'utf-8')
-}
-
-function recordRedTeam(dir: string, taskId = '#2435'): void {
-  const evDir = join(dir, '.arbiter', 'evidence', 'redteam')
-  mkdirSync(evDir, { recursive: true })
-  writeFileSync(join(evDir, `${taskId}.json`), JSON.stringify({ findings: [] }), 'utf-8')
-}
-
 function recordTdd(dir: string, taskId = '#2435'): void {
   const evDir = join(dir, '.arbiter', 'evidence', 'tdd')
   mkdirSync(evDir, { recursive: true })
@@ -243,85 +231,28 @@ describe('advance --to plan — preflight must actually have seeded task state (
   })
 })
 
-describe('advance --to red-team-review — the plan-review promise is asserted on EVERY exit from plan (AC-1)', () => {
-  it('refuses when plan-review is enabled and no PASS verdict was recorded (AC-1)', () => {
+describe('retired planning phases cannot be dispatched (#2724)', () => {
+  it.each(['red-team-review', 'red-team-rework'])('rejects the retired %s target', (phase) => {
     const dir = tmpRepo()
     seed(dir, 'plan')
-    enablePlanReview(dir)
-    expect(() => runTaskAdvance({ to: 'red-team-review', dir })).toThrow(/plan-review gate/)
+    expect(() => runTaskAdvance({ dir, to: phase as never })).toThrow(/Invalid --to/)
   })
-
-  it('advances once a PASS verdict exists (AC-1)', () => {
-    const dir = tmpRepo()
-    seed(dir, 'plan')
-    enablePlanReview(dir)
-    recordPlanReviewPass(dir)
-    runTaskAdvance({ to: 'red-team-review', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
-  })
-})
-
-describe('leaving red-team-review — the tier-N dispatch promise is asserted (AC-1)', () => {
-  it('refuses to advance to red with no red-team evidence (AC-1)', () => {
-    const dir = tmpRepo()
-    seed(dir, 'red-team-review')
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/red-team evidence/i)
-  })
-
-  it.each(['peer-review', 'gated-review'])(
-    '%s still requires red-team evidence (#2681)',
+  it.each(['peer-review', 'gated-review', 'trunk-solo'])(
+    'keeps %s plan admission mechanical',
     (mode) => {
       const dir = tmpRepo()
-      seed(dir, 'red-team-review', '#2681')
+      seed(dir, 'plan', '#2724')
       writeHarnessConfig(dir, { collaborationMode: mode })
-      expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/red-team evidence/i)
+      runTaskAdvance({ dir, to: 'red' })
+      expect(readUnifiedState(dir)?.phase).toBe('red')
     },
   )
-
-  it('refuses to advance to red-team-rework with no red-team evidence (AC-1)', () => {
-    const dir = tmpRepo()
-    seed(dir, 'red-team-review')
-    expect(() => runTaskAdvance({ to: 'red-team-rework', dir })).toThrow(/red-team evidence/i)
-  })
-
-  it('advances to red once the evidence ship.md names exists (AC-1)', () => {
-    const dir = tmpRepo()
-    seed(dir, 'red-team-review')
-    recordRedTeam(dir)
-    runTaskAdvance({ to: 'red', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red')
-  })
-
-  it('demands it on the red-team-rework → red exit too (AC-1)', () => {
-    const dir = tmpRepo()
-    seed(dir, 'red-team-rework')
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/red-team evidence/i)
-  })
-
-  it('does not demand red-team evidence when the phase left is not a red-team phase (AC-1)', () => {
-    const dir = tmpRepo()
-    seed(dir, 'plan')
-    runTaskAdvance({ to: 'red-team-review', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
-  })
-
-  it('does not fabricate pre-code review evidence for explicit trunk-solo (#2681)', () => {
-    const dir = tmpRepo()
-    seed(dir, 'red-team-review', '#2681')
-    writeHarnessConfig(dir, {
-      collaborationMode: 'trunk-solo',
-      solo: { mergeMode: 'pr-ff' },
-    })
-    runTaskAdvance({ to: 'red', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red')
-  })
 })
 
 describe('red admission — the existing Markdown acceptance anchor runs before mutation (#2587)', () => {
   function acceptanceRepo(plan: string, enabled = true, checker = true): string {
     const dir = tmpRepo()
-    seed(dir, 'red-team-review', '#2587')
-    recordRedTeam(dir, '#2587')
+    seed(dir, 'plan', '#2587')
     if (checker) installAcceptanceChecker(dir)
     writeFileSync(join(dir, 'plan.md'), plan, 'utf-8')
     writeFileSync(
@@ -338,7 +269,7 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(
       /acceptance-anchor|Acceptance Criteria/i,
     )
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
+    expect(readUnifiedState(dir)?.phase).toBe('plan')
   })
 
   it('advances with a valid anchor', () => {
@@ -362,7 +293,7 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
       false,
     )
     expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/profile is enabled|missing/i)
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
+    expect(readUnifiedState(dir)?.phase).toBe('plan')
   })
 
   it('passes a valid plan reference with a fragment', () => {
@@ -389,12 +320,12 @@ describe('advance --to refactor — the review machinery must have an id to key 
     expect(readUnifiedState(dir)?.phase).toBe('refactor')
   })
 
-  it('records the first review round even through direct lifecycle advance', () => {
+  it('does not spend a review round through direct phase advance', () => {
     const dir = tmpRepo()
     seed(dir, 'green')
     const headSha = 'a'.repeat(40)
     runTaskAdvance({ to: 'refactor', dir, headSha })
-    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 1, lastReviewedSha: headSha })
+    expect(readUnifiedState(dir)?.review).toBeUndefined()
   })
 })
 
@@ -417,5 +348,16 @@ describe('advance --to verification — qualified review evidence is mandatory',
     writeFileSync(join(dir, 'scripts', 'check-review-completion.mjs'), 'process.exit(0)\n')
     runTaskAdvance({ to: 'verification', dir })
     expect(readUnifiedState(dir)?.phase).toBe('verification')
+  })
+})
+
+describe('result-first mechanical plan admission (#2724)', () => {
+  it('advances directly from plan to RED without pre-code review or a forced clear', () => {
+    const dir = tmpRepo()
+    seed(dir, 'plan', '#2724')
+    enablePlanReview(dir) // stale opt-in cannot resurrect a retired phase
+    expect(() => runTaskAdvance({ dir, to: 'red' })).not.toThrow()
+    expect(readUnifiedState(dir)?.phase).toBe('red')
+    expect(readUnifiedState(dir)?.handoffReady).toBe(false)
   })
 })

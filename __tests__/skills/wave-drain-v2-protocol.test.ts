@@ -2,7 +2,7 @@
 // #1873 T6 — wave-drain skill v2 + /drain v2 carry the parallel-wave protocol
 // proven 2026-07-09/10 and ratified in ADR-103: gate mutex, anti-stall
 // (gate-wait vs turn-stall), watchdog sweep, conflicts-with serial lane,
-// optional 3-hop plan gate, end-of-wave reaper, hybrid convergence model with
+// mechanical plan admission, end-of-wave reaper, hybrid convergence model with
 // the cross-repo appendix. Also guards the dual-side invariant (self file ==
 // template) and the supersession of the old orchestrator prompt.
 import { readFileSync } from 'node:fs'
@@ -44,7 +44,7 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
 
   it('states the ADR-103 legality conditions and the ratified convergence model', () => {
     expect(md).toMatch(/ADR-103/)
-    expect(md).toMatch(/dedicated worktree/i)
+    expect(md).toMatch(/dedicated\s+worktree/i)
     expect(md).toMatch(/distinct branch/i)
     expect(md).toMatch(/disjoint file-sets/i)
     expect(md).toMatch(/owner-ratified\s*\n?2026-07-10/)
@@ -55,7 +55,7 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
     expect(md).toMatch(/arbiter check run/)
     expect(md).toMatch(/flock\(1\)/)
     expect(md).toMatch(/gate-exec\s+supervisor[^.]*SIGKILL\/OOM/i)
-    expect(md).toMatch(/Arbiter Node\s+PID alone/i)
+    expect(md).toMatch(/Arbiter Node\s+PID\s+alone/i)
     expect(md).toMatch(/--max-parallel 1/)
   })
 
@@ -63,7 +63,7 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
     expect(md).toMatch(/Gate-wait/i)
     expect(md).toMatch(/Turn-stall/i)
     expect(md).toMatch(/watchdog sweep/i)
-    expect(md).toMatch(/bounded/)
+    expect(md).toMatch(/bound(?:ed| it)/)
   })
 
   it('routes declared conflicts to a serial lane (conflicts-with)', () => {
@@ -71,13 +71,9 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
     expect(md).toMatch(/serial lane/i)
   })
 
-  it('has the per-issue 3-hop plan gate default-on with tier-scaled skeptics', () => {
-    expect(md).toMatch(/Phase 2\.5/)
-    expect(md).toMatch(/default-on/)
-    expect(md).toMatch(/needs-plan/)
-    expect(md).toMatch(/hop 1\/3/)
-    expect(md).toMatch(/file:line/)
-    expect(md).toMatch(/refutation_skeptics/)
+  it('uses mechanical admission and does not restore the retired 3-hop plan review', () => {
+    expect(md).toMatch(/Mechanical admission checks/)
+    expect(md).not.toMatch(/Phase 2\.5|hop 1\/3|needs-plan|refutation_skeptics/)
   })
 
   it('caps parallelism by machine headroom', () => {
@@ -94,7 +90,7 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
   })
 
   it('returns native host worktrees and verifies cleanup at the end of a wave', () => {
-    expect(md).toMatch(/close the worktree with the native host/i)
+    expect(md).toMatch(/close each\s+worktree with the native host/i)
     expect(md).toMatch(/arbiter worktree check/)
   })
 
@@ -151,13 +147,13 @@ describe('/drain v2 — entrypoint (#1873, ADR-103)', () => {
     expect(md).toBe(renderTemplate('claude/commands/drain.md.ejs', renderData))
   })
 
-  it('wires the v2 protocol: mutex, cap, 3-hop, prune, convergence', () => {
+  it('wires the parallel protocol without restoring the retired 3-hop plan review', () => {
     expect(md).toMatch(/arbiter check run/)
     expect(md).toMatch(/nproc - 2/)
-    expect(md).toMatch(/needs-plan/)
     expect(md).toMatch(/native host worktree cleanup command/)
     expect(md).toMatch(/ADR-103/)
-    expect(md).toMatch(/one wave PR/i)
+    expect(md).toMatch(/one PR/i)
+    expect(md).not.toMatch(/needs-plan|hop 1\/3/)
   })
 })
 

@@ -95,12 +95,13 @@ See `../AGENTS.md` §Invariants for the complete list.
 
 **Never:**
 
-- Skip the gate before committing
+- Skip staged secret/economy checks or RED integrity on a checkpoint commit
+- Skip full qualification of the frozen candidate before push or PR
 - Commit directly to `main`
 - Add `any` type (TS) or `.unwrap()` (Rust)
 - Leave orphan TODOs without task IDs
 
-**If gate fails:** Fix the root cause. No `--no-verify`. No skipping.
+**If qualification fails:** Fix the root cause. No bypassing.
 
 ## Iron Laws (Inherited from AGENTS.md)
 

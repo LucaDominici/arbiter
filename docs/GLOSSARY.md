@@ -18,7 +18,8 @@ detail.
   gates, and CI/CD infrastructure into a target project so it can be developed under a strict,
   AI-assisted workflow.
 - **gate** — the quality gate (`node scripts/check-all.mjs`). The set of deterministic checks
-  that must pass before commit/push/merge. Tiered: **L1** (fast) and **L2** (full).
+  that qualify a frozen delivery candidate before push/merge. Tiered: **L1** (fast) and **L2**
+  (full); checkpoint commits retain separate staged safety checks.
 - **invariant (INV-NN)** — a hard rule the codebase must always satisfy, catalogued in
   `src/invariants/catalog.ts` and enforced by hooks/gates. Violations stop work.
 - **CANON-NN** — a process-level rule (e.g. refactor-first, no orphan TODOs) from

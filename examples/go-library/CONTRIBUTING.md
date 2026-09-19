@@ -35,7 +35,7 @@ type(scope): summary
 See `AGENTS.md` for the full coding standards, invariants, and testing policy.
 
 Key rules:
-- All code must pass the quality gate before committing
+- The frozen delivery candidate must pass the quality gate; checkpoint commits retain staged safety checks
 - No orphan TODOs — every `TODO` must reference a task ID (`TODO(#NNN)`)
 - Tests required for new functionality
 

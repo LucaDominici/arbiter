@@ -44,13 +44,15 @@ describe('wave-drain SKILL.md — canonical finding schema (#1404)', () => {
     expect(md).toMatch(/task-note/)
   })
 
-  it('adds a Phase 0.5 — Harvest step before Phase 1 noting findings promote/list was removed', () => {
+  it('adds a Phase 0.5 — Harvest step before Phase 1 using the finding commands', () => {
     expect(md).toMatch(/Phase 0\.5/)
-    expect(md).toMatch(/was removed in the B-prune/)
+    expect(md).toContain('arbiter finding list')
+    expect(md).toContain('arbiter finding promote')
   })
 
-  it('documents the manual escape hatch (inspect the spool directly)', () => {
-    expect(md).toMatch(/cat \.arbiter\/findings/)
+  it('does not document stale plural commands or a manual escape hatch', () => {
+    expect(md).not.toContain('arbiter findings ')
+    expect(md).not.toContain('manual escape hatch')
   })
 
   it('the DONE-report finding shape is valid JSON carrying the FindingEntry keys', () => {

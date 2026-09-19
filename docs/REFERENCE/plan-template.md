@@ -92,48 +92,17 @@ retroactively — legacy marker is the bypass signal.
 
 ---
 
-## Plan Review Gate (#695)
+## Result-first admission (#2724)
 
-Every plan ready for implementation must pass review before `arbiter lifecycle advance` will
-move it into implementation. The gate itself is tool-agnostic: it only reads a
-`latest.json` verdict file — how that file gets produced (a reviewing agent, a project's
-own review script, a human) is deliberately not `arbiter`'s concern (A8: guidance, not
-review machinery). The final verdict + plan SHA-256 digest belongs at
-`.arbiter/evidence/plan-review/<sanitized-id>/latest.json`.
+The active Markdown plan is the one shared delivery contract. Before implementation it must freeze:
 
-### Gate enforcement
+- explicit `AC-N` acceptance criteria and non-goals;
+- the complete `files:` manifest;
+- dependency and caller evidence used for treatment qualification;
+- the smallest executable implementation and its RED proof;
+- rollback and recovery notes.
 
-`arbiter lifecycle advance --to red-team-review` (the phase after `plan` in every tier; the gate is
-checked again on entry to `red`) consults `latest.json` and refuses to advance when:
-
-- `latest.json` is missing
-- `verdict !== PASS`
-- `planDigest` does not match the current plan content (plan changed since review)
-
-The gate is **opt-in per project** via `.arbiter/plan-review.enabled` — projects without
-the flag file get the legacy behaviour (advance freely). Plant the flag to activate:
-
-```bash
-touch .arbiter/plan-review.enabled
-```
-
-There is no separate gate script: the reviewers' verdict is the check, and `arbiter ship`'s
-plan step points at `task advance` accordingly. `arbiter check plan` is unrelated — it validates
-a `PLAN.json` against invariant rules and cannot read the markdown plan (#2570).
-
-### Bypass
-
-When you must advance without a fresh review (emergency hotfix, broken claude CLI, etc.):
-
-```bash
-arbiter lifecycle advance --to red-team-review --skip-plan-review
-# or (non-CI only):
-ARBITER_SKIP_PLAN_REVIEW=1 arbiter lifecycle advance --to red-team-review
-```
-
-Every bypass writes an audit record to
-`.arbiter/evidence/plan-review/<sanitized-id>/bypass-<ts>.json` with the reason, git
-user name (never email — INV-12 PII), and timestamp, and emits a `WARNING` to stderr.
-
-Under `CI=true` the env-var bypass is **refused**: only the explicit `--skip-plan-review`
-flag works. This keeps unattended bypass out of pipelines.
+`arbiter lifecycle advance --to red` performs mechanical admission. Missing or malformed required
+input fails closed; incomplete narrow-tier evidence widens treatment to Standard. There is no second
+host-specific plan or reviewer verdict before code. Independent judgment is reserved for the frozen
+candidate, where the final reviewer evaluates code and returns one acceptance decision per AC.

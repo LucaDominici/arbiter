@@ -39,9 +39,9 @@ next one is allowed:
 2. **Red** — a failing test is written before the implementation (TDD, enforced
    not suggested).
 3. **Green** — the implementation makes the test pass.
-4. **Gate** — `node scripts/check-all.mjs L1` (fast: lint, format, unit tests) must
-   pass before commit; `L2` (adds integration tests, coverage, and debt checks)
-   must pass before push.
+4. **Gate** — targeted checks run while editing; `node scripts/check-all.mjs L1`
+   (fast: lint, format, unit tests) qualifies the frozen candidate once. `L2`
+   (adds integration tests, coverage, and debt checks) must pass before push.
 
 The gate is tiered by governance level, so the bar scales with how much you need:
 

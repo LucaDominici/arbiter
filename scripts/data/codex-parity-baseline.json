@@ -75,7 +75,6 @@
     "codex": {
       "files": [
         ".agents/CODEX.md",
-        ".agents/plan/README.md",
         ".agents/rules/05-agent-lifecycle.md",
         ".agents/rules/25-todo-folder-policy.md",
         ".agents/rules/50-batch-execution.md",
@@ -126,6 +125,16 @@
       "file": ".claude/commands/wt-prune.md",
       "reason": "Retired by the atomic canonical command cutover; superseded or removed without compatibility aliases.",
       "issue": "#2706"
+    },
+    {
+      "file": ".agents/plan/README.md",
+      "reason": "Retired with the mandatory Codex plan store: the result-first contract reuses the existing Markdown plan and lifecycle state instead of a second required PLAN.json.",
+      "issue": "#2724"
+    },
+    {
+      "file": ".agents/plan/PLAN.json",
+      "reason": "Retired with the mandatory Codex plan store: the result-first contract reuses the existing Markdown plan and lifecycle state instead of a second required PLAN.json.",
+      "issue": "#2724"
     }
   ]
 }

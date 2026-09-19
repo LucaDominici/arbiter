@@ -9,9 +9,9 @@
  *   - plan action: the constant single-issue string (#2329)
  *   - completeAction: non-trunk-solo / trunk-solo+direct / trunk-solo+pr-ff
  *   - verificationSelfOnlyChecks: isArbiterSelf true vs false
- *   - shipStepBody: every phase case, incl. the lateral red-team-rework
- *   - nextPhase: idx===-1 (lateral) / end / normal
- *   - advanceTargetFor (via runTaskShip advance): lateral re-entry vs forward
+ *   - shipStepBody: every active phase case
+ *   - nextPhase: end / normal
+ *   - advanceTargetFor (via runTaskShip advance): forward transitions
  *   - buildShipStepLines: done / command / reviewAgents / autonomy-gate /
  *     self-only-checks present vs absent
  *   - seedShipState + runTaskShip: id/tier defaulting, fresh vs existing state,
@@ -55,25 +55,23 @@ function profile(overrides: Partial<ShipProfile> = {}): ShipProfile {
 
 describe('shipStepFor — normTier + per-phase bodies', () => {
   it('normTier returns XS / S verbatim and defaults everything else to Standard', () => {
-    expect(shipStepFor('red-team-review', 'XS').reviewAgents).toBe(0)
-    expect(shipStepFor('red-team-review', 'S').reviewAgents).toBe(0)
-    expect(shipStepFor('red-team-review', 'Standard').reviewAgents).toBe(1)
+    expect(shipStepFor('plan', 'XS').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', 'S').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', 'Standard').reviewAgents).toBe(0)
     // unknown tier + undefined both fall through to Standard
-    expect(shipStepFor('red-team-review', 'bogus').reviewAgents).toBe(1)
-    expect(shipStepFor('red-team-review', undefined).reviewAgents).toBe(1)
+    expect(shipStepFor('plan', 'bogus').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', undefined).reviewAgents).toBe(0)
   })
 
   it('refactor review-agent count tracks the tier table', () => {
     expect(shipStepFor('refactor', 'XS').reviewAgents).toBe(1)
-    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(2)
+    expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(1)
   })
 
-  it('covers every phase body case, including the lateral red-team-rework', () => {
+  it('covers every phase body case, with no pre-code review phases', () => {
     const phases = [
       'preflight',
       'plan',
-      'red-team-review',
-      'red-team-rework',
       'red',
       'green',
       'refactor',
@@ -103,7 +101,7 @@ describe('plan action — single-issue, knob-free', () => {
     for (const defaultGateLevel of ['L1', 'L2'] as const) {
       const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
       expect(step.action).toBe(
-        'Write the plan, then dispatch the plan-review agents; their PASS verdict in .arbiter/evidence/plan-review/<id>/latest.json is the gate.',
+        'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
       )
     }
   })
@@ -162,9 +160,6 @@ describe('nextPhase branch', () => {
     expect(nextPhase('complete')).toBeNull()
   })
 
-  it('returns null for a lateral phase not in PHASE_ORDER (idx === -1)', () => {
-    expect(nextPhase('red-team-rework')).toBeNull()
-  })
 })
 
 describe('buildShipStepLines branch matrix', () => {
@@ -173,9 +168,9 @@ describe('buildShipStepLines branch matrix', () => {
   }
 
   it('marks (done), prints Command + Review agents, and omits the self-only header for a consumer', () => {
-    const lines = buildShipStepLines(resultFor('red-team-review', profile(), false), 'Standard')
-    expect(lines.some((l) => l.startsWith('Phase: red-team-review'))).toBe(true)
-    expect(lines.some((l) => l.startsWith('Command:'))).toBe(false) // red-team-review has none
+    const lines = buildShipStepLines(resultFor('refactor', profile(), false), 'Standard')
+    expect(lines.some((l) => l.startsWith('Phase: refactor'))).toBe(true)
+    expect(lines).toContain('Command: arbiter ship --review-round') // refactor dispatches final review
     expect(lines.some((l) => l.startsWith('Review agents: 1'))).toBe(true)
     expect(lines.some((l) => l.startsWith('Self-only checks:'))).toBe(false)
   })
@@ -226,7 +221,7 @@ describe('runTaskShip — seedShipState + drive branches (real temp-dir state I/
     expect(res.advanced).toBe(false)
     expect(res.done).toBe(false)
     // Narrow treatments skip pre-code review.
-    expect(shipStepFor('red-team-review', 'S').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', 'S').reviewAgents).toBe(0)
   })
 
   it('normalizes a `#`-prefixed id and an existing fresh tree still writes when id is given', () => {
@@ -248,10 +243,10 @@ describe('runTaskShip — seedShipState + drive branches (real temp-dir state I/
   })
 
   it('prefers opts.tier over the persisted tier', () => {
-    writeUnifiedState(dir, { taskId: '#7', tier: 'XS', phase: 'red-team-review' })
+    writeUnifiedState(dir, { taskId: '#7', tier: 'XS', phase: 'plan' })
     const res = runTaskShip({ dir, tier: 'Standard' })
     // Standard retains one targeted pre-code challenge.
-    expect(res.step.reviewAgents).toBe(1)
+    expect(res.step.reviewAgents).toBe(0)
   })
 
   it('advances one gate-free phase (preflight → plan) and logs the transition', () => {
@@ -261,11 +256,11 @@ describe('runTaskShip — seedShipState + drive branches (real temp-dir state I/
     expect(res.phase).toBe('plan')
   })
 
-  it('advances via the lateral re-entry (red-team-rework → red-team-review)', () => {
-    writeUnifiedState(dir, { taskId: '#7', tier: 'S', phase: 'red-team-rework' })
+  it('advances directly from plan to RED', () => {
+    writeUnifiedState(dir, { taskId: '#7', tier: 'S', phase: 'plan' })
     const res = runTaskShip({ dir, advance: true })
     expect(res.advanced).toBe(true)
-    expect(res.phase).toBe('red-team-review')
+    expect(res.phase).toBe('red')
   })
 
   it('does NOT advance from the terminal phase (advanceTargetFor → null)', () => {

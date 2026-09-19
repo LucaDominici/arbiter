@@ -3,6 +3,7 @@
 ## Branch Enforcement
 
 Before any file edit:
+
 1. Run `git branch --show-current`
 2. If on `main` → stop and create a task branch first — edits on `main` bypass every review and gate artifact that anchors to a task branch
 3. Branch must start with `task/` — e.g., `task/#123-description`
@@ -14,8 +15,8 @@ Before any file edit:
 3. Plan before editing (3+ file changes → outline first)
 4. Run `/ship #NNN` — the single orchestration entrypoint (auto-sequences plan → review → gate → merge)
 5. Implement with TDD (test first) — `/ship` drives each phase; `arbiter lifecycle` is for recovery or direct lifecycle control
-6. Run `node scripts/check-all.mjs L1` before commit
-7. Run `node scripts/check-all.mjs L2` before push
+6. Keep checkpoint commits safe: staged secrets/economy checks always run; test-only RED commits require recorded RED integrity
+7. Run `node scripts/check-all.mjs L1` once on the frozen final candidate, then `node scripts/check-all.mjs L2` before push
 
 ## Gate Commands
 

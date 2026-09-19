@@ -95,7 +95,6 @@ describe('tool output: claude', () => {
     const ARBITER_BYPASS_ENVS = [
       'ARBITER_GATE_BYPASS',
       'ARBITER_PLAN_BYPASS',
-      'ARBITER_SKIP_PLAN_REVIEW',
       'ARBITER_SKIP_TDD',
       'ARBITER_SKIP_GATE_MARKER',
       'ARBITER_SSOT_BYPASS',

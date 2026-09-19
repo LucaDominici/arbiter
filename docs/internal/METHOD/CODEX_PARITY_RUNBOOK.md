@@ -213,11 +213,11 @@ a missing or unimportable `dist/` fails closed with exit 2; run
 `.codex/**`, and requires every repo file under those roots to be exactly one
 of:
 
-| Class            | Meaning                                                                                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| EMITTED-MATCH    | normalized content equals today's fresh emission                                                                                                 |
-| PINNED           | intentional divergence, pinned in `scripts/data/codex-self-parity-divergences.json` (dated rationale + content hash, CANON-14 pin semantics)     |
-| RUNTIME-ARTIFACT | repo-runtime file the generator never emits, declared in `scripts/data/codex-self-parity-runtime-artifacts.json` (e.g. `.agents/plan/PLAN.json`) |
+| Class            | Meaning                                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| EMITTED-MATCH    | normalized content equals today's fresh emission                                                                                                                    |
+| PINNED           | intentional divergence, pinned in `scripts/data/codex-self-parity-divergences.json` (dated rationale + content hash, CANON-14 pin semantics)                        |
+| RUNTIME-ARTIFACT | repo-runtime file the generator never emits, declared in `scripts/data/codex-self-parity-runtime-artifacts.json` (for example, a retained historical task artifact) |
 
 Inside the repo gate it runs at **L2**, immediately after
 `codex parity (#1966)`; CI inherits it via check-all L2. Exit codes follow the
@@ -289,8 +289,8 @@ emission failure ⇒ 2).
 
 ### Frontmatter note
 
-Repo copies may carry the repo's doc-frontmatter block (e.g.
-`.agents/CODEX.md`, `.agents/plan/README.md`); the templates do not emit one.
+Repo copies may carry the repo's doc-frontmatter block (for example, `.agents/CODEX.md`); the
+templates do not emit one.
 The gate strips a leading YAML frontmatter block from the REPO side before
 comparing — but ONLY when every non-blank line of the block is an inline
 `key: value` whose key is on the repo metadata allowlist
@@ -312,10 +312,9 @@ compare (formatting is invisible to parity, like frontmatter); files over
   stays green only while the repo `.prettierrc.json` is semantically equal to
   that fallback. If either diverges (or a Prettier major changes a default),
   the gate reds with a `stale` finding — re-materialize per the procedure above.
-- **`.agents/plan/PLAN.json` must exist while declared.** It is a declared
-  RUNTIME-ARTIFACT; deleting it from the tree without pruning its entry in
-  `scripts/data/codex-self-parity-runtime-artifacts.json` produces a
-  `dead-artifact` red (fail-closed by design).
+- **Every declared runtime artifact must exist.** Removing one from the tree without pruning its
+  entry in `scripts/data/codex-self-parity-runtime-artifacts.json` produces a `dead-artifact` red
+  (fail-closed by design).
 - **`.codex/config.toml` green state is flag-coupled.** The committed file
   carries the `check-no-pii.mjs` and `check-no-skipped-tests.mjs` blocks, which
   the template emits only when arbiter's own resolved config keeps

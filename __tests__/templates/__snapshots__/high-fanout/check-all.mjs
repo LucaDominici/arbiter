@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // test-project quality gate
 // Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
-// L1: format + lint + unit tests (fast, pre-commit)
+// L1: format + lint + unit tests (fast, frozen-candidate qualification)
 // L2: L1 + coverage + audit (full, pre-push)
 // --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
 import { createHash } from 'node:crypto';
@@ -101,9 +101,10 @@ function gateFilePresent(_path, _label, _neverEmittedLine = null, _alternatePath
 // `--level` as the level string skips the L2 branch while the job stays green —
 // that silent L2→L1 downgrade is the exact fake-green this gate exists to kill.
 const _LEVELS = ['L1', 'L2', 'L3', 'L4'];
-// Subcommand alias → level. `check` is the fast pre-commit lane; everything
+// Subcommand alias → level. `check` is the fast candidate-qualification lane; everything
 // heavier maps to L2 (the strongest tier this generated gate implements).
 const _SUBCOMMAND_LEVEL = {
+  preflight: 'L2',
   check: 'L1',
   gate: 'L2',
   full: 'L2',
@@ -119,7 +120,7 @@ let only = null; // #2078: --gate <name>, re-run a single check
 let failFast = false;
 const _rawArgs = process.argv.slice(2);
 const _gateUsage =
-  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>] [--fail-fast]';
+  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | preflight|check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>] [--fail-fast]';
 function _gateFatal(_msg) {
   console.error(`[GATE] FATAL: ${_msg}`);
   console.error(`[GATE] ${_gateUsage}`);
@@ -229,7 +230,7 @@ const _gateStart = await (async () => {
 // emitted layering contract test (scripts/test-gate-layering.mjs). ORDER IS
 // MEANINGFUL: gates run in registry order within each level.
 
-const GATE_REGISTRY = [{"id":"pii-scan","name":"PII scan","level":"L1","kind":"check","cmd":["node","scripts/pii-scan.mjs"]},{"id":"secret-scan","name":"secret scan","level":"L1","kind":"check","cmd":["node","scripts/check-secret-scan.mjs"]},{"id":"typecheck","name":"typecheck","level":"L1","kind":"check","cmd":["npx","tsc","--noEmit"],"language":"typescript"},{"id":"format","name":"format","level":"L1","kind":"check","cmd":["npx","prettier","--check","."],"language":"typescript"},{"id":"lint","name":"lint","level":"L1","kind":"check","cmd":["npx","eslint","."],"language":"typescript"},{"id":"static-analysis","name":"static analysis","level":"L1","kind":"check","cmd":["npx","eslint","--config","eslint.config.static.mjs","--no-config-lookup","--no-error-on-unmatched-pattern","src"],"language":"typescript","condition":"gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] static analysis ... SKIP (run: arbiter update)')"},{"id":"no-fake-db-imports","name":"no-fake-db imports (INV-34)","level":"L1","kind":"check","cmd":["npx","eslint","--config","eslint.config.no-fake-db.mjs","--no-config-lookup","--no-error-on-unmatched-pattern","."],"language":"typescript","condition":"gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')"},{"id":"unit-tests","name":"unit tests","level":"L1","kind":"check","cmd":["npm","run","test:unit"],"language":"typescript"},{"id":"npm-ci-drift","name":"npm-ci drift","level":"L1","kind":"inline","language":"typescript","emitIf":"packageManager === 'npm'","else":"console.log('[CHECK] npm-ci drift ... SKIP (project uses npm)');\npushResult('npm-ci drift', 'SKIP', 0);"},{"id":"no-tracked-artifacts","name":"no tracked artifacts (INV-129)","level":"L1","kind":"check","cmd":["node","scripts/check-no-tracked-artifacts.mjs"]},{"id":"image-pins","name":"image pins (#1442)","level":"L1","kind":"check","cmd":["node","scripts/check-image-pins.mjs"]},{"id":"e2e-quarantine","name":"e2e quarantine (INV-130)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-quarantine.mjs"]},{"id":"test-naming","name":"test naming","level":"L1","kind":"check","cmd":["node","scripts/check-test-naming.mjs"]},{"id":"min-test-execution","name":"min test execution (INV-25)","level":"L1","kind":"check","cmd":["node","scripts/check-min-test-execution.mjs"]},{"id":"exit-code-contract","name":"exit code contract","level":"L1","kind":"check","cmd":["node","scripts/check-exit-code-contract.mjs"]},{"id":"pipe-tee-hazard","name":"pipe/tee hazard","level":"L1","kind":"check","cmd":["node","scripts/check-pipe-tee-hazard.mjs"]},{"id":"self-validation-drill","name":"self-validation drill","level":"L1","kind":"check","cmd":["node","scripts/self-validation.mjs"],"emitIf":"typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false"},{"id":"config-drift","name":"config drift","level":"L1","kind":"check","cmd":["node","scripts/check-drift.mjs"]},{"id":"validator-helptext","name":"validator help text","level":"L1","kind":"check","cmd":["node","scripts/check-validator-helptext.mjs"]},{"id":"suppressions-expiry","name":"suppressions expiry","level":"L1","kind":"check","cmd":["node","scripts/check-suppressions.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-rationale","name":"suppression rationale","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-rationale.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-expiry-antidrift","name":"suppression expiry (anti-drift)","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-expiry.mjs"],"emitIf":"enableSuppressions"},{"id":"inline-suppressions","name":"inline suppressions","level":"L1","kind":"check","cmd":["node","scripts/check-inline-suppressions.mjs"]},{"id":"claude-md-lint","name":"claude-md lint","level":"L1","kind":"check","cmd":["node","scripts/check-claude-md-lint.mjs"]},{"id":"unwired-guards","name":"unwired guards","level":"L1","kind":"check","cmd":["node","scripts/check-unwired-guards.mjs"]},{"id":"workflow-runners-inline","name":"workflow runners","level":"L1","kind":"inline"},{"id":"ci-alignment","name":"ci alignment","level":"L1","kind":"inline"},{"id":"ssot-core-set","name":"ssot core set","level":"L1","kind":"check","cmd":["node","scripts/check-ssot-core.mjs"]},{"id":"doc-links","name":"doc links","level":"L1","kind":"check","cmd":["node","scripts/check-doc-links.mjs"]},{"id":"knowledge-map","name":"knowledge map","level":"L1","kind":"check","cmd":["node","scripts/check-knowledge-map.mjs"]},{"id":"canonical-paths","name":"canonical paths","level":"L1","kind":"check","cmd":["node","scripts/check-canonical-paths.mjs"]},{"id":"collab-mode-wired","name":"collab mode wired (INV-100)","level":"L1","kind":"check","cmd":["node","scripts/check-collab-mode-wired.mjs"]},{"id":"hook-routing","name":"hook routing (#2129)","level":"L1","kind":"check","cmd":["node","scripts/check-hook-routing.mjs"]},{"id":"safety-adopt-ratchet","name":"safety adopt ratchet","level":"L1","kind":"check","cmd":["node","scripts/check-safety-adopt-ratchet.mjs"]},{"id":"emission-parity","name":"emission parity (#2110)","level":"L1","kind":"check","cmd":["node","scripts/check-emission-parity.mjs"]},{"id":"no-orphan-todo","name":"orphan TODOs (INV-21)","level":"L1","kind":"check","cmd":["node","scripts/check-no-orphan-todo.mjs"]},{"id":"constraint-scan","name":"constraint scan (INV-115)","level":"L1","kind":"check","cmd":["node","scripts/check-constraint-scan.mjs"]},{"id":"wiki-lint","name":"wiki lint (INV-116)","level":"L1","kind":"check","cmd":["node","scripts/check-wiki-lint.mjs"],"emitIf":"governanceLevel !== 'L1'"},{"id":"doc-index-drift","name":"documentation index drift","level":"L1","kind":"check","cmd":["node","scripts/gen-doc-index.mjs","--check"],"emitIf":"governanceLevel !== 'L1'","condition":"existsSync('docs/INDEX.md')"},{"id":"llms-txt-drift","name":"llms.txt drift","level":"L1","kind":"check","cmd":["node","scripts/gen-llms-txt.mjs","--check"],"emitIf":"governanceLevel !== 'L1'","condition":"existsSync('llms.txt')"},{"id":"anti-proforma","name":"anti-proforma (INV-118)","level":"L1","kind":"check","cmd":["node","scripts/check-anti-proforma.mjs"]},{"id":"test-pyramid","name":"test pyramid (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-pyramid.mjs"]},{"id":"test-scope-tier","name":"test scope-tier (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-scope-tier.mjs"]},{"id":"api-e2e","name":"api e2e (INV-126)","level":"L1","kind":"check","cmd":["node","scripts/check-api-e2e.mjs"]},{"id":"domain-api-surface","name":"domain-api surface (INV-125)","level":"L1","kind":"check","cmd":["node","scripts/check-domain-api-surface.mjs"],"emitIf":"hasPublicApi"},{"id":"render-smoke-presence","name":"render smoke presence (INV-127)","level":"L1","kind":"check","cmd":["node","scripts/check-render-smoke.mjs"]},{"id":"smoke-journeys","name":"smoke journeys (INV-137)","level":"L1","kind":"check","cmd":["node","scripts/check-smoke-journeys.mjs"]},{"id":"e2e-escalation","name":"e2e escalation ladder (#2043)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-escalation.mjs"]},{"id":"m16-handoff","name":"M16 handoff-contract marker (#2103)","level":"L1","kind":"check","cmd":["node","scripts/check-m16-handoff.mjs"]},{"id":"stack-conformity","name":"stack conformity (INV-121)","level":"L1","kind":"check","cmd":["node","scripts/check-stack-conformity.mjs"],"emitIf":"language"},{"id":"iso9001","name":"iso9001 QMS (RTM + doc-control + CAPA)","level":"L1","kind":"check","cmd":["node","scripts/check-iso9001.mjs"],"condition":"gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')"},{"id":"regulated-overlay","name":"regulated overlay (SoD + retention + signing + mutation)","level":"L1","kind":"check","cmd":["node","scripts/check-regulated-overlay.mjs"],"condition":"gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')"},{"id":"ci-tiers","name":"ci tiers (INV-73)","level":"L1","kind":"check","cmd":["node","scripts/check-ci-tiers.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"action-pins","name":"action pins (INV-76)","level":"L1","kind":"check","cmd":["node","scripts/check-action-pins.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"workflow-perms","name":"workflow perms (INV-77)","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-perms.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"workflow-runners","name":"workflow runners","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-runners.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"workflow-docs-sync","name":"workflow docs sync","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-docs-sync.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"workflow-test-integrity","name":"workflow test integrity","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-test-integrity.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"secret-presence","name":"secret presence (fail-loud)","level":"L1","kind":"check","cmd":["node","scripts/check-secret-presence.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"continue-on-error","name":"continue-on-error (swallowed gate)","level":"L1","kind":"check","cmd":["node","scripts/check-continue-on-error.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"workflow-sha-pinning","name":"workflow sha pinning","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-sha-pinning.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"workflow-job-naming","name":"workflow job naming","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-job-naming.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"pr-size-gate","name":"pr size gate","level":"L1","kind":"check","cmd":["node","scripts/check-pr-size-gate.mjs"],"emitIf":"_hasGitHubWorkflows"},{"id":"merge-method-ff-only","name":"merge method ff-only (INV-101)","level":"L1","kind":"check","cmd":["node","scripts/check-merge-method.mjs"],"emitIf":"_hasGitHubWorkflows && governanceLevel !== 'L1'"},{"id":"muted-test","name":"muted gate test (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-muted-test.mjs"]},{"id":"skip-critical-e2e","name":"skipped critical e2e (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-skip-critical-e2e.mjs"]},{"id":"stub-redirect-husk","name":"stub redirect husk (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-no-stub-redirects.mjs"]},{"id":"grace-window","name":"grace window (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-grace-window.mjs"]},{"id":"assertion-delta","name":"assertion delta (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-assertion-delta.mjs"]},{"id":"oracle-discrimination","name":"oracle discrimination (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-oracle-discrimination.mjs"],"emitIf":"archetype === 'frontend-spa' || archetype === 'backend-web-db'"},{"id":"tabletop-evidence","name":"tabletop evidence (#2429)","level":"L1","kind":"check","cmd":["node","scripts/check-tabletop-evidence.mjs"]},{"id":"sources","name":"source certification (INV-147)","level":"L1","kind":"check","cmd":["node","scripts/check-sources.mjs"]},{"id":"use-cases","name":"use cases (INV-149)","level":"L1","kind":"check","cmd":["node","scripts/check-use-cases.mjs"]},{"id":"milestones","name":"milestones (INV-146)","level":"L1","kind":"check","cmd":["node","scripts/check-milestones.mjs"]},{"id":"gitleaks","name":"gitleaks","level":"L2","kind":"check","cmd":["gitleaks","detect","--source",".","--config",".gitleaks.toml","--gitleaks-ignore-path","suppressions/.gitleaksignore","--exit-code","1"],"emitIf":"enableSecurityScanning","soft":true},{"id":"npm-audit","name":"audit","level":"L2","kind":"inline","emitIf":"language === 'typescript' && enableSecurityScanning"},{"id":"contract-tests-ts","name":"contract tests","level":"L2","kind":"check","cmd":["npm","run","test:contract"],"emitIf":"language === 'typescript'","soft":true},{"id":"integration-tests-ts","name":"integration tests","level":"L2","kind":"check","cmd":["npm","run","test:integration"],"emitIf":"language === 'typescript'","soft":true},{"id":"behavioral-tests-ts","name":"behavioral tests","level":"L2","kind":"check","cmd":["npm","run","test:behavioral"],"emitIf":"language === 'typescript'","soft":true},{"id":"db-integration-tests","name":"db integration tests","level":"L2","kind":"check","cmd":["npm","run","test:integration"],"emitIf":"language === 'typescript' && hasDatabase && governanceLevel !== 'L1'","soft":true},{"id":"playwright-e2e","name":"playwright e2e","level":"L2","kind":"inline","emitIf":"language === 'typescript' && (archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1'"},{"id":"coverage-threshold","name":"coverage threshold","level":"L2","kind":"inline","emitIf":"language === 'typescript' && coverageEnabled && enableDebtGates"},{"id":"dead-code","name":"dead code","level":"L2","kind":"check","cmd":["npx","knip"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"duplication","name":"duplication","level":"L2","kind":"check","cmd":["node","scripts/check-duplication.mjs"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"circular-deps","name":"circular deps","level":"L2","kind":"check","cmd":["npx","madge","--circular","--extensions","ts,tsx,js,jsx","src"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"arch-boundaries","name":"arch boundaries","level":"L2","kind":"check","cmd":["npm","run","check:arch"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"mutation-stryker","name":"mutation (stryker)","level":"L2","kind":"tool","cmd":["npx","stryker","run"],"emitIf":"(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && language === 'typescript' && enableDebtGates","soft":true},{"id":"mutation-baseline","name":"mutation baseline (#1508)","level":"L2","kind":"check","cmd":["node","scripts/verify-mutation-baseline.mjs"],"emitIf":"(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && enableDebtGates","condition":"gateFilePresent('scripts/verify-mutation-baseline.mjs', 'mutation baseline (#1508)')","soft":true},{"id":"stride-raci","name":"STRIDE/RACI traceability","level":"L2","kind":"check","cmd":["node","scripts/check-stride-traceability.mjs"],"emitIf":"enableDebtGates","soft":true},{"id":"bdd-ignore-check","name":"BDD @ignore check","level":"L2","kind":"inline","emitIf":"enableDebtGates"},{"id":"gdpr-controls","name":"gdpr controls (#1251)","level":"L2","kind":"check","cmd":["node","scripts/check-gdpr-controls.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')","soft":true},{"id":"bdd-ts","name":"bdd","level":"L2","kind":"check","cmd":["npx","cucumber-js"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"debt-ratchet","name":"debt ratchet","level":"L2","kind":"check","cmd":["node","scripts/debt-report.mjs","--gate"],"emitIf":"enableDebtGates","soft":true},{"id":"commit-footer-rationale","name":"commit-footer rationale (INV-119)","level":"L2","kind":"check","cmd":["node","scripts/check-commit-footer-rationale.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates","soft":true},{"id":"docs-updated","name":"docs updated with code (#356)","level":"L2","kind":"warn","cmd":["node","scripts/check-docs.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates"},{"id":"feature-matrix","name":"feature matrix (INV-112)","level":"L2","kind":"check","cmd":["node","scripts/check-feature-matrix.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates"},{"id":"gap-register","name":"gap register","level":"L2","kind":"check","cmd":["node","scripts/gen-gap.mjs","--check"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates"},{"id":"conformance","name":"conformance","level":"L2","kind":"warn","cmd":["node","scripts/conformance.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/conformance.mjs', 'conformance')"},{"id":"gold-audit","name":"gold-audit","level":"L2","kind":"warn","cmd":["node","scripts/gold-audit.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')"},{"id":"arc42-slots","name":"arc42 slots (INV-144)","level":"L2","kind":"warn","cmd":["node","scripts/check-arc42-slots.mjs"],"condition":"gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')"},{"id":"doc-set","name":"doc-set","level":"L2","kind":"warn","cmd":["node","scripts/check-doc-set.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')"},{"id":"decision-registry","name":"decision registry","level":"L2","kind":"check","cmd":["node","scripts/check-decision-registry.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')"},{"id":"anti-fake-green","name":"anti-fake-green","level":"L2","kind":"warn","cmd":["node","scripts/check-anti-fake-green.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-anti-fake-green.mjs', 'anti-fake-green')"},{"id":"module-coverage-ratchet","name":"module coverage ratchet","level":"L2","kind":"warn","cmd":["node","scripts/verify-module-coverage.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/verify-module-coverage.mjs', 'module coverage ratchet')"},{"id":"agent-return","name":"agent-return envelope (E1 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-agent-return.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-agent-return.mjs', 'agent-return envelope (E1 #1943)')"},{"id":"review-completion","name":"review completion (#2177)","level":"L2","kind":"check","cmd":["node","scripts/check-review-completion.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-review-completion.mjs', 'review completion (#2177)')"},{"id":"refutation-majority","name":"refutation majority (E2 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-refutation-verdicts.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-refutation-verdicts.mjs', 'refutation majority (E2 #1943)')"},{"id":"audit-dry-pass","name":"audit dry-pass (E3 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-audit-dry-pass.mjs","--all"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')"},{"id":"handoff-lint","name":"handoff lint (E6a #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-handoff-doc.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')"},{"id":"cross-model-review","name":"cross-model review (#2358)","level":"L2","kind":"warn","cmd":["node","scripts/check-cross-model-review.mjs"],"emitIf":"enableDebtGates"},{"id":"acceptance-anchor","name":"acceptance anchor (INV-138)","level":"L2","kind":"check","cmd":["node","scripts/check-acceptance.mjs"],"condition":"gateFilePresent('scripts/check-acceptance.mjs', 'acceptance anchor (INV-138)')"},{"id":"tdd-evidence","name":"tdd-evidence (INV-131)","level":"L2","kind":"check","cmd":["node","scripts/check-tdd-evidence.mjs"],"soft":true},{"id":"todo-max-age","name":"todo max-age (INV-133)","level":"L2","kind":"check","cmd":["node","scripts/check-todo-max-age.mjs"],"soft":true},{"id":"nightly-audit-prod","name":"nightly audit (prod scope)","level":"L3","kind":"check","cmd":["npm","audit","--omit=dev","--audit-level=high"],"emitIf":"language === 'typescript' && packageManager === 'npm'","soft":true}];
+const GATE_REGISTRY = [{"id":"pii-scan","name":"PII scan","level":"L1","kind":"check","cmd":["node","scripts/pii-scan.mjs"],"preflight":true},{"id":"secret-scan","name":"secret scan","level":"L1","kind":"check","cmd":["node","scripts/check-secret-scan.mjs"],"preflight":true},{"id":"typecheck","name":"typecheck","level":"L1","kind":"check","cmd":["npx","tsc","--noEmit"],"language":"typescript","preflight":true},{"id":"format","name":"format","level":"L1","kind":"check","cmd":["npx","prettier","--check","."],"language":"typescript","preflight":true},{"id":"lint","name":"lint","level":"L1","kind":"check","cmd":["npx","eslint","."],"language":"typescript","preflight":true},{"id":"static-analysis","name":"static analysis","level":"L1","kind":"check","cmd":["npx","eslint","--config","eslint.config.static.mjs","--no-config-lookup","--no-error-on-unmatched-pattern","src"],"language":"typescript","condition":"gateFilePresent('eslint.config.static.mjs', 'static analysis', '[CHECK] static analysis ... SKIP (run: arbiter update)')","preflight":true},{"id":"no-fake-db-imports","name":"no-fake-db imports (INV-34)","level":"L1","kind":"check","cmd":["npx","eslint","--config","eslint.config.no-fake-db.mjs","--no-config-lookup","--no-error-on-unmatched-pattern","."],"language":"typescript","condition":"gateFilePresent('eslint.config.no-fake-db.mjs', 'no-fake-db imports (INV-34)')","preflight":true},{"id":"unit-tests","name":"unit tests","level":"L1","kind":"check","cmd":["npm","run","test:unit"],"language":"typescript"},{"id":"npm-ci-drift","name":"npm-ci drift","level":"L1","kind":"inline","language":"typescript","emitIf":"packageManager === 'npm'","else":"console.log('[CHECK] npm-ci drift ... SKIP (project uses npm)');\npushResult('npm-ci drift', 'SKIP', 0);"},{"id":"no-tracked-artifacts","name":"no tracked artifacts (INV-129)","level":"L1","kind":"check","cmd":["node","scripts/check-no-tracked-artifacts.mjs"],"preflight":true},{"id":"image-pins","name":"image pins (#1442)","level":"L1","kind":"check","cmd":["node","scripts/check-image-pins.mjs"],"preflight":true},{"id":"e2e-quarantine","name":"e2e quarantine (INV-130)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-quarantine.mjs"],"preflight":true},{"id":"test-naming","name":"test naming","level":"L1","kind":"check","cmd":["node","scripts/check-test-naming.mjs"],"preflight":true},{"id":"min-test-execution","name":"min test execution (INV-25)","level":"L1","kind":"check","cmd":["node","scripts/check-min-test-execution.mjs"]},{"id":"exit-code-contract","name":"exit code contract","level":"L1","kind":"check","cmd":["node","scripts/check-exit-code-contract.mjs"],"preflight":true},{"id":"pipe-tee-hazard","name":"pipe/tee hazard","level":"L1","kind":"check","cmd":["node","scripts/check-pipe-tee-hazard.mjs"],"preflight":true},{"id":"self-validation-drill","name":"self-validation drill","level":"L1","kind":"check","cmd":["node","scripts/self-validation.mjs"],"emitIf":"typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false"},{"id":"config-drift","name":"config drift","level":"L1","kind":"check","cmd":["node","scripts/check-drift.mjs"],"preflight":true},{"id":"validator-helptext","name":"validator help text","level":"L1","kind":"check","cmd":["node","scripts/check-validator-helptext.mjs"],"preflight":true},{"id":"suppressions-expiry","name":"suppressions expiry","level":"L1","kind":"check","cmd":["node","scripts/check-suppressions.mjs"],"emitIf":"enableSuppressions","preflight":true},{"id":"suppression-rationale","name":"suppression rationale","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-rationale.mjs"],"emitIf":"enableSuppressions","preflight":true},{"id":"suppression-expiry-antidrift","name":"suppression expiry (anti-drift)","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-expiry.mjs"],"emitIf":"enableSuppressions","preflight":true},{"id":"inline-suppressions","name":"inline suppressions","level":"L1","kind":"check","cmd":["node","scripts/check-inline-suppressions.mjs"],"preflight":true},{"id":"claude-md-lint","name":"claude-md lint","level":"L1","kind":"check","cmd":["node","scripts/check-claude-md-lint.mjs"],"preflight":true},{"id":"unwired-guards","name":"unwired guards","level":"L1","kind":"check","cmd":["node","scripts/check-unwired-guards.mjs"],"preflight":true},{"id":"workflow-runners-inline","name":"workflow runners","level":"L1","kind":"inline","preflight":true},{"id":"ci-alignment","name":"ci alignment","level":"L1","kind":"inline","preflight":true},{"id":"ssot-core-set","name":"ssot core set","level":"L1","kind":"check","cmd":["node","scripts/check-ssot-core.mjs"],"preflight":true},{"id":"doc-links","name":"doc links","level":"L1","kind":"check","cmd":["node","scripts/check-doc-links.mjs"],"preflight":true},{"id":"knowledge-map","name":"knowledge map","level":"L1","kind":"check","cmd":["node","scripts/check-knowledge-map.mjs"],"preflight":true},{"id":"canonical-paths","name":"canonical paths","level":"L1","kind":"check","cmd":["node","scripts/check-canonical-paths.mjs"],"preflight":true},{"id":"collab-mode-wired","name":"collab mode wired (INV-100)","level":"L1","kind":"check","cmd":["node","scripts/check-collab-mode-wired.mjs"],"preflight":true},{"id":"hook-routing","name":"hook routing (#2129)","level":"L1","kind":"check","cmd":["node","scripts/check-hook-routing.mjs"],"preflight":true},{"id":"safety-adopt-ratchet","name":"safety adopt ratchet","level":"L1","kind":"check","cmd":["node","scripts/check-safety-adopt-ratchet.mjs"],"preflight":true},{"id":"emission-parity","name":"emission parity (#2110)","level":"L1","kind":"check","cmd":["node","scripts/check-emission-parity.mjs"],"preflight":true},{"id":"no-orphan-todo","name":"orphan TODOs (INV-21)","level":"L1","kind":"check","cmd":["node","scripts/check-no-orphan-todo.mjs"],"preflight":true},{"id":"constraint-scan","name":"constraint scan (INV-115)","level":"L1","kind":"check","cmd":["node","scripts/check-constraint-scan.mjs"],"preflight":true},{"id":"wiki-lint","name":"wiki lint (INV-116)","level":"L1","kind":"check","cmd":["node","scripts/check-wiki-lint.mjs"],"emitIf":"governanceLevel !== 'L1'","preflight":true},{"id":"doc-index-drift","name":"documentation index drift","level":"L1","kind":"check","cmd":["node","scripts/gen-doc-index.mjs","--check"],"emitIf":"governanceLevel !== 'L1'","condition":"existsSync('docs/INDEX.md')","preflight":true},{"id":"llms-txt-drift","name":"llms.txt drift","level":"L1","kind":"check","cmd":["node","scripts/gen-llms-txt.mjs","--check"],"emitIf":"governanceLevel !== 'L1'","condition":"existsSync('llms.txt')","preflight":true},{"id":"anti-proforma","name":"anti-proforma (INV-118)","level":"L1","kind":"check","cmd":["node","scripts/check-anti-proforma.mjs"],"preflight":true},{"id":"test-pyramid","name":"test pyramid (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-pyramid.mjs"],"preflight":true},{"id":"test-scope-tier","name":"test scope-tier (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-scope-tier.mjs"],"preflight":true},{"id":"api-e2e","name":"api e2e (INV-126)","level":"L1","kind":"check","cmd":["node","scripts/check-api-e2e.mjs"],"preflight":true},{"id":"domain-api-surface","name":"domain-api surface (INV-125)","level":"L1","kind":"check","cmd":["node","scripts/check-domain-api-surface.mjs"],"emitIf":"hasPublicApi","preflight":true},{"id":"render-smoke-presence","name":"render smoke presence (INV-127)","level":"L1","kind":"check","cmd":["node","scripts/check-render-smoke.mjs"],"preflight":true},{"id":"smoke-journeys","name":"smoke journeys (INV-137)","level":"L1","kind":"check","cmd":["node","scripts/check-smoke-journeys.mjs"],"preflight":true},{"id":"e2e-escalation","name":"e2e escalation ladder (#2043)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-escalation.mjs"],"preflight":true},{"id":"m16-handoff","name":"M16 handoff-contract marker (#2103)","level":"L1","kind":"check","cmd":["node","scripts/check-m16-handoff.mjs"],"preflight":true},{"id":"stack-conformity","name":"stack conformity (INV-121)","level":"L1","kind":"check","cmd":["node","scripts/check-stack-conformity.mjs"],"emitIf":"language","preflight":true},{"id":"iso9001","name":"iso9001 QMS (RTM + doc-control + CAPA)","level":"L1","kind":"check","cmd":["node","scripts/check-iso9001.mjs"],"condition":"gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')","preflight":true},{"id":"regulated-overlay","name":"regulated overlay (SoD + retention + signing + mutation)","level":"L1","kind":"check","cmd":["node","scripts/check-regulated-overlay.mjs"],"condition":"gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')","preflight":true},{"id":"ci-tiers","name":"ci tiers (INV-73)","level":"L1","kind":"check","cmd":["node","scripts/check-ci-tiers.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"action-pins","name":"action pins (INV-76)","level":"L1","kind":"check","cmd":["node","scripts/check-action-pins.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"workflow-perms","name":"workflow perms (INV-77)","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-perms.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"workflow-runners","name":"workflow runners","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-runners.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"workflow-docs-sync","name":"workflow docs sync","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-docs-sync.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"workflow-test-integrity","name":"workflow test integrity","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-test-integrity.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"secret-presence","name":"secret presence (fail-loud)","level":"L1","kind":"check","cmd":["node","scripts/check-secret-presence.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"continue-on-error","name":"continue-on-error (swallowed gate)","level":"L1","kind":"check","cmd":["node","scripts/check-continue-on-error.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"workflow-sha-pinning","name":"workflow sha pinning","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-sha-pinning.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"workflow-job-naming","name":"workflow job naming","level":"L1","kind":"check","cmd":["node","scripts/check-workflow-job-naming.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"pr-size-gate","name":"pr size gate","level":"L1","kind":"check","cmd":["node","scripts/check-pr-size-gate.mjs"],"emitIf":"_hasGitHubWorkflows","preflight":true},{"id":"merge-method-ff-only","name":"merge method ff-only (INV-101)","level":"L1","kind":"check","cmd":["node","scripts/check-merge-method.mjs"],"emitIf":"_hasGitHubWorkflows && governanceLevel !== 'L1'","preflight":true},{"id":"muted-test","name":"muted gate test (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-muted-test.mjs"],"preflight":true},{"id":"skip-critical-e2e","name":"skipped critical e2e (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-skip-critical-e2e.mjs"],"preflight":true},{"id":"stub-redirect-husk","name":"stub redirect husk (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-no-stub-redirects.mjs"],"preflight":true},{"id":"grace-window","name":"grace window (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-grace-window.mjs"],"preflight":true},{"id":"assertion-delta","name":"assertion delta (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-assertion-delta.mjs"],"preflight":true},{"id":"oracle-discrimination","name":"oracle discrimination (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-oracle-discrimination.mjs"],"emitIf":"archetype === 'frontend-spa' || archetype === 'backend-web-db'"},{"id":"tabletop-evidence","name":"tabletop evidence (#2429)","level":"L1","kind":"check","cmd":["node","scripts/check-tabletop-evidence.mjs"]},{"id":"sources","name":"source certification (INV-147)","level":"L1","kind":"check","cmd":["node","scripts/check-sources.mjs"],"preflight":true},{"id":"use-cases","name":"use cases (INV-149)","level":"L1","kind":"check","cmd":["node","scripts/check-use-cases.mjs"],"preflight":true},{"id":"milestones","name":"milestones (INV-146)","level":"L1","kind":"check","cmd":["node","scripts/check-milestones.mjs"],"preflight":true},{"id":"gitleaks","name":"gitleaks","level":"L2","kind":"check","cmd":["gitleaks","detect","--source",".","--config",".gitleaks.toml","--gitleaks-ignore-path","suppressions/.gitleaksignore","--exit-code","1"],"emitIf":"enableSecurityScanning","soft":true},{"id":"npm-audit","name":"audit","level":"L2","kind":"inline","emitIf":"language === 'typescript' && enableSecurityScanning"},{"id":"contract-tests-ts","name":"contract tests","level":"L2","kind":"check","cmd":["npm","run","test:contract"],"emitIf":"language === 'typescript'","soft":true},{"id":"integration-tests-ts","name":"integration tests","level":"L2","kind":"check","cmd":["npm","run","test:integration"],"emitIf":"language === 'typescript'","soft":true},{"id":"behavioral-tests-ts","name":"behavioral tests","level":"L2","kind":"check","cmd":["npm","run","test:behavioral"],"emitIf":"language === 'typescript'","soft":true},{"id":"db-integration-tests","name":"db integration tests","level":"L2","kind":"check","cmd":["npm","run","test:integration"],"emitIf":"language === 'typescript' && hasDatabase && governanceLevel !== 'L1'","soft":true},{"id":"playwright-e2e","name":"playwright e2e","level":"L2","kind":"inline","emitIf":"language === 'typescript' && (archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1'"},{"id":"coverage-threshold","name":"coverage threshold","level":"L2","kind":"inline","emitIf":"language === 'typescript' && coverageEnabled && enableDebtGates"},{"id":"dead-code","name":"dead code","level":"L2","kind":"check","cmd":["npx","knip"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"duplication","name":"duplication","level":"L2","kind":"check","cmd":["node","scripts/check-duplication.mjs"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"circular-deps","name":"circular deps","level":"L2","kind":"check","cmd":["npx","madge","--circular","--extensions","ts,tsx,js,jsx","src"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"arch-boundaries","name":"arch boundaries","level":"L2","kind":"check","cmd":["npm","run","check:arch"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"mutation-stryker","name":"mutation (stryker)","level":"L2","kind":"tool","cmd":["npx","stryker","run"],"emitIf":"(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && language === 'typescript' && enableDebtGates","soft":true},{"id":"mutation-baseline","name":"mutation baseline (#1508)","level":"L2","kind":"check","cmd":["node","scripts/verify-mutation-baseline.mjs"],"emitIf":"(typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false) && enableDebtGates","condition":"gateFilePresent('scripts/verify-mutation-baseline.mjs', 'mutation baseline (#1508)')","soft":true},{"id":"stride-raci","name":"STRIDE/RACI traceability","level":"L2","kind":"check","cmd":["node","scripts/check-stride-traceability.mjs"],"emitIf":"enableDebtGates","preflight":true,"soft":true},{"id":"bdd-ignore-check","name":"BDD @ignore check","level":"L2","kind":"inline","emitIf":"enableDebtGates","preflight":true},{"id":"gdpr-controls","name":"gdpr controls (#1251)","level":"L2","kind":"check","cmd":["node","scripts/check-gdpr-controls.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')","preflight":true,"soft":true},{"id":"bdd-ts","name":"bdd","level":"L2","kind":"check","cmd":["npx","cucumber-js"],"emitIf":"language === 'typescript' && enableDebtGates","soft":true},{"id":"debt-ratchet","name":"debt ratchet","level":"L2","kind":"check","cmd":["node","scripts/debt-report.mjs","--gate"],"emitIf":"enableDebtGates","soft":true},{"id":"commit-footer-rationale","name":"commit-footer rationale (INV-119)","level":"L2","kind":"check","cmd":["node","scripts/check-commit-footer-rationale.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates","preflight":true,"soft":true},{"id":"docs-updated","name":"docs updated with code (#356)","level":"L2","kind":"warn","cmd":["node","scripts/check-docs.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates","preflight":true},{"id":"feature-matrix","name":"feature matrix (INV-112)","level":"L2","kind":"check","cmd":["node","scripts/check-feature-matrix.mjs"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates","preflight":true},{"id":"gap-register","name":"gap register","level":"L2","kind":"check","cmd":["node","scripts/gen-gap.mjs","--check"],"emitIf":"governanceLevel !== 'L1' && enableDebtGates","preflight":true},{"id":"conformance","name":"conformance","level":"L2","kind":"warn","cmd":["node","scripts/conformance.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/conformance.mjs', 'conformance')"},{"id":"gold-audit","name":"gold-audit","level":"L2","kind":"warn","cmd":["node","scripts/gold-audit.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')"},{"id":"arc42-slots","name":"arc42 slots (INV-144)","level":"L2","kind":"warn","cmd":["node","scripts/check-arc42-slots.mjs"],"condition":"gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')","preflight":true},{"id":"doc-set","name":"doc-set","level":"L2","kind":"warn","cmd":["node","scripts/check-doc-set.mjs","--check"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')","preflight":true},{"id":"decision-registry","name":"decision registry","level":"L2","kind":"check","cmd":["node","scripts/check-decision-registry.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')","preflight":true},{"id":"anti-fake-green","name":"anti-fake-green","level":"L2","kind":"warn","cmd":["node","scripts/check-anti-fake-green.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-anti-fake-green.mjs', 'anti-fake-green')"},{"id":"module-coverage-ratchet","name":"module coverage ratchet","level":"L2","kind":"warn","cmd":["node","scripts/verify-module-coverage.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/verify-module-coverage.mjs', 'module coverage ratchet')"},{"id":"agent-return","name":"agent-return envelope (E1 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-agent-return.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-agent-return.mjs', 'agent-return envelope (E1 #1943)')"},{"id":"review-completion","name":"review completion (#2177)","level":"L2","kind":"check","cmd":["node","scripts/check-review-completion.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-review-completion.mjs', 'review completion (#2177)')"},{"id":"refutation-majority","name":"refutation majority (E2 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-refutation-verdicts.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-refutation-verdicts.mjs', 'refutation majority (E2 #1943)')"},{"id":"audit-dry-pass","name":"audit dry-pass (E3 #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-audit-dry-pass.mjs","--all"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-audit-dry-pass.mjs', 'audit dry-pass (E3 #1943)')"},{"id":"handoff-lint","name":"handoff lint (E6a #1943)","level":"L2","kind":"warn","cmd":["node","scripts/check-handoff-doc.mjs"],"emitIf":"enableDebtGates","condition":"gateFilePresent('scripts/check-handoff-doc.mjs', 'handoff lint (E6a #1943)')"},{"id":"cross-model-review","name":"cross-model review (#2358)","level":"L2","kind":"warn","cmd":["node","scripts/check-cross-model-review.mjs"],"emitIf":"enableDebtGates"},{"id":"acceptance-anchor","name":"acceptance anchor (INV-138)","level":"L2","kind":"check","cmd":["node","scripts/check-acceptance.mjs"],"condition":"gateFilePresent('scripts/check-acceptance.mjs', 'acceptance anchor (INV-138)')"},{"id":"tdd-evidence","name":"tdd-evidence (INV-131)","level":"L2","kind":"check","cmd":["node","scripts/check-tdd-evidence.mjs"],"soft":true},{"id":"todo-max-age","name":"todo max-age (INV-133)","level":"L2","kind":"check","cmd":["node","scripts/check-todo-max-age.mjs"],"soft":true},{"id":"nightly-audit-prod","name":"nightly audit (prod scope)","level":"L3","kind":"check","cmd":["npm","audit","--omit=dev","--audit-level=high"],"emitIf":"language === 'typescript' && packageManager === 'npm'","soft":true}];
 
 // ─── #2078 (GATE-1 of #2041) — inspection modes, re-based on the registry.
 // `--dry-run` prints the registry manifest without executing (exit 0, zero
@@ -257,7 +258,8 @@ if (only !== null) {
   const _regGate = GATE_REGISTRY.find((_g) => _g.id === only);
   if (_regGate) only = _regGate.name;
 }
-const _inspect = dryRun || only !== null;
+const _preflight = subcommand === 'preflight';
+const _inspect = dryRun || only !== null || _preflight;
 setMode({ dryRun, only });
 const _failFast =
   failFast &&
@@ -353,7 +355,8 @@ console.log('');
 // layering test see them). ORDER IS THE REGISTRY ORDER.
 
 
-// ── L1 (fast checks — pre-commit) ────────────────────────────────────────
+
+// ── L1 (fast checks — frozen candidate) ─────────────────────────────────
 if (true) {
 
 
@@ -424,51 +427,6 @@ runCheck('no-fake-db imports (INV-34)', 'npx', ['eslint', '--config', 'eslint.co
 
 
 
-runCheck('unit tests', 'npm', ['run', 'test:unit']);
-
-
-
-
-
-
-
-
-if (_inlineInspect('npm-ci drift', 'npx -y npm@<pin> ci --dry-run')) {} else {
-  const _driftStart = Date.now();
-  process.stdout.write('[CHECK] npm-ci drift ... ');
-  let _driftStatus = 'PASS';
-  try {
-    const _pin = existsSync('package.json')
-      ? (JSON.parse(readFileSync('package.json', 'utf-8')).packageManager || '').match(/^npm@(\d+\.\d+\.\d+)/)
-      : null;
-    if (!_pin || !existsSync('package-lock.json')) {
-      console.log('SKIP (no packageManager npm pin or lockfile)');
-    } else {
-      const _r = spawnSync('npx', ['-y', 'npm@' + _pin[1], 'ci', '--dry-run'], { encoding: 'utf-8', shell: false });
-      if (_r.error) {
-        console.log('SKIP (pinned npm@' + _pin[1] + ' unavailable)');
-      } else if (_r.status === 0) {
-        console.log('PASS');
-      } else {
-        console.log('FAIL');
-        process.stdout.write('package-lock.json is out of sync under npm@' + _pin[1] + ' — relock: npx -y npm@' + _pin[1] + ' install --package-lock-only\n');
-        _driftStatus = 'FAIL';
-      }
-    }
-  } catch (_e) {
-    console.log('SKIP (' + (_e && _e.message ? _e.message : 'unreadable package.json') + ')');
-  }
-  pushResult('npm-ci drift', _driftStatus, Date.now() - _driftStart);
-}
-
-
-
-
-
-
-
-
-
 runCheck('no tracked artifacts (INV-129)', 'node', ['scripts/check-no-tracked-artifacts.mjs']);
 
 
@@ -505,15 +463,6 @@ runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
 
 
 
-runCheck('min test execution (INV-25)', 'node', ['scripts/check-min-test-execution.mjs']);
-
-
-
-
-
-
-
-
 runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs']);
 
 
@@ -524,15 +473,6 @@ runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
 
 
 runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
-
-
-
-
-
-
-
-
-runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs']);
 
 
 
@@ -1136,24 +1076,6 @@ runCheck('assertion delta (anti-fake-green)', 'node', ['scripts/check-assertion-
 
 
 
-runCheck('oracle discrimination (anti-fake-green)', 'node', ['scripts/check-oracle-discrimination.mjs']);
-
-
-
-
-
-
-
-
-runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.mjs']);
-
-
-
-
-
-
-
-
 runCheck('source certification (INV-147)', 'node', ['scripts/check-sources.mjs']);
 
 
@@ -1173,6 +1095,222 @@ runCheck('use cases (INV-149)', 'node', ['scripts/check-use-cases.mjs']);
 
 
 runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs']);
+
+
+
+}
+// ── L2 (full checks — pre-push) ──────────────────────────────────────────
+if (level !== 'L1') {
+
+
+
+
+
+
+runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });
+
+
+
+
+
+
+
+  // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
+  if (_inlineInspect('BDD @ignore check', 'grep -rql --include=*.feature @ignore .')) {} else {
+    // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
+    const _bddIgnoreStart = Date.now();
+    const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
+    process.stdout.write('[CHECK] BDD @ignore check ... ');
+    let _bddIgnoreStatus = 'PASS';
+    if (_bddIgnore.error?.code === 'ENOENT') {
+      console.log('FAIL (grep not found — cannot check @ignore tags)');
+      _bddIgnoreStatus = 'FAIL';
+    } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
+      console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
+      _bddIgnoreStatus = 'FAIL';
+    } else if (_bddIgnore.status === 0) {
+      console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
+      _bddIgnoreStatus = 'FAIL';
+    } else {
+      console.log('PASS');
+    }
+    pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);
+  }
+
+
+
+
+
+
+if (gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')) {
+
+runCheck('gdpr controls (#1251)', 'node', ['scripts/check-gdpr-controls.mjs'], { soft: graceActive });
+}
+
+
+
+
+
+
+
+runCheck('commit-footer rationale (INV-119)', 'node', ['scripts/check-commit-footer-rationale.mjs'], { soft: graceActive });
+
+
+
+
+
+
+
+
+runWarnCheck('docs updated with code (#356)', 'node', ['scripts/check-docs.mjs']);
+
+
+
+
+
+
+
+
+runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs']);
+
+
+
+
+
+
+
+
+runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check']);
+
+
+
+
+
+
+if (gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')) {
+
+runWarnCheck('arc42 slots (INV-144)', 'node', ['scripts/check-arc42-slots.mjs']);
+}
+
+
+
+
+
+if (gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')) {
+
+runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check']);
+}
+
+
+
+
+
+if (gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')) {
+
+runCheck('decision registry', 'node', ['scripts/check-decision-registry.mjs']);
+}
+
+
+  // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
+  // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
+
+  if (gateFilePresent('scripts/test-gate-layering.mjs', 'gate layering')) {
+    runCheck('gate layering', 'node', ['scripts/test-gate-layering.mjs'])
+  }
+
+}
+// ── L3 (nightly lane — AC-2041.1, mirrors 06-nightly-lite.yml) ───────────
+if (level === 'L3' || level === 'L4') {
+
+}
+
+
+
+
+const _preflightPassed = getFailed() === 0;
+if (!_preflight && (_preflightPassed || dryRun || only !== null)) {
+
+// ── L1 (fast checks — frozen candidate) ─────────────────────────────────
+if (true) {
+
+
+
+
+
+
+runCheck('unit tests', 'npm', ['run', 'test:unit']);
+
+
+
+
+
+
+
+
+if (_inlineInspect('npm-ci drift', 'npx -y npm@<pin> ci --dry-run')) {} else {
+  const _driftStart = Date.now();
+  process.stdout.write('[CHECK] npm-ci drift ... ');
+  let _driftStatus = 'PASS';
+  try {
+    const _pin = existsSync('package.json')
+      ? (JSON.parse(readFileSync('package.json', 'utf-8')).packageManager || '').match(/^npm@(\d+\.\d+\.\d+)/)
+      : null;
+    if (!_pin || !existsSync('package-lock.json')) {
+      console.log('SKIP (no packageManager npm pin or lockfile)');
+    } else {
+      const _r = spawnSync('npx', ['-y', 'npm@' + _pin[1], 'ci', '--dry-run'], { encoding: 'utf-8', shell: false });
+      if (_r.error) {
+        console.log('SKIP (pinned npm@' + _pin[1] + ' unavailable)');
+      } else if (_r.status === 0) {
+        console.log('PASS');
+      } else {
+        console.log('FAIL');
+        process.stdout.write('package-lock.json is out of sync under npm@' + _pin[1] + ' — relock: npx -y npm@' + _pin[1] + ' install --package-lock-only\n');
+        _driftStatus = 'FAIL';
+      }
+    }
+  } catch (_e) {
+    console.log('SKIP (' + (_e && _e.message ? _e.message : 'unreadable package.json') + ')');
+  }
+  pushResult('npm-ci drift', _driftStatus, Date.now() - _driftStart);
+}
+
+
+
+
+
+
+
+
+
+runCheck('min test execution (INV-25)', 'node', ['scripts/check-min-test-execution.mjs']);
+
+
+
+
+
+
+
+
+runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs']);
+
+
+
+
+
+
+
+
+runCheck('oracle discrimination (anti-fake-green)', 'node', ['scripts/check-oracle-discrimination.mjs']);
+
+
+
+
+
+
+
+
+runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.mjs']);
 
 
 
@@ -1376,52 +1514,6 @@ runCheck('mutation baseline (#1508)', 'node', ['scripts/verify-mutation-baseline
 
 
 
-runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });
-
-
-
-
-
-
-
-  // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
-  if (_inlineInspect('BDD @ignore check', 'grep -rql --include=*.feature @ignore .')) {} else {
-    // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
-    const _bddIgnoreStart = Date.now();
-    const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
-    process.stdout.write('[CHECK] BDD @ignore check ... ');
-    let _bddIgnoreStatus = 'PASS';
-    if (_bddIgnore.error?.code === 'ENOENT') {
-      console.log('FAIL (grep not found — cannot check @ignore tags)');
-      _bddIgnoreStatus = 'FAIL';
-    } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
-      console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
-      _bddIgnoreStatus = 'FAIL';
-    } else if (_bddIgnore.status === 0) {
-      console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
-      _bddIgnoreStatus = 'FAIL';
-    } else {
-      console.log('PASS');
-    }
-    pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);
-  }
-
-
-
-
-
-
-if (gateFilePresent('scripts/check-gdpr-controls.mjs', 'gdpr controls (#1251)')) {
-
-runCheck('gdpr controls (#1251)', 'node', ['scripts/check-gdpr-controls.mjs'], { soft: graceActive });
-}
-
-
-
-
-
-
-
 runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
 
 
@@ -1433,42 +1525,6 @@ const _debtRatchetArgs = _coverageRunStartedAt === null
   ? ['scripts/debt-report.mjs', '--gate']
   : ['scripts/debt-report.mjs', '--gate', '--coverage-summary', 'coverage/coverage-summary.json', '--coverage-started-at', String(_coverageRunStartedAt)];
 runCheck('debt ratchet', 'node', _debtRatchetArgs, { soft: graceActive });
-
-
-
-
-
-
-
-runCheck('commit-footer rationale (INV-119)', 'node', ['scripts/check-commit-footer-rationale.mjs'], { soft: graceActive });
-
-
-
-
-
-
-
-
-runWarnCheck('docs updated with code (#356)', 'node', ['scripts/check-docs.mjs']);
-
-
-
-
-
-
-
-
-runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs']);
-
-
-
-
-
-
-
-
-runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check']);
-
 
 
 
@@ -1486,33 +1542,6 @@ runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check']);
 if (gateFilePresent('scripts/gold-audit.mjs', 'gold-audit')) {
 
 runWarnCheck('gold-audit', 'node', ['scripts/gold-audit.mjs', '--check']);
-}
-
-
-
-
-
-if (gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')) {
-
-runWarnCheck('arc42 slots (INV-144)', 'node', ['scripts/check-arc42-slots.mjs']);
-}
-
-
-
-
-
-if (gateFilePresent('scripts/check-doc-set.mjs', 'doc-set')) {
-
-runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check']);
-}
-
-
-
-
-
-if (gateFilePresent('scripts/check-decision-registry.mjs', 'decision registry')) {
-
-runCheck('decision registry', 'node', ['scripts/check-decision-registry.mjs']);
 }
 
 
@@ -1617,9 +1646,7 @@ runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], {
 
   // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
   // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
-  if (gateFilePresent('scripts/test-gate-layering.mjs', 'gate layering')) {
-    runCheck('gate layering', 'node', ['scripts/test-gate-layering.mjs'])
-  }
+
 }
 // ── L3 (nightly lane — AC-2041.1, mirrors 06-nightly-lite.yml) ───────────
 if (level === 'L3' || level === 'L4') {
@@ -1634,6 +1661,11 @@ runCheck('nightly audit (prod scope)', 'npm', ['audit', '--omit=dev', '--audit-l
 
 
 }
+
+
+}
+
+
 
 // ─── Local extension slot (#2666) ────────────────────────────────────────────
 // scripts/check-all.local.json is a declared, adopt-safe home for PROJECT-LOCAL
@@ -1706,7 +1738,9 @@ function _localChecksAllowed(cwd) {
   return _cfg.status === 0 && _cfg.stdout === 'true\n';
 }
 
-if (_failFastInlineSkip('local checks')) {
+if (_preflight || (!_preflightPassed && !dryRun && only === null)) {
+  console.log('[CHECK] local checks ... SKIP (qualification not started)');
+} else if (_failFastInlineSkip('local checks')) {
   // A prior hard L1 result makes local-check discovery unnecessary. Named
   // `--gate [local] ...` inspection remains eligible because the helper above
   // leaves inspection runs out of this guard.
@@ -1854,5 +1888,5 @@ if (_failedCount > 0) {
   console.error('');
   process.exit(1);
 } else {
-  console.log('=== ALL PASSED ===\n');
+  console.log(_preflight ? '=== PREFLIGHT PASSED (diagnostics only) ===\n' : '=== ALL PASSED ===\n');
 }

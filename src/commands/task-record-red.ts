@@ -11,8 +11,8 @@ import {
 import {
   blobShaInCommit,
   currentBranch,
-  hasDirtyTestPaths,
-  pathExistsInCommit,
+  commitPathStatus,
+  dirtyTestPathStatus,
 } from '../evidence/git-checks.js'
 import { normalizeChainId, readTaskId, readUnifiedState } from './task-state.js'
 import { loadConfig } from '../utils/config.js'
@@ -28,13 +28,6 @@ export interface RecordRedOptions {
   testCmd?: readonly string[]
   /** Test-run timeout in ms. Default 60_000; clamped to [1000, 600_000]. */
   timeoutMs?: number
-  /**
-   * Skip the dirty-`__tests__` and test-path-in-HEAD refusals (#1988). Only
-   * for exotic flows (e.g. re-recording evidence at a detached-worktree SHA);
-   * the default (false) is the safe path that keeps evidence pointing at a
-   * commit that actually contains the RED test.
-   */
-  force?: boolean
 }
 
 export interface RecordRedSuccess {
@@ -186,31 +179,43 @@ function resolveHeadSha(dir: string, timeoutMs: number): string | RecordRedFailu
 
 /**
  * #1988: refuse to record evidence that would point at a commit not actually
- * containing the RED test — either because `__tests__/**` is dirty (the
- * eventual test_commit_sha wouldn't yet include it) or because `testPath`
- * isn't present in HEAD at all. `--force` is the escape hatch for exotic
- * flows (e.g. re-recording evidence at a detached-worktree SHA).
+ * containing the RED test — either because the exact `testPath` is dirty (the
+ * eventual test_commit_sha wouldn't yet include it) or because it isn't
+ * present in HEAD at all. No flag may weaken this exact-subject binding.
  */
 function checkTestCommitIntegrity(
   opts: RecordRedOptions,
   sha: string,
   dir: string,
 ): RecordRedFailure | null {
-  if (opts.force) return null
-  if (hasDirtyTestPaths(dir)) {
+  const dirty = dirtyTestPathStatus(dir, opts.testPath)
+  if (!dirty.ok) {
+    return {
+      ok: false,
+      reason: `cannot verify test_path "${opts.testPath}" before recording RED: ${dirty.reason}`,
+    }
+  }
+  if (dirty.value) {
     return {
       ok: false,
       reason:
         `commit the RED test first — evidence must point at the commit that contains it ` +
-        `(__tests__/** has uncommitted changes). Pass --force to override.`,
+        `(${opts.testPath} has uncommitted changes).`,
     }
   }
-  if (!pathExistsInCommit(sha, opts.testPath, dir)) {
+  const present = commitPathStatus(sha, opts.testPath, dir)
+  if (!present.ok) {
+    return {
+      ok: false,
+      reason: `cannot verify test_path "${opts.testPath}" in HEAD before recording RED: ${present.reason}`,
+    }
+  }
+  if (!present.value) {
     return {
       ok: false,
       reason:
         `test_path "${opts.testPath}" not found in HEAD (${sha}) — evidence must point at a ` +
-        `commit that contains the RED test. Pass --force to override.`,
+        `commit that contains the RED test.`,
     }
   }
   return null

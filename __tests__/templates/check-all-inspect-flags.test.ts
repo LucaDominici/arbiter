@@ -206,7 +206,7 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
   it('executes rendered inline checks through the fail-fast seam after a hard L1 failure (AC-3)', () => {
     const result = runRenderedGate(['check', '--fail-fast'])
     expect(result.status).toBe(1)
-    for (const name of ['npm-ci drift', 'workflow runners', 'ci alignment']) {
+    for (const name of ['workflow runners', 'ci alignment']) {
       expect(result.stdout).toContain(
         `[CHECK] ${name} ... SKIP (fail-fast after prior hard failure`,
       )
@@ -215,21 +215,23 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     expect(result.artifact.pass).toBe(false)
   })
 
-  it('keeps emitted L2 accumulation when --fail-fast is requested (AC-2, AC-3)', () => {
+  it('collects emitted L2 cheap failures without starting suites when --fail-fast is requested (AC-2, AC-3)', () => {
     const result = runRenderedGate(['gate', '--fail-fast'], {}, { build: true })
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain('[CHECK] unit tests ...')
+    expect(result.stdout).not.toContain('[CHECK] unit tests ...')
+    expect(result.stdout).toContain('[CHECK] doc links ...')
     expect(result.stdout).not.toContain('SKIP (fail-fast after prior hard failure')
     expect(result.marker).toBe(false)
   })
 
-  it('keeps emitted CI accumulation when --fail-fast is requested (AC-2, AC-3)', () => {
+  it('collects emitted CI cheap failures without starting suites when --fail-fast is requested (AC-2, AC-3)', () => {
     const result = runRenderedGate(['check', '--fail-fast'], {
       CI: '1',
       GITHUB_ACTIONS: '1',
     })
     expect(result.status).toBe(1)
-    expect(result.stdout).toContain('[CHECK] unit tests ...')
+    expect(result.stdout).not.toContain('[CHECK] unit tests ...')
+    expect(result.stdout).toContain('[CHECK] doc links ...')
     expect(result.stdout).not.toContain('SKIP (fail-fast after prior hard failure')
     expect(result.marker).toBe(false)
   })

@@ -106,7 +106,7 @@ graph TB
 
     subgraph orch["ORCHESTRATION LAYER (optional) — the /ship, /drain engine"]
       ship["<b>Ship Engine</b><br/>src/commands/task-ship.ts<br/>next-action computer (ADR-088/093)"]
-      state["<b>Task State Machine</b><br/>src/commands/task-state.ts<br/>10 phases, single-writer status.json"]
+      state["<b>Task State Machine</b><br/>src/commands/task-state.ts<br/>8 phases, single-writer status.json"]
       vbridge["<b>Verification Bridge</b><br/>src/verify, verify-plan.ts<br/>rule engine → PASS/REJECT (ADR-039)"]
       fixred["<b>Fix-on-Red (policy)</b><br/>docs/REFERENCE/fix-on-red.md<br/>2-strike, fail-closed escalate — agent-reasoned"]
       gexec["<b>Gate Mutex</b><br/>src/commands/gate-exec.ts<br/>flock(1), keyed on git-common-dir"]
@@ -114,7 +114,7 @@ graph TB
     end
 
     subgraph audit["EVIDENCE & GRAPH"]
-      ev["<b>Evidence Store</b><br/>src/evidence, .arbiter/evidence<br/>TDD · plan-review · redteam · gate"]
+      ev["<b>Evidence Store</b><br/>src/evidence, .arbiter/evidence<br/>TDD · final review · acceptance · gate"]
       graph["<b>Provenance Graph</b><br/>src/graph (ADR-040)<br/>enforces/proves edges"]
       plugin["<b>Plugin API</b><br/>src/types/plugin.ts, src/utils/plugin-loader.ts<br/>config-driven, no CLI subcommand (ADR-031/048)"]
     end
@@ -159,12 +159,12 @@ graph TB
 | Gold Audit           | Score arbiter's own governance completeness (D-* dimensions) against a ratcheted baseline                    |
 | Self-Dogfood Check   | Fail-closed diff between shipped templates and arbiter's materialized `.claude/`                             |
 | Ship Engine          | Deterministic next-action computer; phase→step; advance-on-green                                             |
-| Task State Machine   | 10-phase lifecycle; single-writer `status.json`; handoff/clear strategy                                      |
-| Verification Bridge  | Plan-review rule engine; claim-verified gates (plan digest, TDD evidence, enforcement-weakening)             |
+| Task State Machine   | 8-phase result-first lifecycle; single-writer `status.json`; durable cursor and treatment                    |
+| Verification Bridge  | Claim-verified gates for TDD, final review, per-AC acceptance, exact-subject gate and landing                |
 | Fix-on-Red           | Failure-signature 2-strike policy, agent-reasoned since T2 (no CLI engine); fail-closed `escalate-uncertain` |
 | Gate Mutex           | `flock(1)` serialization of expensive gates across parallel worktrees of one repo                            |
 | Worktree Manager     | Per-agent isolated worktrees; per-worktree caches; merge-guarded harvest                                     |
-| Evidence Store       | Append-only TDD / plan-review / red-team / gate / companion artifacts under `.arbiter/`                      |
+| Evidence Store       | Append-only TDD / final-review / acceptance-fit / gate / companion artifacts under `.arbiter/`               |
 | Provenance Graph     | First-class `enforces` / `proves` edges linking invariants ↔ gates ↔ tests                                   |
 | Plugin API           | Config-driven third-party rule plugins (`arbiter.json` `plugins[]`); no CLI subcommand (v1.1)                |
 
@@ -184,42 +184,35 @@ between engine calls (`task-ship.ts:3-10`).
 graph TB
     subgraph driver["DRIVER LOOP (model side) — generated /ship command"]
       loop["ship.md.ejs loop:<br/>1. arbiter ship #N → get step<br/>2. do the model-work<br/>3. arbiter ship #N --advance"]
-      rt["🔴 red-team agents<br/>(READ-ONLY challenge)"]
-      rev["🟡 review swarm<br/>(N auditors + silent-failure<br/>hunter + adversarial verifier)"]
-      cc["context-checker<br/>(Phase-1 verify)"]
-      br["bridge-reviewer<br/>(Phase-2 combined verdict)"]
+      rev["Independent final reviewer panel<br/>(persisted pertinent verticals)"]
     end
 
     subgraph engine["NEXT-ACTION COMPUTER (deterministic, TS engine)"]
       seed["seedShipState<br/>normalize #NNN, seed status.json"]
-      tierR["<b>Tier Resolver</b><br/>size(diff files+LOC) → XS/S/Standard<br/>fallback: plan units → widest tier"]
+      tierR["<b>Treatment Resolver</b><br/>complete evidence → XS/S/Standard<br/>missing evidence → Standard"]
       step["<b>shipStepFor(phase,tier,profile)</b><br/>→ ShipStep{action, reviewAgents,<br/>verticals, command}"]
       adv["advanceShipPhase<br/>runTaskAdvance → phase gate<br/>throws if RED (never advances)"]
-      counts["<b>Count tables</b><br/>REDTEAM_AGENTS XS1/S2/Std3<br/>REVIEW_AGENTS XS1/S1/Std2<br/>verticalsForTier 3/4/7"]
+      counts["<b>Persisted ShipTreatment</b><br/>plan depth · reviewers · verticals<br/>acceptance fit · model capability"]
     end
 
-    subgraph route["DISPATCH ORACLE (drift-proof config SSOT)"]
-      matrix[".claude/agent-dispatch-matrix.json<br/>tier × track × review_mode × pr_type<br/><b>UNION-only, never narrows</b>"]
+    subgraph route["DISPATCH PROJECTION + ROUTING"]
+      matrix[".claude/agent-dispatch-matrix.json<br/>projection and test oracle<br/><b>not runtime policy</b>"]
       audr[".claude/auditor-routing.json<br/>7 weighted auditors<br/>always_on: bugs,type-safety,domain<br/>tag_map: glob → auditors"]
     end
 
     subgraph gates["FAIL-CLOSED VERIFICATION GATES"]
-      pg["Plan-review gate<br/>SHA-256 plan-digest match<br/>(task.ts:287-318)"]
+      pg["Mechanical plan admission<br/>acceptance · non-goals · files · proof"]
       tg["TDD-evidence gate<br/>sha-on-branch + re-executed at test_commit_sha (#1957)<br/>(task.ts:450-490, verify-tdd.ts)"]
-      sg["🛑 stop-evidence-guard (INV-114)<br/>3 correlated artifacts required:<br/>plan-review · agents-dispatched · gate-pass"]
-      cap["Verdict math<br/>score=100·Σw(pass)/Σw(all)<br/>unresolved RT-xx caps auditor→0"]
+      sg["stop-evidence-guard (INV-114)<br/>final-review sidecar + exact-subject gate"]
+      cap["Review completion<br/>blocking findings + per-AC acceptance fit"]
     end
 
     loop --> seed --> tierR --> step
     step --> counts
-    step -->|"red-team-review phase"| rt
     step -->|"refactor phase"| rev
-    step -.reads verticals.-> matrix
     rev -.routed by.-> audr
-    matrix -.mirrors.-> counts
-    rt -->|"findings RT-xx<br/>(auditorHint, resolved:false)"| cap
-    rev --> cc --> br
-    br --> cap
+    matrix -.tests parity.-> counts
+    rev --> cap
     cap --> sg
     loop -->|"--advance"| adv
     adv --> pg & tg
@@ -231,57 +224,28 @@ graph TB
 
 ### The dynamic rules, precisely (with sources)
 
-**1. Tier is auto-computed from issue SIZE, not chosen by a human, and NOT by model identity.**
-`arbiter ship` computes the change size (files + LOC), falls back to the plan's unit estimate,
-then to the widest tier (`Standard`) as a fail-safe (`ship.md.ejs:89`; `task-ship.ts:81-84`).
-There is **no model-tier gating** anywhere in arbiter — the earlier model-selection machinery was
-deliberately removed and is refused re-entry (`AGENTS.md` §Model-Pyramid; `task-ship.ts:86-90`).
-The selected tier may be widened by two deterministic signals: a FRESH `graphify-out/graph.json`
-blast-radius over the plan's `files:` manifest, or a `wave`/`epic` label or milestone bundle
-(floor: Standard). Signals may only widen the tier, never narrow it. Tier/routing gates MUST NOT
-be driven by text-only LLM classification of issue text (Study C, epic #2176: 75.6% adjacent
-accuracy, 20% fail-dangerous L→S on 45 real issues).
+**1. The resolver is the only runtime policy.** `resolveShipTreatment` consumes the requested tier,
+complete file/caller evidence, graph blast radius, labels and sensitive paths. It may widen but
+never narrow. Incomplete narrow-tier evidence resolves to Standard, and the persisted treatment is
+trusted by later read-only calls.
 
-**2. Four distinct count-axes all derive from tier — do not conflate them:**
+**2. Review is result-first.** XS, S and ordinary Standard work use one pertinent independent final
+reviewer. Sensitive auth, money, concurrency, migration, data-integrity or deployment work may add
+specialists, capped at three. The same panel returns acceptance fit for every frozen AC.
 
-| Axis                           | XS  | S   | Standard | Source                       |
-| ------------------------------ | --- | --- | -------- | ---------------------------- |
-| Red-team challenge agents      | 1   | 2   | 3        | `task-ship.ts:77`            |
-| Refactor-phase review agents   | 1   | 1   | 2        | `task-ship.ts:79`            |
-| `/review` reviewers            | 3   | 3   | 5        | `.claude/commands/review.md` |
-| Review **verticals** (breadth) | 3   | 4   | 7        | `task-ship.ts:96-100`        |
+**3. The matrix is a projection and test oracle.** `agent-dispatch-matrix.json` is compared against
+the compiled resolver by `check-agent-dispatch.mjs`; it is not read to make a second runtime tier
+decision. `route-auditors.mjs` calls the resolver and unions in file-path specialists.
 
-Verticals widen with size: XS = `bugs, type-safety, domain`; S = `+test-quality`; Standard =
-`+security, data-integrity, silent-failures`.
+**4. Completion is fail-closed (INV-114).** `.arbiter/agents-dispatched.json` must prove the exact
+persisted reviewer panel, acceptance-fit evidence must cover every criterion, and
+`.arbiter/gate-pass.json` must bind the exact source tree, branch, task, checkout, toolchain, level
+and TTL. Source changes invalidate dependent evidence.
 
-A file-path-matched security/data-integrity surface escalates refactor-phase review to 3 agents (#2178).
-
-**3. Which verticals actually fire is resolved UNION-only, fail-safe toward MORE review.**
-`agent-dispatch-matrix.json` resolves `tier × track × review_mode × pr_type` additively and never
-narrows below the tier floor. `auditor-routing.json` maps changed-file globs → auditors
-(`migrations/** → data-integrity+security`, `**/*.env* → security`), with an `always_on` floor of
-`bugs, type-safety, domain` and `critical_paths` that force **all** auditors. A skip can never
-raise the verdict score (no inflation by omission).
-
-**4. The weighted verdict makes unresolved findings mathematically block PASS.**
-`score = 100 × Σ(weight of passing active auditors) / Σ(weight of ALL active auditors)`; ladder
-`≥80 PASS / ≥60 CONCERNS / ≥40 REWORK / <40 FAIL`. Every still-`resolved:false` red-team finding
-caps its mapped auditor's score to 0 (`--caps`), so findings-resolution is _enforced arithmetic_,
-not advice.
-
-**5. Completion is fail-closed on three correlated artifacts (INV-114).**
-The `stop-evidence-guard` hook blocks any completion claim until `plan-review/latest.json`,
-`.arbiter/agents-dispatched.json`, and `.arbiter/gate-pass.json` all exist and correlate to the
-current branch+SHA. "I reviewed it" without real agent tool-calls does not satisfy the gate
-(`ship.md.ejs:230`).
-
-**6. Governance level and collaboration mode gate the whole ceremony.**
-At `governanceLevel === 'L1'` there is **no** red-team / multi-agent review phase at all. In
-`trunk-solo` collaboration mode the review swarm collapses to _1 self-review agent + 1 adversarial
-verifier_. Autonomy grants (`AUTONOMY_GRANTS`, `ship-profile.ts:153-165`) scale L0→L3 what the loop
-may do unattended (auto-advance, auto-merge, fix-on-red, wave-batch, sub-agent auto-spawn) — but
-floor invariants (2-strike, reproduce-before-push, no `--no-verify`, no commit-to-main) **cannot be
-granted away**.
+**5. Checkpoint and delivery obligations differ.** Local TDD commits retain staged secret scanning,
+staged-file economy checks and RED integrity. Targeted checks run during implementation; one full
+L1 qualifies the frozen candidate, and L2 qualifies it before push. Security, privacy, coverage and
+debt-ratchet thresholds remain unchanged.
 
 For the batch/wave sibling of this loop (`/drain`, issue clustering, worktree pool, gate mutex),
 see [`arc42.md`](arc42.md) §6.3 (Runtime View — Wave Drain).

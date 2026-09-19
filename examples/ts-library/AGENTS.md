@@ -15,7 +15,7 @@
 | **Stack** | typescript |
 | **Build** | `npm run build` |
 | **Test** | `npm run test` |
-| **Gate** | `node scripts/check-all.mjs` (mandatory before commit) |
+| **Gate** | `node scripts/check-all.mjs` (mandatory for the frozen delivery candidate) |
 
 ---
 
@@ -101,7 +101,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-21:** Every TODO comment must reference a task ID: `TODO(#NNN)`
 - **INV-22:** Branch naming: `task/#NNN-description`
 - **INV-23:** No direct commits to `main` — all changes via task branches + PR
-- **INV-24:** Gate must pass before commit: `node scripts/check-all.mjs L1`
+- **INV-24:** Checkpoint commits preserve staged-file safety; full gates qualify delivery
 - **INV-25:** Gate must pass before push: `node scripts/check-all.mjs L2`
 - **INV-31:** Suppressions must have mandatory expiry
 - **INV-37:** Generated githooks
@@ -174,7 +174,7 @@ Examples:
 ## Gate System
 
 ```
-L1 (fast, pre-commit):    echo &#34;no lint configured&#34;
+L1 (delivery candidate): echo &#34;no lint configured&#34;
                           npx prettier --check .
                           npm run test
 
@@ -187,7 +187,7 @@ L4 (compliance):          L3 + evidence harness + STRIDE risk + TRACK_ROUTER
 
 Run locally:
 ```bash
-node scripts/check-all.mjs L1   # before commit
+node scripts/check-all.mjs L1   # qualify the frozen delivery candidate
 node scripts/check-all.mjs L2   # before push
 ```
 
@@ -200,7 +200,7 @@ Changes pass through five enforcement layers:
 | Layer | Mechanism | Coverage |
 |-------|-----------|----------|
 | Edit-time | Claude Code hooks (`.claude/hooks/`) | Claude Code edits only |
-| Pre-commit | `.githooks/pre-commit` — runs L1 gate | All editors (`git commit`) |
+| Pre-commit | `.githooks/pre-commit` — staged secrets/economy checks and RED integrity | All editors (`git commit`) |
 | Pre-push | `.githooks/pre-push` — runs L2 gate | All pushes |
 | CI | GitHub Actions / equivalent | All PRs |
 | Branch protection | See ADR-007 | Force-push, direct merge |

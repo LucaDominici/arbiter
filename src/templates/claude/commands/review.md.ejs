@@ -23,8 +23,8 @@ diff size, a routing matrix, or prose.
    targeted certification evidence.
 3. Dispatch one independent reviewer per `reviewerVerticals` entry. Do not add seats beyond
    `finalReviewers`. Reviewer agents are distinct from the implementer.
-4. Run the independent acceptance-fit verifier against every frozen criterion in parallel with
-   code review. It is not a code-review seat.
+4. The final reviewer also returns acceptance fit for every frozen criterion. Do not dispatch a
+   second general verifier. Add seats only for the sensitive verticals selected by the treatment.
 5. Submit the complete code-review panel once:
 
 ```bash
@@ -34,7 +34,8 @@ JSON
 node scripts/check-review-completion.mjs --task '#NNN'
 ```
 
-The recorder stamps branch and SHA and writes the sidecar from the persisted treatment. The checker
+The panel submission includes the final reviewer's all-PASS acceptance fit. The recorder stamps
+branch and SHA and writes both correlated artifacts from the persisted treatment. The checker
 rejects missing or malformed envelopes, stale subjects, sidecar/treatment drift, and applicable
 MED/HIGH/CRITICAL findings. A missing envelope may be retried once in the same round. A returned
 finding is reconciled with every other finding from that round in one fix batch.

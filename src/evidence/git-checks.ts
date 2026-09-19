@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { runCli } from '../utils/run-cli.js'
+import { runCli, type RunCliResult } from '../utils/run-cli.js'
 
 // Pre-push hook rsyncs to a '#'-free temp dir without .git when the worktree
 // path contains '#'. ARBITER_HOOK_GIT_CWD points back to the real repo so git
@@ -8,47 +8,56 @@ export function gitCwd(dir?: string): string {
   return process.env.ARBITER_HOOK_GIT_CWD || dir || process.cwd()
 }
 
-export function shaExistsOnBranch(sha: string, dir?: string): boolean {
+type GitQuery<T> = { ok: true; value: T } | { ok: false; reason: string }
+
+function gitQuery(args: readonly string[], dir?: string): GitQuery<RunCliResult> {
   try {
-    const result = runCli('git', ['merge-base', '--is-ancestor', sha, 'HEAD'], {
-      cwd: gitCwd(dir),
-      timeoutMs: 5000,
-    })
-    return result.exitCode === 0
-  } catch {
-    return false
+    const result = runCli('git', [...args], { cwd: gitCwd(dir), timeoutMs: 5000 })
+    if (result.exitCode !== 0) {
+      const detail = result.stderr.trim()
+      return {
+        ok: false,
+        reason: `git ${args.join(' ')} failed with exit ${result.exitCode}${detail ? `: ${detail}` : ''}`,
+      }
+    }
+    return { ok: true, value: result }
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `git ${args.join(' ')} failed: ${err instanceof Error ? err.message : String(err)}`,
+    }
   }
+}
+
+export function shaExistsOnBranch(sha: string, dir?: string): boolean {
+  return gitQuery(['merge-base', '--is-ancestor', sha, 'HEAD'], dir).ok
 }
 
 /**
- * True when the working tree or index has uncommitted changes under
- * `__tests__/**` (staged or unstaged, tracked or untracked). Used to refuse
- * `record-red` before the evidence's `test_commit_sha` can point at a commit
+ * Inspect one recorded test path for staged, unstaged, or untracked changes.
+ * Used to refuse `record-red` before `test_commit_sha` can point at a commit
  * that does not yet contain the RED test (#1988).
  */
-export function hasDirtyTestPaths(dir?: string): boolean {
-  try {
-    const result = runCli(
-      'git',
-      ['status', '--porcelain', '--untracked-files=all', '--', '__tests__'],
-      { cwd: gitCwd(dir), timeoutMs: 5000 },
-    )
-    return result.exitCode === 0 && result.stdout.trim().length > 0
-  } catch {
-    return false
-  }
+export function dirtyTestPathStatus(dir?: string, testPath = '__tests__'): GitQuery<boolean> {
+  const result = gitQuery(['status', '--porcelain', '--untracked-files=all', '--', testPath], dir)
+  return result.ok ? { ok: true, value: result.value.stdout.trim().length > 0 } : result
+}
+
+export function hasDirtyTestPaths(dir?: string, testPath = '__tests__'): boolean {
+  const result = dirtyTestPathStatus(dir, testPath)
+  // The boolean compatibility helper is used by read-only gates. An inability
+  // to inspect Git must never be interpreted as a clean path.
+  return !result.ok || result.value
+}
+
+export function commitPathStatus(sha: string, path: string, dir?: string): GitQuery<boolean> {
+  const result = gitQuery(['ls-tree', '--name-only', sha, path], dir)
+  return result.ok ? { ok: true, value: result.value.stdout.trim().length > 0 } : result
 }
 
 export function pathExistsInCommit(sha: string, path: string, dir?: string): boolean {
-  try {
-    const result = runCli('git', ['ls-tree', '--name-only', sha, path], {
-      cwd: gitCwd(dir),
-      timeoutMs: 5000,
-    })
-    return result.exitCode === 0 && result.stdout.trim().length > 0
-  } catch {
-    return false
-  }
+  const result = commitPathStatus(sha, path, dir)
+  return result.ok && result.value
 }
 
 /**
@@ -61,20 +70,15 @@ export function tddEvidenceProducedOnBranch(taskId: string, dir?: string): boole
   if (!pathExistsInCommit('HEAD', path, dir)) return false
 
   try {
-    const status = runCli('git', ['status', '--porcelain', '--untracked-files=all', '--', path], {
-      cwd: gitCwd(dir),
-      timeoutMs: 5000,
-    }).stdout.trim()
-    if (status.length > 0) return false
-    const base = runCli('git', ['merge-base', 'origin/main', 'HEAD'], {
-      cwd: gitCwd(dir),
-      timeoutMs: 5000,
-    }).stdout.trim()
+    const statusResult = dirtyTestPathStatus(dir, path)
+    if (!statusResult.ok || statusResult.value) return false
+    const baseResult = gitQuery(['merge-base', 'origin/main', 'HEAD'], dir)
+    if (!baseResult.ok) return false
+    const base = baseResult.value.stdout.trim()
     if (base.length === 0) return false
-    const touched = runCli('git', ['log', '--format=%H', `${base}..HEAD`, '--', path], {
-      cwd: gitCwd(dir),
-      timeoutMs: 5000,
-    }).stdout.trim()
+    const touchedResult = gitQuery(['log', '--format=%H', `${base}..HEAD`, '--', path], dir)
+    if (!touchedResult.ok) return false
+    const touched = touchedResult.value.stdout.trim()
     return touched.length > 0
   } catch {
     // An unresolvable merge-base or git query is unverifiable provenance, never a pass.

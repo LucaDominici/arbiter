@@ -44,13 +44,6 @@ function writeEvidence(dir: string): void {
   writeFileSync(join(evDir, '#549.json'), JSON.stringify(VALID_EVIDENCE), 'utf-8')
 }
 
-/** #2435: the artifact `red-team-review` promises (ship.md §Red-team review). */
-function writeRedTeamEvidence(dir: string): void {
-  const evDir = join(dir, '.arbiter', 'evidence', 'redteam')
-  mkdirSync(evDir, { recursive: true })
-  writeFileSync(join(evDir, '#549.json'), JSON.stringify({ findings: [] }), 'utf-8')
-}
-
 /**
  * #2328: the marker gate now verifies tree, checkout, toolchain, level and age
  * against a REAL checkout, so these cases need a real repo. The marker is built
@@ -133,10 +126,10 @@ describe('legacy → unified migration (#1206, #549)', () => {
     )
   })
 
-  it('red-team-review → red → green → refactor sequence succeeds from legacy seed', () => {
+  it('retired planning phase migrates to plan, then red → green → refactor succeeds', () => {
     seedLegacy('red-team-review')
     writeEvidence(dir)
-    writeRedTeamEvidence(dir)
+    expect(phaseOf()).toBe('plan')
     runTaskAdvance({ to: 'red', dir })
     runTaskAdvance({ to: 'green', dir })
     runTaskAdvance({ to: 'refactor', dir })
@@ -255,9 +248,8 @@ describe('legacy → unified migration (#1206, #549)', () => {
     }
   })
 
-  it('plan-review gate path: advance to red with skipPlanReview succeeds', () => {
+  it('retired planning phase advances to red without a bypass', () => {
     seedLegacy('red-team-review')
-    writeRedTeamEvidence(dir)
-    expect(() => runTaskAdvance({ to: 'red', dir, skipPlanReview: true })).not.toThrow()
+    expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
   })
 })

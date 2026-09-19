@@ -49,7 +49,7 @@ describe('evidenceStaleness', () => {
   it('accepts evidence after an evidence-only commit (the #2399 defect)', () => {
     const recorded = git('rev-parse', 'HEAD')
     commit('.arbiter/evidence/cross-model/_2399/dispatch.json', '{}\n', 'evidence refresh')
-    commit('.agents/plan/PLAN.json', '{}\n', 'plan refresh')
+    commit('.agents/runtime/session.json', '{}\n', 'runtime refresh')
     expect(evidenceStaleness(repo, recorded)).toBeNull()
   })
 

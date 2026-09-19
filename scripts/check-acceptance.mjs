@@ -31,7 +31,7 @@ import { enforceAcFitCitations } from './lib/agent-return-validate.mjs'
 import { evidenceStaleness } from './lib/evidence-binding.mjs'
 import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 
-const PRE_PHASES = new Set(['preflight', 'plan', 'red-team-review', 'red-team-rework', 'complete'])
+const PRE_PHASES = new Set(['preflight', 'plan', 'complete'])
 const IMPL_PHASES = new Set(['red', 'green', 'refactor'])
 const LATE_PHASES = new Set(['verification', 'close'])
 

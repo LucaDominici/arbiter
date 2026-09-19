@@ -15,9 +15,7 @@
  * hand-copied path list — the two can never independently drift on which
  * files are "codex-track derived".
  *
- * Deliberately excludes `.agents/plan/README.md`: that file is a scaffold
- * directory marker (task-plan folder stand-in), not derived-from-Claude-template
- * content, and is out of scope for this refresh set.
+ * Host-specific scaffolds are outside this derived-from-Claude refresh set.
  */
 
 import { CODEX_DERIVED_RULES } from './codex-known-limitations.js'

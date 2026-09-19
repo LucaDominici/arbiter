@@ -137,7 +137,7 @@
 | [ADR-051: Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy](internal/ADR/051-collaboration-mode-workflow-axis.md) | 051 | active | kind/adr |
 | [ADR-052: Exact-SHA Landing and Cosign Preservation](internal/ADR/052-fast-forward-merge-cosign-preservation.md) | 052 | active | kind/adr |
 | [ADR-053: CI Gap Closures, Per-Tier Nightly, Opt-In Selective Gates, and Local Provenance Log](internal/ADR/053-ci-gap-closures-and-check-ladder.md) | 053 | active | kind/adr |
-| [ADR-054: Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](internal/ADR/054-phase-3-5-handoff-modeled-as-status-json-fields.md) | 054 | active | kind/adr |
+| [ADR-054: Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](internal/ADR/054-phase-3-5-handoff-modeled-as-status-json-fields.md) | 054 | superseded | kind/adr |
 | [ADR-055: SpotBugs security hard-block baseline script (#212)](internal/ADR/055-spotbugs-security-hard-block-baseline-script.md) | 055 | active | kind/adr |
 | [ADR-056: Self-dogfood check for EJS templates (#239)](internal/ADR/056-self-dogfood-check-for-ejs-templates.md) | 056 | active | kind/adr |
 | [ADR-057: V1 Verification Bridge (#253)](internal/ADR/057-v1-verification-bridge.md) | 057 | active | kind/adr |

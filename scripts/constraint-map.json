@@ -92,9 +92,13 @@
     "kind": "accepted",
     "rationale": "Heading for the Tier-2 list; restates CANON-22's rule above. No mechanism can classify a quality rule's empirical tier, so this stays a review-time judgment."
   },
-  "prose:- Skip the gate before committing": {
+  "prose:- Skip staged secret/economy checks or RED integrity on a checkpoint commit": {
     "kind": "githook",
     "enforcer": "pre-commit"
+  },
+  "prose:- Skip full qualification of the frozen candidate before push or PR": {
+    "kind": "githook",
+    "enforcer": "pre-push"
   },
   "prose:- Commit directly to `main`": {
     "kind": "accepted",

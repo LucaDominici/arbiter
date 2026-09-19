@@ -176,9 +176,8 @@ timeout = 3
 #   a hook that mutates the tree mid-turn races Codex's own apply_patch.
 # unbridgeable: wiki-on-commit.mjs — regenerates docs into the working tree; same
 #   mid-turn mutation race as post-edit-dispatch.
-# unbridgeable: pre-edit-plan-anchor.mjs — the Codex track anchors plans through
-#   `.agents/plan/PLAN.json`; bridging the Claude anchor would enforce against the
-#   wrong artifact and block every apply_patch.
+# unbridgeable: pre-edit-plan-anchor.mjs — Codex consumes the shared Ship plan and
+#   persisted task state; this Claude event has no Codex pre-edit equivalent.
 #
 # Not emitted by any generator (present only in arbiter's own .claude/settings.json),
 # so the generated config cannot reference a file it does not emit:
