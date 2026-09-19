@@ -26,6 +26,7 @@ import {
   classifyPrCommits,
   buildPrRow,
   computeAggregate,
+  findEscapes,
 } from '../../scripts/ship-kpi.mjs'
 
 // #2725 classifier exports are read from the namespace so the test keeps the
@@ -87,6 +88,96 @@ describe('isEvidenceOnlySubject / isEvidenceOnlyCommit (#2398)', () => {
   it('touchedOnlyEvidencePaths undefined (sha not local) falls back to subject-only', () => {
     expect(isEvidenceOnlyCommit('chore(#1): refresh evidence', undefined)).toBe(true)
     expect(isEvidenceOnlyCommit('fix(#1): typo', undefined)).toBe(false)
+  })
+})
+
+describe('findEscapes (#2725 AC-4)', () => {
+  const delivery = {
+    number: 270,
+    mergedAt: '2026-09-01T00:00:00Z',
+    issueIds: [2725],
+    commitShas: ['ownsha'],
+  }
+
+  it('finds a revert of a merged delivery inside the escape window', () => {
+    expect(
+      findEscapes(
+        [delivery],
+        [
+          {
+            sha: 'revertsha',
+            date: '2026-09-05T00:00:00Z',
+            subject: 'Revert "Merge pull request #270"',
+            body: '',
+          },
+        ],
+        14,
+      ),
+    ).toEqual([
+      {
+        pr: 270,
+        sha: 'revertsha',
+        kind: 'revert',
+        subject: 'Revert "Merge pull request #270"',
+      },
+    ])
+  })
+
+  it('finds a fix that cites a delivery issue inside the escape window', () => {
+    expect(
+      findEscapes(
+        [delivery],
+        [
+          {
+            sha: 'fixsha',
+            date: '2026-09-05T00:00:00Z',
+            subject: 'fix: repair the regression',
+            body: 'Follow-up for #2725.',
+          },
+        ],
+        14,
+      ),
+    ).toEqual([
+      {
+        pr: 270,
+        sha: 'fixsha',
+        kind: 'fix',
+        subject: 'fix: repair the regression',
+      },
+    ])
+  })
+
+  it.each([
+    ['rejects a commit outside the window', '2026-09-16T00:00:00Z', 'fix: repair #270', ''],
+    ['rejects a delivery own commit', '2026-09-05T00:00:00Z', 'fix: repair #270', ''],
+    ['rejects a digit-boundary partial match', '2026-09-05T00:00:00Z', 'fix: repair #2703', ''],
+    ['rejects chore/docs/test commits', '2026-09-05T00:00:00Z', 'docs: explain #270', ''],
+  ])('%s', (name, date, subject, body) => {
+    const mainCommit = {
+      sha: name.includes('own commit') ? 'ownsha' : 'other-sha',
+      date,
+      subject,
+      body,
+    }
+    expect(findEscapes([delivery], [mainCommit], 14)).toEqual([])
+  })
+
+  it('does not turn red CI rework into an escape or ANDON', () => {
+    expect(findEscapes([{ ...delivery, ciRedAtOpen: true, redCiRuns: 1 }], [], 14)).toEqual([])
+    expect(
+      checkpointVerdict({
+        current: {
+          n: 10,
+          indices: {
+            time: { median: 1, p90: 1 },
+            tokens: { median: 1, p90: 1 },
+          },
+          maxOverhead: 1,
+          escapes: [],
+        },
+        thresholds: { n: 10 },
+      }),
+    ).toBe('HOLD')
   })
 })
 
@@ -241,6 +332,8 @@ describe('classifyPrCommits / buildPrRow / computeAggregate (#2398)', () => {
       ciRedAtOpen: false,
       additions: 10,
       deletions: 2,
+      issueIds: [],
+      commitShas: [],
     })
   })
 
@@ -706,7 +799,15 @@ describe('delivery cost classifiers (#2725)', () => {
         { number: 42, time: 3.456, tokens: 4.567 },
         { number: 7, time: 2, tokens: 1 },
       ],
-      escapes: ['red-ci'],
+      escapes: [
+        {
+          pr: 42,
+          sha: 'abcdef123',
+          kind: 'revert',
+          subject: 'Revert "Merge pull request #42"',
+        },
+      ],
+      escapeWindowOpen: 1,
     })
     expect(entry).toContain('- stratum: Standard')
     expect(entry).toContain('median=1.64, p90=17.98')
@@ -714,7 +815,8 @@ describe('delivery cost classifiers (#2725)', () => {
     expect(entry).toContain(
       '- offenders: #42 overhead_time=3.46 overhead_tokens=4.57; #7 overhead_time=2 overhead_tokens=1',
     )
-    expect(entry).toContain('- escapes: red-ci')
+    expect(entry).toContain('- escape window open: 1')
+    expect(entry).toContain('- escapes: #42 ← abcdef1 revert: Revert "Merge pull request #42"')
   })
 })
 
@@ -772,6 +874,7 @@ describe('checkpoint history selection (#2725 checkpoint fixes)', () => {
         {
           cwd: root,
           encoding: 'utf-8',
+          env: { ...process.env, SHIP_KPI_NOW: '2026-10-01T00:00:00Z' },
         },
       )
       expect(result.status, `stderr:\n${result.stderr}`).toBe(0)
@@ -781,7 +884,8 @@ describe('checkpoint history selection (#2725 checkpoint fixes)', () => {
       expect(log).toContain('- stratum: Standard')
       expect(log).toContain('- Window: 2026-09-02 → 2026-09-19')
       expect(log).toContain('- offenders: #9 overhead_time=4 overhead_tokens=4')
-      expect(log).toContain('- escapes: red-ci')
+      expect(log).toContain('- escape window open: 2')
+      expect(log).toContain('- escapes: none')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

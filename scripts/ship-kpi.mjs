@@ -343,6 +343,55 @@ function containsIssueId(value, issueIds) {
   return delimitedNumbers(value).some((id) => issueIds.includes(id))
 }
 
+function containsIssueReference(value, issueIds) {
+  if (typeof value !== 'string') return false
+  return [...value.matchAll(/#(\d+)/g)].some((match) =>
+    delimitedNumbers(match[1]).some((id) => issueIds.includes(id)),
+  )
+}
+
+/** Find post-merge revert/fix commits that reference a delivered PR or issue. */
+export function findEscapes(deliveries, mainCommits, windowDays = 14) {
+  const windowMs = finiteNumber(windowDays) === null ? 0 : windowDays * 86_400_000
+  const result = []
+  for (const delivery of Array.isArray(deliveries) ? deliveries : []) {
+    const mergedMs = Date.parse(delivery?.mergedAt ?? '')
+    const pr = Number(delivery?.number)
+    if (!Number.isFinite(mergedMs) || !Number.isSafeInteger(pr)) continue
+    const issueIds = [
+      pr,
+      ...(Array.isArray(delivery?.issueIds) ? delivery.issueIds.map(Number) : []),
+    ].filter(Number.isSafeInteger)
+    const ownCommitShas = new Set(
+      (Array.isArray(delivery?.commitShas) ? delivery.commitShas : []).filter(
+        (sha) => typeof sha === 'string',
+      ),
+    )
+    for (const commit of Array.isArray(mainCommits) ? mainCommits : []) {
+      const dateMs = Date.parse(commit?.date ?? '')
+      const sha = commit?.sha
+      const subject = typeof commit?.subject === 'string' ? commit.subject : ''
+      const isRevert = /^revert\b/i.test(subject)
+      const isFix = /^fix(?:\([^)]*\))?:/i.test(subject)
+      if (
+        !Number.isFinite(dateMs) ||
+        dateMs <= mergedMs ||
+        dateMs > mergedMs + windowMs ||
+        typeof sha !== 'string' ||
+        ownCommitShas.has(sha) ||
+        (!isRevert && !isFix) ||
+        isEvidenceOnlySubject(subject)
+      ) {
+        continue
+      }
+      const text = `${subject}\n${typeof commit?.body === 'string' ? commit.body : ''}`
+      if (!containsIssueReference(text, issueIds)) continue
+      result.push({ pr, sha, kind: isRevert ? 'revert' : 'fix', subject })
+    }
+  }
+  return result
+}
+
 export function issueIdsOf(pr) {
   const branchIds = delimitedNumbers(pr?.headRefName)
   const closingIds = (Array.isArray(pr?.closingIssuesReferences) ? pr.closingIssuesReferences : [])
@@ -707,7 +756,9 @@ export function formatLogEntry(result) {
   const time = result?.indices?.time ?? { median: null, p90: null }
   const tokens = result?.indices?.tokens ?? { median: null, p90: null }
   const lines = [
+    '',
     `### Ship checkpoint — ${result?.date ?? 'NO DATA'}`,
+    '',
     `- stratum: ${result?.stratum ?? 'NO DATA'}`,
     `- Window: ${result?.window?.since ?? 'NO DATA'} → ${result?.window?.until ?? 'NO DATA'}`,
     `- n: ${result?.n ?? 'NO DATA'}`,
@@ -716,6 +767,7 @@ export function formatLogEntry(result) {
     `- top bucket: ${result?.topBucket ?? 'NO DATA'}`,
     `- verdict: ${result?.verdict ?? 'NO DATA'}`,
   ]
+  lines.push(`- escape window open: ${result?.escapeWindowOpen ?? 0}`)
   if (result?.verdict === 'ANDON' || result?.verdict === 'ROLLBACK') {
     const offenders = (Array.isArray(result?.offenders) ? result.offenders : [])
       .filter((offender) => offender?.number !== null && offender?.number !== undefined)
@@ -730,9 +782,20 @@ export function formatLogEntry(result) {
           `#${offender.number} overhead_time=${formatMetric(offender.time)} overhead_tokens=${formatMetric(offender.tokens)}`,
       )
     lines.push(`- offenders: ${offenders.length > 0 ? offenders.join('; ') : 'none'}`)
-    const escapes = Array.isArray(result?.escapes) ? result.escapes : []
-    lines.push(`- escapes: ${escapes.length > 0 ? escapes.join(', ') : 'none'}`)
   }
+  const escapes = Array.isArray(result?.escapes) ? result.escapes : []
+  lines.push(
+    `- escapes: ${
+      escapes.length > 0
+        ? escapes
+            .map(
+              (escape) =>
+                `#${escape.pr} ← ${String(escape.sha).slice(0, 7)} ${escape.kind}: ${String(escape.subject).slice(0, 80)}`,
+            )
+            .join('; ')
+        : 'none'
+    }`,
+  )
   return lines.concat('').join('\n')
 }
 
@@ -765,6 +828,8 @@ export function buildPrRow(pr, commits) {
     ciRedAtOpen: hasFailureConclusion(pr.statusCheckRollup),
     additions: pr.additions ?? 0,
     deletions: pr.deletions ?? 0,
+    issueIds: issueIdsOf(pr),
+    commitShas: commits.map((commit) => commit.oid ?? commit.sha).filter(Boolean),
   }
 }
 
@@ -1103,6 +1168,7 @@ function enrichPrRow(row, pr, commits, lines) {
 function fetchPrRow(repo, number, sessions, worktreeDir, attributedFiles) {
   const pr = fetchPrDetail(repo, number)
   const commits = (pr.commits ?? []).map((c) => ({
+    oid: c.oid,
     subject: c.messageHeadline,
     authoredDate: c.authoredDate,
     touchedOnlyEvidencePaths: touchedOnlyEvidencePaths(c.oid),
@@ -1137,6 +1203,32 @@ function fetchMainSubjects(since, until) {
   if (until) args.push(`--until=${until} 23:59:59`)
   const out = git(args)
   return out === '' ? [] : out.split('\n')
+}
+
+function parseMainCommits(output) {
+  return (output ?? '')
+    .split('\x1e')
+    .filter(Boolean)
+    .map((record) => {
+      const [sha, date, subject, ...body] = record.split('\x1f')
+      return { sha, date, subject, body: body.join('\x1f') }
+    })
+    .filter((commit) => commit.sha && commit.date && commit.subject)
+}
+
+function fetchMainCommits(windowStart) {
+  try {
+    return parseMainCommits(
+      git([
+        'log',
+        'origin/main',
+        `--since=${windowStart.toISOString()}`,
+        '--format=%H%x1f%cI%x1f%s%x1f%b%x1e',
+      ]),
+    )
+  } catch {
+    return []
+  }
 }
 
 // ---- CLI --------------------------------------------------------------
@@ -1266,7 +1358,15 @@ function orderedRows(rows, stratum) {
     })
 }
 
-function checkpointForRows(rows, stratum, baseline, weights) {
+function checkpointForRows(
+  rows,
+  stratum,
+  baseline,
+  weights,
+  mainCommits = [],
+  windowDays = DEFAULT_THRESHOLDS.escapeWindowDays,
+  nowMs = Date.now(),
+) {
   const selected = orderedRows(rows, stratum).slice(-10)
   const costs = selected.map((row) => costDelivery(row, weights))
   const indices = costs.map((delivery) => overheadIndices(delivery, baseline, weights))
@@ -1275,9 +1375,11 @@ function checkpointForRows(rows, stratum, baseline, weights) {
   const observed = indices
     .flatMap((index) => [index.time, index.tokens])
     .filter((value) => finiteNumber(value) !== null)
-  const escapes = selected
-    .filter((row) => row.ciRedAtOpen === true || (finiteNumber(row.redCiRuns) ?? 0) > 0)
-    .map(() => 'red-ci')
+  const escapes = findEscapes(selected, mainCommits, windowDays)
+  const escapeWindowOpen = selected.filter((row) => {
+    const mergedMs = mergedAtMs(row)
+    return mergedMs !== null && mergedMs <= nowMs && nowMs - mergedMs < windowDays * 86_400_000
+  }).length
   const ranked = indices
     .map((index, position) => ({
       number: selected[position]?.number ?? null,
@@ -1297,7 +1399,8 @@ function checkpointForRows(rows, stratum, baseline, weights) {
     indices: { time, tokens },
     buckets: {},
     maxOverhead: observed.length > 0 ? Math.max(...observed) : null,
-    escapes: [...new Set(escapes)],
+    escapes,
+    escapeWindowOpen,
     offenders,
     worst: ranked[0] ?? null,
     window: {
@@ -1340,10 +1443,33 @@ function runCheckpoint() {
   const rows = historicalRows()
   const strata = [...new Set(rows.map((row) => row.stratum).filter((stratum) => stratum))].sort()
   const history = checkpointHistory()
+  // SHIP_KPI_NOW pins the clock so the escape-window count is reproducible in tests and replays.
+  const pinned = Date.parse(process.env['SHIP_KPI_NOW'] ?? '')
+  const nowMs = Number.isNaN(pinned) ? Date.now() : pinned
+  const windowStartMs =
+    Math.min(...rows.map(mergedAtMs).filter((value) => value !== null), nowMs) -
+    thresholds.escapeWindowDays * 86_400_000
+  const mainCommits = fetchMainCommits(new Date(windowStartMs))
   const results = strata.map((stratum) => {
-    const current = checkpointForRows(rows, stratum, baseline, thresholds.costWeights)
+    const current = checkpointForRows(
+      rows,
+      stratum,
+      baseline,
+      thresholds.costWeights,
+      mainCommits,
+      thresholds.escapeWindowDays,
+      nowMs,
+    )
     const previousRows = orderedRows(rows, stratum).slice(-20, -10)
-    const previous = checkpointForRows(previousRows, stratum, baseline, thresholds.costWeights)
+    const previous = checkpointForRows(
+      previousRows,
+      stratum,
+      baseline,
+      thresholds.costWeights,
+      mainCommits,
+      thresholds.escapeWindowDays,
+      nowMs,
+    )
     const verdict = checkpointVerdict({ current, previous, baseline, thresholds, history })
     return {
       date: today(),
@@ -1356,6 +1482,7 @@ function runCheckpoint() {
       offenders: current.offenders,
       worst: current.worst,
       escapes: current.escapes,
+      escapeWindowOpen: current.escapeWindowOpen,
     }
   })
   ensureTuningLog()
@@ -1620,6 +1747,16 @@ const SELF_TEST_FIXTURES = [
   {
     name: 'hasFailureConclusion true when any conclusion is FAILURE',
     run: () => hasFailureConclusion([{ conclusion: 'SUCCESS' }, { conclusion: 'FAILURE' }]),
+    expected: true,
+  },
+  {
+    name: 'findEscapes finds a post-merge fix that cites the delivered issue',
+    run: () =>
+      findEscapes(
+        [{ number: 1, mergedAt: '2026-01-01T00:00:00Z', issueIds: [2], commitShas: [] }],
+        [{ sha: 'fixsha', date: '2026-01-02T00:00:00Z', subject: 'fix: repair #2', body: '' }],
+        14,
+      ).length === 1,
     expected: true,
   },
   {
