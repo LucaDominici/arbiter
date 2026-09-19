@@ -129,6 +129,17 @@ next major release.
 INV-100 enforces that every arbiter-scaffolded project declares `collaborationMode`
 (scripts/check-collab-mode-wired.mjs, L1 gate).
 
+## Amendment 2026-09-19
+
+INV-91 follows the same trunk-solo exception as INV-74. A sole developer cannot provide an
+independent approval for their own agent-assisted PR, so `trunk-solo` treats the owner's
+standing approval as satisfying the human-approval requirement. `_ai-draft-check.yml` keeps
+its existing required check name and reports the standing approval without calling the GitHub
+API; `03-human-approval.yml` and `_label-on-approve.yml` no-op for the same reason. Local
+full gates, CI, and independent review evidence remain the quality controls. `peer-review`,
+`gated-review`, and an undefined collaboration mode retain the original fail-closed label
+assertion and approval behavior.
+
 ## Consequences
 
 **Positive:**

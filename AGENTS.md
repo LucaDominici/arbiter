@@ -214,6 +214,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 - **INV-73:** CI tier presence — all 8 workflow files must exist under .github/workflows/
 - **INV-74:** Anti-bot human-approval gate — reviewer must be a human distinct from the PR author
+  - _Amendment 2026-09-19 (ADR-051):_ in `trunk-solo`, standing owner approval replaces an impossible self-approval; required checks stay present and green.
 - **INV-75:** Heartbeat watchdog — T4 nightly ≤26 h, T5 weekly ≤8 d, T5b monthly ≤35 d
 - **INV-76:** SHA-pinned actions only — all third-party GitHub Actions must be pinned to a full 40-char SHA
 - **INV-77:** Top-level workflow permissions — every workflow file must declare explicit top-level permissions
@@ -257,7 +258,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 ## AI-PR Gate (INV-91)
 
 - **INV-91:** AI-PR human-approval gate
-  - AI-authored PRs require the `approved-by-human` label before merge. "AI-authored" (#2552) is detected from: a commit trailer left by agent tooling on any commit in the PR (`Co-Authored-By: Claude/Codex/Copilot/GPT`, `Claude-Session:`, `Codex-Session:`, case-insensitive) — the primary signal, since a human token holder can still open the PR; the `ai-authored` label as a manual override; or `github.event.pull_request.user.type == 'Bot'` as an additional signal for GitHub-App authors. `dependabot[bot]` stays exempt.
+  - AI-authored PRs require the `approved-by-human` label before merge. "AI-authored" (#2552) is detected from: a commit trailer left by agent tooling on any commit in the PR (`Co-Authored-By: Claude/Codex/Copilot/GPT`, `Claude-Session:`, `Codex-Session:`, case-insensitive) — the primary signal, since a human token holder can still open the PR; the `ai-authored` label as a manual override; or `github.event.pull_request.user.type == 'Bot'` as an additional signal for GitHub-App authors. `dependabot[bot]` stays exempt. Under `collaborationMode: trunk-solo`, the sole developer's standing approval satisfies INV-91 because independent self-approval is impossible; the required check remains present and green, while mechanical gates and independent review evidence carry the quality bar. Other modes remain fail-closed.
   - _Enforcement:_ generated `_ai-draft-check.yml` workflow + `_label-on-approve.yml` workflow
 
 ## Script Catalog Cohesion (INV-94)
