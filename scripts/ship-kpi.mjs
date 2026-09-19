@@ -31,6 +31,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { ghJson } from './lib/gh-audit-io.mjs'
+import { display } from './lib/ship-kpi/display.mjs'
 import { classify } from './pr-merge-watch.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
 
@@ -152,11 +153,7 @@ export function costUnits(tokens, weights) {
 
 /** Split ordered phase events; an unavailable phase stays null, never zero. */
 export function splitLeadTime(events) {
-  const kinds =
-    Array.isArray(events) &&
-    events.some((event) => ['preflight', 'fullGate', 'ciRun'].includes(event?.kind))
-      ? LEAD_TIME_KINDS
-      : ['work', 'verify', 'review', 'ciWait', 'rework', 'ceremony']
+  const kinds = leadTimeKinds(events)
   const result = Object.fromEntries(kinds.map((kind) => [kind, null]))
   if (!Array.isArray(events)) return result
   for (let i = 0; i < events.length - 1; i++) {
@@ -165,17 +162,31 @@ export function splitLeadTime(events) {
     const kind = current?.kind
     const start = Date.parse(current?.t ?? '')
     const end = Date.parse(next?.t ?? '')
-    if (
-      !(LEAD_TIME_KINDS.includes(kind) || kind === 'ceremony') ||
-      !Number.isFinite(start) ||
-      !Number.isFinite(end)
-    ) {
-      continue
-    }
-    const seconds = rounded(Math.max(0, end - start) / 1000)
-    result[kind] = result[kind] === null ? seconds : rounded(result[kind] + seconds)
+    if (validLeadTimeEvent(kind, start, end)) addLeadTime(result, kind, start, end)
   }
   return result
+}
+
+function leadTimeKinds(events) {
+  const hasMeasuredPhase =
+    Array.isArray(events) &&
+    events.some((event) => ['preflight', 'fullGate', 'ciRun'].includes(event?.kind))
+  return hasMeasuredPhase
+    ? LEAD_TIME_KINDS
+    : ['work', 'verify', 'review', 'ciWait', 'rework', 'ceremony']
+}
+
+function validLeadTimeEvent(kind, start, end) {
+  return (
+    (LEAD_TIME_KINDS.includes(kind) || kind === 'ceremony') &&
+    Number.isFinite(start) &&
+    Number.isFinite(end)
+  )
+}
+
+function addLeadTime(result, kind, start, end) {
+  const seconds = rounded(Math.max(0, end - start) / 1000)
+  result[kind] = result[kind] === null ? seconds : rounded(result[kind] + seconds)
 }
 
 function parseSessionLine(line) {
@@ -229,12 +240,14 @@ export function sessionUsage(lines) {
 /** Select the treatment, widening sensitive/train deliveries before size fallback. */
 export function stratumOf(delivery) {
   if (delivery?.sensitive === true || delivery?.train === true) return 'Sensitive-train'
-  if (typeof delivery?.treatment === 'string' && delivery.treatment.trim() !== '') {
-    return delivery.treatment
-  }
+  if (hasTreatment(delivery)) return delivery.treatment
   const changedLoc = finiteNumber(delivery?.changedLoc)
   if (changedLoc === null) return null
   return changedLoc < 200 ? 'XS-S' : 'Standard'
+}
+
+function hasTreatment(delivery) {
+  return typeof delivery?.treatment === 'string' && delivery.treatment.trim() !== ''
 }
 
 /** Median and nearest-rank p90, ignoring null and non-finite values. */
@@ -288,6 +301,26 @@ export function overheadIndices(delivery, baseline, weights) {
   const floor = measuredFloor(delivery)
   const ciKnown = sourceKnown(delivery, 'ci')
   const timeFloor = referenceTime === null ? null : floor.total + referenceTime
+  return overheadResult(
+    delivery,
+    leadTime,
+    measuredTokens,
+    timeFloor,
+    referenceTokens,
+    floor,
+    ciKnown,
+  )
+}
+
+function overheadResult(
+  delivery,
+  leadTime,
+  measuredTokens,
+  timeFloor,
+  referenceTokens,
+  floor,
+  ciKnown,
+) {
   const result = {
     time: ciKnown ? ratio(leadTime, timeFloor) : null,
     tokens: ciKnown && sessionSourceKnown(delivery) ? ratio(measuredTokens, referenceTokens) : null,
@@ -299,7 +332,7 @@ export function overheadIndices(delivery, baseline, weights) {
       time: {
         leadTime,
         measured: floor.total,
-        writerReference: referenceTime,
+        writerReference: finiteNumber(timeFloor) === null ? null : timeFloor - floor.total,
         missing: floor.missing,
       },
       tokens: { measured: measuredTokens, reference: referenceTokens },
@@ -352,13 +385,14 @@ function sessionOverlaps(session, firstCommit, mergedAt) {
   const sessionLastMs = Date.parse(session?.lastTs ?? '')
   const windowStartMs = firstMs - 2 * 60 * 60 * 1000
   return (
-    Number.isFinite(firstMs) &&
-    Number.isFinite(mergedMs) &&
-    Number.isFinite(sessionFirstMs) &&
-    Number.isFinite(sessionLastMs) &&
+    validSessionWindow(firstMs, mergedMs, sessionFirstMs, sessionLastMs) &&
     sessionFirstMs <= mergedMs &&
     sessionLastMs >= windowStartMs
   )
+}
+
+function validSessionWindow(firstMs, mergedMs, sessionFirstMs, sessionLastMs) {
+  return [firstMs, mergedMs, sessionFirstMs, sessionLastMs].every(Number.isFinite)
 }
 
 const BRANCH_ISSUE_RE = /#(\d{3,5})\b|(?:^|\/)task\/?(\d{3,5})(?=[_-])|(?:^|\/)(\d{3,5})(?=[_-])/gi
@@ -397,71 +431,112 @@ function containsIssueReference(value, issueIds) {
 /** Find post-merge revert/fix commits that reference a delivered PR or issue. */
 export function findEscapes(deliveries, mainCommits, windowDays = 14, issues = []) {
   const windowMs = finiteNumber(windowDays) === null ? 0 : windowDays * 86_400_000
-  const result = []
-  for (const delivery of Array.isArray(deliveries) ? deliveries : []) {
-    const mergedMs = Date.parse(delivery?.mergedAt ?? '')
-    const pr = Number(delivery?.number)
-    if (!Number.isFinite(mergedMs) || !Number.isSafeInteger(pr)) continue
-    const issueIds = [
-      pr,
-      ...(Array.isArray(delivery?.issueIds) ? delivery.issueIds.map(Number) : []),
-    ].filter(Number.isSafeInteger)
-    const ownCommitShas = new Set(
-      (Array.isArray(delivery?.commitShas) ? delivery.commitShas : []).filter(
-        (sha) => typeof sha === 'string',
-      ),
-    )
-    if (mainCommits === null || issues === null) return null
-    for (const commit of Array.isArray(mainCommits) ? mainCommits : []) {
-      const dateMs = Date.parse(commit?.date ?? '')
-      const sha = commit?.sha
-      const subject = typeof commit?.subject === 'string' ? commit.subject : ''
-      const isRevert = /^revert\b/i.test(subject)
-      const isFix = /^fix(?:\([^)]*\))?:/i.test(subject)
-      if (
-        !Number.isFinite(dateMs) ||
-        dateMs <= mergedMs ||
-        dateMs > mergedMs + windowMs ||
-        typeof sha !== 'string' ||
-        ownCommitShas.has(sha) ||
-        sha === delivery?.mergeCommitOid ||
-        new RegExp(`\\(#${pr}\\)\\s*$`).test(subject) ||
-        (!isRevert && !isFix) ||
-        isEvidenceOnlySubject(subject)
-      ) {
-        continue
-      }
-      const text = `${subject}\n${typeof commit?.body === 'string' ? commit.body : ''}`
-      if (!containsIssueReference(text, issueIds)) continue
-      result.push({ pr, sha, kind: isRevert ? 'revert' : 'fix', subject })
-    }
-    if (Array.isArray(issues)) {
-      for (const issue of issues) {
-        const issueDate = Date.parse(issue?.createdAt ?? '')
-        const text = `${issue?.title ?? ''}\n${issue?.body ?? ''}`
-        if (
-          Number.isFinite(issueDate) &&
-          issueDate > mergedMs &&
-          issueDate <= mergedMs + windowMs &&
-          containsIssueReference(text, issueIds)
-        ) {
-          result.push({ pr, issue: issue.number, kind: 'issue', subject: issue.title ?? '' })
-        }
-      }
-    }
+  const list = Array.isArray(deliveries) ? deliveries : []
+  if (mainCommits === null || issues === null) return list.some(validDeliveryForEscape) ? null : []
+  return list.flatMap((delivery) => escapesForDelivery(delivery, mainCommits, issues, windowMs))
+}
+
+function validDeliveryForEscape(delivery) {
+  return (
+    Number.isFinite(Date.parse(delivery?.mergedAt ?? '')) &&
+    Number.isSafeInteger(Number(delivery?.number))
+  )
+}
+
+function escapesForDelivery(delivery, mainCommits, issues, windowMs) {
+  const mergedMs = Date.parse(delivery?.mergedAt ?? '')
+  const pr = Number(delivery?.number)
+  if (!Number.isFinite(mergedMs) || !Number.isSafeInteger(pr)) return []
+  const issueIds = [
+    pr,
+    ...(Array.isArray(delivery?.issueIds) ? delivery.issueIds.map(Number) : []),
+  ].filter(Number.isSafeInteger)
+  const ownCommitShas = new Set(
+    (Array.isArray(delivery?.commitShas) ? delivery.commitShas : []).filter(
+      (sha) => typeof sha === 'string',
+    ),
+  )
+  return [
+    ...commitEscapes(mainCommits, delivery, pr, issueIds, ownCommitShas, mergedMs, windowMs),
+    ...issueEscapes(issues, pr, issueIds, mergedMs, windowMs),
+  ]
+}
+
+function commitEscapes(commits, delivery, pr, issueIds, ownCommitShas, mergedMs, windowMs) {
+  return (Array.isArray(commits) ? commits : []).flatMap((commit) =>
+    escapeFromCommit(commit, delivery, pr, issueIds, ownCommitShas, mergedMs, windowMs),
+  )
+}
+
+function issueEscapes(issues, pr, issueIds, mergedMs, windowMs) {
+  return (Array.isArray(issues) ? issues : []).flatMap((issue) =>
+    escapeFromIssue(issue, pr, issueIds, mergedMs, windowMs),
+  )
+}
+
+function escapeFromCommit(commit, delivery, pr, issueIds, ownCommitShas, mergedMs, windowMs) {
+  const { dateMs, sha, subject, isRevert, isFix } = commitEscapeFields(commit)
+  if (!validEscapeDate(dateMs, mergedMs, windowMs)) return []
+  if (!validEscapeSha(sha, delivery, ownCommitShas)) return []
+  if (!validEscapeSubject(subject, pr, isRevert, isFix)) return []
+  const text = `${subject}\n${typeof commit?.body === 'string' ? commit.body : ''}`
+  return containsIssueReference(text, issueIds)
+    ? [{ pr, sha, kind: isRevert ? 'revert' : 'fix', subject }]
+    : []
+}
+
+function commitEscapeFields(commit) {
+  const subject = typeof commit?.subject === 'string' ? commit.subject : ''
+  return {
+    dateMs: Date.parse(commit?.date ?? ''),
+    sha: commit?.sha,
+    subject,
+    isRevert: /^revert\b/i.test(subject),
+    isFix: /^fix(?:\([^)]*\))?:/i.test(subject),
   }
-  return result
+}
+
+function validEscapeSubject(subject, pr, isRevert, isFix) {
+  return (
+    !new RegExp(`\\(#${pr}\\)\\s*$`).test(subject) &&
+    (isRevert || isFix) &&
+    !isEvidenceOnlySubject(subject)
+  )
+}
+
+function escapeFromIssue(issue, pr, issueIds, mergedMs, windowMs) {
+  const issueDate = Date.parse(issue?.createdAt ?? '')
+  const text = `${issue?.title ?? ''}\n${issue?.body ?? ''}`
+  if (!validEscapeDate(issueDate, mergedMs, windowMs)) return []
+  return containsIssueReference(text, issueIds)
+    ? [{ pr, issue: issue.number, kind: 'issue', subject: issue.title ?? '' }]
+    : []
+}
+
+function validEscapeDate(dateMs, mergedMs, windowMs) {
+  return Number.isFinite(dateMs) && dateMs > mergedMs && dateMs <= mergedMs + windowMs
+}
+
+function validEscapeSha(sha, delivery, ownCommitShas) {
+  return typeof sha === 'string' && !ownCommitShas.has(sha) && sha !== delivery?.mergeCommitOid
 }
 
 export function rollbackControl(escapes, controls) {
-  for (const escape of Array.isArray(escapes) ? escapes : []) {
-    const text = `${escape?.subject ?? ''}\n${escape?.body ?? ''}`
-    for (const control of Array.isArray(controls) ? controls : []) {
-      if (typeof control?.id !== 'string' || typeof control?.pattern !== 'string') continue
-      if (new RegExp(control.pattern, 'i').test(text)) return control.id
-    }
-  }
-  return null
+  return (
+    (Array.isArray(escapes) ? escapes : [])
+      .map((escape) => `${escape?.subject ?? ''}\n${escape?.body ?? ''}`)
+      .flatMap((text) =>
+        Array.isArray(controls)
+          ? controls.filter(
+              (control) =>
+                typeof control?.id === 'string' &&
+                typeof control?.pattern === 'string' &&
+                new RegExp(control.pattern, 'i').test(text),
+            )
+          : [],
+      )
+      .map((control) => control.id)[0] ?? null
+  )
 }
 
 export function issueIdsOf(pr) {
@@ -491,25 +566,7 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
     changed = false
     for (let i = pending.length - 1; i >= 0; i--) {
       const meta = pending[i]
-      let via = null
-      if (containsIssueId(meta.gitBranch, issueIds)) via = 'branch'
-      else if (typeof pr.worktreeDir === 'string' && meta.cwd === pr.worktreeDir) via = 'cwd'
-      else if (containsIssueId(meta.cwd, issueIds)) via = 'cwd'
-      else if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id)))
-        via = 'agent-path'
-      else if (
-        meta.host === 'codex' &&
-        typeof meta.parentThreadId === 'string' &&
-        attributedThreads.has(meta.parentThreadId)
-      ) {
-        via = 'parent'
-      } else if (
-        meta.host === 'claude' &&
-        meta.issueIdsInPrompt?.length === 1 &&
-        issueIds.includes(meta.issueIdsInPrompt[0])
-      ) {
-        via = 'prompt'
-      }
+      const via = sessionAttribution(meta, issueIds, pr, attributedThreads)
       if (via === null) continue
       pending.splice(i, 1)
       attributed.push({ meta, via })
@@ -523,6 +580,36 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
   return attributed.sort((a, b) => order.get(a.meta) - order.get(b.meta))
 }
 
+function sessionAttribution(meta, issueIds, pr, attributedThreads) {
+  if (containsIssueId(meta.gitBranch, issueIds)) return 'branch'
+  if (sameWorktree(meta, pr)) return 'cwd'
+  if (containsIssueId(meta.cwd, issueIds)) return 'cwd'
+  if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id))) return 'agent-path'
+  if (hasParentAttribution(meta, attributedThreads)) return 'parent'
+  if (hasPromptAttribution(meta, issueIds)) return 'prompt'
+  return null
+}
+
+function sameWorktree(meta, pr) {
+  return typeof pr.worktreeDir === 'string' && meta.cwd === pr.worktreeDir
+}
+
+function hasParentAttribution(meta, attributedThreads) {
+  return (
+    meta.host === 'codex' &&
+    typeof meta.parentThreadId === 'string' &&
+    attributedThreads.has(meta.parentThreadId)
+  )
+}
+
+function hasPromptAttribution(meta, issueIds) {
+  return (
+    meta.host === 'claude' &&
+    meta.issueIdsInPrompt?.length === 1 &&
+    issueIds.includes(meta.issueIdsInPrompt[0])
+  )
+}
+
 function overlapSeconds(session, delivery) {
   const start = Math.max(Date.parse(session.firstTs ?? ''), Date.parse(delivery.firstCommit ?? ''))
   const end = Math.min(Date.parse(session.lastTs ?? ''), Date.parse(delivery.mergedAt ?? ''))
@@ -532,45 +619,59 @@ function overlapSeconds(session, delivery) {
 /** Attribute each session once, preferring explicit branch/cwd/agent/parent/prompt evidence. */
 export function attributeSessionsToDeliveries(sessions, deliveries) {
   const result = new Map((deliveries ?? []).map((delivery) => [delivery.number, []]))
-  const assigned = new Set()
-  const candidates = (sessions ?? []).map((meta) => {
-    const matches = (deliveries ?? [])
-      .map((delivery) => {
-        const found = attributeSessions([meta], delivery)
-        return found.length > 0 ? { delivery, match: found[0] } : null
-      })
-      .filter(Boolean)
-    return { meta, matches }
-  })
-  const assignedThreads = new Map()
-  for (const { meta, matches } of candidates) {
+  const state = { assigned: new Set(), threads: new Map() }
+  assignDirectSessions(sessions, deliveries, result, state)
+  assignParentSessions(sessions, deliveries, result, state)
+  return new Map([...result].filter(([, entries]) => entries.length > 0))
+}
+
+function assignDirectSessions(sessions, deliveries, result, state) {
+  for (const { meta, matches } of (sessions ?? []).map((item) => ({
+    meta: item,
+    matches: deliveryMatches(item, deliveries),
+  }))) {
     if (matches.length === 0) continue
-    matches.sort((a, b) => {
-      const rank = { branch: 0, cwd: 1, 'agent-path': 2, parent: 3, prompt: 4 }
-      return (
-        rank[a.match.via] - rank[b.match.via] ||
-        overlapSeconds(meta, b.delivery) - overlapSeconds(meta, a.delivery) ||
-        Number(a.delivery.number) - Number(b.delivery.number)
-      )
-    })
+    matches.sort((a, b) => compareDeliveryMatches(meta, a, b))
     const chosen = matches[0]
     result.get(chosen.delivery.number)?.push(chosen.match)
-    assigned.add(meta)
-    if (meta.host === 'codex' && typeof meta.threadId === 'string') {
-      assignedThreads.set(meta.threadId, chosen.delivery.number)
-    }
+    state.assigned.add(meta)
+    if (meta.host === 'codex' && typeof meta.threadId === 'string')
+      state.threads.set(meta.threadId, chosen.delivery.number)
   }
+}
+
+function assignParentSessions(sessions, deliveries, result, state) {
   for (const meta of sessions ?? []) {
-    if (assigned.has(meta) || meta.host !== 'codex' || typeof meta.parentThreadId !== 'string')
-      continue
-    const number = assignedThreads.get(meta.parentThreadId)
+    if (!parentCandidate(meta, state)) continue
+    const number = state.threads.get(meta.parentThreadId)
     const delivery = (deliveries ?? []).find((candidate) => candidate.number === number)
     if (!delivery || !sessionOverlaps(meta, delivery.firstCommit, delivery.mergedAt)) continue
     result.get(number)?.push({ meta, via: 'parent' })
-    assigned.add(meta)
-    if (typeof meta.threadId === 'string') assignedThreads.set(meta.threadId, number)
+    state.assigned.add(meta)
+    if (typeof meta.threadId === 'string') state.threads.set(meta.threadId, number)
   }
-  return new Map([...result].filter(([, entries]) => entries.length > 0))
+}
+
+function parentCandidate(meta, state) {
+  return (
+    !state.assigned.has(meta) && meta.host === 'codex' && typeof meta.parentThreadId === 'string'
+  )
+}
+
+function deliveryMatches(meta, deliveries) {
+  return (deliveries ?? []).flatMap((delivery) => {
+    const found = attributeSessions([meta], delivery)
+    return found.length > 0 ? [{ delivery, match: found[0] }] : []
+  })
+}
+
+function compareDeliveryMatches(meta, a, b) {
+  const rank = { branch: 0, cwd: 1, 'agent-path': 2, parent: 3, prompt: 4 }
+  return (
+    rank[a.match.via] - rank[b.match.via] ||
+    overlapSeconds(meta, b.delivery) - overlapSeconds(meta, a.delivery) ||
+    Number(a.delivery.number) - Number(b.delivery.number)
+  )
 }
 
 function messageContent(event) {
@@ -593,19 +694,25 @@ function updateSessionTimes(times, timestamp) {
 }
 
 function commandFromCall(event, host) {
-  if (host === 'codex' && event?.payload?.type === 'function_call') {
-    if (event.payload.name !== 'exec_command') return null
-    try {
-      return JSON.parse(event.payload.arguments ?? '{}').cmd ?? null
-      // FAIL-OPEN-INTENT: malformed Codex tool arguments cannot identify a KPI phase; the phase remains unknown and is never counted as zero.
-    } catch {
-      return null
-    }
+  return host === 'codex' ? codexCommand(event) : claudeCommand(event)
+}
+
+function codexCommand(event) {
+  if (event?.payload?.type !== 'function_call' || event.payload.name !== 'exec_command') return null
+  try {
+    return JSON.parse(event.payload.arguments ?? '{}').cmd ?? null
+    // FAIL-OPEN-INTENT: malformed Codex tool arguments cannot identify a KPI phase; the phase remains unknown and is never counted as zero.
+  } catch {
+    return null
   }
+}
+
+function claudeCommand(event) {
   const blocks = Array.isArray(event?.message?.content) ? event.message.content : []
   const block = blocks.find((candidate) => candidate?.type === 'tool_use')
-  if (!block || !['Bash', 'Agent', 'Task'].includes(block.name)) return null
-  return block.input?.command ?? block.input?.cmd ?? null
+  return block && ['Bash', 'Agent', 'Task'].includes(block.name)
+    ? (block.input?.command ?? block.input?.cmd ?? null)
+    : null
 }
 
 function callIdentity(event, host) {
@@ -624,27 +731,33 @@ function executionFacts(events, host) {
   const open = new Map()
   const facts = { preflightSec: null, fullGateSec: null, fullGateRuns: 0 }
   for (const event of events) {
-    const command = commandFromCall(event, host)
-    const id = callIdentity(event, host)
-    if (command && id) {
-      const kind = FULL_GATE_RE.test(command)
-        ? 'fullGate'
-        : PREFLIGHT_RE.test(command)
-          ? 'preflight'
-          : null
-      if (kind) open.set(id, { kind, timestamp: Date.parse(eventTimestamp(event) ?? '') })
-      continue
-    }
-    const resultId = resultIdentity(event, host)
-    const started = open.get(resultId)
-    const end = Date.parse(eventTimestamp(event) ?? '')
-    if (!started || !Number.isFinite(end) || !Number.isFinite(started.timestamp)) continue
-    const seconds = Math.max(0, Math.round((end - started.timestamp) / 1000))
-    facts[`${started.kind}Sec`] = (facts[`${started.kind}Sec`] ?? 0) + seconds
-    if (started.kind === 'fullGate') facts.fullGateRuns++
-    open.delete(resultId)
+    if (recordExecutionStart(open, event, host)) continue
+    finishExecution(facts, open, event, host)
   }
   return facts
+}
+
+function recordExecutionStart(open, event, host) {
+  const command = commandFromCall(event, host)
+  const id = callIdentity(event, host)
+  if (!command || !id) return false
+  const kind = FULL_GATE_RE.test(command)
+    ? 'fullGate'
+    : PREFLIGHT_RE.test(command)
+      ? 'preflight'
+      : null
+  if (kind) open.set(id, { kind, timestamp: Date.parse(eventTimestamp(event) ?? '') })
+  return true
+}
+
+function finishExecution(facts, open, event, host) {
+  const started = open.get(resultIdentity(event, host))
+  const end = Date.parse(eventTimestamp(event) ?? '')
+  if (!started || !Number.isFinite(end) || !Number.isFinite(started.timestamp)) return
+  const seconds = Math.max(0, Math.round((end - started.timestamp) / 1000))
+  facts[`${started.kind}Sec`] = (facts[`${started.kind}Sec`] ?? 0) + seconds
+  if (started.kind === 'fullGate') facts.fullGateRuns++
+  open.delete(resultIdentity(event, host))
 }
 
 function optionalExecutionFacts(execution, reviewer) {
@@ -656,136 +769,163 @@ function optionalExecutionFacts(execution, reviewer) {
 
 /** Summarize Claude JSONL without counting sidechains or tool-result messages. */
 export function claudeSessionMeta(lines) {
-  let gitBranch = null
-  let cwd = null
-  let effort = null
-  let humanMessages = 0
-  let hasHumanMessage = false
-  let input = null
-  let output = null
-  let cache = null
-  let firstPrompt = null
-  let issueIdsInPrompt = []
+  const state = {
+    gitBranch: null,
+    cwd: null,
+    effort: null,
+    humanMessages: 0,
+    hasHumanMessage: false,
+    input: null,
+    output: null,
+    cache: null,
+    firstPrompt: null,
+    issueIdsInPrompt: [],
+  }
   const times = { firstTs: null, lastTs: null }
   for (const line of Array.isArray(lines) ? lines : []) {
     const event = parseSessionLine(line)
     if (event === null) continue
     updateSessionTimes(times, eventTimestamp(event))
-    if (gitBranch === null && typeof event.gitBranch === 'string') gitBranch = event.gitBranch
-    if (cwd === null && typeof event.cwd === 'string') cwd = event.cwd
-    if (typeof event.effort === 'string') effort = event.effort
-    const role = event.message?.role ?? event.type
-    if (role === 'user' && event.isSidechain !== true && !isToolResultMessage(event)) {
-      humanMessages++
-      hasHumanMessage = true
-      const content = messageContent(event)
-      if (firstPrompt === null && typeof content === 'string') {
-        firstPrompt = content.slice(0, 400)
-        issueIdsInPrompt = promptIssueIds(firstPrompt)
-      }
-    }
-    if (role !== 'assistant') continue
-    const usage = event.message?.usage ?? event.usage
-    input = addMetric(input, usageValue(usage, 'input_tokens', 'inputTokens'))
-    output = addMetric(output, usageValue(usage, 'output_tokens', 'outputTokens'))
-    cache = addMetric(cache, usageValue(usage, 'cache_read_input_tokens', 'cacheReadInputTokens'))
-    cache = addMetric(
-      cache,
-      usageValue(usage, 'cache_creation_input_tokens', 'cacheCreationInputTokens'),
-    )
+    consumeClaudeMeta(state, event)
   }
   const events = (Array.isArray(lines) ? lines : [])
     .map(parseSessionLine)
     .filter((event) => event !== null)
   const execution = executionFacts(events, 'claude')
   return {
-    gitBranch,
-    cwd,
+    gitBranch: state.gitBranch,
+    cwd: state.cwd,
     firstTs: times.firstTs,
     lastTs: times.lastTs,
-    usage: { input, output, cache },
-    humanMessages: hasHumanMessage ? humanMessages : null,
-    effort,
-    firstPrompt,
-    issueIdsInPrompt,
+    usage: { input: state.input, output: state.output, cache: state.cache },
+    humanMessages: state.hasHumanMessage ? state.humanMessages : null,
+    effort: state.effort,
+    firstPrompt: state.firstPrompt,
+    issueIdsInPrompt: state.issueIdsInPrompt,
     ...optionalExecutionFacts(
       execution,
-      REVIEWER_RE.test(`${firstPrompt ?? ''} ${gitBranch ?? ''}`),
+      REVIEWER_RE.test(`${state.firstPrompt ?? ''} ${state.gitBranch ?? ''}`),
     ),
+  }
+}
+
+function consumeClaudeMeta(state, event) {
+  updateClaudeContext(state, event)
+  const role = event.message?.role ?? event.type
+  consumeClaudeUser(state, event, role)
+  if (role !== 'assistant') return
+  const usage = event.message?.usage ?? event.usage
+  updateClaudeUsage(state, usage)
+}
+
+function updateClaudeContext(state, event) {
+  if (state.gitBranch === null && typeof event.gitBranch === 'string')
+    state.gitBranch = event.gitBranch
+  if (state.cwd === null && typeof event.cwd === 'string') state.cwd = event.cwd
+  if (typeof event.effort === 'string') state.effort = event.effort
+}
+
+function updateClaudeUsage(state, usage) {
+  state.input = addMetric(state.input, usageValue(usage, 'input_tokens', 'inputTokens'))
+  state.output = addMetric(state.output, usageValue(usage, 'output_tokens', 'outputTokens'))
+  state.cache = addMetric(
+    state.cache,
+    usageValue(usage, 'cache_read_input_tokens', 'cacheReadInputTokens'),
+  )
+  state.cache = addMetric(
+    state.cache,
+    usageValue(usage, 'cache_creation_input_tokens', 'cacheCreationInputTokens'),
+  )
+}
+
+function consumeClaudeUser(state, event, role) {
+  if (role !== 'user' || event.isSidechain === true || isToolResultMessage(event)) return
+  state.humanMessages++
+  state.hasHumanMessage = true
+  const content = messageContent(event)
+  if (state.firstPrompt === null && typeof content === 'string') {
+    state.firstPrompt = content.slice(0, 400)
+    state.issueIdsInPrompt = promptIssueIds(state.firstPrompt)
   }
 }
 
 /** Summarize Codex rollout JSONL using its latest context and token snapshot. */
 export function codexSessionMeta(lines) {
-  let cwd = null
-  let agentPath = null
-  let threadId = null
-  let parentThreadId = null
-  let model = null
-  let effort = null
-  let usage = { input: null, output: null, cache: null }
+  const state = {
+    cwd: null,
+    agentPath: null,
+    threadId: null,
+    parentThreadId: null,
+    model: null,
+    effort: null,
+    usage: { input: null, output: null, cache: null },
+  }
   const times = { firstTs: null, lastTs: null }
   for (const line of Array.isArray(lines) ? lines : []) {
     const event = parseSessionLine(line)
     if (event === null) continue
     updateSessionTimes(times, eventTimestamp(event))
-    const payload = event.payload ?? {}
-    const spawn = payload.source?.subagent?.thread_spawn
-    if (cwd === null && typeof (payload.cwd ?? event.cwd) === 'string')
-      cwd = payload.cwd ?? event.cwd
-    if (
-      agentPath === null &&
-      typeof (spawn?.agent_path ?? payload.agent_path ?? event.agent_path) === 'string'
-    ) {
-      agentPath = spawn?.agent_path ?? payload.agent_path ?? event.agent_path
-    }
-    if (
-      threadId === null &&
-      typeof (payload.id ?? payload.thread_id ?? event.thread_id) === 'string'
-    ) {
-      threadId = payload.id ?? payload.thread_id ?? event.thread_id
-    }
-    if (
-      parentThreadId === null &&
-      typeof (payload.parent_thread_id ?? spawn?.parent_thread_id ?? event.parent_thread_id) ===
-        'string'
-    ) {
-      parentThreadId = payload.parent_thread_id ?? spawn?.parent_thread_id ?? event.parent_thread_id
-    }
-    if (event.type === 'turn_context') {
-      if (typeof payload.model === 'string') model = payload.model
-      const nextEffort = payload.reasoning_effort ?? payload.effort
-      if (typeof nextEffort === 'string') effort = nextEffort
-    }
-    const total = payload.info?.total_token_usage
-    if (total && typeof total === 'object') {
-      usage = {
-        input: freshInput(total),
-        output: usageValue(total, 'output_tokens', 'outputTokens'),
-        cache: usageValue(
-          total,
-          'cached_input_tokens',
-          'cache_read_input_tokens',
-          'cacheReadInputTokens',
-        ),
-      }
-    }
+    consumeCodexMeta(state, event)
   }
   const events = (Array.isArray(lines) ? lines : [])
     .map(parseSessionLine)
     .filter((event) => event !== null)
   const execution = executionFacts(events, 'codex')
   return {
-    cwd,
+    cwd: state.cwd,
     firstTs: times.firstTs,
     lastTs: times.lastTs,
-    model,
-    effort,
-    agentPath,
-    threadId,
-    parentThreadId,
-    usage,
-    ...optionalExecutionFacts(execution, REVIEWER_RE.test(`${agentPath ?? ''}`)),
+    model: state.model,
+    effort: state.effort,
+    agentPath: state.agentPath,
+    threadId: state.threadId,
+    parentThreadId: state.parentThreadId,
+    usage: state.usage,
+    ...optionalExecutionFacts(execution, REVIEWER_RE.test(`${state.agentPath ?? ''}`)),
+  }
+}
+
+function consumeCodexMeta(state, event) {
+  const payload = event.payload ?? {}
+  const spawn = payload.source?.subagent?.thread_spawn
+  assignCodexIdentity(state, payload, spawn, event)
+  updateCodexContext(state, payload, event)
+  updateCodexUsage(state, payload.info?.total_token_usage)
+}
+
+function assignCodexIdentity(state, payload, spawn, event) {
+  setMissing(state, 'cwd', payload.cwd ?? event.cwd)
+  setMissing(state, 'agentPath', spawn?.agent_path ?? payload.agent_path ?? event.agent_path)
+  setMissing(state, 'threadId', payload.id ?? payload.thread_id ?? event.thread_id)
+  setMissing(
+    state,
+    'parentThreadId',
+    payload.parent_thread_id ?? spawn?.parent_thread_id ?? event.parent_thread_id,
+  )
+}
+
+function setMissing(state, key, value) {
+  if (state[key] === null && typeof value === 'string') state[key] = value
+}
+
+function updateCodexContext(state, payload, event) {
+  if (event.type !== 'turn_context') return
+  if (typeof payload.model === 'string') state.model = payload.model
+  const nextEffort = payload.reasoning_effort ?? payload.effort
+  if (typeof nextEffort === 'string') state.effort = nextEffort
+}
+
+function updateCodexUsage(state, total) {
+  if (!total || typeof total !== 'object') return
+  state.usage = {
+    input: freshInput(total),
+    output: usageValue(total, 'output_tokens', 'outputTokens'),
+    cache: usageValue(
+      total,
+      'cached_input_tokens',
+      'cache_read_input_tokens',
+      'cacheReadInputTokens',
+    ),
   }
 }
 
@@ -808,89 +948,114 @@ function sourceMetric(row, sessions, key) {
 /** Merge CI and attributed session measurements, preserving zeroes and unknown nulls. */
 export function mergeDeliverySources(row, { ci, sessions, redCiRuns, reworkSec, weights } = {}) {
   const attributed = Array.isArray(sessions) ? sessions : []
-  const tokenMaps = attributed.map((session) => session?.usage).filter(Boolean)
-  const tokens =
-    tokenMaps.length > 0
-      ? {
-          input: sumNullable(tokenMaps.map((usage) => usage.input)),
-          output: sumNullable(tokenMaps.map((usage) => usage.output)),
-          cache: sumNullable(tokenMaps.map((usage) => usage.cache)),
-        }
-      : (row?.tokens ?? null)
-  const leadTimeSplit = { ...(row?.leadTimeSplit ?? {}) }
-  if (finiteNumber(ci?.ciWaitSec) !== null) leadTimeSplit.ciWait = ci.ciWaitSec
-  if (finiteNumber(ci?.ciRunSec) !== null) {
-    leadTimeSplit.ciRun = ci.ciRunSec
-    leadTimeSplit.verify = ci.ciRunSec
+  const { writerSessions, reviewerSessions } = splitSessionRoles(attributed)
+  const phases = deliveryPhases(row, ci, attributed, reviewerSessions, reworkSec)
+  return {
+    ...row,
+    tokens: sessionTokens(row, attributed),
+    humanMessages: sourceMetric(row, attributed, 'humanMessages'),
+    rounds: sourceMetric(row, attributed, 'rounds'),
+    fullGateRuns: sourceMetric(row, attributed, 'fullGateRuns'),
+    redCiRuns: redCiValue(row, ci, redCiRuns),
+    leadTimeSplit: phases.leadTimeSplit,
+    ceremony: row?.ceremony ?? {
+      evidenceOnlyCommits: row?.evidenceOnlyCommits ?? null,
+      hookBlocks: row?.hookBlocks ?? null,
+    },
+    writerCostUnits: sessionCost(writerSessions, weights),
+    reviewerCostUnits: sessionCost(reviewerSessions, weights),
+    models: sessionModels(row, attributed),
+    sourcesKnown: knownSources(attributed, ci, redCiRuns),
   }
-  const writerSessions = attributed.filter((session) => session?.reviewer !== true)
-  const reviewerSessions = attributed.filter((session) => session?.reviewer === true)
-  const writerCostUnits = weights
-    ? sumNullable(writerSessions.map((session) => costUnits(session?.usage, weights)))
-    : null
-  const reviewerCostUnits = weights
-    ? sumNullable(reviewerSessions.map((session) => costUnits(session?.usage, weights)))
-    : null
+}
+
+function sessionTokens(row, sessions) {
+  const tokenMaps = sessions.map((session) => session?.usage).filter(Boolean)
+  if (tokenMaps.length === 0) return row?.tokens ?? null
+  return {
+    input: sumNullable(tokenMaps.map((usage) => usage.input)),
+    output: sumNullable(tokenMaps.map((usage) => usage.output)),
+    cache: sumNullable(tokenMaps.map((usage) => usage.cache)),
+  }
+}
+
+function splitSessionRoles(sessions) {
+  return {
+    writerSessions: sessions.filter((session) => session?.reviewer !== true),
+    reviewerSessions: sessions.filter((session) => session?.reviewer === true),
+  }
+}
+
+function sessionCost(sessions, weights) {
+  return weights ? sumNullable(sessions.map((session) => costUnits(session?.usage, weights))) : null
+}
+
+function deliveryPhases(row, ci, attributed, reviewerSessions, reworkSec) {
   const preflight = sumNullable(attributed.map((session) => session?.preflightSec))
   const fullGate = sumNullable(attributed.map((session) => session?.fullGateSec))
   const review = sumNullable(reviewerSessions.map(sessionSeconds))
-  const knownPhases = [
+  const rework = reworkSec ?? row?.reworkSec
+  const leadTime = leadTimeSeconds(row)
+  const known = [
     preflight,
     fullGate,
     review,
     finiteNumber(ci?.ciWaitSec),
     finiteNumber(ci?.ciRunSec),
-    finiteNumber(reworkSec ?? row?.reworkSec),
+    finiteNumber(rework),
   ]
-  const leadTime = finiteNumber(row?.leadTimeHours) === null ? null : row.leadTimeHours * 3600
   const work =
     leadTime === null
       ? null
-      : rounded(Math.max(0, leadTime - knownPhases.reduce((sum, value) => sum + (value ?? 0), 0)))
-  for (const [kind, value] of Object.entries({ preflight, fullGate, review, work })) {
-    if (value !== null) leadTimeSplit[kind] = value
-  }
-  if (finiteNumber(reworkSec ?? row?.reworkSec) !== null) {
-    leadTimeSplit.rework = reworkSec ?? row.reworkSec
-  }
+      : rounded(Math.max(0, leadTime - known.reduce((sum, value) => sum + (value ?? 0), 0)))
+  const leadTimeSplit = { ...(row?.leadTimeSplit ?? {}) }
+  addCiPhases(leadTimeSplit, ci)
+  addKnownPhases(leadTimeSplit, { preflight, fullGate, review, work })
+  if (finiteNumber(rework) !== null) leadTimeSplit.rework = rework
+  return { leadTimeSplit }
+}
+
+function leadTimeSeconds(row) {
+  return finiteNumber(row?.leadTimeHours) === null ? null : row.leadTimeHours * 3600
+}
+
+function addCiPhases(split, ci) {
+  if (finiteNumber(ci?.ciWaitSec) !== null) split.ciWait = ci.ciWaitSec
+  if (finiteNumber(ci?.ciRunSec) !== null)
+    Object.assign(split, { ciRun: ci.ciRunSec, verify: ci.ciRunSec })
+}
+
+function addKnownPhases(split, phases) {
+  for (const [kind, value] of Object.entries(phases)) if (value !== null) split[kind] = value
+}
+
+function redCiValue(row, ci, redCiRuns) {
+  if (finiteNumber(redCiRuns) !== null) return redCiRuns
+  if (finiteNumber(ci?.redCiRuns) !== null) return ci.redCiRuns
+  return row?.redCiRuns ?? null
+}
+
+function sessionModels(row, sessions) {
   const models = [
     ...(Array.isArray(row?.models) ? row.models : []),
-    ...attributed
+    ...sessions
       .filter((session) => typeof session?.model === 'string')
       .map((session) => `${session.model}${session.effort ? `@${session.effort}` : ''}`),
   ]
-  const sourcesKnown = []
+  return [...new Set(models)]
+}
+
+function knownSources(sessions, ci, redCiRuns) {
+  const sources = []
   if (
     [ci?.ciWaitSec, ci?.ciRunSec, ci?.redCiRuns, redCiRuns].some(
       (value) => finiteNumber(value) !== null,
     )
-  ) {
-    sourcesKnown.push('ci')
-  }
-  if (attributed.some((session) => session?.host === 'claude')) sourcesKnown.push('claude')
-  if (attributed.some((session) => session?.host === 'codex')) sourcesKnown.push('codex')
-  return {
-    ...row,
-    tokens,
-    humanMessages: sourceMetric(row, attributed, 'humanMessages'),
-    rounds: sourceMetric(row, attributed, 'rounds'),
-    fullGateRuns: sourceMetric(row, attributed, 'fullGateRuns'),
-    redCiRuns:
-      finiteNumber(redCiRuns) !== null
-        ? redCiRuns
-        : finiteNumber(ci?.redCiRuns) !== null
-          ? ci.redCiRuns
-          : (row?.redCiRuns ?? null),
-    leadTimeSplit,
-    ceremony: row?.ceremony ?? {
-      evidenceOnlyCommits: row?.evidenceOnlyCommits ?? null,
-      hookBlocks: row?.hookBlocks ?? null,
-    },
-    writerCostUnits,
-    reviewerCostUnits,
-    models: [...new Set(models)],
-    sourcesKnown,
-  }
+  )
+    sources.push('ci')
+  if (sessions.some((session) => session?.host === 'claude')) sources.push('claude')
+  if (sessions.some((session) => session?.host === 'codex')) sources.push('codex')
+  return sources
 }
 
 export function unattributedUsage(metas, attributedFiles) {
@@ -898,14 +1063,16 @@ export function unattributedUsage(metas, attributedFiles) {
   const isAttributed = (file) =>
     attributedFiles instanceof Set
       ? attributedFiles.has(file)
-      : Array.isArray(attributedFiles) && attributedFiles.includes(file)
-  for (const meta of Array.isArray(metas) ? metas : []) {
-    if (isAttributed(meta?.file) || !['claude', 'codex'].includes(meta?.host)) continue
-    const tokens = tokenTotal(meta?.usage)
-    if (tokens !== null) result[meta.host] = (result[meta.host] ?? 0) + tokens
-    result.sessions = (result.sessions ?? 0) + 1
-  }
+      : attributedFiles?.includes?.(file) === true
+  for (const meta of Array.isArray(metas) ? metas : []) addUnattributed(result, meta, isAttributed)
   return result
+}
+
+function addUnattributed(result, meta, isAttributed) {
+  if (isAttributed(meta?.file) || !['claude', 'codex'].includes(meta?.host)) return
+  const tokens = tokenTotal(meta?.usage)
+  if (tokens !== null) result[meta.host] = (result[meta.host] ?? 0) + tokens
+  result.sessions = (result.sessions ?? 0) + 1
 }
 
 const CALIBRATION_WINDOW = 30
@@ -1015,22 +1182,29 @@ function checkpointWithin(checkpoint, limit, minimumN = 0) {
 }
 
 function tuningBucket(current, baseline, threshold) {
-  const names = Object.keys(current?.buckets ?? {})
-  for (const name of names) {
-    const currentBucket = current.buckets[name]
-    const baseBucket = baseline?.buckets?.[name]
-    const time = finiteNumber(currentBucket?.time)
-    const tokens = finiteNumber(currentBucket?.tokens)
-    const baseTime = finiteNumber(baseBucket?.timeMedianSec)
-    const baseTokens = finiteNumber(baseBucket?.costUnitsMedian)
-    const excesses = [ratio(time, baseTime), ratio(tokens, baseTokens)].filter(
-      (value) => value !== null,
-    )
-    if (excesses.some((value) => value > threshold)) {
-      return name
-    }
-  }
-  return null
+  return (
+    Object.keys(current?.buckets ?? {}).find((name) =>
+      bucketExceedsForName(current, baseline, name, threshold),
+    ) ?? null
+  )
+}
+
+function bucketExceedsForName(current, baseline, name, threshold) {
+  const currentBucket = current.buckets[name]
+  const baseBucket = baseline?.buckets?.[name]
+  return bucketExceeds(
+    finiteNumber(currentBucket?.time),
+    finiteNumber(currentBucket?.tokens),
+    finiteNumber(baseBucket?.timeMedianSec),
+    finiteNumber(baseBucket?.costUnitsMedian),
+    threshold,
+  )
+}
+
+function bucketExceeds(time, tokens, baseTime, baseTokens, threshold) {
+  return [ratio(time, baseTime), ratio(tokens, baseTokens)].some(
+    (value) => value !== null && value > threshold,
+  )
 }
 
 function ineffectiveTuneCount(history) {
@@ -1039,6 +1213,10 @@ function ineffectiveTuneCount(history) {
     .slice(-2)
   if (entries.length < 2) return false
   const [first, last] = entries
+  return sameTune(first, last)
+}
+
+function sameTune(first, last) {
   return (
     typeof first?.verdict === 'string' &&
     typeof last?.verdict === 'string' &&
@@ -1065,39 +1243,80 @@ function exceedsRethink(current, thresholds) {
 /** Classify a checkpoint, keeping hard escape signals ahead of tuning advice. */
 export function checkpointVerdict({ current, previous, baseline, thresholds, history }) {
   const limits = thresholds ?? {}
-  if (typeof current?.rollback === 'string' && current.rollback.length > 0) {
-    return 'ROLLBACK'
-  }
-  if (current?.escapes === null) return 'HOLD'
-  if ((current?.escapes?.length ?? 0) > 0 || current?.andon === true) {
-    return 'ANDON'
-  }
-  if (
-    (finiteNumber(current?.n) ?? 0) < (finiteNumber(limits.n) ?? Infinity) ||
-    (finiteNumber(current?.measured?.time) ?? 0) < (finiteNumber(limits.minMeasured) ?? Infinity) ||
-    (finiteNumber(current?.measured?.tokens) ?? 0) <
-      (finiteNumber(limits.minMeasured) ?? Infinity) ||
-    ['time', 'tokens'].some((kind) => finiteNumber(current?.indices?.[kind]?.median) === null)
-  ) {
-    return 'NO DATA'
-  }
-  const sameStratumHistory = (Array.isArray(history) ? history : []).filter(
+  const hard = hardCheckpointVerdict(current, limits)
+  if (hard !== null) return hard
+  const sameStratumHistory = historyForStratum(history, current)
+  return softCheckpointVerdict(current, previous, baseline, limits, sameStratumHistory)
+}
+
+function historyForStratum(history, current) {
+  return (Array.isArray(history) ? history : []).filter(
     (entry) => entry?.stratum === current?.stratum,
   )
-  const rethinkHistory = Object.assign(sameStratumHistory, { currentStratum: current?.stratum })
-  if (exceedsRethink(current, limits) && ineffectiveTuneCount(rethinkHistory)) {
-    return 'RETHINK'
-  }
+}
+
+function softCheckpointVerdict(current, previous, baseline, limits, history) {
+  if (rethinkNeeded(current, limits, history)) return 'RETHINK'
   const bucket = tuningBucket(current, baseline, limits.tune)
   if (bucket !== null) return `TUNE ${current?.topBucket ?? bucket}`
-  const loggedPrevious = sameStratumHistory.at(-1) ?? previous
-  if (
+  const loggedPrevious = history.at(-1) ?? previous
+  return plateauReached(current, loggedPrevious, limits) ? 'PLATEAU' : 'HOLD'
+}
+
+function rethinkNeeded(current, limits, history) {
+  return (
+    exceedsRethink(current, limits) &&
+    ineffectiveTuneCount(Object.assign(history, { currentStratum: current?.stratum }))
+  )
+}
+function plateauReached(current, previous, limits) {
+  return (
     checkpointWithin(current, limits.plateau) &&
-    checkpointWithin(loggedPrevious, limits.plateau, finiteNumber(limits.n) ?? 0)
-  ) {
-    return 'PLATEAU'
-  }
-  return 'HOLD'
+    checkpointWithin(previous, limits.plateau, finiteNumber(limits.n) ?? 0)
+  )
+}
+
+function hardCheckpointVerdict(current, limits) {
+  return (
+    rollbackVerdict(current) ??
+    escapeVerdict(current) ??
+    andonVerdict(current) ??
+    (missingCheckpointData(current, limits) ? 'NO DATA' : null)
+  )
+}
+
+function rollbackVerdict(current) {
+  return typeof current?.rollback === 'string' && current.rollback.length > 0 ? 'ROLLBACK' : null
+}
+function escapeVerdict(current) {
+  return current?.escapes === null ? 'HOLD' : null
+}
+function andonVerdict(current) {
+  return current?.escapes?.length > 0 || current?.andon === true ? 'ANDON' : null
+}
+
+function missingCheckpointData(current, limits) {
+  return belowCheckpointMinimum(current, limits) || missingCheckpointMedian(current)
+}
+
+function belowCheckpointMinimum(current, limits) {
+  const minimum = finiteNumber(limits.n) ?? Infinity
+  const measured = finiteNumber(limits.minMeasured) ?? Infinity
+  return belowN(current, minimum) || belowMeasured(current, measured)
+}
+
+function belowN(current, minimum) {
+  return (finiteNumber(current?.n) ?? 0) < minimum
+}
+function belowMeasured(current, measured) {
+  return (
+    (finiteNumber(current?.measured?.time) ?? 0) < measured ||
+    (finiteNumber(current?.measured?.tokens) ?? 0) < measured
+  )
+}
+
+function missingCheckpointMedian(current) {
+  return ['time', 'tokens'].some((kind) => finiteNumber(current?.indices?.[kind]?.median) === null)
 }
 
 /** Render one deterministic markdown checkpoint entry for the tuning log. */
@@ -1113,56 +1332,68 @@ function roundDeep(value) {
 export function formatLogEntry(result) {
   const time = result?.indices?.time ?? { median: null, p90: null }
   const tokens = result?.indices?.tokens ?? { median: null, p90: null }
-  const lines = [
-    '',
-    `### Ship checkpoint — ${result?.date ?? 'NO DATA'}`,
-    '',
-    `- stratum: ${result?.stratum ?? 'NO DATA'}`,
-    `- Window: ${result?.window?.since ?? 'NO DATA'} → ${result?.window?.until ?? 'NO DATA'}`,
-    `- n: ${result?.n ?? 'NO DATA'}`,
-    `- measured: time=${result?.measured?.time ?? 'NO DATA'}/${result?.n ?? 'NO DATA'}, tokens=${result?.measured?.tokens ?? 'NO DATA'}/${result?.n ?? 'NO DATA'}`,
-    `- time: median=${formatMetric(time.median)}, p90=${formatMetric(time.p90)}`,
-    `- tokens: median=${formatMetric(tokens.median)}, p90=${formatMetric(tokens.p90)}`,
-    `- top bucket: ${result?.topBucket ?? 'NO DATA'}`,
-    `- top bucket excess: ${formatMetric(result?.bucketExcess)}`,
-    `- verdict: ${result?.verdict ?? 'NO DATA'}`,
-  ]
+  const lines = logHeader(result, time, tokens)
   lines.push(`- escape window open: ${result?.escapeWindowOpen ?? 0}`)
-  if (result?.verdict === 'ANDON' || result?.verdict === 'ROLLBACK') {
-    const offenders = (Array.isArray(result?.offenders) ? result.offenders : [])
-      .filter((offender) => offender?.number !== null && offender?.number !== undefined)
-      .sort(
-        (a, b) =>
-          Math.max(b.time ?? -Infinity, b.tokens ?? -Infinity) -
-          Math.max(a.time ?? -Infinity, a.tokens ?? -Infinity),
-      )
-      .slice(0, 5)
-      .map(
-        (offender) =>
-          `#${offender.number} overhead_time=${formatMetric(offender.time)} overhead_tokens=${formatMetric(offender.tokens)}`,
-      )
-    lines.push(`- offenders: ${offenders.length > 0 ? offenders.join('; ') : 'none'}`)
-  }
-  const escapes = Array.isArray(result?.escapes) ? result.escapes : []
-  lines.push(
-    `- escapes: ${
-      result?.escapes === null
-        ? 'NO DATA'
-        : escapes.length > 0
-          ? escapes
-              .map((escape) =>
-                escape.kind === 'issue'
-                  ? `#${escape.pr} ← issue #${escape.issue}: ${String(escape.subject).slice(0, 80)}`
-                  : `#${escape.pr} ← ${String(escape.sha).slice(0, 7)} ${escape.kind}: ${String(escape.subject).slice(0, 80)}`,
-              )
-              .join('; ')
-          : 'none'
-    }`,
-  )
-  // One-line HTML comment: prettier leaves it untouched (a fenced JSON block gets re-wrapped and the
-  // entry stops parsing), and instruction loaders strip comments, so it costs no context.
+  appendOffenders(lines, result)
+  lines.push(`- escapes: ${formatEscapes(result)}`)
   lines.push('', `<!-- shipKpiCheckpoint ${JSON.stringify(roundDeep(result))} -->`, '')
   return lines.join('\n')
+}
+
+function logHeader(result, time, tokens) {
+  return [...logIdentity(result), ...logMeasures(result, time, tokens)]
+}
+
+function logIdentity(result) {
+  return [
+    '',
+    `### Ship checkpoint — ${display(result?.date)}`,
+    '',
+    `- stratum: ${display(result?.stratum)}`,
+    `- Window: ${display(result?.window?.since)} → ${display(result?.window?.until)}`,
+    `- n: ${display(result?.n)}`,
+  ]
+}
+
+function logMeasures(result, time, tokens) {
+  return [
+    `- measured: time=${display(result?.measured?.time)}/${display(result?.n)}, tokens=${display(result?.measured?.tokens)}/${display(result?.n)}`,
+    `- time: median=${formatMetric(time.median)}, p90=${formatMetric(time.p90)}`,
+    `- tokens: median=${formatMetric(tokens.median)}, p90=${formatMetric(tokens.p90)}`,
+    `- top bucket: ${display(result?.topBucket)}`,
+    `- top bucket excess: ${formatMetric(result?.bucketExcess)}`,
+    `- verdict: ${display(result?.verdict)}`,
+  ]
+}
+
+function appendOffenders(lines, result) {
+  if (!['ANDON', 'ROLLBACK'].includes(result?.verdict)) return
+  const offenders = (Array.isArray(result?.offenders) ? result.offenders : [])
+    .filter((offender) => offender?.number !== null && offender?.number !== undefined)
+    .sort(
+      (a, b) =>
+        Math.max(b.time ?? -Infinity, b.tokens ?? -Infinity) -
+        Math.max(a.time ?? -Infinity, a.tokens ?? -Infinity),
+    )
+    .slice(0, 5)
+    .map(
+      (offender) =>
+        `#${offender.number} overhead_time=${formatMetric(offender.time)} overhead_tokens=${formatMetric(offender.tokens)}`,
+    )
+  lines.push(`- offenders: ${offenders.length > 0 ? offenders.join('; ') : 'none'}`)
+}
+
+function formatEscapes(result) {
+  if (result?.escapes === null) return 'NO DATA'
+  const escapes = Array.isArray(result?.escapes) ? result.escapes : []
+  return escapes.length === 0 ? 'none' : escapes.map(formatEscape).join('; ')
+}
+
+function formatEscape(escape) {
+  const subject = String(escape.subject).slice(0, 80)
+  return escape.kind === 'issue'
+    ? `#${escape.pr} ← issue #${escape.issue}: ${subject}`
+    : `#${escape.pr} ← ${String(escape.sha).slice(0, 7)} ${escape.kind}: ${subject}`
 }
 
 /** Open PR older than `staleHours` whose rollup is not `classify()`-green. */
@@ -1187,6 +1418,10 @@ export function buildPrRow(pr, commits) {
   const list = Array.isArray(commits) ? commits : null
   const { evidenceOnlyCount, reviewLoopCount } = classifyPrCommits(list)
   const firstCommit = list?.[0]?.authoredDate
+  return buildPrRowValues(pr, list, evidenceOnlyCount, reviewLoopCount, firstCommit)
+}
+
+function buildPrRowValues(pr, list, evidenceOnlyCount, reviewLoopCount, firstCommit) {
   return {
     number: pr.number,
     mergedAt: pr.mergedAt ?? null,
@@ -1335,19 +1570,22 @@ function fetchCheckRunHistory(repo, commits) {
   if (typeof repo !== 'string' || !Array.isArray(commits)) return null
   const results = []
   try {
-    for (const commit of commits) {
-      const data = ghJsonOrThrow(
-        ['api', `repos/${repo}/commits/${commit.oid ?? commit.sha}/check-runs`, '--paginate'],
-        `gh api check-runs ${commit.oid ?? commit.sha}`,
-      )
-      results.push({ sha: commit.oid ?? commit.sha, checkRuns: data?.check_runs ?? data })
-    }
+    for (const commit of commits) results.push(fetchCommitChecks(repo, commit))
     return results
   } catch (error) {
     // FAIL-OPEN-INTENT: check-run history is optional external evidence; surface its failure and return null so redCiRuns stays NO DATA.
     process.stderr.write(`ship-kpi: check-run history unavailable: ${error?.message ?? error}\n`)
     return null
   }
+}
+
+function fetchCommitChecks(repo, commit) {
+  const sha = commit.oid ?? commit.sha
+  const data = ghJsonOrThrow(
+    ['api', `repos/${repo}/commits/${sha}/check-runs`, '--paginate'],
+    `gh api check-runs ${sha}`,
+  )
+  return { sha, checkRuns: data?.check_runs ?? data }
 }
 
 function fetchEscapeIssues(repo, deliveries) {
@@ -1414,15 +1652,15 @@ function collectFiles(dir, predicate, maxDepth, depth = 0) {
   } catch {
     return []
   }
-  const files = []
-  for (const entry of entries) {
-    const full = join(dir, entry.name)
-    if (entry.isFile() && predicate(entry.name)) files.push(full)
-    else if (entry.isDirectory() && !entry.name.includes('observer-sessions') && depth < maxDepth) {
-      files.push(...collectFiles(full, predicate, maxDepth, depth + 1))
-    }
-  }
-  return files
+  return entries.flatMap((entry) => collectEntry(dir, entry, predicate, maxDepth, depth))
+}
+
+function collectEntry(dir, entry, predicate, maxDepth, depth) {
+  const full = join(dir, entry.name)
+  if (entry.isFile() && predicate(entry.name)) return [full]
+  if (entry.isDirectory() && !entry.name.includes('observer-sessions') && depth < maxDepth)
+    return collectFiles(full, predicate, maxDepth, depth + 1)
+  return []
 }
 
 function sessionFiles(dir, host, sinceMs, untilMs) {
@@ -1466,18 +1704,25 @@ function newSessionAccumulator(host, file) {
 }
 
 function consumeExecution(accumulator, event) {
+  if (recordAccumulatorStart(accumulator, event)) return
+  finishAccumulatorExecution(accumulator, event)
+}
+
+function recordAccumulatorStart(accumulator, event) {
   const command = commandFromCall(event, accumulator.host)
   const id = callIdentity(event, accumulator.host)
-  if (command && id) {
-    const kind = FULL_GATE_RE.test(command)
-      ? 'fullGate'
-      : PREFLIGHT_RE.test(command)
-        ? 'preflight'
-        : null
-    if (kind)
-      accumulator.openCalls.set(id, { kind, timestamp: Date.parse(eventTimestamp(event) ?? '') })
-    return
-  }
+  if (!command || !id) return false
+  const kind = FULL_GATE_RE.test(command)
+    ? 'fullGate'
+    : PREFLIGHT_RE.test(command)
+      ? 'preflight'
+      : null
+  if (kind)
+    accumulator.openCalls.set(id, { kind, timestamp: Date.parse(eventTimestamp(event) ?? '') })
+  return true
+}
+
+function finishAccumulatorExecution(accumulator, event) {
   const resultId = resultIdentity(event, accumulator.host)
   const started = accumulator.openCalls.get(resultId)
   const end = Date.parse(eventTimestamp(event) ?? '')
@@ -1494,6 +1739,13 @@ function consumeSessionLine(accumulator, line) {
   if (event === null) return
   updateSessionTimes(accumulator.times, eventTimestamp(event))
   consumeExecution(accumulator, event)
+  updateAccumulatorUsage(accumulator, event)
+  if (accumulator.host === 'claude') consumeClaudeAccumulator(accumulator, event)
+  else consumeCodexAccumulator(accumulator, event)
+  updateHookBlocks(accumulator, line)
+}
+
+function updateAccumulatorUsage(accumulator, event) {
   const usage = event.message?.usage ?? event.usage
   accumulator.usage.input = addMetric(
     accumulator.usage.input,
@@ -1508,64 +1760,37 @@ function consumeSessionLine(accumulator, line) {
     usageValue(usage, 'cache_read_input_tokens', 'cacheReadInputTokens') ??
       usageValue(usage, 'cached_input_tokens'),
   )
-  if (accumulator.host === 'claude') {
-    if (accumulator.gitBranch === null && typeof event.gitBranch === 'string')
-      accumulator.gitBranch = event.gitBranch
-    if (accumulator.cwd === null && typeof event.cwd === 'string') accumulator.cwd = event.cwd
-    if (typeof event.effort === 'string') accumulator.effort = event.effort
-    const role = event.message?.role ?? event.type
-    if (role === 'user' && event.isSidechain !== true && !isToolResultMessage(event)) {
-      accumulator.humanMessages++
-      accumulator.hasHumanMessage = true
-      const content = messageContent(event)
-      if (accumulator.firstPrompt === null && typeof content === 'string') {
-        accumulator.firstPrompt = content.slice(0, 400)
-        accumulator.issueIdsInPrompt = promptIssueIds(accumulator.firstPrompt)
-      }
-    }
-  } else {
-    const payload = event.payload ?? {}
-    const spawn = payload.source?.subagent?.thread_spawn
-    if (accumulator.cwd === null && typeof (payload.cwd ?? event.cwd) === 'string')
-      accumulator.cwd = payload.cwd ?? event.cwd
-    if (
-      accumulator.agentPath === null &&
-      typeof (spawn?.agent_path ?? payload.agent_path ?? event.agent_path) === 'string'
-    )
-      accumulator.agentPath = spawn?.agent_path ?? payload.agent_path ?? event.agent_path
-    if (
-      accumulator.threadId === null &&
-      typeof (payload.id ?? payload.thread_id ?? event.thread_id) === 'string'
-    )
-      accumulator.threadId = payload.id ?? payload.thread_id ?? event.thread_id
-    if (
-      accumulator.parentThreadId === null &&
-      typeof (payload.parent_thread_id ?? spawn?.parent_thread_id ?? event.parent_thread_id) ===
-        'string'
-    )
-      accumulator.parentThreadId =
-        payload.parent_thread_id ?? spawn?.parent_thread_id ?? event.parent_thread_id
-    if (event.type === 'turn_context') {
-      if (typeof payload.model === 'string') accumulator.model = payload.model
-      if (typeof (payload.reasoning_effort ?? payload.effort) === 'string')
-        accumulator.effort = payload.reasoning_effort ?? payload.effort
-    }
-    const total = payload.info?.total_token_usage
-    if (total && typeof total === 'object') {
-      // OpenAI usage reports input_tokens inclusive of cached_input_tokens (Anthropic's excludes
-      // cache reads), so fresh input is the difference; otherwise the cached share counts twice.
-      accumulator.usage = {
-        input: freshInput(total),
-        output: usageValue(total, 'output_tokens', 'outputTokens'),
-        cache: usageValue(
-          total,
-          'cached_input_tokens',
-          'cache_read_input_tokens',
-          'cacheReadInputTokens',
-        ),
-      }
-    }
+}
+
+function consumeClaudeAccumulator(accumulator, event) {
+  updateClaudeAccumulatorContext(accumulator, event)
+  const role = event.message?.role ?? event.type
+  if (role !== 'user' || event.isSidechain === true || isToolResultMessage(event)) return
+  accumulator.humanMessages++
+  accumulator.hasHumanMessage = true
+  const content = messageContent(event)
+  if (accumulator.firstPrompt === null && typeof content === 'string') {
+    accumulator.firstPrompt = content.slice(0, 400)
+    accumulator.issueIdsInPrompt = promptIssueIds(accumulator.firstPrompt)
   }
+}
+
+function updateClaudeAccumulatorContext(accumulator, event) {
+  if (accumulator.gitBranch === null && typeof event.gitBranch === 'string')
+    accumulator.gitBranch = event.gitBranch
+  if (accumulator.cwd === null && typeof event.cwd === 'string') accumulator.cwd = event.cwd
+  if (typeof event.effort === 'string') accumulator.effort = event.effort
+}
+
+function consumeCodexAccumulator(accumulator, event) {
+  const payload = event.payload ?? {}
+  const spawn = payload.source?.subagent?.thread_spawn
+  assignCodexIdentity(accumulator, payload, spawn, event)
+  updateCodexContext(accumulator, payload, event)
+  updateCodexUsage(accumulator, payload.info?.total_token_usage)
+}
+
+function updateHookBlocks(accumulator, line) {
   for (const match of line.matchAll(HOOK_BLOCK_RE))
     accumulator.hookBlocks[match[1]] = (accumulator.hookBlocks[match[1]] ?? 0) + 1
 }
@@ -1653,22 +1878,27 @@ function toolUses(events) {
 function delegatedMetadata(events) {
   const models = new Set()
   const efforts = new Set()
-  for (const event of events) {
-    if (event?.isSidechain === true) {
-      if (typeof event.model === 'string') models.add(event.model)
-      if (typeof event.effort === 'string') efforts.add(event.effort)
-    }
-    for (const block of toolUses([event])) {
-      const model = block.input?.model
-      const effort = block.input?.reasoning_effort ?? block.input?.effort
-      if (typeof model === 'string') models.add(model)
-      if (typeof effort === 'string') efforts.add(effort)
-    }
-  }
+  for (const event of events) collectDelegatedMetadata(event, models, efforts)
   return {
     model: models.size > 0 ? [...models].sort().join(', ') : null,
     reasoningEffort: efforts.size > 0 ? [...efforts].sort().join(', ') : null,
   }
+}
+
+function collectDelegatedMetadata(event, models, efforts) {
+  if (event?.isSidechain === true) addStringValues(models, event.model, efforts, event.effort)
+  for (const block of toolUses([event]))
+    addStringValues(
+      models,
+      block.input?.model,
+      efforts,
+      block.input?.reasoning_effort ?? block.input?.effort,
+    )
+}
+
+function addStringValues(models, model, efforts, effort) {
+  if (typeof model === 'string') models.add(model)
+  if (typeof effort === 'string') efforts.add(effort)
 }
 
 function sessionFacts(lines) {
@@ -1732,31 +1962,14 @@ function enrichPrRow(row, pr, commits, lines) {
 
 function fetchPrRow(repo, number, sessions, worktreeDir, attributedFiles, options = {}) {
   const pr = options.pr ?? fetchPrDetail(repo, number)
-  const commits =
-    options.commits ??
-    (pr.commits ?? []).map((c) => ({
-      oid: c.oid,
-      subject: c.messageHeadline,
-      authoredDate: c.authoredDate,
-      touchedOnlyEvidencePaths: touchedOnlyEvidencePaths(c.oid),
-    }))
+  const commits = options.commits ?? commitsFromPr(pr)
   // `gh pr view --json` (per #2398 spec's field list) does not include `number` —
   // it's already known from the `pr list` call that produced this PR, so inject it.
   const row = buildPrRow({ ...pr, number }, commits)
   const firstCommit = commits[0]?.authoredDate ?? pr.createdAt
-  const attributed =
-    options.assigned ??
-    attributeSessions(sessions, {
-      ...pr,
-      headRefName: pr.headRefName,
-      firstCommit,
-      mergedAt: pr.mergedAt,
-      worktreeDir,
-    })
+  const attributed = options.assigned ?? sessionsForPr(sessions, pr, firstCommit, worktreeDir)
   const attributedMetas = attributed.map((entry) => entry.meta)
-  for (const session of attributedMetas) {
-    if (session.file) attributedFiles?.add(session.file)
-  }
+  markAttributedFiles(attributedMetas, attributedFiles)
   const enriched = enrichPrRow(row, pr, commits, null)
   const history = options.redCiRuns ?? redCiRunsFromHistory(fetchCheckRunHistory(repo, commits))
   return mergeDeliverySources(enriched, {
@@ -1765,6 +1978,28 @@ function fetchPrRow(repo, number, sessions, worktreeDir, attributedFiles, option
     redCiRuns: history,
     reworkSec: reviewReworkSeconds(commits),
     weights: options.weights,
+  })
+}
+
+function markAttributedFiles(sessions, files) {
+  for (const session of sessions) if (session.file) files?.add(session.file)
+}
+
+function commitsFromPr(pr) {
+  return (pr.commits ?? []).map((c) => ({
+    oid: c.oid,
+    subject: c.messageHeadline,
+    authoredDate: c.authoredDate,
+    touchedOnlyEvidencePaths: touchedOnlyEvidencePaths(c.oid),
+  }))
+}
+function sessionsForPr(sessions, pr, firstCommit, worktreeDir) {
+  return attributeSessions(sessions, {
+    ...pr,
+    headRefName: pr.headRefName,
+    firstCommit,
+    mergedAt: pr.mergedAt,
+    worktreeDir,
   })
 }
 
@@ -1822,20 +2057,27 @@ function parseArgs(argv) {
     recalibrate: false,
     checkpoint: false,
   }
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]
-    if (a === '--self-test') opts.selfTest = true
-    else if (a === '--calibrate') opts.calibrate = true
-    else if (a === '--recalibrate') opts.recalibrate = true
-    else if (a === '--checkpoint') opts.checkpoint = true
-    else if (a === '--since') opts.since = argv[++i]
-    else if (a === '--until') opts.until = argv[++i]
-    else if (a === '--repo') opts.repo = argv[++i]
-    else if (a === '--json') opts.json = argv[++i]
-    else if (a === '--sessions') opts.sessions = argv[++i]
-    else if (a === '--codex-sessions') opts.codexSessions = argv[++i]
+  const flags = {
+    '--self-test': ['selfTest', false],
+    '--calibrate': ['calibrate', false],
+    '--recalibrate': ['recalibrate', false],
+    '--checkpoint': ['checkpoint', false],
+    '--since': ['since', true],
+    '--until': ['until', true],
+    '--repo': ['repo', true],
+    '--json': ['json', true],
+    '--sessions': ['sessions', true],
+    '--codex-sessions': ['codexSessions', true],
   }
+  for (let i = 0; i < argv.length; i++) i += applyArg(opts, flags, argv, i)
   return opts
+}
+
+function applyArg(opts, flags, argv, index) {
+  const flag = flags[argv[index]]
+  if (!flag) return 0
+  opts[flag[0]] = flag[1] ? argv[index + 1] : true
+  return flag[1] ? 1 : 0
 }
 
 function historicalRows() {
@@ -1844,22 +2086,26 @@ function historicalRows() {
   const unnumbered = []
   for (const name of readdirSync(KPI_HISTORY_DIR)
     .filter((file) => file.endsWith('.json'))
-    .sort()) {
-    let payload
-    try {
-      payload = JSON.parse(readFileSync(join(KPI_HISTORY_DIR, name), 'utf-8'))
-      // FAIL-OPEN-INTENT: one malformed historical report is excluded; valid reports still provide auditable calibration input and missing measures remain null.
-    } catch {
-      continue
-    }
-    const snapshotRows = Array.isArray(payload) ? payload : payload?.rows
-    if (!Array.isArray(snapshotRows)) continue
-    for (const row of snapshotRows) {
-      if (row?.number === null || row?.number === undefined) unnumbered.push(row)
-      else numbered.set(String(row.number), row)
-    }
-  }
+    .sort())
+    addHistoricalFile(name, numbered, unnumbered)
   return [...unnumbered, ...numbered.values()]
+}
+
+function addHistoricalFile(name, numbered, unnumbered) {
+  let payload
+  try {
+    payload = JSON.parse(readFileSync(join(KPI_HISTORY_DIR, name), 'utf-8'))
+    // FAIL-OPEN-INTENT: one malformed historical report is excluded; valid reports still provide auditable calibration input and missing measures remain null.
+  } catch {
+    return
+  }
+  const rows = Array.isArray(payload) ? payload : payload?.rows
+  if (Array.isArray(rows)) for (const row of rows) addHistoricalRow(row, numbered, unnumbered)
+}
+
+function addHistoricalRow(row, numbered, unnumbered) {
+  if (row?.number === null || row?.number === undefined) unnumbered.push(row)
+  else numbered.set(String(row.number), row)
 }
 
 function tokenTotal(tokens) {
@@ -1872,18 +2118,28 @@ function tokenTotal(tokens) {
 
 function costDelivery(row, weights) {
   const split = row?.leadTimeSplit ?? {}
-  const fallbackHours = finiteNumber(row?.leadTimeHours)
-  const leadTime = fallbackHours === null ? finiteNumber(row?.leadTime) : fallbackHours * 3600
-  return {
+  return withDeliveryCosts({
     ...row,
     ...Object.fromEntries(Object.keys(split).map((kind) => [kind, finiteNumber(split[kind])])),
     stratum: row?.stratum ?? null,
-    leadTime,
-    tokens:
-      row?.tokens === null || row?.tokens === undefined ? null : costUnits(row.tokens, weights),
+    leadTime: deliveryLeadTime(row),
+    tokens: deliveryTokens(row, weights),
     writerCostUnits: finiteNumber(row?.writerCostUnits),
     reviewerCostUnits: finiteNumber(row?.reviewerCostUnits),
-  }
+  })
+}
+
+function deliveryLeadTime(row) {
+  const fallbackHours = finiteNumber(row?.leadTimeHours)
+  return fallbackHours === null ? finiteNumber(row?.leadTime) : fallbackHours * 3600
+}
+
+function deliveryTokens(row, weights) {
+  return row?.tokens === null || row?.tokens === undefined ? null : costUnits(row.tokens, weights)
+}
+
+function withDeliveryCosts(row) {
+  return row
 }
 
 const DEFAULT_MIN_CALIBRATION = 8
@@ -1977,60 +2233,16 @@ export function checkpointForRows(
   const time = quantiles(indices.map((index) => index.time))
   const tokens = quantiles(indices.map((index) => index.tokens))
   const escapes = findEscapes(selected, mainCommits, windowDays, issues)
-  const escapeWindowOpen = selected.filter((row) => {
-    const mergedMs = mergedAtMs(row)
-    return mergedMs !== null && mergedMs <= nowMs && nowMs - mergedMs < windowDays * 86_400_000
-  }).length
-  const buckets = Object.fromEntries(
-    ['writer', 'review'].map((kind) => {
-      const values = costs.map((delivery) =>
-        kind === 'writer'
-          ? { time: writerTimeReference(delivery), tokens: delivery.writerCostUnits }
-          : { time: delivery.review, tokens: delivery.reviewerCostUnits },
-      )
-      const time = quantiles(values.map((value) => value.time)).median
-      const tokens = quantiles(values.map((value) => value.tokens)).median
-      const base = baseline?.[stratum]?.buckets?.[kind]
-      const timeExcess = ratio(time, finiteNumber(base?.timeMedianSec))
-      const tokenExcess = ratio(tokens, finiteNumber(base?.costUnitsMedian))
-      return [
-        kind,
-        { time, tokens, excess: Math.max(timeExcess ?? -Infinity, tokenExcess ?? -Infinity) },
-      ]
-    }),
-  )
-  const topBucket =
-    Object.entries(buckets)
-      .filter(([, bucket]) => finiteNumber(bucket.excess) !== null)
-      .sort(([, a], [, b]) => b.excess - a.excess)[0]?.[0] ?? null
-  const measured = {
-    time: indices.filter((index) => index.time !== null).length,
-    tokens: indices.filter((index) => index.tokens !== null).length,
-  }
-  const leadValues = costs.map((delivery) => delivery.leadTime).filter((value) => value !== null)
-  const tokenValues = costs.map((delivery) => delivery.tokens).filter((value) => value !== null)
-  const leadMedian = median(leadValues)
-  const tokenMedian = median(tokenValues)
-  const andon = costs.some(
-    (delivery) =>
-      (delivery.leadTime !== null && delivery.leadTime > leadMedian * 3) ||
-      (delivery.tokens !== null && delivery.tokens > tokenMedian * 3),
-  )
+  const escapeWindowOpen = countOpenEscapes(selected, nowMs, windowDays)
+  const buckets = checkpointBuckets(costs, baseline, stratum)
+  const topBucket = topCheckpointBucket(buckets)
+  const measured = measuredIndices(indices)
+  const andon = checkpointAndon(costs)
   const controls = existsSync(REMOVED_CONTROLS_PATH)
     ? JSON.parse(readFileSync(REMOVED_CONTROLS_PATH, 'utf-8'))
     : []
   const rollback = rollbackControl(escapes ?? [], controls)
-  const ranked = indices
-    .map((index, position) => ({
-      number: selected[position]?.number ?? null,
-      time: index.time,
-      tokens: index.tokens,
-    }))
-    .sort(
-      (a, b) =>
-        Math.max(b.time ?? -Infinity, b.tokens ?? -Infinity) -
-        Math.max(a.time ?? -Infinity, a.tokens ?? -Infinity),
-    )
+  const ranked = rankCheckpointIndices(indices, selected)
   const offenders = ranked.filter(
     (offender) => Math.max(offender.time ?? -Infinity, offender.tokens ?? -Infinity) > 1,
   )
@@ -2063,6 +2275,78 @@ export function checkpointForRows(
     },
     _selected: selected,
   }
+}
+
+function countOpenEscapes(rows, nowMs, windowDays) {
+  return rows.filter((row) => {
+    const mergedMs = mergedAtMs(row)
+    return mergedMs !== null && mergedMs <= nowMs && nowMs - mergedMs < windowDays * 86_400_000
+  }).length
+}
+function checkpointBuckets(costs, baseline, stratum) {
+  return Object.fromEntries(
+    ['writer', 'review'].map((kind) => checkpointBucket(costs, baseline, stratum, kind)),
+  )
+}
+function checkpointBucket(costs, baseline, stratum, kind) {
+  const values = costs.map((delivery) =>
+    kind === 'writer'
+      ? { time: writerTimeReference(delivery), tokens: delivery.writerCostUnits }
+      : { time: delivery.review, tokens: delivery.reviewerCostUnits },
+  )
+  const time = quantiles(values.map((value) => value.time)).median
+  const tokens = quantiles(values.map((value) => value.tokens)).median
+  const base = baseline?.[stratum]?.buckets?.[kind]
+  return [
+    kind,
+    {
+      time,
+      tokens,
+      excess: Math.max(
+        ratio(time, finiteNumber(base?.timeMedianSec)) ?? -Infinity,
+        ratio(tokens, finiteNumber(base?.costUnitsMedian)) ?? -Infinity,
+      ),
+    },
+  ]
+}
+function topCheckpointBucket(buckets) {
+  return (
+    Object.entries(buckets)
+      .filter(([, bucket]) => finiteNumber(bucket.excess) !== null)
+      .sort(([, a], [, b]) => b.excess - a.excess)[0]?.[0] ?? null
+  )
+}
+function measuredIndices(indices) {
+  return {
+    time: indices.filter((index) => index.time !== null).length,
+    tokens: indices.filter((index) => index.tokens !== null).length,
+  }
+}
+function checkpointAndon(costs) {
+  const leadMedian = median(
+    costs.map((delivery) => delivery.leadTime).filter((value) => value !== null),
+  )
+  const tokenMedian = median(
+    costs.map((delivery) => delivery.tokens).filter((value) => value !== null),
+  )
+  return costs.some(
+    (delivery) =>
+      (delivery.leadTime !== null && delivery.leadTime > leadMedian * 3) ||
+      (delivery.tokens !== null && delivery.tokens > tokenMedian * 3),
+  )
+}
+function rankCheckpointIndices(indices, selected) {
+  return indices
+    .map((index, position) => ({
+      number: selected[position]?.number ?? null,
+      time: index.time,
+      tokens: index.tokens,
+    }))
+    .sort(
+      (a, b) =>
+        Math.max(b.time ?? -Infinity, b.tokens ?? -Infinity) -
+        Math.max(a.time ?? -Infinity, a.tokens ?? -Infinity),
+    )
 }
 
 export function checkpointHistory(path = TUNING_LOG_PATH) {
@@ -2216,19 +2500,15 @@ export function renderMarkdown({
   weights,
 }) {
   const lines = []
-  lines.push(`# Ship KPI — ${since} → ${until}`, '')
-  lines.push('## Per-PR', '')
   lines.push(
+    `# Ship KPI — ${since} → ${until}`,
+    '',
+    '## Per-PR',
+    '',
     '| PR | Commits | Evidence-only | Review-loop | Lead time (h) | Split w/p/f/r/q/c | costUnits | Human | Rounds | Gates | CI red at open | +/- |',
-  )
-  lines.push(
     '|----|---------|---------------|-------------|----------------|-------------------|-----------|-------|--------|-------|----------------|-----|',
+    ...renderRows(rows, weights),
   )
-  for (const r of rows) {
-    lines.push(
-      `| #${r.number} | ${formatMetric(r.commits)} | ${formatMetric(r.evidenceOnlyCommits)} | ${formatMetric(r.reviewLoopCommits)} | ${formatMetric(r.leadTimeHours)} | ${['work', 'preflight', 'fullGate', 'review', 'ciWait', 'ciRun'].map((kind) => formatMetric(r.leadTimeSplit?.[kind])).join('/')} | ${formatCompact(r.costUnits ?? costUnits(r.tokens, weights))} | ${formatMetric(r.humanMessages)} | ${formatMetric(r.rounds)} | ${formatMetric(r.fullGateRuns)} | ${r.ciRedAtOpen === null ? 'NO DATA' : r.ciRedAtOpen ? 'yes' : 'no'} | +${formatMetric(r.additions)}/-${formatMetric(r.deletions)} |`,
-    )
-  }
   lines.push('', ...renderStratumSummary(rows, weights))
   lines.push(
     `unattributed: claude ${formatMetric(unattributed?.claude)} / codex ${formatMetric(unattributed?.codex)} across ${formatMetric(unattributed?.sessions)} sessions`,
@@ -2246,42 +2526,47 @@ export function renderMarkdown({
     `| Open PRs stale (>2h, not green) | ${aggregate.openPrsStale.length === 0 ? 'none' : aggregate.openPrsStale.map((n) => `#${n}`).join(', ')} |`,
   )
   lines.push(`| % main commits evidence-only (window) | ${aggregate.pctMainEvidenceOnlyCommits}% |`)
-  if (Object.keys(hookBlocks).length > 0) {
-    lines.push('', '## Hook blocks (session logs)', '')
-    lines.push('| Hook | Blocks |', '|------|--------|')
-    for (const [name, count] of Object.entries(hookBlocks).sort((a, b) => b[1] - a[1])) {
-      lines.push(`| ${name} | ${count} |`)
-    }
-  }
+  lines.push(...renderHookBlocks(hookBlocks))
   return lines.join('\n') + '\n'
+}
+
+function renderRows(rows, weights) {
+  return rows.map(
+    (r) =>
+      `| #${r.number} | ${formatMetric(r.commits)} | ${formatMetric(r.evidenceOnlyCommits)} | ${formatMetric(r.reviewLoopCommits)} | ${formatMetric(r.leadTimeHours)} | ${['work', 'preflight', 'fullGate', 'review', 'ciWait', 'ciRun'].map((kind) => formatMetric(r.leadTimeSplit?.[kind])).join('/')} | ${formatCompact(r.costUnits ?? costUnits(r.tokens, weights))} | ${formatMetric(r.humanMessages)} | ${formatMetric(r.rounds)} | ${formatMetric(r.fullGateRuns)} | ${r.ciRedAtOpen === null ? 'NO DATA' : r.ciRedAtOpen ? 'yes' : 'no'} | +${formatMetric(r.additions)}/-${formatMetric(r.deletions)} |`,
+  )
+}
+function renderHookBlocks(hookBlocks) {
+  if (Object.keys(hookBlocks).length === 0) return []
+  return [
+    '',
+    '## Hook blocks (session logs)',
+    '',
+    '| Hook | Blocks |',
+    '|------|--------|',
+    ...Object.entries(hookBlocks)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => `| ${name} | ${count} |`),
+  ]
 }
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2))
   if (opts.selfTest) process.exit(runSelfTest())
+  if (opts.calibrate) return runCalibration(opts)
+  if (opts.checkpoint) return runCheckpoint(opts)
+  if (!opts.since) return usageError()
+  return runReport(opts)
+}
 
-  if (opts.calibrate) {
-    runCalibration(opts)
-    return
-  }
+function usageError() {
+  process.stderr.write(
+    'usage: ship-kpi --since <date> [--until <date>] [--repo owner/name] [--json <path>] [--sessions <dir>] [--codex-sessions <dir>]\n       ship-kpi --calibrate [--recalibrate]\n       ship-kpi --checkpoint\n       checkpoint verdicts: NO DATA | ANDON | ROLLBACK | RETHINK | TUNE <bucket> | PLATEAU | HOLD\n       ROLLBACK requires a matching entry in scripts/data/ship-kpi-removed-controls.json (empty today).\n       ship-kpi --self-test\n',
+  )
+  process.exit(2)
+}
 
-  if (opts.checkpoint) {
-    runCheckpoint(opts)
-    return
-  }
-
-  if (!opts.since) {
-    process.stderr.write(
-      'usage: ship-kpi --since <date> [--until <date>] [--repo owner/name] [--json <path>] [--sessions <dir>] [--codex-sessions <dir>]\n' +
-        '       ship-kpi --calibrate [--recalibrate]\n' +
-        '       ship-kpi --checkpoint\n' +
-        '       checkpoint verdicts: NO DATA | ANDON | ROLLBACK | RETHINK | TUNE <bucket> | PLATEAU | HOLD\n' +
-        '       ROLLBACK requires a matching entry in scripts/data/ship-kpi-removed-controls.json (empty today).\n' +
-        '       ship-kpi --self-test\n',
-    )
-    process.exit(2)
-  }
-
+async function runReport(opts) {
   const until = opts.until
   const prNumbers = fetchMergedPrNumbers(opts.repo, opts.since, until)
   const sinceMs = new Date(`${opts.since}T00:00:00Z`).getTime()
