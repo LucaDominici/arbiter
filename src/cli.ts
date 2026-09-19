@@ -40,7 +40,6 @@ import {
   runTaskResume,
   runTaskInit,
   runTaskGet,
-  HandoffRequiredError,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskShip, buildShipStepLines, shipStepFor } from './commands/task-ship.js'
@@ -477,7 +476,7 @@ function runConfiguredShipReview(
   access: ReturnType<typeof detectExternalModel> | undefined,
 ): ReturnType<typeof runShipCrossModelReview> | null {
   const config = result.profile.crossModelReview
-  if (result.advanced || result.phase !== 'refactor' || !config?.enabled) return null
+  if (!result.reviewDispatched || result.phase !== 'refactor' || !config?.enabled) return null
   const taskId = readUnifiedState(root)?.taskId
   if (taskId === undefined) {
     throw new Error('crossModelReview is enabled but the active ship task id is missing')
@@ -1973,16 +1972,10 @@ lifecycle
   .description('Advance (or reverse) the task lifecycle phase')
   .requiredOption(
     '--to <phase>',
-    'Target phase (preflight|plan|red-team-review|red|green|refactor|verification|close|complete|red-team-rework)',
+    'Target phase (preflight|plan|red|green|refactor|verification|close|complete)',
   )
   .option('--reverse', 'Allow backward phase transitions', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option(
-    '--skip-plan-review',
-    'Bypass the plan-review gate (writes audit record + WARNING)',
-    false,
-  )
-  .option('--post-clear', 'Signal post-/clear re-entry (equivalent to ARBITER_POST_CLEAR=1)', false)
   .option('--no-pr', 'Complete without a merged PR — this repo lands by direct push (logged)')
   .option(
     '--pr <n>',
@@ -1993,33 +1986,16 @@ lifecycle
       return n
     },
   )
-  .action(
-    (opts: {
-      to: string
-      reverse: boolean
-      dir?: string
-      skipPlanReview: boolean
-      postClear: boolean
-      pr?: number | false
-    }) => {
-      try {
-        runTaskAdvance({
-          to: opts.to as TaskPhase,
-          reverse: opts.reverse,
-          skipPlanReview: opts.skipPlanReview,
-          postClear: opts.postClear,
-          ...advanceLandingFlags(opts),
-          ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-        })
-      } catch (err) {
-        if (err instanceof HandoffRequiredError) {
-          process.stderr.write(err.message + '\n')
-          process.exit(78)
-        }
-        throw err
-      }
-    },
-  )
+  .action((opts: { to: string; reverse: boolean; dir?: string; pr?: number | false }) => {
+    {
+      runTaskAdvance({
+        to: opts.to as TaskPhase,
+        reverse: opts.reverse,
+        ...advanceLandingFlags(opts),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+    }
+  })
 
 lifecycle
   .command('recover')
@@ -2232,17 +2208,6 @@ program
     [] as string[],
   )
   .option('--advance', 'Advance to the next phase (runs that phase gate; fails if red)', false)
-  .option('--skip-plan-review', 'Bypass the plan-review gate on advance', false)
-  .option('--post-clear', 'Signal post-/clear re-entry on advance', false)
-  .option(
-    '--units <n>',
-    'Implementation unit count from the plan — drives the size-driven clear decision',
-    (v: string) => {
-      const n = parseInt(v, 10)
-      if (isNaN(n) || n <= 0) throw new Error('--units must be a positive integer')
-      return n
-    },
-  )
   .option(
     '--chain <id>',
     'Other issue id admitted to this ship train; requires --affinity and complete qualification',
@@ -2314,13 +2279,10 @@ program
         forceReview: boolean
         pr?: number | false
         advance: boolean
-        skipPlanReview: boolean
-        postClear: boolean
-        units?: number
         dir?: string
       },
     ) => {
-      try {
+      {
         // #1305 — desugar `--autonomy` + parse `--set` into ONE validated per-run overrides map,
         // gated by OVERRIDABLE_PATHS and persisted to the session layer (survives /clear).
         const shipRoot = opts.dir ?? process.cwd()
@@ -2351,9 +2313,6 @@ program
           ...shipReviewFlags(opts),
           advance: opts.advance,
           advanceOpts: {
-            skipPlanReview: opts.skipPlanReview,
-            postClear: opts.postClear,
-            ...(opts.units !== undefined ? { units: opts.units } : {}),
             // #2402 — the landing gate fires on `--advance` into `complete`; without these the
             // ship path would have no escape hatch the `task advance` path has.
             ...advanceLandingFlags(opts),
@@ -2369,12 +2328,6 @@ program
         )
         const lines = buildShipStepLines(outputResult)
         process.stdout.write(lines.join('\n') + '\n')
-      } catch (err) {
-        if (err instanceof HandoffRequiredError) {
-          process.stderr.write(err.message + '\n')
-          process.exit(78)
-        }
-        throw err
       }
     },
   )

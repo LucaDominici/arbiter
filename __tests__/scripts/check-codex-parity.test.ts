@@ -166,7 +166,7 @@ describe('check-codex-parity — non-vacuity mutations (#1966)', () => {
   it('mutation — missing emitted file: a manifest entry deleted from disk is red', () => {
     dir = bakeBothTracks()
     const ctx = parityCtx(dir) // manifest captured BEFORE the deletion
-    rmSync(join(dir, '.agents', 'plan', 'README.md'))
+    rmSync(join(dir, '.agents', 'rules', '90-exec-protocol.md'))
     const result = runParityCheck(ctx) as ParityResult
     expect(result.status).toBe('FAIL')
     expect(kinds(result)).toContain('manifest-missing')
@@ -259,7 +259,7 @@ describe('cleanChildEnv', () => {
     const env = cleanChildEnv({
       PATH: '/usr/bin',
       ARBITER_SKIP_TDD: '1',
-      ARBITER_POST_CLEAR: '1',
+      ARBITER_GATE_BYPASS: '1',
       HOME: '/home/user',
     })
     expect(env).toEqual({ PATH: '/usr/bin', HOME: '/home/user' })

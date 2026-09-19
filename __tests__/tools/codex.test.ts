@@ -39,13 +39,12 @@ describe('tool output: codex', () => {
     expect(content).toContain('test-project')
   })
 
-  it('CODEX.md includes plan JSON schema with required fields', () => {
+  it('CODEX.md consumes the shared Ship plan instead of requiring a second plan', () => {
     const config = codexConfig()
     generateCodex(config)
     const content = readFileSync(join(dir, '.agents', 'CODEX.md'), 'utf-8')
-    expect(content).toContain('PLAN.json')
-    expect(content).toContain('run_id')
-    expect(content).toContain('task_id')
+    expect(content).toContain('Ship')
+    expect(content).not.toContain('.agents/plan/PLAN.json')
   })
 
   it('CODEX.md includes command translation table', () => {
@@ -143,20 +142,19 @@ describe('tool output: codex', () => {
     expect(section).toContain('`95-closer-mode.md`')
   })
 
-  it('generates plan directory README referencing PLAN.json', () => {
+  it('does not generate a second host-specific plan store', () => {
     const config = codexConfig()
     generateCodex(config)
-    const readme = readFileSync(join(dir, '.agents', 'plan', 'README.md'), 'utf-8')
-    expect(readme).toContain('PLAN.json')
+    expect(existsSync(join(dir, '.agents', 'plan', 'README.md'))).toBe(false)
   })
 
-  it('result lists exactly 16 files all with created action', () => {
+  it('result lists exactly 15 files all with created action', () => {
     const config = codexConfig()
     const result = generateCodex(config)
-    // CODEX.md (1) + 5 rule files + plan README (1) + codex hooks (9: config.toml +
+    // CODEX.md (1) + 5 rule files + codex hooks (9: config.toml +
     // codex-adapter.mjs + lib.mjs + 5 shared guard hooks + check-no-skipped-tests.mjs,
-    // #1885) = 16.
-    expect(result.files).toHaveLength(16)
+    // #1885) = 15.
+    expect(result.files).toHaveLength(15)
     for (const f of result.files) {
       expect(f.action).toBe('created')
     }

@@ -51,6 +51,13 @@ describe('codex CODEX.md — workflow section', () => {
       expect(content).toContain(GATE_MAP[lang])
     })
   }
+
+  it('uses the shared Ship plan instead of requiring a second Codex plan', () => {
+    const content = renderCodexMd('typescript')
+    expect(content).toContain('Ship')
+    expect(content).not.toContain('.agents/plan/PLAN.json')
+    expect(content).not.toMatch(/L1` before (?:each )?commit/i)
+  })
 })
 
 describe('codex CODEX.md — Known Limitations parity section (#162)', () => {

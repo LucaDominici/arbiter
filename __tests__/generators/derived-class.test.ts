@@ -25,10 +25,6 @@ describe('isDerivedTrackKey / DERIVED_TRACK_KEYS (#1983 refresh-derived manifest
     expect(isDerivedTrackKey('.codex/codex-adapter.mjs')).toBe(true)
   })
 
-  it('excludes the plan scaffold README (not derived-from-Claude-template content)', () => {
-    expect(isDerivedTrackKey('.agents/plan/README.md')).toBe(false)
-  })
-
   it('excludes unrelated skipIfExists files', () => {
     expect(isDerivedTrackKey('scripts/check-collab-mode-wired.mjs')).toBe(false)
     expect(isDerivedTrackKey('arbiter.json')).toBe(false)

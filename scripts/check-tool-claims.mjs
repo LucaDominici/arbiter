@@ -16,7 +16,7 @@
 // intentional counter-example marked with `<!-- tool-claim-allow -->` on the same
 // or preceding line.
 //
-// Runs in pre-commit (via check-all.mjs L1+) over the tracked user-facing doc set.
+// Runs during frozen-candidate qualification (check-all.mjs L1+) over the tracked user-facing doc set.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

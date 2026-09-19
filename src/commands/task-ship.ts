@@ -289,15 +289,9 @@ function verificationSelfOnlyChecks(profile: ShipProfile): string[] {
   return profile.isArbiterSelf ? [...SELF_ONLY_GATES] : []
 }
 
-type ReviewPhase = 'red-team-review' | 'red-team-rework' | 'refactor'
-const RED_TEAM_REVIEW_PHASE: ReviewPhase = 'red-team-review'
-const RED_TEAM_REWORK_PHASE: ReviewPhase = 'red-team-rework'
-const REFACTOR_PHASE: ReviewPhase = 'refactor'
-
+type ReviewPhase = 'refactor'
 function isReviewPhase(phase: TaskPhase): phase is ReviewPhase {
-  return (
-    phase === RED_TEAM_REVIEW_PHASE || phase === RED_TEAM_REWORK_PHASE || phase === REFACTOR_PHASE
-  )
+  return phase === 'refactor'
 }
 
 /**
@@ -316,21 +310,6 @@ function reviewPhaseStepBody(
   context: Pick<ShipStepContext, 'verticals' | 'externalModelAccess' | 'review' | 'treatment'>,
 ): Omit<ShipStep, 'verticals'> {
   const { verticals, externalModelAccess, review: reviewPlan, treatment } = context
-  if (phase === RED_TEAM_REVIEW_PHASE) {
-    return {
-      phase,
-      action:
-        'No pre-implementation reviewer dispatch; mechanical plan admission is complete, so proceed to TDD.',
-      reviewAgents: 0,
-    }
-  }
-  if (phase === RED_TEAM_REWORK_PHASE) {
-    return {
-      phase,
-      action: 'Revise the plan for CRITICAL findings, then re-run red-team-review.',
-      reviewAgents: 0,
-    }
-  }
   const reviewAgents = treatment.finalReviewers
   const plan = planCrossModelSlots({
     tier: t,
@@ -389,7 +368,7 @@ function shipStepBody(
         // implementation candidate.
         action:
           'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
-        command: `arbiter lifecycle advance --to ${nextPhase(phase) ?? 'red-team-review'}`,
+        command: `arbiter lifecycle advance --to ${nextPhase(phase) ?? 'red'}`,
         reviewAgents: 0,
       }
     case 'red':
@@ -437,15 +416,6 @@ export function nextPhase(current: TaskPhase): TaskPhase | null {
   const idx = PHASE_ORDER.indexOf(current)
   if (idx === -1 || idx >= PHASE_ORDER.length - 1) return null
   return PHASE_ORDER[idx + 1] ?? null
-}
-
-/**
- * The phase `--advance` moves to from `phase`. The lateral `red-team-rework` re-enters the
- * `red-team-review` gate; every other phase advances one step forward (null at the end).
- */
-function advanceTargetFor(phase: TaskPhase): TaskPhase | null {
-  if (phase === 'red-team-rework') return 'red-team-review'
-  return nextPhase(phase)
 }
 
 export interface TaskShipOptions {
@@ -500,9 +470,6 @@ export interface TaskShipOptions {
   advance?: boolean
   /** Bubble handoff control-flow to the caller instead of being swallowed. */
   advanceOpts?: {
-    skipPlanReview?: boolean
-    postClear?: boolean
-    units?: number
     /** #2402 — forwarded to the `complete` landing gate; without these `ship --advance` into
      *  `complete` would have no escape hatch at all. */
     noPr?: boolean
@@ -530,6 +497,9 @@ export interface ShipResult {
   tier?: ShipTier
   treatment?: ShipTreatment
   trainDecision?: AffinityVerdict
+  /** True only when this invocation actually opens a reviewer dispatch. */
+  reviewDispatched?: boolean
+  checkpoint?: Pick<UnifiedTaskState, 'cursor' | 'review'>
   /** #1288 — the ship profile resolved from the target repo's arbiter.json. */
   profile: ShipProfile
 }
@@ -541,6 +511,15 @@ export interface ShipResult {
  */
 function optionalShipStepLines(result: ShipResult, tier: ShipTier): string[] {
   const lines: string[] = []
+  if (result.checkpoint) {
+    const { cursor, review } = result.checkpoint
+    if (review)
+      lines.push(
+        `Candidate: ${review.lastReviewedSha ?? 'NO DATA'} · review round: ${review.rounds}`,
+      )
+    if (cursor.lastAction) lines.push(`Observed: ${cursor.lastAction}`)
+    if (cursor.nextAction) lines.push(`Next: ${cursor.nextAction}`)
+  }
   if (result.step.command) lines.push(`Command: ${result.step.command}`)
   if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
   if (result.step.externalReviewers !== undefined) {
@@ -666,7 +645,7 @@ function advanceShipPhase(
   opts: TaskShipOptions,
 ): { phase: TaskPhase; advanced: boolean; review: PlannedReviewRound | null } {
   if (!opts.advance) return { phase, advanced: false, review: null }
-  const target = advanceTargetFor(phase)
+  const target = nextPhase(phase)
   if (target === null) return { phase, advanced: false, review: null }
   const review = runTaskAdvance({
     to: target,
@@ -675,11 +654,6 @@ function advanceShipPhase(
     ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
   })
   appendLog(root, `ship → advanced to ${target}`)
-  if (phase === 'plan' && readUnifiedState(root)?.treatment?.preCodeReviewers === 0) {
-    runTaskAdvance({ to: 'red', dir: root, ...(opts.advanceOpts ?? {}) })
-    appendLog(root, 'ship → skipped empty pre-code review phase')
-    return { phase: 'red', advanced: true, review: null }
-  }
   return { phase: target, advanced: true, review }
 }
 
@@ -979,9 +953,105 @@ function assertShipNotBlocked(
   }
 }
 
+function isReadOnlyShipRequest(
+  state: UnifiedTaskState | null,
+  opts: TaskShipOptions,
+): state is UnifiedTaskState {
+  return (
+    state !== null &&
+    (opts.taskId === undefined || normalizeShipTaskId(opts.taskId) === state.taskId) &&
+    !opts.advance &&
+    !opts.reviewRound &&
+    !opts.forceReview &&
+    !opts.seal &&
+    opts.tier === undefined &&
+    opts.autonomy === undefined &&
+    opts.overrides === undefined &&
+    opts.chainIds === undefined &&
+    opts.chainAddIds === undefined &&
+    opts.trainAffinity === undefined &&
+    opts.executionOutcome === undefined
+  )
+}
+
+function readOnlyShipResult(
+  root: string,
+  state: UnifiedTaskState,
+  opts: TaskShipOptions,
+): ShipResult {
+  const treatment =
+    state.treatment ??
+    resolveShipTreatment(state.tier, {
+      blastRadius: null,
+      labels: [],
+      milestoneBundled: false,
+      complete: false,
+    })
+  if (state.treatment === undefined) persistShipTreatment(root, state, treatment)
+  const profile = shipProfileFor(root, opts)
+  return {
+    phase: state.phase,
+    step: shipStepFor(state.phase, treatment, profile, state.taskId, state.chainIds ?? []),
+    advanced: false,
+    done: state.phase === 'complete',
+    tier: treatment.tier,
+    treatment,
+    checkpoint: {
+      cursor: state.cursor,
+      ...(state.review ? { review: state.review } : {}),
+    },
+    profile,
+  }
+}
+
+function persistShipTreatment(
+  root: string,
+  state: UnifiedTaskState | null,
+  treatment: ShipTreatment,
+): void {
+  if (
+    state?.tier !== treatment.tier ||
+    JSON.stringify(state.treatment) !== JSON.stringify(treatment)
+  ) {
+    writeUnifiedState(root, { tier: treatment.tier, treatment })
+  }
+}
+
+function buildActiveShipResult(input: {
+  phase: TaskPhase
+  treatment: ShipTreatment
+  profile: ShipProfile
+  state: UnifiedTaskState | null
+  advanced: boolean
+  preparedRound: PlannedReviewRound | null
+  preparedChainAdd: ReturnType<typeof prepareChainAdd>
+  opts: TaskShipOptions
+}): ShipResult {
+  const { phase, treatment, profile, state, advanced, preparedRound, preparedChainAdd, opts } =
+    input
+  return {
+    phase,
+    step: shipStepFor(phase, treatment, profile, state?.taskId, {
+      chainIds: state?.chainIds ?? [],
+      ...(opts.externalModelAccess !== undefined
+        ? { externalModelAccess: opts.externalModelAccess }
+        : {}),
+      ...(preparedRound !== null ? { review: preparedRound } : {}),
+    }),
+    advanced,
+    reviewDispatched: preparedRound !== null,
+    done: phase === 'complete',
+    tier: treatment.tier,
+    treatment,
+    ...(preparedChainAdd !== null ? { trainDecision: preparedChainAdd.affinity } : {}),
+    profile,
+  }
+}
+
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
   const initialState = readUnifiedState(root)
+  if (isReadOnlyShipRequest(initialState, opts)) return readOnlyShipResult(root, initialState, opts)
   assertShipNotBlocked(initialState, opts.executionOutcome)
   const shipConfig = shipConfigFor(root)
   // Validate the complete train mutation before seeding task metadata. A rejected append must
@@ -994,8 +1064,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'
   const treatment = shipTreatmentFor(root, state, opts)
-  const tier = treatment.tier
-  writeUnifiedState(root, { tier, treatment })
+  persistShipTreatment(root, state, treatment)
   if (treatment.reasons.some((reason) => reason.startsWith('BLOCKED:'))) {
     appendLog(root, 'ship → BLOCKED: current implementation approach made no progress')
     throw new UserFacingError(t('errors.E_NO_PROGRESS_BLOCKED'))
@@ -1010,23 +1079,14 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const preparedRound = explicitRound ?? advancedPhase.review
   writeVerificationCompanionEvidence(root, phase, state?.taskId, profile, opts)
 
-  return {
+  return buildActiveShipResult({
     phase,
-    // #2102 — thread taskId + chainIds through so the close-step text names the whole chain.
-    step: shipStepFor(phase, treatment, profile, state?.taskId, {
-      chainIds: state?.chainIds ?? [],
-      ...(opts.externalModelAccess !== undefined
-        ? { externalModelAccess: opts.externalModelAccess }
-        : {}),
-      // #2400 — the delta scope belongs to the round just recorded, not to the phase: a bare
-      // `arbiter ship` re-reading the step must not re-announce a review it did not dispatch.
-      ...(preparedRound !== null ? { review: preparedRound } : {}),
-    }),
-    advanced: advancedPhase.advanced,
-    done: phase === 'complete',
-    tier,
     treatment,
-    ...(preparedChainAdd !== null ? { trainDecision: preparedChainAdd.affinity } : {}),
     profile,
-  }
+    state,
+    advanced: advancedPhase.advanced,
+    preparedRound,
+    preparedChainAdd,
+    opts,
+  })
 }

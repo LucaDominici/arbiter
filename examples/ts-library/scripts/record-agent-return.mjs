@@ -386,16 +386,34 @@ function validatedAcceptanceFit(parsed, schema, state, stamped) {
     return null
   }
   const criteriaIds = frozen.anchor.criteria.map((criterion) => criterion.id)
-  const errors = validateAcFit(env.acceptanceFit, criteriaIds, {
-    requireAllPass: true,
-    expectedTaskId: TASK_ID,
-  })
-  errors.push(...enforceAcFitCitations(env.acceptanceFit, REPO_ROOT, stamped.sha, '<stdin>'))
+  const errors = acceptanceFitErrors(env, criteriaIds, stamped.sha, '<stdin>')
   if (errors.length > 0) {
     for (const error of errors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
     return null
   }
   return { env, anchor: frozen.anchor }
+}
+
+function acceptanceFitErrors(env, criteriaIds, sha, fitPath, requireAllPass = true) {
+  const errors = validateAcFit(env.acceptanceFit, criteriaIds, {
+    requireAllPass,
+    expectedTaskId: TASK_ID,
+  })
+  errors.push(...enforceAcFitCitations(env.acceptanceFit, REPO_ROOT, sha, fitPath))
+  return errors
+}
+
+function acceptanceFitArtifact(env, anchor, stamped, sourcePath, envelopeContent) {
+  return {
+    ...env.acceptanceFit,
+    branch: stamped.branch,
+    sha: stamped.sha,
+    planHash: computeAcHash(anchor.criteria),
+    sourceEnvelope: {
+      path: relative(REPO_ROOT, sourcePath),
+      sha256: createHash('sha256').update(envelopeContent).digest('hex'),
+    },
+  }
 }
 
 function writeAcceptanceFit(env, anchor, stamped) {
@@ -409,16 +427,7 @@ function writeAcceptanceFit(env, anchor, stamped) {
       agent,
       envelopeContent,
     )
-    const fit = {
-      ...env.acceptanceFit,
-      branch: stamped.branch,
-      sha: stamped.sha,
-      planHash: computeAcHash(anchor.criteria),
-      sourceEnvelope: {
-        path: relative(REPO_ROOT, sourcePath),
-        sha256: createHash('sha256').update(envelopeContent).digest('hex'),
-      },
-    }
+    const fit = acceptanceFitArtifact(env, anchor, stamped, sourcePath, envelopeContent)
     writeAtomicContained(
       join(REPO_ROOT, '.arbiter', 'evidence'),
       ['ac-fit'],
@@ -508,21 +517,66 @@ function validatePanel(envelopes, state, schema, requirement) {
     )
     return null
   }
-  return { validated, agents }
+  const fitEnvelopes = validated.filter((envelope) => envelope.acceptanceFit !== undefined)
+  if (fitEnvelopes.length === 0) {
+    process.stdout.write(
+      '[record-agent-return] FAIL: reviewer panel must include an acceptanceFit result from a final reviewer\n',
+    )
+    return null
+  }
+  const frozen = frozenPlanAnchor(state, validated[0])
+  if ('error' in frozen) {
+    process.stdout.write(
+      `[record-agent-return] FAIL: frozen plan is unavailable or changed: ${frozen.error}\n`,
+    )
+    return null
+  }
+  const criteriaIds = frozen.anchor.criteria.map((criterion) => criterion.id)
+  const fitErrors = fitEnvelopes.flatMap((envelope) =>
+    acceptanceFitErrors(envelope, criteriaIds, validated[0].sha, '<stdin>', false),
+  )
+  if (fitErrors.length > 0) {
+    for (const error of fitErrors) process.stdout.write(`[record-agent-return] FAIL: ${error}\n`)
+    return null
+  }
+  return { validated, agents, acceptanceFit: fitEnvelopes[0], anchor: frozen.anchor }
 }
 
-function writeReviewerPanel(validated, agents, requirement, stamped) {
+function writeReviewerPanel(validated, agents, requirement, acceptanceFit, anchor, stamped) {
   try {
     const evidenceDir = join(REPO_ROOT, '.arbiter', 'evidence', 'agent-returns')
     const task = TASK_ID.replace(/[^0-9A-Za-z-]/g, '_')
+    let acceptanceFitPath = null
+    let acceptanceFitContent = null
     for (const envelope of validated) {
-      writeEnvelopeContained(
+      const envelopeContent = `${JSON.stringify(envelope, null, 2)}\n`
+      const envelopePath = writeEnvelopeContained(
         evidenceDir,
         task,
         String(envelope.agent).replace(/[^0-9A-Za-z-]/g, '-'),
-        `${JSON.stringify(envelope, null, 2)}\n`,
+        envelopeContent,
       )
+      if (envelope === acceptanceFit) {
+        acceptanceFitPath = envelopePath
+        acceptanceFitContent = envelopeContent
+      }
     }
+    if (acceptanceFitPath === null || acceptanceFitContent === null) {
+      throw new Error('validated acceptance-fit reviewer has no persisted envelope path')
+    }
+    const fit = acceptanceFitArtifact(
+      acceptanceFit,
+      anchor,
+      stamped,
+      acceptanceFitPath,
+      acceptanceFitContent,
+    )
+    writeAtomicContained(
+      join(REPO_ROOT, '.arbiter', 'evidence'),
+      ['ac-fit'],
+      `${TASK_ID.replace(/[^0-9A-Za-z-]/g, '')}.json`,
+      `${JSON.stringify(fit, null, 2)}\n`,
+    )
     writeAtomicContained(
       REPO_ROOT,
       ['.arbiter'],
@@ -537,7 +591,7 @@ function writeReviewerPanel(validated, agents, requirement, stamped) {
         taskId: TASK_ID,
       })}\n`,
     )
-    process.stdout.write('[record-agent-return] OK — recorded routed reviewer panel\n')
+    process.stdout.write('[record-agent-return] OK — recorded routed reviewer panel and ac-fit\n')
     return 0
   } catch (err) {
     process.stderr.write(
@@ -564,7 +618,14 @@ function recordReviewerPanel(parsed, schema) {
   }
   const panel = validatePanel(envelopes, state, schema, requirement)
   if (panel === null) return 1
-  return writeReviewerPanel(panel.validated, panel.agents, requirement, stamped)
+  return writeReviewerPanel(
+    panel.validated,
+    panel.agents,
+    requirement,
+    panel.acceptanceFit,
+    panel.anchor,
+    stamped,
+  )
 }
 
 function recordReturn(parsed, schema) {

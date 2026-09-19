@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-09-13'
+last_review: '2026-09-19'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -81,7 +81,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 051 | [Collaboration-Mode Axis — Branching, CI Shape, and Merge Policy](051-collaboration-mode-workflow-axis.md)                                                            | Accepted   | 2026-05-28 |  |
 | 052 | [Exact-SHA Landing and Cosign Preservation](052-fast-forward-merge-cosign-preservation.md)                                                                            | Accepted   | 2026-09-04 |  |
 | 053 | [CI Gap Closures, Per-Tier Nightly, Opt-In Selective Gates, and Local Provenance Log](053-ci-gap-closures-and-check-ladder.md)                                        | Accepted   | 2026-05-28 |  |
-| 054 | [Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](054-phase-3-5-handoff-modeled-as-status-json-fields.md)                                          | Accepted   | 2026-05-31 | Model the handoff via status.json fields (handoffStrategy, |
+| 054 | [Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)](054-phase-3-5-handoff-modeled-as-status-json-fields.md)                                          | superseded | 2026-09-19 | Model the handoff via status.json fields (handoffStrategy, |
 | 055 | [SpotBugs security hard-block baseline script (#212)](055-spotbugs-security-hard-block-baseline-script.md)                                                            | Accepted   | 2026-05-31 | Add scripts/verify-spotbugs.mjs.ejs template — a Node.js script emitted to Java target projects. It enforce... |
 | 056 | [Self-dogfood check for EJS templates (#239)](056-self-dogfood-check-for-ejs-templates.md)                                                                            | Accepted   | 2026-05-31 | Add scripts/check-self-dogfood.mjs — a Node.js script that renders every EJS template under src/templates/c... |
 | 057 | [V1 Verification Bridge (#253)](057-v1-verification-bridge.md)                                                                                                        | Accepted   | 2026-05-31 | Add arbiter verify plan <file> command implementing 4 rules: VB-INV-EN-UI (Italian stopword check on UI str... |
@@ -115,7 +115,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 085 | [Evidence Prune Script and Red-Team SSOT Alignment Vectors](085-evidence-prune-and-red-team-ssot-alignment-vectors.md)                                                | Accepted   | 2026-05-16 |  |
 | 086 | [Four-Pillar SSOT Infrastructure (AC#1 Deviation)](086-four-pillar-ssot-infrastructure.md)                                                                            | Accepted   | 2026-05-13 |  |
 | 087 | [Rust Context-Aware INV-04 Checkers and Rebased-Aware Docs-Check](087-rust-context-aware-inv04-checkers-and-rebased-docs-check.md)                                    | Accepted   | 2026-05-14 |  |
-| 088 | [/ship as the Single Orchestration Entrypoint](088-ship-as-orchestration-entrypoint.md)                                                                               | Accepted   | 2026-06-05 |  |
+| 088 | [/ship as the Single Orchestration Entrypoint](088-ship-as-orchestration-entrypoint.md)                                                                               | Accepted   | 2026-09-19 |  |
 | 089 | [Collapse hand docs to SSOT-core + generated LLM-Wiki](089-collapse-hand-docs-to-ssot-core-plus-generated-wiki.md)                                                    | Accepted   | 2026-06-06 |  |
 | 090 | [Workflow Performance Budget](090-workflow-performance-budget.md)                                                                                                     | Accepted   | 2026-06-07 |  |
 | 091 | [Single-Developer Exception Attestation (§11.10(k))](091-single-dev-exception-attestation.md)                                                                         | Accepted   | 2026-06-07 |  |

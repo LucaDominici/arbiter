@@ -104,9 +104,8 @@ async function emitCodexTrackInto(fixtureRoot: string): Promise<void> {
 /**
  * Build an independent pristine fixture: the REAL repo's arbiter.json + a
  * minimal TS scaffold (the bakeFixtureProject precedent, so detector-driven
- * resolution is deterministic), the emitted codex track, and the declared
- * repo-runtime artifact .agents/plan/PLAN.json (git-tracked task state, never
- * emitted). Caller removes it in `finally`.
+ * resolution is deterministic), the emitted codex track, and one declared
+ * repo-runtime session artifact (never emitted). Caller removes it in `finally`.
  */
 /**
  * Seed the per-repo-root ledgers the gate resolves from --repo-root: an empty
@@ -118,7 +117,7 @@ function seedLedgers(dir: string): void {
   writeFileSync(join(dir, 'scripts', 'data', 'codex-self-parity-divergences.json'), '[]\n')
   writeFileSync(
     join(dir, 'scripts', 'data', 'codex-self-parity-runtime-artifacts.json'),
-    JSON.stringify({ runtimeArtifacts: ['.agents/plan/PLAN.json'] }, null, 2) + '\n',
+    JSON.stringify({ runtimeArtifacts: ['.agents/runtime/session.json'] }, null, 2) + '\n',
   )
 }
 
@@ -134,10 +133,10 @@ async function buildFixture(): Promise<string> {
   execFileSync('git', ['init', '-q'], { cwd: dir, encoding: 'utf-8', env: cleanChildEnv() })
   await emitCodexTrackInto(dir)
   seedLedgers(dir)
-  mkdirSync(join(dir, '.agents', 'plan'), { recursive: true })
+  mkdirSync(join(dir, '.agents', 'runtime'), { recursive: true })
   writeFileSync(
-    join(dir, '.agents', 'plan', 'PLAN.json'),
-    JSON.stringify({ task: '#1966', status: 'fixture' }, null, 2) + '\n',
+    join(dir, '.agents', 'runtime', 'session.json'),
+    JSON.stringify({ session: 'fixture' }, null, 2) + '\n',
   )
   return dir
 }
@@ -337,7 +336,7 @@ describe('check-codex-self-parity.mjs end to end (self-track, #1966)', () => {
       writeFileSync(
         raPath,
         JSON.stringify(
-          { runtimeArtifacts: ['.agents/plan/PLAN.json', '.agents/rules/99-big.md'] },
+          { runtimeArtifacts: ['.agents/runtime/session.json', '.agents/rules/99-big.md'] },
           null,
           2,
         ) + '\n',

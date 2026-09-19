@@ -1,10 +1,10 @@
 ---
-description: Drain the open backlog at maximum throughput — batch issues into waves, one wave PR merged GREEN per cycle (skill: wave-drain)
+description: Select compatible backlog work and deliver it through the shared Ship contract
 argument-hint: '[--wave-size N] [--max-parallel N]'
 title: '/drain'
-doc_version: '2.0.0'
+doc_version: '3.0.0'
 status: active
-last_review: '2026-07-10'
+last_review: '2026-09-19'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal', 'kind/orchestration']
@@ -13,69 +13,35 @@ related: ['ship', 'wt-open']
 
 # /drain
 
-`/drain` is the **wave orchestration entrypoint**. It drains the open backlog by composing
-**waves** of up to ~10 issues and driving each wave to a **single PR merged GREEN**, reusing
-the per-issue contract that `/ship` runs for one issue.
+`/drain` selects ready, compatible backlog work and invokes the same result-first `/ship`
+contract used for one issue. It does not define a second lifecycle, review pipeline, evidence
+store, or landing policy.
 
-It loads and executes the **`wave-drain`** skill. You are the orchestrator: you direct
-parallel agents, you do not implement.
+Load the `wave-drain` skill. Exclude `blocked`, `needs-human`, `needs-clarification`, and `epic`
+issues. A selected issue must have explicit acceptance criteria, non-goals, and affected
+files/contracts. Missing or uncertain readiness excludes it from the current wave.
 
-**A wave IS a train.** `/drain` is `/ship`'s train run at wave scale — same unit, same
-ceremony-once contract, more parallelism. What runs once per train and what stays per issue
-is the table in `ship.md` §Train; it is not restated here. Wave size and the train bound are
-the same number: `ship.train.maxChain` in `arbiter.json` (default 10).
+Compose at most `--wave-size` issues into one capability train only when every issue passes the
+Ship affinity contract: same outcome, compatible ordering, related ownership/dependencies, shared
+proof, acceptance boundary, and rollback boundary, with no hard conflicts. Otherwise seal the
+current train and start another.
 
-## Defaults
+Invoke Ship with the selected issues and recorded affinity:
 
-| Flag               | Default | Meaning                                                                        |
-| ------------------ | ------- | ------------------------------------------------------------------------------ |
-| `--wave-size N`    | 10      | Max issues per wave                                                            |
-| `--max-parallel N` | 3       | Max worktree agents; effective cap `min(--max-parallel, nproc - 2, wave size)` |
+```bash
+arbiter ship #A #B --tier <XS|S|Standard> --affinity '<json>'
+```
 
-Parallel write-agents are legal ONLY under the ADR-103 rule-50 carve-out: dedicated
-worktree, distinct branch, plan-manifest-disjoint file-sets; deps/main-tree/tags stay
-serial. Convergence (owner-ratified 2026-07-10): governed repos → **one wave PR**; repos
-without arbiter → N-PR + merge-train (skill appendix).
+Then follow `arbiter ship --advance` until the train is merged with green CI. Each issue retains
+its own acceptance criteria, RED evidence, commit reference, and closing reference. The train has
+one plan, one frozen candidate, one independent final review, one acceptance decision per AC, one
+exact-subject full gate, and one PR.
 
-## The loop (per wave)
+Parallel implementation is optional and legal only in disjoint isolated worktrees: one author per
+worktree, distinct branches, no shared files, dependency edits, main-tree edits, or tag writes.
+Each lane uses TDD and targeted checks. Integration is serial; the shared Ship contract owns final
+review, qualification, recovery, PR, CI, merge, and verified landing.
 
-1. **Triage + compose** the wave (exclude `blocked` / `needs-human` / `epic`);
-   `conflicts-with:#N` issues share a serial lane with #N.
-2. **One cumulative plan** → `.claude/plans/wave-N.md` (group manifests with DISJOINT
-   file-sets, anchors for CANON-16).
-3. **One plan review** + tier-Standard red-team. CRITICAL → rework (max 2 cycles) → else GO.
-   Every issue then passes the per-issue **3-hop plan gate** (skill §Phase 2.5, default-on;
-   hop 2's skeptic count scales with the tier) before its agent writes code — the
-   `needs-plan` label raises hop 2 to the Standard skeptic floor, it no longer switches the
-   gate on.
-4. **Parallel execution** — one agent per group in an isolated worktree (the native host worktree command followed by `arbiter worktree prepare`), TDD per
-   unit, light checks only; full gate forbidden in worktrees. Expensive gates that can race
-   another agent on the same repo go through `arbiter check run -- <cmd>` (flock(1) mutex,
-   released when the gate-exec supervisor is SIGKILL/OOM-killed; killing the Arbiter Node
-   PID alone leaves that supervisor holding; Linux tracks ordinary process-group escapes by an
-   inherited sentinel, but a payload that deliberately closes it is outside the guarantee;
-   fail-closed serial where flock is missing). Caches are
-   per-worktree (`symlink-children`). Anti-stall: gate-waits are ONE foreground wait;
-   turn-stalls are bounded by the watchdog sweep over real `gh`/worktree state.
-5. **Local integration** on `wave-N-integration` (off `main`): sequential merge,
-   minimum-overlap order from the REAL `git diff --name-only` of the branches → multiagent
-   review + adversarial verify (evidence, INV-114) → **full gate under the mutex**
-   (`arbiter check run -- sh -c 'go test ./... && node scripts/check-all.mjs check'`) →
-   `gate-pass.json`.
-6. **One PR per wave**, `Closes #…`, merge only on GREEN CI.
-7. the native host worktree cleanup command → `/clear`
-   → next wave, until the backlog is empty.
-
-## Hard stops (fail-closed)
-
-Invariant violation (cite INV-ID), unauthorized SSOT/read-only edit, orphan TODO,
-`any`/placeholder, or 2 failed plan-review cycles → blocker report + `needs-human` + proceed.
-A stop removes one group/issue; it never halts the wave.
-
-## Iron law
-
-No group integrates without TDD + targeted tests green. Nothing reaches `main` without
-red-team on the plan, multiagent review + adversarial verify, and a full gate GREEN on the
-wave PR. The ceremony is per-wave, not per-issue.
-
-> See the **`wave-drain`** skill for the full phase contract.
+Do not add parallel qualification pipelines, forced context clearing, or handoff steps. When one
+issue blocks, exclude it with the observed reason and continue independent work. Never turn an
+unknown into a pass.

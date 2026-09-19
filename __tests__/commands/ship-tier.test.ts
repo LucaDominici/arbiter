@@ -135,14 +135,12 @@ describe('resolveShipTreatment (#2681)', () => {
       tier: 'Standard',
       qualifiedNarrow: false,
       modelCapability: 'capable',
-      preCodeReviewers: 0,
       finalReviewers: 1,
     })
     expect(resolveShipTreatment('XS', completeSignals())).toMatchObject({
       tier: 'XS',
       qualifiedNarrow: true,
       planDepth: 'minimal',
-      preCodeReviewers: 0,
       finalReviewers: 1,
       reviewerVerticals: ['domain'],
       modelCapability: 'economy',
@@ -184,7 +182,6 @@ describe('resolveShipTreatment (#2681)', () => {
 
     expect(treatment).toMatchObject({
       sensitive: false,
-      preCodeReviewers: 0,
       finalReviewers: 1,
       reviewerVerticals: ['type-safety'],
     })

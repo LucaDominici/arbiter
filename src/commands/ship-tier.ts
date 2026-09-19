@@ -44,7 +44,6 @@ export interface ShipTreatment {
   tier: ShipTier
   sensitive: boolean
   planDepth: 'minimal' | 'brief' | 'full'
-  preCodeReviewers: 0 | 1
   finalReviewers: 1 | 2 | 3
   acceptanceFitReviewers: 1
   reviewerVerticals: ReviewVertical[]
@@ -100,7 +99,6 @@ export function isShipTreatment(value: unknown): value is ShipTreatment {
     SHIP_TIERS.has(value.tier as ShipTier),
     typeof value.sensitive === 'boolean',
     PLAN_DEPTHS.has(value.planDepth as ShipTreatment['planDepth']),
-    isIntegerIn(value.preCodeReviewers, 0, 1),
     isIntegerIn(value.finalReviewers, 1, 3),
     value.acceptanceFitReviewers === 1,
     isUniqueVerticalList(value.reviewerVerticals, value.finalReviewers),
@@ -345,7 +343,6 @@ export function resolveShipTreatment(
     tier,
     sensitive,
     planDepth: tier === 'XS' ? 'minimal' : tier === 'S' ? 'brief' : 'full',
-    preCodeReviewers: 0,
     finalReviewers,
     acceptanceFitReviewers: 1,
     reviewerVerticals,

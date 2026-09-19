@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // <%= projectName %> quality gate
 // Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
-// L1: format + lint + unit tests (fast, pre-commit)
+// L1: format + lint + unit tests (fast, frozen-candidate qualification)
 // L2: L1 + coverage + audit (full, pre-push)
 // --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
 import { createHash } from 'node:crypto';
@@ -101,7 +101,7 @@ function gateFilePresent(_path, _label, _neverEmittedLine = null, _alternatePath
 // `--level` as the level string skips the L2 branch while the job stays green —
 // that silent L2→L1 downgrade is the exact fake-green this gate exists to kill.
 const _LEVELS = ['L1', 'L2', 'L3', 'L4'];
-// Subcommand alias → level. `check` is the fast pre-commit lane; everything
+// Subcommand alias → level. `check` is the fast candidate-qualification lane; everything
 // heavier maps to L2 (the strongest tier this generated gate implements).
 const _SUBCOMMAND_LEVEL = {
   preflight: 'L2',
@@ -465,7 +465,7 @@ const l1 = stageGates.filter(g => g.level === 'L1'); const l2 = stageGates.filte
 const _preflightPassed = getFailed() === 0;
 if (!_preflight && (_preflightPassed || dryRun || only !== null)) {
 <% } %>
-// ── L1 (fast checks — pre-commit) ────────────────────────────────────────
+// ── L1 (fast checks — frozen candidate) ─────────────────────────────────
 if (true) {
 <% for (const g of l1) { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>

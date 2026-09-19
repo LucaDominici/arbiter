@@ -15,7 +15,7 @@
 // `<!-- install-command-allow -->` on the SAME or PRECEDING line, so docs can
 // still SHOW the wrong form to warn against it.
 //
-// Runs in pre-commit (via check-all.mjs L1+) over the tracked user-facing doc set.
+// Runs during frozen-candidate qualification (check-all.mjs L1+) over the tracked user-facing doc set.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

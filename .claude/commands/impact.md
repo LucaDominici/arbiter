@@ -25,7 +25,7 @@ absent.
 ## Use it
 
 - **Before planning a change** — scope which files the change must touch.
-- **Inside `/ship`** — in the plan and red-team phases, to confirm the plan reaches everything
+- **Inside `/ship`** — during plan admission and final review, to confirm the change reaches everything
   the change actually affects.
 
 ## Defaults

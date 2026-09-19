@@ -54,16 +54,6 @@ function writeTddEvidence(dir: string, taskId: string): void {
 }
 
 /**
- * #2435 — the artifact the `red-team-review` row of `.claude/commands/ship.md` promises.
- * Leaving that phase now asserts it, so a fixture that drives the whole lifecycle records it.
- */
-function writeRedTeamEvidence(dir: string, taskId: string): void {
-  const evDir = join(dir, '.arbiter', 'evidence', 'redteam')
-  mkdirSync(evDir, { recursive: true })
-  writeFileSync(join(evDir, `${taskId}.json`), JSON.stringify({ findings: [] }), 'utf-8')
-}
-
-/**
  * #2328: the marker gate verifies tree, checkout, toolchain, level and age
  * against a REAL checkout, so the fixture becomes a real repo and the marker is
  * stamped by the writer rather than hand-written.
@@ -89,19 +79,15 @@ function companionEvidencePath(taskId: string, dir: string): string {
 
 describe('ship sequencing — pure plan', () => {
   it('does not dispatch pre-code reviewers at any treatment', () => {
-    expect(shipStepFor('red-team-review', 'XS').reviewAgents).toBe(0)
-    expect(shipStepFor('red-team-review', 'S').reviewAgents).toBe(0)
-    expect(shipStepFor('red-team-review', 'Standard').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', 'XS').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', 'S').reviewAgents).toBe(0)
+    expect(shipStepFor('plan', 'Standard').reviewAgents).toBe(0)
   })
 
-  it('uses mechanical plan checks instead of a Standard plan-review dispatch', () => {
-    const step = shipStepFor(
-      'red-team-review',
-      'Standard',
-      profile({ collaborationMode: 'trunk-solo' }),
-    )
+  it('uses mechanical plan checks with no pre-code dispatch', () => {
+    const step = shipStepFor('plan', 'Standard', profile({ collaborationMode: 'trunk-solo' }))
     expect(step.reviewAgents).toBe(0)
-    expect(step.action).toMatch(/proceed to TDD/i)
+    expect(step.action).toMatch(/acceptance/i)
   })
 
   it('dispatches tier-N code-review agents at refactor', () => {
@@ -196,14 +182,13 @@ describe('ship sequencing — pure plan', () => {
     expect(std.reviewAgents).toBe(xs.reviewAgents)
   })
 
-  it('red-team-review carries the same assigned treatment seats', () => {
-    expect(shipStepFor('red-team-review', 'Standard').verticals).toEqual(['domain'])
-    expect(shipStepFor('red-team-review', 'XS').verticals).toEqual(['domain'])
+  it('plan carries the treatment vertical without dispatching it', () => {
+    expect(shipStepFor('plan', 'Standard').verticals).toEqual(['domain'])
+    expect(shipStepFor('plan', 'XS').verticals).toEqual(['domain'])
   })
 
   it('nextPhase walks forward and stops at complete', () => {
-    expect(nextPhase('plan')).toBe('red-team-review')
-    expect(nextPhase('red-team-review')).toBe('red')
+    expect(nextPhase('plan')).toBe('red')
     expect(nextPhase('complete')).toBeNull()
   })
 })
@@ -313,12 +298,12 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(readUnifiedState(dir)?.tier).toBe('Standard')
   })
 
-  it('--advance from red-team-rework re-enters red-team-review (no silent stall)', () => {
+  it('--advance moves directly from plan to red', () => {
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
-    writeUnifiedState(dir, { phase: 'red-team-rework' })
+    writeUnifiedState(dir, { phase: 'plan' })
     const r = runTaskShip({ dir, advance: true })
     expect(r.advanced).toBe(true)
-    expect(r.phase).toBe('red-team-review')
+    expect(r.phase).toBe('red')
   })
 
   it('auto-advances phase-by-phase through gate-green to complete', () => {
@@ -329,7 +314,6 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     )
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeTddEvidence(dir, '#1206')
-    writeRedTeamEvidence(dir, '#1206')
     // The verification/close/complete phase gates require a real-shape marker correlated to
     // this fixture's mocked branch and HEAD, just as a successful check-all run would write.
     writeGatePassMarker(dir, '#1206')
@@ -344,7 +328,6 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
         // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
         // remote, so the reader is seamed to a merged PR rather than the gate being disarmed.
         advanceOpts: {
-          skipPlanReview: true,
           readPrs: () => [{ number: 1206, state: 'MERGED' }],
         },
       })
@@ -770,6 +753,7 @@ describe('ship companion evidence emission (#1745)', () => {
 
     runTaskShip({
       dir,
+      executionOutcome: 'new-risk',
       profileOverride: profile({
         isArbiterSelf: false,
         companions: [testCompanion],

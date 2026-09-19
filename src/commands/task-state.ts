@@ -28,23 +28,13 @@ import { isShipTreatment, type ShipTreatment } from './ship-tier.js'
 // ─── Phase vocabulary (single source; re-exported by task.ts for back-compat) ────────────────
 
 export type TaskPhase =
-  | 'preflight'
-  | 'plan'
-  | 'red-team-review'
-  | 'red-team-rework'
-  | 'red'
-  | 'green'
-  | 'refactor'
-  | 'verification'
-  | 'close'
-  | 'complete'
+  'preflight' | 'plan' | 'red' | 'green' | 'refactor' | 'verification' | 'close' | 'complete'
 
 type HandoffStrategy = 'interactive' | 'inline' | null
 
 export const PHASE_ORDER: readonly TaskPhase[] = [
   'preflight',
   'plan',
-  'red-team-review',
   'red',
   'green',
   'refactor',
@@ -56,7 +46,7 @@ export const PHASE_ORDER: readonly TaskPhase[] = [
   'complete',
 ]
 
-export const LATERAL_PHASES: readonly TaskPhase[] = ['red-team-rework']
+export const LATERAL_PHASES: readonly TaskPhase[] = []
 
 export function isValidPhase(s: string): s is TaskPhase {
   return (
@@ -262,6 +252,8 @@ function msg(err: unknown): string {
 export function normalizePhase(raw: string | undefined, sourceLabel = STATUS_FILENAME): TaskPhase {
   if (raw === undefined || raw === '') return 'preflight'
   if (raw === 'implementation') return 'red'
+  // Recover saved legacy tasks into plan admission; reading never spends a phase or review.
+  if (raw === 'red-team-review' || raw === 'red-team-rework') return 'plan'
   if (!isValidPhase(raw)) {
     throw new Error(
       `Corrupted phase value "${raw}" in ${sourceLabel}. ` +

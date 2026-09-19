@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // #1267 — agent-dispatch-verify gate. The gate replays the ACTUAL derivation
-// (matrix tier->verticals vs src/commands/task-ship.ts::verticalsForTier mirror,
+// (matrix tier->verticals vs src/commands/ship-tier.ts resolver output,
 // plus structural validation) and asserts the declared oracle matches. A planted
 // mismatch MUST make it exit non-zero (AC4 — catch a dispatch mismatch).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -21,6 +21,22 @@ import { tmpdir } from 'node:os'
 const REPO_ROOT = resolve(process.cwd())
 const SCRIPT = join(REPO_ROOT, 'scripts/check-agent-dispatch.mjs')
 const MATRIX = join(REPO_ROOT, '.claude/agent-dispatch-matrix.json')
+
+describe('dispatch authority contract', () => {
+  it('keeps the matrix as a projection/test oracle and the resolver as runtime policy', () => {
+    const matrix = JSON.parse(readFileSync(MATRIX, 'utf-8')) as { _doc?: string }
+    const checker = readFileSync(SCRIPT, 'utf-8')
+    const router = readFileSync(join(REPO_ROOT, 'scripts/route-auditors.mjs'), 'utf-8')
+
+    expect(matrix._doc).toMatch(/projection.*test oracle/i)
+    expect(matrix._doc).toMatch(/runtime policy.*ship-tier/i)
+    expect(checker).toMatch(/projection.*test oracle/i)
+    expect(checker).toContain('resolveShipTreatment')
+    expect(checker).not.toContain('verticalsForTier')
+    expect(router).toContain('resolveShipTreatment')
+    expect(router).not.toContain('readFileSync(DISPATCH_MATRIX_PATH')
+  })
+})
 
 function run(cwd: string) {
   return spawnSync(process.execPath, [SCRIPT], {
@@ -56,9 +72,9 @@ describe('check-agent-dispatch — catches a planted mismatch (AC4)', () => {
     if (tmp && existsSync(tmp)) rmSync(tmp, { recursive: true })
   })
 
-  it('exits non-zero when the matrix tier->verticals is mutated to disagree with the task-ship mirror', () => {
+  it('exits non-zero when the matrix tier->verticals is mutated to disagree with the resolver', () => {
     // Plant a mismatch: drop 'domain' from the Standard tier projection so the matrix
-    // disagrees with src/commands/task-ship.ts::verticalsForTier('Standard').
+    // disagrees with src/commands/ship-tier.ts::resolveShipTreatment('Standard').
     const m = JSON.parse(readFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), 'utf-8'))
     m.tier_verticals.Standard = m.tier_verticals.Standard.filter((v: string) => v !== 'domain')
     writeFileSync(join(tmp, '.claude/agent-dispatch-matrix.json'), JSON.stringify(m, null, 2))

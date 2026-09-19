@@ -32,12 +32,10 @@ node scripts/record-agent-return.mjs --mode reviewer-panel --task '#NNN' <<'JSON
 {"envelopes":[/* exact arbiter-agent-return-v1 reviewer envelopes */]}
 JSON
 node scripts/check-review-completion.mjs --task '#NNN'
-node scripts/record-agent-return.mjs --mode ac-fit --task '#NNN' <<'JSON'
-{/* reuse the final reviewer envelope with all-PASS acceptanceFit */}
-JSON
 ```
 
-The recorder stamps branch and SHA and writes the sidecar from the persisted treatment. The checker
+The panel submission includes the final reviewer's all-PASS acceptance fit. The recorder stamps
+branch and SHA and writes both correlated artifacts from the persisted treatment. The checker
 rejects missing or malformed envelopes, stale subjects, sidecar/treatment drift, and applicable
 MED/HIGH/CRITICAL findings. A missing envelope may be retried once in the same round. A returned
 finding is reconciled with every other finding from that round in one fix batch.

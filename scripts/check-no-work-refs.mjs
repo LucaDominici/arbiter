@@ -8,7 +8,7 @@
 // CATALOG: independently of PII or suppression policy.
 //
 // Gate: reject any committed file containing provenance strings from
-// private work repositories. Runs in pre-commit (via check-all.mjs L1+).
+// private work repositories. Runs during frozen-candidate qualification (check-all.mjs L1+).
 //
 // Patterns are intentionally broad — false positives are cheap; leaks are not.
 import { execFileSync } from 'node:child_process'

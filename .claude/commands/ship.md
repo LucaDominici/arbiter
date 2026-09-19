@@ -107,8 +107,8 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
 4. **GREEN** — implement the capability. Run targeted checks while editing. Defer documentation and
    issue hygiene until behavior is green unless a decision is needed to implement correctly.
 5. **Freeze** — finish all fixes, commit, and freeze HEAD plus the plan acceptance hash.
-6. **Certify** — run one targeted certification for that HEAD. Dispatch the treatment's final code
-   final reviewer against the same SHA and shared evidence. That reviewer also returns acceptance fit.
+6. **Certify** — run one targeted certification for that HEAD. Dispatch the treatment's final
+   reviewer against the same SHA and shared evidence. That reviewer also returns acceptance fit.
 7. **Rework** — reconcile every finding from the round into one fix batch. A changed source SHA
    invalidates review, acceptance-fit, and gate evidence. Round two reviews only the delta. The
    normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
@@ -126,8 +126,6 @@ current lane.
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------: |
 | `preflight`       | Read the issue and seed validated task state.                                                                                              |             0 |
 | `plan`            | Freeze acceptance, non-goals, files, proof, and rollback.                                                                                  |             0 |
-| `red-team-review` | Mechanical plan admission only; `/ship --advance` skips this empty phase.                                                                  |             0 |
-| `red-team-rework` | Reconcile blocking plan findings in one batch, then re-enter review.                                                                       |             0 |
 | `red`             | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                                                  |             0 |
 | `green`           | Implement the smallest executable capability and run targeted checks.                                                                      |             0 |
 | `refactor`        | Freeze HEAD; dispatch one final reviewer, adding specialist seats only for sensitive domains.                                           |     treatment |
@@ -158,16 +156,10 @@ The completion check rejects missing or malformed envelopes, a different task/br
 that differs from the persisted treatment, source changes after review, and any applicable
 MED/HIGH/CRITICAL finding.
 
-Record the same final reviewer's acceptance fit against every frozen criterion:
-
-```bash
-node scripts/record-agent-return.mjs --mode ac-fit --task '#NNN' <<'JSON'
-{/* the final reviewer envelope with all-PASS acceptanceFit */}
-JSON
-```
-
-`arbiter lifecycle advance --to verification` runs the canonical review-completion and acceptance-fit
-checkers before changing phase. The final full gate writes the exact-subject receipt. A source change
+The reviewer-panel envelope includes that reviewer's acceptance fit against every frozen criterion;
+the recorder writes both correlated artifacts from the same submission. `arbiter lifecycle advance
+--to verification` runs the canonical review-completion and acceptance-fit checkers before changing
+phase. The final full gate writes the exact-subject receipt. A source change
 invalidates it; evidence-only commits may preserve it when the binding checker proves source content
 unchanged.
 

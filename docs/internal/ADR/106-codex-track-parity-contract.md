@@ -162,9 +162,11 @@ The self-config half of the contract is closed by a second gate,
 
 Intentional divergences live in `scripts/data/codex-self-parity-divergences.json` (dated
 rationale + content-hash pins, CANON-14 semantics; a drifted, healed, or dead pin is a
-gate failure). Declared repo-runtime artifacts — files the repository legitimately writes
-under the roots but the generator never emits, e.g. `.agents/plan/PLAN.json` — live in
-`scripts/data/codex-self-parity-runtime-artifacts.json`. Exit codes are 0/1/2
+gate failure). Declared repo-runtime artifacts — retained files the repository legitimately
+keeps under the roots but the generator never emits — live in
+`scripts/data/codex-self-parity-runtime-artifacts.json`. The Codex-only `PLAN.json` workflow
+was retired by #2724; the active Ship plan and persisted task state are shared across hosts.
+Exit codes are 0/1/2
 fail-closed. The check runs in the L2 gate immediately after `codex parity (#1966)`; CI
 inherits it via check-all L2.
 

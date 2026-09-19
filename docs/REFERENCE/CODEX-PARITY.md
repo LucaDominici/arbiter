@@ -22,18 +22,18 @@ The table below maps each Claude hook to its Codex workaround.
 
 ## Hook Parity Table
 
-| Claude Hook                  | INV     | Severity | Codex Workaround                  | Gap                                    |
-| ---------------------------- | ------- | -------- | --------------------------------- | -------------------------------------- |
-| `check-no-any.mjs`           | INV-04  | HIGH     | `tsc --strict` at L1 gate         | Delayed: caught at commit, not edit    |
-| `check-no-orphan-todo.mjs`   | INV-06  | MEDIUM   | `grep -rn 'TODO[^(]'` in gate     | Delayed: caught at commit              |
-| `check-no-pii.mjs`           | INV-PII | HIGH     | `scripts/pii-scan.mjs` at L2 gate | Delayed: caught pre-push               |
-| `pre-edit-ssot-guard.mjs`    | —       | LOW      | AGENTS.md hard-stop rule          | Behavioral only                        |
-| `pre-edit-plan-anchor.mjs`   | —       | MEDIUM   | `.agents/plan/PLAN.json` protocol | Behavioral — plan enforced by workflow |
-| `debug-state-on-failure.mjs` | —       | LOW      | None                              | No equivalent                          |
-| `skill-forced-eval.mjs`      | —       | LOW      | None                              | No equivalent                          |
-| `post-edit-dispatch.mjs`     | —       | LOW      | None                              | No equivalent                          |
-| `guard-task-completion.mjs`  | —       | MEDIUM   | None                              | No equivalent                          |
-| `check-circular-deps.mjs`    | INV-01  | HIGH     | `madge --circular src` at L1 gate | Delayed: caught at commit              |
+| Claude Hook                  | INV     | Severity | Codex Workaround                        | Gap                                    |
+| ---------------------------- | ------- | -------- | --------------------------------------- | -------------------------------------- |
+| `check-no-any.mjs`           | INV-04  | HIGH     | `tsc --strict` at L1 gate               | Delayed: caught at commit, not edit    |
+| `check-no-orphan-todo.mjs`   | INV-06  | MEDIUM   | `grep -rn 'TODO[^(]'` in gate           | Delayed: caught at commit              |
+| `check-no-pii.mjs`           | INV-PII | HIGH     | `scripts/pii-scan.mjs` at L2 gate       | Delayed: caught pre-push               |
+| `pre-edit-ssot-guard.mjs`    | —       | LOW      | AGENTS.md hard-stop rule                | Behavioral only                        |
+| `pre-edit-plan-anchor.mjs`   | —       | MEDIUM   | Shared Ship plan + persisted task state | Behavioral — plan enforced by workflow |
+| `debug-state-on-failure.mjs` | —       | LOW      | None                                    | No equivalent                          |
+| `skill-forced-eval.mjs`      | —       | LOW      | None                                    | No equivalent                          |
+| `post-edit-dispatch.mjs`     | —       | LOW      | None                                    | No equivalent                          |
+| `guard-task-completion.mjs`  | —       | MEDIUM   | None                                    | No equivalent                          |
+| `check-circular-deps.mjs`    | INV-01  | HIGH     | `madge --circular src` at L1 gate       | Delayed: caught at commit              |
 
 ## Decision Record
 

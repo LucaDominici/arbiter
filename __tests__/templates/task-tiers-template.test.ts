@@ -15,9 +15,7 @@ describe('ship treatment template', () => {
     const output = render().replace(/\s+/g, ' ')
     expect(output).toMatch(/\| XS\s+\| minimal \|\s+0 \|\s+1 pertinent vertical/)
     expect(output).toMatch(/\| Standard\s+\| full\s+\|\s+0 \|\s+1 pertinent vertical/)
-    expect(output).toMatch(
-      /\| Sensitive \| full\s+\|\s+0 \| relevant specialists, maximum 3/,
-    )
+    expect(output).toMatch(/\| Sensitive \| full\s+\|\s+0 \| relevant specialists, maximum 3/)
   })
 
   it('does not let a stale template input redefine runtime reviewer counts', () => {

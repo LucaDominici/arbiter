@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { ensureDir, writeFileTranslated, readFileTranslated } from '../utils/fs.js'
+import { readFileTranslated } from '../utils/fs.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { normalizeChainId } from './task-state.js'
 import { getBoolFlag, getNumberFlag } from '../config/env-registry.js'
@@ -32,18 +31,10 @@ import {
   resolveEvidenceCommit,
   tddEvidenceProducedOnBranch,
 } from '../evidence/git-checks.js'
-import { detectHostCapabilities } from '../capabilities/host-probe.js'
 import { loadConfig } from '../utils/config.js'
 import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../evidence/gate-binding.js'
 import { planReviewRound, resolveReviewMaxRounds, type PlannedReviewRound } from './ship-review.js'
 import { isShipTreatment } from './ship-tier.js'
-
-export class HandoffRequiredError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'HandoffRequiredError'
-  }
-}
 
 // Task-state vocabulary and the unified-document I/O live in `./task-state.ts`.
 // Re-export the phase types here so existing importers (e.g. src/cli.ts) keep their import path.
@@ -53,13 +44,6 @@ interface TaskAdvanceOptions {
   to: TaskPhase
   dir?: string
   reverse?: boolean
-  /** Bypass the plan-review gate when target is red. Writes an audit record. */
-  skipPlanReview?: boolean
-  /** Signal that this invocation is post-/clear (equivalent to ARBITER_POST_CLEAR=1). */
-  postClear?: boolean
-  /** Caller-supplied implementation unit count; drives the clear-strategy decision.
-   *  When absent, falls back to the tier's conservative default (→ 'stop'). */
-  units?: number
   /**
    * #2402 — `--no-pr`: this repo lands by direct push (trunk mode), so there is no PR to verify.
    * The escape hatch is LOGGED, never silent: a task that completed without a merged PR must say
@@ -96,12 +80,8 @@ interface TaskResumeOptions {
 
 const RECOVERY_TABLE: Record<TaskPhase, string> = {
   preflight:
-    'Phase: preflight\nAction: Run /task #NNN to initialize the task branch and plan.\nCommand: node scripts/check-all.mjs L1',
-  plan: 'Phase: plan\nAction: Plan is being written. Review .claude/plans/ for existing plan draft.\nNext: Await user GO before editing files.',
-  'red-team-review':
-    'Phase: red-team-review\nAction: Red-team agents running. Review .arbiter/evidence/redteam/<task-id>.json.\nNext: CRITICAL findings → arbiter lifecycle advance --to red-team-rework. All clear → arbiter lifecycle advance --to red.',
-  'red-team-rework':
-    'Phase: red-team-rework\nAction: Critical findings require plan revision. Fix plan, then re-run red-team.\nNext: arbiter lifecycle advance --to red-team-review (re-triggers review) or --to plan (full replan).',
+    'Phase: preflight\nAction: Run arbiter ship #NNN to initialize the task branch and plan.',
+  plan: 'Phase: plan\nAction: Plan is being written. Review .claude/plans/ for existing plan draft.\nNext: Enter RED after mechanical plan admission; ask only for unresolved product decisions.',
   red: 'Phase: red\nAction: Write failing tests first. No implementation yet.\nNext: Tests written → arbiter lifecycle advance --to green.',
   green:
     'Phase: green\nAction: Make tests pass with minimal implementation.\nNext: All tests green → arbiter lifecycle advance --to refactor.',
@@ -473,10 +453,6 @@ export type Runner = (cmd: string, args: readonly string[]) => RunCliResult
 
 const defaultRunner: Runner = (cmd, args) => runCli(cmd, args, { timeoutMs: 30_000 })
 
-function planReviewDir(dir: string, sanitisedId: string): string {
-  return join(dir, '.arbiter', 'evidence', 'plan-review', sanitisedId)
-}
-
 function backlogPath(dir: string, sanitisedId: string): string {
   return join(dir, '.arbiter', 'evidence', sanitisedId, 'BACKLOG.md')
 }
@@ -489,6 +465,19 @@ interface TaskRecoverOptions {
 
 function readTaskIdFromDisk(dir: string): string | undefined {
   return readTaskId(dir)
+}
+
+function recordedRecovery(state: UnifiedTaskState | null, taskId: string): string | null {
+  if (state?.taskId !== taskId) return null
+  return (
+    [
+      `Task: ${taskId} · phase: ${state.phase} · plan: ${state.plan}`,
+      `Candidate: ${state.review?.lastReviewedSha ?? 'not frozen'} · review round: ${state.review?.rounds ?? 0}`,
+      `Observed: ${state.cursor.lastAction || 'NO DATA'}`,
+      `Next: ${state.cursor.nextAction || RECOVERY_TABLE[state.phase]}`,
+      'Evidence: .arbiter/agents-dispatched.json; .arbiter/gate-pass.json (verify subject before reuse)',
+    ].join('\n') + '\n'
+  )
 }
 
 /**
@@ -508,6 +497,11 @@ export function runTaskRecover(opts: TaskRecoverOptions = {}): void {
     process.stdout.write(
       'No task id provided and no active task found. Pass --task <id> to recover.\n',
     )
+    return
+  }
+  const recovery = recordedRecovery(readUnifiedState(dir), rawId)
+  if (recovery !== null) {
+    process.stdout.write(recovery)
     return
   }
   const sanit = sanitizeTaskId(rawId)
@@ -554,142 +548,10 @@ export function runTaskRecover(opts: TaskRecoverOptions = {}): void {
   parts.push('━━━ END Layer 3 ━━━\n')
 
   parts.push(
-    'If still unclear, run /clear and reopen with manual MCP context — feed the issue body, the plan file, and the last few commits to the next session.',
+    'Use the issue, plan and recorded evidence to restore the next action; absent proof remains NO DATA.',
   )
 
   process.stdout.write(parts.join('\n') + '\n')
-}
-
-/* ─────────────────────  #695 — plan-review gate  ───────────────────── */
-
-interface RequirePlanReviewPassOptions {
-  dir: string
-  taskId: string
-  planContent?: string
-}
-
-interface RequirePlanReviewPassResult {
-  ok: boolean
-  reason?: string
-}
-
-interface LatestJson {
-  verdict: string
-  planDigest?: string
-}
-
-/**
- * Check `<dir>/.arbiter/evidence/plan-review/<sanitized-id>/latest.json`
- * for a PASS verdict matching the supplied plan content (digest check).
- */
-function requirePlanReviewPass(opts: RequirePlanReviewPassOptions): RequirePlanReviewPassResult {
-  const sanit = sanitizeTaskId(opts.taskId)
-  const latestPath = join(planReviewDir(opts.dir, sanit), 'latest.json')
-  if (!existsSync(latestPath)) {
-    return {
-      ok: false,
-      reason: `no plan-review evidence at ${latestPath} — record a PASS verdict there first`,
-    }
-  }
-  let parsed: LatestJson
-  try {
-    parsed = JSON.parse(readFileTranslated(latestPath, 'utf-8')) as LatestJson
-  } catch (err) {
-    return {
-      ok: false,
-      reason: `unreadable latest.json: ${err instanceof Error ? err.message : String(err)}`,
-    }
-  }
-  if (parsed.verdict !== 'PASS') {
-    return { ok: false, reason: `last plan-review verdict was ${parsed.verdict}` }
-  }
-  if (opts.planContent !== undefined && parsed.planDigest !== undefined) {
-    const got = createHash('sha256').update(opts.planContent).digest('hex')
-    if (got !== parsed.planDigest) {
-      return {
-        ok: false,
-        reason: 'plan changed since last review — re-review and update latest.json',
-      }
-    }
-  }
-  return { ok: true }
-}
-
-function gateEnabled(dir: string): boolean {
-  return (
-    existsSync(join(dir, '.arbiter', 'plan-review.enabled')) &&
-    readUnifiedState(dir)?.treatment?.preCodeReviewers !== 0
-  )
-}
-
-function readGitUserName(): string {
-  try {
-    const r = runCli('git', ['config', 'user.name'], { timeoutMs: 5000 })
-    return r.stdout.trim() || 'unknown'
-  } catch {
-    return 'unknown'
-  }
-}
-
-function writeBypassRecord(dir: string, sanitisedId: string, reason: 'flag' | 'env'): void {
-  const evDir = planReviewDir(dir, sanitisedId)
-  ensureDir(evDir)
-  const ts = new Date().toISOString()
-  const record = {
-    reason,
-    git_user: readGitUserName(),
-    ts,
-  }
-  writeFileTranslated(
-    join(evDir, `bypass-${ts.replace(/[:.]/g, '-')}.json`),
-    JSON.stringify(record, null, 2),
-  )
-}
-
-function loadPlanContentIfAvailable(dir: string): string | undefined {
-  const planPath = readUnifiedState(dir)?.plan.trim()
-  if (!planPath || planPath.length === 0) return undefined
-  const resolved = join(dir, planPath)
-  const candidate = existsSync(planPath) ? planPath : existsSync(resolved) ? resolved : undefined
-  if (candidate === undefined) return undefined
-  return readFileTranslated(candidate, 'utf-8')
-}
-
-function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
-  if (!gateEnabled(dir)) return
-  const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
-  const sanit = sanitizeTaskId(rawId)
-  const inCi = process.env.CI === 'true'
-  const envBypass = getBoolFlag('ARBITER_SKIP_PLAN_REVIEW')
-
-  if (opts.skipPlanReview === true) {
-    writeBypassRecord(dir, sanit, 'flag')
-    process.stderr.write('WARNING: plan-review gate bypassed (reason=flag, --skip-plan-review)\n')
-    return
-  }
-  if (envBypass && !inCi) {
-    writeBypassRecord(dir, sanit, 'env')
-    process.stderr.write(
-      'WARNING: plan-review gate bypassed (reason=env, ARBITER_SKIP_PLAN_REVIEW=1)\n',
-    )
-    return
-  }
-
-  const planContent = loadPlanContentIfAvailable(dir)
-  const result = requirePlanReviewPass({
-    dir,
-    taskId: rawId,
-    ...(planContent !== undefined ? { planContent } : {}),
-  })
-  if (!result.ok) {
-    const hint = inCi
-      ? `--skip-plan-review (env ARBITER_SKIP_PLAN_REVIEW is refused under CI)`
-      : `--skip-plan-review (or env ARBITER_SKIP_PLAN_REVIEW=1)`
-    throw new Error(
-      `plan-review gate: ${result.reason}. Use ${hint} to bypass with an audit record.`,
-    )
-  }
-  void claudeDir
 }
 
 /**
@@ -1115,7 +977,7 @@ function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
   const inCi = process.env.CI === 'true'
   const envBypass = getBoolFlag('ARBITER_SKIP_GATE_MARKER')
   if (envBypass && !inCi) {
-    // writeBypassRecord is intentionally plan-review-specific in both path and record shape.
+    // The gate-marker bypass remains explicit and is refused under CI.
     process.stderr.write(
       'WARNING: gate-pass marker gate bypassed (reason=env, ARBITER_SKIP_GATE_MARKER=1)\n',
     )
@@ -1163,16 +1025,13 @@ function reviewHead(dir: string, injected: string | null | undefined): string | 
 function prepareLifecycleReviewRound(
   dir: string,
   opts: TaskReviewRoundOptions,
-): PlannedReviewRound {
+): PlannedReviewRound | null {
   assertReviewSubjectFrozen(dir)
   const previous = reviewStateOf(readUnifiedState(dir))
+  const head = reviewHead(dir, opts.headSha)
+  if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) return null
   const maxRounds = opts.reviewMaxRounds ?? resolveReviewMaxRounds(shipConfigFor(dir))
-  const planned = planReviewRound(
-    previous,
-    maxRounds,
-    reviewHead(dir, opts.headSha),
-    opts.forceReview === true,
-  )
+  const planned = planReviewRound(previous, maxRounds, head, opts.forceReview === true)
   if ('allowed' in planned) {
     throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: planned.detail }))
   }
@@ -1184,7 +1043,10 @@ function assertReviewSubjectFrozen(dir: string): void {
   if (plan.length === 0 || !pathExistsInCommit('HEAD', plan, dir)) {
     throw new Error('review freeze requires a tracked plan present in HEAD')
   }
-  const dirty = runCli('git', ['status', '--porcelain'], { cwd: dir, timeoutMs: 5000 }).stdout.trim()
+  const dirty = runCli('git', ['status', '--porcelain'], {
+    cwd: dir,
+    timeoutMs: 5000,
+  }).stdout.trim()
   if (dirty.length > 0) {
     throw new Error('review freeze requires a clean HEAD; commit the plan and every candidate fix')
   }
@@ -1195,13 +1057,14 @@ function appendReviewLog(dir: string, plan: PlannedReviewRound): void {
   appendLog(dir, `review → round ${plan.rounds} at ${at}${plan.forced ? ' (forced)' : ''}`)
 }
 
-export function runTaskReviewRound(opts: TaskReviewRoundOptions = {}): PlannedReviewRound {
+export function runTaskReviewRound(opts: TaskReviewRoundOptions = {}): PlannedReviewRound | null {
   const dir = opts.dir ?? process.cwd()
   assertBoundNativeHost(dir, undefined)
   if (currentPhase(dir) !== 'refactor') {
     throw new Error('review round can only be opened while lifecycle phase is refactor')
   }
   const plan = prepareLifecycleReviewRound(dir, opts)
+  if (plan === null) return null
   const wasForced = reviewStateOf(readUnifiedState(dir)).forced === true
   writeUnifiedState(dir, {
     review: {
@@ -1264,41 +1127,22 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
   if (current === to) return null
   assertPhaseTransition(current, to, opts.reverse)
 
-  const PLANNING_PHASES: ReadonlySet<TaskPhase> = new Set(['red-team-review', 'red-team-rework'])
-  // #2435 — the gate for a phase runs on ENTRY, so the promise `.claude/commands/ship.md`
-  // makes for phase P is asserted by the entry gate of the phase P is left FOR. Every row
-  // of that table promising a dispatch or an evidence artifact (`plan`, `red-team-review`,
-  // `refactor`) now owns an entry here; five of ten phases previously asserted nothing, so
-  // a ship could reach `verification` with no plan reviewed and no red team ever dispatched.
-  // `__tests__/docs/ship-phase-gates-2435.test.ts` derives that expectation from ship.md.
+  // Each transition enforces only the proof due at this point in the lifecycle.
   const phaseGates: Partial<Record<TaskPhase, () => void>> = {
     plan: () => {
       checkTaskSeededGate(dir)
       checkEvidenceCompletionPreflight(dir)
       checkDeliveryContractPreflight(dir)
     },
-    'red-team-review': () => {
-      // Leaving `plan`: its row promises a plan-review dispatch writing a PASS verdict.
-      // The same assertion already guarded the plan → red edge; it now guards every exit.
-      checkPlanReviewGate(dir, claudeDir, opts)
-    },
-    'red-team-rework': () => {
-      checkRedTeamEvidenceGate(dir, current, PLANNING_PHASES)
-    },
     red: () => {
+      checkTaskSeededGate(dir)
       checkAcceptancePlanGate(dir)
-      checkPlanReviewGate(dir, claudeDir, opts)
-      checkRedTeamEvidenceGate(dir, current, PLANNING_PHASES)
-      if (PLANNING_PHASES.has(current)) {
-        checkHandoffGate(dir, claudeDir, opts)
-      }
     },
     green: () => {
       checkTddEvidenceGate(dir, claudeDir)
     },
     refactor: () => {
-      // Entering `refactor` opens review round 1 and arms the review-completion
-      // reconciliation — both key on the task id, and `check-review-completion.mjs`
+      // Entering `refactor` prepares review without spending a round. The reconciliation — both key on the task id, and `check-review-completion.mjs`
       // vacuous-passes when that id is unavailable. An id-less document therefore disarms
       // the very gate this phase's ship.md row promises, so it is refused here.
       checkTaskSeededGate(dir)
@@ -1425,33 +1269,6 @@ function checkTaskSeededGate(dir: string): void {
 }
 
 /**
- * #2435 — `.claude/commands/ship.md` promises the `red-team-review` phase dispatches tier-N
- * red-team agents and records them at `.arbiter/evidence/redteam/<task-id>.json`. Nothing
- * asserted it, so `arbiter lifecycle advance --to red` succeeded with no red team ever run.
- *
- * Scoped to the exits FROM a red-team phase: entering `red` straight from `plan` is not a
- * path the red-team promise covers.
- */
-function checkRedTeamEvidenceGate(
-  dir: string,
-  current: TaskPhase,
-  planningPhases: ReadonlySet<TaskPhase>,
-): void {
-  if (!planningPhases.has(current)) return
-  const treatment = readUnifiedState(dir)?.treatment
-  if (treatment?.preCodeReviewers === 0) return
-  if (treatment === undefined && loadConfig(dir)?.collaborationMode === 'trunk-solo') return
-  const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
-  const path = join(dir, '.arbiter', 'evidence', 'redteam', `${taskId}.json`)
-  if (existsSync(path)) return
-  throw new Error(
-    `red-team evidence gate: no red-team evidence at ${path}. ` +
-      'The `red-team-review` phase dispatches tier-N red-team agents and records their ' +
-      'findings there (see .claude/commands/ship.md §Red-team review) — record it before advancing.',
-  )
-}
-
-/**
  * #2331 — every issue on a chain owes RED evidence, not just the primary.
  *
  * `--chain` (#2102) lands N issues through ONE worktree, gate and PR, but the evidence gate only
@@ -1563,129 +1380,4 @@ function assertTddEvidenceFor(rawId: string, dir: string): void {
         `Verify the test file was committed at that sha.`,
     )
   }
-}
-
-// ─── Clear-strategy decision (#1209) ─────────────────────────────────────────────────────────────
-
-/** Max units that fit comfortably in-context without a /clear. */
-const INLINE_MAX = 10
-/** Max units that can be handled via a sub-agent handoff (no full /clear needed). */
-const SUBAGENT_MAX = 20
-
-const STRATEGY_DESCRIPTION: Record<'inline' | 'sub-agent' | 'stop', string> = {
-  inline: 'Strategy: inline (context is small — continuing in-context)',
-  'sub-agent': 'Strategy: sub-agent (medium context — spawn a sub-agent for the exec phase)',
-  stop: 'Strategy: stop (large context — run /clear then re-invoke to free context)',
-}
-
-/** Compute the appropriate clear strategy given known context pressure.
- *
- *  When `units` is absent, conservatively defaults to `'stop'` (backward-compatible: all
- *  existing callers that do not pass --units continue to throw the interactive handoff).
- *  Callers supply `units` from the plan §7 estimate — no auto-inference.
- */
-export function decideClearStrategy({
-  units,
-  modelSwitch,
-}: {
-  units: number | undefined
-  modelSwitch: boolean
-}): 'inline' | 'sub-agent' | 'stop' {
-  if (!modelSwitch) return 'inline'
-  if (units === undefined) return 'stop'
-  if (units <= INLINE_MAX) return 'inline'
-  if (units <= SUBAGENT_MAX) return 'sub-agent'
-  return 'stop'
-}
-
-/** Build the clear+resume banner that replaces the terse HandoffRequiredError message. */
-export function buildHandoffBanner({
-  taskId,
-  strategy,
-  units,
-  tier,
-}: {
-  taskId: string
-  strategy: 'inline' | 'sub-agent' | 'stop'
-  units: number | undefined
-  tier: string | undefined
-}): string {
-  const numericId = taskId.replace(/^#/, '')
-  const tierInfo = tier !== undefined ? ` (tier: ${tier})` : ''
-  const unitsInfo = units !== undefined ? `, units: ${units}` : ''
-  const resumeCmd = `arbiter ship #${numericId} --advance --post-clear`
-  const continueHint =
-    strategy === 'inline'
-      ? `Continue in this context: run \`${resumeCmd}\` or \`arbiter lifecycle advance --to red --post-clear\``
-      : strategy === 'sub-agent'
-        ? `Spawn a sub-agent for the exec phase, then pass \`--post-clear\` on re-entry:\n  \`${resumeCmd}\``
-        : `1. Run: /clear\n2. Re-invoke: \`${resumeCmd}\``
-  return [
-    `━━━ Plan complete — handoff required ━━━`,
-    `Task: ${taskId}${tierInfo}${unitsInfo}`,
-    STRATEGY_DESCRIPTION[strategy],
-    ``,
-    continueHint,
-    ``,
-    `Flag: --post-clear signals post-/clear re-entry (marks task state resumed).`,
-  ].join('\n')
-}
-
-function handlePostClearReEntry(rawId: string, dir: string): void {
-  const existing: Partial<UnifiedTaskState> = readUnifiedState(dir) ?? {}
-
-  // Fast path: already fully resumed — this call is a no-op.
-  if (existing.postClearResumed !== undefined) return
-
-  // Resolve the canonical task id. Prefer the one persisted in state (authoritative) over the
-  // raw id from disk which may be 'unknown' if state was not initialized yet.
-  const taskId = existing.taskId || (rawId !== 'unknown' ? rawId : undefined)
-  if (!taskId) {
-    throw new Error(
-      `Post-clear re-entry: task state has no taskId. ` +
-        `Re-initialize the task with \`arbiter lifecycle start --id #NNN\` before resuming. ` +
-        `(rawId="${rawId}", existing.taskId="${existing.taskId ?? ''}")`,
-    )
-  }
-
-  // Metadata only — never the phase. runTaskAdvance writes phase:'red' AFTER this returns.
-  writeUnifiedState(dir, { postClearResumed: new Date().toISOString() })
-}
-
-function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
-  void claudeDir
-  const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
-
-  const isPostClear = opts.postClear === true || getBoolFlag('ARBITER_POST_CLEAR')
-
-  if (isPostClear) {
-    handlePostClearReEntry(rawId, dir)
-    return
-  }
-
-  const caps = detectHostCapabilities()
-  if (!caps.modelSwitch) {
-    // Inline handoff: record strategy only, no phase write. runTaskAdvance proceeds to red.
-    writeUnifiedState(dir, { handoffStrategy: 'inline' })
-    return
-  }
-
-  // Size-driven strategy: inline → proceed; sub-agent or stop → throw with banner (#1209).
-  const strategy = decideClearStrategy({ units: opts.units, modelSwitch: caps.modelSwitch })
-  if (strategy === 'inline') {
-    writeUnifiedState(dir, { handoffStrategy: 'inline' })
-    return
-  }
-
-  // Interactive handoff: record strategy + readiness marker, then THROW before any phase write.
-  // The phase stays at the current planning phase until post-clear re-entry advances it (C1).
-  writeUnifiedState(dir, {
-    handoffStrategy: 'interactive',
-    handoffReady: true,
-    planningHandoffReady: new Date().toISOString(),
-  })
-  const tier = readUnifiedState(dir)?.tier
-  throw new HandoffRequiredError(
-    buildHandoffBanner({ taskId: rawId, strategy, units: opts.units, tier }),
-  )
 }

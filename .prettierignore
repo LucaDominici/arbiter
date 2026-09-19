@@ -79,3 +79,13 @@ schemas/vendor/
 
 # #2436: Stryker mutation-testing scratch sandbox is untracked and regenerable.
 .stryker-tmp/
+
+# #2724: always-regenerated Codex instruction file — codex.ts owns the bytes. Its
+# markdown tables interpolate per-project values (test/gate commands), so column
+# widths are only known at generation time and cannot be pre-aligned in the template;
+# prettier would reformat every fresh emission back out of parity with its generator.
+.agents/CODEX.md
+# #2724: generated manifest of emitted files — the generator's JSON.stringify owns the
+# byte layout and check-self-dogfood verifies it. Prettier collapses the arrays it
+# expands, so the two fight on every regeneration.
+.arbiter-generated.json
