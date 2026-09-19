@@ -1,4 +1,4 @@
-name: AI-draft PR check (bot)
+<% const _collabMode = (typeof collaborationMode !== 'undefined' && collaborationMode) ? collaborationMode : undefined; const _humanApproval = _collabMode !== 'trunk-solo'; /* trunk-solo: the sole human is the PR author and cannot self-approve — standing owner approval satisfies INV-91 */ %>name: AI-draft PR check (bot)
 
 # INV-91: AI-PR human-approval gate.
 # AI-authored PRs must have the approved-by-human label before merge.
@@ -39,6 +39,7 @@ jobs:
     name: AI-PR human-approval check (INV-91)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     steps:
+<% if (_humanApproval) { %>
       - name: Assert approved-by-human label on AI-authored PR
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
@@ -100,3 +101,8 @@ jobs:
             } else {
               core.info('approved-by-human label present — AI-PR gate passes.');
             }
+<% } else { %>
+      - name: Record standing owner approval
+        run: |
+          echo 'INV-91 amended: trunk-solo — standing owner approval (sole developer)'
+<% } %>

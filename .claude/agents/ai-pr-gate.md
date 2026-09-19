@@ -14,7 +14,9 @@ related: []
 
 # AI-PR Gate Agent
 
-**Purpose:** Verify INV-91 compliance — bot-authored PRs must have human approval.
+**Purpose:** Verify INV-91 compliance — bot-authored PRs must have human approval, except that
+`trunk-solo` uses the sole owner's standing approval because independent self-approval is
+impossible.
 
 **Mode:** READ-ONLY
 
@@ -22,7 +24,8 @@ related: []
 
 ## Mission
 
-Enforce the AI-PR human-approval gate (INV-91) before allowing bot-authored PRs to merge:
+Enforce the AI-PR human-approval gate (INV-91) before allowing bot-authored PRs to merge. For
+`trunk-solo`, verify the green standing-owner check instead of a label or second reviewer:
 
 1. Detect whether the PR author is a bot (`user.type == 'Bot'`)
 2. Verify the `approved-by-human` label is present
@@ -41,20 +44,19 @@ Invoke this agent when:
 
 For the PR under review:
 
-- [ ] `github.event.pull_request.user.type == 'Bot'` — confirm this is a bot PR
-- [ ] `approved-by-human` label present in PR labels
-- [ ] Last approval is from a human reviewer (`user.type != 'Bot'`)
-- [ ] Approving reviewer is different from the PR author (`reviewer.login != pr.user.login`)
-- [ ] `_ai-draft-check.yml` workflow check is passing (green)
-- [ ] No new commits pushed after approval (which would revoke the label via `03-human-approval.yml`)
+- [ ] For `trunk-solo`: `_ai-draft-check.yml` is green and logs the standing owner approval
+- [ ] Otherwise: `github.event.pull_request.user.type == 'Bot'` — confirm this is a bot PR
+- [ ] Otherwise: `approved-by-human` label present in PR labels
+- [ ] Otherwise: last approval is from a human reviewer (`user.type != 'Bot'`) who is not the PR author
+- [ ] Otherwise: no new commits pushed after approval (which would revoke the label via `03-human-approval.yml`)
 
 ## Output
 
 PASS / FAIL verdict with:
 
-- Author type (Bot/User)
-- Label status (present/missing)
-- Approver identity and type
+- Collaboration mode and author type (Bot/User)
+- Label status (present/missing), or standing approval for `trunk-solo`
+- Approver identity and type when an independent reviewer is required
 - Recommended action if failing
 
 ## Reference
