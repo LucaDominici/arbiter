@@ -14,11 +14,12 @@
 // inspection. Documented, not fixed — no cheaper data source exists via `gh`.
 //
 // Usage: ship-kpi --since <date> [--until <date>] [--repo owner/name]
-//                  [--json <path>] [--sessions <dir>]
+//                  [--json <path>] [--sessions <dir>] [--codex-sessions <dir>]
 //        ship-kpi --self-test   (pure predicate fixtures, no `gh`/`git` calls)
 import { execFileSync } from 'node:child_process'
 import {
   appendFileSync,
+  createReadStream,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -28,11 +29,13 @@ import {
 } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { createInterface } from 'node:readline'
 import { ghJson } from './lib/gh-audit-io.mjs'
 import { classify } from './pr-merge-watch.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
 
-const DEFAULT_SESSIONS_DIR = join(homedir(), '.claude/projects/-home-luca-work-repos-arbiter')
+const DEFAULT_SESSIONS_DIR = join(homedir(), '.claude/projects')
+const DEFAULT_CODEX_SESSIONS_DIR = join(homedir(), '.codex/sessions')
 
 // ---- Pure classifiers (exported, covered by --self-test + vitest) --------
 
@@ -226,13 +229,248 @@ function ratio(value, baseline) {
   return rounded(value / baseline, 2)
 }
 
+function sourceKnown(delivery, source) {
+  if (!Array.isArray(delivery?.sourcesKnown)) return true
+  return delivery.sourcesKnown.includes(source)
+}
+
+function sessionSourceKnown(delivery) {
+  return sourceKnown(delivery, 'claude') || sourceKnown(delivery, 'codex')
+}
+
 /** Compare the largest observed phase and total tokens with a stratum baseline. */
 export function overheadIndices(delivery, baseline) {
   const reference = baseline?.[delivery?.stratum]
   if (!reference) return { time: null, tokens: null }
+  const measuredTime = deliveryTime(delivery)
+  const measuredTokens = tokenTotal(delivery?.tokens)
+  const referenceTime = finiteNumber(reference.timeMedian)
+  const referenceTokens = finiteNumber(reference.tokensMedian)
+  const result = {
+    time: sourceKnown(delivery, 'ci') ? ratio(measuredTime, referenceTime) : null,
+    tokens: sessionSourceKnown(delivery) ? ratio(measuredTokens, referenceTokens) : null,
+  }
+  if (!Array.isArray(delivery?.sourcesKnown)) return result
   return {
-    time: ratio(deliveryTime(delivery), finiteNumber(reference.timeMedian)),
-    tokens: ratio(finiteNumber(delivery?.tokens), finiteNumber(reference.tokensMedian)),
+    ...result,
+    floorComponents: {
+      time: { measured: measuredTime, reference: referenceTime },
+      tokens: { measured: measuredTokens, reference: referenceTokens },
+    },
+  }
+}
+
+/** Derive CI queue/run time from completed checks that finished before merge. */
+export function ciTiming(pr) {
+  const createdMs = Date.parse(pr?.createdAt ?? '')
+  const mergedMs = Date.parse(pr?.mergedAt ?? '')
+  const checks = (Array.isArray(pr?.statusCheckRollup) ? pr.statusCheckRollup : []).filter(
+    (check) => {
+      const startedMs = Date.parse(check?.startedAt ?? '')
+      const completedMs = Date.parse(check?.completedAt ?? '')
+      return (
+        check?.status === 'COMPLETED' &&
+        Number.isFinite(startedMs) &&
+        Number.isFinite(completedMs) &&
+        Number.isFinite(mergedMs) &&
+        completedMs <= mergedMs
+      )
+    },
+  )
+  if (checks.length === 0) return { ciWaitSec: null, ciRunSec: null, redCiRuns: null }
+  const starts = checks.map((check) => Date.parse(check.startedAt))
+  const completes = checks.map((check) => Date.parse(check.completedAt))
+  return {
+    ciWaitSec: Number.isFinite(createdMs)
+      ? Math.round(Math.max(0, Math.min(...starts) - createdMs) / 1000)
+      : null,
+    ciRunSec: Math.round(Math.max(0, Math.max(...completes) - Math.min(...starts)) / 1000),
+    redCiRuns: checks.filter(
+      (check) =>
+        typeof check.conclusion === 'string' && check.conclusion.toUpperCase() === 'FAILURE',
+    ).length,
+  }
+}
+
+function sessionOverlaps(session, firstCommit, mergedAt) {
+  const firstMs = Date.parse(firstCommit ?? '')
+  const mergedMs = Date.parse(mergedAt ?? '')
+  const sessionFirstMs = Date.parse(session?.firstTs ?? '')
+  const sessionLastMs = Date.parse(session?.lastTs ?? '')
+  return (
+    Number.isFinite(firstMs) &&
+    Number.isFinite(mergedMs) &&
+    Number.isFinite(sessionFirstMs) &&
+    Number.isFinite(sessionLastMs) &&
+    sessionFirstMs <= mergedMs &&
+    sessionLastMs >= firstMs
+  )
+}
+
+/** Keep exact-branch sessions and branchless Codex sessions in the PR worktree. */
+export function attributeSessions(
+  sessions,
+  { headRefName, firstCommit, mergedAt, worktreeDir } = {},
+) {
+  return (Array.isArray(sessions) ? sessions : []).filter((session) => {
+    if (!sessionOverlaps(session, firstCommit, mergedAt)) return false
+    const exactBranch =
+      typeof headRefName === 'string' && headRefName !== '' && session.gitBranch === headRefName
+    const codexWorktree =
+      session.host === 'codex' &&
+      !session.gitBranch &&
+      typeof worktreeDir === 'string' &&
+      session.cwd === worktreeDir
+    return exactBranch || codexWorktree
+  })
+}
+
+function messageContent(event) {
+  return event?.message?.content ?? event?.content
+}
+
+function isToolResultMessage(event) {
+  const content = messageContent(event)
+  return Array.isArray(content) && content.some((block) => block?.type === 'tool_result')
+}
+
+function eventTimestamp(event) {
+  return event?.timestamp ?? event?.message?.timestamp ?? event?.payload?.timestamp ?? null
+}
+
+function updateSessionTimes(times, timestamp) {
+  if (typeof timestamp !== 'string' || !Number.isFinite(Date.parse(timestamp))) return
+  if (times.firstTs === null) times.firstTs = timestamp
+  times.lastTs = timestamp
+}
+
+/** Summarize Claude JSONL without counting sidechains or tool-result messages. */
+export function claudeSessionMeta(lines) {
+  let gitBranch = null
+  let cwd = null
+  let effort = null
+  let humanMessages = 0
+  let hasHumanMessage = false
+  let input = null
+  let output = null
+  let cache = null
+  const times = { firstTs: null, lastTs: null }
+  for (const line of Array.isArray(lines) ? lines : []) {
+    const event = parseSessionLine(line)
+    if (event === null) continue
+    updateSessionTimes(times, eventTimestamp(event))
+    if (gitBranch === null && typeof event.gitBranch === 'string') gitBranch = event.gitBranch
+    if (cwd === null && typeof event.cwd === 'string') cwd = event.cwd
+    if (typeof event.effort === 'string') effort = event.effort
+    const role = event.message?.role ?? event.type
+    if (role === 'user' && event.isSidechain !== true && !isToolResultMessage(event)) {
+      humanMessages++
+      hasHumanMessage = true
+    }
+    if (role !== 'assistant') continue
+    const usage = event.message?.usage ?? event.usage
+    input = addMetric(input, usageValue(usage, 'input_tokens', 'inputTokens'))
+    output = addMetric(output, usageValue(usage, 'output_tokens', 'outputTokens'))
+    cache = addMetric(cache, usageValue(usage, 'cache_read_input_tokens', 'cacheReadInputTokens'))
+    cache = addMetric(
+      cache,
+      usageValue(usage, 'cache_creation_input_tokens', 'cacheCreationInputTokens'),
+    )
+  }
+  return {
+    gitBranch,
+    cwd,
+    firstTs: times.firstTs,
+    lastTs: times.lastTs,
+    usage: { input, output, cache },
+    humanMessages: hasHumanMessage ? humanMessages : null,
+    effort,
+  }
+}
+
+/** Summarize Codex rollout JSONL using its latest context and token snapshot. */
+export function codexSessionMeta(lines) {
+  let cwd = null
+  let model = null
+  let effort = null
+  let usage = { input: null, output: null, cache: null }
+  const times = { firstTs: null, lastTs: null }
+  for (const line of Array.isArray(lines) ? lines : []) {
+    const event = parseSessionLine(line)
+    if (event === null) continue
+    updateSessionTimes(times, eventTimestamp(event))
+    const payload = event.payload ?? {}
+    if (cwd === null && typeof (payload.cwd ?? event.cwd) === 'string')
+      cwd = payload.cwd ?? event.cwd
+    if (event.type === 'turn_context') {
+      if (typeof payload.model === 'string') model = payload.model
+      const nextEffort = payload.reasoning_effort ?? payload.effort
+      if (typeof nextEffort === 'string') effort = nextEffort
+    }
+    const total = payload.info?.total_token_usage
+    if (total && typeof total === 'object') {
+      usage = {
+        input: usageValue(total, 'input_tokens', 'inputTokens'),
+        output: usageValue(total, 'output_tokens', 'outputTokens'),
+        cache: usageValue(
+          total,
+          'cached_input_tokens',
+          'cache_read_input_tokens',
+          'cacheReadInputTokens',
+        ),
+      }
+    }
+  }
+  return { cwd, firstTs: times.firstTs, lastTs: times.lastTs, model, effort, usage }
+}
+
+function sumNullable(values) {
+  const present = values.map(finiteNumber).filter((value) => value !== null)
+  return present.length > 0 ? present.reduce((sum, value) => sum + value, 0) : null
+}
+
+function sourceMetric(row, sessions, key) {
+  const measured = sumNullable(sessions.map((session) => session?.[key]))
+  return measured ?? row?.[key] ?? null
+}
+
+/** Merge CI and attributed session measurements, preserving zeroes and unknown nulls. */
+export function mergeDeliverySources(row, { ci, sessions } = {}) {
+  const attributed = Array.isArray(sessions) ? sessions : []
+  const tokenMaps = attributed.map((session) => session?.usage).filter(Boolean)
+  const tokens =
+    tokenMaps.length > 0
+      ? {
+          input: sumNullable(tokenMaps.map((usage) => usage.input)),
+          output: sumNullable(tokenMaps.map((usage) => usage.output)),
+          cache: sumNullable(tokenMaps.map((usage) => usage.cache)),
+        }
+      : (row?.tokens ?? null)
+  const leadTimeSplit = { ...(row?.leadTimeSplit ?? {}) }
+  if (finiteNumber(ci?.ciWaitSec) !== null) leadTimeSplit.ciWait = ci.ciWaitSec
+  if (finiteNumber(ci?.ciRunSec) !== null) leadTimeSplit.verify = ci.ciRunSec
+  const models = [
+    ...(Array.isArray(row?.models) ? row.models : []),
+    ...attributed
+      .filter((session) => typeof session?.model === 'string')
+      .map((session) => `${session.model}${session.effort ? `@${session.effort}` : ''}`),
+  ]
+  const sourcesKnown = []
+  if ([ci?.ciWaitSec, ci?.ciRunSec, ci?.redCiRuns].some((value) => finiteNumber(value) !== null)) {
+    sourcesKnown.push('ci')
+  }
+  if (attributed.some((session) => session?.host === 'claude')) sourcesKnown.push('claude')
+  if (attributed.some((session) => session?.host === 'codex')) sourcesKnown.push('codex')
+  return {
+    ...row,
+    tokens,
+    humanMessages: sourceMetric(row, attributed, 'humanMessages'),
+    rounds: sourceMetric(row, attributed, 'rounds'),
+    fullGateRuns: sourceMetric(row, attributed, 'fullGateRuns'),
+    redCiRuns: finiteNumber(ci?.redCiRuns) !== null ? ci.redCiRuns : (row?.redCiRuns ?? null),
+    leadTimeSplit,
+    models: [...new Set(models)],
+    sourcesKnown,
   }
 }
 
@@ -407,30 +645,16 @@ export function computeAggregate({
   }
 }
 
-/** Count `hook error: [node .claude/hooks/<name>.mjs]` lines in *.jsonl files mtime'd in-window. */
-export function countHookBlocks(dir, sinceMs, untilMs) {
-  if (!existsSync(dir)) return {}
+/** Count `hook error: [node .claude/hooks/<name>.mjs]` lines in in-window logs. */
+export async function countHookBlocks(dir, sinceMs, untilMs) {
   const counts = {}
-  for (const name of readdirSync(dir)) {
-    if (!name.endsWith('.jsonl')) continue
-    const full = join(dir, name)
-    let mtimeMs
-    try {
-      mtimeMs = statSync(full).mtimeMs
-      // FAIL-OPEN-INTENT: an unstattable session log is skipped, not counted - this is a reporting metric over a best-effort log dir, never a gate verdict.
-    } catch {
-      continue
-    }
-    if (mtimeMs < sinceMs || mtimeMs > untilMs) continue
-    let content
-    try {
-      content = readFileSync(full, 'utf-8')
-      // FAIL-OPEN-INTENT: an unreadable session log is skipped, not counted - see above.
-    } catch {
-      continue
-    }
-    for (const match of content.matchAll(HOOK_BLOCK_RE)) {
-      counts[match[1]] = (counts[match[1]] ?? 0) + 1
+  for (const file of sessionFiles(dir, 'claude', sinceMs, untilMs)) {
+    const lines = await readJsonlLines(file)
+    if (lines === null) continue
+    for (const line of lines) {
+      for (const match of line.matchAll(HOOK_BLOCK_RE)) {
+        counts[match[1]] = (counts[match[1]] ?? 0) + 1
+      }
     }
   }
   return counts
@@ -524,7 +748,7 @@ function fetchPrDetail(repo, number) {
       'view',
       String(number),
       '--json',
-      'commits,createdAt,mergedAt,additions,deletions,statusCheckRollup,labels',
+      'commits,createdAt,mergedAt,headRefName,additions,deletions,statusCheckRollup,labels',
       ...repoArgs(repo),
     ],
     `gh pr view #${number}`,
@@ -546,28 +770,76 @@ function touchedOnlyEvidencePaths(sha) {
   return isAllEvidencePaths(parseGitShowStatPaths(out))
 }
 
-function sessionLinesInWindow(dir, sinceMs, untilMs) {
-  if (!existsSync(dir)) return null
-  const lines = []
-  for (const name of readdirSync(dir)) {
-    if (!name.endsWith('.jsonl')) continue
-    const full = join(dir, name)
-    let mtimeMs
-    try {
-      mtimeMs = statSync(full).mtimeMs
-      // FAIL-OPEN-INTENT: an unstatable session log contributes no delivery metrics; unavailable source is represented as null by the caller.
-    } catch {
-      continue
-    }
-    if (mtimeMs < sinceMs || mtimeMs > untilMs) continue
-    try {
-      lines.push(...readFileSync(full, 'utf-8').split('\n').filter(Boolean))
-      // FAIL-OPEN-INTENT: an unreadable session log contributes no delivery metrics; unavailable source is represented as null by the caller.
-    } catch {
-      continue
+function collectFiles(dir, predicate, maxDepth, depth = 0) {
+  if (!existsSync(dir) || depth > maxDepth) return []
+  let entries
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    // FAIL-OPEN-INTENT: an unreadable session directory contributes no delivery metrics; unavailable source is represented as null by the caller.
+    return []
+  }
+  const files = []
+  for (const entry of entries) {
+    const full = join(dir, entry.name)
+    if (entry.isFile() && predicate(entry.name)) files.push(full)
+    else if (entry.isDirectory() && depth < maxDepth) {
+      files.push(...collectFiles(full, predicate, maxDepth, depth + 1))
     }
   }
-  return lines
+  return files
+}
+
+function sessionFiles(dir, host, sinceMs, untilMs) {
+  const maxDepth = host === 'claude' ? 1 : Number.POSITIVE_INFINITY
+  const predicate =
+    host === 'claude'
+      ? (name) => name.endsWith('.jsonl')
+      : (name) => /^rollout-.*\.jsonl$/.test(name)
+  return collectFiles(dir, predicate, maxDepth).filter((file) => {
+    try {
+      const mtimeMs = statSync(file).mtimeMs
+      return mtimeMs >= sinceMs && mtimeMs <= untilMs
+    } catch {
+      // FAIL-OPEN-INTENT: an unstatable session log contributes no delivery metrics; unavailable source is represented as null by the caller.
+      return false
+    }
+  })
+}
+
+async function readJsonlLines(file) {
+  const lines = []
+  try {
+    const input = createReadStream(file, { encoding: 'utf-8' })
+    const reader = createInterface({ input, crlfDelay: Infinity })
+    for await (const line of reader) {
+      if (line !== '') lines.push(line)
+    }
+    return lines
+  } catch {
+    // FAIL-OPEN-INTENT: an unreadable session log contributes no delivery metrics; unavailable source is represented as null by the caller.
+    return null
+  }
+}
+
+async function discoverSessions(dir, host, sinceMs, untilMs) {
+  const sessions = []
+  for (const file of sessionFiles(dir, host, sinceMs, untilMs)) {
+    const lines = await readJsonlLines(file)
+    if (lines === null) continue
+    const meta = host === 'claude' ? claudeSessionMeta(lines) : codexSessionMeta(lines)
+    const facts = host === 'claude' ? sessionFacts(lines) : null
+    sessions.push({
+      ...meta,
+      host,
+      file,
+      events: sessionEvents(lines),
+      ...(facts === null
+        ? {}
+        : { fullGateRuns: facts.fullGateRuns, rounds: facts.rounds, model: facts.model }),
+    })
+  }
+  return sessions
 }
 
 function sessionEvents(lines) {
@@ -678,7 +950,7 @@ function enrichPrRow(row, pr, commits, lines) {
   }
 }
 
-function fetchPrRow(repo, number, sessionsDir) {
+function fetchPrRow(repo, number, sessions, worktreeDir) {
   const pr = fetchPrDetail(repo, number)
   const commits = (pr.commits ?? []).map((c) => ({
     subject: c.messageHeadline,
@@ -689,13 +961,16 @@ function fetchPrRow(repo, number, sessionsDir) {
   // it's already known from the `pr list` call that produced this PR, so inject it.
   const row = buildPrRow({ ...pr, number }, commits)
   const firstCommit = commits[0]?.authoredDate ?? pr.createdAt
-  const sinceMs = Date.parse(firstCommit ?? '')
-  const untilMs = Date.parse(pr.mergedAt ?? '')
-  const lines =
-    Number.isFinite(sinceMs) && Number.isFinite(untilMs)
-      ? sessionLinesInWindow(sessionsDir, sinceMs, untilMs)
-      : null
-  return enrichPrRow(row, pr, commits, lines)
+  const attributed = attributeSessions(sessions, {
+    headRefName: pr.headRefName,
+    firstCommit,
+    mergedAt: pr.mergedAt,
+    worktreeDir,
+  })
+  const enriched = enrichPrRow(row, pr, commits, null)
+  const loggedEvents = attributed.flatMap((session) => session.events ?? [])
+  if (loggedEvents.length > 0) enriched.leadTimeSplit = splitLeadTime(loggedEvents)
+  return mergeDeliverySources(enriched, { ci: ciTiming(pr), sessions: attributed })
 }
 
 // `git log --since/--until` resolve in the LOCAL timezone while the `gh` search
@@ -718,6 +993,7 @@ function parseArgs(argv) {
     repo: null,
     json: null,
     sessions: DEFAULT_SESSIONS_DIR,
+    codexSessions: DEFAULT_CODEX_SESSIONS_DIR,
     selfTest: false,
     calibrate: false,
     recalibrate: false,
@@ -734,6 +1010,7 @@ function parseArgs(argv) {
     else if (a === '--repo') opts.repo = argv[++i]
     else if (a === '--json') opts.json = argv[++i]
     else if (a === '--sessions') opts.sessions = argv[++i]
+    else if (a === '--codex-sessions') opts.codexSessions = argv[++i]
   }
   return opts
 }
@@ -882,6 +1159,37 @@ function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function renderStratumSummary(rows) {
+  const groups = new Map()
+  for (const row of rows) {
+    const stratum = row.stratum ?? 'Unknown'
+    const group = groups.get(stratum) ?? []
+    group.push(row)
+    groups.set(stratum, group)
+  }
+  const lines = [
+    '## Per-stratum',
+    '',
+    '| Stratum | n | Lead time median/p90 (h) | Median tokens | Median humanMessages | sourcesKnown |',
+    '|---------|---|--------------------------|---------------|----------------------|--------------|',
+  ]
+  for (const [stratum, group] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const lead = quantiles(group.map((row) => row.leadTimeHours))
+    const tokens = quantiles(group.map((row) => tokenTotal(row.tokens)))
+    const human = quantiles(group.map((row) => row.humanMessages))
+    const coverage = ['ci', 'claude', 'codex']
+      .map(
+        (source) =>
+          `${source} ${group.filter((row) => row.sourcesKnown?.includes(source)).length}/${group.length}`,
+      )
+      .join(', ')
+    lines.push(
+      `| ${stratum} | ${group.length} | ${lead.median ?? 'NO DATA'}/${lead.p90 ?? 'NO DATA'} | ${tokens.median ?? 'NO DATA'} | ${human.median ?? 'NO DATA'} | ${coverage} |`,
+    )
+  }
+  return lines
+}
+
 function renderMarkdown({ since, until, rows, aggregate, hookBlocks }) {
   const lines = []
   lines.push(`# Ship KPI — ${since} → ${until}`, '')
@@ -897,6 +1205,7 @@ function renderMarkdown({ since, until, rows, aggregate, hookBlocks }) {
       `| #${r.number} | ${r.commits} | ${r.evidenceOnlyCommits} | ${r.reviewLoopCommits} | ${r.leadTimeHours} | ${r.ciRedAtOpen ? 'yes' : 'no'} | +${r.additions}/-${r.deletions} |`,
     )
   }
+  lines.push('', ...renderStratumSummary(rows))
   lines.push('', '## Aggregate', '')
   lines.push('| Metric | Value |', '|--------|-------|')
   lines.push(`| PRs merged | ${aggregate.prsMerged} |`)
@@ -936,7 +1245,7 @@ async function main() {
 
   if (!opts.since) {
     process.stderr.write(
-      'usage: ship-kpi --since <date> [--until <date>] [--repo owner/name] [--json <path>] [--sessions <dir>]\n' +
+      'usage: ship-kpi --since <date> [--until <date>] [--repo owner/name] [--json <path>] [--sessions <dir>] [--codex-sessions <dir>]\n' +
         '       ship-kpi --calibrate [--recalibrate]\n' +
         '       ship-kpi --checkpoint\n' +
         '       checkpoint verdicts: NO DATA | ANDON | ROLLBACK | RETHINK | TUNE <bucket> | PLATEAU | HOLD\n' +
@@ -947,13 +1256,17 @@ async function main() {
 
   const until = opts.until
   const prNumbers = fetchMergedPrNumbers(opts.repo, opts.since, until)
-  const rows = prNumbers.map((n) => fetchPrRow(opts.repo, n, opts.sessions))
+  const sinceMs = new Date(`${opts.since}T00:00:00Z`).getTime()
+  const untilMs = until ? new Date(`${until}T23:59:59Z`).getTime() : Date.now()
+  const sessions = [
+    ...(await discoverSessions(opts.sessions, 'claude', sinceMs, untilMs)),
+    ...(await discoverSessions(opts.codexSessions, 'codex', sinceMs, untilMs)),
+  ]
+  const rows = prNumbers.map((n) => fetchPrRow(opts.repo, n, sessions, process.cwd()))
   const openPrs = fetchOpenPrs(opts.repo)
   const issuesClosedCount = fetchIssuesClosedCount(opts.repo, opts.since, until)
   const mainSubjects = fetchMainSubjects(opts.since, until)
 
-  const sinceMs = new Date(`${opts.since}T00:00:00Z`).getTime()
-  const untilMs = until ? new Date(`${until}T23:59:59Z`).getTime() : Date.now()
   const windowHours = (untilMs - sinceMs) / 3_600_000
 
   const aggregate = computeAggregate({
@@ -965,7 +1278,7 @@ async function main() {
     nowMs: Date.now(),
   })
 
-  const hookBlocks = countHookBlocks(opts.sessions, sinceMs, untilMs)
+  const hookBlocks = await countHookBlocks(opts.sessions, sinceMs, untilMs)
 
   const untilLabel = until ?? today()
   const payload = {
