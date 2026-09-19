@@ -1308,6 +1308,10 @@ function formatCompact(value) {
   return String(rounded(value))
 }
 
+function roundHours(value) {
+  return value === null || value === undefined ? 'NO DATA' : Math.round(value * 10) / 10
+}
+
 function renderStratumSummary(rows, weights) {
   const groups = new Map()
   for (const row of rows) {
@@ -1336,7 +1340,7 @@ function renderStratumSummary(rows, weights) {
       )
       .join(', ')
     lines.push(
-      `| ${stratum} | ${group.length} | ${lead.median ?? 'NO DATA'}/${lead.p90 ?? 'NO DATA'} | ${formatCompact(input.median)} / ${formatCompact(cache.median)} / ${formatCompact(output.median)} | ${formatCompact(costs.median)} | ${human.median ?? 'NO DATA'} | ${coverage} |`,
+      `| ${stratum} | ${group.length} | ${roundHours(lead.median)}/${roundHours(lead.p90)} | ${formatCompact(input.median)} / ${formatCompact(cache.median)} / ${formatCompact(output.median)} | ${formatCompact(costs.median)} | ${human.median ?? 'NO DATA'} | ${coverage} |`,
     )
   }
   return lines

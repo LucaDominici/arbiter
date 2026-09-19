@@ -1,0 +1,12 @@
+{
+  "Standard": {
+    "timeMedian": 4550,
+    "tokensMedian": 12359271.8,
+    "n": 30
+  },
+  "XS-S": {
+    "timeMedian": 9429,
+    "tokensMedian": 3706789.4,
+    "n": 22
+  }
+}
