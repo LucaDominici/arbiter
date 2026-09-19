@@ -28,8 +28,12 @@ describe('check-governance-mirror-sync.mjs (governance mirror drift, #1805)', ()
     try {
       mkdirSync(join(dir, 'website', 'governance'), { recursive: true })
       const content = '# AGENTS\n\n## Iron Laws\n\nsome content\n'
+      const catalog = '# Invariant Catalog\n\n- **INV-01:** first rule\n'
       writeFileSync(join(dir, 'AGENTS.md'), content)
       writeFileSync(join(dir, 'website', 'governance', 'AGENTS.md'), content)
+      mkdirSync(join(dir, 'docs', 'internal', 'SYSTEM'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'internal', 'SYSTEM', 'INVARIANT-CATALOG.md'), catalog)
+      writeFileSync(join(dir, 'website', 'governance', 'INVARIANT-CATALOG.md'), catalog)
       const result = run(dir)
       expect(result.status).toBe(0)
       expect(result.stdout).toContain('OK')
@@ -44,6 +48,10 @@ describe('check-governance-mirror-sync.mjs (governance mirror drift, #1805)', ()
       mkdirSync(join(dir, 'website', 'governance'), { recursive: true })
       writeFileSync(join(dir, 'AGENTS.md'), '# AGENTS\n\n## Iron Laws\n\nnew content\n')
       writeFileSync(join(dir, 'website', 'governance', 'AGENTS.md'), '# AGENTS\n\nold content\n')
+      mkdirSync(join(dir, 'docs', 'internal', 'SYSTEM'), { recursive: true })
+      const catalog = '# Invariant Catalog\n'
+      writeFileSync(join(dir, 'docs', 'internal', 'SYSTEM', 'INVARIANT-CATALOG.md'), catalog)
+      writeFileSync(join(dir, 'website', 'governance', 'INVARIANT-CATALOG.md'), catalog)
       const result = run(dir)
       expect(result.status).toBe(1)
       expect(result.stderr).toContain('stale')
@@ -58,9 +66,30 @@ describe('check-governance-mirror-sync.mjs (governance mirror drift, #1805)', ()
     try {
       mkdirSync(join(dir, 'website', 'governance'), { recursive: true })
       writeFileSync(join(dir, 'AGENTS.md'), '# AGENTS\n')
+      mkdirSync(join(dir, 'docs', 'internal', 'SYSTEM'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'internal', 'SYSTEM', 'INVARIANT-CATALOG.md'), '# Catalog\n')
       const result = run(dir)
       expect(result.status).toBe(1)
       expect(result.stderr).toContain('missing')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when the invariant catalog mirror is stale', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'website', 'governance'), { recursive: true })
+      mkdirSync(join(dir, 'docs', 'internal', 'SYSTEM'), { recursive: true })
+      writeFileSync(join(dir, 'AGENTS.md'), '# AGENTS\n')
+      writeFileSync(join(dir, 'website', 'governance', 'AGENTS.md'), '# AGENTS\n')
+      writeFileSync(join(dir, 'docs', 'internal', 'SYSTEM', 'INVARIANT-CATALOG.md'), '# New\n')
+      writeFileSync(join(dir, 'website', 'governance', 'INVARIANT-CATALOG.md'), '# Old\n')
+
+      const result = run(dir)
+
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('INVARIANT-CATALOG.md')
     } finally {
       cleanup()
     }
