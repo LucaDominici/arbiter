@@ -29,7 +29,6 @@
     "e2e/playwright-ts/run-axe.ts.ejs",
     "github/actions/setup-java-maven/action.yml.ejs",
     "github/issue-templates/compliance-item.yml.ejs",
-    "github/workflows/_ai-draft-check.yml.ejs",
     "github/workflows/_post-merge-notify.yml.ejs",
     "github/workflows/_pr-staleness.yml.ejs",
     "github/workflows/_sigstore-retry-sign.yml.ejs",

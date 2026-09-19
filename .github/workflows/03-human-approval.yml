@@ -20,6 +20,7 @@ jobs:
   standing-owner-approval:
     name: Standing owner approval (INV-91)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 5
     steps:
       - run: |
           echo 'INV-91 amended: trunk-solo — standing owner approval (sole developer)'
