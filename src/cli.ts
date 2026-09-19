@@ -2184,6 +2184,22 @@ function shipAdaptiveFlags(opts: {
   }
 }
 
+/** Preserve absent train flags so a read-only ship invocation cannot rewrite train state. */
+function shipTrainFlags(
+  ids: string[],
+  opts: { chain: string[]; chainAdd: string[]; seal: boolean },
+): Partial<Pick<TaskShipOptions, 'taskId' | 'chainIds' | 'chainAddIds' | 'seal'>> {
+  const train = splitTrainIds(ids, undefined, opts.chain)
+  return {
+    ...(train.taskId !== undefined ? { taskId: train.taskId } : {}),
+    // #2102 — an absent chain must never clobber one declared earlier with an empty array.
+    ...(train.chainIds.length > 0 ? { chainIds: train.chainIds } : {}),
+    // #2331 — an absent append must never be mistaken for "append nothing" and seal the train.
+    ...(opts.chainAdd.length > 0 ? { chainAddIds: opts.chainAdd } : {}),
+    ...(opts.seal ? { seal: true } : {}),
+  }
+}
+
 program
   // #2401 — variadic: `arbiter ship #A #B #C` declares a train, sugar for repeated `--chain`.
   .command('ship [ids...]')
@@ -2296,20 +2312,11 @@ program
         // respect the persisted tier; when none is persisted, normTier falls back to widest
         // ('Standard') fail-safe.
         // #2401 — `#A #B #C` positional sugar folds into the same chain the flags declare.
-        const train = splitTrainIds(ids, undefined, opts.chain)
         const result = runTaskShip({
           ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
-          ...(train.taskId !== undefined ? { taskId: train.taskId } : {}),
+          ...shipTrainFlags(ids, opts),
           ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
-          // #2102 — only pass chainIds when the user actually supplied --chain (or the #2401
-          // positional sugar): an absent flag must never clobber a chain declared earlier
-          // (e.g. at `task init`) with an empty array.
-          ...(train.chainIds.length > 0 ? { chainIds: train.chainIds } : {}),
-          // #2331 — same shape as --chain: only pass when actually supplied, so an absent flag
-          // is never mistaken for "append nothing" and can never seal or clear a live train.
-          ...(opts.chainAdd.length > 0 ? { chainAddIds: opts.chainAdd } : {}),
           ...shipAdaptiveFlags(opts),
-          ...(opts.seal ? { seal: true } : {}),
           ...shipReviewFlags(opts),
           advance: opts.advance,
           advanceOpts: {

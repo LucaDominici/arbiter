@@ -302,14 +302,13 @@ function requestedTaskMatches(requestedTaskId: string | undefined, boundTaskId: 
   return normalizeChainId(requestedTaskId) === boundTaskId
 }
 
-function assertBoundNativeHost(
+function assertNativeCheckoutIdentity(
   root: string,
   requestedTaskId: string | undefined,
-  host: NativeHostContext = {},
+  state: UnifiedTaskState,
+  binding: NativeHostBinding,
+  host: NativeHostContext,
 ): void {
-  const state = readUnifiedState(root)
-  if (!state?.hostBinding) return
-  const binding = state.hostBinding
   if (realpathSync(root) !== binding.worktreePath) {
     throw new Error('task write root does not match the native host binding')
   }
@@ -324,6 +323,12 @@ function assertBoundNativeHost(
   ) {
     throw new Error('native host binding is stale — run arbiter lifecycle preflight again')
   }
+}
+
+function assertNativeTranscriptAttestation(
+  binding: NativeHostBinding,
+  host: NativeHostContext,
+): void {
   const env = host.env ?? process.env
   assertClaudeProjectDir(binding.worktreePath, env['CLAUDE_PROJECT_DIR'])
   if (binding.sessionId === undefined) return
@@ -335,6 +340,18 @@ function assertBoundNativeHost(
   ) {
     throw new Error('native host binding is stale — run arbiter lifecycle preflight again')
   }
+}
+
+function assertBoundNativeHost(
+  root: string,
+  requestedTaskId: string | undefined,
+  host: NativeHostContext = {},
+): void {
+  const state = readUnifiedState(root)
+  if (!state?.hostBinding) return
+  const binding = state.hostBinding
+  assertNativeCheckoutIdentity(root, requestedTaskId, state, binding, host)
+  assertNativeTranscriptAttestation(binding, host)
 }
 
 function initializeHostPreflight(opts: TaskInitOptions): boolean {
@@ -503,36 +520,8 @@ function recordedRecovery(state: UnifiedTaskState | null, taskId: string): strin
   )
 }
 
-/**
- * Print 3-layer recovery context (#694).
- *
- * Layer 1: contents of `.arbiter/evidence/<sanitized-id>/BACKLOG.md` if present.
- * Layer 2: recent `CHECKPOINT(#<sanitized-id>)` commits via `git log --grep`.
- * Layer 3: last 20 commits via plain `git log` (fallback context).
- *
- * Always emits a footer with the manual MCP fallback instruction.
- */
-export function runTaskRecover(opts: TaskRecoverOptions = {}): void {
-  const dir = opts.dir ?? process.cwd()
-  const rawId =
-    opts.taskId !== undefined && opts.taskId.length > 0 ? opts.taskId : readTaskIdFromDisk(dir)
-  if (rawId === undefined) {
-    process.stdout.write(
-      'No task id provided and no active task found. Pass --task <id> to recover.\n',
-    )
-    return
-  }
-  const recovery = recordedRecovery(readUnifiedState(dir), rawId)
-  if (recovery !== null) {
-    process.stdout.write(recovery)
-    return
-  }
-  const sanit = sanitizeTaskId(rawId)
-  const runner = opts.runner ?? defaultRunner
-
+function recoveryLayerLines(dir: string, sanit: string, runner: Runner): string[] {
   const parts: string[] = []
-  parts.push(`━━━ Recovery for task ${rawId} (sanitized: ${sanit}) ━━━\n`)
-
   const backlog = backlogPath(dir, sanit)
   if (existsSync(backlog)) {
     parts.push('━━━ Layer 1: BACKLOG.md ━━━')
@@ -569,7 +558,40 @@ export function runTaskRecover(opts: TaskRecoverOptions = {}): void {
     parts.push(`(git log failed: ${err instanceof Error ? err.message : String(err)})`)
   }
   parts.push('━━━ END Layer 3 ━━━\n')
+  return parts
+}
 
+/**
+ * Print 3-layer recovery context (#694).
+ *
+ * Layer 1: contents of `.arbiter/evidence/<sanitized-id>/BACKLOG.md` if present.
+ * Layer 2: recent `CHECKPOINT(#<sanitized-id>)` commits via `git log --grep`.
+ * Layer 3: last 20 commits via plain `git log` (fallback context).
+ *
+ * Always emits a footer with the manual MCP fallback instruction.
+ */
+export function runTaskRecover(opts: TaskRecoverOptions = {}): void {
+  const dir = opts.dir ?? process.cwd()
+  const rawId =
+    opts.taskId !== undefined && opts.taskId.length > 0 ? opts.taskId : readTaskIdFromDisk(dir)
+  if (rawId === undefined) {
+    process.stdout.write(
+      'No task id provided and no active task found. Pass --task <id> to recover.\n',
+    )
+    return
+  }
+  const recovery = recordedRecovery(readUnifiedState(dir), rawId)
+  if (recovery !== null) {
+    process.stdout.write(recovery)
+    return
+  }
+  const sanit = sanitizeTaskId(rawId)
+  const runner = opts.runner ?? defaultRunner
+
+  const parts = [
+    `━━━ Recovery for task ${rawId} (sanitized: ${sanit}) ━━━\n`,
+    ...recoveryLayerLines(dir, sanit, runner),
+  ]
   parts.push(
     'Use the issue, plan and recorded evidence to restore the next action; absent proof remains NO DATA.',
   )

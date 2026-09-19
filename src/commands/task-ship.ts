@@ -20,6 +20,7 @@ import {
   writeUnifiedState,
   appendLog,
   normalizeChainId,
+  type TaskStatePatch,
   type UnifiedTaskState,
 } from './task-state.js'
 import { runTaskAdvance, runTaskReviewRound } from './task.js'
@@ -509,17 +510,19 @@ export interface ShipResult {
  * #1260 tier + vertical-breadth summary. Kept here (not inline in the CLI action) so the
  * action stays simple and the formatting is unit-testable.
  */
-function optionalShipStepLines(result: ShipResult, tier: ShipTier): string[] {
+function checkpointShipStepLines(checkpoint: ShipResult['checkpoint']): string[] {
   const lines: string[] = []
-  if (result.checkpoint) {
-    const { cursor, review } = result.checkpoint
-    if (review)
-      lines.push(
-        `Candidate: ${review.lastReviewedSha ?? 'NO DATA'} · review round: ${review.rounds}`,
-      )
-    if (cursor.lastAction) lines.push(`Observed: ${cursor.lastAction}`)
-    if (cursor.nextAction) lines.push(`Next: ${cursor.nextAction}`)
-  }
+  if (!checkpoint) return lines
+  const { cursor, review } = checkpoint
+  if (review)
+    lines.push(`Candidate: ${review.lastReviewedSha ?? 'NO DATA'} · review round: ${review.rounds}`)
+  if (cursor.lastAction) lines.push(`Observed: ${cursor.lastAction}`)
+  if (cursor.nextAction) lines.push(`Next: ${cursor.nextAction}`)
+  return lines
+}
+
+function optionalShipStepLines(result: ShipResult, tier: ShipTier): string[] {
+  const lines = checkpointShipStepLines(result.checkpoint)
   if (result.step.command) lines.push(`Command: ${result.step.command}`)
   if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
   if (result.step.externalReviewers !== undefined) {
@@ -607,26 +610,27 @@ function trainLimitsFor(ship: ShipConfig | undefined, opts: TaskShipOptions): Tr
   return opts.trainLimits ?? resolveTrainLimits(ship)
 }
 
+function shipSeedPatch(
+  opts: TaskShipOptions,
+  taskId: string | undefined,
+  chainIds: string[] | undefined,
+): TaskStatePatch {
+  return {
+    ...(taskId !== undefined ? { taskId } : {}),
+    ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+    ...(opts.overrides !== undefined ? { overrides: opts.overrides } : {}),
+    ...(chainIds !== undefined ? { chainIds } : {}),
+  }
+}
+
 function seedShipState(root: string, opts: TaskShipOptions, limits: TrainLimits): void {
   const taskId = opts.taskId !== undefined ? normalizeShipTaskId(opts.taskId) : undefined
   // #2102 — same numeric-only guard as the primary id (rejects non-numeric ids loudly).
   const chainIds = opts.chainIds !== undefined ? opts.chainIds.map(normalizeChainId) : undefined
   const existing = readUnifiedState(root)
   assertSeedWithinLimit(existing, taskId, chainIds, limits)
-  if (
-    existing === null ||
-    taskId !== undefined ||
-    opts.tier !== undefined ||
-    opts.overrides !== undefined ||
-    chainIds !== undefined
-  ) {
-    writeUnifiedState(root, {
-      ...(taskId !== undefined ? { taskId } : {}),
-      ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
-      ...(opts.overrides !== undefined ? { overrides: opts.overrides } : {}),
-      ...(chainIds !== undefined ? { chainIds } : {}),
-    })
-  }
+  const patch = shipSeedPatch(opts, taskId, chainIds)
+  if (existing === null || Object.keys(patch).length > 0) writeUnifiedState(root, patch)
 }
 
 function shipProfileFor(root: string, opts: TaskShipOptions): ShipProfile {
@@ -953,24 +957,37 @@ function assertShipNotBlocked(
   }
 }
 
+function matchesShipTask(state: UnifiedTaskState, requestedTaskId: string | undefined): boolean {
+  return requestedTaskId === undefined || normalizeShipTaskId(requestedTaskId) === state.taskId
+}
+
+function hasShipLifecycleMutation(opts: TaskShipOptions): boolean {
+  return Boolean(opts.advance || opts.reviewRound || opts.forceReview || opts.seal)
+}
+
+function hasShipProfileMutation(opts: TaskShipOptions): boolean {
+  return opts.tier !== undefined || opts.autonomy !== undefined || opts.overrides !== undefined
+}
+
+function hasShipTrainMutation(opts: TaskShipOptions): boolean {
+  return (
+    opts.chainIds !== undefined ||
+    opts.chainAddIds !== undefined ||
+    opts.trainAffinity !== undefined ||
+    opts.executionOutcome !== undefined
+  )
+}
+
 function isReadOnlyShipRequest(
   state: UnifiedTaskState | null,
   opts: TaskShipOptions,
 ): state is UnifiedTaskState {
   return (
     state !== null &&
-    (opts.taskId === undefined || normalizeShipTaskId(opts.taskId) === state.taskId) &&
-    !opts.advance &&
-    !opts.reviewRound &&
-    !opts.forceReview &&
-    !opts.seal &&
-    opts.tier === undefined &&
-    opts.autonomy === undefined &&
-    opts.overrides === undefined &&
-    opts.chainIds === undefined &&
-    opts.chainAddIds === undefined &&
-    opts.trainAffinity === undefined &&
-    opts.executionOutcome === undefined
+    matchesShipTask(state, opts.taskId) &&
+    !hasShipLifecycleMutation(opts) &&
+    !hasShipProfileMutation(opts) &&
+    !hasShipTrainMutation(opts)
   )
 }
 
