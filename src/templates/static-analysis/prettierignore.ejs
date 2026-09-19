@@ -58,7 +58,10 @@ eslint.config.frontend-spa.mjs
 eslint.config.boundaries.mjs
 eslint.config.playwright.mjs
 
-# Arbiter owns the bytes of the emitted JSON schemas: they are formatted once, at
-# arbiter's own printWidth, and a consumer's prettier config (a narrower printWidth,
-# say) would reformat them back out of parity with the generator on every run.
+# Arbiter emits and owns every file under schemas/. They are formatted once at
+# arbiter's printWidth; a consumer whose prettier config differs (a .prettierrc
+# without printWidth defaults to 80, and takes precedence over the emitted
+# .prettierrc.json) would reformat them out of parity with the generator on every
+# run. Measured on #2724: the dispatch phase enum collapses to exactly 100 columns.
+# The durable fix is #2737 — format emitted files with the consumer's resolved config.
 schemas/
