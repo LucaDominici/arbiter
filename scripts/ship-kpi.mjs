@@ -31,7 +31,6 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { ghJson } from './lib/gh-audit-io.mjs'
-import { display } from './lib/ship-kpi/display.mjs'
 import { classify } from './pr-merge-watch.mjs'
 import { isMainModule } from './lib/run-helpers.mjs'
 
@@ -124,6 +123,10 @@ export function pct(part, total) {
 
 export function hasFailureConclusion(rollup) {
   return Array.isArray(rollup) && rollup.some((c) => c.conclusion === 'FAILURE')
+}
+
+function display(value) {
+  return value ?? 'NO DATA'
 }
 
 function finiteNumber(value) {
