@@ -1,0 +1,16 @@
+{
+  "provisional": true,
+  "plateau": 1.3,
+  "tune": 1.2,
+  "rethinkMedian": 2,
+  "rethinkP90": 4,
+  "andon": 3,
+  "n": 10,
+  "minMeasured": 6,
+  "escapeWindowDays": 14,
+  "costWeights": {
+    "input": 1,
+    "cache": 0.1,
+    "output": 5
+  }
+}
