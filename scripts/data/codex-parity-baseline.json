@@ -46,14 +46,10 @@
         ".claude/hooks/wiki-on-commit.mjs",
         ".claude/knowledge-map.json",
         ".claude/rules/05-agent-lifecycle.md",
-        ".claude/rules/25-todo-folder-policy.md",
-        ".claude/rules/40-context-economy.md",
         ".claude/rules/50-batch-execution.md",
-        ".claude/rules/55-brainstorm-terminal-state.md",
         ".claude/rules/60-incidental-capture.md",
         ".claude/rules/75-impact-vault-reading.md",
         ".claude/rules/90-exec-protocol.md",
-        ".claude/rules/95-closer-mode.md",
         ".claude/settings.json",
         ".claude/skills/architect-review/SKILL.md",
         ".claude/skills/brainstorming/SKILL.md",
@@ -76,7 +72,6 @@
       "files": [
         ".agents/CODEX.md",
         ".agents/rules/05-agent-lifecycle.md",
-        ".agents/rules/25-todo-folder-policy.md",
         ".agents/rules/50-batch-execution.md",
         ".agents/rules/60-incidental-capture.md",
         ".agents/rules/90-exec-protocol.md",
@@ -135,6 +130,31 @@
       "file": ".agents/plan/PLAN.json",
       "reason": "Retired with the mandatory Codex plan store: the result-first contract reuses the existing Markdown plan and lifecycle state instead of a second required PLAN.json.",
       "issue": "#2724"
+    },
+    {
+      "file": ".claude/rules/25-todo-folder-policy.md",
+      "reason": "Deleted because check-no-orphan-todo.mjs is the authoritative TODO policy enforcement.",
+      "issue": "#2738"
+    },
+    {
+      "file": ".claude/rules/40-context-economy.md",
+      "reason": "Deleted as redundant context ceremony; startup guidance is in AGENTS.md and knowledge-map remains an artifact.",
+      "issue": "#2738"
+    },
+    {
+      "file": ".claude/rules/55-brainstorm-terminal-state.md",
+      "reason": "Deleted because the post-brainstorm-stop hook owns terminal-state enforcement.",
+      "issue": "#2738"
+    },
+    {
+      "file": ".claude/rules/95-closer-mode.md",
+      "reason": "Deleted because closer-mode-guard.mjs owns close-phase enforcement.",
+      "issue": "#2738"
+    },
+    {
+      "file": ".agents/rules/25-todo-folder-policy.md",
+      "reason": "Deleted with the Claude TODO rule; check-no-orphan-todo.mjs is the authoritative enforcement.",
+      "issue": "#2738"
     }
   ]
 }

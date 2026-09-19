@@ -18,7 +18,7 @@
 //
 // Runs during frozen-candidate qualification (check-all.mjs L1+) over the tracked user-facing doc set.
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 // User-facing surfaces a newcomer reads first, plus the generated kit (templates
@@ -66,6 +66,19 @@ function getAllTrackedFiles() {
   }
 }
 
+function getDeletedWorktreeFiles() {
+  try {
+    return new Set(
+      execFileSync('git', ['diff', 'HEAD', '--name-only', '--diff-filter=D'], { encoding: 'utf8' })
+        .trim()
+        .split('\n')
+        .filter(Boolean),
+    )
+  } catch {
+    return new Set()
+  }
+}
+
 // A violation is a single line that BOTH mentions the flag AND names a non-core
 // tool — the false coupling "<non-core tool> ... --accept-beta-tools". Lines that
 // only describe beta *languages* (Rust/Python) with the flag are correct and never
@@ -97,10 +110,12 @@ function violatesToolsFlagOnLine(line) {
 
 try {
   const files = getAllTrackedFiles()
+  const deleted = getDeletedWorktreeFiles()
   const violations = []
 
   for (const file of files) {
     if (!shouldScan(file)) continue
+    if (deleted.has(file) && !existsSync(join(process.cwd(), file))) continue
     let content
     try {
       content = readFileSync(join(process.cwd(), file), 'utf8')

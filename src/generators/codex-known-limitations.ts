@@ -19,9 +19,8 @@ import type { ProjectConfig } from '../wizard/types.js'
  * The shared rules the Codex track DERIVES from the canonical Claude rule
  * templates (ADR-106 derive-from-Claude: single template set, no parallel
  * Codex copies). Consumed by codex.ts (emission) and by the Claude-only rule
- * delta below. The Claude track also emits 40-context-economy,
- * 55-brainstorm-terminal-state, 75-impact-vault-reading, 95-closer-mode
- * (plus conditional 45-mcp-fallback) — those are DELIBERATELY not derived
+ * delta below. The Claude track also emits 75-impact-vault-reading
+ * (plus conditional 45-mcp-fallback) — that is DELIBERATELY not derived
  * because each is coupled to a Claude-only mechanism the Codex track does not
  * generate (knowledge-map routing, brainstorm hook, /impact skill, CLOSER
  * hook). That delta is disclosed in the generated CODEX.md and locked by
@@ -29,7 +28,6 @@ import type { ProjectConfig } from '../wizard/types.js'
  */
 export const CODEX_DERIVED_RULES: readonly { file: string; template: string }[] = [
   { file: '05-agent-lifecycle.md', template: 'claude/rules/05-agent-lifecycle.md' },
-  { file: '25-todo-folder-policy.md', template: 'claude/rules/25-todo-folder-policy.md' },
   { file: '50-batch-execution.md', template: 'claude/rules/50-batch-execution.md' },
   { file: '60-incidental-capture.md', template: 'claude/rules/60-incidental-capture.md' },
   { file: '90-exec-protocol.md', template: 'claude/rules/90-exec-protocol.md.ejs' },

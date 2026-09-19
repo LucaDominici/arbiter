@@ -11,14 +11,19 @@
 // deploy pipeline via `npm run docs:build`, never as an implicit gate side effect.
 import { copyFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { join, resolve, extname } from 'node:path'
+import { INVARIANT_CATALOG_DOC } from './lib/governance-paths.mjs'
 
 const ROOT = resolve('.')
 const WEBSITE_GOVERNANCE_DIR = join(ROOT, 'website', 'governance')
 
 mkdirSync(WEBSITE_GOVERNANCE_DIR, { recursive: true })
 
-// Copy AGENTS.md into website/governance/ for public site rendering
+// Copy the entry file and full catalog into website/governance/ for public site rendering.
 copyFileSync(join(ROOT, 'AGENTS.md'), join(WEBSITE_GOVERNANCE_DIR, 'AGENTS.md'))
+copyFileSync(
+  join(ROOT, INVARIANT_CATALOG_DOC),
+  join(WEBSITE_GOVERNANCE_DIR, 'INVARIANT-CATALOG.md'),
+)
 
 // Count ADR files for diagnostic output
 const ADR_DIR = join(ROOT, 'docs', 'internal', 'ADR')
@@ -29,4 +34,6 @@ try {
   // ADR dir may not exist yet
 }
 
-process.stdout.write(`sync-public-governance: ok — AGENTS.md synced, ${adrCount} ADR(s) found\n`)
+process.stdout.write(
+  `sync-public-governance: ok — AGENTS.md and INVARIANT-CATALOG.md synced, ${adrCount} ADR(s) found\n`,
+)

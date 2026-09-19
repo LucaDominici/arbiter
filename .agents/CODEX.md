@@ -2,7 +2,7 @@
 title: 'arbiter — Codex Configuration'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-08-26'
+last_review: '2026-09-20'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
@@ -126,7 +126,7 @@ disclosure, not implementation parity):
 - **Commands** (6): `/ship`, `/drain`, `/impact`, `/review`, `/audit`, `/tabletop`
 - **Agents** (4): `codebase-scanner`, `red-team`, `context-checker`, `bridge-reviewer`
 - **Skills** (15): `tdd`, `verification`, `architect-review`, `clean-code`, `understand-code`, `codebase-audit`, `epic-decompose`, `configure`, `brainstorming`, `wave-drain`, `impact`, `gold-audit`, `close-gold-gap`, `levelup`, `tabletop`
-- **Rules not derived into the Codex track** (4): `40-context-economy.md`, `55-brainstorm-terminal-state.md`, `75-impact-vault-reading.md`, `95-closer-mode.md` — each is coupled to a Claude-only mechanism (knowledge-map routing, brainstorm hook, `/impact` skill, CLOSER hook)
+- **Rules not derived into the Codex track** (1): `75-impact-vault-reading.md` — each is coupled to a Claude-only mechanism such as the `/impact` skill.
 
 **Decision:** This gap is intentional. OpenAI Codex has no plugin/hook extension
 point at the time of writing. When Codex adds a hook system, `codex-adapter.mjs`

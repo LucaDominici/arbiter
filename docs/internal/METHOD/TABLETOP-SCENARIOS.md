@@ -145,7 +145,7 @@ files in that tree, or a branch that also changes source, still require normal T
 - **Goal:** Get from "red check" to "root cause named and fixed" through the documented
   watcher → job log → fix → re-watch loop, without a blind retry.
 - **Docs the user would read:** `docs/REFERENCE/fix-on-red.md`,
-  `docs/REFERENCE/ci-tier-workflows.md`, `.claude/rules/95-closer-mode.md`
+  `docs/REFERENCE/ci-tier-workflows.md`, `.claude/hooks/closer-mode-guard.mjs`
 - **Executable probes:** `gh pr checks --help` and `gh run view --help`; read the CI tier
   table against `.github/workflows/`; run the local-CI parity gate to confirm the failing job
   is locally reproducible.

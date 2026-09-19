@@ -1,66 +1,7 @@
-
-# test-project — Claude Code Configuration
-
 @AGENTS.md
 
-> This file imports `AGENTS.md` (canonical governance, AAIF standard) via the `@` directive above.
-> Below: Claude Code-specific configuration only — hooks, sub-agents, and slash commands.
+# test-project — Claude Code
 
----
-
-## Quick Reference
-
-| Fact | Value |
-|------|-------|
-| **Project** | test-project |
-| **Gate** | `node scripts/check-all.mjs` |
-| **Full governance** | `../AGENTS.md` (auto-imported above) |
-| **Collaboration mode** | `peer-review` — merge: `pr-ff` / branch: `github-flow` |
-
----
-
-## Claude Code-Specific
-
-### Hooks
-
-Configured in `.claude/settings.json`. Active hooks:
-
-| Event | Hook | Purpose |
-|-------|------|---------|
-| `PreToolUse` → Bash | `stop-dangerous.mjs` | Block dangerous commands and obvious writes to protected Arbiter state |
-| `PreToolUse` → Edit\|Write | `enforce-read-only.mjs` | Guard read-only files |
-| `PreToolUse` → Edit\|Write | `pre-edit-ssot-guard.mjs` | Prevent unauthorized SSOT edits |
-| `PostToolUse` → Bash | `post-commit-check.mjs` | Verify commit format after git commits |
-| `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs` | Block orphan TODOs (INV-21) |
-| `UserPromptSubmit` → * | `skill-forced-eval.mjs` | Phase-bound TDD evidence verifier; blocks implementation edits without a successful `Skill(tdd)` result (exit 2) |
-| `UserPromptSubmit` → * | `guard-task-completion.mjs` | Warn on premature task-completion claims |
-| `Stop` → * | `stop-evidence-guard.mjs` | Block completion claims without correlated evidence (INV-114) |
-| `PostToolUse` → Edit\|Write | `check-no-any.mjs` | Block `any` types (INV-04) |
-
-### Slash Commands
-
-| Command      | Purpose                                                                                     |
-| ------------ | ------------------------------------------------------------------------------------------- |
-| `/ship #NNN` | **Orchestration entrypoint** — drive an issue to a merged PR (plan → review → gate → merge) |
-| `/drain`     | Deliver a bounded backlog wave through the `/ship` contract                                 |
-| `/audit`     | Run the product audit                                                                       |
-| `/impact`    | Inspect change impact                                                                       |
-| `/review`    | Review a frozen candidate                                                                   |
-| `/tabletop`  | Exercise a product journey                                                                  |
-
----
-
-## Hard Stops (Inherited from AGENTS.md)
-
-See `../AGENTS.md` §Invariants for the complete list.
-
-**Never:**
-- Skip staged secret/economy checks or RED integrity on a checkpoint commit
-- Skip full qualification of the frozen candidate before push or PR
-
-- Commit directly to `main` (use PR branches — see collaboration mode above)
-
-- Add `any` type (TS) or `.unwrap()` (Rust)
-- Leave orphan TODOs without task IDs
-
-**If gate fails:** Fix the root cause. No `--no-verify`. No skipping.
+Claude Code-specific hooks and permissions are configured in `.claude/settings.json`.
+Claude-specific agents and commands live under `.claude/agents/` and `.claude/commands/`.
+Use `/ship #NNN` as the delivery entrypoint.

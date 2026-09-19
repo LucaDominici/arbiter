@@ -35,6 +35,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
+const INVARIANT_CATALOG_DOC = '<%= projectName === 'arbiter' ? 'docs/internal/SYSTEM/INVARIANT-CATALOG.md' : 'AGENTS.md' %>'
 
 const ROOT = process.cwd()
 
@@ -50,9 +51,9 @@ const _productReportIdx = args.indexOf('--product-report')
 const productReportArg = _productReportIdx >= 0 ? (args[_productReportIdx + 1] ?? null) : null
 const MATRIX_PATH = resolve(ROOT, 'docs', 'FEATURE_MATRIX.md')
 const GLOB_BASELINE_PATH = resolve(ROOT, '.feature-matrix-glob-baseline.json')
-const AGENTS_MD_PATH = resolve(ROOT, 'AGENTS.md')
 const ADR_DIR_PATH = resolve(ROOT, 'docs', 'adr')
 const PRD_PATH = resolve(ROOT, 'docs', 'PRD.md')
+const INVARIANT_CATALOG_PATH = resolve(ROOT, INVARIANT_CATALOG_DOC)
 const RTM_SCHEMA_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '..',
@@ -568,12 +569,14 @@ function classifySourceAnchor(anchor) {
   return { kind: null }
 }
 
-let _agentsMdCache
-function readAgentsMdOnce() {
-  if (_agentsMdCache === undefined) {
-    _agentsMdCache = existsSync(AGENTS_MD_PATH) ? readFileSync(AGENTS_MD_PATH, 'utf-8') : null
+let _invariantCatalogCache
+function readInvariantCatalogOnce() {
+  if (_invariantCatalogCache === undefined) {
+    _invariantCatalogCache = existsSync(INVARIANT_CATALOG_PATH)
+      ? readFileSync(INVARIANT_CATALOG_PATH, 'utf-8')
+      : null
   }
-  return _agentsMdCache
+  return _invariantCatalogCache
 }
 
 let _prdCache
@@ -632,7 +635,7 @@ function sourceAnchorFailure(classified, anchor, id) {
   const { kind, num } = classified
   const checks = {
     inv: () => {
-      const text = readAgentsMdOnce()
+      const text = readInvariantCatalogOnce()
       return text !== null && text.includes(`**INV-${num}:**`)
     },
     adr: () => adrDirHasMatchingFile(num),
@@ -642,7 +645,7 @@ function sourceAnchorFailure(classified, anchor, id) {
     },
   }
   const descriptions = {
-    inv: `no matching **INV-${num}:** entry in AGENTS.md`,
+    inv: `no matching **INV-${num}:** entry in ${INVARIANT_CATALOG_DOC}`,
     adr: `no matching ADR-${num} file in docs/adr/`,
     prd: `no matching "${num}" heading in docs/PRD.md`,
   }

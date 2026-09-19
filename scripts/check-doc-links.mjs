@@ -155,6 +155,13 @@ function firstExistingOrLast(candidates) {
 function resolveHref(fileAbsPath, fileDir, href) {
   if (!isUnderWebsite(fileAbsPath)) return resolve(fileDir, href)
 
+  // Public governance mirrors retain repository-relative links so the copied
+  // entrypoint stays byte-identical to AGENTS.md. Resolve those links against
+  // the checkout rather than the website/governance route.
+  if (fileAbsPath.startsWith(join(WEBSITE_ROOT, 'governance') + sep) && href.startsWith('docs/')) {
+    return resolve(CWD, href)
+  }
+
   if (href.startsWith('/')) {
     const clean = href.slice(1)
     const candidates = vitePressCandidates(WEBSITE_ROOT, clean)
@@ -258,9 +265,11 @@ export function extractRelatedEntries(content) {
  * entry resolves if ANY of them exists.
  */
 export function relatedCandidates(fileDir, entry) {
+  const websiteGovernance = fileDir.startsWith(join(WEBSITE_ROOT, 'governance'))
   return [
     join(CWD, entry),
     resolve(fileDir, entry),
+    ...(websiteGovernance ? [resolve(CWD, entry)] : []),
     join(CWD, 'docs', entry),
     join(CWD, 'docs', 'internal', entry),
   ]

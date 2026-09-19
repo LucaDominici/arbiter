@@ -54,9 +54,9 @@ describe('#2520 — nightly/monthly stamp-file freshness gates deleted (INV-93 r
     expect(entry).not.toContain('enforcement:')
   })
 
-  it('INV-93 has no row in AGENTS.md (retired tombstones drop their row)', () => {
-    const agents = read('AGENTS.md')
-    expect(agents).not.toMatch(/\*\*INV-93:\*\*/)
+  it('INV-93 has no row in the invariant catalog document (retired tombstones drop their row)', () => {
+    const catalogDoc = read('docs/internal/SYSTEM/INVARIANT-CATALOG.md')
+    expect(catalogDoc).not.toMatch(/\*\*INV-93:\*\*/)
   })
 
   it('INV-82 keeps its workflow-presence content and repoints enforcement at the heartbeat job, not the deleted stamp script', () => {
@@ -75,8 +75,8 @@ describe('#2520 — nightly/monthly stamp-file freshness gates deleted (INV-93 r
     // INV-75; INV-82 keeps only the workflow-exists clause and defers to it.
     expect(entry).not.toMatch(/\d+\s*d(?:ays?)?\b/i)
 
-    const agents = read('AGENTS.md')
-    expect(agents).toContain(
+    const catalogDoc = read('docs/internal/SYSTEM/INVARIANT-CATALOG.md')
+    expect(catalogDoc).toContain(
       '**INV-82:** Monthly (T5b) workflow present + heartbeat asserts its freshness',
     )
   })

@@ -38,7 +38,7 @@ export const TRACK_ROOTS = Object.freeze({
 
 // ─── Derived pairs (codex file ← canonical claude source) ────────────────────
 
-// The 5 shared rules the Codex track derives from the canonical Claude rule
+// The 4 shared rules the Codex track derives from the canonical Claude rule
 // templates (ADR-106 derive-from-Claude model). `golden` names the committed,
 // independently reviewed oracle under __tests__/fixtures/codex-parity/golden/
 // (hardening 6: generator output is compared TO the golden, never
@@ -46,7 +46,6 @@ export const TRACK_ROOTS = Object.freeze({
 export const DERIVED_PAIRS = Object.freeze(
   [
     '05-agent-lifecycle.md',
-    '25-todo-folder-policy.md',
     '50-batch-execution.md',
     '60-incidental-capture.md',
     '90-exec-protocol.md',

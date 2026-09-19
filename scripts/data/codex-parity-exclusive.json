@@ -18,7 +18,7 @@
       "id": "claude-knowledge-map",
       "track": "claude",
       "pattern": ".claude/knowledge-map.json",
-      "reason": "Claude-only track-routing artifact consumed by rule 40-context-economy; Codex has no knowledge-map mechanism"
+      "reason": "Claude-only track-routing artifact; Codex has no knowledge-map mechanism"
     },
     {
       "id": "claude-agents",
@@ -45,28 +45,10 @@
       "reason": "Claude hook system; the bridged subset runs on Codex via .codex/config.toml + codex-adapter.mjs and EVERY non-infra hook must have a generated Known Limitations row (checked against this same bake)"
     },
     {
-      "id": "claude-rule-40",
-      "track": "claude",
-      "pattern": ".claude/rules/40-context-economy.md",
-      "reason": "Coupled to .claude/knowledge-map.json routing (Claude-only artifact); not derived into the Codex track"
-    },
-    {
-      "id": "claude-rule-55",
-      "track": "claude",
-      "pattern": ".claude/rules/55-brainstorm-terminal-state.md",
-      "reason": "Enforced by the post-brainstorm-stop hook + /task command (Claude-only mechanisms); not derived into the Codex track"
-    },
-    {
       "id": "claude-rule-75",
       "track": "claude",
       "pattern": ".claude/rules/75-impact-vault-reading.md",
       "reason": "Drives the /impact skill + pre-edit-plan-anchor hook (Claude-only); not derived into the Codex track"
-    },
-    {
-      "id": "claude-rule-95",
-      "track": "claude",
-      "pattern": ".claude/rules/95-closer-mode.md",
-      "reason": "CLOSER mode is enforced by the closer-mode-guard hook (Claude-only); not derived into the Codex track"
     },
     {
       "id": "codex-md",

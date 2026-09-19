@@ -45,7 +45,6 @@
     "scripts/check-anti-fake-green.mjs.ejs",
     "scripts/check-assertion-delta.mjs.ejs",
     "scripts/check-bundle-size.mjs.ejs",
-    "scripts/check-constraint-scan.mjs.ejs",
     "scripts/check-cross-model-review.mjs.ejs",
     "scripts/check-duplication.mjs.ejs",
     "scripts/check-frontend-lane.mjs.ejs",

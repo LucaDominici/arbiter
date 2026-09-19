@@ -261,4 +261,12 @@ describe('#1244 — DoD: INV-108 core-set surface stays bounded', () => {
       `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
     ).toBeLessThanOrEqual(34)
   })
+
+  it('keeps the on-demand invariant catalog out of the bounded SSOT core', () => {
+    expect(
+      selectSsotDocs(ROOT).some(
+        (doc) => doc.relPath === 'docs/internal/SYSTEM/INVARIANT-CATALOG.md',
+      ),
+    ).toBe(false)
+  })
 })

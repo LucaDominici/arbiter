@@ -61,7 +61,6 @@ describe('tool output: codex', () => {
     const rulesDir = join(dir, '.agents', 'rules')
     for (const f of [
       '05-agent-lifecycle.md',
-      '25-todo-folder-policy.md',
       '50-batch-execution.md',
       '60-incidental-capture.md',
       '90-exec-protocol.md',
@@ -77,29 +76,21 @@ describe('tool output: codex', () => {
     const config = codexConfig()
     generateCodex(config)
     const rulesDir = join(dir, '.agents', 'rules')
-    // 40 → .claude/knowledge-map.json artifact; 55 → post-brainstorm-stop hook + /task;
     // 75 → /impact skill + graphify; 45 → MCP-fallback (Claude MCP config).
-    for (const f of [
-      '40-context-economy.md',
-      '55-brainstorm-terminal-state.md',
-      '75-impact-vault-reading.md',
-      '45-mcp-fallback.md',
-    ]) {
+    for (const f of ['75-impact-vault-reading.md', '45-mcp-fallback.md']) {
       expect(existsSync(join(rulesDir, f))).toBe(false)
     }
   })
 
   // ADR-106 (#1966): ALL shared rules are DERIVED from the canonical Claude
-  // templates — including 90-exec-protocol, whose parallel Codex copy silently
-  // lost the CANON-22 section (the motivating incident).
-  it('emitted Codex rules are byte-identical to their Claude template source (all 5, derive-from-Claude)', () => {
+  // templates.
+  it('emitted Codex rules are byte-identical to their Claude template source', () => {
     const config = codexConfig()
     generateCodex(config)
     const codexRules = join(dir, '.agents', 'rules')
     const claudeRules = join(process.cwd(), 'src', 'templates', 'claude', 'rules')
     const sources: Record<string, string> = {
       '05-agent-lifecycle.md': '05-agent-lifecycle.md',
-      '25-todo-folder-policy.md': '25-todo-folder-policy.md',
       '50-batch-execution.md': '50-batch-execution.md',
       '60-incidental-capture.md': '60-incidental-capture.md',
       '90-exec-protocol.md': '90-exec-protocol.md.ejs',
@@ -111,12 +102,11 @@ describe('tool output: codex', () => {
     }
   })
 
-  it('codex 90-exec-protocol carries the CANON-22 Root-Cause Discipline hard stop (#1966)', () => {
+  it('codex 90-exec-protocol carries the execution stop conditions', () => {
     const config = codexConfig()
     generateCodex(config)
     const rule = readFileSync(join(dir, '.agents', 'rules', '90-exec-protocol.md'), 'utf-8')
-    expect(rule).toContain('## Root-Cause Discipline (CANON-22)')
-    expect(rule).toContain('arbiter lifecycle record-debt')
+    expect(rule).toContain('If a gate fails')
   })
 
   // ADR-106: the Known Limitations table is GENERATED from the actual
@@ -138,8 +128,7 @@ describe('tool output: codex', () => {
     expect(section).toMatch(/\*\*Commands\*\* \(\d+\):/)
     expect(section).toMatch(/\*\*Agents\*\* \(\d+\):/)
     expect(section).toMatch(/\*\*Skills\*\* \(\d+\):/)
-    expect(section).toContain('`40-context-economy.md`')
-    expect(section).toContain('`95-closer-mode.md`')
+    expect(section).toContain('`75-impact-vault-reading.md`')
   })
 
   it('does not generate a second host-specific plan store', () => {
@@ -148,13 +137,13 @@ describe('tool output: codex', () => {
     expect(existsSync(join(dir, '.agents', 'plan', 'README.md'))).toBe(false)
   })
 
-  it('result lists exactly 15 files all with created action', () => {
+  it('result lists exactly 14 files all with created action', () => {
     const config = codexConfig()
     const result = generateCodex(config)
-    // CODEX.md (1) + 5 rule files + codex hooks (9: config.toml +
+    // CODEX.md (1) + 4 rule files + codex hooks (9: config.toml +
     // codex-adapter.mjs + lib.mjs + 5 shared guard hooks + check-no-skipped-tests.mjs,
     // #1885) = 15.
-    expect(result.files).toHaveLength(15)
+    expect(result.files).toHaveLength(14)
     for (const f of result.files) {
       expect(f.action).toBe('created')
     }

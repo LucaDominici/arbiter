@@ -7,6 +7,7 @@ owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
 related: []
+paths: ['src/**']
 ---
 
 # Refactor-First Rule (CANON-16)

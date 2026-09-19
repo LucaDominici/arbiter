@@ -91,7 +91,7 @@ disclosure, not implementation parity):
 - **Commands** (<%= knownLimitations.commands.length %>): <%- knownLimitations.commands.map((c) => '`/' + c + '`').join(', ') %>
 - **Agents** (<%= knownLimitations.agents.length %>): <%- knownLimitations.agents.map((a) => '`' + a + '`').join(', ') %>
 - **Skills** (<%= knownLimitations.skills.length %>): <%- knownLimitations.skills.map((s) => '`' + s + '`').join(', ') %>
-- **Rules not derived into the Codex track** (<%= knownLimitations.claudeOnlyRules.length %>): <%- knownLimitations.claudeOnlyRules.map((r) => '`' + r + '`').join(', ') %> — each is coupled to a Claude-only mechanism (knowledge-map routing, brainstorm hook, `/impact` skill, CLOSER hook)
+- **Rules not derived into the Codex track** (<%= knownLimitations.claudeOnlyRules.length %>): <%- knownLimitations.claudeOnlyRules.map((r) => '`' + r + '`').join(', ') %> — each is coupled to a Claude-only mechanism such as the `/impact` skill.
 
 **Decision:** This gap is intentional. OpenAI Codex has no plugin/hook extension
 point at the time of writing. When Codex adds a hook system, `codex-adapter.mjs`

@@ -90,7 +90,7 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
   verification:
     'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then arbiter lifecycle advance --to close.',
   close:
-    'Phase: close\nAction: CLOSER mode active — see .claude/rules/95-closer-mode.md. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter lifecycle advance --to complete.',
+    'Phase: close\nAction: CLOSER mode active — the closer-mode guard is wired in settings. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter lifecycle advance --to complete.',
   complete:
     'Phase: complete\nAction: Task is complete. Check if PR was created: gh pr list --head $(git branch --show-current)\nNext: Verify PR merged and issue closed.',
 }

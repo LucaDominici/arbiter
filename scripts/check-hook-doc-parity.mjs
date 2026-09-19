@@ -4,9 +4,9 @@
 // CATALOG: rejected fold-in into check-settings-coverage.mjs (configure.ts↔settings.ts settable-path parity, different SSOT pair).
 //
 // Gate (CANON-10, docs/internal/SYSTEM/CANON.md): every hook registered in
-// .claude/settings.json must appear as a row in the hooks table of
-// .claude/CLAUDE.md (event, matcher, filename), and every documented row
-// must correspond to a real registered hook (no phantom row, no missing one).
+// .claude/settings.json must either appear as a row in the hooks table of
+// .claude/CLAUDE.md (event, matcher, filename), or the document must use the
+// thin-shim marker below to identify settings.json as the hook SSOT.
 //
 // CANON-10's enforcement was previously "Prose — checked at PR review when
 // settings.json changes" (#177) — this gate promotes it to wired, matching
@@ -27,6 +27,8 @@ const SETTINGS_PATH = settingsArg
   ? resolve(settingsArg.split('=')[1])
   : resolve('.claude/settings.json')
 const CLAUDE_MD_PATH = docArg ? resolve(docArg.split('=')[1]) : resolve('.claude/CLAUDE.md')
+const THIN_SHIM_MARKER =
+  'Claude Code-specific hooks and permissions are configured in `.claude/settings.json`.'
 
 /**
  * Extract {event, matcher, filename} triples from settings.json's hooks object.
@@ -97,6 +99,12 @@ function main() {
   // changed under the parser's feet — the gate must not pass vacuously.
   if (settingsHooks.length === 0) {
     throw new Error('extracted zero hooks from settings.json — parser out of date')
+  }
+  if (docRows.length === 0 && claudeMd.includes(THIN_SHIM_MARKER)) {
+    process.stdout.write(
+      `[check-hook-doc-parity] OK — thin Claude shim delegates ${settingsHooks.length} hooks to .claude/settings.json\n`,
+    )
+    return
   }
   if (docRows.length === 0) {
     throw new Error('extracted zero rows from CLAUDE.md hooks table — parser out of date')
