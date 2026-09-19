@@ -35,23 +35,14 @@ phase-level recovery guidance.
 `arbiter lifecycle resume` is phase-granular by default. For an interrupted session to resume at the EXACT
 sub-step (not "you were somewhere in green"), drop a step-cursor as you work.
 
-**Known gap:** the "arbiter lifecycle checkpoint" command that used to write this cursor was removed in the T2
-command-surface cut (`src/commands/task-mark.ts` deleted) — there is no CLI replacement. The `cursor`
-field is still read by `resume` (see the `status.json` schema below), so until a replacement command
-lands, set it by merging directly into `.claude/.task/status.json`:
+Write the cursor through the single lifecycle writer:
 
-```json
-{
-  "cursor": {
-    "tddPhase": "GREEN",
-    "lastAction": "wrote failing test for validateEmail",
-    "nextAction": "implement validateEmail in src/validators.ts"
-  }
-}
+```bash
+arbiter lifecycle checkpoint --tdd GREEN \
+  --last 'wrote failing test for validateEmail' \
+  --next 'implement validateEmail in src/validators.ts' \
+  --digest 'RED proof recorded; implementation next'
 ```
-
-(a shallow merge into the existing document — never overwrite the whole file). Optionally append a
-one-line entry to `.claude/.task/log.md` yourself; there is no `--digest` flag anymore either.
 
 After a mid-task `/clear`, `arbiter lifecycle resume` reads the cursor from disk and prints:
 
@@ -70,7 +61,7 @@ filesystem.
 
 `/ship #NNN` (Claude Code) / `arbiter ship <id>` (CLI) is the **single orchestration entrypoint** —
 it drives an issue to a reviewed, merged PR by auto-sequencing
-(worktree → plan → red-team → TDD impl → review → gate → merge → cleanup).
+(worktree → mechanical plan admission → TDD implementation → final review → gate → merge → cleanup).
 Use `/task` subcommands (`arbiter lifecycle advance`, `record-red`, etc.) only for recovery or manual
 phase control; the `/ship` loop auto-advances phases when their gates are green.
 
@@ -161,17 +152,15 @@ git commit -m "CHECKPOINT(#694): refactor dispatch.ts before context window fill
 
 ## Phase Recovery Table
 
-| Phase                        | What Happened                                         | Recovery Action                                                                                                                                                                  |
-| ---------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `preflight`                  | Task not started                                      | Run `/task #NNN` to initialize branch and plan                                                                                                                                   |
-| `plan`                       | Plan being written                                    | Check `.claude/plans/` for draft — await user GO                                                                                                                                 |
-| `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter lifecycle advance --to red-team-rework`; clear → `--to red`                                               |
-| _(handoff boundary)_         | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter ship #NNN --advance --post-clear --units <N>`                                                                                                         |
-| `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter lifecycle advance --to red-team-review`; or full replan: `--to plan`                                                                         |
-| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter lifecycle resume` (lands on the cursor if one was set — see the known gap above); run `node scripts/check-all.mjs L1`                                                   |
-| `verification`               | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; a current `.arbiter/gate-pass.json` must match HEAD and branch and report `tree_was_clean_at_run_time: true` before the phase is written |
-| `close`                      | CLOSER mode                                           | The same current gate-pass marker is required before entering the phase; commit, push, and land the PR                                                                           |
-| `complete`                   | Task done                                             | The same current gate-pass marker is required before entering the phase; verify PR created: `gh pr list --head $(git branch --show-current)` and confirm issue closed            |
+| Phase           | What Happened                       | Recovery Action                                                                                                                                                       |
+| --------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preflight`     | Task not started                    | Run `/task #NNN` to initialize branch and plan                                                                                                                        |
+| `plan`          | Plan being written                  | Check `.claude/plans/` for the active plan; complete mechanical admission, then advance to `red`                                                                      |
+| `red` / `green` | TDD cycle in progress               | `arbiter lifecycle resume` (lands on the cursor if one was set); run targeted tests while editing                                                                     |
+| `refactor`      | Candidate being frozen and reviewed | Freeze the SHA, run targeted certification, then record the independent final reviewer panel and per-AC acceptance fit                                                |
+| `verification`  | Final qualification running         | Run one full gate; `.arbiter/gate-pass.json` must bind the exact HEAD, branch, task, tree, toolchain, level and TTL before the phase advances                         |
+| `close`         | CLOSER mode                         | The same current gate-pass marker is required before entering the phase; commit, push, and land the PR                                                                |
+| `complete`      | Task done                           | The same current gate-pass marker is required before entering the phase; verify PR created: `gh pr list --head $(git branch --show-current)` and confirm issue closed |
 
 ---
 
@@ -200,30 +189,24 @@ the legacy files migrates it transparently (seed + delete) on first access.
     "lastAction": "wrote failing test for validateEmail",
     "nextAction": "implement validateEmail in src/validators.ts"
   },
-  "handoffStrategy": "interactive",
-  "handoffReady": true,
   "runId": "12345-1715817000000",
   "timestamps": { "plan": "2026-05-16T00:08:00.000Z", "green": "2026-05-16T00:08:30.000Z" },
   "gateDecisions": []
 }
 ```
 
-| Field                  | Description                                                                            |
-| ---------------------- | -------------------------------------------------------------------------------------- |
-| `taskId`               | Active task id (was `.task-id`)                                                        |
-| `phase`                | Current lifecycle phase — authoritative, single writer (was `.task-phase`)             |
-| `tier`                 | Task tier XS/S/Standard (was `.task-tier`)                                             |
-| `plan`                 | Repo-relative path to the plan file (was `.task-plan`)                                 |
-| `cursor`               | Step-cursor (no CLI writer since the T2 cut — see above) — drives pinpoint resume      |
-| `handoffStrategy`      | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy              |
-| `handoffReady`         | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)                  |
-| `planningHandoffReady` | ISO timestamp when the interactive handoff gate was triggered                          |
-| `postClearResumed`     | ISO timestamp set after a successful post-clear re-entry                               |
-| `timestamps`           | ISO timestamps per phase entered (accumulated across sessions)                         |
-| `runId`                | `<pid>-<epoch-ms>` — unique per process invocation                                     |
-| `gateDecisions`        | Gate pass/fail records                                                                 |
-| `hostBinding`          | Exact checkout identity established by host preflight; Claude session data is optional |
-| `collaborationMode`    | Schema-validated delivery mode used by local review guards                             |
+| Field               | Description                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `taskId`            | Active task id (was `.task-id`)                                                        |
+| `phase`             | Current lifecycle phase — authoritative, single writer (was `.task-phase`)             |
+| `tier`              | Task tier XS/S/Standard (was `.task-tier`)                                             |
+| `plan`              | Repo-relative path to the plan file (was `.task-plan`)                                 |
+| `cursor`            | Step-cursor (no CLI writer since the T2 cut — see above) — drives pinpoint resume      |
+| `timestamps`        | ISO timestamps per phase entered (accumulated across sessions)                         |
+| `runId`             | `<pid>-<epoch-ms>` — unique per process invocation                                     |
+| `gateDecisions`     | Gate pass/fail records                                                                 |
+| `hostBinding`       | Exact checkout identity established by host preflight; Claude session data is optional |
+| `collaborationMode` | Schema-validated delivery mode used by local review guards                             |
 
 Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
 update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file

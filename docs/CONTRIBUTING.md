@@ -79,8 +79,9 @@ is an explicit local L1 option; default runs, CI, and L2+ continue to collect
 the complete result set, and advisory `WARN` or legitimate `SKIP` results do
 not trigger it.
 
-L1 must pass before commit, L2 before push. The `.githooks/` scripts enforce
-both automatically once the git hook path is configured.
+Checkpoint commits run staged secret/economy checks and preserve recorded RED integrity. L1 must
+pass once on the frozen delivery candidate; L2 must pass before push. The `.githooks/` scripts
+enforce those boundaries once the git hook path is configured.
 
 The pre-push hook reuses a fresh green L2 stamp instead of always re-running the
 full gate: `check-all.mjs` writes `.arbiter/gate-pass.json` on PASS, and the hook

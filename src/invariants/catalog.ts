@@ -364,10 +364,12 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-24',
     tier: 'governance',
-    title: 'Gate must pass before commit: `node scripts/check-all.mjs L1`',
+    title: 'Checkpoint commits preserve staged-file safety; full gates qualify delivery',
     description:
-      'The L1 gate (lint + unit tests) is the minimum bar for any commit. Committing broken ' +
-      "code wastes reviewer time and breaks other developers' workflows.",
+      'Local checkpoint commits remain recoverable during TDD: the pre-commit hook always runs ' +
+      'secret scanning and staged-file economy checks, and permits a test-only RED commit only ' +
+      'when its failure is recorded. The complete L1 gate qualifies the frozen delivery ' +
+      'candidate, not every intermediate commit.',
     alwaysActive: true,
     enforcement: '.githooks/pre-commit + CI',
   },
@@ -2007,11 +2009,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     title: 'Fail-closed Stop gate — completion claims require correlated evidence',
     description:
       'On a task/ or ship/ branch whose phase is not yet complete, an agent may not end its ' +
-      'turn claiming completion (task complete / ready to merge / pr merged …) unless three ' +
-      'evidence artifacts exist AND correlate to the current branch and HEAD sha: (1) the ' +
-      'plan-review latest.json with verdict PASS, recorded on this branch at a commit that is an ' +
-      'ancestor of HEAD; (2) the agents-dispatched sidecar (.arbiter/agents-dispatched.json) on ' +
-      'this branch at an ancestor commit; (3) the gate-pass marker (.arbiter/gate-pass.json) that ' +
+      'turn claiming completion (task complete / ready to merge / pr merged …) unless the ' +
+      'applicable delivery evidence exists AND correlates to the current branch and HEAD sha: ' +
+      'the agents-dispatched sidecar (.arbiter/agents-dispatched.json) proves independent final ' +
+      'review, and the gate-pass marker (.arbiter/gate-pass.json) ' +
       'still BINDS this tree — schema arbiter-gate-pass-v2, head_sha equal to HEAD, matching ' +
       'branch and task id, plus the #2328 identity axes: working-tree content hash, checkout ' +
       'root, toolchain fingerprint, gate level and TTL. A missing or blank field is a ' +
@@ -2025,7 +2026,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'and return stderr to the model). Generated for target projects at L2+ by ' +
       "src/generators/claude.ts and dogfooded in arbiter's own .claude/ (CANON-01/14). Evidence " +
       'writers (scripts/check-all.mjs for the gate-pass marker; the /task and /ship command ' +
-      'playbooks in .claude/commands/ for the plan-review and agents-dispatched sidecars) stamp ' +
+      'playbooks in .claude/commands/ for the agents-dispatched sidecar) stamp ' +
       'branch+sha so correlation is possible; the marker binding itself lives in the shared ' +
       'scripts/lib/gate-evidence.mjs (#2328). Empirical coverage: ' +
       '__tests__/hooks/empirical/stop-evidence-guard.test.ts, ' +

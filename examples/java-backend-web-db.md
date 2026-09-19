@@ -57,7 +57,7 @@ Grouped by purpose. Filenames come from `src/generators/` and templates under `s
 
 **Git hooks**
 
-- `.githooks/pre-commit` — runs `node scripts/check-all.mjs L1` (Gradle's `check` plus invariant scripts).
+- `.githooks/pre-commit` — runs staged safety/economy checks; frozen-candidate L1 runs Gradle's `check` plus invariant scripts.
 - `.githooks/pre-push` — runs `node scripts/check-all.mjs L2`.
 
 **AI-tool configs (Claude Code)**

@@ -106,7 +106,7 @@ describe('route-auditors — --size-floor widens breadth (#1260 / #1267 seam)', 
     expect(r.status).toBe(0)
     const out = JSON.parse(r.stdout)
     expect(out.active).toContain('domain')
-    expect(out.active).toContain('test-quality')
+    expect(out.active).not.toContain('test-quality')
     expect(out.active).not.toContain('security')
   })
 

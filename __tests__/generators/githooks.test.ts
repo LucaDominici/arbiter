@@ -64,11 +64,12 @@ describe('generateGithooks — happy path (typescript)', () => {
     expect(paths.some((p) => p.includes('setup-hooks.sh'))).toBe(false)
   })
 
-  it('pre-commit hook file contains L1 gate invocation', () => {
+  it('pre-commit keeps qualification out of checkpoint commits', () => {
     const config = makeConfig(dir, { language: 'typescript' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-commit'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs L1')
+    expect(content).not.toContain('node scripts/check-all.mjs L1')
+    expect(content).toContain('staged checks passed')
   })
 
   it('pre-push hook file contains gate subcommand invocation', () => {

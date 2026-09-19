@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // <%= projectName %> quality gate
 // Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
-// L1: format + lint + unit tests (fast, pre-commit)
+// L1: format + lint + unit tests (fast, frozen-candidate qualification)
 // L2: L1 + coverage + audit (full, pre-push)
 // --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
 import { createHash } from 'node:crypto';
@@ -101,9 +101,10 @@ function gateFilePresent(_path, _label, _neverEmittedLine = null, _alternatePath
 // `--level` as the level string skips the L2 branch while the job stays green —
 // that silent L2→L1 downgrade is the exact fake-green this gate exists to kill.
 const _LEVELS = ['L1', 'L2', 'L3', 'L4'];
-// Subcommand alias → level. `check` is the fast pre-commit lane; everything
+// Subcommand alias → level. `check` is the fast candidate-qualification lane; everything
 // heavier maps to L2 (the strongest tier this generated gate implements).
 const _SUBCOMMAND_LEVEL = {
+  preflight: 'L2',
   check: 'L1',
   gate: 'L2',
   full: 'L2',
@@ -119,7 +120,7 @@ let only = null; // #2078: --gate <name>, re-run a single check
 let failFast = false;
 const _rawArgs = process.argv.slice(2);
 const _gateUsage =
-  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>] [--fail-fast]';
+  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | preflight|check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>] [--fail-fast]';
 function _gateFatal(_msg) {
   console.error(`[GATE] FATAL: ${_msg}`);
   console.error(`[GATE] ${_gateUsage}`);
@@ -355,7 +356,8 @@ if (only !== null) {
   const _regGate = GATE_REGISTRY.find((_g) => _g.id === only);
   if (_regGate) only = _regGate.name;
 }
-const _inspect = dryRun || only !== null;
+const _preflight = subcommand === 'preflight';
+const _inspect = dryRun || only !== null || _preflight;
 setMode({ dryRun, only });
 const _failFast =
   failFast &&
@@ -456,8 +458,14 @@ const ratchetFlag = isL3Plus ? '--require-improvement' : '--gate';
 // their custom JS bodies (declared in the registry so --dry-run/--gate and the
 // layering test see them). ORDER IS THE REGISTRY ORDER.
 
-<% const l1 = _effectiveGates.filter(g => g.level === 'L1'); const l2 = _effectiveGates.filter(g => g.level === 'L2'); const l3 = _effectiveGates.filter(g => g.level === 'L3'); %>
-// ── L1 (fast checks — pre-commit) ────────────────────────────────────────
+<% for (const stage of ['preflight', 'qualification']) {
+const stageGates = _effectiveGates.filter(g => (g.preflight === true) === (stage === 'preflight'));
+const l1 = stageGates.filter(g => g.level === 'L1'); const l2 = stageGates.filter(g => g.level === 'L2'); const l3 = stageGates.filter(g => g.level === 'L3'); %>
+<% if (stage === 'qualification') { %>
+const _preflightPassed = getFailed() === 0;
+if (!_preflight && (_preflightPassed || dryRun || only !== null)) {
+<% } %>
+// ── L1 (fast checks — frozen candidate) ─────────────────────────────────
 if (true) {
 <% for (const g of l1) { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>
@@ -1306,9 +1314,11 @@ runCheck('debt ratchet', 'node', _debtRatchetArgs, { soft: graceActive });
 <% } %>
   // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
   // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
+<% if (stage === 'preflight') { %>
   if (gateFilePresent('scripts/test-gate-layering.mjs', 'gate layering')) {
     runCheck('gate layering', 'node', ['scripts/test-gate-layering.mjs'])
   }
+<% } %>
 }
 // ── L3 (nightly lane — AC-2041.1, mirrors 06-nightly-lite.yml) ───────────
 if (level === 'L3' || level === 'L4') {
@@ -1683,6 +1693,11 @@ if (_inlineInspect('playwright rules', 'npx eslint --config eslint.config.playwr
 <% } %>
 }
 
+<% if (stage === 'qualification') { %>
+}
+<% } %>
+<% } %>
+
 // ─── Local extension slot (#2666) ────────────────────────────────────────────
 // scripts/check-all.local.json is a declared, adopt-safe home for PROJECT-LOCAL
 // checks (the class-C shape #2666 names: ripme's Java ratchet checks, Coach's
@@ -1754,7 +1769,9 @@ function _localChecksAllowed(cwd) {
   return _cfg.status === 0 && _cfg.stdout === 'true\n';
 }
 
-if (_failFastInlineSkip('local checks')) {
+if (_preflight || (!_preflightPassed && !dryRun && only === null)) {
+  console.log('[CHECK] local checks ... SKIP (qualification not started)');
+} else if (_failFastInlineSkip('local checks')) {
   // A prior hard L1 result makes local-check discovery unnecessary. Named
   // `--gate [local] ...` inspection remains eligible because the helper above
   // leaves inspection runs out of this guard.
@@ -1902,5 +1919,5 @@ if (_failedCount > 0) {
   console.error('');
   process.exit(1);
 } else {
-  console.log('=== ALL PASSED ===\n');
+  console.log(_preflight ? '=== PREFLIGHT PASSED (diagnostics only) ===\n' : '=== ALL PASSED ===\n');
 }

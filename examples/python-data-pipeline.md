@@ -78,7 +78,7 @@ To override detection: `--archetype data-pipeline --language python`.
 
 **Git hooks**
 
-- `.githooks/pre-commit` — `node scripts/check-all.mjs L1`.
+- `.githooks/pre-commit` — staged safety/economy checks; L1 qualifies the frozen candidate.
 - `.githooks/pre-push` — `node scripts/check-all.mjs L2`.
 
 **AI-tool configs**

@@ -4,15 +4,6 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
-// Force a no-model-switch host by default so the handoff gate never throws
-// HandoffRequiredError on the planning→red crossing unless a test opts in.
-vi.mock('../../src/capabilities/host-probe.js', () => ({
-  detectHostCapabilities: vi.fn().mockReturnValue({
-    modelSwitch: false,
-    transcriptPath: null,
-  }),
-}))
-
 // Stub the git sha/path checks so the TDD-evidence green gate does not need a real repo.
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
@@ -29,9 +20,6 @@ import {
   runTaskGet,
   runTaskRecover,
   runTaskAdvance,
-  decideClearStrategy,
-  buildHandoffBanner,
-  HandoffRequiredError,
   type Runner,
 } from '../../src/commands/task.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
@@ -51,18 +39,6 @@ function tmpRepo(): string {
 
 function seed(dir: string, fields: Partial<Parameters<typeof writeUnifiedState>[1]>): void {
   writeUnifiedState(dir, fields)
-  // #2435: leaving a red-team phase now asserts the evidence ship.md promises that phase
-  // records, so a fixture seeded AT one stands for a red team that actually ran. Written for
-  // both the seeded id and the `unknown` fallback the sanitiser produces for an id-less doc.
-  if (fields.phase !== 'red-team-review' && fields.phase !== 'red-team-rework') return
-  const evDir = join(dir, '.arbiter', 'evidence', 'redteam')
-  mkdirSync(evDir, { recursive: true })
-  const ids = [fields.taskId, 'unknown'].filter(
-    (v): v is string => typeof v === 'string' && v.length > 0,
-  )
-  for (const id of ids) {
-    writeFileSync(join(evDir, `${id}.json`), JSON.stringify({ findings: [] }), 'utf-8')
-  }
 }
 
 /** Capture process.stdout / process.stderr writes for the duration of a callback. */
@@ -296,7 +272,7 @@ describe('runTaskRecover', () => {
     expect(out).toContain('no BACKLOG.md')
     expect(out).toContain('CHECKPOINT(#5)')
     expect(out).toContain('Layer 3: last 20 commits')
-    expect(out).toContain('manual MCP context')
+    expect(out).toContain('absent proof remains NO DATA')
   })
 
   it('BACKLOG.md present → Layer-1 contents are emitted', () => {
@@ -304,7 +280,7 @@ describe('runTaskRecover', () => {
     const blDir = join(dir, '.arbiter', 'evidence', '5')
     mkdirSync(blDir, { recursive: true })
     writeFileSync(join(blDir, 'BACKLOG.md'), 'BACKLOG-BODY-MARKER', 'utf-8')
-    const runner = makeRunner(() => '')
+    const runner = vi.fn(makeRunner(() => ''))
     const out = captureStdout(() => runTaskRecover({ dir, taskId: '5', runner }))
     expect(out).toContain('Layer 1: BACKLOG.md')
     expect(out).toContain('BACKLOG-BODY-MARKER')
@@ -313,7 +289,7 @@ describe('runTaskRecover', () => {
 
   it('empty git stdout → "(no matching CHECKPOINT commits)" and "(no commits)"', () => {
     const dir = tmpRepo()
-    const runner = makeRunner(() => '')
+    const runner = vi.fn(makeRunner(() => ''))
     const out = captureStdout(() => runTaskRecover({ dir, taskId: '#5', runner }))
     expect(out).toContain('(no matching CHECKPOINT commits)')
     expect(out).toContain('(no commits)')
@@ -335,193 +311,22 @@ describe('runTaskRecover', () => {
     expect(out).toContain('string-failure')
   })
 
-  it('taskId read from disk when none passed in opts', () => {
+  it('taskId read from disk projects durable state without history search', () => {
     const dir = tmpRepo()
     seed(dir, { taskId: '#88', phase: 'red' })
-    const runner = makeRunner(() => '')
+    const runner = vi.fn(makeRunner(() => ''))
     const out = captureStdout(() => runTaskRecover({ dir, runner }))
-    expect(out).toContain('Recovery for task #88')
+    expect(out).toContain('Task: #88 · phase: red')
+    expect(runner).not.toHaveBeenCalled()
   })
 
-  it('empty-string taskId in opts → falls back to disk lookup', () => {
+  it('empty-string taskId in opts → falls back to durable state projection', () => {
     const dir = tmpRepo()
     seed(dir, { taskId: '#77', phase: 'red' })
-    const runner = makeRunner(() => '')
+    const runner = vi.fn(makeRunner(() => ''))
     const out = captureStdout(() => runTaskRecover({ dir, taskId: '', runner }))
-    expect(out).toContain('Recovery for task #77')
-  })
-})
-
-// ─── plan-review gate (via runTaskAdvance --to red) ────────────────────────────────────────────────
-
-describe('checkPlanReviewGate (advance --to red)', () => {
-  function enableGate(dir: string): void {
-    mkdirSync(join(dir, '.arbiter'), { recursive: true })
-    writeFileSync(join(dir, '.arbiter', 'plan-review.enabled'), '', 'utf-8')
-  }
-  // sanitizeTaskId('#5') → '_5'; the gate reads/writes under the sanitised id.
-  function planReviewDir(dir: string): string {
-    return join(dir, '.arbiter', 'evidence', 'plan-review', '_5')
-  }
-  function writeLatest(dir: string, obj: unknown): void {
-    const prDir = planReviewDir(dir)
-    mkdirSync(prDir, { recursive: true })
-    writeFileSync(join(prDir, 'latest.json'), JSON.stringify(obj), 'utf-8')
-  }
-
-  it('gate disabled (no marker) → advance proceeds to red', () => {
-    const dir = tmpRepo()
-    seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    runTaskAdvance({ to: 'red', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red')
-  })
-
-  it('gate enabled, no plan-review evidence → throws with "no plan-review evidence"', () => {
-    const dir = tmpRepo()
-    enableGate(dir)
-    seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/plan-review gate.*no plan-review evidence/s)
-  })
-
-  it('gate enabled, verdict PASS → advance proceeds', () => {
-    const dir = tmpRepo()
-    enableGate(dir)
-    seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    writeLatest(dir, { verdict: 'PASS' })
-    runTaskAdvance({ to: 'red', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red')
-  })
-
-  it('gate enabled, verdict FAIL → throws with the prior verdict', () => {
-    const dir = tmpRepo()
-    enableGate(dir)
-    seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    writeLatest(dir, { verdict: 'FAIL' })
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/verdict was FAIL/)
-  })
-
-  it('gate enabled, unreadable latest.json → throws "unreadable latest.json"', () => {
-    const dir = tmpRepo()
-    enableGate(dir)
-    seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    const prDir = planReviewDir(dir)
-    mkdirSync(prDir, { recursive: true })
-    writeFileSync(join(prDir, 'latest.json'), '{ not json', 'utf-8')
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/unreadable latest\.json/)
-  })
-
-  it('--skip-plan-review flag → bypass record + stderr warning, advance proceeds', () => {
-    const dir = tmpRepo()
-    enableGate(dir)
-    seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    const err = captureStderr(() => runTaskAdvance({ to: 'red', dir, skipPlanReview: true }))
-    expect(err).toMatch(/reason=flag/)
-    expect(readUnifiedState(dir)?.phase).toBe('red')
-  })
-
-  it('ARBITER_SKIP_PLAN_REVIEW=1 (not CI) → env bypass record + warning', () => {
-    vi.stubEnv('ARBITER_SKIP_PLAN_REVIEW', '1')
-    vi.stubEnv('CI', 'false')
-    const dir = tmpRepo()
-    enableGate(dir)
-    seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    const err = captureStderr(() => runTaskAdvance({ to: 'red', dir }))
-    expect(err).toMatch(/reason=env/)
-    expect(readUnifiedState(dir)?.phase).toBe('red')
-  })
-
-  it('ARBITER_SKIP_PLAN_REVIEW=1 under CI → env bypass refused, gate still fires', () => {
-    vi.stubEnv('ARBITER_SKIP_PLAN_REVIEW', '1')
-    vi.stubEnv('CI', 'true')
-    const dir = tmpRepo()
-    enableGate(dir)
-    seed(dir, { taskId: '#5', phase: 'red-team-review' })
-    // env bypass disabled under CI → no evidence → gate throws, and hint mentions CI refusal
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/refused under CI/)
-  })
-
-  it('plan digest mismatch → throws "plan changed since last review"', () => {
-    const dir = tmpRepo()
-    enableGate(dir)
-    // Write a plan file and reference it in state; latest.json carries a stale digest.
-    writeFileSync(join(dir, 'plan.md'), 'PLAN CONTENT v2', 'utf-8')
-    seed(dir, { taskId: '#5', phase: 'red-team-review', plan: 'plan.md' })
-    writeLatest(dir, { verdict: 'PASS', planDigest: '0'.repeat(64) })
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/plan changed since last review/)
-  })
-
-  it('no taskId on disk → sanitises "unknown" and still evaluates the gate', () => {
-    const dir = tmpRepo()
-    enableGate(dir)
-    seed(dir, { phase: 'red-team-review' }) // taskId left empty
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/plan-review gate/)
-  })
-})
-
-// ─── decideClearStrategy (pure) ──────────────────────────────────────────────────────────────────
-
-describe('decideClearStrategy', () => {
-  it('no model switch → inline regardless of units', () => {
-    expect(decideClearStrategy({ units: 999, modelSwitch: false })).toBe('inline')
-  })
-  it('model switch + units undefined → stop (conservative default)', () => {
-    expect(decideClearStrategy({ units: undefined, modelSwitch: true })).toBe('stop')
-  })
-  it('model switch + small units → inline', () => {
-    expect(decideClearStrategy({ units: 5, modelSwitch: true })).toBe('inline')
-  })
-  it('model switch + units at INLINE_MAX boundary (10) → inline', () => {
-    expect(decideClearStrategy({ units: 10, modelSwitch: true })).toBe('inline')
-  })
-  it('model switch + medium units → sub-agent', () => {
-    expect(decideClearStrategy({ units: 15, modelSwitch: true })).toBe('sub-agent')
-  })
-  it('model switch + units at SUBAGENT_MAX boundary (20) → sub-agent', () => {
-    expect(decideClearStrategy({ units: 20, modelSwitch: true })).toBe('sub-agent')
-  })
-  it('model switch + large units → stop', () => {
-    expect(decideClearStrategy({ units: 50, modelSwitch: true })).toBe('stop')
-  })
-})
-
-// ─── buildHandoffBanner (pure) ───────────────────────────────────────────────────────────────────
-
-describe('buildHandoffBanner', () => {
-  it('inline strategy → "Continue in this context" hint, strips leading #', () => {
-    const banner = buildHandoffBanner({
-      taskId: '#42',
-      strategy: 'inline',
-      units: 3,
-      tier: 'XS',
-    })
-    expect(banner).toContain('Continue in this context')
-    expect(banner).toContain('ship #42')
-    expect(banner).toContain('(tier: XS)')
-    expect(banner).toContain('units: 3')
-  })
-
-  it('sub-agent strategy → "Spawn a sub-agent" hint', () => {
-    const banner = buildHandoffBanner({
-      taskId: '42',
-      strategy: 'sub-agent',
-      units: undefined,
-      tier: undefined,
-    })
-    expect(banner).toContain('Spawn a sub-agent')
-    // no tier / units info segments when both undefined
-    expect(banner).not.toContain('(tier:')
-    expect(banner).not.toContain('units:')
-  })
-
-  it('stop strategy → numbered /clear instructions', () => {
-    const banner = buildHandoffBanner({
-      taskId: '#9',
-      strategy: 'stop',
-      units: 30,
-      tier: 'Standard',
-    })
-    expect(banner).toContain('Run: /clear')
-    expect(banner).toContain('Re-invoke')
+    expect(out).toContain('Task: #77 · phase: red')
+    expect(runner).not.toHaveBeenCalled()
   })
 })
 
@@ -589,7 +394,7 @@ describe('checkTddEvidenceGate (advance --to green)', () => {
 describe('runTaskAdvance structural guards', () => {
   it('invalid --to value → throws with the valid-phase list', () => {
     const dir = tmpRepo()
-    seed(dir, { phase: 'plan' })
+    seed(dir, { taskId: '#2724', phase: 'plan' })
     expect(() => runTaskAdvance({ to: 'nope' as TaskPhase, dir })).toThrow(/Invalid --to value/)
   })
 
@@ -621,94 +426,10 @@ describe('runTaskAdvance structural guards', () => {
     expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/Illegal skip/)
   })
 
-  it('lateral target (red-team-rework) bypasses ordinal ordering checks', () => {
+  it('plan → red advances and logs the result-first transition', () => {
     const dir = tmpRepo()
-    seed(dir, { phase: 'red-team-review' })
-    runTaskAdvance({ to: 'red-team-rework', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-rework')
-  })
-
-  it('lateral current (red-team-rework → red-team-review) is allowed', () => {
-    const dir = tmpRepo()
-    seed(dir, { phase: 'red-team-rework' })
-    runTaskAdvance({ to: 'red-team-review', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
-  })
-
-  it('plan → red-team-review (plan-review gate disabled) advances and logs the transition', () => {
-    const dir = tmpRepo()
-    seed(dir, { phase: 'plan' })
-    runTaskAdvance({ to: 'red-team-review', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
-  })
-})
-
-// ─── handoff gate (model switch + post-clear) ────────────────────────────────────────────────────
-
-describe('handoff branches (advance --to red)', () => {
-  async function withModelSwitch(transcriptPath: string | null = null): Promise<void> {
-    const { detectHostCapabilities } = vi.mocked(
-      await import('../../src/capabilities/host-probe.js'),
-    )
-    detectHostCapabilities.mockReturnValue({ modelSwitch: true, transcriptPath })
-  }
-
-  it('model switch + planning→red, no units → HandoffRequiredError (stop strategy)', async () => {
-    await withModelSwitch()
-    const dir = tmpRepo()
-    seed(dir, { taskId: '#703', phase: 'red-team-review' })
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(HandoffRequiredError)
-    // phase must NOT advance (C1)
-    expect(readUnifiedState(dir)?.phase).toBe('red-team-review')
-  })
-
-  it('model switch + small units → inline → advances without throwing', async () => {
-    await withModelSwitch()
-    const dir = tmpRepo()
-    seed(dir, { taskId: '#703', phase: 'red-team-review' })
-    runTaskAdvance({ to: 'red', dir, units: 3 })
-    expect(readUnifiedState(dir)?.phase).toBe('red')
-    expect(readUnifiedState(dir)?.handoffStrategy).toBe('inline')
-  })
-
-  it('post-clear re-entry (ARBITER_POST_CLEAR=1) advances to red and sets postClearResumed', async () => {
-    await withModelSwitch()
-    vi.stubEnv('ARBITER_POST_CLEAR', '1')
-    const dir = tmpRepo()
-    seed(dir, { taskId: '#703', phase: 'red-team-review', planningHandoffReady: '2026-05-18T10:00:00.000Z' })
+    seed(dir, { taskId: '#2724', phase: 'plan' })
     runTaskAdvance({ to: 'red', dir })
-    expect(readUnifiedState(dir)?.phase).toBe('red')
-    expect(typeof readUnifiedState(dir)?.postClearResumed).toBe('string')
-  })
-
-  it('post-clear re-entry is idempotent once postClearResumed is set', async () => {
-    await withModelSwitch()
-    vi.stubEnv('ARBITER_POST_CLEAR', '1')
-    const dir = tmpRepo()
-    const stamp = '2026-05-18T11:00:00.000Z'
-    seed(dir, {
-      taskId: '#703',
-      phase: 'red-team-review',
-      planningHandoffReady: '2026-05-18T10:00:00.000Z',
-      postClearResumed: stamp,
-    })
-    runTaskAdvance({ to: 'red', dir })
-    expect(readUnifiedState(dir)?.postClearResumed).toBe(stamp)
-  })
-
-  it('post-clear with no taskId in state → descriptive throw', () => {
-    vi.stubEnv('ARBITER_POST_CLEAR', '1')
-    const dir = tmpRepo()
-    seed(dir, { phase: 'red-team-review', planningHandoffReady: '2026-05-18T10:00:00.000Z' })
-    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/taskId/)
-  })
-
-  it('non-planning current → red (refactor → red, reverse) does NOT trigger the handoff gate', async () => {
-    await withModelSwitch()
-    const dir = tmpRepo()
-    seed(dir, { taskId: '#703', phase: 'refactor' })
-    // refactor → red is backward + non-planning current: handoff gate is not invoked.
-    runTaskAdvance({ to: 'red', dir, reverse: true })
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 })

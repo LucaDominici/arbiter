@@ -12,7 +12,7 @@ import {
 
 // #1212 — fail-closed Stop hook. Spawns the rendered hook against a real git
 // repo and asserts exit 2 (block the stop) only when a completion claim is made
-// AND the three correlated evidence artifacts are missing or stale.
+// AND the applicable review, gate and journey evidence is missing or stale.
 
 function configFor() {
   return makeConfig('/tmp/test', {
@@ -100,12 +100,10 @@ function claimTranscript(dir: string): string {
 
 interface EvidenceOpts {
   branch?: string
-  planSha?: string
   dispatchSha?: string
   gateSha?: string
   gateTaskId?: string
-  planVerdict?: string
-  omit?: 'plan' | 'dispatch' | 'gate'
+  omit?: 'dispatch' | 'gate'
 }
 
 function writeCorrelatedEvidence(
@@ -115,22 +113,8 @@ function writeCorrelatedEvidence(
   opts: EvidenceOpts = {},
 ) {
   const b = opts.branch ?? branch
-  const prDir = join(dir, '.arbiter', 'evidence', 'plan-review', SANITIZED_ID)
-  mkdirSync(prDir, { recursive: true })
   mkdirSync(join(dir, '.arbiter'), { recursive: true })
 
-  if (opts.omit !== 'plan') {
-    writeFileSync(
-      join(prDir, 'latest.json'),
-      JSON.stringify({
-        verdict: opts.planVerdict ?? 'PASS',
-        branch: b,
-        sha: opts.planSha ?? sha,
-        planDigest: 'x'.repeat(64),
-        tier: 'Standard',
-      }),
-    )
-  }
   if (opts.omit !== 'dispatch') {
     writeFileSync(
       join(dir, '.arbiter', 'agents-dispatched.json'),
@@ -198,7 +182,7 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
     }
   })
 
-  it('exits 0 when all three evidence artifacts are valid and correlated', () => {
+  it('exits 0 with correlated result-first evidence and no obsolete plan-review record', () => {
     const { dir, hookPath, branch, sha } = setup()
     try {
       writeCorrelatedEvidence(dir, branch, sha)
@@ -231,29 +215,16 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
     }
   })
 
-  it('exits 2 when plan-review evidence is missing', () => {
-    const { dir, hookPath, branch, sha } = setup()
-    try {
-      writeCorrelatedEvidence(dir, branch, sha, { omit: 'plan' })
-      const t = claimTranscript(dir)
-      const r = runHook(hookPath, dir, { transcript_path: t })
-      expect(r.status).toBe(2)
-      expect(r.stderr).toMatch(/plan-review/i)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
   it('exits 2 when gate-pass head_sha does not strictly equal HEAD', () => {
     const { dir, hookPath, branch, sha } = setup()
     try {
-      // gate-pass pinned to the original sha; then commit again so HEAD moves.
-      writeCorrelatedEvidence(dir, branch, sha)
-      commitMore(dir)
+      // Keep review evidence current while pinning the gate artifact to the prior HEAD.
+      const currentSha = commitMore(dir)
+      writeCorrelatedEvidence(dir, branch, currentSha, { gateSha: sha })
       const t = claimTranscript(dir)
       const r = runHook(hookPath, dir, { transcript_path: t })
       expect(r.status).toBe(2)
-      expect(r.stderr).toMatch(/gate-pass/i)
+      expect(r.stderr).toMatch(/gate-pass marker head_sha mismatch/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -318,42 +289,6 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
       const r = runHook(hookPath, dir, { transcript_path: claimTranscript(dir) })
       expect(r.status).toBe(2)
       expect(r.stderr).toMatch(/source changed since/)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('exits 2 when plan-review sha is not an ancestor of HEAD (divergent)', () => {
-    const { dir, hookPath, branch, sha } = setup()
-    try {
-      // Build a sibling commit on main that is NOT an ancestor of task/1212 HEAD.
-      // Stage ONLY sibling.txt — `git add -A` would sweep the untracked fixture
-      // files (status.json, evidence) into main's tree and `checkout task/1212`
-      // would then delete them, disarming the phase guard.
-      git(dir, ['checkout', 'main'])
-      writeFileSync(join(dir, 'sibling.txt'), 'sib\n')
-      git(dir, ['add', 'sibling.txt'])
-      git(dir, ['commit', '-m', 'sibling', '--no-gpg-sign'])
-      const siblingSha = git(dir, ['rev-parse', 'HEAD'])
-      git(dir, ['checkout', 'task/1212'])
-      writeCorrelatedEvidence(dir, branch, sha, { planSha: siblingSha })
-      const t = claimTranscript(dir)
-      const r = runHook(hookPath, dir, { transcript_path: t })
-      expect(r.status).toBe(2)
-      expect(r.stderr).toMatch(/plan-review/i)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('exits 2 when plan-review verdict is not PASS', () => {
-    const { dir, hookPath, branch, sha } = setup()
-    try {
-      writeCorrelatedEvidence(dir, branch, sha, { planVerdict: 'FAIL' })
-      const t = claimTranscript(dir)
-      const r = runHook(hookPath, dir, { transcript_path: t })
-      expect(r.status).toBe(2)
-      expect(r.stderr).toMatch(/plan-review/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

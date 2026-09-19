@@ -210,12 +210,12 @@ way that holds in every environment. If it can, the guard is a coverage hole wai
 
 ## Test Pyramid
 
-| Level        | Tool              | When       | Coverage Target |
-| ------------ | ----------------- | ---------- | --------------- |
-| Unit         | language-specific | pre-commit | 80%             |
-| Integration  | language-specific | pre-push   | key paths       |
-| E2E          | language-specific | CI / L3    | happy paths     |
-| Chaos / Soak | language-specific | nightly    | resilience      |
+| Level        | Tool              | When                                               | Coverage Target |
+| ------------ | ----------------- | -------------------------------------------------- | --------------- |
+| Unit         | language-specific | targeted while editing; L1 on the frozen candidate | 80%             |
+| Integration  | language-specific | pre-push                                           | key paths       |
+| E2E          | language-specific | CI / L3                                            | happy paths     |
+| Chaos / Soak | language-specific | nightly                                            | resilience      |
 
 ## Review Checklist
 
@@ -254,7 +254,7 @@ Each level maps to a CI stage in `ci.yml` and a check in `scripts/check-all.mjs`
 
 ## Conventions
 
-- **L1 tests** run on every commit (pre-commit hook via `scripts/check-all.mjs L1`).
+- **L1 tests** qualify the frozen delivery candidate via `scripts/check-all.mjs L1`; checkpoint commits run staged safety/economy checks and preserve RED integrity.
 - **L2+ tests** run on push/PR (`scripts/check-all.mjs L2`).
 - Test files live next to the code they test (co-located) or in a top-level `__tests__/` directory.
 - Every public function/method must have at least one test.

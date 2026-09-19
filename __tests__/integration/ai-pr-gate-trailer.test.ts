@@ -9,11 +9,29 @@
 // `user.type: Bot` payload proves nothing about the real failure mode.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { renderTemplate } from '../../src/utils/render.js'
+import { makeConfig } from '../helpers.js'
 
 const SELF_WORKFLOW = resolve('.github/workflows/_ai-draft-check.yml')
+// #2736: arbiter's own repo is trunk-solo, where INV-91 is amended to a standing owner approval,
+// so the materialized self workflow no longer embeds the gate script. The fail-closed gate is what
+// every non-solo consumer receives: exercise THAT rendering instead of the self file.
+const RENDERED_PEER_REVIEW = (() => {
+  const dir = mkdtempSync(join(tmpdir(), 'ai-pr-gate-rendered-'))
+  const file = join(dir, '_ai-draft-check.yml')
+  const config = makeConfig('/tmp/test', { collaborationMode: 'peer-review' })
+  writeFileSync(
+    file,
+    renderTemplate(
+      'github/workflows/_ai-draft-check.yml.ejs',
+      config as unknown as Record<string, unknown>,
+    ),
+  )
+  return file
+})()
 const TEMPLATE_TWIN = resolve('src/templates/github/workflows/_ai-draft-check.yml.ejs')
 
 function git(dir: string, args: string[]): string {
@@ -153,7 +171,7 @@ async function runGate(
 }
 
 describe.each([
-  ['self workflow', SELF_WORKFLOW],
+  ['rendered peer-review workflow', RENDERED_PEER_REVIEW],
   ['template twin', TEMPLATE_TWIN],
 ])('%s — INV-91 fires on commit-trailer authorship (#2552)', (_label, workflowPath) => {
   it('a PR opened as a User whose commits carry a Claude Co-Authored-By trailer, without approval, fails', async () => {
@@ -298,7 +316,28 @@ describe.each([
 })
 
 describe('CANON-01 twin parity (#2552)', () => {
-  it('self workflow and template twin embed byte-identical gate scripts', () => {
-    expect(extractScriptBody(SELF_WORKFLOW)).toBe(extractScriptBody(TEMPLATE_TWIN))
+  it('every non-solo mode renders the same fail-closed gate script (#2736)', () => {
+    const render = (collaborationMode: string): string => {
+      const dir = mkdtempSync(join(tmpdir(), 'ai-pr-gate-mode-'))
+      const file = join(dir, '_ai-draft-check.yml')
+      const config = makeConfig('/tmp/test', { collaborationMode })
+      writeFileSync(
+        file,
+        renderTemplate(
+          'github/workflows/_ai-draft-check.yml.ejs',
+          config as unknown as Record<string, unknown>,
+        ),
+      )
+      return extractScriptBody(file)
+    }
+    expect(render('gated-review')).toBe(extractScriptBody(RENDERED_PEER_REVIEW))
+    expect(render('gated-review')).toContain('approved-by-human')
+  })
+
+  it('trunk-solo self workflow carries the standing approval and no label assertion (#2736)', () => {
+    const self = readFileSync(SELF_WORKFLOW, 'utf-8')
+    expect(self).toContain('INV-91 amended: trunk-solo')
+    expect(self).not.toContain('script: |')
+    expect(self).toContain('name: AI-PR human-approval check (INV-91)')
   })
 })

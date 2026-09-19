@@ -379,26 +379,11 @@ const ENV_FLAG_DEFINITIONS: readonly EnvFlagDefinition[] = [
     isGateBypass: true,
   },
   {
-    name: 'ARBITER_SKIP_PLAN_REVIEW',
-    type: 'boolean',
-    default: false,
-    purpose: 'Bypass the plan-review gate and write an audit bypass record. Refused under CI.',
-    isGateBypass: true,
-  },
-  {
     name: 'ARBITER_PLAN_BYPASS',
     type: 'boolean',
     default: false,
     purpose: 'Bypass the pre-edit plan-anchor hook (CANON-14). Emergency use only; logged.',
     isGateBypass: true,
-  },
-  {
-    name: 'ARBITER_POST_CLEAR',
-    classification: 'internal',
-    type: 'boolean',
-    default: false,
-    purpose: 'Signal a post-/clear re-entry (mirrors --post-clear); controls handoff strategy.',
-    isGateBypass: false,
   },
   {
     name: 'ARBITER_SKIP_DOCS',

@@ -152,7 +152,7 @@ function harnessResults(stdout: string): Array<{ name: string; status: string }>
 
 // #2679: proves the slot cannot execute an attacker-controlled command without
 // explicit opt-in. Unlike runLocalSlotHarness (whose run-helpers stub only logs
-// the call), this variant's runCheck really spawns cmd/args, so "did NOT run"
+// the call), this variant really spawns the local check cmd/args, so "did NOT run"
 // is proven by a sentinel file's absence, not by an unexecuted log line.
 function runLocalSlotHarnessReal(
   localFileSourceFor: (sentinelPath: string) => string,
@@ -172,6 +172,7 @@ function runLocalSlotHarnessReal(
       [
         "import { spawnSync } from 'node:child_process';",
         'export function runCheck(name, cmd, args) {',
+        '  if (!name.startsWith("[local] ")) { pushResult(name, "PASS", 0); return; }',
         '  const r = spawnSync(cmd, args, { encoding: "utf-8" });',
         '  pushResult(name, r.status === 0 ? "PASS" : "FAIL", 0);',
         '}',
@@ -275,6 +276,7 @@ describe('check-all.mjs.ejs — local extension slot requires a git-config opt-i
         [
           "import { spawnSync } from 'node:child_process';",
           'export function runCheck(name, cmd, args) {',
+          '  if (!name.startsWith("[local] ")) { pushResult(name, "PASS", 0); return; }',
           '  const r = spawnSync(cmd, args, { encoding: "utf-8" });',
           '  pushResult(name, r.status === 0 ? "PASS" : "FAIL", 0);',
           '}',

@@ -187,5 +187,12 @@
     "owner": "core",
     "expiresAt": "2027-07-08",
     "scope": "pii-allowlist"
+  },
+  {
+    "pattern": "fixture@arbiter.dev",
+    "reason": "Git identity fixture for temp repos created in tests; the same literal is already used by scripts/snapshot-compat-fixture.mjs. Git refuses to commit without a user.email, so a literal is required. Not real PII.",
+    "owner": "core",
+    "expiresAt": "2027-09-19",
+    "scope": "pii-allowlist"
   }
 ]

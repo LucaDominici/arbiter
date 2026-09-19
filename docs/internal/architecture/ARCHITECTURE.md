@@ -76,7 +76,7 @@ AGENTS.md                           <- Layer 0: Canonical governance
 |
 +-- .agents/CODEX.md                <- Layer 1: Codex overlay
 |   +-- rules/                      |   Mirrored rule set (same content as .claude/rules/)
-|   +-- plan/                       |   Task plan artifacts (PLAN.json, CONTEXT_PACK.md)
+|   +-- rules/                      |   Tool-agnostic rules derived from Claude templates
 |
 +-- .github/                        <- Layer 2: GitHub integration
 |   +-- workflows/ci.yml            |   CI pipeline (parameterized by stack)
@@ -565,7 +565,7 @@ original 8 — it is a representative sample of the pattern, not a complete inve
 | ---------------------------------- | --------------------------------------------- | ------- |
 | `src/templates/codex/CODEX.md.ejs` | `<project>/.agents/CODEX.md`                  | Dynamic |
 | generated Codex rule mirror        | `<project>/.agents/rules/90-exec-protocol.md` | Static  |
-| generated task-plan artifact       | `<project>/.agents/plan/PLAN.json`            | Static  |
+| active Ship plan                   | `<project>/.claude/plans/*.md`                | Runtime |
 | generated context artifact         | `<project>/.agents/plan/CONTEXT_PACK.md`      | Static  |
 
 ### `github/` (multiple files)

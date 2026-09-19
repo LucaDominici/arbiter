@@ -56,7 +56,7 @@ At **<%= governanceLevel %>**, T0 runs:
 - Debt ratchet (duplication + complexity must not regress)
 <% } %>
 
-**Script:** `node scripts/check-all.mjs L1` (pre-commit) + `node scripts/check-all.mjs L2` (pre-push)
+**Script:** staged safety/economy checks at checkpoint commits; `node scripts/check-all.mjs L1` once on the frozen candidate; `node scripts/check-all.mjs L2` before push
 
 ---
 

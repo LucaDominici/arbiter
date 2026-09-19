@@ -100,6 +100,22 @@ describe('_label-on-approve.yml.ejs — structural invariants (CANON-18)', () =>
   it.each(LEVELS)('%s governance level renders without error', (level) => {
     expect(() => renderLabelOnApprove({ governanceLevel: level })).not.toThrow()
   })
+
+  it('trunk-solo uses a no-op instead of an impossible approval-label operation', () => {
+    const rendered = renderLabelOnApprove({ collaborationMode: 'trunk-solo' })
+    expect(rendered).toContain(
+      'INV-91 amended: trunk-solo — standing owner approval (sole developer)',
+    )
+    expect(rendered).not.toContain('gh label create approved-by-human')
+    expect(rendered).not.toMatch(/^\s+gh pr edit/m)
+  })
+
+  it.each(['peer-review', 'gated-review'] as const)(
+    '%s retains the pre-amendment workflow byte-for-byte',
+    (collaborationMode) => {
+      expect(renderLabelOnApprove({ collaborationMode })).toBe(renderLabelOnApprove({}))
+    },
+  )
 })
 
 // ─── _ai-draft-check.yml.ejs (CANON-18) ──────────────────────────────────────

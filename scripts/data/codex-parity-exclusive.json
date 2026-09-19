@@ -75,12 +75,6 @@
       "reason": "Codex thin-pointer entrypoint with generated Known Limitations disclosure; the Claude counterpart is .claude/CLAUDE.md"
     },
     {
-      "id": "codex-plan-readme",
-      "track": "codex",
-      "pattern": ".agents/plan/README.md",
-      "reason": "Codex explicit-plan protocol scaffold (PLAN.json workflow); Claude uses the /task lifecycle instead"
-    },
-    {
       "id": "codex-config-toml",
       "track": "codex",
       "pattern": ".codex/config.toml",

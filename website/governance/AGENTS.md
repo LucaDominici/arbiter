@@ -16,17 +16,19 @@ related: []
 >
 > Standard: [AGENTS.md — AAIF / Linux Foundation](https://agents.md/)
 
+For Arbiter Convergence 2026 work or continuation, read [programme #2684](https://github.com/LucaDominici/arbiter/issues/2684) before choosing scope. It records the current assignment, approved plan, proof gaps and next action; resume that work instead of restarting historical audits.
+
 ---
 
 ## Project
 
-| Fact      | Value                                                  |
-| --------- | ------------------------------------------------------ |
-| **What**  | arbiter project                                        |
-| **Stack** | typescript                                             |
-| **Build** | `npm run build`                                        |
-| **Test**  | `npm run test`                                         |
-| **Gate**  | `node scripts/check-all.mjs` (mandatory before commit) |
+| Fact      | Value                                                                      |
+| --------- | -------------------------------------------------------------------------- |
+| **What**  | arbiter project                                                            |
+| **Stack** | typescript                                                                 |
+| **Build** | `npm run build`                                                            |
+| **Test**  | `npm run test`                                                             |
+| **Gate**  | `node scripts/check-all.mjs` (mandatory for the frozen delivery candidate) |
 
 ---
 
@@ -159,7 +161,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-21:** Every TODO comment must reference a task ID: `TODO(#NNN)`
 - **INV-22:** Branch naming: `task/#NNN-description`
 - **INV-23:** No direct commits to `main` — all changes via task branches + PR
-- **INV-24:** Gate must pass before commit: `node scripts/check-all.mjs L1`
+- **INV-24:** Checkpoint commits preserve staged-file safety; full gates qualify delivery
 - **INV-25:** Gate must pass before push: `node scripts/check-all.mjs L2`
 - **INV-26:** TDD mandatory — test first, then implement
 - **INV-27:** Evidence artifacts must be generated for all gate runs
@@ -212,6 +214,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 - **INV-73:** CI tier presence — all 8 workflow files must exist under .github/workflows/
 - **INV-74:** Anti-bot human-approval gate — reviewer must be a human distinct from the PR author
+  - _Amendment 2026-09-19 (ADR-051):_ in `trunk-solo`, standing owner approval replaces an impossible self-approval; required checks stay present and green.
 - **INV-75:** Heartbeat watchdog — T4 nightly ≤26 h, T5 weekly ≤8 d, T5b monthly ≤35 d
 - **INV-76:** SHA-pinned actions only — all third-party GitHub Actions must be pinned to a full 40-char SHA
 - **INV-77:** Top-level workflow permissions — every workflow file must declare explicit top-level permissions
@@ -255,7 +258,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 ## AI-PR Gate (INV-91)
 
 - **INV-91:** AI-PR human-approval gate
-  - AI-authored PRs require the `approved-by-human` label before merge. "AI-authored" (#2552) is detected from: a commit trailer left by agent tooling on any commit in the PR (`Co-Authored-By: Claude/Codex/Copilot/GPT`, `Claude-Session:`, `Codex-Session:`, case-insensitive) — the primary signal, since a human token holder can still open the PR; the `ai-authored` label as a manual override; or `github.event.pull_request.user.type == 'Bot'` as an additional signal for GitHub-App authors. `dependabot[bot]` stays exempt.
+  - AI-authored PRs require the `approved-by-human` label before merge. "AI-authored" (#2552) is detected from: a commit trailer left by agent tooling on any commit in the PR (`Co-Authored-By: Claude/Codex/Copilot/GPT`, `Claude-Session:`, `Codex-Session:`, case-insensitive) — the primary signal, since a human token holder can still open the PR; the `ai-authored` label as a manual override; or `github.event.pull_request.user.type == 'Bot'` as an additional signal for GitHub-App authors. `dependabot[bot]` stays exempt. Under `collaborationMode: trunk-solo`, the sole developer's standing approval satisfies INV-91 because independent self-approval is impossible; the required check remains present and green, while mechanical gates and independent review evidence carry the quality bar. Other modes remain fail-closed.
   - _Enforcement:_ generated `_ai-draft-check.yml` workflow + `_label-on-approve.yml` workflow
 
 ## Script Catalog Cohesion (INV-94)
@@ -508,18 +511,16 @@ L3 (deep, nightly/CI):    L2 + E2E + static analysis + evidence
 Run locally:
 
 ```bash
-node scripts/check-all.mjs L1   # before commit
+node scripts/check-all.mjs L1   # qualify the frozen delivery candidate
 node scripts/check-all.mjs L2   # before push
 ```
 
-**Ceremony is per train, gates are per landing.** The unit both are priced against is the train
-(one worktree, branch, plan, gate and PR carrying N small issues), not the individual issue.
-Plan, plan-review, red-team, code review, the cross-model seat and the PR run once for
-the train; L1 runs once at the landing commit and L2 once at the push, whatever the train
-carries. `ship.train` in `arbiter.json` (`maxChain`, `maxAgeMinutes`) bounds how far a train
-may grow before it must be landed. Re-running the whole ceremony per issue over a batch of
-small issues is a violation of the playbook (`.claude/commands/ship.md` §Train), not extra
-safety.
+**Qualification is per train, not per checkpoint commit.** A train is one worktree, branch,
+plan, frozen candidate, independent final review, exact-subject gate and PR carrying compatible
+issues. Local commits remain recoverable TDD checkpoints: staged secret scanning, staged-file
+economy checks and RED integrity still run. L1 qualifies the frozen delivery candidate once; L2
+qualifies it before push. `ship.train` in `arbiter.json` (`maxChain`, `maxAgeMinutes`) bounds how
+far a train may grow before it must be landed.
 
 ---
 
@@ -527,13 +528,13 @@ safety.
 
 Changes pass through five enforcement layers:
 
-| Layer             | Mechanism                             | Coverage                   |
-| ----------------- | ------------------------------------- | -------------------------- |
-| Edit-time         | Claude Code hooks (`.claude/hooks/`)  | Claude Code edits only     |
-| Pre-commit        | `.githooks/pre-commit` — runs L1 gate | All editors (`git commit`) |
-| Pre-push          | `.githooks/pre-push` — runs L2 gate   | All pushes                 |
-| CI                | GitHub Actions / equivalent           | All PRs                    |
-| Branch protection | See ADR-007                           | Force-push, direct merge   |
+| Layer             | Mechanism                                                                | Coverage                   |
+| ----------------- | ------------------------------------------------------------------------ | -------------------------- |
+| Edit-time         | Claude Code hooks (`.claude/hooks/`)                                     | Claude Code edits only     |
+| Pre-commit        | `.githooks/pre-commit` — staged secrets/economy checks and RED integrity | All editors (`git commit`) |
+| Pre-push          | `.githooks/pre-push` — runs L2 gate                                      | All pushes                 |
+| CI                | GitHub Actions / equivalent                                              | All PRs                    |
+| Branch protection | See ADR-007                                                              | Force-push, direct merge   |
 
 Install hooks: `git config core.hooksPath .githooks` (auto-applied via `npm install` — see `package.json` `prepare` script).
 Bypass surface: only `git commit --no-verify` (documented, audited at PR review).

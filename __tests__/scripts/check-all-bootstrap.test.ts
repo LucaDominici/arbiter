@@ -20,7 +20,7 @@ function runGate(
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-bootstrap-'))
   try {
     // L1's historical lightweight preparation assumes an existing compilation.
-    if (level === 'L1') {
+    if (level === 'L1' || level === 'preflight') {
       mkdirSync(join(dir, 'dist'))
       writeFileSync(join(dir, 'dist', 'cli.js'), '')
       writeDistManifest(dir)
@@ -112,7 +112,9 @@ syncBuiltinESMExports()
       ...result,
       elapsedMs: Date.now() - startedAt,
       calls,
-      artifact: JSON.parse(readFileSync(join(dir, '.arbiter/gate/local-result.json'), 'utf-8')),
+      artifact: existsSync(join(dir, '.arbiter/gate/local-result.json'))
+        ? JSON.parse(readFileSync(join(dir, '.arbiter/gate/local-result.json'), 'utf-8'))
+        : null,
       marker: existsSync(join(dir, '.arbiter/gate-pass.json')),
       receipt: existsSync(join(dir, '.arbiter/gate-pass.json'))
         ? JSON.parse(readFileSync(join(dir, '.arbiter/gate-pass.json'), 'utf-8'))
@@ -273,4 +275,61 @@ describe('cheap gate prerequisites', () => {
       expect(result.marker).toBe(false)
     },
   )
+})
+
+describe('result-first preflight (#2724)', () => {
+  it.each([
+    'prettier',
+    'scripts/pii-scan.mjs',
+    'scripts/check-docs.mjs',
+    'scripts/check-agent-dispatch.mjs',
+    'scripts/check-feature-matrix.mjs',
+  ])('collects cheap diagnostics and blocks costly suites on %s failure', (failure) => {
+    const result = runGate('L2', failure)
+    expect(result.status).toBe(1)
+    expect(
+      result.calls.some((call) => call.includes('scripts/check-kernel-plugin-parity.mjs')),
+    ).toBe(true)
+    expect(result.calls.some((call) => call.includes('test') || call.includes('vitest'))).toBe(
+      false,
+    )
+    expect(result.artifact.pass).toBe(false)
+    expect(result.marker).toBe(false)
+  })
+
+  it.each(['pass', 'scripts/pii-scan.mjs'])(
+    'preflight %s cannot qualify delivery or demand future proofs',
+    (mode) => {
+      const result = runGate('preflight', mode)
+      expect(result.status, result.stderr).toBe(mode === 'pass' ? 0 : 1)
+      expect(result.calls.some((call) => call.includes('scripts/check-feature-matrix.mjs'))).toBe(
+        true,
+      )
+      expect(
+        result.calls.some(
+          (call) =>
+            call.includes('scripts/check-tdd-evidence.mjs') ||
+            call.includes('scripts/check-review-completion.mjs') ||
+            call.includes('scripts/check-acceptance.mjs') ||
+            call.includes('test') ||
+            call.includes('vitest'),
+        ),
+      ).toBe(false)
+      expect(result.artifact).toBeNull()
+      expect(result.marker).toBe(false)
+      expect(result.stdout).toContain('PREFLIGHT')
+    },
+  )
+
+  it('does not turn absent coverage from a failed run into a second ratchet defect', () => {
+    const result = runGate('L2', '--coverage')
+    expect(result.status).toBe(1)
+    expect(result.calls.some((call) => call.includes('scripts/check-coverage-ratchet.mjs'))).toBe(
+      false,
+    )
+    expect(result.artifact.gates).toContainEqual(
+      expect.objectContaining({ name: 'coverage ratchet (#1483)', status: 'SKIP' }),
+    )
+    expect(result.stdout).toContain('NO DATA')
+  })
 })

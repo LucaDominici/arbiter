@@ -83,7 +83,7 @@ function main() {
       `━━━ STOP EVIDENCE GUARD ━━━\n` +
         `Completion claim blocked on ${branch} (phase: ${phase}):\n` +
         `  ${reason}\n\n` +
-        `A completion claim requires plan-review + dispatch + gate-pass + journey evidence,\n` +
+        `A completion claim requires the task's applicable review, gate and journey evidence,\n` +
         `each recorded on this branch at a commit reachable from HEAD.\n` +
         `Re-run the missing step, then claim completion again.\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`,
@@ -129,27 +129,7 @@ function main() {
     if (!doneVerdict.ok) fail(doneVerdict.reason)
   }
 
-  // 1. plan-review — verdict PASS, on this branch, sha is an ancestor of HEAD.
-  // Deliberately ancestor-only: a plan is reviewed BEFORE the implementation commits, so
-  // source necessarily changes afterwards. The #2399 source-unchanged binding applies to
-  // evidence that describes reviewed CODE (the dispatch sidecar), never to the plan.
-  const planPath = join(
-    root,
-    '.arbiter',
-    'evidence',
-    'plan-review',
-    sanitizeTaskId(taskId),
-    'latest.json',
-  )
-  const plan = readJson(planPath)
-  if (plan === null) fail('plan-review evidence missing or unreadable (latest.json)')
-  if (plan.verdict !== 'PASS')
-    fail(`plan-review verdict is ${JSON.stringify(plan.verdict)} — must be PASS`)
-  if (plan.branch !== branch)
-    fail(`plan-review evidence is for branch ${JSON.stringify(plan.branch)}, not ${branch}`)
-  if (!isAncestor(plan.sha)) fail('plan-review evidence sha is not an ancestor of HEAD (stale)')
-
-  // 2. dispatch sidecar — review agents dispatched on this branch, and the source they
+  // 1. dispatch sidecar — review agents dispatched on this branch, and the source they
   // reviewed is still the source at HEAD (#2399). The sidecar is a TRACKED, branch-shared
   // file, so one recorded for a different task counts as ABSENT for this one.
   if (evidenceBinding === null)
@@ -167,7 +147,7 @@ function main() {
   })
   if (dispatchStaleness !== null) fail(`dispatch evidence ${dispatchStaleness}`)
 
-  // 3. gate-pass — strict: THIS tree, in THIS checkout, under THIS toolchain, was
+  // 2. gate-pass — strict: THIS tree, in THIS checkout, under THIS toolchain, was
   // verified recently enough. The full identity binding replaces the old
   // branch+head_sha pair; #1441 anti-replay rides along as the task-id axis.
   const gatePath = join(root, '.arbiter', 'gate-pass.json')
@@ -186,7 +166,7 @@ function main() {
   })
   if (!gateVerdict.ok) fail(gateVerdict.reason)
 
-  // 4. journey evidence (#A2, extends INV-114) — a completion claim must reference a run of the
+  // 3. journey evidence (#A2, extends INV-114) — a completion claim must reference a run of the
   // task's declared acceptance E2E spec AGAINST THE BUILT ARTIFACT (compose image / dist), not the
   // dev server. One downstream project shipped green-tested images whose prod UI ran in fixture mode (buttons
   // dead) because the acceptance journey was only ever exercised against the dev server.

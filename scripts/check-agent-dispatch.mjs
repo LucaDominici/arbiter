@@ -5,19 +5,18 @@
 // CATALOG: rejected fold-in into check-constraint-scan.mjs because that turns CLAUDE.md prohibitions into grep enforcers; this replays a JSON oracle against compiled tier-floor logic — distinct inputs and comparison.
 // check-agent-dispatch.mjs — agent-dispatch-verify gate (#1267).
 //
-// Asserts the DECLARED tier->vertical floor (.claude/agent-dispatch-matrix.json) matches
-// the ACTUAL derivation task-ship.ts produces, so route-auditors.mjs's `--size-floor`
-// input can never silently drift from the ship lifecycle's own floor table.
+// Asserts the declared projection/test oracle (.claude/agent-dispatch-matrix.json) matches
+// the runtime policy in ship-tier.ts. Runtime consumers call the resolver directly; the matrix
+// exists to make a planted policy/projection mismatch fail loudly.
 //
 // Checks:
 //   1. Structural validation of the matrix JSON (required keys, axis coverage,
 //      modifier-vocabulary subset of the declared verticals).
-//   2. Tier-floor parity: matrix.tier_verticals[tier] === task-ship.ts::verticalsForTier(tier)
-//      for EVERY declared tier. task-ship.ts is the pure mirror; the matrix is the SSOT
-//      route-auditors.mjs reads. A planted mismatch here (e.g. dropping 'security' from
+//   2. Tier-floor parity: matrix.tier_verticals[tier] === ship-tier.ts resolver output
+//      for EVERY declared tier. A planted mismatch here (e.g. dropping 'security' from
 //      Standard) makes this gate exit non-zero (AC4).
 //
-// The pure floor mirror is imported from the COMPILED dist (scripts/ cannot import .ts).
+// The resolver is imported from the COMPILED dist (scripts/ cannot import .ts).
 // Build (npm run build) must run before this gate — the L1 gate builds the kit first.
 //
 // #1817 (B-prune) — the old multi-pass/pass-count review_pass_count axis parity check
@@ -105,13 +104,15 @@ for (const p of matrix.axes.pr_type) {
     fail(`pr_type_modifiers missing entry for axis pr_type "${p}"`)
 }
 
-// ── 2. Tier-floor parity vs the pure task-ship mirror (the core anti-drift check) ─
-let verticalsForTier
+// ── 2. Tier-floor parity vs the runtime resolver (the core anti-drift check) ─
+let resolveShipTreatment
 let shipStepFor
 let externalSlotsForTier
 try {
+  const tierUrl = pathToFileURL(join(REPO_ROOT, 'dist', 'commands', 'ship-tier.js')).href
+  ;({ resolveShipTreatment } = await import(tierUrl))
   const shipUrl = pathToFileURL(join(REPO_ROOT, 'dist', 'commands', 'task-ship.js')).href
-  ;({ verticalsForTier, shipStepFor } = await import(shipUrl))
+  ;({ shipStepFor } = await import(shipUrl))
   const reviewUrl = pathToFileURL(
     join(REPO_ROOT, 'dist', 'integrations', 'external-review.js'),
   ).href
@@ -119,8 +120,8 @@ try {
 } catch (e) {
   invoke(`cannot import compiled dispatch mirrors — run "npm run build": ${e.message}`)
 }
-if (typeof verticalsForTier !== 'function') {
-  invoke('dist/commands/task-ship.js does not export verticalsForTier')
+if (typeof resolveShipTreatment !== 'function') {
+  invoke('dist/commands/ship-tier.js does not export resolveShipTreatment')
 }
 if (typeof shipStepFor !== 'function') {
   invoke('dist/commands/task-ship.js does not export shipStepFor')
@@ -135,15 +136,22 @@ for (const tier of matrix.axes.tier) {
   if (!Array.isArray(declared)) fail(`tier_verticals.${tier} missing or not an array`)
   let mirror
   try {
-    mirror = verticalsForTier(tier)
+    mirror = resolveShipTreatment(tier, {
+      blastRadius: 0,
+      callerCount: 0,
+      changedFiles: ['docs/runtime-policy.md'],
+      complete: true,
+      labels: [],
+      milestoneBundled: false,
+    }).reviewerVerticals
   } catch (e) {
-    invoke(`verticalsForTier("${tier}") threw: ${e.message}`)
+    invoke(`resolveShipTreatment("${tier}") threw: ${e.message}`)
   }
   if (!eq(declared, mirror)) {
     fail(
       `tier_verticals.${tier} drift: matrix declares [${declared.join(', ')}] but ` +
-        `task-ship.ts::verticalsForTier("${tier}") yields [${mirror.join(', ')}]. ` +
-        `The matrix JSON is the SSOT; update task-ship.ts (or the matrix) so they agree.`,
+        `ship-tier.ts::resolveShipTreatment("${tier}") yields [${mirror.join(', ')}]. ` +
+        `ship-tier.ts is runtime policy; update the projection or policy intentionally so they agree.`,
     )
   }
 }

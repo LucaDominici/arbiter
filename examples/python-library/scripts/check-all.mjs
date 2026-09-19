@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // python-library quality gate
 // Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
-// L1: format + lint + unit tests (fast, pre-commit)
+// L1: format + lint + unit tests (fast, frozen-candidate qualification)
 // L2: L1 + coverage + audit (full, pre-push)
 // --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
 import { createHash } from 'node:crypto';
@@ -95,9 +95,10 @@ function gateFilePresent(_path, _label, _neverEmittedLine = null, _alternatePath
 // `--level` as the level string skips the L2 branch while the job stays green —
 // that silent L2→L1 downgrade is the exact fake-green this gate exists to kill.
 const _LEVELS = ['L1', 'L2', 'L3', 'L4'];
-// Subcommand alias → level. `check` is the fast pre-commit lane; everything
+// Subcommand alias → level. `check` is the fast candidate-qualification lane; everything
 // heavier maps to L2 (the strongest tier this generated gate implements).
 const _SUBCOMMAND_LEVEL = {
+  preflight: 'L2',
   check: 'L1',
   gate: 'L2',
   full: 'L2',
@@ -113,7 +114,7 @@ let only = null; // #2078: --gate <name>, re-run a single check
 let failFast = false;
 const _rawArgs = process.argv.slice(2);
 const _gateUsage =
-  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>] [--fail-fast]';
+  'Usage: node scripts/check-all.mjs [L1|L2|L3|L4 | preflight|check|gate|full|simulate-nightly|simulate-weekly] [--level <L1|L2|L3|L4>] [--json [path]] [--dry-run] [--gate <name>] [--fail-fast]';
 function _gateFatal(_msg) {
   console.error(`[GATE] FATAL: ${_msg}`);
   console.error(`[GATE] ${_gateUsage}`);
@@ -223,7 +224,7 @@ const _gateStart = await (async () => {
 // emitted layering contract test (scripts/test-gate-layering.mjs). ORDER IS
 // MEANINGFUL: gates run in registry order within each level.
 
-const GATE_REGISTRY = [{"id":"pii-scan","name":"PII scan","level":"L1","kind":"check","cmd":["node","scripts/pii-scan.mjs"]},{"id":"secret-scan","name":"secret scan","level":"L1","kind":"check","cmd":["node","scripts/check-secret-scan.mjs"]},{"id":"ruff-lint","name":"lint","level":"L1","kind":"check","cmd":["ruff","check","."],"language":"python"},{"id":"ruff-format","name":"format","level":"L1","kind":"check","cmd":["ruff","format","--check","."],"language":"python"},{"id":"pytest-unit-tests","name":"unit tests","level":"L1","kind":"check","cmd":["pytest"],"language":"python"},{"id":"no-tracked-artifacts","name":"no tracked artifacts (INV-129)","level":"L1","kind":"check","cmd":["node","scripts/check-no-tracked-artifacts.mjs"]},{"id":"image-pins","name":"image pins (#1442)","level":"L1","kind":"check","cmd":["node","scripts/check-image-pins.mjs"]},{"id":"e2e-quarantine","name":"e2e quarantine (INV-130)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-quarantine.mjs"]},{"id":"test-naming","name":"test naming","level":"L1","kind":"check","cmd":["node","scripts/check-test-naming.mjs"]},{"id":"min-test-execution","name":"min test execution (INV-25)","level":"L1","kind":"check","cmd":["node","scripts/check-min-test-execution.mjs"]},{"id":"exit-code-contract","name":"exit code contract","level":"L1","kind":"check","cmd":["node","scripts/check-exit-code-contract.mjs"]},{"id":"pipe-tee-hazard","name":"pipe/tee hazard","level":"L1","kind":"check","cmd":["node","scripts/check-pipe-tee-hazard.mjs"]},{"id":"self-validation-drill","name":"self-validation drill","level":"L1","kind":"check","cmd":["node","scripts/self-validation.mjs"],"emitIf":"typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false"},{"id":"config-drift","name":"config drift","level":"L1","kind":"check","cmd":["node","scripts/check-drift.mjs"]},{"id":"validator-helptext","name":"validator help text","level":"L1","kind":"check","cmd":["node","scripts/check-validator-helptext.mjs"]},{"id":"suppressions-expiry","name":"suppressions expiry","level":"L1","kind":"check","cmd":["node","scripts/check-suppressions.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-rationale","name":"suppression rationale","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-rationale.mjs"],"emitIf":"enableSuppressions"},{"id":"suppression-expiry-antidrift","name":"suppression expiry (anti-drift)","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-expiry.mjs"],"emitIf":"enableSuppressions"},{"id":"inline-suppressions","name":"inline suppressions","level":"L1","kind":"check","cmd":["node","scripts/check-inline-suppressions.mjs"]},{"id":"claude-md-lint","name":"claude-md lint","level":"L1","kind":"check","cmd":["node","scripts/check-claude-md-lint.mjs"]},{"id":"unwired-guards","name":"unwired guards","level":"L1","kind":"check","cmd":["node","scripts/check-unwired-guards.mjs"]},{"id":"workflow-runners-inline","name":"workflow runners","level":"L1","kind":"inline"},{"id":"ci-alignment","name":"ci alignment","level":"L1","kind":"inline"},{"id":"ssot-core-set","name":"ssot core set","level":"L1","kind":"check","cmd":["node","scripts/check-ssot-core.mjs"]},{"id":"doc-links","name":"doc links","level":"L1","kind":"check","cmd":["node","scripts/check-doc-links.mjs"]},{"id":"knowledge-map","name":"knowledge map","level":"L1","kind":"check","cmd":["node","scripts/check-knowledge-map.mjs"]},{"id":"canonical-paths","name":"canonical paths","level":"L1","kind":"check","cmd":["node","scripts/check-canonical-paths.mjs"]},{"id":"collab-mode-wired","name":"collab mode wired (INV-100)","level":"L1","kind":"check","cmd":["node","scripts/check-collab-mode-wired.mjs"]},{"id":"hook-routing","name":"hook routing (#2129)","level":"L1","kind":"check","cmd":["node","scripts/check-hook-routing.mjs"]},{"id":"safety-adopt-ratchet","name":"safety adopt ratchet","level":"L1","kind":"check","cmd":["node","scripts/check-safety-adopt-ratchet.mjs"]},{"id":"emission-parity","name":"emission parity (#2110)","level":"L1","kind":"check","cmd":["node","scripts/check-emission-parity.mjs"]},{"id":"no-orphan-todo","name":"orphan TODOs (INV-21)","level":"L1","kind":"check","cmd":["node","scripts/check-no-orphan-todo.mjs"]},{"id":"constraint-scan","name":"constraint scan (INV-115)","level":"L1","kind":"check","cmd":["node","scripts/check-constraint-scan.mjs"]},{"id":"anti-proforma","name":"anti-proforma (INV-118)","level":"L1","kind":"check","cmd":["node","scripts/check-anti-proforma.mjs"]},{"id":"test-pyramid","name":"test pyramid (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-pyramid.mjs"]},{"id":"test-scope-tier","name":"test scope-tier (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-scope-tier.mjs"]},{"id":"api-e2e","name":"api e2e (INV-126)","level":"L1","kind":"check","cmd":["node","scripts/check-api-e2e.mjs"]},{"id":"render-smoke-presence","name":"render smoke presence (INV-127)","level":"L1","kind":"check","cmd":["node","scripts/check-render-smoke.mjs"]},{"id":"smoke-journeys","name":"smoke journeys (INV-137)","level":"L1","kind":"check","cmd":["node","scripts/check-smoke-journeys.mjs"]},{"id":"e2e-escalation","name":"e2e escalation ladder (#2043)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-escalation.mjs"]},{"id":"m16-handoff","name":"M16 handoff-contract marker (#2103)","level":"L1","kind":"check","cmd":["node","scripts/check-m16-handoff.mjs"]},{"id":"stack-conformity","name":"stack conformity (INV-121)","level":"L1","kind":"check","cmd":["node","scripts/check-stack-conformity.mjs"],"emitIf":"language"},{"id":"iso9001","name":"iso9001 QMS (RTM + doc-control + CAPA)","level":"L1","kind":"check","cmd":["node","scripts/check-iso9001.mjs"],"condition":"gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')"},{"id":"regulated-overlay","name":"regulated overlay (SoD + retention + signing + mutation)","level":"L1","kind":"check","cmd":["node","scripts/check-regulated-overlay.mjs"],"condition":"gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')"},{"id":"muted-test","name":"muted gate test (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-muted-test.mjs"]},{"id":"skip-critical-e2e","name":"skipped critical e2e (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-skip-critical-e2e.mjs"]},{"id":"stub-redirect-husk","name":"stub redirect husk (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-no-stub-redirects.mjs"]},{"id":"grace-window","name":"grace window (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-grace-window.mjs"]},{"id":"assertion-delta","name":"assertion delta (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-assertion-delta.mjs"]},{"id":"tabletop-evidence","name":"tabletop evidence (#2429)","level":"L1","kind":"check","cmd":["node","scripts/check-tabletop-evidence.mjs"]},{"id":"sources","name":"source certification (INV-147)","level":"L1","kind":"check","cmd":["node","scripts/check-sources.mjs"]},{"id":"use-cases","name":"use cases (INV-149)","level":"L1","kind":"check","cmd":["node","scripts/check-use-cases.mjs"]},{"id":"milestones","name":"milestones (INV-146)","level":"L1","kind":"check","cmd":["node","scripts/check-milestones.mjs"]},{"id":"arc42-slots","name":"arc42 slots (INV-144)","level":"L2","kind":"warn","cmd":["node","scripts/check-arc42-slots.mjs"],"condition":"gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')"},{"id":"acceptance-anchor","name":"acceptance anchor (INV-138)","level":"L2","kind":"check","cmd":["node","scripts/check-acceptance.mjs"],"condition":"gateFilePresent('scripts/check-acceptance.mjs', 'acceptance anchor (INV-138)')"},{"id":"tdd-evidence","name":"tdd-evidence (INV-131)","level":"L2","kind":"check","cmd":["node","scripts/check-tdd-evidence.mjs"],"soft":true},{"id":"todo-max-age","name":"todo max-age (INV-133)","level":"L2","kind":"check","cmd":["node","scripts/check-todo-max-age.mjs"],"soft":true},{"id":"python-doctest-strict","name":"doctest + strict markers","level":"L3","kind":"check","cmd":["pytest","--doctest-modules","--strict-markers"],"language":"python"}];
+const GATE_REGISTRY = [{"id":"pii-scan","name":"PII scan","level":"L1","kind":"check","cmd":["node","scripts/pii-scan.mjs"],"preflight":true},{"id":"secret-scan","name":"secret scan","level":"L1","kind":"check","cmd":["node","scripts/check-secret-scan.mjs"],"preflight":true},{"id":"ruff-lint","name":"lint","level":"L1","kind":"check","cmd":["ruff","check","."],"language":"python","preflight":true},{"id":"ruff-format","name":"format","level":"L1","kind":"check","cmd":["ruff","format","--check","."],"language":"python","preflight":true},{"id":"pytest-unit-tests","name":"unit tests","level":"L1","kind":"check","cmd":["pytest"],"language":"python"},{"id":"no-tracked-artifacts","name":"no tracked artifacts (INV-129)","level":"L1","kind":"check","cmd":["node","scripts/check-no-tracked-artifacts.mjs"],"preflight":true},{"id":"image-pins","name":"image pins (#1442)","level":"L1","kind":"check","cmd":["node","scripts/check-image-pins.mjs"],"preflight":true},{"id":"e2e-quarantine","name":"e2e quarantine (INV-130)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-quarantine.mjs"],"preflight":true},{"id":"test-naming","name":"test naming","level":"L1","kind":"check","cmd":["node","scripts/check-test-naming.mjs"],"preflight":true},{"id":"min-test-execution","name":"min test execution (INV-25)","level":"L1","kind":"check","cmd":["node","scripts/check-min-test-execution.mjs"]},{"id":"exit-code-contract","name":"exit code contract","level":"L1","kind":"check","cmd":["node","scripts/check-exit-code-contract.mjs"],"preflight":true},{"id":"pipe-tee-hazard","name":"pipe/tee hazard","level":"L1","kind":"check","cmd":["node","scripts/check-pipe-tee-hazard.mjs"],"preflight":true},{"id":"self-validation-drill","name":"self-validation drill","level":"L1","kind":"check","cmd":["node","scripts/self-validation.mjs"],"emitIf":"typeof enableSelfValidationHarness === 'undefined' || enableSelfValidationHarness !== false"},{"id":"config-drift","name":"config drift","level":"L1","kind":"check","cmd":["node","scripts/check-drift.mjs"],"preflight":true},{"id":"validator-helptext","name":"validator help text","level":"L1","kind":"check","cmd":["node","scripts/check-validator-helptext.mjs"],"preflight":true},{"id":"suppressions-expiry","name":"suppressions expiry","level":"L1","kind":"check","cmd":["node","scripts/check-suppressions.mjs"],"emitIf":"enableSuppressions","preflight":true},{"id":"suppression-rationale","name":"suppression rationale","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-rationale.mjs"],"emitIf":"enableSuppressions","preflight":true},{"id":"suppression-expiry-antidrift","name":"suppression expiry (anti-drift)","level":"L1","kind":"check","cmd":["node","scripts/check-suppression-expiry.mjs"],"emitIf":"enableSuppressions","preflight":true},{"id":"inline-suppressions","name":"inline suppressions","level":"L1","kind":"check","cmd":["node","scripts/check-inline-suppressions.mjs"],"preflight":true},{"id":"claude-md-lint","name":"claude-md lint","level":"L1","kind":"check","cmd":["node","scripts/check-claude-md-lint.mjs"],"preflight":true},{"id":"unwired-guards","name":"unwired guards","level":"L1","kind":"check","cmd":["node","scripts/check-unwired-guards.mjs"],"preflight":true},{"id":"workflow-runners-inline","name":"workflow runners","level":"L1","kind":"inline","preflight":true},{"id":"ci-alignment","name":"ci alignment","level":"L1","kind":"inline","preflight":true},{"id":"ssot-core-set","name":"ssot core set","level":"L1","kind":"check","cmd":["node","scripts/check-ssot-core.mjs"],"preflight":true},{"id":"doc-links","name":"doc links","level":"L1","kind":"check","cmd":["node","scripts/check-doc-links.mjs"],"preflight":true},{"id":"knowledge-map","name":"knowledge map","level":"L1","kind":"check","cmd":["node","scripts/check-knowledge-map.mjs"],"preflight":true},{"id":"canonical-paths","name":"canonical paths","level":"L1","kind":"check","cmd":["node","scripts/check-canonical-paths.mjs"],"preflight":true},{"id":"collab-mode-wired","name":"collab mode wired (INV-100)","level":"L1","kind":"check","cmd":["node","scripts/check-collab-mode-wired.mjs"],"preflight":true},{"id":"hook-routing","name":"hook routing (#2129)","level":"L1","kind":"check","cmd":["node","scripts/check-hook-routing.mjs"],"preflight":true},{"id":"safety-adopt-ratchet","name":"safety adopt ratchet","level":"L1","kind":"check","cmd":["node","scripts/check-safety-adopt-ratchet.mjs"],"preflight":true},{"id":"emission-parity","name":"emission parity (#2110)","level":"L1","kind":"check","cmd":["node","scripts/check-emission-parity.mjs"],"preflight":true},{"id":"no-orphan-todo","name":"orphan TODOs (INV-21)","level":"L1","kind":"check","cmd":["node","scripts/check-no-orphan-todo.mjs"],"preflight":true},{"id":"constraint-scan","name":"constraint scan (INV-115)","level":"L1","kind":"check","cmd":["node","scripts/check-constraint-scan.mjs"],"preflight":true},{"id":"anti-proforma","name":"anti-proforma (INV-118)","level":"L1","kind":"check","cmd":["node","scripts/check-anti-proforma.mjs"],"preflight":true},{"id":"test-pyramid","name":"test pyramid (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-pyramid.mjs"],"preflight":true},{"id":"test-scope-tier","name":"test scope-tier (INV-124)","level":"L1","kind":"check","cmd":["node","scripts/check-test-scope-tier.mjs"],"preflight":true},{"id":"api-e2e","name":"api e2e (INV-126)","level":"L1","kind":"check","cmd":["node","scripts/check-api-e2e.mjs"],"preflight":true},{"id":"render-smoke-presence","name":"render smoke presence (INV-127)","level":"L1","kind":"check","cmd":["node","scripts/check-render-smoke.mjs"],"preflight":true},{"id":"smoke-journeys","name":"smoke journeys (INV-137)","level":"L1","kind":"check","cmd":["node","scripts/check-smoke-journeys.mjs"],"preflight":true},{"id":"e2e-escalation","name":"e2e escalation ladder (#2043)","level":"L1","kind":"check","cmd":["node","scripts/check-e2e-escalation.mjs"],"preflight":true},{"id":"m16-handoff","name":"M16 handoff-contract marker (#2103)","level":"L1","kind":"check","cmd":["node","scripts/check-m16-handoff.mjs"],"preflight":true},{"id":"stack-conformity","name":"stack conformity (INV-121)","level":"L1","kind":"check","cmd":["node","scripts/check-stack-conformity.mjs"],"emitIf":"language","preflight":true},{"id":"iso9001","name":"iso9001 QMS (RTM + doc-control + CAPA)","level":"L1","kind":"check","cmd":["node","scripts/check-iso9001.mjs"],"condition":"gateFilePresent('scripts/check-iso9001.mjs', 'iso9001 QMS (RTM + doc-control + CAPA)')","preflight":true},{"id":"regulated-overlay","name":"regulated overlay (SoD + retention + signing + mutation)","level":"L1","kind":"check","cmd":["node","scripts/check-regulated-overlay.mjs"],"condition":"gateFilePresent('scripts/check-regulated-overlay.mjs', 'regulated overlay (SoD + retention + signing + mutation)')","preflight":true},{"id":"muted-test","name":"muted gate test (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-muted-test.mjs"],"preflight":true},{"id":"skip-critical-e2e","name":"skipped critical e2e (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-skip-critical-e2e.mjs"],"preflight":true},{"id":"stub-redirect-husk","name":"stub redirect husk (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-no-stub-redirects.mjs"],"preflight":true},{"id":"grace-window","name":"grace window (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-grace-window.mjs"],"preflight":true},{"id":"assertion-delta","name":"assertion delta (anti-fake-green)","level":"L1","kind":"check","cmd":["node","scripts/check-assertion-delta.mjs"],"preflight":true},{"id":"tabletop-evidence","name":"tabletop evidence (#2429)","level":"L1","kind":"check","cmd":["node","scripts/check-tabletop-evidence.mjs"]},{"id":"sources","name":"source certification (INV-147)","level":"L1","kind":"check","cmd":["node","scripts/check-sources.mjs"],"preflight":true},{"id":"use-cases","name":"use cases (INV-149)","level":"L1","kind":"check","cmd":["node","scripts/check-use-cases.mjs"],"preflight":true},{"id":"milestones","name":"milestones (INV-146)","level":"L1","kind":"check","cmd":["node","scripts/check-milestones.mjs"],"preflight":true},{"id":"arc42-slots","name":"arc42 slots (INV-144)","level":"L2","kind":"warn","cmd":["node","scripts/check-arc42-slots.mjs"],"condition":"gateFilePresent('scripts/check-arc42-slots.mjs', 'arc42 slots (INV-144)')","preflight":true},{"id":"acceptance-anchor","name":"acceptance anchor (INV-138)","level":"L2","kind":"check","cmd":["node","scripts/check-acceptance.mjs"],"condition":"gateFilePresent('scripts/check-acceptance.mjs', 'acceptance anchor (INV-138)')"},{"id":"tdd-evidence","name":"tdd-evidence (INV-131)","level":"L2","kind":"check","cmd":["node","scripts/check-tdd-evidence.mjs"],"soft":true},{"id":"todo-max-age","name":"todo max-age (INV-133)","level":"L2","kind":"check","cmd":["node","scripts/check-todo-max-age.mjs"],"soft":true},{"id":"python-doctest-strict","name":"doctest + strict markers","level":"L3","kind":"check","cmd":["pytest","--doctest-modules","--strict-markers"],"language":"python"}];
 
 // ─── #2078 (GATE-1 of #2041) — inspection modes, re-based on the registry.
 // `--dry-run` prints the registry manifest without executing (exit 0, zero
@@ -251,7 +252,8 @@ if (only !== null) {
   const _regGate = GATE_REGISTRY.find((_g) => _g.id === only);
   if (_regGate) only = _regGate.name;
 }
-const _inspect = dryRun || only !== null;
+const _preflight = subcommand === 'preflight';
+const _inspect = dryRun || only !== null || _preflight;
 setMode({ dryRun, only });
 const _failFast =
   failFast &&
@@ -347,7 +349,8 @@ console.log('');
 // layering test see them). ORDER IS THE REGISTRY ORDER.
 
 
-// ── L1 (fast checks — pre-commit) ────────────────────────────────────────
+
+// ── L1 (fast checks — frozen candidate) ─────────────────────────────────
 if (true) {
 
 
@@ -383,15 +386,6 @@ runCheck('lint', 'ruff', ['check', '.']);
 
 
 runCheck('format', 'ruff', ['format', '--check', '.']);
-
-
-
-
-
-
-
-
-runCheck('unit tests', 'pytest', []);
 
 
 
@@ -436,15 +430,6 @@ runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
 
 
 
-runCheck('min test execution (INV-25)', 'node', ['scripts/check-min-test-execution.mjs']);
-
-
-
-
-
-
-
-
 runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs']);
 
 
@@ -455,15 +440,6 @@ runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
 
 
 runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
-
-
-
-
-
-
-
-
-runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs']);
 
 
 
@@ -923,15 +899,6 @@ runCheck('assertion delta (anti-fake-green)', 'node', ['scripts/check-assertion-
 
 
 
-runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.mjs']);
-
-
-
-
-
-
-
-
 runCheck('source certification (INV-147)', 'node', ['scripts/check-sources.mjs']);
 
 
@@ -967,6 +934,68 @@ runWarnCheck('arc42 slots (INV-144)', 'node', ['scripts/check-arc42-slots.mjs'])
 }
 
 
+  // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
+  // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
+
+  if (gateFilePresent('scripts/test-gate-layering.mjs', 'gate layering')) {
+    runCheck('gate layering', 'node', ['scripts/test-gate-layering.mjs'])
+  }
+
+}
+// ── L3 (nightly lane — AC-2041.1, mirrors 06-nightly-lite.yml) ───────────
+if (level === 'L3' || level === 'L4') {
+
+}
+
+
+
+
+const _preflightPassed = getFailed() === 0;
+if (!_preflight && (_preflightPassed || dryRun || only !== null)) {
+
+// ── L1 (fast checks — frozen candidate) ─────────────────────────────────
+if (true) {
+
+
+
+
+
+
+runCheck('unit tests', 'pytest', []);
+
+
+
+
+
+
+
+
+runCheck('min test execution (INV-25)', 'node', ['scripts/check-min-test-execution.mjs']);
+
+
+
+
+
+
+
+
+runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs']);
+
+
+
+
+
+
+
+
+runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.mjs']);
+
+
+
+}
+// ── L2 (full checks — pre-push) ──────────────────────────────────────────
+if (level !== 'L1') {
+
 
 
 
@@ -996,9 +1025,7 @@ runCheck('todo max-age (INV-133)', 'node', ['scripts/check-todo-max-age.mjs'], {
 
   // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
   // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
-  if (gateFilePresent('scripts/test-gate-layering.mjs', 'gate layering')) {
-    runCheck('gate layering', 'node', ['scripts/test-gate-layering.mjs'])
-  }
+
 }
 // ── L3 (nightly lane — AC-2041.1, mirrors 06-nightly-lite.yml) ───────────
 if (level === 'L3' || level === 'L4') {
@@ -1013,6 +1040,11 @@ runCheck('doctest + strict markers', 'pytest', ['--doctest-modules', '--strict-m
 
 
 }
+
+
+}
+
+
 
 // ─── Local extension slot (#2666) ────────────────────────────────────────────
 // scripts/check-all.local.json is a declared, adopt-safe home for PROJECT-LOCAL
@@ -1085,7 +1117,9 @@ function _localChecksAllowed(cwd) {
   return _cfg.status === 0 && _cfg.stdout === 'true\n';
 }
 
-if (_failFastInlineSkip('local checks')) {
+if (_preflight || (!_preflightPassed && !dryRun && only === null)) {
+  console.log('[CHECK] local checks ... SKIP (qualification not started)');
+} else if (_failFastInlineSkip('local checks')) {
   // A prior hard L1 result makes local-check discovery unnecessary. Named
   // `--gate [local] ...` inspection remains eligible because the helper above
   // leaves inspection runs out of this guard.
@@ -1233,5 +1267,5 @@ if (_failedCount > 0) {
   console.error('');
   process.exit(1);
 } else {
-  console.log('=== ALL PASSED ===\n');
+  console.log(_preflight ? '=== PREFLIGHT PASSED (diagnostics only) ===\n' : '=== ALL PASSED ===\n');
 }

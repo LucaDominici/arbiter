@@ -84,12 +84,12 @@ The failure modes this standard exists to kill — each observed for real, not h
 **What.** Every unit of work is classified before dispatch and routed to the cheapest
 model tier that can own it:
 
-| Tier           | Model class                 | Owns                                                                                      |
-| -------------- | --------------------------- | ----------------------------------------------------------------------------------------- |
-| Judgment       | **Fable** (top reasoning)   | design, architecture decisions, plan review, verdicts, brainstorming, keep-or-kill triage |
-| Verification   | **Opus** (strong reasoning) | red-team, adversarial verify, dogfood, safety re-grep before destructive ops              |
-| Implementation | **Sonnet**                  | mechanical-plus coding: implement a reviewed plan, wiring, migrations, guarded deletion   |
-| Mechanical     | **Haiku**                   | checklist leaf work: pattern search, leaf-file deletion, link sweeps, formatting          |
+| Tier           | Model class                 | Owns                                                                                    |
+| -------------- | --------------------------- | --------------------------------------------------------------------------------------- |
+| Judgment       | **Fable** (top reasoning)   | design, architecture decisions, final verdicts, brainstorming, keep-or-kill triage      |
+| Verification   | **Opus** (strong reasoning) | independent final review, dogfood, safety re-grep before destructive ops                |
+| Implementation | **Sonnet**                  | mechanical-plus coding: implement a reviewed plan, wiring, migrations, guarded deletion |
+| Mechanical     | **Haiku**                   | checklist leaf work: pattern search, leaf-file deletion, link sweeps, formatting        |
 
 Routing is **deterministic by declaration**, not by runtime machinery: the task's model
 tier is written into the plan/handoff (`src/templates/HANDOFF.template.md` "Suggested
@@ -153,21 +153,15 @@ prompt references exactly one task id.
 
 ---
 
-### M3 — Mesocycle handover: context reset between phases, state carried by file
+### M3 — Durable recovery: state survives context boundaries
 
-**What.** The task lifecycle (plan → red → green → verify → ship) is cut into
-_mesocycles_. At each phase boundary the context is reset (`/clear` or fresh sub-agent)
-and the next phase starts **cold** from a handover artifact, never from residual window
-content. The handover contract:
+**What.** The task lifecycle (plan → red → green → verify → ship) persists treatment, phase,
+candidate, review round and exact next action in `.claude/.task/status.json`. A voluntary context
+reset or fresh agent resumes from the same file; neither is required at a phase boundary.
 
-- **Handoff doc** — `src/templates/HANDOFF.template.md`: written for "a COLD model with
-  zero prior context", every task with its own AC + exact verification command + tier.
-- **Phase state** — `status.json` fields (`handoffStrategy`, `planningHandoffReady`,
-  `postClearResumed`), not a new phase enum (ADR-054); resumed via
-  `arbiter ship #NNN --advance --post-clear`.
-- **Clear strategy** — computed, not vibed: `src/commands/task.ts::decideClearStrategy`
-  (≤10 units inline, ≤20 sub-agent, else stop-and-/clear) and
-  `::buildHandoffBanner` prints the exact resume command (jewel J4).
+- **Cursor** — `arbiter lifecycle checkpoint` records last action, next action and TDD state.
+- **Recovery** — `arbiter ship #NNN` and `arbiter lifecycle resume` are read-only projections of
+  persisted state.
 - **Compaction resilience** — `.claude/hooks/pre-compact.mjs` persists context before
   auto-compaction and re-grounds the model (branch/task/phase) after it; the 3-layer
   durable-redundancy protocol (BACKLOG file + task cursor + phase-boundary git commits)
@@ -176,20 +170,14 @@ content. The handover contract:
 **Why.** Directly kills R1. A phase that can only be resumed from a file is a phase
 whose state is, by construction, persisted (feeds M4).
 
-**Enforcement.** HARD: the handoff gate throws on the `red-team-review → red` transition
-until the handoff fields are satisfied (`checkHandoffGate`, `src/commands/task.ts`);
-`Stop` hook blocks completion claims regardless (M11). SOFT: banner + skill protocol.
+**Enforcement.** HARD: the lifecycle is single-writer and phase gates reject missing evidence;
+the Stop hook blocks unsupported completion claims (M11). Recovery reads do not mutate state.
 
 **Self / Governed.** Both. The hooks, skill, and task engine are emitted to targets
 (`src/generators/claude.ts`, `src/generators/skills.ts`).
 
-**Tier.** Handoff file + `/clear` discipline: all tiers. The full 3-layer protocol
-activates only for Standard-tier tasks with >5 units (right-sized by its own skill).
-
-> Transitional note: the §T2.B tranche (playbook context now carried by
-> `docs/design/anti-context-rot-enforcers.md`) cuts the `arbiter lifecycle checkpoint` cursor
-> _command_ (danger cluster D2). The cursor survives as `status.json` fields (INV-113,
-> ADR-054); skills referencing `arbiter lifecycle checkpoint` must be repointed when T2 lands.
+**Tier.** Durable state applies to every tier. The full 3-layer recovery protocol is optional when
+an unusually long Standard task needs more redundancy.
 
 ---
 
@@ -198,14 +186,14 @@ activates only for Standard-tier tasks with >5 units (right-sized by its own ski
 **What.** Anything an agent finds or decides is written to a durable, append-friendly
 artifact **at the moment of discovery**, not summarized at session end:
 
-| Artifact class        | Canonical home                                                                           | Mechanism                                                                                                                                 |
-| --------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Incidental findings   | `.arbiter/findings/` JSONL spool                                                         | `arbiter finding add` → `src/commands/task-note.ts::FindingEntry` (ts, kind, severity, file:line, sha, fingerprint; parallel-safe shards) |
-| Decisions             | `docs/internal/ADR/`                                                                     | INV-107 (unique numbers, index in sync, `scripts/check-adr-index.mjs`)                                                                    |
-| Evidence per phase    | `.arbiter/evidence/<task>/…` (`tdd/`, `plan-review/`, `redteam/`, `review/`, `dogfood/`) | INV-90 schema (`schemas/evidence-bundle.schema.json`, `scripts/check-evidence-bundle.mjs`); INV-27 evidence for all gate runs             |
-| Task state            | `.claude/.task/status.json` + append-only log                                            | INV-113 single authoritative phase doc (`scripts/check-phase-doc-consistency.mjs`)                                                        |
-| Plan                  | `.claude/plans/*.md`                                                                     | plan anchor required before edit (CANON-16, `.claude/hooks/pre-edit-plan-anchor.mjs`)                                                     |
-| Suppressions/bypasses | commit footers + `.arbiter/evidence/bypass-log.jsonl` (append-only)                      | `scripts/check-commit-footer-rationale.mjs` (INV-119)                                                                                     |
+| Artifact class        | Canonical home                                                                   | Mechanism                                                                                                                                 |
+| --------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Incidental findings   | `.arbiter/findings/` JSONL spool                                                 | `arbiter finding add` → `src/commands/task-note.ts::FindingEntry` (ts, kind, severity, file:line, sha, fingerprint; parallel-safe shards) |
+| Decisions             | `docs/internal/ADR/`                                                             | INV-107 (unique numbers, index in sync, `scripts/check-adr-index.mjs`)                                                                    |
+| Evidence per phase    | `.arbiter/evidence/<task>/…` (`tdd/`, final review, `ac-fit/`, gate, `dogfood/`) | INV-90 schema (`schemas/evidence-bundle.schema.json`, `scripts/check-evidence-bundle.mjs`); INV-27 evidence for all gate runs             |
+| Task state            | `.claude/.task/status.json` + append-only log                                    | INV-113 single authoritative phase doc (`scripts/check-phase-doc-consistency.mjs`)                                                        |
+| Plan                  | `.claude/plans/*.md`                                                             | plan anchor required before edit (CANON-16, `.claude/hooks/pre-edit-plan-anchor.mjs`)                                                     |
+| Suppressions/bypasses | commit footers + `.arbiter/evidence/bypass-log.jsonl` (append-only)              | `scripts/check-commit-footer-rationale.mjs` (INV-119)                                                                                     |
 
 Findings never rot in the spool: wave-drain Phase 0.5 **harvests** the spool into
 tracked issues before composing each wave ("the backlog is the queue, not the
@@ -282,8 +270,8 @@ parallelism legal — the same manifest can bound reads).
 **What.** Exploration, grep-sweeps, and "does X exist?" questions are delegated to
 read-only sub-agents that return **conclusions, not transcripts**. The escalation
 ladder is cheap-first (`.claude/AGENT_REGISTRY.md` §Escalation Hierarchy):
-`codebase-scanner` (Haiku, read-only) → `context-checker` (structured verdict) →
-`bridge-reviewer` (combined verdict); `red-team` runs in parallel with planning.
+`codebase-scanner` (Haiku, read-only) → a pertinent specialist when the frozen candidate's
+treatment requires one. Exploration never creates a parallel delivery authority.
 
 **Why.** R5: the orchestrator's window never absorbs raw search output; it absorbs one
 paragraph of conclusion. Also cheap (M1).
@@ -293,7 +281,7 @@ road; rule-50 makes read-only the _only_ legal mode for non-worktree parallel ag
 (`.claude/rules/50-batch-execution.md` §Allowed). TO-CREATE: none needed beyond keeping
 the registry parity gate green.
 
-**Self / Governed.** Both — `codebase-scanner` and `red-team` are emitted templates
+**Self / Governed.** Both — read-only research and specialist agents are emitted templates
 (`src/templates/claude/agents/*.md.ejs`).
 
 **Tier.** All.
@@ -441,11 +429,9 @@ attempt (`AGENTS.md` Iron Law).
 
 **Why.** R4. A false structural claim, acted on, is indistinguishable from sabotage.
 
-**Enforcement.** SOFT today: red-team protocol demands `file:line` evidence per
-finding (the 3-hop plan gate verifies the trail via `gh` deterministically —
-wave-drain v2); playbook safety re-grep contract. TO-CREATE: make citation mandatory
-in the agent-return envelope (M8) — a structural finding without a resolvable
-`file:line` is rejected at the tool layer.
+**Enforcement.** Final-review envelopes require resolvable `file:line` evidence for structural
+findings; `scripts/lib/agent-return-validate.mjs` rejects unsupported citations. Destructive work
+also retains the immediate safety re-grep contract.
 
 **Self / Governed.** Both.
 
@@ -453,34 +439,25 @@ in the agent-return envelope (M8) — a structural finding without a resolvable
 
 ---
 
-### M13 — Adversarial verification: independent skeptics try to refute; majority survives
+### M13 — Independent final review: pertinent skepticism on the frozen result
 
-**What.** High-stakes findings and verdicts are not accepted from a single agent.
-Independent skeptical agents are dispatched with the explicit mandate to **REFUTE**
-the finding (not to confirm it); a finding survives only if it withstands the
-majority. Today's building blocks: the `red-team` agent (adversarial by charter,
-PASS/WARN/FAIL, CRITICAL routes to rework, max 2 cycles); the adversarial verifier in
-the refactor phase; tier-scaled review fan-out with orthogonal verticals (bugs,
-type-safety, domain, +test-quality, +security, +data-integrity, +silent-failures) so
-reviewers cannot herd.
+**What.** The implementer never supplies the final verdict. On the frozen candidate, Ship dispatches
+one pertinent independent reviewer by default. Sensitive auth, money, concurrency, migration,
+data-integrity or deployment work may add orthogonal specialists, capped at three. The panel reviews
+the code and returns acceptance fit for every frozen criterion in the same submission.
 
-**Why.** Single-reviewer verdicts inherit the reviewer's blind spots and the
-confirmation bias of "reviewing to approve". Refutation-framing plus independence is
-the cheapest known de-biaser; majority survival bounds both false positives (R4) and
-rubber stamps (R2).
+**Why.** Independence addresses implementer confirmation bias while pertinent routing avoids a
+fixed swarm whose cost is unrelated to the change. Sensitive surfaces still receive specialist
+judgment where blind spots have material consequences.
 
-**Enforcement.** PARTIAL: red-team dispatch is phase-gated in ship (tier-N agents at
-`red-team-review`); vertical breadth floors are parity-checked (M1). TO-CREATE: the
-**refutation protocol** as a first-class skill/dispatch mode — N independent skeptics
-per surviving finding, refute-mandate prompts, majority rule, verdicts persisted as
-M8 envelopes; wire it as the required path for audit findings above a severity
-threshold.
+**Enforcement.** HARD: persisted `ShipTreatment` fixes reviewer count and verticals;
+`record-agent-return.mjs --mode reviewer-panel` and `check-review-completion.mjs` reject missing,
+stale, mismatched or blocking returns. The matrix is a parity oracle, never runtime policy.
 
-**Self / Governed.** Both (red-team template already emitted).
+**Self / Governed.** Both.
 
-**Tier.** Fan-out width scales by tier: solo XS/S = 1 skeptic (the red-team);
-Standard = 3; enterprise/gated-review = full vertical set. Right-sized: solo never
-pays 5 agents for a typo fix.
+**Tier.** XS, S and ordinary Standard use one reviewer. Only relevant sensitive paths widen to two
+or three specialists.
 
 ---
 
@@ -601,7 +578,7 @@ ADR-051) × governance level (L1–L4, `docs/CONCEPTS.md`). Mapping to plain wor
 | ------------------------------- | ------------------------------------------- | ----------------------------------- | ---------------------------------------------- |
 | M1 pyramid                      | full (cost rule)                            | full                                | full + registry review                         |
 | M2 short-lived                  | full                                        | full                                | full                                           |
-| M3 handover//clear              | handoff file + banner                       | + status.json gate                  | + evidence of handoff in bundle                |
+| M3 durable recovery             | status.json + cursor                        | + compaction snapshot               | + optional 3-layer recovery                    |
 | M4 persist-to-file              | findings spool + gate-pass                  | + full evidence dirs (L2)           | + L4 evidence harness, audit trail             |
 | M5 SSOT-first                   | AGENTS.md + doc-links gate                  | + core-set gate                     | + guarded-edit hooks on all SSOT               |
 | M6 read-set                     | advisory                                    | manifest per plan                   | manifest checked                               |
@@ -611,7 +588,7 @@ ADR-051) × governance level (L1–L4, `docs/CONCEPTS.md`). Mapping to plain wor
 | M10 deterministic orchestration | ship/task machine                           | + wave-drain                        | + merge-train / one-wave-PR                    |
 | M11 prove-or-not-done           | gate-before-PR + record-red                 | + Stop gate (INV-114), CI re-verify | + flip-coverage 100%, dogfood leg              |
 | M12 verify-first                | rule of conduct                             | citation in reviews                 | citation enforced in envelope                  |
-| M13 adversarial                 | 1 skeptic (red-team)                        | 3 skeptics, majority                | full vertical set, majority                    |
+| M13 independent final review    | 1 pertinent reviewer                        | + sensitive specialists as needed   | sensitive specialists, maximum 3               |
 | M14 loop-until-dry              | dry-pass rule                               | + persisted pass ledger             | + audited termination evidence                 |
 | M15 fail-closed + bypass        | fail-closed always; bypass logged           | + footer rationale                  | + ceremony detector, human-permissioned bypass |
 | M16 terminal handoff            | worker ends at handoff; coordinator watches | + bg-run/pid-watch emitted          | + marker gate on dispatch templates            |
@@ -645,18 +622,17 @@ Status legend: **EXISTS** (wired today) · **PARTIAL** (exists, gap named) ·
 
 | #   | Measure                                                 | Mechanism                                                                                     | Status                                                                   | Code anchors                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | --- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M1  | Model pyramid, deterministic routing                    | dispatch oracle + registry + handoff tier rows                                                | **EXISTS** (declaration+parity)                                          | `.claude/agent-dispatch-matrix.json`; `scripts/check-agent-dispatch.mjs`; `src/commands/task-ship.ts::verticalsForTier` (~L92); `.claude/AGENT_REGISTRY.md`; `src/templates/HANDOFF.template.md`; `AGENTS.md` §Model-Pyramid                                                                                                                                                                                                                                            |
+| M1  | Model pyramid, deterministic routing                    | Ship treatment resolver + projection oracle + registry                                        | **EXISTS** (runtime+parity)                                              | `src/commands/ship-tier.ts::resolveShipTreatment`; `.claude/agent-dispatch-matrix.json`; `scripts/check-agent-dispatch.mjs`; `.claude/AGENT_REGISTRY.md`; `AGENTS.md` §Model-Pyramid                                                                                                                                                                                                                                                                                    |
 | M1  | Handoff-lint (tier suggested per task)                  | advisory check (runWarnCheck)                                                                 | **EXISTS** (#1943)                                                       | `scripts/check-handoff-doc.mjs`; wired `scripts/check-all.mjs`; `__tests__/scripts/check-handoff-doc.test.ts`; advisory-ledger entry `scripts/data/advisory-ledger.json`                                                                                                                                                                                                                                                                                                |
 | M2  | Short-lived / one task per session                      | phase machine + wave worker lifecycle                                                         | **EXISTS** (structural)                                                  | `src/commands/task.ts` (advance gates); `.claude/skills/wave-drain/SKILL.md`                                                                                                                                                                                                                                                                                                                                                                                            |
-| M3  | Mesocycle handover + /clear                             | handoff gate, clear strategy, post-clear re-entry, pre-compact, 3-layer skill                 | **EXISTS**                                                               | `src/commands/task.ts::decideClearStrategy` (~L511) / `::buildHandoffBanner` (~L526) / `handlePostClearReEntry`; ADR-054; `.claude/hooks/pre-compact.mjs`; `.claude/skills/context-rot-management/SKILL.md`; `src/capabilities/host-probe.ts`                                                                                                                                                                                                                           |
-| M3  | Cursor after T2 cut of `arbiter lifecycle checkpoint`   | status.json fields only; repoint skill docs                                                   | **PARTIAL** (transition)                                                 | playbook §T2.B D2; INV-113                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| M3  | Durable recovery                                        | checkpoint cursor, resume projection, pre-compact, optional 3-layer skill                     | **EXISTS**                                                               | `arbiter lifecycle checkpoint`; `src/commands/task.ts`; `.claude/hooks/pre-compact.mjs`; `.claude/skills/context-rot-management/SKILL.md`; INV-113                                                                                                                                                                                                                                                                                                                      |
 | M4  | Findings spool + harvest                                | task-note JSONL + wave Phase 0.5                                                              | **EXISTS**                                                               | `src/commands/task-note.ts::FindingEntry` (~L61); `.arbiter/findings/`; wave-drain Phase 0.5                                                                                                                                                                                                                                                                                                                                                                            |
 | M4  | Evidence per phase, schema'd                            | evidence dirs + bundle schema + phase doc                                                     | **EXISTS**                                                               | `.arbiter/evidence/**`; `schemas/evidence-bundle.schema.json`; `scripts/check-evidence-bundle.mjs` (INV-90); `scripts/check-phase-doc-consistency.mjs` (INV-113)                                                                                                                                                                                                                                                                                                        |
 | M4  | Plan anchor before edit                                 | pre-edit hook (CANON-16)                                                                      | **EXISTS**                                                               | `.claude/hooks/pre-edit-plan-anchor.mjs`                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | M4  | Finding-loss detector                                   | Stop hook, advisory default / hard via env                                                    | **EXISTS** (activated advisory, #1948)                                   | `.claude/hooks/stop-finding-loss.mjs`; `__tests__/hooks/empirical/stop-finding-loss.test.ts`; `.arbiter/hooks-manifest.json`; `.claude/settings.json` Stop chain; design doc §E6b. Wired per OD-14 2026-07-17; `ARBITER_FINDING_LOSS_HARD=1` promotes to hard.                                                                                                                                                                                                          |
 | M5  | SSOT-first                                              | core-set + links + edit guard + constraint-scan                                               | **EXISTS** (INV-28 cross-document contradiction check unenforced, #2563) | `scripts/gen-ssot-core.mjs`/`check-ssot-core.mjs` (INV-108); `scripts/check-doc-links.mjs` (INV-55); `.claude/hooks/pre-edit-ssot-guard.mjs`; `scripts/check-constraint-scan.mjs` (INV-115)                                                                                                                                                                                                                                                                             |
 | M6  | Read-set / context economy                              | wave plan manifests; targeted memory hook; touched⊆manifest gate                              | **EXISTS** (#1943)                                                       | wave-drain Phase 1 manifests + Read-set row (`.claude/skills/wave-drain/SKILL.md`); `scripts/check-touched-vs-manifest.mjs` (harvest GO, skill-wired); `__tests__/scripts/check-touched-vs-manifest.test.ts`; allowlisted `scripts/optional-emissions.json`                                                                                                                                                                                                             |
-| M7  | Research sub-agents, cheap-first ladder                 | scanner/context-checker/bridge/red-team registry                                              | **EXISTS**                                                               | `.claude/agents/*.md`; `.claude/AGENT_REGISTRY.md` §Escalation; `src/templates/claude/agents/*.ejs`; rule-50 read-only clause                                                                                                                                                                                                                                                                                                                                           |
+| M7  | Research sub-agents, cheap-first ladder                 | scanner + pertinent specialist registry                                                       | **EXISTS**                                                               | `.claude/agents/*.md`; `.claude/AGENT_REGISTRY.md` §Escalation; `src/templates/claude/agents/*.ejs`; rule-50 read-only clause                                                                                                                                                                                                                                                                                                                                           |
 | M8  | Structured agent returns                                | per-artifact schemas + generic envelope + gate validation                                     | **EXISTS** (#1943)                                                       | `schemas/agent-return.schema.json`; `scripts/check-agent-return.mjs` (+ `record-agent-return.mjs` recorder); `scripts/lib/agent-return-validate.mjs` (M12 citation resolve); wired `scripts/check-all.mjs`; `__tests__/scripts/check-agent-return.test.ts`                                                                                                                                                                                                              |
 | M8  | Review-completion reconciliation                        | task-scoped dispatched-vs-returned reconciliation; one retry then hard stop                   | **EXISTS** (#2177)                                                       | Additive `.arbiter/agents-dispatched.json::agents[]`; `scripts/check-review-completion.mjs`; `/ship` never re-dispatches an agent that exhausted its turn budget after writing its envelope. Implements #2176's 77% ITT vs 88% per-protocol finding (about +11pp).                                                                                                                                                                                                      |
 | M9  | Worktree isolation (absolute)                           | Iron Law + rule-50/ADR-103 carve-out + wt engine + gate mutex + reaper                        | **EXISTS**                                                               | `AGENTS.md` §Iron Laws; `.claude/rules/50-batch-execution.md`; `src/worktree/{paths,links,validate,harvest}.ts`; `src/commands/{worktree,worktree-prune,gate-exec}.ts`; `/wt-*` commands                                                                                                                                                                                                                                                                                |
@@ -665,8 +641,8 @@ Status legend: **EXISTS** (wired today) · **PARTIAL** (exists, gap named) ·
 | M11 | Prove-or-not-done                                       | Stop gate + TDD evidence + gate-before-PR + CI re-verify + fail-closed                        | **EXISTS** (core)                                                        | `.claude/hooks/stop-evidence-guard.mjs` (INV-114); `src/commands/task.ts::checkTddEvidenceGate` (~L450); `.claude/hooks/enforce-gate-before-pr.mjs`; `scripts/check-tdd-evidence.mjs` (INV-131); `scripts/check-anti-fake-green.mjs`                                                                                                                                                                                                                                    |
 | M11 | Flip-coverage 100% of emitted gates                     | extend flip harness                                                                           | **PARTIAL** (absence family closed, #2301)                               | `scripts/check-guard-flip.mjs`; `scripts/lib/gate-roster.mjs` (family derived from `check-all.mjs`); `scripts/data/inversion-proof-registry.json` (banked residue, 22 rows, #2675); CANON-25; playbook §T3                                                                                                                                                                                                                                                              |
 | M11 | Kernel as standalone plugin                             | package J1                                                                                    | **PARTIAL** (package landed, builder unwired)                            | playbook §T1; `packages/kernel/` (README + emitted `hooks/`); `scripts/build-kernel-plugin.mjs`. Gap: the builder is referenced by no gate, test or workflow, so `packages/kernel/hooks/` can drift from `.claude/hooks/` undetected.                                                                                                                                                                                                                                   |
-| M12 | Verify-first / citation-grounded claims                 | red-team file:line protocol; pre-delete re-grep contract; envelope-enforced citation          | **EXISTS** (#1943)                                                       | `.claude/agents/red-team.md`; wave-drain 3-hop plan gate; playbook §0.2/§7.5; mandatory citation field enforced by `scripts/lib/agent-return-validate.mjs::enforceCitations` (structural finding without resolvable file:line ⇒ rejected)                                                                                                                                                                                                                               |
-| M13 | Adversarial refutation, majority                        | red-team + adversarial verifier + tiered verticals + refutation skill + majority gate         | **EXISTS** (#1943)                                                       | `src/commands/task-ship.ts` REDTEAM_AGENTS/REVIEW_AGENTS (~L77); `.claude/skills/refutation/SKILL.md`; `.claude/agent-dispatch-matrix.json::refutation_skeptics` (parity-gated by `scripts/check-agent-dispatch.mjs`); `scripts/check-refutation-verdicts.mjs`; `__tests__/scripts/check-refutation-verdicts.test.ts`                                                                                                                                                   |
+| M12 | Verify-first / citation-grounded claims                 | final-review file:line protocol; pre-delete re-grep; envelope-enforced citation               | **EXISTS** (#1943)                                                       | `scripts/lib/agent-return-validate.mjs::enforceCitations`; `scripts/check-review-completion.mjs`; playbook §0.2/§7.5                                                                                                                                                                                                                                                                                                                                                    |
+| M13 | Independent final review                                | persisted treatment + pertinent verticals + one panel recorder/checker                        | **EXISTS** (#2724)                                                       | `src/commands/ship-tier.ts`; `scripts/record-agent-return.mjs`; `scripts/check-review-completion.mjs`; `.claude/agent-dispatch-matrix.json` parity-gated by `scripts/check-agent-dispatch.mjs`                                                                                                                                                                                                                                                                          |
 | M14 | Loop-until-dry                                          | wave loop to empty backlog; audit re-verify pass; dry-pass termination gate                   | **EXISTS** (#1943)                                                       | wave-drain loop; `.claude/skills/codebase-audit/`; `scripts/check-audit-dry-pass.mjs` (two-dry-pass + distinct-seed rule); `__tests__/scripts/check-audit-dry-pass.test.ts`                                                                                                                                                                                                                                                                                             |
 | M15 | Fail-closed everywhere                                  | fail-closed audit gate                                                                        | **EXISTS**                                                               | `scripts/check-fail-closed-audit.mjs` (INV-96)                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | M16 | Terminal handoff — subagents never own waits            | bg-run.sh + pid-watch.sh helpers; coordinator-only watches; marker gate on dispatch templates | **EXISTS** (#2103)                                                       | `scripts/bg-run.sh`, `scripts/pid-watch.sh`, `scripts/check-m16-handoff.mjs` (+ .ejs twins); this section; registration in `check-all.mjs` at integration                                                                                                                                                                                                                                                                                                               |

@@ -59,7 +59,7 @@ describe('legacy drain delegates train policy', () => {
   it.each(['.claude/commands/drain.md', 'src/templates/claude/commands/drain.md.ejs'])(
     '%s points to ship train policy',
     (path) => {
-      expect(flat(path)).toContain('§Train')
+      expect(flat(path)).toContain('Ship affinity contract')
     },
   )
 })

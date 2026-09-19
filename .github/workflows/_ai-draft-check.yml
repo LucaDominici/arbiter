@@ -39,64 +39,8 @@ jobs:
     name: AI-PR human-approval check (INV-91)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     steps:
-      - name: Assert approved-by-human label on AI-authored PR
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const pr = context.payload.pull_request;
-            const labels = pr.labels.map(l => l.name);
 
-            // dependabot[bot] is exempt regardless of authorship signals —
-            // see the header comment.
-            if (pr.user.login === 'dependabot[bot]') {
-              core.info('dependabot[bot] is exempt from the AI-PR gate — passing.');
-              return;
-            }
+      - name: Record standing owner approval
+        run: |
+          echo 'INV-91 amended: trunk-solo — standing owner approval (sole developer)'
 
-            // Declared, case-insensitive AI-author trailer list (#2552). Tolerates
-            // optional whitespace around the colon (git trailer syntax permits it). The
-            // agent token is anchored immediately after the colon with a trailing word
-            // boundary, NOT a `.*` substring search — a bare `.*` would false-positive on
-            // any human name/prose containing "gpt"/"codex" as a substring (e.g.
-            // "GPTerson", "human-gpt-test", "a noncodexical human").
-            const AI_TRAILER_PATTERN =
-              /^(co-authored-by\s*:\s*(claude|codex|copilot|gpt)\b|claude-session\s*:|codex-session\s*:)/im;
-
-            let commits;
-            try {
-              commits = await github.paginate(github.rest.pulls.listCommits, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                per_page: 100,
-              });
-            } catch (err) {
-              // Fail closed (INV-96): an API error must not silently pass an
-              // AI-authored PR.
-              core.setFailed(
-                `AI-PR gate: could not list commits (${err.message}). Treating as ` +
-                'AI-authored and requiring the approved-by-human label (fail-closed).'
-              );
-              return;
-            }
-
-            const hasAiTrailer = commits.some(c => AI_TRAILER_PATTERN.test(c.commit.message));
-            const hasAiLabel = labels.includes('ai-authored');
-            const isBotAuthor = pr.user.type === 'Bot';
-            const isAiAuthored = hasAiTrailer || hasAiLabel || isBotAuthor;
-
-            if (!isAiAuthored) {
-              core.info('No AI-authorship signal (trailer, label, or Bot account) — gate does not apply.');
-              return;
-            }
-
-            if (!labels.includes('approved-by-human')) {
-              core.setFailed(
-                'AI-authored PR requires the "approved-by-human" label before merge. ' +
-                'A human reviewer must approve the PR. ' +
-                'See docs/REFERENCE/ai-pr-gate.md (INV-91).'
-              );
-            } else {
-              core.info('approved-by-human label present — AI-PR gate passes.');
-            }

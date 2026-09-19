@@ -40,6 +40,6 @@ describe('red admission acceptance anchor (#2587)', () => {
     installAcceptanceChecker(root)
 
     expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(/acceptance/i)
-    expect(readUnifiedState(root)?.phase).toBe('red-team-review')
+    expect(readUnifiedState(root)?.phase).toBe('plan')
   })
 })
