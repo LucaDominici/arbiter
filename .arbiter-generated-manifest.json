@@ -3,6 +3,7 @@
   "files": {
     ".agents/CODEX.md": "3714126acf8099469cd5e76766796320fabc56c9f7954f8945f3c4a2719df230",
     ".agents/rules/90-exec-protocol.md": "6cb7269981d16e05f5ad9ea4e42252705ca429de15b1f45b23465e3766d933ad",
+    ".claude/skills/wave-drain/SKILL.md": "45986b44e66ad54904214eafdf427fde0250cfd6e8764b2158bcd5ddb6871e9a",
     ".codex/config.toml": "8c8a312c294c84139fb0ed9f002785f9776349bbc73a77deec2e4b3cddf1dd1f"
   }
 }

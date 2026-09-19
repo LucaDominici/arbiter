@@ -26,6 +26,17 @@ Ship affinity contract: same outcome, compatible ordering, related ownership/dep
 proof, acceptance boundary, and rollback boundary, with no hard conflicts. Otherwise seal the
 current train and start another.
 
+## Defaults
+
+| Flag               | Default | Meaning                                                                        |
+| ------------------ | ------- | ------------------------------------------------------------------------------ |
+| `--wave-size N`    | 10      | Max issues per wave                                                            |
+| `--max-parallel N` | 3       | Max worktree agents; effective cap `min(--max-parallel, nproc - 2, wave size)` |
+
+Parallel lanes remain under ADR-103; expensive gates use `arbiter check run`, whose `flock(1)` lock releases
+when the gate-exec supervisor is SIGKILL/OOM-killed, while killing the Arbiter Node PID alone does
+not. Without `flock(1)`, use one serial lane.
+
 Invoke Ship with the selected issues and recorded affinity:
 
 ```bash
@@ -41,6 +52,9 @@ Parallel implementation is optional and legal only in disjoint isolated worktree
 worktree, distinct branches, no shared files, dependency edits, main-tree edits, or tag writes.
 Each lane uses TDD and targeted checks. Integration is serial; the shared Ship contract owns final
 review, qualification, recovery, PR, CI, merge, and verified landing.
+
+Close each lane with the native host worktree cleanup command and confirm it with
+`arbiter worktree check`. The result-first contract deliberately has no 3-hop plan review.
 
 Do not add parallel qualification pipelines, forced context clearing, or handoff steps. When one
 issue blocks, exclude it with the observed reason and continue independent work. Never turn an

@@ -535,33 +535,66 @@ describe('#2207 — bare `ship <id>` respects the persisted tier', () => {
     ).tier
   }
 
+  function readTreatmentTier(dir: string): string | undefined {
+    return (
+      JSON.parse(readFileSync(join(dir, '.claude', '.task', 'status.json'), 'utf-8')) as {
+        treatment?: { tier: string }
+      }
+    ).treatment?.tier
+  }
+
   function ship(dir: string, args: readonly string[]): string {
     const result = spawnSync(process.execPath, [CLI, 'ship', '#123', '--dir', dir, ...args], {
       encoding: 'utf-8',
       timeout: 60_000,
     })
+    expect(result.error, result.error?.message).toBeUndefined()
+    expect(result.status, result.stdout + result.stderr).toBe(0)
     return result.stdout ?? ''
   }
 
-  it('widens a persisted narrow tier when no qualifying evidence exists', () => {
+  it('reports a wider tier without writing, then persists it on the next transition', () => {
     const dir = shipDir()
     try {
       persistTier(dir, 'S')
+      const path = join(dir, '.claude', '.task', 'status.json')
+      const before = readFileSync(path, 'utf-8')
       const stdout = ship(dir, [])
       expect(stdout).toMatch(/Tier: Standard\b/)
+      expect(readFileSync(path, 'utf-8')).toBe(before)
+
+      expect(ship(dir, ['--advance'])).toMatch(/Tier: Standard\b/)
       expect(readTier(dir)).toBe('Standard')
+      expect(readTreatmentTier(dir)).toBe('Standard')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('persists the fail-closed Standard treatment for an unset tier', () => {
+  it('reports the fail-closed Standard treatment for an unset tier without writing', () => {
     const dir = shipDir()
     try {
       persistTier(dir, '')
+      const path = join(dir, '.claude', '.task', 'status.json')
+      const before = readFileSync(path, 'utf-8')
       const stdout = ship(dir, [])
       expect(stdout).toMatch(/Tier: Standard\b/)
-      expect(readTier(dir)).toBe('Standard')
+      expect(readFileSync(path, 'utf-8')).toBe(before)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not let a persisted XS treatment override a derived Standard treatment', () => {
+    const dir = shipDir()
+    try {
+      persistTier(dir, 'XS')
+      writeUnifiedState(dir, { treatment: resolveShipTreatment('XS', completeSignals()) })
+      const path = join(dir, '.claude', '.task', 'status.json')
+      const before = readFileSync(path, 'utf-8')
+
+      expect(ship(dir, [])).toMatch(/Tier: Standard\b/)
+      expect(readFileSync(path, 'utf-8')).toBe(before)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

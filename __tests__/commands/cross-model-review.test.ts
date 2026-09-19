@@ -539,7 +539,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             taskId: '#2357',
             phase: 'refactor',
             tier: 'Standard',
-            plan: '',
+            plan: 'plan.md',
             branch: '',
             cursor: { tddPhase: null, lastAction: '', nextAction: '' },
             handoffStrategy: null,
@@ -556,6 +556,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         join(dir, '.gitignore'),
         '.claude/.task/\n.evidence/\n.local/\ncodex-count\ncodex-stdin.txt\n',
       )
+      writeFileSync(join(dir, 'plan.md'), '# Review fixture\n')
 
       mkdirSync(join(dir, 'schemas'), { recursive: true })
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
@@ -574,6 +575,17 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         copyFileSync(join(REPO_ROOT, relativePath), join(dir, relativePath))
       }
 
+      // #2724: this fixture sets HOME to `dir`, so home-side artifacts the CLI writes
+      // (`.evidence/`, `.local/`) land inside the working tree; the stub `codex` on PATH writes
+      // `codex-count`/`codex-stdin.txt` into the cwd; and the runtime dispatch evidence below is
+      // written after the fixture commit. None of that is candidate content, but any untracked
+      // file makes the freeze correctly refuse ("review freeze requires a clean HEAD") and then
+      // the post-dispatch guard correctly report "unreviewed changes" — both before the guarantee
+      // under test (the external seat is reached from the real CLI boundary) can be observed.
+      writeFileSync(
+        join(dir, '.gitignore'),
+        '.claude/.task/\n.arbiter/\n.evidence/\n.local/\ncodex-count\ncodex-stdin.txt\n',
+      )
       execFileSync('git', ['init', '-q', '-b', 'task/#2357-cross-model-cli'], { cwd: dir })
       execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], { cwd: dir })
       execFileSync('git', ['config', 'user.name', 'test-user'], { cwd: dir })
@@ -598,7 +610,16 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
 
       const result = spawnSync(
         process.execPath,
-        [join(REPO_ROOT, 'dist', 'cli.js'), 'ship', '#2357', '--tier', 'Standard', '--dir', dir],
+        [
+          join(REPO_ROOT, 'dist', 'cli.js'),
+          'ship',
+          '#2357',
+          '--tier',
+          'Standard',
+          '--review-round',
+          '--dir',
+          dir,
+        ],
         {
           cwd: dir,
           encoding: 'utf8',
@@ -616,7 +637,8 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         },
       )
 
-      expect(result.status).toBe(0)
+      expect(result.error, result.error?.message).toBeUndefined()
+      expect(result.status, (result.stdout ?? '') + (result.stderr ?? '')).toBe(0)
       const artifact = JSON.parse(
         readFileSync(
           join(dir, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),

@@ -55,7 +55,8 @@ Configured in `.claude/settings.json`. Active hooks:
 See `../AGENTS.md` §Invariants for the complete list.
 
 **Never:**
-- Skip the gate before committing
+- Skip staged secret/economy checks or RED integrity on a checkpoint commit
+- Skip full qualification of the frozen candidate before push or PR
 
 - Commit directly to `main` (use PR branches — see collaboration mode above)
 

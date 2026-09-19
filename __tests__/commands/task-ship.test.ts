@@ -16,7 +16,7 @@ import {
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
-import { widenTier } from '../../src/commands/ship-tier.js'
+import { resolveShipTreatment, widenTier } from '../../src/commands/ship-tier.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
 
 // Gates that would otherwise require a real repo / model switch
@@ -811,6 +811,29 @@ describe('result-first read-only status (#2724)', () => {
     expect(readFileSync(path, 'utf8')).toBe(before)
     expect(buildShipStepLines(first).join('\n')).toContain('record final reviewer')
     expect(buildShipStepLines(first).join('\n')).toContain('a'.repeat(40))
+  })
+
+  it('derives a wider treatment without writing, then persists it on the next transition', () => {
+    const persisted = resolveShipTreatment('XS', {
+      blastRadius: 0,
+      callerCount: 0,
+      labels: [],
+      milestoneBundled: false,
+      changedFiles: ['docs/guide.md'],
+      complete: true,
+    })
+    writeUnifiedState(dir, { taskId: '#2724', tier: 'XS', treatment: persisted })
+    const path = join(dir, '.claude/.task/status.json')
+    const before = readFileSync(path, 'utf8')
+
+    const status = runTaskShip({ dir, taskId: '#2724' })
+
+    expect(buildShipStepLines(status).join('\n')).toContain('Tier: Standard')
+    expect(status.treatment?.tier).toBe('Standard')
+    expect(readFileSync(path, 'utf8')).toBe(before)
+
+    runTaskShip({ dir, advance: true })
+    expect(readUnifiedState(dir)?.treatment?.tier).toBe('Standard')
   })
 
   it('refreshes risk on an operational invocation', () => {

@@ -979,15 +979,16 @@ function readOnlyShipResult(
   state: UnifiedTaskState,
   opts: TaskShipOptions,
 ): ShipResult {
-  const treatment =
-    state.treatment ??
-    resolveShipTreatment(state.tier, {
+  const treatment = resolveShipTreatment(
+    requestedShipTier(opts, state),
+    {
       blastRadius: null,
       labels: [],
       milestoneBundled: false,
       complete: false,
-    })
-  if (state.treatment === undefined) persistShipTreatment(root, state, treatment)
+    },
+    state.treatment,
+  )
   const profile = shipProfileFor(root, opts)
   return {
     phase: state.phase,

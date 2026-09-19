@@ -34,6 +34,8 @@ one exact-subject full gate, one PR, and one verified landing.
    `arbiter ship --advance`. The persisted treatment remains the only reviewer policy.
 5. Optionally implement disjoint groups in isolated worktrees. One author owns each worktree;
    dependency edits, overlapping paths, main-tree edits, and tags remain serial.
+   Expensive same-repository gates use `arbiter check run`; its lock releases when the gate-exec
+   supervisor is SIGKILL/OOM-killed, while killing the Arbiter Node PID alone leaves it holding.
 6. Integrate serially. Ship freezes the candidate, runs the pertinent independent final review,
    records per-AC fit, qualifies the exact subject once, then owns PR, CI, merge, post-merge proof,
    issue closure, and cleanup.
