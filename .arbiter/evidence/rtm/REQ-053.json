@@ -1,12 +1,12 @@
 {
   "feature_id": "REQ-053",
   "verdict": "PROVEN",
-  "justification": "REQ-053 claims /ship is one delivery narrative. The runtime persists one ShipTreatment across phases, while the emitted command directs agents through the same state, bounded review, exact-subject evidence, acceptance-fit, and landing contract. The rendered-template tests prove the contract across governance levels and language configurations without embedding divergent stack-specific orchestration. Executed for this verdict: 15 passed.",
+  "justification": "REQ-053 claims /ship is one delivery narrative. The runtime persists one ShipTreatment across phases, while the emitted command directs agents through the same state, bounded review, exact-subject evidence, acceptance-fit, and landing contract. The rendered-template tests prove the contract across governance levels and language configurations without embedding divergent stack-specific orchestration. Re-executed for this verdict after the separate ac-fit submission was retired: 18 passed.",
   "command": "npx vitest run __tests__/templates/commands-claude.test.ts",
-  "transcript_digest": "c1ce1581745e97721e19e9409fb78d2750ffdb486f9a365c75d861493c9c1db0",
+  "transcript_digest": "0412f669b00785ec91529fc09db5ff241f863d5cf54b8966986ce4cbc656667b",
   "citations": [
     "src/commands/task-ship.ts#L1-L30@0a306660016e",
-    "__tests__/templates/commands-claude.test.ts#L1-L25@6e927613ddbd"
+    "__tests__/templates/commands-claude.test.ts#L1-L25@65e4afca3240"
   ],
-  "recorded_at": "2026-09-15T20:56:19Z"
+  "recorded_at": "2026-09-19T16:35:26Z"
 }
