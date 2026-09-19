@@ -3,7 +3,7 @@
 // `arbiter ship <id>` (#1206) — the orchestrator.
 //
 // Drives an issue toward a reviewed, merged PR by auto-sequencing arbiter's EXISTING engine
-// (worktree → plan → review-plan gate → TDD impl → review-code → verify → gate → merge → cleanup).
+// (worktree → plan → TDD impl → one final review → verify → gate → merge → cleanup).
 // This is the next-action COMPUTER + auto-advance-on-gate-green: it cannot itself write code or
 // dispatch review subagents (those need the agent), so `arbiter ship` computes the next concrete
 // step and advances the phase when its gate is green; the `/ship` slash command is the loop that
