@@ -26,9 +26,8 @@ import {
   computeAggregate,
 } from '../../scripts/ship-kpi.mjs'
 
-// #2725 is RED-only: these names are intentionally absent until the
-// implementation stage. Namespace lookup lets the pre-existing tests in this
-// file continue to run and fails the new cases on the missing export itself.
+// #2725 classifier exports are read from the namespace so the test keeps the
+// existing import list focused on the pre-existing KPI predicates.
 const splitLeadTime = Reflect.get(shipKpi, 'splitLeadTime') as (...args: unknown[]) => unknown
 const sessionUsage = Reflect.get(shipKpi, 'sessionUsage') as (...args: unknown[]) => unknown
 const stratumOf = Reflect.get(shipKpi, 'stratumOf') as (...args: unknown[]) => unknown
@@ -257,7 +256,7 @@ describe('classifyPrCommits / buildPrRow / computeAggregate (#2398)', () => {
   })
 })
 
-describe('delivery cost classifiers (#2725, RED)', () => {
+describe('delivery cost classifiers (#2725)', () => {
   const eventAt = (seconds: number, kind: string) => ({
     t: new Date(Date.parse('2026-09-19T00:00:00Z') + seconds * 1000).toISOString(),
     kind,
@@ -429,9 +428,8 @@ describe('delivery cost classifiers (#2725, RED)', () => {
     )
   })
 
-  it('does not call a single within-threshold checkpoint PLATEAU', () => {
+  it('returns HOLD when only the current checkpoint is within thresholds', () => {
     const current = checkpoint({
-      buckets: { review: { time: 121, tokens: 121 } },
       indices: {
         time: { median: 1.3, p90: 1.3 },
         tokens: { median: 1.3, p90: 1.3 },
@@ -447,11 +445,28 @@ describe('delivery cost classifiers (#2725, RED)', () => {
       checkpointVerdict({
         current,
         previous,
-        baseline: { buckets: { review: { time: 100, tokens: 100 } } },
+        baseline: {},
         thresholds,
         history: [],
       }),
-    ).toBe('TUNE review')
+    ).toBe('HOLD')
+  })
+
+  it('returns HOLD for an out-of-plateau checkpoint below rethink without a bucket', () => {
+    expect(
+      checkpointVerdict({
+        current: checkpoint({
+          indices: {
+            time: { median: 1.6, p90: 1.6 },
+            tokens: { median: 1.1, p90: 1.2 },
+          },
+        }),
+        previous: checkpoint(),
+        baseline: {},
+        thresholds,
+        history: [],
+      }),
+    ).toBe('HOLD')
   })
 
   it('requires both indices to cross +20% coherently before tuning a bucket', () => {
@@ -487,32 +502,29 @@ describe('delivery cost classifiers (#2725, RED)', () => {
       checkpointVerdict({
         current: checkpoint({
           n: 9,
-          maxOverhead: 10,
-          buckets: { review: { time: 200, tokens: 200 } },
         }),
         previous: checkpoint(),
-        baseline: { buckets: { review: { time: 100, tokens: 100 } } },
+        baseline: {},
         thresholds,
         history: ['TUNE review', 'TUNE review'],
       }),
     ).toBe('NO DATA')
   })
 
-  it('returns RETHINK only above 2 median or 4 p90 after two ineffective TUNEs', () => {
+  it('returns RETHINK above 2 median or 4 p90 after two ineffective TUNEs without a bucket', () => {
     const base = {
       current: checkpoint({
         indices: {
           time: { median: 2, p90: 4 },
           tokens: { median: 2, p90: 4 },
         },
-        buckets: { review: { time: 121, tokens: 121 } },
       }),
       previous: checkpoint(),
-      baseline: { buckets: { review: { time: 100, tokens: 100 } } },
+      baseline: {},
       thresholds,
       history: ['TUNE review', 'TUNE review'],
     }
-    expect(checkpointVerdict(base)).toBe('TUNE review')
+    expect(checkpointVerdict(base)).toBe('HOLD')
     expect(
       checkpointVerdict({
         ...base,
@@ -527,7 +539,7 @@ describe('delivery cost classifiers (#2725, RED)', () => {
     ).toBe('RETHINK')
   })
 
-  it('uses ANDON for an escape or a delivery strictly over 3x, ahead of ROLLBACK', () => {
+  it('uses ROLLBACK before ANDON for rollback escapes and strict overhead escapes', () => {
     const common = {
       previous: checkpoint(),
       baseline: {},
@@ -545,13 +557,63 @@ describe('delivery cost classifiers (#2725, RED)', () => {
         ...common,
         current: checkpoint({ maxOverhead: 3.01, rollback: 'review' }),
       }),
+    ).toBe('ROLLBACK')
+    expect(
+      checkpointVerdict({
+        ...common,
+        current: checkpoint({ maxOverhead: 3.01 }),
+      }),
     ).toBe('ANDON')
+    expect(
+      checkpointVerdict({
+        ...common,
+        current: checkpoint({ maxOverhead: 3 }),
+      }),
+    ).toBe('PLATEAU')
     expect(
       checkpointVerdict({
         ...common,
         current: checkpoint({ escapes: ['unfixed-regression'] }),
       }),
     ).toBe('ANDON')
+  })
+
+  it('keeps escape and rollback signals out of the NO DATA branch', () => {
+    const common = {
+      previous: checkpoint(),
+      baseline: {},
+      thresholds,
+      history: [],
+    }
+    expect(
+      checkpointVerdict({
+        ...common,
+        current: checkpoint({ n: 3, escapes: ['x'] }),
+      }),
+    ).toBe('ANDON')
+    expect(
+      checkpointVerdict({
+        ...common,
+        current: checkpoint({ n: 3, rollback: 'review' }),
+      }),
+    ).toBe('ROLLBACK')
+  })
+
+  it('returns NO DATA when either index median is null at the checkpoint minimum', () => {
+    expect(
+      checkpointVerdict({
+        current: checkpoint({
+          indices: {
+            time: { median: null, p90: 1.2 },
+            tokens: { median: 1.1, p90: 1.2 },
+          },
+        }),
+        previous: checkpoint(),
+        baseline: {},
+        thresholds,
+        history: [],
+      }),
+    ).toBe('NO DATA')
   })
 
   it('formats one deterministic markdown checkpoint block with all AC-5 fields', () => {
@@ -564,7 +626,7 @@ describe('delivery cost classifiers (#2725, RED)', () => {
         tokens: { median: 1.1, p90: 1.6 },
       },
       topBucket: 'review',
-      verdict: 'PLATEAU',
+      verdict: 'HOLD',
     }
     const entry = formatLogEntry(result)
     expect(entry).toBe(formatLogEntry(result))
@@ -575,7 +637,7 @@ describe('delivery cost classifiers (#2725, RED)', () => {
     expect(entry).toContain('time')
     expect(entry).toContain('tokens')
     expect(entry).toContain('review')
-    expect(entry).toContain('PLATEAU')
+    expect(entry).toContain('HOLD')
     expect(entry.trim().split('\n').length).toBeGreaterThanOrEqual(5)
   })
 })
@@ -595,5 +657,6 @@ describe('ship-kpi.mjs --self-test (#2398, CANON-07 real execution)', () => {
     const r = spawnSync('node', ['scripts/ship-kpi.mjs'], { encoding: 'utf-8' })
     expect(r.status).toBe(2)
     expect(r.stderr.toLowerCase()).toContain('usage')
+    expect(r.stderr).toContain('HOLD')
   })
 })

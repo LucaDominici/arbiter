@@ -1,0 +1,10 @@
+{
+  "provisional": true,
+  "plateau": 1.3,
+  "tune": 1.2,
+  "rethinkMedian": 2,
+  "rethinkP90": 4,
+  "andon": 3,
+  "n": 10,
+  "escapeWindowDays": 14
+}
