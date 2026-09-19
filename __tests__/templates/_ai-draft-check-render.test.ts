@@ -40,4 +40,31 @@ describe('_ai-draft-check.yml.ejs rendering (CANON-04, INV-91, #1076)', () => {
     expect(rendered).toContain("pr.user.login === 'dependabot[bot]'")
     expect(rendered).toContain('is exempt from the AI-PR gate')
   })
+
+  it('trunk-solo keeps the required check green through standing owner approval', () => {
+    const rendered = renderTemplate('github/workflows/_ai-draft-check.yml.ejs', {
+      ...data,
+      collaborationMode: 'trunk-solo',
+    })
+    expect(rendered).toContain('name: AI-PR human-approval check (INV-91)')
+    expect(rendered).toContain(
+      'INV-91 amended: trunk-solo — standing owner approval (sole developer)',
+    )
+    expect(rendered).not.toContain('Assert approved-by-human label on AI-authored PR')
+    expect(rendered).not.toContain('actions/github-script@')
+  })
+
+  it.each(['peer-review', 'gated-review'] as const)(
+    '%s retains the pre-amendment fail-closed workflow byte-for-byte',
+    (collaborationMode) => {
+      const baseline = renderTemplate('github/workflows/_ai-draft-check.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/_ai-draft-check.yml.ejs', {
+        ...data,
+        collaborationMode,
+      })
+      expect(rendered).toBe(baseline)
+      expect(rendered).toContain('Assert approved-by-human label on AI-authored PR')
+      expect(rendered).toContain('core.setFailed')
+    },
+  )
 })

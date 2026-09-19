@@ -91,6 +91,24 @@ describe('03-human-approval.yml.ejs — stack independence', () => {
   })
 })
 
+describe('03-human-approval.yml.ejs — trunk-solo standing approval', () => {
+  it('uses a no-op instead of label operations that a sole developer cannot trigger', () => {
+    const rendered = renderApproval({ collaborationMode: 'trunk-solo' })
+    expect(rendered).toContain(
+      'INV-91 amended: trunk-solo — standing owner approval (sole developer)',
+    )
+    expect(rendered).not.toContain('gh label create approved-by-human')
+    expect(rendered).not.toMatch(/^\s+gh pr edit/m)
+  })
+
+  it.each(['peer-review', 'gated-review'] as const)(
+    '%s retains the pre-amendment workflow byte-for-byte',
+    (collaborationMode) => {
+      expect(renderApproval({ collaborationMode })).toBe(renderApproval({}))
+    },
+  )
+})
+
 // ─── Triple-check guard strings ───────────────────────────────────────────────
 
 describe('03-human-approval.yml.ejs — triple-check anti-bot guards', () => {
