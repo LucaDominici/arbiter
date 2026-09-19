@@ -38,6 +38,17 @@ const checkpointVerdict = Reflect.get(shipKpi, 'checkpointVerdict') as (
   ...args: unknown[]
 ) => unknown
 const formatLogEntry = Reflect.get(shipKpi, 'formatLogEntry') as (...args: unknown[]) => unknown
+const ciTiming = Reflect.get(shipKpi, 'ciTiming') as (...args: unknown[]) => unknown
+const attributeSessions = Reflect.get(shipKpi, 'attributeSessions') as (
+  ...args: unknown[]
+) => unknown
+const claudeSessionMeta = Reflect.get(shipKpi, 'claudeSessionMeta') as (
+  ...args: unknown[]
+) => unknown
+const codexSessionMeta = Reflect.get(shipKpi, 'codexSessionMeta') as (...args: unknown[]) => unknown
+const mergeDeliverySources = Reflect.get(shipKpi, 'mergeDeliverySources') as (
+  ...args: unknown[]
+) => unknown
 
 // PATH scoped to node's OWN directory only — `gh`/`git` are unreachable, so if
 // --self-test ever shells out it throws instead of silently succeeding.
@@ -362,20 +373,21 @@ describe('delivery cost classifiers (#2725)', () => {
   })
 
   it('computes separate time and token overhead indices from the stratum baseline', () => {
-    expect(
-      overheadIndices(
-        {
-          stratum: 'Standard',
-          leadTime: 120,
-          tokens: 600,
-          preflight: 10,
-          fullGate: 20,
-          review: 30,
-          ci: 40,
-        },
-        { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } },
-      ),
-    ).toEqual({ time: 2, tokens: 6 })
+    const indices = overheadIndices(
+      {
+        stratum: 'Standard',
+        sourcesKnown: ['ci', 'claude'],
+        leadTime: 120,
+        tokens: 600,
+        preflight: 10,
+        fullGate: 20,
+        review: 30,
+        ci: 40,
+      },
+      { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } },
+    )
+    expect(indices).toMatchObject({ time: 2, tokens: 6 })
+    expect(indices).toHaveProperty('floorComponents')
   })
 
   it('returns null only for the overhead index whose source is missing', () => {
@@ -639,6 +651,372 @@ describe('delivery cost classifiers (#2725)', () => {
     expect(entry).toContain('review')
     expect(entry).toContain('HOLD')
     expect(entry.trim().split('\n').length).toBeGreaterThanOrEqual(5)
+  })
+})
+
+describe('real delivery data sources (#2725 increment 2)', () => {
+  const createdAt = '2026-09-19T00:00:00Z'
+  const mergedAt = '2026-09-19T00:10:00Z'
+  const firstCommit = '2026-09-19T00:01:00Z'
+  const worktreeDir = '/home/luca/work/repos/arbiter.worktrees/2725-ship-kpi-loop'
+
+  it('derives CI wait, run, and red counts from completed pre-merge checks only', () => {
+    expect(
+      ciTiming({
+        createdAt,
+        mergedAt,
+        statusCheckRollup: [
+          {
+            name: 'lint',
+            status: 'COMPLETED',
+            conclusion: 'SUCCESS',
+            startedAt: '2026-09-19T00:02:00Z',
+            completedAt: '2026-09-19T00:04:00Z',
+          },
+          {
+            name: 'tests',
+            status: 'COMPLETED',
+            conclusion: 'FAILURE',
+            startedAt: '2026-09-19T00:05:00Z',
+            completedAt: '2026-09-19T00:07:00Z',
+          },
+          {
+            name: 'cancelled notify',
+            status: 'COMPLETED',
+            conclusion: 'CANCELLED',
+            startedAt: '2026-09-19T00:10:30Z',
+            completedAt: '2026-09-19T00:11:00Z',
+          },
+          {
+            name: 'still running',
+            status: 'IN_PROGRESS',
+            conclusion: null,
+            startedAt: '2026-09-19T00:01:30Z',
+            completedAt: null,
+          },
+        ],
+      }),
+    ).toEqual({ ciWaitSec: 120, ciRunSec: 300, redCiRuns: 1 })
+  })
+
+  it('keeps CI measures null when the rollup is absent, empty, or has no completed checks', () => {
+    const expected = { ciWaitSec: null, ciRunSec: null, redCiRuns: null }
+    expect(ciTiming({ createdAt, mergedAt })).toEqual(expected)
+    expect(ciTiming({ createdAt, mergedAt, statusCheckRollup: [] })).toEqual(expected)
+    expect(
+      ciTiming({
+        createdAt,
+        mergedAt,
+        statusCheckRollup: [
+          {
+            status: 'IN_PROGRESS',
+            conclusion: null,
+            startedAt: '2026-09-19T00:02:00Z',
+            completedAt: null,
+          },
+        ],
+      }),
+    ).toEqual(expected)
+  })
+
+  it('attributes exact branch sessions and overlapping branchless Codex worktree sessions only', () => {
+    const sessions = [
+      {
+        file: 'claude-branch',
+        gitBranch: 'task/#2725-ship-kpi-loop',
+        cwd: '/other',
+        firstTs: firstCommit,
+        lastTs: mergedAt,
+        host: 'claude',
+      },
+      {
+        file: 'codex-worktree',
+        gitBranch: null,
+        cwd: worktreeDir,
+        firstTs: firstCommit,
+        lastTs: mergedAt,
+        host: 'codex',
+      },
+      {
+        file: 'same-name-other-tree',
+        gitBranch: null,
+        cwd: '/other/2725-ship-kpi-loop',
+        firstTs: firstCommit,
+        lastTs: mergedAt,
+        host: 'codex',
+      },
+      {
+        file: 'wrong-branch',
+        gitBranch: 'task/other',
+        cwd: worktreeDir,
+        firstTs: firstCommit,
+        lastTs: mergedAt,
+        host: 'claude',
+      },
+      {
+        file: 'outside-window',
+        gitBranch: null,
+        cwd: worktreeDir,
+        firstTs: '2026-09-18T23:00:00Z',
+        lastTs: '2026-09-18T23:30:00Z',
+        host: 'codex',
+      },
+    ]
+    expect(
+      attributeSessions(sessions, {
+        headRefName: 'task/#2725-ship-kpi-loop',
+        firstCommit,
+        mergedAt,
+        worktreeDir,
+      }),
+    ).toEqual([sessions[0], sessions[1]])
+  })
+
+  it('summarizes Claude usage without counting sidechains or tool-result arrays as human messages', () => {
+    expect(
+      claudeSessionMeta([
+        JSON.stringify({
+          type: 'user',
+          cwd: worktreeDir,
+          gitBranch: 'task/#2725-ship-kpi-loop',
+          timestamp: firstCommit,
+          isSidechain: false,
+          message: { role: 'user', content: 'start' },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          cwd: worktreeDir,
+          gitBranch: 'task/#2725-ship-kpi-loop',
+          timestamp: '2026-09-19T00:02:00Z',
+          effort: 'low',
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_result', content: 'not a human message' }],
+            usage: {
+              input_tokens: 100,
+              output_tokens: 20,
+              cache_read_input_tokens: 30,
+              cache_creation_input_tokens: 5,
+            },
+          },
+        }),
+        JSON.stringify({
+          type: 'user',
+          cwd: worktreeDir,
+          gitBranch: 'task/#2725-ship-kpi-loop',
+          timestamp: '2026-09-19T00:03:00Z',
+          isSidechain: true,
+          message: { role: 'user', content: 'delegated sidechain' },
+        }),
+        JSON.stringify({
+          type: 'user',
+          cwd: worktreeDir,
+          gitBranch: 'task/#2725-ship-kpi-loop',
+          timestamp: '2026-09-19T00:04:00Z',
+          isSidechain: false,
+          effort: 'high',
+          message: { role: 'user', content: 'follow-up' },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          cwd: worktreeDir,
+          gitBranch: 'task/#2725-ship-kpi-loop',
+          timestamp: '2026-09-19T00:05:00Z',
+          effort: 'high',
+          message: {
+            role: 'assistant',
+            content: 'done',
+            usage: { input_tokens: 40, output_tokens: 10, cache_read_input_tokens: 2 },
+          },
+        }),
+      ]),
+    ).toEqual({
+      gitBranch: 'task/#2725-ship-kpi-loop',
+      cwd: worktreeDir,
+      firstTs: firstCommit,
+      lastTs: '2026-09-19T00:05:00Z',
+      usage: { input: 140, output: 30, cache: 37 },
+      humanMessages: 2,
+      effort: 'high',
+    })
+  })
+
+  it('keeps Claude usage and human message count null when no user or assistant lines exist', () => {
+    expect(
+      claudeSessionMeta([
+        JSON.stringify({ type: 'system', cwd: worktreeDir, timestamp: firstCommit }),
+      ]),
+    ).toEqual({
+      gitBranch: null,
+      cwd: worktreeDir,
+      firstTs: firstCommit,
+      lastTs: firstCommit,
+      usage: { input: null, output: null, cache: null },
+      humanMessages: null,
+      effort: null,
+    })
+  })
+
+  it('takes the last Codex model, effort, and cumulative token usage snapshot', () => {
+    expect(
+      codexSessionMeta([
+        JSON.stringify({
+          type: 'session_meta',
+          payload: { cwd: worktreeDir, timestamp: firstCommit },
+        }),
+        JSON.stringify({
+          type: 'turn_context',
+          timestamp: '2026-09-19T00:02:00Z',
+          payload: { model: 'gpt-5', effort: 'low' },
+        }),
+        JSON.stringify({
+          type: 'event_msg',
+          timestamp: '2026-09-19T00:03:00Z',
+          payload: {
+            type: 'token_count',
+            info: {
+              total_token_usage: { input_tokens: 100, cached_input_tokens: 20, output_tokens: 10 },
+            },
+          },
+        }),
+        JSON.stringify({
+          type: 'turn_context',
+          timestamp: '2026-09-19T00:04:00Z',
+          payload: { model: 'gpt-5.4', reasoning_effort: 'high' },
+        }),
+        JSON.stringify({
+          type: 'event_msg',
+          timestamp: '2026-09-19T00:05:00Z',
+          payload: {
+            info: {
+              total_token_usage: { input_tokens: 160, cached_input_tokens: 40, output_tokens: 18 },
+            },
+          },
+        }),
+      ]),
+    ).toEqual({
+      cwd: worktreeDir,
+      firstTs: firstCommit,
+      lastTs: '2026-09-19T00:05:00Z',
+      model: 'gpt-5.4',
+      effort: 'high',
+      usage: { input: 160, output: 18, cache: 40 },
+    })
+  })
+
+  it('merges CI and attributed sessions while preserving measured zeroes and unknown nulls', () => {
+    const row = {
+      number: 2725,
+      tokens: null,
+      humanMessages: null,
+      rounds: null,
+      fullGateRuns: null,
+      redCiRuns: null,
+      leadTimeSplit: { work: 10, verify: null, review: null, ciWait: null },
+    }
+    expect(
+      mergeDeliverySources(row, {
+        ci: { ciWaitSec: 120, ciRunSec: 300, redCiRuns: 0 },
+        sessions: [
+          { host: 'claude', usage: { input: 100, output: 20, cache: 5 }, humanMessages: 2 },
+          { host: 'claude', usage: { input: 40, output: 10, cache: null }, humanMessages: 1 },
+          {
+            host: 'codex',
+            usage: { input: 160, output: 18, cache: 40 },
+            model: 'gpt-5.4',
+            effort: 'high',
+          },
+          {
+            host: 'codex',
+            usage: { input: 1, output: 2, cache: 3 },
+            model: 'gpt-5.4',
+            effort: 'high',
+          },
+        ],
+      }),
+    ).toMatchObject({
+      number: 2725,
+      tokens: { input: 301, output: 50, cache: 48 },
+      humanMessages: 3,
+      redCiRuns: 0,
+      fullGateRuns: null,
+      rounds: null,
+      leadTimeSplit: { verify: 300, ciWait: 120 },
+      models: ['gpt-5.4@high'],
+      sourcesKnown: ['ci', 'claude', 'codex'],
+    })
+
+    expect(
+      mergeDeliverySources(row, {
+        ci: { ciWaitSec: null, ciRunSec: null, redCiRuns: null },
+        sessions: [],
+      }),
+    ).toMatchObject({
+      tokens: null,
+      humanMessages: null,
+      redCiRuns: null,
+      fullGateRuns: null,
+      rounds: null,
+      sourcesKnown: [],
+    })
+  })
+
+  it('requires the source needed by each overhead floor and reports measured/reference components', () => {
+    const baseline = { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } }
+    const measured = overheadIndices(
+      {
+        stratum: 'Standard',
+        sourcesKnown: ['ci', 'claude'],
+        tokens: 600,
+        preflight: 10,
+        fullGate: 20,
+        review: 30,
+        ci: 40,
+      },
+      baseline,
+    ) as Record<string, unknown>
+    expect(measured).toMatchObject({ time: 2, tokens: 6 })
+    expect(measured.floorComponents).toEqual(
+      expect.objectContaining({
+        time: expect.objectContaining({
+          measured: expect.anything(),
+          reference: expect.anything(),
+        }),
+        tokens: expect.objectContaining({
+          measured: expect.anything(),
+          reference: expect.anything(),
+        }),
+      }),
+    )
+
+    expect(
+      overheadIndices(
+        {
+          stratum: 'Standard',
+          sourcesKnown: ['ci'],
+          tokens: 600,
+          preflight: 10,
+          fullGate: 20,
+          review: 30,
+          ci: 40,
+        },
+        baseline,
+      ),
+    ).toMatchObject({ time: 2, tokens: null })
+    expect(
+      overheadIndices(
+        {
+          stratum: 'Standard',
+          sourcesKnown: ['claude'],
+          tokens: 600,
+          preflight: 10,
+          fullGate: 20,
+          review: 30,
+          ci: 40,
+        },
+        baseline,
+      ),
+    ).toMatchObject({ time: null, tokens: 6 })
   })
 })
 
