@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { dirname } from 'node:path'
+import * as shipKpi from '../../scripts/ship-kpi.mjs'
 import {
   isEvidenceOnlySubject,
   isEvidenceOnlyCommit,
@@ -24,6 +25,20 @@ import {
   buildPrRow,
   computeAggregate,
 } from '../../scripts/ship-kpi.mjs'
+
+// #2725 is RED-only: these names are intentionally absent until the
+// implementation stage. Namespace lookup lets the pre-existing tests in this
+// file continue to run and fails the new cases on the missing export itself.
+const splitLeadTime = Reflect.get(shipKpi, 'splitLeadTime') as (...args: unknown[]) => unknown
+const sessionUsage = Reflect.get(shipKpi, 'sessionUsage') as (...args: unknown[]) => unknown
+const stratumOf = Reflect.get(shipKpi, 'stratumOf') as (...args: unknown[]) => unknown
+const quantiles = Reflect.get(shipKpi, 'quantiles') as (...args: unknown[]) => unknown
+const overheadIndices = Reflect.get(shipKpi, 'overheadIndices') as (...args: unknown[]) => unknown
+const calibrate = Reflect.get(shipKpi, 'calibrate') as (...args: unknown[]) => unknown
+const checkpointVerdict = Reflect.get(shipKpi, 'checkpointVerdict') as (
+  ...args: unknown[]
+) => unknown
+const formatLogEntry = Reflect.get(shipKpi, 'formatLogEntry') as (...args: unknown[]) => unknown
 
 // PATH scoped to node's OWN directory only — `gh`/`git` are unreachable, so if
 // --self-test ever shells out it throws instead of silently succeeding.
@@ -239,6 +254,329 @@ describe('classifyPrCommits / buildPrRow / computeAggregate (#2398)', () => {
       openPrsStale: [99],
       pctMainEvidenceOnlyCommits: 50,
     })
+  })
+})
+
+describe('delivery cost classifiers (#2725, RED)', () => {
+  const eventAt = (seconds: number, kind: string) => ({
+    t: new Date(Date.parse('2026-09-19T00:00:00Z') + seconds * 1000).toISOString(),
+    kind,
+  })
+
+  const thresholds = {
+    plateau: 1.3,
+    tune: 1.2,
+    rethinkMedian: 2,
+    rethinkP90: 4,
+    andon: 3,
+  }
+
+  const checkpoint = (overrides = {}) => ({
+    n: 10,
+    indices: {
+      time: { median: 1.1, p90: 1.2 },
+      tokens: { median: 1.1, p90: 1.2 },
+    },
+    buckets: {},
+    maxOverhead: 1.2,
+    escapes: [],
+    ...overrides,
+  })
+
+  it('splits ordered event intervals into seconds without inventing zeroes', () => {
+    expect(
+      splitLeadTime([
+        eventAt(0, 'work'),
+        eventAt(10, 'verify'),
+        eventAt(30, 'review'),
+        eventAt(60, 'ciWait'),
+        eventAt(100, 'rework'),
+        eventAt(150, 'ceremony'),
+        eventAt(210, 'done'),
+      ]),
+    ).toEqual({ work: 10, verify: 20, review: 30, ciWait: 40, rework: 50, ceremony: 60 })
+  })
+
+  it('returns null for unavailable or unknown lead-time segments', () => {
+    expect(
+      splitLeadTime([eventAt(0, 'work'), eventAt(10, 'mystery'), eventAt(20, 'done')]),
+    ).toEqual({
+      work: 10,
+      verify: null,
+      review: null,
+      ciWait: null,
+      rework: null,
+      ceremony: null,
+    })
+  })
+
+  it('aggregates session usage, skips malformed JSONL, and counts human messages', () => {
+    expect(
+      sessionUsage([
+        JSON.stringify({ type: 'human', message: { content: 'start' } }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { usage: { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 30 } },
+        }),
+        '{malformed',
+        JSON.stringify({ type: 'human', message: { content: 'follow-up' } }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { usage: { input_tokens: 40, output_tokens: 10, cache_read_input_tokens: 5 } },
+        }),
+      ]),
+    ).toEqual({ input: 140, output: 30, cache: 35, humanMessages: 2 })
+  })
+
+  it('propagates no usage data as null fields', () => {
+    expect(sessionUsage([JSON.stringify({ type: 'human' }), '{malformed'])).toEqual({
+      input: null,
+      output: null,
+      cache: null,
+      humanMessages: 1,
+    })
+  })
+
+  it('uses treatment first, then the 200-LOC boundary for stratum fallback', () => {
+    expect(stratumOf({ treatment: 'Standard', changedLoc: 1 })).toBe('Standard')
+    expect(stratumOf({ treatment: 'XS-S', changedLoc: 1000 })).toBe('XS-S')
+    expect(stratumOf({ changedLoc: 199 })).toBe('XS-S')
+    expect(stratumOf({ changedLoc: 200 })).toBe('Standard')
+  })
+
+  it('always widens sensitive or train deliveries to Sensitive-train', () => {
+    expect(stratumOf({ changedLoc: 1, sensitive: true })).toBe('Sensitive-train')
+    expect(stratumOf({ changedLoc: 1, train: true })).toBe('Sensitive-train')
+    expect(stratumOf({ treatment: 'XS-S', changedLoc: 1, sensitive: true })).toBe('Sensitive-train')
+  })
+
+  it('ignores nulls and preserves a heavy tail in quantiles', () => {
+    expect(quantiles([1, null, 2, 3, 4, 5, 6, 7, 100, 100, 100])).toEqual({
+      median: 5.5,
+      p90: 100,
+    })
+  })
+
+  it('returns null quantiles for an empty or all-null input', () => {
+    expect(quantiles([])).toEqual({ median: null, p90: null })
+    expect(quantiles([null, null])).toEqual({ median: null, p90: null })
+  })
+
+  it('computes separate time and token overhead indices from the stratum baseline', () => {
+    expect(
+      overheadIndices(
+        {
+          stratum: 'Standard',
+          leadTime: 120,
+          tokens: 600,
+          preflight: 10,
+          fullGate: 20,
+          review: 30,
+          ci: 40,
+        },
+        { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } },
+      ),
+    ).toEqual({ time: 2, tokens: 6 })
+  })
+
+  it('returns null only for the overhead index whose source is missing', () => {
+    const delivery = { stratum: 'Standard', leadTime: 120, tokens: 600 }
+    const baseline = { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } }
+    expect(overheadIndices({ ...delivery, tokens: undefined }, baseline)).toEqual({
+      time: null,
+      tokens: null,
+    })
+    expect(overheadIndices({ ...delivery, leadTime: undefined }, baseline)).toEqual({
+      time: null,
+      tokens: 6,
+    })
+    expect(overheadIndices(delivery, {})).toEqual({ time: null, tokens: null })
+  })
+
+  it('calibrates each stratum from only its first 30 deliveries', () => {
+    const xsSmall = Array.from({ length: 31 }, (_, i) => ({
+      stratum: 'XS-S',
+      time: i + 1,
+      tokens: (i + 1) * 2,
+    }))
+    expect(
+      calibrate([
+        ...xsSmall,
+        { stratum: 'Standard', time: 40, tokens: 80 },
+        { stratum: 'Standard', time: 60, tokens: 120 },
+      ]),
+    ).toEqual({
+      'XS-S': { timeMedian: 15.5, tokensMedian: 31, n: 30 },
+      Standard: { timeMedian: 50, tokensMedian: 100, n: 2 },
+    })
+  })
+
+  it('returns PLATEAU only when current and previous checkpoints are within 1.3', () => {
+    const current = checkpoint({
+      indices: {
+        time: { median: 1.3, p90: 1.3 },
+        tokens: { median: 1.3, p90: 1.3 },
+      },
+    })
+    const previous = checkpoint({
+      indices: {
+        time: { median: 1.3, p90: 1.3 },
+        tokens: { median: 1.3, p90: 1.3 },
+      },
+    })
+    expect(checkpointVerdict({ current, previous, baseline: {}, thresholds, history: [] })).toBe(
+      'PLATEAU',
+    )
+  })
+
+  it('does not call a single within-threshold checkpoint PLATEAU', () => {
+    const current = checkpoint({
+      buckets: { review: { time: 121, tokens: 121 } },
+      indices: {
+        time: { median: 1.3, p90: 1.3 },
+        tokens: { median: 1.3, p90: 1.3 },
+      },
+    })
+    const previous = checkpoint({
+      indices: {
+        time: { median: 1.4, p90: 1.4 },
+        tokens: { median: 1.4, p90: 1.4 },
+      },
+    })
+    expect(
+      checkpointVerdict({
+        current,
+        previous,
+        baseline: { buckets: { review: { time: 100, tokens: 100 } } },
+        thresholds,
+        history: [],
+      }),
+    ).toBe('TUNE review')
+  })
+
+  it('requires both indices to cross +20% coherently before tuning a bucket', () => {
+    const base = { buckets: { review: { time: 100, tokens: 100 } } }
+    const exact = checkpoint({
+      buckets: { review: { time: 120, tokens: 120 } },
+      topBucket: 'review',
+    })
+    expect(
+      checkpointVerdict({
+        current: exact,
+        previous: checkpoint(),
+        baseline: base,
+        thresholds,
+        history: [],
+      }),
+    ).toBe('PLATEAU')
+
+    const incoherent = checkpoint({ buckets: { review: { time: 121, tokens: 119 } } })
+    expect(
+      checkpointVerdict({
+        current: incoherent,
+        previous: checkpoint(),
+        baseline: base,
+        thresholds,
+        history: [],
+      }),
+    ).toBe('PLATEAU')
+  })
+
+  it('returns NO DATA for fewer than 10 deliveries before trend verdicts', () => {
+    expect(
+      checkpointVerdict({
+        current: checkpoint({
+          n: 9,
+          maxOverhead: 10,
+          buckets: { review: { time: 200, tokens: 200 } },
+        }),
+        previous: checkpoint(),
+        baseline: { buckets: { review: { time: 100, tokens: 100 } } },
+        thresholds,
+        history: ['TUNE review', 'TUNE review'],
+      }),
+    ).toBe('NO DATA')
+  })
+
+  it('returns RETHINK only above 2 median or 4 p90 after two ineffective TUNEs', () => {
+    const base = {
+      current: checkpoint({
+        indices: {
+          time: { median: 2, p90: 4 },
+          tokens: { median: 2, p90: 4 },
+        },
+        buckets: { review: { time: 121, tokens: 121 } },
+      }),
+      previous: checkpoint(),
+      baseline: { buckets: { review: { time: 100, tokens: 100 } } },
+      thresholds,
+      history: ['TUNE review', 'TUNE review'],
+    }
+    expect(checkpointVerdict(base)).toBe('TUNE review')
+    expect(
+      checkpointVerdict({
+        ...base,
+        current: {
+          ...base.current,
+          indices: {
+            time: { median: 2.01, p90: 4 },
+            tokens: { median: 2, p90: 4.01 },
+          },
+        },
+      }),
+    ).toBe('RETHINK')
+  })
+
+  it('uses ANDON for an escape or a delivery strictly over 3x, ahead of ROLLBACK', () => {
+    const common = {
+      previous: checkpoint(),
+      baseline: {},
+      thresholds,
+      history: [],
+    }
+    expect(
+      checkpointVerdict({
+        ...common,
+        current: checkpoint({ maxOverhead: 3, rollback: 'review' }),
+      }),
+    ).toBe('ROLLBACK')
+    expect(
+      checkpointVerdict({
+        ...common,
+        current: checkpoint({ maxOverhead: 3.01, rollback: 'review' }),
+      }),
+    ).toBe('ANDON')
+    expect(
+      checkpointVerdict({
+        ...common,
+        current: checkpoint({ escapes: ['unfixed-regression'] }),
+      }),
+    ).toBe('ANDON')
+  })
+
+  it('formats one deterministic markdown checkpoint block with all AC-5 fields', () => {
+    const result = {
+      date: '2026-09-19',
+      window: { since: '2026-09-01', until: '2026-09-19' },
+      n: 10,
+      indices: {
+        time: { median: 1.2, p90: 1.8 },
+        tokens: { median: 1.1, p90: 1.6 },
+      },
+      topBucket: 'review',
+      verdict: 'PLATEAU',
+    }
+    const entry = formatLogEntry(result)
+    expect(entry).toBe(formatLogEntry(result))
+    expect(entry).toContain('2026-09-19')
+    expect(entry).toContain('2026-09-01')
+    expect(entry).toContain('2026-09-19')
+    expect(entry).toContain('n: 10')
+    expect(entry).toContain('time')
+    expect(entry).toContain('tokens')
+    expect(entry).toContain('review')
+    expect(entry).toContain('PLATEAU')
+    expect(entry.trim().split('\n').length).toBeGreaterThanOrEqual(5)
   })
 })
 
