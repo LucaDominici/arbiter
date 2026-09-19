@@ -47,6 +47,7 @@ const FEAT_RE = /^feat(\(|:)/i
 const HOOK_BLOCK_RE = /hook error: \[node \.claude\/hooks\/([a-z-]+)\.mjs\]/g
 const LEAD_TIME_KINDS = ['work', 'verify', 'review', 'ciWait', 'rework', 'ceremony']
 const DELIVERY_TIME_KINDS = ['preflight', 'fullGate', 'review', 'ci', ...LEAD_TIME_KINDS]
+const DEFAULT_COST_WEIGHTS = { input: 1, cache: 0.1, output: 5 }
 const DEFAULT_THRESHOLDS = {
   plateau: 1.3,
   tune: 1.2,
@@ -55,6 +56,7 @@ const DEFAULT_THRESHOLDS = {
   andon: 3,
   n: 10,
   escapeWindowDays: 14,
+  costWeights: DEFAULT_COST_WEIGHTS,
 }
 
 export function isEvidenceOnlySubject(subject) {
@@ -124,6 +126,18 @@ function finiteNumber(value) {
 function rounded(value, places = 1) {
   const factor = 10 ** places
   return Math.round(value * factor) / factor
+}
+
+/** Weight known token components without turning an entirely unknown split into zero. */
+export function costUnits(tokens, weights = DEFAULT_COST_WEIGHTS) {
+  if (finiteNumber(tokens) !== null) return tokens
+  const values = ['input', 'cache', 'output'].map((key) => finiteNumber(tokens?.[key]))
+  if (values.every((value) => value === null)) return null
+  return values.reduce((total, value, index) => {
+    const key = ['input', 'cache', 'output'][index]
+    const weight = finiteNumber(weights?.[key]) ?? DEFAULT_COST_WEIGHTS[key]
+    return total + (value ?? 0) * weight
+  }, 0)
 }
 
 /** Split ordered phase events; an unavailable phase stays null, never zero. */
@@ -238,14 +252,14 @@ function sessionSourceKnown(delivery) {
   return sourceKnown(delivery, 'claude') || sourceKnown(delivery, 'codex')
 }
 
-/** Compare the largest observed phase and total tokens with a stratum baseline. */
-export function overheadIndices(delivery, baseline) {
+/** Compare the largest observed phase and weighted token cost with a stratum baseline. */
+export function overheadIndices(delivery, baseline, weights) {
   const reference = baseline?.[delivery?.stratum]
   if (!reference) return { time: null, tokens: null }
   const measuredTime = deliveryTime(delivery)
-  const measuredTokens = tokenTotal(delivery?.tokens)
+  const measuredTokens = costUnits(delivery?.tokens, weights)
   const referenceTime = finiteNumber(reference.timeMedian)
-  const referenceTokens = finiteNumber(reference.tokensMedian)
+  const referenceTokens = finiteNumber(reference.costUnitsMedian ?? reference.tokensMedian)
   const result = {
     time: sourceKnown(delivery, 'ci') ? ratio(measuredTime, referenceTime) : null,
     tokens: sessionSourceKnown(delivery) ? ratio(measuredTokens, referenceTokens) : null,
@@ -592,7 +606,7 @@ export function unattributedUsage(metas, attributedFiles) {
 }
 
 /** Build per-stratum writer references from the first thirty deliveries seen. */
-export function calibrate(deliveries) {
+export function calibrate(deliveries, weights) {
   const groups = {}
   for (const delivery of Array.isArray(deliveries) ? deliveries : []) {
     const stratum = delivery?.stratum
@@ -603,7 +617,7 @@ export function calibrate(deliveries) {
   return Object.fromEntries(
     Object.entries(groups).map(([stratum, group]) => {
       const time = quantiles(group.map((delivery) => delivery.time ?? delivery.leadTime)).median
-      const tokens = quantiles(group.map((delivery) => delivery.tokens)).median
+      const tokens = quantiles(group.map((delivery) => costUnits(delivery.tokens, weights))).median
       return [stratum, { timeMedian: time, tokensMedian: tokens, n: group.length }]
     }),
   )
@@ -1182,7 +1196,7 @@ function costDelivery(row) {
     stratum: row?.stratum ?? null,
     time,
     leadTime: time,
-    tokens: tokenTotal(row?.tokens),
+    tokens: row?.tokens ?? null,
   }
 }
 
@@ -1202,7 +1216,7 @@ function runCalibration(opts) {
   const deliveries = historicalRows()
     .map(costDelivery)
     .filter((delivery) => delivery.stratum !== null)
-  const baseline = calibrate(deliveries)
+  const baseline = calibrate(deliveries, loadJson(THRESHOLDS_PATH).costWeights)
   if (Object.keys(baseline).length === 0) {
     throw new Error('no historical deliveries with a stratum; refusing to write an empty baseline')
   }
@@ -1210,10 +1224,10 @@ function runCalibration(opts) {
   process.stderr.write(`ship-kpi: wrote ${BASELINE_PATH}\n`)
 }
 
-function checkpointForRows(rows, stratum, baseline) {
+function checkpointForRows(rows, stratum, baseline, weights) {
   const selected = rows.filter((row) => row.stratum === stratum).slice(-10)
   const costs = selected.map(costDelivery)
-  const indices = costs.map((delivery) => overheadIndices(delivery, baseline))
+  const indices = costs.map((delivery) => overheadIndices(delivery, baseline, weights))
   const time = quantiles(indices.map((index) => index.time))
   const tokens = quantiles(indices.map((index) => index.tokens))
   const observed = indices
@@ -1256,9 +1270,9 @@ function runCheckpoint() {
   const strata = [...new Set(rows.map((row) => row.stratum).filter((stratum) => stratum))].sort()
   const history = checkpointHistory()
   const results = strata.map((stratum) => {
-    const current = checkpointForRows(rows, stratum, baseline)
+    const current = checkpointForRows(rows, stratum, baseline, thresholds.costWeights)
     const previousRows = rows.filter((row) => row.stratum === stratum).slice(-20, -10)
-    const previous = checkpointForRows(previousRows, stratum, baseline)
+    const previous = checkpointForRows(previousRows, stratum, baseline, thresholds.costWeights)
     const verdict = checkpointVerdict({ current, previous, baseline, thresholds, history })
     return {
       date: today(),
@@ -1281,7 +1295,20 @@ function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function renderStratumSummary(rows) {
+function formatCompact(value) {
+  if (finiteNumber(value) === null) return 'NO DATA'
+  const absolute = Math.abs(value)
+  for (const [unit, suffix] of [
+    [1e9, 'B'],
+    [1e6, 'M'],
+    [1e3, 'k'],
+  ]) {
+    if (absolute >= unit) return `${rounded(value / unit)}${suffix}`
+  }
+  return String(rounded(value))
+}
+
+function renderStratumSummary(rows, weights) {
   const groups = new Map()
   for (const row of rows) {
     const stratum = row.stratum ?? 'Unknown'
@@ -1292,12 +1319,15 @@ function renderStratumSummary(rows) {
   const lines = [
     '## Per-stratum',
     '',
-    '| Stratum | n | Lead time median/p90 (h) | Median tokens | Median humanMessages | sourcesKnown |',
-    '|---------|---|--------------------------|---------------|----------------------|--------------|',
+    '| Stratum | n | Lead time median/p90 (h) | Median in / cache / out | Median costUnits | Median humanMessages | sourcesKnown |',
+    '|---------|---|--------------------------|-------------------------|------------------|----------------------|--------------|',
   ]
   for (const [stratum, group] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const lead = quantiles(group.map((row) => row.leadTimeHours))
-    const tokens = quantiles(group.map((row) => tokenTotal(row.tokens)))
+    const input = quantiles(group.map((row) => row.tokens?.input))
+    const cache = quantiles(group.map((row) => row.tokens?.cache))
+    const output = quantiles(group.map((row) => row.tokens?.output))
+    const costs = quantiles(group.map((row) => costUnits(row.tokens, weights)))
     const human = quantiles(group.map((row) => row.humanMessages))
     const coverage = ['ci', 'claude', 'codex']
       .map(
@@ -1306,13 +1336,21 @@ function renderStratumSummary(rows) {
       )
       .join(', ')
     lines.push(
-      `| ${stratum} | ${group.length} | ${lead.median ?? 'NO DATA'}/${lead.p90 ?? 'NO DATA'} | ${tokens.median ?? 'NO DATA'} | ${human.median ?? 'NO DATA'} | ${coverage} |`,
+      `| ${stratum} | ${group.length} | ${lead.median ?? 'NO DATA'}/${lead.p90 ?? 'NO DATA'} | ${formatCompact(input.median)} / ${formatCompact(cache.median)} / ${formatCompact(output.median)} | ${formatCompact(costs.median)} | ${human.median ?? 'NO DATA'} | ${coverage} |`,
     )
   }
   return lines
 }
 
-export function renderMarkdown({ since, until, rows, aggregate, hookBlocks, unattributed }) {
+export function renderMarkdown({
+  since,
+  until,
+  rows,
+  aggregate,
+  hookBlocks,
+  unattributed,
+  weights,
+}) {
   const lines = []
   lines.push(`# Ship KPI — ${since} → ${until}`, '')
   lines.push('## Per-PR', '')
@@ -1327,7 +1365,7 @@ export function renderMarkdown({ since, until, rows, aggregate, hookBlocks, unat
       `| #${r.number} | ${r.commits} | ${r.evidenceOnlyCommits} | ${r.reviewLoopCommits} | ${r.leadTimeHours} | ${r.ciRedAtOpen ? 'yes' : 'no'} | +${r.additions}/-${r.deletions} |`,
     )
   }
-  lines.push('', ...renderStratumSummary(rows))
+  lines.push('', ...renderStratumSummary(rows, weights))
   lines.push(
     `unattributed: claude ${unattributed?.claude ?? 0} / codex ${unattributed?.codex ?? 0} across ${unattributed?.sessions ?? 0} sessions`,
   )
@@ -1408,6 +1446,7 @@ async function main() {
   })
 
   const hookBlocks = await countHookBlocks(opts.sessions, sinceMs, untilMs)
+  const thresholds = { ...DEFAULT_THRESHOLDS, ...loadJson(THRESHOLDS_PATH) }
 
   const untilLabel = until ?? today()
   const payload = {
@@ -1431,6 +1470,7 @@ async function main() {
       aggregate,
       hookBlocks,
       unattributed,
+      weights: thresholds.costWeights,
     }),
   )
 

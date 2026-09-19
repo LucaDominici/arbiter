@@ -34,6 +34,7 @@ const splitLeadTime = Reflect.get(shipKpi, 'splitLeadTime') as (...args: unknown
 const sessionUsage = Reflect.get(shipKpi, 'sessionUsage') as (...args: unknown[]) => unknown
 const stratumOf = Reflect.get(shipKpi, 'stratumOf') as (...args: unknown[]) => unknown
 const quantiles = Reflect.get(shipKpi, 'quantiles') as (...args: unknown[]) => unknown
+const costUnits = Reflect.get(shipKpi, 'costUnits') as (...args: unknown[]) => unknown
 const overheadIndices = Reflect.get(shipKpi, 'overheadIndices') as (...args: unknown[]) => unknown
 const calibrate = Reflect.get(shipKpi, 'calibrate') as (...args: unknown[]) => unknown
 const checkpointVerdict = Reflect.get(shipKpi, 'checkpointVerdict') as (
@@ -380,13 +381,21 @@ describe('delivery cost classifiers (#2725)', () => {
     expect(quantiles([null, null])).toEqual({ median: null, p90: null })
   })
 
+  it('weights fresh input, cached input, and output separately', () => {
+    expect(
+      costUnits({ input: 100, cache: 20, output: 10 }, { input: 1, cache: 0.1, output: 5 }),
+    ).toBe(152)
+    expect(costUnits({ input: 100 }, { input: 1, cache: 0.1, output: 5 })).toBe(100)
+    expect(costUnits({ input: null, cache: null, output: null })).toBeNull()
+  })
+
   it('computes separate time and token overhead indices from the stratum baseline', () => {
     const indices = overheadIndices(
       {
         stratum: 'Standard',
         sourcesKnown: ['ci', 'claude'],
         leadTime: 120,
-        tokens: 600,
+        tokens: { input: 500, cache: 50, output: 0 },
         preflight: 10,
         fullGate: 20,
         review: 30,
@@ -394,12 +403,12 @@ describe('delivery cost classifiers (#2725)', () => {
       },
       { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } },
     )
-    expect(indices).toMatchObject({ time: 2, tokens: 6 })
+    expect(indices).toMatchObject({ time: 2, tokens: 5.05 })
     expect(indices).toHaveProperty('floorComponents')
   })
 
   it('returns null only for the overhead index whose source is missing', () => {
-    const delivery = { stratum: 'Standard', leadTime: 120, tokens: 600 }
+    const delivery = { stratum: 'Standard', leadTime: 120, tokens: { input: 600 } }
     const baseline = { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } }
     expect(overheadIndices({ ...delivery, tokens: undefined }, baseline)).toEqual({
       time: null,
@@ -416,13 +425,13 @@ describe('delivery cost classifiers (#2725)', () => {
     const xsSmall = Array.from({ length: 31 }, (_, i) => ({
       stratum: 'XS-S',
       time: i + 1,
-      tokens: (i + 1) * 2,
+      tokens: { input: (i + 1) * 2 },
     }))
     expect(
       calibrate([
         ...xsSmall,
-        { stratum: 'Standard', time: 40, tokens: 80 },
-        { stratum: 'Standard', time: 60, tokens: 120 },
+        { stratum: 'Standard', time: 40, tokens: { input: 80 } },
+        { stratum: 'Standard', time: 60, tokens: { input: 120 } },
       ]),
     ).toEqual({
       'XS-S': { timeMedian: 15.5, tokensMedian: 31, n: 30 },
@@ -1182,6 +1191,38 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       unattributed: { claude: 100, codex: 200, sessions: 3 },
     })
     expect(rendered).toContain('unattributed: claude 100 / codex 200 across 3 sessions')
+    expect(rendered.match(/^unattributed:/gm)).toHaveLength(1)
+  })
+
+  it('reports split token medians and compact weighted cost units per stratum', () => {
+    const rendered = renderMarkdown({
+      since: '2026-09-01',
+      until: '2026-09-19',
+      rows: [
+        {
+          stratum: 'Standard',
+          leadTimeHours: 1,
+          tokens: { input: 9_900_000, cache: 607_000, output: 60_700 },
+          humanMessages: 1,
+          sourcesKnown: ['ci', 'claude'],
+        },
+      ],
+      aggregate: {
+        prsMerged: 0,
+        issuesClosed: 0,
+        issuesPer24h: 0,
+        medianCommitsPerPr: 0,
+        medianLeadTimeHours: 0,
+        pctEvidenceOnlyCommits: 0,
+        pctReviewLoopCommits: 0,
+        openPrsStale: [],
+        pctMainEvidenceOnlyCommits: 0,
+      },
+      hookBlocks: {},
+      unattributed: { claude: 0, codex: 0, sessions: 0 },
+    })
+    expect(rendered).toContain('| Median in / cache / out | Median costUnits |')
+    expect(rendered).toContain('| Standard | 1 | 1/1 | 9.9M / 607k / 60.7k | 10.3M |')
   })
 
   it('requires the source needed by each overhead floor and reports measured/reference components', () => {
@@ -1190,7 +1231,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       {
         stratum: 'Standard',
         sourcesKnown: ['ci', 'claude'],
-        tokens: 600,
+        tokens: { input: 600 },
         preflight: 10,
         fullGate: 20,
         review: 30,
@@ -1217,7 +1258,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         {
           stratum: 'Standard',
           sourcesKnown: ['ci'],
-          tokens: 600,
+          tokens: { input: 600 },
           preflight: 10,
           fullGate: 20,
           review: 30,
@@ -1231,7 +1272,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         {
           stratum: 'Standard',
           sourcesKnown: ['claude'],
-          tokens: 600,
+          tokens: { input: 600 },
           preflight: 10,
           fullGate: 20,
           review: 30,

@@ -6,5 +6,10 @@
   "rethinkP90": 4,
   "andon": 3,
   "n": 10,
-  "escapeWindowDays": 14
+  "escapeWindowDays": 14,
+  "costWeights": {
+    "input": 1,
+    "cache": 0.1,
+    "output": 5
+  }
 }
