@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const doc = readFileSync(resolve('.claude/commands/review.md'), 'utf-8')
+const ship = readFileSync(resolve('.claude/commands/ship.md'), 'utf-8')
 
 describe('.claude/commands/review.md — adaptive treatment consumer (#2681)', () => {
   it('uses persisted ShipTreatment instead of a second routing authority', () => {
@@ -15,7 +16,9 @@ describe('.claude/commands/review.md — adaptive treatment consumer (#2681)', (
   it('uses one final reviewer for code and acceptance on one frozen subject', () => {
     expect(doc).toContain('same plan, diff, SHA')
     expect(doc).toContain('final reviewer also returns acceptance fit')
-    expect(doc).toContain('--mode ac-fit')
+    expect(doc).not.toContain('--mode ac-fit')
+    expect(ship).toContain('adversarial verifier and wave-worker path')
+    expect(ship).toContain('--mode ac-fit')
   })
 
   it('records and checks one complete reviewer panel', () => {

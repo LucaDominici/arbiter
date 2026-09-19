@@ -136,7 +136,8 @@ current lane.
 One implementer owns the write lane. Use at most one independent blocker lane. Add specialist
 reviewers only for auth, data integrity, concurrency, money, migrations, or deployment. Reviewers
 receive the frozen plan, candidate diff, and shared evidence; they do not receive the implementer's
-transcript.
+transcript. For ordinary work, the same final reviewer covers code, tests, and acceptance fit
+independently of the implementer.
 
 ## Evidence commands
 
@@ -162,6 +163,9 @@ the recorder writes both correlated artifacts from the same submission. `arbiter
 phase. The final full gate writes the exact-subject receipt. A source change
 invalidates it; evidence-only commits may preserve it when the binding checker proves source content
 unchanged.
+
+The adversarial verifier and wave-worker path still enter through `--mode ac-fit`; that entry records
+the acceptance-fit view under the same frozen-subject and citation rules.
 
 ## Gate economy
 

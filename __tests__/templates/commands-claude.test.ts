@@ -43,6 +43,8 @@ describe('ship is one adaptive delivery narrative', () => {
       "reviewer-panel envelope includes that reviewer's acceptance fit against every frozen criterion",
     )
     expect(content).toContain('writes both correlated artifacts from the same submission')
+    expect(content).toContain('adversarial verifier and wave-worker path')
+    expect(content).toContain('--mode ac-fit')
     expect(content).toContain('a different task/branch/SHA')
     expect(content).toContain('exact-subject receipt')
     expect(content.replace(/\s+/g, ' ')).toMatch(/source change invalidates/i)

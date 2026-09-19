@@ -67,6 +67,9 @@ proves disjoint file sets. Dependency files, main-tree changes, tags, and overla
 serial. One author owns each worktree. Each lane runs TDD and targeted checks; the integrated frozen
 candidate receives the single final qualification owned by Ship.
 
+Route every wave worktree through the native host and the canonical
+`arbiter worktree prepare/check/relink` helpers; do not hand-roll worktree commands.
+
 **M16 handoff-contract: subagents never own waits** — a worker returns its commit, tests, residual
 risks, and structured evidence. The orchestrator owns integration and external waits.
 

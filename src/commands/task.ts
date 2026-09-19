@@ -231,7 +231,7 @@ function requireTranscript(worktreePath: string, sessionId: string, homeDir: str
   return transcriptPath
 }
 
-function resolveNativeHostBinding(
+function resolveNativeCheckoutBinding(
   taskId: string,
   requestedWorktree: string,
   context: NativeHostContext = {},
@@ -244,15 +244,27 @@ function resolveNativeHostBinding(
   if (branch.length === 0) throw new Error('native checkout must have an explicit branch')
   const canonicalTask = taskId.startsWith('#') ? taskId : `#${taskId}`
   const bindingId = openLogBindingId(canonicalTask, worktreePath, branch)
+  return { bindingId, worktreePath, branch }
+}
+
+function resolveNativeHostBinding(
+  taskId: string,
+  requestedWorktree: string,
+  context: NativeHostContext = {},
+): NativeHostBinding {
+  const binding = resolveNativeCheckoutBinding(taskId, requestedWorktree, context)
   const env = context.env ?? process.env
-  assertClaudeProjectDir(worktreePath, env['CLAUDE_PROJECT_DIR'])
+  assertClaudeProjectDir(binding.worktreePath, env['CLAUDE_PROJECT_DIR'])
   const sessionId = optionalSessionId(env)
-  const binding = { bindingId, worktreePath, branch }
   if (sessionId === undefined) return binding
   return {
     ...binding,
     sessionId,
-    transcriptPath: requireTranscript(worktreePath, sessionId, context.homeDir ?? homedir()),
+    transcriptPath: requireTranscript(
+      binding.worktreePath,
+      sessionId,
+      context.homeDir ?? homedir(),
+    ),
   }
 }
 
@@ -304,11 +316,22 @@ function assertBoundNativeHost(
   if (!requestedTaskMatches(requestedTaskId, state.taskId)) {
     throw new Error('task id does not match the native host binding')
   }
-  const live = resolveNativeHostBinding(state.taskId, binding.worktreePath, host)
+  const live = resolveNativeCheckoutBinding(state.taskId, binding.worktreePath, host)
   if (
     live.bindingId !== binding.bindingId ||
     live.worktreePath !== binding.worktreePath ||
     live.branch !== binding.branch
+  ) {
+    throw new Error('native host binding is stale — run arbiter lifecycle preflight again')
+  }
+  const env = host.env ?? process.env
+  assertClaudeProjectDir(binding.worktreePath, env['CLAUDE_PROJECT_DIR'])
+  if (binding.sessionId === undefined) return
+  const sessionId = optionalSessionId(env)
+  if (
+    sessionId !== binding.sessionId ||
+    requireTranscript(binding.worktreePath, sessionId, host.homeDir ?? homedir()) !==
+      binding.transcriptPath
   ) {
     throw new Error('native host binding is stale — run arbiter lifecycle preflight again')
   }
