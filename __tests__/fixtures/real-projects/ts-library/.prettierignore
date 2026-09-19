@@ -17,3 +17,8 @@ knip.json
 .jscpd.json
 test-pyramid.json
 api-e2e.json
+
+# Arbiter owns the bytes of the emitted JSON schemas: they are formatted once, at
+# arbiter's own printWidth, and a consumer's prettier config (a narrower printWidth,
+# say) would reformat them back out of parity with the generator on every run.
+schemas/
