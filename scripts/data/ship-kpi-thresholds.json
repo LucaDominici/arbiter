@@ -6,6 +6,7 @@
   "rethinkP90": 4,
   "andon": 3,
   "n": 10,
+  "minMeasured": 6,
   "escapeWindowDays": 14,
   "costWeights": {
     "input": 1,

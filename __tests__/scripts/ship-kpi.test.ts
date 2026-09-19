@@ -59,6 +59,20 @@ const renderMarkdown = Reflect.get(shipKpi, 'renderMarkdown') as (...args: unkno
 const mergeDeliverySources = Reflect.get(shipKpi, 'mergeDeliverySources') as (
   ...args: unknown[]
 ) => unknown
+const checkpointForRows = Reflect.get(shipKpi, 'checkpointForRows') as (
+  ...args: unknown[]
+) => unknown
+const checkpointHistory = Reflect.get(shipKpi, 'checkpointHistory') as (
+  ...args: unknown[]
+) => unknown
+const attributeSessionsToDeliveries = Reflect.get(shipKpi, 'attributeSessionsToDeliveries') as (
+  ...args: unknown[]
+) => unknown
+const rollbackControl = Reflect.get(shipKpi, 'rollbackControl') as (...args: unknown[]) => unknown
+const loadThresholds = Reflect.get(shipKpi, 'loadThresholds') as (...args: unknown[]) => unknown
+const redCiRunsFromHistory = Reflect.get(shipKpi, 'redCiRunsFromHistory') as (
+  ...args: unknown[]
+) => unknown
 
 // PATH scoped to node's OWN directory only — `gh`/`git` are unreachable, so if
 // --self-test ever shells out it throws instead of silently succeeding.
@@ -175,7 +189,7 @@ describe('findEscapes (#2725 AC-4)', () => {
           maxOverhead: 1,
           escapes: [],
         },
-        thresholds: { n: 10 },
+        thresholds: { n: 10, minMeasured: 0 },
       }),
     ).toBe('HOLD')
   })
@@ -377,15 +391,20 @@ describe('delivery cost classifiers (#2725)', () => {
   })
 
   const thresholds = {
+    provisional: true,
     plateau: 1.3,
     tune: 1.2,
     rethinkMedian: 2,
     rethinkP90: 4,
     andon: 3,
+    n: 10,
+    minMeasured: 6,
   }
 
   const checkpoint = (overrides = {}) => ({
+    stratum: 'Standard',
     n: 10,
+    measured: { time: 10, tokens: 10 },
     indices: {
       time: { median: 1.1, p90: 1.2 },
       tokens: { median: 1.1, p90: 1.2 },
@@ -495,9 +514,9 @@ describe('delivery cost classifiers (#2725)', () => {
         review: 30,
         ci: 40,
       },
-      { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } },
+      { Standard: { writerTimeMedianSec: 20, writerCostUnitsMedian: 100, n: 30 } },
     )
-    expect(indices).toMatchObject({ time: 2, tokens: 5.05 })
+    expect(indices).toMatchObject({ time: 1, tokens: 5.05 })
     expect(indices).toHaveProperty('floorComponents')
   })
 
@@ -508,13 +527,14 @@ describe('delivery cost classifiers (#2725)', () => {
         {
           stratum: 'Standard',
           sourcesKnown: ['ci', 'claude'],
+          leadTime: 1,
           preflight: 0,
           fullGate: 0,
           review: 0,
           ci: 0,
           tokens: { input: 0, cache: 0, output: 20 },
         },
-        { Standard: { timeMedian: 1, tokensMedian: reference, n: 30 } },
+        { Standard: { writerTimeMedianSec: 1, writerCostUnitsMedian: reference, n: 30 } },
         { input: 1, cache: 0.1, output: 5 },
       ),
     ).toMatchObject({ tokens: 1 })
@@ -522,9 +542,9 @@ describe('delivery cost classifiers (#2725)', () => {
 
   it('returns null only for the overhead index whose source is missing', () => {
     const delivery = { stratum: 'Standard', leadTime: 120, tokens: { input: 600 } }
-    const baseline = { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } }
+    const baseline = { Standard: { writerTimeMedianSec: 20, writerCostUnitsMedian: 100, n: 30 } }
     expect(overheadIndices({ ...delivery, tokens: undefined }, baseline)).toEqual({
-      time: null,
+      time: 6,
       tokens: null,
     })
     expect(overheadIndices({ ...delivery, leadTime: undefined }, baseline)).toEqual({
@@ -536,19 +556,46 @@ describe('delivery cost classifiers (#2725)', () => {
 
   it('calibrates each stratum from only its first 30 deliveries', () => {
     const xsSmall = Array.from({ length: 31 }, (_, i) => ({
+      number: i + 1,
+      mergedAt: new Date(Date.UTC(2026, 0, i + 1)).toISOString(),
       stratum: 'XS-S',
-      time: i + 1,
-      tokens: { input: (i + 1) * 2 },
+      leadTime: i + 21,
+      preflight: 5,
+      fullGate: 5,
+      review: 5,
+      ci: 5,
+      writerCostUnits: (i + 1) * 2,
+      reviewerCostUnits: i + 1,
     }))
     expect(
       calibrate([
-        ...xsSmall,
-        { stratum: 'Standard', time: 40, tokens: { input: 80 } },
-        { stratum: 'Standard', time: 60, tokens: { input: 120 } },
+        ...xsSmall.reverse(),
+        {
+          number: 40,
+          mergedAt: '2026-02-01T00:00:00Z',
+          stratum: 'Standard',
+          leadTime: 50,
+          writerCostUnits: 100,
+        },
+        {
+          number: 41,
+          mergedAt: '2026-02-02T00:00:00Z',
+          stratum: 'Standard',
+          leadTime: 50,
+          writerCostUnits: 100,
+        },
       ]),
     ).toEqual({
-      'XS-S': { timeMedian: 15.5, tokensMedian: 31, n: 30 },
-      Standard: { timeMedian: 50, tokensMedian: 100, n: 2 },
+      'XS-S': expect.objectContaining({
+        writerTimeMedianSec: 15.5,
+        writerCostUnitsMedian: 31,
+        n: 30,
+      }),
+      Standard: expect.objectContaining({
+        writerTimeMedianSec: 50,
+        writerCostUnitsMedian: 100,
+        n: 2,
+      }),
     })
   })
 
@@ -664,7 +711,10 @@ describe('delivery cost classifiers (#2725)', () => {
       previous: checkpoint(),
       baseline: {},
       thresholds,
-      history: ['TUNE review', 'TUNE review'],
+      history: [
+        { stratum: 'Standard', verdict: 'TUNE review', bucketExcess: 4 },
+        { stratum: 'Standard', verdict: 'TUNE review', bucketExcess: 3 },
+      ],
     }
     expect(checkpointVerdict(base)).toBe('HOLD')
     expect(
@@ -691,25 +741,25 @@ describe('delivery cost classifiers (#2725)', () => {
     expect(
       checkpointVerdict({
         ...common,
-        current: checkpoint({ maxOverhead: 3, rollback: 'review' }),
+        current: checkpoint({ andon: false, rollback: 'review' }),
       }),
     ).toBe('ROLLBACK')
     expect(
       checkpointVerdict({
         ...common,
-        current: checkpoint({ maxOverhead: 3.01, rollback: 'review' }),
+        current: checkpoint({ andon: true, rollback: 'review' }),
       }),
     ).toBe('ROLLBACK')
     expect(
       checkpointVerdict({
         ...common,
-        current: checkpoint({ maxOverhead: 3.01 }),
+        current: checkpoint({ andon: true }),
       }),
     ).toBe('ANDON')
     expect(
       checkpointVerdict({
         ...common,
-        current: checkpoint({ maxOverhead: 3 }),
+        current: checkpoint({ andon: false }),
       }),
     ).toBe('PLATEAU')
     expect(
@@ -829,18 +879,34 @@ describe('checkpoint history selection (#2725 checkpoint fixes)', () => {
       mkdirSync(join(root, 'docs/internal/SYSTEM'), { recursive: true })
       writeFileSync(
         join(root, 'scripts/data/ship-kpi-baseline.json'),
-        JSON.stringify({ Standard: { timeMedian: 100, tokensMedian: 100, n: 30 } }),
+        JSON.stringify({
+          Standard: { writerTimeMedianSec: 100, writerCostUnitsMedian: 100, n: 30 },
+        }),
       )
       writeFileSync(
         join(root, 'scripts/data/ship-kpi-thresholds.json'),
-        JSON.stringify({ n: 10, andon: 3, costWeights: { input: 1, cache: 0.1, output: 5 } }),
+        JSON.stringify({
+          provisional: true,
+          plateau: 1.3,
+          tune: 1.2,
+          rethinkMedian: 2,
+          rethinkP90: 4,
+          andon: 3,
+          n: 10,
+          minMeasured: 6,
+          escapeWindowDays: 14,
+          costWeights: { input: 1, cache: 0.1, output: 5 },
+        }),
       )
       const normal = (number: number, mergedAt: string) => ({
         number,
         mergedAt,
         stratum: 'Standard',
-        leadTimeSplit: { work: 100 },
+        leadTimeHours: 100 / 3600,
+        leadTimeSplit: { ciRun: 0 },
         tokens: { input: 100, cache: 0, output: 0 },
+        writerCostUnits: 100,
+        sourcesKnown: ['ci', 'claude'],
       })
       writeFileSync(
         join(root, '.arbiter/evidence/kpi/2026-09-18.json'),
@@ -860,7 +926,8 @@ describe('checkpoint history selection (#2725 checkpoint fixes)', () => {
             normal(1, '2026-09-18T00:00:00Z'),
             {
               ...normal(9, '2026-09-19T00:00:00Z'),
-              leadTimeSplit: { work: 400 },
+              leadTimeHours: 400 / 3600,
+              leadTimeSplit: { ciRun: 0 },
               tokens: { input: 0, cache: 0, output: 80 },
               ciRedAtOpen: true,
             },
@@ -878,14 +945,13 @@ describe('checkpoint history selection (#2725 checkpoint fixes)', () => {
         },
       )
       expect(result.status, `stderr:\n${result.stderr}`).toBe(0)
-      expect(result.stdout).toContain('Standard: ANDON')
+      expect(result.stdout).toContain('Standard: HOLD')
       expect(result.stdout).toContain('worst PR #9')
       const log = readFileSync(join(root, 'docs/internal/SYSTEM/SHIP_TUNING_LOG.md'), 'utf-8')
       expect(log).toContain('- stratum: Standard')
       expect(log).toContain('- Window: 2026-09-02 → 2026-09-19')
-      expect(log).toContain('- offenders: #9 overhead_time=4 overhead_tokens=4')
       expect(log).toContain('- escape window open: 2')
-      expect(log).toContain('- escapes: none')
+      expect(log).toContain('- escapes: NO DATA')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -945,7 +1011,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
           },
         ],
       }),
-    ).toEqual({ ciWaitSec: 120, ciRunSec: 300, redCiRuns: 1 })
+    ).toEqual({ ciWaitSec: 120, ciRunSec: 300, redCiRuns: null })
   })
 
   it('keeps CI measures null when the rollup is absent, empty, or has no completed checks', () => {
@@ -1283,7 +1349,8 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       agentPath: '/root/2725_worker',
       threadId: 'thread-2725',
       parentThreadId: 'parent-thread',
-      usage: { input: 160, output: 18, cache: 40 },
+      // OpenAI reports input_tokens INCLUSIVE of cached_input_tokens; fresh input = 160 - 40.
+      usage: { input: 120, output: 18, cache: 40 },
     })
   })
 
@@ -1442,12 +1509,12 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       hookBlocks: {},
       unattributed: { claude: 0, codex: 0, sessions: 0 },
     })
-    expect(rendered).toContain('| Median in / cache / out | Median costUnits |')
-    expect(rendered).toContain('| Standard | 1 | 1/1 | 9.9M / 607k / 60.7k | 10.3M |')
+    expect(rendered).toContain('| Median in / cache / out | costUnits median/p90 |')
+    expect(rendered).toContain('| Standard | 1 | 1/1 | 9.9M / 607k / 60.7k | 10.3M/10.3M |')
   })
 
   it('requires the source needed by each overhead floor and reports measured/reference components', () => {
-    const baseline = { Standard: { timeMedian: 20, tokensMedian: 100, n: 30 } }
+    const baseline = { Standard: { writerTimeMedianSec: 20, writerCostUnitsMedian: 100, n: 30 } }
     const measured = overheadIndices(
       {
         stratum: 'Standard',
@@ -1460,12 +1527,12 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       },
       baseline,
     ) as Record<string, unknown>
-    expect(measured).toMatchObject({ time: 2, tokens: 6 })
+    expect(measured).toMatchObject({ time: null, tokens: 6 })
     expect(measured.floorComponents).toEqual(
       expect.objectContaining({
         time: expect.objectContaining({
           measured: expect.anything(),
-          reference: expect.anything(),
+          writerReference: expect.anything(),
         }),
         tokens: expect.objectContaining({
           measured: expect.anything(),
@@ -1487,7 +1554,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         },
         baseline,
       ),
-    ).toMatchObject({ time: 2, tokens: null })
+    ).toMatchObject({ time: null, tokens: null })
     expect(
       overheadIndices(
         {
@@ -1501,7 +1568,694 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         },
         baseline,
       ),
-    ).toMatchObject({ time: null, tokens: 6 })
+    ).toMatchObject({ time: null, tokens: null })
+  })
+})
+
+describe('review rework semantics (#2725 round 2)', () => {
+  const weights = { input: 1, cache: 0.1, output: 5 }
+  const thresholds = {
+    provisional: true,
+    plateau: 1.3,
+    tune: 1.2,
+    rethinkMedian: 2,
+    rethinkP90: 4,
+    andon: 3,
+    n: 10,
+    minMeasured: 6,
+    escapeWindowDays: 14,
+    costWeights: weights,
+  }
+
+  it('uses the literal lead-time floor formula and names omitted measurements', () => {
+    expect(
+      overheadIndices(
+        {
+          stratum: 'Standard',
+          sourcesKnown: ['ci', 'claude'],
+          leadTime: 120,
+          preflight: 10,
+          fullGate: 20,
+          review: 30,
+          ci: 40,
+          tokens: { input: 500 },
+        },
+        {
+          Standard: { writerTimeMedianSec: 20, writerCostUnitsMedian: 100, n: 30 },
+        },
+        weights,
+      ),
+    ).toMatchObject({
+      time: 1,
+      tokens: 5,
+      floorComponents: {
+        time: { leadTime: 120, measured: 100, writerReference: 20, missing: [] },
+      },
+    })
+
+    const missing = overheadIndices(
+      {
+        stratum: 'Standard',
+        sourcesKnown: ['ci', 'claude'],
+        leadTime: 100,
+        preflight: 10,
+        review: 30,
+        ci: 40,
+        tokens: { input: 500 },
+      },
+      { Standard: { writerTimeMedianSec: 20, writerCostUnitsMedian: 100, n: 30 } },
+      weights,
+    ) as { floorComponents: { time: { missing: string[] } } }
+    expect(missing.floorComponents.time.missing).toEqual(['fullGate'])
+    expect(
+      overheadIndices(
+        {
+          stratum: 'Standard',
+          sourcesKnown: ['claude'],
+          leadTime: 120,
+          tokens: { input: 500 },
+        },
+        { Standard: { writerTimeMedianSec: 20, writerCostUnitsMedian: 100, n: 30 } },
+        weights,
+      ),
+    ).toMatchObject({ time: null, tokens: null })
+  })
+
+  it('calibrates the oldest 30 dated rows into writer-only references and buckets', () => {
+    const rows = Array.from({ length: 31 }, (_, index) => ({
+      number: index + 1,
+      mergedAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
+      stratum: 'Standard',
+      leadTime: index + 1 + 20,
+      preflight: 5,
+      fullGate: 5,
+      review: 5,
+      ci: 5,
+      rework: 0,
+      writerCostUnits: (index + 1) * 2,
+      reviewerCostUnits: index + 1,
+    })).reverse()
+    rows.push({
+      number: 99,
+      mergedAt: null,
+      stratum: 'Standard',
+      leadTime: 10_000,
+      preflight: 0,
+      fullGate: 0,
+      review: 0,
+      ci: 0,
+      rework: 0,
+      writerCostUnits: 10_000,
+      reviewerCostUnits: 10_000,
+    })
+    expect(calibrate(rows, weights)).toEqual({
+      Standard: {
+        writerTimeMedianSec: 15.5,
+        writerCostUnitsMedian: 31,
+        buckets: {
+          review: { timeMedianSec: 5, costUnitsMedian: 15.5 },
+          writer: { timeMedianSec: 15.5, costUnitsMedian: 31 },
+        },
+        n: 30,
+      },
+    })
+  })
+
+  it('keeps missing PR size and commit measures null', () => {
+    expect(buildPrRow({ number: 42, mergedAt: null }, undefined)).toMatchObject({
+      commits: null,
+      leadTimeHours: null,
+      additions: null,
+      deletions: null,
+    })
+  })
+
+  it('does not coerce missing commit measures into aggregate zeroes', () => {
+    expect(
+      computeAggregate({
+        rows: [
+          {
+            commits: null,
+            evidenceOnlyCommits: null,
+            reviewLoopCommits: null,
+            leadTimeHours: null,
+          },
+          { commits: 2, evidenceOnlyCommits: 1, reviewLoopCommits: 0, leadTimeHours: 4 },
+        ],
+        issuesClosedCount: 0,
+        windowHours: 24,
+        mainSubjects: [],
+        openPrs: [],
+        nowMs: Date.now(),
+      }),
+    ).toMatchObject({ medianCommitsPerPr: 2, medianLeadTimeHours: 4, pctEvidenceOnlyCommits: 50 })
+  })
+
+  it('builds current buckets and topBucket from production checkpoint rows', () => {
+    const rows = Array.from({ length: 10 }, (_, index) => ({
+      number: index + 1,
+      mergedAt: new Date(Date.UTC(2026, 8, index + 1)).toISOString(),
+      stratum: 'Standard',
+      leadTimeHours: 120 / 3600,
+      leadTimeSplit: { preflight: 10, fullGate: 10, review: 30, ciRun: 30, rework: 0 },
+      tokens: { input: 300 },
+      writerCostUnits: 100,
+      reviewerCostUnits: 300,
+      sourcesKnown: ['ci', 'claude'],
+    }))
+    const baseline = {
+      Standard: {
+        writerTimeMedianSec: 40,
+        writerCostUnitsMedian: 100,
+        buckets: {
+          writer: { timeMedianSec: 40, costUnitsMedian: 100 },
+          review: { timeMedianSec: 10, costUnitsMedian: 100 },
+        },
+        n: 30,
+      },
+    }
+    const current = checkpointForRows(rows, 'Standard', baseline, weights, [], 14, 0) as {
+      buckets: Record<string, unknown>
+      topBucket: string
+    }
+    expect(current.buckets).toMatchObject({
+      review: { time: 30, tokens: 300, excess: 3 },
+    })
+    expect(current.topBucket).toBe('review')
+    expect(
+      checkpointVerdict({ current, baseline: baseline.Standard, thresholds, history: [] }),
+    ).toBe('TUNE review')
+  })
+
+  it('requires minMeasured indices and reports measured coverage', () => {
+    expect(
+      checkpointVerdict({
+        current: {
+          n: 10,
+          measured: { time: 1, tokens: 1 },
+          indices: {
+            time: { median: 1, p90: 1 },
+            tokens: { median: 1, p90: 1 },
+          },
+          escapes: [],
+        },
+        thresholds,
+        history: [],
+      }),
+    ).toBe('NO DATA')
+    expect(
+      formatLogEntry({
+        stratum: 'Standard',
+        n: 10,
+        measured: { time: 6, tokens: 7 },
+        indices: { time: {}, tokens: {} },
+        escapes: [],
+      }),
+    ).toContain('- measured: time=6/10, tokens=7/10')
+  })
+
+  it('uses current-stratum medians for ANDON rather than baseline indices', () => {
+    const rows = Array.from({ length: 9 }, (_, index) => ({
+      number: index + 1,
+      mergedAt: new Date(Date.UTC(2026, 8, index + 1)).toISOString(),
+      stratum: 'Standard',
+      leadTimeHours: 100 / 3600,
+      leadTimeSplit: { ciRun: 10 },
+      tokens: { input: 100 },
+      writerCostUnits: 100,
+      sourcesKnown: ['ci', 'claude'],
+    }))
+    rows.push({
+      ...rows[0],
+      number: 10,
+      mergedAt: new Date(Date.UTC(2026, 8, 10)).toISOString(),
+      leadTimeHours: 301 / 3600,
+    })
+    const baseline = {
+      Standard: { writerTimeMedianSec: 90, writerCostUnitsMedian: 100, n: 30 },
+    }
+    const current = checkpointForRows(rows, 'Standard', baseline, weights, [], 14, 0) as object
+    expect(
+      checkpointVerdict({ current, baseline: baseline.Standard, thresholds, history: [] }),
+    ).toBe('ANDON')
+  })
+
+  it('uses same-stratum logged checkpoints for RETHINK and PLATEAU', () => {
+    const history = [
+      {
+        stratum: 'Standard',
+        verdict: 'TUNE review',
+        n: 10,
+        topBucket: 'review',
+        bucketExcess: 4,
+        indices: { time: { median: 2.1, p90: 2.1 }, tokens: { median: 2.1, p90: 2.1 } },
+      },
+      {
+        stratum: 'XS-S',
+        verdict: 'TUNE writer',
+        n: 10,
+        topBucket: 'writer',
+        bucketExcess: 10,
+      },
+      {
+        stratum: 'Standard',
+        verdict: 'TUNE review',
+        n: 10,
+        topBucket: 'review',
+        bucketExcess: 3,
+        indices: { time: { median: 2.1, p90: 2.1 }, tokens: { median: 2.1, p90: 2.1 } },
+      },
+    ]
+    const current = {
+      stratum: 'Standard',
+      n: 10,
+      measured: { time: 10, tokens: 10 },
+      indices: { time: { median: 2.1, p90: 2.1 }, tokens: { median: 2.1, p90: 2.1 } },
+      buckets: {},
+      escapes: [],
+    }
+    expect(checkpointVerdict({ current, baseline: {}, thresholds, history })).toBe('RETHINK')
+    expect(
+      checkpointVerdict({
+        current: {
+          ...current,
+          indices: { time: { median: 1, p90: 1 }, tokens: { median: 1, p90: 1 } },
+        },
+        baseline: {},
+        thresholds,
+        history: [
+          {
+            stratum: 'Standard',
+            verdict: 'HOLD',
+            n: 10,
+            indices: { time: { median: 1, p90: 1 }, tokens: { median: 1, p90: 1 } },
+          },
+        ],
+      }),
+    ).toBe('PLATEAU')
+    expect(
+      checkpointVerdict({
+        current: {
+          ...current,
+          indices: { time: { median: 1, p90: 1 }, tokens: { median: 1, p90: 1 } },
+        },
+        baseline: {},
+        thresholds,
+        history: [
+          {
+            stratum: 'Standard',
+            verdict: 'HOLD',
+            n: 1,
+            indices: { time: { median: 1, p90: 1 }, tokens: { median: 1, p90: 1 } },
+          },
+        ],
+      }),
+    ).toBe('HOLD')
+  })
+
+  it('tunes a bucket when one measured dimension exceeds its baseline', () => {
+    const current = {
+      stratum: 'Standard',
+      n: 10,
+      measured: { time: 10, tokens: 10 },
+      indices: { time: { median: 1, p90: 1 }, tokens: { median: 1, p90: 1 } },
+      buckets: {
+        writer: { time: 2, tokens: null, excess: 2 },
+        review: { time: 1, tokens: null, excess: 1 },
+      },
+      topBucket: 'writer',
+      escapes: [],
+    }
+    expect(
+      checkpointVerdict({
+        current,
+        baseline: {
+          buckets: {
+            writer: { timeMedianSec: 1, costUnitsMedian: 100 },
+            review: { timeMedianSec: 1, costUnitsMedian: 100 },
+          },
+        },
+        thresholds,
+        history: [],
+      }),
+    ).toBe('TUNE writer')
+  })
+
+  it('round-trips machine-readable same-stratum checkpoint history', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-history-'))
+    const file = join(root, 'SHIP_TUNING_LOG.md')
+    try {
+      const entry = formatLogEntry({
+        date: '2026-09-19',
+        stratum: 'Standard',
+        n: 10,
+        measured: { time: 10, tokens: 10 },
+        indices: { time: { median: 1, p90: 1 }, tokens: { median: 1, p90: 1 } },
+        topBucket: 'review',
+        bucketExcess: 1.5,
+        verdict: 'TUNE review',
+        escapes: [],
+      })
+      writeFileSync(file, entry)
+      expect(checkpointHistory(file)).toEqual([
+        expect.objectContaining({
+          stratum: 'Standard',
+          verdict: 'TUNE review',
+          topBucket: 'review',
+          bucketExcess: 1.5,
+        }),
+      ])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('marks rollback only when an escape names a removed control', () => {
+    const controls = [{ id: 'legacy-review', removedIn: '#2725', pattern: 'legacy review gate' }]
+    expect(
+      rollbackControl(
+        [{ kind: 'fix', subject: 'fix: restore legacy review gate', body: '' }],
+        controls,
+      ),
+    ).toBe('legacy-review')
+    expect(
+      rollbackControl([{ kind: 'fix', subject: 'fix: ordinary bug', body: '' }], controls),
+    ).toBe(null)
+  })
+
+  it('finds issue escapes, excludes squash merges, and preserves NO DATA', () => {
+    const delivery = {
+      number: 270,
+      mergedAt: '2026-09-01T00:00:00Z',
+      mergeCommitOid: 'merge-sha',
+      issueIds: [2725],
+      commitShas: [],
+    }
+    expect(
+      findEscapes(
+        [delivery],
+        [
+          {
+            sha: 'merge-sha',
+            date: '2026-09-02T00:00:00Z',
+            subject: 'fix: squash merge #2725',
+            body: '',
+          },
+          {
+            sha: 'squash-sha',
+            date: '2026-09-02T00:00:00Z',
+            subject: 'fix: shipped behavior (#270)',
+            body: '',
+          },
+        ],
+        14,
+        [
+          {
+            number: 99,
+            createdAt: '2026-09-03T00:00:00Z',
+            title: 'Regression after #270',
+            body: '',
+          },
+        ],
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        pr: 270,
+        kind: 'issue',
+        issue: 99,
+        subject: 'Regression after #270',
+      }),
+    ])
+    expect(
+      findEscapes(
+        [{ number: 42, mergedAt: '2026-01-01T00:00:00Z', issueIds: [], commitShas: [] }],
+        [
+          {
+            sha: 'fix-other-pr',
+            date: '2026-01-02T00:00:00Z',
+            subject: 'fix: repair #42 (#999)',
+            body: '',
+          },
+        ],
+        14,
+      ),
+    ).toHaveLength(1)
+    expect(findEscapes([delivery], null, 14, [])).toBeNull()
+  })
+
+  it('recognizes only task-shaped ids and attributes each session to one best-overlap PR', () => {
+    expect(
+      issueIdsOf({
+        headRefName: 'build-2026-09-19-task/#2725-fix/2704-follow-up',
+        closingIssuesReferences: [],
+      }),
+    ).toEqual([2704, 2725])
+    const session = {
+      file: 'one',
+      host: 'codex',
+      gitBranch: 'task/#2725-fix',
+      cwd: '/repo/worktrees/2725-fix',
+      firstTs: '2026-09-19T00:04:00Z',
+      lastTs: '2026-09-19T00:09:00Z',
+    }
+    expect(
+      attributeSessionsToDeliveries(
+        [session],
+        [
+          {
+            number: 2725,
+            headRefName: 'task/#2725-fix',
+            firstCommit: '2026-09-19T00:00:00Z',
+            mergedAt: '2026-09-19T00:10:00Z',
+            worktreeDir: '/repo/worktrees/2725-fix',
+          },
+          {
+            number: 9999,
+            headRefName: 'task/#9999-other',
+            firstCommit: '2026-09-19T00:03:00Z',
+            mergedAt: '2026-09-19T00:12:00Z',
+            worktreeDir: '/repo/worktrees/2725-fix',
+          },
+        ],
+      ),
+    ).toEqual(new Map([[2725, [{ meta: session, via: 'branch' }]]]))
+  })
+
+  it('derives Claude and Codex gate durations and reviewer identity from exec events', () => {
+    const codex = codexSessionMeta([
+      JSON.stringify({
+        type: 'session_meta',
+        timestamp: '2026-09-19T00:00:00Z',
+        payload: { source: { subagent: { thread_spawn: { agent_path: '/root/red_team' } } } },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        timestamp: '2026-09-19T00:01:00Z',
+        payload: {
+          type: 'function_call',
+          name: 'exec_command',
+          call_id: 'gate',
+          arguments: JSON.stringify({ cmd: 'node scripts/check-all.mjs L2' }),
+        },
+      }),
+      JSON.stringify({
+        type: 'response_item',
+        timestamp: '2026-09-19T00:01:30Z',
+        payload: { type: 'function_call_output', call_id: 'gate', output: 'ok' },
+      }),
+    ]) as Record<string, unknown>
+    expect(codex).toMatchObject({ fullGateRuns: 1, fullGateSec: 30, reviewer: true })
+
+    const claude = claudeSessionMeta([
+      JSON.stringify({
+        type: 'user',
+        timestamp: '2026-09-19T00:00:00Z',
+        message: { role: 'user', content: 'Verifier pass for #2725' },
+      }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: '2026-09-19T00:01:00Z',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'preflight',
+              name: 'Bash',
+              input: { command: 'node scripts/check-all.mjs L1' },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: 'user',
+        timestamp: '2026-09-19T00:01:10Z',
+        message: {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'preflight', content: 'ok' }],
+        },
+      }),
+    ]) as Record<string, unknown>
+    expect(claude).toMatchObject({ preflightSec: 10, reviewer: true })
+  })
+
+  it('derives work, review, rework, gate, and historical-red phases without overlap', () => {
+    const row = {
+      leadTimeHours: 120 / 3600,
+      leadTimeSplit: {},
+      evidenceOnlyCommits: 2,
+      hookBlocks: 3,
+    }
+    expect(
+      mergeDeliverySources(row, {
+        ci: { ciWaitSec: 10, ciRunSec: 20, redCiRuns: null },
+        redCiRuns: 1,
+        reworkSec: 10,
+        sessions: [
+          {
+            host: 'claude',
+            firstTs: '2026-09-19T00:00:00Z',
+            lastTs: '2026-09-19T00:00:30Z',
+            preflightSec: 10,
+            fullGateSec: 10,
+            fullGateRuns: 1,
+            reviewer: false,
+            usage: { input: 100, output: 0, cache: 0 },
+          },
+          {
+            host: 'claude',
+            firstTs: '2026-09-19T00:00:30Z',
+            lastTs: '2026-09-19T00:00:50Z',
+            reviewer: true,
+            usage: { input: 20, output: 0, cache: 0 },
+          },
+        ],
+        weights,
+      }),
+    ).toMatchObject({
+      fullGateRuns: 1,
+      redCiRuns: 1,
+      writerCostUnits: 100,
+      reviewerCostUnits: 20,
+      leadTimeSplit: {
+        work: 40,
+        preflight: 10,
+        fullGate: 10,
+        review: 20,
+        ciWait: 10,
+        ciRun: 20,
+        rework: 10,
+      },
+      ceremony: { evidenceOnlyCommits: 2, hookBlocks: 3 },
+    })
+    expect(
+      redCiRunsFromHistory([
+        { sha: 'a', checkRuns: [{ conclusion: 'FAILURE' }, { conclusion: 'FAILURE' }] },
+        { sha: 'b', checkRuns: [{ conclusion: 'SUCCESS' }] },
+        { sha: 'c', checkRuns: [{ conclusion: 'FAILURE' }] },
+      ]),
+    ).toBe(2)
+    expect(redCiRunsFromHistory(null)).toBeNull()
+  })
+
+  it('streams each discovered transcript into accumulators without retaining event lines', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-stream-'))
+    const file = join(root, 'rollout-test.jsonl')
+    try {
+      writeFileSync(
+        file,
+        Array.from({ length: 2_000 }, (_, index) =>
+          JSON.stringify({
+            type: 'event_msg',
+            timestamp: new Date(Date.UTC(2026, 8, 19, 0, 0, index % 60)).toISOString(),
+            payload: {
+              info: {
+                total_token_usage: {
+                  input_tokens: index,
+                  cached_input_tokens: 0,
+                  output_tokens: 0,
+                },
+              },
+            },
+          }),
+        ).join('\n'),
+      )
+      const sinceMs = Date.parse('2026-09-19T00:00:00Z')
+      utimesSync(file, new Date(sinceMs), new Date(sinceMs))
+      const sessions = (await discoverSessions(
+        root,
+        'codex',
+        sinceMs,
+        sinceMs + 86_400_000,
+      )) as Array<Record<string, unknown>>
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0]).not.toHaveProperty('events')
+      expect(sessions[0]).toMatchObject({ usage: { input: 1999, cache: 0, output: 0 } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('renders compact per-PR phase fields and median/p90 stratum measures', () => {
+    const rendered = renderMarkdown({
+      since: '2026-09-01',
+      until: '2026-09-19',
+      rows: [
+        {
+          number: 1,
+          commits: 1,
+          evidenceOnlyCommits: 0,
+          reviewLoopCommits: 0,
+          leadTimeHours: 1,
+          leadTimeSplit: { work: 10, preflight: 2, fullGate: 3, review: 4, ciWait: 5, ciRun: 6 },
+          tokens: { input: 100 },
+          humanMessages: 2,
+          rounds: 3,
+          fullGateRuns: 1,
+          costUnits: 100,
+          additions: null,
+          deletions: null,
+          stratum: 'Standard',
+          sourcesKnown: ['ci', 'claude'],
+        },
+      ],
+      aggregate: {
+        prsMerged: 1,
+        issuesClosed: 0,
+        issuesPer24h: 0,
+        medianCommitsPerPr: 1,
+        medianLeadTimeHours: 1,
+        pctEvidenceOnlyCommits: 0,
+        pctReviewLoopCommits: 0,
+        openPrsStale: [],
+        pctMainEvidenceOnlyCommits: 0,
+      },
+      hookBlocks: {},
+      unattributed: { claude: null, codex: null, sessions: null },
+      weights,
+    })
+    expect(rendered).toContain('| Split w/p/f/r/q/c | costUnits | Human | Rounds | Gates |')
+    expect(rendered).toContain('| 10/2/3/4/5/6 | 100 | 2 | 3 | 1 |')
+    expect(rendered).toContain('Lead time median/p90 (h)')
+    expect(rendered).toContain('costUnits median/p90')
+    expect(rendered).toContain('humanMessages median/p90')
+    expect(rendered).toContain(
+      'unattributed: claude NO DATA / codex NO DATA across NO DATA sessions',
+    )
+  })
+
+  it('loads thresholds only from a complete data file and rejects malformed input', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-thresholds-'))
+    try {
+      const good = join(root, 'good.json')
+      const bad = join(root, 'bad.json')
+      writeFileSync(good, JSON.stringify(thresholds))
+      writeFileSync(bad, JSON.stringify({ n: 10 }))
+      expect(loadThresholds(good)).toEqual(thresholds)
+      expect(() => loadThresholds(bad)).toThrow(/threshold/i)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
 
