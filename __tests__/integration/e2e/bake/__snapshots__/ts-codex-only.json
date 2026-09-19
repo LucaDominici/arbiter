@@ -172,7 +172,7 @@
     ".agents/rules/05-agent-lifecycle.md": "7a716ad838618583381d2bb9cdd9238655f6545f0644da6b5c6783f9dc4c5745",
     ".agents/rules/50-batch-execution.md": "f44fb92f88eab98f1853143ba8c81bcaf5b17af07a11b367c6a522ff91ce9b17",
     ".agents/rules/60-incidental-capture.md": "22e9abbfabc71e0bff4f5748ab67c73a093a8c3f04ba960e1f0cac1ba99e376d",
-    ".agents/rules/90-exec-protocol.md": "d267a5fd1473ce1a60cf57d1297ae4a1a3fcbf15935dfd0e51c710359e650899",
+    ".agents/rules/90-exec-protocol.md": "c42eb3f68d066b9c674d519dfb528928726cf2faa9c7c628330cfcc99ffcf16b",
     ".claude/hooks/check-no-orphan-todo.mjs": "48c7e8065abd33cc80ba6fe166c524f1088d392984ea47afc22fd999deba1abe",
     ".claude/hooks/check-no-placeholders.mjs": "5546d83fd647b0864aa2d4b561bdf498f6c5e902dc8927f4b4042d060a78abe8",
     ".claude/hooks/check-no-skipped-tests.mjs": "b96b8d8770a981bd76f2710ea81825393774e4be22548b3617a2f9f2079605f6",

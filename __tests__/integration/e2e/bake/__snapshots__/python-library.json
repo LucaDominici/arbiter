@@ -205,7 +205,7 @@
   "contentHashes": {
     ".arbiter/ship/TICK_PROMPT.md": "14264bf6e19ae157035993e32bca4e3ef38be99382dc8a855f9b07b4be32b61f",
     ".arbiter/ship/supervisor.sh": "0d500f3bf30d2e34a207f06a3d977789b5357cd8830f3e6a3aef8b59a6ab8acb",
-    ".claude/CLAUDE.md": "b7d54e3af9d3106f5830885eadedf860bb59097008c2c6a67e1bc70500ef540f",
+    ".claude/CLAUDE.md": "27d395a9a783868eddc261f8a38822c69896632024cd05e9420a61e73a34f15f",
     ".claude/agents/agent-write-classes.json": "47e850d3b3871339d79a22c43a598ef9c90001987270b3c0a6b0ca4ae1609a94",
     ".claude/agents/bridge-reviewer.md": "b83a0538c68c18d68119ef1dd3c59aef08174b93adbcddc4a5bbd9822feaea61",
     ".claude/agents/codebase-scanner.md": "27db4ff54e68ec9a92afcf7b7701485e9a9bdd45013719f4156d28b52fc4b100",
@@ -237,7 +237,7 @@
     ".claude/rules/50-batch-execution.md": "f44fb92f88eab98f1853143ba8c81bcaf5b17af07a11b367c6a522ff91ce9b17",
     ".claude/rules/60-incidental-capture.md": "22e9abbfabc71e0bff4f5748ab67c73a093a8c3f04ba960e1f0cac1ba99e376d",
     ".claude/rules/75-impact-vault-reading.md": "b8b486533bf4bec3ad4008d2972cf2321fde1247a305e379559868d903308187",
-    ".claude/rules/90-exec-protocol.md": "d267a5fd1473ce1a60cf57d1297ae4a1a3fcbf15935dfd0e51c710359e650899",
+    ".claude/rules/90-exec-protocol.md": "c42eb3f68d066b9c674d519dfb528928726cf2faa9c7c628330cfcc99ffcf16b",
     ".claude/settings.json": "e759592dc88bc90459594cda338a0db3bb26ae9c6bfbcc7e4dc4fe4b4242e4ba",
     ".claude/skills/architect-review/SKILL.md": "4ea36df29b47bb4e4fee7ccc2b09099b00a0104050570e5c70c5e4e0ed45b9aa",
     ".claude/skills/brainstorming/SKILL.md": "38fbd573bfdf3acd74768ea99705fa29a1ffce2f3b48c9058ba5177ee0d783a5",
