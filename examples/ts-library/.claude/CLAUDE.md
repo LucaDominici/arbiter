@@ -5,3 +5,4 @@
 Claude Code-specific hooks and permissions are configured in `.claude/settings.json`.
 Claude-specific agents and commands live under `.claude/agents/` and `.claude/commands/`.
 Use `/ship #NNN` as the delivery entrypoint.
+Collaboration mode: `peer-review` — merge: `pr-ff` / branch: `github-flow`; land changes through a PR branch.

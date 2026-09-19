@@ -16,3 +16,4 @@ related: []
 Claude Code-specific hooks and permissions are configured in `.claude/settings.json`.
 Claude-specific agents and commands live under `.claude/agents/` and `.claude/commands/`.
 Use `/ship #NNN` as the delivery entrypoint.
+Collaboration mode: `trunk-solo` — merge: `pr-ff` / branch: `trunk-direct`; land changes through a PR branch.

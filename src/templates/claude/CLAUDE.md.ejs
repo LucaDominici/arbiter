@@ -1,7 +1,12 @@
-@AGENTS.md
+<% /* ADR-051 (#1119): safety defaults for out-of-band renders; buildRenderContext always injects these. */
+const _collaborationMode = (typeof collaborationMode !== 'undefined' && collaborationMode) ? collaborationMode : 'peer-review';
+const _mergeMode = (typeof mergeMode !== 'undefined' && mergeMode) ? mergeMode : 'pr-ff';
+const _branchingStrategy = (typeof branchingStrategy !== 'undefined' && branchingStrategy) ? branchingStrategy : 'github-flow';
+%>@AGENTS.md
 
 # <%= projectName %> — Claude Code
 
 Claude Code-specific hooks and permissions are configured in `.claude/settings.json`.
 Claude-specific agents and commands live under `.claude/agents/` and `.claude/commands/`.
 Use `/ship #NNN` as the delivery entrypoint.
+Collaboration mode: `<%= _collaborationMode %>` — merge: `<%= _mergeMode %>` / branch: `<%= _branchingStrategy %>`<% if (_mergeMode === 'direct') { %>; run the local gate before pushing to trunk<% } else { %>; land changes through a PR branch<% } %>.
