@@ -238,6 +238,7 @@
 | [ID Registry — every identifier scheme, and the mechanism that keeps it honest](internal/SYSTEM/ID-REGISTRY.md) | id-registry | active | kind/reference |
 | [Invariant Catalog — arbiter](internal/SYSTEM/INVARIANT-CATALOG.md) | invariant-catalog | active | kind/governance |
 | [Owner Decision Registry — the calls only the owner can make](internal/SYSTEM/OD-REGISTRY.md) | od-registry | active | kind/reference |
+| [Ship tuning log](internal/SYSTEM/SHIP_TUNING_LOG.md) | — | active | kind/measurement |
 | [arbiter Architecture](internal/architecture/ARCHITECTURE.md) | ARCHITECTURE | active | kind/spine |
 | [Release Playbook](internal/release-playbook.md) | — | active | kind/internal |
 | [Runbook — Dependabot PR Triage](internal/runbooks/dependabot-handling.md) | RB-01 | active | kind/runbook |

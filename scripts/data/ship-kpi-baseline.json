@@ -1,0 +1,132 @@
+{
+  "Standard": {
+    "writerTimeMedianSec": 59799.5,
+    "writerCostUnitsMedian": 2127147.6,
+    "buckets": {
+      "writer": {
+        "timeMedianSec": 59799.5,
+        "costUnitsMedian": 2127147.6
+      },
+      "review": {
+        "timeMedianSec": 741.39,
+        "costUnitsMedian": 636556.8
+      }
+    },
+    "calibration": {
+      "writerTimeMedianSec": {
+        "n": 30,
+        "range": {
+          "from": "2026-08-22T00:47:53Z",
+          "to": "2026-09-07T17:33:57Z"
+        }
+      },
+      "writerCostUnitsMedian": {
+        "n": 20,
+        "range": {
+          "from": "2026-09-08T15:46:21Z",
+          "to": "2026-09-19T21:58:50Z"
+        }
+      },
+      "buckets": {
+        "writer": {
+          "timeMedianSec": {
+            "n": 30,
+            "range": {
+              "from": "2026-08-22T00:47:53Z",
+              "to": "2026-09-07T17:33:57Z"
+            }
+          },
+          "costUnitsMedian": {
+            "n": 20,
+            "range": {
+              "from": "2026-09-08T15:46:21Z",
+              "to": "2026-09-19T21:58:50Z"
+            }
+          }
+        },
+        "review": {
+          "timeMedianSec": {
+            "n": 28,
+            "range": {
+              "from": "2026-08-22T00:47:53Z",
+              "to": "2026-09-19T21:58:50Z"
+            }
+          },
+          "costUnitsMedian": {
+            "n": 28,
+            "range": {
+              "from": "2026-08-22T00:47:53Z",
+              "to": "2026-09-19T21:58:50Z"
+            }
+          }
+        }
+      }
+    },
+    "n": 30
+  },
+  "XS-S": {
+    "writerTimeMedianSec": 8737.5,
+    "writerCostUnitsMedian": null,
+    "buckets": {
+      "writer": {
+        "timeMedianSec": 8737.5,
+        "costUnitsMedian": null
+      },
+      "review": {
+        "timeMedianSec": null,
+        "costUnitsMedian": null
+      }
+    },
+    "calibration": {
+      "writerTimeMedianSec": {
+        "n": 22,
+        "range": {
+          "from": "2026-08-23T18:33:38Z",
+          "to": "2026-09-16T14:57:17Z"
+        }
+      },
+      "writerCostUnitsMedian": {
+        "n": 0,
+        "range": {
+          "from": null,
+          "to": null
+        }
+      },
+      "buckets": {
+        "writer": {
+          "timeMedianSec": {
+            "n": 22,
+            "range": {
+              "from": "2026-08-23T18:33:38Z",
+              "to": "2026-09-16T14:57:17Z"
+            }
+          },
+          "costUnitsMedian": {
+            "n": 0,
+            "range": {
+              "from": null,
+              "to": null
+            }
+          }
+        },
+        "review": {
+          "timeMedianSec": {
+            "n": 2,
+            "range": {
+              "from": "2026-09-16T14:20:59Z",
+              "to": "2026-09-16T14:57:17Z"
+            }
+          },
+          "costUnitsMedian": {
+            "n": 2,
+            "range": {
+              "from": "2026-09-16T14:20:59Z",
+              "to": "2026-09-16T14:57:17Z"
+            }
+          }
+        }
+      }
+    },
+    "n": 22
+  }
+}
