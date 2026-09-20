@@ -27,6 +27,8 @@ files:
   - .agents/plan/2490-init-json-dry-run.md
   - .arbiter/evidence/tdd/#2490.json
   - __tests__/commands/init-json-dry-run.test.ts
+  - docs/QUICKSTART.md
+  - scripts/data/codex-self-parity-runtime-artifacts.json
   - src/commands/init.ts
 ---
 
@@ -36,7 +38,9 @@ files:
 > refuses writes under `.claude/`. The Context Block and `files:` manifest the
 > `pre-edit-plan-anchor` hook validates are identical here, and
 > `arbiter lifecycle start --plan` takes any repo-relative path (precedent:
-> `.agents/plan/2594-bun-prepare.md`).
+> `.agents/plan/2594-bun-prepare.md`). `.agents/` is a codex track root, so the file
+> is declared in `scripts/data/codex-self-parity-runtime-artifacts.json` the way the
+> self-parity gate asks for — same line the #2594 plan holds.
 
 ## Scope
 
