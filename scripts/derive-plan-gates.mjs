@@ -12,7 +12,7 @@
 // Advisory at anchor time: a plan not yet written, or without a files: manifest, is a SKIP here
 // (exit 0) — the red-phase gate is the actual enforcement point and fails closed if derivedGates
 // is still missing when the task tries to enter red.
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { deriveGatesForFiles, parsePlanFilesManifest } from './lib/gate-derivation.mjs'
 import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
@@ -30,7 +30,12 @@ function main() {
     console.error('usage: derive-plan-gates.mjs <root> <planPath>')
     process.exit(2)
   }
-  const abs = planPath.startsWith('/') ? planPath : join(root, planPath)
+  // Strip a `plan.md#acceptance`-style fragment the same way check-acceptance.mjs's readPlan()
+  // and task.ts's checkAcceptancePlanGate call site do, so a fragment-qualified reference resolves
+  // to the real file instead of silently SKIPping (which would then block plan->red, the opposite
+  // of advisory, once checkPlanDerivedGates starts requiring a fresh derivedGates).
+  const withoutFragment = planPath.split('#')[0]
+  const abs = withoutFragment.startsWith('/') ? withoutFragment : join(root, withoutFragment)
   if (!existsSync(abs)) {
     console.log('SKIP derive-plan-gates: plan file not written yet')
     return
@@ -48,7 +53,12 @@ function main() {
   const state = JSON.parse(readRegularFileSync(statusPath, 'utf-8'))
   state.derivedGates = gates
   // Match writeUnifiedState's serialization (task-state.ts) so a later TS read/write is a no-op diff.
-  writeFileSync(statusPath, JSON.stringify(state, null, 2) + '\n')
+  // Atomic write (temp file + rename), same pattern as record-journey-evidence.mjs / done-evidence.mjs —
+  // a crash mid-write must not leave status.json truncated, matching task-state.ts's atomicWrite for
+  // the same file.
+  const tmpPath = `${statusPath}.${process.pid}.tmp`
+  writeFileSync(tmpPath, JSON.stringify(state, null, 2) + '\n')
+  renameSync(tmpPath, statusPath)
   console.log(`derive-plan-gates: wrote ${gates.length} derived gate(s)`)
 }
 

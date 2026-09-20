@@ -20,6 +20,7 @@ import {
   reviewStateOf,
   invalidateTaskReceipts,
 } from './task-state.js'
+import { getLogger } from '../utils/logger.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
@@ -410,8 +411,15 @@ function derivePlanGates(root: string, plan: string): void {
   // closed at plan->red if derivedGates ends up missing or stale.
   try {
     runCli('node', [script, root, plan], { cwd: root, timeoutMs: 5000 })
-  } catch {
-    // swallow — see comment above
+  } catch (err) {
+    // Non-fatal (see comment above) but not silent: a genuine internal failure here (as opposed
+    // to derive-plan-gates.mjs's own advisory SKIPs, which exit 0) would otherwise leave zero
+    // trace while a prior run's stale derivedGates stays on status.json unchanged.
+    getLogger().warn(
+      'task.derive_plan_gates_failed',
+      { error: err instanceof Error ? err.message : String(err) },
+      `derivePlanGates: ${err instanceof Error ? err.message : String(err)}`,
+    )
   }
 }
 

@@ -408,6 +408,12 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
     runTaskInit({ dir, id: '#2773' })
     expect(readUnifiedState(dir)?.derivedGates).toBeUndefined()
   })
+
+  it('writes derivedGates for a fragment-qualified plan reference (plan.md#acceptance)', () => {
+    const dir = anchorRepo()
+    runTaskInit({ dir, id: '#2773', plan: 'plan.md#acceptance' })
+    expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveGatesForFiles(FILES))
+  })
 })
 
 describe('advance --to refactor — the review machinery must have an id to key on (AC-1)', () => {
