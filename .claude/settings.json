@@ -10,11 +10,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/post-commit-check.mjs",
-            "timeout": 3
-          },
-          {
-            "type": "command",
             "command": "node .claude/hooks/stop-dangerous.mjs",
             "timeout": 5
           },
@@ -70,6 +65,11 @@
       {
         "matcher": "Bash",
         "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/post-commit-check.mjs",
+            "timeout": 3
+          },
           {
             "type": "command",
             "command": "node .claude/hooks/wiki-on-commit.mjs",

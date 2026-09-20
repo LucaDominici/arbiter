@@ -641,6 +641,20 @@ describe('post-commit-check — empirical fire', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  it('registers the self advisory for PostToolUse Bash only (#2767)', () => {
+    const settings = JSON.parse(readFileSync(resolve('.claude/settings.json'), 'utf-8')) as {
+      hooks: Record<string, Array<{ matcher?: string; hooks?: Array<{ command?: string }> }>>
+    }
+    const commands = (event: string) =>
+      (settings.hooks[event] ?? [])
+        .filter((entry) => entry.matcher === 'Bash')
+        .flatMap((entry) => entry.hooks ?? [])
+        .map((hook) => hook.command)
+
+    expect(commands('PostToolUse')).toContain('node .claude/hooks/post-commit-check.mjs')
+    expect(commands('PreToolUse')).not.toContain('node .claude/hooks/post-commit-check.mjs')
+  })
+
   it('exits 0 when command is not a git commit', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'npm test',
