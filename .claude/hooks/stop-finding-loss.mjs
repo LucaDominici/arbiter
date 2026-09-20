@@ -58,8 +58,8 @@ function parseTranscript(transcriptPath) {
   return { dispatchCount, sessionStartMs }
 }
 
-/** Counts JSONL lines across the given files whose own `ts` field is >= sinceMs. */
-function countJsonlTsSince(paths, sinceMs) {
+/** Counts JSONL lines across the given files whose `tsField` timestamp is >= sinceMs. */
+function countJsonlTsSince(paths, sinceMs, tsField = 'ts') {
   let count = 0
   for (const p of paths) {
     let raw
@@ -74,7 +74,7 @@ function countJsonlTsSince(paths, sinceMs) {
       if (trimmed.length === 0) continue
       try {
         const entry = JSON.parse(trimmed)
-        const ms = Date.parse(entry.ts)
+        const ms = Date.parse(entry[tsField])
         if (!Number.isNaN(ms) && ms >= sinceMs) count++
         // FAIL-OPEN-INTENT: a malformed JSONL line must not abort the count — skip and keep scanning.
       } catch {
@@ -98,16 +98,20 @@ function countFindingsSince(root, sinceMs) {
 }
 
 /**
- * Counts drain receipts with ts >= sinceMs (#2733). `arbiter finding promote` removes
- * every fingerprint it made durable from the spool, so a session that captured findings
- * and promoted them leaves an EMPTY spool — without this the guard would report the
- * workflow it is meant to reward as a total loss. The record's own `ts` is the signal,
- * never file mtime: the receipt lives beside tracked evidence and a checkout would lie.
+ * Counts drain receipts for findings CAPTURED since sinceMs (#2733). `arbiter finding
+ * promote` removes every fingerprint it made durable from the spool, so a session that
+ * captured findings and promoted them leaves an EMPTY spool — without this the guard would
+ * report the workflow it is meant to reward as a total loss. The count keys on
+ * `capturedTs`, the finding's own capture time, not on the receipt's `ts`: promoting an
+ * EARLIER session's spool must not excuse a session that captured nothing itself. Both are
+ * record fields, never file mtime — the receipt sits beside tracked evidence, where a
+ * checkout or regen would bump an mtime and silently stand the guard down.
  */
 function countDrainedSince(root, sinceMs) {
   return countJsonlTsSince(
     [join(root, '.arbiter', 'evidence', 'findings-promote', 'drained.jsonl')],
     sinceMs,
+    'capturedTs',
   )
 }
 

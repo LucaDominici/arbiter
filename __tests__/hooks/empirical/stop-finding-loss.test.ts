@@ -126,6 +126,7 @@ describe('stop-finding-loss hook (#1948, design doc §E6b)', () => {
       join(evidenceDir, 'drained.jsonl'),
       JSON.stringify({
         ts: new Date().toISOString(),
+        capturedTs: new Date().toISOString(),
         fingerprint: 'abc123',
         issue: 4242,
         disposition: 'promoted',
@@ -136,7 +137,10 @@ describe('stop-finding-loss hook (#1948, design doc §E6b)', () => {
     expect(result.stderr).not.toContain('FINDING LOSS')
   })
 
-  it('exits 2: a drain receipt older than the session is not this session’s proof', () => {
+  // Promoting a PREVIOUS session's spool writes a fresh receipt `ts`. The finding was not
+  // captured by this session, so it is not this session's persistence proof: the guard keys
+  // on `capturedTs` and still fires.
+  it('exits 2: draining an earlier session’s finding is not this session’s proof', () => {
     const dir = track(setup())
     const start = new Date(Date.now() - 60_000).toISOString()
     const transcript = writeTranscript(dir, 3, start)
@@ -145,7 +149,8 @@ describe('stop-finding-loss hook (#1948, design doc §E6b)', () => {
     writeFileSync(
       join(evidenceDir, 'drained.jsonl'),
       JSON.stringify({
-        ts: new Date(Date.now() - 86_400_000).toISOString(),
+        ts: new Date().toISOString(),
+        capturedTs: new Date(Date.now() - 86_400_000).toISOString(),
         fingerprint: 'old',
         disposition: 'promoted',
       }) + '\n',

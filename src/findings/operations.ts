@@ -32,7 +32,8 @@ import { loadGraphSnapshot } from '../graph/load.js'
 import {
   ensureDir,
   readFileTranslated,
-  writeFileTranslated,
+  writeFile,
+  assertWritten,
   appendFileTranslated,
 } from '../utils/fs.js'
 
@@ -350,6 +351,18 @@ interface DrainRecord {
   disposition: 'promoted' | 'dropped' | 'tracked'
   /** The issue this finding was filed as; absent for `dropped`/`tracked` entries. */
   issue?: number
+  /**
+   * The drained finding's ORIGINAL capture timestamp. The `stop-finding-loss` hook counts
+   * receipts by this, not by the promote run's clock: promoting a previous session's spool
+   * must not stand the guard down for a session that captured nothing itself.
+   */
+  capturedTs: string
+  /**
+   * The whole spool line. `promoted`/`tracked` findings survive in their issue; a `dropped`
+   * one survives NOWHERE else, and rung 1 of `revalidate` drops on a missing path — which a
+   * rename during the same task also produces. Keeping the line makes a false drop recoverable.
+   */
+  finding: SpoolFinding
 }
 
 /**
@@ -364,13 +377,19 @@ interface DrainRecord {
  * the two writes belong together.
  *
  * Lines that do not parse, or carry no string fingerprint, are KEPT: nothing is deleted
- * unless it was proven drained.
+ * unless it was proven drained. A shard that lost nothing is not rewritten at all, so the
+ * per-shard isolation that lets concurrent `finding add` calls append without contending
+ * still holds for every untouched shard. The write goes through the atomic temp+rename path
+ * because the lines it preserves — cooldown and deferred findings — are durable nowhere else.
  *
- * ponytail: whole-shard read-modify-write. Per-shard files exist so concurrent
- * `finding add` appends never contend; a line appended between this read and write is
- * lost. Acceptable because promote is an explicit single-run operator command — switch
- * to a tombstone file if concurrent promote+add ever becomes real.
+ * ponytail: the affected shard is still a read-modify-write, so an append into THAT shard
+ * between this read and write is lost. Acceptable because promote is an explicit single-run
+ * operator command — switch to a tombstone file if concurrent promote+add becomes real.
  */
+function toDrainRecord(f: SpoolFinding, disposition: DrainRecord['disposition']): DrainRecord {
+  return { fingerprint: f.fingerprint, disposition, capturedTs: f.ts, finding: f }
+}
+
 function drainSpool(dir: string, records: readonly DrainRecord[], now: Date): void {
   if (records.length === 0) return
   const drained = new Set(records.map((r) => r.fingerprint))
@@ -378,6 +397,7 @@ function drainSpool(dir: string, records: readonly DrainRecord[], now: Date): vo
   for (const shard of readdirSync(findingsDir).filter((f) => f.endsWith('.jsonl'))) {
     const path = join(findingsDir, shard)
     const lines = readFileTranslated(path, 'utf-8').split('\n')
+    let removed = 0
     const kept = lines.filter((line) => {
       const trimmed = line.trim()
       if (trimmed.length === 0) return false
@@ -390,9 +410,17 @@ function drainSpool(dir: string, records: readonly DrainRecord[], now: Date): vo
         return true
       }
       const fp = (parsed as { fingerprint?: unknown } | null)?.fingerprint
-      return typeof fp !== 'string' || !drained.has(fp)
+      if (typeof fp === 'string' && drained.has(fp)) {
+        removed++
+        return false
+      }
+      return true
     })
-    writeFileTranslated(path, kept.length > 0 ? kept.join('\n') + '\n' : '')
+    if (removed === 0) continue // untouched shard — never rewritten
+    const result = writeFile(path, kept.length > 0 ? kept.join('\n') + '\n' : '', {
+      skipPreserveCheck: true,
+    })
+    assertWritten(result, `drained findings spool at ${path}`)
   }
 
   const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
@@ -432,7 +460,7 @@ function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPr
       dropped.push(toOutcome(f))
       // The code this finding described is gone: it no longer describes reality.
       drained.push(toOutcome(f))
-      drainRecords.push({ fingerprint: f.fingerprint, disposition: 'dropped' })
+      drainRecords.push(toDrainRecord(f, 'dropped'))
       continue
     }
     if (action.kind === 'skipped') {
@@ -441,7 +469,7 @@ function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPr
       // closed-issue cooldown stays in the spool so it can be re-promoted later.
       if (action.tracked) {
         drained.push(toOutcome(f))
-        drainRecords.push({ fingerprint: f.fingerprint, disposition: 'tracked' })
+        drainRecords.push(toDrainRecord(f, 'tracked'))
       }
       continue
     }
@@ -459,11 +487,7 @@ function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPr
     appendTechDebtIssue(evidenceDir, action.issueNumber)
     promoted.push(toOutcome(f))
     drained.push(toOutcome(f))
-    drainRecords.push({
-      fingerprint: f.fingerprint,
-      disposition: 'promoted',
-      issue: action.issueNumber,
-    })
+    drainRecords.push({ ...toDrainRecord(f, 'promoted'), issue: action.issueNumber })
   }
 
   drainSpool(dir, drainRecords, now)

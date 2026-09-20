@@ -431,6 +431,12 @@ describe('runFindingsPromote()', () => {
     expect(receipt).toHaveLength(1)
     expect(receipt[0]).toMatchObject({ fingerprint: h, issue: 9001, disposition: 'promoted' })
     expect(Number.isNaN(Date.parse(String(receipt[0]?.ts)))).toBe(false)
+    // capturedTs is the FINDING's clock, so the Stop hook can tell a finding this session
+    // captured from an older one this session merely promoted.
+    expect(receipt[0]?.capturedTs).toBe('2026-06-16T00:00:00.000Z')
+    // The receipt keeps the whole spool line — a DROPPED finding survives nowhere else,
+    // so a false drop (e.g. the file was renamed) stays recoverable.
+    expect(receipt[0]?.finding).toMatchObject({ note: 'receipt me', file: 'real.ts' })
     const tdPath = join(dir, '.arbiter', 'evidence', 'findings-promote', 'tech-debt.json')
     expect(JSON.parse(readFileSync(tdPath, 'utf-8'))).toEqual({ issues: [9001] })
   })
@@ -451,7 +457,27 @@ describe('runFindingsPromote()', () => {
     expect(drainReceipt(dir)).toEqual([])
   })
 
-  it('(#2733 AC-7) an unparseable spool line is never deleted by a drain', () => {
+  it('(#2733) a shard that lost nothing is left byte-identical', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const promoted = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'promote me' }
+    const young = { kind: 'smell', file: '', symbol: 'helperX', note: 'young low-confidence' }
+    const now = new Date('2026-06-16T00:00:00.000Z')
+    writeShard(dir, 'a', [{ ...promoted, severity: 'high', fingerprint: fp(promoted) }])
+    writeShard(dir, 'b', [
+      { ...young, severity: 'low', fingerprint: fp(young), ts: now.toISOString() },
+    ])
+    const other = join(dir, '.arbiter', 'findings', 'b.jsonl')
+    const before = readFileSync(other, 'utf-8')
+
+    runFindingsPromote({ dir, now }, makeDeps().deps)
+
+    // Per-shard files exist so concurrent `finding add` calls never contend; rewriting a
+    // shard the drain did not touch would throw that isolation away.
+    expect(readFileSync(other, 'utf-8')).toBe(before)
+  })
+
+  it('(#2733 AC-7) malformed spool data aborts the run before anything is deleted', () => {
     const dir = tmpRepo()
     writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
     const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'promote me' }

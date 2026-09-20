@@ -362,7 +362,7 @@
     ".claude/hooks/skill-forced-eval.mjs": "d480e1b0febe086f97452b63d1834a698d51f6b6eac107c2bd6c0b0d9df5cbf1",
     ".claude/hooks/stop-dangerous.mjs": "68c4eeb410fa1db2731c9bca59be4acfc2c62413795639e116edc82ff2b8aef4",
     ".claude/hooks/stop-evidence-guard.mjs": "0a2d397b283e01f8dc1079f61d002a92989be81fe7df47219884d5a11f21c7eb",
-    ".claude/hooks/stop-finding-loss.mjs": "dbf51afb89e7391654acfaced768eb8ca957d5697149fe1f6565f07f10bd6e8f",
+    ".claude/hooks/stop-finding-loss.mjs": "936124700adb3b22702d1f9ca423efaa353bbf1f7739bce0914c21483072ea04",
     ".claude/hooks/wiki-on-commit.mjs": "c05fb21c9c16f46f16984205da4bc2354ed5e39555bc0c5eb307074fd1896d69",
     ".claude/knowledge-map.json": "5cda7e116ff5ec8dee96d5de3f9437a57c0489ad8264ef1841fb4a3f8172c830",
     ".claude/rules/05-agent-lifecycle.md": "7a716ad838618583381d2bb9cdd9238655f6545f0644da6b5c6783f9dc4c5745",

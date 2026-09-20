@@ -144,9 +144,27 @@ that both the spool count and the new drain count call, rather than a second cop
 | AC-6, AC-7 | `findings-promote.test.ts`                                                                            | byte-equality of the shard after a failing `createIssue`; malformed line survives a drain                  |
 | AC-8       | existing emission and bake parity                                                                     | `npm run regen`                                                                                            |
 
+## Review round 1 (reviewer verdict FAIL, reconciled)
+
+One blocker and five non-blocking findings, all reconciled in one batch:
+
+1. HIGH — the `.ejs` hook change left the java-spring L3/L4 bake content hashes stale (AC-8).
+   Regenerated with `BAKE_UPDATE_SNAPSHOTS=1`, never hand-edited.
+2. MED — the drain rewrote every shard, voiding the per-shard concurrency bound this plan
+   relies on. It now skips any shard it removed nothing from.
+3. MED — the rewrite used the non-atomic `writeFileTranslated` on a path whose survivors
+   (cooldown, deferred) are durable nowhere. It now goes through `writeFile` + `assertWritten`,
+   the existing atomic temp+rename path.
+4. MED — a `dropped` finding was deleted with only its fingerprint receipted, so a false drop
+   (rung 1 fires on a rename) was unrecoverable. The receipt now carries the whole spool line.
+5. LOW — the Stop hook counted receipts by the promote run's clock, so promoting an earlier
+   session's spool excused a session that captured nothing. It now keys on `capturedTs`.
+6. LOW — the AC-7 test asserted the fail-closed abort while naming the keep-unparseable branch.
+   Renamed to state the mechanism it actually proves; the keep branch stays as defence in depth.
+
 ## Risks
 
-- Read-modify-write on the shards. Per-shard files exist so concurrent `finding add` appends do
+- Read-modify-write on the affected shard. Per-shard files exist so concurrent `finding add` appends do
   not contend; the drain rewrites a whole shard, so a line appended between read and write is lost.
   Accepted: promote is an explicit, operator-initiated, single-run command, and the write is one
   `writeFileTranslated` per shard. `ponytail:` whole-shard rewrite; move to a tombstone file if
