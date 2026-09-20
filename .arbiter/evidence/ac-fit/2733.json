@@ -1,0 +1,121 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2733",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 356
+        },
+        {
+          "file": "src/findings/operations.ts",
+          "line": 490
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 372
+        },
+        {
+          "file": "src/findings/operations.ts",
+          "line": 470
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 407
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 430
+        },
+        {
+          "file": "src/findings/operations.ts",
+          "line": 429
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/hooks/empirical/stop-finding-loss.test.ts",
+          "line": 119
+        },
+        {
+          "file": "__tests__/hooks/empirical/stop-finding-loss.test.ts",
+          "line": 143
+        }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 444
+        },
+        {
+          "file": "src/findings/operations.ts",
+          "line": 482
+        }
+      ]
+    },
+    {
+      "id": "AC-7",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 480
+        },
+        {
+          "file": "src/findings/operations.ts",
+          "line": 409
+        }
+      ]
+    },
+    {
+      "id": "AC-8",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+          "line": 365
+        },
+        {
+          "file": "src/templates/claude/hooks/stop-finding-loss.mjs.ejs",
+          "line": 115
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2733-finding-promote-drain",
+  "sha": "65e7d8cb22f28ded58692509f244c95d95d46a25",
+  "planHash": "41b08dff12790bc92f572a0920110ac8863a163d",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2733/domain-0.json",
+    "sha256": "5ef310361e1e7d1670ca532be7061a9053a6f68a57f20edd3697281048c2a7c5"
+  }
+}
