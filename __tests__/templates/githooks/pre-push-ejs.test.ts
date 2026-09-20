@@ -131,8 +131,8 @@ describe('githooks/pre-push.ejs — evidence-freshness gate', () => {
       expect(out).toContain('mktemp')
     })
 
-    it('still invokes the gate subcommand at the end', () => {
-      expect(out).toContain('node scripts/check-all.mjs gate')
+    it('invokes the light preflight subcommand at the end (#2773 P7)', () => {
+      expect(out).toContain('node scripts/check-all.mjs preflight')
     })
   })
 
@@ -144,8 +144,8 @@ describe('githooks/pre-push.ejs — evidence-freshness gate', () => {
       expect(out).not.toContain('mktemp')
     })
 
-    it('still invokes the gate subcommand', () => {
-      expect(out).toContain('node scripts/check-all.mjs gate')
+    it('invokes the light preflight subcommand (#2773 P7)', () => {
+      expect(out).toContain('node scripts/check-all.mjs preflight')
     })
   })
 })

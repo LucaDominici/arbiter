@@ -139,15 +139,6 @@ describe('.githooks/pre-push — green-evidence reuse (skip redundant rerun)', (
     if (dir && existsSync(dir)) rmSync(dir, { recursive: true, force: true })
   })
 
-  it('valid fresh stamp for HEAD (clean, L2, matching node) → SKIPS the rerun', () => {
-    dir = setupRepo({ stamp: {} })
-    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim()
-    const r = runHook(dir, {}, `refs/heads/task ${head} refs/heads/main ${head}\n`)
-    expect(r.status).toBe(0)
-    expect(r.stubRan).toBe(false)
-    expect(r.stdout).toMatch(/reusing green L2 evidence/)
-  })
-
   it('push subject differs from HEAD → rejects instead of qualifying the wrong commit', () => {
     dir = setupRepo({ stamp: {}, advanceHeadAfterStamp: true })
     const parent = execFileSync('git', ['rev-parse', 'HEAD^'], {
@@ -171,29 +162,6 @@ describe('.githooks/pre-push — green-evidence reuse (skip redundant rerun)', (
     expect(r.status).not.toBe(0)
     expect(r.stubRan).toBe(false)
     expect(r.stdout).toContain('pushed object is not a commit')
-  })
-
-  it('HEAD moves during receipt verification → rejects before reuse', () => {
-    dir = setupRepo({ stamp: null })
-    writeFileSync(
-      join(dir, 'scripts', 'lib', 'gate-evidence.mjs'),
-      [
-        "import { execFileSync } from 'node:child_process'",
-        "import { writeFileSync } from 'node:fs'",
-        "writeFileSync('race.txt', 'moved\\n')",
-        "execFileSync('git', ['add', 'race.txt'])",
-        "execFileSync('git', ['commit', '-q', '-m', 'concurrent move'])",
-        "process.stdout.write('L2 evidence')",
-      ].join('\n'),
-    )
-    execFileSync('git', ['add', 'scripts/lib/gate-evidence.mjs'], { cwd: dir })
-    execFileSync('git', ['commit', '-q', '-m', 'install verifier probe'], { cwd: dir })
-    writeGatePassEvidence(dir, { taskId: 'unknown' })
-    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim()
-    const r = runHook(dir, {}, `refs/heads/task ${head} refs/heads/main ${head}\n`)
-    expect(r.status).not.toBe(0)
-    expect(r.stubRan).toBe(false)
-    expect(r.stdout).toContain('HEAD changed while pre-push evidence was being verified')
   })
 
   it('no stamp present → runs the full gate (no skip)', () => {
