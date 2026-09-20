@@ -618,12 +618,27 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
 
 function sessionAttribution(meta, issueIds, attributedThreads, mergedAt) {
   const contexts = contextsBefore(meta, mergedAt)
-  if (contexts.some((context) => containsIssueId(context.gitBranch, issueIds))) return 'branch'
-  if (contexts.some((context) => containsIssueId(context.cwd, issueIds))) return 'cwd'
+  if (!visitsMultipleIssues(contexts)) {
+    if (contexts.some((context) => containsIssueId(context.gitBranch, issueIds))) return 'branch'
+    if (contexts.some((context) => containsIssueId(context.cwd, issueIds))) return 'cwd'
+  }
   if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id))) return 'agent-path'
   if (hasParentAttribution(meta, attributedThreads)) return 'parent'
   if (hasPromptAttribution(meta, issueIds)) return 'prompt'
   return null
+}
+
+// A session whose contexts name more than one distinct issue's branch/cwd is a coordinator that
+// visited several worktrees, not a writer born in one of them — branch/cwd is a writer signature
+// and must not attribute a coordinator to any of the issues it merely passed through.
+function visitsMultipleIssues(contexts) {
+  const ids = new Set(
+    contexts.flatMap((context) => [
+      ...issueNumbers(context.gitBranch),
+      ...issueNumbers(context.cwd),
+    ]),
+  )
+  return ids.size > 1
 }
 
 function contextsBefore(meta, mergedAt) {
