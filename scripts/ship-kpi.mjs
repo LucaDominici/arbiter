@@ -28,7 +28,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { ghJson } from './lib/gh-audit-io.mjs'
 import { classify } from './pr-merge-watch.mjs'
@@ -63,6 +63,13 @@ const LEAD_TIME_KINDS = [
 const REVIEWER_RE = /review|red[-_ ]?team|verifier|ac[-_ ]?fit/i
 const FULL_GATE_RE = /check-all\.mjs\s+L2\b|arbiter\s+(?:check|gate)\s+run\b/i
 const PREFLIGHT_RE = /check-all\.mjs\s+L1\b|\bpreflight\b/i
+const NON_HUMAN_PROMPT_PREFIXES = [
+  '<task-notification>',
+  '<system-reminder>',
+  '<local-command-stdout>',
+  '<local-command-stderr>',
+  '[Request interrupted',
+]
 let configuredWeights = null
 
 export function isEvidenceOnlySubject(subject) {
@@ -215,29 +222,26 @@ function addMetric(total, value) {
 
 /** Aggregate Claude JSONL usage without turning absent usage into zero. */
 export function sessionUsage(lines) {
-  let input = null
-  let output = null
-  let cache = null
-  let humanMessages = 0
+  const state = { input: null, output: null, cache: null, humanMessages: 0, seenUsage: new Set() }
   for (const line of Array.isArray(lines) ? lines : []) {
     const event = parseSessionLine(line)
     if (event === null) continue
-    if (event.type === 'human' || event.type === 'user' || event.message?.role === 'user') {
-      humanMessages++
-    }
-    const usage = event.message?.usage ?? event.usage
-    input = addMetric(input, usageValue(usage, 'input_tokens', 'inputTokens'))
-    output = addMetric(output, usageValue(usage, 'output_tokens', 'outputTokens'))
-    const cacheRead = usageValue(usage, 'cache_read_input_tokens', 'cacheReadInputTokens')
-    const cacheCreation = usageValue(
-      usage,
-      'cache_creation_input_tokens',
-      'cacheCreationInputTokens',
-    )
-    cache = addMetric(cache, cacheRead)
-    cache = addMetric(cache, cacheCreation)
+    const role = event.message?.role ?? event.type
+    if (isGenuineClaudeUser(event, role)) state.humanMessages++
+    consumeSessionUsage(state, event)
   }
-  return { input, output, cache, humanMessages }
+  return {
+    input: state.input,
+    output: state.output,
+    cache: state.cache,
+    humanMessages: state.humanMessages,
+  }
+}
+
+function consumeSessionUsage(state, event) {
+  const usage = event.message?.usage ?? event.usage
+  if (!usage || !shouldCountClaudeUsage(state.seenUsage, event)) return
+  updateClaudeUsage(state, usage)
 }
 
 /** Select the treatment, widening sensitive/train deliveries before size fallback. */
@@ -710,6 +714,34 @@ function messageContent(event) {
   return event?.message?.content ?? event?.content
 }
 
+function shouldCountClaudeUsage(seen, event) {
+  const identity =
+    typeof event?.message?.id === 'string'
+      ? `message:${event.message.id}`
+      : typeof event?.requestId === 'string'
+        ? `request:${event.requestId}`
+        : null
+  if (identity === null) return true
+  if (seen.has(identity)) return false
+  seen.add(identity)
+  return true
+}
+
+function isGenuineClaudeUser(event, role) {
+  if (
+    !['human', 'user'].includes(role) ||
+    event.isSidechain === true ||
+    event.isMeta === true ||
+    isToolResultMessage(event)
+  )
+    return false
+  const content = messageContent(event)
+  return (
+    typeof content !== 'string' ||
+    !NON_HUMAN_PROMPT_PREFIXES.some((prefix) => content.startsWith(prefix))
+  )
+}
+
 function isToolResultMessage(event) {
   const content = messageContent(event)
   return Array.isArray(content) && content.some((block) => block?.type === 'tool_result')
@@ -810,6 +842,7 @@ export function claudeSessionMeta(lines) {
     input: null,
     output: null,
     cache: null,
+    seenUsage: new Set(),
     firstPrompt: null,
     issueIdsInPrompt: [],
   }
@@ -847,6 +880,7 @@ function consumeClaudeMeta(state, event) {
   consumeClaudeUser(state, event, role)
   if (role !== 'assistant') return
   const usage = event.message?.usage ?? event.usage
+  if (!usage || !shouldCountClaudeUsage(state.seenUsage, event)) return
   updateClaudeUsage(state, usage)
 }
 
@@ -871,7 +905,7 @@ function updateClaudeUsage(state, usage) {
 }
 
 function consumeClaudeUser(state, event, role) {
-  if (role !== 'user' || event.isSidechain === true || isToolResultMessage(event)) return
+  if (!isGenuineClaudeUser(event, role)) return
   state.humanMessages++
   state.hasHumanMessage = true
   const content = messageContent(event)
@@ -988,6 +1022,7 @@ export function mergeDeliverySources(row, { ci, sessions, redCiRuns, reworkSec, 
     humanMessages: sourceMetric(row, attributed, 'humanMessages'),
     rounds: sourceMetric(row, attributed, 'rounds'),
     fullGateRuns: sourceMetric(row, attributed, 'fullGateRuns'),
+    subagentCostUnits: sourceMetric(row, attributed, 'subagentCostUnits'),
     redCiRuns: redCiValue(row, ci, redCiRuns),
     leadTimeSplit: phases.leadTimeSplit,
     ceremony: row?.ceremony ?? {
@@ -1777,6 +1812,8 @@ function newSessionAccumulator(host, file) {
     humanMessages: 0,
     hasHumanMessage: false,
     usage: { input: null, output: null, cache: null },
+    subagentCostUnits: null,
+    seenUsage: new Set(),
     times: { firstTs: null, lastTs: null },
     execution: { preflightSec: null, fullGateSec: null, fullGateRuns: 0 },
     openCalls: new Map(),
@@ -1828,6 +1865,11 @@ function consumeSessionLine(accumulator, line) {
 
 function updateAccumulatorUsage(accumulator, event) {
   const usage = event.message?.usage ?? event.usage
+  if (
+    !usage ||
+    (accumulator.host === 'claude' && !shouldCountClaudeUsage(accumulator.seenUsage, event))
+  )
+    return
   accumulator.usage.input = addMetric(
     accumulator.usage.input,
     usageValue(usage, 'input_tokens', 'inputTokens'),
@@ -1847,10 +1889,14 @@ function updateAccumulatorUsage(accumulator, event) {
   )
 }
 
+function addUsage(target, source) {
+  for (const key of ['input', 'output', 'cache']) target[key] = addMetric(target[key], source[key])
+}
+
 function consumeClaudeAccumulator(accumulator, event) {
   updateClaudeAccumulatorContext(accumulator, event)
   const role = event.message?.role ?? event.type
-  if (role !== 'user' || event.isSidechain === true || isToolResultMessage(event)) return
+  if (!isGenuineClaudeUser(event, role)) return
   accumulator.humanMessages++
   accumulator.hasHumanMessage = true
   const content = messageContent(event)
@@ -1899,6 +1945,7 @@ function finishSessionAccumulator(accumulator) {
     firstTs: accumulator.times.firstTs,
     lastTs: accumulator.times.lastTs,
     usage: accumulator.usage,
+    subagentCostUnits: accumulator.subagentCostUnits,
     humanMessages: accumulator.hasHumanMessage ? accumulator.humanMessages : null,
     rounds: accumulator.hasHumanMessage ? accumulator.humanMessages : null,
     model: accumulator.model,
@@ -1913,20 +1960,52 @@ function finishSessionAccumulator(accumulator) {
   }
 }
 
-export async function discoverSessions(dir, host, sinceMs, untilMs) {
+async function streamLines(file, consume) {
+  const input = createReadStream(file, { encoding: 'utf-8' })
+  const reader = createInterface({ input, crlfDelay: Infinity })
+  try {
+    for await (const line of reader) consume(line)
+  } finally {
+    input.destroy()
+  }
+}
+
+function subagentFiles(parentFile) {
+  const dir = join(dirname(parentFile), basename(parentFile, '.jsonl'), 'subagents')
+  if (!existsSync(dir)) return null
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /^agent-.*\.jsonl$/.test(entry.name))
+    .map((entry) => join(dir, entry.name))
+}
+
+async function addSubagentUsage(parent, weights) {
+  const files = subagentFiles(parent.file)
+  if (files === null) return
+  parent.subagentCostUnits = 0
+  for (const file of files) {
+    const child = newSessionAccumulator('claude', file)
+    await streamLines(file, (line) => {
+      const event = parseSessionLine(line)
+      if (event !== null) updateAccumulatorUsage(child, event)
+    })
+    addUsage(parent.usage, child.usage)
+    const cost = costUnits(child.usage, weights)
+    parent.subagentCostUnits =
+      cost === null || parent.subagentCostUnits === null ? null : parent.subagentCostUnits + cost
+  }
+}
+
+export async function discoverSessions(dir, host, sinceMs, untilMs, weights) {
   const sessions = []
   for (const file of sessionFiles(dir, host, sinceMs, untilMs)) {
-    let input
     try {
-      input = createReadStream(file, { encoding: 'utf-8' })
-      const reader = createInterface({ input, crlfDelay: Infinity })
       const accumulator = newSessionAccumulator(host, file)
-      for await (const line of reader) consumeSessionLine(accumulator, line)
+      await streamLines(file, (line) => consumeSessionLine(accumulator, line))
+      if (host === 'claude') await addSubagentUsage(accumulator, weights)
       sessions.push(finishSessionAccumulator(accumulator))
     } catch (error) {
       // FAIL-OPEN-INTENT: an unreadable transcript cannot support attribution or KPI phases; omit it and preserve NO DATA in the affected delivery while surfacing the source error.
       process.stderr.write(`ship-kpi: unreadable session ${file}: ${error?.message ?? error}\n`)
-      if (input) input.destroy()
     }
   }
   return sessions
@@ -2212,6 +2291,14 @@ function costDelivery(row, weights) {
     writerCostUnits: finiteNumber(row?.writerCostUnits),
     reviewerCostUnits: finiteNumber(row?.reviewerCostUnits),
   })
+}
+
+export function reportRowsWithCostRatio(rows, baseline, weights) {
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    ...row,
+    stratum: row?.stratum ?? null,
+    costBaselineRatio: overheadIndices(costDelivery(row, weights), baseline, weights).tokens,
+  }))
 }
 
 function deliveryLeadTime(row) {
@@ -2528,6 +2615,11 @@ function formatMetric(value) {
   return String(rounded(value, 2))
 }
 
+function formatRatio(value) {
+  const number = finiteNumber(value)
+  return number === null ? 'NO DATA' : number.toFixed(2)
+}
+
 function roundHours(value) {
   return value === null || value === undefined ? 'NO DATA' : Math.round(value * 10) / 10
 }
@@ -2581,8 +2673,8 @@ export function renderMarkdown({
     '',
     '## Per-PR',
     '',
-    '| PR | Commits | Evidence-only | Review-loop | Lead time (h) | Split w/p/f/r/q/c | costUnits | Human | Rounds | Gates | CI red at open | +/- |',
-    '|----|---------|---------------|-------------|----------------|-------------------|-----------|-------|--------|-------|----------------|-----|',
+    '| PR | Stratum | Commits | Evidence-only | Review-loop | Lead time (h) | Split w/p/f/r/q/c | costUnits | Cost/baseline | Human | Rounds | Gates | CI red at open | +/- |',
+    '|----|---------|---------|---------------|-------------|----------------|-------------------|-----------|---------------|-------|--------|-------|----------------|-----|',
     ...renderRows(rows, weights),
   )
   lines.push('', ...renderStratumSummary(rows, weights))
@@ -2609,7 +2701,7 @@ export function renderMarkdown({
 function renderRows(rows, weights) {
   return rows.map(
     (r) =>
-      `| #${r.number} | ${formatMetric(r.commits)} | ${formatMetric(r.evidenceOnlyCommits)} | ${formatMetric(r.reviewLoopCommits)} | ${formatMetric(r.leadTimeHours)} | ${['work', 'preflight', 'fullGate', 'review', 'ciWait', 'ciRun'].map((kind) => formatMetric(r.leadTimeSplit?.[kind])).join('/')} | ${formatCompact(r.costUnits ?? costUnits(r.tokens, weights))} | ${formatMetric(r.humanMessages)} | ${formatMetric(r.rounds)} | ${formatMetric(r.fullGateRuns)} | ${r.ciRedAtOpen === null ? 'NO DATA' : r.ciRedAtOpen ? 'yes' : 'no'} | +${formatMetric(r.additions)}/-${formatMetric(r.deletions)} |`,
+      `| #${r.number} | ${display(r.stratum)} | ${formatMetric(r.commits)} | ${formatMetric(r.evidenceOnlyCommits)} | ${formatMetric(r.reviewLoopCommits)} | ${formatMetric(r.leadTimeHours)} | ${['work', 'preflight', 'fullGate', 'review', 'ciWait', 'ciRun'].map((kind) => formatMetric(r.leadTimeSplit?.[kind])).join('/')} | ${formatCompact(r.costUnits ?? costUnits(r.tokens, weights))} | ${formatRatio(r.costBaselineRatio)} | ${formatMetric(r.humanMessages)} | ${formatMetric(r.rounds)} | ${formatMetric(r.fullGateRuns)} | ${r.ciRedAtOpen === null ? 'NO DATA' : r.ciRedAtOpen ? 'yes' : 'no'} | +${formatMetric(r.additions)}/-${formatMetric(r.deletions)} |`,
   )
 }
 function renderHookBlocks(hookBlocks) {
@@ -2647,11 +2739,12 @@ async function runReport(opts) {
   const prNumbers = fetchMergedPrNumbers(opts.repo, opts.since, until)
   const sinceMs = new Date(`${opts.since}T00:00:00Z`).getTime()
   const untilMs = until ? new Date(`${until}T23:59:59Z`).getTime() : Date.now()
+  const thresholds = loadThresholds()
   const sessions = [
-    ...(await discoverSessions(opts.sessions, 'claude', sinceMs, untilMs)),
+    ...(await discoverSessions(opts.sessions, 'claude', sinceMs, untilMs, thresholds.costWeights)),
     ...(await discoverSessions(opts.codexSessions, 'codex', sinceMs, untilMs)),
   ]
-  const thresholds = loadThresholds()
+  const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'))
   const prContexts = prNumbers.map((number) => {
     const pr = fetchPrDetail(opts.repo, number)
     const commits = (pr.commits ?? []).map((commit) => ({
@@ -2671,13 +2764,17 @@ async function runReport(opts) {
   })
   const assignments = attributeSessionsToDeliveries(sessions, prContexts)
   const attributedFiles = new Set()
-  const rows = prContexts.map((context) =>
-    fetchPrRow(opts.repo, context.number, sessions, process.cwd(), attributedFiles, {
-      pr: context,
-      commits: context.commits,
-      assigned: assignments.get(context.number) ?? [],
-      weights: thresholds.costWeights,
-    }),
+  const rows = reportRowsWithCostRatio(
+    prContexts.map((context) =>
+      fetchPrRow(opts.repo, context.number, sessions, process.cwd(), attributedFiles, {
+        pr: context,
+        commits: context.commits,
+        assigned: assignments.get(context.number) ?? [],
+        weights: thresholds.costWeights,
+      }),
+    ),
+    baseline,
+    thresholds.costWeights,
   )
   const unattributed = unattributedUsage(sessions, attributedFiles)
   const openPrs = fetchOpenPrs(opts.repo)
