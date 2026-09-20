@@ -29,15 +29,13 @@ export function buildCodexArgs({
   const args = resumeSessionId ? ['exec', 'resume', resumeSessionId] : ['exec']
   args.push(...commonArgs({ model, effort, outPath }))
   if (!resumeSessionId) {
+    const viteTempDir = join(worktreePath, 'node_modules', '.vite-temp')
+    const writableRoots = [...new Set([commonGitDir, gitDir, viteTempDir])]
     args.push(
       '-s',
       'workspace-write',
-      '--add-dir',
-      gitDir,
-      '--add-dir',
-      commonGitDir,
-      '--add-dir',
-      join(worktreePath, 'node_modules', '.vite-temp'),
+      '-c',
+      `sandbox_workspace_write.writable_roots=${JSON.stringify(writableRoots)}`,
     )
   }
   args.push(briefText)
