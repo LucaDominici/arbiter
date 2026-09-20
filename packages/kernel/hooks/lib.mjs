@@ -836,16 +836,7 @@ export function claudeTranscriptIdentityError(event, repoRoot) {
   return null
 }
 
-/** Final assistant text from a Stop envelope, or its identity-bound transcript fallback. */
-export function readStopAssistantText(event, repoRoot) {
-  if (typeof event?.last_assistant_message === 'string') return event.last_assistant_message
-  if (claudeTranscriptIdentityError(event, repoRoot)) return null
-  let raw
-  try {
-    raw = readFileSync(event.transcript_path, 'utf-8')
-  } catch {
-    return null
-  }
+function latestAssistantRecord(raw) {
   let last = null
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue
@@ -856,10 +847,27 @@ export function readStopAssistantText(event, repoRoot) {
       // A partially-written transcript tail does not erase the last complete response.
     }
   }
-  if (last === null) return null
-  const content = Array.isArray(last.message?.content) ? last.message.content : []
+  return last
+}
+
+function assistantRecordText(record) {
+  const content = Array.isArray(record?.message?.content) ? record.message.content : []
   return content
     .filter((block) => block?.type === 'text' && typeof block.text === 'string')
     .map((block) => block.text)
     .join('\n')
+}
+
+/** Final assistant text from a Stop envelope, or its identity-bound transcript fallback. */
+export function readStopAssistantText(event, repoRoot, { requireIdentity = true } = {}) {
+  if (typeof event?.last_assistant_message === 'string') return event.last_assistant_message
+  if (requireIdentity && claudeTranscriptIdentityError(event, repoRoot)) return null
+  let raw
+  try {
+    raw = readFileSync(event.transcript_path, 'utf-8')
+  } catch {
+    return null
+  }
+  const record = latestAssistantRecord(raw)
+  return record === null ? null : assistantRecordText(record)
 }

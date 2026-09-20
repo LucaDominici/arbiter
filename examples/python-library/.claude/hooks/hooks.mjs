@@ -75,8 +75,13 @@ for (const handler of handlers) {
     input: stdinData,
     stdio: ['pipe', 'inherit', 'inherit'],
     env: process.env,
+    timeout: 3000,
   });
 
+  if (result.error) {
+    process.stderr.write(`[hooks.mjs] Handler ${handler} failed: ${result.error.message}\n`);
+    process.exit(2);
+  }
   if (result.status !== 0 && result.status !== null) {
     process.exit(result.status);
   }

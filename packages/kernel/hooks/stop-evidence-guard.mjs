@@ -65,7 +65,7 @@ function main() {
   if (phase === 'complete' || phase === 'unknown') process.exit(0)
 
   // Only guard when the final assistant message claims completion.
-  const claimText = readStopAssistantText(input, root)
+  const claimText = readStopAssistantText(input, root, { requireIdentity: false })
   if (claimText === null) process.exit(0) // missing/unreadable transcript → stand down
   const COMPLETION_PATTERNS =
     /\b(task (is )?(complete|completed|done|finished)|task complete|task completed|all phases complete|work is (done|complete)|implementation (is )?(complete|done|finished)|pr merged|merged to main|wrapping up|ready to (merge|close)|shipped)\b/i
