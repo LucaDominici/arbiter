@@ -7,12 +7,12 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "__tests__/commands/findings-promote.test.ts",
-          "line": 356
+          "file": "src/findings/operations.ts",
+          "line": 496
         },
         {
-          "file": "src/findings/operations.ts",
-          "line": 490
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 369
         }
       ]
     },
@@ -21,12 +21,12 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "__tests__/commands/findings-promote.test.ts",
-          "line": 372
+          "file": "src/findings/operations.ts",
+          "line": 476
         },
         {
-          "file": "src/findings/operations.ts",
-          "line": 470
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 411
         }
       ]
     },
@@ -35,8 +35,12 @@
       "verdict": "PASS",
       "evidence": [
         {
+          "file": "scripts/debt-lib.mjs",
+          "line": 400
+        },
+        {
           "file": "__tests__/commands/findings-promote.test.ts",
-          "line": 407
+          "line": 426
         }
       ]
     },
@@ -45,12 +49,12 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "__tests__/commands/findings-promote.test.ts",
-          "line": 430
+          "file": "src/findings/operations.ts",
+          "line": 404
         },
         {
-          "file": "src/findings/operations.ts",
-          "line": 429
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 441
         }
       ]
     },
@@ -59,12 +63,16 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "__tests__/hooks/empirical/stop-finding-loss.test.ts",
-          "line": 119
+          "file": ".claude/hooks/stop-finding-loss.mjs",
+          "line": 170
         },
         {
           "file": "__tests__/hooks/empirical/stop-finding-loss.test.ts",
-          "line": 143
+          "line": 136
+        },
+        {
+          "file": "__tests__/hooks/empirical/stop-finding-loss.test.ts",
+          "line": 159
         }
       ]
     },
@@ -73,12 +81,12 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "__tests__/commands/findings-promote.test.ts",
-          "line": 444
+          "file": "src/findings/operations.ts",
+          "line": 488
         },
         {
-          "file": "src/findings/operations.ts",
-          "line": 482
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 471
         }
       ]
     },
@@ -87,12 +95,12 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "__tests__/commands/findings-promote.test.ts",
-          "line": 480
+          "file": "src/findings/operations.ts",
+          "line": 423
         },
         {
-          "file": "src/findings/operations.ts",
-          "line": 409
+          "file": "__tests__/commands/findings-promote.test.ts",
+          "line": 531
         }
       ]
     },
@@ -101,21 +109,21 @@
       "verdict": "PASS",
       "evidence": [
         {
-          "file": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
-          "line": 365
+          "file": "src/templates/claude/hooks/stop-finding-loss.mjs.ejs",
+          "line": 111
         },
         {
-          "file": "src/templates/claude/hooks/stop-finding-loss.mjs.ejs",
-          "line": 115
+          "file": "__tests__/integration/e2e/bake/__snapshots__/java-spring-L3.json",
+          "line": 365
         }
       ]
     }
   ],
   "branch": "task/#2733-finding-promote-drain",
-  "sha": "65e7d8cb22f28ded58692509f244c95d95d46a25",
+  "sha": "16eab8ff414b49e0d020d25f597a98a4867c882a",
   "planHash": "41b08dff12790bc92f572a0920110ac8863a163d",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2733/domain-0.json",
-    "sha256": "5ef310361e1e7d1670ca532be7061a9053a6f68a57f20edd3697281048c2a7c5"
+    "path": ".arbiter/evidence/agent-returns/_2733/domain-2.json",
+    "sha256": "d20cdb3d30741727f2f390385e3eb39899e32809f10bd7bbe57a89a6a4804b84"
   }
 }
