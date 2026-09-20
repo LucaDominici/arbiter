@@ -339,18 +339,131 @@ describe('runFindingsPromote()', () => {
     expect(readFileSync(spool, 'utf-8')).toBe(before)
   })
 
-  it('promotion is loss-free: creating and deduplicating issues never rewrites the spool', () => {
+  // ─── #2733: promote drains what it durably resolved ────────────────────────
+  // The spool is the SSOT for STILL-OPEN findings (debt-lib collectFindingsMetrics
+  // and the stop-finding-loss hook both read it). Leaving promoted entries behind
+  // made capture-then-promote permanently red on the debt ratchet.
+
+  function drainReceipt(dir: string): Array<Record<string, unknown>> {
+    const p = join(dir, '.arbiter', 'evidence', 'findings-promote', 'drained.jsonl')
+    if (!existsSync(p)) return []
+    return readFileSync(p, 'utf-8')
+      .split('\n')
+      .filter((l) => l.trim().length > 0)
+      .map((l) => JSON.parse(l) as Record<string, unknown>)
+  }
+
+  it('(#2733 AC-1) a filed finding is removed from its spool shard', () => {
     const dir = tmpRepo()
     writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
-    const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'keep the source' }
-    writeShard(dir, 'a', [{ ...finding, severity: 'high', fingerprint: fp(finding) }])
-    const spool = join(dir, '.arbiter', 'findings', 'a.jsonl')
-    const before = readFileSync(spool, 'utf-8')
+    const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'promote me' }
+    const h = fp(finding)
+    writeShard(dir, 'a', [{ ...finding, severity: 'high', fingerprint: h }])
     const { deps } = makeDeps()
+
+    const r = runFindingsPromote({ dir }, deps)
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.drained.map((d) => d.fingerprint)).toEqual([h])
+    expect(readFileSync(join(dir, '.arbiter', 'findings', 'a.jsonl'), 'utf-8')).not.toContain(h)
+  })
+
+  it('(#2733 AC-2) drains stale and open-issue findings; keeps cooldown and deferred ones', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const stale = { kind: 'risk', file: 'gone.ts', symbol: 'y', note: 'stale' }
+    const tracked = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'already tracked' }
+    const cooldown = { kind: 'risk', file: 'real.ts', symbol: 'z', note: 'closed recently' }
+    const deferred = { kind: 'smell', file: '', symbol: 'helperX', note: 'young low-confidence' }
+    const now = new Date('2026-06-16T00:00:00.000Z')
+    writeShard(dir, 'a', [
+      { ...stale, severity: 'low', fingerprint: fp(stale) },
+      { ...tracked, severity: 'low', fingerprint: fp(tracked) },
+      { ...cooldown, severity: 'low', fingerprint: fp(cooldown) },
+      { ...deferred, severity: 'low', fingerprint: fp(deferred), ts: now.toISOString() },
+    ])
+    const { deps } = makeDeps({
+      searchTable: {
+        [fp(tracked)]: { issueNumber: 42, state: 'open' },
+        [fp(cooldown)]: { issueNumber: 43, state: 'closed', closedAt: '2026-06-10T00:00:00.000Z' },
+      },
+    })
+
+    const r = runFindingsPromote({ dir, now }, deps)
+
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.drained.map((d) => d.fingerprint).sort()).toEqual([fp(stale), fp(tracked)].sort())
+    const spool = readFileSync(join(dir, '.arbiter', 'findings', 'a.jsonl'), 'utf-8')
+    expect(spool).not.toContain(fp(stale))
+    expect(spool).not.toContain(fp(tracked))
+    // Cooldown findings are durable NOWHERE: dropping one would delete the finding
+    // for good, since after the 30-day cooldown there would be nothing to re-promote.
+    expect(spool).toContain(fp(cooldown))
+    expect(spool).toContain(fp(deferred))
+  })
+
+  it('(#2733 AC-3) openFindingsCount falls to 0 once the spool is fully drained', async () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'count me' }
+    writeShard(dir, 'a', [{ ...finding, severity: 'high', fingerprint: fp(finding) }])
+    const { collectFindingsMetrics } = await import('../../scripts/debt-lib.mjs')
+    expect(collectFindingsMetrics(dir).openFindingsCount?.value).toBe(1)
+
+    runFindingsPromote({ dir }, makeDeps().deps)
+
+    expect(collectFindingsMetrics(dir).openFindingsCount?.value).toBe(0)
+  })
+
+  it('(#2733 AC-4) records each drain in drained.jsonl without changing tech-debt.json', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'receipt me' }
+    const h = fp(finding)
+    writeShard(dir, 'a', [{ ...finding, severity: 'low', fingerprint: h }])
+    const { deps } = makeDeps({ createIssue: () => ({ ok: true, issueNumber: 9001 }) })
 
     runFindingsPromote({ dir }, deps)
 
+    const receipt = drainReceipt(dir)
+    expect(receipt).toHaveLength(1)
+    expect(receipt[0]).toMatchObject({ fingerprint: h, issue: 9001, disposition: 'promoted' })
+    expect(Number.isNaN(Date.parse(String(receipt[0]?.ts)))).toBe(false)
+    const tdPath = join(dir, '.arbiter', 'evidence', 'findings-promote', 'tech-debt.json')
+    expect(JSON.parse(readFileSync(tdPath, 'utf-8'))).toEqual({ issues: [9001] })
+  })
+
+  it('(#2733 AC-6) a failed issue creation drains nothing', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'will fail' }
+    writeShard(dir, 'a', [{ ...finding, severity: 'low', fingerprint: fp(finding) }])
+    const spool = join(dir, '.arbiter', 'findings', 'a.jsonl')
+    const before = readFileSync(spool, 'utf-8')
+    const { deps } = makeDeps({ createIssue: () => ({ ok: false, reason: 'gh exploded' }) })
+
+    const r = runFindingsPromote({ dir }, deps)
+
+    expect(r.ok).toBe(false)
     expect(readFileSync(spool, 'utf-8')).toBe(before)
+    expect(drainReceipt(dir)).toEqual([])
+  })
+
+  it('(#2733 AC-7) an unparseable spool line is never deleted by a drain', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'promote me' }
+    writeShard(dir, 'a', [{ ...finding, severity: 'high', fingerprint: fp(finding) }])
+    // A shard holding a line readSpool rejects: the run fails closed BEFORE any
+    // drain, so the unreadable content is still there afterwards.
+    const junk = join(dir, '.arbiter', 'findings', 'b.jsonl')
+    writeFileSync(junk, 'not json at all\n', 'utf-8')
+
+    expect(() => runFindingsPromote({ dir }, makeDeps().deps)).toThrow()
+    expect(readFileSync(junk, 'utf-8')).toBe('not json at all\n')
+    expect(drainReceipt(dir)).toEqual([])
   })
 
   it('bootstraps the finding label idempotently before filing', () => {

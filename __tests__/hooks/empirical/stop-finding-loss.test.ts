@@ -112,6 +112,48 @@ describe('stop-finding-loss hook (#1948, design doc §E6b)', () => {
     expect(result.status).toBe(0)
   })
 
+  // #2733: `arbiter finding promote` now DRAINS what it files, so a session that
+  // captured findings and promoted them leaves an empty spool. The drain receipt is
+  // the persistence proof for that session — without it the guard false-positives on
+  // exactly the workflow it is supposed to reward.
+  it('exits 0 silently: dispatches + findings promoted-and-drained in-window', () => {
+    const dir = track(setup())
+    const start = new Date(Date.now() - 60_000).toISOString()
+    const transcript = writeTranscript(dir, 3, start)
+    const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
+    mkdirSync(evidenceDir, { recursive: true })
+    writeFileSync(
+      join(evidenceDir, 'drained.jsonl'),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        fingerprint: 'abc123',
+        issue: 4242,
+        disposition: 'promoted',
+      }) + '\n',
+    )
+    const result = runHook(dir, { transcript_path: transcript }, { ARBITER_FINDING_LOSS_HARD: '1' })
+    expect(result.status).toBe(0)
+    expect(result.stderr).not.toContain('FINDING LOSS')
+  })
+
+  it('exits 2: a drain receipt older than the session is not this session’s proof', () => {
+    const dir = track(setup())
+    const start = new Date(Date.now() - 60_000).toISOString()
+    const transcript = writeTranscript(dir, 3, start)
+    const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
+    mkdirSync(evidenceDir, { recursive: true })
+    writeFileSync(
+      join(evidenceDir, 'drained.jsonl'),
+      JSON.stringify({
+        ts: new Date(Date.now() - 86_400_000).toISOString(),
+        fingerprint: 'old',
+        disposition: 'promoted',
+      }) + '\n',
+    )
+    const result = runHook(dir, { transcript_path: transcript }, { ARBITER_FINDING_LOSS_HARD: '1' })
+    expect(result.status).toBe(2)
+  })
+
   it('exits 0: unreadable transcript stands down (FAIL-OPEN-INTENT)', () => {
     const dir = track(setup())
     const result = runHook(
