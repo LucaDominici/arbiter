@@ -1034,7 +1034,7 @@ export function mergeSettingsJson(
 }
 
 type HookEntry = {
-  matcher: string
+  matcher?: string
   hooks: { type: string; command: string; timeout?: number }[]
 }
 type HooksObject = Record<string, HookEntry[]>
@@ -1082,11 +1082,34 @@ function isDispatcherCommand(command: string): boolean {
   return /\.claude\/hooks\/hooks\.mjs\b/.test(command)
 }
 
+const STOP_MIGRATED_PROMPT_HOOKS = new Set([
+  'skill-forced-eval',
+  'guard-task-completion',
+  'guard-done-evidence',
+])
+
+function removeLegacyPromptGuards(existing: HooksObject, incoming: HooksObject): HooksObject {
+  const stopDispatcher = incoming.Stop?.some((entry) =>
+    entry.hooks.some(
+      (hook) => isDispatcherCommand(hook.command) && /\bhooks\.mjs Stop\b/.test(hook.command),
+    ),
+  )
+  if (!stopDispatcher || !existing.UserPromptSubmit) return existing
+  const entries = existing.UserPromptSubmit.map((entry) => ({
+    ...entry,
+    hooks: entry.hooks.filter(
+      (hook) => !STOP_MIGRATED_PROMPT_HOOKS.has(extractHookBasename(hook.command) ?? ''),
+    ),
+  })).filter((entry) => entry.hooks.length > 0)
+  return { ...existing, UserPromptSubmit: entries }
+}
+
 function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
-  const result: HooksObject = { ...existing }
+  const preparedExisting = removeLegacyPromptGuards(existing, incoming)
+  const result: HooksObject = { ...preparedExisting }
 
   for (const [event, incomingEntries] of Object.entries(incoming)) {
-    const existingEntries = existing[event] ?? []
+    const existingEntries = preparedExisting[event] ?? []
     const merged = [...existingEntries]
 
     for (const incomingEntry of incomingEntries) {

@@ -39,26 +39,29 @@ function sha256(content: string): string {
 const DONE_CLAIM_PROMPT = 'task complete, ready to merge'
 const BENIGN_PROMPT = 'can you explain this function?'
 
-it.each(['self', 'emitted'])('AC-5 %s prompt blocks JSON-null markers with exit 2', (producer) => {
-  const { dir, hookPath } = setup()
-  try {
-    if (producer === 'self') {
-      writeFileSync(
-        hookPath,
-        readFileSync(join(process.cwd(), '.claude/hooks/guard-done-evidence.mjs')),
-      )
+it.each(['self', 'emitted'])(
+  'AC-5 %s assistant claim blocks JSON-null markers with exit 2',
+  (producer) => {
+    const { dir, hookPath } = setup()
+    try {
+      if (producer === 'self') {
+        writeFileSync(
+          hookPath,
+          readFileSync(join(process.cwd(), '.claude/hooks/guard-done-evidence.mjs')),
+        )
+      }
+      writeEvidence(dir)
+      writeFileSync(join(dir, '.arbiter/gate-pass.json'), 'null')
+      const path = join(dir, '.arbiter/evidence/done/_407.json')
+      const receipt = JSON.parse(readFileSync(path, 'utf8'))
+      receipt.gate_marker_sha256 = sha256('null')
+      writeFileSync(path, JSON.stringify(receipt))
+      expect(runHook(hookPath, dir, DONE_CLAIM_PROMPT).status).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
-    writeEvidence(dir)
-    writeFileSync(join(dir, '.arbiter/gate-pass.json'), 'null')
-    const path = join(dir, '.arbiter/evidence/done/_407.json')
-    const receipt = JSON.parse(readFileSync(path, 'utf8'))
-    receipt.gate_marker_sha256 = sha256('null')
-    writeFileSync(path, JSON.stringify(receipt))
-    expect(runHook(hookPath, dir, DONE_CLAIM_PROMPT).status).toBe(2)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
+  },
+)
 
 function setup(archetype: Archetype = 'library') {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-done-evidence-'))
@@ -176,6 +179,7 @@ function runHook(
     }),
     encoding: 'utf-8',
     env: { ...baseEnv, ...envOverride },
+    timeout: 5000,
   })
 }
 
@@ -278,10 +282,10 @@ describe('guard-done-evidence — empirical spawn', () => {
     }
   })
 
-  it('exits 0 on benign prompt regardless of evidence state', () => {
+  it('exits 0 on a benign assistant response regardless of evidence state', () => {
     const { dir, hookPath } = setup()
     try {
-      // No evidence file at all — but prompt is benign, so no check
+      // No evidence file at all — but the assistant response is benign, so no check.
       const result = runHook(hookPath, dir, BENIGN_PROMPT)
       expect(result.status).toBe(0)
       expect(result.stderr).toBe('')

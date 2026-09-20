@@ -815,3 +815,39 @@ export function claudeTranscriptIdentityError(event, repoRoot) {
   }
   return null
 }
+
+function latestAssistantRecord(raw) {
+  let last = null
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue
+    try {
+      const record = JSON.parse(line)
+      if (record?.type === 'assistant') last = record
+    } catch {
+      // A partially-written transcript tail does not erase the last complete response.
+    }
+  }
+  return last
+}
+
+function assistantRecordText(record) {
+  const content = Array.isArray(record?.message?.content) ? record.message.content : []
+  return content
+    .filter((block) => block?.type === 'text' && typeof block.text === 'string')
+    .map((block) => block.text)
+    .join('\n')
+}
+
+/** Final assistant text from a Stop envelope, or its identity-bound transcript fallback. */
+export function readStopAssistantText(event, repoRoot) {
+  if (typeof event?.last_assistant_message === 'string') return event.last_assistant_message
+  if (claudeTranscriptIdentityError(event, repoRoot)) return null
+  let raw
+  try {
+    raw = readFileSync(event.transcript_path, 'utf-8')
+  } catch {
+    return null
+  }
+  const record = latestAssistantRecord(raw)
+  return record === null ? null : assistantRecordText(record)
+}
