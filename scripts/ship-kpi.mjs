@@ -602,7 +602,7 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
     changed = false
     for (let i = pending.length - 1; i >= 0; i--) {
       const meta = pending[i]
-      const via = sessionAttribution(meta, issueIds, attributedThreads)
+      const via = sessionAttribution(meta, issueIds, attributedThreads, mergedAt)
       if (via === null) continue
       pending.splice(i, 1)
       attributed.push({ meta, via })
@@ -616,18 +616,22 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
   return attributed.sort((a, b) => order.get(a.meta) - order.get(b.meta))
 }
 
-function sessionAttribution(meta, issueIds, attributedThreads) {
-  if (visited(meta.gitBranch, meta.gitBranches).some((v) => containsIssueId(v, issueIds)))
-    return 'branch'
-  if (visited(meta.cwd, meta.cwds).some((v) => containsIssueId(v, issueIds))) return 'cwd'
+function sessionAttribution(meta, issueIds, attributedThreads, mergedAt) {
+  const contexts = contextsBefore(meta, mergedAt)
+  if (contexts.some((context) => containsIssueId(context.gitBranch, issueIds))) return 'branch'
+  if (contexts.some((context) => containsIssueId(context.cwd, issueIds))) return 'cwd'
   if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id))) return 'agent-path'
   if (hasParentAttribution(meta, attributedThreads)) return 'parent'
   if (hasPromptAttribution(meta, issueIds)) return 'prompt'
   return null
 }
 
-function visited(first, all) {
-  return [first, ...(Array.isArray(all) ? all : [])]
+function contextsBefore(meta, mergedAt) {
+  const mergedMs = Date.parse(mergedAt ?? '')
+  const dated = (Array.isArray(meta.contexts) ? meta.contexts : []).filter(
+    (context) => !(Date.parse(context.ts ?? '') > mergedMs),
+  )
+  return [{ gitBranch: meta.gitBranch, cwd: meta.cwd }, ...dated]
 }
 
 function hasParentAttribution(meta, attributedThreads) {
@@ -750,10 +754,9 @@ function isGenuineClaudeUser(event, role) {
   )
     return false
   const content = messageContent(event)
-  return (
-    typeof content !== 'string' ||
-    !NON_HUMAN_PROMPT_PREFIXES.some((prefix) => content.startsWith(prefix))
-  )
+  if (typeof content === 'string') return !isSyntheticText(content)
+  const texts = textBlocks(content)
+  return texts.length === 0 || texts.some((text) => !isSyntheticText(text))
 }
 
 function isToolResultMessage(event) {
@@ -850,8 +853,7 @@ export function claudeSessionMeta(lines) {
   const state = {
     gitBranch: null,
     cwd: null,
-    gitBranches: [],
-    cwds: [],
+    contexts: [],
     effort: null,
     humanMessages: 0,
     hasHumanMessage: false,
@@ -876,8 +878,7 @@ export function claudeSessionMeta(lines) {
   return {
     gitBranch: state.gitBranch,
     cwd: state.cwd,
-    gitBranches: state.gitBranches,
-    cwds: state.cwds,
+    contexts: state.contexts,
     firstTs: times.firstTs,
     lastTs: times.lastTs,
     usage: { input: state.input, output: state.output, cache: state.cache },
@@ -906,23 +907,34 @@ function updateClaudeContext(state, event) {
   if (state.gitBranch === null && typeof event.gitBranch === 'string')
     state.gitBranch = event.gitBranch
   if (state.cwd === null && typeof event.cwd === 'string') state.cwd = event.cwd
-  addDistinct(state.gitBranches, event.gitBranch)
-  addDistinct(state.cwds, event.cwd)
+  addContext(state.contexts, event)
   if (typeof event.effort === 'string') state.effort = event.effort
 }
 
-// A session can resume elsewhere (main, then the task branch/worktree): keep every place it worked.
-function addDistinct(list, value) {
-  if (typeof value === 'string' && !list.includes(value)) list.push(value)
+// A session can resume elsewhere (main, then the task branch/worktree): keep every place it worked,
+// dated by when it first worked there, so a later visit cannot claim an earlier delivery.
+function addContext(contexts, event) {
+  const gitBranch = typeof event.gitBranch === 'string' ? event.gitBranch : null
+  const cwd = typeof event.cwd === 'string' ? event.cwd : null
+  if (gitBranch === null && cwd === null) return
+  if (contexts.some((known) => known.gitBranch === gitBranch && known.cwd === cwd)) return
+  contexts.push({ gitBranch, cwd, ts: eventTimestamp(event) })
 }
 
-/** Text of a genuine prompt: a plain string, or the text blocks of a content array. */
-function promptText(content) {
-  if (typeof content === 'string') return content
-  if (!Array.isArray(content)) return ''
-  return content
+const isSyntheticText = (text) =>
+  NON_HUMAN_PROMPT_PREFIXES.some((prefix) => text.startsWith(prefix))
+
+function textBlocks(content) {
+  return (Array.isArray(content) ? content : [])
     .filter((block) => block?.type === 'text' && typeof block.text === 'string')
     .map((block) => block.text)
+}
+
+/** Text a human typed: a plain string, or the non-synthetic text blocks of a content array. */
+function promptText(content) {
+  if (typeof content === 'string') return content
+  return textBlocks(content)
+    .filter((text) => !isSyntheticText(text))
     .join('\n')
 }
 
@@ -1842,8 +1854,7 @@ function newSessionAccumulator(host, file) {
     file,
     gitBranch: null,
     cwd: null,
-    gitBranches: [],
-    cwds: [],
+    contexts: [],
     agentPath: null,
     threadId: null,
     parentThreadId: null,
@@ -1970,8 +1981,7 @@ function finishSessionAccumulator(accumulator) {
     file: accumulator.file,
     gitBranch: accumulator.gitBranch,
     cwd: accumulator.cwd,
-    gitBranches: accumulator.gitBranches,
-    cwds: accumulator.cwds,
+    contexts: accumulator.contexts,
     firstTs: accumulator.times.firstTs,
     lastTs: accumulator.times.lastTs,
     usage: accumulator.usage,
@@ -2792,6 +2802,11 @@ function usageError() {
   process.exit(2)
 }
 
+/** Staleness is measured at the window end when the report is bounded, so a past window repeats. */
+export function reportNowMs(opts, untilMs) {
+  return opts.until ? untilMs : Date.now()
+}
+
 /** The JSON evidence: a pure function of the measured data, no clock, so finished sessions repeat byte for byte. */
 export function reportPayload({ opts, untilLabel, rows, aggregate, hookBlocks, unattributed }) {
   return {
@@ -2861,7 +2876,7 @@ async function runReport(opts) {
     windowHours,
     mainSubjects,
     openPrs,
-    nowMs: Date.now(),
+    nowMs: reportNowMs(opts, untilMs),
   })
 
   const hookBlocks = {}

@@ -100,12 +100,12 @@ token per ruolo (writer/reviewer/orchestrazione); messaggi umani durante il task
 eseguiti; CI rosse; escape = fix/revert/issue che cita la PR entro 14 giorni. Token ignoti = NO DATA.
 **Attribuzione delle sessioni (#2774):** una sessione appartiene a una consegna solo se il suo primo prompt umano
 (testo intero, anche se in blocchi) è `/ship #N` per quell'unica issue, oppure se UNO qualsiasi dei suoi branch/cwd
-(anche dopo una ripresa) è il branch/worktree del task, oppure, per Codex, se discende da una sessione già attribuita.
+(anche dopo una ripresa, purché visitato prima del merge) è il branch/worktree del task, oppure, per Codex, se discende da una sessione già attribuita.
 Sessioni che citano più issue, o una sola da un altro cwd (coordinatori), finiscono in `unattributed`. Ogni riga PR
 elenca `sessions: [{file, rule, costUnits, humanMessages}]` per rendere l'attribuzione verificabile. Il JSON non
 contiene orologio (niente `generatedAt`, niente `live`): sessioni concluse danno righe identiche a byte. Una sessione
 attribuita ancora in scrittura (file toccato negli ultimi 10 minuti) è segnalata su stderr, perché il suo costo può
-ancora crescere. Le trascrizioni riprese dopo `--until` restano incluse: conta l'inizio della sessione, non l'mtime.
+ancora crescere. Le trascrizioni riprese dopo `--until` restano incluse: conta l'inizio della sessione, non l'mtime. Con `--until` la vecchiaia delle PR aperte è misurata alla fine della finestra, senza `--until` all'istante del report.
 Strati: XS/S · Standard · Sensitive/train. Si riportano mediana E p90: la mediana di settembre è già 0.9 h,
 il dolore ("12 h per 2 issue") sta nella coda, nei token e nel babysitting, che oggi non sono misurati.
 
