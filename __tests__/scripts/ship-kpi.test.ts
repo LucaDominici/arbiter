@@ -2592,3 +2592,30 @@ describe('ship-kpi.mjs --self-test (#2398, CANON-07 real execution)', () => {
     expect(r.stderr).toContain('HOLD')
   })
 })
+
+describe('gh pr view field contract (#2725)', () => {
+  // `gh pr view --json` rejects unknown fields and aborts the whole report.
+  const GH_PR_VIEW_FIELDS = new Set([
+    'additions',
+    'closingIssuesReferences',
+    'commits',
+    'createdAt',
+    'deletions',
+    'headRefName',
+    'labels',
+    'mergeCommit',
+    'mergedAt',
+    'statusCheckRollup',
+  ])
+
+  it('requests only fields gh knows', () => {
+    const unknown = shipKpi.PR_DETAIL_FIELDS.filter((field) => !GH_PR_VIEW_FIELDS.has(field))
+    expect(unknown).toEqual([])
+  })
+
+  it('derives mergeCommitOid from the mergeCommit object, NO DATA when absent', () => {
+    expect(shipKpi.normalizePrDetail({ mergeCommit: { oid: 'abc' } }).mergeCommitOid).toBe('abc')
+    expect(shipKpi.normalizePrDetail({ mergeCommit: null }).mergeCommitOid).toBe(null)
+    expect(shipKpi.normalizePrDetail(null)).toBe(null)
+  })
+})
