@@ -31,7 +31,6 @@ import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { minimatch } from 'minimatch'
 import {
   runCheck,
   runWarnCheck,
@@ -47,7 +46,11 @@ import {
 import { checkDistFresh } from './lib/dist-staleness.mjs'
 import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs'
 import { effectiveGateLevel, parseCheckArgs } from './lib/parse-check-args.mjs'
-import { GATE_AFFECTS_REGISTRY, GATE_SKIP_BLACKLIST } from './lib/gate-affects-registry.mjs'
+import {
+  GATE_AFFECTS_REGISTRY,
+  GATE_SKIP_BLACKLIST,
+  affectedGateNames,
+} from './lib/gate-affects-registry.mjs'
 
 // isMain guard so computeSkipped can be imported without running checks.
 const isMain = isMainModule(import.meta.url)
@@ -57,23 +60,8 @@ const isMain = isMainModule(import.meta.url)
  * Returns empty Set (= full gate) on any safety-boundary violation.
  */
 export function computeSkipped(changedFiles, registry, blacklist) {
-  if (!Array.isArray(changedFiles) || changedFiles.length > 500) return new Set()
-  for (const f of changedFiles) {
-    if (f.startsWith('/') || f.startsWith('../') || f.includes('/../')) return new Set()
-  }
-  for (const f of changedFiles) {
-    for (const pattern of blacklist) {
-      if (minimatch(f, pattern, { dot: true })) return new Set()
-    }
-  }
-  const skipped = new Set()
-  for (const entry of registry) {
-    const affected = changedFiles.some((f) =>
-      entry.affects.some((pat) => minimatch(f, pat, { dot: true })),
-    )
-    if (!affected) skipped.add(entry.name)
-  }
-  return skipped
+  const affected = affectedGateNames(changedFiles, registry, blacklist)
+  return new Set(registry.filter((entry) => !affected.has(entry.name)).map((entry) => entry.name))
 }
 
 // Only an actual PASS in this process permits dropping the repeated smoke file.

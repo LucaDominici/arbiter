@@ -222,3 +222,62 @@ Fix (Opzione A): tutta la I/O si sposta nell'entry point `scripts/codex-dispatch
 Lesson learned 37 (risposta al meta-check del peer su #2769): una prova richiesta può diventare una prova conforme-ma-tarata quando il test che la certifica usa una blocklist anziché un allowlist — la blocklist passa finché nessuno prova la stringa esatta usata dal codice reale; un revisore che legge solo il verdetto del test, non il suo contenuto, non lo scopre. Controllo proposto dal peer, adottato qui: il brief di un revisore indipendente su un'esenzione CANON-25 deve elencare esplicitamente i file di gate-config toccati dalla PR e mandatare la falsificazione di ogni commento di giustificazione lì scritto — non "rivedi il diff", ma "prova che questo commento è falso". Vale per ogni futura esenzione fail-closed, non solo questa.
 
 Lesson learned 38 (il controllo di lesson 37, applicato alla PR che l'ha proposto, ha trovato un buco in sé stesso): il revisore indipendente dispatchato su PR #2772 con esattamente quel brief ha falsificato l'allowlist appena scritta — `/from\s+['"]([^'"]+)['"]/g` assume che tra `from` e la stringa ci sia whitespace vero, ma `from/* commento */'node:fs'`, `import 'node:fs'` (senza `from`) ed `export * from 'node:fs'` sono tutte sintassi valide che il regex non copre; ha trovato anche una via di I/O senza alcuna dichiarazione `import` (`process.getBuiltinModule('node:fs')`, Node 20+). Un regex su testo grezzo non è un parser: qualunque forma sintattica non anticipata dall'autore del regex passa. Fix: sostituito il matching testuale con un walk dell'AST via `typescript` (già dipendenza del repo, nessuna nuova dipendenza) su `ts.createSourceFile` — cattura ogni `ImportDeclaration`/`ExportDeclaration` con specifier e ogni `ImportKeyword` in posizione di call-expression per costruzione, non per pattern; il regex resta solo come difesa aggiuntiva mirata sulle due vie di I/O che non passano da un `import` (`require(`, `process.getBuiltinModule`), con un commento `ponytail:` che ne nomina il limite (non esaustivo contro future API Node). Mutation-kill rieseguito su tutte e sei le forme trovate dal revisore: tutte rosse con la mutazione, verdi senza. Regola: un allowlist testuale su una grammatica reale (JS/TS) non è mai la prova finale — o si usa un parser vero, o si dichiara esplicitamente cosa il test NON copre.
+
+## #2773 slice 1 — gate derivation + historical recall (2026-09-20)
+
+La lista dei gate attesi viene ora ricalcolata dai file del piano usando lo stesso
+`GATE_AFFECTS_REGISTRY` e lo stesso matcher minimatch del selective gate; la transizione plan→red
+rifiuta sia una lista assente sia una lista plausibile ma diversa dalla ricalcolata. Nessun check è
+stato tolto da `check-all.mjs`. Quattro entry prima `ALWAYS` sono state ristrette ai loro input
+documentati: dogfood, examples drift, emitted markdown refs e integration suite. Il mutation-kill
+che rimette examples drift ad `ALWAYS` rende rosso il caso AC-1 docs-only.
+
+Backtest AC-6 reale sui 30 PR mergiati più recenti al momento della misura. I file vengono dal diff
+base→head dei commit GitHub; le conclusioni/log CI sono stati letti da GitHub Actions. Il sandbox non
+consente rete a `gh`, quindi la raccolta di questa esecuzione è passata dal connettore GitHub; lo
+script riproducibile usa `gh pr list`, `gh run list` e `gh run view --log-failed`.
+
+- Failure osservate: 2 (`tdd-evidence` su PR #2734 e #2719).
+- Failure previste: 2.
+- Miss: 0.
+- Recall: **100% (2/2)**.
+- Esclusione esplicita: PR #2711, run `35064876150`, è fallita nel checkout per un ref lock prima
+  dell'avvio del gate; resta nel report come failure infrastrutturale irrisolta, non nel denominatore.
+
+|   PR | file | gate previsti | failure osservate        | miss |
+| ---: | ---: | ------------: | ------------------------ | ---- |
+| 2772 |    5 |           175 | —                        | —    |
+| 2771 |    1 |           136 | —                        | —    |
+| 2769 |   11 |           175 | —                        | —    |
+| 2766 |   16 |           154 | —                        | —    |
+| 2764 |   37 |           155 | —                        | —    |
+| 2762 |   40 |           175 | —                        | —    |
+| 2759 |    4 |           139 | —                        | —    |
+| 2757 |   49 |           154 | —                        | —    |
+| 2754 |    9 |           140 | —                        | —    |
+| 2752 |    8 |           140 | —                        | —    |
+| 2749 |    4 |           175 | —                        | —    |
+| 2750 |    4 |           139 | —                        | —    |
+| 2748 |    4 |           136 | —                        | —    |
+| 2744 |    5 |           139 | —                        | —    |
+| 2743 |  175 |           175 | —                        | —    |
+| 2742 |    9 |           139 | —                        | —    |
+| 2739 |   17 |           173 | —                        | —    |
+| 2734 |  261 |           175 | tdd-evidence             | —    |
+| 2723 |   40 |           154 | —                        | —    |
+| 2722 |  592 |           175 | —                        | —    |
+| 2721 |   54 |           154 | —                        | —    |
+| 2720 |   39 |           154 | —                        | —    |
+| 2719 |    2 |           138 | tdd-evidence             | —    |
+| 2717 |   10 |           154 | —                        | —    |
+| 2716 |    9 |           175 | —                        | —    |
+| 2715 |   61 |           155 | —                        | —    |
+| 2713 |   41 |           132 | —                        | —    |
+| 2711 |   83 |           155 | infra: checkout ref lock | n/a  |
+| 2708 |   45 |           154 | —                        | —    |
+| 2707 |   86 |           155 | —                        | —    |
+
+Gap di precisione nominato, non nascosto: 116 entry del registry restano `ALWAYS`; inoltre blacklist
+e limite fail-safe oltre 500 file producono legittimamente tutti i 175 gate. Il backtest prova la
+recall sul campione, non una buona precisione. Questo report va copiato anche in #2745 dal
+coordinatore; questa slice non modifica #2745.
