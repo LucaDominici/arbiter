@@ -354,8 +354,8 @@ describe('generateClaude', () => {
     expect(JSON.parse(raw).hooks.UserPromptSubmit).toBeDefined()
     expect(JSON.parse(raw).hooks.Stop).toBeDefined()
     const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
-    const promptHandlers = dispatcherContent.match(/'UserPromptSubmit': \[([\s\S]*?)\n  \],/)?.[1]
-    const stopHandlers = dispatcherContent.match(/'Stop': \[([\s\S]*?)\n  \],/)?.[1]
+    const promptHandlers = dispatcherContent.match(/'UserPromptSubmit': \[([\s\S]*?)\n {2}\],/)?.[1]
+    const stopHandlers = dispatcherContent.match(/'Stop': \[([\s\S]*?)\n {2}\],/)?.[1]
     expect(promptHandlers).toContain('post-brainstorm-stop.mjs')
     for (const guard of [
       'skill-forced-eval.mjs',
