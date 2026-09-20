@@ -11,15 +11,14 @@
  *   - verificationSelfOnlyChecks: isArbiterSelf true vs false
  *   - shipStepBody: every active phase case
  *   - nextPhase: end / normal
- *   - advanceTargetFor (via runTaskShip advance): forward transitions
+ *   - fast-forward (via runTaskShip advance): forward transitions and gate stop
  *   - buildShipStepLines: done / command / reviewAgents / autonomy-gate /
  *     self-only-checks present vs absent
  *   - seedShipState + runTaskShip: id/tier defaulting, fresh vs existing state,
- *     advance true(target!==null) / advance true(end → target===null) / no advance
+ *     advance true(next gate red) / advance true(end) / no advance
  *
  * Pure test-only: the fs-backed state I/O runs against a real mkdtempSync temp
- * dir (cleaned per test); every advance target is steered to a gate-free phase
- * so runTaskAdvance never invokes a real gate, git, gh, or the `claude` CLI.
+ * dir (cleaned per test); advancing stops at the TDD evidence gate before external tools run.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -36,7 +35,7 @@ import {
   CONSUMER_DEFAULT_PROFILE,
   type ShipProfile,
 } from '../../src/commands/ship-profile.js'
-import { writeUnifiedState } from '../../src/commands/task-state.js'
+import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 
 let dir: string
 
@@ -170,7 +169,7 @@ describe('buildShipStepLines branch matrix', () => {
   it('marks (done), prints Command + Review agents, and omits the self-only header for a consumer', () => {
     const lines = buildShipStepLines(resultFor('refactor', profile(), false), 'Standard')
     expect(lines.some((l) => l.startsWith('Phase: refactor'))).toBe(true)
-    expect(lines).toContain('Command: arbiter ship --review-round') // refactor dispatches final review
+    expect(lines).toContain("Command: arbiter ship '#NNN' --review-round") // refactor dispatches final review
     expect(lines.some((l) => l.startsWith('Review agents: 1'))).toBe(true)
     expect(lines.some((l) => l.startsWith('Self-only checks:'))).toBe(false)
   })
@@ -249,18 +248,16 @@ describe('runTaskShip — seedShipState + drive branches (real temp-dir state I/
     expect(res.step.reviewAgents).toBe(0)
   })
 
-  it('advances one gate-free phase (preflight → plan) and logs the transition', () => {
+  it('advances through gate-free phases and stops at the first red gate', () => {
     runTaskShip({ dir, taskId: '#7', tier: 'S' })
-    const res = runTaskShip({ dir, advance: true })
-    expect(res.advanced).toBe(true)
-    expect(res.phase).toBe('plan')
+    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
+    expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
-  it('advances directly from plan to RED', () => {
+  it('advances from plan to RED and stops at the green-entry gate', () => {
     writeUnifiedState(dir, { taskId: '#7', tier: 'S', phase: 'plan' })
-    const res = runTaskShip({ dir, advance: true })
-    expect(res.advanced).toBe(true)
-    expect(res.phase).toBe('red')
+    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
+    expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
   it('does NOT advance from the terminal phase (advanceTargetFor → null)', () => {
@@ -291,7 +288,9 @@ describe('runTaskShip — seedShipState + drive branches (real temp-dir state I/
 
   it('forwards advanceOpts to the advance call (skipPlanReview on a gate-free hop)', () => {
     runTaskShip({ dir, taskId: '#7', tier: 'S' })
-    const res = runTaskShip({ dir, advance: true, advanceOpts: { skipPlanReview: true } })
-    expect(res.phase).toBe('plan')
+    expect(() =>
+      runTaskShip({ dir, advance: true, advanceOpts: { skipPlanReview: true } }),
+    ).toThrow(/TDD evidence gate/)
+    expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 })

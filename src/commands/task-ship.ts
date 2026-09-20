@@ -23,7 +23,7 @@ import {
   type TaskStatePatch,
   type UnifiedTaskState,
 } from './task-state.js'
-import { runTaskAdvance, runTaskReviewRound } from './task.js'
+import { assertShipHostBinding, runTaskAdvance, runTaskReviewRound } from './task.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
 import {
   autonomyAllows,
@@ -308,9 +308,12 @@ function reviewPhaseStepBody(
   phase: ReviewPhase,
   t: ShipTier,
   profile: ShipProfile,
-  context: Pick<ShipStepContext, 'verticals' | 'externalModelAccess' | 'review' | 'treatment'>,
+  context: Pick<
+    ShipStepContext,
+    'taskId' | 'verticals' | 'externalModelAccess' | 'review' | 'treatment'
+  >,
 ): Omit<ShipStep, 'verticals'> {
-  const { verticals, externalModelAccess, review: reviewPlan, treatment } = context
+  const { taskId, verticals, externalModelAccess, review: reviewPlan, treatment } = context
   const reviewAgents = treatment.finalReviewers
   const plan = planCrossModelSlots({
     tier: t,
@@ -330,7 +333,7 @@ function reviewPhaseStepBody(
       externalCount > 0
         ? `${prepare} dispatch ${reviewAgents - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${reviewAgents}.`
         : `${prepare} dispatch ${reviewAgents} independent final reviewer(s) covering code, tests, and acceptance.`,
-    command: 'arbiter ship --review-round',
+    command: `arbiter ship '${taskId ?? '#NNN'}' --review-round`,
     reviewAgents,
     ...(scope !== undefined ? { reviewScope: scope } : {}),
   }
@@ -369,14 +372,16 @@ function shipStepBody(
         // implementation candidate.
         action:
           'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
-        command: `arbiter lifecycle advance --to ${nextPhase(phase) ?? 'red'}`,
+        command:
+          `arbiter lifecycle start --id '${context.taskId ?? '#NNN'}' --tier ${t} ` +
+          `--plan .claude/plans/task-${context.taskId?.replace(/^#/, '') ?? 'NNN'}.md`,
         reviewAgents: 0,
       }
     case 'red':
       return {
         phase,
         action: 'Write failing tests first (TDD red); record evidence.',
-        command: 'arbiter lifecycle record-red --test-path <path>',
+        command: `arbiter lifecycle record-red --task '${context.taskId ?? '#NNN'}' --test-path <test-path>`,
         reviewAgents: 0,
       }
     case 'green':
@@ -469,6 +474,8 @@ export interface TaskShipOptions {
   overrides?: Record<string, string>
   /** Advance to the next phase first (runs that phase's gate; throws if the gate is red). */
   advance?: boolean
+  /** Test seam for identifying a native linked checkout without shelling out to Git. */
+  isLinkedCheckout?: (root: string) => boolean
   /** Bubble handoff control-flow to the caller instead of being swallowed. */
   advanceOpts?: {
     /** #2402 — forwarded to the `complete` landing gate; without these `ship --advance` into
@@ -647,18 +654,25 @@ function advanceShipPhase(
   root: string,
   phase: TaskPhase,
   opts: TaskShipOptions,
+  taskId: string | undefined,
+  profile: ShipProfile,
 ): { phase: TaskPhase; advanced: boolean; review: PlannedReviewRound | null } {
   if (!opts.advance) return { phase, advanced: false, review: null }
-  const target = nextPhase(phase)
-  if (target === null) return { phase, advanced: false, review: null }
-  const review = runTaskAdvance({
-    to: target,
-    dir: root,
-    ...(opts.advanceOpts ?? {}),
-    ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
-  })
-  appendLog(root, `ship → advanced to ${target}`)
-  return { phase: target, advanced: true, review }
+  let current = phase
+  let target = nextPhase(current)
+  while (target !== null) {
+    runTaskAdvance({
+      to: target,
+      dir: root,
+      ...(opts.advanceOpts ?? {}),
+      ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
+    })
+    appendLog(root, `ship → advanced to ${target}`)
+    writeVerificationCompanionEvidence(root, target, taskId, profile, opts)
+    current = target
+    target = nextPhase(current)
+  }
+  return { phase: current, advanced: current !== phase, review: null }
 }
 
 function companionEvidencePath(taskId: string, repoDir: string): string {
@@ -1068,6 +1082,7 @@ function buildActiveShipResult(input: {
 
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
+  assertShipHostBinding(root, opts.taskId, opts.isLinkedCheckout)
   const initialState = readUnifiedState(root)
   if (isReadOnlyShipRequest(initialState, opts)) return readOnlyShipResult(root, initialState, opts)
   assertShipNotBlocked(initialState, opts.executionOutcome)
@@ -1092,7 +1107,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   // and self-only authoring gates are skipped in a consumer repo.
   const profile = shipProfileFor(root, opts)
   const explicitRound = openExplicitReviewRound(root, opts)
-  const advancedPhase = advanceShipPhase(root, phase, opts)
+  const advancedPhase = advanceShipPhase(root, phase, opts, state?.taskId, profile)
   phase = advancedPhase.phase
   const preparedRound = explicitRound ?? advancedPhase.review
   writeVerificationCompanionEvidence(root, phase, state?.taskId, profile, opts)

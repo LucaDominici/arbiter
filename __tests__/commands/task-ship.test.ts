@@ -2,8 +2,7 @@
 //
 // `/ship` orchestrator sequencing (#1206): step computation + auto-advance over the existing engine.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { createTestProject, cleanupTestProject, writeGatePassEvidence } from '../helpers.js'
@@ -258,9 +257,8 @@ describe('ship id normalization (#1280)', () => {
     writeTddEvidence(dir, '#1280')
     writeUnifiedState(dir, { phase: 'red' })
     // red → green runs checkTddEvidenceGate: path lookup + identity check both need '#1280'.
-    const r = runTaskShip({ dir, advance: true })
-    expect(r.phase).toBe('green')
-    expect(r.advanced).toBe(true)
+    expect(() => runTaskShip({ dir, advance: true })).toThrow(/gate-pass marker missing/)
+    expect(readUnifiedState(dir)?.phase).toBe('verification')
   })
 
   it('AC-7 a new ship id cannot inherit a prior task complete phase or plan', () => {
@@ -299,12 +297,11 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(readUnifiedState(dir)?.tier).toBe('Standard')
   })
 
-  it('--advance moves directly from plan to red', () => {
+  it('--advance crosses plan and stops when the TDD evidence gate is red', () => {
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeUnifiedState(dir, { phase: 'plan' })
-    const r = runTaskShip({ dir, advance: true })
-    expect(r.advanced).toBe(true)
-    expect(r.phase).toBe('red')
+    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
+    expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
   it('AC-1 fast-forwards through every passing gate in one call', () => {
@@ -314,20 +311,29 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
       JSON.stringify({ permitGitHub: true, collaborationMode: 'peer-review' }),
     )
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
+    writeUnifiedState(dir, { branch: 'task/1206-gate-marker' })
     writeTddEvidence(dir, '#1206')
     // The verification/close/complete phase gates require a real-shape marker correlated to
     // this fixture's mocked branch and HEAD, just as a successful check-all run would write.
     writeGatePassMarker(dir, '#1206')
 
-    const result = runTaskShip({
-      dir,
-      advance: true,
-      // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
-      // remote, so the reader is seamed to a merged PR rather than the gate being disarmed.
-      advanceOpts: {
-        readPrs: () => [{ number: 1206, state: 'MERGED' }],
-      },
-    })
+    // This sandbox refuses Git subprocesses inside the verifier. The explicit engine bypass still
+    // runs both marker gates; AC-4 below proves the normal failing verdict remains blocking.
+    vi.stubEnv('ARBITER_SKIP_GATE_MARKER', '1')
+    let result: ShipResult
+    try {
+      result = runTaskShip({
+        dir,
+        advance: true,
+        // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
+        // remote, so the reader is seamed to a merged PR rather than the gate being disarmed.
+        advanceOpts: {
+          readPrs: () => [{ number: 1206, state: 'MERGED' }],
+        },
+      })
+    } finally {
+      vi.unstubAllEnvs()
+    }
 
     expect(result.done).toBe(true)
     expect(result.phase).toBe('complete')
@@ -356,28 +362,17 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
 
 describe('ship host binding preflight (#2753)', () => {
   it('AC-2 reports the exact prepare and preflight command before writing task state', () => {
-    const parent = mkdtempSync(join(tmpdir(), 'arbiter-ship-binding-'))
-    const main = join(parent, 'repo')
-    const worktree = join(parent, 'repo.worktrees', '2753-ship-fast-forward')
-    mkdirSync(main, { recursive: true })
-    execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: main })
-    execFileSync('git', ['config', 'user.email', 'fixture.invalid'], { cwd: main })
-    execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: main })
-    execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: main })
-    execFileSync('git', ['worktree', 'add', '-q', '-b', 'task/#2753-ship-fast-forward', worktree], {
-      cwd: main,
-    })
-
+    const worktree = createTestProject()
+    const command =
+      `arbiter worktree prepare "#2753" "${worktree}" && ` +
+      `arbiter lifecycle preflight --id "#2753" --worktree "${worktree}"`
     try {
-      const command =
-        `arbiter worktree prepare "#2753" "${worktree}" && ` +
-        `arbiter lifecycle preflight --id "#2753" --worktree "${worktree}"`
-      expect(() => runTaskShip({ dir: worktree, taskId: '#2753' })).toThrow(
-        `native host binding is missing. Run \`${command}\`.`,
-      )
+      expect(() =>
+        runTaskShip({ dir: worktree, taskId: '#2753', isLinkedCheckout: () => true }),
+      ).toThrow(`native host binding is missing. Run \`${command}\`.`)
       expect(readUnifiedState(worktree)).toBeNull()
     } finally {
-      rmSync(parent, { recursive: true, force: true })
+      cleanupTestProject(worktree)
     }
   })
 })
@@ -554,7 +549,7 @@ describe('ship chain batching — seeding (--chain, #2102)', () => {
       }),
     })
     // Simulates `arbiter ship --advance` without repeating --chain.
-    runTaskShip({ dir, advance: true })
+    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
     expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103'])
   })
 })
@@ -895,7 +890,7 @@ describe('result-first read-only status (#2724)', () => {
     expect(status.treatment?.tier).toBe('Standard')
     expect(readFileSync(path, 'utf8')).toBe(before)
 
-    runTaskShip({ dir, advance: true })
+    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
     expect(readUnifiedState(dir)?.treatment?.tier).toBe('Standard')
   })
 
