@@ -161,7 +161,10 @@ function shipVerifierImports(outDir) {
  * failure (render error, missing source hook, non-zero prettier) — callers
  * decide how to translate that to an exit code.
  */
-export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
+export function buildKernelPlugin(rawOutDir = DEFAULT_OUT_DIR) {
+  // Normalized before anything touches the disk (see syncManifest): `link/` must not slip
+  // past the symlinked-root refusal and have the whole build rendered into the link target.
+  const outDir = resolve(rawOutDir)
   mkdirSync(outDir, { recursive: true })
 
   // #2763: record what this build emits and prune what a previous one emitted that this no

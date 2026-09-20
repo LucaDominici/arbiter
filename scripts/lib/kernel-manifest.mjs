@@ -10,7 +10,7 @@
 // CATALOG: previous manifest and every stale target validated; a symlinked root/manifest, a missing
 // CATALOG: manifest in a populated root, or a malformed one throws with a named reason.
 import { lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 
 export const MANIFEST = '.kernel-build-manifest.json'
 
@@ -71,9 +71,13 @@ function readPrevious(outDir) {
  * Remove the files the previous build recorded in `outDir`'s manifest that `emitted` no
  * longer names, then record `emitted` as the new manifest. Returns the pruned names.
  * Everything is validated before the first deletion, so a bad manifest or an unsafe target
- * leaves the root untouched: the prune can never reach outside `outDir`.
+ * leaves the root untouched: the prune can never reach outside `outDir`. A root whose final
+ * component is a symlink is refused (ancestors of the root may legitimately be links).
  */
-export function syncManifest(outDir, emitted) {
+export function syncManifest(rawOutDir, emitted) {
+  // Normalize ONCE, before any check: lstat('link/') follows the link, so a trailing
+  // separator would otherwise turn a symlinked root into its (external) target directory.
+  const outDir = resolve(rawOutDir)
   const rootStat = lstatOrNull(outDir)
   if (rootStat === null) mkdirSync(outDir, { recursive: true })
   else if (rootStat.isSymbolicLink()) {
