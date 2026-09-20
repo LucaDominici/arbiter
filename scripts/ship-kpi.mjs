@@ -632,10 +632,13 @@ function sessionAttribution(meta, issueIds, attributedThreads, mergedAt) {
 // visited several worktrees, not a writer born in one of them — branch/cwd is a writer signature
 // and must not attribute a coordinator to any of the issues it merely passed through.
 function visitsMultipleIssues(contexts) {
+  // cwd uses the dedicated path pattern (a digit run right after a `/`), not the loose branch
+  // regex: BRANCH_ISSUE_RE's bare-number alternative matches any 3-5 digit path segment (a dated
+  // directory, a fixture path), which would disqualify a genuine writer over a coincidence.
   const ids = new Set(
     contexts.flatMap((context) => [
-      ...issueNumbers(context.gitBranch),
-      ...issueNumbers(context.cwd),
+      ...issueNumbers(context.gitBranch, 'branch'),
+      ...issueNumbers(context.cwd, 'path'),
     ]),
   )
   return ids.size > 1
