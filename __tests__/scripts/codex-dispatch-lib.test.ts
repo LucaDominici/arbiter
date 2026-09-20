@@ -101,13 +101,21 @@ describe('codex dispatch argument builder', () => {
 
   it('stays a pure argv builder (CANON-25 proof for its fail-closed-audit exemption)', () => {
     // codex-dispatch-lib.mjs is exempted from the fail-closed try/catch contract on the
-    // claim that it does no I/O beyond a git rev-parse and a readFileSync, and never spawns
-    // a subprocess of its own. Fail this test if that claim stops being true.
+    // claim that it does no I/O at all — the caller (codex-dispatch.mjs, which owns the
+    // try/catch) resolves every path and reads the brief before calling in. Fail this test
+    // if the lib starts importing an I/O-capable module again (the string-blocklist this
+    // test used before #2770 didn't catch execFileSync/readFileSync — forbid the imports
+    // themselves instead, which can't be dodged by renaming a call).
     const source = readFileSync(LIB_PATH, 'utf8')
+    for (const forbiddenImport of ['node:fs', 'node:child_process']) {
+      expect(source).not.toContain(forbiddenImport)
+    }
     for (const forbidden of [
       'spawn',
       'exec(',
+      'execFileSync',
       'fork',
+      'readFileSync',
       'writeFileSync',
       'mkdirSync',
       'unlinkSync',
