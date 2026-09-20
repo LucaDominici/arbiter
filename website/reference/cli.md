@@ -734,6 +734,27 @@ Manage task and recovery lifecycle state.
 - `arbiter lifecycle get` — Print a single task-state field for shell consumers (#1206)
 - `arbiter lifecycle checkpoint` — Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206)
 
+### `arbiter lifecycle record-red`
+
+Record TDD red-phase evidence for a failing test.
+
+```
+arbiter lifecycle record-red --test-path <path> [options]
+```
+
+**Options:**
+
+| Flag                   | Description                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| `--test-path <path>`   | Repo-relative path to the failing test file (required)                                  |
+| `--at <sha>`           | Record the test as of an ancestor commit by running it in an isolated detached worktree |
+| `--dir <dir>`          | Target directory / repository root (default: current directory)                         |
+| `--task <id>`          | Task id; use for a declared secondary issue on a train                                  |
+| `--test-command <cmd>` | Override the test runner binary                                                         |
+| `--test-arg <arg>`     | Repeatable argument passed to the test command                                          |
+| `--timeout-ms <ms>`    | Test-run timeout in milliseconds (default `60000`, clamped to `1..600000`)              |
+| `-h, --help`           | Show help                                                                               |
+
 ## arbiter review
 
 Run distinct read-only engineering reviews.
