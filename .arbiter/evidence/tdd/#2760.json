@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2760",
+  "test_path": "__tests__/commands/task-ship.test.ts",
+  "test_commit_sha": "7187cc3c1f94b6e1a327f92903580004d1cbdf72",
+  "test_blob_sha": "8f2366d5e1d891918602b37646e949a49d534878",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/task-ship.test.ts (61 tests | 1 failed) 723ms\n   × AC-2760.2: a planned round prints a schema-valid bound reviewer-panel template 3ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 60 passed (61)\n   Start at  08:39:19\n   Duration  1.11s (transform 231ms, setup 6ms, import 306ms, tests 723ms, environment 0ms)\n\n\nWARNING: gate-pass marker gate bypassed (reason=env, ARBITER_SKIP_GATE_MARKER=1)\nWARNING: gate-pass marker gate bypassed (reason=env, ARBITER_SKIP_GATE_MARKER=1)\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/task-ship.test.ts > AC-2760.2: a planned round prints a schema-valid bound reviewer-panel template\nAssertionError: expected -1 to be greater than or equal to 0\n ❯ __tests__/commands/task-ship.test.ts:440:17\n    438|   const end = lines.indexOf('JSON', start + 1)\n    439|\n    440|   expect(start).toBeGreaterThanOrEqual(0)\n       |                 ^\n    441|   expect(end).toBeGreaterThan(start)\n    442|   expect(lines).toContain(\"node scripts/check-review-completion.mjs --…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/task-ship.test.ts",
+  "recorded_at": "2026-09-20T06:39:20.730Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/task-ship.test.ts"
+  ]
+}
