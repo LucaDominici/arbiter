@@ -1221,6 +1221,7 @@ function readFrozenAcceptanceIds(root: string, planRef: string, sha: string | nu
       return []
     }
     return parsed as string[]
+    // FAIL-OPEN-INTENT: the printed envelope is a hint; unreadable criteria print no entry and name the listing command, and the recorder still validates exact AC coverage.
   } catch {
     return []
   }
