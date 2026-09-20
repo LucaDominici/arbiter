@@ -72,6 +72,18 @@ export const DERIVED_ARTIFACTS = [
     writeCmd: ['node', 'scripts/gen-derived-pages.mjs'],
   },
   {
+    name: 'examples drift (#2222)',
+    phase: 'produce',
+    checkCmd: ['node', 'scripts/regenerate-examples.mjs', '--check'],
+    writeCmd: ['node', 'scripts/regenerate-examples.mjs'],
+  },
+  {
+    name: 'kernel plugin parity (#2548)',
+    phase: 'produce',
+    checkCmd: ['node', 'scripts/check-kernel-plugin-parity.mjs'],
+    writeCmd: ['node', 'scripts/build-kernel-plugin.mjs'],
+  },
+  {
     name: 'gap register',
     phase: 'produce',
     checkCmd: ['node', 'scripts/gen-gap.mjs', '--check'],

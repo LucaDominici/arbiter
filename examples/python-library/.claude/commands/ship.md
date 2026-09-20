@@ -2,7 +2,7 @@
 description: One adaptive path from issue to merged, green capability
 argument-hint: '#NNN [--tier XS|S|Standard]'
 title: '/ship #NNN'
-doc_version: '3.0.0'
+doc_version: '3.0.1'
 status: active
 last_review: '2026-09-20'
 owner: ''
@@ -168,6 +168,10 @@ node scripts/record-agent-return.mjs --mode reviewer-panel --task '#NNN' <<'JSON
 JSON
 node scripts/check-review-completion.mjs --task '#NNN'
 ```
+
+After `--review-round` plans a round, `arbiter ship` prints this command block with task, branch,
+frozen SHA, and reviewer verticals already filled; replace every `<...>` placeholder before running
+it, and repeat the acceptance-fit criterion object for every frozen AC.
 
 The completion check rejects missing or malformed envelopes, a different task/branch/SHA, a sidecar
 that differs from the persisted treatment, source changes after review, and any applicable
