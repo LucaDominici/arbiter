@@ -101,6 +101,7 @@ describe('arbiter --help — atomic canonical surface (#2706)', () => {
     const { status, stdout } = spawn(['lifecycle', 'record-red', '--help'])
     expect(status).toBe(0)
     expect(stdout).not.toContain('--force')
+    expect(stdout).toContain('--at <sha>')
   })
 
   it.each([

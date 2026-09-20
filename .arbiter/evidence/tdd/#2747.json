@@ -1,16 +1,16 @@
 {
   "$schemaVersion": 1,
   "task_id": "#2747",
-  "test_path": "__tests__/scripts/codex-dispatch-lib.test.ts",
-  "test_commit_sha": "8fa7df4639312dff83827e2134283341bed0f263",
-  "test_blob_sha": "dd4ab660def2318b3607c4fbf9f629bba34eac71",
-  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/codex-dispatch-lib.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  12:05:31\n   Duration  102ms (transform 9ms, setup 7ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/codex-dispatch-lib.test.ts [ __tests__/scripts/codex-dispatch-lib.test.ts ]\nError: Cannot find module '../../scripts/lib/codex-dispatch-lib.mjs' imported from __tests__/scripts/codex-dispatch-lib.test.ts\n ❯ __tests__/scripts/codex-dispatch-lib.test.ts:6:1\n      4| import { join } from 'node:path'\n      5| import { describe, expect, it } from 'vitest'\n      6| import { buildCodexArgs, buildCodexReviewArgs } from '../../scripts/li…\n       | ^\n      7|\n      8| function makeWorktree() {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
-  "observed_failure": "FAIL  |unit| __tests__/scripts/codex-dispatch-lib.test.ts",
-  "recorded_at": "2026-09-20T10:05:31.574Z",
+  "test_path": "__tests__/commands/task-record-red.test.ts",
+  "test_commit_sha": "e47173205fcffa63626583e3c238f04ab8c876bf",
+  "test_blob_sha": "0535e20eae2e12c82dfa034af5cce2c036f067de",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/task-record-red.test.ts (67 tests | 3 failed) 53ms\n     × --at refuses a non-ancestor commit with exit 1 5ms\n     × --at refuses a test that passes at the selected commit 1ms\n     × --at records the selected commit and verifies its failing test 1ms\n\n Test Files  1 failed (1)\n      Tests  3 failed | 64 passed (67)\n   Start at  23:59:10\n   Duration  314ms (transform 127ms, setup 7ms, import 169ms, tests 53ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/task-record-red.test.ts > record-red --at (#2747) > --at refuses a non-ancestor commit with exit 1\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/commands/task-record-red.test.ts:1148:31\n    1146|     const result = recordAt(dir, atSha)\n    1147|\n    1148|     expect(result.ok ? 0 : 1).toBe(1)\n       |                               ^\n    1149|     expect(result.reason).toMatch(/not an ancestor/i)\n    1150|     expect(worktrees).toHaveLength(0)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯\n\n FAIL  |unit| __tests__/commands/task-record-red.test.ts > record-red --at (#2747) > --at refuses a test that passes at the selected commit\nAssertionError: expected [] to have a length of 1 but got +0\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/commands/task-record-red.test.ts:1168:23\n    1166|     expect(result.ok ? 0 : 1).toBe(1)\n    1167|     expect(result.reason).toMatch(/exited 0.*suite passed.*RED phase/i)\n    1168|     expect(worktrees).toHaveLength(1)\n       |                       ^\n    1169|     expect(existsSync(worktrees[0])).toBe(false)\n    1170|     expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯\n\n FAIL  |unit| __tests__/commands/task-record-red.test.ts > record-red --at (#2747) > --at records the selected commit and verifies its failing test\nAssertionError: expected 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb…' to be 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…' // Object.is equality\n\nExpected: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\nReceived: \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"\n\n ❯ __tests__/commands/task-record-red.test.ts:1190:38\n    1188|       readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.jso…\n    1189|     ) as { test_commit_sha: string; test_blob_sha: string }\n    1190|     expect(evidence.test_commit_sha).toBe(atSha)\n       |                                      ^\n    1191|     expect(evidence.test_blob_sha).toBe(blobSha)\n    1192|     expect(worktrees).toHaveLength(1)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/task-record-red.test.ts",
+  "recorded_at": "2026-09-20T21:59:11.003Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
-    "__tests__/scripts/codex-dispatch-lib.test.ts"
+    "__tests__/commands/task-record-red.test.ts"
   ]
 }

@@ -69,6 +69,8 @@ failure with that gate's remediation; one passing call can therefore cross sever
 
 `arbiter lifecycle record-red --test-path <path>` records only a genuinely failing test run. A runner
 that exits 0 is rejected, and Node's `node:test`/TAP failure summary is recognized via `# fail N`.
+Coordinators may pass `--at <sha>` to replay the test from an ancestor writer commit in a temporary
+detached worktree; the evidence pins that commit and its test blob.
 Playwright's `line`/`list` reporters are recognized via their `N failed` summary, with N ≥ 1 so
 `0 failed` never becomes red evidence.
 Commit the RED test before recording it so the evidence can be correlated to the test commit.
