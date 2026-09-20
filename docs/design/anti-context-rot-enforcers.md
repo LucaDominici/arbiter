@@ -482,12 +482,14 @@ no new sidecar:
 2. Count persistence events since session start: spool lines in `.arbiter/findings/*.jsonl`
    with `ts >= start` (shape `FindingEntry`, `src/commands/task-note.ts` ~L61) + files under
    `.arbiter/evidence/agent-returns/` with mtime ≥ start + drain receipts in
-   `.arbiter/evidence/findings-promote/drained.jsonl` with `ts >= start` (#2733). The third
-   source exists because `arbiter finding promote` removes from the spool every fingerprint it
-   made durable, so a session that captured findings and promoted them leaves an EMPTY spool —
-   without the receipt the guard would report the workflow it exists to reward as a total loss.
-   The receipt's own `ts` is the signal, never file mtime: it sits beside tracked evidence, and
-   a checkout or regen would bump an mtime and silently stand the guard down.
+   `.arbiter/evidence/findings-promote/drained.jsonl` whose `capturedTs >= start` (#2733). The
+   third source exists because `arbiter finding promote` removes from the spool every
+   fingerprint it made durable, so a session that captured findings and promoted them leaves an
+   EMPTY spool — without the receipt the guard would report the workflow it exists to reward as
+   a total loss. The count keys on `capturedTs`, the drained finding's own capture time, not on
+   the receipt's `ts`: promoting an EARLIER session's spool must not excuse a session that
+   captured nothing itself. Both are record fields, never file mtime — the receipt sits beside
+   tracked evidence, where a checkout or regen would bump an mtime and stand the guard down.
 3. Dispatches ≥ 2 and persistence == 0 ⇒ advisory: stderr instruction ("N research agents
    returned; nothing was persisted — write `arbiter finding add` / record envelopes before
    stopping") with exit 0; at hard grading (hooks manifest) ⇒ exit 2, which re-prompts the

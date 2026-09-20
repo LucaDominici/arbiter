@@ -395,6 +395,11 @@ describe('runFindingsPromote()', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.drained.map((d) => d.fingerprint).sort()).toEqual([fp(stale), fp(tracked)].sort())
+    // Each drain carries its OWN disposition, so a regression that labelled everything
+    // `promoted` would be visible here.
+    expect(
+      Object.fromEntries(drainReceipt(dir).map((rec) => [rec['fingerprint'], rec['disposition']])),
+    ).toEqual({ [fp(stale)]: 'dropped', [fp(tracked)]: 'tracked' })
     const spool = readFileSync(join(dir, '.arbiter', 'findings', 'a.jsonl'), 'utf-8')
     expect(spool).not.toContain(fp(stale))
     expect(spool).not.toContain(fp(tracked))
@@ -490,6 +495,31 @@ describe('runFindingsPromote()', () => {
     expect(() => runFindingsPromote({ dir }, makeDeps().deps)).toThrow()
     expect(readFileSync(junk, 'utf-8')).toBe('not json at all\n')
     expect(drainReceipt(dir)).toEqual([])
+  })
+
+  it('(#2733 AC-7) a line appended mid-run, after the spool was read, is never deleted', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
+    const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'promote me' }
+    const h = fp(finding)
+    const shard = join(dir, '.arbiter', 'findings', 'a.jsonl')
+    writeShard(dir, 'a', [{ ...finding, severity: 'high', fingerprint: h }])
+    // The drain re-reads the spool after the filing loop, so a concurrent `arbiter finding
+    // add` lands between the two reads — including a half-written line. The drain must keep
+    // what it cannot parse and still remove the fingerprint it proved durable.
+    const { deps } = makeDeps({
+      createIssue: () => {
+        writeFileSync(shard, readFileSync(shard, 'utf-8') + '{"ts":"2026-06-16T00:00', 'utf-8')
+        return { ok: true, issueNumber: 7007 }
+      },
+    })
+
+    const r = runFindingsPromote({ dir }, deps)
+
+    expect(r.ok).toBe(true)
+    const after = readFileSync(shard, 'utf-8')
+    expect(after).toContain('{"ts":"2026-06-16T00:00')
+    expect(after).not.toContain(h)
   })
 
   it('bootstraps the finding label idempotently before filing', () => {
