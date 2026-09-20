@@ -300,6 +300,7 @@ function emitTemplateFile(
  *                                 emission-coherence lint tells a declared optional
  *                                 from a real ghost
  *   lib/run-helpers.mjs         — #351/CANON-01 runCheck/runToolCheck trinity
+ *   lib/governance-paths.mjs    — shared governance document paths
  *   check-collab-mode-wired.mjs — #1093/INV-100 collaborationMode L1 assertion
  *   check-constraint-scan.mjs   — #1214/INV-115 governance constraint scanner
  */
@@ -310,6 +311,10 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   { rel: ['scripts', 'test-gate-layering.mjs'], tpl: 'scripts/test-gate-layering.mjs.ejs' },
   { rel: ['scripts', 'optional-emissions.json'], tpl: 'scripts/optional-emissions.json.ejs' },
   { rel: ['scripts', 'lib', 'run-helpers.mjs'], tpl: 'scripts/lib/run-helpers.mjs.ejs' },
+  {
+    rel: ['scripts', 'lib', 'governance-paths.mjs'],
+    tpl: 'scripts/lib/governance-paths.mjs.ejs',
+  },
   // #2328: the gate-pass evidence binding. Emitted unconditionally — check-all.mjs
   // imports it to STAMP the marker, and the pre-push hook plus both Claude hooks
   // import it to VERIFY one. A project missing it fails closed everywhere.

@@ -1,5 +1,5 @@
 // Tests for #349 — INV-61 (a11y critical violations are HARD-fail at L2)
-// must exist in the catalog and be mirrored in AGENTS.md §Invariants (CANON-08/09).
+// must exist in the TypeScript and documentation catalogs (CANON-08/09).
 
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -23,8 +23,11 @@ describe('INV-61 — a11y critical violations HARD-fail at L2 (#349)', () => {
     expect(inv?.description).toMatch(/axe-core|critical/i)
   })
 
-  it('is mirrored in AGENTS.md §Invariants', () => {
-    const agents = readFileSync(join(process.cwd(), 'AGENTS.md'), 'utf-8')
-    expect(agents).toMatch(/\*\*INV-61:\*\*/)
+  it('is mirrored in the invariant catalog document', () => {
+    const catalog = readFileSync(
+      join(process.cwd(), 'docs/internal/SYSTEM/INVARIANT-CATALOG.md'),
+      'utf-8',
+    )
+    expect(catalog).toMatch(/\*\*INV-61:\*\*/)
   })
 })

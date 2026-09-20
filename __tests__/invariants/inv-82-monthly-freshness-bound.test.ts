@@ -7,7 +7,7 @@
 // This is a regression guard, not a behavioural test: it derives the REAL enforced
 // threshold straight from the workflow's shell condition (never hardcodes 35 — a
 // later change to the job's threshold must not silently desync this guard) and
-// fails if any invariant, or AGENTS.md itself, states a competing monthly-freshness
+// fails if any invariant, or the invariant catalog doc, states a competing monthly-freshness
 // day-bound. INV-75 is the sole intended owner of the numeric bound; INV-82 keeps
 // only the "08-monthly.yml must exist" clause and defers the number to INV-75.
 import { describe, it, expect } from 'vitest'
@@ -95,15 +95,15 @@ describe('#2534 — monthly-freshness bound: no invariant may disagree with the 
     ).toEqual([])
   })
 
-  it('AGENTS.md states no monthly-freshness day-bound that disagrees with the enforced job', () => {
+  it('the invariant catalog states no monthly-freshness day-bound that disagrees with the enforced job', () => {
     const workflow = read('.github/workflows/09-heartbeat.yml')
     const enforced = extractEnforcedMonthlyFreshnessDays(workflow)
-    const agents = read('AGENTS.md')
+    const catalogDoc = read('docs/internal/SYSTEM/INVARIANT-CATALOG.md')
 
-    const disagreeing = findMonthlyDayBounds(agents).filter((n) => n !== enforced)
+    const disagreeing = findMonthlyDayBounds(catalogDoc).filter((n) => n !== enforced)
     expect(
       disagreeing,
-      `AGENTS.md must not state a monthly-freshness bound other than the enforced ${enforced} days`,
+      `INVARIANT-CATALOG.md must not state a monthly-freshness bound other than the enforced ${enforced} days`,
     ).toEqual([])
   })
 })

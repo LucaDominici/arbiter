@@ -1,3 +1,15 @@
+---
+title: 'Impact-First Editing Rule'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-09-20'
+owner: ''
+canonical_id: ''
+tags: ['audience/agent', 'audience/dev', 'kind/internal']
+related: []
+paths: ['src/**', 'scripts/**']
+---
+
 # Impact-First Editing Rule
 
 Before you change a module, know what depends on it. arbiter already emits a

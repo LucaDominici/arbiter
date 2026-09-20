@@ -153,6 +153,15 @@ describe('check-fail-closed-audit', () => {
     expect(r.status).toBe(0)
   })
 
+  it('passes the pure governance-path constants library', () => {
+    mkdirSync(join(env.root, 'scripts', 'lib'), { recursive: true })
+    writeFileSync(
+      join(env.root, 'scripts', 'lib', 'governance-paths.mjs'),
+      "export const INVARIANT_CATALOG_DOC = 'AGENTS.md'\n",
+    )
+    expect(runAudit(env.root).status).toBe(0)
+  })
+
   it('recognizes the canonical sibling run-helpers import used by check-all', () => {
     writeFileSync(
       join(env.root, 'scripts', 'helper-user.mjs'),

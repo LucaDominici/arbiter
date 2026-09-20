@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2628 slice 3: governance prose that describes generated artifacts must describe what ships.
 // Two staleness classes found by the workflow inventory (evidence/arbiter-2628):
-//   1. AGENTS.md INV-128 still described `scripts/conformance.mjs` as delegating to a retired
+//   1. The invariant catalog's INV-128 still described `scripts/conformance.mjs` as delegating to a retired
 //      CLI command ("Known gap … nothing to delegate to", exit 1=FAIL), while the emitted
 //      template has pointed at `gold-audit` with exit codes 0/2 for some time.
 //   2. `generator-matrix.yml` named sibling workflows (`kit-self-canary.yml`,
@@ -14,9 +14,12 @@ import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../..', import.meta.url))
 
 function inv128Entry(): string {
-  const lines = readFileSync(join(root, 'AGENTS.md'), 'utf-8').split('\n')
+  const lines = readFileSync(
+    join(root, 'docs/internal/SYSTEM/INVARIANT-CATALOG.md'),
+    'utf-8',
+  ).split('\n')
   const start = lines.findIndex((l) => /^- \*\*INV-128:\*\*/.test(l))
-  expect(start, 'AGENTS.md has an INV-128 entry').toBeGreaterThan(-1)
+  expect(start, 'INVARIANT-CATALOG.md has an INV-128 entry').toBeGreaterThan(-1)
   let end = start + 1
   while (end < lines.length && !/^- \*\*INV-\d+:\*\*/.test(lines[end])) end++
   return lines.slice(start, end).join('\n')
@@ -39,7 +42,7 @@ describe('#2628 — INV-128 prose matches the shipped conformance runner', () =>
     expect(catchBlock).not.toMatch(/process\.exit\(1\)/)
   })
 
-  it('AGENTS.md names the real emitter (registry entry, not check-all UNCONDITIONAL_EMISSIONS)', () => {
+  it('the invariant catalog names the real emitter (registry entry, not check-all UNCONDITIONAL_EMISSIONS)', () => {
     const entry = inv128Entry()
     expect(entry).toMatch(/registry\.ts/)
     expect(entry).not.toMatch(/via `src\/generators\/check-all\.ts` UNCONDITIONAL_EMISSIONS/)
@@ -51,18 +54,18 @@ describe('#2628 — INV-128 prose matches the shipped conformance runner', () =>
     expect(gen).not.toMatch(/delegates to `arbiter conformance/)
   })
 
-  it('AGENTS.md INV-128 does not describe the retired delegation as a live gap', () => {
+  it('the invariant catalog INV-128 does not describe the retired delegation as a live gap', () => {
     const entry = inv128Entry()
     expect(entry).not.toMatch(/Known gap/)
     expect(entry).not.toMatch(/nothing to delegate to/)
     expect(entry).toMatch(/audit readiness/)
   })
 
-  it('AGENTS.md INV-128 states the same exit codes as the template header', () => {
+  it('the invariant catalog INV-128 states the same exit codes as the template header', () => {
     expect(inv128Entry()).toContain(templateExitLine)
   })
 
-  it('AGENTS.md INV-128 states the real skipIfExists of the generator', () => {
+  it('the invariant catalog INV-128 states the real skipIfExists of the generator', () => {
     const gen = readFileSync(join(root, 'src/generators/conformance.ts'), 'utf-8')
     const real = gen.match(/skipIfExists:\s*(true|false)/)?.[1]
     expect(real).toBeDefined()

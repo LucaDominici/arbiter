@@ -76,7 +76,6 @@ describe('host command inventories still expose /ship', () => {
 
   it.each([
     'src/templates/claude/CLAUDE.md.ejs',
-    'src/templates/claude/rules/55-brainstorm-terminal-state.md',
     'src/templates/claude/rules/90-exec-protocol.md.ejs',
     'src/templates/claude/skills/brainstorming/SKILL.md.ejs',
     'src/templates/claude/skills/wave-drain/SKILL.md.ejs',

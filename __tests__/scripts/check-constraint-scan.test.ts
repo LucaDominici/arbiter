@@ -434,16 +434,12 @@ describe('check-constraint-scan.mjs (INV-115) — real-doc canary (false-negativ
   it('extracts + classifies arbiter real prohibitions, and the full self-scan is GREEN', () => {
     const r = run([]) // all defaults: real docs, real map, real src
     expect(r.status).toBe(0)
-    // child_process (CANON.md), any & var (AGENTS.md) must be recognised as COVERED —
+    // child_process (CANON.md) must be recognised as COVERED —
     // assert the CLASSIFICATION, not mere string presence (a VIOLATION line also contains the token).
     expect(r.stdout).toMatch(/\[COVERED\].*child_process/)
-    expect(r.stdout).toMatch(/\[COVERED\].*\bany\b/)
-    expect(r.stdout).toMatch(/\[COVERED\].*\bvar\b/)
-    // The `**Never:**` block in .claude/CLAUDE.md must yield prohibitions (not be skipped).
-    // Since #2384 the pure-prose ones (commit to main, root-cause discipline) are triaged into
-    // the ACCEPTED bucket rather than left untriaged — still pinned to the doc, so a broken
-    // block parser cannot pass on AGENTS.md/CANON.md classifications alone.
-    expect(r.stdout).toMatch(/\[ACCEPTED\].*CLAUDE\.md/)
+    // The thin Claude shim delegates hook details to settings.json; its governance
+    // prose remains in the canonical entry and catalog.
+    expect(r.stdout).toMatch(/\[ACCEPTED\].*AGENTS\.md/)
   })
 })
 

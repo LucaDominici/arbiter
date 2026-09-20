@@ -105,13 +105,16 @@ describe('#2418 AC-2 — the auditors are not exempt from the audit', () => {
 })
 
 describe('#2418 AC-3 — the governance text names the size and the decay rule', () => {
-  const agents = read('AGENTS.md')
-  const section = agents.slice(agents.indexOf('## Fail-Closed Audit (INV-96)'))
+  const catalog = read('docs/internal/SYSTEM/INVARIANT-CATALOG.md')
+  const section = catalog.slice(catalog.indexOf('## Fail-Closed Audit (INV-96)'))
   const inv96 = section.slice(0, section.indexOf('\n## '))
 
   it('names the live baseline size', () => {
     const m = inv96.match(/grandfathers exactly (\d+) file/)
-    expect(m, 'AGENTS.md INV-96 must state "grandfathers exactly N file(s)"').not.toBeNull()
+    expect(
+      m,
+      'INVARIANT-CATALOG.md INV-96 must state "grandfathers exactly N file(s)"',
+    ).not.toBeNull()
     expect(Number(m?.[1])).toBe(baseline.files.length)
   })
 

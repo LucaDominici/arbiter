@@ -373,23 +373,27 @@ describe('INV-89 prose ↔ generator emit-array parity (#1674)', () => {
     return new Set(text.match(/check-[a-z0-9-]+\.mjs/g) ?? [])
   }
 
-  it('AGENTS.md INV-89 enforcement row lists every emitted script and no never-emitted script', () => {
-    const agents = readFileSync(resolve('AGENTS.md'), 'utf-8')
-    const start = agents.indexOf('## Anti-Drift Validator Family (INV-89)')
+  it('the invariant catalog INV-89 enforcement row lists every emitted script and no never-emitted script', () => {
+    const catalog = readFileSync(resolve('docs/internal/SYSTEM/INVARIANT-CATALOG.md'), 'utf-8')
+    const start = catalog.indexOf('## Anti-Drift Validator Family (INV-89)')
     expect(start).toBeGreaterThanOrEqual(0)
     // The enforcement block runs until the next top-level heading.
-    const rest = agents.slice(start + 1)
+    const rest = catalog.slice(start + 1)
     const end = rest.indexOf('\n## ')
     const block = end >= 0 ? rest.slice(0, end) : rest
     const tokens = scriptTokens(block)
 
     const emitted = emittedUnion()
     const missing = [...emitted].filter((s) => !tokens.has(s)).sort()
-    expect(missing, `AGENTS.md INV-89 row omits emitted scripts: ${missing.join(', ')}`).toEqual([])
+    expect(
+      missing,
+      `INVARIANT-CATALOG.md INV-89 row omits emitted scripts: ${missing.join(', ')}`,
+    ).toEqual([])
     for (const banned of NEVER_EMITTED) {
-      expect(tokens.has(banned), `AGENTS.md INV-89 row falsely lists ${banned} as emitted`).toBe(
-        false,
-      )
+      expect(
+        tokens.has(banned),
+        `INVARIANT-CATALOG.md INV-89 row falsely lists ${banned} as emitted`,
+      ).toBe(false)
     }
   })
 

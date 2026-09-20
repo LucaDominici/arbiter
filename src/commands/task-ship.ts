@@ -229,7 +229,7 @@ function greenAction(profile: ShipProfile): string {
 
 /**
  * #A11 — CLOSER mode action for the `close` phase (last mile: merge, red gate, conflict).
- * Entry into this phase switches the active agent-rule set to `.claude/rules/95-closer-mode.md`:
+ * Entry into this phase activates the closer-mode guard hook:
  * single named target (no switching), no new issues/refactor beyond the diff (findings → PARKING,
  * one line, no action), same error twice → 5-line root-cause or declare BLOCKED, foreground waits
  * only (no background "monitor" for gate/PR checks), never end on a promise.

@@ -2,7 +2,7 @@
   {
     "path": "CLAUDE.md",
     "reason": "Arbiter self-dogfood: hooks table contains additional rows for check-no-any.mjs, check-no-placeholders.mjs, check-no-skipped-tests.mjs, check-no-unused-exports.mjs, check-circular-deps.mjs, pre-edit-plan-anchor.mjs, check-no-direct-spawn.mjs, check-no-pii.mjs, post-edit-dispatch.mjs, skill-forced-eval.mjs, debug-state-on-failure.mjs, pre-compact.mjs and slash commands /status and /replay phase. These arbiter-internal extensions are not shipped to target projects. (Confirmed intentional 2026-05-29, #1092; skipped-test wiring repaired under #2129.) Also documents guard-done-evidence.mjs (#1872), which IS shipped to targets when evidenceHarness is on but has no corresponding row in the CLAUDE.md.ejs template's hooks table (a template documentation gap, not a self-only hook); the materialized hook is flag-gated and inert until features.evidenceHarness: true. stop-finding-loss.mjs (#1948, E6b) was ACTIVATED per OD-14 (2026-07-17) into the Stop matcher chain and moved to the active hooks table — the template's CLAUDE.md.ejs and settings.json.ejs stay minimal (self-first activation; template follows at promotion date). pre-spawn-worktree-guard.mjs (#1947, E5) was likewise ACTIVATED advisory per OD-14 (2026-07-17) into the PreToolUse Task|Agent matcher and moved to the active hooks table — same self-first-activation class as stop-finding-loss.mjs, which is the source of this file's divergence. Also documents closer-mode-guard.mjs wired under #2014. Also documents post-subagent-release.mjs (#1947, E5, #2403) — the SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs, added to the active hooks table; self-only for now (scripts/canon01-self-only.json), template rollout deferred.",
-    "diffHash": "c59fa1b20003d429cc32497e67274bd0a3b5eb804a27ae39caae80a1fb958b5b"
+    "diffHash": "0179f704dd3bd0674ea4351aa0b13d1bcd5a68c0e967ef292371c1bcf5147aa8"
   },
   {
     "path": "hooks/check-no-pii.mjs",
@@ -27,7 +27,7 @@
   {
     "path": "rules/90-exec-protocol.md",
     "reason": "Arbiter self-dogfood: contains CI Linux runner note specific to arbiter repo: 'CI Linux jobs run on self-hosted runner docker-ci-build via repo variable CI_BUILD_RUNNER_LABEL'. This is arbiter-specific infrastructure context, not appropriate for target project templates. (Confirmed intentional 2026-05-29, #1092.)",
-    "diffHash": "ccafecc82dc35b93488d3ba705786fd9148be8d5e360372967d261b28d238f4b"
+    "diffHash": "0460227f2c08e6d939db990fc3775a4a4f75c3484843e7bf3836ef71692709f6"
   },
   {
     "path": "settings.json",
@@ -146,7 +146,7 @@
     "path": "check-constraint-scan.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Two load-bearing constants, both self-stricter: (1) ENFORCE_DEFAULT is true in self and false in the template — the documented start-warn-promote-later rollout (#1214): arbiter hard-fails on an un-covered derivable prohibition with a live hit, while a freshly generated project warns until it has curated constraint-map.json. (2) RATCHET_REQUIRED is true in self and false in the template (#2384): self refuses to pass when the coverage baseline is missing or records no covered/unenforceable floor — deleting the baseline must not be a way to pass — while the emitted twin tolerates it because `arbiter init` ships no baseline and the first run is the one that seeds it. Self also reads docs/internal/SYSTEM/CANON.md (the #1770 layout) vs the template's docs/SYSTEM/CANON.md, and carries the INV-94 CATALOG block plus section banners. The extraction grammar, the token-shape filter and the INV-96 fail-closed handling of a missing/malformed map are identical. PERMANENT: self-stricter-than-emitted is the deliberate rollout posture, not lag. Re-pinned #2520: the coverage-ratchet logic (retirement-safe uncovered/unenforceable floor, integrityHash tamper-closing) was fixed identically on both sides — a real logic bug in shared code, not a self/template divergence — so this pin only tracks the same two pre-existing differences (ENFORCE_DEFAULT, CANON path) at their new byte offsets; verified token-for-token parity via __tests__/templates/constraint-scan-render.test.ts.",
-    "diffHash": "e4b39308f2225c50a1faa43927e2d14001a99e571bc273ab9a64f637450bd414"
+    "diffHash": "c602218b811e716119a893ea6343c5d2e18742fb4c7e6f1bdaa9a4562225e4c4"
   },
   {
     "path": "check-consumer-audit.mjs",
@@ -169,7 +169,7 @@
     "path": "check-doc-links.mjs",
     "dest": "scripts",
     "reason": "Read line-by-line (#2275). Self is far larger because it owns three surfaces a target has no counterpart for. (1) Scan roots: arbiter scans .claude/.agents/.codex/examples/website plus named root files, not docs/ alone. (2) website/ is a VitePress site, so self implements VitePress's own route resolution (extension-then-index candidates, public/ assets) instead of plain path.resolve — added in F2 (#1838) after 3 dead links in website/governance/index.md passed silently. (3) Self detects self-referential github.com blob/tree URLs, which isLocal() skips as remote and which the docs/internal split (#1770) left dangling inside .vitepress/config.ts. Self also emits .arbiter/reports/doc-links.json for the gold-audit GA-DOC-08 value check and reads the docs/internal CANONICAL_PATHS path. (4) #2408 adds two more self-only surfaces: the dated scripts/data/doc-gate-allowlist.json escape hatch, which exists to keep arbiter's own M-A doc-truth debt on a clock, and frontmatter `related:` resolution, whose four candidate shapes (repo-root, doc-relative, docs/, docs/internal/) are arbiter's own frontmatter convention — a target's docs have no `related:` key and no docs/internal split, so mirroring either would turn every consumer's gate red with no escape hatch. PERMANENT: every addition names an arbiter-only tree or an arbiter-only consumer.",
-    "diffHash": "fdc5483f759fb41955b551b12582389ec855acb3294ac4595acaf8a53fbdf3b8"
+    "diffHash": "bb5bb6949fd0d0a357038d1dd00301afc0a2400c6d0fd86b2cc8939d8264ed01"
   },
   {
     "path": "check-doc-set.mjs",
@@ -223,7 +223,7 @@
     "dest": "scripts",
     "path": "check-feature-matrix.mjs",
     "reason": "#1887-B: self's own scripts/check-feature-matrix.mjs validates arbiter's OWN docs/internal/PRODUCT/FEATURE_MATRIX.md against arbiter's OWN src/kit/catalog.json (KIT-dimension coverage + L4 audit_trail DoD) — the shipped template (src/templates/scripts/check-feature-matrix.mjs.ejs) is a deliberately SCOPED-DOWN port for target projects, which have no docs/internal/PRODUCT/ tree or KIT catalog equivalent. The two files validate structurally different documents at different paths by design; this is not staleness to reconcile. | #2480 wave 7 CLOSED the second divergence: the RTM axis-2 rule (a `Verified` row must carry a .arbiter/evidence/rtm/<REQ-NNN>.json verification envelope) now ships on BOTH tracks, together with schemas/rtm-verdict.schema.json, which src/generators/feature-matrix.ts emits beside the gate. The axis was self-only for exactly one reason — porting a rule whose schema does not travel with it would hand a governed project an error the moment it marked a row Verified — and that reason is gone. What remains of this divergence is only the original #1887-B scoping: arbiter's own copy also validates its KIT catalog and its internal doc paths. The two files still validate structurally different documents; they no longer differ on which RULES apply. One mechanical difference remains inside axis 2: arbiter's copy imports the shared validator statically, while the emitted copy loads it (and its schema) lazily and FAILS LOUD when either is absent. #1578 gives each emitted path exactly one owning generator, and the validator's owner is not this gate's — a static import would therefore turn a missing dependency into MODULE_NOT_FOUND before the gate read a row, which is the #2335 failure mode.",
-    "diffHash": "55be8847186a9c2802eb78a981aaf0402ee0df73149ed182d74fb0d3a1a99db9"
+    "diffHash": "74433d97324582f8354ad725b5ab5af5384b0e7e214961eb3be600e532c501ec"
   },
   {
     "dest": "scripts",

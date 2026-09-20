@@ -17,10 +17,11 @@ are applied and enforced.
 
 ## Canonical documents
 
-| Document                                                                                    | Purpose                                                                               |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| [AGENTS.md](https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md)                    | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
-| [CANON.md](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/SYSTEM/CANON.md) | 23 process-level rules (CANON-01..23) derived from audit waves #151–#186              |
+| Document                                                                                                            | Purpose                                                         |
+| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [AGENTS.md](https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md)                                            | Cross-tool agent entrypoint                                     |
+| [INVARIANT-CATALOG.md](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/SYSTEM/INVARIANT-CATALOG.md) | Full invariant, enforcement, gate, debt, and security reference |
+| [CANON.md](https://github.com/LucaDominici/arbiter/blob/main/docs/internal/SYSTEM/CANON.md)                         | Process-level rules derived from audit waves #151–#186          |
 
 ## Architecture Decision Records
 

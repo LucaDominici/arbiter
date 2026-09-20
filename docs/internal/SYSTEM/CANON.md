@@ -161,13 +161,13 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ---
 
-## CANON-10 — Every active hook is documented in .claude/CLAUDE.md
+## CANON-10 — Every active hook is documented or delegated in .claude/CLAUDE.md
 
-**Rule:** Every hook registered in `.claude/settings.json` must appear as a row in the hooks table of `.claude/CLAUDE.md` with its event, filename, and purpose.
+**Rule:** Every hook registered in `.claude/settings.json` must appear as a row in the hooks table of `.claude/CLAUDE.md` with its event, filename, and purpose, or the document must explicitly identify `.claude/settings.json` as the hook source of truth.
 
 **Why:** CLAUDE.md is the first file AI agents load. An undocumented hook is invisible governance — agents cannot reason about constraints they cannot see.
 
-**Enforcement:** `scripts/check-hook-doc-parity.mjs` (wired into `scripts/check-all.mjs` L1, #1838) — symmetric event+matcher+filename parity between `.claude/settings.json` and the `.claude/CLAUDE.md` hooks table; fails closed on zero-extraction from either side. Was prose-only ("checked at PR review") until F2 (#1838).
+**Enforcement:** `scripts/check-hook-doc-parity.mjs` (wired into `scripts/check-all.mjs` L1, #1838) — symmetric event+matcher+filename parity between `.claude/settings.json` and the `.claude/CLAUDE.md` hooks table, or a fail-closed thin-shim marker that delegates to settings.json. Was prose-only ("checked at PR review") until F2 (#1838).
 
 **Source issues:** #177, #1838
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2419 AC-2/AC-3 — the police of advisory-forever gates was itself an advisory gate, and only in
 // the L2 partition, so an expired promoteBy could never fail anything a commit had to pass.
-// AC-2 makes it a hard L1 check. AC-3 makes the advisory labels in AGENTS.md carry a date that the
+// AC-2 makes it a hard L1 check. AC-3 makes the advisory labels in the invariant catalog carry a date that the
 // (now hard) ledger detector can actually expire.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs'
 const SELF_CHECK_ALL = 'scripts/check-all.mjs'
 const LEDGER = 'scripts/data/advisory-ledger.json'
 const PARITY = 'scripts/check-local-ci-parity.mjs'
-const AGENTS = 'AGENTS.md'
+const INVARIANT_CATALOG = 'docs/internal/SYSTEM/INVARIANT-CATALOG.md'
 const CHECK_NAME = 'bypass ceremony (E4 #1949)'
 
 interface LedgerEntry {
@@ -63,12 +63,12 @@ describe('#2419 AC-2 — bypass-ceremony is a hard check that runs at L1', () =>
 })
 
 describe('#2419 AC-3 — advisory guards are labelled advisory WITH their promotion date', () => {
-  it('AGENTS.md marks the INV-70 reuse survey advisory, citing the ledger promoteBy verbatim', () => {
+  it('the invariant catalog marks the INV-70 reuse survey advisory, citing the ledger promoteBy verbatim', () => {
     // The label lives in the sub-bullet, never on the `**INV-70:**` line itself — that line's text
     // must stay byte-equal to the catalog title (INV-51/CANON-08 parity, check-catalog-agents-parity).
-    const lines = readFileSync(AGENTS, 'utf-8').split('\n')
+    const lines = readFileSync(INVARIANT_CATALOG, 'utf-8').split('\n')
     const idx = lines.findIndex((l) => l.includes('**INV-70:**'))
-    expect(idx, 'no INV-70 line in AGENTS.md').toBeGreaterThan(-1)
+    expect(idx, 'no INV-70 line in INVARIANT-CATALOG.md').toBeGreaterThan(-1)
     const claim = lines[idx + 1]
     expect(claim).toMatch(/_Enforcement:_/)
     expect(claim).toMatch(/advisory/i)
@@ -76,10 +76,10 @@ describe('#2419 AC-3 — advisory guards are labelled advisory WITH their promot
     expect(claim).toContain(promoteByOf('reuse survey (INV-70)'))
   })
 
-  it('AGENTS.md marks the gh-audit anti-fake-green guards advisory with their promotion date', () => {
-    const agents = readFileSync(AGENTS, 'utf-8')
-    const line = agents.split('\n').find((l) => l.includes('anti-fake-green gh-audit guards'))
-    expect(line, 'no gh-audit guards enforcement claim in AGENTS.md').toBeDefined()
+  it('the invariant catalog marks the gh-audit anti-fake-green guards advisory with their promotion date', () => {
+    const catalog = readFileSync(INVARIANT_CATALOG, 'utf-8')
+    const line = catalog.split('\n').find((l) => l.includes('anti-fake-green gh-audit guards'))
+    expect(line, 'no gh-audit guards enforcement claim in INVARIANT-CATALOG.md').toBeDefined()
     expect(line as string).toMatch(/advisory/i)
     expect(line as string).toContain(promoteByOf('min-review-time'))
     expect(line as string).toContain(promoteByOf('ownership-distribution'))

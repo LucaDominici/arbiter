@@ -40,7 +40,7 @@ export const PHASE_ORDER: readonly TaskPhase[] = [
   'refactor',
   'verification',
   // #A11 — the closing phase (last mile: merge, red gate, conflict). Entry switches the active
-  // agent-rule set to CLOSER mode (`.claude/rules/95-closer-mode.md`): single named target, no
+  // agent-rule set to CLOSER mode: single named target, no
   // new issues/refactor-beyond-diff (findings → PARKING), root-cause after 2 failed attempts.
   'close',
   'complete',

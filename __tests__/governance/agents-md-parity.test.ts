@@ -4,9 +4,13 @@ import { resolve } from 'node:path'
 
 const catalogSrc = readFileSync(resolve('src/invariants/catalog.ts'), 'utf-8')
 const agentsMd = readFileSync(resolve('AGENTS.md'), 'utf-8')
+const invariantCatalogDoc = readFileSync(
+  resolve('docs/internal/SYSTEM/INVARIANT-CATALOG.md'),
+  'utf-8',
+)
 
 // Retired tombstones (status: 'retired') are kept in the catalog for ID-stability
-// but are deliberately filtered out of generated/authored AGENTS.md (#1570), so
+// but are deliberately filtered out of generated/authored invariant docs (#1570), so
 // they are not required to appear as live rows here.
 const retiredIds = new Set<string>()
 {
@@ -22,12 +26,14 @@ const CATALOG_IDS = [...catalogSrc.matchAll(/id:\s*['"]?(INV-\d+)['"]?/g)]
   .map((m) => m[1])
   .filter((id) => !retiredIds.has(id))
 
-const AGENTS_IDS = new Set([...agentsMd.matchAll(/\*\*(INV-\d+)[^*]*\*\*/g)].map((m) => m[1]))
+const DOCUMENTED_IDS = new Set(
+  [...invariantCatalogDoc.matchAll(/\*\*(INV-\d+)[^*]*\*\*/g)].map((m) => m[1]),
+)
 
-describe('AGENTS.md catalog parity (#180)', () => {
-  it('every non-retired catalog INV-NN appears in AGENTS.md §Invariants', () => {
-    const missing = CATALOG_IDS.filter((id) => !AGENTS_IDS.has(id))
-    expect(missing, `Missing from AGENTS.md: ${missing.join(', ')}`).toEqual([])
+describe('invariant catalog document parity (#180, #2738)', () => {
+  it('every non-retired catalog INV-NN appears in the invariant catalog document', () => {
+    const missing = CATALOG_IDS.filter((id) => !DOCUMENTED_IDS.has(id))
+    expect(missing, `Missing from INVARIANT-CATALOG.md: ${missing.join(', ')}`).toEqual([])
   })
 
   it('at least 40 invariants exist in catalog', () => {
@@ -35,11 +41,8 @@ describe('AGENTS.md catalog parity (#180)', () => {
   })
 })
 
-// #2055: arbiter's root AGENTS.md is INTENTIONALLY hand-authored — it is far
-// richer than the generic content generateAgentsMd() renders for every consumer
-// project (YAML frontmatter, a 5-level Authority Hierarchy, the Model-Pyramid Iron
-// Law, the full Process Canon block, per-INV enforcement detail). It is NOT
-// reproducible from the shipped template, so it must never be silently regenerated
+// #2055: arbiter's root AGENTS.md is INTENTIONALLY hand-authored and thin. It is
+// not reproducible from the shipped consumer template, so it must never be silently regenerated
 // to the lossy generic version by `arbiter update` / the agents-md generator.
 //
 // Two independent guards, matching the two ways that regression can happen:
@@ -55,14 +58,10 @@ describe('AGENTS.md self-authored preservation (#2055)', () => {
     expect(agentsMd.includes('arbiter:preserve')).toBe(true)
   })
 
-  it('retains the hand-authored sections the generic generator never emits', () => {
-    // YAML frontmatter (template renders no frontmatter).
+  it('retains the hand-authored entry contract', () => {
     expect(agentsMd).toContain('doc_version:')
-    // 5-level Authority Hierarchy (template collapses to a generic 3-level chain).
-    expect(agentsMd).toContain('Level 5:')
-    // Model-Pyramid Iron Law (template Iron Laws stop at Verification-Before-Victory).
-    expect(agentsMd).toContain('Model-Pyramid')
-    // Process Canon block (template has no CANON section at all).
-    expect(agentsMd).toContain('## Process Canon')
+    expect(agentsMd).toContain('INVARIANT-CATALOG.md')
+    expect(agentsMd.split('\n').length).toBeLessThanOrEqual(150)
+    expect(invariantCatalogDoc).toContain('## Process Canon')
   })
 })

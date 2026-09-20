@@ -33,7 +33,6 @@ describe('generateCodex', () => {
   it('creates rules directory with expected files', () => {
     generateCodex(makeConfig(dir))
     expect(existsSync(join(dir, '.agents', 'rules', '05-agent-lifecycle.md'))).toBe(true)
-    expect(existsSync(join(dir, '.agents', 'rules', '25-todo-folder-policy.md'))).toBe(true)
     expect(existsSync(join(dir, '.agents', 'rules', '90-exec-protocol.md'))).toBe(true)
   })
 

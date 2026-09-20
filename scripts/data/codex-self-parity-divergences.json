@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "path": ".agents/rules/05-agent-lifecycle.md",
+    "reason": "Repo copy merges the repo doc-metadata frontmatter with the emitted paths: key (one block, same shape as .claude/rules); body is identical to the emission. The stripper keeps a block with a non-metadata key on the compare surface by design.",
+    "date": "2026-09-20",
+    "diffHash": "064c5bf299b4b6bfe15305939c68a26d0def06175b0ef6e6f17152e6dc71ea8d"
+  }
+]

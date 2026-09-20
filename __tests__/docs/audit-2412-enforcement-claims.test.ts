@@ -62,8 +62,8 @@ describe('#2412 — INV-73 minPresent matches the true 8-file canonical contract
     expect(entry).toMatch(/minPresent:\s*8/)
   })
 
-  it('AGENTS.md no longer cites a migrationStatus field for INV-73', () => {
-    expect(read('AGENTS.md')).not.toContain('migrationStatus')
+  it('the invariant catalog no longer cites a migrationStatus field for INV-73', () => {
+    expect(read('docs/internal/SYSTEM/INVARIANT-CATALOG.md')).not.toContain('migrationStatus')
   })
 })
 

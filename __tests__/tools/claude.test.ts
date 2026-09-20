@@ -29,13 +29,12 @@ describe('tool output: claude', () => {
     expect(content).toContain('test-project')
   })
 
-  it('CLAUDE.md hooks table references all base hook scripts', () => {
+  it('CLAUDE.md delegates hook details to settings.json', () => {
     const config = claudeConfig()
     generateClaude(config)
     const content = readFileSync(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')
-    expect(content).toContain('stop-dangerous.mjs')
-    expect(content).toContain('enforce-read-only.mjs')
-    expect(content).toContain('pre-edit-ssot-guard.mjs')
+    expect(content).toContain('hooks and permissions are configured in `.claude/settings.json`')
+    expect(content).not.toContain('stop-dangerous.mjs')
   })
 
   it('settings.json is valid JSON with hooks and permissions keys', () => {
@@ -145,12 +144,13 @@ describe('tool output: claude', () => {
     expect(content).toContain('feat')
   })
 
-  it('generates 3 rules files in .claude/rules/', () => {
+  it('generates the always-on and lifecycle rules in .claude/rules/', () => {
     const config = claudeConfig()
     generateClaude(config)
     const rulesDir = join(dir, '.claude', 'rules')
     expect(existsSync(join(rulesDir, '05-agent-lifecycle.md'))).toBe(true)
-    expect(existsSync(join(rulesDir, '25-todo-folder-policy.md'))).toBe(true)
+    expect(existsSync(join(rulesDir, '50-batch-execution.md'))).toBe(true)
+    expect(existsSync(join(rulesDir, '60-incidental-capture.md'))).toBe(true)
     expect(existsSync(join(rulesDir, '90-exec-protocol.md'))).toBe(true)
   })
 
@@ -348,25 +348,9 @@ describe('generateClaude — context-economy + track-aware post-commit (#720 #72
     return makeConfig(dir, { languageHooks: [], ...overrides })
   }
 
-  it('generates .claude/rules/40-context-economy.md', () => {
+  it('does not generate deleted context-economy rule', () => {
     generateClaude(claudeConfig())
-    expect(existsSync(join(dir, '.claude', 'rules', '40-context-economy.md'))).toBe(true)
-  })
-
-  it('40-context-economy.md mentions AGENTS.md in minimum startup set', () => {
-    generateClaude(claudeConfig())
-    const content = readFileSync(join(dir, '.claude', 'rules', '40-context-economy.md'), 'utf-8')
-    expect(content).toContain('AGENTS.md')
-    expect(content).toMatch(/knowledge.map/i)
-  })
-
-  it('40-context-economy.md is skipIfExists — does not overwrite existing file', () => {
-    generateClaude(claudeConfig())
-    const p = join(dir, '.claude', 'rules', '40-context-economy.md')
-    writeFileSync(p, 'EXISTING')
-    const result = generateClaude(claudeConfig())
-    const file = result.files.find((f) => f.path.endsWith('40-context-economy.md'))
-    expect(file?.action).toBe('skipped')
+    expect(existsSync(join(dir, '.claude', 'rules', '40-context-economy.md'))).toBe(false)
   })
 
   it('generates .claude/knowledge-map.json as valid JSON', () => {

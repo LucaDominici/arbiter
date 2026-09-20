@@ -8,7 +8,7 @@ import { makeConfig, writeTaskStateFile } from '../../helpers.js'
 
 // #A11 — CLOSER mode enforcement (PreToolUse:Bash). Spawns the rendered hook against a
 // real git repo and asserts it blocks (exit 2) the mechanically-checkable subset of the
-// 7 rules in `.claude/rules/95-closer-mode.md` ONLY while the task is in its `close`
+// 7 close-phase rules ONLY while the task is in its `close`
 // phase — and is a no-op (exit 0) on every other phase, proving the phase-scoping itself
 // (not just the pattern matching) is load-bearing.
 
