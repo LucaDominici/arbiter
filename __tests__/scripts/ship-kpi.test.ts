@@ -1462,7 +1462,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     const root = mkdtempSync(join(tmpdir(), 'ship-kpi-attr-'))
     try {
       writeTranscript(root, events, mtime)
-      return (await discoverSessions(root, 'claude', 0, untilMs)) as Array<Record<string, any>>
+      return (await discoverSessions(root, 'claude', 0, untilMs)) as Array<Record<string, unknown>>
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
