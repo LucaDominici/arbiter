@@ -58,6 +58,9 @@ const unattributedUsage = Reflect.get(shipKpi, 'unattributedUsage') as (
   ...args: unknown[]
 ) => unknown
 const renderMarkdown = Reflect.get(shipKpi, 'renderMarkdown') as (...args: unknown[]) => unknown
+const reportRowsWithCostRatio = Reflect.get(shipKpi, 'reportRowsWithCostRatio') as (
+  ...args: unknown[]
+) => unknown
 const mergeDeliverySources = Reflect.get(shipKpi, 'mergeDeliverySources') as (
   ...args: unknown[]
 ) => unknown
@@ -464,6 +467,55 @@ describe('delivery cost classifiers (#2725)', () => {
     ).toEqual({ input: 140, output: 30, cache: 35, humanMessages: 2 })
   })
 
+  it('counts Claude usage once per message id with request-id and line fallbacks', () => {
+    expect(
+      sessionUsage([
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            id: 'message-a',
+            role: 'assistant',
+            content: [{ type: 'text', text: 'part one' }],
+            usage: { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 3 },
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            id: 'message-a',
+            role: 'assistant',
+            content: [{ type: 'text', text: 'part two' }],
+            usage: { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 3 },
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          requestId: 'request-b',
+          message: {
+            role: 'assistant',
+            usage: { input_tokens: 20, output_tokens: 4, cache_read_input_tokens: 5 },
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          requestId: 'request-b',
+          message: {
+            role: 'assistant',
+            usage: { input_tokens: 20, output_tokens: 4, cache_read_input_tokens: 5 },
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { role: 'assistant', usage: { input_tokens: 1, output_tokens: 1 } },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { role: 'assistant', usage: { input_tokens: 1, output_tokens: 1 } },
+        }),
+      ]),
+    ).toEqual({ input: 32, output: 8, cache: 8, humanMessages: 0 })
+  })
+
   it('propagates no usage data as null fields', () => {
     expect(sessionUsage([JSON.stringify({ type: 'human' }), '{malformed'])).toEqual({
       input: null,
@@ -556,6 +608,35 @@ describe('delivery cost classifiers (#2725)', () => {
       tokens: null,
     })
     expect(overheadIndices(delivery, {})).toEqual({ time: null, tokens: null })
+  })
+
+  it('adds stratum and frozen-baseline cost ratio to every JSON report row', () => {
+    expect(
+      reportRowsWithCostRatio(
+        [
+          {
+            number: 1,
+            stratum: 'Standard',
+            tokens: { input: 120 },
+            sourcesKnown: ['ci', 'claude'],
+          },
+          {
+            number: 2,
+            stratum: 'XS-S',
+            tokens: { input: 50 },
+            sourcesKnown: ['ci', 'claude'],
+          },
+        ],
+        {
+          Standard: { writerCostUnitsMedian: 100 },
+          'XS-S': { writerCostUnitsMedian: null },
+        },
+        { input: 1, cache: 0.1, output: 5 },
+      ),
+    ).toMatchObject([
+      { number: 1, stratum: 'Standard', costBaselineRatio: 1.2 },
+      { number: 2, stratum: 'XS-S', costBaselineRatio: null },
+    ])
   })
 
   it('calibrates each stratum from only its first 30 deliveries', () => {
@@ -1306,6 +1387,21 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     })
   })
 
+  it('deduplicates Claude metadata usage by message id', () => {
+    const repeated = {
+      type: 'assistant',
+      timestamp: '2026-09-19T00:01:00Z',
+      message: {
+        id: 'message-a',
+        role: 'assistant',
+        usage: { input_tokens: 10, output_tokens: 2, cache_creation_input_tokens: 4 },
+      },
+    }
+    expect(claudeSessionMeta([JSON.stringify(repeated), JSON.stringify(repeated)])).toMatchObject({
+      usage: { input: 10, output: 2, cache: 4 },
+    })
+  })
+
   it('truncates the first Claude prompt to 400 characters before extracting prompt issue ids', () => {
     const prompt = '#2703 ' + 'x'.repeat(500)
     const meta = claudeSessionMeta([
@@ -1448,6 +1544,24 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       fullGateRuns: null,
       rounds: null,
       sourcesKnown: [],
+    })
+  })
+
+  it('aggregates subagent cost units onto PR rows without inventing zeroes', () => {
+    expect(
+      mergeDeliverySources(
+        {},
+        {
+          sessions: [
+            { host: 'claude', subagentCostUnits: 31 },
+            { host: 'claude', subagentCostUnits: null },
+            { host: 'claude', subagentCostUnits: 47 },
+          ],
+        },
+      ),
+    ).toMatchObject({ subagentCostUnits: 78 })
+    expect(mergeDeliverySources({}, { sessions: [{ host: 'claude' }] })).toMatchObject({
+      subagentCostUnits: null,
     })
   })
 
@@ -2505,13 +2619,152 @@ describe('review rework semantics (#2725 round 2)', () => {
       const sessions = (await discoverSessions(root, 'claude', sinceMs, sinceMs + 1000)) as Array<
         Record<string, unknown>
       >
-      expect(sessions[0]).toMatchObject({ usage: { input: 10, output: 2, cache: 12 } })
+      expect(sessions[0]).toMatchObject({
+        usage: { input: 10, output: 2, cache: 12 },
+        subagentCostUnits: null,
+      })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
   })
 
-  it('renders compact per-PR phase fields and median/p90 stratum measures', () => {
+  it('counts subagent transcript usage once under its parent session', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-claude-subagents-'))
+    const project = join(root, 'project')
+    const file = join(project, 'session-a.jsonl')
+    const subagents = join(project, 'session-a', 'subagents')
+    const usageLine = (input: number, output: number, cache: number) =>
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: '2026-09-19T00:10:00Z',
+        message: {
+          id: 'shared-message-id',
+          role: 'assistant',
+          usage: {
+            input_tokens: input,
+            output_tokens: output,
+            cache_read_input_tokens: cache,
+          },
+        },
+      })
+    try {
+      mkdirSync(subagents, { recursive: true })
+      writeFileSync(
+        file,
+        [
+          JSON.stringify({
+            type: 'user',
+            timestamp: '2026-09-19T00:00:00Z',
+            message: { role: 'user', content: 'Measure delivery #2725' },
+          }),
+          JSON.stringify({
+            type: 'assistant',
+            timestamp: '2026-09-19T00:01:00Z',
+            message: {
+              id: 'parent-message-id',
+              role: 'assistant',
+              usage: { input_tokens: 10, output_tokens: 1, cache_read_input_tokens: 0 },
+            },
+          }),
+        ].join('\n'),
+      )
+      writeFileSync(
+        join(subagents, 'agent-a.jsonl'),
+        [
+          JSON.stringify({
+            type: 'user',
+            timestamp: '2026-09-19T00:09:00Z',
+            message: { role: 'user', content: 'Internal reviewer prompt #9999' },
+          }),
+          usageLine(20, 2, 10),
+          usageLine(20, 2, 10),
+        ].join('\n'),
+      )
+      writeFileSync(join(subagents, 'agent-b.jsonl'), usageLine(30, 3, 20))
+      writeFileSync(join(subagents, 'notes.jsonl'), usageLine(1_000, 1_000, 1_000))
+      const sinceMs = Date.parse('2026-09-19T00:00:00Z')
+      utimesSync(file, new Date(sinceMs), new Date(sinceMs))
+      const outsideWindow = new Date(sinceMs - 86_400_000)
+      utimesSync(join(subagents, 'agent-a.jsonl'), outsideWindow, outsideWindow)
+      utimesSync(join(subagents, 'agent-b.jsonl'), outsideWindow, outsideWindow)
+      const sessions = (await discoverSessions(root, 'claude', sinceMs, sinceMs + 1000, {
+        input: 1,
+        cache: 0.1,
+        output: 5,
+      })) as Array<Record<string, unknown>>
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0]).toMatchObject({
+        file,
+        firstTs: '2026-09-19T00:00:00Z',
+        lastTs: '2026-09-19T00:01:00Z',
+        usage: { input: 60, output: 6, cache: 30 },
+        subagentCostUnits: 78,
+        humanMessages: 1,
+        rounds: 1,
+        firstPrompt: 'Measure delivery #2725',
+        issueIdsInPrompt: [2725],
+      })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('counts streamed Claude usage once and only genuine human prompts', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-claude-dedup-'))
+    const file = join(root, 'session.jsonl')
+    const firstPrompt =
+      '<command-message>ship</command-message>\n<command-name>/ship</command-name>\nShip #2725'
+    const usage = { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 3 }
+    const user = (content: string, extra: Record<string, unknown> = {}) => ({
+      type: 'user',
+      timestamp: '2026-09-19T00:00:00Z',
+      message: { role: 'user', content },
+      ...extra,
+    })
+    try {
+      writeFileSync(
+        file,
+        [
+          user('Skill base directory: /synthetic/skill', { isMeta: true }),
+          user('<task-notification>worker finished</task-notification>'),
+          user('<system-reminder>synthetic reminder</system-reminder>'),
+          user('<local-command-stdout>synthetic output</local-command-stdout>'),
+          user('<local-command-stderr>synthetic error</local-command-stderr>'),
+          user('[Request interrupted by user for tool use]'),
+          user(firstPrompt, { isMeta: false }),
+          user('Use the smallest correct fix', { isMeta: false }),
+          {
+            type: 'assistant',
+            timestamp: '2026-09-19T00:01:00Z',
+            message: { id: 'message-a', role: 'assistant', content: 'part one', usage },
+          },
+          {
+            type: 'assistant',
+            timestamp: '2026-09-19T00:01:01Z',
+            message: { id: 'message-a', role: 'assistant', content: 'part two', usage },
+          },
+        ]
+          .map(JSON.stringify)
+          .join('\n'),
+      )
+      const sinceMs = Date.parse('2026-09-19T00:00:00Z')
+      utimesSync(file, new Date(sinceMs), new Date(sinceMs))
+      const sessions = (await discoverSessions(root, 'claude', sinceMs, sinceMs + 1000)) as Array<
+        Record<string, unknown>
+      >
+      expect(sessions[0]).toMatchObject({
+        usage: { input: 10, output: 2, cache: 3 },
+        humanMessages: 2,
+        rounds: 2,
+        firstPrompt,
+        issueIdsInPrompt: [2725],
+      })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('renders per-PR stratum and two-decimal cost ratio without inventing zeroes', () => {
     const rendered = renderMarkdown({
       since: '2026-09-01',
       until: '2026-09-19',
@@ -2528,9 +2781,28 @@ describe('review rework semantics (#2725 round 2)', () => {
           rounds: 3,
           fullGateRuns: 1,
           costUnits: 100,
+          costBaselineRatio: 1.2,
           additions: null,
           deletions: null,
           stratum: 'Standard',
+          sourcesKnown: ['ci', 'claude'],
+        },
+        {
+          number: 2,
+          commits: 9,
+          evidenceOnlyCommits: 8,
+          reviewLoopCommits: 7,
+          leadTimeHours: 6,
+          leadTimeSplit: {},
+          tokens: { input: 7 },
+          humanMessages: 6,
+          rounds: 5,
+          fullGateRuns: 4,
+          costUnits: 7,
+          costBaselineRatio: null,
+          additions: 3,
+          deletions: 2,
+          stratum: 'XS-S',
           sourcesKnown: ['ci', 'claude'],
         },
       ],
@@ -2549,8 +2821,11 @@ describe('review rework semantics (#2725 round 2)', () => {
       unattributed: { claude: null, codex: null, sessions: null },
       weights,
     })
-    expect(rendered).toContain('| Split w/p/f/r/q/c | costUnits | Human | Rounds | Gates |')
-    expect(rendered).toContain('| 10/2/3/4/5/6 | 100 | 2 | 3 | 1 |')
+    expect(rendered).toContain('| PR | Stratum |')
+    expect(rendered).toContain('| costUnits | Cost/baseline | Human | Rounds | Gates |')
+    expect(rendered).toContain('| #1 | Standard |')
+    expect(rendered).toContain('| 10/2/3/4/5/6 | 100 | 1.20 | 2 | 3 | 1 |')
+    expect(rendered).toContain('| 7 | NO DATA | 6 | 5 | 4 |')
     expect(rendered).toContain('Lead time median/p90 (h)')
     expect(rendered).toContain('costUnits median/p90')
     expect(rendered).toContain('humanMessages median/p90')
