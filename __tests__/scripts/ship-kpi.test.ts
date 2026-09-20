@@ -1211,13 +1211,17 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ])
   })
 
-  it('attributes a main-rooted Claude session through one issue in its first prompt', () => {
+  const shipEnvelope = (args: string) =>
+    `<command-message>ship</command-message>\n<command-name>/ship</command-name>\n<command-args>${args}</command-args>`
+  const mainCheckout = '/home/luca/work/repos/arbiter'
+
+  it('attributes a main-rooted Claude session whose first prompt is /ship for that one issue', () => {
     const meta = {
-      file: 'claude-main',
+      file: 'claude-ship',
       host: 'claude',
       gitBranch: 'main',
-      cwd: '/home/luca/work/repos/arbiter',
-      firstPrompt: 'Ship issue #2703 with the KPI changes',
+      cwd: mainCheckout,
+      firstPrompt: shipEnvelope('#2703 --tier Standard'),
       issueIdsInPrompt: [2703],
       firstTs: firstCommit,
       lastTs: mergedAt,
@@ -1227,9 +1231,131 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         headRefName: '2703-ship-kpi-loop',
         firstCommit,
         mergedAt,
-        worktreeDir,
       }),
     ).toEqual([{ meta, via: 'prompt' }])
+  })
+
+  it('leaves a coordinator that merely cites the issue once unattributed, even from the report cwd', () => {
+    const delivery = {
+      file: 'delivery',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter.worktrees/2703-ship-kpi-loop',
+      firstPrompt: 'Continue the work',
+      issueIdsInPrompt: [],
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    }
+    const coordinator = {
+      file: 'coordinator',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: mainCheckout,
+      firstPrompt: 'Ship issue #2703 with the KPI changes',
+      issueIdsInPrompt: [2703],
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    }
+    const pr = { headRefName: '2703-ship-kpi-loop', firstCommit, mergedAt }
+    // the report runs from the main checkout: it must not count as the task worktree
+    expect(
+      attributeSessions([delivery, coordinator], { ...pr, worktreeDir: mainCheckout }),
+    ).toEqual([{ meta: delivery, via: 'cwd' }])
+    const deliveries = [{ number: 2766, ...pr }]
+    const assigned = attributeSessionsToDeliveries([delivery, coordinator], deliveries) as Map<
+      number,
+      Array<{ meta: { file: string } }>
+    >
+    const files = new Set(assigned.get(2766)?.map((entry) => entry.meta.file))
+    expect([...files]).toEqual(['delivery'])
+    expect(unattributedUsage([delivery, coordinator], files)).toMatchObject({ sessions: 1 })
+  })
+
+  it('does not treat a /ship that names several issues as the delivery of one of them', () => {
+    const meta = {
+      file: 'claude-ship-many',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: mainCheckout,
+      firstPrompt: shipEnvelope('#2703 #2704'),
+      issueIdsInPrompt: [2703, 2704],
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    }
+    expect(
+      attributeSessions([meta], { headRefName: '2703-ship-kpi-loop', firstCommit, mergedAt }),
+    ).toEqual([])
+  })
+
+  it('lists each attributed session with rule, cost units and human messages, never inventing zero', () => {
+    const audit = Reflect.get(shipKpi, 'attributionAudit') as (...args: unknown[]) => unknown
+    expect(typeof audit).toBe('function')
+    if (typeof audit !== 'function') return
+    const known = {
+      file: 'known.jsonl',
+      host: 'claude',
+      usage: { input: 10, output: 2, cache: 3 },
+      humanMessages: 1,
+      live: false,
+    }
+    const unknown = { file: 'unknown.jsonl', host: 'codex', usage: {}, live: true }
+    expect(
+      audit(
+        [
+          { meta: known, via: 'prompt' },
+          { meta: unknown, via: 'cwd' },
+        ],
+        { input: 1, cache: 1, output: 1 },
+      ),
+    ).toEqual([
+      { file: 'known.jsonl', rule: 'prompt', costUnits: 15, humanMessages: 1, live: false },
+      { file: 'unknown.jsonl', rule: 'cwd', costUnits: null, humanMessages: null, live: true },
+    ])
+  })
+
+  it('attributes identically on repeated runs regardless of input order', () => {
+    const pr = { number: 2766, headRefName: 'task/#2766-x', firstCommit, mergedAt }
+    const make = (file: string, cwd: string) => ({
+      file,
+      host: 'claude',
+      gitBranch: 'main',
+      cwd,
+      firstTs: firstCommit,
+      lastTs: mergedAt,
+    })
+    const sessions = [
+      make('a', '/w/2766-x'),
+      make('b', '/w/2766-y'),
+      make('c', '/w/other'),
+      make('d', '/w/2766-z'),
+    ]
+    const run = (input: unknown[]) =>
+      JSON.stringify([...(attributeSessionsToDeliveries(input, [pr]) as Map<number, unknown>)])
+    expect(run(sessions)).toBe(run(sessions))
+    expect(run([...sessions].reverse())).toBe(run(sessions))
+  })
+
+  it('discovers sessions in sorted order and flags one still being written', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-discover-'))
+    try {
+      const names = Array.from({ length: 12 }, (_, i) => `s${String(i).padStart(2, '0')}.jsonl`)
+      for (const name of names) {
+        writeFileSync(
+          join(root, name),
+          JSON.stringify({ type: 'user', message: { role: 'user', content: 'x' } }),
+        )
+      }
+      const old = new Date(Date.now() - 24 * 3_600_000)
+      for (const name of names.slice(1)) utimesSync(join(root, name), old, old)
+      const sessions = (await discoverSessions(root, 'claude', 0, Date.now() + 60_000)) as Array<{
+        file: string
+        live: boolean
+      }>
+      expect(sessions.map((session) => session.file)).toEqual(names.map((name) => join(root, name)))
+      expect(sessions.map((session) => session.live)).toEqual(names.map((_, i) => i === 0))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('does not attribute a coordinator Claude session whose prompt names multiple issues', () => {
