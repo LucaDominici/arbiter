@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Arbiter hook: block non-conventional commit messages after git commit (INV-22)
-// Fires on: PostToolUse → Bash
+// Arbiter manual advisory: report non-conventional commit messages (INV-22)
 import { spawnSync } from 'node:child_process';
 import { resolveToolInputCommand } from './lib.mjs';
 
@@ -24,14 +23,7 @@ if (result.status !== 0 || !msg) process.exit(0);
 const CONVENTIONAL =
   /^(feat|fix|refactor|test|docs|ci|chore|perf|style|build|revert)(\([^)]+\))?: .{1,72}$/;
 if (!CONVENTIONAL.test(msg)) {
-  process.stderr.write(
-    `[arbiter] INV-22: Commit message does not follow convention: ${msg}\n`,
-  );
-  process.stderr.write(
-    `[arbiter] Expected: type(scope): summary (e.g., feat(auth): add login)\n`,
-  );
-  process.stderr.write(`[arbiter] Run \`arbiter explain INV-22\` for details.\n`);
-  process.exit(2);
+  process.stderr.write(`[arbiter] Advisory: non-conventional commit message: ${msg}\n`);
 }
 
 // Track-aware post-commit checklist (#724)
