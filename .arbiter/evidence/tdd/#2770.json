@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2770",
+  "test_path": "__tests__/scripts/codex-dispatch-lib.test.ts",
+  "test_commit_sha": "74e5eb2cbb6a3d1708f981c90462a2a4bee72718",
+  "test_blob_sha": "2306cc77a9c65e6958fba018c3a893e84f01061e",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/codex-dispatch-lib.test.ts (4 tests | 1 failed) 52ms\n     × stays a pure argv builder (CANON-25 proof for its fail-closed-audit exemption) 4ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 3 passed (4)\n   Start at  13:24:09\n   Duration  155ms (transform 11ms, setup 7ms, import 12ms, tests 52ms, environment 0ms)\n\n\nPreparing worktree (new branch 'writer')\nPreparing worktree (new branch 'writer')\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/codex-dispatch-lib.test.ts > codex dispatch argument builder > stays a pure argv builder (CANON-25 proof for its fail-closed-audit exemption)\nAssertionError: expected '// SPDX-License-Identifier: Apache-2.…' not to contain 'node:fs'\n\n- Expected\n+ Received\n\n- node:fs\n+ // SPDX-License-Identifier: Apache-2.0\n+ import { execFileSync } from 'node:child_process'\n+ import { readFileSync } from 'node:fs'\n+ import { join } from 'node:path'\n+\n+ function gitPath(worktreePath, args) {\n+   return execFileSync('git', args, { cwd: worktreePath, encoding: 'utf8' }).trim()\n+ }\n+\n+ function commonArgs({ model, effort, outPath }) {\n+   return [\n+     '-m',\n+     model,\n+     '-c',\n+     `model_reasoning_effort=${effort}`,\n+     '-c',\n+     'approval_policy=never',\n+     '-o',\n+     outPath,\n+   ]\n+ }\n+\n+ /** Build argv for a Codex writer dispatch. */\n+ export function buildCodexArgs({\n+   worktreePath,\n+   model,\n+   effort,\n+   briefPath,\n+   outPath,\n+   resumeSessionId,\n+ }) {\n+   const args = resumeSessionId ? ['exec', 'resume', resumeSessionId] : ['exec']\n+   args.push(...commonArgs({ model, effort, outPath }))\n+   if (!resumeSessionId) {\n+     args.push(\n+       '-s',\n+       'workspace-write',\n+       '--add-dir',\n+       gitPath(worktreePath, ['rev-parse', '--absolute-git-dir']),\n+       '--add-dir',\n+       gitPath(worktreePath, ['rev-parse', '--path-format=absolute', '--git-common-dir']),\n+       '--add-dir',\n+       join(worktreePath, 'node_modules', '.vite-temp'),\n+     )\n+   }\n+   args.push(readFileSync(briefPath, 'utf8'))\n+   return args\n+ }\n+\n+ /** Build argv for a read-only Codex reviewer dispatch. */\n+ export function buildCodexReviewArgs({ model, effort, outPath }) {\n+   return ['exec', ...commonArgs({ model, effort, outPath }), '-s', 'read-only']\n+ }\n+\n\n ❯ __tests__/scripts/codex-dispatch-lib.test.ts:111:26\n    109|     const source = readFileSync(LIB_PATH, 'utf8')\n    110|     for (const forbiddenImport of ['node:fs', 'node:child_process']) {\n    111|       expect(source).not.toContain(forbiddenImport)\n       |                          ^\n    112|     }\n    113|     for (const forbidden of [\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/codex-dispatch-lib.test.ts",
+  "recorded_at": "2026-09-20T11:24:09.608Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/codex-dispatch-lib.test.ts"
+  ]
+}
