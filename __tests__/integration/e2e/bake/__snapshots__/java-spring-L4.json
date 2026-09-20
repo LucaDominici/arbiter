@@ -361,7 +361,7 @@
     ".claude/hooks/hooks.mjs": "18c69caada5d43db54117dbb11449b33554b4bd9a51459a5962546b1fb495cba",
     ".claude/hooks/lib.mjs": "42ad95bb85b392bb99e9cb88366c80433e7ea5af7f9b60b19ef8d95db774f6db",
     ".claude/hooks/post-brainstorm-stop.mjs": "798cae5a78a1bc80bd2ae83cc3734f220dd19902dca475d356ba4b0fc823760b",
-    ".claude/hooks/post-commit-check.mjs": "19463c58d68252499781b2da2188a08028d7b5a4b6611f1f6f65f27596a10cdf",
+    ".claude/hooks/post-commit-check.mjs": "34c5c4fec944d09d30e29928dbc78c4da406071a2c391c8a0a08ef32d788a728",
     ".claude/hooks/post-edit-dispatch.mjs": "8e3c2f73d7b9d98890f8c31badb783fe255dfb25ddd33c75305795fee4335521",
     ".claude/hooks/post-subagent-release.mjs": "46db4baac0455e94459706a018037268b3360feffbe26ed51f30d1f996970018",
     ".claude/hooks/pre-compact.mjs": "ea7e9ed1fa8b767054add4917f3dc9622b9c0b5b8eed4f277e8438fda831e6a5",

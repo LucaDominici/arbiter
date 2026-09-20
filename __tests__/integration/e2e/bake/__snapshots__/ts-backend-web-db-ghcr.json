@@ -251,7 +251,7 @@
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/hooks.mjs": "be4d62027773431980b2dbced6c73ef81736f0afdb45eaa7796173c5c12ba090",
     ".claude/hooks/lib.mjs": "656eb1b025ff4da3155f0e7f4ba6cd69a3db9a45e42f8d6edec6a4ea4ff996ce",
-    ".claude/hooks/post-commit-check.mjs": "19463c58d68252499781b2da2188a08028d7b5a4b6611f1f6f65f27596a10cdf",
+    ".claude/hooks/post-commit-check.mjs": "34c5c4fec944d09d30e29928dbc78c4da406071a2c391c8a0a08ef32d788a728",
     ".claude/hooks/post-subagent-release.mjs": "46db4baac0455e94459706a018037268b3360feffbe26ed51f30d1f996970018",
     ".claude/hooks/pre-compact.mjs": "ea7e9ed1fa8b767054add4917f3dc9622b9c0b5b8eed4f277e8438fda831e6a5",
     ".claude/hooks/pre-edit-plan-anchor.mjs": "ee718e0038a156be737e07565aa74e11db52f9c63e671f08349edda8ef677233",
