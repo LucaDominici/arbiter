@@ -8,6 +8,7 @@
 //     /acceptance criteria/i, /non-goals?/i, /(files|contracts|touch)/i — the shapes
 //     GitHub issue forms emit (`### Acceptance criteria`) included. CRLF normalized.
 //   - Criteria are checkbox or plain bullets `- [ ] AC-N: text` / `- AC-N: text`.
+//     Markdown `*` and `+` bullets are equivalent; indented continuation lines join the text.
 //     Explicit stable `AC-N:` ids are REQUIRED for readiness (bare bullets are a
 //     renumbering hazard: inserting one silently shifts every later id after tests/reviews
 //     already cite them). Bare bullets still parse (positional id, explicit:false) for
@@ -58,6 +59,7 @@ export function parseAcceptanceBlocks(markdown) {
   const touches = []
   let current = 'other'
   let inFence = false
+  let openCriterion = null
   for (const line of lines) {
     // Fenced code blocks quote the grammar (docs, ADRs, skill examples) — never parse them.
     if (/^\s*(```|~~~)/.test(line)) {
@@ -68,31 +70,46 @@ export function parseAcceptanceBlocks(markdown) {
     const heading = /^#{1,6}\s+(.+?)\s*$/.exec(line) ?? /^\*\*(.+?)\*\*:?\s*$/.exec(line)
     if (heading) {
       current = sectionKind(normalizeHeading(heading[1]))
+      openCriterion = null
       continue
     }
-    if (current === 'criteria') parseCriterionLine(line, criteria)
-    else if (current === 'nonGoals') parseBulletLine(line, nonGoals)
-    else if (current === 'touches') parseBulletLine(line, touches)
+    if (current === 'criteria') {
+      const criterion = parseCriterionLine(line, criteria)
+      if (criterion) {
+        openCriterion = criterion
+      } else {
+        const continuation = /^\s+(\S.*)$/.exec(line)
+        if (openCriterion && continuation) {
+          openCriterion.text = normalizeText(`${openCriterion.text} ${continuation[1]}`)
+        } else {
+          openCriterion = null
+        }
+      }
+    } else {
+      openCriterion = null
+      if (current === 'nonGoals') parseBulletLine(line, nonGoals)
+      else if (current === 'touches') parseBulletLine(line, touches)
+    }
   }
   return { criteria, nonGoals, touches }
 }
 
 function parseBulletLine(line, target) {
-  const bullet = /^\s*[-*]\s+(?:\[[ xX]\]\s*)?(.+)$/.exec(line)
+  const bullet = /^\s*[-*+]\s+(?:\[[ xX]\]\s*)?(.+)$/.exec(line)
   if (bullet) target.push(normalizeText(bullet[1]))
 }
 
 function parseCriterionLine(line, criteria) {
-  const bullet = /^\s*[-*]\s*(?:\[[ xX]\]\s*)?(.+)$/.exec(line)
-  if (!bullet) return
+  const bullet = /^\s*[-*+]\s*(?:\[[ xX]\]\s*)?(.+)$/.exec(line)
+  if (!bullet) return null
   const body = bullet[1].trim()
   // Explicit stable ids: AC-3, or wave-namespaced AC-123.1 / AC-123-1 (issue.criterion)
   const explicit = /^AC-(\d+(?:[.-]\d+)?)\s*[:.–-]\s*(.*)$/.exec(body)
-  if (explicit) {
-    criteria.push({ id: `AC-${explicit[1]}`, text: normalizeText(explicit[2]), explicit: true })
-  } else {
-    criteria.push({ id: `AC-${criteria.length + 1}`, text: normalizeText(body), explicit: false })
-  }
+  const criterion = explicit
+    ? { id: `AC-${explicit[1]}`, text: normalizeText(explicit[2]), explicit: true }
+    : { id: `AC-${criteria.length + 1}`, text: normalizeText(body), explicit: false }
+  criteria.push(criterion)
+  return criterion
 }
 
 function duplicateIds(criteria) {

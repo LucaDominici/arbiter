@@ -198,6 +198,24 @@ describe('validateIssueAcceptanceCoverage', () => {
       ),
     ).toEqual([])
   })
+
+  it('includes indented continuation lines in criterion matching (#2767)', () => {
+    const plan = parseAcceptanceBlocks('## Acceptance Criteria\n- AC-42.1: Requests fail').criteria
+    expect(
+      validateIssueAcceptanceCoverage(
+        '42',
+        '## Acceptance Criteria\n- AC-1: Requests fail\n  with explicit NO DATA and exit 2',
+        plan,
+      ),
+    ).toContain('issue #42 criterion AC-1 does not match plan AC-42.1')
+  })
+
+  it('does not silently drop plus-prefixed criteria (#2767)', () => {
+    const plan = parseAcceptanceBlocks('## Acceptance Criteria\n- AC-42.1: A').criteria
+    expect(
+      validateIssueAcceptanceCoverage('42', '## Acceptance Criteria\n- AC-1: A\n+ AC-2: B', plan),
+    ).toContain('issue #42 criterion AC-2 is missing as plan AC-42.2')
+  })
 })
 
 describe('validateAcFit', () => {
