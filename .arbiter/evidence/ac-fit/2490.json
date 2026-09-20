@@ -1,0 +1,63 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2490",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/init.ts",
+          "line": 181
+        },
+        {
+          "file": "src/commands/init/generate.ts",
+          "line": 526
+        },
+        {
+          "file": "__tests__/commands/init-json-dry-run.test.ts",
+          "line": 85
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/commands/init.ts",
+          "line": 169
+        },
+        {
+          "file": "src/commands/init/resolve-config.ts",
+          "line": 269
+        },
+        {
+          "file": "src/commands/init/resolve-config.ts",
+          "line": 303
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/commands/init-json-dry-run.test.ts",
+          "line": 82
+        },
+        {
+          "file": "__tests__/commands/init-json-dry-run.test.ts",
+          "line": 97
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2490-init-json-dry-run",
+  "sha": "50ef5c95b4fb630cad7e466456ad65a11c1c03db",
+  "planHash": "2c9225a756c5ca6785425ab2f3b9ca42df734cec",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2490/acceptance-fit-0.json",
+    "sha256": "0ce254b34a210a1d3d233efec0d832dfb884a51891522713a09555d588957f90"
+  }
+}

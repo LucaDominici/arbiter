@@ -1,1 +1,1 @@
-{"count":2,"agents":["domain","test-quality"],"auditors":["domain","test-quality"],"treatmentHash":"4a572438ebc5b2b8805f476ba90320ae26bfe0d2338ec6a0a3eb3046fca4ebc3","branch":"task/#2618-context-economy","sha":"cf9ead8c9598e4e74f374b02e22360119565f557","taskId":"#2618"}
+{"count":1,"agents":["domain"],"auditors":["domain"],"treatmentHash":"7c7d7172fd3668e729c5a709ae2234a1faff5e5bef5015fd84992854a62d45b5","branch":"task/#2490-init-json-dry-run","sha":"50ef5c95b4fb630cad7e466456ad65a11c1c03db","taskId":"#2490"}
