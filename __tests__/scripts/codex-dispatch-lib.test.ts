@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { buildCodexArgs, buildCodexReviewArgs } from '../../scripts/lib/codex-dispatch-lib.mjs'
 
@@ -104,14 +105,43 @@ describe('codex dispatch argument builder', () => {
   it('stays a pure argv builder (CANON-25 proof for its fail-closed-audit exemption)', () => {
     // codex-dispatch-lib.mjs is exempted from the fail-closed try/catch contract on the
     // claim that it does no I/O at all — the caller (codex-dispatch.mjs, which owns the
-    // try/catch) resolves every path and reads the brief before calling in. A blocklist of
-    // forbidden imports/calls (#2769's original test, and #2770's first fix attempt) only
-    // catches the specific names it names — node:net, node:http, dynamic import(), etc. all
-    // slip through. Assert the import surface positively instead: it can't be dodged by
-    // picking a different I/O-capable module.
+    // try/catch) resolves every path and reads the brief before calling in. A regex allowlist
+    // over the raw text (#2770's first fix attempt) still parses source with a hand-rolled
+    // grammar: a comment between `from` and the string (`from/* x */'node:fs'`), a bare
+    // `import 'node:fs'`, or `export * from 'node:fs'` all slip through `/from\s+['"]/`
+    // because `\s` isn't "whatever JS treats as whitespace between tokens" — a real parser
+    // is. Walk the AST instead (TypeScript's compiler, already a devDependency) so every
+    // static import/re-export form is caught by construction, not by an ad hoc pattern.
     const source = readFileSync(LIB_PATH, 'utf8')
-    const specifiers = [...source.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1])
+    const sourceFile = ts.createSourceFile(LIB_PATH, source, ts.ScriptTarget.Latest, true)
+    const specifiers: string[] = []
+    let hasDynamicImport = false
+    const visit = (node: ts.Node) => {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier &&
+        ts.isStringLiteral(node.moduleSpecifier)
+      ) {
+        specifiers.push(node.moduleSpecifier.text)
+      }
+      if (
+        node.kind === ts.SyntaxKind.ImportKeyword &&
+        node.parent &&
+        ts.isCallExpression(node.parent)
+      ) {
+        hasDynamicImport = true
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(sourceFile)
     expect(specifiers).toEqual(['node:path'])
-    expect(source).not.toMatch(/\bimport\s*\(/)
+    expect(hasDynamicImport).toBe(false)
+    // Defense-in-depth against the two known import-free Node escape hatches (no import
+    // statement exists for a parser to catch): the CommonJS interop global and the
+    // builtin-module lookup added in Node 20/22.
+    // ponytail: substring check, not exhaustive against every future Node API — the AST walk
+    // above is the real proof for static imports; this only closes the two known holes.
+    expect(source).not.toMatch(/\brequire\s*\(/)
+    expect(source).not.toMatch(/\bprocess\.getBuiltinModule\b/)
   })
 })
