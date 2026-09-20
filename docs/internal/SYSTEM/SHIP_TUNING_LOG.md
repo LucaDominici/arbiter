@@ -17,7 +17,8 @@ related: []
 
 - Missing, unplaceable or provenance-less data is `NO DATA`; it is excluded from `n` and never rendered as `0`.
 - The frozen baseline carries cost medians only. Writer time is `NO DATA`: whole-session writer time is not measured, and the earlier value was residual lead time.
-- Checkpoints dated before 2026-09-20 used that residual time index; read their `time` lines as superseded. Their token lines are unaffected.
+- Checkpoints dated before 2026-09-20 used that residual time index; read their `time` lines as superseded.
+- Checkpoints and the frozen baseline computed before the #2725 usage-deduplication fix over-counted Claude usage by a session-dependent factor; their token values are superseded.
 - The report queries GitHub through `gh`; when `gh` rejects a request it aborts instead of guessing. The requested PR fields are pinned by a contract test.
 - Known limits: Codex sessions do not yield human-message or round counts; input/cache/output splits report medians only.
 

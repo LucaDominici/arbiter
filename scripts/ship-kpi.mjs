@@ -63,6 +63,13 @@ const LEAD_TIME_KINDS = [
 const REVIEWER_RE = /review|red[-_ ]?team|verifier|ac[-_ ]?fit/i
 const FULL_GATE_RE = /check-all\.mjs\s+L2\b|arbiter\s+(?:check|gate)\s+run\b/i
 const PREFLIGHT_RE = /check-all\.mjs\s+L1\b|\bpreflight\b/i
+const NON_HUMAN_PROMPT_PREFIXES = [
+  '<task-notification>',
+  '<system-reminder>',
+  '<local-command-stdout>',
+  '<local-command-stderr>',
+  '[Request interrupted',
+]
 let configuredWeights = null
 
 export function isEvidenceOnlySubject(subject) {
@@ -215,29 +222,26 @@ function addMetric(total, value) {
 
 /** Aggregate Claude JSONL usage without turning absent usage into zero. */
 export function sessionUsage(lines) {
-  let input = null
-  let output = null
-  let cache = null
-  let humanMessages = 0
+  const state = { input: null, output: null, cache: null, humanMessages: 0, seenUsage: new Set() }
   for (const line of Array.isArray(lines) ? lines : []) {
     const event = parseSessionLine(line)
     if (event === null) continue
-    if (event.type === 'human' || event.type === 'user' || event.message?.role === 'user') {
-      humanMessages++
-    }
-    const usage = event.message?.usage ?? event.usage
-    input = addMetric(input, usageValue(usage, 'input_tokens', 'inputTokens'))
-    output = addMetric(output, usageValue(usage, 'output_tokens', 'outputTokens'))
-    const cacheRead = usageValue(usage, 'cache_read_input_tokens', 'cacheReadInputTokens')
-    const cacheCreation = usageValue(
-      usage,
-      'cache_creation_input_tokens',
-      'cacheCreationInputTokens',
-    )
-    cache = addMetric(cache, cacheRead)
-    cache = addMetric(cache, cacheCreation)
+    const role = event.message?.role ?? event.type
+    if (isGenuineClaudeUser(event, role)) state.humanMessages++
+    consumeSessionUsage(state, event)
   }
-  return { input, output, cache, humanMessages }
+  return {
+    input: state.input,
+    output: state.output,
+    cache: state.cache,
+    humanMessages: state.humanMessages,
+  }
+}
+
+function consumeSessionUsage(state, event) {
+  const usage = event.message?.usage ?? event.usage
+  if (!usage || !shouldCountClaudeUsage(state.seenUsage, event)) return
+  updateClaudeUsage(state, usage)
 }
 
 /** Select the treatment, widening sensitive/train deliveries before size fallback. */
@@ -710,6 +714,34 @@ function messageContent(event) {
   return event?.message?.content ?? event?.content
 }
 
+function shouldCountClaudeUsage(seen, event) {
+  const identity =
+    typeof event?.message?.id === 'string'
+      ? `message:${event.message.id}`
+      : typeof event?.requestId === 'string'
+        ? `request:${event.requestId}`
+        : null
+  if (identity === null) return true
+  if (seen.has(identity)) return false
+  seen.add(identity)
+  return true
+}
+
+function isGenuineClaudeUser(event, role) {
+  if (
+    !['human', 'user'].includes(role) ||
+    event.isSidechain === true ||
+    event.isMeta === true ||
+    isToolResultMessage(event)
+  )
+    return false
+  const content = messageContent(event)
+  return (
+    typeof content !== 'string' ||
+    !NON_HUMAN_PROMPT_PREFIXES.some((prefix) => content.startsWith(prefix))
+  )
+}
+
 function isToolResultMessage(event) {
   const content = messageContent(event)
   return Array.isArray(content) && content.some((block) => block?.type === 'tool_result')
@@ -810,6 +842,7 @@ export function claudeSessionMeta(lines) {
     input: null,
     output: null,
     cache: null,
+    seenUsage: new Set(),
     firstPrompt: null,
     issueIdsInPrompt: [],
   }
@@ -847,6 +880,7 @@ function consumeClaudeMeta(state, event) {
   consumeClaudeUser(state, event, role)
   if (role !== 'assistant') return
   const usage = event.message?.usage ?? event.usage
+  if (!usage || !shouldCountClaudeUsage(state.seenUsage, event)) return
   updateClaudeUsage(state, usage)
 }
 
@@ -871,7 +905,7 @@ function updateClaudeUsage(state, usage) {
 }
 
 function consumeClaudeUser(state, event, role) {
-  if (role !== 'user' || event.isSidechain === true || isToolResultMessage(event)) return
+  if (!isGenuineClaudeUser(event, role)) return
   state.humanMessages++
   state.hasHumanMessage = true
   const content = messageContent(event)
@@ -1777,6 +1811,7 @@ function newSessionAccumulator(host, file) {
     humanMessages: 0,
     hasHumanMessage: false,
     usage: { input: null, output: null, cache: null },
+    seenUsage: new Set(),
     times: { firstTs: null, lastTs: null },
     execution: { preflightSec: null, fullGateSec: null, fullGateRuns: 0 },
     openCalls: new Map(),
@@ -1828,6 +1863,11 @@ function consumeSessionLine(accumulator, line) {
 
 function updateAccumulatorUsage(accumulator, event) {
   const usage = event.message?.usage ?? event.usage
+  if (
+    !usage ||
+    (accumulator.host === 'claude' && !shouldCountClaudeUsage(accumulator.seenUsage, event))
+  )
+    return
   accumulator.usage.input = addMetric(
     accumulator.usage.input,
     usageValue(usage, 'input_tokens', 'inputTokens'),
@@ -1850,7 +1890,7 @@ function updateAccumulatorUsage(accumulator, event) {
 function consumeClaudeAccumulator(accumulator, event) {
   updateClaudeAccumulatorContext(accumulator, event)
   const role = event.message?.role ?? event.type
-  if (role !== 'user' || event.isSidechain === true || isToolResultMessage(event)) return
+  if (!isGenuineClaudeUser(event, role)) return
   accumulator.humanMessages++
   accumulator.hasHumanMessage = true
   const content = messageContent(event)
