@@ -27,7 +27,7 @@ Three related gaps:
 
 ## Decision
 
-Promote the completion guard from advisory (exit 0) to hard-blocking (exit 2). A `UserPromptSubmit` hook that exits 2 returns its stderr to Claude as error context, blocking the prompt until the guard is satisfied.
+Promote the completion guard from advisory (exit 0) to hard-blocking (exit 2). The guard runs on `Stop`, inspects the assistant's final response, and returns exit 2 when an unsupported completion claim must block the turn from ending.
 
 Add a phase guard block to `pre-commit.ejs` that reads `.claude/.task-phase` and refuses commits during `preflight` or `plan` phases. Defaults to "unknown" when file absent, which falls through to allow commits (safe for non-lifecycle projects).
 

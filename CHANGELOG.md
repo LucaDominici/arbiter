@@ -9,6 +9,8 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 ## [Unreleased]
 
 - `arbiter lifecycle record-red --at <sha>` can replay a failing test from an ancestor writer commit in an isolated worktree and pin that commit in the evidence (#2747).
+- Completion, done-evidence, and TDD provenance guards now inspect Claude's final response/turn on
+  `Stop`; Codex reports native `arbiter task advance` coverage without claiming final-response interception.
 - Pre-push now runs preflight plus touched tests; CI is the sole full-gate authority (#2773 P7).
 - `post-commit-check.mjs` remains registered as a silent, exit-0 advisory. `.githooks/commit-msg`
   and L1 `commitlint` remain blocking.

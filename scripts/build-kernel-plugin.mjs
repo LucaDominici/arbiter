@@ -227,8 +227,14 @@ export function buildKernelPlugin(rawOutDir = DEFAULT_OUT_DIR) {
           hooks: [cmd('check-no-orphan-todo.mjs'), cmd('check-no-placeholders.mjs')],
         },
       ],
-      UserPromptSubmit: [{ hooks: [{ ...cmd('guard-done-evidence.mjs'), timeout: 3 }] }],
-      Stop: [{ hooks: [{ ...cmd('stop-evidence-guard.mjs'), timeout: 5 }] }],
+      Stop: [
+        {
+          hooks: [
+            { ...cmd('guard-done-evidence.mjs'), timeout: 3 },
+            { ...cmd('stop-evidence-guard.mjs'), timeout: 5 },
+          ],
+        },
+      ],
     },
   }
   writeFileSync(join(outDir, 'hooks.json'), JSON.stringify(hooksJson, null, 2) + '\n', 'utf-8')

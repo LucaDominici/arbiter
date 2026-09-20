@@ -148,6 +148,50 @@ describe('brownfield: settings.json merge', () => {
     expect(commands.some((c) => c.includes('hooks.mjs'))).toBe(true)
   })
 
+  it('removes only legacy completion/TDD UserPromptSubmit hooks during the Stop migration', () => {
+    const claudeDir = join(dir, '.claude')
+    mkdirSync(claudeDir, { recursive: true })
+    const moved = ['skill-forced-eval.mjs', 'guard-task-completion.mjs', 'guard-done-evidence.mjs']
+    const custom = 'node .claude/hooks/my-team-prompt-policy.mjs'
+    writeFileSync(
+      join(claudeDir, 'settings.json'),
+      JSON.stringify(
+        {
+          hooks: {
+            UserPromptSubmit: [
+              {
+                matcher: '*',
+                hooks: [
+                  ...moved.map((name) => ({
+                    type: 'command',
+                    command: `node .claude/hooks/${name}`,
+                    timeout: 3,
+                  })),
+                  { type: 'command', command: custom, timeout: 7 },
+                ],
+              },
+            ],
+          },
+        },
+        null,
+        2,
+      ),
+    )
+
+    generateClaude(configWithExistingSettings())
+
+    const merged = JSON.parse(readFileSync(join(claudeDir, 'settings.json'), 'utf-8')) as {
+      hooks: Record<string, Array<{ hooks: Array<{ command: string; timeout?: number }> }>>
+    }
+    const promptCommands = merged.hooks.UserPromptSubmit.flatMap((entry) => entry.hooks)
+    const stopCommands = merged.hooks.Stop.flatMap((entry) => entry.hooks)
+    expect(promptCommands).toContainEqual({ type: 'command', command: custom, timeout: 7 })
+    for (const name of moved) {
+      expect(promptCommands.some((hook) => hook.command.endsWith(name))).toBe(false)
+    }
+    expect(stopCommands.some((hook) => hook.command.endsWith('hooks.mjs Stop'))).toBe(true)
+  })
+
   it('preserves custom permissions alongside arbiter permissions', () => {
     const claudeDir = join(dir, '.claude')
     mkdirSync(claudeDir, { recursive: true })

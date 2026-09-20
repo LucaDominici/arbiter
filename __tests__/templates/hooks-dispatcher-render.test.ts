@@ -20,6 +20,14 @@ function configFor(
   }) as unknown as Record<string, unknown>
 }
 
+function handlersFor(out: string, event: string): string {
+  const block = out.match(
+    new RegExp(`'${event.replace(/[|]/g, '\\$&')}': \\[([\\s\\S]*?)\\n  \\],`),
+  )
+  if (!block) throw new Error(`missing dispatcher event ${event}`)
+  return block[1]
+}
+
 describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
   it('renders without EJS tag leaks for typescript L1', () => {
     const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L1'))
@@ -75,11 +83,13 @@ describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
     expect(out).toContain('check-no-unused-exports.mjs')
   })
 
-  it('includes UserPromptSubmit key at L2', () => {
+  it('keeps only post-brainstorm-stop under UserPromptSubmit at L2', () => {
     const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
-    expect(out).toContain('UserPromptSubmit')
-    expect(out).toContain('guard-task-completion.mjs')
-    expect(out).toContain('skill-forced-eval.mjs')
+    const handlers = handlersFor(out, 'UserPromptSubmit')
+    expect(handlers).toContain('post-brainstorm-stop.mjs')
+    expect(handlers).not.toContain('guard-task-completion.mjs')
+    expect(handlers).not.toContain('guard-done-evidence.mjs')
+    expect(handlers).not.toContain('skill-forced-eval.mjs')
   })
 
   it('does NOT include UserPromptSubmit key at L1', () => {
@@ -88,10 +98,27 @@ describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
     expect(out).not.toContain('guard-task-completion.mjs')
   })
 
-  it('includes the Stop event + stop-evidence-guard.mjs at L2 (#1212/INV-114)', () => {
-    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
-    expect(out).toContain("'Stop'")
-    expect(out).toContain('stop-evidence-guard.mjs')
+  it('registers all completion/TDD guards under Stop at L2', () => {
+    const out = renderTemplate(
+      'claude/hooks/hooks.mjs.ejs',
+      configFor('typescript', 'L2', { enableEvidenceHarness: true }),
+    )
+    const handlers = handlersFor(out, 'Stop')
+    expect(handlers).toContain('skill-forced-eval.mjs')
+    expect(handlers).toContain('guard-task-completion.mjs')
+    expect(handlers).toContain('guard-done-evidence.mjs')
+    expect(handlers).toContain('stop-evidence-guard.mjs')
+  })
+
+  it('omits only the optional done-evidence guard from Stop when its harness is disabled', () => {
+    const out = renderTemplate(
+      'claude/hooks/hooks.mjs.ejs',
+      configFor('typescript', 'L2', { enableEvidenceHarness: false }),
+    )
+    const handlers = handlersFor(out, 'Stop')
+    expect(handlers).toContain('skill-forced-eval.mjs')
+    expect(handlers).toContain('guard-task-completion.mjs')
+    expect(handlers).not.toContain('guard-done-evidence.mjs')
   })
 
   it('does NOT include the Stop event at L1 (#1212)', () => {
@@ -134,6 +161,11 @@ describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
   it('spawns handlers via spawnSync', () => {
     const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor())
     expect(out).toContain('spawnSync')
+  })
+
+  it('caps each sequential handler at three seconds', () => {
+    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
+    expect(out).toContain('timeout: 3000')
   })
 
   it('aborts chain on first non-zero exit', () => {

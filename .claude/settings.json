@@ -151,7 +151,14 @@
             "type": "command",
             "command": "node .claude/hooks/post-brainstorm-stop.mjs",
             "timeout": 3
-          },
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
           {
             "type": "command",
             "command": "node .claude/hooks/skill-forced-eval.mjs",
@@ -166,14 +173,7 @@
             "type": "command",
             "command": "node .claude/hooks/guard-done-evidence.mjs",
             "timeout": 3
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "*",
-        "hooks": [
+          },
           {
             "type": "command",
             "command": "node .claude/hooks/stop-evidence-guard.mjs",

@@ -40,8 +40,14 @@ const HANDLERS = {
   PreCompact: ['pre-compact.mjs'],
   SubagentStop: ['post-subagent-release.mjs'],
   'PostToolUse:ExitPlanMode': ['exitplanmode-banner.mjs'],
-  UserPromptSubmit: ['skill-forced-eval.mjs', 'guard-task-completion.mjs'],
-  Stop: ['stop-evidence-guard.mjs', 'stop-finding-loss.mjs'],
+  UserPromptSubmit: ['post-brainstorm-stop.mjs'],
+  Stop: [
+    'skill-forced-eval.mjs',
+    'guard-task-completion.mjs',
+    'guard-done-evidence.mjs',
+    'stop-evidence-guard.mjs',
+    'stop-finding-loss.mjs',
+  ],
 }
 
 const eventKey = process.argv[2] ?? ''
@@ -68,8 +74,13 @@ for (const handler of handlers) {
     input: stdinData,
     stdio: ['pipe', 'inherit', 'inherit'],
     env: process.env,
+    timeout: 3000,
   })
 
+  if (result.error) {
+    process.stderr.write(`[hooks.mjs] Handler ${handler} failed: ${result.error.message}\n`)
+    process.exit(2)
+  }
   if (result.status !== 0 && result.status !== null) {
     process.exit(result.status)
   }

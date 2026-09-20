@@ -56,6 +56,13 @@ function setup() {
     join(hooksDir, 'guard-task-completion.mjs'),
     readFileSync(join(process.cwd(), '.claude/hooks/guard-task-completion.mjs')),
   )
+  for (const name of [
+    'guard-done-evidence.mjs',
+    'stop-evidence-guard.mjs',
+    'stop-finding-loss.mjs',
+  ]) {
+    writeFileSync(join(hooksDir, name), readFileSync(join(process.cwd(), '.claude/hooks', name)))
+  }
   writeTaskStateFile(dir, { phase: 'plan', taskId: '#2383', tier: 'Standard' })
   return {
     dir,
@@ -154,12 +161,20 @@ function writeRawTranscript(dir: string, lines: unknown[]) {
   return path
 }
 
-function hookInput(dir: string, transcript?: string, prompt = 'continue implementation') {
+function hookInput(
+  dir: string,
+  transcript?: string,
+  prompt?: string,
+  extra: Record<string, unknown> = {},
+) {
   return JSON.stringify({
+    hook_event_name: 'Stop',
     session_id: SESSION_ID,
     cwd: dir,
-    prompt,
+    last_assistant_message: 'Implementation is still in progress.',
+    ...(prompt === undefined ? {} : { prompt }),
     ...(transcript === undefined ? {} : { transcript_path: transcript }),
+    ...extra,
   })
 }
 
@@ -167,7 +182,7 @@ function run(
   hookPath: string,
   dir: string,
   transcript?: string,
-  prompt = 'continue implementation',
+  prompt?: string,
   inputOverride?: string,
   args: string[] = [],
 ) {
@@ -356,9 +371,7 @@ describe('skill-forced-eval — empirical verification gate (#2383)', () => {
       const blocked = [
         run(hookPath, dir, blockedTranscript),
         run(selfHookPath, dir, blockedTranscript),
-        run(dispatcherPath, dir, blockedTranscript, 'continue implementation', undefined, [
-          'UserPromptSubmit',
-        ]),
+        run(dispatcherPath, dir, blockedTranscript, undefined, undefined, ['Stop']),
       ]
       expect(blocked.map((result) => [result.status, result.stderr])).toEqual([
         [2, blocked[0].stderr],
@@ -373,9 +386,7 @@ describe('skill-forced-eval — empirical verification gate (#2383)', () => {
       const passing = [
         run(hookPath, dir, passingTranscript),
         run(selfHookPath, dir, passingTranscript),
-        run(dispatcherPath, dir, passingTranscript, 'continue implementation', undefined, [
-          'UserPromptSubmit',
-        ]),
+        run(dispatcherPath, dir, passingTranscript, undefined, undefined, ['Stop']),
       ]
       expect(passing.map((result) => [result.status, result.stderr])).toEqual([
         [0, ''],
@@ -387,12 +398,12 @@ describe('skill-forced-eval — empirical verification gate (#2383)', () => {
     }
   })
 
-  it('AC-2383.2 allows a no-edit prompt and exact /tdd remediation', () => {
+  it('AC-2383.2 allows no-edit Stop but does not exempt an owner /tdd prompt after an edit', () => {
     const { dir, hookPath } = setup()
     try {
       setPhase(dir, 'red')
       expect(run(hookPath, dir, writeTranscript(dir)).status).toBe(0)
-      expect(run(hookPath, dir, writeTranscript(dir, { includeEdit: true }), '/tdd').status).toBe(0)
+      expect(run(hookPath, dir, writeTranscript(dir, { includeEdit: true }), '/tdd').status).toBe(2)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -425,6 +436,25 @@ describe('skill-forced-eval — empirical verification gate (#2383)', () => {
           JSON.stringify({ session_id: SESSION_ID, prompt: '/tdd' }),
         ).status,
       ).toBe(2)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('still blocks the offending edit when stop_hook_active is true', () => {
+    const { dir, hookPath } = setup()
+    try {
+      setPhase(dir, 'green')
+      const transcript = writeTranscript(dir, { includeEdit: true })
+      const result = run(
+        hookPath,
+        dir,
+        transcript,
+        undefined,
+        hookInput(dir, transcript, undefined, { stop_hook_active: true }),
+      )
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/successful Skill\(tdd\)/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

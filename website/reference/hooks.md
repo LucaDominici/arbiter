@@ -145,7 +145,7 @@ Fires only on bash command failures matching test/gate patterns. Creates `.evide
 
 ### `skill-forced-eval.mjs`
 
-Fires before every user prompt. Phase-aware skill activation nudge. L2+ only.
+Fires on `Stop`. Retrospectively blocks an implementation turn whose first successful edit was not preceded by a successful `Skill(tdd)` result in the active phase. L2+ only.
 
 ---
 
@@ -165,4 +165,6 @@ Fires before every user prompt. Phase-aware skill activation nudge. L2+ only.
 | `PostToolUse`        | `Edit\|Write` | `post-edit-dispatch.mjs`     | Implemented (L2+)       |
 | `PostToolUseFailure` | `Bash`        | `debug-state-on-failure.mjs` | Implemented (L2+)       |
 | `PreCompact`         | —             | `pre-compact.mjs`            | Implemented (all)       |
-| `UserPromptSubmit`   | —             | `skill-forced-eval.mjs`      | Implemented (L2+)       |
+| `Stop`               | —             | `skill-forced-eval.mjs`      | Implemented (L2+)       |
+| `Stop`               | —             | `guard-task-completion.mjs`  | Implemented (L2+)       |
+| `Stop`               | —             | `guard-done-evidence.mjs`    | Implemented (L2+, flag) |
