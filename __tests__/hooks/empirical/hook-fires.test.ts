@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
 import { generateClaude } from '../../../src/generators/claude.js'
 import { makeConfig, writeTaskStateFile } from '../../helpers.js'
@@ -53,6 +53,7 @@ function spawnHook(
     cwd: dir,
     encoding: 'utf-8',
     input: stdin,
+    stdio: stdin === undefined ? ['ignore', 'pipe', 'pipe'] : undefined,
     env: { ...process.env, ...env },
     timeout: 5000,
   })
@@ -551,7 +552,7 @@ describe('post-commit-check — stdin-JSON protocol (no env var)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('exits 2 on a non-conventional commit message delivered via stdin JSON', () => {
+  it('advises without blocking on a non-conventional commit message delivered via stdin JSON', () => {
     spawnSync('git', ['init'], { cwd: dir, encoding: 'utf-8' })
     spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], { cwd: dir, encoding: 'utf-8' })
     spawnSync('git', ['config', 'user.name', 'Arbiter Test'], { cwd: dir, encoding: 'utf-8' })
@@ -560,8 +561,8 @@ describe('post-commit-check — stdin-JSON protocol (no env var)', () => {
       encoding: 'utf-8',
     })
     const r = spawnCommandHookStdin(hookPath, dir, 'git commit -m "bad commit message"')
-    expect(r.status).toBe(2)
-    expect(r.stderr).toMatch(/INV-22/)
+    expect(r.status).toBe(0)
+    expect(r.stderr).toMatch(/advisory/i)
   })
 
   it('exits 0 when the stdin command is not a git commit', () => {
@@ -650,7 +651,7 @@ describe('post-commit-check — empirical fire', () => {
     expect(r.status).toBe(0)
   })
 
-  it('exits 2 on non-conventional commit message (INV-22)', () => {
+  it('advises without blocking on non-conventional commit message (INV-22)', () => {
     spawnSync('git', ['init'], { cwd: dir, encoding: 'utf-8' })
     spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], {
       cwd: dir,
@@ -667,8 +668,8 @@ describe('post-commit-check — empirical fire', () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'git commit',
     })
-    expect(r.status).toBe(2)
-    expect(r.stderr).toMatch(/INV-22/)
+    expect(r.status).toBe(0)
+    expect(r.stderr).toMatch(/advisory/i)
   })
 
   it('exits 0 on valid conventional commit message', () => {
@@ -689,6 +690,23 @@ describe('post-commit-check — empirical fire', () => {
       CLAUDE_TOOL_INPUT_COMMAND: 'git commit',
     })
     expect(r.status).toBe(0)
+  })
+
+  it('keeps the self copy as a manual advisory for a non-conventional commit message', () => {
+    const binDir = mkdtempSync(join(tmpdir(), 'arbiter-post-commit-git-'))
+    const gitPath = join(binDir, 'git')
+    writeFileSync(gitPath, '#!/usr/bin/env sh\nprintf "bad commit message\\n"\n')
+    chmodSync(gitPath, 0o755)
+    try {
+      const r = spawnHook(resolve('.claude/hooks/post-commit-check.mjs'), resolve('.'), {
+        CLAUDE_TOOL_INPUT_COMMAND: 'git commit',
+        PATH: `${binDir}:${process.env.PATH ?? ''}`,
+      })
+      expect(r.status).toBe(0)
+      expect(r.stderr).toMatch(/advisory/i)
+    } finally {
+      rmSync(binDir, { recursive: true, force: true })
+    }
   })
 })
 

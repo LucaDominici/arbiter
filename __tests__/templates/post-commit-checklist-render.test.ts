@@ -112,4 +112,13 @@ describe('post-commit-check.mjs.ejs (#724)', () => {
     expect(out).not.toContain('%>')
     expect(out).toContain('tsc --noEmit')
   })
+
+  it('does not register the retained manual advisory in generated Claude or Codex dispatchers (#2767)', () => {
+    const cfg = makeConfig('/tmp/test', { language: 'typescript' }) as unknown as Record<
+      string,
+      unknown
+    >
+    expect(renderTemplate('claude/hooks/hooks.mjs.ejs', cfg)).not.toContain('post-commit-check.mjs')
+    expect(renderTemplate('codex/config.toml.ejs', cfg)).not.toContain('post-commit-check.mjs')
+  })
 })
