@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2747",
+  "test_path": "__tests__/scripts/codex-dispatch-lib.test.ts",
+  "test_commit_sha": "8fa7df4639312dff83827e2134283341bed0f263",
+  "test_blob_sha": "dd4ab660def2318b3607c4fbf9f629bba34eac71",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/codex-dispatch-lib.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  12:05:31\n   Duration  102ms (transform 9ms, setup 7ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/codex-dispatch-lib.test.ts [ __tests__/scripts/codex-dispatch-lib.test.ts ]\nError: Cannot find module '../../scripts/lib/codex-dispatch-lib.mjs' imported from __tests__/scripts/codex-dispatch-lib.test.ts\n ❯ __tests__/scripts/codex-dispatch-lib.test.ts:6:1\n      4| import { join } from 'node:path'\n      5| import { describe, expect, it } from 'vitest'\n      6| import { buildCodexArgs, buildCodexReviewArgs } from '../../scripts/li…\n       | ^\n      7|\n      8| function makeWorktree() {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/codex-dispatch-lib.test.ts",
+  "recorded_at": "2026-09-20T10:05:31.574Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/codex-dispatch-lib.test.ts"
+  ]
+}
