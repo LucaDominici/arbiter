@@ -134,6 +134,10 @@ const SKIP_FILES = new Set([
   // (check-kernel-plugin-parity.mjs, regenerate-examples.mjs) own the exit contract and
   // both fail closed (their own top-level try/catch, never exit 0 on an unexpected throw).
   'scripts/lib/dir-diff.mjs',
+  // #2747 pure argv-builder for the Codex writer/reviewer dispatch lane (no I/O,
+  // no spawn); no entry point — consumer (scripts/codex-dispatch.mjs) owns the
+  // exit contract and wraps the spawnSync call in a top-level try/catch.
+  'scripts/lib/codex-dispatch-lib.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

@@ -15,17 +15,22 @@ if (required.some((name) => values[name] === null)) {
   process.exit(2)
 }
 
-const result = spawnSync(
-  'codex',
-  buildCodexArgs({
-    worktreePath: values.worktree,
-    model: values.model,
-    effort: values.effort,
-    briefPath: values.brief,
-    outPath: values.out,
-    resumeSessionId: arg('resume', argv) ?? undefined,
-  }),
-  { stdio: ['ignore', 'inherit', 'inherit'] },
-)
-
-process.exit(result.status ?? 2)
+try {
+  const result = spawnSync(
+    'codex',
+    buildCodexArgs({
+      worktreePath: values.worktree,
+      model: values.model,
+      effort: values.effort,
+      briefPath: values.brief,
+      outPath: values.out,
+      resumeSessionId: arg('resume', argv) ?? undefined,
+    }),
+    { stdio: ['ignore', 'inherit', 'inherit'] },
+  )
+  if (result.error) throw result.error
+  process.exit(result.status ?? 2)
+} catch (err) {
+  process.stderr.write(`codex-dispatch failed: ${err.message}\n`)
+  process.exit(1)
+}
