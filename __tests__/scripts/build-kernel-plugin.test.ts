@@ -95,6 +95,22 @@ describe('build-kernel-plugin.mjs', () => {
     }
   })
 
+  it('registers guard-done-evidence under Stop, never UserPromptSubmit', () => {
+    const result = runFromCleanState()
+    expect(result.status).toBe(0)
+    const hooks = JSON.parse(readFileSync(join(outDir, 'hooks.json'), 'utf-8')).hooks as Record<
+      string,
+      Array<{ hooks: Array<{ command: string; timeout: number }> }>
+    >
+    const commands = (event: string) =>
+      (hooks[event] ?? []).flatMap((entry) => entry.hooks).map((hook) => hook.command)
+
+    expect(commands('Stop')).toContain('node ${CLAUDE_PLUGIN_ROOT}/hooks/guard-done-evidence.mjs')
+    expect(commands('UserPromptSubmit')).not.toContain(
+      'node ${CLAUDE_PLUGIN_ROOT}/hooks/guard-done-evidence.mjs',
+    )
+  })
+
   // #2538 fixed only these two: they were the ones the broken COPIED list threw
   // on, and their content is now verified in sync with the generator. The other
   // seven packages/kernel/hooks/ files were found to ALSO have drifted from the

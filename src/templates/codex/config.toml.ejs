@@ -136,21 +136,6 @@ type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/post-brainstorm-stop.mjs"
 timeout = 3
 
-[[hooks.UserPromptSubmit.hooks]]
-type = "command"
-command = "node .codex/codex-adapter.mjs .claude/hooks/skill-forced-eval.mjs"
-timeout = 3
-
-[[hooks.UserPromptSubmit.hooks]]
-type = "command"
-command = "node .codex/codex-adapter.mjs .claude/hooks/guard-task-completion.mjs"
-timeout = 3
-<% if (locals.enableEvidenceHarness !== false) { %>
-[[hooks.UserPromptSubmit.hooks]]
-type = "command"
-command = "node .codex/codex-adapter.mjs .claude/hooks/guard-done-evidence.mjs"
-timeout = 3
-<% } %>
 <% } %>
 # ── Not bridged ───────────────────────────────────────────────────────────────
 #
@@ -160,6 +145,10 @@ timeout = 3
 # keep the `# unbridgeable: <file> — <reason>` shape.
 #
 # No Codex hook event exists:
+# unbridgeable: skill-forced-eval.mjs — Claude `Stop`; Codex has native lifecycle
+#   phase gates but no project-command final-response interception.
+# unbridgeable: guard-task-completion.mjs — Claude `Stop`; same reason as above.
+# unbridgeable: guard-done-evidence.mjs — Claude `Stop`; same reason as above.
 # unbridgeable: stop-evidence-guard.mjs — Claude `Stop`; Codex accepts a Stop handler
 #   only as an allowlisted executor MCP tool, never as a config.toml command hook.
 # unbridgeable: stop-finding-loss.mjs — Claude `Stop`; same reason as above.

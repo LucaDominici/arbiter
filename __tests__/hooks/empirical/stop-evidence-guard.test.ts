@@ -1,7 +1,7 @@
 import { spawnSync, execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
 import {
   makeConfig,
@@ -77,10 +77,18 @@ interface ContentBlock {
 // under the agent's own state dir, and writing it into the repo would change the
 // working-tree hash the gate-pass marker binds.
 function writeTranscript(
-  _dir: string,
+  dir: string,
   lines: Array<{ type: string; blocks: ContentBlock[] }>,
 ): string {
-  const p = join(mkdtempSync(join(tmpdir(), 'arbiter-stop-evidence-t-')), 'transcript.jsonl')
+  const home = mkdtempSync(join(tmpdir(), 'arbiter-stop-evidence-home-'))
+  const p = join(
+    home,
+    '.claude',
+    'projects',
+    resolve(dir).replace(/[^A-Za-z0-9]/g, '-'),
+    's1.jsonl',
+  )
+  mkdirSync(join(p, '..'), { recursive: true })
   const jsonl = lines
     .map((l) => JSON.stringify({ type: l.type, message: { role: l.type, content: l.blocks } }))
     .join('\n')
@@ -151,11 +159,18 @@ function runHook(
   dir: string,
   input: { transcript_path?: string; stop_hook_active?: boolean },
 ) {
-  return spawnSync('node', [hookPath], {
+  const marker = `${sep}.claude${sep}projects${sep}`
+  const markerIndex = input.transcript_path?.indexOf(marker) ?? -1
+  const home = markerIndex >= 0 ? input.transcript_path?.slice(0, markerIndex) : undefined
+  const result = spawnSync('node', [hookPath], {
     cwd: dir,
     input: JSON.stringify({ hook_event_name: 'Stop', session_id: 's1', cwd: dir, ...input }),
     encoding: 'utf-8',
+    env: { ...process.env, ...(home ? { HOME: home } : {}) },
+    timeout: 5000,
   })
+  if (home) rmSync(home, { recursive: true, force: true })
+  return result
 }
 
 describe('stop-evidence-guard — empirical spawn (#1212)', () => {

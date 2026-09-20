@@ -347,16 +347,24 @@ describe('generateClaude', () => {
     expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-unused-exports.mjs'))).toBe(false)
   })
 
-  it('guard-task-completion is in dispatcher config table and UserPromptSubmit in settings.json at L2 (#248)', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L2' })
+  it('keeps prompt-only work on UserPromptSubmit and completion/TDD guards on Stop at L2', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2', enableEvidenceHarness: true })
     generateClaude(config)
     const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    // Dispatcher registered for UserPromptSubmit event
-    expect(raw).toContain('UserPromptSubmit')
-    expect(raw).toContain('hooks.mjs')
-    // Handler name in dispatcher config table
+    expect(JSON.parse(raw).hooks.UserPromptSubmit).toBeDefined()
+    expect(JSON.parse(raw).hooks.Stop).toBeDefined()
     const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
-    expect(dispatcherContent).toContain('guard-task-completion.mjs')
+    const promptHandlers = dispatcherContent.match(/'UserPromptSubmit': \[([\s\S]*?)\n {2}\],/)?.[1]
+    const stopHandlers = dispatcherContent.match(/'Stop': \[([\s\S]*?)\n {2}\],/)?.[1]
+    expect(promptHandlers).toContain('post-brainstorm-stop.mjs')
+    for (const guard of [
+      'skill-forced-eval.mjs',
+      'guard-task-completion.mjs',
+      'guard-done-evidence.mjs',
+    ]) {
+      expect(promptHandlers).not.toContain(guard)
+      expect(stopHandlers).toContain(guard)
+    }
   })
 
   it('registers the Stop event in settings.json + dispatcher at L2 (#1212/INV-114)', () => {

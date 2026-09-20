@@ -209,8 +209,7 @@ const HARD = {
   'guard-task-completion.mjs': {
     states: ['PRIMED'],
     rationale: 'Completion language is governed only while an implementation phase is active.',
-    kind: 'prompt',
-    value: 'task complete, ready to merge',
+    kind: 'stop',
   },
   'stop-evidence-guard.mjs': {
     states: ['PRIMED'],
@@ -231,8 +230,7 @@ const HARD = {
   'guard-done-evidence.mjs': {
     states: ['VERIFICATION'],
     rationale: 'Evidence-harness completion checks apply only in verification.',
-    kind: 'prompt',
-    value: 'task complete, ready to merge',
+    kind: 'stop',
   },
 }
 
@@ -531,15 +529,6 @@ function prepareSpecialState(root, temporary, contract, state) {
   if (contract.kind === 'bad-commit') {
     runGit(root, ['commit', '--allow-empty', '-m', 'bad message'])
   }
-  if (contract.kind === 'stop') {
-    writeFileSync(
-      join(temporary, 'transcript.jsonl'),
-      JSON.stringify({
-        type: 'assistant',
-        message: { role: 'assistant', content: [{ type: 'text', text: 'task complete' }] },
-      }) + '\n',
-    )
-  }
 }
 
 function payloadFor(root, temporary, language, contract) {
@@ -671,9 +660,10 @@ function specialPayload(root, temporary, contract) {
             ]
       writeFileSync(path, records.map((record) => JSON.stringify(record)).join('\n') + '\n')
       return {
+        hook_event_name: 'Stop',
         session_id: sessionId,
         cwd: root,
-        prompt: 'continue implementation',
+        last_assistant_message: 'Implementation is still in progress.',
         transcript_path: path,
         __probeHome: home,
       }
@@ -684,8 +674,11 @@ function specialPayload(root, temporary, contract) {
       return { tool_input: { command: 'git commit -m "bad message"' } }
     case 'stop':
       return {
+        hook_event_name: 'Stop',
+        session_id: 'probe-stop',
+        cwd: root,
         stop_hook_active: false,
-        transcript_path: join(temporary, 'transcript.jsonl'),
+        last_assistant_message: 'task complete, ready to merge',
       }
     default:
       return null

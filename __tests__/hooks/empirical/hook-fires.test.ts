@@ -8,6 +8,11 @@ import { makeConfig, writeTaskStateFile } from '../../helpers.js'
 import { describeSpawnResult } from '../../helpers/spawn-diag.js'
 
 const STATIC_HOOKS_DIR = join(process.cwd(), 'src/templates/claude/hooks')
+const STOP_GUARDS = [
+  'skill-forced-eval.mjs',
+  'guard-task-completion.mjs',
+  'guard-done-evidence.mjs',
+]
 
 function minConfig() {
   return makeConfig('/tmp/hook-fires-test', {
@@ -762,6 +767,28 @@ describe('pre-compact — empirical fire', () => {
   })
 })
 
+describe('self hook registration', () => {
+  it('keeps post-brainstorm on UserPromptSubmit and moves completion/TDD guards to Stop', () => {
+    const settings = JSON.parse(readFileSync(join(process.cwd(), '.claude/settings.json'), 'utf-8'))
+    const commands = (event: string) =>
+      settings.hooks[event].flatMap(
+        (entry: { hooks: Array<{ command: string; timeout: number }> }) => entry.hooks,
+      ) as Array<{ command: string; timeout: number }>
+    const promptCommands = commands('UserPromptSubmit')
+    const stopCommands = commands('Stop')
+
+    expect(promptCommands.map((hook) => hook.command)).toContain(
+      'node .claude/hooks/post-brainstorm-stop.mjs',
+    )
+    for (const guard of STOP_GUARDS) {
+      expect(promptCommands.some((hook) => hook.command.endsWith(guard))).toBe(false)
+      expect(stopCommands).toContainEqual(
+        expect.objectContaining({ command: `node .claude/hooks/${guard}`, timeout: 3 }),
+      )
+    }
+  })
+})
+
 describe('skill-forced-eval — empirical fire', () => {
   let dir: string
   let hooksDir: string
@@ -777,15 +804,19 @@ describe('skill-forced-eval — empirical fire', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('exits 0 and writes plan-mode context to stdout in plan phase', () => {
+  it('exits 0 without UserPromptSubmit banners in plan phase', () => {
     const r = spawnHook(
       hookPath,
       dir,
       {},
-      JSON.stringify({ session_id: 'hook-fires-plan', prompt: 'go' }),
+      JSON.stringify({
+        hook_event_name: 'Stop',
+        session_id: 'hook-fires-plan',
+        last_assistant_message: 'Plan status only.',
+      }),
     )
     expect(r.status).toBe(0)
-    expect(r.stdout).toMatch(/PLAN MODE/i)
+    expect(r.stdout).toBe('')
   })
 })
 

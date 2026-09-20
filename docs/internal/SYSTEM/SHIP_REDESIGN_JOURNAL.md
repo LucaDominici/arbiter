@@ -299,3 +299,11 @@ senza id usano la posizione e devono comunque avere testo normalizzato identico 
 Una issue senza criteri leggibili blocca e richiede chiarimento; `gh` indisponibile, timeout o risposta
 malformata produce `NO DATA` con exit 2, senza avanzare la fase. Gli id non GitHub (per esempio Jira)
 scrivono uno `SKIP` esplicito e continuano con la normale validazione locale del piano.
+
+## 2026-09-20 — #2767 P2: i claim dell'agente vengono controllati su `Stop`
+
+I guard di completamento, ricevuta finale e provenienza TDD sono stati spostati da
+`UserPromptSubmit` a `Stop`: leggono `last_assistant_message`, con fallback al transcript legato alla
+sessione, e non interpretano più il testo del proprietario come claim dell'agente. Un secondo `Stop`
+non aggira il blocco. Il bridge Codex è stato rimosso perché non intercetta la risposta finale: su
+Codex la copertura dichiarata resta quella dei gate nativi di `arbiter task advance`.

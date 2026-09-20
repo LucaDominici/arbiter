@@ -76,7 +76,7 @@ runtime, no build step, no arbiter CLI required to run them.
 | -------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------- |
 | `lib.mjs`                                                      | —                         | shared helpers (repo root, task-state read, sanitization)      |
 | `stop-evidence-guard.mjs`                                      | `Stop`                    | the completion-integrity backstop (#1–4 above)                 |
-| `guard-done-evidence.mjs`                                      | `UserPromptSubmit`        | completion-claim detection + SHA-256 pinned-file verification  |
+| `guard-done-evidence.mjs`                                      | `Stop`                    | completion-claim detection + SHA-256 pinned-file verification  |
 | `stop-dangerous.mjs`                                           | `PreToolUse:Bash`         | blocks destructive commands (`rm -rf /`, force-push, etc.)     |
 | `enforce-gate-before-pr.mjs`                                   | `PreToolUse:Bash`         | blocks a PR/merge command until the gate marker is present     |
 | `enforce-read-only.mjs`                                        | `PreToolUse:Edit\|Write`  | blocks edits to declared read-only paths                       |

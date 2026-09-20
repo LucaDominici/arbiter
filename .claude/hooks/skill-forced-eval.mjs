@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Arbiter hook: phase-aware TDD evidence gate (#2383)
-// Hook type: UserPromptSubmit — fires before every user prompt
-// UserPromptSubmit runs before the assistant can invoke a skill, so this gate is retrospective:
-// it blocks only after a successful implementation edit is already present in the transcript.
+// Hook type: Stop — retrospectively blocks after an implementation edit unless
+// a successful Skill(tdd) result preceded the first edit in the active phase.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { claudeTranscriptIdentityError, getRepoRoot } from './lib.mjs'
@@ -31,18 +30,7 @@ if (typeof input.session_id !== 'string' || !SESSION_ID.test(input.session_id)) 
 }
 const state = readPhaseState(root)
 if (state.error) block(state.error)
-if (typeof input.prompt === 'string' && input.prompt.trim() === '/tdd') process.exit(0)
-if (!IMPLEMENTATION_PHASES.has(state.phase)) {
-  if (state.phase === 'plan') {
-    process.stdout.write('━━━ PLAN MODE — no file edits or code until human says GO ━━━\n')
-  } else if (state.phase === 'verification') {
-    process.stdout.write(
-      '━━━ VERIFICATION MODE ━━━\n' +
-        'Run the verification skill, then npm run test before committing.\n',
-    )
-  }
-  process.exit(0)
-}
+if (!IMPLEMENTATION_PHASES.has(state.phase)) process.exit(0)
 const transcript = readTranscript(input, root)
 if (transcript === null) process.exit(0)
 const verdict = inspectTranscript(transcript, state.startedAt)
@@ -244,7 +232,7 @@ function parseTimestamp(record) {
 function block(reason) {
   process.stderr.write(
     `[skill-forced-eval] blocked: ${reason}\n` +
-      'Run /tdd and wait for its successful result before editing implementation code.\n',
+      `Run /tdd and wait for its successful result before editing implementation code; then run npm test.\n`,
   )
   process.exit(2)
 }
