@@ -7,7 +7,15 @@
 // The static ship.md-derived check lives in `__tests__/docs/ship-phase-gates-2435.test.ts`;
 // this file proves the new entries actually refuse.
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { copyFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -23,10 +31,11 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
   tddEvidenceProducedOnBranch: vi.fn().mockReturnValue(true),
 }))
 
-import { runTaskAdvance } from '../../src/commands/task.js'
+import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import { resolveShipTreatment } from '../../src/commands/ship-tier.js'
+import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
 
 const dirs: string[] = []
 
@@ -97,6 +106,7 @@ function recordTdd(dir: string, taskId = '#2435'): void {
 
 function installAcceptanceChecker(dir: string): void {
   mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+  symlinkSync(resolve(__dirname, '../../node_modules'), join(dir, 'node_modules'), 'dir')
   copyFileSync(
     resolve(__dirname, '../../scripts/check-acceptance.mjs'),
     join(dir, 'scripts/check-acceptance.mjs'),
@@ -117,6 +127,13 @@ function installAcceptanceChecker(dir: string): void {
     resolve(__dirname, '../../scripts/lib/run-helpers.mjs'),
     join(dir, 'scripts/lib/run-helpers.mjs'),
   )
+  for (const file of [
+    'derived-artifacts.mjs',
+    'gate-affects-registry.mjs',
+    'gate-derivation.mjs',
+  ]) {
+    copyFileSync(resolve(__dirname, `../../scripts/lib/${file}`), join(dir, `scripts/lib/${file}`))
+  }
 }
 
 afterEach(() => {
@@ -250,6 +267,19 @@ describe('retired planning phases cannot be dispatched (#2724)', () => {
 })
 
 describe('red admission — the existing Markdown acceptance anchor runs before mutation (#2587)', () => {
+  const FILES = ['src/templates/claude/commands/ship.md.ejs']
+  const VALID_PLAN = [
+    '---',
+    "title: '#2587'",
+    'files:',
+    ...FILES.map((file) => `  - ${file}`),
+    '---',
+    '## Acceptance Criteria',
+    '- [ ] AC-2587.1: behavior',
+    '## Non-Goals',
+    '- x',
+  ].join('\n')
+
   function acceptanceRepo(plan: string, enabled = true, checker = true): string {
     const dir = tmpRepo()
     seed(dir, 'plan', '#2587')
@@ -264,6 +294,13 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     return dir
   }
 
+  function storeDerivedGates(dir: string, gates: unknown): void {
+    const path = join(dir, '.claude', '.task', 'status.json')
+    const state = JSON.parse(readFileSync(path, 'utf-8')) as Record<string, unknown>
+    state.derivedGates = gates
+    writeFileSync(path, JSON.stringify(state), 'utf-8')
+  }
+
   it('rejects an invalid anchor and leaves the phase unchanged', () => {
     const dir = acceptanceRepo('# Plan\nno anchor')
     expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(
@@ -273,11 +310,29 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
   })
 
   it('advances with a valid anchor', () => {
-    const dir = acceptanceRepo(
-      '## Acceptance Criteria\n- [ ] AC-2587.1: behavior\n## Non-Goals\n- x',
-    )
+    const dir = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(dir, deriveGatesForFiles(FILES))
     runTaskAdvance({ to: 'red', dir })
     expect(readUnifiedState(dir)?.phase).toBe('red')
+  })
+
+  it('AC-2 refuses missing or hand-written gate state and passes a fresh derivation', () => {
+    const missing = acceptanceRepo(VALID_PLAN)
+    expect(() => runTaskAdvance({ to: 'red', dir: missing })).toThrow(/derived gates/i)
+    expect(readUnifiedState(missing)?.phase).toBe('plan')
+
+    const wrong = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(wrong, [
+      { name: 'unit tests', kind: 'test-first' },
+      { name: 'dogfood', kind: 'constraint' },
+    ])
+    expect(() => runTaskAdvance({ to: 'red', dir: wrong })).toThrow(/derived gates/i)
+    expect(readUnifiedState(wrong)?.phase).toBe('plan')
+
+    const correct = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(correct, deriveGatesForFiles(FILES))
+    runTaskAdvance({ to: 'red', dir: correct })
+    expect(readUnifiedState(correct)?.phase).toBe('red')
   })
 
   it('preserves the optional profile inert when disabled', () => {
@@ -297,12 +352,67 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
   })
 
   it('passes a valid plan reference with a fragment', () => {
-    const dir = acceptanceRepo(
-      '## Acceptance Criteria\n- [ ] AC-2587.1: behavior\n## Non-Goals\n- x',
-    )
+    const dir = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(dir, deriveGatesForFiles(FILES))
     writeUnifiedState(dir, { plan: 'plan.md#acceptance' })
     runTaskAdvance({ to: 'red', dir })
     expect(readUnifiedState(dir)?.phase).toBe('red')
+  })
+})
+
+describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-gates.mjs for real', () => {
+  const FILES = ['src/templates/claude/commands/ship.md.ejs']
+  const VALID_PLAN = [
+    '---',
+    "title: '#2773'",
+    'files:',
+    ...FILES.map((file) => `  - ${file}`),
+    '---',
+    '## Acceptance Criteria',
+    '- [ ] AC-2773.1: behavior',
+    '## Non-Goals',
+    '- x',
+  ].join('\n')
+
+  function anchorRepo(): string {
+    const dir = tmpRepo()
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    symlinkSync(resolve(__dirname, '../../node_modules'), join(dir, 'node_modules'), 'dir')
+    copyFileSync(
+      resolve(__dirname, '../../scripts/derive-plan-gates.mjs'),
+      join(dir, 'scripts/derive-plan-gates.mjs'),
+    )
+    for (const file of [
+      'gate-affects-registry.mjs',
+      'gate-derivation.mjs',
+      'derived-artifacts.mjs',
+      'run-helpers.mjs',
+    ]) {
+      copyFileSync(
+        resolve(__dirname, `../../scripts/lib/${file}`),
+        join(dir, `scripts/lib/${file}`),
+      )
+    }
+    writeFileSync(join(dir, 'plan.md'), VALID_PLAN, 'utf-8')
+    return dir
+  }
+
+  it('writes derivedGates into status.json when `lifecycle start --plan` anchors a manifest plan', () => {
+    const dir = anchorRepo()
+    runTaskInit({ dir, id: '#2773', plan: 'plan.md' })
+    expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveGatesForFiles(FILES))
+  })
+
+  it('leaves derivedGates unset when no plan is anchored', () => {
+    const dir = anchorRepo()
+    runTaskInit({ dir, id: '#2773' })
+    expect(readUnifiedState(dir)?.derivedGates).toBeUndefined()
+  })
+
+  it('writes derivedGates for a fragment-qualified plan reference (plan.md#acceptance)', () => {
+    const dir = anchorRepo()
+    runTaskInit({ dir, id: '#2773', plan: 'plan.md#acceptance' })
+    expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveGatesForFiles(FILES))
   })
 })
 
