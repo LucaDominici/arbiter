@@ -507,6 +507,8 @@ export interface ShipResult {
   trainDecision?: AffinityVerdict
   /** True only when this invocation actually opens a reviewer dispatch. */
   reviewDispatched?: boolean
+  /** Frozen reviewer-panel identity printed only for the round this invocation opened. */
+  reviewSubject?: { taskId: string; branch: string; sha: string }
   checkpoint?: Pick<UnifiedTaskState, 'cursor' | 'review'>
   /** #1288 — the ship profile resolved from the target repo's arbiter.json. */
   profile: ShipProfile
@@ -526,6 +528,57 @@ function checkpointShipStepLines(checkpoint: ShipResult['checkpoint']): string[]
   if (cursor.lastAction) lines.push(`Observed: ${cursor.lastAction}`)
   if (cursor.nextAction) lines.push(`Next: ${cursor.nextAction}`)
   return lines
+}
+
+function reviewerEnvelope(
+  subject: NonNullable<ShipResult['reviewSubject']>,
+  vertical: string,
+  includesAcceptanceFit: boolean,
+): Record<string, unknown> {
+  return {
+    schema: 'arbiter-agent-return-v1',
+    agent: vertical,
+    role: 'reviewer',
+    taskId: subject.taskId,
+    branch: subject.branch,
+    sha: subject.sha,
+    ts: '<ISO-8601 timestamp>',
+    verdict: '<PASS|WARN|FAIL>',
+    confidence: '<0..1>',
+    findings: [],
+    ...(includesAcceptanceFit
+      ? {
+          acceptanceFit: {
+            schema: 'arbiter-ac-fit-v1',
+            taskId: subject.taskId,
+            criteria: [
+              {
+                id: '<AC-ID>',
+                verdict: '<PASS|FAIL|NOT-TESTED>',
+                evidence: [{ file: '<repo-relative-path>', line: 1 }],
+              },
+            ],
+          },
+        }
+      : {}),
+  }
+}
+
+function reviewPanelLines(result: ShipResult): string[] {
+  const subject = result.reviewSubject
+  if (subject === undefined) return []
+  const panel = {
+    envelopes: result.step.verticals.map((vertical, index) =>
+      reviewerEnvelope(subject, vertical, index === 0),
+    ),
+  }
+  return [
+    'Reviewer panel template (replace every <...> placeholder):',
+    `node scripts/record-agent-return.mjs --mode reviewer-panel --task '${subject.taskId}' <<'JSON'`,
+    ...JSON.stringify(panel, null, 2).split('\n'),
+    'JSON',
+    `node scripts/check-review-completion.mjs --task '${subject.taskId}'`,
+  ]
 }
 
 function optionalShipStepLines(result: ShipResult, tier: ShipTier): string[] {
@@ -562,6 +615,7 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
     `Action: ${result.step.action}`,
   ]
   lines.push(...optionalShipStepLines(result, tier))
+  lines.push(...reviewPanelLines(result))
   // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
   // consumer of the field, so the read is honest and not dead config).
   lines.push(`Governance: ${result.profile.governanceLevel}`)
@@ -1064,6 +1118,7 @@ function persistShipTreatment(
 }
 
 function buildActiveShipResult(input: {
+  root: string
   phase: TaskPhase
   treatment: ShipTreatment
   profile: ShipProfile
@@ -1075,6 +1130,7 @@ function buildActiveShipResult(input: {
   opts: TaskShipOptions
 }): ShipResult {
   const {
+    root,
     phase,
     treatment,
     profile,
@@ -1092,16 +1148,36 @@ function buildActiveShipResult(input: {
       : {}),
     ...(preparedRound !== null ? { review: preparedRound } : {}),
   })
+  const reviewSubject = reviewSubjectFor(root, state, preparedRound)
   return {
     phase,
     step: stopMessage === null ? step : { ...step, action: stopMessage },
     advanced,
     reviewDispatched: preparedRound !== null,
+    ...(reviewSubject !== undefined ? { reviewSubject } : {}),
     done: phase === 'complete',
     tier: treatment.tier,
     treatment,
     ...(preparedChainAdd !== null ? { trainDecision: preparedChainAdd.affinity } : {}),
     profile,
+  }
+}
+
+function reviewSubjectFor(
+  root: string,
+  state: UnifiedTaskState | null,
+  round: PlannedReviewRound | null,
+): ShipResult['reviewSubject'] {
+  if (round === null) return undefined
+  if (!state?.taskId) throw new Error('planned review round has no task id')
+  const liveBranch = runCli('git', ['branch', '--show-current'], {
+    cwd: root,
+    timeoutMs: 5000,
+  }).stdout.trim()
+  return {
+    taskId: state.taskId,
+    branch: (state.branch ?? liveBranch) || '<current-branch>',
+    sha: round.head ?? '<frozen-sha>',
   }
 }
 
@@ -1138,6 +1214,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   writeVerificationCompanionEvidence(root, phase, state?.taskId, profile, opts)
 
   return buildActiveShipResult({
+    root,
     phase,
     treatment,
     profile,
