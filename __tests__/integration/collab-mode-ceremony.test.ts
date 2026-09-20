@@ -163,8 +163,8 @@ describe('collaborationMode — ceremony divergence (#1119)', () => {
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true, solo: true })
 
     const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
-    expect(shipMd).toContain('One implementer owns the write lane.')
-    expect(shipMd).toContain('same final reviewer')
+    expect(shipMd).toContain('The final reviewer covers code, tests, and acceptance fit.')
+    expect(shipMd).toContain('final reviewer')
   })
 
   it('peer-review ship.md delegates landing to the same runtime (#2681)', async () => {

@@ -13,6 +13,7 @@ import {
   writeFileSync,
   rmSync,
   cpSync,
+  chmodSync,
   symlinkSync,
   readFileSync,
 } from 'node:fs'
@@ -49,6 +50,18 @@ function writeState(phase: string, plan = 'plan.md', planBody = GOOD_PLAN) {
     JSON.stringify({ taskId: '#42', phase, plan }),
   )
   if (planBody !== null) writeFileSync(join(root, plan), planBody)
+}
+
+function installGh(response: Record<string, unknown>): string {
+  const bin = join(root, 'bin')
+  mkdirSync(bin, { recursive: true })
+  const gh = join(bin, 'gh')
+  writeFileSync(
+    gh,
+    `#!/bin/sh\nprintf '%s' '${JSON.stringify(response).replaceAll("'", "'\\\"'\\\"'")}'\n`,
+  )
+  chmodSync(gh, 0o755)
+  return bin
 }
 
 beforeEach(() => {
@@ -252,6 +265,86 @@ describe('check-acceptance gate', () => {
     writeFileSync(join(root, 'bad.md'), 'nothing')
     expect(run({}, ['--plan', 'bad.md']).status).toBe(1)
     expect(run({}, ['--plan', 'missing.md']).status).toBe(2)
+  })
+
+  it('--admit-issue returns NO DATA (2) when gh cannot read the issue', () => {
+    writeFileSync(join(root, 'wave.md'), GOOD_PLAN)
+    const r = run({}, ['--plan', 'wave.md', '--admit-issue', '42'])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/NO DATA/i)
+  })
+
+  it('--admit-issue accepts positional source criteria with matching frozen text', () => {
+    writeFileSync(
+      join(root, 'wave.md'),
+      [
+        '## Acceptance Criteria',
+        '- [ ] AC-42.1: preserves the requested outcome',
+        '## Non-Goals',
+        '- x',
+      ].join('\n'),
+    )
+    const bin = installGh({
+      number: 42,
+      url: 'https://example.invalid/issues/42',
+      body: '## Acceptance Criteria\n- preserves the requested outcome',
+      updatedAt: '2026-09-20T00:00:00Z',
+    })
+    const result = run({ PATH: `${bin}:${process.env.PATH ?? ''}` }, [
+      '--plan',
+      'wave.md',
+      '--admit-issue',
+      '42',
+    ])
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('OK check-acceptance (issue #42 admitted)')
+  })
+
+  it('--admit-issue rejects a source criterion missing from the plan', () => {
+    writeFileSync(
+      join(root, 'wave.md'),
+      [
+        '## Acceptance Criteria',
+        '- [ ] AC-42.1: preserves the requested outcome',
+        '## Non-Goals',
+        '- x',
+      ].join('\n'),
+    )
+    const bin = installGh({
+      number: 42,
+      url: 'https://example.invalid/issues/42',
+      body: [
+        '## Acceptance Criteria',
+        '- AC-1: preserves the requested outcome',
+        '- AC-2: reports the failure',
+      ].join('\n'),
+      updatedAt: '2026-09-20T00:00:00Z',
+    })
+    const result = run({ PATH: `${bin}:${process.env.PATH ?? ''}` }, [
+      '--plan',
+      'wave.md',
+      '--admit-issue',
+      '42',
+    ])
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('criterion AC-2 is missing as plan AC-42.2')
+  })
+
+  it('--admit-issue kills a timed-out gh process and returns explicit NO DATA (2)', () => {
+    writeFileSync(join(root, 'wave.md'), GOOD_PLAN)
+    const bin = join(root, 'bin')
+    mkdirSync(bin, { recursive: true })
+    const gh = join(bin, 'gh')
+    writeFileSync(gh, "#!/bin/sh\ntrap '' TERM\nwhile :; do :; done\n")
+    chmodSync(gh, 0o755)
+    const result = run({ PATH: `${bin}:${process.env.PATH ?? ''}` }, [
+      '--plan',
+      'wave.md',
+      '--admit-issue',
+      '42',
+    ])
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('NO DATA: unable to read issue #42 for plan admission')
   })
 
   it('--plan --ac-fit combined mode enforces all-PASS wave fit — red-team F5', () => {

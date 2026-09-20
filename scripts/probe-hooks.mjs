@@ -32,6 +32,11 @@ const PROBE_SCRATCH = '.arb-probe-tmp'
 // a blocker. That branch is probed as a SECOND row (mode PROMOTED) which must exit 2, so
 // "the *_HARD mode promotes it" stops being an unexecuted claim in a code comment.
 const ADVISORY = {
+  'post-commit-check.mjs': {
+    rationale:
+      'Registered commit-message advisory; commit-msg and L1 commitlint remain authoritative.',
+    kind: 'bad-commit',
+  },
   'debug-state-on-failure.mjs': {
     rationale:
       'Records diagnostic context after a failed tool call and intentionally never blocks.',
@@ -229,18 +234,13 @@ const HARD = {
     kind: 'prompt',
     value: 'task complete, ready to merge',
   },
-  'post-commit-check.mjs': {
-    states: ['PRIMED'],
-    rationale: 'Commit-message enforcement is evaluated after a commit command.',
-    kind: 'bad-commit',
-  },
 }
 
 try {
   const options = parseArgs(process.argv.slice(2))
   const result = probeRepository(options.root, options.language)
   process.stdout.write(JSON.stringify(result, null, 2) + '\n')
-  process.exit(result.exitCode)
+  process.exitCode = result.exitCode
 } catch (error) {
   process.stderr.write(
     `[probe-hooks] ERROR — ${error instanceof Error ? error.message : String(error)}\n`,

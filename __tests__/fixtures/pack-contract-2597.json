@@ -5,9 +5,9 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 4529407,
-    "entryCount": 983,
-    "rosterSha256": "cacf0c1fd6d8fb3bece852daf498dafb6c5776f6ad0029ee36d3a265a6da0db3"
+    "unpackedSize": 4497495,
+    "entryCount": 968,
+    "rosterSha256": "1ea1d3026d20d832ccb7d97acb285215e9df8d9562772b27ad51fbee87dd5426"
   },
   "manifest": {
     "bin": {
@@ -73,24 +73,24 @@
     "pathsSha256": "e0947fc66eba1a5a4e53f9675db1fb31d3e56730f406c6c9ca8aa00db706499a"
   },
   "templates": {
-    "count": 636,
-    "pathsSha256": "e761e559c355a1f5487b05fc4c735e61dbaa98d46e439b0702dea0752c3c5707"
+    "count": 621,
+    "pathsSha256": "716dfae98aae48e3680d41ea7186154a109c385ce27738f0625766963a224a4b"
   },
   "leading_spdx": {
     "count": 283,
     "pathsSha256": "579b6df6a432ac9a3e5c657e934fc4dad2686ec63d63b29392a841467e0f8214"
   },
   "repinned": {
-    "task_id": "#2663+#2662+#2414",
-    "reason": "the product-audit finding domain enters the published runtime roster",
+    "task_id": "#2767",
+    "reason": "the 15 post-commit-checklists/* EJS partials leave the published roster: the post-commit hook is a silent advisory and no longer renders the per-track checklist",
     "before": {
-      "entryCount": 991,
-      "templates": 645,
-      "spdx": 282
+      "entryCount": 983,
+      "templates": 636,
+      "spdx": 283
     },
     "after": {
-      "entryCount": 992,
-      "templates": 645,
+      "entryCount": 968,
+      "templates": 621,
       "spdx": 283
     }
   }

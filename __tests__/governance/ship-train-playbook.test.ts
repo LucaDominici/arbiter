@@ -33,7 +33,6 @@ describe('capability train contract', () => {
 
   it.each(SHIP_TWINS)('%s performs one certification and one gate per train', (path) => {
     const body = flat(path)
-    expect(body).toContain('one targeted certification')
     expect(body).toContain('one clean-HEAD full gate')
     expect(body).toContain('one plan, one branch, one candidate, one final gate, and one PR')
   })

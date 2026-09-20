@@ -1,115 +1,80 @@
 // SPDX-License-Identifier: Apache-2.0
-// CANON-04: render tests for post-commit-check.mjs.ejs and its 15 stack×track partials (#724).
+// CANON-04: render test for post-commit-check.mjs.ejs (#724).
 import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
-import type { Language } from '../../src/wizard/types.js'
-
-// Partial paths verified by this test suite (satisfies check-template-tests.mjs scanner):
-// claude/hooks/post-commit-checklists/ts/frontend.ejs
-// claude/hooks/post-commit-checklists/ts/backend.ejs
-// claude/hooks/post-commit-checklists/ts/docs.ejs
-// claude/hooks/post-commit-checklists/java/frontend.ejs
-// claude/hooks/post-commit-checklists/java/backend.ejs
-// claude/hooks/post-commit-checklists/java/docs.ejs
-// claude/hooks/post-commit-checklists/go/frontend.ejs
-// claude/hooks/post-commit-checklists/go/backend.ejs
-// claude/hooks/post-commit-checklists/go/docs.ejs
-// claude/hooks/post-commit-checklists/python/frontend.ejs
-// claude/hooks/post-commit-checklists/python/backend.ejs
-// claude/hooks/post-commit-checklists/python/docs.ejs
-// claude/hooks/post-commit-checklists/rust/frontend.ejs
-// claude/hooks/post-commit-checklists/rust/backend.ejs
-// claude/hooks/post-commit-checklists/rust/docs.ejs
-
-const STACKS: Language[] = ['typescript', 'java', 'go', 'python', 'rust']
-
-// Unique FE-only marker per stack (not present in BE partial of same stack)
-const EXPECTED_FE: Record<string, string> = {
-  typescript: 'tsc --noEmit',
-  java: 'Selenium',
-  go: 'go vet',
-  python: 'coverage run',
-  rust: 'cargo clippy',
-}
-
-// Unique BE-only marker per stack (not present in FE partial of same stack)
-const EXPECTED_BE: Record<string, string> = {
-  typescript: 'eslint',
-  java: 'JaCoCo',
-  go: 'golangci-lint',
-  python: 'mypy',
-  rust: 'cargo audit',
-}
 
 describe('post-commit-check.mjs.ejs (#724)', () => {
-  for (const lang of STACKS) {
-    describe(`stack: ${lang}`, () => {
-      it('renders without EJS leaks', () => {
-        const cfg = makeConfig('/tmp/test', { language: lang }) as unknown as Record<
-          string,
-          unknown
-        >
-        const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
-        expect(out).not.toContain('<%')
-        expect(out).not.toContain('%>')
-      })
+  const cfg = makeConfig('/tmp/test', { language: 'typescript' }) as unknown as Record<
+    string,
+    unknown
+  >
 
-      it('contains FE checklist for the stack', () => {
-        const cfg = makeConfig('/tmp/test', { language: lang }) as unknown as Record<
-          string,
-          unknown
-        >
-        const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
-        expect(out).toContain(EXPECTED_FE[lang])
-      })
-
-      it('contains BE checklist for the stack', () => {
-        const cfg = makeConfig('/tmp/test', { language: lang }) as unknown as Record<
-          string,
-          unknown
-        >
-        const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
-        expect(out).toContain(EXPECTED_BE[lang])
-      })
-
-      it('contains docs checklist', () => {
-        const cfg = makeConfig('/tmp/test', { language: lang }) as unknown as Record<
-          string,
-          unknown
-        >
-        const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
-        expect(out).toContain('hasDocs')
-        expect(out).toContain('Docs')
-      })
-
-      it('contains hasFE, hasBE, hasDocs track variables', () => {
-        const cfg = makeConfig('/tmp/test', { language: lang }) as unknown as Record<
-          string,
-          unknown
-        >
-        const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
-        expect(out).toContain('hasFE')
-        expect(out).toContain('hasBE')
-        expect(out).toContain('hasDocs')
-      })
-
-      it('emits valid JS shebang', () => {
-        const cfg = makeConfig('/tmp/test', { language: lang }) as unknown as Record<
-          string,
-          unknown
-        >
-        const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
-        expect(out.startsWith('#!/usr/bin/env node')).toBe(true)
-      })
+  function spawnRenderedHook(
+    lib: string,
+    git = '#!/usr/bin/env sh\nprintf "bad subject\\n"\n',
+    injectFailure = false,
+  ) {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-post-commit-render-'))
+    const hookPath = join(dir, 'post-commit-check.mjs')
+    const gitPath = join(dir, 'git')
+    const hook = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
+    const source = injectFailure
+      ? hook.replace('const command = resolveToolInputCommand()', 'throw null')
+      : hook
+    if (injectFailure && source === hook) throw new Error('fault injection did not apply')
+    writeFileSync(hookPath, source)
+    writeFileSync(join(dir, 'lib.mjs'), lib)
+    writeFileSync(gitPath, git)
+    chmodSync(gitPath, 0o755)
+    const result = spawnSync(process.execPath, [hookPath], {
+      cwd: dir,
+      encoding: 'utf-8',
+      input: JSON.stringify({ tool_input: { command: 'git commit' } }),
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        CLAUDE_TOOL_INPUT_COMMAND: 'git commit',
+        PATH: `${dir}:${process.env.PATH ?? ''}`,
+      },
+      timeout: 5000,
     })
+    rmSync(dir, { recursive: true, force: true })
+    return result
   }
 
-  it('multi language falls back to ts stack without EJS leaks', () => {
-    const cfg = makeConfig('/tmp/test', { language: 'multi' }) as unknown as Record<string, unknown>
+  it('renders an advisory without checklist output or EJS leaks', () => {
     const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
     expect(out).not.toContain('<%')
     expect(out).not.toContain('%>')
-    expect(out).toContain('tsc --noEmit')
+    expect(out.startsWith('#!/usr/bin/env node')).toBe(true)
+    expect(out).not.toContain('Track:')
+  })
+
+  it('exits 0 and prints one line for a bad commit message (#2767)', () => {
+    const result = spawnRenderedHook(renderTemplate('claude/hooks/lib.mjs.ejs', cfg))
+    expect(result.status).toBe(0)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toBe('[arbiter] Advisory: non-conventional commit message: bad subject\n')
+  })
+
+  it('exits 0 and prints one line when the advisory is unavailable (#2767)', () => {
+    const result = spawnRenderedHook(
+      "export function resolveToolInputCommand() { return 'git commit' }\n",
+      undefined,
+      true,
+    )
+    expect(result.status).toBe(0)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toBe('[arbiter] Advisory unavailable: null\n')
+  })
+
+  it('registers the always-zero advisory in generated Claude and Codex dispatchers (#2767)', () => {
+    expect(renderTemplate('claude/hooks/hooks.mjs.ejs', cfg)).toContain('post-commit-check.mjs')
+    expect(renderTemplate('codex/config.toml.ejs', cfg)).toContain('post-commit-check.mjs')
   })
 })
