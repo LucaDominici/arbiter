@@ -32,7 +32,7 @@
   {
     "path": "settings.json",
     "reason": "Arbiter self-dogfood: includes check-no-direct-spawn.mjs (arbiter-internal hook with no .ejs template yet) and check-no-any.mjs (generated from languageHook body not .ejs template), and a different UserPromptSubmit structure with matcher:* group. These were added directly to arbiter's .claude/settings.json without being back-ported to the template. (Materialization tracked in #1090; whole-file exemption to be narrowed there.) Also directly wires check-no-skipped-tests.mjs so the self-repo's preserved per-hook settings remain live while target projects use the dispatcher (#2129). Also wires guard-done-evidence.mjs into UserPromptSubmit (#1872) — the hook is flag-gated (inert until features.evidenceHarness: true) so wiring it is safe with the flag off. Also wires stop-finding-loss.mjs into the Stop matcher chain (#1948, E6b) per OD-14 (2026-07-17) self-first activation — the template settings.json.ejs stays minimal (advisory hook, hard only via ARBITER_FINDING_LOSS_HARD=1); template follows at promotion date. Also wires pre-spawn-worktree-guard.mjs into a new PreToolUse Task|Agent matcher (#1947, E5) per OD-14 (2026-07-17) self-first activation, same advisory-by-default/hard-via-env pattern (ARBITER_SPAWN_GUARD_HARD=1) — the template settings.json.ejs uses a generic hooks.mjs dispatcher shape (not per-hook matcher blocks) and is not updated here; template follows at promotion date. Also wires closer-mode-guard.mjs into PreToolUse Bash (#2014); it is inert outside the `close` phase. Also wires post-subagent-release.mjs into a new SubagentStop matcher (#1947, E5, #2403) — the SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs's sidecar registration; same self-direct-command / template-dispatcher-stub pattern as the rest of this entry (the template settings.json.ejs's SubagentStop block calls the generic hooks.mjs dispatcher, which is not yet wired to route to post-subagent-release.mjs for generated projects — self-first activation, template rollout deferred).",
-    "diffHash": "a27ddbb809fba9bef68cbf9cb22e015ad90368c94e5e091898d47ff23ddfcc37"
+    "diffHash": "42b7c372f7e83813e521a340ccf0731ade64a2b363df5e9939a6dca271ab820e"
   },
   {
     "path": "hooks/pre-edit-plan-anchor.mjs",
@@ -42,12 +42,12 @@
   {
     "path": "hooks/hooks.mjs",
     "reason": "Arbiter self-dogfood: RE-AFFIRMED (#2014): arbiter deliberately keeps per-hook wiring in its own settings.json. It wires hooks the dispatcher does not carry (check-no-direct-spawn.mjs and pre-edit-load-memory.mjs) and activates hooks self-first per OD-14 (stop-finding-loss.mjs and pre-spawn-worktree-guard.mjs). Collapsing self into the dispatcher would either lose those hooks or force the template to carry arbiter-only handlers. The dispatcher remains the Track-B shape emitted to targets and is never deleted. Re-affirming the wiring mechanism does not license leaving an applicable hook dormant: closer-mode-guard.mjs was wired under #2014 because it applies to arbiter. check-no-mockmvc.mjs and check-no-raw-types.mjs remain unwired because they are Java-language hooks inapplicable to this TypeScript repo — by language, not by deferral.",
-    "diffHash": "14b83b1eda8f076052f0cd7a8264997ea006a0153536c3ff8bf2f002bf1c3aee"
+    "diffHash": "e23db48a8f6f425d44d2f158ce4e9492c04289a98da962c33d5400bcc7efedd1"
   },
   {
     "path": "hooks/post-commit-check.mjs",
     "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 — static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) — intentional: arbiter's self-config is more conservative than generated target advice.",
-    "diffHash": "4ceacea62229c8d2211d03921824f44309a0dd76d05c2113eeab47ffee2b3847"
+    "diffHash": "5f44e8c5e0c481691e484e734f81162e21c2e60a61823d3083b7c9b460a23add"
   },
   {
     "path": "hooks/check-no-orphan-todo.mjs",

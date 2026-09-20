@@ -113,7 +113,7 @@ sealed; and the copy carries `.env` into `/tmp`. Cost: 4.1 s copy + a 16.0 s med
 self surface is covered by the mechanism above instead.
 
 **Resolved in #2767.** `post-commit-check` is a retained manual ADVISORY: both copies exit 0 with
-a concise notice for a malformed message and neither Claude nor Codex registers it automatically.
+a concise notice for a malformed message and neither Claude nor Codex registers it automatically; invoke it on demand with `npm run advisory:post-commit`.
 `.githooks/commit-msg` and L1 `commitlint` remain the blocking controls.
 
 ---
