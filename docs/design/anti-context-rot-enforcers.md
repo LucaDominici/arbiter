@@ -382,6 +382,11 @@ TO-CREATE (dispatch-manifest: an agent prompt references exactly one task).
    future spawns — staleness handling mirrors `git worktree prune --stale`. The entry's
    `pid` is the Claude Code session (`CLAUDE_PID`), not the short-lived hook process; an entry
    whose pid is gone (ESRCH) is pruned at once, and one without a pid is age-only (#2588).
+   Pid reuse is tolerated deliberately (#2489): a recycled pid can only make a _dead_ entry
+   probe alive, which keeps it until the TTL — the fail-closed direction — and never makes a
+   live entry report ESRCH, so the record needs no start-time pairing. The refusal names the
+   sidecar path it read, because `getRepoRoot()` can resolve to a worktree while the main
+   checkout's sidecar reads `[]` (#2489).
 3. **One-task rule (M2).** Count distinct `#\d+` task ids in the prompt: >1 ⇒ advisory
    stderr at soft hardness, exit 2 at hard (grading via the hooks manifest — body unchanged).
 
