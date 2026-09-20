@@ -8,6 +8,8 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+- Emitted `_contract-postman.yml` pins `mikepenz/action-junit-report` v5.2.0 to its real commit; the
+  previous SHA did not exist upstream and broke the Newman job in regenerated targets.
 - `arbiter lifecycle record-red --at <sha>` can replay a failing test from an ancestor writer commit in an isolated worktree and pin that commit in the evidence (#2747).
 - Completion, done-evidence, and TDD provenance guards now inspect Claude's final response/turn on
   `Stop`; Codex reports native `arbiter task advance` coverage without claiming final-response interception.
