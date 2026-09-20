@@ -73,6 +73,11 @@ node scripts/check-all.mjs L1   # fast gate
 node scripts/check-all.mjs L2   # full gate including SHA pins
 ```
 
+`node scripts/check-all.mjs preflight` is diagnostic only: it never writes gate-pass evidence.
+It also runs codex self-parity, fail-closed audit, and committed-history TDD/docs checks before push.
+With a dirty tree, it says that the TDD/docs result may change after commit; `docs:build` runs only
+when `docs/`, `website/`, or `AGENTS.md` differ from `origin/main`.
+
 Inspection flags (#2078, GATE-1 of #2041), for iterating on a single failing check without paying for the whole suite:
 
 ```bash

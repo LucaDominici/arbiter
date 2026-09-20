@@ -309,7 +309,6 @@ describe('result-first preflight (#2724)', () => {
       expect(
         result.calls.some(
           (call) =>
-            call.includes('scripts/check-tdd-evidence.mjs') ||
             call.includes('scripts/check-review-completion.mjs') ||
             call.includes('scripts/check-acceptance.mjs') ||
             call.includes('test') ||
@@ -343,6 +342,16 @@ describe('result-first preflight (#2724)', () => {
     expect(result.status, result.stderr).toBe(0)
     expect(result.stdout).toContain(
       'tdd-evidence and docs are evaluated against committed history and the working tree is dirty',
+    )
+  })
+
+  it('skips docs:build with a reason when no origin/main comparison is available (#2746)', () => {
+    const result = runGate('preflight')
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.calls.some((call) => call.join(' ') === 'npm run docs:build:verify')).toBe(false)
+    expect(result.stdout).toContain(
+      'docs:build ... SKIP (could not compare changes with origin/main)',
     )
   })
 
