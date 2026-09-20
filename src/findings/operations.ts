@@ -442,16 +442,58 @@ function drainSpool(dir: string, records: readonly DrainRecord[], now: Date): vo
 // Orchestrator
 // ---------------------------------------------------------------------------
 
+/** The per-outcome buckets a promote run fills; `drained` mirrors what leaves the spool. */
+interface PromoteTally {
+  promoted: Outcome[]
+  dropped: Outcome[]
+  skipped: Outcome[]
+  deferred: Outcome[]
+  drained: Outcome[]
+  drainRecords: DrainRecord[]
+}
+
+function emptyTally(): PromoteTally {
+  return { promoted: [], dropped: [], skipped: [], deferred: [], drained: [], drainRecords: [] }
+}
+
+function markDrained(t: PromoteTally, f: SpoolFinding, record: DrainRecord): void {
+  t.drained.push(toOutcome(f))
+  t.drainRecords.push(record)
+}
+
+/** Route one decided finding into its buckets. `failed` never reaches here (the caller aborts). */
+function tally(
+  t: PromoteTally,
+  f: SpoolFinding,
+  action: Exclude<PromotionAction, { kind: 'failed' }>,
+  recordIssue: (issueNumber: number) => void,
+): void {
+  if (action.kind === 'dropped') {
+    t.dropped.push(toOutcome(f))
+    // The code this finding described is gone: it no longer describes reality.
+    markDrained(t, f, toDrainRecord(f, 'dropped'))
+    return
+  }
+  if (action.kind === 'skipped') {
+    t.skipped.push(toOutcome(f))
+    // Only an OPEN issue makes the finding durable. A fingerprint inside the
+    // closed-issue cooldown stays in the spool so it can be re-promoted later.
+    if (action.tracked) markDrained(t, f, toDrainRecord(f, 'tracked'))
+    return
+  }
+  if (action.kind === 'deferred') {
+    t.deferred.push(toOutcome(f))
+    return
+  }
+  recordIssue(action.issueNumber)
+  t.promoted.push(toOutcome(f))
+  markDrained(t, f, { ...toDrainRecord(f, 'promoted'), issue: action.issueNumber })
+}
+
 function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPromoteResult {
   const { dir = process.cwd(), now = new Date(), ageSweepDays = DEFAULT_AGE_SWEEP_DAYS } = opts
 
-  const promoted: Outcome[] = []
-  const dropped: Outcome[] = []
-  const skipped: Outcome[] = []
-  const deferred: Outcome[] = []
-  const drained: Outcome[] = []
-  const drainRecords: DrainRecord[] = []
-
+  const t = emptyTally()
   const unique = dedupByFingerprint(readSpool(dir))
 
   // Bootstrap the `finding` label once before any filing.
@@ -459,45 +501,25 @@ function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPr
 
   const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
   let evidenceReady = false
-
-  for (const f of unique) {
-    const action = promoteOne(dir, f, now, ageSweepDays, deps)
-    if (action.kind === 'dropped') {
-      dropped.push(toOutcome(f))
-      // The code this finding described is gone: it no longer describes reality.
-      drained.push(toOutcome(f))
-      drainRecords.push(toDrainRecord(f, 'dropped'))
-      continue
-    }
-    if (action.kind === 'skipped') {
-      skipped.push(toOutcome(f))
-      // Only an OPEN issue makes the finding durable. A fingerprint inside the
-      // closed-issue cooldown stays in the spool so it can be re-promoted later.
-      if (action.tracked) {
-        drained.push(toOutcome(f))
-        drainRecords.push(toDrainRecord(f, 'tracked'))
-      }
-      continue
-    }
-    if (action.kind === 'deferred') {
-      deferred.push(toOutcome(f))
-      continue
-    }
-    // A failed filing aborts before any drain: a partial run never empties the spool.
-    // Re-running is safe — the `arbiter-fp:` marker makes the search skip what was filed.
-    if (action.kind === 'failed') return { ok: false, reason: action.reason }
+  const recordIssue = (issueNumber: number): void => {
     if (!evidenceReady) {
       ensureDir(evidenceDir)
       evidenceReady = true
     }
-    appendTechDebtIssue(evidenceDir, action.issueNumber)
-    promoted.push(toOutcome(f))
-    drained.push(toOutcome(f))
-    drainRecords.push({ ...toDrainRecord(f, 'promoted'), issue: action.issueNumber })
+    appendTechDebtIssue(evidenceDir, issueNumber)
   }
 
-  drainSpool(dir, drainRecords, now)
+  for (const f of unique) {
+    const action = promoteOne(dir, f, now, ageSweepDays, deps)
+    // A failed filing aborts before any drain: a partial run never empties the spool.
+    // Re-running is safe — the `arbiter-fp:` marker makes the search skip what was filed.
+    if (action.kind === 'failed') return { ok: false, reason: action.reason }
+    tally(t, f, action, recordIssue)
+  }
 
+  drainSpool(dir, t.drainRecords, now)
+
+  const { promoted, dropped, skipped, deferred, drained } = t
   return { ok: true, promoted, dropped, skipped, deferred, drained }
 }
 
