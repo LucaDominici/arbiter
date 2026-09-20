@@ -9,11 +9,26 @@
 // foreign file was never in the manifest, so it survives and the parity gate keeps rejecting it
 // (CANON-25) instead of a regen silently turning the tree green by deleting unknown files.
 //
-// This suite drives the helper directly and needs no dist/: the TDD replay re-runs it in a
-// detached checkout that has no build output, and the RED evidence must be identical there.
-// The end-to-end build + parity proof lives in build-kernel-plugin-prune.test.ts.
+// Fail-closed (independent review of #2777): every manifest entry is validated before ANY
+// deletion, a symlinked output root / manifest is refused, and a missing or malformed previous
+// manifest prunes nothing and fails with a named reason.
+//
+// Nearly everything here drives the helper directly and needs no dist/: the TDD replay re-runs
+// this file in a detached checkout that has no build output, and the RED evidence must be
+// identical there. The one build-ordering case spawns the writer, so it fails in both places at
+// RED and passes wherever dist/ exists. The end-to-end build + parity proof lives in
+// build-kernel-plugin-prune.test.ts.
 import { describe, it, expect, afterEach } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -67,14 +82,131 @@ describe('kernel-manifest syncManifest (#2763)', () => {
     expect(readFileSync(join(dir, 'foreign.mjs'), 'utf-8')).toBe('hand-added')
   })
 
-  it('treats an absent manifest as a first build: nothing is pruned', async () => {
+  it('treats an absent manifest in an empty root as a first build', async () => {
+    const { syncManifest, MANIFEST } = await load()
+    const dir = fresh()
+
+    expect(syncManifest(dir, ['kept.mjs'])).toEqual([])
+    expect(JSON.parse(readFileSync(join(dir, MANIFEST), 'utf-8')).files).toEqual(['kept.mjs'])
+  })
+
+  it('fails with a named reason, pruning nothing, when the manifest is missing from a populated root', async () => {
     const { syncManifest, MANIFEST } = await load()
     const dir = fresh()
     seed(dir, { 'existing.mjs': 'z' })
 
-    expect(syncManifest(dir, ['kept.mjs'])).toEqual([])
+    expect(() => syncManifest(dir, ['kept.mjs'])).toThrow(/manifest is missing/)
     expect(existsSync(join(dir, 'existing.mjs'))).toBe(true)
-    expect(JSON.parse(readFileSync(join(dir, MANIFEST), 'utf-8')).files).toEqual(['kept.mjs'])
+    expect(existsSync(join(dir, MANIFEST))).toBe(false)
+  })
+
+  it.each([
+    ['unparseable JSON', '{not json'],
+    ['a bare array', '[]'],
+    ['files that is not an array', '{"files":"old.mjs"}'],
+    ['no files key', '{}'],
+  ])(
+    'fails with a named reason, pruning nothing, on a malformed manifest (%s)',
+    async (_n, body) => {
+      const { syncManifest, MANIFEST } = await load()
+      const dir = fresh()
+      seed(dir, { 'old.mjs': 'x' })
+      writeFileSync(join(dir, MANIFEST), body)
+
+      expect(() => syncManifest(dir, ['kept.mjs'])).toThrow(/manifest is malformed/)
+      expect(existsSync(join(dir, 'old.mjs'))).toBe(true)
+      expect(readFileSync(join(dir, MANIFEST), 'utf-8')).toBe(body)
+    },
+  )
+
+  it.each([
+    ['an empty string', ''],
+    ['a NUL byte', 'bad\0name.mjs'],
+    ['an absolute path', '/etc/hosts'],
+    ['a dot', '.'],
+    ['a parent dir', '..'],
+    ['a nested path', 'sub/old.mjs'],
+    ['a non-string', 42],
+  ])(
+    'validates every entry before deleting any: %s aborts with old.mjs intact',
+    async (_n, bad) => {
+      const { syncManifest, MANIFEST } = await load()
+      const dir = fresh()
+      seed(dir, { 'old.mjs': 'x' })
+      const before = JSON.stringify({ files: ['old.mjs', bad] })
+      writeFileSync(join(dir, MANIFEST), before)
+
+      expect(() => syncManifest(dir, ['kept.mjs'])).toThrow(/not a plain file name/)
+      expect(existsSync(join(dir, 'old.mjs'))).toBe(true)
+      expect(readFileSync(join(dir, MANIFEST), 'utf-8')).toBe(before)
+    },
+  )
+
+  it('refuses a manifest entry that names a directory, before deleting anything', async () => {
+    const { syncManifest, MANIFEST } = await load()
+    const dir = fresh()
+    seed(dir, { 'old.mjs': 'x' })
+    mkdirSync(join(dir, 'subdir'))
+    writeFileSync(join(dir, MANIFEST), JSON.stringify({ files: ['old.mjs', 'subdir'] }))
+
+    expect(() => syncManifest(dir, ['kept.mjs'])).toThrow(/not a regular file/)
+    expect(existsSync(join(dir, 'old.mjs'))).toBe(true)
+    expect(existsSync(join(dir, 'subdir'))).toBe(true)
+  })
+
+  it('refuses a symlinked output root: the external file it points at survives', async () => {
+    const { syncManifest, MANIFEST } = await load()
+    const dir = fresh()
+    const external = join(dirname(dir), 'external')
+    mkdirSync(external)
+    writeFileSync(join(external, 'victim.txt'), 'keep me')
+    writeFileSync(join(external, MANIFEST), JSON.stringify({ files: ['victim.txt'] }))
+    const link = join(dirname(dir), 'link-root')
+    symlinkSync(external, link, 'dir')
+
+    expect(() => syncManifest(link, ['kept.mjs'])).toThrow(/symlink/)
+    expect(readFileSync(join(external, 'victim.txt'), 'utf-8')).toBe('keep me')
+  })
+
+  it('refuses a symlinked manifest so the new manifest is never written through it', async () => {
+    const { syncManifest, MANIFEST } = await load()
+    const dir = fresh()
+    const target = join(dirname(dir), 'elsewhere.json')
+    writeFileSync(target, JSON.stringify({ files: [] }))
+    symlinkSync(target, join(dir, MANIFEST))
+
+    expect(() => syncManifest(dir, ['kept.mjs'])).toThrow(/symlink/)
+    expect(readFileSync(target, 'utf-8')).toBe(JSON.stringify({ files: [] }))
+  })
+
+  it('removes a listed symlink entry itself and never the file it points at', async () => {
+    const { syncManifest, MANIFEST } = await load()
+    const dir = fresh()
+    const target = join(dirname(dir), 'outside.txt')
+    writeFileSync(target, 'keep me')
+    symlinkSync(target, join(dir, 'old.mjs'))
+    writeFileSync(join(dir, MANIFEST), JSON.stringify({ files: ['old.mjs'] }))
+
+    expect(syncManifest(dir, ['kept.mjs'])).toEqual(['old.mjs'])
+    expect(readFileSync(target, 'utf-8')).toBe('keep me')
+  })
+
+  it('prunes a stale hook that imports a removed dependency instead of aborting the build first', () => {
+    // Needs dist/ (spawns the writer). Before the fix shipVerifierImports scanned the stale
+    // file's dead import and threw before the prune ever ran.
+    const out = join(fresh(), 'build-out')
+    const build = resolve(__dirname, '..', '..', 'scripts', 'build-kernel-plugin.mjs')
+    const first = spawnSync('node', [build, `--out=${out}`], { encoding: 'utf-8' })
+    expect(first.status, `${first.stdout}${first.stderr}`).toBe(0)
+    const manifestPath = join(out, '.kernel-build-manifest.json')
+    const files: string[] = JSON.parse(readFileSync(manifestPath, 'utf-8')).files
+    writeFileSync(manifestPath, JSON.stringify({ files: [...files, 'stale.mjs'] }))
+    writeFileSync(join(out, 'stale.mjs'), "import { gone } from './removed-dependency.mjs'\n")
+
+    const second = spawnSync('node', [build, `--out=${out}`], { encoding: 'utf-8' })
+
+    expect(second.status, `${second.stdout}${second.stderr}`).toBe(0)
+    expect(existsSync(join(out, 'stale.mjs'))).toBe(false)
   })
 
   it('refuses a manifest entry that is not a plain file name, deleting nothing outside the root', async () => {
