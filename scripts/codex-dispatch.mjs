@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-import { spawnSync } from 'node:child_process'
-import { mkdirSync, realpathSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdirSync, readFileSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { arg } from './lib/gate-args.mjs'
 import { buildCodexArgs } from './lib/codex-dispatch-lib.mjs'
@@ -20,15 +20,31 @@ if (required.some((name) => values[name] === null)) {
 try {
   const worktreePath = realpathSync(values.worktree)
   mkdirSync(join(worktreePath, 'node_modules', '.vite-temp'), { recursive: true })
+  const resumeSessionId = arg('resume', argv) ?? undefined
+  const gitDir = resumeSessionId
+    ? undefined
+    : execFileSync('git', ['rev-parse', '--absolute-git-dir'], {
+        cwd: worktreePath,
+        encoding: 'utf8',
+      }).trim()
+  const commonGitDir = resumeSessionId
+    ? undefined
+    : execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+        cwd: worktreePath,
+        encoding: 'utf8',
+      }).trim()
+  const briefText = readFileSync(values.brief, 'utf8')
   const result = spawnSync(
     'codex',
     buildCodexArgs({
       worktreePath,
       model: values.model,
       effort: values.effort,
-      briefPath: values.brief,
+      gitDir,
+      commonGitDir,
+      briefText,
       outPath: values.out,
-      resumeSessionId: arg('resume', argv) ?? undefined,
+      resumeSessionId,
     }),
     { cwd: worktreePath, stdio: ['ignore', 'inherit', 'inherit'] },
   )

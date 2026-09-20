@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-
-function gitPath(worktreePath, args) {
-  return execFileSync('git', args, { cwd: worktreePath, encoding: 'utf8' }).trim()
-}
 
 function commonArgs({ model, effort, outPath }) {
   return [
@@ -20,12 +14,15 @@ function commonArgs({ model, effort, outPath }) {
   ]
 }
 
-/** Build argv for a Codex writer dispatch. */
+/** Build argv for a Codex writer dispatch. Caller resolves gitDir/commonGitDir/briefText
+ *  (I/O) before calling in — this stays a pure argv builder. */
 export function buildCodexArgs({
   worktreePath,
   model,
   effort,
-  briefPath,
+  gitDir,
+  commonGitDir,
+  briefText,
   outPath,
   resumeSessionId,
 }) {
@@ -36,14 +33,14 @@ export function buildCodexArgs({
       '-s',
       'workspace-write',
       '--add-dir',
-      gitPath(worktreePath, ['rev-parse', '--absolute-git-dir']),
+      gitDir,
       '--add-dir',
-      gitPath(worktreePath, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
+      commonGitDir,
       '--add-dir',
       join(worktreePath, 'node_modules', '.vite-temp'),
     )
   }
-  args.push(readFileSync(briefPath, 'utf8'))
+  args.push(briefText)
   return args
 }
 

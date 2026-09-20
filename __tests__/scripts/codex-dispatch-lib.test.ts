@@ -32,13 +32,6 @@ describe('codex dispatch argument builder', () => {
   it('builds a fresh writer command with its real Git and Vite paths', () => {
     const fixture = makeWorktree()
     try {
-      const args = buildCodexArgs({
-        worktreePath: fixture.worktree,
-        model: 'gpt-5.6-terra',
-        effort: 'low',
-        briefPath: fixture.brief,
-        outPath: fixture.out,
-      })
       const gitDir = execFileSync('git', ['rev-parse', '--absolute-git-dir'], {
         cwd: fixture.worktree,
         encoding: 'utf8',
@@ -51,6 +44,15 @@ describe('codex dispatch argument builder', () => {
           encoding: 'utf8',
         },
       ).trim()
+      const args = buildCodexArgs({
+        worktreePath: fixture.worktree,
+        model: 'gpt-5.6-terra',
+        effort: 'low',
+        gitDir,
+        commonGitDir: commonDir,
+        briefText: 'reply with ok',
+        outPath: fixture.out,
+      })
 
       expect(args).toContain('approval_policy=never')
       expect(args).toContain('-s')
@@ -73,7 +75,7 @@ describe('codex dispatch argument builder', () => {
         worktreePath: fixture.worktree,
         model: 'gpt-5.6-terra',
         effort: 'low',
-        briefPath: fixture.brief,
+        briefText: 'reply with ok',
         outPath: fixture.out,
         resumeSessionId: 'session-123',
       })
