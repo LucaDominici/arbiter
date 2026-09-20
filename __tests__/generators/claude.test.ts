@@ -348,7 +348,7 @@ describe('generateClaude', () => {
   })
 
   it('keeps prompt-only work on UserPromptSubmit and completion/TDD guards on Stop at L2', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    const config = makeConfig(dir, { governanceLevel: 'L2', enableEvidenceHarness: true })
     generateClaude(config)
     const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
     expect(JSON.parse(raw).hooks.UserPromptSubmit).toBeDefined()

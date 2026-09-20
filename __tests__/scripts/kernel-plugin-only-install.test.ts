@@ -68,18 +68,6 @@ afterEach(() => {
 
 const LOAD_FAILURE = /could not be loaded|verifier unavailable/
 
-function stopTranscript(): string {
-  const path = join(base, 'transcript.jsonl')
-  writeFileSync(
-    path,
-    JSON.stringify({
-      type: 'assistant',
-      message: { content: [{ type: 'text', text: 'task complete' }] },
-    }) + '\n',
-  )
-  return path
-}
-
 /** Plan-review evidence valid for HEAD, so stop-evidence-guard reaches the binding verifier. */
 function writePassingPlanReview(): void {
   writeJson('.arbiter/evidence/plan-review/_1/latest.json', {
@@ -100,7 +88,7 @@ describe('kernel plugin hooks in a plugin-only install (#2557)', () => {
   it('guard-done-evidence.mjs loads the done-receipt verifier', () => {
     const r = runHook(
       'guard-done-evidence.mjs',
-      { prompt: 'task complete' },
+      { hook_event_name: 'Stop', last_assistant_message: 'task complete' },
       { ARBITER_EVIDENCE_HARNESS: '1' },
     )
     expect(r.stderr).not.toMatch(LOAD_FAILURE)
@@ -110,7 +98,7 @@ describe('kernel plugin hooks in a plugin-only install (#2557)', () => {
   it('stop-evidence-guard.mjs loads the gate-evidence verifier', () => {
     const r = runHook(
       'stop-evidence-guard.mjs',
-      { transcript_path: stopTranscript() },
+      { hook_event_name: 'Stop', last_assistant_message: 'task complete' },
       { ARBITER_EVIDENCE_HARNESS: '1' },
     )
     expect(r.stderr).not.toMatch(LOAD_FAILURE)
@@ -121,7 +109,7 @@ describe('kernel plugin hooks in a plugin-only install (#2557)', () => {
     writePassingPlanReview()
     const r = runHook(
       'stop-evidence-guard.mjs',
-      { transcript_path: stopTranscript() },
+      { hook_event_name: 'Stop', last_assistant_message: 'task complete' },
       { ARBITER_EVIDENCE_HARNESS: '0' },
     )
     expect(r.stderr).not.toMatch(LOAD_FAILURE)
@@ -148,7 +136,7 @@ describe('kernel plugin hooks in a plugin-only install (#2557)', () => {
       removeShippedVerifiers()
       const r = runHook(
         'guard-done-evidence.mjs',
-        { prompt: 'task complete' },
+        { hook_event_name: 'Stop', last_assistant_message: 'task complete' },
         { ARBITER_EVIDENCE_HARNESS: '1' },
       )
       expect(r.stderr).toMatch(/verifier unavailable/)
@@ -160,7 +148,7 @@ describe('kernel plugin hooks in a plugin-only install (#2557)', () => {
       writePassingPlanReview()
       const r = runHook(
         'stop-evidence-guard.mjs',
-        { transcript_path: stopTranscript() },
+        { hook_event_name: 'Stop', last_assistant_message: 'task complete' },
         { ARBITER_EVIDENCE_HARNESS: '0' },
       )
       expect(r.stderr).toMatch(/evidence binding verifier unavailable/)

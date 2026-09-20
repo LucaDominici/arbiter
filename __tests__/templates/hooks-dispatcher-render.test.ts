@@ -99,7 +99,10 @@ describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
   })
 
   it('registers all completion/TDD guards under Stop at L2', () => {
-    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
+    const out = renderTemplate(
+      'claude/hooks/hooks.mjs.ejs',
+      configFor('typescript', 'L2', { enableEvidenceHarness: true }),
+    )
     const handlers = handlersFor(out, 'Stop')
     expect(handlers).toContain('skill-forced-eval.mjs')
     expect(handlers).toContain('guard-task-completion.mjs')
@@ -158,6 +161,11 @@ describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
   it('spawns handlers via spawnSync', () => {
     const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor())
     expect(out).toContain('spawnSync')
+  })
+
+  it('caps each sequential handler at three seconds', () => {
+    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
+    expect(out).toContain('timeout: 3000')
   })
 
   it('aborts chain on first non-zero exit', () => {

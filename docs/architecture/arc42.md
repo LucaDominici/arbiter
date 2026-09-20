@@ -507,7 +507,7 @@ maps to `GATE` nodes; an empty enforcement is an orphan the graph verifier flags
 
 23 registered Claude-Code hooks across `PreToolUse` (branch/read-only/plan-anchor/SSOT guards),
 `PostToolUse` (no-any / no-placeholders / no-pii / dead-code / circular-deps), `UserPromptSubmit`
-(skill-forced-eval, guard-task-completion), `Stop` (stop-evidence-guard = INV-114),
+(post-brainstorm-stop), `Stop` (skill-forced-eval, completion/evidence guards; stop-evidence-guard = INV-114),
 `PostToolUseFailure` (debug-state capture), `PreCompact`. All are concurrency-class **SAFE** (pure
 read / stdout-inject / append-only) — a structural invariant forbids SERIALIZE hooks and file locks
 in hooks. A **hardness manifest** (ADR-032, INV-36) classifies each hook HARD/ADVISORY with a fixture

@@ -8,6 +8,8 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+- Completion, done-evidence, and TDD provenance guards now inspect Claude's final response/turn on
+  `Stop`; Codex reports native `arbiter task advance` coverage without claiming final-response interception.
 - `post-commit-check.mjs` remains registered as a silent, exit-0 advisory. `.githooks/commit-msg`
   and L1 `commitlint` remain blocking.
 - `/ship` prose: removed seven unenforced promises (cursor checkpoint, model selection, proof/rollback

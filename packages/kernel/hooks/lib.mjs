@@ -835,3 +835,31 @@ export function claudeTranscriptIdentityError(event, repoRoot) {
   }
   return null
 }
+
+/** Final assistant text from a Stop envelope, or its identity-bound transcript fallback. */
+export function readStopAssistantText(event, repoRoot) {
+  if (typeof event?.last_assistant_message === 'string') return event.last_assistant_message
+  if (claudeTranscriptIdentityError(event, repoRoot)) return null
+  let raw
+  try {
+    raw = readFileSync(event.transcript_path, 'utf-8')
+  } catch {
+    return null
+  }
+  let last = null
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue
+    try {
+      const record = JSON.parse(line)
+      if (record?.type === 'assistant') last = record
+    } catch {
+      // A partially-written transcript tail does not erase the last complete response.
+    }
+  }
+  if (last === null) return null
+  const content = Array.isArray(last.message?.content) ? last.message.content : []
+  return content
+    .filter((block) => block?.type === 'text' && typeof block.text === 'string')
+    .map((block) => block.text)
+    .join('\n')
+}

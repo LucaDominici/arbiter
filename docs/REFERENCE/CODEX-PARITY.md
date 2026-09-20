@@ -30,9 +30,10 @@ The table below maps each Claude hook to its Codex workaround.
 | `pre-edit-ssot-guard.mjs`    | —       | LOW      | AGENTS.md hard-stop rule                | Behavioral only                        |
 | `pre-edit-plan-anchor.mjs`   | —       | MEDIUM   | Shared Ship plan + persisted task state | Behavioral — plan enforced by workflow |
 | `debug-state-on-failure.mjs` | —       | LOW      | None                                    | No equivalent                          |
-| `skill-forced-eval.mjs`      | —       | LOW      | None                                    | No equivalent                          |
+| `skill-forced-eval.mjs`      | —       | LOW      | `arbiter task advance` phase gates      | No final-response interception         |
 | `post-edit-dispatch.mjs`     | —       | LOW      | None                                    | No equivalent                          |
-| `guard-task-completion.mjs`  | —       | MEDIUM   | None                                    | No equivalent                          |
+| `guard-task-completion.mjs`  | —       | MEDIUM   | `arbiter task advance` phase gates      | No final-response interception         |
+| `guard-done-evidence.mjs`    | —       | MEDIUM   | `arbiter task advance` phase gates      | No final-response interception         |
 | `check-circular-deps.mjs`    | INV-01  | HIGH     | `madge --circular src` at L1 gate       | Delayed: caught at commit              |
 
 ## Decision Record
@@ -42,7 +43,8 @@ The table below maps each Claude hook to its Codex workaround.
 **Rationale:**
 
 - All HIGH-severity gaps are caught by the gate before merge
-- Behavioral gaps (ssot-guard, guard-task-completion) require human discipline in both environments
+- Codex completion/TDD coverage is delayed to native `arbiter task advance` phase gates; Codex does
+  not intercept arbitrary final-response prose
 - The `codex-adapter.mjs` polling mechanism cannot replicate per-edit hooks without
   introducing latency that degrades developer experience
 

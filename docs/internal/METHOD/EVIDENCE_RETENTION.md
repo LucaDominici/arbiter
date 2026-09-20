@@ -34,13 +34,13 @@ precedence over `arbiter.json` for testing/CI. An absent `arbiter.json` leaves t
 
 ## Hook
 
-`guard-done-evidence.mjs` (UserPromptSubmit) activates only when all of:
+`guard-done-evidence.mjs` (`Stop`) activates only when all of:
 
 - `features.evidenceHarness: true` (or `ARBITER_EVIDENCE_HARNESS=1`),
 - task phase is `verification`, and
-- the prompt contains a completion claim (`task complete`, `pr merged`, …).
+- the final assistant response contains a completion claim (`task complete`, `pr merged`, …).
 
-The prompt and Stop guards validate the same receipt contract as the independent
+The Stop guards validate the same receipt contract as the independent
 engine used by `arbiter lifecycle advance --to complete`: current task, passed state,
 exact marker digest, candidate identity, readable matching pinned files and
 required runtime proof. Backend live API and frontend render/visual requirements

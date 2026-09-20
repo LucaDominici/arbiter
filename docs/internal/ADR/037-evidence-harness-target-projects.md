@@ -41,7 +41,7 @@ that the specific UI files which passed gate inspection are unchanged before acc
 
 Generate three artifacts for target projects at L2+:
 
-### 1. `guard-done-evidence.mjs.ejs` (UserPromptSubmit hook)
+### 1. `guard-done-evidence.mjs.ejs` (Stop hook)
 
 Hard-blocks (exit 2) completion claims until `.claude/.last-done-evidence.json`:
 
@@ -128,7 +128,7 @@ cryptographic proof that an arbitrary command was executed.
 - L2 gate runs twice per task (Phase 8 + done-evidence) — accepted; redundancy is intentional safety
 - Evidence is local-machine state (`.gitignore`'d) — not portable across machines in v1.0
   (deferred: distributed evidence, cryptographic signatures, evidence retention beyond current task)
-- Adding a new hook to `settings.json.ejs` increases UserPromptSubmit hook chain length
+- Adding a new hook to `settings.json.ejs` increases the sequential Stop hook chain length
   (now: skill-forced-eval → guard-task-completion → guard-done-evidence)
 
 ---
@@ -143,6 +143,14 @@ keeps human intention in the loop.
 
 **Single merged hook:** Keeping guard-task-completion and guard-done-evidence separate preserves
 single-responsibility and allows independent empirical testing (INV-36 + INV-38).
+
+### Amendment (2026-09-20, #2767)
+
+The three completion/TDD guards run on `Stop`, not `UserPromptSubmit`. Completion guards read
+`last_assistant_message` first and otherwise the latest assistant text from the identity-bound
+transcript; `skill-forced-eval` remains retrospective over ordered tool results. Codex has no
+equivalent project-command final-response event, so its coverage is the native `arbiter task
+advance` phase gates rather than real-time prose interception.
 
 ---
 
