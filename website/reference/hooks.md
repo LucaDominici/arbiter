@@ -78,7 +78,9 @@ Provides `logInfo`, `logWarn`, `logError` functions. Writes to `.claude/hooks/lo
 | **Timeout**   | 3 seconds                                       |
 | **Blocking**  | No (exit 0 advisory)                            |
 
-It is registered after Bash commands and is silent unless the last `git commit` message fails this pattern:
+It is registered after Bash commands. It emits exactly one stderr line when the last `git commit`
+message fails this pattern, or `Advisory unavailable: <error>` if the check itself throws. It is
+otherwise silent and always exits 0.
 
 ```
 ^(feat|fix|refactor|test|docs|ci|chore|perf|style|build|revert)(\([^)]+\))?: .{1,72}$
@@ -156,6 +158,7 @@ Fires before every user prompt. Phase-aware skill activation nudge. L2+ only.
 | `PreToolUse`         | `Edit\|Write` | `enforce-read-only.mjs`      | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `pre-edit-ssot-guard.mjs`    | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `pre-edit-plan-anchor.mjs`   | Implemented (all)       |
+| `PostToolUse`        | `Bash`        | `post-commit-check.mjs`      | Implemented (advisory)  |
 | `PostToolUse`        | `Edit\|Write` | `check-no-orphan-todo.mjs`   | Implemented             |
 | `PostToolUse`        | `Edit\|Write` | `check-no-any.mjs`           | Implemented (TS only)   |
 | `PostToolUse`        | `Edit\|Write` | `check-no-unwrap.mjs`        | Implemented (Rust only) |

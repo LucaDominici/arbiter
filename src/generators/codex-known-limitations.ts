@@ -111,7 +111,8 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   },
   'post-commit-check.mjs': {
     name: 'post-commit-check.mjs',
-    enforces: 'Post-commit checklist advisory (always exit 0)',
+    enforces:
+      'Reports one advisory line for a non-conventional commit or an unavailable check; otherwise silent; always exits 0',
     codexEquivalent: BRIDGED,
   },
   'check-no-unused-exports.mjs': {

@@ -112,8 +112,9 @@ sealed; and the copy carries `.env` into `/tmp`. Cost: 4.1 s copy + a 16.0 s med
 ~1.6 s in place. It also carries a private HARD/ADVISORY table, so it stays consumer-scoped and the
 self surface is covered by the mechanism above instead.
 
-**Resolved in #2767.** `post-commit-check` is a registered ADVISORY: both copies exit 0 with
-a concise notice for a malformed message and are silent for a well-formed message.
+**Resolved in #2767.** `post-commit-check` is a registered ADVISORY: both copies emit exactly one
+stderr line for a non-conventional message or an unavailable check, are otherwise silent, and
+always exit 0.
 `.githooks/commit-msg` and L1 `commitlint` remain the blocking controls.
 
 ---
