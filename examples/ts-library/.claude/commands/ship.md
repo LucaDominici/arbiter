@@ -70,6 +70,18 @@ a new material risk appears, or one implementation approach makes no progress. T
 limit, unavailable tools, and queued CI are infrastructure states; they do not justify source edits
 or model escalation by themselves.
 
+## Context economy
+
+The cost of a delivery is turns multiplied by context, so keep both small.
+
+- Read files by range and search before you read. Send long command output to a file and inspect
+  its end; never pipe a gate or a test run through `tail` or `head`, because the pipe reports the
+  pager's exit status and hides a failure.
+- After the last commit run `node scripts/check-all.mjs preflight` and fix everything it reports
+  before freezing; only a candidate that passes preflight is frozen and sent to review.
+- Run the full gate once on the frozen candidate. A green gate is not repeated while HEAD is
+  unchanged.
+
 ## Capability train
 
 A train is one capability, one plan, one branch, one candidate, one final gate, and one PR. Every

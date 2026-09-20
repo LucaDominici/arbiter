@@ -119,6 +119,10 @@ arbiter ship #NNN --tier Standard   # equivalent CLI
 plan → red-team → TDD impl → review → gate → merge. Use `/task` subcommands only
 for low-level engine control or recovery (`arbiter lifecycle advance`, `record-red`, etc.).
 
+`/ship` also states the context-economy rules of a delivery (cost is turns multiplied by context):
+range reads, long output to a file, no gate piped through `tail`, preflight before freezing, one
+full gate per frozen candidate.
+
 ### Merge-train batching a sequential chain (`--chain`, #2102)
 
 For N issues with a real, declared dependency order, implement them all in one
