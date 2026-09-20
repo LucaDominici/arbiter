@@ -1,8 +1,8 @@
 ---
 title: 'Contributing to arbiter'
-doc_version: '1.0.8'
+doc_version: '1.0.9'
 status: active
-last_review: '2026-09-12'
+last_review: '2026-09-20'
 owner: ''
 canonical_id: 'CONTRIBUTING'
 tags: ['audience/dev', 'kind/setup']
@@ -199,9 +199,10 @@ commit is a governed change like any other: it carries a task id and a RED of it
 ## When something fails
 
 - Gate red on lint/format → `npm run format && npm run lint --fix`
-- Gate red on a derived-doc check (wiki lint, doc index, llms.txt, status dashboard, gap
+- Gate red on a derived-artifact check (wiki lint, doc index, llms.txt, status dashboard, gap
   register, ADR digest, CLI ref, third-party licenses, feature matrix, action pins,
-  governance mirror) → `npm run regen` before re-running the gate; these gates read
+  governance mirror, examples drift, kernel plugin parity) → `npm run regen` before re-running
+  the gate; these gates read
   generated state that a prior source edit staled but never regenerated (see
   `scripts/lib/derived-artifacts.mjs`). One pass converges: the feature matrix, then the document
   producers, then their indexers and consumers (#2568), so `regen && regen` is never needed

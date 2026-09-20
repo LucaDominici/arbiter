@@ -8,6 +8,27 @@ import { buildPlan } from '../../scripts/regen.mjs'
 import { DERIVED_ARTIFACTS } from '../../scripts/lib/derived-artifacts.mjs'
 
 describe('scripts/regen.mjs buildPlan()', () => {
+  it('AC-2760.1: covers the examples and kernel-plugin derived-artifact gates after build', () => {
+    expect(DERIVED_ARTIFACTS).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'examples drift (#2222)',
+          checkCmd: ['node', 'scripts/regenerate-examples.mjs', '--check'],
+          writeCmd: ['node', 'scripts/regenerate-examples.mjs'],
+        }),
+        expect.objectContaining({
+          name: 'kernel plugin parity (#2548)',
+          checkCmd: ['node', 'scripts/check-kernel-plugin-parity.mjs'],
+          writeCmd: ['node', 'scripts/build-kernel-plugin.mjs'],
+        }),
+      ]),
+    )
+
+    const names = buildPlan(DERIVED_ARTIFACTS).map((step) => step.name)
+    expect(names.indexOf('examples drift (#2222)')).toBeGreaterThan(names.indexOf('build'))
+    expect(names.indexOf('kernel plugin parity (#2548)')).toBeGreaterThan(names.indexOf('build'))
+  })
+
   it('runs `npm run build` first', () => {
     const plan = buildPlan(DERIVED_ARTIFACTS)
     expect(plan[0]).toEqual({ name: 'build', cmd: 'npm', args: ['run', 'build'] })

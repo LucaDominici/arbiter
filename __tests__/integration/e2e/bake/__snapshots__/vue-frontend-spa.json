@@ -245,7 +245,7 @@
     ".claude/commands/drain.md": "37c5c2632bd537e3f3085453e6f9de3145bfd697fe65fbecf712af406b8fc4b2",
     ".claude/commands/impact.md": "0a46c64355fefca6fdc7cc0a60edc946b98290edfc8eafafe3f6998bc2eb6be4",
     ".claude/commands/review.md": "e244e9e039d4270dd99c8aefc2dea2e092196e6c535604546df1c399c9599934",
-    ".claude/commands/ship.md": "537ef815668c3bbc1c3bba056add001421ba82bd91d01eed7aa04dc3042d9913",
+    ".claude/commands/ship.md": "259b8a3894ef9c7b40b2cfac78369fea023bfcf447d13fba1430323297127d35",
     ".claude/commands/tabletop.md": "d65d42ce3e67130f8b6ef4414711e12a9f3fc3319ba218d8d466028adf0849cf",
     ".claude/hooks/check-circular-deps.mjs": "81c71bf18a7093680ce24e7eba16ee11a2b33de0715eb8c249391b7d96b70388",
     ".claude/hooks/check-no-any.mjs": "6895c54d658d4a8bcc4a66769d9e0922786ef86dc7386775e96f4b8a28881724",
