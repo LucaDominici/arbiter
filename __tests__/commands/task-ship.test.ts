@@ -670,7 +670,7 @@ describe('ship final-gate action ordering', () => {
     expect(taskSource).toContain("function checkGatePassMarkerGate(dir: string, minLevel = 'L2')")
     expect(taskSource).toContain("checkGatePassMarkerGate(dir, 'L1')")
     expect(doneSource).toContain("minLevel: 'L3'")
-    expect(prePushSource).toContain('--min-level L2')
+    expect(prePushSource).toContain('check-all.mjs preflight') // #2773 P7: light pre-push, CI pins L2
     expect(
       shipStepFor('verification', 'Standard', profile({ evidenceHarness: true })).command,
     ).toBe('node scripts/check-all.mjs L3')
