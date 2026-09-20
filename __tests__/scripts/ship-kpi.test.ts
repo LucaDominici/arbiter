@@ -464,6 +464,55 @@ describe('delivery cost classifiers (#2725)', () => {
     ).toEqual({ input: 140, output: 30, cache: 35, humanMessages: 2 })
   })
 
+  it('counts Claude usage once per message id with request-id and line fallbacks', () => {
+    expect(
+      sessionUsage([
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            id: 'message-a',
+            role: 'assistant',
+            content: [{ type: 'text', text: 'part one' }],
+            usage: { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 3 },
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            id: 'message-a',
+            role: 'assistant',
+            content: [{ type: 'text', text: 'part two' }],
+            usage: { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 3 },
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          requestId: 'request-b',
+          message: {
+            role: 'assistant',
+            usage: { input_tokens: 20, output_tokens: 4, cache_read_input_tokens: 5 },
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          requestId: 'request-b',
+          message: {
+            role: 'assistant',
+            usage: { input_tokens: 20, output_tokens: 4, cache_read_input_tokens: 5 },
+          },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { role: 'assistant', usage: { input_tokens: 1, output_tokens: 1 } },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { role: 'assistant', usage: { input_tokens: 1, output_tokens: 1 } },
+        }),
+      ]),
+    ).toEqual({ input: 32, output: 8, cache: 8, humanMessages: 0 })
+  })
+
   it('propagates no usage data as null fields', () => {
     expect(sessionUsage([JSON.stringify({ type: 'human' }), '{malformed'])).toEqual({
       input: null,
@@ -1303,6 +1352,21 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       effort: 'high',
       firstPrompt: 'Ship issue #2725',
       issueIdsInPrompt: [2725],
+    })
+  })
+
+  it('deduplicates Claude metadata usage by message id', () => {
+    const repeated = {
+      type: 'assistant',
+      timestamp: '2026-09-19T00:01:00Z',
+      message: {
+        id: 'message-a',
+        role: 'assistant',
+        usage: { input_tokens: 10, output_tokens: 2, cache_creation_input_tokens: 4 },
+      },
+    }
+    expect(claudeSessionMeta([JSON.stringify(repeated), JSON.stringify(repeated)])).toMatchObject({
+      usage: { input: 10, output: 2, cache: 4 },
     })
   })
 
@@ -2506,6 +2570,61 @@ describe('review rework semantics (#2725 round 2)', () => {
         Record<string, unknown>
       >
       expect(sessions[0]).toMatchObject({ usage: { input: 10, output: 2, cache: 12 } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('counts streamed Claude usage once and only genuine human prompts', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-claude-dedup-'))
+    const file = join(root, 'session.jsonl')
+    const firstPrompt =
+      '<command-message>ship</command-message>\n<command-name>/ship</command-name>\nShip #2725'
+    const usage = { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 3 }
+    const user = (content: string, extra: Record<string, unknown> = {}) => ({
+      type: 'user',
+      timestamp: '2026-09-19T00:00:00Z',
+      message: { role: 'user', content },
+      ...extra,
+    })
+    try {
+      writeFileSync(
+        file,
+        [
+          user('Skill base directory: /synthetic/skill', { isMeta: true }),
+          user('<task-notification>worker finished</task-notification>'),
+          user('<system-reminder>synthetic reminder</system-reminder>'),
+          user('<local-command-stdout>synthetic output</local-command-stdout>'),
+          user('<local-command-stderr>synthetic error</local-command-stderr>'),
+          user('[Request interrupted by user for tool use]'),
+          user(firstPrompt, { isMeta: false }),
+          user('Use the smallest correct fix', { isMeta: false }),
+          {
+            type: 'assistant',
+            timestamp: '2026-09-19T00:01:00Z',
+            message: { id: 'message-a', role: 'assistant', content: 'part one', usage },
+          },
+          {
+            type: 'assistant',
+            timestamp: '2026-09-19T00:01:01Z',
+            message: { id: 'message-a', role: 'assistant', content: 'part two', usage },
+          },
+        ]
+          .map(JSON.stringify)
+          .join('\n'),
+      )
+      const sinceMs = Date.parse('2026-09-19T00:00:00Z')
+      utimesSync(file, new Date(sinceMs), new Date(sinceMs))
+      const sessions = (await discoverSessions(root, 'claude', sinceMs, sinceMs + 1000)) as Array<
+        Record<string, unknown>
+      >
+      expect(sessions[0]).toMatchObject({
+        usage: { input: 10, output: 2, cache: 3 },
+        humanMessages: 2,
+        rounds: 2,
+        firstPrompt,
+        issueIdsInPrompt: [2725],
+      })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
