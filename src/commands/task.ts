@@ -354,6 +354,27 @@ function assertBoundNativeHost(
   assertNativeTranscriptAttestation(binding, host)
 }
 
+/** Require the exact checkout binding before `/ship` creates or changes task state. */
+export function assertShipHostBinding(
+  root: string,
+  requestedTaskId?: string,
+  linkedCheckout: (root: string) => boolean = isLinkedCheckout,
+): void {
+  if (!linkedCheckout(root)) return
+  const state = readUnifiedState(root)
+  if (state?.hostBinding !== undefined) {
+    assertBoundNativeHost(root, requestedTaskId)
+    return
+  }
+  const taskId = normalizeChainId(requestedTaskId ?? state?.taskId ?? '')
+  const worktree = realpathSync(root)
+  const prepare = `arbiter worktree prepare ${JSON.stringify(taskId)} ${JSON.stringify(worktree)}`
+  const preflight =
+    `arbiter lifecycle preflight --id ${JSON.stringify(taskId)} ` +
+    `--worktree ${JSON.stringify(worktree)}`
+  throw new Error(`native host binding is missing. Run \`${prepare} && ${preflight}\`.`)
+}
+
 function initializeHostPreflight(opts: TaskInitOptions): boolean {
   if (opts.worktree === undefined) return false
   if (opts.id === undefined) throw new Error('task host-preflight requires a task id')

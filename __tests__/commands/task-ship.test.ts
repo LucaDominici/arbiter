@@ -257,9 +257,11 @@ describe('ship id normalization (#1280)', () => {
     writeTddEvidence(dir, '#1280')
     writeUnifiedState(dir, { phase: 'red' })
     // red → green runs checkTddEvidenceGate: path lookup + identity check both need '#1280'.
-    const r = runTaskShip({ dir, advance: true })
-    expect(r.phase).toBe('green')
-    expect(r.advanced).toBe(true)
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.step.action).toContain(
+      'advanced to verification; next gate (close) not yet satisfied: gate-pass marker missing',
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('verification')
   })
 
   it('AC-7 a new ship id cannot inherit a prior task complete phase or plan', () => {
@@ -298,31 +300,44 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(readUnifiedState(dir)?.tier).toBe('Standard')
   })
 
-  it('--advance moves directly from plan to red', () => {
+  it('--advance crosses plan and stops when the TDD evidence gate is red', () => {
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeUnifiedState(dir, { phase: 'plan' })
-    const r = runTaskShip({ dir, advance: true })
-    expect(r.advanced).toBe(true)
-    expect(r.phase).toBe('red')
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.step.action).toContain(
+      'advanced to red; next gate (green) not yet satisfied: TDD evidence gate:',
+    )
+    expect(result.step.action).toContain('arbiter lifecycle record-red --test-path <path>')
+    expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
-  it('auto-advances phase-by-phase through gate-green to complete', () => {
+  it('keeps the first transition gate failure throwing', () => {
+    runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
+    writeUnifiedState(dir, { phase: 'red' })
+
+    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
+    expect(readUnifiedState(dir)?.phase).toBe('red')
+  })
+
+  it('AC-1 fast-forwards through every passing gate in one call', () => {
     initGitRepo(dir)
     writeFileSync(
       join(dir, 'arbiter.json'),
       JSON.stringify({ permitGitHub: true, collaborationMode: 'peer-review' }),
     )
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
+    writeUnifiedState(dir, { branch: 'task/1206-gate-marker' })
     writeTddEvidence(dir, '#1206')
     // The verification/close/complete phase gates require a real-shape marker correlated to
     // this fixture's mocked branch and HEAD, just as a successful check-all run would write.
     writeGatePassMarker(dir, '#1206')
 
-    const visited: TaskPhase[] = ['preflight']
-    let guard = 0
-    let done = false
-    while (!done && guard < 20) {
-      const r = runTaskShip({
+    // This sandbox refuses Git subprocesses inside the verifier. The explicit engine bypass still
+    // runs both marker gates; AC-4 below proves the normal failing verdict remains blocking.
+    vi.stubEnv('ARBITER_SKIP_GATE_MARKER', '1')
+    let result: ShipResult
+    try {
+      result = runTaskShip({
         dir,
         advance: true,
         // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
@@ -331,22 +346,52 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
           readPrs: () => [{ number: 1206, state: 'MERGED' }],
         },
       })
-      visited.push(r.phase)
-      done = r.done
-      guard++
+    } finally {
+      vi.unstubAllEnvs()
     }
-    expect(done).toBe(true)
-    expect(visited).toEqual([
-      'preflight',
-      'plan',
-      'red',
-      'green',
-      'refactor',
-      'verification',
-      'close',
-      'complete',
-    ])
+
+    expect(result.done).toBe(true)
+    expect(result.phase).toBe('complete')
+    expect(readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')).toMatch(
+      /preflight → plan[\s\S]*plan → red[\s\S]*red → green[\s\S]*green → refactor[\s\S]*refactor → verification[\s\S]*verification → close[\s\S]*close → complete/,
+    )
     expect(readUnifiedState(dir)?.phase).toBe('complete')
+  })
+
+  it('AC-1/AC-4 returns at the first failing intermediate gate with its reason and command', () => {
+    initGitRepo(dir)
+    runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
+    writeTddEvidence(dir, '#1206')
+    writeUnifiedState(dir, { phase: 'red' })
+
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.phase).toBe('verification')
+    expect(result.step.action).toBe(
+      `advanced to verification; next gate (close) not yet satisfied: ` +
+        `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}. ` +
+        'Run `node scripts/check-all.mjs L1` first.',
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('verification')
+    const log = readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')
+    expect(log).toMatch(/red → green[\s\S]*green → refactor[\s\S]*refactor → verification/)
+    expect(log).toContain('ship → advanced to verification')
+  })
+})
+
+describe('ship host binding preflight (#2753)', () => {
+  it('AC-2 reports the exact prepare and preflight command before writing task state', () => {
+    const worktree = createTestProject()
+    const command =
+      `arbiter worktree prepare "#2753" "${worktree}" && ` +
+      `arbiter lifecycle preflight --id "#2753" --worktree "${worktree}"`
+    try {
+      expect(() =>
+        runTaskShip({ dir: worktree, taskId: '#2753', isLinkedCheckout: () => true }),
+      ).toThrow(`native host binding is missing. Run \`${command}\`.`)
+      expect(readUnifiedState(worktree)).toBeNull()
+    } finally {
+      cleanupTestProject(worktree)
+    }
   })
 })
 
@@ -366,6 +411,37 @@ const profile = (over: Partial<ShipProfile> = {}): ShipProfile => ({
   ...over,
 })
 const SELF_ONLY_GATES = ['template-authoring', 'selfOnly-invariants', 'matrix-fixtures']
+
+describe('ship complete next commands (#2753)', () => {
+  function outputFor(phase: TaskPhase): string {
+    const shipProfile = profile()
+    const step = shipStepFor(phase, 'Standard', shipProfile, '#2753')
+    return buildShipStepLines({
+      phase,
+      step,
+      advanced: false,
+      done: false,
+      tier: 'Standard',
+      profile: shipProfile,
+    }).join('\n')
+  }
+
+  it('AC-3 plan names the accepted plan path and complete lifecycle start command', () => {
+    expect(outputFor('plan')).toContain(
+      "Command: arbiter lifecycle start --id '#2753' --tier Standard --plan .claude/plans/task-2753.md",
+    )
+  })
+
+  it('AC-3 red names the complete task-bound record-red command', () => {
+    expect(outputFor('red')).toContain(
+      "Command: arbiter lifecycle record-red --task '#2753' --test-path <test-path>",
+    )
+  })
+
+  it('AC-3 refactor names the complete task-bound review-round command', () => {
+    expect(outputFor('refactor')).toContain("Command: arbiter ship '#2753' --review-round")
+  })
+})
 
 describe('ship complete-action — (collaborationMode × mergeMode) matrix (#1288 RT-02)', () => {
   it('trunk-solo + direct → push to default branch, NO PR', () => {
@@ -491,7 +567,8 @@ describe('ship chain batching — seeding (--chain, #2102)', () => {
       }),
     })
     // Simulates `arbiter ship --advance` without repeating --chain.
-    runTaskShip({ dir, advance: true })
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.phase).toBe('red')
     expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103'])
   })
 })
@@ -832,7 +909,8 @@ describe('result-first read-only status (#2724)', () => {
     expect(status.treatment?.tier).toBe('Standard')
     expect(readFileSync(path, 'utf8')).toBe(before)
 
-    runTaskShip({ dir, advance: true })
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.phase).toBe('red')
     expect(readUnifiedState(dir)?.treatment?.tier).toBe('Standard')
   })
 

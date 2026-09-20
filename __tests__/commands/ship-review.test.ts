@@ -10,10 +10,10 @@
  * RED: `review` is not on the task document, no round is ever recorded, and nothing refuses.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import {
   DEFAULT_REVIEW_MAX_ROUNDS,
   evaluateReviewRound,
@@ -122,6 +122,64 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
   it('entering refactor does not consume a review round before dispatch', () => {
     ship({ advance: true, headSha: SHA_A })
     expect(review()).toEqual({ rounds: 0, lastReviewedSha: null })
+  })
+
+  it('fast-forward stops at refactor through the real review-completion gate', () => {
+    const baseSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', baseSha], { cwd: dir })
+    writeFileSync(join(dir, 'review.test.ts'), 'throw new Error("RED")\n')
+    execFileSync('git', ['add', 'review.test.ts'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: add red review fixture'], { cwd: dir })
+    const redSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
+    const evidenceDir = join(dir, '.arbiter', 'evidence', 'tdd')
+    mkdirSync(evidenceDir, { recursive: true })
+    writeFileSync(
+      join(evidenceDir, '#100.json'),
+      JSON.stringify({
+        $schemaVersion: 1,
+        task_id: '#100',
+        test_path: 'review.test.ts',
+        test_commit_sha: redSha,
+        test_run_log: 'FAIL review.test.ts\n✗ 1 test failed',
+        observed_failure: 'FAIL review.test.ts',
+        recorded_at: '2026-09-20T00:00:00.000Z',
+      }),
+    )
+    copyFileSync(resolve(import.meta.dirname, '../../arbiter.json'), join(dir, 'arbiter.json'))
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    mkdirSync(join(dir, 'schemas'), { recursive: true })
+    for (const path of [
+      'scripts/check-review-completion.mjs',
+      'scripts/lib/agent-return-validate.mjs',
+      'scripts/lib/gate-args.mjs',
+      'scripts/lib/evidence-binding.mjs',
+      'scripts/lib/run-helpers.mjs',
+      'schemas/agent-return.schema.json',
+    ]) {
+      copyFileSync(resolve(import.meta.dirname, '../..', path), join(dir, path))
+    }
+    execFileSync('git', ['add', 'arbiter.json', 'scripts', 'schemas'], { cwd: dir })
+    execFileSync('git', ['add', '-f', '.arbiter/evidence/tdd/#100.json'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: freeze review candidate'], { cwd: dir })
+    const frozenSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
+
+    const result = ship({ advance: true, headSha: frozenSha })
+
+    expect(result.phase).toBe('refactor')
+    expect(result.step.action).toContain(
+      'advanced to refactor; next gate (verification) not yet satisfied: check-review-completion.mjs blocked',
+    )
+    expect(result.step.action).toContain('dispatch sidecar is required for task #100')
+    expect(readUnifiedState(dir)?.phase).toBe('refactor')
   })
 
   it('AC-2400.1: an explicit dispatch records round 1 and pins HEAD', () => {

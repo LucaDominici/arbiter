@@ -64,6 +64,8 @@ it drives an issue to a reviewed, merged PR by auto-sequencing
 (worktree → mechanical plan admission → TDD implementation → final review → gate → merge → cleanup).
 Use `/task` subcommands (`arbiter lifecycle advance`, `record-red`, etc.) only for recovery or manual
 phase control; the `/ship` loop auto-advances phases when their gates are green.
+`arbiter ship #NNN --advance` runs each consecutive phase gate in order and stops at the first
+failure with that gate's remediation; one passing call can therefore cross several phases.
 
 `arbiter lifecycle record-red --test-path <path>` records only a genuinely failing test run. A runner
 that exits 0 is rejected, and Node's `node:test`/TAP failure summary is recognized via `# fail N`.

@@ -148,7 +148,9 @@ describe('#2329 — ship output is unchanged apart from the removal', () => {
     const step = shipStepFor('plan', 'Standard', profile())
     expect(step.action).toBe(PLAN_ACTION)
     expect(step.action).not.toMatch(/affinit|parallel worktrees/i)
-    expect(step.command).toBe('arbiter lifecycle advance --to red')
+    expect(step.command).toBe(
+      "arbiter lifecycle start --id '#NNN' --tier Standard --plan .claude/plans/task-NNN.md",
+    )
     expect(step.command).not.toMatch(/verify plan/)
   })
 
