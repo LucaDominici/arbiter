@@ -474,8 +474,6 @@ export interface TaskShipOptions {
   overrides?: Record<string, string>
   /** Advance to the next phase first (runs that phase's gate; throws if the gate is red). */
   advance?: boolean
-  /** Test seam for preserving the lower-level advance result across fast-forward. */
-  runAdvance?: typeof runTaskAdvance
   /** Test seam for identifying a native linked checkout without shelling out to Git. */
   isLinkedCheckout?: (root: string) => boolean
   /** Bubble handoff control-flow to the caller instead of being swallowed. */
@@ -667,10 +665,10 @@ function advanceShipPhase(
   if (!opts.advance) return { phase, advanced: false, review: null, stopMessage: null }
   let current = phase
   let target = nextPhase(current)
+  let review: PlannedReviewRound | null = null
   while (target !== null) {
-    let review: PlannedReviewRound | null
     try {
-      review = (opts.runAdvance ?? runTaskAdvance)({
+      review = runTaskAdvance({
         to: target,
         dir: root,
         ...(opts.advanceOpts ?? {}),
@@ -681,17 +679,14 @@ function advanceShipPhase(
       const reason = error instanceof Error ? error.message : String(error)
       const stopMessage = `advanced to ${current}; next gate (${target}) not yet satisfied: ${reason}`
       appendLog(root, `ship → ${stopMessage}`)
-      return { phase: current, advanced: true, review: null, stopMessage }
+      return { phase: current, advanced: true, review, stopMessage }
     }
     appendLog(root, `ship → advanced to ${target}`)
     writeVerificationCompanionEvidence(root, target, taskId, profile, opts)
     current = target
-    if (review !== null) {
-      return { phase: current, advanced: true, review, stopMessage: null }
-    }
     target = nextPhase(current)
   }
-  return { phase: current, advanced: current !== phase, review: null, stopMessage: null }
+  return { phase: current, advanced: current !== phase, review, stopMessage: null }
 }
 
 function companionEvidencePath(taskId: string, repoDir: string): string {

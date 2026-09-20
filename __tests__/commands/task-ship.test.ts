@@ -12,12 +12,10 @@ import {
   nextPhase,
   buildShipStepLines,
   type ShipResult,
-  type TaskShipOptions,
 } from '../../src/commands/task-ship.js'
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
-import type { PlannedReviewRound } from '../../src/commands/ship-review.js'
 import { resolveShipTreatment, widenTier } from '../../src/commands/ship-tier.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
 
@@ -377,36 +375,6 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     const log = readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')
     expect(log).toMatch(/red → green[\s\S]*green → refactor[\s\S]*refactor → verification/)
     expect(log).toContain('ship → advanced to verification')
-  })
-
-  it('keeps a planned review round and stops fast-forward at the phase that owes it', () => {
-    runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
-    writeUnifiedState(dir, { phase: 'green' })
-    const targets: TaskPhase[] = []
-    const review = {
-      rounds: 2,
-      maxRounds: 2,
-      base: 'a'.repeat(40),
-      head: 'b'.repeat(40),
-      forced: false,
-    } satisfies PlannedReviewRound
-    const opts = {
-      dir,
-      advance: true,
-      runAdvance: ({ to }: { to: TaskPhase }): PlannedReviewRound | null => {
-        targets.push(to)
-        writeUnifiedState(dir, { phase: to })
-        return to === 'refactor' ? review : null
-      },
-    } as TaskShipOptions
-
-    const result = runTaskShip(opts)
-
-    expect(targets).toEqual(['refactor'])
-    expect(result.phase).toBe('refactor')
-    expect(result.reviewDispatched).toBe(true)
-    expect(result.step.reviewScope).toContain(`git diff ${review.base}..HEAD`)
-    expect(readUnifiedState(dir)?.phase).toBe('refactor')
   })
 })
 
