@@ -70,21 +70,17 @@ a new material risk appears, or one implementation approach makes no progress. T
 limit, unavailable tools, and queued CI are infrastructure states; they do not justify source edits
 or model escalation by themselves.
 
-## Thin orchestrator
+## Context economy
 
-The cost of a delivery is turns multiplied by context. This session orchestrates; for Standard and
-wider treatments it does not carry the implementation. XS and S implement inline.
+The cost of a delivery is turns multiplied by context, so keep both small.
 
-- After the plan is frozen, dispatch ONE implementer subagent for RED → GREEN → freeze. Its brief is
-  the plan path, the frozen `AC-N` list, the file manifest, and the commands printed by
-  `arbiter ship`. It commits; it leaves push, review, and phase advances to this session. It returns
-  the frozen SHA, the RED evidence path, the tests it ran with counts, and at most ten lines of notes.
-- Leave the implementer's diff to the final reviewer and the gates, which read it against the same
-  SHA. Read it here only to resolve a finding.
+- Read files by range and search before you read. Send long command output to a file and inspect
+  its end; never pipe a gate or a test run through `tail` or `head`, because the pipe reports the
+  pager's exit status and hides a failure.
 - After the last commit run `node scripts/check-all.mjs preflight` and fix everything it reports
-  before the single full gate. Pipe long output through `tail`.
-- If the implementer stalls or returns a failing candidate twice, take the write lane back and say
-  so in the PR.
+  before freezing; only a candidate that passes preflight is frozen and sent to review.
+- Run the full gate once on the frozen candidate. A green gate is not repeated while HEAD is
+  unchanged.
 
 ## Capability train
 
