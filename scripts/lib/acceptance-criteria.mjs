@@ -78,7 +78,8 @@ export function parseAcceptanceBlocks(markdown) {
       if (criterion) {
         openCriterion = criterion
       } else {
-        const continuation = /^\s+(\S.*)$/.exec(line)
+        if (line.trim() === '') continue
+        const continuation = /^ {2,}(\S.*)$/.exec(line)
         if (openCriterion && continuation) {
           openCriterion.text = normalizeText(`${openCriterion.text} ${continuation[1]}`)
         } else {
