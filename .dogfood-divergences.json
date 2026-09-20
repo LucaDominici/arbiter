@@ -47,7 +47,7 @@
   {
     "path": "hooks/post-commit-check.mjs",
     "reason": "Arbiter self-dogfood (#2767): the self hook wraps the advisory in a catch that reports an unexpected internal failure, while the emitted hook is a straight-line handled-outcome advisory. Both copies are silent for a well-formed message and print one concise malformed-message notice before returning 0.",
-    "diffHash": "970a1045d3dd7f34bb9b11abae39e31484de956c9507174d192dd08d6fdaa808"
+    "diffHash": "8ea8beb8d53fad1a71534af773ed767fabf12e73b4d275e38345cb96c8ab2318"
   },
   {
     "path": "hooks/check-no-orphan-todo.mjs",
