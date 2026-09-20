@@ -84,6 +84,15 @@ syncBuiltinESMExports()
       ],
       { cwd: dir },
     )
+    if (extraEnv.BOOTSTRAP_DIRTY === '1') writeFileSync(join(dir, 'dirty.txt'), 'dirty\n')
+    if (extraEnv.BOOTSTRAP_DOCS_CHANGE === 'ref-only')
+      execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: dir })
+    if (extraEnv.BOOTSTRAP_DOCS_CHANGE === '1') {
+      // A comparable origin/main plus an untracked page under docs/ = a docs-surface change.
+      execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: dir })
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'page.md'), '# page\n')
+    }
     const env = {
       ...process.env,
       CI: '',
@@ -308,7 +317,6 @@ describe('result-first preflight (#2724)', () => {
       expect(
         result.calls.some(
           (call) =>
-            call.includes('scripts/check-tdd-evidence.mjs') ||
             call.includes('scripts/check-review-completion.mjs') ||
             call.includes('scripts/check-acceptance.mjs') ||
             call.includes('test') ||
@@ -320,6 +328,62 @@ describe('result-first preflight (#2724)', () => {
       expect(result.stdout).toContain('PREFLIGHT')
     },
   )
+
+  it.each([
+    ['codex self-parity (#1966)', 'scripts/check-codex-self-parity.mjs'],
+    ['fail-closed audit (INV-96)', 'scripts/check-fail-closed-audit.mjs'],
+    ['tdd-evidence', 'scripts/check-tdd-evidence.mjs'],
+    ['docs', 'scripts/check-docs.mjs'],
+  ])('turns preflight red when %s fails (#2746)', (name, script) => {
+    const result = runGate('preflight', script)
+
+    expect(result.status, result.stderr).toBe(1)
+    expect(result.calls).toContainEqual(['node', script])
+    expect(result.stdout).toContain(name)
+    expect(result.artifact).toBeNull()
+    expect(result.marker).toBe(false)
+  })
+
+  it('warns that committed-history diagnostics may change after a dirty-tree commit (#2746)', () => {
+    const result = runGate('preflight', 'pass', [], { BOOTSTRAP_DIRTY: '1' })
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain(
+      'tdd-evidence and docs are evaluated against committed history and the working tree is dirty',
+    )
+  })
+
+  it('skips docs:build with a reason when no origin/main comparison is available (#2746)', () => {
+    const result = runGate('preflight')
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.calls.some((call) => call.join(' ') === 'npm run docs:build:verify')).toBe(false)
+    expect(result.stdout).toContain(
+      'docs:build ... SKIP (could not compare changes with origin/main)',
+    )
+  })
+
+  it('runs docs:build in preflight when the docs surface changed (#2746)', () => {
+    const result = runGate('preflight', 'pass', [], { BOOTSTRAP_DOCS_CHANGE: '1' })
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.calls).toContainEqual(['npm', 'run', 'docs:build:verify'])
+  })
+
+  it('turns preflight red when the docs build fails (#2746)', () => {
+    const result = runGate('preflight', 'docs:build:verify', [], { BOOTSTRAP_DOCS_CHANGE: '1' })
+
+    expect(result.status, result.stderr).toBe(1)
+    expect(result.stdout).toContain('docs:build')
+    expect(result.artifact).toBeNull()
+    expect(result.marker).toBe(false)
+  })
+
+  it('skips docs:build when origin/main is comparable and no docs surface changed (#2746)', () => {
+    const result = runGate('preflight', 'pass', [], { BOOTSTRAP_DOCS_CHANGE: 'ref-only' })
+
+    expect(result.calls.some((call) => call.join(' ') === 'npm run docs:build:verify')).toBe(false)
+  })
 
   it('does not turn absent coverage from a failed run into a second ratchet defect', () => {
     const result = runGate('L2', '--coverage')

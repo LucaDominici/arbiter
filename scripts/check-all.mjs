@@ -298,6 +298,55 @@ if (isMain) {
       runCheck('build-kit', 'node', ['scripts/build-kit.mjs'])
     }
 
+    if (preflight) {
+      runCheck('codex self-parity (#1966)', 'node', ['scripts/check-codex-self-parity.mjs'])
+      runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
+      try {
+        const dirty = execFileSync('git', ['status', '--porcelain'], {
+          cwd: GIT_CWD,
+          encoding: 'utf-8',
+        })
+        if (dirty.trim()) {
+          process.stdout.write(
+            '[preflight] tdd-evidence and docs are evaluated against committed history and the working tree is dirty, so results may change after commit.\n',
+          )
+        }
+        // FAIL-OPEN-INTENT: a non-git checkout has no committed-history warning to report.
+      } catch {
+        void 0
+      }
+      runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'], { cwd: GIT_CWD })
+      runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
+      try {
+        const changed = [
+          execFileSync('git', ['diff', '--name-only', 'origin/main'], {
+            cwd: GIT_CWD,
+            encoding: 'utf-8',
+          }),
+          execFileSync('git', ['ls-files', '--others', '--exclude-standard'], {
+            cwd: GIT_CWD,
+            encoding: 'utf-8',
+          }),
+        ]
+          .join('\n')
+          .split('\n')
+        if (changed.some((file) => file === 'AGENTS.md' || /^(docs|website)\//.test(file))) {
+          // Same registration path as the L2 'docs:build' below: the docsCheck alias keeps it
+          // out of the runCheck roster because CI covers it with the dedicated Docs Build job.
+          const docsCheck = runCheck
+          docsCheck('docs:build', 'npm', ['run', 'docs:build:verify'], { cwd: GIT_CWD })
+        } else {
+          pushResult('docs:build', 'SKIP', 0)
+          process.stdout.write(
+            'docs:build ... SKIP (no docs/, website/, or AGENTS.md changes vs origin/main)\n',
+          )
+        }
+      } catch {
+        pushResult('docs:build', 'SKIP', 0)
+        process.stdout.write('docs:build ... SKIP (could not compare changes with origin/main)\n')
+      }
+    }
+
     // ─── check: T1 fast checks ───────────────────────────────────────────────────
     runCheck('no redacted tokens', 'node', ['scripts/check-no-redacted-tokens.mjs'])
     runCheck('no work refs', 'node', ['scripts/check-no-work-refs.mjs', 'all'])
@@ -362,7 +411,7 @@ if (isMain) {
       '--hooks-dir',
       '.claude/hooks',
     ])
-    runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
+    if (!preflight) runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
     runCheck('install command (B1)', 'node', ['scripts/check-install-command.mjs'])
     runCheck('tool claims', 'node', ['scripts/check-tool-claims.mjs'])
     runCheck('third-party licenses', 'node', ['scripts/gen-third-party-licenses.mjs', '--check'])
