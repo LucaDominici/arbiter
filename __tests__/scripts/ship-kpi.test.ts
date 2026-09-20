@@ -4,7 +4,7 @@
 // #2398: throughput KPI script. Pure predicate unit tests (direct import, no
 // `gh`/`git` calls) + a real spawn of --self-test (CANON-07: generated
 // scripts must be executed in tests, not just string-matched).
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -70,6 +70,7 @@ const checkpointForRows = Reflect.get(shipKpi, 'checkpointForRows') as (
 const checkpointHistory = Reflect.get(shipKpi, 'checkpointHistory') as (
   ...args: unknown[]
 ) => unknown
+const attributionAudit = Reflect.get(shipKpi, 'attributionAudit') as (...args: unknown[]) => unknown
 const attributeSessionsToDeliveries = Reflect.get(shipKpi, 'attributeSessionsToDeliveries') as (
   ...args: unknown[]
 ) => unknown
@@ -1299,6 +1300,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       live: false,
     }
     const unknown = { file: 'unknown.jsonl', host: 'codex', usage: {}, live: true }
+    // liveness depends on the clock, so it never enters the auditable rows
     expect(
       audit(
         [
@@ -1308,8 +1310,8 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         { input: 1, cache: 1, output: 1 },
       ),
     ).toEqual([
-      { file: 'known.jsonl', rule: 'prompt', costUnits: 15, humanMessages: 1, live: false },
-      { file: 'unknown.jsonl', rule: 'cwd', costUnits: null, humanMessages: null, live: true },
+      { file: 'known.jsonl', rule: 'prompt', costUnits: 15, humanMessages: 1 },
+      { file: 'unknown.jsonl', rule: 'cwd', costUnits: null, humanMessages: null },
     ])
   })
 
@@ -1442,6 +1444,113 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual([])
   })
 
+  const writeTranscript = (root: string, events: unknown[], at: Date, name = 's.jsonl') => {
+    const file = join(root, name)
+    writeFileSync(file, events.map((event) => JSON.stringify(event)).join('\n'))
+    utimesSync(file, at, at)
+    return file
+  }
+  const userEvent = (content: unknown, extra: Record<string, unknown> = {}) => ({
+    type: 'user',
+    timestamp: firstCommit,
+    cwd: mainCheckout,
+    gitBranch: 'main',
+    message: { role: 'user', content },
+    ...extra,
+  })
+  const discover = async (events: unknown[], mtime = new Date(mergedAt), untilMs = Infinity) => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-attr-'))
+    try {
+      writeTranscript(root, events, mtime)
+      return (await discoverSessions(root, 'claude', 0, untilMs)) as Array<Record<string, any>>
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+  const kpiPr = { headRefName: 'task/#2774-kpi', firstCommit, mergedAt }
+
+  it('attributes a delivery session that starts on main and later moves into the task worktree', async () => {
+    const sessions = await discover([
+      userEvent('Plan'),
+      userEvent('Continue', {
+        timestamp: mergedAt,
+        cwd: '/w/arbiter.worktrees/2774-kpi',
+        gitBranch: 'task/#2774-kpi',
+      }),
+    ])
+    expect(sessions).toHaveLength(1)
+    expect(attributeSessions(sessions, kpiPr)).toHaveLength(1)
+  })
+
+  it('takes the first genuine prompt even when it is an array of text blocks', async () => {
+    const sessions = await discover([
+      userEvent([{ type: 'text', text: 'Review issue #2774' }]),
+      userEvent(shipEnvelope('#2774'), { timestamp: mergedAt }),
+    ])
+    expect(sessions[0].firstPrompt).toBe('Review issue #2774')
+    expect(attributeSessions(sessions, kpiPr)).toEqual([])
+  })
+
+  it('reads issue ids from the whole first prompt, not its 400-character display value', async () => {
+    const sessions = await discover([userEvent(`/ship #2774 ${'x'.repeat(400)} #2775`)])
+    expect(sessions[0].issueIdsInPrompt).toEqual([2774, 2775])
+    expect(sessions[0].firstPrompt).toHaveLength(400)
+    expect(attributeSessions(sessions, kpiPr)).toEqual([])
+  })
+
+  it('keeps a delivery session that was resumed after the report window closed', async () => {
+    const later = new Date(Date.parse(mergedAt) + 3 * 86_400_000)
+    const sessions = await discover(
+      [userEvent(shipEnvelope('#2774'))],
+      later,
+      Date.parse(mergedAt) + 60_000,
+    )
+    expect(attributeSessions(sessions, kpiPr)).toHaveLength(1)
+  })
+
+  it('emits the same full payload for finished sessions at two different clock times', async () => {
+    const buildPayload = Reflect.get(shipKpi, 'reportPayload') as (...args: unknown[]) => unknown
+    expect(typeof buildPayload).toBe('function')
+    if (typeof buildPayload !== 'function') return
+    const written = new Date(Date.parse(mergedAt))
+    const sessions = await discover([userEvent(shipEnvelope('#2774'))], written)
+    const payloadAt = (nowMs: number) => {
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(nowMs)
+      try {
+        const assigned = attributeSessionsToDeliveries(sessions, [
+          { number: 2776, ...kpiPr },
+        ]) as Map<number, unknown[]>
+        const audit = attributionAudit(assigned.get(2776), { input: 1, cache: 1, output: 1 })
+        return {
+          audit,
+          json: JSON.stringify(
+            buildPayload({
+              opts: { since: '2026-09-19', repo: 'o/r' },
+              untilLabel: '2026-09-20',
+              rows: [{ number: 2776, sessions: audit }],
+              aggregate: {},
+              hookBlocks: {},
+              unattributed: { claude: null, codex: null, sessions: null },
+            }),
+          ),
+        }
+      } finally {
+        clock.mockRestore()
+      }
+    }
+    const soon = payloadAt(written.getTime() + 60_000)
+    const later = payloadAt(written.getTime() + 3 * 86_400_000)
+    expect(soon.audit).toEqual([
+      {
+        file: expect.stringContaining('s.jsonl'),
+        rule: 'prompt',
+        costUnits: null,
+        humanMessages: 1,
+      },
+    ])
+    expect(soon.json).toBe(later.json)
+  })
+
   it('summarizes Claude usage without counting sidechains or tool-result arrays as human messages', () => {
     expect(
       claudeSessionMeta([
@@ -1528,8 +1637,8 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     })
   })
 
-  it('truncates the first Claude prompt to 400 characters before extracting prompt issue ids', () => {
-    const prompt = '#2703 ' + 'x'.repeat(500)
+  it('extracts prompt issue ids from the whole prompt and truncates only the stored text', () => {
+    const prompt = '#2703 ' + 'x'.repeat(500) + ' #2704'
     const meta = claudeSessionMeta([
       JSON.stringify({
         type: 'user',
@@ -1538,7 +1647,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       }),
     ]) as Record<string, unknown>
     expect(meta.firstPrompt).toBe(prompt.slice(0, 400))
-    expect(meta.issueIdsInPrompt).toEqual([2703])
+    expect(meta.issueIdsInPrompt).toEqual([2703, 2704])
   })
 
   it('keeps Claude usage and human message count null when no user or assistant lines exist', () => {
