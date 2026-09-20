@@ -634,6 +634,10 @@ export function readJsonOrNull(path) {
  * kill(0|-1) would signal a process group and a non-integer makes kill throw.
  * ponytail: pids are only meaningful inside one pid namespace; sessions in a container and on
  * the host sharing one checkout prune each other's entries. Record a host marker if that matters.
+ * pid reuse is tolerated deliberately (#2489 AC-3): a recycled pid can only make a dead entry
+ * probe *alive*, which keeps it until the TTL — the fail-closed behaviour that predates the
+ * liveness check. Reuse cannot produce the dangerous direction (a live entry probing ESRCH), so
+ * pairing the pid with a start time would buy earlier recovery in a rare case, not safety.
  */
 export function pruneStaleSidecarEntries(entries, now, kill = process.kill) {
   return entries.filter((e) => {

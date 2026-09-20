@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2489",
+  "test_path": "__tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts",
+  "test_commit_sha": "996552278cf48f7abbff18f6d29f3761fe96a362",
+  "test_blob_sha": "3b515298695b84eea1c238c92c26c44d4a4daa69",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts (23 tests | 1 failed) 1269ms\n     × #2489 AC-6: the refusal names the sidecar file it actually read 46ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 22 passed (23)\n   Start at  06:35:44\n   Duration  1.39s (transform 23ms, setup 9ms, import 25ms, tests 1.27s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts > pre-spawn-worktree-guard hook (#1947, design doc §E5) > #2489 AC-6: the refusal names the sidecar file it actually read\nAssertionError: expected '[arbiter] SPAWN GUARD: a write-intent…' to contain '/tmp/arbiter-spawn-guard-AwzM3D/.arbi…'\n\n- Expected\n+ Received\n\n- /tmp/arbiter-spawn-guard-AwzM3D/.arbiter/agents-active.json\n+ [arbiter] SPAWN GUARD: a write-intent agent is already active on the main working tree.\n+ Second write-agent on the main tree is blocked — open a worktree: `/wt-open` (ADR-103).\n+\n\n ❯ __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts:387:27\n    385|     // The blocking entry can live in a worktree's sidecar while the m…\n    386|     // `[]`; \"on the main working tree\" alone sends the operator to th…\n    387|     expect(result.stderr).toContain(join(dir, '.arbiter', 'agents-acti…\n       |                           ^\n    388|   })\n    389|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts",
+  "recorded_at": "2026-09-20T04:35:45.557Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts"
+  ]
+}
