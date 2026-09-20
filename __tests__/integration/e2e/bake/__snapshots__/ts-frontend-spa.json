@@ -417,7 +417,7 @@
     "scripts/i18n-literal-scanner.mjs": "3703dd6554731a2c5b8d63bf20ee8a832275562a03b935abcab518eaa3ede07c",
     "scripts/issue-readiness.mjs": "6e353eaf3efa56f57cdab8d2b6ceb600b14d62d01262a6ffe3157d69791eb606",
     "scripts/knowledge-map-update.mjs": "b4cbf86a5d8c69d371824b30872dc8dceb5c9efd42fca9e4c50b476ccb7e0425",
-    "scripts/lib/acceptance-criteria.mjs": "cfb216d6cad1fd7c8c583da8edf578bbc3c6a89840b2c0bafec04f0dedf6e61b",
+    "scripts/lib/acceptance-criteria.mjs": "4f6972129a50dc3c4fc06585762bc287457db0f689845b04baa200e9f8fd90d8",
     "scripts/lib/agent-return-validate.mjs": "4ce77aebac33f4f2b004d2ef386296867fe85d79364b1f21f2c6d7902d59a633",
     "scripts/lib/e2e-reliability.mjs": "22c5fdafc559b9a53b5bc74a3b2fe96f9757d6ed6bf9765cb384964343bbc1c5",
     "scripts/lib/evidence-binding.mjs": "b5b164dc8d11eae98a69ae00443535d01203e3b2ccbf51fa81d0f2585b55e776",
