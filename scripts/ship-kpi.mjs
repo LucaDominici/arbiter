@@ -588,7 +588,7 @@ export function issueIdsOf(pr) {
   return sortedUnique([...branchIds, ...closingIds])
 }
 
-/** Attribute overlapping sessions through an issue-bearing path or Codex ancestry. */
+/** Attribute overlapping sessions through the task branch/worktree, a /ship prompt or Codex ancestry. */
 export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {}) {
   const issueIds = issueIdsOf(pr)
   const candidates = (Array.isArray(sessions) ? sessions : []).filter((session) =>
@@ -602,7 +602,7 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
     changed = false
     for (let i = pending.length - 1; i >= 0; i--) {
       const meta = pending[i]
-      const via = sessionAttribution(meta, issueIds, pr, attributedThreads)
+      const via = sessionAttribution(meta, issueIds, attributedThreads)
       if (via === null) continue
       pending.splice(i, 1)
       attributed.push({ meta, via })
@@ -616,18 +616,13 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
   return attributed.sort((a, b) => order.get(a.meta) - order.get(b.meta))
 }
 
-function sessionAttribution(meta, issueIds, pr, attributedThreads) {
+function sessionAttribution(meta, issueIds, attributedThreads) {
   if (containsIssueId(meta.gitBranch, issueIds)) return 'branch'
-  if (sameWorktree(meta, pr)) return 'cwd'
   if (containsIssueId(meta.cwd, issueIds)) return 'cwd'
   if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id))) return 'agent-path'
   if (hasParentAttribution(meta, attributedThreads)) return 'parent'
   if (hasPromptAttribution(meta, issueIds)) return 'prompt'
   return null
-}
-
-function sameWorktree(meta, pr) {
-  return typeof pr.worktreeDir === 'string' && meta.cwd === pr.worktreeDir
 }
 
 function hasParentAttribution(meta, attributedThreads) {
@@ -638,11 +633,17 @@ function hasParentAttribution(meta, attributedThreads) {
   )
 }
 
+// A prompt only delivers an issue when it is the /ship command for that one issue; any other
+// prompt that cites it (coordinators, reviews) counts only through the task branch or worktree.
+const SHIP_PROMPT_RE =
+  /^\s*(?:\/ship\b|<command-message>ship<\/command-message>\s*<command-name>\/ship<\/command-name>)/
+
 function hasPromptAttribution(meta, issueIds) {
   return (
     meta.host === 'claude' &&
     meta.issueIdsInPrompt?.length === 1 &&
-    issueIds.includes(meta.issueIdsInPrompt[0])
+    issueIds.includes(meta.issueIdsInPrompt[0]) &&
+    SHIP_PROMPT_RE.test(meta.firstPrompt ?? '')
   )
 }
 
@@ -652,13 +653,21 @@ function overlapSeconds(session, delivery) {
   return Number.isFinite(start) && Number.isFinite(end) ? Math.max(0, end - start) : 0
 }
 
-/** Attribute each session once, preferring explicit branch/cwd/agent/parent/prompt evidence. */
+/** Attribute each session once, preferring explicit branch/cwd/agent/parent/prompt evidence, in file order. */
 export function attributeSessionsToDeliveries(sessions, deliveries) {
   const result = new Map((deliveries ?? []).map((delivery) => [delivery.number, []]))
   const state = { assigned: new Set(), threads: new Map() }
   assignDirectSessions(sessions, deliveries, result, state)
   assignParentSessions(sessions, deliveries, result, state)
-  return new Map([...result].filter(([, entries]) => entries.length > 0))
+  return new Map(
+    [...result]
+      .filter(([, entries]) => entries.length > 0)
+      .map(([number, entries]) => [number, entries.sort(byFile)]),
+  )
+}
+
+function byFile(a, b) {
+  return a.meta.file < b.meta.file ? -1 : a.meta.file > b.meta.file ? 1 : 0
 }
 
 function assignDirectSessions(sessions, deliveries, result, state) {
@@ -1785,15 +1794,17 @@ function sessionFiles(dir, host, sinceMs, untilMs) {
     host === 'claude'
       ? (name) => name.endsWith('.jsonl')
       : (name) => /^rollout-.*\.jsonl$/.test(name)
-  return collectFiles(dir, predicate, maxDepth).filter((file) => {
-    try {
-      const mtimeMs = statSync(file).mtimeMs
-      return mtimeMs >= sinceMs && mtimeMs <= untilMs
-      // FAIL-OPEN-INTENT: an unstatable session log contributes no delivery metrics; unavailable source is represented as null by the caller.
-    } catch {
-      return false
-    }
-  })
+  return collectFiles(dir, predicate, maxDepth)
+    .sort()
+    .filter((file) => {
+      try {
+        const mtimeMs = statSync(file).mtimeMs
+        return mtimeMs >= sinceMs && mtimeMs <= untilMs
+        // FAIL-OPEN-INTENT: an unstatable session log contributes no delivery metrics; unavailable source is represented as null by the caller.
+      } catch {
+        return false
+      }
+    })
 }
 
 function newSessionAccumulator(host, file) {
@@ -1978,6 +1989,20 @@ function subagentFiles(parentFile) {
     .map((entry) => join(dir, entry.name))
 }
 
+// ponytail: "still being written" = any transcript file (or subagent transcript) touched in the last 10 minutes; a tool call longer than that reads as finished.
+const LIVE_WINDOW_MS = 10 * 60 * 1000
+
+function sessionLive(file) {
+  return [file, ...(subagentFiles(file) ?? [])].some((path) => {
+    try {
+      return Date.now() - statSync(path).mtimeMs < LIVE_WINDOW_MS
+      // FAIL-OPEN-INTENT: an unstatable transcript cannot be shown to be live; the session is reported as finished and its cost stays attributed as read.
+    } catch {
+      return false
+    }
+  })
+}
+
 async function addSubagentUsage(parent, weights) {
   const files = subagentFiles(parent.file)
   if (files === null) return
@@ -2002,7 +2027,7 @@ export async function discoverSessions(dir, host, sinceMs, untilMs, weights) {
       const accumulator = newSessionAccumulator(host, file)
       await streamLines(file, (line) => consumeSessionLine(accumulator, line))
       if (host === 'claude') await addSubagentUsage(accumulator, weights)
-      sessions.push(finishSessionAccumulator(accumulator))
+      sessions.push({ ...finishSessionAccumulator(accumulator), live: sessionLive(file) })
     } catch (error) {
       // FAIL-OPEN-INTENT: an unreadable transcript cannot support attribution or KPI phases; omit it and preserve NO DATA in the affected delivery while surfacing the source error.
       process.stderr.write(`ship-kpi: unreadable session ${file}: ${error?.message ?? error}\n`)
@@ -2124,25 +2149,39 @@ function enrichPrRow(row, pr, commits, lines) {
   }
 }
 
-function fetchPrRow(repo, number, sessions, worktreeDir, attributedFiles, options = {}) {
+function fetchPrRow(repo, number, sessions, attributedFiles, options = {}) {
   const pr = options.pr ?? fetchPrDetail(repo, number)
   const commits = options.commits ?? commitsFromPr(pr)
   // `gh pr view --json` (per #2398 spec's field list) does not include `number` —
   // it's already known from the `pr list` call that produced this PR, so inject it.
   const row = buildPrRow({ ...pr, number }, commits)
   const firstCommit = commits[0]?.authoredDate ?? pr.createdAt
-  const attributed = options.assigned ?? sessionsForPr(sessions, pr, firstCommit, worktreeDir)
+  const attributed = options.assigned ?? sessionsForPr(sessions, pr, firstCommit)
   const attributedMetas = attributed.map((entry) => entry.meta)
   markAttributedFiles(attributedMetas, attributedFiles)
   const enriched = enrichPrRow(row, pr, commits, null)
   const history = options.redCiRuns ?? redCiRunsFromHistory(fetchCheckRunHistory(repo, commits))
-  return mergeDeliverySources(enriched, {
-    ci: ciTiming(pr),
-    sessions: attributedMetas,
-    redCiRuns: history,
-    reworkSec: reviewReworkSeconds(commits),
-    weights: options.weights,
-  })
+  return {
+    ...mergeDeliverySources(enriched, {
+      ci: ciTiming(pr),
+      sessions: attributedMetas,
+      redCiRuns: history,
+      reworkSec: reviewReworkSeconds(commits),
+      weights: options.weights,
+    }),
+    sessions: attributionAudit(attributed, options.weights),
+  }
+}
+
+/** Auditable per-PR list: which session files were attributed, by which rule, at what cost. */
+export function attributionAudit(attributed, weights) {
+  return (Array.isArray(attributed) ? attributed : []).map(({ meta, via }) => ({
+    file: meta.file ?? null,
+    rule: via,
+    costUnits: costUnits(meta.usage, weights),
+    humanMessages: meta.humanMessages ?? null,
+    live: meta.live === true,
+  }))
 }
 
 function markAttributedFiles(sessions, files) {
@@ -2157,13 +2196,12 @@ function commitsFromPr(pr) {
     touchedOnlyEvidencePaths: touchedOnlyEvidencePaths(c.oid),
   }))
 }
-function sessionsForPr(sessions, pr, firstCommit, worktreeDir) {
+function sessionsForPr(sessions, pr, firstCommit) {
   return attributeSessions(sessions, {
     ...pr,
     headRefName: pr.headRefName,
     firstCommit,
     mergedAt: pr.mergedAt,
-    worktreeDir,
   })
 }
 
@@ -2758,7 +2796,6 @@ async function runReport(opts) {
       ...pr,
       firstCommit: commits[0]?.authoredDate ?? pr.createdAt,
       mergedAt: pr.mergedAt,
-      worktreeDir: process.cwd(),
       commits,
     }
   })
@@ -2766,7 +2803,7 @@ async function runReport(opts) {
   const attributedFiles = new Set()
   const rows = reportRowsWithCostRatio(
     prContexts.map((context) =>
-      fetchPrRow(opts.repo, context.number, sessions, process.cwd(), attributedFiles, {
+      fetchPrRow(opts.repo, context.number, sessions, attributedFiles, {
         pr: context,
         commits: context.commits,
         assigned: assignments.get(context.number) ?? [],
