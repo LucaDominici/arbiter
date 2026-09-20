@@ -13,6 +13,7 @@ import {
   writeFileSync,
   rmSync,
   cpSync,
+  chmodSync,
   symlinkSync,
   readFileSync,
 } from 'node:fs'
@@ -49,6 +50,18 @@ function writeState(phase: string, plan = 'plan.md', planBody = GOOD_PLAN) {
     JSON.stringify({ taskId: '#42', phase, plan }),
   )
   if (planBody !== null) writeFileSync(join(root, plan), planBody)
+}
+
+function installGh(response: Record<string, unknown>): string {
+  const bin = join(root, 'bin')
+  mkdirSync(bin, { recursive: true })
+  const gh = join(bin, 'gh')
+  writeFileSync(
+    gh,
+    `#!/bin/sh\nprintf '%s' '${JSON.stringify(response).replaceAll("'", "'\\\"'\\\"'")}'\n`,
+  )
+  chmodSync(gh, 0o755)
+  return bin
 }
 
 beforeEach(() => {
@@ -252,6 +265,39 @@ describe('check-acceptance gate', () => {
     writeFileSync(join(root, 'bad.md'), 'nothing')
     expect(run({}, ['--plan', 'bad.md']).status).toBe(1)
     expect(run({}, ['--plan', 'missing.md']).status).toBe(2)
+  })
+
+  it('--admit-issue returns NO DATA (2) when gh cannot read the issue', () => {
+    writeFileSync(join(root, 'wave.md'), GOOD_PLAN)
+    const r = run({}, ['--plan', 'wave.md', '--admit-issue', '42'])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/NO DATA/i)
+  })
+
+  it('--admit-issue accepts positional source criteria with matching frozen text', () => {
+    writeFileSync(
+      join(root, 'wave.md'),
+      [
+        '## Acceptance Criteria',
+        '- [ ] AC-42.1: preserves the requested outcome',
+        '## Non-Goals',
+        '- x',
+      ].join('\n'),
+    )
+    const bin = installGh({
+      number: 42,
+      url: 'https://example.invalid/issues/42',
+      body: '## Acceptance Criteria\n- preserves the requested outcome',
+      updatedAt: '2026-09-20T00:00:00Z',
+    })
+    expect(
+      run({ PATH: `${bin}:${process.env.PATH ?? ''}` }, [
+        '--plan',
+        'wave.md',
+        '--admit-issue',
+        '42',
+      ]).status,
+    ).toBe(0)
   })
 
   it('--plan --ac-fit combined mode enforces all-PASS wave fit — red-team F5', () => {

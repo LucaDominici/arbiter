@@ -23,11 +23,16 @@
 // CATALOG: rejected fold-in into check-phase-doc-consistency.mjs because that gate validates the SHAPE of .claude/.task/status.json (single-doc split-brain), while this one validates the CONTENT CONTRACT between the anchored plan, the issue's acceptance criteria, and reviewer fit evidence — a different SSOT axis with a feature-flag lifecycle.
 // CATALOG: rejected fold-in into check-evidence-bundle.mjs because evidence bundles are per-task artifact BUNDLES under .evidence/ with their own JSON schema file, whereas ac-fit is a single per-criterion verdict artifact coupled to plan parsing (scripts/lib/acceptance-criteria.mjs) that bundle validation knows nothing about.
 import { createHash } from 'node:crypto'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, lstatSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { computeAcHash, parsePlanAnchor, validateAcFit } from './lib/acceptance-criteria.mjs'
+import {
+  computeAcHash,
+  parsePlanAnchor,
+  validateAcFit,
+  validateIssueAcceptanceCoverage,
+} from './lib/acceptance-criteria.mjs'
 import { enforceAcFitCitations } from './lib/agent-return-validate.mjs'
 import { evidenceStaleness } from './lib/evidence-binding.mjs'
 import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
@@ -35,6 +40,7 @@ import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 const PRE_PHASES = new Set(['preflight', 'plan', 'complete'])
 const IMPL_PHASES = new Set(['red', 'green', 'refactor'])
 const LATE_PHASES = new Set(['verification', 'close'])
+const ADMISSION_GH_TIMEOUT_MS = 4000
 
 // Arbiter-self ships the affects registry; generated targets currently do not. The
 // shared acceptance checker therefore activates #2773 only where the pure derivation
@@ -76,7 +82,7 @@ export function checkPlanAnchor(planBody) {
     return { ok: false, criteriaIds: [], errors }
   }
   if (anchor.criteria.length === 0) {
-    errors.push('plan "## Acceptance Criteria" has no `- [ ] AC-N: …` checkbox')
+    errors.push('plan "## Acceptance Criteria" has no `- AC-N: …` criterion bullet')
   } else if (anchor.criteria.some((c) => !c.explicit)) {
     errors.push('plan acceptance criteria need explicit stable `AC-N:` ids')
   } else {
@@ -131,6 +137,81 @@ function runPlanMode(root, args, planIdx) {
   const fitExit = checkExplicitFitArg(root, args, result.criteriaIds)
   if (fitExit !== 0) return fitExit
   console.log('OK check-acceptance (--plan mode)')
+  return 0
+}
+
+function admissionIssueNumber(args, admitIdx) {
+  const raw = args[admitIdx + 1]
+  const value = typeof raw === 'string' ? raw.replace(/^#/, '') : ''
+  return /^\d+$/.test(value) ? String(Number(value)) : null
+}
+
+function readIssueForAdmission(root, issueNumber) {
+  const result = spawnSync(
+    'gh',
+    ['issue', 'view', issueNumber, '--json', 'number,url,body,updatedAt'],
+    { cwd: root, encoding: 'utf8', shell: false, timeout: ADMISSION_GH_TIMEOUT_MS },
+  )
+  if (result.error || result.status !== 0 || result.signal) return null
+  try {
+    const issue = JSON.parse(result.stdout)
+    if (
+      issue === null ||
+      typeof issue !== 'object' ||
+      issue.number !== Number(issueNumber) ||
+      typeof issue.url !== 'string' ||
+      issue.url.length === 0 ||
+      typeof issue.body !== 'string' ||
+      issue.body.trim().length === 0 ||
+      typeof issue.updatedAt !== 'string' ||
+      !Number.isFinite(Date.parse(issue.updatedAt))
+    )
+      return null
+    return issue
+  } catch (err) {
+    fail(
+      `NO DATA: malformed gh response for issue #${issueNumber}: ${err instanceof Error ? err.message : String(err)}`,
+    )
+    return null
+  }
+}
+
+// Explicit admission is the sole networked mode. Ordinary gate and --plan checks stay offline.
+function runAdmissionMode(root, args, planIdx, admitIdx) {
+  if (planIdx === -1) {
+    fail('--admit-issue requires --plan <path>')
+    return 2
+  }
+  const issueNumber = admissionIssueNumber(args, admitIdx)
+  if (issueNumber === null) {
+    fail('--admit-issue requires a numeric issue number')
+    return 2
+  }
+  const planArg = args[planIdx + 1]
+  if (!planArg) {
+    fail('--plan requires a path')
+    return 2
+  }
+  const plan = readPlan(root, planArg)
+  if (plan.error) {
+    fail(plan.error)
+    return 2
+  }
+  const result = checkPlanAnchor(plan.body)
+  for (const error of result.errors) fail(error)
+  if (!result.ok) return 1
+  const issue = readIssueForAdmission(root, issueNumber)
+  if (issue === null) {
+    fail(`NO DATA: unable to read issue #${issueNumber} for plan admission`)
+    return 2
+  }
+  const anchor = parsePlanAnchor(plan.body)
+  const errors = validateIssueAcceptanceCoverage(issueNumber, issue.body, anchor?.criteria ?? [])
+  for (const error of errors) fail(error)
+  if (errors.length > 0) return 1
+  const derivedExit = checkPlanDerivedGates(root, plan.body)
+  if (derivedExit !== 0) return derivedExit
+  console.log(`OK check-acceptance (issue #${issueNumber} admitted)`)
   return 0
 }
 
@@ -378,13 +459,17 @@ function runGateMode(root) {
 function main() {
   const root = process.cwd()
   const args = process.argv.slice(2)
+  const planIdx = args.indexOf('--plan')
+  const admitIdx = args.indexOf('--admit-issue')
+
+  // This must precede flag/phase SKIP: task admission is an explicit, networked operation.
+  if (admitIdx !== -1) return runAdmissionMode(root, args, planIdx, admitIdx)
 
   if (!flagEnabled(root)) {
     console.log('SKIP check-acceptance: features.acceptanceAnchor is off')
     return 0
   }
 
-  const planIdx = args.indexOf('--plan')
   if (planIdx !== -1) return runPlanMode(root, args, planIdx)
   return runGateMode(root)
 }

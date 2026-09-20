@@ -1,26 +1,71 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2587 RED receipt: acceptance-anchor validation must happen on red admission.
-import { copyFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runTaskAdvance } from '../../src/commands/task.js'
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
+import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
 
 const roots: string[] = []
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  vi.restoreAllMocks()
 })
 
 function installAcceptanceChecker(root: string): void {
-  mkdirSync(join(root, 'scripts', 'lib'), { recursive: true })
-  for (const file of [
-    'check-acceptance.mjs',
-    'lib/acceptance-criteria.mjs',
-    'lib/run-helpers.mjs',
-  ]) {
-    copyFileSync(resolve(__dirname, '../../scripts', file), join(root, 'scripts', file))
+  symlinkSync(resolve(__dirname, '../../node_modules'), join(root, 'node_modules'), 'dir')
+  cpSync(resolve(__dirname, '../../scripts', 'lib'), join(root, 'scripts', 'lib'), {
+    recursive: true,
+  })
+  cpSync(
+    resolve(__dirname, '../../scripts', 'check-acceptance.mjs'),
+    join(root, 'scripts', 'check-acceptance.mjs'),
+  )
+}
+
+function installGh(root: string, response: string, status = 0): string {
+  const bin = join(root, 'bin')
+  mkdirSync(bin, { recursive: true })
+  const gh = join(bin, 'gh')
+  writeFileSync(
+    gh,
+    `#!/bin/sh\nprintf '%s' '${response.replaceAll("'", "'\\\"'\\\"'")}'\nexit ${status}\n`,
+  )
+  chmodSync(gh, 0o755)
+  return bin
+}
+
+function validPlan(criteria = ['AC-2587.1: preserves the requested outcome']) {
+  return [
+    '## Acceptance Criteria',
+    ...criteria.map((criterion) => `- [ ] ${criterion}`),
+    '## Non-Goals',
+    '- x',
+  ].join('\n')
+}
+
+function issueBody(criteria = ['AC-1: preserves the requested outcome']) {
+  return ['## Acceptance Criteria', ...criteria.map((criterion) => `- ${criterion}`)].join('\n')
+}
+
+function withGhPath(bin: string, run: () => void): void {
+  const previous = process.env.PATH
+  process.env.PATH = `${bin}:${previous ?? ''}`
+  try {
+    run()
+  } finally {
+    process.env.PATH = previous
   }
 }
 
@@ -41,5 +86,84 @@ describe('red admission acceptance anchor (#2587)', () => {
 
     expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(/acceptance/i)
     expect(readUnifiedState(root)?.phase).toBe('plan')
+  })
+
+  it.each([
+    [
+      'omits an issue criterion',
+      validPlan(),
+      issueBody(['AC-1: preserves the requested outcome', 'AC-2: reports the failure']),
+    ],
+    [
+      'weakens an issue criterion',
+      validPlan(['AC-2587.1: silently ignores the requested outcome']),
+      issueBody(),
+    ],
+  ])('keeps plan when admission %s', (_name, plan, body) => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-red-admission-'))
+    roots.push(root)
+    writeUnifiedState(root, { taskId: '#2587', phase: 'plan', plan: 'plan.md' })
+    writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
+    writeFileSync(join(root, 'plan.md'), plan)
+    installAcceptanceChecker(root)
+    const bin = installGh(
+      root,
+      JSON.stringify({
+        number: 2587,
+        url: 'https://example.invalid/issues/2587',
+        body,
+        updatedAt: '2026-09-20T00:00:00Z',
+      }),
+    )
+
+    withGhPath(bin, () => {
+      expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(/acceptance|criterion/i)
+    })
+    expect(readUnifiedState(root)?.phase).toBe('plan')
+  })
+
+  it('keeps plan when the issue cannot be read', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-red-admission-'))
+    roots.push(root)
+    writeUnifiedState(root, { taskId: '#2587', phase: 'plan', plan: 'plan.md' })
+    writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
+    writeFileSync(join(root, 'plan.md'), validPlan())
+    installAcceptanceChecker(root)
+    const bin = installGh(root, 'offline', 1)
+
+    withGhPath(bin, () => {
+      expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(/NO DATA/i)
+    })
+    expect(readUnifiedState(root)?.phase).toBe('plan')
+  })
+
+  it('skips issue coverage for a non-GitHub task id and runs the ordinary plan check', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-red-admission-'))
+    roots.push(root)
+    const files = ['docs/example.md']
+    const plan = [
+      '---',
+      'files:',
+      ...files.map((file) => `  - ${file}`),
+      '---',
+      validPlan(['AC-1: preserves the requested outcome']),
+    ].join('\n')
+    writeUnifiedState(root, {
+      taskId: 'JIRA-42',
+      phase: 'plan',
+      plan: 'plan.md',
+      derivedGates: deriveGatesForFiles(files),
+    })
+    writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
+    writeFileSync(join(root, 'plan.md'), plan)
+    installAcceptanceChecker(root)
+    const output = vi.spyOn(process.stdout, 'write')
+
+    runTaskAdvance({ to: 'red', dir: root })
+
+    expect(readUnifiedState(root)?.phase).toBe('red')
+    expect(output).toHaveBeenCalledWith(
+      'SKIP issue-coverage admission: task id JIRA-42 is not a GitHub issue number\n',
+    )
   })
 })

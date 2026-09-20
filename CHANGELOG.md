@@ -13,6 +13,9 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 - `/ship` prose: removed seven unenforced promises (cursor checkpoint, model selection, proof/rollback
   lists, targeted certification, finding reconciliation, lane counts, reviewer transcript rules);
   every remaining sentence maps to a control (#2767).
+- Issue-backed acceptance admission now compares each issue criterion with the frozen, namespaced
+  plan criterion before RED; unavailable GitHub data fails closed, while non-GitHub task ids log an
+  explicit skip and retain ordinary plan validation.
 
 ## [0.6.0] — 2026-09-13
 
