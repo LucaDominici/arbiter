@@ -6,6 +6,12 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are aligned to
 [Semantic Versioning](https://semver.org/) (pre-1.0: a breaking change bumps the minor).
 
+## [Unreleased]
+
+- `/ship` prose: removed seven unenforced promises (cursor checkpoint, model selection, proof/rollback
+  lists, targeted certification, finding reconciliation, lane counts, reviewer transcript rules);
+  every remaining sentence maps to a control (#2767).
+
 ## [0.6.0] — 2026-09-13
 
 **Channel:** stable
