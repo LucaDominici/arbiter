@@ -1,9 +1,11 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildCodexArgs, buildCodexReviewArgs } from '../../scripts/lib/codex-dispatch-lib.mjs'
+
+const LIB_PATH = join(__dirname, '../../scripts/lib/codex-dispatch-lib.mjs')
 
 function makeWorktree() {
   const hub = mkdtempSync(join(tmpdir(), 'codex-dispatch-'))
@@ -95,5 +97,22 @@ describe('codex dispatch argument builder', () => {
     expect(args[args.indexOf('-s') + 1]).toBe('read-only')
     expect(args).not.toContain('--add-dir')
     expect(args).toContain('approval_policy=never')
+  })
+
+  it('stays a pure argv builder (CANON-25 proof for its fail-closed-audit exemption)', () => {
+    // codex-dispatch-lib.mjs is exempted from the fail-closed try/catch contract on the
+    // claim that it does no I/O beyond a git rev-parse and a readFileSync, and never spawns
+    // a subprocess of its own. Fail this test if that claim stops being true.
+    const source = readFileSync(LIB_PATH, 'utf8')
+    for (const forbidden of [
+      'spawn',
+      'exec(',
+      'fork',
+      'writeFileSync',
+      'mkdirSync',
+      'unlinkSync',
+    ]) {
+      expect(source).not.toContain(forbidden)
+    }
   })
 })
