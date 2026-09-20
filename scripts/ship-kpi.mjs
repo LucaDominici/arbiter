@@ -617,12 +617,17 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
 }
 
 function sessionAttribution(meta, issueIds, attributedThreads) {
-  if (containsIssueId(meta.gitBranch, issueIds)) return 'branch'
-  if (containsIssueId(meta.cwd, issueIds)) return 'cwd'
+  if (visited(meta.gitBranch, meta.gitBranches).some((v) => containsIssueId(v, issueIds)))
+    return 'branch'
+  if (visited(meta.cwd, meta.cwds).some((v) => containsIssueId(v, issueIds))) return 'cwd'
   if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id))) return 'agent-path'
   if (hasParentAttribution(meta, attributedThreads)) return 'parent'
   if (hasPromptAttribution(meta, issueIds)) return 'prompt'
   return null
+}
+
+function visited(first, all) {
+  return [first, ...(Array.isArray(all) ? all : [])]
 }
 
 function hasParentAttribution(meta, attributedThreads) {
@@ -845,6 +850,8 @@ export function claudeSessionMeta(lines) {
   const state = {
     gitBranch: null,
     cwd: null,
+    gitBranches: [],
+    cwds: [],
     effort: null,
     humanMessages: 0,
     hasHumanMessage: false,
@@ -869,6 +876,8 @@ export function claudeSessionMeta(lines) {
   return {
     gitBranch: state.gitBranch,
     cwd: state.cwd,
+    gitBranches: state.gitBranches,
+    cwds: state.cwds,
     firstTs: times.firstTs,
     lastTs: times.lastTs,
     usage: { input: state.input, output: state.output, cache: state.cache },
@@ -897,7 +906,34 @@ function updateClaudeContext(state, event) {
   if (state.gitBranch === null && typeof event.gitBranch === 'string')
     state.gitBranch = event.gitBranch
   if (state.cwd === null && typeof event.cwd === 'string') state.cwd = event.cwd
+  addDistinct(state.gitBranches, event.gitBranch)
+  addDistinct(state.cwds, event.cwd)
   if (typeof event.effort === 'string') state.effort = event.effort
+}
+
+// A session can resume elsewhere (main, then the task branch/worktree): keep every place it worked.
+function addDistinct(list, value) {
+  if (typeof value === 'string' && !list.includes(value)) list.push(value)
+}
+
+/** Text of a genuine prompt: a plain string, or the text blocks of a content array. */
+function promptText(content) {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .filter((block) => block?.type === 'text' && typeof block.text === 'string')
+    .map((block) => block.text)
+    .join('\n')
+}
+
+// The FIRST genuine prompt is the delivery evidence: ids come from all of it, only the stored text is cut.
+function recordHumanPrompt(state, event) {
+  state.humanMessages++
+  state.hasHumanMessage = true
+  if (state.humanMessages !== 1) return
+  const text = promptText(messageContent(event))
+  state.firstPrompt = text.slice(0, 400)
+  state.issueIdsInPrompt = promptIssueIds(text)
 }
 
 function updateClaudeUsage(state, usage) {
@@ -914,14 +950,7 @@ function updateClaudeUsage(state, usage) {
 }
 
 function consumeClaudeUser(state, event, role) {
-  if (!isGenuineClaudeUser(event, role)) return
-  state.humanMessages++
-  state.hasHumanMessage = true
-  const content = messageContent(event)
-  if (state.firstPrompt === null && typeof content === 'string') {
-    state.firstPrompt = content.slice(0, 400)
-    state.issueIdsInPrompt = promptIssueIds(state.firstPrompt)
-  }
+  if (isGenuineClaudeUser(event, role)) recordHumanPrompt(state, event)
 }
 
 /** Summarize Codex rollout JSONL using its latest context and token snapshot. */
@@ -1788,7 +1817,7 @@ function collectEntry(dir, entry, predicate, maxDepth, depth) {
   return []
 }
 
-function sessionFiles(dir, host, sinceMs, untilMs) {
+function sessionFiles(dir, host, sinceMs) {
   const maxDepth = host === 'claude' ? 1 : Number.POSITIVE_INFINITY
   const predicate =
     host === 'claude'
@@ -1799,7 +1828,7 @@ function sessionFiles(dir, host, sinceMs, untilMs) {
     .filter((file) => {
       try {
         const mtimeMs = statSync(file).mtimeMs
-        return mtimeMs >= sinceMs && mtimeMs <= untilMs
+        return mtimeMs >= sinceMs
         // FAIL-OPEN-INTENT: an unstatable session log contributes no delivery metrics; unavailable source is represented as null by the caller.
       } catch {
         return false
@@ -1813,6 +1842,8 @@ function newSessionAccumulator(host, file) {
     file,
     gitBranch: null,
     cwd: null,
+    gitBranches: [],
+    cwds: [],
     agentPath: null,
     threadId: null,
     parentThreadId: null,
@@ -1905,23 +1936,9 @@ function addUsage(target, source) {
 }
 
 function consumeClaudeAccumulator(accumulator, event) {
-  updateClaudeAccumulatorContext(accumulator, event)
+  updateClaudeContext(accumulator, event)
   const role = event.message?.role ?? event.type
-  if (!isGenuineClaudeUser(event, role)) return
-  accumulator.humanMessages++
-  accumulator.hasHumanMessage = true
-  const content = messageContent(event)
-  if (accumulator.firstPrompt === null && typeof content === 'string') {
-    accumulator.firstPrompt = content.slice(0, 400)
-    accumulator.issueIdsInPrompt = promptIssueIds(accumulator.firstPrompt)
-  }
-}
-
-function updateClaudeAccumulatorContext(accumulator, event) {
-  if (accumulator.gitBranch === null && typeof event.gitBranch === 'string')
-    accumulator.gitBranch = event.gitBranch
-  if (accumulator.cwd === null && typeof event.cwd === 'string') accumulator.cwd = event.cwd
-  if (typeof event.effort === 'string') accumulator.effort = event.effort
+  if (isGenuineClaudeUser(event, role)) recordHumanPrompt(accumulator, event)
 }
 
 function consumeCodexAccumulator(accumulator, event) {
@@ -1953,6 +1970,8 @@ function finishSessionAccumulator(accumulator) {
     file: accumulator.file,
     gitBranch: accumulator.gitBranch,
     cwd: accumulator.cwd,
+    gitBranches: accumulator.gitBranches,
+    cwds: accumulator.cwds,
     firstTs: accumulator.times.firstTs,
     lastTs: accumulator.times.lastTs,
     usage: accumulator.usage,
@@ -2022,12 +2041,14 @@ async function addSubagentUsage(parent, weights) {
 
 export async function discoverSessions(dir, host, sinceMs, untilMs, weights) {
   const sessions = []
-  for (const file of sessionFiles(dir, host, sinceMs, untilMs)) {
+  for (const file of sessionFiles(dir, host, sinceMs)) {
     try {
       const accumulator = newSessionAccumulator(host, file)
       await streamLines(file, (line) => consumeSessionLine(accumulator, line))
       if (host === 'claude') await addSubagentUsage(accumulator, weights)
-      sessions.push({ ...finishSessionAccumulator(accumulator), live: sessionLive(file) })
+      const session = { ...finishSessionAccumulator(accumulator), live: sessionLive(file) }
+      // A transcript resumed after the window still holds its earlier events; only one that began after it is out.
+      if (!(Date.parse(session.firstTs ?? '') > untilMs)) sessions.push(session)
     } catch (error) {
       // FAIL-OPEN-INTENT: an unreadable transcript cannot support attribution or KPI phases; omit it and preserve NO DATA in the affected delivery while surfacing the source error.
       process.stderr.write(`ship-kpi: unreadable session ${file}: ${error?.message ?? error}\n`)
@@ -2180,7 +2201,6 @@ export function attributionAudit(attributed, weights) {
     rule: via,
     costUnits: costUnits(meta.usage, weights),
     humanMessages: meta.humanMessages ?? null,
-    live: meta.live === true,
   }))
 }
 
@@ -2772,6 +2792,21 @@ function usageError() {
   process.exit(2)
 }
 
+/** The JSON evidence: a pure function of the measured data, no clock, so finished sessions repeat byte for byte. */
+export function reportPayload({ opts, untilLabel, rows, aggregate, hookBlocks, unattributed }) {
+  return {
+    since: opts.since,
+    until: untilLabel,
+    repo: opts.repo,
+    ciRedAtOpenApproximation:
+      'ciRedAtOpen reflects the CURRENT statusCheckRollup, not the first run at PR-open time — GitHub does not retain that snapshot via gh.',
+    rows,
+    aggregate,
+    hookBlocks,
+    unattributed,
+  }
+}
+
 async function runReport(opts) {
   const until = opts.until
   const prNumbers = fetchMergedPrNumbers(opts.repo, opts.since, until)
@@ -2837,18 +2872,12 @@ async function runReport(opts) {
   }
 
   const untilLabel = until ?? today()
-  const payload = {
-    since: opts.since,
-    until: untilLabel,
-    repo: opts.repo,
-    generatedAt: new Date().toISOString(),
-    ciRedAtOpenApproximation:
-      'ciRedAtOpen reflects the CURRENT statusCheckRollup, not the first run at PR-open time — GitHub does not retain that snapshot via gh.',
-    rows,
-    aggregate,
-    hookBlocks,
-    unattributed,
-  }
+  const payload = reportPayload({ opts, untilLabel, rows, aggregate, hookBlocks, unattributed })
+  const live = sessions.filter((session) => session.live && attributedFiles.has(session.file))
+  if (live.length > 0)
+    process.stderr.write(
+      `ship-kpi: ${live.length} attributed session(s) still being written, their cost may still grow: ${live.map((session) => session.file).join(', ')}\n`,
+    )
 
   process.stdout.write(
     renderMarkdown({

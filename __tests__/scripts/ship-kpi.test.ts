@@ -1612,6 +1612,8 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual({
       gitBranch: 'task/#2725-ship-kpi-loop',
       cwd: worktreeDir,
+      gitBranches: ['task/#2725-ship-kpi-loop'],
+      cwds: [worktreeDir],
       firstTs: firstCommit,
       lastTs: '2026-09-19T00:05:00Z',
       usage: { input: 140, output: 30, cache: 37 },
@@ -1658,6 +1660,8 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual({
       gitBranch: null,
       cwd: worktreeDir,
+      gitBranches: [],
+      cwds: [worktreeDir],
       firstTs: firstCommit,
       lastTs: firstCommit,
       usage: { input: null, output: null, cache: null },
