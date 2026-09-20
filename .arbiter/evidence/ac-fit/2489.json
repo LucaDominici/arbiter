@@ -1,0 +1,133 @@
+{
+  "schema": "arbiter-ac-fit-v1",
+  "taskId": "#2489",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 624
+        },
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 631
+        },
+        {
+          "file": "__tests__/hooks/sidecar-liveness.test.ts",
+          "line": 23
+        },
+        {
+          "file": "__tests__/hooks/sidecar-liveness.test.ts",
+          "line": 48
+        }
+      ]
+    },
+    {
+      "id": "AC-2",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 627
+        },
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 629
+        },
+        {
+          "file": "__tests__/hooks/sidecar-liveness.test.ts",
+          "line": 38
+        },
+        {
+          "file": "__tests__/hooks/sidecar-liveness.test.ts",
+          "line": 55
+        }
+      ]
+    },
+    {
+      "id": "AC-3",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 617
+        },
+        {
+          "file": ".claude/hooks/lib.mjs",
+          "line": 620
+        },
+        {
+          "file": "docs/design/anti-context-rot-enforcers.md",
+          "line": 385
+        }
+      ]
+    },
+    {
+      "id": "AC-4",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "__tests__/hooks/sidecar-liveness.test.ts",
+          "line": 23
+        },
+        {
+          "file": "__tests__/hooks/sidecar-liveness.test.ts",
+          "line": 33
+        },
+        {
+          "file": "__tests__/hooks/sidecar-liveness.test.ts",
+          "line": 43
+        }
+      ]
+    },
+    {
+      "id": "AC-5",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": "src/templates/claude/hooks/lib.mjs.ejs",
+          "line": 609
+        },
+        {
+          "file": "src/templates/claude/hooks/pre-spawn-worktree-guard.mjs",
+          "line": 99
+        },
+        {
+          "file": "packages/kernel/hooks/lib.mjs",
+          "line": 637
+        },
+        {
+          "file": "examples/ts-library/.claude/hooks/lib.mjs",
+          "line": 609
+        }
+      ]
+    },
+    {
+      "id": "AC-6",
+      "verdict": "PASS",
+      "evidence": [
+        {
+          "file": ".claude/hooks/pre-spawn-worktree-guard.mjs",
+          "line": 100
+        },
+        {
+          "file": ".claude/hooks/pre-spawn-worktree-guard.mjs",
+          "line": 89
+        },
+        {
+          "file": "__tests__/hooks/empirical/pre-spawn-worktree-guard.test.ts",
+          "line": 387
+        }
+      ]
+    }
+  ],
+  "branch": "task/#2489-spawn-guard-tombstone",
+  "sha": "daa326d61ecd97bc68d3a096d033d99cf918b228",
+  "planHash": "8232cbf49aa4bfa575c4c6adcdc086f1257ffaa0",
+  "sourceEnvelope": {
+    "path": ".arbiter/evidence/agent-returns/_2489/acceptance-verifier-0.json",
+    "sha256": "74676a84446ccc7465f95939752ed957d0e1d8af92bb65ddb83a128e785781b6"
+  }
+}
