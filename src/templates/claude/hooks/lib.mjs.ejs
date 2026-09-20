@@ -780,9 +780,9 @@ function assistantRecordText(record) {
 }
 
 /** Final assistant text from a Stop envelope, or its identity-bound transcript fallback. */
-export function readStopAssistantText(event, repoRoot) {
+export function readStopAssistantText(event, repoRoot, { requireIdentity = true } = {}) {
   if (typeof event?.last_assistant_message === 'string') return event.last_assistant_message;
-  if (claudeTranscriptIdentityError(event, repoRoot)) return null;
+  if (requireIdentity && claudeTranscriptIdentityError(event, repoRoot)) return null;
   let raw;
   try {
     raw = readFileSync(event.transcript_path, 'utf-8');

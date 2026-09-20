@@ -59,7 +59,7 @@ if (!IMPL_PHASES.has(phase)) process.exit(0)
 
 let input
 try {
-  input = JSON.parse(readFileSync(0, 'utf-8')) ?? {}
+  input = JSON.parse(readFileSync(process.stdin.fd, 'utf-8')) ?? {} // Stop envelope from stdin
 } catch {
   process.exit(0)
 }

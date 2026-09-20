@@ -230,7 +230,7 @@ function parseTimestamp(record) {
 function block(reason) {
   process.stderr.write(
     `[skill-forced-eval] blocked: ${reason}\n` +
-      'Run /tdd and wait for its successful result before editing implementation code.\n',
+      `Run /tdd and wait for its successful result before editing implementation code; then run <%= testCommand %>.\n`,
   );
   process.exit(2);
 }
