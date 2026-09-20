@@ -29,6 +29,8 @@ try {
   }
   // FAIL-OPEN-INTENT: owner decision #2767 surfaces any throw as one notice and exits 0.
 } catch (error) {
-  process.stderr.write(`[arbiter] Advisory unavailable: ${error.message}\n`)
+  process.stderr.write(
+    `[arbiter] Advisory unavailable: ${error instanceof Error ? error.message : String(error)}\n`,
+  )
   process.exitCode = 0
 }

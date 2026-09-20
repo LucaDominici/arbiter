@@ -24,7 +24,7 @@ describe('post-commit-check.mjs.ejs (#724)', () => {
     const gitPath = join(dir, 'git')
     const hook = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', cfg)
     const source = injectFailure
-      ? hook.replace('const command = resolveToolInputCommand()', "throw new Error('test failure')")
+      ? hook.replace('const command = resolveToolInputCommand()', 'throw null')
       : hook
     if (injectFailure && source === hook) throw new Error('fault injection did not apply')
     writeFileSync(hookPath, source)
@@ -70,7 +70,7 @@ describe('post-commit-check.mjs.ejs (#724)', () => {
     )
     expect(result.status).toBe(0)
     expect(result.stdout).toBe('')
-    expect(result.stderr).toBe('[arbiter] Advisory unavailable: test failure\n')
+    expect(result.stderr).toBe('[arbiter] Advisory unavailable: null\n')
   })
 
   it('registers the always-zero advisory in generated Claude and Codex dispatchers (#2767)', () => {
