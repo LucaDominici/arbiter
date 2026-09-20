@@ -658,24 +658,40 @@ function advanceShipPhase(
   opts: TaskShipOptions,
   taskId: string | undefined,
   profile: ShipProfile,
-): { phase: TaskPhase; advanced: boolean; review: PlannedReviewRound | null } {
-  if (!opts.advance) return { phase, advanced: false, review: null }
+): {
+  phase: TaskPhase
+  advanced: boolean
+  review: PlannedReviewRound | null
+  stopMessage: string | null
+} {
+  if (!opts.advance) return { phase, advanced: false, review: null, stopMessage: null }
   let current = phase
   let target = nextPhase(current)
   while (target !== null) {
-    const review = (opts.runAdvance ?? runTaskAdvance)({
-      to: target,
-      dir: root,
-      ...(opts.advanceOpts ?? {}),
-      ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
-    })
+    let review: PlannedReviewRound | null
+    try {
+      review = (opts.runAdvance ?? runTaskAdvance)({
+        to: target,
+        dir: root,
+        ...(opts.advanceOpts ?? {}),
+        ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
+      })
+    } catch (error: unknown) {
+      if (current === phase) throw error
+      const reason = error instanceof Error ? error.message : String(error)
+      const stopMessage = `advanced to ${current}; next gate (${target}) not yet satisfied: ${reason}`
+      appendLog(root, `ship → ${stopMessage}`)
+      return { phase: current, advanced: true, review: null, stopMessage }
+    }
     appendLog(root, `ship → advanced to ${target}`)
     writeVerificationCompanionEvidence(root, target, taskId, profile, opts)
     current = target
-    if (review !== null) return { phase: current, advanced: true, review }
+    if (review !== null) {
+      return { phase: current, advanced: true, review, stopMessage: null }
+    }
     target = nextPhase(current)
   }
-  return { phase: current, advanced: current !== phase, review: null }
+  return { phase: current, advanced: current !== phase, review: null, stopMessage: null }
 }
 
 function companionEvidencePath(taskId: string, repoDir: string): string {
@@ -1059,20 +1075,31 @@ function buildActiveShipResult(input: {
   state: UnifiedTaskState | null
   advanced: boolean
   preparedRound: PlannedReviewRound | null
+  stopMessage: string | null
   preparedChainAdd: ReturnType<typeof prepareChainAdd>
   opts: TaskShipOptions
 }): ShipResult {
-  const { phase, treatment, profile, state, advanced, preparedRound, preparedChainAdd, opts } =
-    input
+  const {
+    phase,
+    treatment,
+    profile,
+    state,
+    advanced,
+    preparedRound,
+    stopMessage,
+    preparedChainAdd,
+    opts,
+  } = input
+  const step = shipStepFor(phase, treatment, profile, state?.taskId, {
+    chainIds: state?.chainIds ?? [],
+    ...(opts.externalModelAccess !== undefined
+      ? { externalModelAccess: opts.externalModelAccess }
+      : {}),
+    ...(preparedRound !== null ? { review: preparedRound } : {}),
+  })
   return {
     phase,
-    step: shipStepFor(phase, treatment, profile, state?.taskId, {
-      chainIds: state?.chainIds ?? [],
-      ...(opts.externalModelAccess !== undefined
-        ? { externalModelAccess: opts.externalModelAccess }
-        : {}),
-      ...(preparedRound !== null ? { review: preparedRound } : {}),
-    }),
+    step: stopMessage === null ? step : { ...step, action: stopMessage },
     advanced,
     reviewDispatched: preparedRound !== null,
     done: phase === 'complete',
@@ -1122,6 +1149,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
     state,
     advanced: advancedPhase.advanced,
     preparedRound,
+    stopMessage: advancedPhase.stopMessage,
     preparedChainAdd,
     opts,
   })
