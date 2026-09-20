@@ -93,18 +93,29 @@ describe('red admission acceptance anchor (#2587)', () => {
       'omits an issue criterion',
       validPlan(),
       issueBody(['AC-1: preserves the requested outcome', 'AC-2: reports the failure']),
+      /criterion AC-2 is missing as plan AC-2587\.2/,
     ],
     [
       'weakens an issue criterion',
       validPlan(['AC-2587.1: silently ignores the requested outcome']),
       issueBody(),
+      /criterion AC-1 does not match plan AC-2587\.1/,
     ],
-  ])('keeps plan when admission %s', (_name, plan, body) => {
+  ])('keeps plan when admission %s', (_name, plan, body, expected) => {
     const root = mkdtempSync(join(tmpdir(), 'arbiter-red-admission-'))
     roots.push(root)
-    writeUnifiedState(root, { taskId: '#2587', phase: 'plan', plan: 'plan.md' })
+    const files = ['src/example.ts']
+    writeUnifiedState(root, {
+      taskId: '#2587',
+      phase: 'plan',
+      plan: 'plan.md',
+      derivedGates: deriveGatesForFiles(files),
+    })
     writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
-    writeFileSync(join(root, 'plan.md'), plan)
+    writeFileSync(
+      join(root, 'plan.md'),
+      ['---', 'files:', ...files.map((file) => `  - ${file}`), '---', plan].join('\n'),
+    )
     installAcceptanceChecker(root)
     const bin = installGh(
       root,
@@ -117,7 +128,7 @@ describe('red admission acceptance anchor (#2587)', () => {
     )
 
     withGhPath(bin, () => {
-      expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(/acceptance|criterion/i)
+      expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(expected)
     })
     expect(readUnifiedState(root)?.phase).toBe('plan')
   })

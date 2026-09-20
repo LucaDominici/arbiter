@@ -150,7 +150,13 @@ function readIssueForAdmission(root, issueNumber) {
   const result = spawnSync(
     'gh',
     ['issue', 'view', issueNumber, '--json', 'number,url,body,updatedAt'],
-    { cwd: root, encoding: 'utf8', shell: false, timeout: ADMISSION_GH_TIMEOUT_MS },
+    {
+      cwd: root,
+      encoding: 'utf8',
+      shell: false,
+      timeout: ADMISSION_GH_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
+    },
   )
   if (result.error || result.status !== 0 || result.signal) return null
   try {
