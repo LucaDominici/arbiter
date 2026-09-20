@@ -285,7 +285,7 @@ describe('probe-hooks liveness contract (#2135)', () => {
   })
 
   it('tolerates a dirty working tree when establishing probe state (#2227)', () => {
-    const dir = fixture('post-commit-check.mjs', 'process.exit(2)\n')
+    const dir = fixture('post-commit-check.mjs', 'process.exit(0)\n')
     try {
       writeFileSync(join(dir, 'tracked.txt'), 'line\n')
       execFileSync('git', ['add', 'tracked.txt'], { cwd: dir, stdio: 'ignore' })
