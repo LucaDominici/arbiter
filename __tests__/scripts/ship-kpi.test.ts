@@ -1566,7 +1566,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       },
     ])
     expect(soon.json).toBe(later.json)
-    expect(JSON.parse(soon.json).aggregate.staleOpenPrs).toEqual([2778])
+    expect(JSON.parse(soon.json).aggregate.openPrsStale).toEqual([2778])
   })
 
   it('does not attribute a coordinator through a branch it first visited after the merge', async () => {
@@ -1579,6 +1579,61 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       }),
     ])
     expect(attributeSessions(sessions, kpiPr)).toEqual([])
+  })
+
+  // #2774 (second round): dating the visited contexts stopped a session from claiming a
+  // delivery through a worktree it only visited after the merge, but did nothing about a
+  // coordinator that visits SEVERAL task worktrees in the same window — each bare
+  // `<issue>-<slug>` cwd still matches its own issue's BRANCH_ISSUE_RE segment, so the
+  // session qualified for cwd/branch attribution on every one of them. Real data: a
+  // coordinator session that cd'd into arbiter.worktrees/2747-*, 2773-* and 2778-* before
+  // any of those PRs merged was attributed in full to all three by the dedup's tie-break,
+  // not just to the one it actually delivered.
+  it('does not attribute a coordinator that visited several issues worktrees to any of them via cwd/branch', async () => {
+    const sessions = await discover([
+      userEvent('Coordinate', { cwd: mainCheckout, gitBranch: 'main' }),
+      userEvent('Move to 2747', {
+        timestamp: '2026-09-19T00:02:00Z',
+        cwd: '/w/arbiter.worktrees/2747-other',
+        gitBranch: 'task/#2747-other',
+      }),
+      userEvent('Move to 2774', {
+        timestamp: '2026-09-19T00:03:00Z',
+        cwd: '/w/arbiter.worktrees/2774-kpi',
+        gitBranch: 'task/#2774-kpi',
+      }),
+      userEvent('Move to 2778', {
+        timestamp: '2026-09-19T00:04:00Z',
+        cwd: '/w/arbiter.worktrees/2778-other',
+        gitBranch: 'task/#2778-other',
+      }),
+    ])
+    expect(attributeSessions(sessions, kpiPr)).toEqual([])
+    const deliveries = [
+      kpiPr,
+      { headRefName: 'task/#2747-other', firstCommit, mergedAt },
+      { headRefName: 'task/#2778-other', firstCommit, mergedAt },
+    ].map((pr, i) => ({ number: 2747 + i, ...pr }))
+    const assigned = attributeSessionsToDeliveries(sessions, deliveries) as Map<
+      number,
+      Array<{ meta: { file: string } }>
+    >
+    expect([...assigned.values()].flat()).toEqual([])
+  })
+
+  // The companion "must still work" case: a session that genuinely only ever worked inside
+  // ONE task's worktree, resuming there more than once, keeps its cwd/branch attribution —
+  // the multi-issue guard above must not blanket-disqualify a normal single-issue session.
+  it('still attributes a session that revisits the same single issue worktree', async () => {
+    const sessions = await discover([
+      userEvent('Start', { cwd: '/w/arbiter.worktrees/2774-kpi', gitBranch: 'task/#2774-kpi' }),
+      userEvent('Resume', {
+        timestamp: '2026-09-19T00:05:00Z',
+        cwd: '/w/arbiter.worktrees/2774-kpi',
+        gitBranch: 'task/#2774-kpi',
+      }),
+    ])
+    expect(attributeSessions(sessions, kpiPr)).toEqual([{ meta: sessions[0], via: 'branch' }])
   })
 
   it('skips a text-block synthetic prompt so the /ship prompt stays the first genuine one', async () => {
