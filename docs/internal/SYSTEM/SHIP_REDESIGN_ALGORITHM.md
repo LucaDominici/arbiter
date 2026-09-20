@@ -98,6 +98,12 @@ transcript) e si tiene UN log append-only `SHIP_TUNING_LOG.md`.
 lead time diviso in lavoro · verifica · review · attesa CI · rework · cerimonia (blocchi hook, commit di evidence);
 token per ruolo (writer/reviewer/orchestrazione); messaggi umani durante il task (= babysitting); round; full L2
 eseguiti; CI rosse; escape = fix/revert/issue che cita la PR entro 14 giorni. Token ignoti = NO DATA.
+**Attribuzione delle sessioni (#2774):** una sessione appartiene a una consegna solo se il suo primo prompt umano è
+`/ship #N` per quell'unica issue, oppure se il suo branch/cwd è il worktree del task (o, per Codex, discende da una
+sessione già attribuita). Sessioni che citano più issue, o una sola da un altro cwd (coordinatori), finiscono in
+`unattributed`. Ogni riga PR elenca `sessions: [{file, rule, costUnits, humanMessages, live}]` per rendere l'attribuzione
+verificabile; `live` marca una sessione ancora in scrittura (file toccato negli ultimi 10 minuti), il cui costo può ancora
+crescere. Due esecuzioni su sessioni concluse producono righe identiche (file ordinati).
 Strati: XS/S · Standard · Sensitive/train. Si riportano mediana E p90: la mediana di settembre è già 0.9 h,
 il dolore ("12 h per 2 issue") sta nella coda, nei token e nel babysitting, che oggi non sono misurati.
 
