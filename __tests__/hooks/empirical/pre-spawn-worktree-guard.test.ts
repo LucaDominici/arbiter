@@ -372,6 +372,21 @@ describe('pre-spawn-worktree-guard hook (#1947, design doc §E5)', () => {
     expect(result.stderr).toContain('SPAWN GUARD')
   })
 
+  it('#2489 AC-6: the refusal names the sidecar file it actually read', () => {
+    const dir = track(setup())
+    writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
+    writeSidecar(dir, [{ agent: 'general-purpose', ts: Date.now(), pid: 1, cwd: dir }])
+    const result = runHook(
+      dir,
+      { tool_input: { subagent_type: 'unknown-type', prompt: 'do a thing for #100' } },
+      { ARBITER_SPAWN_GUARD_HARD: '1' },
+    )
+    expect(result.status).toBe(2)
+    // The blocking entry can live in a worktree's sidecar while the main checkout's reads
+    // `[]`; "on the main working tree" alone sends the operator to the wrong file.
+    expect(result.stderr).toContain(join(dir, '.arbiter', 'agents-active.json'))
+  })
+
   it('exits 0: codebase-scanner dispatch under the same live-writer sidecar', () => {
     const dir = track(setup())
     writeWriteClasses(dir, { 'codebase-scanner': 'read-only' })
