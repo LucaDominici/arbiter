@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { runTaskRecordRed, taskIdFromBranch } from '../../src/commands/task-record-red.js'
+import { runVerifyTdd } from '../../src/commands/verify-tdd.js'
 
 // Mock runCli so we don't invoke real test runners
 vi.mock('../../src/utils/run-cli.js', () => ({
@@ -1029,5 +1030,172 @@ describe('runTaskRecordRed() explicit --task with no resolvable active task (#26
     const result = runTaskRecordRed({ testPath: '__tests__/explicit.test.ts', dir, taskId: '#503' })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.reason).toMatch(/mismatch/i)
+  })
+})
+
+describe('record-red --at (#2747)', () => {
+  const dirs: string[] = []
+
+  beforeEach(() => mockedRunCli.mockReset())
+  afterEach(() => {
+    while (dirs.length > 0) {
+      const dir = dirs.pop()
+      if (dir) rmSync(dir, { recursive: true, force: true })
+    }
+    mockedRunCli.mockReset()
+  })
+
+  function repo(): string {
+    const dir = mkdtempSync(join(tmpdir(), 'record-red-at-unit-'))
+    dirs.push(dir)
+    mkdirSync(join(dir, '.claude'), { recursive: true })
+    writeFileSync(join(dir, '.claude', '.task-id'), '#2747\n', 'utf-8')
+    return dir
+  }
+
+  function mockAtRun(options: {
+    atSha: string
+    headSha: string
+    testExitCode: number
+    testLog: string
+    blobSha?: string
+    ancestor?: boolean
+  }): string[] {
+    const worktrees: string[] = []
+    mockedRunCli.mockImplementation((cmd, rawArgs) => {
+      const args = [...rawArgs]
+      if (cmd === 'node') {
+        return {
+          stdout: options.testLog,
+          stderr: '',
+          exitCode: options.testExitCode,
+          durationMs: 5,
+        }
+      }
+      if (cmd !== 'git') throw new Error(`unexpected command: ${cmd}`)
+      if (args[0] === 'rev-parse' && args[1] === '--abbrev-ref') {
+        return { stdout: 'main', stderr: '', exitCode: 0, durationMs: 5 }
+      }
+      if (args[0] === 'rev-parse' && args[1] === 'HEAD') {
+        return { stdout: options.headSha, stderr: '', exitCode: 0, durationMs: 5 }
+      }
+      if (args[0] === 'merge-base') {
+        return {
+          stdout: '',
+          stderr: '',
+          exitCode: options.ancestor === false ? 1 : 0,
+          durationMs: 5,
+        }
+      }
+      if (args[0] === 'cat-file') {
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      }
+      if (args[0] === 'status') {
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      }
+      if (args[0] === 'worktree' && args[1] === 'add') {
+        const worktree = String(args[3] === '--force' ? args[4] : args[3])
+        mkdirSync(worktree, { recursive: true })
+        worktrees.push(worktree)
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      }
+      if (args[0] === 'worktree' && args[1] === 'remove') {
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      }
+      if (args[0] === 'rev-parse' && String(args[1]).startsWith(`${options.atSha}:`)) {
+        return {
+          stdout: options.blobSha ?? 'c'.repeat(40),
+          stderr: '',
+          exitCode: 0,
+          durationMs: 5,
+        }
+      }
+      if (args[0] === 'ls-tree') {
+        return { stdout: 'red.test.mjs\n', stderr: '', exitCode: 0, durationMs: 5 }
+      }
+      throw new Error(`unexpected git args: ${args.join(' ')}`)
+    })
+    return worktrees
+  }
+
+  function recordAt(
+    dir: string,
+    atSha: string,
+    testCmd?: readonly string[],
+  ): ReturnType<typeof runTaskRecordRed> {
+    const options = {
+      testPath: 'red.test.mjs',
+      dir,
+      at: atSha,
+      testCmd: testCmd ?? ['node', '--test', 'red.test.mjs'],
+    }
+    return runTaskRecordRed(options)
+  }
+
+  it('--at refuses a non-ancestor commit with exit 1', () => {
+    const dir = repo()
+    const atSha = 'a'.repeat(40)
+    const worktrees = mockAtRun({
+      atSha,
+      headSha: 'b'.repeat(40),
+      testExitCode: 1,
+      testLog: '# fail 1',
+      ancestor: false,
+    })
+
+    const result = recordAt(dir, atSha)
+
+    expect(result.ok ? 0 : 1).toBe(1)
+    expect(result.reason).toMatch(/not an ancestor/i)
+    expect(worktrees).toHaveLength(0)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'))).toBe(false)
+  })
+
+  it('--at refuses a test that passes at the selected commit', () => {
+    const dir = repo()
+    const atSha = 'a'.repeat(40)
+    const worktrees = mockAtRun({
+      atSha,
+      headSha: 'b'.repeat(40),
+      testExitCode: 0,
+      testLog: '1..1\n# pass 1',
+    })
+
+    const result = recordAt(dir, atSha)
+
+    expect(result.ok ? 0 : 1).toBe(1)
+    expect(result.reason).toMatch(/exited 0.*suite passed.*RED phase/i)
+    expect(worktrees).toHaveLength(1)
+    expect(existsSync(worktrees[0])).toBe(false)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'))).toBe(false)
+  })
+
+  it('--at records the selected commit and verifies its failing test', () => {
+    const dir = repo()
+    const atSha = 'a'.repeat(40)
+    const blobSha = 'c'.repeat(40)
+    const worktrees = mockAtRun({
+      atSha,
+      headSha: 'b'.repeat(40),
+      testExitCode: 1,
+      testLog: 'TAP version 13\n# fail 1',
+      blobSha,
+    })
+
+    const record = recordAt(dir, atSha, ['node', '--test', 'red.test.mjs'])
+    expect(record.ok, record.ok ? '' : record.reason).toBe(true)
+    const evidence = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'), 'utf-8'),
+    ) as { test_commit_sha: string; test_blob_sha: string }
+    expect(evidence.test_commit_sha).toBe(atSha)
+    expect(evidence.test_blob_sha).toBe(blobSha)
+    expect(worktrees).toHaveLength(1)
+    expect(existsSync(worktrees[0])).toBe(false)
+
+    const verification = runVerifyTdd({ taskId: '#2747', dir })
+    expect(verification.status).toBe('PASS')
+    expect(verification.exitCode).toBe(0)
+    expect(worktrees).toHaveLength(2)
+    expect(worktrees.every((worktree) => !existsSync(worktree))).toBe(true)
   })
 })

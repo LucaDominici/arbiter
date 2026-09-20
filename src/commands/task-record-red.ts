@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { runCli } from '../utils/run-cli.js'
 import {
   combineTestOutput,
@@ -18,10 +20,13 @@ import { normalizeChainId, readTaskId, readUnifiedState } from './task-state.js'
 import { loadConfig } from '../utils/config.js'
 import { detectLanguage } from '../detectors/language.js'
 import type { Language } from '../wizard/types.js'
+import { mkdtempTranslated, rmTranslated, symlinkTranslated } from '../utils/fs.js'
 
 export interface RecordRedOptions {
   testPath: string
   dir?: string
+  /** Record the RED test as of this ancestor commit instead of current HEAD. */
+  at?: string
   /** Task to record for; required to select a secondary issue on a declared train. */
   taskId?: string
   /** Explicit test command (binary + args); overrides runner auto-selection. */
@@ -155,6 +160,114 @@ function captureTestOutput(
   }
 }
 
+function validateAtCommit(sha: string, testPath: string, dir: string): RecordRedFailure | null {
+  try {
+    const ancestor = runCli('git', ['merge-base', '--is-ancestor', sha, 'HEAD'], {
+      cwd: dir,
+      timeoutMs: 5000,
+    })
+    if (ancestor.exitCode !== 0) {
+      return { ok: false, reason: `--at commit ${sha} is not an ancestor of HEAD` }
+    }
+    const present = runCli('git', ['cat-file', '-e', `${sha}:${testPath}`], {
+      cwd: dir,
+      timeoutMs: 5000,
+    })
+    if (present.exitCode !== 0) {
+      return {
+        ok: false,
+        reason: `test_path "${testPath}" not found at --at commit ${sha}`,
+      }
+    }
+    return null
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `cannot verify --at commit ${sha}: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+}
+
+function freeRecordRedWorktree(): string {
+  const dir = mkdtempTranslated(join(tmpdir(), 'arbiter-record-red-'))
+  rmTranslated(dir, { recursive: true, force: true })
+  return dir
+}
+
+function addRecordRedWorktree(
+  repoDir: string,
+  worktreeDir: string,
+  sha: string,
+): RecordRedFailure | null {
+  try {
+    const result = runCli('git', ['worktree', 'add', '--detach', worktreeDir, sha], {
+      cwd: repoDir,
+      timeoutMs: 30_000,
+    })
+    if (result.exitCode !== 0) {
+      return {
+        ok: false,
+        reason: `failed to check out --at commit ${sha} in an isolated worktree: ${result.stderr.trim()}`,
+      }
+    }
+    return null
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `failed to check out --at commit ${sha} in an isolated worktree: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+}
+
+function linkRecordRedNodeModules(repoDir: string, worktreeDir: string): void {
+  const source = join(repoDir, 'node_modules')
+  const destination = join(worktreeDir, 'node_modules')
+  if (!existsSync(source) || existsSync(destination)) return
+  try {
+    symlinkTranslated(source, destination, 'dir')
+  } catch {
+    // A missing link makes the runner fail to launch rather than minting evidence.
+  }
+}
+
+function removeRecordRedWorktree(repoDir: string, worktreeDir: string): void {
+  try {
+    runCli('git', ['worktree', 'remove', '--force', worktreeDir], {
+      cwd: repoDir,
+      timeoutMs: 30_000,
+    })
+  } catch {
+    // The filesystem removal below is the final cleanup guarantee.
+  }
+  rmTranslated(worktreeDir, { recursive: true, force: true })
+}
+
+function captureTestOutputAtCommit(
+  testCmd: readonly string[],
+  repoDir: string,
+  sha: string,
+  timeoutMs: number,
+): CapturedTestOutput | RecordRedFailure {
+  const worktreeDir = freeRecordRedWorktree()
+  try {
+    const checkoutFailure = addRecordRedWorktree(repoDir, worktreeDir, sha)
+    if (checkoutFailure) return checkoutFailure
+    linkRecordRedNodeModules(repoDir, worktreeDir)
+    const portableCommand = portableRecordedCommand(testCmd, repoDir)
+    const output = captureTestOutput(
+      String(portableCommand[0]),
+      portableCommand.slice(1),
+      worktreeDir,
+      timeoutMs,
+    )
+    return 'log' in output
+      ? { ...output, log: repositoryRelativeLog(output.log, worktreeDir) }
+      : output
+  } finally {
+    removeRecordRedWorktree(repoDir, worktreeDir)
+  }
+}
+
 function portableRecordedCommand(testCmd: readonly string[], dir: string): string[] {
   const [cmd, ...args] = testCmd
   if (cmd === undefined || !isAbsolute(cmd)) return [...testCmd]
@@ -219,6 +332,75 @@ function checkTestCommitIntegrity(
     }
   }
   return null
+}
+
+function validateRecordRedCommit(
+  opts: RecordRedOptions,
+  sha: string,
+  dir: string,
+): RecordRedFailure | null {
+  return opts.at === undefined
+    ? checkTestCommitIntegrity(opts, sha, dir)
+    : validateAtCommit(opts.at, opts.testPath, dir)
+}
+
+function runRecordRedTest(
+  opts: RecordRedOptions,
+  testCmd: readonly string[],
+  dir: string,
+  timeoutMs: number,
+): CapturedTestOutput | RecordRedFailure {
+  return opts.at === undefined
+    ? captureTestOutput(String(testCmd[0]), testCmd.slice(1), dir, timeoutMs)
+    : captureTestOutputAtCommit(testCmd, dir, opts.at, timeoutMs)
+}
+
+function recordRedEvidence(params: {
+  dir: string
+  taskId: string
+  sha: string
+  testPath: string
+  testCmd: readonly string[]
+  outputOrErr: CapturedTestOutput | RecordRedFailure
+}): RecordRedSuccess | RecordRedFailure {
+  const { dir, taskId, sha, testPath, testCmd, outputOrErr } = params
+  if ('ok' in outputOrErr) return outputOrErr
+  if (outputOrErr.exitCode === 0) {
+    return {
+      ok: false,
+      reason:
+        'test command exited 0 (suite passed) — a RED phase requires a failing run; refusing to mint RED evidence',
+    }
+  }
+  const log = repositoryRelativeLog(outputOrErr.log, dir)
+
+  const sig = extractFailureSignature(log)
+  if (sig === null) {
+    return {
+      ok: false,
+      reason: `no recognised failure signature in test output — the test appears to pass or produced unrecognised output. Tests must be RED before recording evidence.`,
+    }
+  }
+
+  // #2116: pin the test's CONTENT as well as the commit. The sha dies at the next
+  // rebase; the blob survives it and lets the RED commit be re-resolved from it.
+  const blob = blobShaInCommit(sha, testPath, dir)
+
+  const evidence: TddEvidence = {
+    $schemaVersion: 1,
+    task_id: taskId,
+    test_path: testPath,
+    test_commit_sha: sha,
+    ...(blob !== null ? { test_blob_sha: blob } : {}),
+    test_run_log: log,
+    observed_failure: sig.match,
+    recorded_at: new Date().toISOString(),
+    // Persist the exact command used (binary + args), so the evidence is
+    // reproducible and the runner selection is auditable.
+    test_command: portableRecordedCommand(testCmd, dir),
+  }
+
+  return saveEvidence(dir, evidence, sig.framework)
 }
 
 /**
@@ -318,53 +500,17 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
 
   const shaOrErr = resolveHeadSha(dir, 5000)
   if (typeof shaOrErr === 'object') return shaOrErr
-  const sha = shaOrErr
+  const sha = opts.at ?? shaOrErr
 
-  const integrityFailure = checkTestCommitIntegrity(opts, sha, dir)
-  if (integrityFailure) return integrityFailure
+  const commitFailure = validateRecordRedCommit(opts, sha, dir)
+  if (commitFailure) return commitFailure
 
   // Select the test runner. An explicit `testCmd` overrides auto-selection so
   // users can scope an exact command (e.g. `go test -run TestFoo ./pkg`) — the
   // command is passed verbatim to spawnSync (shell:false), never interpolated.
   const testCmd = opts.testCmd ?? selectRunner(resolveLanguage(dir), opts.testPath)
-  const outputOrErr = captureTestOutput(String(testCmd[0]), testCmd.slice(1), dir, timeoutMs)
-  if ('ok' in outputOrErr) return outputOrErr
-  if (outputOrErr.exitCode === 0) {
-    return {
-      ok: false,
-      reason:
-        'test command exited 0 (suite passed) — a RED phase requires a failing run; refusing to mint RED evidence',
-    }
-  }
-  const log = repositoryRelativeLog(outputOrErr.log, dir)
-
-  const sig = extractFailureSignature(log)
-  if (sig === null) {
-    return {
-      ok: false,
-      reason: `no recognised failure signature in test output — the test appears to pass or produced unrecognised output. Tests must be RED before recording evidence.`,
-    }
-  }
-
-  // #2116: pin the test's CONTENT as well as the commit. The sha dies at the next
-  // rebase; the blob survives it and lets the RED commit be re-resolved from it.
-  const blob = blobShaInCommit(sha, opts.testPath, dir)
-
-  const evidence: TddEvidence = {
-    $schemaVersion: 1,
-    task_id: taskId,
-    test_path: opts.testPath,
-    test_commit_sha: sha,
-    ...(blob !== null ? { test_blob_sha: blob } : {}),
-    test_run_log: log,
-    observed_failure: sig.match,
-    recorded_at: new Date().toISOString(),
-    // Persist the exact command used (binary + args), so the evidence is
-    // reproducible and the runner selection is auditable.
-    test_command: portableRecordedCommand(testCmd, dir),
-  }
-
-  return saveEvidence(dir, evidence, sig.framework)
+  const outputOrErr = runRecordRedTest(opts, testCmd, dir, timeoutMs)
+  return recordRedEvidence({ dir, taskId, sha, testPath: opts.testPath, testCmd, outputOrErr })
 }
 
 /**
