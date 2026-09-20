@@ -149,6 +149,34 @@ describe('cross-stack render (DoD: stacks × governance)', () => {
 })
 
 describe('ship command delegates mechanics to the runtime', () => {
+  it('removes unenforced delivery promises while retaining hard delivery rules', () => {
+    const md = renderShipCommand()
+
+    for (const promise of [
+      'Keep the cursor precise during implementation',
+      'arbiter lifecycle checkpoint --tdd GREEN',
+      'Use the lowest model capability printed by `arbiter ship`',
+      'list the complete file set, proof, rollback',
+      'smallest executable implementation',
+      'run one targeted certification for that HEAD',
+      'reconcile every finding from the round into one fix batch',
+      'Freeze acceptance, non-goals, files, proof, and rollback',
+      'Implement the smallest executable capability',
+      'One implementer owns the write lane',
+      'Use at most one independent blocker lane',
+      "they do not receive the implementer's transcript",
+      'independently of the implementer',
+    ]) {
+      expect(md).not.toContain(promise)
+    }
+
+    expect(md).toContain('read the issue and current repository')
+    expect(md).toContain('manifest covering every actual changed file')
+    expect(md).toContain('MED/HIGH/CRITICAL finding')
+    expect(md).toContain('exact-subject receipt')
+    expect(md).toContain('one full clean-HEAD gate')
+  })
+
   it('keeps the frozen receipt and landing truth in the contract', () => {
     const md = renderShipCommand()
     expect(md).toContain('reuse the unchanged qualification through PR and CI')
