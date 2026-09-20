@@ -474,6 +474,8 @@ export interface TaskShipOptions {
   overrides?: Record<string, string>
   /** Advance to the next phase first (runs that phase's gate; throws if the gate is red). */
   advance?: boolean
+  /** Test seam for preserving the lower-level advance result across fast-forward. */
+  runAdvance?: typeof runTaskAdvance
   /** Test seam for identifying a native linked checkout without shelling out to Git. */
   isLinkedCheckout?: (root: string) => boolean
   /** Bubble handoff control-flow to the caller instead of being swallowed. */
@@ -661,7 +663,7 @@ function advanceShipPhase(
   let current = phase
   let target = nextPhase(current)
   while (target !== null) {
-    runTaskAdvance({
+    const review = (opts.runAdvance ?? runTaskAdvance)({
       to: target,
       dir: root,
       ...(opts.advanceOpts ?? {}),
@@ -670,6 +672,7 @@ function advanceShipPhase(
     appendLog(root, `ship → advanced to ${target}`)
     writeVerificationCompanionEvidence(root, target, taskId, profile, opts)
     current = target
+    if (review !== null) return { phase: current, advanced: true, review }
     target = nextPhase(current)
   }
   return { phase: current, advanced: current !== phase, review: null }
