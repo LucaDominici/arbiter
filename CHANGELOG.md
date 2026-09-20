@@ -8,6 +8,7 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+- Pre-push now runs preflight plus touched tests; CI is the sole full-gate authority (#2773 P7).
 - `post-commit-check.mjs` remains registered as a silent, exit-0 advisory. `.githooks/commit-msg`
   and L1 `commitlint` remain blocking.
 - `/ship` prose: removed seven unenforced promises (cursor checkpoint, model selection, proof/rollback
