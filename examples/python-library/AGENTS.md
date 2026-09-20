@@ -102,7 +102,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-22:** Branch naming: `task/#NNN-description`
 - **INV-23:** No direct commits to `main` — all changes via task branches + PR
 - **INV-24:** Checkpoint commits preserve staged-file safety; full gates qualify delivery
-- **INV-25:** Gate must pass before push: `node scripts/check-all.mjs L2`
+- **INV-25:** Before push, the light gate must pass: `node scripts/check-all.mjs preflight` plus touched tests; CI is the full-gate authority.
 - **INV-31:** Suppressions must have mandatory expiry
 - **INV-37:** Generated githooks
 - **INV-38:** Phase-tracked lifecycle enforcement

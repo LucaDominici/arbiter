@@ -377,10 +377,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-25',
     tier: 'governance',
-    title: 'Gate must pass before push: `node scripts/check-all.mjs L2`',
+    title:
+      'Before push, the light gate must pass: `node scripts/check-all.mjs preflight` plus touched tests; CI is the full-gate authority.',
     description:
-      'The L2 gate (L1 + coverage + integration tests) verifies that the feature works end-to-end ' +
-      'before others are affected. Pushing broken code blocks the team.',
+      'The local pre-push runs preflight plus the tests of the touched files; the full L2 gate ' +
+      '(L1 + coverage + integration tests) runs once in CI, which is the single full authority (#2773 P7).',
     alwaysActive: true,
     enforcement: '.githooks/pre-push + CI',
   },
