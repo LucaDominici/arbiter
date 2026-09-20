@@ -1510,8 +1510,18 @@ describe('real delivery data sources (#2725 increment 2)', () => {
 
   it('emits the same full payload for finished sessions at two different clock times', async () => {
     const buildPayload = Reflect.get(shipKpi, 'reportPayload') as (...args: unknown[]) => unknown
+    const reportNowMs = Reflect.get(shipKpi, 'reportNowMs') as (...args: unknown[]) => number
     expect(typeof buildPayload).toBe('function')
-    if (typeof buildPayload !== 'function') return
+    expect(typeof reportNowMs).toBe('function')
+    if (typeof buildPayload !== 'function' || typeof reportNowMs !== 'function') return
+    const untilMs = Date.parse('2026-09-20T23:59:59Z')
+    const openPrs = [
+      {
+        number: 2778,
+        createdAt: '2026-09-19T00:00:00Z',
+        statusCheckRollup: [{ conclusion: 'FAILURE' }],
+      },
+    ]
     const written = new Date(Date.parse(mergedAt))
     const sessions = await discover([userEvent(shipEnvelope('#2774'))], written)
     const payloadAt = (nowMs: number) => {
@@ -1528,7 +1538,14 @@ describe('real delivery data sources (#2725 increment 2)', () => {
               opts: { since: '2026-09-19', repo: 'o/r' },
               untilLabel: '2026-09-20',
               rows: [{ number: 2776, sessions: audit }],
-              aggregate: {},
+              aggregate: computeAggregate({
+                rows: [],
+                issuesClosedCount: 1,
+                windowHours: 24,
+                mainSubjects: [],
+                openPrs,
+                nowMs: reportNowMs({ until: '2026-09-20' }, untilMs),
+              }),
               hookBlocks: {},
               unattributed: { claude: null, codex: null, sessions: null },
             }),
@@ -1549,6 +1566,28 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       },
     ])
     expect(soon.json).toBe(later.json)
+    expect(JSON.parse(soon.json).aggregate.staleOpenPrs).toEqual([2778])
+  })
+
+  it('does not attribute a coordinator through a branch it first visited after the merge', async () => {
+    const sessions = await discover([
+      userEvent('Coordinate'),
+      userEvent('Later', {
+        timestamp: '2026-09-22T00:00:00Z',
+        cwd: '/w/arbiter.worktrees/2774-kpi',
+        gitBranch: 'task/#2774-kpi',
+      }),
+    ])
+    expect(attributeSessions(sessions, kpiPr)).toEqual([])
+  })
+
+  it('skips a text-block synthetic prompt so the /ship prompt stays the first genuine one', async () => {
+    const sessions = await discover([
+      userEvent([{ type: 'text', text: '[Request interrupted by user]' }]),
+      userEvent(shipEnvelope('#2774'), { timestamp: mergedAt }),
+    ])
+    expect(sessions[0].humanMessages).toBe(1)
+    expect(attributeSessions(sessions, kpiPr)).toHaveLength(1)
   })
 
   it('summarizes Claude usage without counting sidechains or tool-result arrays as human messages', () => {
@@ -1612,8 +1651,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual({
       gitBranch: 'task/#2725-ship-kpi-loop',
       cwd: worktreeDir,
-      gitBranches: ['task/#2725-ship-kpi-loop'],
-      cwds: [worktreeDir],
+      contexts: [{ gitBranch: 'task/#2725-ship-kpi-loop', cwd: worktreeDir, ts: firstCommit }],
       firstTs: firstCommit,
       lastTs: '2026-09-19T00:05:00Z',
       usage: { input: 140, output: 30, cache: 37 },
@@ -1660,8 +1698,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual({
       gitBranch: null,
       cwd: worktreeDir,
-      gitBranches: [],
-      cwds: [worktreeDir],
+      contexts: [{ gitBranch: null, cwd: worktreeDir, ts: firstCommit }],
       firstTs: firstCommit,
       lastTs: firstCommit,
       usage: { input: null, output: null, cache: null },
