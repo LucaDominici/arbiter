@@ -1283,21 +1283,12 @@ function checkAcceptancePlanGate(dir: string): void {
 
   const state = readUnifiedState(dir)
   const plan = state?.plan.trim() ?? ''
-  const taskIds = [state?.taskId, ...(state?.chainIds ?? [])].filter(
-    (id): id is string => typeof id === 'string' && id.length > 0,
-  )
+  const taskIds = acceptanceTaskIds(state)
   if (taskIds.length === 0)
     throw new Error('acceptance-anchor gate requires the active task or chain issue id')
   try {
     for (const taskId of new Set(taskIds)) {
-      const issueNumber = taskId.replace(/^#/, '')
-      const args = ['--plan', plan]
-      if (/^\d+$/.test(issueNumber)) args.push('--admit-issue', issueNumber)
-      else
-        process.stdout.write(
-          `SKIP issue-coverage admission: task id ${taskId} is not a GitHub issue number\n`,
-        )
-      runCli('node', [script, ...args], {
+      runCli('node', [script, ...admissionArgsForTask(taskId, plan)], {
         cwd: dir,
         timeoutMs: 5000,
       })
@@ -1309,6 +1300,23 @@ function checkAcceptancePlanGate(dir: string): void {
       { cause: err },
     )
   }
+}
+
+function acceptanceTaskIds(state: UnifiedTaskState | null): string[] {
+  return [state?.taskId, ...(state?.chainIds ?? [])].filter(
+    (id): id is string => typeof id === 'string' && id.length > 0,
+  )
+}
+
+function admissionArgsForTask(taskId: string, plan: string): string[] {
+  const issueNumber = taskId.replace(/^#/, '')
+  const args = ['--plan', plan]
+  if (/^\d+$/.test(issueNumber)) args.push('--admit-issue', issueNumber)
+  else
+    process.stdout.write(
+      `SKIP issue-coverage admission: task id ${taskId} is not a GitHub issue number\n`,
+    )
+  return args
 }
 
 function runRequiredTaskChecker(dir: string, scriptName: string, args: readonly string[]): void {

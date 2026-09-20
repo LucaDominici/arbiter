@@ -161,18 +161,7 @@ function readIssueForAdmission(root, issueNumber) {
   if (result.error || result.status !== 0 || result.signal) return null
   try {
     const issue = JSON.parse(result.stdout)
-    if (
-      issue === null ||
-      typeof issue !== 'object' ||
-      issue.number !== Number(issueNumber) ||
-      typeof issue.url !== 'string' ||
-      issue.url.length === 0 ||
-      typeof issue.body !== 'string' ||
-      issue.body.trim().length === 0 ||
-      typeof issue.updatedAt !== 'string' ||
-      !Number.isFinite(Date.parse(issue.updatedAt))
-    )
-      return null
+    if (!isValidAdmissionIssue(issue, issueNumber)) return null
     return issue
   } catch (err) {
     fail(
@@ -182,28 +171,39 @@ function readIssueForAdmission(root, issueNumber) {
   }
 }
 
+function isValidAdmissionIssue(issue, issueNumber) {
+  return (
+    issue !== null &&
+    typeof issue === 'object' &&
+    issue.number === Number(issueNumber) &&
+    typeof issue.url === 'string' &&
+    issue.url.length > 0 &&
+    typeof issue.body === 'string' &&
+    issue.body.trim().length > 0 &&
+    typeof issue.updatedAt === 'string' &&
+    Number.isFinite(Date.parse(issue.updatedAt))
+  )
+}
+
+function readAdmissionPlan(root, args, planIdx, admitIdx) {
+  if (planIdx === -1) return { error: '--admit-issue requires --plan <path>' }
+  const issueNumber = admissionIssueNumber(args, admitIdx)
+  if (issueNumber === null) return { error: '--admit-issue requires a numeric issue number' }
+  const planArg = args[planIdx + 1]
+  if (!planArg) return { error: '--plan requires a path' }
+  const plan = readPlan(root, planArg)
+  return plan.error ? { error: plan.error } : { issueNumber, body: plan.body }
+}
+
 // Explicit admission is the sole networked mode. Ordinary gate and --plan checks stay offline.
 function runAdmissionMode(root, args, planIdx, admitIdx) {
-  if (planIdx === -1) {
-    fail('--admit-issue requires --plan <path>')
+  const admission = readAdmissionPlan(root, args, planIdx, admitIdx)
+  if (admission.error) {
+    fail(admission.error)
     return 2
   }
-  const issueNumber = admissionIssueNumber(args, admitIdx)
-  if (issueNumber === null) {
-    fail('--admit-issue requires a numeric issue number')
-    return 2
-  }
-  const planArg = args[planIdx + 1]
-  if (!planArg) {
-    fail('--plan requires a path')
-    return 2
-  }
-  const plan = readPlan(root, planArg)
-  if (plan.error) {
-    fail(plan.error)
-    return 2
-  }
-  const result = checkPlanAnchor(plan.body)
+  const { issueNumber, body } = admission
+  const result = checkPlanAnchor(body)
   for (const error of result.errors) fail(error)
   if (!result.ok) return 1
   const issue = readIssueForAdmission(root, issueNumber)
@@ -211,11 +211,11 @@ function runAdmissionMode(root, args, planIdx, admitIdx) {
     fail(`NO DATA: unable to read issue #${issueNumber} for plan admission`)
     return 2
   }
-  const anchor = parsePlanAnchor(plan.body)
+  const anchor = parsePlanAnchor(body)
   const errors = validateIssueAcceptanceCoverage(issueNumber, issue.body, anchor?.criteria ?? [])
   for (const error of errors) fail(error)
   if (errors.length > 0) return 1
-  const derivedExit = checkPlanDerivedGates(root, plan.body)
+  const derivedExit = checkPlanDerivedGates(root, body)
   if (derivedExit !== 0) return derivedExit
   console.log(`OK check-acceptance (issue #${issueNumber} admitted)`)
   return 0
