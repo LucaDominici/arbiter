@@ -1547,6 +1547,24 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     })
   })
 
+  it('aggregates subagent cost units onto PR rows without inventing zeroes', () => {
+    expect(
+      mergeDeliverySources(
+        {},
+        {
+          sessions: [
+            { host: 'claude', subagentCostUnits: 31 },
+            { host: 'claude', subagentCostUnits: null },
+            { host: 'claude', subagentCostUnits: 47 },
+          ],
+        },
+      ),
+    ).toMatchObject({ subagentCostUnits: 78 })
+    expect(mergeDeliverySources({}, { sessions: [{ host: 'claude' }] })).toMatchObject({
+      subagentCostUnits: null,
+    })
+  })
+
   it('sums unattributed tokens by host and excludes files attributed to deliveries', () => {
     expect(typeof unattributedUsage).toBe('function')
     if (typeof unattributedUsage !== 'function') return
@@ -2601,7 +2619,91 @@ describe('review rework semantics (#2725 round 2)', () => {
       const sessions = (await discoverSessions(root, 'claude', sinceMs, sinceMs + 1000)) as Array<
         Record<string, unknown>
       >
-      expect(sessions[0]).toMatchObject({ usage: { input: 10, output: 2, cache: 12 } })
+      expect(sessions[0]).toMatchObject({
+        usage: { input: 10, output: 2, cache: 12 },
+        subagentCostUnits: null,
+      })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('counts subagent transcript usage once under its parent session', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-claude-subagents-'))
+    const project = join(root, 'project')
+    const file = join(project, 'session-a.jsonl')
+    const subagents = join(project, 'session-a', 'subagents')
+    const usageLine = (input: number, output: number, cache: number) =>
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: '2026-09-19T00:10:00Z',
+        message: {
+          id: 'shared-message-id',
+          role: 'assistant',
+          usage: {
+            input_tokens: input,
+            output_tokens: output,
+            cache_read_input_tokens: cache,
+          },
+        },
+      })
+    try {
+      mkdirSync(subagents, { recursive: true })
+      writeFileSync(
+        file,
+        [
+          JSON.stringify({
+            type: 'user',
+            timestamp: '2026-09-19T00:00:00Z',
+            message: { role: 'user', content: 'Measure delivery #2725' },
+          }),
+          JSON.stringify({
+            type: 'assistant',
+            timestamp: '2026-09-19T00:01:00Z',
+            message: {
+              id: 'parent-message-id',
+              role: 'assistant',
+              usage: { input_tokens: 10, output_tokens: 1, cache_read_input_tokens: 0 },
+            },
+          }),
+        ].join('\n'),
+      )
+      writeFileSync(
+        join(subagents, 'agent-a.jsonl'),
+        [
+          JSON.stringify({
+            type: 'user',
+            timestamp: '2026-09-19T00:09:00Z',
+            message: { role: 'user', content: 'Internal reviewer prompt #9999' },
+          }),
+          usageLine(20, 2, 10),
+          usageLine(20, 2, 10),
+        ].join('\n'),
+      )
+      writeFileSync(join(subagents, 'agent-b.jsonl'), usageLine(30, 3, 20))
+      writeFileSync(join(subagents, 'notes.jsonl'), usageLine(1_000, 1_000, 1_000))
+      const sinceMs = Date.parse('2026-09-19T00:00:00Z')
+      utimesSync(file, new Date(sinceMs), new Date(sinceMs))
+      const outsideWindow = new Date(sinceMs - 86_400_000)
+      utimesSync(join(subagents, 'agent-a.jsonl'), outsideWindow, outsideWindow)
+      utimesSync(join(subagents, 'agent-b.jsonl'), outsideWindow, outsideWindow)
+      const sessions = (await discoverSessions(root, 'claude', sinceMs, sinceMs + 1000, {
+        input: 1,
+        cache: 0.1,
+        output: 5,
+      })) as Array<Record<string, unknown>>
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0]).toMatchObject({
+        file,
+        firstTs: '2026-09-19T00:00:00Z',
+        lastTs: '2026-09-19T00:01:00Z',
+        usage: { input: 60, output: 6, cache: 30 },
+        subagentCostUnits: 78,
+        humanMessages: 1,
+        rounds: 1,
+        firstPrompt: 'Measure delivery #2725',
+        issueIdsInPrompt: [2725],
+      })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
