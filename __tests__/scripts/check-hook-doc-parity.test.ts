@@ -181,6 +181,37 @@ describe('hook header activation-state must not contradict settings.json wiring 
 // ─── end-to-end: synthetic drift must fail the gate (non-vacuity proof) ──────
 
 describe('check-hook-doc-parity.mjs — synthetic drift fails closed', () => {
+  it('accepts the thin Claude shim when it points to settings.json as the hook SSOT', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hook-doc-parity-thin-'))
+    try {
+      const settingsPath = join(dir, 'settings.json')
+      const docPath = join(dir, 'CLAUDE.md')
+      writeFileSync(
+        settingsPath,
+        JSON.stringify({
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: 'Bash',
+                hooks: [{ type: 'command', command: 'node .claude/hooks/stop-dangerous.mjs' }],
+              },
+            ],
+          },
+        }),
+      )
+      writeFileSync(
+        docPath,
+        '@AGENTS.md\n\nClaude Code-specific hooks and permissions are configured in `.claude/settings.json`.\n',
+      )
+      const r = spawnSync('node', [SCRIPT, `--settings=${settingsPath}`, `--doc=${docPath}`], {
+        encoding: 'utf-8',
+      })
+      expect(r.status).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('exits 1 when settings.json has a hook the doc table never mentions', () => {
     const dir = mkdtempSync(join(tmpdir(), 'hook-doc-parity-'))
     try {

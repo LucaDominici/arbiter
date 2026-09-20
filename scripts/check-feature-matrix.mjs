@@ -24,6 +24,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { loadSchema, validateSchema } from './lib/agent-return-validate.mjs'
+import { INVARIANT_CATALOG_DOC } from './lib/governance-paths.mjs'
 
 const ROOT = process.cwd()
 
@@ -40,7 +41,7 @@ const productReportArg = _productReportIdx >= 0 ? (args[_productReportIdx + 1] ?
 const MATRIX_PATH = resolve(ROOT, 'docs', 'internal', 'PRODUCT', 'FEATURE_MATRIX.md')
 const KIT_CATALOG_PATH = resolve(ROOT, 'src', 'kit', 'catalog.json')
 const GLOB_BASELINE_PATH = resolve(ROOT, 'scripts', 'data', 'feature-matrix-glob-baseline.json')
-const AGENTS_MD_PATH = resolve(ROOT, 'AGENTS.md')
+const INVARIANT_CATALOG_PATH = resolve(ROOT, INVARIANT_CATALOG_DOC)
 const ADR_README_PATH = resolve(ROOT, 'docs', 'internal', 'ADR', 'README.md')
 const PRD_PATH = resolve(ROOT, 'docs', 'PRODUCT', 'PRD.md')
 const RTM_SCHEMA_PATH = resolve(
@@ -594,12 +595,14 @@ function classifySourceAnchor(anchor) {
   return { kind: null }
 }
 
-let _agentsMdCache
-function readAgentsMdOnce() {
-  if (_agentsMdCache === undefined) {
-    _agentsMdCache = existsSync(AGENTS_MD_PATH) ? readFileSync(AGENTS_MD_PATH, 'utf-8') : null
+let _invariantCatalogCache
+function readInvariantCatalogOnce() {
+  if (_invariantCatalogCache === undefined) {
+    _invariantCatalogCache = existsSync(INVARIANT_CATALOG_PATH)
+      ? readFileSync(INVARIANT_CATALOG_PATH, 'utf-8')
+      : null
   }
-  return _agentsMdCache
+  return _invariantCatalogCache
 }
 
 let _adrReadmeCache
@@ -633,7 +636,7 @@ function prdHasNumberedHeading(text, num) {
  * path column) and push a failure naming the row and anchor on a miss
  * (AC-1). No-op for non-canonical anchors (D2/AC-3).
  *
- * ponytail: internal-only doc paths/formats (AGENTS.md bullet, ADR README
+ * ponytail: internal-only doc paths/formats (invariant-catalog bullet, ADR README
  * index table, docs/PRODUCT/PRD.md numbered headings) — a target project
  * with a genuinely different convention needs a configurable path/format
  * (arbiter.json), out of scope here (arbiter's own two scripts only).
@@ -650,7 +653,7 @@ function sourceAnchorFailure(classified, anchor, id) {
   const { kind, num } = classified
   const checks = {
     inv: () => {
-      const text = readAgentsMdOnce()
+      const text = readInvariantCatalogOnce()
       return text !== null && text.includes(`**INV-${num}:**`)
     },
     adr: () => {
@@ -663,7 +666,7 @@ function sourceAnchorFailure(classified, anchor, id) {
     },
   }
   const descriptions = {
-    inv: `no matching **INV-${num}:** entry in AGENTS.md`,
+    inv: `no matching **INV-${num}:** entry in ${INVARIANT_CATALOG_DOC}`,
     adr: 'no matching ADR index row in docs/internal/ADR/README.md',
     prd: `no matching "${num}" heading in docs/PRODUCT/PRD.md`,
   }

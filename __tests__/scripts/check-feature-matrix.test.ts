@@ -99,8 +99,8 @@ function runWithMatrix(content: string, extraArgs: string[] = []): RunResult {
 }
 
 // ── Fixtures for source_ref upward resolution (#2163) ──
-const AGENTS_MD_FIXTURE = [
-  '# arbiter — AGENTS.md',
+const INVARIANT_CATALOG_FIXTURE = [
+  '# Invariant Catalog',
   '',
   '- **INV-42:** A real invariant used by the fixture',
 ].join('\n')
@@ -446,7 +446,7 @@ describe('KIT catalog error handling (#1196)', () => {
 
 describe('source_ref upward resolution (#2163)', () => {
   const FIXTURES = {
-    'AGENTS.md': AGENTS_MD_FIXTURE,
+    'docs/internal/SYSTEM/INVARIANT-CATALOG.md': INVARIANT_CATALOG_FIXTURE,
     'docs/internal/ADR/README.md': ADR_README_FIXTURE,
     'docs/PRODUCT/PRD.md': PRD_MD_FIXTURE,
     'src/foo.ts': '',
@@ -459,12 +459,12 @@ describe('source_ref upward resolution (#2163)', () => {
     return run([], matrix, FIXTURES)
   }
 
-  it('INV-NN resolving to a real AGENTS.md entry exits 0', () => {
+  it('INV-NN resolving to a real invariant catalog entry exits 0', () => {
     const { status } = runWithSourceRef('INV-42')
     expect(status).toBe(0)
   })
 
-  it('INV-NN with no matching AGENTS.md entry exits 1, naming row and anchor', () => {
+  it('INV-NN with no matching invariant catalog entry exits 1, naming row and anchor', () => {
     const { status, stdout } = runWithSourceRef('INV-99')
     expect(status).toBe(1)
     expect(stdout).toContain('REQ-001')

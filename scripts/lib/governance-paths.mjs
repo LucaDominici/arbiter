@@ -1,0 +1,1 @@
+export const INVARIANT_CATALOG_DOC = 'docs/internal/SYSTEM/INVARIANT-CATALOG.md'

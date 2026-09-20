@@ -93,14 +93,9 @@ describe('#1265 brainstorm guardrail — terminal-state rule', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('emits the brainstorm terminal-state rule into .claude/rules', () => {
+  it('does not emit the retired brainstorm terminal-state rule', () => {
     generateClaude(makeConfig(dir))
     const rulePath = join(dir, '.claude', 'rules', '55-brainstorm-terminal-state.md')
-    expect(existsSync(rulePath)).toBe(true)
-    const content = readFileSync(rulePath, 'utf-8')
-    expect(content).toMatch(/never auto-implement|no auto-implementation|never.*implement/i)
-    expect(content).toContain('brainstorm-active')
-    expect(content).toContain('docs/design/<topic-slug>.md')
-    expect(content).not.toContain('.arbiter/design/')
+    expect(existsSync(rulePath)).toBe(false)
   })
 })

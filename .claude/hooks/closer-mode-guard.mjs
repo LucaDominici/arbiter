@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 // Arbiter hook: CLOSER mode enforcement (#A11) — mechanically-checkable subset of the 7 rules
-// in `.claude/rules/95-closer-mode.md`. Fires on: PreToolUse → Bash. Only active while the task
+// in the close phase. Fires on: PreToolUse → Bash. Only active while the task
 // is in its `close` phase (post-implementation, pre-merge, entered via
 // `arbiter lifecycle advance --to close`) — inert on every other phase.
 // Exit 2: block — stderr is returned to Claude as error context.
@@ -33,7 +33,7 @@ const block = (rule, reason) => {
   process.stderr.write(
     `[arbiter] CLOSER MODE: blocked \`${command}\`.\n` +
       `${rule}: ${reason}\n` +
-      `See .claude/rules/95-closer-mode.md.\n`,
+      `See the closer-mode guard contract in the delivery plan.\n`,
   )
   process.exit(2)
 }

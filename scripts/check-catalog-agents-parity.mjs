@@ -1,30 +1,34 @@
 #!/usr/bin/env node
-// INV-51 / CANON-08: catalog ↔ AGENTS.md parity (bidirectional, #485).
-// Every catalog INV-NN must appear in AGENTS.md with matching title, AND every
-// **INV-NN:** / **CANON-NN:** row in AGENTS.md must point at an existing
+// INV-51 / CANON-08: source catalog ↔ invariant catalog document parity (bidirectional, #485).
+// Every catalog INV-NN must appear in the reference document with matching title, AND every
+// **INV-NN:** / **CANON-NN:** row in that document must point at an existing
 // catalog / CANON.md entry (no phantom rows).
 //
 // Usage: node scripts/check-catalog-agents-parity.mjs \
-//   [--catalog=path] [--agents=path] [--canon=path]
+//   [--catalog=path] [--reference=path] [--canon=path]
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { INVARIANT_CATALOG_DOC } from './lib/governance-paths.mjs'
 
 const args = process.argv.slice(2)
 const catalogArg = args.find((a) => a.startsWith('--catalog='))
 const agentsArg = args.find((a) => a.startsWith('--agents='))
+const referenceArg = args.find((a) => a.startsWith('--reference=')) ?? agentsArg
 const canonArg = args.find((a) => a.startsWith('--canon='))
 
 const root = process.cwd()
 const catalogPath = catalogArg
   ? resolve(catalogArg.split('=')[1])
   : resolve(root, 'src/invariants/catalog.ts')
-const agentsPath = agentsArg ? resolve(agentsArg.split('=')[1]) : resolve(root, 'AGENTS.md')
+const agentsPath = referenceArg
+  ? resolve(referenceArg.split('=')[1])
+  : resolve(root, INVARIANT_CATALOG_DOC)
 // canonPath is only resolved when --canon is explicitly passed OR when running against real
 // repo files (no --catalog/--agents override). Fixture-only tests skip canon checks entirely.
 const canonPath =
   canonArg != null
     ? resolve(canonArg.split('=')[1])
-    : catalogArg == null && agentsArg == null
+    : catalogArg == null && referenceArg == null
       ? resolve(root, 'docs/internal/SYSTEM/CANON.md')
       : null
 
@@ -46,7 +50,7 @@ function readOrDie(path, what) {
 }
 
 const catalogSrc = readOrDie(catalogPath, 'the invariant catalog')
-const agentsSrc = readOrDie(agentsPath, 'AGENTS.md')
+const agentsSrc = readOrDie(agentsPath, 'the invariant catalog document')
 // CANON.md is only resolved when explicitly requested or when running against real repo
 // files; when it IS resolved it must be readable — a vacuous CANON pass is a fake green.
 const canonSrc = canonPath != null ? readOrDie(canonPath, 'CANON.md') : ''
@@ -148,13 +152,13 @@ if (unaccountedIds.length > 0) {
   process.exit(2)
 }
 
-// Extract {id, title} pairs from AGENTS.md: format is **INV-NN:** title
+// Extract {id, title} pairs from the reference document: format is **INV-NN:** title
 const agentsInvEntries = new Map()
 for (const m of agentsSrc.matchAll(/\*\*(INV-\d+):\*\*\s*(.+)/g)) {
   agentsInvEntries.set(m[1], m[2].trim())
 }
 
-// Extract {id, title} from AGENTS.md: format is **CANON-NN:** title (#1158).
+// Extract {id, title} from the reference document: format is **CANON-NN:** title (#1158).
 const agentsCanonEntries = new Map()
 for (const m of agentsSrc.matchAll(/\*\*(CANON-\d+):\*\*\s*(.+)/g)) {
   agentsCanonEntries.set(m[1], m[2].trim())
@@ -170,11 +174,11 @@ const canonIds = canonEntries
 
 let violations = 0
 
-// Forward: every catalog INV must be in AGENTS.md with matching title.
+// Forward: every catalog INV must be in the reference document with matching title.
 for (const [id, catalogTitle] of catalogEntries) {
   const agentsTitle = agentsInvEntries.get(id)
   if (!agentsTitle) {
-    process.stdout.write(`  MISSING from AGENTS.md: ${id}
+    process.stdout.write(`  MISSING from ${INVARIANT_CATALOG_DOC}: ${id}
 `)
     violations++
     continue
@@ -190,24 +194,24 @@ for (const [id, catalogTitle] of catalogEntries) {
   }
 }
 
-// Reverse (#485): every **INV-NN:** in AGENTS.md must have a catalog entry.
+// Reverse (#485): every **INV-NN:** in the reference document must have a catalog entry.
 // A leftover row for a retired tombstone is exempt (#1570) — it has a real
 // catalog entry, just one we deliberately dropped from the live set above.
 for (const id of agentsInvEntries.keys()) {
   if (!catalogEntries.has(id) && !retiredIds.has(id)) {
-    process.stdout.write(`  ORPHAN in AGENTS.md: ${id} (no entry in catalog)
+    process.stdout.write(`  ORPHAN in ${INVARIANT_CATALOG_DOC}: ${id} (no entry in catalog)
 `)
     violations++
   }
 }
 
-// Reverse (#485): every **CANON-NN:** in AGENTS.md must have a `## CANON-NN`
+// Reverse (#485): every **CANON-NN:** in the reference document must have a `## CANON-NN`
 // heading in CANON.md. If CANON.md is missing entirely the check is skipped
 // (canonSrc is the empty string, so we only flag when canonSrc was loaded).
 if (canonSrc) {
   for (const id of agentsCanonIds.keys()) {
     if (!canonIds.has(id)) {
-      process.stdout.write(`  ORPHAN in AGENTS.md: ${id} (no heading in CANON.md)
+      process.stdout.write(`  ORPHAN in ${INVARIANT_CATALOG_DOC}: ${id} (no heading in CANON.md)
 `)
       violations++
     }
@@ -215,18 +219,18 @@ if (canonSrc) {
 }
 
 // Forward (#1148): every `## CANON-NN` heading in CANON.md must have a
-// `**CANON-NN:**` row in AGENTS.md. The previous reverse loop only caught
+// `**CANON-NN:**` row in the reference document. The previous reverse loop only caught
 // phantom refs — this closes the gap where all Canon rules could be absent.
 if (canonSrc) {
   for (const id of canonIds.keys()) {
     if (!agentsCanonIds.has(id)) {
-      process.stdout.write(`  MISSING from AGENTS.md: ${id}\n`)
+      process.stdout.write(`  MISSING from ${INVARIANT_CATALOG_DOC}: ${id}\n`)
       violations++
     }
   }
 }
 
-// Title parity (#1158): for every CANON-NN present in both, the AGENTS.md row
+// Title parity (#1158): for every CANON-NN present in both, the reference-document row
 // title must match the CANON.md heading title — keeps the summary in sync with
 // canon, mirroring the INV-NN title-parity check above.
 if (canonSrc) {
@@ -262,7 +266,7 @@ const BUILTIN_AGENT_TYPES = new Set([
   'statusline-setup',
   'claude-code-guide',
 ])
-if (catalogArg == null && agentsArg == null) {
+if (catalogArg == null && referenceArg == null) {
   const writeClassesPath = resolve(root, '.claude/agents/agent-write-classes.json')
   // #2418: the whole block used to sit in a swallowing catch, so a MALFORMED
   // agent-write-classes.json was indistinguishable from an absent one and the orphan
@@ -292,7 +296,7 @@ if (catalogArg == null && agentsArg == null) {
 
 if (violations > 0) {
   process.stdout.write(
-    `[check-catalog-agents-parity] FAIL: ${violations} parity violation(s) between catalog/CANON.md and AGENTS.md\n`,
+    `[check-catalog-agents-parity] FAIL: ${violations} parity violation(s) between catalog/CANON.md and ${INVARIANT_CATALOG_DOC}\n`,
   )
   process.exit(1)
 }

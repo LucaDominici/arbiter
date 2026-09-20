@@ -102,12 +102,7 @@ describe('buildKnownLimitations', () => {
 
   it('derives the Claude-only rule delta from the plans (never hand-listed)', () => {
     const kl = buildKnownLimitations(config())
-    expect(kl.claudeOnlyRules).toEqual([
-      '40-context-economy.md',
-      '55-brainstorm-terminal-state.md',
-      '75-impact-vault-reading.md',
-      '95-closer-mode.md',
-    ])
+    expect(kl.claudeOnlyRules).toEqual(['75-impact-vault-reading.md'])
     const withMcp = buildKnownLimitations(config({ enableMcpFallback: true }))
     expect(withMcp.claudeOnlyRules).toContain('45-mcp-fallback.md')
   })

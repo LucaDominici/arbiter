@@ -56,9 +56,10 @@ describe('check-codex-parity — non-vacuity mutations (#1966)', () => {
 
     const result = check(dir)
 
-    expect(result.status, 'a CANON-22-less codex exec protocol must fail the parity check').toBe(
-      'FAIL',
-    )
+    expect(
+      result.status,
+      'a codex exec protocol missing its required section must fail parity',
+    ).toBe('FAIL')
     const hit = result.findings.find(
       (f) =>
         f.file === '.agents/rules/90-exec-protocol.md' &&

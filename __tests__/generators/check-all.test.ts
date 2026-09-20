@@ -175,7 +175,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(62)
+    expect(result.files).toHaveLength(63)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-review-completion.mjs'))).toBe(
       true,
     )

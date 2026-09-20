@@ -1,0 +1,1 @@
+export const INVARIANT_CATALOG_DOC = 'AGENTS.md'

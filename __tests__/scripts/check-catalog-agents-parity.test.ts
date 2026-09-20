@@ -20,6 +20,22 @@ function run(catalogPath: string, agentsPath: string, canonPath?: string) {
   }
 }
 
+function runReference(catalogPath: string, referencePath: string) {
+  const r = spawnSync(
+    'node',
+    [SCRIPT, `--catalog=${catalogPath}`, `--reference=${referencePath}`],
+    {
+      encoding: 'utf-8',
+      cwd: resolve('.'),
+    },
+  )
+  return {
+    status: r.status ?? 1,
+    stdout: r.stdout ?? '',
+    stderr: r.stderr ?? '',
+  }
+}
+
 function makeCanon(ids: string[]): string {
   const heading = '# Canon\n\n'
   return heading + ids.map((id) => `## ${id} — placeholder rule\n`).join('\n')
@@ -56,6 +72,23 @@ function makeCollapsedCatalog(entries: Array<{ id: string; title: string }>): st
 }
 
 describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
+  it('exits 1 when one invariant is removed from the catalog reference document (#2738)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const reference = join(dir, 'INVARIANT-CATALOG.md')
+      writeFileSync(catalog, makeCatalog(['INV-01', 'INV-02']))
+      writeFileSync(reference, makeAgents(['INV-01']))
+
+      const result = runReference(catalog, reference)
+
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('INV-02')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('exits 0 when all catalog IDs appear in AGENTS.md', () => {
     const { dir, cleanup } = makeTemp()
     try {
@@ -109,7 +142,7 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
       writeFileSync(agents, makeAgents(['INV-01', 'INV-99']))
       const result = run(catalog, agents)
       expect(result.status).toBe(1)
-      expect(result.stdout).toContain('ORPHAN in AGENTS.md')
+      expect(result.stdout).toContain('ORPHAN in docs/internal/SYSTEM/INVARIANT-CATALOG.md')
       expect(result.stdout).toContain('INV-99')
     } finally {
       cleanup()
@@ -238,7 +271,7 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
       writeFileSync(canon, makeCanon(['CANON-01']))
       const result = run(catalog, agents, canon)
       expect(result.status).toBe(1)
-      expect(result.stdout).toContain('ORPHAN in AGENTS.md')
+      expect(result.stdout).toContain('ORPHAN in docs/internal/SYSTEM/INVARIANT-CATALOG.md')
       expect(result.stdout).toContain('CANON-99')
     } finally {
       cleanup()
@@ -278,7 +311,9 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
       // CANON-99 is in CANON.md but NOT in AGENTS.md — must fail with MISSING
       const result = run(catalog, agents, canon)
       expect(result.status).toBe(1)
-      expect(result.stdout).toContain('MISSING from AGENTS.md: CANON-99')
+      expect(result.stdout).toContain(
+        'MISSING from docs/internal/SYSTEM/INVARIANT-CATALOG.md: CANON-99',
+      )
     } finally {
       cleanup()
     }
@@ -296,9 +331,15 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
       // AGENTS.md has zero CANON rows — all 3 must be reported MISSING
       const result = run(catalog, agents, canon)
       expect(result.status).toBe(1)
-      expect(result.stdout).toContain('MISSING from AGENTS.md: CANON-01')
-      expect(result.stdout).toContain('MISSING from AGENTS.md: CANON-02')
-      expect(result.stdout).toContain('MISSING from AGENTS.md: CANON-03')
+      expect(result.stdout).toContain(
+        'MISSING from docs/internal/SYSTEM/INVARIANT-CATALOG.md: CANON-01',
+      )
+      expect(result.stdout).toContain(
+        'MISSING from docs/internal/SYSTEM/INVARIANT-CATALOG.md: CANON-02',
+      )
+      expect(result.stdout).toContain(
+        'MISSING from docs/internal/SYSTEM/INVARIANT-CATALOG.md: CANON-03',
+      )
     } finally {
       cleanup()
     }
@@ -511,15 +552,18 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
     }
   })
 
-  it('passes against the real catalog and AGENTS.md', () => {
-    const result = run(resolve('src/invariants/catalog.ts'), resolve('AGENTS.md'))
+  it('passes against the real source and documentation catalogs', () => {
+    const result = run(
+      resolve('src/invariants/catalog.ts'),
+      resolve('docs/internal/SYSTEM/INVARIANT-CATALOG.md'),
+    )
     expect(result.status).toBe(0)
   })
 
-  it('passes against the real catalog, AGENTS.md, and CANON.md (bidirectional)', () => {
+  it('passes against the real source catalog, documentation catalog, and CANON.md', () => {
     const result = run(
       resolve('src/invariants/catalog.ts'),
-      resolve('AGENTS.md'),
+      resolve('docs/internal/SYSTEM/INVARIANT-CATALOG.md'),
       resolve('docs/internal/SYSTEM/CANON.md'),
     )
     expect(result.status).toBe(0)

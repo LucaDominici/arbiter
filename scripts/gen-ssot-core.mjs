@@ -123,6 +123,9 @@ export function selectSsotDocs(repoRoot) {
     const relPath = relative(repoRoot, file).split(sep).join('/')
     // Generated dim-NN coverage stubs (regenerated from src/kit/catalog) never join the SSOT set.
     if (relPath.startsWith('docs/REFERENCE/coverage/')) continue
+    // The invariant catalog is reference material retrieved on demand; its source-of-truth
+    // parity gates are separate from the bounded canonical SSOT spine (INV-108).
+    if (relPath === 'docs/internal/SYSTEM/INVARIANT-CATALOG.md') continue
     const content = readFileSync(file, 'utf-8')
     const fm = parseFrontmatter(content)
     if (fm.status !== 'active') continue

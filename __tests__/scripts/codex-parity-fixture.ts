@@ -57,19 +57,20 @@ export function cleanupBake(dir: string): void {
 }
 
 /**
- * Mutation 3a (#1966 regression): strip the CANON-22 Root-Cause Discipline
- * section from the BAKED codex-side exec-protocol rule. Idempotent: if the
- * section is already absent (the live bug this wave fixes), the file is left
- * as-is — either way the resulting fixture presents a codex derivation
- * lacking CANON-22 while the claude side retains it.
+ * Mutation 3a (#1966 regression): strip a required execution-protocol section
+ * from the BAKED codex-side rule. The helper retains its historical name for
+ * the mutation corpus while the rule's current contract is intentionally thin.
  */
 export function dropCanon22(bakedDir: string): void {
   const file = join(bakedDir, '.agents', 'rules', '90-exec-protocol.md')
   if (!existsSync(file)) throw new Error(`fixture bake incomplete: ${file} missing`)
   const text = readFileSync(file, 'utf-8')
   const idx = text.indexOf(CANON22_HEADING)
-  if (idx === -1) return
-  writeFileSync(file, text.slice(0, idx).trimEnd() + '\n')
+  if (idx !== -1) {
+    writeFileSync(file, text.slice(0, idx).trimEnd() + '\n')
+    return
+  }
+  writeFileSync(file, text.replace(/If a gate fails[\s\S]*?orphan TODO\.\n?/, ''))
 }
 
 export interface ParityCtxOverrides {

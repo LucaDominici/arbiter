@@ -22,43 +22,50 @@
 // Exits 0 if in sync (or bootstrap: source/mirror not present yet); exits 1 on drift.
 
 import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
+import { INVARIANT_CATALOG_DOC } from './lib/governance-paths.mjs'
 
 try {
   const args = process.argv.slice(2)
   const dirArg = args.indexOf('--dir')
   const ROOT = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
 
-  const SOURCE = join(ROOT, 'AGENTS.md')
-  const MIRROR = join(ROOT, 'website', 'governance', 'AGENTS.md')
+  const sources = ['AGENTS.md', INVARIANT_CATALOG_DOC]
 
-  if (!existsSync(SOURCE)) {
+  if (!existsSync(join(ROOT, 'AGENTS.md'))) {
     process.stdout.write('check-governance-mirror-sync: SKIP — no AGENTS.md (bootstrap mode)\n')
     // #2052: recognized marker so runCheck surfaces SKIP, not PASS, in the gate summary.
     process.stdout.write('[SKIP] no AGENTS.md (bootstrap mode)\n')
     process.exit(0)
   }
 
-  if (!existsSync(MIRROR)) {
-    process.stderr.write(
-      'check-governance-mirror-sync: FAIL — website/governance/AGENTS.md missing (#1805)\n' +
-        '  Fix: node scripts/sync-public-governance.mjs\n',
-    )
-    process.exit(1)
+  for (const sourceRel of sources) {
+    const source = join(ROOT, sourceRel)
+    const name = basename(sourceRel)
+    const mirror = join(ROOT, 'website', 'governance', name)
+    if (!existsSync(source)) {
+      process.stderr.write(`check-governance-mirror-sync: FAIL — ${sourceRel} missing (#1805)\n`)
+      process.exit(1)
+    }
+    if (!existsSync(mirror)) {
+      process.stderr.write(
+        `check-governance-mirror-sync: FAIL — website/governance/${name} missing (#1805)\n` +
+          '  Fix: node scripts/sync-public-governance.mjs\n',
+      )
+      process.exit(1)
+    }
+    if (readFileSync(source, 'utf-8') !== readFileSync(mirror, 'utf-8')) {
+      process.stderr.write(
+        `check-governance-mirror-sync: FAIL — website/governance/${name} is stale vs ${sourceRel} (#1805)\n` +
+          '  Fix: node scripts/sync-public-governance.mjs\n',
+      )
+      process.exit(1)
+    }
   }
 
-  const source = readFileSync(SOURCE, 'utf-8')
-  const mirror = readFileSync(MIRROR, 'utf-8')
-
-  if (source !== mirror) {
-    process.stderr.write(
-      'check-governance-mirror-sync: FAIL — website/governance/AGENTS.md is stale vs AGENTS.md (#1805)\n' +
-        '  Fix: node scripts/sync-public-governance.mjs\n',
-    )
-    process.exit(1)
-  }
-
-  process.stdout.write('check-governance-mirror-sync: OK — mirror matches AGENTS.md\n')
+  process.stdout.write(
+    'check-governance-mirror-sync: OK — mirrors match AGENTS.md and INVARIANT-CATALOG.md\n',
+  )
   process.exit(0)
 } catch (err) {
   process.stderr.write(

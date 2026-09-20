@@ -20,7 +20,7 @@ interrupted run leaves that sandbox behind, untracked and — because neither `.
 `.prettierignore` listed it — un-ignored. `prettier --check .` then walks straight into the
 sandbox's copied files and fails on whatever formatting they happen to carry, turning the
 `format` gate red for a reason with nothing to do with any real source change (observed: 398
-`[warn]` lines, ~2 extra minutes, on an otherwise-clean tree). Per `.claude/rules/95-closer-mode.md`
+`[warn]` lines, ~2 extra minutes, on an otherwise-clean tree). Per the closer-mode guard
 rule 2, deleting another agent's untracked sandbox to unblock the gate is forbidden — the fix is
 an ignore entry, not a `rm`.
 

@@ -34,7 +34,7 @@ export function generateCodex(
   // templates (ADR-106 derive-from-Claude: src/templates/claude/rules/ is the
   // single source; the parallel codex copies were removed in #1966 after the
   // Codex 90-exec-protocol silently lost the CANON-22 section). The deliberate
-  // Claude-only delta (40/55/75/95 + conditional 45) is documented on
+  // Claude-only delta (75 + conditional 45) is documented on
   // CODEX_DERIVED_RULES and locked by __tests__/tools/codex.test.ts (#1586)
   // plus the check-codex-parity gate.
   const rulesDir = resolvedPath(base, '.agents', 'rules')

@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from '
 import { resolve, join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { isMainModule } from './lib/run-helpers.mjs'
+import { INVARIANT_CATALOG_DOC } from './lib/governance-paths.mjs'
 
 // Self-gate default: arbiter HARD-fails on an un-covered derivable prohibition with a live hit.
 // The emitted target template renders this `false` (start-warn-promote-later, per #1214).
@@ -51,7 +52,7 @@ A map entry naming a non-existent enforcer is MAP-FICTION and always fails; a
 "accepted" entry without a written rationale is MAP-INVALID. Both also fail.
 
 Options:
-  --docs=<a,b,c>   Comma-separated governance docs (default: AGENTS.md,docs/internal/SYSTEM/CANON.md,.claude/CLAUDE.md)
+  --docs=<a,b,c>   Comma-separated governance docs (default: AGENTS.md,${INVARIANT_CATALOG_DOC},docs/internal/SYSTEM/CANON.md,.claude/CLAUDE.md)
   --src=<dir>      Source root to scan for live hits (default: src)
   --map=<path>     Constraint map JSON (default: scripts/constraint-map.json)
   --enforce[=bool] Hard-fail on ENFORCED-BY-SCAN live hits (default: ${ENFORCE_DEFAULT})
@@ -85,7 +86,7 @@ function parseArgs(argv) {
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean)
-      : ['AGENTS.md', 'docs/internal/SYSTEM/CANON.md', '.claude/CLAUDE.md'],
+      : ['AGENTS.md', INVARIANT_CATALOG_DOC, 'docs/internal/SYSTEM/CANON.md', '.claude/CLAUDE.md'],
     src: src || 'src',
     map: map || 'scripts/constraint-map.json',
     enforce: enforceRaw === undefined ? ENFORCE_DEFAULT : enforceRaw !== 'false',

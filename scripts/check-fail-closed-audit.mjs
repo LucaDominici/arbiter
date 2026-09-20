@@ -76,6 +76,8 @@ const SKIP_FILES = new Set([
   'scripts/lib/suppressions-shared.mjs',
   'scripts/lib/workflow-scan.mjs',
   'scripts/lib/gen-doc-helpers.mjs',
+  // Pure constants SSOT; entry-point consumers own the exit contract.
+  'scripts/lib/governance-paths.mjs',
   // Pure classification/normalization helpers for the codex self-parity gate (#1966) —
   // exports semantics only; the entry point is scripts/check-codex-self-parity.mjs.
   'scripts/lib/codex-self-parity-lib.mjs',

@@ -18,7 +18,7 @@
 //
 // Runs during frozen-candidate qualification (check-all.mjs L1+) over the tracked user-facing doc set.
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 // User-facing surfaces a newcomer reads first, plus the generated kit (templates
@@ -101,6 +101,8 @@ try {
 
   for (const file of files) {
     if (!shouldScan(file)) continue
+    // tracked but absent = deleted in the worktree, nothing to scan
+    if (!existsSync(join(process.cwd(), file))) continue
     let content
     try {
       content = readFileSync(join(process.cwd(), file), 'utf8')

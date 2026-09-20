@@ -262,20 +262,8 @@ export function planClaudeRules(config: ProjectConfig): { file: string; template
       template: 'claude/rules/05-agent-lifecycle.md',
     },
     {
-      file: '25-todo-folder-policy.md',
-      template: 'claude/rules/25-todo-folder-policy.md',
-    },
-    {
-      file: '40-context-economy.md',
-      template: 'claude/rules/40-context-economy.md',
-    },
-    {
       file: '50-batch-execution.md',
       template: 'claude/rules/50-batch-execution.md',
-    },
-    {
-      file: '55-brainstorm-terminal-state.md',
-      template: 'claude/rules/55-brainstorm-terminal-state.md',
     },
     {
       file: '60-incidental-capture.md',
@@ -289,12 +277,6 @@ export function planClaudeRules(config: ProjectConfig): { file: string; template
     {
       file: '90-exec-protocol.md',
       template: 'claude/rules/90-exec-protocol.md.ejs',
-    },
-    {
-      // #A11 (handoff §A11) — CLOSER mode: last-mile rule for the task lifecycle's `close`
-      // phase (post-implementation, pre-merge). Always installed like the other core rules.
-      file: '95-closer-mode.md',
-      template: 'claude/rules/95-closer-mode.md',
     },
   ]
   if (config.enableMcpFallback) {
