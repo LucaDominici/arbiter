@@ -104,25 +104,14 @@ describe('codex dispatch argument builder', () => {
   it('stays a pure argv builder (CANON-25 proof for its fail-closed-audit exemption)', () => {
     // codex-dispatch-lib.mjs is exempted from the fail-closed try/catch contract on the
     // claim that it does no I/O at all — the caller (codex-dispatch.mjs, which owns the
-    // try/catch) resolves every path and reads the brief before calling in. Fail this test
-    // if the lib starts importing an I/O-capable module again (the string-blocklist this
-    // test used before #2770 didn't catch execFileSync/readFileSync — forbid the imports
-    // themselves instead, which can't be dodged by renaming a call).
+    // try/catch) resolves every path and reads the brief before calling in. A blocklist of
+    // forbidden imports/calls (#2769's original test, and #2770's first fix attempt) only
+    // catches the specific names it names — node:net, node:http, dynamic import(), etc. all
+    // slip through. Assert the import surface positively instead: it can't be dodged by
+    // picking a different I/O-capable module.
     const source = readFileSync(LIB_PATH, 'utf8')
-    for (const forbiddenImport of ['node:fs', 'node:child_process']) {
-      expect(source).not.toContain(forbiddenImport)
-    }
-    for (const forbidden of [
-      'spawn',
-      'exec(',
-      'execFileSync',
-      'fork',
-      'readFileSync',
-      'writeFileSync',
-      'mkdirSync',
-      'unlinkSync',
-    ]) {
-      expect(source).not.toContain(forbidden)
-    }
+    const specifiers = [...source.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1])
+    expect(specifiers).toEqual(['node:path'])
+    expect(source).not.toMatch(/\bimport\s*\(/)
   })
 })
