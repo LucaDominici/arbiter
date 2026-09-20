@@ -172,6 +172,17 @@ export async function runInit(options: InitOptions): Promise<void> {
     assertKnownLanguage(config.language)
 
     if (options.dryRun) {
+      // #2490: `--json` used to be accepted and then ignored here — the human banner
+      // went to stdout and the process exited 0, so a CI consumer crashed on the parse
+      // instead of on a status check. Same preview, machine-readable shape. The
+      // doc-set caveat the human surface prints rides along as a warning so `files`
+      // cannot be read as exhaustive.
+      if (options.json) {
+        jsonOutput('init', 'ok', { dryRun: true, files: await computeDryRunPreview(config) }, [], {
+          warnings: [t('cli.init.dry_run_deferred_note').trim()],
+        })
+        return
+      }
       await displayDryRunPreview(config)
       return
     }
