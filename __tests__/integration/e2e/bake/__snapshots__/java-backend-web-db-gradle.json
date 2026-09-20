@@ -320,7 +320,7 @@
     "schemas/use-case.schema.json": "adb5e6c70586bff08990150303bf3c3d7634c2b885b206727710c727a43c29c3",
     "scripts/bg-run.sh": "c01d5fc49ee813cf908a8984a529d6d774e44735f396465759cae0194fddf72c",
     "scripts/capacity-probe.mjs": "df53c9eb95e789b76907287100fb1e45fbd04a53bc9902d5b288c2a7a6032b36",
-    "scripts/check-acceptance.mjs": "29205e0d3f56f1c1d6627b6695304782685ca17cdd3f7de8376b10394d13ddb3",
+    "scripts/check-acceptance.mjs": "6cf04cb1429d4fab5610d4560c6ff6c60ecaffdc3b75bdff7def092273d611b9",
     "scripts/check-action-pins.mjs": "ca4087ba4a32dcc83c46cef6b9a29313c145daadac4dcb105956625ffa3a8c06",
     "scripts/check-all.mjs": "d0f707de16dc48d8302bc30823cd0959d639b30e8ae77bcf36910eeb2e0e259e",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",

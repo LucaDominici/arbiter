@@ -341,6 +341,9 @@ describe.each(['self', 'emitted'])('#2635 acceptance input boundaries (%s)', (pr
     script = SCRIPT
     if (projection === 'emitted') {
       cpSync(resolve('scripts/lib'), join(root, 'scripts/lib'), { recursive: true })
+      // gate-derivation.mjs (#2773) resolves 'minimatch' via gate-affects-registry.mjs;
+      // symlink node_modules so the emitted fixture's dynamic import can resolve it.
+      symlinkSync(resolve(__dirname, '../../node_modules'), join(root, 'node_modules'), 'dir')
       for (const rel of ['check-acceptance.mjs', 'lib/run-helpers.mjs']) {
         writeFileSync(
           join(root, 'scripts', rel),
