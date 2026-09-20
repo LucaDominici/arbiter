@@ -100,6 +100,21 @@ describe('buildKnownLimitations', () => {
     }
   })
 
+  it('discloses phase-gate coverage instead of final-response interception for Stop guards', () => {
+    const rows = buildKnownLimitations(config()).hooks
+    for (const name of [
+      'skill-forced-eval.mjs',
+      'guard-task-completion.mjs',
+      'guard-done-evidence.mjs',
+    ]) {
+      const equivalent = rows.find((row) => row.name === name)?.codexEquivalent ?? ''
+      expect(equivalent).toContain('arbiter task advance')
+      expect(equivalent).toMatch(/phase gate/i)
+      expect(equivalent).toMatch(/no final-response interception/i)
+      expect(equivalent).not.toContain('codex-adapter.mjs')
+    }
+  })
+
   it('derives the Claude-only rule delta from the plans (never hand-listed)', () => {
     const kl = buildKnownLimitations(config())
     expect(kl.claudeOnlyRules).toEqual(['75-impact-vault-reading.md'])

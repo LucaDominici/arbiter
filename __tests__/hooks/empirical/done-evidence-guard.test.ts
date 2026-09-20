@@ -155,17 +155,25 @@ function writeEvidence(
 function runHook(
   hookPath: string,
   dir: string,
-  prompt: string,
+  assistantText: string,
   // env is the dogfood activation switch (#1872): default ON so the pre-existing
   // enforcement tests keep exercising the guard; inert-case tests pass an explicit
   // override. A bare `{}` clears the env var so the hook falls through to arbiter.json.
   envOverride: Record<string, string> = { ARBITER_EVIDENCE_HARNESS: '1' },
+  options: { ownerPrompt?: string; stopHookActive?: boolean } = {},
 ) {
   const baseEnv = { ...process.env }
   delete baseEnv.ARBITER_EVIDENCE_HARNESS
   return spawnSync('node', [hookPath], {
     cwd: dir,
-    input: JSON.stringify({ prompt }),
+    input: JSON.stringify({
+      hook_event_name: 'Stop',
+      session_id: 'done-evidence-stop-session',
+      cwd: dir,
+      prompt: options.ownerPrompt ?? 'please continue',
+      last_assistant_message: assistantText,
+      stop_hook_active: options.stopHookActive ?? false,
+    }),
     encoding: 'utf-8',
     env: { ...baseEnv, ...envOverride },
   })
@@ -277,6 +285,40 @@ describe('guard-done-evidence — empirical spawn', () => {
       const result = runHook(hookPath, dir, BENIGN_PROMPT)
       expect(result.status).toBe(0)
       expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('ignores completion language in the owner prompt when the assistant status is benign', () => {
+    const { dir, hookPath } = setup()
+    try {
+      const result = runHook(
+        hookPath,
+        dir,
+        BENIGN_PROMPT,
+        { ARBITER_EVIDENCE_HARNESS: '1' },
+        { ownerPrompt: DONE_CLAIM_PROMPT },
+      )
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('still blocks missing evidence on repeated Stop', () => {
+    const { dir, hookPath } = setup()
+    try {
+      const result = runHook(
+        hookPath,
+        dir,
+        DONE_CLAIM_PROMPT,
+        { ARBITER_EVIDENCE_HARNESS: '1' },
+        { stopHookActive: true },
+      )
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
