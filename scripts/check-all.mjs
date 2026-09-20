@@ -331,7 +331,10 @@ if (isMain) {
           .join('\n')
           .split('\n')
         if (changed.some((file) => file === 'AGENTS.md' || /^(docs|website)\//.test(file))) {
-          runCheck('docs:build', 'npm', ['run', 'docs:build:verify'], { cwd: GIT_CWD })
+          // Same registration path as the L2 'docs:build' below: the docsCheck alias keeps it
+          // out of the runCheck roster because CI covers it with the dedicated Docs Build job.
+          const docsCheck = runCheck
+          docsCheck('docs:build', 'npm', ['run', 'docs:build:verify'], { cwd: GIT_CWD })
         } else {
           pushResult('docs:build', 'SKIP', 0)
           process.stdout.write(
