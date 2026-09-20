@@ -169,7 +169,9 @@ function readIssueForAdmission(root, issueNumber) {
       return null
     return issue
   } catch (err) {
-    fail(`NO DATA: malformed gh response for issue #${issueNumber}: ${err instanceof Error ? err.message : String(err)}`)
+    fail(
+      `NO DATA: malformed gh response for issue #${issueNumber}: ${err instanceof Error ? err.message : String(err)}`,
+    )
     return null
   }
 }
