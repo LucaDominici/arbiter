@@ -172,6 +172,9 @@ describe('ship command delegates mechanics to the runtime', () => {
 
     expect(md).toContain('read the issue and current repository')
     expect(md).toContain('manifest covering every actual changed file')
+    expect(md).toMatch(/do not\s+justify source edits by themselves/)
+    expect(md).toContain('Add specialist reviewers only for auth')
+    expect(md).toContain('The final reviewer covers code, tests, and acceptance fit')
     expect(md).toContain('MED/HIGH/CRITICAL finding')
     expect(md).toContain('exact-subject receipt')
     expect(md).toContain('one full clean-HEAD gate')

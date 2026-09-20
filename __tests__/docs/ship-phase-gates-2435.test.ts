@@ -32,6 +32,9 @@ const REMOVED_PROMISES = [
 const RETAINED_RULES = [
   'read the issue and current repository',
   'manifest covering every actual changed file',
+  /do not\s+justify source edits by themselves/,
+  'Add specialist reviewers only for auth',
+  'The final reviewer covers code, tests, and acceptance fit',
   'MED/HIGH/CRITICAL finding',
   'exact-subject receipt',
   'one full clean-HEAD gate',
@@ -45,7 +48,10 @@ describe('#2767 P4 — ship prose retains enforced rules only', () => {
     it(`${name} omits unenforced promises and retains enforced delivery rules`, () => {
       const markdown = readFileSync(path, 'utf-8')
       for (const promise of REMOVED_PROMISES) expect(markdown).not.toContain(promise)
-      for (const rule of RETAINED_RULES) expect(markdown).toContain(rule)
+      for (const rule of RETAINED_RULES) {
+        if (typeof rule === 'string') expect(markdown).toContain(rule)
+        else expect(markdown).toMatch(rule)
+      }
     })
   }
 })
