@@ -124,10 +124,10 @@
     }
   ],
   "branch": "task/#2489-spawn-guard-tombstone",
-  "sha": "72014218732b49e82d2561b1dfcddbe55c72a0d5",
+  "sha": "d8a2a3b91b00822db165f4fb5681bbdda50d9ba0",
   "planHash": "8232cbf49aa4bfa575c4c6adcdc086f1257ffaa0",
   "sourceEnvelope": {
-    "path": ".arbiter/evidence/agent-returns/_2489/acceptance-verifier-1.json",
-    "sha256": "71134aa75fb8a16fa79c3ccf43d2bc0894efc7321764ee1d9d5a0a9ba9bcd1ef"
+    "path": ".arbiter/evidence/agent-returns/_2489/acceptance-verifier-2.json",
+    "sha256": "ee26d2ccc31563d627f179f015b350e278ec093d1e1607482e73cfd2a37c6cb4"
   }
 }
