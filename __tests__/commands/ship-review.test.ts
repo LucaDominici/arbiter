@@ -22,6 +22,8 @@ import {
 import { runTaskShip, buildShipStepLines } from '../../src/commands/task-ship'
 import { readUnifiedState, writeUnifiedState, reviewStateOf } from '../../src/commands/task-state'
 import type { ShipProfile } from '../../src/commands/ship-profile'
+import { enforceAcFitCitations, validateSchema } from '../../scripts/lib/agent-return-validate.mjs'
+import { validateAcFit } from '../../scripts/lib/acceptance-criteria.mjs'
 
 const TEST_PROFILE: ShipProfile = {
   isArbiterSelf: false,
@@ -300,6 +302,79 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     ship({ advance: true, headSha: SHA_A })
     const result = ship({ reviewRound: true, headSha: SHA_A })
     expect(buildShipStepLines(result).some((l) => l.startsWith('Review scope:'))).toBe(false)
+  })
+
+  it('AC-2760.2: prints a real-validator-ready envelope with every frozen AC', () => {
+    writeFileSync(
+      join(dir, 'plan.md'),
+      [
+        '# Plan',
+        '## Acceptance Criteria',
+        '- [ ] AC-1: first behavior',
+        '- [ ] AC-2: second behavior',
+        '- [ ] AC-3: third behavior',
+        '## Non-Goals',
+        '- no fourth behavior',
+      ].join('\n'),
+    )
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    copyFileSync(
+      resolve(import.meta.dirname, '../../scripts/lib/acceptance-criteria.mjs'),
+      join(dir, 'scripts', 'lib', 'acceptance-criteria.mjs'),
+    )
+    execFileSync('git', ['add', 'plan.md', 'scripts/lib/acceptance-criteria.mjs'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: freeze three acceptance criteria'], {
+      cwd: dir,
+    })
+    const frozenSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
+
+    ship({ advance: true, headSha: frozenSha })
+    const lines = buildShipStepLines(ship({ reviewRound: true, headSha: frozenSha }))
+    const instruction =
+      'Reviewer panel template: replace <ISO-8601 timestamp>, <PASS|WARN|FAIL>, <PASS|FAIL|NOT-TESTED>, and <repo-relative-path>; set numeric confidence and evidence line values.'
+    const command =
+      "node scripts/record-agent-return.mjs --mode reviewer-panel --task '#100' <<'JSON'"
+    const start = lines.indexOf(command)
+    const end = lines.indexOf('JSON', start + 1)
+
+    expect(lines).toContain(instruction)
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(end).toBeGreaterThan(start)
+    const printed = lines.slice(start + 1, end).join('\n')
+    const filled = printed
+      .replaceAll('<ISO-8601 timestamp>', '2026-09-20T00:00:00.000Z')
+      .replaceAll('<PASS|WARN|FAIL>', 'PASS')
+      .replaceAll('<PASS|FAIL|NOT-TESTED>', 'PASS')
+      .replaceAll('<repo-relative-path>', 'plan.md')
+    const panel = JSON.parse(filled) as { envelopes: Array<Record<string, unknown>> }
+    const schema = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, '../../schemas/agent-return.schema.json'), 'utf-8'),
+    ) as Record<string, unknown>
+
+    for (const envelope of panel.envelopes) {
+      expect(validateSchema(envelope, schema, schema, 'template')).toEqual([])
+    }
+    const acceptanceFit = panel.envelopes[0]?.['acceptanceFit']
+    expect(
+      validateAcFit(acceptanceFit, ['AC-1', 'AC-2', 'AC-3'], { expectedTaskId: '#100' }),
+    ).toEqual([])
+    expect(enforceAcFitCitations(acceptanceFit, dir, frozenSha, 'template')).toEqual([])
+  })
+
+  it('does not fabricate an acceptance criterion when the frozen criteria cannot be read', () => {
+    const frozenSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
+    ship({ advance: true, headSha: frozenSha })
+    const output = buildShipStepLines(ship({ reviewRound: true, headSha: frozenSha })).join('\n')
+
+    expect(output).toContain('Acceptance criteria unavailable from the frozen plan')
+    expect(output).toMatch(/rg -n .*AC-.*plan\.md/)
+    expect(output).not.toContain('<AC-ID>')
   })
 
   it('refuses to open a round when the frozen plan is dirty', () => {

@@ -18,7 +18,6 @@ import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
 import { resolveShipTreatment, widenTier } from '../../src/commands/ship-tier.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
-import { validateSchema } from '../../scripts/lib/agent-return-validate.mjs'
 
 // Gates that would otherwise require a real repo / model switch
 vi.mock('../../src/capabilities/host-probe.js', () => ({
@@ -412,61 +411,6 @@ const profile = (over: Partial<ShipProfile> = {}): ShipProfile => ({
   ...over,
 })
 const SELF_ONLY_GATES = ['template-authoring', 'selfOnly-invariants', 'matrix-fixtures']
-
-it('AC-2760.2: a planned round prints a schema-valid bound reviewer-panel template', () => {
-  const shipProfile = profile()
-  const result: ShipResult & {
-    reviewSubject: { taskId: string; branch: string; sha: string }
-  } = {
-    phase: 'refactor',
-    step: shipStepFor('refactor', 'Standard', shipProfile, '#2760'),
-    advanced: false,
-    done: false,
-    tier: 'Standard',
-    reviewDispatched: true,
-    reviewSubject: {
-      taskId: '#2760',
-      branch: 'task/#2760-regen-envelope',
-      sha: 'a'.repeat(40),
-    },
-    profile: shipProfile,
-  }
-  const lines = buildShipStepLines(result)
-  const recordCommand =
-    "node scripts/record-agent-return.mjs --mode reviewer-panel --task '#2760' <<'JSON'"
-  const start = lines.indexOf(recordCommand)
-  const end = lines.indexOf('JSON', start + 1)
-
-  expect(start).toBeGreaterThanOrEqual(0)
-  expect(end).toBeGreaterThan(start)
-  expect(lines).toContain("node scripts/check-review-completion.mjs --task '#2760'")
-
-  const filled = lines
-    .slice(start + 1, end)
-    .join('\n')
-    .replaceAll('<ISO-8601 timestamp>', '2026-09-20T00:00:00.000Z')
-    .replaceAll('<PASS|WARN|FAIL>', 'PASS')
-    .replaceAll('"<0..1>"', '1')
-    .replaceAll('<AC-ID>', 'AC-1')
-    .replaceAll('<PASS|FAIL|NOT-TESTED>', 'PASS')
-    .replaceAll('<repo-relative-path>', 'plan.md')
-  const panel = JSON.parse(filled) as { envelopes: Array<Record<string, unknown>> }
-  const schema = JSON.parse(
-    readFileSync(join(process.cwd(), 'schemas', 'agent-return.schema.json'), 'utf-8'),
-  ) as Record<string, unknown>
-
-  expect(panel.envelopes.map((envelope) => envelope['agent'])).toEqual(result.step.verticals)
-  for (const envelope of panel.envelopes) {
-    expect(envelope).toMatchObject({
-      schema: 'arbiter-agent-return-v1',
-      role: 'reviewer',
-      taskId: '#2760',
-      branch: 'task/#2760-regen-envelope',
-      sha: 'a'.repeat(40),
-    })
-    expect(validateSchema(envelope, schema, schema, 'template')).toEqual([])
-  }
-})
 
 describe('ship complete next commands (#2753)', () => {
   function outputFor(phase: TaskPhase): string {
