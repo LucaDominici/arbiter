@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2767",
+  "test_path": "__tests__/commands/task-admission-red-2587.test.ts",
+  "test_commit_sha": "c6534779ce1bf9eb7d98cae741e77bca74cd3714",
+  "test_blob_sha": "0812fb22abe43ab2b30308409850abf3cdedeeaa",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/task-admission-red-2587.test.ts (4 tests | 1 failed) 97ms\n     × keeps plan when the issue cannot be read 23ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 3 passed (4)\n   Start at  19:59:12\n   Duration  337ms (transform 113ms, setup 9ms, import 150ms, tests 97ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/task-admission-red-2587.test.ts > red admission acceptance anchor (#2587) > keeps plan when the issue cannot be read\nAssertionError: expected [Function] to throw error matching /NO DATA/i but got 'acceptance-anchor gate: Command faile…'\n\n- Expected:\n/NO DATA/i\n\n+ Received:\n\"acceptance-anchor gate: Command failed (exit 1): node /tmp/arbiter-red-admission-t4uLpr/scripts/check-acceptance.mjs --plan plan.md\nnode:internal/modules/package_json_reader:314\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'minimatch' imported from /tmp/arbiter-red-admission-t4uLpr/scripts/lib/gate-affects-registry.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)\n    at packageResolve (node:internal/modules/esm/resolve:767:81)\n    at moduleResolve (node:internal/modules/esm/resolve:853:18)\n    at def. The red phase was not entered; restore the emitted checker or repair the anchored Markdown plan.\"\n\n ❯ __tests__/commands/task-admission-red-2587.test.ts:124:62\n    122|\n    123|     withGhPath(bin, () => {\n    124|       expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(/…\n       |                                                              ^\n    125|     })\n    126|     expect(readUnifiedState(root)?.phase).toBe('plan')\n ❯ withGhPath __tests__/commands/task-admission-red-2587.test.ts:55:5\n ❯ __tests__/commands/task-admission-red-2587.test.ts:123:5\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/task-admission-red-2587.test.ts",
+  "recorded_at": "2026-09-20T17:59:12.687Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/task-admission-red-2587.test.ts"
+  ]
+}
