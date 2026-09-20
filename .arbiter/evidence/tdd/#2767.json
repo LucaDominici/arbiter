@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2767",
+  "test_path": "__tests__/hooks/empirical/hook-fires.test.ts",
+  "test_commit_sha": "223e7c9b1a29cfc9d3943e10f191335580820128",
+  "test_blob_sha": "c12d0cd1a682d85fb1495490f00b8e410b523772",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/hooks/empirical/hook-fires.test.ts (91 tests | 3 failed) 2555ms\n     × advises without blocking on a non-conventional commit message delivered via stdin JSON 36ms\n     × advises without blocking on non-conventional commit message (INV-22) 34ms\n     × keeps the self copy as a manual advisory for a non-conventional commit message 25ms\n\n Test Files  1 failed (1)\n      Tests  3 failed | 88 passed (91)\n   Start at  19:13:47\n   Duration  2.79s (transform 115ms, setup 8ms, import 145ms, tests 2.55s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/hooks/empirical/hook-fires.test.ts > post-commit-check — stdin-JSON protocol (no env var) > advises without blocking on a non-conventional commit message delivered via stdin JSON\nAssertionError: expected 2 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 2\n\n ❯ __tests__/hooks/empirical/hook-fires.test.ts:564:22\n    562|     })\n    563|     const r = spawnCommandHookStdin(hookPath, dir, 'git commit -m \"bad…\n    564|     expect(r.status).toBe(0)\n       |                      ^\n    565|     expect(r.stderr).toMatch(/advisory/i)\n    566|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯\n\n FAIL  |unit| __tests__/hooks/empirical/hook-fires.test.ts > post-commit-check — empirical fire > advises without blocking on non-conventional commit message (INV-22)\nAssertionError: expected 2 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 2\n\n ❯ __tests__/hooks/empirical/hook-fires.test.ts:671:22\n    669|       CLAUDE_TOOL_INPUT_COMMAND: 'git commit',\n    670|     })\n    671|     expect(r.status).toBe(0)\n       |                      ^\n    672|     expect(r.stderr).toMatch(/advisory/i)\n    673|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯\n\n FAIL  |unit| __tests__/hooks/empirical/hook-fires.test.ts > post-commit-check — empirical fire > keeps the self copy as a manual advisory for a non-conventional commit message\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/hooks/empirical/hook-fires.test.ts:705:24\n    703|         PATH: `${binDir}:${process.env.PATH ?? ''}`,\n    704|       })\n    705|       expect(r.status).toBe(0)\n       |                        ^\n    706|       expect(r.stderr).toMatch(/advisory/i)\n    707|     } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/hooks/empirical/hook-fires.test.ts",
+  "recorded_at": "2026-09-20T17:13:50.039Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/hooks/empirical/hook-fires.test.ts"
+  ]
+}
