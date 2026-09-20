@@ -168,7 +168,7 @@
     "test-pyramid.json"
   ],
   "contentHashes": {
-    ".agents/CODEX.md": "3e46e75fa7da48bbf99c43668e2977693b4afe2c07ae95b174fadc70989e6164",
+    ".agents/CODEX.md": "17991c81ce5cd7ba5a3fe30407cd6b8e8d2541ab08c705bcbef5c831d2bc3e0a",
     ".agents/rules/05-agent-lifecycle.md": "7a716ad838618583381d2bb9cdd9238655f6545f0644da6b5c6783f9dc4c5745",
     ".agents/rules/50-batch-execution.md": "f44fb92f88eab98f1853143ba8c81bcaf5b17af07a11b367c6a522ff91ce9b17",
     ".agents/rules/60-incidental-capture.md": "22e9abbfabc71e0bff4f5748ab67c73a093a8c3f04ba960e1f0cac1ba99e376d",
@@ -226,7 +226,7 @@
     "schemas/use-case.schema.json": "adb5e6c70586bff08990150303bf3c3d7634c2b885b206727710c727a43c29c3",
     "scripts/bg-run.sh": "c01d5fc49ee813cf908a8984a529d6d774e44735f396465759cae0194fddf72c",
     "scripts/capacity-probe.mjs": "df53c9eb95e789b76907287100fb1e45fbd04a53bc9902d5b288c2a7a6032b36",
-    "scripts/check-acceptance.mjs": "6cf04cb1429d4fab5610d4560c6ff6c60ecaffdc3b75bdff7def092273d611b9",
+    "scripts/check-acceptance.mjs": "7d3e090fe2463edc755958e76b402c93fea021be118d13ef31fa9697b60bfa99",
     "scripts/check-action-pins.mjs": "898c0ef27b61d41fd495c45b951881e3070403a77cecec47e960d4ced47c3506",
     "scripts/check-all.mjs": "ee871584a4138727b5609dc1a5e57b84fa849d29ff553e4219f83a67f48b0038",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
@@ -299,7 +299,7 @@
     "scripts/gold-audit.mjs": "974f93a450f8d4817c0145e6f8c3b82cdfea8af65d3d76ab228e9856949f886f",
     "scripts/issue-readiness.mjs": "6e353eaf3efa56f57cdab8d2b6ceb600b14d62d01262a6ffe3157d69791eb606",
     "scripts/knowledge-map-update.mjs": "bb0b4076adeb75792b27555b0f90088734e49708a78cc2d317b5eacd91ab01da",
-    "scripts/lib/acceptance-criteria.mjs": "14353a73537b2baa6611858bbcf6b789882bb0b39805c118aac63aa1461e8b2b",
+    "scripts/lib/acceptance-criteria.mjs": "cfb216d6cad1fd7c8c583da8edf578bbc3c6a89840b2c0bafec04f0dedf6e61b",
     "scripts/lib/agent-return-validate.mjs": "4ce77aebac33f4f2b004d2ef386296867fe85d79364b1f21f2c6d7902d59a633",
     "scripts/lib/e2e-reliability.mjs": "22c5fdafc559b9a53b5bc74a3b2fe96f9757d6ed6bf9765cb384964343bbc1c5",
     "scripts/lib/evidence-binding.mjs": "b5b164dc8d11eae98a69ae00443535d01203e3b2ccbf51fa81d0f2585b55e776",
