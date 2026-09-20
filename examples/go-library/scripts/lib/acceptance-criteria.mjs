@@ -74,18 +74,7 @@ export function parseAcceptanceBlocks(markdown) {
       continue
     }
     if (current === 'criteria') {
-      const criterion = parseCriterionLine(line, criteria)
-      if (criterion) {
-        openCriterion = criterion
-      } else {
-        if (line.trim() === '') continue
-        const continuation = /^ {2,}(\S.*)$/.exec(line)
-        if (openCriterion && continuation) {
-          openCriterion.text = normalizeText(`${openCriterion.text} ${continuation[1]}`)
-        } else {
-          openCriterion = null
-        }
-      }
+      openCriterion = parseCriterionContentLine(line, criteria, openCriterion)
     } else {
       openCriterion = null
       if (current === 'nonGoals') parseBulletLine(line, nonGoals)
@@ -93,6 +82,18 @@ export function parseAcceptanceBlocks(markdown) {
     }
   }
   return { criteria, nonGoals, touches }
+}
+
+function parseCriterionContentLine(line, criteria, openCriterion) {
+  const criterion = parseCriterionLine(line, criteria)
+  if (criterion) return criterion
+  if (line.trim() === '') return openCriterion
+  const continuation = /^ {2,}(\S.*)$/.exec(line)
+  if (openCriterion && continuation) {
+    openCriterion.text = normalizeText(`${openCriterion.text} ${continuation[1]}`)
+    return openCriterion
+  }
+  return null
 }
 
 function parseBulletLine(line, target) {
