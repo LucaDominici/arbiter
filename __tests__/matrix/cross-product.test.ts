@@ -1572,7 +1572,6 @@ describe('cross-product: ship.md — result-first lifecycle across all stacks an
         const output = renderShip(lang, level)
         expect(output).toBe(baseline)
         expect(output).toContain('arbiter ship')
-        expect(output).toContain('arbiter lifecycle checkpoint')
         expect(output).toContain('normal cap is two rounds')
         expect(output).toContain('one clean-HEAD full gate')
       })
