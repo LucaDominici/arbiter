@@ -508,7 +508,13 @@ export interface ShipResult {
   /** True only when this invocation actually opens a reviewer dispatch. */
   reviewDispatched?: boolean
   /** Frozen reviewer-panel identity printed only for the round this invocation opened. */
-  reviewSubject?: { taskId: string; branch: string; sha: string }
+  reviewSubject?: {
+    taskId: string
+    branch: string
+    sha: string
+    criteriaIds: string[]
+    criteriaCommand: string
+  }
   checkpoint?: Pick<UnifiedTaskState, 'cursor' | 'review'>
   /** #1288 — the ship profile resolved from the target repo's arbiter.json. */
   profile: ShipProfile
@@ -544,20 +550,18 @@ function reviewerEnvelope(
     sha: subject.sha,
     ts: '<ISO-8601 timestamp>',
     verdict: '<PASS|WARN|FAIL>',
-    confidence: '<0..1>',
+    confidence: 0,
     findings: [],
     ...(includesAcceptanceFit
       ? {
           acceptanceFit: {
             schema: 'arbiter-ac-fit-v1',
             taskId: subject.taskId,
-            criteria: [
-              {
-                id: '<AC-ID>',
-                verdict: '<PASS|FAIL|NOT-TESTED>',
-                evidence: [{ file: '<repo-relative-path>', line: 1 }],
-              },
-            ],
+            criteria: subject.criteriaIds.map((id) => ({
+              id,
+              verdict: '<PASS|FAIL|NOT-TESTED>',
+              evidence: [{ file: '<repo-relative-path>', line: 1 }],
+            })),
           },
         }
       : {}),
@@ -567,13 +571,19 @@ function reviewerEnvelope(
 function reviewPanelLines(result: ShipResult): string[] {
   const subject = result.reviewSubject
   if (subject === undefined) return []
+  if (subject.criteriaIds.length === 0) {
+    return [
+      'Acceptance criteria unavailable from the frozen plan; no reviewer panel template was printed.',
+      `List acceptance criteria: ${subject.criteriaCommand}`,
+    ]
+  }
   const panel = {
     envelopes: result.step.verticals.map((vertical, index) =>
       reviewerEnvelope(subject, vertical, index === 0),
     ),
   }
   return [
-    'Reviewer panel template (replace every <...> placeholder):',
+    'Reviewer panel template: replace <ISO-8601 timestamp>, <PASS|WARN|FAIL>, <PASS|FAIL|NOT-TESTED>, and <repo-relative-path>; set numeric confidence and evidence line values.',
     `node scripts/record-agent-return.mjs --mode reviewer-panel --task '${subject.taskId}' <<'JSON'`,
     ...JSON.stringify(panel, null, 2).split('\n'),
     'JSON',
@@ -1178,6 +1188,41 @@ function reviewSubjectFor(
     taskId: state.taskId,
     branch: (state.branch ?? liveBranch) || '<current-branch>',
     sha: round.head ?? '<frozen-sha>',
+    criteriaIds: readFrozenAcceptanceIds(root, state.plan, round.head),
+    criteriaCommand: `rg -n 'AC-' -- ${JSON.stringify(state.plan.split('#')[0])}`,
+  }
+}
+
+const ACCEPTANCE_IDS_SCRIPT = [
+  "import { readFileSync } from 'node:fs'",
+  "import { pathToFileURL } from 'node:url'",
+  'const { parsePlanAnchor } = await import(pathToFileURL(process.argv[1]).href)',
+  "const anchor = parsePlanAnchor(readFileSync(0, 'utf8'))",
+  'process.stdout.write(JSON.stringify(anchor?.criteria.map(({ id }) => id) ?? []))',
+].join(';')
+
+function readFrozenAcceptanceIds(root: string, planRef: string, sha: string | null): string[] {
+  const plan = planRef.split('#')[0]?.trim() ?? ''
+  if (plan.length === 0 || sha === null) return []
+  try {
+    const body = runCli('git', ['show', `${sha}:${plan}`], { cwd: root, timeoutMs: 5000 }).stdout
+    const stdout = runCli(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        ACCEPTANCE_IDS_SCRIPT,
+        join(root, 'scripts', 'lib', 'acceptance-criteria.mjs'),
+      ],
+      { cwd: root, input: body, timeoutMs: 5000 },
+    ).stdout
+    const parsed: unknown = JSON.parse(stdout)
+    if (!Array.isArray(parsed) || parsed.some((id) => typeof id !== 'string' || id.length === 0)) {
+      return []
+    }
+    return parsed as string[]
+  } catch {
+    return []
   }
 }
 
