@@ -20,6 +20,7 @@ related: []
 - Checkpoints dated before 2026-09-20 used that residual time index; read their `time` lines as superseded.
 - Checkpoints and the frozen baseline computed before the #2725 usage-deduplication fix over-counted Claude usage by a session-dependent factor; their token values are superseded.
 - `Cost/baseline` is whole-delivery cost units divided by frozen `writerCostUnitsMedian` for the same stratum; missing inputs are `NO DATA`.
+- Cost ratios before the #2725 subagent-accounting fix under-counted Claude deliveries that used subagents; the frozen baseline is not recalibrated, making the comparison stricter.
 - The report queries GitHub through `gh`; when `gh` rejects a request it aborts instead of guessing. The requested PR fields are pinned by a contract test.
 - Known limits: Codex sessions do not yield human-message or round counts; input/cache/output splits report medians only.
 

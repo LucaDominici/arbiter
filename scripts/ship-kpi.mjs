@@ -28,7 +28,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { ghJson } from './lib/gh-audit-io.mjs'
 import { classify } from './pr-merge-watch.mjs'
@@ -1022,6 +1022,7 @@ export function mergeDeliverySources(row, { ci, sessions, redCiRuns, reworkSec, 
     humanMessages: sourceMetric(row, attributed, 'humanMessages'),
     rounds: sourceMetric(row, attributed, 'rounds'),
     fullGateRuns: sourceMetric(row, attributed, 'fullGateRuns'),
+    subagentCostUnits: sourceMetric(row, attributed, 'subagentCostUnits'),
     redCiRuns: redCiValue(row, ci, redCiRuns),
     leadTimeSplit: phases.leadTimeSplit,
     ceremony: row?.ceremony ?? {
@@ -1811,6 +1812,7 @@ function newSessionAccumulator(host, file) {
     humanMessages: 0,
     hasHumanMessage: false,
     usage: { input: null, output: null, cache: null },
+    subagentCostUnits: null,
     seenUsage: new Set(),
     times: { firstTs: null, lastTs: null },
     execution: { preflightSec: null, fullGateSec: null, fullGateRuns: 0 },
@@ -1887,6 +1889,10 @@ function updateAccumulatorUsage(accumulator, event) {
   )
 }
 
+function addUsage(target, source) {
+  for (const key of ['input', 'output', 'cache']) target[key] = addMetric(target[key], source[key])
+}
+
 function consumeClaudeAccumulator(accumulator, event) {
   updateClaudeAccumulatorContext(accumulator, event)
   const role = event.message?.role ?? event.type
@@ -1939,6 +1945,7 @@ function finishSessionAccumulator(accumulator) {
     firstTs: accumulator.times.firstTs,
     lastTs: accumulator.times.lastTs,
     usage: accumulator.usage,
+    subagentCostUnits: accumulator.subagentCostUnits,
     humanMessages: accumulator.hasHumanMessage ? accumulator.humanMessages : null,
     rounds: accumulator.hasHumanMessage ? accumulator.humanMessages : null,
     model: accumulator.model,
@@ -1953,20 +1960,52 @@ function finishSessionAccumulator(accumulator) {
   }
 }
 
-export async function discoverSessions(dir, host, sinceMs, untilMs) {
+async function streamLines(file, consume) {
+  const input = createReadStream(file, { encoding: 'utf-8' })
+  const reader = createInterface({ input, crlfDelay: Infinity })
+  try {
+    for await (const line of reader) consume(line)
+  } finally {
+    input.destroy()
+  }
+}
+
+function subagentFiles(parentFile) {
+  const dir = join(dirname(parentFile), basename(parentFile, '.jsonl'), 'subagents')
+  if (!existsSync(dir)) return null
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /^agent-.*\.jsonl$/.test(entry.name))
+    .map((entry) => join(dir, entry.name))
+}
+
+async function addSubagentUsage(parent, weights) {
+  const files = subagentFiles(parent.file)
+  if (files === null) return
+  parent.subagentCostUnits = 0
+  for (const file of files) {
+    const child = newSessionAccumulator('claude', file)
+    await streamLines(file, (line) => {
+      const event = parseSessionLine(line)
+      if (event !== null) updateAccumulatorUsage(child, event)
+    })
+    addUsage(parent.usage, child.usage)
+    const cost = costUnits(child.usage, weights)
+    parent.subagentCostUnits =
+      cost === null || parent.subagentCostUnits === null ? null : parent.subagentCostUnits + cost
+  }
+}
+
+export async function discoverSessions(dir, host, sinceMs, untilMs, weights) {
   const sessions = []
   for (const file of sessionFiles(dir, host, sinceMs, untilMs)) {
-    let input
     try {
-      input = createReadStream(file, { encoding: 'utf-8' })
-      const reader = createInterface({ input, crlfDelay: Infinity })
       const accumulator = newSessionAccumulator(host, file)
-      for await (const line of reader) consumeSessionLine(accumulator, line)
+      await streamLines(file, (line) => consumeSessionLine(accumulator, line))
+      if (host === 'claude') await addSubagentUsage(accumulator, weights)
       sessions.push(finishSessionAccumulator(accumulator))
     } catch (error) {
       // FAIL-OPEN-INTENT: an unreadable transcript cannot support attribution or KPI phases; omit it and preserve NO DATA in the affected delivery while surfacing the source error.
       process.stderr.write(`ship-kpi: unreadable session ${file}: ${error?.message ?? error}\n`)
-      if (input) input.destroy()
     }
   }
   return sessions
@@ -2700,11 +2739,11 @@ async function runReport(opts) {
   const prNumbers = fetchMergedPrNumbers(opts.repo, opts.since, until)
   const sinceMs = new Date(`${opts.since}T00:00:00Z`).getTime()
   const untilMs = until ? new Date(`${until}T23:59:59Z`).getTime() : Date.now()
+  const thresholds = loadThresholds()
   const sessions = [
-    ...(await discoverSessions(opts.sessions, 'claude', sinceMs, untilMs)),
+    ...(await discoverSessions(opts.sessions, 'claude', sinceMs, untilMs, thresholds.costWeights)),
     ...(await discoverSessions(opts.codexSessions, 'codex', sinceMs, untilMs)),
   ]
-  const thresholds = loadThresholds()
   const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'))
   const prContexts = prNumbers.map((number) => {
     const pr = fetchPrDetail(opts.repo, number)
