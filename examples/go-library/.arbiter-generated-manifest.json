@@ -13,7 +13,7 @@
     ".claude/commands/drain.md": "3cf10d0fe258d03ac6e16a0439cc580be455d8d779362de14adcfcac5a81f95d",
     ".claude/commands/impact.md": "4c8209afb1442bebb2a177cf8855e0080e7ea27664a5b00ad1b5b4d3514f7076",
     ".claude/commands/review.md": "c1e17dab437ee767f3a23475917175797741389dc71b1d168da27f2accfebf8a",
-    ".claude/commands/ship.md": "f1cd2bf25ae1e2fb89fafe570756d559c6f539885e51d7f19599059e57e5ccc4",
+    ".claude/commands/ship.md": "7806cc02c11f413309671ad9f9883af69396ca8bc43374cd00d72fdcad7dc39b",
     ".claude/commands/tabletop.md": "3f8b1e4e2d21069587e57812b8a60372e5036837ca021ab72dc826724fa48c48",
     ".claude/hooks/check-no-orphan-todo.mjs": "0f45cfa5e3a0e2a683cb170c0d3d5d258dd7ec31d8061bec409c8e27b0db69e8",
     ".claude/hooks/check-no-placeholders.mjs": "343e9a5c6d32d851fa94e2d84300004239acbae8ffa177490394ff7904533293",

@@ -4,7 +4,7 @@ argument-hint: '#NNN [--tier XS|S|Standard]'
 title: '/ship #NNN'
 doc_version: '3.0.0'
 status: active
-last_review: '2026-09-15'
+last_review: '2026-09-20'
 owner: ''
 canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal']
@@ -69,6 +69,22 @@ Use the lowest model capability printed by `arbiter ship`. Escalate only when th
 a new material risk appears, or one implementation approach makes no progress. Timeout, OOM, rate
 limit, unavailable tools, and queued CI are infrastructure states; they do not justify source edits
 or model escalation by themselves.
+
+## Thin orchestrator
+
+The cost of a delivery is turns multiplied by context. This session orchestrates; for Standard and
+wider treatments it does not carry the implementation. XS and S implement inline.
+
+- After the plan is frozen, dispatch ONE implementer subagent for RED → GREEN → freeze. Its brief is
+  the plan path, the frozen `AC-N` list, the file manifest, and the commands printed by
+  `arbiter ship`. It commits; it leaves push, review, and phase advances to this session. It returns
+  the frozen SHA, the RED evidence path, the tests it ran with counts, and at most ten lines of notes.
+- Leave the implementer's diff to the final reviewer and the gates, which read it against the same
+  SHA. Read it here only to resolve a finding.
+- After the last commit run `node scripts/check-all.mjs preflight` and fix everything it reports
+  before the single full gate. Pipe long output through `tail`.
+- If the implementer stalls or returns a failing candidate twice, take the write lane back and say
+  so in the PR.
 
 ## Capability train
 
