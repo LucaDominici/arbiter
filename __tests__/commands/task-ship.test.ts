@@ -259,7 +259,10 @@ describe('ship id normalization (#1280)', () => {
     writeTddEvidence(dir, '#1280')
     writeUnifiedState(dir, { phase: 'red' })
     // red → green runs checkTddEvidenceGate: path lookup + identity check both need '#1280'.
-    expect(() => runTaskShip({ dir, advance: true })).toThrow(/gate-pass marker missing/)
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.step.action).toContain(
+      'advanced to verification; next gate (close) not yet satisfied: gate-pass marker missing',
+    )
     expect(readUnifiedState(dir)?.phase).toBe('verification')
   })
 
@@ -302,6 +305,18 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
   it('--advance crosses plan and stops when the TDD evidence gate is red', () => {
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeUnifiedState(dir, { phase: 'plan' })
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.step.action).toContain(
+      'advanced to red; next gate (green) not yet satisfied: TDD evidence gate:',
+    )
+    expect(result.step.action).toContain('arbiter lifecycle record-red --test-path <path>')
+    expect(readUnifiedState(dir)?.phase).toBe('red')
+  })
+
+  it('keeps the first transition gate failure throwing', () => {
+    runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
+    writeUnifiedState(dir, { phase: 'red' })
+
     expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
@@ -345,14 +360,17 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(readUnifiedState(dir)?.phase).toBe('complete')
   })
 
-  it('AC-1/AC-4 stops at the first failing intermediate gate and surfaces its reason', () => {
+  it('AC-1/AC-4 returns at the first failing intermediate gate with its reason and command', () => {
     initGitRepo(dir)
     runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
     writeTddEvidence(dir, '#1206')
     writeUnifiedState(dir, { phase: 'red' })
 
-    expect(() => runTaskShip({ dir, advance: true })).toThrow(
-      `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}. ` +
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.phase).toBe('verification')
+    expect(result.step.action).toBe(
+      `advanced to verification; next gate (close) not yet satisfied: ` +
+        `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}. ` +
         'Run `node scripts/check-all.mjs L1` first.',
     )
     expect(readUnifiedState(dir)?.phase).toBe('verification')
@@ -581,7 +599,8 @@ describe('ship chain batching — seeding (--chain, #2102)', () => {
       }),
     })
     // Simulates `arbiter ship --advance` without repeating --chain.
-    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.phase).toBe('red')
     expect(readUnifiedState(dir)?.chainIds).toEqual(['#2103'])
   })
 })
@@ -922,7 +941,8 @@ describe('result-first read-only status (#2724)', () => {
     expect(status.treatment?.tier).toBe('Standard')
     expect(readFileSync(path, 'utf8')).toBe(before)
 
-    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
+    const result = runTaskShip({ dir, advance: true })
+    expect(result.phase).toBe('red')
     expect(readUnifiedState(dir)?.treatment?.tier).toBe('Standard')
   })
 

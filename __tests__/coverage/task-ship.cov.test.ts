@@ -250,13 +250,17 @@ describe('runTaskShip — seedShipState + drive branches (real temp-dir state I/
 
   it('advances through gate-free phases and stops at the first red gate', () => {
     runTaskShip({ dir, taskId: '#7', tier: 'S' })
-    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
+    const res = runTaskShip({ dir, advance: true })
+    expect(res.step.action).toContain(
+      'advanced to red; next gate (green) not yet satisfied: TDD evidence gate:',
+    )
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
   it('advances from plan to RED and stops at the green-entry gate', () => {
     writeUnifiedState(dir, { taskId: '#7', tier: 'S', phase: 'plan' })
-    expect(() => runTaskShip({ dir, advance: true })).toThrow(/TDD evidence gate/)
+    const res = runTaskShip({ dir, advance: true })
+    expect(res.phase).toBe('red')
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
@@ -288,9 +292,12 @@ describe('runTaskShip — seedShipState + drive branches (real temp-dir state I/
 
   it('forwards advanceOpts to the advance call (skipPlanReview on a gate-free hop)', () => {
     runTaskShip({ dir, taskId: '#7', tier: 'S' })
-    expect(() =>
-      runTaskShip({ dir, advance: true, advanceOpts: { skipPlanReview: true } }),
-    ).toThrow(/TDD evidence gate/)
+    const res = runTaskShip({
+      dir,
+      advance: true,
+      advanceOpts: { skipPlanReview: true },
+    })
+    expect(res.phase).toBe('red')
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 })
