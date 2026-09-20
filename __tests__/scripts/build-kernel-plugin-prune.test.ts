@@ -14,7 +14,15 @@
 // asserted, never on a setup read of a file that does not exist yet.
 import { describe, it, expect, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  mkdirSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -88,10 +96,21 @@ describe('build-kernel-plugin.mjs prunes obsolete outputs (#2763)', () => {
   })
 
   it('a second build over an unchanged root is a no-op (regen converges)', () => {
-    scratch = mkdtempSync(join(tmpdir(), 'kernel-prune-'))
-    const out = join(scratch, 'hooks')
+    // Exercise the actual convergence claim: start from a root that still carries a stale
+    // entry (the same fixture the prune tests use), so the FIRST build here has real pruning
+    // to do. A second build over the now-clean root must then change nothing further — same
+    // manifest, same file set — proving the prune itself converges rather than re-pruning or
+    // re-writing on every run.
+    const out = rootWithStale('renamed-away.mjs')
     expect(run(build, [`--out=${out}`]).status).toBe(0)
+    expect(existsSync(join(out, 'renamed-away.mjs'))).toBe(false)
+    const filesAfterFirst = readdirSync(out).sort()
+    const manifestAfterFirst = readFileSync(join(out, MANIFEST), 'utf-8')
+
     expect(run(build, [`--out=${out}`]).status).toBe(0)
+
+    expect(readdirSync(out).sort()).toEqual(filesAfterFirst)
+    expect(readFileSync(join(out, MANIFEST), 'utf-8')).toBe(manifestAfterFirst)
     expect(run(parity, ['--dir', out]).status).toBe(0)
   })
 })

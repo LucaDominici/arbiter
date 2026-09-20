@@ -189,6 +189,7 @@ describe('kernel-manifest syncManifest (#2763)', () => {
     writeFileSync(join(dir, MANIFEST), JSON.stringify({ files: ['old.mjs'] }))
 
     expect(syncManifest(dir, ['kept.mjs'])).toEqual(['old.mjs'])
+    expect(existsSync(join(dir, 'old.mjs'))).toBe(false)
     expect(readFileSync(target, 'utf-8')).toBe('keep me')
   })
 
