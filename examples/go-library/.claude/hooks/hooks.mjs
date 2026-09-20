@@ -31,6 +31,7 @@ const HANDLERS = {
     'pre-spawn-worktree-guard.mjs',
   ],
   'PostToolUse:Bash': [
+    'post-commit-check.mjs',
   ],
   'PostToolUse:Edit|Write': [
     'check-no-orphan-todo.mjs',

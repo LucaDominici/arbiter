@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Arbiter manual advisory: report non-conventional commit messages (INV-22)
+// Arbiter advisory: report non-conventional commit messages after git commits (INV-22)
 import { spawnSync } from 'node:child_process';
 import { resolveToolInputCommand } from './lib.mjs';
 
@@ -24,46 +24,4 @@ const CONVENTIONAL =
   /^(feat|fix|refactor|test|docs|ci|chore|perf|style|build|revert)(\([^)]+\))?: .{1,72}$/;
 if (!CONVENTIONAL.test(msg)) {
   process.stderr.write(`[arbiter] Advisory: non-conventional commit message: ${msg}\n`);
-}
-
-// Track-aware post-commit checklist (#724)
-// CRLF stripped: git diff --name-only can emit CRLF on Windows
-const trackDiff = spawnSync('git', ['diff', '--name-only', 'HEAD~1', 'HEAD'], { encoding: 'utf-8' });
-const commitFiles = trackDiff.status === 0
-  ? (trackDiff.stdout ?? '').split('\n').map((f) => f.replace(/\r/g, '')).filter(Boolean)
-  : [];
-
-const FE_RE = /\.(tsx?|jsx?|vue|svelte|css|scss)$|^(web|frontend)\//;
-const BE_RE = /\.(go|py|java|rs|rb)$|^(api|backend|server|cmd)\//;
-const DOCS_RE = /\.md$|^docs\//;
-
-const hasFE = commitFiles.some((f) => FE_RE.test(f));
-const hasBE = commitFiles.some((f) => BE_RE.test(f));
-const hasDocs = commitFiles.some((f) => DOCS_RE.test(f));
-
-const tracks = [];
-if (hasFE) tracks.push('frontend');
-if (hasBE) tracks.push('backend');
-if (hasDocs) tracks.push('docs');
-
-if (tracks.length > 0) {
-  const label = tracks.length > 1 ? 'Tracks' : 'Track';
-  process.stdout.write(`[arbiter] ${label}: ${tracks.join(' + ')}\n`);
-
-
-if (hasFE) {
-  process.stdout.write('  FE: pytest -x (stop on first failure)\n');
-  process.stdout.write('  FE: coverage run --branch -m pytest (check branch coverage)\n');
-}
-
-if (hasBE) {
-  process.stdout.write('  BE: pytest -x --tb=short\n');
-  process.stdout.write('  BE: mypy --strict (no new type errors)\n');
-}
-
-if (hasDocs) {
-  process.stdout.write('  Docs: mkdocs build --strict\n');
-  process.stdout.write('  Docs: verify internal links resolve\n');
-}
-
 }
