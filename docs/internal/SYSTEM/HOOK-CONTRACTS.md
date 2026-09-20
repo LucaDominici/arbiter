@@ -109,14 +109,12 @@ not resolve in a fresh `git init`; `check-circular-deps` and `check-no-unused-ex
 `node_modules` must be whole-dir symlinked, re-creating the shared-cache defect #1873 removed;
 `.claude/settings.local.json` is an absolute symlink into the main checkout, so the copy is not
 sealed; and the copy carries `.env` into `/tmp`. Cost: 4.1 s copy + a 16.0 s median probe, versus
-~1.6 s in place. It also carries a private HARD/ADVISORY table that already contradicts ADR-032
-(it declares `post-commit-check` HARD where the manifest declares it ADVISORY). It therefore stays
-consumer-scoped, and the self surface is covered by the mechanism above instead.
+~1.6 s in place. It also carries a private HARD/ADVISORY table, so it stays consumer-scoped and the
+self surface is covered by the mechanism above instead.
 
-**Known inconsistency, deliberately not resolved here.** `post-commit-check` is ADVISORY in
-`.arbiter/hooks-manifest.json` (ADR-032, with a rationale), its template exits 2, and arbiter's
-materialized copy exits 1. Those three cannot all be right. Adjudicating needs ADR-032, not a
-unilateral flip, so it is filed rather than changed.
+**Resolved in #2767.** `post-commit-check` is a retained manual ADVISORY: both copies exit 0 with
+a concise notice for a malformed message and neither Claude nor Codex registers it automatically.
+`.githooks/commit-msg` and L1 `commitlint` remain the blocking controls.
 
 ---
 
@@ -235,7 +233,7 @@ Hooks wired in `.claude/settings.json`.
 | `pre-edit-load-memory.mjs`      | PreToolUse         | Edit\|Write  | read, stdout-inject          | `.claude/memory-impl.md`                                                                                               | SAFE                                                                                              |
 | `pre-edit-ssot-guard.mjs`       | PreToolUse         | Edit\|Write  | read, stdout-inject          | —                                                                                                                      | SAFE                                                                                              |
 | `pre-edit-plan-anchor.mjs`      | PreToolUse         | Edit\|Write  | read, stdout-inject          | `.claude/.task-*`, `.claude/plans/`                                                                                    | SAFE                                                                                              |
-| `post-commit-check.mjs`         | PostToolUse        | Bash         | read (git log)               | —                                                                                                                      | SAFE                                                                                              |
+| `post-commit-check.mjs`         | manual             | `git commit` | read (git log)               | —                                                                                                                      | SAFE                                                                                              |
 | `wiki-on-commit.mjs`            | PostToolUse        | Bash         | run (gen-wiki.mjs)           | Incremental wiki regen for changed docs                                                                                | SAFE                                                                                              |
 | `check-no-direct-spawn.mjs`     | PostToolUse        | Edit\|Write  | read                         | —                                                                                                                      | SAFE                                                                                              |
 | `check-no-orphan-todo.mjs`      | PostToolUse        | Edit\|Write  | read                         | —                                                                                                                      | SAFE                                                                                              |

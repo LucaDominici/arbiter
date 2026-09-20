@@ -111,8 +111,8 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   },
   'post-commit-check.mjs': {
     name: 'post-commit-check.mjs',
-    enforces: 'Post-commit checklist verification',
-    codexEquivalent: BRIDGED,
+    enforces: 'Manual post-commit checklist advisory',
+    codexEquivalent: 'Manual only; commit-msg and L1 commitlint remain blocking',
   },
   'check-no-unused-exports.mjs': {
     name: 'check-no-unused-exports.mjs',

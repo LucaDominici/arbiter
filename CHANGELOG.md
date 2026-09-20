@@ -6,6 +6,11 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are aligned to
 [Semantic Versioning](https://semver.org/) (pre-1.0: a breaking change bumps the minor).
 
+## [Unreleased]
+
+- `post-commit-check.mjs` is now a manual, exit-0 advisory. Claude and Codex no longer register it
+  automatically; `.githooks/commit-msg` and L1 `commitlint` remain blocking.
+
 ## [0.6.0] — 2026-09-13
 
 **Channel:** stable

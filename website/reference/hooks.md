@@ -29,7 +29,7 @@ All hooks are Node.js `.mjs` files — no bash required, no `chmod` needed, work
     enforce-gate-before-pr.mjs # PreToolUse → Bash (gate marker check)
     enforce-read-only.mjs     # PreToolUse → Edit|Write
     pre-edit-ssot-guard.mjs   # PreToolUse → Edit|Write
-    post-commit-check.mjs     # PostToolUse → Bash
+    post-commit-check.mjs     # manual advisory
     check-no-orphan-todo.mjs  # PostToolUse → Edit|Write
     check-no-any.mjs          # PostToolUse → Edit|Write (TypeScript only)
     check-no-unwrap.mjs       # PostToolUse → Edit|Write (Rust only)
@@ -70,15 +70,16 @@ Provides `logInfo`, `logWarn`, `logError` functions. Writes to `.claude/hooks/lo
 
 ### `post-commit-check.mjs`
 
-| Property      | Value                                             |
-| ------------- | ------------------------------------------------- |
-| **Event**     | `PostToolUse` → `Bash`                            |
-| **Purpose**   | Verify commit message follows conventional format |
-| **Invariant** | Commit convention (AGENTS.md Commit Convention)   |
-| **Timeout**   | 3 seconds                                         |
-| **Blocking**  | No (warning only)                                 |
+| Property      | Value                                           |
+| ------------- | ----------------------------------------------- |
+| **Event**     | Manual invocation                               |
+| **Purpose**   | Report a non-conventional commit message        |
+| **Invariant** | Commit convention (AGENTS.md Commit Convention) |
+| **Timeout**   | N/A                                             |
+| **Blocking**  | No (exit 0 advisory)                            |
 
-Triggers only on `git commit` commands. Checks the last commit message against the pattern:
+It is not registered automatically. Invoke it manually after `git commit`; it checks the last commit
+message against the pattern:
 
 ```
 ^(feat|fix|refactor|test|docs|ci|chore|perf|style|build|revert)(\([^)]+\))?: .{1,72}$
@@ -156,7 +157,6 @@ Fires before every user prompt. Phase-aware skill activation nudge. L2+ only.
 | `PreToolUse`         | `Edit\|Write` | `enforce-read-only.mjs`      | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `pre-edit-ssot-guard.mjs`    | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `pre-edit-plan-anchor.mjs`   | Implemented (all)       |
-| `PostToolUse`        | `Bash`        | `post-commit-check.mjs`      | Implemented             |
 | `PostToolUse`        | `Edit\|Write` | `check-no-orphan-todo.mjs`   | Implemented             |
 | `PostToolUse`        | `Edit\|Write` | `check-no-any.mjs`           | Implemented (TS only)   |
 | `PostToolUse`        | `Edit\|Write` | `check-no-unwrap.mjs`        | Implemented (Rust only) |

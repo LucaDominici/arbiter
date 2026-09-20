@@ -92,17 +92,6 @@ type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-unused-exports.mjs"
 timeout = 60
 <% } %>
-<% if (hasClaude) { %>
-# ── PostToolUse: after bash commands ─────────────────────────────────────────
-
-[[hooks.PostToolUse]]
-matcher = "^(Bash|bash)$"
-
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = "node .codex/codex-adapter.mjs .claude/hooks/post-commit-check.mjs"
-timeout = 3
-
 # ── PreCompact ────────────────────────────────────────────────────────────────
 
 [[hooks.PreCompact]]
@@ -125,7 +114,6 @@ timeout = 3
 type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/post-subagent-release.mjs"
 timeout = 3
-<% } %>
 <% if (hasClaude && isL2) { %>
 # ── UserPromptSubmit ──────────────────────────────────────────────────────────
 

@@ -553,11 +553,6 @@ describe('hooks/post-commit-check.mjs.ejs', () => {
     expect(out).toContain('INV-22')
   })
 
-  it('contains blocking exit(2) for non-conventional messages', () => {
-    const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', configFor('typescript'))
-    expect(out).toContain('process.exit(2)')
-  })
-
   it('contains conventional commit regex', () => {
     const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', configFor('typescript'))
     expect(out).toContain('CONVENTIONAL')

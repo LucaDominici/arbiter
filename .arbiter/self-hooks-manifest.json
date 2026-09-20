@@ -259,7 +259,7 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "PostToolUse conventional-commit check (INV-22) + track-aware checklist (#724) \u2014 declared non-blocking in ADR-032. NOTE (#2326): manifest ADVISORY / template exit(2) / self exit(1) are mutually inconsistent. Deliberately NOT reconciled here \u2014 adjudicating it needs ADR-032, not a unilateral flip. Tracked as a follow-up."
+      "rationale": "Manual conventional-commit advisory (INV-22) plus track-aware checklist (#724); commit-msg and L1 commitlint remain blocking."
     },
     {
       "file": "check-circular-deps.mjs",

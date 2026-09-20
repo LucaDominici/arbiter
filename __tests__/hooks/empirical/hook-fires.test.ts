@@ -482,6 +482,7 @@ function spawnCommandHookStdin(hookPath: string, dir: string, command: string) {
     cwd: dir,
     encoding: 'utf-8',
     input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+    stdio: ['pipe', 'pipe', 'pipe'],
     // Deliberately NO CLAUDE_TOOL_INPUT_COMMAND — only the stdin payload carries the command.
     env: { ...process.env, CLAUDE_TOOL_INPUT_COMMAND: '' },
     timeout: 5000,

@@ -204,7 +204,7 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "PostToolUse conventional-commit check (INV-22) + track-aware checklist (#724) — non-blocking informational output"
+      "rationale": "Manual conventional-commit advisory (INV-22) plus track-aware checklist (#724); commit-msg and L1 commitlint remain blocking."
     },
     {
       "file": "post-edit-dispatch.mjs.ejs",
