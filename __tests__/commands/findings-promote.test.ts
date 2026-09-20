@@ -383,6 +383,9 @@ describe('runFindingsPromote()', () => {
       { ...cooldown, severity: 'low', fingerprint: fp(cooldown) },
       { ...deferred, severity: 'low', fingerprint: fp(deferred), ts: now.toISOString() },
     ])
+    const shardLinesBefore = readFileSync(join(dir, '.arbiter', 'findings', 'a.jsonl'), 'utf-8')
+      .split('\n')
+      .filter(Boolean)
     const { deps } = makeDeps({
       searchTable: {
         [fp(tracked)]: { issueNumber: 42, state: 'open' },
@@ -400,13 +403,14 @@ describe('runFindingsPromote()', () => {
     expect(
       Object.fromEntries(drainReceipt(dir).map((rec) => [rec['fingerprint'], rec['disposition']])),
     ).toEqual({ [fp(stale)]: 'dropped', [fp(tracked)]: 'tracked' })
-    const spool = readFileSync(join(dir, '.arbiter', 'findings', 'a.jsonl'), 'utf-8')
-    expect(spool).not.toContain(fp(stale))
-    expect(spool).not.toContain(fp(tracked))
-    // Cooldown findings are durable NOWHERE: dropping one would delete the finding
-    // for good, since after the 30-day cooldown there would be nothing to re-promote.
-    expect(spool).toContain(fp(cooldown))
-    expect(spool).toContain(fp(deferred))
+    const shardPath = join(dir, '.arbiter', 'findings', 'a.jsonl')
+    const survivors = readFileSync(shardPath, 'utf-8').split('\n').filter(Boolean)
+    // Cooldown findings are durable NOWHERE: dropping one would delete the finding for
+    // good, since after the 30-day cooldown there would be nothing to re-promote. The
+    // surviving lines must come through BYTE-identical, not re-serialized.
+    expect(survivors).toEqual(
+      shardLinesBefore.filter((l) => l.includes(fp(cooldown)) || l.includes(fp(deferred))),
+    )
   })
 
   it('(#2733 AC-3) openFindingsCount falls to 0 once the spool is fully drained', async () => {
@@ -446,11 +450,17 @@ describe('runFindingsPromote()', () => {
     expect(JSON.parse(readFileSync(tdPath, 'utf-8'))).toEqual({ issues: [9001] })
   })
 
-  it('(#2733 AC-6) a failed issue creation drains nothing', () => {
+  it('(#2733 AC-6) a failed issue creation drains nothing, not even earlier resolutions', () => {
     const dir = tmpRepo()
     writeFileSync(join(dir, 'real.ts'), 'export const x = 1\n', 'utf-8')
-    const finding = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'will fail' }
-    writeShard(dir, 'a', [{ ...finding, severity: 'low', fingerprint: fp(finding) }])
+    // The stale finding resolves BEFORE the failure, so it is already in the drain set when
+    // the run aborts — a partial run must still leave the spool exactly as it found it.
+    const stale = { kind: 'risk', file: 'gone.ts', symbol: 'y', note: 'aaa stale' }
+    const failing = { kind: 'risk', file: 'real.ts', symbol: 'x', note: 'zzz will fail' }
+    writeShard(dir, 'a', [
+      { ...stale, severity: 'low', fingerprint: fp(stale) },
+      { ...failing, severity: 'low', fingerprint: fp(failing) },
+    ])
     const spool = join(dir, '.arbiter', 'findings', 'a.jsonl')
     const before = readFileSync(spool, 'utf-8')
     const { deps } = makeDeps({ createIssue: () => ({ ok: false, reason: 'gh exploded' }) })

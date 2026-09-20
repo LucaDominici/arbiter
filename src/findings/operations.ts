@@ -365,9 +365,13 @@ interface DrainRecord {
   finding: SpoolFinding
 }
 
+function toDrainRecord(f: SpoolFinding, disposition: DrainRecord['disposition']): DrainRecord {
+  return { fingerprint: f.fingerprint, disposition, capturedTs: f.ts, finding: f }
+}
+
 /**
- * Remove the drained fingerprints from every spool shard and append one receipt line
- * per drain to `.arbiter/evidence/findings-promote/drained.jsonl`.
+ * Append one receipt line per drain to `.arbiter/evidence/findings-promote/drained.jsonl`,
+ * then remove the drained fingerprints from the spool shards that carry them.
  *
  * The spool is the SSOT for STILL-OPEN findings: `collectFindingsMetrics`
  * (`scripts/debt-lib.mjs`) counts its fingerprints as open debt and the
@@ -375,6 +379,12 @@ interface DrainRecord {
  * promoted finding behind therefore keeps the debt ratchet red forever (#2733), and
  * draining it without a receipt makes the Stop hook report the capture as lost — so
  * the two writes belong together.
+ *
+ * The receipt is written FIRST. It carries the whole spool line, so an interrupted run
+ * leaves a recoverable record instead of a deleted finding; the reverse order loses a
+ * `dropped` finding outright, which is what the receipt exists to prevent. A receipt for a
+ * line that then survives in the spool is harmless — the metric and the Stop hook both
+ * tolerate it, and the next promote is idempotent.
  *
  * Lines that do not parse, or carry no string fingerprint, are KEPT: nothing is deleted
  * unless it was proven drained. A shard that lost nothing is not rewritten at all, so the
@@ -386,12 +396,16 @@ interface DrainRecord {
  * between this read and write is lost. Acceptable because promote is an explicit single-run
  * operator command — switch to a tombstone file if concurrent promote+add becomes real.
  */
-function toDrainRecord(f: SpoolFinding, disposition: DrainRecord['disposition']): DrainRecord {
-  return { fingerprint: f.fingerprint, disposition, capturedTs: f.ts, finding: f }
-}
-
 function drainSpool(dir: string, records: readonly DrainRecord[], now: Date): void {
   if (records.length === 0) return
+  const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
+  ensureDir(evidenceDir)
+  const ts = now.toISOString()
+  appendFileTranslated(
+    join(evidenceDir, 'drained.jsonl'),
+    records.map((r) => JSON.stringify({ ts, ...r })).join('\n') + '\n',
+  )
+
   const drained = new Set(records.map((r) => r.fingerprint))
   const findingsDir = join(dir, '.arbiter', 'findings')
   for (const shard of readdirSync(findingsDir).filter((f) => f.endsWith('.jsonl'))) {
@@ -422,14 +436,6 @@ function drainSpool(dir: string, records: readonly DrainRecord[], now: Date): vo
     })
     assertWritten(result, `drained findings spool at ${path}`)
   }
-
-  const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
-  ensureDir(evidenceDir)
-  const ts = now.toISOString()
-  appendFileTranslated(
-    join(evidenceDir, 'drained.jsonl'),
-    records.map((r) => JSON.stringify({ ts, ...r })).join('\n') + '\n',
-  )
 }
 
 // ---------------------------------------------------------------------------
