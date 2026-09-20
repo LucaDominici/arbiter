@@ -84,6 +84,7 @@ syncBuiltinESMExports()
       ],
       { cwd: dir },
     )
+    if (extraEnv.BOOTSTRAP_DIRTY === '1') writeFileSync(join(dir, 'dirty.txt'), 'dirty\n')
     const env = {
       ...process.env,
       CI: '',
@@ -320,6 +321,30 @@ describe('result-first preflight (#2724)', () => {
       expect(result.stdout).toContain('PREFLIGHT')
     },
   )
+
+  it.each([
+    ['codex self-parity (#1966)', 'scripts/check-codex-self-parity.mjs'],
+    ['fail-closed audit (INV-96)', 'scripts/check-fail-closed-audit.mjs'],
+    ['tdd-evidence', 'scripts/check-tdd-evidence.mjs'],
+    ['docs', 'scripts/check-docs.mjs'],
+  ])('turns preflight red when %s fails (#2746)', (name, script) => {
+    const result = runGate('preflight', script)
+
+    expect(result.status, result.stderr).toBe(1)
+    expect(result.calls).toContainEqual(['node', script])
+    expect(result.stdout).toContain(name)
+    expect(result.artifact).toBeNull()
+    expect(result.marker).toBe(false)
+  })
+
+  it('warns that committed-history diagnostics may change after a dirty-tree commit (#2746)', () => {
+    const result = runGate('preflight', 'pass', [], { BOOTSTRAP_DIRTY: '1' })
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain(
+      'tdd-evidence and docs are evaluated against committed history and the working tree is dirty',
+    )
+  })
 
   it('does not turn absent coverage from a failed run into a second ratchet defect', () => {
     const result = runGate('L2', '--coverage')
