@@ -395,6 +395,27 @@ function configuredTaskPatch(root: string): TaskStatePatch {
 }
 
 /**
+ * #2773 — anchor-time gate derivation. Recomputes derivedGates from the plan's `files:` manifest
+ * every time `lifecycle start --plan` (re-)anchors a plan, so an edit to the manifest without a
+ * re-anchor leaves the stored value stale and checkPlanDerivedGates (check-acceptance.mjs) refuses
+ * the plan->red transition. Advisory here: a missing script (targets without the affects registry,
+ * #2773 slice 1 scope: arbiter-self only) or a plan not yet written is a silent no-op — the
+ * red-phase gate is the actual enforcement point.
+ */
+function derivePlanGates(root: string, plan: string): void {
+  const script = join(root, 'scripts', 'derive-plan-gates.mjs')
+  if (!existsSync(script)) return
+  // Best-effort: a malformed status.json or plan should not fail `lifecycle start` itself —
+  // checkPlanDerivedGates (check-acceptance.mjs) is the actual enforcement point and fails
+  // closed at plan->red if derivedGates ends up missing or stale.
+  try {
+    runCli('node', [script, root, plan], { cwd: root, timeoutMs: 5000 })
+  } catch {
+    // swallow — see comment above
+  }
+}
+
+/**
  * Initialise / update the unified task document from the slash-command shell layer (replaces the
  * historical per-task dotfile writes). Never advances the phase.
  */
@@ -415,6 +436,7 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
     patch.hostBinding = resolveNativeHostBinding(opts.id, root, opts.host)
   }
   const state = writeUnifiedState(root, patch)
+  if (opts.plan !== undefined) derivePlanGates(root, opts.plan)
   appendLog(root, taskInitLog(state))
 }
 

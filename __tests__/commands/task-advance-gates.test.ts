@@ -31,7 +31,7 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
   tddEvidenceProducedOnBranch: vi.fn().mockReturnValue(true),
 }))
 
-import { runTaskAdvance } from '../../src/commands/task.js'
+import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import { resolveShipTreatment } from '../../src/commands/ship-tier.js'
@@ -357,6 +357,56 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     writeUnifiedState(dir, { plan: 'plan.md#acceptance' })
     runTaskAdvance({ to: 'red', dir })
     expect(readUnifiedState(dir)?.phase).toBe('red')
+  })
+})
+
+describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-gates.mjs for real', () => {
+  const FILES = ['src/templates/claude/commands/ship.md.ejs']
+  const VALID_PLAN = [
+    '---',
+    "title: '#2773'",
+    'files:',
+    ...FILES.map((file) => `  - ${file}`),
+    '---',
+    '## Acceptance Criteria',
+    '- [ ] AC-2773.1: behavior',
+    '## Non-Goals',
+    '- x',
+  ].join('\n')
+
+  function anchorRepo(): string {
+    const dir = tmpRepo()
+    mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+    symlinkSync(resolve(__dirname, '../../node_modules'), join(dir, 'node_modules'), 'dir')
+    copyFileSync(
+      resolve(__dirname, '../../scripts/derive-plan-gates.mjs'),
+      join(dir, 'scripts/derive-plan-gates.mjs'),
+    )
+    for (const file of [
+      'gate-affects-registry.mjs',
+      'gate-derivation.mjs',
+      'derived-artifacts.mjs',
+      'run-helpers.mjs',
+    ]) {
+      copyFileSync(
+        resolve(__dirname, `../../scripts/lib/${file}`),
+        join(dir, `scripts/lib/${file}`),
+      )
+    }
+    writeFileSync(join(dir, 'plan.md'), VALID_PLAN, 'utf-8')
+    return dir
+  }
+
+  it('writes derivedGates into status.json when `lifecycle start --plan` anchors a manifest plan', () => {
+    const dir = anchorRepo()
+    runTaskInit({ dir, id: '#2773', plan: 'plan.md' })
+    expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveGatesForFiles(FILES))
+  })
+
+  it('leaves derivedGates unset when no plan is anchored', () => {
+    const dir = anchorRepo()
+    runTaskInit({ dir, id: '#2773' })
+    expect(readUnifiedState(dir)?.derivedGates).toBeUndefined()
   })
 })
 
