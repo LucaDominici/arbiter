@@ -1619,17 +1619,31 @@ function fetchIssuesClosedCount(repo, since, until) {
   return data.length
 }
 
+export const PR_DETAIL_FIELDS = [
+  'commits',
+  'createdAt',
+  'mergedAt',
+  'mergeCommit',
+  'headRefName',
+  'closingIssuesReferences',
+  'additions',
+  'deletions',
+  'statusCheckRollup',
+  'labels',
+]
+
+/** gh exposes the merge commit as an object; the rest of the tool reads a flat oid. */
+export function normalizePrDetail(detail) {
+  if (detail === null || typeof detail !== 'object') return null
+  return { ...detail, mergeCommitOid: detail.mergeCommit?.oid ?? null }
+}
+
 function fetchPrDetail(repo, number) {
-  return ghJsonOrThrow(
-    [
-      'pr',
-      'view',
-      String(number),
-      '--json',
-      'commits,createdAt,mergedAt,mergeCommitOid,headRefName,closingIssuesReferences,additions,deletions,statusCheckRollup,labels',
-      ...repoArgs(repo),
-    ],
-    `gh pr view #${number}`,
+  return normalizePrDetail(
+    ghJsonOrThrow(
+      ['pr', 'view', String(number), '--json', PR_DETAIL_FIELDS.join(','), ...repoArgs(repo)],
+      `gh pr view #${number}`,
+    ),
   )
 }
 
