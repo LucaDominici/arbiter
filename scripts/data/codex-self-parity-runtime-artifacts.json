@@ -1,3 +1,7 @@
 {
-  "runtimeArtifacts": [".agents/plan/2490-init-json-dry-run.md", ".agents/plan/2594-bun-prepare.md"]
+  "runtimeArtifacts": [
+    ".agents/plan/2490-init-json-dry-run.md",
+    ".agents/plan/2594-bun-prepare.md",
+    ".agents/plan/2733-promote-drain.md"
+  ]
 }
