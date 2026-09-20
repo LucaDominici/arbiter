@@ -8,6 +8,7 @@
 // this file proves the new entries actually refuse.
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
+  chmodSync,
   copyFileSync,
   mkdtempSync,
   mkdirSync,
@@ -136,8 +137,21 @@ function installAcceptanceChecker(dir: string): void {
   }
 }
 
+function installAcceptanceGh(dir: string): void {
+  const bin = join(dir, 'bin')
+  mkdirSync(bin, { recursive: true })
+  const gh = join(bin, 'gh')
+  writeFileSync(
+    gh,
+    '#!/bin/sh\nprintf \'%s\' \'{"number":2587,"url":"https://example.invalid/issues/2587","body":"## Acceptance Criteria\\n- AC-1: behavior","updatedAt":"2026-09-20T00:00:00Z"}\'\n',
+  )
+  chmodSync(gh, 0o755)
+  vi.stubEnv('PATH', `${bin}:${process.env.PATH ?? ''}`)
+}
+
 afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true })
+  vi.unstubAllEnvs()
 })
 
 describe('advance --to plan — preflight must actually have seeded task state (AC-1)', () => {
@@ -284,6 +298,7 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     const dir = tmpRepo()
     seed(dir, 'plan', '#2587')
     if (checker) installAcceptanceChecker(dir)
+    if (checker) installAcceptanceGh(dir)
     writeFileSync(join(dir, 'plan.md'), plan, 'utf-8')
     writeFileSync(
       join(dir, 'arbiter.json'),

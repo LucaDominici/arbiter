@@ -1,19 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
 // #2587 RED receipt: acceptance-anchor validation must happen on red admission.
-import { chmodSync, cpSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runTaskAdvance } from '../../src/commands/task.js'
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
+import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
 
 const roots: string[] = []
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  vi.restoreAllMocks()
 })
 
 function installAcceptanceChecker(root: string): void {
+  symlinkSync(resolve(__dirname, '../../node_modules'), join(root, 'node_modules'), 'dir')
   cpSync(resolve(__dirname, '../../scripts', 'lib'), join(root, 'scripts', 'lib'), {
     recursive: true,
   })
@@ -124,5 +135,35 @@ describe('red admission acceptance anchor (#2587)', () => {
       expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(/NO DATA/i)
     })
     expect(readUnifiedState(root)?.phase).toBe('plan')
+  })
+
+  it('skips issue coverage for a non-GitHub task id and runs the ordinary plan check', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-red-admission-'))
+    roots.push(root)
+    const files = ['docs/example.md']
+    const plan = [
+      '---',
+      'files:',
+      ...files.map((file) => `  - ${file}`),
+      '---',
+      validPlan(['AC-1: preserves the requested outcome']),
+    ].join('\n')
+    writeUnifiedState(root, {
+      taskId: 'JIRA-42',
+      phase: 'plan',
+      plan: 'plan.md',
+      derivedGates: deriveGatesForFiles(files),
+    })
+    writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
+    writeFileSync(join(root, 'plan.md'), plan)
+    installAcceptanceChecker(root)
+    const output = vi.spyOn(process.stdout, 'write')
+
+    runTaskAdvance({ to: 'red', dir: root })
+
+    expect(readUnifiedState(root)?.phase).toBe('red')
+    expect(output).toHaveBeenCalledWith(
+      'SKIP issue-coverage admission: task id JIRA-42 is not a GitHub issue number\n',
+    )
   })
 })

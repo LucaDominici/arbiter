@@ -281,3 +281,12 @@ Gap di precisione nominato, non nascosto: 116 entry del registry restano `ALWAYS
 e limite fail-safe oltre 500 file producono legittimamente tutti i 175 gate. Il backtest prova la
 recall sul campione, non una buona precisione. Questo report va copiato anche in #2745 dal
 coordinatore; questa slice non modifica #2745.
+
+## #2767 slice C — ammissione criteri di accettazione (2026-09-20)
+
+All'ingresso `plan → red`, un task GitHub confronta il corpo della issue con la lista congelata nel piano.
+Sono accettati checkbox o bullet sotto “Acceptance Criteria”; gli id `AC-N` sono preferiti, ma i bullet
+senza id usano la posizione e devono comunque avere testo normalizzato identico nel piano namespaced.
+Una issue senza criteri leggibili blocca e richiede chiarimento; `gh` indisponibile, timeout o risposta
+malformata produce `NO DATA` con exit 2, senza avanzare la fase. Gli id non GitHub (per esempio Jira)
+scrivono uno `SKIP` esplicito e continuano con la normale validazione locale del piano.

@@ -106,9 +106,9 @@ function planIdForIssueCriterion(issueNumber, criterionId) {
 }
 
 /**
- * Check that one issue's explicit source criteria are frozen verbatim in a plan.
- * Source ids are namespaced by issue when they use the ordinary `AC-N` form, so a
- * criterion from one carried issue can never satisfy another carried issue's AC-N.
+ * Check that one issue's source criteria are frozen verbatim in a plan. Explicit
+ * ids are preferred, while positional parser ids make bare source bullets stable
+ * within this admission comparison.
  */
 export function validateIssueAcceptanceCoverage(issueNumber, issueBody, planCriteria) {
   const source = parseAcceptanceBlocks(issueBody).criteria
@@ -118,11 +118,8 @@ export function validateIssueAcceptanceCoverage(issueNumber, issueBody, planCrit
       `issue #${issueNumber} has no parseable acceptance criteria; request clarification before admission`,
     ]
   }
-  if (source.some((criterion) => !criterion.explicit || criterion.text.length === 0)) {
-    errors.push(
-      `issue #${issueNumber} has ambiguous acceptance criteria; every item needs AC-N and text`,
-    )
-  }
+  if (source.some((criterion) => criterion.text.length === 0))
+    errors.push(`issue #${issueNumber} has ambiguous acceptance criteria without text`)
   const sourceDupes = duplicateIds(source)
   if (sourceDupes.length > 0)
     errors.push(`issue #${issueNumber} duplicates criterion id(s): ${sourceDupes.join(', ')}`)

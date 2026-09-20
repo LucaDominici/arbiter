@@ -6,6 +6,12 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are aligned to
 [Semantic Versioning](https://semver.org/) (pre-1.0: a breaking change bumps the minor).
 
+## [Unreleased]
+
+- Issue-backed acceptance admission now compares each issue criterion with the frozen, namespaced
+  plan criterion before RED; unavailable GitHub data fails closed, while non-GitHub task ids log an
+  explicit skip and retain ordinary plan validation.
+
 ## [0.6.0] — 2026-09-13
 
 **Channel:** stable

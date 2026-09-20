@@ -1283,14 +1283,21 @@ function checkAcceptancePlanGate(dir: string): void {
 
   const state = readUnifiedState(dir)
   const plan = state?.plan.trim() ?? ''
-  const issueNumbers = [state?.taskId, ...(state?.chainIds ?? [])].map((id) =>
-    String(id ?? '').replace(/^#/, ''),
+  const taskIds = [state?.taskId, ...(state?.chainIds ?? [])].filter(
+    (id): id is string => typeof id === 'string' && id.length > 0,
   )
-  if (issueNumbers.some((id) => !/^\d+$/.test(id)))
-    throw new Error('acceptance-anchor gate requires the active task and chain issue numbers')
+  if (taskIds.length === 0)
+    throw new Error('acceptance-anchor gate requires the active task or chain issue id')
   try {
-    for (const issueNumber of new Set(issueNumbers)) {
-      runCli('node', [script, '--plan', plan, '--admit-issue', issueNumber], {
+    for (const taskId of new Set(taskIds)) {
+      const issueNumber = taskId.replace(/^#/, '')
+      const args = ['--plan', plan]
+      if (/^\d+$/.test(issueNumber)) args.push('--admit-issue', issueNumber)
+      else
+        process.stdout.write(
+          `SKIP issue-coverage admission: task id ${taskId} is not a GitHub issue number\n`,
+        )
+      runCli('node', [script, ...args], {
         cwd: dir,
         timeoutMs: 5000,
       })
