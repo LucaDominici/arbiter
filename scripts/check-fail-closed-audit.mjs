@@ -136,6 +136,10 @@ const SKIP_FILES = new Set([
   // (check-kernel-plugin-parity.mjs, regenerate-examples.mjs) own the exit contract and
   // both fail closed (their own top-level try/catch, never exit 0 on an unexpected throw).
   'scripts/lib/dir-diff.mjs',
+  // #2763 kernel-plugin output manifest + manifest-scoped prune; no entry point. It throws
+  // on a malformed manifest or a non-plain-name entry before deleting anything; its consumer
+  // (build-kernel-plugin.mjs) owns the exit contract and exits non-zero on any throw.
+  'scripts/lib/kernel-manifest.mjs',
   // #2747 pure argv-builder for the Codex writer/reviewer dispatch lane (no I/O,
   // no spawn); no entry point — consumer (scripts/codex-dispatch.mjs) owns the
   // exit contract and wraps the spawnSync call in a top-level try/catch.

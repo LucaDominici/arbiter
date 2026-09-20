@@ -88,6 +88,9 @@ runtime, no build step, no arbiter CLI required to run them.
 Rebuilt from the source project's own emitted templates via
 `node scripts/build-kernel-plugin.mjs` (run after `npm run build`) — so this
 plugin can never silently drift from what the CLI ships into governed repos.
+The build records what it emitted in `hooks/.kernel-build-manifest.json` and removes
+outputs that dropped out of it (#2763); a hand-added file it never emitted is left
+alone and fails the parity gate instead.
 
 ## Status
 

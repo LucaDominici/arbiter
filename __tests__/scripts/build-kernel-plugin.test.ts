@@ -35,6 +35,8 @@ const EXPECTED_OUTPUT_FILES = [
   'evidence-binding.mjs',
   'run-helpers.mjs',
   'hooks.json',
+  // #2763: what this build emitted, so the next one can prune a renamed/removed output
+  '.kernel-build-manifest.json',
 ]
 
 let scratchDir: string | undefined

@@ -1,0 +1,17 @@
+{
+  "files": [
+    "check-no-orphan-todo.mjs",
+    "check-no-placeholders.mjs",
+    "enforce-gate-before-pr.mjs",
+    "enforce-read-only.mjs",
+    "evidence-binding.mjs",
+    "gate-evidence.mjs",
+    "guard-done-evidence.mjs",
+    "hooks.json",
+    "lib.mjs",
+    "pre-edit-ssot-guard.mjs",
+    "run-helpers.mjs",
+    "stop-dangerous.mjs",
+    "stop-evidence-guard.mjs"
+  ]
+}
