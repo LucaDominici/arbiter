@@ -23,6 +23,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -219,4 +220,58 @@ describe('kernel-manifest syncManifest (#2763)', () => {
     expect(() => syncManifest(dir, ['kept.mjs'])).toThrow(/not a plain file name/)
     expect(readFileSync(victim, 'utf-8')).toBe('keep me')
   })
+})
+
+// Second review round of #2777: `lstat('link/')` follows the link, so a root written with a
+// trailing separator slipped past the symlink refusal and the prune ran in the external
+// target. Both exported entry points normalize the root once, before any check.
+describe('symlinked output root is refused however it is spelled (#2763)', () => {
+  const buildPath = resolve(__dirname, '..', '..', 'scripts', 'build-kernel-plugin.mjs')
+
+  /** An external dir holding a victim the manifest names, and a symlink to it. */
+  function linkedRoot() {
+    const dir = fresh()
+    const external = join(dirname(dir), 'external')
+    mkdirSync(external)
+    writeFileSync(join(external, 'victim.txt'), 'keep me')
+    writeFileSync(join(external, '.kernel-build-manifest.json'), '{"files":["victim.txt"]}')
+    const link = join(dirname(dir), 'link-root')
+    symlinkSync(external, link, 'dir')
+    const snapshot = () =>
+      readdirSync(external)
+        .sort()
+        .map((n) => [n, readFileSync(join(external, n), 'utf-8')])
+    return { link, snapshot, before: snapshot() }
+  }
+
+  it.each([
+    ['link', (l: string) => l],
+    ['link/', (l: string) => `${l}/`],
+    ['link//', (l: string) => `${l}//`],
+    ['link/.', (l: string) => `${l}/.`],
+  ])(
+    'syncManifest(%s) fails naming the symlink and leaves the target untouched',
+    async (_n, spell) => {
+      const { syncManifest } = await load()
+      const { link, snapshot, before } = linkedRoot()
+
+      expect(() => syncManifest(spell(link), ['kept.mjs'])).toThrow(/output root .* is a symlink/)
+      expect(snapshot()).toEqual(before)
+    },
+  )
+
+  it.each([
+    ['link', (l: string) => l],
+    ['link/', (l: string) => `${l}/`],
+    ['link//', (l: string) => `${l}//`],
+  ])(
+    'buildKernelPlugin(%s) fails naming the symlink and deletes/writes nothing in the target',
+    async (_n, spell) => {
+      const { buildKernelPlugin } = await import(buildPath)
+      const { link, snapshot, before } = linkedRoot()
+
+      expect(() => buildKernelPlugin(spell(link))).toThrow(/output root .* is a symlink/)
+      expect(snapshot()).toEqual(before)
+    },
+  )
 })
