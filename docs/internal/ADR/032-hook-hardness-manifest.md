@@ -42,6 +42,6 @@ Without a structural verification mechanism, regressions could re-appear silentl
 - Adding a new hook requires a manifest entry (gate blocks otherwise).
 - Changing a HARD hook to exit 0 without updating the manifest fails L1 CI.
 - EJS-template hooks (rendered at `arbiter init` time) are classified HARD in the manifest with `spawnable: false`; empirical coverage lives in their respective `__tests__/hooks/empirical/` test files.
-- #2767 resolves the former `post-commit-check` mismatch: its self and template copies are ADVISORY,
-  manual-only, and exit 0 after a concise notice. Commit-message enforcement remains in `commit-msg`
+- #2767 resolves the former `post-commit-check` mismatch: its self and template copies are registered
+  ADVISORY hooks, silent on valid messages, and exit 0 after a concise malformed-message notice. Commit-message enforcement remains in `commit-msg`
   and the L1 `commitlint` gate.

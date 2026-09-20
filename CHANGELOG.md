@@ -8,8 +8,8 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
-- `post-commit-check.mjs` is now a manual, exit-0 advisory. Claude and Codex no longer register it
-  automatically; `.githooks/commit-msg` and L1 `commitlint` remain blocking.
+- `post-commit-check.mjs` remains registered as a silent, exit-0 advisory. `.githooks/commit-msg`
+  and L1 `commitlint` remain blocking.
 
 ## [0.6.0] — 2026-09-13
 

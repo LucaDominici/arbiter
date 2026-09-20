@@ -563,7 +563,10 @@ describe('post-commit-check — stdin-JSON protocol (no env var)', () => {
     })
     const r = spawnCommandHookStdin(hookPath, dir, 'git commit -m "bad commit message"')
     expect(r.status).toBe(0)
-    expect(r.stderr).toMatch(/advisory/i)
+    expect(r.stdout).toBe('')
+    expect(r.stderr).toBe(
+      '[arbiter] Advisory: non-conventional commit message: bad commit message\n',
+    )
   })
 
   it('exits 0 when the stdin command is not a git commit', () => {
@@ -670,10 +673,13 @@ describe('post-commit-check — empirical fire', () => {
       CLAUDE_TOOL_INPUT_COMMAND: 'git commit',
     })
     expect(r.status).toBe(0)
-    expect(r.stderr).toMatch(/advisory/i)
+    expect(r.stdout).toBe('')
+    expect(r.stderr).toBe(
+      '[arbiter] Advisory: non-conventional commit message: bad commit message\n',
+    )
   })
 
-  it('exits 0 on valid conventional commit message', () => {
+  it('is silent and exits 0 on a valid conventional commit message', () => {
     spawnSync('git', ['init'], { cwd: dir, encoding: 'utf-8' })
     spawnSync('git', ['config', 'user.email', 'test@arbiter.test'], {
       cwd: dir,
@@ -683,17 +689,23 @@ describe('post-commit-check — empirical fire', () => {
       cwd: dir,
       encoding: 'utf-8',
     })
-    spawnSync('git', ['commit', '--allow-empty', '-m', 'feat(auth): add login'], {
+    spawnSync('git', ['commit', '--allow-empty', '-m', 'chore: establish base'], {
       cwd: dir,
       encoding: 'utf-8',
     })
+    mkdirSync(join(dir, 'frontend'), { recursive: true })
+    writeFileSync(join(dir, 'frontend', 'probe.ts'), 'export const probe = true\n')
+    spawnSync('git', ['add', 'frontend/probe.ts'], { cwd: dir, encoding: 'utf-8' })
+    spawnSync('git', ['commit', '-m', 'feat(auth): add login'], { cwd: dir, encoding: 'utf-8' })
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: 'git commit',
     })
     expect(r.status).toBe(0)
+    expect(r.stdout).toBe('')
+    expect(r.stderr).toBe('')
   })
 
-  it('keeps the self copy as a manual advisory for a non-conventional commit message', () => {
+  it('keeps the self copy as a wired advisory for a non-conventional commit message', () => {
     const binDir = mkdtempSync(join(tmpdir(), 'arbiter-post-commit-git-'))
     const gitPath = join(binDir, 'git')
     writeFileSync(gitPath, '#!/usr/bin/env sh\nprintf "bad commit message\\n"\n')
@@ -704,7 +716,10 @@ describe('post-commit-check — empirical fire', () => {
         PATH: `${binDir}:${process.env.PATH ?? ''}`,
       })
       expect(r.status).toBe(0)
-      expect(r.stderr).toMatch(/advisory/i)
+      expect(r.stdout).toBe('')
+      expect(r.stderr).toBe(
+        '[arbiter] Advisory: non-conventional commit message: bad commit message\n',
+      )
     } finally {
       rmSync(binDir, { recursive: true, force: true })
     }

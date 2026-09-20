@@ -26,7 +26,7 @@ const HANDLERS = {
     'pre-edit-plan-anchor.mjs',
   ],
   'PreToolUse:Task|Agent': ['pre-spawn-worktree-guard.mjs'],
-  'PostToolUse:Bash': [],
+  'PostToolUse:Bash': ['post-commit-check.mjs'],
   'PostToolUse:Edit|Write': [
     'check-no-orphan-todo.mjs',
     'check-no-placeholders.mjs',

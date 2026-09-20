@@ -29,7 +29,7 @@ All hooks are Node.js `.mjs` files — no bash required, no `chmod` needed, work
     enforce-gate-before-pr.mjs # PreToolUse → Bash (gate marker check)
     enforce-read-only.mjs     # PreToolUse → Edit|Write
     pre-edit-ssot-guard.mjs   # PreToolUse → Edit|Write
-    post-commit-check.mjs     # manual advisory
+    post-commit-check.mjs     # PostToolUse → Bash (advisory)
     check-no-orphan-todo.mjs  # PostToolUse → Edit|Write
     check-no-any.mjs          # PostToolUse → Edit|Write (TypeScript only)
     check-no-unwrap.mjs       # PostToolUse → Edit|Write (Rust only)
@@ -72,14 +72,13 @@ Provides `logInfo`, `logWarn`, `logError` functions. Writes to `.claude/hooks/lo
 
 | Property      | Value                                           |
 | ------------- | ----------------------------------------------- |
-| **Event**     | Manual invocation                               |
+| **Event**     | PostToolUse → Bash                              |
 | **Purpose**   | Report a non-conventional commit message        |
 | **Invariant** | Commit convention (AGENTS.md Commit Convention) |
-| **Timeout**   | N/A                                             |
+| **Timeout**   | 3 seconds                                       |
 | **Blocking**  | No (exit 0 advisory)                            |
 
-It is not registered automatically. Invoke it manually after `git commit`; it checks the last commit
-message against the pattern:
+It is registered after Bash commands and is silent unless the last `git commit` message fails this pattern:
 
 ```
 ^(feat|fix|refactor|test|docs|ci|chore|perf|style|build|revert)(\([^)]+\))?: .{1,72}$

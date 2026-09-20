@@ -112,8 +112,8 @@ sealed; and the copy carries `.env` into `/tmp`. Cost: 4.1 s copy + a 16.0 s med
 ~1.6 s in place. It also carries a private HARD/ADVISORY table, so it stays consumer-scoped and the
 self surface is covered by the mechanism above instead.
 
-**Resolved in #2767.** `post-commit-check` is a retained manual ADVISORY: both copies exit 0 with
-a concise notice for a malformed message and neither Claude nor Codex registers it automatically; invoke it on demand with `npm run advisory:post-commit`.
+**Resolved in #2767.** `post-commit-check` is a registered ADVISORY: both copies exit 0 with
+a concise notice for a malformed message and are silent for a well-formed message.
 `.githooks/commit-msg` and L1 `commitlint` remain the blocking controls.
 
 ---
@@ -233,7 +233,7 @@ Hooks wired in `.claude/settings.json`.
 | `pre-edit-load-memory.mjs`      | PreToolUse         | Edit\|Write  | read, stdout-inject          | `.claude/memory-impl.md`                                                                                               | SAFE                                                                                              |
 | `pre-edit-ssot-guard.mjs`       | PreToolUse         | Edit\|Write  | read, stdout-inject          | —                                                                                                                      | SAFE                                                                                              |
 | `pre-edit-plan-anchor.mjs`      | PreToolUse         | Edit\|Write  | read, stdout-inject          | `.claude/.task-*`, `.claude/plans/`                                                                                    | SAFE                                                                                              |
-| `post-commit-check.mjs`         | manual             | `git commit` | read (git log)               | —                                                                                                                      | SAFE                                                                                              |
+| `post-commit-check.mjs`         | PostToolUse        | Bash         | read (git log)               | —                                                                                                                      | SAFE                                                                                              |
 | `wiki-on-commit.mjs`            | PostToolUse        | Bash         | run (gen-wiki.mjs)           | Incremental wiki regen for changed docs                                                                                | SAFE                                                                                              |
 | `check-no-direct-spawn.mjs`     | PostToolUse        | Edit\|Write  | read                         | —                                                                                                                      | SAFE                                                                                              |
 | `check-no-orphan-todo.mjs`      | PostToolUse        | Edit\|Write  | read                         | —                                                                                                                      | SAFE                                                                                              |

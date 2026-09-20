@@ -93,6 +93,16 @@ command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-unused-exports.m
 timeout = 60
 <% } %>
 <% if (hasClaude) { %>
+# ── PostToolUse: after bash commands ─────────────────────────────────────────
+
+[[hooks.PostToolUse]]
+matcher = "^(Bash|bash)$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/post-commit-check.mjs"
+timeout = 3
+
 # ── PreCompact ────────────────────────────────────────────────────────────────
 
 [[hooks.PreCompact]]

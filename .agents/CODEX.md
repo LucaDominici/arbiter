@@ -100,7 +100,7 @@ or pass `codex exec --dangerously-bypass-hook-trust` in automation. Editing
 | `enforce-gate-before-pr.mjs` | Blocks PR creation before the local gate passed | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: `node scripts/check-all.mjs L2` before push |
 | `pre-spawn-worktree-guard.mjs` | Refuses a second write-intent sub-agent spawn onto the main tree (E5 #1947) | None — manual worktree discipline |
 | `post-subagent-release.mjs` | SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — releases the finished dispatch agents-active.json sidecar entry (#2403) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `post-commit-check.mjs` | Manual post-commit checklist advisory | Manual only; commit-msg and L1 commitlint remain blocking |
+| `post-commit-check.mjs` | Post-commit checklist advisory (always exit 0) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `check-no-unused-exports.mjs` | Blocks unused TypeScript exports (dead code) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: dead-code check (`knip`) in `check-all.mjs` |
 | `check-no-skipped-tests.mjs` | Blocks skipped/muted tests at edit time (INV-25) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `check-no-any.mjs` | Blocks TypeScript `any` types (INV-04) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: `tsc --strict` |

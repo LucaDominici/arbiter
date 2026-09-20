@@ -72,6 +72,13 @@ describe('generateCodexHooks', () => {
     expect(content).toContain('check-no-orphan-todo.mjs')
   })
 
+  it('config.toml wires post-commit-check as an advisory after bash commands (#2767)', () => {
+    generateCodexHooks(makeConfig(dir))
+    const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')
+    expect(content).toContain('post-commit-check.mjs')
+    expect(content).toContain('^(Bash|bash)$')
+  })
+
   it('includes check-no-pii when enableSecurityScanning is true', () => {
     generateCodexHooks(makeConfig(dir, { governanceLevel: 'L2' }))
     const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')

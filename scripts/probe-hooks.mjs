@@ -33,7 +33,8 @@ const PROBE_SCRATCH = '.arb-probe-tmp'
 // "the *_HARD mode promotes it" stops being an unexecuted claim in a code comment.
 const ADVISORY = {
   'post-commit-check.mjs': {
-    rationale: 'Manual commit-message advisory; commit-msg and L1 commitlint remain authoritative.',
+    rationale:
+      'Registered commit-message advisory; commit-msg and L1 commitlint remain authoritative.',
     kind: 'bad-commit',
   },
   'debug-state-on-failure.mjs': {

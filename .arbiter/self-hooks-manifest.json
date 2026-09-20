@@ -259,7 +259,7 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "Manual conventional-commit advisory (INV-22) plus track-aware checklist (#724); commit-msg and L1 commitlint remain blocking."
+      "rationale": "Registered conventional-commit advisory (INV-22), silent on valid messages and exit 0 after a concise malformed-message notice; commit-msg and L1 commitlint remain blocking."
     },
     {
       "file": "check-circular-deps.mjs",
