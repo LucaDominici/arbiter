@@ -17,6 +17,17 @@ describe('ship is one adaptive delivery narrative', () => {
   const levels: GovernanceLevel[] = ['L1', 'L2', 'L3']
   const languages: Language[] = ['typescript', 'java', 'rust', 'go', 'python']
 
+  it.each(levels)('keeps the orchestrating session thin at %s (#2761)', (governanceLevel) => {
+    const content = render('claude/commands/ship.md.ejs', { governanceLevel })
+    expect(content).toContain('## Thin orchestrator')
+    expect(content).toContain('ONE implementer subagent')
+    expect(content).toContain('XS and S implement inline')
+    expect(content).toContain('take the write lane back')
+    // The emitted project has no arbiter-only npm scripts; the section names the gate entrypoint only.
+    expect(content).toContain('node scripts/check-all.mjs preflight')
+    expect(content).not.toContain('npm run regen')
+  })
+
   it.each(levels)('renders the same runtime-owned guarantees at %s', (governanceLevel) => {
     const content = render('claude/commands/ship.md.ejs', { governanceLevel })
     expect(content).toContain('single delivery entrypoint')
