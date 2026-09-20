@@ -97,6 +97,13 @@ describe('parseAcceptanceBlocks', () => {
     const r = parseAcceptanceBlocks(body)
     expect(r.criteria[0]).toMatchObject({ id: 'AC-123.1', explicit: true })
   })
+
+  it('accepts explicit plain bullets under an acceptance heading for issue admission', () => {
+    const body = '## Acceptance Criteria\n- AC-1: preserves whitespace-normalized behavior'
+    expect(parseAcceptanceBlocks(body).criteria).toEqual([
+      { id: 'AC-1', text: 'preserves whitespace-normalized behavior', explicit: true },
+    ])
+  })
 })
 
 describe('assessReadiness', () => {

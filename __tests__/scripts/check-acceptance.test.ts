@@ -254,6 +254,13 @@ describe('check-acceptance gate', () => {
     expect(run({}, ['--plan', 'missing.md']).status).toBe(2)
   })
 
+  it('--admit-issue returns NO DATA (2) when gh cannot read the issue', () => {
+    writeFileSync(join(root, 'wave.md'), GOOD_PLAN)
+    const r = run({}, ['--plan', 'wave.md', '--admit-issue', '42'])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/NO DATA/i)
+  })
+
   it('--plan --ac-fit combined mode enforces all-PASS wave fit — red-team F5', () => {
     writeFileSync(
       join(root, 'wave.md'),
