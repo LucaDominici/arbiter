@@ -96,8 +96,8 @@ function main() {
       const entries = pruneStaleSidecarEntries(Array.isArray(existing) ? existing : [], now)
       if (!inWorktree && entries.length > 0) {
         return (
-          `[arbiter] SPAWN GUARD: a write-intent agent is already active on the main working tree.\n` +
-          `Active entries read from ${sidecarPath} — that file, not the main checkout's, holds the block.\n` +
+          `[arbiter] SPAWN GUARD: a write-intent agent is already registered for this checkout.\n` +
+          `Active entries read from ${sidecarPath}.\n` +
           `Second write-agent on the main tree is blocked — open a worktree: \`/wt-open\` (ADR-103).\n`
         )
       }
