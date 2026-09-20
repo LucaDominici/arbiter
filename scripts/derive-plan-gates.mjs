@@ -52,4 +52,11 @@ function main() {
   console.log(`derive-plan-gates: wrote ${gates.length} derived gate(s)`)
 }
 
-if (isMainModule(import.meta.url)) main()
+if (isMainModule(import.meta.url)) {
+  try {
+    main()
+  } catch (err) {
+    console.error(`derive-plan-gates: ${err?.message ?? err}`)
+    process.exit(1)
+  }
+}
