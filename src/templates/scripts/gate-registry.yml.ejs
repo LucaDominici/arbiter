@@ -264,7 +264,7 @@ gates:
   # itself, not the registry `kind`, carries the opt-in gating: inert (exit 0)
   # unless the flag is on, and vacuous-passes with no active task.
   - { id: acceptance-anchor, name: 'acceptance anchor (INV-138)', level: L2, kind: check, condition: "gateFilePresent('scripts/check-acceptance.mjs', 'acceptance anchor (INV-138)')", cmd: ['node', ['scripts/check-acceptance.mjs']] }
-  - { id: tdd-evidence, name: 'tdd-evidence (INV-131)', level: L2, kind: check, preflight: true, soft: true, cmd: ['node', ['scripts/check-tdd-evidence.mjs']] }
+  - { id: tdd-evidence, name: 'tdd-evidence (INV-131)', level: L2, kind: check, soft: true, cmd: ['node', ['scripts/check-tdd-evidence.mjs']] }
   - { id: todo-max-age, name: 'todo max-age (INV-133)', level: L2, kind: check, soft: true, cmd: ['node', ['scripts/check-todo-max-age.mjs']] }
   - { id: evidence-gate, name: 'evidence gate (INV-33)', level: L3, kind: inline, emitIf: "isL3Plus" }
   - { id: local-ci-parity, name: 'local-ci-parity (INV-59)', level: L2, kind: check, emitIf: "typeof collaborationMode !== 'undefined' && collaborationMode === 'trunk-solo'", cmd: ['node', ['scripts/check-local-ci-parity.mjs']] }
