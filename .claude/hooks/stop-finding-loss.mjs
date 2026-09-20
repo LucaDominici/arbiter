@@ -14,7 +14,8 @@
 //
 // Detects the R1 signature at session scale: a session that dispatched >= 2
 // research sub-agents (Task/Agent tool_use blocks) but persisted NOTHING — no
-// .arbiter/findings/*.jsonl lines, no .arbiter/evidence/agent-returns/ files —
+// .arbiter/findings/*.jsonl lines, no .arbiter/evidence/agent-returns/ files, and
+// no .arbiter/evidence/findings-promote/drained.jsonl receipts (#2733) —
 // since session start. Distinct from stop-evidence-guard.mjs's reflectionSweep,
 // which nudges to drain findings already in the spool; this detects that ZERO
 // were ever captured.
@@ -57,17 +58,14 @@ function parseTranscript(transcriptPath) {
   return { dispatchCount, sessionStartMs }
 }
 
-/** Counts JSONL lines with ts >= sinceMs across .arbiter/findings/*.jsonl. */
-function countFindingsSince(root, sinceMs) {
-  const dir = join(root, '.arbiter', 'findings')
-  if (!existsSync(dir)) return 0
+/** Counts JSONL lines across the given files whose own `ts` field is >= sinceMs. */
+function countJsonlTsSince(paths, sinceMs) {
   let count = 0
-  for (const f of readdirSync(dir)) {
-    if (!f.endsWith('.jsonl')) continue
+  for (const p of paths) {
     let raw
     try {
-      raw = readFileSync(join(dir, f), 'utf-8')
-      // FAIL-OPEN-INTENT: a findings file can be deleted/rotated between readdir and read; skip it, one missing spool file must not abort the count.
+      raw = readFileSync(p, 'utf-8')
+      // FAIL-OPEN-INTENT: a JSONL file can be deleted/rotated between listing and read; skip it, one missing file must not abort the count.
     } catch {
       continue
     }
@@ -78,13 +76,39 @@ function countFindingsSince(root, sinceMs) {
         const entry = JSON.parse(trimmed)
         const ms = Date.parse(entry.ts)
         if (!Number.isNaN(ms) && ms >= sinceMs) count++
-        // FAIL-OPEN-INTENT: a malformed JSONL finding line must not abort the count — skip and keep scanning.
+        // FAIL-OPEN-INTENT: a malformed JSONL line must not abort the count — skip and keep scanning.
       } catch {
         void 0
       }
     }
   }
   return count
+}
+
+/** Counts JSONL lines with ts >= sinceMs across .arbiter/findings/*.jsonl. */
+function countFindingsSince(root, sinceMs) {
+  const dir = join(root, '.arbiter', 'findings')
+  if (!existsSync(dir)) return 0
+  return countJsonlTsSince(
+    readdirSync(dir)
+      .filter((f) => f.endsWith('.jsonl'))
+      .map((f) => join(dir, f)),
+    sinceMs,
+  )
+}
+
+/**
+ * Counts drain receipts with ts >= sinceMs (#2733). `arbiter finding promote` removes
+ * every fingerprint it made durable from the spool, so a session that captured findings
+ * and promoted them leaves an EMPTY spool — without this the guard would report the
+ * workflow it is meant to reward as a total loss. The record's own `ts` is the signal,
+ * never file mtime: the receipt lives beside tracked evidence and a checkout would lie.
+ */
+function countDrainedSince(root, sinceMs) {
+  return countJsonlTsSince(
+    [join(root, '.arbiter', 'evidence', 'findings-promote', 'drained.jsonl')],
+    sinceMs,
+  )
 }
 
 /** Counts files under .arbiter/evidence/agent-returns/ with mtime >= sinceMs. */
@@ -137,7 +161,9 @@ function main() {
 
   const root = getRepoRoot()
   const persisted =
-    countFindingsSince(root, sessionStartMs) + countAgentReturnsSince(root, sessionStartMs)
+    countFindingsSince(root, sessionStartMs) +
+    countAgentReturnsSince(root, sessionStartMs) +
+    countDrainedSince(root, sessionStartMs)
   if (persisted > 0) process.exit(0) // at least one artifact was captured — not a total loss
 
   const HARD_GRADING = process.env.ARBITER_FINDING_LOSS_HARD === '1'

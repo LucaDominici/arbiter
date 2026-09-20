@@ -102,6 +102,18 @@ findings.
    spool lines and agent returns. Extract the shared JSONL-since counter so both call one helper
    (duplication ratchet). `ts` is read from the record, never file mtime.
 4. `scripts/debt-lib.mjs` is NOT changed: under route (a) the spool already means "still open".
+5. `src/cli.ts` also reports the drain count and states draining in the promote description, which
+   `npm run regen` propagates to `website/reference/cli.md`.
+
+## Existing Code Survey (CANON-16)
+
+No new file under `src/`. Greps for `drain`, `spool`, `writeFileTranslated`, `appendFileTranslated`
+and `findings-promote` found everything needed already in place and it is reused:
+`readSpool`/`dedupByFingerprint` (same module) for the read side, `readFileTranslated`,
+`writeFileTranslated`, `appendFileTranslated` and `ensureDir` (`src/utils/fs.ts`) for the write side,
+`appendTechDebtIssue` (`src/utils/github-issue-helper.ts`) unchanged for the issue ledger. In the
+hook, the existing spool counter is generalised into one `countJsonlTsSince(paths, sinceMs)` helper
+that both the spool count and the new drain count call, rather than a second copy of the loop.
 
 ## Acceptance Criteria
 

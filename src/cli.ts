@@ -628,7 +628,9 @@ finding
 
 finding
   .command('promote')
-  .description('Revalidate, deduplicate, and file ready findings as GitHub issues')
+  .description(
+    'Revalidate, deduplicate, file ready findings as GitHub issues, and drain the filed ones from the spool',
+  )
   .option('--dir <path>', 'Project root (default: cwd)')
   .option('--age-sweep-days <n>', 'Age after which unresolved findings become ready', '14')
   .action((opts: { dir?: string; ageSweepDays: string }): void => {
@@ -651,7 +653,8 @@ finding
     }
     process.stdout.write(
       `findings promote: ${result.promoted.length} filed, ${result.dropped.length} stale, ` +
-        `${result.skipped.length} existing, ${result.deferred.length} deferred\n`,
+        `${result.skipped.length} existing, ${result.deferred.length} deferred, ` +
+        `${result.drained.length} drained from the spool\n`,
     )
   })
 

@@ -10,6 +10,13 @@
 // number is recorded under `.arbiter/evidence/findings-promote/tech-debt.json` so `gen-gap.mjs`
 // surfaces it in GAP.md with ZERO gen-gap edits.
 //
+// Then it DRAINS (#2733): every fingerprint now durable elsewhere — filed as a new issue, dropped
+// as stale, or already tracked by an OPEN issue — is removed from the spool and receipted in
+// `.arbiter/evidence/findings-promote/drained.jsonl`. The spool means "still open" to two readers
+// (`collectFindingsMetrics` in `scripts/debt-lib.mjs` and the `stop-finding-loss` Stop hook), so
+// leaving promoted entries behind kept the debt ratchet red for capture the rules require.
+// A finding inside the closed-issue cooldown, a deferred one, and an unparseable line all stay.
+//
 // Spool absent/empty → no-op (exit 0, files nothing).
 //
 // Re-validate-against-HEAD ladder (RT-A2):
@@ -22,7 +29,12 @@ import { join } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { createGhIssue, appendTechDebtIssue } from '../utils/github-issue-helper.js'
 import { loadGraphSnapshot } from '../graph/load.js'
-import { ensureDir } from '../utils/fs.js'
+import {
+  ensureDir,
+  readFileTranslated,
+  writeFileTranslated,
+  appendFileTranslated,
+} from '../utils/fs.js'
 
 /** One drained finding line — the canonical `FindingEntry` shape from `task-note.ts` (SSOT). */
 type CreateGhIssueInput = Parameters<typeof createGhIssue>[1]
@@ -86,6 +98,8 @@ type FindingsPromoteResult =
       dropped: Outcome[]
       skipped: Outcome[]
       deferred: Outcome[]
+      /** Entries removed from the spool because they are durable elsewhere (#2733). */
+      drained: Outcome[]
     }
   | { ok: false; reason: string }
 
@@ -289,7 +303,9 @@ function recentlyClosed(hit: IssueSearchResult, now: Date): boolean {
 
 type PromotionAction =
   | { kind: 'dropped' }
-  | { kind: 'skipped' }
+  /** `tracked`: an OPEN issue already carries this fingerprint. `false` = inside the
+   *  closed-issue cooldown, where the finding is durable NOWHERE and must survive (#2733). */
+  | { kind: 'skipped'; tracked: boolean }
   | { kind: 'deferred' }
   | { kind: 'promoted'; issueNumber: number }
   | { kind: 'failed'; reason: string }
@@ -308,7 +324,7 @@ function promoteOne(
   }
   const hit = deps.searchIssueByFingerprint(dir, finding.fingerprint)
   if (hit !== null && (hit.state === 'open' || recentlyClosed(hit, now))) {
-    return { kind: 'skipped' }
+    return { kind: 'skipped', tracked: hit.state === 'open' }
   }
   const result = deps.createIssue(dir, {
     title: `finding: ${finding.note.slice(0, 80)}`,
@@ -325,6 +341,68 @@ function ensureLabelFor(findings: readonly SpoolFinding[], dir: string, deps: Pr
 }
 
 // ---------------------------------------------------------------------------
+// Drain (#2733)
+// ---------------------------------------------------------------------------
+
+/** One fingerprint that left the spool because it is durable elsewhere. */
+interface DrainRecord {
+  fingerprint: string
+  disposition: 'promoted' | 'dropped' | 'tracked'
+  /** The issue this finding was filed as; absent for `dropped`/`tracked` entries. */
+  issue?: number
+}
+
+/**
+ * Remove the drained fingerprints from every spool shard and append one receipt line
+ * per drain to `.arbiter/evidence/findings-promote/drained.jsonl`.
+ *
+ * The spool is the SSOT for STILL-OPEN findings: `collectFindingsMetrics`
+ * (`scripts/debt-lib.mjs`) counts its fingerprints as open debt and the
+ * `stop-finding-loss` hook counts its lines as this session's captures. Leaving a
+ * promoted finding behind therefore keeps the debt ratchet red forever (#2733), and
+ * draining it without a receipt makes the Stop hook report the capture as lost — so
+ * the two writes belong together.
+ *
+ * Lines that do not parse, or carry no string fingerprint, are KEPT: nothing is deleted
+ * unless it was proven drained.
+ *
+ * ponytail: whole-shard read-modify-write. Per-shard files exist so concurrent
+ * `finding add` appends never contend; a line appended between this read and write is
+ * lost. Acceptable because promote is an explicit single-run operator command — switch
+ * to a tombstone file if concurrent promote+add ever becomes real.
+ */
+function drainSpool(dir: string, records: readonly DrainRecord[], now: Date): void {
+  if (records.length === 0) return
+  const drained = new Set(records.map((r) => r.fingerprint))
+  const findingsDir = join(dir, '.arbiter', 'findings')
+  for (const shard of readdirSync(findingsDir).filter((f) => f.endsWith('.jsonl'))) {
+    const path = join(findingsDir, shard)
+    const lines = readFileTranslated(path, 'utf-8').split('\n')
+    const kept = lines.filter((line) => {
+      const trimmed = line.trim()
+      if (trimmed.length === 0) return false
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(trimmed)
+      } catch {
+        return true // unparseable → never deleted
+      }
+      const fp = (parsed as { fingerprint?: unknown } | null)?.fingerprint
+      return typeof fp !== 'string' || !drained.has(fp)
+    })
+    writeFileTranslated(path, kept.length > 0 ? kept.join('\n') + '\n' : '')
+  }
+
+  const evidenceDir = join(dir, '.arbiter', 'evidence', 'findings-promote')
+  ensureDir(evidenceDir)
+  const ts = now.toISOString()
+  appendFileTranslated(
+    join(evidenceDir, 'drained.jsonl'),
+    records.map((r) => JSON.stringify({ ts, ...r })).join('\n') + '\n',
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Orchestrator
 // ---------------------------------------------------------------------------
 
@@ -335,6 +413,8 @@ function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPr
   const dropped: Outcome[] = []
   const skipped: Outcome[] = []
   const deferred: Outcome[] = []
+  const drained: Outcome[] = []
+  const drainRecords: DrainRecord[] = []
 
   const unique = dedupByFingerprint(readSpool(dir))
 
@@ -348,16 +428,27 @@ function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPr
     const action = promoteOne(dir, f, now, ageSweepDays, deps)
     if (action.kind === 'dropped') {
       dropped.push(toOutcome(f))
+      // The code this finding described is gone: it no longer describes reality.
+      drained.push(toOutcome(f))
+      drainRecords.push({ fingerprint: f.fingerprint, disposition: 'dropped' })
       continue
     }
     if (action.kind === 'skipped') {
       skipped.push(toOutcome(f))
+      // Only an OPEN issue makes the finding durable. A fingerprint inside the
+      // closed-issue cooldown stays in the spool so it can be re-promoted later.
+      if (action.tracked) {
+        drained.push(toOutcome(f))
+        drainRecords.push({ fingerprint: f.fingerprint, disposition: 'tracked' })
+      }
       continue
     }
     if (action.kind === 'deferred') {
       deferred.push(toOutcome(f))
       continue
     }
+    // A failed filing aborts before any drain: a partial run never empties the spool.
+    // Re-running is safe — the `arbiter-fp:` marker makes the search skip what was filed.
     if (action.kind === 'failed') return { ok: false, reason: action.reason }
     if (!evidenceReady) {
       ensureDir(evidenceDir)
@@ -365,9 +456,17 @@ function runFindingsPromote(opts: PromoteOptions, deps: PromoteDeps): FindingsPr
     }
     appendTechDebtIssue(evidenceDir, action.issueNumber)
     promoted.push(toOutcome(f))
+    drained.push(toOutcome(f))
+    drainRecords.push({
+      fingerprint: f.fingerprint,
+      disposition: 'promoted',
+      issue: action.issueNumber,
+    })
   }
 
-  return { ok: true, promoted, dropped, skipped, deferred }
+  drainSpool(dir, drainRecords, now)
+
+  return { ok: true, promoted, dropped, skipped, deferred, drained }
 }
 
 // ---------------------------------------------------------------------------

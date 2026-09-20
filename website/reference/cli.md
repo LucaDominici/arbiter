@@ -673,7 +673,7 @@ Capture, inspect, triage, and promote engineering findings.
 - `arbiter finding add` — Capture an out-of-scope finding to the per-agent JSONL spool (#1401)
 - `arbiter finding list` — List deduplicated findings without changing the spool
 - `arbiter finding triage` — Classify findings against HEAD without writing or contacting GitHub
-- `arbiter finding promote` — Revalidate, deduplicate, and file ready findings as GitHub issues
+- `arbiter finding promote` — Revalidate, deduplicate, file ready findings as GitHub issues, and drain the filed ones from the spool
 
 ## arbiter graph
 
