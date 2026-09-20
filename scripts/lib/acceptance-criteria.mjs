@@ -7,10 +7,11 @@
 //   - Sections are markdown headings at any level (or bold-label lines) matching
 //     /acceptance criteria/i, /non-goals?/i, /(files|contracts|touch)/i — the shapes
 //     GitHub issue forms emit (`### Acceptance criteria`) included. CRLF normalized.
-//   - Criteria are checkbox bullets `- [ ] AC-N: text`. Explicit stable `AC-N:` ids are
-//     REQUIRED for readiness (bare checkboxes are a renumbering hazard: inserting one
-//     silently shifts every later id after tests/reviews already cite them). Bare
-//     checkboxes still parse (positional id, explicit:false) for display purposes.
+//   - Criteria are checkbox or plain bullets `- [ ] AC-N: text` / `- AC-N: text`.
+//     Explicit stable `AC-N:` ids are REQUIRED for readiness (bare bullets are a
+//     renumbering hazard: inserting one silently shifts every later id after tests/reviews
+//     already cite them). Bare bullets still parse (positional id, explicit:false) for
+//     display purposes.
 import { createHash } from 'node:crypto'
 
 export const AC_FIT_SCHEMA = 'arbiter-ac-fit-v1'
@@ -82,9 +83,9 @@ function parseBulletLine(line, target) {
 }
 
 function parseCriterionLine(line, criteria) {
-  const box = /^\s*[-*]\s*\[[ xX]\]\s*(.+)$/.exec(line)
-  if (!box) return
-  const body = box[1].trim()
+  const bullet = /^\s*[-*]\s*(?:\[[ xX]\]\s*)?(.+)$/.exec(line)
+  if (!bullet) return
+  const body = bullet[1].trim()
   // Explicit stable ids: AC-3, or wave-namespaced AC-123.1 / AC-123-1 (issue.criterion)
   const explicit = /^AC-(\d+(?:[.-]\d+)?)\s*[:.–-]\s*(.*)$/.exec(body)
   if (explicit) {
@@ -92,6 +93,53 @@ function parseCriterionLine(line, criteria) {
   } else {
     criteria.push({ id: `AC-${criteria.length + 1}`, text: normalizeText(body), explicit: false })
   }
+}
+
+function duplicateIds(criteria) {
+  const ids = criteria.map((criterion) => criterion.id)
+  return [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))]
+}
+
+function planIdForIssueCriterion(issueNumber, criterionId) {
+  const bare = /^AC-(\d+)$/.exec(criterionId)
+  return bare ? `AC-${issueNumber}.${bare[1]}` : criterionId
+}
+
+/**
+ * Check that one issue's explicit source criteria are frozen verbatim in a plan.
+ * Source ids are namespaced by issue when they use the ordinary `AC-N` form, so a
+ * criterion from one carried issue can never satisfy another carried issue's AC-N.
+ */
+export function validateIssueAcceptanceCoverage(issueNumber, issueBody, planCriteria) {
+  const source = parseAcceptanceBlocks(issueBody).criteria
+  const errors = []
+  if (source.length === 0) {
+    return [
+      `issue #${issueNumber} has no parseable acceptance criteria; request clarification before admission`,
+    ]
+  }
+  if (source.some((criterion) => !criterion.explicit || criterion.text.length === 0)) {
+    errors.push(
+      `issue #${issueNumber} has ambiguous acceptance criteria; every item needs AC-N and text`,
+    )
+  }
+  const sourceDupes = duplicateIds(source)
+  if (sourceDupes.length > 0)
+    errors.push(`issue #${issueNumber} duplicates criterion id(s): ${sourceDupes.join(', ')}`)
+  const planDupes = duplicateIds(planCriteria)
+  if (planDupes.length > 0) errors.push(`plan duplicates criterion id(s): ${planDupes.join(', ')}`)
+  if (errors.length > 0) return errors
+
+  for (const criterion of source) {
+    const planId = planIdForIssueCriterion(issueNumber, criterion.id)
+    const frozen = planCriteria.find((candidate) => candidate.id === planId)
+    if (frozen === undefined) {
+      errors.push(`issue #${issueNumber} criterion ${criterion.id} is missing as plan ${planId}`)
+    } else if (frozen.text !== criterion.text) {
+      errors.push(`issue #${issueNumber} criterion ${criterion.id} does not match plan ${planId}`)
+    }
+  }
+  return errors
 }
 
 function isStock(criterion) {

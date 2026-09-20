@@ -1281,9 +1281,20 @@ function checkAcceptancePlanGate(dir: string): void {
     )
   }
 
-  const plan = readUnifiedState(dir)?.plan.trim() ?? ''
+  const state = readUnifiedState(dir)
+  const plan = state?.plan.trim() ?? ''
+  const issueNumbers = [state?.taskId, ...(state?.chainIds ?? [])].map((id) =>
+    String(id ?? '').replace(/^#/, ''),
+  )
+  if (issueNumbers.some((id) => !/^\d+$/.test(id)))
+    throw new Error('acceptance-anchor gate requires the active task and chain issue numbers')
   try {
-    runCli('node', [script, '--plan', plan], { cwd: dir, timeoutMs: 5000 })
+    for (const issueNumber of new Set(issueNumbers)) {
+      runCli('node', [script, '--plan', plan, '--admit-issue', issueNumber], {
+        cwd: dir,
+        timeoutMs: 5000,
+      })
+    }
   } catch (err) {
     throw new Error(
       `acceptance-anchor gate: ${err instanceof Error ? err.message : String(err)}. ` +
