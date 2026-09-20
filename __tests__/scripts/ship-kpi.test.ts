@@ -26,7 +26,9 @@ import {
   classifyPrCommits,
   buildPrRow,
   computeAggregate,
+  fetchEscapeIssues,
   findEscapes,
+  reviewReworkSeconds,
 } from '../../scripts/ship-kpi.mjs'
 
 // #2725 classifier exports are read from the namespace so the test keeps the
@@ -133,6 +135,7 @@ describe('findEscapes (#2725 AC-4)', () => {
         sha: 'revertsha',
         kind: 'revert',
         subject: 'Revert "Merge pull request #270"',
+        body: '',
       },
     ])
   })
@@ -157,6 +160,7 @@ describe('findEscapes (#2725 AC-4)', () => {
         sha: 'fixsha',
         kind: 'fix',
         subject: 'fix: repair the regression',
+        body: 'Follow-up for #2725.',
       },
     ])
   })
@@ -265,8 +269,8 @@ describe('leadTimeHours / median / pct (#2398)', () => {
     expect(median([1, 2, 3, 4])).toBe(2.5)
   })
 
-  it('median of an empty array is 0', () => {
-    expect(median([])).toBe(0)
+  it('median of an empty array is NO DATA', () => {
+    expect(median([])).toBeNull()
   })
 
   it('pct rounds to one decimal', () => {
@@ -544,12 +548,12 @@ describe('delivery cost classifiers (#2725)', () => {
     const delivery = { stratum: 'Standard', leadTime: 120, tokens: { input: 600 } }
     const baseline = { Standard: { writerTimeMedianSec: 20, writerCostUnitsMedian: 100, n: 30 } }
     expect(overheadIndices({ ...delivery, tokens: undefined }, baseline)).toEqual({
-      time: 6,
+      time: null,
       tokens: null,
     })
     expect(overheadIndices({ ...delivery, leadTime: undefined }, baseline)).toEqual({
       time: null,
-      tokens: 6,
+      tokens: null,
     })
     expect(overheadIndices(delivery, {})).toEqual({ time: null, tokens: null })
   })
@@ -564,6 +568,7 @@ describe('delivery cost classifiers (#2725)', () => {
       fullGate: 5,
       review: 5,
       ci: 5,
+      writerTimeSec: i + 1,
       writerCostUnits: (i + 1) * 2,
       reviewerCostUnits: i + 1,
     }))
@@ -634,6 +639,18 @@ describe('delivery cost classifiers (#2725)', () => {
       checkpointVerdict({
         current,
         previous,
+        baseline: {},
+        thresholds,
+        history: [],
+      }),
+    ).toBe('HOLD')
+  })
+
+  it('returns HOLD when the previous checkpoint lacks measured coverage', () => {
+    expect(
+      checkpointVerdict({
+        current: checkpoint(),
+        previous: checkpoint({ measured: { time: 1, tokens: 1 } }),
         baseline: {},
         thresholds,
         history: [],
@@ -729,6 +746,29 @@ describe('delivery cost classifiers (#2725)', () => {
         },
       }),
     ).toBe('RETHINK')
+  })
+
+  it('rethinks when the latest tuned bucket remains at least 2x, not when it falls below 2x', () => {
+    const current = checkpoint({
+      indices: {
+        time: { median: 2.01, p90: 4.01 },
+        tokens: { median: 2.01, p90: 4.01 },
+      },
+    })
+    const verdict = (bucketExcesses: number[]) =>
+      checkpointVerdict({
+        current,
+        previous: checkpoint(),
+        baseline: {},
+        thresholds,
+        history: bucketExcesses.map((bucketExcess) => ({
+          stratum: 'Standard',
+          verdict: 'TUNE review',
+          bucketExcess,
+        })),
+      })
+    expect(verdict([10, 4])).toBe('RETHINK')
+    expect(verdict([2.1, 1.9])).toBe('HOLD')
   })
 
   it('uses ROLLBACK before ANDON for rollback escapes and strict overhead escapes', () => {
@@ -1587,6 +1627,14 @@ describe('review rework semantics (#2725 round 2)', () => {
     costWeights: weights,
   }
 
+  it('keeps one review-loop commit as unmeasured rework time', () => {
+    expect(
+      reviewReworkSeconds([
+        { subject: 'fix(#2725): close review gap', authoredDate: '2026-09-19T00:00:00Z' },
+      ]),
+    ).toBeNull()
+  })
+
   it('uses the literal lead-time floor formula and names omitted measurements', () => {
     expect(
       overheadIndices(
@@ -1625,7 +1673,8 @@ describe('review rework semantics (#2725 round 2)', () => {
       },
       { Standard: { writerTimeMedianSec: 20, writerCostUnitsMedian: 100, n: 30 } },
       weights,
-    ) as { floorComponents: { time: { missing: string[] } } }
+    ) as { time: number | null; floorComponents: { time: { missing: string[] } } }
+    expect(missing.time).toBeNull()
     expect(missing.floorComponents.time.missing).toEqual(['fullGate'])
     expect(
       overheadIndices(
@@ -1652,6 +1701,7 @@ describe('review rework semantics (#2725 round 2)', () => {
       review: 5,
       ci: 5,
       rework: 0,
+      writerTimeSec: index + 1,
       writerCostUnits: (index + 1) * 2,
       reviewerCostUnits: index + 1,
     })).reverse()
@@ -1691,6 +1741,7 @@ describe('review rework semantics (#2725 round 2)', () => {
       fullGate: 5,
       review: 5,
       ci: 5,
+      writerTimeSec: index + 80,
       writerCostUnits: index >= 28 ? 100 + index + 0.123 : null,
       reviewerCostUnits: index + 0.125,
     }))
@@ -1756,6 +1807,26 @@ describe('review rework semantics (#2725 round 2)', () => {
             },
           },
         },
+      },
+    })
+  })
+
+  it('calibrates writer time only from measured writer-session duration', () => {
+    const rows = Array.from({ length: 16 }, (_, index) => ({
+      number: index + 1,
+      mergedAt: new Date(Date.UTC(2026, 2, index + 1)).toISOString(),
+      stratum: 'Standard',
+      leadTime: 10_000,
+      preflight: 10,
+      fullGate: 10,
+      review: 10,
+      ci: 10,
+      writerTimeSec: index < 8 ? index + 1 : null,
+    }))
+    expect(calibrate(rows, weights)).toMatchObject({
+      Standard: {
+        writerTimeMedianSec: 4.5,
+        calibration: { writerTimeMedianSec: { n: 8 } },
       },
     })
   })
@@ -1845,6 +1916,16 @@ describe('review rework semantics (#2725 round 2)', () => {
     expect(
       checkpointVerdict({ current, baseline: baseline.Standard, thresholds, history: [] }),
     ).toBe('TUNE review')
+  })
+
+  it('excludes undated rows from checkpoint sample size', () => {
+    const rows = Array.from({ length: 9 }, (_, index) => ({
+      number: index + 1,
+      mergedAt: new Date(Date.UTC(2026, 8, index + 1)).toISOString(),
+      stratum: 'Standard',
+    }))
+    rows.push({ number: 99, mergedAt: 'not-a-date', stratum: 'Standard' })
+    expect(checkpointForRows(rows, 'Standard', {}, weights, [], 14, 0)).toMatchObject({ n: 9 })
   })
 
   it('requires minMeasured indices and reports measured coverage', () => {
@@ -1948,6 +2029,7 @@ describe('review rework semantics (#2725 round 2)', () => {
             stratum: 'Standard',
             verdict: 'HOLD',
             n: 10,
+            measured: { time: 10, tokens: 10 },
             indices: { time: { median: 1, p90: 1 }, tokens: { median: 1, p90: 1 } },
           },
         ],
@@ -2030,6 +2112,27 @@ describe('review rework semantics (#2725 round 2)', () => {
     }
   })
 
+  it('rejects checkpoint history when a newer machine-readable entry is malformed', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-history-malformed-'))
+    const file = join(root, 'SHIP_TUNING_LOG.md')
+    try {
+      writeFileSync(
+        file,
+        `${formatLogEntry({
+          stratum: 'Standard',
+          n: 10,
+          measured: { time: 10, tokens: 10 },
+          indices: { time: { median: 1, p90: 1 }, tokens: { median: 1, p90: 1 } },
+          verdict: 'HOLD',
+          escapes: [],
+        })}\n<!-- shipKpiCheckpoint {malformed} -->\n`,
+      )
+      expect(checkpointHistory(file)).toEqual([])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('marks rollback only when an escape names a removed control', () => {
     const controls = [{ id: 'legacy-review', removedIn: '#2725', pattern: 'legacy review gate' }]
     expect(
@@ -2101,6 +2204,30 @@ describe('review rework semantics (#2725 round 2)', () => {
       ),
     ).toHaveLength(1)
     expect(findEscapes([delivery], null, 14, [])).toBeNull()
+  })
+
+  it('keeps issue-escape evidence unknown when no repository is available', () => {
+    expect(fetchEscapeIssues(undefined, [{ number: 2725 }])).toBeNull()
+  })
+
+  it('preserves escape bodies so removed controls can trigger rollback', () => {
+    const escapes = findEscapes(
+      [{ number: 270, mergedAt: '2026-09-01T00:00:00Z', issueIds: [], commitShas: [] }],
+      [],
+      14,
+      [
+        {
+          number: 99,
+          createdAt: '2026-09-03T00:00:00Z',
+          title: 'Regression after #270',
+          body: 'Only the legacy review gate reproduces this.',
+        },
+      ],
+    ) as Array<Record<string, unknown>>
+    expect(escapes[0]).toMatchObject({ body: 'Only the legacy review gate reproduces this.' })
+    expect(rollbackControl(escapes, [{ id: 'legacy-review', pattern: 'legacy review gate' }])).toBe(
+      'legacy-review',
+    )
   })
 
   it('recognizes only task-shaped ids and attributes each session to one best-overlap PR', () => {
@@ -2238,7 +2365,7 @@ describe('review rework semantics (#2725 round 2)', () => {
       writerCostUnits: 100,
       reviewerCostUnits: 20,
       leadTimeSplit: {
-        work: 40,
+        work: 10,
         preflight: 10,
         fullGate: 10,
         review: 20,
@@ -2254,8 +2381,65 @@ describe('review rework semantics (#2725 round 2)', () => {
         { sha: 'b', checkRuns: [{ conclusion: 'SUCCESS' }] },
         { sha: 'c', checkRuns: [{ conclusion: 'FAILURE' }] },
       ]),
-    ).toBe(2)
+    ).toBe(3)
     expect(redCiRunsFromHistory(null)).toBeNull()
+  })
+
+  it('subtracts embedded gates from writer and reviewer session durations', () => {
+    expect(
+      mergeDeliverySources(
+        { leadTimeHours: 200 / 3600, leadTimeSplit: {} },
+        {
+          ci: { ciWaitSec: 0, ciRunSec: 0, redCiRuns: 0 },
+          sessions: [
+            {
+              host: 'claude',
+              firstTs: '2026-09-19T00:00:00Z',
+              lastTs: '2026-09-19T00:00:50Z',
+              preflightSec: 10,
+              reviewer: false,
+            },
+            {
+              host: 'claude',
+              firstTs: '2026-09-19T00:01:00Z',
+              lastTs: '2026-09-19T00:02:40Z',
+              fullGateSec: 20,
+              reviewer: true,
+            },
+          ],
+          weights,
+        },
+      ),
+    ).toMatchObject({
+      writerTimeSec: 40,
+      leadTimeSplit: { work: 40, preflight: 10, fullGate: 20, review: 80 },
+    })
+  })
+
+  it('marks session phases NO DATA when they cannot fit inside lead time', () => {
+    expect(
+      mergeDeliverySources(
+        { leadTimeHours: 100 / 3600, leadTimeSplit: {} },
+        {
+          ci: { ciWaitSec: 0, ciRunSec: 0, redCiRuns: 0 },
+          sessions: [
+            {
+              host: 'claude',
+              firstTs: '2026-09-19T00:00:00Z',
+              lastTs: '2026-09-19T00:01:40Z',
+              reviewer: false,
+            },
+            {
+              host: 'claude',
+              firstTs: '2026-09-19T00:00:00Z',
+              lastTs: '2026-09-19T00:01:40Z',
+              reviewer: true,
+            },
+          ],
+          weights,
+        },
+      ),
+    ).toMatchObject({ writerTimeSec: null, leadTimeSplit: { work: null, review: null } })
   })
 
   it('streams each discovered transcript into accumulators without retaining event lines', async () => {
@@ -2291,6 +2475,37 @@ describe('review rework semantics (#2725 round 2)', () => {
       expect(sessions).toHaveLength(1)
       expect(sessions[0]).not.toHaveProperty('events')
       expect(sessions[0]).toMatchObject({ usage: { input: 1999, cache: 0, output: 0 } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('includes Claude cache-creation tokens in streamed session usage', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-claude-cache-'))
+    const file = join(root, 'session.jsonl')
+    try {
+      writeFileSync(
+        file,
+        JSON.stringify({
+          type: 'assistant',
+          timestamp: '2026-09-19T00:00:00Z',
+          message: {
+            role: 'assistant',
+            usage: {
+              input_tokens: 10,
+              output_tokens: 2,
+              cache_read_input_tokens: 7,
+              cache_creation_input_tokens: 5,
+            },
+          },
+        }),
+      )
+      const sinceMs = Date.parse('2026-09-19T00:00:00Z')
+      utimesSync(file, new Date(sinceMs), new Date(sinceMs))
+      const sessions = (await discoverSessions(root, 'claude', sinceMs, sinceMs + 1000)) as Array<
+        Record<string, unknown>
+      >
+      expect(sessions[0]).toMatchObject({ usage: { input: 10, output: 2, cache: 12 } })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

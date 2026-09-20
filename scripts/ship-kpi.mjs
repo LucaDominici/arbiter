@@ -110,7 +110,7 @@ export function leadTimeHours(firstCommitIso, mergedAtIso) {
 }
 
 export function median(numbers) {
-  if (numbers.length === 0) return 0
+  if (numbers.length === 0) return null
   const sorted = [...numbers].sort((a, b) => a - b)
   const mid = Math.floor(sorted.length / 2)
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
@@ -271,8 +271,7 @@ function ratio(value, baseline) {
 }
 
 function sourceKnown(delivery, source) {
-  if (!Array.isArray(delivery?.sourcesKnown)) return true
-  return delivery.sourcesKnown.includes(source)
+  return Array.isArray(delivery?.sourcesKnown) && delivery.sourcesKnown.includes(source)
 }
 
 function sessionSourceKnown(delivery) {
@@ -325,7 +324,10 @@ function overheadResult(
   ciKnown,
 ) {
   const result = {
-    time: ciKnown ? ratio(leadTime, timeFloor) : null,
+    time:
+      ciKnown && sessionSourceKnown(delivery) && floor.missing.length === 0
+        ? ratio(leadTime, timeFloor)
+        : null,
     tokens: ciKnown && sessionSourceKnown(delivery) ? ratio(measuredTokens, referenceTokens) : null,
   }
   if (!Array.isArray(delivery?.sourcesKnown)) return result
@@ -374,11 +376,9 @@ export function ciTiming(pr) {
 
 export function redCiRunsFromHistory(commits) {
   if (!Array.isArray(commits)) return null
-  return commits.filter(
-    (commit) =>
-      Array.isArray(commit?.checkRuns) &&
-      commit.checkRuns.some((check) => String(check?.conclusion ?? '').toUpperCase() === 'FAILURE'),
-  ).length
+  return commits
+    .flatMap((commit) => (Array.isArray(commit?.checkRuns) ? commit.checkRuns : []))
+    .filter((check) => String(check?.conclusion ?? '').toUpperCase() === 'FAILURE').length
 }
 
 function sessionOverlaps(session, firstCommit, mergedAt) {
@@ -484,7 +484,15 @@ function escapeFromCommit(commit, delivery, pr, issueIds, ownCommitShas, mergedM
   if (!validEscapeSubject(subject, pr, isRevert, isFix)) return []
   const text = `${subject}\n${typeof commit?.body === 'string' ? commit.body : ''}`
   return containsIssueReference(text, issueIds)
-    ? [{ pr, sha, kind: isRevert ? 'revert' : 'fix', subject }]
+    ? [
+        {
+          pr,
+          sha,
+          kind: isRevert ? 'revert' : 'fix',
+          subject,
+          body: typeof commit?.body === 'string' ? commit.body : '',
+        },
+      ]
     : []
 }
 
@@ -508,12 +516,33 @@ function validEscapeSubject(subject, pr, isRevert, isFix) {
 }
 
 function escapeFromIssue(issue, pr, issueIds, mergedMs, windowMs) {
-  const issueDate = Date.parse(issue?.createdAt ?? '')
-  const text = `${issue?.title ?? ''}\n${issue?.body ?? ''}`
-  if (!validEscapeDate(issueDate, mergedMs, windowMs)) return []
+  const fields = issueEscapeFields(issue)
+  if (!validEscapeDate(fields.dateMs, mergedMs, windowMs)) return []
+  const text = `${fields.title}\n${fields.body}`
   return containsIssueReference(text, issueIds)
-    ? [{ pr, issue: issue.number, kind: 'issue', subject: issue.title ?? '' }]
+    ? [
+        {
+          pr,
+          issue: fields.number,
+          kind: 'issue',
+          subject: fields.title,
+          body: fields.body,
+        },
+      ]
     : []
+}
+
+function issueString(value) {
+  return typeof value === 'string' ? value : ''
+}
+
+function issueEscapeFields(issue) {
+  return {
+    dateMs: Date.parse(issueString(issue?.createdAt)),
+    title: issueString(issue?.title),
+    body: issueString(issue?.body),
+    number: issue?.number,
+  }
 }
 
 function validEscapeDate(dateMs, mergedMs, windowMs) {
@@ -967,6 +996,7 @@ export function mergeDeliverySources(row, { ci, sessions, redCiRuns, reworkSec, 
     },
     writerCostUnits: sessionCost(writerSessions, weights),
     reviewerCostUnits: sessionCost(reviewerSessions, weights),
+    writerTimeSec: phases.writerTimeSec,
     models: sessionModels(row, attributed),
     sourcesKnown: knownSources(attributed, ci, redCiRuns),
   }
@@ -996,30 +1026,53 @@ function sessionCost(sessions, weights) {
 function deliveryPhases(row, ci, attributed, reviewerSessions, reworkSec) {
   const preflight = sumNullable(attributed.map((session) => session?.preflightSec))
   const fullGate = sumNullable(attributed.map((session) => session?.fullGateSec))
-  const review = sumNullable(reviewerSessions.map(sessionSeconds))
+  const writerSessions = attributed.filter((session) => session?.reviewer !== true)
+  let writerTimeSec = sumNullable(writerSessions.map(sessionNetSeconds))
+  let review = sumNullable(reviewerSessions.map(sessionNetSeconds))
   const rework = reworkSec ?? row?.reworkSec
-  const leadTime = leadTimeSeconds(row)
-  const known = [
+  const sessionPhasesFit = phasesFitLeadTime(row, ci, {
     preflight,
     fullGate,
+    writerTimeSec,
     review,
-    finiteNumber(ci?.ciWaitSec),
-    finiteNumber(ci?.ciRunSec),
-    finiteNumber(rework),
-  ]
-  const work =
-    leadTime === null
-      ? null
-      : rounded(Math.max(0, leadTime - known.reduce((sum, value) => sum + (value ?? 0), 0)))
+    rework,
+  })
+  if (!sessionPhasesFit) {
+    writerTimeSec = null
+    review = null
+  }
   const leadTimeSplit = { ...(row?.leadTimeSplit ?? {}) }
   addCiPhases(leadTimeSplit, ci)
-  addKnownPhases(leadTimeSplit, { preflight, fullGate, review, work })
+  addKnownPhases(leadTimeSplit, { preflight, fullGate, review, work: writerTimeSec })
+  if (!sessionPhasesFit) Object.assign(leadTimeSplit, { work: null, review: null })
   if (finiteNumber(rework) !== null) leadTimeSplit.rework = rework
-  return { leadTimeSplit }
+  return { leadTimeSplit, writerTimeSec }
 }
 
-function leadTimeSeconds(row) {
-  return finiteNumber(row?.leadTimeHours) === null ? null : row.leadTimeHours * 3600
+function phasesFitLeadTime(row, ci, phases) {
+  const leadTime = finiteNumber(row?.leadTimeHours)
+  if (leadTime === null) return false
+  const total = [
+    phases.preflight,
+    phases.fullGate,
+    phases.writerTimeSec,
+    phases.review,
+    phases.rework,
+    ci?.ciWaitSec,
+    ci?.ciRunSec,
+  ]
+    .map(finiteNumber)
+    .reduce((sum, value) => sum + (value ?? 0), 0)
+  return total <= leadTime * 3600
+}
+
+function sessionNetSeconds(session) {
+  const duration = sessionSeconds(session)
+  if (duration === null) return null
+  const gates = [session?.preflightSec, session?.fullGateSec]
+    .map(finiteNumber)
+    .reduce((sum, value) => sum + (value ?? 0), 0)
+  return Math.max(0, duration - gates)
 }
 
 function addCiPhases(split, ci) {
@@ -1162,13 +1215,7 @@ export function calibrate(deliveries, _weights, minCalibration) {
 }
 
 function writerTimeReference(delivery) {
-  const leadTime = finiteNumber(delivery?.leadTime)
-  if (leadTime === null) return null
-  const ci = finiteNumber(delivery?.ciRun) ?? finiteNumber(delivery?.ci)
-  const phases = ['preflight', 'fullGate', 'review', 'rework'].map((kind) =>
-    finiteNumber(delivery?.[kind]),
-  )
-  return Math.max(0, leadTime - phases.reduce((sum, value) => sum + (value ?? 0), ci ?? 0))
+  return finiteNumber(delivery?.writerTimeSec)
 }
 
 function indexValues(checkpoint) {
@@ -1178,10 +1225,23 @@ function indexValues(checkpoint) {
   })
 }
 
-function checkpointWithin(checkpoint, limit, minimumN = 0) {
-  if ((finiteNumber(checkpoint?.n) ?? 0) < minimumN) return false
+function checkpointWithin(checkpoint, limit, minimumN = 0, minimumMeasured = 0) {
+  if (!checkpointHasCoverage(checkpoint, minimumN, minimumMeasured)) return false
   const values = indexValues(checkpoint).map(finiteNumber)
   return values.length === 4 && values.every((value) => value !== null && value <= limit)
+}
+
+function meetsMinimum(value, minimum) {
+  if (minimum === 0) return true
+  return (finiteNumber(value) ?? 0) >= minimum
+}
+
+function checkpointHasCoverage(checkpoint, minimumN, minimumMeasured) {
+  return (
+    meetsMinimum(checkpoint?.n, minimumN) &&
+    meetsMinimum(checkpoint?.measured?.time, minimumMeasured) &&
+    meetsMinimum(checkpoint?.measured?.tokens, minimumMeasured)
+  )
 }
 
 function tuningBucket(current, baseline, threshold) {
@@ -1225,9 +1285,8 @@ function sameTune(first, last) {
     typeof last?.verdict === 'string' &&
     first.verdict === last.verdict &&
     first.verdict.startsWith('TUNE ') &&
-    finiteNumber(first.bucketExcess) !== null &&
     finiteNumber(last.bucketExcess) !== null &&
-    first.bucketExcess / last.bucketExcess < 2
+    last.bucketExcess >= 2
   )
 }
 
@@ -1275,7 +1334,12 @@ function rethinkNeeded(current, limits, history) {
 function plateauReached(current, previous, limits) {
   return (
     checkpointWithin(current, limits.plateau) &&
-    checkpointWithin(previous, limits.plateau, finiteNumber(limits.n) ?? 0)
+    checkpointWithin(
+      previous,
+      limits.plateau,
+      finiteNumber(limits.n) ?? 0,
+      finiteNumber(limits.minMeasured) ?? 0,
+    )
   )
 }
 
@@ -1562,7 +1626,7 @@ function fetchPrDetail(repo, number) {
       'view',
       String(number),
       '--json',
-      'commits,createdAt,mergedAt,headRefName,closingIssuesReferences,additions,deletions,statusCheckRollup,labels',
+      'commits,createdAt,mergedAt,mergeCommitOid,headRefName,closingIssuesReferences,additions,deletions,statusCheckRollup,labels',
       ...repoArgs(repo),
     ],
     `gh pr view #${number}`,
@@ -1591,8 +1655,8 @@ function fetchCommitChecks(repo, commit) {
   return { sha, checkRuns: data?.check_runs ?? data }
 }
 
-function fetchEscapeIssues(repo, deliveries) {
-  if (typeof repo !== 'string') return []
+export function fetchEscapeIssues(repo, deliveries) {
+  if (typeof repo !== 'string') return null
   const issues = []
   try {
     for (const delivery of deliveries) {
@@ -1622,12 +1686,12 @@ function fetchEscapeIssues(repo, deliveries) {
   }
 }
 
-function reviewReworkSeconds(commits) {
+export function reviewReworkSeconds(commits) {
   const dates = (Array.isArray(commits) ? commits : [])
     .filter((commit) => isReviewLoopSubject(commit.subject))
     .map((commit) => Date.parse(commit.authoredDate ?? ''))
     .filter(Number.isFinite)
-  if (dates.length < 2) return dates.length === 1 ? 0 : null
+  if (dates.length < 2) return null
   return Math.round((Math.max(...dates) - Math.min(...dates)) / 1000)
 }
 
@@ -1762,6 +1826,10 @@ function updateAccumulatorUsage(accumulator, event) {
     accumulator.usage.cache,
     usageValue(usage, 'cache_read_input_tokens', 'cacheReadInputTokens') ??
       usageValue(usage, 'cached_input_tokens'),
+  )
+  accumulator.usage.cache = addMetric(
+    accumulator.usage.cache,
+    usageValue(usage, 'cache_creation_input_tokens', 'cacheCreationInputTokens'),
   )
 }
 
@@ -2210,14 +2278,8 @@ function mergedAtMs(row) {
 
 function orderedRows(rows, stratum) {
   return rows
-    .filter((row) => row.stratum === stratum)
-    .sort((a, b) => {
-      const aMs = mergedAtMs(a)
-      const bMs = mergedAtMs(b)
-      if (aMs === null) return bMs === null ? 0 : -1
-      if (bMs === null) return 1
-      return aMs - bMs
-    })
+    .filter((row) => row.stratum === stratum && mergedAtMs(row) !== null)
+    .sort((a, b) => mergedAtMs(a) - mergedAtMs(b))
 }
 
 export function checkpointForRows(
@@ -2354,19 +2416,16 @@ function rankCheckpointIndices(indices, selected) {
 
 export function checkpointHistory(path = TUNING_LOG_PATH) {
   if (!existsSync(path)) return []
-  return readFileSync(path, 'utf-8')
+  const payloads = readFileSync(path, 'utf-8')
     .split('\n')
     .map((line) => line.match(/^<!-- shipKpiCheckpoint (\{.*\}) -->$/)?.[1])
-    .flatMap((payload) => {
-      try {
-        return payload ? [{ shipKpiCheckpoint: JSON.parse(payload) }] : []
-        // FAIL-OPEN-INTENT: one malformed historical checkpoint is excluded; valid logged checkpoints remain available and a missing history only prevents PLATEAU.
-      } catch {
-        return []
-      }
-    })
-    .map((entry) => entry.shipKpiCheckpoint)
     .filter(Boolean)
+  try {
+    return payloads.map((payload) => JSON.parse(payload))
+    // FAIL-OPEN-INTENT: parsing failure is surfaced as empty history so an older entry cannot masquerade as the consecutive prior checkpoint.
+  } catch {
+    return []
+  }
 }
 
 function ensureTuningLog() {

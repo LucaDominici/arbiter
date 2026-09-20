@@ -1,10 +1,10 @@
 {
   "Standard": {
-    "writerTimeMedianSec": 59799.5,
+    "writerTimeMedianSec": null,
     "writerCostUnitsMedian": 2127147.6,
     "buckets": {
       "writer": {
-        "timeMedianSec": 59799.5,
+        "timeMedianSec": null,
         "costUnitsMedian": 2127147.6
       },
       "review": {
@@ -14,10 +14,10 @@
     },
     "calibration": {
       "writerTimeMedianSec": {
-        "n": 30,
+        "n": 0,
         "range": {
-          "from": "2026-08-22T00:47:53Z",
-          "to": "2026-09-07T17:33:57Z"
+          "from": null,
+          "to": null
         }
       },
       "writerCostUnitsMedian": {
@@ -30,10 +30,10 @@
       "buckets": {
         "writer": {
           "timeMedianSec": {
-            "n": 30,
+            "n": 0,
             "range": {
-              "from": "2026-08-22T00:47:53Z",
-              "to": "2026-09-07T17:33:57Z"
+              "from": null,
+              "to": null
             }
           },
           "costUnitsMedian": {
@@ -65,11 +65,11 @@
     "n": 30
   },
   "XS-S": {
-    "writerTimeMedianSec": 8737.5,
+    "writerTimeMedianSec": null,
     "writerCostUnitsMedian": null,
     "buckets": {
       "writer": {
-        "timeMedianSec": 8737.5,
+        "timeMedianSec": null,
         "costUnitsMedian": null
       },
       "review": {
@@ -79,10 +79,10 @@
     },
     "calibration": {
       "writerTimeMedianSec": {
-        "n": 22,
+        "n": 0,
         "range": {
-          "from": "2026-08-23T18:33:38Z",
-          "to": "2026-09-16T14:57:17Z"
+          "from": null,
+          "to": null
         }
       },
       "writerCostUnitsMedian": {
@@ -95,10 +95,10 @@
       "buckets": {
         "writer": {
           "timeMedianSec": {
-            "n": 22,
+            "n": 0,
             "range": {
-              "from": "2026-08-23T18:33:38Z",
-              "to": "2026-09-16T14:57:17Z"
+              "from": null,
+              "to": null
             }
           },
           "costUnitsMedian": {
