@@ -210,6 +210,16 @@ describe('validateIssueAcceptanceCoverage', () => {
     ).toContain('issue #42 criterion AC-1 does not match plan AC-42.1')
   })
 
+  it('keeps an indented continuation paragraph after a blank line in its criterion (#2767)', () => {
+    const src =
+      '## Acceptance Criteria\n- AC-1: Requests fail\n\n  with explicit NO DATA and exit 2'
+    expect(
+      validateIssueAcceptanceCoverage('42', src, [
+        { id: 'AC-42.1', text: 'Requests fail', explicit: true },
+      ]),
+    ).toContain('issue #42 criterion AC-1 does not match plan AC-42.1')
+  })
+
   it('does not silently drop plus-prefixed criteria (#2767)', () => {
     const plan = parseAcceptanceBlocks('## Acceptance Criteria\n- AC-42.1: A').criteria
     expect(
