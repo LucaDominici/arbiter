@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 import { spawnSync } from 'node:child_process'
+import { mkdirSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
 import { arg } from './lib/gate-args.mjs'
 import { buildCodexArgs } from './lib/codex-dispatch-lib.mjs'
 
@@ -16,17 +18,19 @@ if (required.some((name) => values[name] === null)) {
 }
 
 try {
+  const worktreePath = realpathSync(values.worktree)
+  mkdirSync(join(worktreePath, 'node_modules', '.vite-temp'), { recursive: true })
   const result = spawnSync(
     'codex',
     buildCodexArgs({
-      worktreePath: values.worktree,
+      worktreePath,
       model: values.model,
       effort: values.effort,
       briefPath: values.brief,
       outPath: values.out,
       resumeSessionId: arg('resume', argv) ?? undefined,
     }),
-    { stdio: ['ignore', 'inherit', 'inherit'] },
+    { cwd: worktreePath, stdio: ['ignore', 'inherit', 'inherit'] },
   )
   if (result.error) throw result.error
   process.exit(result.status ?? 2)
