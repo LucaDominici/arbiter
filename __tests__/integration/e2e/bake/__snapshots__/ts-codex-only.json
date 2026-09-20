@@ -168,7 +168,7 @@
     "test-pyramid.json"
   ],
   "contentHashes": {
-    ".agents/CODEX.md": "5835adfdde5136dd99a4998da23bc2154dfb62d01e25f7fb60fdcd6683ecb112",
+    ".agents/CODEX.md": "3e8e27a5d4d03ccd4362153851177f9e6444edd462fe47f31db905ed05b19ef1",
     ".agents/rules/05-agent-lifecycle.md": "7a716ad838618583381d2bb9cdd9238655f6545f0644da6b5c6783f9dc4c5745",
     ".agents/rules/50-batch-execution.md": "f44fb92f88eab98f1853143ba8c81bcaf5b17af07a11b367c6a522ff91ce9b17",
     ".agents/rules/60-incidental-capture.md": "22e9abbfabc71e0bff4f5748ab67c73a093a8c3f04ba960e1f0cac1ba99e376d",
