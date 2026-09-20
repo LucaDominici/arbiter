@@ -108,7 +108,7 @@ describe('buildKnownLimitations', () => {
       'guard-done-evidence.mjs',
     ]) {
       const equivalent = rows.find((row) => row.name === name)?.codexEquivalent ?? ''
-      expect(equivalent).toContain('arbiter task advance')
+      expect(equivalent).toContain('arbiter lifecycle advance')
       expect(equivalent).toMatch(/phase gate/i)
       expect(equivalent).toMatch(/no final-response interception/i)
       expect(equivalent).not.toContain('codex-adapter.mjs')
