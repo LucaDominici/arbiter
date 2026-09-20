@@ -2,7 +2,8 @@
 //
 // `/ship` orchestrator sequencing (#1206): step computation + auto-advance over the existing engine.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { createTestProject, cleanupTestProject, writeGatePassEvidence } from '../helpers.js'
@@ -306,7 +307,7 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(r.phase).toBe('red')
   })
 
-  it('auto-advances phase-by-phase through gate-green to complete', () => {
+  it('AC-1 fast-forwards through every passing gate in one call', () => {
     initGitRepo(dir)
     writeFileSync(
       join(dir, 'arbiter.json'),
@@ -318,35 +319,66 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     // this fixture's mocked branch and HEAD, just as a successful check-all run would write.
     writeGatePassMarker(dir, '#1206')
 
-    const visited: TaskPhase[] = ['preflight']
-    let guard = 0
-    let done = false
-    while (!done && guard < 20) {
-      const r = runTaskShip({
-        dir,
-        advance: true,
-        // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
-        // remote, so the reader is seamed to a merged PR rather than the gate being disarmed.
-        advanceOpts: {
-          readPrs: () => [{ number: 1206, state: 'MERGED' }],
-        },
-      })
-      visited.push(r.phase)
-      done = r.done
-      guard++
-    }
-    expect(done).toBe(true)
-    expect(visited).toEqual([
-      'preflight',
-      'plan',
-      'red',
-      'green',
-      'refactor',
-      'verification',
-      'close',
-      'complete',
-    ])
+    const result = runTaskShip({
+      dir,
+      advance: true,
+      // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
+      // remote, so the reader is seamed to a merged PR rather than the gate being disarmed.
+      advanceOpts: {
+        readPrs: () => [{ number: 1206, state: 'MERGED' }],
+      },
+    })
+
+    expect(result.done).toBe(true)
+    expect(result.phase).toBe('complete')
+    expect(readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')).toMatch(
+      /preflight → plan[\s\S]*plan → red[\s\S]*red → green[\s\S]*green → refactor[\s\S]*refactor → verification[\s\S]*verification → close[\s\S]*close → complete/,
+    )
     expect(readUnifiedState(dir)?.phase).toBe('complete')
+  })
+
+  it('AC-1/AC-4 stops at the first failing intermediate gate and surfaces its reason', () => {
+    initGitRepo(dir)
+    runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
+    writeTddEvidence(dir, '#1206')
+    writeUnifiedState(dir, { phase: 'red' })
+
+    expect(() => runTaskShip({ dir, advance: true })).toThrow(
+      `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}. ` +
+        'Run `node scripts/check-all.mjs L1` first.',
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('verification')
+    expect(readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')).toMatch(
+      /red → green[\s\S]*green → refactor[\s\S]*refactor → verification/,
+    )
+  })
+})
+
+describe('ship host binding preflight (#2753)', () => {
+  it('AC-2 reports the exact prepare and preflight command before writing task state', () => {
+    const parent = mkdtempSync(join(tmpdir(), 'arbiter-ship-binding-'))
+    const main = join(parent, 'repo')
+    const worktree = join(parent, 'repo.worktrees', '2753-ship-fast-forward')
+    mkdirSync(main, { recursive: true })
+    execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: main })
+    execFileSync('git', ['config', 'user.email', 'fixture.invalid'], { cwd: main })
+    execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: main })
+    execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'fixture'], { cwd: main })
+    execFileSync('git', ['worktree', 'add', '-q', '-b', 'task/#2753-ship-fast-forward', worktree], {
+      cwd: main,
+    })
+
+    try {
+      const command =
+        `arbiter worktree prepare "#2753" "${worktree}" && ` +
+        `arbiter lifecycle preflight --id "#2753" --worktree "${worktree}"`
+      expect(() => runTaskShip({ dir: worktree, taskId: '#2753' })).toThrow(
+        `native host binding is missing. Run \`${command}\`.`,
+      )
+      expect(readUnifiedState(worktree)).toBeNull()
+    } finally {
+      rmSync(parent, { recursive: true, force: true })
+    }
   })
 })
 
@@ -366,6 +398,37 @@ const profile = (over: Partial<ShipProfile> = {}): ShipProfile => ({
   ...over,
 })
 const SELF_ONLY_GATES = ['template-authoring', 'selfOnly-invariants', 'matrix-fixtures']
+
+describe('ship complete next commands (#2753)', () => {
+  function outputFor(phase: TaskPhase): string {
+    const shipProfile = profile()
+    const step = shipStepFor(phase, 'Standard', shipProfile, '#2753')
+    return buildShipStepLines({
+      phase,
+      step,
+      advanced: false,
+      done: false,
+      tier: 'Standard',
+      profile: shipProfile,
+    }).join('\n')
+  }
+
+  it('AC-3 plan names the accepted plan path and complete lifecycle start command', () => {
+    expect(outputFor('plan')).toContain(
+      "Command: arbiter lifecycle start --id '#2753' --tier Standard --plan .claude/plans/task-2753.md",
+    )
+  })
+
+  it('AC-3 red names the complete task-bound record-red command', () => {
+    expect(outputFor('red')).toContain(
+      "Command: arbiter lifecycle record-red --task '#2753' --test-path <test-path>",
+    )
+  })
+
+  it('AC-3 refactor names the complete task-bound review-round command', () => {
+    expect(outputFor('refactor')).toContain("Command: arbiter ship '#2753' --review-round")
+  })
+})
 
 describe('ship complete-action — (collaborationMode × mergeMode) matrix (#1288 RT-02)', () => {
   it('trunk-solo + direct → push to default branch, NO PR', () => {
