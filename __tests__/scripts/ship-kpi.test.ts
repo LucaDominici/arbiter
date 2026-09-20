@@ -58,6 +58,9 @@ const unattributedUsage = Reflect.get(shipKpi, 'unattributedUsage') as (
   ...args: unknown[]
 ) => unknown
 const renderMarkdown = Reflect.get(shipKpi, 'renderMarkdown') as (...args: unknown[]) => unknown
+const reportRowsWithCostRatio = Reflect.get(shipKpi, 'reportRowsWithCostRatio') as (
+  ...args: unknown[]
+) => unknown
 const mergeDeliverySources = Reflect.get(shipKpi, 'mergeDeliverySources') as (
   ...args: unknown[]
 ) => unknown
@@ -605,6 +608,35 @@ describe('delivery cost classifiers (#2725)', () => {
       tokens: null,
     })
     expect(overheadIndices(delivery, {})).toEqual({ time: null, tokens: null })
+  })
+
+  it('adds stratum and frozen-baseline cost ratio to every JSON report row', () => {
+    expect(
+      reportRowsWithCostRatio(
+        [
+          {
+            number: 1,
+            stratum: 'Standard',
+            tokens: { input: 120 },
+            sourcesKnown: ['ci', 'claude'],
+          },
+          {
+            number: 2,
+            stratum: 'XS-S',
+            tokens: { input: 50 },
+            sourcesKnown: ['ci', 'claude'],
+          },
+        ],
+        {
+          Standard: { writerCostUnitsMedian: 100 },
+          'XS-S': { writerCostUnitsMedian: null },
+        },
+        { input: 1, cache: 0.1, output: 5 },
+      ),
+    ).toMatchObject([
+      { number: 1, stratum: 'Standard', costBaselineRatio: 1.2 },
+      { number: 2, stratum: 'XS-S', costBaselineRatio: null },
+    ])
   })
 
   it('calibrates each stratum from only its first 30 deliveries', () => {
@@ -2630,7 +2662,7 @@ describe('review rework semantics (#2725 round 2)', () => {
     }
   })
 
-  it('renders compact per-PR phase fields and median/p90 stratum measures', () => {
+  it('renders per-PR stratum and two-decimal cost ratio without inventing zeroes', () => {
     const rendered = renderMarkdown({
       since: '2026-09-01',
       until: '2026-09-19',
@@ -2647,9 +2679,28 @@ describe('review rework semantics (#2725 round 2)', () => {
           rounds: 3,
           fullGateRuns: 1,
           costUnits: 100,
+          costBaselineRatio: 1.2,
           additions: null,
           deletions: null,
           stratum: 'Standard',
+          sourcesKnown: ['ci', 'claude'],
+        },
+        {
+          number: 2,
+          commits: 9,
+          evidenceOnlyCommits: 8,
+          reviewLoopCommits: 7,
+          leadTimeHours: 6,
+          leadTimeSplit: {},
+          tokens: { input: 7 },
+          humanMessages: 6,
+          rounds: 5,
+          fullGateRuns: 4,
+          costUnits: 7,
+          costBaselineRatio: null,
+          additions: 3,
+          deletions: 2,
+          stratum: 'XS-S',
           sourcesKnown: ['ci', 'claude'],
         },
       ],
@@ -2668,8 +2719,11 @@ describe('review rework semantics (#2725 round 2)', () => {
       unattributed: { claude: null, codex: null, sessions: null },
       weights,
     })
-    expect(rendered).toContain('| Split w/p/f/r/q/c | costUnits | Human | Rounds | Gates |')
-    expect(rendered).toContain('| 10/2/3/4/5/6 | 100 | 2 | 3 | 1 |')
+    expect(rendered).toContain('| PR | Stratum |')
+    expect(rendered).toContain('| costUnits | Cost/baseline | Human | Rounds | Gates |')
+    expect(rendered).toContain('| #1 | Standard |')
+    expect(rendered).toContain('| 10/2/3/4/5/6 | 100 | 1.20 | 2 | 3 | 1 |')
+    expect(rendered).toContain('| 7 | NO DATA | 6 | 5 | 4 |')
     expect(rendered).toContain('Lead time median/p90 (h)')
     expect(rendered).toContain('costUnits median/p90')
     expect(rendered).toContain('humanMessages median/p90')
