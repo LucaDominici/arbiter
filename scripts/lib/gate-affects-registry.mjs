@@ -39,6 +39,7 @@ const DOGFOOD = [
   '.arbiter/ship/**',
   '.github/workflows/**',
   'scripts/**',
+  'schemas/**',
   '.dogfood-divergences.json',
   'arbiter.json',
 ]
@@ -60,7 +61,18 @@ const EMITTED_MARKDOWN = [
   'scripts/check-phantom-command-scan.mjs',
 ]
 // The integration config executes the integration corpus and its shared test fixtures.
-const INTEGRATION = ['src/**', '__tests__/**', 'scripts/**', 'schemas/**', 'arbiter.json']
+// vitest.integration.config.ts/vitest.setup.ts wire the run itself, and several suites
+// (e.g. ai-pr-gate-trailer.test.ts) read .github/workflows/** files directly off disk.
+const INTEGRATION = [
+  'src/**',
+  '__tests__/**',
+  'scripts/**',
+  'schemas/**',
+  'arbiter.json',
+  'vitest.integration.config.ts',
+  'vitest.setup.ts',
+  '.github/workflows/**',
+]
 
 // name -> affects globs. Names must match check-all.mjs's runCheck(name, ...) literals.
 export const GATE_AFFECTS_REGISTRY = [
