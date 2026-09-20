@@ -91,7 +91,7 @@ describe('generateGithooks — typescript stack', () => {
     const config = makeConfig(dir, { language: 'typescript' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-push'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs gate')
+    expect(content).toContain('node scripts/check-all.mjs preflight')
   })
 
   it('emits .githooks/commit-msg', () => {

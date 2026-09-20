@@ -350,14 +350,14 @@ describe('#2328 consumer: pre-push green-evidence reuse', () => {
     return { ...r, stubRan: existsSync(join(dir, 'STUB_RAN')) }
   }
 
-  it('reuses the evidence when it was produced in THIS checkout', () => {
+  it('runs the light gate even when green evidence exists in THIS checkout (#2773 P7: no receipt reuse)', () => {
     const dir = track(makeRepo())
     prepare(dir)
     stampEvidence(dir)
     const r = runHook(dir)
-    expect(r.stubRan).toBe(false)
-    expect(r.status).toBe(0)
-    expect(r.stdout).toMatch(/reusing green/i)
+    expect(r.stubRan).toBe(true)
+    expect(r.status).not.toBe(0) // the stub gate exits 1 and is really consulted
+    expect(r.stdout).not.toMatch(/reusing green/i)
   })
 
   it('re-runs the gate when the evidence came from a sibling checkout', () => {

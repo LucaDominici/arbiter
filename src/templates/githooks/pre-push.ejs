@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-push: checks clean working tree, evidence freshness, and runs gate (T1+T2) before push
+# pre-push: checks clean working tree, evidence freshness, and runs the light gate before push
 set -e
 
 <% if (language === 'typescript') { %>
@@ -218,32 +218,7 @@ else
 fi
 <% } %>
 
-# ─── reuse fresh green gate evidence (skip redundant rerun) ───────────────────
-# The heavy gate below is otherwise UNCONDITIONAL. If check-all.mjs already
-# stamped a GREEN L2 marker (.arbiter/gate-pass.json) that still BINDS this exact
-# tree, reuse it and skip the rerun. The decision lives in the shared verifier
-# (scripts/lib/gate-evidence.mjs), so this hook demands the same axes as every
-# other consumer: schema, level, TTL, commit, branch, checkout root, toolchain
-# fingerprint and working-tree content hash.
-# Fail-closed: a missing verifier / missing / malformed / non-binding stamp, or
-# any error at all → fall through and run the full gate exactly as before.
-#
-# TRUST BOUNDARY: local convenience, NOT a security control. The stamp is a plain
-# JSON file a local process could forge; it only gates whether a developer's own
-# machine reruns its own gate. CI re-runs the full gate independently and stays
-# authoritative regardless.
-if [ -f ".arbiter/gate-pass.json" ] && [ -f "scripts/lib/gate-evidence.mjs" ]; then
-  if REUSE_MSG=$(node scripts/lib/gate-evidence.mjs verify \
-       --min-level L2 --max-age-min "$ARBITER_PREPUSH_MAX_AGE_MIN" 2>/dev/null); then
-    if ! push_subject_matches_head; then
-      echo "Error: HEAD changed while pre-push evidence was being verified."
-      exit 1
-    fi
-    echo "PRE-PUSH: reusing green $REUSE_MSG, skipping rerun"
-    exit 0
-  fi
-fi
-# ─── end green-evidence reuse ────────────────────────────────────────────────
+# A full-gate receipt cannot qualify this light run; CI is the only full authority.
 
 if ! push_subject_matches_head; then
   echo "Error: HEAD changed before the pre-push gate started."
@@ -251,7 +226,7 @@ if ! push_subject_matches_head; then
 fi
 
 # ─── one gate per repo, foreground (#2427) ───────────────────────────────────
-# Both branches below launch the heavy gate through scripts/lib/gate-mutex.mjs,
+# Both branches below launch preflight through scripts/lib/gate-mutex.mjs,
 # which takes the SAME per-repo flock `arbiter check run` takes. Two pushes (or a
 # push and an agent's gate) in one repo therefore serialise instead of trampling
 # each other's temp files and starving each other's test workers.
@@ -263,6 +238,26 @@ fi
 # signal nothing can forward: SIGKILL. That is the orphan that finished long
 # after its push died and stamped a green marker for a tree it never tested.
 ORIG_DIR="$(pwd -P)"
+mapfile -t TOUCHED_TESTS < <(
+  cd "$ORIG_DIR"
+  if [ -d __tests__ ]; then
+    git diff --name-only origin/main...HEAD |
+      while IFS= read -r path; do
+        basename="${path##*/}"
+        basename="${basename%%.*}"
+        find __tests__ -type f \( -name "${basename}.test.*" -o -name "${basename}-*.test.*" \)
+      done | sort -u
+  fi
+)
+
+run_light_gate() {
+  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/lib/gate-mutex.mjs run --dir "$ORIG_DIR" -- node scripts/check-all.mjs preflight
+  if [ "${#TOUCHED_TESTS[@]}" -gt 0 ]; then
+    npx vitest run "${TOUCHED_TESTS[@]}"
+  fi
+}
+
+echo "pre-push: light gate (preflight + touched tests); the full gate runs in CI (#2773 P7)"
 <% if (language === 'typescript') { %>
 
 # Vite/vitest (v5+) cannot handle '#' in the project root path.
@@ -278,7 +273,7 @@ if [[ "$ORIG_DIR" == *"#"* ]]; then
   # --dir "$ORIG_DIR": the mutex key derives from the REAL repo's git-common-dir.
   # Keying it off this rsync'd /tmp copy would mint a fresh key per push — a null
   # mutex that serialises nothing.
-  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/lib/gate-mutex.mjs run --dir "$ORIG_DIR" -- node scripts/check-all.mjs gate --json "$ORIG_DIR/.arbiter/gate/local-result.json"
+  run_light_gate
   if [ -n "$PUSH_SUBJECT_SHA" ] && [ "$(git -C "$ORIG_DIR" rev-parse HEAD 2>/dev/null)" != "$PUSH_SUBJECT_SHA" ]; then
     echo "Error: HEAD changed while the pre-push gate ran."
     exit 1
@@ -287,7 +282,7 @@ if [[ "$ORIG_DIR" == *"#"* ]]; then
 fi
 <% } %>
 
-node scripts/lib/gate-mutex.mjs run --dir "$ORIG_DIR" -- node scripts/check-all.mjs gate --json .arbiter/gate/local-result.json
+run_light_gate
 if ! push_subject_matches_head; then
   echo "Error: HEAD changed while the pre-push gate ran."
   exit 1
