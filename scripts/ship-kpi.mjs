@@ -2254,6 +2254,14 @@ function costDelivery(row, weights) {
   })
 }
 
+export function reportRowsWithCostRatio(rows, baseline, weights) {
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    ...row,
+    stratum: row?.stratum ?? null,
+    costBaselineRatio: overheadIndices(costDelivery(row, weights), baseline, weights).tokens,
+  }))
+}
+
 function deliveryLeadTime(row) {
   const fallbackHours = finiteNumber(row?.leadTimeHours)
   return fallbackHours === null ? finiteNumber(row?.leadTime) : fallbackHours * 3600
@@ -2568,6 +2576,11 @@ function formatMetric(value) {
   return String(rounded(value, 2))
 }
 
+function formatRatio(value) {
+  const number = finiteNumber(value)
+  return number === null ? 'NO DATA' : number.toFixed(2)
+}
+
 function roundHours(value) {
   return value === null || value === undefined ? 'NO DATA' : Math.round(value * 10) / 10
 }
@@ -2621,8 +2634,8 @@ export function renderMarkdown({
     '',
     '## Per-PR',
     '',
-    '| PR | Commits | Evidence-only | Review-loop | Lead time (h) | Split w/p/f/r/q/c | costUnits | Human | Rounds | Gates | CI red at open | +/- |',
-    '|----|---------|---------------|-------------|----------------|-------------------|-----------|-------|--------|-------|----------------|-----|',
+    '| PR | Stratum | Commits | Evidence-only | Review-loop | Lead time (h) | Split w/p/f/r/q/c | costUnits | Cost/baseline | Human | Rounds | Gates | CI red at open | +/- |',
+    '|----|---------|---------|---------------|-------------|----------------|-------------------|-----------|---------------|-------|--------|-------|----------------|-----|',
     ...renderRows(rows, weights),
   )
   lines.push('', ...renderStratumSummary(rows, weights))
@@ -2649,7 +2662,7 @@ export function renderMarkdown({
 function renderRows(rows, weights) {
   return rows.map(
     (r) =>
-      `| #${r.number} | ${formatMetric(r.commits)} | ${formatMetric(r.evidenceOnlyCommits)} | ${formatMetric(r.reviewLoopCommits)} | ${formatMetric(r.leadTimeHours)} | ${['work', 'preflight', 'fullGate', 'review', 'ciWait', 'ciRun'].map((kind) => formatMetric(r.leadTimeSplit?.[kind])).join('/')} | ${formatCompact(r.costUnits ?? costUnits(r.tokens, weights))} | ${formatMetric(r.humanMessages)} | ${formatMetric(r.rounds)} | ${formatMetric(r.fullGateRuns)} | ${r.ciRedAtOpen === null ? 'NO DATA' : r.ciRedAtOpen ? 'yes' : 'no'} | +${formatMetric(r.additions)}/-${formatMetric(r.deletions)} |`,
+      `| #${r.number} | ${display(r.stratum)} | ${formatMetric(r.commits)} | ${formatMetric(r.evidenceOnlyCommits)} | ${formatMetric(r.reviewLoopCommits)} | ${formatMetric(r.leadTimeHours)} | ${['work', 'preflight', 'fullGate', 'review', 'ciWait', 'ciRun'].map((kind) => formatMetric(r.leadTimeSplit?.[kind])).join('/')} | ${formatCompact(r.costUnits ?? costUnits(r.tokens, weights))} | ${formatRatio(r.costBaselineRatio)} | ${formatMetric(r.humanMessages)} | ${formatMetric(r.rounds)} | ${formatMetric(r.fullGateRuns)} | ${r.ciRedAtOpen === null ? 'NO DATA' : r.ciRedAtOpen ? 'yes' : 'no'} | +${formatMetric(r.additions)}/-${formatMetric(r.deletions)} |`,
   )
 }
 function renderHookBlocks(hookBlocks) {
@@ -2692,6 +2705,7 @@ async function runReport(opts) {
     ...(await discoverSessions(opts.codexSessions, 'codex', sinceMs, untilMs)),
   ]
   const thresholds = loadThresholds()
+  const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'))
   const prContexts = prNumbers.map((number) => {
     const pr = fetchPrDetail(opts.repo, number)
     const commits = (pr.commits ?? []).map((commit) => ({
@@ -2711,13 +2725,17 @@ async function runReport(opts) {
   })
   const assignments = attributeSessionsToDeliveries(sessions, prContexts)
   const attributedFiles = new Set()
-  const rows = prContexts.map((context) =>
-    fetchPrRow(opts.repo, context.number, sessions, process.cwd(), attributedFiles, {
-      pr: context,
-      commits: context.commits,
-      assigned: assignments.get(context.number) ?? [],
-      weights: thresholds.costWeights,
-    }),
+  const rows = reportRowsWithCostRatio(
+    prContexts.map((context) =>
+      fetchPrRow(opts.repo, context.number, sessions, process.cwd(), attributedFiles, {
+        pr: context,
+        commits: context.commits,
+        assigned: assignments.get(context.number) ?? [],
+        weights: thresholds.costWeights,
+      }),
+    ),
+    baseline,
+    thresholds.costWeights,
   )
   const unattributed = unattributedUsage(sessions, attributedFiles)
   const openPrs = fetchOpenPrs(opts.repo)
