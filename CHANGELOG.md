@@ -10,6 +10,9 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 - `post-commit-check.mjs` remains registered as a silent, exit-0 advisory. `.githooks/commit-msg`
   and L1 `commitlint` remain blocking.
+- `/ship` prose: removed seven unenforced promises (cursor checkpoint, model selection, proof/rollback
+  lists, targeted certification, finding reconciliation, lane counts, reviewer transcript rules);
+  every remaining sentence maps to a control (#2767).
 
 ## [0.6.0] — 2026-09-13
 

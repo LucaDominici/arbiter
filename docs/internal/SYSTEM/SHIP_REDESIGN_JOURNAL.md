@@ -281,3 +281,12 @@ Gap di precisione nominato, non nascosto: 116 entry del registry restano `ALWAYS
 e limite fail-safe oltre 500 file producono legittimamente tutti i 175 gate. Il backtest prova la
 recall sul campione, non una buona precisione. Questo report va copiato anche in #2745 dal
 coordinatore; questa slice non modifica #2745.
+
+## 2026-09-20 — #2767 P4: sette promesse di prosa tolte da `/ship`
+
+Owner-approved (issue #2767, lista C.2–C.8 della matrice passo→obbligo): tolte da `ship.md` (self +
+template) le frasi che nessun controllo impone — checkpoint del cursore, scelta del modello, liste
+proof/rollback/minimalità, certificazione mirata pre-review, riconciliazione dei finding in un batch,
+conteggio delle corsie, regole sul transcript del reviewer. Restano solo le frasi con un controllo
+dietro (manifest, blocco MED+/citazioni, invalidazione al cambio di SHA, gate unico su HEAD pulito).
+C.1 (le AC dell'issue coperte dal piano) diventa un controllo di ammissione in una slice separata.
