@@ -119,5 +119,7 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | #2730 | Tech debt #2730 | Open   | low      |
 | #2731 | Tech debt #2731 | Open   | low      |
 | #2732 | Tech debt #2732 | Open   | low      |
+| #2755 | Tech debt #2755 | Open   | low      |
+| #2756 | Tech debt #2756 | Open   | low      |
 
 <!-- GAP_END -->
