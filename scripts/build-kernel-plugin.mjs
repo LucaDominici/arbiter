@@ -38,6 +38,7 @@ import { renderTemplate } from '../dist/utils/render.js'
 import { resolveCollaborationAxes } from '../dist/config/collaboration-mode-defaults.js'
 import { DEFAULT_TASK_TIERS } from '../dist/config/schema.js'
 import { isMainModule } from './lib/run-helpers.mjs'
+import { syncManifest } from './lib/kernel-manifest.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
@@ -214,6 +215,19 @@ export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
   }
   writeFileSync(join(outDir, 'hooks.json'), JSON.stringify(hooksJson, null, 2) + '\n', 'utf-8')
   process.stdout.write('  wrote    hooks/hooks.json (direct per-event wiring)\n')
+
+  // #2763: record what this build emits and prune what a previous one emitted that this no
+  // longer does (manifest-scoped — a hand-added foreign file stays and fails parity, see
+  // scripts/lib/kernel-manifest.mjs). Before the prettier pass below so the committed tree
+  // and the parity gate's `--out=<tmp>` render normalize the manifest identically.
+  const emitted = [
+    ...[...RENDERED, ...VERIFIERS].map(([, out]) => out),
+    ...COPIED,
+    'hooks.json',
+  ].sort()
+  for (const name of syncManifest(outDir, emitted)) {
+    process.stdout.write(`  pruned   hooks/${name} (no longer emitted)\n`)
+  }
 
   // Sanity: no leftover EJS delimiters in the rendered output.
   for (const [, out] of [...RENDERED, ...VERIFIERS]) {
