@@ -164,6 +164,21 @@ function shipVerifierImports(outDir) {
 export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
   mkdirSync(outDir, { recursive: true })
 
+  // #2763: record what this build emits and prune what a previous one emitted that this no
+  // longer does (manifest-scoped — a hand-added foreign file stays and fails parity, see
+  // scripts/lib/kernel-manifest.mjs). FIRST, so a stale output that imports a removed
+  // dependency is deleted before shipVerifierImports() scans the root and aborts on it. The
+  // manifest is normalized by the prettier pass below in the committed tree and in the
+  // parity gate's `--out=<tmp>` render alike.
+  const emitted = [
+    ...[...RENDERED, ...VERIFIERS].map(([, out]) => out),
+    ...COPIED,
+    'hooks.json',
+  ].sort()
+  for (const name of syncManifest(outDir, emitted)) {
+    process.stdout.write(`  pruned   hooks/${name} (no longer emitted)\n`)
+  }
+
   const data = buildRenderContext(config)
 
   for (const [tpl, out] of [...RENDERED, ...VERIFIERS]) {
@@ -215,19 +230,6 @@ export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
   }
   writeFileSync(join(outDir, 'hooks.json'), JSON.stringify(hooksJson, null, 2) + '\n', 'utf-8')
   process.stdout.write('  wrote    hooks/hooks.json (direct per-event wiring)\n')
-
-  // #2763: record what this build emits and prune what a previous one emitted that this no
-  // longer does (manifest-scoped — a hand-added foreign file stays and fails parity, see
-  // scripts/lib/kernel-manifest.mjs). Before the prettier pass below so the committed tree
-  // and the parity gate's `--out=<tmp>` render normalize the manifest identically.
-  const emitted = [
-    ...[...RENDERED, ...VERIFIERS].map(([, out]) => out),
-    ...COPIED,
-    'hooks.json',
-  ].sort()
-  for (const name of syncManifest(outDir, emitted)) {
-    process.stdout.write(`  pruned   hooks/${name} (no longer emitted)\n`)
-  }
 
   // Sanity: no leftover EJS delimiters in the rendered output.
   for (const [, out] of [...RENDERED, ...VERIFIERS]) {
