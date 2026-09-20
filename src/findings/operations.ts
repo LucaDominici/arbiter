@@ -384,9 +384,8 @@ function drainSpool(dir: string, records: readonly DrainRecord[], now: Date): vo
       let parsed: unknown
       try {
         parsed = JSON.parse(trimmed)
-        // FAIL-OPEN-INTENT: an unparseable spool line is KEPT, which is the fail-CLOSED
-        // outcome for a deleter — the drain only removes what it proved durable elsewhere.
         // `readSpool` has already rejected the whole run for malformed data by this point.
+        // FAIL-OPEN-INTENT: an unparseable spool line is KEPT, which is the fail-CLOSED outcome for a deleter — the drain only removes what it proved durable elsewhere.
       } catch {
         return true
       }
