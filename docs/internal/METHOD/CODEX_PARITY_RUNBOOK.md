@@ -21,6 +21,20 @@ extend the parity surface safely. Operator-facing summary:
 
 ---
 
+## Writer sandbox paths
+
+The fresh Codex writer dispatch uses `-s workspace-write` plus one config
+override: `sandbox_workspace_write.writable_roots`. The JSON array is ordered
+as `[commonGitDir, gitDir, <worktree>/node_modules/.vite-temp]` and deduplicated
+for a plain checkout, where the common and worktree Git directories are equal.
+This explicit grant is required because the workspace-write sandbox re-applies
+read-only protection to `.git`; a linked worktree needs both its worktree Git
+directory and the shared Git directory writable for commits to work. Resumed
+sessions inherit their original sandbox and therefore receive no new sandbox
+flags. Reviewer dispatches remain `read-only`.
+
+---
+
 ## One-command local run
 
 ```bash
