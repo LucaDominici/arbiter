@@ -49,7 +49,7 @@ export interface KnownLimitations {
 
 const BRIDGED = 'Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`' as const
 const NATIVE_PHASE_GATES =
-  'Native phase gates (`arbiter task advance`); no final-response interception' as const
+  'Native phase gates (`arbiter lifecycle advance`); no final-response interception' as const
 
 /**
  * Disclosure for a hook that is BOTH bridged in real time and backed by a gate.
