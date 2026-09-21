@@ -5,7 +5,7 @@
   "command": "npx vitest run __tests__/templates/commands-claude.test.ts",
   "transcript_digest": "91aee626f5824da1ba1fbb6c300026f5ef94ac4ff1c9388e24bbb609af16dbe6",
   "citations": [
-    "src/commands/task-ship.ts#L1-L30@6af658788b3a",
+    "src/commands/task-ship.ts#L1-L30@49822c3777e",
     "__tests__/templates/commands-claude.test.ts#L1-L25@65e4afca3240"
   ],
   "recorded_at": "2026-09-19T19:21:53Z"

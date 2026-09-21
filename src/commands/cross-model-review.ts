@@ -7,7 +7,7 @@ import {
   invokeExternalReview,
 } from '../integrations/external-review.js'
 import { resolveShipProfile } from './ship-profile.js'
-import { normTier, type ShipTier } from './ship-tier.js'
+import { normTier, type ShipTier, type ShipTreatment } from './ship-tier.js'
 import type { TaskPhase } from './task-state.js'
 import { existsSync, lstatSync, readFileSync } from 'node:fs'
 import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js'
@@ -59,7 +59,13 @@ function runCrossModelReview(
     vertical: options.vertical ?? 'bugs',
   })
   if (existsSync(repoRoot))
-    writeExternalReviewSidecar(repoRoot, options.taskId, result, tier, profile.collaborationMode)
+    writeExternalReviewSidecar({
+      repoRoot,
+      taskId: options.taskId,
+      result,
+      tier,
+      collaborationMode: profile.collaborationMode,
+    })
   return result
 }
 
@@ -72,6 +78,10 @@ interface ShipCrossModelReviewOptions {
   cfg: CrossModelReviewConfig
   collaborationMode?: 'trunk-solo' | 'peer-review' | 'gated-review'
   access?: ExternalModelAccess
+  /** Frozen review base; omitted keeps the legacy origin/main diff. */
+  baseSha?: string | null
+  /** Active treatment, when the runtime owns this review round. */
+  treatment?: Pick<ShipTreatment, 'finalReviewers' | 'reviewerVerticals' | 'signalsHash'>
 }
 
 type ReviewSidecar = {
@@ -81,6 +91,8 @@ type ReviewSidecar = {
   sha?: unknown
   taskId?: unknown
   expectedProvenance?: unknown
+  auditors?: unknown
+  treatmentHash?: unknown
 }
 
 function isRecord(value: unknown): value is ReviewSidecar {
@@ -219,13 +231,23 @@ function sidecarAgents(
 }
 
 /** Record the fulfilled external seat for a CLI review path without inflating the panel. */
-function writeExternalReviewSidecar(
-  repoRoot: string,
-  taskId: string,
-  result: ReturnType<typeof invokeExternalReview>,
-  tier: ShipTier = 'Standard',
-  collaborationMode: 'trunk-solo' | 'peer-review' | 'gated-review' = 'peer-review',
-): void {
+interface ExternalReviewSidecarOptions {
+  repoRoot: string
+  taskId: string
+  result: ReturnType<typeof invokeExternalReview>
+  tier?: ShipTier
+  collaborationMode?: 'trunk-solo' | 'peer-review' | 'gated-review'
+  treatment?: Pick<ShipTreatment, 'finalReviewers' | 'reviewerVerticals' | 'signalsHash'>
+}
+
+function writeExternalReviewSidecar({
+  repoRoot,
+  taskId,
+  result,
+  tier = 'Standard',
+  collaborationMode = 'peer-review',
+  treatment,
+}: ExternalReviewSidecarOptions): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
   assertSafeArbiterEvidenceRoot(repoRoot)
   const sidecarPath = join(repoRoot, '.arbiter', 'agents-dispatched.json')
@@ -234,16 +256,19 @@ function writeExternalReviewSidecar(
   const sha = headSha(repoRoot)
   if (branch === 'unknown' || sha === 'unknown')
     throw new Error('cannot bind dispatch sidecar to Git HEAD')
-  const panel = sidecarAgents(readSidecar(repoRoot), branch, sha, taskId, {
-    tier,
-    collaborationMode,
-  })
+  const existing = readSidecar(repoRoot)
+  const panel = treatment
+    ? treatmentSidecarAgents(existing, treatment.finalReviewers)
+    : sidecarAgents(existing, branch, sha, taskId, { tier, collaborationMode })
   writeFileContained(
     repoRoot,
     join('.arbiter', 'agents-dispatched.json'),
     `${JSON.stringify(
       {
         ...panel,
+        ...(treatment !== undefined
+          ? { auditors: treatment.reviewerVerticals, treatmentHash: treatment.signalsHash }
+          : {}),
         expectedProvenance: { 'codex-reviewer': CODEX_REVIEWER_PROVENANCE },
         taskId,
         branch,
@@ -253,6 +278,21 @@ function writeExternalReviewSidecar(
       2,
     )}\n`,
   )
+}
+
+function treatmentSidecarAgents(
+  existing: ReviewSidecar | null,
+  panelSize: number,
+): { count: number; agents: string[] } {
+  const existingAgents = existing === null ? [] : (readSidecarAgents(existing) ?? [])
+  const nonCodex = existingAgents.filter((agent) => agent !== 'codex-reviewer')
+  const requiredAnthropic = Math.max(0, panelSize - 1)
+  const agents = nonCodex.slice(0, requiredAnthropic)
+  for (let index = agents.length; index < requiredAnthropic; index += 1) {
+    agents.push(index === 0 ? 'anthropic-reviewer' : `anthropic-reviewer-${index + 1}`)
+  }
+  agents.push('codex-reviewer')
+  return { count: panelSize, agents }
 }
 
 function assertReviewTreeClean(repoRoot: string): void {
@@ -270,6 +310,57 @@ function assertReviewTreeClean(repoRoot: string): void {
       `working tree has uncommitted changes; commit before external review (${unreviewed.join(', ')})`,
     )
   }
+}
+
+function reviewDiffRange(baseSha: string | null | undefined): string {
+  return baseSha === undefined || baseSha === null ? 'origin/main...HEAD' : `${baseSha}..HEAD`
+}
+
+interface ShipExternalReviewInvocation {
+  options: ShipCrossModelReviewOptions
+  repoRoot: string
+  diff: string
+  access: ExternalModelAccess | undefined
+  preflightDegradation: 'invocation-failed' | undefined
+  preflightError: unknown
+}
+
+function invokeShipExternalReview({
+  options,
+  repoRoot,
+  diff,
+  access,
+  preflightDegradation,
+  preflightError,
+}: ShipExternalReviewInvocation): ReturnType<typeof invokeExternalReview> {
+  return invokeExternalReview({
+    repoRoot,
+    taskId: options.taskId,
+    prompt: SHIP_CROSS_MODEL_PROMPT,
+    diff,
+    cfg: options.cfg,
+    ...(access !== undefined ? { access } : {}),
+    ...(preflightDegradation !== undefined ? { preflightDegradation, preflightError } : {}),
+    tier: options.tier,
+    phase: options.phase,
+    vertical: options.vertical,
+  })
+}
+
+function persistShipReviewSidecar(
+  options: ShipCrossModelReviewOptions,
+  repoRoot: string,
+  result: ReturnType<typeof invokeExternalReview>,
+): void {
+  if (!existsSync(repoRoot)) return
+  writeExternalReviewSidecar({
+    repoRoot,
+    taskId: options.taskId,
+    result,
+    tier: options.tier,
+    collaborationMode: options.collaborationMode ?? 'peer-review',
+    ...(options.treatment !== undefined ? { treatment: options.treatment } : {}),
+  })
 }
 
 /** Run the automatic refactor-step bridge; consent-off runs only the local degradation recorder. */
@@ -294,7 +385,7 @@ function runShipCrossModelReview(
           recorded: true,
         }
       }
-      diff = runCli('git', ['diff', '--binary', 'origin/main...HEAD'], {
+      diff = runCli('git', ['diff', '--binary', reviewDiffRange(options.baseSha)], {
         cwd: repoRoot,
         timeoutMs: 15_000,
       }).stdout
@@ -305,26 +396,15 @@ function runShipCrossModelReview(
       preflightDegradation = 'invocation-failed'
     }
   }
-  const result = invokeExternalReview({
+  const result = invokeShipExternalReview({
+    options,
     repoRoot,
-    taskId: options.taskId,
-    prompt: SHIP_CROSS_MODEL_PROMPT,
     diff,
-    cfg: options.cfg,
-    ...(access !== undefined ? { access } : {}),
-    ...(preflightDegradation !== undefined ? { preflightDegradation, preflightError } : {}),
-    tier: options.tier,
-    phase: options.phase,
-    vertical: options.vertical,
+    access,
+    preflightDegradation,
+    preflightError,
   })
-  if (existsSync(repoRoot))
-    writeExternalReviewSidecar(
-      repoRoot,
-      options.taskId,
-      result,
-      options.tier,
-      options.collaborationMode ?? 'peer-review',
-    )
+  persistShipReviewSidecar(options, repoRoot, result)
   return result
 }
 

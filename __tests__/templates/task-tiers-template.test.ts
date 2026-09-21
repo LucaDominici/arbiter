@@ -26,7 +26,9 @@ describe('ship treatment template', () => {
     expect(render(custom)).toBe(render())
   })
 
-  it('requires reviewer identities to match assigned vertical names', () => {
-    expect(render().replace(/\s+/g, ' ')).toMatch(/agent.*exact assigned vertical name/i)
+  it('uses runtime-owned foreground reviewer certification', () => {
+    expect(render().replace(/\s+/g, ' ')).toContain(
+      'run `arbiter ship --review-round`; it dispatches the reviewer in the foreground and records the envelope — do not dispatch reviewers or write envelopes by hand.',
+    )
   })
 })

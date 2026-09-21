@@ -9,7 +9,7 @@
 // step and advances the phase when its gate is green; the `/ship` slash command is the loop that
 // executes the model-requiring steps between calls. Reuses runTaskAdvance + the existing gates.
 import { ensureDir, writeFileTranslated } from '../utils/fs.js'
-import { UserFacingError } from '../utils/errors.js'
+import { FatalError, UserFacingError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -33,9 +33,11 @@ import {
   resolveShipProfile,
 } from './ship-profile.js'
 import { companionGreenInstruction, companionStatusLine } from '../integrations/companions.js'
-import { runCli } from '../utils/run-cli.js'
+import { CliError, runCli } from '../utils/run-cli.js'
 import type { ExternalModelAccess } from '../detectors/external-model.js'
 import { planCrossModelSlots } from '../integrations/external-review.js'
+import { runShipCrossModelReview } from './cross-model-review.js'
+import { runTaskNote, type TaskNoteOptions } from './task-note.js'
 import {
   gatherTierSignals,
   normTier,
@@ -503,6 +505,8 @@ export interface ShipResult {
   trainDecision?: AffinityVerdict
   /** True only when this invocation actually opens a reviewer dispatch. */
   reviewDispatched?: boolean
+  /** Summary emitted after a runtime-owned external seat completes. */
+  reviewSummary?: string
   /** Frozen reviewer-panel identity printed only for the round this invocation opened. */
   reviewSubject?: {
     taskId: string
@@ -621,7 +625,8 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
     `Action: ${result.step.action}`,
   ]
   lines.push(...optionalShipStepLines(result, tier))
-  lines.push(...reviewPanelLines(result))
+  if (result.reviewSummary === undefined) lines.push(...reviewPanelLines(result))
+  if (result.reviewSummary !== undefined) lines.push(result.reviewSummary)
   // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
   // consumer of the field, so the read is honest and not dead config).
   lines.push(`Governance: ${result.profile.governanceLevel}`)
@@ -1025,14 +1030,227 @@ function applyPreparedChainAdd(
   )
 }
 
-function openExplicitReviewRound(root: string, opts: TaskShipOptions): PlannedReviewRound | null {
-  if (opts.reviewRound !== true) return null
-  return runTaskReviewRound({
+interface ExplicitReviewRoundResult {
+  plan: PlannedReviewRound | null
+  summary?: string
+}
+
+function reviewCompletionExitCode(root: string, taskId: string): number {
+  try {
+    runCli('node', [join(root, 'scripts', 'check-review-completion.mjs'), '--task', taskId], {
+      cwd: root,
+      timeoutMs: 30_000,
+      retries: 0,
+    })
+    return 0
+  } catch (error) {
+    if (error instanceof CliError) return error.exitCode
+    throw error
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function findingSeverity(finding: Record<string, unknown>): string {
+  return typeof finding.severity === 'string' ? finding.severity : ''
+}
+
+function blockingFindingCount(findings: readonly Record<string, unknown>[]): number {
+  return findings.filter((finding) =>
+    ['critical', 'high', 'med'].includes(findingSeverity(finding)),
+  ).length
+}
+
+function firstFindingCitation(
+  finding: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (!Array.isArray(finding.citations)) return undefined
+  return isRecord(finding.citations[0]) ? finding.citations[0] : undefined
+}
+
+function lowFindingNote(root: string, finding: Record<string, unknown>): TaskNoteOptions | null {
+  if (findingSeverity(finding) !== 'low') return null
+  const claim = typeof finding.claim === 'string' ? finding.claim.trim() : ''
+  if (claim.length === 0) return null
+  const firstCitation = firstFindingCitation(finding)
+  return {
+    note: claim,
+    kind: 'note',
+    severity: 'low',
+    dir: root,
+    ...(typeof firstCitation?.file === 'string' ? { file: firstCitation.file } : {}),
+    ...(typeof firstCitation?.line === 'number' && Number.isInteger(firstCitation.line)
+      ? { line: firstCitation.line }
+      : {}),
+  }
+}
+
+function spoolLowFindings(root: string, findings: readonly Record<string, unknown>[]): void {
+  for (const finding of findings) {
+    const note = lowFindingNote(root, finding)
+    if (note === null) continue
+    const result = runTaskNote(note)
+    if (!result.ok) {
+      throw new FatalError(
+        'E_REVIEW_FINDING_SPOOL',
+        `review finding could not be recorded: ${result.reason}`,
+      )
+    }
+  }
+}
+
+function noReviewData(plan: PlannedReviewRound, detail: string): FatalError {
+  return new FatalError(
+    'E_REVIEW_NO_DATA',
+    `review round ${plan.rounds}: Codex reviewer returned no data (${detail}); no envelope was written and the round remains open`,
+  )
+}
+
+interface ExecuteCodexReviewRoundOptions {
+  root: string
+  plan: PlannedReviewRound
+  opts: TaskShipOptions
+  profile: ShipProfile
+  treatment: ShipTreatment
+  vertical: string
+}
+
+function codexReviewContext(
+  root: string,
+  profile: ShipProfile,
+  plan: PlannedReviewRound,
+): { taskId: string; cfg: NonNullable<ShipProfile['crossModelReview']> } {
+  const taskId = readUnifiedState(root)?.taskId
+  if (taskId === undefined) throw noReviewData(plan, 'active task id is missing')
+  const cfg = profile.crossModelReview
+  if (cfg === undefined) throw noReviewData(plan, 'cross-model review not configured')
+  return { taskId, cfg }
+}
+
+function invokeCodexReviewRound(
+  input: ExecuteCodexReviewRoundOptions,
+  taskId: string,
+  cfg: NonNullable<ShipProfile['crossModelReview']>,
+): ReturnType<typeof runShipCrossModelReview> {
+  const { root, plan, opts, profile, treatment, vertical } = input
+  try {
+    return runShipCrossModelReview({
+      dir: root,
+      taskId,
+      tier: treatment.tier,
+      phase: 'refactor',
+      vertical,
+      cfg,
+      baseSha: plan.base,
+      treatment,
+      collaborationMode: profile.collaborationMode,
+      ...(opts.externalModelAccess !== undefined ? { access: opts.externalModelAccess } : {}),
+    })
+  } catch (error) {
+    throw noReviewData(plan, error instanceof Error ? error.message : String(error))
+  }
+}
+
+function fulfilledReviewEnvelope(
+  result: ReturnType<typeof runShipCrossModelReview>,
+  plan: PlannedReviewRound,
+): NonNullable<typeof result.envelope> {
+  if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) {
+    throw noReviewData(plan, result.degradationReasons.join(', ') || 'empty reviewer result')
+  }
+  return result.envelope
+}
+
+function reviewNextAction(blocking: number, completion: number, findingCount: number): string {
+  if (blocking > 0 || completion !== 0) return 'rework'
+  return findingCount > 0 ? 'parked' : 'advance'
+}
+
+function executeCodexReviewRound(input: ExecuteCodexReviewRoundOptions): string {
+  const { root, plan, profile } = input
+  const { taskId, cfg } = codexReviewContext(root, profile, plan)
+  const envelope = fulfilledReviewEnvelope(invokeCodexReviewRound(input, taskId, cfg), plan)
+  const findings = envelope.findings
+  spoolLowFindings(root, findings)
+  const completion = reviewCompletionExitCode(root, taskId)
+  if (completion === 2) throw noReviewData(plan, 'review completion check errored')
+  const blocking = blockingFindingCount(findings)
+  const next = reviewNextAction(blocking, completion, findings.length)
+  return `review round ${plan.rounds}: ${envelope.verdict} — ${findings.length} findings (${blocking} blocking) · next: ${next}`
+}
+
+function configuredCodexSeat(profile: ShipProfile, treatment: ShipTreatment): boolean {
+  const cfg = profile.crossModelReview
+  return (
+    cfg?.enabled === true &&
+    cfg.diffEgressConsent &&
+    cfg.providers.includes('codex') &&
+    cfg.slots.codeReview > 0 &&
+    treatment.tier === 'Standard' &&
+    treatment.finalReviewers > 0
+  )
+}
+
+function reviewSlotPlan(
+  opts: TaskShipOptions,
+  profile: ShipProfile,
+  treatment: ShipTreatment,
+): ReturnType<typeof planCrossModelSlots> {
+  return planCrossModelSlots({
+    tier: treatment.tier,
+    phase: 'refactor',
+    totalSlots: treatment.finalReviewers,
+    verticals: treatment.reviewerVerticals,
+    ...(profile.crossModelReview !== undefined ? { cfg: profile.crossModelReview } : {}),
+    ...(opts.externalModelAccess !== undefined ? { access: opts.externalModelAccess } : {}),
+  })
+}
+
+function reviewRoundOptions(
+  root: string,
+  opts: TaskShipOptions,
+  retryIncomplete: boolean,
+): Parameters<typeof runTaskReviewRound>[0] {
+  return {
     dir: root,
     ...(opts.forceReview !== undefined ? { forceReview: opts.forceReview } : {}),
     ...(opts.reviewMaxRounds !== undefined ? { reviewMaxRounds: opts.reviewMaxRounds } : {}),
     ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
-  })
+    ...(retryIncomplete ? { retryIncomplete: true } : {}),
+  }
+}
+
+function reviewVertical(
+  slotPlan: ReturnType<typeof planCrossModelSlots>,
+  treatment: ShipTreatment,
+): string {
+  return slotPlan.external[0] ?? treatment.reviewerVerticals[0] ?? 'bugs'
+}
+
+function openExplicitReviewRound(
+  root: string,
+  opts: TaskShipOptions,
+  profile: ShipProfile,
+  treatment: ShipTreatment,
+): ExplicitReviewRoundResult {
+  if (opts.reviewRound !== true) return { plan: null }
+  const hasCodexSeat = configuredCodexSeat(profile, treatment)
+  const slotPlan = reviewSlotPlan(opts, profile, treatment)
+  const plan = runTaskReviewRound(reviewRoundOptions(root, opts, hasCodexSeat))
+  if (plan === null || (!hasCodexSeat && slotPlan.external.length === 0)) return { plan }
+  return {
+    plan,
+    summary: executeCodexReviewRound({
+      root,
+      plan,
+      opts,
+      profile,
+      treatment,
+      vertical: reviewVertical(slotPlan, treatment),
+    }),
+  }
 }
 
 function assertShipNotBlocked(
@@ -1131,6 +1349,7 @@ function buildActiveShipResult(input: {
   state: UnifiedTaskState | null
   advanced: boolean
   preparedRound: PlannedReviewRound | null
+  reviewSummary: string | undefined
   stopMessage: string | null
   preparedChainAdd: ReturnType<typeof prepareChainAdd>
   opts: TaskShipOptions
@@ -1143,6 +1362,7 @@ function buildActiveShipResult(input: {
     state,
     advanced,
     preparedRound,
+    reviewSummary,
     stopMessage,
     preparedChainAdd,
     opts,
@@ -1160,6 +1380,7 @@ function buildActiveShipResult(input: {
     step: stopMessage === null ? step : { ...step, action: stopMessage },
     advanced,
     reviewDispatched: preparedRound !== null,
+    ...(reviewSummary !== undefined ? { reviewSummary } : {}),
     ...(reviewSubject !== undefined ? { reviewSubject } : {}),
     done: phase === 'complete',
     tier: treatment.tier,
@@ -1249,10 +1470,10 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.
   const profile = shipProfileFor(root, opts)
-  const explicitRound = openExplicitReviewRound(root, opts)
+  const explicitRound = openExplicitReviewRound(root, opts, profile, treatment)
   const advancedPhase = advanceShipPhase(root, phase, opts, state?.taskId, profile)
   phase = advancedPhase.phase
-  const preparedRound = explicitRound ?? advancedPhase.review
+  const preparedRound = explicitRound.plan ?? advancedPhase.review
   writeVerificationCompanionEvidence(root, phase, state?.taskId, profile, opts)
 
   return buildActiveShipResult({
@@ -1263,6 +1484,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
     state,
     advanced: advancedPhase.advanced,
     preparedRound,
+    reviewSummary: explicitRound.summary,
     stopMessage: advancedPhase.stopMessage,
     preparedChainAdd,
     opts,

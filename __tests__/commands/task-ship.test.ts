@@ -162,14 +162,18 @@ describe('ship sequencing — pure plan', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-codex-sidecar-'))
     try {
       mkdirSync(join(dir, '.arbiter'), { recursive: true })
-      writeExternalReviewSidecar(dir, '#2802', {
-        provider: 'codex',
-        status: 'fulfilled',
-        diffBytes: 1,
-        diffTruncated: false,
-        degradationReasons: [],
-        recorded: true,
-        envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+      writeExternalReviewSidecar({
+        repoRoot: dir,
+        taskId: '#2802',
+        result: {
+          provider: 'codex',
+          status: 'fulfilled',
+          diffBytes: 1,
+          diffTruncated: false,
+          degradationReasons: [],
+          recorded: true,
+          envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+        },
       })
 
       expect(

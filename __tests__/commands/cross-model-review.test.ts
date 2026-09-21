@@ -679,10 +679,25 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       )
       const sidecar = JSON.parse(
         readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
-      ) as { count: number; agents: string[]; branch: string; sha: string; taskId: string }
+      ) as {
+        count: number
+        agents: string[]
+        auditors: string[]
+        treatmentHash: string
+        branch: string
+        sha: string
+        taskId: string
+      }
+      const state = JSON.parse(
+        readFileSync(join(dir, '.claude', '.task', 'status.json'), 'utf8'),
+      ) as {
+        treatment: { finalReviewers: number; reviewerVerticals: string[]; signalsHash: string }
+      }
       expect(sidecar).toEqual({
-        count: 2,
-        agents: ['anthropic-reviewer', 'codex-reviewer'],
+        count: state.treatment.finalReviewers,
+        agents: ['codex-reviewer'],
+        auditors: state.treatment.reviewerVerticals,
+        treatmentHash: state.treatment.signalsHash,
         expectedProvenance: {
           'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
         },
@@ -753,14 +768,18 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         }),
       )
 
-      writeExternalReviewSidecar(dir, '#2357', {
-        provider: 'codex',
-        status: 'fulfilled',
-        diffBytes: 1,
-        diffTruncated: false,
-        degradationReasons: [],
-        recorded: true,
-        envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+      writeExternalReviewSidecar({
+        repoRoot: dir,
+        taskId: '#2357',
+        result: {
+          provider: 'codex',
+          status: 'fulfilled',
+          diffBytes: 1,
+          diffTruncated: false,
+          degradationReasons: [],
+          recorded: true,
+          envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+        },
       })
 
       expect(
@@ -784,10 +803,10 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-trunk-solo-'))
     try {
       mockedRunCli.mockReturnValue({ stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 })
-      writeExternalReviewSidecar(
-        dir,
-        '#2357',
-        {
+      writeExternalReviewSidecar({
+        repoRoot: dir,
+        taskId: '#2357',
+        result: {
           provider: 'codex',
           status: 'fulfilled',
           diffBytes: 1,
@@ -796,9 +815,9 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           recorded: true,
           envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
         },
-        'Standard',
-        'trunk-solo',
-      )
+        tier: 'Standard',
+        collaborationMode: 'trunk-solo',
+      })
       expect(
         JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
       ).toMatchObject({ count: 1, agents: ['codex-reviewer'] })

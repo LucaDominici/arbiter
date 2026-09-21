@@ -19,6 +19,11 @@ non trovano più cerimonia inutile e concordano che ship non è ulteriormente ot
 Materiale collegato: `SHIP_REDESIGN_ALGORITHM.md` (algoritmo congiunto), `ARBITER_2026_CUTOVER_PROJECT.md`,
 `SHIP_C1A_POSTMORTEM.md`, `CAMPAIGN_STATE.md`; nel repo prodotto `docs/internal/SYSTEM/SHIP_TUNING_LOG.md` (#2725).
 
+**2026-09-21:** `arbiter ship --review-round` ora dispaccia il reviewer Codex in foreground e scrive l'envelope con provenienza; niente reviewer a mano.
+Il round resta proprietà del runtime e la verifica usa lo SHA congelato.
+La provenienza resta parte dell'evidenza verificabile.
+Il trattamento attivo determina il pannello da completare.
+
 ## Scelte ferme (non ridiscutere senza un dato nuovo)
 
 | #   | Scelta                                                                                                                                     | Perché                                                                                                 | Alternativa scartata                                       |
