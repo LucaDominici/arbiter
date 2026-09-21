@@ -31,6 +31,7 @@ type Sidecar = {
   auditors?: string[]
   treatmentHash?: string
   taskId?: string
+  expectedProvenance?: Record<string, { vendor: string; dispatch: string; cli: string }>
 }
 
 function output(result: CheckResult): string {
@@ -120,6 +121,71 @@ describe('check-review-completion.mjs', () => {
     writeEnvelope('beta', envelope('beta'))
 
     expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('rejects a reviewer envelope whose provenance differs from the declared Codex lane', () => {
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['codex-reviewer'],
+      expectedProvenance: {
+        'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      },
+    })
+    writeEnvelope('codex-reviewer', envelope('codex-reviewer'))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toContain(
+      'codex-reviewer: provenance mismatch — expected openai/external-cli/codex, observed anthropic/subagent/missing',
+    )
+  })
+
+  it('accepts a reviewer envelope whose provenance matches the declared Codex lane', () => {
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['codex-reviewer'],
+      expectedProvenance: {
+        'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      },
+    })
+    writeEnvelope(
+      'codex-reviewer',
+      envelope('codex-reviewer', {
+        provenance: { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      }),
+    )
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('preserves the legacy pass when the sidecar does not declare expected provenance', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope('alpha', envelope('alpha'))
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
+  it('rejects an envelope without provenance when the sidecar declares an expectation', () => {
+    writeSidecar({
+      count: 1,
+      branch: BRANCH,
+      sha: '0123456789abcdef',
+      agents: ['codex-reviewer'],
+      expectedProvenance: {
+        'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+      },
+    })
+    writeEnvelope('codex-reviewer', envelope('codex-reviewer', { provenance: undefined }))
+
+    const result = runCheck(sidecar, evidenceDir, tmpDir)
+    expect(result.exitCode).toBe(1)
+    expect(output(result)).toContain(
+      'codex-reviewer: provenance mismatch — expected openai/external-cli/codex, observed missing/missing/missing',
+    )
   })
 
   it('rejects a sidecar that drifts from the active task treatment', () => {

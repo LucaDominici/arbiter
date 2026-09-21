@@ -196,6 +196,9 @@ describe('runCrossModelReview (#2357)', () => {
       expect(JSON.parse(readFileSync(sidecarPath, 'utf8'))).toEqual({
         count: 2,
         agents: ['anthropic-reviewer', 'codex-reviewer'],
+        expectedProvenance: {
+          'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+        },
         taskId: '#2357',
         branch: 'diff',
         sha: 'diff',
@@ -350,7 +353,16 @@ describe('runCrossModelReview (#2357)', () => {
       mkdirSync(join(dir, '.arbiter'), { recursive: true })
       writeFileSync(
         join(dir, '.arbiter', 'agents-dispatched.json'),
-        `${JSON.stringify({ count: 1, agents: ['codex-reviewer'], taskId: '#2357', branch, sha })}\n`,
+        `${JSON.stringify({
+          count: 1,
+          agents: ['codex-reviewer'],
+          expectedProvenance: {
+            'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+          },
+          taskId: '#2357',
+          branch,
+          sha,
+        })}\n`,
       )
 
       mockedRunCli.mockImplementation((command, args) => {
@@ -399,7 +411,16 @@ describe('runCrossModelReview (#2357)', () => {
       mkdirSync(join(dir, '.arbiter'), { recursive: true })
       writeFileSync(
         join(dir, '.arbiter', 'agents-dispatched.json'),
-        `${JSON.stringify({ count: 1, agents: ['codex-reviewer'], taskId: '#2357', branch, sha })}\n`,
+        `${JSON.stringify({
+          count: 1,
+          agents: ['codex-reviewer'],
+          expectedProvenance: {
+            'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+          },
+          taskId: '#2357',
+          branch,
+          sha,
+        })}\n`,
       )
       mockedRunCli.mockImplementation((command, args) => {
         if (command === 'git' && args[0] === 'rev-parse' && args[1] === '--abbrev-ref') {
@@ -662,6 +683,9 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       expect(sidecar).toEqual({
         count: 2,
         agents: ['anthropic-reviewer', 'codex-reviewer'],
+        expectedProvenance: {
+          'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+        },
         branch: 'task/#2357-cross-model-cli',
         sha: fixtureSha,
         taskId: '#2357',
@@ -744,6 +768,9 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       ).toEqual({
         count: 2,
         agents: ['anthropic-reviewer', 'codex-reviewer'],
+        expectedProvenance: {
+          'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+        },
         taskId: '#2357',
         branch: 'diff',
         sha: 'diff',

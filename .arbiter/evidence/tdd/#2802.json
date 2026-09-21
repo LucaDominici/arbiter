@@ -1,0 +1,16 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2802",
+  "test_path": "__tests__/scripts/check-review-completion.test.ts",
+  "test_commit_sha": "c092568447b44955f31be1d12d015014ec78317b",
+  "test_blob_sha": "985cadcde430d8f0cba1f92db0303807b7851802",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/check-review-completion.test.ts (54 tests | 2 failed) 1381ms\n     × rejects a reviewer envelope whose provenance differs from the declared Codex lane 29ms\n     × rejects an envelope without provenance when the sidecar declares an expectation 27ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 52 passed (54)\n   Start at  07:09:13\n   Duration  1.50s (transform 28ms, setup 7ms, import 32ms, tests 1.38s, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/check-review-completion.test.ts > check-review-completion.mjs > rejects a reviewer envelope whose provenance differs from the declared Codex lane\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-review-completion.test.ts:139:29\n    137|\n    138|     const result = runCheck(sidecar, evidenceDir, tmpDir)\n    139|     expect(result.exitCode).toBe(1)\n       |                             ^\n    140|     expect(output(result)).toContain(\n    141|       'codex-reviewer: provenance mismatch — expected openai/external-…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/scripts/check-review-completion.test.ts > check-review-completion.mjs > rejects an envelope without provenance when the sidecar declares an expectation\nAssertionError: expected '[check-review-completion] FAIL: codex…' to contain 'codex-reviewer: provenance mismatch —…'\n\n- Expected\n+ Received\n\n- codex-reviewer: provenance mismatch — expected openai/external-cli/codex, observed missing/missing/missing\n+ [check-review-completion] FAIL: codex-reviewer: missing, empty, malformed, or schema-invalid return envelope\n+ [check-review-completion] Re-dispatch ONLY the named agent(s) exactly once, persist their returns, and re-run this check.\n+\n\n ❯ __tests__/scripts/check-review-completion.test.ts:186:28\n    184|     const result = runCheck(sidecar, evidenceDir, tmpDir)\n    185|     expect(result.exitCode).toBe(1)\n    186|     expect(output(result)).toContain(\n       |                            ^\n    187|       'codex-reviewer: provenance mismatch — expected openai/external-…\n    188|     )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/check-review-completion.test.ts",
+  "recorded_at": "2026-09-21T05:09:14.809Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-review-completion.test.ts"
+  ]
+}

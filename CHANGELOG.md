@@ -8,6 +8,8 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+- Review completion now binds Codex reviewer sidecars to the expected
+  `openai/external-cli/codex` provenance tuple (#2802).
 - `/ship` now waits for reviewer dispatches and completes LOW-only review rounds without opening a
   further round (#2797).
 - `/ship` now runs only the fast preflight locally; CI owns the full gate, and

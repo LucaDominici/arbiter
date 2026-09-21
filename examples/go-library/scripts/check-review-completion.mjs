@@ -83,7 +83,8 @@ function activeTaskId() {
 const activeTask = activeTaskId()
 
 /**
- * @typedef {{ count: number, branch: string, sha: string, agents?: string[], auditors?: string[], treatmentHash?: string, task?: string, taskId?: string }} DispatchSidecar
+ * @typedef {{ vendor: string, dispatch: string, cli: string }} ExpectedProvenance
+ * @typedef {{ count: number, branch: string, sha: string, agents?: string[], auditors?: string[], treatmentHash?: string, expectedProvenance?: Record<string, ExpectedProvenance>, task?: string, taskId?: string }} DispatchSidecar
  */
 
 /** @typedef {{ envelope: Record<string, unknown>, file: string }} ValidEnvelope */
@@ -142,11 +143,51 @@ function hasValidOptionalAgents(record) {
 
 /**
  * @param {unknown} value
+ * @returns {value is ExpectedProvenance}
+ */
+function isExpectedProvenance(value) {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value['vendor']) &&
+    isNonEmptyString(value['dispatch']) &&
+    isNonEmptyString(value['cli'])
+  )
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, ExpectedProvenance>}
+ */
+function isValidExpectedProvenance(value) {
+  return (
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([agent, provenance]) => isNonEmptyString(agent) && isExpectedProvenance(provenance),
+    )
+  )
+}
+
+/**
+ * @param {Record<string, unknown>} record
+ * @returns {boolean}
+ */
+function hasValidOptionalExpectedProvenance(record) {
+  return (
+    !('expectedProvenance' in record) || isValidExpectedProvenance(record['expectedProvenance'])
+  )
+}
+
+/**
+ * @param {unknown} value
  * @returns {value is DispatchSidecar}
  */
 function isSidecar(value) {
   if (!isRecord(value)) return false
-  return hasValidSidecarFields(value) && hasValidOptionalAgents(value)
+  return (
+    hasValidSidecarFields(value) &&
+    hasValidOptionalAgents(value) &&
+    hasValidOptionalExpectedProvenance(value)
+  )
 }
 
 /**
@@ -339,7 +380,7 @@ function readEnvelopes(files, schema) {
       if (validateSchema(parsed, schema, schema, file).length > 0) {
         continue
       }
-      if (!parsed.provenance || enforceCitations(parsed, repoRoot, file).length > 0) continue
+      if (enforceCitations(parsed, repoRoot, file).length > 0) continue
       valid.push({ envelope: /** @type {Record<string, unknown>} */ (parsed), file })
       // FAIL-OPEN-INTENT: malformed or unreadable envelope artifacts are recorded as incomplete reviewers below, never accepted as a return.
     } catch {
@@ -358,6 +399,66 @@ function isAgentEnvelopeFile(file, agent) {
   const basename = file.slice(file.lastIndexOf('/') + 1)
   const safeAgent = sanitizeAgent(agent)
   return basename === `${safeAgent}.json` || basename.startsWith(`${safeAgent}-`)
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function provenanceTuple(value) {
+  if (!isRecord(value)) return 'missing/missing/missing'
+  return [value['vendor'], value['dispatch'], value['cli']]
+    .map((part) => (isNonEmptyString(part) ? part : 'missing'))
+    .join('/')
+}
+
+/**
+ * @param {string} agent
+ * @param {DispatchSidecar} sidecar
+ * @param {Record<string, unknown>} envelope
+ * @returns {string | null}
+ */
+function provenanceMismatch(agent, sidecar, envelope) {
+  const expected = sidecar.expectedProvenance?.[agent]
+  if (expected === undefined) {
+    return isRecord(envelope['provenance'])
+      ? null
+      : `${agent}: missing, empty, malformed, or schema-invalid return envelope`
+  }
+  const observed = envelope['provenance']
+  if (
+    !isRecord(observed) ||
+    observed['vendor'] !== expected.vendor ||
+    observed['dispatch'] !== expected.dispatch ||
+    observed['cli'] !== expected.cli
+  ) {
+    return `${agent}: provenance mismatch — expected ${provenanceTuple(expected)}, observed ${provenanceTuple(observed)}`
+  }
+  return null
+}
+
+/**
+ * @param {string} agent
+ * @param {DispatchSidecar} sidecar
+ * @param {Record<string, unknown>} envelope
+ * @returns {string | null}
+ */
+function checkMatchedAgentEnvelope(agent, sidecar, envelope) {
+  if (envelope['sha'] !== sidecar.sha) {
+    return `${agent}: provenance mismatch — expected sha ${sidecar.sha}, observed ${envelope['sha']}`
+  }
+  const provenanceFailure = provenanceMismatch(agent, sidecar, envelope)
+  if (provenanceFailure) return provenanceFailure
+  const blocking = Array.isArray(envelope['findings'])
+    ? envelope['findings'].filter(
+        (finding) =>
+          isRecord(finding) && ['critical', 'high', 'med'].includes(String(finding['severity'])),
+      )
+    : []
+  if (blocking.length > 0) {
+    return `${agent}: ${blocking.length} applicable MED/HIGH/CRITICAL reviewer finding(s) still block`
+  }
+  return null
 }
 
 /**
@@ -380,20 +481,7 @@ function checkAgentEnvelope(agent, sidecar, task, files, valid) {
   const branchMatch =
     branchMatches.find((envelope) => envelope['sha'] === sidecar.sha) ?? branchMatches[0]
   if (branchMatch) {
-    if (branchMatch['sha'] === sidecar.sha) {
-      const blocking = Array.isArray(branchMatch['findings'])
-        ? branchMatch['findings'].filter(
-            (finding) =>
-              isRecord(finding) &&
-              ['critical', 'high', 'med'].includes(String(finding['severity'])),
-          )
-        : []
-      if (blocking.length > 0) {
-        return `${agent}: ${blocking.length} applicable MED/HIGH/CRITICAL reviewer finding(s) still block`
-      }
-      return null
-    }
-    return `${agent}: provenance mismatch — expected sha ${sidecar.sha}, observed ${branchMatch['sha']}`
+    return checkMatchedAgentEnvelope(agent, sidecar, branchMatch)
   }
   const wrongRole = taskMatch.find((envelope) => envelope['branch'] === sidecar.branch)
   if (wrongRole) return `${agent}: return envelope role must be reviewer`
@@ -445,6 +533,7 @@ function checkLegacyReviewerCount(sidecar, task, valid) {
           typeof envelope['agent'] === 'string' &&
           isAgentEnvelopeFile(file, envelope['agent']) &&
           envelope['role'] === 'reviewer' &&
+          isRecord(envelope['provenance']) &&
           envelope['taskId'] === task &&
           envelope['branch'] === sidecar.branch &&
           envelope['sha'] === sidecar.sha,

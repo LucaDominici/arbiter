@@ -17,6 +17,11 @@ import { currentBranch, headSha } from '../evidence/git-checks.js'
 
 const SHIP_CROSS_MODEL_PROMPT =
   'Review this change for bugs, type safety, security, data integrity, and silent failures.'
+const CODEX_REVIEWER_PROVENANCE = {
+  vendor: 'openai',
+  dispatch: 'external-cli',
+  cli: 'codex',
+} as const
 
 interface CrossModelReviewCommandOptions {
   taskId: string
@@ -75,6 +80,7 @@ type ReviewSidecar = {
   branch?: unknown
   sha?: unknown
   taskId?: unknown
+  expectedProvenance?: unknown
 }
 
 function isRecord(value: unknown): value is ReviewSidecar {
@@ -235,7 +241,17 @@ function writeExternalReviewSidecar(
   writeFileContained(
     repoRoot,
     join('.arbiter', 'agents-dispatched.json'),
-    `${JSON.stringify({ ...panel, taskId, branch, sha }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        ...panel,
+        expectedProvenance: { 'codex-reviewer': CODEX_REVIEWER_PROVENANCE },
+        taskId,
+        branch,
+        sha,
+      },
+      null,
+      2,
+    )}\n`,
   )
 }
 

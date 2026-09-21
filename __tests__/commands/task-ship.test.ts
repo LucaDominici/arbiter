@@ -2,9 +2,10 @@
 //
 // `/ship` orchestrator sequencing (#1206): step computation + auto-advance over the existing engine.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { createTestProject, cleanupTestProject, writeGatePassEvidence } from '../helpers.js'
 import {
   runTaskShip,
@@ -18,6 +19,7 @@ import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
 import { resolveShipTreatment, widenTier } from '../../src/commands/ship-tier.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
+import { writeExternalReviewSidecar } from '../../src/commands/cross-model-review.js'
 
 // Gates that would otherwise require a real repo / model switch
 vi.mock('../../src/capabilities/host-probe.js', () => ({
@@ -154,6 +156,32 @@ describe('ship sequencing — pure plan', () => {
     )
     expect(step).toMatchObject({ reviewAgents: 1, externalReviewers: 1 })
     expect(step.action).toContain('panel total: 1')
+  })
+
+  it('records expected Codex provenance for a Codex reviewer sidecar', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-codex-sidecar-'))
+    try {
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeExternalReviewSidecar(dir, '#2802', {
+        provider: 'codex',
+        status: 'fulfilled',
+        diffBytes: 1,
+        diffTruncated: false,
+        degradationReasons: [],
+        recorded: true,
+        envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+      })
+
+      expect(
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toMatchObject({
+        expectedProvenance: {
+          'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+        },
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {
