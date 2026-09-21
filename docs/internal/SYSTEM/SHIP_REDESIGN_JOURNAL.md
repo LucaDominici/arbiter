@@ -50,6 +50,16 @@ La fase Verify di `/ship` esegue solo il preflight locale e spinge il candidato 
 CI esegue il gate completo sullo SHA pubblicato ed è l'autorità della verifica.
 Prima di `advance --to close`, `node scripts/ci-receipt.mjs` registra il verdetto verde in `.arbiter/ci-pass.json`.
 
+## 2026-09-21 — #2802: provenance del reviewer vincolata al sidecar
+
+Il contratto di completamento review (#2177) non considera più sufficiente un envelope valido
+quando il sidecar dichiara una corsia di provenienza: `expectedProvenance[agent]` fissa
+`vendor/dispatch/cli`, e `scripts/check-review-completion.mjs` rifiuta mismatch o provenance
+assente con exit 1. Il campo è opzionale per compatibilità: un sidecar storico senza
+`expectedProvenance` conserva il comportamento precedente. La corsia Codex scrive
+`codex-reviewer: openai/external-cli/codex`; la provenance dell'envelope continua a essere
+stamped dal recorder, mai accettata dal payload dell'agente.
+
 ## Loop 0 — analisi e contraddittorio (2026-09-19 pomeriggio)
 
 Fatto: analisi indipendente, 3 round con Codex, algoritmo in 12 passi, loop di misura. Pulizia 153 worktree (backup
