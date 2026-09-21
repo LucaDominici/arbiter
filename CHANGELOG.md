@@ -8,6 +8,8 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+- `/ship` now waits for reviewer dispatches and completes LOW-only review rounds without opening a
+  further round (#2797).
 - `/ship` now runs only the fast preflight locally; CI owns the full gate, and
   `scripts/ci-receipt.mjs` records the green verdict for the pushed SHA (#2794).
 - Writer Codex dispatch now grants linked-worktree Git metadata through

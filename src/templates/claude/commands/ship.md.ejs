@@ -113,10 +113,12 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
 5. **Freeze** — finish all fixes, commit, and freeze HEAD plus the plan acceptance hash.
 6. **Certify** — dispatch the treatment's final reviewer against the same SHA and shared evidence.
    That reviewer also returns acceptance fit.
+   Wait for the reviewer dispatch in the FOREGROUND (never `run_in_background`); the session must not end with a review round in flight.
 7. **Rework** — a changed source SHA invalidates review, acceptance-fit, and gate evidence. Round two
    reviews only the delta. The
    normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
    block. If another ordinary round would be needed, report BLOCKED or deliberately force it.
+   Wait for the review round in the FOREGROUND (never `run_in_background`); a round whose only findings are LOW does not open a new round: park LOW findings with `arbiter finding add` and treat the round as complete.
 8. **Verify** — after review completion and all-PASS acceptance fit, push the frozen candidate; CI runs the full gate on that SHA and is the verification authority; record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.
 9. **Land** — reuse the unchanged qualification through PR and CI. Merge, verify green post-merge CI,
    perform live proof when applicable, close every carried issue, then clean up.

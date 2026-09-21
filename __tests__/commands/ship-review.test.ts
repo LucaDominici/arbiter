@@ -17,6 +17,7 @@ import { join, resolve } from 'node:path'
 import {
   DEFAULT_REVIEW_MAX_ROUNDS,
   evaluateReviewRound,
+  planReviewRound,
   resolveReviewMaxRounds,
 } from '../../src/commands/ship-review'
 import { runTaskShip, buildShipStepLines } from '../../src/commands/task-ship'
@@ -71,6 +72,59 @@ describe('evaluateReviewRound (#2400)', () => {
 
   it('lets an explicit --force-review through', () => {
     expect(evaluateReviewRound({ rounds: 9, maxRounds: 2, forced: true }).allowed).toBe(true)
+  })
+})
+
+describe('planReviewRound (#2797)', () => {
+  const envelope = (sha: string, severities: string[]) => ({
+    sha,
+    findings: severities.map((severity) => ({ severity })),
+  })
+
+  it('does not plan a next round when round 1 has only LOW findings', () => {
+    expect(
+      planReviewRound(
+        { rounds: 1, lastReviewedSha: SHA_A },
+        2,
+        SHA_B,
+        false,
+        envelope(SHA_A, ['low']),
+      ),
+    ).toBeNull()
+  })
+
+  it('plans round 2 when the frozen envelope carries a MED finding', () => {
+    expect(
+      planReviewRound(
+        { rounds: 1, lastReviewedSha: SHA_A },
+        2,
+        SHA_B,
+        false,
+        envelope(SHA_A, ['med']),
+      ),
+    ).toMatchObject({ rounds: 2, head: SHA_B })
+  })
+
+  it('does not plan round 3 when round 2 has only LOW findings', () => {
+    expect(
+      planReviewRound(
+        { rounds: 2, lastReviewedSha: SHA_B },
+        2,
+        SHA_C,
+        false,
+        envelope(SHA_B, ['low']),
+      ),
+    ).toBeNull()
+  })
+
+  it('never plans above the cap without force, but preserves the explicit force escape hatch', () => {
+    expect(planReviewRound({ rounds: 2, lastReviewedSha: SHA_B }, 2, SHA_C, false)).toMatchObject({
+      allowed: false,
+    })
+    expect(planReviewRound({ rounds: 2, lastReviewedSha: SHA_B }, 2, SHA_C, true)).toMatchObject({
+      rounds: 3,
+      forced: true,
+    })
   })
 })
 
@@ -189,6 +243,41 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     ship({ reviewRound: true, headSha: SHA_A })
     expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
     expect(log()).toContain(`review → round 1 at ${SHA_A.slice(0, 7)}`)
+  })
+
+  it('completes a changed round with only LOW reviewer findings without opening another round', () => {
+    ship({ advance: true, headSha: SHA_A })
+    ship({ reviewRound: true, headSha: SHA_A })
+    const evidenceDir = join(dir, '.arbiter', 'evidence', 'agent-returns', '_100')
+    mkdirSync(evidenceDir, { recursive: true })
+    writeFileSync(
+      join(evidenceDir, 'domain-0.json'),
+      JSON.stringify({
+        schema: 'arbiter-agent-return-v1',
+        agent: 'domain',
+        role: 'reviewer',
+        taskId: '#100',
+        branch: 'task/#100-review',
+        sha: SHA_A,
+        ts: '2026-09-20T00:00:00.000Z',
+        verdict: 'WARN',
+        confidence: 0.8,
+        findings: [
+          {
+            id: 'review-low-1',
+            severity: 'low',
+            kind: 'behavioral',
+            claim: 'The wording could be clearer.',
+            citations: [],
+          },
+        ],
+      }),
+    )
+
+    const result = ship({ reviewRound: true, headSha: SHA_B })
+
+    expect(result.reviewDispatched).toBe(false)
+    expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
   })
 
   it('AC-2400.1: --review-round records the next round and re-pins HEAD', () => {

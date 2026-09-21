@@ -175,6 +175,12 @@ describe('ship command delegates mechanics to the runtime', () => {
     expect(md).toMatch(/do not\s+justify source edits by themselves/)
     expect(md).toContain('Add specialist reviewers only for auth')
     expect(md).toContain('The final reviewer covers code, tests, and acceptance fit')
+    expect(md).toContain(
+      'Wait for the reviewer dispatch in the FOREGROUND (never `run_in_background`); the session must not end with a review round in flight.',
+    )
+    expect(md).toContain(
+      'Wait for the review round in the FOREGROUND (never `run_in_background`); a round whose only findings are LOW does not open a new round: park LOW findings with `arbiter finding add` and treat the round as complete.',
+    )
     expect(md).toContain('MED/HIGH/CRITICAL finding')
     expect(md).toContain('exact-subject receipt')
     expect(md).toContain('CI runs the full gate on that SHA')

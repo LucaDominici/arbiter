@@ -242,6 +242,27 @@ describe('check-review-completion.mjs', () => {
     expect(output(result)).toMatch(/MED\/HIGH\/CRITICAL/i)
   })
 
+  it('treats a reviewer envelope with only LOW findings as complete', () => {
+    writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
+    writeEnvelope(
+      'alpha',
+      envelope('alpha', {
+        verdict: 'WARN',
+        findings: [
+          {
+            id: 'review-low-1',
+            severity: 'low',
+            kind: 'behavioral',
+            claim: 'The wording could be clearer.',
+            citations: [],
+          },
+        ],
+      }),
+    )
+
+    expect(runCheck(sidecar, evidenceDir, tmpDir).exitCode).toBe(0)
+  })
+
   it('exits 1 and names an agent whose envelope artifact is empty', () => {
     writeSidecar({ count: 1, branch: BRANCH, sha: '0123456789abcdef', agents: ['alpha'] })
     const taskDir = join(evidenceDir, '_2177')
