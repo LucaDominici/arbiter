@@ -10,7 +10,17 @@
  * RED: `review` is not on the task document, no round is ever recorded, and nothing refuses.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+} from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -479,5 +489,184 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     writeUnifiedState(dir, { plan: 'untracked-plan.md' })
     expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(/tracked.*plan|plan.*HEAD/i)
     expect(review()).toEqual({ rounds: 0, lastReviewedSha: null })
+  })
+})
+
+describe('review rounds own the Codex seat (#2747)', () => {
+  let dir: string
+  const codexAccess = {
+    provider: 'codex' as const,
+    vendor: 'openai',
+    available: true,
+    authenticated: true,
+    version: '1.2.3',
+    error: null,
+  }
+  const codexConfig = {
+    enabled: true,
+    diffEgressConsent: true,
+    providers: ['codex'] as const,
+    slots: { codeReview: 1, redTeamReview: 0 },
+    timeoutMs: 30_000,
+    onUnavailable: 'degrade' as const,
+  }
+  const codexProfile = {
+    ...TEST_PROFILE,
+    crossModelReview: codexConfig,
+  }
+
+  function installCodex(output: string | null, delayMs = 0): string {
+    const bin = join(dir, 'bin')
+    mkdirSync(bin, { recursive: true })
+    if (output === null) return bin
+    const escaped = output.replaceAll("'", "'\\''")
+    const codex = join(bin, 'codex')
+    writeFileSync(
+      codex,
+      '#!/bin/sh\n' +
+        (delayMs > 0 ? `sleep ${delayMs / 1000}\n` : '') +
+        'out=""\n' +
+        'while [ "$#" -gt 0 ]; do\n' +
+        '  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi\n' +
+        'done\n' +
+        'cat >/dev/null\n' +
+        `printf '%s\\n' '${escaped}' > "$out"\n`,
+      'utf8',
+    )
+    chmodSync(codex, 0o755)
+    return bin
+  }
+
+  function seedRuntimeFixture(): string {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-review-runtime-'))
+    execFileSync('git', ['init', '-q', '-b', 'task/#2747-review-runtime'], { cwd: dir })
+    execFileSync('git', ['config', 'user.email', 'fixture@arbiter.dev'], { cwd: dir })
+    execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: dir })
+    writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.arbiter/\n')
+    writeFileSync(join(dir, 'plan.md'), '# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n')
+    execFileSync('git', ['add', '.gitignore', 'plan.md'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: seed review runtime'], { cwd: dir })
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', sha], { cwd: dir })
+
+    for (const relativePath of [
+      'schemas/agent-return-external.schema.json',
+      'schemas/agent-return.schema.json',
+      'scripts/check-review-completion.mjs',
+      'scripts/record-agent-return.mjs',
+      'scripts/lib/acceptance-criteria.mjs',
+      'scripts/lib/agent-return-validate.mjs',
+      'scripts/lib/evidence-binding.mjs',
+      'scripts/lib/gate-args.mjs',
+      'scripts/lib/run-helpers.mjs',
+    ]) {
+      const target = join(dir, relativePath)
+      mkdirSync(join(target, '..'), { recursive: true })
+      copyFileSync(join(process.cwd(), relativePath), target)
+    }
+
+    runTaskShip({ dir, taskId: '#2747', profileOverride: codexProfile })
+    writeUnifiedState(dir, { phase: 'refactor', plan: 'plan.md' })
+    return sha
+  }
+
+  function runRound(output: string | null, options: { delayMs?: number; timeoutMs?: number } = {}) {
+    const sha = seedRuntimeFixture()
+    const bin = installCodex(output, options.delayMs)
+    vi.stubEnv('PATH', `${bin}:${process.env.PATH ?? ''}`)
+    const config = { ...codexConfig, timeoutMs: options.timeoutMs ?? codexConfig.timeoutMs }
+    return runTaskShip({
+      dir,
+      reviewRound: true,
+      headSha: sha,
+      profileOverride: { ...TEST_PROFILE, crossModelReview: config },
+      externalModelAccess: codexAccess,
+    })
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('runs the Codex seat in the foreground, records provenance, and passes completion', () => {
+    const result = runRound('{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}')
+
+    expect(buildShipStepLines(result)).toContain(
+      'review round 1: PASS — 0 findings (0 blocking) · next: advance',
+    )
+    expect(buildShipStepLines(result).join('\n')).not.toContain('record-agent-return')
+    expect(readUnifiedState(dir)?.review).toEqual({
+      rounds: 1,
+      lastReviewedSha: expect.any(String),
+    })
+    const envelopePath = join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747')
+    const envelope = JSON.parse(
+      readFileSync(join(envelopePath, readdirSync(envelopePath)[0]!), 'utf8'),
+    )
+    expect(envelope.provenance).toEqual({
+      vendor: 'openai',
+      dispatch: 'external-cli',
+      cli: 'codex',
+      cliVersion: '1.2.3',
+    })
+  })
+
+  it('completes LOW-only rounds and spools each LOW finding without a next round', () => {
+    const result = runRound(
+      '{"verdict":"WARN","confidence":0.8,"findings":[{"id":"low-1","severity":"low","kind":"style","claim":"The wording could be clearer.","citations":[]}],"refutations":[]}',
+    )
+
+    expect(buildShipStepLines(result)).toContain(
+      'review round 1: WARN — 1 findings (0 blocking) · next: parked',
+    )
+    const spool = join(dir, '.arbiter', 'findings', '_2747.jsonl')
+    expect(existsSync(spool)).toBe(true)
+    expect(JSON.parse(readFileSync(spool, 'utf8'))).toMatchObject({
+      note: 'The wording could be clearer.',
+      severity: 'low',
+    })
+    expect(readUnifiedState(dir)?.review?.rounds).toBe(1)
+  })
+
+  it.each([
+    ['missing Codex', null, 30_000, 0],
+    [
+      'timed-out Codex',
+      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}',
+      20,
+      1000,
+    ],
+    ['unparseable Codex output', 'not json', 30_000, 0],
+  ])(
+    '%s exits through the fatal no-data path without an envelope',
+    (_label, output, timeoutMs, delayMs) => {
+      expect(() => runRound(output, { timeoutMs, delayMs })).toThrowError(
+        expect.objectContaining({ kind: 'fatal', code: 'E_REVIEW_NO_DATA' }),
+      )
+      expect(existsSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toBe(false)
+      expect(readUnifiedState(dir)?.review?.rounds).toBe(1)
+    },
+  )
+
+  it('keeps plan-only behavior when the planned treatment has no Codex seat', () => {
+    const sha = seedRuntimeFixture()
+    const bin = installCodex('{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}')
+    vi.stubEnv('PATH', `${bin}:${process.env.PATH ?? ''}`)
+
+    const result = runTaskShip({
+      dir,
+      reviewRound: true,
+      headSha: sha,
+      profileOverride: {
+        ...TEST_PROFILE,
+        crossModelReview: { ...codexConfig, slots: { codeReview: 0, redTeamReview: 0 } },
+      },
+      externalModelAccess: codexAccess,
+    })
+
+    expect(result.reviewDispatched).toBe(true)
+    expect(buildShipStepLines(result).some((line) => line.startsWith('review round '))).toBe(false)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toBe(false)
   })
 })

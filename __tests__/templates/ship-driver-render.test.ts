@@ -176,10 +176,7 @@ describe('ship command delegates mechanics to the runtime', () => {
     expect(md).toContain('Add specialist reviewers only for auth')
     expect(md).toContain('The final reviewer covers code, tests, and acceptance fit')
     expect(md).toContain(
-      'Wait for the reviewer dispatch in the FOREGROUND (never `run_in_background`); the session must not end with a review round in flight.',
-    )
-    expect(md).toContain(
-      'Wait for the review round in the FOREGROUND (never `run_in_background`); a round whose only findings are LOW does not open a new round: park LOW findings with `arbiter finding add` and treat the round as complete.',
+      'run `arbiter ship --review-round`; it dispatches the reviewer in the foreground and records the envelope — do not dispatch reviewers or write envelopes by hand.',
     )
     expect(md).toContain('MED/HIGH/CRITICAL finding')
     expect(md).toContain('exact-subject receipt')
@@ -202,10 +199,10 @@ describe('ship command delegates mechanics to the runtime', () => {
 
   it('uses the canonical evidence writer and checker instead of embedded shell', () => {
     const md = renderShipCommand()
-    expect(md).toContain('scripts/record-agent-return.mjs --mode reviewer-panel')
+    expect(md).toContain('arbiter ship --review-round')
+    expect(md).not.toContain('scripts/record-agent-return.mjs --mode reviewer-panel')
     expect(md).toContain('scripts/check-review-completion.mjs')
-    expect(md).toContain("reviewer envelope's")
-    expect(md).toContain('must be the exact assigned')
+    expect(md).toContain('provenance, and active treatment')
     expect(md).not.toContain('check-cross-model-review.mjs')
   })
 
