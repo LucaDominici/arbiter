@@ -10,6 +10,8 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 - `arbiter ship --review-round` now runs the Codex reviewer in the foreground, records its
   provenance envelope, and completes LOW-only rounds without opening another round (#2747).
+- Ship KPI attribution now classifies coordinator sessions over their whole context history before
+  applying dated worktree matching (#2774).
 - Review completion now binds Codex reviewer sidecars to the expected
   `openai/external-cli/codex` provenance tuple (#2802).
 - `/ship` now waits for reviewer dispatches and completes LOW-only review rounds without opening a
