@@ -70,7 +70,10 @@ export function verifyRedExecution(
 
     const replayCwd = resolveRecordedTestCwd(worktreeDir, ev.test_cwd)
     if (replayCwd === null) {
-      return { ok: false, reason: `recorded test_cwd "${ev.test_cwd ?? ''}" is not repository-relative` }
+      return {
+        ok: false,
+        reason: `recorded test_cwd "${ev.test_cwd ?? ''}" is not repository-relative`,
+      }
     }
 
     linkNodeModules(repoDir, worktreeDir, ev.test_cwd ?? '.')

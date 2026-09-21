@@ -62,6 +62,17 @@ describe('verifyRedExecution()', () => {
     expect(result.reason).toMatch(/test_command/)
   })
 
+  it.each(['../outside', '/tmp/outside', 'C:\\outside', 'frontend//src', ''])(
+    'refuses replay outside a package-relative cwd: %s',
+    (test_cwd) => {
+      mockedRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+      const result = verifyRedExecution({ ...BASE, test_cwd }, '/repo')
+      expect(result.ok).toBe(false)
+      expect(result.reason).toMatch(/test_cwd.*repository-relative/)
+      expect(mockedRunCli.mock.calls.every(([command]) => command === 'git')).toBe(true)
+    },
+  )
+
   it('fails when the isolated worktree checkout fails', () => {
     mockedRunCli
       .mockReturnValueOnce({
