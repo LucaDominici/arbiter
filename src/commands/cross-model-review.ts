@@ -462,6 +462,7 @@ interface ShipExternalReviewInvocation {
   preflightDegradation: 'invocation-failed' | undefined
   preflightError: unknown
   prompt: string
+  expectedSha: string
 }
 
 function invokeShipExternalReview({
@@ -472,6 +473,7 @@ function invokeShipExternalReview({
   preflightDegradation,
   preflightError,
   prompt,
+  expectedSha,
 }: ShipExternalReviewInvocation): ReturnType<typeof invokeExternalReview> {
   return invokeExternalReview({
     repoRoot,
@@ -484,6 +486,7 @@ function invokeShipExternalReview({
     tier: options.tier,
     phase: options.phase,
     vertical: options.vertical,
+    expectedSha,
   })
 }
 
@@ -555,6 +558,7 @@ function runShipCrossModelReview(
     preflightDegradation,
     preflightError,
     prompt,
+    expectedSha: reviewHead,
   })
   persistShipReviewSidecar(options, repoRoot, result)
   return result

@@ -135,19 +135,46 @@ function dependencyContract(jobs, source) {
   }
 }
 
-function addVerificationJob(job, name, commands, conditions) {
-  if (job === undefined) return
-  if (typeof job.if !== 'string' || !Array.isArray(job.steps)) {
-    throw new Error(`${name} condition or steps are missing`)
+function verificationCondition(job, step, name) {
+  if (job.if !== undefined && typeof job.if !== 'string') {
+    throw new Error(`${name} has an unsupported job condition`)
   }
-  conditions.add(job.if)
-  for (const step of job.steps) {
-    if (step?.run === undefined) continue
-    if (typeof step.run !== 'string' || step.run.includes('\n')) {
-      throw new Error(`${name} uses an unsupported dynamic or multiline command`)
+  if (step.if !== undefined && typeof step.if !== 'string') {
+    throw new Error(`${name} has an unsupported step condition`)
+  }
+  if (job.if && step.if) return `(${job.if}) && (${step.if})`
+  return job.if ?? step.if ?? 'workflow job and step are active'
+}
+
+function verificationCommandEntry(jobName, job, step, index, source, thresholds) {
+  const command = typeof step?.run === 'string' ? step.run : step?.uses
+  if (command === undefined) return null
+  if (typeof command !== 'string' || command.trim() === '') {
+    throw new Error(`${jobName} step ${index + 1} has an unsupported command`)
+  }
+  return {
+    name: `${jobName}: ${step.name ?? `step ${index + 1}`}`,
+    source,
+    command,
+    condition: verificationCondition(job, step, jobName),
+    thresholds,
+    status: 'remote-dependent',
+  }
+}
+
+function verificationCommands(jobs, source, thresholds) {
+  const entries = []
+  for (const [jobName, job] of Object.entries(jobs)) {
+    if (jobName === 'check-trigger') continue
+    if (typeof job !== 'object' || job === null || !Array.isArray(job.steps)) {
+      throw new Error(`${jobName} has unsupported workflow-job structure`)
     }
-    commands.push(step.run)
+    for (const [index, step] of job.steps.entries()) {
+      const entry = verificationCommandEntry(jobName, job, step, index, source, thresholds)
+      if (entry !== null) entries.push(entry)
+    }
   }
+  return entries
 }
 
 function extendedContract(jobs, source) {
@@ -156,29 +183,13 @@ function extendedContract(jobs, source) {
     .find((value) => value !== undefined)
   const defaultThreshold =
     typeof threshold === 'string' ? /\|\|\s*'([^']+)'/.exec(threshold)?.[1] : undefined
-  const commands = []
-  const conditions = new Set()
-  for (const name of [
-    'contract-tests',
-    'integration-tests',
-    'behavioral-tests',
-    'bake-e2e-tests',
-  ]) {
-    addVerificationJob(jobs[name], name, commands, conditions)
-  }
-  if (defaultThreshold === undefined || commands.length === 0 || conditions.size !== 1) {
-    throw new Error('extended commands, common condition, or LOC_THRESHOLD are missing')
-  }
-  return {
-    name: 'extended PR checks',
-    source,
-    command: commands.join('; '),
-    condition: [...conditions][0],
-    thresholds: [
-      { name: 'changed lines', value: defaultThreshold, source: `${source}#LOC_THRESHOLD` },
-    ],
-    status: 'remote-dependent',
-  }
+  if (defaultThreshold === undefined) throw new Error('extended LOC_THRESHOLD is missing')
+  const thresholds = [
+    { name: 'changed lines', value: defaultThreshold, source: `${source}#LOC_THRESHOLD` },
+  ]
+  const entries = verificationCommands(jobs, source, thresholds)
+  if (entries.length === 0) throw new Error('extended verification commands are missing')
+  return entries
 }
 
 /** Parse the checked-out PR workflows, or return explicit unresolved obligations. */
@@ -210,7 +221,8 @@ export async function inspectWorkflowContract(root) {
     const path = join(root, source)
     if (!existsSync(path)) continue
     try {
-      external.push(build(workflowMapping(parseYaml, path), source))
+      const entries = build(workflowMapping(parseYaml, path), source)
+      external.push(...(Array.isArray(entries) ? entries : [entries]))
     } catch (err) {
       unresolved.push({ name: 'CI workflow authority', source, reason: err.message })
     }

@@ -88,6 +88,7 @@ interface ExternalReviewRequest {
   phase?: TaskPhase
   vertical?: string
   env?: NodeJS.ProcessEnv
+  expectedSha?: string
 }
 
 interface ExternalReviewResult {
@@ -328,6 +329,7 @@ function recorderArgs(request: ExternalReviewRequest, access: ExternalModelAcces
     request.taskId,
     '--repo-root',
     request.repoRoot,
+    ...(request.expectedSha !== undefined ? ['--expected-sha', request.expectedSha] : []),
     ...(request.evidenceDir !== undefined ? ['--evidence-dir', request.evidenceDir] : []),
     '--provenance-vendor',
     access.vendor,
@@ -337,6 +339,16 @@ function recorderArgs(request: ExternalReviewRequest, access: ExternalModelAcces
     '--provenance-dispatch',
     'external-cli',
   ]
+}
+
+function assertExpectedSha(request: ExternalReviewRequest): void {
+  if (request.expectedSha === undefined) return
+  const actual = headSha(request.repoRoot)
+  if (actual !== request.expectedSha) {
+    throw new Error(
+      `HEAD drifted from frozen review candidate ${request.expectedSha} (current ${actual})`,
+    )
+  }
 }
 
 function outputText(outputPath: string, codex: RunCliResult): string | null {
@@ -584,11 +596,12 @@ function writeDispatchEvidence(
   envelopePath: string | null,
   error?: unknown,
 ): void {
+  assertExpectedSha(request)
   const artifact: CrossModelDispatchArtifact = {
     schema: CROSS_MODEL_DISPATCH_SCHEMA,
     taskId: request.taskId,
     branch: currentBranch(request.repoRoot),
-    sha: headSha(request.repoRoot),
+    sha: request.expectedSha ?? headSha(request.repoRoot),
     ts: new Date().toISOString(),
     phase: request.phase ?? plan.phase,
     requested: requestedEntries(request, plan),
@@ -710,14 +723,24 @@ function persistExternalPayload(
   reasons: ExternalReviewDegradationReason[],
   payload: ExternalReviewPayload,
 ): ExternalReviewResult {
-  let envelopePath: string | null
+  let envelopePath: string | null = null
   try {
     if (request.access === undefined)
       throw new Error('external access disappeared before persistence')
+    assertExpectedSha(request)
     envelopePath = persistEnvelope(request, request.access, payload)
     if (envelopePath === null) throw new Error('recorder did not confirm envelope persistence')
+    assertExpectedSha(request)
     // FAIL-OPEN-INTENT: recorder failures become an explicit degradation and never a fulfilled review.
   } catch (error) {
+    if (envelopePath !== null) {
+      rmTranslated(
+        isAbsolute(envelopePath) ? envelopePath : resolve(request.repoRoot, envelopePath),
+        {
+          force: true,
+        },
+      )
+    }
     return finalizeResult(
       request,
       plan,

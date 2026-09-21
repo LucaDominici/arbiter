@@ -120,6 +120,30 @@ beforeEach(() => {
 afterEach(() => rmSync(root, { recursive: true, force: true }))
 
 describe('record-agent-return evidence modes (#2687)', () => {
+  it('rejects an expected review SHA before writing a return envelope', () => {
+    const result = spawnSync(
+      process.execPath,
+      [RECORDER, '--task', '#42', '--repo-root', root, '--expected-sha', 'deadbeef'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        input: JSON.stringify({
+          schema: 'arbiter-agent-return-v1',
+          agent: 'codex-reviewer',
+          role: 'reviewer',
+          taskId: '#42',
+          verdict: 'PASS',
+          confidence: 1,
+          findings: [],
+          refutations: [],
+        }),
+      },
+    )
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/HEAD.*drift/i)
+    expect(existsSync(join(root, '.arbiter', 'evidence', 'agent-returns', '_42'))).toBe(false)
+  })
+
   it('derives the task-keyed fit from the recorded verifier envelope and admission accepts it', () => {
     const result = record(envelope())
     expect(result.status, result.stderr + result.stdout).toBe(0)

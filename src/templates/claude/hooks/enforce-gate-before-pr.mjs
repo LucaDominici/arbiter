@@ -31,16 +31,26 @@ const command = resolveToolInputCommand()
 // matches — no separate exemption list needed for gh issue create.
 function parseShell(input) {
   const commands = [[]]
+  const quotedCommands = [[]]
   let token = ''
+  let tokenQuoted = false
   let quote = null
   let escaped = false
+  let unsupported = false
   const pushToken = () => {
-    if (token) commands.at(-1).push(token)
+    if (token) {
+      commands.at(-1).push(token)
+      quotedCommands.at(-1).push(tokenQuoted)
+    }
     token = ''
+    tokenQuoted = false
   }
   const pushCommand = () => {
     pushToken()
-    if (commands.at(-1).length > 0) commands.push([])
+    if (commands.at(-1).length > 0) {
+      commands.push([])
+      quotedCommands.push([])
+    }
   }
   for (let index = 0; index < input.length; index += 1) {
     const char = input[index]
@@ -51,12 +61,27 @@ function parseShell(input) {
       escaped = true
     } else if (quote !== null) {
       if (char === quote) quote = null
-      else token += char
+      else {
+        if (quote !== "'" && (char === '`' || (char === '$' && input[index + 1] === '('))) {
+          unsupported = true
+        }
+        token += char
+      }
     } else if (char === '"' || char === "'") {
       quote = char
+      tokenQuoted = true
     } else if (char === ';' || char === '|' || (char === '&' && input[index + 1] === '&')) {
       pushCommand()
       if ((char === '|' && input[index + 1] === '|') || char === '&') index += 1
+    } else if (
+      char === '`' ||
+      (char === '$' && input[index + 1] === '(') ||
+      char === '<' ||
+      char === '>' ||
+      char === '&'
+    ) {
+      unsupported = true
+      token += char
     } else if (/\s/.test(char)) {
       pushToken()
     } else {
@@ -64,20 +89,26 @@ function parseShell(input) {
     }
   }
   pushToken()
-  if (commands.at(-1).length === 0) commands.pop()
-  return { commands, ambiguous: quote !== null || escaped }
+  if (commands.at(-1).length === 0) {
+    commands.pop()
+    quotedCommands.pop()
+  }
+  return { commands, quotedCommands, ambiguous: quote !== null || escaped || unsupported }
 }
 
 const parsed = parseShell(command)
 const segments = parsed.commands
-const parsedSegments = segments.map((tokens, index) => ({ tokens, index }))
+const parsedSegments = segments.map((tokens, index) => ({
+  tokens,
+  quoted: parsed.quotedCommands[index],
+  index,
+}))
 const guardedSegments = parsedSegments.filter(
   ({ tokens }) =>
     tokens[0] === 'gh' && tokens[1] === 'pr' && (tokens[2] === 'create' || tokens[2] === 'ready'),
 )
-const ambiguousGuardSegments = parsedSegments.filter(({ tokens, ambiguous }) => {
-  if (ambiguous) return true
-  const normalized = tokens.map((token) => token.replace(/^[({]+|[)}]+$/g, ''))
+const ambiguousGuardSegments = parsedSegments.filter(({ tokens }) => {
+  const normalized = tokens.map((token) => token.replace(/^[({$]+|[)}]+$/g, ''))
   return normalized.some(
     (token, index) =>
       token === 'gh' &&
@@ -93,7 +124,9 @@ const isDraft =
   !hasAmbiguousGuard &&
   guardedSegments.length === 1 &&
   guardedSegments[0].tokens[2] === 'create' &&
-  guardedSegments[0].tokens.includes('--draft') &&
+  guardedSegments[0].tokens.some(
+    (token, index) => token === '--draft' && guardedSegments[0].quoted[index] !== true,
+  ) &&
   !guardedSegments[0].tokens.some((token) => token.startsWith('--draft='))
 
 function exitAfterStderr(code, message) {

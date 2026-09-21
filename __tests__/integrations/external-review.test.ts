@@ -286,24 +286,21 @@ describe('invokeExternalReview (#2357)', () => {
         }
       })
 
-      const result = invokeExternalReview({
-        repoRoot,
-        taskId: '#2357',
-        prompt: 'Review.',
-        diff: 'diff',
-        cfg: config(),
-        access: access(),
-        expectedSha: 'current-sha',
-        evidenceDir: join(evidenceRoot, 'agent-returns'),
-        dispatchEvidenceDir: evidenceRoot,
-      })
-
-      expect(result.status).toBe('degraded')
-      expect(result.recorded).toBe(false)
+      expect(() =>
+        invokeExternalReview({
+          repoRoot,
+          taskId: '#2357',
+          prompt: 'Review.',
+          diff: 'diff',
+          cfg: config(),
+          access: access(),
+          expectedSha: 'current-sha',
+          evidenceDir: join(evidenceRoot, 'agent-returns'),
+          dispatchEvidenceDir: evidenceRoot,
+        }),
+      ).toThrow(/HEAD.*drift/i)
       expect(existsSync(envelope)).toBe(false)
-      expect(
-        JSON.parse(readFileSync(join(evidenceRoot, '_2357', 'dispatch.json'), 'utf8')).fulfilled,
-      ).toEqual([])
+      expect(existsSync(join(evidenceRoot, '_2357', 'dispatch.json'))).toBe(false)
     } finally {
       rmSync(evidenceRoot, { recursive: true, force: true })
     }

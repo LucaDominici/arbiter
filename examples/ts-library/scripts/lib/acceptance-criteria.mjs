@@ -224,8 +224,33 @@ function presentationMatchesAnchor(criteria, nonGoals, anchor) {
   return (
     criteria.length === anchor.criteria.length &&
     nonGoals.length === anchor.nonGoals.length &&
-    criteria.every(({ id }, index) => id === anchor.criteria[index]?.id)
+    criteria.every(
+      ({ id, text }, index) =>
+        id === anchor.criteria[index]?.id && normalizeText(text) === anchor.criteria[index]?.text,
+    ) &&
+    nonGoals.every((text, index) => normalizeText(text) === anchor.nonGoals[index])
   )
+}
+
+function collectPresentationEntry(entry, state) {
+  if (entry?.kind === 'criterion') {
+    state.openCriterion = { id: entry.id, text: entry.text }
+    state.criteria.push(state.openCriterion)
+    return true
+  }
+  if (entry?.kind !== 'nonGoal') return false
+  state.nonGoals.push(entry.text)
+  state.openCriterion = null
+  return true
+}
+
+function collectPresentationContinuation(line, state) {
+  if (line.trim() === '') return
+  if (state.current === 'criteria' && state.openCriterion && /^ {2,}\S/.test(line)) {
+    state.openCriterion.text += `\n${line}`
+    return
+  }
+  state.openCriterion = null
 }
 
 function collectPresentationLine(line, state) {
@@ -237,17 +262,23 @@ function collectPresentationLine(line, state) {
   const heading = /^#{1,6}\s+(.+?)\s*$/.exec(line) ?? /^\*\*(.+?)\*\*:?\s*$/.exec(line)
   if (heading) {
     state.current = sectionKind(normalizeHeading(heading[1]))
+    state.openCriterion = null
     return
   }
   const entry = presentationEntry(line, state.current)
-  if (entry?.kind === 'criterion') state.criteria.push({ id: entry.id, text: entry.text })
-  if (entry?.kind === 'nonGoal') state.nonGoals.push(entry.text)
+  if (!collectPresentationEntry(entry, state)) collectPresentationContinuation(line, state)
 }
 
 export function parsePlanPresentation(planBody) {
   const anchor = parsePlanAnchor(planBody)
   if (anchor === null) return null
-  const state = { criteria: [], nonGoals: [], current: 'other', inFence: false }
+  const state = {
+    criteria: [],
+    nonGoals: [],
+    current: 'other',
+    inFence: false,
+    openCriterion: null,
+  }
   for (const line of String(planBody ?? '')
     .replaceAll('\r\n', '\n')
     .split('\n')) {

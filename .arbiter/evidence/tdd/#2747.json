@@ -1,19 +1,19 @@
 {
   "$schemaVersion": 1,
   "task_id": "#2747",
-  "test_path": "__tests__/commands/cross-model-review.test.ts",
-  "test_commit_sha": "af0d074e8d47b828f07c1ee76ce3adb04ef343c5",
-  "test_blob_sha": "318c8d26a32c71a2b02e67147427fcdb8f35968f",
-  "test_run_log": "RUN  v4.1.11 /home/luca/work/repos/arbiter.worktrees/2773\nFAIL |unit| __tests__/commands/cross-model-review.test.ts > arbiter ship cross-model wiring (#2357) > invokes the external seat from the real CLI refactor boundary\nFAIL |unit| __tests__/commands/cross-model-review.test.ts > runCrossModelReview (#2357) > builds the review prompt from the frozen plan and exact candidate range\nFAIL |unit| __tests__/commands/cross-model-review.test.ts > runCrossModelReview (#2357) > rejects head movement after diff collection and immediately before dispatch\nFAIL |unit| __tests__/commands/cross-model-review.test.ts > runCrossModelReview (#2357) > rejects head movement after dispatch before writing evidence\nFAIL |unit| __tests__/commands/cross-model-review.test.ts > runCrossModelReview (#2357) > resolves the first-round origin/main base before diff and prompt construction\nFAIL |unit| __tests__/commands/cross-model-review.test.ts > runCrossModelReview (#2357) > ships the configured external review from the real refactor boundary\nFAIL |unit| __tests__/generators/check-all.test.ts > generateCheckAll > extracts actual checked-out PR workflow commands, conditions, and thresholds\nFAIL |unit| __tests__/generators/check-all.test.ts > generateCheckAll > makes an emitted contract unresolved when checked-out workflow authority drifts\nFAIL |unit| __tests__/generators/check-all.test.ts > generateCheckAll > reads self coverage thresholds from the executable Vitest config authority\nFAIL |unit| __tests__/hooks/empirical/enforce-gate-before-pr.test.ts > enforce-gate-before-pr hook > does not exempt draft text inside an argument\nFAIL |unit| __tests__/hooks/empirical/enforce-gate-before-pr.test.ts > enforce-gate-before-pr hook > does not exempt false-valued draft flag\nFAIL |unit| __tests__/hooks/empirical/enforce-gate-before-pr.test.ts > enforce-gate-before-pr hook > does not exempt wrapped ready command\nFAIL |unit| __tests__/templates/01-pr-fast-render.test.ts > 01-pr-fast.yml.ejs \u2014 structural invariants (CANON-18, #1131) > does not rerun the same-head fast workflow when a draft is promoted\nTest Files  4 failed (4)\nTests  13 failed | 195 passed (208)\nDuration  3.67s",
-  "observed_failure": "FAIL |unit| __tests__/commands/cross-model-review.test.ts",
-  "recorded_at": "2026-09-21T21:28:17.000Z",
+  "test_path": "__tests__/integrations/external-review.test.ts",
+  "test_commit_sha": "8355308e83876206da0b0594d54c3cecf66263a2",
+  "test_blob_sha": "f94efdd10ba56cfd1ed9103eb325060b6571c868",
+  "test_run_log": "RUN  v4.1.11 /home/luca/work/repos/arbiter.worktrees/2773\nFAIL |unit| __tests__/generators/check-all.test.ts > generateCheckAll > extracts actual checked-out PR workflow commands, conditions, and thresholds\nFAIL |unit| __tests__/integrations/external-review.test.ts > invokeExternalReview (#2357) > removes fulfilled evidence when HEAD moves at the recorder boundary\nFAIL |unit| __tests__/scripts/acceptance-criteria-lib.test.ts > parsePlanAnchor > preserves inline whitespace and indented criterion continuations for review\nFAIL |unit| __tests__/hooks/empirical/enforce-gate-before-pr.test.ts > enforce-gate-before-pr hook > does not exempt draft flag as an option value\nFAIL |unit| __tests__/hooks/empirical/enforce-gate-before-pr.test.ts > enforce-gate-before-pr hook > does not exempt command-substituted ready command\nTest Files  4 failed (4)\nTests  5 failed | 202 passed (207)\nDuration  3.70s",
+  "observed_failure": "FAIL |unit| __tests__/generators/check-all.test.ts",
+  "recorded_at": "2026-09-21T22:18:17.000Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
     "__tests__/hooks/empirical/enforce-gate-before-pr.test.ts",
-    "__tests__/commands/cross-model-review.test.ts",
     "__tests__/generators/check-all.test.ts",
-    "__tests__/templates/01-pr-fast-render.test.ts"
+    "__tests__/scripts/acceptance-criteria-lib.test.ts",
+    "__tests__/integrations/external-review.test.ts"
   ]
 }
