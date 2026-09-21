@@ -350,7 +350,7 @@
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
     ".claude/hooks/exitplanmode-banner.mjs": "2542fcd141fcfd27ffb872b7a624c9bdfc1a42bcc9ab8cf2bd16da0a32952e55",
     ".claude/hooks/guard-task-completion.mjs": "549c358887fbb4e0690d0dd7d2b276b1832a16179822aae3c0c4adc364c5426c",
-    ".claude/hooks/hooks.mjs": "400207e55d6929288e52cf7d05f7094c3f04ddb7316c5e380072ae72107e449d",
+    ".claude/hooks/hooks.mjs": "0cdee5a45a72d79ffd91f633b2bfa16c8f576fa4c05341e09dde7ba05eb11c41",
     ".claude/hooks/lib.mjs": "9922826284532e7d0fb7be016e0b6064ebde96f68eab8a0cb3780b62ea844a45",
     ".claude/hooks/post-brainstorm-stop.mjs": "798cae5a78a1bc80bd2ae83cc3734f220dd19902dca475d356ba4b0fc823760b",
     ".claude/hooks/post-commit-check.mjs": "5d0eca146ae4b060f6957da6162e03ef788420a267c3bbb342f072ab11566877",

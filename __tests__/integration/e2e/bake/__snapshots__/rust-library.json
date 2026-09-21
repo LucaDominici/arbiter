@@ -224,7 +224,7 @@
     ".claude/hooks/check-no-unwrap.mjs": "4fdc93f9b8364b3f884c929040dab6a318b905e691bb3ee7dc8f4636aef5304e",
     ".claude/hooks/enforce-gate-before-pr.mjs": "0265c689b26aac4c7d604baf8ae63a97567ada11c5bd19a7157371693e935271",
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
-    ".claude/hooks/hooks.mjs": "3c4f6e3f8deb26a06a232feed45f9dbc88dce2e2d174a2d6003373792cdd4b10",
+    ".claude/hooks/hooks.mjs": "d94f4e3294d867e4723c544a4e5afb39045ac976307025b66e26851a4a1a7c61",
     ".claude/hooks/lib.mjs": "ed19a19e09d52e533ad28d5c8f1c15dfb8398af208298d765d95cff8baddc70c",
     ".claude/hooks/post-commit-check.mjs": "5d0eca146ae4b060f6957da6162e03ef788420a267c3bbb342f072ab11566877",
     ".claude/hooks/post-subagent-release.mjs": "46db4baac0455e94459706a018037268b3360feffbe26ed51f30d1f996970018",
