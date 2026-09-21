@@ -1581,6 +1581,132 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     expect(attributeSessions(sessions, kpiPr)).toEqual([])
   })
 
+  it('classifies a coordinator over its whole session while preserving one-message task sessions', () => {
+    const coordinator = {
+      file: '50002f91.jsonl',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter',
+      firstTs: '2026-09-20T09:36:14.506Z',
+      lastTs: '2026-09-20T15:18:10.539Z',
+      humanMessages: 18,
+      firstPrompt: 'Continue the delivery work',
+      issueIdsInPrompt: [],
+      contexts: [
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter',
+          ts: '2026-09-20T09:36:14.506Z',
+        },
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2747-codex-dispatch',
+          ts: '2026-09-20T09:55:17.940Z',
+        },
+        {
+          gitBranch: 'docs/2747-journal-close',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2778-fail-closed-fix',
+          ts: '2026-09-20T11:14:51.964Z',
+        },
+        {
+          gitBranch: 'docs/2747-journal-close',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2773-gate-derivation',
+          ts: '2026-09-20T12:15:31.499Z',
+        },
+      ],
+    }
+    const single2757 = {
+      file: 'single-2757.jsonl',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2489-spawn-guard-tombstone',
+      firstTs: '2026-09-20T05:10:00Z',
+      lastTs: '2026-09-20T05:30:00Z',
+      humanMessages: 1,
+      contexts: [
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2489-spawn-guard-tombstone',
+          ts: '2026-09-20T05:10:00Z',
+        },
+      ],
+    }
+    const single2766 = {
+      file: 'single-2766.jsonl',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2733-finding-promote-drain',
+      firstTs: '2026-09-20T09:10:00Z',
+      lastTs: '2026-09-20T09:30:00Z',
+      humanMessages: 1,
+      contexts: [
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2733-finding-promote-drain',
+          ts: '2026-09-20T09:10:00Z',
+        },
+      ],
+    }
+    const deliveries = [
+      {
+        number: 2769,
+        headRefName: 'task/#2747-codex-dispatch',
+        firstCommit: '2026-09-20T09:50:00Z',
+        mergedAt: '2026-09-20T11:11:01Z',
+      },
+      {
+        number: 2757,
+        headRefName: 'task/#2489-spawn-guard-tombstone',
+        firstCommit: '2026-09-20T05:00:00Z',
+        mergedAt: '2026-09-20T05:39:45Z',
+      },
+      {
+        number: 2766,
+        headRefName: 'task/#2733-finding-promote-drain',
+        firstCommit: '2026-09-20T09:00:00Z',
+        mergedAt: '2026-09-20T09:44:47Z',
+      },
+    ]
+    const assigned = attributeSessionsToDeliveries(
+      [coordinator, single2757, single2766],
+      deliveries,
+    ) as Map<number, Array<{ meta: { file: string }; via: string }>>
+
+    expect(assigned.has(2769)).toBe(false)
+    expect(assigned.get(2757)?.map(({ meta, via }) => [meta.file, via])).toEqual([
+      ['single-2757.jsonl', 'cwd'],
+    ])
+    expect(assigned.get(2766)?.map(({ meta, via }) => [meta.file, via])).toEqual([
+      ['single-2766.jsonl', 'cwd'],
+    ])
+  })
+
+  it('treats a session with more than three human messages as a coordinator', () => {
+    const chatty = {
+      file: 'chatty-single-worktree.jsonl',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2774-kpi',
+      firstTs: '2026-09-19T00:02:00Z',
+      lastTs: '2026-09-19T00:04:00Z',
+      humanMessages: 4,
+      contexts: [
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2774-kpi',
+          ts: '2026-09-19T00:02:00Z',
+        },
+      ],
+    }
+    expect(
+      attributeSessions([chatty], {
+        headRefName: 'task/#2774-kpi',
+        firstCommit: '2026-09-19T00:01:00Z',
+        mergedAt: '2026-09-19T00:10:00Z',
+      }),
+    ).toEqual([])
+  })
+
   // #2774 (second round): dating the visited contexts stopped a session from claiming a
   // delivery through a worktree it only visited after the merge, but did nothing about a
   // coordinator that visits SEVERAL task worktrees in the same window — each bare
