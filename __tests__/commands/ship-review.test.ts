@@ -35,6 +35,7 @@ import { readUnifiedState, writeUnifiedState, reviewStateOf } from '../../src/co
 import type { ShipProfile } from '../../src/commands/ship-profile'
 import { enforceAcFitCitations, validateSchema } from '../../scripts/lib/agent-return-validate.mjs'
 import { validateAcFit } from '../../scripts/lib/acceptance-criteria.mjs'
+import { FatalError } from '../../src/utils/errors.js'
 
 const TEST_PROFILE: ShipProfile = {
   isArbiterSelf: false,
@@ -542,12 +543,8 @@ describe('review rounds own the Codex seat (#2747)', () => {
     execFileSync('git', ['init', '-q', '-b', 'task/#2747-review-runtime'], { cwd: dir })
     execFileSync('git', ['config', 'user.email', 'fixture@arbiter.dev'], { cwd: dir })
     execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: dir })
-    writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.arbiter/\n')
+    writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.arbiter/\nbin/\n')
     writeFileSync(join(dir, 'plan.md'), '# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n')
-    execFileSync('git', ['add', '.gitignore', 'plan.md'], { cwd: dir })
-    execFileSync('git', ['commit', '-q', '-m', 'test: seed review runtime'], { cwd: dir })
-    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
-    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', sha], { cwd: dir })
 
     for (const relativePath of [
       'schemas/agent-return-external.schema.json',
@@ -565,6 +562,11 @@ describe('review rounds own the Codex seat (#2747)', () => {
       copyFileSync(join(process.cwd(), relativePath), target)
     }
 
+    execFileSync('git', ['add', '-A'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'test: seed review runtime'], { cwd: dir })
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', sha], { cwd: dir })
+
     runTaskShip({ dir, taskId: '#2747', profileOverride: codexProfile })
     writeUnifiedState(dir, { phase: 'refactor', plan: 'plan.md' })
     return sha
@@ -573,7 +575,11 @@ describe('review rounds own the Codex seat (#2747)', () => {
   function runRound(output: string | null, options: { delayMs?: number; timeoutMs?: number } = {}) {
     const sha = seedRuntimeFixture()
     const bin = installCodex(output, options.delayMs)
-    vi.stubEnv('PATH', `${bin}:${process.env.PATH ?? ''}`)
+    // The fixture bin comes first; a missing fixture must not fall through to a real codex on the host.
+    vi.stubEnv(
+      'PATH',
+      output === null ? `${bin}:/usr/bin:/bin` : `${bin}:${process.env.PATH ?? ''}`,
+    )
     const config = { ...codexConfig, timeoutMs: options.timeoutMs ?? codexConfig.timeoutMs }
     return runTaskShip({
       dir,
@@ -641,9 +647,14 @@ describe('review rounds own the Codex seat (#2747)', () => {
   ])(
     '%s exits through the fatal no-data path without an envelope',
     (_label, output, timeoutMs, delayMs) => {
-      expect(() => runRound(output, { timeoutMs, delayMs })).toThrowError(
-        expect.objectContaining({ kind: 'fatal', code: 'E_REVIEW_NO_DATA' }),
-      )
+      let thrown: unknown
+      try {
+        runRound(output, { timeoutMs, delayMs })
+      } catch (error) {
+        thrown = error
+      }
+      expect(thrown).toBeInstanceOf(FatalError)
+      expect(thrown).toMatchObject({ kind: 'fatal', code: 'E_REVIEW_NO_DATA' })
       expect(existsSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toBe(false)
       expect(readUnifiedState(dir)?.review?.rounds).toBe(1)
     },

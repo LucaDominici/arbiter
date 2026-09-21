@@ -1135,7 +1135,7 @@ function executeCodexReviewRound(
   const blocking = blockingFindingCount(findings)
   const next =
     blocking > 0 || completion !== 0 ? 'rework' : findings.length > 0 ? 'parked' : 'advance'
-  return `review round ${plan.rounds}: ${result.envelope.verdict} — ${findings.length} findings (${blocking}) · next: ${next}`
+  return `review round ${plan.rounds}: ${result.envelope.verdict} — ${findings.length} findings (${blocking} blocking) · next: ${next}`
 }
 
 function openExplicitReviewRound(

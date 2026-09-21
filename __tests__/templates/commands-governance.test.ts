@@ -20,7 +20,9 @@ describe('ship command renders the one runtime-owned delivery contract', () => {
     expect(content).toContain('single delivery entrypoint')
     expect(content).toContain('ShipTreatment')
     expect(content).toContain('Standard')
-    expect(content).toContain('record-agent-return.mjs --mode reviewer-panel')
+    expect(content).toContain(
+      'run `arbiter ship --review-round`; it dispatches the reviewer in the foreground and records the envelope — do not dispatch reviewers or write envelopes by hand.',
+    )
     expect(content).not.toContain('record-agent-return.mjs --mode ac-fit')
     expect(content).toContain('CI runs the full gate on that SHA')
     expect(content).not.toContain('red-team-review')
