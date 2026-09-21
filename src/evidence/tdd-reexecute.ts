@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { isAbsolute, join, resolve, win32 } from 'node:path'
+import { isAbsolute, join, resolve, sep, win32 } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
 import {
   combineTestOutput,
@@ -78,7 +78,7 @@ export function verifyRedExecution(
 
     linkNodeModules(repoDir, worktreeDir, ev.test_cwd ?? '.')
 
-    const freshLog = runTestCommand(testCommand, replayCwd, timeoutMs)
+    const freshLog = runTestCommand(testCommand, replayCwd, worktreeDir, timeoutMs)
     return compareFailure(ev, repositoryRelativeLog(freshLog, worktreeDir))
   } finally {
     removeDetachedWorktree(repoDir, worktreeDir)
@@ -173,18 +173,30 @@ function linkNodeModules(sourceDir: string, worktreeDir: string, cwdRelative: st
   if (cwdRelative !== '.') linkNodeModulesAt(sourceDir, worktreeDir, cwdRelative)
 }
 
-function replayExecutable(cmd: string, cwd: string): string {
-  const localBin = /(?:^|\/)node_modules\/\.bin\/([^/]+)$/.exec(cmd.replaceAll('\\', '/'))?.[1]
-  return localBin && localBin !== '.' && localBin !== '..'
-    ? join(cwd, 'node_modules', '.bin', localBin)
-    : cmd
+function replayExecutable(cmd: string, cwd: string, worktreeDir: string): string | null {
+  const normalized = cmd.replaceAll('\\', '/')
+  const localBin = /(?:^|\/)node_modules\/\.bin\/([^/]+)$/.exec(normalized)?.[1]
+  if (localBin === undefined || localBin === '.' || localBin === '..') return cmd
+  if (isAbsolute(cmd) || win32.isAbsolute(cmd)) {
+    return join(cwd, 'node_modules', '.bin', localBin)
+  }
+  const executable = resolve(cwd, normalized)
+  const root = resolve(worktreeDir)
+  return executable.startsWith(`${root}${sep}`) ? executable : null
 }
 
-function runTestCommand(testCommand: readonly string[], cwd: string, timeoutMs: number): string {
+function runTestCommand(
+  testCommand: readonly string[],
+  cwd: string,
+  worktreeDir: string,
+  timeoutMs: number,
+): string {
   const [cmd, ...args] = testCommand
   if (cmd === undefined) return ''
+  const executable = replayExecutable(cmd, cwd, worktreeDir)
+  if (executable === null) return ''
   try {
-    const r = runCli(replayExecutable(cmd, cwd), args, { cwd, timeoutMs })
+    const r = runCli(executable, args, { cwd, timeoutMs })
     return r.exitCode > 0 ? combineTestOutput(r.stdout, r.stderr) : ''
   } catch (err) {
     if (

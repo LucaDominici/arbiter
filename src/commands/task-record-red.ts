@@ -253,11 +253,7 @@ function linkNodeModulesAt(repoDir: string, worktreeDir: string, cwdRelative: st
   }
 }
 
-function linkRecordRedNodeModules(
-  repoDir: string,
-  worktreeDir: string,
-  cwdRelative: string,
-): void {
+function linkRecordRedNodeModules(repoDir: string, worktreeDir: string, cwdRelative: string): void {
   linkNodeModulesAt(repoDir, worktreeDir, '.')
   if (cwdRelative !== '.') linkNodeModulesAt(repoDir, worktreeDir, cwdRelative)
 }
@@ -274,40 +270,17 @@ function removeRecordRedWorktree(repoDir: string, worktreeDir: string): void {
   rmTranslated(worktreeDir, { recursive: true, force: true })
 }
 
-function captureTestOutputAtCommit(
+function portableRecordedCommand(
   testCmd: readonly string[],
   repoDir: string,
-  sha: string,
-  timeoutMs: number,
-  context: TestExecutionContext,
-): CapturedTestOutput | RecordRedFailure {
-  const worktreeDir = freeRecordRedWorktree()
-  try {
-    const checkoutFailure = addRecordRedWorktree(repoDir, worktreeDir, sha)
-    if (checkoutFailure) return checkoutFailure
-    linkRecordRedNodeModules(repoDir, worktreeDir, context.cwdRelative)
-    const portableCommand = portableRecordedCommand(testCmd, context.cwd)
-    const output = captureTestOutput(
-      String(portableCommand[0]),
-      portableCommand.slice(1),
-      join(worktreeDir, context.cwdRelative),
-      timeoutMs,
-    )
-    return 'log' in output
-      ? { ...output, log: repositoryRelativeLog(output.log, worktreeDir) }
-      : output
-  } finally {
-    removeRecordRedWorktree(repoDir, worktreeDir)
-  }
-}
-
-function portableRecordedCommand(testCmd: readonly string[], dir: string): string[] {
+  cwd: string,
+): string[] {
   const [cmd, ...args] = testCmd
   if (cmd === undefined || !isAbsolute(cmd)) return [...testCmd]
-  const parts = relative(resolve(dir), cmd).split(sep)
-  return parts.length === 3 && parts[0] === 'node_modules' && parts[1] === '.bin'
-    ? [`node_modules/.bin/${parts[2]}`, ...args]
-    : [...testCmd]
+  const repoRelative = relative(resolve(repoDir), cmd)
+  if (repoRelative.startsWith(`..${sep}`) || isAbsolute(repoRelative)) return [...testCmd]
+  const portable = relative(resolve(cwd), cmd).split(sep).join('/')
+  return /(?:^|\/)node_modules\/\.bin\/[^/]+$/.test(portable) ? [portable, ...args] : [...testCmd]
 }
 
 /** Resolve current HEAD sha — this becomes the recorded test_commit_sha. */
@@ -377,18 +350,6 @@ function validateRecordRedCommit(
     : validateAtCommit(opts.at, opts.testPath, dir)
 }
 
-function runRecordRedTest(
-  opts: RecordRedOptions,
-  testCmd: readonly string[],
-  dir: string,
-  timeoutMs: number,
-  context: TestExecutionContext,
-): CapturedTestOutput | RecordRedFailure {
-  return opts.at === undefined
-    ? captureTestOutput(String(testCmd[0]), testCmd.slice(1), context.cwd, timeoutMs)
-    : captureTestOutputAtCommit(testCmd, dir, opts.at, timeoutMs, context)
-}
-
 function recordRedEvidence(params: {
   dir: string
   taskId: string
@@ -437,6 +398,43 @@ function recordRedEvidence(params: {
   }
 
   return saveEvidence(dir, evidence, sig.framework)
+}
+
+function recordRedAtCommit(
+  opts: RecordRedOptions,
+  dir: string,
+  taskId: string,
+  sha: string,
+  timeoutMs: number,
+): RecordRedSuccess | RecordRedFailure {
+  const worktreeDir = freeRecordRedWorktree()
+  try {
+    const checkoutFailure = addRecordRedWorktree(dir, worktreeDir, sha)
+    if (checkoutFailure) return checkoutFailure
+    const context = resolveTestExecutionContext(worktreeDir, opts.testPath)
+    const testCmd = opts.testCmd ?? selectRunner(resolveLanguage(context.cwd), context.testPath)
+    const portableTestCmd = portableRecordedCommand(testCmd, dir, join(dir, context.cwdRelative))
+    linkRecordRedNodeModules(dir, worktreeDir, context.cwdRelative)
+    const output = captureTestOutput(
+      String(portableTestCmd[0]),
+      portableTestCmd.slice(1),
+      context.cwd,
+      timeoutMs,
+    )
+    const outputOrErr =
+      'log' in output ? { ...output, log: repositoryRelativeLog(output.log, worktreeDir) } : output
+    return recordRedEvidence({
+      dir,
+      taskId,
+      sha,
+      testPath: opts.testPath,
+      testCwd: context.cwdRelative,
+      testCmd: portableTestCmd,
+      outputOrErr,
+    })
+  } finally {
+    removeRecordRedWorktree(dir, worktreeDir)
+  }
 }
 
 /**
@@ -540,14 +538,20 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
 
   const commitFailure = validateRecordRedCommit(opts, sha, dir)
   if (commitFailure) return commitFailure
+  if (opts.at !== undefined) return recordRedAtCommit(opts, dir, taskId, sha, timeoutMs)
 
   // Select the test runner. An explicit `testCmd` overrides auto-selection so
   // users can scope an exact command (e.g. `go test -run TestFoo ./pkg`) — the
   // command is passed verbatim to spawnSync (shell:false), never interpolated.
   const context = resolveTestExecutionContext(dir, opts.testPath)
   const testCmd = opts.testCmd ?? selectRunner(resolveLanguage(context.cwd), context.testPath)
-  const portableTestCmd = portableRecordedCommand(testCmd, context.cwd)
-  const outputOrErr = runRecordRedTest(opts, testCmd, dir, timeoutMs, context)
+  const portableTestCmd = portableRecordedCommand(testCmd, dir, context.cwd)
+  const outputOrErr = captureTestOutput(
+    String(testCmd[0]),
+    testCmd.slice(1),
+    context.cwd,
+    timeoutMs,
+  )
   return recordRedEvidence({
     dir,
     taskId,

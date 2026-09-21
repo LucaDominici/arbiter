@@ -194,6 +194,58 @@ describe('verifyRedExecution()', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('replays a root-hoisted package binary from the worktree root', () => {
+    let replayRoot = ''
+    mockedRunCli
+      .mockImplementationOnce((_cmd, args) => {
+        replayRoot = String((args as readonly string[])[4])
+        mkdirSync(join(replayRoot, 'frontend'), { recursive: true })
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      })
+      .mockImplementationOnce((cmd, _args, opts) => {
+        expect(cmd).toBe(join(replayRoot, 'node_modules', '.bin', 'vitest'))
+        expect((opts as { cwd: string }).cwd).toBe(join(replayRoot, 'frontend'))
+        throw cliError({ stdout: 'FAIL src/ConfirmDialog.test.ts\n1 test failed' })
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+
+    const result = verifyRedExecution(
+      {
+        ...BASE,
+        test_path: 'frontend/src/ConfirmDialog.test.ts',
+        test_cwd: 'frontend',
+        test_command: ['../node_modules/.bin/vitest', 'run', 'src/ConfirmDialog.test.ts'],
+        test_run_log: 'FAIL src/ConfirmDialog.test.ts\n1 test failed',
+        observed_failure: 'FAIL src/ConfirmDialog.test.ts',
+      },
+      '/repo',
+    )
+
+    expect(result.ok).toBe(true)
+  })
+
+  it('fails closed when a relative package binary escapes the replay worktree', () => {
+    mockedRunCli
+      .mockImplementationOnce((_cmd, args) => {
+        mkdirSync(join(String((args as readonly string[])[4]), 'frontend'), { recursive: true })
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+
+    const result = verifyRedExecution(
+      {
+        ...BASE,
+        test_cwd: 'frontend',
+        test_command: ['../../outside/node_modules/.bin/vitest', 'run', 'math.test.ts'],
+      },
+      '/repo',
+    )
+
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/did not fail when re-run/)
+    expect(mockedRunCli.mock.calls.every(([command]) => command === 'git')).toBe(true)
+  })
+
   const redLines = [
     'FAIL math.test.ts > add > sums positive values',
     'FAIL math.test.ts > add > sums negative values',
