@@ -111,14 +111,14 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
 4. **GREEN** — implement the capability. Run targeted checks while editing. Defer documentation and
    issue hygiene until behavior is green unless a decision is needed to implement correctly.
 5. **Freeze** — finish all fixes, commit, and freeze HEAD plus the plan acceptance hash.
-6. **Certify** — dispatch the treatment's final reviewer against the same SHA and shared evidence.
-   That reviewer also returns acceptance fit.
-   Wait for the reviewer dispatch in the FOREGROUND (never `run_in_background`); the session must not end with a review round in flight.
+6. **Certify** — run `arbiter ship --review-round`; it dispatches the reviewer in the foreground and records the envelope — do not dispatch reviewers or write envelopes by hand.
+   The final reviewer covers code, tests, and acceptance fit.
 7. **Rework** — a changed source SHA invalidates review, acceptance-fit, and gate evidence. Round two
    reviews only the delta. The
    normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
-   block. If another ordinary round would be needed, report BLOCKED or deliberately force it.
-   Wait for the review round in the FOREGROUND (never `run_in_background`); a round whose only findings are LOW does not open a new round: park LOW findings with `arbiter finding add` and treat the round as complete.
+   block. If another ordinary round would be needed, report BLOCKED or deliberately force it. A
+   round whose only findings are LOW is complete and parks those findings; the foreground
+   `--review-round` command reports the result before returning.
 8. **Verify** — after review completion and all-PASS acceptance fit, push the frozen candidate; CI runs the full gate on that SHA and is the verification authority; record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.
 9. **Land** — reuse the unchanged qualification through PR and CI. Merge, verify green post-merge CI,
    perform live proof when applicable, close every carried issue, then clean up.
@@ -144,30 +144,19 @@ The final reviewer covers code, tests, and acceptance fit.
 
 ## Evidence commands
 
-Record the complete final reviewer panel once. The recorder reads reviewer count, verticals, and
-treatment hash from active task state. Each reviewer envelope's `agent` must be the exact assigned
-vertical name, so a declared specialist seat cannot be filled by an unrelated review. The recorder
-writes the one authoritative `.arbiter/agents-dispatched.json` sidecar.
-
-```bash
-node scripts/record-agent-return.mjs --mode reviewer-panel --task '#NNN' <<'JSON'
-{"envelopes":[/* exact arbiter-agent-return-v1 reviewer envelopes */]}
-JSON
-node scripts/check-review-completion.mjs --task '#NNN'
-```
-
-After `--review-round` plans a round, `arbiter ship` prints this command block with task, branch,
-frozen SHA, and reviewer verticals already filled; replace every `<...>` placeholder before running
-it, and repeat the acceptance-fit criterion object for every frozen AC.
+`arbiter ship --review-round` owns the final reviewer dispatch and evidence write in the foreground.
+It writes the authoritative `.arbiter/agents-dispatched.json` sidecar and binds the returned
+envelope to the task, branch, frozen SHA, provenance, and active treatment;
+do not dispatch reviewers or write reviewer envelopes by hand. Use
+`node scripts/check-review-completion.mjs --task '#NNN'` only for diagnostics.
 
 The completion check rejects missing or malformed envelopes, a different task/branch/SHA, a sidecar
 that differs from the persisted treatment, source changes after review, and any applicable
 MED/HIGH/CRITICAL finding.
 
-The reviewer-panel envelope includes that reviewer's acceptance fit against every frozen criterion;
-the recorder writes both correlated artifacts from the same submission. `arbiter lifecycle advance
---to verification` runs the canonical review-completion and acceptance-fit checkers before changing
-phase. The final full gate writes the exact-subject receipt. A source change
+The runtime review envelope and acceptance-fit evidence stay bound to the same frozen subject.
+`arbiter lifecycle advance --to verification` runs the canonical review-completion and
+acceptance-fit checkers before changing phase. The final full gate writes the exact-subject receipt. A source change
 invalidates it; evidence-only commits may preserve it when the binding checker proves source content
 unchanged.
 
