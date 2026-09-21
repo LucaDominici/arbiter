@@ -3,7 +3,11 @@ import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync, writeFileSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { runTaskRecordRed, taskIdFromBranch } from '../../src/commands/task-record-red.js'
+import {
+  DEFAULT_RECORD_RED_TIMEOUT_MS,
+  runTaskRecordRed,
+  taskIdFromBranch,
+} from '../../src/commands/task-record-red.js'
 import { runVerifyTdd } from '../../src/commands/verify-tdd.js'
 
 // Mock runCli so we don't invoke real test runners
@@ -113,6 +117,38 @@ describe('runTaskRecordRed()', () => {
     expect(ev.test_commit_sha).toBe(gitSha())
     expect(ev.test_run_log).toContain('FAIL')
     expect(ev.$schemaVersion).toBe(1)
+  })
+
+  it('runs a monorepo test from its nearest package root and records that cwd (#2801)', () => {
+    const dir = tmpRepo()
+    const testPath = 'frontend/src/ConfirmDialog.test.ts'
+    mkdirSync(join(dir, 'frontend', 'src'), { recursive: true })
+    mkdirSync(join(dir, 'backend'), { recursive: true })
+    writeFileSync(join(dir, 'frontend', 'package.json'), '{"scripts":{"test":"vitest"}}\n')
+    writeFileSync(join(dir, 'backend', 'pyproject.toml'), '[project]\nname = "backend"\n')
+    writeFileSync(join(dir, testPath), 'it("fails", () => expect(1).toBe(2))\n')
+
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks(testPath)
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'FAIL src/ConfirmDialog.test.ts\n1 failed',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 50,
+    })
+
+    expect(runTaskRecordRed({ testPath, dir }).ok).toBe(true)
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'npx',
+      ['vitest', 'run', 'src/ConfirmDialog.test.ts'],
+      { cwd: join(dir, 'frontend'), timeoutMs: DEFAULT_RECORD_RED_TIMEOUT_MS },
+    )
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_cwd).toBe('frontend')
+    expect(ev.test_command).toEqual(['npx', 'vitest', 'run', 'src/ConfirmDialog.test.ts'])
   })
 
   // #2116: a rebase rewrites test_commit_sha out of existence; the test's blob sha

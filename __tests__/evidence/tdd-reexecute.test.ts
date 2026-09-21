@@ -150,6 +150,39 @@ describe('verifyRedExecution()', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('replays monorepo evidence from its recorded package-relative cwd (#2801)', () => {
+    let replayRoot = ''
+    mockedRunCli
+      .mockImplementationOnce((_cmd, args) => {
+        replayRoot = String((args as readonly string[])[4])
+        mkdirSync(join(replayRoot, 'frontend'), { recursive: true })
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
+      })
+      .mockImplementationOnce((_cmd, args, opts) => {
+        expect(args).toEqual(['vitest', 'run', 'src/ConfirmDialog.test.ts'])
+        expect(opts).toEqual({
+          cwd: join(replayRoot, 'frontend'),
+          timeoutMs: DEFAULT_REEXEC_TIMEOUT_MS,
+        })
+        throw cliError({ stdout: 'FAIL src/ConfirmDialog.test.ts\n1 test failed' })
+      })
+      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 5 })
+
+    const result = verifyRedExecution(
+      {
+        ...BASE,
+        test_path: 'frontend/src/ConfirmDialog.test.ts',
+        test_cwd: 'frontend',
+        test_command: ['npx', 'vitest', 'run', 'src/ConfirmDialog.test.ts'],
+        test_run_log: 'FAIL src/ConfirmDialog.test.ts\n1 test failed',
+        observed_failure: 'FAIL src/ConfirmDialog.test.ts',
+      },
+      '/repo',
+    )
+
+    expect(result.ok).toBe(true)
+  })
+
   const redLines = [
     'FAIL math.test.ts > add > sums positive values',
     'FAIL math.test.ts > add > sums negative values',
