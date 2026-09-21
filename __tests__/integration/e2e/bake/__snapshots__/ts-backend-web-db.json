@@ -247,7 +247,7 @@
     ".claude/hooks/check-no-unused-exports.mjs": "4060733976e2c7b1ce1c8adbe6db431d9b3ec7bbbaab59a2371ca7a021e161bc",
     ".claude/hooks/enforce-gate-before-pr.mjs": "0265c689b26aac4c7d604baf8ae63a97567ada11c5bd19a7157371693e935271",
     ".claude/hooks/enforce-read-only.mjs": "009490048a0d257670e6ccd21b12197c285e2d99d510612cc502a1e25aa6e3df",
-    ".claude/hooks/hooks.mjs": "54d1990b3e1ba91331fece476e751b74cca8430deab0ec464f34ed5f82d321aa",
+    ".claude/hooks/hooks.mjs": "a103842cad4a940d73b742fec026289be213e6f580e9532c5758ac8fde713cd4",
     ".claude/hooks/lib.mjs": "bd588d179a412f089483d8ce9a40127bec1cbeb6e45a1b3518daecfaab093b84",
     ".claude/hooks/post-commit-check.mjs": "5d0eca146ae4b060f6957da6162e03ef788420a267c3bbb342f072ab11566877",
     ".claude/hooks/post-subagent-release.mjs": "46db4baac0455e94459706a018037268b3360feffbe26ed51f30d1f996970018",
