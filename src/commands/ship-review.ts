@@ -51,6 +51,24 @@ export interface PlannedReviewRound {
   forced: boolean
 }
 
+export interface ReviewRoundEnvelope {
+  sha: string
+  findings: readonly { severity: string }[]
+}
+
+const BLOCKING_REVIEW_SEVERITIES = new Set(['critical', 'high', 'med'])
+
+function completesReviewRound(
+  previousSha: string | null,
+  envelope: ReviewRoundEnvelope | undefined,
+): boolean {
+  return (
+    envelope !== undefined &&
+    envelope.sha === previousSha &&
+    envelope.findings.every((finding) => !BLOCKING_REVIEW_SEVERITIES.has(finding.severity))
+  )
+}
+
 /**
  * May another review round run?
  *
@@ -75,7 +93,9 @@ export function planReviewRound(
   maxRounds: number,
   head: string | null,
   forced: boolean,
-): PlannedReviewRound | { allowed: false; detail: string } {
+  latestReviewerEnvelope?: ReviewRoundEnvelope,
+): PlannedReviewRound | { allowed: false; detail: string } | null {
+  if (completesReviewRound(previous.lastReviewedSha, latestReviewerEnvelope)) return null
   const verdict = evaluateReviewRound({ rounds: previous.rounds, maxRounds, forced })
   if (!verdict.allowed) return verdict
   return {

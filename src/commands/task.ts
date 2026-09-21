@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, lstatSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { readFileTranslated } from '../utils/fs.js'
@@ -34,7 +34,12 @@ import {
 } from '../evidence/git-checks.js'
 import { loadConfig } from '../utils/config.js'
 import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../evidence/gate-binding.js'
-import { planReviewRound, resolveReviewMaxRounds, type PlannedReviewRound } from './ship-review.js'
+import {
+  planReviewRound,
+  resolveReviewMaxRounds,
+  type PlannedReviewRound,
+  type ReviewRoundEnvelope,
+} from './ship-review.js'
 import { isShipTreatment } from './ship-tier.js'
 
 // Task-state vocabulary and the unified-document I/O live in `./task-state.ts`.
@@ -1186,11 +1191,103 @@ function prepareLifecycleReviewRound(
   const head = reviewHead(dir, opts.headSha)
   if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) return null
   const maxRounds = opts.reviewMaxRounds ?? resolveReviewMaxRounds(shipConfigFor(dir))
-  const planned = planReviewRound(previous, maxRounds, head, opts.forceReview === true)
+  const latestReviewerEnvelope = latestReviewerEnvelopeFor(
+    dir,
+    readTaskIdFromDisk(dir),
+    previous.lastReviewedSha,
+  )
+  const planned = planReviewRound(
+    previous,
+    maxRounds,
+    head,
+    opts.forceReview === true,
+    latestReviewerEnvelope,
+  )
+  if (planned === null) return null
   if ('allowed' in planned) {
     throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: planned.detail }))
   }
   return planned
+}
+
+function reviewerFindings(raw: unknown): ReviewRoundEnvelope['findings'] | null {
+  if (!Array.isArray(raw) || !raw.every(isRecord)) return null
+  if (
+    !raw.every(
+      (finding) =>
+        typeof finding['id'] === 'string' &&
+        ['critical', 'high', 'med', 'low', 'info'].includes(String(finding['severity'])) &&
+        typeof finding['kind'] === 'string' &&
+        typeof finding['claim'] === 'string' &&
+        Array.isArray(finding['citations']),
+    )
+  ) {
+    return null
+  }
+  const severities = raw.map((finding) => finding['severity'])
+  if (!severities.every((severity): severity is string => typeof severity === 'string')) return null
+  return severities.map((severity) => ({ severity }))
+}
+
+function isReviewerEnvelope(
+  parsed: unknown,
+  taskId: string,
+  frozenSha: string,
+): parsed is Record<string, unknown> {
+  return (
+    isRecord(parsed) &&
+    parsed['schema'] === 'arbiter-agent-return-v1' &&
+    typeof parsed['agent'] === 'string' &&
+    parsed['taskId'] === taskId &&
+    parsed['role'] === 'reviewer' &&
+    typeof parsed['branch'] === 'string' &&
+    parsed['sha'] === frozenSha &&
+    typeof parsed['ts'] === 'string' &&
+    ['PASS', 'WARN', 'FAIL'].includes(String(parsed['verdict'])) &&
+    typeof parsed['confidence'] === 'number'
+  )
+}
+
+function readReviewerEnvelope(
+  path: string,
+  taskId: string,
+  frozenSha: string,
+): ReviewRoundEnvelope | null {
+  try {
+    if (!lstatSync(path).isFile()) return null
+    const parsed: unknown = JSON.parse(readFileTranslated(path, 'utf8'))
+    if (!isReviewerEnvelope(parsed, taskId, frozenSha)) return null
+    const findings = reviewerFindings(parsed['findings'])
+    return findings === null ? null : { sha: frozenSha, findings }
+  } catch {
+    return null
+  }
+}
+
+function latestReviewerEnvelopeFor(
+  dir: string,
+  taskId: string | undefined,
+  frozenSha: string | null,
+): ReviewRoundEnvelope | undefined {
+  if (taskId === undefined || frozenSha === null) return undefined
+  const taskDir = join(dir, '.arbiter', 'evidence', 'agent-returns', sanitizeTaskId(taskId))
+  let entries: string[]
+  try {
+    entries = readdirSync(taskDir)
+      .filter((entry) => entry.endsWith('.json'))
+      .sort()
+  } catch {
+    return undefined
+  }
+  const findings: { severity: string }[] = []
+  let found = false
+  for (const entry of entries) {
+    const envelope = readReviewerEnvelope(join(taskDir, entry), taskId, frozenSha)
+    if (envelope === null) continue
+    found = true
+    findings.push(...envelope.findings)
+  }
+  return found ? { sha: frozenSha, findings } : undefined
 }
 
 function assertReviewSubjectFrozen(dir: string): void {
