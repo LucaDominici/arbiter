@@ -14,7 +14,6 @@
     "claude/agents/bridge-reviewer.md.ejs",
     "claude/agents/codebase-scanner.md.ejs",
     "claude/agents/context-checker.md.ejs",
-    "claude/commands/ship.md.ejs",
     "claude/hooks/check-circular-deps.mjs.ejs",
     "claude/hooks/check-no-pii.mjs.ejs",
     "claude/hooks/pre-compact.mjs.ejs",
