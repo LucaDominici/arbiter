@@ -46,7 +46,9 @@ describe('published package surface (#2660)', () => {
   it('ships exactly the scripts/lib modules reachable from the shipped scripts — no arbiter-only gate helpers', () => {
     const shippedScripts = shipped.filter((p) => /^scripts\/[^/]+\.mjs$/.test(p))
     expect(shippedScripts.length).toBeGreaterThan(0)
-    const needed = [...importClosure(shippedScripts)]
+    // The installed generator reads this raw helper when it emits a target gate;
+    // it is runtime-reachable through fs rather than an ESM import.
+    const needed = [...importClosure(shippedScripts), 'scripts/lib/workflow-scan.mjs']
       .filter((p) => p.startsWith('scripts/lib/'))
       .sort()
     const shippedLib = shipped.filter((p) => p.startsWith('scripts/lib/')).sort()

@@ -5,9 +5,9 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 4552571,
-    "entryCount": 974,
-    "rosterSha256": "10b980a5e4762718cfe4724ac33b17bce4db2c329f7e4fce1b12dc0ae4fbbbb0"
+    "unpackedSize": 4565246,
+    "entryCount": 975,
+    "rosterSha256": "44eb5dba6c980a8be2e27415fe19b058db9289050fd1caf335c16037b31145fe"
   },
   "manifest": {
     "bin": {
@@ -47,6 +47,7 @@
       "scripts/lib/glob-walk.mjs",
       "scripts/lib/gold-audit-lib.mjs",
       "scripts/lib/run-helpers.mjs",
+      "scripts/lib/workflow-scan.mjs",
       "README.md",
       "LICENSE",
       "NOTICE",
@@ -77,8 +78,8 @@
     "pathsSha256": "8102cb1d3a911569ce19eb4cd53655ca42edbde0e69070fc8cf888b35daf19b8"
   },
   "leading_spdx": {
-    "count": 285,
-    "pathsSha256": "6ed73ebea3116185a889b7be2a1050dc60c29e69c2e2143bf7570df98d4b0785"
+    "count": 286,
+    "pathsSha256": "7bca4090be09e8c5c9061a514f7529fd588402078feb116691446ffd0c8f79cc"
   },
   "repinned": {
     "task_id": "#2773",
@@ -89,9 +90,9 @@
       "spdx": 283
     },
     "after": {
-      "entryCount": 974,
+      "entryCount": 975,
       "templates": 627,
-      "spdx": 285
+      "spdx": 286
     }
   }
 }
