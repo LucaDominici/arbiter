@@ -1,4 +1,5 @@
 {
+<% if (language === 'typescript') { -%>
   complexityViolations: Object.freeze([
     'npx',
     'eslint',
@@ -9,4 +10,16 @@
     '--rule',
     '{"complexity":["warn",10]}',
   ]),
+<% } else if (language === 'rust') { -%>
+  complexityViolations: Object.freeze([
+    'cargo',
+    'clippy',
+    '--message-format=json',
+    '--',
+    '-W',
+    'clippy::cognitive_complexity',
+    '-W',
+    'dead_code',
+  ]),
+<% } -%>
 }

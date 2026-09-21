@@ -708,8 +708,8 @@ export function collectMetrics(cwd) {
   } catch { metrics.coverageLine = { value: 0, unit: 'percent', direction: 'higher-is-better' }; }
 
   // ── Clippy errors + complexity + dead code ────────────────────────────────
-  const clippyRaw = spawnOrSkip('clippyDenyCount', 'cargo', 'cargo',
-    ['clippy', '--message-format=json', '--', '-W', 'clippy::cognitive_complexity', '-W', 'dead_code'], { cwd });
+  const [clippyCommand, ...clippyArgs] = DEBT_METRIC_COMMANDS.complexityViolations;
+  const clippyRaw = spawnOrSkip('clippyDenyCount', 'cargo', clippyCommand, clippyArgs, { cwd });
   if (clippyRaw !== null) {
     try {
       const lines = (clippyRaw.stdout ?? '').split('\n').filter(Boolean);

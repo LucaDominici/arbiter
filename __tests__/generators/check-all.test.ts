@@ -137,6 +137,7 @@ describe('generateCheckAll', () => {
   it.each([
     { language: 'typescript' as const, buildTool: 'npm' as const },
     { language: 'java' as const, buildTool: 'gradle' as const },
+    { language: 'rust' as const, buildTool: 'cargo' as const },
   ])('emits a dependency-complete verification contract for $language', async (stack) => {
     const config = makeConfig(dir, { governanceLevel: 'L2', ...stack })
     generateCheckAll(config)
@@ -166,17 +167,20 @@ describe('generateCheckAll', () => {
     expect(contract.schema).toBe('arbiter-gate-contract-v1')
     expect(contract.gates.length).toBeGreaterThan(0)
     expect(contract.unresolved).toEqual([])
+    const complexity = contract.gates
+      .find((gate: { id: string }) => gate.id === 'debt-ratchet')
+      ?.thresholds.find((threshold: { name: string }) => threshold.name === 'complexityViolations')
     if (stack.language === 'typescript') {
-      expect(
-        contract.gates
-          .find((gate: { id: string }) => gate.id === 'debt-ratchet')
-          ?.thresholds.find(
-            (threshold: { name: string }) => threshold.name === 'complexityViolations',
-          ),
-      ).toMatchObject({
+      expect(complexity).toMatchObject({
         value: 226,
         measurement:
           'npx eslint src scripts --format json --rule "{\\"complexity\\":[\\"warn\\",10]}"',
+      })
+    } else if (stack.language === 'rust') {
+      expect(complexity).toMatchObject({
+        value: 226,
+        measurement:
+          'cargo clippy --message-format=json -- -W clippy::cognitive_complexity -W dead_code',
       })
     }
     expect(

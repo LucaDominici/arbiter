@@ -30,16 +30,6 @@ import { inspectWorkflowContract } from './lib/workflow-scan.mjs';
 import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs';
 
 const DEBT_METRIC_COMMANDS = Object.freeze({
-  complexityViolations: Object.freeze([
-    'npx',
-    'eslint',
-    'src',
-    'scripts',
-    '--format',
-    'json',
-    '--rule',
-    '{"complexity":["warn",10]}',
-  ]),
 }
 );
 
