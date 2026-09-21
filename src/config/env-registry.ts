@@ -340,6 +340,14 @@ const ENV_FLAG_DEFINITIONS: readonly EnvFlagDefinition[] = [
     isGateBypass: false,
   },
   {
+    name: 'ARBITER_HOOK_TIMEOUT_MS',
+    type: 'number',
+    default: 3000,
+    purpose:
+      'Per-handler budget (ms) of the hooks.mjs dispatcher; raised only by the end-to-end hook fixture on loaded CI runners (#2790).',
+    isGateBypass: false,
+  },
+  {
     name: 'ARBITER_PREPUSH_MAX_AGE_MIN',
     type: 'number',
     default: 240,

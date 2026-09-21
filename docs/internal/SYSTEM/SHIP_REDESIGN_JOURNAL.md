@@ -330,3 +330,10 @@ Misurato sulla consegna misurata 4 su un target esterno (ship emesso): la sessio
 di review girava in background, e il 3° round era nato da soli finding LOW. Ora `ship.md` (self +
 template) impone l'attesa in foreground del reviewer e del round; `planReviewRound` non pianifica
 un round oltre il tetto e chiude come completo un round con soli LOW (parcheggiati con `finding add`).
+
+## 2026-09-21 — #2790: budget per handler del dispatcher configurabile
+
+Tre run di CI su tre PR diverse sono cadute per `ETIMEDOUT` di `check-no-unused-exports` nel test
+end-to-end del dispatcher: il budget era fisso a 3 s. Ora `hooks.mjs` (self + template) legge
+`ARBITER_HOOK_TIMEOUT_MS` (default 3000, contratto invariato in produzione); il fixture
+end-to-end lo alza a 30 s sul runner caricato.
