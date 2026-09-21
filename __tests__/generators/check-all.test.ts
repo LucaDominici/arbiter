@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { generateCheckAll, loadGateRegistry } from '../../src/generators/check-all.js'
 import { generateDebtRatchet } from '../../src/generators/debt-ratchet.js'
@@ -47,7 +48,7 @@ describe('generateCheckAll', () => {
   it.each([
     { language: 'typescript' as const, buildTool: 'npm' as const },
     { language: 'java' as const, buildTool: 'gradle' as const },
-  ])('emits a dependency-complete verification contract for $language', (stack) => {
+  ])('emits a dependency-complete verification contract for $language', async (stack) => {
     const config = makeConfig(dir, { governanceLevel: 'L2', ...stack })
     generateCheckAll(config)
     generateDebtRatchet(config)
@@ -94,6 +95,12 @@ describe('generateCheckAll', () => {
         (gate: { command?: string }) => typeof gate.command === 'string' && gate.command.length > 0,
       ),
     ).toBe(true)
+    const derivation = await import(
+      `${pathToFileURL(join(dir, 'scripts', 'lib', 'gate-derivation.mjs')).href}?stack=${stack.language}`
+    )
+    const derived = derivation.deriveGatesForFiles([], undefined, contract)
+    const coverage = derived.find((gate: { name?: string }) => gate.name === 'coverage')
+    if (coverage) expect(coverage.kind).toBe('test-first')
     expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
     expect(existsSync(join(dir, '.arbiter', 'gate', 'local-result.json'))).toBe(false)
   })

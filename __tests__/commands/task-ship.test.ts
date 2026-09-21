@@ -488,6 +488,7 @@ describe('ship complete next commands (#2753)', () => {
         {
           name: 'coverage ratchet (#1483)',
           command: 'node scripts/check-coverage-ratchet.mjs --require-data',
+          verificationCommand: 'npm test -- --coverage',
           condition: 'coverage passed',
           thresholds: [
             {
@@ -508,6 +509,7 @@ describe('ship complete next commands (#2753)', () => {
 
     expect(lines).toContain('Gates awaiting this change:')
     expect(lines).toContain('node scripts/check-coverage-ratchet.mjs --require-data')
+    expect(lines).toContain('verification: npm test -- --coverage')
     expect(lines).toContain('branches=90.41 (.coverage-baseline.json#branches)')
     expect(lines).toContain('via npx vitest run --coverage')
     expect(lines).toContain('UNRESOLVED: unsupported custom gate authority')

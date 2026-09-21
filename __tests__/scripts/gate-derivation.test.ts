@@ -17,6 +17,18 @@ describe('gate derivation (#2773)', () => {
     ],
     gates: [
       {
+        name: 'build',
+        kind: 'constraint',
+        command: 'npm run build',
+        condition: 'selected gate level is active',
+      },
+      {
+        name: 'coverage',
+        kind: 'constraint',
+        command: 'npm test -- --coverage',
+        condition: 'selected gate level is active',
+      },
+      {
         name: 'coverage ratchet (#1483)',
         kind: 'constraint',
         command: 'node scripts/check-coverage-ratchet.mjs --require-data',
@@ -106,7 +118,7 @@ describe('gate derivation (#2773)', () => {
     expect(validateDerivedGates(files, expected)).toEqual({ ok: true, expected })
   })
 
-  it('persists commands, zero thresholds, conditions and authority bindings from inspection', () => {
+  it('persists only effective inspection gates and keeps regeneration distinct from verification', () => {
     const files = ['src/templates/claude/commands/ship.md.ejs']
     const gates = deriveGatesForFiles(files, GATE_AFFECTS_REGISTRY, inspection)
 
@@ -116,9 +128,19 @@ describe('gate derivation (#2773)', () => {
       thresholds: [{ name: 'branches', value: 0, source: '.coverage-baseline.json#branches' }],
       authority: inspection.authority,
     })
-    expect(gates.find((gate) => gate.name === 'integration suite (INV-25)')?.command).toContain(
-      'vitest.integration.config.ts',
-    )
+    expect(gates.find((gate) => gate.name === 'unit tests')).toBeUndefined()
+    expect(gates.find((gate) => gate.name === 'build-kit')).toBeUndefined()
+    expect(gates.find((gate) => gate.name === 'coverage')).toMatchObject({
+      kind: 'test-first',
+      command: 'npm test -- --coverage',
+    })
+    expect(gates.find((gate) => gate.name === 'integration suite (INV-25)')).toMatchObject({
+      kind: 'artifact-regenerate',
+      command: 'BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake',
+      verificationCommand:
+        'npx vitest run --config vitest.integration.config.ts --silent --exclude __tests__/integration/init-greenfield-smoke.test.ts',
+      condition: 'L2 qualification after L1 passes',
+    })
     expect(gates).toContainEqual(
       expect.objectContaining({
         name: 'dependency-review',
