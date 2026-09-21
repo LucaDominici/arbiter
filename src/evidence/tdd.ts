@@ -1,13 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, resolve, win32 } from 'node:path'
 import { z } from 'zod'
 import { writeFile, assertWritten } from '../utils/fs.js'
+
+function safeRepoRelativeDirectory(path: string): boolean {
+  return (
+    path === '.' ||
+    (!isAbsolute(path) &&
+      !win32.isAbsolute(path) &&
+      path.split(/[\\/]/).every((segment) => segment !== '..' && segment !== ''))
+  )
+}
 
 export const TddEvidenceV1 = z.object({
   $schemaVersion: z.literal(1),
   task_id: z.string().regex(/^#\d+$/, 'task_id must start with # followed by digits'),
   test_path: z.string().min(1),
+  test_cwd: z
+    .string()
+    .min(1)
+    .refine(safeRepoRelativeDirectory, 'test_cwd must be a repository-relative directory')
+    .optional(),
   test_commit_sha: z.string().length(40, 'test_commit_sha must be exactly 40 hex characters'),
   // #2116: rebase-stable pin. A rebase rewrites test_commit_sha out of the branch but
   // never the test's content, so the blob sha lets the RED commit be re-resolved.

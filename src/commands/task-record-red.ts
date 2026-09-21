@@ -22,6 +22,29 @@ import { detectLanguage } from '../detectors/language.js'
 import type { Language } from '../wizard/types.js'
 import { mkdtempTranslated, rmTranslated, symlinkTranslated } from '../utils/fs.js'
 
+const PACKAGE_MARKERS = ['package.json', 'pom.xml', 'pyproject.toml'] as const
+
+interface TestExecutionContext {
+  cwd: string
+  cwdRelative: string
+  testPath: string
+}
+
+function resolveTestExecutionContext(repoDir: string, testPath: string): TestExecutionContext {
+  const root = resolve(repoDir)
+  const absoluteTest = resolve(root, testPath)
+  let cwd = dirname(absoluteTest)
+
+  while (cwd === root || cwd.startsWith(`${root}${sep}`)) {
+    if (PACKAGE_MARKERS.some((marker) => existsSync(resolve(cwd, marker)))) break
+    if (cwd === root) break
+    cwd = dirname(cwd)
+  }
+
+  const cwdRelative = relative(root, cwd).split(sep).join('/') || '.'
+  return { cwd, cwdRelative, testPath: relative(cwd, absoluteTest).split(sep).join('/') }
+}
+
 export interface RecordRedOptions {
   testPath: string
   dir?: string
@@ -219,15 +242,24 @@ function addRecordRedWorktree(
   }
 }
 
-function linkRecordRedNodeModules(repoDir: string, worktreeDir: string): void {
-  const source = join(repoDir, 'node_modules')
-  const destination = join(worktreeDir, 'node_modules')
+function linkNodeModulesAt(repoDir: string, worktreeDir: string, cwdRelative: string): void {
+  const source = join(repoDir, cwdRelative, 'node_modules')
+  const destination = join(worktreeDir, cwdRelative, 'node_modules')
   if (!existsSync(source) || existsSync(destination)) return
   try {
     symlinkTranslated(source, destination, 'dir')
   } catch {
     // A missing link makes the runner fail to launch rather than minting evidence.
   }
+}
+
+function linkRecordRedNodeModules(
+  repoDir: string,
+  worktreeDir: string,
+  cwdRelative: string,
+): void {
+  linkNodeModulesAt(repoDir, worktreeDir, '.')
+  if (cwdRelative !== '.') linkNodeModulesAt(repoDir, worktreeDir, cwdRelative)
 }
 
 function removeRecordRedWorktree(repoDir: string, worktreeDir: string): void {
@@ -247,17 +279,18 @@ function captureTestOutputAtCommit(
   repoDir: string,
   sha: string,
   timeoutMs: number,
+  context: TestExecutionContext,
 ): CapturedTestOutput | RecordRedFailure {
   const worktreeDir = freeRecordRedWorktree()
   try {
     const checkoutFailure = addRecordRedWorktree(repoDir, worktreeDir, sha)
     if (checkoutFailure) return checkoutFailure
-    linkRecordRedNodeModules(repoDir, worktreeDir)
-    const portableCommand = portableRecordedCommand(testCmd, repoDir)
+    linkRecordRedNodeModules(repoDir, worktreeDir, context.cwdRelative)
+    const portableCommand = portableRecordedCommand(testCmd, context.cwd)
     const output = captureTestOutput(
       String(portableCommand[0]),
       portableCommand.slice(1),
-      worktreeDir,
+      join(worktreeDir, context.cwdRelative),
       timeoutMs,
     )
     return 'log' in output
@@ -349,10 +382,11 @@ function runRecordRedTest(
   testCmd: readonly string[],
   dir: string,
   timeoutMs: number,
+  context: TestExecutionContext,
 ): CapturedTestOutput | RecordRedFailure {
   return opts.at === undefined
-    ? captureTestOutput(String(testCmd[0]), testCmd.slice(1), dir, timeoutMs)
-    : captureTestOutputAtCommit(testCmd, dir, opts.at, timeoutMs)
+    ? captureTestOutput(String(testCmd[0]), testCmd.slice(1), context.cwd, timeoutMs)
+    : captureTestOutputAtCommit(testCmd, dir, opts.at, timeoutMs, context)
 }
 
 function recordRedEvidence(params: {
@@ -360,10 +394,11 @@ function recordRedEvidence(params: {
   taskId: string
   sha: string
   testPath: string
+  testCwd: string
   testCmd: readonly string[]
   outputOrErr: CapturedTestOutput | RecordRedFailure
 }): RecordRedSuccess | RecordRedFailure {
-  const { dir, taskId, sha, testPath, testCmd, outputOrErr } = params
+  const { dir, taskId, sha, testPath, testCwd, testCmd, outputOrErr } = params
   if ('ok' in outputOrErr) return outputOrErr
   if (outputOrErr.exitCode === 0) {
     return {
@@ -390,6 +425,7 @@ function recordRedEvidence(params: {
     $schemaVersion: 1,
     task_id: taskId,
     test_path: testPath,
+    test_cwd: testCwd,
     test_commit_sha: sha,
     ...(blob !== null ? { test_blob_sha: blob } : {}),
     test_run_log: log,
@@ -397,7 +433,7 @@ function recordRedEvidence(params: {
     recorded_at: new Date().toISOString(),
     // Persist the exact command used (binary + args), so the evidence is
     // reproducible and the runner selection is auditable.
-    test_command: portableRecordedCommand(testCmd, dir),
+    test_command: [...testCmd],
   }
 
   return saveEvidence(dir, evidence, sig.framework)
@@ -508,9 +544,19 @@ export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | Rec
   // Select the test runner. An explicit `testCmd` overrides auto-selection so
   // users can scope an exact command (e.g. `go test -run TestFoo ./pkg`) — the
   // command is passed verbatim to spawnSync (shell:false), never interpolated.
-  const testCmd = opts.testCmd ?? selectRunner(resolveLanguage(dir), opts.testPath)
-  const outputOrErr = runRecordRedTest(opts, testCmd, dir, timeoutMs)
-  return recordRedEvidence({ dir, taskId, sha, testPath: opts.testPath, testCmd, outputOrErr })
+  const context = resolveTestExecutionContext(dir, opts.testPath)
+  const testCmd = opts.testCmd ?? selectRunner(resolveLanguage(context.cwd), context.testPath)
+  const portableTestCmd = portableRecordedCommand(testCmd, context.cwd)
+  const outputOrErr = runRecordRedTest(opts, testCmd, dir, timeoutMs, context)
+  return recordRedEvidence({
+    dir,
+    taskId,
+    sha,
+    testPath: opts.testPath,
+    testCwd: context.cwdRelative,
+    testCmd: portableTestCmd,
+    outputOrErr,
+  })
 }
 
 /**

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, resolve, win32 } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
 import {
   combineTestOutput,
@@ -12,6 +12,13 @@ import {
 } from './tdd.js'
 import { gitCwd } from './git-checks.js'
 import { mkdtempTranslated, rmTranslated, symlinkTranslated } from '../utils/fs.js'
+
+function resolveRecordedTestCwd(repoDir: string, cwdRelative?: string): string | null {
+  const recorded = cwdRelative ?? '.'
+  if (isAbsolute(recorded) || win32.isAbsolute(recorded)) return null
+  if (recorded.split(/[\\/]/).some((segment) => segment === '..' || segment === '')) return null
+  return resolve(repoDir, recorded)
+}
 
 export interface RedExecutionResult {
   ok: boolean
@@ -61,9 +68,14 @@ export function verifyRedExecution(
     const added = addDetachedWorktree(repoDir, worktreeDir, ev.test_commit_sha)
     if (!added.ok) return added
 
-    linkNodeModules(repoDir, worktreeDir)
+    const replayCwd = resolveRecordedTestCwd(worktreeDir, ev.test_cwd)
+    if (replayCwd === null) {
+      return { ok: false, reason: `recorded test_cwd "${ev.test_cwd ?? ''}" is not repository-relative` }
+    }
 
-    const freshLog = runTestCommand(testCommand, worktreeDir, timeoutMs)
+    linkNodeModules(repoDir, worktreeDir, ev.test_cwd ?? '.')
+
+    const freshLog = runTestCommand(testCommand, replayCwd, timeoutMs)
     return compareFailure(ev, repositoryRelativeLog(freshLog, worktreeDir))
   } finally {
     removeDetachedWorktree(repoDir, worktreeDir)
@@ -141,9 +153,9 @@ function addDetachedWorktree(
  * be reinstalled offline. Go/Python resolve dependencies outside the repo
  * tree (module cache / PATH), so no equivalent link is needed there.
  */
-function linkNodeModules(sourceDir: string, worktreeDir: string): void {
-  const src = join(sourceDir, 'node_modules')
-  const dest = join(worktreeDir, 'node_modules')
+function linkNodeModulesAt(sourceDir: string, worktreeDir: string, cwdRelative: string): void {
+  const src = join(sourceDir, cwdRelative, 'node_modules')
+  const dest = join(worktreeDir, cwdRelative, 'node_modules')
   if (!existsSync(src) || existsSync(dest)) return
   try {
     symlinkTranslated(src, dest, 'dir')
@@ -151,6 +163,11 @@ function linkNodeModules(sourceDir: string, worktreeDir: string): void {
   } catch {
     // no-op — see FAIL-OPEN-INTENT above
   }
+}
+
+function linkNodeModules(sourceDir: string, worktreeDir: string, cwdRelative: string): void {
+  linkNodeModulesAt(sourceDir, worktreeDir, '.')
+  if (cwdRelative !== '.') linkNodeModulesAt(sourceDir, worktreeDir, cwdRelative)
 }
 
 function replayExecutable(cmd: string, cwd: string): string {
