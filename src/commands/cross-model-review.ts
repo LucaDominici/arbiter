@@ -371,7 +371,7 @@ function runShipCrossModelReview(
       result,
       tier: options.tier,
       collaborationMode: options.collaborationMode ?? 'peer-review',
-      treatment: options.treatment,
+      ...(options.treatment !== undefined ? { treatment: options.treatment } : {}),
     })
   return result
 }
