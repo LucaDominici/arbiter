@@ -147,6 +147,20 @@ describe('probe-hooks liveness contract (#2135)', () => {
     }
   })
 
+  it('probes the real brainstorm guard with the canonical Ship command', () => {
+    const hook = 'post-brainstorm-stop.mjs'
+    const dir = fixture(hook, readFileSync(resolve('src/templates/claude/hooks', hook), 'utf-8'))
+    try {
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout).rows).toEqual(
+        expect.arrayContaining([expect.objectContaining({ state: 'PRIMED', verdict: 'BLOCKS' })]),
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('maps a missing emitted HARD hook to operational ERROR (exit 2)', () => {
     const dir = fixture('stop-dangerous.mjs')
     try {
