@@ -163,9 +163,9 @@ describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
     expect(out).toContain('spawnSync')
   })
 
-  it('caps each sequential handler at three seconds', () => {
+  it('caps each sequential handler at three seconds by default (#2790: tunable)', () => {
     const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
-    expect(out).toContain('timeout: 3000')
+    expect(out).toContain("Number(process.env['ARBITER_HOOK_TIMEOUT_MS']) || 3000") // #2790: 3 s default, tunable
   })
 
   it('aborts chain on first non-zero exit', () => {
