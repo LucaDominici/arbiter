@@ -13,6 +13,51 @@ const SHIP_TPL = 'src/templates/claude/commands/ship.md.ejs'
 const TASK_TS = 'src/commands/task.ts'
 const CLI_TS = 'src/cli.ts'
 
+const REMOVED_PROMISES = [
+  'Keep the cursor precise during implementation',
+  'arbiter lifecycle checkpoint --tdd GREEN',
+  'Use the lowest model capability printed by `arbiter ship`',
+  'list the complete file set, proof, rollback',
+  'smallest executable implementation',
+  'run one targeted certification for that HEAD',
+  'reconcile every finding from the round into one fix batch',
+  'Freeze acceptance, non-goals, files, proof, and rollback',
+  'Implement the smallest executable capability',
+  'One implementer owns the write lane',
+  'Use at most one independent blocker lane',
+  "they do not receive the implementer's transcript",
+  'independently of the implementer',
+] as const
+
+const RETAINED_RULES = [
+  'read the issue and current repository',
+  'manifest covering every actual changed file',
+  /do not\s+justify source edits by themselves/,
+  'Add specialist reviewers only for auth',
+  'The final reviewer covers code, tests, and acceptance fit',
+  'Wait for the reviewer dispatch in the FOREGROUND (never `run_in_background`); the session must not end with a review round in flight.',
+  'Wait for the review round in the FOREGROUND (never `run_in_background`); a round whose only findings are LOW does not open a new round: park LOW findings with `arbiter finding add` and treat the round as complete.',
+  'MED/HIGH/CRITICAL finding',
+  'exact-subject receipt',
+  'CI runs the full gate on that SHA',
+] as const
+
+describe('#2767 P4 — ship prose retains enforced rules only', () => {
+  for (const [name, path] of [
+    ['checked-in command', SHIP_MD],
+    ['template twin', SHIP_TPL],
+  ]) {
+    it(`${name} omits unenforced promises and retains enforced delivery rules`, () => {
+      const markdown = readFileSync(path, 'utf-8')
+      for (const promise of REMOVED_PROMISES) expect(markdown).not.toContain(promise)
+      for (const rule of RETAINED_RULES) {
+        if (typeof rule === 'string') expect(markdown).toContain(rule)
+        else expect(markdown).toMatch(rule)
+      }
+    })
+  }
+})
+
 /**
  * The phase-map table rows of ship.md, as `phase → row text`.
  *

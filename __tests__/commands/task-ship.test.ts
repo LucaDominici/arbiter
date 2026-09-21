@@ -2,9 +2,10 @@
 //
 // `/ship` orchestrator sequencing (#1206): step computation + auto-advance over the existing engine.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { createTestProject, cleanupTestProject, writeGatePassEvidence } from '../helpers.js'
 import {
   runTaskShip,
@@ -18,6 +19,7 @@ import type { TaskPhase } from '../../src/commands/task-state.js'
 import type { ShipProfile } from '../../src/commands/ship-profile.js'
 import { resolveShipTreatment, widenTier } from '../../src/commands/ship-tier.js'
 import { SKILLS_MATRIX } from '../../src/integrations/skills-matrix.js'
+import { writeExternalReviewSidecar } from '../../src/commands/cross-model-review.js'
 
 // Gates that would otherwise require a real repo / model switch
 vi.mock('../../src/capabilities/host-probe.js', () => ({
@@ -156,6 +158,32 @@ describe('ship sequencing — pure plan', () => {
     expect(step.action).toContain('panel total: 1')
   })
 
+  it('records expected Codex provenance for a Codex reviewer sidecar', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-codex-sidecar-'))
+    try {
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeExternalReviewSidecar(dir, '#2802', {
+        provider: 'codex',
+        status: 'fulfilled',
+        diffBytes: 1,
+        diffTruncated: false,
+        degradationReasons: [],
+        recorded: true,
+        envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+      })
+
+      expect(
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toMatchObject({
+        expectedProvenance: {
+          'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli', cli: 'codex' },
+        },
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('derives code-review count from the final, post-widening tier (AC-3)', () => {
     expect(
       shipStepFor(
@@ -212,9 +240,9 @@ describe('self /ship documentation coherence (#2178)', () => {
     expect(shipCommand).toContain('MED/HIGH/CRITICAL')
   })
 
-  it('documents the one-final-gate cadence', () => {
-    expect(shipCommand).toContain('one full clean-HEAD gate')
-    expect(shipCommand).toContain('Do not repeat a green full gate')
+  it('documents CI as the verification authority', () => {
+    expect(shipCommand).toContain('CI runs the full gate on that SHA')
+    expect(shipCommand).toContain('node scripts/ci-receipt.mjs')
   })
 })
 
@@ -366,11 +394,12 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
 
     const result = runTaskShip({ dir, advance: true })
     expect(result.phase).toBe('verification')
-    expect(result.step.action).toBe(
+    expect(result.step.action).toContain(
       `advanced to verification; next gate (close) not yet satisfied: ` +
-        `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}. ` +
-        'Run `node scripts/check-all.mjs L1` first.',
+        `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}`,
     )
+    expect(result.step.action).toContain('node scripts/check-all.mjs preflight')
+    expect(result.step.action).toContain('node scripts/ci-receipt.mjs')
     expect(readUnifiedState(dir)?.phase).toBe('verification')
     const log = readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')
     expect(log).toMatch(/red → green[\s\S]*green → refactor[\s\S]*refactor → verification/)
@@ -632,18 +661,18 @@ describe('ship complete-action — chain batching (--chain, #2102)', () => {
 })
 
 describe('ship final-gate action ordering', () => {
-  it('runs the exact-HEAD L2 before entering close for a non-harness project', () => {
+  it('runs the fast preflight and leaves the full gate to CI', () => {
     const verification = shipStepFor('verification', 'Standard', profile())
     const close = shipStepFor('close', 'Standard', profile())
     expect(verification.action).toContain(
-      'Commit the candidate and its evidence, then run `node scripts/check-all.mjs L2`',
+      'Run `node scripts/check-all.mjs preflight` as a local diagnostic; push the frozen candidate so CI runs the full gate on that SHA',
     )
-    expect(verification.command).toBe('node scripts/check-all.mjs L2')
+    expect(verification.command).toBe('node scripts/check-all.mjs preflight')
     expect(close.action).not.toContain('check-all.mjs')
     expect(close.action).not.toContain('done-evidence.mjs')
   })
 
-  it('runs one final L3 before close and reuses it for done-evidence with the harness', () => {
+  it('keeps evidence-harness self-only checks separate from CI verification', () => {
     const harness = profile({
       collaborationMode: 'trunk-solo',
       mergeMode: 'pr-ff',
@@ -652,10 +681,10 @@ describe('ship final-gate action ordering', () => {
     const verification = shipStepFor('verification', 'Standard', harness)
     const close = shipStepFor('close', 'Standard', harness)
     const sequence = `${verification.action} ${close.action}`
-    expect(verification.command).toBe('node scripts/check-all.mjs L3')
+    expect(verification.command).toBe('node scripts/check-all.mjs preflight')
     expect(sequence).toContain('node scripts/done-evidence.mjs')
     expect(sequence.match(/check-all\.mjs/g)).toHaveLength(1)
-    expect(close.action).toContain('Reuse the qualified clean-HEAD receipt')
+    expect(close.action).toContain('Reuse the recorded CI verdict')
     expect(close.action).toContain('node scripts/pr-merge-watch.mjs <owner/repo> <pr>')
     expect(close.action).toMatch(
       /lifecycle, review, applicable acceptance, receipt, and local HEAD agree/,
@@ -670,10 +699,10 @@ describe('ship final-gate action ordering', () => {
     expect(taskSource).toContain("function checkGatePassMarkerGate(dir: string, minLevel = 'L2')")
     expect(taskSource).toContain("checkGatePassMarkerGate(dir, 'L1')")
     expect(doneSource).toContain("minLevel: 'L3'")
-    expect(prePushSource).toContain('--min-level L2')
+    expect(prePushSource).toContain('check-all.mjs preflight') // #2773 P7: light pre-push, CI pins L2
     expect(
       shipStepFor('verification', 'Standard', profile({ evidenceHarness: true })).command,
-    ).toBe('node scripts/check-all.mjs L3')
+    ).toBe('node scripts/check-all.mjs preflight')
   })
 })
 

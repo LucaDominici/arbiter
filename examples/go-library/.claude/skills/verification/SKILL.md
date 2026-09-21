@@ -49,12 +49,13 @@ node scripts/check-all.mjs L1
 ### 4. Before Push
 
 ```bash
-node scripts/check-all.mjs L2
+node scripts/check-all.mjs preflight
 ```
 
 - [ ] Coverage threshold met
 - [ ] No dead code
 - [ ] No circular dependencies
+- [ ] CI full gate is green on the pushed SHA; record it with `node scripts/ci-receipt.mjs`
 
 ## Stop conditions
 

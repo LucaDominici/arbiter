@@ -6,6 +6,31 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are aligned to
 [Semantic Versioning](https://semver.org/) (pre-1.0: a breaking change bumps the minor).
 
+## [Unreleased]
+
+- Review completion now binds Codex reviewer sidecars to the expected
+  `openai/external-cli/codex` provenance tuple (#2802).
+- `/ship` now waits for reviewer dispatches and completes LOW-only review rounds without opening a
+  further round (#2797).
+- `/ship` now runs only the fast preflight locally; CI owns the full gate, and
+  `scripts/ci-receipt.mjs` records the green verdict for the pushed SHA (#2794).
+- Writer Codex dispatch now grants linked-worktree Git metadata through
+  `sandbox_workspace_write.writable_roots`, with deduplication for plain checkouts (#2747).
+- Emitted `_contract-postman.yml` pins `mikepenz/action-junit-report` v5.2.0 to its real commit; the
+  previous SHA did not exist upstream and broke the Newman job in regenerated targets.
+- `arbiter lifecycle record-red --at <sha>` can replay a failing test from an ancestor writer commit in an isolated worktree and pin that commit in the evidence (#2747).
+- Completion, done-evidence, and TDD provenance guards now inspect Claude's final response/turn on
+  `Stop`; Codex reports native `arbiter task advance` coverage without claiming final-response interception.
+- Pre-push now runs preflight plus touched tests; CI is the sole full-gate authority (#2773 P7).
+- `post-commit-check.mjs` remains registered as a silent, exit-0 advisory. `.githooks/commit-msg`
+  and L1 `commitlint` remain blocking.
+- `/ship` prose: removed seven unenforced promises (cursor checkpoint, model selection, proof/rollback
+  lists, targeted certification, finding reconciliation, lane counts, reviewer transcript rules);
+  every remaining sentence maps to a control (#2767).
+- Issue-backed acceptance admission now compares each issue criterion with the frozen, namespaced
+  plan criterion before RED; unavailable GitHub data fails closed, while non-GitHub task ids log an
+  explicit skip and retain ordinary plan validation.
+
 ## [0.6.0] — 2026-09-13
 
 **Channel:** stable

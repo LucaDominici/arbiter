@@ -115,7 +115,7 @@ describe('githooks/pre-push.ejs', () => {
 
   it('typescript: invokes gate subcommand', () => {
     const out = renderTemplate('githooks/pre-push.ejs', tsConfig())
-    expect(out).toContain('node scripts/check-all.mjs gate')
+    expect(out).toContain('node scripts/check-all.mjs preflight')
   })
 
   it('typescript: includes rsync workaround for # in path', () => {
@@ -133,7 +133,7 @@ describe('githooks/pre-push.ejs', () => {
 
   it('rust: invokes gate subcommand', () => {
     const out = renderTemplate('githooks/pre-push.ejs', rustConfig())
-    expect(out).toContain('node scripts/check-all.mjs gate')
+    expect(out).toContain('node scripts/check-all.mjs preflight')
   })
 
   it('rust: does NOT include rsync block', () => {

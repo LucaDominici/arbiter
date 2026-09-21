@@ -11,6 +11,7 @@ import {
   parsePlanAnchor,
   computeAcHash,
   validateAcFit,
+  validateIssueAcceptanceCoverage,
 } from '../../scripts/lib/acceptance-criteria.mjs'
 
 const READY_BODY = [
@@ -97,6 +98,13 @@ describe('parseAcceptanceBlocks', () => {
     const r = parseAcceptanceBlocks(body)
     expect(r.criteria[0]).toMatchObject({ id: 'AC-123.1', explicit: true })
   })
+
+  it('accepts explicit plain bullets under an acceptance heading for issue admission', () => {
+    const body = '## Acceptance Criteria\n- AC-1: preserves whitespace-normalized behavior'
+    expect(parseAcceptanceBlocks(body).criteria).toEqual([
+      { id: 'AC-1', text: 'preserves whitespace-normalized behavior', explicit: true },
+    ])
+  })
 })
 
 describe('assessReadiness', () => {
@@ -174,6 +182,49 @@ describe('computeAcHash', () => {
     expect(computeAcHash(a)).toBe(computeAcHash(b))
     const c = parseAcceptanceBlocks(READY_BODY.replace('3 times', '4 times')).criteria
     expect(computeAcHash(c)).not.toBe(computeAcHash(a))
+  })
+})
+
+describe('validateIssueAcceptanceCoverage', () => {
+  it('accepts a positional issue bullet when its namespaced plan text matches', () => {
+    const plan = parseAcceptanceBlocks(
+      '## Acceptance Criteria\n- [ ] AC-42.1: preserves the requested outcome',
+    ).criteria
+    expect(
+      validateIssueAcceptanceCoverage(
+        '42',
+        '## Acceptance Criteria\n- preserves   the requested outcome',
+        plan,
+      ),
+    ).toEqual([])
+  })
+
+  it('includes indented continuation lines in criterion matching (#2767)', () => {
+    const plan = parseAcceptanceBlocks('## Acceptance Criteria\n- AC-42.1: Requests fail').criteria
+    expect(
+      validateIssueAcceptanceCoverage(
+        '42',
+        '## Acceptance Criteria\n- AC-1: Requests fail\n  with explicit NO DATA and exit 2',
+        plan,
+      ),
+    ).toContain('issue #42 criterion AC-1 does not match plan AC-42.1')
+  })
+
+  it('keeps an indented continuation paragraph after a blank line in its criterion (#2767)', () => {
+    const src =
+      '## Acceptance Criteria\n- AC-1: Requests fail\n\n  with explicit NO DATA and exit 2'
+    expect(
+      validateIssueAcceptanceCoverage('42', src, [
+        { id: 'AC-42.1', text: 'Requests fail', explicit: true },
+      ]),
+    ).toContain('issue #42 criterion AC-1 does not match plan AC-42.1')
+  })
+
+  it('does not silently drop plus-prefixed criteria (#2767)', () => {
+    const plan = parseAcceptanceBlocks('## Acceptance Criteria\n- AC-42.1: A').criteria
+    expect(
+      validateIssueAcceptanceCoverage('42', '## Acceptance Criteria\n- AC-1: A\n+ AC-2: B', plan),
+    ).toContain('issue #42 criterion AC-2 is missing as plan AC-42.2')
   })
 })
 

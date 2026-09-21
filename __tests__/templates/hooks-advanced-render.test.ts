@@ -199,12 +199,14 @@ describe('hooks/skill-forced-eval.mjs.ejs', () => {
     expect(out).not.toContain('CODE_KEYWORDS')
   })
 
-  it('handles plan phase', () => {
+  it('does not emit obsolete prompt-phase banners or exemptions', () => {
     const out = renderTemplate('claude/hooks/skill-forced-eval.mjs.ejs', configFor('typescript'))
-    expect(out).toMatch(/\bplan\b/i)
+    expect(out).not.toContain("startsWith('/tdd')")
+    expect(out).not.toContain('PLAN PHASE')
+    expect(out).not.toContain('VERIFICATION PHASE')
   })
 
-  it('reads user prompt from stdin', () => {
+  it('reads the Stop envelope from stdin', () => {
     const out = renderTemplate('claude/hooks/skill-forced-eval.mjs.ejs', configFor('typescript'))
     expect(out).toMatch(/stdin|process\.stdin/i)
   })
@@ -403,7 +405,7 @@ describe('hooks/guard-task-completion.mjs.ejs', () => {
     expect(out).toContain("'verification'")
   })
 
-  it('reads user prompt from stdin', () => {
+  it('reads the Stop envelope from stdin', () => {
     const out = renderTemplate(
       'claude/hooks/guard-task-completion.mjs.ejs',
       configFor('typescript'),
@@ -455,8 +457,12 @@ describe('hooks/guard-task-completion.mjs.ejs', () => {
 
       const result = spawnSync('node', [hookPath], {
         cwd: dir,
-        input: JSON.stringify({ prompt: 'task complete, ready to merge' }),
+        input: JSON.stringify({
+          hook_event_name: 'Stop',
+          last_assistant_message: 'task complete, ready to merge',
+        }),
         encoding: 'utf-8',
+        timeout: 5000,
       })
 
       expect(result.status).toBe(2)
@@ -551,11 +557,6 @@ describe('hooks/post-commit-check.mjs.ejs', () => {
   it('contains INV-22 citation', () => {
     const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', configFor('typescript'))
     expect(out).toContain('INV-22')
-  })
-
-  it('contains blocking exit(2) for non-conventional messages', () => {
-    const out = renderTemplate('claude/hooks/post-commit-check.mjs.ejs', configFor('typescript'))
-    expect(out).toContain('process.exit(2)')
   })
 
   it('contains conventional commit regex', () => {

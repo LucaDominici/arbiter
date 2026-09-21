@@ -161,6 +161,43 @@ describe('acceptance-anchor script templates (ADR-110)', () => {
     }
   })
 
+  it('the emitted checker fails closed when explicit admission has no issue data', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'acceptance-admission-render-'))
+    try {
+      mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+      for (const rel of [
+        'lib/acceptance-criteria.mjs',
+        'lib/agent-return-validate.mjs',
+        'lib/evidence-binding.mjs',
+        'lib/run-helpers.mjs',
+      ]) {
+        writeFileSync(join(dir, 'scripts', rel), render(`scripts/${rel}.ejs`))
+      }
+      writeFileSync(
+        join(dir, 'scripts', 'check-acceptance.mjs'),
+        render('scripts/check-acceptance.mjs.ejs'),
+      )
+      writeFileSync(
+        join(dir, 'plan.md'),
+        [
+          '## Acceptance Criteria',
+          '- [ ] AC-1: preserves the requested outcome',
+          '## Non-Goals',
+          '- x',
+        ].join('\n'),
+      )
+      const result = spawnSync(
+        process.execPath,
+        ['scripts/check-acceptance.mjs', '--plan', 'plan.md', '--admit-issue', '1'],
+        { cwd: dir, encoding: 'utf-8', env: { ...process.env, PATH: '' } },
+      )
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/NO DATA/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   // #2405: emission without wiring is the `check-unwired-guards` false-coverage class —
   // the declarative gate registry must carry the row that runs it in the target.
   it('declares the acceptance-anchor gate in the emitted gate registry', () => {

@@ -66,7 +66,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-22:** Branch naming: `task/#NNN-description`
 - **INV-23:** No direct commits to `main` — all changes via task branches + PR
 - **INV-24:** Checkpoint commits preserve staged-file safety; full gates qualify delivery
-- **INV-25:** Gate must pass before push: `node scripts/check-all.mjs L2`
+- **INV-25:** Before push, the light gate must pass: `node scripts/check-all.mjs preflight` plus touched tests; CI is the full-gate authority.
 - **INV-26:** TDD mandatory — test first, then implement
 - **INV-27:** Evidence artifacts must be generated for all gate runs
 - **INV-28:** SSOT documents must not contradict
@@ -357,7 +357,7 @@ L1 (fast, pre-commit):    npm run lint
                           npx prettier --check .
                           npm run test
 
-L2 (full, pre-push):      L1 + coverage + audit + integration tests
+L2 (full, CI):             L1 + coverage + audit + integration tests
 
 L3 (deep, nightly/CI):    L2 + E2E + static analysis + evidence
 ```
@@ -366,14 +366,14 @@ Run locally:
 
 ```bash
 node scripts/check-all.mjs L1   # qualify the frozen delivery candidate
-node scripts/check-all.mjs L2   # before push
+node scripts/check-all.mjs preflight   # before push (plus touched tests)
 ```
 
 **Qualification is per train, not per checkpoint commit.** A train is one worktree, branch,
 plan, frozen candidate, independent final review, exact-subject gate and PR carrying compatible
 issues. Local commits remain recoverable TDD checkpoints: staged secret scanning, staged-file
-economy checks and RED integrity still run. L1 qualifies the frozen delivery candidate once; L2
-qualifies it before push. `ship.train` in `arbiter.json` (`maxChain`, `maxAgeMinutes`) bounds how
+economy checks and RED integrity still run. L1 qualifies the frozen delivery candidate once; CI
+qualifies L2. `ship.train` in `arbiter.json` (`maxChain`, `maxAgeMinutes`) bounds how
 far a train may grow before it must be landed.
 
 ---
@@ -386,8 +386,8 @@ Changes pass through five enforcement layers:
 | ----------------- | ------------------------------------------------------------------------ | -------------------------- |
 | Edit-time         | Claude Code hooks (`.claude/hooks/`)                                     | Claude Code edits only     |
 | Pre-commit        | `.githooks/pre-commit` — staged secrets/economy checks and RED integrity | All editors (`git commit`) |
-| Pre-push          | `.githooks/pre-push` — runs L2 gate                                      | All pushes                 |
-| CI                | GitHub Actions / equivalent                                              | All PRs                    |
+| Pre-push          | `.githooks/pre-push` — preflight plus touched tests                      | All pushes                 |
+| CI                | GitHub Actions / equivalent — runs the full L2 gate                      | All PRs                    |
 | Branch protection | See ADR-007                                                              | Force-push, direct merge   |
 
 Install hooks: `git config core.hooksPath .githooks` (auto-applied via `npm install` — see `package.json` `prepare` script).

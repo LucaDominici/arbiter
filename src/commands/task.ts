@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, lstatSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { readFileTranslated } from '../utils/fs.js'
@@ -20,6 +20,7 @@ import {
   reviewStateOf,
   invalidateTaskReceipts,
 } from './task-state.js'
+import { getLogger } from '../utils/logger.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { evaluateMerged, type MergedVerdict, type PrSnapshot } from './pr-merged.js'
 import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
@@ -33,7 +34,12 @@ import {
 } from '../evidence/git-checks.js'
 import { loadConfig } from '../utils/config.js'
 import { verifyGatePassMarker, verifyDoneEvidenceReceipt } from '../evidence/gate-binding.js'
-import { planReviewRound, resolveReviewMaxRounds, type PlannedReviewRound } from './ship-review.js'
+import {
+  planReviewRound,
+  resolveReviewMaxRounds,
+  type PlannedReviewRound,
+  type ReviewRoundEnvelope,
+} from './ship-review.js'
 import { isShipTreatment } from './ship-tier.js'
 
 // Task-state vocabulary and the unified-document I/O live in `./task-state.ts`.
@@ -88,7 +94,7 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
   refactor:
     'Phase: refactor\nAction: Clean up implementation. Tests must stay green.\nNext: Refactor done → arbiter lifecycle advance --to verification.',
   verification:
-    'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then arbiter lifecycle advance --to close.',
+    'Phase: verification\nAction: Run the local diagnostic: node scripts/check-all.mjs preflight; CI owns the full gate.\nNext: Record the CI verdict with node scripts/ci-receipt.mjs, then arbiter lifecycle advance --to close.',
   close:
     'Phase: close\nAction: CLOSER mode active — the closer-mode guard is wired in settings. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter lifecycle advance --to complete.',
   complete:
@@ -395,6 +401,34 @@ function configuredTaskPatch(root: string): TaskStatePatch {
 }
 
 /**
+ * #2773 — anchor-time gate derivation. Recomputes derivedGates from the plan's `files:` manifest
+ * every time `lifecycle start --plan` (re-)anchors a plan, so an edit to the manifest without a
+ * re-anchor leaves the stored value stale and checkPlanDerivedGates (check-acceptance.mjs) refuses
+ * the plan->red transition. Advisory here: a missing script (targets without the affects registry,
+ * #2773 slice 1 scope: arbiter-self only) or a plan not yet written is a silent no-op — the
+ * red-phase gate is the actual enforcement point.
+ */
+function derivePlanGates(root: string, plan: string): void {
+  const script = join(root, 'scripts', 'derive-plan-gates.mjs')
+  if (!existsSync(script)) return
+  // Best-effort: a malformed status.json or plan should not fail `lifecycle start` itself —
+  // checkPlanDerivedGates (check-acceptance.mjs) is the actual enforcement point and fails
+  // closed at plan->red if derivedGates ends up missing or stale.
+  try {
+    runCli('node', [script, root, plan], { cwd: root, timeoutMs: 5000 })
+  } catch (err) {
+    // Non-fatal (see comment above) but not silent: a genuine internal failure here (as opposed
+    // to derive-plan-gates.mjs's own advisory SKIPs, which exit 0) would otherwise leave zero
+    // trace while a prior run's stale derivedGates stays on status.json unchanged.
+    getLogger().warn(
+      'task.derive_plan_gates_failed',
+      { error: err instanceof Error ? err.message : String(err) },
+      `derivePlanGates: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
+}
+
+/**
  * Initialise / update the unified task document from the slash-command shell layer (replaces the
  * historical per-task dotfile writes). Never advances the phase.
  */
@@ -415,6 +449,7 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
     patch.hostBinding = resolveNativeHostBinding(opts.id, root, opts.host)
   }
   const state = writeUnifiedState(root, patch)
+  if (opts.plan !== undefined) derivePlanGates(root, opts.plan)
   appendLog(root, taskInitLog(state))
 }
 
@@ -1039,6 +1074,83 @@ function isSuccessfulPostMainCheck(
   )
 }
 
+interface CiPassReceipt {
+  sha: string
+  conclusion: 'success'
+  runUrl: string
+  checkedAt: string
+}
+
+function localGatePassVerdict(
+  dir: string,
+  minLevel: string,
+): { ok: true } | { ok: false; reason: string } {
+  const markerPath = join(dir, '.arbiter', 'gate-pass.json')
+  if (!existsSync(markerPath)) {
+    return { ok: false, reason: `gate-pass marker missing at ${markerPath}` }
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileTranslated(markerPath, 'utf-8'))
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `gate-pass marker corrupt at ${markerPath}: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  const verdict = verifyGatePassMarker(parsed, {
+    root: dir,
+    minLevel,
+    maxAgeMin: getNumberFlag('ARBITER_EVIDENCE_MAX_AGE_MIN'),
+  })
+  return verdict.ok ? { ok: true } : { ok: false, reason: verdict.reason }
+}
+
+function readCiPassReceipt(dir: string): { ok: true } | { ok: false; reason: string } {
+  const receiptPath = join(dir, '.arbiter', 'ci-pass.json')
+  if (!existsSync(receiptPath)) {
+    return { ok: false, reason: `CI receipt missing at ${receiptPath}` }
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileTranslated(receiptPath, 'utf-8'))
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `CI receipt corrupt at ${receiptPath}: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  let head: string
+  try {
+    head = runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 10_000 }).stdout.trim()
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `CI receipt cannot be checked because HEAD could not be resolved: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  if (!isRecord(parsed)) return { ok: false, reason: 'CI receipt must be a JSON object' }
+  const receipt = parsed as Partial<CiPassReceipt>
+  if (receipt.sha !== head) {
+    return { ok: false, reason: `CI receipt SHA does not match current HEAD ${head}` }
+  }
+  if (
+    receipt.conclusion !== 'success' ||
+    typeof receipt.runUrl !== 'string' ||
+    receipt.runUrl.length === 0 ||
+    typeof receipt.checkedAt !== 'string' ||
+    receipt.checkedAt.length === 0
+  ) {
+    return { ok: false, reason: 'CI receipt is not a successful, complete receipt' }
+  }
+  return { ok: true }
+}
+
 function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
   const inCi = process.env.CI === 'true'
   const envBypass = getBoolFlag('ARBITER_SKIP_GATE_MARKER')
@@ -1050,32 +1162,14 @@ function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
     return
   }
 
-  const markerPath = join(dir, '.arbiter', 'gate-pass.json')
-  if (!existsSync(markerPath)) {
-    throw new Error(
-      `gate-pass marker missing at ${markerPath}. Run \`node scripts/check-all.mjs ${minLevel}\` first.`,
-    )
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(readFileTranslated(markerPath, 'utf-8'))
-  } catch (err) {
-    throw new Error(
-      `gate-pass marker corrupt at ${markerPath}: ${err instanceof Error ? err.message : String(err)}. ` +
-        `Run \`node scripts/check-all.mjs ${minLevel}\` first.`,
-      { cause: err },
-    )
-  }
-
-  const verdict = verifyGatePassMarker(parsed, {
-    root: dir,
-    minLevel,
-    maxAgeMin: getNumberFlag('ARBITER_EVIDENCE_MAX_AGE_MIN'),
-  })
-  if (!verdict.ok) {
-    throw new Error(`${verdict.reason}. Run \`node scripts/check-all.mjs ${minLevel}\` again.`)
-  }
+  const local = localGatePassVerdict(dir, minLevel)
+  if (local.ok) return
+  const ci = readCiPassReceipt(dir)
+  if (ci.ok) return
+  throw new Error(
+    `${local.reason}; ${ci.reason}. ` +
+      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.',
+  )
 }
 
 function reviewHead(dir: string, injected: string | null | undefined): string | null {
@@ -1097,11 +1191,103 @@ function prepareLifecycleReviewRound(
   const head = reviewHead(dir, opts.headSha)
   if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) return null
   const maxRounds = opts.reviewMaxRounds ?? resolveReviewMaxRounds(shipConfigFor(dir))
-  const planned = planReviewRound(previous, maxRounds, head, opts.forceReview === true)
+  const latestReviewerEnvelope = latestReviewerEnvelopeFor(
+    dir,
+    readTaskIdFromDisk(dir),
+    previous.lastReviewedSha,
+  )
+  const planned = planReviewRound(
+    previous,
+    maxRounds,
+    head,
+    opts.forceReview === true,
+    latestReviewerEnvelope,
+  )
+  if (planned === null) return null
   if ('allowed' in planned) {
     throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: planned.detail }))
   }
   return planned
+}
+
+function reviewerFindings(raw: unknown): ReviewRoundEnvelope['findings'] | null {
+  if (!Array.isArray(raw) || !raw.every(isRecord)) return null
+  if (
+    !raw.every(
+      (finding) =>
+        typeof finding['id'] === 'string' &&
+        ['critical', 'high', 'med', 'low', 'info'].includes(String(finding['severity'])) &&
+        typeof finding['kind'] === 'string' &&
+        typeof finding['claim'] === 'string' &&
+        Array.isArray(finding['citations']),
+    )
+  ) {
+    return null
+  }
+  const severities = raw.map((finding) => finding['severity'])
+  if (!severities.every((severity): severity is string => typeof severity === 'string')) return null
+  return severities.map((severity) => ({ severity }))
+}
+
+function isReviewerEnvelope(
+  parsed: unknown,
+  taskId: string,
+  frozenSha: string,
+): parsed is Record<string, unknown> {
+  return (
+    isRecord(parsed) &&
+    parsed['schema'] === 'arbiter-agent-return-v1' &&
+    typeof parsed['agent'] === 'string' &&
+    parsed['taskId'] === taskId &&
+    parsed['role'] === 'reviewer' &&
+    typeof parsed['branch'] === 'string' &&
+    parsed['sha'] === frozenSha &&
+    typeof parsed['ts'] === 'string' &&
+    ['PASS', 'WARN', 'FAIL'].includes(String(parsed['verdict'])) &&
+    typeof parsed['confidence'] === 'number'
+  )
+}
+
+function readReviewerEnvelope(
+  path: string,
+  taskId: string,
+  frozenSha: string,
+): ReviewRoundEnvelope | null {
+  try {
+    if (!lstatSync(path).isFile()) return null
+    const parsed: unknown = JSON.parse(readFileTranslated(path, 'utf8'))
+    if (!isReviewerEnvelope(parsed, taskId, frozenSha)) return null
+    const findings = reviewerFindings(parsed['findings'])
+    return findings === null ? null : { sha: frozenSha, findings }
+  } catch {
+    return null
+  }
+}
+
+function latestReviewerEnvelopeFor(
+  dir: string,
+  taskId: string | undefined,
+  frozenSha: string | null,
+): ReviewRoundEnvelope | undefined {
+  if (taskId === undefined || frozenSha === null) return undefined
+  const taskDir = join(dir, '.arbiter', 'evidence', 'agent-returns', sanitizeTaskId(taskId))
+  let entries: string[]
+  try {
+    entries = readdirSync(taskDir)
+      .filter((entry) => entry.endsWith('.json'))
+      .sort()
+  } catch {
+    return undefined
+  }
+  const findings: { severity: string }[] = []
+  let found = false
+  for (const entry of entries) {
+    const envelope = readReviewerEnvelope(join(taskDir, entry), taskId, frozenSha)
+    if (envelope === null) continue
+    found = true
+    findings.push(...envelope.findings)
+  }
+  return found ? { sha: frozenSha, findings } : undefined
 }
 
 function assertReviewSubjectFrozen(dir: string): void {
@@ -1251,9 +1437,18 @@ function checkAcceptancePlanGate(dir: string): void {
     )
   }
 
-  const plan = readUnifiedState(dir)?.plan.trim() ?? ''
+  const state = readUnifiedState(dir)
+  const plan = state?.plan.trim() ?? ''
+  const taskIds = acceptanceTaskIds(state)
+  if (taskIds.length === 0)
+    throw new Error('acceptance-anchor gate requires the active task or chain issue id')
   try {
-    runCli('node', [script, '--plan', plan], { cwd: dir, timeoutMs: 5000 })
+    for (const taskId of new Set(taskIds)) {
+      runCli('node', [script, ...admissionArgsForTask(taskId, plan)], {
+        cwd: dir,
+        timeoutMs: 5000,
+      })
+    }
   } catch (err) {
     throw new Error(
       `acceptance-anchor gate: ${err instanceof Error ? err.message : String(err)}. ` +
@@ -1261,6 +1456,23 @@ function checkAcceptancePlanGate(dir: string): void {
       { cause: err },
     )
   }
+}
+
+function acceptanceTaskIds(state: UnifiedTaskState | null): string[] {
+  return [state?.taskId, ...(state?.chainIds ?? [])].filter(
+    (id): id is string => typeof id === 'string' && id.length > 0,
+  )
+}
+
+function admissionArgsForTask(taskId: string, plan: string): string[] {
+  const issueNumber = taskId.replace(/^#/, '')
+  const args = ['--plan', plan]
+  if (/^\d+$/.test(issueNumber)) args.push('--admit-issue', issueNumber)
+  else
+    process.stdout.write(
+      `SKIP issue-coverage admission: task id ${taskId} is not a GitHub issue number\n`,
+    )
+  return args
 }
 
 function runRequiredTaskChecker(dir: string, scriptName: string, args: readonly string[]): void {

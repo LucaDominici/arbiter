@@ -2017,6 +2017,7 @@ lifecycle
   .description('Record TDD red-phase evidence: run a failing test and capture evidence (#551)')
   .requiredOption('--test-path <path>', 'Repo-relative path to the failing test file')
   .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
+  .option('--at <sha>', 'Record the failing test as of this ancestor commit')
   .option('--task <id>', 'Task id; use for a declared secondary issue on a train (#2336)')
   .option(
     '--test-command <cmd>',
@@ -2033,6 +2034,7 @@ lifecycle
     (opts: {
       testPath: string
       dir?: string
+      at?: string
       task?: string
       testCommand?: string
       testArg?: string[]
@@ -2045,6 +2047,7 @@ lifecycle
       const result = runTaskRecordRed({
         testPath: opts.testPath,
         ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(opts.at !== undefined ? { at: opts.at } : {}),
         ...(opts.task !== undefined ? { taskId: opts.task } : {}),
         ...(testCmd !== undefined ? { testCmd } : {}),
         ...(timeoutMs !== undefined ? { timeoutMs } : {}),

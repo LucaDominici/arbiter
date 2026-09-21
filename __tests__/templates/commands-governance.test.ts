@@ -22,7 +22,7 @@ describe('ship command renders the one runtime-owned delivery contract', () => {
     expect(content).toContain('Standard')
     expect(content).toContain('record-agent-return.mjs --mode reviewer-panel')
     expect(content).not.toContain('record-agent-return.mjs --mode ac-fit')
-    expect(content).toContain('one clean-HEAD full gate')
+    expect(content).toContain('CI runs the full gate on that SHA')
     expect(content).not.toContain('red-team-review')
     expect(content).not.toContain('red-team-rework')
     expect(content).not.toContain('plan-review')

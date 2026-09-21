@@ -5,12 +5,15 @@
 // to ALWAYS (affects: ['**']) — refine a check out of ALWAYS only once
 // evidence shows its bucket is provably safe, never speculatively.
 //
-// This file is data, not logic — computeSkipped() in check-all.mjs consumes
-// it. Keep check names byte-identical to their runCheck/runWarnCheck/
+// This file owns the registry and its minimatch semantics. computeSkipped() in
+// check-all.mjs and plan-time gate derivation both consume the same helper below.
+// Keep check names byte-identical to their runCheck/runWarnCheck/
 // runToolCheck call sites in check-all.mjs; check-selective.test.ts asserts
 // registry coverage against the live gate so a renamed check without a
 // registry update fails the test, not silently falls through to ALWAYS
 // (ALWAYS is safe-by-construction, but an untracked rename is still a bug).
+
+import { minimatch } from 'minimatch'
 
 const ALWAYS = ['**']
 const DOCS = [
@@ -28,6 +31,48 @@ const DOCS = [
 ]
 const WORKFLOWS = ['.github/**']
 const TEMPLATES = ['src/templates/**', 'src/kit/**']
+// check-self-dogfood.mjs documents TEMPLATE_ROOTS plus its external workflow/script
+// parity families, and checkDistFresh makes the complete src tree an input.
+const DOGFOOD = [
+  'src/**',
+  '.claude/**',
+  '.arbiter/ship/**',
+  '.github/workflows/**',
+  'scripts/**',
+  'schemas/**',
+  '.dogfood-divergences.json',
+  'arbiter.json',
+]
+// regenerate-examples.mjs declares these source, fixture, and output roots.
+const EXAMPLES = [
+  'src/**',
+  '__tests__/fixtures/real-projects/**',
+  'examples/**',
+  'arbiter.json',
+  'scripts/regenerate-examples.mjs',
+]
+// check-emitted-markdown-refs.mjs documents examples as its corpus and src/cli.ts
+// as its command surface; templates await it because they produce that corpus.
+const EMITTED_MARKDOWN = [
+  ...TEMPLATES,
+  'examples/**',
+  'src/cli.ts',
+  'scripts/check-emitted-markdown-refs.mjs',
+  'scripts/check-phantom-command-scan.mjs',
+]
+// The integration config executes the integration corpus and its shared test fixtures.
+// vitest.integration.config.ts/vitest.setup.ts wire the run itself, and several suites
+// (e.g. ai-pr-gate-trailer.test.ts) read .github/workflows/** files directly off disk.
+const INTEGRATION = [
+  'src/**',
+  '__tests__/**',
+  'scripts/**',
+  'schemas/**',
+  'arbiter.json',
+  'vitest.integration.config.ts',
+  'vitest.setup.ts',
+  '.github/workflows/**',
+]
 
 // name -> affects globs. Names must match check-all.mjs's runCheck(name, ...) literals.
 export const GATE_AFFECTS_REGISTRY = [
@@ -217,11 +262,11 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'smoke journeys (INV-137)', affects: ALWAYS },
   { name: 'M16 handoff-contract marker (#2103)', affects: ALWAYS },
   { name: 'e2e escalation ladder (#2043)', affects: ALWAYS },
-  { name: 'dogfood', affects: ALWAYS },
+  { name: 'dogfood', affects: DOGFOOD },
   { name: 'canon-01 declination (#1922)', affects: ALWAYS },
   { name: 'canon-15 wired gate (#1923)', affects: ALWAYS },
-  { name: 'examples drift (#2222)', affects: ALWAYS },
-  { name: 'emitted markdown refs (#2415)', affects: ALWAYS },
+  { name: 'examples drift (#2222)', affects: EXAMPLES },
+  { name: 'emitted markdown refs (#2415)', affects: EMITTED_MARKDOWN },
   { name: 'kernel plugin parity (#2548)', affects: ALWAYS },
   { name: 'coverage', affects: ALWAYS },
   { name: 'coverage ratchet (#1483)', affects: ALWAYS },
@@ -266,7 +311,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'commit-footer rationale (INV-119)', affects: ALWAYS },
   { name: 'fail-closed audit (INV-96)', affects: ALWAYS },
   { name: 'script cohesion (INV-94)', affects: ALWAYS },
-  { name: 'integration suite (INV-25)', affects: ALWAYS },
+  { name: 'integration suite (INV-25)', affects: INTEGRATION },
   { name: 'BDD suite (INV-25)', affects: ALWAYS },
   { name: 'conformance', affects: ALWAYS },
   // Landed on main while #2094 was in flight (#2073 acceptance anchor, #2079
@@ -291,3 +336,39 @@ export const GATE_SKIP_BLACKLIST = [
   'scripts/check-all.mjs',
   'scripts/lib/**',
 ]
+
+/**
+ * Checks whose registered inputs overlap a changed-file set. Invalid or gate-defining
+ * inputs return the whole registry so every consumer fails safe in the same way.
+ */
+export function affectedGateNames(changedFiles, registry, blacklist) {
+  const all = new Set(registry.map((entry) => entry.name))
+  if (!Array.isArray(changedFiles) || changedFiles.length > 500) return all
+  if (
+    changedFiles.some(
+      (file) =>
+        typeof file !== 'string' ||
+        file.startsWith('/') ||
+        file.startsWith('../') ||
+        file.includes('/../'),
+    )
+  ) {
+    return all
+  }
+  if (
+    changedFiles.some((file) =>
+      blacklist.some((pattern) => minimatch(file, pattern, { dot: true })),
+    )
+  ) {
+    return all
+  }
+  return new Set(
+    registry
+      .filter((entry) =>
+        changedFiles.some((file) =>
+          entry.affects.some((pattern) => minimatch(file, pattern, { dot: true })),
+        ),
+      )
+      .map((entry) => entry.name),
+  )
+}

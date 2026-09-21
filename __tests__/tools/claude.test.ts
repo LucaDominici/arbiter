@@ -394,11 +394,13 @@ describe('generateClaude — context-economy + track-aware post-commit (#720 #72
     expect(file?.action).toBe('skipped')
   })
 
-  it('post-commit-check.mjs contains track detection routing (#724)', () => {
+  it('post-commit-check.mjs is an always-zero advisory without track routing (#2767)', () => {
     generateClaude(claudeConfig())
     const content = readFileSync(join(dir, '.claude', 'hooks', 'post-commit-check.mjs'), 'utf-8')
-    expect(content).toMatch(/track/i)
-    expect(content).toMatch(/frontend|tsx|vue/i)
-    expect(content).toMatch(/backend|\.go|\.py/i)
+    expect(content).not.toContain('Track:')
+    expect(content).not.toMatch(/hasFE|hasBE|hasDocs/)
+    expect(content).toMatch(
+      /catch \(error\)[\s\S]*Advisory unavailable:[\s\S]*process\.exitCode = 0/,
+    )
   })
 })

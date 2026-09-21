@@ -263,8 +263,8 @@ describe('probe-hooks liveness contract (#2135)', () => {
     }
   })
 
-  it('classifies hooks when the emitted commit-msg is live via core.hooksPath (#2227)', () => {
-    const dir = gitHooksFixture('post-commit-check.mjs', 'process.exit(2)\n')
+  it('classifies post-commit-check as advisory when the emitted commit-msg is live via core.hooksPath (#2227, #2767)', () => {
+    const dir = gitHooksFixture('post-commit-check.mjs', 'process.exit(0)\n')
     try {
       const result = run(dir)
       expect(result.status).toBe(0)
@@ -275,7 +275,7 @@ describe('probe-hooks liveness contract (#2135)', () => {
           expect.objectContaining({
             hook: 'post-commit-check.mjs',
             state: 'PRIMED',
-            verdict: 'BLOCKS',
+            verdict: 'ADVISORY',
           }),
         ]),
       )
@@ -285,7 +285,7 @@ describe('probe-hooks liveness contract (#2135)', () => {
   })
 
   it('tolerates a dirty working tree when establishing probe state (#2227)', () => {
-    const dir = fixture('post-commit-check.mjs', 'process.exit(2)\n')
+    const dir = fixture('post-commit-check.mjs', 'process.exit(0)\n')
     try {
       writeFileSync(join(dir, 'tracked.txt'), 'line\n')
       execFileSync('git', ['add', 'tracked.txt'], { cwd: dir, stdio: 'ignore' })

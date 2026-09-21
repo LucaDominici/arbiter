@@ -76,7 +76,7 @@ runtime, no build step, no arbiter CLI required to run them.
 | -------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------- |
 | `lib.mjs`                                                      | —                         | shared helpers (repo root, task-state read, sanitization)      |
 | `stop-evidence-guard.mjs`                                      | `Stop`                    | the completion-integrity backstop (#1–4 above)                 |
-| `guard-done-evidence.mjs`                                      | `UserPromptSubmit`        | completion-claim detection + SHA-256 pinned-file verification  |
+| `guard-done-evidence.mjs`                                      | `Stop`                    | completion-claim detection + SHA-256 pinned-file verification  |
 | `stop-dangerous.mjs`                                           | `PreToolUse:Bash`         | blocks destructive commands (`rm -rf /`, force-push, etc.)     |
 | `enforce-gate-before-pr.mjs`                                   | `PreToolUse:Bash`         | blocks a PR/merge command until the gate marker is present     |
 | `enforce-read-only.mjs`                                        | `PreToolUse:Edit\|Write`  | blocks edits to declared read-only paths                       |
@@ -88,6 +88,9 @@ runtime, no build step, no arbiter CLI required to run them.
 Rebuilt from the source project's own emitted templates via
 `node scripts/build-kernel-plugin.mjs` (run after `npm run build`) — so this
 plugin can never silently drift from what the CLI ships into governed repos.
+The build records what it emitted in `hooks/.kernel-build-manifest.json` and removes
+outputs that dropped out of it (#2763); a hand-added file it never emitted is left
+alone and fails the parity gate instead.
 
 ## Status
 

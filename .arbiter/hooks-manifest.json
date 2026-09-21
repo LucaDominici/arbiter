@@ -165,7 +165,7 @@
       ],
       "expectedExitCode": 2,
       "spawnable": false,
-      "rationale": "UserPromptSubmit hard block (exit 2) — completion claims without valid SHA-pinned evidence are rejected; empirical coverage in __tests__/hooks/empirical/done-evidence-guard.test.ts. INV-38."
+      "rationale": "Stop hard block (exit 2) — assistant completion claims without valid SHA-pinned evidence are rejected; empirical coverage in __tests__/hooks/empirical/done-evidence-guard.test.ts. INV-38."
     },
     {
       "file": "guard-task-completion.mjs.ejs",
@@ -175,7 +175,7 @@
       ],
       "expectedExitCode": 2,
       "spawnable": false,
-      "rationale": "UserPromptSubmit hard block (exit 2) — premature task-completion claims return stderr to Claude as error context; empirical coverage in __tests__/hooks/empirical/completion-guard.test.ts"
+      "rationale": "Stop hard block (exit 2) — premature assistant task-completion claims return stderr to Claude as error context; empirical coverage in __tests__/hooks/empirical/completion-guard.test.ts"
     },
     {
       "file": "stop-evidence-guard.mjs.ejs",
@@ -204,7 +204,7 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "PostToolUse conventional-commit check (INV-22) + track-aware checklist (#724) — non-blocking informational output"
+      "rationale": "Registered conventional-commit advisory (INV-22), silent on valid messages and exit 0 after a concise malformed-message notice; commit-msg and L1 commitlint remain blocking."
     },
     {
       "file": "post-edit-dispatch.mjs.ejs",
@@ -232,7 +232,7 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "UserPromptSubmit hard block (exit 2) — after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit prompts and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
+      "rationale": "Stop hard block (exit 2) — after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit turns and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
     },
     {
       "file": "check-circular-deps.mjs.ejs",
@@ -269,7 +269,17 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "R1.S5: blocks gh pr create unless .arbiter/gate-pass.json exists with head_sha matching current HEAD. Missing or stale marker exits 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
+      "rationale": "R1.S5 self copy: blocks non-draft gh pr create and gh pr ready unless .arbiter/gate-pass.json or a successful .arbiter/ci-pass.json receipt matches current HEAD. Draft creation is allowed so CI can run. Missing or stale receipts exit 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
+    },
+    {
+      "file": "enforce-gate-before-pr.mjs.ejs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "R1.S5: blocks non-draft gh pr create and gh pr ready unless .arbiter/gate-pass.json or a successful .arbiter/ci-pass.json receipt matches current HEAD. Draft creation is allowed so CI can run. Missing or stale receipts exit 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
     },
     {
       "file": "exitplanmode-banner.mjs.ejs",

@@ -210,7 +210,7 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "Governs completion language only while an implementation phase is active \u2014 needs live task state, not a file fixture."
+      "rationale": "Stop hard block for assistant completion language while an implementation phase is active \u2014 needs live task state, not a file fixture."
     },
     {
       "file": "guard-done-evidence.mjs",
@@ -220,7 +220,7 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "#1872 evidence harness. Needs task phase `verification` AND features.evidenceHarness=true in arbiter.json (false in self config), so it is inert by design here; driving it would mean mutating arbiter.json mid-gate."
+      "rationale": "Stop hard block for assistant completion claims under #1872. Needs task phase `verification` AND features.evidenceHarness=true in arbiter.json (false in self config), so it is inert by design here; driving it would mean mutating arbiter.json mid-gate."
     },
     {
       "file": "stop-evidence-guard.mjs",
@@ -259,7 +259,7 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "PostToolUse conventional-commit check (INV-22) + track-aware checklist (#724) \u2014 declared non-blocking in ADR-032. NOTE (#2326): manifest ADVISORY / template exit(2) / self exit(1) are mutually inconsistent. Deliberately NOT reconciled here \u2014 adjudicating it needs ADR-032, not a unilateral flip. Tracked as a follow-up."
+      "rationale": "Registered conventional-commit advisory (INV-22), silent on valid messages and exit 0 after a concise malformed-message notice; commit-msg and L1 commitlint remain blocking."
     },
     {
       "file": "check-circular-deps.mjs",
@@ -325,7 +325,7 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "UserPromptSubmit hard block (exit 2) \u2014 after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit prompts and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
+      "rationale": "Stop hard block (exit 2) \u2014 after an observed implementation edit, requires a successful phase-bound Skill(tdd) result; no-edit turns and unsupported transcript hosts stand down. Empirical coverage: __tests__/hooks/empirical/skill-forced-eval.test.ts."
     },
     {
       "file": "wiki-on-commit.mjs",

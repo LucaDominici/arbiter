@@ -35,6 +35,8 @@ const EXPECTED_OUTPUT_FILES = [
   'evidence-binding.mjs',
   'run-helpers.mjs',
   'hooks.json',
+  // #2763: what this build emitted, so the next one can prune a renamed/removed output
+  '.kernel-build-manifest.json',
 ]
 
 let scratchDir: string | undefined
@@ -91,6 +93,22 @@ describe('build-kernel-plugin.mjs', () => {
       expect(body.includes('<%'), `${name} contains an unrendered EJS open tag`).toBe(false)
       expect(body.includes('%>'), `${name} contains an unrendered EJS close tag`).toBe(false)
     }
+  })
+
+  it('registers guard-done-evidence under Stop, never UserPromptSubmit', () => {
+    const result = runFromCleanState()
+    expect(result.status).toBe(0)
+    const hooks = JSON.parse(readFileSync(join(outDir, 'hooks.json'), 'utf-8')).hooks as Record<
+      string,
+      Array<{ hooks: Array<{ command: string; timeout: number }> }>
+    >
+    const commands = (event: string) =>
+      (hooks[event] ?? []).flatMap((entry) => entry.hooks).map((hook) => hook.command)
+
+    expect(commands('Stop')).toContain('node ${CLAUDE_PLUGIN_ROOT}/hooks/guard-done-evidence.mjs')
+    expect(commands('UserPromptSubmit')).not.toContain(
+      'node ${CLAUDE_PLUGIN_ROOT}/hooks/guard-done-evidence.mjs',
+    )
   })
 
   // #2538 fixed only these two: they were the ones the broken COPIED list threw

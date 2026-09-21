@@ -653,3 +653,18 @@ does not contain. The templates and the governed-repo emission are unchanged, a 
 missing verifier still blocks, and the parity gate above covers the three new files.
 `__tests__/scripts/kernel-plugin-only-install.test.ts` runs each hook from a copy holding only
 what the plugin ships.
+
+### The build removes outputs it stopped emitting (#2763)
+
+The writer only overwrote its current outputs, so after an emitted file was removed or renamed
+`npm run regen` left the parity gate red until someone deleted the stale file by hand.
+`build-kernel-plugin.mjs` now records what it emits in `packages/kernel/hooks/.kernel-build-manifest.json`
+(`scripts/lib/kernel-manifest.mjs`) and, on the next build, removes exactly the entries that
+dropped out of that list; a manifest entry that is not a plain file name aborts the build before
+anything is deleted, so the prune cannot reach outside the output root.
+
+The prune is scoped to the manifest on purpose, not to "everything in the root". A hand-added
+foreign file was never emitted, so the build leaves it alone and the parity gate keeps rejecting
+it (CANON-25) — a regen must not turn the tree green by silently deleting a file it cannot
+account for. `__tests__/scripts/build-kernel-plugin-prune.test.ts` proves one build converges after
+a rename and that a foreign file still fails parity.

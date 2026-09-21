@@ -38,6 +38,7 @@ import { renderTemplate } from '../dist/utils/render.js'
 import { resolveCollaborationAxes } from '../dist/config/collaboration-mode-defaults.js'
 import { DEFAULT_TASK_TIERS } from '../dist/config/schema.js'
 import { isMainModule } from './lib/run-helpers.mjs'
+import { syncManifest } from './lib/kernel-manifest.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
@@ -160,8 +161,26 @@ function shipVerifierImports(outDir) {
  * failure (render error, missing source hook, non-zero prettier) — callers
  * decide how to translate that to an exit code.
  */
-export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
+export function buildKernelPlugin(rawOutDir = DEFAULT_OUT_DIR) {
+  // Normalized before anything touches the disk (see syncManifest): `link/` must not slip
+  // past the symlinked-root refusal and have the whole build rendered into the link target.
+  const outDir = resolve(rawOutDir)
   mkdirSync(outDir, { recursive: true })
+
+  // #2763: record what this build emits and prune what a previous one emitted that this no
+  // longer does (manifest-scoped — a hand-added foreign file stays and fails parity, see
+  // scripts/lib/kernel-manifest.mjs). FIRST, so a stale output that imports a removed
+  // dependency is deleted before shipVerifierImports() scans the root and aborts on it. The
+  // manifest is normalized by the prettier pass below in the committed tree and in the
+  // parity gate's `--out=<tmp>` render alike.
+  const emitted = [
+    ...[...RENDERED, ...VERIFIERS].map(([, out]) => out),
+    ...COPIED,
+    'hooks.json',
+  ].sort()
+  for (const name of syncManifest(outDir, emitted)) {
+    process.stdout.write(`  pruned   hooks/${name} (no longer emitted)\n`)
+  }
 
   const data = buildRenderContext(config)
 
@@ -208,8 +227,14 @@ export function buildKernelPlugin(outDir = DEFAULT_OUT_DIR) {
           hooks: [cmd('check-no-orphan-todo.mjs'), cmd('check-no-placeholders.mjs')],
         },
       ],
-      UserPromptSubmit: [{ hooks: [{ ...cmd('guard-done-evidence.mjs'), timeout: 3 }] }],
-      Stop: [{ hooks: [{ ...cmd('stop-evidence-guard.mjs'), timeout: 5 }] }],
+      Stop: [
+        {
+          hooks: [
+            { ...cmd('guard-done-evidence.mjs'), timeout: 3 },
+            { ...cmd('stop-evidence-guard.mjs'), timeout: 5 },
+          ],
+        },
+      ],
     },
   }
   writeFileSync(join(outDir, 'hooks.json'), JSON.stringify(hooksJson, null, 2) + '\n', 'utf-8')

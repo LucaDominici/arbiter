@@ -16,7 +16,7 @@
 // (opening an issue is not a completion claim) — the segment-anchored match
 // below also refuses to treat `gh pr create` mentioned inside a
 // `gh issue create --body "..."` string as a real invocation.
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, writeSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { resolveToolInputCommand } from './lib.mjs'
@@ -30,12 +30,18 @@ const command = resolveToolInputCommand()
 // that segment starts with `gh issue create`, not `gh pr create`, so it never
 // matches — no separate exemption list needed for gh issue create.
 const segments = command.split(/&&|\|\||;|\|/).map((s) => s.trim())
-const prCreateIndex = segments.findIndex((s) => /^gh\s+pr\s+create\b/.test(s))
-if (prCreateIndex === -1) process.exit(0)
+const guardIndex = segments.findIndex((s) => /^gh\s+pr\s+(?:create|ready)\b/.test(s))
+if (guardIndex === -1) process.exit(0)
+const isPrCreate = /^gh\s+pr\s+create\b/.test(segments[guardIndex])
+const isDraft = isPrCreate && /(?:^|\s)--draft(?:[=\s]|$)/.test(segments[guardIndex])
+
+function exitAfterStderr(code, message) {
+  writeSync(2, message)
+  process.exit(code)
+}
 
 if (process.env.ARBITER_SKIP_GATE_MARKER === '1') {
-  process.stderr.write('[arbiter] Gate marker check bypassed (ARBITER_SKIP_GATE_MARKER=1)\n')
-  process.exit(0)
+  await exitAfterStderr(0, '[arbiter] Gate marker check bypassed (ARBITER_SKIP_GATE_MARKER=1)\n')
 }
 
 /**
@@ -46,8 +52,8 @@ if (process.env.ARBITER_SKIP_GATE_MARKER === '1') {
  * Returns the worktree's toplevel path, or null when neither is present (the
  * caller then falls back to the previous cwd-based resolution unchanged).
  */
-function resolveTargetRoot(cmdSegments, prIndex) {
-  for (let i = prIndex - 1; i >= 0; i--) {
+function resolveTargetRoot(cmdSegments, guardIndex) {
+  for (let i = guardIndex - 1; i >= 0; i--) {
     const cdMatch = cmdSegments[i].match(/^cd\s+(.+)$/)
     if (!cdMatch) continue
     const dir = cdMatch[1].trim().replace(/^["']|["']$/g, '')
@@ -60,7 +66,7 @@ function resolveTargetRoot(cmdSegments, prIndex) {
     break
   }
 
-  const headMatch = cmdSegments[prIndex].match(/--head[= ]("?)([^"\s]+)\1/)
+  const headMatch = cmdSegments[guardIndex].match(/--head[= ]("?)([^"\s]+)\1/)
   if (headMatch) {
     const branch = headMatch[2]
     const listResult = spawnSync('git', ['worktree', 'list', '--porcelain'], { encoding: 'utf-8' })
@@ -76,7 +82,45 @@ function resolveTargetRoot(cmdSegments, prIndex) {
   return null
 }
 
-const resolvedRoot = resolveTargetRoot(segments, prCreateIndex)
+function readCiPassReceipt(root) {
+  const receiptPath = resolve(root, '.arbiter/ci-pass.json')
+  if (!existsSync(receiptPath)) {
+    return { ok: false, reason: 'No ci-pass.json receipt found.' }
+  }
+
+  let receipt
+  try {
+    receipt = JSON.parse(readFileSync(receiptPath, 'utf-8'))
+  } catch (err) {
+    process.stderr.write(
+      `[arbiter] GATE GUARD: ci-pass.json is invalid: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
+  }
+
+  const head = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf-8' })
+  const sha = head.status === 0 ? head.stdout.trim() : ''
+  if (!sha) return { ok: false, reason: 'current HEAD could not be resolved for ci-pass.json.' }
+  if (
+    receipt === null ||
+    typeof receipt !== 'object' ||
+    Array.isArray(receipt) ||
+    receipt.sha !== sha ||
+    receipt.conclusion !== 'success' ||
+    typeof receipt.runUrl !== 'string' ||
+    receipt.runUrl.length === 0 ||
+    typeof receipt.checkedAt !== 'string' ||
+    receipt.checkedAt.length === 0
+  ) {
+    return {
+      ok: false,
+      reason: 'ci-pass.json is stale or not a successful receipt for current HEAD.',
+    }
+  }
+  return { ok: true, reason: '' }
+}
+
+const resolvedRoot = resolveTargetRoot(segments, guardIndex)
 
 let repoRoot
 if (resolvedRoot) {
@@ -88,23 +132,35 @@ if (resolvedRoot) {
 
 const markerPath = resolve(repoRoot, '.arbiter/gate-pass.json')
 const rootNote = resolvedRoot ? ` (worktree: ${repoRoot})` : ''
+const ciReceipt = readCiPassReceipt(repoRoot)
+
+if (ciReceipt.ok) process.exit(0)
+
+if (!existsSync(markerPath) && isDraft) {
+  await exitAfterStderr(
+    0,
+    `[arbiter] GATE GUARD: DRAFT PR allowed without a gate receipt${rootNote}; CI must verify the pushed SHA.\n`,
+  )
+}
 
 if (!existsSync(markerPath)) {
-  process.stderr.write(
-    `[arbiter] GATE GUARD: No gate-pass.json found${rootNote}.\n` +
-      'Run `node scripts/check-all.mjs L2` before creating a PR.\n',
+  await exitAfterStderr(
+    2,
+    `[arbiter] GATE GUARD: No valid gate-pass.json or ci-pass.json found${rootNote}.\n` +
+      `${ciReceipt.reason}\n` +
+      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.\n',
   )
-  process.exit(2)
 }
 
 let marker
 try {
   marker = JSON.parse(readFileSync(markerPath, 'utf-8'))
 } catch (err) {
-  process.stderr.write(
-    `[arbiter] GATE GUARD: gate-pass.json is invalid${rootNote}: ${err instanceof Error ? err.message : String(err)}\n`,
+  await exitAfterStderr(
+    2,
+    `[arbiter] GATE GUARD: gate-pass.json is invalid${rootNote}: ${err instanceof Error ? err.message : String(err)}\n` +
+      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.\n',
   )
-  process.exit(2)
 }
 
 // The shared verifier is loaded lazily and fail-CLOSED: a static import that
@@ -114,12 +170,12 @@ let gateEvidence
 try {
   gateEvidence = await import('../../scripts/lib/gate-evidence.mjs')
 } catch (err) {
-  process.stderr.write(
+  await exitAfterStderr(
+    2,
     `[arbiter] GATE GUARD: the gate-pass verifier could not be loaded${rootNote}: ` +
       `${err instanceof Error ? err.message : String(err)}\n` +
       'Restore scripts/lib/gate-evidence.mjs (arbiter emits it) and re-run the gate.\n',
   )
-  process.exit(2)
 }
 
 // head_sha alone lets a marker from a sibling worktree, a changed lockfile or an
@@ -133,10 +189,10 @@ const verdict = gateEvidence.verifyGateEvidence(marker, {
 })
 
 if (!verdict.ok) {
-  process.stderr.write(
+  await exitAfterStderr(
+    2,
     `[arbiter] GATE GUARD: gate-pass.json is stale or does not bind this checkout${rootNote}.\n` +
       `${verdict.reason}\n` +
-      'Run `node scripts/check-all.mjs L2` again after your last commit.\n',
+      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.\n',
   )
-  process.exit(2)
 }

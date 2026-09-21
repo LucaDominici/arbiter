@@ -33,6 +33,11 @@ describe('stop-dangerous hook protected-Arbiter-state-write guard (#2403)', () =
     expect(result.status).toBe(2)
   })
 
+  it('exits 2: truncate on ci-pass.json', () => {
+    const result = runHook('truncate -s0 .arbiter/ci-pass.json')
+    expect(result.status).toBe(2)
+  })
+
   it('exits 2: redirect (>) onto an evidence file', () => {
     const result = runHook('echo x > .arbiter/evidence/y.json')
     expect(result.status).toBe(2)

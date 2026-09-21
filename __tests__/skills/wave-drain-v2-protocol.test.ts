@@ -97,19 +97,19 @@ describe('wave-drain SKILL.md v2 — parallel protocol (#1873, ADR-103)', () => 
   it('uses the exact-SHA merge watcher for the governed wave PR', () => {
     expect(md).toContain('scripts/pr-merge-watch.mjs')
     expect(md).not.toContain('gh pr merge')
-    expect(md).toContain('node scripts/check-all.mjs L2')
+    expect(md).toContain('node scripts/ci-receipt.mjs')
   })
 
-  it('commits review evidence before one exact-HEAD L2 gate and PR creation', () => {
-    const commit = md.indexOf('Commit the cumulative candidate and all review/evidence artifacts')
-    const gate = md.indexOf('arbiter check run -- node scripts/check-all.mjs L2')
+  it('pushes review evidence for CI verification before PR creation', () => {
+    const commit = md.indexOf(
+      'Commit and push the cumulative candidate and all review/evidence artifacts',
+    )
+    const gate = md.indexOf('node scripts/ci-receipt.mjs')
     const pr = md.indexOf('One PR per wave')
     expect(commit).toBeGreaterThan(-1)
     expect(gate).toBeGreaterThan(commit)
     expect(pr).toBeGreaterThan(gate)
-    expect(md).not.toContain(
-      "arbiter check run -- sh -c 'npm run test && node scripts/check-all.mjs L2'",
-    )
+    expect(md).not.toContain('arbiter check run -- node scripts/check-all.mjs')
   })
 
   it('keeps the standard merge path for non-solo projects without admin bypass', () => {

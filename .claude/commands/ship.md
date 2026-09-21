@@ -31,12 +31,6 @@ Call the first form to read the current treatment and next action. Do that work,
 second form. Repeat until `Phase: complete (done)`. After context loss, call the first form again;
 `.claude/.task/status.json` reconstructs the same treatment, phase, round, and next action.
 
-Keep the cursor precise during implementation:
-
-```bash
-arbiter lifecycle checkpoint --tdd GREEN --last '<completed result>' --next '<one executable next action>' --digest '<one line>'
-```
-
 ## Adaptive treatment
 
 The runtime persists one `ShipTreatment`. Plans, prompts, reviewers, evidence writers, and delivery
@@ -65,10 +59,8 @@ files:
 ---
 ```
 
-Use the lowest model capability printed by `arbiter ship`. Escalate only when the treatment widens,
-a new material risk appears, or one implementation approach makes no progress. Timeout, OOM, rate
-limit, unavailable tools, and queued CI are infrastructure states; they do not justify source edits
-or model escalation by themselves.
+Timeout, OOM, rate limit, unavailable tools, and queued CI are infrastructure states; they do not
+justify source edits by themselves.
 
 ## Context economy
 
@@ -113,19 +105,21 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
 
 1. **Preflight** — read the issue and current repository; seed state; verify that the state writer
    and delivery guard agree before implementation.
-2. **Plan** — freeze `AC-N` criteria and non-goals; list the complete file set, proof, rollback,
-   and smallest executable implementation. Mechanical admission checks replace pre-code review.
+2. **Plan** — freeze `AC-N` criteria and non-goals; list the complete file set. Mechanical admission
+   checks replace pre-code review.
 3. **RED** — write the smallest tests that fail for the intended reason and record RED evidence.
 4. **GREEN** — implement the capability. Run targeted checks while editing. Defer documentation and
    issue hygiene until behavior is green unless a decision is needed to implement correctly.
 5. **Freeze** — finish all fixes, commit, and freeze HEAD plus the plan acceptance hash.
-6. **Certify** — run one targeted certification for that HEAD. Dispatch the treatment's final
-   reviewer against the same SHA and shared evidence. That reviewer also returns acceptance fit.
-7. **Rework** — reconcile every finding from the round into one fix batch. A changed source SHA
-   invalidates review, acceptance-fit, and gate evidence. Round two reviews only the delta. The
+6. **Certify** — dispatch the treatment's final reviewer against the same SHA and shared evidence.
+   That reviewer also returns acceptance fit.
+   Wait for the reviewer dispatch in the FOREGROUND (never `run_in_background`); the session must not end with a review round in flight.
+7. **Rework** — a changed source SHA invalidates review, acceptance-fit, and gate evidence. Round two
+   reviews only the delta. The
    normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
    block. If another ordinary round would be needed, report BLOCKED or deliberately force it.
-8. **Verify** — after review completion and all-PASS acceptance fit, run one clean-HEAD full gate.
+   Wait for the review round in the FOREGROUND (never `run_in_background`); a round whose only findings are LOW does not open a new round: park LOW findings with `arbiter finding add` and treat the round as complete.
+8. **Verify** — after review completion and all-PASS acceptance fit, push the frozen candidate; CI runs the full gate on that SHA and is the verification authority; record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.
 9. **Land** — reuse the unchanged qualification through PR and CI. Merge, verify green post-merge CI,
    perform live proof when applicable, close every carried issue, then clean up.
 
@@ -137,19 +131,16 @@ current lane.
 | Phase             | What `/ship` does                                                                                                                          | Review agents |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------: |
 | `preflight`       | Read the issue and seed validated task state.                                                                                              |             0 |
-| `plan`            | Freeze acceptance, non-goals, files, proof, and rollback.                                                                                  |             0 |
+| `plan`            | Freeze acceptance, non-goals, and files.                                                                                                   |             0 |
 | `red`             | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                                                  |             0 |
-| `green`           | Implement the smallest executable capability and run targeted checks.                                                                      |             0 |
+| `green`           | Implement the capability and run targeted checks.                                                                                          |             0 |
 | `refactor`        | Freeze HEAD; dispatch one final reviewer, adding specialist seats only for sensitive domains.                                           |     treatment |
-| `verification`    | Require review and acceptance evidence, then run one full clean-HEAD gate.                                                                 |             0 |
+| `verification`    | Require review and acceptance evidence, then push the frozen candidate for CI's full gate; record the CI verdict before advancing to close. |             0 |
 | `close`           | Reuse the unchanged receipt through push, PR, and CI.                                                                                      |             0 |
 | `complete`        | Verify merge and green CI, close carried issues, and clean up.                                                                             |             0 |
 
-One implementer owns the write lane. Use at most one independent blocker lane. Add specialist
-reviewers only for auth, data integrity, concurrency, money, migrations, or deployment. Reviewers
-receive the frozen plan, candidate diff, and shared evidence; they do not receive the implementer's
-transcript. For ordinary work, the same final reviewer covers code, tests, and acceptance fit
-independently of the implementer.
+Add specialist reviewers only for auth, data integrity, concurrency, money, migrations, or deployment.
+The final reviewer covers code, tests, and acceptance fit.
 
 ## Evidence commands
 
@@ -185,9 +176,10 @@ the acceptance-fit view under the same frozen-subject and citation rules.
 
 ## Gate economy
 
-Run touched tests, changed-file format/lint, and `git diff --check` before freezing, then one full
-clean-HEAD gate after review and acceptance fit. Do not repeat a green full gate while HEAD and
-its relevant environment are unchanged. PR and pre-push paths consume the same receipt.
+Run `node scripts/check-all.mjs preflight` as a local diagnostic, then push the frozen candidate;
+CI runs the full gate on that SHA and is the verification authority. Record the CI verdict with
+`node scripts/ci-receipt.mjs` before `advance --to close`. PR and pre-push paths consume the same
+receipt.
 
 A killed process has no verdict. Preserve these outcomes distinctly: `PRODUCT FAIL`, `TEST FAIL`,
 `ENVIRONMENT ERROR`, `TOOL UNAVAILABLE`, `TIMEOUT`, `KILLED/OOM`, and `NO DATA`.

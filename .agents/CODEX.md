@@ -100,7 +100,7 @@ or pass `codex exec --dangerously-bypass-hook-trust` in automation. Editing
 | `enforce-gate-before-pr.mjs` | Blocks PR creation before the local gate passed | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: `node scripts/check-all.mjs L2` before push |
 | `pre-spawn-worktree-guard.mjs` | Refuses a second write-intent sub-agent spawn onto the main tree (E5 #1947) | None — manual worktree discipline |
 | `post-subagent-release.mjs` | SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — releases the finished dispatch agents-active.json sidecar entry (#2403) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `post-commit-check.mjs` | Post-commit checklist verification | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
+| `post-commit-check.mjs` | Reports one advisory line for a non-conventional commit or an unavailable check; otherwise silent; always exits 0 | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `check-no-unused-exports.mjs` | Blocks unused TypeScript exports (dead code) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: dead-code check (`knip`) in `check-all.mjs` |
 | `check-no-skipped-tests.mjs` | Blocks skipped/muted tests at edit time (INV-25) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `check-no-any.mjs` | Blocks TypeScript `any` types (INV-04) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: `tsc --strict` |
@@ -108,13 +108,13 @@ or pass `codex exec --dangerously-bypass-hook-trust` in automation. Editing
 | `pre-compact.mjs` | Snapshots task state before context compaction | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `post-edit-dispatch.mjs` | Runs post-edit agents for quality checks | None — manual code review |
 | `debug-state-on-failure.mjs` | Persists debug state on gate failure | None — manual logging |
-| `skill-forced-eval.mjs` | Forces skill invocation before task start | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `guard-task-completion.mjs` | Blocks premature done claims | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
+| `skill-forced-eval.mjs` | Requires successful Skill(tdd) evidence before implementation edits | Native phase gates (`arbiter lifecycle advance`); no final-response interception |
+| `guard-task-completion.mjs` | Blocks premature done claims | Native phase gates (`arbiter lifecycle advance`); no final-response interception |
 | `stop-evidence-guard.mjs` | Fail-closed completion backstop (INV-114) | None — manual discipline |
 | `closer-mode-guard.mjs` | CLOSER-mode enforcement in the close phase | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `exitplanmode-banner.mjs` | Plan-exit banner in the task lifecycle | None — informational only |
 | `stop-finding-loss.mjs` | Detects research dispatches with zero persisted findings (E6b #1948) | None — manual discipline |
-| `guard-done-evidence.mjs` | Requires recorded evidence before done claims | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: `arbiter check tdd` / evidence checks |
+| `guard-done-evidence.mjs` | Requires recorded evidence before done claims | Native phase gates (`arbiter lifecycle advance`); no final-response interception |
 | `post-brainstorm-stop.mjs` | Brainstorm terminal-state guardrail (#1265) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `check-circular-deps.mjs` | Detects circular deps per-edit (INV-01) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: `madge --circular src` in `check-all.mjs` |
 | `check-no-pii.mjs` | Blocks PII patterns in source (real-time) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |

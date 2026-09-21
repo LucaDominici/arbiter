@@ -31,6 +31,8 @@ import { spawnSync, execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { renderTemplate } from '../../src/utils/render.js'
+import { makeConfig } from '../helpers.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -298,6 +300,25 @@ describe('.githooks/pre-push — evidence freshness gate', () => {
     expect(r.status).toBe(0)
     expect(r.stderr).not.toMatch(/\.arbiter\/evidence\/ is/)
   })
+})
+
+it('runs the light preflight gate, never the full gate, in self and rendered hooks (#2773 P7)', () => {
+  const rendered = renderTemplate(
+    'githooks/pre-push.ejs',
+    makeConfig('/tmp/test-githooks', {
+      language: 'typescript',
+      buildTool: 'npm',
+      projectName: 'test-project',
+    }) as unknown as Record<string, unknown>,
+  )
+
+  for (const hook of [readFileSync(HOOK_SRC, 'utf-8'), rendered]) {
+    expect(hook).not.toMatch(/node scripts\/check-all\.mjs (?:L2|gate)\b/)
+    expect(hook).toContain('node scripts/check-all.mjs preflight')
+    expect(hook).toContain(
+      'pre-push: light gate (preflight + touched tests); the full gate runs in CI (#2773 P7)',
+    )
+  }
 })
 
 /**

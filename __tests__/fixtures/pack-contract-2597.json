@@ -5,9 +5,9 @@
   "artifact_sha256": "6b2b730eb424d35ffa3f3a93b7095d3fb0e01629178885b11d94ee7cf741e622",
   "path_digest": "sha256(sorted package-root-relative paths joined by LF without trailing LF)",
   "pack": {
-    "unpackedSize": 4529407,
-    "entryCount": 983,
-    "rosterSha256": "cacf0c1fd6d8fb3bece852daf498dafb6c5776f6ad0029ee36d3a265a6da0db3"
+    "unpackedSize": 4508009,
+    "entryCount": 970,
+    "rosterSha256": "0350ab91733a26da5caf7e7d9ac8a11af03c3c8dea44102c7d943523da85c12a"
   },
   "manifest": {
     "bin": {
@@ -73,24 +73,24 @@
     "pathsSha256": "e0947fc66eba1a5a4e53f9675db1fb31d3e56730f406c6c9ca8aa00db706499a"
   },
   "templates": {
-    "count": 636,
-    "pathsSha256": "e761e559c355a1f5487b05fc4c735e61dbaa98d46e439b0702dea0752c3c5707"
+    "count": 623,
+    "pathsSha256": "8b82e3acaecedc50393105f89fd2da2b0d2591814a2c1361c87baf76508be2d9"
   },
   "leading_spdx": {
     "count": 283,
     "pathsSha256": "579b6df6a432ac9a3e5c657e934fc4dad2686ec63d63b29392a841467e0f8214"
   },
   "repinned": {
-    "task_id": "#2663+#2662+#2414",
-    "reason": "the product-audit finding domain enters the published runtime roster",
+    "task_id": "#2794",
+    "reason": "CI-owned verification adds scripts/ci-receipt.mjs (+ EJS twin) and the enforce-gate-before-pr EJS twin to the published roster: dist/templates/claude/hooks/enforce-gate-before-pr.mjs.ejs, dist/templates/scripts/ci-receipt.mjs.ejs",
     "before": {
-      "entryCount": 991,
-      "templates": 645,
-      "spdx": 282
+      "entryCount": 968,
+      "templates": 621,
+      "spdx": 283
     },
     "after": {
-      "entryCount": 992,
-      "templates": 645,
+      "entryCount": 970,
+      "templates": 623,
       "spdx": 283
     }
   }

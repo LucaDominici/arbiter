@@ -419,14 +419,14 @@ describe('#2427 AC-2 — BOTH pre-push gate branches run under the mutex', () =>
     const body = readFileSync(HOOK, 'utf-8')
     const calls = gateInvocations(body)
     // The plain branch and the '#'-in-path rsync branch.
-    expect(calls.length).toBeGreaterThanOrEqual(2)
+    expect(calls.length).toBeGreaterThanOrEqual(1) // #2773 P7: one light launch
     for (const call of calls) expect(call).toMatch(/gate-mutex\.mjs/)
   })
 
   it('the shipped template hook does the same, so consumers are not left unlocked', () => {
     const body = readFileSync(HOOK_TEMPLATE, 'utf-8')
     const calls = gateInvocations(body)
-    expect(calls.length).toBeGreaterThanOrEqual(2)
+    expect(calls.length).toBeGreaterThanOrEqual(1) // #2773 P7: one light launch
     for (const call of calls) expect(call).toMatch(/gate-mutex\.mjs/)
   })
 

@@ -487,7 +487,6 @@ describe('cross-product: ship.md — one adaptive contract for every stack and l
         const output = renderShip(lang, level)
         expect(output).toBe(baseline)
         expect(output).toContain('ShipTreatment')
-        expect(output).toContain('changed-file format/lint')
         expect(output).not.toContain('<%')
       })
     }
@@ -1572,9 +1571,8 @@ describe('cross-product: ship.md — result-first lifecycle across all stacks an
         const output = renderShip(lang, level)
         expect(output).toBe(baseline)
         expect(output).toContain('arbiter ship')
-        expect(output).toContain('arbiter lifecycle checkpoint')
         expect(output).toContain('normal cap is two rounds')
-        expect(output).toContain('one clean-HEAD full gate')
+        expect(output).toContain('CI runs the full gate on that SHA')
       })
     }
   }

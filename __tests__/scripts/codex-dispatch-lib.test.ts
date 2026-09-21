@@ -25,10 +25,6 @@ function makeWorktree() {
   return { hub, worktree, brief, out, cleanup: () => rmSync(hub, { recursive: true, force: true }) }
 }
 
-function addDirs(args: string[]) {
-  return args.flatMap((value, index) => (value === '--add-dir' ? [args[index + 1]] : []))
-}
-
 describe('codex dispatch argument builder', () => {
   it('builds a fresh writer command with its real Git and Vite paths', () => {
     const fixture = makeWorktree()
@@ -55,18 +51,43 @@ describe('codex dispatch argument builder', () => {
         outPath: fixture.out,
       })
 
+      const viteTempDir = join(fixture.worktree, 'node_modules', '.vite-temp')
+      const writableRootsArg = `sandbox_workspace_write.writable_roots=${JSON.stringify([
+        commonDir,
+        gitDir,
+        viteTempDir,
+      ])}`
+      const writableRootsIndex = args.indexOf(writableRootsArg)
+
       expect(args).toContain('approval_policy=never')
       expect(args).toContain('-s')
       expect(args[args.indexOf('-s') + 1]).toBe('workspace-write')
-      expect(addDirs(args)).toEqual([
-        gitDir,
-        commonDir,
-        join(fixture.worktree, 'node_modules', '.vite-temp'),
-      ])
+      expect(writableRootsIndex).toBeGreaterThan(0)
+      expect(args[writableRootsIndex - 1]).toBe('-c')
+      expect(args.some((arg) => arg.startsWith('--'))).toBe(false)
       expect(args.at(-1)).toBe('reply with ok')
     } finally {
       fixture.cleanup()
     }
+  })
+
+  it('deduplicates the common and worktree Git directory when they are equal', () => {
+    const args = buildCodexArgs({
+      worktreePath: '/tmp/codex-dispatch-worktree',
+      model: 'gpt-5.6-terra',
+      effort: 'low',
+      gitDir: '/repo/.git',
+      commonGitDir: '/repo/.git',
+      briefText: 'reply with ok',
+      outPath: '/tmp/codex-dispatch-out.txt',
+    })
+
+    expect(args).toContain(
+      `sandbox_workspace_write.writable_roots=${JSON.stringify([
+        '/repo/.git',
+        '/tmp/codex-dispatch-worktree/node_modules/.vite-temp',
+      ])}`,
+    )
   })
 
   it('omits fresh sandbox plumbing when resuming', () => {
@@ -83,7 +104,7 @@ describe('codex dispatch argument builder', () => {
 
       expect(args.slice(0, 3)).toEqual(['exec', 'resume', 'session-123'])
       expect(args).not.toContain('-s')
-      expect(args).not.toContain('--add-dir')
+      expect(args.some((arg) => arg.startsWith('sandbox_workspace_write.'))).toBe(false)
     } finally {
       fixture.cleanup()
     }
@@ -98,7 +119,7 @@ describe('codex dispatch argument builder', () => {
 
     expect(args).toContain('-s')
     expect(args[args.indexOf('-s') + 1]).toBe('read-only')
-    expect(args).not.toContain('--add-dir')
+    expect(args.some((arg) => arg.startsWith('sandbox_workspace_write.'))).toBe(false)
     expect(args).toContain('approval_policy=never')
   })
 

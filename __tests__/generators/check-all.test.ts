@@ -34,6 +34,7 @@ describe('generateCheckAll', () => {
       {
         cwd: dir,
         encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
         input: JSON.stringify({
           schema: 'arbiter-agent-return-v1',
           agent: 'worker',
@@ -126,7 +127,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 61 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 64 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -167,6 +168,7 @@ describe('generateCheckAll', () => {
     // + check-no-orphan-todo.mjs (INV-21, #2663 — tree-scanning orphan-todo gate, the
     //   CI-runnable twin of the editor-time hook)
     // + check-m16-handoff.mjs (M16 handoff-contract marker gate, #2103)
+    // + ci-receipt.mjs (CI verdict receipt for the pushed HEAD, #2794)
     // + lib/gate-evidence.mjs (#2328 — the gate-pass identity binding shared by the
     //   writer, both Claude hooks and the pre-push reuse rule)
     // + check-tabletop-evidence.mjs + schemas/tabletop-evidence.schema.json (#2429 — the
@@ -175,7 +177,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(63)
+    expect(result.files).toHaveLength(64)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-review-completion.mjs'))).toBe(
       true,
     )
@@ -325,12 +327,18 @@ describe('generateCheckAll', () => {
 
     // GREEN: a real, non-muted gate test → guard passes (exit 0).
     writeFileSync(spec, "it('does a thing', () => { expect(1).toBe(1) })\n")
-    const clean = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
+    const clean = spawnSync('node', [guard, '--dir', dir], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
     expect(clean.status).toBe(0)
 
     // RED: the same test silenced with `.skip` → guard fails closed (exit 1).
     writeFileSync(spec, 'it.' + "skip('does a thing', () => { expect(1).toBe(1) })\n")
-    const muted = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
+    const muted = spawnSync('node', [guard, '--dir', dir], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
     expect(muted.status).toBe(1)
     expect(muted.stderr).toContain('muted gate test')
 

@@ -29,7 +29,7 @@ All hooks are Node.js `.mjs` files — no bash required, no `chmod` needed, work
     enforce-gate-before-pr.mjs # PreToolUse → Bash (gate marker check)
     enforce-read-only.mjs     # PreToolUse → Edit|Write
     pre-edit-ssot-guard.mjs   # PreToolUse → Edit|Write
-    post-commit-check.mjs     # PostToolUse → Bash
+    post-commit-check.mjs     # PostToolUse → Bash (advisory)
     check-no-orphan-todo.mjs  # PostToolUse → Edit|Write
     check-no-any.mjs          # PostToolUse → Edit|Write (TypeScript only)
     check-no-unwrap.mjs       # PostToolUse → Edit|Write (Rust only)
@@ -49,16 +49,22 @@ Hooks read tool context from environment variables:
 
 ### `enforce-gate-before-pr.mjs`
 
-| Property      | Value                                                          |
-| ------------- | -------------------------------------------------------------- |
-| **Event**     | `PreToolUse` → `Bash`                                          |
-| **Purpose**   | Block `gh pr create` unless `.arbiter/gate-pass.json` is fresh |
-| **Invariant** | R1.S5 — gate must pass before PR creation                      |
-| **Blocking**  | Yes — exit 2 (stderr returned to Claude)                       |
+| Property      | Value                                                                        |
+| ------------- | ---------------------------------------------------------------------------- |
+| **Event**     | `PreToolUse` → `Bash`                                                        |
+| **Purpose**   | Block non-draft PR completion unless a fresh local gate or CI receipt exists |
+| **Invariant** | R1.S5 — gate must pass before PR creation                                    |
+| **Blocking**  | Yes — exit 2 (stderr returned to Claude)                                     |
 
-Triggers only on commands containing `gh pr create`. Checks that `.arbiter/gate-pass.json` exists and its `head_sha` matches the current `HEAD`. If the marker is missing or stale, Claude receives an error message directing it to re-run the gate.
+Triggers on `gh pr create` and `gh pr ready`. A matching `.arbiter/gate-pass.json` or
+`.arbiter/ci-pass.json` for `HEAD` satisfies the guard. Draft creation is allowed without
+either receipt so CI can run; non-draft creation and `gh pr ready` remain blocked until one
+exists.
 
-`scripts/check-all.mjs` writes `gate-pass.json` automatically on a clean pass. To bypass (e.g. in CI), set `ARBITER_SKIP_GATE_MARKER=1`.
+`scripts/check-all.mjs` writes `gate-pass.json` automatically on a clean pass, while
+`node scripts/ci-receipt.mjs` records a green CI verdict. If neither exists, run
+`node scripts/check-all.mjs preflight` for a local diagnostic or record CI's verdict first.
+To bypass (e.g. in CI), set `ARBITER_SKIP_GATE_MARKER=1`.
 
 ---
 
@@ -70,15 +76,17 @@ Provides `logInfo`, `logWarn`, `logError` functions. Writes to `.claude/hooks/lo
 
 ### `post-commit-check.mjs`
 
-| Property      | Value                                             |
-| ------------- | ------------------------------------------------- |
-| **Event**     | `PostToolUse` → `Bash`                            |
-| **Purpose**   | Verify commit message follows conventional format |
-| **Invariant** | Commit convention (AGENTS.md Commit Convention)   |
-| **Timeout**   | 3 seconds                                         |
-| **Blocking**  | No (warning only)                                 |
+| Property      | Value                                           |
+| ------------- | ----------------------------------------------- |
+| **Event**     | PostToolUse → Bash                              |
+| **Purpose**   | Report a non-conventional commit message        |
+| **Invariant** | Commit convention (AGENTS.md Commit Convention) |
+| **Timeout**   | 3 seconds                                       |
+| **Blocking**  | No (exit 0 advisory)                            |
 
-Triggers only on `git commit` commands. Checks the last commit message against the pattern:
+It is registered after Bash commands. It emits exactly one stderr line when the last `git commit`
+message fails this pattern, or `Advisory unavailable: <error>` if the check itself throws. It is
+otherwise silent and always exits 0.
 
 ```
 ^(feat|fix|refactor|test|docs|ci|chore|perf|style|build|revert)(\([^)]+\))?: .{1,72}$
@@ -143,7 +151,7 @@ Fires only on bash command failures matching test/gate patterns. Creates `.evide
 
 ### `skill-forced-eval.mjs`
 
-Fires before every user prompt. Phase-aware skill activation nudge. L2+ only.
+Fires on `Stop`. Retrospectively blocks an implementation turn whose first successful edit was not preceded by a successful `Skill(tdd)` result in the active phase. L2+ only.
 
 ---
 
@@ -156,11 +164,13 @@ Fires before every user prompt. Phase-aware skill activation nudge. L2+ only.
 | `PreToolUse`         | `Edit\|Write` | `enforce-read-only.mjs`      | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `pre-edit-ssot-guard.mjs`    | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `pre-edit-plan-anchor.mjs`   | Implemented (all)       |
-| `PostToolUse`        | `Bash`        | `post-commit-check.mjs`      | Implemented             |
+| `PostToolUse`        | `Bash`        | `post-commit-check.mjs`      | Implemented (advisory)  |
 | `PostToolUse`        | `Edit\|Write` | `check-no-orphan-todo.mjs`   | Implemented             |
 | `PostToolUse`        | `Edit\|Write` | `check-no-any.mjs`           | Implemented (TS only)   |
 | `PostToolUse`        | `Edit\|Write` | `check-no-unwrap.mjs`        | Implemented (Rust only) |
 | `PostToolUse`        | `Edit\|Write` | `post-edit-dispatch.mjs`     | Implemented (L2+)       |
 | `PostToolUseFailure` | `Bash`        | `debug-state-on-failure.mjs` | Implemented (L2+)       |
 | `PreCompact`         | —             | `pre-compact.mjs`            | Implemented (all)       |
-| `UserPromptSubmit`   | —             | `skill-forced-eval.mjs`      | Implemented (L2+)       |
+| `Stop`               | —             | `skill-forced-eval.mjs`      | Implemented (L2+)       |
+| `Stop`               | —             | `guard-task-completion.mjs`  | Implemented (L2+)       |
+| `Stop`               | —             | `guard-done-evidence.mjs`    | Implemented (L2+, flag) |

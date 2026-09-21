@@ -44,6 +44,22 @@ Materiale collegato: `SHIP_REDESIGN_ALGORITHM.md` (algoritmo congiunto), `ARBITE
 - Esecuzione Codex delimitata con brief stretto: 140–235k token totali contro 14M di una sessione orchestrata.
 - Gate: preflight ~48 s; L2 ~245 s; pre-push = L2 completo.
 
+## 2026-09-21 — #2794: CI come autorità unica
+
+La fase Verify di `/ship` esegue solo il preflight locale e spinge il candidato congelato.
+CI esegue il gate completo sullo SHA pubblicato ed è l'autorità della verifica.
+Prima di `advance --to close`, `node scripts/ci-receipt.mjs` registra il verdetto verde in `.arbiter/ci-pass.json`.
+
+## 2026-09-21 — #2802: provenance del reviewer vincolata al sidecar
+
+Il contratto di completamento review (#2177) non considera più sufficiente un envelope valido
+quando il sidecar dichiara una corsia di provenienza: `expectedProvenance[agent]` fissa
+`vendor/dispatch/cli`, e `scripts/check-review-completion.mjs` rifiuta mismatch o provenance
+assente con exit 1. Il campo è opzionale per compatibilità: un sidecar storico senza
+`expectedProvenance` conserva il comportamento precedente. La corsia Codex scrive
+`codex-reviewer: openai/external-cli/codex`; la provenance dell'envelope continua a essere
+stamped dal recorder, mai accettata dal payload dell'agente.
+
 ## Loop 0 — analisi e contraddittorio (2026-09-19 pomeriggio)
 
 Fatto: analisi indipendente, 3 round con Codex, algoritmo in 12 passi, loop di misura. Pulizia 153 worktree (backup
@@ -222,3 +238,95 @@ Fix (Opzione A): tutta la I/O si sposta nell'entry point `scripts/codex-dispatch
 Lesson learned 37 (risposta al meta-check del peer su #2769): una prova richiesta può diventare una prova conforme-ma-tarata quando il test che la certifica usa una blocklist anziché un allowlist — la blocklist passa finché nessuno prova la stringa esatta usata dal codice reale; un revisore che legge solo il verdetto del test, non il suo contenuto, non lo scopre. Controllo proposto dal peer, adottato qui: il brief di un revisore indipendente su un'esenzione CANON-25 deve elencare esplicitamente i file di gate-config toccati dalla PR e mandatare la falsificazione di ogni commento di giustificazione lì scritto — non "rivedi il diff", ma "prova che questo commento è falso". Vale per ogni futura esenzione fail-closed, non solo questa.
 
 Lesson learned 38 (il controllo di lesson 37, applicato alla PR che l'ha proposto, ha trovato un buco in sé stesso): il revisore indipendente dispatchato su PR #2772 con esattamente quel brief ha falsificato l'allowlist appena scritta — `/from\s+['"]([^'"]+)['"]/g` assume che tra `from` e la stringa ci sia whitespace vero, ma `from/* commento */'node:fs'`, `import 'node:fs'` (senza `from`) ed `export * from 'node:fs'` sono tutte sintassi valide che il regex non copre; ha trovato anche una via di I/O senza alcuna dichiarazione `import` (`process.getBuiltinModule('node:fs')`, Node 20+). Un regex su testo grezzo non è un parser: qualunque forma sintattica non anticipata dall'autore del regex passa. Fix: sostituito il matching testuale con un walk dell'AST via `typescript` (già dipendenza del repo, nessuna nuova dipendenza) su `ts.createSourceFile` — cattura ogni `ImportDeclaration`/`ExportDeclaration` con specifier e ogni `ImportKeyword` in posizione di call-expression per costruzione, non per pattern; il regex resta solo come difesa aggiuntiva mirata sulle due vie di I/O che non passano da un `import` (`require(`, `process.getBuiltinModule`), con un commento `ponytail:` che ne nomina il limite (non esaustivo contro future API Node). Mutation-kill rieseguito su tutte e sei le forme trovate dal revisore: tutte rosse con la mutazione, verdi senza. Regola: un allowlist testuale su una grammatica reale (JS/TS) non è mai la prova finale — o si usa un parser vero, o si dichiara esplicitamente cosa il test NON copre.
+
+## #2773 slice 1 — gate derivation + historical recall (2026-09-20)
+
+La lista dei gate attesi viene ora ricalcolata dai file del piano usando lo stesso
+`GATE_AFFECTS_REGISTRY` e lo stesso matcher minimatch del selective gate; la transizione plan→red
+rifiuta sia una lista assente sia una lista plausibile ma diversa dalla ricalcolata. Nessun check è
+stato tolto da `check-all.mjs`. Quattro entry prima `ALWAYS` sono state ristrette ai loro input
+documentati: dogfood, examples drift, emitted markdown refs e integration suite. Il mutation-kill
+che rimette examples drift ad `ALWAYS` rende rosso il caso AC-1 docs-only.
+
+Backtest AC-6 reale sui 30 PR mergiati più recenti al momento della misura. I file vengono dal diff
+base→head dei commit GitHub; le conclusioni/log CI sono stati letti da GitHub Actions. Il sandbox non
+consente rete a `gh`, quindi la raccolta di questa esecuzione è passata dal connettore GitHub; lo
+script riproducibile usa `gh pr list`, `gh run list` e `gh run view --log-failed`.
+
+- Failure osservate: 2 (`tdd-evidence` su PR #2734 e #2719).
+- Failure previste: 2.
+- Miss: 0.
+- Recall: **100% (2/2)**.
+- Esclusione esplicita: PR #2711, run `35064876150`, è fallita nel checkout per un ref lock prima
+  dell'avvio del gate; resta nel report come failure infrastrutturale irrisolta, non nel denominatore.
+
+|   PR | file | gate previsti | failure osservate        | miss |
+| ---: | ---: | ------------: | ------------------------ | ---- |
+| 2772 |    5 |           175 | —                        | —    |
+| 2771 |    1 |           136 | —                        | —    |
+| 2769 |   11 |           175 | —                        | —    |
+| 2766 |   16 |           154 | —                        | —    |
+| 2764 |   37 |           155 | —                        | —    |
+| 2762 |   40 |           175 | —                        | —    |
+| 2759 |    4 |           139 | —                        | —    |
+| 2757 |   49 |           154 | —                        | —    |
+| 2754 |    9 |           140 | —                        | —    |
+| 2752 |    8 |           140 | —                        | —    |
+| 2749 |    4 |           175 | —                        | —    |
+| 2750 |    4 |           139 | —                        | —    |
+| 2748 |    4 |           136 | —                        | —    |
+| 2744 |    5 |           139 | —                        | —    |
+| 2743 |  175 |           175 | —                        | —    |
+| 2742 |    9 |           139 | —                        | —    |
+| 2739 |   17 |           173 | —                        | —    |
+| 2734 |  261 |           175 | tdd-evidence             | —    |
+| 2723 |   40 |           154 | —                        | —    |
+| 2722 |  592 |           175 | —                        | —    |
+| 2721 |   54 |           154 | —                        | —    |
+| 2720 |   39 |           154 | —                        | —    |
+| 2719 |    2 |           138 | tdd-evidence             | —    |
+| 2717 |   10 |           154 | —                        | —    |
+| 2716 |    9 |           175 | —                        | —    |
+| 2715 |   61 |           155 | —                        | —    |
+| 2713 |   41 |           132 | —                        | —    |
+| 2711 |   83 |           155 | infra: checkout ref lock | n/a  |
+| 2708 |   45 |           154 | —                        | —    |
+| 2707 |   86 |           155 | —                        | —    |
+
+Gap di precisione nominato, non nascosto: 116 entry del registry restano `ALWAYS`; inoltre blacklist
+e limite fail-safe oltre 500 file producono legittimamente tutti i 175 gate. Il backtest prova la
+recall sul campione, non una buona precisione. Questo report va copiato anche in #2745 dal
+coordinatore; questa slice non modifica #2745.
+
+## 2026-09-20 — #2767 P4: sette promesse di prosa tolte da `/ship`
+
+Owner-approved (issue #2767, lista C.2–C.8 della matrice passo→obbligo): tolte da `ship.md` (self +
+template) le frasi che nessun controllo impone — checkpoint del cursore, scelta del modello, liste
+proof/rollback/minimalità, certificazione mirata pre-review, riconciliazione dei finding in un batch,
+conteggio delle corsie, regole sul transcript del reviewer. Restano solo le frasi con un controllo
+dietro (manifest, blocco MED+/citazioni, invalidazione al cambio di SHA, gate unico su HEAD pulito).
+C.1 (le AC dell'issue coperte dal piano) diventa un controllo di ammissione in una slice separata.
+
+## #2767 slice C — ammissione criteri di accettazione (2026-09-20)
+
+All'ingresso `plan → red`, un task GitHub confronta il corpo della issue con la lista congelata nel piano.
+Sono accettati checkbox o bullet sotto “Acceptance Criteria”; gli id `AC-N` sono preferiti, ma i bullet
+senza id usano la posizione e devono comunque avere testo normalizzato identico nel piano namespaced.
+Una issue senza criteri leggibili blocca e richiede chiarimento; `gh` indisponibile, timeout o risposta
+malformata produce `NO DATA` con exit 2, senza avanzare la fase. Gli id non GitHub (per esempio Jira)
+scrivono uno `SKIP` esplicito e continuano con la normale validazione locale del piano.
+
+## 2026-09-20 — #2767 P2: i claim dell'agente vengono controllati su `Stop`
+
+I guard di completamento, ricevuta finale e provenienza TDD sono stati spostati da
+`UserPromptSubmit` a `Stop`: leggono `last_assistant_message`, con fallback al transcript legato alla
+sessione, e non interpretano più il testo del proprietario come claim dell'agente. Un secondo `Stop`
+non aggira il blocco. Il bridge Codex è stato rimosso perché non intercetta la risposta finale: su
+Codex la copertura dichiarata resta quella dei gate nativi di `arbiter task advance`.
+
+## 2026-09-21 — #2797: review in foreground, round LOW-only = completo
+
+Misurato sulla consegna misurata 4 su un target esterno (ship emesso): la sessione headless è uscita mentre il 3° round
+di review girava in background, e il 3° round era nato da soli finding LOW. Ora `ship.md` (self +
+template) impone l'attesa in foreground del reviewer e del round; `planReviewRound` non pianifica
+un round oltre il tetto e chiude come completo un round con soli LOW (parcheggiati con `finding add`).

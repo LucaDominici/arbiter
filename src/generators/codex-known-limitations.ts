@@ -48,6 +48,8 @@ export interface KnownLimitations {
 }
 
 const BRIDGED = 'Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`' as const
+const NATIVE_PHASE_GATES =
+  'Native phase gates (`arbiter lifecycle advance`); no final-response interception' as const
 
 /**
  * Disclosure for a hook that is BOTH bridged in real time and backed by a gate.
@@ -111,7 +113,8 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   },
   'post-commit-check.mjs': {
     name: 'post-commit-check.mjs',
-    enforces: 'Post-commit checklist verification',
+    enforces:
+      'Reports one advisory line for a non-conventional commit or an unavailable check; otherwise silent; always exits 0',
     codexEquivalent: BRIDGED,
   },
   'check-no-unused-exports.mjs': {
@@ -171,13 +174,13 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   },
   'skill-forced-eval.mjs': {
     name: 'skill-forced-eval.mjs',
-    enforces: 'Forces skill invocation before task start',
-    codexEquivalent: BRIDGED,
+    enforces: 'Requires successful Skill(tdd) evidence before implementation edits',
+    codexEquivalent: NATIVE_PHASE_GATES,
   },
   'guard-task-completion.mjs': {
     name: 'guard-task-completion.mjs',
     enforces: 'Blocks premature done claims',
-    codexEquivalent: BRIDGED,
+    codexEquivalent: NATIVE_PHASE_GATES,
   },
   'stop-evidence-guard.mjs': {
     name: 'stop-evidence-guard.mjs',
@@ -197,7 +200,7 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   'guard-done-evidence.mjs': {
     name: 'guard-done-evidence.mjs',
     enforces: 'Requires recorded evidence before done claims',
-    codexEquivalent: bridgedPlusGate('`arbiter check tdd` / evidence checks'),
+    codexEquivalent: NATIVE_PHASE_GATES,
   },
   'post-brainstorm-stop.mjs': {
     name: 'post-brainstorm-stop.mjs',

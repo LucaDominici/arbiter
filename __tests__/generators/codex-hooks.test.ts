@@ -72,6 +72,35 @@ describe('generateCodexHooks', () => {
     expect(content).toContain('check-no-orphan-todo.mjs')
   })
 
+  it('does not pretend UserPromptSubmit can intercept Claude Stop guards', () => {
+    generateCodexHooks(makeConfig(dir, { governanceLevel: 'L2' }))
+    const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')
+    expect(content).toContain('post-brainstorm-stop.mjs')
+    for (const guard of [
+      'skill-forced-eval.mjs',
+      'guard-task-completion.mjs',
+      'guard-done-evidence.mjs',
+    ]) {
+      expect(content).not.toMatch(new RegExp(`command = .*${guard.replace('.', '\\.')}`))
+    }
+  })
+
+  it('config.toml wires post-commit-check as an advisory after bash commands (#2767)', () => {
+    generateCodexHooks(makeConfig(dir))
+    const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')
+    const parsed = parseToml(content) as {
+      hooks: {
+        PostToolUse: Array<{ matcher?: string; hooks?: Array<{ command?: string }> }>
+      }
+    }
+    const bashHooks = parsed.hooks.PostToolUse.find(
+      (entry) => entry.matcher === '^(Bash|bash)$',
+    )?.hooks
+    expect(bashHooks?.map((hook) => hook.command)).toEqual([
+      'node .codex/codex-adapter.mjs .claude/hooks/post-commit-check.mjs',
+    ])
+  })
+
   it('includes check-no-pii when enableSecurityScanning is true', () => {
     generateCodexHooks(makeConfig(dir, { governanceLevel: 'L2' }))
     const content = readFileSync(join(dir, '.codex', 'config.toml'), 'utf-8')

@@ -245,7 +245,7 @@ function closeAction(profile: ShipProfile): string {
   return (
     'CLOSER mode: single named target, no new issues or refactor beyond the diff ' +
     '(findings → PARKING list, one line, no action). Same error twice → 5-line root-cause, ' +
-    'else declare BLOCKED. Reuse the qualified clean-HEAD receipt; do not run another gate while the candidate is unchanged.' +
+    'else declare BLOCKED. Reuse the recorded CI verdict for the unchanged pushed SHA; do not run another local full gate.' +
     doneEvidence +
     exactLanding +
     ' Push, then foreground-wait on the PR/gate checks; never end the turn on a promise.'
@@ -340,10 +340,6 @@ function reviewPhaseStepBody(
   return externalCount > 0 ? { ...step, externalReviewers: externalCount } : step
 }
 
-function finalGateLevel(profile: ShipProfile): 'L2' | 'L3' {
-  return profile.evidenceHarness ? 'L3' : 'L2'
-}
-
 /** The phase body (count + action), before the size-derived vertical floor is attached. */
 function shipStepBody(
   phase: TaskPhase,
@@ -391,11 +387,11 @@ function shipStepBody(
         reviewAgents: 0,
       }
     case 'verification': {
-      const finalGate = finalGateLevel(profile)
       return {
         phase,
-        action: `Commit the candidate and its evidence, then run \`node scripts/check-all.mjs ${finalGate}\` once on the clean HEAD; fix failures before advancing to close.`,
-        command: `node scripts/check-all.mjs ${finalGate}`,
+        action:
+          'Run `node scripts/check-all.mjs preflight` as a local diagnostic; push the frozen candidate so CI runs the full gate on that SHA and is the verification authority; record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.',
+        command: 'node scripts/check-all.mjs preflight',
         reviewAgents: 0,
         // Self-only authoring gates run here for arbiter-self only; a consumer repo has no
         // such concern, so the list is empty (skipped, not faked — ADR-093 §5 / INV-115).
