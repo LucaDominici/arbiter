@@ -330,7 +330,8 @@ describe('hooks.mjs dispatcher — forwards stdin JSON to handlers end-to-end', 
       encoding: 'utf-8',
       input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: filePath } }),
       // No env var — only the stdin payload carries the path, exactly like Claude Code.
-      env: { ...process.env, CLAUDE_TOOL_INPUT_PATH: '' },
+      // #2790: the end-to-end fixture runs real handlers on a loaded CI runner — give them 30 s.
+      env: { ...process.env, CLAUDE_TOOL_INPUT_PATH: '', ARBITER_HOOK_TIMEOUT_MS: '30000' },
       timeout: 10000,
     })
   }
@@ -937,5 +938,18 @@ describe('check-no-skipped-tests — empirical fire (#730)', () => {
     writeFileSync(f, '// @Disabled\nconst x = 1\n')
     const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
     expect(r.status).toBe(0)
+  })
+})
+
+// #2790: the dispatcher's per-handler budget is fixed at 3 s; under CI load the unused-exports
+// handler exceeds it and the end-to-end test flakes with ETIMEDOUT. The budget must be tunable.
+describe('hooks.mjs dispatcher — per-handler timeout is tunable (#2790)', () => {
+  it('honours ARBITER_HOOK_TIMEOUT_MS instead of a hard-coded 3000', () => {
+    const src = readFileSync(resolve('.claude/hooks/hooks.mjs'), 'utf-8')
+    expect(src).toContain('ARBITER_HOOK_TIMEOUT_MS')
+    expect(src).not.toMatch(/timeout:\s*3000,/)
+    const tpl = readFileSync(resolve('src/templates/claude/hooks/hooks.mjs.ejs'), 'utf-8')
+    expect(tpl).toContain('ARBITER_HOOK_TIMEOUT_MS')
+    expect(tpl).not.toMatch(/timeout:\s*3000,/)
   })
 })
