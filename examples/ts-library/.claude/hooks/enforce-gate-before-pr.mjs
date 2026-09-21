@@ -124,15 +124,25 @@ const PR_CREATE_BOOLEAN_FLAGS = new Set([
 ])
 
 function hasDraftFlag(tokens) {
+  let draft = false
+  let valid = true
   for (let index = 3; index < tokens.length; index += 1) {
     const token = tokens[index]
-    if (token === '--draft' || token === '-d') return true
-    if (token.startsWith('--draft=')) return false
+    if (token === '--draft' || token === '-d') {
+      draft = true
+      continue
+    }
+    if (token.startsWith('--draft=') || token.startsWith('-d=')) {
+      const value = token.slice(token.indexOf('=') + 1)
+      if (value === 'true' || value === 'false') draft = value === 'true'
+      else valid = false
+      continue
+    }
     if (!token.startsWith('-') || token.includes('=') || PR_CREATE_BOOLEAN_FLAGS.has(token))
       continue
     index += 1
   }
-  return false
+  return valid && draft
 }
 
 const isDraft =
