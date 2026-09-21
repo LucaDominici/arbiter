@@ -44,6 +44,12 @@ Materiale collegato: `SHIP_REDESIGN_ALGORITHM.md` (algoritmo congiunto), `ARBITE
 - Esecuzione Codex delimitata con brief stretto: 140–235k token totali contro 14M di una sessione orchestrata.
 - Gate: preflight ~48 s; L2 ~245 s; pre-push = L2 completo.
 
+## 2026-09-21 — #2794: CI come autorità unica
+
+La fase Verify di `/ship` esegue solo il preflight locale e spinge il candidato congelato.
+CI esegue il gate completo sullo SHA pubblicato ed è l'autorità della verifica.
+Prima di `advance --to close`, `node scripts/ci-receipt.mjs` registra il verdetto verde in `.arbiter/ci-pass.json`.
+
 ## Loop 0 — analisi e contraddittorio (2026-09-19 pomeriggio)
 
 Fatto: analisi indipendente, 3 round con Codex, algoritmo in 12 passi, loop di misura. Pulizia 153 worktree (backup

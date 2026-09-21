@@ -319,6 +319,8 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // imports it to STAMP the marker, and the pre-push hook plus both Claude hooks
   // import it to VERIFY one. A project missing it fails closed everywhere.
   { rel: ['scripts', 'lib', 'gate-evidence.mjs'], tpl: 'scripts/lib/gate-evidence.mjs.ejs' },
+  // #2794: CI is the full-gate authority; consumers record its verdict against HEAD.
+  { rel: ['scripts', 'ci-receipt.mjs'], tpl: 'scripts/ci-receipt.mjs.ejs' },
   // #2427: the per-repo gate mutex. Emitted unconditionally — check-all.mjs takes
   // it before the first check and the pre-push hook launches the gate through it,
   // so a project missing it would run two gates in one repo and let a killed push

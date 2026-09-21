@@ -94,7 +94,7 @@ carries that reason in its manifest `rationale`. Two of those twenty are declare
 sharper reason worth naming: `pre-edit-ssot-guard` would **consume the developer's one-shot
 `.arbiter/ssot-bypass` token** if driven past its pattern match with the probe's own path named in it
 (a read-only gate check must never eat user state), and `enforce-gate-before-pr`'s verdict depends on the live `.arbiter/gate-pass.json`
-that `scripts/check-all.mjs` itself writes — probing it would make the gate go red because the previous gate
+or CI receipt that `scripts/check-all.mjs` or `scripts/ci-receipt.mjs` writes — probing it would make the gate go red because the previous gate
 went green. Both need an isolated repo root; tracked as a follow-up. A green self run means: every declared-HARD hook that _can_ be driven
 by a fixture does block, and every hook on disk has a declared hardness. It does **not** mean every
 hook blocks. Extending the harness to state-bearing fixtures is a tracked follow-up.
@@ -256,7 +256,7 @@ Hooks wired in `.claude/settings.json`.
 | `pre-compact.mjs`               | PreCompact         | \*           | read, stdout-inject          | `.claude/.task-*`                                                                                                      | SAFE                                                                                              |
 | `pre-spawn-worktree-guard.mjs`  | PreToolUse         | Task\|Agent  | read, create-or-append-write | `.arbiter/agents-active.json`, `.claude/agents/agent-write-classes.json`                                               | SAFE                                                                                              |
 | `post-subagent-release.mjs`     | SubagentStop       | \*           | read, overwrite-write        | `.arbiter/agents-active.json`                                                                                          | SAFE (#2403; cleanup companion to pre-spawn-worktree-guard.mjs; always exits 0)                   |
-| `enforce-gate-before-pr.mjs`    | PreToolUse         | Bash         | read (gate marker, git)      | `.arbiter/gate/`                                                                                                       | SAFE                                                                                              |
+| `enforce-gate-before-pr.mjs`    | PreToolUse         | Bash         | read (gate/CI receipt, git)  | `.arbiter/gate-pass.json`, `.arbiter/ci-pass.json`                                                                     | SAFE                                                                                              |
 | `stop-finding-loss.mjs`         | Stop               | \*           | read (transcript)            | `.arbiter/findings/*`, `.arbiter/evidence/agent-returns/*`, `.arbiter/evidence/findings-promote/drained.jsonl` (#2733) | SAFE (E6b #1948; advisory, hard via ARBITER_FINDING_LOSS_HARD=1; activated per OD-14 2026-07-17)  |
 
 ---
@@ -324,8 +324,10 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 
 Eight hooks are emitted **verbatim** to target projects by `src/generators/claude.ts`
 (`readTemplate` → `writeFile`, no EJS render): `stop-dangerous`, `enforce-read-only`,
-`pre-edit-ssot-guard`, `enforce-gate-before-pr`, `check-no-unused-exports`,
-`check-no-skipped-tests`, `post-brainstorm-stop`, `pre-spawn-worktree-guard`.
+`pre-edit-ssot-guard`, `check-no-unused-exports`,
+`check-no-skipped-tests`, `post-brainstorm-stop`, `pre-spawn-worktree-guard`,
+`post-subagent-release`.
+`enforce-gate-before-pr` is the EJS-rendered twin of its self copy.
 (Corrected #2326: this list previously named `check-no-orphan-todo` and `check-no-placeholders`,
 which are **not** in `REQUIRED_RAW_HOOKS` — see `scripts/check-self-dogfood.mjs:67-76`. A surface
 doc that misstates its own corpus is the failure this file exists to prevent.) `scripts/check-self-dogfood.mjs`

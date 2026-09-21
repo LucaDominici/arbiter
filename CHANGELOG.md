@@ -8,6 +8,8 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+- `/ship` now runs only the fast preflight locally; CI owns the full gate, and
+  `scripts/ci-receipt.mjs` records the green verdict for the pushed SHA (#2794).
 - Writer Codex dispatch now grants linked-worktree Git metadata through
   `sandbox_workspace_write.writable_roots`, with deduplication for plain checkouts (#2747).
 - Emitted `_contract-postman.yml` pins `mikepenz/action-junit-report` v5.2.0 to its real commit; the

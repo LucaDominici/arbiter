@@ -213,6 +213,7 @@ function runOnce(cmd: string, args: readonly string[], opts: RunOnceOptions): At
     input: opts.input,
     maxBuffer: opts.maxBufferBytes,
     encoding: 'utf-8',
+    stdio: [opts.input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
     shell: false,
   })
   return classifyAttempt({
