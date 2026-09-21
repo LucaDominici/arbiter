@@ -1572,7 +1572,7 @@ describe('cross-product: ship.md — result-first lifecycle across all stacks an
         expect(output).toBe(baseline)
         expect(output).toContain('arbiter ship')
         expect(output).toContain('normal cap is two rounds')
-        expect(output).toContain('one clean-HEAD full gate')
+        expect(output).toContain('CI runs the full gate on that SHA')
       })
     }
   }

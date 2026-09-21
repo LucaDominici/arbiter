@@ -60,6 +60,14 @@ function initGitRepo(dir: string): void {
   git(['commit', '-q', '-m', 'fixture', '--no-gpg-sign'])
 }
 
+function gitHead(dir: string): string {
+  return execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: dir,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim()
+}
+
 function writeGatePassMarker(dir: string, overrides: Record<string, unknown> = {}): void {
   writeGatePassEvidence(dir, { taskId: '#549', overrides })
 }
@@ -151,7 +159,7 @@ describe('legacy → unified migration (#1206, #549)', () => {
     mkdirSync(markerDir, { recursive: true })
     writeFileSync(join(markerDir, 'gate-pass.json'), '{not-json', 'utf-8')
     expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(
-      /corrupt.*node scripts\/check-all\.mjs L1/i,
+      /corrupt.*node scripts\/check-all\.mjs preflight.*node scripts\/ci-receipt\.mjs/i,
     )
     expect(phaseOf()).toBe('verification')
   })
@@ -201,6 +209,44 @@ describe('legacy → unified migration (#1206, #549)', () => {
     expect(phaseOf()).toBe('close')
   })
 
+  it('verification → close accepts a CI pass receipt for the current HEAD', () => {
+    initGitRepo(dir)
+    seedLegacy('verification')
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'ci-pass.json'),
+      JSON.stringify({
+        sha: gitHead(dir),
+        conclusion: 'success',
+        runUrl: 'https://github.com/example/repo/actions/runs/1',
+        checkedAt: new Date().toISOString(),
+      }),
+      'utf-8',
+    )
+
+    expect(() => runTaskAdvance({ to: 'close', dir })).not.toThrow()
+    expect(phaseOf()).toBe('close')
+  })
+
+  it('verification → close rejects a CI pass receipt for another HEAD', () => {
+    initGitRepo(dir)
+    seedLegacy('verification')
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'ci-pass.json'),
+      JSON.stringify({
+        sha: 'a'.repeat(40),
+        conclusion: 'success',
+        runUrl: 'https://github.com/example/repo/actions/runs/1',
+        checkedAt: new Date().toISOString(),
+      }),
+      'utf-8',
+    )
+
+    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/current HEAD|ci-pass|preflight/i)
+    expect(phaseOf()).toBe('verification')
+  })
+
   it('verification → close accepts the fast L1 marker, but complete still requires L2', () => {
     initGitRepo(dir)
     seedLegacy('verification')
@@ -214,7 +260,9 @@ describe('legacy → unified migration (#1206, #549)', () => {
 
   it('verification → close rejects a missing gate-pass marker', () => {
     seedLegacy('verification')
-    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/missing.*gate-pass\.json/i)
+    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(
+      /check-all\.mjs preflight.*ci-receipt\.mjs/i,
+    )
     expect(phaseOf()).toBe('verification')
   })
 

@@ -17,6 +17,8 @@ function runHook(env: NodeJS.ProcessEnv, cwd: string): ReturnType<typeof spawnSy
     env: { ...process.env, ...env },
     cwd,
     encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 5000,
   })
 }
 
@@ -28,7 +30,11 @@ function initRepo(dir: string): void {
 }
 
 function currentHead(dir: string): string {
-  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim()
+  return execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: dir,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim()
 }
 
 function writeMarker(dir: string, headSha: string): void {
