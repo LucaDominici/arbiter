@@ -669,7 +669,7 @@ function specialPayload(root, temporary, contract) {
       }
     }
     case 'brainstorm':
-      return { prompt: '/task #1' }
+      return { prompt: '/ship #1' }
     case 'bad-commit':
       return { tool_input: { command: 'git commit -m "bad message"' } }
     case 'stop':
