@@ -53,6 +53,10 @@ waste fix-on-red strikes.
 - Fail-closed migration: a whole-dir symlink left by the old `symlink` strategy is refused
   with an explicit remove-and-retry message.
 - Explicit `strategy: 'symlink'` / `'copy'` configs are unchanged.
+- Worktree open, prepare, and relink discover installed `node_modules` at the same relative
+  paths in nested checkout packages and materialize them with this cache-isolated strategy;
+  explicit links take precedence, and discovery does not recurse into dependency trees or
+  directory symlinks.
 - `arbiter worktree relink <task-id>` re-runs the configured link materialization for an
   already-open worktree, healing missing child links and warning about links whose source still
   does not exist.

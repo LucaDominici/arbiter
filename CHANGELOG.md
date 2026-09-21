@@ -8,6 +8,7 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+- Worktree preparation now discovers and cache-isolates installed `node_modules` at nested package roots (#2799).
 - RED capture and replay run from the nearest package root in monorepos and retain that
   repository-relative working directory in the evidence (#2801).
 

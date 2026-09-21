@@ -8,6 +8,7 @@ import {
   readlinkSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -86,6 +87,35 @@ describe('runWorktreeAdopt', () => {
     expect(() => runWorktreeClose({ taskId: '#2564', cwd: repo, force: true })).toThrow(
       /host-owned/i,
     )
+  })
+
+  it("links dependencies from the target checkout's nested package roots", async () => {
+    mkdirSync(join(repo, 'frontend'), { recursive: true })
+    writeFileSync(join(repo, 'frontend', 'package.json'), '{"name":"frontend"}\n')
+    git(repo, 'add', 'frontend/package.json')
+    git(repo, 'commit', '-m', 'add nested package fixture')
+    mkdirSync(join(repo, 'node_modules', 'root-pkg'), { recursive: true })
+    writeFileSync(join(repo, 'node_modules', 'root-pkg', 'index.js'), 'module.exports = {}\n')
+    mkdirSync(join(repo, 'frontend', 'node_modules', 'frontend-pkg'), { recursive: true })
+    writeFileSync(
+      join(repo, 'frontend', 'node_modules', 'frontend-pkg', 'index.js'),
+      'module.exports = {}\n',
+    )
+    mkdirSync(join(repo, 'frontend', 'node_modules', '.vite'), { recursive: true })
+    git(repo, 'worktree', 'add', '-b', 'feature/target-dependencies', checkout)
+    symlinkSync(join(repo, 'frontend'), join(repo, 'aliased-package'), 'dir')
+    mkdirSync(join(checkout, 'aliased-package'))
+
+    await runWorktreeAdopt({ taskId: '#2799', worktreePath: checkout, cwd: repo })
+
+    expect(readlinkSync(join(checkout, 'node_modules', 'root-pkg'))).toBe(
+      resolve(repo, 'node_modules', 'root-pkg'),
+    )
+    expect(readlinkSync(join(checkout, 'frontend', 'node_modules', 'frontend-pkg'))).toBe(
+      resolve(repo, 'frontend', 'node_modules', 'frontend-pkg'),
+    )
+    expect(existsSync(join(checkout, 'frontend', 'node_modules', '.vite'))).toBe(false)
+    expect(existsSync(join(checkout, 'aliased-package', 'node_modules'))).toBe(false)
   })
 
   it('turns a detached Codex checkout into the deterministic task branch', async () => {
