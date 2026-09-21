@@ -144,8 +144,19 @@ describe('enforce-gate-before-pr hook', () => {
     expect(result.stderr).toContain('DRAFT')
   })
 
+  it('uses the final explicit draft value when it is true', () => {
+    const dir = track(setupGitRepo())
+    const result = runHook(
+      { CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --draft=false --draft --fill' },
+      dir,
+    )
+    expect(result.status).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
+  })
+
   it.each([
     ['false-valued draft flag', 'gh pr create --draft=false --fill'],
+    ['final false-valued draft flag', 'gh pr create --draft --draft=false --fill'],
     ['draft text inside an argument', 'gh pr create --body "a --draft description" --fill'],
     ['draft flag as an option value', 'gh pr create --body "--draft" --fill'],
     ['draft consumed as a body value', 'gh pr create --body --draft --fill'],
