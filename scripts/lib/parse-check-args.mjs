@@ -32,7 +32,7 @@ export function effectiveGateLevel({ subcommand, level }) {
 /**
  * Parse argv into check-all options.
  * @param {string[]} argv  process.argv.slice(2)
- * @returns {{ subcommand: string, level: string, langs: string[]|null, noMutation: boolean, jsonPath: string|null, failFast: boolean, explicitLevel: boolean }}
+ * @returns {{ subcommand: string, level: string, langs: string[]|null, noMutation: boolean, jsonPath: string|null, failFast: boolean, dryRun: boolean, explicitLevel: boolean }}
  */
 export function parseCheckArgs(argv) {
   let subcommand = null
@@ -41,6 +41,7 @@ export function parseCheckArgs(argv) {
   let noMutation = false
   let jsonPath = null // null = write to default path; '' = default; string = explicit path
   let failFast = false
+  let dryRun = false
   let explicitLevel = false
 
   for (let i = 0; i < argv.length; i++) {
@@ -56,6 +57,8 @@ export function parseCheckArgs(argv) {
       noMutation = true
     } else if (arg === '--fail-fast') {
       failFast = true
+    } else if (arg === '--dry-run') {
+      dryRun = true
     } else if (arg === '--json') {
       if (i + 1 < argv.length && !argv[i + 1].startsWith('-')) {
         jsonPath = argv[++i]
@@ -76,5 +79,5 @@ export function parseCheckArgs(argv) {
 
   if (subcommand === null) subcommand = 'gate'
 
-  return { subcommand, level, langs, noMutation, jsonPath, failFast, explicitLevel }
+  return { subcommand, level, langs, noMutation, jsonPath, failFast, dryRun, explicitLevel }
 }

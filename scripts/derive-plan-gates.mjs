@@ -15,13 +15,14 @@
 import { existsSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { deriveGatesForFiles, parsePlanFilesManifest } from './lib/gate-derivation.mjs'
+import { inspectGateContract } from './lib/gate-contract.mjs'
 import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
 
 /** Pure: plan file contents -> derived gates, or null if not anchorable yet. */
-export function derivePlanGates(planBody) {
+export function derivePlanGates(planBody, contract = undefined) {
   const files = parsePlanFilesManifest(planBody)
   if (files === null || files.length === 0) return null
-  return deriveGatesForFiles(files)
+  return deriveGatesForFiles(files, undefined, contract)
 }
 
 function main() {
@@ -40,7 +41,7 @@ function main() {
     console.log('SKIP derive-plan-gates: plan file not written yet')
     return
   }
-  const gates = derivePlanGates(readRegularFileSync(abs, 'utf-8'))
+  const gates = derivePlanGates(readRegularFileSync(abs, 'utf-8'), inspectGateContract(root))
   if (gates === null) {
     console.log('SKIP derive-plan-gates: no `files:` manifest in plan frontmatter yet')
     return

@@ -337,8 +337,15 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     }
   }
 
-  it('threads --dry-run into setMode({ dryRun: true })', () => {
-    expect(runParse(['--dry-run'])).toMatchObject({ dryRun: true, only: null })
+  it('returns the machine contract before execution mode is armed', () => {
+    const result = runRenderedGate(['--dry-run'])
+    expect(result.status, result.stderr).toBe(0)
+    const contract = JSON.parse(result.stdout)
+    expect(contract.schema).toBe('arbiter-gate-contract-v1')
+    expect(contract.gates).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'typecheck' })]),
+    )
+    expect(result.stdout).not.toContain('SETMODE:')
   })
 
   it('threads --gate <name> into setMode({ only: name })', () => {

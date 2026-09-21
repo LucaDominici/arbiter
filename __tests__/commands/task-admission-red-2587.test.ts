@@ -15,8 +15,30 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runTaskAdvance } from '../../src/commands/task.js'
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
+import { inspectGateContract } from '../../scripts/lib/gate-contract.mjs'
 
 const roots: string[] = []
+
+function installGateContractAuthority(root: string): void {
+  writeFileSync(
+    join(root, 'scripts', 'check-all.mjs'),
+    [
+      '#!/usr/bin/env node',
+      '// @arbiter-gate-contract arbiter-gate-contract-v1',
+      "import { createHash } from 'node:crypto'",
+      "import { readFileSync } from 'node:fs'",
+      "import { fileURLToPath } from 'node:url'",
+      'const path = fileURLToPath(import.meta.url)',
+      "const sha256 = createHash('sha256').update(readFileSync(path)).digest('hex')",
+      "console.log(JSON.stringify({ schema: 'arbiter-gate-contract-v1', authority: [{ path: 'scripts/check-all.mjs', sha256 }], gates: [], external: [], unresolved: [] }))",
+      '',
+    ].join('\n'),
+  )
+}
+
+function deriveFixtureGates(root: string, files: string[]): unknown[] {
+  return deriveGatesForFiles(files, undefined, inspectGateContract(root))
+}
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
@@ -32,6 +54,7 @@ function installAcceptanceChecker(root: string): void {
     resolve(__dirname, '../../scripts', 'check-acceptance.mjs'),
     join(root, 'scripts', 'check-acceptance.mjs'),
   )
+  installGateContractAuthority(root)
 }
 
 function installGh(root: string, response: string, status = 0): string {
@@ -109,7 +132,7 @@ describe('red admission acceptance anchor (#2587)', () => {
       taskId: '#2587',
       phase: 'plan',
       plan: 'plan.md',
-      derivedGates: deriveGatesForFiles(files),
+      derivedGates: deriveFixtureGates(root, files),
     })
     writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
     writeFileSync(
@@ -159,15 +182,15 @@ describe('red admission acceptance anchor (#2587)', () => {
       '---',
       validPlan(['AC-1: preserves the requested outcome']),
     ].join('\n')
+    installAcceptanceChecker(root)
     writeUnifiedState(root, {
       taskId: 'JIRA-42',
       phase: 'plan',
       plan: 'plan.md',
-      derivedGates: deriveGatesForFiles(files),
+      derivedGates: deriveFixtureGates(root, files),
     })
     writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
     writeFileSync(join(root, 'plan.md'), plan)
-    installAcceptanceChecker(root)
     const output = vi.spyOn(process.stdout, 'write')
 
     runTaskAdvance({ to: 'red', dir: root })

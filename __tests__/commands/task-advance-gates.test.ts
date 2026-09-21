@@ -37,8 +37,31 @@ import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-sta
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import { resolveShipTreatment } from '../../src/commands/ship-tier.js'
 import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
+import { inspectGateContract } from '../../scripts/lib/gate-contract.mjs'
 
 const dirs: string[] = []
+
+function installGateContractAuthority(dir: string): void {
+  mkdirSync(join(dir, 'scripts'), { recursive: true })
+  writeFileSync(
+    join(dir, 'scripts', 'check-all.mjs'),
+    [
+      '#!/usr/bin/env node',
+      '// @arbiter-gate-contract arbiter-gate-contract-v1',
+      "import { createHash } from 'node:crypto'",
+      "import { readFileSync } from 'node:fs'",
+      "import { fileURLToPath } from 'node:url'",
+      'const path = fileURLToPath(import.meta.url)',
+      "const sha256 = createHash('sha256').update(readFileSync(path)).digest('hex')",
+      "console.log(JSON.stringify({ schema: 'arbiter-gate-contract-v1', authority: [{ path: 'scripts/check-all.mjs', sha256 }], gates: [], external: [], unresolved: [] }))",
+      '',
+    ].join('\n'),
+  )
+}
+
+function deriveFixtureGates(dir: string, files: string[]): unknown[] {
+  return deriveGatesForFiles(files, undefined, inspectGateContract(dir))
+}
 
 function tmpRepo(): string {
   const d = mkdtempSync(join(tmpdir(), 'task-advance-gates-'))
@@ -131,10 +154,12 @@ function installAcceptanceChecker(dir: string): void {
   for (const file of [
     'derived-artifacts.mjs',
     'gate-affects-registry.mjs',
+    'gate-contract.mjs',
     'gate-derivation.mjs',
   ]) {
     copyFileSync(resolve(__dirname, `../../scripts/lib/${file}`), join(dir, `scripts/lib/${file}`))
   }
+  installGateContractAuthority(dir)
 }
 
 function installAcceptanceGh(dir: string): void {
@@ -326,7 +351,7 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
 
   it('advances with a valid anchor', () => {
     const dir = acceptanceRepo(VALID_PLAN)
-    storeDerivedGates(dir, deriveGatesForFiles(FILES))
+    storeDerivedGates(dir, deriveFixtureGates(dir, FILES))
     runTaskAdvance({ to: 'red', dir })
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
@@ -345,9 +370,19 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     expect(readUnifiedState(wrong)?.phase).toBe('plan')
 
     const correct = acceptanceRepo(VALID_PLAN)
-    storeDerivedGates(correct, deriveGatesForFiles(FILES))
+    storeDerivedGates(correct, deriveFixtureGates(correct, FILES))
     runTaskAdvance({ to: 'red', dir: correct })
     expect(readUnifiedState(correct)?.phase).toBe('red')
+  })
+
+  it('refuses gate state after its verification authority changes', () => {
+    const dir = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(dir, deriveFixtureGates(dir, FILES))
+    const authority = join(dir, 'scripts', 'check-all.mjs')
+    writeFileSync(authority, `${readFileSync(authority, 'utf-8')}\n// changed authority\n`)
+
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/derived gates/i)
+    expect(readUnifiedState(dir)?.phase).toBe('plan')
   })
 
   it('preserves the optional profile inert when disabled', () => {
@@ -368,7 +403,7 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
 
   it('passes a valid plan reference with a fragment', () => {
     const dir = acceptanceRepo(VALID_PLAN)
-    storeDerivedGates(dir, deriveGatesForFiles(FILES))
+    storeDerivedGates(dir, deriveFixtureGates(dir, FILES))
     writeUnifiedState(dir, { plan: 'plan.md#acceptance' })
     runTaskAdvance({ to: 'red', dir })
     expect(readUnifiedState(dir)?.phase).toBe('red')
@@ -399,6 +434,7 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
     )
     for (const file of [
       'gate-affects-registry.mjs',
+      'gate-contract.mjs',
       'gate-derivation.mjs',
       'derived-artifacts.mjs',
       'run-helpers.mjs',
@@ -408,6 +444,7 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
         join(dir, `scripts/lib/${file}`),
       )
     }
+    installGateContractAuthority(dir)
     writeFileSync(join(dir, 'plan.md'), VALID_PLAN, 'utf-8')
     return dir
   }
@@ -415,7 +452,7 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
   it('writes derivedGates into status.json when `lifecycle start --plan` anchors a manifest plan', () => {
     const dir = anchorRepo()
     runTaskInit({ dir, id: '#2773', plan: 'plan.md' })
-    expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveGatesForFiles(FILES))
+    expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveFixtureGates(dir, FILES))
   })
 
   it('leaves derivedGates unset when no plan is anchored', () => {
@@ -427,7 +464,7 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
   it('writes derivedGates for a fragment-qualified plan reference (plan.md#acceptance)', () => {
     const dir = anchorRepo()
     runTaskInit({ dir, id: '#2773', plan: 'plan.md#acceptance' })
-    expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveGatesForFiles(FILES))
+    expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveFixtureGates(dir, FILES))
   })
 })
 

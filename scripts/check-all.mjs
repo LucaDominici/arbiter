@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @arbiter-gate-contract arbiter-gate-contract-v1
 // arbiter quality gate
 // Usage: node scripts/check-all.mjs [subcommand] [--level L1|L2|L3] [--json [path]]
 //   Subcommands: check (T1 fast, ~2 min), gate (T1+T2, ~10 min, default),
@@ -32,9 +33,9 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  runCheck,
-  runWarnCheck,
-  runToolCheck,
+  runCheck as executeCheck,
+  runWarnCheck as executeWarnCheck,
+  runToolCheck as executeToolCheck,
   getResults,
   pushResult,
   getFailed,
@@ -44,6 +45,7 @@ import {
   isMainModule,
 } from './lib/run-helpers.mjs'
 import { checkDistFresh } from './lib/dist-staleness.mjs'
+import { DEBT_METRIC_COMMANDS } from './lib/debt-metric-contract.mjs'
 import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs'
 import { effectiveGateLevel, parseCheckArgs } from './lib/parse-check-args.mjs'
 import {
@@ -94,7 +96,7 @@ function checkDistPrerequisite(root) {
 
 if (isMain) {
   const parsedArgs = parseCheckArgs(process.argv.slice(2))
-  const { subcommand, jsonPath: _parsedJsonPath } = parsedArgs
+  const { subcommand, dryRun, jsonPath: _parsedJsonPath } = parsedArgs
   const preflight = subcommand === 'preflight'
   const level = effectiveGateLevel(parsedArgs)
   const isCIValue = (value) =>
@@ -107,6 +109,58 @@ if (isMain) {
       !isCIValue(process.env.GITHUB_ACTIONS),
   )
   let jsonPath = _parsedJsonPath
+
+  const gateDescriptors = []
+  const contractReadErrors = []
+  function numericContractThreshold(path, name) {
+    if (!dryRun || !existsSync(path)) return []
+    const value = Number(readFileSync(path, 'utf8').trim())
+    if (Number.isFinite(value)) return [{ name, value, source: path }]
+    contractReadErrors.push({
+      name: 'verification threshold',
+      source: path,
+      reason: 'threshold authority is not a finite number',
+    })
+    return []
+  }
+  function jsonContractThresholds(path, fields) {
+    if (!dryRun || !existsSync(path)) return []
+    try {
+      const value = JSON.parse(readFileSync(path, 'utf8'))
+      return fields.map(({ key, name }) => ({ name, value: value[key], source: `${path}#${key}` }))
+      // FAIL-OPEN-INTENT: the parse failure is emitted as a blocking unresolved item below.
+    } catch (err) {
+      contractReadErrors.push({
+        name: 'verification threshold',
+        source: path,
+        reason: `threshold authority is unreadable: ${err.message}`,
+      })
+      return []
+    }
+  }
+  function commandText(command, args) {
+    return [command, ...args]
+      .map((part) => (/^[A-Za-z0-9_./:@=-]+$/.test(part) ? part : JSON.stringify(part)))
+      .join(' ')
+  }
+  function registerCheck(enforcement, execute, name, command, args, options = {}) {
+    const { contract, ...runOptions } = options
+    gateDescriptors.push({
+      name,
+      enforcement,
+      command: commandText(command, args),
+      condition: contract?.condition ?? 'selected gate level is active',
+      ...(contract?.thresholds ? { thresholds: contract.thresholds } : {}),
+      ...(contract?.bindings ? { bindings: contract.bindings } : {}),
+    })
+    if (!dryRun) execute(name, command, args, runOptions)
+  }
+  const runCheck = (name, command, args, options) =>
+    registerCheck('hard', executeCheck, name, command, args, options)
+  const runWarnCheck = (name, command, args, options) =>
+    registerCheck('advisory', executeWarnCheck, name, command, args, options)
+  const runToolCheck = (name, command, args, options) =>
+    registerCheck('tool', executeToolCheck, name, command, args, options)
 
   // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
   // git-dependent checks (commitlint, docs) must run from the original repo path.
@@ -129,7 +183,7 @@ if (isMain) {
   // gate there would break every non-git consumer for no safety gain — the
   // start/end binding below is what actually prevents the false green.
   const MUTEX_ROOT = GIT_CWD ?? process.cwd()
-  {
+  if (!dryRun) {
     let lockPath = null
     try {
       lockPath = gateLockPathFor(MUTEX_ROOT)
@@ -161,7 +215,7 @@ if (isMain) {
   // process it was launched to serve is still alive, so a SIGKILL'd parent — the
   // one signal nothing can forward — cannot leave a gate measuring a tree nobody
   // is waiting on, let alone stamping evidence for it.
-  setOrphanGuard()
+  if (!dryRun) setOrphanGuard()
 
   // #2427 AC-1: the identity of the tree this gate is about to measure, sampled
   // BEFORE the first check. `buildGateEvidence` re-measures at the end and
@@ -169,15 +223,17 @@ if (isMain) {
   // orphan of a killed push produced: twenty minutes of checks against one tree,
   // a marker naming another. Loaded lazily and tolerantly: a checkout without
   // the verifier simply stamps no marker (fail closed), it does not lose the run.
-  const gateStart = await (async () => {
-    try {
-      const { captureGateStart } = await import('./lib/gate-evidence.mjs')
-      return captureGateStart(GIT_CWD ?? process.cwd())
-      // FAIL-OPEN-INTENT: null is the REJECTING value — no start means no marker.
-    } catch {
-      return null
-    }
-  })()
+  const gateStart = dryRun
+    ? null
+    : await (async () => {
+        try {
+          const { captureGateStart } = await import('./lib/gate-evidence.mjs')
+          return captureGateStart(GIT_CWD ?? process.cwd())
+          // FAIL-OPEN-INTENT: null is the REJECTING value — no start means no marker.
+        } catch {
+          return null
+        }
+      })()
 
   // Worktree paths containing '#' break Vite's URL parsing. Create a symlink
   // without '#' and pass VITEST_ROOT so vitest resolves the root from the symlink.
@@ -213,7 +269,7 @@ if (isMain) {
   // first commit and skip every check, including ALWAYS-bucket ones) — and
   // skips checks whose affects-registry entry proves untouched.
   const _isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
-  if (process.env.ARBITER_SELECTIVE_GATE === '1' && !_isCI) {
+  if (!dryRun && process.env.ARBITER_SELECTIVE_GATE === '1' && !_isCI) {
     try {
       // Two-dot: merge-base(origin/main, HEAD) vs the CURRENT WORKING TREE —
       // includes staged, unstaged, and committed-since-merge-base changes.
@@ -251,11 +307,13 @@ if (isMain) {
     }
   }
 
-  process.stdout.write('\n')
-  process.stdout.write(
-    `=== arbiter ${preflight ? 'PREFLIGHT' : 'Quality Gate'}: ${subcommand} [${level}] ===\n`,
-  )
-  process.stdout.write('\n')
+  if (!dryRun) {
+    process.stdout.write('\n')
+    process.stdout.write(
+      `=== arbiter ${preflight ? 'PREFLIGHT' : 'Quality Gate'}: ${subcommand} [${level}] ===\n`,
+    )
+    process.stdout.write('\n')
+  }
 
   let prerequisiteError = false
 
@@ -272,23 +330,27 @@ if (isMain) {
       runCheck('review completion (#2177)', 'node', ['scripts/check-review-completion.mjs'], {
         failOnSkip: true,
       })
-      if (getFailed() > 0) return getResults().length
+      if (!dryRun && getFailed() > 0) return getResults().length
       runCheck('build', 'npm', ['run', 'build'], { failOnSkip: true })
-      if (getResults().at(-1)?.status !== 'PASS') {
+      if (!dryRun && getResults().at(-1)?.status !== 'PASS') {
         process.stderr.write(
           'check-all: build prerequisite failed; dependent checks were not run\n',
         )
         return getResults().length
       }
     } else {
-      prerequisiteError = !checkDistPrerequisite(process.cwd())
-      if (prerequisiteError) return getResults().length
+      if (!dryRun) prerequisiteError = !checkDistPrerequisite(process.cwd())
+      if (!dryRun && prerequisiteError) return getResults().length
       runCheck('build-kit', 'node', ['scripts/build-kit.mjs'])
     }
 
     if (preflight) {
       runCheck('codex self-parity (#1966)', 'node', ['scripts/check-codex-self-parity.mjs'])
-      runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
+      runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'], {
+        contract: {
+          bindings: [{ source: 'scripts/data/fail-closed-baseline.json', required: true }],
+        },
+      })
       try {
         const dirty = execFileSync('git', ['status', '--porcelain'], {
           cwd: GIT_CWD,
@@ -351,7 +413,14 @@ if (isMain) {
     // it here (and, for consumers, as its own 01-pr-fast.yml step) is the dogfood half.
     runCheck('safety adopt ratchet (#2291)', 'node', ['scripts/check-safety-adopt-ratchet.mjs'])
     runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
-    runCheck('format', 'npx', ['prettier', '--check', '.'])
+    runCheck('format', 'npx', ['prettier', '--check', '.'], {
+      contract: {
+        bindings: [
+          { source: '.prettierrc.json', required: true },
+          { source: '.prettierignore', required: true },
+        ],
+      },
+    })
     // #1523: scripts/ (the gate-enforcement layer) is linted alongside src/ and
     // __tests__/ so the enforcer is held to the same dead-code bar it imposes.
     runCheck('lint', 'npx', ['eslint', 'src', '__tests__', 'scripts'])
@@ -409,7 +478,15 @@ if (isMain) {
     // #2429: a tabletop is high-recall/low-precision, so every blocker/major finding must
     // terminate in an owner. Vacuous when .arbiter/evidence/tabletop/ holds nothing.
     runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.mjs'])
-    runCheck('template tests', 'node', ['scripts/check-template-tests.mjs'])
+    runCheck('template tests', 'node', ['scripts/check-template-tests.mjs'], {
+      contract: {
+        thresholds: numericContractThreshold(
+          '.template-tests-baseline.txt',
+          'untested EJS templates',
+        ),
+        bindings: [{ source: '.template-tests-baseline.txt', required: true }],
+      },
+    })
     // #2571: whole-repo `prettier --check .` above cannot infer a parser for `*.<ext>.ejs`
     // and silently exits 0 on every one — this checks what each tag-free template EMITS.
     runCheck('emitted formatting (#2571)', 'node', ['scripts/check-emitted-formatting.mjs'])
@@ -460,7 +537,11 @@ if (isMain) {
     runCheck('ssot core', 'node', ['scripts/check-ssot-core.mjs'])
     runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
     runCheck('governance mirror sync (#1805)', 'node', ['scripts/check-governance-mirror-sync.mjs'])
-    runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'])
+    runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'], {
+      contract: {
+        bindings: [{ source: 'scripts/data/doc-gate-allowlist.json', required: true }],
+      },
+    })
     // #2387: the orchestration surface drifts in two ways models obey literally — a skill or
     // agent name with no file behind it, and a mandatory ceremony step re-marked optional.
     runCheck('orchestration integrity (#2387)', 'node', [
@@ -603,7 +684,19 @@ if (isMain) {
     runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
     // #1922 (CANON-01): the REVERSE direction of dogfood — every self mechanism maps to a
     // template emission, a motivated divergence, or a reasoned self-only entry, + count ratchet.
-    runCheck('canon-01 declination (#1922)', 'node', ['scripts/check-canon01-declination.mjs'])
+    runCheck('canon-01 declination (#1922)', 'node', ['scripts/check-canon01-declination.mjs'], {
+      contract: {
+        thresholds: jsonContractThresholds('scripts/canon01-baseline.json', [
+          { key: 'divergences', name: 'divergences' },
+          { key: 'selfOnly', name: 'self-only mechanisms' },
+        ]),
+        bindings: [
+          { source: 'scripts/canon01-baseline.json', required: true },
+          { source: '.dogfood-divergences.json', required: true },
+          { source: 'scripts/canon01-self-only.json', required: true },
+        ],
+      },
+    })
     // #2222: cheap (~2s) check catches example drift at commit time instead of after the weekly lane.
     runCheck('examples drift (#2222)', 'node', ['scripts/regenerate-examples.mjs', '--check'])
     // #2415: the examples are the only place arbiter can read its own emissions the way a
@@ -618,7 +711,7 @@ if (isMain) {
 
     // Collect the whole cheap batch, then refuse costly work on a known-red candidate.
     // Preflight runs no future review/TDD obligations and cannot qualify delivery.
-    if (preflight || getFailed() > 0) return getResults().length
+    if (preflight || (!dryRun && getFailed() > 0)) return getResults().length
 
     // #2085 (fail-fast ordering): expensive vitest suites run LAST in L1, after every
     // cheap static/lint/check-*.mjs gate above, so quick failures surface first. Still
@@ -650,20 +743,53 @@ if (isMain) {
 
     // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
     if (subcommand !== 'check' && !preflight) {
-      const coverageRunStartedAt = Date.now()
+      const coverageRunStartedAt = dryRun ? 0 : Date.now()
       runCheck('coverage', 'npm', ['test', '--', '--coverage'], {
         ...vitestOptions,
         failOnSkip: true,
+        contract: {
+          thresholds: [
+            { name: 'lines', value: 90, source: 'vitest.config.ts#coverage.thresholds.lines' },
+            {
+              name: 'branches',
+              value: 90,
+              source: 'vitest.config.ts#coverage.thresholds.branches',
+            },
+            {
+              name: 'functions',
+              value: 90,
+              source: 'vitest.config.ts#coverage.thresholds.functions',
+            },
+            {
+              name: 'statements',
+              value: 85,
+              source: 'vitest.config.ts#coverage.thresholds.statements',
+            },
+          ],
+        },
       })
       // Coverage no-regression ratchet (#1483): runs right after coverage, reading the
       // coverage/coverage-summary.json the run above emits (json-summary reporter). Fails if any
       // of lines/branches/functions/statements drops below the .coverage-baseline.json floor.
-      const coveragePassed = getResults().at(-1)?.status === 'PASS'
+      const coveragePassed = dryRun || getResults().at(-1)?.status === 'PASS'
       if (coveragePassed) {
-        runCheck('coverage ratchet (#1483)', 'node', [
-          'scripts/check-coverage-ratchet.mjs',
-          '--require-data',
-        ])
+        runCheck(
+          'coverage ratchet (#1483)',
+          'node',
+          ['scripts/check-coverage-ratchet.mjs', '--require-data'],
+          {
+            contract: {
+              condition: 'coverage passed',
+              thresholds: Object.entries(
+                JSON.parse(readFileSync('.coverage-baseline.json', 'utf-8')),
+              ).map(([name, value]) => ({
+                name,
+                value,
+                source: `.coverage-baseline.json#${name}`,
+              })),
+            },
+          },
+        )
       } else {
         pushResult('coverage ratchet (#1483)', 'SKIP', 0)
         process.stdout.write('coverage ratchet (#1483) ... SKIP (NO DATA: coverage did not pass)\n')
@@ -717,14 +843,43 @@ if (isMain) {
         '.',
       ])
       if (coveragePassed) {
-        runCheck('debt ratchet', 'node', [
-          'scripts/debt-report.mjs',
-          '--gate',
-          '--coverage-summary',
-          'coverage/coverage-summary.json',
-          '--coverage-started-at',
-          String(coverageRunStartedAt),
-        ])
+        runCheck(
+          'debt ratchet',
+          'node',
+          [
+            'scripts/debt-report.mjs',
+            '--gate',
+            '--coverage-summary',
+            'coverage/coverage-summary.json',
+            '--coverage-started-at',
+            String(coverageRunStartedAt),
+          ],
+          {
+            contract: {
+              condition: 'coverage passed',
+              thresholds: Object.entries(
+                JSON.parse(readFileSync('scripts/debt-baseline.json', 'utf-8')).metrics,
+              ).map(([name, metric]) => ({
+                name,
+                value: metric.value,
+                source: `scripts/debt-baseline.json#metrics.${name}.value`,
+                direction: metric.direction,
+                ...(DEBT_METRIC_COMMANDS[name]
+                  ? {
+                      measurement: commandText(
+                        DEBT_METRIC_COMMANDS[name][0],
+                        DEBT_METRIC_COMMANDS[name].slice(1),
+                      ),
+                    }
+                  : {}),
+              })),
+              bindings: [
+                { source: 'scripts/debt-baseline.json', required: true },
+                { source: 'scripts/lib/debt-metric-contract.mjs', required: true },
+              ],
+            },
+          },
+        )
       } else {
         pushResult('debt ratchet', 'SKIP', 0)
         process.stdout.write('debt ratchet ... SKIP (NO DATA: coverage did not pass)\n')
@@ -761,14 +916,23 @@ if (isMain) {
       runCheck('commit-footer rationale (INV-119)', 'node', [
         'scripts/check-commit-footer-rationale.mjs',
       ])
-      runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
+      runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'], {
+        contract: {
+          bindings: [{ source: 'scripts/data/fail-closed-baseline.json', required: true }],
+        },
+      })
       runCheck('script cohesion (INV-94)', 'node', ['scripts/check-script-cohesion.mjs'])
       // INV-25: retain the full corpus; reuse only the smoke PASS from this run.
       runCheck(
         'integration suite (INV-25)',
         'npx',
-        integrationSuiteArgs(getResults()),
-        vitestOptions,
+        integrationSuiteArgs(
+          dryRun ? [{ name: 'greenfield smoke', status: 'PASS' }] : getResults(),
+        ),
+        {
+          ...vitestOptions,
+          contract: { condition: 'L2 qualification after L1 passes' },
+        },
       )
       // INV-25 (#1040): BDD layer
       runCheck('BDD suite (INV-25)', 'npm', ['run', 'test:bdd'])
@@ -786,6 +950,69 @@ if (isMain) {
   }
 
   const l1EndIdx = runChecks()
+
+  if (dryRun) {
+    const requiredBindingPaths = gateDescriptors
+      .flatMap((gate) => gate.bindings ?? [])
+      .filter((binding) => binding.required === true)
+      .map((binding) => binding.source)
+    const authorityPaths = [
+      'scripts/check-all.mjs',
+      'scripts/lib/gate-affects-registry.mjs',
+      'vitest.config.ts',
+      '.coverage-baseline.json',
+      'scripts/debt-baseline.json',
+      'scripts/debt-lib.mjs',
+      'scripts/lib/debt-metric-contract.mjs',
+      '.github/workflows/01-pr-fast.yml',
+      '.github/workflows/02-pr-extended.yml',
+      ...requiredBindingPaths,
+    ]
+    const uniqueAuthorityPaths = [...new Set(authorityPaths)]
+    const missingAuthorityPaths = uniqueAuthorityPaths.filter((path) => !existsSync(path))
+    const authority = uniqueAuthorityPaths
+      .filter((path) => existsSync(path))
+      .map((path) => ({
+        path,
+        sha256: createHash('sha256').update(readFileSync(path)).digest('hex'),
+      }))
+    process.stdout.write(
+      JSON.stringify(
+        {
+          schema: 'arbiter-gate-contract-v1',
+          authority,
+          gates: gateDescriptors,
+          external: [
+            {
+              name: 'dependency-review',
+              source: '.github/workflows/01-pr-fast.yml',
+              command: 'actions/dependency-review-action',
+              condition: "github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'",
+              status: 'remote-dependent',
+            },
+            {
+              name: 'extended PR checks',
+              source: '.github/workflows/02-pr-extended.yml',
+              command:
+                'npm run test:contract; npm run test:integration; npm run test:behavioral; npm run --if-present test:e2e:bake',
+              condition: "needs.check-trigger.outputs.should_run == 'true'",
+              status: 'remote-dependent',
+            },
+          ],
+          unresolved: missingAuthorityPaths
+            .map((path) => ({
+              name: 'verification authority',
+              source: path,
+              reason: 'required verification authority is missing',
+            }))
+            .concat(contractReadErrors),
+        },
+        null,
+        2,
+      ) + '\n',
+    )
+    process.exit(0)
+  }
 
   // ─── Summary ─────────────────────────────────────────────────────────────────
   const results = getResults()

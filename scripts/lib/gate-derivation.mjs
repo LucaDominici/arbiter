@@ -38,15 +38,49 @@ function classify(name, files) {
   return { name, kind: TEST_FIRST.has(name) ? 'test-first' : 'constraint' }
 }
 
-export function deriveGatesForFiles(files, registry = GATE_AFFECTS_REGISTRY) {
-  const affected = affectedGateNames(files, registry, GATE_SKIP_BLACKLIST)
-  return registry
-    .filter((entry) => affected.has(entry.name))
-    .map((entry) => classify(entry.name, files))
+function inspectedGate(name, inspection) {
+  return inspection?.gates?.find((gate) => gate.name === name)
 }
 
-export function validateDerivedGates(files, stored, registry = GATE_AFFECTS_REGISTRY) {
-  const expected = deriveGatesForFiles(files, registry)
+function bindInspection(gate, inspection) {
+  const described = inspectedGate(gate.name, inspection)
+  return {
+    ...gate,
+    ...(described ?? {}),
+    ...(inspection?.authority ? { authority: inspection.authority } : {}),
+  }
+}
+
+export function deriveGatesForFiles(
+  files,
+  registry = GATE_AFFECTS_REGISTRY,
+  inspection = undefined,
+) {
+  const affected = affectedGateNames(files, registry, GATE_SKIP_BLACKLIST)
+  const gates = registry
+    .filter((entry) => affected.has(entry.name))
+    .map((entry) => bindInspection(classify(entry.name, files), inspection))
+  const external = (inspection?.external ?? []).map((entry) => ({
+    ...entry,
+    kind: 'constraint',
+    authority: inspection.authority,
+  }))
+  const unresolved = (inspection?.unresolved ?? []).map((entry) => ({
+    ...entry,
+    kind: 'constraint',
+    status: 'unresolved',
+    authority: inspection.authority,
+  }))
+  return [...gates, ...external, ...unresolved]
+}
+
+export function validateDerivedGates(
+  files,
+  stored,
+  registry = GATE_AFFECTS_REGISTRY,
+  inspection = undefined,
+) {
+  const expected = deriveGatesForFiles(files, registry, inspection)
   return {
     ok: Array.isArray(stored) && JSON.stringify(stored) === JSON.stringify(expected),
     expected,

@@ -95,7 +95,10 @@ const SKIP_FILES = new Set([
   // (check-canon01-declination.mjs, check-guard-flip.mjs) own the exit contract and both
   // fail closed on an unreadable gate source or ledger.
   'scripts/lib/gate-roster.mjs',
-  // #2773 pure gate derivation and plan-manifest parsing; entry-point consumers own exits.
+  // #2773 verification-contract libraries; entry-point consumers own exits. The inspector
+  // converts every missing, malformed or unsupported authority into a blocking unresolved item.
+  'scripts/lib/debt-metric-contract.mjs',
+  'scripts/lib/gate-contract.mjs',
   'scripts/lib/gate-derivation.mjs',
   'scripts/lib/ci-cadence.mjs', // #1502 pure cadence-bucket SSOT/partition helper; no entry point
   'scripts/lib/cli-command-names.mjs', // #1838 pure cli.ts command-name parser; consumers (gen-cli-ref, phantom-command-scan) own the exit contract and fail closed on zero-extraction

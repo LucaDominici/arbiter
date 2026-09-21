@@ -156,7 +156,8 @@ export interface UnifiedTaskState {
   /** Effective, monotonic delivery obligations resolved by /ship for this task. */
   treatment?: ShipTreatment
   /**
-   * #2773 — gate names derived from the plan's `files:` manifest at anchor time
+   * #2773 — verification commands, conditions, thresholds and authority bindings derived from
+   * the plan's `files:` manifest at anchor time
    * (`arbiter lifecycle start --plan`), via scripts/derive-plan-gates.mjs. Absent until a
    * plan with a manifest has been anchored. checkPlanDerivedGates recomputes from the same
    * manifest at plan→red and refuses the transition if this drifted from a re-anchor.

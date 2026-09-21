@@ -474,6 +474,44 @@ describe('ship complete next commands (#2753)', () => {
   it('AC-3 refactor names the complete task-bound review-round command', () => {
     expect(outputFor('refactor')).toContain("Command: arbiter ship '#2753' --review-round")
   })
+
+  it('prints the plan-time commands, conditions, thresholds and unresolved obligations (#2773)', () => {
+    const shipProfile = profile()
+    const lines = buildShipStepLines({
+      phase: 'plan',
+      step: shipStepFor('plan', 'Standard', shipProfile, '#2773'),
+      advanced: false,
+      done: false,
+      tier: 'Standard',
+      profile: shipProfile,
+      derivedGates: [
+        {
+          name: 'coverage ratchet (#1483)',
+          command: 'node scripts/check-coverage-ratchet.mjs --require-data',
+          condition: 'coverage passed',
+          thresholds: [
+            {
+              name: 'branches',
+              value: 90.41,
+              source: '.coverage-baseline.json#branches',
+              measurement: 'npx vitest run --coverage',
+            },
+          ],
+        },
+        {
+          name: 'verification authority',
+          status: 'unresolved',
+          reason: 'unsupported custom gate authority',
+        },
+      ],
+    }).join('\n')
+
+    expect(lines).toContain('Gates awaiting this change:')
+    expect(lines).toContain('node scripts/check-coverage-ratchet.mjs --require-data')
+    expect(lines).toContain('branches=90.41 (.coverage-baseline.json#branches)')
+    expect(lines).toContain('via npx vitest run --coverage')
+    expect(lines).toContain('UNRESOLVED: unsupported custom gate authority')
+  })
 })
 
 describe('ship complete-action — (collaborationMode × mergeMode) matrix (#1288 RT-02)', () => {
@@ -908,6 +946,12 @@ describe('result-first read-only status (#2724)', () => {
       phase: 'refactor',
       review: { rounds: 1, lastReviewedSha: 'a'.repeat(40) },
       cursor: { lastAction: 'targeted tests green', nextAction: 'record final reviewer' },
+      derivedGates: [
+        {
+          name: 'integration suite (INV-25)',
+          command: 'npx vitest run --config vitest.integration.config.ts',
+        },
+      ],
     })
     const path = join(dir, '.claude/.task/status.json')
     const before = readFileSync(path, 'utf8')
@@ -921,6 +965,8 @@ describe('result-first read-only status (#2724)', () => {
     expect(readFileSync(path, 'utf8')).toBe(before)
     expect(buildShipStepLines(first).join('\n')).toContain('record final reviewer')
     expect(buildShipStepLines(first).join('\n')).toContain('a'.repeat(40))
+    expect(buildShipStepLines(first).join('\n')).toContain('Gates awaiting this change:')
+    expect(buildShipStepLines(first).join('\n')).toContain('vitest.integration.config.ts')
   })
 
   it('derives a wider treatment without writing, then persists it on the next transition', () => {

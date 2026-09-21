@@ -3,7 +3,8 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { generateCheckAll } from '../../src/generators/check-all.js'
+import { generateCheckAll, loadGateRegistry } from '../../src/generators/check-all.js'
+import { generateDebtRatchet } from '../../src/generators/debt-ratchet.js'
 import { makeConfig } from '../helpers.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
 
@@ -18,12 +19,121 @@ describe('generateCheckAll', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  it('keeps an effective zero threshold visible in registry inspection metadata', () => {
+    const config = makeConfig('/tmp/threshold-zero', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: true,
+    }) as unknown as Record<string, unknown>
+    const gates = loadGateRegistry({
+      ...config,
+      coverageThreshold: 0,
+      mutationThreshold: 0,
+      mutationEnabled: true,
+      binarySizeBytes: 0,
+    })
+    expect(gates.find((gate) => gate.id === 'coverage-threshold')?.thresholds?.[0]?.value).toBe(0)
+    expect(gates.find((gate) => gate.id === 'mutation-stryker')?.thresholds?.[0]?.value).toBe(0)
+  })
+
   it('generates scripts/check-all.mjs AND scripts/lib/run-helpers.mjs (#351, CANON-01)', () => {
     const result = generateCheckAll(makeConfig(dir))
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('scripts/check-all.mjs'))).toBe(true)
     expect(paths.some((p) => p.endsWith('scripts/lib/run-helpers.mjs'))).toBe(true)
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
+  })
+
+  it.each([
+    { language: 'typescript' as const, buildTool: 'npm' as const },
+    { language: 'java' as const, buildTool: 'gradle' as const },
+  ])('emits a dependency-complete verification contract for $language', (stack) => {
+    const config = makeConfig(dir, { governanceLevel: 'L2', ...stack })
+    generateCheckAll(config)
+    generateDebtRatchet(config)
+    writeFileSync(join(dir, 'arbiter.json'), '{}\n')
+    writeFileSync(
+      join(dir, 'scripts', 'debt-baseline.json'),
+      JSON.stringify({
+        metrics: {
+          complexityViolations: { value: 226, direction: 'lower-is-better' },
+        },
+      }),
+    )
+    for (const path of [
+      'scripts/derive-plan-gates.mjs',
+      'scripts/lib/gate-contract.mjs',
+      'scripts/lib/gate-derivation.mjs',
+    ]) {
+      expect(existsSync(join(dir, path)), path).toBe(true)
+    }
+    const result = spawnSync(process.execPath, ['scripts/check-all.mjs', 'L2', '--dry-run'], {
+      cwd: dir,
+      encoding: 'utf8',
+    })
+    expect(result.status, result.stderr).toBe(0)
+    const contract = JSON.parse(result.stdout)
+    expect(contract.schema).toBe('arbiter-gate-contract-v1')
+    expect(contract.gates.length).toBeGreaterThan(0)
+    expect(contract.unresolved).toEqual([])
+    if (stack.language === 'typescript') {
+      expect(
+        contract.gates
+          .find((gate: { id: string }) => gate.id === 'debt-ratchet')
+          ?.thresholds.find(
+            (threshold: { name: string }) => threshold.name === 'complexityViolations',
+          ),
+      ).toMatchObject({
+        value: 226,
+        measurement:
+          'npx eslint src scripts --format json --rule "{\\"complexity\\":[\\"warn\\",10]}"',
+      })
+    }
+    expect(
+      contract.gates.every(
+        (gate: { command?: string }) => typeof gate.command === 'string' && gate.command.length > 0,
+      ),
+    ).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
+    expect(existsSync(join(dir, '.arbiter', 'gate', 'local-result.json'))).toBe(false)
+  })
+
+  it('binds emitted workflow content without interpreting its YAML', () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        governanceLevel: 'L1',
+        permitGitHub: false,
+        useGitHub: false,
+      }),
+    )
+    writeFileSync(join(dir, 'arbiter.json'), '{}\n')
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+    const workflow = join(dir, '.github', 'workflows', 'ci.yml')
+    writeFileSync(workflow, 'name: CI\n')
+    const inspect = () => {
+      const result = spawnSync(process.execPath, ['scripts/check-all.mjs', 'L1', '--dry-run'], {
+        cwd: dir,
+        encoding: 'utf8',
+      })
+      expect(result.status, result.stderr).toBe(0)
+      return JSON.parse(result.stdout)
+    }
+
+    const before = inspect()
+    const binding = before.authority.find(
+      (entry: { path: string }) => entry.path === '.github/workflows/ci.yml',
+    )
+    expect(binding?.sha256).toMatch(/^[a-f0-9]{64}$/)
+    expect(before.external).toEqual([
+      expect.objectContaining({ status: 'remote-dependent', source: '.github/workflows' }),
+    ])
+
+    writeFileSync(workflow, 'name: changed CI\n')
+    const after = inspect()
+    expect(
+      after.authority.find((entry: { path: string }) => entry.path === '.github/workflows/ci.yml')
+        ?.sha256,
+    ).not.toBe(binding.sha256)
   })
 
   it('runs the emitted legacy recorder without optional Claude hooks', () => {
@@ -127,7 +237,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 64 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 67 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -177,7 +287,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(64)
+    expect(result.files).toHaveLength(67)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-review-completion.mjs'))).toBe(
       true,
     )

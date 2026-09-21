@@ -518,6 +518,8 @@ export interface ShipResult {
   checkpoint?: Pick<UnifiedTaskState, 'cursor' | 'review'>
   /** #1288 — the ship profile resolved from the target repo's arbiter.json. */
   profile: ShipProfile
+  /** Plan-time verification contract persisted in the active task state (#2773). */
+  derivedGates?: unknown[]
 }
 
 /**
@@ -618,6 +620,54 @@ function optionalShipStepLines(result: ShipResult, tier: ShipTier): string[] {
   return lines
 }
 
+function displayGateValue(value: unknown, fallback: string): string {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return fallback
+}
+
+function formatGateThreshold(raw: unknown): string {
+  const threshold = raw as {
+    name?: unknown
+    value?: unknown
+    source?: unknown
+    measurement?: unknown
+  }
+  const measurement =
+    typeof threshold.measurement === 'string' ? ` via ${threshold.measurement}` : ''
+  return `${displayGateValue(threshold.name, 'unnamed')}=${displayGateValue(threshold.value, 'unknown')} (${displayGateValue(threshold.source, 'unknown source')})${measurement}`
+}
+
+function derivedGateLines(derivedGates: unknown[] | undefined): string[] {
+  if (!derivedGates || derivedGates.length === 0) return []
+  return [
+    'Gates awaiting this change:',
+    ...derivedGates.map((raw) => {
+      const gate = raw as {
+        name?: unknown
+        command?: unknown
+        condition?: unknown
+        thresholds?: unknown
+        status?: unknown
+        reason?: unknown
+      }
+      const details = [
+        typeof gate.command === 'string' ? `command: ${gate.command}` : undefined,
+        typeof gate.condition === 'string' ? `when: ${gate.condition}` : undefined,
+        Array.isArray(gate.thresholds)
+          ? `thresholds: ${gate.thresholds.map(formatGateThreshold).join(', ')}`
+          : undefined,
+        gate.status === 'unresolved'
+          ? `UNRESOLVED: ${displayGateValue(gate.reason, 'reason unavailable')}`
+          : undefined,
+      ].filter(Boolean)
+      const suffix = details.length > 0 ? ` — ${details.join('; ')}` : ''
+      return `- ${displayGateValue(gate.name, 'unnamed gate')}${suffix}`
+    }),
+  ]
+}
+
 export function buildShipStepLines(result: ShipResult, legacyTier?: string): string[] {
   const tier = result.tier ?? normTier(legacyTier)
   const lines = [
@@ -633,6 +683,7 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
   // #1291 — the resolved autonomy level travels with every step so the driver
   // (and a human reading the banner) sees which behaviors are authorized.
   lines.push(`Autonomy: ${result.profile.autonomy}`)
+  lines.push(...derivedGateLines(result.derivedGates))
   if (result.phase === 'complete' && !autonomyAllows(result.profile.autonomy, 'auto-merge')) {
     lines.push(
       'Autonomy gate: STOP — merging requires a human at L0 (set automation.autonomy or pass --autonomy).',
@@ -1324,6 +1375,7 @@ function readOnlyShipResult(
       cursor: state.cursor,
       ...(state.review ? { review: state.review } : {}),
     },
+    ...(state.derivedGates ? { derivedGates: state.derivedGates } : {}),
     profile,
   }
 }
@@ -1385,6 +1437,7 @@ function buildActiveShipResult(input: {
     done: phase === 'complete',
     tier: treatment.tier,
     treatment,
+    ...(state?.derivedGates ? { derivedGates: state.derivedGates } : {}),
     ...(preparedChainAdd !== null ? { trainDecision: preparedChainAdd.affinity } : {}),
     profile,
   }
