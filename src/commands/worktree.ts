@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  realpathSync,
+  readdirSync,
+  type Dirent,
+} from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { ensureDir, renameTranslated, toFsError, writeFileTranslated } from '../utils/fs.js'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { t } from '../i18n/index.js'
 import { loadConfig } from '../utils/config.js'
@@ -38,6 +45,60 @@ const DEFAULT_LINKS: WorktreeLinkSpec[] = [
 
 function defaultWorktreeConfig(): WorktreeConfig {
   return { base: null, links: DEFAULT_LINKS, closeHook: null }
+}
+
+function checkoutDirectoryExists(worktreePath: string, relativePath: string): boolean {
+  try {
+    const stat = lstatSync(resolve(worktreePath, relativePath))
+    return stat.isDirectory() && !stat.isSymbolicLink()
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw toFsError(err, resolve(worktreePath, relativePath))
+  }
+}
+
+function discoverNodeModuleLinks(gitRoot: string, worktreePath: string): WorktreeLinkSpec[] {
+  const discovered: WorktreeLinkSpec[] = []
+  const pending = [gitRoot]
+  while (pending.length > 0) {
+    const current = pending.pop() as string
+    let entries: Dirent[]
+    try {
+      entries = readdirSync(current, { withFileTypes: true })
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') continue
+      throw toFsError(err, current)
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name === '.git') continue
+      const sourcePath = join(current, entry.name)
+      const relativePath = relative(gitRoot, sourcePath)
+      if (entry.name === 'node_modules') {
+        if (checkoutDirectoryExists(worktreePath, relative(gitRoot, current))) {
+          discovered.push({ path: relativePath, type: 'directory', strategy: 'symlink-children' })
+        }
+        continue
+      }
+      if (checkoutDirectoryExists(worktreePath, relativePath)) pending.push(sourcePath)
+    }
+  }
+  return discovered
+}
+
+function resolveWorktreeLinks(
+  config: WorktreeConfig,
+  withBuildLinks: boolean,
+  gitRoot: string,
+  worktreePath: string,
+): WorktreeLinkSpec[] {
+  const configured = withBuildLinks ? [...config.links, ...(config.buildLinks ?? [])] : config.links
+  const configuredPaths = new Set(configured.map((spec) => resolve(gitRoot, spec.path)))
+  return [
+    ...configured,
+    ...discoverNodeModuleLinks(gitRoot, worktreePath).filter(
+      (spec) => !configuredPaths.has(resolve(gitRoot, spec.path)),
+    ),
+  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -469,9 +530,12 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
     cwd: gitRoot,
   })
 
-  const linkSpecs = opts.withBuildLinks
-    ? [...wtConfig.links, ...(wtConfig.buildLinks ?? [])]
-    : wtConfig.links
+  const linkSpecs = resolveWorktreeLinks(
+    wtConfig,
+    opts.withBuildLinks === true,
+    gitRoot,
+    worktreePath,
+  )
   const linkSummary = materializeLinks(linkSpecs, gitRoot, worktreePath)
   warnDanglingLinks(linkSpecs, worktreePath, warn)
 
@@ -589,9 +653,7 @@ export async function runWorktreeAdopt(opts: WorktreeAdoptOptions): Promise<void
 
   const config = loadConfig(gitRoot)
   const wtConfig = config?.worktree ?? defaultWorktreeConfig()
-  const specs = opts.withBuildLinks
-    ? [...wtConfig.links, ...(wtConfig.buildLinks ?? [])]
-    : wtConfig.links
+  const specs = resolveWorktreeLinks(wtConfig, opts.withBuildLinks === true, gitRoot, requested)
   const summary = materializeLinks(specs, gitRoot, requested)
   const warn =
     opts.onWarning ??
@@ -907,9 +969,12 @@ export function runWorktreeRelink(opts: WorktreeRelinkOptions): void {
   const entry = resolveOpenEntry(join(arbiterLogDir(gitRoot), 'worktree-open.log.json'), taskId)
   const config = loadConfig(gitRoot)
   const wtConfig = config?.worktree ?? defaultWorktreeConfig()
-  const linkSpecs = opts.withBuildLinks
-    ? [...wtConfig.links, ...(wtConfig.buildLinks ?? [])]
-    : wtConfig.links
+  const linkSpecs = resolveWorktreeLinks(
+    wtConfig,
+    opts.withBuildLinks === true,
+    gitRoot,
+    entry.worktreePath,
+  )
   const linkSummary = materializeLinks(linkSpecs, gitRoot, entry.worktreePath)
 
   if (opts.json) {
