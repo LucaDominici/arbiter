@@ -89,7 +89,13 @@ describe('generateCheckAll', () => {
         '  integration-tests:',
         "    if: needs.check-trigger.outputs.should_run == 'true'",
         '    steps:',
-        '      - run: npm run test:integration',
+        '      - name: conditional integration',
+        "        if: runner.os == 'Linux'",
+        '        run: npm run test:integration',
+        '  mandatory-extra:',
+        "    if: needs.check-trigger.outputs.should_run == 'true'",
+        '    steps:',
+        '      - run: npm run test:mandatory',
       ].join('\n'),
     )
 
@@ -102,10 +108,13 @@ describe('generateCheckAll', () => {
           thresholds: [expect.objectContaining({ name: 'fail-on-severity', value: 'high' })],
         }),
         expect.objectContaining({
-          name: 'extended PR checks',
           command: 'npm run test:integration',
-          condition: "needs.check-trigger.outputs.should_run == 'true'",
+          condition: expect.stringMatching(/needs\.check-trigger.*runner\.os/),
           thresholds: [expect.objectContaining({ name: 'changed lines', value: '123' })],
+        }),
+        expect.objectContaining({
+          command: 'npm run test:mandatory',
+          condition: "needs.check-trigger.outputs.should_run == 'true'",
         }),
       ],
       unresolved: [],

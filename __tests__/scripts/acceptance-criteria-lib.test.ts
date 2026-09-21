@@ -9,6 +9,7 @@ import {
   assessReadiness,
   renderClarificationComment,
   parsePlanAnchor,
+  parsePlanPresentation,
   computeAcHash,
   validateAcFit,
   validateIssueAcceptanceCoverage,
@@ -172,6 +173,25 @@ describe('parsePlanAnchor', () => {
 
   it('returns null when the anchor sections are absent', () => {
     expect(parsePlanAnchor('# Plan\nno sections')).toBeNull()
+  })
+
+  it('preserves inline whitespace and indented criterion continuations for review', () => {
+    const plan = [
+      '## Acceptance Criteria',
+      '- [ ] AC-42.1: keep  the `raw` wording',
+      '  across  this `required` continuation',
+      '## Non-Goals',
+      '- no  rewrite',
+    ].join('\n')
+    expect(parsePlanPresentation(plan)).toEqual({
+      criteria: [
+        {
+          id: 'AC-42.1',
+          text: 'keep  the `raw` wording\n  across  this `required` continuation',
+        },
+      ],
+      nonGoals: ['no  rewrite'],
+    })
   })
 })
 

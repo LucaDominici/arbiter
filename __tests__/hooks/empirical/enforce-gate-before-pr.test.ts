@@ -140,7 +140,9 @@ describe('enforce-gate-before-pr hook', () => {
   it.each([
     ['false-valued draft flag', 'gh pr create --draft=false --fill'],
     ['draft text inside an argument', 'gh pr create --body "a --draft description" --fill'],
+    ['draft flag as an option value', 'gh pr create --body "--draft" --fill'],
     ['wrapped ready command', 'gh pr create --draft && (gh pr ready)'],
+    ['command-substituted ready command', 'gh pr create --draft && $(gh pr ready)'],
   ])('does not exempt %s', (_label, command) => {
     const dir = track(setupGitRepo())
     const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)
