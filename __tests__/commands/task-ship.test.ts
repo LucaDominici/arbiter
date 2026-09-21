@@ -472,7 +472,15 @@ describe('ship complete next commands (#2753)', () => {
   })
 
   it('AC-3 refactor names the complete task-bound review-round command', () => {
-    expect(outputFor('refactor')).toContain("Command: arbiter ship '#2753' --review-round")
+    const output = outputFor('refactor')
+    expect(output).toContain('git push -u origin "$branch"')
+    expect(output).toContain('gh pr create --draft')
+    expect(output).toContain("arbiter ship '#2753' --review-round")
+    expect(output.indexOf('git push')).toBeLessThan(output.indexOf('gh pr create --draft'))
+    expect(output.indexOf('gh pr create --draft')).toBeLessThan(
+      output.indexOf("arbiter ship '#2753' --review-round"),
+    )
+    expect(output).toContain('test "$(git rev-parse HEAD)" = "$candidate"')
   })
 
   it('prints the plan-time commands, conditions, thresholds and unresolved obligations (#2773)', () => {

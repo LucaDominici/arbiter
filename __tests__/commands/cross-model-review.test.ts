@@ -55,6 +55,18 @@ const cfg = {
   timeoutMs: 300_000,
   onUnavailable: 'degrade' as const,
 }
+const BASE_SHA = 'a'.repeat(40)
+const HEAD_SHA = 'b'.repeat(40)
+const PLAN_REF = '.claude/plans/task-2747.md'
+const FROZEN_REVIEW = { baseSha: BASE_SHA, headSha: HEAD_SHA, planRef: PLAN_REF }
+const FROZEN_PLAN = [
+  '# Plan',
+  '## Acceptance Criteria',
+  '- [ ] AC-2747.2: Preserve  two spaces and punctuation!',
+  '- [ ] AC-2747.1: Second ordered criterion.',
+  '## Non-Goals',
+  '- Do not add a scheduler.',
+].join('\n')
 
 describe('runCrossModelReview (#2357)', () => {
   beforeEach(() => {
@@ -149,6 +161,7 @@ describe('runCrossModelReview (#2357)', () => {
       vertical: 'security',
       cfg,
       access: mockedDetect.mock.results[0]?.value,
+      ...FROZEN_REVIEW,
     })
 
     expect(result.status).toBe('fulfilled')
@@ -167,6 +180,123 @@ describe('runCrossModelReview (#2357)', () => {
     )
   })
 
+  it('builds the review prompt from the frozen plan and exact candidate range', () => {
+    mockedRunCli.mockImplementation((command, args) => {
+      if (command === 'git' && args[0] === 'status')
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
+        return { stdout: `${HEAD_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'show')
+        return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === process.execPath)
+        return {
+          stdout: JSON.stringify({
+            criteria: [
+              { id: 'AC-2747.2', text: 'Preserve  two spaces and punctuation!' },
+              { id: 'AC-2747.1', text: 'Second ordered criterion.' },
+            ],
+            nonGoals: ['Do not add a scheduler.'],
+            acHash: 'frozen-ac-hash',
+          }),
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
+      if (command === 'git' && args[0] === 'diff')
+        return { stdout: 'exact diff', stderr: '', exitCode: 0, durationMs: 1 }
+      return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+    })
+
+    runShipCrossModelReview({
+      dir: '/tmp/project',
+      taskId: '#2747',
+      tier: 'Standard',
+      phase: 'refactor',
+      vertical: 'bugs',
+      cfg,
+      ...FROZEN_REVIEW,
+    })
+
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'git',
+      ['show', `${HEAD_SHA}:${PLAN_REF}`],
+      expect.objectContaining({ cwd: '/tmp/project' }),
+    )
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'git',
+      ['diff', '--binary', `${BASE_SHA}..HEAD`],
+      expect.objectContaining({ cwd: '/tmp/project' }),
+    )
+    const prompt = mockedInvoke.mock.calls[0]?.[0].prompt ?? ''
+    expect(prompt).toContain('Task: #2747')
+    expect(prompt).toContain(`Base SHA: ${BASE_SHA}`)
+    expect(prompt).toContain(`Head SHA: ${HEAD_SHA}`)
+    expect(prompt).toContain('Acceptance criteria hash: frozen-ac-hash')
+    expect(prompt.indexOf('AC-2747.2: Preserve  two spaces and punctuation!')).toBeLessThan(
+      prompt.indexOf('AC-2747.1: Second ordered criterion.'),
+    )
+    expect(prompt).toContain('Non-goals:\n- Do not add a scheduler.')
+  })
+
+  it('rejects head drift before dispatch', () => {
+    mockedRunCli.mockImplementation((command, args) => {
+      if (command === 'git' && args[0] === 'status')
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'rev-parse')
+        return { stdout: `${'c'.repeat(40)}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+      return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+    })
+    expect(() =>
+      runShipCrossModelReview({
+        dir: '/tmp/project',
+        taskId: '#2747',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'bugs',
+        cfg,
+        ...FROZEN_REVIEW,
+      }),
+    ).toThrow(/HEAD.*frozen|drift/i)
+    expect(mockedInvoke).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [
+      'unreadable',
+      () => {
+        throw new Error('missing plan')
+      },
+    ],
+    ['malformed', () => '{not-json'],
+    ['no criteria', () => JSON.stringify({ criteria: [], nonGoals: ['x'], acHash: 'empty' })],
+  ])('refuses dispatch when the frozen plan is %s', (_label, parserResult) => {
+    mockedRunCli.mockImplementation((command, args) => {
+      if (command === 'git' && args[0] === 'status')
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'rev-parse')
+        return { stdout: `${HEAD_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'show')
+        return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === process.execPath) {
+        const stdout = parserResult()
+        return { stdout, stderr: '', exitCode: 0, durationMs: 1 }
+      }
+      return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+    })
+    expect(() =>
+      runShipCrossModelReview({
+        dir: '/tmp/project',
+        taskId: '#2747',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'bugs',
+        cfg,
+        ...FROZEN_REVIEW,
+      }),
+    ).toThrow(/frozen plan|acceptance criteria/i)
+    expect(mockedInvoke).not.toHaveBeenCalled()
+  })
+
   it('records a consent degradation without collecting or sending a diff', () => {
     const noConsent = { ...cfg, diffEgressConsent: false }
     runShipCrossModelReview({
@@ -176,6 +306,7 @@ describe('runCrossModelReview (#2357)', () => {
       phase: 'refactor',
       vertical: 'security',
       cfg: noConsent,
+      ...FROZEN_REVIEW,
     })
 
     expect(mockedRunCli).not.toHaveBeenCalled()
@@ -315,6 +446,7 @@ describe('runCrossModelReview (#2357)', () => {
         vertical: 'security',
         cfg,
         access: mockedDetect.mock.results[0]?.value,
+        ...FROZEN_REVIEW,
       })
 
       expect(result.status).toBe('fulfilled')
@@ -389,6 +521,7 @@ describe('runCrossModelReview (#2357)', () => {
         vertical: 'security',
         cfg,
         access: mockedDetect.mock.results[0]?.value,
+        ...FROZEN_REVIEW,
       })
 
       expect(mockedInvoke).toHaveBeenCalledTimes(1)
@@ -446,6 +579,7 @@ describe('runCrossModelReview (#2357)', () => {
         vertical: 'security',
         cfg,
         access: mockedDetect.mock.results[0]?.value,
+        ...FROZEN_REVIEW,
       })
 
       expect(mockedInvoke).toHaveBeenCalledWith(

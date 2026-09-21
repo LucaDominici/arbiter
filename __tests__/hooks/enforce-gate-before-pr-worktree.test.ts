@@ -116,6 +116,28 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     expect(result.stderr).toContain('stale')
   })
 
+  it('allows a draft for the target worktree before parsing its stale marker', () => {
+    const main = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-main-')))
+    initRepo(main)
+    const wtParent = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-wt-')))
+    const wtPath = join(wtParent, 'draft-wt')
+    execFileSync('git', ['worktree', 'add', '-b', 'draft-feature', wtPath], {
+      cwd: main,
+      stdio: 'ignore',
+    })
+    writeMarker(wtPath, 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef')
+
+    const result = runHook(
+      {
+        CLAUDE_TOOL_INPUT_COMMAND:
+          'gh pr create --draft --title "feat: overlap" --head draft-feature',
+      },
+      main,
+    )
+    expect(result.status).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
+  })
+
   it('falls back to session-cwd resolution when no cd-prefix and no --head flag are present', () => {
     const main = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-main-')))
     initRepo(main)

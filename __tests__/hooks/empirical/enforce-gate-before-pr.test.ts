@@ -144,6 +144,36 @@ describe('enforce-gate-before-pr hook', () => {
     expect(result.stderr).toContain('ci-pass.json')
   })
 
+  it.each([
+    ['stale gate marker', 'gate-pass.json', 'stale'],
+    ['malformed gate marker', 'gate-pass.json', '{ invalid json }'],
+    ['stale CI receipt', 'ci-pass.json', JSON.stringify({ sha: 'stale' })],
+    ['malformed CI receipt', 'ci-pass.json', '{ invalid json }'],
+  ])('allows draft creation before parsing a %s', (_label, path, contents) => {
+    const dir = track(setupGitRepo())
+    const arbiterDir = join(dir, '.arbiter')
+    mkdirSync(arbiterDir, { recursive: true })
+    if (contents === 'stale') writeMarker(dir, 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef')
+    else writeFileSync(join(arbiterDir, path), contents)
+    const result = runHook(
+      { CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --title "feat: overlap" --draft' },
+      dir,
+    )
+    expect(result.status).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
+  })
+
+  it('does not let draft creation exempt a chained gh pr ready', () => {
+    const dir = track(setupGitRepo())
+    const result = runHook(
+      {
+        CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --draft --title "feat: overlap" && gh pr ready',
+      },
+      dir,
+    )
+    expect(result.status).toBe(2)
+  })
+
   it('exits 0 and logs bypass when ARBITER_SKIP_GATE_MARKER=1', () => {
     const dir = track(setupGitRepo())
     // No marker written — would normally exit 2
