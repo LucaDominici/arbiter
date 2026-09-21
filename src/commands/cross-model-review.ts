@@ -15,8 +15,6 @@ import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
 
-const SHIP_CROSS_MODEL_PROMPT =
-  'Review this change for bugs, type safety, security, data integrity, and silent failures.'
 const CODEX_REVIEWER_PROVENANCE = {
   vendor: 'openai',
   dispatch: 'external-cli',
@@ -80,6 +78,9 @@ interface ShipCrossModelReviewOptions {
   access?: ExternalModelAccess
   /** Frozen review base; omitted keeps the legacy origin/main diff. */
   baseSha?: string | null
+  /** Exact candidate commit and tracked plan used to construct the reviewer brief. */
+  headSha: string | null
+  planRef: string
   /** Active treatment, when the runtime owns this review round. */
   treatment?: Pick<ShipTreatment, 'finalReviewers' | 'reviewerVerticals' | 'signalsHash'>
 }
@@ -312,8 +313,128 @@ function assertReviewTreeClean(repoRoot: string): void {
   }
 }
 
-function reviewDiffRange(baseSha: string | null | undefined): string {
-  return baseSha === undefined || baseSha === null ? 'origin/main...HEAD' : `${baseSha}..HEAD`
+type FrozenReviewBrief = {
+  criteria: { id: string; text: string }[]
+  nonGoals: string[]
+  acHash: string
+}
+
+const FROZEN_REVIEW_BRIEF_SCRIPT = [
+  "import { readFileSync } from 'node:fs'",
+  "import { pathToFileURL } from 'node:url'",
+  'const { computeAcHash, parsePlanAnchor } = await import(pathToFileURL(process.argv[1]).href)',
+  "const anchor = parsePlanAnchor(readFileSync(0, 'utf8'))",
+  "if (anchor === null || anchor.criteria.length === 0) throw new Error('no acceptance criteria')",
+  "if (anchor.criteria.some(({ explicit }) => !explicit) || new Set(anchor.criteria.map(({ id }) => id)).size !== anchor.criteria.length) throw new Error('malformed acceptance criteria')",
+  'process.stdout.write(JSON.stringify({ criteria: anchor.criteria.map(({ id, text }) => ({ id, text })), nonGoals: anchor.nonGoals, acHash: computeAcHash(anchor.criteria) }))',
+].join(';')
+
+function frozenPlanPath(planRef: string): string {
+  const plan = planRef.split('#')[0]?.trim() ?? ''
+  if (
+    plan.length === 0 ||
+    plan.startsWith('/') ||
+    plan.includes('\\') ||
+    plan.split('/').some((segment) => segment === '' || segment === '.' || segment === '..')
+  ) {
+    throw new Error('frozen plan reference is missing or unsafe')
+  }
+  return plan
+}
+
+function isFrozenReviewBrief(value: unknown): value is FrozenReviewBrief {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const brief = value as Record<string, unknown>
+  return (
+    Array.isArray(brief.criteria) &&
+    brief.criteria.length > 0 &&
+    brief.criteria.every(
+      (criterion) =>
+        typeof criterion === 'object' &&
+        criterion !== null &&
+        typeof (criterion as { id?: unknown }).id === 'string' &&
+        (criterion as { id: string }).id.length > 0 &&
+        typeof (criterion as { text?: unknown }).text === 'string' &&
+        (criterion as { text: string }).text.length > 0,
+    ) &&
+    Array.isArray(brief.nonGoals) &&
+    brief.nonGoals.every((nonGoal) => typeof nonGoal === 'string') &&
+    typeof brief.acHash === 'string' &&
+    brief.acHash.length > 0
+  )
+}
+
+function readFrozenReviewBrief(
+  repoRoot: string,
+  planRef: string,
+  reviewHead: string,
+): FrozenReviewBrief {
+  const plan = frozenPlanPath(planRef)
+  try {
+    const body = runCli('git', ['show', `${reviewHead}:${plan}`], {
+      cwd: repoRoot,
+      timeoutMs: 5000,
+    }).stdout
+    const stdout = runCli(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        FROZEN_REVIEW_BRIEF_SCRIPT,
+        join(repoRoot, 'scripts', 'lib', 'acceptance-criteria.mjs'),
+      ],
+      { cwd: repoRoot, input: body, timeoutMs: 5000 },
+    ).stdout
+    const brief: unknown = JSON.parse(stdout)
+    if (!isFrozenReviewBrief(brief)) throw new Error('acceptance criteria are missing or malformed')
+    return brief
+  } catch (error) {
+    throw new Error(
+      `cannot read frozen plan acceptance criteria at ${reviewHead}:${plan}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    )
+  }
+}
+
+function resolveReviewBase(repoRoot: string, baseSha: string | null | undefined): string {
+  const base =
+    baseSha ??
+    runCli('git', ['rev-parse', 'origin/main'], { cwd: repoRoot, timeoutMs: 5000 }).stdout.trim()
+  if (base.length === 0) throw new Error('review base SHA is unavailable')
+  return base
+}
+
+function assertFrozenReviewHead(repoRoot: string, reviewHead: string | null): string {
+  if (reviewHead === null || reviewHead.length === 0)
+    throw new Error('frozen review HEAD is missing')
+  const liveHead = runCli('git', ['rev-parse', 'HEAD'], {
+    cwd: repoRoot,
+    timeoutMs: 5000,
+  }).stdout.trim()
+  if (liveHead !== reviewHead) {
+    throw new Error(`HEAD drifted from frozen review candidate ${reviewHead} (current ${liveHead})`)
+  }
+  return reviewHead
+}
+
+function frozenReviewPrompt(
+  taskId: string,
+  baseSha: string,
+  headSha: string,
+  brief: FrozenReviewBrief,
+): string {
+  return [
+    'Review this frozen candidate for bugs, type safety, security, data integrity, silent failures, and acceptance fit.',
+    `Task: ${taskId}`,
+    `Base SHA: ${baseSha}`,
+    `Head SHA: ${headSha}`,
+    `Diff: ${baseSha}..HEAD`,
+    `Acceptance criteria hash: ${brief.acHash}`,
+    'Acceptance criteria (ordered, verbatim):',
+    ...brief.criteria.map(({ id, text }, index) => `${index + 1}. ${id}: ${text}`),
+    'Non-goals:',
+    ...(brief.nonGoals.length > 0 ? brief.nonGoals.map((item) => `- ${item}`) : ['- (none)']),
+  ].join('\n')
 }
 
 interface ShipExternalReviewInvocation {
@@ -323,6 +444,7 @@ interface ShipExternalReviewInvocation {
   access: ExternalModelAccess | undefined
   preflightDegradation: 'invocation-failed' | undefined
   preflightError: unknown
+  prompt: string
 }
 
 function invokeShipExternalReview({
@@ -332,11 +454,12 @@ function invokeShipExternalReview({
   access,
   preflightDegradation,
   preflightError,
+  prompt,
 }: ShipExternalReviewInvocation): ReturnType<typeof invokeExternalReview> {
   return invokeExternalReview({
     repoRoot,
     taskId: options.taskId,
-    prompt: SHIP_CROSS_MODEL_PROMPT,
+    prompt,
     diff,
     cfg: options.cfg,
     ...(access !== undefined ? { access } : {}),
@@ -368,6 +491,14 @@ function runShipCrossModelReview(
   options: ShipCrossModelReviewOptions,
 ): ReturnType<typeof invokeExternalReview> {
   const repoRoot = resolve(options.dir)
+  const reviewHead = assertFrozenReviewHead(repoRoot, options.headSha)
+  const reviewBase = resolveReviewBase(repoRoot, options.baseSha)
+  const prompt = frozenReviewPrompt(
+    options.taskId,
+    reviewBase,
+    reviewHead,
+    readFrozenReviewBrief(repoRoot, options.planRef, reviewHead),
+  )
   let diff = ''
   let access = options.cfg.diffEgressConsent ? options.access : undefined
   let preflightError: unknown
@@ -385,7 +516,7 @@ function runShipCrossModelReview(
           recorded: true,
         }
       }
-      diff = runCli('git', ['diff', '--binary', reviewDiffRange(options.baseSha)], {
+      diff = runCli('git', ['diff', '--binary', `${reviewBase}..HEAD`], {
         cwd: repoRoot,
         timeoutMs: 15_000,
       }).stdout
@@ -403,6 +534,7 @@ function runShipCrossModelReview(
     access,
     preflightDegradation,
     preflightError,
+    prompt,
   })
   persistShipReviewSidecar(options, repoRoot, result)
   return result

@@ -30,10 +30,15 @@ const command = resolveToolInputCommand()
 // that segment starts with `gh issue create`, not `gh pr create`, so it never
 // matches — no separate exemption list needed for gh issue create.
 const segments = command.split(/&&|\|\||;|\|/).map((s) => s.trim())
-const guardIndex = segments.findIndex((s) => /^gh\s+pr\s+(?:create|ready)\b/.test(s))
-if (guardIndex === -1) process.exit(0)
-const isPrCreate = /^gh\s+pr\s+create\b/.test(segments[guardIndex])
-const isDraft = isPrCreate && /(?:^|\s)--draft(?:[=\s]|$)/.test(segments[guardIndex])
+const guardedSegments = segments
+  .map((segment, index) => ({ segment, index }))
+  .filter(({ segment }) => /^gh\s+pr\s+(?:create|ready)\b/.test(segment))
+if (guardedSegments.length === 0) process.exit(0)
+const guardIndex = guardedSegments[0].index
+const isDraft =
+  guardedSegments.length === 1 &&
+  /^gh\s+pr\s+create\b/.test(guardedSegments[0].segment) &&
+  /(?:^|\s)--draft(?:[=\s]|$)/.test(guardedSegments[0].segment)
 
 function exitAfterStderr(code, message) {
   writeSync(2, message)
@@ -132,16 +137,17 @@ if (resolvedRoot) {
 
 const markerPath = resolve(repoRoot, '.arbiter/gate-pass.json')
 const rootNote = resolvedRoot ? ` (worktree: ${repoRoot})` : ''
+
+if (isDraft) {
+  await exitAfterStderr(
+    0,
+    `[arbiter] GATE GUARD: DRAFT PR allowed before gate/CI receipt validation${rootNote}; CI must verify the pushed SHA.\n`,
+  )
+}
+
 const ciReceipt = readCiPassReceipt(repoRoot)
 
 if (ciReceipt.ok) process.exit(0)
-
-if (!existsSync(markerPath) && isDraft) {
-  await exitAfterStderr(
-    0,
-    `[arbiter] GATE GUARD: DRAFT PR allowed without a gate receipt${rootNote}; CI must verify the pushed SHA.\n`,
-  )
-}
 
 if (!existsSync(markerPath)) {
   await exitAfterStderr(

@@ -174,6 +174,24 @@ describe('enforce-gate-before-pr hook', () => {
     expect(result.status).toBe(2)
   })
 
+  it.each([
+    [
+      'stale',
+      'ordinary create',
+      JSON.stringify({ sha: 'stale' }),
+      'gh pr create --title "feat: strict"',
+    ],
+    ['malformed', 'ordinary create', '{ invalid json }', 'gh pr create --title "feat: strict"'],
+    ['stale', 'ready', JSON.stringify({ sha: 'stale' }), 'gh pr ready'],
+    ['malformed', 'ready', '{ invalid json }', 'gh pr ready'],
+  ])('keeps %s CI receipts fail-closed for %s', (_state, _operation, receipt, command) => {
+    const dir = track(setupGitRepo())
+    const arbiterDir = join(dir, '.arbiter')
+    mkdirSync(arbiterDir, { recursive: true })
+    writeFileSync(join(arbiterDir, 'ci-pass.json'), receipt)
+    expect(runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir).status).toBe(2)
+  })
+
   it('exits 0 and logs bypass when ARBITER_SKIP_GATE_MARKER=1', () => {
     const dir = track(setupGitRepo())
     // No marker written — would normally exit 2

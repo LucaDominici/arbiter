@@ -328,14 +328,23 @@ function reviewPhaseStepBody(
   const externalCount = plan.external.length
   const scope = reviewScopeFor(reviewPlan)
   const prepare =
-    'Run touched tests, formatter/linter on changed files, and `git diff --check`; commit the candidate, open the review round, then'
+    'Run touched tests, formatter/linter on changed files, and `git diff --check`; commit and push the frozen candidate, open or reuse its draft PR so CI starts, then'
+  const reviewCommand = [
+    'candidate="$(git rev-parse HEAD)"',
+    'branch="$(git branch --show-current)"',
+    'test -n "$branch"',
+    'git push -u origin "$branch"',
+    '{ gh pr view "$branch" >/dev/null 2>&1 || gh pr create --draft --fill --head "$branch"; }',
+    'test "$(git rev-parse HEAD)" = "$candidate"',
+    `arbiter ship '${taskId ?? '#NNN'}' --review-round`,
+  ].join(' && ')
   const step: Omit<ShipStep, 'verticals'> = {
     phase,
     action:
       externalCount > 0
         ? `${prepare} dispatch ${reviewAgents - externalCount} Anthropic code-review agent(s) + ${externalCount} Codex reviewer(s); panel total: ${reviewAgents}.`
         : `${prepare} dispatch ${reviewAgents} independent final reviewer(s) covering code, tests, and acceptance.`,
-    command: `arbiter ship '${taskId ?? '#NNN'}' --review-round`,
+    command: reviewCommand,
     reviewAgents,
     ...(scope !== undefined ? { reviewScope: scope } : {}),
   }
@@ -1176,17 +1185,21 @@ function codexReviewContext(
   root: string,
   profile: ShipProfile,
   plan: PlannedReviewRound,
-): { taskId: string; cfg: NonNullable<ShipProfile['crossModelReview']> } {
-  const taskId = readUnifiedState(root)?.taskId
+): { taskId: string; planRef: string; cfg: NonNullable<ShipProfile['crossModelReview']> } {
+  const state = readUnifiedState(root)
+  const taskId = state?.taskId
   if (taskId === undefined) throw noReviewData(plan, 'active task id is missing')
+  const planRef = state?.plan
+  if (planRef === undefined) throw noReviewData(plan, 'frozen plan reference is missing')
   const cfg = profile.crossModelReview
   if (cfg === undefined) throw noReviewData(plan, 'cross-model review not configured')
-  return { taskId, cfg }
+  return { taskId, planRef, cfg }
 }
 
 function invokeCodexReviewRound(
   input: ExecuteCodexReviewRoundOptions,
   taskId: string,
+  planRef: string,
   cfg: NonNullable<ShipProfile['crossModelReview']>,
 ): ReturnType<typeof runShipCrossModelReview> {
   const { root, plan, opts, profile, treatment, vertical } = input
@@ -1199,6 +1212,8 @@ function invokeCodexReviewRound(
       vertical,
       cfg,
       baseSha: plan.base,
+      headSha: plan.head,
+      planRef,
       treatment,
       collaborationMode: profile.collaborationMode,
       ...(opts.externalModelAccess !== undefined ? { access: opts.externalModelAccess } : {}),
@@ -1225,8 +1240,11 @@ function reviewNextAction(blocking: number, completion: number, findingCount: nu
 
 function executeCodexReviewRound(input: ExecuteCodexReviewRoundOptions): string {
   const { root, plan, profile } = input
-  const { taskId, cfg } = codexReviewContext(root, profile, plan)
-  const envelope = fulfilledReviewEnvelope(invokeCodexReviewRound(input, taskId, cfg), plan)
+  const { taskId, planRef, cfg } = codexReviewContext(root, profile, plan)
+  const envelope = fulfilledReviewEnvelope(
+    invokeCodexReviewRound(input, taskId, planRef, cfg),
+    plan,
+  )
   const findings = envelope.findings
   spoolLowFindings(root, findings)
   const completion = reviewCompletionExitCode(root, taskId)

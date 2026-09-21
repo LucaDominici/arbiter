@@ -9,7 +9,7 @@
     "path": "scripts/lib/gate-derivation.mjs",
     "dest": ".",
     "reason": "#2773: Arbiter self derives a file-selective subset from its self-only gate-affects registry. Generated targets derive from the effective gate registry already embedded in their emitted check-all authority, avoiding false Arbiter-self names and dependencies in Java, Python, Go, and Rust targets. Both paths persist the same commands, conditions, thresholds, authority bindings, external obligations, and unresolved entries.",
-    "diffHash": "6599dc531fa14b2fffade7bc76426d844619b019242ce0f70253595268934ade"
+    "diffHash": "bd2b774186f8d6978e648a5894ca97941fb51da9d456a467c555282e4f1f5f9d"
   },
   {
     "path": "CLAUDE.md",

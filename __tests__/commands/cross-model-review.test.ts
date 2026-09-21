@@ -62,11 +62,35 @@ const FROZEN_REVIEW = { baseSha: BASE_SHA, headSha: HEAD_SHA, planRef: PLAN_REF 
 const FROZEN_PLAN = [
   '# Plan',
   '## Acceptance Criteria',
-  '- [ ] AC-2747.2: Preserve  two spaces and punctuation!',
+  '- [ ] AC-2747.2: Preserve text and punctuation!',
   '- [ ] AC-2747.1: Second ordered criterion.',
   '## Non-Goals',
   '- Do not add a scheduler.',
 ].join('\n')
+const FROZEN_BRIEF_JSON = JSON.stringify({
+  criteria: [
+    { id: 'AC-2747.2', text: 'Preserve text and punctuation!' },
+    { id: 'AC-2747.1', text: 'Second ordered criterion.' },
+  ],
+  nonGoals: ['Do not add a scheduler.'],
+  acHash: 'frozen-ac-hash',
+})
+
+function mockFrozenShipCalls(): void {
+  mockedRunCli.mockImplementation((command, args) => {
+    if (command === 'git' && args[0] === 'status')
+      return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+    if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
+      return { stdout: `${HEAD_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+    if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'origin/main')
+      return { stdout: `${BASE_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+    if (command === 'git' && args[0] === 'show')
+      return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+    if (command === process.execPath)
+      return { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 }
+    return { stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 }
+  })
+}
 
 describe('runCrossModelReview (#2357)', () => {
   beforeEach(() => {
@@ -150,9 +174,7 @@ describe('runCrossModelReview (#2357)', () => {
   })
 
   it('ships the configured external review from the real refactor boundary', () => {
-    mockedRunCli
-      .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 1 })
-      .mockReturnValueOnce({ stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 })
+    mockFrozenShipCalls()
     const result = runShipCrossModelReview({
       dir: '/tmp/project',
       taskId: '#2357',
@@ -172,7 +194,7 @@ describe('runCrossModelReview (#2357)', () => {
     )
     expect(mockedRunCli).toHaveBeenCalledWith(
       'git',
-      ['diff', '--binary', 'origin/main...HEAD'],
+      ['diff', '--binary', `${BASE_SHA}..HEAD`],
       expect.objectContaining({ cwd: '/tmp/project' }),
     )
     expect(mockedInvoke).toHaveBeenCalledWith(
@@ -192,7 +214,7 @@ describe('runCrossModelReview (#2357)', () => {
         return {
           stdout: JSON.stringify({
             criteria: [
-              { id: 'AC-2747.2', text: 'Preserve  two spaces and punctuation!' },
+              { id: 'AC-2747.2', text: 'Preserve text and punctuation!' },
               { id: 'AC-2747.1', text: 'Second ordered criterion.' },
             ],
             nonGoals: ['Do not add a scheduler.'],
@@ -232,7 +254,7 @@ describe('runCrossModelReview (#2357)', () => {
     expect(prompt).toContain(`Base SHA: ${BASE_SHA}`)
     expect(prompt).toContain(`Head SHA: ${HEAD_SHA}`)
     expect(prompt).toContain('Acceptance criteria hash: frozen-ac-hash')
-    expect(prompt.indexOf('AC-2747.2: Preserve  two spaces and punctuation!')).toBeLessThan(
+    expect(prompt.indexOf('AC-2747.2: Preserve text and punctuation!')).toBeLessThan(
       prompt.indexOf('AC-2747.1: Second ordered criterion.'),
     )
     expect(prompt).toContain('Non-goals:\n- Do not add a scheduler.')
@@ -257,6 +279,48 @@ describe('runCrossModelReview (#2357)', () => {
         ...FROZEN_REVIEW,
       }),
     ).toThrow(/HEAD.*frozen|drift/i)
+    expect(mockedInvoke).not.toHaveBeenCalled()
+  })
+
+  it('resolves the first-round origin/main base before diff and prompt construction', () => {
+    mockFrozenShipCalls()
+    runShipCrossModelReview({
+      dir: '/tmp/project',
+      taskId: '#2747',
+      tier: 'Standard',
+      phase: 'refactor',
+      vertical: 'bugs',
+      cfg,
+      ...FROZEN_REVIEW,
+      baseSha: null,
+    })
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'git',
+      ['rev-parse', 'origin/main'],
+      expect.objectContaining({ cwd: '/tmp/project' }),
+    )
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'git',
+      ['diff', '--binary', `${BASE_SHA}..HEAD`],
+      expect.objectContaining({ cwd: '/tmp/project' }),
+    )
+    expect(mockedInvoke.mock.calls[0]?.[0].prompt).toContain(`Base SHA: ${BASE_SHA}`)
+  })
+
+  it('refuses dispatch when the frozen plan reference is missing', () => {
+    mockFrozenShipCalls()
+    expect(() =>
+      runShipCrossModelReview({
+        dir: '/tmp/project',
+        taskId: '#2747',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'bugs',
+        cfg,
+        ...FROZEN_REVIEW,
+        planRef: '',
+      }),
+    ).toThrow(/frozen plan reference.*missing/i)
     expect(mockedInvoke).not.toHaveBeenCalled()
   })
 
@@ -298,6 +362,7 @@ describe('runCrossModelReview (#2357)', () => {
   })
 
   it('records a consent degradation without collecting or sending a diff', () => {
+    mockFrozenShipCalls()
     const noConsent = { ...cfg, diffEgressConsent: false }
     runShipCrossModelReview({
       dir: '/tmp/project',
@@ -309,7 +374,9 @@ describe('runCrossModelReview (#2357)', () => {
       ...FROZEN_REVIEW,
     })
 
-    expect(mockedRunCli).not.toHaveBeenCalled()
+    expect(
+      mockedRunCli.mock.calls.some(([command, args]) => command === 'git' && args[0] === 'diff'),
+    ).toBe(false)
     expect(mockedInvoke).toHaveBeenCalledWith(expect.objectContaining({ diff: '', cfg: noConsent }))
     expect(mockedInvoke.mock.calls[0]?.[0]).not.toHaveProperty('access')
   })
@@ -431,12 +498,20 @@ describe('runCrossModelReview (#2357)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-diff-failure-'))
     try {
       mockedRunCli.mockReset()
-      mockedRunCli
-        .mockReturnValueOnce({ stdout: '', stderr: '', exitCode: 0, durationMs: 1 })
-        .mockImplementationOnce(() => {
+      mockedRunCli.mockImplementation((command, args) => {
+        if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
+          return { stdout: `${HEAD_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === 'git' && args[0] === 'show')
+          return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === process.execPath)
+          return { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === 'git' && args[0] === 'status')
+          return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === 'git' && args[0] === 'diff') {
           throw new Error('git diff failed')
-        })
-        .mockReturnValue({ stdout: 'diff-state', stderr: '', exitCode: 0, durationMs: 1 })
+        }
+        return { stdout: 'diff-state', stderr: '', exitCode: 0, durationMs: 1 }
+      })
 
       const result = runShipCrossModelReview({
         dir,
@@ -510,6 +585,10 @@ describe('runCrossModelReview (#2357)', () => {
         if (command === 'git' && args[0] === 'status') {
           return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
         }
+        if (command === 'git' && args[0] === 'show')
+          return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === process.execPath)
+          return { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 }
         return { stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 }
       })
 
@@ -522,6 +601,7 @@ describe('runCrossModelReview (#2357)', () => {
         cfg,
         access: mockedDetect.mock.results[0]?.value,
         ...FROZEN_REVIEW,
+        headSha: sha,
       })
 
       expect(mockedInvoke).toHaveBeenCalledTimes(1)
@@ -568,6 +648,10 @@ describe('runCrossModelReview (#2357)', () => {
         if (command === 'node' && args[0]?.endsWith('scripts/check-cross-model-review.mjs')) {
           return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
         }
+        if (command === 'git' && args[0] === 'show')
+          return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === process.execPath)
+          return { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 }
         return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
       })
 
@@ -580,6 +664,7 @@ describe('runCrossModelReview (#2357)', () => {
         cfg,
         access: mockedDetect.mock.results[0]?.value,
         ...FROZEN_REVIEW,
+        headSha: sha,
       })
 
       expect(mockedInvoke).toHaveBeenCalledWith(
@@ -711,7 +796,10 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         join(dir, '.gitignore'),
         '.claude/.task/\n.evidence/\n.local/\ncodex-count\ncodex-stdin.txt\n',
       )
-      writeFileSync(join(dir, 'plan.md'), '# Review fixture\n')
+      writeFileSync(
+        join(dir, 'plan.md'),
+        '# Review fixture\n\n## Acceptance Criteria\n- [ ] AC-2357.1: Reach the external review seat.\n',
+      )
 
       mkdirSync(join(dir, 'schemas'), { recursive: true })
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })

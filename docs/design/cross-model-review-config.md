@@ -2,7 +2,7 @@
 title: 'Cross-Model Review Config — the arbiter.json block and diff-egress consent'
 doc_version: '0.1.0'
 status: draft
-last_review: '2026-08-26'
+last_review: '2026-09-21'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'audience/agent', 'kind/design']
@@ -15,9 +15,12 @@ The `crossModelReview` block in `arbiter.json`, and explicit consent to diff egr
 
 ## Implementation status
 
-Implemented in `#2356`: schema validation, configure/env plumbing, conditional wizard consent,
-init persistence, the ship-profile reader, and the privacy disclosure are covered. Execution of
-external review and diff transmission remain non-goals for this issue.
+The configuration and consent path is implemented. At final review, Ship reads the tracked plan
+from the frozen candidate SHA, constructs a deterministic brief containing the task, exact base and
+head, ordered acceptance criteria, non-goals, and acceptance hash, and sends the exact
+`<base>..HEAD` diff. Missing or malformed frozen criteria and HEAD drift refuse dispatch. Ship pushes
+that candidate and opens or reuses a draft PR first so CI can run concurrently; landing still joins
+exact-head review, acceptance, and green CI evidence.
 
 ## Problem statement
 

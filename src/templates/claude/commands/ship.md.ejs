@@ -111,15 +111,14 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
 4. **GREEN** — implement the capability. Run targeted checks while editing. Defer documentation and
    issue hygiene until behavior is green unless a decision is needed to implement correctly.
 5. **Freeze** — finish all fixes, commit, and freeze HEAD plus the plan acceptance hash.
-6. **Certify** — run `arbiter ship --review-round`; it dispatches the reviewer in the foreground and records the envelope — do not dispatch reviewers or write envelopes by hand.
-   The final reviewer covers code, tests, and acceptance fit.
+6. **Certify** — push the frozen branch and open or reuse its draft PR, then run `arbiter ship --review-round` in the foreground. PR CI starts on that same SHA while the reviewer receives the frozen task, base/head SHAs, ordered acceptance criteria, non-goals, and acceptance hash. Do not dispatch reviewers or write envelopes by hand.
 7. **Rework** — a changed source SHA invalidates review, acceptance-fit, and gate evidence. Round two
    reviews only the delta. The
    normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
    block. If another ordinary round would be needed, report BLOCKED or deliberately force it. A
    round whose only findings are LOW is complete and parks those findings; the foreground
    `--review-round` command reports the result before returning.
-8. **Verify** — after review completion and all-PASS acceptance fit, push the frozen candidate; CI runs the full gate on that SHA and is the verification authority; record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.
+8. **Verify** — join review completion and all-PASS acceptance fit with green CI for the exact frozen SHA. Record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`; only then mark the draft PR ready.
 9. **Land** — reuse the unchanged qualification through PR and CI. Merge, verify green post-merge CI,
    perform live proof when applicable, close every carried issue, then clean up.
 
@@ -128,16 +127,16 @@ configured live journey before declaring the landing complete. The lifecycle mus
 merged PR and green CI; tabletop blockers are hard stops, and an open or red PR remains owned by the
 current lane.
 
-| Phase          | What `/ship` does                                                                                                                           | Review agents |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------: |
-| `preflight`    | Read the issue and seed validated task state.                                                                                               |             0 |
-| `plan`         | Freeze acceptance, non-goals, and files.                                                                                                    |             0 |
-| `red`          | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                                              |             0 |
-| `green`        | Implement the capability and run targeted checks.                                                                                           |             0 |
-| `refactor`     | Freeze HEAD; dispatch one final reviewer, adding specialist seats only for sensitive domains.                                               |     treatment |
-| `verification` | Require review and acceptance evidence, then push the frozen candidate for CI's full gate; record the CI verdict before advancing to close. |             0 |
-| `close`        | Reuse the unchanged receipt through push, PR, and CI.                                                                                       |             0 |
-| `complete`     | Verify merge and green CI, close carried issues, and clean up.                                                                              |             0 |
+| Phase          | What `/ship` does                                                                                              | Review agents |
+| -------------- | -------------------------------------------------------------------------------------------------------------- | ------------: |
+| `preflight`    | Read the issue and seed validated task state.                                                                  |             0 |
+| `plan`         | Freeze acceptance, non-goals, and files.                                                                       |             0 |
+| `red`          | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                 |             0 |
+| `green`        | Implement the capability and run targeted checks.                                                              |             0 |
+| `refactor`     | Freeze HEAD; push it, open/reuse a draft PR for overlapping CI, then dispatch the final reviewer.              |     treatment |
+| `verification` | Require exact-head review, acceptance, and green CI evidence; record the CI verdict before advancing to close. |             0 |
+| `close`        | Reuse the unchanged receipt through push, PR, and CI.                                                          |             0 |
+| `complete`     | Verify merge and green CI, close carried issues, and clean up.                                                 |             0 |
 
 Add specialist reviewers only for auth, data integrity, concurrency, money, migrations, or deployment.
 The final reviewer covers code, tests, and acceptance fit.
@@ -145,8 +144,9 @@ The final reviewer covers code, tests, and acceptance fit.
 ## Evidence commands
 
 `arbiter ship --review-round` owns the final reviewer dispatch and evidence write in the foreground.
-It writes the authoritative `.arbiter/agents-dispatched.json` sidecar and binds the returned
-envelope to the task, branch, frozen SHA, provenance, and active treatment;
+It builds the reviewer brief from the plan stored at the frozen SHA, writes the authoritative
+`.arbiter/agents-dispatched.json` sidecar, and binds the returned envelope to the task, branch,
+frozen SHA, provenance, and active treatment;
 do not dispatch reviewers or write reviewer envelopes by hand. Use
 `node scripts/check-review-completion.mjs --task '#NNN'` only for diagnostics.
 
