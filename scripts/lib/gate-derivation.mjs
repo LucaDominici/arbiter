@@ -44,9 +44,19 @@ function inspectedGate(name, inspection) {
 
 function bindInspection(gate, inspection) {
   const described = inspectedGate(gate.name, inspection)
+  if (gate.kind === 'artifact-regenerate' && described) {
+    const { command: verificationCommand, ...verification } = described
+    return {
+      ...verification,
+      ...gate,
+      verificationCommand,
+      ...(inspection?.authority ? { authority: inspection.authority } : {}),
+    }
+  }
   return {
     ...gate,
     ...(described ?? {}),
+    ...(gate.name === 'coverage' ? { kind: 'test-first' } : {}),
     ...(inspection?.authority ? { authority: inspection.authority } : {}),
   }
 }
@@ -57,9 +67,17 @@ export function deriveGatesForFiles(
   inspection = undefined,
 ) {
   const affected = affectedGateNames(files, registry, GATE_SKIP_BLACKLIST)
-  const gates = registry
+  const candidates = registry
     .filter((entry) => affected.has(entry.name))
-    .map((entry) => bindInspection(classify(entry.name, files), inspection))
+    .map((entry) => classify(entry.name, files))
+  const gates = candidates
+    .filter(
+      (gate) =>
+        inspection === undefined ||
+        gate.kind === 'artifact-regenerate' ||
+        inspectedGate(gate.name, inspection) !== undefined,
+    )
+    .map((gate) => bindInspection(gate, inspection))
   const external = (inspection?.external ?? []).map((entry) => ({
     ...entry,
     kind: 'constraint',

@@ -647,6 +647,7 @@ function derivedGateLines(derivedGates: unknown[] | undefined): string[] {
       const gate = raw as {
         name?: unknown
         command?: unknown
+        verificationCommand?: unknown
         condition?: unknown
         thresholds?: unknown
         status?: unknown
@@ -654,6 +655,9 @@ function derivedGateLines(derivedGates: unknown[] | undefined): string[] {
       }
       const details = [
         typeof gate.command === 'string' ? `command: ${gate.command}` : undefined,
+        typeof gate.verificationCommand === 'string'
+          ? `verification: ${gate.verificationCommand}`
+          : undefined,
         typeof gate.condition === 'string' ? `when: ${gate.condition}` : undefined,
         Array.isArray(gate.thresholds)
           ? `thresholds: ${gate.thresholds.map(formatGateThreshold).join(', ')}`

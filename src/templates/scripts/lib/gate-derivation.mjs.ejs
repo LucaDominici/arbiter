@@ -28,7 +28,11 @@ export function parsePlanFilesManifest(plan) {
 
 export function deriveGatesForFiles(files, _registry, inspection) {
   const authority = inspection?.authority ?? []
-  const gates = (inspection?.gates ?? []).map((gate) => ({ ...gate, authority }))
+  const gates = (inspection?.gates ?? []).map((gate) => ({
+    ...gate,
+    ...(gate.name === 'coverage' ? { kind: 'test-first' } : {}),
+    authority,
+  }))
   const external = (inspection?.external ?? []).map((entry) => ({
     ...entry,
     kind: 'constraint',
