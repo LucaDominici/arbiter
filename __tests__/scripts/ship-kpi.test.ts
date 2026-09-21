@@ -4,7 +4,7 @@
 // #2398: throughput KPI script. Pure predicate unit tests (direct import, no
 // `gh`/`git` calls) + a real spawn of --self-test (CANON-07: generated
 // scripts must be executed in tests, not just string-matched).
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -70,6 +70,7 @@ const checkpointForRows = Reflect.get(shipKpi, 'checkpointForRows') as (
 const checkpointHistory = Reflect.get(shipKpi, 'checkpointHistory') as (
   ...args: unknown[]
 ) => unknown
+const attributionAudit = Reflect.get(shipKpi, 'attributionAudit') as (...args: unknown[]) => unknown
 const attributeSessionsToDeliveries = Reflect.get(shipKpi, 'attributeSessionsToDeliveries') as (
   ...args: unknown[]
 ) => unknown
@@ -1299,6 +1300,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       live: false,
     }
     const unknown = { file: 'unknown.jsonl', host: 'codex', usage: {}, live: true }
+    // liveness depends on the clock, so it never enters the auditable rows
     expect(
       audit(
         [
@@ -1308,8 +1310,8 @@ describe('real delivery data sources (#2725 increment 2)', () => {
         { input: 1, cache: 1, output: 1 },
       ),
     ).toEqual([
-      { file: 'known.jsonl', rule: 'prompt', costUnits: 15, humanMessages: 1, live: false },
-      { file: 'unknown.jsonl', rule: 'cwd', costUnits: null, humanMessages: null, live: true },
+      { file: 'known.jsonl', rule: 'prompt', costUnits: 15, humanMessages: 1 },
+      { file: 'unknown.jsonl', rule: 'cwd', costUnits: null, humanMessages: null },
     ])
   })
 
@@ -1442,6 +1444,333 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual([])
   })
 
+  const writeTranscript = (root: string, events: unknown[], at: Date, name = 's.jsonl') => {
+    const file = join(root, name)
+    writeFileSync(file, events.map((event) => JSON.stringify(event)).join('\n'))
+    utimesSync(file, at, at)
+    return file
+  }
+  const userEvent = (content: unknown, extra: Record<string, unknown> = {}) => ({
+    type: 'user',
+    timestamp: firstCommit,
+    cwd: mainCheckout,
+    gitBranch: 'main',
+    message: { role: 'user', content },
+    ...extra,
+  })
+  const discover = async (events: unknown[], mtime = new Date(mergedAt), untilMs = Infinity) => {
+    const root = mkdtempSync(join(tmpdir(), 'ship-kpi-attr-'))
+    try {
+      writeTranscript(root, events, mtime)
+      return (await discoverSessions(root, 'claude', 0, untilMs)) as Array<Record<string, unknown>>
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+  const kpiPr = { headRefName: 'task/#2774-kpi', firstCommit, mergedAt }
+
+  it('attributes a delivery session that starts on main and later moves into the task worktree', async () => {
+    const sessions = await discover([
+      userEvent('Plan'),
+      userEvent('Continue', {
+        timestamp: mergedAt,
+        cwd: '/w/arbiter.worktrees/2774-kpi',
+        gitBranch: 'task/#2774-kpi',
+      }),
+    ])
+    expect(sessions).toHaveLength(1)
+    expect(attributeSessions(sessions, kpiPr)).toHaveLength(1)
+  })
+
+  it('takes the first genuine prompt even when it is an array of text blocks', async () => {
+    const sessions = await discover([
+      userEvent([{ type: 'text', text: 'Review issue #2774' }]),
+      userEvent(shipEnvelope('#2774'), { timestamp: mergedAt }),
+    ])
+    expect(sessions[0].firstPrompt).toBe('Review issue #2774')
+    expect(attributeSessions(sessions, kpiPr)).toEqual([])
+  })
+
+  it('reads issue ids from the whole first prompt, not its 400-character display value', async () => {
+    const sessions = await discover([userEvent(`/ship #2774 ${'x'.repeat(400)} #2775`)])
+    expect(sessions[0].issueIdsInPrompt).toEqual([2774, 2775])
+    expect(sessions[0].firstPrompt).toHaveLength(400)
+    expect(attributeSessions(sessions, kpiPr)).toEqual([])
+  })
+
+  it('keeps a delivery session that was resumed after the report window closed', async () => {
+    const later = new Date(Date.parse(mergedAt) + 3 * 86_400_000)
+    const sessions = await discover(
+      [userEvent(shipEnvelope('#2774'))],
+      later,
+      Date.parse(mergedAt) + 60_000,
+    )
+    expect(attributeSessions(sessions, kpiPr)).toHaveLength(1)
+  })
+
+  it('emits the same full payload for finished sessions at two different clock times', async () => {
+    const buildPayload = Reflect.get(shipKpi, 'reportPayload') as (...args: unknown[]) => unknown
+    const reportNowMs = Reflect.get(shipKpi, 'reportNowMs') as (...args: unknown[]) => number
+    expect(typeof buildPayload).toBe('function')
+    expect(typeof reportNowMs).toBe('function')
+    if (typeof buildPayload !== 'function' || typeof reportNowMs !== 'function') return
+    const untilMs = Date.parse('2026-09-20T23:59:59Z')
+    const openPrs = [
+      {
+        number: 2778,
+        createdAt: '2026-09-19T00:00:00Z',
+        statusCheckRollup: [{ conclusion: 'FAILURE' }],
+      },
+    ]
+    const written = new Date(Date.parse(mergedAt))
+    const sessions = await discover([userEvent(shipEnvelope('#2774'))], written)
+    const payloadAt = (nowMs: number) => {
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(nowMs)
+      try {
+        const assigned = attributeSessionsToDeliveries(sessions, [
+          { number: 2776, ...kpiPr },
+        ]) as Map<number, unknown[]>
+        const audit = attributionAudit(assigned.get(2776), { input: 1, cache: 1, output: 1 })
+        return {
+          audit,
+          json: JSON.stringify(
+            buildPayload({
+              opts: { since: '2026-09-19', repo: 'o/r' },
+              untilLabel: '2026-09-20',
+              rows: [{ number: 2776, sessions: audit }],
+              aggregate: computeAggregate({
+                rows: [],
+                issuesClosedCount: 1,
+                windowHours: 24,
+                mainSubjects: [],
+                openPrs,
+                nowMs: reportNowMs({ until: '2026-09-20' }, untilMs),
+              }),
+              hookBlocks: {},
+              unattributed: { claude: null, codex: null, sessions: null },
+            }),
+          ),
+        }
+      } finally {
+        clock.mockRestore()
+      }
+    }
+    const soon = payloadAt(written.getTime() + 60_000)
+    const later = payloadAt(written.getTime() + 3 * 86_400_000)
+    expect(soon.audit).toEqual([
+      {
+        file: expect.stringContaining('s.jsonl'),
+        rule: 'prompt',
+        costUnits: null,
+        humanMessages: 1,
+      },
+    ])
+    expect(soon.json).toBe(later.json)
+    expect(JSON.parse(soon.json).aggregate.openPrsStale).toEqual([2778])
+  })
+
+  it('does not attribute a coordinator through a branch it first visited after the merge', async () => {
+    const sessions = await discover([
+      userEvent('Coordinate'),
+      userEvent('Later', {
+        timestamp: '2026-09-22T00:00:00Z',
+        cwd: '/w/arbiter.worktrees/2774-kpi',
+        gitBranch: 'task/#2774-kpi',
+      }),
+    ])
+    expect(attributeSessions(sessions, kpiPr)).toEqual([])
+  })
+
+  it('classifies a coordinator over its whole session while preserving one-message task sessions', () => {
+    const coordinator = {
+      file: '50002f91.jsonl',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter',
+      firstTs: '2026-09-20T09:36:14.506Z',
+      lastTs: '2026-09-20T15:18:10.539Z',
+      humanMessages: 18,
+      firstPrompt: 'Continue the delivery work',
+      issueIdsInPrompt: [],
+      contexts: [
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter',
+          ts: '2026-09-20T09:36:14.506Z',
+        },
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2747-codex-dispatch',
+          ts: '2026-09-20T09:55:17.940Z',
+        },
+        {
+          gitBranch: 'docs/2747-journal-close',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2778-fail-closed-fix',
+          ts: '2026-09-20T11:14:51.964Z',
+        },
+        {
+          gitBranch: 'docs/2747-journal-close',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2773-gate-derivation',
+          ts: '2026-09-20T12:15:31.499Z',
+        },
+      ],
+    }
+    const single2757 = {
+      file: 'single-2757.jsonl',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2489-spawn-guard-tombstone',
+      firstTs: '2026-09-20T05:10:00Z',
+      lastTs: '2026-09-20T05:30:00Z',
+      humanMessages: 1,
+      contexts: [
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2489-spawn-guard-tombstone',
+          ts: '2026-09-20T05:10:00Z',
+        },
+      ],
+    }
+    const single2766 = {
+      file: 'single-2766.jsonl',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2733-finding-promote-drain',
+      firstTs: '2026-09-20T09:10:00Z',
+      lastTs: '2026-09-20T09:30:00Z',
+      humanMessages: 1,
+      contexts: [
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2733-finding-promote-drain',
+          ts: '2026-09-20T09:10:00Z',
+        },
+      ],
+    }
+    const deliveries = [
+      {
+        number: 2769,
+        headRefName: 'task/#2747-codex-dispatch',
+        firstCommit: '2026-09-20T09:50:00Z',
+        mergedAt: '2026-09-20T11:11:01Z',
+      },
+      {
+        number: 2757,
+        headRefName: 'task/#2489-spawn-guard-tombstone',
+        firstCommit: '2026-09-20T05:00:00Z',
+        mergedAt: '2026-09-20T05:39:45Z',
+      },
+      {
+        number: 2766,
+        headRefName: 'task/#2733-finding-promote-drain',
+        firstCommit: '2026-09-20T09:00:00Z',
+        mergedAt: '2026-09-20T09:44:47Z',
+      },
+    ]
+    const assigned = attributeSessionsToDeliveries(
+      [coordinator, single2757, single2766],
+      deliveries,
+    ) as Map<number, Array<{ meta: { file: string }; via: string }>>
+
+    expect(assigned.has(2769)).toBe(false)
+    expect(assigned.get(2757)?.map(({ meta, via }) => [meta.file, via])).toEqual([
+      ['single-2757.jsonl', 'cwd'],
+    ])
+    expect(assigned.get(2766)?.map(({ meta, via }) => [meta.file, via])).toEqual([
+      ['single-2766.jsonl', 'cwd'],
+    ])
+  })
+
+  it('treats a session with more than three human messages as a coordinator', () => {
+    const chatty = {
+      file: 'chatty-single-worktree.jsonl',
+      host: 'claude',
+      gitBranch: 'main',
+      cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2774-kpi',
+      firstTs: '2026-09-19T00:02:00Z',
+      lastTs: '2026-09-19T00:04:00Z',
+      humanMessages: 4,
+      contexts: [
+        {
+          gitBranch: 'main',
+          cwd: '/home/luca/work/repos/arbiter/arbiter.worktrees/2774-kpi',
+          ts: '2026-09-19T00:02:00Z',
+        },
+      ],
+    }
+    expect(
+      attributeSessions([chatty], {
+        headRefName: 'task/#2774-kpi',
+        firstCommit: '2026-09-19T00:01:00Z',
+        mergedAt: '2026-09-19T00:10:00Z',
+      }),
+    ).toEqual([])
+  })
+
+  // #2774 (second round): dating the visited contexts stopped a session from claiming a
+  // delivery through a worktree it only visited after the merge, but did nothing about a
+  // coordinator that visits SEVERAL task worktrees in the same window — each bare
+  // `<issue>-<slug>` cwd still matches its own issue's BRANCH_ISSUE_RE segment, so the
+  // session qualified for cwd/branch attribution on every one of them. Real data: a
+  // coordinator session that cd'd into arbiter.worktrees/2747-*, 2773-* and 2778-* before
+  // any of those PRs merged was attributed in full to all three by the dedup's tie-break,
+  // not just to the one it actually delivered.
+  it('does not attribute a coordinator that visited several issues worktrees to any of them via cwd/branch', async () => {
+    const sessions = await discover([
+      userEvent('Coordinate', { cwd: mainCheckout, gitBranch: 'main' }),
+      userEvent('Move to 2747', {
+        timestamp: '2026-09-19T00:02:00Z',
+        cwd: '/w/arbiter.worktrees/2747-other',
+        gitBranch: 'task/#2747-other',
+      }),
+      userEvent('Move to 2774', {
+        timestamp: '2026-09-19T00:03:00Z',
+        cwd: '/w/arbiter.worktrees/2774-kpi',
+        gitBranch: 'task/#2774-kpi',
+      }),
+      userEvent('Move to 2778', {
+        timestamp: '2026-09-19T00:04:00Z',
+        cwd: '/w/arbiter.worktrees/2778-other',
+        gitBranch: 'task/#2778-other',
+      }),
+    ])
+    expect(attributeSessions(sessions, kpiPr)).toEqual([])
+    const deliveries = [
+      kpiPr,
+      { headRefName: 'task/#2747-other', firstCommit, mergedAt },
+      { headRefName: 'task/#2778-other', firstCommit, mergedAt },
+    ].map((pr, i) => ({ number: 2747 + i, ...pr }))
+    const assigned = attributeSessionsToDeliveries(sessions, deliveries) as Map<
+      number,
+      Array<{ meta: { file: string } }>
+    >
+    expect([...assigned.values()].flat()).toEqual([])
+  })
+
+  // The companion "must still work" case: a session that genuinely only ever worked inside
+  // ONE task's worktree, resuming there more than once, keeps its cwd/branch attribution —
+  // the multi-issue guard above must not blanket-disqualify a normal single-issue session.
+  it('still attributes a session that revisits the same single issue worktree', async () => {
+    const sessions = await discover([
+      userEvent('Start', { cwd: '/w/arbiter.worktrees/2774-kpi', gitBranch: 'task/#2774-kpi' }),
+      userEvent('Resume', {
+        timestamp: '2026-09-19T00:05:00Z',
+        cwd: '/w/arbiter.worktrees/2774-kpi',
+        gitBranch: 'task/#2774-kpi',
+      }),
+    ])
+    expect(attributeSessions(sessions, kpiPr)).toEqual([{ meta: sessions[0], via: 'branch' }])
+  })
+
+  it('skips a text-block synthetic prompt so the /ship prompt stays the first genuine one', async () => {
+    const sessions = await discover([
+      userEvent([{ type: 'text', text: '[Request interrupted by user]' }]),
+      userEvent(shipEnvelope('#2774'), { timestamp: mergedAt }),
+    ])
+    expect(sessions[0].humanMessages).toBe(1)
+    expect(attributeSessions(sessions, kpiPr)).toHaveLength(1)
+  })
+
   it('summarizes Claude usage without counting sidechains or tool-result arrays as human messages', () => {
     expect(
       claudeSessionMeta([
@@ -1503,6 +1832,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual({
       gitBranch: 'task/#2725-ship-kpi-loop',
       cwd: worktreeDir,
+      contexts: [{ gitBranch: 'task/#2725-ship-kpi-loop', cwd: worktreeDir, ts: firstCommit }],
       firstTs: firstCommit,
       lastTs: '2026-09-19T00:05:00Z',
       usage: { input: 140, output: 30, cache: 37 },
@@ -1528,8 +1858,8 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     })
   })
 
-  it('truncates the first Claude prompt to 400 characters before extracting prompt issue ids', () => {
-    const prompt = '#2703 ' + 'x'.repeat(500)
+  it('extracts prompt issue ids from the whole prompt and truncates only the stored text', () => {
+    const prompt = '#2703 ' + 'x'.repeat(500) + ' #2704'
     const meta = claudeSessionMeta([
       JSON.stringify({
         type: 'user',
@@ -1538,7 +1868,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
       }),
     ]) as Record<string, unknown>
     expect(meta.firstPrompt).toBe(prompt.slice(0, 400))
-    expect(meta.issueIdsInPrompt).toEqual([2703])
+    expect(meta.issueIdsInPrompt).toEqual([2703, 2704])
   })
 
   it('keeps Claude usage and human message count null when no user or assistant lines exist', () => {
@@ -1549,6 +1879,7 @@ describe('real delivery data sources (#2725 increment 2)', () => {
     ).toEqual({
       gitBranch: null,
       cwd: worktreeDir,
+      contexts: [{ gitBranch: null, cwd: worktreeDir, ts: firstCommit }],
       firstTs: firstCommit,
       lastTs: firstCommit,
       usage: { input: null, output: null, cache: null },

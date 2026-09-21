@@ -602,7 +602,7 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
     changed = false
     for (let i = pending.length - 1; i >= 0; i--) {
       const meta = pending[i]
-      const via = sessionAttribution(meta, issueIds, attributedThreads)
+      const via = sessionAttribution(meta, issueIds, attributedThreads, mergedAt)
       if (via === null) continue
       pending.splice(i, 1)
       attributed.push({ meta, via })
@@ -616,13 +616,50 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
   return attributed.sort((a, b) => order.get(a.meta) - order.get(b.meta))
 }
 
-function sessionAttribution(meta, issueIds, attributedThreads) {
-  if (containsIssueId(meta.gitBranch, issueIds)) return 'branch'
-  if (containsIssueId(meta.cwd, issueIds)) return 'cwd'
-  if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id))) return 'agent-path'
-  if (hasParentAttribution(meta, attributedThreads)) return 'parent'
+function sessionAttribution(meta, issueIds, attributedThreads, mergedAt) {
+  const contexts = contextsBefore(meta, mergedAt)
+  if (!isCoordinator(meta)) {
+    if (contexts.some((context) => containsIssueId(context.gitBranch, issueIds))) return 'branch'
+    if (contexts.some((context) => containsIssueId(context.cwd, issueIds))) return 'cwd'
+    if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id)))
+      return 'agent-path'
+    if (hasParentAttribution(meta, attributedThreads)) return 'parent'
+  }
   if (hasPromptAttribution(meta, issueIds)) return 'prompt'
   return null
+}
+
+function isCoordinator(meta) {
+  return (
+    meta.humanMessages > 3 ||
+    visitsMultipleIssues([
+      { gitBranch: meta.gitBranch, cwd: meta.cwd },
+      ...(Array.isArray(meta.contexts) ? meta.contexts : []),
+    ])
+  )
+}
+
+// Coordinator detection is clock-free: the whole session's issue context history or a chatty
+// transcript signals orchestration. Dated contexts below are only for temporal location matching.
+function visitsMultipleIssues(contexts) {
+  // cwd uses the dedicated path pattern (a digit run right after a `/`), not the loose branch
+  // regex: BRANCH_ISSUE_RE's bare-number alternative matches any 3-5 digit path segment (a dated
+  // directory, a fixture path), which would disqualify a genuine writer over a coincidence.
+  const ids = new Set(
+    contexts.flatMap((context) => [
+      ...issueNumbers(context.gitBranch, 'branch'),
+      ...issueNumbers(context.cwd, 'path'),
+    ]),
+  )
+  return ids.size > 1
+}
+
+function contextsBefore(meta, mergedAt) {
+  const mergedMs = Date.parse(mergedAt ?? '')
+  const dated = (Array.isArray(meta.contexts) ? meta.contexts : []).filter(
+    (context) => !(Date.parse(context.ts ?? '') > mergedMs),
+  )
+  return [{ gitBranch: meta.gitBranch, cwd: meta.cwd }, ...dated]
 }
 
 function hasParentAttribution(meta, attributedThreads) {
@@ -745,10 +782,9 @@ function isGenuineClaudeUser(event, role) {
   )
     return false
   const content = messageContent(event)
-  return (
-    typeof content !== 'string' ||
-    !NON_HUMAN_PROMPT_PREFIXES.some((prefix) => content.startsWith(prefix))
-  )
+  if (typeof content === 'string') return !isSyntheticText(content)
+  const texts = textBlocks(content)
+  return texts.length === 0 || texts.some((text) => !isSyntheticText(text))
 }
 
 function isToolResultMessage(event) {
@@ -845,6 +881,7 @@ export function claudeSessionMeta(lines) {
   const state = {
     gitBranch: null,
     cwd: null,
+    contexts: [],
     effort: null,
     humanMessages: 0,
     hasHumanMessage: false,
@@ -869,6 +906,7 @@ export function claudeSessionMeta(lines) {
   return {
     gitBranch: state.gitBranch,
     cwd: state.cwd,
+    contexts: state.contexts,
     firstTs: times.firstTs,
     lastTs: times.lastTs,
     usage: { input: state.input, output: state.output, cache: state.cache },
@@ -897,7 +935,45 @@ function updateClaudeContext(state, event) {
   if (state.gitBranch === null && typeof event.gitBranch === 'string')
     state.gitBranch = event.gitBranch
   if (state.cwd === null && typeof event.cwd === 'string') state.cwd = event.cwd
+  addContext(state.contexts, event)
   if (typeof event.effort === 'string') state.effort = event.effort
+}
+
+// A session can resume elsewhere (main, then the task branch/worktree): keep every place it worked,
+// dated by when it first worked there, so a later visit cannot claim an earlier delivery.
+function addContext(contexts, event) {
+  const gitBranch = typeof event.gitBranch === 'string' ? event.gitBranch : null
+  const cwd = typeof event.cwd === 'string' ? event.cwd : null
+  if (gitBranch === null && cwd === null) return
+  if (contexts.some((known) => known.gitBranch === gitBranch && known.cwd === cwd)) return
+  contexts.push({ gitBranch, cwd, ts: eventTimestamp(event) })
+}
+
+const isSyntheticText = (text) =>
+  NON_HUMAN_PROMPT_PREFIXES.some((prefix) => text.startsWith(prefix))
+
+function textBlocks(content) {
+  return (Array.isArray(content) ? content : [])
+    .filter((block) => block?.type === 'text' && typeof block.text === 'string')
+    .map((block) => block.text)
+}
+
+/** Text a human typed: a plain string, or the non-synthetic text blocks of a content array. */
+function promptText(content) {
+  if (typeof content === 'string') return content
+  return textBlocks(content)
+    .filter((text) => !isSyntheticText(text))
+    .join('\n')
+}
+
+// The FIRST genuine prompt is the delivery evidence: ids come from all of it, only the stored text is cut.
+function recordHumanPrompt(state, event) {
+  state.humanMessages++
+  state.hasHumanMessage = true
+  if (state.humanMessages !== 1) return
+  const text = promptText(messageContent(event))
+  state.firstPrompt = text.slice(0, 400)
+  state.issueIdsInPrompt = promptIssueIds(text)
 }
 
 function updateClaudeUsage(state, usage) {
@@ -914,14 +990,7 @@ function updateClaudeUsage(state, usage) {
 }
 
 function consumeClaudeUser(state, event, role) {
-  if (!isGenuineClaudeUser(event, role)) return
-  state.humanMessages++
-  state.hasHumanMessage = true
-  const content = messageContent(event)
-  if (state.firstPrompt === null && typeof content === 'string') {
-    state.firstPrompt = content.slice(0, 400)
-    state.issueIdsInPrompt = promptIssueIds(state.firstPrompt)
-  }
+  if (isGenuineClaudeUser(event, role)) recordHumanPrompt(state, event)
 }
 
 /** Summarize Codex rollout JSONL using its latest context and token snapshot. */
@@ -1788,7 +1857,7 @@ function collectEntry(dir, entry, predicate, maxDepth, depth) {
   return []
 }
 
-function sessionFiles(dir, host, sinceMs, untilMs) {
+function sessionFiles(dir, host, sinceMs) {
   const maxDepth = host === 'claude' ? 1 : Number.POSITIVE_INFINITY
   const predicate =
     host === 'claude'
@@ -1799,7 +1868,7 @@ function sessionFiles(dir, host, sinceMs, untilMs) {
     .filter((file) => {
       try {
         const mtimeMs = statSync(file).mtimeMs
-        return mtimeMs >= sinceMs && mtimeMs <= untilMs
+        return mtimeMs >= sinceMs
         // FAIL-OPEN-INTENT: an unstatable session log contributes no delivery metrics; unavailable source is represented as null by the caller.
       } catch {
         return false
@@ -1813,6 +1882,7 @@ function newSessionAccumulator(host, file) {
     file,
     gitBranch: null,
     cwd: null,
+    contexts: [],
     agentPath: null,
     threadId: null,
     parentThreadId: null,
@@ -1905,23 +1975,9 @@ function addUsage(target, source) {
 }
 
 function consumeClaudeAccumulator(accumulator, event) {
-  updateClaudeAccumulatorContext(accumulator, event)
+  updateClaudeContext(accumulator, event)
   const role = event.message?.role ?? event.type
-  if (!isGenuineClaudeUser(event, role)) return
-  accumulator.humanMessages++
-  accumulator.hasHumanMessage = true
-  const content = messageContent(event)
-  if (accumulator.firstPrompt === null && typeof content === 'string') {
-    accumulator.firstPrompt = content.slice(0, 400)
-    accumulator.issueIdsInPrompt = promptIssueIds(accumulator.firstPrompt)
-  }
-}
-
-function updateClaudeAccumulatorContext(accumulator, event) {
-  if (accumulator.gitBranch === null && typeof event.gitBranch === 'string')
-    accumulator.gitBranch = event.gitBranch
-  if (accumulator.cwd === null && typeof event.cwd === 'string') accumulator.cwd = event.cwd
-  if (typeof event.effort === 'string') accumulator.effort = event.effort
+  if (isGenuineClaudeUser(event, role)) recordHumanPrompt(accumulator, event)
 }
 
 function consumeCodexAccumulator(accumulator, event) {
@@ -1953,6 +2009,7 @@ function finishSessionAccumulator(accumulator) {
     file: accumulator.file,
     gitBranch: accumulator.gitBranch,
     cwd: accumulator.cwd,
+    contexts: accumulator.contexts,
     firstTs: accumulator.times.firstTs,
     lastTs: accumulator.times.lastTs,
     usage: accumulator.usage,
@@ -2022,12 +2079,14 @@ async function addSubagentUsage(parent, weights) {
 
 export async function discoverSessions(dir, host, sinceMs, untilMs, weights) {
   const sessions = []
-  for (const file of sessionFiles(dir, host, sinceMs, untilMs)) {
+  for (const file of sessionFiles(dir, host, sinceMs)) {
     try {
       const accumulator = newSessionAccumulator(host, file)
       await streamLines(file, (line) => consumeSessionLine(accumulator, line))
       if (host === 'claude') await addSubagentUsage(accumulator, weights)
-      sessions.push({ ...finishSessionAccumulator(accumulator), live: sessionLive(file) })
+      const session = { ...finishSessionAccumulator(accumulator), live: sessionLive(file) }
+      // A transcript resumed after the window still holds its earlier events; only one that began after it is out.
+      if (!(Date.parse(session.firstTs ?? '') > untilMs)) sessions.push(session)
     } catch (error) {
       // FAIL-OPEN-INTENT: an unreadable transcript cannot support attribution or KPI phases; omit it and preserve NO DATA in the affected delivery while surfacing the source error.
       process.stderr.write(`ship-kpi: unreadable session ${file}: ${error?.message ?? error}\n`)
@@ -2180,7 +2239,6 @@ export function attributionAudit(attributed, weights) {
     rule: via,
     costUnits: costUnits(meta.usage, weights),
     humanMessages: meta.humanMessages ?? null,
-    live: meta.live === true,
   }))
 }
 
@@ -2772,6 +2830,26 @@ function usageError() {
   process.exit(2)
 }
 
+/** Staleness is measured at the window end when the report is bounded, so a past window repeats. */
+export function reportNowMs(opts, untilMs) {
+  return opts.until ? untilMs : Date.now()
+}
+
+/** The JSON evidence: a pure function of the measured data, no clock, so finished sessions repeat byte for byte. */
+export function reportPayload({ opts, untilLabel, rows, aggregate, hookBlocks, unattributed }) {
+  return {
+    since: opts.since,
+    until: untilLabel,
+    repo: opts.repo,
+    ciRedAtOpenApproximation:
+      'ciRedAtOpen reflects the CURRENT statusCheckRollup, not the first run at PR-open time — GitHub does not retain that snapshot via gh.',
+    rows,
+    aggregate,
+    hookBlocks,
+    unattributed,
+  }
+}
+
 async function runReport(opts) {
   const until = opts.until
   const prNumbers = fetchMergedPrNumbers(opts.repo, opts.since, until)
@@ -2826,7 +2904,7 @@ async function runReport(opts) {
     windowHours,
     mainSubjects,
     openPrs,
-    nowMs: Date.now(),
+    nowMs: reportNowMs(opts, untilMs),
   })
 
   const hookBlocks = {}
@@ -2837,18 +2915,12 @@ async function runReport(opts) {
   }
 
   const untilLabel = until ?? today()
-  const payload = {
-    since: opts.since,
-    until: untilLabel,
-    repo: opts.repo,
-    generatedAt: new Date().toISOString(),
-    ciRedAtOpenApproximation:
-      'ciRedAtOpen reflects the CURRENT statusCheckRollup, not the first run at PR-open time — GitHub does not retain that snapshot via gh.',
-    rows,
-    aggregate,
-    hookBlocks,
-    unattributed,
-  }
+  const payload = reportPayload({ opts, untilLabel, rows, aggregate, hookBlocks, unattributed })
+  const live = sessions.filter((session) => session.live && attributedFiles.has(session.file))
+  if (live.length > 0)
+    process.stderr.write(
+      `ship-kpi: ${live.length} attributed session(s) still being written, their cost may still grow: ${live.map((session) => session.file).join(', ')}\n`,
+    )
 
   process.stdout.write(
     renderMarkdown({
