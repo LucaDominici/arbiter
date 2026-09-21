@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { generateCheckAll, loadGateRegistry } from '../../src/generators/check-all.js'
+import {
+  generateCheckAll,
+  inspectWorkflowContract,
+  loadGateRegistry,
+} from '../../src/generators/check-all.js'
+import { readVitestCoverageThresholds } from '../../scripts/check-all.mjs'
 import { generateDebtRatchet } from '../../src/generators/debt-ratchet.js'
 import { makeConfig } from '../helpers.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
@@ -35,6 +40,82 @@ describe('generateCheckAll', () => {
     })
     expect(gates.find((gate) => gate.id === 'coverage-threshold')?.thresholds?.[0]?.value).toBe(0)
     expect(gates.find((gate) => gate.id === 'mutation-stryker')?.thresholds?.[0]?.value).toBe(0)
+  })
+
+  it('reads self coverage thresholds from the executable Vitest config authority', async () => {
+    const configPath = join(dir, 'vitest.config.ts')
+    writeFileSync(
+      configPath,
+      'export default { test: { coverage: { thresholds: { lines: 97, branches: 96, functions: 95, statements: 94 } } } }\n',
+    )
+    await expect(readVitestCoverageThresholds(configPath)).resolves.toEqual({
+      thresholds: [
+        { name: 'lines', value: 97, source: `${configPath}#coverage.thresholds.lines` },
+        { name: 'branches', value: 96, source: `${configPath}#coverage.thresholds.branches` },
+        { name: 'functions', value: 95, source: `${configPath}#coverage.thresholds.functions` },
+        { name: 'statements', value: 94, source: `${configPath}#coverage.thresholds.statements` },
+      ],
+      unresolved: [],
+    })
+  })
+
+  it('extracts actual checked-out PR workflow commands, conditions, and thresholds', () => {
+    const workflows = join(dir, '.github', 'workflows')
+    mkdirSync(workflows, { recursive: true })
+    writeFileSync(
+      join(workflows, '01-pr-fast.yml'),
+      [
+        'on:',
+        '  pull_request:',
+        '    types: [opened, synchronize]',
+        'jobs:',
+        '  dependency-review:',
+        "    if: github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'",
+        '    steps:',
+        '      - uses: actions/dependency-review-action@abc123',
+        '        with:',
+        '          fail-on-severity: high',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(workflows, '02-pr-extended.yml'),
+      [
+        'on:',
+        '  pull_request:',
+        '    types: [opened, synchronize]',
+        'jobs:',
+        '  check-trigger:',
+        '    env:',
+        "      LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '123' }}",
+        '  integration-tests:',
+        "    if: needs.check-trigger.outputs.should_run == 'true'",
+        '    steps:',
+        '      - run: npm run test:integration',
+      ].join('\n'),
+    )
+
+    expect(inspectWorkflowContract(dir)).toEqual({
+      external: [
+        expect.objectContaining({
+          name: 'dependency-review',
+          command: 'actions/dependency-review-action@abc123',
+          condition: "github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'",
+          thresholds: [expect.objectContaining({ name: 'fail-on-severity', value: 'high' })],
+        }),
+        expect.objectContaining({
+          name: 'extended PR checks',
+          command: 'npm run test:integration',
+          condition: "needs.check-trigger.outputs.should_run == 'true'",
+          thresholds: [expect.objectContaining({ name: 'changed lines', value: '123' })],
+        }),
+      ],
+      unresolved: [],
+    })
+
+    writeFileSync(join(workflows, '02-pr-extended.yml'), 'name: changed without jobs\n')
+    expect(inspectWorkflowContract(dir).unresolved).toEqual([
+      expect.objectContaining({ source: '.github/workflows/02-pr-extended.yml' }),
+    ])
   })
 
   it('generates scripts/check-all.mjs AND scripts/lib/run-helpers.mjs (#351, CANON-01)', () => {
@@ -105,18 +186,33 @@ describe('generateCheckAll', () => {
     expect(existsSync(join(dir, '.arbiter', 'gate', 'local-result.json'))).toBe(false)
   })
 
-  it('binds emitted workflow content without interpreting its YAML', () => {
+  it('makes an emitted contract unresolved when checked-out workflow authority drifts', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+    const workflow = join(dir, '.github', 'workflows', '02-pr-extended.yml')
+    writeFileSync(
+      workflow,
+      [
+        'on:',
+        '  pull_request:',
+        '    types: [opened, synchronize]',
+        'jobs:',
+        '  check-trigger:',
+        '    env:',
+        "      LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '100' }}",
+        '  integration-tests:',
+        "    if: needs.check-trigger.outputs.should_run == 'true'",
+        '    steps:',
+        '      - run: npm run test:integration',
+      ].join('\n'),
+    )
     generateCheckAll(
       makeConfig(dir, {
         governanceLevel: 'L1',
-        permitGitHub: false,
-        useGitHub: false,
+        permitGitHub: true,
+        useGitHub: true,
       }),
     )
     writeFileSync(join(dir, 'arbiter.json'), '{}\n')
-    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
-    const workflow = join(dir, '.github', 'workflows', 'ci.yml')
-    writeFileSync(workflow, 'name: CI\n')
     const inspect = () => {
       const result = spawnSync(process.execPath, ['scripts/check-all.mjs', 'L1', '--dry-run'], {
         cwd: dir,
@@ -127,20 +223,22 @@ describe('generateCheckAll', () => {
     }
 
     const before = inspect()
-    const binding = before.authority.find(
-      (entry: { path: string }) => entry.path === '.github/workflows/ci.yml',
-    )
-    expect(binding?.sha256).toMatch(/^[a-f0-9]{64}$/)
+    expect(before.unresolved).toEqual([])
     expect(before.external).toEqual([
-      expect.objectContaining({ status: 'remote-dependent', source: '.github/workflows' }),
+      expect.objectContaining({
+        command: 'npm run test:integration',
+        condition: "needs.check-trigger.outputs.should_run == 'true'",
+      }),
     ])
 
-    writeFileSync(workflow, 'name: changed CI\n')
+    writeFileSync(
+      workflow,
+      readFileSync(workflow, 'utf8').replace('test:integration', 'test:changed'),
+    )
     const after = inspect()
-    expect(
-      after.authority.find((entry: { path: string }) => entry.path === '.github/workflows/ci.yml')
-        ?.sha256,
-    ).not.toBe(binding.sha256)
+    expect(after.unresolved).toEqual([
+      expect.objectContaining({ source: '.github/workflows/02-pr-extended.yml' }),
+    ])
   })
 
   it('runs the emitted legacy recorder without optional Claude hooks', () => {

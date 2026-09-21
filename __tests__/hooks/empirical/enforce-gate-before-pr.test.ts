@@ -137,6 +137,17 @@ describe('enforce-gate-before-pr hook', () => {
     expect(result.stderr).toContain('DRAFT')
   })
 
+  it.each([
+    ['false-valued draft flag', 'gh pr create --draft=false --fill'],
+    ['draft text inside an argument', 'gh pr create --body "a --draft description" --fill'],
+    ['wrapped ready command', 'gh pr create --draft && (gh pr ready)'],
+  ])('does not exempt %s', (_label, command) => {
+    const dir = track(setupGitRepo())
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('ci-pass.json')
+  })
+
   it('blocks gh pr ready without either receipt', () => {
     const dir = track(setupGitRepo())
     const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr ready 1' }, dir)

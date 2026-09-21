@@ -194,7 +194,7 @@ describe('runCrossModelReview (#2357)', () => {
     )
     expect(mockedRunCli).toHaveBeenCalledWith(
       'git',
-      ['diff', '--binary', `${BASE_SHA}..HEAD`],
+      ['diff', '--binary', `${BASE_SHA}..${HEAD_SHA}`],
       expect.objectContaining({ cwd: '/tmp/project' }),
     )
     expect(mockedInvoke).toHaveBeenCalledWith(
@@ -246,7 +246,7 @@ describe('runCrossModelReview (#2357)', () => {
     )
     expect(mockedRunCli).toHaveBeenCalledWith(
       'git',
-      ['diff', '--binary', `${BASE_SHA}..HEAD`],
+      ['diff', '--binary', `${BASE_SHA}..${HEAD_SHA}`],
       expect.objectContaining({ cwd: '/tmp/project' }),
     )
     const prompt = mockedInvoke.mock.calls[0]?.[0].prompt ?? ''
@@ -282,6 +282,85 @@ describe('runCrossModelReview (#2357)', () => {
     expect(mockedInvoke).not.toHaveBeenCalled()
   })
 
+  it('rejects head movement after diff collection and immediately before dispatch', () => {
+    let headReads = 0
+    mockFrozenShipCalls()
+    mockedRunCli.mockImplementation((command, args) => {
+      if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD') {
+        headReads += 1
+        return {
+          stdout: `${headReads === 1 ? HEAD_SHA : 'c'.repeat(40)}\n`,
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
+      }
+      if (command === 'git' && args[0] === 'status')
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'show')
+        return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === process.execPath)
+        return { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 }
+      return { stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 }
+    })
+
+    expect(() =>
+      runShipCrossModelReview({
+        dir: '/tmp/project',
+        taskId: '#2747',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'bugs',
+        cfg,
+        ...FROZEN_REVIEW,
+      }),
+    ).toThrow(/HEAD.*frozen|drift/i)
+    expect(mockedInvoke).not.toHaveBeenCalled()
+  })
+
+  it('rejects head movement after dispatch before writing evidence', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-head-move-'))
+    let headReads = 0
+    try {
+      mockedRunCli.mockImplementation((command, args) => {
+        if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD') {
+          headReads += 1
+          return {
+            stdout: `${headReads < 3 ? HEAD_SHA : 'c'.repeat(40)}\n`,
+            stderr: '',
+            exitCode: 0,
+            durationMs: 1,
+          }
+        }
+        if (command === 'git' && args[0] === 'rev-parse' && args[1] === '--abbrev-ref')
+          return { stdout: 'task/#2747\n', stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === 'git' && args[0] === 'status')
+          return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === 'git' && args[0] === 'show')
+          return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+        if (command === process.execPath)
+          return { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 }
+        return { stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 }
+      })
+
+      expect(() =>
+        runShipCrossModelReview({
+          dir,
+          taskId: '#2747',
+          tier: 'Standard',
+          phase: 'refactor',
+          vertical: 'bugs',
+          cfg,
+          ...FROZEN_REVIEW,
+        }),
+      ).toThrow(/HEAD.*frozen|drift/i)
+      expect(mockedInvoke).toHaveBeenCalledTimes(1)
+      expect(existsSync(join(dir, '.arbiter', 'agents-dispatched.json'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('resolves the first-round origin/main base before diff and prompt construction', () => {
     mockFrozenShipCalls()
     runShipCrossModelReview({
@@ -301,7 +380,7 @@ describe('runCrossModelReview (#2357)', () => {
     )
     expect(mockedRunCli).toHaveBeenCalledWith(
       'git',
-      ['diff', '--binary', `${BASE_SHA}..HEAD`],
+      ['diff', '--binary', `${BASE_SHA}..${HEAD_SHA}`],
       expect.objectContaining({ cwd: '/tmp/project' }),
     )
     expect(mockedInvoke.mock.calls[0]?.[0].prompt).toContain(`Base SHA: ${BASE_SHA}`)
@@ -798,7 +877,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       )
       writeFileSync(
         join(dir, 'plan.md'),
-        '# Review fixture\n\n## Acceptance Criteria\n- [ ] AC-2357.1: Reach the external review seat.\n',
+        '# Review fixture\n\n## Acceptance Criteria\n- [ ] AC-2357.1: Reach  the `external` review seat.\n\n## Non-Goals\n- Do  not rewrite `dispatch`.\n',
       )
 
       mkdirSync(join(dir, 'schemas'), { recursive: true })
@@ -896,6 +975,12 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       })
       expect(artifact.fulfilled).toHaveLength(1)
       expect(readFileSync(join(dir, 'codex-stdin.txt'), 'utf8')).toContain('--- BEGIN DIFF ---')
+      expect(readFileSync(join(dir, 'codex-stdin.txt'), 'utf8')).toContain(
+        'AC-2357.1: Reach  the `external` review seat.',
+      )
+      expect(readFileSync(join(dir, 'codex-stdin.txt'), 'utf8')).toContain(
+        '- Do  not rewrite `dispatch`.',
+      )
       expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
         '"vendor": "openai"',
       )

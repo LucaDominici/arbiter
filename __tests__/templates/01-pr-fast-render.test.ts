@@ -50,6 +50,13 @@ describe('01-pr-fast.yml.ejs — structural invariants (CANON-18, #1131)', () =>
     expect(existsSync(obsoleteShim)).toBe(false)
   })
 
+  it('does not rerun the same-head fast workflow when a draft is promoted', () => {
+    const pullRequestTrigger = render()
+      .split('  pull_request:')[1]
+      ?.split('  workflow_dispatch:')[0]
+    expect(pullRequestTrigger).not.toContain('ready_for_review')
+  })
+
   it.each(LEVELS)('typescript %s: workflow name is "PR Fast (T1)"', (governanceLevel) => {
     expect(render({ language: 'typescript', governanceLevel })).toContain('name: PR Fast (T1)')
   })
