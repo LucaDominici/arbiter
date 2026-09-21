@@ -8,6 +8,7 @@ import {
   readlinkSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -102,6 +103,8 @@ describe('runWorktreeAdopt', () => {
     )
     mkdirSync(join(repo, 'frontend', 'node_modules', '.vite'), { recursive: true })
     git(repo, 'worktree', 'add', '-b', 'feature/target-dependencies', checkout)
+    symlinkSync(join(repo, 'frontend'), join(repo, 'aliased-package'), 'dir')
+    mkdirSync(join(checkout, 'aliased-package'))
 
     await runWorktreeAdopt({ taskId: '#2799', worktreePath: checkout, cwd: repo })
 
@@ -112,6 +115,7 @@ describe('runWorktreeAdopt', () => {
       resolve(repo, 'frontend', 'node_modules', 'frontend-pkg'),
     )
     expect(existsSync(join(checkout, 'frontend', 'node_modules', '.vite'))).toBe(false)
+    expect(existsSync(join(checkout, 'aliased-package', 'node_modules'))).toBe(false)
   })
 
   it('turns a detached Codex checkout into the deterministic task branch', async () => {

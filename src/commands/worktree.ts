@@ -70,7 +70,7 @@ function discoverNodeModuleLinks(gitRoot: string, worktreePath: string): Worktre
       throw toFsError(err, current)
     }
     for (const entry of entries) {
-      if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name === '.git') continue
+      if (!entry.isDirectory() || entry.name === '.git') continue
       const sourcePath = join(current, entry.name)
       const relativePath = relative(gitRoot, sourcePath)
       if (entry.name === 'node_modules') {
