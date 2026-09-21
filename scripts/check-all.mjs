@@ -88,13 +88,15 @@ export async function readVitestCoverageThresholds(configPath = 'vitest.config.t
       unresolved: [],
     }
   } catch (err) {
+    const reason = `threshold authority is unreadable: ${err.message}`
+    process.stderr.write(`[arbiter] ${reason}\n`)
     return {
       thresholds: [],
       unresolved: [
         {
           name: 'verification threshold',
           source: configPath,
-          reason: `threshold authority is unreadable: ${err.message}`,
+          reason,
         },
       ],
     }
