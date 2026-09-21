@@ -71,6 +71,12 @@ failure with that gate's remediation; one passing call can therefore cross sever
 that exits 0 is rejected, and Node's `node:test`/TAP failure summary is recognized via `# fail N`.
 Coordinators may pass `--at <sha>` to replay the test from an ancestor writer commit in a temporary
 detached worktree; the evidence pins that commit and its test blob.
+In a monorepo, recording selects the nearest `package.json`, `pom.xml`, or `pyproject.toml`
+above the test and runs from that package directory. With `--at`, this selection uses the
+historical checkout. Evidence stores the repository-relative package directory as `test_cwd`;
+replay uses the same directory, while older evidence without that field uses the repository root.
+Explicit runner arguments are relative to the package directory. Checkout-local
+`node_modules/.bin` executables retain a portable path, including runners hoisted to the root.
 Playwright's `line`/`list` reporters are recognized via their `N failed` summary, with N ≥ 1 so
 `0 failed` never becomes red evidence.
 Commit the RED test before recording it so the evidence can be correlated to the test commit.

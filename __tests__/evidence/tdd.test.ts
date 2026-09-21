@@ -28,6 +28,17 @@ describe('TddEvidenceV1 schema', () => {
     expect(TddEvidenceV1.safeParse(VALID).success).toBe(true)
   })
 
+  it.each(['.', 'frontend', 'packages/frontend'])('accepts package-relative cwd %s', (test_cwd) => {
+    expect(TddEvidenceV1.safeParse({ ...VALID, test_cwd }).success).toBe(true)
+  })
+
+  it.each(['../outside', '/tmp/outside', 'C:\\outside', 'frontend//src', ''])(
+    'rejects unsafe package cwd %s',
+    (test_cwd) => {
+      expect(TddEvidenceV1.safeParse({ ...VALID, test_cwd }).success).toBe(false)
+    },
+  )
+
   it('rejects missing task_id', () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { task_id, ...rest } = VALID
