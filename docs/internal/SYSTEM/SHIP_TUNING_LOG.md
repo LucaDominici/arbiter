@@ -23,6 +23,10 @@ related: []
 - Cost ratios before the #2725 subagent-accounting fix under-counted Claude deliveries that used subagents; the frozen baseline is not recalibrated, making the comparison stricter.
 - The report queries GitHub through `gh`; when `gh` rejects a request it aborts instead of guessing. The requested PR fields are pinned by a contract test.
 - Known limits: Codex sessions do not yield human-message or round counts; input/cache/output splits report medians only.
+- Attribution uses two separate questions: classify a coordinator clock-free from the whole session
+  (more than one distinct branch/cwd issue id, or `humanMessages > 3`), then use dated contexts only
+  to decide whether it was in a delivery worktree at that time. Coordinators cannot match by
+  branch/cwd, agent path or parent; only a single-issue `/ship #N` prompt can attribute one.
 
 ### Ship checkpoint — 2026-09-19
 

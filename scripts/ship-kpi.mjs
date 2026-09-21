@@ -618,19 +618,29 @@ export function attributeSessions(sessions, { firstCommit, mergedAt, ...pr } = {
 
 function sessionAttribution(meta, issueIds, attributedThreads, mergedAt) {
   const contexts = contextsBefore(meta, mergedAt)
-  if (!visitsMultipleIssues(contexts)) {
+  if (!isCoordinator(meta)) {
     if (contexts.some((context) => containsIssueId(context.gitBranch, issueIds))) return 'branch'
     if (contexts.some((context) => containsIssueId(context.cwd, issueIds))) return 'cwd'
+    if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id)))
+      return 'agent-path'
+    if (hasParentAttribution(meta, attributedThreads)) return 'parent'
   }
-  if (issueNumbers(meta.agentPath, 'agent').some((id) => issueIds.includes(id))) return 'agent-path'
-  if (hasParentAttribution(meta, attributedThreads)) return 'parent'
   if (hasPromptAttribution(meta, issueIds)) return 'prompt'
   return null
 }
 
-// A session whose contexts name more than one distinct issue's branch/cwd is a coordinator that
-// visited several worktrees, not a writer born in one of them — branch/cwd is a writer signature
-// and must not attribute a coordinator to any of the issues it merely passed through.
+function isCoordinator(meta) {
+  return (
+    meta.humanMessages > 3 ||
+    visitsMultipleIssues([
+      { gitBranch: meta.gitBranch, cwd: meta.cwd },
+      ...(Array.isArray(meta.contexts) ? meta.contexts : []),
+    ])
+  )
+}
+
+// Coordinator detection is clock-free: the whole session's issue context history or a chatty
+// transcript signals orchestration. Dated contexts below are only for temporal location matching.
 function visitsMultipleIssues(contexts) {
   // cwd uses the dedicated path pattern (a digit run right after a `/`), not the loose branch
   // regex: BRANCH_ISSUE_RE's bare-number alternative matches any 3-5 digit path segment (a dated
