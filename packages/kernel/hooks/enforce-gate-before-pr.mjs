@@ -31,25 +31,18 @@ const command = resolveToolInputCommand()
 // matches — no separate exemption list needed for gh issue create.
 function parseShell(input) {
   const commands = [[]]
-  const quotedCommands = [[]]
   let token = ''
-  let tokenQuoted = false
   let quote = null
   let escaped = false
   let unsupported = false
   const pushToken = () => {
-    if (token) {
-      commands.at(-1).push(token)
-      quotedCommands.at(-1).push(tokenQuoted)
-    }
+    if (token) commands.at(-1).push(token)
     token = ''
-    tokenQuoted = false
   }
   const pushCommand = () => {
     pushToken()
     if (commands.at(-1).length > 0) {
       commands.push([])
-      quotedCommands.push([])
     }
   }
   for (let index = 0; index < input.length; index += 1) {
@@ -69,7 +62,6 @@ function parseShell(input) {
       }
     } else if (char === '"' || char === "'") {
       quote = char
-      tokenQuoted = true
     } else if (char === ';' || char === '|' || (char === '&' && input[index + 1] === '&')) {
       pushCommand()
       if ((char === '|' && input[index + 1] === '|') || char === '&') index += 1
@@ -91,18 +83,13 @@ function parseShell(input) {
   pushToken()
   if (commands.at(-1).length === 0) {
     commands.pop()
-    quotedCommands.pop()
   }
-  return { commands, quotedCommands, ambiguous: quote !== null || escaped || unsupported }
+  return { commands, ambiguous: quote !== null || escaped || unsupported }
 }
 
 const parsed = parseShell(command)
 const segments = parsed.commands
-const parsedSegments = segments.map((tokens, index) => ({
-  tokens,
-  quoted: parsed.quotedCommands[index],
-  index,
-}))
+const parsedSegments = segments.map((tokens, index) => ({ tokens, index }))
 const guardedSegments = parsedSegments.filter(
   ({ tokens }) =>
     tokens[0] === 'gh' && tokens[1] === 'pr' && (tokens[2] === 'create' || tokens[2] === 'ready'),
@@ -120,14 +107,39 @@ const ambiguousGuardSegments = parsedSegments.filter(({ tokens }) => {
 const hasAmbiguousGuard = parsed.ambiguous || ambiguousGuardSegments.length > 0
 if (guardedSegments.length === 0 && !hasAmbiguousGuard) process.exit(0)
 const guardIndex = (guardedSegments[0] ?? ambiguousGuardSegments[0]).index
+
+// gh accepts flag-looking strings as values for value-taking options. Only these
+// documented boolean create flags leave the following argv token available as a flag.
+const PR_CREATE_BOOLEAN_FLAGS = new Set([
+  '-e',
+  '-f',
+  '-w',
+  '--dry-run',
+  '--editor',
+  '--fill',
+  '--fill-first',
+  '--fill-verbose',
+  '--no-maintainer-edit',
+  '--web',
+])
+
+function hasDraftFlag(tokens) {
+  for (let index = 3; index < tokens.length; index += 1) {
+    const token = tokens[index]
+    if (token === '--draft' || token === '-d') return true
+    if (token.startsWith('--draft=')) return false
+    if (!token.startsWith('-') || token.includes('=') || PR_CREATE_BOOLEAN_FLAGS.has(token))
+      continue
+    index += 1
+  }
+  return false
+}
+
 const isDraft =
   !hasAmbiguousGuard &&
   guardedSegments.length === 1 &&
   guardedSegments[0].tokens[2] === 'create' &&
-  guardedSegments[0].tokens.some(
-    (token, index) => token === '--draft' && guardedSegments[0].quoted[index] !== true,
-  ) &&
-  !guardedSegments[0].tokens.some((token) => token.startsWith('--draft='))
+  hasDraftFlag(guardedSegments[0].tokens)
 
 function exitAfterStderr(code, message) {
   writeSync(2, message)
