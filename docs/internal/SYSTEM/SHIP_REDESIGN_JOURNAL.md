@@ -316,7 +316,7 @@ Codex la copertura dichiarata resta quella dei gate nativi di `arbiter task adva
 
 ## 2026-09-21 — #2797: review in foreground, round LOW-only = completo
 
-Misurato sulla consegna 4 di viafera (ship emesso): la sessione headless è uscita mentre il 3° round
+Misurato sulla consegna misurata 4 su un target esterno (ship emesso): la sessione headless è uscita mentre il 3° round
 di review girava in background, e il 3° round era nato da soli finding LOW. Ora `ship.md` (self +
 template) impone l'attesa in foreground del reviewer e del round; `planReviewRound` non pianifica
 un round oltre il tetto e chiude come completo un round con soli LOW (parcheggiati con `finding add`).
