@@ -92,10 +92,10 @@ function readCiPassReceipt(root) {
   try {
     receipt = JSON.parse(readFileSync(receiptPath, 'utf-8'))
   } catch (err) {
-    return {
-      ok: false,
-      reason: `ci-pass.json is invalid: ${err instanceof Error ? err.message : String(err)}`,
-    }
+    process.stderr.write(
+      `[arbiter] GATE GUARD: ci-pass.json is invalid: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
   }
 
   const head = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf-8' })
