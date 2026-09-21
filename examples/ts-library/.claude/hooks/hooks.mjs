@@ -77,7 +77,8 @@ for (const handler of handlers) {
     input: stdinData,
     stdio: ['pipe', 'inherit', 'inherit'],
     env: process.env,
-    timeout: 3000,
+    // #2790: per-handler budget; CI runners under load need more than the 3 s default.
+    timeout: Number(process.env['ARBITER_HOOK_TIMEOUT_MS']) || 3000,
   });
 
   if (result.error) {
