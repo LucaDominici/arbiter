@@ -25,20 +25,76 @@ import { resolveToolInputCommand } from './lib.mjs'
 // Reading only the env var made this guard silently inert under Claude Code (#1565).
 const command = resolveToolInputCommand()
 
-// Split on shell chain operators and match each segment anchored at its start.
+// Split on shell chain operators outside quotes and match each segment by argv.
 // This is what makes `gh issue create --body "run gh pr create after"` safe:
 // that segment starts with `gh issue create`, not `gh pr create`, so it never
 // matches — no separate exemption list needed for gh issue create.
-const segments = command.split(/&&|\|\||;|\|/).map((s) => s.trim())
-const guardedSegments = segments
-  .map((segment, index) => ({ segment, index }))
-  .filter(({ segment }) => /^gh\s+pr\s+(?:create|ready)\b/.test(segment))
-if (guardedSegments.length === 0) process.exit(0)
-const guardIndex = guardedSegments[0].index
+function parseShell(input) {
+  const commands = [[]]
+  let token = ''
+  let quote = null
+  let escaped = false
+  const pushToken = () => {
+    if (token) commands.at(-1).push(token)
+    token = ''
+  }
+  const pushCommand = () => {
+    pushToken()
+    if (commands.at(-1).length > 0) commands.push([])
+  }
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index]
+    if (escaped) {
+      token += char
+      escaped = false
+    } else if (char === '\\') {
+      escaped = true
+    } else if (quote !== null) {
+      if (char === quote) quote = null
+      else token += char
+    } else if (char === '"' || char === "'") {
+      quote = char
+    } else if (char === ';' || char === '|' || (char === '&' && input[index + 1] === '&')) {
+      pushCommand()
+      if ((char === '|' && input[index + 1] === '|') || char === '&') index += 1
+    } else if (/\s/.test(char)) {
+      pushToken()
+    } else {
+      token += char
+    }
+  }
+  pushToken()
+  if (commands.at(-1).length === 0) commands.pop()
+  return { commands, ambiguous: quote !== null || escaped }
+}
+
+const parsed = parseShell(command)
+const segments = parsed.commands
+const parsedSegments = segments.map((tokens, index) => ({ tokens, index }))
+const guardedSegments = parsedSegments.filter(
+  ({ tokens }) =>
+    tokens[0] === 'gh' && tokens[1] === 'pr' && (tokens[2] === 'create' || tokens[2] === 'ready'),
+)
+const ambiguousGuardSegments = parsedSegments.filter(({ tokens, ambiguous }) => {
+  if (ambiguous) return true
+  const normalized = tokens.map((token) => token.replace(/^[({]+|[)}]+$/g, ''))
+  return normalized.some(
+    (token, index) =>
+      token === 'gh' &&
+      normalized[index + 1] === 'pr' &&
+      (normalized[index + 2] === 'create' || normalized[index + 2] === 'ready') &&
+      !(index === 0 && tokens[0] === 'gh'),
+  )
+})
+const hasAmbiguousGuard = parsed.ambiguous || ambiguousGuardSegments.length > 0
+if (guardedSegments.length === 0 && !hasAmbiguousGuard) process.exit(0)
+const guardIndex = (guardedSegments[0] ?? ambiguousGuardSegments[0]).index
 const isDraft =
+  !hasAmbiguousGuard &&
   guardedSegments.length === 1 &&
-  /^gh\s+pr\s+create\b/.test(guardedSegments[0].segment) &&
-  /(?:^|\s)--draft(?:[=\s]|$)/.test(guardedSegments[0].segment)
+  guardedSegments[0].tokens[2] === 'create' &&
+  guardedSegments[0].tokens.includes('--draft') &&
+  !guardedSegments[0].tokens.some((token) => token.startsWith('--draft='))
 
 function exitAfterStderr(code, message) {
   writeSync(2, message)
@@ -59,9 +115,9 @@ if (process.env.ARBITER_SKIP_GATE_MARKER === '1') {
  */
 function resolveTargetRoot(cmdSegments, guardIndex) {
   for (let i = guardIndex - 1; i >= 0; i--) {
-    const cdMatch = cmdSegments[i].match(/^cd\s+(.+)$/)
-    if (!cdMatch) continue
-    const dir = cdMatch[1].trim().replace(/^["']|["']$/g, '')
+    const tokens = cmdSegments[i]
+    if (tokens[0] !== 'cd' || tokens.length !== 2) continue
+    const dir = tokens[1]
     const top = spawnSync(
       'git',
       ['-C', resolve(process.cwd(), dir), 'rev-parse', '--show-toplevel'],
@@ -71,9 +127,13 @@ function resolveTargetRoot(cmdSegments, guardIndex) {
     break
   }
 
-  const headMatch = cmdSegments[guardIndex].match(/--head[= ]("?)([^"\s]+)\1/)
-  if (headMatch) {
-    const branch = headMatch[2]
+  const guardTokens = cmdSegments[guardIndex]
+  const headIndex = guardTokens.findIndex(
+    (token) => token === '--head' || token.startsWith('--head='),
+  )
+  const branch =
+    headIndex < 0 ? undefined : (guardTokens[headIndex].split('=')[1] ?? guardTokens[headIndex + 1])
+  if (branch) {
     const listResult = spawnSync('git', ['worktree', 'list', '--porcelain'], { encoding: 'utf-8' })
     if (listResult.status === 0) {
       for (const entry of listResult.stdout.split('\n\n')) {

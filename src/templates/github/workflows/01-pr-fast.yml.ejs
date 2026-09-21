@@ -28,7 +28,7 @@ on:
   # PR concurrency by head AND base while preserving the push key. Base-trigger
   # coverage is enforced by scripts/check-workflow-test-integrity.mjs.
   pull_request:
-    types: [opened, synchronize, reopened, labeled, ready_for_review, unlabeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 # Cancel in-progress runs on the same ref; main always completes (#357).
 concurrency:

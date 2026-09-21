@@ -336,9 +336,10 @@ describe('02-pr-extended.yml.ejs — check-trigger trigger conditions', () => {
     expect(rendered).toContain('extended-ci')
   })
 
-  it('triggers on ready_for_review event action', () => {
+  it('starts extended CI on draft open without rerunning at ready_for_review', () => {
     const rendered = renderExt({})
-    expect(rendered).toContain('ready_for_review')
+    expect(rendered).toContain('[[ "$EVENT_ACTION" == "opened" ]]')
+    expect(rendered).not.toContain('ready_for_review')
   })
 
   // C2 (#1497): the sensitive-path list is no longer inlined in the workflow —

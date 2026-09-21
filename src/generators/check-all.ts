@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { readFileTranslated, writeFile, resolvedPath } from '../utils/fs.js'
 import { resolveEffectiveThresholds } from '../config/thresholds.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { isSubtreeFrontendLane } from '../detectors/lanes.js'
@@ -20,6 +20,13 @@ const TEMPLATES_LIB_DIR = join(
   dirname(fileURLToPath(import.meta.url)),
   '..',
   'templates',
+  'scripts',
+  'lib',
+)
+const PACKAGED_SCRIPTS_LIB_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
   'scripts',
   'lib',
 )
@@ -879,7 +886,10 @@ export function gateSpineDependencies(config: ProjectConfig): {
 
 /** Does `src/templates/scripts/lib/<name>.ejs` exist for lib module `name`? */
 function libTemplateExists(name: string): boolean {
-  return existsSync(join(TEMPLATES_LIB_DIR, `${name}.ejs`))
+  return (
+    existsSync(join(TEMPLATES_LIB_DIR, `${name}.ejs`)) ||
+    existsSync(join(PACKAGED_SCRIPTS_LIB_DIR, name))
+  )
 }
 
 export function generateCheckAll(
@@ -891,6 +901,13 @@ export function generateCheckAll(
   const data = buildCheckAllRenderData(config)
 
   results.push(...emitUnconditional(base, data, opts))
+  results.push(
+    writeFile(
+      resolvedPath(base, 'scripts', 'lib', 'workflow-scan.mjs'),
+      readFileTranslated(join(PACKAGED_SCRIPTS_LIB_DIR, 'workflow-scan.mjs'), 'utf8'),
+      { dryRun: opts.dryRun },
+    ),
+  )
   results.push(...emitDebtGated(base, data, opts))
   results.push(...emitExtendedGated(base, data, opts))
 

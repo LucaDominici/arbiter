@@ -4,12 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import {
-  generateCheckAll,
-  inspectWorkflowContract,
-  loadGateRegistry,
-} from '../../src/generators/check-all.js'
+import { generateCheckAll, loadGateRegistry } from '../../src/generators/check-all.js'
 import { readVitestCoverageThresholds } from '../../scripts/check-all.mjs'
+import { inspectWorkflowContract } from '../../scripts/lib/workflow-scan.mjs'
 import { generateDebtRatchet } from '../../src/generators/debt-ratchet.js'
 import { makeConfig } from '../helpers.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
@@ -59,7 +56,7 @@ describe('generateCheckAll', () => {
     })
   })
 
-  it('extracts actual checked-out PR workflow commands, conditions, and thresholds', () => {
+  it('extracts actual checked-out PR workflow commands, conditions, and thresholds', async () => {
     const workflows = join(dir, '.github', 'workflows')
     mkdirSync(workflows, { recursive: true })
     writeFileSync(
@@ -85,8 +82,10 @@ describe('generateCheckAll', () => {
         '    types: [opened, synchronize]',
         'jobs:',
         '  check-trigger:',
-        '    env:',
-        "      LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '123' }}",
+        '    steps:',
+        '      - name: Decide',
+        '        env:',
+        "          LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '123' }}",
         '  integration-tests:',
         "    if: needs.check-trigger.outputs.should_run == 'true'",
         '    steps:',
@@ -94,7 +93,7 @@ describe('generateCheckAll', () => {
       ].join('\n'),
     )
 
-    expect(inspectWorkflowContract(dir)).toEqual({
+    await expect(inspectWorkflowContract(dir)).resolves.toEqual({
       external: [
         expect.objectContaining({
           name: 'dependency-review',
@@ -113,7 +112,7 @@ describe('generateCheckAll', () => {
     })
 
     writeFileSync(join(workflows, '02-pr-extended.yml'), 'name: changed without jobs\n')
-    expect(inspectWorkflowContract(dir).unresolved).toEqual([
+    expect((await inspectWorkflowContract(dir)).unresolved).toEqual([
       expect.objectContaining({ source: '.github/workflows/02-pr-extended.yml' }),
     ])
   })
@@ -186,7 +185,7 @@ describe('generateCheckAll', () => {
     expect(existsSync(join(dir, '.arbiter', 'gate', 'local-result.json'))).toBe(false)
   })
 
-  it('makes an emitted contract unresolved when checked-out workflow authority drifts', () => {
+  it('keeps emitted workflow authority unresolved when its YAML parser is unavailable', () => {
     mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
     const workflow = join(dir, '.github', 'workflows', '02-pr-extended.yml')
     writeFileSync(
@@ -197,8 +196,10 @@ describe('generateCheckAll', () => {
         '    types: [opened, synchronize]',
         'jobs:',
         '  check-trigger:',
-        '    env:',
-        "      LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '100' }}",
+        '    steps:',
+        '      - name: Decide',
+        '        env:',
+        "          LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '100' }}",
         '  integration-tests:',
         "    if: needs.check-trigger.outputs.should_run == 'true'",
         '    steps:',
@@ -223,11 +224,11 @@ describe('generateCheckAll', () => {
     }
 
     const before = inspect()
-    expect(before.unresolved).toEqual([])
-    expect(before.external).toEqual([
+    expect(before.external).toEqual([])
+    expect(before.unresolved).toEqual([
       expect.objectContaining({
-        command: 'npm run test:integration',
-        condition: "needs.check-trigger.outputs.should_run == 'true'",
+        source: '.github/workflows/02-pr-extended.yml',
+        reason: expect.stringContaining('YAML parser unavailable'),
       }),
     ])
 
@@ -236,9 +237,8 @@ describe('generateCheckAll', () => {
       readFileSync(workflow, 'utf8').replace('test:integration', 'test:changed'),
     )
     const after = inspect()
-    expect(after.unresolved).toEqual([
-      expect.objectContaining({ source: '.github/workflows/02-pr-extended.yml' }),
-    ])
+    expect(after.external).toEqual([])
+    expect(after.unresolved).toEqual(before.unresolved)
   })
 
   it('runs the emitted legacy recorder without optional Claude hooks', () => {
@@ -392,7 +392,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(67)
+    expect(result.files).toHaveLength(68)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-review-completion.mjs'))).toBe(
       true,
     )

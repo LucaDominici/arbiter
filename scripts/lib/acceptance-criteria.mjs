@@ -209,6 +209,54 @@ export function parsePlanAnchor(planBody) {
   if (criteria.length === 0 && nonGoals.length === 0) return null
   return { criteria, nonGoals }
 }
+/** Preserve plan wording for review display while normalized criteria remain the hash authority. */
+function presentationEntry(line, current) {
+  if (current === 'criteria') {
+    const match = /^\s*[-*+]\s*(?:\[[ xX]\]\s*)?AC-(\d+(?:[.-]\d+)?)\s*[:.–-][ \t]?(.*)$/.exec(line)
+    return match ? { kind: 'criterion', id: `AC-${match[1]}`, text: match[2] } : null
+  }
+  if (current !== 'nonGoals') return null
+  const match = /^\s*[-*+][ \t](?:\[[ xX]\][ \t]*)?(.*)$/.exec(line)
+  return match ? { kind: 'nonGoal', text: match[1] } : null
+}
+
+function presentationMatchesAnchor(criteria, nonGoals, anchor) {
+  return (
+    criteria.length === anchor.criteria.length &&
+    nonGoals.length === anchor.nonGoals.length &&
+    criteria.every(({ id }, index) => id === anchor.criteria[index]?.id)
+  )
+}
+
+function collectPresentationLine(line, state) {
+  if (/^\s*(```|~~~)/.test(line)) {
+    state.inFence = !state.inFence
+    return
+  }
+  if (state.inFence) return
+  const heading = /^#{1,6}\s+(.+?)\s*$/.exec(line) ?? /^\*\*(.+?)\*\*:?\s*$/.exec(line)
+  if (heading) {
+    state.current = sectionKind(normalizeHeading(heading[1]))
+    return
+  }
+  const entry = presentationEntry(line, state.current)
+  if (entry?.kind === 'criterion') state.criteria.push({ id: entry.id, text: entry.text })
+  if (entry?.kind === 'nonGoal') state.nonGoals.push(entry.text)
+}
+
+export function parsePlanPresentation(planBody) {
+  const anchor = parsePlanAnchor(planBody)
+  if (anchor === null) return null
+  const state = { criteria: [], nonGoals: [], current: 'other', inFence: false }
+  for (const line of String(planBody ?? '')
+    .replaceAll('\r\n', '\n')
+    .split('\n')) {
+    collectPresentationLine(line, state)
+  }
+  return presentationMatchesAnchor(state.criteria, state.nonGoals, anchor)
+    ? { criteria: state.criteria, nonGoals: state.nonGoals }
+    : null
+}
 
 /** Stable hash of the frozen criteria (id + normalized text) — detects issue↔anchor drift. */
 export function computeAcHash(criteria) {

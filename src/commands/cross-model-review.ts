@@ -239,6 +239,22 @@ interface ExternalReviewSidecarOptions {
   tier?: ShipTier
   collaborationMode?: 'trunk-solo' | 'peer-review' | 'gated-review'
   treatment?: Pick<ShipTreatment, 'finalReviewers' | 'reviewerVerticals' | 'signalsHash'>
+  expectedSha?: string
+}
+
+function reviewSidecarHead(
+  repoRoot: string,
+  expectedSha?: string,
+): { branch: string; sha: string } {
+  const branch = currentBranch(repoRoot)
+  const sha = headSha(repoRoot)
+  if (branch === 'unknown' || sha === 'unknown') {
+    throw new Error('cannot bind dispatch sidecar to Git HEAD')
+  }
+  if (expectedSha !== undefined && sha !== expectedSha) {
+    throw new Error(`HEAD drifted from frozen review candidate ${expectedSha} (current ${sha})`)
+  }
+  return { branch, sha }
 }
 
 function writeExternalReviewSidecar({
@@ -248,15 +264,13 @@ function writeExternalReviewSidecar({
   tier = 'Standard',
   collaborationMode = 'peer-review',
   treatment,
+  expectedSha,
 }: ExternalReviewSidecarOptions): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
   assertSafeArbiterEvidenceRoot(repoRoot)
   const sidecarPath = join(repoRoot, '.arbiter', 'agents-dispatched.json')
   assertSafeSidecarFile(sidecarPath)
-  const branch = currentBranch(repoRoot)
-  const sha = headSha(repoRoot)
-  if (branch === 'unknown' || sha === 'unknown')
-    throw new Error('cannot bind dispatch sidecar to Git HEAD')
+  const { branch, sha } = reviewSidecarHead(repoRoot, expectedSha)
   const existing = readSidecar(repoRoot)
   const panel = treatment
     ? treatmentSidecarAgents(existing, treatment.finalReviewers)
@@ -322,11 +336,14 @@ type FrozenReviewBrief = {
 const FROZEN_REVIEW_BRIEF_SCRIPT = [
   "import { readFileSync } from 'node:fs'",
   "import { pathToFileURL } from 'node:url'",
-  'const { computeAcHash, parsePlanAnchor } = await import(pathToFileURL(process.argv[1]).href)',
-  "const anchor = parsePlanAnchor(readFileSync(0, 'utf8'))",
+  'const { computeAcHash, parsePlanAnchor, parsePlanPresentation } = await import(pathToFileURL(process.argv[1]).href)',
+  "const body = readFileSync(0, 'utf8')",
+  'const anchor = parsePlanAnchor(body)',
+  'const presentation = parsePlanPresentation(body)',
   "if (anchor === null || anchor.criteria.length === 0) throw new Error('no acceptance criteria')",
+  "if (presentation === null) throw new Error('malformed acceptance criteria presentation')",
   "if (anchor.criteria.some(({ explicit }) => !explicit) || new Set(anchor.criteria.map(({ id }) => id)).size !== anchor.criteria.length) throw new Error('malformed acceptance criteria')",
-  'process.stdout.write(JSON.stringify({ criteria: anchor.criteria.map(({ id, text }) => ({ id, text })), nonGoals: anchor.nonGoals, acHash: computeAcHash(anchor.criteria) }))',
+  'process.stdout.write(JSON.stringify({ criteria: presentation.criteria, nonGoals: presentation.nonGoals, acHash: computeAcHash(anchor.criteria) }))',
 ].join(';')
 
 function frozenPlanPath(planRef: string): string {
@@ -428,7 +445,7 @@ function frozenReviewPrompt(
     `Task: ${taskId}`,
     `Base SHA: ${baseSha}`,
     `Head SHA: ${headSha}`,
-    `Diff: ${baseSha}..HEAD`,
+    `Diff: ${baseSha}..${headSha}`,
     `Acceptance criteria hash: ${brief.acHash}`,
     'Acceptance criteria (ordered, verbatim):',
     ...brief.criteria.map(({ id, text }, index) => `${index + 1}. ${id}: ${text}`),
@@ -482,6 +499,7 @@ function persistShipReviewSidecar(
     result,
     tier: options.tier,
     collaborationMode: options.collaborationMode ?? 'peer-review',
+    ...(options.headSha !== null ? { expectedSha: options.headSha } : {}),
     ...(options.treatment !== undefined ? { treatment: options.treatment } : {}),
   })
 }
@@ -507,6 +525,7 @@ function runShipCrossModelReview(
     try {
       assertReviewTreeClean(repoRoot)
       if (options.cfg.enabled && hasCurrentFulfilledReview(repoRoot, options.taskId)) {
+        assertFrozenReviewHead(repoRoot, reviewHead)
         return {
           provider: 'codex',
           status: 'fulfilled',
@@ -516,7 +535,7 @@ function runShipCrossModelReview(
           recorded: true,
         }
       }
-      diff = runCli('git', ['diff', '--binary', `${reviewBase}..HEAD`], {
+      diff = runCli('git', ['diff', '--binary', `${reviewBase}..${reviewHead}`], {
         cwd: repoRoot,
         timeoutMs: 15_000,
       }).stdout
@@ -527,6 +546,7 @@ function runShipCrossModelReview(
       preflightDegradation = 'invocation-failed'
     }
   }
+  assertFrozenReviewHead(repoRoot, reviewHead)
   const result = invokeShipExternalReview({
     options,
     repoRoot,

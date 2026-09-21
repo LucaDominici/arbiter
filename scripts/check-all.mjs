@@ -31,7 +31,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   runCheck as executeCheck,
   runWarnCheck as executeWarnCheck,
@@ -53,6 +53,7 @@ import {
   GATE_SKIP_BLACKLIST,
   affectedGateNames,
 } from './lib/gate-affects-registry.mjs'
+import { inspectWorkflowContract } from './lib/workflow-scan.mjs'
 
 // isMain guard so computeSkipped can be imported without running checks.
 const isMain = isMainModule(import.meta.url)
@@ -64,6 +65,40 @@ const isMain = isMainModule(import.meta.url)
 export function computeSkipped(changedFiles, registry, blacklist) {
   const affected = affectedGateNames(changedFiles, registry, blacklist)
   return new Set(registry.filter((entry) => !affected.has(entry.name)).map((entry) => entry.name))
+}
+
+export async function readVitestCoverageThresholds(configPath = 'vitest.config.ts') {
+  try {
+    const loaded = await import(`${pathToFileURL(resolve(configPath)).href}?contract=${Date.now()}`)
+    const values = loaded.default?.test?.coverage?.thresholds
+    const names = ['lines', 'branches', 'functions', 'statements']
+    if (
+      values === null ||
+      typeof values !== 'object' ||
+      names.some((name) => !Number.isFinite(values[name]))
+    ) {
+      throw new Error('coverage thresholds must define finite lines/branches/functions/statements')
+    }
+    return {
+      thresholds: names.map((name) => ({
+        name,
+        value: values[name],
+        source: `${configPath}#coverage.thresholds.${name}`,
+      })),
+      unresolved: [],
+    }
+  } catch (err) {
+    return {
+      thresholds: [],
+      unresolved: [
+        {
+          name: 'verification threshold',
+          source: configPath,
+          reason: `threshold authority is unreadable: ${err.message}`,
+        },
+      ],
+    }
+  }
 }
 
 // Only an actual PASS in this process permits dropping the repeated smoke file.
@@ -161,6 +196,10 @@ if (isMain) {
     registerCheck('advisory', executeWarnCheck, name, command, args, options)
   const runToolCheck = (name, command, args, options) =>
     registerCheck('tool', executeToolCheck, name, command, args, options)
+  const vitestCoverageContract = dryRun
+    ? await readVitestCoverageThresholds('vitest.config.ts')
+    : { thresholds: [], unresolved: [] }
+  contractReadErrors.push(...vitestCoverageContract.unresolved)
 
   // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
   // git-dependent checks (commitlint, docs) must run from the original repo path.
@@ -748,24 +787,7 @@ if (isMain) {
         ...vitestOptions,
         failOnSkip: true,
         contract: {
-          thresholds: [
-            { name: 'lines', value: 90, source: 'vitest.config.ts#coverage.thresholds.lines' },
-            {
-              name: 'branches',
-              value: 90,
-              source: 'vitest.config.ts#coverage.thresholds.branches',
-            },
-            {
-              name: 'functions',
-              value: 90,
-              source: 'vitest.config.ts#coverage.thresholds.functions',
-            },
-            {
-              name: 'statements',
-              value: 85,
-              source: 'vitest.config.ts#coverage.thresholds.statements',
-            },
-          ],
+          thresholds: vitestCoverageContract.thresholds,
         },
       })
       // Coverage no-regression ratchet (#1483): runs right after coverage, reading the
@@ -952,6 +974,7 @@ if (isMain) {
   const l1EndIdx = runChecks()
 
   if (dryRun) {
+    const workflowContract = await inspectWorkflowContract(process.cwd())
     const requiredBindingPaths = gateDescriptors
       .flatMap((gate) => gate.bindings ?? [])
       .filter((binding) => binding.required === true)
@@ -982,30 +1005,14 @@ if (isMain) {
           schema: 'arbiter-gate-contract-v1',
           authority,
           gates: gateDescriptors,
-          external: [
-            {
-              name: 'dependency-review',
-              source: '.github/workflows/01-pr-fast.yml',
-              command: 'actions/dependency-review-action',
-              condition: "github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'",
-              status: 'remote-dependent',
-            },
-            {
-              name: 'extended PR checks',
-              source: '.github/workflows/02-pr-extended.yml',
-              command:
-                'npm run test:contract; npm run test:integration; npm run test:behavioral; npm run --if-present test:e2e:bake',
-              condition: "needs.check-trigger.outputs.should_run == 'true'",
-              status: 'remote-dependent',
-            },
-          ],
+          external: workflowContract.external,
           unresolved: missingAuthorityPaths
             .map((path) => ({
               name: 'verification authority',
               source: path,
               reason: 'required verification authority is missing',
             }))
-            .concat(contractReadErrors),
+            .concat(contractReadErrors, workflowContract.unresolved),
         },
         null,
         2,
