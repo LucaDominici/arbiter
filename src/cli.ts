@@ -42,9 +42,9 @@ import {
   runTaskGet,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
-import { runTaskShip, buildShipStepLines, shipStepFor } from './commands/task-ship.js'
+import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
 import type { TaskShipOptions } from './commands/task-ship.js'
-import { runCrossModelReview, runShipCrossModelReview } from './commands/cross-model-review.js'
+import { runCrossModelReview } from './commands/cross-model-review.js'
 import { buildShipOverrides, resolveShipProfile } from './commands/ship-profile.js'
 import { detectExternalModel } from './detectors/external-model.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
@@ -467,42 +467,6 @@ function externalModelAccessForShip(
   const config = profile.crossModelReview
   if (config === undefined || !config.enabled || !config.diffEgressConsent) return undefined
   return detectExternalModel('codex')
-}
-
-function runConfiguredShipReview(
-  root: string,
-  result: ReturnType<typeof runTaskShip>,
-  tier: string | undefined,
-  access: ReturnType<typeof detectExternalModel> | undefined,
-): ReturnType<typeof runShipCrossModelReview> | null {
-  const config = result.profile.crossModelReview
-  if (!result.reviewDispatched || result.phase !== 'refactor' || !config?.enabled) return null
-  const taskId = readUnifiedState(root)?.taskId
-  if (taskId === undefined) {
-    throw new Error('crossModelReview is enabled but the active ship task id is missing')
-  }
-  return runShipCrossModelReview({
-    dir: root,
-    taskId,
-    tier: result.tier ?? normTier(tier),
-    phase: result.phase,
-    vertical: result.step.verticals.includes('security') ? 'security' : 'bugs',
-    cfg: config,
-    collaborationMode: result.profile.collaborationMode,
-    ...(access !== undefined ? { access } : {}),
-  })
-}
-
-function shipOutputAfterConfiguredReview(
-  root: string,
-  result: ReturnType<typeof runTaskShip>,
-  tier: string | undefined,
-  access: ReturnType<typeof detectExternalModel> | undefined,
-): ReturnType<typeof runTaskShip> {
-  const externalReview = runConfiguredShipReview(root, result, tier, access)
-  return externalReview?.status === 'degraded'
-    ? { ...result, step: shipStepFor(result.phase, result.tier, result.profile) }
-    : result
 }
 
 program
@@ -2333,13 +2297,7 @@ program
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
           ...(externalModelAccess !== undefined ? { externalModelAccess } : {}),
         })
-        const outputResult = shipOutputAfterConfiguredReview(
-          shipRoot,
-          result,
-          opts.tier,
-          externalModelAccess,
-        )
-        const lines = buildShipStepLines(outputResult)
+        const lines = buildShipStepLines(result)
         process.stdout.write(lines.join('\n') + '\n')
       }
     },

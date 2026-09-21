@@ -85,7 +85,7 @@ export const DEFAULT_CROSS_MODEL_REVIEW: CrossModelReviewConfig = {
   diffEgressConsent: false,
   providers: ['codex'],
   slots: { codeReview: 1, redTeamReview: 0 },
-  timeoutMs: 300_000,
+  timeoutMs: 900_000,
   onUnavailable: 'degrade',
 }
 

@@ -73,6 +73,8 @@ interface TaskReviewRoundOptions {
   forceReview?: boolean
   reviewMaxRounds?: number
   headSha?: string | null
+  /** Retry an incomplete round at the same frozen HEAD for a runtime-owned reviewer seat. */
+  retryIncomplete?: boolean
 }
 
 /** Current phase from the unified document (`preflight` for a fresh tree). */
@@ -1189,13 +1191,22 @@ function prepareLifecycleReviewRound(
   assertReviewSubjectFrozen(dir)
   const previous = reviewStateOf(readUnifiedState(dir))
   const head = reviewHead(dir, opts.headSha)
-  if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) return null
   const maxRounds = opts.reviewMaxRounds ?? resolveReviewMaxRounds(shipConfigFor(dir))
   const latestReviewerEnvelope = latestReviewerEnvelopeFor(
     dir,
     readTaskIdFromDisk(dir),
     previous.lastReviewedSha,
   )
+  if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) {
+    if (latestReviewerEnvelope !== undefined || opts.retryIncomplete !== true) return null
+    return {
+      rounds: previous.rounds,
+      maxRounds,
+      base: null,
+      head,
+      forced: previous.forced === true,
+    }
+  }
   const planned = planReviewRound(
     previous,
     maxRounds,
@@ -1317,7 +1328,13 @@ export function runTaskReviewRound(opts: TaskReviewRoundOptions = {}): PlannedRe
   }
   const plan = prepareLifecycleReviewRound(dir, opts)
   if (plan === null) return null
-  const wasForced = reviewStateOf(readUnifiedState(dir)).forced === true
+  const previous = reviewStateOf(readUnifiedState(dir))
+  const retryingOpenRound =
+    opts.retryIncomplete === true &&
+    plan.rounds === previous.rounds &&
+    plan.head === previous.lastReviewedSha
+  if (retryingOpenRound) return plan
+  const wasForced = previous.forced === true
   writeUnifiedState(dir, {
     review: {
       rounds: plan.rounds,

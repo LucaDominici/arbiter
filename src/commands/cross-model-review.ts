@@ -7,7 +7,7 @@ import {
   invokeExternalReview,
 } from '../integrations/external-review.js'
 import { resolveShipProfile } from './ship-profile.js'
-import { normTier, type ShipTier } from './ship-tier.js'
+import { normTier, type ShipTier, type ShipTreatment } from './ship-tier.js'
 import type { TaskPhase } from './task-state.js'
 import { existsSync, lstatSync, readFileSync } from 'node:fs'
 import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js'
@@ -72,6 +72,10 @@ interface ShipCrossModelReviewOptions {
   cfg: CrossModelReviewConfig
   collaborationMode?: 'trunk-solo' | 'peer-review' | 'gated-review'
   access?: ExternalModelAccess
+  /** Frozen review base; omitted keeps the legacy origin/main diff. */
+  baseSha?: string | null
+  /** Active treatment, when the runtime owns this review round. */
+  treatment?: Pick<ShipTreatment, 'finalReviewers' | 'reviewerVerticals' | 'signalsHash'>
 }
 
 type ReviewSidecar = {
@@ -81,6 +85,8 @@ type ReviewSidecar = {
   sha?: unknown
   taskId?: unknown
   expectedProvenance?: unknown
+  auditors?: unknown
+  treatmentHash?: unknown
 }
 
 function isRecord(value: unknown): value is ReviewSidecar {
@@ -225,6 +231,7 @@ function writeExternalReviewSidecar(
   result: ReturnType<typeof invokeExternalReview>,
   tier: ShipTier = 'Standard',
   collaborationMode: 'trunk-solo' | 'peer-review' | 'gated-review' = 'peer-review',
+  treatment?: Pick<ShipTreatment, 'finalReviewers' | 'reviewerVerticals' | 'signalsHash'>,
 ): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
   assertSafeArbiterEvidenceRoot(repoRoot)
@@ -234,16 +241,19 @@ function writeExternalReviewSidecar(
   const sha = headSha(repoRoot)
   if (branch === 'unknown' || sha === 'unknown')
     throw new Error('cannot bind dispatch sidecar to Git HEAD')
-  const panel = sidecarAgents(readSidecar(repoRoot), branch, sha, taskId, {
-    tier,
-    collaborationMode,
-  })
+  const existing = readSidecar(repoRoot)
+  const panel = treatment
+    ? treatmentSidecarAgents(existing, treatment.finalReviewers)
+    : sidecarAgents(existing, branch, sha, taskId, { tier, collaborationMode })
   writeFileContained(
     repoRoot,
     join('.arbiter', 'agents-dispatched.json'),
     `${JSON.stringify(
       {
         ...panel,
+        ...(treatment !== undefined
+          ? { auditors: treatment.reviewerVerticals, treatmentHash: treatment.signalsHash }
+          : {}),
         expectedProvenance: { 'codex-reviewer': CODEX_REVIEWER_PROVENANCE },
         taskId,
         branch,
@@ -253,6 +263,21 @@ function writeExternalReviewSidecar(
       2,
     )}\n`,
   )
+}
+
+function treatmentSidecarAgents(
+  existing: ReviewSidecar | null,
+  panelSize: number,
+): { count: number; agents: string[] } {
+  const existingAgents = existing === null ? [] : (readSidecarAgents(existing) ?? [])
+  const nonCodex = existingAgents.filter((agent) => agent !== 'codex-reviewer')
+  const requiredAnthropic = Math.max(0, panelSize - 1)
+  const agents = nonCodex.slice(0, requiredAnthropic)
+  for (let index = agents.length; index < requiredAnthropic; index += 1) {
+    agents.push(index === 0 ? 'anthropic-reviewer' : `anthropic-reviewer-${index + 1}`)
+  }
+  agents.push('codex-reviewer')
+  return { count: panelSize, agents }
 }
 
 function assertReviewTreeClean(repoRoot: string): void {
@@ -294,10 +319,17 @@ function runShipCrossModelReview(
           recorded: true,
         }
       }
-      diff = runCli('git', ['diff', '--binary', 'origin/main...HEAD'], {
-        cwd: repoRoot,
-        timeoutMs: 15_000,
-      }).stdout
+      diff = runCli(
+        'git',
+        [
+          'diff',
+          '--binary',
+          options.baseSha === undefined || options.baseSha === null
+            ? 'origin/main...HEAD'
+            : `${options.baseSha}..HEAD`,
+        ],
+        { cwd: repoRoot, timeoutMs: 15_000 },
+      ).stdout
       // FAIL-OPEN-INTENT: a preflight failure is recorded as an explicit degradation; no diff is sent.
     } catch (error) {
       access = undefined
@@ -324,6 +356,7 @@ function runShipCrossModelReview(
       result,
       options.tier,
       options.collaborationMode ?? 'peer-review',
+      options.treatment,
     )
   return result
 }
