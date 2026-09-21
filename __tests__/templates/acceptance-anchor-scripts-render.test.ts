@@ -111,6 +111,7 @@ describe('acceptance-anchor script templates (ADR-110)', () => {
         'lib/acceptance-criteria.mjs',
         'lib/agent-return-validate.mjs',
         'lib/evidence-binding.mjs',
+        'lib/gate-contract.mjs',
         'lib/run-helpers.mjs',
       ]) {
         writeFileSync(join(dir, 'scripts', rel), render(`scripts/${rel}.ejs`))
@@ -169,6 +170,7 @@ describe('acceptance-anchor script templates (ADR-110)', () => {
         'lib/acceptance-criteria.mjs',
         'lib/agent-return-validate.mjs',
         'lib/evidence-binding.mjs',
+        'lib/gate-contract.mjs',
         'lib/run-helpers.mjs',
       ]) {
         writeFileSync(join(dir, 'scripts', rel), render(`scripts/${rel}.ejs`))

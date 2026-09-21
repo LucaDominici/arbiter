@@ -18,6 +18,7 @@ const SCRIPT = resolve('scripts/debt-report.mjs')
 const CAPTURE_SCRIPT = resolve('scripts/capture-debt-baseline.mjs')
 const DEBT_LIB = resolve('scripts/debt-lib.mjs')
 const GLOB_WALK = resolve('scripts/lib/glob-walk.mjs')
+const DEBT_METRIC_CONTRACT = resolve('scripts/lib/debt-metric-contract.mjs')
 
 function writeTodoCheckerStub(scriptsDir: string) {
   writeFileSync(
@@ -106,6 +107,7 @@ describe('capture-debt-baseline.mjs (collection failures)', () => {
       copyFileSync(CAPTURE_SCRIPT, join(scriptsDir, 'capture-debt-baseline.mjs'))
       copyFileSync(DEBT_LIB, join(scriptsDir, 'debt-lib.mjs'))
       copyFileSync(GLOB_WALK, join(scriptsDir, 'lib', 'glob-walk.mjs'))
+      copyFileSync(DEBT_METRIC_CONTRACT, join(scriptsDir, 'lib', 'debt-metric-contract.mjs'))
       writeTodoCheckerStub(scriptsDir)
       writeFileSync(join(dir, 'src', 'fixture.ts'), 'export const fixture = 1\n')
       writeFileSync(
@@ -151,6 +153,7 @@ exit 0
       copyFileSync(CAPTURE_SCRIPT, join(scriptsDir, 'capture-debt-baseline.mjs'))
       copyFileSync(DEBT_LIB, join(scriptsDir, 'debt-lib.mjs'))
       copyFileSync(GLOB_WALK, join(scriptsDir, 'lib', 'glob-walk.mjs'))
+      copyFileSync(DEBT_METRIC_CONTRACT, join(scriptsDir, 'lib', 'debt-metric-contract.mjs'))
       writeTodoCheckerStub(scriptsDir)
       writeFileSync(join(dir, 'src', 'fixture.ts'), 'export const fixture = 1\n')
       writeFileSync(

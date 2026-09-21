@@ -36,7 +36,6 @@
     "scripts/lib/glob-walk.mjs",
     "scripts/lib/gold-audit-lib.mjs",
     "scripts/lib/run-helpers.mjs",
-    "scripts/lib/workflow-scan.mjs",
     "README.md",
     "LICENSE",
     "NOTICE",

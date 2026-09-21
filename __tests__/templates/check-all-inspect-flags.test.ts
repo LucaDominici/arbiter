@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
 import { loadGateRegistry } from '../../src/generators/check-all.js'
@@ -168,6 +168,10 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
         join(dir, 'scripts', 'lib', 'gate-mutex.mjs'),
         'export const GATE_MUTEX_HELD_ENV = "ARBITER_GATE_MUTEX_HELD";\n' +
           'export const gateLockPathFor = () => { throw new Error("no repo"); };\n',
+      )
+      writeFileSync(
+        join(dir, 'scripts', 'lib', 'workflow-scan.mjs'),
+        readFileSync(resolve('scripts/lib/workflow-scan.mjs'), 'utf-8'),
       )
       const r = spawnSync(process.execPath, ['scripts/check-all.mjs', ...args], {
         encoding: 'utf-8',

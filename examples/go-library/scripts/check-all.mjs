@@ -26,7 +26,6 @@ import {
   resolveTmpfsTmpdir,
   gateFileState,
 } from './lib/run-helpers.mjs';
-import { inspectWorkflowContract } from './lib/workflow-scan.mjs';
 import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs';
 
 const DEBT_METRIC_COMMANDS = Object.freeze({
@@ -256,7 +255,7 @@ if (dryRun) {
       ...(_g.id === 'debt-ratchet' ? {
         bindings: [
           { source: 'scripts/debt-baseline.json', required: true },
-          { source: 'scripts/debt-lib.mjs', required: true },
+
         ],
       } : _g.bindings ? { bindings: _g.bindings } : {}),
     }));
@@ -287,6 +286,7 @@ if (dryRun) {
       path: _path,
       sha256: createHash('sha256').update(readFileSync(_path)).digest('hex'),
     }));
+  const { inspectWorkflowContract } = await import('./lib/workflow-scan.mjs');
   const _workflowContract = await inspectWorkflowContract(process.cwd());
   console.log(JSON.stringify({
     schema: 'arbiter-gate-contract-v1',
