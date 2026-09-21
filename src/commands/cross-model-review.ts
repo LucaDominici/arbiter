@@ -312,6 +312,57 @@ function assertReviewTreeClean(repoRoot: string): void {
   }
 }
 
+function reviewDiffRange(baseSha: string | null | undefined): string {
+  return baseSha === undefined || baseSha === null ? 'origin/main...HEAD' : `${baseSha}..HEAD`
+}
+
+interface ShipExternalReviewInvocation {
+  options: ShipCrossModelReviewOptions
+  repoRoot: string
+  diff: string
+  access: ExternalModelAccess | undefined
+  preflightDegradation: 'invocation-failed' | undefined
+  preflightError: unknown
+}
+
+function invokeShipExternalReview({
+  options,
+  repoRoot,
+  diff,
+  access,
+  preflightDegradation,
+  preflightError,
+}: ShipExternalReviewInvocation): ReturnType<typeof invokeExternalReview> {
+  return invokeExternalReview({
+    repoRoot,
+    taskId: options.taskId,
+    prompt: SHIP_CROSS_MODEL_PROMPT,
+    diff,
+    cfg: options.cfg,
+    ...(access !== undefined ? { access } : {}),
+    ...(preflightDegradation !== undefined ? { preflightDegradation, preflightError } : {}),
+    tier: options.tier,
+    phase: options.phase,
+    vertical: options.vertical,
+  })
+}
+
+function persistShipReviewSidecar(
+  options: ShipCrossModelReviewOptions,
+  repoRoot: string,
+  result: ReturnType<typeof invokeExternalReview>,
+): void {
+  if (!existsSync(repoRoot)) return
+  writeExternalReviewSidecar({
+    repoRoot,
+    taskId: options.taskId,
+    result,
+    tier: options.tier,
+    collaborationMode: options.collaborationMode ?? 'peer-review',
+    ...(options.treatment !== undefined ? { treatment: options.treatment } : {}),
+  })
+}
+
 /** Run the automatic refactor-step bridge; consent-off runs only the local degradation recorder. */
 function runShipCrossModelReview(
   options: ShipCrossModelReviewOptions,
@@ -334,17 +385,10 @@ function runShipCrossModelReview(
           recorded: true,
         }
       }
-      diff = runCli(
-        'git',
-        [
-          'diff',
-          '--binary',
-          options.baseSha === undefined || options.baseSha === null
-            ? 'origin/main...HEAD'
-            : `${options.baseSha}..HEAD`,
-        ],
-        { cwd: repoRoot, timeoutMs: 15_000 },
-      ).stdout
+      diff = runCli('git', ['diff', '--binary', reviewDiffRange(options.baseSha)], {
+        cwd: repoRoot,
+        timeoutMs: 15_000,
+      }).stdout
       // FAIL-OPEN-INTENT: a preflight failure is recorded as an explicit degradation; no diff is sent.
     } catch (error) {
       access = undefined
@@ -352,27 +396,15 @@ function runShipCrossModelReview(
       preflightDegradation = 'invocation-failed'
     }
   }
-  const result = invokeExternalReview({
+  const result = invokeShipExternalReview({
+    options,
     repoRoot,
-    taskId: options.taskId,
-    prompt: SHIP_CROSS_MODEL_PROMPT,
     diff,
-    cfg: options.cfg,
-    ...(access !== undefined ? { access } : {}),
-    ...(preflightDegradation !== undefined ? { preflightDegradation, preflightError } : {}),
-    tier: options.tier,
-    phase: options.phase,
-    vertical: options.vertical,
+    access,
+    preflightDegradation,
+    preflightError,
   })
-  if (existsSync(repoRoot))
-    writeExternalReviewSidecar({
-      repoRoot,
-      taskId: options.taskId,
-      result,
-      tier: options.tier,
-      collaborationMode: options.collaborationMode ?? 'peer-review',
-      ...(options.treatment !== undefined ? { treatment: options.treatment } : {}),
-    })
+  persistShipReviewSidecar(options, repoRoot, result)
   return result
 }
 

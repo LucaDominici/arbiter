@@ -37,7 +37,7 @@ import { CliError, runCli } from '../utils/run-cli.js'
 import type { ExternalModelAccess } from '../detectors/external-model.js'
 import { planCrossModelSlots } from '../integrations/external-review.js'
 import { runShipCrossModelReview } from './cross-model-review.js'
-import { runTaskNote } from './task-note.js'
+import { runTaskNote, type TaskNoteOptions } from './task-note.js'
 import {
   gatherTierSignals,
   normTier,
@@ -1063,25 +1063,35 @@ function blockingFindingCount(findings: readonly Record<string, unknown>[]): num
   ).length
 }
 
+function firstFindingCitation(
+  finding: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (!Array.isArray(finding.citations)) return undefined
+  return isRecord(finding.citations[0]) ? finding.citations[0] : undefined
+}
+
+function lowFindingNote(root: string, finding: Record<string, unknown>): TaskNoteOptions | null {
+  if (findingSeverity(finding) !== 'low') return null
+  const claim = typeof finding.claim === 'string' ? finding.claim.trim() : ''
+  if (claim.length === 0) return null
+  const firstCitation = firstFindingCitation(finding)
+  return {
+    note: claim,
+    kind: 'note',
+    severity: 'low',
+    dir: root,
+    ...(typeof firstCitation?.file === 'string' ? { file: firstCitation.file } : {}),
+    ...(typeof firstCitation?.line === 'number' && Number.isInteger(firstCitation.line)
+      ? { line: firstCitation.line }
+      : {}),
+  }
+}
+
 function spoolLowFindings(root: string, findings: readonly Record<string, unknown>[]): void {
   for (const finding of findings) {
-    if (findingSeverity(finding) !== 'low') continue
-    const claim = typeof finding.claim === 'string' ? finding.claim.trim() : ''
-    if (claim.length === 0) continue
-    const firstCitation =
-      Array.isArray(finding.citations) && isRecord(finding.citations[0])
-        ? finding.citations[0]
-        : undefined
-    const result = runTaskNote({
-      note: claim,
-      kind: 'note',
-      severity: 'low',
-      dir: root,
-      ...(typeof firstCitation?.file === 'string' ? { file: firstCitation.file } : {}),
-      ...(typeof firstCitation?.line === 'number' && Number.isInteger(firstCitation.line)
-        ? { line: firstCitation.line }
-        : {}),
-    })
+    const note = lowFindingNote(root, finding)
+    if (note === null) continue
+    const result = runTaskNote(note)
     if (!result.ok) {
       throw new FatalError(
         'E_REVIEW_FINDING_SPOOL',
@@ -1107,21 +1117,26 @@ interface ExecuteCodexReviewRoundOptions {
   vertical: string
 }
 
-function executeCodexReviewRound({
-  root,
-  plan,
-  opts,
-  profile,
-  treatment,
-  vertical,
-}: ExecuteCodexReviewRoundOptions): string {
+function codexReviewContext(
+  root: string,
+  profile: ShipProfile,
+  plan: PlannedReviewRound,
+): { taskId: string; cfg: NonNullable<ShipProfile['crossModelReview']> } {
   const taskId = readUnifiedState(root)?.taskId
   if (taskId === undefined) throw noReviewData(plan, 'active task id is missing')
   const cfg = profile.crossModelReview
   if (cfg === undefined) throw noReviewData(plan, 'cross-model review not configured')
-  let result: ReturnType<typeof runShipCrossModelReview>
+  return { taskId, cfg }
+}
+
+function invokeCodexReviewRound(
+  input: ExecuteCodexReviewRoundOptions,
+  taskId: string,
+  cfg: NonNullable<ShipProfile['crossModelReview']>,
+): ReturnType<typeof runShipCrossModelReview> {
+  const { root, plan, opts, profile, treatment, vertical } = input
   try {
-    result = runShipCrossModelReview({
+    return runShipCrossModelReview({
       dir: root,
       taskId,
       tier: treatment.tier,
@@ -1136,17 +1151,34 @@ function executeCodexReviewRound({
   } catch (error) {
     throw noReviewData(plan, error instanceof Error ? error.message : String(error))
   }
+}
+
+function fulfilledReviewEnvelope(
+  result: ReturnType<typeof runShipCrossModelReview>,
+  plan: PlannedReviewRound,
+): NonNullable<typeof result.envelope> {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) {
     throw noReviewData(plan, result.degradationReasons.join(', ') || 'empty reviewer result')
   }
-  const findings = result.envelope.findings
+  return result.envelope
+}
+
+function reviewNextAction(blocking: number, completion: number, findingCount: number): string {
+  if (blocking > 0 || completion !== 0) return 'rework'
+  return findingCount > 0 ? 'parked' : 'advance'
+}
+
+function executeCodexReviewRound(input: ExecuteCodexReviewRoundOptions): string {
+  const { root, plan, profile } = input
+  const { taskId, cfg } = codexReviewContext(root, profile, plan)
+  const envelope = fulfilledReviewEnvelope(invokeCodexReviewRound(input, taskId, cfg), plan)
+  const findings = envelope.findings
   spoolLowFindings(root, findings)
   const completion = reviewCompletionExitCode(root, taskId)
   if (completion === 2) throw noReviewData(plan, 'review completion check errored')
   const blocking = blockingFindingCount(findings)
-  const next =
-    blocking > 0 || completion !== 0 ? 'rework' : findings.length > 0 ? 'parked' : 'advance'
-  return `review round ${plan.rounds}: ${result.envelope.verdict} — ${findings.length} findings (${blocking} blocking) · next: ${next}`
+  const next = reviewNextAction(blocking, completion, findings.length)
+  return `review round ${plan.rounds}: ${envelope.verdict} — ${findings.length} findings (${blocking} blocking) · next: ${next}`
 }
 
 function configuredCodexSeat(profile: ShipProfile, treatment: ShipTreatment): boolean {
@@ -1176,6 +1208,27 @@ function reviewSlotPlan(
   })
 }
 
+function reviewRoundOptions(
+  root: string,
+  opts: TaskShipOptions,
+  retryIncomplete: boolean,
+): Parameters<typeof runTaskReviewRound>[0] {
+  return {
+    dir: root,
+    ...(opts.forceReview !== undefined ? { forceReview: opts.forceReview } : {}),
+    ...(opts.reviewMaxRounds !== undefined ? { reviewMaxRounds: opts.reviewMaxRounds } : {}),
+    ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
+    ...(retryIncomplete ? { retryIncomplete: true } : {}),
+  }
+}
+
+function reviewVertical(
+  slotPlan: ReturnType<typeof planCrossModelSlots>,
+  treatment: ShipTreatment,
+): string {
+  return slotPlan.external[0] ?? treatment.reviewerVerticals[0] ?? 'bugs'
+}
+
 function openExplicitReviewRound(
   root: string,
   opts: TaskShipOptions,
@@ -1185,13 +1238,7 @@ function openExplicitReviewRound(
   if (opts.reviewRound !== true) return { plan: null }
   const hasCodexSeat = configuredCodexSeat(profile, treatment)
   const slotPlan = reviewSlotPlan(opts, profile, treatment)
-  const plan = runTaskReviewRound({
-    dir: root,
-    ...(opts.forceReview !== undefined ? { forceReview: opts.forceReview } : {}),
-    ...(opts.reviewMaxRounds !== undefined ? { reviewMaxRounds: opts.reviewMaxRounds } : {}),
-    ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
-    ...(hasCodexSeat ? { retryIncomplete: true } : {}),
-  })
+  const plan = runTaskReviewRound(reviewRoundOptions(root, opts, hasCodexSeat))
   if (plan === null || (!hasCodexSeat && slotPlan.external.length === 0)) return { plan }
   return {
     plan,
@@ -1201,7 +1248,7 @@ function openExplicitReviewRound(
       opts,
       profile,
       treatment,
-      vertical: slotPlan.external[0] ?? treatment.reviewerVerticals[0] ?? 'bugs',
+      vertical: reviewVertical(slotPlan, treatment),
     }),
   }
 }
@@ -1302,7 +1349,7 @@ function buildActiveShipResult(input: {
   state: UnifiedTaskState | null
   advanced: boolean
   preparedRound: PlannedReviewRound | null
-  reviewSummary?: string
+  reviewSummary: string | undefined
   stopMessage: string | null
   preparedChainAdd: ReturnType<typeof prepareChainAdd>
   opts: TaskShipOptions
@@ -1437,7 +1484,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
     state,
     advanced: advancedPhase.advanced,
     preparedRound,
-    ...(explicitRound.summary !== undefined ? { reviewSummary: explicitRound.summary } : {}),
+    reviewSummary: explicitRound.summary,
     stopMessage: advancedPhase.stopMessage,
     preparedChainAdd,
     opts,

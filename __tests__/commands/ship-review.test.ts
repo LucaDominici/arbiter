@@ -620,19 +620,37 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   it('completes LOW-only rounds and spools each LOW finding without a next round', () => {
     const result = runRound(
-      '{"verdict":"WARN","confidence":0.8,"findings":[{"id":"low-1","severity":"low","kind":"style","claim":"The wording could be clearer.","citations":[]}],"refutations":[]}',
+      '{"verdict":"WARN","confidence":0.8,"findings":[{"id":"low-1","severity":"low","kind":"style","claim":"The wording could be clearer.","citations":[]},{"id":"low-2","severity":"low","kind":"behavioral","claim":"The plan should name the proof.","citations":[{"file":"plan.md","line":1}]}],"refutations":[]}',
     )
 
     expect(buildShipStepLines(result)).toContain(
-      'review round 1: WARN — 1 findings (0 blocking) · next: parked',
+      'review round 1: WARN — 2 findings (0 blocking) · next: parked',
     )
     const spool = join(dir, '.arbiter', 'findings', '_2747.jsonl')
     expect(existsSync(spool)).toBe(true)
-    expect(JSON.parse(readFileSync(spool, 'utf8'))).toMatchObject({
+    const findings = readFileSync(spool, 'utf8').trim().split('\n').map(JSON.parse)
+    expect(findings[0]).toMatchObject({
       note: 'The wording could be clearer.',
       severity: 'low',
     })
+    expect(findings[1]).toMatchObject({
+      note: 'The plan should name the proof.',
+      severity: 'low',
+      file: 'plan.md',
+      line: 1,
+    })
     expect(readUnifiedState(dir)?.review?.rounds).toBe(1)
+  })
+
+  it('keeps a blocking reviewer finding in rework without spooling it as LOW debt', () => {
+    const result = runRound(
+      '{"verdict":"FAIL","confidence":1,"findings":[{"id":"high-1","severity":"high","kind":"behavioral","claim":"The acceptance behavior is broken.","citations":[{"file":"plan.md","line":1}]}],"refutations":[]}',
+    )
+
+    expect(buildShipStepLines(result)).toContain(
+      'review round 1: FAIL — 1 findings (1 blocking) · next: rework',
+    )
+    expect(existsSync(join(dir, '.arbiter', 'findings', '_2747.jsonl'))).toBe(false)
   })
 
   it.each([
