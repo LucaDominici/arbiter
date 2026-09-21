@@ -37,7 +37,7 @@ const RETAINED_RULES = [
   'The final reviewer covers code, tests, and acceptance fit',
   'MED/HIGH/CRITICAL finding',
   'exact-subject receipt',
-  'one full clean-HEAD gate',
+  'CI runs the full gate on that SHA',
 ] as const
 
 describe('#2767 P4 — ship prose retains enforced rules only', () => {

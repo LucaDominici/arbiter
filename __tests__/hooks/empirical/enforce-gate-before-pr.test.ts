@@ -32,6 +32,8 @@ function runHook(env: NodeJS.ProcessEnv, dir: string): ReturnType<typeof spawnSy
     env: { ...process.env, ...env },
     cwd: dir,
     encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 5000,
   })
 }
 
@@ -46,7 +48,11 @@ function setupGitRepo(): string {
 }
 
 function currentHead(dir: string): string {
-  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim()
+  return execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: dir,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim()
 }
 
 function writeMarker(dir: string, headSha: string): void {
@@ -102,6 +108,40 @@ describe('enforce-gate-before-pr hook', () => {
     writeMarker(dir, sha)
     const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --title "feat: test"' }, dir)
     expect(result.status).toBe(0)
+  })
+
+  it('exits 0 when ci-pass.json matches current HEAD', () => {
+    const dir = track(setupGitRepo())
+    const arbiterDir = join(dir, '.arbiter')
+    mkdirSync(arbiterDir, { recursive: true })
+    writeFileSync(
+      join(arbiterDir, 'ci-pass.json'),
+      JSON.stringify({
+        sha: currentHead(dir),
+        conclusion: 'success',
+        runUrl: 'https://github.com/example/repo/actions/runs/1',
+        checkedAt: new Date().toISOString(),
+      }),
+    )
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --title "feat: test"' }, dir)
+    expect(result.status).toBe(0)
+  })
+
+  it('allows a draft PR without either receipt and prints the advisory', () => {
+    const dir = track(setupGitRepo())
+    const result = runHook(
+      { CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --draft --title "feat: test"' },
+      dir,
+    )
+    expect(result.status).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
+  })
+
+  it('blocks gh pr ready without either receipt', () => {
+    const dir = track(setupGitRepo())
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr ready 1' }, dir)
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('ci-pass.json')
   })
 
   it('exits 0 and logs bypass when ARBITER_SKIP_GATE_MARKER=1', () => {

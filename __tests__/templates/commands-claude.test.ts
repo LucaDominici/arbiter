@@ -41,7 +41,7 @@ describe('ship is one adaptive delivery narrative', () => {
 
   it.each(languages)('does not duplicate stack-specific gate policy for %s', (language) => {
     const content = render('claude/commands/ship.md.ejs', { language })
-    expect(content).toContain('one full clean-HEAD gate')
+    expect(content).toContain('CI runs the full gate on that SHA')
   })
 
   it('keeps review and acceptance evidence separate and exact-subject bound', () => {

@@ -89,7 +89,7 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
   refactor:
     'Phase: refactor\nAction: Clean up implementation. Tests must stay green.\nNext: Refactor done → arbiter lifecycle advance --to verification.',
   verification:
-    'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then arbiter lifecycle advance --to close.',
+    'Phase: verification\nAction: Run the local diagnostic: node scripts/check-all.mjs preflight; CI owns the full gate.\nNext: Record the CI verdict with node scripts/ci-receipt.mjs, then arbiter lifecycle advance --to close.',
   close:
     'Phase: close\nAction: CLOSER mode active — the closer-mode guard is wired in settings. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter lifecycle advance --to complete.',
   complete:
@@ -1069,6 +1069,83 @@ function isSuccessfulPostMainCheck(
   )
 }
 
+interface CiPassReceipt {
+  sha: string
+  conclusion: 'success'
+  runUrl: string
+  checkedAt: string
+}
+
+function localGatePassVerdict(
+  dir: string,
+  minLevel: string,
+): { ok: true } | { ok: false; reason: string } {
+  const markerPath = join(dir, '.arbiter', 'gate-pass.json')
+  if (!existsSync(markerPath)) {
+    return { ok: false, reason: `gate-pass marker missing at ${markerPath}` }
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileTranslated(markerPath, 'utf-8'))
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `gate-pass marker corrupt at ${markerPath}: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  const verdict = verifyGatePassMarker(parsed, {
+    root: dir,
+    minLevel,
+    maxAgeMin: getNumberFlag('ARBITER_EVIDENCE_MAX_AGE_MIN'),
+  })
+  return verdict.ok ? { ok: true } : { ok: false, reason: verdict.reason }
+}
+
+function readCiPassReceipt(dir: string): { ok: true } | { ok: false; reason: string } {
+  const receiptPath = join(dir, '.arbiter', 'ci-pass.json')
+  if (!existsSync(receiptPath)) {
+    return { ok: false, reason: `CI receipt missing at ${receiptPath}` }
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileTranslated(receiptPath, 'utf-8'))
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `CI receipt corrupt at ${receiptPath}: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  let head: string
+  try {
+    head = runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 10_000 }).stdout.trim()
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `CI receipt cannot be checked because HEAD could not be resolved: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+
+  if (!isRecord(parsed)) return { ok: false, reason: 'CI receipt must be a JSON object' }
+  const receipt = parsed as Partial<CiPassReceipt>
+  if (receipt.sha !== head) {
+    return { ok: false, reason: `CI receipt SHA does not match current HEAD ${head}` }
+  }
+  if (
+    receipt.conclusion !== 'success' ||
+    typeof receipt.runUrl !== 'string' ||
+    receipt.runUrl.length === 0 ||
+    typeof receipt.checkedAt !== 'string' ||
+    receipt.checkedAt.length === 0
+  ) {
+    return { ok: false, reason: 'CI receipt is not a successful, complete receipt' }
+  }
+  return { ok: true }
+}
+
 function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
   const inCi = process.env.CI === 'true'
   const envBypass = getBoolFlag('ARBITER_SKIP_GATE_MARKER')
@@ -1080,32 +1157,14 @@ function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
     return
   }
 
-  const markerPath = join(dir, '.arbiter', 'gate-pass.json')
-  if (!existsSync(markerPath)) {
-    throw new Error(
-      `gate-pass marker missing at ${markerPath}. Run \`node scripts/check-all.mjs ${minLevel}\` first.`,
-    )
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(readFileTranslated(markerPath, 'utf-8'))
-  } catch (err) {
-    throw new Error(
-      `gate-pass marker corrupt at ${markerPath}: ${err instanceof Error ? err.message : String(err)}. ` +
-        `Run \`node scripts/check-all.mjs ${minLevel}\` first.`,
-      { cause: err },
-    )
-  }
-
-  const verdict = verifyGatePassMarker(parsed, {
-    root: dir,
-    minLevel,
-    maxAgeMin: getNumberFlag('ARBITER_EVIDENCE_MAX_AGE_MIN'),
-  })
-  if (!verdict.ok) {
-    throw new Error(`${verdict.reason}. Run \`node scripts/check-all.mjs ${minLevel}\` again.`)
-  }
+  const local = localGatePassVerdict(dir, minLevel)
+  if (local.ok) return
+  const ci = readCiPassReceipt(dir)
+  if (ci.ok) return
+  throw new Error(
+    `${local.reason}; ${ci.reason}. ` +
+      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.',
+  )
 }
 
 function reviewHead(dir: string, injected: string | null | undefined): string | null {

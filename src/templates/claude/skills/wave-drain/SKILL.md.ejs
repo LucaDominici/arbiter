@@ -125,14 +125,14 @@ pertinent verticals. That same panel supplies an acceptance decision for every A
 MED/HIGH/CRITICAL findings block; reconcile one fix batch and invalidate stale review, acceptance,
 and gate evidence when source changes.
 
-After review and all-PASS acceptance fit, run the full gate once for the exact candidate. Reuse the
-unchanged receipt through PR and CI. Completion requires the PR merged, green post-merge CI, live
-proof when applicable, every carried issue closed, and worktree cleanup.
+After review and all-PASS acceptance fit, push the exact candidate so CI runs the full gate. Record
+the CI verdict before opening or readying the PR. Completion requires the PR merged, green
+post-merge CI, live proof when applicable, every carried issue closed, and worktree cleanup.
 
-Commit the cumulative candidate and all review/evidence artifacts before the one exact-HEAD gate:
+Commit and push the cumulative candidate and all review/evidence artifacts for CI verification:
 
 ```bash
-arbiter check run -- node scripts/check-all.mjs L2
+node scripts/ci-receipt.mjs
 ```
 
 One PR per wave. For `trunk-solo + pr-ff`, use the exact-SHA watcher:

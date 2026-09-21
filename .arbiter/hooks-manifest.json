@@ -269,7 +269,17 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "R1.S5: blocks gh pr create unless .arbiter/gate-pass.json exists with head_sha matching current HEAD. Missing or stale marker exits 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
+      "rationale": "R1.S5 self copy: blocks non-draft gh pr create and gh pr ready unless .arbiter/gate-pass.json or a successful .arbiter/ci-pass.json receipt matches current HEAD. Draft creation is allowed so CI can run. Missing or stale receipts exit 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
+    },
+    {
+      "file": "enforce-gate-before-pr.mjs.ejs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "R1.S5: blocks non-draft gh pr create and gh pr ready unless .arbiter/gate-pass.json or a successful .arbiter/ci-pass.json receipt matches current HEAD. Draft creation is allowed so CI can run. Missing or stale receipts exit 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
     },
     {
       "file": "exitplanmode-banner.mjs.ejs",

@@ -177,7 +177,7 @@ describe('ship command delegates mechanics to the runtime', () => {
     expect(md).toContain('The final reviewer covers code, tests, and acceptance fit')
     expect(md).toContain('MED/HIGH/CRITICAL finding')
     expect(md).toContain('exact-subject receipt')
-    expect(md).toContain('one full clean-HEAD gate')
+    expect(md).toContain('CI runs the full gate on that SHA')
   })
 
   it('keeps the frozen receipt and landing truth in the contract', () => {

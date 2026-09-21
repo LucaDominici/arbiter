@@ -193,7 +193,9 @@ export function planClaudeHooks(config: ProjectConfig): ClaudeHookPlanEntry[] {
     'post-subagent-release.mjs',
   ]) {
     const renderedForLanguage =
-      f === 'check-no-orphan-todo.mjs' || f === 'check-no-placeholders.mjs'
+      f === 'check-no-orphan-todo.mjs' ||
+      f === 'check-no-placeholders.mjs' ||
+      f === 'enforce-gate-before-pr.mjs'
     tpl(f, `claude/hooks/${f}${renderedForLanguage ? '.ejs' : ''}`)
   }
   for (const f of ['lib.mjs', 'post-commit-check.mjs']) {

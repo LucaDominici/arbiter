@@ -45,7 +45,7 @@ for (const pattern of DANGEROUS_PATTERNS) {
 // onto the path) are never destructive heads, so they pass regardless of what their
 // (redacted) arguments contain.
 const protectedPathPattern =
-  /(?:^|[\s"'`])((?:\.\/|\/[^\s"'`]*)?\.arbiter\/(?:gate-pass\.json|status\.json|evidence(?:\/[^\s"'`]*)?))(?=$|[\s"'`,;)&|])/
+  /(?:^|[\s"'`])((?:\.\/|\/[^\s"'`]*)?\.arbiter\/(?:gate-pass\.json|ci-pass\.json|status\.json|evidence(?:\/[^\s"'`]*)?))(?=$|[\s"'`,;)&|])/
 const DESTRUCTIVE_HEADS = new Set(['rm', 'unlink', 'truncate', 'mv', 'cp', 'tee'])
 
 /** Drops a leading `sudo` and any leading `FOO=bar` env assignments before head detection. */

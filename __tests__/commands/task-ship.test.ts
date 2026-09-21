@@ -212,9 +212,9 @@ describe('self /ship documentation coherence (#2178)', () => {
     expect(shipCommand).toContain('MED/HIGH/CRITICAL')
   })
 
-  it('documents the one-final-gate cadence', () => {
-    expect(shipCommand).toContain('one full clean-HEAD gate')
-    expect(shipCommand).toContain('Do not repeat a green full gate')
+  it('documents CI as the verification authority', () => {
+    expect(shipCommand).toContain('CI runs the full gate on that SHA')
+    expect(shipCommand).toContain('node scripts/ci-receipt.mjs')
   })
 })
 
@@ -366,11 +366,12 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
 
     const result = runTaskShip({ dir, advance: true })
     expect(result.phase).toBe('verification')
-    expect(result.step.action).toBe(
+    expect(result.step.action).toContain(
       `advanced to verification; next gate (close) not yet satisfied: ` +
-        `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}. ` +
-        'Run `node scripts/check-all.mjs L1` first.',
+        `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}`,
     )
+    expect(result.step.action).toContain('node scripts/check-all.mjs preflight')
+    expect(result.step.action).toContain('node scripts/ci-receipt.mjs')
     expect(readUnifiedState(dir)?.phase).toBe('verification')
     const log = readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')
     expect(log).toMatch(/red → green[\s\S]*green → refactor[\s\S]*refactor → verification/)
@@ -632,18 +633,18 @@ describe('ship complete-action — chain batching (--chain, #2102)', () => {
 })
 
 describe('ship final-gate action ordering', () => {
-  it('runs the exact-HEAD L2 before entering close for a non-harness project', () => {
+  it('runs the fast preflight and leaves the full gate to CI', () => {
     const verification = shipStepFor('verification', 'Standard', profile())
     const close = shipStepFor('close', 'Standard', profile())
     expect(verification.action).toContain(
-      'Commit the candidate and its evidence, then run `node scripts/check-all.mjs L2`',
+      'Run `node scripts/check-all.mjs preflight` as a local diagnostic; push the frozen candidate so CI runs the full gate on that SHA',
     )
-    expect(verification.command).toBe('node scripts/check-all.mjs L2')
+    expect(verification.command).toBe('node scripts/check-all.mjs preflight')
     expect(close.action).not.toContain('check-all.mjs')
     expect(close.action).not.toContain('done-evidence.mjs')
   })
 
-  it('runs one final L3 before close and reuses it for done-evidence with the harness', () => {
+  it('keeps evidence-harness self-only checks separate from CI verification', () => {
     const harness = profile({
       collaborationMode: 'trunk-solo',
       mergeMode: 'pr-ff',
@@ -652,10 +653,10 @@ describe('ship final-gate action ordering', () => {
     const verification = shipStepFor('verification', 'Standard', harness)
     const close = shipStepFor('close', 'Standard', harness)
     const sequence = `${verification.action} ${close.action}`
-    expect(verification.command).toBe('node scripts/check-all.mjs L3')
+    expect(verification.command).toBe('node scripts/check-all.mjs preflight')
     expect(sequence).toContain('node scripts/done-evidence.mjs')
     expect(sequence.match(/check-all\.mjs/g)).toHaveLength(1)
-    expect(close.action).toContain('Reuse the qualified clean-HEAD receipt')
+    expect(close.action).toContain('Reuse the recorded CI verdict')
     expect(close.action).toContain('node scripts/pr-merge-watch.mjs <owner/repo> <pr>')
     expect(close.action).toMatch(
       /lifecycle, review, applicable acceptance, receipt, and local HEAD agree/,
@@ -673,7 +674,7 @@ describe('ship final-gate action ordering', () => {
     expect(prePushSource).toContain('check-all.mjs preflight') // #2773 P7: light pre-push, CI pins L2
     expect(
       shipStepFor('verification', 'Standard', profile({ evidenceHarness: true })).command,
-    ).toBe('node scripts/check-all.mjs L3')
+    ).toBe('node scripts/check-all.mjs preflight')
   })
 })
 

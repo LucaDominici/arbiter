@@ -117,7 +117,7 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
    reviews only the delta. The
    normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
    block. If another ordinary round would be needed, report BLOCKED or deliberately force it.
-8. **Verify** — after review completion and all-PASS acceptance fit, run one clean-HEAD full gate.
+8. **Verify** — after review completion and all-PASS acceptance fit, push the frozen candidate; CI runs the full gate on that SHA and is the verification authority; record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.
 9. **Land** — reuse the unchanged qualification through PR and CI. Merge, verify green post-merge CI,
    perform live proof when applicable, close every carried issue, then clean up.
 
@@ -126,16 +126,16 @@ configured live journey before declaring the landing complete. The lifecycle mus
 merged PR and green CI; tabletop blockers are hard stops, and an open or red PR remains owned by the
 current lane.
 
-| Phase             | What `/ship` does                                                                                                                          | Review agents |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------: |
-| `preflight`       | Read the issue and seed validated task state.                                                                                              |             0 |
-| `plan`            | Freeze acceptance, non-goals, and files.                                                                                                   |             0 |
-| `red`             | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                                                  |             0 |
-| `green`           | Implement the capability and run targeted checks.                                                                                          |             0 |
-| `refactor`        | Freeze HEAD; dispatch one final reviewer, adding specialist seats only for sensitive domains.                                           |     treatment |
-| `verification`    | Require review and acceptance evidence, then run one full clean-HEAD gate.                                                                 |             0 |
-| `close`           | Reuse the unchanged receipt through push, PR, and CI.                                                                                      |             0 |
-| `complete`        | Verify merge and green CI, close carried issues, and clean up.                                                                             |             0 |
+| Phase          | What `/ship` does                                                                                                                           | Review agents |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------: |
+| `preflight`    | Read the issue and seed validated task state.                                                                                               |             0 |
+| `plan`         | Freeze acceptance, non-goals, and files.                                                                                                    |             0 |
+| `red`          | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                                              |             0 |
+| `green`        | Implement the capability and run targeted checks.                                                                                           |             0 |
+| `refactor`     | Freeze HEAD; dispatch one final reviewer, adding specialist seats only for sensitive domains.                                               |     treatment |
+| `verification` | Require review and acceptance evidence, then push the frozen candidate for CI's full gate; record the CI verdict before advancing to close. |             0 |
+| `close`        | Reuse the unchanged receipt through push, PR, and CI.                                                                                       |             0 |
+| `complete`     | Verify merge and green CI, close carried issues, and clean up.                                                                              |             0 |
 
 Add specialist reviewers only for auth, data integrity, concurrency, money, migrations, or deployment.
 The final reviewer covers code, tests, and acceptance fit.
@@ -174,8 +174,10 @@ the acceptance-fit view under the same frozen-subject and citation rules.
 
 ## Gate economy
 
-Run one full clean-HEAD gate after review and acceptance fit. Do not repeat a green full gate while
-HEAD and its relevant environment are unchanged. PR and pre-push paths consume the same receipt.
+Run `node scripts/check-all.mjs preflight` as a local diagnostic, then push the frozen candidate;
+CI runs the full gate on that SHA and is the verification authority. Record the CI verdict with
+`node scripts/ci-receipt.mjs` before `advance --to close`. PR and pre-push paths consume the same
+receipt.
 
 A killed process has no verdict. Preserve these outcomes distinctly: `PRODUCT FAIL`, `TEST FAIL`,
 `ENVIRONMENT ERROR`, `TOOL UNAVAILABLE`, `TIMEOUT`, `KILLED/OOM`, and `NO DATA`.
