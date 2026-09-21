@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, resolve, sep, win32 } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
 import {
   combineTestOutput,
@@ -12,6 +12,13 @@ import {
 } from './tdd.js'
 import { gitCwd } from './git-checks.js'
 import { mkdtempTranslated, rmTranslated, symlinkTranslated } from '../utils/fs.js'
+
+function resolveRecordedTestCwd(repoDir: string, cwdRelative?: string): string | null {
+  const recorded = cwdRelative ?? '.'
+  if (isAbsolute(recorded) || win32.isAbsolute(recorded)) return null
+  if (recorded.split(/[\\/]/).some((segment) => segment === '..' || segment === '')) return null
+  return resolve(repoDir, recorded)
+}
 
 export interface RedExecutionResult {
   ok: boolean
@@ -61,9 +68,17 @@ export function verifyRedExecution(
     const added = addDetachedWorktree(repoDir, worktreeDir, ev.test_commit_sha)
     if (!added.ok) return added
 
-    linkNodeModules(repoDir, worktreeDir)
+    const replayCwd = resolveRecordedTestCwd(worktreeDir, ev.test_cwd)
+    if (replayCwd === null) {
+      return {
+        ok: false,
+        reason: `recorded test_cwd "${ev.test_cwd ?? ''}" is not repository-relative`,
+      }
+    }
 
-    const freshLog = runTestCommand(testCommand, worktreeDir, timeoutMs)
+    linkNodeModules(repoDir, worktreeDir, ev.test_cwd ?? '.')
+
+    const freshLog = runTestCommand(testCommand, replayCwd, worktreeDir, timeoutMs)
     return compareFailure(ev, repositoryRelativeLog(freshLog, worktreeDir))
   } finally {
     removeDetachedWorktree(repoDir, worktreeDir)
@@ -141,9 +156,9 @@ function addDetachedWorktree(
  * be reinstalled offline. Go/Python resolve dependencies outside the repo
  * tree (module cache / PATH), so no equivalent link is needed there.
  */
-function linkNodeModules(sourceDir: string, worktreeDir: string): void {
-  const src = join(sourceDir, 'node_modules')
-  const dest = join(worktreeDir, 'node_modules')
+function linkNodeModulesAt(sourceDir: string, worktreeDir: string, cwdRelative: string): void {
+  const src = join(sourceDir, cwdRelative, 'node_modules')
+  const dest = join(worktreeDir, cwdRelative, 'node_modules')
   if (!existsSync(src) || existsSync(dest)) return
   try {
     symlinkTranslated(src, dest, 'dir')
@@ -153,18 +168,35 @@ function linkNodeModules(sourceDir: string, worktreeDir: string): void {
   }
 }
 
-function replayExecutable(cmd: string, cwd: string): string {
-  const localBin = /(?:^|\/)node_modules\/\.bin\/([^/]+)$/.exec(cmd.replaceAll('\\', '/'))?.[1]
-  return localBin && localBin !== '.' && localBin !== '..'
-    ? join(cwd, 'node_modules', '.bin', localBin)
-    : cmd
+function linkNodeModules(sourceDir: string, worktreeDir: string, cwdRelative: string): void {
+  linkNodeModulesAt(sourceDir, worktreeDir, '.')
+  if (cwdRelative !== '.') linkNodeModulesAt(sourceDir, worktreeDir, cwdRelative)
 }
 
-function runTestCommand(testCommand: readonly string[], cwd: string, timeoutMs: number): string {
+function replayExecutable(cmd: string, cwd: string, worktreeDir: string): string | null {
+  const normalized = cmd.replaceAll('\\', '/')
+  const localBin = /(?:^|\/)node_modules\/\.bin\/([^/]+)$/.exec(normalized)?.[1]
+  if (localBin === undefined || localBin === '.' || localBin === '..') return cmd
+  if (isAbsolute(cmd) || win32.isAbsolute(cmd)) {
+    return join(cwd, 'node_modules', '.bin', localBin)
+  }
+  const executable = resolve(cwd, normalized)
+  const root = resolve(worktreeDir)
+  return executable.startsWith(`${root}${sep}`) ? executable : null
+}
+
+function runTestCommand(
+  testCommand: readonly string[],
+  cwd: string,
+  worktreeDir: string,
+  timeoutMs: number,
+): string {
   const [cmd, ...args] = testCommand
   if (cmd === undefined) return ''
+  const executable = replayExecutable(cmd, cwd, worktreeDir)
+  if (executable === null) return ''
   try {
-    const r = runCli(replayExecutable(cmd, cwd), args, { cwd, timeoutMs })
+    const r = runCli(executable, args, { cwd, timeoutMs })
     return r.exitCode > 0 ? combineTestOutput(r.stdout, r.stderr) : ''
   } catch (err) {
     if (

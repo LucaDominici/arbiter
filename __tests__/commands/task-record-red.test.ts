@@ -3,7 +3,11 @@ import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync, writeFileSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { runTaskRecordRed, taskIdFromBranch } from '../../src/commands/task-record-red.js'
+import {
+  DEFAULT_RECORD_RED_TIMEOUT_MS,
+  runTaskRecordRed,
+  taskIdFromBranch,
+} from '../../src/commands/task-record-red.js'
 import { runVerifyTdd } from '../../src/commands/verify-tdd.js'
 
 // Mock runCli so we don't invoke real test runners
@@ -113,6 +117,38 @@ describe('runTaskRecordRed()', () => {
     expect(ev.test_commit_sha).toBe(gitSha())
     expect(ev.test_run_log).toContain('FAIL')
     expect(ev.$schemaVersion).toBe(1)
+  })
+
+  it('runs a monorepo test from its nearest package root and records that cwd (#2801)', () => {
+    const dir = tmpRepo()
+    const testPath = 'frontend/src/ConfirmDialog.test.ts'
+    mkdirSync(join(dir, 'frontend', 'src'), { recursive: true })
+    mkdirSync(join(dir, 'backend'), { recursive: true })
+    writeFileSync(join(dir, 'frontend', 'package.json'), '{"scripts":{"test":"vitest"}}\n')
+    writeFileSync(join(dir, 'backend', 'pyproject.toml'), '[project]\nname = "backend"\n')
+    writeFileSync(join(dir, testPath), 'it("fails", () => expect(1).toBe(2))\n')
+
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks(testPath)
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'FAIL src/ConfirmDialog.test.ts\n1 failed',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 50,
+    })
+
+    expect(runTaskRecordRed({ testPath, dir }).ok).toBe(true)
+    expect(mockedRunCli).toHaveBeenCalledWith(
+      'npx',
+      ['vitest', 'run', 'src/ConfirmDialog.test.ts'],
+      { cwd: join(dir, 'frontend'), timeoutMs: DEFAULT_RECORD_RED_TIMEOUT_MS },
+    )
+    const ev = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#551.json'), 'utf-8'),
+    )
+    expect(ev.test_cwd).toBe('frontend')
+    expect(ev.test_command).toEqual(['npx', 'vitest', 'run', 'src/ConfirmDialog.test.ts'])
   })
 
   // #2116: a rebase rewrites test_commit_sha out of existence; the test's blob sha
@@ -1060,11 +1096,12 @@ describe('record-red --at (#2747)', () => {
     testLog: string
     blobSha?: string
     ancestor?: boolean
+    prepareWorktree?: (worktree: string) => void
   }): string[] {
     const worktrees: string[] = []
     mockedRunCli.mockImplementation((cmd, rawArgs) => {
       const args = [...rawArgs]
-      if (cmd === 'node') {
+      if (cmd === 'node' || cmd === 'npx' || cmd.endsWith('node_modules/.bin/vitest')) {
         return {
           stdout: options.testLog,
           stderr: '',
@@ -1096,6 +1133,7 @@ describe('record-red --at (#2747)', () => {
       if (args[0] === 'worktree' && args[1] === 'add') {
         const worktree = String(args[3] === '--force' ? args[4] : args[3])
         mkdirSync(worktree, { recursive: true })
+        options.prepareWorktree?.(worktree)
         worktrees.push(worktree)
         return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
       }
@@ -1197,5 +1235,75 @@ describe('record-red --at (#2747)', () => {
     expect(verification.exitCode).toBe(0)
     expect(worktrees).toHaveLength(2)
     expect(worktrees.every((worktree) => !existsSync(worktree))).toBe(true)
+  })
+
+  it('--at resolves package context and runner from the selected commit', () => {
+    const dir = repo()
+    const atSha = 'a'.repeat(40)
+    const testPath = 'frontend/src/ConfirmDialog.test.ts'
+    writeFileSync(join(dir, 'package.json'), '{"type":"module"}\n')
+    const worktrees = mockAtRun({
+      atSha,
+      headSha: 'b'.repeat(40),
+      testExitCode: 1,
+      testLog: 'FAIL src/ConfirmDialog.test.ts\n1 failed',
+      prepareWorktree(worktree) {
+        mkdirSync(join(worktree, 'frontend', 'src'), { recursive: true })
+        writeFileSync(join(worktree, 'frontend', 'package.json'), '{"type":"module"}\n')
+      },
+    })
+
+    const result = runTaskRecordRed({ testPath, dir, at: atSha })
+
+    expect(result.ok, result.ok ? '' : result.reason).toBe(true)
+    const testCall = mockedRunCli.mock.calls.find(([cmd]) => cmd === 'npx')
+    expect(testCall?.[1]).toEqual(['vitest', 'run', 'src/ConfirmDialog.test.ts'])
+    expect((testCall?.[2] as { cwd: string }).cwd).toBe(join(worktrees[0], 'frontend'))
+    const evidence = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'), 'utf-8'),
+    )
+    expect(evidence.test_cwd).toBe('frontend')
+  })
+
+  it('--at records and runs a root-hoisted package binary without an absolute checkout path', () => {
+    const dir = repo()
+    const atSha = 'a'.repeat(40)
+    const testPath = 'frontend/src/ConfirmDialog.test.ts'
+    mkdirSync(join(dir, 'frontend'), { recursive: true })
+    writeFileSync(join(dir, 'frontend', 'package.json'), '{"type":"module"}\n')
+    const absoluteVitest = join(dir, 'node_modules', '.bin', 'vitest')
+    const worktrees = mockAtRun({
+      atSha,
+      headSha: 'b'.repeat(40),
+      testExitCode: 1,
+      testLog: 'FAIL src/ConfirmDialog.test.ts\n1 failed',
+      prepareWorktree(worktree) {
+        mkdirSync(join(worktree, 'frontend', 'src'), { recursive: true })
+        writeFileSync(join(worktree, 'frontend', 'package.json'), '{"type":"module"}\n')
+      },
+    })
+
+    const result = runTaskRecordRed({
+      testPath,
+      dir,
+      at: atSha,
+      testCmd: [absoluteVitest, 'run', 'src/ConfirmDialog.test.ts'],
+    })
+
+    expect(result.ok, result.ok ? '' : result.reason).toBe(true)
+    const testCall = mockedRunCli.mock.calls.find(([cmd]) =>
+      cmd.endsWith('node_modules/.bin/vitest'),
+    )
+    expect(testCall?.[0]).toBe('../node_modules/.bin/vitest')
+    expect((testCall?.[2] as { cwd: string }).cwd).toBe(join(worktrees[0], 'frontend'))
+    const evidence = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'), 'utf-8'),
+    )
+    expect(evidence.test_command).toEqual([
+      '../node_modules/.bin/vitest',
+      'run',
+      'src/ConfirmDialog.test.ts',
+    ])
+    expect(JSON.stringify(evidence)).not.toContain(dir)
   })
 })
