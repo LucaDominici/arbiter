@@ -1098,16 +1098,27 @@ function noReviewData(plan: PlannedReviewRound, detail: string): FatalError {
   )
 }
 
-function executeCodexReviewRound(
-  root: string,
-  plan: PlannedReviewRound,
-  opts: TaskShipOptions,
-  profile: ShipProfile,
-  treatment: ShipTreatment,
-  vertical: string,
-): string {
+interface ExecuteCodexReviewRoundOptions {
+  root: string
+  plan: PlannedReviewRound
+  opts: TaskShipOptions
+  profile: ShipProfile
+  treatment: ShipTreatment
+  vertical: string
+}
+
+function executeCodexReviewRound({
+  root,
+  plan,
+  opts,
+  profile,
+  treatment,
+  vertical,
+}: ExecuteCodexReviewRoundOptions): string {
   const taskId = readUnifiedState(root)?.taskId
   if (taskId === undefined) throw noReviewData(plan, 'active task id is missing')
+  const cfg = profile.crossModelReview
+  if (cfg === undefined) throw noReviewData(plan, 'cross-model review not configured')
   let result: ReturnType<typeof runShipCrossModelReview>
   try {
     result = runShipCrossModelReview({
@@ -1116,7 +1127,7 @@ function executeCodexReviewRound(
       tier: treatment.tier,
       phase: 'refactor',
       vertical,
-      cfg: profile.crossModelReview!,
+      cfg,
       baseSha: plan.base,
       treatment,
       collaborationMode: profile.collaborationMode,
@@ -1125,7 +1136,7 @@ function executeCodexReviewRound(
   } catch (error) {
     throw noReviewData(plan, error instanceof Error ? error.message : String(error))
   }
-  if (result.status !== 'fulfilled' || result.recorded !== true || result.envelope === undefined) {
+  if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) {
     throw noReviewData(plan, result.degradationReasons.join(', ') || 'empty reviewer result')
   }
   const findings = result.envelope.findings
@@ -1138,14 +1149,24 @@ function executeCodexReviewRound(
   return `review round ${plan.rounds}: ${result.envelope.verdict} — ${findings.length} findings (${blocking} blocking) · next: ${next}`
 }
 
-function openExplicitReviewRound(
-  root: string,
+function configuredCodexSeat(profile: ShipProfile, treatment: ShipTreatment): boolean {
+  const cfg = profile.crossModelReview
+  return (
+    cfg?.enabled === true &&
+    cfg.diffEgressConsent &&
+    cfg.providers.includes('codex') &&
+    cfg.slots.codeReview > 0 &&
+    treatment.tier === 'Standard' &&
+    treatment.finalReviewers > 0
+  )
+}
+
+function reviewSlotPlan(
   opts: TaskShipOptions,
   profile: ShipProfile,
   treatment: ShipTreatment,
-): ExplicitReviewRoundResult {
-  if (opts.reviewRound !== true) return { plan: null }
-  const slotPlan = planCrossModelSlots({
+): ReturnType<typeof planCrossModelSlots> {
+  return planCrossModelSlots({
     tier: treatment.tier,
     phase: 'refactor',
     totalSlots: treatment.finalReviewers,
@@ -1153,31 +1174,35 @@ function openExplicitReviewRound(
     ...(profile.crossModelReview !== undefined ? { cfg: profile.crossModelReview } : {}),
     ...(opts.externalModelAccess !== undefined ? { access: opts.externalModelAccess } : {}),
   })
-  const configuredCodexSeat =
-    profile.crossModelReview?.enabled === true &&
-    profile.crossModelReview.diffEgressConsent &&
-    profile.crossModelReview.providers.includes('codex') &&
-    profile.crossModelReview.slots.codeReview > 0 &&
-    treatment.tier === 'Standard' &&
-    treatment.finalReviewers > 0
+}
+
+function openExplicitReviewRound(
+  root: string,
+  opts: TaskShipOptions,
+  profile: ShipProfile,
+  treatment: ShipTreatment,
+): ExplicitReviewRoundResult {
+  if (opts.reviewRound !== true) return { plan: null }
+  const hasCodexSeat = configuredCodexSeat(profile, treatment)
+  const slotPlan = reviewSlotPlan(opts, profile, treatment)
   const plan = runTaskReviewRound({
     dir: root,
     ...(opts.forceReview !== undefined ? { forceReview: opts.forceReview } : {}),
     ...(opts.reviewMaxRounds !== undefined ? { reviewMaxRounds: opts.reviewMaxRounds } : {}),
     ...(opts.headSha !== undefined ? { headSha: opts.headSha } : {}),
-    ...(configuredCodexSeat ? { retryIncomplete: true } : {}),
+    ...(hasCodexSeat ? { retryIncomplete: true } : {}),
   })
-  if (plan === null || (!configuredCodexSeat && slotPlan.external.length === 0)) return { plan }
+  if (plan === null || (!hasCodexSeat && slotPlan.external.length === 0)) return { plan }
   return {
     plan,
-    summary: executeCodexReviewRound(
+    summary: executeCodexReviewRound({
       root,
       plan,
       opts,
       profile,
       treatment,
-      slotPlan.external[0] ?? treatment.reviewerVerticals[0] ?? 'bugs',
-    ),
+      vertical: slotPlan.external[0] ?? treatment.reviewerVerticals[0] ?? 'bugs',
+    }),
   }
 }
 

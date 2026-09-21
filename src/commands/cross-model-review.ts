@@ -59,7 +59,13 @@ function runCrossModelReview(
     vertical: options.vertical ?? 'bugs',
   })
   if (existsSync(repoRoot))
-    writeExternalReviewSidecar(repoRoot, options.taskId, result, tier, profile.collaborationMode)
+    writeExternalReviewSidecar({
+      repoRoot,
+      taskId: options.taskId,
+      result,
+      tier,
+      collaborationMode: profile.collaborationMode,
+    })
   return result
 }
 
@@ -225,14 +231,23 @@ function sidecarAgents(
 }
 
 /** Record the fulfilled external seat for a CLI review path without inflating the panel. */
-function writeExternalReviewSidecar(
-  repoRoot: string,
-  taskId: string,
-  result: ReturnType<typeof invokeExternalReview>,
-  tier: ShipTier = 'Standard',
-  collaborationMode: 'trunk-solo' | 'peer-review' | 'gated-review' = 'peer-review',
-  treatment?: Pick<ShipTreatment, 'finalReviewers' | 'reviewerVerticals' | 'signalsHash'>,
-): void {
+interface ExternalReviewSidecarOptions {
+  repoRoot: string
+  taskId: string
+  result: ReturnType<typeof invokeExternalReview>
+  tier?: ShipTier
+  collaborationMode?: 'trunk-solo' | 'peer-review' | 'gated-review'
+  treatment?: Pick<ShipTreatment, 'finalReviewers' | 'reviewerVerticals' | 'signalsHash'>
+}
+
+function writeExternalReviewSidecar({
+  repoRoot,
+  taskId,
+  result,
+  tier = 'Standard',
+  collaborationMode = 'peer-review',
+  treatment,
+}: ExternalReviewSidecarOptions): void {
   if (result.status !== 'fulfilled' || !result.recorded || result.envelope === undefined) return
   assertSafeArbiterEvidenceRoot(repoRoot)
   const sidecarPath = join(repoRoot, '.arbiter', 'agents-dispatched.json')
@@ -350,14 +365,14 @@ function runShipCrossModelReview(
     vertical: options.vertical,
   })
   if (existsSync(repoRoot))
-    writeExternalReviewSidecar(
+    writeExternalReviewSidecar({
       repoRoot,
-      options.taskId,
+      taskId: options.taskId,
       result,
-      options.tier,
-      options.collaborationMode ?? 'peer-review',
-      options.treatment,
-    )
+      tier: options.tier,
+      collaborationMode: options.collaborationMode ?? 'peer-review',
+      treatment: options.treatment,
+    })
   return result
 }
 

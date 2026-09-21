@@ -768,14 +768,18 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         }),
       )
 
-      writeExternalReviewSidecar(dir, '#2357', {
-        provider: 'codex',
-        status: 'fulfilled',
-        diffBytes: 1,
-        diffTruncated: false,
-        degradationReasons: [],
-        recorded: true,
-        envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+      writeExternalReviewSidecar({
+        repoRoot: dir,
+        taskId: '#2357',
+        result: {
+          provider: 'codex',
+          status: 'fulfilled',
+          diffBytes: 1,
+          diffTruncated: false,
+          degradationReasons: [],
+          recorded: true,
+          envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
+        },
       })
 
       expect(
@@ -799,10 +803,10 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-sidecar-trunk-solo-'))
     try {
       mockedRunCli.mockReturnValue({ stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 })
-      writeExternalReviewSidecar(
-        dir,
-        '#2357',
-        {
+      writeExternalReviewSidecar({
+        repoRoot: dir,
+        taskId: '#2357',
+        result: {
           provider: 'codex',
           status: 'fulfilled',
           diffBytes: 1,
@@ -811,9 +815,9 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           recorded: true,
           envelope: { verdict: 'PASS', confidence: 1, findings: [], refutations: [] },
         },
-        'Standard',
-        'trunk-solo',
-      )
+        tier: 'Standard',
+        collaborationMode: 'trunk-solo',
+      })
       expect(
         JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
       ).toMatchObject({ count: 1, agents: ['codex-reviewer'] })
