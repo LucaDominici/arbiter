@@ -329,10 +329,13 @@ function checkChildLinks(
 ): void {
   for (const child of readdirSync(dirPath)) {
     const childPath = join(dirPath, child)
-    if (lstatSync(childPath).isSymbolicLink()) {
+    const stat = lstatSync(childPath)
+    if (stat.isSymbolicLink()) {
       pushIfDangling(childPath, `${specPath}/${child}`, dangling)
       if (existsSync(childPath))
         checkNestedLinks(childPath, `${specPath}/${child}`, dangling, visited)
+    } else if (stat.isDirectory()) {
+      checkNestedLinks(childPath, `${specPath}/${child}`, dangling, visited)
     }
   }
 }
