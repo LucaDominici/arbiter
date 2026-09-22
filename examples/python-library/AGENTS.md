@@ -174,6 +174,10 @@ Examples:
 ## Gate System
 
 ```
+Targeted development:    ruff check .
+                         ruff format --check .
+                         pytest
+
 Preflight (local):        fast diagnostics + touched tests
 
 L2 (full, CI authority):  coverage + audit + integration tests

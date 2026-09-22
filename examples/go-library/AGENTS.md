@@ -174,6 +174,10 @@ Examples:
 ## Gate System
 
 ```
+Targeted development:    golangci-lint run
+                         gofmt -l .
+                         go test ./...
+
 Preflight (local):        fast diagnostics + touched tests
 
 L2 (full, CI authority):  coverage + audit + integration tests

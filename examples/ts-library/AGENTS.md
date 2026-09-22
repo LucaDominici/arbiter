@@ -174,6 +174,10 @@ Examples:
 ## Gate System
 
 ```
+Targeted development:    echo &#34;no lint configured&#34;
+                         npx prettier --check .
+                         npm run test
+
 Preflight (local):        fast diagnostics + touched tests
 
 L2 (full, CI authority):  coverage + audit + integration tests

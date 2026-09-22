@@ -33,7 +33,7 @@ describe('ship is one adaptive delivery narrative', () => {
     const content = render('claude/commands/ship.md.ejs', { governanceLevel })
     expect(content).toContain('## Context economy')
     expect(content).toContain('never pipe a gate or a test run through `tail` or `head`')
-    expect(content).toContain('only a candidate that passes preflight is frozen')
+    expect(content).toContain('The first push runs one preflight plus touched tests')
     // Hooks do not run inside Agent-tool subagents, so delegation of the write lane is not prescribed.
     expect(content).not.toContain('implementer subagent')
     expect(content).not.toContain('npm run regen')

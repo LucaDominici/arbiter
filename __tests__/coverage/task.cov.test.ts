@@ -164,7 +164,7 @@ describe('runTaskResume', () => {
     })
     const out = captureStdout(() => runTaskResume({ dir }))
     expect(out).toContain('Phase: verification')
-    expect(out).toContain('node scripts/check-all.mjs preflight')
+    expect(out).toContain('node scripts/ci-receipt.mjs')
   })
 
   it('defaults dir to process.cwd() when omitted (no throw on a real tree)', () => {

@@ -50,7 +50,7 @@ describe('gate contract inspection', () => {
     })
     expect(gate('template tests').thresholds).toContainEqual({
       name: 'untested EJS templates',
-      value: 175,
+      value: 174,
       source: '.template-tests-baseline.txt',
     })
     expect(gate('doc style').bindings).toContainEqual({
