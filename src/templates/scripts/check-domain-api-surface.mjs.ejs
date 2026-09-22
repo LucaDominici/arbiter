@@ -86,37 +86,37 @@ function main() {
   if (!Array.isArray(manifest.resources)) {
     operational('Manifest resources must be an array.')
   }
-  if (!helperPath) {
-    if (manifest.resources.length === 0) {
-      operational('Manifest resources must be a non-empty array.')
+  if (manifest.resources.length === 0) {
+    operational('Manifest resources must be a non-empty array.')
+  }
+  for (const resource of manifest.resources) {
+    if (
+      !resource ||
+      typeof resource !== 'object' ||
+      Array.isArray(resource) ||
+      typeof resource.resource !== 'string' ||
+      !resource.resource ||
+      !Array.isArray(resource.domainFields) ||
+      resource.domainFields.length === 0
+    ) {
+      operational('Each resource needs a non-empty resource name and domainFields array.')
     }
-    for (const resource of manifest.resources) {
+    for (const field of resource.domainFields) {
       if (
-        !resource ||
-        typeof resource !== 'object' ||
-        Array.isArray(resource) ||
-        typeof resource.resource !== 'string' ||
-        !resource.resource ||
-        !Array.isArray(resource.domainFields) ||
-        resource.domainFields.length === 0
+        !field ||
+        typeof field !== 'object' ||
+        Array.isArray(field) ||
+        typeof field.name !== 'string' ||
+        !field.name ||
+        typeof field.persisted !== 'boolean' ||
+        typeof field.inRequestSchema !== 'boolean' ||
+        typeof field.inResponseSchema !== 'boolean'
       ) {
-        operational('Each resource needs a non-empty resource name and domainFields array.')
-      }
-      for (const field of resource.domainFields) {
-        if (
-          !field ||
-          typeof field !== 'object' ||
-          Array.isArray(field) ||
-          typeof field.name !== 'string' ||
-          !field.name ||
-          typeof field.persisted !== 'boolean' ||
-          typeof field.inRequestSchema !== 'boolean' ||
-          typeof field.inResponseSchema !== 'boolean'
-        ) {
-          operational(`Invalid field in resource ${resource.resource}.`)
-        }
+        operational(`Invalid field in resource ${resource.resource}.`)
       }
     }
+  }
+  if (!helperPath) {
     const gaps = []
     for (const resource of manifest.resources) {
       for (const field of resource.domainFields) {

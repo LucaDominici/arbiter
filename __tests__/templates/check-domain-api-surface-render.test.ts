@@ -244,6 +244,36 @@ describe('check-domain-api-surface.mjs.ejs render tests', () => {
       '[ERROR] Manifest is unreadable or invalid JSON:',
     )
 
+    writeFileSync(
+      manifest,
+      JSON.stringify({ schema: 'arbiter-domain-api-surface-v1', resources: [] }),
+    )
+    const emptyResources = runConsumer(checker, ['--manifest', manifest, '--schema-helper', helper])
+    expect(emptyResources.status).toBe(2)
+    expect(`${emptyResources.stdout}${emptyResources.stderr}`).toContain(
+      '[ERROR] Manifest resources must be a non-empty array.',
+    )
+
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        schema: 'arbiter-domain-api-surface-v1',
+        resources: [
+          {
+            resource: 'widgets',
+            domainFields: [
+              { name: 'id', persisted: 'true', inRequestSchema: false, inResponseSchema: true },
+            ],
+          },
+        ],
+      }),
+    )
+    const malformedFlags = runConsumer(checker, ['--manifest', manifest, '--schema-helper', helper])
+    expect(malformedFlags.status).toBe(2)
+    expect(`${malformedFlags.stdout}${malformedFlags.stderr}`).toContain(
+      '[ERROR] Invalid field in resource widgets.',
+    )
+
     writeFileSync(manifest, JSON.stringify(validManifest()))
     writeFileSync(helper, 'process.exit(1)\n')
     const helperFailure = runConsumer(checker, ['--manifest', manifest, '--schema-helper', helper])
