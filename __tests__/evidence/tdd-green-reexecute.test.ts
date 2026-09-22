@@ -89,17 +89,21 @@ describe.sequential('verifyGreenExecution real runner output', () => {
   it('rejects a skipped Vitest RED test even when an unrelated test passes', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-green-vitest-'))
     dirs.push(dir)
-    symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
     const testPath = 'skip.test.ts'
+    const runnerPath = 'vitest-output.mjs'
     writeFileSync(
       join(dir, testPath),
       "import { it, expect } from 'vitest'\nit.skip('recorded RED', () => expect(1).toBe(2))\nit('unrelated', () => expect(1).toBe(1))\n",
+    )
+    writeFileSync(
+      join(dir, runnerPath),
+      "process.stdout.write('Tests  1 passed | 1 \\u001b[2mskipped\\u001b[22m (2)\\n')\n",
     )
     const result = verifyGreenExecution(
       fixture(
         testPath,
         `FAIL ${testPath}\n1 test failed`,
-        ['npx', 'vitest', 'run', testPath],
+        ['node', runnerPath],
         gitBlobSha(readFileSync(join(dir, testPath), 'utf8')),
       ),
       dir,
