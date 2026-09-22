@@ -50,6 +50,7 @@ interface SetupOpts {
   ageMin?: number | 'missing' | 'empty'
   /** Override the stub classifier output (defaults to high-risk so the gate hard-fails). */
   classifier?: { docs_only?: boolean; backend_changed?: boolean; high_risk?: boolean }
+  hook?: string
 }
 
 function classifierStub(c: SetupOpts['classifier'] = {}): string {
@@ -98,7 +99,8 @@ function setupRepo(opts: SetupOpts = {}): string {
   // Copy the real hook into place (also committed → working tree clean).
   const hookDest = join(dir, '.githooks', 'pre-push')
   mkdirSync(join(dir, '.githooks'), { recursive: true })
-  copyFileSync(HOOK_SRC, hookDest)
+  if (opts.hook === undefined) copyFileSync(HOOK_SRC, hookDest)
+  else writeFileSync(hookDest, opts.hook)
   chmodSync(hookDest, 0o755)
 
   // Evidence dir prepared BEFORE the initial commit so the working tree stays
@@ -318,8 +320,66 @@ it('runs the light preflight gate, never the full gate, in self and rendered hoo
     expect(hook).toContain(
       'pre-push: light gate (preflight + touched tests); the full gate runs in CI (#2773 P7)',
     )
-    expect(hook).toContain('-name "${basename}.*.test.*"')
+    expect(hook).toContain('npx vitest related "${RELATED_TEST_INPUTS[@]}" --run')
   }
+})
+
+it('passes changed source files to Vitest dependency selection before push', () => {
+  const dir = setupRepo({ ageMin: 30 })
+  const source = join(dir, 'src', 'commands', 'task-ship.ts')
+  mkdirSync(dirname(source), { recursive: true })
+  writeFileSync(source, 'export const ship = true\n')
+  execFileSync('git', ['add', source], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'change ship'], { cwd: dir, stdio: 'ignore' })
+
+  const bin = join(dir, 'bin')
+  const log = join(dir, 'npx.log')
+  mkdirSync(bin)
+  writeFileSync(join(bin, 'npx'), '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$NPX_LOG"\n', {
+    mode: 0o755,
+  })
+
+  const result = runHook(dir, {
+    PATH: `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`,
+    NPX_LOG: log,
+  })
+  expect(result.status).toBe(0)
+  expect(readFileSync(log, 'utf-8')).toBe('vitest\nrelated\nsrc/commands/task-ship.ts\n--run\n')
+  rmSync(dir, { recursive: true, force: true })
+})
+
+it('does not add Vitest to a non-TypeScript consumer when an emitted script changes', () => {
+  const hook = renderTemplate(
+    'githooks/pre-push.ejs',
+    makeConfig('/tmp/test-githooks-go', {
+      language: 'go',
+      buildTool: 'go',
+      projectName: 'test-go-project',
+      enableSecurityScanning: false,
+    }) as unknown as Record<string, unknown>,
+  )
+  const dir = setupRepo({ ageMin: 30, hook })
+  writeFileSync(join(dir, 'scripts', 'generated.mjs'), 'export const generated = true\n')
+  execFileSync('git', ['add', 'scripts/generated.mjs'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'update emitted script'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+
+  const bin = join(dir, 'bin')
+  const log = join(dir, 'npx.log')
+  mkdirSync(bin)
+  writeFileSync(join(bin, 'npx'), '#!/usr/bin/env bash\ntouch "$NPX_LOG"\nexit 99\n', {
+    mode: 0o755,
+  })
+
+  const result = runHook(dir, {
+    PATH: `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`,
+    NPX_LOG: log,
+  })
+  expect(result.status).toBe(0)
+  expect(existsSync(log)).toBe(false)
+  rmSync(dir, { recursive: true, force: true })
 })
 
 /**
