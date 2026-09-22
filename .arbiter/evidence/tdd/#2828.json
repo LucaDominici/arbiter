@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2828",
+  "test_path": "__tests__/scripts/local-consumer-runners.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "12ef0901463b0d353ec916abc277550de4a61e1c",
+  "test_blob_sha": "53b552bfb48dee5c4eb813fb1e426499141dd66f",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/local-consumer-runners.test.ts (32 tests | 2 failed) 947ms\n     × classifies an injected enoent outcome 23ms\n     × classifies an injected signal outcome 17ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 30 passed (32)\n   Start at  18:00:45\n   Duration  1.32s (transform 241ms, setup 115ms, import 167ms, tests 947ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/local-consumer-runners.test.ts > consumer-local Arbiter runners (#2578) > classifies an injected enoent outcome\nAssertionError: expected '[arbiter] local CLI failed to launch:…' to match /local CLI unavailable/\n\n- Expected:\n/local CLI unavailable/\n\n+ Received:\n\"[arbiter] local CLI failed to launch: spawn node ENOENT\n\"\n\n ❯ __tests__/scripts/local-consumer-runners.test.ts:156:27\n    154|     const result = runInjected(mode)\n    155|     expect(result.status).toBe(status)\n    156|     expect(result.stderr).toMatch(diagnostic)\n       |                           ^\n    157|   })\n    158| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/scripts/local-consumer-runners.test.ts > consumer-local Arbiter runners (#2578) > classifies an injected signal outcome\nAssertionError: expected '[arbiter] local CLI failed to launch:…' to match /SIGKILL/\n\n- Expected:\n/SIGKILL/\n\n+ Received:\n\"[arbiter] local CLI failed to launch: no exit status\n\"\n\n ❯ __tests__/scripts/local-consumer-runners.test.ts:156:27\n    154|     const result = runInjected(mode)\n    155|     expect(result.status).toBe(status)\n    156|     expect(result.stderr).toMatch(diagnostic)\n       |                           ^\n    157|   })\n    158| })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/local-consumer-runners.test.ts",
+  "recorded_at": "2026-09-22T16:00:46.804Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/local-consumer-runners.test.ts"
+  ]
+}

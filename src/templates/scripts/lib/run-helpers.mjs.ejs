@@ -279,8 +279,19 @@ export function runLocalArbiter(args, opts = {}) {
     shell: false,
     stdio: 'inherit',
   });
-  if (result.error || result.status === null) {
-    process.stderr.write(`[arbiter] local CLI failed to launch: ${result.error?.message ?? 'no exit status'}\n`);
+  if (result.error) {
+    const message = result.error.code === 'ENOENT'
+      ? `[arbiter] local CLI unavailable: ${cli} (${result.error.message})`
+      : `[arbiter] local CLI failed to launch: ${result.error.message}`;
+    process.stderr.write(`${message}\n`);
+    return 2;
+  }
+  if (result.signal !== null) {
+    process.stderr.write(`[arbiter] local CLI failed to launch: terminated by ${result.signal}\n`);
+    return 2;
+  }
+  if (result.status === null) {
+    process.stderr.write('[arbiter] local CLI failed to launch: no exit status\n');
     return 2;
   }
   return result.status;
