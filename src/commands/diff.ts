@@ -11,7 +11,11 @@ import { existsSync } from 'node:fs'
 import { loadConfig } from '../utils/config.js'
 import { slugifyProjectName } from './init.js'
 import { buildAdoptPredicate } from './update.js'
-import { buildSelectionPredicate, loadIgnorePatterns } from '../config/arbiter-ignore.js'
+import {
+  buildSelectionPredicate,
+  loadIgnorePatterns,
+  matchesOnly,
+} from '../config/arbiter-ignore.js'
 import { resolveProjectName } from '../config/resolve-project-name.js'
 import { resolveProjectConfig, gitHubPermitted } from '../config/resolve-project-config.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
@@ -204,8 +208,11 @@ function buildRemoteSideEffects(
   ]
 }
 
-function buildDiffFiles(results: WriteResult[], targetDir: string): DiffFile[] {
-  const selectedResults = results.filter((r) => r.excluded !== 'deselected')
+function buildDiffFiles(results: WriteResult[], targetDir: string, only: string[]): DiffFile[] {
+  const selectedResults =
+    only.length === 0
+      ? results
+      : results.filter((result) => matchesOnly(only, relative(targetDir, result.path)))
   return selectedResults.map((r) => {
     const rel = relative(targetDir, r.path)
     // #1344: a withheld fix is a `skipped` action that would otherwise read as
@@ -420,7 +427,7 @@ export function runDiff(options: DiffOptions): void {
     endGenerationSession()
   }
 
-  const allFiles = buildDiffFiles(results, targetDir)
+  const allFiles = buildDiffFiles(results, targetDir, options.only ?? [])
   const withheldCount = allFiles.filter((f) => f.status === 'withheld').length
   // #2662 AC(1): the retired set, named and counted like withheld — a project's
   // deliberate retirements are reviewable in one place.

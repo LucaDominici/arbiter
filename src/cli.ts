@@ -856,6 +856,13 @@ program
         process.exitCode = 2
         return
       }
+      if (opts.dryRun && opts.governance && opts.only.length > 0) {
+        const message = '--governance and --only cannot be combined; choose one preview scope.'
+        if (opts.json) jsonOutput('update', 'error', {}, [message])
+        else printCliError(message)
+        process.exitCode = 2
+        return
+      }
       if (opts.dryRun) {
         runDiff({
           dir: opts.dir,
