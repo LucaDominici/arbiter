@@ -165,6 +165,39 @@ describe('diff --json', () => {
     expect(Array.isArray(data.files)).toBe(true)
   })
 
+  it('reports only selected files even when an ignored file bypasses the allowlist first', () => {
+    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
+    mockExistsSync.mockImplementation((path: unknown) => String(path).endsWith('.arbiterignore'))
+    mockReadFileSync.mockImplementation((path: unknown) =>
+      String(path).endsWith('.arbiterignore') ? 'AGENTS.md\n' : 'mocked-content',
+    )
+    vi.spyOn(process, 'exit').mockImplementation((): never => undefined as never)
+
+    runDiff({ dir: '/tmp/fake', json: true, only: ['GLOBAL_INVARIANTS.md'] })
+
+    const parsed = JSON.parse(written) as {
+      data: { files: Array<{ key: string }>; retired: string[] }
+    }
+    expect(parsed.data.files.map((file) => file.key)).toEqual(['GLOBAL_INVARIANTS.md'])
+    expect(parsed.data.retired).toEqual([])
+  })
+
+  it('reports no files when --only matches no managed path', () => {
+    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
+    mockExistsSync.mockImplementation((path: unknown) => String(path).endsWith('.arbiterignore'))
+    mockReadFileSync.mockImplementation((path: unknown) =>
+      String(path).endsWith('.arbiterignore') ? 'AGENTS.md\n' : 'mocked-content',
+    )
+
+    runDiff({ dir: '/tmp/fake', json: true, only: ['no/such/path.md'] })
+
+    const parsed = JSON.parse(written) as {
+      data: { files: Array<{ key: string }>; retired: string[] }
+    }
+    expect(parsed.data.files).toEqual([])
+    expect(parsed.data.retired).toEqual([])
+  })
+
   it('emits JSON error when no config found', () => {
     mockLoadConfig.mockReturnValue(null)
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {

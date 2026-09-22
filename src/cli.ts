@@ -754,6 +754,26 @@ program
     },
   )
 
+function rejectIncompatibleUpdatePreview(opts: {
+  dryRun: boolean
+  adoptPlan: boolean
+  governance: boolean
+  only: string[]
+  json: boolean
+}): boolean {
+  let message: string | undefined
+  if (opts.dryRun && opts.adoptPlan) {
+    message = '--dry-run and --adopt-plan cannot be combined; choose one preview mode.'
+  } else if (opts.dryRun && opts.governance && opts.only.length > 0) {
+    message = '--governance and --only cannot be combined; choose one preview scope.'
+  }
+  if (message === undefined) return false
+  if (opts.json) jsonOutput('update', 'error', {}, [message])
+  else printCliError(message)
+  process.exitCode = 2
+  return true
+}
+
 program
   .command('update')
   .description('Re-generate governance files using stored config (arbiter.json)')
@@ -849,12 +869,14 @@ program
       refreshDerived: boolean
       only: string[]
     }) => {
+      if (rejectIncompatibleUpdatePreview(opts)) return
       if (opts.dryRun) {
         runDiff({
           dir: opts.dir,
           json: opts.json,
           withheld: opts.withheld,
           governance: opts.governance,
+          only: opts.only,
         })
         return
       }
