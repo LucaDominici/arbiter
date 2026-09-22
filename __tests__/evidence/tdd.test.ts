@@ -156,6 +156,11 @@ describe('extractFailureSignature()', () => {
     expect(extractFailureSignature(log)?.framework).toBe('go')
   })
 
+  it('extracts a failing shell self-test', () => {
+    const log = 'FAIL: scanner did not report the expected violation'
+    expect(extractFailureSignature(log)?.framework).toBe('shell')
+  })
+
   it('returns null when log shows passing tests', () => {
     expect(extractFailureSignature('All tests passed.\n✓ 10 tests')).toBeNull()
   })

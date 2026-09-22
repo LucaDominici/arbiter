@@ -63,6 +63,7 @@ export const FAILURE_SIGNATURES: FailureSignatureEntry[] = [
   { framework: 'gradle', pattern: /FAILED\s*$|BUILD FAILED/m },
   { framework: 'cargo', pattern: /test result: FAILED/m },
   { framework: 'go', pattern: /--- FAIL:/m },
+  { framework: 'shell', pattern: /^FAIL:[ \t]+\S.*$/m },
   { framework: 'tap', pattern: /^# fail [1-9]\d*/m },
   { framework: 'playwright', pattern: /^\s*[1-9]\d* failed\b/m },
 ]
