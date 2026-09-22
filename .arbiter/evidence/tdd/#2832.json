@@ -1,0 +1,19 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2832",
+  "test_path": "__tests__/templates/check-fe-boundaries-render.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "070599fbe7feacf834273d8a228847a41d2e2d7e",
+  "test_blob_sha": "6a89a8b75892c2a95e96830d22bc8103c6f46186",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/templates/check-fe-boundaries-render.test.ts (18 tests | 1 failed | 17 skipped) 27ms\n     × accepts only the conventional api-client adapter basename 26ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 17 skipped (18)\n   Start at  19:56:38\n   Duration  422ms (transform 221ms, setup 10ms, import 264ms, tests 27ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/templates/check-fe-boundaries-render.test.ts > scripts/check-fe-boundaries.mjs.ejs — structural invariants (CANON-04, #1127) > accepts only the conventional api-client adapter basename\nAssertionError: [INV-102] src/shared/api-client.ts:1: raw HTTP call outside adapter/api layer — move to a designated api/ directory\n         export const request = () => fetch(\"/api/value\")\n\n[check-fe-boundaries] 1 violation(s) found.\n  INV-102: No raw HTTP calls outside adapter/api layer.\n  INV-103: No browser globals in domain/store files.\n  INV-104: No async API calls in state stores.\n  See docs/GOVERNANCE/FRONTEND_CONSTITUTION.md FE001-FE003.\n: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/templates/check-fe-boundaries-render.test.ts:112:44\n    110|       'export const request = () => fetch(\"/api/value\")\\n',\n    111|     )\n    112|     expect(adapter.status, adapter.stderr).toBe(0)\n       |                                            ^\n    113|\n    114|     const sibling = runRenderedCheck(\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/templates/check-fe-boundaries-render.test.ts",
+  "recorded_at": "2026-09-22T17:56:38.542Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/templates/check-fe-boundaries-render.test.ts",
+    "-t",
+    "accepts only the conventional api-client adapter basename"
+  ]
+}

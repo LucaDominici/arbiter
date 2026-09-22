@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // CANON-04 render tests for scripts/check-fe-boundaries.mjs.ejs (#1127)
 import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -12,6 +16,20 @@ function renderFeBoundaries(overrides: Record<string, unknown> = {}) {
       ...overrides,
     } as Parameters<typeof makeConfig>[1]) as unknown as Record<string, unknown>,
   )
+}
+
+function runRenderedCheck(path: string, source: string) {
+  const dir = mkdtempSync(join(tmpdir(), 'fe-boundaries-adapter-'))
+  try {
+    const target = join(dir, path)
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, source)
+    const checker = join(dir, 'check-fe-boundaries.mjs')
+    writeFileSync(checker, renderFeBoundaries({ frontend: { framework: 'react' } }))
+    return spawnSync('node', [checker], { cwd: dir, encoding: 'utf8' })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 }
 
 describe('scripts/check-fe-boundaries.mjs.ejs — structural invariants (CANON-04, #1127)', () => {
@@ -84,6 +102,28 @@ describe('scripts/check-fe-boundaries.mjs.ejs — structural invariants (CANON-0
   it('exits with code 0 on clean (no violations message)', () => {
     const rendered = renderFeBoundaries()
     expect(rendered).toContain('OK (INV-102/103/104)')
+  })
+
+  it('accepts only the conventional api-client adapter basename', () => {
+    const adapter = runRenderedCheck(
+      'src/shared/api-client.ts',
+      'export const request = () => fetch("/api/value")\n',
+    )
+    expect(adapter.status, adapter.stderr).toBe(0)
+
+    const sibling = runRenderedCheck(
+      'src/shared/client.ts',
+      'export const request = () => fetch("/api/value")\n',
+    )
+    expect(sibling.status).toBe(1)
+    expect(sibling.stderr).toContain('INV-102')
+
+    const store = runRenderedCheck(
+      'src/stores/api-client.ts',
+      'export const request = () => { window.location.href = "/"; return fetch("/api/value") }\n',
+    )
+    expect(store.status).toBe(1)
+    expect(store.stderr).toContain('INV-103')
   })
 
   it.each(['L1', 'L2', 'L3', 'L4'] as const)(
