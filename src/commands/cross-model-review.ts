@@ -331,6 +331,8 @@ type FrozenReviewBrief = {
   criteria: { id: string; text: string }[]
   nonGoals: string[]
   acHash: string
+  planPath: string
+  planBody: string
 }
 
 const FROZEN_REVIEW_BRIEF_SCRIPT = [
@@ -404,12 +406,29 @@ function readFrozenReviewBrief(
     ).stdout
     const brief: unknown = JSON.parse(stdout)
     if (!isFrozenReviewBrief(brief)) throw new Error('acceptance criteria are missing or malformed')
-    return brief
+    return { ...brief, planPath: plan, planBody: body }
   } catch (error) {
     throw new Error(
       `cannot read frozen plan acceptance criteria at ${reviewHead}:${plan}: ${error instanceof Error ? error.message : String(error)}`,
       { cause: error },
     )
+  }
+}
+
+function readFrozenTddEvidence(
+  repoRoot: string,
+  taskId: string,
+  reviewHead: string,
+): string | null {
+  if (!/^#[1-9]\d*$/.test(taskId)) return null
+  try {
+    const receipt = runCli('git', ['show', `${reviewHead}:.arbiter/evidence/tdd/${taskId}.json`], {
+      cwd: repoRoot,
+      timeoutMs: 5000,
+    }).stdout
+    return Buffer.byteLength(receipt, 'utf8') <= 16 * 1024 ? receipt.trim() : null
+  } catch {
+    return null
   }
 }
 
@@ -439,9 +458,12 @@ function frozenReviewPrompt(
   baseSha: string,
   headSha: string,
   brief: FrozenReviewBrief,
+  tddEvidence: string | null,
 ): string {
   return [
     'Review this frozen candidate for bugs, type safety, security, data integrity, silent failures, and acceptance fit.',
+    'Review scope is the frozen diff. Do not block on unavailable local command execution, pending CI, merge state, or other post-review delivery evidence; separate gates own those checks.',
+    'Every blocking finding must cite a concrete candidate defect with a file and line. Do not turn inability to verify into a defect.',
     `Task: ${taskId}`,
     `Base SHA: ${baseSha}`,
     `Head SHA: ${headSha}`,
@@ -451,6 +473,10 @@ function frozenReviewPrompt(
     ...brief.criteria.map(({ id, text }, index) => `${index + 1}. ${id}: ${text}`),
     'Non-goals:',
     ...(brief.nonGoals.length > 0 ? brief.nonGoals.map((item) => `- ${item}`) : ['- (none)']),
+    `Frozen plan (${brief.planPath} at ${headSha}; commands are requirements, not proof of execution):`,
+    brief.planBody,
+    'Recorded TDD RED evidence (proves the recorded failure only):',
+    tddEvidence ?? '(none recorded)',
   ].join('\n')
 }
 
@@ -514,11 +540,13 @@ function runShipCrossModelReview(
   const repoRoot = resolve(options.dir)
   const reviewHead = assertFrozenReviewHead(repoRoot, options.headSha)
   const reviewBase = resolveReviewBase(repoRoot, options.baseSha)
+  const brief = readFrozenReviewBrief(repoRoot, options.planRef, reviewHead)
   const prompt = frozenReviewPrompt(
     options.taskId,
     reviewBase,
     reviewHead,
-    readFrozenReviewBrief(repoRoot, options.planRef, reviewHead),
+    brief,
+    readFrozenTddEvidence(repoRoot, options.taskId, reviewHead),
   )
   let diff = ''
   let access = options.cfg.diffEgressConsent ? options.access : undefined

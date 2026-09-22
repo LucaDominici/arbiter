@@ -66,7 +66,10 @@ const FROZEN_PLAN = [
   '- [ ] AC-2747.1: Second ordered criterion.',
   '## Non-Goals',
   '- Do not add a scheduler.',
+  '## Verification contract',
+  '- `npm test` is required.',
 ].join('\n')
+const FROZEN_TDD = '{"task_id":"#2747","observed_failure":"expected RED"}'
 const FROZEN_BRIEF_JSON = JSON.stringify({
   criteria: [
     { id: 'AC-2747.2', text: 'Preserve text and punctuation!' },
@@ -209,7 +212,12 @@ describe('runCrossModelReview (#2357)', () => {
       if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
         return { stdout: `${HEAD_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
       if (command === 'git' && args[0] === 'show')
-        return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+        return {
+          stdout: String(args[1]).includes('.arbiter/evidence/tdd/') ? FROZEN_TDD : FROZEN_PLAN,
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
       if (command === process.execPath)
         return {
           stdout: JSON.stringify({
@@ -254,6 +262,10 @@ describe('runCrossModelReview (#2357)', () => {
     expect(prompt).toContain(`Base SHA: ${BASE_SHA}`)
     expect(prompt).toContain(`Head SHA: ${HEAD_SHA}`)
     expect(prompt).toContain('Acceptance criteria hash: frozen-ac-hash')
+    expect(prompt).toContain('Do not block on unavailable local command execution')
+    expect(prompt).toContain('Every blocking finding must cite a concrete candidate defect')
+    expect(prompt).toContain('## Verification contract\n- `npm test` is required.')
+    expect(prompt).toContain(FROZEN_TDD)
     expect(prompt.indexOf('AC-2747.2: Preserve text and punctuation!')).toBeLessThan(
       prompt.indexOf('AC-2747.1: Second ordered criterion.'),
     )
