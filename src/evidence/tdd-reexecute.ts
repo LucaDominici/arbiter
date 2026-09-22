@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve, sep, win32 } from 'node:path'
+import { stripVTControlCharacters } from 'node:util'
 import { CliError, runCli } from '../utils/run-cli.js'
 import {
   combineTestOutput,
@@ -31,7 +32,10 @@ const ZERO_TEST_OUTPUT =
 
 function countSummary(output: string, label: string): number {
   const pattern = new RegExp(`\\b(\\d+)\\s+(?:${label})\\b`, 'gi')
-  return [...output.matchAll(pattern)].reduce((sum, match) => sum + Number(match[1]), 0)
+  return [...stripVTControlCharacters(output).matchAll(pattern)].reduce(
+    (sum, match) => sum + Number(match[1]),
+    0,
+  )
 }
 
 function goJsonCounts(output: string): { passed: number; skipped: number } {
