@@ -388,9 +388,18 @@ if (isMain) {
   let prerequisiteError = false
 
   function runChecks() {
+    if (preflight) {
+      runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
+      runCheck('anti-drift: secret scan', 'node', ['scripts/check-secret-scan.mjs'])
+      runCheck('no tracked artifacts (INV-117)', 'node', [
+        'scripts/check-no-tracked-artifacts.mjs',
+      ])
+      return getResults().length
+    }
+
     // L2 owns its compiled prerequisites. npm build already generates the kit;
     // coverage remains the single unit-corpus run later in this gate.
-    if (subcommand !== 'check' && !preflight) {
+    if (subcommand !== 'check') {
       // These contracts use source/committed evidence and need no compiled output.
       // A rejected prerequisite must never start build, smoke, coverage or integration.
       runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'], { failOnSkip: true })
@@ -412,59 +421,6 @@ if (isMain) {
       if (!dryRun) prerequisiteError = !checkDistPrerequisite(process.cwd())
       if (!dryRun && prerequisiteError) return getResults().length
       runCheck('build-kit', 'node', ['scripts/build-kit.mjs'])
-    }
-
-    if (preflight) {
-      runCheck('codex self-parity (#1966)', 'node', ['scripts/check-codex-self-parity.mjs'])
-      runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'], {
-        contract: {
-          bindings: [{ source: 'scripts/data/fail-closed-baseline.json', required: true }],
-        },
-      })
-      try {
-        const dirty = execFileSync('git', ['status', '--porcelain'], {
-          cwd: GIT_CWD,
-          encoding: 'utf-8',
-        })
-        if (dirty.trim()) {
-          process.stdout.write(
-            '[preflight] tdd-evidence and docs are evaluated against committed history and the working tree is dirty, so results may change after commit.\n',
-          )
-        }
-        // FAIL-OPEN-INTENT: a non-git checkout has no committed-history warning to report.
-      } catch {
-        void 0
-      }
-      runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'], { cwd: GIT_CWD })
-      runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
-      try {
-        const changed = [
-          execFileSync('git', ['diff', '--name-only', 'origin/main'], {
-            cwd: GIT_CWD,
-            encoding: 'utf-8',
-          }),
-          execFileSync('git', ['ls-files', '--others', '--exclude-standard'], {
-            cwd: GIT_CWD,
-            encoding: 'utf-8',
-          }),
-        ]
-          .join('\n')
-          .split('\n')
-        if (changed.some((file) => file === 'AGENTS.md' || /^(docs|website)\//.test(file))) {
-          // Same registration path as the L2 'docs:build' below: the docsCheck alias keeps it
-          // out of the runCheck roster because CI covers it with the dedicated Docs Build job.
-          const docsCheck = runCheck
-          docsCheck('docs:build', 'npm', ['run', 'docs:build:verify'], { cwd: GIT_CWD })
-        } else {
-          pushResult('docs:build', 'SKIP', 0)
-          process.stdout.write(
-            'docs:build ... SKIP (no docs/, website/, or AGENTS.md changes vs origin/main)\n',
-          )
-        }
-      } catch {
-        pushResult('docs:build', 'SKIP', 0)
-        process.stdout.write('docs:build ... SKIP (could not compare changes with origin/main)\n')
-      }
     }
 
     // ─── check: T1 fast checks ───────────────────────────────────────────────────

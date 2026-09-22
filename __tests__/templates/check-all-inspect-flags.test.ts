@@ -142,6 +142,13 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arb-rendered-gate-'))
     try {
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+      for (const script of [
+        'pii-scan.mjs',
+        'check-secret-scan.mjs',
+        'check-no-tracked-artifacts.mjs',
+      ]) {
+        writeFileSync(join(dir, 'scripts', script), 'process.exit(0)\n')
+      }
       if (options.build) {
         writeFileSync(
           join(dir, 'package.json'),

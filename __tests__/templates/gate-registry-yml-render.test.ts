@@ -11,6 +11,33 @@ import { loadGateRegistry } from '../../src/generators/check-all.js'
 import { makeConfig } from '../helpers.js'
 
 describe('gate-registry.yml.ejs render (#2041)', () => {
+  it('keeps preflight to the three immediate safety diagnostics (#2773)', () => {
+    const cfg = makeConfig('/tmp/test', { language: 'typescript' }) as unknown as Record<
+      string,
+      unknown
+    >
+    const entries = loadGateRegistry({
+      ...cfg,
+      packageManager: 'npm',
+      coverageThreshold: 80,
+      coverageEnabled: true,
+      mutationEnabled: true,
+      isL2Plus: true,
+      isL3Plus: false,
+      isL4: false,
+    })
+
+    expect(entries.filter((entry) => entry.preflight).map((entry) => entry.id)).toEqual([
+      'pii-scan',
+      'secret-scan',
+      'no-tracked-artifacts',
+    ])
+    expect(entries.filter((entry) => entry.presuite).length).toBeGreaterThan(0)
+    const unitTests = entries.find((entry) => entry.id === 'unit-tests')
+    expect(unitTests?.preflight).toBeUndefined()
+    expect(unitTests?.presuite).toBeUndefined()
+  })
+
   it('renders, parses, and validates to a non-empty registry with id/level/kind shape', () => {
     const cfg = makeConfig('/tmp/test', { language: 'typescript' }) as unknown as Record<
       string,
