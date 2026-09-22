@@ -336,7 +336,7 @@
     "scripts/check-doc-freshness.mjs": "ebd11a6d4a1c3d36e7318f4460ee4b1a57623dbba2154af361bb8cde808d85b3",
     "scripts/check-doc-links.mjs": "064ca1c4a018fd118ff5ba0e9df9f62d5308c6878f40ec257e5e4f4adec585eb",
     "scripts/check-doc-set.mjs": "b1fe1296962f347f1e5ede43450fc1dd135deab06ede17a5ddf959cbd6ff2b01",
-    "scripts/check-domain-api-surface.mjs": "29d1dc71d6a4dd39fbabdf0dd6743a10f6a92cffee43c0b41c4724867a1bfb15",
+    "scripts/check-domain-api-surface.mjs": "e4056b1bb0e9ca7c03164bc8c2713517db3aefd655bab36ad8295bf07689b002",
     "scripts/check-drift.mjs": "c4d6c29c98889e31c1ac0e68999c54f22ac8689f1c6d06bc0a1a0f2f5f44dedd",
     "scripts/check-e2e-escalation.mjs": "c45f0d9b74168935023eb1ffdd47c14182fa5d04550667243accf21e33bf1ac7",
     "scripts/check-e2e-quarantine.mjs": "e41a47f4cfa948a51b1703d703b729adc14edf4df8bc54a9cd45145359e0427b",
