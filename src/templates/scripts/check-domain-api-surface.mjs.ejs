@@ -32,6 +32,7 @@ Options:
 
 Exit codes: 0 pass, 1 policy failure, 2 operational or manifest-schema error.`
 
+function main() {
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
   process.stdout.write(`${HELP}\n`)
@@ -267,3 +268,11 @@ if (schema) {
 }
 if (failures.length) fail(failures)
 process.stdout.write('domain-api surface (INV-125): OK\n')
+}
+
+try {
+  main()
+} catch (error) {
+  process.stderr.write(`[ERROR] ${error instanceof Error ? error.message : String(error)}\n`)
+  process.exit(2)
+}

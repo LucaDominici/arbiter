@@ -14,13 +14,15 @@ function integrationIncludePatterns(): string[] {
 }
 
 describe('check-all.mjs L1 wiring', () => {
-  it('does not run the consumer API-surface gate when self declares no public API', () => {
+  it('wires the API-surface gate but skips it when self declares no public API', () => {
     const config = JSON.parse(readFileSync(resolve('arbiter.json'), 'utf8')) as {
       hasPublicApi?: boolean
     }
 
     expect(config.hasPublicApi).toBe(false)
-    expect(content).not.toContain("runCheck('domain-api surface (INV-125)'")
+    expect(content).toContain('if (selfConfig.hasPublicApi === true)')
+    expect(content).toContain("runCheck('domain-api surface (INV-125)'")
+    expect(content).toContain('SKIP (hasPublicApi:false)')
   })
 
   it('keeps unit qualification in L1, coverage in L2, and both out of diagnostic preflight (#2605)', () => {
