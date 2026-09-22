@@ -125,6 +125,11 @@ describe('runWorktreeAdopt', () => {
       join(repo, 'node_modules', '@types', 'node'),
     )
     git(repo, 'worktree', 'add', '-b', 'feature/broken-dependencies', checkout)
+    mkdirSync(join(checkout, 'node_modules', '@types'), { recursive: true })
+    symlinkSync(
+      '../.pnpm/missing/node_modules/@types/node',
+      join(checkout, 'node_modules', '@types', 'node'),
+    )
 
     await expect(
       runWorktreeAdopt({ taskId: '#2799', worktreePath: checkout, cwd: repo }),
