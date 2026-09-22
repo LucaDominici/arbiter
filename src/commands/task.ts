@@ -1197,8 +1197,12 @@ function prepareLifecycleReviewRound(
     readTaskIdFromDisk(dir),
     previous.lastReviewedSha,
   )
-  if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) {
-    if (latestReviewerEnvelope !== undefined || opts.retryIncomplete !== true) return null
+  if (
+    head !== null &&
+    previous.rounds > 0 &&
+    latestReviewerEnvelope === undefined &&
+    opts.retryIncomplete === true
+  ) {
     return {
       rounds: previous.rounds,
       maxRounds,
@@ -1207,6 +1211,7 @@ function prepareLifecycleReviewRound(
       forced: previous.forced === true,
     }
   }
+  if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) return null
   const planned = planReviewRound(
     previous,
     maxRounds,
