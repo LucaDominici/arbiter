@@ -19,7 +19,7 @@
 // scripts swallow it silently — the hook keeps both behaviors byte-identical.
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 /**
  * Recursively collect `.yml`/`.yaml` file paths under `dir`.
@@ -115,14 +115,22 @@ function workflowMapping(parseYaml, path) {
   return value.jobs
 }
 
-function hasPullRequestTrigger(trigger) {
-  if (trigger === 'pull_request') return true
-  if (Array.isArray(trigger)) return trigger.includes('pull_request')
-  return (
-    typeof trigger === 'object' &&
-    trigger !== null &&
-    Object.prototype.hasOwnProperty.call(trigger, 'pull_request')
-  )
+function pullRequestCondition(trigger) {
+  if (trigger === 'pull_request' || (Array.isArray(trigger) && trigger.includes('pull_request'))) {
+    return 'workflow pull_request trigger'
+  }
+  if (
+    typeof trigger !== 'object' ||
+    trigger === null ||
+    !Object.prototype.hasOwnProperty.call(trigger, 'pull_request')
+  ) {
+    return null
+  }
+  const filters = trigger.pull_request
+  if (typeof filters !== 'object' || filters === null || Array.isArray(filters)) {
+    return 'workflow pull_request trigger'
+  }
+  return `workflow pull_request trigger ${JSON.stringify(filters)}`
 }
 
 function thresholdEntries(values, source) {
@@ -136,20 +144,33 @@ function thresholdEntries(values, source) {
     .map(([name, value]) => ({ name, value, source: `${source}#${name}` }))
 }
 
+function effectiveThresholdEntries(scopes) {
+  const effective = new Map()
+  for (const { values, source } of scopes) {
+    for (const threshold of thresholdEntries(values, source)) {
+      effective.set(threshold.name, threshold)
+    }
+  }
+  return [...effective.values()]
+}
+
 function genericWorkflowCommands(workflow, source) {
-  if (!hasPullRequestTrigger(workflow.on)) return []
+  const triggerCondition = pullRequestCondition(workflow.on)
+  if (triggerCondition === null) return []
   if (typeof workflow.jobs !== 'object' || workflow.jobs === null || Array.isArray(workflow.jobs)) {
     throw new Error('jobs object is missing')
   }
   const entries = []
-  const workflowThresholds = thresholdEntries(workflow.env, source)
   for (const [jobName, job] of Object.entries(workflow.jobs)) {
     if (typeof job !== 'object' || job === null || Array.isArray(job)) {
       throw new Error(`${jobName} has unsupported workflow-job structure`)
     }
+    const envScopes = [
+      { values: workflow.env, source: `${source}#env` },
+      { values: job.env, source: `${source}#jobs.${jobName}.env` },
+    ]
     const jobThresholds = [
-      ...workflowThresholds,
-      ...thresholdEntries(job.env, `${source}#jobs.${jobName}.env`),
+      ...effectiveThresholdEntries(envScopes),
       ...thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
     ]
     if (typeof job.uses === 'string') {
@@ -157,7 +178,7 @@ function genericWorkflowCommands(workflow, source) {
         name: jobName,
         source,
         command: job.uses,
-        condition: `workflow pull_request trigger && (${job.if ?? 'job is active'})`,
+        condition: `${triggerCondition} && (${job.if ?? 'job is active'})`,
         thresholds: jobThresholds,
         status: 'remote-dependent',
       })
@@ -168,12 +189,15 @@ function genericWorkflowCommands(workflow, source) {
     }
     for (const [index, step] of job.steps.entries()) {
       const entry = verificationCommandEntry(jobName, job, step, index, source, [
-        ...jobThresholds,
-        ...thresholdEntries(step?.env, `${source}#jobs.${jobName}.steps.${index}.env`),
+        ...effectiveThresholdEntries([
+          ...envScopes,
+          { values: step?.env, source: `${source}#jobs.${jobName}.steps.${index}.env` },
+        ]),
+        ...thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
         ...thresholdEntries(step?.with, `${source}#jobs.${jobName}.steps.${index}.with`),
       ])
       if (entry !== null) {
-        entry.condition = `workflow pull_request trigger && (${entry.condition})`
+        entry.condition = `${triggerCondition} && (${entry.condition})`
         entries.push(entry)
       }
     }
@@ -271,19 +295,18 @@ export async function inspectWorkflowContract(root) {
   ]
   const external = []
   const unresolved = []
+  const workflowPaths = collectYamlFiles(join(root, '.github', 'workflows'))
+  const workflowSource = (path) => relative(root, path).replaceAll('\\', '/')
   let parseYaml
   try {
     ;({ parse: parseYaml } = await import('yaml'))
   } catch (err) {
-    for (const [name] of definitions) {
-      const source = `.github/workflows/${name}`
-      if (existsSync(join(root, source))) {
-        unresolved.push({
-          name: 'CI workflow authority',
-          source,
-          reason: `YAML parser unavailable: ${err.message}`,
-        })
-      }
+    for (const path of workflowPaths) {
+      unresolved.push({
+        name: 'CI workflow authority',
+        source: workflowSource(path),
+        reason: `YAML parser unavailable: ${err.message}`,
+      })
     }
     return { external, unresolved }
   }
@@ -299,10 +322,10 @@ export async function inspectWorkflowContract(root) {
     }
   }
   const canonical = new Set(definitions.map(([name]) => name))
-  for (const path of collectYamlFiles(join(root, '.github', 'workflows'))) {
+  for (const path of workflowPaths) {
     const name = path.split('/').at(-1)
     if (canonical.has(name)) continue
-    const source = path.slice(root.length + 1)
+    const source = workflowSource(path)
     try {
       external.push(...genericWorkflowCommands(parseWorkflow(parseYaml, path), source))
     } catch (err) {
