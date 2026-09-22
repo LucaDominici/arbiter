@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import {
   chmodSync,
   mkdirSync,
@@ -41,6 +42,10 @@ function gitBlobSha(content: string): string {
   return createHash('sha1')
     .update(`blob ${Buffer.byteLength(content)}\0${content}`)
     .digest('hex')
+}
+
+function git(dir: string, args: string[]): string {
+  return execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim()
 }
 
 function gradleFixture(dir: string, xml: string | null, existingXml?: string): TddEvidence {
@@ -149,6 +154,43 @@ describe.sequential('verifyGreenExecution real runner output', () => {
         ['npx', 'vitest', 'run', testPath],
         gitBlobSha(recordedContent),
       ),
+      dir,
+    )
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/content|blob|recorded RED test/i)
+  })
+
+  it('derives RED content for legacy receipts without test_blob_sha', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-green-legacy-content-'))
+    dirs.push(dir)
+    symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
+    git(dir, ['init', '--quiet'])
+    git(dir, ['config', 'user.name', 'Arbiter Test'])
+    git(dir, ['config', 'user.email', 'arbiter-test@example.invalid'])
+    const testPath = 'recorded.test.ts'
+    writeFileSync(
+      join(dir, testPath),
+      "import { it, expect } from 'vitest'\nit('recorded RED', () => expect(1).toBe(2))\n",
+    )
+    git(dir, ['add', testPath])
+    git(dir, ['commit', '--quiet', '-m', 'record RED test'])
+    const redCommit = git(dir, ['rev-parse', 'HEAD'])
+    writeFileSync(
+      join(dir, testPath),
+      "import { it, expect } from 'vitest'\nit('unrelated', () => expect(1).toBe(1))\n",
+    )
+
+    const result = verifyGreenExecution(
+      {
+        $schemaVersion: 1,
+        task_id: '#2820',
+        test_path: testPath,
+        test_commit_sha: redCommit,
+        test_run_log: `FAIL ${testPath}\n1 test failed`,
+        observed_failure: `FAIL ${testPath}`,
+        recorded_at: '2026-09-22T00:00:00.000Z',
+        test_command: ['npx', 'vitest', 'run', testPath],
+      },
       dir,
     )
     expect(result.ok).toBe(false)
