@@ -442,7 +442,7 @@ it('runs frontend related tests in a mixed Java consumer', () => {
     cwd: dir,
     stdio: 'ignore',
   })
-  writeFileSync(join(dir, 'frontend', 'src', 'widget.ts'), 'export const widget = true\n')
+  writeFileSync(join(dir, 'frontend', 'src', 'widget.vue'), '<template><div /></template>\n')
   execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['commit', '-q', '-m', 'change frontend source'], {
     cwd: dir,
@@ -465,7 +465,7 @@ it('runs frontend related tests in a mixed Java consumer', () => {
 
   expect(result.status).toBe(0)
   expect(readFileSync(log, 'utf-8')).toBe(
-    `${join(dir, 'frontend')}\nvitest\nrelated\nsrc/widget.test.ts\nsrc/widget.ts\n--run\n`,
+    `${join(dir, 'frontend')}\nvitest\nrelated\nsrc/widget.test.ts\nsrc/widget.vue\n--run\n`,
   )
   rmSync(dir, { recursive: true, force: true })
 })
