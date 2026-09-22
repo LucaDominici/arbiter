@@ -107,12 +107,11 @@ function parseWorkflow(parseYaml, path) {
   return value
 }
 
-function workflowMapping(parseYaml, path) {
-  const value = parseWorkflow(parseYaml, path)
-  if (typeof value.jobs !== 'object' || value.jobs === null || Array.isArray(value.jobs)) {
+function workflowMapping(workflow) {
+  if (typeof workflow.jobs !== 'object' || workflow.jobs === null || Array.isArray(workflow.jobs)) {
     throw new Error('jobs object is missing')
   }
-  return value.jobs
+  return workflow.jobs
 }
 
 function pullRequestCondition(trigger) {
@@ -154,31 +153,24 @@ function effectiveThresholdEntries(scopes) {
   return [...effective.values()]
 }
 
-function genericWorkflowCommands(workflow, source) {
-  const triggerCondition = pullRequestCondition(workflow.on)
-  if (triggerCondition === null) return []
-  if (typeof workflow.jobs !== 'object' || workflow.jobs === null || Array.isArray(workflow.jobs)) {
-    throw new Error('jobs object is missing')
-  }
-  const entries = []
-  for (const [jobName, job] of Object.entries(workflow.jobs)) {
-    if (typeof job !== 'object' || job === null || Array.isArray(job)) {
-      throw new Error(`${jobName} has unsupported workflow-job structure`)
-    }
-    const envScopes = [
-      { values: workflow.env, source: `${source}#env` },
-      { values: job.env, source: `${source}#jobs.${jobName}.env` },
-    ]
-    if (typeof job.uses === 'string') {
-      entries.push({
+function reusableWorkflowEntry(jobName, job, source, triggerCondition) {
+  return {
         name: jobName,
         source,
         command: job.uses,
         condition: `${triggerCondition} && (${job.if ?? 'job is active'})`,
         thresholds: thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
         status: 'remote-dependent',
-      })
-      continue
+  }
+}
+
+function genericJobCommands(workflowEnv, jobName, job, source, triggerCondition) {
+  const entries = []
+  if (typeof job !== 'object' || job === null || Array.isArray(job)) {
+    throw new Error(`${jobName} has unsupported workflow-job structure`)
+  }
+  if (typeof job.uses === 'string') {
+    return [reusableWorkflowEntry(jobName, job, source, triggerCondition)]
     }
     if (!Array.isArray(job.steps)) {
       throw new Error(`${jobName} has unsupported workflow-job structure`)
@@ -186,7 +178,8 @@ function genericWorkflowCommands(workflow, source) {
     for (const [index, step] of job.steps.entries()) {
       const entry = verificationCommandEntry(jobName, job, step, index, source, [
         ...effectiveThresholdEntries([
-          ...envScopes,
+        { values: workflowEnv, source: `${source}#env` },
+        { values: job.env, source: `${source}#jobs.${jobName}.env` },
           { values: step?.env, source: `${source}#jobs.${jobName}.steps.${index}.env` },
         ]),
         ...thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
@@ -197,8 +190,16 @@ function genericWorkflowCommands(workflow, source) {
         entries.push(entry)
       }
     }
-  }
   return entries
+}
+
+function genericWorkflowCommands(workflow, source) {
+  const triggerCondition = pullRequestCondition(workflow.on)
+  if (triggerCondition === null) return []
+  const jobs = workflowMapping(workflow)
+  return Object.entries(jobs).flatMap(([jobName, job]) =>
+    genericJobCommands(workflow.env, jobName, job, source, triggerCondition),
+  )
 }
 
 function dependencyContract(jobs, source) {
@@ -283,11 +284,31 @@ function extendedContract(jobs, source) {
   return entries
 }
 
+function inspectCanonicalWorkflow(root, definition, parseYaml) {
+  const [name, build, discriminator] = definition
+  const source = `.github/workflows/${name}`
+  const path = join(root, source)
+  if (!existsSync(path)) return { external: [], unresolved: [] }
+  try {
+    const workflow = parseWorkflow(parseYaml, path)
+    const jobs = workflowMapping(workflow)
+    const entries = Object.prototype.hasOwnProperty.call(jobs, discriminator)
+      ? build(jobs, source)
+      : genericWorkflowCommands(workflow, source)
+    return { external: Array.isArray(entries) ? entries : [entries], unresolved: [] }
+  } catch (err) {
+    return {
+      external: [],
+      unresolved: [{ name: 'CI workflow authority', source, reason: err.message }],
+    }
+  }
+}
+
 /** Parse the checked-out PR workflows, or return explicit unresolved obligations. */
 export async function inspectWorkflowContract(root) {
   const definitions = [
-    ['01-pr-fast.yml', dependencyContract],
-    ['02-pr-extended.yml', extendedContract],
+    ['01-pr-fast.yml', dependencyContract, 'dependency-review'],
+    ['02-pr-extended.yml', extendedContract, 'check-trigger'],
   ]
   const external = []
   const unresolved = []
@@ -306,28 +327,10 @@ export async function inspectWorkflowContract(root) {
     }
     return { external, unresolved }
   }
-  for (const [name, build] of definitions) {
-    const source = `.github/workflows/${name}`
-    const path = join(root, source)
-    if (!existsSync(path)) continue
-    try {
-      const entries = build(workflowMapping(parseYaml, path), source)
-      external.push(...(Array.isArray(entries) ? entries : [entries]))
-    } catch (err) {
-      try {
-        const workflow = parseWorkflow(parseYaml, path)
-        if (pullRequestCondition(workflow.on) === null) {
-          throw new Error('pull_request trigger is missing')
-        }
-        external.push(...genericWorkflowCommands(workflow, source))
-      } catch (fallbackErr) {
-        unresolved.push({
-          name: 'CI workflow authority',
-          source,
-          reason: `${err.message}; generic fallback failed: ${fallbackErr.message}`,
-        })
-      }
-    }
+  for (const definition of definitions) {
+    const result = inspectCanonicalWorkflow(root, definition, parseYaml)
+    external.push(...result.external)
+    unresolved.push(...result.unresolved)
   }
   const canonical = new Set(definitions.map(([name]) => name))
   for (const path of workflowPaths) {
