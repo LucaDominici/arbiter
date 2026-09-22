@@ -269,7 +269,7 @@ if (!existsSync(markerPath)) {
     2,
     `[arbiter] GATE GUARD: No valid gate-pass.json or ci-pass.json found${rootNote}.\n` +
       `${ciReceipt.reason}\n` +
-      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.\n',
+      'Open a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.\n',
   )
 }
 
@@ -280,7 +280,7 @@ try {
   await exitAfterStderr(
     2,
     `[arbiter] GATE GUARD: gate-pass.json is invalid${rootNote}: ${err instanceof Error ? err.message : String(err)}\n` +
-      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.\n',
+      'Open a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.\n',
   )
 }
 
@@ -314,6 +314,6 @@ if (!verdict.ok) {
     2,
     `[arbiter] GATE GUARD: gate-pass.json is stale or does not bind this checkout${rootNote}.\n` +
       `${verdict.reason}\n` +
-      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.\n',
+      'Open a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.\n',
   )
 }

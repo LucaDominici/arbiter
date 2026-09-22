@@ -342,3 +342,25 @@ Tre run di CI su tre PR diverse sono cadute per `ETIMEDOUT` di `check-no-unused-
 end-to-end del dispatcher: il budget era fisso a 3 s. Ora `hooks.mjs` (self + template) legge
 `ARBITER_HOOK_TIMEOUT_MS` (default 3000, contratto invariato in produzione); il fixture
 end-to-end lo alza a 30 s sul runner caricato.
+
+## 2026-09-22 — #2775: parità della gate economy su Codex
+
+Dopo la consegna di #2773, la superficie Codex generata prescriveva ancora un L1 locale e un L2
+prima del push. Questo contraddiceva il contratto Ship attivo e avrebbe reintrodotto un gate completo
+locale in ogni consegna Codex. Il template `CODEX.md`, la sua riga di parità degli hook e il catalogo
+CLI ora prescrivono controlli mirati durante GREEN, un solo `preflight` sul candidato congelato e il
+full gate autorevole in CI sullo stesso SHA. Un test di rendering blocca il ritorno della vecchia
+prescrizione; la copia self `.agents/CODEX.md` è rimaterializzata dalla stessa emissione.
+
+La review indipendente ha poi trovato due autorità rimaste indietro: `AGENTS.md` imponeva ancora
+L2 locale e il runtime chiedeva un preflight manuale che il pre-push hook avrebbe rieseguito. Il
+batch finale allinea le superfici generate e assegna al primo push l'unico preflight locale; draft
+PR avvia CI e review, mentre la verifica attende solo la ricevuta CI esatta. Questo elimina un
+preflight duplicato misurato in circa 55 secondi per consegna e la suite completa ripetuta durante
+GREEN.
+
+Il primo push del candidato finale ha impiegato 56,9 s e si è fermato solo perché il mirror pubblico
+di `AGENTS.md` non era stato sincronizzato dopo l'ultima correzione self. Il controllo ha quindi
+impedito una consegna incoerente; la correzione è la sola rigenerazione del mirror, verificata prima
+del nuovo push. Il set degli artefatti derivati deve includere i mirror di governance quando cambia
+la loro autorità sorgente.

@@ -159,7 +159,7 @@ describe('legacy → unified migration (#1206, #549)', () => {
     mkdirSync(markerDir, { recursive: true })
     writeFileSync(join(markerDir, 'gate-pass.json'), '{not-json', 'utf-8')
     expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(
-      /corrupt.*node scripts\/check-all\.mjs preflight.*node scripts\/ci-receipt\.mjs/i,
+      /corrupt.*open a draft PR.*node scripts\/ci-receipt\.mjs/i,
     )
     expect(phaseOf()).toBe('verification')
   })
@@ -260,9 +260,7 @@ describe('legacy → unified migration (#1206, #549)', () => {
 
   it('verification → close rejects a missing gate-pass marker', () => {
     seedLegacy('verification')
-    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(
-      /check-all\.mjs preflight.*ci-receipt\.mjs/i,
-    )
+    expect(() => runTaskAdvance({ to: 'close', dir })).toThrow(/open a draft PR.*ci-receipt\.mjs/i)
     expect(phaseOf()).toBe('verification')
   })
 

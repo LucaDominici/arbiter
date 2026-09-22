@@ -90,7 +90,8 @@ describe('enforce-gate-before-pr hook', () => {
     const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --title "feat: test"' }, dir)
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('gate-pass.json')
-    expect(result.stderr).toContain('check-all.mjs')
+    expect(result.stderr).toContain('draft PR')
+    expect(result.stderr).toContain('ci-receipt.mjs')
   })
 
   it('exits 2 when marker head_sha does not match current HEAD', () => {
@@ -99,7 +100,8 @@ describe('enforce-gate-before-pr hook', () => {
     const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --title "feat: test"' }, dir)
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('stale')
-    expect(result.stderr).toContain('check-all.mjs')
+    expect(result.stderr).toContain('draft PR')
+    expect(result.stderr).toContain('ci-receipt.mjs')
   })
 
   it('exits 0 when marker head_sha matches current HEAD', () => {

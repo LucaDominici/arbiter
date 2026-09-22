@@ -174,21 +174,23 @@ Examples:
 ## Gate System
 
 ```
-L1 (delivery candidate): echo &#34;no lint configured&#34;
-                          npx prettier --check .
-                          npm run test
+Targeted development:    echo &#34;no lint configured&#34;
+                         npx prettier --check .
+                         npm run test
 
-L2 (full, pre-push):      L1 + coverage + audit + integration tests
+Preflight (local):        fast diagnostics + touched tests
+
+L2 (full, CI authority):  coverage + audit + integration tests
 
 L3 (deep, nightly/CI):    L2 + E2E + mutation testing
 
 L4 (compliance):          L3 + evidence harness + STRIDE risk + TRACK_ROUTER
 ```
 
-Run locally:
+Delivery qualification:
 ```bash
-node scripts/check-all.mjs L1   # qualify the frozen delivery candidate
-node scripts/check-all.mjs L2   # before push
+node scripts/check-all.mjs preflight   # run once by the pre-push hook
+node scripts/ci-receipt.mjs            # record exact-head CI before ready/merge
 ```
 
 ---
@@ -201,8 +203,8 @@ Changes pass through five enforcement layers:
 |-------|-----------|----------|
 | Edit-time | Claude Code hooks (`.claude/hooks/`) | Claude Code edits only |
 | Pre-commit | `.githooks/pre-commit` — staged secrets/economy checks and RED integrity | All editors (`git commit`) |
-| Pre-push | `.githooks/pre-push` — runs L2 gate | All pushes |
-| CI | GitHub Actions / equivalent | All PRs |
+| Pre-push | `.githooks/pre-push` — preflight plus touched tests | All pushes |
+| CI | GitHub Actions / equivalent — full gate on the exact pushed SHA | All PRs |
 | Branch protection | See ADR-007 | Force-push, direct merge |
 
 Install hooks: `git config core.hooksPath .githooks` (auto-applied via `npm install` — see `package.json` `prepare` script).

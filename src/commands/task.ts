@@ -96,7 +96,7 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
   refactor:
     'Phase: refactor\nAction: Clean up implementation. Tests must stay green.\nNext: Refactor done → arbiter lifecycle advance --to verification.',
   verification:
-    'Phase: verification\nAction: Run the local diagnostic: node scripts/check-all.mjs preflight; CI owns the full gate.\nNext: Record the CI verdict with node scripts/ci-receipt.mjs, then arbiter lifecycle advance --to close.',
+    'Phase: verification\nAction: The pre-push hook already ran one preflight; CI owns the full gate.\nNext: Record the exact-head CI verdict with node scripts/ci-receipt.mjs, then arbiter lifecycle advance --to close.',
   close:
     'Phase: close\nAction: CLOSER mode active — the closer-mode guard is wired in settings. Single named target, no new issues/refactor beyond the diff (findings → PARKING), no gate-appeasement deletions. Same error twice → 5-line root-cause or declare BLOCKED.\nNext: Commit, push, open/land the PR; foreground-wait on its checks. Merged + evidence → arbiter lifecycle advance --to complete.',
   complete:
@@ -1169,7 +1169,7 @@ function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
   if (ci.ok) return
   throw new Error(
     `${local.reason}; ${ci.reason}. ` +
-      'Run `node scripts/check-all.mjs preflight` for a local diagnostic, or `node scripts/ci-receipt.mjs` to record the CI verdict for HEAD.',
+      'Open a draft PR to start CI, then run `node scripts/ci-receipt.mjs` to record its verdict for HEAD before marking the PR ready.',
   )
 }
 

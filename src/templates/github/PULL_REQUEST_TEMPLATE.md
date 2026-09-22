@@ -8,8 +8,7 @@
 
 ## Gate Checklist
 
-- [ ] `node scripts/check-all.mjs L1` passes
-- [ ] `node scripts/check-all.mjs L2` passes
+- [ ] Exact-head CI full gate (`node scripts/check-all.mjs L2`) passes
 - [ ] No orphan TODOs (all TODO have task IDs)
 - [ ] No invariant violations (see AGENTS.md)
 - [ ] Tests added/updated for changed code

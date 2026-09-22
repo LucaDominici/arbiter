@@ -19,7 +19,8 @@ Canonical cross-tool entrypoint for the arbiter repository. Tool-specific shims 
 - Stack: TypeScript with strict mode.
 - Build: `npm run build`
 - Test: `npm run test`
-- Gate: `node scripts/check-all.mjs` (use `node scripts/check-all.mjs preflight` before freezing).
+- Gate: the pre-push hook runs `node scripts/check-all.mjs preflight` once; CI runs the full L2 gate
+  on the exact pushed SHA.
 
 ## Delivery
 
