@@ -70,7 +70,8 @@ function isTestFile(name) {
     /\.(java|kt)$/.test(name) /* JVM tests live under src/test → dir-gated below */ ||
     /_test\.(rs|go|py)$/.test(name) ||
     /^test_.*\.py$/.test(name) ||
-    /_spec\.rb$/.test(name)
+    /_spec\.rb$/.test(name) ||
+    /\.feature$/.test(name)
   )
 }
 
@@ -103,6 +104,7 @@ const MUTE_PATTERNS = [
 // the token) — this blocks the fake-green of burying the token in a STRING LITERAL to silence the
 // guard. An UNMARKED skip, or a marker with no reason, still fails closed.
 const EXEMPT_RE = /(?:^|\s)(?:\/\/+|#+|\*)\s*(?:arbiter-allow-skip|muted-test-exempt):\s*\S/
+const BDD_IGNORE_RE = /^@ignore\b|^@.*\s@ignore\b/
 
 /** Recursively collect gate-test file paths, gating JVM files to src/test/** dirs. */
 function collectTestFiles(dir, acc, inJvmTestTree) {
@@ -195,6 +197,11 @@ function main() {
     for (let i = 0; i < lines.length; i++) {
       const trimmed = lines[i].trim()
       const prev = i > 0 ? lines[i - 1] : ''
+      // INV-40: BDD @ignore is a hard failure, never an auditable exemption.
+      if (BDD_IGNORE_RE.test(trimmed)) {
+        findings.push({ file, rel, line: i + 1, label: 'BDD @ignore', text: trimmed })
+        continue
+      }
       if (EXEMPT_RE.test(lines[i]) || EXEMPT_RE.test(prev)) continue
       for (const { re, label } of MUTE_PATTERNS) {
         if (re.test(trimmed)) {
@@ -202,6 +209,17 @@ function main() {
         }
       }
     }
+  }
+
+  const bddIgnores = findings.filter((finding) => finding.label === 'BDD @ignore')
+  if (bddIgnores.length > 0) {
+    process.stderr.write(
+      'check-muted-test: BDD @ignore is a hard failure and cannot be exempted or baselined:\n',
+    )
+    for (const finding of bddIgnores) {
+      process.stderr.write(`  ${finding.file}:${finding.line}: ${finding.text}\n`)
+    }
+    return 1
   }
 
   // Group by file+label — the baseline unit.
