@@ -368,8 +368,7 @@ function checkNestedLinks(
 /** Append a `path → target (target missing)` entry when the symlink dangles. */
 function pushIfDangling(linkPath: string, displayPath: string, dangling: string[]): void {
   const target = readlinkSync(linkPath)
-  const resolvedTarget = resolve(dirname(linkPath), target)
-  if (!existsSync(resolvedTarget)) {
+  if (!existsSync(linkPath)) {
     dangling.push(`${displayPath} → ${target} (target missing)`)
   }
 }
