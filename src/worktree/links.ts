@@ -318,8 +318,8 @@ export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: stri
 }
 
 /**
- * #1873 T4: under 'symlink-children' the dest itself is a real dir — the links
- * live one level down. Check each top-level child symlink for a missing target.
+ * #1873 T4: under 'symlink-children' the dest itself is a real dir. Inspect its
+ * dependency tree for nested dangling links while deduplicating directory cycles.
  */
 function checkChildLinks(
   dirPath: string,
