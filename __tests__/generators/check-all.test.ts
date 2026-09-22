@@ -134,15 +134,21 @@ describe('generateCheckAll', () => {
       [
         'on:',
         '  pull_request:',
+        '    branches: [release]',
+        "    paths: ['api/**']",
+        'env:',
+        "  COVERAGE_THRESHOLD: '70'",
         'jobs:',
         '  verify:',
         "    if: github.event_name == 'pull_request'",
         '    env:',
-        "      COVERAGE_THRESHOLD: '90'",
+        "      COVERAGE_THRESHOLD: '80'",
         '    steps:',
         '      - uses: actions/checkout@abc123',
         '      - name: Full product gate',
         "        if: runner.os == 'Linux'",
+        '        env:',
+        "          COVERAGE_THRESHOLD: '90'",
         '        run: ./run.sh ci --level L2',
       ].join('\n'),
     )
@@ -166,11 +172,53 @@ describe('generateCheckAll', () => {
         name: 'verify: Full product gate',
         source: '.github/workflows/ci.yml',
         command: './run.sh ci --level L2',
-        condition: expect.stringMatching(/github\.event_name.*runner\.os/),
-        thresholds: [expect.objectContaining({ name: 'COVERAGE_THRESHOLD', value: '90' })],
+        condition: expect.stringMatching(
+          /branches.*release.*paths.*api\/\*\*.*github\.event_name.*runner\.os/,
+        ),
+        thresholds: [
+          expect.objectContaining({
+            name: 'COVERAGE_THRESHOLD',
+            value: '90',
+            source: expect.stringContaining('steps.1.env'),
+          }),
+        ],
       }),
     )
+    expect(
+      contract.external.find((entry) => entry.command === './run.sh ci --level L2')?.thresholds,
+    ).toHaveLength(1)
     expect(contract.external.some((entry) => entry.source.endsWith('nightly.yml'))).toBe(false)
+  })
+
+  it('fails closed for custom workflows when the emitted helper cannot load YAML', () => {
+    const workflows = join(dir, '.github', 'workflows')
+    mkdirSync(workflows, { recursive: true })
+    writeFileSync(
+      join(workflows, 'ci.yml'),
+      ['on: pull_request', 'jobs:', '  verify:', '    steps:', '      - run: npm test'].join('\n'),
+    )
+    const helper = join(dir, 'workflow-scan.mjs')
+    writeFileSync(
+      helper,
+      readFileSync(new URL('../../scripts/lib/workflow-scan.mjs', import.meta.url), 'utf8'),
+    )
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { inspectWorkflowContract } from ${JSON.stringify(pathToFileURL(helper).href)}; ` +
+          `console.log(JSON.stringify(await inspectWorkflowContract(${JSON.stringify(dir)})))`,
+      ],
+      { cwd: dir, encoding: 'utf8' },
+    )
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout).unresolved).toContainEqual(
+      expect.objectContaining({
+        source: '.github/workflows/ci.yml',
+        reason: expect.stringContaining('YAML parser unavailable'),
+      }),
+    )
   })
 
   it('generates scripts/check-all.mjs AND scripts/lib/run-helpers.mjs (#351, CANON-01)', () => {
