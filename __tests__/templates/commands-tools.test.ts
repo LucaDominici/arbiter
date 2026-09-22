@@ -132,6 +132,19 @@ describe('codex CODEX.md — workflow section', () => {
     expect(content).toMatch(/pre-push hook.*preflight/is)
     expect(content).not.toMatch(/Run `node scripts\/check-all\.mjs preflight`.*then push/is)
   })
+
+  it('keeps Arbiter self-governance on the hook-owned preflight', () => {
+    const agents = readFileSync(new URL('../../AGENTS.md', import.meta.url), 'utf8')
+    const catalog = readFileSync(
+      new URL('../../docs/internal/SYSTEM/INVARIANT-CATALOG.md', import.meta.url),
+      'utf8',
+    )
+    const content = `${agents}\n${catalog}`
+    expect(content).toMatch(/pre-push hook.*preflight/is)
+    expect(content).toMatch(/CI.*full L2 gate.*exact/is)
+    expect(content).not.toMatch(/preflight` before freezing|L1\s+# qualify the frozen/i)
+    expect(content).not.toMatch(/preflight\s+# before push/i)
+  })
 })
 
 describe('codex CODEX.md — Known Limitations parity section (#162)', () => {
