@@ -66,6 +66,7 @@ const TRACK_B_EXEMPT = new Set([
   'check-stack-conformity.mjs', // INV-121: emitted by check-stack-conformity.ts for target projects (#1312)
   'check-e2e-quarantine.mjs', // INV-130: emitted E2E reliability quarantine gate for target projects (#1445)
   'check-tdd-evidence.mjs', // INV-131: emitted TDD-evidence re-verification gate for target projects (#1446)
+  'check-domain-api-surface.mjs', // INV-125: emitted for targets with a public API; Arbiter self declares hasPublicApi:false
   'verify-module-coverage.mjs', // INV-134: emitted per-module coverage ratchet (advisory) for target projects (#1457)
   // Track-B workflow/FE gates: generated from src/templates/scripts/*.mjs.ejs into target
   // projects, never run as arbiter self-gates. Newly subtracted (#1664) because the
