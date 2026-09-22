@@ -197,6 +197,7 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     'gh pr create > /tmp/example',
     '$(gh pr create)',
     'printf "$(gh pr ready)"',
+    'printf "$(date; gh pr ready)"',
     'printf `gh pr ready`',
   ])('keeps an ambiguous PR completion claim fail-closed: %s', (command) => {
     const main = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-main-')))
