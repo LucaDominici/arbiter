@@ -238,22 +238,25 @@ fi
 # signal nothing can forward: SIGKILL. That is the orphan that finished long
 # after its push died and stamped a green marker for a tree it never tested.
 ORIG_DIR="$(pwd -P)"
-mapfile -t TOUCHED_TESTS < <(
+mapfile -t RELATED_TEST_INPUTS < <(
   cd "$ORIG_DIR"
-  if [ -d __tests__ ]; then
-    git diff --name-only origin/main...HEAD |
-      while IFS= read -r path; do
+  git diff --name-only origin/main...HEAD |
+    while IFS= read -r path; do
+      case "$path" in
+        *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) printf '%s\n' "$path" ;;
+      esac
+      if [ -d __tests__ ]; then
         basename="${path##*/}"
         basename="${basename%%.*}"
         find __tests__ -type f \( -name "${basename}.test.*" -o -name "${basename}-*.test.*" -o -name "${basename}.*.test.*" \)
-      done | sort -u
-  fi
+      fi
+    done | sort -u
 )
 
 run_light_gate() {
   ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/lib/gate-mutex.mjs run --dir "$ORIG_DIR" -- node scripts/check-all.mjs preflight
-  if [ "${#TOUCHED_TESTS[@]}" -gt 0 ]; then
-    npx vitest run "${TOUCHED_TESTS[@]}"
+  if [ "${#RELATED_TEST_INPUTS[@]}" -gt 0 ]; then
+    npx vitest related "${RELATED_TEST_INPUTS[@]}" --run
   fi
 }
 
