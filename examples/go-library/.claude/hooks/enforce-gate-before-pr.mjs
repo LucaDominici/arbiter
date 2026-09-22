@@ -122,8 +122,7 @@ const ambiguousGuardSegments = parsedSegments.filter(({ tokens, executableExpans
     ) ||
     tokens.some(
       (token, index) =>
-        executableExpansions[index] === true &&
-        /\bgh\s+pr\s+(?:create|ready)\b/.test(token),
+        executableExpansions[index] === true && /\bgh\s+pr\s+(?:create|ready)\b/.test(token),
     )
   )
 })
