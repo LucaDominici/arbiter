@@ -169,17 +169,13 @@ function genericWorkflowCommands(workflow, source) {
       { values: workflow.env, source: `${source}#env` },
       { values: job.env, source: `${source}#jobs.${jobName}.env` },
     ]
-    const jobThresholds = [
-      ...effectiveThresholdEntries(envScopes),
-      ...thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
-    ]
     if (typeof job.uses === 'string') {
       entries.push({
         name: jobName,
         source,
         command: job.uses,
         condition: `${triggerCondition} && (${job.if ?? 'job is active'})`,
-        thresholds: jobThresholds,
+        thresholds: thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
         status: 'remote-dependent',
       })
       continue
