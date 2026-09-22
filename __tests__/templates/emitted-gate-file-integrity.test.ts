@@ -71,6 +71,10 @@ function runRenderedGate(
   writeFileSync(join(scripts, 'lib', 'run-helpers.mjs'), render('scripts/lib/run-helpers.mjs.ejs'))
   // #2427: the emitted gate imports the per-repo mutex helper.
   writeFileSync(join(scripts, 'lib', 'gate-mutex.mjs'), render('scripts/lib/gate-mutex.mjs.ejs'))
+  writeFileSync(
+    join(scripts, 'lib', 'workflow-scan.mjs'),
+    'export async function inspectWorkflowContract() { return { external: [], unresolved: [] } }\n',
+  )
   const bin = writeSuccessfulCommandStubs(dir)
   return spawnSync(process.execPath, [join(scripts, 'check-all.mjs'), ...args], {
     cwd: dir,
@@ -264,7 +268,7 @@ describe('rendered check-all — emitted guard deletion (#2197)', () => {
     expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
   })
 
-  it('reports but does not fail a deleted emitted guard during dry-run (AC-11)', () => {
+  it('reports a deleted emitted guard in the preventive contract (AC-11)', () => {
     const dir = tempDir('arbiter-2197-dry-run-guard-deleted-')
     writeFileSync(
       join(dir, '.arbiter-generated-manifest.json'),
@@ -272,11 +276,16 @@ describe('rendered check-all — emitted guard deletion (#2197)', () => {
     )
 
     const result = runRenderedGate(dir, {}, ['L1', '--dry-run'])
-    const output = result.stdout + result.stderr
+    const contract = JSON.parse(result.stdout) as {
+      unresolved: Array<{ source: string; reason: string }>
+    }
 
     expect(result.status).toBe(0)
-    expect(output).toContain(
-      '[CHECK] static analysis ... DRY-RUN (would FAIL — eslint.config.static.mjs was emitted by arbiter and is now missing)',
+    expect(contract.unresolved).toContainEqual(
+      expect.objectContaining({
+        source: 'eslint.config.static.mjs',
+        reason: 'emitted verification authority is missing',
+      }),
     )
     expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
   })

@@ -260,6 +260,10 @@ if (dryRun) {
       } : _g.bindings ? { bindings: _g.bindings } : {}),
     }));
   const _contractBindings = _contractGates.flatMap((_gate) => _gate.bindings ?? []);
+  const _conditionBindings = _contractGates.flatMap((_gate) =>
+    [...String(_gate.condition ?? '').matchAll(/gateFilePresent\('([^']+)'/g)]
+      .map((_match) => _match[1]),
+  );
   const _requiredBindings = _contractBindings
     .filter((_binding) => _binding.required === true)
     .map((_binding) => _binding.source);
@@ -273,10 +277,13 @@ if (dryRun) {
     'scripts/check-all.mjs',
     'arbiter.json',
     ..._contractBindings.map((_binding) => _binding.source),
+    ..._conditionBindings.filter((_path) => gateFileState(_path) === 'present'),
     ..._workflowAuthority,
   ];
   const _missingContractAuthority = [...new Set(_requiredBindings)]
     .filter((_path) => !existsSync(_path));
+  const _deletedConditionBindings = [...new Set(_conditionBindings)]
+    .filter((_path) => gateFileState(_path) === 'deleted');
   if (false && _workflowAuthority.length === 0) {
     _missingContractAuthority.push(_workflowDir);
   }
@@ -297,7 +304,11 @@ if (dryRun) {
       name: 'verification authority',
       source: _path,
       reason: 'required verification authority is missing',
-    })).concat(_debtContractReason ? [{
+    })).concat(_deletedConditionBindings.map((_path) => ({
+      name: 'verification authority',
+      source: _path,
+      reason: 'emitted verification authority is missing',
+    }))).concat(_debtContractReason ? [{
       name: 'debt threshold authority',
       source: 'scripts/debt-baseline.json',
       reason: _debtContractReason,

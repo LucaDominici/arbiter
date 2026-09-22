@@ -175,6 +175,35 @@ if (isMain) {
       return []
     }
   }
+  function debtContractThresholds(path = 'scripts/debt-baseline.json') {
+    if (!dryRun || !existsSync(path)) return []
+    try {
+      const metrics = JSON.parse(readFileSync(path, 'utf8')).metrics
+      if (!metrics || typeof metrics !== 'object') throw new Error('metrics object is missing')
+      return Object.entries(metrics).map(([name, metric]) => ({
+        name,
+        value: metric.value,
+        source: `${path}#metrics.${name}.value`,
+        direction: metric.direction,
+        ...(DEBT_METRIC_COMMANDS[name]
+          ? {
+              measurement: commandText(
+                DEBT_METRIC_COMMANDS[name][0],
+                DEBT_METRIC_COMMANDS[name].slice(1),
+              ),
+            }
+          : {}),
+      }))
+      // FAIL-OPEN-INTENT: the parse error becomes a blocking unresolved contract entry below.
+    } catch (err) {
+      contractReadErrors.push({
+        name: 'debt threshold authority',
+        source: path,
+        reason: `threshold authority is unreadable: ${err.message}`,
+      })
+      return []
+    }
+  }
   function commandText(command, args) {
     return [command, ...args]
       .map((part) => (/^[A-Za-z0-9_./:@=-]+$/.test(part) ? part : JSON.stringify(part)))
@@ -804,13 +833,13 @@ if (isMain) {
           {
             contract: {
               condition: 'coverage passed',
-              thresholds: Object.entries(
-                JSON.parse(readFileSync('.coverage-baseline.json', 'utf-8')),
-              ).map(([name, value]) => ({
-                name,
-                value,
-                source: `.coverage-baseline.json#${name}`,
-              })),
+              thresholds: jsonContractThresholds('.coverage-baseline.json', [
+                { key: 'lines', name: 'lines' },
+                { key: 'branches', name: 'branches' },
+                { key: 'functions', name: 'functions' },
+                { key: 'statements', name: 'statements' },
+              ]),
+              bindings: [{ source: '.coverage-baseline.json', required: true }],
             },
           },
         )
@@ -881,22 +910,7 @@ if (isMain) {
           {
             contract: {
               condition: 'coverage passed',
-              thresholds: Object.entries(
-                JSON.parse(readFileSync('scripts/debt-baseline.json', 'utf-8')).metrics,
-              ).map(([name, metric]) => ({
-                name,
-                value: metric.value,
-                source: `scripts/debt-baseline.json#metrics.${name}.value`,
-                direction: metric.direction,
-                ...(DEBT_METRIC_COMMANDS[name]
-                  ? {
-                      measurement: commandText(
-                        DEBT_METRIC_COMMANDS[name][0],
-                        DEBT_METRIC_COMMANDS[name].slice(1),
-                      ),
-                    }
-                  : {}),
-              })),
+              thresholds: debtContractThresholds(),
               bindings: [
                 { source: 'scripts/debt-baseline.json', required: true },
                 { source: 'scripts/lib/debt-metric-contract.mjs', required: true },
