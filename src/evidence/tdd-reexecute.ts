@@ -11,7 +11,7 @@ import {
   repositoryRelativeLog,
   type TddEvidence,
 } from './tdd.js'
-import { blobShaInCommit, gitCwd, resolveEvidenceCommit } from './git-checks.js'
+import { gitCwd } from './git-checks.js'
 import { mkdtempTranslated, rmTranslated, symlinkTranslated } from '../utils/fs.js'
 
 function resolveRecordedTestCwd(repoDir: string, cwdRelative?: string): string | null {
@@ -196,14 +196,6 @@ function matchesRecordedTestContent(path: string, expected: string | undefined):
   }
 }
 
-function expectedGreenTestBlob(ev: TddEvidence, repoDir: string): string | null | undefined {
-  if (ev.test_blob_sha !== undefined) return ev.test_blob_sha
-  if (!existsSync(join(repoDir, '.git'))) return undefined
-  const resolved = resolveEvidenceCommit(ev, repoDir)
-  if (resolved === null || 'degraded' in resolved) return null
-  return blobShaInCommit(resolved.sha, ev.test_path, repoDir)
-}
-
 function gradleSnapshotBefore(
   framework: string | undefined,
   root: string,
@@ -216,11 +208,7 @@ function greenTestPathFailure(repoDir: string, ev: TddEvidence): string | null {
   if (!testPath.startsWith(`${repoDir}${sep}`) || !existsSync(testPath)) {
     return `recorded test_path "${ev.test_path}" is missing from the current checkout`
   }
-  const expectedBlob = expectedGreenTestBlob(ev, repoDir)
-  if (expectedBlob === null) {
-    return `recorded RED test content for "${ev.test_path}" is unavailable from the RED commit`
-  }
-  if (expectedBlob !== undefined && !matchesRecordedTestContent(testPath, expectedBlob)) {
+  if (!matchesRecordedTestContent(testPath, ev.test_blob_sha)) {
     return `recorded RED test content at "${ev.test_path}" differs from the current checkout`
   }
   return null
