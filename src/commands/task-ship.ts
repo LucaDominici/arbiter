@@ -401,8 +401,8 @@ function shipStepBody(
       return {
         phase,
         action:
-          'Run `node scripts/check-all.mjs preflight` as a local diagnostic; push the frozen candidate so CI runs the full gate on that SHA and is the verification authority; record the CI verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.',
-        command: 'node scripts/check-all.mjs preflight',
+          'The pre-push hook already ran one local preflight plus touched tests before the draft PR; CI runs the full gate on that SHA and is the verification authority. Record its verdict with `node scripts/ci-receipt.mjs` before `advance --to close`.',
+        command: 'node scripts/ci-receipt.mjs',
         reviewAgents: 0,
         // Self-only authoring gates run here for arbiter-self only; a consumer repo has no
         // such concern, so the list is empty (skipped, not faked — ADR-093 §5 / INV-115).

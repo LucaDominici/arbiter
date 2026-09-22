@@ -3,7 +3,7 @@
 // <%= projectName %> quality gate
 // Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
 // L1: format + lint + unit tests (fast, frozen-candidate qualification)
-// L2: L1 + coverage + audit (full, pre-push)
+// L2: L1 + coverage + audit (full, CI authority)
 // --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -950,7 +950,7 @@ if (_inlineInspect('playwright rules', 'npx eslint --config eslint.config.playwr
 <%_ } _%>
 <% } %>
 }
-// ── L2 (full checks — pre-push) ──────────────────────────────────────────
+// ── L2 (full checks — CI authority) ──────────────────────────────────────
 if (level !== 'L1') {
 <% for (const g of l2) { %>
 <% if (g.emitIf !== undefined && !eval('(' + g.emitIf + ')')) continue; %>

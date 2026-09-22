@@ -108,9 +108,9 @@ const HOOK_DESCRIPTORS: Record<string, KnownLimitationRow | 'infra'> = {
   },
   'enforce-gate-before-pr.mjs': {
     name: 'enforce-gate-before-pr.mjs',
-    enforces: 'Blocks PR creation before the local gate passed',
+    enforces: 'Allows draft PRs after preflight; blocks ready PRs without a full-gate receipt',
     codexEquivalent: bridgedPlusGate(
-      'local `node scripts/check-all.mjs preflight`; exact-head full gate in CI',
+      'draft PR after hook-owned preflight; ready PR after exact-head CI receipt',
     ),
   },
   'post-commit-check.mjs': {

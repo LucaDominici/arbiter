@@ -173,7 +173,7 @@
     "test-pyramid.json"
   ],
   "contentHashes": {
-    ".agents/CODEX.md": "17991c81ce5cd7ba5a3fe30407cd6b8e8d2541ab08c705bcbef5c831d2bc3e0a",
+    ".agents/CODEX.md": "8daac9dccd763489d01afb10983de1b2eff7bd2fadeb7f6213c067b39ef0f0c5",
     ".agents/rules/05-agent-lifecycle.md": "7a716ad838618583381d2bb9cdd9238655f6545f0644da6b5c6783f9dc4c5745",
     ".agents/rules/50-batch-execution.md": "f44fb92f88eab98f1853143ba8c81bcaf5b17af07a11b367c6a522ff91ce9b17",
     ".agents/rules/60-incidental-capture.md": "22e9abbfabc71e0bff4f5748ab67c73a093a8c3f04ba960e1f0cac1ba99e376d",
@@ -197,7 +197,7 @@
     ".prettierrc.json": "2ba158185b0ad7f72c160eb17eaf3ea0cfadfffdf6ebc0377a25f8d5a21eb1ae",
     ".shellcheckrc": "4be13d25a591b7ccea25533c3b8ddadef14f3528783e9c4dc8b6b3768187d92a",
     ".yamllint.yml": "2558bb170aae1f063d039e992d763cc9564ac9a4edb172e1ff1b2e21e202d2b5",
-    "AGENTS.md": "66183f47abf6c07ea0990983eaee8a81150feac07bfa68ebac0ba71296f54151",
+    "AGENTS.md": "80b3715eb197dc064ae0c90d78d136e3fd4c91fa3272a81ba7411e9c67660260",
     "CONTRIBUTING.md": "d17f0c8645b81d5b577909ee75a4d084f18904472ed3e1f7454553e60327193f",
     "DECISION_REGISTRY.md": "3dca276806ee67a9a3f60f86c812c1048f46ebe2936bfa44dd59411cda62715f",
     "Makefile": "3836cdc33e35a866ba6c02036591d47f6b80668f9d07c735b69892576efe8ab1",
@@ -233,7 +233,7 @@
     "scripts/capacity-probe.mjs": "df53c9eb95e789b76907287100fb1e45fbd04a53bc9902d5b288c2a7a6032b36",
     "scripts/check-acceptance.mjs": "59a50cc5fb74e097e4ea7eeb008baca6b183e06350a486ab2f7c9e4119c5a20e",
     "scripts/check-action-pins.mjs": "898c0ef27b61d41fd495c45b951881e3070403a77cecec47e960d4ced47c3506",
-    "scripts/check-all.mjs": "40dd2230866bcae2d53e18791a443a636448e99a33aed48326a054847d37c368",
+    "scripts/check-all.mjs": "e86b1ce8de26c16b1bb157ed9015ca7715a6483563c8d2259dd8ef146d01cba8",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "2ee5932a101fff522c4fc9d7e4aec69b35fbd69c2b73f9bbc03b256042d7175d",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",

@@ -56,15 +56,16 @@ At **<%= governanceLevel %>**, T0 runs:
 - Debt ratchet (duplication + complexity must not regress)
 <% } %>
 
-**Script:** staged safety/economy checks at checkpoint commits; `node scripts/check-all.mjs L1` once on the frozen candidate; `node scripts/check-all.mjs L2` before push
+**Script:** staged safety/economy checks at checkpoint commits; the pre-push hook runs one
+`node scripts/check-all.mjs preflight` plus touched tests. CI runs the full gate on the exact SHA.
 
 ---
 
 ## T1 — PR-Fast
 
 <% if (collaborationMode === 'trunk-solo') { %>
-> **trunk-solo mode:** No PR is required by default. T1 gates run as part of the pre-push hook
-> (L2 gate). The developer merges directly to main after local L2 passes.
+> **trunk-solo mode:** No PR is required by default. The pre-push hook remains light; T1 CI runs
+> the full gate on the exact pushed SHA, and delivery stays incomplete until its receipt is green.
 <% } else { %>
 **Trigger:** PR open or sync
 **Wall-clock:** < 5 minutes (ceil 10)
@@ -228,7 +229,7 @@ This check is the technical enforcement of the reactivation trigger declared in
 | Integration tests | T1/T2 (PR) — blocks merge |
 | SAST | T1/T2 (PR) — blocks merge |
 <% } else { %>
-| Coverage threshold | T0 (L2 pre-push hook) — blocks push |
+| Coverage threshold | T1 (exact-head CI full gate) — blocks completion |
 | Integration tests | T4 (nightly) — alerts; does not block push |
 <% } %>
 | Release artifact signing | T3 (release) — blocks release |

@@ -402,7 +402,8 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
       `advanced to verification; next gate (close) not yet satisfied: ` +
         `gate-pass marker missing at ${join(dir, '.arbiter', 'gate-pass.json')}`,
     )
-    expect(result.step.action).toContain('node scripts/check-all.mjs preflight')
+    expect(result.step.action).toContain('Open a draft PR to start CI')
+    expect(result.step.action).not.toContain('node scripts/check-all.mjs preflight')
     expect(result.step.action).toContain('node scripts/ci-receipt.mjs')
     expect(readUnifiedState(dir)?.phase).toBe('verification')
     const log = readFileSync(join(dir, '.claude', '.task', 'log.md'), 'utf-8')
@@ -735,7 +736,7 @@ describe('ship final-gate action ordering', () => {
     const sequence = `${verification.action} ${close.action}`
     expect(verification.command).toBe('node scripts/ci-receipt.mjs')
     expect(sequence).toContain('node scripts/done-evidence.mjs')
-    expect(sequence.match(/check-all\.mjs/g)).toHaveLength(1)
+    expect(sequence).not.toContain('check-all.mjs')
     expect(close.action).toContain('Reuse the recorded CI verdict')
     expect(close.action).toContain('node scripts/pr-merge-watch.mjs <owner/repo> <pr>')
     expect(close.action).toMatch(

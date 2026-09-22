@@ -3,7 +3,7 @@
 // python-library quality gate
 // Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
 // L1: format + lint + unit tests (fast, frozen-candidate qualification)
-// L2: L1 + coverage + audit (full, pre-push)
+// L2: L1 + coverage + audit (full, CI authority)
 // --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -1003,7 +1003,7 @@ runCheck('milestones (INV-146)', 'node', ['scripts/check-milestones.mjs']);
 
 
 }
-// ── L2 (full checks — pre-push) ──────────────────────────────────────────
+// ── L2 (full checks — CI authority) ──────────────────────────────────────
 if (level !== 'L1') {
 
 
@@ -1074,7 +1074,7 @@ runCheck('tabletop evidence (#2429)', 'node', ['scripts/check-tabletop-evidence.
 
 
 }
-// ── L2 (full checks — pre-push) ──────────────────────────────────────────
+// ── L2 (full checks — CI authority) ──────────────────────────────────────
 if (level !== 'L1') {
 
 

@@ -85,7 +85,7 @@ describe('codex CODEX.md — workflow section', () => {
   it('keeps canonical AGENTS guidance on one local preflight and exact-head CI', () => {
     const content = renderAgentsMd(makeConfig('/tmp/test', { language: 'typescript' }))
     expect(content).toContain('node scripts/check-all.mjs preflight')
-    expect(content).toMatch(/CI.*full gate.*exact SHA/is)
+    expect(content).toMatch(/CI.*full gate.*exact (?:pushed )?SHA/is)
     expect(content).not.toMatch(/L2 \(full, pre-push\)|L2.*before push|Pre-push.*runs L2/i)
   })
 
@@ -100,8 +100,8 @@ describe('codex CODEX.md — workflow section', () => {
       renderTemplate('governance/solo-dev-exception.md.ejs', config),
     ]
     for (const content of surfaces) {
-      expect(content).toContain('node scripts/check-all.mjs preflight')
-      expect(content).toMatch(/CI.*full gate.*exact SHA/is)
+      expect(content).toContain('scripts/check-all.mjs preflight')
+      expect(content).toMatch(/CI.*full gate.*exact (?:pushed )?SHA/is)
       expect(content).not.toMatch(/L2.*before push|L2 gate.*pre-push|L2.*every push/i)
     }
   })

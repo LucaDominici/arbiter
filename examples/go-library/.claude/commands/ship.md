@@ -69,8 +69,8 @@ The cost of a delivery is turns multiplied by context, so keep both small.
 - Read files by range and search before you read. Send long command output to a file and inspect
   its end; never pipe a gate or a test run through `tail` or `head`, because the pipe reports the
   pager's exit status and hides a failure.
-- After the last commit run `node scripts/check-all.mjs preflight` and fix everything it reports
-  before freezing; only a candidate that passes preflight is frozen and sent to review.
+- Finish targeted checks before freezing. The first push runs one preflight plus touched tests in
+  the pre-push hook before the frozen candidate is sent to CI and review.
 - Run the full gate once on the frozen candidate. A green gate is not repeated while HEAD is
   unchanged.
 
@@ -165,7 +165,7 @@ the acceptance-fit view under the same frozen-subject and citation rules.
 
 ## Gate economy
 
-Run `node scripts/check-all.mjs preflight` as a local diagnostic, then push the frozen candidate;
+Push the frozen candidate once; the pre-push hook runs its single local preflight plus touched tests.
 CI runs the full gate on that SHA and is the verification authority. Record the CI verdict with
 `node scripts/ci-receipt.mjs` before `advance --to close`. PR and pre-push paths consume the same
 receipt.

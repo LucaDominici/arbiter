@@ -351,3 +351,10 @@ locale in ogni consegna Codex. Il template `CODEX.md`, la sua riga di parità de
 CLI ora prescrivono controlli mirati durante GREEN, un solo `preflight` sul candidato congelato e il
 full gate autorevole in CI sullo stesso SHA. Un test di rendering blocca il ritorno della vecchia
 prescrizione; la copia self `.agents/CODEX.md` è rimaterializzata dalla stessa emissione.
+
+La review indipendente ha poi trovato due autorità rimaste indietro: `AGENTS.md` imponeva ancora
+L2 locale e il runtime chiedeva un preflight manuale che il pre-push hook avrebbe rieseguito. Il
+batch finale allinea le superfici generate e assegna al primo push l'unico preflight locale; draft
+PR avvia CI e review, mentre la verifica attende solo la ricevuta CI esatta. Questo elimina un
+preflight duplicato misurato in circa 55 secondi per consegna e la suite completa ripetuta durante
+GREEN.
