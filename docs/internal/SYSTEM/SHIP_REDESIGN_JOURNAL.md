@@ -342,3 +342,12 @@ Tre run di CI su tre PR diverse sono cadute per `ETIMEDOUT` di `check-no-unused-
 end-to-end del dispatcher: il budget era fisso a 3 s. Ora `hooks.mjs` (self + template) legge
 `ARBITER_HOOK_TIMEOUT_MS` (default 3000, contratto invariato in produzione); il fixture
 end-to-end lo alza a 30 s sul runner caricato.
+
+## 2026-09-22 — #2775: parità della gate economy su Codex
+
+Dopo la consegna di #2773, la superficie Codex generata prescriveva ancora un L1 locale e un L2
+prima del push. Questo contraddiceva il contratto Ship attivo e avrebbe reintrodotto un gate completo
+locale in ogni consegna Codex. Il template `CODEX.md`, la sua riga di parità degli hook e il catalogo
+CLI ora prescrivono controlli mirati durante GREEN, un solo `preflight` sul candidato congelato e il
+full gate autorevole in CI sullo stesso SHA. Un test di rendering blocca il ritorno della vecchia
+prescrizione; la copia self `.agents/CODEX.md` è rimaterializzata dalla stessa emissione.

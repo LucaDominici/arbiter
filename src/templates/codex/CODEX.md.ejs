@@ -37,7 +37,8 @@ Follow this lifecycle for every task:
 1. **Start**: Read GitHub issue → read `AGENTS.md` → create `task/#NNN-description` branch
 2. **Plan**: Freeze acceptance, non-goals, file manifest, proof and rollback in the active Ship plan
 3. **Implement**: Write tests first, then implementation. Run `<%= testCommand %>` after each unit
-4. **Qualify**: Run targeted checks while editing, one L1 on the frozen candidate, and L2 before push
+4. **Qualify**: Run targeted checks while editing, then one `node scripts/check-all.mjs preflight`
+   on the frozen candidate; CI runs the full gate on that exact SHA
 5. **Finalize**: Commit → push → PR → verify CI → merge
 
 ## Command Translation
@@ -47,8 +48,8 @@ Follow this lifecycle for every task:
 | `/ship #NNN` | **Orchestration entrypoint** — drive an issue to a merged PR |
 | `arbiter lifecycle` | Low-level engine/CLI for recovery or direct lifecycle control |
 | `<%= testCommand %>` | Run tests for this stack |
-| `node scripts/check-all.mjs L1` | Qualify the frozen delivery candidate |
-| `node scripts/check-all.mjs L2` | Run before push/PR |
+| `node scripts/check-all.mjs preflight` | Qualify the frozen candidate locally before push |
+| `node scripts/ci-receipt.mjs` | Record the exact-head full CI verdict before close |
 
 ## Hard Stops
 

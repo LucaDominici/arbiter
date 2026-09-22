@@ -48,7 +48,8 @@ Follow this lifecycle for every task:
 1. **Start**: Read GitHub issue → read `AGENTS.md` → create `task/#NNN-description` branch
 2. **Plan**: Freeze acceptance, non-goals, file manifest, proof and rollback in the active Ship plan
 3. **Implement**: Write tests first, then implementation. Run `npm run test` after each unit
-4. **Qualify**: Run targeted checks while editing, one L1 on the frozen candidate, and L2 before push
+4. **Qualify**: Run targeted checks while editing, then one `node scripts/check-all.mjs preflight`
+   on the frozen candidate; CI runs the full gate on that exact SHA
 5. **Finalize**: Commit → push → PR → verify CI → merge
 
 ## Command Translation
@@ -58,8 +59,8 @@ Follow this lifecycle for every task:
 | `/ship #NNN` | **Orchestration entrypoint** — drive an issue to a merged PR |
 | `arbiter lifecycle` | Low-level engine/CLI for recovery or direct lifecycle control |
 | `npm run test` | Run tests for this stack |
-| `node scripts/check-all.mjs L1` | Qualify the frozen delivery candidate |
-| `node scripts/check-all.mjs L2` | Run before push/PR |
+| `node scripts/check-all.mjs preflight` | Qualify the frozen candidate locally before push |
+| `node scripts/ci-receipt.mjs` | Record the exact-head full CI verdict before close |
 
 ## Hard Stops
 
@@ -97,7 +98,7 @@ or pass `codex exec --dangerously-bypass-hook-trust` in automation. Editing
 | `pre-edit-ssot-guard.mjs` | Warns on SSOT/governance file edits | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `check-no-orphan-todo.mjs` | Blocks bare TODO without task ID (INV-06) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `check-no-placeholders.mjs` | Blocks stub content and unfinished scaffolding in edited files | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
-| `enforce-gate-before-pr.mjs` | Blocks PR creation before the local gate passed | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: `node scripts/check-all.mjs L2` before push |
+| `enforce-gate-before-pr.mjs` | Blocks PR creation before the local gate passed | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs`; gate: local `node scripts/check-all.mjs preflight`; exact-head full gate in CI |
 | `pre-spawn-worktree-guard.mjs` | Refuses a second write-intent sub-agent spawn onto the main tree (E5 #1947) | None — manual worktree discipline |
 | `post-subagent-release.mjs` | SubagentStop cleanup companion to pre-spawn-worktree-guard.mjs — releases the finished dispatch agents-active.json sidecar entry (#2403) | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
 | `post-commit-check.mjs` | Reports one advisory line for a non-conventional commit or an unavailable check; otherwise silent; always exits 0 | Real-time: bridged via `.codex/config.toml` → `codex-adapter.mjs` |
