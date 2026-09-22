@@ -126,6 +126,53 @@ describe('generateCheckAll', () => {
     ])
   })
 
+  it('extracts non-canonical pull-request workflows instead of silently omitting them', async () => {
+    const workflows = join(dir, '.github', 'workflows')
+    mkdirSync(workflows, { recursive: true })
+    writeFileSync(
+      join(workflows, 'ci.yml'),
+      [
+        'on:',
+        '  pull_request:',
+        'jobs:',
+        '  verify:',
+        "    if: github.event_name == 'pull_request'",
+        '    env:',
+        "      COVERAGE_THRESHOLD: '90'",
+        '    steps:',
+        '      - uses: actions/checkout@abc123',
+        '      - name: Full product gate',
+        "        if: runner.os == 'Linux'",
+        '        run: ./run.sh ci --level L2',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(workflows, 'nightly.yml'),
+      [
+        'on:',
+        '  schedule:',
+        "    - cron: '0 0 * * *'",
+        'jobs:',
+        '  deep:',
+        '    steps:',
+        '      - run: ./run.sh ci --level L3',
+      ].join('\n'),
+    )
+
+    const contract = await inspectWorkflowContract(dir)
+    expect(contract.unresolved).toEqual([])
+    expect(contract.external).toContainEqual(
+      expect.objectContaining({
+        name: 'verify: Full product gate',
+        source: '.github/workflows/ci.yml',
+        command: './run.sh ci --level L2',
+        condition: expect.stringMatching(/github\.event_name.*runner\.os/),
+        thresholds: [expect.objectContaining({ name: 'COVERAGE_THRESHOLD', value: '90' })],
+      }),
+    )
+    expect(contract.external.some((entry) => entry.source.endsWith('nightly.yml'))).toBe(false)
+  })
+
   it('generates scripts/check-all.mjs AND scripts/lib/run-helpers.mjs (#351, CANON-01)', () => {
     const result = generateCheckAll(makeConfig(dir))
     const paths = result.files.map((f) => f.path)
