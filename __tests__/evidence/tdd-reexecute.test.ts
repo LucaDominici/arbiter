@@ -1,9 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readlinkSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readlinkSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { DEFAULT_REEXEC_TIMEOUT_MS, verifyRedExecution } from '../../src/evidence/tdd-reexecute.js'
+import {
+  DEFAULT_REEXEC_TIMEOUT_MS,
+  verifyGreenExecution,
+  verifyRedExecution,
+} from '../../src/evidence/tdd-reexecute.js'
 import type { TddEvidence } from '../../src/evidence/tdd.js'
 
 vi.mock('../../src/utils/run-cli.js', () => ({
@@ -14,6 +27,8 @@ vi.mock('../../src/utils/run-cli.js', () => ({
     exitCode = 1
     timedOut = false
     notFound = false
+    outputTruncated = false
+    signal: NodeJS.Signals | null = null
   },
 }))
 
@@ -26,7 +41,14 @@ const mockedRunCli = vi.mocked(runCli)
  * against the real class, whose ctor signature/readonly fields do not apply to
  * the mock at runtime — the casts below bridge that gap in one place.
  */
-function cliError(fields: { stdout?: string; stderr?: string } = {}): CliError {
+function cliError(
+  fields: Partial<
+    Pick<
+      CliError,
+      'stdout' | 'stderr' | 'exitCode' | 'timedOut' | 'notFound' | 'outputTruncated' | 'signal'
+    >
+  > = {},
+): CliError {
   const MockedCtor = CliError as unknown as new () => CliError
   return Object.assign(new MockedCtor(), fields)
 }
@@ -40,6 +62,7 @@ const BASE: TddEvidence = {
   observed_failure: 'FAIL math.test.ts',
   recorded_at: '2026-07-15T00:00:00.000Z',
   test_command: ['npx', 'vitest', 'run', 'math.test.ts'],
+  test_blob_sha: createHash('sha1').update('blob 4\0test').digest('hex'),
 }
 
 describe('verifyRedExecution()', () => {
@@ -577,5 +600,76 @@ describe('verifyRedExecution()', () => {
       }) // cleanup blows up
     const result = verifyRedExecution(BASE, '/repo')
     expect(result.ok).toBe(true)
+  })
+})
+
+describe('verifyGreenExecution()', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-green-replay-'))
+    writeFileSync(join(dir, BASE.test_path), 'test')
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('passes only when the recorded command succeeds in the current working tree', () => {
+    mockedRunCli.mockReturnValue({ stdout: '1 passed', stderr: '', exitCode: 0, durationMs: 9 })
+    expect(verifyGreenExecution(BASE, dir)).toEqual({ ok: true })
+    expect(mockedRunCli).toHaveBeenCalledWith('npx', ['vitest', 'run', 'math.test.ts'], {
+      cwd: dir,
+      timeoutMs: DEFAULT_REEXEC_TIMEOUT_MS,
+    })
+  })
+
+  it('keeps GREEN when the recorded command still fails', () => {
+    mockedRunCli.mockImplementation(() => {
+      throw cliError({ stdout: 'FAIL math.test.ts\n1 test failed' })
+    })
+    const result = verifyGreenExecution(BASE, dir)
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/still fails.*exit 1/i)
+  })
+
+  it('distinguishes timeout, unavailable command, killed process, and truncated output', () => {
+    for (const [fields, expected] of [
+      [{ timedOut: true }, /timed out/i],
+      [{ notFound: true }, /unavailable/i],
+      [{ signal: 'SIGKILL' }, /interrupted.*SIGKILL/i],
+      [{ outputTruncated: true }, /output.*limit/i],
+    ] as const) {
+      mockedRunCli.mockImplementationOnce(() => {
+        throw cliError(fields)
+      })
+      expect(verifyGreenExecution(BASE, dir).reason).toMatch(expected)
+    }
+  })
+
+  it('fails closed for missing command, unsafe cwd, missing test, and explicit zero-test output', () => {
+    expect(verifyGreenExecution({ ...BASE, test_command: [] }, dir).reason).toMatch(/test_command/)
+    expect(verifyGreenExecution({ ...BASE, test_cwd: '../outside' }, dir).reason).toMatch(
+      /test_cwd/,
+    )
+    expect(verifyGreenExecution({ ...BASE, test_path: 'missing.test.ts' }, dir).reason).toMatch(
+      /test_path/,
+    )
+    mockedRunCli.mockReturnValue({
+      stdout: 'No test files found, exiting with code 0',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 9,
+    })
+    expect(verifyGreenExecution(BASE, dir).reason).toMatch(/zero tests/i)
+
+    mockedRunCli.mockReturnValue({
+      stdout: 'Tests  1 skipped (1)',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 9,
+    })
+    expect(verifyGreenExecution(BASE, dir).reason).toMatch(/skipped tests/i)
   })
 })

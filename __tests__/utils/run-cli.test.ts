@@ -32,6 +32,18 @@ describe('runCli', () => {
     expect(err!.args).toEqual(['-e', "process.stderr.write('boom'); process.exit(2)"])
   })
 
+  it('preserves the signal when the child is killed', () => {
+    let err: CliError | undefined
+    try {
+      runCli('node', ['-e', "process.kill(process.pid, 'SIGKILL')"])
+    } catch (e) {
+      err = e as CliError
+    }
+    expect(err).toBeInstanceOf(CliError)
+    expect(err!.signal).toBe('SIGKILL')
+    expect(err!.timedOut).toBe(false)
+  })
+
   it('throws CliError with timedOut=true when command exceeds timeoutMs', () => {
     let err: CliError | undefined
     try {

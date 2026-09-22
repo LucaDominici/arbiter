@@ -27,6 +27,7 @@ import { shipConfigFor, permitsGitHubCalls } from './ship-config.js'
 import { UserFacingError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
+import { verifyGreenExecution } from '../evidence/tdd-reexecute.js'
 import {
   pathExistsInCommit,
   resolveEvidenceCommit,
@@ -1414,6 +1415,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
       // vacuous-passes when that id is unavailable. An id-less document therefore disarms
       // the very gate this phase's ship.md row promises, so it is refused here.
       checkTaskSeededGate(dir)
+      checkGreenExecutionGate(dir)
     },
     verification: () => {
       checkChainTddEvidenceGate(dir)
@@ -1544,6 +1546,17 @@ function acceptanceProfileEnabled(dir: string): boolean {
 function checkTddEvidenceGate(dir: string, claudeDir: string): void {
   assertTddEvidenceFor(readTaskIdFromDisk(dir) ?? 'unknown', dir)
   void claudeDir
+}
+
+function checkGreenExecutionGate(dir: string): void {
+  const taskId = readTaskIdFromDisk(dir) ?? 'unknown'
+  assertTddEvidenceFor(taskId, dir)
+  const evidence = loadTddEvidence(taskId, dir)
+  if (!evidence.ok) throw new Error(`GREEN execution gate: ${evidence.reason}`)
+  const result = verifyGreenExecution(evidence.data, dir)
+  if (!result.ok) {
+    throw new Error(`GREEN execution gate: ${result.reason ?? 'recorded RED test did not pass'}`)
+  }
 }
 
 /**

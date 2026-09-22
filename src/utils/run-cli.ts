@@ -36,6 +36,7 @@ interface CliErrorDetails {
   timedOut: boolean
   notFound: boolean
   outputTruncated?: boolean
+  signal?: NodeJS.Signals | null
 }
 
 export class CliError extends Error {
@@ -48,6 +49,8 @@ export class CliError extends Error {
   readonly notFound: boolean
   /** True when the child was killed because its output exceeded `maxBuffer`. */
   readonly outputTruncated: boolean
+  /** Terminating signal when the child did not exit normally. */
+  readonly signal: NodeJS.Signals | null
 
   constructor(details: CliErrorDetails, message?: string) {
     super(message ?? formatMessage(details))
@@ -60,6 +63,7 @@ export class CliError extends Error {
     this.timedOut = details.timedOut
     this.notFound = details.notFound
     this.outputTruncated = details.outputTruncated ?? false
+    this.signal = details.signal ?? null
   }
 }
 
@@ -162,6 +166,7 @@ function classifyAttempt(obs: AttemptObservation): Attempt {
         stderr,
         timedOut: true,
         notFound: false,
+        signal: obs.signal,
       }),
     }
   }
@@ -197,6 +202,7 @@ function classifyAttempt(obs: AttemptObservation): Attempt {
         stderr,
         timedOut: false,
         notFound: false,
+        signal: obs.signal,
       }),
     }
   }

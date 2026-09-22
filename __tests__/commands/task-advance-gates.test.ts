@@ -31,8 +31,12 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
   })),
   tddEvidenceProducedOnBranch: vi.fn().mockReturnValue(true),
 }))
+vi.mock('../../src/evidence/tdd-reexecute.js', () => ({
+  verifyGreenExecution: vi.fn().mockReturnValue({ ok: true }),
+}))
 
 import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
+import { verifyGreenExecution } from '../../src/evidence/tdd-reexecute.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 import { resolveShipTreatment } from '../../src/commands/ship-tier.js'
@@ -40,6 +44,7 @@ import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
 import { inspectGateContract } from '../../scripts/lib/gate-contract.mjs'
 
 const dirs: string[] = []
+const mockedVerifyGreenExecution = vi.mocked(verifyGreenExecution)
 
 function installGateContractAuthority(dir: string): void {
   mkdirSync(join(dir, 'scripts'), { recursive: true })
@@ -176,6 +181,7 @@ function installAcceptanceGh(dir: string): void {
 
 afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true })
+  mockedVerifyGreenExecution.mockReset().mockReturnValue({ ok: true })
   vi.unstubAllEnvs()
 })
 
@@ -478,13 +484,27 @@ describe('advance --to refactor — the review machinery must have an id to key 
   it('advances once the task is seeded (AC-1)', () => {
     const dir = tmpRepo()
     seed(dir, 'green')
+    recordTdd(dir)
     runTaskAdvance({ to: 'refactor', dir })
     expect(readUnifiedState(dir)?.phase).toBe('refactor')
+  })
+
+  it('keeps GREEN when the recorded RED test still fails', () => {
+    const dir = tmpRepo()
+    seed(dir, 'green')
+    recordTdd(dir)
+    mockedVerifyGreenExecution.mockReturnValue({
+      ok: false,
+      reason: 'recorded test still fails (exit 1)',
+    })
+    expect(() => runTaskAdvance({ to: 'refactor', dir })).toThrow(/still fails/)
+    expect(readUnifiedState(dir)?.phase).toBe('green')
   })
 
   it('does not spend a review round through direct phase advance', () => {
     const dir = tmpRepo()
     seed(dir, 'green')
+    recordTdd(dir)
     const headSha = 'a'.repeat(40)
     runTaskAdvance({ to: 'refactor', dir, headSha })
     expect(readUnifiedState(dir)?.review).toBeUndefined()

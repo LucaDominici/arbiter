@@ -176,9 +176,32 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: dir })
     writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.arbiter/\n')
     writeFileSync(join(dir, 'plan.md'), '# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n')
-    execFileSync('git', ['add', '.gitignore', 'plan.md'], { cwd: dir })
+    writeFileSync(join(dir, 'review.test.ts'), 'throw new Error("RED") // frozen candidate\n')
+    writeFileSync(join(dir, 'green-output.mjs'), "process.stdout.write('1 passed\\n')\n")
+    execFileSync('git', ['add', '.gitignore', 'plan.md', 'review.test.ts', 'green-output.mjs'], {
+      cwd: dir,
+    })
     execFileSync('git', ['commit', '-q', '-m', 'test: seed plan'], { cwd: dir })
+    const redSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
     runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
+    const evidenceDir = join(dir, '.arbiter', 'evidence', 'tdd')
+    mkdirSync(evidenceDir, { recursive: true })
+    writeFileSync(
+      join(evidenceDir, '#100.json'),
+      JSON.stringify({
+        $schemaVersion: 1,
+        task_id: '#100',
+        test_path: 'review.test.ts',
+        test_commit_sha: redSha,
+        test_run_log: 'FAIL review.test.ts\n1 test failed',
+        observed_failure: 'FAIL review.test.ts',
+        recorded_at: '2026-09-20T00:00:00.000Z',
+        test_command: ['node', 'green-output.mjs'],
+      }),
+    )
     writeUnifiedState(dir, { phase: 'green', plan: 'plan.md' })
   })
 
@@ -216,6 +239,7 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
         test_run_log: 'FAIL review.test.ts\n✗ 1 test failed',
         observed_failure: 'FAIL review.test.ts',
         recorded_at: '2026-09-20T00:00:00.000Z',
+        test_command: ['node', 'green-output.mjs'],
       }),
     )
     copyFileSync(resolve(import.meta.dirname, '../../arbiter.json'), join(dir, 'arbiter.json'))

@@ -813,6 +813,11 @@ function advanceShipPhase(
     appendLog(root, `ship → advanced to ${target}`)
     writeVerificationCompanionEvidence(root, target, taskId, profile, opts)
     current = target
+    // GREEN is the implementation checkpoint. A single invocation that admits RED evidence must
+    // return control to the implementer before the passing-test gate can freeze a candidate.
+    if (current === 'green') {
+      return { phase: current, advanced: true, review, stopMessage: null }
+    }
     target = nextPhase(current)
   }
   return { phase: current, advanced: current !== phase, review, stopMessage: null }
