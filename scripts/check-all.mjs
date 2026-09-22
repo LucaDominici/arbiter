@@ -740,7 +740,6 @@ if (isMain) {
     runCheck('fixture isolation (INV-139)', 'node', ['scripts/check-fixture-isolation.mjs'])
     runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs'])
     runCheck('test scope-tier (INV-124)', 'node', ['scripts/check-test-scope-tier.mjs'])
-    runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs'])
     runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs'])
     runCheck('render smoke presence (INV-127)', 'node', ['scripts/check-render-smoke.mjs'])
     runCheck('smoke journeys (INV-137)', 'node', ['scripts/check-smoke-journeys.mjs'])
