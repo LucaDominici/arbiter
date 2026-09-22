@@ -703,6 +703,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
   )
 
   it('retries a no-data round at a newer HEAD without consuming another round', () => {
+    const originalPath = process.env.PATH ?? ''
     const firstSha = seedRuntimeFixture()
     const missingBin = installCodex(null)
     vi.stubEnv('PATH', `${missingBin}:/usr/bin:/bin`)
@@ -727,7 +728,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
     const reviewerBin = installCodex(
       '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}',
     )
-    vi.stubEnv('PATH', `${reviewerBin}:${process.env.PATH ?? ''}`)
+    vi.stubEnv('PATH', `${reviewerBin}:${originalPath}`)
 
     const result = runTaskShip({
       dir,

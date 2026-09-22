@@ -43,13 +43,6 @@ export function dirtyTestPathStatus(dir?: string, testPath = '__tests__'): GitQu
   return result.ok ? { ok: true, value: result.value.stdout.trim().length > 0 } : result
 }
 
-export function hasDirtyTestPaths(dir?: string, testPath = '__tests__'): boolean {
-  const result = dirtyTestPathStatus(dir, testPath)
-  // The boolean compatibility helper is used by read-only gates. An inability
-  // to inspect Git must never be interpreted as a clean path.
-  return !result.ok || result.value
-}
-
 export function commitPathStatus(sha: string, path: string, dir?: string): GitQuery<boolean> {
   const result = gitQuery(['ls-tree', '--name-only', sha, path], dir)
   return result.ok ? { ok: true, value: result.value.stdout.trim().length > 0 } : result

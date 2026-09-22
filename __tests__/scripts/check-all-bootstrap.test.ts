@@ -65,6 +65,7 @@ syncBuiltinESMExports()
 `,
     )
     writeFileSync(join(dir, '.gitignore'), 'dist/\ncalls.jsonl\n.arbiter/\n')
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ hasPublicApi: false }))
     execFileSync('git', ['init', '-q'], { cwd: dir })
     execFileSync('git', ['add', '.'], { cwd: dir })
     execFileSync(

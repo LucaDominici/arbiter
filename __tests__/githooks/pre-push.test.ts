@@ -386,6 +386,7 @@ it('does not add Vitest to a non-TypeScript consumer when an emitted script chan
     makeConfig('/tmp/test-githooks-go', {
       language: 'go',
       buildTool: 'go',
+      lanes: [],
       projectName: 'test-go-project',
       enableSecurityScanning: false,
     }) as unknown as Record<string, unknown>,
@@ -418,6 +419,54 @@ it('does not add Vitest to a non-TypeScript consumer when an emitted script chan
   })
   expect(result.status).toBe(0)
   expect(existsSync(log)).toBe(false)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+it('runs frontend related tests in a mixed Java consumer', () => {
+  const hook = renderTemplate(
+    'githooks/pre-push.ejs',
+    makeConfig('/tmp/test-githooks-java-frontend', {
+      language: 'java',
+      buildTool: 'maven',
+      lanes: ['frontend', 'backend'],
+      projectName: 'test-java-frontend-project',
+      enableSecurityScanning: false,
+    }) as unknown as Record<string, unknown>,
+  )
+  const dir = setupRepo({ ageMin: 30, hook })
+  mkdirSync(join(dir, 'frontend', 'src'), { recursive: true })
+  writeFileSync(join(dir, 'frontend', 'src', 'widget.test.ts'), 'export {}\n')
+  execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'add frontend test'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+  writeFileSync(join(dir, 'frontend', 'src', 'widget.vue'), '<template><div /></template>\n')
+  execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'change frontend source'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+
+  const bin = join(dir, 'bin')
+  const log = join(dir, 'npx.log')
+  mkdirSync(bin)
+  writeFileSync(
+    join(bin, 'npx'),
+    '#!/usr/bin/env bash\nprintf "%s\\n" "$PWD" "$@" > "$NPX_LOG"\n',
+    { mode: 0o755 },
+  )
+
+  const result = runHook(dir, {
+    PATH: `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`,
+    NPX_LOG: log,
+  })
+
+  expect(result.status).toBe(0)
+  expect(readFileSync(log, 'utf-8')).toBe(
+    `${join(dir, 'frontend')}\nvitest\nrelated\nsrc/widget.test.ts\nsrc/widget.vue\n--run\n`,
+  )
   rmSync(dir, { recursive: true, force: true })
 })
 

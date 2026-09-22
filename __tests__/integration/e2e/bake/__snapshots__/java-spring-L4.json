@@ -612,7 +612,7 @@
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",
     "scripts/pii-scan.mjs": "9a71b2e064edea21eeb6da9d3a0b6d57e7782c3636c6866c924977c355ccff74",
     "scripts/pr-merge-watch.mjs": "80fccd1610e990fa8cbe7939295147dde8de44263716c1e37157bb9f793331e3",
-    "scripts/record-agent-return.mjs": "e7c37707def65d2c78efe254b151cbfbdc936c8c4ef151cd496a392e156301f0",
+    "scripts/record-agent-return.mjs": "263fad2939423f23acbf4f9ac92d861a43e3e7893f5cdaba8f831a2c7d1384e9",
     "scripts/record-journey-evidence.mjs": "d56cb468d7c895de02a5c9f74c5ca9947874e2196acb48d48f1dea5917dbea41",
     "scripts/rework-log.mjs": "6901cf46c8decfd2d0ee826b652750808b3ae1642a4263564b522d525288ae06",
     "scripts/run-postman-tests.sh": "e859d168c5df6e2f9377e1190c764e8250c1bf31df4a9d2eecd9cd1276f2077f",
