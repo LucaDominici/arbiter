@@ -36,6 +36,8 @@ import type { ProjectConfig } from '../wizard/types.js'
 export interface DiffOptions {
   dir: string | undefined
   json?: boolean | undefined
+  /** Restrict the preview to the same managed-file allowlist accepted by update. */
+  only?: string[] | undefined
   /** #1344: filter the report to only withheld template fixes (focused reconciliation view). */
   withheld?: boolean | undefined
   /**
@@ -203,7 +205,8 @@ function buildRemoteSideEffects(
 }
 
 function buildDiffFiles(results: WriteResult[], targetDir: string): DiffFile[] {
-  return results.map((r) => {
+  const selectedResults = results.filter((r) => r.excluded !== 'deselected')
+  return selectedResults.map((r) => {
     const rel = relative(targetDir, r.path)
     // #1344: a withheld fix is a `skipped` action that would otherwise read as
     // `unchanged` — surface it as its own status so the drift is visible.
@@ -402,10 +405,13 @@ export function runDiff(options: DiffOptions): void {
     prevHashes: prevManifest,
     onWithheld: () => {},
     adoptPredicate: buildAdoptPredicate({}),
-    // #2353: `diff` reads the SAME `.arbiterignore` `update` obeys — a preview that
-    // reported a file the next update will never touch would be a lie. `--only` has
-    // no analogue here: it scopes one WRITE run, and diff writes nothing.
-    selectPredicate: buildSelectionPredicate({ patterns: loadIgnorePatterns(targetDir), only: [] }),
+    // #2353/#2814: preview the same permanent ignore policy and per-run allowlist
+    // that update applies. A scoped preview that reports files outside --only is
+    // unsafe even though the preview itself writes nothing.
+    selectPredicate: buildSelectionPredicate({
+      patterns: loadIgnorePatterns(targetDir),
+      only: options.only ?? [],
+    }),
   })
   let results: WriteResult[]
   try {

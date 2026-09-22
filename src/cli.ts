@@ -849,12 +849,20 @@ program
       refreshDerived: boolean
       only: string[]
     }) => {
+      if (opts.dryRun && opts.adoptPlan) {
+        const message = '--dry-run and --adopt-plan cannot be combined; choose one preview mode.'
+        if (opts.json) jsonOutput('update', 'error', {}, [message])
+        else printCliError(message)
+        process.exitCode = 2
+        return
+      }
       if (opts.dryRun) {
         runDiff({
           dir: opts.dir,
           json: opts.json,
           withheld: opts.withheld,
           governance: opts.governance,
+          only: opts.only,
         })
         return
       }

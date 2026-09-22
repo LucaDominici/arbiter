@@ -171,10 +171,10 @@ describe('diff --json', () => {
     mockReadFileSync.mockReturnValue('mocked-content')
     vi.spyOn(process, 'exit').mockImplementation((): never => undefined as never)
 
-    runDiff({ dir: '/tmp/fake', json: true, only: ['.claude/commands/ship.md'] })
+    runDiff({ dir: '/tmp/fake', json: true, only: ['GLOBAL_INVARIANTS.md'] })
 
     const parsed = JSON.parse(written) as { data: { files: Array<{ key: string }> } }
-    expect(parsed.data.files.map((file) => file.key)).toEqual(['.claude/commands/ship.md'])
+    expect(parsed.data.files.map((file) => file.key)).toEqual(['GLOBAL_INVARIANTS.md'])
   })
 
   it('emits JSON error when no config found', () => {
