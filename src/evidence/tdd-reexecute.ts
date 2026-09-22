@@ -69,6 +69,17 @@ function tapOutputFailure(output: string): string | null {
   return passed > 0 ? null : 'recorded TAP command reported no passing tests'
 }
 
+function shellOutputFailure(output: string): string | null {
+  const plain = stripVTControlCharacters(output)
+  if (/^FAIL:[ \t]+\S.*$/m.test(plain)) return 'recorded shell command emitted a failure verdict'
+  if (countSummary(plain, 'skipped|ignored|pending|todo') > 0) {
+    return 'recorded shell command contains skipped tests; no GREEN proof exists'
+  }
+  return /^[^\n]+: PASS[ \t]*$/m.test(plain)
+    ? null
+    : 'recorded shell command produced no explicit PASS verdict'
+}
+
 function countedOutputFailure(framework: string, output: string): string | null {
   const passed = countSummary(output, 'passed')
   const skipped = countSummary(output, 'skipped|ignored|pending|todo')
@@ -184,6 +195,7 @@ function greenOutputFailure(
   if (framework === undefined) return 'recorded RED framework is unrecognized'
   if (framework === 'go') return goOutputFailure(output)
   if (framework === 'tap') return tapOutputFailure(output)
+  if (framework === 'shell') return shellOutputFailure(output)
   if (framework === 'gradle') return gradleXmlFailure(freshGradleResults ?? [])
   return countedOutputFailure(framework, output)
 }

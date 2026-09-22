@@ -625,6 +625,41 @@ describe('verifyGreenExecution()', () => {
     })
   })
 
+  it('requires an explicit PASS verdict for shell self-tests', () => {
+    const shell = {
+      ...BASE,
+      test_run_log: 'FAIL: scanner did not report the expected violation',
+      observed_failure: 'FAIL: scanner did not report the expected violation',
+      test_command: ['bash', 'scripts/check-scanner.test.sh'],
+    }
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'check-scanner.test.sh: PASS\n',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 9,
+    })
+    expect(verifyGreenExecution(shell, dir)).toEqual({ ok: true })
+
+    mockedRunCli.mockReturnValueOnce({ stdout: 'completed\n', stderr: '', exitCode: 0, durationMs: 9 })
+    expect(verifyGreenExecution(shell, dir).reason).toMatch(/PASS verdict/i)
+
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'FAIL: expected check-scanner.test.sh: PASS\n',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 9,
+    })
+    expect(verifyGreenExecution(shell, dir).reason).toMatch(/failure verdict/i)
+
+    mockedRunCli.mockReturnValueOnce({
+      stdout: '1 skipped\ncheck-scanner.test.sh: PASS\n',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 9,
+    })
+    expect(verifyGreenExecution(shell, dir).reason).toMatch(/skipped/i)
+  })
+
   it('keeps GREEN when the recorded command still fails', () => {
     mockedRunCli.mockImplementation(() => {
       throw cliError({ stdout: 'FAIL math.test.ts\n1 test failed' })
