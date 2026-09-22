@@ -421,15 +421,19 @@ function readFrozenTddEvidence(
   reviewHead: string,
 ): string | null {
   if (!/^#[1-9]\d*$/.test(taskId)) return null
-  try {
-    const receipt = runCli('git', ['show', `${reviewHead}:.arbiter/evidence/tdd/${taskId}.json`], {
-      cwd: repoRoot,
-      timeoutMs: 5000,
-    }).stdout
-    return Buffer.byteLength(receipt, 'utf8') <= 16 * 1024 ? receipt.trim() : null
-  } catch {
-    return null
-  }
+  const path = `.arbiter/evidence/tdd/${taskId}.json`
+  const present = runCli('git', ['ls-tree', '--name-only', reviewHead, '--', path], {
+    cwd: repoRoot,
+    timeoutMs: 5000,
+  }).stdout.trim()
+  if (present !== path) return null
+  const receipt = runCli('git', ['show', `${reviewHead}:${path}`], {
+    cwd: repoRoot,
+    timeoutMs: 5000,
+  }).stdout
+  return Buffer.byteLength(receipt, 'utf8') <= 16 * 1024
+    ? receipt.trim()
+    : '(frozen RED receipt omitted: exceeds 16 KiB)'
 }
 
 function resolveReviewBase(repoRoot: string, baseSha: string | null | undefined): string {
