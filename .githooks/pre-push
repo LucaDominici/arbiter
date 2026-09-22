@@ -229,11 +229,12 @@ mapfile -t RELATED_TEST_INPUTS < <(
       case "$path" in
         *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) printf '%s\n' "$path" ;;
       esac
-      if [ -d __tests__ ]; then
-        basename="${path##*/}"
-        basename="${basename%%.*}"
-        find __tests__ -type f \( -name "${basename}.test.*" -o -name "${basename}-*.test.*" -o -name "${basename}.*.test.*" \)
-      fi
+      basename="${path##*/}"
+      basename="${basename%%.*}"
+      for test_root in __tests__ test tests scripts src; do
+        [ -d "$test_root" ] || continue
+        find "$test_root" -type f \( -name "${basename}.test.*" -o -name "${basename}-*.test.*" -o -name "${basename}.*.test.*" \)
+      done
     done | sort -u
 )
 

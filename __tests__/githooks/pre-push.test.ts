@@ -391,6 +391,13 @@ it('does not add Vitest to a non-TypeScript consumer when an emitted script chan
     }) as unknown as Record<string, unknown>,
   )
   const dir = setupRepo({ ageMin: 30, hook })
+  writeFileSync(join(dir, 'scripts', 'generated.test.go'), 'package scripts\n')
+  execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'add go script test'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
   writeFileSync(join(dir, 'scripts', 'generated.mjs'), 'export const generated = true\n')
   execFileSync('git', ['add', 'scripts/generated.mjs'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['commit', '-q', '-m', 'update emitted script'], {
