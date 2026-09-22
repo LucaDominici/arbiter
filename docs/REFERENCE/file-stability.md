@@ -596,7 +596,7 @@ One mechanism, two directions:
 | Mechanism        | Scope                | Honoured by                                                                                                                                  |
 | ---------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.arbiterignore` | permanent, committed | `update`, `diff`, and the emitted `check-emission-parity.mjs` gate (#2668: an ignored key whose file is gone counts as ignored, not missing) |
-| `--only <globs>` | a single run         | `update`                                                                                                                                     |
+| `--only <globs>` | a single run         | `update` and `update --dry-run`                                                                                                              |
 
 `.arbiterignore` lives at the repo root and uses **gitignore syntax** — one pattern per line, `#`
 comments and blank lines skipped, `!` negates, and the **last** matching pattern decides. Patterns are
@@ -628,7 +628,10 @@ Semantics:
 - `--only` is the inverse allowlist for one invocation, e.g.
   `arbiter update --only .claude/hooks/check-no-pii.mjs,.github/labels.yml`. Every other managed file is
   skipped and **keeps its manifest entry** — a scoped run must never amputate the manifest to the one
-  path it touched. An `--only` that matches nothing warns instead of silently doing nothing.
+  path it touched. `update --dry-run --only` previews the same file scope without changing files or the
+  manifest; an unmatched preview reports an empty set. The section-only `--governance` preview has a
+  different subject and is rejected when combined with `--only`; `--adopt-plan` is likewise a separate
+  preview mode and cannot be combined with `--dry-run`.
 - On conflict `.arbiterignore` **wins** over `--only` — a committed opt-out outranks one run's flag —
   and the run prints which files that decided.
 - #2664: `--only scripts/check-all.mjs --adopt-gate-spine` widens `only` to also cover every
