@@ -10,7 +10,48 @@
 // Re-generate: arbiter update
 import tseslint from 'typescript-eslint'
 import boundaries from 'eslint-plugin-boundaries'
+<% if (typeof architecture !== 'undefined') { -%>
+// #2834: declared architecture (arbiter.json `architecture` section) — these
+// are the project's own components, not the hexagonal default below. Adding a
+// file to a declared component is never itself a violation; only an import
+// along a denied edge is.
 
+const elements = <%- JSON.stringify(architecture.elements, null, 2) %>
+
+export default [
+  {
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    languageOptions: {
+      parser: tseslint.parser,
+      ecmaVersion: 2022,
+      sourceType: 'module',
+    },
+    plugins: { boundaries },
+    settings: {
+      'boundaries/elements': elements,
+      'boundaries/include': ['src/**/*.ts', 'src/**/*.tsx'],
+      // Without this, eslint-plugin-boundaries' bundled eslint-import-resolver-node
+      // cannot resolve extensionless relative imports ('../domain/entity') to a .ts
+      // file, so every cross-layer import is classified "unknown" and
+      // boundaries/no-unknown false-positives on EVERY legitimate import — including
+      // clean, rule-compliant code (verified against eslint-plugin-boundaries@7.2.0).
+      'import/resolver': { node: { extensions: ['.ts', '.tsx', '.js', '.jsx'] } },
+    },
+    rules: {
+      // Declared components — default allow; only the "deny" edges are forbidden.
+      'boundaries/element-types': [
+        'error',
+        {
+          default: 'disallow',
+          rules: <%- JSON.stringify(architecture.elementTypeRules, null, 2) %>,
+        },
+      ],
+      'boundaries/no-unknown': 'error',
+      'boundaries/no-unknown-files': 'warn',
+    },
+  },
+]
+<% } else { -%>
 const elements = [
   { type: 'domain', pattern: 'src/domain/**' },
   { type: 'application', pattern: 'src/application/**' },
@@ -110,3 +151,4 @@ export default [
     },
   },
 ]
+<% } -%>

@@ -236,6 +236,25 @@ export interface TaxonomyConfig {
   domainDims?: string[]
 }
 
+/**
+ * #2834: declared cross-language component boundaries. Consumed by the
+ * `*-boundaries` generators to render project-specific components/deny rules
+ * into the emitted eslint/import-linter/ruff/clippy configs instead of the
+ * fixed hexagonal domain/application/adapters/infrastructure default. Absent =
+ * generators keep today's hardcoded hexagonal shape, byte-identical.
+ */
+export interface ArchitectureConfig {
+  /** Component name -> glob patterns that belong to it. */
+  components: Record<string, string[]>
+  /**
+   * Forbidden edges as "from -> to" strings. `to` may be `*` to forbid a
+   * component from importing any other declared component. An edge not
+   * listed here is allowed by default — declaring a component is never
+   * itself a violation; only a denied import is.
+   */
+  deny: string[]
+}
+
 export interface ArbiterConfigV2 {
   version: string
   $schemaVersion?: number
@@ -325,6 +344,8 @@ export interface ArbiterConfigV2 {
   taxonomy?: TaxonomyConfig
   /** CONTEXT_PACK generator configuration (#254). */
   contextPack?: ContextPackConfig
+  /** #2834 — declared component boundaries. Absent = generators keep the fixed hexagonal shape. */
+  architecture?: ArchitectureConfig
   /** #1291 — ship autonomy gating (ADR-093 §4). Absent ⇒ L0 (ask each step). */
   automation?: AutomationConfig
   /** #2356 — opt-in external review and explicit code-egress consent. */
@@ -1125,6 +1146,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateContextPack(draft['contextPack'], errors)
   validateAutomation(draft['automation'], errors)
   validateCrossModelReview(draft['crossModelReview'], errors)
+  validateArchitecture(draft['architecture'], errors)
   validateChannel(draft['channel'], errors)
   validateGovernance(draft['governance'], errors)
   validateKit(draft['kit'], errors)
@@ -1352,6 +1374,64 @@ function validateContextPack(raw: unknown, errors: string[]): void {
       errors.push(`contextPack.adrMappings[${i}].adr must be a non-empty string`)
     }
   }
+}
+
+const EDGE_PATTERN = /^\s*\S+\s*->\s*\S+\s*$/
+
+/** #2834 — validate the optional declared-architecture block. */
+function validateArchitecture(raw: unknown, errors: string[]): void {
+  if (raw === undefined) return
+  if (!isRecord(raw)) {
+    errors.push('architecture must be an object')
+    return
+  }
+  const componentNames = validateArchitectureComponents(raw['components'], errors)
+  validateArchitectureDeny(raw['deny'], componentNames, errors)
+}
+
+function validateArchitectureComponents(raw: unknown, errors: string[]): ReadonlySet<string> {
+  if (!isRecord(raw) || Object.keys(raw).length === 0) {
+    errors.push('architecture.components must be a non-empty object of name -> globs')
+    return new Set()
+  }
+  for (const [name, globs] of Object.entries(raw)) {
+    if (!Array.isArray(globs) || globs.length === 0 || globs.some((g) => typeof g !== 'string')) {
+      errors.push(`architecture.components.${name} must be a non-empty array of glob strings`)
+    }
+  }
+  return new Set(Object.keys(raw))
+}
+
+/** One "from -> to" edge string against the declared component names. Split out of
+ *  {@link validateArchitectureDeny} to keep both under the complexity ceiling. */
+function validateDenyEdge(
+  edge: unknown,
+  componentNames: ReadonlySet<string>,
+  errors: string[],
+): void {
+  if (typeof edge !== 'string' || !EDGE_PATTERN.test(edge)) {
+    errors.push(`architecture.deny entry "${String(edge)}" must read "from -> to"`)
+    return
+  }
+  const [from, to] = edge.split('->').map((s) => s.trim())
+  if (from !== undefined && !componentNames.has(from)) {
+    errors.push(`architecture.deny entry "${edge}" — "${from}" is not a declared component`)
+  }
+  if (to !== undefined && to !== '*' && !componentNames.has(to)) {
+    errors.push(`architecture.deny entry "${edge}" — "${to}" is not a declared component or "*"`)
+  }
+}
+
+function validateArchitectureDeny(
+  raw: unknown,
+  componentNames: ReadonlySet<string>,
+  errors: string[],
+): void {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    errors.push('architecture.deny must be a non-empty array of "from -> to" edges')
+    return
+  }
+  for (const edge of raw) validateDenyEdge(edge, componentNames, errors)
 }
 
 const CROSS_MODEL_REVIEW_PROVIDERS: ReadonlySet<CrossModelReviewProvider> = new Set(['codex'])

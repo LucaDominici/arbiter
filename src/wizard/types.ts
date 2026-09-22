@@ -327,6 +327,11 @@ export interface ProjectConfig {
    * config/schema) to keep the wizard layer free of a config→wizard back-edge.
    */
   taxonomy?: { domainDims?: string[] }
+  /**
+   * #2834: declared component boundaries, consumed by the `*-boundaries`
+   * generators. Structural-typed here for the same reason as {@link taxonomy}.
+   */
+  architecture?: { components: Record<string, string[]>; deny: string[] }
   /** Whether to generate mutation testing configuration. Default true for L2+. */
   enableMutationTesting?: boolean
   /** Whether to generate contract testing configuration. Default from contractType. */

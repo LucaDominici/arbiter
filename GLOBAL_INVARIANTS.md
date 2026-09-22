@@ -938,6 +938,16 @@ The **scenario join** is checked in both directions. A tabletop scenario naming 
 
 ---
 
+### INV-150: architecture.deny edges must name declared components
+
+The optional `architecture` section of `arbiter.json` (#2834, ADR-123) declares components — a name mapped to glob patterns — and deny edges written as `"from -> to"` strings, where `to` may be `*` to forbid a component from importing any other declared component. A deny edge naming a component that was never declared is a silent no-op at best and a typo hiding a missing rule at worst, so this invariant fails config load loudly instead of letting the typo pass unnoticed.
+
+**Scope, stated plainly:** this covers the declaration, not yet the gate. `src/generators/boundaries.ts` renders declared components/deny into `eslint.config.boundaries.mjs` in place of the fixed hexagonal layers when the section is present, and the emitted `scripts/check-boundaries.mjs` genuinely exits non-zero on a denied import — verified by generating it into a scratch fixture, adding one forbidden import, and confirming the error names the edge (`type "db" ... type "api"`), not a generic lint failure. But the `ts-boundaries` row in the emitted gate registry stays `soft: true`, so nothing yet turns that failure into a blocked PR — removing `soft: true` is deferred to a follow-up ADR.
+
+**Enforcement:** `validateArchitecture` in `src/config/schema.ts`, called from `validateConfig` on every `arbiter.json` load. Verified by `__tests__/config/schema.test.ts` (accept/reject cases, including deny edges naming an undeclared `from` or `to` component) and `__tests__/generators/architecture-boundaries-2834.test.ts` (deny-list → allow-list conversion, and byte-identical rendering when the section is absent). Exit codes per INV-53: config-load failure is `E_CONFIG_INVALID`, not a gate exit code — the invariant is enforced before generation ever runs.
+
+---
+
 ### INV-147: A cited source is quotable, and the quotation checks out
 
 A URL in a document proves nothing. The page can change under the citation, or can never have said what it is cited for, and in neither case does anything notice. That is how a bibliography becomes decoration: it looks like evidence and is not checkable.

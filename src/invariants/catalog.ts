@@ -3028,4 +3028,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'two can disagree and only one of them is checkable. exit 0=PASS or SKIP, 1=violation, ' +
       '2=ERROR per INV-53.',
   },
+
+  {
+    id: 'INV-150',
+    tier: 'architectural',
+    title: 'architecture.deny edges must name declared components',
+    description:
+      'The optional arbiter.json `architecture` section (#2834, ADR-123) declares components ' +
+      '(name -> glob patterns) and deny edges ("from -> to", where "to" may be "*"). A deny edge ' +
+      'naming a component that was never declared is a silent no-op at best and a typo hiding a ' +
+      'missing rule at worst — validated at config-load time so it fails loudly instead. ' +
+      'Enforcement: schema validation on config load (validateArchitecture in ' +
+      'src/config/schema.ts, called from validateConfig); the emitted eslint boundaries gate ' +
+      'itself is advisory (soft: true) until a follow-up ADR removes it — this invariant covers ' +
+      'the declaration, not yet the gate.',
+    alwaysActive: true,
+    selfOnly: false,
+    enforcement: 'src/config/schema.ts (validateArchitecture) — __tests__/config/schema.test.ts',
+  },
 ]
