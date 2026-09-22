@@ -150,6 +150,10 @@ describe('generateCheckAll', () => {
         '        env:',
         "          COVERAGE_THRESHOLD: '90'",
         '        run: ./run.sh ci --level L2',
+        '  reusable:',
+        '    uses: acme/workflows/.github/workflows/verify.yml@abc123',
+        '    with:',
+        '      coverage_limit: 85',
       ].join('\n'),
     )
     writeFileSync(
@@ -187,6 +191,9 @@ describe('generateCheckAll', () => {
     expect(
       contract.external.find((entry) => entry.command === './run.sh ci --level L2')?.thresholds,
     ).toHaveLength(1)
+    expect(contract.external.find((entry) => entry.name === 'reusable')?.thresholds).toEqual([
+      expect.objectContaining({ name: 'coverage_limit', value: 85 }),
+    ])
     expect(contract.external.some((entry) => entry.source.endsWith('nightly.yml'))).toBe(false)
   })
 
