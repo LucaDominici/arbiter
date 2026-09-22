@@ -99,15 +99,86 @@ export function collectWorkflowTemplates(templatesRoot, { onReadError } = {}) {
   return results
 }
 
-function workflowMapping(parseYaml, path) {
+function parseWorkflow(parseYaml, path) {
   const value = parseYaml(readFileSync(path, 'utf8'))
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('workflow must contain a YAML object')
   }
+  return value
+}
+
+function workflowMapping(parseYaml, path) {
+  const value = parseWorkflow(parseYaml, path)
   if (typeof value.jobs !== 'object' || value.jobs === null || Array.isArray(value.jobs)) {
     throw new Error('jobs object is missing')
   }
   return value.jobs
+}
+
+function hasPullRequestTrigger(trigger) {
+  if (trigger === 'pull_request') return true
+  if (Array.isArray(trigger)) return trigger.includes('pull_request')
+  return (
+    typeof trigger === 'object' &&
+    trigger !== null &&
+    Object.prototype.hasOwnProperty.call(trigger, 'pull_request')
+  )
+}
+
+function thresholdEntries(values, source) {
+  if (typeof values !== 'object' || values === null || Array.isArray(values)) return []
+  return Object.entries(values)
+    .filter(
+      ([name, value]) =>
+        /threshold|minimum|maximum|budget|limit|coverage/i.test(name) &&
+        ['string', 'number', 'boolean'].includes(typeof value),
+    )
+    .map(([name, value]) => ({ name, value, source: `${source}#${name}` }))
+}
+
+function genericWorkflowCommands(workflow, source) {
+  if (!hasPullRequestTrigger(workflow.on)) return []
+  if (typeof workflow.jobs !== 'object' || workflow.jobs === null || Array.isArray(workflow.jobs)) {
+    throw new Error('jobs object is missing')
+  }
+  const entries = []
+  const workflowThresholds = thresholdEntries(workflow.env, source)
+  for (const [jobName, job] of Object.entries(workflow.jobs)) {
+    if (typeof job !== 'object' || job === null || Array.isArray(job)) {
+      throw new Error(`${jobName} has unsupported workflow-job structure`)
+    }
+    const jobThresholds = [
+      ...workflowThresholds,
+      ...thresholdEntries(job.env, `${source}#jobs.${jobName}.env`),
+      ...thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
+    ]
+    if (typeof job.uses === 'string') {
+      entries.push({
+        name: jobName,
+        source,
+        command: job.uses,
+        condition: `workflow pull_request trigger && (${job.if ?? 'job is active'})`,
+        thresholds: jobThresholds,
+        status: 'remote-dependent',
+      })
+      continue
+    }
+    if (!Array.isArray(job.steps)) {
+      throw new Error(`${jobName} has unsupported workflow-job structure`)
+    }
+    for (const [index, step] of job.steps.entries()) {
+      const entry = verificationCommandEntry(jobName, job, step, index, source, [
+        ...jobThresholds,
+        ...thresholdEntries(step?.env, `${source}#jobs.${jobName}.steps.${index}.env`),
+        ...thresholdEntries(step?.with, `${source}#jobs.${jobName}.steps.${index}.with`),
+      ])
+      if (entry !== null) {
+        entry.condition = `workflow pull_request trigger && (${entry.condition})`
+        entries.push(entry)
+      }
+    }
+  }
+  return entries
 }
 
 function dependencyContract(jobs, source) {
@@ -223,6 +294,17 @@ export async function inspectWorkflowContract(root) {
     try {
       const entries = build(workflowMapping(parseYaml, path), source)
       external.push(...(Array.isArray(entries) ? entries : [entries]))
+    } catch (err) {
+      unresolved.push({ name: 'CI workflow authority', source, reason: err.message })
+    }
+  }
+  const canonical = new Set(definitions.map(([name]) => name))
+  for (const path of collectYamlFiles(join(root, '.github', 'workflows'))) {
+    const name = path.split('/').at(-1)
+    if (canonical.has(name)) continue
+    const source = path.slice(root.length + 1)
+    try {
+      external.push(...genericWorkflowCommands(parseWorkflow(parseYaml, path), source))
     } catch (err) {
       unresolved.push({ name: 'CI workflow authority', source, reason: err.message })
     }
