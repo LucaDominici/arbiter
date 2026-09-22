@@ -58,6 +58,24 @@ describe('codex CODEX.md — workflow section', () => {
     expect(content).not.toContain('.agents/plan/PLAN.json')
     expect(content).not.toMatch(/L1` before (?:each )?commit/i)
   })
+
+  it('keeps Codex on the light local preflight and full CI authority', () => {
+    const content = renderCodexMd('typescript')
+    expect(content).toContain('node scripts/check-all.mjs preflight')
+    expect(content).toMatch(/CI (?:runs|is)\s+the full gate/i)
+    expect(content).not.toMatch(/L2 before push|L2` \| Run before push\/PR/i)
+  })
+
+  it('keeps the generated CLI catalog on the same gate economy contract', () => {
+    const content = renderTemplate(
+      'documentation/cli-catalog.md.ejs',
+      makeConfig('/tmp/test', { language: 'typescript' }) as unknown as Record<string, unknown>,
+    )
+    const prose = content.replace(/^>\s?/gm, '').replace(/\s+/g, ' ')
+    expect(content).toContain('node scripts/check-all.mjs preflight')
+    expect(prose).toMatch(/CI (?:runs|is) the full gate/i)
+    expect(content).not.toMatch(/L1 once on the frozen candidate, and L2 before push/i)
+  })
 })
 
 describe('codex CODEX.md — Known Limitations parity section (#162)', () => {
