@@ -919,7 +919,6 @@ describe('runWorktreeAdopt — branch coverage', () => {
   it('uses process cwd when adopting the current native checkout', async () => {
     const originalCwd = process.cwd()
     mockIsRunningFromMainRepo.mockReturnValueOnce(false).mockReturnValue(true)
-    mockCheckLinkIntegrity.mockReturnValue(['.env'])
     mockRunCli.mockImplementation((_cmd: string, args?: readonly string[]): CliResult => {
       if (args?.join(' ') === 'rev-parse --show-toplevel') return ok(worktreePath)
       if (args?.join(' ') === 'rev-parse --path-format=absolute --git-common-dir') {
@@ -928,16 +927,15 @@ describe('runWorktreeAdopt — branch coverage', () => {
       if (args?.join(' ') === 'worktree list --porcelain') return ok(inventory())
       return ok(gitRoot)
     })
-    const warnings: string[] = []
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
     try {
       process.chdir(worktreePath)
-      await runWorktreeAdopt({ taskId: '#2564', onWarning: (warning) => warnings.push(warning) })
+      await runWorktreeAdopt({ taskId: '#2564' })
     } finally {
       process.chdir(originalCwd)
       stdoutSpy.mockRestore()
     }
-    expect(warnings.join('\n')).toContain('dangling symlink: .env')
+    expect(mockCheckLinkIntegrity).toHaveBeenCalledWith(expect.any(Array), worktreePath)
   })
 
   it('rejects a linked checkout whose common directory does not resolve to the main repo', async () => {

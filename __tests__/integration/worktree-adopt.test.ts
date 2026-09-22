@@ -118,6 +118,25 @@ describe('runWorktreeAdopt', () => {
     expect(existsSync(join(checkout, 'aliased-package', 'node_modules'))).toBe(false)
   })
 
+  it('rejects inherited dependency trees with nested dangling symlinks', async () => {
+    mkdirSync(join(repo, 'node_modules', '@types'), { recursive: true })
+    symlinkSync(
+      '../.pnpm/missing/node_modules/@types/node',
+      join(repo, 'node_modules', '@types', 'node'),
+    )
+    git(repo, 'worktree', 'add', '-b', 'feature/broken-dependencies', checkout)
+    mkdirSync(join(checkout, 'node_modules', '@types'), { recursive: true })
+    symlinkSync(
+      '../.pnpm/missing/node_modules/@types/node',
+      join(checkout, 'node_modules', '@types', 'node'),
+    )
+
+    await expect(
+      runWorktreeAdopt({ taskId: '#2799', worktreePath: checkout, cwd: repo }),
+    ).rejects.toThrow(/node_modules\/@types\/node.*target missing/i)
+    expect(existsSync(join(repo, '.arbiter', 'worktree-open.log.json'))).toBe(false)
+  })
+
   it('turns a detached Codex checkout into the deterministic task branch', async () => {
     git(repo, 'worktree', 'add', '--detach', checkout, 'HEAD')
 

@@ -297,6 +297,7 @@ function lstatSync2IsLink(path: string): boolean {
  */
 export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: string): string[] {
   const dangling: string[] = []
+  const visited = new Set<string>()
   for (const spec of specs) {
     const linkPath = resolve(worktreePath, spec.path)
     try {
@@ -304,7 +305,7 @@ export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: stri
       if (stat.isSymbolicLink()) {
         pushIfDangling(linkPath, spec.path, dangling)
       } else if (stat.isDirectory() && spec.strategy === 'symlink-children') {
-        checkChildLinks(linkPath, spec.path, dangling)
+        checkChildLinks(linkPath, spec.path, dangling, visited)
       }
     } catch (e: unknown) {
       // CANON-17: ENOENT means the entry was never created (not dangling); anything
@@ -317,14 +318,49 @@ export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: stri
 }
 
 /**
- * #1873 T4: under 'symlink-children' the dest itself is a real dir — the links
- * live one level down. Check each top-level child symlink for a missing target.
+ * #1873 T4: under 'symlink-children' the dest itself is a real dir. Inspect its
+ * dependency tree for nested dangling links while deduplicating directory cycles.
  */
-function checkChildLinks(dirPath: string, specPath: string, dangling: string[]): void {
+function checkChildLinks(
+  dirPath: string,
+  specPath: string,
+  dangling: string[],
+  visited: Set<string>,
+): void {
   for (const child of readdirSync(dirPath)) {
     const childPath = join(dirPath, child)
-    if (lstatSync(childPath).isSymbolicLink()) {
+    const stat = lstatSync(childPath)
+    if (stat.isSymbolicLink()) {
       pushIfDangling(childPath, `${specPath}/${child}`, dangling)
+      if (existsSync(childPath))
+        checkNestedLinks(childPath, `${specPath}/${child}`, dangling, visited)
+    } else if (stat.isDirectory()) {
+      checkNestedLinks(childPath, `${specPath}/${child}`, dangling, visited)
+    }
+  }
+}
+
+/** Follow resolvable dependency-directory links once and report nested dangling links. */
+function checkNestedLinks(
+  dirPath: string,
+  displayPath: string,
+  dangling: string[],
+  visited: Set<string>,
+): void {
+  const stat = statSync(dirPath)
+  if (!stat.isDirectory()) return
+  const key = `${stat.dev}:${stat.ino}`
+  if (visited.has(key)) return
+  visited.add(key)
+  for (const child of readdirSync(dirPath)) {
+    const childPath = join(dirPath, child)
+    const childDisplay = `${displayPath}/${child}`
+    const childStat = lstatSync(childPath)
+    if (childStat.isSymbolicLink()) {
+      pushIfDangling(childPath, childDisplay, dangling)
+      if (existsSync(childPath)) checkNestedLinks(childPath, childDisplay, dangling, visited)
+    } else if (childStat.isDirectory()) {
+      checkNestedLinks(childPath, childDisplay, dangling, visited)
     }
   }
 }
@@ -332,8 +368,7 @@ function checkChildLinks(dirPath: string, specPath: string, dangling: string[]):
 /** Append a `path → target (target missing)` entry when the symlink dangles. */
 function pushIfDangling(linkPath: string, displayPath: string, dangling: string[]): void {
   const target = readlinkSync(linkPath)
-  const resolvedTarget = resolve(dirname(linkPath), target)
-  if (!existsSync(resolvedTarget)) {
+  if (!existsSync(linkPath)) {
     dangling.push(`${displayPath} → ${target} (target missing)`)
   }
 }

@@ -385,6 +385,30 @@ describe('materializeLink — symlink-children strategy (#1873 T4)', () => {
     expect(dangling[0]).toMatch(/pkg-a/)
   })
 
+  it('resolves nested relative links through their physical symlinked parent', () => {
+    mkdirSync(join(mainRepo, 'node_modules'), { recursive: true })
+    mkdirSync(join(mainRepo, 'packages', 'pkg'), { recursive: true })
+    mkdirSync(join(mainRepo, 'packages', 'shared'), { recursive: true })
+    symlinkSync('../packages/pkg', join(mainRepo, 'node_modules', 'pkg'), 'dir')
+    symlinkSync('../shared', join(mainRepo, 'packages', 'pkg', 'shared-link'), 'dir')
+    materializeLink(spec, mainRepo, worktree)
+
+    expect(checkLinkIntegrity([spec], worktree)).toEqual([])
+  })
+
+  it('does not let a worktree sibling mask a broken nested relative link', () => {
+    mkdirSync(join(mainRepo, 'node_modules'), { recursive: true })
+    mkdirSync(join(mainRepo, 'packages', 'pkg'), { recursive: true })
+    symlinkSync('../packages/pkg', join(mainRepo, 'node_modules', 'pkg'), 'dir')
+    symlinkSync('../shared', join(mainRepo, 'packages', 'pkg', 'shared-link'), 'dir')
+    materializeLink(spec, mainRepo, worktree)
+    mkdirSync(join(worktree, 'node_modules', 'shared'))
+
+    expect(checkLinkIntegrity([spec], worktree)).toEqual([
+      expect.stringMatching(/pkg\/shared-link.*target missing/),
+    ])
+  })
+
   it('regression: plain symlink and copy strategies are unchanged', () => {
     seedNodeModules()
     const plain = materializeLink({ path: 'node_modules', type: 'directory' }, mainRepo, worktree)
