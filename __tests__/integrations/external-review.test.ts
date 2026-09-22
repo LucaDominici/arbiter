@@ -67,6 +67,12 @@ const payload: ExternalReviewPayload = {
   refutations: [],
 }
 
+const acceptanceFit = {
+  schema: 'arbiter-ac-fit-v1',
+  taskId: '#2357',
+  criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/example.ts', line: 1 }] }],
+}
+
 /**
  * OpenAI strict structured outputs require every declared object property to
  * be listed in `required`; absence belongs in the value domain (for example,
@@ -258,6 +264,26 @@ describe('extractAgentReturnJson (#2357)', () => {
     expect(
       extractAgentReturnJson(JSON.stringify({ ...payload, agent: 'attacker', taskId: '#9999' })),
     ).toBeNull()
+  })
+
+  it('preserves the native acceptance-fit result in the external payload', () => {
+    const schema = JSON.parse(
+      readFileSync(join(repoRoot, 'schemas', 'agent-return-external.schema.json'), 'utf8'),
+    ) as {
+      required?: string[]
+      properties?: { acceptanceFit?: { $ref?: string } }
+      $defs?: { AcceptanceFit?: { properties?: { schema?: Record<string, unknown> } } }
+    }
+    expect(schema.required).toContain('acceptanceFit')
+    expect(schema.properties?.acceptanceFit?.$ref).toBe('#/$defs/AcceptanceFit')
+    expect(schema.$defs?.AcceptanceFit?.properties?.schema).toMatchObject({
+      type: 'string',
+      const: 'arbiter-ac-fit-v1',
+    })
+
+    expect(extractAgentReturnJson(JSON.stringify({ ...payload, acceptanceFit }))).toMatchObject({
+      acceptanceFit,
+    })
   })
 })
 
@@ -584,6 +610,39 @@ describe('invokeExternalReview (#2357)', () => {
     expect(
       readFileSync(join(repoRoot, 'schemas', 'agent-return-external.schema.json'), 'utf-8'),
     ).toContain('agent-return-external')
+  })
+
+  it('passes acceptance fit through the recorder boundary', () => {
+    let recorderInput: string | undefined
+    mockedRunCli.mockImplementation((cmd, _args, options) => {
+      if (cmd === 'codex') {
+        return {
+          stdout: JSON.stringify({ ...payload, acceptanceFit }),
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
+      }
+      recorderInput = (options as { input?: string } | undefined)?.input
+      return {
+        stdout: '[record-agent-return] OK — wrote .arbiter/evidence/agent-returns/_2357/codex.json',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 1,
+      }
+    })
+
+    const result = invokeExternalReview({
+      repoRoot,
+      taskId: '#2357',
+      prompt: 'Review this frozen candidate.',
+      diff: 'diff',
+      cfg: config(),
+      access: access(),
+    })
+
+    expect(result.status).toBe('fulfilled')
+    expect(JSON.parse(recorderInput ?? '{}')).toMatchObject({ acceptanceFit })
   })
 
   it('degrades instead of recording external authority fields', () => {

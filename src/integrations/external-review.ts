@@ -63,6 +63,7 @@ interface ExternalReviewPayload {
   confidence: number
   findings: Array<Record<string, unknown>>
   refutations: Array<Record<string, unknown>>
+  acceptanceFit?: Record<string, unknown>
 }
 
 interface CrossModelPlan {
@@ -215,7 +216,7 @@ function isPayloadObject(value: unknown): value is ExternalReviewPayload {
   const record = value as Record<string, unknown>
   if (
     Object.keys(record).some(
-      (key) => !['verdict', 'confidence', 'findings', 'refutations'].includes(key),
+      (key) => !['verdict', 'confidence', 'findings', 'refutations', 'acceptanceFit'].includes(key),
     )
   )
     return false
@@ -223,7 +224,11 @@ function isPayloadObject(value: unknown): value is ExternalReviewPayload {
     (record.verdict === 'PASS' || record.verdict === 'WARN' || record.verdict === 'FAIL') &&
     typeof record.confidence === 'number' &&
     Array.isArray(record.findings) &&
-    Array.isArray(record.refutations)
+    Array.isArray(record.refutations) &&
+    (record.acceptanceFit === undefined ||
+      (typeof record.acceptanceFit === 'object' &&
+        record.acceptanceFit !== null &&
+        !Array.isArray(record.acceptanceFit)))
   )
 }
 
@@ -437,6 +442,7 @@ function persistEnvelope(
       confidence: envelope.confidence,
       findings: envelope.findings,
       refutations: envelope.refutations,
+      ...(envelope.acceptanceFit !== undefined ? { acceptanceFit: envelope.acceptanceFit } : {}),
     }),
     timeoutMs: request.cfg.timeoutMs,
     retries: 0,

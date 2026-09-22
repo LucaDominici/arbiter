@@ -269,6 +269,9 @@ describe('runCrossModelReview (#2357)', () => {
     expect(prompt).toContain(`Base SHA: ${BASE_SHA}`)
     expect(prompt).toContain(`Head SHA: ${HEAD_SHA}`)
     expect(prompt).toContain('Acceptance criteria hash: frozen-ac-hash')
+    expect(prompt).toContain(
+      'Return acceptanceFit using schema arbiter-ac-fit-v1 with one verdict and candidate-file citation list for every criterion below',
+    )
     expect(prompt).toContain('Do not block on unavailable local command execution')
     expect(prompt).toContain('Every blocking finding must cite a concrete candidate defect')
     expect(prompt).toContain('## Verification contract\n- `npm test` is required.')

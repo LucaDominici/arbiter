@@ -22,6 +22,7 @@ const ALLOWLIST = {
   auth_session: 'session/credential material; never exposed',
   plan_revision: 'opaque revision blobs; not part of the API',
 }
+const routeImportPattern = /import\s*\{([^}]*)\}\s*from\s*['"]\.\/routes\/([^'"]+)['"]/g
 const HELP = `Usage: node scripts/check-domain-api-surface.mjs [--manifest <path>] [--schema-helper <path>] [--help]
 
 Validates persisted domain fields against the declared public API surface (INV-125).
@@ -178,9 +179,7 @@ function main() {
   function mountedRoutes() {
     const index = readFileSync(join(ROOT, 'src/server/index.ts'), 'utf8')
     const modules = new Map()
-    for (const match of index.matchAll(
-      /import\s*\{([\s\S]*?)\}\s*from\s*['"]\.\/routes\/([^'"]+)['"]/g,
-    )) {
+    for (const match of index.matchAll(routeImportPattern)) {
       for (const name of match[1].split(',').map((item) => item.trim())) modules.set(name, match[2])
     }
     const mounts = new Map()
