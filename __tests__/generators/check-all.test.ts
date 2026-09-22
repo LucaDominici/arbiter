@@ -147,6 +147,45 @@ describe('generateCheckAll', () => {
     })
   })
 
+  it.each([
+    {
+      name: '01-pr-fast.yml',
+      content: ['on: pull_request', 'jobs:', '  dependency-review:', '    steps: []'].join('\n'),
+      reason: 'dependency-review command, condition, or severity is missing',
+    },
+    {
+      name: '02-pr-extended.yml',
+      content: [
+        'on: pull_request',
+        'jobs:',
+        '  check-trigger:',
+        '    steps:',
+        '      - env:',
+        '          LOC_THRESHOLD: unsupported',
+        '  verify:',
+        '    steps:',
+        '      - run: npm test',
+      ].join('\n'),
+      reason: 'extended LOC_THRESHOLD is missing',
+    },
+  ])(
+    'does not hide malformed specialized $name contracts behind the generic fallback',
+    async (fixture) => {
+      const workflows = join(dir, '.github', 'workflows')
+      mkdirSync(workflows, { recursive: true })
+      writeFileSync(join(workflows, fixture.name), fixture.content)
+
+      const contract = await inspectWorkflowContract(dir)
+      expect(contract.external).toEqual([])
+      expect(contract.unresolved).toContainEqual(
+        expect.objectContaining({
+          source: `.github/workflows/${fixture.name}`,
+          reason: fixture.reason,
+        }),
+      )
+    },
+  )
+
   it('extracts non-canonical pull-request workflows instead of silently omitting them', async () => {
     const workflows = join(dir, '.github', 'workflows')
     mkdirSync(workflows, { recursive: true })
