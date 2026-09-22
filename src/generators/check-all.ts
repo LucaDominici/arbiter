@@ -44,6 +44,8 @@ export interface GateRegistryEntry {
   kind: 'check' | 'warn' | 'tool' | 'inline'
   /** Cheap diagnostics independent of future task proofs; default is qualification-only. */
   preflight?: boolean
+  /** Cheap fail-first checks that run before the qualification suites. */
+  presuite?: boolean
   cmd?: string[]
   /** Effect-free command/read description for inline gates. */
   inspect?: string
@@ -180,6 +182,9 @@ function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): 
   if (entry['preflight'] !== undefined && typeof entry['preflight'] !== 'boolean') {
     throw new Error(`gate registry: gate "${id}" preflight must be boolean`)
   }
+  if (entry['presuite'] !== undefined && typeof entry['presuite'] !== 'boolean') {
+    throw new Error(`gate registry: gate "${id}" presuite must be boolean`)
+  }
   return {
     id,
     name: String(entry['name']),
@@ -218,6 +223,7 @@ function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): 
     ...(typeof entry['condition'] === 'string' ? { condition: entry['condition'] } : {}),
     ...(typeof entry['else'] === 'string' ? { else: entry['else'] } : {}),
     ...(entry['preflight'] === true ? { preflight: true } : {}),
+    ...(entry['presuite'] === true ? { presuite: true } : {}),
     ...(entry['soft'] === true ? { soft: true } : {}),
     ...(typeof entry['promotes_to'] === 'string' ? { promotes_to: entry['promotes_to'] } : {}),
     ...(entry['audit'] === true ? { audit: true } : {}),

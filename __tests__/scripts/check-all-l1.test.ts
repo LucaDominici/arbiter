@@ -14,6 +14,21 @@ function integrationIncludePatterns(): string[] {
 }
 
 describe('check-all.mjs L1 wiring', () => {
+  it('keeps self preflight to the three immediate safety diagnostics (#2773)', () => {
+    const start = content.indexOf('if (preflight) {')
+    const returnStatement = 'return getResults().length'
+    const end = content.indexOf(returnStatement, start) + returnStatement.length
+    const block = content.slice(start, end)
+
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    expect(block.match(/runCheck\(/g)).toHaveLength(3)
+    expect(block).toContain("['scripts/pii-scan.mjs']")
+    expect(block).toContain("['scripts/check-secret-scan.mjs']")
+    expect(block).toContain("'scripts/check-no-tracked-artifacts.mjs'")
+    expect(block).toContain(returnStatement)
+  })
+
   it('does not run the consumer API-surface gate when self declares no public API', () => {
     const config = JSON.parse(readFileSync(resolve('arbiter.json'), 'utf8')) as {
       hasPublicApi?: boolean
