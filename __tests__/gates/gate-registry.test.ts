@@ -532,7 +532,7 @@ describe('gate-registry INV-label correctness (#2413)', () => {
   }
 })
 
-describe('emitted result-first preflight (#2724)', () => {
+describe('emitted result-first gate staging (#2724, #2773)', () => {
   it.each(['typescript', 'python'])(
     'collects cheap failures before any expensive %s check',
     (language) => {
@@ -552,7 +552,7 @@ describe('emitted result-first preflight (#2724)', () => {
             name: 'format',
             level: 'L1',
             kind: 'check',
-            preflight: true,
+            presuite: true,
             cmd: ['node', '-e', 'process.exit(1)'],
           },
           {
@@ -560,7 +560,7 @@ describe('emitted result-first preflight (#2724)', () => {
             name: 'docs',
             level: 'L2',
             kind: 'check',
-            preflight: true,
+            presuite: true,
             cmd: ['node', '-e', 'process.exit(1)'],
           },
         ],
