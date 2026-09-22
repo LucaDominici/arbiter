@@ -83,7 +83,7 @@ scope="$(dirname "$0")/../codex-scope.txt"
 if [ -e package.json ]; then printf '%s\n' 'repo-visible' > "$scope"; else printf '%s\n' 'scratch-only' > "$scope"; fi
 if [ "\${OPENAI_API_KEY:-}" = 'sentinel-secret' ]; then printf '%s\n' 'api-key-forwarded' > "$scope"; fi
 printf '%s\\n' 'raw stdout must never become evidence'
-printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[]}' > "$out"
+printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2357","criteria":[]}}' > "$out"
 `,
       'utf-8',
     )
@@ -156,7 +156,7 @@ while [ "$#" -gt 0 ]; do
   if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
 done
 sleep 2
-printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[]}' > "$out"
+printf '%s\\n' '{"verdict":"PASS","confidence":0.8,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2431","criteria":[]}}' > "$out"
 `,
         'utf-8',
       )
