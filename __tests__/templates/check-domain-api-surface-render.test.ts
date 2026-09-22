@@ -163,6 +163,22 @@ describe('check-domain-api-surface.mjs.ejs render tests', () => {
     expect(`${result.stdout}${result.stderr}`).toContain('domain-api surface (INV-125): OK')
   })
 
+  it('uses the conventional schema helper automatically when the consumer provides it', () => {
+    const { checker, manifest } = writeConsumerFixture()
+    const helperDir = join(consumerDir!, 'scripts', 'lib')
+    mkdirSync(helperDir, { recursive: true })
+    writeFileSync(
+      join(helperDir, 'domain-api-schema.ts'),
+      "process.stdout.write(JSON.stringify({ widgets: ['id', 'name'] }))\n",
+    )
+    writeFileSync(manifest, JSON.stringify(validManifest()))
+
+    const result = runConsumer(checker, ['--manifest', manifest])
+
+    expect(result.status).toBe(1)
+    expect(`${result.stdout}${result.stderr}`).toContain('[FAIL] Missing field: widgets.name')
+  })
+
   it('runs a fresh generated manifest through the generic default contract', () => {
     const { checker, manifest } = writeConsumerFixture()
     rmSync(join(consumerDir!, 'src'), { recursive: true, force: true })
