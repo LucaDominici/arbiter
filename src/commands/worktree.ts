@@ -486,20 +486,7 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
       process.stdout.write(`${msg}\n`)
     })
   const gitRoot = getGitRoot(cwd)
-
-  if (!isRunningFromMainRepo(gitRoot)) {
-    throw new Error(
-      'Must run from the main repository, not a worktree. ' +
-        'The .git entry at this path is a file (gitdir pointer), not a directory.',
-    )
-  }
-
-  if (workingTreeDirty(cwd, 'exclude')) {
-    throw new Error(
-      'Working tree has uncommitted changes. ' +
-        'Commit or stash your changes before opening a worktree.',
-    )
-  }
+  assertWorktreeOpenReady(cwd, gitRoot)
 
   const taskId = sanitizeTaskId(opts.taskId)
   const slug = opts.slug
@@ -577,6 +564,21 @@ export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> 
   process.stdout.write(`${t('cli.worktree.base', { base: baseBranch, ref: baseRef })}\n`)
   printLinkSummary(linkSummary)
   process.stdout.write(`${t('cli.worktree.next', { path: worktreePath })}\n`)
+}
+
+function assertWorktreeOpenReady(cwd: string, gitRoot: string): void {
+  if (!isRunningFromMainRepo(gitRoot)) {
+    throw new Error(
+      'Must run from the main repository, not a worktree. ' +
+        'The .git entry at this path is a file (gitdir pointer), not a directory.',
+    )
+  }
+  if (workingTreeDirty(cwd, 'exclude')) {
+    throw new Error(
+      'Working tree has uncommitted changes. ' +
+        'Commit or stash your changes before opening a worktree.',
+    )
+  }
 }
 
 // ---------------------------------------------------------------------------
