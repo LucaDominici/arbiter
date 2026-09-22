@@ -702,6 +702,47 @@ describe('review rounds own the Codex seat (#2747)', () => {
     },
   )
 
+  it('retries a no-data round at a newer HEAD without consuming another round', () => {
+    const firstSha = seedRuntimeFixture()
+    const missingBin = installCodex(null)
+    vi.stubEnv('PATH', `${missingBin}:/usr/bin:/bin`)
+
+    expect(() =>
+      runTaskShip({
+        dir,
+        reviewRound: true,
+        headSha: firstSha,
+        profileOverride: codexProfile,
+        externalModelAccess: codexAccess,
+      }),
+    ).toThrow(FatalError)
+
+    writeFileSync(join(dir, 'candidate.ts'), 'export const candidate = true\n')
+    execFileSync('git', ['add', 'candidate.ts'], { cwd: dir })
+    execFileSync('git', ['commit', '-q', '-m', 'fix: prepare review retry'], { cwd: dir })
+    const secondSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf8',
+    }).trim()
+    const reviewerBin = installCodex(
+      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}',
+    )
+    vi.stubEnv('PATH', `${reviewerBin}:${process.env.PATH ?? ''}`)
+
+    const result = runTaskShip({
+      dir,
+      reviewRound: true,
+      headSha: secondSha,
+      profileOverride: codexProfile,
+      externalModelAccess: codexAccess,
+    })
+
+    expect(buildShipStepLines(result)).toContain(
+      'review round 1: PASS — 0 findings (0 blocking) · next: advance',
+    )
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 1, lastReviewedSha: secondSha })
+  })
+
   it('keeps plan-only behavior when the planned treatment has no Codex seat', () => {
     const sha = seedRuntimeFixture()
     const bin = installCodex('{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}')
