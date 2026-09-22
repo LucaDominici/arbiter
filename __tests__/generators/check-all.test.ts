@@ -126,6 +126,27 @@ describe('generateCheckAll', () => {
     ])
   })
 
+  it('falls back to generic inspection when a canonical filename has a custom shape', async () => {
+    const workflows = join(dir, '.github', 'workflows')
+    mkdirSync(workflows, { recursive: true })
+    writeFileSync(
+      join(workflows, '01-pr-fast.yml'),
+      [
+        'on: pull_request',
+        'jobs:',
+        '  verify:',
+        '    steps:',
+        '      - name: Consumer gate',
+        '        run: npm test',
+      ].join('\n'),
+    )
+
+    await expect(inspectWorkflowContract(dir)).resolves.toEqual({
+      external: [expect.objectContaining({ name: 'verify: Consumer gate', command: 'npm test' })],
+      unresolved: [],
+    })
+  })
+
   it('extracts non-canonical pull-request workflows instead of silently omitting them', async () => {
     const workflows = join(dir, '.github', 'workflows')
     mkdirSync(workflows, { recursive: true })
