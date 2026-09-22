@@ -36,6 +36,13 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
   currentBranch: vi.fn().mockReturnValue('task/1206-gate-marker'),
   headSha: vi.fn().mockReturnValue('b'.repeat(40)),
 }))
+vi.mock('../../src/evidence/tdd-reexecute.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/evidence/tdd-reexecute.js')>()
+  return {
+    ...actual,
+    verifyGreenExecution: vi.fn().mockReturnValue({ ok: true }),
+  }
+})
 
 function writeTddEvidence(dir: string, taskId: string): void {
   const evDir = join(dir, '.arbiter', 'evidence', 'tdd')
@@ -282,7 +289,7 @@ describe('ship id normalization (#1280)', () => {
     expect(() => runTaskShip({ dir, taskId: 'abc' })).toThrow(/[Ii]nvalid.*task id/)
   })
 
-  it('TDD-evidence gate is satisfiable end-to-end when seeded with a bare id', () => {
+  it('stops at GREEN after admitting valid RED evidence', () => {
     // Seed with the BARE id — exactly what `ship 1280 ...` passes through the CLI.
     runTaskShip({ dir, taskId: '1280', tier: 'XS' })
     // Evidence on disk uses the canonical schema form (`^#\d+$`), as the schema requires.
@@ -290,10 +297,9 @@ describe('ship id normalization (#1280)', () => {
     writeUnifiedState(dir, { phase: 'red' })
     // red → green runs checkTddEvidenceGate: path lookup + identity check both need '#1280'.
     const result = runTaskShip({ dir, advance: true })
-    expect(result.step.action).toContain(
-      'advanced to verification; next gate (close) not yet satisfied: gate-pass marker missing',
-    )
-    expect(readUnifiedState(dir)?.phase).toBe('verification')
+    expect(result.phase).toBe('green')
+    expect(result.step.action).toContain('Implement the minimum to make the tests pass')
+    expect(readUnifiedState(dir)?.phase).toBe('green')
   })
 
   it('AC-7 a new ship id cannot inherit a prior task complete phase or plan', () => {
@@ -351,7 +357,7 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
-  it('AC-1 fast-forwards through every passing gate in one call', () => {
+  it('fast-forwards only after the explicit GREEN implementation checkpoint', () => {
     initGitRepo(dir)
     writeFileSync(
       join(dir, 'arbiter.json'),
@@ -369,11 +375,19 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     vi.stubEnv('ARBITER_SKIP_GATE_MARKER', '1')
     let result: ShipResult
     try {
-      result = runTaskShip({
+      const green = runTaskShip({
         dir,
         advance: true,
         // #2402 — `complete` now verifies the branch's PR actually merged; this fixture has no
         // remote, so the reader is seamed to a merged PR rather than the gate being disarmed.
+        advanceOpts: {
+          readPrs: () => [{ number: 1206, state: 'MERGED' }],
+        },
+      })
+      expect(green.phase).toBe('green')
+      result = runTaskShip({
+        dir,
+        advance: true,
         advanceOpts: {
           readPrs: () => [{ number: 1206, state: 'MERGED' }],
         },
@@ -396,6 +410,7 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     writeTddEvidence(dir, '#1206')
     writeUnifiedState(dir, { phase: 'red' })
 
+    expect(runTaskShip({ dir, advance: true }).phase).toBe('green')
     const result = runTaskShip({ dir, advance: true })
     expect(result.phase).toBe('verification')
     expect(result.step.action).toContain(
