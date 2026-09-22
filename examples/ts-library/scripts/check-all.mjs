@@ -270,10 +270,17 @@ if (dryRun) {
       } : _g.bindings ? { bindings: _g.bindings } : {}),
     }));
   const _contractBindings = _contractGates.flatMap((_gate) => _gate.bindings ?? []);
-  const _conditionBindings = _contractGates.flatMap((_gate) =>
+  const _conditionBindingGroups = _contractGates.flatMap((_gate) =>
     [...String(_gate.condition ?? '').matchAll(/gateFilePresent\('([^']+)'/g)]
-      .map((_match) => _match[1]),
+      .map((_match) => {
+        const _binding = (_gate.bindings ?? []).find((_item) => _item.source === _match[1]);
+        return { source: _match[1], alternateSources: _binding?.alternateSources ?? [] };
+      }),
   );
+  const _conditionBindings = _conditionBindingGroups.flatMap((_binding) => [
+    _binding.source,
+    ..._binding.alternateSources,
+  ]);
   const _requiredBindings = _contractBindings
     .filter((_binding) => _binding.required === true)
     .map((_binding) => _binding.source);
@@ -292,8 +299,12 @@ if (dryRun) {
   ];
   const _missingContractAuthority = [...new Set(_requiredBindings)]
     .filter((_path) => !existsSync(_path));
-  const _deletedConditionBindings = [...new Set(_conditionBindings)]
-    .filter((_path) => gateFileState(_path) === 'deleted');
+  const _deletedConditionBindings = _conditionBindingGroups
+    .filter((_binding) =>
+      gateFileState(_binding.source) === 'deleted' &&
+      !_binding.alternateSources.some((_path) => existsSync(_path)),
+    )
+    .map((_binding) => _binding.source);
   if (false && _workflowAuthority.length === 0) {
     _missingContractAuthority.push(_workflowDir);
   }

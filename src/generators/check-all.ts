@@ -48,7 +48,7 @@ export interface GateRegistryEntry {
   /** Effect-free command/read description for inline gates. */
   inspect?: string
   thresholds?: Array<{ name: string; value: string | number; source: string }>
-  bindings?: Array<{ source: string; required?: boolean }>
+  bindings?: Array<{ source: string; required?: boolean; alternateSources?: string[] }>
   language?: string
   /** Generation-time condition — resolved against the render data (e.g. useGitHub). */
   emitIf?: string
@@ -206,6 +206,9 @@ function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): 
             return {
               source: String(binding['source']),
               ...(binding['required'] === true ? { required: true } : {}),
+              ...(Array.isArray(binding['alternateSources'])
+                ? { alternateSources: binding['alternateSources'].map(String) }
+                : {}),
             }
           }),
         }

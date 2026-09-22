@@ -289,4 +289,25 @@ describe('rendered check-all — emitted guard deletion (#2197)', () => {
     )
     expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
   })
+
+  it('accepts and fingerprints a supported alternate guard path during dry-run (AC-12)', () => {
+    const dir = tempDir('arbiter-2197-dry-run-alternate-')
+    writeFileSync(join(dir, '.stylelintrc'), '{}')
+    writeFileSync(
+      join(dir, '.arbiter-generated-manifest.json'),
+      JSON.stringify({ $schemaVersion: 1, files: { '.stylelintrc.json': 'sha256' } }),
+    )
+
+    const result = runRenderedGate(dir, { archetype: 'frontend-spa' }, ['L1', '--dry-run'])
+    const contract = JSON.parse(result.stdout) as {
+      authority: Array<{ path: string }>
+      unresolved: Array<{ source: string }>
+    }
+
+    expect(result.status).toBe(0)
+    expect(contract.authority).toContainEqual(expect.objectContaining({ path: '.stylelintrc' }))
+    expect(contract.unresolved).not.toContainEqual(
+      expect.objectContaining({ source: '.stylelintrc.json' }),
+    )
+  })
 })

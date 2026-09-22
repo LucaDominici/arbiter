@@ -484,7 +484,7 @@
     "scripts/check-acceptance.mjs": "59a50cc5fb74e097e4ea7eeb008baca6b183e06350a486ab2f7c9e4119c5a20e",
     "scripts/check-action-pins.mjs": "8f506e93331676c5640a91f68cca88ded4cad5cdadbec1776c947686990121b5",
     "scripts/check-agent-return.mjs": "9fa6badddf66d4ef0b4064fb10c940c6217b9abd7312027728cb5b09261342a6",
-    "scripts/check-all.mjs": "29d923e00f05c411266d004d3b4d924309137a882a0f0b141e7f75320d83d51e",
+    "scripts/check-all.mjs": "07197be8bea6ea736efc9617c0acf12d119d23406f162339a9c331bb05125f31",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "26bea6f566925dd7e8e7fd3f07c927dfd245ac4ffdbabe37433c8c8a74b03525",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",
