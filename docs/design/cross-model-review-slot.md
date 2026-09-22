@@ -55,7 +55,7 @@ planCrossModelSlots({ tier, phase, totalSlots, verticals, cfg, access }): CrossM
 The external slot **replaces** an Anthropic slot: `external + anthropic === total`, always. If the provider cannot run, that seat **reverts** to Anthropic. This preserves the panel sizes validated by #2176 and keeps `check-review-completion.mjs`'s (#2177) count reconciliation valid. _Rejected_ adding the external slot _on top of_ the panel: it would raise cost and false positives to buy what diversity already delivers, contradicting the study.
 
 **D2 — A reduced external schema, not the full one.**
-The reduced `schemas/agent-return-external.schema.json` carries only reviewer `verdict`, `confidence`, `findings[]`, and `refutations[]`; `branch`/`sha`/`ts` are **stamped by the recorder and never trusted from input** (`record-agent-return.mjs:108-115`). Strict structured output requires every declared object field, so a refutation without support uses `citations: []`. This is not an exception to the existing design: it is an application of it.
+The reduced `schemas/agent-return-external.schema.json` carries reviewer `verdict`, `confidence`, `findings[]`, `refutations[]`, and the exact per-criterion `acceptanceFit` result; `branch`/`sha`/`ts` are **stamped by the recorder and never trusted from input** (`record-agent-return.mjs:108-115`). Strict structured output requires every declared object field, so a refutation without support uses `citations: []`, and every frozen acceptance criterion receives a verdict plus candidate-file citations. This is not an exception to the existing design: it is an application of it.
 
 **D3 — `retries: 0`, never more.**
 Every retry re-egresses the diff to a third party and spends the user's money. A review is not idempotent and must not be repeated blindly. _Rejected_ `runCli`'s retry default.
@@ -93,7 +93,7 @@ Even with `--output-schema`, output can arrive fenced or with a preamble. Ordere
 
 - [ ] AC-1: `planCrossModelSlots` is pure and guarantees `external.length + anthropic === totalSlots` for **every** tier × availability combination — asserted in tests.
 - [ ] AC-2: if the provider is unavailable, unauthenticated, or consent is missing, the slot **reverts to Anthropic** and the panel keeps its expected size.
-- [ ] AC-3: `schemas/agent-return-external.schema.json` exists as the reduced projection (`verdict`, `confidence`, `findings[]`, `refutations[]`) and is passed to `--output-schema`.
+- [ ] AC-3: `schemas/agent-return-external.schema.json` exists as the reduced projection (`verdict`, `confidence`, `findings[]`, `refutations[]`, `acceptanceFit`) and is passed to `--output-schema`.
 - [ ] AC-4: invocation goes through `runCli` with a scratch-only Codex profile extending `:read-only`, denying the host filesystem root, permitting scratch reads, disabling network, `retries: 0`, an explicit `timeoutMs`, and prompt+diff on **stdin** (never argv) — asserted on the exact argv/options object.
 - [ ] AC-5: the diff is truncated at 512 KB with an explicit marker, and truncation produces a dedicated degradation reason.
 - [ ] AC-6: `extractAgentReturnJson` handles, with table tests: bare JSON, fenced, prose→JSON, JSON→prose, two objects (last wins), braces inside strings, truncated ⇒ `null`, empty ⇒ `null`.
