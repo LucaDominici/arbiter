@@ -358,3 +358,9 @@ batch finale allinea le superfici generate e assegna al primo push l'unico prefl
 PR avvia CI e review, mentre la verifica attende solo la ricevuta CI esatta. Questo elimina un
 preflight duplicato misurato in circa 55 secondi per consegna e la suite completa ripetuta durante
 GREEN.
+
+Il primo push del candidato finale ha impiegato 56,9 s e si è fermato solo perché il mirror pubblico
+di `AGENTS.md` non era stato sincronizzato dopo l'ultima correzione self. Il controllo ha quindi
+impedito una consegna incoerente; la correzione è la sola rigenerazione del mirror, verificata prima
+del nuovo push. Il set degli artefatti derivati deve includere i mirror di governance quando cambia
+la loro autorità sorgente.

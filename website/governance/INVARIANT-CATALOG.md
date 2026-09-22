@@ -362,18 +362,19 @@ L2 (full, CI):             L1 + coverage + audit + integration tests
 L3 (deep, nightly/CI):    L2 + E2E + static analysis + evidence
 ```
 
-Run locally:
+Delivery qualification:
 
 ```bash
-node scripts/check-all.mjs L1   # qualify the frozen delivery candidate
-node scripts/check-all.mjs preflight   # before push (plus touched tests)
+git push                      # pre-push hook runs preflight plus touched tests once
+node scripts/ci-receipt.mjs   # record the full L2 gate from exact-head CI
 ```
 
 **Qualification is per train, not per checkpoint commit.** A train is one worktree, branch,
 plan, frozen candidate, independent final review, exact-subject gate and PR carrying compatible
 issues. Local commits remain recoverable TDD checkpoints: staged secret scanning, staged-file
-economy checks and RED integrity still run. L1 qualifies the frozen delivery candidate once; CI
-qualifies L2. `ship.train` in `arbiter.json` (`maxChain`, `maxAgeMinutes`) bounds how
+economy checks and RED integrity still run. The pre-push hook qualifies the frozen candidate once;
+CI qualifies the full L2 gate on the exact pushed SHA. `ship.train` in `arbiter.json`
+(`maxChain`, `maxAgeMinutes`) bounds how
 far a train may grow before it must be landed.
 
 ---
