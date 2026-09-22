@@ -314,7 +314,19 @@ export async function inspectWorkflowContract(root) {
       const entries = build(workflowMapping(parseYaml, path), source)
       external.push(...(Array.isArray(entries) ? entries : [entries]))
     } catch (err) {
-      unresolved.push({ name: 'CI workflow authority', source, reason: err.message })
+      try {
+        const workflow = parseWorkflow(parseYaml, path)
+        if (pullRequestCondition(workflow.on) === null) {
+          throw new Error('pull_request trigger is missing')
+        }
+        external.push(...genericWorkflowCommands(workflow, source))
+      } catch (fallbackErr) {
+        unresolved.push({
+          name: 'CI workflow authority',
+          source,
+          reason: `${err.message}; generic fallback failed: ${fallbackErr.message}`,
+        })
+      }
     }
   }
   const canonical = new Set(definitions.map(([name]) => name))
