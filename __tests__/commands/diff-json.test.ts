@@ -165,6 +165,18 @@ describe('diff --json', () => {
     expect(Array.isArray(data.files)).toBe(true)
   })
 
+  it('reports only the managed files selected by --only', () => {
+    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
+    mockExistsSync.mockReturnValue(false)
+    mockReadFileSync.mockReturnValue('mocked-content')
+    vi.spyOn(process, 'exit').mockImplementation((): never => undefined as never)
+
+    runDiff({ dir: '/tmp/fake', json: true, only: ['.claude/commands/ship.md'] })
+
+    const parsed = JSON.parse(written) as { data: { files: Array<{ key: string }> } }
+    expect(parsed.data.files.map((file) => file.key)).toEqual(['.claude/commands/ship.md'])
+  })
+
   it('emits JSON error when no config found', () => {
     mockLoadConfig.mockReturnValue(null)
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
