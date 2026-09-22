@@ -454,6 +454,16 @@ describe.each(['self', 'emitted'])('#2635 acceptance input boundaries (%s)', (pr
       killSignal: 'SIGKILL',
       env: { ...process.env, ARBITER_ACCEPTANCE_ANCHOR: override },
     })
+  if (projection === 'emitted') {
+    it('rejects missing gate derivation support before red', () => {
+      rmSync(join(root, 'scripts', 'lib', 'gate-derivation.mjs'))
+      const plan = ['---', 'files:', '  - src/example.ts', '---', GOOD_PLAN].join('\n')
+      writeState('plan', 'plan.md', plan)
+      const result = invoke(['--plan', 'plan.md'])
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('derived gate contract support is missing')
+    })
+  }
   it.each([null, [], 0, 'state', true].map((value) => [value]))(
     'rejects nonrecord state %j as ERROR2',
     (value) => {

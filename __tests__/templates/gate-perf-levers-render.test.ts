@@ -107,7 +107,7 @@ describe('check-all.mjs.ejs — TMPDIR is set before the first child spawn (#210
   it('resolves the tmpfs TMPDIR only when the caller has not already set one', () => {
     const out = gate()
     expect(out).toContain('resolveTmpfsTmpdir')
-    expect(out).toMatch(/if \(!process\.env\.TMPDIR\)/)
+    expect(out).toMatch(/if \(!process\.env\.TMPDIR && !process\.argv\.includes\('--dry-run'\)\)/)
     expect(out).toMatch(/process\.env\.TMPDIR = /)
   })
 

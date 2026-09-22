@@ -21,14 +21,14 @@ on:
   # job — adding a doc regenerates the repo-root `llms.txt`, which matches neither
   # `docs/**` nor `*.md`, so the extended tier ran on most docs pull requests
   # anyway; the exemption was nominal; (c) removing it costs nearly nothing, because
-  # `check-trigger` below — label / ready_for_review / sensitive path / LOC
+  # `check-trigger` below — draft-open / label / sensitive path / LOC
   # threshold — remains the real economic gate: a trivial docs change still resolves
   # to should_run=false, every heavy job skips, and `extended-required` reports a
   # VISIBLE green instead of being absent. The trade accepted: a docs-only change at
   # or over the LOC threshold now runs the extended tier, which for a change that
   # large is the right answer. Enforced by scripts/check-workflow-test-integrity.mjs.
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   group: pr-extended-${{ github.head_ref || github.ref_name }}${{ github.base_ref && format('-{0}', github.base_ref) || '' }}
@@ -63,7 +63,7 @@ jobs:
           PATHS_FILE=".github/extended-ci-paths.txt"
 
           [[ "$HAS_EXT_LABEL" == "true" ]] && { echo "Trigger: extended-ci label"; SHOULD_RUN=true; }
-          [[ "$EVENT_ACTION" == "ready_for_review" ]] && { echo "Trigger: ready_for_review"; SHOULD_RUN=true; }
+          [[ "$EVENT_ACTION" == "opened" ]] && { echo "Trigger: draft opened"; SHOULD_RUN=true; }
 
           if [[ "$SHOULD_RUN" == "false" ]]; then
             MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || echo "$BASE_SHA")

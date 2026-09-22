@@ -9,6 +9,51 @@ import {
 import { computeRecall, extractGateFailures } from '../../scripts/backtest-gate-derivation.mjs'
 
 describe('gate derivation (#2773)', () => {
+  const inspection = {
+    schema: 'arbiter-gate-contract-v1',
+    authority: [
+      { path: 'scripts/check-all.mjs', sha256: 'self-check-all' },
+      { path: '.coverage-baseline.json', sha256: 'coverage-baseline' },
+    ],
+    gates: [
+      {
+        name: 'build',
+        kind: 'constraint',
+        command: 'npm run build',
+        condition: 'selected gate level is active',
+      },
+      {
+        name: 'coverage',
+        kind: 'constraint',
+        command: 'npm test -- --coverage',
+        condition: 'selected gate level is active',
+      },
+      {
+        name: 'coverage ratchet (#1483)',
+        kind: 'constraint',
+        command: 'node scripts/check-coverage-ratchet.mjs --require-data',
+        condition: 'coverage passed',
+        thresholds: [{ name: 'branches', value: 0, source: '.coverage-baseline.json#branches' }],
+      },
+      {
+        name: 'integration suite (INV-25)',
+        kind: 'test-first',
+        command:
+          'npx vitest run --config vitest.integration.config.ts --silent --exclude __tests__/integration/init-greenfield-smoke.test.ts',
+        condition: 'L2 qualification after L1 passes',
+      },
+    ],
+    external: [
+      {
+        name: 'dependency-review',
+        source: '.github/workflows/01-pr-fast.yml',
+        command: 'actions/dependency-review-action',
+        condition: "github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'",
+        status: 'remote-dependent',
+      },
+    ],
+  }
+
   it('AC-1 derives template artifacts without leaking them into docs-only work', () => {
     const templates = deriveGatesForFiles(['src/templates/claude/commands/ship.md.ejs'])
     const docs = deriveGatesForFiles(['docs/internal/ADR/001-example.md'])
@@ -71,6 +116,69 @@ describe('gate derivation (#2773)', () => {
       ]).ok,
     ).toBe(false)
     expect(validateDerivedGates(files, expected)).toEqual({ ok: true, expected })
+  })
+
+  it('persists only effective inspection gates and keeps regeneration distinct from verification', () => {
+    const files = ['src/templates/claude/commands/ship.md.ejs']
+    const gates = deriveGatesForFiles(files, GATE_AFFECTS_REGISTRY, inspection)
+
+    expect(gates.find((gate) => gate.name === 'coverage ratchet (#1483)')).toMatchObject({
+      command: 'node scripts/check-coverage-ratchet.mjs --require-data',
+      condition: 'coverage passed',
+      thresholds: [{ name: 'branches', value: 0, source: '.coverage-baseline.json#branches' }],
+      authority: inspection.authority,
+    })
+    expect(gates.find((gate) => gate.name === 'unit tests')).toBeUndefined()
+    expect(gates.find((gate) => gate.name === 'build-kit')).toBeUndefined()
+    expect(gates.find((gate) => gate.name === 'coverage')).toMatchObject({
+      kind: 'test-first',
+      command: 'npm test -- --coverage',
+    })
+    expect(gates.find((gate) => gate.name === 'integration suite (INV-25)')).toMatchObject({
+      kind: 'artifact-regenerate',
+      command: 'BAKE_UPDATE_SNAPSHOTS=1 npm run test:e2e:bake',
+      verificationCommand:
+        'npx vitest run --config vitest.integration.config.ts --silent --exclude __tests__/integration/init-greenfield-smoke.test.ts',
+      condition: 'L2 qualification after L1 passes',
+    })
+    expect(gates).toContainEqual(
+      expect.objectContaining({
+        name: 'dependency-review',
+        kind: 'constraint',
+        status: 'remote-dependent',
+      }),
+    )
+    expect(validateDerivedGates(files, gates, GATE_AFFECTS_REGISTRY, inspection).ok).toBe(true)
+
+    const changedAuthority = structuredClone(inspection)
+    changedAuthority.authority[1]!.sha256 = 'changed'
+    expect(validateDerivedGates(files, gates, GATE_AFFECTS_REGISTRY, changedAuthority).ok).toBe(
+      false,
+    )
+  })
+
+  it('keeps unsupported custom gate authority explicit and blocking', () => {
+    const contract = {
+      schema: 'arbiter-gate-contract-v1',
+      authority: [{ path: 'scripts/check-all.mjs', sha256: 'custom-wrapper' }],
+      gates: [],
+      external: [],
+      unresolved: [
+        {
+          name: 'verification authority',
+          source: 'scripts/check-all.mjs',
+          reason: 'unsupported custom gate authority',
+        },
+      ],
+    }
+    const gates = deriveGatesForFiles(['src/index.ts'], GATE_AFFECTS_REGISTRY, contract)
+    expect(gates).toContainEqual(
+      expect.objectContaining({
+        name: 'verification authority',
+        status: 'unresolved',
+        reason: 'unsupported custom gate authority',
+      }),
+    )
   })
 
   it('reads the existing YAML-frontmatter files manifest shape', () => {

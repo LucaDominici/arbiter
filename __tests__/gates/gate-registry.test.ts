@@ -55,6 +55,11 @@ function runScript(
       }),
       'utf-8',
     )
+    writeFileSync(
+      join(dir, 'lib', 'workflow-scan.mjs'),
+      readFileSync(resolve('scripts/lib/workflow-scan.mjs'), 'utf-8'),
+      'utf-8',
+    )
     // Run from the fixture dir (a consumer runs the gate from its project root):
     // inline bodies read repo-local files (package.json, .github/workflows) and
     // must not observe the test runner's tree — nor hit the network.

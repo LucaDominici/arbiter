@@ -25,15 +25,131 @@ import { resolveToolInputCommand } from './lib.mjs'
 // Reading only the env var made this guard silently inert under Claude Code (#1565).
 const command = resolveToolInputCommand()
 
-// Split on shell chain operators and match each segment anchored at its start.
+// Split on shell chain operators outside quotes and match each segment by argv.
 // This is what makes `gh issue create --body "run gh pr create after"` safe:
 // that segment starts with `gh issue create`, not `gh pr create`, so it never
 // matches — no separate exemption list needed for gh issue create.
-const segments = command.split(/&&|\|\||;|\|/).map((s) => s.trim())
-const guardIndex = segments.findIndex((s) => /^gh\s+pr\s+(?:create|ready)\b/.test(s))
-if (guardIndex === -1) process.exit(0)
-const isPrCreate = /^gh\s+pr\s+create\b/.test(segments[guardIndex])
-const isDraft = isPrCreate && /(?:^|\s)--draft(?:[=\s]|$)/.test(segments[guardIndex])
+function parseShell(input) {
+  const commands = [[]]
+  let token = ''
+  let quote = null
+  let escaped = false
+  let unsupported = false
+  const pushToken = () => {
+    if (token) commands.at(-1).push(token)
+    token = ''
+  }
+  const pushCommand = () => {
+    pushToken()
+    if (commands.at(-1).length > 0) {
+      commands.push([])
+    }
+  }
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index]
+    if (escaped) {
+      token += char
+      escaped = false
+    } else if (char === '\\') {
+      escaped = true
+    } else if (quote !== null) {
+      if (char === quote) quote = null
+      else {
+        if (quote !== "'" && (char === '`' || (char === '$' && input[index + 1] === '('))) {
+          unsupported = true
+        }
+        token += char
+      }
+    } else if (char === '"' || char === "'") {
+      quote = char
+    } else if (char === ';' || char === '|' || (char === '&' && input[index + 1] === '&')) {
+      pushCommand()
+      if ((char === '|' && input[index + 1] === '|') || char === '&') index += 1
+    } else if (
+      char === '`' ||
+      (char === '$' && input[index + 1] === '(') ||
+      char === '<' ||
+      char === '>' ||
+      char === '&'
+    ) {
+      unsupported = true
+      token += char
+    } else if (/\s/.test(char)) {
+      pushToken()
+    } else {
+      token += char
+    }
+  }
+  pushToken()
+  if (commands.at(-1).length === 0) {
+    commands.pop()
+  }
+  return { commands, ambiguous: quote !== null || escaped || unsupported }
+}
+
+const parsed = parseShell(command)
+const segments = parsed.commands
+const parsedSegments = segments.map((tokens, index) => ({ tokens, index }))
+const guardedSegments = parsedSegments.filter(
+  ({ tokens }) =>
+    tokens[0] === 'gh' && tokens[1] === 'pr' && (tokens[2] === 'create' || tokens[2] === 'ready'),
+)
+const ambiguousGuardSegments = parsedSegments.filter(({ tokens }) => {
+  const normalized = tokens.map((token) => token.replace(/^[({$]+|[)}]+$/g, ''))
+  return normalized.some(
+    (token, index) =>
+      token === 'gh' &&
+      normalized[index + 1] === 'pr' &&
+      (normalized[index + 2] === 'create' || normalized[index + 2] === 'ready') &&
+      !(index === 0 && tokens[0] === 'gh'),
+  )
+})
+const hasAmbiguousGuard = parsed.ambiguous || ambiguousGuardSegments.length > 0
+if (guardedSegments.length === 0 && !hasAmbiguousGuard) process.exit(0)
+const guardIndex = (guardedSegments[0] ?? ambiguousGuardSegments[0]).index
+
+// gh accepts flag-looking strings as values for value-taking options. Only these
+// documented boolean create flags leave the following argv token available as a flag.
+const PR_CREATE_BOOLEAN_FLAGS = new Set([
+  '-e',
+  '-f',
+  '-w',
+  '--dry-run',
+  '--editor',
+  '--fill',
+  '--fill-first',
+  '--fill-verbose',
+  '--no-maintainer-edit',
+  '--web',
+])
+
+function hasDraftFlag(tokens) {
+  let draft = false
+  let valid = true
+  for (let index = 3; index < tokens.length; index += 1) {
+    const token = tokens[index]
+    if (token === '--draft' || token === '-d') {
+      draft = true
+      continue
+    }
+    if (token.startsWith('--draft=') || token.startsWith('-d=')) {
+      const value = token.slice(token.indexOf('=') + 1)
+      if (value === 'true' || value === 'false') draft = value === 'true'
+      else valid = false
+      continue
+    }
+    if (!token.startsWith('-') || token.includes('=') || PR_CREATE_BOOLEAN_FLAGS.has(token))
+      continue
+    index += 1
+  }
+  return valid && draft
+}
+
+const isDraft =
+  !hasAmbiguousGuard &&
+  guardedSegments.length === 1 &&
+  guardedSegments[0].tokens[2] === 'create' &&
+  hasDraftFlag(guardedSegments[0].tokens)
 
 function exitAfterStderr(code, message) {
   writeSync(2, message)
@@ -54,9 +170,9 @@ if (process.env.ARBITER_SKIP_GATE_MARKER === '1') {
  */
 function resolveTargetRoot(cmdSegments, guardIndex) {
   for (let i = guardIndex - 1; i >= 0; i--) {
-    const cdMatch = cmdSegments[i].match(/^cd\s+(.+)$/)
-    if (!cdMatch) continue
-    const dir = cdMatch[1].trim().replace(/^["']|["']$/g, '')
+    const tokens = cmdSegments[i]
+    if (tokens[0] !== 'cd' || tokens.length !== 2) continue
+    const dir = tokens[1]
     const top = spawnSync(
       'git',
       ['-C', resolve(process.cwd(), dir), 'rev-parse', '--show-toplevel'],
@@ -66,9 +182,13 @@ function resolveTargetRoot(cmdSegments, guardIndex) {
     break
   }
 
-  const headMatch = cmdSegments[guardIndex].match(/--head[= ]("?)([^"\s]+)\1/)
-  if (headMatch) {
-    const branch = headMatch[2]
+  const guardTokens = cmdSegments[guardIndex]
+  const headIndex = guardTokens.findIndex(
+    (token) => token === '--head' || token.startsWith('--head='),
+  )
+  const branch =
+    headIndex < 0 ? undefined : (guardTokens[headIndex].split('=')[1] ?? guardTokens[headIndex + 1])
+  if (branch) {
     const listResult = spawnSync('git', ['worktree', 'list', '--porcelain'], { encoding: 'utf-8' })
     if (listResult.status === 0) {
       for (const entry of listResult.stdout.split('\n\n')) {
@@ -132,16 +252,17 @@ if (resolvedRoot) {
 
 const markerPath = resolve(repoRoot, '.arbiter/gate-pass.json')
 const rootNote = resolvedRoot ? ` (worktree: ${repoRoot})` : ''
+
+if (isDraft) {
+  await exitAfterStderr(
+    0,
+    `[arbiter] GATE GUARD: DRAFT PR allowed before gate/CI receipt validation${rootNote}; CI must verify the pushed SHA.\n`,
+  )
+}
+
 const ciReceipt = readCiPassReceipt(repoRoot)
 
 if (ciReceipt.ok) process.exit(0)
-
-if (!existsSync(markerPath) && isDraft) {
-  await exitAfterStderr(
-    0,
-    `[arbiter] GATE GUARD: DRAFT PR allowed without a gate receipt${rootNote}; CI must verify the pushed SHA.\n`,
-  )
-}
 
 if (!existsSync(markerPath)) {
   await exitAfterStderr(

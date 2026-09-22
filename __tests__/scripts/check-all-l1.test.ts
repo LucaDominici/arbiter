@@ -31,7 +31,7 @@ describe('check-all.mjs L1 wiring', () => {
     expect(coverageGuardIdx).toBeLessThan(coverageIdx)
     expect(content.slice(unitGuardIdx, unitIdx)).not.toContain('preflight')
     expect(content.slice(coverageIdx, coverageIdx + 240)).toContain('failOnSkip: true')
-    const ratchetIdx = content.indexOf("runCheck('coverage ratchet (#1483)'")
+    const ratchetIdx = content.indexOf("'coverage ratchet (#1483)'")
     expect(ratchetIdx).toBeGreaterThan(coverageIdx)
     expect(content.slice(ratchetIdx, ratchetIdx + 180)).toContain("'--require-data'")
   })
@@ -75,7 +75,7 @@ describe('check-all.mjs L1 wiring', () => {
       '--exclude',
       '__tests__/integration/init-greenfield-smoke.test.ts',
     ])
-    expect(content).toContain('integrationSuiteArgs(getResults())')
+    expect(content).toMatch(/integrationSuiteArgs\([\s\S]*?: getResults\(\),?[\s\S]*?\)/)
   })
 
   it.each(['FAIL', 'SKIP', 'WARN', 'TIMEOUT'])('keeps smoke after %s', (status) => {

@@ -16,6 +16,7 @@ import { DEFAULT_CROSS_MODEL_REVIEW } from '../../src/config/schema.js'
 import type { CrossModelReviewConfig } from '../../src/wizard/types.js'
 import type { ExternalModelAccess } from '../../src/detectors/external-model.js'
 import { CliError, runCli } from '../../src/utils/run-cli.js'
+import { headSha } from '../../src/evidence/git-checks.js'
 import {
   assertSafeArbiterEvidenceRoot,
   extractAgentReturnJson,
@@ -261,7 +262,49 @@ describe('extractAgentReturnJson (#2357)', () => {
 })
 
 describe('invokeExternalReview (#2357)', () => {
-  beforeEach(() => mockedRunCli.mockReset())
+  beforeEach(() => {
+    mockedRunCli.mockReset()
+    vi.mocked(headSha).mockReset().mockReturnValue('current-sha')
+  })
+
+  it('removes fulfilled evidence when HEAD moves at the recorder boundary', () => {
+    const evidenceRoot = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-head-drift-'))
+    const envelope = join(evidenceRoot, 'agent-returns', '_2357', 'codex.json')
+    try {
+      mockedRunCli.mockImplementation((cmd) => {
+        if (cmd === 'codex') {
+          return { stdout: JSON.stringify(payload), stderr: '', exitCode: 0, durationMs: 1 }
+        }
+        mkdirSync(join(evidenceRoot, 'agent-returns', '_2357'), { recursive: true })
+        writeFileSync(envelope, JSON.stringify(payload))
+        vi.mocked(headSha).mockReturnValue('moved-sha')
+        return {
+          stdout: `[record-agent-return] OK — wrote ${envelope}`,
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
+      })
+
+      expect(() =>
+        invokeExternalReview({
+          repoRoot,
+          taskId: '#2357',
+          prompt: 'Review.',
+          diff: 'diff',
+          cfg: config(),
+          access: access(),
+          expectedSha: 'current-sha',
+          evidenceDir: join(evidenceRoot, 'agent-returns'),
+          dispatchEvidenceDir: evidenceRoot,
+        }),
+      ).toThrow(/HEAD.*drift/i)
+      expect(existsSync(envelope)).toBe(false)
+      expect(existsSync(join(evidenceRoot, '_2357', 'dispatch.json'))).toBe(false)
+    } finally {
+      rmSync(evidenceRoot, { recursive: true, force: true })
+    }
+  })
 
   it('rejects a symlinked default evidence root before dispatch', () => {
     const fixture = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-symlink-'))

@@ -27,8 +27,9 @@ describe('ship treatment template', () => {
   })
 
   it('uses runtime-owned foreground reviewer certification', () => {
-    expect(render().replace(/\s+/g, ' ')).toContain(
-      'run `arbiter ship --review-round`; it dispatches the reviewer in the foreground and records the envelope — do not dispatch reviewers or write envelopes by hand.',
-    )
+    const output = render().replace(/\s+/g, ' ')
+    expect(output).toContain('push the frozen branch and open or reuse its draft PR')
+    expect(output).toContain('PR CI starts on that same SHA')
+    expect(output).toContain('run `arbiter ship --review-round` in the foreground')
   })
 })

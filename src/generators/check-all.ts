@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { renderTemplate } from '../utils/render.js'
-import { writeFile, resolvedPath } from '../utils/fs.js'
+import { readFileTranslated, writeFile, resolvedPath } from '../utils/fs.js'
 import { resolveEffectiveThresholds } from '../config/thresholds.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { isSubtreeFrontendLane } from '../detectors/lanes.js'
@@ -23,6 +23,13 @@ const TEMPLATES_LIB_DIR = join(
   'scripts',
   'lib',
 )
+const PACKAGED_SCRIPTS_LIB_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  'scripts',
+  'lib',
+)
 
 /**
  * #2041 (AC-2041.4): the declarative gate registry — every gate the emitted
@@ -38,6 +45,10 @@ export interface GateRegistryEntry {
   /** Cheap diagnostics independent of future task proofs; default is qualification-only. */
   preflight?: boolean
   cmd?: string[]
+  /** Effect-free command/read description for inline gates. */
+  inspect?: string
+  thresholds?: Array<{ name: string; value: string | number; source: string }>
+  bindings?: Array<{ source: string; required?: boolean; alternateSources?: string[] }>
   language?: string
   /** Generation-time condition — resolved against the render data (e.g. useGitHub). */
   emitIf?: string
@@ -116,6 +127,21 @@ function parseGateRegistryYaml(rendered: string): Record<string, unknown>[] {
   return raw as Record<string, unknown>[]
 }
 
+function validateGateCommandShape(
+  id: string,
+  kind: GateRegistryEntry['kind'],
+  command: unknown,
+): void {
+  if (kind !== 'inline' && !Array.isArray(command)) {
+    throw new Error(`gate registry: non-inline gate "${id}" needs a cmd array`)
+  }
+  if (kind === 'inline' && command !== undefined) {
+    throw new Error(
+      `gate registry: inline gate "${id}" must not declare cmd (bodies live in the template)`,
+    )
+  }
+}
+
 // id/level/kind/cmd shape validation for one raw gate entry (throws LOUD on
 // any malformed field); `seen` tracks duplicate ids across the whole registry.
 function validateGateEntryShape(
@@ -136,14 +162,7 @@ function validateGateEntryShape(
   if (typeof kind !== 'string' || !VALID_KINDS.has(kind)) {
     throw new Error(`gate registry: gate "${id}" has invalid kind ${String(kind)}`)
   }
-  if (kind !== 'inline' && !Array.isArray(entry['cmd'])) {
-    throw new Error(`gate registry: non-inline gate "${id}" needs a cmd array`)
-  }
-  if (kind === 'inline' && entry['cmd'] !== undefined) {
-    throw new Error(
-      `gate registry: inline gate "${id}" must not declare cmd (bodies live in the template)`,
-    )
-  }
+  validateGateCommandShape(id, kind as GateRegistryEntry['kind'], entry['cmd'])
   return { id, level: level as GateRegistryEntry['level'], kind: kind as GateRegistryEntry['kind'] }
 }
 
@@ -167,6 +186,33 @@ function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): 
     level,
     kind,
     ...(flatCmd !== undefined ? { cmd: flatCmd } : {}),
+    ...(typeof entry['inspect'] === 'string' ? { inspect: entry['inspect'] } : {}),
+    ...(Array.isArray(entry['thresholds'])
+      ? {
+          thresholds: entry['thresholds'].map((item) => {
+            const threshold = item as Record<string, unknown>
+            return {
+              name: String(threshold['name']),
+              value: threshold['value'] as string | number,
+              source: String(threshold['source']),
+            }
+          }),
+        }
+      : {}),
+    ...(Array.isArray(entry['bindings'])
+      ? {
+          bindings: entry['bindings'].map((item) => {
+            const binding = item as Record<string, unknown>
+            return {
+              source: String(binding['source']),
+              ...(binding['required'] === true ? { required: true } : {}),
+              ...(Array.isArray(binding['alternateSources'])
+                ? { alternateSources: binding['alternateSources'].map(String) }
+                : {}),
+            }
+          }),
+        }
+      : {}),
     ...(typeof entry['language'] === 'string' ? { language: entry['language'] } : {}),
     ...(typeof entry['emitIf'] === 'string' ? { emitIf: entry['emitIf'] } : {}),
     ...(typeof entry['condition'] === 'string' ? { condition: entry['condition'] } : {}),
@@ -326,6 +372,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
   // so a project missing it would run two gates in one repo and let a killed push
   // leave an orphan behind.
   { rel: ['scripts', 'lib', 'gate-mutex.mjs'], tpl: 'scripts/lib/gate-mutex.mjs.ejs' },
+  // #2773: plan-time verification contract. These are unconditional because
+  // task lifecycle admission imports them whenever acceptance anchoring is enabled.
+  { rel: ['scripts', 'lib', 'gate-contract.mjs'], tpl: 'scripts/lib/gate-contract.mjs.ejs' },
+  {
+    rel: ['scripts', 'lib', 'gate-derivation.mjs'],
+    tpl: 'scripts/lib/gate-derivation.mjs.ejs',
+  },
+  { rel: ['scripts', 'derive-plan-gates.mjs'], tpl: 'scripts/derive-plan-gates.mjs.ejs' },
   // #2399: the review/dispatch evidence binding (ancestor + source-unchanged). Emitted
   // unconditionally — the review gates and the Stop hook all import it, and a project
   // missing it fails closed everywhere.
@@ -835,7 +889,10 @@ export function gateSpineDependencies(config: ProjectConfig): {
 
 /** Does `src/templates/scripts/lib/<name>.ejs` exist for lib module `name`? */
 function libTemplateExists(name: string): boolean {
-  return existsSync(join(TEMPLATES_LIB_DIR, `${name}.ejs`))
+  return (
+    existsSync(join(TEMPLATES_LIB_DIR, `${name}.ejs`)) ||
+    existsSync(join(PACKAGED_SCRIPTS_LIB_DIR, name))
+  )
 }
 
 export function generateCheckAll(
@@ -847,6 +904,13 @@ export function generateCheckAll(
   const data = buildCheckAllRenderData(config)
 
   results.push(...emitUnconditional(base, data, opts))
+  results.push(
+    writeFile(
+      resolvedPath(base, 'scripts', 'lib', 'workflow-scan.mjs'),
+      readFileTranslated(join(PACKAGED_SCRIPTS_LIB_DIR, 'workflow-scan.mjs'), 'utf8'),
+      { dryRun: opts.dryRun },
+    ),
+  )
   results.push(...emitDebtGated(base, data, opts))
   results.push(...emitExtendedGated(base, data, opts))
 

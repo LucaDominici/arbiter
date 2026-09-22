@@ -36,15 +36,15 @@ import {
 import { enforceAcFitCitations } from './lib/agent-return-validate.mjs'
 import { evidenceStaleness } from './lib/evidence-binding.mjs'
 import { isMainModule, readRegularFileSync } from './lib/run-helpers.mjs'
+import { inspectGateContract, unresolvedContractReasons } from './lib/gate-contract.mjs'
 
 const PRE_PHASES = new Set(['preflight', 'plan', 'complete'])
 const IMPL_PHASES = new Set(['red', 'green', 'refactor'])
 const LATE_PHASES = new Set(['verification', 'close'])
 const ADMISSION_GH_TIMEOUT_MS = 4000
 
-// Arbiter-self ships the affects registry; generated targets currently do not. The
-// shared acceptance checker therefore activates #2773 only where the pure derivation
-// module exists, without inventing a second emitted registry.
+// Upgraded brownfield targets can temporarily lack the derivation module. Keep that
+// absence observable so plan admission can reject it with a repairable error.
 const gateDerivationPath = join(import.meta.dirname, 'lib', 'gate-derivation.mjs')
 const gateDerivation = existsSync(gateDerivationPath)
   ? await import(pathToFileURL(gateDerivationPath).href)
@@ -222,16 +222,30 @@ function runAdmissionMode(root, args, planIdx, admitIdx) {
 }
 
 function checkPlanDerivedGates(root, planBody) {
-  if (gateDerivation === null) return 0
   const loaded = loadTaskState(root)
   if (loaded.exit !== undefined) return loaded.exit
   if (loaded.state.phase !== 'plan') return 0
+  if (gateDerivation === null) {
+    fail('derived gate contract support is missing; restore scripts/lib/gate-derivation.mjs')
+    return 1
+  }
   const files = gateDerivation.parsePlanFilesManifest(planBody)
   if (files === null || files.length === 0) {
     fail('derived gates require a non-empty `files:` manifest in plan frontmatter')
     return 1
   }
-  const verdict = gateDerivation.validateDerivedGates(files, loaded.state.derivedGates)
+  const contract = inspectGateContract(root)
+  const unresolved = unresolvedContractReasons(contract)
+  if (unresolved.length > 0) {
+    fail(`derived gate contract is unresolved: ${unresolved.join('; ')}`)
+    return 1
+  }
+  const verdict = gateDerivation.validateDerivedGates(
+    files,
+    loaded.state.derivedGates,
+    undefined,
+    contract,
+  )
   if (!verdict.ok) {
     fail(
       'derived gates are missing or stale; recompute them from the plan files manifest before entering red',

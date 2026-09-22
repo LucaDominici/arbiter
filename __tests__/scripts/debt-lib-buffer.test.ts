@@ -36,9 +36,11 @@ describe('debt-lib spawnOrSkip — large-output buffering (#1542)', () => {
 describe('debt-lib complexity ratchet scope (#1523/#1542)', () => {
   it('scans the scripts/ enforcement layer, not just src/', () => {
     const source = readFileSync(join(ROOT, 'scripts', 'debt-lib.mjs'), 'utf8')
+    const contract = readFileSync(join(ROOT, 'scripts', 'lib', 'debt-metric-contract.mjs'), 'utf8')
     // The complexityViolations collector must pass both paths so the gate code is
     // ratcheted alongside product code.
-    expect(source).toMatch(/'eslint',\s*'src',\s*'scripts'/)
+    expect(source).toContain('DEBT_METRIC_COMMANDS.complexityViolations')
+    expect(contract).toMatch(/'eslint',\s*'src',\s*'scripts'/)
   })
 })
 

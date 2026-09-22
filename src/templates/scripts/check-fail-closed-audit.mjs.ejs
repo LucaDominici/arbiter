@@ -45,6 +45,10 @@ const SKIP_FILES = new Set([
   // Pure constants SSOT; entry-point consumers own the exit contract.
   'scripts/lib/governance-paths.mjs',
   'scripts/lib/glob-walk.mjs', // #1366: pure glob/tree-walk helper; consumers own the exit contract
+  // #2773 verification-contract libraries; entry-point consumers own exits. The inspector
+  // converts every missing, malformed or unsupported authority into a blocking unresolved item.
+  'scripts/lib/gate-contract.mjs',
+  'scripts/lib/gate-derivation.mjs',
   // #2148 pure exact-SHA policy declarations/validation; the watcher and branch
   // protection applicator own all I/O and convert validation errors fail-closed.
   'scripts/lib/exact-sha-policy.mjs',

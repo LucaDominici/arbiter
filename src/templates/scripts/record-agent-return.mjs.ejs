@@ -55,6 +55,7 @@ const PROVENANCE_VENDOR = arg('provenance-vendor', argv)
 const PROVENANCE_CLI = arg('provenance-cli', argv)
 const PROVENANCE_CLI_VERSION = arg('provenance-cli-version', argv)
 const PROVENANCE_DISPATCH = arg('provenance-dispatch', argv)
+const EXPECTED_SHA = arg('expected-sha', argv)
 const REPO_ROOT = arg('repo-root', argv) ? resolve(arg('repo-root', argv)) : repoDefault
 const EVIDENCE_DIR = arg('evidence-dir', argv)
   ? resolve(arg('evidence-dir', argv))
@@ -271,6 +272,9 @@ function stampAndValidate(parsed, schema) {
   // recorder stamps those itself — never trusted from input — then validates the FULL stamped
   // envelope against the schema before writing. A malformed return fails at hand-back time.
   const stamped = stampProvenance()
+  if (EXPECTED_SHA !== null && stamped.sha !== EXPECTED_SHA) {
+    throw new Error(`HEAD drifted from expected ${EXPECTED_SHA} (current ${stamped.sha})`)
+  }
   const env = /** @type {Record<string, unknown>} */ (parsed)
   env['branch'] = stamped.branch
   env['sha'] = stamped.sha
@@ -635,6 +639,9 @@ function recordReturn(parsed, schema) {
   const agent =
     typeof env['agent'] === 'string' ? String(env['agent']).replace(/[^0-9A-Za-z-]/g, '-') : 'agent'
   try {
+    if (EXPECTED_SHA !== null && stampProvenance().sha !== EXPECTED_SHA) {
+      throw new Error(`HEAD drifted from expected ${EXPECTED_SHA} before evidence persistence`)
+    }
     const outPath = writeEnvelopeContained(
       EVIDENCE_DIR,
       sanitizedTask,

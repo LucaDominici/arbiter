@@ -15,6 +15,7 @@ import {
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { walkRepo } from './lib/glob-walk.mjs'
+import { DEBT_METRIC_COMMANDS } from './lib/debt-metric-contract.mjs'
 import { EXTENSIONS, findOrphanTodos } from './check-no-orphan-todo.mjs'
 
 // The `eslint <paths> --format json` output for this repo exceeds the Node
@@ -645,11 +646,12 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   // highest-leverage code in the repo and was previously exempt from the
   // complexity ratchet (#1523/#1542). The baseline grandfathers the current
   // offenders; the ratchet blocks any net increase and admits gradual burn-down.
+  const [complexityCommand, ...complexityArgs] = DEBT_METRIC_COMMANDS.complexityViolations
   const eslintComplexRaw = spawnOrSkip(
     'complexityViolations',
     'eslint',
-    'npx',
-    ['eslint', 'src', 'scripts', '--format', 'json', '--rule', '{"complexity":["warn",10]}'],
+    complexityCommand,
+    complexityArgs,
     { cwd },
   )
   if (eslintComplexRaw !== null) {

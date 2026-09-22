@@ -2,8 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { generateCheckAll } from '../../src/generators/check-all.js'
+import { generateCheckAll, loadGateRegistry } from '../../src/generators/check-all.js'
+import { readVitestCoverageThresholds } from '../../scripts/check-all.mjs'
+import { inspectWorkflowContract } from '../../scripts/lib/workflow-scan.mjs'
+import { generateDebtRatchet } from '../../src/generators/debt-ratchet.js'
 import { makeConfig } from '../helpers.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
 
@@ -18,12 +22,236 @@ describe('generateCheckAll', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  it('keeps an effective zero threshold visible in registry inspection metadata', () => {
+    const config = makeConfig('/tmp/threshold-zero', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: true,
+    }) as unknown as Record<string, unknown>
+    const gates = loadGateRegistry({
+      ...config,
+      coverageThreshold: 0,
+      mutationThreshold: 0,
+      mutationEnabled: true,
+      binarySizeBytes: 0,
+    })
+    expect(gates.find((gate) => gate.id === 'coverage-threshold')?.thresholds?.[0]?.value).toBe(0)
+    expect(gates.find((gate) => gate.id === 'mutation-stryker')?.thresholds?.[0]?.value).toBe(0)
+  })
+
+  it('reads self coverage thresholds from the executable Vitest config authority', async () => {
+    const configPath = join(dir, 'vitest.config.ts')
+    writeFileSync(
+      configPath,
+      'export default { test: { coverage: { thresholds: { lines: 97, branches: 96, functions: 95, statements: 94 } } } }\n',
+    )
+    await expect(readVitestCoverageThresholds(configPath)).resolves.toEqual({
+      thresholds: [
+        { name: 'lines', value: 97, source: `${configPath}#coverage.thresholds.lines` },
+        { name: 'branches', value: 96, source: `${configPath}#coverage.thresholds.branches` },
+        { name: 'functions', value: 95, source: `${configPath}#coverage.thresholds.functions` },
+        { name: 'statements', value: 94, source: `${configPath}#coverage.thresholds.statements` },
+      ],
+      unresolved: [],
+    })
+  })
+
+  it('extracts actual checked-out PR workflow commands, conditions, and thresholds', async () => {
+    const workflows = join(dir, '.github', 'workflows')
+    mkdirSync(workflows, { recursive: true })
+    writeFileSync(
+      join(workflows, '01-pr-fast.yml'),
+      [
+        'on:',
+        '  pull_request:',
+        '    types: [opened, synchronize]',
+        'jobs:',
+        '  dependency-review:',
+        "    if: github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'",
+        '    steps:',
+        '      - uses: actions/dependency-review-action@abc123',
+        '        with:',
+        '          fail-on-severity: high',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(workflows, '02-pr-extended.yml'),
+      [
+        'on:',
+        '  pull_request:',
+        '    types: [opened, synchronize]',
+        'jobs:',
+        '  check-trigger:',
+        '    steps:',
+        '      - name: Decide',
+        '        env:',
+        "          LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '123' }}",
+        '  integration-tests:',
+        "    if: needs.check-trigger.outputs.should_run == 'true'",
+        '    steps:',
+        '      - name: conditional integration',
+        "        if: runner.os == 'Linux'",
+        '        run: npm run test:integration',
+        '  mandatory-extra:',
+        "    if: needs.check-trigger.outputs.should_run == 'true'",
+        '    steps:',
+        '      - run: npm run test:mandatory',
+      ].join('\n'),
+    )
+
+    await expect(inspectWorkflowContract(dir)).resolves.toEqual({
+      external: [
+        expect.objectContaining({
+          name: 'dependency-review',
+          command: 'actions/dependency-review-action@abc123',
+          condition: "github.event_name == 'pull_request' && vars.GHAS_ENABLED == 'true'",
+          thresholds: [expect.objectContaining({ name: 'fail-on-severity', value: 'high' })],
+        }),
+        expect.objectContaining({
+          command: 'npm run test:integration',
+          condition: expect.stringMatching(/needs\.check-trigger.*runner\.os/),
+          thresholds: [expect.objectContaining({ name: 'changed lines', value: '123' })],
+        }),
+        expect.objectContaining({
+          command: 'npm run test:mandatory',
+          condition: "needs.check-trigger.outputs.should_run == 'true'",
+        }),
+      ],
+      unresolved: [],
+    })
+
+    writeFileSync(join(workflows, '02-pr-extended.yml'), 'name: changed without jobs\n')
+    expect((await inspectWorkflowContract(dir)).unresolved).toEqual([
+      expect.objectContaining({ source: '.github/workflows/02-pr-extended.yml' }),
+    ])
+  })
+
   it('generates scripts/check-all.mjs AND scripts/lib/run-helpers.mjs (#351, CANON-01)', () => {
     const result = generateCheckAll(makeConfig(dir))
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('scripts/check-all.mjs'))).toBe(true)
     expect(paths.some((p) => p.endsWith('scripts/lib/run-helpers.mjs'))).toBe(true)
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
+  })
+
+  it.each([
+    { language: 'typescript' as const, buildTool: 'npm' as const },
+    { language: 'java' as const, buildTool: 'gradle' as const },
+    { language: 'rust' as const, buildTool: 'cargo' as const },
+  ])('emits a dependency-complete verification contract for $language', async (stack) => {
+    const config = makeConfig(dir, { governanceLevel: 'L2', ...stack })
+    generateCheckAll(config)
+    generateDebtRatchet(config)
+    writeFileSync(join(dir, 'arbiter.json'), '{}\n')
+    writeFileSync(
+      join(dir, 'scripts', 'debt-baseline.json'),
+      JSON.stringify({
+        metrics: {
+          complexityViolations: { value: 226, direction: 'lower-is-better' },
+        },
+      }),
+    )
+    for (const path of [
+      'scripts/derive-plan-gates.mjs',
+      'scripts/lib/gate-contract.mjs',
+      'scripts/lib/gate-derivation.mjs',
+    ]) {
+      expect(existsSync(join(dir, path)), path).toBe(true)
+    }
+    const result = spawnSync(process.execPath, ['scripts/check-all.mjs', 'L2', '--dry-run'], {
+      cwd: dir,
+      encoding: 'utf8',
+    })
+    expect(result.status, result.stderr).toBe(0)
+    const contract = JSON.parse(result.stdout)
+    expect(contract.schema).toBe('arbiter-gate-contract-v1')
+    expect(contract.gates.length).toBeGreaterThan(0)
+    expect(contract.unresolved).toEqual([])
+    const complexity = contract.gates
+      .find((gate: { id: string }) => gate.id === 'debt-ratchet')
+      ?.thresholds.find((threshold: { name: string }) => threshold.name === 'complexityViolations')
+    if (stack.language === 'typescript') {
+      expect(complexity).toMatchObject({
+        value: 226,
+        measurement:
+          'npx eslint src scripts --format json --rule "{\\"complexity\\":[\\"warn\\",10]}"',
+      })
+    } else if (stack.language === 'rust') {
+      expect(complexity).toMatchObject({
+        value: 226,
+        measurement:
+          'cargo clippy --message-format=json -- -W clippy::cognitive_complexity -W dead_code',
+      })
+    }
+    expect(
+      contract.gates.every(
+        (gate: { command?: string }) => typeof gate.command === 'string' && gate.command.length > 0,
+      ),
+    ).toBe(true)
+    const derivation = await import(
+      `${pathToFileURL(join(dir, 'scripts', 'lib', 'gate-derivation.mjs')).href}?stack=${stack.language}`
+    )
+    const derived = derivation.deriveGatesForFiles([], undefined, contract)
+    const coverage = derived.find((gate: { name?: string }) => gate.name === 'coverage')
+    if (coverage) expect(coverage.kind).toBe('test-first')
+    expect(existsSync(join(dir, '.arbiter', 'gate-pass.json'))).toBe(false)
+    expect(existsSync(join(dir, '.arbiter', 'gate', 'local-result.json'))).toBe(false)
+  })
+
+  it('keeps emitted workflow authority unresolved when its YAML parser is unavailable', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+    const workflow = join(dir, '.github', 'workflows', '02-pr-extended.yml')
+    writeFileSync(
+      workflow,
+      [
+        'on:',
+        '  pull_request:',
+        '    types: [opened, synchronize]',
+        'jobs:',
+        '  check-trigger:',
+        '    steps:',
+        '      - name: Decide',
+        '        env:',
+        "          LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '100' }}",
+        '  integration-tests:',
+        "    if: needs.check-trigger.outputs.should_run == 'true'",
+        '    steps:',
+        '      - run: npm run test:integration',
+      ].join('\n'),
+    )
+    generateCheckAll(
+      makeConfig(dir, {
+        governanceLevel: 'L1',
+        permitGitHub: true,
+        useGitHub: true,
+      }),
+    )
+    writeFileSync(join(dir, 'arbiter.json'), '{}\n')
+    const inspect = () => {
+      const result = spawnSync(process.execPath, ['scripts/check-all.mjs', 'L1', '--dry-run'], {
+        cwd: dir,
+        encoding: 'utf8',
+      })
+      expect(result.status, result.stderr).toBe(0)
+      return JSON.parse(result.stdout)
+    }
+
+    const before = inspect()
+    expect(before.external).toEqual([])
+    expect(before.unresolved).toEqual([
+      expect.objectContaining({
+        source: '.github/workflows/02-pr-extended.yml',
+        reason: expect.stringContaining('YAML parser unavailable'),
+      }),
+    ])
+
+    writeFileSync(
+      workflow,
+      readFileSync(workflow, 'utf8').replace('test:integration', 'test:changed'),
+    )
+    const after = inspect()
+    expect(after.external).toEqual([])
+    expect(after.unresolved).toEqual(before.unresolved)
   })
 
   it('runs the emitted legacy recorder without optional Claude hooks', () => {
@@ -127,7 +355,7 @@ describe('generateCheckAll', () => {
     expect(content).toContain("['scripts/gen-doc-index.mjs', '--check']")
   })
 
-  it('emits exactly 64 files at L1 including the target hook-routing gate (#2129)', () => {
+  it('emits exactly 67 files at L1 including the target hook-routing gate (#2129)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -177,7 +405,7 @@ describe('generateCheckAll', () => {
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(64)
+    expect(result.files).toHaveLength(68)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-review-completion.mjs'))).toBe(
       true,
     )

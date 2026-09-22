@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @arbiter-gate-contract arbiter-gate-contract-v1
 // <%= projectName %> quality gate
 // Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
 // L1: format + lint + unit tests (fast, frozen-candidate qualification)
@@ -27,6 +28,8 @@ import {
 } from './lib/run-helpers.mjs';
 import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs';
 
+const DEBT_METRIC_COMMANDS = Object.freeze(<%- include('lib/_debt-metric-commands.ejs') %>);
+
 // ─── TMPDIR on tmpfs (dominant wall-clock lever for fsync-bound suites) ──────
 // Set BEFORE any child spawns so every one of them inherits it; see
 // resolveTmpfsTmpdir for the measurement and why the guard is free space, not
@@ -34,7 +37,7 @@ import { GATE_MUTEX_HELD_ENV, gateLockPathFor } from './lib/gate-mutex.mjs';
 // cache (TMPDIR is hashed into the test-input ID), so anyone running tests by
 // hand should export the same value the gate picks or they warm a second,
 // separate cache.
-if (!process.env.TMPDIR) {
+if (!process.env.TMPDIR && !process.argv.includes('--dry-run')) {
   const _tmpfs = resolveTmpfsTmpdir();
   if (_tmpfs) process.env.TMPDIR = _tmpfs;
 }
@@ -186,7 +189,7 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 // mutex to take at all. The start/end evidence binding below is what actually
 // prevents a false green there.
 const _mutexRoot = process.env.ARBITER_HOOK_GIT_CWD ?? process.cwd();
-{
+if (!dryRun) {
   let _lockPath = null;
   try {
     _lockPath = gateLockPathFor(_mutexRoot);
@@ -212,12 +215,12 @@ const _mutexRoot = process.env.ARBITER_HOOK_GIT_CWD ?? process.cwd();
 // Between every two checks, confirm the process this gate was launched to serve
 // is still alive. SIGKILL cannot be trapped or forwarded, so this is the only
 // thing that stops a gate whose parent was killed by pid.
-setOrphanGuard();
+if (!dryRun) setOrphanGuard();
 
 // #2427 AC-1: the identity of the tree this gate is about to measure, sampled
 // BEFORE the first check. buildGateEvidence re-measures at the end and refuses
 // to stamp anything if the two disagree.
-const _gateStart = await (async () => {
+const _gateStart = dryRun ? null : await (async () => {
   try {
     const { captureGateStart } = await import('./lib/gate-evidence.mjs');
     return captureGateStart(_mutexRoot);
@@ -329,26 +332,117 @@ const _auditGatesOff = ['off', 'false', '0', 'no'].includes(
 // green gate for the fail-closed Stop hook. `setMode` threads the mode into the
 // runCheck/runWarnCheck/runToolCheck trio; a normal run leaves it a no-op.
 if (dryRun) {
-  console.log('[DRY-RUN] gate manifest (registry):');
-  // #2257: the lanes are structurally contained (L1 ⊂ L2 ⊂ L3 — see the L3 lane
-  // below, which runs only AFTER the L1 and L2 bodies), so the manifest must use
-  // the same containment. The old `_g.level === level` equality omitted EVERY L2
-  // gate from `--dry-run L3`, i.e. the diagnostic that exists to answer "what
-  // does this lane run" under-reported the L3 lane by ~40 gates.
-  for (const _g of GATE_REGISTRY) {
-    if (_LEVELS.indexOf(_g.level) <= _LEVELS.indexOf(level)) {
-<%_ if (_hasSkipMachinery) { _%>
-      // #9003: the manifest must reflect the SAME runtime skip a real run
-      // would apply — a promoted-away or audit-off gate is not silently
-      // listed as if it would execute (the #2257 "diagnostic that lies" class).
-      const _dryPromo = _promotedAway.has(_g.id) ? '  [SKIP: promoted]' : '';
-      const _dryAudit = (_g.audit === true && _auditGatesOff) ? '  [SKIP: ARBITER_AUDIT_MODE=off]' : '';
-      console.log(`  ${_g.level}  ${_g.id}  ${_g.name}${_dryPromo}${_dryAudit}`);
-<%_ } else { _%>
-      console.log(`  ${_g.level}  ${_g.id}  ${_g.name}`);
-<%_ } _%>
+  let _debtThresholds = [];
+  let _debtContractReason = null;
+<% if (enableDebtGates) { %>
+  if (existsSync('scripts/debt-baseline.json')) {
+    try {
+      const _debtMetrics = JSON.parse(readFileSync('scripts/debt-baseline.json', 'utf8')).metrics;
+      if (!_debtMetrics || typeof _debtMetrics !== 'object') {
+        throw new Error('metrics object is missing');
+      }
+      _debtThresholds = Object.entries(_debtMetrics).map(([_name, _metric]) => ({
+        name: _name,
+        value: _metric.value,
+        source: `scripts/debt-baseline.json#metrics.${_name}.value`,
+        direction: _metric.direction,
+        ...(DEBT_METRIC_COMMANDS[_name] ? {
+          measurement: DEBT_METRIC_COMMANDS[_name]
+            .map((_part) => /^[A-Za-z0-9_./:@=-]+$/.test(_part) ? _part : JSON.stringify(_part))
+            .join(' '),
+        } : {}),
+      }));
+    } catch (err) {
+      _debtContractReason = `debt threshold authority is unreadable: ${err.message}`;
     }
   }
+<% } %>
+  const _contractGates = GATE_REGISTRY
+    .filter((_g) => _LEVELS.indexOf(_g.level) <= _LEVELS.indexOf(level))
+    .map((_g) => ({
+      name: _g.name,
+      id: _g.id,
+      enforcement: _g.kind === 'warn' ? 'advisory' : _g.kind === 'tool' ? 'tool' : 'hard',
+      command: _g.cmd ? _g.cmd.join(' ') : _g.inspect,
+      condition: _g.condition ?? 'selected gate level is active',
+      ...(_g.id === 'debt-ratchet' ? { thresholds: _debtThresholds } :
+        _g.thresholds ? { thresholds: _g.thresholds } : {}),
+      ...(_g.id === 'debt-ratchet' ? {
+        bindings: [
+          { source: 'scripts/debt-baseline.json', required: true },
+<% if (enableDebtGates) { %>
+          { source: 'scripts/debt-lib.mjs', required: true },
+<% } %>
+        ],
+      } : _g.bindings ? { bindings: _g.bindings } : {}),
+    }));
+  const _contractBindings = _contractGates.flatMap((_gate) => _gate.bindings ?? []);
+  const _conditionBindingGroups = _contractGates.flatMap((_gate) =>
+    [...String(_gate.condition ?? '').matchAll(/gateFilePresent\('([^']+)'/g)]
+      .map((_match) => {
+        const _binding = (_gate.bindings ?? []).find((_item) => _item.source === _match[1]);
+        return { source: _match[1], alternateSources: _binding?.alternateSources ?? [] };
+      }),
+  );
+  const _conditionBindings = _conditionBindingGroups.flatMap((_binding) => [
+    _binding.source,
+    ..._binding.alternateSources,
+  ]);
+  const _requiredBindings = _contractBindings
+    .filter((_binding) => _binding.required === true)
+    .map((_binding) => _binding.source);
+  const _workflowDir = '.github/workflows';
+  const _workflowAuthority = existsSync(_workflowDir)
+    ? readdirSync(_workflowDir)
+      .filter((_name) => /\.ya?ml$/.test(_name))
+      .map((_name) => join(_workflowDir, _name))
+    : [];
+  const _contractAuthorityPaths = [
+    'scripts/check-all.mjs',
+    'arbiter.json',
+    ..._contractBindings.map((_binding) => _binding.source),
+    ..._conditionBindings.filter((_path) => gateFileState(_path) === 'present'),
+    ..._workflowAuthority,
+  ];
+  const _missingContractAuthority = [...new Set(_requiredBindings)]
+    .filter((_path) => !existsSync(_path));
+  const _deletedConditionBindings = _conditionBindingGroups
+    .filter((_binding) =>
+      gateFileState(_binding.source) === 'deleted' &&
+      !_binding.alternateSources.some((_path) => existsSync(_path)),
+    )
+    .map((_binding) => _binding.source);
+  if (<%= _hasGitHubWorkflows ? 'true' : 'false' %> && _workflowAuthority.length === 0) {
+    _missingContractAuthority.push(_workflowDir);
+  }
+  const _contractAuthority = [...new Set(_contractAuthorityPaths)]
+    .filter((_path) => existsSync(_path))
+    .map((_path) => ({
+      path: _path,
+      sha256: createHash('sha256').update(readFileSync(_path)).digest('hex'),
+    }));
+  const { inspectWorkflowContract } = await import('./lib/workflow-scan.mjs');
+  const _workflowContract = await inspectWorkflowContract(process.cwd());
+  console.log(JSON.stringify({
+    schema: 'arbiter-gate-contract-v1',
+    authority: _contractAuthority,
+    gates: _contractGates,
+    external: _workflowContract.external,
+    unresolved: [...new Set(_missingContractAuthority)].map((_path) => ({
+      name: 'verification authority',
+      source: _path,
+      reason: 'required verification authority is missing',
+    })).concat(_deletedConditionBindings.map((_path) => ({
+      name: 'verification authority',
+      source: _path,
+      reason: 'emitted verification authority is missing',
+    }))).concat(_debtContractReason ? [{
+      name: 'debt threshold authority',
+      source: 'scripts/debt-baseline.json',
+      reason: _debtContractReason,
+    }] : []).concat(_workflowContract.unresolved),
+  }, null, 2));
+  process.exit(0);
 }
 if (only !== null) {
   // --gate accepts a registry id (re-based on the registry) OR the display name

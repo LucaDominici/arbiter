@@ -175,9 +175,9 @@ describe('ship command delegates mechanics to the runtime', () => {
     expect(md).toMatch(/do not\s+justify source edits by themselves/)
     expect(md).toContain('Add specialist reviewers only for auth')
     expect(md).toContain('The final reviewer covers code, tests, and acceptance fit')
-    expect(md).toContain(
-      'run `arbiter ship --review-round`; it dispatches the reviewer in the foreground and records the envelope — do not dispatch reviewers or write envelopes by hand.',
-    )
+    expect(md).toContain('push the frozen branch and open or reuse its draft PR')
+    expect(md).toContain('PR CI starts on that same SHA')
+    expect(md).toContain('run `arbiter ship --review-round` in the foreground')
     expect(md).toContain('MED/HIGH/CRITICAL finding')
     expect(md).toContain('exact-subject receipt')
     expect(md).toContain('CI runs the full gate on that SHA')

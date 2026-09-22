@@ -137,11 +137,91 @@ describe('enforce-gate-before-pr hook', () => {
     expect(result.stderr).toContain('DRAFT')
   })
 
+  it('treats a quoted standalone draft flag as the same argv flag', () => {
+    const dir = track(setupGitRepo())
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create "--draft" --fill' }, dir)
+    expect(result.status).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
+  })
+
+  it('uses the final explicit draft value when it is true', () => {
+    const dir = track(setupGitRepo())
+    const result = runHook(
+      { CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --draft=false --draft --fill' },
+      dir,
+    )
+    expect(result.status).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
+  })
+
+  it.each([
+    ['false-valued draft flag', 'gh pr create --draft=false --fill'],
+    ['final false-valued draft flag', 'gh pr create --draft --draft=false --fill'],
+    ['draft text inside an argument', 'gh pr create --body "a --draft description" --fill'],
+    ['draft flag as an option value', 'gh pr create --body "--draft" --fill'],
+    ['draft consumed as a body value', 'gh pr create --body --draft --fill'],
+    ['wrapped ready command', 'gh pr create --draft && (gh pr ready)'],
+    ['command-substituted ready command', 'gh pr create --draft && $(gh pr ready)'],
+  ])('does not exempt %s', (_label, command) => {
+    const dir = track(setupGitRepo())
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('ci-pass.json')
+  })
+
   it('blocks gh pr ready without either receipt', () => {
     const dir = track(setupGitRepo())
     const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'gh pr ready 1' }, dir)
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('ci-pass.json')
+  })
+
+  it.each([
+    ['stale gate marker', 'gate-pass.json', 'stale'],
+    ['malformed gate marker', 'gate-pass.json', '{ invalid json }'],
+    ['stale CI receipt', 'ci-pass.json', JSON.stringify({ sha: 'stale' })],
+    ['malformed CI receipt', 'ci-pass.json', '{ invalid json }'],
+  ])('allows draft creation before parsing a %s', (_label, path, contents) => {
+    const dir = track(setupGitRepo())
+    const arbiterDir = join(dir, '.arbiter')
+    mkdirSync(arbiterDir, { recursive: true })
+    if (contents === 'stale') writeMarker(dir, 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef')
+    else writeFileSync(join(arbiterDir, path), contents)
+    const result = runHook(
+      { CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --title "feat: overlap" --draft' },
+      dir,
+    )
+    expect(result.status).toBe(0)
+    expect(result.stderr).toContain('DRAFT')
+  })
+
+  it('does not let draft creation exempt a chained gh pr ready', () => {
+    const dir = track(setupGitRepo())
+    const result = runHook(
+      {
+        CLAUDE_TOOL_INPUT_COMMAND: 'gh pr create --draft --title "feat: overlap" && gh pr ready',
+      },
+      dir,
+    )
+    expect(result.status).toBe(2)
+  })
+
+  it.each([
+    [
+      'stale',
+      'ordinary create',
+      JSON.stringify({ sha: 'stale' }),
+      'gh pr create --title "feat: strict"',
+    ],
+    ['malformed', 'ordinary create', '{ invalid json }', 'gh pr create --title "feat: strict"'],
+    ['stale', 'ready', JSON.stringify({ sha: 'stale' }), 'gh pr ready'],
+    ['malformed', 'ready', '{ invalid json }', 'gh pr ready'],
+  ])('keeps %s CI receipts fail-closed for %s', (_state, _operation, receipt, command) => {
+    const dir = track(setupGitRepo())
+    const arbiterDir = join(dir, '.arbiter')
+    mkdirSync(arbiterDir, { recursive: true })
+    writeFileSync(join(arbiterDir, 'ci-pass.json'), receipt)
+    expect(runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir).status).toBe(2)
   })
 
   it('exits 0 and logs bypass when ARBITER_SKIP_GATE_MARKER=1', () => {

@@ -1,11 +1,24 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig, renderCheckAll } from '../helpers.js'
 import { computeMetricsProfile } from '../../src/generators/debt-ratchet.js'
+
+describe('preventive verification contract template dependencies (#2773)', () => {
+  it.each([
+    'scripts/derive-plan-gates.mjs.ejs',
+    'scripts/lib/_debt-metric-commands.ejs',
+    'scripts/lib/gate-contract.mjs.ejs',
+    'scripts/lib/gate-derivation.mjs.ejs',
+  ])('keeps %s as a tested generator input', (template) => {
+    expect(
+      readFileSync(join(import.meta.dirname, '..', '..', 'src', 'templates', template), 'utf8'),
+    ).not.toHaveLength(0)
+  })
+})
 
 describe('check-hook-routing.mjs.ejs rendering (#2129)', () => {
   it('renders the fail-closed reverse-routing gate without EJS leakage', () => {

@@ -169,7 +169,7 @@ describe('buildShipStepLines branch matrix', () => {
   it('marks (done), prints Command + Review agents, and omits the self-only header for a consumer', () => {
     const lines = buildShipStepLines(resultFor('refactor', profile(), false), 'Standard')
     expect(lines.some((l) => l.startsWith('Phase: refactor'))).toBe(true)
-    expect(lines).toContain("Command: arbiter ship '#NNN' --review-round") // refactor dispatches final review
+    expect(lines.some((l) => l.startsWith('Command: ') && l.includes("arbiter ship '#NNN' --review-round"))).toBe(true)
     expect(lines.some((l) => l.startsWith('Review agents: 1'))).toBe(true)
     expect(lines.some((l) => l.startsWith('Self-only checks:'))).toBe(false)
   })

@@ -19,8 +19,13 @@ describe('parseCheckArgs — subcommands', () => {
     expect(parseCheckArgs(['check', 'full']).subcommand).toBe('full')
   })
 
-  it('rejects an unsupported flag before a gate can run (#2645)', () => {
-    expect(() => parseCheckArgs(['L2', '--dry-run'])).toThrow(/unsupported argument: --dry-run/)
+  it('accepts effect-free contract inspection without weakening execution (#2773)', () => {
+    expect(parseCheckArgs(['L2', '--dry-run'])).toMatchObject({
+      subcommand: 'gate',
+      level: 'L2',
+      dryRun: true,
+    })
+    expect(parseCheckArgs(['L2']).dryRun).toBe(false)
   })
 })
 
