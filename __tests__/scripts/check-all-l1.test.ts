@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { matchesGlob, resolve } from 'node:path'
 import integrationConfig from '../../vitest.integration.config'
 import { integrationSuiteArgs } from '../../scripts/check-all.mjs'
@@ -14,6 +15,27 @@ function integrationIncludePatterns(): string[] {
 }
 
 describe('check-all.mjs L1 wiring', () => {
+  it('wires the API-surface gate but skips it when self declares no public API', () => {
+    const config = JSON.parse(readFileSync(resolve('arbiter.json'), 'utf8')) as {
+      hasPublicApi?: boolean
+    }
+
+    expect(config.hasPublicApi).toBe(false)
+    expect(content).toContain('if (selfConfig.hasPublicApi === true)')
+    expect(content).toContain('if (selfConfig.hasPublicApi !== false)')
+    expect(content).toContain("runCheck('domain-api surface (INV-125)'")
+    expect(content).toContain('SKIP (hasPublicApi:false)')
+  })
+
+  it('keeps dry-run output machine-readable when a self-only gate is skipped', () => {
+    const result = spawnSync(process.execPath, [SCRIPT, 'gate', '--level', 'L2', '--dry-run'], {
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(0)
+    expect(() => JSON.parse(result.stdout)).not.toThrow()
+  })
+
   it('keeps unit qualification in L1, coverage in L2, and both out of diagnostic preflight (#2605)', () => {
     const unitIdx = content.indexOf("runCheck('unit tests'")
     const coverageIdx = content.indexOf("runCheck('coverage'")

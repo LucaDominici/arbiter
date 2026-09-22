@@ -119,6 +119,7 @@ const FAILURE_SIGNATURES = [
   /FAILED\s*$|BUILD FAILED/m, // gradle
   /test result: FAILED/m, // cargo
   /--- FAIL:/m, // go
+  /^FAIL:[ \t]+\S.*$/m, // shell self-test
   /^# fail [1-9]\d*/m, // tap (node:test)
   /^\s*[1-9]\d* failed\b/m, // playwright line/list reporter ("  1 failed")
 ]

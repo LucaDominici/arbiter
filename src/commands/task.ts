@@ -113,18 +113,28 @@ export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
 
   // Pinpoint resume (#1206): if a step-cursor was marked, land on the EXACT next action
   // rather than the coarse, phase-level RECOVERY_TABLE blurb.
-  const cursor = state?.cursor
-  if (cursor && cursor.nextAction.trim().length > 0) {
-    const lines = [
-      `${header}Phase: ${phase}${cursor.tddPhase ? ` (${cursor.tddPhase})` : ''}`,
-      cursor.lastAction.trim().length > 0 ? `Last action: ${cursor.lastAction}` : undefined,
-      `Next action: ${cursor.nextAction}`,
-    ].filter((l): l is string => l !== undefined)
-    process.stdout.write(lines.join('\n') + '\n')
+  const cursorText = resumeCursorText(state, phase, header)
+  if (cursorText !== null) {
+    process.stdout.write(cursorText)
     return
   }
 
   process.stdout.write(`${header}${RECOVERY_TABLE[phase]}\n`)
+}
+
+function resumeCursorText(
+  state: ReturnType<typeof readUnifiedState>,
+  phase: TaskPhase,
+  header: string,
+): string | null {
+  const cursor = state?.cursor
+  if (!cursor || cursor.nextAction.trim().length === 0) return null
+  const lines = [
+    `${header}Phase: ${phase}${cursor.tddPhase ? ` (${cursor.tddPhase})` : ''}`,
+    cursor.lastAction.trim().length > 0 ? `Last action: ${cursor.lastAction}` : undefined,
+    `Next action: ${cursor.nextAction}`,
+  ].filter((line): line is string => line !== undefined)
+  return `${lines.join('\n')}\n`
 }
 
 /* ────────────────────────  #1206 — shell-facing state I/O  ──────────────────────── */
@@ -1141,16 +1151,20 @@ function readCiPassReceipt(dir: string): { ok: true } | { ok: false; reason: str
   if (receipt.sha !== head) {
     return { ok: false, reason: `CI receipt SHA does not match current HEAD ${head}` }
   }
-  if (
-    receipt.conclusion !== 'success' ||
-    typeof receipt.runUrl !== 'string' ||
-    receipt.runUrl.length === 0 ||
-    typeof receipt.checkedAt !== 'string' ||
-    receipt.checkedAt.length === 0
-  ) {
+  if (!isCompleteCiPassReceipt(receipt)) {
     return { ok: false, reason: 'CI receipt is not a successful, complete receipt' }
   }
   return { ok: true }
+}
+
+function isCompleteCiPassReceipt(receipt: Partial<CiPassReceipt>): boolean {
+  return (
+    receipt.conclusion === 'success' &&
+    typeof receipt.runUrl === 'string' &&
+    receipt.runUrl.length > 0 &&
+    typeof receipt.checkedAt === 'string' &&
+    receipt.checkedAt.length > 0
+  )
 }
 
 function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {
@@ -1197,16 +1211,17 @@ function prepareLifecycleReviewRound(
     readTaskIdFromDisk(dir),
     previous.lastReviewedSha,
   )
-  if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) {
-    if (latestReviewerEnvelope !== undefined || opts.retryIncomplete !== true) return null
+  const retryHead = incompleteReviewRetryHead(head, previous.rounds, latestReviewerEnvelope, opts)
+  if (retryHead !== null) {
     return {
       rounds: previous.rounds,
       maxRounds,
       base: null,
-      head,
+      head: retryHead,
       forced: previous.forced === true,
     }
   }
+  if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) return null
   const planned = planReviewRound(
     previous,
     maxRounds,
@@ -1219,6 +1234,20 @@ function prepareLifecycleReviewRound(
     throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: planned.detail }))
   }
   return planned
+}
+
+function incompleteReviewRetryHead(
+  head: string | null,
+  rounds: number,
+  latestReviewerEnvelope: ReviewRoundEnvelope | undefined,
+  opts: TaskReviewRoundOptions,
+): string | null {
+  return head !== null &&
+    rounds > 0 &&
+    latestReviewerEnvelope === undefined &&
+    opts.retryIncomplete === true
+    ? head
+    : null
 }
 
 function reviewerFindings(raw: unknown): ReviewRoundEnvelope['findings'] | null {

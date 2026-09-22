@@ -260,6 +260,18 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     ).toBe(1)
   })
 
+  it('A: PASS (exit 0) for a shell self-test failure signature', () => {
+    expect(
+      runScenario({
+        taskCommit: true,
+        evidence: (sha) =>
+          validEvidence(sha, {
+            test_run_log: 'FAIL: scanner did not report the expected violation',
+          }),
+      }),
+    ).toBe(0)
+  })
+
   it('C: FAIL (exit 1) on the forbidden ARBITER-SKIP-TDD trailer', () => {
     expect(
       runScenario({ taskCommit: true, skipTrailer: true, evidence: (sha) => validEvidence(sha) }),

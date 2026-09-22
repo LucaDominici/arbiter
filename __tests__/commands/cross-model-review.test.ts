@@ -66,7 +66,10 @@ const FROZEN_PLAN = [
   '- [ ] AC-2747.1: Second ordered criterion.',
   '## Non-Goals',
   '- Do not add a scheduler.',
+  '## Verification contract',
+  '- `npm test` is required.',
 ].join('\n')
+const FROZEN_TDD = '{"task_id":"#2747","observed_failure":"expected RED"}'
 const FROZEN_BRIEF_JSON = JSON.stringify({
   criteria: [
     { id: 'AC-2747.2', text: 'Preserve text and punctuation!' },
@@ -208,8 +211,20 @@ describe('runCrossModelReview (#2357)', () => {
         return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
       if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
         return { stdout: `${HEAD_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'ls-tree')
+        return {
+          stdout: '.arbiter/evidence/tdd/#2747.json\n',
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
       if (command === 'git' && args[0] === 'show')
-        return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+        return {
+          stdout: String(args[1]).includes('.arbiter/evidence/tdd/') ? FROZEN_TDD : FROZEN_PLAN,
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
       if (command === process.execPath)
         return {
           stdout: JSON.stringify({
@@ -254,10 +269,84 @@ describe('runCrossModelReview (#2357)', () => {
     expect(prompt).toContain(`Base SHA: ${BASE_SHA}`)
     expect(prompt).toContain(`Head SHA: ${HEAD_SHA}`)
     expect(prompt).toContain('Acceptance criteria hash: frozen-ac-hash')
+    expect(prompt).toContain('Do not block on unavailable local command execution')
+    expect(prompt).toContain('Every blocking finding must cite a concrete candidate defect')
+    expect(prompt).toContain('## Verification contract\n- `npm test` is required.')
+    expect(prompt).toContain(FROZEN_TDD)
     expect(prompt.indexOf('AC-2747.2: Preserve text and punctuation!')).toBeLessThan(
       prompt.indexOf('AC-2747.1: Second ordered criterion.'),
     )
     expect(prompt).toContain('Non-goals:\n- Do not add a scheduler.')
+  })
+
+  it('fails closed when frozen TDD evidence cannot be inspected', () => {
+    mockFrozenShipCalls()
+    mockedRunCli.mockImplementation((command, args) => {
+      if (command === 'git' && args[0] === 'ls-tree') throw new Error('git unavailable')
+      if (command === 'git' && args[0] === 'status')
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
+        return { stdout: `${HEAD_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'show')
+        return { stdout: FROZEN_PLAN, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === process.execPath)
+        return { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 }
+      return { stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 }
+    })
+
+    expect(() =>
+      runShipCrossModelReview({
+        dir: '/tmp/project',
+        taskId: '#2747',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'bugs',
+        cfg,
+        ...FROZEN_REVIEW,
+      }),
+    ).toThrow(/git unavailable/)
+    expect(mockedInvoke).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['an unsafe task id', '#0', FROZEN_TDD, '(none recorded)'],
+    ['an oversized RED receipt', '#2747', 'x'.repeat(17 * 1024), 'omitted: exceeds 16 KiB'],
+  ])('bounds reviewer context for %s', (_label, taskId, receipt, expected) => {
+    mockedRunCli.mockImplementation((command, args) => {
+      if (command === 'git' && args[0] === 'status')
+        return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
+        return { stdout: `${HEAD_SHA}\n`, stderr: '', exitCode: 0, durationMs: 1 }
+      if (command === 'git' && args[0] === 'ls-tree')
+        return {
+          stdout: `.arbiter/evidence/tdd/${taskId}.json\n`,
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
+      if (command === 'git' && args[0] === 'show')
+        return {
+          stdout: String(args[1]).includes('.arbiter/evidence/tdd/') ? receipt : FROZEN_PLAN,
+          stderr: '',
+          exitCode: 0,
+          durationMs: 1,
+        }
+      if (command === process.execPath)
+        return { stdout: FROZEN_BRIEF_JSON, stderr: '', exitCode: 0, durationMs: 1 }
+      return { stdout: 'diff', stderr: '', exitCode: 0, durationMs: 1 }
+    })
+
+    runShipCrossModelReview({
+      dir: '/tmp/project',
+      taskId,
+      tier: 'Standard',
+      phase: 'refactor',
+      vertical: 'bugs',
+      cfg,
+      ...FROZEN_REVIEW,
+    })
+
+    expect(mockedInvoke.mock.calls[0]?.[0].prompt).toContain(expected)
   })
 
   it('rejects head drift before dispatch', () => {
@@ -279,6 +368,39 @@ describe('runCrossModelReview (#2357)', () => {
         ...FROZEN_REVIEW,
       }),
     ).toThrow(/HEAD.*frozen|drift/i)
+    expect(mockedInvoke).not.toHaveBeenCalled()
+  })
+
+  it.each([null, ''])('rejects a missing frozen review head (%s)', (headSha) => {
+    expect(() =>
+      runShipCrossModelReview({
+        dir: '/tmp/project',
+        taskId: '#2747',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'bugs',
+        cfg,
+        ...FROZEN_REVIEW,
+        headSha,
+      }),
+    ).toThrow(/frozen review HEAD is missing/i)
+    expect(mockedInvoke).not.toHaveBeenCalled()
+  })
+
+  it('rejects an empty review base', () => {
+    mockFrozenShipCalls()
+    expect(() =>
+      runShipCrossModelReview({
+        dir: '/tmp/project',
+        taskId: '#2747',
+        tier: 'Standard',
+        phase: 'refactor',
+        vertical: 'bugs',
+        cfg,
+        ...FROZEN_REVIEW,
+        baseSha: '',
+      }),
+    ).toThrow(/review base SHA is unavailable/i)
     expect(mockedInvoke).not.toHaveBeenCalled()
   })
 
@@ -412,6 +534,13 @@ describe('runCrossModelReview (#2357)', () => {
     ],
     ['malformed', () => '{not-json'],
     ['no criteria', () => JSON.stringify({ criteria: [], nonGoals: ['x'], acHash: 'empty' })],
+    ['a non-object', () => JSON.stringify(null)],
+    [
+      'a non-Error parser failure',
+      () => {
+        throw 'parser failed'
+      },
+    ],
   ])('refuses dispatch when the frozen plan is %s', (_label, parserResult) => {
     mockedRunCli.mockImplementation((command, args) => {
       if (command === 'git' && args[0] === 'status')
@@ -497,6 +626,23 @@ describe('runCrossModelReview (#2357)', () => {
         agents: ['anthropic-reviewer', 'codex-reviewer'],
       })
 
+      writeFileSync(sidecarPath, JSON.stringify({ taskId: '#2357', branch: 'diff', sha: 'diff' }))
+      runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' })
+      expect(JSON.parse(readFileSync(sidecarPath, 'utf8'))).toMatchObject({
+        count: 2,
+        agents: ['anthropic-reviewer', 'codex-reviewer'],
+      })
+
+      writeFileSync(
+        sidecarPath,
+        JSON.stringify({ count: 0, agents: [], taskId: '#2357', branch: 'diff', sha: 'diff' }),
+      )
+      runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' })
+      expect(JSON.parse(readFileSync(sidecarPath, 'utf8'))).toMatchObject({
+        count: 2,
+        agents: ['anthropic-reviewer', 'codex-reviewer'],
+      })
+
       writeFileSync(
         sidecarPath,
         JSON.stringify({
@@ -533,23 +679,63 @@ describe('runCrossModelReview (#2357)', () => {
     }
   })
 
-  it('rejects an invalid existing sidecar instead of overwriting it', () => {
+  it('materializes the configured three-seat specialist panel', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-treatment-sidecar-'))
+    try {
+      mockFrozenShipCalls()
+      runShipCrossModelReview({
+        dir,
+        taskId: '#2747',
+        tier: 'Critical',
+        phase: 'refactor',
+        vertical: 'security',
+        cfg,
+        access: mockedDetect.mock.results[0]?.value,
+        ...FROZEN_REVIEW,
+        treatment: {
+          finalReviewers: 3,
+          reviewerVerticals: ['security', 'data-integrity', 'bugs'],
+          signalsHash: 'treatment-hash',
+        },
+      })
+
+      expect(
+        JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8')),
+      ).toMatchObject({
+        count: 3,
+        agents: ['anthropic-reviewer', 'anthropic-reviewer-2', 'codex-reviewer'],
+        auditors: ['security', 'data-integrity', 'bugs'],
+        treatmentHash: 'treatment-hash',
+      })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    ['non-object JSON', []],
+    ['non-array agents', { count: 1, agents: 'codex-reviewer' }],
+    ['non-string agent', { count: 1, agents: [1] }],
+    ['duplicate agents', { count: 2, agents: ['codex-reviewer', 'codex-reviewer'] }],
+    ['non-numeric count', { count: '1', agents: ['codex-reviewer'] }],
+    ['fractional count', { count: 0.5, agents: ['codex-reviewer'] }],
+    ['negative count', { count: -1, agents: ['codex-reviewer'] }],
+    ['count above panel size', { count: 2, agents: ['codex-reviewer'] }],
+  ])('rejects a malformed existing sidecar: %s', (_label, malformed) => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-invalid-sidecar-'))
     try {
       mkdirSync(join(dir, '.arbiter'), { recursive: true })
       writeFileSync(
         join(dir, '.arbiter', 'agents-dispatched.json'),
-        JSON.stringify({
-          count: 2,
-          agents: ['anthropic-reviewer'],
-          taskId: '#2357',
-          branch: 'diff',
-          sha: 'diff',
-        }),
+        JSON.stringify(
+          Array.isArray(malformed)
+            ? malformed
+            : { taskId: '#2357', branch: 'diff', sha: 'diff', ...malformed },
+        ),
       )
       expect(() =>
         runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' }),
-      ).toThrow(/invalid count/i)
+      ).toThrow(/JSON object|invalid agent|duplicate agent|invalid count/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -570,6 +756,18 @@ describe('runCrossModelReview (#2357)', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
       rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a sidecar path that is not a regular file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-cross-model-sidecar-directory-'))
+    try {
+      mkdirSync(join(dir, '.arbiter', 'agents-dispatched.json'), { recursive: true })
+      expect(() =>
+        runCrossModelReview({ dir, taskId: '#2357', prompt: 'Review.', diff: 'diff' }),
+      ).toThrow(/regular file/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 

@@ -500,16 +500,8 @@ function panelRequirement(state) {
 }
 
 function validatePanel(envelopes, state, schema, requirement) {
-  const validated = []
-  for (const candidate of envelopes) {
-    if (assertModeIdentity(candidate, state) === null) {
-      process.stdout.write('[record-agent-return] FAIL: reviewer envelope subject is stale\n')
-      return null
-    }
-    const envelope = stampAndValidate(candidate, schema)
-    if (envelope === null || envelope.role !== 'reviewer') return null
-    validated.push(envelope)
-  }
+  const validated = validatedReviewers(envelopes, state, schema)
+  if (validated === null) return null
   const agents = validated.map((envelope) => String(envelope.agent))
   if (new Set(agents).size !== agents.length) {
     process.stdout.write('[record-agent-return] FAIL: reviewer agents must be distinct\n')
@@ -544,6 +536,20 @@ function validatePanel(envelopes, state, schema, requirement) {
     return null
   }
   return { validated, agents, acceptanceFit: fitEnvelopes[0], anchor: frozen.anchor }
+}
+
+function validatedReviewers(envelopes, state, schema) {
+  const validated = []
+  for (const candidate of envelopes) {
+    if (assertModeIdentity(candidate, state) === null) {
+      process.stdout.write('[record-agent-return] FAIL: reviewer envelope subject is stale\n')
+      return null
+    }
+    const envelope = stampAndValidate(candidate, schema)
+    if (envelope === null || envelope.role !== 'reviewer') return null
+    validated.push(envelope)
+  }
+  return validated
 }
 
 function writeReviewerPanel(validated, agents, requirement, acceptanceFit, anchor, stamped) {

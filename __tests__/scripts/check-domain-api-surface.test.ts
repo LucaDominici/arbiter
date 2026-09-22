@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Tests for scripts/check-domain-api-surface.mjs (INV-125)
-// R1-R10: gate behaviour across SKIP, PASS, FAIL, and error paths
+// R1-R10: gate behaviour across PASS, FAIL, and error paths
 import { spawnSync } from 'node:child_process'
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -35,11 +35,11 @@ describe('check-domain-api-surface.mjs (INV-125)', () => {
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  // R1: manifest absent → SKIP (exit 0)
-  it('R1: exits 0 (SKIP) when manifest is absent', () => {
+  // R1: manifest absent → policy failure (exit 1)
+  it('R1: exits 1 when manifest is absent', () => {
     const r = run(tmpDir)
-    expect(r.status).toBe(0)
-    expect(r.out).toContain('SKIP')
+    expect(r.status).toBe(1)
+    expect(r.out).toContain('Manifest not found')
   })
 
   // R2: all fields reachable → PASS (exit 0)
