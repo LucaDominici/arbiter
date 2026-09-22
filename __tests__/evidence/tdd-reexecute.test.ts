@@ -640,7 +640,12 @@ describe('verifyGreenExecution()', () => {
     })
     expect(verifyGreenExecution(shell, dir)).toEqual({ ok: true })
 
-    mockedRunCli.mockReturnValueOnce({ stdout: 'completed\n', stderr: '', exitCode: 0, durationMs: 9 })
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'completed\n',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 9,
+    })
     expect(verifyGreenExecution(shell, dir).reason).toMatch(/PASS verdict/i)
 
     mockedRunCli.mockReturnValueOnce({

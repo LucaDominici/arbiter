@@ -265,7 +265,9 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
       runScenario({
         taskCommit: true,
         evidence: (sha) =>
-          validEvidence(sha, { test_run_log: 'FAIL: scanner did not report the expected violation' }),
+          validEvidence(sha, {
+            test_run_log: 'FAIL: scanner did not report the expected violation',
+          }),
       }),
     ).toBe(0)
   })
