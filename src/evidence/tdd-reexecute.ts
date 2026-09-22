@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve, sep, win32 } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
@@ -69,20 +70,161 @@ function countedOutputFailure(framework: string, output: string): string | null 
   if (skipped > 0) return 'recorded test command contains skipped tests; no GREEN proof exists'
   if (passed > 0) return null
 
-  if (framework === 'gradle') {
-    const completed = countSummary(output, 'tests? completed')
-    if (completed > 0 && /BUILD SUCCESSFUL/.test(output)) return null
-  }
   return `recorded ${framework} command reported no passing tests`
 }
 
-function greenOutputFailure(ev: TddEvidence, output: string): string | null {
+interface GradleXmlSnapshot {
+  mtimeMs: number
+  content: string
+}
+
+function gradleXmlSnapshots(
+  root: string,
+  parentNativeResults = false,
+): Map<string, GradleXmlSnapshot> {
+  const files = new Map<string, GradleXmlSnapshot>()
+  if (!existsSync(root)) return files
+  const parts = root.replaceAll('\\', '/').split('/')
+  const inNativeResults =
+    parentNativeResults || (parts.at(-1) === 'test-results' && parts.at(-2) === 'build')
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name)
+    if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
+      for (const [file, snapshot] of gradleXmlSnapshots(path, inNativeResults))
+        files.set(file, snapshot)
+    } else if (inNativeResults && /^TEST-.*\.xml$/i.test(entry.name)) {
+      try {
+        files.set(path, { mtimeMs: statSync(path).mtimeMs, content: readFileSync(path, 'utf8') })
+      } catch {
+        // A concurrently removed result cannot establish a fresh verdict.
+      }
+    }
+  }
+  return files
+}
+
+function freshGradleXml(root: string, before: Map<string, GradleXmlSnapshot>): string[] {
+  return [...gradleXmlSnapshots(root)]
+    .filter(([path, snapshot]) => {
+      const previous = before.get(path)
+      return (
+        previous === undefined ||
+        snapshot.mtimeMs > previous.mtimeMs ||
+        snapshot.content !== previous.content
+      )
+    })
+    .map(([, snapshot]) => snapshot.content)
+}
+
+function xmlCount(attributes: string, name: string): number | null {
+  const value = new RegExp(`\\b${name}="(\\d+)"`, 'i').exec(attributes)?.[1]
+  return value === undefined ? null : Number(value)
+}
+
+interface GradleXmlCounts {
+  tests: number
+  failures: number
+  errors: number
+  skipped: number
+}
+
+function gradleSuiteCounts(attributes: string, body: string): GradleXmlCounts {
+  const countTags = (tag: string): number =>
+    [...body.matchAll(new RegExp(`<${tag}\\b`, 'gi'))].length
+  return {
+    tests: xmlCount(attributes, 'tests') ?? countTags('testcase'),
+    failures: Math.max(xmlCount(attributes, 'failures') ?? 0, countTags('failure')),
+    errors: Math.max(xmlCount(attributes, 'errors') ?? 0, countTags('error')),
+    skipped: Math.max(xmlCount(attributes, 'skipped') ?? 0, countTags('skipped')),
+  }
+}
+
+function gradleXmlFailure(xml: readonly string[]): string | null {
+  if (xml.length === 0) return 'Gradle replay produced no fresh TEST-*.xml results'
+
+  let tests = 0
+  let failures = 0
+  let errors = 0
+  let skipped = 0
+  for (const document of xml) {
+    const suites = [
+      ...document.matchAll(/<testsuite\b([^>]*?)(?:\/\s*>|>([\s\S]*?)<\/testsuite>)/gi),
+    ]
+    if (suites.length === 0) return 'Gradle replay produced invalid JUnit XML'
+    for (const suite of suites) {
+      const attributes = suite[1] ?? ''
+      const body = suite[2] ?? ''
+      const counts = gradleSuiteCounts(attributes, body)
+      tests += counts.tests
+      failures += counts.failures
+      errors += counts.errors
+      skipped += counts.skipped
+    }
+  }
+  if (tests === 0) return 'fresh Gradle/JUnit results reported zero tests'
+  if (skipped > 0) return 'fresh Gradle/JUnit results contain skipped tests'
+  if (failures > 0 || errors > 0) return 'fresh Gradle/JUnit results contain failing tests'
+  if (tests - failures - errors <= 0) return 'fresh Gradle/JUnit results reported no passing tests'
+  return null
+}
+
+function greenOutputFailure(
+  ev: TddEvidence,
+  output: string,
+  freshGradleResults?: readonly string[],
+): string | null {
   if (ZERO_TEST_OUTPUT.test(output)) return 'recorded test command reported zero tests'
   const framework = extractFailureSignature(ev.test_run_log)?.framework
   if (framework === undefined) return 'recorded RED framework is unrecognized'
   if (framework === 'go') return goOutputFailure(output)
   if (framework === 'tap') return tapOutputFailure(output)
+  if (framework === 'gradle') return gradleXmlFailure(freshGradleResults ?? [])
   return countedOutputFailure(framework, output)
+}
+
+function matchesRecordedTestContent(path: string, expected: string | undefined): boolean {
+  if (expected === undefined) return true
+  try {
+    const content = readFileSync(path)
+    const actual = createHash('sha1')
+      .update(`blob ${content.byteLength}\0`)
+      .update(content)
+      .digest('hex')
+    return actual === expected
+  } catch {
+    return false
+  }
+}
+
+function gradleSnapshotBefore(
+  framework: string | undefined,
+  root: string,
+): Map<string, GradleXmlSnapshot> {
+  return framework === 'gradle' ? gradleXmlSnapshots(root) : new Map<string, GradleXmlSnapshot>()
+}
+
+function greenTestPathFailure(repoDir: string, ev: TddEvidence): string | null {
+  const testPath = resolve(repoDir, ev.test_path)
+  if (!testPath.startsWith(`${repoDir}${sep}`) || !existsSync(testPath)) {
+    return `recorded test_path "${ev.test_path}" is missing from the current checkout`
+  }
+  if (!matchesRecordedTestContent(testPath, ev.test_blob_sha)) {
+    return `recorded RED test content at "${ev.test_path}" differs from the current checkout`
+  }
+  return null
+}
+
+function greenFailureAfterRun(
+  ev: TddEvidence,
+  framework: string | undefined,
+  output: string,
+  gradleRoot: string,
+  beforeGradleResults: Map<string, GradleXmlSnapshot>,
+): string | null {
+  if (framework === 'gradle') {
+    return greenOutputFailure(ev, output, freshGradleXml(gradleRoot, beforeGradleResults))
+  }
+  return greenOutputFailure(ev, output)
 }
 
 function greenArgs(testCommand: readonly string[], framework: string | undefined): string[] {
@@ -184,13 +326,8 @@ export function verifyGreenExecution(
       reason: `recorded test_cwd "${ev.test_cwd ?? ''}" is not repository-relative`,
     }
   }
-  const testPath = resolve(repoDir, ev.test_path)
-  if (!testPath.startsWith(`${repoDir}${sep}`) || !existsSync(testPath)) {
-    return {
-      ok: false,
-      reason: `recorded test_path "${ev.test_path}" is missing from the current checkout`,
-    }
-  }
+  const testPathFailure = greenTestPathFailure(repoDir, ev)
+  if (testPathFailure !== null) return { ok: false, reason: testPathFailure }
 
   const [cmd] = testCommand
   if (cmd === undefined) return { ok: false, reason: 'evidence has no recorded test_command' }
@@ -205,8 +342,16 @@ export function verifyGreenExecution(
   try {
     const framework = extractFailureSignature(ev.test_run_log)?.framework
     const args = greenArgs(testCommand, framework)
+    const gradleRoot = replayCwd
+    const beforeGradleResults = gradleSnapshotBefore(framework, gradleRoot)
     const result = runCli(executable, args, { cwd: replayCwd, timeoutMs })
-    const failure = greenOutputFailure(ev, combineTestOutput(result.stdout, result.stderr))
+    const failure = greenFailureAfterRun(
+      ev,
+      framework,
+      combineTestOutput(result.stdout, result.stderr),
+      gradleRoot,
+      beforeGradleResults,
+    )
     return failure === null ? { ok: true } : { ok: false, reason: failure }
   } catch (err) {
     if (!(err instanceof CliError)) {
