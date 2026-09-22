@@ -46,7 +46,8 @@ function operational(message) {
 function option(name, fallback) {
   const index = args.indexOf(name)
   if (index === -1) return fallback
-  if (!args[index + 1] || args[index + 1].startsWith('--')) operational(`Missing value for ${name}.`)
+  if (!args[index + 1] || args[index + 1].startsWith('--'))
+    operational(`Missing value for ${name}.`)
   return resolve(args[index + 1])
 }
 
@@ -72,7 +73,12 @@ try {
 } catch {
   operational(`Manifest is unreadable or invalid JSON: ${manifestPath}`)
 }
-if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest) || manifest.schema !== SCHEMA) {
+if (
+  !manifest ||
+  typeof manifest !== 'object' ||
+  Array.isArray(manifest) ||
+  manifest.schema !== SCHEMA
+) {
   operational(`Manifest must be an object with schema ${SCHEMA}.`)
 }
 
@@ -142,7 +148,9 @@ try {
 function mountedRoutes() {
   const index = readFileSync(join(ROOT, 'src/server/index.ts'), 'utf8')
   const modules = new Map()
-  for (const match of index.matchAll(/import\s*\{([\s\S]*?)\}\s*from\s*['"]\.\/routes\/([^'"]+)['"]/g)) {
+  for (const match of index.matchAll(
+    /import\s*\{([\s\S]*?)\}\s*from\s*['"]\.\/routes\/([^'"]+)['"]/g,
+  )) {
     for (const name of match[1].split(',').map((item) => item.trim())) modules.set(name, match[2])
   }
   const mounts = new Map()
@@ -153,7 +161,9 @@ function mountedRoutes() {
   const routes = new Set()
   for (const [module, mount] of mounts) {
     const source = readFileSync(join(ROOT, 'src/server/routes', `${module}.ts`), 'utf8')
-    for (const match of source.matchAll(/router\s*\.\s*(get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/gi)) {
+    for (const match of source.matchAll(
+      /router\s*\.\s*(get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/gi,
+    )) {
       routes.add(`${match[1].toUpperCase()} ${mount}${match[2]}`)
     }
   }
@@ -178,7 +188,8 @@ for (const resource of manifest.resources) {
     failures.push('Each resource needs a non-empty resource name and domainFields array.')
     continue
   }
-  if (manifestTables.has(resource.resource)) failures.push(`Duplicate resource: ${resource.resource}`)
+  if (manifestTables.has(resource.resource))
+    failures.push(`Duplicate resource: ${resource.resource}`)
   manifestTables.set(resource.resource, resource)
   const fields = new Set()
   for (const field of resource.domainFields) {
@@ -246,10 +257,13 @@ if (schema) {
       continue
     }
     const declared = new Set(resource.domainFields.map((field) => field?.name))
-    for (const field of fields) if (!declared.has(field)) failures.push(`Missing field: ${table}.${field}`)
-    for (const field of declared) if (!fields.includes(field)) failures.push(`Stale field: ${table}.${field}`)
+    for (const field of fields)
+      if (!declared.has(field)) failures.push(`Missing field: ${table}.${field}`)
+    for (const field of declared)
+      if (!fields.includes(field)) failures.push(`Stale field: ${table}.${field}`)
   }
-  for (const table of manifestTables.keys()) if (!(table in schema)) failures.push(`Stale table: ${table}`)
+  for (const table of manifestTables.keys())
+    if (!(table in schema)) failures.push(`Stale table: ${table}`)
 }
 if (failures.length) fail(failures)
 process.stdout.write('domain-api surface (INV-125): OK\n')
