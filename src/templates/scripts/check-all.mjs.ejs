@@ -552,12 +552,20 @@ const ratchetFlag = isL3Plus ? '--require-improvement' : '--gate';
 // their custom JS bodies (declared in the registry so --dry-run/--gate and the
 // layering test see them). ORDER IS THE REGISTRY ORDER.
 
-<% for (const stage of ['preflight', 'qualification']) {
-const stageGates = _effectiveGates.filter(g => (g.preflight === true) === (stage === 'preflight'));
+<% for (const stage of ['preflight', 'presuite', 'qualification']) {
+const stageGates = _effectiveGates.filter(g => stage === 'preflight'
+  ? g.preflight === true
+  : stage === 'presuite'
+    ? g.presuite === true
+    : g.preflight !== true && g.presuite !== true);
 const l1 = stageGates.filter(g => g.level === 'L1'); const l2 = stageGates.filter(g => g.level === 'L2'); const l3 = stageGates.filter(g => g.level === 'L3'); %>
-<% if (stage === 'qualification') { %>
+<% if (stage === 'presuite') { %>
 const _preflightPassed = getFailed() === 0;
 if (!_preflight && (_preflightPassed || dryRun || only !== null)) {
+<% } %>
+<% if (stage === 'qualification') { %>
+const _presuitePassed = getFailed() === 0;
+if (!_preflight && (_presuitePassed || dryRun || only !== null)) {
 <% } %>
 // ── L1 (fast checks — frozen candidate) ─────────────────────────────────
 if (true) {
@@ -1408,7 +1416,7 @@ runCheck('debt ratchet', 'node', _debtRatchetArgs, { soft: graceActive });
 <% } %>
   // ── L2: gate-layering contract test (#2041, AC-2041.3) — asserts the
   // L1 ⊂ L2 ⊂ L3 containment from the embedded registry.
-<% if (stage === 'preflight') { %>
+<% if (stage === 'presuite') { %>
   if (gateFilePresent('scripts/test-gate-layering.mjs', 'gate layering')) {
     runCheck('gate layering', 'node', ['scripts/test-gate-layering.mjs'])
   }
@@ -1787,7 +1795,7 @@ if (_inlineInspect('playwright rules', 'npx eslint --config eslint.config.playwr
 <% } %>
 }
 
-<% if (stage === 'qualification') { %>
+<% if (stage !== 'preflight') { %>
 }
 <% } %>
 <% } %>
@@ -1863,7 +1871,7 @@ function _localChecksAllowed(cwd) {
   return _cfg.status === 0 && _cfg.stdout === 'true\n';
 }
 
-if (_preflight || (!_preflightPassed && !dryRun && only === null)) {
+if (_preflight || (!_presuitePassed && !dryRun && only === null)) {
   console.log('[CHECK] local checks ... SKIP (qualification not started)');
 } else if (_failFastInlineSkip('local checks')) {
   // A prior hard L1 result makes local-check discovery unnecessary. Named

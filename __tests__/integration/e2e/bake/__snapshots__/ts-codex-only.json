@@ -233,7 +233,7 @@
     "scripts/capacity-probe.mjs": "df53c9eb95e789b76907287100fb1e45fbd04a53bc9902d5b288c2a7a6032b36",
     "scripts/check-acceptance.mjs": "59a50cc5fb74e097e4ea7eeb008baca6b183e06350a486ab2f7c9e4119c5a20e",
     "scripts/check-action-pins.mjs": "898c0ef27b61d41fd495c45b951881e3070403a77cecec47e960d4ced47c3506",
-    "scripts/check-all.mjs": "e86b1ce8de26c16b1bb157ed9015ca7715a6483563c8d2259dd8ef146d01cba8",
+    "scripts/check-all.mjs": "4b391f424e755d51289d28ea8e4b4d3a8a84bebe46a57a4bdf9d7a410c1b72fb",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
     "scripts/check-anti-proforma.mjs": "2ee5932a101fff522c4fc9d7e4aec69b35fbd69c2b73f9bbc03b256042d7175d",
     "scripts/check-api-e2e.mjs": "ca41c470dc146cdd793fd9289aa4ebb4bdbb4474b8df13e8b838c492e34ee0da",

@@ -44,6 +44,8 @@ export interface GateRegistryEntry {
   kind: 'check' | 'warn' | 'tool' | 'inline'
   /** Cheap diagnostics independent of future task proofs; default is qualification-only. */
   preflight?: boolean
+  /** Cheap fail-first checks that run before the qualification suites. */
+  presuite?: boolean
   cmd?: string[]
   /** Effect-free command/read description for inline gates. */
   inspect?: string
@@ -174,12 +176,25 @@ function flattenGateCmd(entry: Record<string, unknown>): string[] | undefined {
   return [String(rawCmd[0]), ...((rawCmd[1] as unknown[] | undefined) ?? []).map(String)]
 }
 
+function normalizeGateMarkers(
+  entry: Record<string, unknown>,
+  id: string,
+): Pick<GateRegistryEntry, 'preflight' | 'presuite'> {
+  const markers: Pick<GateRegistryEntry, 'preflight' | 'presuite'> = {}
+  for (const key of ['preflight', 'presuite'] as const) {
+    const value = entry[key]
+    if (value !== undefined && typeof value !== 'boolean') {
+      throw new Error(`gate registry: gate "${id}" ${key} must be boolean`)
+    }
+    if (value === true) markers[key] = true
+  }
+  return markers
+}
+
 function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): GateRegistryEntry {
   const { id, level, kind } = validateGateEntryShape(entry, seen)
   const flatCmd = flattenGateCmd(entry)
-  if (entry['preflight'] !== undefined && typeof entry['preflight'] !== 'boolean') {
-    throw new Error(`gate registry: gate "${id}" preflight must be boolean`)
-  }
+  const markers = normalizeGateMarkers(entry, id)
   return {
     id,
     name: String(entry['name']),
@@ -217,7 +232,7 @@ function normalizeGateEntry(entry: Record<string, unknown>, seen: Set<string>): 
     ...(typeof entry['emitIf'] === 'string' ? { emitIf: entry['emitIf'] } : {}),
     ...(typeof entry['condition'] === 'string' ? { condition: entry['condition'] } : {}),
     ...(typeof entry['else'] === 'string' ? { else: entry['else'] } : {}),
-    ...(entry['preflight'] === true ? { preflight: true } : {}),
+    ...markers,
     ...(entry['soft'] === true ? { soft: true } : {}),
     ...(typeof entry['promotes_to'] === 'string' ? { promotes_to: entry['promotes_to'] } : {}),
     ...(entry['audit'] === true ? { audit: true } : {}),
