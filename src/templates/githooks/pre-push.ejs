@@ -245,7 +245,7 @@ mapfile -t TOUCHED_TESTS < <(
       while IFS= read -r path; do
         basename="${path##*/}"
         basename="${basename%%.*}"
-        find __tests__ -type f \( -name "${basename}.test.*" -o -name "${basename}-*.test.*" \)
+        find __tests__ -type f \( -name "${basename}.test.*" -o -name "${basename}-*.test.*" -o -name "${basename}.*.test.*" \)
       done | sort -u
   fi
 )

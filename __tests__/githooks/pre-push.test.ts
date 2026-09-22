@@ -318,6 +318,7 @@ it('runs the light preflight gate, never the full gate, in self and rendered hoo
     expect(hook).toContain(
       'pre-push: light gate (preflight + touched tests); the full gate runs in CI (#2773 P7)',
     )
+    expect(hook).toContain('-name "${basename}.*.test.*"')
   }
 })
 
