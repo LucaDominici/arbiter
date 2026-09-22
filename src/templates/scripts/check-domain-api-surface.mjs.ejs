@@ -27,7 +27,7 @@ Validates persisted domain fields against the declared public API surface (INV-1
 
 Options:
   --manifest <path>       Manifest path (default: domain-api-surface.json at repository root)
-  --schema-helper <path>  Enable live schema/route/evidence checks with this helper
+  --schema-helper <path>  Live schema helper (auto-detected at scripts/lib/domain-api-schema.ts)
   --help, -h              Show this help and exit
 
 Exit codes: 0 pass, 1 policy failure, 2 operational or manifest-schema error.`
@@ -58,9 +58,12 @@ function fail(messages) {
 
 const repoRoot = process.env.REPO_ROOT ? resolve(process.env.REPO_ROOT) : resolve('.')
 const manifestPath = option('--manifest', join(repoRoot, 'domain-api-surface.json'))
+const defaultHelperPath = join(ROOT, 'scripts/lib/domain-api-schema.ts')
 const helperPath = args.includes('--schema-helper')
-  ? option('--schema-helper', join(ROOT, 'scripts/lib/domain-api-schema.ts'))
-  : null
+  ? option('--schema-helper', defaultHelperPath)
+  : existsSync(defaultHelperPath)
+    ? defaultHelperPath
+    : null
 if (!existsSync(manifestPath)) fail([`Manifest not found: ${manifestPath}`])
 
 let manifest
