@@ -9,6 +9,53 @@ export interface BoundariesGeneratorResult {
   files: WriteResult[]
 }
 
+type DeclaredArchitecture = NonNullable<ProjectConfig['architecture']>
+
+interface BoundariesElement {
+  type: string
+  pattern: string
+}
+
+interface BoundariesElementTypeRule {
+  from: string
+  allow: string[]
+}
+
+/**
+ * #2834: convert the declared `components`/`deny` config into the shape
+ * eslint-plugin-boundaries expects — `boundaries/element-types` is an
+ * allow-list model (default disallow, then explicit allow per `from`), while
+ * `architecture.deny` is a deny-list ("a -> b" forbidden, everything else
+ * permitted). One edge not listed is a no-op, never a violation — mirrors
+ * the "adding a file never fails the build" rule from the config docs.
+ */
+export function toBoundariesRules(architecture: DeclaredArchitecture): {
+  elements: BoundariesElement[]
+  elementTypeRules: BoundariesElementTypeRule[]
+} {
+  const names = Object.keys(architecture.components)
+  const elements = names.flatMap((name) =>
+    (architecture.components[name] ?? []).map((pattern) => ({ type: name, pattern })),
+  )
+  const deniedFrom = new Map<string, Set<string>>()
+  for (const edge of architecture.deny) {
+    const [from, to] = edge.split('->').map((s) => s.trim())
+    if (from === undefined || to === undefined) continue
+    const denied = deniedFrom.get(from) ?? new Set<string>()
+    if (to === '*') {
+      for (const name of names) denied.add(name)
+    } else {
+      denied.add(to)
+    }
+    deniedFrom.set(from, denied)
+  }
+  const elementTypeRules = names.map((name) => ({
+    from: name,
+    allow: names.filter((other) => other !== name && !deniedFrom.get(name)?.has(other)),
+  }))
+  return { elements, elementTypeRules }
+}
+
 export function generateEslintBoundaries(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -41,7 +88,10 @@ export function generateEslintBoundaries(
     }
   }
 
-  if (config.architectureStyle !== 'hexagonal') return { files: [] }
+  // #2834: a declared `architecture` section stands on its own — the project
+  // is telling us its own components, not asking for the hexagonal default.
+  // Without one, the hexagonal-style gate is unchanged (regression zero).
+  if (config.architectureStyle !== 'hexagonal' && !config.architecture) return { files: [] }
 
   // #2272: the gate runs the flat config (ESLint v9 removed the legacy
   // --no-eslintrc/-c loader the .cjs file needs — #1491-class fix, mirrors the
@@ -49,6 +99,9 @@ export function generateEslintBoundaries(
   // rules resolve against — inject it so a fresh init does not RED on
   // `Cannot find package` (#1835-class fix).
   injectDevDependency(base, 'eslint-plugin-boundaries', '^7.0.2', opts.dryRun)
+  const templateData = config.architecture
+    ? { ...data, architecture: toBoundariesRules(config.architecture) }
+    : data
   return {
     files: [
       writeFile(
@@ -58,7 +111,7 @@ export function generateEslintBoundaries(
       ),
       writeFile(
         resolvedPath(base, 'eslint.config.boundaries.mjs'),
-        renderTemplate('boundaries/eslint.config.boundaries.mjs.ejs', data),
+        renderTemplate('boundaries/eslint.config.boundaries.mjs.ejs', templateData),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(

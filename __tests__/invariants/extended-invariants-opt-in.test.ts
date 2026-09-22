@@ -49,7 +49,8 @@ describe('extended opt-in invariants', () => {
     // Updated #2181: +1 (INV-139 fixture isolation, selfOnly governance)
     // Updated ontology-wave-2: +1 (INV-144 arc42 slot completeness, governance/Tier-5, Track B)
     // Updated #2480 (INV-147 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
-    expect(INVARIANT_CATALOG).toHaveLength(147)
+    // Updated #2834: +1 (INV-150 declared-architecture deny-edge validation, architectural/Tier-1)
+    expect(INVARIANT_CATALOG).toHaveLength(148)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

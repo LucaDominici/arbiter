@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-09-19'
+last_review: '2026-09-22'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 122)
+1. Create `NNN-short-title.md` in this directory (next free number after 123)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -150,3 +150,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 120 | [Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](120-ignore-stryker-tmp-scratch-sandbox.md)                                                | Accepted   | 2026-08-30 | Add .stryker-tmp/ to both .gitignore and .prettierignore, matching the |
 | 121 | [`arbiter configure plugin add`/`list` — Ship the Minimal Command, No Scaffolder](121-plugin-add-ship-minimal.md)                                                     | Accepted   | 2026-08-30 |  |
 | 122 | [Experimental tool generators — promotion criteria, and retire all five](122-experimental-tool-generators-retired.md)                                                 | Accepted   | 2026-08-30 |  |
+| 123 | [Declared architecture components/deny in arbiter.json](123-declared-architecture-boundaries.md)                                                                      | Accepted   | 2026-09-22 |  |

@@ -191,6 +191,50 @@ describe('validateConfig — crossModelReview (#2356)', () => {
   })
 })
 
+describe('validateConfig — architecture (#2834)', () => {
+  const architecture = {
+    components: { api: ['src/api/**'], db: ['src/db/**'] },
+    deny: ['db -> api'],
+  }
+
+  it('accepts the optional declared-architecture block without a schema-version bump', () => {
+    const result = validateConfig({ ...BASE_VALID, architecture })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.config.architecture).toEqual(architecture)
+      expect(result.config.$schemaVersion).toBeUndefined()
+    }
+  })
+
+  it('keeps legacy configs without architecture valid', () => {
+    const result = validateConfig(BASE_VALID)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.config.architecture).toBeUndefined()
+  })
+
+  it('accepts "comp -> *" as a valid deny edge', () => {
+    const result = validateConfig({
+      ...BASE_VALID,
+      architecture: { components: { core: ['src/core/**'] }, deny: ['core -> *'] },
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it.each([
+    ['empty components', { ...architecture, components: {} }],
+    ['component with no globs', { ...architecture, components: { api: [] } }],
+    ['component with a non-string glob', { ...architecture, components: { api: [1] } }],
+    ['empty deny', { ...architecture, deny: [] }],
+    ['malformed edge (no arrow)', { ...architecture, deny: ['db api'] }],
+    ['edge naming an undeclared "from" component', { ...architecture, deny: ['billing -> api'] }],
+    ['edge naming an undeclared "to" component', { ...architecture, deny: ['db -> billing'] }],
+  ])('rejects invalid %s', (_label, value) => {
+    const result = validateConfig({ ...BASE_VALID, architecture: value })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.errors.some((error) => error.includes('architecture'))).toBe(true)
+  })
+})
+
 describe('validateConfig — companions override map (#1730)', () => {
   const base = {
     version: '0.2',

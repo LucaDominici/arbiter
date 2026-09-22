@@ -90,6 +90,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-99:** deployTarget must be a known cloud or "none"
 - **INV-100:** collaborationMode must be set in arbiter.json
 - **INV-101:** exact-SHA non-force landing for evidence-bearing changes
+- **INV-150:** architecture.deny edges must name declared components
 
 ### Tier 3: Security & Compliance
 
