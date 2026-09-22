@@ -57,6 +57,8 @@ waste fix-on-red strikes.
   paths in nested checkout packages and materialize them with this cache-isolated strategy;
   explicit links take precedence, and discovery does not recurse into dependency trees or
   directory symlinks.
+- `worktree prepare` validates reachable dependency symlinks before recording the checkout;
+  unresolved nested targets fail with their paths and require repairing the source install.
 - `arbiter worktree relink <task-id>` re-runs the configured link materialization for an
   already-open worktree, healing missing child links and warning about links whose source still
   does not exist.
