@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 import { buildKnownLimitations } from '../../src/generators/codex-known-limitations.js'
+import { renderAgentsMd } from '../../src/generators/agents-md.js'
 import type { Language } from '../../src/wizard/types.js'
 
 /**
@@ -64,6 +66,9 @@ describe('codex CODEX.md — workflow section', () => {
     expect(content).toContain('node scripts/check-all.mjs preflight')
     expect(content).toMatch(/CI (?:runs|is)\s+the full gate/i)
     expect(content).not.toMatch(/L2 before push|L2` \| Run before push\/PR/i)
+    expect(content).toMatch(/targeted test/i)
+    expect(content).not.toMatch(/Run `npm run test` after each unit/i)
+    expect(content).toMatch(/draft PR.*exact-head CI.*review.*ready.*merge/is)
   })
 
   it('keeps the generated CLI catalog on the same gate economy contract', () => {
@@ -75,6 +80,57 @@ describe('codex CODEX.md — workflow section', () => {
     expect(content).toContain('node scripts/check-all.mjs preflight')
     expect(prose).toMatch(/CI (?:runs|is) the full gate/i)
     expect(content).not.toMatch(/L1 once on the frozen candidate, and L2 before push/i)
+  })
+
+  it('keeps canonical AGENTS guidance on one local preflight and exact-head CI', () => {
+    const content = renderAgentsMd(makeConfig('/tmp/test', { language: 'typescript' }))
+    expect(content).toContain('node scripts/check-all.mjs preflight')
+    expect(content).toMatch(/CI.*full gate.*exact SHA/is)
+    expect(content).not.toMatch(/L2 \(full, pre-push\)|L2.*before push|Pre-push.*runs L2/i)
+  })
+
+  it('keeps generated governance guidance on the same gate economy contract', () => {
+    const config = makeConfig('/tmp/test', {
+      collaborationMode: 'trunk-solo',
+      governanceLevel: 'L3',
+      language: 'typescript',
+    }) as unknown as Record<string, unknown>
+    const surfaces = [
+      renderTemplate('governance/ci-mental-model.md.ejs', config),
+      renderTemplate('governance/solo-dev-exception.md.ejs', config),
+    ]
+    for (const content of surfaces) {
+      expect(content).toContain('node scripts/check-all.mjs preflight')
+      expect(content).toMatch(/CI.*full gate.*exact SHA/is)
+      expect(content).not.toMatch(/L2.*before push|L2 gate.*pre-push|L2.*every push/i)
+    }
+  })
+
+  it('attributes the PR full-gate checklist to exact-head CI', () => {
+    const config = makeConfig('/tmp/test', {
+      governanceLevel: 'L2',
+      language: 'typescript',
+    }) as unknown as Record<string, unknown>
+    const surfaces = [
+      renderTemplate('github/PULL_REQUEST_TEMPLATE.md.ejs', config),
+      readFileSync(
+        new URL('../../src/templates/github/PULL_REQUEST_TEMPLATE.md', import.meta.url),
+        'utf8',
+      ),
+    ]
+    for (const content of surfaces) {
+      expect(content).toMatch(/exact-head CI.*check-all\.mjs L2/is)
+      expect(content).not.toMatch(/check-all\.mjs L1` passes/i)
+    }
+  })
+
+  it('lets the pre-push hook own the single local preflight', () => {
+    const content = renderTemplate(
+      'claude/commands/ship.md.ejs',
+      makeConfig('/tmp/test', { language: 'typescript' }) as unknown as Record<string, unknown>,
+    )
+    expect(content).toMatch(/pre-push hook.*preflight/is)
+    expect(content).not.toMatch(/Run `node scripts\/check-all\.mjs preflight`.*then push/is)
   })
 })
 

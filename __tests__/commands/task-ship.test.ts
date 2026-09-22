@@ -713,13 +713,13 @@ describe('ship complete-action — chain batching (--chain, #2102)', () => {
 })
 
 describe('ship final-gate action ordering', () => {
-  it('runs the fast preflight and leaves the full gate to CI', () => {
+  it('lets pre-push own the fast preflight and leaves the full gate to CI', () => {
     const verification = shipStepFor('verification', 'Standard', profile())
     const close = shipStepFor('close', 'Standard', profile())
-    expect(verification.action).toContain(
-      'Run `node scripts/check-all.mjs preflight` as a local diagnostic; push the frozen candidate so CI runs the full gate on that SHA',
-    )
-    expect(verification.command).toBe('node scripts/check-all.mjs preflight')
+    expect(verification.action).toMatch(/pre-push hook.*preflight/i)
+    expect(verification.action).toMatch(/CI runs the full gate on that SHA/i)
+    expect(verification.action).not.toMatch(/Run `node scripts\/check-all\.mjs preflight`/i)
+    expect(verification.command).toBe('node scripts/ci-receipt.mjs')
     expect(close.action).not.toContain('check-all.mjs')
     expect(close.action).not.toContain('done-evidence.mjs')
   })
@@ -733,7 +733,7 @@ describe('ship final-gate action ordering', () => {
     const verification = shipStepFor('verification', 'Standard', harness)
     const close = shipStepFor('close', 'Standard', harness)
     const sequence = `${verification.action} ${close.action}`
-    expect(verification.command).toBe('node scripts/check-all.mjs preflight')
+    expect(verification.command).toBe('node scripts/ci-receipt.mjs')
     expect(sequence).toContain('node scripts/done-evidence.mjs')
     expect(sequence.match(/check-all\.mjs/g)).toHaveLength(1)
     expect(close.action).toContain('Reuse the recorded CI verdict')
@@ -754,7 +754,7 @@ describe('ship final-gate action ordering', () => {
     expect(prePushSource).toContain('check-all.mjs preflight') // #2773 P7: light pre-push, CI pins L2
     expect(
       shipStepFor('verification', 'Standard', profile({ evidenceHarness: true })).command,
-    ).toBe('node scripts/check-all.mjs preflight')
+    ).toBe('node scripts/ci-receipt.mjs')
   })
 })
 
