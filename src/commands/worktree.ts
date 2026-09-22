@@ -655,12 +655,7 @@ export async function runWorktreeAdopt(opts: WorktreeAdoptOptions): Promise<void
   const wtConfig = config?.worktree ?? defaultWorktreeConfig()
   const specs = resolveWorktreeLinks(wtConfig, opts.withBuildLinks === true, gitRoot, requested)
   const summary = materializeLinks(specs, gitRoot, requested)
-  const warn =
-    opts.onWarning ??
-    ((msg: string): void => {
-      process.stdout.write(`${msg}\n`)
-    })
-  warnDanglingLinks(specs, requested, warn)
+  assertResolvableLinks(specs, requested)
   await recordAdoptedCheckout(gitRoot, taskId, requested, live)
 
   if (opts.json) {
@@ -861,6 +856,12 @@ function warnDanglingLinks(
   for (const d of checkLinkIntegrity(links, worktreePath)) {
     warn(`Warning: dangling symlink: ${d}`)
   }
+}
+
+function assertResolvableLinks(links: WorktreeLinkSpec[], worktreePath: string): void {
+  const dangling = checkLinkIntegrity(links, worktreePath)
+  if (dangling.length === 0) return
+  throw new Error(`Worktree dependency links are not usable:\n${dangling.join('\n')}`)
 }
 
 // ---------------------------------------------------------------------------
