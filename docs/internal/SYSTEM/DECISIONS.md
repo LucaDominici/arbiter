@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-09-19'
+last_review: '2026-09-22'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -141,3 +141,4 @@ related: []
 | 120 | [Ignore .stryker-tmp/ — Stryker Scratch Sandbox Is Never Formatted Content](../ADR/120-ignore-stryker-tmp-scratch-sandbox.md) | Accepted | 2026-08-30 |
 | 121 | [`arbiter configure plugin add`/`list` — Ship the Minimal Command, No Scaffolder](../ADR/121-plugin-add-ship-minimal.md) | Accepted | 2026-08-30 |
 | 122 | [Experimental tool generators — promotion criteria, and retire all five](../ADR/122-experimental-tool-generators-retired.md) | Accepted | 2026-08-30 |
+| 123 | [Declared architecture components/deny in arbiter.json](../ADR/123-declared-architecture-boundaries.md) | Accepted | 2026-09-22 |

@@ -9,7 +9,6 @@
     "boundaries/check-boundaries-python.mjs.ejs",
     "boundaries/check-boundaries-rust.mjs.ejs",
     "boundaries/check-boundaries.mjs.ejs",
-    "boundaries/eslint.config.boundaries.mjs.ejs",
     "boundaries/golangci-boundaries.yml.ejs",
     "claude/agents/bridge-reviewer.md.ejs",
     "claude/agents/codebase-scanner.md.ejs",

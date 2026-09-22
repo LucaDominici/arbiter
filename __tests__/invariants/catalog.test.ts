@@ -20,7 +20,7 @@ const ALL_TIERS: InvariantTier[] = [
 // Count expectations are each derived from a single named constant, so the
 // it() title and its expect() assertion can never drift apart (#1609). A future
 // off-by-N regression then surfaces under a truthful test name, not a stale one.
-const EXPECTED_TOTAL_ENTRIES = 147
+const EXPECTED_TOTAL_ENTRIES = 148
 const EXPECTED_TIER4_OPERATIONAL = 49
 const EXPECTED_TIER5_GOVERNANCE = 62
 const EXPECTED_SELFONLY = 36
@@ -173,9 +173,10 @@ describe('INVARIANT_CATALOG', () => {
     }
   })
 
-  it('has exactly 14 Tier 1 invariants', () => {
+  it('has exactly 15 Tier 1 invariants', () => {
+    // Updated #2834: +1 (INV-150, declared-architecture deny-edge validation, tier: 'architectural').
     const tier1 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'architectural')
-    expect(tier1).toHaveLength(14)
+    expect(tier1).toHaveLength(15)
   })
 
   it('has exactly 6 Tier 2 invariants', () => {
@@ -553,7 +554,8 @@ describe('getFilteredInvariants', () => {
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
     // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
     // Updated #2480 wave 8f (INV-146 ora su ENTRAMBI i track: l'emissione Track-B è landata)
-    expect(result).toHaveLength(94)
+    // Updated #2834: +1 (INV-150 declared-architecture deny-edge validation, L1+, all-languages)
+    expect(result).toHaveLength(95)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -591,7 +593,8 @@ describe('getFilteredInvariants', () => {
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
     // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks) — → < 81
     // Updated #2480 wave 8f (INV-146 ora su ENTRAMBI i track) — → < 82
-    expect(result.length).toBeLessThan(82)
+    // Updated #2834: +1 (INV-150, L1+, all-languages) — → < 83
+    expect(result.length).toBeLessThan(83)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -676,7 +679,8 @@ describe('getFilteredInvariants', () => {
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
     // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
     // Updated #2480 wave 8f (INV-146 ora su ENTRAMBI i track)
-    expect(result).toHaveLength(89)
+    // Updated #2834: +1 (INV-150, L1+, all languages)
+    expect(result).toHaveLength(90)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -714,7 +718,8 @@ describe('getFilteredInvariants', () => {
     // Updated #2480 (INV-145 adversarial-hop floor, governance/Tier-5, Track B, CANON-24)
     // Updated #2480 wave 8 (INV-149 use-case matrix, governance/Tier-5, BOTH tracks)
     // Updated #2480 wave 8f (INV-146 ora su ENTRAMBI i track)
-    expect(result).toHaveLength(90)
+    // Updated #2834: +1 (INV-150, L1+, all languages)
+    expect(result).toHaveLength(91)
   })
 
   it('essential preset at L1 returns minimal set', () => {

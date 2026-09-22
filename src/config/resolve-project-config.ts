@@ -80,6 +80,10 @@ function storedAxisFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
     // keep re-emitting the cadence the project opted into instead of silently
     // coercing back to 'fleet' (the persistence-time default collapse).
     ...(stored.runnerProfile !== undefined ? { runnerProfile: stored.runnerProfile } : {}),
+    // #2834: round-trip declared architecture so `arbiter update`/`diff` keep
+    // rendering the project's own components/deny instead of silently
+    // coercing back to the fixed hexagonal shape.
+    ...(stored.architecture !== undefined ? { architecture: stored.architecture } : {}),
   }
 }
 
