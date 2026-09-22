@@ -189,6 +189,33 @@ describe('check-domain-api-surface.mjs.ejs render tests', () => {
     expect(result.stdout).toContain('[domain-api-surface] PASS')
   })
 
+  it.each([
+    ['empty resources', []],
+    ['missing domainFields', [{ resource: 'widgets' }]],
+    ['empty domainFields', [{ resource: 'widgets', domainFields: [] }]],
+    [
+      'malformed field flags',
+      [
+        {
+          resource: 'widgets',
+          domainFields: [
+            { name: 'id', persisted: 'true', inRequestSchema: false, inResponseSchema: true },
+          ],
+        },
+      ],
+    ],
+  ])('rejects %s without a schema helper', (_label, resources) => {
+    const { checker, manifest } = writeConsumerFixture()
+    rmSync(join(consumerDir!, 'src'), { recursive: true, force: true })
+    rmSync(join(consumerDir!, 'node_modules'), { recursive: true, force: true })
+    writeFileSync(manifest, JSON.stringify({ schema: 'arbiter-domain-api-surface-v1', resources }))
+
+    const result = runConsumer(checker, ['--manifest', manifest])
+
+    expect(result.status).toBe(2)
+    expect(`${result.stdout}${result.stderr}`).toContain('[ERROR]')
+  })
+
   it('fails closed when the manifest is absent instead of silently skipping', () => {
     const { checker, helper, manifest } = writeConsumerFixture()
     const result = runConsumer(checker, ['--manifest', manifest, '--schema-helper', helper])
@@ -215,6 +242,36 @@ describe('check-domain-api-surface.mjs.ejs render tests', () => {
     expect(malformed.status).toBe(2)
     expect(`${malformed.stdout}${malformed.stderr}`).toContain(
       '[ERROR] Manifest is unreadable or invalid JSON:',
+    )
+
+    writeFileSync(
+      manifest,
+      JSON.stringify({ schema: 'arbiter-domain-api-surface-v1', resources: [] }),
+    )
+    const emptyResources = runConsumer(checker, ['--manifest', manifest, '--schema-helper', helper])
+    expect(emptyResources.status).toBe(2)
+    expect(`${emptyResources.stdout}${emptyResources.stderr}`).toContain(
+      '[ERROR] Manifest resources must be a non-empty array.',
+    )
+
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        schema: 'arbiter-domain-api-surface-v1',
+        resources: [
+          {
+            resource: 'widgets',
+            domainFields: [
+              { name: 'id', persisted: 'true', inRequestSchema: false, inResponseSchema: true },
+            ],
+          },
+        ],
+      }),
+    )
+    const malformedFlags = runConsumer(checker, ['--manifest', manifest, '--schema-helper', helper])
+    expect(malformedFlags.status).toBe(2)
+    expect(`${malformedFlags.stdout}${malformedFlags.stderr}`).toContain(
+      '[ERROR] Invalid field in resource widgets.',
     )
 
     writeFileSync(manifest, JSON.stringify(validManifest()))

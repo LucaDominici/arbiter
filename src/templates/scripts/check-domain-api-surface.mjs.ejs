@@ -86,14 +86,42 @@ function main() {
   if (!Array.isArray(manifest.resources)) {
     operational('Manifest resources must be an array.')
   }
+  if (manifest.resources.length === 0) {
+    operational('Manifest resources must be a non-empty array.')
+  }
+  for (const resource of manifest.resources) {
+    if (
+      !resource ||
+      typeof resource !== 'object' ||
+      Array.isArray(resource) ||
+      typeof resource.resource !== 'string' ||
+      !resource.resource ||
+      !Array.isArray(resource.domainFields) ||
+      resource.domainFields.length === 0
+    ) {
+      operational('Each resource needs a non-empty resource name and domainFields array.')
+    }
+    for (const field of resource.domainFields) {
+      if (
+        !field ||
+        typeof field !== 'object' ||
+        Array.isArray(field) ||
+        typeof field.name !== 'string' ||
+        !field.name ||
+        typeof field.persisted !== 'boolean' ||
+        typeof field.inRequestSchema !== 'boolean' ||
+        typeof field.inResponseSchema !== 'boolean'
+      ) {
+        operational(`Invalid field in resource ${resource.resource}.`)
+      }
+    }
+  }
   if (!helperPath) {
     const gaps = []
     for (const resource of manifest.resources) {
-      const resourceName = resource.resource ?? '(unnamed)'
-      if (!Array.isArray(resource.domainFields)) continue
       for (const field of resource.domainFields) {
         if (field.persisted === true && !field.inRequestSchema && !field.inResponseSchema) {
-          gaps.push({ resource: resourceName, field: field.name ?? '(unnamed)' })
+          gaps.push({ resource: resource.resource, field: field.name })
         }
       }
     }
@@ -112,7 +140,7 @@ function main() {
       process.exit(1)
     }
     const checked = manifest.resources.reduce((sum, resource) => {
-      return sum + (resource.domainFields?.length ?? 0)
+      return sum + resource.domainFields.length
     }, 0)
     console.log(
       `[domain-api-surface] PASS — ${checked} field(s) across ${manifest.resources.length} resource(s) all reachable`,

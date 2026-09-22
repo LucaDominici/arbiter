@@ -149,15 +149,27 @@ describe('check-domain-api-surface.mjs (INV-125)', () => {
     expect(r.out).not.toContain('Payment.status')
   })
 
-  // R9: empty resources array → PASS (nothing to check)
-  it('R9: exits 0 (PASS) for empty resources array', () => {
-    writeManifest(tmpDir, {
-      schema: 'arbiter-domain-api-surface-v1',
-      resources: [],
-    })
+  // R9: malformed resource shapes → operational error
+  it.each([
+    ['empty resources', []],
+    ['missing domainFields', [{ resource: 'User' }]],
+    ['empty domainFields', [{ resource: 'User', domainFields: [] }]],
+    [
+      'malformed field flags',
+      [
+        {
+          resource: 'User',
+          domainFields: [
+            { name: 'id', persisted: 'true', inRequestSchema: false, inResponseSchema: true },
+          ],
+        },
+      ],
+    ],
+  ])('R9: exits 2 when the manifest has %s', (_label, resources) => {
+    writeManifest(tmpDir, { schema: 'arbiter-domain-api-surface-v1', resources })
     const r = run(tmpDir)
-    expect(r.status).toBe(0)
-    expect(r.out).toContain('PASS')
+    expect(r.status).toBe(2)
+    expect(r.out).toContain('ERROR')
   })
 
   // R10: persisted field with inRequestSchema=true only → PASS
