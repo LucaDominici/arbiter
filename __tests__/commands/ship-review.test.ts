@@ -9,7 +9,7 @@
  *
  * RED: `review` is not on the task document, no round is ever recorded, and nothing refuses.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   chmodSync,
   copyFileSync,
@@ -36,6 +36,11 @@ import type { ShipProfile } from '../../src/commands/ship-profile'
 import { enforceAcFitCitations, validateSchema } from '../../scripts/lib/agent-return-validate.mjs'
 import { validateAcFit } from '../../scripts/lib/acceptance-criteria.mjs'
 import { FatalError } from '../../src/utils/errors.js'
+
+vi.mock('../../src/evidence/tdd-reexecute.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/evidence/tdd-reexecute.js')>()
+  return { ...actual, verifyGreenExecution: vi.fn().mockReturnValue({ ok: true }) }
+})
 
 const TEST_PROFILE: ShipProfile = {
   isArbiterSelf: false,
@@ -176,9 +181,29 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: dir })
     writeFileSync(join(dir, '.gitignore'), '.claude/.task/\n.arbiter/\n')
     writeFileSync(join(dir, 'plan.md'), '# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n')
-    execFileSync('git', ['add', '.gitignore', 'plan.md'], { cwd: dir })
+    writeFileSync(join(dir, 'review.test.ts'), 'throw new Error("RED") // frozen candidate\n')
+    execFileSync('git', ['add', '.gitignore', 'plan.md', 'review.test.ts'], { cwd: dir })
     execFileSync('git', ['commit', '-q', '-m', 'test: seed plan'], { cwd: dir })
+    const redSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
     runTaskShip({ dir, taskId: '#100', profileOverride: TEST_PROFILE })
+    const evidenceDir = join(dir, '.arbiter', 'evidence', 'tdd')
+    mkdirSync(evidenceDir, { recursive: true })
+    writeFileSync(
+      join(evidenceDir, '#100.json'),
+      JSON.stringify({
+        $schemaVersion: 1,
+        task_id: '#100',
+        test_path: 'review.test.ts',
+        test_commit_sha: redSha,
+        test_run_log: 'FAIL review.test.ts\n1 test failed',
+        observed_failure: 'FAIL review.test.ts',
+        recorded_at: '2026-09-20T00:00:00.000Z',
+        test_command: ['node', '--test', 'review.test.ts'],
+      }),
+    )
     writeUnifiedState(dir, { phase: 'green', plan: 'plan.md' })
   })
 

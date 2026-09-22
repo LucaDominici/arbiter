@@ -28,6 +28,11 @@ vi.mock('../../src/capabilities/host-probe.js', () => ({
   }),
 }))
 
+vi.mock('../../src/evidence/tdd-reexecute.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/evidence/tdd-reexecute.js')>()
+  return { ...actual, verifyGreenExecution: vi.fn().mockReturnValue({ ok: true }) }
+})
+
 const VALID_EVIDENCE = {
   $schemaVersion: 1,
   task_id: '#549',
@@ -36,6 +41,7 @@ const VALID_EVIDENCE = {
   test_run_log: 'FAIL __tests__/commands/task-phase-migration.test.ts\n✗ 1 test failed',
   observed_failure: 'FAIL __tests__/commands/task-phase-migration.test.ts',
   recorded_at: '2026-05-16T00:00:00.000Z',
+  test_command: ['npx', 'vitest', 'run', '__tests__/commands/task-phase-migration.test.ts'],
 }
 
 function writeEvidence(dir: string): void {
