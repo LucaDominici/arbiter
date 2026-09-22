@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  readlinkSync,
+  existsSync,
+  writeFileSync,
+} from 'node:fs'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import {
@@ -1091,17 +1099,20 @@ describe('record-red --at (#2747)', () => {
 
   function mockAtRun(options: {
     atSha: string
+    canonicalAtSha?: string
     headSha: string
     testExitCode: number
     testLog: string
     blobSha?: string
     ancestor?: boolean
     prepareWorktree?: (worktree: string) => void
+    inspectTestCwd?: (cwd: string) => void
   }): string[] {
     const worktrees: string[] = []
-    mockedRunCli.mockImplementation((cmd, rawArgs) => {
+    mockedRunCli.mockImplementation((cmd, rawArgs, runOptions) => {
       const args = [...rawArgs]
       if (cmd === 'node' || cmd === 'npx' || cmd.endsWith('node_modules/.bin/vitest')) {
+        options.inspectTestCwd?.(runOptions.cwd)
         return {
           stdout: options.testLog,
           stderr: '',
@@ -1115,6 +1126,14 @@ describe('record-red --at (#2747)', () => {
       }
       if (args[0] === 'rev-parse' && args[1] === 'HEAD') {
         return { stdout: options.headSha, stderr: '', exitCode: 0, durationMs: 5 }
+      }
+      if (args[0] === 'rev-parse' && args[1] === '--verify') {
+        return {
+          stdout: options.canonicalAtSha ?? options.atSha,
+          stderr: '',
+          exitCode: 0,
+          durationMs: 5,
+        }
       }
       if (args[0] === 'merge-base') {
         return {
@@ -1235,6 +1254,51 @@ describe('record-red --at (#2747)', () => {
     expect(verification.exitCode).toBe(0)
     expect(worktrees).toHaveLength(2)
     expect(worktrees.every((worktree) => !existsSync(worktree))).toBe(true)
+  })
+
+  it('--at records an abbreviated ref as its canonical commit SHA', () => {
+    const dir = repo()
+    const atSha = 'abc1234'
+    const canonicalAtSha = 'a'.repeat(40)
+    mockAtRun({
+      atSha,
+      canonicalAtSha,
+      headSha: 'b'.repeat(40),
+      testExitCode: 1,
+      testLog: 'TAP version 13\n# fail 1',
+    })
+
+    const record = recordAt(dir, atSha)
+
+    expect(record.ok, record.ok ? '' : record.reason).toBe(true)
+    const evidence = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'), 'utf-8'),
+    ) as { test_commit_sha: string }
+    expect(evidence.test_commit_sha).toBe(canonicalAtSha)
+  })
+
+  it('--at resolves a relative repo directory before linking dependencies', () => {
+    const dir = repo()
+    mkdirSync(join(dir, 'node_modules'))
+    const atSha = 'a'.repeat(40)
+    let linkedSource = ''
+    mockAtRun({
+      atSha,
+      headSha: 'b'.repeat(40),
+      testExitCode: 1,
+      testLog: 'TAP version 13\n# fail 1',
+      inspectTestCwd(cwd) {
+        const link = join(cwd, 'node_modules')
+        expect(existsSync(link)).toBe(true)
+        linkedSource = readlinkSync(link)
+      },
+    })
+
+    const record = recordAt(relative(process.cwd(), dir), atSha)
+
+    expect(record.ok, record.ok ? '' : record.reason).toBe(true)
+    expect(isAbsolute(linkedSource)).toBe(true)
+    expect(linkedSource).toBe(resolve(dir, 'node_modules'))
   })
 
   it('--at resolves package context and runner from the selected commit', () => {
