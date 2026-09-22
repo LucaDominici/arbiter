@@ -48,6 +48,31 @@ function run(dir: string, env: NodeJS.ProcessEnv = {}) {
   })
 }
 
+function runInjected(mode: 'enoent' | 'eacces' | 'signal' | 'exit3') {
+  const dir = fixture('scripts/check-doc-set.mjs.ejs')
+  const preload = join(dir, 'inject-spawn.mjs')
+  writeFileSync(
+    preload,
+    `
+import child from 'node:child_process'
+import { syncBuiltinESMExports } from 'node:module'
+const mode = ${JSON.stringify(mode)}
+child.spawnSync = () => {
+  if (mode === 'enoent') return { error: Object.assign(new Error('spawn node ENOENT'), { code: 'ENOENT' }), status: null, signal: null }
+  if (mode === 'eacces') return { error: Object.assign(new Error('spawn node EACCES'), { code: 'EACCES' }), status: null, signal: null }
+  if (mode === 'signal') return { error: undefined, status: null, signal: 'SIGKILL' }
+  return { error: undefined, status: 3, signal: null }
+}
+syncBuiltinESMExports()
+`,
+  )
+  return spawnSync(
+    process.execPath,
+    ['--import', preload, join(dir, 'scripts/runner.mjs'), '--json'],
+    { cwd: dir, encoding: 'utf-8' },
+  )
+}
+
 describe('consumer-local Arbiter runners (#2578)', () => {
   it.each(RUNNERS)('uses the installed CLI and forwards arguments: %s', (template, command) => {
     const result = run(
@@ -118,5 +143,16 @@ describe('consumer-local Arbiter runners (#2578)', () => {
 
   it.each(RUNNERS)('returns ERROR 2 when the local CLI terminates by signal: %s', (template) => {
     expect(run(fixture(template, "process.kill(process.pid, 'SIGTERM')")).status).toBe(2)
+  })
+
+  it.each([
+    ['enoent', 2, /local CLI unavailable/],
+    ['eacces', 2, /failed to launch: spawn node EACCES/],
+    ['signal', 2, /SIGKILL/],
+    ['exit3', 3, /^$/],
+  ] as const)('classifies an injected %s outcome', (mode, status, diagnostic) => {
+    const result = runInjected(mode)
+    expect(result.status).toBe(status)
+    expect(result.stderr).toMatch(diagnostic)
   })
 })
