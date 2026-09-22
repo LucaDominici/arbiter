@@ -180,4 +180,29 @@ describe('enforce-gate-before-pr worktree-awareness (#1990)', () => {
     const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: 'cd /tmp && ls' }, main)
     expect(result.status).toBe(0)
   })
+
+  it.each([
+    'printf hello > /tmp/example',
+    'printf "$(date)"',
+    "printf '$(gh pr ready)' > /tmp/example",
+  ])('allows unsupported shell syntax when no PR completion claim exists: %s', (command) => {
+    const main = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-main-')))
+    initRepo(main)
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, main)
+    expect(result.status).toBe(0)
+    expect(result.stderr).toBe('')
+  })
+
+  it.each([
+    'gh pr create > /tmp/example',
+    '$(gh pr create)',
+    'printf "$(gh pr ready)"',
+    'printf `gh pr ready`',
+  ])('keeps an ambiguous PR completion claim fail-closed: %s', (command) => {
+    const main = track(mkdtempSync(join(tmpdir(), 'arbiter-gate-main-')))
+    initRepo(main)
+    const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, main)
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('No valid gate-pass.json or ci-pass.json')
+  })
 })
