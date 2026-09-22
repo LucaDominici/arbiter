@@ -355,6 +355,7 @@ it('does not add Vitest to a non-TypeScript consumer when an emitted script chan
       language: 'go',
       buildTool: 'go',
       projectName: 'test-go-project',
+      enableSecurityScanning: false,
     }) as unknown as Record<string, unknown>,
   )
   const dir = setupRepo({ ageMin: 30, hook })

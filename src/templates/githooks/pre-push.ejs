@@ -242,9 +242,11 @@ mapfile -t RELATED_TEST_INPUTS < <(
   cd "$ORIG_DIR"
   git diff --name-only origin/main...HEAD |
     while IFS= read -r path; do
+<% if (language === 'typescript') { %>
       case "$path" in
         *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) printf '%s\n' "$path" ;;
       esac
+<% } %>
       if [ -d __tests__ ]; then
         basename="${path##*/}"
         basename="${basename%%.*}"
