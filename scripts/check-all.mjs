@@ -744,7 +744,12 @@ if (isMain) {
     if (selfConfig.hasPublicApi === true) {
       runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs'])
     } else {
-      process.stdout.write('[CHECK] domain-api surface (INV-125) ... SKIP (hasPublicApi:false)\n')
+      if (selfConfig.hasPublicApi !== false) {
+        throw new TypeError('arbiter.json hasPublicApi must be boolean')
+      }
+      if (!dryRun) {
+        process.stdout.write('[CHECK] domain-api surface (INV-125) ... SKIP (hasPublicApi:false)\n')
+      }
       pushResult('domain-api surface (INV-125)', 'SKIP', 0)
     }
     runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs'])
