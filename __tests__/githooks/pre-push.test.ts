@@ -318,8 +318,32 @@ it('runs the light preflight gate, never the full gate, in self and rendered hoo
     expect(hook).toContain(
       'pre-push: light gate (preflight + touched tests); the full gate runs in CI (#2773 P7)',
     )
-    expect(hook).toContain('-name "${basename}.*.test.*"')
+    expect(hook).toContain('npx vitest related "${RELATED_TEST_INPUTS[@]}" --run')
   }
+})
+
+it('passes changed source files to Vitest dependency selection before push', () => {
+  const dir = setupRepo({ ageMin: 30 })
+  const source = join(dir, 'src', 'commands', 'task-ship.ts')
+  mkdirSync(dirname(source), { recursive: true })
+  writeFileSync(source, 'export const ship = true\n')
+  execFileSync('git', ['add', source], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'change ship'], { cwd: dir, stdio: 'ignore' })
+
+  const bin = join(dir, 'bin')
+  const log = join(dir, 'npx.log')
+  mkdirSync(bin)
+  writeFileSync(join(bin, 'npx'), '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$NPX_LOG"\n', {
+    mode: 0o755,
+  })
+
+  const result = runHook(dir, {
+    PATH: `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`,
+    NPX_LOG: log,
+  })
+  expect(result.status).toBe(0)
+  expect(readFileSync(log, 'utf-8')).toBe('vitest\nrelated\nsrc/commands/task-ship.ts\n--run\n')
+  rmSync(dir, { recursive: true, force: true })
 })
 
 /**
