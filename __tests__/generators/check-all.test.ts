@@ -126,6 +126,168 @@ describe('generateCheckAll', () => {
     ])
   })
 
+  it('falls back to generic inspection when a canonical filename has a custom shape', async () => {
+    const workflows = join(dir, '.github', 'workflows')
+    mkdirSync(workflows, { recursive: true })
+    writeFileSync(
+      join(workflows, '01-pr-fast.yml'),
+      [
+        'on: pull_request',
+        'jobs:',
+        '  verify:',
+        '    steps:',
+        '      - name: Consumer gate',
+        '        run: npm test',
+      ].join('\n'),
+    )
+
+    await expect(inspectWorkflowContract(dir)).resolves.toEqual({
+      external: [expect.objectContaining({ name: 'verify: Consumer gate', command: 'npm test' })],
+      unresolved: [],
+    })
+  })
+
+  it.each([
+    {
+      name: '01-pr-fast.yml',
+      content: ['on: pull_request', 'jobs:', '  dependency-review:', '    steps: []'].join('\n'),
+      reason: 'dependency-review command, condition, or severity is missing',
+    },
+    {
+      name: '02-pr-extended.yml',
+      content: [
+        'on: pull_request',
+        'jobs:',
+        '  check-trigger:',
+        '    steps:',
+        '      - env:',
+        '          LOC_THRESHOLD: unsupported',
+        '  verify:',
+        '    steps:',
+        '      - run: npm test',
+      ].join('\n'),
+      reason: 'extended LOC_THRESHOLD is missing',
+    },
+  ])(
+    'does not hide malformed specialized $name contracts behind the generic fallback',
+    async (fixture) => {
+      const workflows = join(dir, '.github', 'workflows')
+      mkdirSync(workflows, { recursive: true })
+      writeFileSync(join(workflows, fixture.name), fixture.content)
+
+      const contract = await inspectWorkflowContract(dir)
+      expect(contract.external).toEqual([])
+      expect(contract.unresolved).toContainEqual(
+        expect.objectContaining({
+          source: `.github/workflows/${fixture.name}`,
+          reason: fixture.reason,
+        }),
+      )
+    },
+  )
+
+  it('extracts non-canonical pull-request workflows instead of silently omitting them', async () => {
+    const workflows = join(dir, '.github', 'workflows')
+    mkdirSync(workflows, { recursive: true })
+    writeFileSync(
+      join(workflows, 'ci.yml'),
+      [
+        'on:',
+        '  pull_request:',
+        '    branches: [release]',
+        "    paths: ['api/**']",
+        'env:',
+        "  COVERAGE_THRESHOLD: '70'",
+        'jobs:',
+        '  verify:',
+        "    if: github.event_name == 'pull_request'",
+        '    env:',
+        "      COVERAGE_THRESHOLD: '80'",
+        '    steps:',
+        '      - uses: actions/checkout@abc123',
+        '      - name: Full product gate',
+        "        if: runner.os == 'Linux'",
+        '        env:',
+        "          COVERAGE_THRESHOLD: '90'",
+        '        run: ./run.sh ci --level L2',
+        '  reusable:',
+        '    uses: acme/workflows/.github/workflows/verify.yml@abc123',
+        '    with:',
+        '      coverage_limit: 85',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(workflows, 'nightly.yml'),
+      [
+        'on:',
+        '  schedule:',
+        "    - cron: '0 0 * * *'",
+        'jobs:',
+        '  deep:',
+        '    steps:',
+        '      - run: ./run.sh ci --level L3',
+      ].join('\n'),
+    )
+
+    const contract = await inspectWorkflowContract(dir)
+    expect(contract.unresolved).toEqual([])
+    expect(contract.external).toContainEqual(
+      expect.objectContaining({
+        name: 'verify: Full product gate',
+        source: '.github/workflows/ci.yml',
+        command: './run.sh ci --level L2',
+        condition: expect.stringMatching(
+          /branches.*release.*paths.*api\/\*\*.*github\.event_name.*runner\.os/,
+        ),
+        thresholds: [
+          expect.objectContaining({
+            name: 'COVERAGE_THRESHOLD',
+            value: '90',
+            source: expect.stringContaining('steps.1.env'),
+          }),
+        ],
+      }),
+    )
+    expect(
+      contract.external.find((entry) => entry.command === './run.sh ci --level L2')?.thresholds,
+    ).toHaveLength(1)
+    expect(contract.external.find((entry) => entry.name === 'reusable')?.thresholds).toEqual([
+      expect.objectContaining({ name: 'coverage_limit', value: 85 }),
+    ])
+    expect(contract.external.some((entry) => entry.source.endsWith('nightly.yml'))).toBe(false)
+  })
+
+  it('fails closed for custom workflows when the emitted helper cannot load YAML', () => {
+    const workflows = join(dir, '.github', 'workflows')
+    mkdirSync(workflows, { recursive: true })
+    writeFileSync(
+      join(workflows, 'ci.yml'),
+      ['on: pull_request', 'jobs:', '  verify:', '    steps:', '      - run: npm test'].join('\n'),
+    )
+    const helper = join(dir, 'workflow-scan.mjs')
+    writeFileSync(
+      helper,
+      readFileSync(new URL('../../scripts/lib/workflow-scan.mjs', import.meta.url), 'utf8'),
+    )
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { inspectWorkflowContract } from ${JSON.stringify(pathToFileURL(helper).href)}; ` +
+          `console.log(JSON.stringify(await inspectWorkflowContract(${JSON.stringify(dir)})))`,
+      ],
+      { cwd: dir, encoding: 'utf8' },
+    )
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout).unresolved).toContainEqual(
+      expect.objectContaining({
+        source: '.github/workflows/ci.yml',
+        reason: expect.stringContaining('YAML parser unavailable'),
+      }),
+    )
+  })
+
   it('generates scripts/check-all.mjs AND scripts/lib/run-helpers.mjs (#351, CANON-01)', () => {
     const result = generateCheckAll(makeConfig(dir))
     const paths = result.files.map((f) => f.path)
