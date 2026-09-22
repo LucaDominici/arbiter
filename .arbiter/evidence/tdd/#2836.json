@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2836",
+  "test_path": "__tests__/scripts/check-domain-api-surface.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "3d39a9a58e4c4af57df8c45d2645688fc01628cc",
+  "test_blob_sha": "23b5d7b5f555c6b1b2a827973f743df44063ce87",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/check-domain-api-surface.test.ts (13 tests | 4 failed) 251ms\n     × R9: exits 2 when the manifest has empty resources 23ms\n     × R9: exits 2 when the manifest has missing domainFields 16ms\n     × R9: exits 2 when the manifest has empty domainFields 16ms\n     × R9: exits 2 when the manifest has malformed field flags 18ms\n\n Test Files  1 failed (1)\n      Tests  4 failed | 9 passed (13)\n   Start at  22:13:40\n   Duration  735ms (transform 387ms, setup 22ms, import 375ms, tests 251ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/check-domain-api-surface.test.ts > check-domain-api-surface.mjs (INV-125) > R9: exits 2 when the manifest has empty resources\n FAIL  |unit| __tests__/scripts/check-domain-api-surface.test.ts > check-domain-api-surface.mjs (INV-125) > R9: exits 2 when the manifest has missing domainFields\n FAIL  |unit| __tests__/scripts/check-domain-api-surface.test.ts > check-domain-api-surface.mjs (INV-125) > R9: exits 2 when the manifest has empty domainFields\n FAIL  |unit| __tests__/scripts/check-domain-api-surface.test.ts > check-domain-api-surface.mjs (INV-125) > R9: exits 2 when the manifest has malformed field flags\nAssertionError: expected +0 to be 2 // Object.is equality\n\n- Expected\n+ Received\n\n- 2\n+ 0\n\n ❯ __tests__/scripts/check-domain-api-surface.test.ts:171:22\n    169|     writeManifest(tmpDir, { schema: 'arbiter-domain-api-surface-v1', r…\n    170|     const r = run(tmpDir)\n    171|     expect(r.status).toBe(2)\n       |                      ^\n    172|     expect(r.out).toContain('ERROR')\n    173|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/check-domain-api-surface.test.ts",
+  "recorded_at": "2026-09-22T20:13:40.768Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-domain-api-surface.test.ts"
+  ]
+}
