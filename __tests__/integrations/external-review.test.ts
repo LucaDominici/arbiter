@@ -252,12 +252,13 @@ describe('extractAgentReturnJson (#2357)', () => {
     [`${JSON.stringify(payload)}\nadditional notes`, payload],
     [`first ${JSON.stringify({ verdict: 'FAIL' })} second ${JSON.stringify(payload)}`, payload],
     [
-      `{"verdict":"PASS","confidence":0.9,"findings":[{"claim":"brace } in string"}],"refutations":[]}`,
+      `{"verdict":"PASS","confidence":0.9,"findings":[{"claim":"brace } in string"}],"refutations":[],"acceptanceFit":${JSON.stringify(acceptanceFit)}}`,
       {
         verdict: 'PASS',
         confidence: 0.9,
         findings: [{ claim: 'brace } in string' }],
         refutations: [],
+        acceptanceFit,
       },
     ],
     ['{"verdict":"PASS"', null],

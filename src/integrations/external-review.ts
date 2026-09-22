@@ -63,7 +63,7 @@ interface ExternalReviewPayload {
   confidence: number
   findings: Array<Record<string, unknown>>
   refutations: Array<Record<string, unknown>>
-  acceptanceFit?: Record<string, unknown>
+  acceptanceFit: Record<string, unknown>
 }
 
 interface CrossModelPlan {
@@ -225,10 +225,9 @@ function isPayloadObject(value: unknown): value is ExternalReviewPayload {
     typeof record.confidence === 'number' &&
     Array.isArray(record.findings) &&
     Array.isArray(record.refutations) &&
-    (record.acceptanceFit === undefined ||
-      (typeof record.acceptanceFit === 'object' &&
-        record.acceptanceFit !== null &&
-        !Array.isArray(record.acceptanceFit)))
+    typeof record.acceptanceFit === 'object' &&
+    record.acceptanceFit !== null &&
+    !Array.isArray(record.acceptanceFit)
   )
 }
 

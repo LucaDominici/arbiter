@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2745",
+  "test_path": "__tests__/integrations/external-review.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "6ecaf4656f9c706e4207425883d3429fec09a7a4",
+  "test_blob_sha": "70ff6b0564727e03e6ad84948564bf0f1bf3f343",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/integrations/external-review.test.ts (48 tests | 1 failed) 36ms\n     × rejects envelopes without the required acceptance fit 4ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 47 passed (48)\n   Start at  01:40:27\n   Duration  254ms (transform 103ms, setup 8ms, import 120ms, tests 36ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/integrations/external-review.test.ts > extractAgentReturnJson (#2357) > rejects envelopes without the required acceptance fit\nAssertionError: expected { verdict: 'PASS', …(3) } to be null\n\n- Expected:\nnull\n\n+ Received:\n{\n  \"confidence\": 0.9,\n  \"findings\": [],\n  \"refutations\": [],\n  \"verdict\": \"PASS\",\n}\n\n ❯ __tests__/integrations/external-review.test.ts:278:67\n    276|\n    277|   it('rejects envelopes without the required acceptance fit', () => {\n    278|     expect(extractAgentReturnJson(JSON.stringify(legacyPayload))).toBe…\n       |                                                                   ^\n    279|   })\n    280|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/integrations/external-review.test.ts",
+  "recorded_at": "2026-09-22T23:40:27.887Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/integrations/external-review.test.ts"
+  ]
+}
