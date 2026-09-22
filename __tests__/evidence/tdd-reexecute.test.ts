@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { createHash } from 'node:crypto'
 import {
   existsSync,
   lstatSync,
@@ -61,6 +62,7 @@ const BASE: TddEvidence = {
   observed_failure: 'FAIL math.test.ts',
   recorded_at: '2026-07-15T00:00:00.000Z',
   test_command: ['npx', 'vitest', 'run', 'math.test.ts'],
+  test_blob_sha: createHash('sha1').update('blob 4\0test').digest('hex'),
 }
 
 describe('verifyRedExecution()', () => {

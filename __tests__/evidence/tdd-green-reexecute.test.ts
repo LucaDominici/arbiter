@@ -18,6 +18,7 @@ import type { TddEvidence } from '../../src/evidence/tdd.js'
 
 const dirs: string[] = []
 const originalPath = process.env.PATH
+const originalHookGitCwd = process.env.ARBITER_HOOK_GIT_CWD
 
 function fixture(
   testPath: string,
@@ -69,11 +70,18 @@ printf '%s' $((count + 1)) > replays
 ${xmlWrite}printf '%s\\n' 'BUILD SUCCESSFUL'\n`,
   )
   chmodSync(join(dir, 'gradlew'), 0o755)
-  return fixture(testPath, 'BUILD FAILED', ['./gradlew', 'test'])
+  return fixture(
+    testPath,
+    'BUILD FAILED',
+    ['./gradlew', 'test'],
+    gitBlobSha(readFileSync(join(dir, testPath), 'utf8')),
+  )
 }
 
 afterEach(() => {
   process.env.PATH = originalPath
+  if (originalHookGitCwd === undefined) delete process.env.ARBITER_HOOK_GIT_CWD
+  else process.env.ARBITER_HOOK_GIT_CWD = originalHookGitCwd
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
@@ -88,7 +96,12 @@ describe.sequential('verifyGreenExecution real runner output', () => {
       "import { it, expect } from 'vitest'\nit.skip('recorded RED', () => expect(1).toBe(2))\nit('unrelated', () => expect(1).toBe(1))\n",
     )
     const result = verifyGreenExecution(
-      fixture(testPath, `FAIL ${testPath}\n1 test failed`, ['npx', 'vitest', 'run', testPath]),
+      fixture(
+        testPath,
+        `FAIL ${testPath}\n1 test failed`,
+        ['npx', 'vitest', 'run', testPath],
+        gitBlobSha(readFileSync(join(dir, testPath), 'utf8')),
+      ),
       dir,
     )
     expect(result.ok).toBe(false)
@@ -104,11 +117,12 @@ describe.sequential('verifyGreenExecution real runner output', () => {
       "const test = require('node:test')\nconst assert = require('node:assert')\ntest('passes', () => assert.equal(1, 1))\n",
     )
     const result = verifyGreenExecution(
-      fixture(testPath, 'TAP version 13\n# tests 1\n# pass 0\n# fail 1', [
-        'node',
-        '--test',
+      fixture(
         testPath,
-      ]),
+        'TAP version 13\n# tests 1\n# pass 0\n# fail 1',
+        ['node', '--test', testPath],
+        gitBlobSha(readFileSync(join(dir, testPath), 'utf8')),
+      ),
       dir,
     )
     expect(result).toEqual({ ok: true })
@@ -129,7 +143,12 @@ describe.sequential('verifyGreenExecution real runner output', () => {
     const testPath = 'main_test.go'
     writeFileSync(join(dir, testPath), 'package example')
     const result = verifyGreenExecution(
-      fixture(testPath, '--- FAIL: TestGreen (0.00s)', ['go', 'test', './']),
+      fixture(
+        testPath,
+        '--- FAIL: TestGreen (0.00s)',
+        ['go', 'test', './'],
+        gitBlobSha(readFileSync(join(dir, testPath), 'utf8')),
+      ),
       dir,
     )
     expect(result.ok).toBe(false)
@@ -166,7 +185,7 @@ describe.sequential('verifyGreenExecution real runner output', () => {
     symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
     git(dir, ['init', '--quiet'])
     git(dir, ['config', 'user.name', 'Arbiter Test'])
-    git(dir, ['config', 'user.email', 'arbiter-test@example.invalid'])
+    git(dir, ['config', 'user.email', 'test.invalid'])
     const testPath = 'recorded.test.ts'
     writeFileSync(
       join(dir, testPath),
@@ -175,10 +194,14 @@ describe.sequential('verifyGreenExecution real runner output', () => {
     git(dir, ['add', testPath])
     git(dir, ['commit', '--quiet', '-m', 'record RED test'])
     const redCommit = git(dir, ['rev-parse', 'HEAD'])
+    const replay = join(dir, 'replay')
+    mkdirSync(replay)
+    symlinkSync(resolve('node_modules'), join(replay, 'node_modules'), 'dir')
     writeFileSync(
-      join(dir, testPath),
+      join(replay, testPath),
       "import { it, expect } from 'vitest'\nit('unrelated', () => expect(1).toBe(1))\n",
     )
+    process.env.ARBITER_HOOK_GIT_CWD = dir
 
     const result = verifyGreenExecution(
       {
@@ -191,7 +214,7 @@ describe.sequential('verifyGreenExecution real runner output', () => {
         recorded_at: '2026-09-22T00:00:00.000Z',
         test_command: ['npx', 'vitest', 'run', testPath],
       },
-      dir,
+      replay,
     )
     expect(result.ok).toBe(false)
     expect(result.reason).toMatch(/content|blob|recorded RED test/i)
