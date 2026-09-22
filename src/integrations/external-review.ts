@@ -441,7 +441,7 @@ function persistEnvelope(
       confidence: envelope.confidence,
       findings: envelope.findings,
       refutations: envelope.refutations,
-      ...(envelope.acceptanceFit !== undefined ? { acceptanceFit: envelope.acceptanceFit } : {}),
+      acceptanceFit: envelope.acceptanceFit,
     }),
     timeoutMs: request.cfg.timeoutMs,
     retries: 0,
