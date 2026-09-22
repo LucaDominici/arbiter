@@ -122,4 +122,29 @@ describe('check-muted-test template — brownfield baseline', () => {
     expect(existsSync(join(dir, 'muted-tests-baseline.json'))).toBe(true)
     expect(run(dir).status).toBe(0)
   })
+
+  it('hard-fails a combined Gherkin tag containing @ignore even when exempted', () => {
+    const featureDir = join(dir, 'features')
+    mkdirSync(featureDir, { recursive: true })
+    writeFileSync(
+      join(featureDir, 'ignored.feature'),
+      '# arbiter-allow-skip: legacy scenario\n@smoke @ignore\nFeature: ignored scenario\n',
+    )
+    const r = run(dir)
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('BDD @ignore')
+  })
+
+  it('refuses to baseline Gherkin @ignore before writing a baseline', () => {
+    const featureDir = join(dir, 'features')
+    mkdirSync(featureDir, { recursive: true })
+    writeFileSync(
+      join(featureDir, 'ignored.feature'),
+      '@smoke @ignore\nFeature: ignored scenario\n',
+    )
+    const r = run(dir, ['--update-baseline'])
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('cannot be exempted or baselined')
+    expect(existsSync(join(dir, 'muted-tests-baseline.json'))).toBe(false)
+  })
 })
