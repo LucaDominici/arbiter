@@ -338,7 +338,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 - **INV-102:** API-layer isolation — no HTTP calls outside the adapter layer
   - _Enforcement:_ Generated `<project>/scripts/check-fe-boundaries.mjs` (L2, frontend-spa and frontend-lane projects)
-  - In FE projects (archetype frontend-spa or lanes:[frontend]), direct fetch()/axios.\* calls MUST NOT appear in UI component files, composables/hooks, or state stores. All HTTP I/O must be confined to a dedicated adapter/api layer. Mirrors FE001 of the FRONTEND_CONSTITUTION.
+  - In FE projects (archetype frontend-spa or lanes:[frontend]), direct fetch()/axios.\* calls MUST NOT appear in UI component files, composables/hooks, or state stores. All HTTP I/O must be confined to a designated adapter/API directory or an exact `api-client.{ts,tsx,js,jsx}` adapter file. Mirrors FE001 of the FRONTEND_CONSTITUTION.
 
 - **INV-103:** Headless domain logic — no browser APIs in domain or store layer
   - _Enforcement:_ Generated `<project>/scripts/check-fe-boundaries.mjs` (L2, frontend-spa and frontend-lane projects)
