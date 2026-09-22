@@ -43,8 +43,8 @@ function goJsonCounts(output: string): { passed: number; skipped: number } {
       if (!event.Test) continue
       if (event.Action === 'pass') passed++
       if (event.Action === 'skip') skipped++
-    } catch {
       // FAIL-OPEN-INTENT: non-JSON chatter contributes no passing-test evidence.
+    } catch {
       // Non-JSON runner chatter cannot establish or erase a test verdict.
     }
   }
@@ -96,8 +96,8 @@ function gradleXmlSnapshots(
     } else if (inNativeResults && /^TEST-.*\.xml$/i.test(entry.name)) {
       try {
         files.set(path, { mtimeMs: statSync(path).mtimeMs, content: readFileSync(path, 'utf8') })
-      } catch {
         // FAIL-OPEN-INTENT: a vanished result is omitted, so freshness fails closed.
+      } catch {
         // A concurrently removed result cannot establish a fresh verdict.
       }
     }
@@ -193,8 +193,8 @@ function matchesRecordedTestContent(path: string, expected: string | undefined):
       .update(content)
       .digest('hex')
     return actual === expected
-  } catch {
     // FAIL-OPEN-INTENT: an unreadable current test returns false and blocks GREEN.
+  } catch {
     return false
   }
 }
@@ -367,8 +367,8 @@ export function verifyGreenExecution(
       beforeGradleResults,
     )
     return failure === null ? { ok: true } : { ok: false, reason: failure }
+    // FAIL-OPEN-INTENT: every execution error becomes a blocking verdict below.
   } catch (err) {
-    // FAIL-OPEN-INTENT: every execution error is converted into a blocking verdict below.
     if (!(err instanceof CliError)) {
       return { ok: false, reason: `recorded test command could not run: ${String(err)}` }
     }
