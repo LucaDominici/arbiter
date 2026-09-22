@@ -155,12 +155,12 @@ function effectiveThresholdEntries(scopes) {
 
 function reusableWorkflowEntry(jobName, job, source, triggerCondition) {
   return {
-        name: jobName,
-        source,
-        command: job.uses,
-        condition: `${triggerCondition} && (${job.if ?? 'job is active'})`,
-        thresholds: thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
-        status: 'remote-dependent',
+    name: jobName,
+    source,
+    command: job.uses,
+    condition: `${triggerCondition} && (${job.if ?? 'job is active'})`,
+    thresholds: thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
+    status: 'remote-dependent',
   }
 }
 
@@ -171,25 +171,25 @@ function genericJobCommands(workflowEnv, jobName, job, source, triggerCondition)
   }
   if (typeof job.uses === 'string') {
     return [reusableWorkflowEntry(jobName, job, source, triggerCondition)]
-    }
-    if (!Array.isArray(job.steps)) {
-      throw new Error(`${jobName} has unsupported workflow-job structure`)
-    }
-    for (const [index, step] of job.steps.entries()) {
-      const entry = verificationCommandEntry(jobName, job, step, index, source, [
-        ...effectiveThresholdEntries([
+  }
+  if (!Array.isArray(job.steps)) {
+    throw new Error(`${jobName} has unsupported workflow-job structure`)
+  }
+  for (const [index, step] of job.steps.entries()) {
+    const entry = verificationCommandEntry(jobName, job, step, index, source, [
+      ...effectiveThresholdEntries([
         { values: workflowEnv, source: `${source}#env` },
         { values: job.env, source: `${source}#jobs.${jobName}.env` },
-          { values: step?.env, source: `${source}#jobs.${jobName}.steps.${index}.env` },
-        ]),
-        ...thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
-        ...thresholdEntries(step?.with, `${source}#jobs.${jobName}.steps.${index}.with`),
-      ])
-      if (entry !== null) {
-        entry.condition = `${triggerCondition} && (${entry.condition})`
-        entries.push(entry)
-      }
+        { values: step?.env, source: `${source}#jobs.${jobName}.steps.${index}.env` },
+      ]),
+      ...thresholdEntries(job.with, `${source}#jobs.${jobName}.with`),
+      ...thresholdEntries(step?.with, `${source}#jobs.${jobName}.steps.${index}.with`),
+    ])
+    if (entry !== null) {
+      entry.condition = `${triggerCondition} && (${entry.condition})`
+      entries.push(entry)
     }
+  }
   return entries
 }
 

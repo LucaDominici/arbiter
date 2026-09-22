@@ -607,7 +607,7 @@
     "scripts/lib/run-helpers.mjs": "9faee56cefbfec8b0915726da4581c077e9fbb3648c5dd7a03cd07d02f6bba72",
     "scripts/lib/seed-common.sh": "d52659fb9388dde2bdb49dfdbca1914e67c387b0525114d8343e720511f675d0",
     "scripts/lib/waiter-count.mjs": "911b32639645e060fab9a1d8987859499983436e2af80ded534dd8f5fe79283f",
-    "scripts/lib/workflow-scan.mjs": "0506e26132d9ee94f744c3317badc8c2a62084a61e4e6963ccdb2f21ee2027fd",
+    "scripts/lib/workflow-scan.mjs": "e40e772512b499558134b8faa00ae53a4130637e06faadd23f1a49d3ef04e2b4",
     "scripts/optional-emissions.json": "c6c7c63ebc872a71f261a72328bf70fded1eb5bcc7c9c92998b783b9427313e8",
     "scripts/pid-watch.sh": "6acca263f97750f784059d233bc501c1b7e035f5dd888db1dfbf8ed522a59963",
     "scripts/pii-scan.mjs": "9a71b2e064edea21eeb6da9d3a0b6d57e7782c3636c6866c924977c355ccff74",
