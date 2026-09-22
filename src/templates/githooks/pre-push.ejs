@@ -252,6 +252,19 @@ mapfile -t RELATED_TEST_INPUTS < <(
         [ -d "$test_root" ] || continue
         find "$test_root" -type f \( -name "${basename}.test.*" -o -name "${basename}-*.test.*" -o -name "${basename}.*.test.*" \)
       done
+<% } else if (Array.isArray(lanes) && lanes.includes('frontend')) { %>
+      case "$path" in
+        frontend/*.ts|frontend/*.tsx|frontend/*.js|frontend/*.jsx|frontend/*.mjs|frontend/*.cjs)
+          printf '%s\n' "${path#frontend/}"
+          ;;
+      esac
+      basename="${path##*/}"
+      basename="${basename%%.*}"
+      for test_root in frontend/__tests__ frontend/test frontend/tests frontend/scripts frontend/src; do
+        [ -d "$test_root" ] || continue
+        find "$test_root" -type f \( -name "${basename}.test.*" -o -name "${basename}-*.test.*" -o -name "${basename}.*.test.*" \) |
+          sed 's#^frontend/##'
+      done
 <% } else { %>
       :
 <% } %>
@@ -261,7 +274,13 @@ mapfile -t RELATED_TEST_INPUTS < <(
 run_light_gate() {
   ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/lib/gate-mutex.mjs run --dir "$ORIG_DIR" -- node scripts/check-all.mjs preflight
   if [ "${#RELATED_TEST_INPUTS[@]}" -gt 0 ]; then
+<% if (language === 'typescript') { %>
     npx vitest related "${RELATED_TEST_INPUTS[@]}" --run
+<% } else if (Array.isArray(lanes) && lanes.includes('frontend')) { %>
+    (cd "$ORIG_DIR/frontend" && npx vitest related "${RELATED_TEST_INPUTS[@]}" --run)
+<% } else { %>
+    :
+<% } %>
   fi
 }
 
