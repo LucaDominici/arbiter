@@ -348,6 +348,38 @@ it('passes changed source files to Vitest dependency selection before push', () 
   rmSync(dir, { recursive: true, force: true })
 })
 
+it('includes same-directory subprocess tests for changed scripts', () => {
+  const dir = setupRepo({ ageMin: 30 })
+  writeFileSync(join(dir, 'scripts', 'check-domain-api-surface.test.ts'), 'export {}\n')
+  execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'add script test'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
+  writeFileSync(join(dir, 'scripts', 'check-domain-api-surface.mjs'), 'process.exit(0)\n')
+  execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'change script'], { cwd: dir, stdio: 'ignore' })
+
+  const bin = join(dir, 'bin')
+  const log = join(dir, 'npx.log')
+  mkdirSync(bin)
+  writeFileSync(join(bin, 'npx'), '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$NPX_LOG"\n', {
+    mode: 0o755,
+  })
+
+  const result = runHook(dir, {
+    PATH: `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`,
+    NPX_LOG: log,
+  })
+
+  expect(result.status).toBe(0)
+  expect(readFileSync(log, 'utf-8')).toBe(
+    'vitest\nrelated\nscripts/check-domain-api-surface.mjs\nscripts/check-domain-api-surface.test.ts\n--run\n',
+  )
+  rmSync(dir, { recursive: true, force: true })
+})
+
 it('does not add Vitest to a non-TypeScript consumer when an emitted script changes', () => {
   const hook = renderTemplate(
     'githooks/pre-push.ejs',
@@ -359,6 +391,13 @@ it('does not add Vitest to a non-TypeScript consumer when an emitted script chan
     }) as unknown as Record<string, unknown>,
   )
   const dir = setupRepo({ ageMin: 30, hook })
+  writeFileSync(join(dir, 'scripts', 'generated.test.go'), 'package scripts\n')
+  execFileSync('git', ['add', '-A'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-q', '-m', 'add go script test'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], {
+    cwd: dir,
+    stdio: 'ignore',
+  })
   writeFileSync(join(dir, 'scripts', 'generated.mjs'), 'export const generated = true\n')
   execFileSync('git', ['add', 'scripts/generated.mjs'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['commit', '-q', '-m', 'update emitted script'], {
