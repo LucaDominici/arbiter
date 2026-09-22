@@ -161,13 +161,17 @@ let violations = 0
 const ADAPTER_PATH_HINTS = ['/api/', '/adapters/', '/adapter/', '/services/', '/service/']
 
 function isNonAdapterSource(relPath) {
+  const normalized = relPath.replace(/\\/g, '/')
   // True for any source file that is NOT in a designated adapter/api directory.
   // This covers all FSD layers (app/pages/widgets/features/entities/shared)
   // EXCEPT their api/ subdirectories, which are the correct home for HTTP calls.
-  if (ADAPTER_PATH_HINTS.some((h) => relPath.includes(h))) return false
+  if (ADAPTER_PATH_HINTS.some((h) => normalized.includes(h))) return false
   // Also exclude top-level src/api/ or src/services/ directories
-  const normalized = relPath.replace(/\\/g, '/')
   if (/^src\/(api|services|adapters)\//.test(normalized)) return false
+  // A dedicated api-client file is itself the adapter boundary even when a
+  // small project keeps it directly under shared/ instead of shared/api/.
+  const basename = normalized.slice(normalized.lastIndexOf('/') + 1)
+  if (/^api-client\.(?:ts|tsx|js|jsx)$/.test(basename)) return false
   return true
 }
 
