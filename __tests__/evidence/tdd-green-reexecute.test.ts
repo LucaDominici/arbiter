@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -9,7 +18,12 @@ import type { TddEvidence } from '../../src/evidence/tdd.js'
 const dirs: string[] = []
 const originalPath = process.env.PATH
 
-function fixture(testPath: string, testRunLog: string, testCommand: string[]): TddEvidence {
+function fixture(
+  testPath: string,
+  testRunLog: string,
+  testCommand: string[],
+  test_blob_sha?: string,
+): TddEvidence {
   return {
     $schemaVersion: 1,
     task_id: '#2820',
@@ -19,7 +33,38 @@ function fixture(testPath: string, testRunLog: string, testCommand: string[]): T
     observed_failure: testRunLog,
     recorded_at: '2026-09-22T00:00:00.000Z',
     test_command: testCommand,
+    ...(test_blob_sha === undefined ? {} : { test_blob_sha }),
   }
+}
+
+function gitBlobSha(content: string): string {
+  return createHash('sha1')
+    .update(`blob ${Buffer.byteLength(content)}\0${content}`)
+    .digest('hex')
+}
+
+function gradleFixture(dir: string, xml: string | null, existingXml?: string): TddEvidence {
+  const testPath = 'src/test/java/RecordedTest.java'
+  mkdirSync(join(dir, 'src/test/java'), { recursive: true })
+  writeFileSync(join(dir, testPath), 'class RecordedTest {}\n')
+  mkdirSync(join(dir, 'build/test-results/test'), { recursive: true })
+  if (existingXml !== undefined) {
+    writeFileSync(join(dir, 'build/test-results/test/TEST-recorded.xml'), existingXml)
+  }
+  const xmlWrite =
+    xml === null
+      ? ''
+      : `mkdir -p build/test-results/test\nprintf '%s' ${JSON.stringify(xml)} > build/test-results/test/TEST-recorded.xml\n`
+  writeFileSync(
+    join(dir, 'gradlew'),
+    `#!/bin/sh
+count=0
+if [ -f replays ]; then count=$(cat replays); fi
+printf '%s' $((count + 1)) > replays
+${xmlWrite}printf '%s\\n' 'BUILD SUCCESSFUL'\n`,
+  )
+  chmodSync(join(dir, 'gradlew'), 0o755)
+  return fixture(testPath, 'BUILD FAILED', ['./gradlew', 'test'])
 }
 
 afterEach(() => {
@@ -84,5 +129,69 @@ describe.sequential('verifyGreenExecution real runner output', () => {
     )
     expect(result.ok).toBe(false)
     expect(result.reason).toMatch(/Go test was skipped/)
+  })
+
+  it('rejects an unrelated passing replacement at the recorded test path', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-green-content-'))
+    dirs.push(dir)
+    symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir')
+    const testPath = 'recorded.test.ts'
+    const recordedContent =
+      "import { it, expect } from 'vitest'\nit('recorded RED', () => expect(1).toBe(2))\n"
+    writeFileSync(
+      join(dir, testPath),
+      `${recordedContent}it('unrelated', () => expect(1).toBe(1))\n`,
+    )
+    const result = verifyGreenExecution(
+      fixture(
+        testPath,
+        `FAIL ${testPath}\n1 test failed`,
+        ['npx', 'vitest', 'run', testPath],
+        gitBlobSha(recordedContent),
+      ),
+      dir,
+    )
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/content|blob|recorded RED test/i)
+  })
+
+  it('accepts one fresh passing Gradle/JUnit result from the replay', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-green-gradle-pass-'))
+    dirs.push(dir)
+    const result = verifyGreenExecution(
+      gradleFixture(
+        dir,
+        '<testsuite tests="1" failures="0" errors="0" skipped="0"><testcase classname="RecordedTest" name="passes"/></testsuite>',
+      ),
+      dir,
+    )
+    expect(result).toEqual({ ok: true })
+    expect(readFileSync(join(dir, 'replays'), 'utf8')).toBe('1')
+  })
+
+  it.each([
+    [
+      'stale',
+      null,
+      '<testsuite tests="1" failures="0" errors="0" skipped="0"><testcase/></testsuite>',
+    ],
+    ['zero', '<testsuite tests="0" failures="0" errors="0" skipped="0"/>', undefined],
+    [
+      'skipped',
+      '<testsuite tests="1" failures="0" errors="0" skipped="1"><testcase><skipped/></testcase></testsuite>',
+      undefined,
+    ],
+    [
+      'failing',
+      '<testsuite tests="1" failures="1" errors="0" skipped="0"><testcase><failure/></testcase></testsuite>',
+      undefined,
+    ],
+  ])('rejects %s Gradle/JUnit XML and never replays twice', (kind, xml, existingXml) => {
+    const dir = mkdtempSync(join(tmpdir(), `arbiter-green-gradle-${kind}-`))
+    dirs.push(dir)
+    const result = verifyGreenExecution(gradleFixture(dir, xml, existingXml ?? undefined), dir)
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(new RegExp(kind === 'stale' ? 'fresh' : kind, 'i'))
+    expect(readFileSync(join(dir, 'replays'), 'utf8')).toBe('1')
   })
 })
