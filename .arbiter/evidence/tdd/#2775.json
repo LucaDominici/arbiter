@@ -5,15 +5,13 @@
   "test_cwd": ".",
   "test_commit_sha": "fdd2fe7f0c3b59547fff8e1c48982f90970b5971",
   "test_blob_sha": "c81659eaa7d50a014332441f96c88aa11403475c",
-  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/ship-review.test.ts (37 tests | 1 failed | 36 skipped) 307ms\n     × retries a no-data round at a newer HEAD without consuming another round 306ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 36 skipped (37)\n   Start at  12:22:43\n   Duration  710ms (transform 225ms, setup 8ms, import 296ms, tests 307ms, environment 0ms)\n\n\nstderr | __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > retries a no-data round at a newer HEAD without consuming another round\n\n\n\n\n\n\n\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > retries a no-data round at a newer HEAD without consuming another round\nAssertionError: expected [ 'Phase: refactor', …(11) ] to include 'review round 1: PASS — 0 findings (0 …'\n ❯ __tests__/commands/ship-review.test.ts:740:40\n    738|     })\n    739|\n    740|     expect(buildShipStepLines(result)).toContain(\n       |                                        ^\n    741|       'review round 1: PASS — 0 findings (0 blocking) · next: advance',\n    742|     )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/ship-review.test.ts (37 tests | 1 failed) 11159ms\n     × retries a no-data round at a newer HEAD without consuming another round 621ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 36 passed (37)\n   Start at  12:26:49\n   Duration  12.93s (transform 1.27s, setup 28ms, import 1.49s, tests 11.16s, environment 0ms)\n\n\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\n[warn] config.useGitHub_deprecated `useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.\nstderr | __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > retries a no-data round at a newer HEAD without consuming another round\n\n\n\n\n\n\n\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > retries a no-data round at a newer HEAD without consuming another round\nAssertionError: expected [ 'Phase: refactor', …(11) ] to include 'review round 1: PASS — 0 findings (0 …'\n ❯ __tests__/commands/ship-review.test.ts:740:40\n    738|     })\n    739|\n    740|     expect(buildShipStepLines(result)).toContain(\n       |                                        ^\n    741|       'review round 1: PASS — 0 findings (0 blocking) · next: advance',\n    742|     )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
   "observed_failure": "FAIL  |unit| __tests__/commands/ship-review.test.ts",
-  "recorded_at": "2026-09-22T10:22:44.393Z",
+  "recorded_at": "2026-09-22T10:27:02.143Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
-    "__tests__/commands/ship-review.test.ts",
-    "-t",
-    "retries a no-data round at a newer HEAD"
+    "__tests__/commands/ship-review.test.ts"
   ]
 }
