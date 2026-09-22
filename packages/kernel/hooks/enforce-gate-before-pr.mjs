@@ -31,18 +31,25 @@ const command = resolveToolInputCommand()
 // matches — no separate exemption list needed for gh issue create.
 function parseShell(input) {
   const commands = [[]]
+  const executableExpansions = [[]]
   let token = ''
+  let tokenHasExecutableExpansion = false
   let quote = null
   let escaped = false
   let unsupported = false
   const pushToken = () => {
-    if (token) commands.at(-1).push(token)
+    if (token) {
+      commands.at(-1).push(token)
+      executableExpansions.at(-1).push(tokenHasExecutableExpansion)
+    }
     token = ''
+    tokenHasExecutableExpansion = false
   }
   const pushCommand = () => {
     pushToken()
     if (commands.at(-1).length > 0) {
       commands.push([])
+      executableExpansions.push([])
     }
   }
   for (let index = 0; index < input.length; index += 1) {
@@ -57,6 +64,7 @@ function parseShell(input) {
       else {
         if (quote !== "'" && (char === '`' || (char === '$' && input[index + 1] === '('))) {
           unsupported = true
+          tokenHasExecutableExpansion = true
         }
         token += char
       }
@@ -73,6 +81,9 @@ function parseShell(input) {
       char === '&'
     ) {
       unsupported = true
+      if (char === '`' || (char === '$' && input[index + 1] === '(')) {
+        tokenHasExecutableExpansion = true
+      }
       token += char
     } else if (/\s/.test(char)) {
       pushToken()
@@ -83,29 +94,41 @@ function parseShell(input) {
   pushToken()
   if (commands.at(-1).length === 0) {
     commands.pop()
+    executableExpansions.pop()
   }
-  return { commands, ambiguous: quote !== null || escaped || unsupported }
+  return { commands, executableExpansions, ambiguous: quote !== null || escaped || unsupported }
 }
 
 const parsed = parseShell(command)
 const segments = parsed.commands
-const parsedSegments = segments.map((tokens, index) => ({ tokens, index }))
+const parsedSegments = segments.map((tokens, index) => ({
+  tokens,
+  executableExpansions: parsed.executableExpansions[index],
+  index,
+}))
 const guardedSegments = parsedSegments.filter(
   ({ tokens }) =>
     tokens[0] === 'gh' && tokens[1] === 'pr' && (tokens[2] === 'create' || tokens[2] === 'ready'),
 )
-const ambiguousGuardSegments = parsedSegments.filter(({ tokens }) => {
-  const normalized = tokens.map((token) => token.replace(/^[({$]+|[)}]+$/g, ''))
-  return normalized.some(
-    (token, index) =>
-      token === 'gh' &&
-      normalized[index + 1] === 'pr' &&
-      (normalized[index + 2] === 'create' || normalized[index + 2] === 'ready') &&
-      !(index === 0 && tokens[0] === 'gh'),
+const ambiguousGuardSegments = parsedSegments.filter(({ tokens, executableExpansions }) => {
+  const normalized = tokens.map((token) => token.replace(/^[({$`]+|[)}`]+$/g, ''))
+  return (
+    normalized.some(
+      (token, index) =>
+        token === 'gh' &&
+        normalized[index + 1] === 'pr' &&
+        (normalized[index + 2] === 'create' || normalized[index + 2] === 'ready') &&
+        !(index === 0 && tokens[0] === 'gh'),
+    ) ||
+    tokens.some(
+      (token, index) =>
+        executableExpansions[index] === true && /\bgh\s+pr\s+(?:create|ready)\b/.test(token),
+    )
   )
 })
+const hasGuardSegment = guardedSegments.length > 0 || ambiguousGuardSegments.length > 0
+if (!hasGuardSegment) process.exit(0)
 const hasAmbiguousGuard = parsed.ambiguous || ambiguousGuardSegments.length > 0
-if (guardedSegments.length === 0 && !hasAmbiguousGuard) process.exit(0)
 const guardIndex = (guardedSegments[0] ?? ambiguousGuardSegments[0]).index
 
 // gh accepts flag-looking strings as values for value-taking options. Only these

@@ -154,6 +154,11 @@ Two blind spots hid it, and both are structural rather than accidental:
 takes `--root <dir>` so the same fixture tree is asserted green, then one planted defect must flip
 it red. A gate never observed to flip proves nothing.
 
+**PR command classification.** `enforce-gate-before-pr.mjs` ignores unsupported shell syntax when
+no PR command is present. Exact commands and ambiguous tokens that mix an executable expansion
+with `gh pr create` / `gh pr ready` text remain fail-closed. Single-quoted literals and exact draft
+creation remain allowed.
+
 **Corollary for `.claude/hooks/lib.mjs`.** Its approved divergence from the template is exactly one
 thing — `findInlineSuppression` delegates to `scripts/lib/suppressions-shared.mjs` instead of the
 template's inlined parser. Before re-pinning that entry, diff the **export surface** against the
