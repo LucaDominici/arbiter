@@ -60,17 +60,25 @@ function access(overrides: Partial<ExternalModelAccess> = {}): ExternalModelAcce
   }
 }
 
+const acceptanceFit = {
+  schema: 'arbiter-ac-fit-v1',
+  taskId: '#2357',
+  criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/example.ts', line: 1 }] }],
+}
+
 const payload: ExternalReviewPayload = {
   verdict: 'PASS',
   confidence: 0.9,
   findings: [],
   refutations: [],
+  acceptanceFit,
 }
 
-const acceptanceFit = {
-  schema: 'arbiter-ac-fit-v1',
-  taskId: '#2357',
-  criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/example.ts', line: 1 }] }],
+const legacyPayload = {
+  verdict: 'PASS' as const,
+  confidence: 0.9,
+  findings: [],
+  refutations: [],
 }
 
 /**
@@ -264,6 +272,10 @@ describe('extractAgentReturnJson (#2357)', () => {
     expect(
       extractAgentReturnJson(JSON.stringify({ ...payload, agent: 'attacker', taskId: '#9999' })),
     ).toBeNull()
+  })
+
+  it('rejects envelopes without the required acceptance fit', () => {
+    expect(extractAgentReturnJson(JSON.stringify(legacyPayload))).toBeNull()
   })
 
   it('preserves the native acceptance-fit result in the external payload', () => {
