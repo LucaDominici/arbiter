@@ -19,4 +19,27 @@ describe('update preview modes', () => {
     expect(payload.status).toBe('error')
     expect(payload.errors.join(' ')).toContain('--dry-run and --adopt-plan cannot be combined')
   })
+
+  it('rejects --governance with --only instead of silently ignoring the scope', () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        CLI,
+        'update',
+        '--dir',
+        REPO,
+        '--dry-run',
+        '--governance',
+        '--only',
+        'GLOBAL_INVARIANTS.md',
+        '--json',
+      ],
+      { encoding: 'utf-8', timeout: 30_000 },
+    )
+
+    expect(result.status).toBe(2)
+    const payload = JSON.parse(result.stdout) as { status: string; errors: string[] }
+    expect(payload.status).toBe('error')
+    expect(payload.errors.join(' ')).toContain('--governance and --only cannot be combined')
+  })
 })
