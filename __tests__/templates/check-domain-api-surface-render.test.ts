@@ -63,7 +63,7 @@ function writeConsumerFixture(): {
   chmodSync(checker, 0o755)
   writeFileSync(
     join(dir, 'src', 'server', 'index.ts'),
-    "import { widgets } from './routes/widgets'\napp.use('/api/widgets', widgets(\n",
+    "import { unrelated } from 'other'\nimport { widgets } from './routes/widgets'\napp.use('/api/widgets', widgets(\n",
   )
   writeFileSync(
     join(dir, 'src', 'server', 'routes', 'widgets.ts'),

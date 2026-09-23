@@ -473,6 +473,7 @@ function frozenReviewPrompt(
     `Head SHA: ${headSha}`,
     `Diff: ${baseSha}..${headSha}`,
     `Acceptance criteria hash: ${brief.acHash}`,
+    'Return acceptanceFit using schema arbiter-ac-fit-v1 with one verdict and candidate-file citation list for every criterion below; preserve the criterion IDs and order exactly.',
     'Acceptance criteria (ordered, verbatim):',
     ...brief.criteria.map(({ id, text }, index) => `${index + 1}. ${id}: ${text}`),
     'Non-goals:',
