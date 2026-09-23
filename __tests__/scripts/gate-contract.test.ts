@@ -59,7 +59,7 @@ describe('gate contract inspection', () => {
     })
     expect(gate('canon-01 declination (#1922)').thresholds).toEqual(
       expect.arrayContaining([
-        { name: 'divergences', value: 75, source: 'scripts/canon01-baseline.json#divergences' },
+        { name: 'divergences', value: 79, source: 'scripts/canon01-baseline.json#divergences' },
         {
           name: 'self-only mechanisms',
           value: 89,
