@@ -23,8 +23,13 @@ describe('dogfood gate level (#1744, INV-45)', () => {
     expect(dogfoodIdx).toBeLessThan(boundaryIdx)
   })
 
-  it('registers the dogfood check exactly once (L2 runs it via the L1 block — no double run)', () => {
+  it('registers dogfood once per mutually exclusive preflight and full-gate path', () => {
     const occurrences = source.split("runCheck('dogfood'").length - 1
-    expect(occurrences).toBe(1)
+    const preflightStart = source.indexOf('if (preflight) {')
+    const preflightEnd = source.indexOf('return getResults().length', preflightStart)
+    const boundaryIdx = source.indexOf('l1EndIdx =')
+    expect(occurrences).toBe(2)
+    expect(source.slice(preflightStart, preflightEnd).split("runCheck('dogfood'")).toHaveLength(2)
+    expect(source.slice(preflightEnd, boundaryIdx).split("runCheck('dogfood'")).toHaveLength(2)
   })
 })

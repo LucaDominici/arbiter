@@ -399,6 +399,8 @@ if (isMain) {
         '--only-metric',
         'complexityViolations',
       ])
+      runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
+      runCheck('examples drift (#2222)', 'node', ['scripts/regenerate-examples.mjs', '--check'])
       return getResults().length
     }
 

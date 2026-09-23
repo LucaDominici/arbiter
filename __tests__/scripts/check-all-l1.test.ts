@@ -23,12 +23,14 @@ describe('check-all.mjs L1 wiring', () => {
 
     expect(start).toBeGreaterThan(-1)
     expect(end).toBeGreaterThan(start)
-    expect(block.match(/runCheck\(/g)).toHaveLength(5)
+    expect(block.match(/runCheck\(/g)).toHaveLength(7)
     expect(block).toContain("['scripts/pii-scan.mjs']")
     expect(block).toContain("['scripts/check-secret-scan.mjs']")
     expect(block).toContain("'scripts/check-no-tracked-artifacts.mjs'")
     expect(block).toContain("['scripts/check-fail-closed-audit.mjs']")
     expect(block).toContain("'scripts/debt-report.mjs'")
+    expect(block).toContain("['scripts/check-self-dogfood.mjs']")
+    expect(block).toContain("['scripts/regenerate-examples.mjs', '--check']")
     expect(block).toContain(returnStatement)
   })
 

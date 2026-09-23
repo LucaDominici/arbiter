@@ -1100,6 +1100,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       ]) {
         copyFileSync(join(REPO_ROOT, relativePath), join(dir, relativePath))
       }
+      writeFileSync(join(dir, 'scripts', 'check-acceptance.mjs'), 'process.exit(0)\n')
 
       // #2724: this fixture sets HOME to `dir`, so home-side artifacts the CLI writes
       // (`.evidence/`, `.local/`) land inside the working tree; the stub `codex` on PATH writes
