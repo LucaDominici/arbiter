@@ -18,7 +18,7 @@
 //   node scripts/check-version-parity.mjs
 //   node scripts/check-version-parity.mjs --pkg=path --changelog=path --cli=path  (fixtures)
 import { readFileSync, existsSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { isMainModule } from './lib/run-helpers.mjs'
 
@@ -78,6 +78,12 @@ export function diffBuildIdentity(cliVersion, srcHash) {
     : [`--version build identity is "${actual ?? 'missing'}" but dist manifest says "${expected}"`]
 }
 
+export function diffRuntimeIdentity(expected, actual) {
+  return actual === expected
+    ? []
+    : [`PATH arbiter is "${actual}" but this working tree is "${expected}"`]
+}
+
 function main() {
   const pkgVersion = readPackageVersion(readFileSync(PKG_PATH, 'utf-8'))
   const changelogVersion = readChangelogTopVersion(readFileSync(CHANGELOG_PATH, 'utf-8'))
@@ -106,6 +112,12 @@ function main() {
     ...diffVersionParity(pkgVersion, cliVersion, changelogVersion),
     ...diffBuildIdentity(cliVersion, manifest.srcHash),
   ]
+  if (!process.argv.some((arg) => arg.startsWith('--cli='))) {
+    const pathCli = spawnSync('arbiter', ['--version'], { encoding: 'utf-8' })
+    if (pathCli.status === 0) {
+      violations.push(...diffRuntimeIdentity(cliVersion, pathCli.stdout.trim()))
+    }
+  }
 
   if (violations.length > 0) {
     for (const v of violations) process.stdout.write(`  DRIFT: ${v}\n`)

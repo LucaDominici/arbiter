@@ -37,7 +37,7 @@ related: []
 ## Execution Model
 
 Codex follows the same result-first Ship contract as every other host. Start or resume with
-`arbiter ship #NNN`; persisted task state owns treatment, phase, reviewer policy, evidence,
+`node dist/cli.js ship #NNN`; persisted task state owns treatment, phase, reviewer policy, evidence,
 recovery, and landing. The active Markdown plan freezes acceptance criteria, non-goals, the full
 file manifest, proof and rollback. Mechanical admission completes before implementation.
 
@@ -58,7 +58,7 @@ Follow this lifecycle for every task:
 | Claude Code | Codex Equivalent |
 |-------------|-----------------|
 | `/ship #NNN` | **Orchestration entrypoint** — drive an issue to a merged PR |
-| `arbiter lifecycle` | Low-level engine/CLI for recovery or direct lifecycle control |
+| `node dist/cli.js lifecycle` | Low-level engine/CLI for recovery or direct lifecycle control |
 | `npm run test` | Run tests for this stack |
 | `node scripts/check-all.mjs preflight` | Pre-push hook qualification of the frozen candidate |
 | `node scripts/ci-receipt.mjs` | Record the exact-head full CI verdict before close |

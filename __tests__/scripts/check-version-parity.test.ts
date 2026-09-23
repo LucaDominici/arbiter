@@ -14,6 +14,7 @@ import {
   readChangelogTopVersion,
   diffVersionParity,
   diffBuildIdentity,
+  diffRuntimeIdentity,
 } from '../../scripts/check-version-parity.mjs'
 
 const SCRIPT = resolve('scripts/check-version-parity.mjs')
@@ -89,11 +90,21 @@ describe('diffBuildIdentity', () => {
   })
 })
 
+describe('diffRuntimeIdentity', () => {
+  it('detects a stale same-semver binary on PATH', () => {
+    expect(diffRuntimeIdentity('0.6.0+h0123456789ab', '0.6.0+hffffffffffff')).toHaveLength(1)
+  })
+})
+
 // ─── end-to-end: real repo must be in parity ──────────────────────────────────
 
 describe('check-version-parity.mjs — real repo', () => {
   it('exits 0 against the real package.json/CHANGELOG.md/dist/cli.js (requires npm run build)', () => {
-    const r = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: resolve('.') })
+    const r = spawnSync(process.execPath, [SCRIPT], {
+      encoding: 'utf-8',
+      cwd: resolve('.'),
+      env: { ...process.env, PATH: '' },
+    })
     if (r.status === 2) {
       // dist/ not built in this environment — the gate correctly refuses to
       // pass vacuously rather than silently skipping. Not a test failure of
@@ -103,6 +114,27 @@ describe('check-version-parity.mjs — real repo', () => {
     }
     expect(r.stdout).not.toContain('DRIFT')
     expect(r.status).toBe(0)
+  })
+})
+
+describe('check-version-parity.mjs — PATH identity', () => {
+  it('fails when PATH resolves a stale same-semver Arbiter binary', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'version-parity-path-'))
+    try {
+      const arbiter = join(dir, 'arbiter')
+      writeFileSync(arbiter, "#!/bin/sh\nprintf '0.6.0+hffffffffffff\\n'\n")
+      chmodSync(arbiter, 0o755)
+      const r = spawnSync(process.execPath, [SCRIPT], {
+        encoding: 'utf-8',
+        cwd: resolve('.'),
+        env: { ...process.env, PATH: dir },
+      })
+
+      expect(r.status).toBe(1)
+      expect(r.stdout).toContain('PATH arbiter')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
 
