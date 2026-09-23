@@ -13,10 +13,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { runInit } from '../../src/commands/init.js'
 import { runUpdate } from '../../src/commands/update.js'
 import { runDiff } from '../../src/commands/diff.js'
+import { loadGeneratedManifest, saveGeneratedManifest } from '../../src/state/generated-manifest.js'
 
 const IGNORED = 'AGENTS.md'
 const KEPT = 'DECISION_REGISTRY.md'
@@ -232,6 +234,62 @@ describe('#2353 update --only', () => {
     const after = manifestKeys(dir)
     expect(after).toEqual(expect.arrayContaining(before))
     expect(after.length).toBeGreaterThanOrEqual(before.length)
+  }, 60_000)
+
+  // #2855: a doc-set skeleton the consumer filled in is never rendered again, so no
+  // generator visits it; `--only` must still leave its provenance entry alone.
+  it('keeps the manifest entry of an unvisited out-of-scope doc-set file', async () => {
+    const DOC = 'docs/GLOSSARY.md'
+    await initProject(dir)
+    expect(manifestKeys(dir)).toContain(DOC)
+    writeFileSync(join(dir, DOC), '# Glossary\n\nReal consumer content.\n')
+
+    await runUpdate({ dir, json: true, github: false, only: [IGNORED] })
+
+    expect(readFileSync(join(dir, DOC), 'utf-8')).toContain('Real consumer content.')
+    expect(manifestKeys(dir)).toContain(DOC)
+
+    // Control: once the file is IN scope, the ordinary full-run rule applies again —
+    // `--only` scopes the run, it does not resurrect every prior entry.
+    await runUpdate({ dir, json: true, github: false, only: [DOC] })
+    expect(manifestKeys(dir)).not.toContain(DOC)
+  }, 60_000)
+
+  // #2855 review P1: out of `--only` scope is decided by the allowlist alone — an
+  // `.arbiterignore` verdict on the same key must not re-open it to pruning or retirement.
+  it('keeps ignored outside-only provenance and never retires it, in plan or apply', async () => {
+    const DOC = 'docs/GLOSSARY.md'
+    const HOOK = '.claude/hooks/pre-task-track-detect.mjs'
+    const BODY = '#!/usr/bin/env node\n// Arbiter hook: retired track detector\nprocess.exit(0)\n'
+    await initProject(dir)
+    writeFileSync(join(dir, DOC), '# Glossary\n\nReal consumer content.\n')
+    writeFileSync(join(dir, HOOK), BODY)
+    const manifest = loadGeneratedManifest(dir)
+    manifest[HOOK] = createHash('sha256').update(BODY).digest('hex')
+    saveGeneratedManifest(dir, manifest)
+    writeFileSync(join(dir, '.arbiterignore'), `${DOC}\n${HOOK}\n`)
+
+    const out: string[] = []
+    const spy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((chunk: string | Uint8Array): boolean => {
+        out.push(String(chunk))
+        return true
+      })
+    try {
+      await runUpdate({ dir, json: true, github: false, only: [IGNORED], adoptPlan: true })
+    } finally {
+      spy.mockRestore()
+    }
+    const plan = (JSON.parse(out.join('')) as { data: { wouldRetire: string[]; stale: string[] } })
+      .data
+    expect([...plan.wouldRetire, ...plan.stale]).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/GLOSSARY|pre-task-track-detect/)]),
+    )
+
+    await runUpdate({ dir, json: true, github: false, only: [IGNORED] })
+    expect(existsSync(join(dir, HOOK))).toBe(true)
+    expect(manifestKeys(dir)).toEqual(expect.arrayContaining([DOC, HOOK]))
   }, 60_000)
 
   it('lets .arbiterignore WIN over a conflicting --only, and says why', async () => {

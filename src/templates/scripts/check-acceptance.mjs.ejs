@@ -306,11 +306,15 @@ function explicitFitErrors(root, fitAbs, criteriaIds) {
 
 // #2850 D7: a plan that promises `node scripts/check-*.mjs` makes a promise only a gate can keep.
 // A checker that exists but that no command of the canonical gate contract runs is prose, however
-// often source comments or strings name it. Checkers the plan is about to create are exempt.
+// often source comments or strings name it. Checkers the plan is about to create are exempt, and so
+// is the gate spine itself (#2855): it runs the contract, so no contract command can run it.
 const PLAN_CHECKER_RE = /\bnode\s+(?:\.\/)?(scripts\/check-[A-Za-z0-9_-]+\.mjs)\b/g
+const GATE_SPINE = 'scripts/check-all.mjs'
 
 function checkerPaths(text) {
-  return new Set([...text.matchAll(PLAN_CHECKER_RE)].map((m) => m[1]))
+  return new Set(
+    [...text.matchAll(PLAN_CHECKER_RE)].map((m) => m[1]).filter((path) => path !== GATE_SPINE),
+  )
 }
 
 // A gate command runs a checker only as a simple foreground command `node [./]scripts/check-*.mjs`,

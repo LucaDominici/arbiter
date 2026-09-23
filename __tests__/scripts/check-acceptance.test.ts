@@ -755,6 +755,23 @@ describe('check-acceptance ship parity (#2850)', () => {
       expect(result.stderr).toMatch(/NO DATA.*check-wired\.mjs.*incomplete gate contract/i)
     })
 
+    // #2855: the gate spine is what runs the contract; it cannot be wired into itself.
+    it('admits a plan that cites the gate spine `node scripts/check-all.mjs`', () => {
+      gateAuthority(['node scripts/check-other.mjs'])
+      const result = admit(plan('node scripts/check-all.mjs'))
+      expect(result.stderr).toBe('')
+      expect(result.status).toBe(0)
+    })
+
+    it('still rejects a genuinely unwired checker cited beside the gate spine', () => {
+      checker('foo')
+      gateAuthority(['node scripts/check-other.mjs'])
+      const result = admit(plan('node scripts/check-all.mjs`\n- `node scripts/check-foo.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/scripts\/check-foo\.mjs.*no gate/i)
+      expect(result.stderr).not.toMatch(/check-all\.mjs.*no gate/i)
+    })
+
     it('does not demand wiring for a checker the plan is about to create', () => {
       expect(admit(plan('node scripts/check-new.mjs')).status).toBe(0)
     })
