@@ -132,7 +132,11 @@ function runPlanMode(root, args, planIdx) {
   const result = checkPlanAnchor(plan.body)
   for (const e of result.errors) fail(e)
   if (!result.ok) return 1
-  const derivedExit = checkPlanDerivedGates(root, plan.body)
+  const derivedExit = checkPlanDerivedGates(
+    root,
+    plan.body,
+    args.includes('--check-derived-current'),
+  )
   if (derivedExit !== 0) return derivedExit
   const fitExit = checkExplicitFitArg(root, args, result.criteriaIds)
   if (fitExit !== 0) return fitExit
@@ -221,10 +225,10 @@ function runAdmissionMode(root, args, planIdx, admitIdx) {
   return 0
 }
 
-function checkPlanDerivedGates(root, planBody) {
+function checkPlanDerivedGates(root, planBody, forceCurrent = false) {
   const loaded = loadTaskState(root)
   if (loaded.exit !== undefined) return loaded.exit
-  if (loaded.state.phase !== 'plan') return 0
+  if (loaded.state.phase !== 'plan' && !forceCurrent) return 0
   if (gateDerivation === null) {
     fail('derived gate contract support is missing; restore scripts/lib/gate-derivation.mjs')
     return 1
@@ -248,7 +252,7 @@ function checkPlanDerivedGates(root, planBody) {
   )
   if (!verdict.ok) {
     fail(
-      'derived gates are missing or stale; recompute them from the plan files manifest before entering red',
+      'derived gates are missing or stale; re-anchor the plan with `arbiter lifecycle start --plan <path>`',
     )
     return 1
   }
