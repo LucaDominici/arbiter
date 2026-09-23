@@ -234,6 +234,20 @@ describe('#2353 update --only', () => {
     expect(after.length).toBeGreaterThanOrEqual(before.length)
   }, 60_000)
 
+  // #2855: a doc-set skeleton the consumer filled in is never rendered again, so no
+  // generator visits it; `--only` must still leave its provenance entry alone.
+  it('keeps the manifest entry of an unvisited out-of-scope doc-set file', async () => {
+    const DOC = 'docs/GLOSSARY.md'
+    await initProject(dir)
+    expect(manifestKeys(dir)).toContain(DOC)
+    writeFileSync(join(dir, DOC), '# Glossary\n\nReal consumer content.\n')
+
+    await runUpdate({ dir, json: true, github: false, only: [IGNORED] })
+
+    expect(readFileSync(join(dir, DOC), 'utf-8')).toContain('Real consumer content.')
+    expect(manifestKeys(dir)).toContain(DOC)
+  }, 60_000)
+
   it('lets .arbiterignore WIN over a conflicting --only, and says why', async () => {
     await initProject(dir)
     writeFileSync(join(dir, '.arbiterignore'), `${KEPT}\n`)
