@@ -149,6 +149,58 @@ describe('debt-report.mjs (gate: debt ratchet enforcement)', () => {
     }
   })
 
+  it.each(['missing', 'legacy'] as const)(
+    'fails closed when the requested preventive metric has a %s baseline',
+    (baselineState) => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        const binDir = writeMetricFixture(dir, 0)
+        const baselinePath = join(dir, 'scripts', 'debt-baseline.json')
+        if (baselineState === 'missing') rmSync(baselinePath)
+        else writeFileSync(baselinePath, JSON.stringify({ version: 1, metrics: {} }))
+
+        const result = spawnSync(
+          'node',
+          [join(dir, 'scripts/debt-report.mjs'), '--gate', '--only-metric', 'complexityViolations'],
+          {
+            cwd: dir,
+            encoding: 'utf-8',
+            env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+          },
+        )
+
+        expect(result.status).toBe(2)
+        expect(result.stderr).toContain('preventive metric requires')
+        expect(existsSync(join(dir, 'calls.txt'))).toBe(false)
+      } finally {
+        cleanup()
+      }
+    },
+  )
+
+  it('fails closed when ESLint exits fatally without a complexity report', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = writeMetricFixture(dir, 0)
+      writeFileSync(join(binDir, 'npx'), '#!/bin/sh\nexit 2\n')
+
+      const result = spawnSync(
+        'node',
+        [join(dir, 'scripts/debt-report.mjs'), '--gate', '--only-metric', 'complexityViolations'],
+        {
+          cwd: dir,
+          encoding: 'utf-8',
+          env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+        },
+      )
+
+      expect(result.status).not.toBe(0)
+      expect(result.stdout).toContain('collection FAILURE for complexityViolations')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('requires a freshness token when reusing a gate coverage summary', () => {
     const { dir, cleanup } = makeTemp()
     try {
