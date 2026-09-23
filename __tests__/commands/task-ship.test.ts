@@ -499,6 +499,15 @@ describe('ship complete next commands (#2753)', () => {
     expect(output).toContain('test "$(git rev-parse HEAD)" = "$candidate"')
   })
 
+  it('uses the working-tree CLI for Arbiter self-dogfood only', () => {
+    const self = profile({ isArbiterSelf: true })
+    const selfPlan = shipStepFor('plan', 'Standard', self, '#2751').command
+    const consumerPlan = shipStepFor('plan', 'Standard', profile(), '#2751').command
+
+    expect(selfPlan).toContain('node dist/cli.js lifecycle start')
+    expect(consumerPlan).toContain('arbiter lifecycle start')
+  })
+
   it('prints the plan-time commands, conditions, thresholds and unresolved obligations (#2773)', () => {
     const shipProfile = profile()
     const lines = buildShipStepLines({

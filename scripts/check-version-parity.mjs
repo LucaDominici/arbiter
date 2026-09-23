@@ -19,7 +19,7 @@
 //   node scripts/check-version-parity.mjs --pkg=path --changelog=path --cli=path  (fixtures)
 import { readFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { isMainModule } from './lib/run-helpers.mjs'
 
 function argPath(flag, fallback) {
@@ -57,7 +57,7 @@ export function readChangelogTopVersion(changelogRaw) {
 /** Compare the three sources; returns a list of human-readable violation strings. */
 export function diffVersionParity(pkgVersion, cliVersion, changelogVersion) {
   const violations = []
-  if (cliVersion !== pkgVersion) {
+  if (cliVersion.split('+', 1)[0] !== pkgVersion) {
     violations.push(`--version reports "${cliVersion}" but package.json says "${pkgVersion}"`)
   }
   if (changelogVersion === null) {
@@ -68,6 +68,14 @@ export function diffVersionParity(pkgVersion, cliVersion, changelogVersion) {
     )
   }
   return violations
+}
+
+export function diffBuildIdentity(cliVersion, srcHash) {
+  const expected = `h${srcHash.slice(0, 12)}`
+  const actual = cliVersion.split('+', 2)[1]
+  return actual === expected
+    ? []
+    : [`--version build identity is "${actual ?? 'missing'}" but dist manifest says "${expected}"`]
 }
 
 function main() {
@@ -84,7 +92,20 @@ function main() {
     encoding: 'utf-8',
   }).trim()
 
-  const violations = diffVersionParity(pkgVersion, cliVersion, changelogVersion)
+  const manifestPath = resolve(dirname(CLI_PATH), '.src-manifest.json')
+  if (!existsSync(manifestPath)) {
+    process.stdout.write(
+      `[check-version-parity] ERROR: ${manifestPath} not found — run "npm run build" before this gate\n`,
+    )
+    process.exit(2)
+  }
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+  if (typeof manifest.srcHash !== 'string') throw new Error('dist manifest has no srcHash')
+
+  const violations = [
+    ...diffVersionParity(pkgVersion, cliVersion, changelogVersion),
+    ...diffBuildIdentity(cliVersion, manifest.srcHash),
+  ]
 
   if (violations.length > 0) {
     for (const v of violations) process.stdout.write(`  DRIFT: ${v}\n`)

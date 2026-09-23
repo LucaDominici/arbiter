@@ -13,6 +13,7 @@ import {
   readPackageVersion,
   readChangelogTopVersion,
   diffVersionParity,
+  diffBuildIdentity,
 } from '../../scripts/check-version-parity.mjs'
 
 const SCRIPT = resolve('scripts/check-version-parity.mjs')
@@ -78,6 +79,16 @@ describe('diffVersionParity', () => {
   })
 })
 
+describe('diffBuildIdentity', () => {
+  it('accepts the manifest hash encoded by --version', () => {
+    expect(diffBuildIdentity('0.6.0+h0123456789ab', '0123456789abcdef')).toEqual([])
+  })
+
+  it('detects same-semver binaries built from different source', () => {
+    expect(diffBuildIdentity('0.6.0+hffffffffffff', '0123456789abcdef')).toHaveLength(1)
+  })
+})
+
 // ─── end-to-end: real repo must be in parity ──────────────────────────────────
 
 describe('check-version-parity.mjs — real repo', () => {
@@ -109,6 +120,7 @@ describe('check-version-parity.mjs — synthetic drift fails closed', () => {
       // A "compiled CLI" that still prints the stale 0.3.0 — mirrors the exact
       // #1837 regression (hardcoded version string surviving a package.json bump).
       writeFileSync(cliPath, "#!/usr/bin/env node\nprocess.stdout.write('0.3.0\\n')\n")
+      writeFileSync(join(dir, '.src-manifest.json'), JSON.stringify({ srcHash: 'a'.repeat(64) }))
       chmodSync(cliPath, 0o755)
 
       const r = spawnSync(

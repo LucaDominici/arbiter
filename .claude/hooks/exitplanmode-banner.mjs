@@ -33,7 +33,9 @@ try {
   if (!BANNER_PHASES.has(state.phase)) process.exit(0)
 
   const taskId = (state.taskId ?? '').replace(/^#/, '')
-  process.stdout.write(`[arbiter] Plan mode ended — run: arbiter ship #${taskId} --advance\n`)
+  process.stdout.write(
+    `[arbiter] Plan mode ended — run: node dist/cli.js ship #${taskId} --advance\n`,
+  )
   process.exit(0)
 } catch (err) {
   process.stderr.write(

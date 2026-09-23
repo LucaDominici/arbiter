@@ -17,14 +17,14 @@ related: []
 possibly backed by several related issues. Work is done only after merge, green CI, and live proof
 when the capability has a live surface.
 
-`arbiter ship` owns the next action and lifecycle state. Follow its output. Use `arbiter lifecycle`
+`node dist/cli.js ship` owns the next action and lifecycle state. Follow its output. Use `node dist/cli.js lifecycle`
 subcommands only for recovery or direct lifecycle control; they enforce the same gates.
 
 ## Start and resume
 
 ```bash
-arbiter ship #NNN --tier <XS|S|Standard>
-arbiter ship #NNN --advance
+node dist/cli.js ship #NNN --tier <XS|S|Standard>
+node dist/cli.js ship #NNN --advance
 ```
 
 Call the first form to read the current treatment and next action. Do that work, then call the
@@ -81,7 +81,7 @@ companion issue, including an initial positional or `--chain` seed, needs comple
 and one affinity decision:
 
 ```bash
-arbiter ship #A #B #C --tier XS --affinity '{
+node dist/cli.js ship #A #B #C --tier XS --affinity '{
   "sameOutcome":true,
   "ownerPathOverlap":true,
   "dependencyRelated":true,
@@ -111,7 +111,7 @@ namespaced acceptance criteria, RED evidence, commit reference, and closing refe
 4. **GREEN** — implement the capability. Run targeted checks while editing. Defer documentation and
    issue hygiene until behavior is green unless a decision is needed to implement correctly.
 5. **Freeze** — finish all fixes, commit, and freeze HEAD plus the plan acceptance hash.
-6. **Certify** — push the frozen branch and open or reuse its draft PR, then run `arbiter ship --review-round` in the foreground. PR CI starts on that same SHA while the reviewer receives the frozen task, base/head SHAs, ordered acceptance criteria, non-goals, and acceptance hash. Do not dispatch reviewers or write envelopes by hand.
+6. **Certify** — push the frozen branch and open or reuse its draft PR, then run `node dist/cli.js ship --review-round` in the foreground. PR CI starts on that same SHA while the reviewer receives the frozen task, base/head SHAs, ordered acceptance criteria, non-goals, and acceptance hash. Do not dispatch reviewers or write envelopes by hand.
 7. **Rework** — a changed source SHA invalidates review, acceptance-fit, and gate evidence. Round two
    reviews only the delta. The
    normal cap is two rounds; only LOW findings may be parked. Applicable MED/HIGH/CRITICAL findings
@@ -131,7 +131,7 @@ current lane.
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------: |
 | `preflight`       | Read the issue and seed validated task state.                                                                                              |             0 |
 | `plan`            | Freeze acceptance, non-goals, and files.                                                                                                   |             0 |
-| `red`             | Use the `tdd` skill to write failing tests and `arbiter lifecycle record-red`.                                                                  |             0 |
+| `red`             | Use the `tdd` skill to write failing tests and `node dist/cli.js lifecycle record-red`.                                                                  |             0 |
 | `green`           | Implement the capability and run targeted checks.                                                                                          |             0 |
 | `refactor`        | Freeze HEAD; push it, open/reuse a draft PR for overlapping CI, then dispatch the final reviewer.                                           |     treatment |
 | `verification`    | Require exact-head review, acceptance, and green CI evidence; record the CI verdict before advancing to close. |             0 |
@@ -143,7 +143,7 @@ The final reviewer covers code, tests, and acceptance fit.
 
 ## Evidence commands
 
-`arbiter ship --review-round` owns the final reviewer dispatch and evidence write in the foreground.
+`node dist/cli.js ship --review-round` owns the final reviewer dispatch and evidence write in the foreground.
 It builds the reviewer brief from the plan stored at the frozen SHA, writes the authoritative
 `.arbiter/agents-dispatched.json` sidecar, and binds the returned envelope to the task, branch,
 frozen SHA, provenance, and active treatment;
@@ -155,7 +155,7 @@ that differs from the persisted treatment, source changes after review, and any 
 MED/HIGH/CRITICAL finding.
 
 The runtime review envelope and acceptance-fit evidence stay bound to the same frozen subject.
-`arbiter lifecycle advance --to verification` runs the canonical review-completion and
+`node dist/cli.js lifecycle advance --to verification` runs the canonical review-completion and
 acceptance-fit checkers before changing phase. The final full gate writes the exact-subject receipt. A source change
 invalidates it; evidence-only commits may preserve it when the binding checker proves source content
 unchanged.

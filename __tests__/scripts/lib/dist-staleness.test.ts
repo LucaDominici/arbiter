@@ -184,4 +184,15 @@ describe('writeDistManifest (#2089) round-trips with checkDistFresh', () => {
     writeFileSync(join(root, 'src', 'generators', 'codex.ts'), 'export const x = 3')
     expect(checkDistFresh(root, { srcDirs: ['src/generators'] }).fresh).toBe(false)
   })
+
+  it('the default build identity covers every src subtree', () => {
+    const root = tmpRoot()
+    buildTree(root)
+    mkdirSync(join(root, 'src', 'commands'), { recursive: true })
+    writeFileSync(join(root, 'src', 'commands', 'ship.ts'), 'export const ship = 1')
+    writeDistManifest(root)
+
+    writeFileSync(join(root, 'src', 'commands', 'ship.ts'), 'export const ship = 2')
+    expect(checkDistFresh(root).fresh).toBe(false)
+  })
 })

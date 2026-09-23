@@ -39,7 +39,7 @@ describe('exitplanmode-banner hook (#1210)', () => {
     const { stdout, status } = runHook(dir)
     expect(status).toBe(0)
     expect(stdout).toMatch(/\[arbiter\]/)
-    expect(stdout).toMatch(/Plan mode ended/)
+    expect(stdout).toContain('Plan mode ended — run: node dist/cli.js ship #1210 --advance')
   })
 
   it('is silent when phase is "complete" on a task branch', () => {

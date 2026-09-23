@@ -37,7 +37,7 @@ const RETAINED_RULES = [
   'The final reviewer covers code, tests, and acceptance fit',
   'push the frozen branch and open or reuse its draft PR',
   'PR CI starts on that same SHA',
-  'run `arbiter ship --review-round` in the foreground',
+  /run `(?:node dist\/cli\.js |arbiter )ship --review-round` in the foreground/,
   'MED/HIGH/CRITICAL finding',
   'exact-subject receipt',
   'CI runs the full gate on that SHA',

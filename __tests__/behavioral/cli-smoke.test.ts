@@ -58,7 +58,9 @@ describe('arbiter CLI — top-level surface', () => {
     }
     const { status, stdout } = spawn(['--version'])
     expect(status).toBe(0)
-    expect(stdout.trim()).toBe(pkg.version)
+    expect(stdout.trim()).toMatch(
+      new RegExp(`^${pkg.version.replaceAll('.', '\\.')}\\+h[0-9a-f]{12}$`),
+    )
   })
 
   it('--help exits 0 and prints "Usage: arbiter"', () => {
