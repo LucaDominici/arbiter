@@ -458,7 +458,7 @@ function selectAndRunWithManifest(
   // a filled doc-set skeleton is skipped before any write, so it never becomes a result.
   const retainedWithheldHashes = Object.fromEntries([
     ...Object.entries(prevManifest).filter(([key]) => isDeselected(adoptOpts, key)),
-    ...out.results.flatMap((result) => {
+    ...out.results.flatMap((result): [string, string][] => {
       const excluded = result.excluded !== undefined
       if (!excluded && (result.withheld !== true || result.adopted === true)) return []
       const key = manifestKey(targetDir, result.path)

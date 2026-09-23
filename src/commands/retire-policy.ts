@@ -109,9 +109,11 @@ export function planRetirement(opts: {
   // manifest, and arbiter's registry of renders it once emitted for a path it
   // has since retired. The second exists because the first is not universal —
   // the go consumer that reddens the bar has no manifest at its pinned commit.
-  const candidates = new Set([...Object.keys(opts.prevManifest), ...Object.keys(RETIRED_RENDERS)])
+  const inScope = opts.inScope ?? ((): boolean => true)
+  const candidates = [
+    ...new Set([...Object.keys(opts.prevManifest), ...Object.keys(RETIRED_RENDERS)]),
+  ].filter((key) => !visited.has(key) && inScope(key))
   for (const key of candidates) {
-    if (visited.has(key) || opts.inScope?.(key) === false) continue
     const onDisk = opts.diskHash(key)
     if (onDisk === null) continue
     const explicitlyRetired = RETIRED_MANAGED_PATHS.has(key)
