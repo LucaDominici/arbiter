@@ -311,6 +311,7 @@ describe('result-first preflight (#2724)', () => {
     ['pass', {}, 0],
     ['scripts/pii-scan.mjs', {}, 1],
     ['scripts/check-self-dogfood.mjs', {}, 1],
+    ['scripts/regenerate-examples.mjs', {}, 1],
     ['pass', { BOOTSTRAP_DIRTY: '1' }, 0],
     ['pass', { BOOTSTRAP_DOCS_CHANGE: '1' }, 0],
     ['pass', { BOOTSTRAP_DOCS_CHANGE: 'ref-only' }, 0],
@@ -325,6 +326,7 @@ describe('result-first preflight (#2724)', () => {
       ['node', 'scripts/check-fail-closed-audit.mjs'],
       ['node', 'scripts/debt-report.mjs', '--gate', '--only-metric', 'complexityViolations'],
       ['node', 'scripts/check-self-dogfood.mjs'],
+      ['node', 'scripts/regenerate-examples.mjs', '--check'],
     ])
     expect(result.artifact).toBeNull()
     expect(result.marker).toBe(false)
