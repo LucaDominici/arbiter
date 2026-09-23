@@ -399,6 +399,7 @@ if (isMain) {
         '--only-metric',
         'complexityViolations',
       ])
+      runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
       return getResults().length
     }
 
