@@ -85,6 +85,15 @@ function currentPhase(root: string): TaskPhase {
 
 interface TaskResumeOptions {
   dir?: string
+  write?: (text: string) => void
+}
+
+const writeResumeOutput = (text: string): void => {
+  process.stdout.write(text)
+}
+
+function resumeWriter(write?: (text: string) => void): (text: string) => void {
+  return write ?? writeResumeOutput
 }
 
 const RECOVERY_TABLE: Record<TaskPhase, string> = {
@@ -104,7 +113,8 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
     'Phase: complete\nAction: Task is complete. Check if PR was created: gh pr list --head $(git branch --show-current)\nNext: Verify PR merged and issue closed.',
 }
 
-export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
+export function runTaskResume({ dir, write }: TaskResumeOptions = {}): void {
+  const output = resumeWriter(write)
   const root = dir ?? process.cwd()
   const state = readUnifiedState(root)
   const phase = state?.phase ?? 'preflight'
@@ -116,11 +126,11 @@ export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
   // rather than the coarse, phase-level RECOVERY_TABLE blurb.
   const cursorText = resumeCursorText(state, phase, header)
   if (cursorText !== null) {
-    process.stdout.write(cursorText)
+    output(cursorText)
     return
   }
 
-  process.stdout.write(`${header}${RECOVERY_TABLE[phase]}\n`)
+  output(`${header}${RECOVERY_TABLE[phase]}\n`)
 }
 
 function resumeCursorText(
