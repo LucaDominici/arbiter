@@ -740,7 +740,7 @@ describe('ship final-gate action ordering', () => {
     expect(close.action).not.toContain('done-evidence.mjs')
   })
 
-  it('keeps evidence-harness self-only checks separate from CI verification', () => {
+  it('uses exact-head required CI as evidence-harness completion proof', () => {
     const harness = profile({
       collaborationMode: 'trunk-solo',
       mergeMode: 'pr-ff',
@@ -750,7 +750,8 @@ describe('ship final-gate action ordering', () => {
     const close = shipStepFor('close', 'Standard', harness)
     const sequence = `${verification.action} ${close.action}`
     expect(verification.command).toBe('node scripts/ci-receipt.mjs')
-    expect(sequence).toContain('node scripts/done-evidence.mjs')
+    expect(sequence).toContain('required-check CI receipt is completion evidence')
+    expect(sequence).toContain('node scripts/done-evidence.mjs` only when')
     expect(sequence).not.toContain('check-all.mjs')
     expect(close.action).toContain('Reuse the recorded CI verdict')
     expect(close.action).toContain('node scripts/pr-merge-watch.mjs <owner/repo> <pr>')
@@ -991,8 +992,29 @@ describe('result-first read-only status (#2724)', () => {
     expect(readFileSync(path, 'utf8')).toBe(before)
     expect(buildShipStepLines(first).join('\n')).toContain('record final reviewer')
     expect(buildShipStepLines(first).join('\n')).toContain('a'.repeat(40))
-    expect(buildShipStepLines(first).join('\n')).toContain('Gates awaiting this change:')
-    expect(buildShipStepLines(first).join('\n')).toContain('vitest.integration.config.ts')
+    expect(buildShipStepLines(first).join('\n')).toContain(
+      'Gate contract: 1 obligation frozen at plan',
+    )
+    expect(buildShipStepLines(first).join('\n')).not.toContain('vitest.integration.config.ts')
+  })
+
+  it('does not repeat the frozen gate catalog after completion', () => {
+    const shipProfile = profile()
+    const lines = buildShipStepLines({
+      phase: 'complete',
+      step: shipStepFor('complete', 'Standard', shipProfile, '#2724'),
+      advanced: true,
+      done: true,
+      tier: 'Standard',
+      profile: shipProfile,
+      derivedGates: [{ name: 'expensive gate', command: 'npm test' }],
+    }).join('\n')
+
+    expect(lines).not.toContain('Gates awaiting this change:')
+    expect(lines).not.toContain('expensive gate')
+    expect(lines).toContain('Action: Delivery complete. Clean up the worktree.')
+    expect(lines).not.toContain('open a PR')
+    expect(lines).not.toContain('Autonomy gate: STOP')
   })
 
   it('derives a wider treatment without writing, then persists it on the next transition', () => {

@@ -27,33 +27,66 @@ function currentHead(root) {
   return sha
 }
 
-function ciRuns(root, sha) {
-  const output = run(
-    'gh',
-    ['run', 'list', '--commit', sha, '--json', 'conclusion,url,status,name'],
-    root,
-  )
-  const parsed = JSON.parse(output)
-  if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('no CI runs found')
-  return parsed
-}
-
-function isSuccessfulRun(run) {
-  return run?.status === 'completed' && run?.conclusion === 'success'
-}
-
-function successfulRuns(runs) {
-  return runs.filter((run) => run?.conclusion !== 'skipped')
-}
-
-function receiptFor(sha, runs) {
-  const required = successfulRuns(runs)
-  if (required.length === 0 || !required.every(isSuccessfulRun)) {
-    throw new Error('one or more non-skipped CI runs are not completed successfully')
+function currentPullRequest(root, sha) {
+  const pr = JSON.parse(run('gh', ['pr', 'view', '--json', 'number,headRefOid,url'], root))
+  if (pr?.headRefOid !== sha) throw new Error('pull request does not target current HEAD')
+  if (!Number.isInteger(pr?.number) || typeof pr?.url !== 'string') {
+    throw new Error('current pull request is missing identity')
   }
-  const runUrl = required.find((run) => typeof run?.url === 'string' && run.url.length > 0)?.url
-  if (runUrl === undefined) throw new Error('successful CI run has no URL')
-  return { sha, conclusion: 'success', runUrl, checkedAt: new Date().toISOString() }
+  return pr
+}
+
+function requiredChecks(root, prNumber) {
+  const checks = JSON.parse(
+    run(
+      'gh',
+      [
+        'pr',
+        'checks',
+        String(prNumber),
+        '--required',
+        '--json',
+        'name,state,link,bucket,workflow,startedAt,completedAt',
+      ],
+      root,
+    ),
+  )
+  if (!Array.isArray(checks) || checks.length === 0) throw new Error('no required CI checks found')
+  if (
+    !checks.every(
+      (check) =>
+        check?.bucket === 'pass' &&
+        check?.state === 'SUCCESS' &&
+        typeof check?.startedAt === 'string' &&
+        typeof check?.completedAt === 'string',
+    )
+  ) {
+    throw new Error('one or more required CI checks are not successful')
+  }
+  return checks.map(({ name, state, workflow, link, startedAt, completedAt }) => ({
+    name,
+    state,
+    workflow,
+    link,
+    startedAt,
+    completedAt,
+  }))
+}
+
+function receiptFor(sha, pr, checks) {
+  const runUrl = checks.find(
+    (check) => typeof check.link === 'string' && check.link.length > 0,
+  )?.link
+  if (runUrl === undefined) throw new Error('successful required CI check has no URL')
+  return {
+    schema: 'arbiter-ci-pass-v2',
+    sha,
+    conclusion: 'success',
+    runUrl,
+    checkedAt: new Date().toISOString(),
+    pr: pr.number,
+    requiredChecks: checks,
+  }
 }
 
 function writeReceipt(root, receipt) {
@@ -69,7 +102,8 @@ function main() {
   const root = process.cwd()
   try {
     const sha = currentHead(root)
-    const receipt = receiptFor(sha, ciRuns(root, sha))
+    const pr = currentPullRequest(root, sha)
+    const receipt = receiptFor(sha, pr, requiredChecks(root, pr.number))
     writeReceipt(root, receipt)
     process.stdout.write(`CI receipt recorded for ${sha}\n`)
   } catch (error) {

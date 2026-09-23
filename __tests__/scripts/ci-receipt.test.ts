@@ -23,11 +23,26 @@ function repo(): string {
 function installGh(dir: string): void {
   const bin = join(dir, 'bin')
   mkdirSync(bin)
-  writeFileSync(join(bin, 'gh'), '#!/bin/sh\nprintf \'%s\' "$GH_JSON"\n', 'utf-8')
+  writeFileSync(
+    join(bin, 'gh'),
+    [
+      '#!/bin/sh',
+      'case "$1 $2" in',
+      '  "pr view") printf \'%s\' "$GH_PR_JSON" ;;',
+      '  "pr checks") printf \'%s\' "$GH_CHECKS_JSON" ;;',
+      '  *) exit 1 ;;',
+      'esac',
+      '',
+    ].join('\n'),
+    'utf-8',
+  )
   chmodSync(join(bin, 'gh'), 0o755)
 }
 
-function run(dir: string, ghJson?: string): ReturnType<typeof spawnSync> {
+function run(
+  dir: string,
+  gh: { pr?: unknown; checks?: unknown } = {},
+): ReturnType<typeof spawnSync> {
   const gitDir = dirname(
     execFileSync('which', ['git'], {
       encoding: 'utf-8',
@@ -40,7 +55,8 @@ function run(dir: string, ghJson?: string): ReturnType<typeof spawnSync> {
     env: {
       ...process.env,
       PATH: `${join(dir, 'bin')}:${gitDir}`,
-      ...(ghJson === undefined ? {} : { GH_JSON: ghJson }),
+      ...(gh.pr === undefined ? {} : { GH_PR_JSON: JSON.stringify(gh.pr) }),
+      ...(gh.checks === undefined ? {} : { GH_CHECKS_JSON: JSON.stringify(gh.checks) }),
     },
   })
 }
@@ -50,53 +66,90 @@ afterEach(() => {
 })
 
 describe('ci-receipt.mjs', () => {
-  it('writes a receipt when every CI run for HEAD succeeds', () => {
+  it('writes a receipt when every required check for the current PR succeeds', () => {
     const dir = repo()
     installGh(dir)
-    const result = run(
-      dir,
-      JSON.stringify([
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    const result = run(dir, {
+      pr: { number: 7, headRefOid: sha, url: 'https://github.com/example/repo/pull/7' },
+      checks: [
         {
-          conclusion: 'success',
-          url: 'https://github.com/example/repo/actions/runs/1',
-          status: 'completed',
-          name: 'CI',
+          bucket: 'pass',
+          link: 'https://github.com/example/repo/actions/runs/1/job/1',
+          name: 'CI Required',
+          state: 'SUCCESS',
+          workflow: 'CI',
+          startedAt: '2026-09-23T04:13:50Z',
+          completedAt: '2026-09-23T04:15:43Z',
         },
-      ]),
-    )
+      ],
+    })
 
     expect(result.status).toBe(0)
     const receipt = JSON.parse(
       readFileSync(join(dir, '.arbiter', 'ci-pass.json'), 'utf-8'),
     ) as Record<string, unknown>
     expect(receipt).toMatchObject({
-      sha: execFileSync('git', ['rev-parse', 'HEAD'], {
-        cwd: dir,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).trim(),
+      schema: 'arbiter-ci-pass-v2',
+      sha,
       conclusion: 'success',
-      runUrl: 'https://github.com/example/repo/actions/runs/1',
+      runUrl: 'https://github.com/example/repo/actions/runs/1/job/1',
+      pr: 7,
+      requiredChecks: [
+        {
+          name: 'CI Required',
+          state: 'SUCCESS',
+          workflow: 'CI',
+          link: 'https://github.com/example/repo/actions/runs/1/job/1',
+          startedAt: '2026-09-23T04:13:50Z',
+          completedAt: '2026-09-23T04:15:43Z',
+        },
+      ],
     })
     expect(typeof receipt.checkedAt).toBe('string')
   })
 
-  it('returns exit 2 and writes no receipt while a CI run is pending', () => {
+  it('returns exit 2 and writes no receipt while a required check is pending', () => {
     const dir = repo()
     installGh(dir)
-    const result = run(
-      dir,
-      JSON.stringify([
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim()
+    const result = run(dir, {
+      pr: { number: 7, headRefOid: sha, url: 'https://github.com/example/repo/pull/7' },
+      checks: [
         {
-          conclusion: null,
-          url: 'https://example.invalid/run/1',
-          status: 'in_progress',
-          name: 'CI',
+          bucket: 'pending',
+          link: 'https://example.invalid/run/1',
+          state: 'PENDING',
+          name: 'CI Required',
+          workflow: 'CI',
+          startedAt: '2026-09-23T04:13:50Z',
+          completedAt: null,
         },
-      ]),
-    )
+      ],
+    })
 
     expect(result.status).toBe(2)
+    expect(() => readFileSync(join(dir, '.arbiter', 'ci-pass.json'))).toThrow()
+  })
+
+  it('returns exit 2 when the PR head is not the current HEAD', () => {
+    const dir = repo()
+    installGh(dir)
+    const result = run(dir, {
+      pr: {
+        number: 7,
+        headRefOid: 'a'.repeat(40),
+        url: 'https://github.com/example/repo/pull/7',
+      },
+      checks: [],
+    })
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/current HEAD/i)
     expect(() => readFileSync(join(dir, '.arbiter', 'ci-pass.json'))).toThrow()
   })
 

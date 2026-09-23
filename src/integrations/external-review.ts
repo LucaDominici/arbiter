@@ -90,6 +90,7 @@ interface ExternalReviewRequest {
   vertical?: string
   env?: NodeJS.ProcessEnv
   expectedSha?: string
+  recordMode?: 'return' | 'ac-fit'
 }
 
 interface ExternalReviewResult {
@@ -335,6 +336,7 @@ function recorderArgs(request: ExternalReviewRequest, access: ExternalModelAcces
     request.taskId,
     '--repo-root',
     request.repoRoot,
+    ...(request.recordMode === 'ac-fit' ? ['--mode', 'ac-fit'] : []),
     ...(request.expectedSha !== undefined ? ['--expected-sha', request.expectedSha] : []),
     ...(request.evidenceDir !== undefined ? ['--evidence-dir', request.evidenceDir] : []),
     '--provenance-vendor',
@@ -345,6 +347,27 @@ function recorderArgs(request: ExternalReviewRequest, access: ExternalModelAcces
     '--provenance-dispatch',
     'external-cli',
   ]
+}
+
+function persistedEnvelopePath(request: ExternalReviewRequest, stdout: string): string | null {
+  const direct = stdout.match(/\[record-agent-return\] OK — wrote (.+)\s*$/m)?.[1]
+  if (direct !== undefined) return direct
+  if (request.recordMode !== 'ac-fit') return null
+  try {
+    const task = request.taskId.replace(/[^0-9A-Za-z-]/g, '')
+    const fit = JSON.parse(
+      readFileTranslated(
+        join(request.repoRoot, '.arbiter', 'evidence', 'ac-fit', `${task}.json`),
+        'utf8',
+      ),
+    ) as { sourceEnvelope?: { path?: unknown } }
+    if (typeof fit.sourceEnvelope?.path !== 'string') return null
+    const path = resolve(request.repoRoot, fit.sourceEnvelope.path)
+    return outsideRoot(request.repoRoot, path) ? null : path
+    // FAIL-OPEN-INTENT: an unreadable derived receipt returns null; persistEnvelope then rejects persistence.
+  } catch {
+    return null
+  }
 }
 
 function assertExpectedSha(request: ExternalReviewRequest): void {
@@ -426,19 +449,29 @@ function persistEnvelope(
   access: ExternalModelAccess,
   envelope: ExternalReviewPayload,
 ): string | null {
+  const hasBlockingFinding = envelope.findings.some((finding) =>
+    ['critical', 'high'].includes(String(finding['severity']).toLowerCase()),
+  )
+  const recordRequest =
+    request.recordMode === 'ac-fit' && (envelope.verdict === 'FAIL' || hasBlockingFinding)
+      ? { ...request, recordMode: 'return' as const }
+      : request
   if (request.evidenceDir === undefined) {
     assertSafeDirectoryPath(
       request.repoRoot,
       join(request.repoRoot, '.arbiter', 'evidence', 'agent-returns', sanitizeTask(request.taskId)),
     )
   }
-  const result = runCli('node', recorderArgs(request, access), {
+  const result = runCli('node', recorderArgs(recordRequest, access), {
     cwd: request.repoRoot,
     input: JSON.stringify({
       schema: 'arbiter-agent-return-v1',
       agent: 'codex-reviewer',
       role: 'reviewer',
       taskId: request.taskId,
+      ...(recordRequest.recordMode === 'ac-fit'
+        ? { branch: currentBranch(request.repoRoot), sha: headSha(request.repoRoot) }
+        : {}),
       verdict: envelope.verdict,
       confidence: envelope.confidence,
       findings: envelope.findings,
@@ -448,7 +481,15 @@ function persistEnvelope(
     timeoutMs: request.cfg.timeoutMs,
     retries: 0,
   })
-  return result.stdout.match(/\[record-agent-return\] OK — wrote (.+)\s*$/m)?.[1] ?? null
+  const path = persistedEnvelopePath(recordRequest, result.stdout)
+  if (path !== null) return path
+  const detail = [result.stdout, result.stderr]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' ')
+  throw new Error(
+    `recorder did not confirm envelope persistence${detail.length > 0 ? `: ${detail}` : ''}`,
+  )
 }
 
 function sanitizeTask(taskId: string): string {
@@ -514,6 +555,9 @@ function dispatchDetail(reason: CrossModelDispatchReason, error?: unknown): stri
   }
   if (reason === 'timeout') return message ?? 'Codex invocation timed out'
   if (reason === 'nonzero-exit') return nonzeroExitDetail(error, message)
+  if (reason === 'envelope-rejected' && message !== null) {
+    return `the recorder rejected the Codex envelope: ${message}`
+  }
   const details: Record<
     Exclude<CrossModelDispatchReason, 'cli-not-found' | 'timeout' | 'nonzero-exit'>,
     string
@@ -736,7 +780,9 @@ function persistExternalPayload(
       throw new Error('external access disappeared before persistence')
     assertExpectedSha(request)
     envelopePath = persistEnvelope(request, request.access, payload)
-    if (envelopePath === null) throw new Error('recorder did not confirm envelope persistence')
+    if (envelopePath === null) {
+      throw new Error('recorder did not confirm envelope persistence')
+    }
     assertExpectedSha(request)
     // FAIL-OPEN-INTENT: recorder failures become an explicit degradation and never a fulfilled review.
   } catch (error) {

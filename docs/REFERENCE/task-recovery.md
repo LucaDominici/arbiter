@@ -242,7 +242,9 @@ require three. Missing task state keeps the stricter collaborative default; the 
 raw configuration. Generated projects, which intentionally do not include the router, use the same
 conservative changed-path escalation. The adversarial verifier
 uses `--mode ac-fit`; every PASS citation must resolve at the exact recorded SHA before the fit can
-be admitted.
+be admitted. The external final-review path follows the same rule: a non-blocking review writes the
+canonical fit, while a FAIL or HIGH/CRITICAL finding retains the reviewer envelope for rework and
+does not publish an all-PASS fit.
 
 Entering red validates the anchored Markdown plan when the acceptance-anchor profile is enabled.
 A missing checker or invalid anchor prevents the transition without changing the phase.
@@ -252,7 +254,11 @@ Missing origin/main is unverifiable provenance and prevents verification. Commit
 receipts before advancing; whole-chain provenance is not required at green.
 
 Verification commits review evidence, then runs one clean-HEAD L3 gate when the evidence harness is
-active (L2 otherwise). Close and done-evidence reuse that receipt while the candidate is unchanged.
+active (L2 otherwise). When GitHub branch protection declares required checks, `ci-receipt.mjs`
+records those checks for the exact PR HEAD and completion reuses that receipt after the PR merges;
+it does not repeat the same full gate locally. Repositories without required checks retain the local
+`done-evidence.mjs` path. Close and done-evidence reuse their receipt while the candidate is
+unchanged.
 The close and complete transitions validate `.arbiter/gate-pass.json` before writing
 the phase (L1 and L2 respectively). The marker must be valid for the current HEAD and branch and have
 `tree_was_clean_at_run_time: true`; missing, corrupt, stale, or dirty-tree markers fail closed.

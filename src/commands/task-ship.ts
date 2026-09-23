@@ -238,7 +238,7 @@ function greenAction(profile: ShipProfile): string {
  */
 function closeAction(profile: ShipProfile): string {
   const doneEvidence = profile.evidenceHarness
-    ? ' Run `node scripts/done-evidence.mjs` to capture and reuse that L3 receipt.'
+    ? ' The exact-head required-check CI receipt is completion evidence; use `node scripts/done-evidence.mjs` only when the repository has no required CI checks.'
     : ''
   const exactLanding =
     profile.collaborationMode === 'trunk-solo' && profile.mergeMode === 'pr-ff'
@@ -681,12 +681,25 @@ function derivedGateLines(derivedGates: unknown[] | undefined): string[] {
   ]
 }
 
+function gateContractLines(result: ShipResult): string[] {
+  if (result.phase === 'plan') return derivedGateLines(result.derivedGates)
+  if (result.phase === 'complete' || !result.derivedGates?.length) return []
+  const count = result.derivedGates.length
+  return [
+    `Gate contract: ${count} obligation${count === 1 ? '' : 's'} frozen at plan; full details in .claude/.task/status.json.`,
+  ]
+}
+
+function phaseActionLines(result: ShipResult): string[] {
+  return [
+    `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
+    `Action: ${result.done ? 'Delivery complete. Clean up the worktree.' : result.step.action}`,
+  ]
+}
+
 export function buildShipStepLines(result: ShipResult, legacyTier?: string): string[] {
   const tier = result.tier ?? normTier(legacyTier)
-  const lines = [
-    `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
-    `Action: ${result.step.action}`,
-  ]
+  const lines = phaseActionLines(result)
   lines.push(...optionalShipStepLines(result, tier))
   if (result.reviewSummary === undefined) lines.push(...reviewPanelLines(result))
   if (result.reviewSummary !== undefined) lines.push(result.reviewSummary)
@@ -696,8 +709,12 @@ export function buildShipStepLines(result: ShipResult, legacyTier?: string): str
   // #1291 — the resolved autonomy level travels with every step so the driver
   // (and a human reading the banner) sees which behaviors are authorized.
   lines.push(`Autonomy: ${result.profile.autonomy}`)
-  lines.push(...derivedGateLines(result.derivedGates))
-  if (result.phase === 'complete' && !autonomyAllows(result.profile.autonomy, 'auto-merge')) {
+  lines.push(...gateContractLines(result))
+  if (
+    result.phase === 'complete' &&
+    !result.done &&
+    !autonomyAllows(result.profile.autonomy, 'auto-merge')
+  ) {
     lines.push(
       'Autonomy gate: STOP — merging requires a human at L0 (set automation.autonomy or pass --autonomy).',
     )

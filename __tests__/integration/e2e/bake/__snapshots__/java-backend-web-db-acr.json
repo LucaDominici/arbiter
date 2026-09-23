@@ -387,7 +387,7 @@
     "scripts/check-workflow-runners.mjs": "25f0fe3f3b2c42232d40295e5e825c5e7bd82d1bac1aa07416e0123d7d19fab3",
     "scripts/check-workflow-sha-pinning.mjs": "13ab7f2cbb96354e26e6da626edc335eacefd61ad06974a8b1f68143ab1fba6c",
     "scripts/check-workflow-test-integrity.mjs": "8c155f3f189c20d40908e09d88caa69a69955692fadd501eeb8786d93df46c7c",
-    "scripts/ci-receipt.mjs": "24c52abfb8bafc1eb8ad4d30e56547610738c7d1599c48852120312ed8ddf854",
+    "scripts/ci-receipt.mjs": "587d1c5478ae9b28c233038698047b23892fc5af5046e70d3e2dd897d598d900",
     "scripts/conformance.mjs": "af6ac96aa868c70267e65dd17aa4a774861631564d92a4ed6fd8a98b15d63ee3",
     "scripts/constraint-map.json": "0bd0d33a39ad2e2378f77409131765491cf19d648ee15966e66037ff6e515d22",
     "scripts/derive-plan-gates.mjs": "a35fb6c4dec95f2088de34954f4b5f0b3dae6c1004958ac38b372256744e96c4",

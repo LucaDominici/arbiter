@@ -571,6 +571,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
     writeFileSync(join(dir, 'plan.md'), '# Plan\n\n## Acceptance Criteria\n- AC-1: ships\n')
 
     for (const relativePath of [
+      '.claude/hooks/lib.mjs',
       'schemas/agent-return-external.schema.json',
       'schemas/agent-return.schema.json',
       'scripts/check-review-completion.mjs',
@@ -580,6 +581,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
       'scripts/lib/evidence-binding.mjs',
       'scripts/lib/gate-args.mjs',
       'scripts/lib/run-helpers.mjs',
+      'scripts/lib/suppressions-shared.mjs',
     ]) {
       const target = join(dir, relativePath)
       mkdirSync(join(target, '..'), { recursive: true })
@@ -592,7 +594,11 @@ describe('review rounds own the Codex seat (#2747)', () => {
     execFileSync('git', ['update-ref', 'refs/remotes/origin/main', sha], { cwd: dir })
 
     runTaskShip({ dir, taskId: '#2747', profileOverride: codexProfile })
-    writeUnifiedState(dir, { phase: 'refactor', plan: 'plan.md' })
+    writeUnifiedState(dir, {
+      phase: 'refactor',
+      plan: 'plan.md',
+      branch: 'task/#2747-review-runtime',
+    })
     return sha
   }
 
@@ -614,6 +620,9 @@ describe('review rounds own the Codex seat (#2747)', () => {
     })
   }
 
+  const passingFit =
+    '"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[{"id":"AC-1","verdict":"PASS","evidence":[{"file":"plan.md","line":4}]}]}'
+
   afterEach(() => {
     vi.unstubAllEnvs()
     if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
@@ -621,7 +630,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   it('runs the Codex seat in the foreground, records provenance, and passes completion', () => {
     const result = runRound(
-      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
     )
 
     expect(buildShipStepLines(result)).toContain(
@@ -646,7 +655,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   it('completes LOW-only rounds and spools each LOW finding without a next round', () => {
     const result = runRound(
-      '{"verdict":"WARN","confidence":0.8,"findings":[{"id":"low-1","severity":"low","kind":"style","claim":"The wording could be clearer.","citations":[]},{"id":"low-2","severity":"low","kind":"behavioral","claim":"The plan should name the proof.","citations":[{"file":"plan.md","line":1}]}],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
+      `{"verdict":"WARN","confidence":0.8,"findings":[{"id":"low-1","severity":"low","kind":"style","claim":"The wording could be clearer.","citations":[]},{"id":"low-2","severity":"low","kind":"behavioral","claim":"The plan should name the proof.","citations":[{"file":"plan.md","line":1}]}],"refutations":[],${passingFit}}`,
     )
 
     expect(buildShipStepLines(result)).toContain(
@@ -670,12 +679,14 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   it('keeps a blocking reviewer finding in rework without spooling it as LOW debt', () => {
     const result = runRound(
-      '{"verdict":"FAIL","confidence":1,"findings":[{"id":"high-1","severity":"high","kind":"behavioral","claim":"The acceptance behavior is broken.","citations":[{"file":"plan.md","line":1}]}],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
+      '{"verdict":"FAIL","confidence":1,"findings":[{"id":"high-1","severity":"high","kind":"behavioral","claim":"The acceptance behavior is broken.","citations":[{"file":"plan.md","line":1}]}],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[{"id":"AC-1","verdict":"FAIL","evidence":[{"file":"plan.md","line":4}]}]}}',
     )
 
     expect(buildShipStepLines(result)).toContain(
       'review round 1: FAIL — 1 findings (1 blocking) · next: rework',
     )
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'agent-returns', '_2747'))).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'ac-fit', '2747.json'))).toBe(false)
     expect(existsSync(join(dir, '.arbiter', 'findings', '_2747.jsonl'))).toBe(false)
   })
 
@@ -683,7 +694,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
     ['missing Codex', null, 30_000, 0],
     [
       'timed-out Codex',
-      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
       20,
       1000,
     ],
@@ -728,7 +739,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
       encoding: 'utf8',
     }).trim()
     const reviewerBin = installCodex(
-      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
+      `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
     )
     vi.stubEnv('PATH', `${reviewerBin}:${originalPath}`)
 
