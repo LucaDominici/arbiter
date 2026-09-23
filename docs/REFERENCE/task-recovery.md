@@ -71,6 +71,8 @@ failure with that gate's remediation; one passing call can therefore cross sever
 that exits 0 is rejected, and Node's `node:test`/TAP failure summary is recognized via `# fail N`.
 Coordinators may pass `--at <sha>` to replay the test from an ancestor writer commit in a temporary
 detached worktree; the evidence pins that commit and its test blob.
+Repository paths are resolved before replay, and abbreviated `--at` refs are recorded as the exact
+40-character commit SHA.
 In a monorepo, recording selects the nearest `package.json`, `pom.xml`, or `pyproject.toml`
 above the test and runs from that package directory. With `--at`, this selection uses the
 historical checkout. Evidence stores the repository-relative package directory as `test_cwd`;

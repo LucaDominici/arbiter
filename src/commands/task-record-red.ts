@@ -296,6 +296,18 @@ function resolveHeadSha(dir: string, timeoutMs: number): string | RecordRedFailu
   }
 }
 
+function resolveAtSha(ref: string, dir: string, timeoutMs: number): string | RecordRedFailure {
+  try {
+    const r = runCli('git', ['rev-parse', '--verify', `${ref}^{commit}`], { cwd: dir, timeoutMs })
+    return r.stdout.trim()
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `cannot resolve --at commit ${ref}: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+}
+
 /**
  * #1988: refuse to record evidence that would point at a commit not actually
  * containing the RED test — either because the exact `testPath` is dirty (the
@@ -347,7 +359,7 @@ function validateRecordRedCommit(
 ): RecordRedFailure | null {
   return opts.at === undefined
     ? checkTestCommitIntegrity(opts, sha, dir)
-    : validateAtCommit(opts.at, opts.testPath, dir)
+    : validateAtCommit(sha, opts.testPath, dir)
 }
 
 function recordRedEvidence(params: {
@@ -525,16 +537,17 @@ function resolveActiveTaskId(
 }
 
 export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | RecordRedFailure {
-  const dir = opts.dir ?? process.cwd()
+  const dir = resolve(opts.dir ?? process.cwd())
   const timeoutMs = clampTimeout(opts.timeoutMs)
 
   const resolution = resolveActiveTaskId(dir, opts.taskId)
   if ('reason' in resolution) return resolution
   const taskId = resolution.taskId
 
-  const shaOrErr = resolveHeadSha(dir, 5000)
+  const shaOrErr =
+    opts.at === undefined ? resolveHeadSha(dir, 5000) : resolveAtSha(opts.at, dir, 5000)
   if (typeof shaOrErr === 'object') return shaOrErr
-  const sha = opts.at ?? shaOrErr
+  const sha = shaOrErr
 
   const commitFailure = validateRecordRedCommit(opts, sha, dir)
   if (commitFailure) return commitFailure
