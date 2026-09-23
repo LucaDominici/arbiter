@@ -1590,7 +1590,7 @@ function checkPlanContractCurrent(dir: string): void {
   runRequiredTaskChecker(dir, 'check-acceptance.mjs', ['--plan', plan, '--check-derived-current'])
 }
 
-function checkResumeContract(dir: string, phase: TaskPhase): void {
+export function checkResumeContract(dir: string, phase: TaskPhase): void {
   if (!['preflight', 'plan', 'complete'].includes(phase)) checkPlanContractCurrent(dir)
 }
 

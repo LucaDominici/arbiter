@@ -23,7 +23,12 @@ import {
   type TaskStatePatch,
   type UnifiedTaskState,
 } from './task-state.js'
-import { assertShipHostBinding, runTaskAdvance, runTaskReviewRound } from './task.js'
+import {
+  assertShipHostBinding,
+  checkResumeContract,
+  runTaskAdvance,
+  runTaskReviewRound,
+} from './task.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
 import {
   autonomyAllows,
@@ -1548,7 +1553,10 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
   assertShipHostBinding(root, opts.taskId, opts.isLinkedCheckout)
   const initialState = readUnifiedState(root)
-  if (isReadOnlyShipRequest(initialState, opts)) return readOnlyShipResult(root, initialState, opts)
+  if (isReadOnlyShipRequest(initialState, opts)) {
+    checkResumeContract(root, initialState.phase)
+    return readOnlyShipResult(root, initialState, opts)
+  }
   assertShipNotBlocked(initialState, opts.executionOutcome)
   const shipConfig = shipConfigFor(root)
   // Validate the complete train mutation before seeding task metadata. A rejected append must
