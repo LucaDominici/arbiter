@@ -163,13 +163,33 @@ describe('main()', () => {
 
   const exitFn = vi.fn()
 
-  it('exits 0 vacuously when merge-base fails (no origin/main)', () => {
+  it('#2850 D4: exits 2 (NO DATA) when merge-base fails and there is no origin remote', () => {
     exitFn.mockReset()
     const runFn = () => {
       throw new Error('no origin/main')
     }
     main({ runFn, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(2)
+  })
+
+  it('exits 0 when merge-base fails only under the explicit skip env', () => {
+    exitFn.mockReset()
+    vi.stubEnv('ARBITER_SKIP_TDD', '1')
+    const runFn = () => {
+      throw new Error('no origin/main')
+    }
+    main({ runFn, exitFn: exitFn as never })
     expect(exitFn).toHaveBeenCalledWith(0)
+  })
+
+  it('#2850 D4: exits 2 (NO DATA) when origin exists but origin/main cannot be resolved', () => {
+    exitFn.mockReset()
+    const runFn = (_cmd: string, args: string[]) => {
+      if (args.join(' ') === 'remote get-url origin') return 'https://example.invalid/repo.git'
+      throw new Error('no origin/main')
+    }
+    main({ runFn, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(2)
   })
 
   it('exits 0 when no task-ID commits found', () => {

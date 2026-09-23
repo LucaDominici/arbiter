@@ -587,6 +587,60 @@ export function verifyDoneEvidenceReceipt({
   return { ok: true }
 }
 
+const isNonEmptyString = (value) => typeof value === 'string' && value.length > 0
+
+function isCompleteRequiredCheck(check) {
+  const started = Date.parse(check?.startedAt ?? '')
+  const completed = Date.parse(check?.completedAt ?? '')
+  return (
+    check?.state === 'SUCCESS' &&
+    [check.name, check.workflow, check.link].every(isNonEmptyString) &&
+    Number.isFinite(started) &&
+    Number.isFinite(completed) &&
+    completed >= started
+  )
+}
+
+function isCompleteCiReceipt(receipt) {
+  const checks = receipt?.requiredChecks
+  return (
+    receipt?.schema === 'arbiter-ci-pass-v2' &&
+    receipt.conclusion === 'success' &&
+    [receipt.runUrl, receipt.checkedAt].every(isNonEmptyString) &&
+    Number.isInteger(receipt.pr) &&
+    Array.isArray(checks) &&
+    checks.length > 0 &&
+    checks.every(isCompleteRequiredCheck)
+  )
+}
+
+/**
+ * #2850 — the exact-head CI receipt written by scripts/ci-receipt.mjs, with the contract the
+ * engine applies at close/complete (readCiPassReceipt in src/commands/task.ts): CI ran the full
+ * gate on THIS SHA for THIS PR, so landing reuses its verdict instead of demanding a local L2.
+ */
+export function verifyCiPassReceipt({ root = process.cwd(), pr } = {}) {
+  const path = join(root, '.arbiter', 'ci-pass.json')
+  let receipt
+  let head
+  try {
+    receipt = JSON.parse(readFileSync(path, 'utf-8'))
+    head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf-8' }).trim()
+    // FAIL-OPEN-INTENT: explicit failure returned; the landing caller refuses on ok:false.
+  } catch (err) {
+    return { ok: false, reason: `CI receipt unavailable at ${path}: ${err.message}` }
+  }
+  if (receipt?.sha !== head)
+    return { ok: false, reason: `CI receipt SHA does not match HEAD ${head}` }
+  if (pr !== undefined && receipt.pr !== Number(pr)) {
+    return { ok: false, reason: `CI receipt belongs to PR ${receipt.pr}, not ${pr}` }
+  }
+  if (!isCompleteCiReceipt(receipt)) {
+    return { ok: false, reason: 'CI receipt is not a successful, complete receipt' }
+  }
+  return { ok: true }
+}
+
 // ── CLI: `node scripts/lib/gate-evidence.mjs verify [flags]` ────────────────
 // Exit 0 + a one-line summary on stdout when the evidence binds; exit 1 + the
 // reason on stderr otherwise. `.githooks/pre-push` consumes this.

@@ -94,38 +94,35 @@ describe('planReviewRound (#2797)', () => {
 
   it('does not plan a next round when round 1 has only LOW findings', () => {
     expect(
-      planReviewRound(
-        { rounds: 1, lastReviewedSha: SHA_A },
-        2,
-        SHA_B,
-        false,
-        envelope(SHA_A, ['low']),
-      ),
+      planReviewRound({ rounds: 1, lastReviewedSha: SHA_A }, 2, SHA_B, false, {
+        envelope: envelope(SHA_A, ['low']),
+      }),
     ).toBeNull()
   })
 
   it('plans round 2 when the frozen envelope carries a MED finding', () => {
     expect(
-      planReviewRound(
-        { rounds: 1, lastReviewedSha: SHA_A },
-        2,
-        SHA_B,
-        false,
-        envelope(SHA_A, ['med']),
-      ),
+      planReviewRound({ rounds: 1, lastReviewedSha: SHA_A }, 2, SHA_B, false, {
+        envelope: envelope(SHA_A, ['med']),
+      }),
     ).toMatchObject({ rounds: 2, head: SHA_B })
   })
 
   it('does not plan round 3 when round 2 has only LOW findings', () => {
     expect(
-      planReviewRound(
-        { rounds: 2, lastReviewedSha: SHA_B },
-        2,
-        SHA_C,
-        false,
-        envelope(SHA_B, ['low']),
-      ),
+      planReviewRound({ rounds: 2, lastReviewedSha: SHA_B }, 2, SHA_C, false, {
+        envelope: envelope(SHA_B, ['low']),
+      }),
     ).toBeNull()
+  })
+
+  it('#2850 D6: plans round 2 after a PASS/LOW round when the source changed since it', () => {
+    expect(
+      planReviewRound({ rounds: 1, lastReviewedSha: SHA_A }, 2, SHA_B, false, {
+        envelope: envelope(SHA_A, ['low']),
+        sourceChanged: true,
+      }),
+    ).toMatchObject({ rounds: 2, base: SHA_A, head: SHA_B })
   })
 
   it('never plans above the cap without force, but preserves the explicit force escape hatch', () => {
@@ -281,9 +278,12 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     expect(log()).toContain(`review → round 1 at ${SHA_A.slice(0, 7)}`)
   })
 
-  it('completes a changed round with only LOW reviewer findings without opening another round', () => {
-    ship({ advance: true, headSha: SHA_A })
-    ship({ reviewRound: true, headSha: SHA_A })
+  it('#2850 D6: an evidence-only commit keeps a PASS round; a source commit re-reviews', () => {
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: dir, encoding: 'utf-8' }).trim()
+    const reviewed = git('rev-parse', 'HEAD')
+    ship({ advance: true, headSha: reviewed })
+    ship({ reviewRound: true, headSha: reviewed })
     const evidenceDir = join(dir, '.arbiter', 'evidence', 'agent-returns', '_100')
     mkdirSync(evidenceDir, { recursive: true })
     writeFileSync(
@@ -294,26 +294,29 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
         role: 'reviewer',
         taskId: '#100',
         branch: 'task/#100-review',
-        sha: SHA_A,
+        sha: reviewed,
         ts: '2026-09-20T00:00:00.000Z',
-        verdict: 'WARN',
-        confidence: 0.8,
-        findings: [
-          {
-            id: 'review-low-1',
-            severity: 'low',
-            kind: 'behavioral',
-            claim: 'The wording could be clearer.',
-            citations: [],
-          },
-        ],
+        verdict: 'PASS',
+        confidence: 1,
+        findings: [],
       }),
     )
+    mkdirSync(join(dir, '.agents'), { recursive: true })
+    writeFileSync(join(dir, '.agents', 'handoff.md'), '# evidence only\n')
+    git('add', '.agents/handoff.md')
+    git('commit', '-q', '-m', 'chore: record handoff')
+    const evidenceOnly = ship({ reviewRound: true, headSha: git('rev-parse', 'HEAD') })
+    expect(evidenceOnly.reviewDispatched).toBe(false)
+    expect(buildShipStepLines(evidenceOnly).join('\n')).toMatch(/review round: not opened/)
+    expect(review()).toEqual({ rounds: 1, lastReviewedSha: reviewed })
 
-    const result = ship({ reviewRound: true, headSha: SHA_B })
-
-    expect(result.reviewDispatched).toBe(false)
-    expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
+    writeFileSync(join(dir, 'review.test.ts'), 'throw new Error("RED") // fix after review\n')
+    git('add', 'review.test.ts')
+    git('commit', '-q', '-m', 'fix: address review')
+    const fixed = git('rev-parse', 'HEAD')
+    const rereview = ship({ reviewRound: true, headSha: fixed })
+    expect(rereview.reviewDispatched).toBe(true)
+    expect(review()).toEqual({ rounds: 2, lastReviewedSha: fixed })
   })
 
   it('AC-2400.1: --review-round records the next round and re-pins HEAD', () => {

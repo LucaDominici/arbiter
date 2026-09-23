@@ -1333,18 +1333,44 @@ function prepareLifecycleReviewRound(
     }
   }
   if (head !== null && previous.rounds > 0 && previous.lastReviewedSha === head) return null
-  const planned = planReviewRound(
-    previous,
-    maxRounds,
-    head,
-    opts.forceReview === true,
-    latestReviewerEnvelope,
-  )
+  const planned = planReviewRound(previous, maxRounds, head, opts.forceReview === true, {
+    ...(latestReviewerEnvelope !== undefined ? { envelope: latestReviewerEnvelope } : {}),
+    sourceChanged: reviewedSourceChanged(dir, previous.lastReviewedSha),
+  })
   if (planned === null) return null
   if ('allowed' in planned) {
     throw new UserFacingError(t('errors.E_REVIEW_ROUNDS_EXHAUSTED', { detail: planned.detail }))
   }
   return planned
+}
+
+/**
+ * #2850 — the content binding review completion enforces (scripts/lib/evidence-binding.mjs):
+ * evidence directories are not source. An unreadable comparison counts as changed, so review
+ * is re-run rather than a stale verdict reused.
+ */
+function reviewedSourceChanged(dir: string, reviewedSha: string | null): boolean {
+  if (reviewedSha === null) return false
+  try {
+    runCli(
+      'git',
+      [
+        'diff',
+        '--quiet',
+        reviewedSha,
+        'HEAD',
+        '--',
+        '.',
+        ':(exclude).arbiter',
+        ':(exclude).agents',
+      ],
+      { cwd: dir, timeoutMs: 5000, retries: 0 },
+    )
+    return false
+    // FAIL-OPEN-INTENT: exit 1 (changed) or any git error means the reviewed source cannot be proven current; the caller opens a new round instead of reusing the verdict.
+  } catch {
+    return true
+  }
 }
 
 function incompleteReviewRetryHead(

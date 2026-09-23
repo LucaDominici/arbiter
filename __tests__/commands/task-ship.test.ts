@@ -481,6 +481,30 @@ describe('ship complete next commands (#2753)', () => {
     )
   })
 
+  it('#2850 D2: plan names the anchored plan path, never a guessed default', () => {
+    const shipProfile = profile()
+    const plan = '.agents/plan/runs/2753-slice/PLAN.md'
+    const step = shipStepFor('plan', 'Standard', shipProfile, '#2753', { chainIds: [], plan })
+    expect(step.command).toBe(`arbiter lifecycle start --id '#2753' --tier Standard --plan ${plan}`)
+
+    const unknown = shipStepFor('plan', 'Standard', shipProfile, '#2753', {
+      chainIds: [],
+      plan: 'unknown',
+    })
+    expect(unknown.command).toBe(
+      "arbiter lifecycle start --id '#2753' --tier Standard --plan .claude/plans/task-2753.md",
+    )
+  })
+
+  it('#2850 D1: plan surfaces the issue-AC admission obligation before the writer', () => {
+    const plan = '.agents/plan/runs/2753-slice/PLAN.md'
+    const step = shipStepFor('plan', 'Standard', profile(), '#2753', { chainIds: [], plan })
+    expect(step.action).toContain('issue body')
+    expect(step.action).toContain(
+      `node scripts/check-acceptance.mjs --plan ${plan} --admit-issue 2753`,
+    )
+  })
+
   it('AC-3 red names the complete task-bound record-red command', () => {
     expect(outputFor('red')).toContain(
       "Command: arbiter lifecycle record-red --task '#2753' --test-path <test-path>",
@@ -815,9 +839,8 @@ describe('ship steps keep expensive gates out of pre-review preparation', () => 
   it('plan action is a single-issue constant across every profile (#2329/#2333)', () => {
     for (const defaultGateLevel of ['L1', 'L2'] as const) {
       const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
-      expect(step.action).toBe(
-        'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
-      )
+      expect(step.action).toMatch(/^Write the plan with scope and acceptance criteria;/)
+      expect(step.action).toContain('--admit-issue NNN')
     }
   })
 })

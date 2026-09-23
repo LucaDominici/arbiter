@@ -175,18 +175,24 @@ export function makeRunner(runFn) {
 const defaultRun = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: 'utf-8', ...opts }).trim()
 
+/**
+ * #2850 D4: an unresolvable origin/main — shallow CI clone, unfetched remote or no origin at all —
+ * means the branch range was never verified: NO DATA (exit 2), never a vacuous pass. Only the
+ * explicit ARBITER_SKIP_TDD=1 escape hatch skips.
+ */
 function mergeBaseOrSkip(run, envSkip) {
   try {
-    return run('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: repoRoot })
+    return { mergeBase: run('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: repoRoot }) }
   } catch {
     if (envSkip) {
       process.stdout.write('check-tdd-evidence: ARBITER_SKIP_TDD=1, skipping (no origin/main)\n')
-    } else {
-      process.stdout.write(
-        'check-tdd-evidence: cannot determine merge-base (no origin/main), skipping\n',
-      )
+      return { exitCode: 0 }
     }
-    return null
+    process.stderr.write(
+      'check-tdd-evidence: NO DATA — origin/main is not resolvable; ' +
+        'fetch full history (actions/checkout fetch-depth: 0) before verifying TDD evidence\n',
+    )
+    return { exitCode: 2 }
   }
 }
 
@@ -324,8 +330,9 @@ function subjectFloorFails(run, mergeBase, floorIds) {
 }
 
 function collectBranchContext(run, envSkip) {
-  const mergeBase = mergeBaseOrSkip(run, envSkip)
-  if (mergeBase === null) return { exitCode: 0 }
+  const base = mergeBaseOrSkip(run, envSkip)
+  if (base.exitCode !== undefined) return { exitCode: base.exitCode }
+  const { mergeBase } = base
   const subjectLog = subjectLogOrPass(run, mergeBase)
   if (subjectLog === null) return { exitCode: 2 }
   if (subjectLog.length === 0) {

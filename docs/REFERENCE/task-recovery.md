@@ -107,6 +107,11 @@ or visual asset under `docs/` or `wiki/`. Any other path is a non-documentation 
 satisfy the branch TDD-evidence floor; this is intentionally not inferred from whether a path
 contains `src/`.
 
+The self and emitted TDD-evidence gates agree with `arbiter check tdd` (#2850): a rebased RED is
+re-resolved through its recorded `test_blob_sha`, and a checkout whose `origin/main` cannot be
+resolved (a shallow CI clone, an unfetched remote, or no `origin` remote at all) is NO DATA, exit 2,
+never a vacuous pass. CI jobs that run L2 need `actions/checkout` with `fetch-depth: 0`.
+
 The positional `<id>` accepts both `1280` and `#1280`: it is normalized to the canonical `#NNN`
 form once at parse (#1280), so the persisted task id always matches the TDD-evidence schema
 (`^#\d+$`) and its identity check. Non-numeric ids are rejected with an error.
@@ -247,7 +252,18 @@ canonical fit, while a FAIL or HIGH/CRITICAL finding retains the reviewer envelo
 does not publish an all-PASS fit.
 
 Entering red validates the anchored Markdown plan when the acceptance-anchor profile is enabled.
-A missing checker or invalid anchor prevents the transition without changing the phase.
+A missing checker or invalid anchor prevents the transition without changing the phase. Admission
+also requires the issue body to carry every criterion as `AC-N:` frozen verbatim in the plan; the
+plan step prints the exact `check-acceptance.mjs --plan <anchored plan> --admit-issue <n>` command
+so that obligation is met before the writer starts. A plan that promises `node scripts/check-*.mjs`
+for a checker that exists but that no tracked non-document file references is refused at admission
+and by the derived-contract check: wire the checker into a gate or test, or drop it from the plan.
+
+Review rounds bind to source content (#2850). After a round with no blocking findings, a commit that
+changes only `.arbiter/` or `.agents/` opens no new round (the step says so explicitly), while a
+source change opens the next round within the configured cap, so review completion never waits for
+a round that cannot be opened. Verification binds the active task's ac-fit exactly as landing does,
+and a fit recorded from a final reviewer or verifier envelope is accepted by both.
 Entering verification validates primary and chained TDD evidence: each receipt must be committed
 in HEAD, unchanged in the index/worktree, and produced after the merge-base with origin/main.
 Missing origin/main is unverifiable provenance and prevents verification. Commit genuine RED
@@ -258,7 +274,9 @@ active (L2 otherwise). When GitHub branch protection declares required checks, `
 records those checks for the exact PR HEAD and completion reuses that receipt after the PR merges;
 it does not repeat the same full gate locally. Repositories without required checks retain the local
 `done-evidence.mjs` path. Close and done-evidence reuse their receipt while the candidate is
-unchanged.
+unchanged. `pr-merge-watch.mjs` accepts the same exact-HEAD CI receipt, bound to the PR it lands,
+as landing evidence; a local L2 marker or done receipt remains an alternative, never an additional
+requirement.
 The close and complete transitions validate `.arbiter/gate-pass.json` before writing
 the phase (L1 and L2 respectively). The marker must be valid for the current HEAD and branch and have
 `tree_was_clean_at_run_time: true`; missing, corrupt, stale, or dirty-tree markers fail closed.

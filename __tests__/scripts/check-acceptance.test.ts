@@ -546,3 +546,217 @@ describe.each(['self', 'emitted'])('#2635 acceptance input boundaries (%s)', (pr
     expect(result.status, result.stderr).toBe(2)
   })
 })
+
+// #2850 / #2756 — producer/consumer parity for the admitted ac-fit, the verification-time
+// binding, and plan-listed checkers that nothing executable runs (D5, D7).
+describe('check-acceptance ship parity (#2850)', () => {
+  const branch = 'task/#42-fit'
+
+  function git(...args: string[]): string {
+    return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+  }
+
+  function seedBoundFit(role: 'reviewer' | 'verifier', phase = 'verification'): void {
+    writeState(phase)
+    writeFileSync(
+      join(root, '.claude', '.task', 'status.json'),
+      JSON.stringify({ taskId: '#42', phase, plan: 'plan.md', branch }),
+    )
+    mkdirSync(join(root, 'src'), { recursive: true })
+    writeFileSync(join(root, 'src', 'subject.ts'), 'export const subject = true\n')
+    execFileSync('git', ['init', '-b', branch], { cwd: root, stdio: 'ignore' })
+    git('config', 'user.email', 'fixture.invalid')
+    git('config', 'user.name', 'Fixture')
+    git('add', 'plan.md', 'src/subject.ts')
+    git('commit', '-m', 'source')
+    const sha = git('rev-parse', 'HEAD')
+    const acceptanceFit = {
+      schema: 'arbiter-ac-fit-v1',
+      taskId: '#42',
+      criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/subject.ts', line: 1 }] }],
+    }
+    const envelope = JSON.stringify({
+      schema: 'arbiter-agent-return-v1',
+      agent: 'codex-reviewer',
+      role,
+      taskId: '#42',
+      branch,
+      sha,
+      verdict: 'PASS',
+      confidence: 1,
+      findings: [],
+      acceptanceFit,
+    })
+    const envelopePath = '.arbiter/evidence/agent-returns/_42/codex-reviewer-0.json'
+    mkdirSync(join(root, '.arbiter', 'evidence', 'agent-returns', '_42'), { recursive: true })
+    mkdirSync(join(root, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
+    writeFileSync(join(root, envelopePath), envelope)
+    writeFileSync(
+      join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'),
+      JSON.stringify({
+        ...acceptanceFit,
+        branch,
+        sha,
+        planHash: computeAcHash(parsePlanAnchor(GOOD_PLAN)!.criteria),
+        sourceEnvelope: {
+          path: envelopePath,
+          sha256: createHash('sha256').update(envelope).digest('hex'),
+        },
+      }),
+    )
+  }
+
+  it('D5: accepts the admitted fit recorded from a native final-reviewer envelope', () => {
+    seedBoundFit('reviewer')
+    const result = run()
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+  })
+
+  it('D5: still rejects a source envelope with a role that cannot carry acceptance fit', () => {
+    seedBoundFit('reviewer')
+    const envelopePath = join(root, '.arbiter/evidence/agent-returns/_42/codex-reviewer-0.json')
+    const tampered = readFileSync(envelopePath, 'utf8').replace('"reviewer"', '"scanner"')
+    writeFileSync(envelopePath, tampered)
+    const fitPath = join(root, '.arbiter/evidence/ac-fit/42.json')
+    const fit = JSON.parse(readFileSync(fitPath, 'utf8')) as Record<string, unknown>
+    fit['sourceEnvelope'] = {
+      path: '.arbiter/evidence/agent-returns/_42/codex-reviewer-0.json',
+      sha256: createHash('sha256').update(tampered).digest('hex'),
+    }
+    writeFileSync(fitPath, JSON.stringify(fit))
+    expect(run().status).toBe(1)
+  })
+
+  it('binds the active task fit in --plan --ac-fit mode exactly as landing does', () => {
+    seedBoundFit('reviewer', 'refactor')
+    const args = ['--plan', 'plan.md', '--ac-fit', '.arbiter/evidence/ac-fit/42.json']
+    expect(run({}, args).status).toBe(0)
+    writeFileSync(join(root, 'src', 'subject.ts'), 'export const subject = false\n')
+    git('add', 'src/subject.ts')
+    git('commit', '-m', 'source changed after review')
+    const stale = run({}, args)
+    expect(stale.status).toBe(1)
+    expect(stale.stderr).toMatch(/source changed/i)
+  })
+
+  describe('D7: plan-listed checkers must be executed by something', () => {
+    const plan = (command: string) =>
+      [
+        '## Acceptance Criteria',
+        '- [ ] AC-42.1: preserves the requested outcome',
+        '## Non-Goals',
+        '- x',
+        '## Verification',
+        `- \`${command}\``,
+      ].join('\n')
+
+    function admit(planBody: string) {
+      writeFileSync(join(root, 'wave.md'), planBody)
+      execFileSync('git', ['init', '-b', branch], { cwd: root, stdio: 'ignore' })
+      git('add', '-A')
+      git('-c', 'user.email=fixture.invalid', '-c', 'user.name=Fixture', 'commit', '-m', 'seed')
+      const bin = installGh({
+        number: 42,
+        url: 'https://example.invalid/issues/42',
+        body: '## Acceptance Criteria\n- preserves the requested outcome',
+        updatedAt: '2026-09-20T00:00:00Z',
+      })
+      return run({ PATH: `${bin}:${process.env.PATH ?? ''}` }, [
+        '--plan',
+        'wave.md',
+        '--admit-issue',
+        '42',
+      ])
+    }
+
+    // A check-all.mjs that speaks the canonical gate contract and runs `commands`.
+    function gateAuthority(commands: string[], output?: string) {
+      mkdirSync(join(root, 'scripts'), { recursive: true })
+      const contract = {
+        schema: 'arbiter-gate-contract-v1',
+        authority: [{ path: 'scripts/check-all.mjs', sha256: 'fixture' }],
+        gates: commands.map((command, i) => ({ name: `g${i}`, command, condition: 'always' })),
+        external: [],
+      }
+      writeFileSync(
+        join(root, 'scripts', 'check-all.mjs'),
+        [
+          '// @arbiter-gate-contract arbiter-gate-contract-v1',
+          `process.stdout.write(${JSON.stringify(output ?? JSON.stringify(contract))})`,
+        ].join('\n'),
+      )
+    }
+
+    function checker(name: string) {
+      mkdirSync(join(root, 'scripts'), { recursive: true })
+      writeFileSync(join(root, 'scripts', `check-${name}.mjs`), 'process.exit(0)\n')
+    }
+
+    it('rejects admission when an existing checker is referenced only by prose', () => {
+      checker('orphan')
+      gateAuthority(['node scripts/check-other.mjs'])
+      writeFileSync(join(root, 'NOTES.md'), 'run node scripts/check-orphan.mjs\n')
+      const result = admit(plan('node scripts/check-orphan.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/scripts\/check-orphan\.mjs.*no gate/i)
+    })
+
+    it('rejects a checker named only by an inert source comment or string', () => {
+      checker('orphan')
+      gateAuthority(['node scripts/check-other.mjs'])
+      mkdirSync(join(root, 'src'), { recursive: true })
+      writeFileSync(join(root, 'src', 'notes.js'), '// TODO: node scripts/check-orphan.mjs\n')
+      writeFileSync(join(root, 'config.json'), '{"later": "node scripts/check-orphan.mjs"}\n')
+      const result = admit(plan('node scripts/check-orphan.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/scripts\/check-orphan\.mjs.*no gate/i)
+    })
+
+    it.each([
+      'node scripts/check-wired.mjs --strict',
+      'node ./scripts/check-wired.mjs',
+      'CI=1 FOO="a b" node scripts/check-wired.mjs',
+      'npm ci && node scripts/check-wired.mjs',
+    ])('admits a checker that the gate command %j runs', (command) => {
+      checker('wired')
+      gateAuthority([command])
+      expect(admit(plan('node scripts/check-wired.mjs')).status).toBe(0)
+    })
+
+    it.each([
+      'echo node scripts/check-wired.mjs',
+      "printf 'node scripts/check-wired.mjs'",
+      '# node scripts/check-wired.mjs',
+      'echo "x; node scripts/check-wired.mjs"',
+      'true # ; node scripts/check-wired.mjs',
+      'true || node scripts/check-wired.mjs',
+      "cat <<'EOF'\nnode scripts/check-wired.mjs\nEOF",
+      'node scripts/check-wired.mjs | cat',
+      'node scripts/check-wired.mjs &',
+      'node scripts/check-wired.mjs || true',
+      'node scripts/check-wired.mjs ; true',
+    ])('rejects a checker the gate command %j only mentions', (command) => {
+      checker('wired')
+      gateAuthority([command])
+      const result = admit(plan('node scripts/check-wired.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/scripts\/check-wired\.mjs.*no gate/i)
+    })
+
+    it('fails closed when the gate contract is malformed', () => {
+      checker('wired')
+      gateAuthority(
+        [],
+        '{"schema":"arbiter-gate-contract-v1","note":"node scripts/check-wired.mjs"}',
+      )
+      const result = admit(plan('node scripts/check-wired.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/NO DATA.*check-wired\.mjs.*incomplete gate contract/i)
+    })
+
+    it('does not demand wiring for a checker the plan is about to create', () => {
+      expect(admit(plan('node scripts/check-new.mjs')).status).toBe(0)
+    })
+  })
+})

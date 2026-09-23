@@ -7,9 +7,8 @@
 // shipped to governed targets. Self-contained: it inlines the schema + git checks so a
 // target needs no local arbiter install. Scoped to commits since
 // `git merge-base origin/main HEAD` (branch-relative). Rejects the ARBITER-SKIP-TDD: 1
-// commit trailer (forbidden at L2+). Self-SKIPs (exit 0) when origin/main is
-// unavailable (local-only branch) and for a docs-only branch without a task-ID commit
-// (vacuous pass).
+// commit trailer (forbidden at L2+). Self-SKIPs (exit 0) for a docs-only branch without a
+// task-ID commit (vacuous pass).
 //
 // A branch with no task id in any commit SUBJECT that changes non-documentation files must carry ONE
 // verified evidence among the tasks its commit BODIES cite (`Refs #NNN`) — evidence is
@@ -23,10 +22,13 @@
 //   2. evidence task_id matches the commit's task id
 //   3. a recognised test-runner FAILURE signature appears in test_run_log (proves RED)
 //   4. test_commit_sha (40 hex) is REACHABLE from HEAD — not merely present as an object,
-//      which a pre-rebase commit behind a stale branch would be (#2116). A rebase must
-//      fail here loudly; re-record the evidence. (Re-resolving a rewritten sha from the
-//      RED test's blob is arbiter's own `check tdd`, not this self-contained gate.)
+//      which a pre-rebase commit behind a stale branch would be (#2116). A rebased RED is
+//      re-resolved through its rebase-stable test_blob_sha exactly as arbiter's own
+//      `check tdd` does (#2850), and a shallow checkout is NO DATA, never a verdict.
 //   5. test_path exists in that commit
+//
+// A checkout whose origin/main cannot be resolved — including one with no origin remote —
+// is NO DATA (exit 2), never a vacuous pass (#2850).
 //
 // Exit codes (INV-53): 0 = all verified / vacuous · 1 = missing/inconsistent evidence
 // or a forbidden skip trailer · 2 = unexpected error.
@@ -159,6 +161,48 @@ function shaExists(sha) {
     return false
   }
 }
+function isShallow() {
+  try {
+    return git(['rev-parse', '--is-shallow-repository']) === 'true'
+    // FAIL-OPEN-INTENT: an unreadable depth only skips the NO DATA shortcut; the blob search below still fails closed.
+  } catch {
+    return false
+  }
+}
+function blobInCommit(sha, path) {
+  try {
+    return git(['rev-parse', `${sha}:${path}`])
+    // FAIL-OPEN-INTENT: an absent path is "no match", which leaves the evidence unresolved (FAIL).
+  } catch {
+    return null
+  }
+}
+/**
+ * The commit the evidence is about, resolved like arbiter's native `check tdd` (#2116, #2850):
+ * the pinned sha when reachable; otherwise, unless history is shallow, the OLDEST commit on the
+ * test path whose blob equals the recorded test_blob_sha (the rebased RED itself).
+ */
+function resolveEvidenceSha(ev) {
+  if (shaExists(ev.test_commit_sha)) return { sha: ev.test_commit_sha }
+  if (isShallow()) {
+    return {
+      noData:
+        'git history is shallow; fetch full history (actions/checkout fetch-depth: 0) before verifying TDD evidence',
+    }
+  }
+  if (typeof ev.test_blob_sha !== 'string') return null
+  let touching = ''
+  try {
+    touching = git(['log', '--format=%H', '--max-count=200', '--', ev.test_path])
+    // FAIL-OPEN-INTENT: unreadable history resolves nothing, so the task FAILs verification.
+  } catch {
+    return null
+  }
+  for (const sha of touching.split('\n').reverse()) {
+    if (sha.length === 40 && blobInCommit(sha, ev.test_path) === ev.test_blob_sha) return { sha }
+  }
+  return null
+}
 function pathInCommit(sha, path) {
   try {
     return git(['ls-tree', '--name-only', sha, path]).length > 0
@@ -183,10 +227,12 @@ function verifyTask(taskId) {
     return { ok: false, reason: `task_id mismatch: evidence has "${ev.task_id}"` }
   if (!hasFailureSignature(ev.test_run_log))
     return { ok: false, reason: 'no recognised failure signature in test_run_log (no RED proof)' }
-  if (!shaExists(ev.test_commit_sha))
+  const resolved = resolveEvidenceSha(ev)
+  if (resolved?.noData) throw new Error(`NO DATA — ${resolved.noData}`)
+  if (resolved === null)
     return { ok: false, reason: `test_commit_sha ${ev.test_commit_sha} not in git history` }
-  if (!pathInCommit(ev.test_commit_sha, ev.test_path))
-    return { ok: false, reason: `test_path "${ev.test_path}" not in commit ${ev.test_commit_sha}` }
+  if (!pathInCommit(resolved.sha, ev.test_path))
+    return { ok: false, reason: `test_path "${ev.test_path}" not in commit ${resolved.sha}` }
   return { ok: true }
 }
 
@@ -251,8 +297,11 @@ function collectBranchContext() {
   try {
     mergeBase = git(['merge-base', 'origin/main', 'HEAD'])
   } catch {
-    process.stdout.write('check-tdd-evidence: no origin/main (local-only branch), skipping\n')
-    process.exit(0)
+    process.stderr.write(
+      'check-tdd-evidence: NO DATA — origin/main is not resolvable; ' +
+        'fetch full history (actions/checkout fetch-depth: 0) before verifying TDD evidence\n',
+    )
+    process.exit(2)
   }
 
   let subjectLog

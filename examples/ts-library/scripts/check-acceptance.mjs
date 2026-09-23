@@ -132,12 +132,10 @@ function runPlanMode(root, args, planIdx) {
   const result = checkPlanAnchor(plan.body)
   for (const e of result.errors) fail(e)
   if (!result.ok) return 1
-  const derivedExit = checkPlanDerivedGates(
-    root,
-    plan.body,
-    args.includes('--check-derived-current'),
-  )
+  const checkCurrent = args.includes('--check-derived-current')
+  const derivedExit = checkPlanDerivedGates(root, plan.body, checkCurrent)
   if (derivedExit !== 0) return derivedExit
+  if (checkCurrent && reportUnwiredPlanCheckers(root, plan.body) !== 0) return 1
   const fitExit = checkExplicitFitArg(root, args, result.criteriaIds)
   if (fitExit !== 0) return fitExit
   console.log('OK check-acceptance (--plan mode)')
@@ -216,7 +214,10 @@ function runAdmissionMode(root, args, planIdx, admitIdx) {
     return 2
   }
   const anchor = parsePlanAnchor(body)
-  const errors = validateIssueAcceptanceCoverage(issueNumber, issue.body, anchor?.criteria ?? [])
+  const errors = [
+    ...validateIssueAcceptanceCoverage(issueNumber, issue.body, anchor?.criteria ?? []),
+    ...unwiredPlanCheckers(root, body),
+  ]
   for (const error of errors) fail(error)
   if (errors.length > 0) return 1
   const derivedExit = checkPlanDerivedGates(root, body)
@@ -269,12 +270,100 @@ function checkExplicitFitArg(root, args, criteriaIds) {
     fail(`--ac-fit artifact not found: ${fitArg}`)
     return 2
   }
-  const errors = validateFitFile(fitAbs, criteriaIds, true, undefined, root)
+  const errors = explicitFitErrors(root, fitAbs, criteriaIds)
   if (errors.length > 0) {
     for (const e of errors) fail(e)
     return 1
   }
   return 0
+}
+
+// #2850: when the named artifact IS the active task's fit (the verification transition), bind it
+// exactly as gate mode does at landing — task id, branch, source content, plan hash, source
+// envelope. A wave-integrate fit with no active task keeps the plan-only contract.
+function activeTaskFitState(root, fitAbs) {
+  if (!existsSync(join(root, '.claude', '.task', 'status.json'))) return null
+  const loaded = loadTaskState(root)
+  const state = loaded.state
+  if (state === undefined || typeof state.taskId !== 'string' || typeof state.plan !== 'string')
+    return null
+  const taskFit = join(
+    root,
+    '.arbiter',
+    'evidence',
+    'ac-fit',
+    `${sanitizeTaskId(state.taskId)}.json`,
+  )
+  return resolve(fitAbs) === resolve(taskFit) ? state : null
+}
+
+function explicitFitErrors(root, fitAbs, criteriaIds) {
+  const state = activeTaskFitState(root, fitAbs)
+  const fit = readValidatedFit(fitAbs, criteriaIds, true, state?.taskId, root)
+  if (state === null || fit.errors.length > 0 || fit.json === undefined) return fit.errors
+  return boundFitErrors(root, state, state.plan, fit.json)
+}
+
+// #2850 D7: a plan that promises `node scripts/check-*.mjs` makes a promise only a gate can keep.
+// A checker that exists but that no command of the canonical gate contract runs is prose, however
+// often source comments or strings name it. Checkers the plan is about to create are exempt.
+const PLAN_CHECKER_RE = /\bnode\s+(?:\.\/)?(scripts\/check-[A-Za-z0-9_-]+\.mjs)\b/g
+
+function checkerPaths(text) {
+  return new Set([...text.matchAll(PLAN_CHECKER_RE)].map((m) => m[1]))
+}
+
+// A gate command runs a checker only as a simple foreground command `node [./]scripts/check-*.mjs`,
+// optionally after env assignments, alone or in an `&&` chain — the only operator under which the
+// checker's failure fails the gate. Quoted text and comments are inert; any other unquoted control
+// operator (`|`, `||`, `;`, `&`) or a multiline command can mask the checker's exit, so the whole
+// command proves nothing.
+// ponytail: no shell parser — `sh -c '…'`, `$(…)`, subshells and redirections like `2>&1` are not
+// recognised (fail red, not green).
+const RUN_CHECKER_RE =
+  /^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*node\s+(?:\.\/)?(scripts\/check-[A-Za-z0-9_-]+\.mjs)(?:\s|$)/
+
+function executedCheckerPaths(commands) {
+  const paths = new Set()
+  for (const command of commands) {
+    if (/[\r\n]/.test(command)) continue
+    const code = command.replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, "''").replace(/(^|\s)#.*$/, '$1')
+    const parts = code.split('&&')
+    if (parts.some((part) => /[|;&]/.test(part))) continue
+    for (const part of parts) {
+      const match = RUN_CHECKER_RE.exec(part.trim())
+      if (match) paths.add(match[1])
+    }
+  }
+  return paths
+}
+
+export function unwiredPlanCheckers(root, planBody) {
+  const paths = [...checkerPaths(planBody)].filter((path) => existsSync(join(root, path)))
+  if (paths.length === 0) return []
+  const contract = inspectGateContract(root)
+  const unresolved = unresolvedContractReasons(contract)
+  if (unresolved.length > 0) {
+    return paths.map(
+      (path) =>
+        `NO DATA: cannot verify that a gate runs \`node ${path}\` (${unresolved.join('; ')})`,
+    )
+  }
+  const run = executedCheckerPaths(
+    [...contract.gates, ...contract.external].map((entry) => entry.command),
+  )
+  return paths
+    .filter((path) => !run.has(path))
+    .map(
+      (path) =>
+        `plan runs \`node ${path}\` but no gate in the contract runs it; wire it into scripts/check-all.mjs, or drop it from the plan`,
+    )
+}
+
+function reportUnwiredPlanCheckers(root, planBody) {
+  const errors = unwiredPlanCheckers(root, planBody)
+  for (const error of errors) fail(error)
+  return errors.length === 0 ? 0 : 1
 }
 
 // Read record-shaped state from status.json; return { exit } when the gate should
@@ -383,13 +472,17 @@ function fitSubjectErrors(root, state, json, identity) {
   return errors
 }
 
+// #2756: the roles record-agent-return admits as an acceptance-fit source (ac-fit and
+// reviewer-panel modes). Producer and consumer must agree, or Ship's own review fails landing.
+const FIT_SOURCE_ROLES = new Set(['reviewer', 'verifier'])
+
 function sourceEnvelopeMismatch(envelope, state, json) {
   const expected = { schema: json.schema, taskId: json.taskId, criteria: json.criteria }
   return [
     envelope.taskId !== state.taskId,
     envelope.branch !== state.branch,
     envelope.sha !== json.sha,
-    envelope.role !== 'verifier',
+    !FIT_SOURCE_ROLES.has(envelope.role),
     JSON.stringify(envelope.acceptanceFit) !== JSON.stringify(expected),
   ].some(Boolean)
 }
@@ -411,12 +504,12 @@ function fitSourceErrors(root, state, json) {
     const envelope = JSON.parse(raw)
     const errors = enforceAcFitCitations(envelope.acceptanceFit, root, json.sha, source.path)
     if (sourceEnvelopeMismatch(envelope, state, json)) {
-      errors.push('ac-fit: source verifier envelope does not match the admitted fit')
+      errors.push('ac-fit: source envelope does not match the admitted fit')
     }
     return errors
     // FAIL-OPEN-INTENT: unreadable source evidence is accumulated as a blocking fit error.
   } catch {
-    return ['ac-fit: source verifier envelope is unreadable']
+    return ['ac-fit: source envelope is unreadable']
   }
 }
 
@@ -510,10 +603,6 @@ function readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, 
   if (root && errors.length === 0)
     errors.push(...enforceAcFitCitations(json, root, json.sha ?? 'HEAD', absPath))
   return { json, errors }
-}
-
-function validateFitFile(absPath, criteriaIds, requireAllPass, expectedTaskId, root) {
-  return readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, root).errors
 }
 
 if (isMainModule(import.meta.url)) {

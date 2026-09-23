@@ -7,11 +7,12 @@
 // commits → vacuous pass (exit 0).
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
+import { resolveEvidenceCommit, type EvidenceCommitRef } from '../../src/evidence/git-checks.js'
 import { makeConfig, renderCheckAll as renderCheckAllShared } from '../helpers.js'
 
 function render(tpl: string, overrides: Record<string, unknown> = {}): string {
@@ -99,7 +100,13 @@ function runScenario(opts: {
    * reachable but was not produced on this branch — the shape of an already-merged task.
    */
   evidenceOnMain?: boolean
-  evidence?: (featureSha: string, orphanSha: string) => string | null
+  evidence?: (featureSha: string, orphanSha: string, g: (args: string[]) => string) => string | null
+  /** #2850: an `origin` remote exists but its main was never fetched (shallow CI checkout). */
+  remoteWithoutMain?: boolean
+  /** #2850: a purely local repository — no `origin` remote and no origin/main. */
+  noRemote?: boolean
+  /** #2850: observe the staged repository (e.g. with the native resolver) before cleanup. */
+  inspect?: (repo: string) => void
 }): number {
   const scriptDir = mkdtempSync(join(tmpdir(), 'tdd-s-'))
   const repo = mkdtempSync(join(tmpdir(), 'tdd-r-'))
@@ -128,7 +135,8 @@ function runScenario(opts: {
       g(['add', '.arbiter'])
       g(['commit', '-m', 'chore: evidence already merged to main'])
     }
-    g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
+    if (opts.remoteWithoutMain) g(['remote', 'add', 'origin', 'https://example.invalid/repo.git'])
+    else if (!opts.noRemote) g(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
 
     if (opts.taskCommit) {
       const taskDir = opts.evidenceOnlyTaskCommit
@@ -188,7 +196,7 @@ function runScenario(opts: {
     const featureSha = g(['rev-parse', 'HEAD'])
 
     if (opts.evidence) {
-      const body = opts.evidence(featureSha, orphanSha)
+      const body = opts.evidence(featureSha, orphanSha, g)
       if (body !== null) {
         mkdirSync(join(repo, '.arbiter', 'evidence', 'tdd'), { recursive: true })
         writeFileSync(join(repo, '.arbiter', 'evidence', 'tdd', '#42.json'), body)
@@ -202,6 +210,7 @@ function runScenario(opts: {
     const r = spawnSync('node', [join(scriptDir, 'check-tdd-evidence.mjs'), '--dir', repo], {
       encoding: 'utf-8',
     })
+    opts.inspect?.(repo)
     return r.status ?? -1
   } finally {
     rmSync(scriptDir, { recursive: true, force: true })
@@ -289,6 +298,50 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
         evidence: (_sha, orphanSha) => validEvidence(orphanSha),
       }),
     ).toBe(1)
+  })
+
+  // #2850 D4: a rebase rewrites the RED commit but not the RED test content. The native
+  // `arbiter check tdd` heals through the recorded blob pin; the emitted gate must agree,
+  // or local proof and CI disagree about the same receipt.
+  it('#2850 D4: PASS for a rebased RED whose recorded test blob is reachable (native parity)', () => {
+    let native: unknown
+    const status = runScenario({
+      taskCommit: true,
+      orphan: true,
+      evidence: (featureSha, orphanSha, g) =>
+        validEvidence(orphanSha, {
+          test_blob_sha: g(['rev-parse', `${featureSha}:src/foo.test.ts`]),
+        }),
+      inspect: (repo) => {
+        const ev = JSON.parse(
+          readFileSync(join(repo, '.arbiter', 'evidence', 'tdd', '#42.json'), 'utf-8'),
+        ) as EvidenceCommitRef
+        native = resolveEvidenceCommit(ev, repo)
+      },
+    })
+    expect(native).toMatchObject({ healed: true })
+    expect(status).toBe(0)
+  })
+
+  it('#2850 D4: FAIL for a rebased RED whose recorded blob is not reachable', () => {
+    expect(
+      runScenario({
+        taskCommit: true,
+        orphan: true,
+        evidence: (_featureSha, orphanSha, g) =>
+          validEvidence(orphanSha, {
+            test_blob_sha: g(['rev-parse', `${orphanSha}:src/foo.test.ts`]),
+          }),
+      }),
+    ).toBe(1)
+  })
+
+  it('#2850 D4: NO DATA (exit 2) when origin exists but origin/main was not fetched', () => {
+    expect(runScenario({ taskCommit: true, remoteWithoutMain: true, evidence: () => null })).toBe(2)
+  })
+
+  it('#2850 D4: NO DATA (exit 2) for a purely local repository with no origin remote', () => {
+    expect(runScenario({ taskCommit: true, noRemote: true, evidence: () => null })).toBe(2)
   })
 
   it('vacuous PASS (exit 0) when there are no task-ID commits', () => {
