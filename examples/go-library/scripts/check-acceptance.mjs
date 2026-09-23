@@ -214,10 +214,12 @@ function runAdmissionMode(root, args, planIdx, admitIdx) {
     return 2
   }
   const anchor = parsePlanAnchor(body)
-  const errors = validateIssueAcceptanceCoverage(issueNumber, issue.body, anchor?.criteria ?? [])
+  const errors = [
+    ...validateIssueAcceptanceCoverage(issueNumber, issue.body, anchor?.criteria ?? []),
+    ...unwiredPlanCheckers(root, body),
+  ]
   for (const error of errors) fail(error)
   if (errors.length > 0) return 1
-  if (reportUnwiredPlanCheckers(root, body) !== 0) return 1
   const derivedExit = checkPlanDerivedGates(root, body)
   if (derivedExit !== 0) return derivedExit
   console.log(`OK check-acceptance (issue #${issueNumber} admitted)`)

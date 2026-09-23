@@ -587,12 +587,14 @@ export function verifyDoneEvidenceReceipt({
   return { ok: true }
 }
 
+const isNonEmptyString = (value) => typeof value === 'string' && value.length > 0
+
 function isCompleteRequiredCheck(check) {
   const started = Date.parse(check?.startedAt ?? '')
   const completed = Date.parse(check?.completedAt ?? '')
   return (
     check?.state === 'SUCCESS' &&
-    [check.name, check.workflow, check.link].every((v) => typeof v === 'string' && v.length > 0) &&
+    [check.name, check.workflow, check.link].every(isNonEmptyString) &&
     Number.isFinite(started) &&
     Number.isFinite(completed) &&
     completed >= started
@@ -600,17 +602,15 @@ function isCompleteRequiredCheck(check) {
 }
 
 function isCompleteCiReceipt(receipt) {
+  const checks = receipt?.requiredChecks
   return (
     receipt?.schema === 'arbiter-ci-pass-v2' &&
     receipt.conclusion === 'success' &&
-    typeof receipt.runUrl === 'string' &&
-    receipt.runUrl.length > 0 &&
-    typeof receipt.checkedAt === 'string' &&
-    receipt.checkedAt.length > 0 &&
+    [receipt.runUrl, receipt.checkedAt].every(isNonEmptyString) &&
     Number.isInteger(receipt.pr) &&
-    Array.isArray(receipt.requiredChecks) &&
-    receipt.requiredChecks.length > 0 &&
-    receipt.requiredChecks.every(isCompleteRequiredCheck)
+    Array.isArray(checks) &&
+    checks.length > 0 &&
+    checks.every(isCompleteRequiredCheck)
   )
 }
 

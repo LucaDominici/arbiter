@@ -178,6 +178,7 @@ const defaultRun = (cmd, args, opts = {}) =>
 function hasOriginRemote(run) {
   try {
     return run('git', ['remote', 'get-url', 'origin'], { cwd: repoRoot }).length > 0
+    // FAIL-OPEN-INTENT: `git remote get-url` fails only when no origin is configured (a purely local repository); merge-base already failed, and a repository with origin still reaches NO DATA above.
   } catch {
     return false
   }

@@ -164,6 +164,7 @@ function shaExists(sha) {
 function isShallow() {
   try {
     return git(['rev-parse', '--is-shallow-repository']) === 'true'
+    // FAIL-OPEN-INTENT: an unreadable depth only skips the NO DATA shortcut; the blob search below still fails closed.
   } catch {
     return false
   }
@@ -171,6 +172,7 @@ function isShallow() {
 function blobInCommit(sha, path) {
   try {
     return git(['rev-parse', `${sha}:${path}`])
+    // FAIL-OPEN-INTENT: an absent path is "no match", which leaves the evidence unresolved (FAIL).
   } catch {
     return null
   }
@@ -192,6 +194,7 @@ function resolveEvidenceSha(ev) {
   let touching = ''
   try {
     touching = git(['log', '--format=%H', '--max-count=200', '--', ev.test_path])
+    // FAIL-OPEN-INTENT: unreadable history resolves nothing, so the task FAILs verification.
   } catch {
     return null
   }
@@ -297,6 +300,7 @@ function collectBranchContext() {
     let origin = ''
     try {
       origin = git(['remote', 'get-url', 'origin'])
+      // FAIL-OPEN-INTENT: `git remote get-url` fails only without an origin remote (a purely local repository).
     } catch {
       origin = ''
     }
