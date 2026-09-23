@@ -360,6 +360,7 @@ const CI_COVERAGE = new Map([
   ['dead code', 'debt-gates'],
   ['coverage', 'debt-gates'],
   ['coverage ratchet (#1483)', 'debt-gates'],
+  ['complexity ratchet (preventive)', 'gate-full'],
   ['gitleaks', 'security-early-fail'],
   ['debt ratchet', 'gate-full'],
   ['integration suite (INV-25)', 'integration-tests'],

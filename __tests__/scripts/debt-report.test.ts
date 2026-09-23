@@ -27,6 +27,45 @@ function writeTodoCheckerStub(scriptsDir: string) {
   )
 }
 
+function writeMetricFixture(dir: string, complexityViolations: number) {
+  const scriptsDir = join(dir, 'scripts')
+  const libDir = join(scriptsDir, 'lib')
+  const binDir = join(dir, 'bin')
+  mkdirSync(libDir, { recursive: true })
+  mkdirSync(binDir)
+  copyFileSync(SCRIPT, join(scriptsDir, 'debt-report.mjs'))
+  copyFileSync(DEBT_LIB, join(scriptsDir, 'debt-lib.mjs'))
+  copyFileSync(GLOB_WALK, join(libDir, 'glob-walk.mjs'))
+  copyFileSync(DEBT_METRIC_CONTRACT, join(libDir, 'debt-metric-contract.mjs'))
+  writeTodoCheckerStub(scriptsDir)
+  writeFileSync(
+    join(scriptsDir, 'debt-baseline.json'),
+    JSON.stringify({
+      version: 2,
+      capturedAt: '2026-01-01T00:00:00Z',
+      commit: 'fixture',
+      archetype: 'fixture',
+      metrics: {
+        complexityViolations: {
+          value: 1,
+          unit: 'count',
+          direction: 'lower-is-better',
+        },
+        todoCount: { value: 0, unit: 'count', direction: 'lower-is-better' },
+      },
+    }),
+  )
+  writeFileSync(
+    join(binDir, 'npx'),
+    `#!/bin/sh
+printf '%s\\n' "$*" >> calls.txt
+node -e 'process.stdout.write(JSON.stringify([{messages:Array.from({length:${complexityViolations}},()=>({ruleId:"complexity"}))}]))'
+`,
+  )
+  chmodSync(join(binDir, 'npx'), 0o755)
+  return binDir
+}
+
 function run(cwd: string, args: string[] = []) {
   const r = spawnSync('node', [SCRIPT, ...args], {
     encoding: 'utf-8',
@@ -45,6 +84,123 @@ function makeTemp(): { dir: string; cleanup: () => void } {
 }
 
 describe('debt-report.mjs (gate: debt ratchet enforcement)', () => {
+  it('collects only the requested preventive metric and applies its existing baseline', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = writeMetricFixture(dir, 2)
+      const result = spawnSync(
+        'node',
+        [join(dir, 'scripts/debt-report.mjs'), '--gate', '--only-metric', 'complexityViolations'],
+        {
+          cwd: dir,
+          encoding: 'utf-8',
+          env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+        },
+      )
+
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('complexityViolations')
+      expect(result.stderr).toContain('GATE FAIL')
+      expect(readFileSync(join(dir, 'calls.txt'), 'utf-8').trim().split('\n')).toEqual([
+        'eslint src scripts --format json --rule {"complexity":["warn",10]}',
+      ])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('rejects an unknown preventive metric without invoking collectors', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = writeMetricFixture(dir, 0)
+      const result = spawnSync(
+        'node',
+        [join(dir, 'scripts/debt-report.mjs'), '--gate', '--only-metric', 'unknown'],
+        {
+          cwd: dir,
+          encoding: 'utf-8',
+          env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+        },
+      )
+
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('unsupported --only-metric')
+      expect(existsSync(join(dir, 'calls.txt'))).toBe(false)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails closed when the requested preventive metric cannot be collected', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = writeMetricFixture(dir, 0)
+      rmSync(join(binDir, 'npx'))
+      const result = spawnSync(
+        process.execPath,
+        [join(dir, 'scripts/debt-report.mjs'), '--gate', '--only-metric', 'complexityViolations'],
+        { cwd: dir, encoding: 'utf-8', env: { ...process.env, PATH: binDir } },
+      )
+
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('preventive metric is unavailable')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it.each(['missing', 'legacy'] as const)(
+    'fails closed when the requested preventive metric has a %s baseline',
+    (baselineState) => {
+      const { dir, cleanup } = makeTemp()
+      try {
+        const binDir = writeMetricFixture(dir, 0)
+        const baselinePath = join(dir, 'scripts', 'debt-baseline.json')
+        if (baselineState === 'missing') rmSync(baselinePath)
+        else writeFileSync(baselinePath, JSON.stringify({ version: 1, metrics: {} }))
+
+        const result = spawnSync(
+          'node',
+          [join(dir, 'scripts/debt-report.mjs'), '--gate', '--only-metric', 'complexityViolations'],
+          {
+            cwd: dir,
+            encoding: 'utf-8',
+            env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+          },
+        )
+
+        expect(result.status).toBe(2)
+        expect(result.stderr).toContain('preventive metric requires')
+        expect(existsSync(join(dir, 'calls.txt'))).toBe(false)
+      } finally {
+        cleanup()
+      }
+    },
+  )
+
+  it('fails closed when ESLint exits fatally without a complexity report', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = writeMetricFixture(dir, 0)
+      writeFileSync(join(binDir, 'npx'), '#!/bin/sh\nexit 2\n')
+
+      const result = spawnSync(
+        'node',
+        [join(dir, 'scripts/debt-report.mjs'), '--gate', '--only-metric', 'complexityViolations'],
+        {
+          cwd: dir,
+          encoding: 'utf-8',
+          env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+        },
+      )
+
+      expect(result.status).not.toBe(0)
+      expect(result.stdout).toContain('collection FAILURE for complexityViolations')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('requires a freshness token when reusing a gate coverage summary', () => {
     const { dir, cleanup } = makeTemp()
     try {

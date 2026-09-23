@@ -146,6 +146,7 @@ describe('check-all.mjs.ejs — inspection-flag wiring', () => {
         'pii-scan.mjs',
         'check-secret-scan.mjs',
         'check-no-tracked-artifacts.mjs',
+        'debt-report.mjs',
       ]) {
         writeFileSync(join(dir, 'scripts', script), 'process.exit(0)\n')
       }

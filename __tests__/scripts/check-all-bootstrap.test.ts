@@ -321,6 +321,8 @@ describe('result-first preflight (#2724)', () => {
       ['node', 'scripts/pii-scan.mjs'],
       ['node', 'scripts/check-secret-scan.mjs'],
       ['node', 'scripts/check-no-tracked-artifacts.mjs'],
+      ['node', 'scripts/check-fail-closed-audit.mjs'],
+      ['node', 'scripts/debt-report.mjs', '--gate', '--only-metric', 'complexityViolations'],
     ])
     expect(result.artifact).toBeNull()
     expect(result.marker).toBe(false)
@@ -329,7 +331,6 @@ describe('result-first preflight (#2724)', () => {
 
   it.each([
     ['codex self-parity', 'scripts/check-codex-self-parity.mjs', ['node']],
-    ['fail-closed audit', 'scripts/check-fail-closed-audit.mjs', ['node']],
     ['tdd-evidence', 'scripts/check-tdd-evidence.mjs', ['node']],
     ['docs', 'scripts/check-docs.mjs', ['node']],
     ['docs build', 'docs:build:verify', ['npm', 'run']],
@@ -342,6 +343,18 @@ describe('result-first preflight (#2724)', () => {
     expect(qualification.status, qualification.stderr).toBe(1)
     expect(qualification.calls).toContainEqual([...prefix, failure])
   })
+
+  it.each(['scripts/check-fail-closed-audit.mjs', 'scripts/debt-report.mjs'])(
+    'blocks the push before qualification when %s fails',
+    (failure) => {
+      const preflight = runGate('preflight', failure)
+
+      expect(preflight.status, preflight.stderr).toBe(1)
+      expect(preflight.calls.some((call) => call.includes(failure))).toBe(true)
+      expect(preflight.artifact).toBeNull()
+      expect(preflight.marker).toBe(false)
+    },
+  )
 
   it('does not turn absent coverage from a failed run into a second ratchet defect', () => {
     const result = runGate('L2', '--coverage')

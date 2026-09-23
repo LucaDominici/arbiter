@@ -270,6 +270,7 @@ export const GATE_AFFECTS_REGISTRY = [
   { name: 'kernel plugin parity (#2548)', affects: ALWAYS },
   { name: 'coverage', affects: ALWAYS },
   { name: 'coverage ratchet (#1483)', affects: ALWAYS },
+  { name: 'complexity ratchet (preventive)', affects: ALWAYS },
   { name: 'dead code', affects: ALWAYS },
   { name: 'duplication', affects: ALWAYS },
   { name: 'skill provenance (#2428)', affects: ALWAYS },

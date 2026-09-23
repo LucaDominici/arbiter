@@ -517,6 +517,33 @@ function coverageMetricsFromSummary(summary) {
   };
 }
 
+function collectComplexityViolations(cwd, metrics, collectionErrors) {
+  const [command, ...args] = DEBT_METRIC_COMMANDS.complexityViolations;
+  const result = spawnOrSkip('complexityViolations', 'eslint', command, args, { cwd });
+  if (result === null) return;
+  const collectionFailed = [
+    result.error, result.signal, result.status === null,
+    (result.status ?? 0) > 1, !(result.stdout ?? '').trim(),
+  ].some(Boolean);
+  if (collectionFailed) {
+    const reason = `eslint complexity collection failed (exit ${result.status ?? 'none'}${result.signal ? `, signal ${result.signal}` : ''})`;
+    collectionErrors.push({ metric: 'complexityViolations', reason });
+    process.stderr.write(`[baseline] ERROR: ${reason}\n`);
+    return;
+  }
+  try {
+    const report = JSON.parse(result.stdout);
+    metrics.complexityViolations = {
+      value: report.flatMap(file => file.messages).filter(message => message.ruleId === 'complexity').length,
+      unit: 'count', direction: 'lower-is-better',
+    };
+  } catch (err) {
+    const reason = `eslint complexity report unreadable: ${err instanceof Error ? err.message : String(err)}`;
+    collectionErrors.push({ metric: 'complexityViolations', reason });
+    process.stderr.write(`[baseline] ERROR: ${reason}\n`);
+  }
+}
+
 /**
  * Collect TypeScript/JavaScript debt metrics.
  * @param {string} cwd
@@ -524,7 +551,7 @@ function coverageMetricsFromSummary(summary) {
  *   Sink for tool-ran-but-collection-failed events (distinct from
  *   tool-not-installed, which soft-skips). debt-report --gate hard-fails on
  *   any entry (#1286, fail-closed).
- * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null, coverageSummaryPath?: string, coverageStartedAt?: number}} [opts]
+ * @param {{spawnCoverage?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string} | null, coverageSummaryPath?: string, coverageStartedAt?: number, onlyMetric?: 'complexityViolations'}} [opts]
  *   spawnCoverage is injectable for tests, mirroring jscpdScan's opts.spawn
  *   seam: it replaces the `npx vitest run --coverage` invocation so a unit test
  *   can deterministically simulate "vitest ran, no summary written" (the
@@ -533,6 +560,10 @@ function coverageMetricsFromSummary(summary) {
  */
 export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   const metrics = {};
+  if (opts.onlyMetric === 'complexityViolations') {
+    collectComplexityViolations(cwd, metrics, collectionErrors);
+    return metrics;
+  }
 
   // ── Coverage (vitest json-summary reporter) ───────────────────────────────
   if (opts.coverageSummaryPath !== undefined) {
@@ -594,22 +625,7 @@ export function collectMetrics(cwd, collectionErrors = [], opts = {}) {
   // highest-leverage code in the repo and was previously exempt from the
   // complexity ratchet (#1523/#1542). The baseline grandfathers the current
   // offenders; the ratchet blocks any net increase and admits gradual burn-down.
-  const [complexityCommand, ...complexityArgs] = DEBT_METRIC_COMMANDS.complexityViolations;
-  const eslintComplexRaw = spawnOrSkip('complexityViolations', 'eslint', complexityCommand,
-    complexityArgs, { cwd });
-  if (eslintComplexRaw !== null) {
-    try {
-      const report = JSON.parse(eslintComplexRaw.stdout || '[]');
-      metrics.complexityViolations = {
-        value: report.flatMap(f => f.messages).filter(m => m.ruleId === 'complexity').length,
-        unit: 'count', direction: 'lower-is-better',
-      };
-    } catch (err) {
-      const reason = `eslint complexity report unreadable: ${err instanceof Error ? err.message : String(err)}`;
-      collectionErrors.push({ metric: 'complexityViolations', reason });
-      process.stderr.write(`[baseline] ERROR: ${reason}\n`);
-    }
-  }
+  collectComplexityViolations(cwd, metrics, collectionErrors);
 
   // ── Dead code (knip) ──────────────────────────────────────────────────────
   const knipRaw = spawnOrSkip('deadCode', 'knip', 'npx', ['knip', '--reporter', 'json'], { cwd });

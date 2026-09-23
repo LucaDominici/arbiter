@@ -15,7 +15,7 @@ function integrationIncludePatterns(): string[] {
 }
 
 describe('check-all.mjs L1 wiring', () => {
-  it('keeps self preflight to the three immediate safety diagnostics (#2773)', () => {
+  it('keeps self preflight to immediate safety diagnostics and preventive ratchets (#2773)', () => {
     const start = content.indexOf('if (preflight) {')
     const returnStatement = 'return getResults().length'
     const end = content.indexOf(returnStatement, start) + returnStatement.length
@@ -23,10 +23,12 @@ describe('check-all.mjs L1 wiring', () => {
 
     expect(start).toBeGreaterThan(-1)
     expect(end).toBeGreaterThan(start)
-    expect(block.match(/runCheck\(/g)).toHaveLength(3)
+    expect(block.match(/runCheck\(/g)).toHaveLength(5)
     expect(block).toContain("['scripts/pii-scan.mjs']")
     expect(block).toContain("['scripts/check-secret-scan.mjs']")
     expect(block).toContain("'scripts/check-no-tracked-artifacts.mjs'")
+    expect(block).toContain("['scripts/check-fail-closed-audit.mjs']")
+    expect(block).toContain("'scripts/debt-report.mjs'")
     expect(block).toContain(returnStatement)
   })
 

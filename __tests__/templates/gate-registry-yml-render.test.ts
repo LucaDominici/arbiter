@@ -11,7 +11,7 @@ import { loadGateRegistry } from '../../src/generators/check-all.js'
 import { makeConfig } from '../helpers.js'
 
 describe('gate-registry.yml.ejs render (#2041)', () => {
-  it('keeps preflight to the three immediate safety diagnostics (#2773)', () => {
+  it('keeps preflight to immediate safety diagnostics and the cheap complexity ratchet', () => {
     const cfg = makeConfig('/tmp/test', { language: 'typescript' }) as unknown as Record<
       string,
       unknown
@@ -31,6 +31,14 @@ describe('gate-registry.yml.ejs render (#2041)', () => {
       'pii-scan',
       'secret-scan',
       'no-tracked-artifacts',
+      'complexity-ratchet-preflight',
+    ])
+    expect(entries.find((entry) => entry.id === 'complexity-ratchet-preflight')?.cmd).toEqual([
+      'node',
+      'scripts/debt-report.mjs',
+      '--gate',
+      '--only-metric',
+      'complexityViolations',
     ])
     expect(entries.filter((entry) => entry.presuite).length).toBeGreaterThan(0)
     const unitTests = entries.find((entry) => entry.id === 'unit-tests')

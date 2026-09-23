@@ -76,6 +76,7 @@ gates:
   - { id: kotlin-unit-tests, name: 'unit tests', level: L1, kind: check, emitIf: "language === 'kotlin' && buildTool === 'gradle'", cmd: ['./gradlew', ['test', '-q']] }
   - { id: detekt, name: 'detekt (beta)', level: L1, kind: check, presuite: true, emitIf: "language === 'kotlin' && buildTool === 'gradle'", soft: true, cmd: ['./gradlew', ['detekt']] }
   - { id: no-tracked-artifacts, name: 'no tracked artifacts (INV-129)', level: L1, kind: check, preflight: true, cmd: ['node', ['scripts/check-no-tracked-artifacts.mjs']] }
+  - { id: complexity-ratchet-preflight, name: 'complexity ratchet (preventive)', level: L1, kind: check, preflight: true, emitIf: "language === 'typescript' && enableDebtGates", bindings: [{ source: 'scripts/debt-baseline.json', required: true }], cmd: ['node', ['scripts/debt-report.mjs', '--gate', '--only-metric', 'complexityViolations']] }
   - { id: image-pins, name: 'image pins (#1442)', level: L1, kind: check, presuite: true, cmd: ['node', ['scripts/check-image-pins.mjs']] }
   - { id: e2e-quarantine, name: 'e2e quarantine (INV-130)', level: L1, kind: check, presuite: true, cmd: ['node', ['scripts/check-e2e-quarantine.mjs']] }
   - { id: test-naming, name: 'test naming', level: L1, kind: check, presuite: true, cmd: ['node', ['scripts/check-test-naming.mjs']] }

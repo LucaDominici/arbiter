@@ -67,6 +67,16 @@ describe('debt-report.mjs.ejs', () => {
     expect(rendered).toContain('require-improvement')
   })
 
+  it('emits the narrow complexity collector used by preventive verification', () => {
+    const data = makeDataWithProfile({ language: 'typescript' })
+    const report = renderTemplate('scripts/debt-report.mjs.ejs', data)
+    const lib = renderTemplate('scripts/debt-lib.mjs.ejs', data)
+
+    expect(report).toContain("optionValue('--only-metric')")
+    expect(report).toContain("onlyMetric !== 'complexityViolations'")
+    expect(lib).toContain("opts.onlyMetric === 'complexityViolations'")
+  })
+
   it('requires a freshness token before reusing a gate coverage summary', () => {
     const data = makeDataWithProfile({ language: 'typescript' })
     const report = renderTemplate('scripts/debt-report.mjs.ejs', data)
