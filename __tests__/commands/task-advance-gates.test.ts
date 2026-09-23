@@ -10,6 +10,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -35,7 +36,8 @@ vi.mock('../../src/evidence/tdd-reexecute.js', () => ({
   verifyGreenExecution: vi.fn().mockReturnValue({ ok: true }),
 }))
 
-import { runTaskAdvance, runTaskInit } from '../../src/commands/task.js'
+import { runTaskAdvance, runTaskInit, runTaskResume } from '../../src/commands/task.js'
+import { pathExistsInCommit } from '../../src/evidence/git-checks.js'
 import { verifyGreenExecution } from '../../src/evidence/tdd-reexecute.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
@@ -45,6 +47,7 @@ import { inspectGateContract } from '../../scripts/lib/gate-contract.mjs'
 
 const dirs: string[] = []
 const mockedVerifyGreenExecution = vi.mocked(verifyGreenExecution)
+const mockedPathExistsInCommit = vi.mocked(pathExistsInCommit)
 
 function installGateContractAuthority(dir: string): void {
   mkdirSync(join(dir, 'scripts'), { recursive: true })
@@ -182,6 +185,7 @@ function installAcceptanceGh(dir: string): void {
 afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true })
   mockedVerifyGreenExecution.mockReset().mockReturnValue({ ok: true })
+  mockedPathExistsInCommit.mockReset().mockReturnValue(true)
   vi.unstubAllEnvs()
 })
 
@@ -362,6 +366,15 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
+  it('rejects an ignored or untracked plan before RED with the exact recovery', () => {
+    const dir = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(dir, deriveFixtureGates(dir, FILES))
+    mockedPathExistsInCommit.mockReturnValue(false)
+
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/git add -f.*plan\.md/i)
+    expect(readUnifiedState(dir)?.phase).toBe('plan')
+  })
+
   it('AC-2 refuses missing or hand-written gate state and passes a fresh derivation', () => {
     const missing = acceptanceRepo(VALID_PLAN)
     expect(() => runTaskAdvance({ to: 'red', dir: missing })).toThrow(/derived gates/i)
@@ -389,6 +402,16 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
 
     expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/derived gates/i)
     expect(readUnifiedState(dir)?.phase).toBe('plan')
+  })
+
+  it('refuses resume after a verification authority changes beyond plan', () => {
+    const dir = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(dir, deriveFixtureGates(dir, FILES))
+    writeUnifiedState(dir, { phase: 'refactor' })
+    const authority = join(dir, 'scripts', 'check-all.mjs')
+    writeFileSync(authority, `${readFileSync(authority, 'utf-8')}\n// changed authority\n`)
+
+    expect(() => runTaskResume({ dir })).toThrow(/derived gates are missing or stale/i)
   })
 
   it('preserves the optional profile inert when disabled', () => {
@@ -471,6 +494,24 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
     const dir = anchorRepo()
     runTaskInit({ dir, id: '#2773', plan: 'plan.md#acceptance' })
     expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveFixtureGates(dir, FILES))
+  })
+
+  it('invalidates review and CI receipts when re-anchoring changed gate authorities', () => {
+    const dir = anchorRepo()
+    runTaskInit({ dir, id: '#2773', plan: 'plan.md' })
+    writeUnifiedState(dir, {
+      phase: 'refactor',
+      review: { rounds: 1, lastReviewedSha: 'a'.repeat(40) },
+    })
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(join(dir, '.arbiter', 'ci-pass.json'), '{}')
+    const authority = join(dir, 'scripts', 'check-all.mjs')
+    writeFileSync(authority, `${readFileSync(authority, 'utf-8')}\n// changed authority\n`)
+
+    runTaskInit({ dir, id: '#2773', plan: 'plan.md' })
+
+    expect(readUnifiedState(dir)?.review).toEqual({ rounds: 0, lastReviewedSha: null })
+    expect(existsSync(join(dir, '.arbiter', 'ci-pass.json'))).toBe(false)
   })
 })
 
