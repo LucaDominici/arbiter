@@ -486,6 +486,14 @@ describe('ship complete next commands (#2753)', () => {
     const plan = '.agents/plan/runs/2753-slice/PLAN.md'
     const step = shipStepFor('plan', 'Standard', shipProfile, '#2753', { chainIds: [], plan })
     expect(step.command).toBe(`arbiter lifecycle start --id '#2753' --tier Standard --plan ${plan}`)
+
+    const unknown = shipStepFor('plan', 'Standard', shipProfile, '#2753', {
+      chainIds: [],
+      plan: 'unknown',
+    })
+    expect(unknown.command).toBe(
+      "arbiter lifecycle start --id '#2753' --tier Standard --plan .claude/plans/task-2753.md",
+    )
   })
 
   it('#2850 D1: plan surfaces the issue-AC admission obligation before the writer', () => {

@@ -313,6 +313,31 @@ function checkerPaths(text) {
   return new Set([...text.matchAll(PLAN_CHECKER_RE)].map((m) => m[1]))
 }
 
+// A gate command runs a checker only as a simple foreground command `node [./]scripts/check-*.mjs`,
+// optionally after env assignments, alone or in an `&&` chain — the only operator under which the
+// checker's failure fails the gate. Quoted text and comments are inert; any other unquoted control
+// operator (`|`, `||`, `;`, `&`) or a multiline command can mask the checker's exit, so the whole
+// command proves nothing.
+// ponytail: no shell parser — `sh -c '…'`, `$(…)`, subshells and redirections like `2>&1` are not
+// recognised (fail red, not green).
+const RUN_CHECKER_RE =
+  /^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*node\s+(?:\.\/)?(scripts\/check-[A-Za-z0-9_-]+\.mjs)(?:\s|$)/
+
+function executedCheckerPaths(commands) {
+  const paths = new Set()
+  for (const command of commands) {
+    if (/[\r\n]/.test(command)) continue
+    const code = command.replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, "''").replace(/(^|\s)#.*$/, '$1')
+    const parts = code.split('&&')
+    if (parts.some((part) => /[|;&]/.test(part))) continue
+    for (const part of parts) {
+      const match = RUN_CHECKER_RE.exec(part.trim())
+      if (match) paths.add(match[1])
+    }
+  }
+  return paths
+}
+
 export function unwiredPlanCheckers(root, planBody) {
   const paths = [...checkerPaths(planBody)].filter((path) => existsSync(join(root, path)))
   if (paths.length === 0) return []
@@ -324,8 +349,8 @@ export function unwiredPlanCheckers(root, planBody) {
         `NO DATA: cannot verify that a gate runs \`node ${path}\` (${unresolved.join('; ')})`,
     )
   }
-  const run = checkerPaths(
-    [...contract.gates, ...contract.external].map((entry) => entry.command).join('\n'),
+  const run = executedCheckerPaths(
+    [...contract.gates, ...contract.external].map((entry) => entry.command),
   )
   return paths
     .filter((path) => !run.has(path))

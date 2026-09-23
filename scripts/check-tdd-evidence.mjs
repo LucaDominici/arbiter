@@ -175,19 +175,10 @@ export function makeRunner(runFn) {
 const defaultRun = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: 'utf-8', ...opts }).trim()
 
-function hasOriginRemote(run) {
-  try {
-    return run('git', ['remote', 'get-url', 'origin'], { cwd: repoRoot }).length > 0
-    // FAIL-OPEN-INTENT: `git remote get-url` fails only when no origin is configured (a purely local repository); merge-base already failed, and a repository with origin still reaches NO DATA above.
-  } catch {
-    return false
-  }
-}
-
 /**
- * #2850 D4: a checkout WITH an origin remote whose main cannot be resolved (a shallow CI clone)
- * has not been verified — that is NO DATA (exit 2), never a vacuous pass. Only a purely local
- * repository, with no origin at all, has no branch range to owe evidence for.
+ * #2850 D4: an unresolvable origin/main — shallow CI clone, unfetched remote or no origin at all —
+ * means the branch range was never verified: NO DATA (exit 2), never a vacuous pass. Only the
+ * explicit ARBITER_SKIP_TDD=1 escape hatch skips.
  */
 function mergeBaseOrSkip(run, envSkip) {
   try {
@@ -197,15 +188,11 @@ function mergeBaseOrSkip(run, envSkip) {
       process.stdout.write('check-tdd-evidence: ARBITER_SKIP_TDD=1, skipping (no origin/main)\n')
       return { exitCode: 0 }
     }
-    if (hasOriginRemote(run)) {
-      process.stderr.write(
-        'check-tdd-evidence: NO DATA — origin exists but origin/main is not resolvable; ' +
-          'fetch full history (actions/checkout fetch-depth: 0) before verifying TDD evidence\n',
-      )
-      return { exitCode: 2 }
-    }
-    process.stdout.write('check-tdd-evidence: no origin remote (local-only repository), skipping\n')
-    return { exitCode: 0 }
+    process.stderr.write(
+      'check-tdd-evidence: NO DATA — origin/main is not resolvable; ' +
+        'fetch full history (actions/checkout fetch-depth: 0) before verifying TDD evidence\n',
+    )
+    return { exitCode: 2 }
   }
 }
 

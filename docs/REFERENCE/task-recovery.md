@@ -108,10 +108,9 @@ satisfy the branch TDD-evidence floor; this is intentionally not inferred from w
 contains `src/`.
 
 The self and emitted TDD-evidence gates agree with `arbiter check tdd` (#2850): a rebased RED is
-re-resolved through its recorded `test_blob_sha`, and a checkout with an `origin` remote whose
-`origin/main` cannot be resolved (for example a shallow CI clone) is NO DATA, exit 2, never a
-vacuous pass. Only a repository with no `origin` remote skips the check. CI jobs that run L2 need
-`actions/checkout` with `fetch-depth: 0`.
+re-resolved through its recorded `test_blob_sha`, and a checkout whose `origin/main` cannot be
+resolved (a shallow CI clone, an unfetched remote, or no `origin` remote at all) is NO DATA, exit 2,
+never a vacuous pass. CI jobs that run L2 need `actions/checkout` with `fetch-depth: 0`.
 
 The positional `<id>` accepts both `1280` and `#1280`: it is normalized to the canonical `#NNN`
 form once at parse (#1280), so the persisted task id always matches the TDD-evidence schema

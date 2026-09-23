@@ -713,10 +713,35 @@ describe('check-acceptance ship parity (#2850)', () => {
       expect(result.stderr).toMatch(/scripts\/check-orphan\.mjs.*no gate/i)
     })
 
-    it('admits a checker that a gate-contract command runs', () => {
+    it.each([
+      'node scripts/check-wired.mjs --strict',
+      'node ./scripts/check-wired.mjs',
+      'CI=1 FOO="a b" node scripts/check-wired.mjs',
+      'npm ci && node scripts/check-wired.mjs',
+    ])('admits a checker that the gate command %j runs', (command) => {
       checker('wired')
-      gateAuthority(['node scripts/check-wired.mjs --strict'])
+      gateAuthority([command])
       expect(admit(plan('node scripts/check-wired.mjs')).status).toBe(0)
+    })
+
+    it.each([
+      'echo node scripts/check-wired.mjs',
+      "printf 'node scripts/check-wired.mjs'",
+      '# node scripts/check-wired.mjs',
+      'echo "x; node scripts/check-wired.mjs"',
+      'true # ; node scripts/check-wired.mjs',
+      'true || node scripts/check-wired.mjs',
+      "cat <<'EOF'\nnode scripts/check-wired.mjs\nEOF",
+      'node scripts/check-wired.mjs | cat',
+      'node scripts/check-wired.mjs &',
+      'node scripts/check-wired.mjs || true',
+      'node scripts/check-wired.mjs ; true',
+    ])('rejects a checker the gate command %j only mentions', (command) => {
+      checker('wired')
+      gateAuthority([command])
+      const result = admit(plan('node scripts/check-wired.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/scripts\/check-wired\.mjs.*no gate/i)
     })
 
     it('fails closed when the gate contract is malformed', () => {

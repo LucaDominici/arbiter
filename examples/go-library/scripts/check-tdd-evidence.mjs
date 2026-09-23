@@ -7,8 +7,8 @@
 // shipped to governed targets. Self-contained: it inlines the schema + git checks so a
 // target needs no local arbiter install. Scoped to commits since
 // `git merge-base origin/main HEAD` (branch-relative). Rejects the ARBITER-SKIP-TDD: 1
-// commit trailer (forbidden at L2+). Self-SKIPs (exit 0) for a repository with no origin
-// remote and for a docs-only branch without a task-ID commit (vacuous pass).
+// commit trailer (forbidden at L2+). Self-SKIPs (exit 0) for a docs-only branch without a
+// task-ID commit (vacuous pass).
 //
 // A branch with no task id in any commit SUBJECT that changes non-documentation files must carry ONE
 // verified evidence among the tasks its commit BODIES cite (`Refs #NNN`) — evidence is
@@ -27,8 +27,8 @@
 //      `check tdd` does (#2850), and a shallow checkout is NO DATA, never a verdict.
 //   5. test_path exists in that commit
 //
-// A checkout with an origin remote whose main cannot be resolved is NO DATA (exit 2);
-// only a purely local repository without origin self-SKIPs (#2850).
+// A checkout whose origin/main cannot be resolved — including one with no origin remote —
+// is NO DATA (exit 2), never a vacuous pass (#2850).
 //
 // Exit codes (INV-53): 0 = all verified / vacuous · 1 = missing/inconsistent evidence
 // or a forbidden skip trailer · 2 = unexpected error.
@@ -297,22 +297,11 @@ function collectBranchContext() {
   try {
     mergeBase = git(['merge-base', 'origin/main', 'HEAD'])
   } catch {
-    let origin = ''
-    try {
-      origin = git(['remote', 'get-url', 'origin'])
-      // FAIL-OPEN-INTENT: `git remote get-url` fails only without an origin remote (a purely local repository).
-    } catch {
-      origin = ''
-    }
-    if (origin.length > 0) {
-      process.stderr.write(
-        'check-tdd-evidence: NO DATA — origin exists but origin/main is not resolvable; ' +
-          'fetch full history (actions/checkout fetch-depth: 0) before verifying TDD evidence\n',
-      )
-      process.exit(2)
-    }
-    process.stdout.write('check-tdd-evidence: no origin remote (local-only repository), skipping\n')
-    process.exit(0)
+    process.stderr.write(
+      'check-tdd-evidence: NO DATA — origin/main is not resolvable; ' +
+        'fetch full history (actions/checkout fetch-depth: 0) before verifying TDD evidence\n',
+    )
+    process.exit(2)
   }
 
   let subjectLog

@@ -340,8 +340,8 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
     expect(runScenario({ taskCommit: true, remoteWithoutMain: true, evidence: () => null })).toBe(2)
   })
 
-  it('#2850 D4: vacuous PASS for a purely local repository with no origin remote', () => {
-    expect(runScenario({ taskCommit: true, noRemote: true, evidence: () => null })).toBe(0)
+  it('#2850 D4: NO DATA (exit 2) for a purely local repository with no origin remote', () => {
+    expect(runScenario({ taskCommit: true, noRemote: true, evidence: () => null })).toBe(2)
   })
 
   it('vacuous PASS (exit 0) when there are no task-ID commits', () => {

@@ -17,6 +17,7 @@ import {
   exportedSymbols,
   missingExports,
 } from '../../scripts/check-self-dogfood.mjs'
+import { writeDistManifest } from '../../scripts/lib/dist-staleness.mjs'
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
 const checkerPath = join(repoRoot, 'scripts/check-self-dogfood.mjs')
@@ -43,6 +44,9 @@ function createDogfoodProbeRoot() {
     cpSync(join(repoRoot, path), join(root, path), { recursive: true })
   }
   symlinkSync(join(repoRoot, 'node_modules'), join(root, 'node_modules'), 'dir')
+  // src/ and dist/ were copied separately; declare the copied src identity so a concurrent
+  // live rebuild cannot leave the fixture looking stale.
+  writeDistManifest(root)
   return root
 }
 
@@ -627,6 +631,9 @@ describe('a dropped export survives --update-divergences (#2327/#2324)', () => {
       // proves nothing.
       const repin = runDogfoodProbe(root, 300_000, ['--update-divergences'])
       expect(repin.stdout + repin.stderr).not.toContain('drops export')
+      // The re-pin writes the pin but still reports this run's drift (exit 1); exit 2 (stale
+      // fixture) or a timeout (null) must not be masked by the second run.
+      expect(repin.status).toBe(1)
       const after = runDogfoodProbe(root, 300_000)
       expect(after.status).toBe(0)
     } finally {
