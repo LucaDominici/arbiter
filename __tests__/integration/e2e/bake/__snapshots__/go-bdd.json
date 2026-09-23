@@ -296,7 +296,7 @@
     "schemas/use-case.schema.json": "adb5e6c70586bff08990150303bf3c3d7634c2b885b206727710c727a43c29c3",
     "scripts/bg-run.sh": "c01d5fc49ee813cf908a8984a529d6d774e44735f396465759cae0194fddf72c",
     "scripts/capacity-probe.mjs": "df53c9eb95e789b76907287100fb1e45fbd04a53bc9902d5b288c2a7a6032b36",
-    "scripts/check-acceptance.mjs": "aeb4c0fffba20952fcad61f4508e5d3683d6fea3b76552c458e053f7cf8823bd",
+    "scripts/check-acceptance.mjs": "575d213ecc4c66b2f2671045285a8f37ab5c61c8be4660793c69dee3d22d1641",
     "scripts/check-action-pins.mjs": "e0c70b622a4db7fe36c78f60b6dba478a3dcf77db5208488a54d9c1eba3af971",
     "scripts/check-all.mjs": "36c7f7d93987c7cb723f2ab5f1e20cd535f1321fa3918ae0a993630a6f4cc424",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",

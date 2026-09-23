@@ -304,28 +304,35 @@ function explicitFitErrors(root, fitAbs, criteriaIds) {
   return boundFitErrors(root, state, state.plan, fit.json)
 }
 
-// #2850 D7: a plan that promises `node scripts/check-*.mjs` makes a promise only something
-// executable can keep. A checker that exists but is referenced by no tracked non-document file
-// runs nowhere, so the promise is prose. Checkers the plan is about to create are exempt.
+// #2850 D7: a plan that promises `node scripts/check-*.mjs` makes a promise only a gate can keep.
+// A checker that exists but that no command of the canonical gate contract runs is prose, however
+// often source comments or strings name it. Checkers the plan is about to create are exempt.
 const PLAN_CHECKER_RE = /\bnode\s+(?:\.\/)?(scripts\/check-[A-Za-z0-9_-]+\.mjs)\b/g
 
+function checkerPaths(text) {
+  return new Set([...text.matchAll(PLAN_CHECKER_RE)].map((m) => m[1]))
+}
+
 export function unwiredPlanCheckers(root, planBody) {
-  const paths = [...new Set([...planBody.matchAll(PLAN_CHECKER_RE)].map((m) => m[1]))]
-  const errors = []
-  for (const path of paths.filter((candidate) => existsSync(join(root, candidate)))) {
-    const found = spawnSync(
-      'git',
-      ['grep', '-l', '-F', '-e', path, '--', '.', `:(exclude)${path}`, ':(exclude)*.md'],
-      { cwd: root, encoding: 'utf8', shell: false },
-    )
-    if (found.status === 0) continue
-    errors.push(
-      found.status === 1
-        ? `plan runs \`node ${path}\` but no executable file references it; wire it into a gate or test, or drop it from the plan`
-        : `NO DATA: cannot verify that \`node ${path}\` is executed by anything (git grep failed)`,
+  const paths = [...checkerPaths(planBody)].filter((path) => existsSync(join(root, path)))
+  if (paths.length === 0) return []
+  const contract = inspectGateContract(root)
+  const unresolved = unresolvedContractReasons(contract)
+  if (unresolved.length > 0) {
+    return paths.map(
+      (path) =>
+        `NO DATA: cannot verify that a gate runs \`node ${path}\` (${unresolved.join('; ')})`,
     )
   }
-  return errors
+  const run = checkerPaths(
+    [...contract.gates, ...contract.external].map((entry) => entry.command).join('\n'),
+  )
+  return paths
+    .filter((path) => !run.has(path))
+    .map(
+      (path) =>
+        `plan runs \`node ${path}\` but no gate in the contract runs it; wire it into scripts/check-all.mjs, or drop it from the plan`,
+    )
 }
 
 function reportUnwiredPlanCheckers(root, planBody) {

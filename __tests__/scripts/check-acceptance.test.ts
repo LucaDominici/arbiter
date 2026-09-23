@@ -670,23 +670,64 @@ describe('check-acceptance ship parity (#2850)', () => {
       ])
     }
 
-    it('rejects admission when an existing checker is referenced only by prose', () => {
+    // A check-all.mjs that speaks the canonical gate contract and runs `commands`.
+    function gateAuthority(commands: string[], output?: string) {
       mkdirSync(join(root, 'scripts'), { recursive: true })
-      writeFileSync(join(root, 'scripts', 'check-orphan.mjs'), 'process.exit(0)\n')
+      const contract = {
+        schema: 'arbiter-gate-contract-v1',
+        authority: [{ path: 'scripts/check-all.mjs', sha256: 'fixture' }],
+        gates: commands.map((command, i) => ({ name: `g${i}`, command, condition: 'always' })),
+        external: [],
+      }
+      writeFileSync(
+        join(root, 'scripts', 'check-all.mjs'),
+        [
+          '// @arbiter-gate-contract arbiter-gate-contract-v1',
+          `process.stdout.write(${JSON.stringify(output ?? JSON.stringify(contract))})`,
+        ].join('\n'),
+      )
+    }
+
+    function checker(name: string) {
+      mkdirSync(join(root, 'scripts'), { recursive: true })
+      writeFileSync(join(root, 'scripts', `check-${name}.mjs`), 'process.exit(0)\n')
+    }
+
+    it('rejects admission when an existing checker is referenced only by prose', () => {
+      checker('orphan')
+      gateAuthority(['node scripts/check-other.mjs'])
       writeFileSync(join(root, 'NOTES.md'), 'run node scripts/check-orphan.mjs\n')
       const result = admit(plan('node scripts/check-orphan.mjs'))
       expect(result.status).toBe(1)
-      expect(result.stderr).toMatch(/scripts\/check-orphan\.mjs.*no executable/i)
+      expect(result.stderr).toMatch(/scripts\/check-orphan\.mjs.*no gate/i)
     })
 
-    it('admits a checker that a tracked executable file runs', () => {
-      mkdirSync(join(root, 'scripts'), { recursive: true })
-      writeFileSync(join(root, 'scripts', 'check-wired.mjs'), 'process.exit(0)\n')
-      writeFileSync(
-        join(root, 'scripts', 'check-all.mjs'),
-        "runCheck('wired', 'node', ['scripts/check-wired.mjs'])\n",
-      )
+    it('rejects a checker named only by an inert source comment or string', () => {
+      checker('orphan')
+      gateAuthority(['node scripts/check-other.mjs'])
+      mkdirSync(join(root, 'src'), { recursive: true })
+      writeFileSync(join(root, 'src', 'notes.js'), '// TODO: node scripts/check-orphan.mjs\n')
+      writeFileSync(join(root, 'config.json'), '{"later": "node scripts/check-orphan.mjs"}\n')
+      const result = admit(plan('node scripts/check-orphan.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/scripts\/check-orphan\.mjs.*no gate/i)
+    })
+
+    it('admits a checker that a gate-contract command runs', () => {
+      checker('wired')
+      gateAuthority(['node scripts/check-wired.mjs --strict'])
       expect(admit(plan('node scripts/check-wired.mjs')).status).toBe(0)
+    })
+
+    it('fails closed when the gate contract is malformed', () => {
+      checker('wired')
+      gateAuthority(
+        [],
+        '{"schema":"arbiter-gate-contract-v1","note":"node scripts/check-wired.mjs"}',
+      )
+      const result = admit(plan('node scripts/check-wired.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/NO DATA.*check-wired\.mjs.*incomplete gate contract/i)
     })
 
     it('does not demand wiring for a checker the plan is about to create', () => {
