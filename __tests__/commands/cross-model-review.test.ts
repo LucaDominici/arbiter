@@ -1007,7 +1007,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           'count=0\n' +
           'if [ -f "$count_file" ]; then count=$(cat "$count_file"); fi\n' +
           'printf "%s" "$((count + 1))" > "$count_file"\n' +
-          'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2357","criteria":[]}}\\n\' > "$out"\n',
+          'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2357","criteria":[{"id":"AC-2357.1","verdict":"PASS","evidence":[{"file":"plan.md","line":4}]}]}}\\n\' > "$out"\n',
       )
       chmodSync(codex, 0o755)
       mkdirSync(join(dir, '.codex'), { recursive: true })
@@ -1060,7 +1060,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
             phase: 'refactor',
             tier: 'Standard',
             plan: 'plan.md',
-            branch: '',
+            branch: 'task/#2357-cross-model-cli',
             cursor: { tddPhase: null, lastAction: '', nextAction: '' },
             handoffStrategy: null,
             handoffReady: false,
@@ -1083,7 +1083,9 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
 
       mkdirSync(join(dir, 'schemas'), { recursive: true })
       mkdirSync(join(dir, 'scripts', 'lib'), { recursive: true })
+      mkdirSync(join(dir, '.claude', 'hooks'), { recursive: true })
       for (const relativePath of [
+        '.claude/hooks/lib.mjs',
         'schemas/agent-return.schema.json',
         'schemas/agent-return-external.schema.json',
         'schemas/cross-model-dispatch.schema.json',
@@ -1094,6 +1096,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         'scripts/lib/run-helpers.mjs',
         'scripts/lib/evidence-binding.mjs',
         'scripts/lib/gate-args.mjs',
+        'scripts/lib/suppressions-shared.mjs',
       ]) {
         copyFileSync(join(REPO_ROOT, relativePath), join(dir, relativePath))
       }
@@ -1160,14 +1163,26 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
         },
       )
 
+      const dispatchPath = join(
+        dir,
+        '.arbiter',
+        'evidence',
+        'cross-model',
+        '_2357',
+        'dispatch.json',
+      )
+      const dispatchDiagnostic = existsSync(dispatchPath)
+        ? readFileSync(dispatchPath, 'utf8')
+        : '(dispatch missing)'
       expect(result.error, result.error?.message).toBeUndefined()
-      expect(result.status, (result.stdout ?? '') + (result.stderr ?? '')).toBe(0)
-      const artifact = JSON.parse(
-        readFileSync(
-          join(dir, '.arbiter', 'evidence', 'cross-model', '_2357', 'dispatch.json'),
-          'utf8',
-        ),
-      ) as { fulfilled: Array<{ envelope: string }>; degraded: unknown[] }
+      expect(
+        result.status,
+        (result.stdout ?? '') + (result.stderr ?? '') + dispatchDiagnostic,
+      ).toBe(0)
+      const artifact = JSON.parse(readFileSync(dispatchPath, 'utf8')) as {
+        fulfilled: Array<{ envelope: string }>
+        degraded: unknown[]
+      }
       // Name the degradation when there is one: `expected [] to have a length of 1` sends the
       // next reader hunting through the invoker, and the answer is always in `degraded`.
       expect({ fulfilled: artifact.fulfilled.length, degraded: artifact.degraded }).toEqual({
@@ -1185,6 +1200,16 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
       expect(readFileSync(join(dir, artifact.fulfilled[0]!.envelope), 'utf8')).toContain(
         '"vendor": "openai"',
       )
+      const acceptanceFit = JSON.parse(
+        readFileSync(join(dir, '.arbiter', 'evidence', 'ac-fit', '2357.json'), 'utf8'),
+      ) as { criteria: Array<{ id: string; verdict: string }> }
+      expect(acceptanceFit.criteria).toEqual([
+        {
+          id: 'AC-2357.1',
+          verdict: 'PASS',
+          evidence: [{ file: 'plan.md', line: 4 }],
+        },
+      ])
       const sidecar = JSON.parse(
         readFileSync(join(dir, '.arbiter', 'agents-dispatched.json'), 'utf8'),
       ) as {

@@ -518,6 +518,7 @@ function invokeShipExternalReview({
     phase: options.phase,
     vertical: options.vertical,
     expectedSha,
+    recordMode: 'ac-fit',
   })
 }
 

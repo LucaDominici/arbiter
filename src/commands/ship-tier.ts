@@ -328,13 +328,12 @@ export function resolveShipTreatment(
     previous,
     reasons,
   )
-  const normalizedSignals = {
-    complete,
-    changedFiles,
-    callerCount: signals.callerCount ?? null,
-    blastRadius: signals.blastRadius,
-    labels: [...signals.labels].sort(),
-    executionOutcome: signals.executionOutcome ?? null,
+  const reviewContract = {
+    tier,
+    sensitive,
+    finalReviewers,
+    reviewerVerticals,
+    modelCapability,
   }
 
   return {
@@ -348,7 +347,7 @@ export function resolveShipTreatment(
     reviewerVerticals,
     modelCapability,
     qualifiedNarrow: tier !== 'Standard' && complete,
-    signalsHash: createHash('sha256').update(JSON.stringify(normalizedSignals)).digest('hex'),
+    signalsHash: createHash('sha256').update(JSON.stringify(reviewContract)).digest('hex'),
     reasons: unique(
       reasons.length > 0
         ? reasons

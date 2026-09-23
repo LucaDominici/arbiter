@@ -213,6 +213,37 @@ describe('resolveShipTreatment (#2681)', () => {
     expect(infra.modelCapability).toBe('economy')
     expect(infra.reasons).toContain('infrastructure state: timeout; model unchanged')
   })
+
+  it('binds the review fingerprint to effective obligations, not operational signal noise', () => {
+    const frozen = resolveShipTreatment(
+      'Standard',
+      completeSignals({ changedFiles: ['src/weather.ts'], labels: [] }),
+    )
+    const lifecycleNoise = resolveShipTreatment(
+      'Standard',
+      completeSignals({
+        changedFiles: ['src/forecast.ts'],
+        labels: ['status:in-review'],
+        blastRadius: 20,
+        callerCount: 1,
+      }),
+      frozen,
+    )
+    const realRiskChange = resolveShipTreatment(
+      'Standard',
+      completeSignals({ changedFiles: ['src/auth/token.ts'] }),
+      frozen,
+    )
+
+    expect(lifecycleNoise).toMatchObject({
+      tier: frozen.tier,
+      sensitive: frozen.sensitive,
+      finalReviewers: frozen.finalReviewers,
+      reviewerVerticals: frozen.reviewerVerticals,
+      signalsHash: frozen.signalsHash,
+    })
+    expect(realRiskChange.signalsHash).not.toBe(frozen.signalsHash)
+  })
 })
 
 describe('gatherTierSignals (#2180)', () => {
