@@ -142,7 +142,7 @@ describe('#2329 — ship output is unchanged apart from the removal', () => {
   })
 
   const PLAN_ACTION =
-    'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.'
+    'Write the plan with scope and acceptance criteria; the issue body must carry every criterion as `AC-N:` and the plan must freeze them verbatim. Prove admission before TDD: `node scripts/check-acceptance.mjs --plan .claude/plans/task-NNN.md --admit-issue NNN`.'
 
   it('the plan step emits the plain single-issue action, with no batching prose', () => {
     const step = shipStepFor('plan', 'Standard', profile())

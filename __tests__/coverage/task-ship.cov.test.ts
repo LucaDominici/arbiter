@@ -100,7 +100,7 @@ describe('plan action — single-issue, knob-free', () => {
     for (const defaultGateLevel of ['L1', 'L2'] as const) {
       const step = shipStepFor('plan', 'Standard', profile({ defaultGateLevel }))
       expect(step.action).toBe(
-        'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
+        'Write the plan with scope and acceptance criteria; the issue body must carry every criterion as `AC-N:` and the plan must freeze them verbatim. Prove admission before TDD: `node scripts/check-acceptance.mjs --plan .claude/plans/task-NNN.md --admit-issue NNN`.',
       )
     }
   })

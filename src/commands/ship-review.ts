@@ -88,14 +88,24 @@ export function evaluateReviewRound(signals: ReviewRoundSignals): ReviewRoundVer
   }
 }
 
+/**
+ * #2850 — a round that passed only closes review for the source it saw. `sourceChanged` is the
+ * same content binding review completion enforces (scripts/lib/evidence-binding.mjs): when the
+ * source moved since the reviewed SHA, the next round must run, or completion refuses a stale
+ * sidecar and nothing can ever open the round that would satisfy it.
+ */
 export function planReviewRound(
   previous: { rounds: number; lastReviewedSha: string | null; forced?: boolean },
   maxRounds: number,
   head: string | null,
   forced: boolean,
-  latestReviewerEnvelope?: ReviewRoundEnvelope,
+  latest: { envelope?: ReviewRoundEnvelope; sourceChanged?: boolean } = {},
 ): PlannedReviewRound | { allowed: false; detail: string } | null {
-  if (completesReviewRound(previous.lastReviewedSha, latestReviewerEnvelope)) return null
+  if (
+    latest.sourceChanged !== true &&
+    completesReviewRound(previous.lastReviewedSha, latest.envelope)
+  )
+    return null
   const verdict = evaluateReviewRound({ rounds: previous.rounds, maxRounds, forced })
   if (!verdict.allowed) return verdict
   return {

@@ -16,7 +16,11 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveLandingContract, validateLiveExactShaPolicy } from './lib/exact-sha-policy.mjs'
-import { verifyDoneEvidenceReceipt, verifyGateEvidenceFile } from './lib/gate-evidence.mjs'
+import {
+  verifyCiPassReceipt,
+  verifyDoneEvidenceReceipt,
+  verifyGateEvidenceFile,
+} from './lib/gate-evidence.mjs'
 
 const HARD_FAIL = new Set([
   'FAILURE',
@@ -343,21 +347,28 @@ function resolveLocalCandidate(root, state) {
   return head
 }
 
-function assertLandingEvidence(config, root, taskId) {
+function localLandingEvidence(config, root, taskId) {
   if (config?.features?.evidenceHarness === true) {
-    const receipt = verifyDoneEvidenceReceipt({
+    return verifyDoneEvidenceReceipt({
       root,
       taskId,
       archetype: typeof config?.archetype === 'string' ? config.archetype : 'library',
     })
-    if (!receipt.ok) refuseLocalLanding(receipt.reason)
-  } else {
-    const marker = verifyGateEvidenceFile(join(root, '.arbiter', 'gate-pass.json'), {
-      root,
-      minLevel: 'L2',
-      taskId,
-    })
-    if (!marker.ok) refuseLocalLanding(marker.reason)
+  }
+  return verifyGateEvidenceFile(join(root, '.arbiter', 'gate-pass.json'), {
+    root,
+    minLevel: 'L2',
+    taskId,
+  })
+}
+
+// #2850 D3: the exact-head CI receipt is the qualification authority the close step already
+// reuses; a local L2 marker or done receipt remains an alternative, never a second requirement.
+function assertLandingEvidence(config, root, taskId, pr) {
+  const ci = verifyCiPassReceipt({ root, pr })
+  if (!ci.ok) {
+    const local = localLandingEvidence(config, root, taskId)
+    if (!local.ok) refuseLocalLanding(`${ci.reason}; ${local.reason}`)
   }
 
   runLandingChecker(root, join(root, 'scripts', 'check-review-completion.mjs'), ['--task', taskId])
@@ -379,10 +390,10 @@ function assertLandingAcceptance(config, root, taskId) {
 }
 
 /** Refuse promotion until the local lifecycle proves this exact candidate is ready to land. */
-export function assertShipLandingReady(config, root = process.cwd()) {
+export function assertShipLandingReady(config, root = process.cwd(), pr = undefined) {
   const { state, taskId } = readShipLandingState(root)
   const head = resolveLocalCandidate(root, state)
-  assertLandingEvidence(config, root, taskId)
+  assertLandingEvidence(config, root, taskId, pr)
   assertLandingAcceptance(config, root, taskId)
   return head
 }
@@ -544,7 +555,7 @@ async function main() {
     process.exit(2)
   }
   const config = assertLandingSupported()
-  const candidateSha = assertShipLandingReady(config)
+  const candidateSha = assertShipLandingReady(config, process.cwd(), prNumber)
 
   const deadline = Date.now() + timeoutMin * 60_000
   for (;;) {

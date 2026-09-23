@@ -132,12 +132,10 @@ function runPlanMode(root, args, planIdx) {
   const result = checkPlanAnchor(plan.body)
   for (const e of result.errors) fail(e)
   if (!result.ok) return 1
-  const derivedExit = checkPlanDerivedGates(
-    root,
-    plan.body,
-    args.includes('--check-derived-current'),
-  )
+  const checkCurrent = args.includes('--check-derived-current')
+  const derivedExit = checkPlanDerivedGates(root, plan.body, checkCurrent)
   if (derivedExit !== 0) return derivedExit
+  if (checkCurrent && reportUnwiredPlanCheckers(root, plan.body) !== 0) return 1
   const fitExit = checkExplicitFitArg(root, args, result.criteriaIds)
   if (fitExit !== 0) return fitExit
   console.log('OK check-acceptance (--plan mode)')
@@ -219,6 +217,7 @@ function runAdmissionMode(root, args, planIdx, admitIdx) {
   const errors = validateIssueAcceptanceCoverage(issueNumber, issue.body, anchor?.criteria ?? [])
   for (const error of errors) fail(error)
   if (errors.length > 0) return 1
+  if (reportUnwiredPlanCheckers(root, body) !== 0) return 1
   const derivedExit = checkPlanDerivedGates(root, body)
   if (derivedExit !== 0) return derivedExit
   console.log(`OK check-acceptance (issue #${issueNumber} admitted)`)
@@ -269,12 +268,68 @@ function checkExplicitFitArg(root, args, criteriaIds) {
     fail(`--ac-fit artifact not found: ${fitArg}`)
     return 2
   }
-  const errors = validateFitFile(fitAbs, criteriaIds, true, undefined, root)
+  const errors = explicitFitErrors(root, fitAbs, criteriaIds)
   if (errors.length > 0) {
     for (const e of errors) fail(e)
     return 1
   }
   return 0
+}
+
+// #2850: when the named artifact IS the active task's fit (the verification transition), bind it
+// exactly as gate mode does at landing — task id, branch, source content, plan hash, source
+// envelope. A wave-integrate fit with no active task keeps the plan-only contract.
+function activeTaskFitState(root, fitAbs) {
+  if (!existsSync(join(root, '.claude', '.task', 'status.json'))) return null
+  const loaded = loadTaskState(root)
+  const state = loaded.state
+  if (state === undefined || typeof state.taskId !== 'string' || typeof state.plan !== 'string')
+    return null
+  const taskFit = join(
+    root,
+    '.arbiter',
+    'evidence',
+    'ac-fit',
+    `${sanitizeTaskId(state.taskId)}.json`,
+  )
+  return resolve(fitAbs) === resolve(taskFit) ? state : null
+}
+
+function explicitFitErrors(root, fitAbs, criteriaIds) {
+  const state = activeTaskFitState(root, fitAbs)
+  const fit = readValidatedFit(fitAbs, criteriaIds, true, state?.taskId, root)
+  if (state === null || fit.errors.length > 0 || fit.json === undefined) return fit.errors
+  return boundFitErrors(root, state, state.plan, fit.json)
+}
+
+// #2850 D7: a plan that promises `node scripts/check-*.mjs` makes a promise only something
+// executable can keep. A checker that exists but is referenced by no tracked non-document file
+// runs nowhere, so the promise is prose. Checkers the plan is about to create are exempt.
+const PLAN_CHECKER_RE = /\bnode\s+(?:\.\/)?(scripts\/check-[A-Za-z0-9_-]+\.mjs)\b/g
+
+export function unwiredPlanCheckers(root, planBody) {
+  const paths = [...new Set([...planBody.matchAll(PLAN_CHECKER_RE)].map((m) => m[1]))]
+  const errors = []
+  for (const path of paths.filter((candidate) => existsSync(join(root, candidate)))) {
+    const found = spawnSync(
+      'git',
+      ['grep', '-l', '-F', '-e', path, '--', '.', `:(exclude)${path}`, ':(exclude)*.md'],
+      { cwd: root, encoding: 'utf8', shell: false },
+    )
+    if (found.status === 0) continue
+    errors.push(
+      found.status === 1
+        ? `plan runs \`node ${path}\` but no executable file references it; wire it into a gate or test, or drop it from the plan`
+        : `NO DATA: cannot verify that \`node ${path}\` is executed by anything (git grep failed)`,
+    )
+  }
+  return errors
+}
+
+function reportUnwiredPlanCheckers(root, planBody) {
+  const errors = unwiredPlanCheckers(root, planBody)
+  for (const error of errors) fail(error)
+  return errors.length === 0 ? 0 : 1
 }
 
 // Read record-shaped state from status.json; return { exit } when the gate should
@@ -383,13 +438,17 @@ function fitSubjectErrors(root, state, json, identity) {
   return errors
 }
 
+// #2756: the roles record-agent-return admits as an acceptance-fit source (ac-fit and
+// reviewer-panel modes). Producer and consumer must agree, or Ship's own review fails landing.
+const FIT_SOURCE_ROLES = new Set(['reviewer', 'verifier'])
+
 function sourceEnvelopeMismatch(envelope, state, json) {
   const expected = { schema: json.schema, taskId: json.taskId, criteria: json.criteria }
   return [
     envelope.taskId !== state.taskId,
     envelope.branch !== state.branch,
     envelope.sha !== json.sha,
-    envelope.role !== 'verifier',
+    !FIT_SOURCE_ROLES.has(envelope.role),
     JSON.stringify(envelope.acceptanceFit) !== JSON.stringify(expected),
   ].some(Boolean)
 }
@@ -411,12 +470,12 @@ function fitSourceErrors(root, state, json) {
     const envelope = JSON.parse(raw)
     const errors = enforceAcFitCitations(envelope.acceptanceFit, root, json.sha, source.path)
     if (sourceEnvelopeMismatch(envelope, state, json)) {
-      errors.push('ac-fit: source verifier envelope does not match the admitted fit')
+      errors.push('ac-fit: source envelope does not match the admitted fit')
     }
     return errors
     // FAIL-OPEN-INTENT: unreadable source evidence is accumulated as a blocking fit error.
   } catch {
-    return ['ac-fit: source verifier envelope is unreadable']
+    return ['ac-fit: source envelope is unreadable']
   }
 }
 
@@ -510,10 +569,6 @@ function readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, 
   if (root && errors.length === 0)
     errors.push(...enforceAcFitCitations(json, root, json.sha ?? 'HEAD', absPath))
   return { json, errors }
-}
-
-function validateFitFile(absPath, criteriaIds, requireAllPass, expectedTaskId, root) {
-  return readValidatedFit(absPath, criteriaIds, requireAllPass, expectedTaskId, root).errors
 }
 
 if (isMainModule(import.meta.url)) {

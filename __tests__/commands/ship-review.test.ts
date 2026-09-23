@@ -94,50 +94,34 @@ describe('planReviewRound (#2797)', () => {
 
   it('does not plan a next round when round 1 has only LOW findings', () => {
     expect(
-      planReviewRound(
-        { rounds: 1, lastReviewedSha: SHA_A },
-        2,
-        SHA_B,
-        false,
-        envelope(SHA_A, ['low']),
-      ),
+      planReviewRound({ rounds: 1, lastReviewedSha: SHA_A }, 2, SHA_B, false, {
+        envelope: envelope(SHA_A, ['low']),
+      }),
     ).toBeNull()
   })
 
   it('plans round 2 when the frozen envelope carries a MED finding', () => {
     expect(
-      planReviewRound(
-        { rounds: 1, lastReviewedSha: SHA_A },
-        2,
-        SHA_B,
-        false,
-        envelope(SHA_A, ['med']),
-      ),
+      planReviewRound({ rounds: 1, lastReviewedSha: SHA_A }, 2, SHA_B, false, {
+        envelope: envelope(SHA_A, ['med']),
+      }),
     ).toMatchObject({ rounds: 2, head: SHA_B })
   })
 
   it('does not plan round 3 when round 2 has only LOW findings', () => {
     expect(
-      planReviewRound(
-        { rounds: 2, lastReviewedSha: SHA_B },
-        2,
-        SHA_C,
-        false,
-        envelope(SHA_B, ['low']),
-      ),
+      planReviewRound({ rounds: 2, lastReviewedSha: SHA_B }, 2, SHA_C, false, {
+        envelope: envelope(SHA_B, ['low']),
+      }),
     ).toBeNull()
   })
 
   it('#2850 D6: plans round 2 after a PASS/LOW round when the source changed since it', () => {
     expect(
-      planReviewRound(
-        { rounds: 1, lastReviewedSha: SHA_A },
-        2,
-        SHA_B,
-        false,
-        envelope(SHA_A, ['low']),
-        true,
-      ),
+      planReviewRound({ rounds: 1, lastReviewedSha: SHA_A }, 2, SHA_B, false, {
+        envelope: envelope(SHA_A, ['low']),
+        sourceChanged: true,
+      }),
     ).toMatchObject({ rounds: 2, base: SHA_A, head: SHA_B })
   })
 
@@ -292,41 +276,6 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     ship({ reviewRound: true, headSha: SHA_A })
     expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
     expect(log()).toContain(`review → round 1 at ${SHA_A.slice(0, 7)}`)
-  })
-
-  it('completes a changed round with only LOW reviewer findings without opening another round', () => {
-    ship({ advance: true, headSha: SHA_A })
-    ship({ reviewRound: true, headSha: SHA_A })
-    const evidenceDir = join(dir, '.arbiter', 'evidence', 'agent-returns', '_100')
-    mkdirSync(evidenceDir, { recursive: true })
-    writeFileSync(
-      join(evidenceDir, 'domain-0.json'),
-      JSON.stringify({
-        schema: 'arbiter-agent-return-v1',
-        agent: 'domain',
-        role: 'reviewer',
-        taskId: '#100',
-        branch: 'task/#100-review',
-        sha: SHA_A,
-        ts: '2026-09-20T00:00:00.000Z',
-        verdict: 'WARN',
-        confidence: 0.8,
-        findings: [
-          {
-            id: 'review-low-1',
-            severity: 'low',
-            kind: 'behavioral',
-            claim: 'The wording could be clearer.',
-            citations: [],
-          },
-        ],
-      }),
-    )
-
-    const result = ship({ reviewRound: true, headSha: SHA_B })
-
-    expect(result.reviewDispatched).toBe(false)
-    expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
   })
 
   it('#2850 D6: an evidence-only commit keeps a PASS round; a source commit re-reviews', () => {

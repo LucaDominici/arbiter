@@ -175,18 +175,36 @@ export function makeRunner(runFn) {
 const defaultRun = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: 'utf-8', ...opts }).trim()
 
+function hasOriginRemote(run) {
+  try {
+    return run('git', ['remote', 'get-url', 'origin'], { cwd: repoRoot }).length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * #2850 D4: a checkout WITH an origin remote whose main cannot be resolved (a shallow CI clone)
+ * has not been verified — that is NO DATA (exit 2), never a vacuous pass. Only a purely local
+ * repository, with no origin at all, has no branch range to owe evidence for.
+ */
 function mergeBaseOrSkip(run, envSkip) {
   try {
-    return run('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: repoRoot })
+    return { mergeBase: run('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: repoRoot }) }
   } catch {
     if (envSkip) {
       process.stdout.write('check-tdd-evidence: ARBITER_SKIP_TDD=1, skipping (no origin/main)\n')
-    } else {
-      process.stdout.write(
-        'check-tdd-evidence: cannot determine merge-base (no origin/main), skipping\n',
-      )
+      return { exitCode: 0 }
     }
-    return null
+    if (hasOriginRemote(run)) {
+      process.stderr.write(
+        'check-tdd-evidence: NO DATA — origin exists but origin/main is not resolvable; ' +
+          'fetch full history (actions/checkout fetch-depth: 0) before verifying TDD evidence\n',
+      )
+      return { exitCode: 2 }
+    }
+    process.stdout.write('check-tdd-evidence: no origin remote (local-only repository), skipping\n')
+    return { exitCode: 0 }
   }
 }
 
@@ -324,8 +342,9 @@ function subjectFloorFails(run, mergeBase, floorIds) {
 }
 
 function collectBranchContext(run, envSkip) {
-  const mergeBase = mergeBaseOrSkip(run, envSkip)
-  if (mergeBase === null) return { exitCode: 0 }
+  const base = mergeBaseOrSkip(run, envSkip)
+  if (base.exitCode !== undefined) return { exitCode: base.exitCode }
+  const { mergeBase } = base
   const subjectLog = subjectLogOrPass(run, mergeBase)
   if (subjectLog === null) return { exitCode: 2 }
   if (subjectLog.length === 0) {

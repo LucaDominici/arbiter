@@ -158,6 +158,8 @@ interface ShipStepContext {
   externalModelAccess?: ExternalModelAccess
   /** #2400 — the review round this invocation opened, when it opened one. */
   review?: PlannedReviewRound
+  /** #2850 — the anchored plan, so the plan step names it instead of a guessed default. */
+  plan?: string
   treatment: ShipTreatment
 }
 
@@ -352,6 +354,30 @@ function reviewPhaseStepBody(
   return externalCount > 0 ? { ...step, externalReviewers: externalCount } : step
 }
 
+/**
+ * #2329 — batching guidance is model-side prose (the wave-drain skill), not a config knob.
+ * #2724 — plan admission is mechanical; review is reserved for the frozen candidate.
+ * #2850 — the step names the ANCHORED plan (D2) and the admission the red transition will run
+ * (D1), so the issue-AC obligation is known before the writer starts rather than found by failing.
+ */
+function planStepBody(
+  cli: string,
+  t: ShipTier,
+  context: Pick<ShipStepContext, 'taskId' | 'plan'>,
+): Omit<ShipStep, 'verticals'> {
+  const issue = context.taskId?.replace(/^#/, '') ?? 'NNN'
+  const anchored = context.plan === 'unknown' ? undefined : context.plan?.split('#')[0]?.trim()
+  const plan = anchored || `.claude/plans/task-${issue}.md`
+  return {
+    phase: 'plan',
+    action:
+      'Write the plan with scope and acceptance criteria; the issue body must carry every criterion as `AC-N:` and the plan must freeze them verbatim. ' +
+      `Prove admission before TDD: \`node scripts/check-acceptance.mjs --plan ${plan} --admit-issue ${issue}\`.`,
+    command: `${cli} lifecycle start --id '${context.taskId ?? '#NNN'}' --tier ${t} --plan ${plan}`,
+    reviewAgents: 0,
+  }
+}
+
 /** The phase body (count + action), before the size-derived vertical floor is attached. */
 function shipStepBody(
   phase: TaskPhase,
@@ -374,19 +400,7 @@ function shipStepBody(
         reviewAgents: 0,
       }
     case 'plan':
-      return {
-        phase,
-        // #2329 — batching guidance is model-side prose (the wave-drain skill), not a
-        // config knob: the affinity engine it keyed off was deleted in the #1817 B-prune.
-        // #2724 — plan admission is mechanical; review is reserved for the frozen
-        // implementation candidate.
-        action:
-          'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
-        command:
-          `${cli} lifecycle start --id '${context.taskId ?? '#NNN'}' --tier ${t} ` +
-          `--plan .claude/plans/task-${context.taskId?.replace(/^#/, '') ?? 'NNN'}.md`,
-        reviewAgents: 0,
-      }
+      return planStepBody(cli, t, context)
     case 'red':
       return {
         phase,
@@ -1327,6 +1341,9 @@ function reviewVertical(
   return slotPlan.external[0] ?? treatment.reviewerVerticals[0] ?? 'bugs'
 }
 
+const REVIEW_ROUND_NOT_OPENED =
+  'review round: not opened — the latest review already covers this source (no blocking findings, no source change since)'
+
 function openExplicitReviewRound(
   root: string,
   opts: TaskShipOptions,
@@ -1337,7 +1354,9 @@ function openExplicitReviewRound(
   const hasCodexSeat = configuredCodexSeat(profile, treatment)
   const slotPlan = reviewSlotPlan(opts, profile, treatment)
   const plan = runTaskReviewRound(reviewRoundOptions(root, opts, hasCodexSeat))
-  if (plan === null || (!hasCodexSeat && slotPlan.external.length === 0)) return { plan }
+  // #2850 — say so when no round opens; a silent no-op reads as a completed review.
+  if (plan === null) return { plan, summary: REVIEW_ROUND_NOT_OPENED }
+  if (!hasCodexSeat && slotPlan.external.length === 0) return { plan }
   return {
     plan,
     summary: executeCodexReviewRound({
@@ -1413,7 +1432,10 @@ function readOnlyShipResult(
   const profile = shipProfileFor(root, opts)
   return {
     phase: state.phase,
-    step: shipStepFor(state.phase, treatment, profile, state.taskId, state.chainIds ?? []),
+    step: shipStepFor(state.phase, treatment, profile, state.taskId, {
+      chainIds: state.chainIds ?? [],
+      ...(state.plan ? { plan: state.plan } : {}),
+    }),
     advanced: false,
     done: state.phase === 'complete',
     tier: treatment.tier,
@@ -1468,6 +1490,7 @@ function buildActiveShipResult(input: {
   } = input
   const step = shipStepFor(phase, treatment, profile, state?.taskId, {
     chainIds: state?.chainIds ?? [],
+    ...(state?.plan ? { plan: state.plan } : {}),
     ...(opts.externalModelAccess !== undefined
       ? { externalModelAccess: opts.externalModelAccess }
       : {}),
