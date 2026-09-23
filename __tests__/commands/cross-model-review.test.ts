@@ -1007,7 +1007,7 @@ describe('arbiter ship cross-model wiring (#2357)', () => {
           'count=0\n' +
           'if [ -f "$count_file" ]; then count=$(cat "$count_file"); fi\n' +
           'printf "%s" "$((count + 1))" > "$count_file"\n' +
-          'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}\\n\' > "$out"\n',
+          'printf \'{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2357","criteria":[]}}\\n\' > "$out"\n',
       )
       chmodSync(codex, 0o755)
       mkdirSync(join(dir, '.codex'), { recursive: true })
