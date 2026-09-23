@@ -521,8 +521,18 @@ function collectComplexityViolations(cwd, metrics, collectionErrors) {
   const [command, ...args] = DEBT_METRIC_COMMANDS.complexityViolations;
   const result = spawnOrSkip('complexityViolations', 'eslint', command, args, { cwd });
   if (result === null) return;
+  const collectionFailed = [
+    result.error, result.signal, result.status === null,
+    (result.status ?? 0) > 1, !(result.stdout ?? '').trim(),
+  ].some(Boolean);
+  if (collectionFailed) {
+    const reason = `eslint complexity collection failed (exit ${result.status ?? 'none'}${result.signal ? `, signal ${result.signal}` : ''})`;
+    collectionErrors.push({ metric: 'complexityViolations', reason });
+    process.stderr.write(`[baseline] ERROR: ${reason}\n`);
+    return;
+  }
   try {
-    const report = JSON.parse(result.stdout || '[]');
+    const report = JSON.parse(result.stdout);
     metrics.complexityViolations = {
       value: report.flatMap(file => file.messages).filter(message => message.ruleId === 'complexity').length,
       unit: 'count', direction: 'lower-is-better',

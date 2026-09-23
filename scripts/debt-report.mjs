@@ -45,6 +45,10 @@ const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json')
 
 // ─── Load baseline ────────────────────────────────────────────────────────────
 if (!existsSync(BASELINE_FILE)) {
+  if (onlyMetric !== undefined) {
+    process.stderr.write('[arbiter] preventive metric requires debt-baseline.json\n')
+    process.exit(2)
+  }
   console.warn(
     '[arbiter] WARN: debt-baseline.json not found.\n  Run: node scripts/capture-debt-baseline.mjs\n  Until baseline is captured, debt ratchet is INACTIVE.',
   )
@@ -56,6 +60,12 @@ const rawBaseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'))
 // ─── Schema version check ─────────────────────────────────────────────────────
 if (rawBaseline.version !== 2) {
   const ver = rawBaseline.version ?? 'unknown'
+  if (onlyMetric !== undefined) {
+    process.stderr.write(
+      `[arbiter] preventive metric requires debt baseline schema v2, found v${ver}\n`,
+    )
+    process.exit(2)
+  }
   process.stdout.write(
     `[arbiter] Baseline is schema v${ver}; run: node scripts/capture-debt-baseline.mjs to migrate to v2.\n`,
   )
@@ -78,11 +88,6 @@ const current = collectMetrics(cwd, collectionErrors, {
 if (onlyMetric === undefined) {
   current.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' }
 }
-if (onlyMetric !== undefined && current[onlyMetric] === undefined) {
-  process.stderr.write(`[arbiter] preventive metric is unavailable: ${onlyMetric}\n`)
-  process.exit(2)
-}
-
 if (collectionErrors.length > 0) {
   for (const e of collectionErrors) {
     process.stdout.write(`[arbiter] collection FAILURE for ${e.metric}: ${e.reason}\n`)
@@ -91,6 +96,10 @@ if (collectionErrors.length > 0) {
     process.stdout.write('[arbiter] ❌ debt gate FAILED: metric collection error (fail-closed)\n')
     process.exit(1)
   }
+}
+if (onlyMetric !== undefined && current[onlyMetric] === undefined) {
+  process.stderr.write(`[arbiter] preventive metric is unavailable: ${onlyMetric}\n`)
+  process.exit(2)
 }
 
 // Measurement-noise tolerance for v8-coverage metrics (#2253): CI's v8
