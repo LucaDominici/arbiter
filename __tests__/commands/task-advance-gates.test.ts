@@ -37,6 +37,7 @@ vi.mock('../../src/evidence/tdd-reexecute.js', () => ({
 }))
 
 import { runTaskAdvance, runTaskInit, runTaskResume } from '../../src/commands/task.js'
+import { runTaskShip } from '../../src/commands/task-ship.js'
 import { pathExistsInCommit } from '../../src/evidence/git-checks.js'
 import { verifyGreenExecution } from '../../src/evidence/tdd-reexecute.js'
 import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
@@ -412,6 +413,18 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     writeFileSync(authority, `${readFileSync(authority, 'utf-8')}\n// changed authority\n`)
 
     expect(() => runTaskResume({ dir })).toThrow(/derived gates are missing or stale/i)
+  })
+
+  it('refuses the read-only ship resume after a verification authority changes', () => {
+    const dir = acceptanceRepo(VALID_PLAN)
+    storeDerivedGates(dir, deriveFixtureGates(dir, FILES))
+    writeUnifiedState(dir, { phase: 'refactor' })
+    const authority = join(dir, 'scripts', 'check-all.mjs')
+    writeFileSync(authority, `${readFileSync(authority, 'utf-8')}\n// changed authority\n`)
+
+    expect(() => runTaskShip({ dir, taskId: '#2587' })).toThrow(
+      /derived gates are missing or stale/i,
+    )
   })
 
   it('preserves the optional profile inert when disabled', () => {
