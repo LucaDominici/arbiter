@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2815",
+  "test_path": "__tests__/commands/task-record-red.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "887c512a062c92ebd774d8ef5de35b04a960fdf1",
+  "test_blob_sha": "c6208754b9326a8bd4a0caf418eb1e0163a9dacd",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/task-record-red.test.ts (72 tests | 2 failed) 66ms\n     × --at records an abbreviated ref as its canonical commit SHA 7ms\n     × --at resolves a relative repo directory before linking dependencies 1ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 70 passed (72)\n   Start at  02:18:21\n   Duration  366ms (transform 151ms, setup 6ms, import 204ms, tests 66ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/task-record-red.test.ts > record-red --at (#2747) > --at records an abbreviated ref as its canonical commit SHA\nAssertionError: [\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 40,\n    \"inclusive\": true,\n    \"exact\": true,\n    \"path\": [\n      \"test_commit_sha\"\n    ],\n    \"message\": \"test_commit_sha must be exactly 40 hex characters\"\n  }\n]: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/commands/task-record-red.test.ts:1273:55\n    1271|     const record = recordAt(dir, atSha)\n    1272|\n    1273|     expect(record.ok, record.ok ? '' : record.reason).toBe(true)\n       |                                                       ^\n    1274|     const evidence = JSON.parse(\n    1275|       readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.jso…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/commands/task-record-red.test.ts > record-red --at (#2747) > --at resolves a relative repo directory before linking dependencies\nAssertionError: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/commands/task-record-red.test.ts:1300:38\n    1298|\n    1299|     expect(record.ok, record.ok ? '' : record.reason).toBe(true)\n    1300|     expect(isAbsolute(linkedSource)).toBe(true)\n       |                                      ^\n    1301|     expect(linkedSource).toBe(resolve(dir, 'node_modules'))\n    1302|   })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/task-record-red.test.ts",
+  "recorded_at": "2026-09-23T00:18:21.415Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/commands/task-record-red.test.ts"
+  ]
+}
