@@ -299,7 +299,7 @@
     "schemas/use-case.schema.json": "adb5e6c70586bff08990150303bf3c3d7634c2b885b206727710c727a43c29c3",
     "scripts/bg-run.sh": "c01d5fc49ee813cf908a8984a529d6d774e44735f396465759cae0194fddf72c",
     "scripts/capacity-probe.mjs": "df53c9eb95e789b76907287100fb1e45fbd04a53bc9902d5b288c2a7a6032b36",
-    "scripts/check-acceptance.mjs": "59a50cc5fb74e097e4ea7eeb008baca6b183e06350a486ab2f7c9e4119c5a20e",
+    "scripts/check-acceptance.mjs": "3b6d3da8d808137b3c8781226567cee48f7e8e0fc8c443f8943071e47231d014",
     "scripts/check-action-pins.mjs": "5aa3ecdb1796c89a65588484791c22aef7dba299b356425f0feeaca6ec16fa28",
     "scripts/check-all.mjs": "a970a291482707dd091e28a55949ca26775365c7ad6d760c2a47dfd1bda67d02",
     "scripts/check-anti-fake-green.mjs": "e077a05e6e8ff21b393013be3f50c72709a79b0806ccec1ec96eb3b4b5b960b3",
