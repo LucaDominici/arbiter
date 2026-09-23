@@ -1,12 +1,12 @@
 ---
 title: 'Preventive verification contracts'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-09-21'
+last_review: '2026-09-23'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
-related: ['2773']
+related: ['2746', '2773']
 ---
 
 # Preventive verification contracts
@@ -55,3 +55,10 @@ arbiter lifecycle start --id '#NNN' --plan path/to/plan.md
 
 Then read the next `/ship` step to review the refreshed commands and unresolved obligations before
 entering RED.
+
+Arbiter's own pre-push preflight executes two cheap final-gate slices that have caused avoidable CI
+rework: the fail-closed audit and the existing complexity baseline measurement. Generated
+TypeScript targets with debt gates enabled execute the applicable complexity slice. It uses
+`debt-report.mjs --gate --only-metric complexityViolations`, fails when the collector is unavailable,
+and does not run coverage, type checking, dead-code or duplication collectors. The complete debt
+ratchet remains an L2 CI responsibility.

@@ -392,6 +392,13 @@ if (isMain) {
       runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
       runCheck('anti-drift: secret scan', 'node', ['scripts/check-secret-scan.mjs'])
       runCheck('no tracked artifacts (INV-117)', 'node', ['scripts/check-no-tracked-artifacts.mjs'])
+      runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
+      runCheck('complexity ratchet (preventive)', 'node', [
+        'scripts/debt-report.mjs',
+        '--gate',
+        '--only-metric',
+        'complexityViolations',
+      ])
       return getResults().length
     }
 

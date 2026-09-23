@@ -21,6 +21,11 @@ function optionValue(name) {
 
 const gateMode = process.argv.includes('--gate')
 const requireImprovement = process.argv.includes('--require-improvement')
+const onlyMetric = optionValue('--only-metric')
+if (onlyMetric !== undefined && onlyMetric !== 'complexityViolations') {
+  process.stderr.write(`[arbiter] unsupported --only-metric: ${onlyMetric}\n`)
+  process.exit(2)
+}
 const coverageSummaryPath = optionValue('--coverage-summary')
 const coverageStartedAtRaw = optionValue('--coverage-started-at')
 const coverageStartedAt = coverageStartedAtRaw === undefined ? undefined : Number(coverageStartedAtRaw)
@@ -68,10 +73,17 @@ const baseline = rawBaseline
 // disable a ratchet metric (#1286, fail-closed CANON-22).
 const collectionErrors = []
 const current = collectMetrics(cwd, collectionErrors, {
+  ...(onlyMetric !== undefined ? { onlyMetric } : {}),
   ...(coverageSummaryPath !== undefined ? { coverageSummaryPath } : {}),
   ...(coverageStartedAt !== undefined ? { coverageStartedAt } : {}),
 })
-current.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' }
+if (onlyMetric === undefined) {
+  current.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' }
+}
+if (onlyMetric !== undefined && current[onlyMetric] === undefined) {
+  process.stderr.write(`[arbiter] preventive metric is unavailable: ${onlyMetric}\n`)
+  process.exit(2)
+}
 
 if (collectionErrors.length > 0) {
   for (const e of collectionErrors) {
@@ -100,7 +112,14 @@ const rows = []
 let regressions = 0
 let improvements = 0
 
-for (const [key, base] of Object.entries(baseline.metrics)) {
+const baselineMetrics =
+  onlyMetric === undefined ? baseline.metrics : { [onlyMetric]: baseline.metrics[onlyMetric] }
+if (onlyMetric !== undefined && baselineMetrics[onlyMetric] === undefined) {
+  process.stderr.write(`[arbiter] baseline metric is missing: ${onlyMetric}\n`)
+  process.exit(2)
+}
+
+for (const [key, base] of Object.entries(baselineMetrics)) {
   const curr = current[key]
   if (!curr) {
     // Tool missing on this machine — soft warn, never fail gate
@@ -154,7 +173,7 @@ for (const [key, base] of Object.entries(baseline.metrics)) {
 
 // New metrics not yet in baseline — informational only
 for (const [key, curr] of Object.entries(current)) {
-  if (!baseline.metrics[key]) {
+  if (!baselineMetrics[key]) {
     rows.push({
       key,
       base: 'new',
