@@ -128,6 +128,19 @@ describe('planReviewRound (#2797)', () => {
     ).toBeNull()
   })
 
+  it('#2850 D6: plans round 2 after a PASS/LOW round when the source changed since it', () => {
+    expect(
+      planReviewRound(
+        { rounds: 1, lastReviewedSha: SHA_A },
+        2,
+        SHA_B,
+        false,
+        envelope(SHA_A, ['low']),
+        true,
+      ),
+    ).toMatchObject({ rounds: 2, base: SHA_A, head: SHA_B })
+  })
+
   it('never plans above the cap without force, but preserves the explicit force escape hatch', () => {
     expect(planReviewRound({ rounds: 2, lastReviewedSha: SHA_B }, 2, SHA_C, false)).toMatchObject({
       allowed: false,
@@ -314,6 +327,47 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
 
     expect(result.reviewDispatched).toBe(false)
     expect(review()).toEqual({ rounds: 1, lastReviewedSha: SHA_A })
+  })
+
+  it('#2850 D6: an evidence-only commit keeps a PASS round; a source commit re-reviews', () => {
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: dir, encoding: 'utf-8' }).trim()
+    const reviewed = git('rev-parse', 'HEAD')
+    ship({ advance: true, headSha: reviewed })
+    ship({ reviewRound: true, headSha: reviewed })
+    const evidenceDir = join(dir, '.arbiter', 'evidence', 'agent-returns', '_100')
+    mkdirSync(evidenceDir, { recursive: true })
+    writeFileSync(
+      join(evidenceDir, 'domain-0.json'),
+      JSON.stringify({
+        schema: 'arbiter-agent-return-v1',
+        agent: 'domain',
+        role: 'reviewer',
+        taskId: '#100',
+        branch: 'task/#100-review',
+        sha: reviewed,
+        ts: '2026-09-20T00:00:00.000Z',
+        verdict: 'PASS',
+        confidence: 1,
+        findings: [],
+      }),
+    )
+    mkdirSync(join(dir, '.agents'), { recursive: true })
+    writeFileSync(join(dir, '.agents', 'handoff.md'), '# evidence only\n')
+    git('add', '.agents/handoff.md')
+    git('commit', '-q', '-m', 'chore: record handoff')
+    const evidenceOnly = ship({ reviewRound: true, headSha: git('rev-parse', 'HEAD') })
+    expect(evidenceOnly.reviewDispatched).toBe(false)
+    expect(buildShipStepLines(evidenceOnly).join('\n')).toMatch(/review round: not opened/)
+    expect(review()).toEqual({ rounds: 1, lastReviewedSha: reviewed })
+
+    writeFileSync(join(dir, 'review.test.ts'), 'throw new Error("RED") // fix after review\n')
+    git('add', 'review.test.ts')
+    git('commit', '-q', '-m', 'fix: address review')
+    const fixed = git('rev-parse', 'HEAD')
+    const rereview = ship({ reviewRound: true, headSha: fixed })
+    expect(rereview.reviewDispatched).toBe(true)
+    expect(review()).toEqual({ rounds: 2, lastReviewedSha: fixed })
   })
 
   it('AC-2400.1: --review-round records the next round and re-pins HEAD', () => {

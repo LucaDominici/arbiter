@@ -546,3 +546,151 @@ describe.each(['self', 'emitted'])('#2635 acceptance input boundaries (%s)', (pr
     expect(result.status, result.stderr).toBe(2)
   })
 })
+
+// #2850 / #2756 — producer/consumer parity for the admitted ac-fit, the verification-time
+// binding, and plan-listed checkers that nothing executable runs (D5, D7).
+describe('check-acceptance ship parity (#2850)', () => {
+  const branch = 'task/#42-fit'
+
+  function git(...args: string[]): string {
+    return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+  }
+
+  function seedBoundFit(role: 'reviewer' | 'verifier', phase = 'verification'): void {
+    writeState(phase)
+    writeFileSync(
+      join(root, '.claude', '.task', 'status.json'),
+      JSON.stringify({ taskId: '#42', phase, plan: 'plan.md', branch }),
+    )
+    mkdirSync(join(root, 'src'), { recursive: true })
+    writeFileSync(join(root, 'src', 'subject.ts'), 'export const subject = true\n')
+    execFileSync('git', ['init', '-b', branch], { cwd: root, stdio: 'ignore' })
+    git('config', 'user.email', 'fixture.invalid')
+    git('config', 'user.name', 'Fixture')
+    git('add', 'plan.md', 'src/subject.ts')
+    git('commit', '-m', 'source')
+    const sha = git('rev-parse', 'HEAD')
+    const acceptanceFit = {
+      schema: 'arbiter-ac-fit-v1',
+      taskId: '#42',
+      criteria: [{ id: 'AC-1', verdict: 'PASS', evidence: [{ file: 'src/subject.ts', line: 1 }] }],
+    }
+    const envelope = JSON.stringify({
+      schema: 'arbiter-agent-return-v1',
+      agent: 'codex-reviewer',
+      role,
+      taskId: '#42',
+      branch,
+      sha,
+      verdict: 'PASS',
+      confidence: 1,
+      findings: [],
+      acceptanceFit,
+    })
+    const envelopePath = '.arbiter/evidence/agent-returns/_42/codex-reviewer-0.json'
+    mkdirSync(join(root, '.arbiter', 'evidence', 'agent-returns', '_42'), { recursive: true })
+    mkdirSync(join(root, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
+    writeFileSync(join(root, envelopePath), envelope)
+    writeFileSync(
+      join(root, '.arbiter', 'evidence', 'ac-fit', '42.json'),
+      JSON.stringify({
+        ...acceptanceFit,
+        branch,
+        sha,
+        planHash: computeAcHash(parsePlanAnchor(GOOD_PLAN)!.criteria),
+        sourceEnvelope: {
+          path: envelopePath,
+          sha256: createHash('sha256').update(envelope).digest('hex'),
+        },
+      }),
+    )
+  }
+
+  it('D5: accepts the admitted fit recorded from a native final-reviewer envelope', () => {
+    seedBoundFit('reviewer')
+    const result = run()
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+  })
+
+  it('D5: still rejects a source envelope with a role that cannot carry acceptance fit', () => {
+    seedBoundFit('reviewer')
+    const envelopePath = join(root, '.arbiter/evidence/agent-returns/_42/codex-reviewer-0.json')
+    const tampered = readFileSync(envelopePath, 'utf8').replace('"reviewer"', '"scanner"')
+    writeFileSync(envelopePath, tampered)
+    const fitPath = join(root, '.arbiter/evidence/ac-fit/42.json')
+    const fit = JSON.parse(readFileSync(fitPath, 'utf8')) as Record<string, unknown>
+    fit['sourceEnvelope'] = {
+      path: '.arbiter/evidence/agent-returns/_42/codex-reviewer-0.json',
+      sha256: createHash('sha256').update(tampered).digest('hex'),
+    }
+    writeFileSync(fitPath, JSON.stringify(fit))
+    expect(run().status).toBe(1)
+  })
+
+  it('binds the active task fit in --plan --ac-fit mode exactly as landing does', () => {
+    seedBoundFit('reviewer', 'refactor')
+    const args = ['--plan', 'plan.md', '--ac-fit', '.arbiter/evidence/ac-fit/42.json']
+    expect(run({}, args).status).toBe(0)
+    writeFileSync(join(root, 'src', 'subject.ts'), 'export const subject = false\n')
+    git('add', 'src/subject.ts')
+    git('commit', '-m', 'source changed after review')
+    const stale = run({}, args)
+    expect(stale.status).toBe(1)
+    expect(stale.stderr).toMatch(/source changed/i)
+  })
+
+  describe('D7: plan-listed checkers must be executed by something', () => {
+    const plan = (command: string) =>
+      [
+        '## Acceptance Criteria',
+        '- [ ] AC-42.1: preserves the requested outcome',
+        '## Non-Goals',
+        '- x',
+        '## Verification',
+        `- \`${command}\``,
+      ].join('\n')
+
+    function admit(planBody: string) {
+      writeFileSync(join(root, 'wave.md'), planBody)
+      execFileSync('git', ['init', '-b', branch], { cwd: root, stdio: 'ignore' })
+      git('add', '-A')
+      git('-c', 'user.email=fixture.invalid', '-c', 'user.name=Fixture', 'commit', '-m', 'seed')
+      const bin = installGh({
+        number: 42,
+        url: 'https://example.invalid/issues/42',
+        body: '## Acceptance Criteria\n- preserves the requested outcome',
+        updatedAt: '2026-09-20T00:00:00Z',
+      })
+      return run({ PATH: `${bin}:${process.env.PATH ?? ''}` }, [
+        '--plan',
+        'wave.md',
+        '--admit-issue',
+        '42',
+      ])
+    }
+
+    it('rejects admission when an existing checker is referenced only by prose', () => {
+      mkdirSync(join(root, 'scripts'), { recursive: true })
+      writeFileSync(join(root, 'scripts', 'check-orphan.mjs'), 'process.exit(0)\n')
+      writeFileSync(join(root, 'NOTES.md'), 'run node scripts/check-orphan.mjs\n')
+      const result = admit(plan('node scripts/check-orphan.mjs'))
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/scripts\/check-orphan\.mjs.*no executable/i)
+    })
+
+    it('admits a checker that a tracked executable file runs', () => {
+      mkdirSync(join(root, 'scripts'), { recursive: true })
+      writeFileSync(join(root, 'scripts', 'check-wired.mjs'), 'process.exit(0)\n')
+      writeFileSync(
+        join(root, 'scripts', 'check-all.mjs'),
+        "runCheck('wired', 'node', ['scripts/check-wired.mjs'])\n",
+      )
+      expect(admit(plan('node scripts/check-wired.mjs')).status).toBe(0)
+    })
+
+    it('does not demand wiring for a checker the plan is about to create', () => {
+      expect(admit(plan('node scripts/check-new.mjs')).status).toBe(0)
+    })
+  })
+})

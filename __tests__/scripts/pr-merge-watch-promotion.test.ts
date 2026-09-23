@@ -37,6 +37,8 @@ function runWatcher(
     acceptanceExit?: number
     omitAcFit?: boolean
     omitReceipt?: boolean
+    omitMarker?: boolean
+    ciReceipt?: { pr?: number; sha?: string } | 'head'
   } = {},
 ) {
   const {
@@ -48,6 +50,8 @@ function runWatcher(
     acceptanceExit = 0,
     omitAcFit = false,
     omitReceipt = false,
+    omitMarker = false,
+    ciReceipt,
   } = options
   const root = mkdtempSync(join(tmpdir(), 'arbiter-ff-watch-'))
   roots.push(root)
@@ -101,6 +105,31 @@ function runWatcher(
         reality_contact: { archetype: 'library', required: false, passed: null },
       }),
     )
+  if (omitMarker) rmSync(join(root, '.arbiter', 'gate-pass.json'))
+  if (ciReceipt !== undefined) {
+    const receipt = ciReceipt === 'head' ? {} : ciReceipt
+    writeFileSync(
+      join(root, '.arbiter', 'ci-pass.json'),
+      JSON.stringify({
+        schema: 'arbiter-ci-pass-v2',
+        sha: receipt.sha ?? head,
+        conclusion: 'success',
+        runUrl: 'https://example.invalid/actions/runs/1',
+        checkedAt: '2026-09-23T00:00:00.000Z',
+        pr: receipt.pr ?? 2148,
+        requiredChecks: [
+          {
+            name: 'CI Required',
+            state: 'SUCCESS',
+            workflow: 'PR Fast (T1)',
+            link: 'https://example.invalid/actions/runs/1/job/1',
+            startedAt: '2026-09-23T00:00:00.000Z',
+            completedAt: '2026-09-23T00:05:00.000Z',
+          },
+        ],
+      }),
+    )
+  }
   if (!omitAcFit) {
     mkdirSync(join(root, '.arbiter', 'evidence', 'ac-fit'), { recursive: true })
     writeFileSync(join(root, '.arbiter', 'evidence', 'ac-fit', '2148.json'), '{}\n')
@@ -350,6 +379,47 @@ describe('pr-merge-watch exact-SHA promotion (#2148)', () => {
     )
     expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
     expect(state.base).toBe(state.initialHead)
+  })
+
+  const harnessOff = {
+    collaborationMode: 'trunk-solo',
+    solo: { mergeMode: 'pr-ff' },
+    features: { evidenceHarness: false, acceptanceAnchor: false },
+  }
+
+  it('#2850 D3: lands on the exact-head CI receipt without a local L2 marker', () => {
+    const { result, state } = runWatcher({}, harnessOff, {
+      omitReceipt: true,
+      omitAcFit: true,
+      omitMarker: true,
+      ciReceipt: 'head',
+    })
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
+    expect(state.base).toBe(state.initialHead)
+  })
+
+  it('#2850 D3: accepts the CI receipt in place of a done receipt under the evidence harness', () => {
+    const { result } = runWatcher({}, undefined, {
+      omitReceipt: true,
+      omitMarker: true,
+      ciReceipt: 'head',
+    })
+    expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0)
+  })
+
+  it.each([
+    ['another PR', { pr: 7 }],
+    ['another SHA', { sha: 'd'.repeat(40) }],
+  ])('#2850 D3: refuses a CI receipt for %s before any GitHub call', (_label, receipt) => {
+    const { result, state } = runWatcher({}, harnessOff, {
+      omitReceipt: true,
+      omitAcFit: true,
+      omitMarker: true,
+      ciReceipt: receipt,
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toMatch(/local Ship preflight refused.*CI receipt/i)
+    expect(state.calls).toEqual([])
   })
 
   it('still refuses failed review when the evidence harness is off (#2681)', () => {

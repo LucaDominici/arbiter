@@ -172,6 +172,16 @@ describe('main()', () => {
     expect(exitFn).toHaveBeenCalledWith(0)
   })
 
+  it('#2850 D4: exits 2 (NO DATA) when origin exists but origin/main cannot be resolved', () => {
+    exitFn.mockReset()
+    const runFn = (_cmd: string, args: string[]) => {
+      if (args.join(' ') === 'remote get-url origin') return 'https://example.invalid/repo.git'
+      throw new Error('no origin/main')
+    }
+    main({ runFn, exitFn: exitFn as never })
+    expect(exitFn).toHaveBeenCalledWith(2)
+  })
+
   it('exits 0 when no task-ID commits found', () => {
     exitFn.mockReset()
     const responses = new Map([
