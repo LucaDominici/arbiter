@@ -620,7 +620,9 @@ describe('review rounds own the Codex seat (#2747)', () => {
   })
 
   it('runs the Codex seat in the foreground, records provenance, and passes completion', () => {
-    const result = runRound('{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}')
+    const result = runRound(
+      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
+    )
 
     expect(buildShipStepLines(result)).toContain(
       'review round 1: PASS — 0 findings (0 blocking) · next: advance',
@@ -644,7 +646,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   it('completes LOW-only rounds and spools each LOW finding without a next round', () => {
     const result = runRound(
-      '{"verdict":"WARN","confidence":0.8,"findings":[{"id":"low-1","severity":"low","kind":"style","claim":"The wording could be clearer.","citations":[]},{"id":"low-2","severity":"low","kind":"behavioral","claim":"The plan should name the proof.","citations":[{"file":"plan.md","line":1}]}],"refutations":[]}',
+      '{"verdict":"WARN","confidence":0.8,"findings":[{"id":"low-1","severity":"low","kind":"style","claim":"The wording could be clearer.","citations":[]},{"id":"low-2","severity":"low","kind":"behavioral","claim":"The plan should name the proof.","citations":[{"file":"plan.md","line":1}]}],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
     )
 
     expect(buildShipStepLines(result)).toContain(
@@ -668,7 +670,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
 
   it('keeps a blocking reviewer finding in rework without spooling it as LOW debt', () => {
     const result = runRound(
-      '{"verdict":"FAIL","confidence":1,"findings":[{"id":"high-1","severity":"high","kind":"behavioral","claim":"The acceptance behavior is broken.","citations":[{"file":"plan.md","line":1}]}],"refutations":[]}',
+      '{"verdict":"FAIL","confidence":1,"findings":[{"id":"high-1","severity":"high","kind":"behavioral","claim":"The acceptance behavior is broken.","citations":[{"file":"plan.md","line":1}]}],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
     )
 
     expect(buildShipStepLines(result)).toContain(
@@ -681,7 +683,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
     ['missing Codex', null, 30_000, 0],
     [
       'timed-out Codex',
-      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}',
+      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
       20,
       1000,
     ],
@@ -726,7 +728,7 @@ describe('review rounds own the Codex seat (#2747)', () => {
       encoding: 'utf8',
     }).trim()
     const reviewerBin = installCodex(
-      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[]}',
+      '{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],"acceptanceFit":{"schema":"arbiter-ac-fit-v1","taskId":"#2747","criteria":[]}}',
     )
     vi.stubEnv('PATH', `${reviewerBin}:${originalPath}`)
 

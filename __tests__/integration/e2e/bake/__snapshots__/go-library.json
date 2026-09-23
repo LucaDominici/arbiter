@@ -289,7 +289,7 @@
     "internal/example_behavioral_test.go": "5af67b95835ef2535c01cabae3addb432b2efaceb3db058e5151d0a21c518474",
     "muted-tests-baseline.json": "591ba0e9f6b642dcdb4528a2ee8ea56c0a8418a7c9cdb0d745f6cee53b922df1",
     "run.sh": "511c04147b4faccbb380d36c2a0558a17b4aec92f9482c091ed096a65371da37",
-    "schemas/agent-return-external.schema.json": "77c14e440214bb04e6dc1521cd7aa23ef78c1463bb832bdf3041c9d43dbdf911",
+    "schemas/agent-return-external.schema.json": "d043610070d88a3c00fb37540ea98d39b702b33ea40e0496ef38633d9651f840",
     "schemas/agent-return.schema.json": "7a2174cf2bd115ef6aa19b1c13213c8573a1bcc22d69261c1a7db1fe6cc940f9",
     "schemas/cross-model-dispatch.schema.json": "d4dc7942d040d303ffe00cee630d3c5986008e61e281dfdf587c8142a1f6cc74",
     "schemas/milestone.schema.json": "9d33462ad6c8ca3d79fc69a0fa7933080ba1c6745085679d73c204abd7d09d6c",

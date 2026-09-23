@@ -63,6 +63,7 @@ interface ExternalReviewPayload {
   confidence: number
   findings: Array<Record<string, unknown>>
   refutations: Array<Record<string, unknown>>
+  acceptanceFit: Record<string, unknown>
 }
 
 interface CrossModelPlan {
@@ -210,12 +211,16 @@ function parseObject(value: string): ExternalReviewPayload | null {
   }
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function isPayloadObject(value: unknown): value is ExternalReviewPayload {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
-  const record = value as Record<string, unknown>
+  if (!isObjectRecord(value)) return false
+  const record = value
   if (
     Object.keys(record).some(
-      (key) => !['verdict', 'confidence', 'findings', 'refutations'].includes(key),
+      (key) => !['verdict', 'confidence', 'findings', 'refutations', 'acceptanceFit'].includes(key),
     )
   )
     return false
@@ -223,7 +228,8 @@ function isPayloadObject(value: unknown): value is ExternalReviewPayload {
     (record.verdict === 'PASS' || record.verdict === 'WARN' || record.verdict === 'FAIL') &&
     typeof record.confidence === 'number' &&
     Array.isArray(record.findings) &&
-    Array.isArray(record.refutations)
+    Array.isArray(record.refutations) &&
+    isObjectRecord(record.acceptanceFit)
   )
 }
 
@@ -437,6 +443,7 @@ function persistEnvelope(
       confidence: envelope.confidence,
       findings: envelope.findings,
       refutations: envelope.refutations,
+      acceptanceFit: envelope.acceptanceFit,
     }),
     timeoutMs: request.cfg.timeoutMs,
     retries: 0,

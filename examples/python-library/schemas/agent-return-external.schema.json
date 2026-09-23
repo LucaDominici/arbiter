@@ -5,7 +5,7 @@
   "description": "Reduced structured-output projection for an external reviewer. The recorder adds the arbiter-agent-return-v1 envelope and stamps authority fields.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["verdict", "confidence", "findings", "refutations"],
+  "required": ["verdict", "confidence", "findings", "refutations", "acceptanceFit"],
   "properties": {
     "verdict": {
       "type": "string",
@@ -21,9 +21,38 @@
     "refutations": {
       "type": "array",
       "items": { "$ref": "#/$defs/Refutation" }
+    },
+    "acceptanceFit": {
+      "$ref": "#/$defs/AcceptanceFit"
     }
   },
   "$defs": {
+    "AcceptanceFit": {
+      "type": "object",
+      "required": ["schema", "taskId", "criteria"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "type": "string", "const": "arbiter-ac-fit-v1" },
+        "taskId": { "type": "string", "pattern": "^#[0-9]+$" },
+        "criteria": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AcceptanceFitCriterion" }
+        }
+      }
+    },
+    "AcceptanceFitCriterion": {
+      "type": "object",
+      "required": ["id", "verdict", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^AC-[A-Za-z0-9.]+$" },
+        "verdict": { "enum": ["PASS", "FAIL", "NOT-TESTED"] },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Citation" }
+        }
+      }
+    },
     "Finding": {
       "type": "object",
       "additionalProperties": false,
