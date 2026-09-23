@@ -11,6 +11,7 @@ import {
 } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { execFileSync } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runTaskAdvance } from '../../src/commands/task.js'
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
@@ -92,6 +93,14 @@ function withGhPath(bin: string, run: () => void): void {
   }
 }
 
+function trackPlanAtHead(root: string): void {
+  execFileSync('git', ['init', '-q', '-b', 'task/test'], { cwd: root })
+  execFileSync('git', ['config', 'user.email', 'fixture@arbiter.dev'], { cwd: root })
+  execFileSync('git', ['config', 'user.name', 'Fixture'], { cwd: root })
+  execFileSync('git', ['add', '-f', 'plan.md'], { cwd: root })
+  execFileSync('git', ['commit', '-q', '-m', 'test: track plan'], { cwd: root })
+}
+
 describe('red admission acceptance anchor (#2587)', () => {
   it('rejects malformed Markdown before entering red', () => {
     const root = mkdtempSync(join(tmpdir(), 'arbiter-red-admission-'))
@@ -105,6 +114,7 @@ describe('red admission acceptance anchor (#2587)', () => {
     writeFileSync(join(root, '.arbiter', 'evidence', 'redteam', '#2587.json'), '{"findings":[]}\n')
     writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
     writeFileSync(join(root, 'plan.md'), '# Plan\nmissing acceptance anchor\n')
+    trackPlanAtHead(root)
     installAcceptanceChecker(root)
 
     expect(() => runTaskAdvance({ to: 'red', dir: root })).toThrow(/acceptance/i)
@@ -139,6 +149,7 @@ describe('red admission acceptance anchor (#2587)', () => {
       join(root, 'plan.md'),
       ['---', 'files:', ...files.map((file) => `  - ${file}`), '---', plan].join('\n'),
     )
+    trackPlanAtHead(root)
     installAcceptanceChecker(root)
     const bin = installGh(
       root,
@@ -162,6 +173,7 @@ describe('red admission acceptance anchor (#2587)', () => {
     writeUnifiedState(root, { taskId: '#2587', phase: 'plan', plan: 'plan.md' })
     writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
     writeFileSync(join(root, 'plan.md'), validPlan())
+    trackPlanAtHead(root)
     installAcceptanceChecker(root)
     const bin = installGh(root, 'offline', 1)
 
@@ -191,6 +203,7 @@ describe('red admission acceptance anchor (#2587)', () => {
     })
     writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
     writeFileSync(join(root, 'plan.md'), plan)
+    trackPlanAtHead(root)
     const output = vi.spyOn(process.stdout, 'write')
 
     runTaskAdvance({ to: 'red', dir: root })

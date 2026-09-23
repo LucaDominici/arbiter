@@ -255,6 +255,7 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
     ]) {
       copyFileSync(resolve(import.meta.dirname, '../..', path), join(dir, path))
     }
+    writeFileSync(join(dir, 'scripts', 'check-acceptance.mjs'), 'process.exit(0)\n')
     execFileSync('git', ['add', 'arbiter.json', 'scripts', 'schemas'], { cwd: dir })
     execFileSync('git', ['add', '-f', '.arbiter/evidence/tdd/#100.json'], { cwd: dir })
     execFileSync('git', ['commit', '-q', '-m', 'test: freeze review candidate'], { cwd: dir })
@@ -510,6 +511,7 @@ describe('review rounds through arbiter ship (#2400 wiring)', () => {
 
   it('refuses to open a round when the plan is absent from HEAD', () => {
     ship({ advance: true })
+    writeFileSync(join(dir, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
     writeFileSync(join(dir, 'untracked-plan.md'), '# Plan\n')
     writeUnifiedState(dir, { plan: 'untracked-plan.md' })
     expect(() => ship({ reviewRound: true, headSha: SHA_A })).toThrow(/tracked.*plan|plan.*HEAD/i)
