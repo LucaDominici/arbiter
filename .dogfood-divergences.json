@@ -2,21 +2,25 @@
   {
     "path": "commands/ship.md",
     "reason": "#2751: Arbiter self-dogfood invokes the working-tree dist/cli.js so a stale global installation cannot run a different Ship engine. Generated consumers keep the installed arbiter command.",
+    "expires": "2026-10-31",
     "diffHash": "c28cceac9dcee0d4e3ae61f4484b33c8b66ca74b8a0bb67c4ea91b707712949b"
   },
   {
     "path": "commands/review.md",
     "reason": "#2751: Arbiter self-dogfood opens review rounds through the working-tree dist/cli.js. Generated consumers keep the installed arbiter command.",
+    "expires": "2026-10-31",
     "diffHash": "3b23b42d3f2c77726ccddf53ac69dbfc9ddc75996f44b0268b9b300fbfb0a6a3"
   },
   {
     "path": "skills/tdd/SKILL.md",
     "reason": "#2751: Arbiter self-dogfood records RED evidence through the working-tree dist/cli.js. Generated consumers keep the installed arbiter command.",
+    "expires": "2026-10-31",
     "diffHash": "bfd47b9ed9a94b8c629644c6d073c8fbfda9607514e03c50003aac53d30dfc53"
   },
   {
     "path": "hooks/exitplanmode-banner.mjs",
     "reason": "#2751: Arbiter self-dogfood resumes Ship through the working-tree dist/cli.js after plan mode. Generated consumers keep the installed arbiter command.",
+    "expires": "2026-10-31",
     "diffHash": "01d8326b944e74602742e3013c94a64891a20f68660c10ee5eefaa81833fd68e"
   },
   {
