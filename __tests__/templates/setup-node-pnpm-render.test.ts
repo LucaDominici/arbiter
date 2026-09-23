@@ -213,3 +213,14 @@ function writeFakeCommand(
     { mode: 0o755 },
   )
 }
+
+describe('self npm pin — Corepack global default (#2853)', () => {
+  it('installs the exact packageManager descriptor as the outside-project default', () => {
+    const pinStep = SELF_ACTION.split('- name: ').find((step) => step.startsWith('Pin npm'))
+    expect(pinStep).toBeDefined()
+    expect(pinStep).toContain('corepack enable npm')
+    expect(pinStep).toMatch(
+      /corepack install -g "\$\(node -p "require\('\.\/package\.json'\)\.packageManager"\)"/,
+    )
+  })
+})
