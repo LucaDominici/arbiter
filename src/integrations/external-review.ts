@@ -364,6 +364,7 @@ function persistedEnvelopePath(request: ExternalReviewRequest, stdout: string): 
     if (typeof fit.sourceEnvelope?.path !== 'string') return null
     const path = resolve(request.repoRoot, fit.sourceEnvelope.path)
     return outsideRoot(request.repoRoot, path) ? null : path
+    // FAIL-OPEN-INTENT: an unreadable derived receipt returns null; persistEnvelope then rejects persistence.
   } catch {
     return null
   }

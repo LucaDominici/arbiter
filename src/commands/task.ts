@@ -918,51 +918,77 @@ function evaluateHarnessCompletion(
 ): MergedVerdict {
   const policy = resolveEvidenceCompletionPolicy(readRawArbiterConfig(dir), true)
   if (!policy.ok) return { merged: false as const, detail: policy.reason }
-  if (policy.policy === 'direct') {
-    return { merged: false as const, detail: 'direct completion requires --no-pr.' }
-  }
-  if (policy.policy === 'legacy') {
-    return {
-      merged: false as const,
-      detail: 'evidenceHarness requires an explicit completion policy.',
-    }
-  }
+  const harnessPolicy = resolveHarnessCompletionPolicy(policy.policy)
+  if (!harnessPolicy.ok) return { merged: false as const, detail: harnessPolicy.reason }
   const ci = readCiPassReceipt(dir)
-  if (opts.pr !== undefined && ci.ok && opts.pr !== ci.receipt.pr) {
-    return { merged: false as const, detail: 'CI receipt does not belong to the selected PR.' }
+  const selection = resolveCompletionPr(ci, opts.pr)
+  if (!selection.ok) return { merged: false as const, detail: selection.reason }
+  const explicitPr = selection.pr
+  const qualifiedSnapshots = qualifySnapshotsWithCiReceipt(snapshots, ci)
+  const mergeSha = matchingMergeSha(qualifiedSnapshots, candidateSha, explicitPr)
+  const reachable =
+    mergeSha !== undefined &&
+    (opts.isMergeReachable?.(mergeSha, dir) ?? isMergeReachable(mergeSha, dir))
+  return evaluateMerged(qualifiedSnapshots, '', explicitPr, candidateSha, {
+    policy: harnessPolicy.policy,
+    mergeReachableFromMain: reachable,
+    requireMainBase: true,
+  })
+}
+
+function resolveHarnessCompletionPolicy(
+  policy: EvidenceCompletionPolicy,
+): { ok: true; policy: 'exact-pr' | 'reviewed-pr' } | { ok: false; reason: string } {
+  if (policy === 'direct') return { ok: false, reason: 'direct completion requires --no-pr.' }
+  if (policy === 'legacy') {
+    return { ok: false, reason: 'evidenceHarness requires an explicit completion policy.' }
   }
-  const explicitPr = opts.pr ?? (ci.ok ? ci.receipt.pr : undefined)
-  const qualifiedSnapshots = ci.ok
-    ? snapshots.map((pr) =>
-        pr.number === ci.receipt.pr
-          ? {
-              ...pr,
-              statusCheckRollup: ci.receipt.requiredChecks.map((check) => ({
-                name: check.name,
-                conclusion: check.state,
-                completedAt: check.completedAt,
-                checkSuite: { createdAt: check.startedAt },
-              })),
-            }
-          : pr,
-      )
-    : snapshots
-  const merged = qualifiedSnapshots.find(
+  return { ok: true, policy }
+}
+
+function resolveCompletionPr(
+  ci: ReturnType<typeof readCiPassReceipt>,
+  selectedPr?: number,
+): { ok: true; pr?: number } | { ok: false; reason: string } {
+  if (selectedPr !== undefined && ci.ok && selectedPr !== ci.receipt.pr) {
+    return { ok: false, reason: 'CI receipt does not belong to the selected PR.' }
+  }
+  const pr = selectedPr ?? (ci.ok ? ci.receipt.pr : undefined)
+  return pr === undefined ? { ok: true } : { ok: true, pr }
+}
+
+function qualifySnapshotsWithCiReceipt(
+  snapshots: readonly PrSnapshot[],
+  ci: ReturnType<typeof readCiPassReceipt>,
+): readonly PrSnapshot[] {
+  if (!ci.ok) return snapshots
+  return snapshots.map((pr) =>
+    pr.number === ci.receipt.pr
+      ? {
+          ...pr,
+          statusCheckRollup: ci.receipt.requiredChecks.map((check) => ({
+            name: check.name,
+            conclusion: check.state,
+            completedAt: check.completedAt,
+            checkSuite: { createdAt: check.startedAt },
+          })),
+        }
+      : pr,
+  )
+}
+
+function matchingMergeSha(
+  snapshots: readonly PrSnapshot[],
+  candidateSha: string,
+  explicitPr?: number,
+): string | undefined {
+  return snapshots.find(
     (pr) =>
       pr.state === 'MERGED' &&
       pr.headRefOid === candidateSha &&
       pr.mergeCommit?.oid &&
       (explicitPr === undefined || pr.number === explicitPr),
-  )
-  const mergeSha = merged?.mergeCommit?.oid
-  const reachable = mergeSha
-    ? (opts.isMergeReachable?.(mergeSha, dir) ?? isMergeReachable(mergeSha, dir))
-    : false
-  return evaluateMerged(qualifiedSnapshots, '', explicitPr, candidateSha, {
-    policy: policy.policy,
-    mergeReachableFromMain: reachable,
-    requireMainBase: true,
-  })
+  )?.mergeCommit?.oid
 }
 
 function isMergeReachable(mergeSha: string, dir: string): boolean {
@@ -1206,23 +1232,21 @@ function isCompleteCiPassReceipt(receipt: Partial<CiPassReceipt>): boolean {
     Number.isInteger(receipt.pr) &&
     Array.isArray(receipt.requiredChecks) &&
     receipt.requiredChecks.length > 0 &&
-    receipt.requiredChecks.every(
-      (check) =>
-        isRecord(check) &&
-        typeof check.name === 'string' &&
-        check.name.length > 0 &&
-        check.state === 'SUCCESS' &&
-        typeof check.workflow === 'string' &&
-        check.workflow.length > 0 &&
-        typeof check.link === 'string' &&
-        check.link.length > 0 &&
-        typeof check.startedAt === 'string' &&
-        Number.isFinite(Date.parse(check.startedAt)) &&
-        typeof check.completedAt === 'string' &&
-        Number.isFinite(Date.parse(check.completedAt)) &&
-        Date.parse(check.completedAt) >= Date.parse(check.startedAt),
-    )
+    receipt.requiredChecks.every(isCompleteRequiredCheck)
   )
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0
+}
+
+function isCompleteRequiredCheck(check: unknown): boolean {
+  if (!isRecord(check) || check.state !== 'SUCCESS') return false
+  if (![check.name, check.workflow, check.link].every(isNonEmptyString)) return false
+  if (!isNonEmptyString(check.startedAt) || !isNonEmptyString(check.completedAt)) return false
+  const startedAt = Date.parse(check.startedAt)
+  const completedAt = Date.parse(check.completedAt)
+  return Number.isFinite(startedAt) && Number.isFinite(completedAt) && completedAt >= startedAt
 }
 
 function checkGatePassMarkerGate(dir: string, minLevel = 'L2'): void {

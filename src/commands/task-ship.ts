@@ -690,12 +690,16 @@ function gateContractLines(result: ShipResult): string[] {
   ]
 }
 
-export function buildShipStepLines(result: ShipResult, legacyTier?: string): string[] {
-  const tier = result.tier ?? normTier(legacyTier)
-  const lines = [
+function phaseActionLines(result: ShipResult): string[] {
+  return [
     `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
     `Action: ${result.done ? 'Delivery complete. Clean up the worktree.' : result.step.action}`,
   ]
+}
+
+export function buildShipStepLines(result: ShipResult, legacyTier?: string): string[] {
+  const tier = result.tier ?? normTier(legacyTier)
+  const lines = phaseActionLines(result)
   lines.push(...optionalShipStepLines(result, tier))
   if (result.reviewSummary === undefined) lines.push(...reviewPanelLines(result))
   if (result.reviewSummary !== undefined) lines.push(result.reviewSummary)
