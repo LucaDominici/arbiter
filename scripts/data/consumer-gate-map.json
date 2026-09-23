@@ -135,7 +135,7 @@
       "gateSurface": {
         "kind": "spine"
       },
-      "debtCeiling": 59,
+      "debtCeiling": 60,
       "mapping": {
         "M16 handoff-contract marker (#2103)": "DEBT:#2291",
         "PII scan": "DEBT:#2291",
@@ -171,6 +171,7 @@
         "claude-md lint": "WIRED:claude-md-lint (INV-89)",
         "collab mode wired (INV-100)": "WIRED:collab-mode-wired (INV-100)",
         "commit-footer rationale (INV-119)": "DEBT:#2291",
+        "complexity ratchet (preventive)": "DEBT:#2291",
         "config drift": "DEBT:#2291",
         "conformance": "DEBT:#2291",
         "constraint scan (INV-115)": "WIRED:constraint-scan (INV-115)",
