@@ -1159,7 +1159,8 @@ describe('record-red --at (#2747)', () => {
       if (args[0] === 'worktree' && args[1] === 'remove') {
         return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
       }
-      if (args[0] === 'rev-parse' && String(args[1]).startsWith(`${options.atSha}:`)) {
+      const selectedSha = options.canonicalAtSha ?? options.atSha
+      if (args[0] === 'rev-parse' && String(args[1]).startsWith(`${selectedSha}:`)) {
         return {
           stdout: options.blobSha ?? 'c'.repeat(40),
           stderr: '',
@@ -1273,8 +1274,9 @@ describe('record-red --at (#2747)', () => {
     expect(record.ok, record.ok ? '' : record.reason).toBe(true)
     const evidence = JSON.parse(
       readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'), 'utf-8'),
-    ) as { test_commit_sha: string }
+    ) as { test_commit_sha: string; test_blob_sha: string }
     expect(evidence.test_commit_sha).toBe(canonicalAtSha)
+    expect(evidence.test_blob_sha).toBe('c'.repeat(40))
   })
 
   it('--at resolves a relative repo directory before linking dependencies', () => {
