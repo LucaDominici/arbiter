@@ -217,6 +217,25 @@ const plantCanonParity = (d, wired) => {
   )
 }
 
+const plantComplexityRatchet = (d, source) => {
+  write(d, 'eslint.config.mjs', "export default [{ files: ['**/*.js'] }]\n")
+  write(d, 'scripts/fixture.js', 'export const ok = true\n')
+  write(
+    d,
+    'scripts/debt-baseline.json',
+    JSON.stringify({
+      version: 2,
+      capturedAt: '2026-09-23',
+      commit: 'fixture',
+      archetype: 'fixture',
+      metrics: {
+        complexityViolations: { value: 0, unit: 'count', direction: 'lower-is-better' },
+      },
+    }),
+  )
+  write(d, 'src/a.js', source)
+}
+
 /** The discrimination proofs, keyed by guard name (must cover every entry in GUARDS). */
 export const FLIP_REGISTRY = {
   // ── gh-audit guards: proven via their pure classifiers ────────────────────────────────────
@@ -529,6 +548,17 @@ export const FLIP_REGISTRY = {
       renderKernelPluginInto(d)
       writeFileSync(join(d, 'stop-dangerous.mjs'), '// #2548 guard-flip: corrupted on purpose\n')
     },
+  },
+  'complexity ratchet (preventive)': {
+    kind: 'file-scan',
+    inject: 'cwd',
+    argv: () => ['--gate', '--only-metric', 'complexityViolations'],
+    plantBad: (d) =>
+      plantComplexityRatchet(
+        d,
+        `export function f(x) {\n${Array.from({ length: 11 }, (_, i) => `  if (x === ${i + 1}) return ${i + 1}`).join('\n')}\n  return 0\n}\n`,
+      ),
+    plantClean: (d) => plantComplexityRatchet(d, 'export const ok = true\n'),
   },
   // #2560: check-todo-max-age.mjs newly admitted to the CANON-25 family via the declared roster
   // (gate-roster.mjs) — its old name/basename matched none of the three regexes, so it sat

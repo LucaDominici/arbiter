@@ -248,6 +248,7 @@ export const ABSENCE_FAMILY_ROSTER = {
     category: 'parity',
   },
   'coverage ratchet (#1483)': { script: 'scripts/check-coverage-ratchet.mjs', category: 'ratchet' },
+  'complexity ratchet (preventive)': { script: 'scripts/debt-report.mjs', category: 'ratchet' },
   'debt ratchet': { script: 'scripts/debt-report.mjs', category: 'ratchet' },
   'local-ci parity': { script: 'scripts/check-local-ci-parity.mjs', category: 'parity' },
   'codex parity (#1966)': { script: 'scripts/check-codex-parity.mjs', category: 'parity' },
