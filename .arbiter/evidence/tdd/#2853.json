@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2853",
+  "test_path": "__tests__/templates/setup-node-pnpm-render.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "75f847fc53bf086645414dcafc3f2a1ad4600fbf",
+  "test_blob_sha": "95e199bbc5e0c60adb78ecb9049d0efae6ca7582",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/templates/setup-node-pnpm-render.test.ts (13 tests | 1 failed) 78ms\n     × installs the exact packageManager descriptor as the outside-project default 3ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 12 passed (13)\n   Start at  22:30:54\n   Duration  429ms (transform 226ms, setup 8ms, import 256ms, tests 78ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/templates/setup-node-pnpm-render.test.ts > self npm pin — Corepack global default (#2853) > installs the exact packageManager descriptor as the outside-project default\nAssertionError: expected 'Pin npm to package.json#packageManage…' to match /c…/package\\.json'\\)\\.packageManager\"\\)\"\n\n- Expected:\n/corepack install -g \"\\$\\(node -p \"require\\('\\.\\/package\\.json'\\)\\.packageManager\"\\)\"/\n\n+ Received:\n\"Pin npm to package.json#packageManager (corepack)\n      shell: bash\n      run: |\n        corepack enable npm\n        echo \\\"Pinned npm: $(npm --version)\\\"\n    # #1839: memoize the install output across jobs/runs. `npm ci` was the dominant\n    # fixed cost of every PR-Fast job (~60-90s x 7 jobs per run) while the runner\n    # farm is slot-limited, so aggregate install time was wall time. EXACT key only\n    # (deliberately no restore-keys): a hit means byte-identical inputs (lockfile +\n    # root manifest + node version), so the npm ci it replaces would have produced\n    # the same trees; ANY miss falls through to the very same `npm ci` as before.\n    # Paths cover every tree `npm ci` writes in this workspace layout (root +\n    # nested workspace node_modules). Gate semantics unchanged — only the\n    # dependency install is memoized.\n    #\n    # The cache contains native optional dependencies (for example Rollup).\n    # `runner.os` alone is unsafe for a heterogeneous self-hosted Linux pool:\n    # a binary cached on newer glibc can fail to load on an older slot. Detect\n    # the native ABI before restore so incompatible runners never share a tree.\n    \"\n\n ❯ __tests__/templates/setup-node-pnpm-render.test.ts:222:21\n    220|     expect(pinStep).toBeDefined()\n    221|     expect(pinStep).toContain('corepack enable npm')\n    222|     expect(pinStep).toMatch(\n       |                     ^\n    223|       /corepack install -g \"\\$\\(node -p \"require\\('\\.\\/package\\.json'\\…\n    224|     )\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/templates/setup-node-pnpm-render.test.ts",
+  "recorded_at": "2026-09-23T20:30:55.200Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/templates/setup-node-pnpm-render.test.ts"
+  ]
+}

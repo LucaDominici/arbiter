@@ -33,11 +33,15 @@ runs:
     # converge on the SAME npm major. Without this, node 22's bundled npm (10.x) and a
     # locally/Dependabot-written npm-11 lock disagree and `npm ci` fails repo-wide. The
     # check-npm-ci-drift gate (run under the pinned npm) is the pre-merge backstop.
+    # #2853: `enable` alone pins npm only inside this project; subprocesses whose cwd
+    # has no packageManager fell back to Corepack's latest npm. `install -g` makes the
+    # same descriptor the outside-project default.
     - name: Pin npm to package.json#packageManager (corepack)
       shell: bash
       run: |
         corepack enable npm
-        echo "Pinned npm: $(npm --version)"
+        corepack install -g "$(node -p "require('./package.json').packageManager")"
+        echo "Pinned npm: $(npm --version) (outside project: $(cd "$RUNNER_TEMP" && npm --version))"
     # #1839: memoize the install output across jobs/runs. `npm ci` was the dominant
     # fixed cost of every PR-Fast job (~60-90s x 7 jobs per run) while the runner
     # farm is slot-limited, so aggregate install time was wall time. EXACT key only
