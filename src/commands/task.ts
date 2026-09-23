@@ -108,7 +108,7 @@ export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
   const root = dir ?? process.cwd()
   const state = readUnifiedState(root)
   const phase = state?.phase ?? 'preflight'
-  if (!['preflight', 'plan', 'complete'].includes(phase)) checkPlanContractCurrent(root)
+  checkResumeContract(root, phase)
   const taskId = state?.taskId && state.taskId.length > 0 ? state.taskId : undefined
   const header = taskId ? `Task: ${taskId}\n` : ''
 
@@ -463,19 +463,25 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   }
   const previous = readUnifiedState(root)
   const state = writeUnifiedState(root, patch)
-  if (opts.plan !== undefined) {
-    derivePlanGates(root, opts.plan)
-    const current = readUnifiedState(root)
-    const gatesChanged =
-      previous?.derivedGates !== undefined &&
-      JSON.stringify(previous.derivedGates) !== JSON.stringify(current?.derivedGates)
-    if (gatesChanged && !['preflight', 'plan'].includes(previous.phase)) {
-      invalidateTaskReceipts(root, state.taskId)
-      writeUnifiedState(root, { review: { rounds: 0, lastReviewedSha: null } })
-      appendLog(root, 'gate authority changed → review and delivery receipts invalidated')
-    }
-  }
+  if (opts.plan !== undefined) reanchorPlanGates(root, opts.plan, state.taskId, previous)
   appendLog(root, taskInitLog(state))
+}
+
+function reanchorPlanGates(
+  root: string,
+  plan: string,
+  taskId: string,
+  previous: UnifiedTaskState | null,
+): void {
+  derivePlanGates(root, plan)
+  const current = readUnifiedState(root)
+  const gatesChanged =
+    previous?.derivedGates === undefined ||
+    JSON.stringify(previous.derivedGates) !== JSON.stringify(current?.derivedGates)
+  if (!gatesChanged || previous === null || ['preflight', 'plan'].includes(previous.phase)) return
+  invalidateTaskReceipts(root, taskId)
+  writeUnifiedState(root, { review: { rounds: 0, lastReviewedSha: null } })
+  appendLog(root, 'gate authority changed → review and delivery receipts invalidated')
 }
 
 /** `task init` has no admission inputs; multi-issue state must enter through `ship`. */
@@ -1582,6 +1588,10 @@ function checkPlanContractCurrent(dir: string): void {
   const plan = readUnifiedState(dir)?.plan.trim() ?? ''
   if (plan.length === 0) throw new Error('preventive contract requires the anchored plan')
   runRequiredTaskChecker(dir, 'check-acceptance.mjs', ['--plan', plan, '--check-derived-current'])
+}
+
+function checkResumeContract(dir: string, phase: TaskPhase): void {
+  if (!['preflight', 'plan', 'complete'].includes(phase)) checkPlanContractCurrent(dir)
 }
 
 /**

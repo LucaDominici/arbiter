@@ -496,17 +496,16 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
     expect(readUnifiedState(dir)?.derivedGates).toEqual(deriveFixtureGates(dir, FILES))
   })
 
-  it('invalidates review and CI receipts when re-anchoring changed gate authorities', () => {
+  it('invalidates legacy review and CI receipts when first anchoring current gates', () => {
     const dir = anchorRepo()
-    runTaskInit({ dir, id: '#2773', plan: 'plan.md' })
     writeUnifiedState(dir, {
       phase: 'refactor',
+      taskId: '#2773',
+      plan: 'plan.md',
       review: { rounds: 1, lastReviewedSha: 'a'.repeat(40) },
     })
     mkdirSync(join(dir, '.arbiter'), { recursive: true })
     writeFileSync(join(dir, '.arbiter', 'ci-pass.json'), '{}')
-    const authority = join(dir, 'scripts', 'check-all.mjs')
-    writeFileSync(authority, `${readFileSync(authority, 'utf-8')}\n// changed authority\n`)
 
     runTaskInit({ dir, id: '#2773', plan: 'plan.md' })
 
