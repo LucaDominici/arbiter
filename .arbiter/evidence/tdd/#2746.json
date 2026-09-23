@@ -1,17 +1,17 @@
 {
   "$schemaVersion": 1,
   "task_id": "#2746",
-  "test_path": "__tests__/scripts/debt-report.test.ts",
+  "test_path": "__tests__/scripts/consumer-reliability-bar.test.ts",
   "test_cwd": ".",
-  "test_commit_sha": "12f7df43f3f692b58dba7e885cb6e809e51e5169",
-  "test_blob_sha": "9e6dc078bcdf268a1f9b59e46f692510c744e0bb",
-  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/debt-report.test.ts (40 tests | 3 failed) 594ms\n     × fails closed when the requested preventive metric has a missing baseline 22ms\n     × fails closed when the requested preventive metric has a legacy baseline 18ms\n     × fails closed when ESLint exits fatally without a complexity report 23ms\n\n Test Files  1 failed (1)\n      Tests  3 failed | 37 passed (40)\n   Start at  08:16:58\n   Duration  719ms (transform 54ms, setup 6ms, import 33ms, tests 594ms, environment 0ms)\n\n\n[baseline] skip duplicationPercentage — jscpd not installed\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/debt-report.test.ts > debt-report.mjs (gate: debt ratchet enforcement) > fails closed when the requested preventive metric has a missing baseline\n FAIL  |unit| __tests__/scripts/debt-report.test.ts > debt-report.mjs (gate: debt ratchet enforcement) > fails closed when the requested preventive metric has a legacy baseline\nAssertionError: expected +0 to be 2 // Object.is equality\n\n- Expected\n+ Received\n\n- 2\n+ 0\n\n ❯ __tests__/scripts/debt-report.test.ts:172:31\n    170|         )\n    171|\n    172|         expect(result.status).toBe(2)\n       |                               ^\n    173|         expect(result.stderr).toContain('preventive metric requires')\n    174|         expect(existsSync(join(dir, 'calls.txt'))).toBe(false)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯\n\n FAIL  |unit| __tests__/scripts/debt-report.test.ts > debt-report.mjs (gate: debt ratchet enforcement) > fails closed when ESLint exits fatally without a complexity report\nAssertionError: expected +0 not to be +0 // Object.is equality\n ❯ __tests__/scripts/debt-report.test.ts:197:33\n    195|       )\n    196|\n    197|       expect(result.status).not.toBe(0)\n       |                                 ^\n    198|       expect(result.stdout).toContain('collection FAILURE for complexi…\n    199|     } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯\n\n",
-  "observed_failure": "FAIL  |unit| __tests__/scripts/debt-report.test.ts",
-  "recorded_at": "2026-09-23T06:16:59.306Z",
+  "test_commit_sha": "76ff47db48a1edaa29d9af34777668c0126007ef",
+  "test_blob_sha": "87db1cd75ee528753736b2c1adb5f9267923f71d",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/consumer-reliability-bar.test.ts (70 tests | 1 failed) 160ms\n     × accounts for the preventive complexity ratchet in the TypeScript consumer surface 4ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 69 passed (70)\n   Start at  09:59:48\n   Duration  803ms (transform 510ms, setup 6ms, import 551ms, tests 160ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/consumer-reliability-bar.test.ts > consumer reliability bar oracles (#2135) > accounts for the preventive complexity ratchet in the TypeScript consumer surface\nAssertionError: expected undefined to be 'DEBT:#2291' // Object.is equality\n\n- Expected:\n\"DEBT:#2291\"\n\n+ Received:\nundefined\n\n ❯ __tests__/scripts/consumer-reliability-bar.test.ts:419:33\n    417|     const gate = 'complexity ratchet (preventive)'\n    418|\n    419|     expect(entry.mapping[gate]).toBe('DEBT:#2291')\n       |                                 ^\n    420|\n    421|     const mapping = Object.fromEntries(\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/consumer-reliability-bar.test.ts",
+  "recorded_at": "2026-09-23T07:59:49.434Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
-    "__tests__/scripts/debt-report.test.ts"
+    "__tests__/scripts/consumer-reliability-bar.test.ts"
   ]
 }
