@@ -211,9 +211,13 @@ function parseObject(value: string): ExternalReviewPayload | null {
   }
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function isPayloadObject(value: unknown): value is ExternalReviewPayload {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
-  const record = value as Record<string, unknown>
+  if (!isObjectRecord(value)) return false
+  const record = value
   if (
     Object.keys(record).some(
       (key) => !['verdict', 'confidence', 'findings', 'refutations', 'acceptanceFit'].includes(key),
@@ -225,9 +229,7 @@ function isPayloadObject(value: unknown): value is ExternalReviewPayload {
     typeof record.confidence === 'number' &&
     Array.isArray(record.findings) &&
     Array.isArray(record.refutations) &&
-    typeof record.acceptanceFit === 'object' &&
-    record.acceptanceFit !== null &&
-    !Array.isArray(record.acceptanceFit)
+    isObjectRecord(record.acceptanceFit)
   )
 }
 
