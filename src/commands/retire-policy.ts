@@ -95,6 +95,8 @@ export function planRetirement(opts: {
   targetDir: string
   fullRegistryRun: boolean
   diskHash: (key: string) => string | null
+  /** #2855: a key outside this run's scope (`update --only`) is never a candidate. */
+  inScope?: (key: string) => boolean
 }): RetirementPlan {
   const plan: RetirementPlan = { retire: [], orphans: [], stale: [] }
   if (!opts.fullRegistryRun) return plan
@@ -109,7 +111,7 @@ export function planRetirement(opts: {
   // the go consumer that reddens the bar has no manifest at its pinned commit.
   const candidates = new Set([...Object.keys(opts.prevManifest), ...Object.keys(RETIRED_RENDERS)])
   for (const key of candidates) {
-    if (visited.has(key)) continue
+    if (visited.has(key) || opts.inScope?.(key) === false) continue
     const onDisk = opts.diskHash(key)
     if (onDisk === null) continue
     const explicitlyRetired = RETIRED_MANAGED_PATHS.has(key)

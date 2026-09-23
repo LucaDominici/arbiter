@@ -246,6 +246,11 @@ describe('#2353 update --only', () => {
 
     expect(readFileSync(join(dir, DOC), 'utf-8')).toContain('Real consumer content.')
     expect(manifestKeys(dir)).toContain(DOC)
+
+    // Control: once the file is IN scope, the ordinary full-run rule applies again —
+    // `--only` scopes the run, it does not resurrect every prior entry.
+    await runUpdate({ dir, json: true, github: false, only: [DOC] })
+    expect(manifestKeys(dir)).not.toContain(DOC)
   }, 60_000)
 
   it('lets .arbiterignore WIN over a conflicting --only, and says why', async () => {

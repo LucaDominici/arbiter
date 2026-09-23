@@ -398,6 +398,11 @@ interface SessionOpts {
   selectPredicate: (key: string) => SelectionVerdict
 }
 
+/** #2855: the key lies outside this run's `update --only` allowlist. */
+function isDeselected(policy: Pick<SessionOpts, 'selectPredicate'>, key: string): boolean {
+  return policy.selectPredicate(key) === 'deselected'
+}
+
 /**
  * Run the generator registry bracketed by a #1328 generation session: load the
  * prev manifest, make `writeFile` hash-aware (pristine skipIfExists files are
@@ -449,14 +454,17 @@ function selectAndRunWithManifest(
   // grounds and for a sharper reason — dropping it would make the opt-out destroy
   // the very provenance record that lets a later un-ignore re-adopt the file, and
   // would shrink a `--only` run's manifest to the one path it touched.
-  const retainedWithheldHashes = Object.fromEntries(
-    out.results.flatMap((result) => {
+  // #2855: a `--only`-deselected key is out of scope whether or not a generator visited it —
+  // a filled doc-set skeleton is skipped before any write, so it never becomes a result.
+  const retainedWithheldHashes = Object.fromEntries([
+    ...Object.entries(prevManifest).filter(([key]) => isDeselected(adoptOpts, key)),
+    ...out.results.flatMap((result) => {
       const excluded = result.excluded !== undefined
       if (!excluded && (result.withheld !== true || result.adopted === true)) return []
       const key = manifestKey(targetDir, result.path)
       return key !== null && prevManifest[key] !== undefined ? [[key, prevManifest[key]]] : []
     }),
-  )
+  ])
   const nextHashes = fullRegistryRun
     ? { ...retainedWithheldHashes, ...generatedHashes }
     : { ...prevManifest, ...generatedHashes }
@@ -471,6 +479,7 @@ function selectAndRunWithManifest(
     targetDir,
     fullRegistryRun,
     diskHash: diskHasher(targetDir),
+    inScope: (key) => !isDeselected(adoptOpts, key),
   })
   applyRetirement(targetDir, retirement)
   saveGeneratedManifest(targetDir, nextHashes, unwired, stillWithheldSafety)
@@ -524,6 +533,7 @@ function runAdoptPlan(
     targetDir,
     fullRegistryRun: out.keysRun === null || out.keysRun.has('*'),
     diskHash: diskHasher(targetDir),
+    inScope: (key) => !isDeselected(policy, key),
   })
   return { records: collected, results: out.results, retirement }
 }
