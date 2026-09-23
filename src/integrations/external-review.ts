@@ -448,20 +448,27 @@ function persistEnvelope(
   access: ExternalModelAccess,
   envelope: ExternalReviewPayload,
 ): string | null {
+  const hasBlockingFinding = envelope.findings.some((finding) =>
+    ['critical', 'high'].includes(String(finding['severity']).toLowerCase()),
+  )
+  const recordRequest =
+    request.recordMode === 'ac-fit' && (envelope.verdict === 'FAIL' || hasBlockingFinding)
+      ? { ...request, recordMode: 'return' as const }
+      : request
   if (request.evidenceDir === undefined) {
     assertSafeDirectoryPath(
       request.repoRoot,
       join(request.repoRoot, '.arbiter', 'evidence', 'agent-returns', sanitizeTask(request.taskId)),
     )
   }
-  const result = runCli('node', recorderArgs(request, access), {
+  const result = runCli('node', recorderArgs(recordRequest, access), {
     cwd: request.repoRoot,
     input: JSON.stringify({
       schema: 'arbiter-agent-return-v1',
       agent: 'codex-reviewer',
       role: 'reviewer',
       taskId: request.taskId,
-      ...(request.recordMode === 'ac-fit'
+      ...(recordRequest.recordMode === 'ac-fit'
         ? { branch: currentBranch(request.repoRoot), sha: headSha(request.repoRoot) }
         : {}),
       verdict: envelope.verdict,
@@ -473,7 +480,7 @@ function persistEnvelope(
     timeoutMs: request.cfg.timeoutMs,
     retries: 0,
   })
-  const path = persistedEnvelopePath(request, result.stdout)
+  const path = persistedEnvelopePath(recordRequest, result.stdout)
   if (path !== null) return path
   const detail = [result.stdout, result.stderr]
     .map((part) => part.trim())
