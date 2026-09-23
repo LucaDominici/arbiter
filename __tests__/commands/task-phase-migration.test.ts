@@ -222,10 +222,22 @@ describe('legacy → unified migration (#1206, #549)', () => {
     writeFileSync(
       join(dir, '.arbiter', 'ci-pass.json'),
       JSON.stringify({
+        schema: 'arbiter-ci-pass-v2',
         sha: gitHead(dir),
         conclusion: 'success',
         runUrl: 'https://github.com/example/repo/actions/runs/1',
         checkedAt: new Date().toISOString(),
+        pr: 7,
+        requiredChecks: [
+          {
+            name: 'CI Required',
+            state: 'SUCCESS',
+            workflow: 'CI',
+            link: 'https://github.com/example/repo/actions/runs/1',
+            startedAt: '2026-09-23T04:13:50Z',
+            completedAt: '2026-09-23T04:15:43Z',
+          },
+        ],
       }),
       'utf-8',
     )

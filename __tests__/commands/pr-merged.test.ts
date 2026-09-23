@@ -229,6 +229,101 @@ describe('advance --to complete landing gate (#2402 wiring)', () => {
     expect(readUnifiedState(dir)?.phase).toBe('close')
   })
 
+  it('accepts exact-head required CI as completion evidence without rerunning local L3', () => {
+    const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
+    config.features.evidenceHarness = true
+    config.collaborationMode = 'gated-review'
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'ci-pass.json'),
+      JSON.stringify({
+        schema: 'arbiter-ci-pass-v2',
+        sha,
+        conclusion: 'success',
+        runUrl: 'https://github.com/example/repo/actions/runs/1/job/1',
+        checkedAt: new Date().toISOString(),
+        pr: 7,
+        requiredChecks: [
+          {
+            name: 'CI Required',
+            state: 'SUCCESS',
+            workflow: 'CI',
+            link: 'https://github.com/example/repo/actions/runs/1/job/1',
+            startedAt: '2026-09-23T04:13:50Z',
+            completedAt: '2026-09-23T04:15:43Z',
+          },
+        ],
+      }),
+    )
+
+    runTaskAdvance({
+      to: 'complete',
+      dir,
+      isMergeReachable: () => true,
+      readPrs: () => [
+        {
+          number: 7,
+          state: 'MERGED',
+          baseRefName: 'main',
+          headRefOid: sha,
+          mergeCommit: { oid: 'b'.repeat(40) },
+          mergedAt: '2026-09-23T04:17:58Z',
+          statusCheckRollup: [
+            {
+              name: 'CI Required',
+              conclusion: 'SUCCESS',
+              completedAt: '2026-09-23T04:15:43Z',
+              checkSuite: { createdAt: '2026-09-23T03:43:21Z' },
+            },
+            {
+              name: 'Update issue state',
+              conclusion: 'SUCCESS',
+              completedAt: '2026-09-23T04:18:16Z',
+              checkSuite: { createdAt: '2026-09-23T04:17:57Z' },
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(readUnifiedState(dir)?.phase).toBe('complete')
+    expect(() => readFileSync(join(dir, '.arbiter/evidence/done/_2402.json'))).toThrow()
+  })
+
+  it('refuses a CI completion receipt with no required checks', () => {
+    const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8'))
+    config.features.evidenceHarness = true
+    config.collaborationMode = 'gated-review'
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config))
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'ci-pass.json'),
+      JSON.stringify({
+        schema: 'arbiter-ci-pass-v2',
+        sha,
+        conclusion: 'success',
+        runUrl: 'https://github.com/example/repo/actions/runs/1',
+        checkedAt: new Date().toISOString(),
+        pr: 7,
+        requiredChecks: [],
+      }),
+    )
+
+    expect(() =>
+      runTaskAdvance({
+        to: 'complete',
+        dir,
+        readPrs: () => {
+          throw new Error('PR reader must not run for incomplete CI evidence')
+        },
+      }),
+    ).toThrow(/required.*check|CI receipt/i)
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
   it.each(['passed', 'pending', 'failed', 'runtime-red', 'corrupt', 'unreadable'])(
     'AC-5 native completion consumes an actual capture then handles %s',
     (state) => {

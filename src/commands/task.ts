@@ -828,7 +828,10 @@ function prGateSnapshots(
   candidateSha?: string,
 ): readonly PrSnapshot[] {
   try {
-    return opts.readPrs ? opts.readPrs(branch, dir) : readBranchPrs(branch, dir, candidateSha)
+    const ci = candidateSha === undefined ? undefined : readCiPassReceipt(dir)
+    return opts.readPrs
+      ? opts.readPrs(branch, dir)
+      : readBranchPrs(branch, dir, ci?.ok ? undefined : candidateSha)
   } catch (err) {
     throw prGateRefusal(
       `\`gh pr list --head ${branch}\` failed (${err instanceof Error ? err.message : String(err)}). ` +
@@ -924,18 +927,38 @@ function evaluateHarnessCompletion(
       detail: 'evidenceHarness requires an explicit completion policy.',
     }
   }
-  const merged = snapshots.find(
+  const ci = readCiPassReceipt(dir)
+  if (opts.pr !== undefined && ci.ok && opts.pr !== ci.receipt.pr) {
+    return { merged: false as const, detail: 'CI receipt does not belong to the selected PR.' }
+  }
+  const explicitPr = opts.pr ?? (ci.ok ? ci.receipt.pr : undefined)
+  const qualifiedSnapshots = ci.ok
+    ? snapshots.map((pr) =>
+        pr.number === ci.receipt.pr
+          ? {
+              ...pr,
+              statusCheckRollup: ci.receipt.requiredChecks.map((check) => ({
+                name: check.name,
+                conclusion: check.state,
+                completedAt: check.completedAt,
+                checkSuite: { createdAt: check.startedAt },
+              })),
+            }
+          : pr,
+      )
+    : snapshots
+  const merged = qualifiedSnapshots.find(
     (pr) =>
       pr.state === 'MERGED' &&
       pr.headRefOid === candidateSha &&
       pr.mergeCommit?.oid &&
-      (opts.pr === undefined || pr.number === opts.pr),
+      (explicitPr === undefined || pr.number === explicitPr),
   )
   const mergeSha = merged?.mergeCommit?.oid
   const reachable = mergeSha
     ? (opts.isMergeReachable?.(mergeSha, dir) ?? isMergeReachable(mergeSha, dir))
     : false
-  return evaluateMerged(snapshots, '', opts.pr, candidateSha, {
+  return evaluateMerged(qualifiedSnapshots, '', explicitPr, candidateSha, {
     policy: policy.policy,
     mergeReachableFromMain: reachable,
     requireMainBase: true,
@@ -969,7 +992,10 @@ function checkCompletionEvidence(dir: string): string | undefined {
     archetype: config.archetype ?? 'library',
     maxAgeMin: getNumberFlag('ARBITER_EVIDENCE_MAX_AGE_MIN'),
   })
-  if (!verdict.ok) throw new Error(verdict.reason)
+  if (!verdict.ok) {
+    const ci = readCiPassReceipt(dir)
+    if (!ci.ok) throw new Error(`${verdict.reason}; ${ci.reason}`)
+  }
   return runCli('git', ['rev-parse', 'HEAD'], { cwd: dir, timeoutMs: 15_000 }).stdout.trim()
 }
 
@@ -1087,10 +1113,20 @@ function isSuccessfulPostMainCheck(
 }
 
 interface CiPassReceipt {
+  schema: 'arbiter-ci-pass-v2'
   sha: string
   conclusion: 'success'
   runUrl: string
   checkedAt: string
+  pr: number
+  requiredChecks: Array<{
+    name: string
+    state: string
+    workflow: string
+    link: string
+    startedAt: string
+    completedAt: string
+  }>
 }
 
 function localGatePassVerdict(
@@ -1120,7 +1156,9 @@ function localGatePassVerdict(
   return verdict.ok ? { ok: true } : { ok: false, reason: verdict.reason }
 }
 
-function readCiPassReceipt(dir: string): { ok: true } | { ok: false; reason: string } {
+function readCiPassReceipt(
+  dir: string,
+): { ok: true; receipt: CiPassReceipt } | { ok: false; reason: string } {
   const receiptPath = join(dir, '.arbiter', 'ci-pass.json')
   if (!existsSync(receiptPath)) {
     return { ok: false, reason: `CI receipt missing at ${receiptPath}` }
@@ -1154,16 +1192,36 @@ function readCiPassReceipt(dir: string): { ok: true } | { ok: false; reason: str
   if (!isCompleteCiPassReceipt(receipt)) {
     return { ok: false, reason: 'CI receipt is not a successful, complete receipt' }
   }
-  return { ok: true }
+  return { ok: true, receipt: receipt as CiPassReceipt }
 }
 
 function isCompleteCiPassReceipt(receipt: Partial<CiPassReceipt>): boolean {
   return (
+    receipt.schema === 'arbiter-ci-pass-v2' &&
     receipt.conclusion === 'success' &&
     typeof receipt.runUrl === 'string' &&
     receipt.runUrl.length > 0 &&
     typeof receipt.checkedAt === 'string' &&
-    receipt.checkedAt.length > 0
+    receipt.checkedAt.length > 0 &&
+    Number.isInteger(receipt.pr) &&
+    Array.isArray(receipt.requiredChecks) &&
+    receipt.requiredChecks.length > 0 &&
+    receipt.requiredChecks.every(
+      (check) =>
+        isRecord(check) &&
+        typeof check.name === 'string' &&
+        check.name.length > 0 &&
+        check.state === 'SUCCESS' &&
+        typeof check.workflow === 'string' &&
+        check.workflow.length > 0 &&
+        typeof check.link === 'string' &&
+        check.link.length > 0 &&
+        typeof check.startedAt === 'string' &&
+        Number.isFinite(Date.parse(check.startedAt)) &&
+        typeof check.completedAt === 'string' &&
+        Number.isFinite(Date.parse(check.completedAt)) &&
+        Date.parse(check.completedAt) >= Date.parse(check.startedAt),
+    )
   )
 }
 
