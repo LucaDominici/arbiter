@@ -108,6 +108,7 @@ export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
   const root = dir ?? process.cwd()
   const state = readUnifiedState(root)
   const phase = state?.phase ?? 'preflight'
+  if (!['preflight', 'plan', 'complete'].includes(phase)) checkPlanContractCurrent(root)
   const taskId = state?.taskId && state.taskId.length > 0 ? state.taskId : undefined
   const header = taskId ? `Task: ${taskId}\n` : ''
 
@@ -460,8 +461,20 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   if (opts.id !== undefined && branch !== undefined && isLinkedCheckout(root)) {
     patch.hostBinding = resolveNativeHostBinding(opts.id, root, opts.host)
   }
+  const previous = readUnifiedState(root)
   const state = writeUnifiedState(root, patch)
-  if (opts.plan !== undefined) derivePlanGates(root, opts.plan)
+  if (opts.plan !== undefined) {
+    derivePlanGates(root, opts.plan)
+    const current = readUnifiedState(root)
+    const gatesChanged =
+      previous?.derivedGates !== undefined &&
+      JSON.stringify(previous.derivedGates) !== JSON.stringify(current?.derivedGates)
+    if (gatesChanged && !['preflight', 'plan'].includes(previous.phase)) {
+      invalidateTaskReceipts(root, state.taskId)
+      writeUnifiedState(root, { review: { rounds: 0, lastReviewedSha: null } })
+      appendLog(root, 'gate authority changed → review and delivery receipts invalidated')
+    }
+  }
   appendLog(root, taskInitLog(state))
 }
 
@@ -1413,10 +1426,8 @@ function latestReviewerEnvelopeFor(
 }
 
 function assertReviewSubjectFrozen(dir: string): void {
-  const plan = readUnifiedState(dir)?.plan.trim().split('#')[0]?.trim() ?? ''
-  if (plan.length === 0 || !pathExistsInCommit('HEAD', plan, dir)) {
-    throw new Error('review freeze requires a tracked plan present in HEAD')
-  }
+  checkPlanTrackedAtHead(dir)
+  checkPlanContractCurrent(dir)
   const dirty = runCli('git', ['status', '--porcelain'], {
     cwd: dir,
     timeoutMs: 5000,
@@ -1516,6 +1527,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
     },
     red: () => {
       checkTaskSeededGate(dir)
+      checkPlanTrackedAtHead(dir)
       checkAcceptancePlanGate(dir)
     },
     green: () => {
@@ -1529,6 +1541,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
       checkGreenExecutionGate(dir)
     },
     verification: () => {
+      checkPlanContractCurrent(dir)
       checkChainTddEvidenceGate(dir)
       checkTddEvidenceProvenanceGate(dir)
       checkReviewCompletionGate(dir)
@@ -1549,6 +1562,26 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): PlannedReviewRound | n
   writeUnifiedState(dir, { phase: to })
   appendLog(dir, `${current} → ${to}`)
   return null
+}
+
+function anchoredPlanPath(dir: string): string {
+  return readUnifiedState(dir)?.plan.trim().split('#')[0]?.trim() ?? ''
+}
+
+function checkPlanTrackedAtHead(dir: string): void {
+  if (!acceptanceProfileEnabled(dir)) return
+  const plan = anchoredPlanPath(dir)
+  if (plan.length > 0 && pathExistsInCommit('HEAD', plan, dir)) return
+  const recovery =
+    plan.length > 0 ? ` Run \`git add -f ${JSON.stringify(plan)}\` and commit it.` : ''
+  throw new Error(`preventive contract requires a tracked plan present in HEAD.${recovery}`)
+}
+
+function checkPlanContractCurrent(dir: string): void {
+  if (!acceptanceProfileEnabled(dir)) return
+  const plan = readUnifiedState(dir)?.plan.trim() ?? ''
+  if (plan.length === 0) throw new Error('preventive contract requires the anchored plan')
+  runRequiredTaskChecker(dir, 'check-acceptance.mjs', ['--plan', plan, '--check-derived-current'])
 }
 
 /**

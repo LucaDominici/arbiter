@@ -69,6 +69,7 @@ export function invalidateTaskReceipts(root: string, taskId: string): void {
   const evidenceId = taskId.replace(/[^0-9A-Za-z-]/g, '')
   for (const path of [
     join(root, '.arbiter', 'gate-pass.json'),
+    join(root, '.arbiter', 'ci-pass.json'),
     join(root, '.arbiter', 'agents-dispatched.json'),
     join(root, '.arbiter', 'evidence', 'ac-fit', `${evidenceId}.json`),
     join(root, '.arbiter', 'evidence', 'agent-returns', `_${evidenceId}`),
