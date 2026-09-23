@@ -1105,6 +1105,7 @@ describe('record-red --at (#2747)', () => {
     testLog: string
     blobSha?: string
     ancestor?: boolean
+    resolvesAt?: boolean
     prepareWorktree?: (worktree: string) => void
     inspectTestCwd?: (cwd: string) => void
   }): string[] {
@@ -1128,6 +1129,7 @@ describe('record-red --at (#2747)', () => {
         return { stdout: options.headSha, stderr: '', exitCode: 0, durationMs: 5 }
       }
       if (args[0] === 'rev-parse' && args[1] === '--verify') {
+        if (options.resolvesAt === false) throw new Error('unknown revision')
         return {
           stdout: options.canonicalAtSha ?? options.atSha,
           stderr: '',
@@ -1205,6 +1207,24 @@ describe('record-red --at (#2747)', () => {
 
     expect(result.ok ? 0 : 1).toBe(1)
     expect(result.reason).toMatch(/not an ancestor/i)
+    expect(worktrees).toHaveLength(0)
+    expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'))).toBe(false)
+  })
+
+  it('--at refuses an unknown ref before creating a worktree or evidence', () => {
+    const dir = repo()
+    const worktrees = mockAtRun({
+      atSha: 'missing',
+      headSha: 'b'.repeat(40),
+      testExitCode: 1,
+      testLog: '# fail 1',
+      resolvesAt: false,
+    })
+
+    const result = recordAt(dir, 'missing')
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toMatch(/cannot resolve --at commit missing/i)
     expect(worktrees).toHaveLength(0)
     expect(existsSync(join(dir, '.arbiter', 'evidence', 'tdd', '#2747.json'))).toBe(false)
   })
