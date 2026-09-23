@@ -1,5 +1,11 @@
 [
   {
+    "path": ".agents/CODEX.md",
+    "reason": "Arbiter self-dogfood starts and recovers Ship through the working-tree dist/cli.js; generated consumers keep the installed arbiter command (#2751).",
+    "date": "2026-09-23",
+    "diffHash": "87bcc16b7014f908d524f7f4ec6bf0bf1e89b71c72c5dff7d49a7a4b5254b845"
+  },
+  {
     "path": ".agents/rules/05-agent-lifecycle.md",
     "reason": "Repo copy merges the repo doc-metadata frontmatter with the emitted paths: key (one block, same shape as .claude/rules); body is identical to the emission. The stripper keeps a block with a non-metadata key on the compare surface by design.",
     "date": "2026-09-20",

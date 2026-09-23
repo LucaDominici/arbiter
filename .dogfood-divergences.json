@@ -1,5 +1,29 @@
 [
   {
+    "path": "commands/ship.md",
+    "reason": "#2751: Arbiter self-dogfood invokes the working-tree dist/cli.js so a stale global installation cannot run a different Ship engine. Generated consumers keep the installed arbiter command.",
+    "expires": "2026-10-31",
+    "diffHash": "c28cceac9dcee0d4e3ae61f4484b33c8b66ca74b8a0bb67c4ea91b707712949b"
+  },
+  {
+    "path": "commands/review.md",
+    "reason": "#2751: Arbiter self-dogfood opens review rounds through the working-tree dist/cli.js. Generated consumers keep the installed arbiter command.",
+    "expires": "2026-10-31",
+    "diffHash": "3b23b42d3f2c77726ccddf53ac69dbfc9ddc75996f44b0268b9b300fbfb0a6a3"
+  },
+  {
+    "path": "skills/tdd/SKILL.md",
+    "reason": "#2751: Arbiter self-dogfood records RED evidence through the working-tree dist/cli.js. Generated consumers keep the installed arbiter command.",
+    "expires": "2026-10-31",
+    "diffHash": "bfd47b9ed9a94b8c629644c6d073c8fbfda9607514e03c50003aac53d30dfc53"
+  },
+  {
+    "path": "hooks/exitplanmode-banner.mjs",
+    "reason": "#2751: Arbiter self-dogfood resumes Ship through the working-tree dist/cli.js after plan mode. Generated consumers keep the installed arbiter command.",
+    "expires": "2026-10-31",
+    "diffHash": "01d8326b944e74602742e3013c94a64891a20f68660c10ee5eefaa81833fd68e"
+  },
+  {
     "path": "scripts/debt-lib.mjs",
     "dest": ".",
     "reason": "#2773: Arbiter self imports the debt metric command from scripts/lib/debt-metric-contract.mjs so self execution and inspection share one runtime value. The target template inlines the same value from one EJS partial because check-all and debt-ratchet generators are independently runnable and must not leave either emitted script with a missing runtime dependency.",
@@ -49,7 +73,7 @@
   {
     "path": "hooks/pre-edit-plan-anchor.mjs",
     "reason": "Arbiter self-dogfood: CANON-16 Survey gate (#458) is implemented in both arbiter's materialized hook and the EJS template; the logic is identical. Cosmetic divergence only: Prettier formats the materialized hook with double quotes and the EJS template with single quotes. Functionally equivalent.",
-    "diffHash": "383f64b7557a6338c420fe24c31f376ed0b6fefea7cdadb53bd01e8b7795575a"
+    "diffHash": "e2b8f85256a85e002de5d114dd620050bb4513840a621115c5cf8b290cede56c"
   },
   {
     "path": "hooks/hooks.mjs",

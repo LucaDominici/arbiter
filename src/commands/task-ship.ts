@@ -327,6 +327,7 @@ function reviewPhaseStepBody(
   })
   const externalCount = plan.external.length
   const scope = reviewScopeFor(reviewPlan)
+  const cli = profile.isArbiterSelf ? 'node dist/cli.js' : 'arbiter'
   const prepare =
     'Run touched tests, formatter/linter on changed files, and `git diff --check`; commit and push the frozen candidate, open or reuse its draft PR so CI starts, then'
   const reviewCommand = [
@@ -336,7 +337,7 @@ function reviewPhaseStepBody(
     'git push -u origin "$branch"',
     '{ gh pr view "$branch" >/dev/null 2>&1 || gh pr create --draft --fill --head "$branch"; }',
     'test "$(git rev-parse HEAD)" = "$candidate"',
-    `arbiter ship '${taskId ?? '#NNN'}' --review-round`,
+    `${cli} ship '${taskId ?? '#NNN'}' --review-round`,
   ].join(' && ')
   const step: Omit<ShipStep, 'verticals'> = {
     phase,
@@ -362,12 +363,14 @@ function shipStepBody(
     return reviewPhaseStepBody(phase, t, profile, context)
   }
 
+  const cli = profile.isArbiterSelf ? 'node dist/cli.js' : 'arbiter'
+
   switch (phase) {
     case 'preflight':
       return {
         phase,
         action: 'Open the worktree, read the issue, write task state.',
-        command: 'arbiter lifecycle start --id <id> --tier <tier> --plan <path>',
+        command: `${cli} lifecycle start --id <id> --tier <tier> --plan <path>`,
         reviewAgents: 0,
       }
     case 'plan':
@@ -380,7 +383,7 @@ function shipStepBody(
         action:
           'Write the plan with scope and acceptance criteria; mechanical admission checks validate it before TDD.',
         command:
-          `arbiter lifecycle start --id '${context.taskId ?? '#NNN'}' --tier ${t} ` +
+          `${cli} lifecycle start --id '${context.taskId ?? '#NNN'}' --tier ${t} ` +
           `--plan .claude/plans/task-${context.taskId?.replace(/^#/, '') ?? 'NNN'}.md`,
         reviewAgents: 0,
       }
@@ -388,7 +391,7 @@ function shipStepBody(
       return {
         phase,
         action: 'Write failing tests first (TDD red); record evidence.',
-        command: `arbiter lifecycle record-red --task '${context.taskId ?? '#NNN'}' --test-path <test-path>`,
+        command: `${cli} lifecycle record-red --task '${context.taskId ?? '#NNN'}' --test-path <test-path>`,
         reviewAgents: 0,
       }
     case 'green':

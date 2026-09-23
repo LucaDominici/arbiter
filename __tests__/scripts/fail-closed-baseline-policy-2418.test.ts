@@ -132,6 +132,6 @@ describe('#2418 AC-3 — the governance text names the size and the decay rule',
     // hand, so the ledger cannot grow unnoticed. The baseline follows the current
     // reviewed allowlist, including the removal of dead entries for retired commands.
     expect(canon.divergences).toBe(ledger.length)
-    expect(canon.divergences).toBe(75)
+    expect(canon.divergences).toBe(79)
   })
 })

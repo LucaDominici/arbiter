@@ -127,6 +127,20 @@ exit 0
     expect(existsSync(resolve(packageRoot, 'dist', 'cli.js'))).toBe(true)
   })
 
+  it('clears inherited global-install mode for nested npm commands', () => {
+    const packageRoot = resolve(workDir, 'consumer', 'node_modules', '@getarbiter', 'cli')
+    mkdirSync(resolve(packageRoot, 'node_modules', '.bin'), { recursive: true })
+    writeFileSync(resolve(packageRoot, 'node_modules', '.bin', 'tsc'), '')
+
+    const log = runPrepareLifecycle(
+      packageRoot,
+      undefined,
+      '#!/bin/sh\necho "${npm_config_global}:$@" >> "npm-calls.log"\nexit 0\n',
+    )
+
+    expect(log.trim()).toBe('false:run build')
+  })
+
   it('does NOT build for a plain contributor install (not under node_modules)', () => {
     const packageRoot = resolve(workDir, 'arbiter-repo-checkout')
     mkdirSync(packageRoot, { recursive: true })

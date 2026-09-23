@@ -63,7 +63,7 @@ if (!currentBranch) {
   process.stderr.write(
     `[arbiter] PLAN ANCHOR: cannot resolve current Git branch while ${statusFile} ` +
       `claims task=${taskId} phase=${phase} branch=${recordedBranch}. ` +
-      `Failing closed; run \`arbiter lifecycle start --id ${taskId} --plan ${plan}\` after restoring Git state.\n`,
+      `Failing closed; run \`node dist/cli.js lifecycle start --id ${taskId} --plan ${plan}\` after restoring Git state.\n`,
   )
   process.exit(2)
 }
@@ -78,7 +78,7 @@ if (staleBranch) {
   process.stderr.write(
     `[arbiter] PLAN ANCHOR: stale task state disarmed. status=${statusFile} task=${taskId} ` +
       `plan=${plan} recordedBranch=${recordedBranch} currentBranch=${currentBranch}. ` +
-      `Realign with \`arbiter lifecycle start --id <current-issue> --plan <current-plan>\`.\n`,
+      `Realign with \`node dist/cli.js lifecycle start --id <current-issue> --plan <current-plan>\`.\n`,
   )
   process.exit(0)
 }
@@ -91,7 +91,7 @@ if (!planPath || !existsSync(planPath)) {
     `[arbiter] PLAN ANCHOR: ${phase} phase requires a plan pointer to an existing plan file. ` +
       `status=${statusFile} task=${taskId} plan=${plan} ` +
       `recordedBranch=${recordedBranch} currentBranch=${currentBranch}.\n` +
-      `Set via: arbiter lifecycle start --plan <path> (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
+      `Set via: node dist/cli.js lifecycle start --plan <path> (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
   )
   process.stderr.write(`[arbiter] Run \`arbiter explain CANON-16\` for details.\n`)
   process.exit(2)

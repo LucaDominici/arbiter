@@ -37,7 +37,7 @@ const RETAINED_RULES = [
   'The final reviewer covers code, tests, and acceptance fit',
   'push the frozen branch and open or reuse its draft PR',
   'PR CI starts on that same SHA',
-  'run `arbiter ship --review-round` in the foreground',
+  /run `(?:node dist\/cli\.js |arbiter )ship --review-round` in the foreground/,
   'MED/HIGH/CRITICAL finding',
   'exact-subject receipt',
   'CI runs the full gate on that SHA',
@@ -177,8 +177,8 @@ describe('#2435 AC-5 — the tdd skill names the command that writes the green g
   const SKILL = '.claude/skills/tdd/SKILL.md'
   const SKILL_TPL = 'src/templates/claude/skills/tdd/SKILL.md.ejs'
 
-  it('SKILL.md names `arbiter lifecycle record-red` (AC-5)', () => {
-    expect(readFileSync(SKILL, 'utf-8')).toContain('arbiter lifecycle record-red')
+  it('SKILL.md names the local lifecycle record-red command (AC-5)', () => {
+    expect(readFileSync(SKILL, 'utf-8')).toContain('node dist/cli.js lifecycle record-red')
   })
 
   it('the template twin names it too (AC-5)', () => {
@@ -191,6 +191,6 @@ describe('#2435 AC-5 — the tdd skill names the command that writes the green g
     const rows = phaseMapRows(readFileSync(SHIP_MD, 'utf-8'))
     const redRow = rows.get('red') ?? ''
     expect(redRow).toMatch(/`tdd` skill/)
-    expect(readFileSync(SKILL, 'utf-8')).toMatch(/arbiter lifecycle record-red/)
+    expect(readFileSync(SKILL, 'utf-8')).toMatch(/node dist\/cli\.js lifecycle record-red/)
   })
 })

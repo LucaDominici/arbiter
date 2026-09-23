@@ -434,11 +434,21 @@ const program = new Command()
 // invocation, not just --version: a lookup failure must never crash the CLI's
 // ability to run any command, so it degrades to 'unknown' rather than throwing.
 function readPackageVersion(): string {
+  let version: string
   try {
     const require = createRequire(import.meta.url)
-    return (require('../package.json') as { version: string }).version
+    version = (require('../package.json') as { version: string }).version
   } catch {
     return 'unknown'
+  }
+  try {
+    const require = createRequire(import.meta.url)
+    const manifest = require('../dist/.src-manifest.json') as { srcHash?: unknown }
+    return typeof manifest.srcHash === 'string'
+      ? `${version}+h${manifest.srcHash.slice(0, 12)}`
+      : version
+  } catch {
+    return version
   }
 }
 const packageVersion = readPackageVersion()

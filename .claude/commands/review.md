@@ -41,7 +41,7 @@ MED/HIGH/CRITICAL findings. A missing envelope may be retried once in the same r
 finding is reconciled with every other finding from that round in one fix batch.
 
 After a fix batch, the candidate SHA changes and all dependent review and acceptance evidence is
-invalid. Open round two with `arbiter ship --review-round`; it reviews only the delta from the prior
+invalid. Open round two with `node dist/cli.js ship --review-round`; it reviews only the delta from the prior
 reviewed SHA. Two rounds is the normal cap. Only LOW findings may be parked. Use
 `--force-review` only for a deliberate extra round needed to clear a material blocker.
 

@@ -29,13 +29,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { walkRepo } from './glob-walk.mjs'
 
-/** Default src/ subtrees the dist-consuming gates actually depend on (#1984). */
-export const DEFAULT_WATCHED_SRC_DIRS = [
-  'src/generators',
-  'src/templates',
-  'src/utils',
-  'src/config',
-]
+/** Every source file contributing to the compiled CLI's build identity (#2751). */
+export const DEFAULT_WATCHED_SRC_DIRS = ['src']
 
 /** Manifest, written inside dist/ so it travels with an actions/cache save+restore (#2089). */
 export const MANIFEST_REL_PATH = 'dist/.src-manifest.json'

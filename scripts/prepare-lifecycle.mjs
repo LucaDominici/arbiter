@@ -34,13 +34,15 @@ const installedAsDependency =
 
 try {
   if (installedAsDependency && !existsSync(resolve(ROOT, 'dist', 'cli.js'))) {
+    const env = { ...process.env, npm_config_global: 'false' }
     if (!existsSync(resolve(ROOT, 'node_modules', '.bin', 'tsc'))) {
       execFileSync('npm', ['ci', '--include=dev', '--ignore-scripts'], {
         cwd: ROOT,
         stdio: 'inherit',
+        env,
       })
     }
-    execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit' })
+    execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit', env })
   }
 } catch (err) {
   console.error(`prepare-lifecycle: build failed — ${err.message}`)
