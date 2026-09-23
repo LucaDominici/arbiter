@@ -409,6 +409,35 @@ describe('consumer reliability bar oracles (#2135)', () => {
     }
   })
 
+  it('accounts for the preventive complexity ratchet in the TypeScript consumer surface', () => {
+    const gateMap = JSON.parse(
+      readFileSync(resolve('scripts/data/consumer-gate-map.json'), 'utf-8'),
+    )
+    const entry = gateMap.consumers.typescript
+    const gate = 'complexity ratchet (preventive)'
+
+    expect(entry.mapping[gate]).toBe('DEBT:#2291')
+
+    const mapping = Object.fromEntries(
+      Object.entries(entry.mapping).map(([name, verdict]) => [
+        name,
+        typeof verdict === 'string' ? verdict : `WIRED:${verdict.caller}`,
+      ]),
+    )
+    const declared = Object.values(mapping)
+      .filter((verdict) => verdict.startsWith('WIRED:'))
+      .map((verdict) => verdict.slice('WIRED:'.length))
+      .map((value) => (value.startsWith('warn:') ? value.slice('warn:'.length) : value))
+    const result = assessGateSurface({
+      freshRender: [...new Set([...Object.keys(mapping), gate])],
+      declared,
+      mapping,
+      debtRegister: { ceiling: entry.debtCeiling, openIssues: ['#2291'] },
+    })
+
+    expect(result.ok, result.detail).toBe(true)
+  })
+
   // #2666 added the local extension slot to check-all.mjs.ejs; #2591 made WIRED evidence
   // kind-aware. Both regressions are reproduced against a REAL render (renderCheckAll),
   // never a hand-copied fixture, sliced to the relevant block by the template's own
