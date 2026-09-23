@@ -1,0 +1,17 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#2855",
+  "test_path": "__tests__/scripts/check-acceptance.test.ts",
+  "test_cwd": ".",
+  "test_commit_sha": "779996ec7561fe89406b9bbac7f6f66eee46ed89",
+  "test_blob_sha": "54127f4d541bd6b5120ea7e0ffd6607697b7b996",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/scripts/check-acceptance.test.ts (79 tests | 2 failed) 8227ms\n       × admits a plan that cites the gate spine `node scripts/check-all.mjs` 68ms\n       × still rejects a genuinely unwired checker cited beside the gate spine 58ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 77 passed (79)\n   Start at  01:21:20\n   Duration  9.27s (transform 800ms, setup 8ms, import 864ms, tests 8.23s, environment 0ms)\n\n\n(node:737659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:737716) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:737974) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/scripts/check-acceptance.test.ts > check-acceptance ship parity (#2850) > D7: plan-listed checkers must be executed by something > admits a plan that cites the gate spine `node scripts/check-all.mjs`\nAssertionError: expected 'FAIL check-acceptance: plan runs `nod…' to be '' // Object.is equality\n\n- Expected\n+ Received\n\n+ FAIL check-acceptance: plan runs `node scripts/check-all.mjs` but no gate in the contract runs it; wire it into scripts/check-all.mjs, or drop it from the plan\n+\n\n ❯ __tests__/scripts/check-acceptance.test.ts:762:29\n    760|       gateAuthority(['node scripts/check-other.mjs'])\n    761|       const result = admit(plan('node scripts/check-all.mjs'))\n    762|       expect(result.stderr).toBe('')\n       |                             ^\n    763|       expect(result.status).toBe(0)\n    764|     })\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n FAIL  |unit| __tests__/scripts/check-acceptance.test.ts > check-acceptance ship parity (#2850) > D7: plan-listed checkers must be executed by something > still rejects a genuinely unwired checker cited beside the gate spine\nAssertionError: expected 'FAIL check-acceptance: plan runs `nod…' not to match /check-all\\.mjs.*no gate/i\n\n- Expected:\n/check-all\\.mjs.*no gate/i\n\n+ Received:\n\"FAIL check-acceptance: plan runs `node scripts/check-all.mjs` but no gate in the contract runs it; wire it into scripts/check-all.mjs, or drop it from the plan\nFAIL check-acceptance: plan runs `node scripts/check-foo.mjs` but no gate in the contract runs it; wire it into scripts/check-all.mjs, or drop it from the plan\n\"\n\n ❯ __tests__/scripts/check-acceptance.test.ts:772:33\n    770|       expect(result.status).toBe(1)\n    771|       expect(result.stderr).toMatch(/scripts\\/check-foo\\.mjs.*no gate/…\n    772|       expect(result.stderr).not.toMatch(/check-all\\.mjs.*no gate/i)\n       |                                 ^\n    773|     })\n    774|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/scripts/check-acceptance.test.ts",
+  "recorded_at": "2026-09-23T23:21:29.539Z",
+  "test_command": [
+    "npx",
+    "vitest",
+    "run",
+    "__tests__/scripts/check-acceptance.test.ts"
+  ]
+}
