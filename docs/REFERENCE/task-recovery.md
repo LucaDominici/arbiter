@@ -256,8 +256,10 @@ A missing checker or invalid anchor prevents the transition without changing the
 also requires the issue body to carry every criterion as `AC-N:` frozen verbatim in the plan; the
 plan step prints the exact `check-acceptance.mjs --plan <anchored plan> --admit-issue <n>` command
 so that obligation is met before the writer starts. A plan that promises `node scripts/check-*.mjs`
-for a checker that exists but that no tracked non-document file references is refused at admission
-and by the derived-contract check: wire the checker into a gate or test, or drop it from the plan.
+for a checker that exists but that no command of the canonical gate contract runs is refused at
+admission and by the derived-contract check: wire the checker into `scripts/check-all.mjs`, or drop
+it from the plan. The gate spine `scripts/check-all.mjs` itself is exempt (#2855): it runs the
+contract, so a plan may always cite it.
 
 Review rounds bind to source content (#2850). After a round with no blocking findings, a commit that
 changes only `.arbiter/` or `.agents/` opens no new round (the step says so explicitly), while a

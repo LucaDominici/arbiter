@@ -396,11 +396,16 @@ interface SessionOpts {
   onAdopt: (key: string, priorContent: string, newContent: string) => void
   /** #2353: `.arbiterignore` / `--only`. See `config/arbiter-ignore.ts`. */
   selectPredicate: (key: string) => SelectionVerdict
+  /** #2855: the resolved (gate-spine-widened) `--only` allowlist; empty ⇒ every key in scope. */
+  only: string[]
 }
 
-/** #2855: the key lies outside this run's `update --only` allowlist. */
-function isDeselected(policy: Pick<SessionOpts, 'selectPredicate'>, key: string): boolean {
-  return policy.selectPredicate(key) === 'deselected'
+/**
+ * #2855: the key lies outside this run's `update --only` allowlist. Decided by the allowlist
+ * alone: an `.arbiterignore` verdict on the same key must not re-open it to pruning/retirement.
+ */
+function isOutsideOnly(policy: Pick<SessionOpts, 'only'>, key: string): boolean {
+  return policy.only.length > 0 && !matchesOnly(policy.only, key)
 }
 
 /**
@@ -454,10 +459,10 @@ function selectAndRunWithManifest(
   // grounds and for a sharper reason — dropping it would make the opt-out destroy
   // the very provenance record that lets a later un-ignore re-adopt the file, and
   // would shrink a `--only` run's manifest to the one path it touched.
-  // #2855: a `--only`-deselected key is out of scope whether or not a generator visited it —
+  // #2855: a key outside `--only` is out of scope whether or not a generator visited it —
   // a filled doc-set skeleton is skipped before any write, so it never becomes a result.
   const retainedWithheldHashes = Object.fromEntries([
-    ...Object.entries(prevManifest).filter(([key]) => isDeselected(adoptOpts, key)),
+    ...Object.entries(prevManifest).filter(([key]) => isOutsideOnly(adoptOpts, key)),
     ...out.results.flatMap((result): [string, string][] => {
       const excluded = result.excluded !== undefined
       if (!excluded && (result.withheld !== true || result.adopted === true)) return []
@@ -479,7 +484,7 @@ function selectAndRunWithManifest(
     targetDir,
     fullRegistryRun,
     diskHash: diskHasher(targetDir),
-    inScope: (key) => !isDeselected(adoptOpts, key),
+    inScope: (key) => !isOutsideOnly(adoptOpts, key),
   })
   applyRetirement(targetDir, retirement)
   saveGeneratedManifest(targetDir, nextHashes, unwired, stillWithheldSafety)
@@ -533,7 +538,7 @@ function runAdoptPlan(
     targetDir,
     fullRegistryRun: out.keysRun === null || out.keysRun.has('*'),
     diskHash: diskHasher(targetDir),
-    inScope: (key) => !isDeselected(policy, key),
+    inScope: (key) => !isOutsideOnly(policy, key),
   })
   return { records: collected, results: out.results, retirement }
 }
@@ -1354,6 +1359,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       const plan = runAdoptPlan(specs, snapshot, nextConfig, targetDir, {
         adoptPredicate,
         selectPredicate,
+        only,
       })
       printAdoptPlan({
         records: plan.records,
@@ -1382,6 +1388,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     } = selectAndRunWithManifest(specs, snapshot, nextConfig, targetDir, {
       adoptPredicate,
       selectPredicate,
+      only,
       onAdopt,
     })
     // Computed on the REGISTRY results only, before plugin results are merged in:

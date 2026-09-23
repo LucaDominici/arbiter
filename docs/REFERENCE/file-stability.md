@@ -628,7 +628,9 @@ Semantics:
 - `--only` is the inverse allowlist for one invocation, e.g.
   `arbiter update --only .claude/hooks/check-no-pii.mjs,.github/labels.yml`. Every other managed file is
   skipped and **keeps its manifest entry** — a scoped run must never amputate the manifest to the one
-  path it touched. `update --dry-run --only` previews the same file scope without changing files or the
+  path it touched. Scope is decided by the resolved allowlist alone (#2855): a key outside it keeps
+  its entry and is never a retirement or stale candidate, even when no generator visits it (a
+  filled-in doc-set skeleton) and even when `.arbiterignore` also matches it. `update --dry-run --only` previews the same file scope without changing files or the
   manifest; an unmatched preview reports an empty set. The section-only `--governance` preview has a
   different subject and is rejected when combined with `--only`; `--adopt-plan` is likewise a separate
   preview mode and cannot be combined with `--dry-run`.
