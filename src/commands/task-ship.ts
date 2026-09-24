@@ -244,7 +244,7 @@ function closeAction(profile: ShipProfile): string {
     : ''
   const exactLanding =
     profile.collaborationMode === 'trunk-solo' && profile.mergeMode === 'pr-ff'
-      ? ' Land only with `node scripts/pr-merge-watch.mjs <owner/repo> <pr>`; it refuses before GitHub unless lifecycle, review, applicable acceptance, receipt, and local HEAD agree.'
+      ? ' Mark the draft ready with `gh pr ready <pr>`, then land only with `node scripts/pr-merge-watch.mjs <owner/repo> <pr>`; it refuses drafts and refuses before GitHub unless lifecycle, review, applicable acceptance, receipt, and local HEAD agree.'
       : ''
   return (
     'CLOSER mode: single named target, no new issues or refactor beyond the diff ' +
