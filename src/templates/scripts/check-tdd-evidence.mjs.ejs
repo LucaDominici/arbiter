@@ -113,54 +113,7 @@ const FLOOR_REMEDY =
 const hasSkipTrailer = (body) => /^ARBITER-SKIP-TDD: 1$/m.test(body)
 
 // ─── Evidence verification (inlined — no arbiter CLI dependency) ───────────────
-const FAILURE_SIGNATURES = [
-  /FAIL\s+\S+\.test\.[jt]sx?/m, // vitest
-  /FAIL\s+\S+\.(spec|test)\.[jt]sx?/m, // jest
-  /\d+ scenarios? \(\d+ failed/m, // cucumber
-  /={3,}\s*FAILURES\s*={3,}/m, // pytest
-  /FAILED\s*$|BUILD FAILED/m, // gradle
-  /test result: FAILED/m, // cargo
-  /--- FAIL:/m, // go
-  /^FAIL:[ \t]+\S.*$/m, // shell self-test
-  /^# fail [1-9]\d*/m, // tap (node:test)
-  /^\s*[1-9]\d* failed\b/m, // playwright line/list reporter ("  1 failed")
-]
-const hasFailureSignature = (log) => FAILURE_SIGNATURES.some((re) => re.test(log))
-
-/** Plain-JS mirror of the TddEvidenceV1 schema — returns { ok, reason }. */
-function validateSchema(ev) {
-  if (!ev || typeof ev !== 'object') return { ok: false, reason: 'evidence is not an object' }
-  if (ev.$schemaVersion !== 1) return { ok: false, reason: '$schemaVersion must be 1' }
-  if (typeof ev.task_id !== 'string' || !/^#\d+$/.test(ev.task_id))
-    return { ok: false, reason: 'task_id must match /^#\\d+$/' }
-  if (typeof ev.test_path !== 'string' || ev.test_path.length === 0)
-    return { ok: false, reason: 'test_path must be a non-empty string' }
-  if (typeof ev.test_commit_sha !== 'string' || !/^[0-9a-f]{40}$/i.test(ev.test_commit_sha))
-    return { ok: false, reason: 'test_commit_sha must be 40 hex characters' }
-  if (typeof ev.test_run_log !== 'string')
-    return { ok: false, reason: 'test_run_log must be a string' }
-  if (typeof ev.observed_failure !== 'string' || ev.observed_failure.length === 0)
-    return { ok: false, reason: 'observed_failure must not be empty' }
-  if (typeof ev.recorded_at !== 'string' || Number.isNaN(Date.parse(ev.recorded_at)))
-    return { ok: false, reason: 'recorded_at must be an ISO8601 datetime' }
-  return { ok: true }
-}
-
-/**
- * #2116: REACHABILITY, not object existence. `cat-file -e` passes for any object still
- * present in the repo — including the pre-rebase commit of a branch that was rebased
- * before merging, whose evidence then "verifies" against history nobody can reach, and
- * turns unverifiable the day the stale branch is deleted. A rebase must fail loudly here
- * (re-record the evidence) instead of silently passing.
- */
-function shaExists(sha) {
-  try {
-    git(['merge-base', '--is-ancestor', sha, 'HEAD'])
-    return true
-  } catch {
-    return false
-  }
-}
+<%- include('lib/_tdd-receipt.ejs') -%>
 function isShallow() {
   try {
     return git(['rev-parse', '--is-shallow-repository']) === 'true'

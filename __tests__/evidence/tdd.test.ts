@@ -103,10 +103,7 @@ describe('extractFailureSignature() — Playwright line/list reporter', () => {
   })
 
   it('keeps the same signature in the emitted gate template (AC-2386.2)', () => {
-    const template = readFileSync(
-      resolve('src/templates/scripts/check-tdd-evidence.mjs.ejs'),
-      'utf-8',
-    )
+    const template = readFileSync(resolve('src/templates/scripts/lib/_tdd-receipt.ejs'), 'utf-8')
     expect(template).toContain('/^\\s*[1-9]\\d* failed\\b/m')
   })
 })
