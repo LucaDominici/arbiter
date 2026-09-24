@@ -13,7 +13,7 @@
     ".claude/commands/drain.md": "3cf10d0fe258d03ac6e16a0439cc580be455d8d779362de14adcfcac5a81f95d",
     ".claude/commands/impact.md": "4c8209afb1442bebb2a177cf8855e0080e7ea27664a5b00ad1b5b4d3514f7076",
     ".claude/commands/review.md": "c1e17dab437ee767f3a23475917175797741389dc71b1d168da27f2accfebf8a",
-    ".claude/commands/ship.md": "f03b16d2d8d6662e8ceab1163f33043b83d1e8c7fbda546ba9b4d5b412e8abd2",
+    ".claude/commands/ship.md": "16cc82b8d175e23f6b711ad0f4eac3f90bd058e57ed855e04ccc0da4f084b49c",
     ".claude/commands/tabletop.md": "3f8b1e4e2d21069587e57812b8a60372e5036837ca021ab72dc826724fa48c48",
     ".claude/hooks/check-no-bare-except.mjs": "88bc84f3913134f859843d4c3845a33d8e31c4a1096db103995233ed118ba17f",
     ".claude/hooks/check-no-orphan-todo.mjs": "3f1b0dec92ab73fa4486193dcdd492086e596a8f8141ca0b45ecccddd111b30a",
