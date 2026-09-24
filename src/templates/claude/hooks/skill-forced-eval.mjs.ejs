@@ -232,12 +232,13 @@ function inspectTranscript(raw, { startedAt, plan }) {
   }
 
   // #2861 AC-4: a successful Skill(tdd) forgives only the edits after it; earlier edits still
-  // count unless a committed receipt covers the phase.
+  // count unless a committed receipt covers the phase. Walk results in arrival order (#2383): an
+  // edit whose result lands before the skill's successful result is not after it.
   let lastEditId = null;
   let skillObserved = false;
-  for (const [id, use] of uses) {
-    const result = results.get(id);
-    if (!result || !result.ok || use.timestamp < startedAt) continue;
+  for (const [id, result] of results) {
+    const use = uses.get(id);
+    if (!result.ok || use.timestamp < startedAt) continue;
     if (EDIT_TOOLS.has(use.tool) && !skillObserved && !exemptEdit(use.input, plan)) lastEditId = id;
     if (use.tool === 'skill' && use.input?.skill?.toLowerCase?.() === 'tdd') skillObserved = true;
   }
