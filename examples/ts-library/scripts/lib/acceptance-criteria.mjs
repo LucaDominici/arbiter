@@ -107,11 +107,20 @@ function parseCriterionLine(line, criteria) {
   const body = bullet[1].trim()
   // Explicit stable ids: AC-3, or wave-namespaced AC-123.1 / AC-123-1 (issue.criterion)
   const explicit = /^AC-(\d+(?:[.-]\d+)?)\s*[:.–-]\s*(.*)$/.exec(body)
+  const text = normalizeText(explicit ? explicit[2] : body)
   const criterion = explicit
-    ? { id: `AC-${explicit[1]}`, text: normalizeText(explicit[2]), explicit: true }
-    : { id: `AC-${criteria.length + 1}`, text: normalizeText(body), explicit: false }
+    ? { id: `AC-${explicit[1]}`, text, explicit: true, exactMain: isExactMain(text) }
+    : { id: `AC-${criteria.length + 1}`, text, explicit: false, exactMain: false }
   criteria.push(criterion)
   return criterion
+}
+
+// #2865: `AC-N: [exact-main] …` — proven only by the exact-main CI run after merge. The marker
+// stays in the criterion text, so the plan hash covers it.
+const EXACT_MAIN_MARKER = '[exact-main] '
+
+function isExactMain(text) {
+  return text.startsWith(EXACT_MAIN_MARKER)
 }
 
 function duplicateIds(criteria) {
@@ -151,7 +160,7 @@ export function validateIssueAcceptanceCoverage(issueNumber, issueBody, planCrit
     const frozen = planCriteria.find((candidate) => candidate.id === planId)
     if (frozen === undefined) {
       errors.push(`issue #${issueNumber} criterion ${criterion.id} is missing as plan ${planId}`)
-    } else if (frozen.text !== criterion.text) {
+    } else if (frozen.text.replace(EXACT_MAIN_MARKER, '') !== criterion.text) {
       errors.push(`issue #${issueNumber} criterion ${criterion.id} does not match plan ${planId}`)
     }
   }
@@ -322,7 +331,8 @@ function validateFitVerdict(criterion, id, opts, errors) {
   const evidence = Array.isArray(criterion?.evidence) ? criterion.evidence : []
   if (verdict === 'PASS' && !evidence.some(isUsableEvidence))
     errors.push(`criterion ${id}: PASS without evidence (cite the diff/test line)`)
-  if (opts.requireAllPass && verdict !== 'PASS')
+  const exactMainPending = verdict === 'NOT-TESTED' && opts.exactMainIds?.includes(id) === true
+  if (opts.requireAllPass && verdict !== 'PASS' && !exactMainPending)
     errors.push(`criterion ${id}: verdict ${verdict} is not PASS`)
 }
 
