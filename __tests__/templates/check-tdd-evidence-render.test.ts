@@ -431,6 +431,13 @@ describe('scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446
       }),
     ).toBe(0)
   })
+
+  it('#2861 AC-1: the validator and the Stop hook share scripts/lib/_tdd-receipt.ejs', () => {
+    const rules = render('scripts/lib/_tdd-receipt.ejs')
+    expect(rules).toContain('function shaExists(sha)')
+    expect(render('scripts/check-tdd-evidence.mjs.ejs')).toContain(rules)
+    expect(render('claude/hooks/skill-forced-eval.mjs.ejs')).toContain(rules)
+  })
 })
 
 describe('check-all.mjs wiring (#1446) — cross-stack', () => {
