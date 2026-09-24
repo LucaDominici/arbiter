@@ -671,6 +671,43 @@ describe('complete — [exact-main] criteria need green exact-main CI on the mer
     )
   })
 
+  it('refuses when the merged PR reports no merge SHA (exact-main receipt unknown)', () => {
+    const dir = completeRepo()
+    const readCommitCi = vi.fn(() => [run('push', 'main', 'SUCCESS')])
+    const readPrs = () => [{ number: 7, state: 'MERGED' }]
+    expect(() => runTaskAdvance({ to: 'complete', dir, readPrs, readCommitCi })).toThrow(
+      /exact-main.*AC-1.*merge \(unknown\) of PR #7/,
+    )
+    expect(readCommitCi).not.toHaveBeenCalled()
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('refuses when the green main run belongs to a different SHA than the merge', () => {
+    const dir = completeRepo()
+    const readCommitCi = (sha: string) =>
+      sha === MERGE_SHA ? [] : [run('push', 'main', 'SUCCESS')]
+    expect(() => runTaskAdvance({ to: 'complete', dir, readPrs: merged, readCommitCi })).toThrow(
+      new RegExp(`exact-main.*AC-1.*merge ${MERGE_SHA}`),
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('fails closed when the emitted checker answers --exact-main-ids with a non-list', () => {
+    const dir = completeRepo()
+    writeFileSync(
+      join(dir, 'scripts', 'check-acceptance.mjs'),
+      "process.stdout.write(process.argv.includes('--exact-main-ids') ? '{}' : '')\n",
+      'utf-8',
+    )
+    execFileSync('git', ['commit', '-qam', 'stale checker', '--no-gpg-sign'], { cwd: dir })
+    writeGatePassEvidence(dir, { taskId: '#2865' })
+    const readCommitCi = () => [run('push', 'main', 'SUCCESS')]
+    expect(() => runTaskAdvance({ to: 'complete', dir, readPrs: merged, readCommitCi })).toThrow(
+      /--exact-main-ids: not a list/,
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
   it('judges only the main runs of a mixed rollup', () => {
     const dir = completeRepo()
     const readCommitCi = () => [
