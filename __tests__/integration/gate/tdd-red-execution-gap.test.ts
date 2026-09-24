@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest'
 import { runVerifyTdd } from '../../../src/commands/verify-tdd.js'
 import { runTaskRecordRed } from '../../../src/commands/task-record-red.js'
+import { verifyGreenExecution } from '../../../src/evidence/tdd-reexecute.js'
 
 // gitCwd() lets ARBITER_HOOK_GIT_CWD win over an explicit dir (deliberate:
 // the pre-push rsync dir has no .git). This suite runs verify against a
@@ -169,5 +170,29 @@ describe('TDD red-execution gap (#1957)', () => {
     expect(result.status, `expected FAIL, got PASS — false-green not caught`).toBe('FAIL')
     const reExecCheck = result.checks?.find((c) => c.name === 'red-execution')
     expect(reExecCheck?.pass).toBe(false)
+  }, 60_000)
+
+  it('records a shell test with bash, stages the receipt past info/exclude, and replays PASS: at GREEN (#2862)', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, '.git', 'info', 'exclude'), '.arbiter/\n')
+    mkdirSync(join(dir, '.claude'))
+    writeFileSync(join(dir, '.claude', '.task-id'), '#9002\n')
+    writeFileSync(
+      join(dir, 'x.test.sh'),
+      'if [ -f fixed ]; then echo "PASS: fixed exists"; exit 0; fi\necho "FAIL: fixed missing"\nexit 1\n',
+    )
+    commit(dir, 'test: red shell case')
+
+    const recorded = runTaskRecordRed({ dir, testPath: 'x.test.sh' })
+    expect(recorded.ok, recorded.ok ? '' : recorded.reason).toBe(true)
+    const evidence = JSON.parse(
+      readFileSync(join(dir, '.arbiter', 'evidence', 'tdd', '#9002.json'), 'utf-8'),
+    )
+    expect(evidence.test_command).toEqual(['bash', 'x.test.sh'])
+    expect(git(dir, ['diff', '--cached', '--name-only'])).toBe('.arbiter/evidence/tdd/#9002.json')
+
+    writeFileSync(join(dir, 'fixed'), '')
+    commit(dir, 'fix: green')
+    expect(verifyGreenExecution(evidence, dir)).toEqual({ ok: true })
   }, 60_000)
 })

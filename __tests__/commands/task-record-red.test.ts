@@ -127,6 +127,34 @@ describe('runTaskRecordRed()', () => {
     expect(ev.$schemaVersion).toBe(1)
   })
 
+  it('fails closed when the written receipt cannot be staged (#2862)', () => {
+    const dir = tmpRepo()
+    const testPath = '__tests__/evidence/tdd.test.ts'
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks(testPath)
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'FAIL __tests__/evidence/tdd.test.ts\n✗ 1 failed',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 500,
+    })
+    mockedRunCli.mockImplementationOnce(() => {
+      throw new Error('index.lock exists')
+    })
+
+    const result = runTaskRecordRed({ testPath, dir })
+    expect(result).toEqual({
+      ok: false,
+      reason: expect.stringMatching(/receipt .*#551\.json.* not staged: index\.lock exists/),
+    })
+    expect(mockedRunCli.mock.calls[5]).toEqual([
+      'git',
+      ['add', '-f', '--', '.arbiter/evidence/tdd/#551.json'],
+      expect.objectContaining({ cwd: dir }),
+    ])
+  })
+
   it('runs a monorepo test from its nearest package root and records that cwd (#2801)', () => {
     const dir = tmpRepo()
     const testPath = 'frontend/src/ConfirmDialog.test.ts'

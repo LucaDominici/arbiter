@@ -102,6 +102,11 @@ describe('evaluateMerged (#2402)', () => {
       expect(verdict.detail).toContain('BLOCKED')
       expect(verdict.detail).toContain('Docs Build')
       expect(verdict.detail).toContain('--no-pr')
+      // #2862 AC-5: mark the PR ready before the merge watcher, which refuses drafts.
+      expect(verdict.detail.indexOf('gh pr ready 7')).toBeGreaterThan(-1)
+      expect(verdict.detail.indexOf('gh pr ready 7')).toBeLessThan(
+        verdict.detail.indexOf('pr-merge-watch.mjs'),
+      )
     }
   })
 
