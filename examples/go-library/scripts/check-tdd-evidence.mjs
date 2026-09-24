@@ -114,12 +114,12 @@ const hasSkipTrailer = (body) => /^ARBITER-SKIP-TDD: 1$/m.test(body)
 
 // ─── Evidence verification (inlined — no arbiter CLI dependency) ───────────────
 const FAILURE_SIGNATURES = [
-  /FAIL\s+\S+\.test\.[jt]sx?/m, // vitest
-  /FAIL\s+\S+\.(spec|test)\.[jt]sx?/m, // jest
+  /(?<=^[ \t]*)FAIL[ \t]+(?:\|[^|\n]+\|[ \t]+)?\S+\.test\.[jt]sx?/m, // vitest (a test.projects |label| too, #2516)
+  /(?<=^[ \t]*)FAIL[ \t]+(?:\|[^|\n]+\|[ \t]+)?\S+\.(spec|test)\.[jt]sx?/m, // jest
   /\d+ scenarios? \(\d+ failed/m, // cucumber
   /={3,}\s*FAILURES\s*={3,}/m, // pytest
   /FAILED\s*$|BUILD FAILED/m, // gradle
-  /test result: FAILED/m, // cargo
+  /test[ ]result: FAILED/m, // cargo
   /--- FAIL:/m, // go
   /^FAIL:[ \t]+\S.*$/m, // shell self-test
   /^# fail [1-9]\d*/m, // tap (node:test)
