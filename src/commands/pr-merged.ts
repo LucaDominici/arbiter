@@ -67,8 +67,9 @@ function unmergedDetail(pr: PrSnapshot): string {
       : ' No check has reported a red conclusion yet.'
   return (
     `PR #${pr.number} is ${pr.state}${merge}, not MERGED.${checks} ` +
-    'Watch it to green and merge it (`node scripts/pr-merge-watch.mjs <owner/repo> ' +
-    `${pr.number}\`), or pass --no-pr if this repo lands by direct push.`
+    `Watch it to green, mark it ready (\`gh pr ready ${pr.number}\`) and merge it ` +
+    `(\`node scripts/pr-merge-watch.mjs <owner/repo> ${pr.number}\`), ` +
+    'or pass --no-pr if this repo lands by direct push.'
   )
 }
 
