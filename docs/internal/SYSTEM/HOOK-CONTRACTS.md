@@ -157,7 +157,10 @@ it red. A gate never observed to flip proves nothing.
 **PR command classification.** `enforce-gate-before-pr.mjs` ignores unsupported shell syntax when
 no PR command is present. Exact commands and ambiguous tokens that mix an executable expansion
 with `gh pr create` / `gh pr ready` text remain fail-closed. Single-quoted literals and exact draft
-creation remain allowed.
+creation remain allowed. A `$(cat <<'EOF' … EOF)` body with a quoted delimiter is data when every
+command segment runs `gh` or `git`, so PR text inside an issue body or commit message is ignored;
+with an interpreter (`eval`, `bash -c`, a pipe into a shell) or an unquoted delimiter the body stays
+visible and fail-closed (#2862).
 
 **Corollary for `.claude/hooks/lib.mjs`.** Its approved divergence from the template is exactly one
 thing — `findInlineSuppression` delegates to `scripts/lib/suppressions-shared.mjs` instead of the

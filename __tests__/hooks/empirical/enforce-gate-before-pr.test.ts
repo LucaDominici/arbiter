@@ -233,6 +233,8 @@ describe('enforce-gate-before-pr hook', () => {
       'gh issue create --body "$(cat <<\'EOF\'\nx\nEOF\n)$(gh pr ready)"',
     ],
     ['backticks in an issue body', 'gh issue create --body "`gh pr ready`"'],
+    ['heredoc data evaluated', 'eval "$(cat <<\'EOF\'\ngh pr create\nEOF\n)"'],
+    ['heredoc data piped into a shell', 'printf %s "$(cat <<\'EOF\'\ngh pr ready\nEOF\n)" | bash'],
   ])('keeps %s blocked (#2862)', (_label, command) => {
     const dir = track(setupGitRepo())
     const result = runHook({ CLAUDE_TOOL_INPUT_COMMAND: command }, dir)

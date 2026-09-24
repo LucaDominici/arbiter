@@ -99,7 +99,23 @@ function parseShell(input) {
   return { commands, executableExpansions, ambiguous: quote !== null || escaped || unsupported }
 }
 
-const parsed = parseShell(command)
+// #2862: `$(cat <<'EOF' … EOF)` with a quoted delimiter expands to its literal body, so the
+// body is data for the command that receives it. Blank it before parsing, but only when every
+// segment runs gh or git: an interpreter (eval, bash -c, a pipe into sh) would execute that
+// data, so those commands keep the original text. An unquoted delimiter still expands `$(…)`
+// inside the body and is never blanked.
+function blankQuotedCatHeredocs(input) {
+  return input.replace(
+    /\$\(\s*cat\s+<<\s*(['"])([A-Za-z_]\w*)\1[ \t]*\n(?:(?!\2\n)[^\n]*\n)*\2\n\s*\)/g,
+    '',
+  )
+}
+
+const blanked = blankQuotedCatHeredocs(command)
+const dataOnly = parseShell(blanked).commands.every(
+  (tokens) => tokens[0] === 'gh' || tokens[0] === 'git',
+)
+const parsed = parseShell(dataOnly ? blanked : command)
 const segments = parsed.commands
 const parsedSegments = segments.map((tokens, index) => ({
   tokens,

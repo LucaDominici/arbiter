@@ -269,7 +269,7 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "R1.S5 self copy: blocks non-draft gh pr create and gh pr ready unless .arbiter/gate-pass.json or a successful .arbiter/ci-pass.json receipt matches current HEAD. Draft creation is allowed so CI can run. Missing or stale receipts exit 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
+      "rationale": "R1.S5 self copy: blocks non-draft gh pr create and gh pr ready unless .arbiter/gate-pass.json or a successful .arbiter/ci-pass.json receipt matches current HEAD. Draft creation is allowed so CI can run; a quoted-delimiter cat heredoc body passed to gh or git is data, not a command (#2862). Missing or stale receipts exit 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
     },
     {
       "file": "enforce-gate-before-pr.mjs.ejs",
@@ -279,7 +279,7 @@
       ],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "R1.S5: blocks non-draft gh pr create and gh pr ready unless .arbiter/gate-pass.json or a successful .arbiter/ci-pass.json receipt matches current HEAD. Draft creation is allowed so CI can run. Missing or stale receipts exit 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
+      "rationale": "R1.S5: blocks non-draft gh pr create and gh pr ready unless .arbiter/gate-pass.json or a successful .arbiter/ci-pass.json receipt matches current HEAD. Draft creation is allowed so CI can run; a quoted-delimiter cat heredoc body passed to gh or git is data, not a command (#2862). Missing or stale receipts exit 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
     },
     {
       "file": "exitplanmode-banner.mjs.ejs",
