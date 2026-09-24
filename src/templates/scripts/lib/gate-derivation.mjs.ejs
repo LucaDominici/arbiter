@@ -44,7 +44,10 @@ export function deriveGatesForFiles(files, _registry, inspection) {
     status: 'unresolved',
     authority,
   }))
-  return [...gates, ...external, ...unresolved]
+  const landing = inspection?.landing
+    ? [{ ...inspection.landing, kind: 'constraint', authority: inspection.authority }]
+    : []
+  return [...gates, ...external, ...landing, ...unresolved]
 }
 
 export function validateDerivedGates(files, stored, registry, inspection) {
