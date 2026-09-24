@@ -3,7 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { inspectGateContract } from '../../scripts/lib/gate-contract.mjs'
+import { inspectGateContract, unresolvedContractReasons } from '../../scripts/lib/gate-contract.mjs'
+import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
 
 const roots: string[] = []
 
@@ -93,5 +94,89 @@ describe('gate contract inspection', () => {
       unresolved: [{ reason: 'unsupported custom gate authority' }],
     })
     expect(existsSync(sentinel)).toBe(false)
+  })
+})
+
+// #2850 D8: a plan must not report "fully resolved" while the landing route it will need at
+// close is one pr-merge-watch refuses. Admission resolves it with the same authority.
+describe('gate contract landing route (#2850 D8)', () => {
+  function rootWith(config: string | undefined): string {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-gate-landing-'))
+    roots.push(root)
+    mkdirSync(join(root, 'scripts'))
+    writeFileSync(
+      join(root, 'scripts', 'check-all.mjs'),
+      [
+        '// @arbiter-gate-contract arbiter-gate-contract-v1',
+        "import { createHash } from 'node:crypto'",
+        "import { readFileSync } from 'node:fs'",
+        "import { fileURLToPath } from 'node:url'",
+        "const sha256 = createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).digest('hex')",
+        "console.log(JSON.stringify({ schema: 'arbiter-gate-contract-v1', authority: [{ path: 'scripts/check-all.mjs', sha256 }], gates: [], external: [], unresolved: [] }))",
+        '',
+      ].join('\n'),
+    )
+    if (config !== undefined) writeFileSync(join(root, 'arbiter.json'), config)
+    return root
+  }
+
+  const landing = (entry: { name?: string }) => entry.name === 'landing route'
+
+  it.each([
+    [
+      'gated-review',
+      JSON.stringify({ collaborationMode: 'gated-review' }),
+      /has no exact-SHA landing arc/,
+    ],
+    [
+      'peer-review',
+      JSON.stringify({ collaborationMode: 'peer-review' }),
+      /has no exact-SHA landing arc/,
+    ],
+    ['an absent mode', JSON.stringify({ version: '0.2' }), /collaborationMode is absent/],
+    ['a malformed config', '{', /did not resolve to an object/],
+    ['a missing config', undefined, /did not resolve to an object/],
+    [
+      'trunk-solo without pr-ff',
+      JSON.stringify({ collaborationMode: 'trunk-solo', solo: { mergeMode: 'squash' } }),
+      /only with solo\.mergeMode "pr-ff"/,
+    ],
+  ])('blocks admission when the landing route for %s is refused', (_label, config, reason) => {
+    const contract = inspectGateContract(rootWith(config))
+
+    expect(contract.unresolved.filter(landing)).toEqual([
+      { name: 'landing route', source: 'arbiter.json', reason: expect.stringMatching(reason) },
+    ])
+    expect(unresolvedContractReasons(contract)).toContainEqual(expect.stringMatching(reason))
+    expect(deriveGatesForFiles([], undefined, contract).filter(landing)).toEqual([
+      expect.objectContaining({ kind: 'constraint', status: 'unresolved' }),
+    ])
+  })
+
+  it('admits trunk-solo + pr-ff and surfaces the canonical route in the derived gates', () => {
+    const contract = inspectGateContract(
+      rootWith(JSON.stringify({ collaborationMode: 'trunk-solo', solo: { mergeMode: 'pr-ff' } })),
+    )
+
+    expect(unresolvedContractReasons(contract)).toEqual([])
+    expect(deriveGatesForFiles([], undefined, contract).filter(landing)).toEqual([
+      expect.objectContaining({
+        kind: 'constraint',
+        source: 'arbiter.json',
+        condition: expect.stringMatching(/^trunk-solo \+ solo\.mergeMode pr-ff: .*updateRefs CAS/),
+      }),
+    ])
+  })
+
+  it('admits trunk-solo + direct, which lands without a PR', () => {
+    const contract = inspectGateContract(
+      rootWith(JSON.stringify({ collaborationMode: 'trunk-solo', solo: { mergeMode: 'direct' } })),
+    )
+
+    expect(unresolvedContractReasons(contract)).toEqual([])
+    expect(contract.landing).toMatchObject({
+      name: 'landing route',
+      condition: expect.stringMatching(/direct/),
+    })
   })
 })
