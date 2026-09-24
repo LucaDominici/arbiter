@@ -151,7 +151,7 @@ Fires only on bash command failures matching test/gate patterns. Creates `.evide
 
 ### `skill-forced-eval.mjs`
 
-Fires on `Stop`. Retrospectively blocks an implementation turn whose first successful edit was not preceded by a successful `Skill(tdd)` result in the active phase. L2+ only.
+Fires on `Stop`. Retrospectively blocks an implementation turn with a successful edit when the active phase holds no successful `Skill(tdd)` result and, in `green`/`refactor`, no committed valid RED receipt (`scripts/check-tdd-evidence.mjs`). Edits to the active plan, `docs/**` and `*.md` do not count; a later `Skill(tdd)` recovers the session; with `stop_hook_active` an unchanged transcript is not blocked again. L2+ only.
 
 ---
 

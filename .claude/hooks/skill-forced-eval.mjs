@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // Arbiter hook: phase-aware TDD evidence gate (#2383)
-// Hook type: Stop — retrospectively blocks after an implementation edit unless
-// a successful Skill(tdd) result preceded the first edit in the active phase.
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+// Hook type: Stop — retrospectively blocks after an implementation edit unless the
+// active phase holds a successful Skill(tdd) result or, in green/refactor, a committed
+// valid RED receipt (#2861). Plan, docs/** and *.md edits are not implementation edits.
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { claudeTranscriptIdentityError, getRepoRoot } from './lib.mjs'
 
 const IMPLEMENTATION_PHASES = new Set(['red', 'green', 'refactor'])
@@ -21,6 +23,10 @@ const EDIT_TOOLS = new Set(['edit', 'write', 'notebookedit', 'multiedit'])
 const MAX_TRANSCRIPT_BYTES = 8 * 1024 * 1024
 const MAX_TRANSCRIPT_LINES = 100000
 const SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/
+const TASK_ID = /^#\d+$/
+// ponytail: stays under the Stop budget; arbiter's own CLI-delegating validator needs longer,
+// so there the receipt path times out into the transcript check and /tdd is the recovery.
+const RECEIPT_TIMEOUT_MS = 2000
 
 const root = getRepoRoot()
 const input = readHookInput()
@@ -33,15 +39,19 @@ if (state.error) block(state.error)
 if (!IMPLEMENTATION_PHASES.has(state.phase)) process.exit(0)
 const transcript = readTranscript(input, root)
 if (transcript === null) process.exit(0)
-const verdict = inspectTranscript(transcript, state.startedAt)
+const verdict = inspectTranscript(transcript, state)
 if (verdict.error) block(verdict.error)
-if (!verdict.editObserved) process.exit(0)
-if (!verdict.skillBeforeFirstEdit) {
-  block(
-    `phase ${state.phase} contains an implementation edit without a successful Skill(tdd) result before it`,
-  )
+if (verdict.lastEditId === null || verdict.skillObserved) process.exit(0)
+if (state.phase !== 'red' && receiptVerified(root, state.taskId)) process.exit(0)
+// #2861 AC-6: the host re-runs Stop after a block; an unchanged transcript was already reported.
+const marker = join(root, '.claude', '.task', `skill-forced-eval-${input.session_id}.json`)
+if (input.stop_hook_active === true && readBlockedEdit(marker) === verdict.lastEditId) {
+  process.exit(0)
 }
-process.exit(0)
+writeBlockedEdit(marker, verdict.lastEditId)
+block(
+  `phase ${state.phase} contains an implementation edit without a successful Skill(tdd) result in the phase`,
+)
 
 function readHookInput() {
   let raw
@@ -99,7 +109,12 @@ function readPhaseState(repoRoot) {
   const startedAt = typeof timestamp === 'string' ? Date.parse(timestamp) : Number.NaN
   if (Number.isNaN(startedAt))
     return { error: `task state timestamp for phase ${phase} is invalid` }
-  return { phase, startedAt }
+  return {
+    phase,
+    startedAt,
+    taskId: typeof state.taskId === 'string' ? state.taskId : '',
+    plan: typeof state.plan === 'string' ? state.plan : '',
+  }
 }
 
 function readTranscript(event, repoRoot) {
@@ -127,12 +142,11 @@ function readTranscript(event, repoRoot) {
   return raw
 }
 
-function inspectTranscript(raw, startedAt) {
+function inspectTranscript(raw, { startedAt, plan }) {
   const lines = raw.split('\n')
   const lastNonEmpty = lines.reduce((last, line, index) => (line.trim() ? index : last), -1)
   const uses = new Map()
   const results = new Map()
-  let sequence = 0
 
   for (let index = 0; index < lines.length; index += 1) {
     const text = lines[index].trim()
@@ -173,12 +187,7 @@ function inspectTranscript(raw, startedAt) {
         if ((EDIT_TOOLS.has(tool) || tool === 'skill') && timestamp === null) {
           return { error: `transcript record ${index + 1} has an invalid tool timestamp` }
         }
-        uses.set(blockValue.id, {
-          tool,
-          input: blockValue.input,
-          timestamp,
-          sequence,
-        })
+        uses.set(blockValue.id, { tool, input: blockValue.input, timestamp })
       } else if (blockValue.type === 'tool_result') {
         if (record.message?.role !== 'user') {
           return {
@@ -196,30 +205,73 @@ function inspectTranscript(raw, startedAt) {
         if (blockValue.is_error !== undefined && typeof blockValue.is_error !== 'boolean') {
           return { error: `transcript result for ${blockValue.tool_use_id} has invalid is_error` }
         }
-        results.set(blockValue.tool_use_id, {
-          ok: blockValue.is_error !== true,
-          sequence,
-        })
+        results.set(blockValue.tool_use_id, { ok: blockValue.is_error !== true })
       }
-      sequence += 1
     }
   }
 
-  const edits = []
-  const skills = []
+  // #2861 AC-4: a successful Skill(tdd) anywhere in the phase forgives earlier edits, and later
+  // edits already follow it, so order no longer matters once one exists.
+  let lastEditId = null
+  let skillObserved = false
   for (const [id, use] of uses) {
     const result = results.get(id)
     if (!result || !result.ok || use.timestamp < startedAt) continue
-    if (EDIT_TOOLS.has(use.tool)) edits.push(use)
-    if (use.tool === 'skill' && use.input?.skill?.toLowerCase?.() === 'tdd') {
-      skills.push(result)
-    }
+    if (EDIT_TOOLS.has(use.tool) && !exemptEdit(use.input, plan)) lastEditId = id
+    if (use.tool === 'skill' && use.input?.skill?.toLowerCase?.() === 'tdd') skillObserved = true
   }
-  if (edits.length === 0) return { editObserved: false, skillBeforeFirstEdit: false }
-  const firstEdit = edits.sort((a, b) => a.sequence - b.sequence)[0]
-  return {
-    editObserved: true,
-    skillBeforeFirstEdit: skills.some((skill) => skill.sequence < firstEdit.sequence),
+  return { lastEditId, skillObserved }
+}
+
+/** Plan, docs/** and *.md edits inside the repo are not implementation edits (#2861 AC-2). */
+function exemptEdit(toolInput, plan) {
+  const path = toolInput?.file_path ?? toolInput?.notebook_path
+  if (typeof path !== 'string' || path.length === 0) return false
+  const rel = relative(root, resolve(root, path))
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return false
+  const normalized = rel.split('\\').join('/')
+  return normalized === plan || normalized.split('/')[0] === 'docs' || normalized.endsWith('.md')
+}
+
+/**
+ * #2861 AC-1: the emitted static TDD validator, run over a receipt TRACKED at HEAD (an
+ * untracked file or the validator's docs-only vacuous pass proves nothing). Any failure,
+ * timeout or missing validator falls through to the transcript verdict, which blocks.
+ */
+function receiptVerified(repoRoot, taskId) {
+  const validator = join(repoRoot, 'scripts', 'check-tdd-evidence.mjs')
+  if (!TASK_ID.test(taskId) || !existsSync(validator)) return false
+  try {
+    execFileSync('git', ['cat-file', '-e', `HEAD:.arbiter/evidence/tdd/${taskId}.json`], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    })
+    const out = execFileSync('node', [validator, '--dir', repoRoot], {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: RECEIPT_TIMEOUT_MS,
+    })
+    return new RegExp(`(?:^|\\s)${taskId}(?::|\\.\\.\\.) PASS\\b`, 'm').test(out)
+  } catch {
+    return false
+  }
+}
+
+function readBlockedEdit(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8')).lastEditId ?? null
+  } catch {
+    return null
+  }
+}
+
+function writeBlockedEdit(path, lastEditId) {
+  try {
+    writeFileSync(path, JSON.stringify({ lastEditId }) + '\n')
+  } catch {
+    // FAIL-OPEN-INTENT: the caller blocks regardless; an unwritable marker only costs one
+    // extra block on the host's stop_hook_active re-run.
   }
 }
 
