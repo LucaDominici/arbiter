@@ -331,13 +331,14 @@ function reviewPhaseStepBody(
   const scope = reviewScopeFor(reviewPlan)
   const cli = profile.isArbiterSelf ? 'node dist/cli.js' : 'arbiter'
   const prepare =
-    'Run touched tests, formatter/linter on changed files, and `git diff --check`; commit and push the frozen candidate, open or reuse its draft PR so CI starts, then'
+    'Run touched tests, formatter/linter on changed files, and `git diff --check`; commit the frozen candidate, push it and open its draft PR once so CI starts with `git push -u origin HEAD && gh pr create --draft --fill` (reuse the PR when `gh pr view` finds one), then'
+  // #2862: the draft creation stays a plain command of its own — inside this chain the
+  // command substitutions make it unverifiable, so the PR guard refused it.
   const reviewCommand = [
     'candidate="$(git rev-parse HEAD)"',
     'branch="$(git branch --show-current)"',
     'test -n "$branch"',
     'git push -u origin "$branch"',
-    '{ gh pr view "$branch" >/dev/null 2>&1 || gh pr create --draft --fill --head "$branch"; }',
     'test "$(git rev-parse HEAD)" = "$candidate"',
     `${cli} ship '${taskId ?? '#NNN'}' --review-round`,
   ].join(' && ')
