@@ -310,6 +310,18 @@ describe('record-agent-return evidence modes (#2687)', () => {
     })
   })
 
+  it('#2858 R2: binds the native panel sidecar to the provenance it stamped', () => {
+    const reviewer = { ...envelope(), agent: 'domain', role: 'reviewer' }
+
+    const result = recordPanel([reviewer])
+
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    expect(
+      JSON.parse(readFileSync(join(root, '.arbiter', 'agents-dispatched.json'), 'utf8'))
+        .expectedProvenance,
+    ).toEqual({ domain: { vendor: 'anthropic', dispatch: 'subagent' } })
+  })
+
   it('persists the reviewer result and its acceptance fit from one submission', () => {
     const reviewer = { ...envelope(), agent: 'domain', role: 'reviewer' }
 

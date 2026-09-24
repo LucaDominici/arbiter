@@ -18,6 +18,7 @@ import {
   mkdtempSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
   readFileSync,
 } from 'node:fs'
@@ -794,13 +795,18 @@ describe('review rounds own the Codex seat (#2747)', () => {
     return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
   }
 
-  function reviewWith(output: string, headSha: string, originalPath: string) {
+  function reviewWith(
+    output: string,
+    headSha: string,
+    originalPath: string,
+    profile = codexProfile,
+  ) {
     vi.stubEnv('PATH', `${installCodex(output)}:${originalPath}`)
     return runTaskShip({
       dir,
       reviewRound: true,
       headSha,
-      profileOverride: codexProfile,
+      profileOverride: profile,
       externalModelAccess: codexAccess,
     })
   }
@@ -890,6 +896,63 @@ describe('review rounds own the Codex seat (#2747)', () => {
     )
     expect(again.reviewDispatched).toBe(false)
     expect(readUnifiedState(dir)?.review).toEqual({ rounds: 2, lastReviewedSha: fixed })
+  })
+
+  it('#2858 R2: onUnavailable fail still carries the recorder exit code and output tail', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const fixed = commitFix()
+
+    let thrown: unknown
+    try {
+      reviewWith(rejectedByRecorder, fixed, originalPath, {
+        ...TEST_PROFILE,
+        crossModelReview: { ...codexConfig, onUnavailable: 'fail' as const },
+      })
+    } catch (error) {
+      thrown = error
+    }
+
+    expect(thrown).toMatchObject({ code: 'E_REVIEW_NO_DATA' })
+    expect(String((thrown as Error).message)).toMatch(/recorder exit 1: .*missing-2858\.ts/s)
+  })
+
+  it('#2858 R2: a dangling dispatch-record symlink is an error, not an absent round', () => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    const sidecar = join(dir, '.arbiter', 'agents-dispatched.json')
+    rmSync(sidecar)
+    symlinkSync(join(dir, 'does-not-exist.json'), sidecar)
+    const reviewed = readUnifiedState(dir)?.review
+
+    expect(() =>
+      reviewWith(
+        `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+        commitFix(),
+        originalPath,
+      ),
+    ).toThrow(/agents-dispatched\.json is a symlink/)
+    expect(readUnifiedState(dir)?.review).toEqual(reviewed)
+  })
+
+  it.each([
+    ['exits 1 with its gate report', "console.error('FAIL review completion'); process.exit(1)\n"],
+    ['exits 0 with its gate report', "console.log('PASS review completion')\n"],
+  ])('#2858 R2: a pre-#2858 consumer checker that %s names the update command', (_label, body) => {
+    const originalPath = process.env.PATH ?? ''
+    runRound(blockingFail)
+    writeFileSync(join(dir, 'scripts', 'check-review-completion.mjs'), body)
+    execFileSync('git', ['add', 'scripts/check-review-completion.mjs'], { cwd: dir })
+    const reviewed = readUnifiedState(dir)?.review
+
+    expect(() =>
+      reviewWith(
+        `{"verdict":"PASS","confidence":1,"findings":[],"refutations":[],${passingFit}}`,
+        commitFix(),
+        originalPath,
+      ),
+    ).toThrow(/arbiter update --only scripts\/check-review-completion\.mjs/)
+    expect(readUnifiedState(dir)?.review).toEqual(reviewed)
   })
 
   it('keeps plan-only behavior when the planned treatment has no Codex seat', () => {
