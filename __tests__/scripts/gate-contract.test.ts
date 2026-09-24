@@ -97,8 +97,8 @@ describe('gate contract inspection', () => {
   })
 })
 
-// #2850 D8: a plan must not report "fully resolved" while the landing route it will need at
-// close is one pr-merge-watch refuses. Admission resolves it with the same authority.
+// #2850 D8: a plan that promises the exact-SHA route must not report "fully resolved" while
+// pr-merge-watch would refuse it at close. Admission resolves it with the same authority.
 describe('gate contract landing route (#2850 D8)', () => {
   function rootWith(config: string | undefined): string {
     const root = mkdtempSync(join(tmpdir(), 'arbiter-gate-landing-'))
@@ -123,16 +123,6 @@ describe('gate contract landing route (#2850 D8)', () => {
   const landing = (entry: { name?: string }) => entry.name === 'landing route'
 
   it.each([
-    [
-      'gated-review',
-      JSON.stringify({ collaborationMode: 'gated-review' }),
-      /has no exact-SHA landing arc/,
-    ],
-    [
-      'peer-review',
-      JSON.stringify({ collaborationMode: 'peer-review' }),
-      /has no exact-SHA landing arc/,
-    ],
     ['an absent mode', JSON.stringify({ version: '0.2' }), /collaborationMode is absent/],
     ['a malformed config', '{', /did not resolve to an object/],
     ['a missing config', undefined, /did not resolve to an object/],
@@ -167,6 +157,24 @@ describe('gate contract landing route (#2850 D8)', () => {
       }),
     ])
   })
+
+  // Reviewed-PR profiles land through a normal GitHub PR merge in task-ship; the exact-SHA
+  // resolver governs only the pr-merge-watch route, so it must not refuse them here.
+  it.each(['peer-review', 'gated-review'])(
+    'admits %s on its reviewed GitHub PR merge route without the exact-SHA resolver',
+    (mode) => {
+      const contract = inspectGateContract(rootWith(JSON.stringify({ collaborationMode: mode })))
+
+      expect(unresolvedContractReasons(contract)).toEqual([])
+      expect(deriveGatesForFiles([], undefined, contract).filter(landing)).toEqual([
+        expect.objectContaining({
+          kind: 'constraint',
+          source: 'arbiter.json',
+          condition: expect.stringMatching(new RegExp(`^${mode}: GitHub PR merge`)),
+        }),
+      ])
+    },
+  )
 
   it('admits trunk-solo + direct, which lands without a PR', () => {
     const contract = inspectGateContract(
