@@ -44,7 +44,7 @@ const argv = process.argv.slice(2)
 
 if (argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(
-    "Usage: node scripts/check-review-completion.mjs --task '#NNN' [--sidecar=<path>] [--evidence-dir=<path>] [--schema=<path>] [--repo-root=<path>]\n",
+    "Usage: node scripts/check-review-completion.mjs --task '#NNN' [--sidecar=<path>] [--evidence-dir=<path>] [--schema=<path>] [--repo-root=<path>] [--correlated-sha=<sha>]\n",
   )
   process.exit(0)
 }
@@ -57,6 +57,9 @@ const sidecarPath = arg('sidecar', argv)
 const evidenceDir = arg('evidence-dir', argv)
   ? resolve(arg('evidence-dir', argv))
   : join(repoRoot, '.arbiter', 'evidence', 'agent-returns')
+// #2858 — query mode: print, as JSON, the envelopes this gate would count for the dispatch
+// recorded at <sha>. The review-round lookup reads this instead of re-deriving the rule.
+const correlatedSha = arg('correlated-sha', argv)
 const schemaPath = arg('schema', argv)
   ? resolve(arg('schema', argv))
   : join(repoRoot, 'schemas', 'agent-return.schema.json')
@@ -438,6 +441,28 @@ function provenanceMismatch(agent, sidecar, envelope) {
 }
 
 /**
+ * #2858 — the one correlation rule: a return counts for a dispatched agent only when it is
+ * that agent's file and matches the dispatch record's task, branch, role, SHA and provenance.
+ * @param {string} agent
+ * @param {DispatchSidecar} sidecar
+ * @param {string} task
+ * @param {ValidEnvelope[]} valid
+ * @returns {Record<string, unknown> | undefined}
+ */
+function correlatedEnvelope(agent, sidecar, task, valid) {
+  return valid.find(
+    ({ envelope, file }) =>
+      envelope['agent'] === agent &&
+      isAgentEnvelopeFile(file, agent) &&
+      envelope['taskId'] === task &&
+      envelope['branch'] === sidecar.branch &&
+      envelope['role'] === 'reviewer' &&
+      envelope['sha'] === sidecar.sha &&
+      provenanceMismatch(agent, sidecar, envelope) === null,
+  )?.envelope
+}
+
+/**
  * @param {string} agent
  * @param {DispatchSidecar} sidecar
  * @param {Record<string, unknown>} envelope
@@ -447,8 +472,15 @@ function checkMatchedAgentEnvelope(agent, sidecar, envelope) {
   if (envelope['sha'] !== sidecar.sha) {
     return `${agent}: provenance mismatch — expected sha ${sidecar.sha}, observed ${envelope['sha']}`
   }
-  const provenanceFailure = provenanceMismatch(agent, sidecar, envelope)
-  if (provenanceFailure) return provenanceFailure
+  return provenanceMismatch(agent, sidecar, envelope)
+}
+
+/**
+ * @param {string} agent
+ * @param {Record<string, unknown>} envelope
+ * @returns {string | null}
+ */
+function blockingFindingsFailure(agent, envelope) {
   const blocking = Array.isArray(envelope['findings'])
     ? envelope['findings'].filter(
         (finding) =>
@@ -470,6 +502,8 @@ function checkMatchedAgentEnvelope(agent, sidecar, envelope) {
  * @returns {string | null}
  */
 function checkAgentEnvelope(agent, sidecar, task, files, valid) {
+  const correlated = correlatedEnvelope(agent, sidecar, task, valid)
+  if (correlated) return blockingFindingsFailure(agent, correlated)
   const matchingFiles = files.filter((file) => isAgentEnvelopeFile(file, agent))
   const matching = valid
     .filter(({ envelope, file }) => envelope['agent'] === agent && isAgentEnvelopeFile(file, agent))
@@ -526,27 +560,26 @@ function checkNamedAgentEnvelopes(sidecar, task, files, valid) {
  * @returns {string[]}
  */
 function checkLegacyReviewerCount(sidecar, task, valid) {
-  const reviewerAgents = new Set(
-    valid
-      .filter(
-        ({ envelope, file }) =>
-          typeof envelope['agent'] === 'string' &&
-          isAgentEnvelopeFile(file, envelope['agent']) &&
-          envelope['role'] === 'reviewer' &&
-          isRecord(envelope['provenance']) &&
-          envelope['taskId'] === task &&
-          envelope['branch'] === sidecar.branch &&
-          envelope['sha'] === sidecar.sha,
-      )
-      .map(({ envelope }) => envelope['agent']),
-  )
-  const reviewerCount = reviewerAgents.size
+  const reviewerCount = legacyReviewerAgents(sidecar, task, valid).length
   if (reviewerCount < sidecar.count) {
     return [
       `legacy dispatch expects ${sidecar.count} reviewer envelope(s) but found ${reviewerCount}`,
     ]
   }
   return []
+}
+
+/**
+ * @param {DispatchSidecar} sidecar
+ * @param {string} task
+ * @param {ValidEnvelope[]} valid
+ * @returns {string[]}
+ */
+function legacyReviewerAgents(sidecar, task, valid) {
+  const agents = new Set(
+    valid.map(({ envelope }) => envelope['agent']).filter((agent) => typeof agent === 'string'),
+  )
+  return [...agents].filter((agent) => correlatedEnvelope(agent, sidecar, task, valid))
 }
 
 /**
@@ -740,6 +773,7 @@ function dirtyCheckoutError(sha) {
  * @returns {{ exitCode: number }}
  */
 function sidecarAbsent(reason) {
+  if (correlatedSha) return reportCorrelated([])
   if (requestedTask) {
     process.stderr.write(
       `[check-review-completion] FAIL: dispatch sidecar is required for task ${requestedTask} (${reason})\n`,
@@ -804,6 +838,32 @@ function resolveTaskContext(sidecar) {
   return { task }
 }
 
+/**
+ * @param {Record<string, unknown>[]} envelopes
+ * @returns {{ exitCode: number }}
+ */
+function reportCorrelated(envelopes) {
+  process.stdout.write(`${JSON.stringify({ envelopes })}\n`)
+  return { exitCode: 0 }
+}
+
+/**
+ * @param {DispatchSidecar} sidecar
+ * @param {string} task
+ * @param {ValidEnvelope[]} valid
+ * @returns {number}
+ */
+function queryCorrelated(sidecar, task, valid) {
+  if (sidecar.sha !== correlatedSha) return reportCorrelated([]).exitCode
+  const agents = Array.isArray(sidecar.agents)
+    ? sidecar.agents
+    : legacyReviewerAgents(sidecar, task, valid)
+  const envelopes = agents
+    .map((agent) => correlatedEnvelope(agent, sidecar, task, valid))
+    .filter((envelope) => envelope !== undefined)
+  return reportCorrelated(envelopes).exitCode
+}
+
 function main() {
   const sidecarResult = loadSidecarForCheck()
   if ('exitCode' in sidecarResult) return sidecarResult.exitCode
@@ -811,6 +871,9 @@ function main() {
   if ('exitCode' in taskResult) return taskResult.exitCode
   const { sidecar } = sidecarResult
   const { task } = taskResult
+  if (correlatedSha) {
+    return readTaskEnvelopes(task, (_files, valid) => queryCorrelated(sidecar, task, valid))
+  }
 
   const treatmentFailure = activeTreatmentFailure(sidecar, task)
   if (treatmentFailure) {
@@ -823,7 +886,17 @@ function main() {
     process.stderr.write(`[check-review-completion] ERROR: ${checkoutError}\n`)
     return 2
   }
+  return readTaskEnvelopes(task, (files, valid) =>
+    reportReviewFailures(collectReviewFailures(sidecar, task, files, valid)),
+  )
+}
 
+/**
+ * @param {string} task
+ * @param {(files: string[], valid: ValidEnvelope[]) => number} report
+ * @returns {number}
+ */
+function readTaskEnvelopes(task, report) {
   /** @type {Record<string, unknown>} */
   let schema
   try {
@@ -845,8 +918,7 @@ function main() {
     )
     return 2
   }
-  const valid = readEnvelopes(listed.files, schema)
-  return reportReviewFailures(collectReviewFailures(sidecar, task, listed.files, valid))
+  return report(listed.files, readEnvelopes(listed.files, schema))
 }
 
 try {

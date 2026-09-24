@@ -137,7 +137,7 @@
     "scripts/check-pipe-tee-hazard.mjs": "50f9c9fc51c70268965c399c2eb77c9d2918dbb6e8c8621888b79a2b9baa736b",
     "scripts/check-pr-size-gate.mjs": "6cc43401613a0fd6d63bfa982b8b24f1765b2acfd2ecc664b07cb7192e305fba",
     "scripts/check-render-smoke.mjs": "16d256113c1bfeb898959b19e02f0aa8436fcbd139f0b231e5a2bb406ce97e69",
-    "scripts/check-review-completion.mjs": "d81f13d3114d0be9280b15233f1cf1064412b36f38371eb2e46c002c00f64c2f",
+    "scripts/check-review-completion.mjs": "2fa738e4a05dfca7a8a72d007cd1615cc5bc49ea0bbc7d79ee8676a29a54307f",
     "scripts/check-safety-adopt-ratchet.mjs": "9252d230cdee56039293d4963e6861674c0e7d4b94cec8c41534f73ae21f8dab",
     "scripts/check-secret-presence.mjs": "2e0d02aba8fdcf9fb4651294b302fe83946410b1157affdbc45824470bb9229c",
     "scripts/check-secret-scan.mjs": "695a51d4233c920028447f10bb7626f20173ff7b485cea4b5130407d6a515534",
