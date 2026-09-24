@@ -162,6 +162,7 @@ function installAcceptanceChecker(dir: string): void {
   )
   for (const file of [
     'derived-artifacts.mjs',
+    'exact-sha-policy.mjs',
     'gate-affects-registry.mjs',
     'gate-contract.mjs',
     'gate-derivation.mjs',
@@ -338,7 +339,11 @@ describe('red admission — the existing Markdown acceptance anchor runs before 
     writeFileSync(join(dir, 'plan.md'), plan, 'utf-8')
     writeFileSync(
       join(dir, 'arbiter.json'),
-      JSON.stringify({ features: { acceptanceAnchor: enabled } }),
+      JSON.stringify({
+        collaborationMode: 'trunk-solo',
+        solo: { mergeMode: 'pr-ff' },
+        features: { acceptanceAnchor: enabled },
+      }),
       'utf-8',
     )
     writeUnifiedState(dir, { plan: 'plan.md' })
@@ -475,6 +480,7 @@ describe('anchor-time gate derivation (#2773) — runTaskInit wires derive-plan-
       join(dir, 'scripts/derive-plan-gates.mjs'),
     )
     for (const file of [
+      'exact-sha-policy.mjs',
       'gate-affects-registry.mjs',
       'gate-contract.mjs',
       'gate-derivation.mjs',

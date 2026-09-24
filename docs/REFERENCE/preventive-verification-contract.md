@@ -1,12 +1,12 @@
 ---
 title: 'Preventive verification contracts'
-doc_version: '1.1.0'
+doc_version: '1.2.0'
 status: active
-last_review: '2026-09-23'
+last_review: '2026-09-24'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
-related: ['2746', '2773']
+related: ['2746', '2773', '2850']
 ---
 
 # Preventive verification contracts
@@ -39,6 +39,16 @@ The inspector does not run an unknown `scripts/check-all.mjs` to discover whethe
 protocol. A custom wrapper is reported as `unsupported custom gate authority`, and plan admission
 stays blocked until that authority supplies a compatible, effect-free contract. This prevents a
 wrapper that ignores `--dry-run` from accidentally starting a full gate.
+
+## Landing route
+
+The inspection also resolves how the finished change will land, using the same landing contract
+that `scripts/pr-merge-watch.mjs` applies at close. A supported route appears in the plan as a
+`landing route` constraint, for example `trunk-solo + solo.mergeMode pr-ff: atomic non-force
+updateRefs CAS`. `trunk-solo` with `solo.mergeMode: direct` is admitted as a gated direct push. Any
+route the watcher would refuse, such as `peer-review`, `gated-review`, an absent mode or an
+unreadable `arbiter.json`, is an unresolved obligation that carries the watcher's own refusal
+reason. Plan admission therefore stops before RED instead of after review and CI have passed.
 
 ## Remote conditions
 

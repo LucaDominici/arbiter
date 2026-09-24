@@ -653,6 +653,10 @@ describe('check-acceptance ship parity (#2850)', () => {
 
     function admit(planBody: string) {
       writeFileSync(join(root, 'wave.md'), planBody)
+      writeFileSync(
+        join(root, 'arbiter.json'),
+        JSON.stringify({ collaborationMode: 'trunk-solo', solo: { mergeMode: 'pr-ff' } }),
+      )
       execFileSync('git', ['init', '-b', branch], { cwd: root, stdio: 'ignore' })
       git('add', '-A')
       git('-c', 'user.email=fixture.invalid', '-c', 'user.name=Fixture', 'commit', '-m', 'seed')

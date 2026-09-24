@@ -112,7 +112,10 @@ describe('red admission acceptance anchor (#2587)', () => {
     })
     mkdirSync(join(root, '.arbiter', 'evidence', 'redteam'), { recursive: true })
     writeFileSync(join(root, '.arbiter', 'evidence', 'redteam', '#2587.json'), '{"findings":[]}\n')
-    writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
+    writeFileSync(
+      join(root, 'arbiter.json'),
+      '{"collaborationMode":"trunk-solo","solo":{"mergeMode":"pr-ff"},"features":{"acceptanceAnchor":true}}\n',
+    )
     writeFileSync(join(root, 'plan.md'), '# Plan\nmissing acceptance anchor\n')
     trackPlanAtHead(root)
     installAcceptanceChecker(root)
@@ -144,7 +147,10 @@ describe('red admission acceptance anchor (#2587)', () => {
       plan: 'plan.md',
       derivedGates: deriveFixtureGates(root, files),
     })
-    writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
+    writeFileSync(
+      join(root, 'arbiter.json'),
+      '{"collaborationMode":"trunk-solo","solo":{"mergeMode":"pr-ff"},"features":{"acceptanceAnchor":true}}\n',
+    )
     writeFileSync(
       join(root, 'plan.md'),
       ['---', 'files:', ...files.map((file) => `  - ${file}`), '---', plan].join('\n'),
@@ -171,7 +177,10 @@ describe('red admission acceptance anchor (#2587)', () => {
     const root = mkdtempSync(join(tmpdir(), 'arbiter-red-admission-'))
     roots.push(root)
     writeUnifiedState(root, { taskId: '#2587', phase: 'plan', plan: 'plan.md' })
-    writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
+    writeFileSync(
+      join(root, 'arbiter.json'),
+      '{"collaborationMode":"trunk-solo","solo":{"mergeMode":"pr-ff"},"features":{"acceptanceAnchor":true}}\n',
+    )
     writeFileSync(join(root, 'plan.md'), validPlan())
     trackPlanAtHead(root)
     installAcceptanceChecker(root)
@@ -194,6 +203,10 @@ describe('red admission acceptance anchor (#2587)', () => {
       '---',
       validPlan(['AC-1: preserves the requested outcome']),
     ].join('\n')
+    writeFileSync(
+      join(root, 'arbiter.json'),
+      '{"collaborationMode":"trunk-solo","solo":{"mergeMode":"pr-ff"},"features":{"acceptanceAnchor":true}}\n',
+    )
     installAcceptanceChecker(root)
     writeUnifiedState(root, {
       taskId: 'JIRA-42',
@@ -201,7 +214,6 @@ describe('red admission acceptance anchor (#2587)', () => {
       plan: 'plan.md',
       derivedGates: deriveFixtureGates(root, files),
     })
-    writeFileSync(join(root, 'arbiter.json'), '{"features":{"acceptanceAnchor":true}}\n')
     writeFileSync(join(root, 'plan.md'), plan)
     trackPlanAtHead(root)
     const output = vi.spyOn(process.stdout, 'write')

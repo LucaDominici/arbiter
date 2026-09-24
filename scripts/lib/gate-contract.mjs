@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { LANDING_CONTRACT, resolveLandingContract } from './exact-sha-policy.mjs'
 
 const CONTRACT_CAPABILITY = '@arbiter-gate-contract arbiter-gate-contract-v1'
 
@@ -21,6 +22,48 @@ function unresolved(root, reason) {
     gates: [],
     external: [],
     unresolved: [{ name: 'verification authority', source: 'scripts/check-all.mjs', reason }],
+  }
+}
+
+// #2850 D8: admission resolves the landing route with the authority pr-merge-watch
+// applies at close, so a plan never reads as resolved on a route that close refuses.
+// trunk-solo + solo.mergeMode direct lands without a PR (--no-pr), outside that contract.
+function landingRoute(root) {
+  let config
+  try {
+    config = JSON.parse(readFileSync(join(root, 'arbiter.json'), 'utf8'))
+    // FAIL-OPEN-INTENT: an unreadable config resolves to the canonical malformed-config refusal.
+  } catch {
+    config = undefined
+  }
+  const mode = config?.collaborationMode
+  // Reviewed-PR profiles land through a normal GitHub PR merge; the exact-SHA resolver
+  // governs only the pr-merge-watch route, so it is required only where that route is promised.
+  if (mode === 'peer-review' || mode === 'gated-review') {
+    return { supported: true, route: `${mode}: ${LANDING_CONTRACT[mode].landing}` }
+  }
+  if (mode === 'trunk-solo' && config.solo?.mergeMode === 'direct') {
+    return {
+      supported: true,
+      route: 'trunk-solo + solo.mergeMode direct: gated direct push (--no-pr)',
+    }
+  }
+  const decision = resolveLandingContract(config)
+  return decision.supported
+    ? {
+        supported: true,
+        route: `${decision.mode} + solo.mergeMode ${decision.arc.requiredMergeMode}: ${decision.arc.landing}`,
+      }
+    : { supported: false, reason: decision.reason }
+}
+
+function withLandingRoute(root, contract) {
+  const landing = landingRoute(root)
+  const entry = { name: 'landing route', source: 'arbiter.json' }
+  if (landing.supported) return { ...contract, landing: { ...entry, condition: landing.route } }
+  return {
+    ...contract,
+    unresolved: [...(contract.unresolved ?? []), { ...entry, reason: landing.reason }],
   }
 }
 
@@ -101,7 +144,7 @@ export function inspectGateContract(root) {
   try {
     const contract = JSON.parse(result.stdout)
     if (!isGateContract(contract)) return unresolved(root, 'incomplete gate contract')
-    return contract
+    return withLandingRoute(root, contract)
     // FAIL-OPEN-INTENT: malformed output becomes a blocking unresolved authority below.
   } catch {
     return unresolved(root, 'unsupported custom gate authority')
