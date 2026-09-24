@@ -541,7 +541,7 @@
     "scripts/check-pr-size-gate.mjs": "b26f5dc9b89f75094e90ccf0402d0d334610602938f95c3c9a3df88c321de653",
     "scripts/check-refutation-verdicts.mjs": "64227e4c541d783691d202e9969481c22baed3c352f8b797f1de045f7f785e93",
     "scripts/check-render-smoke.mjs": "16d256113c1bfeb898959b19e02f0aa8436fcbd139f0b231e5a2bb406ce97e69",
-    "scripts/check-review-completion.mjs": "d81f13d3114d0be9280b15233f1cf1064412b36f38371eb2e46c002c00f64c2f",
+    "scripts/check-review-completion.mjs": "2fa738e4a05dfca7a8a72d007cd1615cc5bc49ea0bbc7d79ee8676a29a54307f",
     "scripts/check-safety-adopt-ratchet.mjs": "9252d230cdee56039293d4963e6861674c0e7d4b94cec8c41534f73ae21f8dab",
     "scripts/check-secret-presence.mjs": "2e0d02aba8fdcf9fb4651294b302fe83946410b1157affdbc45824470bb9229c",
     "scripts/check-secret-scan.mjs": "0161ed8c14edc5dc626c5953cad0c77210d8fff3eda1786b46e76d851f9c8e24",
