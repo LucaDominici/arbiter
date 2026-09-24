@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -32,6 +41,60 @@ describe('gate contract inspection', () => {
       ]),
     )
   })
+
+  it('stores each debt ratchet with its static baseline and tolerance only (#2863 AC-3)', () => {
+    const contract = inspectGateContract(process.cwd())
+    const debt = contract.gates.find((gate: { name?: string }) => gate.name === 'debt ratchet')
+    const threshold = (name: string) =>
+      debt.thresholds.find((entry: { name: string }) => entry.name === name)
+
+    expect(threshold('coverageBranch')).toEqual({
+      name: 'coverageBranch',
+      value: 90.42,
+      source: 'scripts/debt-baseline.json#metrics.coverageBranch.value',
+      direction: 'higher-is-better',
+      tolerance: 0.4,
+    })
+    expect(threshold('publicApiSurface')).toEqual({
+      name: 'publicApiSurface',
+      value: 1174,
+      source: 'scripts/debt-baseline.json#metrics.publicApiSurface.value',
+      direction: 'lower-is-better',
+      tolerance: 0,
+    })
+  })
+
+  it('keeps the contract across a current-value change and invalidates it on a baseline change (#2863 AC-3)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'arbiter-gate-contract-ac3-'))
+    roots.push(root)
+    for (const path of [
+      'scripts',
+      '.github/workflows',
+      'vitest.config.ts',
+      '.coverage-baseline.json',
+      'arbiter.json',
+      'package.json',
+      '.prettierrc.json',
+      '.prettierignore',
+      '.template-tests-baseline.txt',
+      '.dogfood-divergences.json',
+    ]) {
+      cpSync(join(process.cwd(), path), join(root, path), { recursive: true })
+    }
+    symlinkSync(join(process.cwd(), 'node_modules'), join(root, 'node_modules'))
+    const before = inspectGateContract(root)
+    expect(before.unresolved ?? []).toEqual([])
+
+    mkdirSync(join(root, 'src'))
+    writeFileSync(join(root, 'src', 'added.ts'), 'export const added = 1\n')
+    expect(inspectGateContract(root)).toEqual(before)
+
+    const baselinePath = join(root, 'scripts', 'debt-baseline.json')
+    const baseline = JSON.parse(readFileSync(baselinePath, 'utf-8'))
+    baseline.metrics.publicApiSurface.value += 1
+    writeFileSync(baselinePath, JSON.stringify(baseline, null, 2))
+    expect(inspectGateContract(root)).not.toEqual(before)
+  }, 30_000)
 
   it('exposes preflight ratchets and their configuration authority', () => {
     const contract = inspectGateContract(process.cwd())
