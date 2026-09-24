@@ -5,7 +5,6 @@ import { detectExternalModel, type ExternalModelAccess } from '../detectors/exte
 import {
   assertSafeArbiterEvidenceRoot,
   invokeExternalReview,
-  type ExternalReviewPayload,
 } from '../integrations/external-review.js'
 import { resolveShipProfile } from './ship-profile.js'
 import { normTier, type ShipTier, type ShipTreatment } from './ship-tier.js'
@@ -15,7 +14,6 @@ import { readFileContained, toFsError, writeFileContained } from '../utils/fs.js
 import { runCli } from '../utils/run-cli.js'
 import type { CrossModelReviewConfig } from '../wizard/types.js'
 import { currentBranch, headSha } from '../evidence/git-checks.js'
-import { correlatedSeatEnvelopes, isRecordList } from './task.js'
 
 const CODEX_REVIEWER_PROVENANCE = {
   vendor: 'openai',
@@ -143,7 +141,13 @@ function isCurrentSidecar(
   )
 }
 
+type ExternalReviewPayload = NonNullable<ReturnType<typeof invokeExternalReview>['envelope']>
+
 const VERDICT_RANK = { PASS: 0, WARN: 1, FAIL: 2 } as const
+
+/** A correlated return the checker already admitted, so it is schema-valid by construction. */
+type SeatShard = Pick<ExternalReviewPayload, 'verdict' | 'confidence' | 'findings'> &
+  Partial<Pick<ExternalReviewPayload, 'refutations' | 'acceptanceFit'>>
 
 /**
  * #2858 — the Codex seat is already answered only when its dispatch evidence is fulfilled and
@@ -163,55 +167,58 @@ function currentFulfilledEnvelope(repoRoot: string, taskId: string): ExternalRev
   ))
     return null
   try {
-    const fulfilled =
-      runCli(
-        'node',
-        [join(repoRoot, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
-        {
-          cwd: repoRoot,
-          timeoutMs: 5_000,
-          retries: 0,
-        },
-      ).exitCode === 0
-    return fulfilled
-      ? seatPayload(correlatedSeatEnvelopes(repoRoot, taskId, sha, 'codex-reviewer'))
-      : null
+    runCli(
+      'node',
+      [join(repoRoot, 'scripts', 'check-cross-model-review.mjs'), '--require-fulfilled'],
+      {
+        cwd: repoRoot,
+        timeoutMs: 5_000,
+        retries: 0,
+      },
+    )
+    return seatPayload(correlatedSeatShards(repoRoot, taskId, sha, 'codex-reviewer'))
     // FAIL-OPEN-INTENT: stale or unavailable fulfilment evidence is a cache miss; rerun review.
   } catch {
     return null
   }
 }
 
-/** Every correlated shard counts: the worst verdict and all findings, so none hides behind another. */
-function seatPayload(shards: Record<string, unknown>[]): ExternalReviewPayload | null {
-  const payloads = shards.map(shardPayload)
-  if (payloads.length === 0 || payloads.some((payload) => payload === null)) return null
-  return (payloads as ExternalReviewPayload[]).reduce((merged, payload) => ({
-    verdict:
-      VERDICT_RANK[payload.verdict] > VERDICT_RANK[merged.verdict]
-        ? payload.verdict
-        : merged.verdict,
-    confidence: Math.min(merged.confidence, payload.confidence),
-    findings: [...merged.findings, ...payload.findings],
-    refutations: [...merged.refutations, ...payload.refutations],
-    acceptanceFit: { ...merged.acceptanceFit, ...payload.acceptanceFit },
-  }))
+/** The seat's correlated returns as check-review-completion admits them at the frozen SHA. */
+function correlatedSeatShards(
+  repoRoot: string,
+  taskId: string,
+  sha: string,
+  agent: string,
+): SeatShard[] {
+  const { stdout } = runCli(
+    'node',
+    [
+      join(repoRoot, 'scripts', 'check-review-completion.mjs'),
+      '--task',
+      taskId,
+      `--correlated-sha=${sha}`,
+    ],
+    { cwd: repoRoot, timeoutMs: 30_000, retries: 0 },
+  )
+  const shards: unknown = (JSON.parse(stdout) as { seats?: Record<string, unknown> } | null)
+    ?.seats?.[agent]
+  return Array.isArray(shards) ? (shards as SeatShard[]) : []
 }
 
-function shardPayload(shard: Record<string, unknown>): ExternalReviewPayload | null {
-  const { verdict, confidence, findings, refutations, acceptanceFit } = shard
-  if (
-    !(verdict === 'PASS' || verdict === 'WARN' || verdict === 'FAIL') ||
-    typeof confidence !== 'number' ||
-    !isRecordList(findings)
-  )
-    return null
+/** Every correlated shard counts: the worst verdict and all findings, so none hides behind another. */
+function seatPayload(shards: SeatShard[]): ExternalReviewPayload | null {
+  if (shards.length === 0) return null
   return {
-    verdict,
-    confidence,
-    findings,
-    refutations: isRecordList(refutations) ? refutations : [],
-    acceptanceFit: isRecord(acceptanceFit) ? acceptanceFit : {},
+    verdict: shards.reduce<ExternalReviewPayload['verdict']>(
+      (worst, { verdict }) => (VERDICT_RANK[verdict] > VERDICT_RANK[worst] ? verdict : worst),
+      'PASS',
+    ),
+    confidence: Math.min(...shards.map(({ confidence }) => confidence)),
+    findings: shards.flatMap(({ findings }) => findings),
+    refutations: shards.flatMap(({ refutations = [] }) => refutations),
+    acceptanceFit: Object.fromEntries(
+      shards.flatMap(({ acceptanceFit = {} }) => Object.entries(acceptanceFit)),
+    ),
   }
 }
 
