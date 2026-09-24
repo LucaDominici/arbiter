@@ -18,6 +18,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -45,6 +46,7 @@ import type { TaskPhase } from '../../src/commands/task-state.js'
 import { resolveShipTreatment } from '../../src/commands/ship-tier.js'
 import { deriveGatesForFiles } from '../../scripts/lib/gate-derivation.mjs'
 import { inspectGateContract } from '../../scripts/lib/gate-contract.mjs'
+import { writeGatePassEvidence } from '../helpers.js'
 
 const dirs: string[] = []
 const mockedVerifyGreenExecution = vi.mocked(verifyGreenExecution)
@@ -600,5 +602,100 @@ describe('result-first mechanical plan admission (#2724)', () => {
     expect(() => runTaskAdvance({ dir, to: 'red' })).not.toThrow()
     expect(readUnifiedState(dir)?.phase).toBe('red')
     expect(readUnifiedState(dir)?.handoffReady).toBe(false)
+  })
+})
+
+describe('complete — [exact-main] criteria need green exact-main CI on the merge SHA (#2865)', () => {
+  const BRANCH = 'task/#2865-exact-main'
+  const MERGE_SHA = 'c'.repeat(40)
+  const MARKED_PLAN =
+    '# Plan\n\n## Acceptance Criteria\n- AC-1: [exact-main] publishes on main\n- AC-2: names the budget\n\n## Non-Goals\n- x\n'
+  const merged = () => [{ number: 7, state: 'MERGED', mergeCommit: { oid: MERGE_SHA } }]
+  const run = (event: string, branch: string, conclusion: string) => ({
+    name: 'CI',
+    conclusion,
+    completedAt: new Date(Date.now() - 60_000).toISOString(),
+    checkSuite: {
+      createdAt: new Date(Date.now() - 120_000).toISOString(),
+      branch,
+      workflowRun: { event },
+    },
+  })
+
+  function completeRepo(plan = MARKED_PLAN, config: Record<string, unknown> = {}): string {
+    const dir = tmpRepo()
+    const git = (args: string[]): void => {
+      execFileSync('git', args, { cwd: dir, stdio: 'ignore' })
+    }
+    git(['init', '-q', '-b', BRANCH])
+    git(['config', 'user.email', 'test@arbiter.dev'])
+    git(['config', 'user.name', 'test-user'])
+    installAcceptanceChecker(dir)
+    writeFileSync(join(dir, '.gitignore'), '.arbiter/\n.claude/.task/\nnode_modules\n', 'utf-8')
+    writeFileSync(join(dir, 'plan.md'), plan, 'utf-8')
+    writeHarnessConfig(dir, { features: { evidenceHarness: false, acceptanceAnchor: true } })
+    if (Object.keys(config).length > 0)
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify(config), 'utf-8')
+    git(['add', '-A'])
+    git(['commit', '-q', '-m', 'fixture', '--no-gpg-sign'])
+    writeGatePassEvidence(dir, { taskId: '#2865' })
+    writeUnifiedState(dir, { taskId: '#2865', phase: 'close', branch: BRANCH, plan: 'plan.md' })
+    return dir
+  }
+
+  it('completes when the exact-main run on the merge SHA is terminal green', () => {
+    const dir = completeRepo()
+    const readCommitCi = vi.fn(() => [
+      run('push', 'main', 'SUCCESS'),
+      run('push', 'main', 'SKIPPED'),
+    ])
+    runTaskAdvance({ to: 'complete', dir, readPrs: merged, readCommitCi })
+    expect(readCommitCi).toHaveBeenCalledWith(MERGE_SHA, dir)
+    expect(readUnifiedState(dir)?.phase).toBe('complete')
+  })
+
+  it('refuses a red exact-main run and stays in close', () => {
+    const dir = completeRepo()
+    const readCommitCi = () => [run('push', 'main', 'SUCCESS'), run('push', 'main', 'FAILURE')]
+    expect(() => runTaskAdvance({ to: 'complete', dir, readPrs: merged, readCommitCi })).toThrow(
+      /exact-main.*AC-1/,
+    )
+    expect(readUnifiedState(dir)?.phase).toBe('close')
+  })
+
+  it('refuses when the merge SHA carries only pull_request runs (exact-main run missing)', () => {
+    const dir = completeRepo()
+    const readCommitCi = () => [run('pull_request', 'task/#2865-exact-main', 'SUCCESS')]
+    expect(() => runTaskAdvance({ to: 'complete', dir, readPrs: merged, readCommitCi })).toThrow(
+      /exact-main.*AC-1/,
+    )
+  })
+
+  it('judges only the main runs of a mixed rollup', () => {
+    const dir = completeRepo()
+    const readCommitCi = () => [
+      run('pull_request', 'task/#2865-exact-main', 'SUCCESS'),
+      run('push', 'main', 'SUCCESS'),
+    ]
+    runTaskAdvance({ to: 'complete', dir, readPrs: merged, readCommitCi })
+    expect(readUnifiedState(dir)?.phase).toBe('complete')
+  })
+
+  it('refuses the permitGitHub-unset skip when the plan has exact-main criteria', () => {
+    const dir = completeRepo(MARKED_PLAN, {
+      permitGitHub: true,
+      features: { acceptanceAnchor: true },
+    })
+    expect(() => runTaskAdvance({ to: 'complete', dir, readPrs: merged })).toThrow(
+      /exact-main.*AC-1/,
+    )
+  })
+
+  it('leaves a plan without exact-main criteria on the unchanged merged-PR path', () => {
+    const dir = completeRepo(MARKED_PLAN.replace('[exact-main] ', ''))
+    const readCommitCi = vi.fn(() => [])
+    runTaskAdvance({ to: 'complete', dir, readPrs: merged, readCommitCi })
+    expect(readCommitCi).not.toHaveBeenCalled()
+    expect(readUnifiedState(dir)?.phase).toBe('complete')
   })
 })
