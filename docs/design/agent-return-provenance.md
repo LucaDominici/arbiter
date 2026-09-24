@@ -108,8 +108,14 @@ dispatch flags.
 
 Issue #2858 makes provenance part of round correlation. An envelope counts toward a
 review round only when its agent, task, branch, reviewer role, SHA and provenance
-match `.arbiter/agents-dispatched.json`. `check-review-completion.mjs
---correlated-sha=<sha>` prints those envelopes as `{"envelopes":[...]}`, and the round
-lookup in `task.ts` uses that output instead of scanning the directory itself. An
-undispatched file never closes a round. When the recorder rejects an envelope, its exit
-code and output tail are carried into `E_REVIEW_NO_DATA`.
+match `.arbiter/agents-dispatched.json`. Native panel sidecars record that provenance
+in `expectedProvenance`, and a Codex rewrite keeps the bindings of the native agents it
+retains. `check-review-completion.mjs --correlated-sha=<sha>` applies the same panel
+admission as the completion gate (active treatment, every dispatched agent present, all
+valid shards per agent) and prints the envelopes as `{"envelopes":[...]}` only for a
+complete round; an incomplete round prints an empty list. The round lookup in `task.ts`
+uses that output instead of scanning the directory itself. An undispatched file never
+closes a round. When the recorder rejects an envelope, its exit code and output tail are
+carried into `E_REVIEW_NO_DATA` under both `onUnavailable` policies. A generated checker
+that predates the query fails the lookup closed and names
+`arbiter update --only scripts/check-review-completion.mjs`.
