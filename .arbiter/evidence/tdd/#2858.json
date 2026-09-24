@@ -1,19 +1,19 @@
 {
   "$schemaVersion": 1,
   "task_id": "#2858",
-  "test_path": "__tests__/commands/cross-model-review.test.ts",
+  "test_path": "__tests__/commands/ship-review.test.ts",
   "test_cwd": ".",
-  "test_commit_sha": "d0ddbdcab8b685fc2da6b49a7d25af113222498e",
-  "test_blob_sha": "0077fb74059e4d10602a60c0a78b2fa36a677fdc",
-  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/cross-model-review.test.ts (42 tests | 1 failed | 41 skipped) 8ms\n     × #2858 R2: keeps the provenance binding of the native agents a mixed panel retains 7ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 41 skipped (42)\n   Start at  13:21:13\n   Duration  270ms (transform 151ms, setup 9ms, import 167ms, tests 8ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/cross-model-review.test.ts > arbiter ship cross-model wiring (#2357) > #2858 R2: keeps the provenance binding of the native agents a mixed panel retains\nAssertionError: expected { 'codex-reviewer': { …(3) } } to deeply equal { domain: { …(2) }, …(1) }\n\n- Expected\n+ Received\n\n@@ -2,10 +2,6 @@\n    \"codex-reviewer\": {\n      \"cli\": \"codex\",\n      \"dispatch\": \"external-cli\",\n      \"vendor\": \"openai\",\n    },\n-   \"domain\": {\n-     \"dispatch\": \"subagent\",\n-     \"vendor\": \"anthropic\",\n-   },\n  }\n\n ❯ __tests__/commands/cross-model-review.test.ts:1376:9\n    1374|         JSON.parse(readFileSync(join(dir, '.arbiter', 'agents-dispatch…\n    1375|           .expectedProvenance,\n    1376|       ).toEqual({\n       |         ^\n    1377|         domain: native,\n    1378|         'codex-reviewer': { vendor: 'openai', dispatch: 'external-cli'…\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
-  "observed_failure": "FAIL  |unit| __tests__/commands/cross-model-review.test.ts",
-  "recorded_at": "2026-09-24T11:21:13.862Z",
+  "test_commit_sha": "6bf0cf743733970d77c394c963ce44a161abbd3d",
+  "test_blob_sha": "441cb41c41a0a78563edd0429e2aa08ac1712b98",
+  "test_run_log": "\n RUN  v4.1.11 .\n\n ❯ |unit| __tests__/commands/ship-review.test.ts (47 tests | 2 failed | 45 skipped) 718ms\n     × #2858 R3: a mixed-panel retry reuses the admitted PASS Codex seat instead of crashing 377ms\n     × #2858 R3: a mixed-panel retry reuses the admitted blocking Codex seat instead of crashing 340ms\n\n Test Files  1 failed (1)\n      Tests  2 failed | 45 skipped (47)\n   Start at  14:28:43\n   Duration  1.16s (transform 288ms, setup 8ms, import 354ms, tests 718ms, environment 0ms)\n\n\nstderr | __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > #2858 R3: a mixed-panel retry reuses the admitted PASS Codex seat instead of crashing\n\n\n\n\n\n\n\nstderr | __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > #2858 R3: a mixed-panel retry reuses the admitted blocking Codex seat instead of crashing\n\n\n\n\n\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > #2858 R3: a mixed-panel retry reuses the admitted PASS Codex seat instead of crashing\n FAIL  |unit| __tests__/commands/ship-review.test.ts > review rounds own the Codex seat (#2747) > #2858 R3: a mixed-panel retry reuses the admitted blocking Codex seat instead of crashing\nFatalError: review round 1: Codex reviewer returned no data (empty reviewer result); no envelope was written and the round remains open\n ❯ noReviewData src/commands/task-ship.ts:1208:10\n    1206|\n    1207| function noReviewData(plan: PlannedReviewRound, detail: string): Fatal…\n    1208|   return new FatalError(\n       |          ^\n    1209|     'E_REVIEW_NO_DATA',\n    1210|     `review round ${plan.rounds}: Codex reviewer returned no data (${d…\n ❯ fulfilledReviewEnvelope src/commands/task-ship.ts:1271:11\n ❯ executeCodexReviewRound src/commands/task-ship.ts:1287:20\n ❯ openExplicitReviewRound src/commands/task-ship.ts:1366:14\n ❯ runTaskShip src/commands/task-ship.ts:1603:25\n ❯ __tests__/commands/ship-review.test.ts:1019:21\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\n\n",
+  "observed_failure": "FAIL  |unit| __tests__/commands/ship-review.test.ts",
+  "recorded_at": "2026-09-24T12:28:44.748Z",
   "test_command": [
     "npx",
     "vitest",
     "run",
-    "__tests__/commands/cross-model-review.test.ts",
+    "__tests__/commands/ship-review.test.ts",
     "-t",
-    "#2858 R2"
+    "#2858 R3"
   ]
 }
