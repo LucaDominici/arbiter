@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Arbiter hook: phase-aware TDD evidence gate (#2383)
 // Hook type: Stop — retrospectively blocks after an implementation edit unless the
-// active phase holds a successful Skill(tdd) result or, in green/refactor, a committed
-// valid RED receipt (#2861). Plan, docs/** and *.md edits are not implementation edits.
+// edit precedes a successful Skill(tdd) result in the active phase or, in green/refactor, a
+// committed valid RED receipt covers it (#2861). Plan, docs/** and *.md edits are exempt.
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { claudeTranscriptIdentityError, getRepoRoot } from './lib.mjs'
 
@@ -24,11 +24,64 @@ const MAX_TRANSCRIPT_BYTES = 8 * 1024 * 1024
 const MAX_TRANSCRIPT_LINES = 100000
 const SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/
 const TASK_ID = /^#\d+$/
-// ponytail: stays under the Stop budget; arbiter's own CLI-delegating validator needs longer,
-// so there the receipt path times out into the transcript check and /tdd is the recovery.
-const RECEIPT_TIMEOUT_MS = 2000
+
+// #2861 AC-1: the receipt rules of the emitted check-tdd-evidence validator, shared verbatim.
+const FAILURE_SIGNATURES = [
+  /(?<=^[ \t]*)FAIL[ \t]+(?:\|[^|\n]+\|[ \t]+)?\S+\.test\.[jt]sx?/m, // vitest (a test.projects |label| too, #2516)
+  /(?<=^[ \t]*)FAIL[ \t]+(?:\|[^|\n]+\|[ \t]+)?\S+\.(spec|test)\.[jt]sx?/m, // jest
+  /\d+ scenarios? \(\d+ failed/m, // cucumber
+  /={3,}\s*FAILURES\s*={3,}/m, // pytest
+  /FAILED\s*$|BUILD FAILED/m, // gradle
+  /test[ ]result: FAILED/m, // cargo
+  /--- FAIL:/m, // go
+  /^FAIL:[ \t]+\S.*$/m, // shell self-test
+  /^# fail [1-9]\d*/m, // tap (node:test)
+  /^\s*[1-9]\d* failed\b/m, // playwright line/list reporter ("  1 failed")
+]
+const hasFailureSignature = (log) => FAILURE_SIGNATURES.some((re) => re.test(log))
+
+/** Plain-JS mirror of the TddEvidenceV1 schema — returns { ok, reason }. */
+function validateSchema(ev) {
+  if (!ev || typeof ev !== 'object') return { ok: false, reason: 'evidence is not an object' }
+  if (ev.$schemaVersion !== 1) return { ok: false, reason: '$schemaVersion must be 1' }
+  if (typeof ev.task_id !== 'string' || !/^#\d+$/.test(ev.task_id))
+    return { ok: false, reason: 'task_id must match /^#\\d+$/' }
+  if (typeof ev.test_path !== 'string' || ev.test_path.length === 0)
+    return { ok: false, reason: 'test_path must be a non-empty string' }
+  if (typeof ev.test_commit_sha !== 'string' || !/^[0-9a-f]{40}$/i.test(ev.test_commit_sha))
+    return { ok: false, reason: 'test_commit_sha must be 40 hex characters' }
+  if (typeof ev.test_run_log !== 'string')
+    return { ok: false, reason: 'test_run_log must be a string' }
+  if (typeof ev.observed_failure !== 'string' || ev.observed_failure.length === 0)
+    return { ok: false, reason: 'observed_failure must not be empty' }
+  if (typeof ev.recorded_at !== 'string' || Number.isNaN(Date.parse(ev.recorded_at)))
+    return { ok: false, reason: 'recorded_at must be an ISO8601 datetime' }
+  return { ok: true }
+}
+
+/**
+ * #2116: REACHABILITY, not object existence. `cat-file -e` passes for any object still
+ * present in the repo — including the pre-rebase commit of a branch that was rebased
+ * before merging, whose evidence then "verifies" against history nobody can reach, and
+ * turns unverifiable the day the stale branch is deleted. A rebase must fail loudly here
+ * (re-record the evidence) instead of silently passing.
+ */
+function shaExists(sha) {
+  try {
+    git(['merge-base', '--is-ancestor', sha, 'HEAD'])
+    return true
+  } catch {
+    return false
+  }
+}
 
 const root = getRepoRoot()
+const git = (args) =>
+  execFileSync('git', args, {
+    cwd: root,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim()
 const input = readHookInput()
 if (input === null) process.exit(0)
 if (typeof input.session_id !== 'string' || !SESSION_ID.test(input.session_id)) {
@@ -41,16 +94,23 @@ const transcript = readTranscript(input, root)
 if (transcript === null) process.exit(0)
 const verdict = inspectTranscript(transcript, state)
 if (verdict.error) block(verdict.error)
-if (verdict.lastEditId === null || verdict.skillObserved) process.exit(0)
-if (state.phase !== 'red' && receiptVerified(root, state.taskId)) process.exit(0)
-// #2861 AC-6: the host re-runs Stop after a block; an unchanged transcript was already reported.
+if (verdict.lastEditId === null) process.exit(0)
+if (state.phase !== 'red' && receiptVerified(state.taskId)) process.exit(0)
+// #2861 AC-6: the host re-runs Stop after a block; the same edit of the same task, phase and
+// transcript was already reported.
 const marker = join(root, '.claude', '.task', `skill-forced-eval-${input.session_id}.json`)
-if (input.stop_hook_active === true && readBlockedEdit(marker) === verdict.lastEditId) {
+const blocked = {
+  taskId: state.taskId,
+  phase: state.phase,
+  transcriptPath: input.transcript_path,
+  lastEditId: verdict.lastEditId,
+}
+if (input.stop_hook_active === true && readBlockedEdit(marker) === JSON.stringify(blocked)) {
   process.exit(0)
 }
-writeBlockedEdit(marker, verdict.lastEditId)
+writeBlockedEdit(marker, blocked)
 block(
-  `phase ${state.phase} contains an implementation edit without a successful Skill(tdd) result in the phase`,
+  `phase ${state.phase} contains an implementation edit made before any successful Skill(tdd) result in the phase`,
 )
 
 function readHookInput() {
@@ -210,49 +270,55 @@ function inspectTranscript(raw, { startedAt, plan }) {
     }
   }
 
-  // #2861 AC-4: a successful Skill(tdd) anywhere in the phase forgives earlier edits, and later
-  // edits already follow it, so order no longer matters once one exists.
+  // #2861 AC-4: a successful Skill(tdd) forgives only the edits after it; earlier edits still
+  // count unless a committed receipt covers the phase.
   let lastEditId = null
   let skillObserved = false
   for (const [id, use] of uses) {
     const result = results.get(id)
     if (!result || !result.ok || use.timestamp < startedAt) continue
-    if (EDIT_TOOLS.has(use.tool) && !exemptEdit(use.input, plan)) lastEditId = id
+    if (EDIT_TOOLS.has(use.tool) && !skillObserved && !exemptEdit(use.input, plan)) lastEditId = id
     if (use.tool === 'skill' && use.input?.skill?.toLowerCase?.() === 'tdd') skillObserved = true
   }
-  return { lastEditId, skillObserved }
+  return { lastEditId }
 }
 
-/** Plan, docs/** and *.md edits inside the repo are not implementation edits (#2861 AC-2). */
+/**
+ * Plan, docs/** and *.md edits inside the repo are not implementation edits (#2861 AC-2),
+ * judged by the REAL path: a symlink, or a path that does not resolve, still counts.
+ */
 function exemptEdit(toolInput, plan) {
   const path = toolInput?.file_path ?? toolInput?.notebook_path
   if (typeof path !== 'string' || path.length === 0) return false
-  const rel = relative(root, resolve(root, path))
+  let rel
+  try {
+    const target = resolve(root, path)
+    if (lstatSync(target).isSymbolicLink()) return false
+    rel = relative(realpathSync(root), realpathSync(target))
+  } catch {
+    return false
+  }
   if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return false
   const normalized = rel.split('\\').join('/')
   return normalized === plan || normalized.split('/')[0] === 'docs' || normalized.endsWith('.md')
 }
 
 /**
- * #2861 AC-1: the emitted static TDD validator, run over a receipt TRACKED at HEAD (an
- * untracked file or the validator's docs-only vacuous pass proves nothing). Any failure,
- * timeout or missing validator falls through to the transcript verdict, which blocks.
+ * #2861 AC-1: the receipt COMMITTED at HEAD (an untracked file proves nothing), checked in
+ * process with the validator's rules: schema, task binding, RED signature, a RED commit
+ * reachable from HEAD and the test path in it. Any error fails closed into the block.
  */
-function receiptVerified(repoRoot, taskId) {
-  const validator = join(repoRoot, 'scripts', 'check-tdd-evidence.mjs')
-  if (!TASK_ID.test(taskId) || !existsSync(validator)) return false
+function receiptVerified(taskId) {
+  if (!TASK_ID.test(taskId)) return false
   try {
-    execFileSync('git', ['cat-file', '-e', `HEAD:.arbiter/evidence/tdd/${taskId}.json`], {
-      cwd: repoRoot,
-      stdio: 'ignore',
-    })
-    const out = execFileSync('node', [validator, '--dir', repoRoot], {
-      cwd: repoRoot,
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: RECEIPT_TIMEOUT_MS,
-    })
-    return new RegExp(`(?:^|\\s)${taskId}(?::|\\.\\.\\.) PASS\\b`, 'm').test(out)
+    const ev = JSON.parse(git(['show', `HEAD:.arbiter/evidence/tdd/${taskId}.json`]))
+    return (
+      validateSchema(ev).ok &&
+      ev.task_id === taskId &&
+      hasFailureSignature(ev.test_run_log) &&
+      shaExists(ev.test_commit_sha) &&
+      git(['ls-tree', '--name-only', ev.test_commit_sha, ev.test_path]).length > 0
+    )
   } catch {
     return false
   }
@@ -260,15 +326,15 @@ function receiptVerified(repoRoot, taskId) {
 
 function readBlockedEdit(path) {
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')).lastEditId ?? null
+    return JSON.stringify(JSON.parse(readFileSync(path, 'utf-8')))
   } catch {
     return null
   }
 }
 
-function writeBlockedEdit(path, lastEditId) {
+function writeBlockedEdit(path, blocked) {
   try {
-    writeFileSync(path, JSON.stringify({ lastEditId }) + '\n')
+    writeFileSync(path, JSON.stringify(blocked) + '\n')
   } catch {
     // FAIL-OPEN-INTENT: the caller blocks regardless; an unwritable marker only costs one
     // extra block on the host's stop_hook_active re-run.
@@ -284,7 +350,8 @@ function parseTimestamp(record) {
 function block(reason) {
   process.stderr.write(
     `[skill-forced-eval] blocked: ${reason}\n` +
-      `Run /tdd and wait for its successful result before editing implementation code; then run npm test.\n`,
+      `In green/refactor, commit a valid RED receipt (arbiter lifecycle record-red); otherwise\n` +
+      `run /tdd and wait for its successful result before the next implementation edit; then run npm test.\n`,
   )
   process.exit(2)
 }
