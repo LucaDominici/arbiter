@@ -1054,6 +1054,78 @@ describe('result-first read-only status (#2724)', () => {
     expect(lines).not.toContain('Autonomy gate: STOP')
   })
 
+  const debtRatchet = {
+    name: 'debt ratchet',
+    thresholds: [
+      {
+        name: 'coverageBranch',
+        value: 90.42,
+        source: 'scripts/debt-baseline.json#metrics.coverageBranch.value',
+        direction: 'higher-is-better',
+        tolerance: 0.4,
+      },
+      {
+        name: 'publicApiSurface',
+        value: 1174,
+        source: 'scripts/debt-baseline.json#metrics.publicApiSurface.value',
+        direction: 'lower-is-better',
+        tolerance: 0,
+      },
+    ],
+  }
+
+  it('prints each debt ratchet baseline, tolerance, limit and plan-time current value (#2863 AC-2)', () => {
+    const shipProfile = profile()
+    const lines = buildShipStepLines({
+      phase: 'plan',
+      step: shipStepFor('plan', 'Standard', shipProfile, '#2863'),
+      advanced: false,
+      done: false,
+      tier: 'Standard',
+      profile: shipProfile,
+      derivedGates: [debtRatchet],
+      debtCurrent: { publicApiSurface: 1175 },
+    }).join('\n')
+
+    expect(lines).toContain(
+      'coverageBranch: baseline 90.42, tolerance 0.4, floor 90.02, current: not measured at plan',
+    )
+    expect(lines).toContain(
+      'publicApiSurface: baseline 1174, tolerance 0, ceiling 1174, current: 1175',
+    )
+  })
+
+  it('measures the public API count at a Standard plan without writing state (#2863 AC-2)', () => {
+    runTaskShip({ dir, taskId: '#2863', tier: 'S' })
+    writeUnifiedState(dir, { phase: 'plan', derivedGates: [debtRatchet] })
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(
+      join(dir, 'scripts/debt-lib.mjs'),
+      'export function countPublicApi(cwd) { return cwd.length > 0 ? 7 : 0 }\n',
+    )
+    expect(runTaskShip({ dir }).debtCurrent).toBeUndefined()
+    const seeded = readUnifiedState(dir)?.treatment
+    writeUnifiedState(dir, {
+      tier: 'Standard',
+      ...(seeded ? { treatment: { ...seeded, tier: 'Standard', requestedTier: 'Standard' } } : {}),
+    })
+    const path = join(dir, '.claude/.task/status.json')
+    const before = readFileSync(path, 'utf8')
+
+    const first = runTaskShip({ dir })
+    const second = runTaskShip({ dir })
+
+    expect(first.debtCurrent).toEqual({ publicApiSurface: 7 })
+    expect(second).toEqual(first)
+    expect(readFileSync(path, 'utf8')).toBe(before)
+    expect(buildShipStepLines(first).join('\n')).toContain('current: 7')
+
+    writeFileSync(join(dir, 'scripts/debt-lib.mjs'), 'export const countPublicApi = () => "n/a"\n')
+    expect(runTaskShip({ dir }).debtCurrent).toBeUndefined()
+    rmSync(join(dir, 'scripts/debt-lib.mjs'))
+    expect(runTaskShip({ dir }).debtCurrent).toBeUndefined()
+  })
+
   it('derives a wider treatment without writing, then persists it on the next transition', () => {
     const persisted = resolveShipTreatment('XS', {
       blastRadius: 0,
