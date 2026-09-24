@@ -139,6 +139,12 @@ describe('runTaskRecordRed()', () => {
       exitCode: 1,
       durationMs: 500,
     })
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'c'.repeat(40),
+      stderr: '',
+      exitCode: 0,
+      durationMs: 5,
+    })
     mockedRunCli.mockImplementationOnce(() => {
       throw new Error('index.lock exists')
     })
@@ -148,7 +154,7 @@ describe('runTaskRecordRed()', () => {
       ok: false,
       reason: expect.stringMatching(/receipt .*#551\.json.* not staged: index\.lock exists/),
     })
-    expect(mockedRunCli.mock.calls[5]).toEqual([
+    expect(mockedRunCli.mock.calls[6]).toEqual([
       'git',
       ['add', '-f', '--', '.arbiter/evidence/tdd/#551.json'],
       expect.objectContaining({ cwd: dir }),
@@ -381,6 +387,26 @@ describe('runTaskRecordRed()', () => {
     expect(mockedRunCli.mock.calls[4]).toEqual([
       'pytest',
       ['tests/test_foo.py'],
+      expect.any(Object),
+    ])
+  })
+
+  it('executes a shell test with bash whatever the project language (#2862)', () => {
+    const dir = tmpRepo()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ language: 'go' }), 'utf-8')
+    mockBranch()
+    mockedRunCli.mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+    mockCleanGitChecks('scripts/check.test.sh')
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'FAIL: expected violation',
+      stderr: '',
+      exitCode: 1,
+      durationMs: 50,
+    })
+    runTaskRecordRed({ testPath: 'scripts/check.test.sh', dir })
+    expect(mockedRunCli.mock.calls[4]).toEqual([
+      'bash',
+      ['scripts/check.test.sh'],
       expect.any(Object),
     ])
   })
@@ -1176,7 +1202,7 @@ describe('record-red --at (#2747)', () => {
       if (args[0] === 'cat-file') {
         return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
       }
-      if (args[0] === 'status') {
+      if (args[0] === 'status' || args[0] === 'add') {
         return { stdout: '', stderr: '', exitCode: 0, durationMs: 5 }
       }
       if (args[0] === 'worktree' && args[1] === 'add') {

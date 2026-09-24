@@ -106,6 +106,8 @@ function selectRunner(language: Language, testPath: string): readonly string[] {
   // #2656: a JS/TS test file is a vitest test whatever the repo language (a Go
   // consumer testing its gate scripts with vitest must not get `go test ./scripts`).
   if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(testPath)) return ['npx', 'vitest', 'run', testPath]
+  // #2862: a shell test is executed, whatever the repo language.
+  if (testPath.endsWith('.sh')) return ['bash', testPath]
   switch (language) {
     case 'go':
       // `go test` takes a package path, not a file. Scope to the file's
@@ -590,6 +592,14 @@ function saveEvidence(
 ): RecordRedSuccess | RecordRedFailure {
   try {
     const evidencePath = writeTddEvidence({ repoDir: dir, evidence })
+    // #2862: stage the receipt past any ignore rule so the RED commit cannot miss it.
+    const staged = relative(dir, evidencePath).split(sep).join('/')
+    try {
+      runCli('git', ['add', '-f', '--', staged], { cwd: dir })
+    } catch (err) {
+      const why = err instanceof Error ? err.message : String(err)
+      return { ok: false, reason: `receipt ${evidencePath} not staged: ${why}` }
+    }
     return { ok: true, evidencePath, framework }
   } catch (err) {
     return { ok: false, reason: err instanceof Error ? err.message : String(err) }
