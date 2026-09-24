@@ -83,7 +83,7 @@ describe('gate contract inspection', () => {
     }
     symlinkSync(join(process.cwd(), 'node_modules'), join(root, 'node_modules'))
     const before = inspectGateContract(root)
-    expect(before.unresolved ?? []).toEqual([])
+    expect(unresolvedContractReasons(before)).toEqual([])
 
     mkdirSync(join(root, 'src'))
     writeFileSync(join(root, 'src', 'added.ts'), 'export const added = 1\n')
