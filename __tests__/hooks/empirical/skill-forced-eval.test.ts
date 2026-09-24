@@ -884,6 +884,19 @@ describe('skill-forced-eval — recoverable gate (#2861)', () => {
       expect(run(selfHookPath, dir, transcript).status).toBe(2)
     }))
 
+  it('AC-4 does not forgive an edit that completes while Skill(tdd) has no result yet', () =>
+    withRepo(({ dir, hookPath, selfHookPath }) => {
+      setPhase(dir, 'red')
+      const [skillCall, skillResult] = skillLines('skill-1')
+      const transcript = writeRawTranscript(dir, [
+        skillCall,
+        ...editLines('edit-1', { file_path: join(dir, 'src', 'a.ts') }),
+        skillResult,
+      ])
+      expect(run(hookPath, dir, transcript).status).toBe(2)
+      expect(run(selfHookPath, dir, transcript).status).toBe(2)
+    }))
+
   it('AC-4 in green, a committed receipt covers an edit made before Skill(tdd)', () =>
     withRepo(({ dir, hookPath }) => {
       recordRed(dir, { commit: true })
