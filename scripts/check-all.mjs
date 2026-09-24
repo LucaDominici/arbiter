@@ -393,11 +393,18 @@ if (isMain) {
       runCheck('anti-drift: secret scan', 'node', ['scripts/check-secret-scan.mjs'])
       runCheck('no tracked artifacts (INV-117)', 'node', ['scripts/check-no-tracked-artifacts.mjs'])
       runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
+      runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
       runCheck('complexity ratchet (preventive)', 'node', [
         'scripts/debt-report.mjs',
         '--gate',
         '--only-metric',
         'complexityViolations',
+      ])
+      runCheck('public API ratchet (preventive)', 'node', [
+        'scripts/debt-report.mjs',
+        '--gate',
+        '--only-metric',
+        'publicApiSurface',
       ])
       runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
       runCheck('examples drift (#2222)', 'node', ['scripts/regenerate-examples.mjs', '--check'])

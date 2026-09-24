@@ -66,8 +66,9 @@ arbiter lifecycle start --id '#NNN' --plan path/to/plan.md
 Then read the next `/ship` step to review the refreshed commands and unresolved obligations before
 entering RED.
 
-Arbiter's own pre-push preflight executes two cheap final-gate slices that have caused avoidable CI
-rework: the fail-closed audit and the existing complexity baseline measurement. Generated
+Arbiter's own pre-push preflight executes cheap final-gate slices that have caused avoidable CI
+rework: the fail-closed audit, anti-telemetry, and the existing complexity and public API baseline
+measurements (`--only-metric publicApiSurface`, zero tolerance). Generated
 TypeScript targets with debt gates enabled execute the applicable complexity slice. It uses
 `debt-report.mjs --gate --only-metric complexityViolations`, fails when the collector is unavailable,
 and does not run coverage, type checking, dead-code or duplication collectors. The complete debt
